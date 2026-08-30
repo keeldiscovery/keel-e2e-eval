@@ -1,11 +1,27 @@
 """Scenario base (T012, data-model.md): payload builders keyed by action, an answer table for the
 participant, and an about-line. A concrete scenario is "a matter of one new module" (FR-007) --
 subclass this, fill in the hooks, write a `evals/test_*.py` that drives it.
+
+002-eval-scoring adds the fact registry (data-model.md's "Fact registry (Scenario.facts())"):
+every founder- or participant-entered text a scenario cares about tracing hop-by-hop, declared
+once, checked by harness/rubric.py's FID-* checks. `absent_hops` documents a hop a fact
+legitimately never reaches (spec edge case: "declared absent... not silently unchecked") --
+distinct from just omitting the hop, which would leave a reviewer wondering whether it was
+forgotten or ruled out on purpose.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any
+
+
+@dataclass
+class Fact:
+    text: str
+    kind: str  # statement | role | assumption | about_line | answer | interpretation
+    hops: list[str] = field(default_factory=list)
+    absent_hops: list[str] = field(default_factory=list)
 
 
 def find_role(roles: list[dict], label: str) -> dict:
@@ -82,3 +98,11 @@ class Scenario:
         """The single supportive free-text answer this scenario's participant gives to every
         question on a stage's invitation (S-001 answers supportively throughout)."""
         raise NotImplementedError
+
+    # ---------------------------------------------------------------------------- fact registry
+
+    def facts(self) -> dict[str, Fact]:
+        """fact id -> Fact (data-model.md). The default is empty: a scenario that declares none
+        gets no FID-* checks generated (rather than a crash), which is what a pre-002 scenario --
+        or one not yet updated -- re-scores as (analysis finding A2)."""
+        return {}

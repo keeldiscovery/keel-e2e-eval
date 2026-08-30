@@ -19,9 +19,9 @@ import time
 
 from harness.browser import FounderBrowser, ParticipantBrowser
 from harness.driver import FounderAgentDriver
-from harness.evidence import generate_report, write_verdict
+from harness.evidence import finalize_run
 from harness.steps import Recorder
-from evals.scenario import Scenario, find_role
+from evals.scenario import Fact, Scenario, find_role
 
 ROLE_LABEL = "Payroll Ops Manager"
 STAGES = ["PROBLEM", "SOLUTION", "COMMERCIAL"]
@@ -156,6 +156,60 @@ class S001Smoke(Scenario):
     def participant_answer(self, stage: str) -> str:
         return self._answers[stage]
 
+    # ---------------------------------------------------------------------------- fact registry
+
+    def facts(self) -> dict[str, Fact]:
+        """002-eval-scoring, US2 (T011): every founder- or participant-entered text S-001 cares
+        about tracing hop-by-hop, per design §3's table. `role_label` is declared once (the same
+        role is reused across all three stages); the rest are declared per stage. The
+        `assumption_*` facts' `brief` hop is expected to be waived (policy's
+        `brief-findings-summarize`), not to pass verbatim -- `brief_payload` above writes
+        founder-authored summary sentences with respondent counts, not the raw statement.
+        """
+        facts: dict[str, Fact] = {
+            "problem_statement": Fact(
+                text=self.problem_statement(), kind="statement",
+                hops=["agent_echo", "stage_screen", "brief"],
+                absent_hops=["invite_screen", "participant_page", "interpret_context"],
+            ),
+            "role_label": Fact(
+                text=ROLE_LABEL, kind="role",
+                hops=["agent_echo", "stage_screen", "invite_screen"],
+                absent_hops=["participant_page", "interpret_context", "brief"],
+            ),
+        }
+        for stage in ("SOLUTION", "COMMERCIAL"):
+            facts[f"{stage.lower()}_frame"] = Fact(
+                text=self.frame_statement(stage), kind="statement",
+                hops=["agent_echo", "stage_screen", "brief"],
+                absent_hops=["invite_screen", "participant_page", "interpret_context"],
+            )
+        for stage in STAGES:
+            lower = stage.lower()
+            facts[f"assumption_{lower}"] = Fact(
+                text=self._assumptions[stage]["statement"], kind="assumption",
+                hops=["agent_echo", "stage_screen", "interpret_context", "brief"],
+                absent_hops=["invite_screen", "participant_page"],
+            )
+            facts[f"about_line_{lower}"] = Fact(
+                text=self.about_line(stage), kind="about_line",
+                hops=["invite_screen", "participant_page"],
+                absent_hops=["agent_echo", "stage_screen", "interpret_context", "brief"],
+            )
+            facts[f"answer_{lower}"] = Fact(
+                text=self.participant_answer(stage), kind="answer",
+                hops=["interpret_context", "stage_screen"],
+                absent_hops=["agent_echo", "invite_screen", "participant_page", "brief"],
+            )
+            # translate.ts's betStatus: an approved, evidence-SUPPORTED stage reads "Holding up"
+            # -- S-001 answers supportively throughout, so every stage should land here.
+            facts[f"interpretation_{lower}"] = Fact(
+                text="Holding up", kind="interpretation",
+                hops=["stage_screen"],
+                absent_hops=["agent_echo", "invite_screen", "participant_page", "interpret_context", "brief"],
+            )
+        return facts
+
 
 def test_s001_smoke(stack, run_dir, browser):
     recorder = Recorder(run_dir)
@@ -179,7 +233,7 @@ def test_s001_smoke(stack, run_dir, browser):
         assert project_id
 
         founder_page = founder_context.new_page()
-        founder = FounderBrowser(founder_page, founder_web_base, recorder)
+        founder = FounderBrowser(founder_page, founder_web_base, recorder, get_state=driver.get_state)
 
         for stage in STAGES:
             assert handoff["reason"] == "REVIEW", (stage, handoff)
@@ -219,6 +273,12 @@ def test_s001_smoke(stack, run_dir, browser):
                     h.fail(f"still WAITING after {stage}'s participant answered: {handoff}")
                     raise AssertionError(h.error)
 
+            # FID hop capture (T012): the participant's verbatim answer only ever renders on the
+            # stage screen inside a belief's (collapsed-by-default) testimony drilldown, which
+            # only exists once evidence has been interpreted -- so this stage needs a second
+            # visit, now that INTERPRET has run, to put that hop's text on a rendered page at all.
+            founder.open_stage_evidence(project_id, stage)
+
         assert handoff is None, f"expected the project to be finished (brief proposed), got {handoff}"
 
         founder.open_overview(project_id)
@@ -242,7 +302,6 @@ def test_s001_smoke(stack, run_dir, browser):
     finally:
         founder_context.close()
         duration = time.monotonic() - started
-        write_verdict(run_dir, scenario=scenario.slug, passed=passed,
-                      failed_step=recorder.failed_step, duration_s=duration)
-        generate_report(run_dir)
+        finalize_run(run_dir, scenario=scenario, passed=passed,
+                     failed_step=recorder.failed_step, duration_s=duration)
         print(f"\nrun bundle: {run_dir}")

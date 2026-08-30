@@ -26,11 +26,11 @@ this docstring is the record of that correction (see the delivery report's findi
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 
 import requests
 
-from harness.steps import Recorder
+from harness.steps import Recorder, StepHandle
 
 
 class ProtocolError(RuntimeError):
@@ -58,6 +58,43 @@ def _safe_json(response: requests.Response) -> Any:
         return response.json()
     except ValueError:
         return response.text
+
+
+# ------------------------------------------------------------------- FID hop capture (T012)
+
+def _opportunity_echo_text(parsed: Any) -> str:
+    """The `agent_echo` hop: what get_context("opportunity") reflects back -- each stage's
+    active (and previous) claim, plus every applying belief's statement and asking role's label
+    (ContextHandleService.opportunity). Fetched on almost every action per HandleGrants, so this
+    fires throughout the run, not just once."""
+    if not isinstance(parsed, dict):
+        return ""
+    parts: list[str] = []
+    for stage in parsed.get("stages") or []:
+        for key in ("statement", "previousStatement"):
+            if stage.get(key):
+                parts.append(stage[key])
+        for belief in stage.get("beliefs") or []:
+            if belief.get("statement"):
+                parts.append(belief["statement"])
+            if belief.get("roleLabel"):
+                parts.append(belief["roleLabel"])
+    return "\n".join(parts)
+
+
+def _response_echo_text(parsed: Any) -> str:
+    """The `interpret_context` hop: get_context("response")'s answers, each carrying both the
+    assumption's own statement and the participant's verbatim answer text (ContextHandleService.
+    response) -- the weight-2 fidelity check reads this."""
+    if not isinstance(parsed, dict):
+        return ""
+    parts: list[str] = []
+    for answer in parsed.get("answers") or []:
+        if answer.get("assumptionStatement"):
+            parts.append(answer["assumptionStatement"])
+        if answer.get("text"):
+            parts.append(answer["text"])
+    return "\n".join(parts)
 
 
 class FounderAgentDriver:
@@ -100,7 +137,8 @@ class FounderAgentDriver:
 
     # --------------------------------------------------------------------------- wire primitives
 
-    def _post(self, path: str, body: Any, step_name: str) -> Any:
+    def _post(self, path: str, body: Any, step_name: str, *,
+              capture: Callable[[StepHandle, Any], None] | None = None) -> Any:
         with self.recorder.step(step_name, party="agent", kind="protocol") as h:
             response = self.session.post(f"{self.base_url}{path}", json=body, timeout=15)
             parsed = _safe_json(response)
@@ -108,6 +146,8 @@ class FounderAgentDriver:
             if response.status_code >= 400:
                 h.fail(f"HTTP {response.status_code}: {parsed}")
                 raise ProtocolError(response.status_code, parsed)
+            if capture is not None:
+                capture(h, parsed)
         return parsed
 
     def get_next(self) -> dict:
@@ -117,8 +157,32 @@ class FounderAgentDriver:
                            f"get_next (project {self.project_id})")
 
     def get_context(self, token: str, handle: str) -> Any:
+        def capture(h: StepHandle, parsed: Any) -> None:
+            # FID hop capture (T012): the two context handles that echo founder/participant text
+            # back at the agent -- see the module-level helpers' docstrings for which hop each
+            # feeds.
+            if handle == "opportunity":
+                h.capture_text("agent_echo", _opportunity_echo_text(parsed))
+            elif handle == "response":
+                h.capture_text("interpret_context", _response_echo_text(parsed))
+
         return self._post("/v2/agent/context", {"token": token, "handle": handle},
-                           f"get_context({handle})")
+                           f"get_context({handle})", capture=capture)
+
+    def get_state(self, project_id: str) -> dict:
+        """GET .../state -- the one read this driver makes outside the get_next/get_context/
+        submit triad, purely so harness/browser.py can stash a state snapshot into a ui-visit
+        interaction's captured_text (analysis finding A1: GUI-U1 needs "does a need exist" to be
+        answerable from the interaction alone, at scoring time, with no live driver around)."""
+        with self.recorder.step(f"get_state (project {project_id})", party="agent", kind="protocol") as h:
+            response = self.session.get(f"{self.base_url}/v2/agent/projects/{project_id}/state", timeout=15)
+            parsed = _safe_json(response)
+            h.record_wire({"path": f"/v2/agent/projects/{project_id}/state"},
+                           {"status": response.status_code, "body": parsed})
+            if response.status_code >= 400:
+                h.fail(f"HTTP {response.status_code}: {parsed}")
+                raise ProtocolError(response.status_code, parsed)
+        return parsed
 
     def check_mcp_reachable(self) -> None:
         """One /mcp reachability touch even though this driver speaks HTTP (design §3)."""
@@ -172,20 +236,31 @@ class FounderAgentDriver:
         """One get_next, and -- only if it recommends an action -- the context reads and submit
         needed to run it. Returns the raw NextResponse either way, so the caller can branch on
         `kind` (a handoff is returned untouched, for a real party to execute).
+
+        Opens one agent-cycle interaction scope (design §2) around the whole call. Whether this
+        was actually an agent-cycle (an action ran) or an agent-handoff (nothing left for the
+        agent to do) is only knowable once `get_next` answers -- and by then that step is already
+        durably appended -- so every call opens provisionally as "agent-cycle" and
+        `retag_interaction` corrects the handoff branch afterwards (see harness/steps.py's
+        docstring on why this durability-over-precision trade is made).
         """
-        response = self.get_next()
-        if response.get("kind") != "action":
-            return response
+        with self.recorder.interaction("agent-cycle") as interaction_id:
+            response = self.get_next()
+            if response.get("kind") == "handoff":
+                self.recorder.retag_interaction(interaction_id, "agent-handoff")
+                return response
+            if response.get("kind") != "action":
+                return response
 
-        action = response["action"]
-        token = response["token"]
-        detail = response.get("detail") or {}
-        context: dict[str, Any] = {}
-        for handle in response.get("context") or []:
-            context[handle] = self.get_context(token, handle)
+            action = response["action"]
+            token = response["token"]
+            detail = response.get("detail") or {}
+            context: dict[str, Any] = {}
+            for handle in response.get("context") or []:
+                context[handle] = self.get_context(token, handle)
 
-        payload = self.scenario.build_payload(action, detail, context)
-        self.submit_with_recovery(token, payload, action, action)
+            payload = self.scenario.build_payload(action, detail, context)
+            self.submit_with_recovery(token, payload, action, action)
         return response
 
     def advance_until_handoff(self) -> dict | None:

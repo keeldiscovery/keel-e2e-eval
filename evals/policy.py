@@ -1,0 +1,191 @@
+"""The versioned scoring policy (contracts/policy-contract.md; design §5): every check id,
+weight, category weight, normalization rule, clarity token list, and waiver lives here. Nothing
+in `harness/rubric.py` decides a weight or a wording rule on its own -- it asks this module.
+
+`POLICY_VERSION` bumps whenever a check, weight, or waiver changes here, because a run's score is
+only comparable to another run's under the same policy (data-model.md, FR-006).
+
+Judgement calls made while filling in what the contract leaves to the implementation:
+
+1. **Stage-name enum exemption.** `StageType` (`PROBLEM`/`SOLUTION`/`COMMERCIAL`) is deliberately
+   left out of `CLARITY_TOKENS`. keel-web's own founder-facing stage headers are the ALL-CAPS
+   phrases "THE PROBLEM" / "YOUR SOLUTION" / "WILL THEY PAY" (`lib/translate.ts` `STAGE_LABEL`) --
+   two of the three literally contain the enum spelling as an ordinary English word in the
+   product's *correct* copy. Sweeping bare `PROBLEM`/`SOLUTION` would flag that copy, not a leak;
+   the other five enum families (`WorkflowState`, `Verdict`, `Need`, `Risk`, handle/action names)
+   don't share this collision and are swept as designed.
+2. **`instruction.content` is swept anyway, even though keel-cloud's own javadoc calls it "the
+   paragraph the executing client alone reads"** (not literally shown to today's no-LLM harness
+   founder). The contract names `instruction` explicitly under CLA-A1's "founder-facing text", and
+   design §2 treats the conversation card as standing in for what a real agent would voice to the
+   founder -- so this policy sweeps it as specified, honestly, rather than narrowing the check to
+   avoid a finding. Where that surfaces a real leak, it is a DRIFT.md finding, not a reason to
+   soften the check (design §6).
+"""
+
+from __future__ import annotations
+
+import re
+from typing import Any
+
+POLICY_VERSION = 1
+
+CATEGORY_WEIGHTS: dict[str, float] = {
+    "FIDELITY": 0.4,
+    "GUIDANCE": 0.25,
+    "ORIENTATION": 0.2,
+    "CLARITY": 0.15,
+}
+
+DEFAULT_WEIGHT = 1
+# "FID checks on `answer` facts at `interpret_context` (weight 2 -- verbatim participant speech
+# is the product's evidence spine)."
+FID_ANSWER_INTERPRET_WEIGHT = 2
+
+COMPLETION_GATE_SCORE = 2.0
+
+# The non-FID checks this policy defines: id -> {attribute, weight}. FID-* checks are generated
+# per fact x hop from the scenario's fact registry (harness/rubric.py), always attribute
+# "FIDELITY", weighted by `fid_weight` below.
+CHECKS: dict[str, dict[str, Any]] = {
+    "ORI-A1": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
+    "ORI-A2": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
+    "ORI-H1": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
+    "ORI-U1": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
+    "ORI-U2": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
+    "ORI-P1": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
+    "GUI-A1": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
+    "GUI-A2": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
+    "GUI-H1": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
+    "GUI-U1": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
+    "GUI-P1": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
+    "CLA-U1": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
+    "CLA-U2": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
+    "CLA-A1": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
+}
+
+# Every hop id this policy knows how to score (data-model.md's Fact registry).
+HOP_IDS = ["agent_echo", "stage_screen", "invite_screen", "participant_page", "interpret_context", "brief"]
+
+# hop ids reached via an agent-cycle interaction's captured_text vs. a screen visit's -- lets
+# harness/rubric.py know which interactions are even candidates for a given hop.
+HOP_INTERACTION_TYPES: dict[str, tuple[str, ...]] = {
+    "agent_echo": ("agent-cycle",),
+    "interpret_context": ("agent-cycle",),
+    "stage_screen": ("ui-visit",),
+    "invite_screen": ("ui-visit",),
+    "brief": ("ui-visit",),
+    "participant_page": ("participant-page",),
+}
+
+# Waivers (design §5): (fact kind, hop id) -> {reason, reference}. A waived hop counts as pass,
+# flagged, provided the hop's interaction actually exists (waivers excuse summarizing, not total
+# absence -- see harness/rubric.py).
+WAIVERS: dict[tuple[str, str], dict[str, str]] = {
+    ("assumption", "brief"): {
+        "id": "brief-findings-summarize",
+        "reason": "Brief.findings is a founder-authored summary sentence (with respondent counts), "
+                  "not a verbatim repeat of the assumption statement -- known, accepted contract gap.",
+        "reference": "keel-cloud specs/projectv2/api-design.md §6a",
+    },
+}
+
+
+def fid_weight(fact_kind: str, hop: str) -> int:
+    if fact_kind == "answer" and hop == "interpret_context":
+        return FID_ANSWER_INTERPRET_WEIGHT
+    return DEFAULT_WEIGHT
+
+
+def waiver_for(fact_kind: str, hop: str) -> dict[str, str] | None:
+    return WAIVERS.get((fact_kind, hop))
+
+
+# ---------------------------------------------------------------------------------- normalization
+
+_QUOTE_MAP = str.maketrans({
+    "“": '"', "”": '"', "‘": "'", "’": "'", "`": "'",
+})
+_TRAILING_PUNCT_RE = re.compile(r"[.,!?;:]+$")
+_WHITESPACE_RE = re.compile(r"\s+")
+
+
+def normalize(text: str | None) -> str:
+    """casefold, collapse whitespace, unify quotes/apostrophes, strip trailing punctuation
+    (contract's Normalization section) -- applied to both a fact's declared text and the hop
+    blob it's checked against, so `"Payroll…"` matches `'payroll...'` and matching stays
+    verbatim-by-default rather than fuzzy.
+    """
+    if not text:
+        return ""
+    t = text.translate(_QUOTE_MAP).casefold()
+    t = _WHITESPACE_RE.sub(" ", t).strip()
+    t = _TRAILING_PUNCT_RE.sub("", t).strip()
+    return t
+
+
+def fact_reaches_hop(fact_text: str, hop_blob: str) -> bool:
+    """Verbatim-by-default matching: does the normalized fact text appear, intact, inside the
+    normalized hop blob? Substring rather than equality because a hop blob is a whole screen's
+    (or context payload's) text, not just the one fact.
+    """
+    needle = normalize(fact_text)
+    if not needle:
+        return False
+    return needle in normalize(hop_blob)
+
+
+# -------------------------------------------------------------------------------------- clarity
+
+WORKFLOW_STATES = {"OPEN", "READY_TO_BUILD", "PIVOTED", "STOPPED"}
+VERDICTS = {"UNTESTED", "SUPPORTED", "CONTRADICTED", "MIXED"}
+NEEDS = {"REVIEW", "INVITE", "ANSWERS", "EVIDENCE", "REFRAME"}
+RISKS = {"LOAD_BEARING", "SUPPORTING"}
+HANDLE_NAMES = {"opportunity", "assumptions", "contradictions", "roles", "response",
+                "link_questions", "brief_inputs", "awaiting"}
+ACTION_NAMES = {"CREATE", "FRAME", "INTRODUCE_ROLES", "INTRODUCE_ASSUMPTIONS",
+                "WITHDRAW_ASSUMPTION", "INTERPRET", "PROCEED_TO_BRIEF", "PIVOT", "STOP"}
+LICENSED_ACTION_NAMES = {"CREATE", "INTERPRET"}
+RULE_LITERALS = {"token", "concurrency", "schema", "context", "open_web", "screen"}
+
+# See module docstring, judgement call 1: StageType names are excluded on purpose.
+CLARITY_TOKENS: set[str] = (
+    WORKFLOW_STATES | VERDICTS | NEEDS | RISKS | HANDLE_NAMES
+    | (ACTION_NAMES - LICENSED_ACTION_NAMES) | RULE_LITERALS
+)
+
+_URL_RE = re.compile(r"\S+://\S+")
+_CAMEL_CASE_RE = re.compile(r"\b[a-z][a-z0-9]*[A-Z][a-zA-Z0-9]*\b")
+_JSON_PUNCT_RE = re.compile(r'[{}\[\]]|"\s*:\s*"?|\'\s*:\s*\'?')
+
+
+def _strip_urls(text: str) -> str:
+    """CLARITY exempts URL path segments (design §3/spec edge cases) -- strip whole URL tokens
+    (scheme://...) before sweeping, so a captured page URL or invite link doesn't trip the enum
+    or field-name sweep on its path segments.
+    """
+    return _URL_RE.sub(" ", text)
+
+
+def enum_violations(text: str | None) -> list[str]:
+    """Raw enum tokens found verbatim (case-sensitive, whole-word) in `text`, minus the URL
+    exemption and the two licensed action names (already excluded from CLARITY_TOKENS)."""
+    if not text:
+        return []
+    scanned = _strip_urls(text)
+    return sorted({token for token in CLARITY_TOKENS if re.search(rf"\b{re.escape(token)}\b", scanned)})
+
+
+def structural_violations(text: str | None) -> list[str]:
+    """JSON punctuation and camelCase field names found in `text` (CLA-U2 / half of CLA-A1)."""
+    if not text:
+        return []
+    scanned = _strip_urls(text)
+    found = {m.group(0) for m in _CAMEL_CASE_RE.finditer(scanned)}
+    found |= {m.group(0) for m in _JSON_PUNCT_RE.finditer(scanned) if m.group(0).strip()}
+    return sorted(found)
+
+
+def clarity_violations(text: str | None) -> list[str]:
+    """Combined sweep (CLA-A1's "free of raw enums ... and field names")."""
+    return sorted(set(enum_violations(text)) | set(structural_violations(text)))

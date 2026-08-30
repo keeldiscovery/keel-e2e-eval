@@ -3,8 +3,12 @@
 The fourth Keel repo. It owns no product code: it stands up `keel-cloud` + `keel-web` locally
 against a Docker Postgres, drives a scripted founder-agent over the real HTTP agent protocol,
 executes every handoff in a real browser (founder + an isolated participant context), and leaves
-a reviewable evidence bundle per run. See `specs/e2e-eval-design.md` for the design of record and
-`specs/001-e2e-eval-harness/` for the spec/plan/contracts this build follows.
+a reviewable, **scored** evidence bundle per run -- every founder-agent cycle, handoff, screen
+visit, and participant page is checked against a versioned policy on four attributes
+(ORIENTATION, GUIDANCE, FIDELITY, CLARITY) and the run gets an X/5. See
+`specs/e2e-eval-design.md` (feature 001, the harness) and `specs/eval-scoring-design.md`
+(feature 002, the scoring layer) for the designs of record, and `specs/001-e2e-eval-harness/` /
+`specs/002-eval-scoring/` for the specs/plans/contracts each build follows.
 
 ## Prerequisites
 
@@ -14,6 +18,10 @@ a reviewable evidence bundle per run. See `specs/e2e-eval-design.md` for the des
 - JDK 21 (`JAVA_HOME` pointed at it) and Node 20+.
 - `make` will create its own `.venv` and install `pytest`, `playwright`, `requests`, plus the
   Chromium browser -- nothing to install by hand.
+- `stack/cloud.py` boots keel-cloud with `SPRING_AI_MCP_SERVER_PROTOCOL=STREAMABLE` -- a same-
+  binary environment override, not a keel-cloud code change -- because `spring-ai-bom 2.0.1`'s
+  actual default (`SSE`, mounted at `/sse`) doesn't match what keel-cloud's own `SecurityConfig`
+  permits (`/mcp`). See `runs/DRIFT.md` #3.
 
 ## Run
 
@@ -42,6 +50,42 @@ report template):
 ```bash
 make report RUN=runs/20260829T210000Z-s001-smoke
 ```
+
+## Scored runs
+
+Every run also gets a scorecard (`specs/eval-scoring-design.md`): steps get tagged into
+**interactions** (one founder-agent cycle, one handoff, one screen visit, one participant survey),
+each interaction is checked against `evals/policy.py`'s versioned rubric, and the checks roll up
+into four category scores and one run score out of 5. `report.html`'s header shows the big X/5,
+a bar per category, the policy version, and a gated badge if the run didn't finish; below that,
+one card per interaction (a conversation card for the agent surface, screenshots for the browser
+surface, failed/waived checks called out inline); a scorecard matrix sits at the bottom.
+
+`scorecard.json` sits beside `transcript.jsonl`/`verdict.json` in the run bundle, and
+`verdict.json` gains `score` + `policy_version`. `make report RUN=<dir>` **re-runs scoring**, not
+just rendering, straight from the bundle (`transcript.jsonl` + `facts.json`) -- so re-scoring an
+old run under a newer policy is just:
+
+```bash
+make report RUN=runs/20260829T210000Z-s001-smoke
+```
+
+`transcript.jsonl` and `screenshots/` are never touched by this; only `scorecard.json` and
+`verdict.json`'s score/policy fields are rewritten. An interrupted run (the workflow never
+finished) still gets scored on whatever it saw -- category scores describe what was observed, but
+the run score is capped at 2/5 and the report shows a "GATED" badge.
+
+**Changing the policy** (`evals/policy.py`): any change to a check's condition, a weight, a
+category weight, the clarity token list, normalization, or a waiver is a policy change -- bump
+`POLICY_VERSION` when you make one, because scores under different policy versions describe
+different rubrics and aren't comparable. The bumped version shows up in every newly-scored
+bundle's `scorecard.json`/`verdict.json` (including old bundles re-scored via `make report`).
+
+A scenario declares what it wants FIDELITY to trace via `Scenario.facts()` (`evals/scenario.py`):
+one entry per founder- or participant-entered text, naming which of the six hops
+(`agent_echo`, `stage_screen`, `invite_screen`, `participant_page`, `interpret_context`, `brief`)
+it should reach verbatim, and which it legitimately never reaches (`absent_hops`, documented
+rather than silently omitted).
 
 ## Prove the failure path
 
@@ -98,5 +142,7 @@ about-line) per `evals/scenario.py`.
 make unit
 ```
 
-Runs `tests/` -- pure-logic tests for the step recorder, the report generator, and the config
+Runs `tests/` -- pure-logic tests for the step recorder, the interaction/rubric/scoring pipeline
+(including seeded-loss fixtures: a truncated statement, a leaked enum, an empty handoff display,
+each failing exactly the check design says should catch it), the report generator, and the config
 loader, with no Docker/gradle/vite involved.

@@ -10,44 +10,46 @@ client just to fetch one string. So `_open_web_url` below is a straight Python p
 closest thing to "tool-issued" available over HTTP: it is derived from the published contract,
 never hand-built to make something work.
 
-**That port found a real bug.** Two of its five paths do not match keel-web's actual routes
-(`src/routes/AppRoutes.tsx`):
+**That port found a real bug -- since fixed.** `runs/DRIFT.md` #2 recorded that two of
+`OpenWebUrls`'s five paths didn't match keel-web's actual routes (`overview` built
+`.../{projectId}/overview` instead of the index route `.../{projectId}`; `stage` built
+`.../{projectId}/stages/{stage}` instead of `.../{projectId}/s/{stage}`). keel-cloud's
+`OpenWebUrls` now builds both paths keel-web's way (its own javadoc credits this module's DRIFT
+finding). `_SCREEN_PATHS` below is updated to match, so the primary path renders on the first try
+and `_note_drift`/`_ACTUAL_FALLBACK_PATHS` fire zero times on a healthy stack; the fallback
+machinery itself is left in place as a safety net (and a canary -- if a DRIFT note ever fires
+again, the two contracts have drifted apart again and that's worth knowing immediately, not
+worked around silently).
 
-- `overview` builds `.../{projectId}/overview`, but keel-web's overview is the *index* route --
-  `/p/:projectId` with no trailing segment at all.
-- `stage` builds `.../{projectId}/stages/{stage}`, but keel-web's route is `s/:stage`, i.e.
-  `.../{projectId}/s/{stage}`.
-
-Both were verified against a running stack (see `runs/DRIFT.md`), not just read off the source:
-opening the OpenWebUrls-shaped URL leaves the inner `<Routes>` with nothing to match, rendering a
-blank content area inside `ProjectShell`'s chrome. `invite`, `invitations` and `brief` all match
-exactly. This module tries the tool's own contract first, and only falls back to keel-web's actual
-route -- recording a DRIFT note each time -- because a scenario that cannot reach the stage screen
-at all cannot exercise REVIEW, and reporting a bug is this repo's job, not stopping at the first
-one it finds (design §6).
+002-eval-scoring layers interaction tagging and FID/ORIENTATION/GUIDANCE/CLARITY text capture
+onto these same page objects (T008): every screen visit opens (or continues) a `ui-visit`
+interaction scope, and the participant's whole flow is one `participant-page` interaction
+(design §2's taxonomy) -- see `_goto_screen`'s and `ParticipantBrowser`'s docstrings.
 """
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Callable
 
 from playwright.sync_api import Page
 
 from harness.evidence import write_failure_capture
-from harness.steps import Recorder
+from harness.steps import Recorder, StepHandle
 
 _SCREEN_PATHS = {
-    "overview": "/{id}/overview",
+    "overview": "/{id}",
     "invite": "/{id}/invite",
     "invitations": "/{id}/invitations",
     "brief": "/{id}/brief",
-    "stage": "/{id}/stages/{stage}",
+    "stage": "/{id}/s/{stage}",
 }
 
-# keel-web's actual routes (AppRoutes.tsx), used only as the drift fallback for the two screens
-# where OpenWebUrls disagrees with them.
+# Kept only as a defensive fallback + drift canary (see module docstring) -- both entries now
+# equal `_SCREEN_PATHS`'s own primary path, so this fires only if the two contracts drift apart
+# again in the future.
 _ACTUAL_FALLBACK_PATHS = {
     "overview": "/{id}",
     "stage": "/{id}/s/{stage}",
@@ -112,17 +114,38 @@ def _step_cm(bstep: "_BrowserStep", name: str):
     return cm()
 
 
+def _safe_text(getter: Callable[[], str]) -> str:
+    """Best-effort text capture for scoring purposes only: a selector that doesn't match (a
+    screen variant with no NextBox, say) must never fail the *scenario* -- only the check that
+    reads the resulting captured_text should be able to fail."""
+    try:
+        return getter()
+    except Exception:  # noqa: BLE001 - capture is advisory, never load-bearing for the scenario
+        return ""
+
+
 class FounderBrowser:
     """Executes REVIEW and INVITE handoffs (design §3): opens the URL derived from
     `keel_open_web`'s own contract, reads the stage, approves; opens the invite screen, types the
     about-line, mints the link, and reads back the link the UI shows (never constructs it).
+
+    `get_state`, if given, is `FounderAgentDriver.get_state` -- called on every screen visit so
+    the resulting `ui-visit` interaction carries its own state snapshot (analysis finding A1):
+    GUI-U1 ("a next-step affordance iff a need exists") reads it straight out of captured_text,
+    never reaching back out to a live driver at scoring time.
     """
 
-    def __init__(self, page: Page, web_base_url: str, recorder: Recorder):
+    def __init__(self, page: Page, web_base_url: str, recorder: Recorder,
+                 *, get_state: Callable[[str], dict] | None = None):
         self.page = page
         self.base_url = web_base_url.rstrip("/")
         self._bstep = _BrowserStep(recorder, page, party="founder")
+        self._get_state = get_state
         self.drift_notes_emitted: set[str] = set()
+        # The ui-visit interaction most recently opened by _goto_screen -- approve_current_stage
+        # and send_invite fold into it rather than opening their own, since "open a screen" and
+        # "act on it" are one reviewable interaction (design §2: "one founder screen visit").
+        self._current_interaction: str | None = None
 
     def _note_drift(self, screen: str, tried: str, actual: str) -> None:
         if screen in self.drift_notes_emitted:
@@ -134,24 +157,76 @@ class FounderBrowser:
             party="stack", ok=True,
         )
 
+    def _capture_common(self, h: StepHandle, project_id: str, screen: str, stage: str | None) -> None:
+        """Text every ui-visit interaction carries regardless of which screen it is: the
+        project-identity marker (ORI-U1), a state snapshot (GUI-U1), and a generic pool of
+        next-step-ish text (NextBox, status chips, primary actions) that stands in for "the
+        affordance", whatever form it takes on this particular screen.
+        """
+        h.capture_text("identity", _safe_text(lambda: self.page.locator(".shell__brand .hint").inner_text()))
+        if self._get_state is not None:
+            try:
+                state = self._get_state(project_id)
+                h.capture_text("state", json.dumps(state))
+            except Exception:  # noqa: BLE001 - capture is advisory; a state-fetch failure must
+                pass          # not fail the scenario, only leave GUI-U1 unresolvable for this visit.
+
+        affordance_parts: list[str] = []
+        # `.next`/`.status`/`.review-hint` cover overview/stage/invitations' own next-step cues;
+        # `button.btn.primary` covers a screen whose only "what to do next" is its own primary
+        # action (the invite screen has no NextBox at all -- being on it, with a working submit
+        # button, *is* the affordance for its INVITE need).
+        for selector in (".next", ".status", ".review-hint", "button.btn.primary"):
+            affordance_parts.extend(t.strip() for t in _safe_all_texts(self.page, selector) if t.strip())
+        if affordance_parts:
+            h.capture_text("affordance", "\n".join(affordance_parts))
+
     def _goto_screen(self, project_id: str, screen: str, stage: str | None,
                       fingerprint, step_label: str):
         tool_url = _open_web_url(self.base_url, project_id, screen, stage)
-        with self._bstep.step(step_label) as h:
-            self.page.goto(tool_url, wait_until="load")
-            self.page.wait_for_timeout(150)
-            rendered = fingerprint(self.page)
-            if not rendered and screen in _ACTUAL_FALLBACK_PATHS:
-                actual = _actual_url(self.base_url, project_id, screen, stage)
-                self._note_drift(screen, tool_url, actual)
-                self.page.goto(actual, wait_until="load")
+        interaction_id = self._bstep.recorder.new_interaction_id()
+        with self._bstep.recorder.interaction("ui-visit", interaction_id):
+            with self._bstep.step(step_label) as h:
+                self.page.goto(tool_url, wait_until="load")
                 self.page.wait_for_timeout(150)
                 rendered = fingerprint(self.page)
-            h.add_screenshot(self._bstep.screenshot(step_label))
-            if not rendered:
-                h.fail(f"{step_label}: page did not render the expected '{screen}' screen at "
-                       f"{self.page.url}")
-                raise AssertionError(h.error)
+                if not rendered and screen in _ACTUAL_FALLBACK_PATHS:
+                    actual = _actual_url(self.base_url, project_id, screen, stage)
+                    self._note_drift(screen, tool_url, actual)
+                    self.page.goto(actual, wait_until="load")
+                    self.page.wait_for_timeout(150)
+                    rendered = fingerprint(self.page)
+                h.add_screenshot(self._bstep.screenshot(step_label))
+                h.capture_text("screen", screen)
+                if stage:
+                    h.capture_text("stage", stage)
+                self._capture_common(h, project_id, screen, stage)
+                if screen == "stage":
+                    h.capture_text("stage_identity", _safe_text(
+                        lambda: self.page.locator(".card.openc .bet").first.inner_text()))
+                    h.capture_text("stage_screen", _safe_text(
+                        lambda: self.page.locator(".card.openc").first.inner_text()))
+                elif screen == "overview":
+                    # Also feeds the FIDELITY `stage_screen` hop pool for `interpretation` facts
+                    # (design §3's table: verdicts show on "overview/stage screens" -- the six
+                    # contract hop ids have no separate "overview" id, so this policy folds
+                    # both screens' text into the one `stage_screen` key).
+                    h.capture_text("stage_screen", _safe_text(lambda: self.page.locator("body").inner_text()))
+                elif screen == "brief":
+                    h.capture_text("brief", _safe_text(lambda: self.page.locator(".brief").first.inner_text()))
+                if not rendered:
+                    h.fail(f"{step_label}: page did not render the expected '{screen}' screen at "
+                           f"{self.page.url}")
+                    raise AssertionError(h.error)
+        self._current_interaction = interaction_id
+
+    def _continue_current_interaction(self):
+        """approve_current_stage/send_invite act on the screen the last `_goto_screen` opened --
+        folded into that same interaction rather than starting a new one. Falls back to a fresh
+        id if called with none open (shouldn't happen in a well-formed scenario, but a scored
+        step is better than a crash)."""
+        interaction_id = self._current_interaction or self._bstep.recorder.new_interaction_id()
+        return self._bstep.recorder.interaction("ui-visit", interaction_id)
 
     def open_overview(self, project_id: str) -> None:
         self._goto_screen(project_id, "overview", None,
@@ -163,15 +238,32 @@ class FounderBrowser:
                            lambda p: p.locator(".card.openc .bet").count() >= 1,
                            f"founder opens the {stage.lower()} stage card")
 
+    def open_stage_evidence(self, project_id: str, stage: str) -> None:
+        """Re-opens a stage once its assumptions have been interpreted, and expands every
+        belief's testimony drilldown -- the only place a participant's verbatim answer renders on
+        this screen (`Drilldown`'s `.quote .words`; design §3's "stage screen evidence view" hop
+        for `answer` facts). Re-visiting and expanding closes that hop; without it, an approved
+        stage's collapsed drilldown never puts the answer text on the rendered page at all.
+        """
+        self.open_stage(project_id, stage)
+        with self._continue_current_interaction():
+            with self._bstep.step(f"founder reviews {stage.lower()} evidence") as h:
+                for button in self.page.locator(".belief button.b-top").all():
+                    button.click()
+                h.add_screenshot(self._bstep.screenshot(f"{stage.lower()}-evidence-expanded"))
+                h.capture_text("stage_screen", _safe_text(
+                    lambda: self.page.locator(".card.openc").first.inner_text()))
+
     def approve_current_stage(self, stage: str) -> None:
-        with self._bstep.step(f"founder approves the {stage.lower()} stage") as h:
-            button = self.page.get_by_role("button", name=re.compile("approve", re.I))
-            button.wait_for(state="visible", timeout=10_000)
-            h.add_screenshot(self._bstep.screenshot(f"before-approve-{stage.lower()}"))
-            button.click()
-            self.page.get_by_role("button", name=re.compile("approve", re.I)).wait_for(
-                state="detached", timeout=10_000)
-            h.add_screenshot(self._bstep.screenshot(f"after-approve-{stage.lower()}"))
+        with self._continue_current_interaction():
+            with self._bstep.step(f"founder approves the {stage.lower()} stage") as h:
+                button = self.page.get_by_role("button", name=re.compile("approve", re.I))
+                button.wait_for(state="visible", timeout=10_000)
+                h.add_screenshot(self._bstep.screenshot(f"before-approve-{stage.lower()}"))
+                button.click()
+                self.page.get_by_role("button", name=re.compile("approve", re.I)).wait_for(
+                    state="detached", timeout=10_000)
+                h.add_screenshot(self._bstep.screenshot(f"after-approve-{stage.lower()}"))
 
     def open_invite(self, project_id: str) -> None:
         self._goto_screen(project_id, "invite", None,
@@ -182,22 +274,32 @@ class FounderBrowser:
         """Picks the role, types the name and about-line, sends, and reads back the link the UI
         shows -- that string, not anything this harness builds, is what the participant opens.
         """
-        with self._bstep.step(f"founder invites {person_name} ({role_label})") as h:
-            self.page.get_by_label(re.compile("who are the questions for", re.I)).select_option(
-                label=role_label)
-            self.page.get_by_label(re.compile("who are you sending it to", re.I)).fill(person_name)
-            self.page.get_by_label(re.compile("what the top of their page will say", re.I)).fill(about_line)
-            h.add_screenshot(self._bstep.screenshot("invite-form-filled"))
-            self.page.get_by_role("button", name=re.compile("send invite", re.I)).click()
-            link_box = self.page.locator(".linkbox")
-            link_box.wait_for(state="visible", timeout=10_000)
-            url = link_box.inner_text().strip()
-            h.record_wire(None, {"invite_url_shown_by_ui": url})
-            h.add_screenshot(self._bstep.screenshot("invite-link-shown"))
-            if not url:
-                h.fail("invite screen showed an empty link")
-                raise AssertionError("invite screen showed an empty link")
-            return url
+        with self._continue_current_interaction():
+            with self._bstep.step(f"founder invites {person_name} ({role_label})") as h:
+                self.page.get_by_label(re.compile("who are the questions for", re.I)).select_option(
+                    label=role_label)
+                # `select_option(label=role_label)` only succeeds because `role_label` is exactly
+                # one rendered <option>'s visible text -- the `invite_screen` FIDELITY hop for the
+                # role-label fact.
+                h.capture_text("invite_screen", role_label)
+                self.page.get_by_label(re.compile("who are you sending it to", re.I)).fill(person_name)
+                about_field = self.page.get_by_label(re.compile("what the top of their page will say", re.I))
+                about_field.fill(about_line)
+                # The `invite_screen` FIDELITY hop for the about-line fact: the about-line never
+                # renders as static page text on this screen (only as this field's value), so the
+                # value itself is the closest thing to "what this screen shows" for that fact.
+                h.capture_text("invite_screen", _safe_text(about_field.input_value))
+                h.add_screenshot(self._bstep.screenshot("invite-form-filled"))
+                self.page.get_by_role("button", name=re.compile("send invite", re.I)).click()
+                link_box = self.page.locator(".linkbox")
+                link_box.wait_for(state="visible", timeout=10_000)
+                url = link_box.inner_text().strip()
+                h.record_wire(None, {"invite_url_shown_by_ui": url})
+                h.add_screenshot(self._bstep.screenshot("invite-link-shown"))
+                if not url:
+                    h.fail("invite screen showed an empty link")
+                    raise AssertionError("invite screen showed an empty link")
+                return url
 
     def open_invitations(self, project_id: str) -> None:
         self._goto_screen(project_id, "invitations", None,
@@ -211,28 +313,50 @@ class FounderBrowser:
                            "founder opens the brief")
 
 
+def _safe_all_texts(page: Page, selector: str) -> list[str]:
+    try:
+        return page.locator(selector).all_inner_texts()
+    except Exception:  # noqa: BLE001 - capture is advisory, never load-bearing for the scenario
+        return []
+
+
 class ParticipantBrowser:
     """A stranger: opens the tool-issued link in an isolated browser context (no session with the
-    founder), consents, answers, submits (design §3).
+    founder), consents, answers, submits (design §3). The whole flow -- consent, questions,
+    submit -- is one `participant-page` interaction (design §2's taxonomy): `open` opens the
+    scope and every later call folds into it.
     """
 
     def __init__(self, page: Page, recorder: Recorder):
         self.page = page
         self._bstep = _BrowserStep(recorder, page, party="participant")
+        self._interaction_id: str | None = None
+
+    def _capture_page_text(self, h: StepHandle) -> None:
+        h.capture_text("participant_page", _safe_text(lambda: self.page.locator("body").inner_text()))
+
+    def _scope(self):
+        if self._interaction_id is None:
+            self._interaction_id = self._bstep.recorder.new_interaction_id()
+        return self._bstep.recorder.interaction("participant-page", self._interaction_id)
 
     def open(self, url: str) -> None:
         """Opens exactly the URL the founder's invite screen showed -- never reconstructed."""
-        with self._bstep.step("participant opens the invitation link") as h:
-            self.page.goto(url, wait_until="load")
-            self.page.get_by_text(re.compile("asked if you", re.I)).wait_for(
-                state="visible", timeout=10_000)
-            h.add_screenshot(self._bstep.screenshot("participant-consent-screen"))
+        with self._scope():
+            with self._bstep.step("participant opens the invitation link") as h:
+                self.page.goto(url, wait_until="load")
+                self.page.get_by_text(re.compile("asked if you", re.I)).wait_for(
+                    state="visible", timeout=10_000)
+                h.add_screenshot(self._bstep.screenshot("participant-consent-screen"))
+                self._capture_page_text(h)
 
     def start(self) -> None:
-        with self._bstep.step("participant starts the survey") as h:
-            self.page.get_by_role("button", name=re.compile("^start$", re.I)).click()
-            self.page.wait_for_timeout(150)
-            h.add_screenshot(self._bstep.screenshot("participant-questions"))
+        with self._scope():
+            with self._bstep.step("participant starts the survey") as h:
+                self.page.get_by_role("button", name=re.compile("^start$", re.I)).click()
+                self.page.wait_for_timeout(150)
+                h.add_screenshot(self._bstep.screenshot("participant-questions"))
+                self._capture_page_text(h)
 
     def answer_all(self, answer_text: str) -> None:
         """Fills each question's main answer and its disconfirming answer with the same
@@ -242,14 +366,17 @@ class ParticipantBrowser:
         combinator) reaches exactly those two per question: a probe's textarea also carries the
         `box` class (`"box small"`), but sits one level deeper, inside its own wrapper div.
         """
-        with self._bstep.step("participant answers every question") as h:
-            boxes = self.page.locator(".q > textarea.box").all()
-            for box in boxes:
-                box.fill(answer_text)
-            h.add_screenshot(self._bstep.screenshot("participant-answers-filled"))
+        with self._scope():
+            with self._bstep.step("participant answers every question") as h:
+                boxes = self.page.locator(".q > textarea.box").all()
+                for box in boxes:
+                    box.fill(answer_text)
+                h.add_screenshot(self._bstep.screenshot("participant-answers-filled"))
 
     def submit(self) -> None:
-        with self._bstep.step("participant submits the response") as h:
-            self.page.get_by_role("button", name=re.compile("^submit$", re.I)).click()
-            self.page.get_by_text(re.compile("thanks", re.I)).wait_for(state="visible", timeout=10_000)
-            h.add_screenshot(self._bstep.screenshot("participant-thank-you"))
+        with self._scope():
+            with self._bstep.step("participant submits the response") as h:
+                self.page.get_by_role("button", name=re.compile("^submit$", re.I)).click()
+                self.page.get_by_text(re.compile("thanks", re.I)).wait_for(state="visible", timeout=10_000)
+                h.add_screenshot(self._bstep.screenshot("participant-thank-you"))
+                self._capture_page_text(h)
