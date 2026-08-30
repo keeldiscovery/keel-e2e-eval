@@ -15,9 +15,10 @@ carrying `FRAME` reframe now reopens decomposition (`Stage.decomposedForActiveFr
 `test_s002_pricing_pivot.py` walks the real `INTRODUCE_ASSUMPTIONS` cycle the second finding below
 says never happened; and `get_next` now accepts `request="brief"` (harness/driver.py), so
 `test_s003_going_ahead.py` walks the real A9 conversation the fourth finding below says had no
-entry point. `rule_out_pricing` itself is unchanged -- it only ever built the *starting* state
-("pricing ruled out, budget-owner supported, commercial approved") both journeys open from; what
-each test does with that state afterward is what changed.
+entry point. `rule_out_pricing` itself is unchanged in *purpose* -- it only ever built the
+*starting* state ("pricing ruled out, budget-owner supported, commercial approved") both journeys
+open from -- but its *choreography* is rewritten again below (founder-experience design §6, keel-
+cloud commits 8b13d04/ff1ed48): see "Update, 2026-08-30 (the invite gate)" further down.
 
 ## T004 -- the discovered choreography (read from keel-cloud source, never assumed from the plan)
 
@@ -98,6 +99,31 @@ refusal-then-accept behaviour at all only by minting the `PROCEED_TO_BRIEF` toke
 test-only `mintDirect` helper that bypasses `get_next` entirely -- not a path any real agent or MCP
 client has. See `evals/test_s003_going_ahead.py`'s module docstring for how S-003 documents this,
 and `runs/DRIFT.md` for the full write-up (this is the eval set's most significant finding).
+
+## Update, 2026-08-30 (the invite gate; keel-cloud commits 8b13d04/ff1ed48)
+
+`Project.needs` now gates `INVITE`/`EVIDENCE` on `allFramedStagesApproved()` (founder-experience
+design §6, journeys.md §1.4): nothing invites until every framed stage is approved. `invite()`
+itself refuses the same way (ff1ed48: "the invite gate applies to the act, not just the advice").
+Two consequences this module's own choreography now has to live inside, discovered live against
+this stack:
+
+1. **Approve-all-then-invite, not per-stage interleave.** `advance_to_all_stages_approved` (below)
+   replaces this module's old `_approve_single_participant_stage` entirely: it drives CREATE
+   through approving COMMERCIAL, one `REVIEW` handoff at a time, with **no invitation sent until
+   all three are approved** -- the standing assertion `assert_invite_gate_closed` runs after each
+   of the first two approvals to pin exactly that.
+2. **One role, one combined invitation.** `ROLE_LABEL` is `askedOf` for the problem belief, the
+   solution belief, *and* the commercial budget-owner belief. `Project.invite`/`linkFor` freezes
+   *every* open, applying, approved-stage assumption for a role into the *first* invitation sent to
+   that role -- so the moment the gate opens, inviting `ROLE_LABEL` once already asks about all
+   three cards in one sitting (design §5's own mockup: "A PAYROLL MANAGER... can settle 4 beliefs
+   across 2 cards"). There is no longer a protocol-legal way to keep problem/solution/budget on
+   three separate invitations to the same role once every stage is approved before any of them is
+   sent -- `COMBINED_PERSON` answers all three in one interview, and the resulting `INTERPRET`
+   settles all three beliefs in one commit. Pricing stays on its own dedicated `BUYER_ROLE_LABEL`
+   invitation (`COMMERCIAL_PERSON`), unaffected by this -- see the two-roles judgement call above,
+   which this gate change does not disturb.
 """
 
 from __future__ import annotations
@@ -114,6 +140,10 @@ SOLUTION = "SOLUTION"
 COMMERCIAL = "COMMERCIAL"
 STAGES = (PROBLEM, SOLUTION, COMMERCIAL)
 
+# founder-experience design §3: CREATE now requires a founder-given project name, distinct from
+# the claim itself.
+PROJECT_NAME = "Payroll Exception Radar"
+
 ROLE_LABEL = "Payroll Ops Manager"
 BUYER_ROLE_LABEL = "Budget Sign-off"  # BUYER-type role, asked commercial's pricing question only
 
@@ -122,48 +152,58 @@ BUYER_ROLE_LABEL = "Budget Sign-off"  # BUYER-type role, asked commercial's pric
 # against the document's own words wherever the document actually gives one.
 PROBLEM_CLAIM = "Payroll managers at mid-size companies lose hours each month chasing payroll exceptions."
 PROBLEM_ASSUMPTION = "They handle payroll exceptions themselves, at least monthly."
+PROBLEM_HEADING = "Manual exception chasing"  # founder-experience design §7: a name, not a restatement
 PROBLEM_ASK = "Tell me about the last time you had to chase down a payroll exception by hand."
 PROBLEM_DISCONFIRMING = "Has there been a month where you had no exceptions to chase down at all?"
-PROBLEM_PERSON = "Jordan Casey"
 PROBLEM_ANSWER = ("Yeah -- just last month I spent about three hours on a Friday afternoon "
                    "manually tracking down four payroll exceptions before I could run final payroll.")
 
 SOLUTION_CLAIM = "An anomaly investigation workflow inside the payroll tool."  # journeys.md §1.10 trio
 SOLUTION_ASSUMPTION = ("A tool that automatically flags and routes payroll exceptions would "
                        "actually get used by payroll managers.")
+SOLUTION_HEADING = "Automated flagging gets used"
 SOLUTION_ASK = "Tell me about the last tool or spreadsheet you tried to use to track payroll exceptions."
 SOLUTION_DISCONFIRMING = "Have you tried something like this before and stopped using it?"
-SOLUTION_PERSON = "Sam Rivera"
 SOLUTION_ANSWER = ("I tried a shared spreadsheet last quarter, but people kept forgetting to "
                     "update it. Something that automatically flagged and routed them would "
                     "definitely get used.")
 
 COMMERCIAL_CLAIM = "$30 a seat per month, billed annually upfront."  # journeys.md §1.8, verbatim
 COMMERCIAL_BUDGET_ASSUMPTION = "Someone in the payroll organisation owns a budget for this."
+COMMERCIAL_BUDGET_HEADING = "Someone owns the budget"
 COMMERCIAL_BUDGET_ASK = "Who signs off on a purchase like this on your team?"
 COMMERCIAL_BUDGET_DISCONFIRMING = "Has a tool purchase you wanted ever had nobody able to approve it?"
 COMMERCIAL_PRICING_ASSUMPTION = "They would pay annually, upfront."  # journeys.md §1.8, verbatim
+COMMERCIAL_PRICING_HEADING = "Pays annually, upfront"
 COMMERCIAL_PRICING_ASK = "Walk me through the last piece of software your team paid for."
 COMMERCIAL_PRICING_DISCONFIRMING = "Has your team ever paid for a full year of something upfront?"
 
-BUDGET_PERSON = "Alex Kim"
+# The invite gate (module docstring, "Update, 2026-08-30"): one combined respondent for
+# problem+solution+budget -- the first (and only, in this scenario) invitation ROLE_LABEL ever
+# gets, once the gate opens, already carries all three.
+COMBINED_PERSON = "Jordan Casey"
+COMBINED_ABOUT_LINE = ("A few quick questions about payroll exception handling, the tools you've "
+                        "tried, and how budget gets approved on your team.")
 COMMERCIAL_BUDGET_ANSWER = "I'm the one who signs off on a tool like this for my team."
-COMMERCIAL_PERSON = "Dana Okafor"  # journeys.md §1.8's own first respondent
+
+COMMERCIAL_PERSON = "Dana Okafor"  # journeys.md §1.8's own first respondent -- pricing only
 COMMERCIAL_PRICING_ANSWER = "We've never paid a software invoice before the quarter it covers."  # §1.8, verbatim
 
 
 @dataclass
 class RuledOutSetup:
-    """What `rule_out_pricing` hands back: the project id, the commercial invitation link that was
-    actually answered, an optional never-opened commercial link (S-002 needs one respondent's link
-    who never got to answer at all, to test the "opened after the reframe" out-of-date page,
-    journeys.md §2.4 -- distinct from `commercial_link`, which S-002 also re-opens to prove an
-    *already-answered* participant is never told their work was wasted), and `peek` -- the raw
-    `get_next` response observed *after* pricing settled `CONTRADICTED`, read but not acted on, so
-    each scenario decides for itself what to do with it (S-002 reframes; S-003 documents whether a
-    brief can be reached without reframing)."""
+    """What `rule_out_pricing` hands back: the project id, the combined problem/solution/budget
+    invitation link (answered), the commercial pricing invitation link that was actually answered,
+    an optional never-opened pricing link (S-002 needs one respondent's link who never got to
+    answer at all, to test the "opened after the reframe" out-of-date page, journeys.md §2.4 --
+    distinct from `commercial_link`, which S-002 also re-opens to prove an *already-answered*
+    participant is never told their work was wasted), and `peek` -- the raw `get_next` response
+    observed *after* pricing settled `CONTRADICTED`, read but not acted on, so each scenario
+    decides for itself what to do with it (S-002 reframes; S-003 documents whether a brief can be
+    reached without reframing)."""
 
     project_id: str
+    combined_link: str
     commercial_link: str
     unopened_commercial_link: str | None
     peek: dict[str, Any]
@@ -176,6 +216,9 @@ class PricingSetupScenario(Scenario):
     does) that only the FRAME branch needs a full override; every other action reuses the base
     dispatch.
     """
+
+    def project_name(self) -> str:
+        return PROJECT_NAME
 
     def problem_statement(self) -> str:
         return PROBLEM_CLAIM
@@ -194,9 +237,9 @@ class PricingSetupScenario(Scenario):
     def assumptions_payload(self, stage: str, roles: list[dict]) -> list[dict]:
         role_id = find_role(roles, ROLE_LABEL)["id"]
         if stage == PROBLEM:
-            specs = [(PROBLEM_ASSUMPTION, PROBLEM_ASK, PROBLEM_DISCONFIRMING, role_id)]
+            specs = [(PROBLEM_ASSUMPTION, PROBLEM_HEADING, PROBLEM_ASK, PROBLEM_DISCONFIRMING, role_id)]
         elif stage == SOLUTION:
-            specs = [(SOLUTION_ASSUMPTION, SOLUTION_ASK, SOLUTION_DISCONFIRMING, role_id)]
+            specs = [(SOLUTION_ASSUMPTION, SOLUTION_HEADING, SOLUTION_ASK, SOLUTION_DISCONFIRMING, role_id)]
         else:
             buyer_role_id = find_role(roles, BUYER_ROLE_LABEL)["id"]
             # Two DIFFERENT roles, deliberately (a judgement call this scenario makes, not a
@@ -211,13 +254,15 @@ class PricingSetupScenario(Scenario):
             # this scenario's own critical path while still asserting the out-of-date page on its
             # own terms.
             specs = [
-                (COMMERCIAL_BUDGET_ASSUMPTION, COMMERCIAL_BUDGET_ASK, COMMERCIAL_BUDGET_DISCONFIRMING, role_id),
-                (COMMERCIAL_PRICING_ASSUMPTION, COMMERCIAL_PRICING_ASK, COMMERCIAL_PRICING_DISCONFIRMING, buyer_role_id),
+                (COMMERCIAL_BUDGET_ASSUMPTION, COMMERCIAL_BUDGET_HEADING, COMMERCIAL_BUDGET_ASK,
+                 COMMERCIAL_BUDGET_DISCONFIRMING, role_id),
+                (COMMERCIAL_PRICING_ASSUMPTION, COMMERCIAL_PRICING_HEADING, COMMERCIAL_PRICING_ASK,
+                 COMMERCIAL_PRICING_DISCONFIRMING, buyer_role_id),
             ]
         return [{
-            "statement": statement, "stage": stage, "risk": "LOAD_BEARING", "askedOf": asked_of,
-            "question": {"ask": ask, "probes": [], "disconfirming": disconfirming},
-        } for statement, ask, disconfirming, asked_of in specs]
+            "statement": statement, "heading": heading, "stage": stage, "risk": "LOAD_BEARING",
+            "askedOf": asked_of, "question": {"ask": ask, "probes": [], "disconfirming": disconfirming},
+        } for statement, heading, ask, disconfirming, asked_of in specs]
 
     def about_line(self, stage: str) -> str:
         return {
@@ -226,8 +271,14 @@ class PricingSetupScenario(Scenario):
             COMMERCIAL: "A few quick questions about how budget and buying software work on your team.",
         }[stage]
 
+    def about_line_combined(self) -> str:
+        """The invite gate (module docstring): one combined invitation now carries problem,
+        solution and commercial-budget together, so it needs one about-line covering all three,
+        not any single stage's own."""
+        return COMBINED_ABOUT_LINE
+
     def person_name(self, stage: str) -> str:
-        return {PROBLEM: PROBLEM_PERSON, SOLUTION: SOLUTION_PERSON}[stage]
+        return COMBINED_PERSON
 
     def participant_answer(self, stage: str) -> str:
         return {PROBLEM: PROBLEM_ANSWER, SOLUTION: SOLUTION_ANSWER}[stage]
@@ -275,107 +326,166 @@ class PricingSetupScenario(Scenario):
 
 # --------------------------------------------------------------------------------- orchestration
 
-def _approve_single_participant_stage(driver: FounderAgentDriver, founder: FounderBrowser,
-                                       browser, recorder, scenario: PricingSetupScenario,
-                                       stage: str) -> None:
-    """One REVIEW -> approve -> INVITE -> one supportive respondent -> WAITING -> INTERPRET cycle,
-    S-001-shaped. Assumes the driver's next handoff already names `stage`'s REVIEW (the caller has
-    driven CREATE and any earlier stage already)."""
-    handoff = driver.advance_until_handoff()
-    assert handoff and handoff["reason"] == "REVIEW" and handoff["detail"]["stage"] == stage, (stage, handoff)
-    founder.open_stage(driver.project_id, stage)
-    founder.approve_current_stage(stage)
-
-    handoff = driver.advance_until_handoff()
-    assert handoff and handoff["reason"] == "INVITE", (stage, handoff)
-    founder.open_invite(driver.project_id)
-    person = scenario.person_name(stage)
-    link = founder.send_invite(ROLE_LABEL, person, scenario.about_line(stage))
-
-    handoff = driver.advance_until_handoff()
-    assert handoff and handoff["reason"] == "WAITING", (stage, handoff)
-
-    participant_context = browser.new_context()
-    try:
-        page = participant_context.new_page()
-        participant = ParticipantBrowser(page, recorder)
-        participant.open(link)
-        participant.start()
-        participant.answer([scenario.participant_answer(stage)])
-        participant.submit()
-    finally:
-        participant_context.close()
+# A single-stage scenario's own judgement call, shared here rather than tripled (S-004/S-005/S-006:
+# each cares about PROBLEM alone, but the invite gate now requires SOLUTION and COMMERCIAL approved
+# too before PROBLEM's own invite is legal). This placeholder belief exists only to give `approve()`
+# something LOAD_BEARING to require -- it is never invited to on purpose (`roles_payload` below asks
+# it of a role nobody ever sends a link to), so it never rides along on the scenario's own, carefully
+# single-question invitation.
+FILLER_ROLE_LABEL = "Not This Scenario's Subject"
+_FILLER_CONTENT: dict[str, dict[str, str]] = {
+    SOLUTION: {
+        "statement": "A tool that automatically flags and routes payroll exceptions would get used.",
+        "heading": "Not this scenario's subject",
+        "ask": "Tell me about the last tool you tried for this.",
+        "disconfirming": "Have you tried something like this and stopped using it?",
+    },
+    COMMERCIAL: {
+        "statement": "Someone can approve paying for a tool like this.",
+        "heading": "Not this scenario's subject",
+        "ask": "Who signs off on a purchase like this?",
+        "disconfirming": "Has a purchase like this ever had nobody able to approve it?",
+    },
+}
 
 
-def _invite_and_capture_link(driver: FounderAgentDriver, founder: FounderBrowser,
-                              role_label: str, person: str, about_line: str) -> str:
-    handoff = driver.advance_until_handoff()
-    assert handoff and handoff["reason"] == "INVITE", handoff
-    founder.open_invite(driver.project_id)
-    return founder.send_invite(role_label, person, about_line)
+def filler_role_payload() -> dict:
+    """The never-invited role a single-stage scenario adds to `roles_payload()` alongside its own
+    real role, so SOLUTION/COMMERCIAL's placeholder belief (below) never shares a role -- and
+    therefore never shares an invitation -- with the scenario's own carefully single-question
+    interview."""
+    return {"label": FILLER_ROLE_LABEL, "roleType": "MANAGER", "about": "Never actually invited"}
+
+
+def filler_assumption_payload(stage: str, filler_role_id: str) -> dict:
+    """One placeholder LOAD_BEARING belief for `stage` (SOLUTION or COMMERCIAL), asked of the
+    never-invited filler role -- see the module comment above."""
+    content = _FILLER_CONTENT[stage]
+    return {
+        "statement": content["statement"], "heading": content["heading"], "stage": stage,
+        "risk": "LOAD_BEARING", "askedOf": filler_role_id,
+        "question": {"ask": content["ask"], "probes": [], "disconfirming": content["disconfirming"]},
+    }
+
+
+def advance_to_all_stages_approved(driver: FounderAgentDriver, founder: FounderBrowser) -> None:
+    """The invite gate's own choreography (founder-experience design §6): drives CREATE through
+    approving COMMERCIAL, one `REVIEW` handoff at a time, with no invitation sent along the way --
+    `Project.needs` refuses `INVITE` for every stage until all three are approved, so there is
+    nothing legitimate to invite anyone to yet. `assert_invite_gate_closed` runs after each of the
+    first two approvals (never the third -- the gate opens the instant COMMERCIAL is approved) as
+    the standing assertion (design §6, task item 4): no `INVITE` need and no invitable role while
+    any framed stage still awaits approval. Usable by any `Scenario` whose `assumptions_payload`
+    can decompose all three stages, even trivially -- not only `PricingSetupScenario`.
+    """
+    for index, stage in enumerate(STAGES):
+        handoff = driver.advance_until_handoff()
+        assert handoff and handoff["reason"] == "REVIEW" and handoff["detail"]["stage"] == stage, (stage, handoff)
+        founder.open_stage(driver.project_id, stage)
+        founder.approve_current_stage(stage)
+        if index < len(STAGES) - 1:
+            assert_invite_gate_closed(driver)
+
+
+def assert_invite_gate_closed(driver: FounderAgentDriver) -> None:
+    """The standing assertion (founder-experience design §6, task item 4): while any framed stage
+    awaits approval, no stage reports an `INVITE` need (the agent state read) and no role reads as
+    `invitable` (the founder role-picker read, `Project.invite`'s own per-role legality check).
+    Two independent reads, both consulted live rather than assumed, matching this module's own
+    "confirmed live, not assumed" practice throughout.
+    """
+    state = driver.get_state(driver.project_id)
+    invite_stages = [s["stage"] for s in state.get("stages", []) if s.get("need") == "INVITE"]
+    assert not invite_stages, (
+        f"INVITE need surfaced before every framed stage was approved: {invite_stages} ({state})")
+    roles = driver.get_founder_roles(driver.project_id)
+    invitable = [r["label"] for r in roles.get("roles", []) if r.get("invitable")]
+    assert not invitable, (
+        f"a role read as invitable before every framed stage was approved: {invitable} ({roles})")
 
 
 def rule_out_pricing(driver: FounderAgentDriver, founder: FounderBrowser, browser, recorder,
                       scenario: PricingSetupScenario, *,
                       unopened_person: str | None = None) -> RuledOutSetup:
     """Builds "three stages approved, pricing ruled out" on a fresh project via the real loop
-    (T005). See this module's docstring for the discovered choreography this follows.
+    (T005). See this module's docstring for the discovered choreography this follows, including
+    the invite-gate rewrite (2026-08-30): every stage is approved before any invitation exists, and
+    the first (only) invitation to `ROLE_LABEL` already carries problem+solution+budget together.
 
     `unopened_person`, if given, is invited to the buyer role (pricing only) right alongside Dana
     -- while pricing is still open, so their link freezes that question -- but is never opened or
     answered by this function. S-002 uses this to get a link that is provably valid-when-sent and
     never touched, so opening it after the reframe tests journeys.md §2.4's out-of-date page on
     its own terms, distinct from re-opening Dana's already-answered link (which tests the "never
-    told their work was wasted" half). Inviting them to the buyer role rather than the manager role
-    matters: a link that also asks about the *carried* survivor was found, live, to leave
-    `Project.needs` stuck at `ANSWERS` forever after the reframe (see `assumptions_payload`'s own
-    docstring) -- pricing-only keeps this scenario's critical path clear of that (separately
-    recorded) finding.
+    told their work was wasted" half).
     """
-    _approve_single_participant_stage(driver, founder, browser, recorder, scenario, PROBLEM)
-    _approve_single_participant_stage(driver, founder, browser, recorder, scenario, SOLUTION)
+    advance_to_all_stages_approved(driver, founder)
+
+    # The gate is open now (all three approved). currentFocus scans PROBLEM first, and ROLE_LABEL
+    # is uninvited there -- the resulting handoff is the one, combined invitation for problem,
+    # solution and commercial-budget together (module docstring, "Update, 2026-08-30").
+    handoff = driver.advance_until_handoff()
+    assert handoff and handoff["reason"] == "INVITE", handoff
+    founder.open_people(driver.project_id)
+    combined_link = founder.send_invite(ROLE_LABEL, COMBINED_PERSON, scenario.about_line_combined())
 
     handoff = driver.advance_until_handoff()
-    assert handoff and handoff["reason"] == "REVIEW" and handoff["detail"]["stage"] == COMMERCIAL, handoff
-    founder.open_stage(driver.project_id, COMMERCIAL)
-    founder.approve_current_stage(COMMERCIAL)
+    assert handoff and handoff["reason"] == "WAITING", handoff
 
-    # Two roles, two invitations -- budget-owner (manager role) first, so its INTERPRET is picked
-    # up before pricing's (invitation list order == pendingInterpretation's search order), keeping
-    # the budget belief SUPPORTED before pricing's answer ever risks pre-empting it via REFRAME.
-    budget_link = _invite_and_capture_link(driver, founder, ROLE_LABEL, BUDGET_PERSON,
-                                            scenario.about_line(COMMERCIAL))
-    commercial_link = _invite_and_capture_link(driver, founder, BUYER_ROLE_LABEL, COMMERCIAL_PERSON,
-                                                scenario.about_line(COMMERCIAL))
+    # The combined respondent answers problem, solution and budget in one sitting -- DOM order
+    # matches Invitation.asks()'s stage-then-risk-then-introducedAt ordering (PROBLEM, SOLUTION,
+    # COMMERCIAL's budget belief; pricing lives on the separate buyer-role link).
+    participant_context = browser.new_context()
+    try:
+        page = participant_context.new_page()
+        participant = ParticipantBrowser(page, recorder)
+        participant.open(combined_link)
+        participant.start()
+        participant.answer([PROBLEM_ANSWER, SOLUTION_ANSWER, COMMERCIAL_BUDGET_ANSWER])
+        participant.submit()
+    finally:
+        participant_context.close()
+
+    # `currentFocus()` scans PROBLEM first (module docstring's "earliest stage with any need") --
+    # while the combined invitation sits unanswered, PROBLEM's own need is ANSWERS/WAITING, and
+    # COMMERCIAL's pricing INVITE cannot surface no matter how many invitations this function sends
+    # ahead of time (confirmed live: sending both invitations before either is answered hands back
+    # a WAITING handoff for PROBLEM, not COMMERCIAL's INVITE). So the combined invitation must be
+    # answered and *interpreted* -- settling problem, solution and budget in the one INTERPRET call
+    # its single response produces -- before pricing's own INVITE need can ever be offered.
+    # `advance_until_handoff` chains straight through that INTERPRET (an ActionRec, not a handoff)
+    # and stops exactly at the next real handoff.
+    handoff = driver.advance_until_handoff()
+    assert handoff and handoff["reason"] == "INVITE" and handoff["detail"]["stage"] == COMMERCIAL, handoff
+    founder.open_people(driver.project_id)
+    commercial_link = founder.send_invite(BUYER_ROLE_LABEL, COMMERCIAL_PERSON, scenario.about_line(COMMERCIAL))
 
     unopened_link = None
     if unopened_person is not None:
-        founder.open_invite(driver.project_id)
+        founder.open_people(driver.project_id)
         unopened_link = founder.send_invite(BUYER_ROLE_LABEL, unopened_person, scenario.about_line(COMMERCIAL))
 
     handoff = driver.advance_until_handoff()
     assert handoff and handoff["reason"] == "WAITING", handoff
 
-    for link, answer in ((budget_link, COMMERCIAL_BUDGET_ANSWER), (commercial_link, COMMERCIAL_PRICING_ANSWER)):
-        participant_context = browser.new_context()
-        try:
-            page = participant_context.new_page()
-            participant = ParticipantBrowser(page, recorder)
-            participant.open(link)
-            participant.start()
-            participant.answer([answer])
-            participant.submit()
-        finally:
-            participant_context.close()
+    participant_context = browser.new_context()
+    try:
+        page = participant_context.new_page()
+        participant = ParticipantBrowser(page, recorder)
+        participant.open(commercial_link)
+        participant.start()
+        participant.answer([COMMERCIAL_PRICING_ANSWER])
+        participant.submit()
+    finally:
+        participant_context.close()
 
-    # Two respondents, two INTERPRETs -- but `advance_until_handoff` would keep going straight
-    # into submitting the FRAME/REFRAME action itself (an ActionRec, not a handoff) the instant
-    # pricing settles CONTRADICTED, since it chains through every agent-only action. Advance
-    # exactly two steps by hand instead (budget's, then pricing's), then peek at (never act on)
-    # what comes next, so each scenario decides.
-    driver.advance_one()
+    # `advance_until_handoff` would keep going straight into submitting the FRAME/REFRAME action
+    # itself (an ActionRec, not a handoff) the instant pricing settles CONTRADICTED, since it
+    # chains through every agent-only action. Advance exactly one step by hand instead (pricing's
+    # own INTERPRET), then peek at (never act on) what comes next, so each scenario decides.
     driver.advance_one()
     peek = driver.get_next()  # read-only: reports the recommendation, does not act on it
 
-    return RuledOutSetup(project_id=driver.project_id, commercial_link=commercial_link,
-                          unopened_commercial_link=unopened_link, peek=peek)
+    return RuledOutSetup(project_id=driver.project_id, combined_link=combined_link,
+                          commercial_link=commercial_link, unopened_commercial_link=unopened_link,
+                          peek=peek)

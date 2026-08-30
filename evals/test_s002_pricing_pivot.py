@@ -49,8 +49,8 @@ import time
 from evals.recipes import (
     BUYER_ROLE_LABEL, COMMERCIAL, COMMERCIAL_BUDGET_ASK, COMMERCIAL_BUDGET_ASSUMPTION,
     COMMERCIAL_CLAIM, COMMERCIAL_PERSON, COMMERCIAL_PRICING_ANSWER, COMMERCIAL_PRICING_ASK,
-    COMMERCIAL_PRICING_ASSUMPTION, PROBLEM, PROBLEM_ASSUMPTION, PROBLEM_CLAIM, PROBLEM_PERSON,
-    ROLE_LABEL, SOLUTION, SOLUTION_ASSUMPTION, SOLUTION_CLAIM, SOLUTION_PERSON,
+    COMMERCIAL_PRICING_ASSUMPTION, PROBLEM, PROBLEM_ASSUMPTION, PROBLEM_CLAIM, PROBLEM_HEADING,
+    PROJECT_NAME, ROLE_LABEL, SOLUTION, SOLUTION_ASSUMPTION, SOLUTION_CLAIM, SOLUTION_HEADING,
     PricingSetupScenario, rule_out_pricing,
 )
 from evals.scenario import Fact, find_role
@@ -69,6 +69,7 @@ REFRAME_RATIONALE = ("Dana ruled out paying annually upfront but said she'd expe
 # the whole reason journeys.md §1.9's "new things to be true appear under the new claim" now has
 # somewhere to land.
 NEW_COMMERCIAL_PRICING_ASSUMPTION = "They would pay per payroll run, billed monthly."
+NEW_COMMERCIAL_PRICING_HEADING = "Pays per run, billed monthly"
 NEW_COMMERCIAL_PRICING_ASK = "Walk me through how your team would rather be billed for a tool like this."
 NEW_COMMERCIAL_PRICING_DISCONFIRMING = "Would monthly per-run billing ever be worse for your team than paying upfront?"
 NEW_PRICING_PERSON = "Jamie Cole"
@@ -116,8 +117,8 @@ class S002PricingPivot(PricingSetupScenario):
         if stage == COMMERCIAL and self._commercial_decomposed_once:
             buyer_role_id = find_role(roles, BUYER_ROLE_LABEL)["id"]
             return [{
-                "statement": NEW_COMMERCIAL_PRICING_ASSUMPTION, "stage": COMMERCIAL,
-                "risk": "LOAD_BEARING", "askedOf": buyer_role_id,
+                "statement": NEW_COMMERCIAL_PRICING_ASSUMPTION, "heading": NEW_COMMERCIAL_PRICING_HEADING,
+                "stage": COMMERCIAL, "risk": "LOAD_BEARING", "askedOf": buyer_role_id,
                 "question": {"ask": NEW_COMMERCIAL_PRICING_ASK, "probes": [],
                              "disconfirming": NEW_COMMERCIAL_PRICING_DISCONFIRMING},
             }]
@@ -141,33 +142,38 @@ class S002PricingPivot(PricingSetupScenario):
 
     def facts(self) -> dict[str, Fact]:
         return {
+            "project_name": Fact(text=PROJECT_NAME, kind="statement", hops=["recorded", "stage_screen"]),
             "problem_statement": Fact(text=PROBLEM_CLAIM, kind="statement",
-                                       hops=["agent_echo", "stage_screen", "brief"]),
+                                       hops=["agent_echo", "stage_screen", "brief", "recorded"]),
+            "problem_heading": Fact(text=PROBLEM_HEADING, kind="assumption", hops=["stage_screen", "recorded"]),
             "solution_statement": Fact(text=SOLUTION_CLAIM, kind="statement",
-                                        hops=["agent_echo", "stage_screen", "brief"]),
+                                        hops=["agent_echo", "stage_screen", "brief", "recorded"]),
+            "solution_heading": Fact(text=SOLUTION_HEADING, kind="assumption", hops=["stage_screen", "recorded"]),
             "old_commercial_claim": Fact(text=COMMERCIAL_CLAIM, kind="statement",
                                           hops=["agent_echo", "stage_screen"],
                                           absent_hops=["brief"]),  # struck through, not the brief's claim
             "new_commercial_claim": Fact(text=NEW_COMMERCIAL_CLAIM, kind="statement",
-                                          hops=["agent_echo", "stage_screen", "brief"]),
+                                          hops=["agent_echo", "stage_screen", "brief", "recorded"]),
             "reframe_rationale": Fact(text=REFRAME_RATIONALE, kind="statement", hops=["stage_screen"]),
             "role_label": Fact(text=ROLE_LABEL, kind="role",
-                                hops=["agent_echo", "stage_screen", "invite_screen"]),
+                                hops=["agent_echo", "stage_screen", "invite_screen", "recorded"]),
             "assumption_problem": Fact(text=PROBLEM_ASSUMPTION, kind="assumption",
-                                        hops=["agent_echo", "stage_screen", "interpret_context", "brief"]),
+                                        hops=["agent_echo", "stage_screen", "interpret_context", "brief", "recorded"]),
             "assumption_solution": Fact(text=SOLUTION_ASSUMPTION, kind="assumption",
-                                         hops=["agent_echo", "stage_screen", "interpret_context", "brief"]),
+                                         hops=["agent_echo", "stage_screen", "interpret_context", "brief", "recorded"]),
             "assumption_budget": Fact(text=COMMERCIAL_BUDGET_ASSUMPTION, kind="assumption",
-                                       hops=["agent_echo", "stage_screen", "interpret_context", "brief"]),
+                                       hops=["agent_echo", "stage_screen", "interpret_context", "brief", "recorded"]),
             "assumption_pricing_old": Fact(text=COMMERCIAL_PRICING_ASSUMPTION, kind="assumption",
-                                            hops=["agent_echo", "stage_screen", "interpret_context"],
+                                            hops=["agent_echo", "stage_screen", "interpret_context", "recorded"],
                                             absent_hops=["brief"]),  # superseded before any brief exists
             "answer_pricing": Fact(text=COMMERCIAL_PRICING_ANSWER, kind="answer",
                                     hops=["interpret_context", "stage_screen"]),
             # New under DRIFT #5's fix: the belief the reframe's own review cycle introduces, and
             # the evidence that settles it -- both now reachable, and both traced end to end.
             "assumption_pricing_new": Fact(text=NEW_COMMERCIAL_PRICING_ASSUMPTION, kind="assumption",
-                                            hops=["agent_echo", "stage_screen", "interpret_context", "brief"]),
+                                            hops=["agent_echo", "stage_screen", "interpret_context", "brief", "recorded"]),
+            "pricing_new_heading": Fact(text=NEW_COMMERCIAL_PRICING_HEADING, kind="assumption",
+                                         hops=["stage_screen", "recorded"]),
             "answer_pricing_new": Fact(text=NEW_PRICING_ANSWER, kind="answer",
                                         hops=["interpret_context", "stage_screen"]),
         }
@@ -400,6 +406,15 @@ def test_s002_pricing_pivot(stack, run_dir, browser):
         # needed: only the OLD pricing statement is special-cased to CONTRADICTS).
         handoff = driver.advance_until_handoff()
         assert handoff is None, f"expected the project to finish (brief proposed), got {handoff}"
+
+        # FID hop capture: the new pricing belief's own testimony (Jamie Cole's answer) only
+        # renders on the stage screen once this second visit expands its drilldown.
+        founder.open_stage_evidence(project_id, COMMERCIAL)
+
+        # FID hop capture: the project name reaches a founder screen only via the overview's own
+        # full-body capture (browser.py's `_goto_screen` -- a stage visit only captures its own
+        # card, not the shell header this scenario never otherwise visits).
+        founder.open_overview(project_id)
 
         founder.open_brief(project_id)
         with recorder.step("the brief renders with no GOING AHEAD ANYWAY box", party="founder", kind="assert") as h:

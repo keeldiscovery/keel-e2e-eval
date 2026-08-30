@@ -13,21 +13,31 @@ the founder's name and that words went to them, no deletion path, no account, no
 Consent-screen fidelity (§2.1): "Four things and no more: who is asking, what it is about, how
 long, what happens to their words" -- asserted as exactly those four, not fewer and not padded
 with a fifth.
+
+The invite gate (founder-experience design §6, keel-cloud commits 8b13d04/ff1ed48) now requires
+SOLUTION and COMMERCIAL *approved*, not just framed, before PROBLEM's own invite is legal -- see
+`evals.recipes.advance_to_all_stages_approved`/`filler_assumption_payload` for the shared judgement
+call this scenario needs (a placeholder belief on a never-invited role).
 """
 
 from __future__ import annotations
 
 import time
 
+from evals.recipes import (
+    FILLER_ROLE_LABEL, advance_to_all_stages_approved, filler_assumption_payload, filler_role_payload,
+)
 from evals.scenario import Fact, Scenario, find_role
 from harness.browser import FounderBrowser, ParticipantBrowser
 from harness.driver import FounderAgentDriver
 from harness.evidence import finalize_run
 from harness.steps import Recorder
 
+PROJECT_NAME = "Payroll Exception Radar (Consent)"
 ROLE_LABEL = "Payroll Ops Manager"
 PROBLEM_CLAIM = "Payroll managers at mid-size companies lose hours each month chasing payroll exceptions."
 ASSUMPTION = "They handle payroll exceptions themselves, at least monthly."
+HEADING = "Manual exception chasing"
 ASK = "Tell me about the last time you had to chase down a payroll exception by hand."
 DISCONFIRMING = "Has there been a month where you had no exceptions to chase down at all?"
 ABOUT_LINE = "How payroll exception handling goes day to day."
@@ -41,6 +51,9 @@ class S006ConsentDecline(Scenario):
     name = "S-006 consent and decline"
     slug = "s006-consent-decline"
 
+    def project_name(self) -> str:
+        return PROJECT_NAME
+
     def problem_statement(self) -> str:
         return PROBLEM_CLAIM
 
@@ -50,12 +63,15 @@ class S006ConsentDecline(Scenario):
 
     def roles_payload(self) -> list[dict]:
         return [{"label": ROLE_LABEL, "roleType": "MANAGER",
-                 "about": "How payroll runs work at mid-size companies"}]
+                 "about": "How payroll runs work at mid-size companies"},
+                filler_role_payload()]
 
     def assumptions_payload(self, stage: str, roles: list[dict]) -> list[dict]:
+        if stage != "PROBLEM":
+            return [filler_assumption_payload(stage, find_role(roles, FILLER_ROLE_LABEL)["id"])]
         role_id = find_role(roles, ROLE_LABEL)["id"]
-        return [{"statement": ASSUMPTION, "stage": "PROBLEM", "risk": "LOAD_BEARING", "askedOf": role_id,
-                 "question": {"ask": ASK, "probes": [], "disconfirming": DISCONFIRMING}}]
+        return [{"statement": ASSUMPTION, "heading": HEADING, "stage": "PROBLEM", "risk": "LOAD_BEARING",
+                 "askedOf": role_id, "question": {"ask": ASK, "probes": [], "disconfirming": DISCONFIRMING}}]
 
     def about_line(self, stage: str) -> str:
         return ABOUT_LINE
@@ -72,9 +88,14 @@ class S006ConsentDecline(Scenario):
 
     def facts(self) -> dict[str, Fact]:
         return {
-            "problem_statement": Fact(text=PROBLEM_CLAIM, kind="statement", hops=["agent_echo", "stage_screen"]),
+            "project_name": Fact(text=PROJECT_NAME, kind="statement", hops=["recorded"],
+                                 absent_hops=["agent_echo", "stage_screen", "invite_screen",
+                                              "participant_page", "interpret_context", "brief"]),
+            "problem_statement": Fact(text=PROBLEM_CLAIM, kind="statement",
+                                       hops=["agent_echo", "stage_screen", "recorded"]),
             "assumption": Fact(text=ASSUMPTION, kind="assumption",
-                                hops=["agent_echo", "stage_screen", "interpret_context"]),
+                                hops=["agent_echo", "stage_screen", "interpret_context", "recorded"]),
+            "heading": Fact(text=HEADING, kind="assumption", hops=["stage_screen", "recorded"]),
             "about_line": Fact(text=ABOUT_LINE, kind="about_line", hops=["invite_screen", "participant_page"]),
             "answer_consent": Fact(text=CONSENT_ANSWER, kind="answer", hops=["interpret_context", "stage_screen"]),
         }
@@ -94,18 +115,16 @@ def test_s006_consent_decline(stack, run_dir, browser):
         founder_page = founder_context.new_page()
         founder = FounderBrowser(founder_page, founder_web_base, recorder, get_state=driver.get_state)
 
-        handoff = driver.advance_until_handoff()
-        assert handoff and handoff["reason"] == "REVIEW" and handoff["detail"]["stage"] == "PROBLEM", handoff
+        # The invite gate (module docstring): all three stages approved before any invitation
+        # exists, even though this scenario's own subject is PROBLEM alone.
+        advance_to_all_stages_approved(driver, founder)
         project_id = driver.project_id
-
-        founder.open_stage(project_id, "PROBLEM")
-        founder.approve_current_stage("PROBLEM")
 
         handoff = driver.advance_until_handoff()
         assert handoff and handoff["reason"] == "INVITE", handoff
-        founder.open_invite(project_id)
+        founder.open_people(project_id)
         decline_link = founder.send_invite(ROLE_LABEL, DECLINE_PERSON, ABOUT_LINE)
-        founder.open_invite(project_id)
+        founder.open_people(project_id)
         consent_link = founder.send_invite(ROLE_LABEL, CONSENT_PERSON, ABOUT_LINE)
 
         # journeys.md §2.1: "Four things and no more: who is asking, what it is about, how long,
@@ -189,7 +208,7 @@ def test_s006_consent_decline(stack, run_dir, browser):
         # journeys.md §2.1/§1.5: "The UI never interprets" and never shames a decline -- the
         # invitations screen shows only the four statuses `invitationStatus` knows, and a decline
         # never reached the server to become a fifth one.
-        founder.open_invitations(project_id)
+        founder.open_people(project_id)
         with recorder.step("the invitations screen never shames a decline", party="founder", kind="assert") as h:
             rows_text = founder_page.locator("table.invites").inner_text()
             h.record_assert("Sam Rivera shows a neutral status, never 'declined'", rows_text)

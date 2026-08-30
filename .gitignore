@@ -5,3 +5,4 @@ runs/
 node_modules/
 .pytest_cache/
 .specify/feature.json
+.idea/

@@ -46,8 +46,8 @@ import time
 
 from evals.recipes import (
     COMMERCIAL, COMMERCIAL_BUDGET_ASSUMPTION, COMMERCIAL_PRICING_ASSUMPTION, PROBLEM,
-    PROBLEM_ASSUMPTION, PROBLEM_CLAIM, ROLE_LABEL, SOLUTION, SOLUTION_ASSUMPTION, SOLUTION_CLAIM,
-    PricingSetupScenario, rule_out_pricing,
+    PROBLEM_ASSUMPTION, PROBLEM_CLAIM, PROJECT_NAME, ROLE_LABEL, SOLUTION, SOLUTION_ASSUMPTION,
+    SOLUTION_CLAIM, PricingSetupScenario, rule_out_pricing,
 )
 from evals.scenario import Fact
 from harness.browser import FounderBrowser
@@ -95,8 +95,9 @@ class S003GoingAhead(PricingSetupScenario):
 
     def facts(self) -> dict[str, Fact]:
         return {
+            "project_name": Fact(text=PROJECT_NAME, kind="statement", hops=["recorded", "stage_screen"]),
             "problem_statement": Fact(text=PROBLEM_CLAIM, kind="statement",
-                                       hops=["agent_echo", "stage_screen", "brief"]),
+                                       hops=["agent_echo", "stage_screen", "brief", "recorded"]),
             "solution_statement": Fact(text=SOLUTION_CLAIM, kind="statement",
                                         hops=["agent_echo", "stage_screen", "brief"]),
             # Unlike S-002, this claim is never replaced -- it survives, unreframed, all the way
@@ -220,6 +221,10 @@ def test_s003_going_ahead(stack, run_dir, browser):
                 if result.get("state") != "READY_TO_BUILD":
                     h.fail(f"expected state READY_TO_BUILD, got {result}")
                     raise AssertionError(h.error)
+
+        # FID hop capture: the project name reaches a founder screen only via the overview's own
+        # full-body capture (this scenario otherwise never visits it).
+        founder.open_overview(project_id)
 
         founder.open_brief(project_id)
         with recorder.step("the brief renders GOING AHEAD ANYWAY first, pricing under said-no-to, "

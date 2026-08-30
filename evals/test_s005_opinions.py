@@ -13,21 +13,32 @@ Asserts end to end: the belief's own status surfaces the opinions-not-examples e
 (without ever naming `STATED_PREFERENCE`/`SPECULATION`/`UNTESTED` -- P1); the all-skipped stranger
 sees a kind page throughout, not a raw error; and the founder's people-answered count stays honest
 (one, not two) despite two invitations having been sent.
+
+The invite gate (founder-experience design §6, keel-cloud commits 8b13d04/ff1ed48) now requires
+SOLUTION and COMMERCIAL *approved*, not just framed, before PROBLEM's own invite is legal -- see
+`evals.recipes.advance_to_all_stages_approved`/`filler_assumption_payload` for the shared judgement
+call this scenario needs (a placeholder belief on a never-invited role, so `approve()` has
+something to require without touching this scenario's own single-question interview).
 """
 
 from __future__ import annotations
 
 import time
 
+from evals.recipes import (
+    FILLER_ROLE_LABEL, advance_to_all_stages_approved, filler_assumption_payload, filler_role_payload,
+)
 from evals.scenario import Fact, Scenario, find_role
 from harness.browser import FounderBrowser, ParticipantBrowser
 from harness.evidence import finalize_run
 from harness.driver import FounderAgentDriver
 from harness.steps import Recorder
 
+PROJECT_NAME = "Payroll Exception Radar (Opinions)"
 ROLE_LABEL = "Payroll Ops Manager"
 PROBLEM_CLAIM = "Payroll managers at mid-size companies lose hours each month chasing payroll exceptions."
 ASSUMPTION = "They handle payroll exceptions themselves, at least monthly."
+HEADING = "Manual exception chasing"
 ASK = "Tell me about the last time you had to chase down a payroll exception by hand."
 DISCONFIRMING = "Has there been a month where you had no exceptions to chase down at all?"
 ABOUT_LINE = "A few quick questions about how payroll exception handling goes day to day."
@@ -41,6 +52,9 @@ class S005Opinions(Scenario):
     name = "S-005 opinions move nothing"
     slug = "s005-opinions"
 
+    def project_name(self) -> str:
+        return PROJECT_NAME
+
     def problem_statement(self) -> str:
         return PROBLEM_CLAIM
 
@@ -50,12 +64,15 @@ class S005Opinions(Scenario):
 
     def roles_payload(self) -> list[dict]:
         return [{"label": ROLE_LABEL, "roleType": "MANAGER",
-                 "about": "How payroll runs work at mid-size companies"}]
+                 "about": "How payroll runs work at mid-size companies"},
+                filler_role_payload()]
 
     def assumptions_payload(self, stage: str, roles: list[dict]) -> list[dict]:
+        if stage != "PROBLEM":
+            return [filler_assumption_payload(stage, find_role(roles, FILLER_ROLE_LABEL)["id"])]
         role_id = find_role(roles, ROLE_LABEL)["id"]
-        return [{"statement": ASSUMPTION, "stage": "PROBLEM", "risk": "LOAD_BEARING", "askedOf": role_id,
-                 "question": {"ask": ASK, "probes": [], "disconfirming": DISCONFIRMING}}]
+        return [{"statement": ASSUMPTION, "heading": HEADING, "stage": "PROBLEM", "risk": "LOAD_BEARING",
+                 "askedOf": role_id, "question": {"ask": ASK, "probes": [], "disconfirming": DISCONFIRMING}}]
 
     def about_line(self, stage: str) -> str:
         return ABOUT_LINE
@@ -74,9 +91,14 @@ class S005Opinions(Scenario):
 
     def facts(self) -> dict[str, Fact]:
         return {
-            "problem_statement": Fact(text=PROBLEM_CLAIM, kind="statement", hops=["agent_echo", "stage_screen"]),
+            "project_name": Fact(text=PROJECT_NAME, kind="statement", hops=["recorded"],
+                                 absent_hops=["agent_echo", "stage_screen", "invite_screen",
+                                              "participant_page", "interpret_context", "brief"]),
+            "problem_statement": Fact(text=PROBLEM_CLAIM, kind="statement",
+                                       hops=["agent_echo", "stage_screen", "recorded"]),
             "assumption": Fact(text=ASSUMPTION, kind="assumption",
-                                hops=["agent_echo", "stage_screen", "interpret_context"]),
+                                hops=["agent_echo", "stage_screen", "interpret_context", "recorded"]),
+            "heading": Fact(text=HEADING, kind="assumption", hops=["stage_screen", "recorded"]),
             "answer_opinion": Fact(text=OPINION_ANSWER, kind="answer", hops=["interpret_context", "stage_screen"]),
         }
 
@@ -95,20 +117,18 @@ def test_s005_opinions(stack, run_dir, browser):
         founder_page = founder_context.new_page()
         founder = FounderBrowser(founder_page, founder_web_base, recorder, get_state=driver.get_state)
 
-        handoff = driver.advance_until_handoff()
-        assert handoff and handoff["reason"] == "REVIEW" and handoff["detail"]["stage"] == "PROBLEM", handoff
+        # The invite gate (module docstring): all three stages approved before any invitation
+        # exists, even though this scenario's own subject is PROBLEM alone.
+        advance_to_all_stages_approved(driver, founder)
         project_id = driver.project_id
-
-        founder.open_stage(project_id, "PROBLEM")
-        founder.approve_current_stage("PROBLEM")
 
         handoff = driver.advance_until_handoff()
         assert handoff and handoff["reason"] == "INVITE", handoff
-        founder.open_invite(project_id)
+        founder.open_people(project_id)
         opinion_link = founder.send_invite(ROLE_LABEL, OPINION_PERSON, ABOUT_LINE)
         # Second respondent, founder-initiated (the belief stays open; `invite()` never needs
         # get_next's blessing for a second person -- same mechanism as S-004).
-        founder.open_invite(project_id)
+        founder.open_people(project_id)
         skip_link = founder.send_invite(ROLE_LABEL, SKIP_PERSON, ABOUT_LINE)
 
         handoff = driver.advance_until_handoff()

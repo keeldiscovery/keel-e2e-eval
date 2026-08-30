@@ -266,9 +266,82 @@ class FounderBrowser:
                 h.add_screenshot(self._bstep.screenshot(f"after-approve-{stage.lower()}"))
 
     def open_invite(self, project_id: str) -> None:
+        """Opens the `invite` screen key -- founder-experience design §5: both `invite` and
+        `invitations` now route to the same merged **People** screen (`keel-web`'s
+        `PeopleRoute.tsx`; wire unchanged, so `keel_open_web`'s old screen names never 404). This
+        one opens compose-focused (`composeFocus`), matching what `/invite` always meant. The
+        compose card (`.card.openc h1`, "Invite someone to answer") renders unconditionally --
+        before any role exists, before the gate opens, after it -- so this fingerprint holds at
+        every moment a scenario might visit, including S-008's wrong-moment visits.
+        """
         self._goto_screen(project_id, "invite", None,
                            lambda p: p.locator(".card.openc h1").count() >= 1,
-                           "founder opens the invite screen")
+                           "founder opens the People screen (invite)")
+
+    def open_people(self, project_id: str) -> None:
+        """Opens the `invitations` screen key -- the same merged People screen as `open_invite`,
+        without the compose-scroll focus (replaces the old standalone invitations screen; design
+        §5's "one screen, organized by role"). Same always-true fingerprint as `open_invite` --
+        both screen keys render the identical component."""
+        self._goto_screen(project_id, "invitations", None,
+                           lambda p: p.locator(".card.openc h1").count() >= 1,
+                           "founder opens the People screen (roles)")
+
+    def people_role_cards(self) -> list[dict[str, str]]:
+        """`{label, counts, aim}` per role card (`.card.people-role`, design §5's mockup) --
+        standing-assertion and S-008 material: read directly off the currently-open People page,
+        no reconstruction."""
+        cards = self.page.locator(".card.people-role")
+        rows = []
+        for i in range(cards.count()):
+            card = cards.nth(i)
+            rows.append({
+                "label": _safe_text(lambda c=card: c.locator(".bet").first.inner_text()),
+                "counts": _safe_text(lambda c=card: c.locator(".counts").first.inner_text()),
+                "aim": _safe_text(lambda c=card: c.locator(".hint").first.inner_text()),
+            })
+        return rows
+
+    def role_picker_options(self) -> list[dict[str, str | bool]]:
+        """`{text, disabled}` for every `<option>` in the People screen's role picker (`#invite-
+        role`) -- the domain's own per-role invite-time gate (`Project.invite`'s `blockedBy`),
+        rendered as-is (`PeopleRoute.tsx`'s own comment: this is NOT re-derived against the newer
+        approve-all-then-invite gate). Used by the standing invite-gate assertion to confirm a
+        blocked role's option text is founder-worded (`"... — approve <stage> first"`), never a
+        raw enum."""
+        options = self.page.locator("#invite-role option")
+        rows = []
+        for i in range(options.count()):
+            option = options.nth(i)
+            rows.append({
+                "text": _safe_text(lambda o=option: o.inner_text()),
+                "disabled": bool(option.get_attribute("disabled") is not None),
+            })
+        return rows
+
+    def follow_display_url(self, url: str, project_id: str) -> None:
+        """Follows a URL exactly as carried in a wire `display` sentence -- never reconstructed via
+        `_open_web_url` -- and asserts it renders the founder shell (founder-experience design §2.3:
+        every sentence that points at a screen now embeds its own door; policy v3's `GUI-A3` checks
+        the sentence is well-formed, and this is the click-through no static sweep can stand in
+        for -- the "every door must open" rule, extended from screen navigation to a sentence's own
+        URL). Opens its own `ui-visit` interaction, tagged with a generic 'display-door' screen
+        name rather than one of the five known ones, since the URL's own path is what is under
+        test here, not a scenario-chosen screen key.
+        """
+        interaction_id = self._bstep.recorder.new_interaction_id()
+        with self._bstep.recorder.interaction("ui-visit", interaction_id):
+            with self._bstep.step(f"founder follows the door a display sentence carried: {url}") as h:
+                self.page.goto(url, wait_until="load")
+                self.page.wait_for_timeout(150)
+                rendered = self.page.locator(".shell").count() >= 1
+                h.add_screenshot(self._bstep.screenshot("display-door-opened"))
+                h.capture_text("screen", "display-door")
+                self._capture_common(h, project_id, "display-door", None)
+                if not rendered:
+                    h.fail(f"the URL a display sentence carried did not render the founder shell: {url}")
+                    raise AssertionError(h.error)
+        self._current_interaction = interaction_id
 
     def send_invite(self, role_label: str, person_name: str, about_line: str) -> str:
         """Picks the role, types the name and about-line, sends, and reads back the link the UI
@@ -302,14 +375,19 @@ class FounderBrowser:
                 return url
 
     def open_invitations(self, project_id: str) -> None:
-        self._goto_screen(project_id, "invitations", None,
-                           lambda p: p.locator("table.invites").count() > 0
-                           or p.get_by_text(re.compile("nobody has been invited", re.I)).count() > 0,
-                           "founder opens the invitations screen")
+        """Deprecated name, kept so call sites written before the People merge still read
+        sensibly -- identical to `open_people` (design §5: "wire unchanged", one component behind
+        both screen keys)."""
+        self.open_people(project_id)
 
     def open_brief(self, project_id: str) -> None:
+        """The `brief` screen key renders one of two things (founder-experience design §4 item 3):
+        the brief itself (`.brief`) once `READY_TO_BUILD`, or -- before that -- a designed "not yet"
+        quiet state (`.card.openc .hint`, keel-web's `BRIEF_NOT_YET_TEXT`), never a raw 409. Both
+        count as a legitimate render; S-008's wrong-moment visit is exactly the second case."""
         self._goto_screen(project_id, "brief", None,
-                           lambda p: p.locator(".card.openc .brief").count() >= 1,
+                           lambda p: p.locator(".card.openc .brief").count() >= 1
+                           or p.locator(".card.openc .hint").count() >= 1,
                            "founder opens the brief")
 
 

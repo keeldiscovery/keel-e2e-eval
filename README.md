@@ -88,9 +88,10 @@ different rubrics and aren't comparable. The bumped version shows up in every ne
 bundle's `scorecard.json`/`verdict.json` (including old bundles re-scored via `make report`).
 
 A scenario declares what it wants FIDELITY to trace via `Scenario.facts()` (`evals/scenario.py`):
-one entry per founder- or participant-entered text, naming which of the six hops
-(`agent_echo`, `stage_screen`, `invite_screen`, `participant_page`, `interpret_context`, `brief`)
-it should reach verbatim, and which it legitimately never reaches (`absent_hops`, documented
+one entry per founder- or participant-entered text, naming which of the seven hops
+(`agent_echo`, `stage_screen`, `invite_screen`, `participant_page`, `interpret_context`, `brief`,
+`recorded` -- policy v3's addition) it should reach verbatim, and which it legitimately never
+reaches (`absent_hops`, documented
 rather than silently omitted).
 
 ## Prove the failure path
@@ -138,34 +139,62 @@ See `runs/DRIFT.md` if one exists in this checkout for the current findings.
 
 ## The eval set
 
-Seven scenarios ship today (`specs/eval-set-design.md`, feature 003), each its own fresh project
-(never shared state -- `evals/recipes.py` shares *code*, not data, between S-002/S-003):
+Eight scenarios ship today (`specs/eval-set-design.md`, feature 003; S-008 added for the founder-
+experience design's item-7 blind spot), each its own fresh project (never shared state --
+`evals/recipes.py` shares *code*, not data, across scenarios):
 
 | Scenario | File | Journey | What it walks |
 |---|---|---|---|
-| S-001 | `evals/test_s001_smoke.py` | -- | The sunny-day discovery: every party, every handoff, every screen, one supportive interview per stage. |
+| S-001 | `evals/test_s001_smoke.py` | -- | The sunny-day discovery: every party, every handoff, every screen -- all three cards approved before any invite (the invite gate), one combined interview settling all three beliefs, and a live proof that a commit's own `display` sentence carries a door the browser actually opens. |
 | S-002 | `evals/test_s002_pricing_pivot.py` | §1.7-1.9, §2.4 | A ruled-out pricing deal-breaker, a `FRAME` replacement carrying only the surviving belief, the old claim struck through but readable, problem/solution untouched, a stale pre-pivot link, an already-answered participant never told their work was wasted. |
 | S-003 | `evals/test_s003_going_ahead.py` | §1.10 | The founder asks for the brief while a deal-breaker is still disproved -- and documents, live, that the shipped protocol has no path to `PROCEED_TO_BRIEF` in that state at all (`runs/DRIFT.md` #7). |
 | S-004 | `evals/test_s004_divided_person.py` | §1.7 | One person with concrete evidence on both sides of one belief -- counted under both headings, people not quotes. |
 | S-005 | `evals/test_s005_opinions.py` | §1.7, §2.2 | Opinions move nothing (`STATED_PREFERENCE` never counts); an all-skipped submission is refused gently, not with a raw error. |
 | S-006 | `evals/test_s006_consent_decline.py` | §2.1-2.3 | A graceful, never-shamed decline; the consent screen's exactly-four things; a thank-you that promises nothing extra. |
 | S-007 | `evals/test_s007_hostile_wire.py` | protocol negatives | No browser: an unknown MCP screen, an ungranted context handle, a schema fault the token survives, a stale token after its own unacknowledged commit -- each scored as its own `agent-refusal` interaction (`GUI-R1`/`ORI-R1`: is the remedy present, actionable, and not just the problem restated?). |
+| S-008 | `evals/test_s008_wrong_moment.py` | item 7 (feedback-2026-08-30.md) | Wrong-moment visits: a stage before it's framed, People before any role exists, the brief long before `READY_TO_BUILD` -- each a founder-worded quiet state, never the wire's raw refusal shape. |
 
 Adding another is a new `evals/test_*.py` module plus a `Scenario` (payload builders, answer
 table, about-line, fact registry) per `evals/scenario.py` -- `evals/recipes.py` is the place to
 share a setup shape (never state) across more than one scenario.
 
-### Policy v2
+### The invite gate (founder-experience design §6; keel-cloud commits 8b13d04/ff1ed48)
 
-`evals/policy.py`'s `POLICY_VERSION` is `2`: `CLA-A1`/`GUI-A2` (the raw-enum/field-name sweep)
-apply only to a handoff's `display` now -- the one protocol text a founder actually receives.
-`instruction.content` and `requirements` are agent-facing method/payload guidance (confirmed by
-re-reading the shipped `ActionSchemas`/`InstructionRegistry`) and are no longer vocabulary-swept;
-`GUI-A1`'s presence/sentence-shape check on `requirements` is untouched. This is a recalibration,
-not a loosened bar -- a seeded raw enum in a handoff `display` still fails both checks
-(`tests/test_policy_v2.py`), and the twenty S-001 failures policy v1 raised against
-`instruction`/`requirements` were mismeasurement, re-adjudicated in `runs/DRIFT.md` #4 and
-recorded as a dated amendment in `specs/eval-scoring-design.md` §3.
+`Project.needs` no longer offers `INVITE`/`EVIDENCE` for any stage until every framed stage is
+approved. Every scenario above that used to interleave "approve this stage, invite for it" now
+approves all three first (`evals/recipes.advance_to_all_stages_approved`, or the same choreography
+inlined in `evals/recipes.rule_out_pricing`) -- and `evals.recipes.assert_invite_gate_closed` is
+the standing assertion (run after each of the first two approvals): no stage reports `INVITE` and
+no role reads as invitable while any framed stage still awaits approval. A single-stage scenario
+(S-004/S-005/S-006) that never actually cares about SOLUTION/COMMERCIAL still has to get them
+approved to open the gate -- `evals.recipes.filler_role_payload`/`filler_assumption_payload` is
+that judgement call: a placeholder belief on a role nobody ever invites, so `approve()` has
+something to require without ever touching the scenario's own single-question interview. One
+consequence worth naming: a scenario using one role across multiple stages (S-001) now gets one
+combined invitation once the gate opens, not one per stage -- `Project.invite`/`linkFor` freezes
+every open belief for a role into the *first* invitation sent to it.
+
+### Policy v3
+
+`evals/policy.py`'s `POLICY_VERSION` is `3` (founder-experience design; keel-cloud commits
+8b13d04/ff1ed48 gave the wire a founder voice on every commit, not only a handoff):
+
+- **`recorded` playback fidelity** -- a seventh FID hop. A scenario's fact registry can now
+  declare `hops=["recorded", ...]`: the fact must appear verbatim in the agent-cycle's own
+  captured `SubmitResponse.recorded` JSON (`harness/driver.py`'s `_capture_commit_voice`).
+- **`ORI-A3`/`GUI-A3`/`CLA-A2`** -- a commit's own `display` (not only a handoff's) is checked for
+  presence, actionability, a well-formed door (any URL it names must be `http(s)://`), and the
+  same raw-enum/field-name sweep `CLA-A1` already ran on a handoff. The literal click-through on a
+  door a `display` carries is `FounderBrowser.follow_display_url` -- a scenario assertion, not a
+  transcript-only check -- demonstrated in `test_s001_smoke.py`.
+- **`CLA-U3`** -- `verdictLabel`/`needLabel`, read off a ui-visit's own captured `state` snapshot:
+  present and enum-clean once a stage is `approved` (`verdictLabel`) or has a `need` other than
+  `EVIDENCE` (`needLabel` -- `FounderVoice.needLabel` deliberately returns `null` there).
+
+This is additive, not a loosened bar -- `tests/test_policy_v3.py` seeds a failure for each new
+check and a clean control that passes it, the same construction-not-assertion method
+`tests/test_policy_v2.py` (its v2 fixtures, kept, are in the same file now) used to prove v2's own
+recalibration.
 
 ## Stackless unit tests
 

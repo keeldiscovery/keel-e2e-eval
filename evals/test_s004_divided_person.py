@@ -18,24 +18,35 @@ Asserts journeys.md §1.7's own claims about the drill-down, verbatim:
 - The verdict itself follows the people-counted rule (`Project.verdictOf`, aggregate r7):
   2 supporters, 1 dissenter, minority non-empty -> `MIXED` -> "People disagree".
 
-This scenario never touches `SOLUTION`/`COMMERCIAL` beyond the opening pass's mandatory framing
-(`NextRecommendation.compute` frames every stage up front, a side effect of `CREATE`+the first two
-`FRAME`s) -- it stops the instant the problem belief's drill-down is on screen.
+This scenario's own subject stays PROBLEM alone -- but the invite gate (founder-experience design
+§6, keel-cloud commits 8b13d04/ff1ed48) now requires SOLUTION and COMMERCIAL *approved*, not just
+framed, before PROBLEM's own invite is legal (`NextRecommendation.compute`'s opening pass, a side
+effect of `CREATE`+the first two `FRAME`s, only frames them). `evals.recipes.
+advance_to_all_stages_approved` drives all three through `REVIEW`->approve; SOLUTION/COMMERCIAL get
+a placeholder belief on a never-invited filler role (`evals.recipes.filler_role_payload`/
+`filler_assumption_payload` -- a judgement call this scenario needs, not a journeys.md requirement)
+so `approve()` has something LOAD_BEARING to require without ever touching this scenario's own,
+carefully single-question interview.
 """
 
 from __future__ import annotations
 
 import time
 
+from evals.recipes import (
+    FILLER_ROLE_LABEL, advance_to_all_stages_approved, filler_assumption_payload, filler_role_payload,
+)
 from evals.scenario import Fact, Scenario, find_role
 from harness.browser import FounderBrowser, ParticipantBrowser
 from harness.driver import FounderAgentDriver
 from harness.evidence import finalize_run
 from harness.steps import Recorder
 
+PROJECT_NAME = "Payroll Exception Radar (Divided Person)"
 ROLE_LABEL = "Payroll Ops Manager"
 PROBLEM_CLAIM = "Payroll managers at mid-size companies lose hours each month chasing payroll exceptions."
 ASSUMPTION = "They handle payroll exceptions themselves, at least monthly."  # journeys.md §1.7, verbatim
+HEADING = "Manual exception chasing"
 ASK = "Tell me about the last time you had to chase down a payroll exception by hand."
 DISCONFIRMING = "Has there been a month where you had no exceptions to chase down at all?"
 ABOUT_LINE = "A few quick questions about how payroll exception handling goes day to day."
@@ -55,6 +66,9 @@ class S004DividedPerson(Scenario):
     name = "S-004 divided person"
     slug = "s004-divided-person"
 
+    def project_name(self) -> str:
+        return PROJECT_NAME
+
     def problem_statement(self) -> str:
         return PROBLEM_CLAIM
 
@@ -64,12 +78,15 @@ class S004DividedPerson(Scenario):
 
     def roles_payload(self) -> list[dict]:
         return [{"label": ROLE_LABEL, "roleType": "MANAGER",
-                 "about": "How payroll runs work at mid-size companies"}]
+                 "about": "How payroll runs work at mid-size companies"},
+                filler_role_payload()]
 
     def assumptions_payload(self, stage: str, roles: list[dict]) -> list[dict]:
+        if stage != "PROBLEM":
+            return [filler_assumption_payload(stage, find_role(roles, FILLER_ROLE_LABEL)["id"])]
         role_id = find_role(roles, ROLE_LABEL)["id"]
-        return [{"statement": ASSUMPTION, "stage": "PROBLEM", "risk": "LOAD_BEARING", "askedOf": role_id,
-                 "question": {"ask": ASK, "probes": [], "disconfirming": DISCONFIRMING}}]
+        return [{"statement": ASSUMPTION, "heading": HEADING, "stage": "PROBLEM", "risk": "LOAD_BEARING",
+                 "askedOf": role_id, "question": {"ask": ASK, "probes": [], "disconfirming": DISCONFIRMING}}]
 
     def about_line(self, stage: str) -> str:
         return ABOUT_LINE
@@ -93,9 +110,14 @@ class S004DividedPerson(Scenario):
 
     def facts(self) -> dict[str, Fact]:
         return {
-            "problem_statement": Fact(text=PROBLEM_CLAIM, kind="statement", hops=["agent_echo", "stage_screen"]),
+            "project_name": Fact(text=PROJECT_NAME, kind="statement", hops=["recorded"],
+                                 absent_hops=["agent_echo", "stage_screen", "invite_screen",
+                                              "participant_page", "interpret_context", "brief"]),
+            "problem_statement": Fact(text=PROBLEM_CLAIM, kind="statement",
+                                       hops=["agent_echo", "stage_screen", "recorded"]),
             "assumption": Fact(text=ASSUMPTION, kind="assumption",
-                                hops=["agent_echo", "stage_screen", "interpret_context"]),
+                                hops=["agent_echo", "stage_screen", "interpret_context", "recorded"]),
+            "heading": Fact(text=HEADING, kind="assumption", hops=["stage_screen", "recorded"]),
             "answer_dana": Fact(text=DANA_ANSWER, kind="answer", hops=["interpret_context", "stage_screen"]),
             # Marcus's raw answer is split into two separate evidence claims (MARCUS_SUPPORTS_CLAIM/
             # MARCUS_CONTRADICTS_CLAIM below) -- each renders on its own drilldown row, but his one
@@ -126,12 +148,10 @@ def test_s004_divided_person(stack, run_dir, browser):
         founder_page = founder_context.new_page()
         founder = FounderBrowser(founder_page, founder_web_base, recorder, get_state=driver.get_state)
 
-        handoff = driver.advance_until_handoff()
-        assert handoff and handoff["reason"] == "REVIEW" and handoff["detail"]["stage"] == "PROBLEM", handoff
+        # The invite gate (module docstring): all three stages approved before any invitation
+        # exists, even though this scenario's own subject is PROBLEM alone.
+        advance_to_all_stages_approved(driver, founder)
         project_id = driver.project_id
-
-        founder.open_stage(project_id, "PROBLEM")
-        founder.approve_current_stage("PROBLEM")
 
         # `INVITE` is only ever *recommended* once per assumption (get_next's own need computation
         # -- `Project.needs`'s `anyUninvited` is already false once any invitation asks about it):
@@ -142,10 +162,10 @@ def test_s004_divided_person(stack, run_dir, browser):
         handoff = driver.advance_until_handoff()
         assert handoff and handoff["reason"] == "INVITE", handoff
         links: dict[str, str] = {}
-        founder.open_invite(project_id)
+        founder.open_people(project_id)
         links[DANA] = founder.send_invite(ROLE_LABEL, DANA, ABOUT_LINE)
         for person in (MARCUS, PRIYA):
-            founder.open_invite(project_id)
+            founder.open_people(project_id)
             links[person] = founder.send_invite(ROLE_LABEL, person, ABOUT_LINE)
 
         handoff = driver.advance_until_handoff()

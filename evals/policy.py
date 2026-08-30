@@ -47,6 +47,49 @@ Judgement calls made while filling in what the contract leaves to the implementa
    this policy runs on that interaction type at all. A seeded raw enum in a handoff `display`
    fixture still fails both `CLA-A1` and (new) `GUI-A2` -- the UI/participant-page CLA-U1/CLA-U2
    sweeps that would catch real founder-facing leakage are untouched by any of this.
+
+4. **Policy v3 (founder-experience design, keel-cloud commits `8b13d04`/`ff1ed48`): the wire grew
+   a founder voice on every commit, not only a handoff, and this policy grows to hold it to its
+   own words.** `SubmitResponse` now carries `display` (a founder sentence on *every* commit) and
+   `recorded` (a server-authored playback of what that commit created); `StateResponse`'s per-
+   stage summary carries `verdictLabel`/`needLabel` beside the machine tokens. Three additions,
+   contract-first, no existing check reweighted or removed:
+
+     - **FID -- `recorded` playback fidelity.** A new hop id, `"recorded"`, alongside the existing
+       six: an agent-cycle interaction's captured `recorded` JSON is exactly the kind of hop
+       `harness/rubric.py`'s generic `_fid_checks` already knows how to sweep (verbatim substring,
+       same as every other hop) -- no new check *code*, only a new hop a scenario's facts may
+       declare, and `harness/driver.py` capturing it off every successful `submit`.
+     - **`ORI-A3`/`GUI-A3`/`CLA-A2` -- the commit `display` itself, checked like a handoff's
+       always was.** `ORI-A3` is non-empty (>= 10 chars, mirroring `ORI-H1`). `GUI-A3` is the
+       contract's own conditional, literally: "when it points at a screen, contains a resolvable
+       URL" -- when a URL is present it must be well-formed (`http(s)://`, the "every door must
+       open" rule `harness/browser.py`'s own screen navigation already lives by, extended to a
+       *sentence's* URL: `FounderBrowser.follow_display_url` is the scenario-side assertion that
+       actually clicks through and asserts render, a live check no transcript sweep alone could
+       stand in for); when none is present, there is nothing to fail. (Live-confirmed 2026-08-30:
+       an earlier draft of this check also required a guidance verb, mirroring `GUI-H1` -- wrong,
+       because a commit's continuation often describes what the *agent* does next ("next, put your
+       solution into words too"), not an instruction to the founder, and the draft failed
+       legitimate copy across every scenario; dropped.) `CLA-A2` sweeps the same `display` for raw
+       enums/field names -- CLA-A1's own recalibration (judgement call 3 above) said this
+       vocabulary check follows founder-facing wire text wherever it travels, and `display` now
+       travels on every commit, not only a handoff.
+     - **`CLA-U3` -- `verdictLabel`/`needLabel` sweep.** Read off the `state` JSON a `ui-visit`
+       interaction already stashes (`FounderBrowser._capture_common`'s `get_state` snapshot,
+       analysis finding A1's own mechanism, reused rather than re-plumbed): once a stage is
+       `approved`, its `verdictLabel` must be present and enum-clean; once its `need` is present
+       and not `EVIDENCE` (which `FounderVoice.needLabel` deliberately returns `null` for --
+       `verdictLabel` already carries the word at that point), its `needLabel` must be present and
+       enum-clean too.
+
+5. **Two more English-word collisions, live-confirmed the same day `CLA-A2`/`CLA-U1` started
+   sweeping text they never swept before.** `"roles"` (FounderVoice's own "Your roles are saved.")
+   and `"EVIDENCE"` (BriefRoute's own "What the evidence said no to" heading, rendered upper-case
+   by CSS) are ordinary English in correct, shipped founder copy that happen to collide with a
+   context-handle name and a `Need` token respectively -- the same shape as judgement call 1's
+   StageType exemption, for the same reason: sweeping them flags the product's own correct copy,
+   not a leak. `_ENGLISH_COLLISION_EXEMPTIONS` below.
 """
 
 from __future__ import annotations
@@ -54,7 +97,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-POLICY_VERSION = 2
+POLICY_VERSION = 3
 
 CATEGORY_WEIGHTS: dict[str, float] = {
     "FIDELITY": 0.4,
@@ -94,16 +137,27 @@ CHECKS: dict[str, dict[str, Any]] = {
     # vocabulary-swept (no CLA-R* check exists, deliberately, matching v2's recalibration).
     "ORI-R1": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
     "GUI-R1": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
+    # Policy v3 (module docstring, judgement call 4): the commit `display` every agent-cycle now
+    # carries, checked exactly like a handoff's own display always was.
+    "ORI-A3": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
+    "GUI-A3": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
+    "CLA-A2": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
+    # Policy v3: verdictLabel/needLabel, read off a ui-visit's own captured `state` snapshot.
+    "CLA-U3": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
 }
 
-# Every hop id this policy knows how to score (data-model.md's Fact registry).
-HOP_IDS = ["agent_echo", "stage_screen", "invite_screen", "participant_page", "interpret_context", "brief"]
+# Every hop id this policy knows how to score (data-model.md's Fact registry). "recorded" is
+# policy v3's addition (module docstring, judgement call 4): an agent-cycle's own played-back
+# commit, alongside the six the contract originally named.
+HOP_IDS = ["agent_echo", "stage_screen", "invite_screen", "participant_page", "interpret_context",
+           "brief", "recorded"]
 
 # hop ids reached via an agent-cycle interaction's captured_text vs. a screen visit's -- lets
 # harness/rubric.py know which interactions are even candidates for a given hop.
 HOP_INTERACTION_TYPES: dict[str, tuple[str, ...]] = {
     "agent_echo": ("agent-cycle",),
     "interpret_context": ("agent-cycle",),
+    "recorded": ("agent-cycle",),
     "stage_screen": ("ui-visit",),
     "invite_screen": ("ui-visit",),
     "brief": ("ui-visit",),
@@ -180,11 +234,21 @@ ACTION_NAMES = {"CREATE", "FRAME", "INTRODUCE_ROLES", "INTRODUCE_ASSUMPTIONS",
 LICENSED_ACTION_NAMES = {"CREATE", "INTERPRET"}
 RULE_LITERALS = {"token", "concurrency", "schema", "context", "open_web", "screen"}
 
+# Judgement call 5 (policy v3, live-confirmed 2026-08-30 once CLA-A2 started sweeping commit
+# `display` and CLA-U1 swept the brief's own ALL-CAPS section headers): two more English-word
+# collisions, the same shape as judgement call 1's StageType exemption. "roles" is FounderVoice's
+# own correct copy ("Your roles are saved."), an ordinary plural noun that also happens to be a
+# context-handle name. "EVIDENCE" is BriefRoute's own section heading ("What the evidence said no
+# to", rendered upper-case by CSS -- `.inner_text()` returns the rendered text) colliding with the
+# `Need` token of the same spelling. Sweeping either would flag the product's own correct copy,
+# not a leak -- excluded for the same reason stage names are.
+_ENGLISH_COLLISION_EXEMPTIONS = {"roles", "EVIDENCE"}
+
 # See module docstring, judgement call 1: StageType names are excluded on purpose.
 CLARITY_TOKENS: set[str] = (
     WORKFLOW_STATES | VERDICTS | NEEDS | RISKS | HANDLE_NAMES
     | (ACTION_NAMES - LICENSED_ACTION_NAMES) | RULE_LITERALS
-)
+) - _ENGLISH_COLLISION_EXEMPTIONS
 
 _URL_RE = re.compile(r"\S+://\S+")
 _CAMEL_CASE_RE = re.compile(r"\b[a-z][a-z0-9]*[A-Z][a-zA-Z0-9]*\b")

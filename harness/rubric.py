@@ -89,6 +89,45 @@ def _gui_a1(ix: Interaction) -> CheckResult:
     return _result("GUI-A1", passed, f"{len(requirements)} requirement(s), {len(sentence_shaped)} sentence-shaped", ix)
 
 
+def _ori_a3(ix: Interaction) -> CheckResult:
+    """Policy v3 (evals/policy.py judgement call 4): `SubmitResponse.display` now travels on
+    *every* commit, not only a handoff -- checked exactly like `ORI-H1` checks a handoff's own.
+    Read straight off `captured_text` (`harness/driver.py`'s `_capture_commit_voice`), not
+    `ix.conversation` -- `_agent_cycle_conversation` (harness/interactions.py) never re-derives
+    this field itself, the same pattern `_agent_refusal_checks` already uses for `rule`/`remedy`.
+    """
+    display = ix.captured_text.get("commit_display", "").strip()
+    passed = len(display) >= 10
+    return _result("ORI-A3", passed, f"display={display!r}", ix)
+
+
+def _gui_a3(ix: Interaction) -> CheckResult:
+    """Policy v3's literal contract (evals/policy.py judgement call 4): "when it points at a
+    screen, contains a resolvable URL" -- conditional, not "always actionable". Live-confirmed
+    (2026-08-30 eval-all run) that reusing `GUI-H1`'s guidance-verb heuristic here was a
+    miscalibration: many commit continuations describe what the *agent* does next ("next, put
+    your solution into words too", "Your roles are saved.") rather than instructing the founder,
+    so requiring a verb failed legitimate, correct copy across every scenario. This check is
+    about the door alone -- when a URL is present, it must be well-formed (`http(s)://`); when
+    none is present, there is nothing to fail. The click-through itself is `FounderBrowser.
+    follow_display_url`, a scenario assertion no static sweep can stand in for."""
+    display = ix.captured_text.get("commit_display", "").strip()
+    url_match = policy._URL_RE.search(display)
+    passed = url_match is None or url_match.group(0).startswith(("http://", "https://"))
+    detail = f"display={display!r}, url={'none' if url_match is None else url_match.group(0)}"
+    return _result("GUI-A3", passed, detail, ix)
+
+
+def _cla_a2_commit(ix: Interaction) -> CheckResult:
+    """Policy v3: `CLA-A1`'s own recalibration said the vocabulary sweep follows founder-facing
+    wire text wherever it travels -- `display` now travels on every commit, so this is `CLA-A1`'s
+    companion for the hop `CLA-A1` itself does not cover (that one stays scoped to a handoff's
+    `outcome`, per policy v2's judgement call 3)."""
+    display = ix.captured_text.get("commit_display", "")
+    violations = policy.clarity_violations(display)
+    return _result("CLA-A2", not violations, f"violations={violations}" if violations else "clean", ix)
+
+
 def _agent_cycle_checks(ix: Interaction) -> list[CheckResult]:
     """Policy v2 (evals/policy.py judgement call 3; design §2): `instruction.content` and
     `requirements` are agent-facing method/payload guidance, not founder-facing protocol text --
@@ -96,12 +135,21 @@ def _agent_cycle_checks(ix: Interaction) -> list[CheckResult]:
     to sweep `display` instead (see `_agent_handoff_checks`/`_gui_a2_handoff` below), which only an
     agent-handoff interaction has. `GUI-A1` (presence/sentence-shape of `requirements`) and
     `ORI-A1` (non-empty instruction) are presence checks, not vocabulary sweeps, and are untouched.
+
+    Policy v3 (judgement call 4) adds `ORI-A3`/`GUI-A3`/`CLA-A2`, scored only when a
+    `commit_display` was actually captured -- a bundle scored before `SubmitResponse.display`
+    existed (or a step that never reached a successful commit, e.g. a refusal-only interaction)
+    emits none of the three rather than three automatic failures.
     """
     results = [_ori_a1(ix)]
     a2 = _ori_a2(ix)
     if a2 is not None:
         results.append(a2)
     results.append(_gui_a1(ix))
+    if ix.captured_text.get("commit_display"):
+        results.append(_ori_a3(ix))
+        results.append(_gui_a3(ix))
+        results.append(_cla_a2_commit(ix))
     return results
 
 
@@ -212,6 +260,43 @@ def _need_exists(ix: Interaction) -> bool | None:
     return None
 
 
+def _cla_u3(ix: Interaction) -> CheckResult | None:
+    """Policy v3: `verdictLabel`/`needLabel`, read off the same `state` JSON `GUI-U1`/`_need_exists`
+    already parse (`FounderBrowser._capture_common`'s `get_state` snapshot -- analysis finding A1's
+    mechanism, reused rather than re-plumbed). Once a stage is `approved`, its `verdictLabel` must
+    be present and enum-clean; once its `need` is present and not `EVIDENCE` (`FounderVoice.
+    needLabel` deliberately returns `null` there -- `verdictLabel` already carries the word),
+    `needLabel` must be present and enum-clean too. Returns `None` (skip) when no `state` snapshot
+    was captured, the same "don't guess" stance `_need_exists` takes.
+    """
+    raw_state = ix.captured_text.get("state")
+    if not raw_state:
+        return None
+    try:
+        state = json.loads(raw_state)
+    except json.JSONDecodeError:
+        return None
+    problems: list[str] = []
+    for stage in state.get("stages", []) or []:
+        if not isinstance(stage, dict):
+            continue
+        name = stage.get("stage")
+        if stage.get("approved"):
+            label = stage.get("verdictLabel")
+            if not label or not str(label).strip():
+                problems.append(f"{name}: approved but verdictLabel missing")
+            elif policy.clarity_violations(label):
+                problems.append(f"{name}: verdictLabel {label!r} leaks {policy.clarity_violations(label)}")
+        need = stage.get("need")
+        if need is not None and need != "EVIDENCE":
+            need_label = stage.get("needLabel")
+            if not need_label or not str(need_label).strip():
+                problems.append(f"{name}: need={need} but needLabel missing")
+            elif policy.clarity_violations(need_label):
+                problems.append(f"{name}: needLabel {need_label!r} leaks {policy.clarity_violations(need_label)}")
+    return _result("CLA-U3", not problems, "; ".join(problems) if problems else "clean", ix)
+
+
 def _ui_visit_checks(ix: Interaction) -> list[CheckResult]:
     results = []
     identity = ix.captured_text.get("identity", "")
@@ -228,6 +313,10 @@ def _ui_visit_checks(ix: Interaction) -> list[CheckResult]:
         passed = (not need_exists) or bool(affordance)
         detail = f"need_exists={need_exists}, affordance={'present' if affordance else 'absent'}"
         results.append(_result("GUI-U1", passed, detail, ix))
+
+    cla_u3 = _cla_u3(ix)
+    if cla_u3 is not None:
+        results.append(cla_u3)
 
     combined_text = "\n".join(v for k, v in ix.captured_text.items() if k not in ("state",))
     enum_violations = policy.enum_violations(combined_text)

@@ -43,6 +43,9 @@ class S007HostileWire(Scenario):
     name = "S-007 hostile wire"
     slug = "s007-hostile-wire"
 
+    def project_name(self) -> str:
+        return "Payroll Exception Radar (Hostile Wire)"
+
     def problem_statement(self) -> str:
         return PROBLEM_CLAIM
 

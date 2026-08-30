@@ -8,6 +8,12 @@ once, checked by harness/rubric.py's FID-* checks. `absent_hops` documents a hop
 legitimately never reaches (spec edge case: "declared absent... not silently unchecked") --
 distinct from just omitting the hop, which would leave a reviewer wondering whether it was
 forgotten or ruled out on purpose.
+
+Founder-experience design (keel-cloud commits 8b13d04/ff1ed48): `CREATE` now requires `name` (the
+founder's own name for the project, not the id) and `INTRODUCE_ASSUMPTIONS` requires a `heading`
+per belief. `project_name()` is a new hook every concrete scenario fills in; `assumptions_payload`
+already returns one dict per belief, so a scenario adds `heading` there itself (this base class has
+no per-belief structure of its own to inject it into generically).
 """
 
 from __future__ import annotations
@@ -42,7 +48,7 @@ class Scenario:
     def build_payload(self, action: str, detail: dict, context: dict[str, Any]) -> dict:
         stage = detail.get("stage")
         if action == "CREATE":
-            return {"statement": self.problem_statement()}
+            return {"name": self.project_name(), "statement": self.problem_statement()}
         if action == "FRAME":
             return {"stage": stage, "statement": self.frame_statement(stage)}
         if action == "INTRODUCE_ROLES":
@@ -61,6 +67,11 @@ class Scenario:
         raise NotImplementedError(f"{type(self).__name__} has no payload builder for {action!r}")
 
     # ---------------------------------------------------------------------------- hooks to fill in
+
+    def project_name(self) -> str:
+        """The founder's own name for the project (founder-experience design §3) -- required by
+        `CREATE`'s schema now, distinct from `problem_statement()` (the claim itself)."""
+        raise NotImplementedError
 
     def problem_statement(self) -> str:
         raise NotImplementedError

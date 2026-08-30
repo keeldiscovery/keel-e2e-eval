@@ -25,6 +25,7 @@ this docstring is the record of that correction (see the delivery report's findi
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
@@ -80,6 +81,23 @@ def _opportunity_echo_text(parsed: Any) -> str:
             if belief.get("roleLabel"):
                 parts.append(belief["roleLabel"])
     return "\n".join(parts)
+
+
+def _capture_commit_voice(h: StepHandle, parsed: Any) -> None:
+    """Policy v3's two new agent-cycle hops (evals/policy.py's module docstring, judgement call
+    4): `SubmitResponse.display` -- a founder sentence on *every* commit now, not only a handoff --
+    and `SubmitResponse.recorded` -- the server-authored playback of what this commit created.
+    Captured only on a successful commit (`_post` already raises before this runs on a >=400), so
+    a refusal's own {rule, problem, remedy} is never mistaken for either.
+    """
+    if not isinstance(parsed, dict):
+        return
+    display = parsed.get("display")
+    if isinstance(display, str) and display.strip():
+        h.capture_text("commit_display", display)
+    recorded = parsed.get("recorded")
+    if recorded is not None:
+        h.capture_text("recorded", json.dumps(recorded, default=str))
 
 
 def _response_echo_text(parsed: Any) -> str:
@@ -201,6 +219,34 @@ class FounderAgentDriver:
                 raise ProtocolError(response.status_code, parsed)
         return parsed
 
+    def _founder_get(self, path: str, step_name: str) -> Any:
+        """A read against the founder API (`/v2/projects/**`), not the agent surface -- a harness-
+        only assertion helper (the same status as `get_state`, analysis finding A1's own
+        precedent: a live read consulted for scoring/assertion purposes, never a step a real agent
+        client would issue). Used by the standing invite-gate assertion (founder-experience design
+        §6): "no invitable role and no INVITE need while any framed stage awaits approval" needs
+        the founder role picker's own `invitable`/`blockedBy`, which the agent surface has no
+        equivalent read for.
+        """
+        with self.recorder.step(step_name, party="stack", kind="protocol") as h:
+            response = self.session.get(f"{self.base_url}{path}", timeout=15)
+            parsed = _safe_json(response)
+            h.record_wire({"path": path}, {"status": response.status_code, "body": parsed})
+            if response.status_code >= 400:
+                h.fail(f"HTTP {response.status_code}: {parsed}")
+                raise ProtocolError(response.status_code, parsed)
+        return parsed
+
+    def get_founder_roles(self, project_id: str) -> dict:
+        """GET /v2/projects/{id}/roles -- RolePickerRow's own `invitable`/`blockedBy`."""
+        return self._founder_get(f"/v2/projects/{project_id}/roles",
+                                  f"get founder roles (project {project_id})")
+
+    def get_founder_people(self, project_id: str) -> dict:
+        """GET /v2/projects/{id}/people -- the merged People screen's own read."""
+        return self._founder_get(f"/v2/projects/{project_id}/people",
+                                  f"get founder people (project {project_id})")
+
     def check_mcp_reachable(self) -> None:
         """One /mcp reachability touch even though this driver speaks HTTP (design §3)."""
         with self.recorder.step("check /mcp is reachable", party="agent", kind="protocol") as h:
@@ -213,7 +259,8 @@ class FounderAgentDriver:
     # ------------------------------------------------------------------------------ submit + retry
 
     def _submit(self, token: str, payload: dict, label: str) -> dict:
-        return self._post("/v2/agent/submit", {"token": token, "payload": payload}, f"submit {label}")
+        return self._post("/v2/agent/submit", {"token": token, "payload": payload}, f"submit {label}",
+                           capture=_capture_commit_voice)
 
     def submit_with_recovery(self, token: str, payload: dict, action: str, label: str) -> dict:
         """Refusal recovery per {rule, problem, remedy} (T010):
