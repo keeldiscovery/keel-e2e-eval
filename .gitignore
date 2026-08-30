@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.venv/
+runs/
+node_modules/
+.pytest_cache/
+.specify/feature.json
