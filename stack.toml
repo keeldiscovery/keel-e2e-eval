@@ -1,0 +1,16 @@
+# Sibling repo paths + ports + timeouts (data-model.md). Paths are resolved relative to this
+# file's own directory, so `make` works the same regardless of the caller's cwd.
+
+[paths]
+keel_cloud = "../keel-cloud"
+keel_web = "../keel-web"
+keel_skill = "../keel-skill"
+
+[ports]
+postgres = 55432
+cloud = 18080
+web = 5173
+
+[timeouts]
+cloud_boot = 120
+web_boot = 60
