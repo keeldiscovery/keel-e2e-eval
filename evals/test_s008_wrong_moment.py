@@ -40,6 +40,9 @@ it provisions the account, rather than reproduced here; see that fixture's own d
 judgement call.
 """
 
+# Journey coverage (CANON.md ledger): proves §1.0's arrival gates (login/setup routing) and
+# §1.2's no-status-before-approval quiet states at their wrong moments.
+
 from __future__ import annotations
 
 import re

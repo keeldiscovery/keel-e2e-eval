@@ -20,6 +20,9 @@ SOLUTION and COMMERCIAL *approved*, not just framed, before PROBLEM's own invite
 call this scenario needs (a placeholder belief on a never-invited role).
 """
 
+# Journey coverage (CANON.md ledger): also proves §2.2 -- the consenting stranger answers the
+# sectioned questions and reaches submit without a dead end.
+
 from __future__ import annotations
 
 import time

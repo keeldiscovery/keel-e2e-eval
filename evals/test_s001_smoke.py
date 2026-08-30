@@ -28,6 +28,11 @@ sentence, pull the URL it carries out *verbatim*, and prove the browser actually
 `FounderBrowser.follow_display_url` -- never a URL this harness reconstructs itself.
 """
 
+# Journey coverage (CANON.md ledger): this scenario proves journeys.md §1.0 (arrival opening
+# via recipes.arrive_and_create), §1.1 (idea to three bets), §1.2 (review before spend),
+# §1.4 (approve all framed cards then invite), §1.5 (waiting counts, never interprets), and
+# §1.6 (reading one invitation at a time).
+
 from __future__ import annotations
 
 import re

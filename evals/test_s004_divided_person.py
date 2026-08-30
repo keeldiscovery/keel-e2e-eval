@@ -29,6 +29,9 @@ so `approve()` has something LOAD_BEARING to require without ever touching this 
 carefully single-question interview.
 """
 
+# Journey coverage (CANON.md ledger): also proves §1.6 -- the divided person's answer is read
+# through one INTERPRET issuance, and nothing moves until it is submitted.
+
 from __future__ import annotations
 
 import time

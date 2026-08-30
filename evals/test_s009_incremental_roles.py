@@ -30,6 +30,9 @@ once the gate opens and the founder actually invites them -- "the flow proceeds 
 (task item 3), checked live on the People screen's own role picker before either invitation is sent.
 """
 
+# Journey coverage (CANON.md ledger): proves §1.4's inviting reach when a later stage needs a
+# kind of person the earlier stages never met -- the buyer arrives through the front door.
+
 from __future__ import annotations
 
 import time

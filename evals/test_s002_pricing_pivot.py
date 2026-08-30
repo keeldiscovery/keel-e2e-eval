@@ -42,6 +42,9 @@ assumptions (budget is `SUPPORTED`, so it is never re-frozen into a new link reg
    what it asserts instead about the fix.
 """
 
+# Journey coverage (CANON.md ledger): also proves §1.4 -- every framed card is approved before
+# any invitation exists, and the fresh post-pivot link re-asks nothing settled.
+
 from __future__ import annotations
 
 import time
