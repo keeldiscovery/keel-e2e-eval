@@ -28,7 +28,7 @@ visit, and participant page is checked against a versioned policy on four attrib
 ```bash
 make up            # boots Postgres (55432), keel-cloud (18080), keel-web (5173); prints each gate
 make eval K=s001    # runs one scenario by slug substring (matches evals/test_s001_smoke.py, etc.)
-make eval-all       # runs the FULL set (s001-s007) in one stack session, writes runs/INDEX-*.html
+make eval-all       # runs the FULL set (s001-s009) in one stack session, writes runs/INDEX-*.html
 make down           # tears everything down; idempotent, safe even half-up
 ```
 
@@ -139,9 +139,12 @@ See `runs/DRIFT.md` if one exists in this checkout for the current findings.
 
 ## The eval set
 
-Eight scenarios ship today (`specs/eval-set-design.md`, feature 003; S-008 added for the founder-
-experience design's item-7 blind spot), each its own fresh project (never shared state --
-`evals/recipes.py` shares *code*, not data, across scenarios):
+Nine scenarios ship today (`specs/eval-set-design.md`, feature 003; S-008 added for the founder-
+experience design's item-7 blind spot; S-009 added for round 2's item-8 roles-ladder fix), each its
+own fresh project (never shared state -- `evals/recipes.py` shares *code*, not data, across
+scenarios). Every one of them now opens with the same shared step (`evals.recipes.
+arrive_and_create`/`open_founder_session`, round 2 task item 2): the arrival greeting, a logged-in
+founder session (both the driver's agent key and the browser's real `/login`), then `CREATE`.
 
 | Scenario | File | Journey | What it walks |
 |---|---|---|---|
@@ -152,11 +155,29 @@ experience design's item-7 blind spot), each its own fresh project (never shared
 | S-005 | `evals/test_s005_opinions.py` | §1.7, §2.2 | Opinions move nothing (`STATED_PREFERENCE` never counts); an all-skipped submission is refused gently, not with a raw error. |
 | S-006 | `evals/test_s006_consent_decline.py` | §2.1-2.3 | A graceful, never-shamed decline; the consent screen's exactly-four things; a thank-you that promises nothing extra. |
 | S-007 | `evals/test_s007_hostile_wire.py` | protocol negatives | No browser: an unknown MCP screen, an ungranted context handle, a schema fault the token survives, a stale token after its own unacknowledged commit -- each scored as its own `agent-refusal` interaction (`GUI-R1`/`ORI-R1`: is the remedy present, actionable, and not just the problem restated?). |
-| S-008 | `evals/test_s008_wrong_moment.py` | item 7 (feedback-2026-08-30.md) | Wrong-moment visits: a stage before it's framed, People before any role exists, the brief long before `READY_TO_BUILD` -- each a founder-worded quiet state, never the wire's raw refusal shape. |
+| S-008 | `evals/test_s008_wrong_moment.py` | item 7 (feedback-2026-08-30.md) | Wrong-moment visits: a stage before it's framed, People before any role exists, the brief long before `READY_TO_BUILD`, and (round 2) a founder screen with no session at all -- each a founder-worded quiet state or a route to `/login`, never the wire's raw refusal shape. |
+| S-009 | `evals/test_s009_incremental_roles.py` | item 8 (feedback-2026-08-30-r2.md) | The roles-ladder fix's own demonstration: PROBLEM/SOLUTION share a role no type COMMERCIAL's beliefs may be asked of, so COMMERCIAL's own decompose recommends `INTRODUCE_ROLES` (never a dead end) with the stage's compatible-role detail, a buyer is introduced through that front door, and the flow proceeds to invitable. |
 
 Adding another is a new `evals/test_*.py` module plus a `Scenario` (payload builders, answer
 table, about-line, fact registry) per `evals/scenario.py` -- `evals/recipes.py` is the place to
 share a setup shape (never state) across more than one scenario.
+
+### Founder auth (round 2; keel-cloud commits `cef132c`/`dce04a6`)
+
+keel-cloud now enforces real auth end to end: founder web routes need a session, `/v2/agent/**`
+and `/mcp` need `X-Keel-Agent-Key`, and the participant surface stays open. `stack/auth.py`'s
+`ensure_founder_account` is the once-per-stack bootstrap (`evals/conftest.py`'s session-scoped
+`founder_credentials` fixture calls it): idempotent against `GET /v2/setup`, storing the result in
+`runs/.stack/founder.json` (a harness-owned scratch file, gitignored, deleted by `make down` since
+`postgres down -v` drops the account it describes with it). `evals.recipes.open_founder_session`
+wires both halves for a scenario: `harness.driver.FounderAgentDriver(..., agent_key=...)` for the
+agent surface, and `harness.browser.FounderBrowser.log_in` -- driving the real `/login` screen,
+never a transplanted cookie -- for the founder's browser context. The participant's own browser
+context never receives either credential; `evals.recipes.assert_participant_has_no_founder_auth`
+is the standing check that stays true. `evals/conftest.py`'s `founder_credentials` fixture also
+captures the one moment a stack is genuinely virgin (`GET /v2/setup`'s `accountExists: false`,
+before this fixture provisions it): a landing visit routes to `/setup`, screenshotted to
+`runs/.stack/`.
 
 ### The invite gate (founder-experience design §6; keel-cloud commits 8b13d04/ff1ed48)
 
@@ -174,10 +195,10 @@ consequence worth naming: a scenario using one role across multiple stages (S-00
 combined invitation once the gate opens, not one per stage -- `Project.invite`/`linkFor` freezes
 every open belief for a role into the *first* invitation sent to it.
 
-### Policy v3
+### Policy v4
 
-`evals/policy.py`'s `POLICY_VERSION` is `3` (founder-experience design; keel-cloud commits
-8b13d04/ff1ed48 gave the wire a founder voice on every commit, not only a handoff):
+`evals/policy.py`'s `POLICY_VERSION` is `4` (founder-experience round 2). v3's own additions
+(below) are kept, unstruck, in the same policy module:
 
 - **`recorded` playback fidelity** -- a seventh FID hop. A scenario's fact registry can now
   declare `hops=["recorded", ...]`: the fact must appear verbatim in the agent-cycle's own
@@ -191,10 +212,29 @@ every open belief for a role into the *first* invitation sent to it.
   present and enum-clean once a stage is `approved` (`verdictLabel`) or has a `need` other than
   `EVIDENCE` (`needLabel` -- `FounderVoice.needLabel` deliberately returns `null` there).
 
-This is additive, not a loosened bar -- `tests/test_policy_v3.py` seeds a failure for each new
-check and a clean control that passes it, the same construction-not-assertion method
-`tests/test_policy_v2.py` (its v2 fixtures, kept, are in the same file now) used to prove v2's own
-recalibration.
+Round 2 (founder-experience round 2 design; keel-cloud commits `cef132c`/`dce04a6`; keel-web
+commits `30787d4..760d0d2`) adds three more, plus an eighth FID hop:
+
+- **`CLA-AR1`** -- the arrival read's own server-composed greeting (`harness/driver.py`'s new
+  `arrive()`, a fresh `"arrival"` interaction type): non-empty and free of a raw project id.
+- **`ORI-U3`** -- the side nav's locked People section carries its own founder-worded one-line why
+  (`harness/browser.py`'s `_capture_common`, `.side-nav__locked-why`) -- skipped, not failed, on a
+  visit where People isn't locked at all.
+- **`GUI-U2`** -- the pointer-to-agent variant of the founder UI's own next-step box (`.next.agent`,
+  "Now work out your solution with your Keel agent.") is a sentence, never a link: no URL in the
+  text. `FounderBrowser._capture_common` also asserts live, at capture time, that no `<a>` renders
+  inside `.next.agent` at all -- `evals.recipes.assert_pointer_to_agent` is the scenario-level
+  demonstration, run after every approval whose next need is agent-side (every scenario that calls
+  `advance_to_all_stages_approved`, plus `test_s001_smoke.py`/`test_s009_incremental_roles.py` by
+  hand).
+- **`roles_context`** -- an eighth FID hop: the `roles` handle's own echo (`get_context("roles")`),
+  granted alongside `INTRODUCE_ROLES` and `INTRODUCE_ASSUMPTIONS`. `test_s009_incremental_roles.py`
+  is its one live trace (a role introduced through the roles-ladder front door, read back before
+  the stage it unblocks is even decomposed).
+
+This is additive, not a loosened bar -- `tests/test_policy_v4.py` seeds a failure for each new
+check and a clean control that passes it, the same construction-not-assertion method every prior
+policy bump (its own v2/v3 fixtures, kept, are in the same file) used.
 
 ## Stackless unit tests
 

@@ -1,4 +1,5 @@
-"""S-008 -- wrong-moment visits (feedback item 7's blind spot; founder-experience design §4 item 3).
+"""S-008 -- wrong-moment visits (feedback item 7's blind spot; founder-experience design §4 item 3),
+now also the auth-moment sweep (round 2, task item 5).
 
 Every eval scenario before this one visits a screen only once its data actually exists: a stage
 after it is framed, People after a role exists, the brief after `READY_TO_BUILD`. Item 7 of the
@@ -26,6 +27,17 @@ an HTTP status code) proving nothing from the refusal shape leaked through. Scor
 (does the screen still orient the founder, even with nothing to show) and CLARITY (founder words,
 never wire words) -- no FIDELITY facts are declared, the same honest absence S-007 declares for the
 same reason (nothing founder-authored exists yet to trace hop-by-hop).
+
+**Round 2 addition -- the wrong *moment* to hold no session at all.** A fourth wrong-moment visit,
+the same family as the other three (nothing real to show, and what renders instead must be
+founder-worded, never wire-shaped): a founder screen opened by a browser context that never logged
+in at all. `AppRoutes.tsx`'s `AuthGate` routes any 401 to `/login` (this harness's own account
+always exists by the time this scenario runs, `evals/conftest.py`'s `founder_credentials` fixture
+having already provisioned it -- so this is always the `/login` branch, never `/setup`). The
+*other* branch (`accountExists === false` routing to `/setup`) is a genuinely once-per-stack-
+lifetime moment -- captured instead in `evals/conftest.py`'s `founder_credentials` fixture, before
+it provisions the account, rather than reproduced here; see that fixture's own docstring for the
+judgement call.
 """
 
 from __future__ import annotations
@@ -34,9 +46,8 @@ import re
 import time
 
 from evals import policy
+from evals.recipes import arrive_and_create, open_founder_session
 from evals.scenario import Fact, Scenario, find_role
-from harness.browser import FounderBrowser
-from harness.driver import FounderAgentDriver
 from harness.evidence import finalize_run
 from harness.steps import Recorder, StepHandle
 
@@ -119,25 +130,21 @@ class S008WrongMoment(Scenario):
         return {}
 
 
-def test_s008_wrong_moment(stack, run_dir, browser):
+def test_s008_wrong_moment(stack, run_dir, browser, founder_credentials):
     recorder = Recorder(run_dir)
     scenario = S008WrongMoment()
-    cloud_base = f"http://localhost:{stack.cloud_port}"
     founder_web_base = f"http://localhost:{stack.web_port}/p"
-
-    driver = FounderAgentDriver(cloud_base, recorder, scenario)
     passed = False
     started = time.monotonic()
-    founder_context = browser.new_context()
+    driver, founder, founder_context = open_founder_session(stack, founder_credentials, recorder,
+                                                              scenario, browser)
+    founder_page = founder.page
     try:
-        founder_page = founder_context.new_page()
-        founder = FounderBrowser(founder_page, founder_web_base, recorder, get_state=driver.get_state)
-
-        # CREATE only. PROBLEM is framed as a side effect (the aggregate's own rule); SOLUTION and
-        # COMMERCIAL are not, no role has ever been introduced, and the project is nowhere near
-        # READY_TO_BUILD. Every screen visited from here on is a wrong-moment visit by construction.
-        driver.advance_one()
-        project_id = driver.project_id
+        # CREATE only (via the shared opening step, task item 2). PROBLEM is framed as a side
+        # effect (the aggregate's own rule); SOLUTION and COMMERCIAL are not, no role has ever
+        # been introduced, and the project is nowhere near READY_TO_BUILD. Every screen visited
+        # from here on is a wrong-moment visit by construction.
+        project_id = arrive_and_create(driver, founder, scenario)
         assert project_id
 
         # 1. A stage pre-framing (item 7's blind spot, reachable): SOLUTION has never been framed.
@@ -174,6 +181,28 @@ def test_s008_wrong_moment(stack, run_dir, browser):
                 h.fail(f"expected the brief's not-yet quiet state, got {hint_text!r}")
                 raise AssertionError(h.error)
             _assert_no_wire_leak(h, hint_text)
+
+        # 4. Round 2's own auth-moment addition (task item 5): a founder screen opened by a
+        # browser context that never logged in at all -- a fresh context, never `founder.log_in`.
+        # `AuthGate` routes the resulting 401 to `/login` (this instance's account already exists
+        # by the time this scenario runs) -- founder-worded, never the wire's own 401 body.
+        unauth_context = browser.new_context()
+        try:
+            unauth_page = unauth_context.new_page()
+            with recorder.step("an unauthenticated founder screen visit routes to login, "
+                                "founder-worded, no wire text", party="founder", kind="assert") as h:
+                unauth_page.goto(f"{founder_web_base}/{project_id}", wait_until="load")
+                unauth_page.wait_for_url("**/login", timeout=10_000)
+                heading = unauth_page.locator("h1.auth-title").inner_text()
+                body_text = unauth_page.locator("body").inner_text()
+                h.record_assert("routed to /login, 'Log in' heading, no wire leak",
+                                 {"url": unauth_page.url, "heading": heading})
+                if "log in" not in heading.lower():
+                    h.fail(f"expected the login screen's own heading, got {heading!r} at {unauth_page.url}")
+                    raise AssertionError(h.error)
+                _assert_no_wire_leak(h, body_text)
+        finally:
+            unauth_context.close()
 
         passed = True
     finally:

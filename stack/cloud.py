@@ -74,6 +74,15 @@ def up(config: StackConfig) -> None:
 def check_mcp_reachable(config: StackConfig) -> None:
     """One check per stack boot (contracts/stack-contract.md): POST /mcp must not be
     connection-refused or 404, even though the driver itself speaks HTTP, not MCP.
+
+    Founder-experience round 2: /mcp now also sits behind the agent-key gate
+    (`AgentKeyAuthorizationManager`), but this check runs from `cloud.up()`, before any founder
+    account exists to mint a key from (`evals/conftest.py`'s founder_credentials fixture runs
+    later, once the whole stack is up) -- so it stays keyless and unchanged: a 401 here still means
+    "mounted, and now also gated", which is exactly as reachable as this check ever promised. The
+    scenario-time reachability touches (`harness/driver.py`'s `check_mcp_reachable`,
+    `harness/mcp_client.py`'s `McpClient`) run after the founder account exists and do carry the
+    key, exercising the gate for real.
     """
     url = f"http://localhost:{config.cloud_port}/mcp"
     try:

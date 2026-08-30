@@ -25,11 +25,11 @@ from __future__ import annotations
 import time
 
 from evals.recipes import (
-    FILLER_ROLE_LABEL, advance_to_all_stages_approved, filler_assumption_payload, filler_role_payload,
+    FILLER_ROLE_LABEL, advance_to_all_stages_approved, assert_participant_has_no_founder_auth,
+    filler_assumption_payload, filler_role_payload, open_founder_session,
 )
 from evals.scenario import Fact, Scenario, find_role
-from harness.browser import FounderBrowser, ParticipantBrowser
-from harness.driver import FounderAgentDriver
+from harness.browser import ParticipantBrowser
 from harness.evidence import finalize_run
 from harness.steps import Recorder
 
@@ -101,23 +101,19 @@ class S006ConsentDecline(Scenario):
         }
 
 
-def test_s006_consent_decline(stack, run_dir, browser):
+def test_s006_consent_decline(stack, run_dir, browser, founder_credentials):
     recorder = Recorder(run_dir)
     scenario = S006ConsentDecline()
-    cloud_base = f"http://localhost:{stack.cloud_port}"
-    founder_web_base = f"http://localhost:{stack.web_port}/p"
-
-    driver = FounderAgentDriver(cloud_base, recorder, scenario)
     passed = False
     started = time.monotonic()
-    founder_context = browser.new_context()
+    driver, founder, founder_context = open_founder_session(stack, founder_credentials, recorder,
+                                                              scenario, browser)
+    founder_page = founder.page
     try:
-        founder_page = founder_context.new_page()
-        founder = FounderBrowser(founder_page, founder_web_base, recorder, get_state=driver.get_state)
-
         # The invite gate (module docstring): all three stages approved before any invitation
-        # exists, even though this scenario's own subject is PROBLEM alone.
-        advance_to_all_stages_approved(driver, founder)
+        # exists, even though this scenario's own subject is PROBLEM alone. Includes the shared
+        # arrival + CREATE opening step (task item 2).
+        advance_to_all_stages_approved(driver, founder, scenario)
         project_id = driver.project_id
 
         handoff = driver.advance_until_handoff()
@@ -196,6 +192,7 @@ def test_s006_consent_decline(stack, run_dir, browser):
                     if over_promise in lowered:
                         h.fail(f"thank-you page over-promises ({over_promise!r} mentioned): {body!r}")
                         raise AssertionError(h.error)
+            assert_participant_has_no_founder_auth(consent_context)
         finally:
             consent_context.close()
 

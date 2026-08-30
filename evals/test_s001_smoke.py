@@ -33,11 +33,13 @@ from __future__ import annotations
 import re
 import time
 
-from harness.browser import FounderBrowser, ParticipantBrowser
-from harness.driver import FounderAgentDriver
+from harness.browser import ParticipantBrowser
 from harness.evidence import finalize_run
 from harness.steps import Recorder
-from evals.recipes import assert_invite_gate_closed
+from evals.recipes import (
+    arrive_and_create, assert_invite_gate_closed, assert_participant_has_no_founder_auth,
+    assert_pointer_to_agent, open_founder_session,
+)
 from evals.scenario import Fact, Scenario, find_role
 
 ROLE_LABEL = "Payroll Ops Manager"
@@ -244,27 +246,24 @@ class S001Smoke(Scenario):
         return facts
 
 
-def test_s001_smoke(stack, run_dir, browser):
+def test_s001_smoke(stack, run_dir, browser, founder_credentials):
     recorder = Recorder(run_dir)
     scenario = S001Smoke()
-    cloud_base = f"http://localhost:{stack.cloud_port}"
-    founder_web_base = f"http://localhost:{stack.web_port}/p"
-
-    driver = FounderAgentDriver(cloud_base, recorder, scenario)
     passed = False
     started = time.monotonic()
-    founder_context = browser.new_context()
+    driver, founder, founder_context = open_founder_session(stack, founder_credentials, recorder,
+                                                              scenario, browser)
+    founder_page = founder.page
     try:
         driver.load_skill(stack.skill_md_path)
         driver.check_mcp_reachable()
 
-        founder_page = founder_context.new_page()
-        founder = FounderBrowser(founder_page, founder_web_base, recorder, get_state=driver.get_state)
-
-        # CREATE (name required), FRAME x2, INTRODUCE_ROLES -- agent-only, nothing renders yet.
-        for _ in range(4):
+        # The shared opening step (task item 2): the arrival greeting, then CREATE (name
+        # required) with its own completed display proven live, then the project list growing by
+        # this fresh project. FRAME x2, INTRODUCE_ROLES follow -- agent-only, nothing renders yet.
+        project_id = arrive_and_create(driver, founder, scenario)
+        for _ in range(3):
             driver.advance_one()
-        project_id = driver.project_id
         assert project_id
 
         # Policy v3's "every door must open" rule, demonstrated live (module docstring): drive
@@ -307,8 +306,11 @@ def test_s001_smoke(stack, run_dir, browser):
         founder.approve_current_stage("PROBLEM")
 
         # The invite gate's standing assertion (founder-experience design §6): closed while
-        # SOLUTION/COMMERCIAL are still framed and unapproved.
+        # SOLUTION/COMMERCIAL are still framed and unapproved. Policy v4's pointer-to-agent
+        # variant (design §4 item 4): SOLUTION hasn't been decomposed yet, so the overview's own
+        # next-step pointer hands off to the agent rather than offering a link.
         assert_invite_gate_closed(driver)
+        assert_pointer_to_agent(founder, project_id)
 
         for stage in ("SOLUTION", "COMMERCIAL"):
             handoff = driver.advance_until_handoff()
@@ -318,6 +320,7 @@ def test_s001_smoke(stack, run_dir, browser):
             founder.approve_current_stage(stage)
             if stage == "SOLUTION":
                 assert_invite_gate_closed(driver)
+                assert_pointer_to_agent(founder, project_id)
 
         # The gate is open now -- one combined invitation, carrying all three cards, is next.
         handoff = driver.advance_until_handoff()
@@ -350,6 +353,9 @@ def test_s001_smoke(stack, run_dir, browser):
             participant.start()
             participant.answer([scenario.participant_answer(stage) for stage in STAGES])
             participant.submit()
+            # The participant surface stays open, and the participant's own browser context must
+            # never carry the founder's session (task item 1's standing assertion).
+            assert_participant_has_no_founder_auth(participant_context)
         finally:
             participant_context.close()
 

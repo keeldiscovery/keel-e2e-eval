@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import time
 
-from stack import cloud, postgres, web
+from stack import auth, cloud, postgres, web
 from stack.config import StackConfig
 from stack.processes import teardown_all_processes
 
@@ -47,4 +47,7 @@ def teardown(config: StackConfig | None = None) -> None:
     time.sleep(0.5)
     print("[down] stopping postgres ...")
     postgres.down()
+    # postgres.down() drops the volume (-v) -- the founder account stack/auth.py stored
+    # credentials for no longer exists once this returns (founder-experience round 2).
+    auth.clear_stored()
     print("[down] done")

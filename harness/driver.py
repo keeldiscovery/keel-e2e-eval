@@ -63,6 +63,18 @@ def _safe_json(response: requests.Response) -> Any:
 
 # ------------------------------------------------------------------- FID hop capture (T012)
 
+def _roles_echo_text(parsed: Any) -> str:
+    """The `roles` handle echo (founder-experience round 2, S-009's own FID trace): every role's
+    own `label` this context grants back to the agent -- `ContextHandleService.roles`. Granted
+    alongside `INTRODUCE_ROLES` and `INTRODUCE_ASSUMPTIONS` (`HandleGrants`); a role introduced by
+    one call reaches this hop the very next time either action is issued and re-reads `roles`, the
+    same "consult context, never remember an id" discipline the `opportunity` echo already lives
+    by (`Scenario.build_payload`'s own `find_role` lookups)."""
+    if not isinstance(parsed, dict):
+        return ""
+    return "\n".join(role.get("label", "") for role in parsed.get("roles") or [] if role.get("label"))
+
+
 def _opportunity_echo_text(parsed: Any) -> str:
     """The `agent_echo` hop: what get_context("opportunity") reflects back -- each stage's
     active (and previous) claim, plus every applying belief's statement and asking role's label
@@ -123,12 +135,76 @@ class FounderAgentDriver:
     """
 
     def __init__(self, base_url: str, recorder: Recorder, scenario: PayloadBuilder,
-                 session: requests.Session | None = None):
+                 session: requests.Session | None = None, *, agent_key: str | None = None):
         self.base_url = base_url.rstrip("/")
         self.recorder = recorder
         self.scenario = scenario
         self.session = session or requests.Session()
         self.project_id: str | None = None
+        if agent_key:
+            # Founder-experience round 2: `/v2/agent/**` and `/mcp` are gated on this header
+            # (`AgentKeyAuthorizationManager`) -- set once as a session default so every call this
+            # driver makes carries it, including `_founder_get`'s `/v2/projects/**` reads (that
+            # gate ignores this header entirely, so there is no harm in it riding along there too).
+            self.session.headers.update({"X-Keel-Agent-Key": agent_key})
+
+    def log_in(self, email: str, password: str) -> None:
+        """Founder-experience round 2: `_founder_get` (`get_founder_roles`/`get_founder_people`)
+        reads `/v2/projects/**`, which is founder-*session*-gated, not agent-key-gated -- a
+        separate credential from the one `__init__`'s `agent_key` sets. This is a harness-only
+        convenience (the same status `_founder_get` itself already carries, per its own
+        docstring): a real agent has no reason to hold a founder session at all, but this driver's
+        standing assertions (`assert_invite_gate_closed`) need one to read the founder-facing role
+        picker live. `POST /v2/login` on this same `self.session` so the resulting cookie rides
+        alongside the agent-key header already set."""
+        with self.recorder.step("driver logs in for founder-session reads", party="stack",
+                                 kind="protocol") as h:
+            response = self.session.post(f"{self.base_url}/v2/login",
+                                          json={"email": email, "password": password}, timeout=15)
+            parsed = _safe_json(response)
+            h.record_wire({"path": "/v2/login", "body": {"email": email}},
+                           {"status": response.status_code, "body": parsed})
+            if response.status_code >= 400:
+                h.fail(f"HTTP {response.status_code}: {parsed}")
+                raise ProtocolError(response.status_code, parsed)
+
+    def arrive(self) -> dict:
+        """`GET /v2/agent/state` with no project (spec 015 US2, founder-experience round 2 design
+        §2): the arrival read -- the founder's own projects, newest first, latest flagged, plus a
+        server-composed `display` greeting. Captured under `arrival_display` for policy v4's
+        `CLA-AR1` (non-empty, id-free) and opens its own `arrival` interaction scope, distinct from
+        `agent-cycle`/`agent-handoff` -- this is neither an action nor a handoff, just a read.
+        """
+        with self.recorder.interaction("arrival"):
+            with self.recorder.step("arrive (get_state, no project)", party="agent",
+                                     kind="protocol") as h:
+                response = self.session.get(f"{self.base_url}/v2/agent/state", timeout=15)
+                parsed = _safe_json(response)
+                h.record_wire({"path": "/v2/agent/state"},
+                               {"status": response.status_code, "body": parsed})
+                if response.status_code >= 400:
+                    h.fail(f"HTTP {response.status_code}: {parsed}")
+                    raise ProtocolError(response.status_code, parsed)
+                if isinstance(parsed, dict):
+                    h.capture_text("arrival_display", parsed.get("display"))
+        return parsed
+
+    def create_project(self) -> dict:
+        """Drives `CREATE` by hand -- `advance_one` discards the commit's own result, but
+        founder-experience round 2 §3 makes CREATE's `display` complete (name, next step, overview
+        link) and every scenario now checks it once, the same "every door must open" demonstration
+        `test_s001_smoke.py` already gave PROBLEM's `INTRODUCE_ASSUMPTIONS`. Opens its own
+        agent-cycle interaction scope, exactly like `advance_one` would for any other action.
+        """
+        with self.recorder.interaction("agent-cycle"):
+            issuance = self.get_next()
+            if issuance.get("kind") != "action" or issuance.get("action") != "CREATE":
+                raise RuntimeError(f"expected a CREATE issuance, got {issuance}")
+            token = issuance["token"]
+            context = {h: self.get_context(token, h) for h in issuance.get("context") or []}
+            payload = self.scenario.build_payload("CREATE", issuance.get("detail") or {}, context)
+            result = self.submit_with_recovery(token, payload, "CREATE", "CREATE")
+        return result
 
     # ------------------------------------------------------------------------------- SKILL.md
 
@@ -200,6 +276,8 @@ class FounderAgentDriver:
                 h.capture_text("agent_echo", _opportunity_echo_text(parsed))
             elif handle == "response":
                 h.capture_text("interpret_context", _response_echo_text(parsed))
+            elif handle == "roles":
+                h.capture_text("roles_context", _roles_echo_text(parsed))
 
         return self._post("/v2/agent/context", {"token": token, "handle": handle},
                            f"get_context({handle})", capture=capture)

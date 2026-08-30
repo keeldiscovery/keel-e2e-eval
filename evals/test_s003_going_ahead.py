@@ -47,11 +47,10 @@ import time
 from evals.recipes import (
     COMMERCIAL, COMMERCIAL_BUDGET_ASSUMPTION, COMMERCIAL_PRICING_ASSUMPTION, PROBLEM,
     PROBLEM_ASSUMPTION, PROBLEM_CLAIM, PROJECT_NAME, ROLE_LABEL, SOLUTION, SOLUTION_ASSUMPTION,
-    SOLUTION_CLAIM, PricingSetupScenario, rule_out_pricing,
+    SOLUTION_CLAIM, PricingSetupScenario, open_founder_session, rule_out_pricing,
 )
 from evals.scenario import Fact
-from harness.browser import FounderBrowser
-from harness.driver import FounderAgentDriver, ProtocolError
+from harness.driver import ProtocolError
 from harness.evidence import finalize_run
 from harness.steps import Recorder
 
@@ -122,19 +121,15 @@ class S003GoingAhead(PricingSetupScenario):
         }
 
 
-def test_s003_going_ahead(stack, run_dir, browser):
+def test_s003_going_ahead(stack, run_dir, browser, founder_credentials):
     recorder = Recorder(run_dir)
     scenario = S003GoingAhead()
-    cloud_base = f"http://localhost:{stack.cloud_port}"
-    founder_web_base = f"http://localhost:{stack.web_port}/p"
-
-    driver = FounderAgentDriver(cloud_base, recorder, scenario)
     passed = False
     started = time.monotonic()
-    founder_context = browser.new_context()
+    driver, founder, founder_context = open_founder_session(stack, founder_credentials, recorder,
+                                                              scenario, browser)
+    founder_page = founder.page
     try:
-        founder_page = founder_context.new_page()
-        founder = FounderBrowser(founder_page, founder_web_base, recorder, get_state=driver.get_state)
 
         setup = rule_out_pricing(driver, founder, browser, recorder, scenario)
         project_id = setup.project_id

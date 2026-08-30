@@ -90,6 +90,49 @@ Judgement calls made while filling in what the contract leaves to the implementa
    context-handle name and a `Need` token respectively -- the same shape as judgement call 1's
    StageType exemption, for the same reason: sweeping them flags the product's own correct copy,
    not a leak. `_ENGLISH_COLLISION_EXEMPTIONS` below.
+
+6. **Policy v4 (founder-experience round 2 -- keel-cloud commits `cef132c`/`dce04a6`, keel-web
+   commits `30787d4..760d0d2`): the arrival read, the locked-section IA, and the pointer-to-agent
+   variant each get one new check.** Three additions, additive as every prior bump has been:
+
+   - **`CLA-AR1` -- the arrival read's own greeting.** `keel_get_state`/`GET /v2/agent/state`
+     with no project now composes a server-side `display` greeting (`FounderVoice.
+     arrivalGreeting`) before the founder does anything else at all. Checked the same way a
+     handoff's `display` always has been: non-empty (>= 10 chars, the `ORI-H1`/`ORI-A3`
+     threshold) AND free of a raw project id -- a founder greeting names a project, never a
+     UUID. This is a new interaction type, `"arrival"` (`harness/driver.py`'s new `arrive()`),
+     scored on its own rather than folded into `agent-cycle`/`agent-handoff`, since it is neither
+     an action nor a handoff -- a read with no token, no commit, nothing to approve.
+   - **`ORI-U3` -- the locked People section carries its own why.** Round 2's side nav (design
+     §4 item 6) replaces the flat top nav with three progressive sections; the middle one,
+     People, is locked (present, not clickable) until the invite gate opens. Locked is not the
+     same as silent: `ORI-U3` requires a founder-worded one-line reason wherever a screen visit's
+     side nav renders People locked (`harness/browser.py`'s `_capture_common` captures
+     `people_locked`/`locked_people_why` off the nav itself) -- skipped (None), not failed, on a
+     visit where People isn't locked (nothing to check) or a pre-round-2 bundle that never
+     captured the nav at all.
+   - **`GUI-U2` -- the pointer-to-agent sentence is a sentence, not a link.** Round 2's focused
+     review (design §4 item 4) teaches the next-step pointer to hand off to the founder's own
+     agent once the workflow's next need is agent-side framing ("Now work out your solution with
+     your Keel agent.") -- deliberately "a destination that is a sentence, not a link" (no URL,
+     no anchor). Checked the same way `GUI-A3` checks a *wire* sentence's door, mirrored onto a
+     *screen's* own affordance text: when the affordance names the agent, it must carry no URL --
+     the absence is the whole assertion. Skipped (None) on any affordance that isn't a
+     pointer-to-agent sentence at all (an ordinary "Waiting for your approval" has nothing to do
+     with this check, and is free to carry a real link elsewhere on the same screen, e.g. the
+     invite screen's own compose form).
+
+   None of the three loosens or reweights an existing check -- `tests/test_policy_v4.py` seeds a
+   failing and a passing fixture for each, the same construction-not-assertion method every prior
+   bump used.
+
+7. **Policy v4's second addition: an eighth FID hop, `roles_context`.** S-009 (incremental roles)
+   traces a role introduced through the roles-ladder front door -- `harness/driver.py`'s
+   `get_context("roles")` capture (`_roles_echo_text`) reflects back every role's own `label`,
+   granted alongside both `INTRODUCE_ROLES` and `INTRODUCE_ASSUMPTIONS` (`HandleGrants`). No new
+   check code: `roles_context` is a hop like any other to the generic FID engine
+   (`harness/rubric.py`'s `_fid_checks`), scoped to `agent-cycle` interactions the same way
+   `agent_echo`/`interpret_context`/`recorded` already are.
 """
 
 from __future__ import annotations
@@ -97,7 +140,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-POLICY_VERSION = 3
+POLICY_VERSION = 4
 
 CATEGORY_WEIGHTS: dict[str, float] = {
     "FIDELITY": 0.4,
@@ -144,13 +187,27 @@ CHECKS: dict[str, dict[str, Any]] = {
     "CLA-A2": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
     # Policy v3: verdictLabel/needLabel, read off a ui-visit's own captured `state` snapshot.
     "CLA-U3": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
+    # Policy v4 (module docstring, judgement call 6): the arrival read's own greeting, the locked
+    # People section's own why, and the pointer-to-agent sentence's own missing door.
+    "CLA-AR1": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
+    "ORI-U3": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
+    "GUI-U2": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
 }
+
+# Policy v4: a raw project id (UUID) has no business appearing in a founder-facing arrival
+# greeting -- CLA-AR1's "id-free" half. Distinct from CLARITY_TOKENS (enum vocabulary): a UUID is
+# never a fixed token this policy could enumerate.
+UUID_RE = re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b")
 
 # Every hop id this policy knows how to score (data-model.md's Fact registry). "recorded" is
 # policy v3's addition (module docstring, judgement call 4): an agent-cycle's own played-back
-# commit, alongside the six the contract originally named.
+# commit, alongside the six the contract originally named. Policy v4 (judgement call 7) adds an
+# eighth: `roles_context`, S-009's own trace for a role introduced through the roles-ladder front
+# door (`harness/driver.py`'s `get_context("roles")` capture, `_roles_echo_text`) -- every role
+# label the `roles` handle echoes back, granted alongside INTRODUCE_ROLES and
+# INTRODUCE_ASSUMPTIONS (`HandleGrants`).
 HOP_IDS = ["agent_echo", "stage_screen", "invite_screen", "participant_page", "interpret_context",
-           "brief", "recorded"]
+           "brief", "recorded", "roles_context"]
 
 # hop ids reached via an agent-cycle interaction's captured_text vs. a screen visit's -- lets
 # harness/rubric.py know which interactions are even candidates for a given hop.
@@ -158,6 +215,7 @@ HOP_INTERACTION_TYPES: dict[str, tuple[str, ...]] = {
     "agent_echo": ("agent-cycle",),
     "interpret_context": ("agent-cycle",),
     "recorded": ("agent-cycle",),
+    "roles_context": ("agent-cycle",),
     "stage_screen": ("ui-visit",),
     "invite_screen": ("ui-visit",),
     "brief": ("ui-visit",),

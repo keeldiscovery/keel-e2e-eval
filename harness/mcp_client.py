@@ -61,12 +61,17 @@ def _parse_sse_json(text: str) -> dict:
 class McpClient:
     """One session per instance: `initialize()` once, then any number of `call_tool`s."""
 
-    def __init__(self, base_url: str, recorder: Recorder, session: requests.Session | None = None):
+    def __init__(self, base_url: str, recorder: Recorder, session: requests.Session | None = None,
+                 *, agent_key: str | None = None):
         self.base_url = base_url.rstrip("/")
         self.recorder = recorder
         self.session = session or requests.Session()
         self._mcp_session_id: str | None = None
         self._next_id = 1
+        if agent_key:
+            # Founder-experience round 2: /mcp sits behind the same X-Keel-Agent-Key gate as
+            # /v2/agent/** (AgentKeyAuthorizationManager) -- set once as a session default.
+            self.session.headers.update({"X-Keel-Agent-Key": agent_key})
 
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream"}

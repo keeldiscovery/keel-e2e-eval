@@ -66,15 +66,19 @@ def _capture_refusal(recorder: Recorder, step_name: str, err) -> None:
                                                                      "remedy": err.remedy})
 
 
-def test_s007_hostile_wire(stack, run_dir):
+def test_s007_hostile_wire(stack, run_dir, founder_credentials):
     recorder = Recorder(run_dir)
     scenario = S007HostileWire()
     cloud_base = f"http://localhost:{stack.cloud_port}"
 
-    driver = FounderAgentDriver(cloud_base, recorder, scenario)
+    driver = FounderAgentDriver(cloud_base, recorder, scenario, agent_key=founder_credentials.agent_key)
     passed = False
     started = time.monotonic()
     try:
+        # The shared opening step (task item 2) -- no browser in this scenario (module docstring),
+        # so this is the arrival read alone, no CREATE-door click-through.
+        driver.arrive()
+
         driver.advance_one()  # CREATE (frames PROBLEM as a side effect)
         driver.advance_one()  # FRAME SOLUTION
         driver.advance_one()  # FRAME COMMERCIAL
@@ -91,7 +95,7 @@ def test_s007_hostile_wire(stack, run_dir):
 
         # ---------------------------------------------------------- 1. unknown screen (MCP-only)
         with recorder.interaction("agent-refusal"):
-            mcp = McpClient(cloud_base, recorder)
+            mcp = McpClient(cloud_base, recorder, agent_key=founder_credentials.agent_key)
             mcp.initialize()
             try:
                 mcp.call_tool("keel_open_web", {"projectId": driver.project_id, "screen": "not-a-screen"})

@@ -51,11 +51,11 @@ from evals.recipes import (
     COMMERCIAL_CLAIM, COMMERCIAL_PERSON, COMMERCIAL_PRICING_ANSWER, COMMERCIAL_PRICING_ASK,
     COMMERCIAL_PRICING_ASSUMPTION, PROBLEM, PROBLEM_ASSUMPTION, PROBLEM_CLAIM, PROBLEM_HEADING,
     PROJECT_NAME, ROLE_LABEL, SOLUTION, SOLUTION_ASSUMPTION, SOLUTION_CLAIM, SOLUTION_HEADING,
-    PricingSetupScenario, rule_out_pricing,
+    PricingSetupScenario, assert_participant_has_no_founder_auth, open_founder_session,
+    rule_out_pricing,
 )
 from evals.scenario import Fact, find_role
-from harness.browser import FounderBrowser, ParticipantBrowser
-from harness.driver import FounderAgentDriver
+from harness.browser import ParticipantBrowser
 from harness.evidence import finalize_run
 from harness.steps import Recorder
 
@@ -179,20 +179,15 @@ class S002PricingPivot(PricingSetupScenario):
         }
 
 
-def test_s002_pricing_pivot(stack, run_dir, browser):
+def test_s002_pricing_pivot(stack, run_dir, browser, founder_credentials):
     recorder = Recorder(run_dir)
     scenario = S002PricingPivot()
-    cloud_base = f"http://localhost:{stack.cloud_port}"
-    founder_web_base = f"http://localhost:{stack.web_port}/p"
-
-    driver = FounderAgentDriver(cloud_base, recorder, scenario)
     passed = False
     started = time.monotonic()
-    founder_context = browser.new_context()
+    driver, founder, founder_context = open_founder_session(stack, founder_credentials, recorder,
+                                                              scenario, browser)
+    founder_page = founder.page
     try:
-        founder_page = founder_context.new_page()
-        founder = FounderBrowser(founder_page, founder_web_base, recorder, get_state=driver.get_state)
-
         setup = rule_out_pricing(driver, founder, browser, recorder, scenario,
                                   unopened_person=UNOPENED_PERSON)
         project_id = setup.project_id
@@ -399,6 +394,7 @@ def test_s002_pricing_pivot(stack, run_dir, browser):
                     raise AssertionError(h.error)
             fresh_participant.answer([NEW_PRICING_ANSWER])
             fresh_participant.submit()
+            assert_participant_has_no_founder_auth(fresh_context)
         finally:
             fresh_context.close()
 

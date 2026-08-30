@@ -19,6 +19,10 @@ DRIFT.md #4's re-adjudication) by construction:
 - the `recorded` hop is a hop like any other to the generic FID engine -- one fixture proves it
   wires through end to end (a fact declaring `hops=["recorded"]` passes when the agent-cycle's
   captured `recorded` JSON contains it verbatim, fails when it doesn't).
+
+Policy v4 (founder-experience round 2) adds three more fixtures, same construction-not-assertion
+method: the arrival read's own greeting (`CLA-AR1`), the locked People section's own why
+(`ORI-U3`), and the pointer-to-agent sentence's own missing door (`GUI-U2`).
 """
 
 from __future__ import annotations
@@ -34,11 +38,11 @@ def _checks_for(scorecard: dict, check_id: str) -> list[dict]:
 
 
 def _score(tmp_path, facts=None):
-    return scoring.score_bundle(tmp_path, scenario="policy-v3-fixture", complete=True, facts=facts)
+    return scoring.score_bundle(tmp_path, scenario="policy-v4-fixture", complete=True, facts=facts)
 
 
-def test_policy_version_is_3():
-    assert policy.POLICY_VERSION == 3
+def test_policy_version_is_4():
+    assert policy.POLICY_VERSION == 4
 
 
 # --------------------------------------- agent-cycle: no longer vocabulary-swept (US1 scenario 1)
@@ -271,3 +275,179 @@ def test_recorded_hop_fails_when_the_fact_is_absent(tmp_path):
     scorecard = _score(tmp_path, facts=facts)
     fid = _checks_for(scorecard, "FID-project_name-recorded")
     assert len(fid) == 1 and fid[0]["pass"] is False
+
+
+# ------------------------------------------------------------ policy v4: the arrival read (CLA-AR1)
+
+def test_arrival_display_absent_fails_cla_ar1(tmp_path):
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("arrival"):
+        with recorder.step("founder-agent arrives: GET /v2/agent/state (no project)",
+                            party="agent", kind="protocol") as h:
+            h.capture_text("arrival_display", "")
+
+    scorecard = _score(tmp_path)
+    cla_ar1 = _checks_for(scorecard, "CLA-AR1")
+    assert len(cla_ar1) == 1 and cla_ar1[0]["pass"] is False
+
+
+def test_arrival_display_naming_a_raw_project_id_fails_cla_ar1(tmp_path):
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("arrival"):
+        with recorder.step("founder-agent arrives: GET /v2/agent/state (no project)",
+                            party="agent", kind="protocol") as h:
+            h.capture_text("arrival_display",
+                            "Welcome back -- project aa6c44c7-1234-4abc-9def-0123456789ab is waiting on two answers.")
+
+    scorecard = _score(tmp_path)
+    cla_ar1 = _checks_for(scorecard, "CLA-AR1")
+    assert len(cla_ar1) == 1 and cla_ar1[0]["pass"] is False
+
+
+def test_clean_arrival_greeting_passes_cla_ar1(tmp_path):
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("arrival"):
+        with recorder.step("founder-agent arrives: GET /v2/agent/state (no project)",
+                            party="agent", kind="protocol") as h:
+            h.capture_text("arrival_display",
+                            "Welcome back -- Payroll Exception Radar is waiting on two answers.")
+
+    scorecard = _score(tmp_path)
+    cla_ar1 = _checks_for(scorecard, "CLA-AR1")
+    assert len(cla_ar1) == 1 and cla_ar1[0]["pass"] is True
+
+
+def test_arrival_greeting_naming_a_door_passes_cla_ar1(tmp_path):
+    """Live-confirmed 2026-08-30 (eval-all run, S-007): a greeting's own embedded door
+    legitimately carries the project id as a URL path segment -- a door, not a leak (`GUI-A3`'s
+    own "when it points at a screen, contains a resolvable URL"). The id-free half only sweeps
+    the sentence's own prose, stripping any URL first, the same exemption `clarity_violations`
+    already gives every enum/field-name sweep."""
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("arrival"):
+        with recorder.step("founder-agent arrives: GET /v2/agent/state (no project)",
+                            party="agent", kind="protocol") as h:
+            h.capture_text("arrival_display",
+                            'Welcome back -- "Payroll Exception Radar" answers are still out for '
+                            "the problem card. Nothing to do until someone replies. "
+                            "http://localhost:5173/p/11e8fd7b-da1f-4dbd-a6da-4fdad7822c81/invitations")
+
+    scorecard = _score(tmp_path)
+    cla_ar1 = _checks_for(scorecard, "CLA-AR1")
+    assert len(cla_ar1) == 1 and cla_ar1[0]["pass"] is True
+
+
+# --------------------------------------------------------------- policy v4: ORI-U1 skips login/setup
+
+def test_ori_u1_skipped_on_the_login_screen(tmp_path):
+    """Live-confirmed 2026-08-30 (eval-all run, S-008): `/login`/`/setup` are visited before any
+    project is even in view (`FounderBrowser.log_in`) -- there is no project identity marker for
+    them to carry, so ORI-U1 must not fire there at all, rather than failing every scenario's own
+    login step on inapplicable ground."""
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("ui-visit"):
+        with recorder.step("founder logs in", party="founder", kind="browser") as h:
+            h.capture_text("screen", "login")
+
+    scorecard = _score(tmp_path)
+    assert _checks_for(scorecard, "ORI-U1") == []
+
+
+def test_ori_u1_still_fires_on_an_ordinary_project_screen(tmp_path):
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("ui-visit"):
+        with recorder.step("founder opens the project overview", party="founder", kind="browser") as h:
+            h.capture_text("screen", "overview")
+            h.capture_text("identity", "")
+
+    scorecard = _score(tmp_path)
+    ori_u1 = _checks_for(scorecard, "ORI-U1")
+    assert len(ori_u1) == 1 and ori_u1[0]["pass"] is False
+
+
+# ------------------------------------------------------- policy v4: the locked People why (ORI-U3)
+
+def test_locked_people_why_leaking_wire_vocabulary_fails_ori_u3(tmp_path):
+    """`capture_text` no-ops on an empty string (the real `.side-nav__locked-why` element can
+    never actually render empty -- `peopleLockedReason()` is a fixed non-empty sentence), so the
+    realistic failure this check exists to catch is a leaked enum, not a blank string."""
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("ui-visit"):
+        with recorder.step("founder opens the project overview", party="founder", kind="browser") as h:
+            h.capture_text("screen", "overview")
+            h.capture_text("identity", "Payroll Exception Radar")
+            h.capture_text("locked_reason", "Locked -- stage REVIEW pending")
+
+    scorecard = _score(tmp_path)
+    ori_u3 = _checks_for(scorecard, "ORI-U3")
+    assert len(ori_u3) == 1 and ori_u3[0]["pass"] is False
+
+
+def test_locked_people_with_a_founder_worded_why_passes_ori_u3(tmp_path):
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("ui-visit"):
+        with recorder.step("founder opens the project overview", party="founder", kind="browser") as h:
+            h.capture_text("screen", "overview")
+            h.capture_text("identity", "Payroll Exception Radar")
+            h.capture_text("locked_reason", "Locked until every card you're currently reviewing is approved.")
+
+    scorecard = _score(tmp_path)
+    ori_u3 = _checks_for(scorecard, "ORI-U3")
+    assert len(ori_u3) == 1 and ori_u3[0]["pass"] is True
+
+
+def test_people_not_locked_emits_no_ori_u3(tmp_path):
+    """No locked section on this visit at all -- skipped, not failed."""
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("ui-visit"):
+        with recorder.step("founder opens the project overview", party="founder", kind="browser") as h:
+            h.capture_text("screen", "overview")
+            h.capture_text("identity", "Payroll Exception Radar")
+
+    scorecard = _score(tmp_path)
+    assert _checks_for(scorecard, "ORI-U3") == []
+
+
+# --------------------------------------------------- policy v4: the pointer-to-agent door (GUI-U2)
+
+def test_pointer_to_agent_sentence_with_a_url_fails_gui_u2(tmp_path):
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("ui-visit"):
+        with recorder.step("founder opens the project overview", party="founder", kind="browser") as h:
+            h.capture_text("screen", "overview")
+            h.capture_text("identity", "Payroll Exception Radar")
+            h.capture_text("pointer_to_agent",
+                            "Now work out your solution with your Keel agent. http://localhost:5173/p/p1")
+
+    scorecard = _score(tmp_path)
+    gui_u2 = _checks_for(scorecard, "GUI-U2")
+    assert len(gui_u2) == 1 and gui_u2[0]["pass"] is False
+
+
+def test_pointer_to_agent_sentence_with_no_url_passes_gui_u2(tmp_path):
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("ui-visit"):
+        with recorder.step("founder opens the project overview", party="founder", kind="browser") as h:
+            h.capture_text("screen", "overview")
+            h.capture_text("identity", "Payroll Exception Radar")
+            h.capture_text("pointer_to_agent", "Now work out your solution with your Keel agent.")
+
+    scorecard = _score(tmp_path)
+    gui_u2 = _checks_for(scorecard, "GUI-U2")
+    assert len(gui_u2) == 1 and gui_u2[0]["pass"] is True
+
+
+def test_ordinary_affordance_emits_no_gui_u2(tmp_path):
+    """An ordinary affordance never renders `.next.agent` at all, so `pointer_to_agent` is never
+    captured -- this check has nothing to say about it, and it is free to carry a real link (e.g.
+    the invite screen)."""
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("ui-visit"):
+        with recorder.step("founder opens the problem stage card", party="founder", kind="browser") as h:
+            h.capture_text("screen", "stage")
+            h.capture_text("stage", "PROBLEM")
+            h.capture_text("identity", "Payroll Exception Radar")
+            h.capture_text("affordance", "Waiting for your approval.")
+
+    scorecard = _score(tmp_path)
+    assert _checks_for(scorecard, "GUI-U2") == []

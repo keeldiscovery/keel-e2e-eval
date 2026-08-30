@@ -147,6 +147,33 @@ class FounderBrowser:
         # "act on it" are one reviewable interaction (design §2: "one founder screen visit").
         self._current_interaction: str | None = None
 
+    def log_in(self, web_root_base_url: str, email: str, password: str) -> None:
+        """Founder-experience round 2 (design §2/§4 item 1): the founder browser earns its own
+        session by driving the real `/login` screen, once, before any founder screen is opened --
+        never a transplanted cookie. `/login` and `/setup` live outside the `/p/:projectId` tree
+        (`AppRoutes.tsx`), so this needs the site root, not `FounderBrowser`'s own `base_url`
+        (which is already `.../p`).
+
+        **Judgement call**: driving the actual login form (rather than injecting the cookie
+        `stack.auth.ensure_founder_account` already obtained via `requests`) means every scenario's
+        founder context exercises the real login screen at least once, and needs no cookie-jar
+        plumbing between two unrelated HTTP clients (`requests` vs. Playwright) -- the cost is one
+        extra screen visit per scenario, which is cheap next to a JVM-backed discovery.
+        """
+        interaction_id = self._bstep.recorder.new_interaction_id()
+        with self._bstep.recorder.interaction("ui-visit", interaction_id):
+            with self._bstep.step("founder logs in") as h:
+                root = web_root_base_url.rstrip("/")
+                self.page.goto(f"{root}/login", wait_until="load")
+                self.page.get_by_label(re.compile(r"^email$", re.I)).fill(email)
+                self.page.get_by_label(re.compile(r"^password$", re.I)).fill(password)
+                h.add_screenshot(self._bstep.screenshot("login-filled"))
+                self.page.get_by_role("button", name=re.compile(r"^log in$", re.I)).click()
+                self.page.wait_for_url(f"{root}/", timeout=10_000)
+                h.add_screenshot(self._bstep.screenshot("login-landed"))
+                h.capture_text("screen", "login")
+        self._current_interaction = interaction_id
+
     def _note_drift(self, screen: str, tried: str, actual: str) -> None:
         if screen in self.drift_notes_emitted:
             return
@@ -180,6 +207,28 @@ class FounderBrowser:
             affordance_parts.extend(t.strip() for t in _safe_all_texts(self.page, selector) if t.strip())
         if affordance_parts:
             h.capture_text("affordance", "\n".join(affordance_parts))
+
+        # Founder-experience round 2 (design §4 item 6): every founder screen renders the same
+        # three-section side nav (`ProjectShell`) -- capture the locked People section's founder-
+        # worded "why" whenever it is present, so policy v4's ORI-U3 can score it without a
+        # dedicated screen visit of its own.
+        locked_why = _safe_text(lambda: self.page.locator(".side-nav__locked-why").first.inner_text())
+        if locked_why:
+            h.capture_text("locked_reason", locked_why)
+
+        # Founder-experience round 2 (design §4 item 4): the pointer-to-agent variant of the
+        # next-step box (`.next.agent`) -- a sentence, deliberately never a link. Captured
+        # separately from the generic `affordance` sweep above (which already folds `.next`'s text
+        # in regardless of variant) so policy v4's GUI-U2 can check this specific text for the
+        # absence of a URL without also catching a *clickable* pointer's own resolvable link.
+        pointer_to_agent = _safe_text(lambda: self.page.locator(".next.agent").first.inner_text())
+        if pointer_to_agent:
+            h.capture_text("pointer_to_agent", pointer_to_agent)
+            # The design's own literal promise ("a destination that is a sentence, not a link"):
+            # confirmed live, not just swept from text -- no anchor exists inside the agent variant.
+            if self.page.locator(".next.agent a").count() > 0:
+                h.fail("the pointer-to-agent variant rendered an <a> link -- it must be a sentence only")
+                raise AssertionError(h.error)
 
     def _goto_screen(self, project_id: str, screen: str, stage: str | None,
                       fingerprint, step_label: str):

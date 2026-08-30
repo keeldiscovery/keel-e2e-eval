@@ -128,12 +128,17 @@ this stack:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
 from evals.scenario import Scenario, find_role
 from harness.browser import FounderBrowser, ParticipantBrowser
 from harness.driver import FounderAgentDriver
+from stack.auth import FounderCredentials
+from stack.config import StackConfig
+
+_URL_RE = re.compile(r"https?://\S+")
 
 PROBLEM = "PROBLEM"
 SOLUTION = "SOLUTION"
@@ -324,6 +329,121 @@ class PricingSetupScenario(Scenario):
         raise NotImplementedError
 
 
+# ------------------------------------------------------------------- round 2: auth + arrival (T0)
+
+def open_founder_session(stack: StackConfig, founder_credentials: FounderCredentials, recorder,
+                          scenario: Scenario, browser) -> tuple[FounderAgentDriver, FounderBrowser, Any]:
+    """Founder-experience round 2: every scenario's founder now needs both credentials the design
+    introduced -- the agent key (`X-Keel-Agent-Key`, gating `/v2/agent/**` and `/mcp`) for the
+    driver, and a real browser session (driving the actual `/login` screen once, never a
+    transplanted cookie -- `harness/browser.py.FounderBrowser.log_in`'s own judgement call) for the
+    founder's Playwright context. Centralized here so a new scenario gets both by construction
+    rather than re-deriving the choreography; returns `(driver, founder, founder_context)` -- the
+    caller still owns closing `founder_context` in its own `finally` block, exactly as before.
+    """
+    cloud_base = f"http://localhost:{stack.cloud_port}"
+    web_root_base = f"http://localhost:{stack.web_port}"
+    founder_web_base = f"{web_root_base}/p"
+
+    driver = FounderAgentDriver(cloud_base, recorder, scenario, agent_key=founder_credentials.agent_key)
+    driver.log_in(founder_credentials.email, founder_credentials.password)
+
+    founder_context = browser.new_context()
+    founder_page = founder_context.new_page()
+    founder = FounderBrowser(founder_page, founder_web_base, recorder, get_state=driver.get_state)
+    founder.log_in(web_root_base, founder_credentials.email, founder_credentials.password)
+    return driver, founder, founder_context
+
+
+def arrive_and_create(driver: FounderAgentDriver, founder: FounderBrowser, scenario: Scenario) -> str:
+    """The shared opening step every scenario now takes (founder-experience round 2 design §2,
+    task item 2's "a new shared opening step"): the arrival read, greeting first -- then `CREATE`,
+    with its own completed display (name, next step, the overview link) proven live the same way
+    `test_s001_smoke.py` already proves PROBLEM's `INTRODUCE_ASSUMPTIONS` door -- and, finally, a
+    second arrival read proving the founder's own project list grew by exactly this fresh project,
+    newest-first and flagged `latest`. Self-contained (never depends on how many other scenarios
+    ran earlier in the same `pytest evals` session, even though the founder account -- and
+    therefore its project list -- persists across all of them): the "grows" assertion compares
+    this scenario's own before/after snapshot, not an absolute count. Returns the fresh project id.
+    """
+    before = driver.arrive()
+    with driver.recorder.step("the arrival greeting is non-empty before anything exists to greet",
+                               party="agent", kind="assert") as h:
+        display = (before.get("display") or "").strip()
+        h.record_assert("non-empty display", display)
+        if len(display) < 10:
+            h.fail(f"expected a non-empty arrival greeting, got {display!r}")
+            raise AssertionError(h.error)
+    before_count = len(before.get("projects") or [])
+
+    result = driver.create_project()
+    project_id = result["projectId"]
+    display = result.get("display") or ""
+    with driver.recorder.step("CREATE's own display carries the project name and a resolvable door",
+                               party="agent", kind="assert") as h:
+        match = _URL_RE.search(display)
+        h.record_assert(f"{scenario.project_name()!r} and a URL in display", display)
+        if scenario.project_name() not in display:
+            h.fail(f"expected the project name in CREATE's own display, got {display!r}")
+            raise AssertionError(h.error)
+        if not match:
+            h.fail(f"expected CREATE's display to carry a resolvable door, got {display!r}")
+            raise AssertionError(h.error)
+    founder.follow_display_url(match.group(0), project_id)
+
+    after = driver.arrive()
+    after_projects = after.get("projects") or []
+    with driver.recorder.step("the founder's project list grows by this scenario's own fresh project",
+                               party="agent", kind="assert") as h:
+        h.record_assert(f"{before_count + 1} project(s), latest is this one",
+                         {"before": before_count, "after_count": len(after_projects),
+                          "latest": after_projects[0] if after_projects else None})
+        if len(after_projects) != before_count + 1:
+            h.fail(f"expected the project list to grow by exactly one, got "
+                    f"{before_count} -> {len(after_projects)}")
+            raise AssertionError(h.error)
+        if (not after_projects or after_projects[0].get("projectId") != project_id
+                or not after_projects[0].get("latest")):
+            h.fail(f"expected this fresh project newest-first and flagged latest, got "
+                    f"{after_projects[0] if after_projects else None}")
+            raise AssertionError(h.error)
+    return project_id
+
+
+def assert_pointer_to_agent(founder: FounderBrowser, project_id: str) -> None:
+    """Policy v4 / founder-experience design §4 item 4: once a stage is approved and the workflow's
+    next need is agent-side (framing or decomposing the next stage), the overview's own next-step
+    pointer hands off to the founder's own agent -- "Now work out your <stage> with your Keel
+    agent." -- a sentence, never a link. `FounderBrowser._capture_common` already asserts, live,
+    that no `<a>` renders inside `.next.agent`; this re-opens the overview and confirms the visible
+    text itself actually is the pointer-to-agent variant (not just "no link happened to render"),
+    so a caller gets a clear failure if the product ever stops showing this pointer at all.
+    """
+    founder.open_overview(project_id)
+    with founder._bstep.step("the next-step pointer names the agent, not a link") as h:
+        pointer = founder.page.locator(".next.agent")
+        text = pointer.first.inner_text() if pointer.count() else ""
+        h.record_assert("mentions 'Keel agent', no anchor, no URL", text)
+        if "keel agent" not in text.lower():
+            h.fail(f"expected the pointer-to-agent sentence on the overview, got {text!r}")
+            raise AssertionError(h.error)
+
+
+def assert_participant_has_no_founder_auth(participant_context) -> None:
+    """Standing assertion (task item 1): the participant surface stays open, and the participant's
+    own browser context must never carry the founder's session -- a fresh Playwright context
+    already starts with an empty cookie jar and this harness never adds one to a participant
+    context, but this makes the invariant a checked fact rather than an assumption a future change
+    could silently break.
+    """
+    cookies = participant_context.cookies()
+    session_cookies = [c for c in cookies if "session" in c.get("name", "").lower()
+                        or c.get("name", "").upper() == "JSESSIONID"]
+    assert not session_cookies, (
+        f"the participant's browser context carries a founder session cookie -- it must stay "
+        f"anonymous: {session_cookies}")
+
+
 # --------------------------------------------------------------------------------- orchestration
 
 # A single-stage scenario's own judgement call, shared here rather than tripled (S-004/S-005/S-006:
@@ -368,16 +488,25 @@ def filler_assumption_payload(stage: str, filler_role_id: str) -> dict:
     }
 
 
-def advance_to_all_stages_approved(driver: FounderAgentDriver, founder: FounderBrowser) -> None:
-    """The invite gate's own choreography (founder-experience design §6): drives CREATE through
-    approving COMMERCIAL, one `REVIEW` handoff at a time, with no invitation sent along the way --
-    `Project.needs` refuses `INVITE` for every stage until all three are approved, so there is
-    nothing legitimate to invite anyone to yet. `assert_invite_gate_closed` runs after each of the
-    first two approvals (never the third -- the gate opens the instant COMMERCIAL is approved) as
-    the standing assertion (design §6, task item 4): no `INVITE` need and no invitable role while
-    any framed stage still awaits approval. Usable by any `Scenario` whose `assumptions_payload`
-    can decompose all three stages, even trivially -- not only `PricingSetupScenario`.
+def advance_to_all_stages_approved(driver: FounderAgentDriver, founder: FounderBrowser,
+                                    scenario: Scenario | None = None) -> None:
+    """The invite gate's own choreography (founder-experience design §6): the arrival read and
+    `CREATE` (via `arrive_and_create`, task item 2's shared opening step -- skipped if `scenario`
+    is omitted, for a caller that already ran it itself) through approving COMMERCIAL, one
+    `REVIEW` handoff at a time, with no invitation sent along the way -- `Project.needs` refuses
+    `INVITE` for every stage until all three are approved, so there is nothing legitimate to invite
+    anyone to yet. `assert_invite_gate_closed` runs after each of the first two approvals (never
+    the third -- the gate opens the instant COMMERCIAL is approved) as the standing assertion
+    (design §6, task item 4): no `INVITE` need and no invitable role while any framed stage still
+    awaits approval. Those same two approvals also demonstrate the pointer-to-agent variant
+    (policy v4's `GUI-U2`, design §4 item 4): once PROBLEM (then SOLUTION) is approved, the next
+    stage still needs agent-side framing/decomposing, so the overview's own next-step pointer
+    hands off to the agent instead of offering a link. Usable by any `Scenario` whose
+    `assumptions_payload` can decompose all three stages, even trivially -- not only
+    `PricingSetupScenario`.
     """
+    if scenario is not None:
+        arrive_and_create(driver, founder, scenario)
     for index, stage in enumerate(STAGES):
         handoff = driver.advance_until_handoff()
         assert handoff and handoff["reason"] == "REVIEW" and handoff["detail"]["stage"] == stage, (stage, handoff)
@@ -385,6 +514,7 @@ def advance_to_all_stages_approved(driver: FounderAgentDriver, founder: FounderB
         founder.approve_current_stage(stage)
         if index < len(STAGES) - 1:
             assert_invite_gate_closed(driver)
+            assert_pointer_to_agent(founder, driver.project_id)
 
 
 def assert_invite_gate_closed(driver: FounderAgentDriver) -> None:
@@ -419,7 +549,7 @@ def rule_out_pricing(driver: FounderAgentDriver, founder: FounderBrowser, browse
     its own terms, distinct from re-opening Dana's already-answered link (which tests the "never
     told their work was wasted" half).
     """
-    advance_to_all_stages_approved(driver, founder)
+    advance_to_all_stages_approved(driver, founder, scenario)
 
     # The gate is open now (all three approved). currentFocus scans PROBLEM first, and ROLE_LABEL
     # is uninvited there -- the resulting handoff is the one, combined invitation for problem,
