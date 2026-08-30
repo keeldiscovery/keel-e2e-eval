@@ -92,6 +92,18 @@ def _check_to_dict(check: rubric.CheckResult) -> dict[str, Any]:
     }
 
 
+def not_applicable_categories(categories: dict[str, float]) -> list[str]:
+    """003-eval-set T003 (design §6.1): categories no interaction in this run carries at all --
+    S-007's no-browser scorecard is the motivating case (no ui-visit/participant-page interaction
+    ever exists, so ORIENTATION's U-checks and FIDELITY's UI-hop checks never fire). `categories`
+    (`score_categories`' output) already excludes these from both the numerator and the weight
+    total in `compute_run_score` -- that math was already honest -- this just names them
+    explicitly in the scorecard, so a reviewer sees "not applicable" rather than wondering whether
+    an absent category was scored zero and dropped, or simply forgotten.
+    """
+    return sorted(a for a in policy.CATEGORY_WEIGHTS if a not in categories)
+
+
 def build_scorecard(interactions: list[Interaction], results_by_interaction: dict[str, list[rubric.CheckResult]],
                      *, scenario: str, complete: bool) -> dict[str, Any]:
     categories = score_categories(results_by_interaction)
@@ -114,6 +126,7 @@ def build_scorecard(interactions: list[Interaction], results_by_interaction: dic
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "interactions": interaction_entries,
         "categories": categories,
+        "not_applicable_categories": not_applicable_categories(categories),
         "run_score": compute_run_score(categories, complete=complete),
         "gated": not complete,
         "complete": complete,

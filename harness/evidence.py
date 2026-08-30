@@ -251,11 +251,18 @@ def _score_header(scorecard: dict | None) -> str:
         return "<p><em>No scorecard.json (scoring hasn't run, or crashed -- see scoring_error.txt if present).</em></p>"
     run_score = scorecard.get("run_score")
     categories = scorecard.get("categories") or {}
+    # 003-eval-set T003/T013 (design §6.1): a category no interaction in this run could ever carry
+    # (S-007's no-browser scorecard) is "not applicable", not "no data" -- distinguishable in the
+    # header so a reviewer doesn't mistake a by-design absence for a gap.
+    not_applicable = set(scorecard.get("not_applicable_categories") or [])
     bars = []
     for attribute in _CATEGORY_ORDER:
         score = categories.get(attribute)
         pct = (score / 5 * 100) if score is not None else 0
-        label = f"{score:g}/5" if score is not None else "no data"
+        if score is not None:
+            label = f"{score:g}/5"
+        else:
+            label = "not applicable" if attribute in not_applicable else "no data"
         color = _score_color(score)
         bars.append(f"""
         <div style="margin:6px 0">
@@ -505,17 +512,107 @@ details summary {{ cursor: pointer; font-size: 12px; color: #555; }}
     return out_path
 
 
+def _verdict_badge_html(passed: bool | None) -> str:
+    if passed is None:
+        return _badge("HARNESS CRASHED", "#b3261e")
+    return _badge("PASSED", "#1a7f5a") if passed else _badge("FAILED", "#b3261e")
+
+
+def _index_category_bars(categories: dict, not_applicable: list) -> str:
+    parts = []
+    for attribute in _CATEGORY_ORDER:
+        score = categories.get(attribute)
+        if attribute in (not_applicable or []):
+            label, pct, color = "N/A", 0, "#ccc"
+        elif score is None:
+            label, pct, color = "—", 0, "#eee"
+        else:
+            label, pct, color = f"{score:g}", score / 5 * 100, _score_color(score)
+        parts.append(f"""
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#555;margin:2px 0">
+          <span style="width:26px">{attribute[:3].title()}</span>
+          <span style="background:#eee;border-radius:3px;height:6px;width:60px;display:inline-block;overflow:hidden">
+            <span style="display:block;height:6px;width:{pct:.0f}%;background:{color}"></span>
+          </span>
+          <span style="width:24px">{html.escape(label)}</span>
+        </div>""")
+    return "".join(parts)
+
+
+def generate_index(run_dirs: list[Path], out_path: Path) -> Path:
+    """T013 (design §3, FR-005): one page listing a batch of run bundles -- slug, verdict, score,
+    per-category bars (N/A rendered distinctly from a real 0, per `not_applicable_categories`,
+    T003), and a link to each bundle's own `report.html`. Reads only `verdict.json`/
+    `scorecard.json` from each bundle -- never re-runs scoring itself (that stays
+    `generate_report`'s/`make report`'s job; `eval_all.py` calls both, in that order, for the
+    bundles it just produced).
+    """
+    rows = []
+    total_score = 0.0
+    total_weight = 0
+    for run_dir in run_dirs:
+        verdict = _read_json(run_dir / "verdict.json") or {}
+        scorecard = _read_json(run_dir / "scorecard.json")
+        slug = verdict.get("scenario") or run_dir.name
+        score = verdict.get("score")
+        categories = (scorecard or {}).get("categories") or {}
+        not_applicable = (scorecard or {}).get("not_applicable_categories") or []
+        report_href = f"{run_dir.name}/report.html"
+        if score is not None:
+            total_score += score
+            total_weight += 1
+        rows.append(f"""
+        <tr>
+          <td>{html.escape(slug)}</td>
+          <td>{_verdict_badge_html(verdict.get("passed"))}</td>
+          <td style="font-weight:700;font-size:18px;color:{_score_color(score)}">
+            {f"{score:g}/5" if score is not None else "?/5"}</td>
+          <td>{_index_category_bars(categories, not_applicable)}</td>
+          <td><a href="{html.escape(report_href)}" target="_blank">report.html</a></td>
+          <td style="color:#888;font-size:12px">{html.escape(run_dir.name)}</td>
+        </tr>""")
+
+    average = f"{total_score / total_weight:.1f}/5" if total_weight else "?/5"
+    generated_at = datetime.now(timezone.utc).isoformat()
+    html_doc = f"""<!doctype html>
+<html><head><meta charset="utf-8"><title>keel-e2e-eval -- run index</title>
+<style>
+body {{ font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 1000px; margin: 24px auto; padding: 0 16px; color:#222; }}
+table {{ border-collapse: collapse; width: 100%; }}
+td, th {{ padding: 8px 10px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }}
+</style></head>
+<body>
+<h1>Eval set -- run index</h1>
+<p>generated {html.escape(generated_at)} &nbsp; {len(run_dirs)} run(s) &nbsp;
+   average score across scored runs: <b>{average}</b></p>
+<table>
+  <tr><th>Scenario</th><th>Verdict</th><th>Score</th><th>Categories</th><th>Report</th><th>Run</th></tr>
+  {''.join(rows) if rows else '<tr><td colspan="6"><em>No runs.</em></td></tr>'}
+</table>
+</body></html>
+"""
+    out_path.write_text(html_doc)
+    return out_path
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) != 2 or argv[0] != "--rebuild":
-        print("usage: python -m harness.evidence --rebuild <run_dir>", file=sys.stderr)
-        return 2
-    run_dir = Path(argv[1]).resolve()
-    if not run_dir.is_dir():
-        print(f"no such run directory: {run_dir}", file=sys.stderr)
-        return 1
-    out = generate_report(run_dir)
-    print(f"wrote {out}")
-    return 0
+    if len(argv) == 2 and argv[0] == "--rebuild":
+        run_dir = Path(argv[1]).resolve()
+        if not run_dir.is_dir():
+            print(f"no such run directory: {run_dir}", file=sys.stderr)
+            return 1
+        out = generate_report(run_dir)
+        print(f"wrote {out}")
+        return 0
+    if len(argv) >= 2 and argv[0] == "--index":
+        out_path = Path(argv[1]).resolve()
+        run_dirs = [Path(p).resolve() for p in argv[2:]]
+        out = generate_index(run_dirs, out_path)
+        print(f"wrote {out}")
+        return 0
+    print("usage: python -m harness.evidence --rebuild <run_dir>", file=sys.stderr)
+    print("       python -m harness.evidence --index <out.html> <run_dir> [<run_dir> ...]", file=sys.stderr)
+    return 2
 
 
 if __name__ == "__main__":

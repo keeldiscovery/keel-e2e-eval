@@ -27,13 +27,19 @@ visit, and participant page is checked against a versioned policy on four attrib
 
 ```bash
 make up            # boots Postgres (55432), keel-cloud (18080), keel-web (5173); prints each gate
-make eval K=s001    # runs the smoke scenario; prints the run directory
+make eval K=s001    # runs one scenario by slug substring (matches evals/test_s001_smoke.py, etc.)
+make eval-all       # runs the FULL set (s001-s007) in one stack session, writes runs/INDEX-*.html
 make down           # tears everything down; idempotent, safe even half-up
 ```
 
-`make eval` alone (no `make up` first) attaches to an already-up stack if one is answering on all
-three ports, or boots one itself and tears it down at the end of the session -- the fast-iteration
-path from `make up && make eval` and the from-cold path are the same command.
+`make eval`/`make eval-all` alone (no `make up` first) attach to an already-up stack if one is
+answering on all three ports, or boot one and tear it down at the end of the session -- the
+fast-iteration path from `make up && make eval` and the from-cold path are the same command.
+
+`runs/INDEX-<stamp>.html` (written by `make eval-all`) lists every run bundle from that
+invocation: scenario slug, verdict, run score, a bar per category (an `N/A` bar, not a bare 0,
+for a category no interaction in that run could ever carry -- S-007's no-browser scorecard is the
+motivating case), and a link to that bundle's own `report.html`.
 
 ## Review a run
 
@@ -126,15 +132,40 @@ See `runs/DRIFT.md` if one exists in this checkout for the current findings.
 - The offending source excerpt, quoted.
 - **Reproduction**: exact `curl`/steps, and the `runs/<id>/` bundle(s) that demonstrate it (page
   HTML, server log excerpt, transcript `DRIFT:` notes -- whatever is closest to the metal).
-- Why S-001 was, or was not, adapted around it (a legitimate alternate path is fine to take; a
-  contortion that stops testing what the scenario is for is not).
+- Why the scenario was, or was not, adapted around it (a legitimate alternate path is fine to
+  take; a contortion that stops testing what the scenario is for is not).
 - The shape of a fix, explicitly **not applied** -- this repo diagnoses, the product repo fixes.
 
-Only one scenario ships today: **S-001**, the smoke (`evals/test_s001_smoke.py`). The
-positive/negative catalog beyond it (contradicted load-bearing warning, stale-link reframe,
-concurrency, all-skipped submission, unknown screen, ...) is chosen with the user later; adding
-one is a new `evals/test_*.py` module plus a `Scenario` (payload builders, answer table,
-about-line) per `evals/scenario.py`.
+## The eval set
+
+Seven scenarios ship today (`specs/eval-set-design.md`, feature 003), each its own fresh project
+(never shared state -- `evals/recipes.py` shares *code*, not data, between S-002/S-003):
+
+| Scenario | File | Journey | What it walks |
+|---|---|---|---|
+| S-001 | `evals/test_s001_smoke.py` | -- | The sunny-day discovery: every party, every handoff, every screen, one supportive interview per stage. |
+| S-002 | `evals/test_s002_pricing_pivot.py` | §1.7-1.9, §2.4 | A ruled-out pricing deal-breaker, a `FRAME` replacement carrying only the surviving belief, the old claim struck through but readable, problem/solution untouched, a stale pre-pivot link, an already-answered participant never told their work was wasted. |
+| S-003 | `evals/test_s003_going_ahead.py` | §1.10 | The founder asks for the brief while a deal-breaker is still disproved -- and documents, live, that the shipped protocol has no path to `PROCEED_TO_BRIEF` in that state at all (`runs/DRIFT.md` #7). |
+| S-004 | `evals/test_s004_divided_person.py` | §1.7 | One person with concrete evidence on both sides of one belief -- counted under both headings, people not quotes. |
+| S-005 | `evals/test_s005_opinions.py` | §1.7, §2.2 | Opinions move nothing (`STATED_PREFERENCE` never counts); an all-skipped submission is refused gently, not with a raw error. |
+| S-006 | `evals/test_s006_consent_decline.py` | §2.1-2.3 | A graceful, never-shamed decline; the consent screen's exactly-four things; a thank-you that promises nothing extra. |
+| S-007 | `evals/test_s007_hostile_wire.py` | protocol negatives | No browser: an unknown MCP screen, an ungranted context handle, a schema fault the token survives, a stale token after its own unacknowledged commit -- each scored as its own `agent-refusal` interaction (`GUI-R1`/`ORI-R1`: is the remedy present, actionable, and not just the problem restated?). |
+
+Adding another is a new `evals/test_*.py` module plus a `Scenario` (payload builders, answer
+table, about-line, fact registry) per `evals/scenario.py` -- `evals/recipes.py` is the place to
+share a setup shape (never state) across more than one scenario.
+
+### Policy v2
+
+`evals/policy.py`'s `POLICY_VERSION` is `2`: `CLA-A1`/`GUI-A2` (the raw-enum/field-name sweep)
+apply only to a handoff's `display` now -- the one protocol text a founder actually receives.
+`instruction.content` and `requirements` are agent-facing method/payload guidance (confirmed by
+re-reading the shipped `ActionSchemas`/`InstructionRegistry`) and are no longer vocabulary-swept;
+`GUI-A1`'s presence/sentence-shape check on `requirements` is untouched. This is a recalibration,
+not a loosened bar -- a seeded raw enum in a handoff `display` still fails both checks
+(`tests/test_policy_v2.py`), and the twenty S-001 failures policy v1 raised against
+`instruction`/`requirements` were mismeasurement, re-adjudicated in `runs/DRIFT.md` #4 and
+recorded as a dated amendment in `specs/eval-scoring-design.md` §3.
 
 ## Stackless unit tests
 

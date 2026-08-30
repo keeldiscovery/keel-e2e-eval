@@ -73,6 +73,36 @@ def test_category_absent_when_no_interaction_carries_it():
     assert categories["FIDELITY"] == 5.0
 
 
+# ------------------------------------------------------- not-applicable categories (003-eval-set T003)
+
+def test_not_applicable_categories_names_every_category_with_no_evidence():
+    """S-007-shaped scorecard: only agent-cycle/handoff interactions ever exist (no browser), so
+    ORIENTATION-U/CLARITY-U/participant checks never fire for those attributes at all -- this must
+    be named 'not applicable', not silently dropped."""
+    categories = {"GUIDANCE": 4.5, "CLARITY": 5.0}
+    assert scoring.not_applicable_categories(categories) == ["FIDELITY", "ORIENTATION"]
+
+
+def test_not_applicable_categories_empty_when_every_category_has_evidence():
+    categories = {"FIDELITY": 5.0, "GUIDANCE": 5.0, "ORIENTATION": 5.0, "CLARITY": 5.0}
+    assert scoring.not_applicable_categories(categories) == []
+
+
+def test_scorecard_carries_not_applicable_categories_and_run_score_stays_honest():
+    """The aggregate run score is unaffected by naming the gap explicitly -- it already excluded
+    absent categories from both numerator and weight total (compute_run_score's own contract)."""
+    results = {
+        "I1": [_cr("A", "GUIDANCE", 1, True)],
+        "I2": [_cr("B", "CLARITY", 1, True)],
+    }
+    interactions = [Interaction(id="I1", type="agent-cycle", title="t1", party="agent"),
+                    Interaction(id="I2", type="agent-handoff", title="t2", party="agent")]
+    scorecard = scoring.build_scorecard(interactions, results, scenario="s007-fixture", complete=True)
+    assert set(scorecard["not_applicable_categories"]) == {"FIDELITY", "ORIENTATION"}
+    assert scorecard["run_score"] == 5.0  # weighted mean of GUIDANCE/CLARITY alone, both 5.0
+    assert scorecard["gated"] is False
+
+
 # --------------------------------------------------------------------------------- run score
 
 def test_run_score_is_the_category_weighted_mean_when_complete():

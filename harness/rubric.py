@@ -1,7 +1,9 @@
 """The check engine (T004, contracts/policy-contract.md): walks derived interactions
 (harness/interactions.py) and the scenario's fact registry (evals/scenario.py), and emits
-CheckResults -- deterministic, evidence-carrying, exactly the checks policy v1 defines (no more,
-no fewer; a check this module invents without a matching contract entry is a bug).
+CheckResults -- deterministic, evidence-carrying, exactly the checks the current policy version
+defines (no more, no fewer; a check this module invents without a matching policy entry is a
+bug). Policy v2 (evals/policy.py, 003-eval-set) recalibrated which interaction types carry
+`CLA-A1`/`GUI-A2` -- see `_agent_cycle_checks`/`_agent_handoff_checks` below.
 
 An empty interaction list (a transcript with no interaction tags -- analysis finding A2) or an
 empty fact registry both evaluate cleanly to no checks, not an exception: `evaluate([], {})`
@@ -87,31 +89,19 @@ def _gui_a1(ix: Interaction) -> CheckResult:
     return _result("GUI-A1", passed, f"{len(requirements)} requirement(s), {len(sentence_shaped)} sentence-shaped", ix)
 
 
-def _gui_a2(ix: Interaction) -> CheckResult:
-    requirements = (ix.conversation or {}).get("requirements") or []
-    text = " ".join(r for r in requirements if isinstance(r, str))
-    violations = policy.clarity_violations(text)
-    return _result("GUI-A2", not violations, f"violations={violations}" if violations else "founder-phrased", ix)
-
-
-def _cla_a1_cycle(ix: Interaction) -> CheckResult:
-    instruction = (ix.conversation or {}).get("instruction") or {}
-    requirements = (ix.conversation or {}).get("requirements") or []
-    text = " ".join(filter(None, [
-        instruction.get("purpose"), instruction.get("content"), " ".join(requirements),
-    ]))
-    violations = policy.clarity_violations(text)
-    return _result("CLA-A1", not violations, f"violations={violations}" if violations else "clean", ix)
-
-
 def _agent_cycle_checks(ix: Interaction) -> list[CheckResult]:
+    """Policy v2 (evals/policy.py judgement call 3; design §2): `instruction.content` and
+    `requirements` are agent-facing method/payload guidance, not founder-facing protocol text --
+    so an agent-cycle interaction no longer carries `CLA-A1` or `GUI-A2` at all. Both checks move
+    to sweep `display` instead (see `_agent_handoff_checks`/`_gui_a2_handoff` below), which only an
+    agent-handoff interaction has. `GUI-A1` (presence/sentence-shape of `requirements`) and
+    `ORI-A1` (non-empty instruction) are presence checks, not vocabulary sweeps, and are untouched.
+    """
     results = [_ori_a1(ix)]
     a2 = _ori_a2(ix)
     if a2 is not None:
         results.append(a2)
     results.append(_gui_a1(ix))
-    results.append(_gui_a2(ix))
-    results.append(_cla_a1_cycle(ix))
     return results
 
 
@@ -136,8 +126,51 @@ def _cla_a1_handoff(ix: Interaction) -> CheckResult:
     return _result("CLA-A1", not violations, f"violations={violations}" if violations else "clean", ix)
 
 
+def _gui_a2_handoff(ix: Interaction) -> CheckResult:
+    """Policy v2's new home for `GUI-A2`: the one protocol text a founder actually receives is a
+    handoff's `display`, so this is where "founder-phrased, no raw enums/JSON" (GUIDANCE's half of
+    the sweep -- CLA-A1 asks the same question under CLARITY) now lives, instead of `requirements`.
+    """
+    display = (ix.conversation or {}).get("outcome") or ""
+    violations = policy.clarity_violations(display)
+    return _result("GUI-A2", not violations, f"violations={violations}" if violations else "founder-phrased", ix)
+
+
 def _agent_handoff_checks(ix: Interaction) -> list[CheckResult]:
-    return [_ori_h1(ix), _gui_h1(ix), _cla_a1_handoff(ix)]
+    return [_ori_h1(ix), _gui_h1(ix), _cla_a1_handoff(ix), _gui_a2_handoff(ix)]
+
+
+# --------------------------------------------------------------------------------- agent-refusal
+
+def _ori_r1(ix: Interaction) -> CheckResult:
+    """S-007 (design §3): the refusal names a rule a lost agent could look up -- one of the
+    literal rule tokens the protocol actually uses (policy.RULE_LITERALS plus the aggregate's own
+    short business-rule codes, e.g. A9 -- any non-blank rule name counts, since the full catalogue
+    of aggregate rule ids is open-ended by design and this check is about *presence*, not
+    membership in a closed list)."""
+    rule = (ix.captured_text.get("rule") or "").strip()
+    return _result("ORI-R1", bool(rule), f"rule={rule!r}" if rule else "no rule name captured", ix)
+
+
+def _gui_r1(ix: Interaction) -> CheckResult:
+    """S-007: is the *remedy* -- not the problem statement -- present and sentence-shaped? A
+    remedy that only restates the problem tells a lost agent what's wrong, not what to do; the
+    sentence-shape heuristic is the same generous one GUI-A1 uses for `requirements` (>= 3 words),
+    deliberately not a stricter imperative-mood parser (a false negative here is a harsher score
+    than the design intends, per GUI-H1's own docstring for the same trade-off). Agent-facing text
+    (like `requirements`/`instruction.content` under policy v2) -- never vocabulary-swept; there is
+    no CLA-R1.
+    """
+    remedy = (ix.captured_text.get("remedy") or "").strip()
+    problem = (ix.captured_text.get("problem") or "").strip()
+    sentence_shaped = len(remedy.split()) >= 3
+    not_just_the_problem = policy.normalize(remedy) != policy.normalize(problem)
+    passed = bool(remedy) and sentence_shaped and not_just_the_problem
+    return _result("GUI-R1", passed, f"remedy={remedy!r}", ix)
+
+
+def _agent_refusal_checks(ix: Interaction) -> list[CheckResult]:
+    return [_ori_r1(ix), _gui_r1(ix)]
 
 
 # ---------------------------------------------------------------------------------------- ui-visit
@@ -309,6 +342,8 @@ def evaluate(interactions: list[Interaction],
             results[ix.id].extend(_ui_visit_checks(ix))
         elif ix.type == "participant-page":
             results[ix.id].extend(_participant_page_checks(ix))
+        elif ix.type == "agent-refusal":
+            results[ix.id].extend(_agent_refusal_checks(ix))
 
     fid_results, extra = _fid_checks(interactions, facts or {})
     for iid, checks in fid_results.items():

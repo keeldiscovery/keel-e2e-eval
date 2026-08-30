@@ -21,6 +21,32 @@ Judgement calls made while filling in what the contract leaves to the implementa
    founder -- so this policy sweeps it as specified, honestly, rather than narrowing the check to
    avoid a finding. Where that surfaces a real leak, it is a DRIFT.md finding, not a reason to
    soften the check (design §6).
+
+   **Superseded by policy v2, judgement call 3 below** -- kept, struck nowhere, because the
+   contract history matters: this is exactly the mismeasurement 003-eval-set's design §2 found and
+   re-adjudicated as DRIFT #4 ("policy category error, not product text bug"), not a product leak.
+
+3. **Policy v2 (003-eval-set, design §2): CLA-A1/GUI-A2 sweep `display` only, among the three
+   protocol texts.** Re-reading the shipped contract (keel-cloud `ActionSchemas.requirements`,
+   `InstructionRegistry`'s own javadoc) alongside v1's own failures showed the mismeasurement:
+   `instruction.content` and `requirements` are addressed to the *executing agent* -- methodology
+   and payload guidance that legitimately names `CONTRADICTED`, `askedOf`, `goingAhead` -- and the
+   founder never receives either raw. The only protocol text actually relayed to the founder is a
+   handoff's `display` (what the agent tells them happened / what to do). So, v2:
+     - `CLA-A1` and `GUI-A2` are removed from agent-cycle interactions entirely (nothing at that
+       interaction type is founder-facing protocol text any more).
+     - `GUI-A2` gains a handoff variant (a new companion to the existing handoff `CLA-A1`),
+       sweeping `display` for the same clarity violations -- GUIDANCE's "founder-phrased" question
+       asked of the one protocol text a founder actually sees.
+     - `GUI-A1`'s presence/sentence-shape check on `requirements` is untouched (design §2: "keep
+       their presence/sentence-shape checks") -- that check never vocabulary-swept in v1 either.
+     - `instruction.content`'s only surviving check stays `ORI-A1` (non-empty, names a purpose) --
+       presence, not vocabulary.
+   This is the whole reason the twenty v1 failures on S-001 (`CLA-A1`/`GUI-A2`, ten interactions
+   each, all agent-cycle) disappear under v2 rather than merely passing: they are no longer checks
+   this policy runs on that interaction type at all. A seeded raw enum in a handoff `display`
+   fixture still fails both `CLA-A1` and (new) `GUI-A2` -- the UI/participant-page CLA-U1/CLA-U2
+   sweeps that would catch real founder-facing leakage are untouched by any of this.
 """
 
 from __future__ import annotations
@@ -28,7 +54,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-POLICY_VERSION = 1
+POLICY_VERSION = 2
 
 CATEGORY_WEIGHTS: dict[str, float] = {
     "FIDELITY": 0.4,
@@ -62,6 +88,12 @@ CHECKS: dict[str, dict[str, Any]] = {
     "CLA-U1": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
     "CLA-U2": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
     "CLA-A1": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
+    # 003-eval-set (S-007, design §3/§6.1): a wire refusal's {rule, problem, remedy} is agent-
+    # facing text (the same status as instruction/requirements under policy v2, evals/policy.py's
+    # judgement call 3) -- checked for presence/actionability (GUIDANCE, ORIENTATION), never
+    # vocabulary-swept (no CLA-R* check exists, deliberately, matching v2's recalibration).
+    "ORI-R1": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
+    "GUI-R1": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
 }
 
 # Every hop id this policy knows how to score (data-model.md's Fact registry).

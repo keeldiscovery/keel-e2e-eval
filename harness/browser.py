@@ -373,10 +373,80 @@ class ParticipantBrowser:
                     box.fill(answer_text)
                 h.add_screenshot(self._bstep.screenshot("participant-answers-filled"))
 
+    def answer(self, texts: list[str | None]) -> None:
+        """003-eval-set (T006): per-question control -- `texts[i]` fills only the i-th question's
+        *main* box (DOM order, matching `Invitation.asks()`'s stage-then-risk-then-introducedAt
+        ordering, per api-design.md's `form()` assembly). Iterates `.q` (one per question) rather
+        than `.q > textarea.box` directly: each question wraps *two* such boxes (main,
+        disconfirming -- `answer_all`'s own docstring), so indexing the flat box list one-per-
+        question would silently misalign onto the previous question's disconfirming box. `None`
+        (or any falsy string) leaves that question's main box, probes and disconfirming answer all
+        blank, which the server records as no answer at all for that assumption
+        (ParticipantController: "a blank answer is the same as an absent one"). Lets a scenario
+        give one participant supportive evidence on one belief while skipping another entirely
+        (S-002/S-003's two-question commercial link; S-005's opinions-only sweep), or hand a
+        single participant one combined sentence that the scenario's own `interpret_payload` later
+        splits into both a supporting and a contradicting claim (S-004's divided person -- the
+        split is an INTERPRET-time decision, not a textarea one; see that scenario's module
+        docstring).
+        """
+        with self._scope():
+            with self._bstep.step("participant answers questions") as h:
+                questions = self.page.locator(".q").all()
+                for question, text in zip(questions, texts):
+                    if text:
+                        question.locator("> textarea.box").first.fill(text)
+                h.add_screenshot(self._bstep.screenshot("participant-answers-filled"))
+
     def submit(self) -> None:
         with self._scope():
             with self._bstep.step("participant submits the response") as h:
                 self.page.get_by_role("button", name=re.compile("^submit$", re.I)).click()
                 self.page.get_by_text(re.compile("thanks", re.I)).wait_for(state="visible", timeout=10_000)
                 h.add_screenshot(self._bstep.screenshot("participant-thank-you"))
+                self._capture_page_text(h)
+
+    def decline(self) -> None:
+        """003-eval-set (T006, S-006, journey §2.1): clicks "No thanks" on the consent screen --
+        client-side only (`ParticipantRoute.tsx`'s `OpenForm`): no request is ever sent, so nothing
+        reaches the founder as an answer. Captures the resulting "No problem" page.
+        """
+        with self._scope():
+            with self._bstep.step("participant clicks No thanks") as h:
+                self.page.get_by_role("button", name=re.compile("no thanks", re.I)).click()
+                self.page.wait_for_timeout(150)
+                h.add_screenshot(self._bstep.screenshot("participant-declined"))
+                self._capture_page_text(h)
+
+    def submit_expect_notice(self) -> None:
+        """003-eval-set (T006, S-005): submits when every question was left blank -- the server
+        refuses gently (422, `ParticipantController.respond`: "Every question was left blank, so
+        there's nothing to send") and the page renders an inline `.stale`-styled notice *on the
+        same answering screen* rather than advancing to "thanks" -- distinct from `submit()`,
+        which waits for the thank-you text and would time out here.
+        """
+        with self._scope():
+            with self._bstep.step("participant submits with everything skipped") as h:
+                self.page.get_by_role("button", name=re.compile("^submit$", re.I)).click()
+                self.page.wait_for_timeout(300)
+                h.add_screenshot(self._bstep.screenshot("participant-all-skipped-notice"))
+                self._capture_page_text(h)
+
+    def open_expect_notice(self, url: str) -> None:
+        """003-eval-set (T006, S-002 §2.4 / already-answered): opens a link that will *not* render
+        the fresh consent screen -- gone stale (410, the founder reframed since sending it) or
+        already answered (200, `ALREADY_ANSWERED`) -- capturing whatever the page shows instead.
+        Distinct from `open()`, which waits for the consent screen's "asked if you" text and would
+        time out on either of these paths.
+
+        Scoring note: this still opens a `participant-page` interaction, so the generic rubric's
+        `ORI-P1`/`GUI-P1` (consent intro found / reached a successful submit) will read as failed
+        against it -- expected and self-explanatory in the scorecard (neither a stale nor an
+        already-answered page is a consent flow), not a product finding.
+        """
+        with self._scope():
+            with self._bstep.step("participant opens a link that is no longer a fresh consent screen") as h:
+                self.page.goto(url, wait_until="load")
+                self.page.wait_for_timeout(200)
+                h.add_screenshot(self._bstep.screenshot("participant-link-notice"))
                 self._capture_page_text(h)

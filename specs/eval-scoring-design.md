@@ -81,6 +81,26 @@ contain no raw enum tokens (`LOAD_BEARING`, `READY_TO_BUILD`, verdict/need/state
 JSON punctuation, no field names — the run-time twin of keel-web's own no-raw-enum sweep, now
 also applied to what the agent surface tells the founder. (URL path segments are exempt.)
 
+> **Amendment, 2026-08-30 (003-eval-set, policy v2).** "Founder-facing protocol text" above was
+> read too broadly by policy v1: it swept `instruction.content` and `requirements` — an
+> agent-cycle issuance's two texts — with the same founder-language yardstick as a handoff's
+> `display`. Re-reading the shipped contract (keel-cloud's `ActionSchemas.requirements`, and
+> `InstructionRegistry`'s own javadoc: "one line the founder never sees, and one paragraph the
+> executing client alone reads") shows `instruction` and `requirements` are addressed to the
+> **agent**, not relayed to the founder raw — legitimately naming `CONTRADICTED`, `askedOf`,
+> `goingAhead`. The only protocol text a founder actually receives is a handoff's `display`.
+>
+> Policy v2 therefore narrows CLA-A1's and GUI-A2's protocol-text sweep to `display` only:
+> `instruction.content` keeps its presence check (`ORI-A1`: non-empty, names a purpose, never
+> vocabulary-swept) and `requirements` keeps its presence/sentence-shape check (`GUI-A1`) — neither
+> is swept for raw enums or field names any more. `CLA-A1` and `GUI-A2` both move to sweep a
+> handoff's `display` (GUI-A2 is new there; CLA-A1 already checked it). This is a recalibration of
+> what "founder-facing" means for this attribute, not a loosened bar: the twenty S-001 failures
+> that CLA-A1/GUI-A2 raised against `instruction`/`requirements` under v1 were mismeasurement
+> (re-adjudicated as DRIFT #4 — see `runs/DRIFT.md`), and a seeded raw enum in a handoff `display`
+> still fails both checks under v2. `POLICY_VERSION` → 2 (`evals/policy.py`); see that module's
+> docstring, judgement call 3, for the full mechanics.
+
 ## 4. Scoring
 
 - Check results roll up per interaction per attribute: `5 × Σweight(passed) / Σweight`,

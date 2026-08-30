@@ -116,6 +116,47 @@ def test_empty_handoff_display_fails_ori_h1_and_gui_h1(tmp_path):
     assert len(gui) == 1 and gui[0]["pass"] is False
 
 
+# -------------------------------------------------------- agent-refusal (S-007, ORI-R1/GUI-R1)
+
+def test_actionable_refusal_passes_ori_r1_and_gui_r1(tmp_path):
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("agent-refusal"):
+        with recorder.step("get_next after a concurrent commit", party="agent", kind="protocol") as h:
+            h.capture_text("rule", "concurrency")
+            h.capture_text("problem", "the project moved on before this token could be used")
+            h.capture_text("remedy", "call get_next again for a fresh token, then resubmit the same payload")
+
+    scorecard = _score(tmp_path)
+    ori = _checks_for(scorecard, "ORI-R1")
+    gui = _checks_for(scorecard, "GUI-R1")
+    assert len(ori) == 1 and ori[0]["pass"] is True
+    assert len(gui) == 1 and gui[0]["pass"] is True
+
+
+def test_remedy_that_only_restates_the_problem_fails_gui_r1(tmp_path):
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("agent-refusal"):
+        with recorder.step("get_next after a concurrent commit", party="agent", kind="protocol") as h:
+            h.capture_text("rule", "concurrency")
+            h.capture_text("problem", "the token is stale")
+            h.capture_text("remedy", "the token is stale")
+
+    scorecard = _score(tmp_path)
+    gui = _checks_for(scorecard, "GUI-R1")
+    assert len(gui) == 1 and gui[0]["pass"] is False
+
+
+def test_missing_rule_name_fails_ori_r1(tmp_path):
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("agent-refusal"):
+        with recorder.step("some refusal", party="agent", kind="protocol") as h:
+            h.capture_text("remedy", "try again with a fresh token")
+
+    scorecard = _score(tmp_path)
+    ori = _checks_for(scorecard, "ORI-R1")
+    assert len(ori) == 1 and ori[0]["pass"] is False
+
+
 # ---------------------------------------------------------- brief summarizing: waived, not failed
 
 def test_brief_summarizing_an_assumption_passes_waived_with_reference(tmp_path):

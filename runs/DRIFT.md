@@ -266,3 +266,246 @@ description" instead of naming `roleType`) -- content-only changes, no code. Alt
 this text is genuinely meant to stay implementation-facing (the javadoc's own claim), a future
 agent surface would need an explicit paraphrase step before voicing any of it to a founder, which
 this no-LLM harness cannot exercise; that boundary is out of scope here (design §6).
+
+## Re-adjudication, 2026-08-30 (003-eval-set, policy v2)
+
+**Finding #4 above is reclassified: policy category error, not a product text bug.** Nothing in
+`keel-cloud` changed to produce this; the eval's own policy was measuring the wrong surface.
+
+Re-reading the shipped contract before writing any more checks on top of it (003-eval-set design
+§2, plan.md's adjudication pass) found that `v2-instructions.yaml`'s `instruction.content` and
+`ActionSchemas.requirements` are not founder-facing text at all — they are the agent's own
+methodology and payload guidance, exactly as `InstructionRegistry`'s javadoc already said ("one
+line the founder never sees, and one paragraph the executing client alone reads") and as
+`ActionSchemas.requirements` itself demonstrates by naming `CONTRADICTED`/`askedOf`/`goingAhead`
+in its own shipped, correct copy — vocabulary a schema-and-methodology guide legitimately uses and
+a founder never reads raw. Policy v1's CLA-A1/GUI-A2 checks swept both texts with the same
+founder-language yardstick as a handoff's `display`, which is the one protocol text actually
+relayed to a founder. That was the eval's mismeasurement, not keel-cloud's leak.
+
+**What did not change**: the UI sweeps (`CLA-U1`/`CLA-U2` on every rendered founder/participant
+page) and the participant-page sweep stayed at full strength throughout — they are what would
+catch a real founder-facing leak, and finding #4 was never about them. A handoff's `display` also
+stays swept (`CLA-A1`, and now also `GUI-A2`, policy v2) — it is the one protocol text a founder
+does receive, and a seeded raw enum there still fails both checks (`tests/test_policy_v2.py`).
+
+**Action taken**: `evals/policy.py` POLICY_VERSION → 2; `CLA-A1`/`GUI-A2` no longer apply to
+agent-cycle interactions (`instruction`/`requirements`) at all; `GUI-A2` gains a handoff variant
+sweeping `display`, alongside the existing handoff `CLA-A1`. `GUI-A1`'s presence/sentence-shape
+check on `requirements` and `ORI-A1`'s presence check on `instruction.content` are untouched —
+neither ever vocabulary-swept. `specs/eval-scoring-design.md` §3 carries the dated amendment.
+
+**Live proof**: re-scoring the existing S-001 bundle (`runs/20260830T033544Z-s001-smoke/`, no
+rerun against the stack needed — `make report RUN=<dir>` re-derives interactions and re-scores
+from `transcript.jsonl` + `facts.json` alone) under policy v2:
+
+| | policy v1 (before) | policy v2 (after) |
+|---|---|---|
+| GUIDANCE | 4.0/5 | 5.0/5 |
+| CLARITY | 4.0/5 | 5.0/5 |
+| ORIENTATION | 5.0/5 | 5.0/5 |
+| FIDELITY | 5.0/5 | 5.0/5 |
+| run score | 4.5/5 | 5.0/5 |
+| failing checks | 20 (`GUI-A2`×10, `CLA-A1`×10, all on `FRAME`/`INTRODUCE_ROLES`/`INTRODUCE_ASSUMPTIONS`/`INTERPRET`/`PROCEED_TO_BRIEF` agent-cycle issuances) | 0 |
+
+All twenty v1 failures disappear because the checks that raised them no longer apply to that
+interaction type — not because anything about `v2-instructions.yaml` or `ActionSchemas` changed.
+This finding is resolved as a policy fix; left here (not deleted) for the same reason findings #1–3
+above are kept after their product fixes: the history of what was wrong and why is the record.
+
+## 5. Blocking: a carrying `FRAME` reframe can never gain a new assumption -- the replaced belief simply vanishes
+
+**Severity: blocking.** journeys.md §1.9's central promise about a pivot -- "New things to be true
+appear under the new claim, all unanswered... nobody is asked a question the evidence has already
+settled" -- is only half true. The old belief really is superseded and a survivor really is
+carried; but no *new* belief can ever be introduced in the same review cycle a carrying reframe
+opens, through the shipped agent protocol, no matter what the founder and their agent discuss.
+
+**Where**: `keel-cloud` `src/main/java/com/keeldiscovery/cloud/protocol/NextRecommendation.java`,
+`reviewRecommendation` (~line 104):
+```java
+private static Recommendation reviewRecommendation(Project project, StageType stage) {
+    if (!project.stage(stage).applying().isEmpty()) {
+        return new HandoffRec("REVIEW", "... waiting for your approval ...", ...);
+    }
+    return project.roles().isEmpty() ? INTRODUCE_ROLES : INTRODUCE_ASSUMPTIONS;
+}
+```
+This is only ever reached while a stage is framed and unapproved. It recommends decomposing
+(`INTRODUCE_ROLES`/`INTRODUCE_ASSUMPTIONS`) exactly when `applying()` is empty -- true for a
+stage's first-ever framing, but **false** the instant a reframe carries even one survivor forward
+(`Project.frame`'s whole point: a carried assumption keeps `stillApplies() == true`). So the very
+next `get_next` after a carrying `FRAME` is a `REVIEW` handoff, never `INTRODUCE_ASSUMPTIONS` --
+and because a token is only ever minted for the action `get_next` itself just recommended
+(`AgentProtocolService.issue`/`submit` -- there is no "give me a token for a different action"
+call), **the agent has no protocol-legal way to introduce a new pricing question in this cycle**.
+Approving the stage with only the carried survivor goes straight to `PROCEED_TO_BRIEF`
+("recommended once nothing is left to settle") -- the replaced deal-breaker is not replaced with
+anything; it is simply gone, forever, unless some *later* reframe reopens the stage again.
+
+**Reproduction** (live, reproduced by every run of `test_s002_pricing_pivot.py`, e.g.
+`runs/20260830T043949Z-s002-pricing-pivot/`): drive a project to "commercial pricing ruled out,
+budget-owner supported" (`evals/recipes.rule_out_pricing`), submit the offered `FRAME` reframe
+carrying only the budget-owner assumption, then call `get_next` again:
+```
+{"kind": "handoff", "reason": "REVIEW", "display": "The commercial card is waiting for your
+ approval -- read the questions before anyone is asked.", "detail": {"stage": "COMMERCIAL"}}
+```
+Approve that stage (with only the carried belief) and call `get_next` once more:
+```
+{"kind": "action", "action": "PROCEED_TO_BRIEF", ...,
+ "detail": {"note": "recommended once nothing is left to settle; this is the founder's call, ..."}}
+```
+No `INTRODUCE_ASSUMPTIONS` ever appeared. `evals/recipes.py`'s module docstring carries the full
+derivation; `test_s002_pricing_pivot.py` asserts this exact sequence every run rather than reaching
+for a workaround (design §6) -- if a future fix makes `INTRODUCE_ASSUMPTIONS` reachable here, that
+test takes the win automatically (its assertion branches on the discovery, it does not require the
+gap to persist).
+
+**Why S-002 was not adapted around this**: there is no legitimate alternate path -- carrying
+*anything* forward reproduces it, and carrying *nothing* forward would lose the survivor's
+evidence entirely (the other half of design §3's requirement). The scenario walks the reframe
+exactly as the product allows and documents where it falls short of the journey, per design's
+discovery-honesty pass, rather than silently arranging for the gap never to be exercised.
+
+**Not applied, but the shape of the fix**: `NextRecommendation.reviewRecommendation` (or
+`Project.needs`) needs a way to distinguish "this stage has never been decomposed" from "this
+stage was just reframed and may still want new beliefs alongside its carried survivor" -- e.g. a
+flag on the frame itself (mid-reframe vs. steady-state), or recommending `INTRODUCE_ASSUMPTIONS`
+whenever the *active frame* has never had an assumption introduced against it specifically, rather
+than keying off the stage's `applying()` list as a whole.
+
+## 6. Non-blocking: a never-opened invitation can leave a founder's workflow waiting forever on a link the participant is told is already dead
+
+**Severity: non-blocking** (narrow: only bites a link that (a) asks about more than one belief,
+(b) is never opened, and (c) survives a reframe that carries at least one of those beliefs
+forward) -- but a real, confirmed inconsistency between what the founder's side of the protocol
+believes and what the participant is told.
+
+**Where**: `keel-cloud` `src/main/java/com/keeldiscovery/cloud/domain/project/Project.java`,
+`needs()`'s `anyPending` check, versus
+`src/main/java/com/keeldiscovery/cloud/protocol/participant/ParticipantController.java`'s
+`stale()`.
+
+`ParticipantController.stale()` marks a link stale the instant **any one** of the assumptions it
+asked about no longer applies:
+```java
+private static boolean stale(Project project, Invitation invitation) {
+    return invitation.asks().stream().anyMatch(id -> project.assumptionOf(id).map(a -> !a.stillApplies()).orElse(true));
+}
+```
+But `Project.needs(stage)`'s `anyPending` check still counts that same unanswered invitation as
+something the founder is waiting on, as long as **any** of its `asks` still applies:
+```java
+boolean anyPending = invitations.stream()
+        .filter(inv -> applying.stream().anyMatch(a -> inv.asks(a.id())))
+        .anyMatch(inv -> !inv.isAnswered() || !inv.isRead());
+```
+A link asking about two beliefs, one of which gets superseded by a reframe and one of which is
+carried forward, is therefore **stale to the participant** (don't bother -- one of the questions
+died) while **still pending to the founder's workflow** (`needs()` returns `ANSWERS`, not
+`EVIDENCE` or done) -- `Project.needs` never resolves that stage until the participant answers a
+link they were explicitly told not to bother with, or the founder starts an entirely new reframe.
+
+**Reproduction**: found while building `evals/recipes.py`'s `rule_out_pricing` (see that module's
+docstring) -- inviting one respondent to a single role covering both the commercial stage's
+budget-owner and pricing beliefs, leaving them unanswered, then reframing (carrying budget-owner)
+reproduces `get_next` returning `{"reason": "WAITING", "display": "Answers are still out for the
+commercial card..."}` forever afterward, even though `GET /v2/i/{token}` for that same invitation
+already answers 410 with "This link has gone stale". `evals/test_s002_pricing_pivot.py` avoids
+exercising this on its own critical path by asking budget-owner and pricing of two separate roles
+instead (a scenario-side design choice, not a product fix) -- see that module's own docstring for
+why.
+
+**Not applied, but the shape of the fix**: `anyPending` (or `Invitation`/`Project` more broadly)
+could be taught the same per-invitation staleness `ParticipantController.stale()` already computes
+-- excluding a link from "pending" once every belief it could still contribute to no longer
+applies, or once *any* of its questions is dead, whichever product intends. Either repo-internal
+choice is fine; the two just have to agree, the way `OpenWebUrls` and keel-web's routes now do
+(finding #2).
+
+## 7. BLOCKING (the eval set's most significant finding): `PROCEED_TO_BRIEF` is unreachable through the shipped agent protocol whenever a load-bearing deal-breaker sits contradicted on an approved, unreframed stage
+
+**Severity: blocking.** journeys.md §1.10's entire "going ahead anyway" conversation -- the
+founder asks for the brief despite a disproved deal-breaker; Keel warns and offers a choice;
+if the founder goes ahead, the brief renders a GOING AHEAD ANYWAY box with their own sentence --
+has **no protocol-legal entry point**. `Project.proceedToBrief`'s A9 business rule (require
+`goingAhead` exactly when a load-bearing assumption is `CONTRADICTED`) is correct and unit-tested
+in isolation, but no real agent or MCP client speaking only the shipped `get_next`/`submit`
+protocol can ever reach a `PROCEED_TO_BRIEF` token in the state A9 exists to police.
+
+**Where**: `keel-cloud` `src/main/java/com/keeldiscovery/cloud/protocol/NextRecommendation.java`
+(`compute`, `~line 65`) and `src/main/java/com/keeldiscovery/cloud/domain/project/Project.java`
+(`currentFocus`, `~line 526`; `needs`, `~line 495`).
+
+```java
+// NextRecommendation.compute
+Optional<Focus> focus = project.currentFocus();
+if (focus.isEmpty()) {
+    return new ActionRec(AgentAction.PROCEED_TO_BRIEF, ...);   // the ONLY way this is ever recommended
+}
+```
+```java
+// Project.currentFocus
+for (StageType type : StageType.values()) {
+    if (needs(type).orElse(null) == Need.REFRAME) {
+        return Optional.of(new Focus(type, Need.REFRAME));      // absolute priority, wins outright
+    }
+}
+```
+```java
+// Project.needs
+boolean anyContradictedLoadBearing = ...;
+if (anyContradictedLoadBearing) {
+    return Optional.of(Need.REFRAME);                            // checked before ANYTHING else
+}
+```
+A load-bearing `CONTRADICTED` assumption can only exist on an *approved* stage (only approved
+stages ever collect evidence), so this branch is reachable the moment one appears, and stays
+reachable -- `currentFocus()` can never be empty -- until that stage is reframed. Since a token is
+minted only for the action `get_next` itself just recommended
+(`AgentProtocolService.issue`/`submit`; there is no call that mints a token for a different
+action), **there is no way for a real client to ever submit `PROCEED_TO_BRIEF` in this state.**
+Not "refused with A9" -- genuinely never offered a token to attempt it with.
+
+**Reproduction** (live, reproduced by every run of `test_s003_going_ahead.py`, e.g.
+`runs/20260830T044347Z-s003-going-ahead/`): drive a project to "commercial pricing ruled out,
+budget-owner supported, commercial stage still approved and unreframed"
+(`evals/recipes.rule_out_pricing`, no reframe submitted), then call `get_next` three separate
+times:
+```
+{"kind": "action", "action": "FRAME", "detail": {"stage": "COMMERCIAL", "reason": "REFRAME"}, ...}
+{"kind": "action", "action": "FRAME", "detail": {"stage": "COMMERCIAL", "reason": "REFRAME"}, ...}
+{"kind": "action", "action": "FRAME", "detail": {"stage": "COMMERCIAL", "reason": "REFRAME"}, ...}
+```
+Every call, forever, until reframed. `PROCEED_TO_BRIEF` never appears.
+
+**Corroborating evidence, from keel-cloud's own test suite**: `AgentProtocolFlowTest`
+(`src/test/java/com/keeldiscovery/cloud/protocol/AgentProtocolFlowTest.java`) is the one test that
+exercises A9's refusal-then-accept behaviour end to end -- and it does so only by minting the
+`PROCEED_TO_BRIEF` token directly, bypassing `get_next` entirely:
+```java
+String briefTokenNoGoingAhead = mintDirect(AgentAction.PROCEED_TO_BRIEF, projectId,
+        beforeBriefAttempt.revision());
+```
+`mintDirect` is a test-support helper (also used mid-flow for `INTRODUCE_ASSUMPTIONS` in the same
+test) with no HTTP or MCP equivalent -- not a path any real agent has. This is not proof the gap
+was known and accepted; if anything it suggests the test was written by driving the aggregate
+directly rather than by simulating a client that only ever acts on `get_next`'s own
+recommendation, which is exactly the discrepancy this eval set's driver design (FR-003: "no LLM,
+consult only context, never generate a token you weren't issued") was built to catch.
+
+**Why S-003 was not adapted around this**: there is no legitimate alternate path -- any sequence
+of agent-only actions that leaves a load-bearing belief contradicted on an approved stage
+reproduces this, by construction of `needs()`/`currentFocus()`. `test_s003_going_ahead.py` builds
+exactly the state the journey opens from, demonstrates the block with three separate `get_next`
+calls (so a transient blip cannot be mistaken for the finding), and stops -- its own `passed` flag
+is `False` and its score is honestly gated at 2.0/5 by the completion gate, rather than the test
+quietly substituting S-002's pivot flow or fabricating a refusal that was never actually offered.
+
+**Not applied, but the shape of the fix**: `NextRecommendation.compute` needs a way to recommend
+`PROCEED_TO_BRIEF` as *available* (not mandatory) even while a `REFRAME` need exists elsewhere --
+e.g. only forcing `REFRAME` priority once the founder has been offered and declined the brief, or
+exposing a `founder wants the brief now` signal `get_next` can consult that overrides the default
+recommendation for one call. Either way, A9's own rule needs no change; it is `currentFocus()`'s
+unconditional `REFRAME` priority that forecloses the conversation A9 was written to police.
