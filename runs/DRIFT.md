@@ -145,6 +145,10 @@ finding is resolved; left here for history rather than deleted.
 
 ## 3. Blocking: keel-cloud's own MCP endpoint is unreachable under its shipped default configuration
 
+**RESOLVED 2026-08-30**: keel-cloud now sets `spring.ai.mcp.server.protocol: STREAMABLE` in
+application.yml, pinned by `SecurityConfigTest.theMcpEndpointIsMountedWhereSecurityConfigAndTheHostsExpectIt`;
+the eval-side env override is removed and the stack gate passes against the shipped config.
+
 **Severity: blocking** -- not on S-001 (this driver speaks HTTP, never MCP), but on the actual
 feature the endpoint exists to serve: no real MCP host can reach `keel_open_web` or any other MCP
 tool against a freshly-cloned, un-tweaked keel-cloud.

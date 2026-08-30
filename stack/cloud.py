@@ -3,21 +3,13 @@ overrides, --no-daemon so the whole JVM lives inside our own recorded process gr
 5 -- a bare gradle daemon would survive `make down`'s killpg untouched), and the /mcp reachability
 check.
 
-**002-eval-scoring T018 finding, worked around here (not in keel-cloud) -- see runs/DRIFT.md.**
 keel-cloud's `SecurityConfig` permits `spring.ai.mcp.server.streamable-http.mcp-endpoint`
-(default `/mcp`) on the assumption that's the live MCP transport. Against `spring-ai-bom 2.0.1`
-(the version keel-cloud's build.gradle pins) that assumption is false: `spring.ai.mcp.server.
-protocol` defaults to `SSE` (`McpServerAutoConfiguration$EnabledSseServerCondition`,
-`matchIfMissing=true`), which mounts at `/sse`, not `/mcp` -- confirmed live: `/sse` answers 403
-(security-denied, i.e. actually mounted) while `/mcp` answers a bare 404 (security lets it
-through; nothing is registered there). `SPRING_AI_MCP_SERVER_PROTOCOL=STREAMABLE` below is a
-same-application-instance, environment-only override (relaxed Spring Boot property binding, the
-same mechanism `KEEL_V2_FOUNDER_BASE_URL` already uses) that selects the transport keel-cloud's
-own SecurityConfig was written for -- no keel-cloud source changes -- so this stack-boot gate
-(and `harness.driver.check_mcp_reachable`, which S-001 also calls) can observe the real product,
-per this repo's own no-workaround rule *for scoring findings*, without the run stalling forever
-on an infra mismatch discovered outside the scoring path. The mismatch itself is not fixed and is
-recorded in `runs/DRIFT.md`.
+(default `/mcp`) as the live MCP transport. That was originally false against `spring-ai-bom
+2.0.1` (its default is the SSE transport at `/sse`), which this stack gate caught on first boot
+(runs/DRIFT.md #3): `/sse` answered 403 while `/mcp` answered a bare 404. keel-cloud now ships
+`spring.ai.mcp.server.protocol: STREAMABLE` in its own application.yml (pinned there by
+SecurityConfigTest), so this module injects nothing MCP-related and the gate observes the
+shipped configuration -- exactly what it exists to test.
 """
 
 from __future__ import annotations
@@ -46,9 +38,6 @@ def build_env(config: StackConfig) -> dict[str, str]:
         "KEEL_V2_FOUNDER_BASE_URL": f"http://localhost:{config.web_port}/p",
         "KEEL_V2_PARTICIPANT_BASE_URL": f"http://localhost:{config.web_port}/i",
         "KEEL_V2_FOUNDER_DISPLAY_NAME": "Eval Founder",
-        # See this module's docstring: selects the MCP transport keel-cloud's own SecurityConfig
-        # already permits, since spring-ai-bom 2.0.1's actual default (SSE) doesn't match it.
-        "SPRING_AI_MCP_SERVER_PROTOCOL": "STREAMABLE",
     })
     return env
 
