@@ -13,53 +13,62 @@ first, with the disproved belief filed under "what the evidence said no to" -- n
 "taking on faith" (`FounderViewAssembler.brief`: `CONTRADICTED` -> `saidNoTo`, everything else open
 -> `takingOnFaith`, by construction, never both).
 
-**This journey moment turns out to be unreachable through the shipped v2 agent protocol --
-confirmed live, not assumed.** `evals/recipes.py`'s module docstring has the full derivation; the
-short version:
+**Upgraded 2026-08-30 (keel-cloud commit c63ad4a, DRIFT #7 resolved, action-protocol-design-r2
+§8a)**: this journey moment used to have no protocol-legal entry point at all -- `get_next` now
+accepts an optional `request="brief"` (harness/driver.py's `FounderAgentDriver.get_next`), which
+issues `PROCEED_TO_BRIEF` outright regardless of `currentFocus()`, refusing only `"legality"` if
+some stage was never framed. This test replaces the old "documented block" design (three plain
+`get_next` calls proving the front door didn't exist) with the real walk journeys.md §1.10 always
+described: the founder reads *ruled out*, asks their agent for the brief anyway, the agent calls
+`get_next(request="brief")`, a first submission that omits `goingAhead` is refused by A9 with a
+remedy actionable enough for a lost agent to follow, the identical token is resubmitted with the
+founder's own sentence, and the project reaches `READY_TO_BUILD` with the brief rendering the GOING
+AHEAD ANYWAY box first and the disproved pricing belief filed only under "what the evidence said no
+to".
 
-`NextRecommendation.compute` recommends `PROCEED_TO_BRIEF` in exactly one branch,
-`Project.currentFocus().isEmpty()`. `currentFocus()` gives a stage needing `REFRAME` *absolute*
-priority over every other need, including no need at all (`Project.needs`: the
-`anyContradictedLoadBearing` check runs before `anyUninvited`/`anyPending`/`anyOpenRemains`, and a
-`REFRAME` focus wins the whole-project scan outright). A commercial stage with a `CONTRADICTED`,
-`LOAD_BEARING`, applying, approved assumption -- exactly the state journeys.md §1.10 opens from --
-therefore keeps `currentFocus()` non-empty **forever**, until that stage is reframed. Since a token
-is only ever minted for the action `get_next` itself just recommended
-(`AgentProtocolService.issue`/`submit`; there is no "give me a token for `PROCEED_TO_BRIEF`
-specifically" call), **an agent that only ever acts on `get_next`'s own recommendation can never
-submit `PROCEED_TO_BRIEF` in this state at all** -- not "refused with A9", genuinely never offered
-a token for it. journeys.md §1.10's entire warn-then-accept conversation, and the "ask for the
-brief anyway" moment it hinges on, has no protocol-legal entry point.
+**Discovered choreography, confirmed live against this stack (`evals/recipes.py`'s module docstring
+has the shared setup's full derivation):** ruling out a zero-supporter deal-breaker takes exactly
+one dissenting answer (Dana Okafor, journeys.md §1.8's own first quote) -- `rule_out_pricing`
+builds "commercial pricing CONTRADICTED, budget-owner SUPPORTED, commercial approved and
+unreframed" without ever submitting a reframe, which is exactly journeys.md §1.10's opening state.
 
-Corroborating evidence: keel-cloud's own `AgentProtocolFlowTest`
-(`src/test/java/.../protocol/AgentProtocolFlowTest.java`) tests A9's refusal-then-accept behaviour
-at all only via a test-only `mintDirect(AgentAction.PROCEED_TO_BRIEF, ...)` helper that mints the
-token directly, bypassing `get_next` entirely -- not a call any real agent or MCP client has
-access to. That test proves A9's *domain rule* is correct; it does not prove any real client can
-ever reach it, and this scenario's own live run shows that, through the protocol this driver
-actually speaks, none can.
-
-**What this test does, honestly (design §6, discovery-honesty pass)**: builds the exact state
-journeys.md §1.10 opens from (pricing `CONTRADICTED`, commercial approved, unreframed, problem and
-solution supported), shows it on the stage screen ("Ruled out"), then demonstrates -- three
-separate `get_next` calls, not one, so a transient blip cannot be mistaken for the finding -- that
-`PROCEED_TO_BRIEF` is never offered. It does not reach a brief, does not fabricate a refusal that
-never happened, and does not silently substitute the pricing-pivot flow (that is S-002's own
-scenario, not this one's escape hatch). The scenario's own `passed` flag is `False`: the journey
-moment it exists to walk cannot be walked, and the harness's completion gate is the honest way to
-say so in the run's score. See `runs/DRIFT.md` #7 for the full write-up -- this is the eval set's
-single most significant finding.
+Before this fix, three separate ordinary `get_next` calls in this state all recommended
+`FRAME`/`REFRAME` on COMMERCIAL, never `PROCEED_TO_BRIEF` -- see `runs/DRIFT.md` #7 for that full
+write-up (kept for history, not deleted, per this repo's own practice of recording what was wrong
+and why). This test keeps one quick check of that unchanged default behaviour (`request` omitted
+still recommends `FRAME`/`REFRAME`) before demonstrating that the explicit ask opens the front
+door -- the fix is additive, not a change to what `get_next` recommends by default.
 """
 
 from __future__ import annotations
 
 import time
 
-from evals.recipes import COMMERCIAL, COMMERCIAL_PRICING_ASSUMPTION, PricingSetupScenario, rule_out_pricing
+from evals.recipes import (
+    COMMERCIAL, COMMERCIAL_BUDGET_ASSUMPTION, COMMERCIAL_PRICING_ASSUMPTION, PROBLEM,
+    PROBLEM_ASSUMPTION, PROBLEM_CLAIM, ROLE_LABEL, SOLUTION, SOLUTION_ASSUMPTION, SOLUTION_CLAIM,
+    PricingSetupScenario, rule_out_pricing,
+)
+from evals.scenario import Fact
 from harness.browser import FounderBrowser
-from harness.driver import FounderAgentDriver
+from harness.driver import FounderAgentDriver, ProtocolError
 from harness.evidence import finalize_run
 from harness.steps import Recorder
+
+GOING_AHEAD_SENTENCE = ("The one person I asked was firmly against annual upfront pricing, but I "
+                         "think a larger customer buys differently -- I'm going ahead to find out.")
+
+
+def _capture_refusal(recorder: Recorder, step_name: str, err: ProtocolError) -> None:
+    """Mirrors S-007's own `_capture_refusal` (evals/test_s007_hostile_wire.py): stashes
+    {rule, problem, remedy} as captured_text so ORI-R1/GUI-R1 (harness/rubric.py's
+    `_agent_refusal_checks`) can score this refusal on its own terms."""
+    with recorder.step(step_name, party="agent", kind="assert") as h:
+        h.capture_text("rule", err.rule or "")
+        h.capture_text("problem", err.problem or "")
+        h.capture_text("remedy", err.remedy or "")
+        h.record_assert("an actionable {rule, problem, remedy}",
+                         {"rule": err.rule, "problem": err.problem, "remedy": err.remedy})
 
 
 class S003GoingAhead(PricingSetupScenario):
@@ -75,9 +84,6 @@ class S003GoingAhead(PricingSetupScenario):
         raise AssertionError("S-003 must never reframe -- that is S-002's scenario")
 
     def brief_payload(self, context) -> dict:
-        # Only ever used if a future fix makes PROCEED_TO_BRIEF reachable while pricing stays
-        # CONTRADICTED (see `_walk_going_ahead_conversation`) -- goingAhead is added/removed by
-        # the caller per A9's two directions.
         return {
             "findings": [
                 "Payroll managers handle exceptions themselves, monthly (1 of 1 respondents).",
@@ -85,6 +91,33 @@ class S003GoingAhead(PricingSetupScenario):
                 "Someone in the payroll organisation owns a budget for this (1 of 1 respondents).",
             ],
             "openDecisions": [],
+        }
+
+    def facts(self) -> dict[str, Fact]:
+        return {
+            "problem_statement": Fact(text=PROBLEM_CLAIM, kind="statement",
+                                       hops=["agent_echo", "stage_screen", "brief"]),
+            "solution_statement": Fact(text=SOLUTION_CLAIM, kind="statement",
+                                        hops=["agent_echo", "stage_screen", "brief"]),
+            # Unlike S-002, this claim is never replaced -- it survives, unreframed, all the way
+            # to the brief (journeys.md §1.10 opens from exactly this: ruled out, not changed).
+            "commercial_claim": Fact(text="$30 a seat per month, billed annually upfront.",
+                                      kind="statement", hops=["agent_echo", "stage_screen", "brief"]),
+            "role_label": Fact(text=ROLE_LABEL, kind="role",
+                                hops=["agent_echo", "stage_screen", "invite_screen"]),
+            "assumption_problem": Fact(text=PROBLEM_ASSUMPTION, kind="assumption",
+                                        hops=["agent_echo", "stage_screen", "interpret_context", "brief"]),
+            "assumption_solution": Fact(text=SOLUTION_ASSUMPTION, kind="assumption",
+                                         hops=["agent_echo", "stage_screen", "interpret_context", "brief"]),
+            "assumption_budget": Fact(text=COMMERCIAL_BUDGET_ASSUMPTION, kind="assumption",
+                                       hops=["agent_echo", "stage_screen", "interpret_context", "brief"]),
+            # The disproved deal-breaker -- still applying, still on the card, and now reaching the
+            # brief for real (unlike S-002, where the reframe supersedes it before any brief exists).
+            "assumption_pricing": Fact(text=COMMERCIAL_PRICING_ASSUMPTION, kind="assumption",
+                                        hops=["agent_echo", "stage_screen", "interpret_context", "brief"]),
+            # The founder's own sentence, written only because A9 demanded it -- traced all the way
+            # to the one place it is meant to render: the top of the brief, verbatim, in their words.
+            "going_ahead_sentence": Fact(text=GOING_AHEAD_SENTENCE, kind="statement", hops=["brief"]),
         }
 
 
@@ -122,105 +155,100 @@ def test_s003_going_ahead(stack, run_dir, browser):
                 h.fail(f"expected COMMERCIAL approved with need REFRAME, got {commercial_state}")
                 raise AssertionError(h.error)
 
-        # journeys.md §1.10: "Before I write anything..." -- the agent would ask for the brief
-        # here. Demonstrate, three separate calls, that PROCEED_TO_BRIEF is never offered.
-        with recorder.step("PROCEED_TO_BRIEF is never offered while pricing sits contradicted and "
-                            "unreframed (checked three times, not once)", party="agent", kind="assert") as h:
-            observations = [setup.peek, driver.get_next(), driver.get_next()]
-            h.record_assert("every call recommends FRAME/REFRAME on COMMERCIAL, never PROCEED_TO_BRIEF",
-                             observations)
-            for obs in observations:
-                is_reframe_action = (obs.get("kind") == "action" and obs.get("action") == "FRAME"
-                                      and (obs.get("detail") or {}).get("reason") == "REFRAME")
-                reached_brief = obs.get("kind") == "action" and obs.get("action") == "PROCEED_TO_BRIEF"
-                if reached_brief:
-                    # If a future keel-cloud fix makes this reachable, take the win: walk the A9
-                    # conversation for real instead of failing the block-detection assertion.
-                    recorder.note("PROCEED_TO_BRIEF was reachable after all -- prior finding resolved; "
-                                  "walking the A9 refusal-then-accept conversation for real", party="stack")
-                    _walk_going_ahead_conversation(driver, scenario, founder, founder_page, project_id, recorder)
-                    passed = True
-                    break
-                if not is_reframe_action:
-                    h.fail(f"expected the documented FRAME/REFRAME offer, got something else: {obs}")
-                    raise AssertionError(h.error)
-            else:
-                # The documented, currently-live finding: no path to PROCEED_TO_BRIEF exists here.
-                recorder.note(
-                    "CONFIRMED: PROCEED_TO_BRIEF is unreachable while a load-bearing CONTRADICTED "
-                    "assumption sits on an approved, unreframed stage -- NextRecommendation.compute "
-                    "recommends FRAME/REFRAME on every call instead; there is no protocol operation "
-                    "that mints a token for an action other than the one get_next currently "
-                    "recommends. See runs/DRIFT.md #7 and evals/recipes.py's module docstring.",
-                    party="stack",
-                )
+        # The fix is additive: the ordinary recommendation (no `request`) is unchanged -- still
+        # FRAME/REFRAME on COMMERCIAL -- while pricing sits contradicted and unreframed.
+        with recorder.step("the ordinary recommendation is unchanged: still FRAME/REFRAME on COMMERCIAL",
+                            party="agent", kind="assert") as h:
+            ordinary = driver.get_next()
+            h.record_assert("action FRAME, reason REFRAME (unchanged default)", ordinary)
+            is_reframe_action = (ordinary.get("kind") == "action" and ordinary.get("action") == "FRAME"
+                                  and (ordinary.get("detail") or {}).get("reason") == "REFRAME")
+            if not is_reframe_action:
+                h.fail(f"expected the unchanged FRAME/REFRAME default, got {ordinary}")
+                raise AssertionError(h.error)
 
-        # `passed` stays False on the documented-block branch: the journey moment this scenario
-        # exists to walk (the founder asks for the brief, is warned, writes the sentence, and sees
-        # the GOING AHEAD ANYWAY box first) cannot be walked through the shipped protocol. That is
-        # the finding, and the completion gate is the honest way to score it.
+        # journeys.md §1.10: "the founder... asks their agent for the brief anyway." The founder's
+        # own ask, not a change in what get_next would otherwise recommend -- driven explicitly by
+        # this scenario's own script (harness/driver.py's `get_next` docstring: request stays
+        # scenario-consulted, never automatic).
+        issuance_id = recorder.new_interaction_id()
+        with recorder.interaction("agent-cycle", issuance_id):
+            with recorder.step("the founder asks their agent for the brief anyway",
+                                party="agent", kind="assert") as h:
+                brief_request = driver.get_next(request="brief")
+                h.record_assert("action PROCEED_TO_BRIEF, issued past the REFRAME focus", brief_request)
+                if not (brief_request.get("kind") == "action" and brief_request.get("action") == "PROCEED_TO_BRIEF"):
+                    h.fail(f"expected PROCEED_TO_BRIEF from request=brief, got {brief_request}")
+                    raise AssertionError(h.error)
+            token = brief_request["token"]
+            context = {h_name: driver.get_context(token, h_name) for h_name in brief_request.get("context") or []}
+
+        # journeys.md §1.10: "The agent checks one thing before it writes a word." A9's
+        # warn-don't-block: the first submission omits `goingAhead` and must be refused, with a
+        # remedy that would tell a lost agent what to do next -- not just restate the problem.
+        with recorder.interaction("agent-refusal"):
+            payload_without = scenario.brief_payload(context)
+            payload_without.pop("goingAhead", None)
+            try:
+                driver.submit_with_recovery(token, payload_without, "PROCEED_TO_BRIEF",
+                                             "PROCEED_TO_BRIEF (no goingAhead)")
+                raise AssertionError("expected an A9 refusal for omitting goingAhead while pricing "
+                                      "is CONTRADICTED")
+            except ProtocolError as err:
+                _capture_refusal(recorder, "PROCEED_TO_BRIEF without goingAhead is refused (A9)", err)
+                if err.rule != "A9":
+                    raise AssertionError(f"expected rule A9, got {err.rule!r}: {err.problem!r}")
+                remedy = (err.remedy or "").strip()
+                if len(remedy.split()) < 3:
+                    raise AssertionError(f"expected an actionable, sentence-shaped remedy, got {remedy!r}")
+                lowered = remedy.lower()
+                if "goingahead" not in lowered.replace(" ", "") or "sentence" not in lowered:
+                    raise AssertionError(
+                        f"remedy doesn't tell a lost agent what to do (write a sentence, set "
+                        f"goingAhead): {remedy!r}")
+
+        # "Token survives" (A9's contract, unchanged): the refusal never touched the aggregate, so
+        # the SAME token -- not a freshly minted one -- is resubmitted with the founder's own
+        # sentence.
+        with recorder.interaction("agent-cycle", issuance_id):
+            payload_with = scenario.brief_payload(context)
+            payload_with["goingAhead"] = GOING_AHEAD_SENTENCE
+            result = driver.submit_with_recovery(token, payload_with, "PROCEED_TO_BRIEF",
+                                                  "PROCEED_TO_BRIEF (goingAhead)")
+            with recorder.step("the project reaches READY_TO_BUILD", party="agent", kind="assert") as h:
+                h.record_assert("state READY_TO_BUILD", result)
+                if result.get("state") != "READY_TO_BUILD":
+                    h.fail(f"expected state READY_TO_BUILD, got {result}")
+                    raise AssertionError(h.error)
+
+        founder.open_brief(project_id)
+        with recorder.step("the brief renders GOING AHEAD ANYWAY first, pricing under said-no-to, "
+                            "never taking-on-faith", party="founder", kind="assert") as h:
+            first_child_class = founder_page.locator(".brief > *").first.get_attribute("class")
+            goahead_text = founder_page.locator(".goahead p").inner_text()
+            said_no = founder_page.locator(".blist.saidno li").all_inner_texts()
+            faith = founder_page.locator(".blist.faith li").all_inner_texts()
+            h.record_assert("goahead first, pricing in said-no-to, never in taking-on-faith",
+                             {"first_child_class": first_child_class, "goahead_text": goahead_text,
+                              "said_no": said_no, "faith": faith})
+            if first_child_class != "goahead":
+                h.fail(f"expected the GOING AHEAD ANYWAY box to render first, got class={first_child_class!r}")
+                raise AssertionError(h.error)
+            if goahead_text.strip() != GOING_AHEAD_SENTENCE:
+                h.fail(f"expected the founder's own sentence in the box, got {goahead_text!r}")
+                raise AssertionError(h.error)
+            if not any(COMMERCIAL_PRICING_ASSUMPTION in line for line in said_no):
+                h.fail(f"expected the disproved pricing belief under said-no-to, got {said_no}")
+                raise AssertionError(h.error)
+            if any(COMMERCIAL_PRICING_ASSUMPTION in line for line in faith):
+                h.fail("the disproved pricing belief leaked into taking-on-faith -- never blurred "
+                       "(journeys.md §1.10)")
+                raise AssertionError(h.error)
+
+        passed = True
     finally:
         founder_context.close()
         duration = time.monotonic() - started
         finalize_run(run_dir, scenario=scenario, passed=passed,
                      failed_step=recorder.failed_step, duration_s=duration)
         print(f"\nrun bundle: {run_dir}")
-
-
-def _walk_going_ahead_conversation(driver: FounderAgentDriver, scenario, founder: FounderBrowser,
-                                    founder_page, project_id: str, recorder) -> None:
-    """Only runs if a future fix makes PROCEED_TO_BRIEF reachable while pricing stays contradicted
-    -- journeys.md §1.10's actual conversation, walked for real: first submit omits `goingAhead`
-    and must be refused (A9); the retry carries the founder's own sentence; the brief renders the
-    GOING AHEAD ANYWAY box first, with pricing filed under "what the evidence said no to"."""
-    from harness.driver import ProtocolError
-
-    going_ahead_sentence = ("The one person I asked was firmly against annual upfront pricing, but "
-                             "I think a larger customer buys differently -- I'm going ahead to find out.")
-
-    response = driver.get_next()
-    assert response["action"] == "PROCEED_TO_BRIEF", response
-    token = response["token"]
-    context = {h: driver.get_context(token, h) for h in response.get("context") or []}
-
-    with recorder.step("PROCEED_TO_BRIEF without goingAhead is refused (A9)", party="agent", kind="assert") as h:
-        payload_without = scenario.brief_payload(context)
-        payload_without.pop("goingAhead", None)
-        try:
-            driver.submit_with_recovery(token, payload_without, "PROCEED_TO_BRIEF", "PROCEED_TO_BRIEF (no goingAhead)")
-            h.fail("expected an A9 refusal for omitting goingAhead while pricing is CONTRADICTED")
-            raise AssertionError(h.error)
-        except ProtocolError as err:
-            h.record_assert("A9 refusal with an actionable remedy", {"rule": err.rule, "remedy": err.remedy})
-            if err.rule != "A9" or not err.remedy:
-                h.fail(f"expected an actionable A9 refusal, got rule={err.rule} remedy={err.remedy}")
-                raise AssertionError(h.error)
-
-    retry = driver.get_next()
-    assert retry["action"] == "PROCEED_TO_BRIEF", retry
-    payload_with = scenario.brief_payload(context)
-    payload_with["goingAhead"] = going_ahead_sentence
-    driver.submit_with_recovery(retry["token"], payload_with, "PROCEED_TO_BRIEF", "PROCEED_TO_BRIEF (goingAhead)")
-
-    founder.open_brief(project_id)
-    with recorder.step("the brief renders GOING AHEAD ANYWAY first, pricing under said-no-to",
-                        party="founder", kind="assert") as h:
-        first_child_class = founder_page.locator(".brief > *").first.get_attribute("class")
-        goahead_text = founder_page.locator(".goahead p").inner_text()
-        said_no = founder_page.locator(".blist.saidno li").all_inner_texts()
-        faith = founder_page.locator(".blist.faith li").all_inner_texts()
-        h.record_assert("goahead first, pricing in said-no-to, never in taking-on-faith",
-                         {"first_child_class": first_child_class, "goahead_text": goahead_text,
-                          "said_no": said_no, "faith": faith})
-        if first_child_class != "goahead":
-            h.fail(f"expected the GOING AHEAD ANYWAY box to render first, got class={first_child_class!r}")
-            raise AssertionError(h.error)
-        if goahead_text.strip() != going_ahead_sentence:
-            h.fail(f"expected the founder's own sentence in the box, got {goahead_text!r}")
-            raise AssertionError(h.error)
-        if not any(COMMERCIAL_PRICING_ASSUMPTION in line for line in said_no):
-            h.fail(f"expected the disproved pricing belief under said-no-to, got {said_no}")
-            raise AssertionError(h.error)
-        if any(COMMERCIAL_PRICING_ASSUMPTION in line for line in faith):
-            h.fail("the disproved pricing belief leaked into taking-on-faith -- never blurred (journeys.md §1.10)")
-            raise AssertionError(h.error)

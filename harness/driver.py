@@ -138,11 +138,15 @@ class FounderAgentDriver:
     # --------------------------------------------------------------------------- wire primitives
 
     def _post(self, path: str, body: Any, step_name: str, *,
+              params: dict[str, str] | None = None,
               capture: Callable[[StepHandle, Any], None] | None = None) -> Any:
         with self.recorder.step(step_name, party="agent", kind="protocol") as h:
-            response = self.session.post(f"{self.base_url}{path}", json=body, timeout=15)
+            response = self.session.post(f"{self.base_url}{path}", json=body, params=params, timeout=15)
             parsed = _safe_json(response)
-            h.record_wire({"path": path, "body": body}, {"status": response.status_code, "body": parsed})
+            wire_request: dict[str, Any] = {"path": path, "body": body}
+            if params:
+                wire_request["params"] = params
+            h.record_wire(wire_request, {"status": response.status_code, "body": parsed})
             if response.status_code >= 400:
                 h.fail(f"HTTP {response.status_code}: {parsed}")
                 raise ProtocolError(response.status_code, parsed)
@@ -150,11 +154,24 @@ class FounderAgentDriver:
                 capture(h, parsed)
         return parsed
 
-    def get_next(self) -> dict:
+    def get_next(self, request: str | None = None) -> dict:
+        """`request` is optional and, when given, admits exactly one value: `"brief"` -- the
+        founder-initiated brief (journeys.md §1.10, DRIFT #7's fix, action-protocol-design-r2
+        §8a): issues `PROCEED_TO_BRIEF` past whatever `currentFocus()` would otherwise recommend,
+        refusing `"legality"` only if some stage has never been framed.
+
+        This driver stays deterministic and scenario-consulted (FR-003): nothing here decides
+        *when* to ask for the brief -- a scenario's own script calls `get_next(request="brief")`
+        only at the moment its journey has the founder actually ask for it. Every other call site
+        (the ordinary `advance_one`/`advance_until_handoff` loop) omits `request` and gets the
+        unchanged, `currentFocus()`-driven recommendation.
+        """
+        params = {"request": request} if request else None
+        label = "get_next" if request is None else f"get_next (request={request})"
         if self.project_id is None:
-            return self._post("/v2/agent/next", None, "get_next (before any project)")
+            return self._post("/v2/agent/next", None, f"{label} (before any project)", params=params)
         return self._post(f"/v2/agent/projects/{self.project_id}/next", None,
-                           f"get_next (project {self.project_id})")
+                           f"{label} (project {self.project_id})", params=params)
 
     def get_context(self, token: str, handle: str) -> Any:
         def capture(h: StepHandle, parsed: Any) -> None:

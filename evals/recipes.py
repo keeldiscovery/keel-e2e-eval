@@ -7,6 +7,18 @@ shape... but not state"). Each test module calls `rule_out_pricing(...)` on its 
 `PricingSetupScenario` subclass and its own project; nothing here is shared state between the two
 test runs, only shared code.
 
+**Update, 2026-08-30 (keel-cloud commit c63ad4a, DRIFT #5/#6/#7 resolved)**: the choreography
+findings below (T004) are kept verbatim, as the historical record of what this module's own live
+probes found before the fix -- this docstring is not rewritten to erase them, the way `runs/
+DRIFT.md` appends RESOLVED notes rather than striking its own findings. What actually changed: a
+carrying `FRAME` reframe now reopens decomposition (`Stage.decomposedForActiveFrame`), so
+`test_s002_pricing_pivot.py` walks the real `INTRODUCE_ASSUMPTIONS` cycle the second finding below
+says never happened; and `get_next` now accepts `request="brief"` (harness/driver.py), so
+`test_s003_going_ahead.py` walks the real A9 conversation the fourth finding below says had no
+entry point. `rule_out_pricing` itself is unchanged -- it only ever built the *starting* state
+("pricing ruled out, budget-owner supported, commercial approved") both journeys open from; what
+each test does with that state afterward is what changed.
+
 ## T004 -- the discovered choreography (read from keel-cloud source, never assumed from the plan)
 
 **`frame(...)`'s `carries` mechanic** (`Project.frame`, `Project.java`): a replacement frame on an

@@ -375,6 +375,25 @@ flag on the frame itself (mid-reframe vs. steady-state), or recommending `INTROD
 whenever the *active frame* has never had an assumption introduced against it specifically, rather
 than keying off the stage's `applying()` list as a whole.
 
+**RESOLVED, 2026-08-30 (keel-cloud commit `c63ad4a`)**: fixed exactly along the shape of the fix
+above. `Stage.decomposedForActiveFrame()` (new) distinguishes "the active frame has a belief
+introduced against it specifically" (its `introducedAt` not before the active frame's own
+`framedAt`) from "the active frame only inherited a carried survivor" (whose `introducedAt` stays
+that of the earlier frame, strictly before the new one's); `NextRecommendation.reviewRecommendation`
+now keys off that instead of `applying().isEmpty()`. Design amendment recorded in
+`action-protocol-design-r2.md` §8a (dated 2026-08-30, credits this finding by name).
+
+Live proof: `test_s002_pricing_pivot.py` (upgraded the same day) now walks the real cycle the
+reproduction above showed was missing -- the `get_next` immediately after a carrying `FRAME` is
+`INTRODUCE_ASSUMPTIONS`, not the `REVIEW` handoff this finding documented; the new pricing belief
+it introduces (`NEW_COMMERCIAL_PRICING_ASSUMPTION`, under the new per-run claim) arrives unapproved
+and the stage reopens for `REVIEW` with both the new belief and the carried survivor on it; the
+carried budget belief's verdict (`SUPPORTED`) and applying status survive the whole cycle untouched
+(asserted directly against the `opportunity` handle); and a fresh invitation minted afterward for
+the new belief carries only that one question -- `Stage.linkFor` never re-freezes budget, since it
+is already `SUPPORTED` (not `Verdict.isOpen()`) regardless of role assignment. This finding is
+resolved; left here for history rather than deleted.
+
 ## 6. Non-blocking: a never-opened invitation can leave a founder's workflow waiting forever on a link the participant is told is already dead
 
 **Severity: non-blocking** (narrow: only bites a link that (a) asks about more than one belief,
@@ -423,6 +442,32 @@ could be taught the same per-invitation staleness `ParticipantController.stale()
 applies, or once *any* of its questions is dead, whichever product intends. Either repo-internal
 choice is fine; the two just have to agree, the way `OpenWebUrls` and keel-web's routes now do
 (finding #2).
+
+**RESOLVED, 2026-08-30 (keel-cloud commit `c63ad4a`)**: fixed exactly along the shape of the fix
+above. `Project.isInvitationStale(Invitation)` (new) is the single derivation both sides now read:
+an invitation is stale the instant any one of its frozen `asks` no longer applies (verbatim the
+predicate `ParticipantController.stale()` used to compute locally, now delegating to this method).
+`needs()`'s `anyPending` check was rewritten to match: an already-answered invitation still counts
+as pending until read (nobody's submitted work is silently dropped), but an *unanswered* one counts
+as pending only while it is not stale -- once every belief it asked about has been superseded,
+there is nothing left to wait for. Design amendment recorded in `action-protocol-design-r2.md` §8a
+(dated 2026-08-30, credits this finding by name).
+
+**Caveat on the live proof**: this scenario's own two-role split (recipes.py's judgement call,
+recorded in the reproduction above) means neither test in this eval set constructs the exact
+mixed-ask invitation (one link spanning both a carried survivor and a soon-superseded belief) this
+finding's reproduction used -- that would require restructuring which role each commercial belief
+is asked of before either resolves, a change to the scenario's own critical path this upgrade
+deliberately left alone (see `test_s002_pricing_pivot.py`'s `assumptions_payload` docstring for the
+full reasoning). What *is* verified live, in `test_s002_pricing_pivot.py`: the never-opened
+pre-pivot pricing link (single-ask, superseded by the reframe) still renders the correct
+out-of-date notice to the participant (`ParticipantController.stale()`, reading the same
+`isInvitationStale` this fix introduced), and `Project.needs`/`get_next` never wedges on `ANSWERS`
+because of it, all the way through to a fresh invitation for the new pricing belief actually being
+reachable. The fix is code-level unification (one method, two callers) rather than a
+scenario-specific behavior change, so this is taken as sufficient confirmation; the precise
+mixed-ask shape remains undemonstrated by this eval set and is noted here rather than silently
+assumed. This finding is resolved; left here for history rather than deleted.
 
 ## 7. BLOCKING (the eval set's most significant finding): `PROCEED_TO_BRIEF` is unreachable through the shipped agent protocol whenever a load-bearing deal-breaker sits contradicted on an approved, unreframed stage
 
@@ -509,3 +554,33 @@ e.g. only forcing `REFRAME` priority once the founder has been offered and decli
 exposing a `founder wants the brief now` signal `get_next` can consult that overrides the default
 recommendation for one call. Either way, A9's own rule needs no change; it is `currentFocus()`'s
 unconditional `REFRAME` priority that forecloses the conversation A9 was written to police.
+
+**RESOLVED, 2026-08-30 (keel-cloud commit `c63ad4a`)**: fixed exactly along the "exposing a
+`founder wants the brief now` signal" shape of the fix above. `get_next` now accepts an optional
+`request` parameter admitting exactly one value, `"brief"` (`AgentProtocolController`/`KeelMcpTools`
+on both transports, `NextRecommendation.founderRequestedRecommendation`): present, it issues
+`PROCEED_TO_BRIEF` outright regardless of `currentFocus()`, refusing `"legality"` only if some
+stage has never been framed (there is nothing to brief about a claim nobody has stated), and
+`"schema"` for any value other than `"brief"`. `A9` itself needed no change -- the refusal it was
+always meant to run now finally has a token to run against. Design amendment recorded in
+`action-protocol-design-r2.md` §8a (dated 2026-08-30, credits this finding by name as the eval
+set's most significant).
+
+**The `AgentProtocolFlowTest` `mintDirect` bypass this finding's corroborating evidence pointed at
+is retired for this scenario**: keel-cloud's commit message for `c63ad4a` records that the flow
+test's `mintDirect` shortcut for `PROCEED_TO_BRIEF` was replaced with a real `request=brief`
+`get_next` call, closing the exact gap between "the domain rule is unit-tested" and "a real client
+can reach it" this finding raised.
+
+**Live proof**: `test_s003_going_ahead.py` (rewritten the same day, replacing the old
+"three-calls-prove-the-block" design with the real walk) now drives the actual journeys.md §1.10
+conversation end to end against the live stack: `driver.get_next(request="brief")` returns
+`PROCEED_TO_BRIEF` while pricing still sits `CONTRADICTED` and unreframed; a first submission
+omitting `goingAhead` is refused with rule `A9` and a remedy asserted to be sentence-shaped and to
+actually name what to do (write the sentence, set `goingAhead`); the identical token -- not a
+freshly minted one, confirming the not-consumed-on-refusal contract holds for a domain refusal, not
+just a schema one -- is resubmitted with the founder's own sentence and the project reaches
+`READY_TO_BUILD`; the rendered brief shows the GOING AHEAD ANYWAY box as the brief's first child,
+containing the founder's sentence verbatim, with the disproved pricing belief filed only under
+"what the evidence said no to" and never under "taking on faith". This finding is resolved; left
+here for history rather than deleted.
