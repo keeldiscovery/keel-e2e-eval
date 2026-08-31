@@ -114,6 +114,12 @@ class FounderSimulator:
         -- the only thing this method ever reads."""
         self.turn_index += 1
         lowered = (agent_turn or "").lower()
+        # M14's continue-or-new question is a real founder decision, not a fact -- answering it
+        # is fidelity (a mute founder here strands the agent on whatever project already exists,
+        # which is exactly how the second gauntlet run scored a dirty-stack ghost).
+        if ("new project" in lowered or "existing project" in lowered
+                or "continue with" in lowered or "start a new" in lowered):
+            return ProbeOutcome("A new project, please -- this is a fresh idea.", None, False)
         for probe in PROBES:
             if any(pattern in lowered for pattern in probe.patterns):
                 if probe.fact_id in self.earned:

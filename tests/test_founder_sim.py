@@ -90,3 +90,11 @@ def test_every_stage_has_a_vague_opener():
     for stage in (PROBLEM, SOLUTION, COMMERCIAL, ASSUMPTIONS):
         assert stage in STAGE_OPENERS
         assert STAGE_OPENERS[stage].strip()
+
+
+def test_continue_or_new_question_gets_a_new_project_answer_without_leaking_facts() -> None:
+    sim = FounderSimulator()
+    out = sim.respond("You have one project in progress -- want to continue with it, or is this a new project?")
+    assert "new project" in out.reply.lower()
+    assert out.fact_id is None
+    assert not sim.earned

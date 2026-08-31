@@ -83,6 +83,14 @@ def prepare_workspace(workspace_dir: Path, skill_md_source: Path, mcp_base_url: 
     skill_dir = workspace_dir / ".claude" / "skills" / SKILL_DIR_NAME
     skill_dir.mkdir(parents=True, exist_ok=True)
     (skill_dir / "SKILL.md").write_text(skill_md_source.read_text())
+    # The shipped founder workspace (keel-playground) carries a one-line CLAUDE.md framing the
+    # room; the gauntlet mirrors the real host shape exactly -- fidelity, not scaffolding
+    # (DRIFT #8: the first run omitted it and also exposed the skill's own activation gap,
+    # fixed separately in keel-skill 2.4.0's description).
+    (workspace_dir / "CLAUDE.md").write_text(
+        "This is a founder's workspace. Keel is available through the configured Keel MCP "
+        "tools;\nthe keel-discovery skill teaches how to use them. There is no code here to "
+        "explore.\n")
 
     mcp_config = {
         "mcpServers": {
