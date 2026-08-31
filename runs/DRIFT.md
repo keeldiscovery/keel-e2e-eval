@@ -584,3 +584,100 @@ just a schema one -- is resubmitted with the founder's own sentence and the proj
 containing the founder's sentence verbatim, with the disproved pricing belief filed only under
 "what the evidence said no to" and never under "taking on faith". This finding is resolved; left
 here for history rather than deleted.
+
+## 8. BLOCKING (shaping gauntlet, Layer 2): the keel-discovery skill is never invoked from a founder's cold opening line, so the CREATE/FRAME/INTRODUCE_ASSUMPTIONS shaping mandates under test never run at all
+
+**Severity: blocking.** This is not "the shaping instructions probed weakly" -- it is one level
+more fundamental: the real agent (the locally installed `claude` CLI, headless, loaded with the
+actual `keel-skill` SKILL.md and the real MCP stack -- `specs/shaping-eval-design.md`'s own
+"playground's shape, automated") never touched the Keel protocol at all across a full 12-turn,
+three-topic (problem/solution/commercial) conversation. `keel_get_next` was never called, so
+CREATE's quantifiability probe, FRAME's mechanism-in-a-sentence test, and
+INTRODUCE_ASSUMPTIONS' normalization pass -- the entire feature this gauntlet exists to prove --
+never got a chance to run.
+
+**Where**: `keel-skill/SKILL.md`, the frontmatter `description`:
+
+```yaml
+description: >-
+  Reference interpreter for the keel agent protocol r2, over MCP. Teaches a host
+  AI the five stable Keel tools and the keel_get_next -> branch on kind ->
+  keel_get_context -> reason with the founder -> keel_submit_action ->
+  keel_get_next loop, including handoff conduct and the interpret loop. Keel
+  Cloud owns authoritative workflow state; this document teaches only how to
+  interpret the protocol, never what any Keel action means.
+```
+
+This description is written entirely as *protocol mechanics for a host that has already decided
+to use it* -- there is no clause a skill-relevance matcher could key off of to recognize "a
+founder describing a business problem" as a trigger. Combined with the gauntlet's own deployment
+shape (design's explicit contract: "the agent process gets ONLY what a real host gets" -- SKILL.md
++ the MCP tools + the founder's words, nothing else: no system prompt, no CLAUDE.md, no explicit
+skill invocation), a bare `claude -p "<founder's opening line>"` session has nothing else in its
+context that would make it reach for this skill on a cold first turn.
+
+**Reproduction** (live, `runs/20260831T022954Z-shaping-gauntlet/`): `make eval-shaping`'s one real
+run. Turn 1's founder line was the literal vague opener design §1 specifies, `"Restaurants
+struggle with inventory."` The agent's raw `claude -p` response (`transcript.jsonl` seq 4) shows
+`"num_turns": 1` -- a single-shot text reply, zero tool calls of any kind:
+
+```
+FOUNDER: Restaurants struggle with inventory.
+AGENT  : That's true — but it's a pretty broad statement. What's the actual task here? A few
+         ways I could help: - Build/improve an inventory tracking app or feature ...
+```
+
+The conversation continued for 12 turns touching problem, solution ("I'll build an app for it")
+and commercial ("I guess people would pay for it") -- the agent used ordinary general-purpose
+tools twice (`num_turns: 4` at turns 6 and 11 -- writing and opening a standalone
+`inventory.html` prototype, then a web search for competitor pricing) but **never once** a
+`keel_*` tool. `shaping_scorecard.json`'s own `project_id: null` and `"earned": {"price": 7}` (the
+agent only ever incidentally asked about price, in the ordinary course of a generic product
+conversation, never as part of any Keel-shaped decomposition) confirm no project was ever created
+on the stack.
+
+Two follow-up diagnostic calls (same stack, same agent key, same `.mcp.json`/SKILL.md setup,
+outside the scored run -- confirming *why*, not re-running the gauntlet) rule out an MCP wiring
+problem and pin the cause precisely on skill *triggering*, not connectivity or skill *awareness*:
+
+1. Asked directly, cold, in a fresh session: `"List the exact names of every MCP tool you
+   currently have access to"` -> the model correctly lists all five (`mcp__keel__keel_get_context`,
+   `keel_get_next`, `keel_get_state`, `keel_open_web`, `keel_submit_action`). MCP is connected and
+   the tools are visible.
+2. Asked, cold, in a fresh session: `"What skills do you currently have loaded"` -> the model
+   correctly names `keel-discovery` among its list. Then, asked *explicitly* whether it would
+   consult `keel-discovery`/the MCP tools before replying to the exact same opening line
+   (`"Restaurants struggle with inventory."`), the model answers: *"Yes. That statement reads as
+   a founder's problem-space input, which is exactly what the keel-discovery skill and its MCP
+   tools ... are built to handle ... Before replying, I'd invoke keel-discovery."*
+
+So the model, reflectively, agrees the skill is exactly right for that line -- it simply never
+reaches for it proactively on a genuinely cold first turn in this deployment shape. This is a
+skill-*activation* gap, not a missing tool, a broken MCP config, or a model that doesn't know the
+skill exists.
+
+**Why this scenario was not adapted around**: there is no legitimate alternate path that stays
+honest to what this eval is for. Design §2's own contamination/boundary pass is explicit: "the
+agent process gets ONLY what a real host gets" -- adding a system prompt, a CLAUDE.md nudge, or an
+explicit first-turn skill invocation to make the agent reach for `keel-discovery` would be curing
+the exact gap this run exists to surface, the same category of temptation the design names for the
+founder-simulator side ("never tune the simulator to make a failure go away"). The gauntlet ran
+exactly once, as instructed, against the real CLI with no such scaffolding added; SHP-1 (problem
+quantified), SHP-3 (solution mechanism) and SHP-4 (commercial honesty) all fail honestly because
+there is no recorded stack to check at all -- `harness/shaping_scoring.py`'s `empty_stage`
+fallback, not a harness crash. SHP-2/5/6/7 pass, but vacuously (nothing was ever said on the wire
+to be faked, vague, duplicated, or unsurfaced) -- the SHAPING score of 3.0/5 should be read as "3
+checks never had anything to fail on," not "the methodology mostly held."
+
+**Not applied, but the shape of a fix**: this is `keel-skill`'s to fix, not `keel-cloud`'s --
+`v2-instructions.yaml`'s CREATE/FRAME/INTRODUCE_ASSUMPTIONS content was never reached, so this run
+says nothing about whether that content itself is strong enough (Layer 1 already proves it's
+*delivered*; Layer 2 needs a real conversation to reach it before it can prove *efficacy*). Two
+candidate directions, neither applied here: (a) broaden `SKILL.md`'s frontmatter `description` to
+include trigger language a skill-relevance matcher can key off of ("Use when a user describes a
+business problem, idea, or something they want to validate" -- not just "reference interpreter for
+the protocol"); or (b) if `keel-web`'s real production deployment supplies additional bootstrap
+context this harness's bare `claude -p` intentionally does not (a system prompt, an explicit first
+invocation) to get a real founder session into the protocol reliably, that gap between "what
+`keel-skill` alone provides" and "what a founder session actually needs" is itself worth naming
+explicitly rather than left implicit in `keel-web`'s own wiring.

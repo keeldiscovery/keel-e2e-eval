@@ -28,7 +28,7 @@ visit, and participant page is checked against a versioned policy on four attrib
 ```bash
 make up            # boots Postgres (55432), keel-cloud (18080), keel-web (5173); prints each gate
 make eval K=s001    # runs one scenario by slug substring (matches evals/test_s001_smoke.py, etc.)
-make eval-all       # runs the FULL set (s001-s009) in one stack session, writes runs/INDEX-*.html
+make eval-all       # runs the FULL set (s001-s010) in one stack session, writes runs/INDEX-*.html
 make down           # tears everything down; idempotent, safe even half-up
 ```
 
@@ -139,8 +139,9 @@ See `runs/DRIFT.md` if one exists in this checkout for the current findings.
 
 ## The eval set
 
-Nine scenarios ship today (`specs/eval-set-design.md`, feature 003; S-008 added for the founder-
-experience design's item-7 blind spot; S-009 added for round 2's item-8 roles-ladder fix), each its
+Ten scenarios ship today (`specs/eval-set-design.md`, feature 003; S-008 added for the founder-
+experience design's item-7 blind spot; S-009 added for round 2's item-8 roles-ladder fix; S-010
+added for the shaping gauntlet's Layer 1, below), each its
 own fresh project (never shared state -- `evals/recipes.py` shares *code*, not data, across
 scenarios). Every one of them now opens with the same shared step (`evals.recipes.
 arrive_and_create`/`open_founder_session`, round 2 task item 2): the arrival greeting, a logged-in
@@ -157,6 +158,7 @@ founder session (both the driver's agent key and the browser's real `/login`), t
 | S-007 | `evals/test_s007_hostile_wire.py` | protocol negatives | No browser: an unknown MCP screen, an ungranted context handle, a schema fault the token survives, a stale token after its own unacknowledged commit -- each scored as its own `agent-refusal` interaction (`GUI-R1`/`ORI-R1`: is the remedy present, actionable, and not just the problem restated?). |
 | S-008 | `evals/test_s008_wrong_moment.py` | item 7 (feedback-2026-08-30.md) | Wrong-moment visits: a stage before it's framed, People before any role exists, the brief long before `READY_TO_BUILD`, and (round 2) a founder screen with no session at all -- each a founder-worded quiet state or a route to `/login`, never the wire's raw refusal shape. |
 | S-009 | `evals/test_s009_incremental_roles.py` | item 8 (feedback-2026-08-30-r2.md) | The roles-ladder fix's own demonstration: PROBLEM/SOLUTION share a role no type COMMERCIAL's beliefs may be asked of, so COMMERCIAL's own decompose recommends `INTRODUCE_ROLES` (never a dead end) with the stage's compatible-role detail, a buyer is introduced through that front door, and the flow proceeds to invitable. |
+| S-010 | `evals/test_s010_shaping_delivery.py` | -- (structural only; see below) | Layer 1 of the shaping gauntlet (`specs/shaping-eval-design.md`): walks a fresh project's CREATE, a later-stage FRAME (SOLUTION), and INTRODUCE_ASSUMPTIONS, asserting each issuance's `instruction.content` carries the hypothesis-shaping mandates (quantifiability, the mechanism-in-a-sentence test, the normalization pass) verbatim from `v2-instructions.yaml`. Proves delivery, not efficacy -- no journey moment cited on purpose (deepens §1.1, adds no ledger row); real conversational efficacy is Layer 2, below. |
 
 Adding another is a new `evals/test_*.py` module plus a `Scenario` (payload builders, answer
 table, about-line, fact registry) per `evals/scenario.py` -- `evals/recipes.py` is the place to
@@ -246,3 +248,59 @@ Runs `tests/` -- pure-logic tests for the step recorder, the interaction/rubric/
 (including seeded-loss fixtures: a truncated statement, a leaked enum, an empty handoff display,
 each failing exactly the check design says should catch it), the report generator, and the config
 loader, with no Docker/gradle/vite involved.
+
+## The shaping gauntlet (`specs/shaping-eval-design.md`)
+
+Proves keel-cloud's hypothesis-shaping instruction mandates (`v2-instructions.yaml`'s CREATE/
+FRAME/INTRODUCE_ASSUMPTIONS content: quantifiability probing, the mechanism-in-a-sentence test,
+buyer/price-or-unknown, the normalization pass) in two honestly-separated layers -- design §1's
+own words: "a beautiful Layer 1 can never masquerade as proof the conversation works."
+
+**Layer 1 -- `evals/test_s010_shaping_delivery.py`, deterministic, joins `make eval-all`.** No LLM,
+no cost: walks a fresh project's issuances and asserts the mandate text is actually on the wire.
+Proves delivery, never efficacy.
+
+**Layer 2 -- `make eval-shaping`, opt-in, never in `eval-all`, an LLM in the loop.** A real agent
+(the locally installed `claude` CLI, headless, loaded with the real `keel-skill` SKILL.md and the
+real MCP stack -- `harness/agent_session.py`) converses with a scripted founder simulator
+(`harness/founder_sim.py`) that opens vague per phase ("restaurants struggle with inventory" ->
+"I'll build an app for it" -> "I guess people would pay for it") and holds a small fact bank
+hostage, released only when the agent's own turn matches a keyword probe (who/segment, how
+often/frequency/when, cost/time/long, mechanism/how/what does it do, price/pay/charge) --
+never volunteered. After the conversation, `evals/test_shaping_gauntlet.py` reads the *stack*
+(the founder API's own stage cards, `FounderAgentDriver.get_stage_card`) -- never the
+transcript alone -- and computes SHP-1..SHP-7 (problem quantified, no faked precision, solution
+mechanism, commercial honesty, vague-word ban, no near-duplicate beliefs, unknowns surfaced
+rather than invented), rolling up to a SHAPING score (5 x weighted pass fraction, weights 1) kept
+in its own category, deliberately never added to `evals/policy.py`'s four-category
+`CATEGORY_WEIGHTS` (that would either get silently dropped by `harness.scoring`'s roll-up, which
+only ever loops over those four keys, or force editing them and breaking `eval-all`'s own
+hardcoded stackless fixtures -- `harness/shaping_scoring.py` owns a small, parallel roll-up
+instead, on purpose, so the two lanes can never blur).
+
+```bash
+make eval-shaping   # ~10-15 min wall clock, real API spend on the claude CLI's own calls -- opt in
+```
+
+**What it costs**: one real conversation (bounded at 15 turns per phase, 3 phases + an assumptions
+phase, ~15 minutes wall-clock budget total) -- a founder's deliberate, paid run, never something
+CI triggers.
+
+**When to run it**: after any change to the CREATE/FRAME/INTRODUCE_ASSUMPTIONS instruction text in
+keel-cloud, to see whether the new wording actually changes agent behavior, not just whether it's
+present on the wire (Layer 1 already covers presence).
+
+**How to read a failure**: open the run's `report.html` -- the conversation renders as interaction
+cards (each founder line, each agent reply, which fact -- if any -- was released that turn) ending
+in a SHP-1..SHP-7 checklist. A failing SHP check is a finding about the *instruction text*, not a
+harness bug: read which probe the fact bank shows never happened (e.g. the agent never asked "how
+often", so SHP-1 fails) or which vague word survived into a recorded belief (SHP-5), and take that
+back to keel-cloud's `v2-instructions.yaml` -- never tune the simulator to make a failure go away
+(design §2's contamination pass exists precisely to keep that temptation out of reach).
+
+## Stackless tests for the gauntlet itself
+
+`tests/test_founder_sim.py` (fact-gating: a probe releases exactly its own fact and never another,
+a non-probe deflects, a fact is never volunteered unprompted) and `tests/test_shaping_scoring.py`
+(SHP-6's token-overlap math, the SHAPING roll-up) run under the same `make unit` with no stack and
+no `claude` CLI required.

@@ -119,6 +119,26 @@ def _agent_cycle_conversation(entries: list[dict]) -> dict[str, Any]:
     }
 
 
+def _shaping_turn_conversation(entries: list[dict]) -> dict[str, Any]:
+    """The shaping gauntlet's own interaction type (harness/agent_session.py's `AgentSession.
+    _record`, Layer 2 of specs/shaping-eval-design.md): one founder line and the real `claude`
+    CLI agent's reply, rendered through the same `_conversation_card` renderer every other
+    interaction type already uses -- "instruction" here is repurposed as "what the founder said",
+    never a wire instruction (this interaction type carries no `rubric.py` checks at all; it is
+    conversation-only evidence, per the design's own "own small parallel roll-up" boundary)."""
+    merged = _merge_captured_text(entries)
+    founder_line = merged.get("founder_line", "")
+    agent_reply = merged.get("agent_reply", "")
+    fact_released = merged.get("fact_released", "none")
+    return {
+        "instruction": {"purpose": "Founder says", "content": founder_line},
+        "requirements": [],
+        "reply_summary": agent_reply,
+        "outcome": "no fact released this turn" if fact_released in ("", "none")
+        else f"fact released: {fact_released}",
+    }
+
+
 def _agent_handoff_conversation(entries: list[dict]) -> dict[str, Any]:
     issuance = _first_matching(entries, kind="protocol", name_prefix="get_next")
     body = _response_body(issuance)
@@ -178,6 +198,8 @@ def derive_interactions(entries: list[dict]) -> list[Interaction]:
             conversation = _agent_cycle_conversation(group)
         elif itype == "agent-handoff":
             conversation = _agent_handoff_conversation(group)
+        elif itype == "shaping-turn":
+            conversation = _shaping_turn_conversation(group)
 
         screenshots: list[str] = []
         for entry in group:

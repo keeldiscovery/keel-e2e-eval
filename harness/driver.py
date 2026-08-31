@@ -325,6 +325,19 @@ class FounderAgentDriver:
         return self._founder_get(f"/v2/projects/{project_id}/people",
                                   f"get founder people (project {project_id})")
 
+    def get_stage_card(self, project_id: str, stage: str) -> dict:
+        """GET /v2/projects/{id}/stages/{stage} -- `FounderDtos.StageCard`: the stage's own
+        `claim`/`previousClaim` and belief groups (`groups[].{loadBearing,supporting}[]`, each a
+        `FounderDtos.Belief` carrying `heading`/`statement`/`verdict`/`applying`). Founder-
+        session-gated, the same family as `get_founder_roles`/`get_founder_people` -- and, unlike
+        the agent-side `opportunity` context handle (whose `BeliefStatus` has no `heading` at
+        all), the one wire response that actually carries a belief's heading. The shaping
+        gauntlet's own read (`harness/shaping_scoring.py`): it needs no action token, so a project
+        the real agent left sitting at a handoff (no token to mint) is still fully readable here.
+        """
+        return self._founder_get(f"/v2/projects/{project_id}/stages/{stage}",
+                                  f"get stage card (project {project_id}, stage {stage})")
+
     def check_mcp_reachable(self) -> None:
         """One /mcp reachability touch even though this driver speaks HTTP (design §3)."""
         with self.recorder.step("check /mcp is reachable", party="agent", kind="protocol") as h:

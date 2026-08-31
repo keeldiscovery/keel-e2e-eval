@@ -390,6 +390,51 @@ def _scorecard_matrix(scorecard: dict | None) -> str:
     </table>"""
 
 
+def _shaping_section(run_dir: Path) -> str:
+    """The shaping gauntlet's own verdict section (Layer 2, specs/shaping-eval-design.md),
+    spliced into `report.html` alongside the ordinary interaction cards whenever
+    `shaping_scorecard.json` is present (`harness.shaping_scoring.write_shaping_bundle`) --
+    absent for every other bundle, so this renders as empty string and changes nothing about any
+    non-shaping scenario's report. Deliberately not part of `scorecard.json`/`_score_header`
+    (harness/shaping_scoring.py's own module docstring: the two lanes never blur) -- this is a
+    second, independent verdict block on the same page, not a fifth category folded into the
+    first.
+    """
+    data = _read_json(run_dir / "shaping_scorecard.json")
+    if not data:
+        return ""
+    rows = []
+    for check in data.get("checks") or []:
+        passed = check.get("pass")
+        badge = _badge("PASS", "#1a7f5a") if passed else _badge("FAIL", "#b3261e")
+        rows.append(f'<li style="margin:4px 0">{badge} <b>{html.escape(check.get("check_id", ""))}</b> '
+                    f'({html.escape(check.get("label", ""))}) &mdash; '
+                    f'{html.escape(check.get("detail", ""))}</li>')
+    score = data.get("score")
+    score_label = f"{score:g}/5" if score is not None else "?/5"
+    never = data.get("never_released") or {}
+    never_html = ""
+    if never:
+        items = "".join(f"<li><b>{html.escape(k)}</b>: {html.escape(v)}</li>" for k, v in never.items())
+        never_html = (f'<p style="margin-top:12px">Facts the simulator held back this run '
+                      f'(never earned):</p><ul>{items}</ul>')
+    project_id = data.get("project_id")
+    project_line = (f"<p style=\"font-size:12px;color:#666\">project: {html.escape(str(project_id))}</p>"
+                    if project_id else
+                    '<p style="color:#b3261e">no project was ever created during this conversation</p>')
+    return f"""
+    <h3>Shaping verdict (specs/shaping-eval-design.md, Layer 2)</h3>
+    <div style="border:2px solid #6d5bd0;border-radius:10px;padding:16px 20px;margin:16px 0 24px">
+      <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap">
+        <span style="font-size:44px;font-weight:700;color:{_score_color(score)}">{score_label}</span>
+        <span style="color:#666;font-size:13px">SHAPING (5 &times; weighted pass fraction)</span>
+      </div>
+      {project_line}
+      <ul style="padding-left:18px;margin:10px 0 0">{''.join(rows)}</ul>
+      {never_html}
+    </div>"""
+
+
 def generate_report(run_dir: Path) -> Path:
     """Rebuilds report.html from transcript.jsonl alone (plus versions.json/verdict.json when
     present) -- re-runnable via `make report RUN=<dir>`, and safe to call on a crashed run: a
@@ -498,6 +543,7 @@ details summary {{ cursor: pointer; font-size: 12px; color: #555; }}
 <p>{verdict_html} &nbsp; started: {html.escape(str(started_at))} &nbsp; duration: {duration_s if duration_s is not None else '?'}s</p>
 <p>{failing_anchor}</p>
 {_score_header(scorecard)}
+{_shaping_section(run_dir)}
 <h3>Repo versions</h3>
 {_versions_table(versions)}
 <h3>Interactions</h3>
