@@ -693,3 +693,17 @@ permitted both.
 
 **RESOLVED 2026-08-31**: v2-instructions.yaml FRAME content sharpened — the mechanism must be
 the founder's own account: ask, or record the named unknown; never compose one on their behalf.
+
+## 11. Product gap (found by the founder's first real relay use): no shipped host bridge
+
+The relay design's "the poll is the host's mechanical loop" was implemented in the eval harness
+and taught in SKILL.md 2.5.0 — but no runnable bridge shipped for a real founder's machine, so
+the playground's chat honestly reported the agent disconnected: nothing existed to connect it.
+Second, smaller hole behind it: the relay (and the chat rail) are per-project, so a founder's
+very first conversation — the one that creates the project — still has no home in the browser.
+
+**Stopgap 2026-08-31**: keel-playground/bridge.py — the gauntlet's proven claude-CLI loop as a
+standalone script (long-poll → wake claude per founder turn → post reply; lease honored,
+mechanical poll). Productization open: a first-class bridge artifact (where it lives is a design
+question — host tooling, not the Markdown-only skill), and a project-less lobby chat for the
+first conversation.
