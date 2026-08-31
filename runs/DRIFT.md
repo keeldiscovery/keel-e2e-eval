@@ -707,3 +707,11 @@ standalone script (long-poll → wake claude per founder turn → post reply; le
 mechanical poll). Productization open: a first-class bridge artifact (where it lives is a design
 question — host tooling, not the Markdown-only skill), and a project-less lobby chat for the
 first conversation.
+
+## 12. Harness hygiene: the isolation test left its account in the playground volume
+
+The split-stack live verification provisioned a synthetic founder account on the playground
+profile and tore down the containers but not the named volume — so the founder's real first-run
+setup was refused by a squatter. Fixed operationally (volume wiped); rule for the harness: any
+test touching the playground profile must remove its volume on teardown, or better, never
+provision on the playground profile at all — verify isolation by ports/containers alone.
