@@ -304,3 +304,9 @@ back to keel-cloud's `v2-instructions.yaml` -- never tune the simulator to make 
 a non-probe deflects, a fact is never volunteered unprompted) and `tests/test_shaping_scoring.py`
 (SHP-6's token-overlap math, the SHAPING roll-up) run under the same `make unit` with no stack and
 no `claude` CLI required.
+
+## Known harness item (2026-08-31)
+
+Browser-driven scenarios run ~10x slower than in the round-2 era (S-001 ~515s vs ~6s) even on
+a fresh stack; all pass. Profile pending — suspects: per-step full-page screenshots against the
+grown three-section UI, vite dev-server cold transforms, evidence volume. Harness-side only.

@@ -681,3 +681,15 @@ context this harness's bare `claude -p` intentionally does not (a system prompt,
 invocation) to get a real founder session into the protocol reliably, that gap between "what
 `keel-skill` alone provides" and "what a founder session actually needs" is itself worth naming
 explicitly rather than left implicit in `keel-web`'s own wiring.
+
+## 9. Methodology (keel-cloud instructions): the agent composed a mechanism the founder never gave
+
+**Found by**: shaping gauntlet run `20260831T091912Z` (SHP-3 + SHP-7, both firing correctly).
+The simulator held the mechanism hostage; the agent never asked, and instead of recording the
+unknown it wrote a plausible mechanism of its own into the solution claim ("enters count into
+the app; automatically compares; flags discrepancies") — a hypothesis nobody holds. Run
+`20260831T091346Z` shows the other path (probe asked, mechanism earned), so the instruction
+permitted both.
+
+**RESOLVED 2026-08-31**: v2-instructions.yaml FRAME content sharpened — the mechanism must be
+the founder's own account: ask, or record the named unknown; never compose one on their behalf.

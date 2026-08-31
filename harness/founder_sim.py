@@ -120,12 +120,21 @@ class FounderSimulator:
         if ("new project" in lowered or "existing project" in lowered
                 or "continue with" in lowered or "start a new" in lowered):
             return ProbeOutcome("A new project, please -- this is a fresh idea.", None, False)
-        for probe in PROBES:
-            if any(pattern in lowered for pattern in probe.patterns):
-                if probe.fact_id in self.earned:
-                    return ProbeOutcome(f"Like I said -- {probe.fact_text}", probe.fact_id, False)
+        # An agent turn often asks several things at once; a real founder answers the NEW
+        # question, not the one they already answered. So the first UNEARNED matching probe wins;
+        # an already-earned match is echoed only when nothing new was asked. (Calibrated by the
+        # fifth gauntlet run, where "that covers the when... what does it COST them?" matched the
+        # earned frequency probe first and the cost question was swallowed -- stonewalling an
+        # agent that had asked precisely the right thing.)
+        matches = [probe for probe in PROBES
+                   if any(pattern in lowered for pattern in probe.patterns)]
+        for probe in matches:
+            if probe.fact_id not in self.earned:
                 self.earned[probe.fact_id] = self.turn_index
                 return ProbeOutcome(probe.fact_text, probe.fact_id, True)
+        if matches:
+            probe = matches[0]
+            return ProbeOutcome(f"Like I said -- {probe.fact_text}", probe.fact_id, False)
         deflection = DEFLECTIONS[self._deflection_i % len(DEFLECTIONS)]
         self._deflection_i += 1
         return ProbeOutcome(deflection, None, False)

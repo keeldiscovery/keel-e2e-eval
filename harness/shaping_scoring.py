@@ -40,7 +40,9 @@ BANNED_VAGUE_WORDS = ("bad", "inefficient", "important", "useful", "easy",
                       "badly", "inefficiently", "importantly", "usefully", "easily")
 
 UNKNOWN_MARKERS = ("unknown", "not sure", "don't know", "do not know", "no idea", "tbd", "n/a",
-                   "unclear", "haven't confirmed", "not confirmed", "unconfirmed")
+                   "unclear", "haven't confirmed", "not confirmed", "unconfirmed",
+                   "not yet known", "not known", "open question",
+                   "guess", "not yet validated", "unvalidated", "not validated", "uncertain")
 
 _NUMBER_RE = re.compile(r"\$?\d+(?:[.,]\d+)?%?")
 _TOKEN_RE = re.compile(r"[a-z0-9']+")
@@ -173,6 +175,22 @@ class ShpCheck:
     weight: float = 1.0  # design table: "weights 1"
 
 
+def _fact_landed(sim, fact_id: str, claim: str | None) -> bool:
+    """A claim is the agent's synthesis, not a transcription -- the earned fact "lands" when
+    either the released text survives verbatim (normalized) or the fact's own topic keywords do
+    (>=2 hits for the multi-part mechanism, >=1 for the single-substance facts). Calibrated by
+    the third gauntlet run, where "about 90 minutes every month-end close" failed a verbatim
+    match against "about 90 minutes each time" -- the substance had landed, the suffix hadn't."""
+    if not claim:
+        return False
+    hay = normalize(claim)
+    if normalize(sim.fact_text(fact_id)) in hay:
+        return True
+    keywords = _TOPIC_STATEMENT_KEYWORDS[fact_id]
+    hits = sum(1 for k in keywords if k in hay)
+    return hits >= (2 if fact_id == "mechanism" else 1)
+
+
 def compute_shp_checks(problem: StageSnapshot, solution: StageSnapshot, commercial: StageSnapshot,
                         sim: FounderSimulator) -> list[ShpCheck]:
     earned_ids = set(sim.earned)
@@ -189,7 +207,7 @@ def compute_shp_checks(problem: StageSnapshot, solution: StageSnapshot, commerci
 
     # --------------------------------------------------------------------------------- SHP-1
     missing_quant = [fid for fid in QUANTIFYING_FACT_IDS
-                      if fid not in earned_ids or normalize(sim.fact_text(fid)) not in normalize(problem.claim)]
+                      if fid not in earned_ids or not _fact_landed(sim, fid, problem.claim)]
     checks.append(ShpCheck(
         "SHP-1", "problem quantified", not missing_quant,
         "the problem claim carries the earned who/frequency/cost facts -- proof the agent asked"
@@ -208,7 +226,7 @@ def compute_shp_checks(problem: StageSnapshot, solution: StageSnapshot, commerci
 
     # --------------------------------------------------------------------------------- SHP-3
     mechanism_earned = "mechanism" in earned_ids
-    mechanism_grounded = mechanism_earned and normalize(sim.fact_text("mechanism")) in normalize(solution.claim)
+    mechanism_grounded = mechanism_earned and _fact_landed(sim, "mechanism", solution.claim)
     checks.append(ShpCheck(
         "SHP-3", "solution mechanism", mechanism_grounded,
         "the solution claim carries the probed mechanism, not a bare product label"
@@ -221,7 +239,7 @@ def compute_shp_checks(problem: StageSnapshot, solution: StageSnapshot, commerci
     # --------------------------------------------------------------------------------- SHP-4
     commercial_claim = commercial.claim or ""
     price_earned = "price" in earned_ids
-    price_grounded = price_earned and normalize(sim.fact_text("price")) in normalize(commercial_claim)
+    price_grounded = price_earned and _fact_landed(sim, "price", commercial_claim)
     price_marked_unknown = has_unknown_marker(commercial_claim)
     price_leak = extract_numbers(commercial_claim) - allowed_numbers
     buyer_named = bool(re.search(r"\bpay|buyer|purchas", commercial_claim, re.IGNORECASE))

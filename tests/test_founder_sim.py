@@ -98,3 +98,10 @@ def test_continue_or_new_question_gets_a_new_project_answer_without_leaking_fact
     assert "new project" in out.reply.lower()
     assert out.fact_id is None
     assert not sim.earned
+
+
+def test_a_turn_asking_an_earned_and_an_unearned_thing_releases_the_new_fact() -> None:
+    sim = FounderSimulator()
+    sim.respond("How often does this happen?")  # earns frequency
+    out = sim.respond("That covers the when. Now, what does it cost them in time?")
+    assert out.newly_earned and out.fact_id == "cost"
