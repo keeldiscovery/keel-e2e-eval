@@ -14,3 +14,11 @@ web = 5173
 [timeouts]
 cloud_boot = 120
 web_boot = 60
+
+# Split-stacks (relay-design.md §12.5): the playground profile's own ports, entirely separate
+# from the default (eval) profile above -- `make up PROFILE=playground`. Same sibling paths and
+# timeouts; only ports (and, in stack/postgres.py, the Compose project) differ.
+[playground.ports]
+postgres = 55433
+cloud = 18081
+web = 5174

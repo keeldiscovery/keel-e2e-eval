@@ -29,6 +29,23 @@ A failing SHP check here is a *methodology* finding about the CREATE/FRAME/INTRO
 instruction text (v2-instructions.yaml) -- design §2's contamination pass names, explicitly, the
 temptation this file must never give in to: tune `v2-instructions.yaml`, never
 `harness/founder_sim.py`, to make a red run go green.
+
+**Relay re-venue (relay-design.md §12 item 3), unchanged measurement.** `founder_sim`'s turns and
+the real `claude` CLI's own replies now ALSO travel the relay -- every founder line this gauntlet
+sends and every reply `claude` gives is posted through `FounderRelay`/`AgentRelay` alongside the
+existing `claude -p --resume` call, so the same conversation the ChatPane would render is really on
+the wire. **Judgement call, made explicit rather than silently assumed**: the `claude` CLI cannot
+itself poll the relay (design §12 item 3's own words: "the bridge feeds founder turns to it exactly
+as before") -- this test plays the bridge's role directly (it already knows both sides of the
+conversation, so there is nothing to actually long-poll for), posting the founder's line and then
+`claude`'s reply as the two relay turns that same exchange produces, in order. The relay can only
+address a project that exists, and this gauntlet's own conversation starts before any project does
+(the same "opens vague" design the fact bank hostage depends on) -- so the first handful of turns,
+before `claude` ever calls `keel_create`, are never retroactively relayed; the moment a fresh
+project id is first observed (a cheap `reader.arrive()` read, already this module's own harness-
+only side channel), every turn from then on rides the relay too. SHP-1..SHP-7 are computed exactly
+as before, from stack state (`get_stage_card`), never from the relay transcript -- the relay is
+additional evidence here, not a new input to the score.
 """
 
 from __future__ import annotations
@@ -40,8 +57,10 @@ from pathlib import Path
 
 import pytest
 
+from evals.recipes import open_relay
 from harness import shaping_scoring
 from harness.agent_session import AgentSession, AgentSessionError, prepare_workspace
+from harness.bridge import BridgeReply
 from harness.driver import FounderAgentDriver
 from harness.evidence import generate_report, write_verdict
 from harness.founder_sim import ASSUMPTIONS, COMMERCIAL, PROBLEM, SOLUTION, FounderSimulator
@@ -85,6 +104,12 @@ def test_shaping_gauntlet(stack, run_dir, founder_credentials):
         before = reader.arrive()
         before_ids = {p["projectId"] for p in (before.get("projects") or [])}
 
+        # Relay re-venue (module docstring): populated the moment a fresh project id is first
+        # observed mid-conversation; every turn before that point is never retroactively relayed
+        # (the relay can only address a project that exists).
+        relay_project_id: str | None = None
+        founder_relay = agent_relay = None
+
         try:
             for stage in STAGE_ORDER:
                 reply_text = ""
@@ -104,6 +129,18 @@ def test_shaping_gauntlet(stack, run_dir, founder_credentials):
                     if not turn.ok:
                         break
                     reply_text = turn.agent_reply
+
+                    if relay_project_id is None:
+                        probe = reader.arrive()
+                        fresh = [p["projectId"] for p in (probe.get("projects") or [])
+                                 if p["projectId"] not in before_ids]
+                        if fresh:
+                            relay_project_id = fresh[0]
+                            founder_relay, agent_relay = open_relay(reader, relay_project_id)
+                    if founder_relay is not None:
+                        founder_relay.post_turn(line)
+                        agent_relay.post_turns([BridgeReply(text=reply_text).to_turn_input()])
+
                     consecutive_quiet = 0 if "?" in reply_text else consecutive_quiet + 1
                     if turn_i > 0 and consecutive_quiet >= 2:
                         break  # the agent stopped asking questions -- move to the next phase

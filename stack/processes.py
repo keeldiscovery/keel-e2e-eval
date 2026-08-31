@@ -111,12 +111,20 @@ def _killpg(pgid: int, *, wait_s: float) -> None:
         pass
 
 
-def teardown_all_processes() -> None:
-    """Kills every recorded process group -- safe to call on a half-up stack."""
+def teardown_all_processes(profile: str = "eval") -> None:
+    """Kills every recorded process group for `profile` -- safe to call on a half-up stack.
+
+    Split-stacks (relay-design.md §12.5): `cloud`/`web`'s pid-file stems are profile-suffixed
+    for the playground profile (`cloud-playground`/`web-playground`, see stack/cloud.py and
+    stack/web.py) precisely so an eval `make down` globbing this same `PID_DIR` cannot also kill
+    a playground stack's own JVM/vite processes -- each profile only ever tears down its own two
+    names, never the other profile's.
+    """
     if not PID_DIR.exists():
         return
-    for pid_file in PID_DIR.glob("*.pid"):
-        killpg_by_name(pid_file.stem)
+    names = ("cloud", "web") if profile == "eval" else ("cloud-playground", "web-playground")
+    for name in names:
+        killpg_by_name(name)
 
 
 # ------------------------------------------------------------------------------- health gates

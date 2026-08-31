@@ -14,11 +14,13 @@ $(PY):
 	$(PIP) install -q -r requirements.txt
 	$(PLAYWRIGHT) install chromium
 
+# PROFILE=playground boots/tears down the split-stacks playground profile (its own ports/volume,
+# relay-design.md §12.5) instead of the default eval profile -- `make up PROFILE=playground`.
 up: venv
-	$(PY) -m stack.cli up
+	$(PY) -m stack.cli up $(if $(PROFILE),$(PROFILE),eval)
 
 down: venv
-	$(PY) -m stack.cli down
+	$(PY) -m stack.cli down $(if $(PROFILE),$(PROFILE),eval)
 
 # make eval K=s001 runs only that scenario; bare `make eval` runs every scenario module.
 eval: venv

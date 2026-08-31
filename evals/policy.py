@@ -126,7 +126,40 @@ Judgement calls made while filling in what the contract leaves to the implementa
    failing and a passing fixture for each, the same construction-not-assertion method every prior
    bump used.
 
-7. **Policy v4's second addition: an eighth FID hop, `roles_context`.** S-009 (incremental roles)
+7. **Policy v5 (relay-design.md §12 item 5): the chat surface gets its own sweeps.** The relay
+   moves the founder-agent conversation into keel-web's ChatPane (relay-design.md §9) -- three
+   additions, additive as every prior bump, scored on a new interaction type, `"chat-visit"`
+   (`harness/browser.py`'s `ChatPane.read`/`.capture`), never folded into `ui-visit` (the pane's
+   own state is orthogonal to whichever screen happens to be open beside it):
+
+   - **`CLA-C1`** -- the same vocabulary/structural sweep every other founder-facing surface gets
+     (`clarity_violations`), run over the pane's own rendered turn text (`chat_turns`) and any
+     playback table's cell text (`chat_playback_table`) combined -- a raw enum or JSON leak in
+     either is exactly the CLARITY violation `CLA-A2`/`CLA-U1` already catch elsewhere, extended
+     to the venue the founder now actually reads the conversation in.
+   - **`ORI-C1`** -- presence-banner honesty. The design's own words (§5, §9): "connected
+     silently (absence of banner); disconnected shows the one command to start the agent." This
+     check cross-reads the pane's own rendered claim (`chat_presence_banner` empty vs. non-empty)
+     against the relay's own wire truth at the same moment (`chat_presence_state`, `harness/
+     browser.py`'s `ChatPane.capture` reading `FounderRelay.presence()` live) -- an absent banner
+     while the wire reports `connected: false`, or a shown banner while it reports `connected:
+     true`, is a founder-facing lie about whether their agent is there, not merely a missing
+     affordance. Skipped (None) when no `chat_presence_state` was captured (a bundle that never
+     wired a presence reader into `ChatPane`), the same "don't guess" stance `_need_exists` takes.
+   - **`GUI-C1`** -- the every-door-opens rule's chat-surface extension. Every link an agent turn
+     carries (`chat_turn_links`, `.chat-turn__text a`'s own `href`s) must be well-formed
+     (`http(s)://`) -- `GUI-A3`'s own door check, mirrored onto a chat turn's own links, the same
+     way `GUI-U2` mirrored `GUI-A3` onto a screen's own affordance text. The live click-through
+     itself (`ChatPane.click_agent_turn_link`) is a scenario assertion, exactly as `GUI-A3`'s own
+     docstring says no static sweep can stand in for one -- demonstrated in
+     `evals/test_s011_relay.py`. Skipped (None) when no agent turn ever carried a link.
+
+   None of the three reweights or loosens an existing check -- `tests/test_policy_v5.py` (renamed
+   from `test_policy_v4.py`, the v3/v4 fixtures kept unstruck per this module's own history
+   practice) seeds a failing and a passing fixture for each, the same construction-not-assertion
+   method every prior bump used.
+
+8. **Policy v4's second addition: an eighth FID hop, `roles_context`.** S-009 (incremental roles)
    traces a role introduced through the roles-ladder front door -- `harness/driver.py`'s
    `get_context("roles")` capture (`_roles_echo_text`) reflects back every role's own `label`,
    granted alongside both `INTRODUCE_ROLES` and `INTRODUCE_ASSUMPTIONS` (`HandleGrants`). No new
@@ -140,7 +173,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-POLICY_VERSION = 4
+POLICY_VERSION = 5
 
 CATEGORY_WEIGHTS: dict[str, float] = {
     "FIDELITY": 0.4,
@@ -192,6 +225,10 @@ CHECKS: dict[str, dict[str, Any]] = {
     "CLA-AR1": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
     "ORI-U3": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
     "GUI-U2": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
+    # Policy v5 (module docstring, judgement call 7): the chat surface's own sweeps.
+    "CLA-C1": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
+    "ORI-C1": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
+    "GUI-C1": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
 }
 
 # Policy v4: a raw project id (UUID) has no business appearing in a founder-facing arrival
@@ -207,7 +244,7 @@ UUID_RE = re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F
 # label the `roles` handle echoes back, granted alongside INTRODUCE_ROLES and
 # INTRODUCE_ASSUMPTIONS (`HandleGrants`).
 HOP_IDS = ["agent_echo", "stage_screen", "invite_screen", "participant_page", "interpret_context",
-           "brief", "recorded", "roles_context"]
+           "brief", "recorded", "roles_context", "chat_turns"]
 
 # hop ids reached via an agent-cycle interaction's captured_text vs. a screen visit's -- lets
 # harness/rubric.py know which interactions are even candidates for a given hop.
@@ -220,6 +257,9 @@ HOP_INTERACTION_TYPES: dict[str, tuple[str, ...]] = {
     "invite_screen": ("ui-visit",),
     "brief": ("ui-visit",),
     "participant_page": ("participant-page",),
+    # Policy v5 (relay-design.md §12 item 2/§12.2): a relay turn's own text, read back verbatim
+    # in the chat pane -- S-011's own FID trace for a turn's text round trip.
+    "chat_turns": ("chat-visit",),
 }
 
 # Waivers (design §5): (fact kind, hop id) -> {reason, reference}. A waived hop counts as pass,

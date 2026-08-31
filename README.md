@@ -119,6 +119,27 @@ Postgres 55432, keel-cloud 18080, keel-web 5173 -- so this stack never collides 
 developer's own Postgres or dev server. `make up` fails fast, naming the port and its owner, if
 any of the three is already taken.
 
+## Split stacks: the playground profile (relay-design.md §12 item 5)
+
+`make up`/`make down`/`make eval*` all default to the **eval** profile above -- unchanged. A
+second, entirely separate **playground** profile exists for poking at the product by hand (e.g.
+trying the relay chat yourself) without ever touching an eval run's own data:
+
+```bash
+make up PROFILE=playground    # Postgres 55433, keel-cloud 18081, keel-web 5174
+make down PROFILE=playground
+```
+
+The two profiles cannot collide: separate ports (`stack.toml`'s `[playground.ports]`, defaulting
+to 55433/18081/5174), separate pid files (`cloud-playground`/`web-playground`), and separate Docker
+Compose *projects* (`stack/postgres.py` runs the playground under `-p keel-eval-playground`, a real
+named volume rather than the eval profile's `tmpfs`, so playground data survives a restart) --
+Compose's project name, not the file, is the isolation boundary, so both profiles' services can
+live in one `docker-compose.yml` without `make down`'s default (`eval`) invocation ever being able
+to see, let alone drop, the playground's own container or volume. This exists because of a real
+account-collision incident: an eval run's own `postgres down -v` had, before this split, dropped a
+playground stack's founder account it had nothing to do with.
+
 ## Scope and boundaries
 
 This repo **reports** drift and bugs in the product repos (`keel-cloud`, `keel-web`,
@@ -139,13 +160,14 @@ See `runs/DRIFT.md` if one exists in this checkout for the current findings.
 
 ## The eval set
 
-Ten scenarios ship today (`specs/eval-set-design.md`, feature 003; S-008 added for the founder-
+Eleven scenarios ship today (`specs/eval-set-design.md`, feature 003; S-008 added for the founder-
 experience design's item-7 blind spot; S-009 added for round 2's item-8 roles-ladder fix; S-010
-added for the shaping gauntlet's Layer 1, below), each its
+added for the shaping gauntlet's Layer 1, below; S-011 added for the relay, below), each its
 own fresh project (never shared state -- `evals/recipes.py` shares *code*, not data, across
 scenarios). Every one of them now opens with the same shared step (`evals.recipes.
 arrive_and_create`/`open_founder_session`, round 2 task item 2): the arrival greeting, a logged-in
-founder session (both the driver's agent key and the browser's real `/login`), then `CREATE`.
+founder session (both the driver's agent key and the browser's real `/login`), then `CREATE` --
+whose own conversation now also travels the relay (see "The relay", below).
 
 | Scenario | File | Journey | What it walks |
 |---|---|---|---|
@@ -159,6 +181,7 @@ founder session (both the driver's agent key and the browser's real `/login`), t
 | S-008 | `evals/test_s008_wrong_moment.py` | item 7 (feedback-2026-08-30.md) | Wrong-moment visits: a stage before it's framed, People before any role exists, the brief long before `READY_TO_BUILD`, and (round 2) a founder screen with no session at all -- each a founder-worded quiet state or a route to `/login`, never the wire's raw refusal shape. |
 | S-009 | `evals/test_s009_incremental_roles.py` | item 8 (feedback-2026-08-30-r2.md) | The roles-ladder fix's own demonstration: PROBLEM/SOLUTION share a role no type COMMERCIAL's beliefs may be asked of, so COMMERCIAL's own decompose recommends `INTRODUCE_ROLES` (never a dead end) with the stage's compatible-role detail, a buyer is introduced through that front door, and the flow proceeds to invitable. |
 | S-010 | `evals/test_s010_shaping_delivery.py` | -- (structural only; see below) | Layer 1 of the shaping gauntlet (`specs/shaping-eval-design.md`): walks a fresh project's CREATE, a later-stage FRAME (SOLUTION), and INTRODUCE_ASSUMPTIONS, asserting each issuance's `instruction.content` carries the hypothesis-shaping mandates (quantifiability, the mechanism-in-a-sentence test, the normalization pass) verbatim from `v2-instructions.yaml`. Proves delivery, not efficacy -- no journey moment cited on purpose (deepens §1.1, adds no ledger row); real conversational efficacy is Layer 2, below. |
+| S-011 | `evals/test_s011_relay.py` | -- (plumbing, not a journey moment; see below) | Proves the relay itself: turn ordering survives a founder post interleaved with the agent's own mid-flight long-poll, presence reads honestly through a real (shortened) silence and clears again once polling resumes, a second bridge is refused the lease plainly while the first is unaffected, and a payload-carrying playback turn renders as an actual `<table>` in the chat pane. No CANON.md ledger row on purpose -- see the module's own docstring. |
 
 Adding another is a new `evals/test_*.py` module plus a `Scenario` (payload builders, answer
 table, about-line, fact registry) per `evals/scenario.py` -- `evals/recipes.py` is the place to
@@ -197,10 +220,46 @@ consequence worth naming: a scenario using one role across multiple stages (S-00
 combined invitation once the gate opens, not one per stage -- `Project.invite`/`linkFor` freezes
 every open belief for a role into the *first* invitation sent to it.
 
-### Policy v4
+### The relay (relay-design.md §12; keel-cloud `6f1c175`, keel-web `07745c2`, keel-skill `8610b04`)
 
-`evals/policy.py`'s `POLICY_VERSION` is `4` (founder-experience round 2). v3's own additions
-(below) are kept, unstruck, in the same policy module:
+The founder-agent conversation now has a shipped second venue beside the raw HTTP agent protocol:
+a per-project relay, and a chat pane rendering it in keel-web. This repo's own eval framework for
+it (`specs/004-relay-evals/`):
+
+- **`harness/relay.py`** -- `FounderRelay` (session-gated post/read/presence) and `AgentRelay`
+  (key-gated long-poll/post, the bearer lease as an ordinary query parameter -- never a header --
+  minted on first contact and re-presented on every later call).
+- **`harness/bridge.py`** -- `BridgeLoop`, the same mechanical shape as the production host
+  (keel-skill's own M15): poll, wake a `reasoning` callable once per founder turn (never on an
+  empty poll -- no model tokens spent polling), post the reply; a lease refusal stops the loop and
+  reports it, never contends.
+- **`harness/browser.py`'s `ChatPane`** -- turns/kickers, playback tables (only a top-level
+  `{"roles": [...]}` payload renders an actual `<table>` -- confirmed live; `{"beliefs": [...]}`
+  and `{"findings"/"openDecisions": [...]}` render as rows/bullets instead), the presence banner,
+  the thinking state, and the composer.
+- **Scenario re-venue**: `evals.recipes.arrive_and_create` (shared by all nine of S-001..S-009)
+  carries CREATE's own founder line and playback through the relay; S-001 additionally drives
+  INTRODUCE_ROLES by hand to prove a table-rendered playback and one clarification exchange
+  round-tripping visibly. See `specs/004-relay-evals/tasks.md`'s "Re-venue scope" for the exact,
+  honestly-stated boundary of how far this reaches.
+- **S-011** (table above) proves the relay's own mechanics directly.
+- **The shaping gauntlet** relays every turn once a fresh project id is first observed
+  mid-conversation (the relay can only address a project that exists; the gauntlet's own opening
+  turns predate `CREATE` by design, and are never retroactively relayed) -- `agent_session`'s loop
+  is otherwise unchanged, and SHP-1..SHP-7 are still computed from stack state alone.
+
+### Policy v5
+
+`evals/policy.py`'s `POLICY_VERSION` is `5` (the relay's chat surface). v3/v4's own additions
+(below) are kept, unstruck, in the same policy module, plus three more, scored on a new
+`"chat-visit"` interaction type: `CLA-C1` (the same vocabulary/structural sweep every other
+founder-facing surface gets, run over the chat pane's rendered turn text and playback table
+cells), `ORI-C1` (presence-banner honesty -- the pane's own rendered claim checked against the
+relay's own wire truth at the same moment), and `GUI-C1` (the every-door-opens rule extended to
+links inside a chat turn -- well-formedness only; the live click-through is `ChatPane.
+click_agent_turn_link`, a scenario assertion, demonstrated in `evals/test_s011_relay.py`'s sibling
+work). `tests/test_policy_v5.py` (renamed from `test_policy_v4.py`) seeds a failing and a passing
+fixture for each, the same construction-not-assertion method every prior bump used.
 
 - **`recorded` playback fidelity** -- a seventh FID hop. A scenario's fact registry can now
   declare `hops=["recorded", ...]`: the fact must appear verbatim in the agent-cycle's own

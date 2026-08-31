@@ -38,12 +38,13 @@ from __future__ import annotations
 import re
 import time
 
-from harness.browser import ParticipantBrowser
+from harness.bridge import BridgeReply
+from harness.browser import ChatPane, ParticipantBrowser
 from harness.evidence import finalize_run
 from harness.steps import Recorder
 from evals.recipes import (
     arrive_and_create, assert_invite_gate_closed, assert_participant_has_no_founder_auth,
-    assert_pointer_to_agent, open_founder_session,
+    assert_pointer_to_agent, open_founder_session, open_relay, relay_round_trip,
 )
 from evals.scenario import Fact, Scenario, find_role
 
@@ -265,11 +266,42 @@ def test_s001_smoke(stack, run_dir, browser, founder_credentials):
 
         # The shared opening step (task item 2): the arrival greeting, then CREATE (name
         # required) with its own completed display proven live, then the project list growing by
-        # this fresh project. FRAME x2, INTRODUCE_ROLES follow -- agent-only, nothing renders yet.
+        # this fresh project. FRAME x2 follow -- agent-only, nothing renders yet.
         project_id = arrive_and_create(driver, founder, scenario)
-        for _ in range(3):
+        for _ in range(2):
             driver.advance_one()
         assert project_id
+
+        # Relay re-venue (relay-design.md §12 item 2): INTRODUCE_ROLES driven by hand (the same
+        # manually-replicated-cycle pattern the INTRODUCE_ASSUMPTIONS demonstration below already
+        # uses) so this test can relay its own `recorded` object as a playback turn and prove the
+        # chat pane renders it as an actual table. **Judgement call, live-confirmed**: CREATE's own
+        # `recorded` is flat `{name, problem}` scalars (keel-cloud's `FounderVoice.recorded`) and
+        # can never render a `<table>` -- INTRODUCE_ROLES's `{"roles": [...]}` shape is the one
+        # commit in this opening sequence keel-web's `RolesRecordedTable` actually renders as one,
+        # so that is the playback this test relays and asserts against, not CREATE's own.
+        with recorder.interaction("agent-cycle"):
+            issuance = driver.get_next()
+            assert issuance["kind"] == "action" and issuance["action"] == "INTRODUCE_ROLES", issuance
+            token = issuance["token"]
+            context = {h: driver.get_context(token, h) for h in issuance.get("context") or []}
+            payload = scenario.build_payload("INTRODUCE_ROLES", issuance.get("detail") or {}, context)
+            roles_result = driver.submit_with_recovery(token, payload, "INTRODUCE_ROLES", "INTRODUCE_ROLES")
+
+        founder_relay, agent_relay = open_relay(driver, project_id)
+        relay_round_trip(founder_relay, agent_relay, "Who could actually answer these questions?",
+                          BridgeReply.playback(roles_result.get("display") or "Your roles are saved.",
+                                               roles_result.get("recorded")))
+        chat = ChatPane(founder_page, recorder, presence_reader=founder_relay.presence)
+        with recorder.step("the INTRODUCE_ROLES playback renders as a table in the chat pane",
+                            party="founder", kind="assert") as h:
+            founder.open_overview(project_id)
+            chat.wait_for_turn_count(4)  # CREATE's own founder+playback turns, then this round's
+            rows = chat.read()["playback_rows"]
+            h.record_assert("a rendered <table> with at least a header + one role row", rows)
+            if len(rows) < 2:
+                h.fail(f"expected the roles playback to render as a table, got rows={rows}")
+                raise AssertionError(h.error)
 
         # Policy v3's "every door must open" rule, demonstrated live (module docstring): drive
         # PROBLEM's own INTRODUCE_ASSUMPTIONS commit by hand (the same manually-replicated-cycle
@@ -308,6 +340,25 @@ def test_s001_smoke(stack, run_dir, browser, founder_credentials):
                 raise AssertionError(h.error)
 
         founder.follow_display_url(door_url, project_id)
+
+        # Relay re-venue (relay-design.md §12 item 2): one clarification exchange round-trips
+        # visibly through the chat pane -- the founder-reply pattern's other half, distinct from
+        # a playback (a plain back-and-forth, no `recorded` payload).
+        relay_round_trip(founder_relay, agent_relay,
+                          "What happens once I approve this card?",
+                          BridgeReply(text="Once you approve it, I'll move on to your solution card next."))
+        with recorder.step("the clarification exchange round-trips visibly in the chat pane",
+                            party="founder", kind="assert") as h:
+            chat.wait_for_turn_count(6)  # this exchange lands on top of the opening's own 4 turns
+            turns = chat.read()["turns"]
+            texts = [t["text"] for t in turns]
+            h.record_assert("the founder's question then the agent's answer, in order", texts)
+            q_idx = next((i for i, t in enumerate(texts) if "approve this card" in t), None)
+            a_idx = next((i for i, t in enumerate(texts) if "move on to your solution" in t), None)
+            if q_idx is None or a_idx is None or a_idx <= q_idx:
+                h.fail(f"expected the founder's question before the agent's answer, got {texts}")
+                raise AssertionError(h.error)
+
         founder.approve_current_stage("PROBLEM")
 
         # The invite gate's standing assertion (founder-experience design §6): closed while

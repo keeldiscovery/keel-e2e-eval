@@ -15,3 +15,31 @@ services:
       retries: 60
     tmpfs:
       - /var/lib/postgresql/data
+
+  # Split-stacks (relay-design.md §12.5, the account-collision incident): a developer's own
+  # playground stack (poking at the product by hand, e.g. the relay chat) is a completely
+  # separate Docker Compose *project* (stack/postgres.py runs this under `-p keel-eval-playground`,
+  # never the eval profile's default project name) -- its own port, its own container, and a real
+  # named volume (not tmpfs) so data actually survives a restart. Because the project name, not
+  # this file, is Compose's isolation boundary, an eval `make down` (which never passes `-p`, and
+  # therefore only ever addresses the default eval project) cannot see or touch this service's
+  # container/volume even though both are declared in one file.
+  postgres-playground:
+    image: postgres:16
+    container_name: keel-eval-playground-postgres
+    environment:
+      POSTGRES_DB: keel_cloud
+      POSTGRES_USER: keel
+      POSTGRES_PASSWORD: keel
+    ports:
+      - "55433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keel -d keel_cloud"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+    volumes:
+      - keel-playground-pgdata:/var/lib/postgresql/data
+
+volumes:
+  keel-playground-pgdata:

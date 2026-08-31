@@ -133,8 +133,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from evals.scenario import Scenario, find_role
-from harness.browser import FounderBrowser, ParticipantBrowser
+from harness.bridge import BridgeLoop, BridgeReply
+from harness.browser import ChatPane, FounderBrowser, ParticipantBrowser
 from harness.driver import FounderAgentDriver
+from harness.relay import AgentRelay, FounderRelay
 from stack.auth import FounderCredentials
 from stack.config import StackConfig
 
@@ -355,6 +357,43 @@ def open_founder_session(stack: StackConfig, founder_credentials: FounderCredent
     return driver, founder, founder_context
 
 
+# ------------------------------------------------------------------------ relay re-venue (§12.2)
+
+def open_relay(driver: FounderAgentDriver, project_id: str) -> tuple[FounderRelay, AgentRelay]:
+    """Both relay halves (design §12 item 1), riding the SAME session `open_founder_session`
+    already built (its founder cookie and agent-key header both already set) -- this harness plays
+    both parties of the conversation, exactly as `FounderAgentDriver` already plays founder-
+    session reads alongside its own agent-key writes.
+
+    Cached on `driver` itself (`driver.founder_relay`/`driver.agent_relay`), not returned fresh
+    every call: `AgentRelay.lease` is a bearer token minted on first contact and re-presented on
+    every later call -- constructing a second, lease-ignorant `AgentRelay` for the same project
+    while the first one's lease is still live would itself trip the very refusal S-011 exists to
+    prove, for the wrong reason (a harness bug, not a genuine competing bridge).
+    """
+    cached = getattr(driver, "agent_relay", None)
+    if cached is not None and cached.project_id == project_id:
+        return driver.founder_relay, driver.agent_relay
+    founder_relay = FounderRelay(driver.base_url, driver.session, project_id, driver.recorder)
+    agent_relay = AgentRelay(driver.base_url, driver.session, project_id, driver.recorder)
+    driver.founder_relay = founder_relay
+    driver.agent_relay = agent_relay
+    return founder_relay, agent_relay
+
+
+def relay_round_trip(founder_relay: FounderRelay, agent_relay: AgentRelay, founder_text: str,
+                      reply: BridgeReply | list[BridgeReply]) -> None:
+    """The founder-reply pattern (design §12 item 2): the founder's line posts through the relay,
+    then one mechanical bridge cycle answers with a SCRIPTED reply -- `reasoning` here is the
+    caller's own canned `reply`, never an LLM (FR-003's "no LLM anywhere" rule extends to the
+    relay), the same discipline `evals.scenario.Scenario.build_payload` already lives by for the
+    protocol side. One `step()` is enough: both turns already exist in the store by the time the
+    single mechanical poll runs, so there is nothing to actually wait on.
+    """
+    founder_relay.post_turn(founder_text)
+    BridgeLoop(agent_relay, reasoning=lambda _text: reply).step()
+
+
 def arrive_and_create(driver: FounderAgentDriver, founder: FounderBrowser, scenario: Scenario) -> str:
     """The shared opening step every scenario now takes (founder-experience round 2 design §2,
     task item 2's "a new shared opening step"): the arrival read, greeting first -- then `CREATE`,
@@ -390,6 +429,16 @@ def arrive_and_create(driver: FounderAgentDriver, founder: FounderBrowser, scena
             h.fail(f"expected CREATE's display to carry a resolvable door, got {display!r}")
             raise AssertionError(h.error)
     founder.follow_display_url(match.group(0), project_id)
+
+    # Relay re-venue (relay-design.md §12 item 2): the shared opening's own conversation moment --
+    # CREATE's own commit -- now travels the relay too, exactly as keel-skill's M15 instructs a
+    # relay-connected host to behave ("post display together with recorded as one playback turn").
+    # This is the carrier every scenario shares (design's own "pragmatic scope" for the re-venue);
+    # the protocol-side assertions above are unchanged, and this adds to them rather than replacing
+    # any of them.
+    founder_relay, agent_relay = open_relay(driver, project_id)
+    relay_round_trip(founder_relay, agent_relay, f"I want to look into: {scenario.problem_statement()}",
+                      BridgeReply.playback(display, result.get("recorded")))
 
     after = driver.arrive()
     after_projects = after.get("projects") or []

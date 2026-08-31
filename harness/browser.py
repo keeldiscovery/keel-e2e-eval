@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -438,6 +439,189 @@ class FounderBrowser:
                            lambda p: p.locator(".card.openc .brief").count() >= 1
                            or p.locator(".card.openc .hint").count() >= 1,
                            "founder opens the brief")
+
+
+class ChatPane:
+    """The relay's chat pane page object (design §12 item 1; keel-web commit 07745c2): turns,
+    kickers, playback tables, the presence banner, the thinking state, the composer. Rides the
+    SAME Playwright `Page` as the founder's project shell -- `ProjectShell` mounts `ChatPane` as a
+    persistent right rail alongside every founder route (confirmed live: it never unmounts on
+    navigation between overview/stage/people/brief), so this class never navigates anywhere
+    itself; a caller opens whatever founder screen it likes first via `FounderBrowser`.
+
+    Reads its own `chat-visit` interaction scope (design §12 item 5's own home for the chat-
+    surface sweeps: `harness/rubric.py`'s `CLA-C1`/`ORI-C1`/`GUI-C1`) -- distinct from `ui-visit`,
+    since the pane's own state is orthogonal to whichever screen happens to be open beside it.
+    """
+
+    AUTHOR_KICKERS = {"YOU": "founder", "YOUR KEEL AGENT": "agent"}
+
+    def __init__(self, page: Page, recorder: Recorder, *, presence_reader: Callable[[], dict] | None = None):
+        self.page = page
+        self._bstep = _BrowserStep(recorder, page, party="founder")
+        self._presence_reader = presence_reader
+
+    def expand(self) -> None:
+        """The rail collapses to a single toggle button (`.chat-rail--collapsed`) -- every read or
+        composer action needs it open first. A no-op if it already is."""
+        rail = self.page.locator(".chat-rail")
+        if rail.count() and "chat-rail--collapsed" in (rail.first.get_attribute("class") or ""):
+            self.page.locator(".chat-rail__toggle").first.click()
+            self.page.wait_for_timeout(100)
+
+    def turns(self) -> list[dict]:
+        """`{kicker, text, playback}` per rendered `.chat-turn`, in DOM (chronological) order --
+        the substrate S-011's own ordering-under-interleaving proof reads."""
+        rows = self.page.locator(".chat-turn")
+        out: list[dict] = []
+        for i in range(rows.count()):
+            row = rows.nth(i)
+            kicker = _safe_text(lambda r=row: r.locator(".chat-turn__kicker").first.inner_text())
+            is_playback = row.locator(".chat-playback").count() > 0
+            if is_playback:
+                text = _safe_text(lambda r=row: r.locator(".chat-playback").first.inner_text())
+            else:
+                text = _safe_text(lambda r=row: r.locator(".chat-turn__text").first.inner_text())
+            out.append({"kicker": kicker, "text": text, "playback": is_playback})
+        return out
+
+    def playback_table_rows(self) -> list[list[str]]:
+        """Cell text for every row of the first `table.invites` rendered inside a `.chat-playback`
+        block (`RolesRecordedTable` -- the one playback shape that renders an actual `<table>`
+        element; a `beliefs`-shaped or bullet-list-shaped playback renders div/li structure
+        instead, never a `<table>` -- this feature's own live-confirmed finding, see
+        `evals/test_s001_smoke.py`'s module docstring for the judgement call it drove)."""
+        table = self.page.locator(".chat-playback table.invites").first
+        if table.count() == 0:
+            return []
+        rows = table.locator("tr")
+        out: list[list[str]] = []
+        for i in range(rows.count()):
+            cells = rows.nth(i).locator("th, td")
+            out.append([cells.nth(j).inner_text().strip() for j in range(cells.count())])
+        return out
+
+    def wait_for_presence(self, *, connected: bool, timeout_ms: int = 20_000) -> None:
+        """Polls until the pane's own rendered banner state (present iff disconnected) agrees
+        with `connected`, TWICE in a row -- the pane refetches presence on its own interval, not
+        on every render, so a caller checking right after a wire-level change (a poll/post, or a
+        real silence) needs to wait for that refetch rather than assume it already landed.
+        Debounced (two consecutive matching reads, not just one) because the query's own initial
+        loading state renders no banner at all -- indistinguishable, on a single read, from
+        "connected" -- and live-confirmed to otherwise report a false "connected" a moment before
+        the real fetch resolves and the disconnected banner actually appears."""
+        self.expand()
+        deadline = time.monotonic() + timeout_ms / 1000
+        stable_hits = 0
+        while time.monotonic() < deadline:
+            shown = bool(self.presence_banner_text())
+            matches = (not shown) if connected else shown
+            stable_hits = stable_hits + 1 if matches else 0
+            if stable_hits >= 2:
+                return
+            self.page.wait_for_timeout(500)
+        raise TimeoutError(
+            f"the chat pane's presence banner never stabilized to connected={connected} "
+            f"within {timeout_ms}ms")
+
+    def presence_banner_text(self) -> str:
+        """Empty when connected (the design's own "connected silently" rule -- absence of banner
+        is the positive signal); the disconnected copy otherwise.
+
+        **Bug found and fixed live (2026-08-31, S-011's own first full run)**: this used to be
+        `_safe_text(lambda: self.page.locator(".chat-presence").first.inner_text())` -- but
+        `.first.inner_text()` on a locator matching zero elements does not return "" immediately;
+        Playwright auto-waits for the element to attach, and while connected (the element
+        legitimately never renders at all) that wait blocks for many seconds. Confirmed live: the
+        wait was long enough, on its own, to starve this harness's own poll/post calls of the CPU
+        time to run during it -- which let the relay's own presence genuinely go stale mid-wait,
+        so the call would "eventually" return the disconnected banner text once it finally
+        rendered, having itself caused the very disconnect it was checking for. A `.count()` guard
+        first (the same pattern every other optional element in this file already uses, e.g.
+        `.next.agent`/`.side-nav__locked-why` above) makes the absent case return "" in
+        microseconds, exactly as a presence check needs.
+        """
+        banner = self.page.locator(".chat-presence")
+        return _safe_text(lambda: banner.first.inner_text()) if banner.count() else ""
+
+    def thinking_visible(self) -> bool:
+        return self.page.locator(".chat-thinking").count() > 0
+
+    def agent_turn_links(self) -> list[str]:
+        """Every `href` inside a rendered agent turn's own text -- the every-door-opens rule's
+        chat-surface extension (design §12 item 5): `GUI-C1` sweeps these for well-formedness the
+        same way `GUI-A3` sweeps a wire `display`'s own URL; a scenario wanting the live click-
+        through demonstration itself calls `click_agent_turn_link` below."""
+        links = self.page.locator(".chat-turn__text a")
+        return [links.nth(i).get_attribute("href") or "" for i in range(links.count())]
+
+    def click_agent_turn_link(self, href: str, project_id: str) -> None:
+        """The live click-through no static sweep can stand in for (`FounderBrowser.
+        follow_display_url`'s own precedent, extended to a chat turn's own link): opens `href`
+        exactly as rendered and asserts the founder shell actually renders."""
+        interaction_id = self._bstep.recorder.new_interaction_id()
+        with self._bstep.recorder.interaction("ui-visit", interaction_id):
+            with self._bstep.step(f"founder follows a door an agent turn carried: {href}") as h:
+                self.page.goto(href, wait_until="load")
+                self.page.wait_for_timeout(150)
+                rendered = self.page.locator(".shell").count() >= 1
+                h.add_screenshot(self._bstep.screenshot("chat-turn-door-opened"))
+                h.capture_text("screen", "chat-turn-door")
+                if not rendered:
+                    h.fail(f"the URL a chat turn carried did not render the founder shell: {href}")
+                    raise AssertionError(h.error)
+
+    def send(self, text: str) -> None:
+        """Types into the composer and clicks Send (rather than relying on the Enter-submits
+        binding -- deterministic either way, this is the one that never risks a stray Shift)."""
+        with self._bstep.step(f"founder types into the chat composer: {text[:60]!r}") as h:
+            self.expand()
+            box = self.page.locator(".chat-composer__input")
+            box.fill(text)
+            h.add_screenshot(self._bstep.screenshot("chat-composer-filled"))
+            self.page.get_by_role("button", name=re.compile(r"^send$", re.I)).click()
+            h.capture_text("chat_sent", text)
+
+    def wait_for_turn_count(self, n: int, *, timeout_ms: int = 15_000) -> None:
+        """Polls until at least `n` `.chat-turn` elements have rendered -- the composer's own
+        `postTurn` mutation and the pane's own poll are both async, so a caller reading turns
+        right after `send()`/a relay post needs this rather than a fixed sleep."""
+        self.expand()
+        self.page.wait_for_function(
+            "(n) => document.querySelectorAll('.chat-turn').length >= n", arg=n, timeout=timeout_ms)
+
+    def capture(self, h: StepHandle) -> None:
+        """Folds the pane's current rendered state into the caller's own step -- `chat_turns`/
+        `chat_playback_table`/`chat_presence_banner`/`chat_turn_links` are policy v5's own hop ids
+        (`harness/rubric.py`'s `_chat_visit_checks`)."""
+        self.expand()
+        turns = self.turns()
+        h.capture_text("chat_turns", "\n".join(f"{t['kicker']}: {t['text']}" for t in turns if t["text"]))
+        table_rows = self.playback_table_rows()
+        if table_rows:
+            h.capture_text("chat_playback_table", "\n".join(" | ".join(r) for r in table_rows))
+        h.capture_text("chat_presence_banner", self.presence_banner_text())
+        if self._presence_reader is not None:
+            try:
+                presence = self._presence_reader()
+                h.capture_text("chat_presence_state", json.dumps(presence))
+            except Exception:  # noqa: BLE001 - capture is advisory, never load-bearing
+                pass
+        links = self.agent_turn_links()
+        if links:
+            h.capture_text("chat_turn_links", "\n".join(links))
+
+    def read(self) -> dict:
+        """Opens (or continues) a `chat-visit` interaction, captures the pane's rendered state for
+        policy v5's sweeps, and returns `{turns, playback_rows, presence_banner}` for the caller's
+        own live assertions (e.g. "the INTRODUCE_ROLES playback renders as a table")."""
+        interaction_id = self._bstep.recorder.new_interaction_id()
+        with self._bstep.recorder.interaction("chat-visit", interaction_id):
+            with self._bstep.step("founder reads the chat pane") as h:
+                self.capture(h)
+                h.add_screenshot(self._bstep.screenshot("chat-pane"))
+        return {"turns": self.turns(), "playback_rows": self.playback_table_rows(),
+                "presence_banner": self.presence_banner_text()}
 
 
 def _safe_all_texts(page: Page, selector: str) -> list[str]:

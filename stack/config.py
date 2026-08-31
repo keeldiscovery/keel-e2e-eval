@@ -18,6 +18,14 @@ DEFAULT_PATHS = {
 DEFAULT_PORTS = {"postgres": 55432, "cloud": 18080, "web": 5173}
 DEFAULT_TIMEOUTS = {"cloud_boot": 120, "web_boot": 60}
 
+# Split-stacks (relay-design.md §12.5, the account-collision incident): the playground profile's
+# own ports, used only when `load_config(profile="playground")` is asked for -- the default
+# ("eval") profile's own ports above are entirely unchanged. `stack/postgres.py` also puts the
+# playground profile in its own Compose *project* (never the eval profile's default project), so
+# an eval `make down` can never see, let alone drop, the playground's own container or volume.
+DEFAULT_PLAYGROUND_PORTS = {"postgres": 55433, "cloud": 18081, "web": 5174}
+PROFILES = ("eval", "playground")
+
 
 class ConfigError(RuntimeError):
     """Raised for a stack.toml problem a human must fix before anything can boot."""
@@ -33,19 +41,30 @@ class StackConfig:
     web_port: int
     cloud_boot_timeout: int
     web_boot_timeout: int
+    profile: str = "eval"
 
     @property
     def skill_md_path(self) -> Path:
         return self.keel_skill / "SKILL.md"
 
 
-def load_config(toml_path: Path | None = None, *, validate: bool = True) -> StackConfig:
+def load_config(toml_path: Path | None = None, *, validate: bool = True,
+                 profile: str = "eval") -> StackConfig:
     """Loads stack.toml, applying defaults for any missing table/key.
+
+    `profile` selects which port set this config carries (split-stacks, relay-design.md §12.5):
+    "eval" (the default, unchanged) reads `[ports]`; "playground" reads `[playground.ports]`,
+    falling back to `DEFAULT_PLAYGROUND_PORTS` for anything unset. Every other table (paths,
+    timeouts) is shared between profiles -- only ports (and, in stack/postgres.py, the Compose
+    project) differ.
 
     Raises ConfigError naming the missing sibling directory when `validate` is True and a
     configured path does not exist -- an operator agent should see "no such directory" once,
     with the path it looked for, rather than a stack trace three layers down.
     """
+    if profile not in PROFILES:
+        raise ConfigError(f"unknown profile {profile!r} -- expected one of {PROFILES}")
+
     toml_path = toml_path or (REPO_ROOT / "stack.toml")
     raw: dict = {}
     if toml_path.exists():
@@ -53,8 +72,11 @@ def load_config(toml_path: Path | None = None, *, validate: bool = True) -> Stac
             raw = tomllib.load(f)
 
     paths = {**DEFAULT_PATHS, **raw.get("paths", {})}
-    ports = {**DEFAULT_PORTS, **raw.get("ports", {})}
     timeouts = {**DEFAULT_TIMEOUTS, **raw.get("timeouts", {})}
+    if profile == "playground":
+        ports = {**DEFAULT_PLAYGROUND_PORTS, **raw.get("playground", {}).get("ports", {})}
+    else:
+        ports = {**DEFAULT_PORTS, **raw.get("ports", {})}
 
     resolved = {}
     for name, value in paths.items():
@@ -81,4 +103,5 @@ def load_config(toml_path: Path | None = None, *, validate: bool = True) -> Stac
         web_port=int(ports["web"]),
         cloud_boot_timeout=int(timeouts["cloud_boot"]),
         web_boot_timeout=int(timeouts["web_boot"]),
+        profile=profile,
     )

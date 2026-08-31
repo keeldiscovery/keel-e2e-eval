@@ -429,6 +429,60 @@ def _participant_page_checks(ix: Interaction) -> list[CheckResult]:
     ]
 
 
+# ------------------------------------------------------------------------------------- chat-visit
+
+def _cla_c1(ix: Interaction) -> CheckResult:
+    """Policy v5 (evals/policy.py judgement call 7): the same vocabulary/structural sweep every
+    other founder-facing surface gets, run over the chat pane's own rendered turn text and any
+    playback table's cell text combined."""
+    combined = "\n".join(v for k, v in ix.captured_text.items()
+                          if k in ("chat_turns", "chat_playback_table"))
+    violations = policy.clarity_violations(combined)
+    return _result("CLA-C1", not violations, f"violations={violations}" if violations else "clean", ix)
+
+
+def _ori_c1(ix: Interaction) -> CheckResult | None:
+    """Policy v5: presence-banner honesty -- the pane's own rendered claim (a shown banner means
+    "disconnected"; its absence means "connected", design §5/§9's own words) must agree with the
+    relay's own wire truth at the same moment (`chat_presence_state`, `ChatPane.capture` reading
+    `FounderRelay.presence()` live). Skipped (None) when no presence reader was wired in."""
+    raw_state = ix.captured_text.get("chat_presence_state")
+    if not raw_state:
+        return None
+    try:
+        state = json.loads(raw_state)
+    except json.JSONDecodeError:
+        return None
+    banner_shown = bool(ix.captured_text.get("chat_presence_banner", "").strip())
+    wire_connected = bool(state.get("connected"))
+    honest = banner_shown != wire_connected
+    detail = f"banner_shown={banner_shown}, wire_connected={wire_connected}"
+    return _result("ORI-C1", honest, detail, ix)
+
+
+def _gui_c1(ix: Interaction) -> CheckResult | None:
+    """Policy v5: every link a chat turn carries must be well-formed (`http(s)://`) -- `GUI-A3`'s
+    own door check, mirrored onto the chat surface. Skipped (None) when no agent turn ever carried
+    a link at all."""
+    raw_links = ix.captured_text.get("chat_turn_links")
+    if not raw_links:
+        return None
+    links = [l for l in raw_links.splitlines() if l.strip()]
+    malformed = [l for l in links if not l.startswith(("http://", "https://"))]
+    return _result("GUI-C1", not malformed, f"malformed={malformed}" if malformed else f"{len(links)} link(s), all well-formed", ix)
+
+
+def _chat_visit_checks(ix: Interaction) -> list[CheckResult]:
+    results = [_cla_c1(ix)]
+    ori_c1 = _ori_c1(ix)
+    if ori_c1 is not None:
+        results.append(ori_c1)
+    gui_c1 = _gui_c1(ix)
+    if gui_c1 is not None:
+        results.append(gui_c1)
+    return results
+
+
 # --------------------------------------------------------------------------------------- fidelity
 
 def _fid_checks(interactions: list[Interaction],
@@ -510,6 +564,8 @@ def evaluate(interactions: list[Interaction],
             results[ix.id].extend(_agent_refusal_checks(ix))
         elif ix.type == "arrival":
             results[ix.id].extend(_arrival_checks(ix))
+        elif ix.type == "chat-visit":
+            results[ix.id].extend(_chat_visit_checks(ix))
 
     fid_results, extra = _fid_checks(interactions, facts or {})
     for iid, checks in fid_results.items():

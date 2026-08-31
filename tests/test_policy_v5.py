@@ -23,6 +23,13 @@ DRIFT.md #4's re-adjudication) by construction:
 Policy v4 (founder-experience round 2) adds three more fixtures, same construction-not-assertion
 method: the arrival read's own greeting (`CLA-AR1`), the locked People section's own why
 (`ORI-U3`), and the pointer-to-agent sentence's own missing door (`GUI-U2`).
+
+Policy v5 (relay-design.md §12 item 5, evals/policy.py judgement call 7) adds three more, scored on
+a new interaction type, `"chat-visit"` (`harness/browser.py`'s `ChatPane.capture`): a vocabulary/
+structural sweep over the chat pane's own rendered turn text and playback table cells (`CLA-C1`),
+presence-banner honesty against the relay's own wire truth (`ORI-C1`), and well-formed links inside
+a chat turn (`GUI-C1`, the every-door-opens rule's chat-surface extension). Same construction-not-
+assertion method as every prior bump.
 """
 
 from __future__ import annotations
@@ -41,8 +48,8 @@ def _score(tmp_path, facts=None):
     return scoring.score_bundle(tmp_path, scenario="policy-v4-fixture", complete=True, facts=facts)
 
 
-def test_policy_version_is_4():
-    assert policy.POLICY_VERSION == 4
+def test_policy_version_is_5():
+    assert policy.POLICY_VERSION == 5
 
 
 # --------------------------------------- agent-cycle: no longer vocabulary-swept (US1 scenario 1)
@@ -451,3 +458,94 @@ def test_ordinary_affordance_emits_no_gui_u2(tmp_path):
 
     scorecard = _score(tmp_path)
     assert _checks_for(scorecard, "GUI-U2") == []
+
+
+# --------------------------------------------------------------- policy v5: the chat surface (§12.5)
+
+def _chat_visit(tmp_path, *, turns="", playback="", banner="", presence_state=None, links=""):
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("chat-visit"):
+        with recorder.step("founder reads the chat pane", party="founder", kind="browser") as h:
+            h.capture_text("chat_turns", turns)
+            if playback:
+                h.capture_text("chat_playback_table", playback)
+            h.capture_text("chat_presence_banner", banner)
+            if presence_state is not None:
+                h.capture_text("chat_presence_state", __import__("json").dumps(presence_state))
+            if links:
+                h.capture_text("chat_turn_links", links)
+    return recorder
+
+
+def test_seeded_enum_in_chat_turn_text_fails_cla_c1(tmp_path):
+    _chat_visit(tmp_path, turns="YOUR KEEL AGENT: The belief is CONTRADICTED.")
+    scorecard = _score(tmp_path)
+    cla_c1 = _checks_for(scorecard, "CLA-C1")
+    assert len(cla_c1) == 1 and cla_c1[0]["pass"] is False
+    assert "CONTRADICTED" in cla_c1[0]["detail"]
+
+
+def test_seeded_enum_in_playback_table_cells_fails_cla_c1(tmp_path):
+    _chat_visit(tmp_path, turns="YOU: who could answer?",
+                playback="Role | Can settle\nPayroll Ops Manager | INVITE the roles handle")
+    scorecard = _score(tmp_path)
+    cla_c1 = _checks_for(scorecard, "CLA-C1")
+    assert len(cla_c1) == 1 and cla_c1[0]["pass"] is False
+
+
+def test_clean_chat_pane_text_passes_cla_c1(tmp_path):
+    _chat_visit(tmp_path, turns="YOU: Payroll exceptions.\nYOUR KEEL AGENT: Got it, tell me more.",
+                playback="Role | Can settle\nPayroll Ops Manager | the problem, the solution")
+    scorecard = _score(tmp_path)
+    cla_c1 = _checks_for(scorecard, "CLA-C1")
+    assert len(cla_c1) == 1 and cla_c1[0]["pass"] is True
+
+
+def test_absent_banner_while_the_wire_reports_disconnected_fails_ori_c1(tmp_path):
+    """The pane's own silence claims "connected" (design §5/§9: absence of banner IS the positive
+    signal) -- if the relay's own wire truth disagrees, that is a founder-facing lie, not a missing
+    affordance."""
+    _chat_visit(tmp_path, banner="", presence_state={"connected": False})
+    scorecard = _score(tmp_path)
+    ori_c1 = _checks_for(scorecard, "ORI-C1")
+    assert len(ori_c1) == 1 and ori_c1[0]["pass"] is False
+
+
+def test_shown_banner_while_the_wire_reports_connected_fails_ori_c1(tmp_path):
+    _chat_visit(tmp_path, banner="Your Keel agent isn't connected.", presence_state={"connected": True})
+    scorecard = _score(tmp_path)
+    ori_c1 = _checks_for(scorecard, "ORI-C1")
+    assert len(ori_c1) == 1 and ori_c1[0]["pass"] is False
+
+
+def test_banner_and_wire_truth_agreeing_passes_ori_c1(tmp_path):
+    _chat_visit(tmp_path, banner="", presence_state={"connected": True})
+    scorecard = _score(tmp_path)
+    ori_c1 = _checks_for(scorecard, "ORI-C1")
+    assert len(ori_c1) == 1 and ori_c1[0]["pass"] is True
+
+
+def test_ori_c1_skipped_when_no_presence_state_was_captured(tmp_path):
+    _chat_visit(tmp_path, banner="")
+    scorecard = _score(tmp_path)
+    assert _checks_for(scorecard, "ORI-C1") == []
+
+
+def test_malformed_chat_turn_link_fails_gui_c1(tmp_path):
+    _chat_visit(tmp_path, links="ftp://localhost:5173/p/p1")
+    scorecard = _score(tmp_path)
+    gui_c1 = _checks_for(scorecard, "GUI-C1")
+    assert len(gui_c1) == 1 and gui_c1[0]["pass"] is False
+
+
+def test_well_formed_chat_turn_link_passes_gui_c1(tmp_path):
+    _chat_visit(tmp_path, links="http://localhost:5173/p/p1")
+    scorecard = _score(tmp_path)
+    gui_c1 = _checks_for(scorecard, "GUI-C1")
+    assert len(gui_c1) == 1 and gui_c1[0]["pass"] is True
+
+
+def test_gui_c1_skipped_when_no_chat_turn_links_were_captured(tmp_path):
+    _chat_visit(tmp_path, turns="YOU: hi")
+    scorecard = _score(tmp_path)
+    assert _checks_for(scorecard, "GUI-C1") == []

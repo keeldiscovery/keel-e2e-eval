@@ -15,6 +15,11 @@ from stack.processes import is_port_open, require_port_free, spawn, wait_for_htt
 NAME = "web"
 
 
+def _process_name(config: StackConfig) -> str:
+    """See stack/cloud.py's `_process_name` -- same split-stacks reasoning."""
+    return NAME if config.profile == "eval" else f"{NAME}-{config.profile}"
+
+
 def is_up(config: StackConfig) -> bool:
     if not is_port_open(config.web_port):
         return False
@@ -33,9 +38,10 @@ def up(config: StackConfig) -> None:
     env["EVAL_WEB_PORT"] = str(config.web_port)
     env["EVAL_CLOUD_PORT"] = str(config.cloud_port)
     vite_config = REPO_ROOT / "stack" / "vite.eval.config.ts"
-    log_path = REPO_ROOT / "runs" / ".stack" / "web.log"
+    name = _process_name(config)
+    log_path = REPO_ROOT / "runs" / ".stack" / f"{name}.log"
     spawn(
-        NAME,
+        name,
         ["npx", "vite", "--config", str(vite_config)],
         cwd=config.keel_web,
         env=env,

@@ -24,6 +24,13 @@ from stack.processes import is_port_open, require_port_free, spawn, wait_for_htt
 NAME = "cloud"
 
 
+def _process_name(config: StackConfig) -> str:
+    """Split-stacks (relay-design.md §12.5): profile-suffixed pid/log names so a playground
+    boot's own process never shares a pid file with the eval profile's -- see
+    stack/processes.py's `teardown_all_processes` docstring for why that matters."""
+    return NAME if config.profile == "eval" else f"{NAME}-{config.profile}"
+
+
 def build_env(config: StackConfig) -> dict[str, str]:
     env = dict(os.environ)
     java_home = env.get("JAVA_HOME") or "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
@@ -38,6 +45,28 @@ def build_env(config: StackConfig) -> dict[str, str]:
         "KEEL_V2_FOUNDER_BASE_URL": f"http://localhost:{config.web_port}/p",
         "KEEL_V2_PARTICIPANT_BASE_URL": f"http://localhost:{config.web_port}/i",
         "KEEL_V2_FOUNDER_DISPLAY_NAME": "Eval Founder",
+        # Relay re-venue (relay-design.md §12 item 3, S-011's own presence-through-silence proof):
+        # a same-binary environment override, not a keel-cloud code change (this file's own
+        # standing precedent, see the MCP protocol override above) -- shrinks the production
+        # default (PT90S) so an eval run can wait OUT a real silence in seconds rather than
+        # ninety, without touching what presence honesty actually means. PT12S, not something
+        # tighter: live-confirmed the ordinary browser-step overhead between a poll/post and the
+        # next presence check (navigation + screenshot) already costs several seconds on its own,
+        # so a threshold much below double digits made the "still connected" half flake on
+        # harness overhead rather than genuine staleness.
+        "KEEL_V2_RELAY_PRESENCE_THRESHOLD": "PT12S",
+        # Live-confirmed alongside the threshold above (S-011's own "resume" step, 2026-08-31): an
+        # AGENT poll with nothing new to deliver parks for the server's own `poll-window` before
+        # returning -- unmodified, that is the production default PT25S, which by itself exceeds
+        # the shortened presence-threshold above. A resuming bridge's own empty poll would then
+        # hand control back to a synchronous caller (`AgentRelay.poll()`) only after presence had
+        # already gone stale a second time: `last_poll_at` refreshes the instant the poll *arrives*
+        # (confirmed live), but this harness's test code doesn't resume running until the poll
+        # *returns* -- 25s later than the refresh it just caused. PT3S keeps `poll-window`'s own
+        # ratio to the threshold above 3x (design's own rule, application.yml's comment) while
+        # keeping an idle poll's own round trip short enough that the test's clock and the
+        # server's agree.
+        "KEEL_V2_RELAY_POLL_WINDOW": "PT3S",
     })
     return env
 
@@ -59,9 +88,10 @@ def up(config: StackConfig) -> None:
         return
     require_port_free(config.cloud_port, "keel-cloud")
     env = build_env(config)
-    log_path = REPO_ROOT / "runs" / ".stack" / "cloud.log"
+    name = _process_name(config)
+    log_path = REPO_ROOT / "runs" / ".stack" / f"{name}.log"
     spawn(
-        NAME,
+        name,
         ["./gradlew", "bootRun", "--no-daemon", "--console=plain"],
         cwd=config.keel_cloud,
         env=env,
