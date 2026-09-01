@@ -26,6 +26,36 @@ call 4) gets its one live demonstration: `PROBLEM`'s own `INTRODUCE_ASSUMPTIONS`
 by hand (not through `advance_until_handoff`) so the test can read that commit's own `display`
 sentence, pull the URL it carries out *verbatim*, and prove the browser actually renders it via
 `FounderBrowser.follow_display_url` -- never a URL this harness reconstructs itself.
+
+**Re-choreographed 2026-08-31 for the guided walk (founder-experience-3-design.md §3; keel-cloud
+commit d408dbf, keel-web commit 96c83af).** Narrow scope this round -- S-001 + the shared recipes/
+page objects it needs, only (see `runs/DRIFT.md` for what's deferred):
+
+1. **The overview shows one guided step, not the classic cards, whenever some stage is still
+   unframed or framed-but-undecomposed and no OTHER stage has real review work pending** -- exactly
+   the window this scenario's own choreography already passes through, three separate times: right
+   after CREATE (PROBLEM framed as a side effect, SOLUTION/COMMERCIAL still unframed), and again
+   briefly after PROBLEM and after SOLUTION are each approved (the next framed stage is always
+   still undecomposed at that instant). This test visits the FIRST window on purpose: PROBLEM's own
+   landed claim (`harness.browser.GuidedStep.landed_claim`), then continues past it (purely client-
+   side) to SOLUTION's own still-unframed "ask" phase, types a founder line into its first-answer
+   composer, and confirms that line lands inside the step's own step-scoped exchange -- the real
+   product path (`GuidedStep.tsx`'s `postTurn.mutate({text, step: step.stage})`), never a raw API
+   call this harness fakes. `evals.recipes.assert_pointer_to_agent` was updated to recognize the
+   walk's own step as the OTHER two windows' rendering of "the next move is the agent's", since the
+   classic `.next.agent` sentence no longer renders while the walk is showing.
+2. **Every founder turn this scenario's own relay conversations already posted (CREATE's playback,
+   the roles playback, the clarification exchange) rides `harness.browser.HistoryDrawer` now, not
+   the retired right-rail `ChatPane`** (`ProjectShell` no longer reserves a column for it -- history
+   collapses to a bottom drawer instead, expand-to-read). None of those turns carry a `step` tag, so
+   they still show exactly where they always did: the drawer's own unfiltered transcript, never
+   inside a step's scoped overlay (only a FOUNDER turn can ever carry `step` -- spec 017 FR-003 --
+   so an agent's reply never lands inside a step overlay either; a real product gap, recorded in
+   `runs/DRIFT.md`, not asserted around here).
+3. **The event-turn assertion (spec 017 FR-001)**: approving PROBLEM appends a server-authored
+   `event` turn (`author: "system"`, `kind: "event"`) carrying `FounderVoice.stageApprovedEvent`'s
+   own sentence -- asserted both as the drawer's own green-tick line (browser) and as the newest
+   turn on a plain relay read, after every turn this scenario posted before it (protocol).
 """
 
 # Journey coverage (CANON.md ledger): this scenario proves journeys.md §1.0 (arrival opening
@@ -39,7 +69,7 @@ import re
 import time
 
 from harness.bridge import BridgeReply
-from harness.browser import ChatPane, ParticipantBrowser
+from harness.browser import GuidedStep, HistoryDrawer, ParticipantBrowser
 from harness.evidence import finalize_run
 from harness.steps import Recorder
 from evals.recipes import (
@@ -268,14 +298,63 @@ def test_s001_smoke(stack, run_dir, browser, founder_credentials):
         # required) with its own completed display proven live, then the project list growing by
         # this fresh project. FRAME x2 follow -- agent-only, nothing renders yet.
         project_id = arrive_and_create(driver, founder, scenario)
+        assert project_id
+
+        # The guided walk's own window (module docstring item 1): PROBLEM is already framed
+        # (CREATE's own side effect) but not yet decomposed, and SOLUTION/COMMERCIAL are still
+        # unframed -- the overview shows the walk's single active step here, not the classic cards.
+        founder.open_overview(project_id)
+        guided = GuidedStep(founder)
+        with recorder.step("the guided walk shows PROBLEM's own claim landed, not the classic cards",
+                            party="founder", kind="assert") as h:
+            claim = guided.landed_claim()
+            h.record_assert("a landed step naming PROBLEM's own claim", claim)
+            if not guided.is_visible() or not guided.is_landed():
+                h.fail("expected the overview to render the guided walk's landed step for PROBLEM")
+                raise AssertionError(h.error)
+            if claim != scenario.problem_statement():
+                h.fail(f"expected the landed claim to be PROBLEM's own statement, got {claim!r}")
+                raise AssertionError(h.error)
+
+        # "Continue" is purely client-side (there is no wire action for "I'm done looking at this
+        # for now") -- it advances the walk to SOLUTION, which is genuinely still unframed at this
+        # exact moment (the FRAME x2 below hasn't run yet), so this is the walk's own "ask" phase.
+        guided.continue_()
+        with recorder.step("the guided walk's ask phase renders a question for the next stage",
+                            party="founder", kind="assert") as h:
+            kicker = guided.kicker()
+            h.record_assert("a step naming SOLUTION, not yet landed", kicker)
+            if not guided.is_visible() or guided.is_landed() or "solution" not in kicker.lower():
+                h.fail(f"expected the walk's ask-phase step for SOLUTION, got kicker={kicker!r}")
+                raise AssertionError(h.error)
+
+        founder_step_line = "I think it's the payroll ops managers who'd actually use this day to day."
+        guided.ask(founder_step_line)
+        guided.wait_for_step_turns(1)
+        with recorder.step("the founder's own relayed line appears in the step's own exchange",
+                            party="founder", kind="assert") as h:
+            step_turns = guided.step_turns()
+            h.record_assert(founder_step_line, step_turns)
+            if not any(t["author"] == "founder" and founder_step_line in t["text"] for t in step_turns):
+                h.fail(f"expected the founder's own line inside the step exchange, got {step_turns}")
+                raise AssertionError(h.error)
+
+        # The guided-step line above posted through the browser -- the real product path, not
+        # `founder_relay`/`agent_relay` -- so no scripted `relay_round_trip` below has ever polled
+        # past it yet. One plain mechanical poll (no reply; a real host is free to see a turn and
+        # not answer it) advances `agent_relay`'s own cursor over it, so it is a `relay_round_trip`
+        # away from now on -- `runs/DRIFT.md`'s own note that an agent reply could never carry this
+        # step's own tag anyway is why this scenario never asks for one here.
+        founder_relay, agent_relay = open_relay(driver, project_id)
+        agent_relay.poll(agent_relay.cursor)
+
         for _ in range(2):
             driver.advance_one()
-        assert project_id
 
         # Relay re-venue (relay-design.md §12 item 2): INTRODUCE_ROLES driven by hand (the same
         # manually-replicated-cycle pattern the INTRODUCE_ASSUMPTIONS demonstration below already
         # uses) so this test can relay its own `recorded` object as a playback turn and prove the
-        # chat pane renders it as an actual table. **Judgement call, live-confirmed**: CREATE's own
+        # history drawer renders it as an actual table. **Judgement call, live-confirmed**: CREATE's own
         # `recorded` is flat `{name, problem}` scalars (keel-cloud's `FounderVoice.recorded`) and
         # can never render a `<table>` -- INTRODUCE_ROLES's `{"roles": [...]}` shape is the one
         # commit in this opening sequence keel-web's `RolesRecordedTable` actually renders as one,
@@ -288,16 +367,18 @@ def test_s001_smoke(stack, run_dir, browser, founder_credentials):
             payload = scenario.build_payload("INTRODUCE_ROLES", issuance.get("detail") or {}, context)
             roles_result = driver.submit_with_recovery(token, payload, "INTRODUCE_ROLES", "INTRODUCE_ROLES")
 
-        founder_relay, agent_relay = open_relay(driver, project_id)
         relay_round_trip(founder_relay, agent_relay, "Who could actually answer these questions?",
                           BridgeReply.playback(roles_result.get("display") or "Your roles are saved.",
                                                roles_result.get("recorded")))
-        chat = ChatPane(founder_page, recorder, presence_reader=founder_relay.presence)
-        with recorder.step("the INTRODUCE_ROLES playback renders as a table in the chat pane",
+        history = HistoryDrawer(founder_page, recorder, presence_reader=founder_relay.presence)
+        with recorder.step("the INTRODUCE_ROLES playback renders as a table in the history drawer",
                             party="founder", kind="assert") as h:
             founder.open_overview(project_id)
-            chat.wait_for_turn_count(4)  # CREATE's own founder+playback turns, then this round's
-            rows = chat.read()["playback_rows"]
+            # CREATE's own founder+playback turns (2), the guided-walk step's own founder line
+            # above (1 -- tagged `step=SOLUTION`, but the drawer shows every turn regardless of its
+            # step tag), then this round's founder+playback turns (2) = 5.
+            history.wait_for_turn_count(5)
+            rows = history.read()["playback_rows"]
             h.record_assert("a rendered <table> with at least a header + one role row", rows)
             if len(rows) < 2:
                 h.fail(f"expected the roles playback to render as a table, got rows={rows}")
@@ -342,15 +423,17 @@ def test_s001_smoke(stack, run_dir, browser, founder_credentials):
         founder.follow_display_url(door_url, project_id)
 
         # Relay re-venue (relay-design.md §12 item 2): one clarification exchange round-trips
-        # visibly through the chat pane -- the founder-reply pattern's other half, distinct from
-        # a playback (a plain back-and-forth, no `recorded` payload).
+        # visibly through the history drawer -- the founder-reply pattern's other half, distinct
+        # from a playback (a plain back-and-forth, no `recorded` payload). `HistoryDrawer` is
+        # mounted by `ProjectShell` regardless of which route is open (we're on PROBLEM's own
+        # stage screen here, not the overview) -- same instance, no re-navigation needed.
         relay_round_trip(founder_relay, agent_relay,
                           "What happens once I approve this card?",
                           BridgeReply(text="Once you approve it, I'll move on to your solution card next."))
-        with recorder.step("the clarification exchange round-trips visibly in the chat pane",
+        with recorder.step("the clarification exchange round-trips visibly in the history drawer",
                             party="founder", kind="assert") as h:
-            chat.wait_for_turn_count(6)  # this exchange lands on top of the opening's own 4 turns
-            turns = chat.read()["turns"]
+            history.wait_for_turn_count(7)  # this exchange lands on top of the opening's own 5 turns
+            turns = history.read()["turns"]
             texts = [t["text"] for t in turns]
             h.record_assert("the founder's question then the agent's answer, in order", texts)
             q_idx = next((i for i, t in enumerate(texts) if "approve this card" in t), None)
@@ -359,12 +442,39 @@ def test_s001_smoke(stack, run_dir, browser, founder_credentials):
                 h.fail(f"expected the founder's question before the agent's answer, got {texts}")
                 raise AssertionError(h.error)
 
+        # Protocol-side half of the event-turn assertion (spec 017 FR-001, module docstring item
+        # 3): the plain relay read before this approval, so the delta after it is unambiguous.
+        turns_before_approval = founder_relay.read_turns()
+
         founder.approve_current_stage("PROBLEM")
+
+        PROBLEM_APPROVED_EVENT_TEXT = "You approved The problem — its questions are now fixed."
+        with recorder.step("the approval event turn renders as a green-tick line in the drawer",
+                            party="founder", kind="assert") as h:
+            history.wait_for_turn_count(8)  # the 7 above, plus this approval's own event turn
+            rows = history.read()["turns"]
+            event_rows = [t for t in rows if t["kind"] == "event"]
+            h.record_assert(PROBLEM_APPROVED_EVENT_TEXT, event_rows)
+            if not event_rows or PROBLEM_APPROVED_EVENT_TEXT not in event_rows[-1]["text"]:
+                h.fail(f"expected the approval's own green-tick event line, got {event_rows}")
+                raise AssertionError(h.error)
+
+        with recorder.step("the approval event turn arrives on the relay read, in order, "
+                            "after every turn posted before it", party="agent", kind="assert") as h:
+            turns_after_approval = founder_relay.read_turns()
+            new_turns = turns_after_approval[len(turns_before_approval):]
+            h.record_assert(PROBLEM_APPROVED_EVENT_TEXT, [t.text for t in new_turns])
+            if (not new_turns or new_turns[-1].kind != "event" or new_turns[-1].author != "system"
+                    or PROBLEM_APPROVED_EVENT_TEXT not in new_turns[-1].text):
+                h.fail(f"expected exactly the approval's own event turn, newest, after the prior "
+                       f"turns, got {[(t.author, t.kind, t.text) for t in new_turns]}")
+                raise AssertionError(h.error)
 
         # The invite gate's standing assertion (founder-experience design §6): closed while
         # SOLUTION/COMMERCIAL are still framed and unapproved. Policy v4's pointer-to-agent
-        # variant (design §4 item 4): SOLUTION hasn't been decomposed yet, so the overview's own
-        # next-step pointer hands off to the agent rather than offering a link.
+        # variant (design §4 item 4): SOLUTION hasn't been decomposed yet, so the founder sees the
+        # guided walk's own step for it now (module docstring item 1), not the classic
+        # `.next.agent` sentence -- `assert_pointer_to_agent` recognizes either.
         assert_invite_gate_closed(driver)
         assert_pointer_to_agent(founder, project_id)
 

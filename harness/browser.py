@@ -279,8 +279,18 @@ class FounderBrowser:
         return self._bstep.recorder.interaction("ui-visit", interaction_id)
 
     def open_overview(self, project_id: str) -> None:
+        """Founder-experience-3-design.md §3 (keel-web commit 96c83af, "the guided walk"): the
+        overview now renders ONE OF TWO shapes -- the classic three-card grid (`.card:not(.openc)`,
+        round 2, untouched once every stage clears `translate.ts#guidedWalkStep`'s own test), or
+        (new) the guided walk's single active step (`.guided-step`, `GuidedStep` below) while some
+        stage is still unframed or framed-but-undecomposed and no OTHER stage has real review work
+        waiting. Both are a legitimate render of "the overview actually loaded" -- the fingerprint
+        accepts either, exactly the same "more than one legitimate render" precedent `open_brief`
+        already sets for its own not-yet/ready split.
+        """
         self._goto_screen(project_id, "overview", None,
-                           lambda p: p.locator(".card:not(.openc)").count() >= 1,
+                           lambda p: p.locator(".card:not(.openc)").count() >= 1
+                           or p.locator(".guided-step").count() >= 1,
                            "founder opens the project overview")
 
     def open_stage(self, project_id: str, stage: str) -> None:
@@ -440,6 +450,122 @@ class FounderBrowser:
                            or p.locator(".card.openc .hint").count() >= 1,
                            "founder opens the brief")
 
+    def continue_current_interaction(self):
+        """Public alias for `_continue_current_interaction` -- `GuidedStep` below folds its own
+        actions into whichever `ui-visit` the founder's last screen visit opened, the same
+        "look at the screen, act on it is one interaction" precedent `approve_current_stage`/
+        `send_invite` already set for this class's own methods."""
+        return self._continue_current_interaction()
+
+
+class GuidedStep:
+    """The guided walk's single active step (founder-experience-3-design.md §3; keel-web commit
+    96c83af): `OverviewRoute` renders this INSTEAD OF the classic three-card grid + next-step
+    pointer whenever some stage is still unframed or framed-but-undecomposed and no OTHER stage has
+    real review work waiting (`translate.ts#guidedWalkStep`'s own guard, live-confirmed against
+    `evals/test_s001_smoke.py`'s own choreography: CREATE frames PROBLEM as a side effect, so the
+    walk is already showing PROBLEM's own landed claim before this harness ever issues `FRAME` for
+    SOLUTION or COMMERCIAL).
+
+    Two phases (`step.phase`, mirrored here as `is_landed()`): `"ask"` -- a question, and either a
+    first-answer composer (`ask`, no exchange yet) or the step-scoped overlay (`reply`, once one
+    exists) -- and `"landed"` -- the claim rendered in place (`landed_claim`), with Continue/Reopen
+    buttons. `continue_()` is purely a client-side acknowledgement (there is no wire action for "I'm
+    done looking at this for now"); it never posts anything.
+
+    **Judgement call, live-confirmed**: only a FOUNDER turn can ever carry a `step` tag (spec 017
+    FR-003, `RelayService#postFounderTurn`) -- `POST /v2/agent/relay` always stores `step=null`
+    (`RelayService#appendAgentTurn`'s own draft call), so an agent's reply, however it answers a
+    step's own question, never shows up inside THIS overlay's own `turnsForStep` filter -- only in
+    `HistoryDrawer`'s unfiltered transcript. Recorded as a real product gap, not worked around here
+    (`runs/DRIFT.md`): this harness only ever asserts the FOUNDER's own line lands inside the step
+    exchange, never an agent reply.
+
+    Rides `FounderBrowser`'s already-open `ui-visit` interaction (`continue_current_interaction`) --
+    "the overview is showing this step, and the founder acts on it" is one reviewable interaction,
+    not a second kind of visit.
+    """
+
+    def __init__(self, founder: "FounderBrowser"):
+        self.page = founder.page
+        self._founder = founder
+        self._bstep = founder._bstep
+
+    def is_visible(self) -> bool:
+        return self.page.locator(".guided-step").count() > 0
+
+    def is_landed(self) -> bool:
+        return self.page.locator(".guided-step .landed").count() > 0
+
+    def kicker(self) -> str:
+        return _safe_text(lambda: self.page.locator(".guided-step__kicker").first.inner_text())
+
+    def question(self) -> str:
+        return _safe_text(lambda: self.page.locator(".guided-step__question").first.inner_text())
+
+    def landed_claim(self) -> str:
+        """The claim rendered in place once the step has landed (`.landed__claim`) -- empty string
+        while the step is still in its `"ask"` phase (nothing has landed yet)."""
+        return _safe_text(lambda: self.page.locator(".landed__claim").first.inner_text())
+
+    def ask(self, text: str) -> None:
+        """Types into the first-answer composer (no exchange exists yet for this step) and submits
+        -- the real product path (`GuidedStep.tsx`'s own `postTurn.mutate({text, step: step.stage})`)
+        tags the resulting relay turn with this step's own stage, never something this harness sets
+        itself."""
+        with self._founder.continue_current_interaction():
+            with self._bstep.step(f"founder answers the guided step: {text[:60]!r}") as h:
+                box = self.page.locator(".guided-step__first-answer textarea")
+                box.fill(text)
+                h.add_screenshot(self._bstep.screenshot("guided-step-first-answer-filled"))
+                self.page.get_by_role("button", name=re.compile("send to your agent", re.I)).click()
+                h.capture_text("guided_step_sent", text)
+
+    def reply(self, text: str) -> None:
+        """Types into the overlay's own reply composer -- only rendered once a step-scoped exchange
+        already exists (`ask` was called, or the step already carries turns from an earlier visit)."""
+        with self._founder.continue_current_interaction():
+            with self._bstep.step(f"founder replies inside the guided step: {text[:60]!r}") as h:
+                box = self.page.locator(".overlay.ov .reply textarea")
+                box.fill(text)
+                h.add_screenshot(self._bstep.screenshot("guided-step-reply-filled"))
+                self.page.get_by_role("button", name=re.compile(r"^send$", re.I)).click()
+                h.capture_text("guided_step_sent", text)
+
+    def wait_for_step_turns(self, n: int, *, timeout_ms: int = 15_000) -> None:
+        """Polls until at least `n` turns render inside the step's own overlay -- the composer's
+        `postTurn` mutation and the read-back refetch are both async, so a caller reading
+        `step_turns()` right after `ask`/`reply` needs this rather than a fixed sleep."""
+        self.page.wait_for_function(
+            "(n) => document.querySelectorAll('.overlay.ov .turn').length >= n", arg=n, timeout=timeout_ms)
+
+    def step_turns(self) -> list[dict]:
+        """`{author, text}` per rendered turn inside the step's own overlay, DOM order -- `author`
+        read off the alternating alignment class (`turn you` / `turn agent`), since the overlay
+        carries no machine-readable author attribute of its own."""
+        rows = self.page.locator(".overlay.ov .turn")
+        out: list[dict] = []
+        for i in range(rows.count()):
+            row = rows.nth(i)
+            classes = (row.get_attribute("class") or "").split()
+            text = _safe_text(lambda r=row: r.inner_text())
+            out.append({"author": "founder" if "you" in classes else "agent", "text": text})
+        return out
+
+    def continue_(self) -> None:
+        """The landed phase's own "Continue" button -- purely client-side (there is no wire action
+        for "I'm done looking at this for now"); advances the walk to the next stage still needing
+        attention, or hands the overview back to the classic cards once none remain. Waits for the
+        landed claim itself to detach (the same "don't just click and hope" discipline
+        `approve_current_stage` already applies to its own button) before returning, so a caller
+        reading the next step's own kicker/question right after this call never races the
+        re-render."""
+        with self._founder.continue_current_interaction():
+            with self._bstep.step("founder continues past the landed claim") as h:
+                self.page.get_by_role("button", name=re.compile(r"^continue$", re.I)).click()
+                self.page.locator(".guided-step .landed").wait_for(state="detached", timeout=10_000)
+                h.add_screenshot(self._bstep.screenshot("guided-step-continued"))
+
 
 class ChatPane:
     """The relay's chat pane page object (design §12 item 1; keel-web commit 07745c2): turns,
@@ -452,6 +578,14 @@ class ChatPane:
     Reads its own `chat-visit` interaction scope (design §12 item 5's own home for the chat-
     surface sweeps: `harness/rubric.py`'s `CLA-C1`/`ORI-C1`/`GUI-C1`) -- distinct from `ui-visit`,
     since the pane's own state is orthogonal to whichever screen happens to be open beside it.
+
+    **STALE as of keel-web commit 96c83af (the guided walk)**: the right rail this class reads
+    (`.chat-rail`) is gone from every founder route -- `ProjectShell` mounts `HistoryDrawer` (below)
+    along the bottom instead. Left in place, unmodified, only because `evals/test_s011_relay.py`
+    and `evals/test_shaping_gauntlet.py` still import and drive it (out of this round's scope --
+    S-001 + the shared recipes/page objects it needs, only; see `runs/DRIFT.md`); those two will
+    need the same `HistoryDrawer` treatment `test_s001_smoke.py` got here before they can pass
+    against a live stack again.
     """
 
     AUTHOR_KICKERS = {"YOU": "founder", "YOUR KEEL AGENT": "agent"}
@@ -620,6 +754,178 @@ class ChatPane:
             with self._bstep.step("founder reads the chat pane") as h:
                 self.capture(h)
                 h.add_screenshot(self._bstep.screenshot("chat-pane"))
+        return {"turns": self.turns(), "playback_rows": self.playback_table_rows(),
+                "presence_banner": self.presence_banner_text()}
+
+
+class HistoryDrawer:
+    """The relay's history, collapsed along the bottom of the founder shell (founder-experience-
+    3-design.md §3; keel-web commit 96c83af: "the rail does not die; it demotes"). `ProjectShell`
+    mounts this ONE drawer regardless of which founder route is on screen (overview -- classic
+    cards or the guided walk's own step -- a stage, brief, or people), exactly the same
+    "never unmounts on navigation" precedent `ChatPane` set for the right rail it replaces; this
+    class never navigates anywhere itself either.
+
+    Shows EVERY turn, never step-filtered (`GuidedStep`'s own overlay is the step-scoped view;
+    this is the plain, complete transcript) -- including the server-authored `event` turns spec 017
+    FR-001 introduced (`kind: "event"`, `author: "system"`), rendered as green-tick lines
+    (`.chat-turn--event`) recording something the founder just did through the founder API (an
+    approval, an invitation created) rather than said.
+
+    Reads its own `chat-visit` interaction scope, unchanged in NAME from `ChatPane`'s own (policy
+    v5's `CLA-C1`/`ORI-C1`/`GUI-C1` sweep the same `chat_turns`/`chat_playback_table`/
+    `chat_presence_banner`/`chat_turn_links` capture keys by string, regardless of which page
+    object wrote them -- renaming the class changes nothing about how a run scores).
+    """
+
+    def __init__(self, page: Page, recorder: Recorder, *, presence_reader: Callable[[], dict] | None = None):
+        self.page = page
+        self._bstep = _BrowserStep(recorder, page, party="founder")
+        self._presence_reader = presence_reader
+
+    def expand(self) -> None:
+        """The drawer's panel only renders while `expanded` (its own bottom bar's toggle button is
+        always visible either way) -- a no-op if the panel is already showing."""
+        if self.page.locator(".history-drawer__panel").count() == 0:
+            self.page.locator(".history-drawer__toggle").first.click()
+            self.page.wait_for_timeout(100)
+
+    def turns(self) -> list[dict]:
+        """`{kicker, author, kind, text, playback}` per rendered `.history-drawer__turns .chat-turn`
+        row, DOM (chronological) order. An event row (`.chat-turn--event`) reports
+        `author="system"`, `kind="event"`, `kicker=""` -- the green-tick line spec 017 FR-001
+        introduced; a founder/agent row's `author` is read off the visible marker (the `YOU` kicker
+        vs. the Keel mark, which carries no text kicker of its own)."""
+        rows = self.page.locator(".history-drawer__turns .chat-turn")
+        out: list[dict] = []
+        for i in range(rows.count()):
+            row = rows.nth(i)
+            classes = (row.get_attribute("class") or "").split()
+            if "chat-turn--event" in classes:
+                text = _safe_text(lambda r=row: r.locator(
+                    "span:not(.chat-turn--event__tick):not(.chat-turn__time)").first.inner_text())
+                out.append({"kicker": "", "author": "system", "kind": "event", "text": text, "playback": False})
+                continue
+            kicker_el = row.locator(".chat-turn__kicker")
+            is_founder = kicker_el.count() > 0
+            kicker = _safe_text(lambda e=kicker_el: e.first.inner_text()) if is_founder else ""
+            is_playback = row.locator(".chat-playback").count() > 0
+            if is_playback:
+                text = _safe_text(lambda r=row: r.locator(".chat-playback").first.inner_text())
+            else:
+                text = _safe_text(lambda r=row: r.locator(".chat-turn__text").first.inner_text())
+            out.append({"kicker": kicker, "author": "founder" if is_founder else "agent",
+                        "kind": "playback" if is_playback else "message", "text": text,
+                        "playback": is_playback})
+        return out
+
+    def playback_table_rows(self) -> list[list[str]]:
+        """Same `table.invites`-inside-`.chat-playback` shape `ChatPane` reads (`RolesRecordedTable`
+        is unchanged by the guided walk) -- scoped to the drawer's own turn list."""
+        table = self.page.locator(".history-drawer__turns .chat-playback table.invites").first
+        if table.count() == 0:
+            return []
+        rows = table.locator("tr")
+        out: list[list[str]] = []
+        for i in range(rows.count()):
+            cells = rows.nth(i).locator("th, td")
+            out.append([cells.nth(j).inner_text().strip() for j in range(cells.count())])
+        return out
+
+    def wait_for_presence(self, *, connected: bool, timeout_ms: int = 20_000) -> None:
+        """Identical debounce discipline to `ChatPane.wait_for_presence` (same live-confirmed bug
+        this mirrors: a `.count()` guard before ever calling `.inner_text()`, and two consecutive
+        matching reads before declaring the banner stable) -- see that method's own docstring."""
+        self.expand()
+        deadline = time.monotonic() + timeout_ms / 1000
+        stable_hits = 0
+        while time.monotonic() < deadline:
+            shown = bool(self.presence_banner_text())
+            matches = (not shown) if connected else shown
+            stable_hits = stable_hits + 1 if matches else 0
+            if stable_hits >= 2:
+                return
+            self.page.wait_for_timeout(500)
+        raise TimeoutError(
+            f"the drawer's presence banner never stabilized to connected={connected} "
+            f"within {timeout_ms}ms")
+
+    def presence_banner_text(self) -> str:
+        banner = self.page.locator(".chat-presence")
+        return _safe_text(lambda: banner.first.inner_text()) if banner.count() else ""
+
+    def thinking_visible(self) -> bool:
+        return self.page.locator(".chat-thinking").count() > 0
+
+    def agent_turn_links(self) -> list[str]:
+        links = self.page.locator(".history-drawer__turns .chat-turn__text a")
+        return [links.nth(i).get_attribute("href") or "" for i in range(links.count())]
+
+    def click_agent_turn_link(self, href: str, project_id: str) -> None:
+        """The live click-through no static sweep can stand in for -- see
+        `FounderBrowser.follow_display_url`'s own precedent."""
+        interaction_id = self._bstep.recorder.new_interaction_id()
+        with self._bstep.recorder.interaction("ui-visit", interaction_id):
+            with self._bstep.step(f"founder follows a door a history turn carried: {href}") as h:
+                self.page.goto(href, wait_until="load")
+                self.page.wait_for_timeout(150)
+                rendered = self.page.locator(".shell").count() >= 1
+                h.add_screenshot(self._bstep.screenshot("history-turn-door-opened"))
+                h.capture_text("screen", "chat-turn-door")
+                if not rendered:
+                    h.fail(f"the URL a history turn carried did not render the founder shell: {href}")
+                    raise AssertionError(h.error)
+
+    def send(self, text: str) -> None:
+        """Types into the drawer's own general composer and clicks Send -- untagged (no `step`),
+        exactly like a pre-006 relay turn (`HistoryDrawer.tsx`'s own `postTurn.mutate({text})`)."""
+        with self._bstep.step(f"founder types into the drawer's composer: {text[:60]!r}") as h:
+            self.expand()
+            box = self.page.locator(".chat-composer__input")
+            box.fill(text)
+            h.add_screenshot(self._bstep.screenshot("drawer-composer-filled"))
+            self.page.get_by_role("button", name=re.compile(r"^send$", re.I)).click()
+            h.capture_text("chat_sent", text)
+
+    def wait_for_turn_count(self, n: int, *, timeout_ms: int = 15_000) -> None:
+        """Polls until at least `n` `.history-drawer__turns .chat-turn` elements have rendered --
+        mirrors `ChatPane.wait_for_turn_count`'s own async-mutation rationale."""
+        self.expand()
+        self.page.wait_for_function(
+            "(n) => document.querySelectorAll('.history-drawer__turns .chat-turn').length >= n",
+            arg=n, timeout=timeout_ms)
+
+    def capture(self, h: StepHandle) -> None:
+        """Folds the drawer's current rendered state into the caller's own step -- same capture
+        keys as `ChatPane.capture` (policy v5's own hop ids); an event row's kicker is empty, so it
+        reads as `SYSTEM: <text>` in `chat_turns`."""
+        self.expand()
+        turns = self.turns()
+        h.capture_text("chat_turns", "\n".join(
+            f"{t['kicker'] or t['author'].upper()}: {t['text']}" for t in turns if t["text"]))
+        table_rows = self.playback_table_rows()
+        if table_rows:
+            h.capture_text("chat_playback_table", "\n".join(" | ".join(r) for r in table_rows))
+        h.capture_text("chat_presence_banner", self.presence_banner_text())
+        if self._presence_reader is not None:
+            try:
+                presence = self._presence_reader()
+                h.capture_text("chat_presence_state", json.dumps(presence))
+            except Exception:  # noqa: BLE001 - capture is advisory, never load-bearing
+                pass
+        links = self.agent_turn_links()
+        if links:
+            h.capture_text("chat_turn_links", "\n".join(links))
+
+    def read(self) -> dict:
+        """Opens (or continues) a `chat-visit` interaction, captures the drawer's rendered state
+        for policy v5's sweeps, and returns `{turns, playback_rows, presence_banner}` -- same shape
+        as `ChatPane.read`."""
+        interaction_id = self._bstep.recorder.new_interaction_id()
+        with self._bstep.recorder.interaction("chat-visit", interaction_id):
+            with self._bstep.step("founder reads the history drawer") as h:
+                self.capture(h)
+                h.add_screenshot(self._bstep.screenshot("history-drawer"))
         return {"turns": self.turns(), "playback_rows": self.playback_table_rows(),
                 "presence_banner": self.presence_banner_text()}
 

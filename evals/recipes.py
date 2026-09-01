@@ -389,9 +389,23 @@ def relay_round_trip(founder_relay: FounderRelay, agent_relay: AgentRelay, found
     relay), the same discipline `evals.scenario.Scenario.build_payload` already lives by for the
     protocol side. One `step()` is enough: both turns already exist in the store by the time the
     single mechanical poll runs, so there is nothing to actually wait on.
+
+    **Bug found and fixed live (2026-08-31, S-001's own guided-walk re-choreography)**: this used
+    to construct a brand-new `BridgeLoop(agent_relay, ...)` on every call -- `BridgeLoop.__init__`
+    starts its OWN `cursor` at 0, ignoring `agent_relay`'s own already-advanced one, so a second (or
+    third) call in the same scenario re-polled from the very beginning of the conversation, found
+    EVERY prior founder turn "unanswered" again (including ones an earlier round trip already
+    replied to), and posted the same canned `reply` once per stale turn -- silent duplicate agent
+    turns a caller's own loose assertions (`len(rows) >= 2`, an index-order check) never happened to
+    notice, until a stricter one did. Seeding the loop's cursor from `agent_relay.cursor` (updated
+    as a side effect of every real poll, `harness.relay.AgentRelay.poll`) makes each call see only
+    the turn(s) actually new since the last one -- the invariant this function's own one-turn-in,
+    one-reply-out contract already assumed.
     """
     founder_relay.post_turn(founder_text)
-    BridgeLoop(agent_relay, reasoning=lambda _text: reply).step()
+    loop = BridgeLoop(agent_relay, reasoning=lambda _text: reply)
+    loop.cursor = agent_relay.cursor
+    loop.step()
 
 
 def arrive_and_create(driver: FounderAgentDriver, founder: FounderBrowser, scenario: Scenario) -> str:
@@ -461,21 +475,48 @@ def arrive_and_create(driver: FounderAgentDriver, founder: FounderBrowser, scena
 
 def assert_pointer_to_agent(founder: FounderBrowser, project_id: str) -> None:
     """Policy v4 / founder-experience design §4 item 4: once a stage is approved and the workflow's
-    next need is agent-side (framing or decomposing the next stage), the overview's own next-step
-    pointer hands off to the founder's own agent -- "Now work out your <stage> with your Keel
-    agent." -- a sentence, never a link. `FounderBrowser._capture_common` already asserts, live,
-    that no `<a>` renders inside `.next.agent`; this re-opens the overview and confirms the visible
-    text itself actually is the pointer-to-agent variant (not just "no link happened to render"),
-    so a caller gets a clear failure if the product ever stops showing this pointer at all.
+    next need is agent-side (framing or decomposing the next stage), the founder is told the next
+    move is the agent's, never a link to click.
+
+    **Updated 2026-08-31 for the guided walk (founder-experience-3-design.md §3; keel-web commit
+    96c83af)**: exactly this moment -- some stage approved, the NEXT one still framed-but-
+    undecomposed or unframed, and nothing else with real review work pending -- is also precisely
+    `translate.ts#guidedWalkStep`'s own trigger, so the overview now shows the walk's own step
+    INSTEAD OF the classic `.next.agent` sentence (`OverviewRoute.tsx`: the guided walk and the
+    classic pointer never render at the same time). Both are the same underlying fact rendered two
+    different ways: confirmed live against this stack, `assert_pointer_to_agent` now branches on
+    which one is actually showing rather than assuming the classic sentence always is.
     """
     founder.open_overview(project_id)
     with founder._bstep.step("the next-step pointer names the agent, not a link") as h:
+        guided = founder.page.locator(".guided-step")
+        if guided.count() > 0:
+            # The guided walk's own step IS the pointer-to-agent variant for this moment: neither
+            # its "ask" nor "landed" phase renders a link anywhere (Continue/Reopen are buttons,
+            # never anchors) -- the same "a destination that is a sentence, not a link" guarantee
+            # `.next.agent`'s own live check makes, just over a different element.
+            text = _safe_text_or_empty(guided.first.inner_text)
+            h.record_assert("the guided walk's own step renders, no link inside it", text)
+            if guided.locator("a").count() > 0:
+                h.fail(f"expected the guided walk's step to carry no link, got an <a> inside it: {text!r}")
+                raise AssertionError(h.error)
+            if not text.strip():
+                h.fail("expected the guided walk's step to render some text")
+                raise AssertionError(h.error)
+            return
         pointer = founder.page.locator(".next.agent")
         text = pointer.first.inner_text() if pointer.count() else ""
         h.record_assert("mentions 'Keel agent', no anchor, no URL", text)
         if "keel agent" not in text.lower():
             h.fail(f"expected the pointer-to-agent sentence on the overview, got {text!r}")
             raise AssertionError(h.error)
+
+
+def _safe_text_or_empty(getter) -> str:
+    try:
+        return getter()
+    except Exception:  # noqa: BLE001 - capture is advisory, never load-bearing for the scenario
+        return ""
 
 
 def assert_participant_has_no_founder_auth(participant_context) -> None:

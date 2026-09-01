@@ -715,3 +715,37 @@ profile and tore down the containers but not the named volume — so the founder
 setup was refused by a squatter. Fixed operationally (volume wiped); rule for the harness: any
 test touching the playground profile must remove its volume on teardown, or better, never
 provision on the playground profile at all — verify isolation by ports/containers alone.
+
+## 13. Non-blocking: the guided walk's own step-scoped exchange can never show an agent's reply
+
+**Found by**: S-001's guided-walk re-choreography (run `runs/20260831T234713Z-s001-smoke/`),
+reading keel-cloud d408dbf and keel-web 96c83af together.
+
+**Where**: `keel-cloud` `src/main/java/com/keeldiscovery/cloud/application/RelayService.java`,
+`appendAgentTurn` (the private helper `postAgentTurns` calls) -- every agent-posted turn is stored
+with `step` hardcoded to `null`:
+```java
+RelayTurn stored = repository.append(
+        RelayTurn.draft(id, Author.AGENT, input.kind(), input.text(), payloadJson, null, now()));
+```
+`step` (spec 017 FR-003) can only ever be set by `RelayService#postFounderTurn` -- the founder's
+own `POST /v2/projects/{id}/relay`. `POST /v2/agent/relay` (`AgentDtos.RelayTurnInput`) has no
+`step` field on its own request shape at all, so there is no way for an agent host to echo the tag
+even if it wanted to.
+
+**Consequence, live-confirmed**: `keel-web`'s `lib/relayTurns.ts#turnsForStep` filters BOTH
+founder and agent turns by exact `step` match, and `components/chat/GuidedStep.tsx`'s `StepTurn`
+renders a real "agent" branch (the Keel mark, `AgentText`/`PlaybackRender`) for whatever turn shows
+up inside that filtered list. Since an agent turn's `step` is always `null`, that branch can never
+actually render from any wire response the shipped protocol can produce -- the guided step's own
+overlay only ever shows the founder's half of a conversation, never the agent's reply to it, no
+matter how the agent behaves. A founder who types a question into a guided step and gets an answer
+from their agent will see that answer only in the general history drawer below, not under the
+question it answers.
+
+**Not applied, but the shape of a fix**: give `POST /v2/agent/relay`'s turn input an optional
+`step`, mirroring the founder endpoint, and have `RelayService#appendAgentTurn` carry it through
+instead of hardcoding `null`; a real host would then echo whichever step the founder turn it is
+answering carried. This scenario does not assert around the gap: it only ever checks that the
+founder's own line lands inside the step's own exchange (`evals/test_s001_smoke.py`), never that
+an agent reply does.
