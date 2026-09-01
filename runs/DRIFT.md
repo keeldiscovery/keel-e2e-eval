@@ -749,3 +749,7 @@ instead of hardcoding `null`; a real host would then echo whichever step the fou
 answering carried. This scenario does not assert around the gap: it only ever checks that the
 founder's own line lands inside the step's own exchange (`evals/test_s001_smoke.py`), never that
 an agent reply does.
+
+**#13 RESOLVED 2026-08-31**: keel-cloud 35df2d8 — RelayTurnInput gains step, service passthrough,
+served bridge echoes the founder's marker onto replies (version 2). The step overlay's agent
+branch can now fire from real wire responses.
