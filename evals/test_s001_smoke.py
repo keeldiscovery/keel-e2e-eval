@@ -1,572 +1,313 @@
-"""S-001, the smoke (T013): every party, every handoff reason, every founder/participant screen,
-the URL contract, in one discovery.
+"""S-001, the smoke (spec 005-connect-stack T013): one founder's whole discovery, deterministic,
+against the real four applications, with keel-runtime's scripted executor answering from its
+bundled payroll-exceptions script (`evals/payroll_exceptions.py` mirrors it -- names, statements,
+the participants' typed answers).
 
-**The real choreography, not the plan's** (see harness/driver.py's module docstring for the full
-derivation from `NextRecommendation.compute`): CREATE frames PROBLEM as a side effect, so the
-opening pass only ever issues FRAME for SOLUTION and COMMERCIAL; then roles are introduced once,
-project-wide, at PROBLEM's first REVIEW cycle; and each stage runs its own
-assumptions -> REVIEW -> approve cycle in turn.
+Journey coverage (CANON.md's ledger, `canon/journeys.md` §3, 2026-09-03): this is the one module
+proving §1.0 (arrival: setup/login, connect by device code, gated landing), §1.1 (the idea becomes
+three bets), §1.2 (review before spend), §1.4 (approve every framed card, then invite), §1.5
+(waiting -- the UI counts, never interprets), §1.6 (reading what came back), §1.7 (where it
+stands), §1.10 (the brief as a derived standing), §2.1 (the stranger's four honest lines, consent
+by starting), §2.2 (answering; every question skippable), §2.3 (thanks, no promises the product
+can't keep). §1.3, §1.8, §1.9, §2.4 are WAIVED in CANON.md §5 -- deferred by the founder, or not on
+this smoke's path.
 
-**Rewritten 2026-08-30 for the invite gate (founder-experience design §6; keel-cloud commits
-8b13d04/ff1ed48): approve all three, then invite -- once, combined.** `Project.needs` no longer
-offers `INVITE` for any stage until every framed stage is approved, so this scenario now finishes
-approving PROBLEM, SOLUTION and COMMERCIAL *before* the People screen is ever visited (the standing
-assertion, `evals.recipes.assert_invite_gate_closed`, pins that no `INVITE` need and no invitable
-role surface in between). And since this scenario uses one role (`ROLE_LABEL`) across all three
-stages, `Project.invite`/`linkFor` freezes every open belief for that role into the *first*
-invitation sent to it -- so, once the gate opens, one combined invitation carries problem, solution
-and commercial together (design §5's own mockup: "A PAYROLL MANAGER... can settle 4 beliefs across
-2 cards"), one respondent answers all three in one sitting, and one `INTERPRET` settles all three
-beliefs in one commit. `harness.driver.FounderAgentDriver.advance_until_handoff` chains straight
-through every agent-only action in between, so from this test's vantage point the whole discovery
-is: three REVIEW/approve cycles, one INVITE/invite/WAITING/answer cycle, done.
-
-This module is also where policy v3's "every door must open" rule (evals/policy.py's judgement
-call 4) gets its one live demonstration: `PROBLEM`'s own `INTRODUCE_ASSUMPTIONS` commit is driven
-by hand (not through `advance_until_handoff`) so the test can read that commit's own `display`
-sentence, pull the URL it carries out *verbatim*, and prove the browser actually renders it via
-`FounderBrowser.follow_display_url` -- never a URL this harness reconstructs itself.
-
-**Re-choreographed 2026-08-31 for the guided walk (founder-experience-3-design.md §3; keel-cloud
-commit d408dbf, keel-web commit 96c83af).** Narrow scope this round -- S-001 + the shared recipes/
-page objects it needs, only (see `runs/DRIFT.md` for what's deferred):
-
-1. **The overview shows one guided step, not the classic cards, whenever some stage is still
-   unframed or framed-but-undecomposed and no OTHER stage has real review work pending** -- exactly
-   the window this scenario's own choreography already passes through, three separate times: right
-   after CREATE (PROBLEM framed as a side effect, SOLUTION/COMMERCIAL still unframed), and again
-   briefly after PROBLEM and after SOLUTION are each approved (the next framed stage is always
-   still undecomposed at that instant). This test visits the FIRST window on purpose: PROBLEM's own
-   landed claim (`harness.browser.GuidedStep.landed_claim`), then continues past it (purely client-
-   side) to SOLUTION's own still-unframed "ask" phase, types a founder line into its first-answer
-   composer, and confirms that line lands inside the step's own step-scoped exchange -- the real
-   product path (`GuidedStep.tsx`'s `postTurn.mutate({text, step: step.stage})`), never a raw API
-   call this harness fakes. `evals.recipes.assert_pointer_to_agent` was updated to recognize the
-   walk's own step as the OTHER two windows' rendering of "the next move is the agent's", since the
-   classic `.next.agent` sentence no longer renders while the walk is showing.
-2. **Every founder turn this scenario's own relay conversations already posted (CREATE's playback,
-   the roles playback, the clarification exchange) rides `harness.browser.HistoryDrawer` now, not
-   the retired right-rail `ChatPane`** (`ProjectShell` no longer reserves a column for it -- history
-   collapses to a bottom drawer instead, expand-to-read). None of those turns carry a `step` tag, so
-   they still show exactly where they always did: the drawer's own unfiltered transcript, never
-   inside a step's scoped overlay (only a FOUNDER turn can ever carry `step` -- spec 017 FR-003 --
-   so an agent's reply never lands inside a step overlay either; a real product gap, recorded in
-   `runs/DRIFT.md`, not asserted around here).
-3. **The event-turn assertion (spec 017 FR-001)**: approving PROBLEM appends a server-authored
-   `event` turn (`author: "system"`, `kind: "event"`) carrying `FounderVoice.stageApprovedEvent`'s
-   own sentence -- asserted both as the drawer's own green-tick line (browser) and as the newest
-   turn on a plain relay read, after every turn this scenario posted before it (protocol).
+No LLM anywhere (spec FR-013's own rule): every inference job is answered by keel-runtime's
+scripted executor, started only through keel-connect-skill's script (`harness/connect.py`) --
+never `python3 -m keel_runtime` called directly by this harness.
 """
-
-# Journey coverage (CANON.md ledger): this scenario proves journeys.md §1.0 (arrival opening
-# via recipes.arrive_and_create), §1.1 (idea to three bets), §1.2 (review before spend),
-# §1.4 (approve all framed cards then invite), §1.5 (waiting counts, never interprets), and
-# §1.6 (reading one invitation at a time).
 
 from __future__ import annotations
 
 import re
 import time
 
-from harness.bridge import BridgeReply
-from harness.browser import GuidedStep, HistoryDrawer, ParticipantBrowser
+from evals import payroll_exceptions as fixture
+from harness.browser import Auth, Brief, Chat, Connect, Landing, ParticipantBrowser, People, Shell, StageCard
+from harness.connect import start_runtime_via_skill
 from harness.evidence import finalize_run
 from harness.steps import Recorder
-from evals.recipes import (
-    arrive_and_create, assert_invite_gate_closed, assert_participant_has_no_founder_auth,
-    assert_pointer_to_agent, open_founder_session, open_relay, relay_round_trip,
-)
-from evals.scenario import Fact, Scenario, find_role
-
-ROLE_LABEL = "Payroll Ops Manager"
-STAGES = ["PROBLEM", "SOLUTION", "COMMERCIAL"]
-PROJECT_NAME = "Payroll Exception Radar"
-
-_URL_RE = re.compile(r"https?://\S+")
+from stack.auth import login_and_keel_session
 
 
-class S001Smoke(Scenario):
-    name = "S-001 smoke"
-    slug = "s001-smoke"
-
-    _frame_statements = {
-        "SOLUTION": "An automated tool that flags and routes payroll exceptions for a payroll "
-                    "manager to resolve, instead of them finding exceptions by hand.",
-        "COMMERCIAL": "Payroll Ops Managers can get budget approved to pay for a tool that cuts "
-                      "down exception-chasing time.",
-    }
-
-    _assumptions = {
-        "PROBLEM": {
-            "statement": "Payroll managers spend multiple hours every month manually chasing "
-                         "down payroll exceptions.",
-            "heading": "Manual exception chasing",
-            "ask": "Tell me about the last time you had to chase down a payroll exception by hand.",
-            "probes": ["About how long did that take?", "How often does something like that happen?"],
-            "disconfirming": "Has there been a month where you had no exceptions to chase down at all?",
-        },
-        "SOLUTION": {
-            "statement": "A tool that automatically flags and routes payroll exceptions would "
-                         "actually get used by payroll managers.",
-            "heading": "Automated flagging gets used",
-            "ask": "Tell me about the last tool or spreadsheet you tried to use to track payroll "
-                   "exceptions.",
-            "probes": ["What made you keep using it, or stop?"],
-            "disconfirming": "Have you tried something like this before and stopped using it?",
-        },
-        "COMMERCIAL": {
-            "statement": "Payroll Ops Managers can get budget approved for a tool that reduces "
-                         "exception-chasing time.",
-            "heading": "Budget approval is workable",
-            "ask": "Tell me about the last time you got budget approved for a payroll-related tool.",
-            "probes": ["Who had to sign off on it?", "How long did approval take?"],
-            "disconfirming": "Has a payroll tool purchase you wanted ever been turned down?",
-        },
-    }
-
-    _answers = {
-        "PROBLEM": "Yeah -- just last month I spent about three hours on a Friday afternoon "
-                   "manually tracking down four different payroll exceptions across two "
-                   "departments before I could run final payroll.",
-        "SOLUTION": "I tried a shared spreadsheet to log exceptions last quarter, but people "
-                    "kept forgetting to update it. Something that automatically flagged and "
-                    "routed them would definitely get used, since nothing catches this early "
-                    "right now.",
-        "COMMERCIAL": "Last year I got budget approved for a scheduling tool in about two weeks "
-                      "-- my director just needed a one-pager showing time saved, so getting "
-                      "sign-off for something like this wouldn't be hard.",
-    }
-
-    COMBINED_PERSON = "Jordan Casey"
-    COMBINED_ABOUT_LINE = ("A few quick questions about how payroll exception handling goes day to "
-                            "day, the tools you've tried, and how budget gets approved on your team.")
-
-    def project_name(self) -> str:
-        return PROJECT_NAME
-
-    def problem_statement(self) -> str:
-        return ("Payroll managers at mid-size companies lose hours every month manually chasing "
-                "down payroll exceptions.")
-
-    def frame_statement(self, stage: str) -> str:
-        return self._frame_statements[stage]
-
-    def roles_payload(self) -> list[dict]:
-        return [{
-            "label": ROLE_LABEL,
-            "roleType": "MANAGER",
-            "about": "How payroll exception handling works day to day on their team",
-        }]
-
-    def assumptions_payload(self, stage: str, roles: list[dict]) -> list[dict]:
-        role_id = find_role(roles, ROLE_LABEL)["id"]
-        spec = self._assumptions[stage]
-        return [{
-            "statement": spec["statement"],
-            "heading": spec["heading"],
-            "stage": stage,
-            "risk": "LOAD_BEARING",
-            "askedOf": role_id,
-            "question": {
-                "ask": spec["ask"],
-                "probes": spec["probes"],
-                "disconfirming": spec["disconfirming"],
-            },
-        }]
-
-    def interpret_payload(self, stage: str, response: dict) -> list[dict]:
-        per_answer = []
-        for answer in response["answers"]:
-            if not answer.get("text"):
-                continue
-            per_answer.append({
-                "assumptionId": answer["assumptionId"],
-                "evidence": [{
-                    "statement": answer["text"],
-                    "claimType": "PAST_BEHAVIOR",
-                    "stance": "SUPPORTS",
-                }],
-            })
-        return per_answer
-
-    def brief_payload(self, context) -> dict:
-        return {
-            "findings": [
-                "Payroll managers do spend multiple hours a month manually chasing payroll "
-                "exceptions (1 of 1 respondents).",
-                "A tool that automatically flags and routes exceptions would get used (1 of 1 "
-                "respondents).",
-                "Payroll Ops Managers can get budget approved for a tool like this (1 of 1 "
-                "respondents).",
-            ],
-            "openDecisions": [],
-            # goingAhead deliberately omitted: nothing is CONTRADICTED (instruction content for
-            # PROCEED_TO_BRIEF -- "if nothing is CONTRADICTED, do not write goingAhead at all").
-        }
-
-    def about_line(self, stage: str) -> str:
-        return self.COMBINED_ABOUT_LINE
-
-    def person_name(self, stage: str) -> str:
-        return self.COMBINED_PERSON
-
-    def participant_answer(self, stage: str) -> str:
-        return self._answers[stage]
-
-    # ---------------------------------------------------------------------------- fact registry
-
-    def facts(self) -> dict[str, Fact]:
-        """002-eval-scoring, US2 (T011); extended 2026-08-30 for the founder voice (policy v3):
-        every founder- or participant-entered text S-001 cares about tracing hop-by-hop, per design
-        §3's table plus the new `recorded` hop (a fact submitted appears in the server's own
-        played-back commit, verbatim). `role_label` is declared once (the same role is reused
-        across all three stages, and now the same invitation too); the rest are declared per stage.
-        The `assumption_*`/`heading_*` facts' `brief` hop is expected to be waived (policy's
-        `brief-findings-summarize`), not to pass verbatim -- `brief_payload` above writes
-        founder-authored summary sentences with respondent counts, not the raw statement.
-        `about_line`/`answer_*` are no longer per-stage: one combined invitation, one about-line,
-        one participant page.
-        """
-        facts: dict[str, Fact] = {
-            "project_name": Fact(
-                text=PROJECT_NAME, kind="statement",
-                hops=["recorded", "stage_screen"],
-                absent_hops=["agent_echo", "invite_screen", "participant_page", "interpret_context", "brief"],
-            ),
-            "problem_statement": Fact(
-                text=self.problem_statement(), kind="statement",
-                hops=["agent_echo", "stage_screen", "brief", "recorded"],
-                absent_hops=["invite_screen", "participant_page", "interpret_context"],
-            ),
-            "role_label": Fact(
-                text=ROLE_LABEL, kind="role",
-                hops=["agent_echo", "stage_screen", "invite_screen", "recorded"],
-                absent_hops=["participant_page", "interpret_context", "brief"],
-            ),
-            "combined_about_line": Fact(
-                text=self.COMBINED_ABOUT_LINE, kind="about_line",
-                hops=["invite_screen", "participant_page"],
-                absent_hops=["agent_echo", "stage_screen", "interpret_context", "brief", "recorded"],
-            ),
-        }
-        for stage in ("SOLUTION", "COMMERCIAL"):
-            facts[f"{stage.lower()}_frame"] = Fact(
-                text=self.frame_statement(stage), kind="statement",
-                hops=["agent_echo", "stage_screen", "brief", "recorded"],
-                absent_hops=["invite_screen", "participant_page", "interpret_context"],
-            )
-        for stage in STAGES:
-            lower = stage.lower()
-            facts[f"assumption_{lower}"] = Fact(
-                text=self._assumptions[stage]["statement"], kind="assumption",
-                hops=["agent_echo", "stage_screen", "interpret_context", "brief", "recorded"],
-                absent_hops=["invite_screen", "participant_page"],
-            )
-            facts[f"heading_{lower}"] = Fact(
-                text=self._assumptions[stage]["heading"], kind="assumption",
-                hops=["stage_screen", "recorded"],
-                absent_hops=["agent_echo", "invite_screen", "participant_page", "interpret_context", "brief"],
-            )
-            facts[f"answer_{lower}"] = Fact(
-                text=self.participant_answer(stage), kind="answer",
-                hops=["interpret_context", "stage_screen"],
-                absent_hops=["agent_echo", "invite_screen", "participant_page", "brief", "recorded"],
-            )
-            # translate.ts's betStatus: an approved, evidence-SUPPORTED stage reads "Holding up"
-            # -- S-001 answers supportively throughout, so every stage should land here.
-            facts[f"interpretation_{lower}"] = Fact(
-                text="Holding up", kind="interpretation",
-                hops=["stage_screen"],
-                absent_hops=["agent_echo", "invite_screen", "participant_page", "interpret_context", "brief", "recorded"],
-            )
-        return facts
+def _project_id_from_url(url: str) -> str:
+    match = re.search(r"/p/([0-9a-fA-F-]{8,})", url)
+    assert match, f"expected a project id in the URL, got {url!r}"
+    return match.group(1)
 
 
-def test_s001_smoke(stack, run_dir, browser, founder_credentials):
+def test_s001_smoke(stack, founder_credentials, browser, run_dir):
     recorder = Recorder(run_dir)
-    scenario = S001Smoke()
-    passed = False
     started = time.monotonic()
-    driver, founder, founder_context = open_founder_session(stack, founder_credentials, recorder,
-                                                              scenario, browser)
-    founder_page = founder.page
+    passed = False
+    failed_step: str | None = None
+    context = browser.new_context()
+    page = context.new_page()
+
     try:
-        driver.load_skill(stack.skill_md_path)
-        driver.check_mcp_reachable()
+        # ---------------------------------------------------------------------------- §1.0 Arrival
+        # Login -> the landing reads "No agent connected" and is gated (L2) -- the runtime-home
+        # gate leaves no heartbeat from a prior run (make up's own reset, spec edge cases), so
+        # this is genuinely the first time this stack has ever read as connected.
+        auth = Auth(page, f"http://localhost:{stack.web_port}", recorder)
+        auth.log_in(email=founder_credentials.email, password=founder_credentials.password)
 
-        # The shared opening step (task item 2): the arrival greeting, then CREATE (name
-        # required) with its own completed display proven live, then the project list growing by
-        # this fresh project. FRAME x2 follow -- agent-only, nothing renders yet.
-        project_id = arrive_and_create(driver, founder, scenario)
-        assert project_id
+        landing = Landing(page, f"http://localhost:{stack.web_port}", recorder)
+        landing.open()
+        assert "no agent connected" in landing.agent_line_text().lower(), (
+            f"§1.0: expected the landing to read 'No agent connected' before the runtime "
+            f"connects, got {landing.agent_line_text()!r}")
+        assert landing.is_gated(), "§1.0: expected the landing gated (L2) with no agent connected"
 
-        # The guided walk's own window (module docstring item 1): PROBLEM is already framed
-        # (CREATE's own side effect) but not yet decomposed, and SOLUTION/COMMERCIAL are still
-        # unframed -- the overview shows the walk's single active step here, not the classic cards.
-        founder.open_overview(project_id)
-        guided = GuidedStep(founder)
-        with recorder.step("the guided walk shows PROBLEM's own claim landed, not the classic cards",
+        # keel-runtime is started through keel-connect-skill's own script (spec edge cases: the
+        # harness never shells `python3 -m keel_runtime` itself) -- its one line of JSON hands
+        # back the device code the browser then opens and approves.
+        started_runtime = start_runtime_via_skill(stack, recorder)
+        assert started_runtime["outcome"] == "authorization_started", (
+            f"§1.0: expected a fresh authorization_started outcome, got {started_runtime}")
+        verification_uri = started_runtime["verification_uri"]
+
+        connect = Connect(page, recorder)
+        connect.open(verification_uri)
+        connect.approve()
+
+        landing.open()
+        assert "agent connected" in landing.agent_line_text().lower(), (
+            f"§1.0: expected the landing to read 'Agent connected' once the device is approved, "
+            f"got {landing.agent_line_text()!r}")
+
+        # US2 acceptance scenario 1: within 30s, /v2/me (via the founder session) reads
+        # agent.connected: true.
+        session, keel_session = login_and_keel_session(stack, founder_credentials)
+        deadline = time.monotonic() + 30
+        connected = bool(keel_session.bound_agent_session_id)
+        while not connected and time.monotonic() < deadline:
+            me = session.get(f"http://localhost:{stack.cloud_port}/v2/me", timeout=10).json()
+            connected = bool((me.get("agent") or {}).get("connected"))
+            if not connected:
+                time.sleep(1)
+        with recorder.step("wire: GET /v2/me reads agent.connected within 30s", party="stack", kind="assert") as h:
+            h.record_assert(True, connected)
+            assert connected, "US2 acceptance scenario 1: /v2/me never reported agent.connected"
+
+        # ------------------------------------------------------------------- §1.1 Naming the idea
+        landing.open()  # L1: the name field, now that an agent is connected
+        landing.name_project(fixture.PROJECT_NAME)
+        project_id = _project_id_from_url(page.url)
+
+        chat = Chat(page, recorder)
+        chat.send(fixture.PROBLEM_STATEMENT)
+        chat.wait_for_state(r"reading|thinking|connected", timeout_ms=60_000)
+
+        # The scripted PROBLEM_FRAME entry is NEEDS_INPUT first (keel-runtime spec 001 FR-003) --
+        # the agent's one follow-up question, answered, before the statement lands verbatim.
+        chat.wait_for_state(re.escape(fixture.PROBLEM_FOLLOWUP_QUESTION[:20]), timeout_ms=60_000)
+        chat.send(fixture.PROBLEM_FOLLOWUP_ANSWER)
+
+        chat.wait_for_understood(timeout_ms=60_000)
+        understood = chat.understood_claim()
+        with recorder.step("assert: C5 shows the script's statement verbatim (§1.1)", party="founder", kind="assert") as h:
+            h.record_assert(fixture.PROBLEM_STATEMENT, understood)
+            assert fixture.PROBLEM_STATEMENT in understood, (
+                f"§1.1: expected C5's understood claim to be the script's statement verbatim, "
+                f"got {understood!r}")
+        chat.save_this()
+
+        # US2 acceptance scenario 3: PROBLEM is still unframed on the wire until approval.
+        overview_before_approve = session.get(
+            f"http://localhost:{stack.cloud_port}/v2/projects/{project_id}/overview", timeout=10).json()
+        problem_stage = next(s for s in overview_before_approve.get("stages", []) if s.get("stage") == "PROBLEM")
+        with recorder.step("wire: PROBLEM is unframed before approval (§1.2, US2 scenario 3)",
+                            party="stack", kind="assert") as h:
+            h.record_assert("unframed-or-draft", problem_stage.get("framed"))
+            assert not problem_stage.get("approved"), (
+                "US2 acceptance scenario 3: PROBLEM already reads approved before any approval")
+
+        # ------------------------------------------------------------------------- §1.2 The review
+        stage_card = StageCard(page, recorder)
+        stage_card.open("PROBLEM")
+        assert "review" in stage_card.status_text().lower(), (
+            f"§1.2: expected the problem card to read 'Reviewing', got {stage_card.status_text()!r}")
+        stage_card.approve()
+
+        overview_after_approve = session.get(
+            f"http://localhost:{stack.cloud_port}/v2/projects/{project_id}/overview", timeout=10).json()
+        problem_stage_after = next(s for s in overview_after_approve.get("stages", []) if s.get("stage") == "PROBLEM")
+        with recorder.step("wire: PROBLEM reads framed+approved after approval (§1.2, US2 scenario 3)",
+                            party="stack", kind="assert") as h:
+            h.record_assert(True, problem_stage_after.get("approved"))
+            assert problem_stage_after.get("approved"), (
+                "US2 acceptance scenario 3: PROBLEM does not read approved after approval")
+        stage_card.continue_to_next_step()
+
+        # -------------------------------------------------------------- §1.1/§1.2 again: solution
+        chat.send(fixture.SOLUTION_STATEMENT)
+        chat.wait_for_understood(timeout_ms=60_000)
+        solution_understood = chat.understood_claim()
+        assert fixture.SOLUTION_STATEMENT in solution_understood, (
+            f"§1.1: expected the solution's C5 to show the script's statement verbatim, "
+            f"got {solution_understood!r}")
+
+        # Mid-draft: click "The problem" in the nav -> S2 (approved card, "draft kept" note).
+        shell = Shell(page)
+        shell.open_stage_nav("The problem")
+        draft_note = chat.draft_kept_note()
+        with recorder.step("assert: S2 shows the draft-kept note for the in-progress step", party="founder", kind="assert") as h:
+            h.record_assert(True, bool(draft_note))
+            assert draft_note, "expected S2's draft-kept note while the solution step is mid-draft"
+        chat.back_to_step()
+
+        chat.save_this()
+        stage_card.open("SOLUTION")
+        stage_card.approve()
+        stage_card.continue_to_next_step()
+
+        # ------------------------------------------------------------ §1.1/§1.2 again: commercial
+        chat.send(fixture.COMMERCIAL_STATEMENT)
+        chat.wait_for_understood(timeout_ms=60_000)
+        commercial_understood = chat.understood_claim()
+        assert fixture.COMMERCIAL_STATEMENT in commercial_understood, (
+            f"§1.1: expected the commercial's C5 to show the script's statement verbatim, "
+            f"got {commercial_understood!r}")
+        chat.save_this()
+        stage_card.open("COMMERCIAL")
+        stage_card.approve()
+
+        # S4's three-part note: last card approved, People unlocks.
+        stage_card.go_to_people()
+
+        # -------------------------------------------------------------------------- §1.4 Inviting
+        people = People(page, recorder)
+        people.open()
+
+        invite_urls: dict[str, str] = {}
+        for participant in fixture.PARTICIPANTS:
+            invite_urls[participant.name] = people.send_questions(
+                participant.role_label, name=participant.name,
+                about=f"{participant.name} can speak to this from where they sit.")
+
+        people.toggle_who()
+        rows = people.table_rows()
+        with recorder.step("assert: the toggle's table lists all three, not opened (§1.4/§1.5)", party="founder", kind="assert") as h:
+            h.record_assert(3, len(rows))
+            assert len(rows) == len(fixture.PARTICIPANTS), (
+                f"§1.4: expected {len(fixture.PARTICIPANTS)} rows in the who's-been-asked table, "
+                f"got {len(rows)}")
+            for row in rows:
+                assert "not opened" in row["their_answer"].lower(), (
+                    f"§1.5: expected {row['person']!r} to read 'Not opened' before any answer, "
+                    f"got {row['their_answer']!r}")
+
+        # ------------------------------------------------------------------- §2.1-§2.3 Answering
+        for index, participant in enumerate(fixture.PARTICIPANTS):
+            participant_context = browser.new_context()
+            try:
+                participant_page = participant_context.new_page()
+                pb = ParticipantBrowser(participant_page, recorder)
+                pb.open(invite_urls[participant.name])
+                pb.start()
+                answers = [
+                    participant.problem_answer,
+                    participant.solution_answer,
+                    participant.commercial_answer,
+                ]
+                if index == 0:
+                    # Spec US2 step 6: "skip one question" -- the first participant leaves one
+                    # question blank; still a legal, non-empty submission.
+                    pb.answer(answers + [None])
+                else:
+                    pb.answer(answers)
+                pb.submit()
+            finally:
+                participant_context.close()
+
+        # The founder's table now reads Answered; open P9 and read the words back verbatim.
+        people.open()
+        answers_popup = people.open_answers(fixture.PARTICIPANTS[0].name)
+        with recorder.step("assert: P9 shows Dana's words verbatim (§1.6/§2.2)", party="founder", kind="assert") as h:
+            joined = "\n".join(q["answer"] for q in answers_popup["questions"])
+            h.record_assert(fixture.PARTICIPANTS[0].problem_answer, joined)
+            assert fixture.PARTICIPANTS[0].problem_answer in joined, (
+                f"§1.6: expected Dana's own words in P9, got {joined!r}")
+
+        # -------------------------------------------------------------------------- §1.6 Reading
+        people.have_agent_read()
+        toast = people.toast_text()
+        with recorder.step("assert: the toast names what moved (§1.6)", party="founder", kind="assert") as h:
+            h.record_assert(True, len(toast.strip()) > 0)
+            assert toast.strip(), "§1.6: expected the toast to name what moved after reading"
+        people.see_the_overview()
+
+        # ------------------------------------------------------------------------- §1.7 Standing
+        stage_card.open("PROBLEM")
+        assert fixture.PROBLEM_HEADLINE.lower() in stage_card.status_text().lower(), (
+            f"§1.7: expected the problem card to read {fixture.PROBLEM_HEADLINE!r}, "
+            f"got {stage_card.status_text()!r}")
+        stage_card.open("SOLUTION")
+        assert fixture.SOLUTION_HEADLINE.lower() in stage_card.status_text().lower(), (
+            f"§1.7: expected the solution card to read {fixture.SOLUTION_HEADLINE!r}, "
+            f"got {stage_card.status_text()!r}")
+        stage_card.open("COMMERCIAL")
+        assert fixture.COMMERCIAL_HEADLINE.lower() in stage_card.status_text().lower(), (
+            f"§1.7: expected the commercial card to read {fixture.COMMERCIAL_HEADLINE!r}, "
+            f"got {stage_card.status_text()!r}")
+
+        # ------------------------------------------------------------------------- §1.7 Evidence
+        stage_card.open("PROBLEM")
+        stage_card.open_belief(fixture.PROBLEM_BELIEF_HOURS_NOT_MINUTES)
+        quotes = stage_card.evidence_quotes(fixture.PROBLEM_BELIEF_HOURS_NOT_MINUTES)
+        with recorder.step("assert: the problem belief shows counted-for/against reasons (§1.7)",
                             party="founder", kind="assert") as h:
-            claim = guided.landed_claim()
-            h.record_assert("a landed step naming PROBLEM's own claim", claim)
-            if not guided.is_visible() or not guided.is_landed():
-                h.fail("expected the overview to render the guided walk's landed step for PROBLEM")
-                raise AssertionError(h.error)
-            if claim != scenario.problem_statement():
-                h.fail(f"expected the landed claim to be PROBLEM's own statement, got {claim!r}")
-                raise AssertionError(h.error)
+            h.record_assert("for and against groups present", quotes)
+            groups = {q["group"] for q in quotes}
+            assert "for" in groups and "against" in groups, (
+                f"§1.7: expected both a for and an against group on a 'People disagree' belief, "
+                f"got groups={groups}")
 
-        # "Continue" is purely client-side (there is no wire action for "I'm done looking at this
-        # for now") -- it advances the walk to SOLUTION, which is genuinely still unframed at this
-        # exact moment (the FRAME x2 below hasn't run yet), so this is the walk's own "ask" phase.
-        guided.continue_()
-        with recorder.step("the guided walk's ask phase renders a question for the next stage",
+        stage_card.open("COMMERCIAL")
+        with recorder.step("assert: the commercial card is Not holding up, no reframe beneath (§1.7)",
                             party="founder", kind="assert") as h:
-            kicker = guided.kicker()
-            h.record_assert("a step naming SOLUTION, not yet landed", kicker)
-            if not guided.is_visible() or guided.is_landed() or "solution" not in kicker.lower():
-                h.fail(f"expected the walk's ask-phase step for SOLUTION, got kicker={kicker!r}")
-                raise AssertionError(h.error)
+            h.record_assert(True, "not holding up" in stage_card.status_text().lower())
+            assert "not holding up" in stage_card.status_text().lower()
 
-        founder_step_line = "I think it's the payroll ops managers who'd actually use this day to day."
-        guided.ask(founder_step_line)
-        guided.wait_for_step_turns(1)
-        with recorder.step("the founder's own relayed line appears in the step's own exchange",
+        # US2 acceptance scenario 4: the standing read shows every applying belief exactly once,
+        # each `line` equal to the same belief's `countsNote` on its own stage card.
+        standing = session.get(
+            f"http://localhost:{stack.cloud_port}/v2/projects/{project_id}/standing", timeout=10).json()
+        all_lines = [
+            entry.get("line") for bucket in standing.values() if isinstance(bucket, list)
+            for entry in bucket if isinstance(entry, dict)
+        ]
+        with recorder.step("wire: the standing read's lines match the stage cards' countsNote (§1.7, US2 scenario 4)",
+                            party="stack", kind="assert") as h:
+            h.record_assert(fixture.COMMERCIAL_COUNTS_NOTE, all_lines)
+            assert any(fixture.COMMERCIAL_COUNTS_NOTE in (line or "") for line in all_lines), (
+                f"US2 acceptance scenario 4: expected the standing's own lines to include "
+                f"{fixture.COMMERCIAL_COUNTS_NOTE!r}, got {all_lines}")
+
+        # ---------------------------------------------------------------------------- §1.10 Brief
+        shell.open_brief()
+        brief = Brief(page, recorder)
+        brief.open()
+        headings = brief.list_headings()
+        with recorder.step("assert: every belief appears in exactly one of the four lists (§1.10)",
                             party="founder", kind="assert") as h:
-            step_turns = guided.step_turns()
-            h.record_assert(founder_step_line, step_turns)
-            if not any(t["author"] == "founder" and founder_step_line in t["text"] for t in step_turns):
-                h.fail(f"expected the founder's own line inside the step exchange, got {step_turns}")
-                raise AssertionError(h.error)
-
-        # The guided-step line above posted through the browser -- the real product path, not
-        # `founder_relay`/`agent_relay` -- so no scripted `relay_round_trip` below has ever polled
-        # past it yet. One plain mechanical poll (no reply; a real host is free to see a turn and
-        # not answer it) advances `agent_relay`'s own cursor over it, so it is a `relay_round_trip`
-        # away from now on -- `runs/DRIFT.md`'s own note that an agent reply could never carry this
-        # step's own tag anyway is why this scenario never asks for one here.
-        founder_relay, agent_relay = open_relay(driver, project_id)
-        agent_relay.poll(agent_relay.cursor)
-
-        for _ in range(2):
-            driver.advance_one()
-
-        # Relay re-venue (relay-design.md §12 item 2): INTRODUCE_ROLES driven by hand (the same
-        # manually-replicated-cycle pattern the INTRODUCE_ASSUMPTIONS demonstration below already
-        # uses) so this test can relay its own `recorded` object as a playback turn and prove the
-        # history drawer renders it as an actual table. **Judgement call, live-confirmed**: CREATE's own
-        # `recorded` is flat `{name, problem}` scalars (keel-cloud's `FounderVoice.recorded`) and
-        # can never render a `<table>` -- INTRODUCE_ROLES's `{"roles": [...]}` shape is the one
-        # commit in this opening sequence keel-web's `RolesRecordedTable` actually renders as one,
-        # so that is the playback this test relays and asserts against, not CREATE's own.
-        with recorder.interaction("agent-cycle"):
-            issuance = driver.get_next()
-            assert issuance["kind"] == "action" and issuance["action"] == "INTRODUCE_ROLES", issuance
-            token = issuance["token"]
-            context = {h: driver.get_context(token, h) for h in issuance.get("context") or []}
-            payload = scenario.build_payload("INTRODUCE_ROLES", issuance.get("detail") or {}, context)
-            roles_result = driver.submit_with_recovery(token, payload, "INTRODUCE_ROLES", "INTRODUCE_ROLES")
-
-        relay_round_trip(founder_relay, agent_relay, "Who could actually answer these questions?",
-                          BridgeReply.playback(roles_result.get("display") or "Your roles are saved.",
-                                               roles_result.get("recorded")))
-        history = HistoryDrawer(founder_page, recorder, presence_reader=founder_relay.presence)
-        with recorder.step("the INTRODUCE_ROLES playback renders as a table in the history drawer",
-                            party="founder", kind="assert") as h:
-            founder.open_overview(project_id)
-            # CREATE's own founder+playback turns (2), the guided-walk step's own founder line
-            # above (1 -- tagged `step=SOLUTION`, but the drawer shows every turn regardless of its
-            # step tag), then this round's founder+playback turns (2) = 5.
-            history.wait_for_turn_count(5)
-            rows = history.read()["playback_rows"]
-            h.record_assert("a rendered <table> with at least a header + one role row", rows)
-            if len(rows) < 2:
-                h.fail(f"expected the roles playback to render as a table, got rows={rows}")
-                raise AssertionError(h.error)
-
-        # Policy v3's "every door must open" rule, demonstrated live (module docstring): drive
-        # PROBLEM's own INTRODUCE_ASSUMPTIONS commit by hand (the same manually-replicated-cycle
-        # pattern test_s003_going_ahead.py already uses for its own request=brief call) so this
-        # test can read the commit's own `display` sentence and pull the URL it carries verbatim.
-        with recorder.interaction("agent-cycle"):
-            issuance = driver.get_next()
-            assert (issuance["kind"] == "action" and issuance["action"] == "INTRODUCE_ASSUMPTIONS"
-                    and issuance["detail"]["stage"] == "PROBLEM"), issuance
-            token = issuance["token"]
-            context = {h: driver.get_context(token, h) for h in issuance.get("context") or []}
-            payload = scenario.build_payload("INTRODUCE_ASSUMPTIONS", issuance.get("detail") or {}, context)
-            result = driver.submit_with_recovery(token, payload, "INTRODUCE_ASSUMPTIONS",
-                                                  "INTRODUCE_ASSUMPTIONS (PROBLEM)")
-
-        with recorder.step("the commit's own display sentence carries a resolvable door",
-                            party="agent", kind="assert") as h:
-            display = result.get("display") or ""
-            match = _URL_RE.search(display)
-            h.record_assert("display names a URL", display)
-            if not match:
-                h.fail(f"expected the INTRODUCE_ASSUMPTIONS commit's display to carry a URL, got {display!r}")
-                raise AssertionError(h.error)
-        door_url = match.group(0)
-
-        handoff = driver.advance_until_handoff()
-        assert handoff is not None and handoff["kind"] == "handoff"
-        assert handoff["reason"] == "REVIEW", handoff
-        assert handoff["detail"]["stage"] == "PROBLEM", handoff
-        with recorder.step("the commit's own predicted door matches the handoff's own display",
-                            party="agent", kind="assert") as h:
-            h.record_assert(door_url, handoff.get("display"))
-            if door_url not in (handoff.get("display") or ""):
-                h.fail(f"expected the handoff's display to carry the same door {door_url!r}, "
-                       f"got {handoff.get('display')!r}")
-                raise AssertionError(h.error)
-
-        founder.follow_display_url(door_url, project_id)
-
-        # Relay re-venue (relay-design.md §12 item 2): one clarification exchange round-trips
-        # visibly through the history drawer -- the founder-reply pattern's other half, distinct
-        # from a playback (a plain back-and-forth, no `recorded` payload). `HistoryDrawer` is
-        # mounted by `ProjectShell` regardless of which route is open (we're on PROBLEM's own
-        # stage screen here, not the overview) -- same instance, no re-navigation needed.
-        relay_round_trip(founder_relay, agent_relay,
-                          "What happens once I approve this card?",
-                          BridgeReply(text="Once you approve it, I'll move on to your solution card next."))
-        with recorder.step("the clarification exchange round-trips visibly in the history drawer",
-                            party="founder", kind="assert") as h:
-            history.wait_for_turn_count(7)  # this exchange lands on top of the opening's own 5 turns
-            turns = history.read()["turns"]
-            texts = [t["text"] for t in turns]
-            h.record_assert("the founder's question then the agent's answer, in order", texts)
-            q_idx = next((i for i, t in enumerate(texts) if "approve this card" in t), None)
-            a_idx = next((i for i, t in enumerate(texts) if "move on to your solution" in t), None)
-            if q_idx is None or a_idx is None or a_idx <= q_idx:
-                h.fail(f"expected the founder's question before the agent's answer, got {texts}")
-                raise AssertionError(h.error)
-
-        # Protocol-side half of the event-turn assertion (spec 017 FR-001, module docstring item
-        # 3): the plain relay read before this approval, so the delta after it is unambiguous.
-        turns_before_approval = founder_relay.read_turns()
-
-        founder.approve_current_stage("PROBLEM")
-
-        PROBLEM_APPROVED_EVENT_TEXT = "You approved The problem — its questions are now fixed."
-        with recorder.step("the approval event turn renders as a green-tick line in the drawer",
-                            party="founder", kind="assert") as h:
-            history.wait_for_turn_count(8)  # the 7 above, plus this approval's own event turn
-            rows = history.read()["turns"]
-            event_rows = [t for t in rows if t["kind"] == "event"]
-            h.record_assert(PROBLEM_APPROVED_EVENT_TEXT, event_rows)
-            if not event_rows or PROBLEM_APPROVED_EVENT_TEXT not in event_rows[-1]["text"]:
-                h.fail(f"expected the approval's own green-tick event line, got {event_rows}")
-                raise AssertionError(h.error)
-
-        with recorder.step("the approval event turn arrives on the relay read, in order, "
-                            "after every turn posted before it", party="agent", kind="assert") as h:
-            turns_after_approval = founder_relay.read_turns()
-            new_turns = turns_after_approval[len(turns_before_approval):]
-            h.record_assert(PROBLEM_APPROVED_EVENT_TEXT, [t.text for t in new_turns])
-            if (not new_turns or new_turns[-1].kind != "event" or new_turns[-1].author != "system"
-                    or PROBLEM_APPROVED_EVENT_TEXT not in new_turns[-1].text):
-                h.fail(f"expected exactly the approval's own event turn, newest, after the prior "
-                       f"turns, got {[(t.author, t.kind, t.text) for t in new_turns]}")
-                raise AssertionError(h.error)
-
-        # The invite gate's standing assertion (founder-experience design §6): closed while
-        # SOLUTION/COMMERCIAL are still framed and unapproved. Policy v4's pointer-to-agent
-        # variant (design §4 item 4): SOLUTION hasn't been decomposed yet, so the founder sees the
-        # guided walk's own step for it now (module docstring item 1), not the classic
-        # `.next.agent` sentence -- `assert_pointer_to_agent` recognizes either.
-        assert_invite_gate_closed(driver)
-        assert_pointer_to_agent(founder, project_id)
-
-        for stage in ("SOLUTION", "COMMERCIAL"):
-            handoff = driver.advance_until_handoff()
-            assert handoff is not None and handoff["reason"] == "REVIEW", (stage, handoff)
-            assert handoff["detail"]["stage"] == stage, (stage, handoff)
-            founder.open_stage(project_id, stage)
-            founder.approve_current_stage(stage)
-            if stage == "SOLUTION":
-                assert_invite_gate_closed(driver)
-                assert_pointer_to_agent(founder, project_id)
-
-        # The gate is open now -- one combined invitation, carrying all three cards, is next.
-        handoff = driver.advance_until_handoff()
-        assert handoff is not None and handoff["reason"] == "INVITE", handoff
-
-        # founder-experience design §5: both old screen names route to the identical merged People
-        # screen -- assert that once, here, where the INVITE handoff first makes it relevant.
-        founder.open_invite(project_id)
-        invite_heading = founder_page.locator(".card.openc h1").first.inner_text()
-        founder.open_people(project_id)
-        people_heading = founder_page.locator(".card.openc h1").first.inner_text()
-        with recorder.step("both /invite and /invitations render the identical People screen",
-                            party="founder", kind="assert") as h:
-            h.record_assert("same compose heading", {"invite": invite_heading, "people": people_heading})
-            if invite_heading != people_heading:
-                h.fail(f"/invite and /invitations rendered different screens: "
-                       f"{invite_heading!r} vs {people_heading!r}")
-                raise AssertionError(h.error)
-
-        link = founder.send_invite(ROLE_LABEL, scenario.person_name("PROBLEM"), scenario.about_line("PROBLEM"))
-
-        handoff = driver.advance_until_handoff()
-        assert handoff is not None and handoff["reason"] == "WAITING", handoff
-
-        participant_context = browser.new_context()
-        try:
-            participant_page = participant_context.new_page()
-            participant = ParticipantBrowser(participant_page, recorder)
-            participant.open(link)
-            participant.start()
-            participant.answer([scenario.participant_answer(stage) for stage in STAGES])
-            participant.submit()
-            # The participant surface stays open, and the participant's own browser context must
-            # never carry the founder's session (task item 1's standing assertion).
-            assert_participant_has_no_founder_auth(participant_context)
-        finally:
-            participant_context.close()
-
-        # Acceptance scenario #3: the participant answering in the browser is what makes the
-        # founder-agent's next poll advance -- the interleaving of a real discovery.
-        with recorder.step(
-                "founder-agent's next poll advances past the combined WAITING handoff",
-                party="agent", kind="assert") as h:
-            handoff = driver.advance_until_handoff()
-            observed = handoff.get("reason") if handoff else "PROCEED_TO_BRIEF"
-            h.record_assert("not WAITING", observed)
-            if observed == "WAITING":
-                h.fail(f"still WAITING after the combined participant answered: {handoff}")
-                raise AssertionError(h.error)
-
-        assert handoff is None, f"expected the project to be finished (brief proposed), got {handoff}"
-
-        # FID hop capture (T012): the participant's verbatim answer only ever renders on the stage
-        # screen inside a belief's (collapsed-by-default) testimony drilldown, which only exists
-        # once evidence has been interpreted -- one combined INTERPRET settled all three, so all
-        # three stages need their own second visit now.
-        for stage in STAGES:
-            founder.open_stage_evidence(project_id, stage)
-
-        founder.open_overview(project_id)
-        with recorder.step("verdicts moved on the overview", party="founder", kind="assert") as h:
-            cards = founder_page.locator(".card:not(.openc)")
-            claim_texts = cards.locator(".claim").all_inner_texts()
-            h.record_assert("at least one stage shows a claim", claim_texts)
-            if not any(claim_texts):
-                h.fail("expected at least one framed stage claim on the overview")
-                raise AssertionError(h.error)
-
-        founder.open_brief(project_id)
-        with recorder.step("brief renders with findings", party="founder", kind="assert") as h:
-            findings = founder_page.locator(".blist.learned li").all_inner_texts()
-            h.record_assert("3 findings", findings)
-            if len(findings) != 3:
-                h.fail(f"expected 3 findings on the brief, got {findings}")
-                raise AssertionError(h.error)
+            h.record_assert(">=1 heading", headings)
+            assert headings, "§1.10: expected at least one belief-status list on the brief"
+        brief.download()
+        who_was_asked = brief.who_was_asked()
+        with recorder.step("assert: B2's document renders Who was asked (§1.10)", party="founder", kind="assert") as h:
+            h.record_assert([p.name for p in fixture.PARTICIPANTS], who_was_asked)
+            joined_who = "\n".join(who_was_asked)
+            for participant in fixture.PARTICIPANTS:
+                assert participant.name in joined_who, (
+                    f"§1.10: expected {participant.name!r} in B2's Who was asked, got {who_was_asked}")
 
         passed = True
     finally:
-        founder_context.close()
+        failed_step = recorder.failed_step
+        context.close()
         duration = time.monotonic() - started
-        finalize_run(run_dir, scenario=scenario, passed=passed,
-                     failed_step=recorder.failed_step, duration_s=duration)
+        finalize_run(run_dir, slug="s001-smoke", facts=fixture.facts(), passed=passed,
+                     failed_step=failed_step, duration_s=duration)
         print(f"\nrun bundle: {run_dir}")

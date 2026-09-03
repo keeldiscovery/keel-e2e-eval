@@ -16,7 +16,7 @@ import pytest
 
 from stack.config import load_config
 
-CANON = Path(load_config().keel_cloud) / "specs" / "projectv2" / "CANON.md"
+CANON = Path(load_config().keel_cloud) / "canon" / "CANON.md"
 
 ROW = re.compile(r"^\|\s*(§\d+\.\d+)\s*\|.*\|\s*([^|]+?)\s*\|$")
 SCENARIO_ID = re.compile(r"S-(\d{3})")
