@@ -1,11 +1,14 @@
 """T010 (SC-001 mechanics): a fixture transcript groups into interactions in transcript order,
-and every check's evidence refs (step seqs, screenshot files) resolve inside the same bundle."""
+and every check's evidence refs (step seqs, screenshot files) resolve inside the same bundle.
+
+spec 005-connect-stack FR-009: fixtures use the current interaction kinds (`ui_visit`,
+`agent_turn`, `arrival`) -- there is no more wire protocol to fixture a `get_next`/`submit`
+exchange for.
+"""
 
 from __future__ import annotations
 
-import itertools
-
-from evals.scenario import Fact
+from evals.facts import Fact
 from harness import scoring
 from harness.evidence import _read_transcript
 from harness.interactions import derive_interactions
@@ -14,29 +17,17 @@ from harness.steps import Recorder
 
 def _build_fixture(run_dir):
     recorder = Recorder(run_dir)
-    with recorder.interaction("agent-cycle"):
-        with recorder.step("get_next (before any project)", party="agent", kind="protocol") as h:
-            h.record_wire({"path": "/v2/agent/next"}, {"status": 200, "body": {
-                "kind": "action", "action": "CREATE", "token": "t1",
-                "requirements": ["the problem, in the founder's own words"],
-                "instruction": {"purpose": "State the problem.", "content": "Write it plainly."},
-                "context": [], "detail": {},
-            }})
-        with recorder.step("submit CREATE", party="agent", kind="protocol") as h:
-            h.record_wire(
-                {"body": {"token": "t1", "payload": {"statement": "Payroll managers lose hours chasing exceptions."}}},
-                {"status": 200, "body": {"projectId": "p1", "state": "OPEN", "revision": 1}})
+    with recorder.interaction("arrival"):
+        with recorder.step("founder arrives", party="founder", kind="browser") as h:
+            h.capture_text("arrival_display", "Welcome back to Payroll Exceptions. Let's start.")
 
-    with recorder.interaction("agent-cycle") as handoff_id:
-        with recorder.step("get_next (project p1)", party="agent", kind="protocol") as h:
-            h.record_wire({}, {"status": 200, "body": {
-                "kind": "handoff", "reason": "REVIEW",
-                "display": "The problem card is waiting for your approval -- read the questions first.",
-                "detail": {"stage": "PROBLEM"},
-            }})
-        recorder.retag_interaction(handoff_id, "agent-handoff")
+    with recorder.interaction("agent_turn"):
+        with recorder.step("the agent answers the problem framing", party="agent", kind="browser") as h:
+            h.capture_text("chat_state", "Connected · on your machine")
+            h.capture_text("agent_reply", "Here's what we understood: Payroll managers lose "
+                                           "hours chasing exceptions.")
 
-    with recorder.interaction("ui-visit"):
+    with recorder.interaction("ui_visit"):
         with recorder.step("founder opens the problem stage card", party="founder", kind="browser") as h:
             h.capture_text("screen", "stage")
             h.capture_text("stage", "PROBLEM")
@@ -54,10 +45,9 @@ def test_interactions_group_tagged_steps_in_transcript_order(tmp_path):
     entries = _read_transcript(tmp_path)
     interactions = derive_interactions(entries)
 
-    assert [ix.type for ix in interactions] == ["agent-cycle", "agent-handoff", "ui-visit"]
-    assert interactions[0].step_seqs == [1, 2]
-    assert interactions[0].conversation["action"] == "CREATE"
-    assert interactions[1].conversation["outcome"].startswith("The problem card is waiting")
+    assert [ix.type for ix in interactions] == ["arrival", "agent_turn", "ui_visit"]
+    assert interactions[0].conversation["outcome"].startswith("Welcome back")
+    assert interactions[1].conversation["reply_summary"].startswith("Here's what we understood")
     assert interactions[2].captured_text["stage_screen"].startswith("THE PROBLEM")
 
 
@@ -76,7 +66,7 @@ def test_every_checks_evidence_resolves_inside_the_bundle(tmp_path):
     facts = {
         "problem_statement": Fact(
             text="Payroll managers lose hours chasing exceptions.", kind="statement",
-            hops=["agent_echo", "stage_screen", "brief"],
+            hops=["stage_screen", "brief"],
         ),
     }
     scoring.write_facts(tmp_path, facts)

@@ -1,78 +1,35 @@
-"""FounderBrowser + ParticipantBrowser (T011): Playwright page objects for the founder's five
-web screens and the participant survey. Every navigation opens a URL derived from the protocol's
-own contract -- never a guess -- and asserts the page actually renders (FR-005).
+"""Page objects for the round-5 screens (spec 005-connect-stack FR-008): `Auth` (setup/login),
+`Connect` (device-approval frames B/C/G), `Landing` (L1-L4), `Shell` (agent line, side nav with
+status words), `Chat` (C1-C8: bubbles, composer, confirmation card), `StageCard` (R1/R2/R4,
+E1-E3), `People` (P1-P9: toggle, role cards, popup steps, table rows, answers popup, progress
+line, toast), `Brief` (B1/B2), `ParticipantBrowser` (unchanged in role, selectors updated).
 
-**Judgement call -- there is no HTTP `keel_open_web`.** `OpenWebUrls`/`keel_open_web` is an
-MCP-only tool (keel-cloud's own javadoc says so): the HTTP agent surface this driver speaks has
-no endpoint that hands back a founder screen URL. Research explicitly ruled out adding an MCP
-client just to fetch one string. So `_open_web_url` below is a straight Python port of
-`OpenWebUrls.urlFor` -- the same founder-base-url, the same five path templates -- which is the
-closest thing to "tool-issued" available over HTTP: it is derived from the published contract,
-never hand-built to make something work.
+Selectors are taken from keel-web's built DOM -- `../keel-web/tests/visual/states/*.ts` and the
+components under `../keel-web/src` -- never guessed (spec 005 FR-008). This app has no
+`data-testid` anywhere: locators are Playwright's accessible-name finders (`get_by_role`,
+`get_by_label`, `get_by_text`) plus the CSS classes `src/styles/app.css` actually defines.
 
-**That port found a real bug -- since fixed.** `runs/DRIFT.md` #2 recorded that two of
-`OpenWebUrls`'s five paths didn't match keel-web's actual routes (`overview` built
-`.../{projectId}/overview` instead of the index route `.../{projectId}`; `stage` built
-`.../{projectId}/stages/{stage}` instead of `.../{projectId}/s/{stage}`). keel-cloud's
-`OpenWebUrls` now builds both paths keel-web's way (its own javadoc credits this module's DRIFT
-finding). `_SCREEN_PATHS` below is updated to match, so the primary path renders on the first try
-and `_note_drift`/`_ACTUAL_FALLBACK_PATHS` fire zero times on a healthy stack; the fallback
-machinery itself is left in place as a safety net (and a canary -- if a DRIFT note ever fires
-again, the two contracts have drifted apart again and that's worth knowing immediately, not
-worked around silently).
-
-002-eval-scoring layers interaction tagging and FID/ORIENTATION/GUIDANCE/CLARITY text capture
-onto these same page objects (T008): every screen visit opens (or continues) a `ui-visit`
-interaction scope, and the participant's whole flow is one `participant-page` interaction
-(design §2's taxonomy) -- see `_goto_screen`'s and `ParticipantBrowser`'s docstrings.
+Every method records a step and screenshots on entry (spec FR-008); every navigation waits on the
+frame's own words, never a sleep, and waits for `document.fonts.ready` before a screenshot (spec
+edge cases, matching keel-web's own visual tests).
 """
 
 from __future__ import annotations
 
-import json
 import re
-import time
-from pathlib import Path
-from typing import Callable
+from contextlib import contextmanager
+from typing import Callable, Iterator
 
 from playwright.sync_api import Page
 
 from harness.evidence import write_failure_capture
 from harness.steps import Recorder, StepHandle
 
-_SCREEN_PATHS = {
-    "overview": "/{id}",
-    "invite": "/{id}/invite",
-    "invitations": "/{id}/invitations",
-    "brief": "/{id}/brief",
-    "stage": "/{id}/s/{stage}",
-}
-
-# Kept only as a defensive fallback + drift canary (see module docstring) -- both entries now
-# equal `_SCREEN_PATHS`'s own primary path, so this fires only if the two contracts drift apart
-# again in the future.
-_ACTUAL_FALLBACK_PATHS = {
-    "overview": "/{id}",
-    "stage": "/{id}/s/{stage}",
-}
-
-
-def _open_web_url(base_url: str, project_id: str, screen: str, stage: str | None = None) -> str:
-    """Port of keel-cloud's OpenWebUrls.urlFor -- see this module's docstring."""
-    template = _SCREEN_PATHS[screen]
-    path = template.format(id=project_id, stage=stage or "")
-    return base_url.rstrip("/") + path
-
-
-def _actual_url(base_url: str, project_id: str, screen: str, stage: str | None = None) -> str:
-    template = _ACTUAL_FALLBACK_PATHS[screen]
-    path = template.format(id=project_id, stage=stage or "")
-    return base_url.rstrip("/") + path
-
 
 class _BrowserStep:
-    """Shared plumbing: numbered screenshots, and on any exception, dumping page HTML + the
-    console log gathered so far into failure/ before re-raising (contracts/evidence-contract.md).
+    """Shared plumbing: numbered screenshots, `document.fonts.ready` before every shot, and on
+    any exception, dumping page HTML + the console log gathered so far into failure/ before
+    re-raising (contracts/evidence-contract.md).
     """
 
     def __init__(self, recorder: Recorder, page: Page, party: str):
@@ -83,6 +40,10 @@ class _BrowserStep:
         page.on("console", lambda msg: self.console_log.append(f"[{msg.type}] {msg.text}"))
 
     def screenshot(self, slug: str) -> str:
+        try:
+            self.page.wait_for_function("document.fonts.ready", timeout=5_000)
+        except Exception:  # noqa: BLE001 - a font-ready wait must never block evidence capture
+            pass
         name = self.recorder.next_screenshot_name(slug)
         self.page.screenshot(path=str(self.recorder.screenshot_path(name)), full_page=True)
         return name
@@ -92,17 +53,12 @@ class _BrowserStep:
 
 
 def _step_cm(bstep: "_BrowserStep", name: str):
-    from contextlib import contextmanager
-
     @contextmanager
     def cm():
         with bstep.recorder.step(name, party=bstep.party, kind="browser") as h:
             try:
                 yield h
             except Exception as exc:
-                # A navigation that never landed anywhere (e.g. keel-web is down entirely) can
-                # make page.content() itself raise -- still write *something* to failure/page.html
-                # rather than silently dropping the file the evidence contract promises.
                 try:
                     page_html = bstep.page.content()
                 except Exception as content_exc:  # noqa: BLE001 - best-effort, never mask the real error
@@ -116,818 +72,13 @@ def _step_cm(bstep: "_BrowserStep", name: str):
 
 
 def _safe_text(getter: Callable[[], str]) -> str:
-    """Best-effort text capture for scoring purposes only: a selector that doesn't match (a
-    screen variant with no NextBox, say) must never fail the *scenario* -- only the check that
-    reads the resulting captured_text should be able to fail."""
+    """Best-effort text capture for scoring purposes only: a selector that doesn't match must
+    never fail the *scenario* -- only the check that reads the resulting captured_text should be
+    able to fail."""
     try:
         return getter()
     except Exception:  # noqa: BLE001 - capture is advisory, never load-bearing for the scenario
         return ""
-
-
-class FounderBrowser:
-    """Executes REVIEW and INVITE handoffs (design §3): opens the URL derived from
-    `keel_open_web`'s own contract, reads the stage, approves; opens the invite screen, types the
-    about-line, mints the link, and reads back the link the UI shows (never constructs it).
-
-    `get_state`, if given, is `FounderAgentDriver.get_state` -- called on every screen visit so
-    the resulting `ui-visit` interaction carries its own state snapshot (analysis finding A1):
-    GUI-U1 ("a next-step affordance iff a need exists") reads it straight out of captured_text,
-    never reaching back out to a live driver at scoring time.
-    """
-
-    def __init__(self, page: Page, web_base_url: str, recorder: Recorder,
-                 *, get_state: Callable[[str], dict] | None = None):
-        self.page = page
-        self.base_url = web_base_url.rstrip("/")
-        self._bstep = _BrowserStep(recorder, page, party="founder")
-        self._get_state = get_state
-        self.drift_notes_emitted: set[str] = set()
-        # The ui-visit interaction most recently opened by _goto_screen -- approve_current_stage
-        # and send_invite fold into it rather than opening their own, since "open a screen" and
-        # "act on it" are one reviewable interaction (design §2: "one founder screen visit").
-        self._current_interaction: str | None = None
-
-    def log_in(self, web_root_base_url: str, email: str, password: str) -> None:
-        """Founder-experience round 2 (design §2/§4 item 1): the founder browser earns its own
-        session by driving the real `/login` screen, once, before any founder screen is opened --
-        never a transplanted cookie. `/login` and `/setup` live outside the `/p/:projectId` tree
-        (`AppRoutes.tsx`), so this needs the site root, not `FounderBrowser`'s own `base_url`
-        (which is already `.../p`).
-
-        **Judgement call**: driving the actual login form (rather than injecting the cookie
-        `stack.auth.ensure_founder_account` already obtained via `requests`) means every scenario's
-        founder context exercises the real login screen at least once, and needs no cookie-jar
-        plumbing between two unrelated HTTP clients (`requests` vs. Playwright) -- the cost is one
-        extra screen visit per scenario, which is cheap next to a JVM-backed discovery.
-        """
-        interaction_id = self._bstep.recorder.new_interaction_id()
-        with self._bstep.recorder.interaction("ui-visit", interaction_id):
-            with self._bstep.step("founder logs in") as h:
-                root = web_root_base_url.rstrip("/")
-                self.page.goto(f"{root}/login", wait_until="load")
-                self.page.get_by_label(re.compile(r"^email$", re.I)).fill(email)
-                self.page.get_by_label(re.compile(r"^password$", re.I)).fill(password)
-                h.add_screenshot(self._bstep.screenshot("login-filled"))
-                self.page.get_by_role("button", name=re.compile(r"^log in$", re.I)).click()
-                self.page.wait_for_url(f"{root}/", timeout=10_000)
-                h.add_screenshot(self._bstep.screenshot("login-landed"))
-                h.capture_text("screen", "login")
-        self._current_interaction = interaction_id
-
-    def _note_drift(self, screen: str, tried: str, actual: str) -> None:
-        if screen in self.drift_notes_emitted:
-            return
-        self.drift_notes_emitted.add(screen)
-        self._bstep.recorder.note(
-            f"DRIFT: keel_open_web's '{screen}' URL ({tried}) does not match keel-web's actual "
-            f"route; falling back to {actual}",
-            party="stack", ok=True,
-        )
-
-    def _capture_common(self, h: StepHandle, project_id: str, screen: str, stage: str | None) -> None:
-        """Text every ui-visit interaction carries regardless of which screen it is: the
-        project-identity marker (ORI-U1), a state snapshot (GUI-U1), and a generic pool of
-        next-step-ish text (NextBox, status chips, primary actions) that stands in for "the
-        affordance", whatever form it takes on this particular screen.
-        """
-        h.capture_text("identity", _safe_text(lambda: self.page.locator(".shell__brand .hint").inner_text()))
-        if self._get_state is not None:
-            try:
-                state = self._get_state(project_id)
-                h.capture_text("state", json.dumps(state))
-            except Exception:  # noqa: BLE001 - capture is advisory; a state-fetch failure must
-                pass          # not fail the scenario, only leave GUI-U1 unresolvable for this visit.
-
-        affordance_parts: list[str] = []
-        # `.next`/`.status`/`.review-hint` cover overview/stage/invitations' own next-step cues;
-        # `button.btn.primary` covers a screen whose only "what to do next" is its own primary
-        # action (the invite screen has no NextBox at all -- being on it, with a working submit
-        # button, *is* the affordance for its INVITE need).
-        for selector in (".next", ".status", ".review-hint", "button.btn.primary"):
-            affordance_parts.extend(t.strip() for t in _safe_all_texts(self.page, selector) if t.strip())
-        if affordance_parts:
-            h.capture_text("affordance", "\n".join(affordance_parts))
-
-        # Founder-experience round 2 (design §4 item 6): every founder screen renders the same
-        # three-section side nav (`ProjectShell`) -- capture the locked People section's founder-
-        # worded "why" whenever it is present, so policy v4's ORI-U3 can score it without a
-        # dedicated screen visit of its own.
-        locked_why = _safe_text(lambda: self.page.locator(".side-nav__locked-why").first.inner_text())
-        if locked_why:
-            h.capture_text("locked_reason", locked_why)
-
-        # Founder-experience round 2 (design §4 item 4): the pointer-to-agent variant of the
-        # next-step box (`.next.agent`) -- a sentence, deliberately never a link. Captured
-        # separately from the generic `affordance` sweep above (which already folds `.next`'s text
-        # in regardless of variant) so policy v4's GUI-U2 can check this specific text for the
-        # absence of a URL without also catching a *clickable* pointer's own resolvable link.
-        pointer_to_agent = _safe_text(lambda: self.page.locator(".next.agent").first.inner_text())
-        if pointer_to_agent:
-            h.capture_text("pointer_to_agent", pointer_to_agent)
-            # The design's own literal promise ("a destination that is a sentence, not a link"):
-            # confirmed live, not just swept from text -- no anchor exists inside the agent variant.
-            if self.page.locator(".next.agent a").count() > 0:
-                h.fail("the pointer-to-agent variant rendered an <a> link -- it must be a sentence only")
-                raise AssertionError(h.error)
-
-    def _goto_screen(self, project_id: str, screen: str, stage: str | None,
-                      fingerprint, step_label: str):
-        tool_url = _open_web_url(self.base_url, project_id, screen, stage)
-        interaction_id = self._bstep.recorder.new_interaction_id()
-        with self._bstep.recorder.interaction("ui-visit", interaction_id):
-            with self._bstep.step(step_label) as h:
-                self.page.goto(tool_url, wait_until="load")
-                self.page.wait_for_timeout(150)
-                rendered = fingerprint(self.page)
-                if not rendered and screen in _ACTUAL_FALLBACK_PATHS:
-                    actual = _actual_url(self.base_url, project_id, screen, stage)
-                    self._note_drift(screen, tool_url, actual)
-                    self.page.goto(actual, wait_until="load")
-                    self.page.wait_for_timeout(150)
-                    rendered = fingerprint(self.page)
-                h.add_screenshot(self._bstep.screenshot(step_label))
-                h.capture_text("screen", screen)
-                if stage:
-                    h.capture_text("stage", stage)
-                self._capture_common(h, project_id, screen, stage)
-                if screen == "stage":
-                    h.capture_text("stage_identity", _safe_text(
-                        lambda: self.page.locator(".card.openc .bet").first.inner_text()))
-                    h.capture_text("stage_screen", _safe_text(
-                        lambda: self.page.locator(".card.openc").first.inner_text()))
-                elif screen == "overview":
-                    # Also feeds the FIDELITY `stage_screen` hop pool for `interpretation` facts
-                    # (design §3's table: verdicts show on "overview/stage screens" -- the six
-                    # contract hop ids have no separate "overview" id, so this policy folds
-                    # both screens' text into the one `stage_screen` key).
-                    h.capture_text("stage_screen", _safe_text(lambda: self.page.locator("body").inner_text()))
-                elif screen == "brief":
-                    h.capture_text("brief", _safe_text(lambda: self.page.locator(".brief").first.inner_text()))
-                if not rendered:
-                    h.fail(f"{step_label}: page did not render the expected '{screen}' screen at "
-                           f"{self.page.url}")
-                    raise AssertionError(h.error)
-        self._current_interaction = interaction_id
-
-    def _continue_current_interaction(self):
-        """approve_current_stage/send_invite act on the screen the last `_goto_screen` opened --
-        folded into that same interaction rather than starting a new one. Falls back to a fresh
-        id if called with none open (shouldn't happen in a well-formed scenario, but a scored
-        step is better than a crash)."""
-        interaction_id = self._current_interaction or self._bstep.recorder.new_interaction_id()
-        return self._bstep.recorder.interaction("ui-visit", interaction_id)
-
-    def open_overview(self, project_id: str) -> None:
-        """Founder-experience-3-design.md §3 (keel-web commit 96c83af, "the guided walk"): the
-        overview now renders ONE OF TWO shapes -- the classic three-card grid (`.card:not(.openc)`,
-        round 2, untouched once every stage clears `translate.ts#guidedWalkStep`'s own test), or
-        (new) the guided walk's single active step (`.guided-step`, `GuidedStep` below) while some
-        stage is still unframed or framed-but-undecomposed and no OTHER stage has real review work
-        waiting. Both are a legitimate render of "the overview actually loaded" -- the fingerprint
-        accepts either, exactly the same "more than one legitimate render" precedent `open_brief`
-        already sets for its own not-yet/ready split.
-        """
-        self._goto_screen(project_id, "overview", None,
-                           lambda p: p.locator(".card:not(.openc)").count() >= 1
-                           or p.locator(".guided-step").count() >= 1,
-                           "founder opens the project overview")
-
-    def open_stage(self, project_id: str, stage: str) -> None:
-        self._goto_screen(project_id, "stage", stage,
-                           lambda p: p.locator(".card.openc .bet").count() >= 1,
-                           f"founder opens the {stage.lower()} stage card")
-
-    def open_stage_evidence(self, project_id: str, stage: str) -> None:
-        """Re-opens a stage once its assumptions have been interpreted, and expands every
-        belief's testimony drilldown -- the only place a participant's verbatim answer renders on
-        this screen (`Drilldown`'s `.quote .words`; design §3's "stage screen evidence view" hop
-        for `answer` facts). Re-visiting and expanding closes that hop; without it, an approved
-        stage's collapsed drilldown never puts the answer text on the rendered page at all.
-        """
-        self.open_stage(project_id, stage)
-        with self._continue_current_interaction():
-            with self._bstep.step(f"founder reviews {stage.lower()} evidence") as h:
-                for button in self.page.locator(".belief button.b-top").all():
-                    button.click()
-                h.add_screenshot(self._bstep.screenshot(f"{stage.lower()}-evidence-expanded"))
-                h.capture_text("stage_screen", _safe_text(
-                    lambda: self.page.locator(".card.openc").first.inner_text()))
-
-    def approve_current_stage(self, stage: str) -> None:
-        with self._continue_current_interaction():
-            with self._bstep.step(f"founder approves the {stage.lower()} stage") as h:
-                button = self.page.get_by_role("button", name=re.compile("approve", re.I))
-                button.wait_for(state="visible", timeout=10_000)
-                h.add_screenshot(self._bstep.screenshot(f"before-approve-{stage.lower()}"))
-                button.click()
-                self.page.get_by_role("button", name=re.compile("approve", re.I)).wait_for(
-                    state="detached", timeout=10_000)
-                h.add_screenshot(self._bstep.screenshot(f"after-approve-{stage.lower()}"))
-
-    def open_invite(self, project_id: str) -> None:
-        """Opens the `invite` screen key -- founder-experience design §5: both `invite` and
-        `invitations` now route to the same merged **People** screen (`keel-web`'s
-        `PeopleRoute.tsx`; wire unchanged, so `keel_open_web`'s old screen names never 404). This
-        one opens compose-focused (`composeFocus`), matching what `/invite` always meant. The
-        compose card (`.card.openc h1`, "Invite someone to answer") renders unconditionally --
-        before any role exists, before the gate opens, after it -- so this fingerprint holds at
-        every moment a scenario might visit, including S-008's wrong-moment visits.
-        """
-        self._goto_screen(project_id, "invite", None,
-                           lambda p: p.locator(".card.openc h1").count() >= 1,
-                           "founder opens the People screen (invite)")
-
-    def open_people(self, project_id: str) -> None:
-        """Opens the `invitations` screen key -- the same merged People screen as `open_invite`,
-        without the compose-scroll focus (replaces the old standalone invitations screen; design
-        §5's "one screen, organized by role"). Same always-true fingerprint as `open_invite` --
-        both screen keys render the identical component."""
-        self._goto_screen(project_id, "invitations", None,
-                           lambda p: p.locator(".card.openc h1").count() >= 1,
-                           "founder opens the People screen (roles)")
-
-    def people_role_cards(self) -> list[dict[str, str]]:
-        """`{label, counts, aim}` per role card (`.card.people-role`, design §5's mockup) --
-        standing-assertion and S-008 material: read directly off the currently-open People page,
-        no reconstruction."""
-        cards = self.page.locator(".card.people-role")
-        rows = []
-        for i in range(cards.count()):
-            card = cards.nth(i)
-            rows.append({
-                "label": _safe_text(lambda c=card: c.locator(".bet").first.inner_text()),
-                "counts": _safe_text(lambda c=card: c.locator(".counts").first.inner_text()),
-                "aim": _safe_text(lambda c=card: c.locator(".hint").first.inner_text()),
-            })
-        return rows
-
-    def role_picker_options(self) -> list[dict[str, str | bool]]:
-        """`{text, disabled}` for every `<option>` in the People screen's role picker (`#invite-
-        role`) -- the domain's own per-role invite-time gate (`Project.invite`'s `blockedBy`),
-        rendered as-is (`PeopleRoute.tsx`'s own comment: this is NOT re-derived against the newer
-        approve-all-then-invite gate). Used by the standing invite-gate assertion to confirm a
-        blocked role's option text is founder-worded (`"... — approve <stage> first"`), never a
-        raw enum."""
-        options = self.page.locator("#invite-role option")
-        rows = []
-        for i in range(options.count()):
-            option = options.nth(i)
-            rows.append({
-                "text": _safe_text(lambda o=option: o.inner_text()),
-                "disabled": bool(option.get_attribute("disabled") is not None),
-            })
-        return rows
-
-    def follow_display_url(self, url: str, project_id: str) -> None:
-        """Follows a URL exactly as carried in a wire `display` sentence -- never reconstructed via
-        `_open_web_url` -- and asserts it renders the founder shell (founder-experience design §2.3:
-        every sentence that points at a screen now embeds its own door; policy v3's `GUI-A3` checks
-        the sentence is well-formed, and this is the click-through no static sweep can stand in
-        for -- the "every door must open" rule, extended from screen navigation to a sentence's own
-        URL). Opens its own `ui-visit` interaction, tagged with a generic 'display-door' screen
-        name rather than one of the five known ones, since the URL's own path is what is under
-        test here, not a scenario-chosen screen key.
-        """
-        interaction_id = self._bstep.recorder.new_interaction_id()
-        with self._bstep.recorder.interaction("ui-visit", interaction_id):
-            with self._bstep.step(f"founder follows the door a display sentence carried: {url}") as h:
-                self.page.goto(url, wait_until="load")
-                self.page.wait_for_timeout(150)
-                rendered = self.page.locator(".shell").count() >= 1
-                h.add_screenshot(self._bstep.screenshot("display-door-opened"))
-                h.capture_text("screen", "display-door")
-                self._capture_common(h, project_id, "display-door", None)
-                if not rendered:
-                    h.fail(f"the URL a display sentence carried did not render the founder shell: {url}")
-                    raise AssertionError(h.error)
-        self._current_interaction = interaction_id
-
-    def send_invite(self, role_label: str, person_name: str, about_line: str) -> str:
-        """Picks the role, types the name and about-line, sends, and reads back the link the UI
-        shows -- that string, not anything this harness builds, is what the participant opens.
-        """
-        with self._continue_current_interaction():
-            with self._bstep.step(f"founder invites {person_name} ({role_label})") as h:
-                self.page.get_by_label(re.compile("who are the questions for", re.I)).select_option(
-                    label=role_label)
-                # `select_option(label=role_label)` only succeeds because `role_label` is exactly
-                # one rendered <option>'s visible text -- the `invite_screen` FIDELITY hop for the
-                # role-label fact.
-                h.capture_text("invite_screen", role_label)
-                self.page.get_by_label(re.compile("who are you sending it to", re.I)).fill(person_name)
-                about_field = self.page.get_by_label(re.compile("what the top of their page will say", re.I))
-                about_field.fill(about_line)
-                # The `invite_screen` FIDELITY hop for the about-line fact: the about-line never
-                # renders as static page text on this screen (only as this field's value), so the
-                # value itself is the closest thing to "what this screen shows" for that fact.
-                h.capture_text("invite_screen", _safe_text(about_field.input_value))
-                h.add_screenshot(self._bstep.screenshot("invite-form-filled"))
-                self.page.get_by_role("button", name=re.compile("send invite", re.I)).click()
-                link_box = self.page.locator(".linkbox")
-                link_box.wait_for(state="visible", timeout=10_000)
-                url = link_box.inner_text().strip()
-                h.record_wire(None, {"invite_url_shown_by_ui": url})
-                h.add_screenshot(self._bstep.screenshot("invite-link-shown"))
-                if not url:
-                    h.fail("invite screen showed an empty link")
-                    raise AssertionError("invite screen showed an empty link")
-                return url
-
-    def open_invitations(self, project_id: str) -> None:
-        """Deprecated name, kept so call sites written before the People merge still read
-        sensibly -- identical to `open_people` (design §5: "wire unchanged", one component behind
-        both screen keys)."""
-        self.open_people(project_id)
-
-    def open_brief(self, project_id: str) -> None:
-        """The `brief` screen key renders one of two things (founder-experience design §4 item 3):
-        the brief itself (`.brief`) once `READY_TO_BUILD`, or -- before that -- a designed "not yet"
-        quiet state (`.card.openc .hint`, keel-web's `BRIEF_NOT_YET_TEXT`), never a raw 409. Both
-        count as a legitimate render; S-008's wrong-moment visit is exactly the second case."""
-        self._goto_screen(project_id, "brief", None,
-                           lambda p: p.locator(".card.openc .brief").count() >= 1
-                           or p.locator(".card.openc .hint").count() >= 1,
-                           "founder opens the brief")
-
-    def continue_current_interaction(self):
-        """Public alias for `_continue_current_interaction` -- `GuidedStep` below folds its own
-        actions into whichever `ui-visit` the founder's last screen visit opened, the same
-        "look at the screen, act on it is one interaction" precedent `approve_current_stage`/
-        `send_invite` already set for this class's own methods."""
-        return self._continue_current_interaction()
-
-
-class GuidedStep:
-    """The guided walk's single active step (founder-experience-3-design.md §3; keel-web commit
-    96c83af): `OverviewRoute` renders this INSTEAD OF the classic three-card grid + next-step
-    pointer whenever some stage is still unframed or framed-but-undecomposed and no OTHER stage has
-    real review work waiting (`translate.ts#guidedWalkStep`'s own guard, live-confirmed against
-    `evals/test_s001_smoke.py`'s own choreography: CREATE frames PROBLEM as a side effect, so the
-    walk is already showing PROBLEM's own landed claim before this harness ever issues `FRAME` for
-    SOLUTION or COMMERCIAL).
-
-    Two phases (`step.phase`, mirrored here as `is_landed()`): `"ask"` -- a question, and either a
-    first-answer composer (`ask`, no exchange yet) or the step-scoped overlay (`reply`, once one
-    exists) -- and `"landed"` -- the claim rendered in place (`landed_claim`), with Continue/Reopen
-    buttons. `continue_()` is purely a client-side acknowledgement (there is no wire action for "I'm
-    done looking at this for now"); it never posts anything.
-
-    **Judgement call, live-confirmed**: only a FOUNDER turn can ever carry a `step` tag (spec 017
-    FR-003, `RelayService#postFounderTurn`) -- `POST /v2/agent/relay` always stores `step=null`
-    (`RelayService#appendAgentTurn`'s own draft call), so an agent's reply, however it answers a
-    step's own question, never shows up inside THIS overlay's own `turnsForStep` filter -- only in
-    `HistoryDrawer`'s unfiltered transcript. Recorded as a real product gap, not worked around here
-    (`runs/DRIFT.md`): this harness only ever asserts the FOUNDER's own line lands inside the step
-    exchange, never an agent reply.
-
-    Rides `FounderBrowser`'s already-open `ui-visit` interaction (`continue_current_interaction`) --
-    "the overview is showing this step, and the founder acts on it" is one reviewable interaction,
-    not a second kind of visit.
-    """
-
-    def __init__(self, founder: "FounderBrowser"):
-        self.page = founder.page
-        self._founder = founder
-        self._bstep = founder._bstep
-
-    def is_visible(self) -> bool:
-        return self.page.locator(".guided-step").count() > 0
-
-    def is_landed(self) -> bool:
-        return self.page.locator(".guided-step .landed").count() > 0
-
-    def kicker(self) -> str:
-        return _safe_text(lambda: self.page.locator(".guided-step__kicker").first.inner_text())
-
-    def question(self) -> str:
-        return _safe_text(lambda: self.page.locator(".guided-step__question").first.inner_text())
-
-    def landed_claim(self) -> str:
-        """The claim rendered in place once the step has landed (`.landed__claim`) -- empty string
-        while the step is still in its `"ask"` phase (nothing has landed yet)."""
-        return _safe_text(lambda: self.page.locator(".landed__claim").first.inner_text())
-
-    def ask(self, text: str) -> None:
-        """Types into the first-answer composer (no exchange exists yet for this step) and submits
-        -- the real product path (`GuidedStep.tsx`'s own `postTurn.mutate({text, step: step.stage})`)
-        tags the resulting relay turn with this step's own stage, never something this harness sets
-        itself."""
-        with self._founder.continue_current_interaction():
-            with self._bstep.step(f"founder answers the guided step: {text[:60]!r}") as h:
-                box = self.page.locator(".guided-step__first-answer textarea")
-                box.fill(text)
-                h.add_screenshot(self._bstep.screenshot("guided-step-first-answer-filled"))
-                self.page.get_by_role("button", name=re.compile("send to your agent", re.I)).click()
-                h.capture_text("guided_step_sent", text)
-
-    def reply(self, text: str) -> None:
-        """Types into the overlay's own reply composer -- only rendered once a step-scoped exchange
-        already exists (`ask` was called, or the step already carries turns from an earlier visit)."""
-        with self._founder.continue_current_interaction():
-            with self._bstep.step(f"founder replies inside the guided step: {text[:60]!r}") as h:
-                box = self.page.locator(".overlay.ov .reply textarea")
-                box.fill(text)
-                h.add_screenshot(self._bstep.screenshot("guided-step-reply-filled"))
-                self.page.get_by_role("button", name=re.compile(r"^send$", re.I)).click()
-                h.capture_text("guided_step_sent", text)
-
-    def wait_for_step_turns(self, n: int, *, timeout_ms: int = 15_000) -> None:
-        """Polls until at least `n` turns render inside the step's own overlay -- the composer's
-        `postTurn` mutation and the read-back refetch are both async, so a caller reading
-        `step_turns()` right after `ask`/`reply` needs this rather than a fixed sleep."""
-        self.page.wait_for_function(
-            "(n) => document.querySelectorAll('.overlay.ov .turn').length >= n", arg=n, timeout=timeout_ms)
-
-    def step_turns(self) -> list[dict]:
-        """`{author, text}` per rendered turn inside the step's own overlay, DOM order -- `author`
-        read off the alternating alignment class (`turn you` / `turn agent`), since the overlay
-        carries no machine-readable author attribute of its own."""
-        rows = self.page.locator(".overlay.ov .turn")
-        out: list[dict] = []
-        for i in range(rows.count()):
-            row = rows.nth(i)
-            classes = (row.get_attribute("class") or "").split()
-            text = _safe_text(lambda r=row: r.inner_text())
-            out.append({"author": "founder" if "you" in classes else "agent", "text": text})
-        return out
-
-    def continue_(self) -> None:
-        """The landed phase's own "Continue" button -- purely client-side (there is no wire action
-        for "I'm done looking at this for now"); advances the walk to the next stage still needing
-        attention, or hands the overview back to the classic cards once none remain. Waits for the
-        landed claim itself to detach (the same "don't just click and hope" discipline
-        `approve_current_stage` already applies to its own button) before returning, so a caller
-        reading the next step's own kicker/question right after this call never races the
-        re-render."""
-        with self._founder.continue_current_interaction():
-            with self._bstep.step("founder continues past the landed claim") as h:
-                self.page.get_by_role("button", name=re.compile(r"^continue$", re.I)).click()
-                self.page.locator(".guided-step .landed").wait_for(state="detached", timeout=10_000)
-                h.add_screenshot(self._bstep.screenshot("guided-step-continued"))
-
-
-class ChatPane:
-    """The relay's chat pane page object (design §12 item 1; keel-web commit 07745c2): turns,
-    kickers, playback tables, the presence banner, the thinking state, the composer. Rides the
-    SAME Playwright `Page` as the founder's project shell -- `ProjectShell` mounts `ChatPane` as a
-    persistent right rail alongside every founder route (confirmed live: it never unmounts on
-    navigation between overview/stage/people/brief), so this class never navigates anywhere
-    itself; a caller opens whatever founder screen it likes first via `FounderBrowser`.
-
-    Reads its own `chat-visit` interaction scope (design §12 item 5's own home for the chat-
-    surface sweeps: `harness/rubric.py`'s `CLA-C1`/`ORI-C1`/`GUI-C1`) -- distinct from `ui-visit`,
-    since the pane's own state is orthogonal to whichever screen happens to be open beside it.
-
-    **STALE as of keel-web commit 96c83af (the guided walk)**: the right rail this class reads
-    (`.chat-rail`) is gone from every founder route -- `ProjectShell` mounts `HistoryDrawer` (below)
-    along the bottom instead. Left in place, unmodified, only because `evals/test_s011_relay.py`
-    and `evals/test_shaping_gauntlet.py` still import and drive it (out of this round's scope --
-    S-001 + the shared recipes/page objects it needs, only; see `runs/DRIFT.md`); those two will
-    need the same `HistoryDrawer` treatment `test_s001_smoke.py` got here before they can pass
-    against a live stack again.
-    """
-
-    AUTHOR_KICKERS = {"YOU": "founder", "YOUR KEEL AGENT": "agent"}
-
-    def __init__(self, page: Page, recorder: Recorder, *, presence_reader: Callable[[], dict] | None = None):
-        self.page = page
-        self._bstep = _BrowserStep(recorder, page, party="founder")
-        self._presence_reader = presence_reader
-
-    def expand(self) -> None:
-        """The rail collapses to a single toggle button (`.chat-rail--collapsed`) -- every read or
-        composer action needs it open first. A no-op if it already is."""
-        rail = self.page.locator(".chat-rail")
-        if rail.count() and "chat-rail--collapsed" in (rail.first.get_attribute("class") or ""):
-            self.page.locator(".chat-rail__toggle").first.click()
-            self.page.wait_for_timeout(100)
-
-    def turns(self) -> list[dict]:
-        """`{kicker, text, playback}` per rendered `.chat-turn`, in DOM (chronological) order --
-        the substrate S-011's own ordering-under-interleaving proof reads."""
-        rows = self.page.locator(".chat-turn")
-        out: list[dict] = []
-        for i in range(rows.count()):
-            row = rows.nth(i)
-            kicker = _safe_text(lambda r=row: r.locator(".chat-turn__kicker").first.inner_text())
-            is_playback = row.locator(".chat-playback").count() > 0
-            if is_playback:
-                text = _safe_text(lambda r=row: r.locator(".chat-playback").first.inner_text())
-            else:
-                text = _safe_text(lambda r=row: r.locator(".chat-turn__text").first.inner_text())
-            out.append({"kicker": kicker, "text": text, "playback": is_playback})
-        return out
-
-    def playback_table_rows(self) -> list[list[str]]:
-        """Cell text for every row of the first `table.invites` rendered inside a `.chat-playback`
-        block (`RolesRecordedTable` -- the one playback shape that renders an actual `<table>`
-        element; a `beliefs`-shaped or bullet-list-shaped playback renders div/li structure
-        instead, never a `<table>` -- this feature's own live-confirmed finding, see
-        `evals/test_s001_smoke.py`'s module docstring for the judgement call it drove)."""
-        table = self.page.locator(".chat-playback table.invites").first
-        if table.count() == 0:
-            return []
-        rows = table.locator("tr")
-        out: list[list[str]] = []
-        for i in range(rows.count()):
-            cells = rows.nth(i).locator("th, td")
-            out.append([cells.nth(j).inner_text().strip() for j in range(cells.count())])
-        return out
-
-    def wait_for_presence(self, *, connected: bool, timeout_ms: int = 20_000) -> None:
-        """Polls until the pane's own rendered banner state (present iff disconnected) agrees
-        with `connected`, TWICE in a row -- the pane refetches presence on its own interval, not
-        on every render, so a caller checking right after a wire-level change (a poll/post, or a
-        real silence) needs to wait for that refetch rather than assume it already landed.
-        Debounced (two consecutive matching reads, not just one) because the query's own initial
-        loading state renders no banner at all -- indistinguishable, on a single read, from
-        "connected" -- and live-confirmed to otherwise report a false "connected" a moment before
-        the real fetch resolves and the disconnected banner actually appears."""
-        self.expand()
-        deadline = time.monotonic() + timeout_ms / 1000
-        stable_hits = 0
-        while time.monotonic() < deadline:
-            shown = bool(self.presence_banner_text())
-            matches = (not shown) if connected else shown
-            stable_hits = stable_hits + 1 if matches else 0
-            if stable_hits >= 2:
-                return
-            self.page.wait_for_timeout(500)
-        raise TimeoutError(
-            f"the chat pane's presence banner never stabilized to connected={connected} "
-            f"within {timeout_ms}ms")
-
-    def presence_banner_text(self) -> str:
-        """Empty when connected (the design's own "connected silently" rule -- absence of banner
-        is the positive signal); the disconnected copy otherwise.
-
-        **Bug found and fixed live (2026-08-31, S-011's own first full run)**: this used to be
-        `_safe_text(lambda: self.page.locator(".chat-presence").first.inner_text())` -- but
-        `.first.inner_text()` on a locator matching zero elements does not return "" immediately;
-        Playwright auto-waits for the element to attach, and while connected (the element
-        legitimately never renders at all) that wait blocks for many seconds. Confirmed live: the
-        wait was long enough, on its own, to starve this harness's own poll/post calls of the CPU
-        time to run during it -- which let the relay's own presence genuinely go stale mid-wait,
-        so the call would "eventually" return the disconnected banner text once it finally
-        rendered, having itself caused the very disconnect it was checking for. A `.count()` guard
-        first (the same pattern every other optional element in this file already uses, e.g.
-        `.next.agent`/`.side-nav__locked-why` above) makes the absent case return "" in
-        microseconds, exactly as a presence check needs.
-        """
-        banner = self.page.locator(".chat-presence")
-        return _safe_text(lambda: banner.first.inner_text()) if banner.count() else ""
-
-    def thinking_visible(self) -> bool:
-        return self.page.locator(".chat-thinking").count() > 0
-
-    def agent_turn_links(self) -> list[str]:
-        """Every `href` inside a rendered agent turn's own text -- the every-door-opens rule's
-        chat-surface extension (design §12 item 5): `GUI-C1` sweeps these for well-formedness the
-        same way `GUI-A3` sweeps a wire `display`'s own URL; a scenario wanting the live click-
-        through demonstration itself calls `click_agent_turn_link` below."""
-        links = self.page.locator(".chat-turn__text a")
-        return [links.nth(i).get_attribute("href") or "" for i in range(links.count())]
-
-    def click_agent_turn_link(self, href: str, project_id: str) -> None:
-        """The live click-through no static sweep can stand in for (`FounderBrowser.
-        follow_display_url`'s own precedent, extended to a chat turn's own link): opens `href`
-        exactly as rendered and asserts the founder shell actually renders."""
-        interaction_id = self._bstep.recorder.new_interaction_id()
-        with self._bstep.recorder.interaction("ui-visit", interaction_id):
-            with self._bstep.step(f"founder follows a door an agent turn carried: {href}") as h:
-                self.page.goto(href, wait_until="load")
-                self.page.wait_for_timeout(150)
-                rendered = self.page.locator(".shell").count() >= 1
-                h.add_screenshot(self._bstep.screenshot("chat-turn-door-opened"))
-                h.capture_text("screen", "chat-turn-door")
-                if not rendered:
-                    h.fail(f"the URL a chat turn carried did not render the founder shell: {href}")
-                    raise AssertionError(h.error)
-
-    def send(self, text: str) -> None:
-        """Types into the composer and clicks Send (rather than relying on the Enter-submits
-        binding -- deterministic either way, this is the one that never risks a stray Shift)."""
-        with self._bstep.step(f"founder types into the chat composer: {text[:60]!r}") as h:
-            self.expand()
-            box = self.page.locator(".chat-composer__input")
-            box.fill(text)
-            h.add_screenshot(self._bstep.screenshot("chat-composer-filled"))
-            self.page.get_by_role("button", name=re.compile(r"^send$", re.I)).click()
-            h.capture_text("chat_sent", text)
-
-    def wait_for_turn_count(self, n: int, *, timeout_ms: int = 15_000) -> None:
-        """Polls until at least `n` `.chat-turn` elements have rendered -- the composer's own
-        `postTurn` mutation and the pane's own poll are both async, so a caller reading turns
-        right after `send()`/a relay post needs this rather than a fixed sleep."""
-        self.expand()
-        self.page.wait_for_function(
-            "(n) => document.querySelectorAll('.chat-turn').length >= n", arg=n, timeout=timeout_ms)
-
-    def capture(self, h: StepHandle) -> None:
-        """Folds the pane's current rendered state into the caller's own step -- `chat_turns`/
-        `chat_playback_table`/`chat_presence_banner`/`chat_turn_links` are policy v5's own hop ids
-        (`harness/rubric.py`'s `_chat_visit_checks`)."""
-        self.expand()
-        turns = self.turns()
-        h.capture_text("chat_turns", "\n".join(f"{t['kicker']}: {t['text']}" for t in turns if t["text"]))
-        table_rows = self.playback_table_rows()
-        if table_rows:
-            h.capture_text("chat_playback_table", "\n".join(" | ".join(r) for r in table_rows))
-        h.capture_text("chat_presence_banner", self.presence_banner_text())
-        if self._presence_reader is not None:
-            try:
-                presence = self._presence_reader()
-                h.capture_text("chat_presence_state", json.dumps(presence))
-            except Exception:  # noqa: BLE001 - capture is advisory, never load-bearing
-                pass
-        links = self.agent_turn_links()
-        if links:
-            h.capture_text("chat_turn_links", "\n".join(links))
-
-    def read(self) -> dict:
-        """Opens (or continues) a `chat-visit` interaction, captures the pane's rendered state for
-        policy v5's sweeps, and returns `{turns, playback_rows, presence_banner}` for the caller's
-        own live assertions (e.g. "the INTRODUCE_ROLES playback renders as a table")."""
-        interaction_id = self._bstep.recorder.new_interaction_id()
-        with self._bstep.recorder.interaction("chat-visit", interaction_id):
-            with self._bstep.step("founder reads the chat pane") as h:
-                self.capture(h)
-                h.add_screenshot(self._bstep.screenshot("chat-pane"))
-        return {"turns": self.turns(), "playback_rows": self.playback_table_rows(),
-                "presence_banner": self.presence_banner_text()}
-
-
-class HistoryDrawer:
-    """The relay's history, collapsed along the bottom of the founder shell (founder-experience-
-    3-design.md §3; keel-web commit 96c83af: "the rail does not die; it demotes"). `ProjectShell`
-    mounts this ONE drawer regardless of which founder route is on screen (overview -- classic
-    cards or the guided walk's own step -- a stage, brief, or people), exactly the same
-    "never unmounts on navigation" precedent `ChatPane` set for the right rail it replaces; this
-    class never navigates anywhere itself either.
-
-    Shows EVERY turn, never step-filtered (`GuidedStep`'s own overlay is the step-scoped view;
-    this is the plain, complete transcript) -- including the server-authored `event` turns spec 017
-    FR-001 introduced (`kind: "event"`, `author: "system"`), rendered as green-tick lines
-    (`.chat-turn--event`) recording something the founder just did through the founder API (an
-    approval, an invitation created) rather than said.
-
-    Reads its own `chat-visit` interaction scope, unchanged in NAME from `ChatPane`'s own (policy
-    v5's `CLA-C1`/`ORI-C1`/`GUI-C1` sweep the same `chat_turns`/`chat_playback_table`/
-    `chat_presence_banner`/`chat_turn_links` capture keys by string, regardless of which page
-    object wrote them -- renaming the class changes nothing about how a run scores).
-    """
-
-    def __init__(self, page: Page, recorder: Recorder, *, presence_reader: Callable[[], dict] | None = None):
-        self.page = page
-        self._bstep = _BrowserStep(recorder, page, party="founder")
-        self._presence_reader = presence_reader
-
-    def expand(self) -> None:
-        """The drawer's panel only renders while `expanded` (its own bottom bar's toggle button is
-        always visible either way) -- a no-op if the panel is already showing."""
-        if self.page.locator(".history-drawer__panel").count() == 0:
-            self.page.locator(".history-drawer__toggle").first.click()
-            self.page.wait_for_timeout(100)
-
-    def turns(self) -> list[dict]:
-        """`{kicker, author, kind, text, playback}` per rendered `.history-drawer__turns .chat-turn`
-        row, DOM (chronological) order. An event row (`.chat-turn--event`) reports
-        `author="system"`, `kind="event"`, `kicker=""` -- the green-tick line spec 017 FR-001
-        introduced; a founder/agent row's `author` is read off the visible marker (the `YOU` kicker
-        vs. the Keel mark, which carries no text kicker of its own)."""
-        rows = self.page.locator(".history-drawer__turns .chat-turn")
-        out: list[dict] = []
-        for i in range(rows.count()):
-            row = rows.nth(i)
-            classes = (row.get_attribute("class") or "").split()
-            if "chat-turn--event" in classes:
-                text = _safe_text(lambda r=row: r.locator(
-                    "span:not(.chat-turn--event__tick):not(.chat-turn__time)").first.inner_text())
-                out.append({"kicker": "", "author": "system", "kind": "event", "text": text, "playback": False})
-                continue
-            kicker_el = row.locator(".chat-turn__kicker")
-            is_founder = kicker_el.count() > 0
-            kicker = _safe_text(lambda e=kicker_el: e.first.inner_text()) if is_founder else ""
-            is_playback = row.locator(".chat-playback").count() > 0
-            if is_playback:
-                text = _safe_text(lambda r=row: r.locator(".chat-playback").first.inner_text())
-            else:
-                text = _safe_text(lambda r=row: r.locator(".chat-turn__text").first.inner_text())
-            out.append({"kicker": kicker, "author": "founder" if is_founder else "agent",
-                        "kind": "playback" if is_playback else "message", "text": text,
-                        "playback": is_playback})
-        return out
-
-    def playback_table_rows(self) -> list[list[str]]:
-        """Same `table.invites`-inside-`.chat-playback` shape `ChatPane` reads (`RolesRecordedTable`
-        is unchanged by the guided walk) -- scoped to the drawer's own turn list."""
-        table = self.page.locator(".history-drawer__turns .chat-playback table.invites").first
-        if table.count() == 0:
-            return []
-        rows = table.locator("tr")
-        out: list[list[str]] = []
-        for i in range(rows.count()):
-            cells = rows.nth(i).locator("th, td")
-            out.append([cells.nth(j).inner_text().strip() for j in range(cells.count())])
-        return out
-
-    def wait_for_presence(self, *, connected: bool, timeout_ms: int = 20_000) -> None:
-        """Identical debounce discipline to `ChatPane.wait_for_presence` (same live-confirmed bug
-        this mirrors: a `.count()` guard before ever calling `.inner_text()`, and two consecutive
-        matching reads before declaring the banner stable) -- see that method's own docstring."""
-        self.expand()
-        deadline = time.monotonic() + timeout_ms / 1000
-        stable_hits = 0
-        while time.monotonic() < deadline:
-            shown = bool(self.presence_banner_text())
-            matches = (not shown) if connected else shown
-            stable_hits = stable_hits + 1 if matches else 0
-            if stable_hits >= 2:
-                return
-            self.page.wait_for_timeout(500)
-        raise TimeoutError(
-            f"the drawer's presence banner never stabilized to connected={connected} "
-            f"within {timeout_ms}ms")
-
-    def presence_banner_text(self) -> str:
-        banner = self.page.locator(".chat-presence")
-        return _safe_text(lambda: banner.first.inner_text()) if banner.count() else ""
-
-    def thinking_visible(self) -> bool:
-        return self.page.locator(".chat-thinking").count() > 0
-
-    def agent_turn_links(self) -> list[str]:
-        links = self.page.locator(".history-drawer__turns .chat-turn__text a")
-        return [links.nth(i).get_attribute("href") or "" for i in range(links.count())]
-
-    def click_agent_turn_link(self, href: str, project_id: str) -> None:
-        """The live click-through no static sweep can stand in for -- see
-        `FounderBrowser.follow_display_url`'s own precedent."""
-        interaction_id = self._bstep.recorder.new_interaction_id()
-        with self._bstep.recorder.interaction("ui-visit", interaction_id):
-            with self._bstep.step(f"founder follows a door a history turn carried: {href}") as h:
-                self.page.goto(href, wait_until="load")
-                self.page.wait_for_timeout(150)
-                rendered = self.page.locator(".shell").count() >= 1
-                h.add_screenshot(self._bstep.screenshot("history-turn-door-opened"))
-                h.capture_text("screen", "chat-turn-door")
-                if not rendered:
-                    h.fail(f"the URL a history turn carried did not render the founder shell: {href}")
-                    raise AssertionError(h.error)
-
-    def send(self, text: str) -> None:
-        """Types into the drawer's own general composer and clicks Send -- untagged (no `step`),
-        exactly like a pre-006 relay turn (`HistoryDrawer.tsx`'s own `postTurn.mutate({text})`)."""
-        with self._bstep.step(f"founder types into the drawer's composer: {text[:60]!r}") as h:
-            self.expand()
-            box = self.page.locator(".chat-composer__input")
-            box.fill(text)
-            h.add_screenshot(self._bstep.screenshot("drawer-composer-filled"))
-            self.page.get_by_role("button", name=re.compile(r"^send$", re.I)).click()
-            h.capture_text("chat_sent", text)
-
-    def wait_for_turn_count(self, n: int, *, timeout_ms: int = 15_000) -> None:
-        """Polls until at least `n` `.history-drawer__turns .chat-turn` elements have rendered --
-        mirrors `ChatPane.wait_for_turn_count`'s own async-mutation rationale."""
-        self.expand()
-        self.page.wait_for_function(
-            "(n) => document.querySelectorAll('.history-drawer__turns .chat-turn').length >= n",
-            arg=n, timeout=timeout_ms)
-
-    def capture(self, h: StepHandle) -> None:
-        """Folds the drawer's current rendered state into the caller's own step -- same capture
-        keys as `ChatPane.capture` (policy v5's own hop ids); an event row's kicker is empty, so it
-        reads as `SYSTEM: <text>` in `chat_turns`."""
-        self.expand()
-        turns = self.turns()
-        h.capture_text("chat_turns", "\n".join(
-            f"{t['kicker'] or t['author'].upper()}: {t['text']}" for t in turns if t["text"]))
-        table_rows = self.playback_table_rows()
-        if table_rows:
-            h.capture_text("chat_playback_table", "\n".join(" | ".join(r) for r in table_rows))
-        h.capture_text("chat_presence_banner", self.presence_banner_text())
-        if self._presence_reader is not None:
-            try:
-                presence = self._presence_reader()
-                h.capture_text("chat_presence_state", json.dumps(presence))
-            except Exception:  # noqa: BLE001 - capture is advisory, never load-bearing
-                pass
-        links = self.agent_turn_links()
-        if links:
-            h.capture_text("chat_turn_links", "\n".join(links))
-
-    def read(self) -> dict:
-        """Opens (or continues) a `chat-visit` interaction, captures the drawer's rendered state
-        for policy v5's sweeps, and returns `{turns, playback_rows, presence_banner}` -- same shape
-        as `ChatPane.read`."""
-        interaction_id = self._bstep.recorder.new_interaction_id()
-        with self._bstep.recorder.interaction("chat-visit", interaction_id):
-            with self._bstep.step("founder reads the history drawer") as h:
-                self.capture(h)
-                h.add_screenshot(self._bstep.screenshot("history-drawer"))
-        return {"turns": self.turns(), "playback_rows": self.playback_table_rows(),
-                "presence_banner": self.presence_banner_text()}
 
 
 def _safe_all_texts(page: Page, selector: str) -> list[str]:
@@ -937,11 +88,570 @@ def _safe_all_texts(page: Page, selector: str) -> list[str]:
         return []
 
 
+def _capture_agent_line(page: Page, h: StepHandle) -> None:
+    """`div.agentline > span.st-*` -- the brand row's own live claim about whether a runtime is
+    connected, present on every founder screen this harness visits post-login (Landing, Shell)."""
+    h.capture_text("agent_line", _safe_text(lambda: page.locator(".agentline").first.inner_text()))
+
+
+class Auth:
+    """Setup and login (`src/routes/auth/{Setup,Login}Route.tsx`)."""
+
+    def __init__(self, page: Page, web_base_url: str, recorder: Recorder, *, party: str = "founder"):
+        self.page = page
+        self.base_url = web_base_url
+        self._bstep = _BrowserStep(recorder, page, party)
+
+    def open_setup(self) -> None:
+        with self._bstep.step("founder opens the setup screen") as h:
+            self.page.goto(self.base_url, wait_until="load")
+            self.page.locator("h1.auth-title").wait_for(state="visible", timeout=15_000)
+            h.capture_text("screen", "setup")
+            h.capture_text("stage_screen", _safe_text(lambda: self.page.locator("h1.auth-title").inner_text()))
+            h.add_screenshot(self._bstep.screenshot("setup"))
+
+    def setup(self, *, name: str, email: str, password: str) -> None:
+        with self._bstep.step("founder creates the account") as h:
+            self.page.get_by_label("Your name").fill(name)
+            self.page.get_by_label("Email").fill(email)
+            self.page.get_by_label("Password").fill(password)
+            h.add_screenshot(self._bstep.screenshot("setup-filled"))
+            self.page.get_by_role("button", name="Create account").click()
+            self.page.wait_for_load_state("load")
+
+    def open_login(self) -> None:
+        with self._bstep.step("founder opens the login screen") as h:
+            self.page.goto(f"{self.base_url}/login", wait_until="load")
+            self.page.locator("h1.auth-title").wait_for(state="visible", timeout=15_000)
+            h.capture_text("screen", "login")
+            h.add_screenshot(self._bstep.screenshot("login"))
+
+    def log_in(self, *, email: str, password: str) -> None:
+        """Drives the real `/login` screen -- never a transplanted cookie."""
+        with self._bstep.step("founder logs in") as h:
+            if "/login" not in self.page.url:
+                self.open_login()
+            self.page.get_by_label("Email").fill(email)
+            self.page.get_by_label("Password").fill(password)
+            h.add_screenshot(self._bstep.screenshot("login-filled"))
+            self.page.get_by_role("button", name="Log in").click()
+            self.page.wait_for_load_state("load")
+            h.add_screenshot(self._bstep.screenshot("logged-in"))
+
+
+class Connect:
+    """The device-approval frames (`src/routes/connect/ConnectRoute.tsx`): B (approve/deny), C
+    (approved), G (denied), plus the plain `/connect` entry (A/D)."""
+
+    def __init__(self, page: Page, recorder: Recorder, *, party: str = "founder"):
+        self.page = page
+        self._bstep = _BrowserStep(recorder, page, party)
+
+    def open(self, verification_uri: str) -> None:
+        """Opens exactly the URL keel-runtime's connect script handed back -- never
+        reconstructed (spec US2 step 1)."""
+        with self._bstep.step("founder opens the device-approval link") as h:
+            self.page.goto(verification_uri, wait_until="load")
+            self.page.locator("h1.auth-title").wait_for(state="visible", timeout=15_000)
+            title = _safe_text(lambda: self.page.locator("h1.auth-title").inner_text())
+            h.capture_text("screen", "connect")
+            h.capture_text("stage_screen", title)
+            h.add_screenshot(self._bstep.screenshot("connect-approve"))
+
+    def user_code(self) -> str:
+        return _safe_text(lambda: self.page.locator("div.code").first.inner_text())
+
+    def approve(self) -> None:
+        """Frame B -> C: *Approve this device*."""
+        with self._bstep.step("founder approves the device") as h:
+            self.page.get_by_role("button", name="Approve this device").click()
+            self.page.get_by_text(re.compile("agent connected", re.I)).wait_for(
+                state="visible", timeout=15_000)
+            h.capture_text("stage_screen", _safe_text(lambda: self.page.locator(".stateline").inner_text()))
+            h.add_screenshot(self._bstep.screenshot("connect-approved"))
+
+    def deny(self) -> None:
+        """Frame B -> G."""
+        with self._bstep.step("founder denies the device") as h:
+            self.page.get_by_role("button", name="Deny").click()
+            self.page.get_by_text(re.compile("device denied", re.I)).wait_for(
+                state="visible", timeout=15_000)
+            h.add_screenshot(self._bstep.screenshot("connect-denied"))
+
+    def go_to_projects(self) -> None:
+        with self._bstep.step("founder returns to their projects") as h:
+            self.page.get_by_role("link", name=re.compile("go to your projects", re.I)).click()
+            self.page.wait_for_load_state("load")
+            h.add_screenshot(self._bstep.screenshot("back-at-landing"))
+
+
+class Landing:
+    """`src/routes/LandingRoute.tsx` -- L1 (name the first project), L2 (gated, no agent), L3/L4
+    (has projects)."""
+
+    def __init__(self, page: Page, web_base_url: str, recorder: Recorder, *, party: str = "founder"):
+        self.page = page
+        self.base_url = web_base_url
+        self._bstep = _BrowserStep(recorder, page, party)
+
+    def open(self) -> None:
+        with self._bstep.step("founder opens the landing page") as h:
+            self.page.goto(self.base_url, wait_until="load")
+            self.page.locator(".shell").first.wait_for(state="visible", timeout=15_000)
+            _capture_agent_line(self.page, h)
+            h.capture_text("screen", "landing")
+            h.add_screenshot(self._bstep.screenshot("landing"))
+
+    def agent_line_text(self) -> str:
+        return _safe_text(lambda: self.page.locator(".agentline").first.inner_text())
+
+    def is_gated(self) -> bool:
+        """L2: no agent connected yet, no project can be started."""
+        return self.page.locator(".gate").count() > 0
+
+    def open_connect_from_gate(self) -> None:
+        with self._bstep.step("founder clicks I have a code from the gated landing") as h:
+            self.page.get_by_role("link", name=re.compile("i have a code", re.I)).click()
+            self.page.wait_for_load_state("load")
+            h.add_screenshot(self._bstep.screenshot("landing-gate-to-connect"))
+
+    def name_project(self, name: str) -> None:
+        """L1: the guided lobby's name field -> *Save and continue* -> `/p/:id` (C1)."""
+        with self._bstep.step(f"founder names the project: {name!r}") as h:
+            box = self.page.locator(".guided-step").get_by_role("textbox")
+            if box.count() == 0:
+                box = self.page.get_by_label(re.compile("what should we call this project", re.I))
+            box.fill(name)
+            h.add_screenshot(self._bstep.screenshot("landing-name-filled"))
+            self.page.get_by_role("button", name=re.compile("save and continue", re.I)).click()
+            self.page.wait_for_load_state("load")
+
+    def project_rows(self) -> list[str]:
+        return _safe_all_texts(self.page, "a.project-row")
+
+    def open_project(self, index: int = 0) -> None:
+        with self._bstep.step(f"founder opens project row {index}") as h:
+            self.page.locator("a.project-row").nth(index).click()
+            self.page.wait_for_load_state("load")
+            h.add_screenshot(self._bstep.screenshot("landing-open-project"))
+
+
+class Shell:
+    """The project shell's own side nav (`src/components/ProjectShell.tsx`, `SideNav.tsx`) --
+    read-only helpers shared by every screen inside `/p/:id/*`."""
+
+    def __init__(self, page: Page):
+        self.page = page
+
+    def agent_line_text(self) -> str:
+        return _safe_text(lambda: self.page.locator(".agentline").first.inner_text())
+
+    def nav_status(self, label: str) -> str:
+        """The status word beside a nav row named `label` (e.g. "The problem", "Your solution",
+        "Will they pay", "Brief") -- `span.side-nav__status`'s own rendered text."""
+        item = self.page.locator(".side-nav__item", has_text=label).first
+        return _safe_text(lambda: item.locator(".side-nav__status").inner_text())
+
+    def people_locked(self) -> bool:
+        return self.page.locator(".side-nav__item--locked").count() > 0
+
+    def people_locked_reason(self) -> str:
+        return _safe_text(lambda: self.page.locator(".side-nav__locked-why").first.inner_text())
+
+    def open_people(self) -> None:
+        self.page.get_by_role("link", name=re.compile("^people$", re.I)).click()
+        self.page.wait_for_load_state("load")
+
+    def open_brief(self) -> None:
+        self.page.get_by_role("link", name=re.compile("^brief$", re.I)).click()
+        self.page.wait_for_load_state("load")
+
+    def open_stage_nav(self, label: str) -> None:
+        self.page.locator(".side-nav__item", has_text=label).first.click()
+        self.page.wait_for_load_state("load")
+
+    def capture_common(self, h: StepHandle) -> None:
+        _capture_agent_line(self.page, h)
+        if self.people_locked():
+            h.capture_text("locked_reason", self.people_locked_reason())
+
+
+class Chat:
+    """The guided step's own chat (`src/components/chat/ChatFrame.tsx`, `GuidedStep.tsx`) --
+    C1-C8: the composer, the agent's turns, and the confirmation card. Every call captures the
+    frame's own state line (`chat__sub`) as `chat_state` (an `agent_turn` interaction, spec
+    FR-009's "the frame's state line", never a wire read) and, once an agent bubble renders, its
+    text as `agent_reply`.
+    """
+
+    def __init__(self, page: Page, recorder: Recorder, *, party: str = "founder"):
+        self.page = page
+        self._bstep = _BrowserStep(recorder, page, party)
+        self._interaction_id: str | None = None
+
+    def _scope(self):
+        if self._interaction_id is None:
+            self._interaction_id = self._bstep.recorder.new_interaction_id()
+        return self._bstep.recorder.interaction("agent_turn", self._interaction_id)
+
+    def is_visible(self) -> bool:
+        return self.page.locator(".chat").count() > 0
+
+    def state_line(self) -> str:
+        return _safe_text(lambda: self.page.locator(".chat__sub").first.inner_text())
+
+    def topic(self) -> str:
+        return _safe_text(lambda: self.page.locator(".chat__topic").first.inner_text())
+
+    def kicker(self) -> str:
+        return _safe_text(lambda: self.page.locator(".guided-step__kicker").first.inner_text())
+
+    def latest_agent_text(self) -> str:
+        return _safe_text(lambda: self.page.locator(".msg.agent .bub").last.inner_text())
+
+    def latest_founder_text(self) -> str:
+        return _safe_text(lambda: self.page.locator(".msg.you .bub").last.inner_text())
+
+    def is_typing(self) -> bool:
+        return self.page.locator(".typing[role='status']").count() > 0
+
+    def _capture(self, h: StepHandle) -> None:
+        h.capture_text("chat_state", self.state_line())
+        h.capture_text("waiting_text", self.state_line() if self.is_typing() else "")
+        agent_text = self.latest_agent_text()
+        if agent_text:
+            h.capture_text("agent_reply", agent_text)
+
+    def wait_for_state(self, pattern: str, *, timeout_ms: int = 60_000) -> None:
+        """Waits on the frame's own words (spec edge cases: a 60s ceiling per agent turn, never a
+        sleep) -- `pattern` matched case-insensitively against `.chat__sub`'s own text."""
+        self.page.wait_for_function(
+            "(pattern) => { const el = document.querySelector('.chat__sub'); "
+            "return !!el && new RegExp(pattern, 'i').test(el.textContent || ''); }",
+            arg=pattern, timeout=timeout_ms,
+        )
+
+    def send(self, text: str) -> None:
+        """Types into the composer and sends -- C1/C2: the opening line, or a follow-up answer."""
+        with self._scope():
+            with self._bstep.step(f"founder types into the chat: {text[:60]!r}") as h:
+                box = self.page.locator(".chat__foot textarea")
+                box.fill(text)
+                h.add_screenshot(self._bstep.screenshot("chat-composer-filled"))
+                self.page.locator(".chat__foot button.btn.primary").click()
+                self._capture(h)
+                h.add_screenshot(self._bstep.screenshot("chat-sent"))
+
+    def wait_for_understood(self, *, timeout_ms: int = 60_000) -> None:
+        """C5: *Here's what we understood*."""
+        self.page.locator(".understood").wait_for(state="visible", timeout=timeout_ms)
+
+    def understood_claim(self) -> str:
+        return _safe_text(lambda: self.page.locator(".understood__claim").first.inner_text())
+
+    def save_this(self) -> None:
+        """C5 -> C8: *Save this* -- the draft becomes the card's claim; the beliefs land."""
+        with self._scope():
+            with self._bstep.step("founder saves the understood claim") as h:
+                h.capture_text("agent_reply", self.understood_claim())
+                h.add_screenshot(self._bstep.screenshot("chat-understood"))
+                self.page.get_by_role("button", name=re.compile(r"^save this$", re.I)).click()
+                self.page.locator(".landed").wait_for(state="visible", timeout=15_000)
+                h.capture_text("agent_turn_outcome", "COMPLETED")
+                h.add_screenshot(self._bstep.screenshot("chat-landed"))
+
+    def landed_claim(self) -> str:
+        return _safe_text(lambda: self.page.locator(".landed__claim").first.inner_text())
+
+    def start_over(self) -> None:
+        with self._scope():
+            with self._bstep.step("founder cancels and starts over") as h:
+                self.page.get_by_role("button", name=re.compile("start over", re.I)).click()
+                h.add_screenshot(self._bstep.screenshot("chat-start-over"))
+
+    def draft_kept_note(self) -> str:
+        """S2: the "draft kept" note shown when the founder navigates away mid-draft."""
+        return _safe_text(lambda: self.page.locator(".draftnote").first.inner_text())
+
+    def back_to_step(self) -> None:
+        with self._bstep.step("founder returns to the in-progress step") as h:
+            self.page.locator(".draftnote a.btn").click()
+            self.page.wait_for_load_state("load")
+            h.add_screenshot(self._bstep.screenshot("chat-back-to-step"))
+
+
+class StageCard:
+    """`src/routes/StageRoute.tsx` -- R1/R2/R4 (review/start-over/approved), E1-E3 (evidence,
+    once beliefs have readings)."""
+
+    def __init__(self, page: Page, recorder: Recorder, *, party: str = "founder"):
+        self.page = page
+        self._bstep = _BrowserStep(recorder, page, party)
+        self._interaction_id: str | None = None
+
+    def _scope(self):
+        if self._interaction_id is None:
+            self._interaction_id = self._bstep.recorder.new_interaction_id()
+        return self._bstep.recorder.interaction("ui_visit", self._interaction_id)
+
+    def open(self, stage_label: str) -> None:
+        with self._scope():
+            with self._bstep.step(f"founder opens the {stage_label} stage card") as h:
+                self.page.locator(".card.openc").wait_for(state="visible", timeout=15_000)
+                self._capture(h, stage_label)
+                h.add_screenshot(self._bstep.screenshot("stage-card"))
+
+    def _capture(self, h: StepHandle, stage_label: str) -> None:
+        h.capture_text("screen", "stage")
+        h.capture_text("stage", stage_label)
+        h.capture_text("stage_identity", _safe_text(lambda: self.page.locator(".bet").first.inner_text()))
+        h.capture_text("stage_screen", _safe_text(lambda: self.page.locator(".card.openc").first.inner_text()))
+
+    def status_text(self) -> str:
+        return _safe_text(lambda: self.page.locator(".card-top .status").first.inner_text())
+
+    def claim_text(self) -> str:
+        return _safe_text(lambda: self.page.locator("p.claim").first.inner_text())
+
+    def counts_text(self) -> str:
+        return _safe_text(lambda: self.page.locator(".counts").first.inner_text())
+
+    def belief_headings(self) -> list[str]:
+        return _safe_all_texts(self.page, ".belief .b-heading")
+
+    def open_belief(self, heading: str) -> None:
+        """Opens a belief's own drilldown (the evidence screens, E1-E3) -- clickable only once a
+        drilldown exists (`button.b-top[aria-expanded]`)."""
+        with self._bstep.step(f"founder opens the belief: {heading!r}") as h:
+            row = self.page.locator(".belief", has_text=heading).first
+            row.locator(".b-top").click()
+            h.add_screenshot(self._bstep.screenshot("belief-drilldown"))
+
+    def evidence_quotes(self, heading: str) -> list[dict]:
+        """`{name, words, group}` for every quote under a belief's own drilldown, DOM order --
+        `group` is "for"/"against"/"nul" (`.vgroup.for/.against/.nul`)."""
+        row = self.page.locator(".belief", has_text=heading).first
+        out: list[dict] = []
+        for group in ("for", "against", "nul"):
+            quotes = row.locator(f".vgroup.{group} .quote")
+            for i in range(quotes.count()):
+                q = quotes.nth(i)
+                out.append({
+                    "group": group,
+                    "name": _safe_text(lambda q=q: q.locator(".name").inner_text()),
+                    "words": _safe_text(lambda q=q: q.locator(".words").inner_text()),
+                })
+        return out
+
+    def approve(self) -> None:
+        """R1 -> R4: *These are right — approve*."""
+        with self._scope():
+            with self._bstep.step("founder approves the stage card") as h:
+                self.page.get_by_role("button", name=re.compile("these are right", re.I)).click()
+                self.page.get_by_text(re.compile("approved", re.I)).first.wait_for(
+                    state="visible", timeout=15_000)
+                h.capture_text("affordance", _safe_text(
+                    lambda: self.page.locator(".approved-note").first.inner_text()))
+                h.add_screenshot(self._bstep.screenshot("stage-approved"))
+
+    def continue_to_next_step(self) -> None:
+        with self._bstep.step("founder continues to the next step") as h:
+            self.page.locator(".approved-note").get_by_role("link").first.click()
+            self.page.wait_for_load_state("load")
+            h.add_screenshot(self._bstep.screenshot("stage-continue"))
+
+    def go_to_people(self) -> None:
+        with self._bstep.step("founder goes to People") as h:
+            self.page.get_by_role("button", name=re.compile("go to people", re.I)).click()
+            self.page.wait_for_load_state("load")
+            h.add_screenshot(self._bstep.screenshot("stage-to-people"))
+
+
+class People:
+    """`src/routes/PeopleRoute.tsx` -- P1-P9: role cards, the send popup, the table, the answers
+    popup, the reading progress, and the toast."""
+
+    def __init__(self, page: Page, recorder: Recorder, *, party: str = "founder"):
+        self.page = page
+        self._bstep = _BrowserStep(recorder, page, party)
+        self._interaction_id: str | None = None
+
+    def _scope(self):
+        if self._interaction_id is None:
+            self._interaction_id = self._bstep.recorder.new_interaction_id()
+        return self._bstep.recorder.interaction("ui_visit", self._interaction_id)
+
+    def open(self) -> None:
+        with self._scope():
+            with self._bstep.step("founder opens the People page") as h:
+                self.page.wait_for_selector(".role, table.ppl", timeout=15_000)
+                h.capture_text("screen", "people")
+                h.capture_text("stage_screen", _safe_text(lambda: self.page.locator("body").inner_text()))
+                h.capture_text("participant_names", "\n".join(self.answered_names()))
+                h.add_screenshot(self._bstep.screenshot("people"))
+
+    def role_labels(self) -> list[str]:
+        return _safe_all_texts(self.page, ".role__label")
+
+    def answered_names(self) -> list[str]:
+        return _safe_all_texts(self.page, "table.ppl tbody tr td:first-child")
+
+    def send_questions(self, role_label: str, *, name: str, about: str) -> str:
+        """P1 -> P2 -> P3 -> P4: opens the send popup for `role_label`'s card, fills who, previews
+        the questions, generates the link, and returns the URL exactly as the page renders it
+        (never reconstructed)."""
+        with self._scope():
+            with self._bstep.step(f"founder sends the questions to {name} ({role_label})") as h:
+                role_card = self.page.locator(".role", has_text=role_label).first
+                role_card.get_by_role("button", name=re.compile("send the questions", re.I)).click()
+                self.page.locator(".pop[role='dialog']").wait_for(state="visible", timeout=10_000)
+                h.add_screenshot(self._bstep.screenshot("people-send-popup-who"))
+
+                self.page.get_by_label("Their name").fill(name)
+                self.page.get_by_label(re.compile("a short line", re.I)).fill(about)
+                self.page.get_by_role("button", name=re.compile("next", re.I)).click()
+
+                self.page.locator(".preview").wait_for(state="visible", timeout=10_000)
+                h.add_screenshot(self._bstep.screenshot("people-send-popup-preview"))
+                self.page.get_by_role("button", name=re.compile("generate", re.I)).click()
+
+                link_box = self.page.locator("p.linkbox")
+                link_box.wait_for(state="visible", timeout=10_000)
+                url = _safe_text(lambda: link_box.inner_text()).strip()
+                h.capture_text("invite_screen", url)
+                h.add_screenshot(self._bstep.screenshot("people-send-popup-link"))
+
+                self.page.get_by_role("button", name=re.compile("close|done", re.I)).click()
+                return url
+
+    def toggle_who(self) -> None:
+        with self._bstep.step("founder switches to Who's been asked") as h:
+            self.page.locator(".toggle button", has_text=re.compile("who", re.I)).click()
+            h.add_screenshot(self._bstep.screenshot("people-toggle-who"))
+
+    def table_rows(self) -> list[dict]:
+        """`{person, kind, sent, their_answer, your_agent}` per row of `table.ppl`."""
+        rows = self.page.locator("table.ppl tbody tr")
+        out: list[dict] = []
+        for i in range(rows.count()):
+            cells = rows.nth(i).locator("td")
+            out.append({
+                "person": _safe_text(lambda c=cells: c.nth(0).inner_text()),
+                "kind": _safe_text(lambda c=cells: c.nth(1).inner_text()),
+                "sent": _safe_text(lambda c=cells: c.nth(2).inner_text()),
+                "their_answer": _safe_text(lambda c=cells: c.nth(3).inner_text()),
+                "your_agent": _safe_text(lambda c=cells: c.nth(4).inner_text()) if c.count() > 4 else "",
+            })
+        return out
+
+    def open_answers(self, name: str) -> dict:
+        """P9: *See <name>'s answers* -- returns `{questions: [{ask, answer}]}` read straight off
+        the popup, and captures the participant's own words as `participant_page` (FR-013's
+        weight-2 FIDELITY hop)."""
+        with self._scope():
+            with self._bstep.step(f"founder reads {name}'s answers") as h:
+                self.page.get_by_role("button", name=re.compile(f"see {re.escape(name.split()[0])}", re.I)).click()
+                popup = self.page.locator(".pop")
+                popup.wait_for(state="visible", timeout=10_000)
+                full_text = _safe_text(lambda: popup.locator(".preview").inner_text())
+                h.capture_text("participant_page", full_text)
+                h.add_screenshot(self._bstep.screenshot("people-answers-popup"))
+
+                questions = popup.locator(".p-q")
+                out = []
+                for i in range(questions.count()):
+                    q = questions.nth(i)
+                    out.append({
+                        "ask": _safe_text(lambda q=q: q.inner_text()),
+                        "answer": _safe_text(lambda q=q: q.locator(".p-a").inner_text()),
+                    })
+                self.page.get_by_role("button", name=re.compile("^close$", re.I)).click()
+                return {"questions": out, "text": full_text}
+
+    def have_agent_read(self) -> None:
+        """P5 -> P6 -> P7: *Have your agent read the N new answers* -- waits on the frame's own
+        progress line, never a sleep, then the toast."""
+        with self._scope():
+            with self._bstep.step("founder has the agent read the new answers") as h:
+                self.page.get_by_role("button", name=re.compile("have your agent read", re.I)).click()
+                progress = self.page.locator(".bulk")
+                if progress.count() > 0:
+                    h.capture_text("waiting_text", _safe_text(lambda: progress.inner_text()))
+                    h.add_screenshot(self._bstep.screenshot("people-reading-progress"))
+                self.page.locator(".toast[role='status']").wait_for(state="visible", timeout=60_000)
+                toast_text = _safe_text(lambda: self.page.locator(".toast").inner_text())
+                h.capture_text("agent_reply", toast_text)
+                h.add_screenshot(self._bstep.screenshot("people-reading-done-toast"))
+
+    def toast_text(self) -> str:
+        return _safe_text(lambda: self.page.locator(".toast").first.inner_text())
+
+    def see_the_overview(self) -> None:
+        with self._bstep.step("founder follows the toast to the overview") as h:
+            self.page.locator(".toast").get_by_role("link").click()
+            self.page.wait_for_load_state("load")
+            h.add_screenshot(self._bstep.screenshot("people-toast-to-overview"))
+
+
+class Brief:
+    """`src/routes/BriefRoute.tsx` -- B1 (the live standing) and B2 (the print layout)."""
+
+    def __init__(self, page: Page, recorder: Recorder, *, party: str = "founder"):
+        self.page = page
+        self._bstep = _BrowserStep(recorder, page, party)
+        self._interaction_id: str | None = None
+
+    def _scope(self):
+        if self._interaction_id is None:
+            self._interaction_id = self._bstep.recorder.new_interaction_id()
+        return self._bstep.recorder.interaction("ui_visit", self._interaction_id)
+
+    def open(self) -> None:
+        with self._scope():
+            with self._bstep.step("founder opens the brief") as h:
+                self.page.locator(".brief-head").wait_for(state="visible", timeout=15_000)
+                h.capture_text("screen", "brief")
+                h.capture_text("brief", _safe_text(lambda: self.page.locator(".card.openc").first.inner_text()))
+                h.add_screenshot(self._bstep.screenshot("brief"))
+
+    def list_headings(self) -> list[str]:
+        return _safe_all_texts(self.page, ".blist h5")
+
+    def list_items(self, heading_substring: str) -> list[str]:
+        blist = self.page.locator(".blist", has_text=heading_substring).first
+        return blist.locator("li").all_inner_texts()
+
+    def download(self) -> None:
+        """B1 -> B2: *Download the brief* triggers `window.print()` -- captured here by emulating
+        print media and screenshotting the otherwise-hidden `.doc-page`, exactly as keel-web's own
+        print stylesheet renders it (spec US2 step 9)."""
+        with self._scope():
+            with self._bstep.step("founder downloads the brief") as h:
+                self.page.emulate_media(media="print")
+                doc = self.page.locator(".doc-page .doc")
+                doc.wait_for(state="attached", timeout=10_000)
+                h.capture_text("brief", _safe_text(lambda: doc.inner_text()))
+                h.add_screenshot(self._bstep.screenshot("brief-print"))
+                self.page.emulate_media(media="screen")
+
+    def who_was_asked(self) -> list[str]:
+        self.page.emulate_media(media="print")
+        try:
+            section = self.page.locator(".doc-page .doc")
+            heading = section.get_by_text("Who was asked", exact=False)
+            if heading.count() == 0:
+                return []
+            ul = section.locator("h2", has_text="Who was asked").locator("xpath=following-sibling::ul[1]")
+            return ul.locator("li").all_inner_texts()
+        finally:
+            self.page.emulate_media(media="screen")
+
+
 class ParticipantBrowser:
     """A stranger: opens the tool-issued link in an isolated browser context (no session with the
     founder), consents, answers, submits (design §3). The whole flow -- consent, questions,
-    submit -- is one `participant-page` interaction (design §2's taxonomy): `open` opens the
-    scope and every later call folds into it.
+    submit -- is one `participant_visit` interaction (spec 005 FR-009): `open` opens the scope and
+    every later call folds into it.
     """
 
     def __init__(self, page: Page, recorder: Recorder):
@@ -955,10 +665,10 @@ class ParticipantBrowser:
     def _scope(self):
         if self._interaction_id is None:
             self._interaction_id = self._bstep.recorder.new_interaction_id()
-        return self._bstep.recorder.interaction("participant-page", self._interaction_id)
+        return self._bstep.recorder.interaction("participant_visit", self._interaction_id)
 
     def open(self, url: str) -> None:
-        """Opens exactly the URL the founder's invite screen showed -- never reconstructed."""
+        """Opens exactly the URL the founder's People page showed -- never reconstructed."""
         with self._scope():
             with self._bstep.step("participant opens the invitation link") as h:
                 self.page.goto(url, wait_until="load")
@@ -977,11 +687,11 @@ class ParticipantBrowser:
 
     def answer_all(self, answer_text: str) -> None:
         """Fills each question's main answer and its disconfirming answer with the same
-        supportive text (S-001 answers supportively throughout), and leaves every probe blank --
-        a blank answer is explicitly legal (ParticipantController: "a blank answer is the same
-        as an absent one -- skipped, not submitted"). `.q > textarea.box` (a direct-child
-        combinator) reaches exactly those two per question: a probe's textarea also carries the
-        `box` class (`"box small"`), but sits one level deeper, inside its own wrapper div.
+        supportive text, and leaves every probe blank -- a blank answer is explicitly legal
+        (ParticipantController: "a blank answer is the same as an absent one -- skipped, not
+        submitted"). `.q > textarea.box` (a direct-child combinator) reaches exactly those two per
+        question: a probe's textarea also carries the `box` class (`"box small"`), but sits one
+        level deeper, inside its own wrapper div.
         """
         with self._scope():
             with self._bstep.step("participant answers every question") as h:
@@ -991,21 +701,12 @@ class ParticipantBrowser:
                 h.add_screenshot(self._bstep.screenshot("participant-answers-filled"))
 
     def answer(self, texts: list[str | None]) -> None:
-        """003-eval-set (T006): per-question control -- `texts[i]` fills only the i-th question's
-        *main* box (DOM order, matching `Invitation.asks()`'s stage-then-risk-then-introducedAt
-        ordering, per api-design.md's `form()` assembly). Iterates `.q` (one per question) rather
-        than `.q > textarea.box` directly: each question wraps *two* such boxes (main,
-        disconfirming -- `answer_all`'s own docstring), so indexing the flat box list one-per-
-        question would silently misalign onto the previous question's disconfirming box. `None`
-        (or any falsy string) leaves that question's main box, probes and disconfirming answer all
-        blank, which the server records as no answer at all for that assumption
-        (ParticipantController: "a blank answer is the same as an absent one"). Lets a scenario
-        give one participant supportive evidence on one belief while skipping another entirely
-        (S-002/S-003's two-question commercial link; S-005's opinions-only sweep), or hand a
-        single participant one combined sentence that the scenario's own `interpret_payload` later
-        splits into both a supporting and a contradicting claim (S-004's divided person -- the
-        split is an INTERPRET-time decision, not a textarea one; see that scenario's module
-        docstring).
+        """Per-question control -- `texts[i]` fills only the i-th question's *main* box (DOM
+        order). Iterates `.q` (one per question) rather than `.q > textarea.box` directly: each
+        question wraps *two* such boxes (main, disconfirming), so indexing the flat box list
+        one-per-question would silently misalign onto the previous question's disconfirming box.
+        `None` (or any falsy string) leaves that question's main box, probes and disconfirming
+        answer all blank, which the server records as no answer at all for that assumption.
         """
         with self._scope():
             with self._bstep.step("participant answers questions") as h:
@@ -1014,6 +715,18 @@ class ParticipantBrowser:
                     if text:
                         question.locator("> textarea.box").first.fill(text)
                 h.add_screenshot(self._bstep.screenshot("participant-answers-filled"))
+
+    def skip_one_question(self) -> None:
+        """Spec US2 step 6: "skip one question" -- leaves the last question's main box blank
+        (still legal; the server treats a blank answer as no answer for that assumption)."""
+        with self._scope():
+            with self._bstep.step("participant skips one question") as h:
+                questions = self.page.locator(".q")
+                count = questions.count()
+                for i in range(count - 1):
+                    questions.nth(i).locator("> textarea.box").first.fill(
+                        "Answering this one, at least.")
+                h.add_screenshot(self._bstep.screenshot("participant-one-skipped"))
 
     def submit(self) -> None:
         with self._scope():
@@ -1024,46 +737,10 @@ class ParticipantBrowser:
                 self._capture_page_text(h)
 
     def decline(self) -> None:
-        """003-eval-set (T006, S-006, journey §2.1): clicks "No thanks" on the consent screen --
-        client-side only (`ParticipantRoute.tsx`'s `OpenForm`): no request is ever sent, so nothing
-        reaches the founder as an answer. Captures the resulting "No problem" page.
-        """
+        """Clicks "No thanks" on the consent screen -- client-side only: no request is ever sent."""
         with self._scope():
             with self._bstep.step("participant clicks No thanks") as h:
                 self.page.get_by_role("button", name=re.compile("no thanks", re.I)).click()
                 self.page.wait_for_timeout(150)
                 h.add_screenshot(self._bstep.screenshot("participant-declined"))
-                self._capture_page_text(h)
-
-    def submit_expect_notice(self) -> None:
-        """003-eval-set (T006, S-005): submits when every question was left blank -- the server
-        refuses gently (422, `ParticipantController.respond`: "Every question was left blank, so
-        there's nothing to send") and the page renders an inline `.stale`-styled notice *on the
-        same answering screen* rather than advancing to "thanks" -- distinct from `submit()`,
-        which waits for the thank-you text and would time out here.
-        """
-        with self._scope():
-            with self._bstep.step("participant submits with everything skipped") as h:
-                self.page.get_by_role("button", name=re.compile("^submit$", re.I)).click()
-                self.page.wait_for_timeout(300)
-                h.add_screenshot(self._bstep.screenshot("participant-all-skipped-notice"))
-                self._capture_page_text(h)
-
-    def open_expect_notice(self, url: str) -> None:
-        """003-eval-set (T006, S-002 §2.4 / already-answered): opens a link that will *not* render
-        the fresh consent screen -- gone stale (410, the founder reframed since sending it) or
-        already answered (200, `ALREADY_ANSWERED`) -- capturing whatever the page shows instead.
-        Distinct from `open()`, which waits for the consent screen's "asked if you" text and would
-        time out on either of these paths.
-
-        Scoring note: this still opens a `participant-page` interaction, so the generic rubric's
-        `ORI-P1`/`GUI-P1` (consent intro found / reached a successful submit) will read as failed
-        against it -- expected and self-explanatory in the scorecard (neither a stale nor an
-        already-answered page is a consent flow), not a product finding.
-        """
-        with self._scope():
-            with self._bstep.step("participant opens a link that is no longer a fresh consent screen") as h:
-                self.page.goto(url, wait_until="load")
-                self.page.wait_for_timeout(200)
-                h.add_screenshot(self._bstep.screenshot("participant-link-notice"))
                 self._capture_page_text(h)

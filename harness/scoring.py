@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from evals import policy
-from evals.scenario import Fact
+from evals.facts import Fact
 from harness import rubric
 from harness.interactions import Interaction, derive_interactions
 

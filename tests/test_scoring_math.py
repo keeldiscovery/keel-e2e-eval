@@ -5,7 +5,7 @@ mutating transcript.jsonl or screenshots (SC-004)."""
 from __future__ import annotations
 
 from evals import policy
-from evals.scenario import Fact
+from evals.facts import Fact
 from harness import rubric, scoring
 from harness.evidence import _read_transcript, generate_report
 from harness.interactions import Interaction
@@ -76,7 +76,7 @@ def test_category_absent_when_no_interaction_carries_it():
 # ------------------------------------------------------- not-applicable categories (003-eval-set T003)
 
 def test_not_applicable_categories_names_every_category_with_no_evidence():
-    """S-007-shaped scorecard: only agent-cycle/handoff interactions ever exist (no browser), so
+    """S-007-shaped scorecard: only agent_turn interactions ever exist (no browser), so
     ORIENTATION-U/CLARITY-U/participant checks never fire for those attributes at all -- this must
     be named 'not applicable', not silently dropped."""
     categories = {"GUIDANCE": 4.5, "CLARITY": 5.0}
@@ -95,8 +95,8 @@ def test_scorecard_carries_not_applicable_categories_and_run_score_stays_honest(
         "I1": [_cr("A", "GUIDANCE", 1, True)],
         "I2": [_cr("B", "CLARITY", 1, True)],
     }
-    interactions = [Interaction(id="I1", type="agent-cycle", title="t1", party="agent"),
-                    Interaction(id="I2", type="agent-handoff", title="t2", party="agent")]
+    interactions = [Interaction(id="I1", type="agent_turn", title="t1", party="agent"),
+                    Interaction(id="I2", type="agent_turn", title="t2", party="agent")]
     scorecard = scoring.build_scorecard(interactions, results, scenario="s007-fixture", complete=True)
     assert set(scorecard["not_applicable_categories"]) == {"FIDELITY", "ORIENTATION"}
     assert scorecard["run_score"] == 5.0  # weighted mean of GUIDANCE/CLARITY alone, both 5.0
@@ -137,7 +137,7 @@ def test_interrupted_run_scores_what_it_saw_gated_at_two(tmp_path):
     """A run that never finished the workflow (an exception mid-scenario) still gets a scored
     bundle -- category scores describe what was observed, but complete=False caps the run score."""
     recorder = Recorder(tmp_path)
-    with recorder.interaction("ui-visit"):
+    with recorder.interaction("ui_visit"):
         with recorder.step("founder opens the problem stage card", party="founder", kind="browser") as h:
             h.capture_text("screen", "stage")
             h.capture_text("stage", "PROBLEM")
@@ -151,14 +151,14 @@ def test_interrupted_run_scores_what_it_saw_gated_at_two(tmp_path):
     assert scorecard["gated"] is True
     assert scorecard["run_score"] <= policy.COMPLETION_GATE_SCORE
     # The categories that WERE observed are still reported, not blanked out by the gate.
-    assert scorecard["categories"]  # at least ORIENTATION/CLARITY from the one ui-visit
+    assert scorecard["categories"]  # at least ORIENTATION/CLARITY from the one ui_visit
 
 
 # --------------------------------------------------------------------------- re-score (SC-004)
 
 def test_rescoring_is_idempotent_and_never_mutates_transcript_or_screenshots(tmp_path):
     recorder = Recorder(tmp_path)
-    with recorder.interaction("ui-visit"):
+    with recorder.interaction("ui_visit"):
         with recorder.step("founder opens the problem stage card", party="founder", kind="browser") as h:
             h.capture_text("screen", "stage")
             h.capture_text("stage", "PROBLEM")

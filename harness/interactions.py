@@ -3,6 +3,12 @@
 calls, no clock -- so `make report RUN=<dir>` can re-derive interactions (and therefore re-score)
 from an old bundle alone (FR-007, SC-004).
 
+spec 005-connect-stack FR-009: the interaction kinds are now `ui_visit`, `agent_turn` (an
+inference job observed through the screen -- the frame's own state line, never a wire protocol
+call: there is no more founder-agent HTTP/MCP surface for this harness to speak), `participant_
+visit`, and `arrival`. The agent-cycle/agent-handoff/agent-refusal/chat-visit/shaping-turn kinds
+from the retired agent-protocol harness are gone with it (evals/policy.py's FR-010 removal).
+
 A transcript with no `interaction` tags at all -- a pre-002 bundle, or one built by a step that
 never opened an interaction scope -- derives to an empty list rather than raising (analysis
 finding A2): `harness/rubric.py` and `harness/scoring.py` both treat "no interactions" as a valid,
@@ -18,7 +24,7 @@ from typing import Any
 @dataclass
 class Interaction:
     id: str
-    type: str  # agent-cycle | agent-handoff | ui-visit | participant-page | fidelity-summary
+    type: str  # ui_visit | agent_turn | participant_visit | arrival | fidelity-summary
     title: str
     party: str
     step_seqs: list[int] = field(default_factory=list)
@@ -26,9 +32,8 @@ class Interaction:
     conversation: dict[str, Any] | None = None
     captured_text: dict[str, str] = field(default_factory=dict)
     # Not part of data-model.md's serialized shape (scorecard.json only carries id/type/title/
-    # attributes/checks) -- kept here so harness/rubric.py can inspect the raw protocol
-    # request/response bodies a check needs (e.g. ORI-A1's instruction.content) without
-    # re-parsing the transcript itself.
+    # attributes/checks) -- kept here so harness/rubric.py can inspect raw step request/response
+    # bodies a check needs without re-parsing the transcript itself.
     entries: list[dict] = field(default_factory=list, repr=False)
 
 
@@ -45,127 +50,39 @@ def _merge_captured_text(entries: list[dict]) -> dict[str, str]:
     return merged
 
 
-def _last_matching(entries: list[dict], *, kind: str, name_prefix: str) -> dict | None:
-    for entry in reversed(entries):
-        if entry.get("kind") == kind and str(entry.get("name", "")).startswith(name_prefix):
-            return entry
-    return None
-
-
-def _first_matching(entries: list[dict], *, kind: str, name_prefix: str) -> dict | None:
-    for entry in entries:
-        if entry.get("kind") == kind and str(entry.get("name", "")).startswith(name_prefix):
-            return entry
-    return None
-
-
-def _summarize_payload(payload: Any, *, _depth: int = 0) -> str:
-    """A founder-readable rendering of a submitted payload -- every string leaf, in order, joined
-    into a sentence-ish blob (scorecard-contract.md: "the scripted founder reply (summarized from
-    the submitted payload)"). Deliberately not a JSON dump: the conversation card exists so a
-    reviewer sees prose, not braces; raw JSON stays available, collapsed, alongside it.
+def _agent_turn_conversation(entries: list[dict]) -> dict[str, Any]:
+    """`agent_turn` (FR-009): the inference job's own turn, observed entirely through the
+    screen -- there is no wire protocol call to read a raw instruction/requirements from any
+    more (keel-runtime's scripted executor runs the job; the founder only ever sees the frame's
+    own state line and the agent's rendered reply). `harness/browser.py`'s `Chat` page object
+    stashes these under `chat_state` (the composer's own "Connected · ..." / "Reading what you
+    wrote..." line) and `agent_reply` (the bubble text) -- rendered through the same generic
+    `_conversation_card` every other interaction type already uses, "instruction" repurposed as
+    "what the screen said while waiting", never a wire instruction.
     """
-    if _depth > 6 or payload is None:
-        return ""
-    if isinstance(payload, str):
-        return payload
-    if isinstance(payload, (int, float, bool)):
-        return str(payload)
-    if isinstance(payload, dict):
-        parts = [_summarize_payload(v, _depth=_depth + 1) for v in payload.values()]
-        return "; ".join(p for p in parts if p)
-    if isinstance(payload, list):
-        parts = [_summarize_payload(v, _depth=_depth + 1) for v in payload]
-        return "; ".join(p for p in parts if p)
-    return str(payload)
-
-
-def _response_body(entry: dict | None) -> dict:
-    if entry is None:
-        return {}
-    response = entry.get("response")
-    if isinstance(response, dict):
-        body = response.get("body")
-        if isinstance(body, dict):
-            return body
-    return {}
-
-
-def _agent_cycle_conversation(entries: list[dict]) -> dict[str, Any]:
-    issuance = _first_matching(entries, kind="protocol", name_prefix="get_next")
-    body = _response_body(issuance)
-    instruction = body.get("instruction") or {}
-    submit_entry = _last_matching(entries, kind="protocol", name_prefix="submit ")
-    outcome = None
-    reply_summary = None
-    if submit_entry is not None:
-        submit_request = submit_entry.get("request") or {}
-        reply_summary = _summarize_payload((submit_request or {}).get("body", {}).get("payload"))
-        submit_response_body = _response_body(submit_entry)
-        if submit_response_body.get("revision") is not None:
-            outcome = f"committed revision {submit_response_body['revision']}"
-        elif submit_entry.get("error"):
-            outcome = f"refused: {submit_entry['error']}"
-    return {
-        "instruction": {"purpose": instruction.get("purpose"), "content": instruction.get("content")},
-        "requirements": body.get("requirements") or [],
-        "reply_summary": reply_summary,
-        "outcome": outcome,
-        # Extra, beyond data-model.md's minimum shape: harness/rubric.py's ORI-A2 (stage/
-        # invitation-scoped detail) and CLA-A1 need the raw action/detail without re-parsing
-        # entries themselves.
-        "action": body.get("action"),
-        "detail": body.get("detail") or {},
-    }
-
-
-def _shaping_turn_conversation(entries: list[dict]) -> dict[str, Any]:
-    """The shaping gauntlet's own interaction type (harness/agent_session.py's `AgentSession.
-    _record`, Layer 2 of specs/shaping-eval-design.md): one founder line and the real `claude`
-    CLI agent's reply, rendered through the same `_conversation_card` renderer every other
-    interaction type already uses -- "instruction" here is repurposed as "what the founder said",
-    never a wire instruction (this interaction type carries no `rubric.py` checks at all; it is
-    conversation-only evidence, per the design's own "own small parallel roll-up" boundary)."""
     merged = _merge_captured_text(entries)
-    founder_line = merged.get("founder_line", "")
-    agent_reply = merged.get("agent_reply", "")
-    fact_released = merged.get("fact_released", "none")
     return {
-        "instruction": {"purpose": "Founder says", "content": founder_line},
+        "instruction": {"purpose": "screen state", "content": merged.get("chat_state", "")},
         "requirements": [],
-        "reply_summary": agent_reply,
-        "outcome": "no fact released this turn" if fact_released in ("", "none")
-        else f"fact released: {fact_released}",
+        "reply_summary": merged.get("agent_reply", ""),
+        "outcome": merged.get("agent_turn_outcome", ""),
     }
 
 
-def _agent_handoff_conversation(entries: list[dict]) -> dict[str, Any]:
-    issuance = _first_matching(entries, kind="protocol", name_prefix="get_next")
-    body = _response_body(issuance)
+def _arrival_conversation(entries: list[dict]) -> dict[str, Any]:
+    merged = _merge_captured_text(entries)
     return {
         "instruction": None,
         "requirements": None,
         "reply_summary": None,
-        "outcome": body.get("display"),
-        "reason": body.get("reason"),
+        "outcome": merged.get("arrival_display", ""),
     }
 
 
 def _title_for(interaction_type: str, entries: list[dict]) -> str:
-    if interaction_type == "agent-cycle":
-        issuance = _first_matching(entries, kind="protocol", name_prefix="get_next")
-        body = _response_body(issuance)
-        purpose = (body.get("instruction") or {}).get("purpose")
-        action = body.get("action") or "agent action"
-        return f"{action}: {purpose}" if purpose else str(action)
-    if interaction_type == "agent-handoff":
-        issuance = _first_matching(entries, kind="protocol", name_prefix="get_next")
-        body = _response_body(issuance)
-        reason = body.get("reason") or "handoff"
-        display = body.get("display") or ""
-        return f"{reason}: {display[:70]}" if display else str(reason)
-    # ui-visit / participant-page: the first step's own name is already founder-readable
-    # ("founder opens the problem stage card", "participant opens the invitation link").
+    # ui_visit / participant_visit / agent_turn / arrival: the first step's own name is already
+    # founder-readable ("founder opens the problem stage card", "participant opens the
+    # invitation link", "the agent answers the problem framing").
     return entries[0].get("name", "interaction") if entries else "interaction"
 
 
@@ -194,12 +111,10 @@ def derive_interactions(entries: list[dict]) -> list[Interaction]:
         # authoritative for the (unlikely) case a rewrite raced a read.
         itype = group[0]["interaction"]["type"]
         conversation = None
-        if itype == "agent-cycle":
-            conversation = _agent_cycle_conversation(group)
-        elif itype == "agent-handoff":
-            conversation = _agent_handoff_conversation(group)
-        elif itype == "shaping-turn":
-            conversation = _shaping_turn_conversation(group)
+        if itype == "agent_turn":
+            conversation = _agent_turn_conversation(group)
+        elif itype == "arrival":
+            conversation = _arrival_conversation(group)
 
         screenshots: list[str] = []
         for entry in group:

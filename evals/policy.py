@@ -166,6 +166,48 @@ Judgement calls made while filling in what the contract leaves to the implementa
    check code: `roles_context` is a hop like any other to the generic FID engine
    (`harness/rubric.py`'s `_fid_checks`), scoped to `agent-cycle` interactions the same way
    `agent_echo`/`interpret_context`/`recorded` already are.
+
+9. **Policy v6 (spec 005-connect-stack FR-010/FR-011): the agent-protocol half of this policy is
+   retired along with the harness that observed it.** keel-skill is archived and every judgement
+   now runs through keel-runtime's scripted executor, connected by keel-connect-skill and
+   confirmed in keel-web -- there is no more founder-agent HTTP/MCP surface for a check to sweep.
+   Removed entirely: `ORI-A1`/`ORI-A2`/`ORI-A3` and `GUI-A1`/`GUI-A2`/`GUI-A3` (agent-cycle),
+   `ORI-H1`/`GUI-H1` (agent-handoff), `ORI-R1`/`GUI-R1` (agent-refusal), `CLA-A2` (the commit-
+   display vocabulary sweep) -- and, since the relay's own chat surface is retired with it (the
+   round-5 "Chat" page object drives keel-web's guided-step composer, an unrelated screen),
+   `CLA-C1`/`ORI-C1`/`GUI-C1` and the `chat_turns` FID hop go too (a judgement call: FR-010 names
+   the agent-cycle/handoff/refusal families explicitly but not these three by name; they are
+   struck here because nothing in the rewritten harness can ever produce a `chat-visit`
+   interaction to run them against -- recorded under `## Discovered` in tasks.md). The UI-visit
+   checks (`ORI-U*`, `GUI-U*`, `CLA-U1`/`CLA-U2`/`CLA-U3`) and the arrival check (`CLA-AR1`)
+   survive unchanged -- they read the screen, which is still exactly how a founder experiences
+   this product.
+
+   FID keeps only the hops a screen or the participant survey can actually carry now:
+   `stage_screen`, `invite_screen`, `participant_page`, `brief` (all four already `ui_visit`/
+   `participant_visit` hops, untouched) -- `agent_echo`, `interpret_context`, `recorded`, and
+   `roles_context` are dropped with the wire client that used to capture them. The weight-2 rule
+   for verbatim participant speech (judgement call, `fid_weight`'s original comment) moves to
+   where that speech is actually captured now: `(kind="answer", hop="participant_page")`, not the
+   retired `interpret_context`.
+
+   Three additions, scored on `ui_visit` interactions:
+   - **`CLA-U4`** -- no retired string survives into rendered founder-facing text: *Conversation
+     history*, *Tell your Keel agent*, *Something's off*, *Ruled out*, *This isn't working*,
+     *Recorded*, *Not what I meant* (`RETIRED_STRINGS` below) -- copy this policy's own history
+     shows the product used to say, in the pre-round-5 surfaces this spec retires.
+   - **`CLA-U5`** -- no gendered pronoun (he/him/his/she/her/hers) in an element that renders a
+     participant's name (`captured_text["participant_names"]` non-empty is what makes this check
+     applicable at all -- skipped, not failed, on a screen that never names a participant).
+   - **`GUI-U3`** -- every waiting state names what is waited for: the wait box/typing indicator's
+     own captured text (`captured_text["waiting_text"]`) must be sentence-shaped (>= 3 words), not
+     a bare spinner with no words at all. Skipped when this visit never rendered a waiting state.
+
+   Category weights are unchanged in *value* (FIDELITY 0.4/GUIDANCE 0.25/ORIENTATION 0.2/CLARITY
+   0.15) -- "renormalised" here means what a category's own score is now a mean *over*: FIDELITY
+   over four hops instead of eight, GUIDANCE/ORIENTATION over UI-only checks instead of UI-plus-
+   wire ones. The four weights still sum to 1.0 and nothing here changes `score_categories`'s math
+   (`harness/scoring.py`), only which checks feed it.
 """
 
 from __future__ import annotations
@@ -173,7 +215,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-POLICY_VERSION = 5
+POLICY_VERSION = 6
 
 CATEGORY_WEIGHTS: dict[str, float] = {
     "FIDELITY": 0.4,
@@ -183,9 +225,11 @@ CATEGORY_WEIGHTS: dict[str, float] = {
 }
 
 DEFAULT_WEIGHT = 1
-# "FID checks on `answer` facts at `interpret_context` (weight 2 -- verbatim participant speech
-# is the product's evidence spine)."
-FID_ANSWER_INTERPRET_WEIGHT = 2
+# Policy v6 (module docstring, judgement call 9): the weight-2 rule for verbatim participant
+# speech moves to where that speech is actually captured now that there is no wire client to
+# capture an `interpret_context` hop from -- the participant's own typed answer, read back on
+# the founder's own People page.
+FID_ANSWER_PARTICIPANT_PAGE_WEIGHT = 2
 
 COMPLETION_GATE_SCORE = 2.0
 
@@ -193,42 +237,25 @@ COMPLETION_GATE_SCORE = 2.0
 # per fact x hop from the scenario's fact registry (harness/rubric.py), always attribute
 # "FIDELITY", weighted by `fid_weight` below.
 CHECKS: dict[str, dict[str, Any]] = {
-    "ORI-A1": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
-    "ORI-A2": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
-    "ORI-H1": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
     "ORI-U1": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
     "ORI-U2": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
     "ORI-P1": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
-    "GUI-A1": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
-    "GUI-A2": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
-    "GUI-H1": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
     "GUI-U1": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
     "GUI-P1": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
     "CLA-U1": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
     "CLA-U2": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
-    "CLA-A1": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
-    # 003-eval-set (S-007, design §3/§6.1): a wire refusal's {rule, problem, remedy} is agent-
-    # facing text (the same status as instruction/requirements under policy v2, evals/policy.py's
-    # judgement call 3) -- checked for presence/actionability (GUIDANCE, ORIENTATION), never
-    # vocabulary-swept (no CLA-R* check exists, deliberately, matching v2's recalibration).
-    "ORI-R1": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
-    "GUI-R1": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
-    # Policy v3 (module docstring, judgement call 4): the commit `display` every agent-cycle now
-    # carries, checked exactly like a handoff's own display always was.
-    "ORI-A3": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
-    "GUI-A3": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
-    "CLA-A2": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
-    # Policy v3: verdictLabel/needLabel, read off a ui-visit's own captured `state` snapshot.
+    # Policy v3: verdictLabel/needLabel, read off a ui_visit's own captured `state` snapshot.
     "CLA-U3": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
     # Policy v4 (module docstring, judgement call 6): the arrival read's own greeting, the locked
     # People section's own why, and the pointer-to-agent sentence's own missing door.
     "CLA-AR1": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
     "ORI-U3": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
     "GUI-U2": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
-    # Policy v5 (module docstring, judgement call 7): the chat surface's own sweeps.
-    "CLA-C1": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
-    "ORI-C1": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
-    "GUI-C1": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
+    # Policy v6 (module docstring, judgement call 9): no retired string, no gendered pronoun for
+    # a participant, every waiting state names what is waited for.
+    "CLA-U4": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
+    "CLA-U5": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
+    "GUI-U3": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
 }
 
 # Policy v4: a raw project id (UUID) has no business appearing in a founder-facing arrival
@@ -236,30 +263,23 @@ CHECKS: dict[str, dict[str, Any]] = {
 # never a fixed token this policy could enumerate.
 UUID_RE = re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b")
 
-# Every hop id this policy knows how to score (data-model.md's Fact registry). "recorded" is
-# policy v3's addition (module docstring, judgement call 4): an agent-cycle's own played-back
-# commit, alongside the six the contract originally named. Policy v4 (judgement call 7) adds an
-# eighth: `roles_context`, S-009's own trace for a role introduced through the roles-ladder front
-# door (`harness/driver.py`'s `get_context("roles")` capture, `_roles_echo_text`) -- every role
-# label the `roles` handle echoes back, granted alongside INTRODUCE_ROLES and
-# INTRODUCE_ASSUMPTIONS (`HandleGrants`).
-HOP_IDS = ["agent_echo", "stage_screen", "invite_screen", "participant_page", "interpret_context",
-           "brief", "recorded", "roles_context", "chat_turns"]
+# Every hop id this policy knows how to score (data-model.md's Fact registry), pruned to the four
+# a screen or the participant survey can actually carry (policy v6, judgement call 9) -- the wire-
+# only hops (`agent_echo`, `interpret_context`, `recorded`, `roles_context`, `chat_turns`) are
+# retired with the agent-protocol harness.
+HOP_IDS = ["stage_screen", "invite_screen", "participant_page", "brief"]
 
-# hop ids reached via an agent-cycle interaction's captured_text vs. a screen visit's -- lets
+# hop ids reached via a ui_visit interaction's captured_text vs. a participant_visit's -- lets
 # harness/rubric.py know which interactions are even candidates for a given hop.
+# `participant_page` is reachable from either: the participant's own survey render
+# (`participant_visit`), or the founder's later read-back of it verbatim (a `ui_visit` on the
+# People page's "See <name>'s answers" popup, spec 005 US2 step 6's P9) -- both are legitimate
+# places an answer's fidelity can be judged, and a scenario may capture either or both.
 HOP_INTERACTION_TYPES: dict[str, tuple[str, ...]] = {
-    "agent_echo": ("agent-cycle",),
-    "interpret_context": ("agent-cycle",),
-    "recorded": ("agent-cycle",),
-    "roles_context": ("agent-cycle",),
-    "stage_screen": ("ui-visit",),
-    "invite_screen": ("ui-visit",),
-    "brief": ("ui-visit",),
-    "participant_page": ("participant-page",),
-    # Policy v5 (relay-design.md §12 item 2/§12.2): a relay turn's own text, read back verbatim
-    # in the chat pane -- S-011's own FID trace for a turn's text round trip.
-    "chat_turns": ("chat-visit",),
+    "stage_screen": ("ui_visit",),
+    "invite_screen": ("ui_visit",),
+    "brief": ("ui_visit",),
+    "participant_page": ("participant_visit", "ui_visit"),
 }
 
 # Waivers (design §5): (fact kind, hop id) -> {reason, reference}. A waived hop counts as pass,
@@ -276,8 +296,8 @@ WAIVERS: dict[tuple[str, str], dict[str, str]] = {
 
 
 def fid_weight(fact_kind: str, hop: str) -> int:
-    if fact_kind == "answer" and hop == "interpret_context":
-        return FID_ANSWER_INTERPRET_WEIGHT
+    if fact_kind == "answer" and hop == "participant_page":
+        return FID_ANSWER_PARTICIPANT_PAGE_WEIGHT
     return DEFAULT_WEIGHT
 
 
@@ -331,6 +351,9 @@ ACTION_NAMES = {"CREATE", "FRAME", "INTRODUCE_ROLES", "INTRODUCE_ASSUMPTIONS",
                 "WITHDRAW_ASSUMPTION", "INTERPRET", "PROCEED_TO_BRIEF", "PIVOT", "STOP"}
 LICENSED_ACTION_NAMES = {"CREATE", "INTERPRET"}
 RULE_LITERALS = {"token", "concurrency", "schema", "context", "open_web", "screen"}
+# Policy v6 (module docstring, judgement call 9): the connect stack's own status vocabulary --
+# the device-authorization/runtime-job states a founder-facing screen must never leak raw.
+CONNECT_STATES = {"AWAITING_CONFIRMATION", "ACCEPTED", "PENDING", "RUNNING", "DONE", "EXPIRED"}
 
 # Judgement call 5 (policy v3, live-confirmed 2026-08-30 once CLA-A2 started sweeping commit
 # `display` and CLA-U1 swept the brief's own ALL-CAPS section headers): two more English-word
@@ -345,8 +368,22 @@ _ENGLISH_COLLISION_EXEMPTIONS = {"roles", "EVIDENCE"}
 # See module docstring, judgement call 1: StageType names are excluded on purpose.
 CLARITY_TOKENS: set[str] = (
     WORKFLOW_STATES | VERDICTS | NEEDS | RISKS | HANDLE_NAMES
-    | (ACTION_NAMES - LICENSED_ACTION_NAMES) | RULE_LITERALS
+    | (ACTION_NAMES - LICENSED_ACTION_NAMES) | RULE_LITERALS | CONNECT_STATES
 ) - _ENGLISH_COLLISION_EXEMPTIONS
+
+# Policy v6, CLA-U4: strings the pre-round-5 surfaces this spec retires used to show a founder --
+# a literal survival of any of these into rendered text means a retired screen variant leaked
+# back in, not a new coincidence (none of the seven collides with ordinary English the way
+# judgement call 1/5's exemptions did, so no exemption list is needed here).
+RETIRED_STRINGS = {
+    "Conversation history", "Tell your Keel agent", "Something's off", "Ruled out",
+    "This isn't working", "Recorded", "Not what I meant",
+}
+
+# Policy v6, CLA-U5: a participant is never known to be one gender or another -- these six read
+# straight off the check's own name ("no gendered pronoun"), not a closed linguistic catalogue.
+GENDERED_PRONOUNS = {"he", "him", "his", "she", "her", "hers"}
+_WORD_RE = re.compile(r"[A-Za-z']+")
 
 _URL_RE = re.compile(r"\S+://\S+")
 _CAMEL_CASE_RE = re.compile(r"\b[a-z][a-z0-9]*[A-Z][a-zA-Z0-9]*\b")
@@ -383,3 +420,21 @@ def structural_violations(text: str | None) -> list[str]:
 def clarity_violations(text: str | None) -> list[str]:
     """Combined sweep (CLA-A1's "free of raw enums ... and field names")."""
     return sorted(set(enum_violations(text)) | set(structural_violations(text)))
+
+
+def retired_string_violations(text: str | None) -> list[str]:
+    """CLA-U4 (policy v6): any of `RETIRED_STRINGS` found verbatim (case-sensitive substring --
+    these are whole phrases, not single tokens, so the whole-word regex `enum_violations` uses
+    would be the wrong tool)."""
+    if not text:
+        return []
+    scanned = _strip_urls(text)
+    return sorted({phrase for phrase in RETIRED_STRINGS if phrase in scanned})
+
+
+def gendered_pronoun_violations(text: str | None) -> list[str]:
+    """CLA-U5 (policy v6): any of `GENDERED_PRONOUNS` found as a whole word, case-insensitive."""
+    if not text:
+        return []
+    words = {w.lower() for w in _WORD_RE.findall(text)}
+    return sorted(words & GENDERED_PRONOUNS)

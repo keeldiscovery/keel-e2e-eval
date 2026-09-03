@@ -1,9 +1,15 @@
 """The check engine (T004, contracts/policy-contract.md): walks derived interactions
-(harness/interactions.py) and the scenario's fact registry (evals/scenario.py), and emits
+(harness/interactions.py) and the scenario's fact registry (evals/facts.py), and emits
 CheckResults -- deterministic, evidence-carrying, exactly the checks the current policy version
 defines (no more, no fewer; a check this module invents without a matching policy entry is a
-bug). Policy v2 (evals/policy.py, 003-eval-set) recalibrated which interaction types carry
-`CLA-A1`/`GUI-A2` -- see `_agent_cycle_checks`/`_agent_handoff_checks` below.
+bug).
+
+Policy v6 (spec 005-connect-stack FR-010/FR-011): the agent-cycle/agent-handoff/agent-refusal/
+chat-visit checks are retired along with the wire protocol they read (`_agent_cycle_checks`,
+`_agent_handoff_checks`, `_agent_refusal_checks`, `_chat_visit_checks`, and their helpers, are
+gone) -- there is no more founder-agent HTTP/MCP surface for this harness to observe; every
+inference job now runs through keel-runtime's scripted executor and is only ever seen through the
+screen. The ui_visit checks (renamed from `ui-visit`) and the arrival check survive unchanged.
 
 An empty interaction list (a transcript with no interaction tags -- analysis finding A2) or an
 empty fact registry both evaluate cleanly to no checks, not an exception: `evaluate([], {})`
@@ -17,19 +23,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from evals import policy
-from evals.scenario import Fact
+from evals.facts import Fact
 from harness.interactions import Interaction
-
-# Actions whose get_next `detail` is expected to locate the work (ORI-A2's "applies to" scoping).
-_SCOPED_ACTIONS = {"FRAME", "INTRODUCE_ASSUMPTIONS", "INTERPRET", "WITHDRAW_ASSUMPTION"}
-
-# Words a handoff's `display` needs at least one of to count as "says what to do next" (GUI-H1),
-# as opposed to a bare status report. Deliberately generous (a false negative here is a harsher
-# score than the design intends) rather than an exhaustive parser of imperative mood.
-_GUIDANCE_VERBS = (
-    "read", "approve", "invite", "wait", "open", "ask", "review", "tell", "send", "reply",
-    "answer", "start", "submit", "talk", "come back", "check",
-)
 
 
 @dataclass
@@ -59,166 +54,6 @@ def _result(check_id: str, passed: bool, detail: str, ix: Interaction, *,
         weight=weight if weight is not None else spec.get("weight", policy.DEFAULT_WEIGHT),
         passed=passed, detail=detail, evidence=evidence, waived=waived,
     )
-
-
-# ------------------------------------------------------------------------------------ agent-cycle
-
-def _ori_a1(ix: Interaction) -> CheckResult:
-    instruction = (ix.conversation or {}).get("instruction") or {}
-    content = (instruction.get("content") or "").strip()
-    purpose = (instruction.get("purpose") or "").strip()
-    passed = bool(content) and bool(purpose)
-    detail = "instruction has a non-empty purpose and content" if passed \
-        else f"instruction missing purpose or content (purpose={purpose!r}, content len={len(content)})"
-    return _result("ORI-A1", passed, detail, ix)
-
-
-def _ori_a2(ix: Interaction) -> CheckResult | None:
-    action = (ix.conversation or {}).get("action")
-    if action not in _SCOPED_ACTIONS:
-        return None  # not applicable to this action -- contract scopes ORI-A2 to stage/invitation actions
-    detail_dict = (ix.conversation or {}).get("detail") or {}
-    located = bool(detail_dict.get("stage")) or bool(detail_dict.get("invitationId"))
-    return _result("ORI-A2", located, f"detail={detail_dict}", ix)
-
-
-def _gui_a1(ix: Interaction) -> CheckResult:
-    requirements = (ix.conversation or {}).get("requirements") or []
-    sentence_shaped = [r for r in requirements if isinstance(r, str) and len(r.split()) >= 3]
-    passed = len(requirements) > 0 and len(sentence_shaped) == len(requirements)
-    return _result("GUI-A1", passed, f"{len(requirements)} requirement(s), {len(sentence_shaped)} sentence-shaped", ix)
-
-
-def _ori_a3(ix: Interaction) -> CheckResult:
-    """Policy v3 (evals/policy.py judgement call 4): `SubmitResponse.display` now travels on
-    *every* commit, not only a handoff -- checked exactly like `ORI-H1` checks a handoff's own.
-    Read straight off `captured_text` (`harness/driver.py`'s `_capture_commit_voice`), not
-    `ix.conversation` -- `_agent_cycle_conversation` (harness/interactions.py) never re-derives
-    this field itself, the same pattern `_agent_refusal_checks` already uses for `rule`/`remedy`.
-    """
-    display = ix.captured_text.get("commit_display", "").strip()
-    passed = len(display) >= 10
-    return _result("ORI-A3", passed, f"display={display!r}", ix)
-
-
-def _gui_a3(ix: Interaction) -> CheckResult:
-    """Policy v3's literal contract (evals/policy.py judgement call 4): "when it points at a
-    screen, contains a resolvable URL" -- conditional, not "always actionable". Live-confirmed
-    (2026-08-30 eval-all run) that reusing `GUI-H1`'s guidance-verb heuristic here was a
-    miscalibration: many commit continuations describe what the *agent* does next ("next, put
-    your solution into words too", "Your roles are saved.") rather than instructing the founder,
-    so requiring a verb failed legitimate, correct copy across every scenario. This check is
-    about the door alone -- when a URL is present, it must be well-formed (`http(s)://`); when
-    none is present, there is nothing to fail. The click-through itself is `FounderBrowser.
-    follow_display_url`, a scenario assertion no static sweep can stand in for."""
-    display = ix.captured_text.get("commit_display", "").strip()
-    url_match = policy._URL_RE.search(display)
-    passed = url_match is None or url_match.group(0).startswith(("http://", "https://"))
-    detail = f"display={display!r}, url={'none' if url_match is None else url_match.group(0)}"
-    return _result("GUI-A3", passed, detail, ix)
-
-
-def _cla_a2_commit(ix: Interaction) -> CheckResult:
-    """Policy v3: `CLA-A1`'s own recalibration said the vocabulary sweep follows founder-facing
-    wire text wherever it travels -- `display` now travels on every commit, so this is `CLA-A1`'s
-    companion for the hop `CLA-A1` itself does not cover (that one stays scoped to a handoff's
-    `outcome`, per policy v2's judgement call 3)."""
-    display = ix.captured_text.get("commit_display", "")
-    violations = policy.clarity_violations(display)
-    return _result("CLA-A2", not violations, f"violations={violations}" if violations else "clean", ix)
-
-
-def _agent_cycle_checks(ix: Interaction) -> list[CheckResult]:
-    """Policy v2 (evals/policy.py judgement call 3; design §2): `instruction.content` and
-    `requirements` are agent-facing method/payload guidance, not founder-facing protocol text --
-    so an agent-cycle interaction no longer carries `CLA-A1` or `GUI-A2` at all. Both checks move
-    to sweep `display` instead (see `_agent_handoff_checks`/`_gui_a2_handoff` below), which only an
-    agent-handoff interaction has. `GUI-A1` (presence/sentence-shape of `requirements`) and
-    `ORI-A1` (non-empty instruction) are presence checks, not vocabulary sweeps, and are untouched.
-
-    Policy v3 (judgement call 4) adds `ORI-A3`/`GUI-A3`/`CLA-A2`, scored only when a
-    `commit_display` was actually captured -- a bundle scored before `SubmitResponse.display`
-    existed (or a step that never reached a successful commit, e.g. a refusal-only interaction)
-    emits none of the three rather than three automatic failures.
-    """
-    results = [_ori_a1(ix)]
-    a2 = _ori_a2(ix)
-    if a2 is not None:
-        results.append(a2)
-    results.append(_gui_a1(ix))
-    if ix.captured_text.get("commit_display"):
-        results.append(_ori_a3(ix))
-        results.append(_gui_a3(ix))
-        results.append(_cla_a2_commit(ix))
-    return results
-
-
-# ----------------------------------------------------------------------------------- agent-handoff
-
-def _ori_h1(ix: Interaction) -> CheckResult:
-    display = ((ix.conversation or {}).get("outcome") or "").strip()
-    passed = len(display) >= 10
-    return _result("ORI-H1", passed, f"display={display!r}", ix)
-
-
-def _gui_h1(ix: Interaction) -> CheckResult:
-    display = ((ix.conversation or {}).get("outcome") or "").strip()
-    lower = display.lower()
-    passed = bool(display) and any(verb in lower for verb in _GUIDANCE_VERBS)
-    return _result("GUI-H1", passed, f"display={display!r}", ix)
-
-
-def _cla_a1_handoff(ix: Interaction) -> CheckResult:
-    display = (ix.conversation or {}).get("outcome") or ""
-    violations = policy.clarity_violations(display)
-    return _result("CLA-A1", not violations, f"violations={violations}" if violations else "clean", ix)
-
-
-def _gui_a2_handoff(ix: Interaction) -> CheckResult:
-    """Policy v2's new home for `GUI-A2`: the one protocol text a founder actually receives is a
-    handoff's `display`, so this is where "founder-phrased, no raw enums/JSON" (GUIDANCE's half of
-    the sweep -- CLA-A1 asks the same question under CLARITY) now lives, instead of `requirements`.
-    """
-    display = (ix.conversation or {}).get("outcome") or ""
-    violations = policy.clarity_violations(display)
-    return _result("GUI-A2", not violations, f"violations={violations}" if violations else "founder-phrased", ix)
-
-
-def _agent_handoff_checks(ix: Interaction) -> list[CheckResult]:
-    return [_ori_h1(ix), _gui_h1(ix), _cla_a1_handoff(ix), _gui_a2_handoff(ix)]
-
-
-# --------------------------------------------------------------------------------- agent-refusal
-
-def _ori_r1(ix: Interaction) -> CheckResult:
-    """S-007 (design §3): the refusal names a rule a lost agent could look up -- one of the
-    literal rule tokens the protocol actually uses (policy.RULE_LITERALS plus the aggregate's own
-    short business-rule codes, e.g. A9 -- any non-blank rule name counts, since the full catalogue
-    of aggregate rule ids is open-ended by design and this check is about *presence*, not
-    membership in a closed list)."""
-    rule = (ix.captured_text.get("rule") or "").strip()
-    return _result("ORI-R1", bool(rule), f"rule={rule!r}" if rule else "no rule name captured", ix)
-
-
-def _gui_r1(ix: Interaction) -> CheckResult:
-    """S-007: is the *remedy* -- not the problem statement -- present and sentence-shaped? A
-    remedy that only restates the problem tells a lost agent what's wrong, not what to do; the
-    sentence-shape heuristic is the same generous one GUI-A1 uses for `requirements` (>= 3 words),
-    deliberately not a stricter imperative-mood parser (a false negative here is a harsher score
-    than the design intends, per GUI-H1's own docstring for the same trade-off). Agent-facing text
-    (like `requirements`/`instruction.content` under policy v2) -- never vocabulary-swept; there is
-    no CLA-R1.
-    """
-    remedy = (ix.captured_text.get("remedy") or "").strip()
-    problem = (ix.captured_text.get("problem") or "").strip()
-    sentence_shaped = len(remedy.split()) >= 3
-    not_just_the_problem = policy.normalize(remedy) != policy.normalize(problem)
-    passed = bool(remedy) and sentence_shaped and not_just_the_problem
-    return _result("GUI-R1", passed, f"remedy={remedy!r}", ix)
-
-
-def _agent_refusal_checks(ix: Interaction) -> list[CheckResult]:
-    return [_ori_r1(ix), _gui_r1(ix)]
 
 
 # ------------------------------------------------------------------------------------- arrival
@@ -273,13 +108,9 @@ def _need_exists(ix: Interaction) -> bool | None:
         return stages.get(stage, {}).get("need") is not None
     if screen == "overview":
         return any(s.get("need") is not None for s in stages.values())
-    if screen == "invitations":
+    if screen == "people":
         return (state.get("awaitingInterpretation") or 0) > 0 or \
             any(s.get("need") == "INVITE" for s in stages.values())
-    if screen == "invite":
-        # You navigate here precisely because an INVITE need exists; the form itself is the
-        # affordance being acted on.
-        return True
     if screen == "brief":
         # Terminal screen -- by design, nothing further to do.
         return False
@@ -398,6 +229,27 @@ def _ui_visit_checks(ix: Interaction) -> list[CheckResult]:
     results.append(_result("CLA-U1", not enum_violations, f"violations={enum_violations}" if enum_violations else "clean", ix))
     structural_violations = policy.structural_violations(combined_text)
     results.append(_result("CLA-U2", not structural_violations, f"violations={structural_violations}" if structural_violations else "clean", ix))
+
+    # Policy v6, CLA-U4: no retired string (evals/policy.py's RETIRED_STRINGS) survives into
+    # rendered founder-facing text.
+    retired = policy.retired_string_violations(combined_text)
+    results.append(_result("CLA-U4", not retired, f"retired strings={retired}" if retired else "clean", ix))
+
+    # Policy v6, CLA-U5: applicable only where this visit actually names a participant --
+    # skipped (None), not failed, on any screen that never renders one.
+    participant_names = ix.captured_text.get("participant_names", "")
+    if participant_names.strip():
+        pronouns = policy.gendered_pronoun_violations(combined_text)
+        results.append(_result("CLA-U5", not pronouns,
+                                f"pronouns={pronouns}" if pronouns else "clean", ix))
+
+    # Policy v6, GUI-U3: applicable only where this visit actually rendered a waiting state.
+    waiting_text = ix.captured_text.get("waiting_text")
+    if waiting_text is not None:
+        sentence_shaped = len(waiting_text.split()) >= 3
+        results.append(_result("GUI-U3", sentence_shaped,
+                                f"waiting_text={waiting_text!r}", ix))
+
     return results
 
 
@@ -427,60 +279,6 @@ def _participant_page_checks(ix: Interaction) -> list[CheckResult]:
         _result("CLA-U1", not enum_violations, f"violations={enum_violations}" if enum_violations else "clean", ix),
         _result("CLA-U2", not structural_violations, f"violations={structural_violations}" if structural_violations else "clean", ix),
     ]
-
-
-# ------------------------------------------------------------------------------------- chat-visit
-
-def _cla_c1(ix: Interaction) -> CheckResult:
-    """Policy v5 (evals/policy.py judgement call 7): the same vocabulary/structural sweep every
-    other founder-facing surface gets, run over the chat pane's own rendered turn text and any
-    playback table's cell text combined."""
-    combined = "\n".join(v for k, v in ix.captured_text.items()
-                          if k in ("chat_turns", "chat_playback_table"))
-    violations = policy.clarity_violations(combined)
-    return _result("CLA-C1", not violations, f"violations={violations}" if violations else "clean", ix)
-
-
-def _ori_c1(ix: Interaction) -> CheckResult | None:
-    """Policy v5: presence-banner honesty -- the pane's own rendered claim (a shown banner means
-    "disconnected"; its absence means "connected", design §5/§9's own words) must agree with the
-    relay's own wire truth at the same moment (`chat_presence_state`, `ChatPane.capture` reading
-    `FounderRelay.presence()` live). Skipped (None) when no presence reader was wired in."""
-    raw_state = ix.captured_text.get("chat_presence_state")
-    if not raw_state:
-        return None
-    try:
-        state = json.loads(raw_state)
-    except json.JSONDecodeError:
-        return None
-    banner_shown = bool(ix.captured_text.get("chat_presence_banner", "").strip())
-    wire_connected = bool(state.get("connected"))
-    honest = banner_shown != wire_connected
-    detail = f"banner_shown={banner_shown}, wire_connected={wire_connected}"
-    return _result("ORI-C1", honest, detail, ix)
-
-
-def _gui_c1(ix: Interaction) -> CheckResult | None:
-    """Policy v5: every link a chat turn carries must be well-formed (`http(s)://`) -- `GUI-A3`'s
-    own door check, mirrored onto the chat surface. Skipped (None) when no agent turn ever carried
-    a link at all."""
-    raw_links = ix.captured_text.get("chat_turn_links")
-    if not raw_links:
-        return None
-    links = [l for l in raw_links.splitlines() if l.strip()]
-    malformed = [l for l in links if not l.startswith(("http://", "https://"))]
-    return _result("GUI-C1", not malformed, f"malformed={malformed}" if malformed else f"{len(links)} link(s), all well-formed", ix)
-
-
-def _chat_visit_checks(ix: Interaction) -> list[CheckResult]:
-    results = [_cla_c1(ix)]
-    ori_c1 = _ori_c1(ix)
-    if ori_c1 is not None:
-        results.append(ori_c1)
-    gui_c1 = _gui_c1(ix)
-    if gui_c1 is not None:
-        results.append(gui_c1)
-    return results
 
 
 # --------------------------------------------------------------------------------------- fidelity
@@ -552,20 +350,15 @@ def evaluate(interactions: list[Interaction],
     results: dict[str, list[CheckResult]] = {ix.id: [] for ix in interactions}
 
     for ix in interactions:
-        if ix.type == "agent-cycle":
-            results[ix.id].extend(_agent_cycle_checks(ix))
-        elif ix.type == "agent-handoff":
-            results[ix.id].extend(_agent_handoff_checks(ix))
-        elif ix.type == "ui-visit":
+        if ix.type == "ui_visit":
             results[ix.id].extend(_ui_visit_checks(ix))
-        elif ix.type == "participant-page":
+        elif ix.type == "participant_visit":
             results[ix.id].extend(_participant_page_checks(ix))
-        elif ix.type == "agent-refusal":
-            results[ix.id].extend(_agent_refusal_checks(ix))
         elif ix.type == "arrival":
             results[ix.id].extend(_arrival_checks(ix))
-        elif ix.type == "chat-visit":
-            results[ix.id].extend(_chat_visit_checks(ix))
+        # "agent_turn" carries no rubric checks of its own (policy v6): it is FIDELITY-only
+        # evidence, exactly like the retired "shaping-turn" kind was -- the FID engine below
+        # still reaches it via `HOP_INTERACTION_TYPES` if a scenario ever declares a hop against it.
 
     fid_results, extra = _fid_checks(interactions, facts or {})
     for iid, checks in fid_results.items():

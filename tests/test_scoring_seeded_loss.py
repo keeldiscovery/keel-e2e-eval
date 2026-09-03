@@ -1,13 +1,18 @@
 """T013 (SC-002): seeded-loss fixtures. Each test corrupts exactly one thing and asserts exactly
 the check the design says should catch it fails (or, for the brief waiver, passes-but-flagged) --
 proving the rubric has teeth, not just plumbing.
+
+spec 005-connect-stack FR-010/FR-011 (policy v6): the agent-cycle/agent-handoff/agent-refusal
+fixtures are retired along with the wire protocol they observed -- there is no more founder-agent
+HTTP surface for ORI-H1/GUI-H1/ORI-R1/GUI-R1 to sweep, and `interpret_context` is retired as a FID
+hop. The weight-2 verbatim-participant-speech rule moves to `participant_page`
+(`evals/policy.py`'s `fid_weight`, module docstring judgement call 9) -- fixtured below.
 """
 
 from __future__ import annotations
 
-from evals.scenario import Fact
+from evals.facts import Fact
 from harness import scoring
-from harness.evidence import _read_transcript
 from harness.steps import Recorder
 
 
@@ -30,7 +35,7 @@ def test_truncated_statement_fails_its_named_fid_check(tmp_path):
     recorder = Recorder(tmp_path)
     full_statement = "Payroll managers lose hours every month manually chasing down payroll exceptions."
     truncated = "Payroll managers lose hours every month manually chasing down payroll…"  # cut short
-    with recorder.interaction("ui-visit"):
+    with recorder.interaction("ui_visit"):
         with recorder.step("founder opens the problem stage card", party="founder", kind="browser") as h:
             h.capture_text("screen", "stage")
             h.capture_text("stage", "PROBLEM")
@@ -52,7 +57,7 @@ def test_fact_reaching_its_hop_verbatim_passes(tmp_path):
     """Control for the above: the same fact, rendered in full, passes."""
     recorder = Recorder(tmp_path)
     statement = "Payroll managers lose hours every month manually chasing down payroll exceptions."
-    with recorder.interaction("ui-visit"):
+    with recorder.interaction("ui_visit"):
         with recorder.step("founder opens the problem stage card", party="founder", kind="browser") as h:
             h.capture_text("screen", "stage")
             h.capture_text("stage", "PROBLEM")
@@ -71,7 +76,7 @@ def test_fact_reaching_its_hop_verbatim_passes(tmp_path):
 
 def test_leaked_enum_token_fails_cla_u1(tmp_path):
     recorder = Recorder(tmp_path)
-    with recorder.interaction("ui-visit"):
+    with recorder.interaction("ui_visit"):
         with recorder.step("founder opens the problem stage card", party="founder", kind="browser") as h:
             h.capture_text("screen", "stage")
             h.capture_text("stage", "PROBLEM")
@@ -87,7 +92,7 @@ def test_leaked_enum_token_fails_cla_u1(tmp_path):
 
 def test_clean_page_text_passes_cla_u1(tmp_path):
     recorder = Recorder(tmp_path)
-    with recorder.interaction("ui-visit"):
+    with recorder.interaction("ui_visit"):
         with recorder.step("founder opens the problem stage card", party="founder", kind="browser") as h:
             h.capture_text("screen", "stage")
             h.capture_text("stage", "PROBLEM")
@@ -99,62 +104,89 @@ def test_clean_page_text_passes_cla_u1(tmp_path):
     assert checks[0]["pass"] is True
 
 
-# ------------------------------------------------------------------ empty display (ORI-H1/GUI-H1)
+# ---------------------------------------------------------------- retired string leak (CLA-U4)
 
-def test_empty_handoff_display_fails_ori_h1_and_gui_h1(tmp_path):
+def test_retired_string_fails_cla_u4(tmp_path):
     recorder = Recorder(tmp_path)
-    with recorder.interaction("agent-handoff"):
-        with recorder.step("get_next (project p1)", party="agent", kind="protocol") as h:
-            h.record_wire({}, {"status": 200, "body": {
-                "kind": "handoff", "reason": "REVIEW", "display": "", "detail": {"stage": "PROBLEM"},
-            }})
+    with recorder.interaction("ui_visit"):
+        with recorder.step("founder opens the history drawer", party="founder", kind="browser") as h:
+            h.capture_text("screen", "stage")
+            h.capture_text("stage_screen", "Conversation history is empty.")
 
     scorecard = _score(tmp_path)
-    ori = _checks_for(scorecard, "ORI-H1")
-    gui = _checks_for(scorecard, "GUI-H1")
-    assert len(ori) == 1 and ori[0]["pass"] is False
-    assert len(gui) == 1 and gui[0]["pass"] is False
+    checks = _checks_for(scorecard, "CLA-U4")
+    assert len(checks) == 1
+    assert checks[0]["pass"] is False
+    assert "Conversation history" in checks[0]["detail"]
 
 
-# -------------------------------------------------------- agent-refusal (S-007, ORI-R1/GUI-R1)
-
-def test_actionable_refusal_passes_ori_r1_and_gui_r1(tmp_path):
+def test_clean_text_passes_cla_u4(tmp_path):
     recorder = Recorder(tmp_path)
-    with recorder.interaction("agent-refusal"):
-        with recorder.step("get_next after a concurrent commit", party="agent", kind="protocol") as h:
-            h.capture_text("rule", "concurrency")
-            h.capture_text("problem", "the project moved on before this token could be used")
-            h.capture_text("remedy", "call get_next again for a fresh token, then resubmit the same payload")
+    with recorder.interaction("ui_visit"):
+        with recorder.step("founder opens the stage card", party="founder", kind="browser") as h:
+            h.capture_text("screen", "stage")
+            h.capture_text("stage_screen", "Here's what we understood.")
 
     scorecard = _score(tmp_path)
-    ori = _checks_for(scorecard, "ORI-R1")
-    gui = _checks_for(scorecard, "GUI-R1")
-    assert len(ori) == 1 and ori[0]["pass"] is True
-    assert len(gui) == 1 and gui[0]["pass"] is True
+    checks = _checks_for(scorecard, "CLA-U4")
+    assert len(checks) == 1
+    assert checks[0]["pass"] is True
 
 
-def test_remedy_that_only_restates_the_problem_fails_gui_r1(tmp_path):
+# ------------------------------------------------------------- gendered pronoun leak (CLA-U5)
+
+def test_gendered_pronoun_fails_cla_u5_when_a_participant_is_named(tmp_path):
     recorder = Recorder(tmp_path)
-    with recorder.interaction("agent-refusal"):
-        with recorder.step("get_next after a concurrent commit", party="agent", kind="protocol") as h:
-            h.capture_text("rule", "concurrency")
-            h.capture_text("problem", "the token is stale")
-            h.capture_text("remedy", "the token is stale")
+    with recorder.interaction("ui_visit"):
+        with recorder.step("founder opens the people table", party="founder", kind="browser") as h:
+            h.capture_text("screen", "people")
+            h.capture_text("participant_names", "Dana Okafor")
+            h.capture_text("stage_screen", "Dana Okafor answered. Her answers are in.")
 
     scorecard = _score(tmp_path)
-    gui = _checks_for(scorecard, "GUI-R1")
-    assert len(gui) == 1 and gui[0]["pass"] is False
+    checks = _checks_for(scorecard, "CLA-U5")
+    assert len(checks) == 1
+    assert checks[0]["pass"] is False
+    assert "her" in checks[0]["detail"]
 
 
-def test_missing_rule_name_fails_ori_r1(tmp_path):
+def test_cla_u5_is_skipped_when_no_participant_is_named(tmp_path):
     recorder = Recorder(tmp_path)
-    with recorder.interaction("agent-refusal"):
-        with recorder.step("some refusal", party="agent", kind="protocol") as h:
-            h.capture_text("remedy", "try again with a fresh token")
+    with recorder.interaction("ui_visit"):
+        with recorder.step("founder opens the stage card", party="founder", kind="browser") as h:
+            h.capture_text("screen", "stage")
+            h.capture_text("stage_screen", "Holding up.")
 
     scorecard = _score(tmp_path)
-    ori = _checks_for(scorecard, "ORI-R1")
-    assert len(ori) == 1 and ori[0]["pass"] is False
+    assert _checks_for(scorecard, "CLA-U5") == []
+
+
+# -------------------------------------------------------------- waiting state with no words (GUI-U3)
+
+def test_waiting_state_with_no_words_fails_gui_u3(tmp_path):
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("ui_visit"):
+        with recorder.step("founder opens the chat", party="founder", kind="browser") as h:
+            h.capture_text("screen", "stage")
+            h.capture_text("waiting_text", "...")
+
+    scorecard = _score(tmp_path)
+    checks = _checks_for(scorecard, "GUI-U3")
+    assert len(checks) == 1
+    assert checks[0]["pass"] is False
+
+
+def test_waiting_state_naming_what_is_waited_for_passes_gui_u3(tmp_path):
+    recorder = Recorder(tmp_path)
+    with recorder.interaction("ui_visit"):
+        with recorder.step("founder opens the chat", party="founder", kind="browser") as h:
+            h.capture_text("screen", "stage")
+            h.capture_text("waiting_text", "Reading what you wrote…")
+
+    scorecard = _score(tmp_path)
+    checks = _checks_for(scorecard, "GUI-U3")
+    assert len(checks) == 1
+    assert checks[0]["pass"] is True
 
 
 # ---------------------------------------------------------- brief summarizing: waived, not failed
@@ -164,7 +196,7 @@ def test_brief_summarizing_an_assumption_passes_waived_with_reference(tmp_path):
     policy's `brief-findings-summarize` waiver means this counts as pass, flagged, citing
     keel-cloud's api-design.md §6a (design §5's first shipped waiver)."""
     recorder = Recorder(tmp_path)
-    with recorder.interaction("ui-visit"):
+    with recorder.interaction("ui_visit"):
         with recorder.step("founder opens the brief", party="founder", kind="browser") as h:
             h.capture_text("screen", "brief")
             h.capture_text("brief", "Payroll managers do spend hours a month chasing exceptions "
@@ -186,44 +218,42 @@ def test_brief_summarizing_an_assumption_passes_waived_with_reference(tmp_path):
     assert check["waived"]["reference"] == "keel-cloud canon/api-design.md §6a"
 
 
-# -------------------------------------------------------- corrupt answer at interpret_context (w2)
+# ------------------------------------------------------ corrupt answer at participant_page (w2)
 
-def test_corrupt_answer_at_interpret_context_fails_its_weight_2_check(tmp_path):
+def test_corrupt_answer_at_participant_page_fails_its_weight_2_check(tmp_path):
+    """Policy v6: the weight-2 verbatim-speech rule now lives at `participant_page` -- the
+    founder's own People-page read of a participant's answer, `harness/browser.py`'s
+    `People.open_answers` capture."""
     recorder = Recorder(tmp_path)
     true_answer = "I spent three hours last month chasing down four payroll exceptions."
-    with recorder.interaction("agent-cycle"):
-        with recorder.step("get_context(response)", party="agent", kind="protocol") as h:
-            h.record_wire({}, {"status": 200, "body": {"answers": [
-                {"assumptionId": "a1", "assumptionStatement": "stmt",
-                 # Corrupted: not the participant's actual words.
-                 "text": "Everything is fine, no issues."},
-            ]}})
-            h.capture_text("interpret_context", "stmt\nEverything is fine, no issues.")
+    with recorder.interaction("ui_visit"):
+        with recorder.step("founder opens Dana's answers", party="founder", kind="browser") as h:
+            h.capture_text("screen", "invitations")
+            # Corrupted: not the participant's actual words.
+            h.capture_text("participant_page", "Everything is fine, no issues.")
 
-    facts = {"answer_problem": Fact(text=true_answer, kind="answer", hops=["interpret_context"])}
+    facts = {"answer_problem": Fact(text=true_answer, kind="answer", hops=["participant_page"])}
     scorecard = _score(tmp_path, facts)
 
-    checks = _checks_for(scorecard, "FID-answer_problem-interpret_context")
+    checks = _checks_for(scorecard, "FID-answer_problem-participant_page")
     assert len(checks) == 1
     check = checks[0]
     assert check["pass"] is False
     assert check["weight"] == 2
 
 
-def test_verbatim_answer_at_interpret_context_passes_its_weight_2_check(tmp_path):
+def test_verbatim_answer_at_participant_page_passes_its_weight_2_check(tmp_path):
     recorder = Recorder(tmp_path)
     answer = "I spent three hours last month chasing down four payroll exceptions."
-    with recorder.interaction("agent-cycle"):
-        with recorder.step("get_context(response)", party="agent", kind="protocol") as h:
-            h.record_wire({}, {"status": 200, "body": {"answers": [
-                {"assumptionId": "a1", "assumptionStatement": "stmt", "text": answer},
-            ]}})
-            h.capture_text("interpret_context", f"stmt\n{answer}")
+    with recorder.interaction("ui_visit"):
+        with recorder.step("founder opens Dana's answers", party="founder", kind="browser") as h:
+            h.capture_text("screen", "invitations")
+            h.capture_text("participant_page", answer)
 
-    facts = {"answer_problem": Fact(text=answer, kind="answer", hops=["interpret_context"])}
+    facts = {"answer_problem": Fact(text=answer, kind="answer", hops=["participant_page"])}
     scorecard = _score(tmp_path, facts)
 
-    checks = _checks_for(scorecard, "FID-answer_problem-interpret_context")
+    checks = _checks_for(scorecard, "FID-answer_problem-participant_page")
     assert len(checks) == 1
     assert checks[0]["pass"] is True
     assert checks[0]["weight"] == 2
@@ -234,12 +264,9 @@ def test_hop_never_captured_fails_in_the_unresolved_bucket(tmp_path):
     missing screen, not a scenario-declared absence) fails, named, rather than being silently
     skipped."""
     recorder = Recorder(tmp_path)
-    with recorder.interaction("agent-cycle"):
-        with recorder.step("get_next", party="agent", kind="protocol") as h:
-            h.record_wire({}, {"status": 200, "body": {"kind": "action", "action": "CREATE",
-                                                          "token": "t", "requirements": [],
-                                                          "instruction": {"purpose": "p", "content": "c"},
-                                                          "context": [], "detail": {}}})
+    with recorder.interaction("arrival"):
+        with recorder.step("founder arrives", party="founder", kind="browser") as h:
+            h.capture_text("arrival_display", "Welcome back.")
 
     facts = {"problem_statement": Fact(text="anything", kind="statement", hops=["brief"])}
     scorecard = _score(tmp_path, facts)

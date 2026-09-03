@@ -1,49 +1,35 @@
-"""T017: report.html renders exactly one card per scored interaction, and an agent-cycle's card
-shows the conversation (instruction/requirements/outcome) as prose, not the raw JSON blob (which
-stays available, collapsed, per scorecard-contract.md)."""
+"""T017: report.html renders exactly one card per scored interaction, and an agent_turn's card
+shows the conversation (screen state / agent reply / outcome) as prose, not a raw JSON blob (which
+stays available, collapsed, per scorecard-contract.md).
+
+spec 005-connect-stack FR-006/FR-013: `finalize_run` takes a plain `slug` + `facts` dict now,
+never a `Scenario` object (`evals/scenario.py` is retired) -- and the fixture below uses the
+current interaction kinds (`agent_turn`, `arrival`, `ui_visit`), not the retired agent-protocol
+ones.
+"""
 
 from __future__ import annotations
 
 import json
 
-from evals.scenario import Scenario
 from harness.evidence import finalize_run
 from harness.steps import Recorder
 
 
-class _FixtureScenario(Scenario):
-    slug = "fixture-report"
-
-    def facts(self):
-        return {}
-
-
 def _build_bundle(run_dir):
     recorder = Recorder(run_dir)
-    with recorder.interaction("agent-cycle"):
-        with recorder.step("get_next (before any project)", party="agent", kind="protocol") as h:
-            h.record_wire({"path": "/v2/agent/next"}, {"status": 200, "body": {
-                "kind": "action", "action": "CREATE", "token": "t1",
-                "requirements": ["the problem, in the founder's own words"],
-                "instruction": {"purpose": "State the problem, not the solution.",
-                                "content": "Write it plainly, in the founder's words."},
-                "context": [], "detail": {},
-            }})
-        with recorder.step("submit CREATE", party="agent", kind="protocol") as h:
-            h.record_wire(
-                {"body": {"token": "t1", "payload": {"statement": "Payroll managers lose hours chasing exceptions."}}},
-                {"status": 200, "body": {"projectId": "p1", "state": "OPEN", "revision": 1}})
+    with recorder.interaction("arrival"):
+        with recorder.step("founder arrives", party="founder", kind="browser") as h:
+            h.capture_text("arrival_display", "Welcome back to Payroll Exceptions.")
 
-    with recorder.interaction("agent-cycle") as handoff_id:
-        with recorder.step("get_next (project p1)", party="agent", kind="protocol") as h:
-            h.record_wire({}, {"status": 200, "body": {
-                "kind": "handoff", "reason": "REVIEW",
-                "display": "The problem card is waiting for your approval -- read it first.",
-                "detail": {"stage": "PROBLEM"},
-            }})
-        recorder.retag_interaction(handoff_id, "agent-handoff")
+    with recorder.interaction("agent_turn"):
+        with recorder.step("the agent answers the problem framing", party="agent", kind="browser") as h:
+            h.capture_text("chat_state", "Reading what you wrote...")
+            h.capture_text("agent_reply", "Here's what we understood: Payroll managers lose "
+                                           "hours chasing exceptions.")
+            h.capture_text("agent_turn_outcome", "COMPLETED")
 
-    with recorder.interaction("ui-visit"):
+    with recorder.interaction("ui_visit"):
         with recorder.step("founder opens the problem stage card", party="founder", kind="browser") as h:
             h.capture_text("screen", "stage")
             h.capture_text("stage", "PROBLEM")
@@ -57,9 +43,8 @@ def _build_bundle(run_dir):
 
 
 def test_report_has_exactly_one_card_per_scorecard_interaction(tmp_path):
-    scenario = _FixtureScenario()
     _build_bundle(tmp_path)
-    finalize_run(tmp_path, scenario=scenario, passed=True, failed_step=None, duration_s=1.0)
+    finalize_run(tmp_path, slug="fixture-report", passed=True, failed_step=None, duration_s=1.0)
 
     scorecard = json.loads((tmp_path / "scorecard.json").read_text())
     report = (tmp_path / "report.html").read_text()
@@ -71,18 +56,14 @@ def test_report_has_exactly_one_card_per_scorecard_interaction(tmp_path):
     assert report.count("raw steps:") == len(scorecard["interactions"])
 
 
-def test_agent_cycle_card_shows_prose_not_raw_json(tmp_path):
-    scenario = _FixtureScenario()
+def test_agent_turn_card_shows_prose_not_raw_json(tmp_path):
     _build_bundle(tmp_path)
-    finalize_run(tmp_path, scenario=scenario, passed=True, failed_step=None, duration_s=1.0)
+    finalize_run(tmp_path, slug="fixture-report", passed=True, failed_step=None, duration_s=1.0)
     report = (tmp_path / "report.html").read_text()
 
-    assert "State the problem, not the solution." in report
-    assert "Write it plainly, in the founder&#x27;s words." in report or \
-        "Write it plainly, in the founder's words." in report
-    assert "the problem, in the founder&#x27;s own words" in report or \
-        "the problem, in the founder's own words" in report
-    # The handoff's conversation card shows the display text as prose.
-    assert "waiting for your approval" in report
+    assert "Reading what you wrote" in report
+    assert "Here&#x27;s what we understood" in report or "Here's what we understood" in report
+    # The arrival's own conversation card shows its greeting as prose.
+    assert "Welcome back to Payroll Exceptions" in report
     # Raw JSON is still there, but inside a collapsible <details> block, not inline prose.
     assert "<details>" in report

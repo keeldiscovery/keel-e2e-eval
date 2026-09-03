@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 from playwright.sync_api import sync_playwright
 
-from harness.browser import FounderBrowser
+from harness.browser import Landing
 from harness.evidence import generate_report
 from harness.steps import Recorder
 
@@ -35,11 +35,11 @@ def _closed_port() -> int:
 def test_a_dead_keel_web_fails_the_browser_step_with_full_evidence(tmp_path, browser):
     recorder = Recorder(tmp_path)
     page = browser.new_page()
-    dead_base = f"http://localhost:{_closed_port()}/p"
-    founder = FounderBrowser(page, dead_base, recorder)
+    dead_base = f"http://localhost:{_closed_port()}"
+    landing = Landing(page, dead_base, recorder)
 
     with pytest.raises(Exception):
-        founder.open_overview("11111111-1111-1111-1111-111111111111")
+        landing.open()
     page.close()
 
     # transcript: the step is recorded as a failure, not silently swallowed.
