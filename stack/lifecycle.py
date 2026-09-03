@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import time
 
-from stack import auth, cloud, postgres, web
+from stack import auth, cloud, postgres, runtime, web
 from stack.config import StackConfig, load_config
 from stack.processes import teardown_all_processes
 
@@ -16,6 +16,10 @@ def quick_gates_pass(config: StackConfig) -> bool:
     eval` against an already-up stack attaches instead of re-booting (design pass 5, edge case).
     `boot` below handles the partial case (e.g. only keel-web died) by checking -- and only
     (re)starting -- each piece independently, rather than requiring all-or-nothing here.
+
+    The runtime-home gate is deliberately not part of this: spec 005 US1 says `make up` ends with
+    the runtime **not yet running** (the smoke starts it) -- "already up" for attach purposes
+    means the three long-running processes answering, exactly as before.
     """
     return postgres.is_up(config) and cloud.is_up(config) and web.is_up(config)
 
@@ -30,19 +34,27 @@ def boot(config: StackConfig) -> None:
           f"(budget {config.cloud_boot_timeout}s) ...")
     cloud.up(config)
     print(f"[up] ({config.profile}) keel-cloud: ready on {config.cloud_port}")
-    print("[up] keel-cloud: /mcp is reachable")
 
     print(f"[up] ({config.profile}) keel-web: booting on {config.web_port} "
           f"(budget {config.web_boot_timeout}s) ...")
     web.up(config)
     print(f"[up] ({config.profile}) keel-web: ready on {config.web_port}")
 
+    # spec 005 FR-003/edge cases: wiped every `make up` so no credential or heartbeat from a
+    # prior run survives into this session -- the smoke's own first assertion (the landing reads
+    # "No agent connected") depends on this gate being genuinely clean.
+    print(f"[up] ({config.profile}) runtime-home: resetting {runtime.home_dir(config)} ...")
+    runtime.reset(config)
+    print(f"[up] ({config.profile}) runtime-home: ready, empty of a heartbeat "
+          f"(the smoke starts the runtime itself)")
+
     print("[up] all gates passed")
 
 
 def teardown(config: StackConfig | None = None) -> None:
-    """killpg the recorded process groups, wait, then `docker compose down -v` (contract order).
-    Idempotent and safe when only part of the stack came up.
+    """Kills a runtime the smoke left running, then killpg the recorded process groups, wait,
+    then `docker compose down -v` (contract order). Idempotent and safe when only part of the
+    stack came up.
 
     Split-stacks (relay-design.md §12.5): every step below is scoped to `config.profile` --
     `teardown_all_processes(config.profile)` only ever kills that profile's own pid files, and
@@ -52,6 +64,8 @@ def teardown(config: StackConfig | None = None) -> None:
     eval account's stored credentials.
     """
     config = config or load_config()
+    print(f"[down] ({config.profile}) stopping keel-runtime (if the smoke left one running) ...")
+    runtime.kill(config)
     print(f"[down] ({config.profile}) stopping keel-web and keel-cloud ...")
     teardown_all_processes(config.profile)
     time.sleep(0.5)

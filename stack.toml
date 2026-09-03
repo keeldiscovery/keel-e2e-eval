@@ -4,7 +4,8 @@
 [paths]
 keel_cloud = "../keel-cloud"
 keel_web = "../keel-web"
-keel_skill = "../keel-skill"
+keel_runtime = "../keel-runtime"
+keel_connect_skill = "../keel-connect-skill"
 
 [ports]
 postgres = 55432

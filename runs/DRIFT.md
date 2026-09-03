@@ -753,3 +753,28 @@ an agent reply does.
 **#13 RESOLVED 2026-08-31**: keel-cloud 35df2d8 — RelayTurnInput gains step, service passthrough,
 served bridge echoes the founder's marker onto replies (version 2). The step overlay's agent
 branch can now fire from real wire responses.
+
+## Retirement note, 2026-09-03 (005-connect-stack)
+
+The stack this repo referees changed underneath it: keel-skill is archived, the relay is no
+longer a founder surface, and every judgement now runs as an inference job through the founder's
+own keel-runtime, connected by device code through keel-connect-skill and confirmed in keel-web.
+Retired in this pass (git history has all of it, nothing here is lost):
+
+- The agent-protocol half of the harness and its tests: `harness/driver.py`, `mcp_client.py`,
+  `bridge.py`, `relay.py`, `founder_sim.py`, `agent_session.py`, `shaping_scoring.py`, and
+  `tests/test_bridge.py`, `test_relay.py`, `test_founder_sim.py`, `test_shaping_scoring.py`,
+  `test_policy_v5.py`.
+- The old scenario set S-002..S-011 (`evals/test_s002_pricing_pivot.py` through
+  `evals/test_s011_relay.py`), the shaping gauntlet's Layer 2 (`evals/test_shaping_gauntlet.py`,
+  `make eval-shaping`, the `shaping` pytest marker), and the scenario-sharing modules
+  `evals/recipes.py`/`evals/scenario.py` they depended on.
+- Everything above is replaced by one scenario, S-001, rewritten from scratch against the
+  connect stack (spec `005-connect-stack`) -- the whole payroll-exceptions journey, once,
+  deterministic, no LLM.
+
+Findings #1-#13 above describe the retired protocol's own stack (agent-protocol MCP/relay,
+policy v2-v5) and are kept for the historical record; none of them are re-asserted by S-001
+unless independently reproduced against the connect stack. The MCP-reachability workaround
+(finding #3) and its `SPRING_AI_MCP_SERVER_PROTOCOL` override no longer apply -- the connect
+stack talks to keel-cloud over `/v2/*` and keel-runtime's own long-poll, never MCP.

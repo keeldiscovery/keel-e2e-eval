@@ -13,7 +13,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PATHS = {
     "keel_cloud": "../keel-cloud",
     "keel_web": "../keel-web",
-    "keel_skill": "../keel-skill",
+    "keel_runtime": "../keel-runtime",
+    "keel_connect_skill": "../keel-connect-skill",
 }
 DEFAULT_PORTS = {"postgres": 55432, "cloud": 18080, "web": 5173}
 DEFAULT_TIMEOUTS = {"cloud_boot": 120, "web_boot": 60}
@@ -35,7 +36,8 @@ class ConfigError(RuntimeError):
 class StackConfig:
     keel_cloud: Path
     keel_web: Path
-    keel_skill: Path
+    keel_runtime: Path
+    keel_connect_skill: Path
     postgres_port: int
     cloud_port: int
     web_port: int
@@ -44,8 +46,11 @@ class StackConfig:
     profile: str = "eval"
 
     @property
-    def skill_md_path(self) -> Path:
-        return self.keel_skill / "SKILL.md"
+    def connect_check_script_path(self) -> Path:
+        """keel-connect-skill's own script (contracts/skill-script-output.md) -- the only thing
+        this stack ever launches keel-runtime through (spec 005 edge case: never `python3 -m
+        keel_runtime` directly, so the connect skill stays under referee)."""
+        return self.keel_connect_skill / "scripts" / "keel_connect_check.py"
 
 
 def load_config(toml_path: Path | None = None, *, validate: bool = True,
@@ -97,7 +102,8 @@ def load_config(toml_path: Path | None = None, *, validate: bool = True,
     return StackConfig(
         keel_cloud=resolved["keel_cloud"],
         keel_web=resolved["keel_web"],
-        keel_skill=resolved["keel_skill"],
+        keel_runtime=resolved["keel_runtime"],
+        keel_connect_skill=resolved["keel_connect_skill"],
         postgres_port=int(ports["postgres"]),
         cloud_port=int(ports["cloud"]),
         web_port=int(ports["web"]),

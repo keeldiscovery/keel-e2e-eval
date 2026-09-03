@@ -45,6 +45,30 @@ def test_relative_default_paths_resolve_to_absolute_paths(tmp_path):
     assert config.keel_cloud.is_absolute()
 
 
+# ------------------------------------------------------- the connect-stack siblings (spec 005)
+
+def test_keel_runtime_and_keel_connect_skill_default_paths_resolve(tmp_path):
+    config = load_config(tmp_path / "absent.toml", validate=False)
+    assert config.keel_runtime.name == "keel-runtime"
+    assert config.keel_runtime.is_absolute()
+    assert config.keel_connect_skill.name == "keel-connect-skill"
+    assert config.keel_connect_skill.is_absolute()
+
+
+def test_connect_check_script_path_is_under_keel_connect_skill_scripts(tmp_path):
+    config = load_config(tmp_path / "absent.toml", validate=False)
+    assert config.connect_check_script_path == (
+        config.keel_connect_skill / "scripts" / "keel_connect_check.py"
+    )
+
+
+def test_stack_toml_can_override_keel_runtime_path(tmp_path):
+    toml_path = tmp_path / "stack.toml"
+    toml_path.write_text('[paths]\nkeel_runtime = "./somewhere-else"\n')
+    config = load_config(toml_path, validate=False)
+    assert config.keel_runtime.name == "somewhere-else"
+
+
 # ------------------------------------------------- split-stacks: the playground profile (T012)
 
 def test_default_profile_is_eval(tmp_path):
