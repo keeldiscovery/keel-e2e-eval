@@ -270,7 +270,7 @@ WAIVERS: dict[tuple[str, str], dict[str, str]] = {
         "id": "brief-findings-summarize",
         "reason": "Brief.findings is a founder-authored summary sentence (with respondent counts), "
                   "not a verbatim repeat of the assumption statement -- known, accepted contract gap.",
-        "reference": "keel-cloud specs/projectv2/api-design.md §6a",
+        "reference": "keel-cloud canon/api-design.md §6a",
     },
 }
 

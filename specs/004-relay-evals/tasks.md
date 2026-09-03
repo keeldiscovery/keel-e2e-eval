@@ -1,6 +1,6 @@
 # Tasks: The Relay — Eval Framework
 
-**Input**: spec.md, keel-cloud specs/projectv2/relay-design.md §12 (+ §§2, 9, 14 for context)
+**Input**: spec.md, keel-cloud canon/designs/relay-design.md §12 (+ §§2, 9, 14 for context)
 
 ## Phase 1: Setup
 

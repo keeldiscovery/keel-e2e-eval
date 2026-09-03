@@ -1,6 +1,6 @@
 # Tasks: The Eval Set
 
-**Input**: spec.md, plan.md, ../eval-set-design.md, keel-cloud specs/projectv2/journeys.md
+**Input**: spec.md, plan.md, ../eval-set-design.md, keel-cloud canon/journeys.md
 
 ## Phase 1: Setup
 

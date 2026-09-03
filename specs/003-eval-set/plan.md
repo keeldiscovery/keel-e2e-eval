@@ -3,7 +3,7 @@
 **Branch**: `003-eval-set` | **Date**: 2026-08-30 | **Spec**: [spec.md](./spec.md)
 
 **Input**: spec.md + ../eval-set-design.md (design of record) + keel-cloud
-`specs/projectv2/journeys.md` (the assertions' source of truth) + the shipped server (the
+`canon/journeys.md` (the assertions' source of truth) + the shipped server (the
 choreography's source of truth — S-001 already taught us the server, not the plan, is the
 script).
 

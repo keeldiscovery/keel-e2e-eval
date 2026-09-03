@@ -31,7 +31,7 @@ the two licensed), rule literals. URL path segments exempt.
 
 ## Waivers (v1)
 - `brief-findings-summarize`: hop `brief` for assumption facts may summarize — reference:
-  keel-cloud `specs/projectv2/api-design.md` §6a (Brief.findings loses counts). Flagged in
+  keel-cloud `canon/api-design.md` §6a (Brief.findings loses counts). Flagged in
   scorecard, counts as pass.
 
 Weights: all checks weight 1 in v1 except FID checks on `answer` facts at `interpret_context`

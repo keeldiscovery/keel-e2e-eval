@@ -183,7 +183,7 @@ def test_brief_summarizing_an_assumption_passes_waived_with_reference(tmp_path):
     check = checks[0]
     assert check["pass"] is True
     assert check["waived"] is not None
-    assert check["waived"]["reference"] == "keel-cloud specs/projectv2/api-design.md §6a"
+    assert check["waived"]["reference"] == "keel-cloud canon/api-design.md §6a"
 
 
 # -------------------------------------------------------- corrupt answer at interpret_context (w2)

@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: keel-cloud `specs/projectv2/relay-design.md` §12 (the required eval-framework spec),
+**Input**: keel-cloud `canon/designs/relay-design.md` §12 (the required eval-framework spec),
 with §§2, 9, 14 for context. Shipped contracts: keel-cloud `6f1c175` (relay endpoints), keel-web
 `07745c2` (ChatPane), keel-skill `8610b04` (relay conduct, M15). This repo builds the eval side
 only — keel-cloud/keel-web/keel-skill are never modified from here (gaps go to `runs/DRIFT.md`).

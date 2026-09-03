@@ -3,7 +3,7 @@
 keel-e2e-eval: the referee. It stands the whole Keel stack up locally and proves the three
 applications (keel-cloud, keel-web, keel-skill) agree — with each other, and with the journey.
 
-**The canon comes first**: keel-cloud `specs/projectv2/CANON.md` holds the governing documents,
+**The canon comes first**: keel-cloud `canon/CANON.md` holds the governing documents,
 their precedence, and the ledger this repo's `tests/test_journey_coverage.py` enforces. This
 repo deliberately floats at sibling HEADs (a referee pinned to the past can't call the present).
 

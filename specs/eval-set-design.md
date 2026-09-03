@@ -1,7 +1,7 @@
 # The Eval Set — Design
 
 **Status**: Proposed. Downstream of `eval-scoring-design.md` (the scoring machinery this set
-runs on) and of keel-cloud's `specs/projectv2/journeys.md` and `product-constitution.md` — the
+runs on) and of keel-cloud's `canon/journeys.md` and `product-constitution.md` — the
 scenarios below are those documents' moments turned into executable, scored discoveries. Where a
 scenario and the journey disagree, the journey wins; where the journey and the shipped server
 disagree, the server is reported (DRIFT), not worked around.
