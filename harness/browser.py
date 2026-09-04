@@ -410,6 +410,35 @@ class Landing:
         """L2: no agent connected yet, no project can be started."""
         return self.page.locator(".gate").count() > 0
 
+    def new_project_locked_reason(self) -> dict[str, Any]:
+        """L4 (spec 006-agent-optional, mockups `landing-mock.html` frame L4): the list-head's own
+        `.locked` card -- *New project* rendered `disabled`, with its own reason (`.locked .why`,
+        `LANDING_LOCKED_REASON`) beside it, once projects exist but no agent is connected.
+        `{present, enabled, reason}` -- `present=False` when `.locked` never rendered at all (L1/
+        L3, agent connected: plain *New project*, never disabled)."""
+        locked = self.page.locator(".locked")
+        if locked.count() == 0:
+            return {"present": False, "enabled": True, "reason": ""}
+        button = locked.get_by_role("button", name=re.compile(r"^new project$", re.I))
+        enabled = button.count() > 0 and button.first.is_enabled()
+        reason = _safe_text(lambda: locked.locator(".why").first.inner_text())
+        return {"present": True, "enabled": enabled, "reason": reason}
+
+    def new_project_enabled(self) -> bool:
+        """L3/L1 (agent connected): the plain, unlocked *New project* button -- true once step 8
+        (spec 006-agent-optional: "and now a new project is allowed again") is reached."""
+        button = self.page.get_by_role("button", name=re.compile(r"^new project$", re.I))
+        return button.count() > 0 and button.first.is_enabled()
+
+    def log_out(self) -> None:
+        """The landing's own *Log out* -- closes the keel session (spec 006-agent-optional US1
+        step 1; spec 020 US3: logging out closes the keel session, the runtime keeps polling on
+        its own until this scenario's own `harness.connect.stop_runtime` stops it)."""
+        with self._bstep.step("founder logs out") as h:
+            self.page.get_by_role("button", name=re.compile(r"^log out$", re.I)).click()
+            self.page.locator(".auth-title").wait_for(state="visible", timeout=15_000)
+            h.add_screenshot(self._bstep.screenshot("landing-logged-out"))
+
     def open_connect_from_gate(self) -> None:
         """L2's gate card -- *I have a code* -- opens the bare `/connect` entry (frame D)."""
         with self._bstep.step("founder clicks I have a code from the gated landing") as h:
@@ -1237,6 +1266,27 @@ class People:
 
     def toast_text(self) -> str:
         return _safe_text(lambda: self.page.locator(".toast").first.inner_text())
+
+    def read_action_state(self) -> dict[str, Any]:
+        """Spec 006-agent-optional (FR-003, US1 acceptance scenario 3): the *Have your agent read
+        the N new answers* button's own enabled/disabled state, its rendered label, and whatever
+        reason text sits beside it in `.actions` (the `.hint` line design's `landing`/`.locked`
+        pattern for *New project* uses -- a reason shown beside a disabled action, not merely a
+        refusal after a click). A pure getter, like `table_rows()`: records nothing of its own,
+        so the caller decides which step/interaction this observation belongs to.
+
+        `{present, enabled, label, reason}` -- `present=False` only if the actions row itself
+        never rendered (a screen this file doesn't expect); the button is present and *enabled*
+        whenever `unreadCount > 0` today, agent connected or not (this is exactly the gap spec
+        006 predicts keel-web has not closed yet).
+        """
+        button = self.page.locator(".actions button.primary, .actions button.btn.primary").first
+        if button.count() == 0:
+            return {"present": False, "enabled": False, "label": "", "reason": ""}
+        label = _safe_text(lambda: button.inner_text())
+        enabled = button.is_enabled()
+        reason = _safe_text(lambda: self.page.locator(".actions .hint").first.inner_text())
+        return {"present": True, "enabled": enabled, "label": label, "reason": reason}
 
     def follow_toast_link(self) -> None:
         """The toast's own *See the overview →* -- app-level (bottom centre), asserted on the

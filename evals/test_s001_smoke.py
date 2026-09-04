@@ -24,6 +24,7 @@ from __future__ import annotations
 import time
 
 from evals import payroll_exceptions as fx
+from evals.preludes import stage_from_overview, walk_stage
 from harness.browser import Auth, Brief, Chat, Connect, Landing, ParticipantBrowser, People, Shell, StageCard
 from harness.connect import start_runtime_via_skill
 from harness.evidence import finalize_run
@@ -31,10 +32,6 @@ from harness.steps import Recorder
 
 
 _STANDING_LISTS = ("holdingUp", "notHoldingUp", "peopleDisagree", "untested")
-
-
-def _stage(overview_body: dict, stage_type: str) -> dict:
-    return next(s for s in overview_body["stages"] if s["type"] == stage_type)
 
 
 def _counts_note_for(stage_card_body: dict, heading: str) -> str | None:
@@ -59,52 +56,11 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
 
     def _walk_stage(project_id: str, stage_type: str, opening: str, statement: str,
                      *, needs_followup: bool) -> None:
-        """One pass of C1-C8 -> R1 -> approve -> R4, for whichever stage is currently the guided
-        step's own live draft."""
-        chat = Chat(page, recorder)
-        chat.send(opening)
-        turn = chat.wait_for_agent_turn(timeout_s=60)
-        if needs_followup:
-            with recorder.step(f"§1.1: the agent's follow-up question on {stage_type}",
-                                party="agent", kind="assert") as h:
-                h.record_assert(fx.PROBLEM_FOLLOWUP_QUESTION, turn["agent_reply"])
-                assert fx.PROBLEM_FOLLOWUP_QUESTION in turn["agent_reply"], (
-                    f"expected the scripted follow-up question on {stage_type}, got {turn!r}")
-            chat.send(fx.PROBLEM_FOLLOWUP_ANSWER)
-            turn = chat.wait_for_agent_turn(timeout_s=60)
-
-        with recorder.step(f"§1.1: {stage_type}'s understood claim matches the script verbatim",
-                            party="founder", kind="assert") as h:
-            card = chat.confirmation_card()
-            h.record_assert(statement, card)
-            assert card is not None, f"expected C5's confirmation card to render for {stage_type}"
-            assert card["claim"] == statement, (
-                f"expected the {stage_type} claim verbatim, got {card['claim']!r}")
-        chat.save_confirmation()
-        chat.wait_for_review(project_id, stage_type, timeout_s=60)
-
-        with recorder.step(f"§1.2 wire: {stage_type} is still unframed before approval",
-                            party="stack", kind="assert") as h:
-            before = _stage(_get(f"/v2/projects/{project_id}/overview"), stage_type)
-            h.record_assert({"framed": False}, before)
-            assert before["framed"] is False, (
-                f"US2 acceptance scenario 3: expected {stage_type} still a draft, got {before}")
-
-        stage_card = StageCard(page, recorder)
-        opened = stage_card.open(project_id, stage_type)
-        with recorder.step(f"§1.2: the {stage_type} card reads Reviewing",
-                            party="founder", kind="assert") as h:
-            h.record_assert("reviewing", opened["status"])
-            assert "review" in opened["status"].lower(), (
-                f"expected Reviewing on {stage_type}, got {opened['status']!r}")
-        stage_card.approve()
-
-        with recorder.step(f"§1.2 wire: {stage_type} is framed and approved after approval",
-                            party="stack", kind="assert") as h:
-            after = _stage(_get(f"/v2/projects/{project_id}/overview"), stage_type)
-            h.record_assert({"framed": True, "approved": True}, after)
-            assert after["framed"] is True and after["approved"] is True, (
-                f"US2 acceptance scenario 3: expected {stage_type} framed+approved, got {after}")
+        """Thin wrapper over `evals.preludes.walk_stage` (spec 006-agent-optional FR-004 moved
+        the implementation there so S-002's own prelude can drive the identical walk) -- kept
+        here under its original name so every call site below reads unchanged."""
+        walk_stage(page, recorder, _get, project_id, stage_type, opening, statement,
+                   needs_followup=needs_followup)
 
     try:
         page = context.new_page()
@@ -205,7 +161,7 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
 
         with recorder.step("§1.2 wire: SOLUTION is still unframed before approval",
                             party="stack", kind="assert") as h:
-            before = _stage(_get(f"/v2/projects/{project_id}/overview"), "SOLUTION")
+            before = stage_from_overview(_get(f"/v2/projects/{project_id}/overview"), "SOLUTION")
             h.record_assert({"framed": False}, before)
             assert before["framed"] is False
         solution_card = StageCard(page, recorder)
@@ -213,7 +169,7 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
         solution_card.approve()
         with recorder.step("§1.2 wire: SOLUTION is framed and approved after approval",
                             party="stack", kind="assert") as h:
-            after = _stage(_get(f"/v2/projects/{project_id}/overview"), "SOLUTION")
+            after = stage_from_overview(_get(f"/v2/projects/{project_id}/overview"), "SOLUTION")
             h.record_assert({"framed": True, "approved": True}, after)
             assert after["framed"] is True and after["approved"] is True
         solution_card.continue_to_next_step()  # see the PROBLEM note above
