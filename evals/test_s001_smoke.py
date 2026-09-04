@@ -21,11 +21,12 @@ founder session the UI is driving, no second login needed.
 
 from __future__ import annotations
 
+import re
 import time
 
 from evals import payroll_exceptions as fx
 from evals.preludes import stage_from_overview, walk_stage
-from harness.browser import Auth, Brief, Chat, Connect, Landing, ParticipantBrowser, People, Shell, StageCard
+from harness.browser import WAIT_PHASES, Auth, Brief, Chat, Connect, Landing, ParticipantBrowser, People, Shell, StageCard
 from harness.connect import start_runtime_via_skill
 from harness.evidence import finalize_run
 from harness.steps import Recorder
@@ -142,7 +143,15 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
         solution_chat = Chat(page, recorder)
         solution_chat.send(
             "An exceptions queue inside the payroll tool that assigns an owner to every exception.")
-        solution_chat.wait_for_agent_turn(timeout_s=60)
+        solution_turn = solution_chat.wait_for_agent_turn(timeout_s=60)
+        with recorder.step("§4.2: while the agent answers on SOLUTION, the chat narrates a phase and counts the seconds",
+                            party="founder", kind="assert") as h:
+            h.record_assert({"phase": "one of WAIT_PHASES", "elapsed": "<n> s"},
+                             {"phase": solution_turn.get("phase_line"), "elapsed": solution_turn.get("elapsed_label")})
+            assert solution_turn.get("phase_line") in WAIT_PHASES, (
+                f"expected the chat to narrate a waiting phase, saw {solution_turn.get('phase_line')!r}")
+            assert re.fullmatch(r"\d+ s", solution_turn.get("elapsed_label") or ""), (
+                f"expected the seconds counter beside the topic, saw {solution_turn.get('elapsed_label')!r}")
         with recorder.step("§1.1: the solution draft is kept while viewing the approved problem card",
                             party="founder", kind="assert") as h:
             Shell(page, recorder).click_stage_link("PROBLEM")
@@ -157,7 +166,14 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
             assert card is not None and card["claim"] == fx.SOLUTION_STATEMENT, (
                 f"expected the solution claim verbatim, got {card!r}")
         solution_chat.save_confirmation()
-        solution_chat.wait_for_review(project_id, "SOLUTION", timeout_s=60)
+        solution_landed = solution_chat.wait_for_review(project_id, "SOLUTION", timeout_s=60)
+        with recorder.step("§4.4: the beliefs land in place on SOLUTION before the founder moves on",
+                            party="founder", kind="assert") as h:
+            h.record_assert({"phase": "one of WAIT_PHASES", "landed_rows": ">= 1"}, solution_landed)
+            assert solution_landed["phase_line"] in WAIT_PHASES, (
+                f"expected the rail to narrate a waiting phase, saw {solution_landed['phase_line']!r}")
+            assert solution_landed["landed_rows"] >= 1, (
+                f"expected the beliefs to land in place before the review, saw {solution_landed['landed_rows']}")
 
         with recorder.step("§1.2 wire: SOLUTION is still unframed before approval",
                             party="stack", kind="assert") as h:

@@ -17,12 +17,14 @@ an already-run S-001's own project in the same stack session.
 
 from __future__ import annotations
 
+import re
+
 from typing import Callable
 
 from playwright.sync_api import Page
 
 from evals import payroll_exceptions as fx
-from harness.browser import Chat, Landing, ParticipantBrowser, People, StageCard
+from harness.browser import WAIT_PHASES, Chat, Landing, ParticipantBrowser, People, StageCard
 from harness.steps import Recorder
 
 GetJson = Callable[[str], dict]
@@ -41,6 +43,17 @@ def walk_stage(page: Page, recorder: Recorder, get_json: GetJson, project_id: st
     chat = Chat(page, recorder)
     chat.send(opening)
     turn = chat.wait_for_agent_turn(timeout_s=60)
+    with recorder.step(f"§4.2: while the agent answers on {stage_type}, the chat narrates a phase and counts the seconds",
+                        party="founder", kind="assert") as h:
+        # keel-cloud waiting-with-the-agent-design.md §2 (frame C2): the state line reads one of
+        # the phases while the turn is pending, and the counter ticks in whole seconds. A
+        # scripted agent answers within a poll or two, so one sighting is the guarantee.
+        h.record_assert({"phase": "one of WAIT_PHASES", "elapsed": "<n> s"},
+                         {"phase": turn.get("phase_line"), "elapsed": turn.get("elapsed_label")})
+        assert turn.get("phase_line") in WAIT_PHASES, (
+            f"expected the chat to narrate a waiting phase on {stage_type}, saw {turn.get('phase_line')!r}")
+        assert re.fullmatch(r"\d+ s", turn.get("elapsed_label") or ""), (
+            f"expected the seconds counter beside the topic, saw {turn.get('elapsed_label')!r}")
     if needs_followup:
         with recorder.step(f"§1.1: the agent's follow-up question on {stage_type}",
                             party="agent", kind="assert") as h:
@@ -58,7 +71,16 @@ def walk_stage(page: Page, recorder: Recorder, get_json: GetJson, project_id: st
         assert card["claim"] == statement, (
             f"expected the {stage_type} claim verbatim, got {card['claim']!r}")
     chat.save_confirmation()
-    chat.wait_for_review(project_id, stage_type, timeout_s=60)
+    landed = chat.wait_for_review(project_id, stage_type, timeout_s=60)
+    with recorder.step(f"§4.4: the beliefs land in place on {stage_type} before the founder moves on",
+                        party="founder", kind="assert") as h:
+        # design §3-§4 (frames C8, C9): the rail narrates a phase, the list lands in place, and the
+        # review opens only when the founder presses Review them.
+        h.record_assert({"phase": "one of WAIT_PHASES", "landed_rows": ">= 1"}, landed)
+        assert landed["phase_line"] in WAIT_PHASES, (
+            f"expected the rail to narrate a waiting phase on {stage_type}, saw {landed['phase_line']!r}")
+        assert landed["landed_rows"] >= 1, (
+            f"expected the beliefs to land in place before the review on {stage_type}, saw {landed['landed_rows']}")
 
     with recorder.step(f"§1.2 wire: {stage_type} is still unframed before approval",
                         party="stack", kind="assert") as h:

@@ -628,6 +628,16 @@ class Shell:
 
 # ------------------------------------------------------------------------------------------- Chat
 
+# The waiting phases the walk narrates (keel-cloud waiting-with-the-agent-design.md §5). The
+# first two are wire-true (job QUEUED / RUNNING), the rest are the clock's; "Done." is C9's.
+WAIT_PHASES = {
+    "Sending your words…", "Sending your claim…", "Your agent has picked it up.",
+    "Thinking it over…", "Working out what must be true…", "Still working — longer than usual.",
+    "Done.",
+}
+_ELAPSED_RE = re.compile(r"^\d+ s$")
+
+
 class Chat:
     """The guided step's own chat (`components/chat/ChatFrame.tsx`, `chat/GuidedStep.tsx`) --
     C1-C8: the composer, the agent's turns, and the confirmation card. Never navigates anywhere
@@ -763,7 +773,20 @@ class Chat:
                 # to prove correct than trusting an inline JS closure's own argument-serialization
                 # to round-trip a captured-before count exactly.
                 deadline = time.monotonic() + timeout_s
+                phase_seen: str | None = None
+                elapsed_seen: str | None = None
                 while True:
+                    # Waiting-with-the-agent (design §2): while the turn is pending the state line
+                    # narrates a phase and a counter ticks. Sampled *before* the landed check --
+                    # a scripted agent answers inside the first poll (live: 0.37 s), and the phase
+                    # is still on screen for that one read. Remember the first phase seen and the
+                    # last counter reading; the scenario asserts on them after the turn lands.
+                    line = self.state_line()
+                    if phase_seen is None and line in WAIT_PHASES:
+                        phase_seen = line
+                    counter = self.page.locator(".chat__elapsed")
+                    if counter.count() > 0:
+                        elapsed_seen = _safe_text(lambda c=counter: c.first.inner_text()).strip() or elapsed_seen
                     bubbles_now = self.page.locator(_AGENT_BUBBLE).count()
                     has_card_now = self.page.locator(".understood").count() > 0
                     if bubbles_now > bubbles_before or (has_card_now and not had_card):
@@ -776,12 +799,19 @@ class Chat:
                     self.page.wait_for_timeout(300)
                 h.add_screenshot(self._bstep.screenshot("chat-agent-responded"))
                 new_state = self.state_line()
+                if phase_seen is None and new_state in WAIT_PHASES:
+                    phase_seen = new_state  # the reply landed while the phase line was still up
                 h.capture_text("chat_state", new_state)
                 outcome = _infer_chat_outcome(new_state)
                 reply = self._latest_reply_text()
                 h.capture_text("agent_reply", reply)
                 h.capture_text("agent_turn_outcome", outcome)
-        return {"chat_state": new_state, "agent_reply": reply, "outcome": outcome}
+                if phase_seen:
+                    h.capture_text("phase_line", phase_seen)
+                if elapsed_seen:
+                    h.capture_text("elapsed_label", elapsed_seen)
+        return {"chat_state": new_state, "agent_reply": reply, "outcome": outcome,
+                "phase_line": phase_seen, "elapsed_label": elapsed_seen}
 
     def _latest_reply_text(self) -> str:
         card = self.confirmation_card()
@@ -811,7 +841,7 @@ class Chat:
                 h.capture_text("chat_state", "Understood · working out the beliefs")
                 h.add_screenshot(self._bstep.screenshot("chat-landed"))
 
-    def wait_for_review(self, project_id: str, stage: str, *, timeout_s: float = 60) -> None:
+    def wait_for_review(self, project_id: str, stage: str, *, timeout_s: float = 60) -> dict[str, Any]:
         """C8's landed clearing carries its own *Continue* button. Waits for the review card
         (`.card.openc`), clicking *Continue* once it is enabled -- on the screen's own words,
         never a reload.
@@ -829,13 +859,21 @@ class Chat:
                     h.capture_text("waiting_text", waiting_text)
                 deadline = time.monotonic() + timeout_s
                 clicked = False
+                phase_seen: str | None = None
+                landed_rows = 0
                 while self.page.locator(".card.openc").count() == 0:
                     if time.monotonic() > deadline:
                         raise TimeoutError(
                             f"the {stage} review card never rendered within {timeout_s}s "
                             f"of saving the confirmed claim")
+                    # Waiting-with-the-agent (design §3-§4): the dashed rail narrates a phase,
+                    # and the beliefs land in place (C9) before the founder presses Review them.
+                    sub = _safe_text(lambda: self.page.locator(".next__sub").first.inner_text()).strip()
+                    if phase_seen is None and sub in WAIT_PHASES:
+                        phase_seen = sub
+                    landed_rows = max(landed_rows, self.page.locator(".coming .belief").count())
                     if not clicked:
-                        continue_btn = self.page.get_by_role("button", name=re.compile(r"^continue$", re.I))
+                        continue_btn = self.page.get_by_role("button", name=re.compile(r"^(continue|review them)", re.I))
                         # `is_enabled`/`click` auto-wait on an element that can vanish between
                         # this poll's `count()` and the call itself -- the scripted runtime lands
                         # the beliefs fast enough that the app flips to the review mid-poll
@@ -852,7 +890,11 @@ class Chat:
                 h.add_screenshot(self._bstep.screenshot("chat-review-ready"))
                 claim = _safe_text(lambda: self.page.locator(".card.openc .claim").first.inner_text())
                 h.capture_text("agent_reply", claim)
+                if phase_seen:
+                    h.capture_text("phase_line", phase_seen)
+                h.capture_text("landed_rows", str(landed_rows))
                 h.capture_text("agent_turn_outcome", "beliefs_ready")
+        return {"phase_line": phase_seen, "landed_rows": landed_rows}
 
     def start_over(self) -> None:
         with self._scope():
