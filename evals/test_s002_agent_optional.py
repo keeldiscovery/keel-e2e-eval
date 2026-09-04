@@ -74,7 +74,21 @@ def _facts(typed_answers: list[str]) -> dict[str, Fact]:
     evidence of infidelity, it is a check with nothing to check -- live-confirmed (run
     `20260904T034746Z-s002-agent-optional`): FIDELITY 1.0 on a run where every word shown was
     shown verbatim. Priya's facts are likewise only the answers her page had questions for."""
-    result = {key: fact for key, fact in fx.facts().items() if fact.kind != "answer"}
+    base = fx.facts()
+    result = {
+        # What this scenario itself puts on a screen, warm path or cold: the project's name and the
+        # problem claim on the problem card (the only stage card it opens), all three claims on the
+        # brief, and the one kind of person whose send popup it opens. The solution and commercial
+        # cards, and the other two roles' popups, are the prelude's screens -- when the prelude runs
+        # (cold) they are extra evidence, but a warm run that reuses S-001's project never visits
+        # them, and a fact registered for an unvisited hop scored FIDELITY 3.5 on
+        # `20260904T044246Z-s002-agent-optional` for words that were never shown wrongly.
+        "project_name": base["project_name"],
+        "problem_statement": base["problem_statement"],
+        "solution_statement": Fact(text=base["solution_statement"].text, kind="statement", hops=["brief"]),
+        "commercial_statement": Fact(text=base["commercial_statement"].text, kind="statement", hops=["brief"]),
+        "payroll_manager_role": base["payroll_manager_role"],
+    }
     slug = SECOND_PARTICIPANT.name.lower().replace(" ", "_")
     for n, text in enumerate(typed_answers, start=1):
         result[f"{slug}_answer_{n}"] = Fact(text=text, kind="answer", hops=["participant_page"])
