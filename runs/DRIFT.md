@@ -1222,3 +1222,37 @@ scenario's logout/login fallback is gone: `evals/test_s002_agent_optional.py` no
 the open landing to read connected and fails the run if it never does. Confirmed by
 `20260904T041459Z-s002-agent-optional` (passed, 5.0/5 under policy v7): the step "§1.0: a silent
 reconnect binds the keel session that is open now (DRIFT #19)" records `agent_connected: true`.
+
+## 20. RESOLVED -- was non-blocking: an unknown path inside a project renders the shell with an empty main pane
+and no words -- a founder on a stale bookmark gets chrome and silence
+
+**Severity**: non-blocking -- the side nav still works, so the founder can click their way out,
+but nothing tells them the page they asked for does not exist; the top-level not-found page
+("This page doesn't exist.") never renders for a child path.
+
+**Where**: `keel-web` `src/routes/AppRoutes.tsx:29-38` -- the nested `<Routes>` under
+`/p/:projectId/*` has `index`, `people`/`invite`/`invitations`, `brief` and `s/:stage`, and no `*`;
+`ProjectShell` renders its `.shell__main` with no matching child, so the pane is empty.
+
+**Reproduction**: `runs/20260904T082121Z-s003-every-door/` (the first S-003 run, keel-web
+`9771dd7`), probe step "probe: unknown path inside the project (/p/<id>/nope)" --
+`{"verdict": "blank", "detail": "the shell rendered with an empty main pane"}`; screenshot in the
+bundle. The same run opened all 63 rendered doors on 12 seeds and every one opened (D1-D3 clean);
+the top-level `/nope` rendered the not-found page; `/p/<id>/s/NOPE` redirected to the overview;
+`/i/nope` rendered the not-found page on the wire's own 404.
+
+**Shape of a fix**: a nested `*` route rendering the not-found copy *inside* the shell, in the
+house voice, with the side nav still usable -- keel-web spec `008-every-door` F1
+(design `every-door-design.md` §5).
+
+**Also noted, not observable by the walk**: `index.html` declared no icon, so a real browser
+requests `/favicon.ico` on every load and gets a 404 (design §5 F2). Headless Chromium under
+Playwright never requests favicons, so the walk's response listener cannot see it either way;
+the fix (an inline SVG icon) is verified by inspection of `index.html`, not by this run.
+
+**#20 RESOLVED 2026-09-04**: keel-web `71c045a` (spec 008) -- a nested `*` route renders "This
+page doesn't exist. Your project is still here — pick a step on the left." inside the shell, side
+nav intact, and `index.html` declares an inline SVG icon. Confirmed by
+`20260904T082453Z-s003-every-door` (passed, 5.0/5 under policy v7; FIDELITY and GUIDANCE not
+applicable to a walk): the probe reads `not_found` inside the shell, and all 63 doors on 12 seeds
+open.

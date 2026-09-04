@@ -548,6 +548,11 @@ class Shell:
     def people_locked_reason(self) -> str:
         return _safe_text(lambda: self.page.locator(".side-nav__locked-why").first.inner_text())
 
+    def main_text(self) -> str:
+        """The shell's own main pane (`ProjectShell.tsx`'s `.shell__main`) -- what a screen inside
+        the project actually rendered, chrome excluded (spec 007-every-door FR-003)."""
+        return _safe_text(lambda: self.page.locator(".shell__main").first.inner_text())
+
     def pointer_to_agent_text(self) -> str:
         """`.next.agent` -- the pointer-to-agent variant of the next-step box (design §4 item 4):
         present only in `GuidedStep.tsx`'s own landed phase, a sentence, never a link."""
