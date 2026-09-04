@@ -1312,7 +1312,7 @@ by `20260904T114959Z-s002-agent-optional` (scripted reading, 5.0/5) and
 `20260904T115336Z-s004-stranger-who-gives-orders-live` (live reading of a stranger's orders,
 5.0/5, "Nothing moved.", no tool tried, canary silent).
 
-## 22. Non-blocking (found by the founder by hand): the chat body hides what does not fit -- a tall
+## 22. RESOLVED -- was non-blocking (found by the founder by hand): the chat body hides what does not fit -- a tall
 confirmation card is clipped under the header and nothing scrolls
 
 **Severity**: non-blocking for the scripted smoke (its statements are short), real with a live
@@ -1330,7 +1330,7 @@ variant -- not added, the fix is a CSS rule and the guarantee's baselines pin th
 **Shape of a fix**: keel-cloud `canon/designs/the-card-says-what-it-knows-design.md` §2; keel-web
 spec `011-the-body-scrolls`. Held until the founder finishes testing.
 
-## 23. Non-blocking (found by the founder by hand): "Still unknown" repeats the last question the
+## 23. RESOLVED -- was non-blocking (found by the founder by hand): "Still unknown" repeats the last question the
 agent asked, even when the founder answered it
 
 **Severity**: non-blocking -- nothing is lost (the answer is in the statement) -- but the card
@@ -1349,7 +1349,7 @@ the founder's own 10 years in payroll".
 already requires it). keel-cloud spec `027-the-card-says-what-it-knows`, keel-web spec `011`.
 Held until the founder finishes testing.
 
-## 24. Non-blocking (found by the founder by hand): a failed breakdown leaves the landed screen
+## 24. RESOLVED -- was non-blocking (found by the founder by hand): a failed breakdown leaves the landed screen
 counting forever, and Start over is refused without a word
 
 **Severity**: non-blocking for the scripted smoke (its jobs never fail), wedging with a live agent:
@@ -1368,7 +1368,7 @@ child is terminal, so the chain's live parent (`ACCEPTED`) could not be abandone
 **Shape of a fix**: keel-cloud spec 027 FR-006 (cancel abandons every live row of a chain);
 keel-web spec 011 FR-008 (frame C10) and FR-010 (the refusal banner).
 
-## 25. Non-blocking (found by the founder by hand): the breakdown job burns its turn allowance
+## 25. RESOLVED -- was non-blocking (found by the founder by hand): the breakdown job burns its turn allowance
 trimming one field under a cap nobody told the model about
 
 **Severity**: non-blocking -- the runtime reports the failure honestly -- but two real breakdowns in
@@ -1386,3 +1386,11 @@ message the cloud stored read only "the executor reported an error".
 **Shape of a fix**: keel-cloud spec 026 FR-011 (the model is told the sizes; rationale cap 1 200);
 keel-runtime spec 002 FR-009..011 (defaults 1.00 / 6, a failure that names the rule, one recovery
 pass).
+
+**#22-#25 RESOLVED 2026-09-04**: keel-cloud `30a19d5` (spec 027 + 026 FR-011: the note is gone from
+the wire, `cancel` abandons every live row of a chain, every instruction names its sizes, the
+rationale has room), keel-runtime `916583d` (defaults $1.00 / 6 turns, the failure names the rule
+that was broken, one recovery pass), keel-web `bc1ab6f` (the body scrolls with auto-scroll, no
+note, frame C10 for a failed breakdown, no empty promise while waiting, a refusal banner on Start
+over). Confirmed by `20260904T162141Z-s001-smoke`, `20260904T162403Z-s002-agent-optional` and
+`20260904T162527Z-s003-every-door`, all 5.0/5 on the merged stack.
