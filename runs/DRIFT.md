@@ -935,6 +935,11 @@ affected.
 already does in `src/api/founder.ts` -- or gate `useStageCard`'s query on `enabled: summary?.
 framed` so it never caches the pre-approval empty shape in the first place.
 
+**#15 RESOLVED 2026-09-04**: keel-web `6912f7e` -- the confirm mutation now invalidates the whole
+project query prefix (not just the overview key), so the just-approved stage card refetches and
+renders correctly without a reload. `harness/browser.py`'s `StageCard.go_to_people` no longer
+reloads; it waits on the link directly.
+
 ## 16. Non-blocking (alternate path): the approved card's onward doors -- R4's *Continue to step N*
 ## and S4's *Go to People* -- can never render, because keel-web keys them off `verdict` being
 ## absent and keel-cloud always sets it once a stage is approved
@@ -995,3 +1000,9 @@ alone (or `summary.verdict === "UNTESTED"` beside it), matching what keel-cloud 
 alternatively keel-cloud's `StageSummary.verdict` could stay `null` until someone has been asked --
 but the wire contract (`openapi-v2.yaml`) already documents `verdict` as present once approved,
 so the client is the side that drifted.
+
+**#16 RESOLVED 2026-09-04**: keel-web `6912f7e` -- `nobodyAskedYet` no longer tests for an absent
+`verdict`. R4's *Continue to step N* and S4's *Go to People →* render again; `harness/browser.py`'s
+`StageCard.go_to_people` is a real method again (waits on the link, no side-nav reroute), and
+`evals/test_s001_smoke.py`'s S4 section clicks it directly while still asserting the People
+unlock separately.

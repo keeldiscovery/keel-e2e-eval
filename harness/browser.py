@@ -550,7 +550,20 @@ class Shell:
                 self.page.wait_for_selector(".card.openc, .guided-step, .draftnote", timeout=10_000)
                 if h is not None:
                     h.capture_text("screen", "stage")
+                    h.capture_text("stage", stage)
+                    h.capture_text("stage_identity", _safe_text(
+                        lambda: self.page.locator(".bet, .guided-step__kicker").first.inner_text()))
+                    self.capture_identity(h)
                     h.add_screenshot(self._bstep.screenshot(f"nav-click-{stage.lower()}"))
+
+    def capture_identity(self, h: StepHandle) -> None:
+        """ORI-U1's substrate: the shell's own brand row names the project on every founder page
+        (`ProjectShell.tsx`: `Keel · <span class="hint">{projectDisplayName}</span>`) -- captured
+        as `identity` so the rubric can see which project this screen is about. Live-confirmed
+        gap (run `20260904T020336Z`, 11 ORI-U1 misses): every stage/People/brief visit rendered
+        the name and none of them captured it."""
+        h.capture_text("identity", _safe_text(
+            lambda: self.page.locator(".shell__brand .hint").first.inner_text()))
 
     def open_people(self) -> None:
         with self._scope():
@@ -559,6 +572,7 @@ class Shell:
                 _wait_for_url_change(self.page, lambda url: "/people" in url)
                 if h is not None:
                     h.capture_text("screen", "people")
+                    self.capture_identity(h)
                     h.add_screenshot(self._bstep.screenshot("nav-click-people"))
 
     def open_brief(self) -> None:
@@ -574,6 +588,7 @@ class Shell:
                 _wait_for_url_change(self.page, lambda url: "/brief" in url)
                 if h is not None:
                     h.capture_text("screen", "brief")
+                    self.capture_identity(h)
                     h.add_screenshot(self._bstep.screenshot("nav-click-brief"))
 
 
@@ -787,9 +802,18 @@ class Chat:
                             f"of saving the confirmed claim")
                     if not clicked:
                         continue_btn = self.page.get_by_role("button", name=re.compile(r"^continue$", re.I))
-                        if continue_btn.count() > 0 and continue_btn.first.is_enabled():
-                            continue_btn.first.click()
-                            clicked = True
+                        # `is_enabled`/`click` auto-wait on an element that can vanish between
+                        # this poll's `count()` and the call itself -- the scripted runtime lands
+                        # the beliefs fast enough that the app flips to the review mid-poll
+                        # (live-confirmed, run `20260904T015718Z`: a 30s `is_enabled` auto-wait on a
+                        # Continue button that had already gone). A vanished button is not a
+                        # failure; the loop's own head re-checks for the review card.
+                        try:
+                            if continue_btn.count() > 0 and continue_btn.first.is_enabled(timeout=1_000):
+                                continue_btn.first.click(timeout=2_000)
+                                clicked = True
+                        except Exception:  # noqa: BLE001 - the button left; the review is arriving
+                            pass
                     self.page.wait_for_timeout(500)
                 h.add_screenshot(self._bstep.screenshot("chat-review-ready"))
                 claim = _safe_text(lambda: self.page.locator(".card.openc .claim").first.inner_text())
@@ -860,6 +884,7 @@ class StageCard:
                     lambda: self.page.locator(".card.openc .bet").first.inner_text()))
                 h.capture_text("stage_screen", _safe_text(
                     lambda: self.page.locator(".card.openc").first.inner_text()))
+                Shell(self.page).capture_identity(h)
                 names = _safe_all_texts(self.page, ".quote .name")
                 if names:
                     h.capture_text("participant_names", "\n".join(names))
@@ -922,12 +947,13 @@ class StageCard:
 
     def continue_to_next_step(self) -> None:
         """R4's *Continue to step N — <stage> →* -- the walk's own next step. The link is a
-        `<Link to="/p/:id">` (`StageRoute.tsx`) rendered only while the card is not read-only;
-        live-confirmed (run `20260903T220650Z`): the moment a stage is approved its successor's
-        own draft opens (`auto_chain`), which makes the just-approved card read-only
-        (`readOnly = otherDraftStage !== undefined`) and the link never renders. The founder's
-        onward door is then the overview itself -- the exact destination the link would have
-        opened -- so this clicks the link when it is there and otherwise goes where it goes."""
+        `<Link to="/p/:id">` (`StageRoute.tsx`), rendered by `ApprovedCard` only when `!readOnly
+        && nobodyAskedYet`. Before keel-web `6912f7e`, `nobodyAskedYet` could never read true
+        once a stage was approved (`runs/DRIFT.md` #16) -- resolved now, but `readOnly` is a
+        separate, by-design gate (a stage the auto-chain just opened the *next* draft for is
+        read-only, live-confirmed run `20260903T220650Z`), so the link can still legitimately be
+        absent. This clicks it when it renders and otherwise goes to the overview -- the exact
+        destination the link would have opened -- rather than assuming either shape."""
         with self._bstep.step("founder continues to the next step") as h:
             link = self.page.locator(".actions").get_by_role("link", name=re.compile("continue to step", re.I))
             if link.count() > 0:
@@ -940,12 +966,19 @@ class StageCard:
             self.page.wait_for_selector(".chat", timeout=15_000)
             h.add_screenshot(self._bstep.screenshot("stage-continue"))
 
-    # `go_to_people` (the closing note's own *Go to People* link) is not offered here: per
-    # `runs/DRIFT.md` #16, keel-web's `nobodyAskedYet` check never reads true once a stage is
-    # approved (keel-cloud always sets `verdict: "UNTESTED"`, never leaves it absent), so that
-    # note can never render, reload or not. The smoke takes the product's own second door instead
-    # -- `Shell.people_locked()` / `Shell.open_people()`, the side nav's own unlock (journeys
-    # §1.4) -- which is not gated by this bug.
+    def go_to_people(self) -> None:
+        """S4's *Go to People →* -- the final stage's own closing note (`ApprovedCard`,
+        `StageRoute.tsx`), gated by the same `!readOnly && nobodyAskedYet` as R4's continue link
+        above. There is no successor stage to auto-chain into on the final stage, so `readOnly`
+        is always false here -- unlike `continue_to_next_step`, this link has no legitimate reason
+        to be absent once `nobodyAskedYet` is correct (keel-web `6912f7e`, `runs/DRIFT.md` #16,
+        resolved), so this waits on it rather than falling back."""
+        with self._bstep.step("founder goes to People") as h:
+            link = self.page.get_by_role("link", name=re.compile("go to people", re.I))
+            link.wait_for(state="visible", timeout=15_000)
+            link.click()
+            _wait_for_url_change(self.page, lambda url: "/people" in url)
+            h.add_screenshot(self._bstep.screenshot("stage-to-people"))
 
     def see_the_overview(self) -> None:
         """S4's *See the overview* -- the other of its two buttons."""
@@ -1013,6 +1046,14 @@ class People:
                 self.page.goto(f"{self.base_url}/p/{project_id}/people", wait_until="load")
                 self.page.wait_for_selector(".role, table.ppl", timeout=15_000)
                 h.capture_text("screen", "people")
+                Shell(self.page).capture_identity(h)
+                # P1's role cards ARE the invite screen (journeys §1.4: "People opens on the
+                # kinds of person the beliefs depend on, one card per role") -- every role's
+                # label, invited or not, is FID's `invite_screen` hop here, not only the roles
+                # the send popup is later opened for.
+                role_labels = _safe_all_texts(self.page, ".role__label")
+                if role_labels:
+                    h.capture_text("invite_screen", "\n".join(role_labels))
                 names = _safe_all_texts(self.page, "table.ppl td b")
                 if names:
                     h.capture_text("participant_names", "\n".join(names))
@@ -1230,6 +1271,7 @@ class Brief:
                 self.page.goto(f"{self.base_url}/p/{project_id}/brief", wait_until="load")
                 self.page.locator(".brief-head").wait_for(state="visible", timeout=15_000)
                 h.capture_text("screen", "brief")
+                Shell(self.page).capture_identity(h)
                 h.capture_text("brief", _safe_text(lambda: self.page.locator(".card.openc").first.inner_text()))
                 _capture_state(h, project_id, state_reader)
                 h.add_screenshot(self._bstep.screenshot("brief"))

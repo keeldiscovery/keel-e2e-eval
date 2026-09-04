@@ -363,7 +363,15 @@ CONNECT_STATES = {"AWAITING_CONFIRMATION", "ACCEPTED", "PENDING", "RUNNING", "DO
 # to", rendered upper-case by CSS -- `.inner_text()` returns the rendered text) colliding with the
 # `Need` token of the same spelling. Sweeping either would flag the product's own correct copy,
 # not a leak -- excluded for the same reason stage names are.
-_ENGLISH_COLLISION_EXEMPTIONS = {"roles", "EVIDENCE"}
+#
+# Policy v6, the same shape again, live-confirmed on the first green S-001 run
+# (`runs/20260904T020336Z-s001-smoke`, four CLA-U1 hits): the review card's own step line reads
+# "STEP 2 OF 4 · THE PROBLEM · REVIEW BEFORE ANYONE IS ASKED" (`StageRoute.tsx`, rendered
+# upper-case by CSS) -- "REVIEW" there is the English verb in correct founder copy, colliding with
+# the `Need` token of the same spelling exactly as "EVIDENCE" does. Exempted for the same reason;
+# a raw `REVIEW` leaking as a *need* token would have to arrive in mixed-case JSON to be a leak at
+# all, and CLA-U2's structural sweep still catches that.
+_ENGLISH_COLLISION_EXEMPTIONS = {"roles", "EVIDENCE", "REVIEW"}
 
 # See module docstring, judgement call 1: StageType names are excluded on purpose.
 CLARITY_TOKENS: set[str] = (

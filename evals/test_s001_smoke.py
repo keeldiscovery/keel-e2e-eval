@@ -221,11 +221,11 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
         _walk_stage(project_id, "COMMERCIAL",
                     "$30 a seat per month, billed annually upfront.", fx.COMMERCIAL_STATEMENT,
                     needs_followup=False)
-        # S4: the last card approved, People unlocks. The note's own *Go to People* button cannot
-        # render (runs/DRIFT.md #16: keel-web keys it off `verdict` being absent, keel-cloud sets
-        # it once approved), so the smoke takes the product's own second door -- the side nav's
-        # People entry, whose unlocking is the S4 promise itself (journeys §1.4, the three-section
-        # navigation amendment) -- and asserts the unlock rather than the note's text.
+        # S4: the last card approved -- People unlocks (journeys §1.4, the three-section
+        # navigation amendment) and the closing note's own *Go to People →* is the onward door.
+        # DRIFT #16 (resolved, keel-web `6912f7e`): the note used to never render at all, so this
+        # used to route through the side nav instead; both checks stand now -- the unlock, and
+        # the note's own button actually working.
         shell = Shell(page, recorder)
         with recorder.step("§1.4: People unlocks once every framed card is approved",
                             party="founder", kind="assert") as h:
@@ -233,7 +233,7 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
             h.record_assert({"people_locked": False}, {"people_locked": locked,
                                                         "why": shell.people_locked_reason()})
             assert not locked, "expected the side nav's People entry to unlock after the last approval"
-        shell.open_people()
+        StageCard(page, recorder).go_to_people()
 
         # -------------------------------------------------------------------------------- §1.4
         people = People(page, recorder)
@@ -280,17 +280,22 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
             finally:
                 participant_context.close()
 
-        # The founder's table now reads Answered; open P9 and read Dana's words verbatim.
+        # The founder's table now reads Answered; open P9 for each person and read their own
+        # words back verbatim (§1.6: "the founder can see any answer in the person's own words at
+        # any time; seeing changes nothing") -- every participant, so each one's typed answers
+        # reach FID's `participant_page` hop on the founder's own screen, not only Dana's.
         people.open(project_id)
-        people.open_answers_popup(fx.PARTICIPANTS[0].name.split()[0])
-        answers = people.answers_popup_text()
-        with recorder.step("§1.6/§2.2: P9 shows Dana's own words verbatim",
-                            party="founder", kind="assert") as h:
-            joined = "\n".join(row["answer"] for row in answers["qa"])
-            sample = next(iter(fx.PARTICIPANTS[0].answers.values()))
-            h.record_assert(sample, joined)
-            assert sample in joined, f"expected Dana's own words in P9, got {joined!r}"
-        people.close_answers_popup()
+        for participant in fx.PARTICIPANTS:
+            first_name = participant.name.split()[0]
+            people.open_answers_popup(first_name)
+            answers = people.answers_popup_text()
+            with recorder.step(f"§1.6/§2.2: P9 shows {first_name}'s own words verbatim",
+                                party="founder", kind="assert") as h:
+                joined = "\n".join(row["answer"] for row in answers["qa"])
+                missing = [text for text in participant.answers.values() if text not in joined]
+                h.record_assert(list(participant.answers.values()), joined)
+                assert not missing, f"expected {first_name}'s own words in P9, missing {missing}"
+            people.close_answers_popup()
 
         # -------------------------------------------------------------------------------- §1.6
         read_result = people.read_all_and_wait(timeout_s=60)
