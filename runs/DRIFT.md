@@ -1311,3 +1311,40 @@ instruction's asking case is now a `NEUTRAL` claim that says what could not be s
 by `20260904T114959Z-s002-agent-optional` (scripted reading, 5.0/5) and
 `20260904T115336Z-s004-stranger-who-gives-orders-live` (live reading of a stranger's orders,
 5.0/5, "Nothing moved.", no tool tried, canary silent).
+
+## 22. Non-blocking (found by the founder by hand): the chat body hides what does not fit -- a tall
+confirmation card is clipped under the header and nothing scrolls
+
+**Severity**: non-blocking for the scripted smoke (its statements are short), real with a live
+agent: the founder could not read the first lines of the claim they were asked to save.
+
+**Where**: `keel-web` `src/styles/app.css` -- `.chat__body { overflow: hidden }` with
+`.chat__body .inner { position: absolute; bottom: 12px }`. The design of record says three times
+that the body alone scrolls (screen-review-design.md §4.2 "Body", frame C4, U16).
+
+**Reproduction**: the founder's screenshot of 2026-09-04 11:14 (a real `claude` on the problem
+step): the card's opening lines cut under the header, no scrollbar. Not reproducible by the
+scripted executor, whose statements fit; a referee assertion would need a long-statement script
+variant -- not added, the fix is a CSS rule and the guarantee's baselines pin the layout.
+
+**Shape of a fix**: keel-cloud `canon/designs/the-card-says-what-it-knows-design.md` §2; keel-web
+spec `011-the-body-scrolls`. Held until the founder finishes testing.
+
+## 23. Non-blocking (found by the founder by hand): "Still unknown" repeats the last question the
+agent asked, even when the founder answered it
+
+**Severity**: non-blocking -- nothing is lost (the answer is in the statement) -- but the card
+contradicts its own statement and puts a question under a closed composer.
+
+**Where**: `keel-cloud` `application/InferenceOrchestrator.lastAskedQuestion` and spec 023's
+judgement call 7: `ProposedStatement.note` is "the last question the agent asked, as the closest
+founder-worded stand-in for still unknown". keel-web renders it as `Still unknown: <question>`
+(`translate.ts` `confirmCardNote`).
+
+**Reproduction**: the same screenshot -- the note reads "Where does this picture come from -- have
+you done payroll approvals yourself…?", answered two turns earlier; the statement ends "based on
+the founder's own 10 years in payroll".
+
+**Shape of a fix**: drop the line; the statement names its own unknowns (every `*-frame.md`
+already requires it). keel-cloud spec `027-the-card-says-what-it-knows`, keel-web spec `011`.
+Held until the founder finishes testing.
