@@ -23,14 +23,17 @@ down: venv
 	$(PY) -m stack.cli down $(if $(PROFILE),$(PROFILE),eval)
 
 # make eval K=s001 runs only that scenario; bare `make eval` runs every scenario module.
+# PROFILE=playground attaches evals/conftest.py's own stack fixture to the split-stacks
+# playground profile instead of the default eval profile -- `make eval K=s001 PROFILE=playground`
+# (relay-design.md §12.5: two profiles never share ports, a database, or now a runtime home).
 eval: venv
-	$(PY) -m pytest evals -q $(if $(K),-k $(K),)
+	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) $(PY) -m pytest evals -q $(if $(K),-k $(K),)
 
 # make eval-all runs the FULL scenario set (s001 included) against one stack session (attaches to
 # an already-up stack from `make up`; does not tear it down -- `make down` is a separate step) and
 # writes runs/INDEX-<stamp>.html summarizing every run this invocation produced.
 eval-all: venv
-	$(PY) -m harness.eval_all
+	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) $(PY) -m harness.eval_all
 
 # make report RUN=runs/<id> rebuilds report.html from that run's transcript.jsonl alone.
 report: venv

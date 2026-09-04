@@ -5,6 +5,7 @@ teardown -- design pass 5's fast-iteration path) and the per-scenario run_dir fi
 
 from __future__ import annotations
 
+import os
 import re
 
 import pytest
@@ -13,14 +14,22 @@ from playwright.sync_api import sync_playwright
 from harness.evidence import new_run_dir, write_versions
 from stack import auth as stack_auth
 from stack.auth import FounderCredentials
-from stack.config import StackConfig, load_config
+from stack.config import PROFILES, StackConfig, load_config
 from stack.lifecycle import boot, quick_gates_pass
 from stack.lifecycle import teardown as stack_teardown
 
 
 @pytest.fixture(scope="session")
 def stack_config() -> StackConfig:
-    return load_config()
+    """Reads `KEEL_EVAL_PROFILE` (the Makefile's `eval`/`eval-all` targets set it from
+    `PROFILE=`) so `make eval K=s001 PROFILE=playground` attaches this whole session to the
+    split-stacks playground profile instead of the default eval one (relay-design.md §12.5) --
+    two referee sessions sharing one checkout must never collide on ports, a database, or a
+    runtime home; running one on each profile is how they don't."""
+    profile = os.environ.get("KEEL_EVAL_PROFILE", "eval")
+    if profile not in PROFILES:
+        profile = "eval"
+    return load_config(profile=profile)
 
 
 @pytest.fixture(scope="session")

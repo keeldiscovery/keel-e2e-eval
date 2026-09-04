@@ -778,3 +778,220 @@ policy v2-v5) and are kept for the historical record; none of them are re-assert
 unless independently reproduced against the connect stack. The MCP-reachability workaround
 (finding #3) and its `SPRING_AI_MCP_SERVER_PROTOCOL` override no longer apply -- the connect
 stack talks to keel-cloud over `/v2/*` and keel-runtime's own long-poll, never MCP.
+
+## 14. Non-blocking (worked around): keel-web's overview/stage routes can bounce forever right
+## after a stage's beliefs land
+
+**Severity**: non-blocking -- worked around in the harness (a hard reload), but a real founder
+hitting this gets a permanently blank screen with no recovery affordance of their own short of
+reloading by hand, which nothing on screen suggests doing.
+
+**Where**: `keel-web` `src/routes/founder/OverviewRoute.tsx` (~line 33) and
+`src/routes/founder/StageRoute.tsx` (~line 68-79).
+
+```tsx
+// OverviewRoute.tsx
+if (pending?.screen === ASSUMPTIONS_SCREEN[current] && pending.status === "AWAITING_CONFIRMATION") {
+  return <Navigate to={`/p/${projectId}/s/${current}`} replace />;
+}
+```
+
+```tsx
+// StageRoute.tsx
+if (!summary.framed) {
+  if (isDraftReady) {
+    if (draft.isPending) return <Loading label="Loading the review…" />;
+    if (draft.error) return <ErrorNotice error={draft.error} />;
+    if (draft.data && isProposedCard(draft.data.proposed)) {
+      return <DraftReview .../>;
+    }
+  }
+  // Not yet ready to review — the walk (GuidedStep, mounted from the overview) is where this
+  // stage lives right now.
+  return <Navigate to={`/p/${projectId}`} replace />;
+}
+```
+
+Both routes decide whether the chained assumptions interaction is ready to review from their
+**own, independent** `useOverview(projectId)` read. Live-confirmed (this repo's own S-001 smoke,
+first cold run after the walk saves the problem statement and lands C8): `OverviewRoute` reads
+`AWAITING_CONFIRMATION` and navigates to `/p/:id/s/PROBLEM`; `StageRoute` mounts, its own
+`useOverview` read disagrees (still transitioning), so `isDraftReady` is false and it navigates
+straight back to `/p/:id`; `OverviewRoute` mounts again, reads `AWAITING_CONFIRMATION` again
+(nothing about the disagreement resolves itself), and navigates back -- forever. Browser console:
+
+```
+Warning: Maximum update depth exceeded. This can happen when a component calls setState inside
+useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies
+changes on every render.
+    at Navigate (react-router-dom.js:7500:3)
+    at OverviewRoute (src/routes/founder/OverviewRoute.tsx:25:33)
+```
+
+`<div class="shell__main"></div>` stays empty indefinitely -- no loading state, no error, nothing
+a founder could act on; the only way out is a manual full reload, which happens to force both
+routes to refetch from one consistent snapshot and breaks the bounce.
+
+**Reproduction**: `make up && make eval K=s001` from cold, first time the walk saves the problem
+statement (`Chat.save_confirmation()`) and the app is left to auto-navigate to the review. Bundle:
+`runs/20260903T212843Z-s001-smoke/` (`failure/console.log` has the repeating warning;
+`failure/page.html` shows the side nav on `/p/<id>/s/PROBLEM` with an empty `shell__main`).
+
+**Why the scenario was adapted, not routed around**: `harness/browser.py`'s `Chat.wait_for_review`
+now reloads the page every 4s while it waits for `.card.openc` -- the same recovery a founder
+stuck on this screen would reach for, not a contortion around what the wait is testing (the
+review card actually rendering with the right claim). The scenario still asserts the real
+content once it appears.
+
+**Shape of a fix, not applied here**: give the two routes one shared source of truth for
+`pendingInteraction` readiness (a single `useOverview` call lifted to a shared ancestor, or a
+`staleTime`/`refetchOnMount` policy that keeps both reads from ever observing different
+snapshots of the same interaction), and render a loading state instead of an immediate `Navigate`
+the first time `isDraftReady` reads false right after arriving from the overview's own redirect
+-- so a genuine transition window degrades to a spinner, never a bounce.
+
+**#14 RESOLVED 2026-09-03**: keel-web `ccf822c` — the stage route holds a "Recording…" state on
+the transient after approve instead of redirecting to the overview. `harness/browser.py`'s
+`Chat.wait_for_review` no longer reloads; it is the plain positive wait on `.card.openc` again.
+
+## 15. Non-blocking (worked around): the just-approved stage card renders empty until reloaded --
+## the stage-card query is never invalidated on confirm
+
+**Severity**: non-blocking -- worked around in the harness (one reload, only where the walk reads
+the just-approved card without an intervening full navigation), but a real founder who approves
+the final stage lands on a card with no claim, no belief groups, and no "Go to People" / "See the
+overview" note -- no visible way onward short of a manual reload, which nothing on screen suggests.
+
+**Where**: `keel-web` `src/api/interactions.ts` (`useConfirmInteraction`, ~line 88-99) versus
+`src/api/founder.ts` (`useApproveStage`, ~line 97-110) and `src/api/queryKeys.ts` (~line 5-6).
+
+```ts
+// src/api/interactions.ts -- the mutation actually wired to DraftReview's own
+// "These are right -- approve" button (StageRoute.tsx: `useConfirmInteraction(projectId,
+// interactionId)`, `confirm.mutate()`).
+export function useConfirmInteraction(projectId: string, interactionId: string) {
+  return useMutation({
+    mutationFn: () => interactionRequest<InteractionView>(
+      `/v2/inference-interactions/${interactionId}/confirm`, { method: "POST" }),
+    onSuccess: (result) => {
+      queryClient.setQueryData(queryKeys.interaction(result.interaction_id), result);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.overview(projectId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.interactionsForProject(projectId) });
+      // no invalidation of queryKeys.stage(projectId, stage) -- the sibling mutation right below
+      // in founder.ts does invalidate it; this one does not.
+    },
+  });
+}
+```
+
+```ts
+// src/api/founder.ts -- a second, apparently-unused-by-this-flow approval mutation that DOES
+// invalidate the stage-card query correctly.
+export function useApproveStage(projectId: string, stage: StageType) {
+  return useMutation({
+    mutationFn: (expectedRevision: number) => ... ,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.overview(projectId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.stage(projectId, stage) });
+    },
+  });
+}
+```
+
+`queryKeys.overview` and `queryKeys.stage` are distinct top-level keys (`["project", id,
+"overview"]` vs `["project", id, "stage", stage]`, `src/api/queryKeys.ts`), so invalidating one
+never invalidates the other.
+
+`StageRoute.tsx` mounts `useStageCard(projectId, stage)` unconditionally (line 60), before the
+stage is framed -- while the card is still a draft, this fetch already runs and caches keel-
+cloud's empty pre-approval shape (`{claim: null, groups: []}` in effect) under that query key.
+Once `confirm.mutate()` succeeds, the overview's own (correctly invalidated) refetch flips
+`summary.framed` to `true` and `StageRoute` switches from `DraftReview` to `ApprovedCard` -- but
+`stageCard.data` is still the never-refetched, cached empty draft-time response, so `ApprovedCard`
+renders with no claim and no belief groups. Live-confirmed on the fourth (final) stage
+specifically: `ApprovedCard`'s closing "Go to People" / "See the overview" note only renders when
+`!readOnly && nobodyAskedYet` (`StageRoute.tsx` ~line 303), and with an empty card the
+`readOnly`/`nobodyAskedYet` computation itself reads a state that never shows that note -- the
+onward door is simply gone, indefinitely, no matter how long anything waits.
+
+**Reproduction**: `make up PROFILE=playground && make eval K=s001 PROFILE=playground` from cold,
+first time COMMERCIAL (the fourth, final stage) is approved. Bundle:
+`runs/20260904T011114Z-s001-smoke/` (`failure/page.html` shows `<div class="card openc">` for
+"Will they pay" with the approved kicker but no `<p class="claim">`, no belief groups, and no
+`approved-note`/`actions`; `screenshots/039-stage-commercial.png` shows the same card fully
+populated, in review, one screenshot earlier -- the content plainly exists server-side and is
+simply never re-fetched client-side).
+
+**Why the scenario was adapted, not routed around**: `harness/browser.py`'s `StageCard.
+go_to_people` now checks for the link once and, only if it is absent, does one reload (mounting a
+fresh query client, which reads the now-framed card correctly) before trying again -- the same
+recovery a founder stuck on this screen would reach for. Every other read of an approved card in
+this smoke goes through `StageCard.open()`, which always does a full `page.goto` and was never
+affected.
+
+**Shape of a fix, not applied here**: add
+`void queryClient.invalidateQueries({ queryKey: queryKeys.stage(projectId, stage) })` to
+`useConfirmInteraction`'s `onSuccess` in `src/api/interactions.ts`, matching what `useApproveStage`
+already does in `src/api/founder.ts` -- or gate `useStageCard`'s query on `enabled: summary?.
+framed` so it never caches the pre-approval empty shape in the first place.
+
+## 16. Non-blocking (alternate path): the approved card's onward doors -- R4's *Continue to step N*
+## and S4's *Go to People* -- can never render, because keel-web keys them off `verdict` being
+## absent and keel-cloud always sets it once a stage is approved
+
+**Severity**: non-blocking -- the founder still has a door (the side nav's *People* entry
+unlocks the moment every framed card is approved, journeys §1.4 / the three-section navigation
+amendment), and the harness takes that door; but the walk's own designed onward buttons never
+appear, so a founder who does not think to look at the nav is left on an approved card with
+nothing telling them what to do next.
+
+**Where**: `keel-web` `src/routes/founder/StageRoute.tsx` (~line 235, ~line 296-320) against
+`keel-cloud` `src/main/java/com/keeldiscovery/cloud/protocol/founder/FounderViewAssembler.java`
+(line 92).
+
+```tsx
+// StageRoute.tsx
+const nobodyAskedYet = summary.verdict === undefined && !(summary.peopleAsked ?? 0);
+...
+{!readOnly && nobodyAskedYet ? (isFinalStage ? <S4 note: See the overview / Go to People →>
+                                             : <R4: Continue to step N — … →>) : null}
+```
+
+```java
+// FounderViewAssembler.java, the StageSummary the overview carries
+String verdict = approved ? project.verdictOfStage(type).name() : null;
+```
+
+The two disagree about what "nobody asked yet" looks like on the wire: keel-cloud sets
+`verdict` to `"UNTESTED"` for every approved stage (it is `null` only *before* approval), so on
+the approved card `summary.verdict === undefined` is always false and the whole onward block is
+skipped -- for every stage, every time. keel-web's own visual fixtures (`tests/visual/states/
+stages.ts`) omit `verdict` for their approved-nobody-asked states, which is how the mock renders
+the R4/S4 buttons the walk was designed around.
+
+**Reproduction**: `make up && make eval K=s001` from cold, then read the overview directly:
+
+```
+GET /v2/projects/<id>/overview   (founder session)
+{"type":"COMMERCIAL","framed":true,"approved":true,"verdict":"UNTESTED","need":"INVITE",
+ "peopleAsked":0,...}
+```
+
+Bundles `runs/20260903T222459Z-s001-smoke/` and `runs/20260904T012511Z-s001-smoke/` (the
+second after keel-web `ccf822c`, and after a full reload of the approved card): `failure/page.html`
+in each is the approved COMMERCIAL card with the side nav's People link unlocked
+(`href="/p/<id>/people"`) and no *Go to People* text anywhere -- 15s and 30s waits for it both
+time out. The same rule is why no *Continue to step N* link ever rendered after the PROBLEM or
+SOLUTION approvals in any run today (`harness/browser.py`'s `StageCard.continue_to_next_step`
+fell back to the overview -- the link's own destination -- each time).
+
+**Why the scenario takes the alternate path**: the side nav's People entry is the product's own
+second door to the same place, and its unlocking *is* the S4 moment's promise ("People unlocks");
+the smoke asserts the unlock and walks through it (`Shell.open_people`). The S4 three-part note's
+own text is not asserted, since it cannot render.
+
+**Shape of a fix, not applied here**: `nobodyAskedYet` should read `!(summary.peopleAsked ?? 0)`
+alone (or `summary.verdict === "UNTESTED"` beside it), matching what keel-cloud actually sends;
+alternatively keel-cloud's `StageSummary.verdict` could stay `null` until someone has been asked --
+but the wire contract (`openapi-v2.yaml`) already documents `verdict` as present once approved,
+so the client is the side that drifted.

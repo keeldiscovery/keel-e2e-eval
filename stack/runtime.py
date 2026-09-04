@@ -24,7 +24,13 @@ from stack.config import REPO_ROOT, StackConfig
 
 
 def home_dir(config: StackConfig) -> Path:
-    return REPO_ROOT / "runs" / ".stack" / "keel-home"
+    """`runs/.stack/keel-home` for the default (eval) profile, unchanged; `runs/.stack/keel-
+    home-<profile>` for any other (split-stacks, relay-design.md §12.5) -- two profiles running
+    concurrently (e.g. two referee sessions sharing this checkout, one on each profile) must
+    never share a runtime home, or one's `keel connect` heartbeat/credential reads as the
+    other's."""
+    name = "keel-home" if config.profile == "eval" else f"keel-home-{config.profile}"
+    return REPO_ROOT / "runs" / ".stack" / name
 
 
 def reset(config: StackConfig) -> None:

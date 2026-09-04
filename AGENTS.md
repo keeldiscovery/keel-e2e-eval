@@ -22,3 +22,23 @@ answers are fixture data, never generated) and every assertion enforcing a journ
 it (`§n.m`). The evidence bundle (`runs/<id>/`, report.html) is the product of a run; the scoring
 policy (`evals/policy.py`, versioned) is the yardstick. `make up / eval K=s001 / down`;
 quickstarts in `specs/*/quickstart.md`.
+
+**Two referee sessions never share the eval profile.** The stack's ports (55432/18080/5173) and
+runtime home are fixed per profile, not per process — a second `make up`/`make eval`/`make down`
+against the default (eval) profile while another is mid-run restarts keel-cloud and drops the
+database out from under it (live-confirmed: two sessions racing the same checkout, 2026-09-03).
+If a stack session is already running S-001 on eval, use the split-stacks playground profile for
+your own instead (relay-design.md §12.5) — its own ports, its own Postgres project, and (spec
+005) its own runtime home (`runs/.stack/keel-home-playground/`, never the eval profile's
+`keel-home/`):
+
+```bash
+make up PROFILE=playground
+make eval K=s001 PROFILE=playground
+make down PROFILE=playground
+```
+
+`make eval`/`make eval-all` read `PROFILE` via the `KEEL_EVAL_PROFILE` env var they set for
+pytest (`evals/conftest.py`'s `stack_config` fixture); nothing here defaults to guessing which
+profile a running stack is on, so a mismatched `PROFILE` just attaches to (or boots) the wrong
+one's own three ports.

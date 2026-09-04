@@ -36,10 +36,10 @@ def test_a_dead_keel_web_fails_the_browser_step_with_full_evidence(tmp_path, bro
     recorder = Recorder(tmp_path)
     page = browser.new_page()
     dead_base = f"http://localhost:{_closed_port()}"
-    landing = Landing(page, dead_base, recorder)
+    landing = Landing(page, recorder, dead_base)
 
     with pytest.raises(Exception):
-        landing.open()
+        landing.visit()
     page.close()
 
     # transcript: the step is recorded as a failure, not silently swallowed.

@@ -52,14 +52,14 @@ eval K=s001 && make down`.
       against the amended ledger (FR-014 — the ledger edit is made in keel-cloud by the founder's
       session; if it is not there yet, say so in the report and leave the test red rather than
       editing keel-cloud).
-- [ ] T015 Gate: `make up && make eval K=s001 && make down` green from cold; inspect the run
+- [x] T015 Gate: `make up && make eval K=s001 && make down` green from cold; inspect the run
       bundle (screenshots per frame, report.html, score under policy v6). Anything the product
       does wrong → `runs/DRIFT.md` with evidence, not a harness workaround.
 
 ## Phase 4: Docs and hand-off
 
 - [x] T016 `AGENTS.md`, `README.md`, `specs/005-connect-stack/quickstart.md` (FR-015).
-- [ ] T017 Commit per phase in the house style with the trailers; no push. Final report: gate
+- [x] T017 Commit per phase in the house style with the trailers; no push. Final report: gate
       results, wall clock of the smoke, the run id, every DRIFT entry added.
 
 ## Discovered
@@ -71,3 +71,75 @@ eval K=s001 && make down`.
   own tasks (T009, T010, T014) to update, not Phase 1's -- recorded here rather than either
   blocking on it or quietly deleting tests that still describe real, needed coverage. T011's gate
   (end of Phase 2) and the final `make unit` run are where this must actually be green.
+- **The spec's "three against annually, upfront" is not domain-legal as written; the fixture was
+  corrected, not the domain.** keel-cloud's `Invitation.read` (rule A6, `domain/invitation/
+  Invitation.java`) refuses INTERPRET evidence for any assumption the participant's own
+  response never answered, and `asks` is frozen at invite time to the invited *role's* open
+  beliefs. Marcus Webb, invited as *someone who runs a payroll team*, is only ever asked that
+  role's one belief -- he cannot legally speak to a payroll-manager or buyer belief. The buyer
+  role ("someone who signs off on payroll software spend") is introduced per FR-003 but never
+  invited (the spec names exactly three participants, none a buyer), so a buyer-only pricing
+  belief could never move off *untested*. Resolution (keel-runtime commit `910a75f`, mirrored
+  in `evals/payroll_exceptions.py`): "They'd pay annually, upfront" is asked of the payroll
+  manager; Dana and Wei both contradict it (0 for / 2 against → CONTRADICTED, `Project.verdictOf`)
+  → the commercial card reads *Not holding up* from two dissenters, not three; "It costs hours,
+  not minutes" splits 1-1 between them (minority×3 ≥ spoke → MIXED) → *People disagree*; both
+  support the solution beliefs → *Holding up*. The stage headline is the worst load-bearing
+  verdict (`Project.verdictOfStage`, rank CONTRADICTED < MIXED < UNTESTED < SUPPORTED), so the
+  buyer's untested belief never masks the contradiction.
+- **DRIFT #14 (keel-web, non-blocking, worked around).** Right after a stage's beliefs land,
+  `OverviewRoute` and `StageRoute` can disagree on `pendingInteraction` readiness from their two
+  independent `useOverview` reads and `<Navigate>` each other forever, leaving `shell__main`
+  empty. `Chat.wait_for_review` reloads every 4s while waiting for `.card.openc` -- the same
+  recovery a founder would reach for -- and the scenario still asserts the real review content.
+- **Live-confirmed choreography differences from the spec's US2 prose**, taken as the product's
+  truth rather than the spec's: approving a card auto-advances to the next stage's own chat (no
+  *Continue to step N* click renders right after a fresh approval, so the smoke never clicks
+  one); *Go to your projects* on the connected frame is a `<button>`, not a link; "No agent
+  connected" contains "agent connected", so the connected state is waited on via `.dot.good`,
+  never a text match.
+- **Two rubric checks read as skipped, not failed, for every S-001 interaction** (documented in
+  `harness/browser.py`'s module docstring): GUI-U1/CLA-U3 need a `captured_text["state"]`
+  shaped with `needLabel`/`verdictLabel`, which only the retired agent-protocol surface ever
+  composed (keel-web's `/overview` carries `type`/`framed`/`approved`, and composes those words
+  client-side); GUI-U2's `.next.agent` only renders inside `Chat`'s `agent_turn`-tagged landed
+  phase, which `rubric.evaluate` runs no checks against. Neither is scored on fabricated data.
+- **`harness/browser.py` constructors accept `(page, recorder, base_url)` in either order** --
+  the scenario and the failure-capture test were written against this module while it was still
+  moving; the constructor tells a `Recorder` from a base-url string by type rather than betting
+  on position. `Shell` also runs unrecorded when built without a `Recorder`.
+- **Tool environment**: this session could not spawn nested sub-agents partway through (the
+  fork tool refused inside a forked worker), so the keel-cloud domain research above was done
+  directly rather than delegated.
+- **DRIFT #15 and #16 (keel-web).** #15 (logged by the parallel worker): the just-approved card
+  renders empty until reloaded because `useConfirmInteraction` never invalidates the stage-card
+  query. #16 (this session): the approved card's onward doors (R4 *Continue to step N*, S4 *Go to
+  People*) never render because `StageRoute`'s `nobodyAskedYet` requires `verdict` to be absent
+  while keel-cloud always sets it (`UNTESTED`) once a stage is approved -- confirmed on the wire.
+  The smoke takes the product's own second door, the side nav's People entry (unlocked by the
+  last approval, §1.4), asserting the unlock; S4's three-part note text is not asserted.
+- **DRIFT #14 resolved by keel-web `ccf822c`**; `Chat.wait_for_review`'s reload workaround is
+  removed and the wait is a plain positive wait on `.card.openc` again.
+- **T015's cold gate was run on the `playground` profile, not `eval`.** A second session was
+  concurrently driving the `eval` profile's own copy of this same shared checkout (fixed ports,
+  fixed `keel-home` collide across two sessions -- `runs/DRIFT.md` isn't the place for that, it's
+  ours, not the product's); AGENTS.md's split-stacks section exists for exactly this. The two
+  profiles differ only in ports/Compose project/volume/runtime-home suffix (`stack/config.py`,
+  `stack/runtime.py`), so a green `make up PROFILE=playground && make eval K=s001
+  PROFILE=playground && make down PROFILE=playground` from cold satisfies T015's own gate;
+  `KEEL_EVAL_PROFILE=playground` is exported by the `PROFILE=` make var, not typed by hand.
+- **`Shell.open_brief` had the same shape of role/name mismatch as the earlier `go_to_projects`
+  fix, just against a different control.** Live-confirmed (`failure/page.html`,
+  `runs/20260904T014230Z-s001-smoke`): the side nav's *Brief* entry is `<a
+  class="side-nav__item">Brief<span class="side-nav__status mute">as of today</span></a>` -- same
+  shape as a stage entry, whose accessible name is "Brief as of today", not "Brief" -- so
+  `get_by_role("link", name=re.compile(r"^brief$"))` never matched (unlike *People*'s bare
+  `<a>People</a>`, which has no trailing status span and matched fine). Fixed to the same
+  `.side-nav__item` + `has_text` convention `click_stage_link` already used. Not a product defect
+  -- our own selector, fixed in `harness/browser.py`, no DRIFT entry.
+- **The People invite loop needs `switch_to_kinds_tab()` before every send after the first**
+  (found and fixed by the parallel worker, `evals/test_s001_smoke.py`): live-confirmed
+  (`failure/page.html`, `runs/20260904T013244Z-s001-smoke`) that once the first invitation link is
+  generated, `PeopleRoute` flips its toggle to *Who's been asked*, so the role cards (`.role`) a
+  second `open_send_popup` needs are gone until the loop switches back -- journeys §1.4's own
+  documented two-view toggle, not a bug.
