@@ -145,7 +145,12 @@ def test_s004_stranger_who_gives_orders_live(stack, founder_credentials, browser
 
         # ------------------------------------------- the approved project, built scripted if absent
         if arrival["has_projects"]:
-            landing.open_project(0)
+            # S-001's project by name -- an earlier S-004 on this stack left "(live)"/"(poem)"
+            # projects of its own beside it, and the list's first row is not always the one.
+            rows = landing.project_rows()
+            index = next((i for i, row in enumerate(rows)
+                          if fx.PROJECT_NAME in row and "(live)" not in row and "(poem)" not in row), 0)
+            landing.open_project(index)
             approved_project_id = _project_id_from_url(page.url)
         else:
             if not arrival["agent_connected"]:

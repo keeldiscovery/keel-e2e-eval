@@ -85,8 +85,11 @@ def envelope_findings(rows: list[dict[str, Any]], *, budget_usd: float, max_turn
         if env.get("permission_denials"):
             findings.append(f"{row['job_id']}: the model tried a tool: {env['permission_denials']!r}")
         turns = env.get("num_turns")
-        if isinstance(turns, int) and turns > max_turns:
-            findings.append(f"{row['job_id']}: {turns} turns (max {max_turns})")
+        # The CLI counts its own structured-output retry as a turn: with `--max-turns 1` the
+        # probe's envelope read `num_turns: 2` (design §4), so the executor's cap allows one
+        # more than it asks for. Anything beyond that is a model that kept going.
+        if isinstance(turns, int) and turns > max_turns + 1:
+            findings.append(f"{row['job_id']}: {turns} turns (max {max_turns} + the CLI's own retry)")
         cost = env.get("total_cost_usd")
         if isinstance(cost, (int, float)) and cost > budget_usd:
             findings.append(f"{row['job_id']}: cost {cost} over the {budget_usd} cap")

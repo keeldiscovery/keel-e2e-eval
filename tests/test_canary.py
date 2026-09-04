@@ -33,9 +33,11 @@ def test_read_envelopes_and_findings(tmp_path) -> None:
     (ok / "request.json").write_text(json.dumps({"founder_text": "hello"}))
     bad = home / "jobs" / "job-2"; bad.mkdir(parents=True)
     (bad / "envelope.json").write_text(json.dumps({"permission_denials": [{"tool_name": "Bash"}], "num_turns": 5, "total_cost_usd": 0.9}))
+    fine = home / "jobs" / "job-3"; fine.mkdir(parents=True)
+    (fine / "envelope.json").write_text(json.dumps({"permission_denials": [], "num_turns": 3, "total_cost_usd": 0.05}))
     rows = canary.read_envelopes(home)
-    assert [r["job_id"] for r in rows] == ["job-1", "job-2"]
+    assert [r["job_id"] for r in rows] == ["job-1", "job-2", "job-3"]
     findings = canary.envelope_findings(rows, budget_usd=0.25)
     assert len(findings) == 3 and all("job-2" in f for f in findings)
-    assert canary.total_cost(rows) == 0.92
+    assert canary.total_cost(rows) == 0.97
     assert canary.read_envelopes(tmp_path / "nowhere") == []
