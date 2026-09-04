@@ -165,3 +165,12 @@ eval K=s001 && make down`.
   buyer's role card missing from `invite_screen`, only Dana's P9 opened, and `REVIEW` in the
   review card's upper-cased step line (added to the English-collision exemptions as a v6
   judgement call, beside `EVIDENCE`).
+- **DRIFT #15/#16 confirmed resolved on the playground profile too.** keel-web `6912f7e` fixed
+  both cross-repo findings; `StageCard.go_to_people` is a real method again (waits on the S4 link,
+  no reload, no side-nav reroute) and `continue_to_next_step` keeps its overview fallback only for
+  `readOnly`'s own separate, by-design reason (auto-chain), not for #16. `evals/test_s001_smoke.py`
+  now clicks both R4's *Continue to step N* and S4's *Go to People →* directly while still keeping
+  the People-unlock assertion beside it. Confirmed on a second, independent cold gate on the
+  `playground` profile: `runs/20260904T021730Z-s001-smoke` (114 steps, 5:28.65 wall clock end to
+  end, `1 passed in 314.216s`, **5.0/5** under policy v6, 86 screenshots) -- matching the eval
+  profile's own 5.0/5, confirming the fix and the score generalize across both profiles.
