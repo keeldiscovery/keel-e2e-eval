@@ -27,9 +27,11 @@ record, and `specs/005-connect-stack/` for the spec this rewrite follows.
 ```bash
 make up            # boots Postgres (55432), keel-cloud (18080), keel-web (5173); resets the
                     # runtime home; prints four gates. The runtime itself is NOT started here --
-                    # the one scenario starts it, because starting it is part of the journey.
+                    # a scenario starts it, because starting it is part of the journey.
 make eval K=s001    # runs the smoke (matches evals/test_s001_smoke.py); prints the run directory
-make down           # kills a runtime the smoke left running, then everything else; idempotent
+make eval K=s002    # runs the agent-optional day (evals/test_s002_agent_optional.py) -- reuses
+                    # an S-001 run's own project in the same session, or builds its own prelude
+make down           # kills a runtime a scenario left running, then everything else; idempotent
 ```
 
 `make eval` alone (no `make up` first) attaches to an already-up stack if one is answering on all
@@ -144,7 +146,7 @@ cross-repo bug (not a config problem in this repo), the run's evidence bundle ca
 - Why the scenario was, or was not, adapted around it.
 - The shape of a fix, explicitly **not applied** — this repo diagnoses, the product repo fixes.
 
-## The one scenario
+## The two scenarios
 
 `evals/test_s001_smoke.py` walks keel-cloud `canon/journeys.md` §3 (2026-09-03's connect-stack
 amendment) end to end, once, deterministically: arrival and device-code connect, naming the
@@ -155,8 +157,25 @@ Marcus Webb — `evals/payroll_exceptions.py`), reading their answers, the resul
 (screen plus its print view). Every assertion enforcing a journey moment cites it (`§n.m`);
 `tests/test_journey_coverage.py` checks that against keel-cloud `canon/CANON.md`'s own ledger.
 
-The old S-002…S-011 (an eleven-scenario set against a since-retired agent-protocol/relay stack)
-are gone — recorded in git history and in `runs/DRIFT.md`'s 2026-09-03 retirement note, not lost.
+`evals/test_s002_agent_optional.py` (spec `006-agent-optional`) is "the agent-optional day": a
+founder connects a runtime, builds up a project (through S-001's own history in the same stack
+session, or its own prelude, `evals/preludes.approved_project_with_one_read`, from cold), logs
+out, stops the runtime, and logs back in. It proves that *creating* a project or *reading* an
+answer are the only two things a live agent gates — everything else (opening an approved card,
+inviting someone, generating a real link, downloading and printing the brief) keeps working with
+no agent at all, with three direct wire assertions beside the screen (`POST /v2/projects` → 422
+`rule: "agent"`; `POST .../invitations` → 201; `GET .../standing` → 200). It also proves the
+reconnect: approving a fresh device code (or, when the runtime's own stored credential is still
+valid and reconnects silently, logging back in again — `runs/DRIFT.md` #19) brings the agent line
+back, and using the read action once reconnected moves the card. As written and run against the
+live stack, US1 acceptance scenario 3 (the read action disabled with a reason when no agent) fails
+— the product offers the action anyway, refuses it only on the wire, and shows nothing on the
+screen (`runs/DRIFT.md` #17); this is `specs/006-agent-optional/spec.md`'s own stated prediction,
+confirmed, not an assumption the scenario was written to avoid finding.
+
+The old S-002…S-011 (an eleven-scenario set against a since-retired agent-protocol/relay stack,
+unrelated to the current S-002 above) are gone — recorded in git history and in `runs/DRIFT.md`'s
+2026-09-03 retirement note, not lost.
 
 ## Stackless unit tests
 

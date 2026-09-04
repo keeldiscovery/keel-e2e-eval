@@ -159,6 +159,12 @@ def approved_project_with_one_read(
     finally:
         participant_context.close()
 
+    # `usePeople` is a plain one-shot query, never polled -- the participant's own submission just
+    # happened in a separate browser context, so this founder page needs a fresh fetch (a re-
+    # `open`) before the table (and the read button's own unread count) reflects it. Live-
+    # confirmed gap (run `20260904T033017Z-s002-agent-optional`): without this, the button still
+    # reads "Nothing new to read" and the click below times out.
+    people.open(project_id)
     people.switch_to_who_tab()
     people.read_all_and_wait(timeout_s=60)
 

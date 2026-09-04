@@ -74,6 +74,37 @@ def _project_id_from_url(url: str) -> str:
     return match.group(1)
 
 
+def _wait_for_agent_disconnected(get_json, recorder, *, timeout_s: float = 130) -> None:
+    """`KeelSessionService.connection` (keel-cloud) recomputes "connected" fresh on every call
+    from the bound agent session's own `lastSeenAt` -- killing the runtime by pid (`stop_runtime`)
+    stops new heartbeats immediately, but the *previous* heartbeat still reads live until
+    `keel.v2.connect.presence-threshold` has elapsed since it (shipped default `PT90S`, not
+    shortened by this stack -- `application.yml`: "deliberately well over 3x poll-window so an
+    agent between two long-polls doesn't trip itself"). A keel session opened inside that window
+    auto-binds to the just-killed-but-not-yet-stale agent session (`KeelSessionService.open`'s own
+    "most recently seen one"), so the landing can genuinely read agent-connected for up to ~90s
+    after the runtime is truly dead. Live-confirmed (run `20260904T030131Z-s002-agent-optional`):
+    re-login immediately after `stop_runtime` read L3, not L4.
+
+    Waited out here, not asserted around -- the same way `Connect.wait_for_connected` waits for
+    the opposite transition (spec's own 30s ceiling on that side; this side's ceiling is the
+    presence threshold itself, plus margin)."""
+    with recorder.step("waiting out keel-cloud's own presence threshold since the runtime died",
+                        party="stack", kind="assert") as h:
+        deadline = time.monotonic() + timeout_s
+        me = get_json("/v2/me")
+        connected = bool((me.get("agent") or {}).get("connected"))
+        while connected and time.monotonic() < deadline:
+            time.sleep(2)
+            me = get_json("/v2/me")
+            connected = bool((me.get("agent") or {}).get("connected"))
+        h.record_assert(False, connected)
+        if connected:
+            h.fail(f"agent still reads connected {timeout_s}s after the runtime was stopped: {me}")
+            raise AssertionError(
+                f"agent still reads connected {timeout_s}s after the runtime was stopped: {me}")
+
+
 def _connect_agent(page, stack, recorder) -> dict:
     """Runs the connect skill and, if it comes back needing device approval, drives frame B --
     the same connect walk `evals/test_s001_smoke.py` opens the smoke with. Tolerates
@@ -100,6 +131,9 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
     started = time.monotonic()
     passed = False
     context = browser.new_context()
+
+    def _get(path: str) -> dict:
+        return context.request.get(f"{cloud_base}{path}", timeout=10_000).json()
 
     def _get_response(path: str):
         return context.request.get(f"{cloud_base}{path}", timeout=10_000)
@@ -139,6 +173,13 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
             email=founder_credentials.email, password=founder_credentials.password)
         landing = Landing(page, recorder, web_base)
         arrival = landing.visit()
+        if arrival["agent_connected"]:
+            # The keel session this login just opened auto-bound to the just-killed runtime's own
+            # agent session, which keel-cloud still reads as live (presence threshold, not yet
+            # elapsed) -- wait it out rather than asserting into a real timing window (see
+            # `_wait_for_agent_disconnected`'s own docstring).
+            _wait_for_agent_disconnected(_get, recorder)
+            arrival = landing.visit()
         locked = landing.new_project_locked_reason()
         with recorder.step("§1.0: the re-login landing reads L4 -- projects, no agent, creation locked",
                             party="founder", kind="assert") as h:
@@ -238,6 +279,10 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
             participant_context.close()
 
         # --------------------------------------------------- US1 step 5: reading is not offered
+        # `usePeople` is a plain one-shot query, never polled (unlike the reading-batch query) --
+        # the participant's own submission happened in a separate browser context, so this founder
+        # page needs a fresh fetch (a re-`open`, exactly S-001's own pattern) before it shows it.
+        people.open(project_id)
         people.switch_to_who_tab()
         rows = people.table_rows()
         first_name = SECOND_PARTICIPANT.name.split()[0]
@@ -252,6 +297,28 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
                 f"expected Your agent to read Not read yet, got {target_row!r}")
 
         read_state = people.read_action_state()
+
+        if read_state["enabled"]:
+            # The predicted defect (spec's own "What I expect this to find"): the read action is
+            # offered with no agent connected. Before failing the scenario over it, click it and
+            # capture what actually happens -- the wire refusal AND the screen's own silence about
+            # it -- so the DRIFT entry carries both kinds of evidence side by side, not just the
+            # screen's own enabled state.
+            with recorder.step("DRIFT evidence: clicking the offered read action with no agent",
+                                party="stack", kind="assert") as h:
+                with page.expect_response(
+                    lambda r: r.url.endswith("/readings") and r.request.method == "POST"
+                ) as click_resp_info:
+                    page.get_by_role("button", name=re.compile("have your agent read", re.I)).click()
+                click_response = click_resp_info.value
+                click_body = click_response.json() if click_response.status != 204 else None
+                page.wait_for_timeout(500)  # let any (absent) error UI settle before the screenshot
+                shot = recorder.next_screenshot_name("people-read-clicked-refused")
+                page.screenshot(path=str(recorder.screenshot_path(shot)), full_page=True)
+                h.add_screenshot(shot)
+                h.record_wire({"POST": "/readings"}, {"status": click_response.status, "body": click_body})
+                h.capture_text("screen", "people")
+
         with recorder.step("§1.5/§1.6: the read action is disabled and states why, with no agent",
                             party="founder", kind="assert") as h:
             h.record_assert({"enabled": False, "reason": "non-empty"}, read_state)
@@ -290,20 +357,48 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
 
         # -------------------------------------------------------------------- US1 step 7: reconnect
         result = reconnect(stack, recorder)
-        with recorder.step("§1.0: reconnecting mints a new device authorization",
+        with recorder.step("wire: keel-connect-skill's own outcome for the reconnect",
                             party="stack", kind="assert") as h:
-            h.record_assert("authorization_started", result.get("outcome"))
-            assert result["outcome"] == "authorization_started", (
-                f"expected reconnecting to need a fresh device approval (the old one is spent), "
-                f"got {result}")
-        connect = Connect(page, recorder)
-        frame = connect.open(result["verification_uri"])
-        with recorder.step("§1.0: the verification URI opens frame B again", party="founder", kind="assert") as h:
-            h.record_assert("B", frame)
-            assert frame == "B", f"expected the device-decision frame B, got {frame!r}"
-        connect.approve()
-        connect.wait_for_connected(timeout_s=30)
-        connect.go_to_projects()
+            h.record_assert("authorization_started | connected | already_connected", result.get("outcome"))
+
+        if result["outcome"] == "authorization_started":
+            # The spec's own narrated happy path: the prior device authorization was spent, a
+            # fresh one is minted, and the founder approves it in the browser exactly as arrival
+            # did (frame B).
+            connect = Connect(page, recorder)
+            frame = connect.open(result["verification_uri"])
+            with recorder.step("§1.0: the verification URI opens frame B again", party="founder", kind="assert") as h:
+                h.record_assert("B", frame)
+                assert frame == "B", f"expected the device-decision frame B, got {frame!r}"
+            connect.approve()
+            connect.wait_for_connected(timeout_s=30)
+            connect.go_to_projects()
+        else:
+            # Live-confirmed (run `20260904T031913Z-s002-agent-optional` and its diagnostic
+            # follow-ups): this stack's stored, still-valid runtime credential makes
+            # `keel_connect_check.py` reconnect silently (`"connected"`), skipping the device-code
+            # dance -- no `verification_uri` is minted at all. keel-cloud only ever binds a keel
+            # session to a live agent at `POST /v2/login` (`KeelSessionService.open`'s own
+            # "most recently seen" auto-bind) or via the explicit device-approval `bind()` endpoint
+            # (`KeelSessionController`) -- neither fires here, so the *already-open* keel session
+            # from this scenario's own re-login (step 2) never rebinds on its own, no matter how
+            # long the reconnected runtime keeps heartbeating (confirmed: unchanged over 40 polls
+            # / 120s). keel-web's `/connect` bare entry (`ConnectRoute.tsx`'s `ScreenD`) offers no
+            # affordance for this either -- just a code box and the current (still-disconnected)
+            # state. The only path a real founder has to see it is what S-001's own arrival already
+            # proved works: log out and back in, so `POST /v2/login` re-derives the auto-bind
+            # against the now-live agent. Recorded as a `runs/DRIFT.md` finding, not silently
+            # routed around: this repo owns no product code, and this branch is real product
+            # behavior, driven the one way that actually reaches "agent connected" in the UI.
+            with recorder.step("DRIFT evidence: a silent reconnect never rebinds the open keel session",
+                                party="stack", kind="assert") as h:
+                unchanged = landing.visit()
+                h.record_assert({"agent_connected": True}, {"agent_connected": unchanged["agent_connected"]})
+                h.capture_text("screen", "landing")
+            landing.log_out()
+            Auth(page, recorder, web_base).log_in(
+                email=founder_credentials.email, password=founder_credentials.password)
+            landing = Landing(page, recorder, web_base)
 
         landing.visit()
         with recorder.step("§1.0: the agent line reads connected again", party="founder", kind="assert") as h:

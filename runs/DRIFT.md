@@ -1,4 +1,4 @@
-# Drift and bugs found by S-001
+# Drift and bugs found by S-001 and S-002
 
 This repo reports bugs in the product repos; it never fixes them (README, design §6). All
 findings below were surfaced by running the real stack, not by reading source alone -- each was
@@ -1006,3 +1006,196 @@ so the client is the side that drifted.
 `StageCard.go_to_people` is a real method again (waits on the link, no side-nav reroute), and
 `evals/test_s001_smoke.py`'s S4 section clicks it directly while still asserting the People
 unlock separately.
+
+## 17. BLOCKING (spec 006-agent-optional's own stated prediction, confirmed): the read action is
+offered with no agent connected, refused only after the click, with the refusal never rendered
+
+**Severity: blocking** for US1 acceptance scenario 3 ("the founder is never left to discover it by
+refusal") -- a founder with no runtime running and an unread answer clicks *Have your agent read
+the N new answers*, the request is refused on the wire, and nothing on the screen tells them why
+nothing happened. This is exactly the failure `specs/006-agent-optional/spec.md`'s own "What I
+expect this to find" section named in advance, written before the scenario ran, and it is
+confirmed, not refuted.
+
+**Where**: `keel-web` `src/routes/founder/PeopleRoute.tsx` (~line 207): the button's own gate is
+
+```tsx
+<button
+  type="button"
+  className="btn primary"
+  disabled={unreadCount === 0 || startReadings.isPending}
+  onClick={() => startReadings.mutate(undefined, { onSuccess: (created) => setBatchId(created.batchId) })}
+>
+```
+
+`unreadCount`/`startReadings.isPending` are the only two facts this disables on -- `me.data?.agent
+.connected` (already fetched by `ProjectShell`'s own `useMe({poll:true})`, and rendered right next
+to this same button as the agent line) is never consulted here, and `useStartReadings`'s mutation
+carries no `onError` handler at all, so a refused click has no visible consequence whatsoever --
+the button just goes back to normal, indistinguishable from having done nothing.
+
+Against `keel-cloud` `src/main/java/com/keeldiscovery/cloud/protocol/founder/
+FounderErrandController.java` (~line 138), which gates exactly the way `POST /v2/projects` does
+(the founder API's own guarantee, correctly implemented on the wire):
+
+```java
+@PostMapping("/readings")
+ResponseEntity<FounderDtos.ReadingBatch> startReadings(HttpServletRequest request,
+        @PathVariable String projectId) {
+    ...
+    DomainException.rejectIf(!isConnected(founderId, keelSessionId), "agent", "your agent is not connected",
+            "run keel connect and approve it, then try again");
+```
+
+**Reproduction**: `make eval K=s002 PROFILE=playground` (either after an S-001 run in the same
+session, or from cold) -- `runs/20260904T032807Z-s002-agent-optional/` is the run bundle (score
+2.0/5, `failed_step`: "§1.5/§1.6: the read action is disabled and states why, with no agent").
+
+Screen evidence, `screenshots/026-people-who-tab.png` (People, no agent connected, Priya Raman's
+answer sitting unread): the *Have your agent read the 8 new answers* button renders plain and
+enabled, with no mention anywhere of the agent line reading *No agent connected* three inches
+above it. `harness/browser.py`'s `People.read_action_state()` reads it back as
+`{"present": true, "enabled": true, "label": "Have your agent read the 8 new answers", "reason":
+"Reading is what moves the cards. Until your agent has read an answer, it counts for nothing on
+the overview — but you can always see it yourself."}` -- that "reason" text is the button's own
+*always-there* explainer, not an agent-connection reason; it renders identically whether an agent
+is connected or not.
+
+Wire evidence, the same run, immediately after clicking that same button
+(`screenshots/027-people-read-clicked-refused.png` -- indistinguishable from the screen just
+before the click):
+
+```json
+{"request": {"POST": "/readings"},
+ "response": {"status": 422,
+              "body": {"rule": "agent", "problem": "your agent is not connected",
+                       "remedy": "run keel connect and approve it, then try again"}}}
+```
+
+The screen and the wire, side by side: the API refused the exact request the button issued, and
+the screen shows nothing at all about it -- no error, no banner, no change to the row, no change
+to the button. The founder has no way to learn why "nothing happened."
+
+**Why the scenario was not adapted around it**: this repo owns no product code -- the scenario's
+own assertion (`evals/test_s002_agent_optional.py`, "§1.5/§1.6: the read action is disabled and
+states why, with no agent") states the guarantee US1 acceptance scenario 3 promises, and fails
+honestly against the real screen. `read_action_state()` (`harness/browser.py`) was written to read
+whatever the screen actually shows, not to assume a disabled state exists.
+
+**Shape of a fix, not applied here**: `PeopleRoute.tsx`'s button should also gate on `me.data?.
+agent.connected` (or an equivalent prop threaded down from `ProjectShell`), with a reason beside it
+the same way `LandingRoute.tsx`'s L4 already does (`LANDING_LOCKED_REASON`, `.locked .why`) --
+`"Needs your agent — run keel connect to read answers"` or similar, next to the button rather than
+replacing the always-there hint. `useStartReadings` should also grow an `onError` (or the caller
+should render `isApiError(startReadings.error)` via `RemedyBanner`, the same pattern
+`NameProjectStep` already uses for the equivalent `POST /v2/projects` refusal), so a refusal that
+does reach the wire is never silent either.
+
+## 18. Non-blocking: a reading batch's completion toast reappears on every later visit to People,
+not only "just after it finished"
+
+**Severity: non-blocking** -- cosmetic and confusing (a founder can read a stale "things moved"
+toast and wonder what just happened), never blocking; no data is at risk.
+
+**Where**: `keel-web` `src/routes/founder/PeopleRoute.tsx` (~lines 53-65):
+
+```tsx
+useEffect(() => {
+  const running = runningBatches.data?.find((b) => b.status === "RUNNING");
+  const latest = running ?? runningBatches.data?.[0];
+  if (latest && !batchId) setBatchId(latest.batchId);
+}, [runningBatches.data]);
+
+useEffect(() => {
+  if (batch.data?.status === "DONE" && batch.data.summary) {
+    showToast({ message: batch.data.summary, linkTo: `/p/${projectId}`, linkLabel: "See the overview →" });
+  }
+}, [batch.data?.status]);
+```
+
+The comment beside the first effect names its own intent precisely ("the most recently finished
+[batch], so the toast ... still greet the founder even if the batch completed the moment before
+this load") -- but nothing distinguishes "completed the moment before this load" from "completed
+days ago, already seen and dismissed." Every fresh mount of `PeopleRoute` re-adopts the most
+recently *finished* batch (there is no once-per-batch "seen" flag, in state or storage) and the
+second effect fires `showToast` again, every time, for as long as that batch stays "the most
+recent."
+
+**Reproduction**: live-confirmed twice in the same S-002 run
+(`runs/20260904T032807Z-s002-agent-optional/`), on People visits that followed a logout+login and
+did nothing to trigger a new read:
+- `screenshots/026-people-who-tab.png` -- opening People fresh shows *"✓ Nothing moved. See the
+  overview →"* immediately, from a batch this visit never started.
+- An earlier run on the same project (`runs/20260904T031029Z-s002-agent-optional/screenshots/
+  027-people-read-clicked-refused.png`) shows the same thing with a different stale message
+  ("Four things moved on the problem card...") right after a click that was itself *refused*
+  (see #17) -- the toast on screen has nothing to do with the request that just ran.
+
+This is also the specific edge case `specs/006-agent-optional/spec.md` names in advance ("The
+stale toast: a completion toast from before the logout must not reappear after login") --
+confirmed reappearing, though not only across a logout boundary: any later People visit re-shows
+it.
+
+**Why the scenario was not adapted around it**: found incidentally while gathering #17's own
+screen evidence; not (yet) asserted on directly by `evals/test_s002_agent_optional.py`, since #17
+already stops the scenario first on every run to date. Recorded here rather than left
+undocumented.
+
+**Shape of a fix, not applied here**: track which batch id's toast has already been shown (a ref,
+or a small "last-toasted batch id" piece of state persisted alongside `batchId`) and only fire
+`showToast` the first time a given batch is observed `DONE`, not on every mount that happens to
+adopt it as "most recent."
+
+## 19. Non-blocking (worked around: log out and back in): a runtime that reconnects using its own
+still-valid stored credential never rebinds the founder's already-open keel session
+
+**Severity: non-blocking** -- a real founder can still reach a connected state (by logging out and
+back in, which S-001's own arrival already proves works), but the UI offers no path to it and no
+explanation, so a founder who restarts `keel connect` while still logged in has no way to make
+the agent line go green short of guessing to log out.
+
+**Where**: `keel-cloud` `src/main/java/com/keeldiscovery/cloud/application/KeelSessionService.java`
+-- binding a keel session to a live agent happens in exactly two places, `open()` (login) and
+`bind()` (explicit device approval):
+
+```java
+public Opened open(UserId userId) {
+    ...
+    Optional<AgentSession> live = agentSessions.mostRecentLiveFor(userId, now.minus(presenceThreshold));
+    live.ifPresent(agentSession -> bindings.upsert(new SessionBinding(session.id(), agentSession.id())));
+    return new Opened(session, live.map(AgentSession::id).orElse(null));
+}
+```
+
+Neither runs when `keel-connect-skill`'s own script reconnects a still-valid, persisted credential
+(`keel_connect_check.py --credential-backend file`) without a fresh device code -- the script's own
+documented outcome for this is `"connected"`/`"already_connected"` (`harness/connect.py`'s own
+`start_runtime_via_skill`/`reconnect` accept both), and neither mints a `verification_uri` to
+approve. `keel-web`'s bare `/connect` entry (`src/routes/connect/ConnectRoute.tsx`'s `ScreenD`)
+offers no affordance for this case either -- just a code-entry box and the browser's own current
+(still-disconnected) state; there is no "we noticed a runtime is already talking to us, bind it?"
+option anywhere.
+
+**Reproduction**: `runs/20260904T031913Z-s002-agent-optional/transcript.jsonl` (a run against
+`evals/test_s002_agent_optional.py` before it grew the log-out/log-in fallback below) -- seq 45,
+`keel-connect-skill: reconnect the runtime` returns `{"outcome": "connected", "agent_session_id":
+"0d2ff964-...", "pid": 75295}`; seq 96, over 150 seconds and dozens of `/v2/me` polls later (the
+same browser session, never having logged out again), `"§1.0: New project is live again, agent
+reconnected"` still reads `{"agent_connected": false}`. The keel session opened at re-login (US1
+step 2, before the runtime was restarted) never gains a `session_binding` row, and nothing
+re-derives one later no matter how long the reconnected agent keeps heartbeating.
+
+**Why the scenario was adapted around it**: `evals/test_s002_agent_optional.py`'s own step 7
+branches on `reconnect()`'s outcome -- `"authorization_started"` drives the browser approval flow
+(frame B) exactly as arrival does; any other outcome logs out and back in (`Auth.log_in` again),
+which is the one path this repo could confirm actually works (`KeelSessionService.open`'s own
+auto-bind), and records a `DRIFT evidence` step showing the pre-workaround state
+(`agent_connected: false`) first. This is a real, live-confirmed product gap, not silently patched
+around: the harness takes the same door a real founder would eventually have to find themselves.
+
+**Shape of a fix, not applied here**: either (a) `keel-web`'s `/connect` bare entry could offer a
+"you have a live runtime — reconnect it" action when `GET /v2/me` shows a founder-owned agent
+session exists but is unbound, calling a new or existing `bind()`-shaped endpoint without a device
+code at all, or (b) `POST /v2/me` (or a lightweight poll) could re-run the same "most recently
+seen live agent" auto-bind `open()` already does, on demand, so a still-open keel session can pick
+up a runtime that came back without forcing a fresh login.
