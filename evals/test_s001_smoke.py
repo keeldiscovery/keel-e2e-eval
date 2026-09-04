@@ -35,6 +35,14 @@ from harness.steps import Recorder
 _STANDING_LISTS = ("holdingUp", "notHoldingUp", "peopleDisagree", "untested")
 
 
+
+def _safe_body(page, selector: str) -> str:
+    try:
+        loc = page.locator(selector).first
+        return loc.inner_text().strip() if loc.count() > 0 else ""
+    except Exception:  # noqa: BLE001 - a missing element reads as empty text
+        return ""
+
 def _counts_note_for(stage_card_body: dict, heading: str) -> str | None:
     """`FounderDtos.Belief.countsNote` for the belief headed `heading`, off `GET .../stages/{stage}`."""
     for group in stage_card_body.get("groups", []):
@@ -167,13 +175,16 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
                 f"expected the solution claim verbatim, got {card!r}")
         solution_chat.save_confirmation()
         solution_landed = solution_chat.wait_for_review(project_id, "SOLUTION", timeout_s=60)
-        with recorder.step("§4.4: the beliefs land in place on SOLUTION before the founder moves on",
+        with recorder.step(f"§4.4: the truth card kept the founder company on SOLUTION, and the review opened itself",
                             party="founder", kind="assert") as h:
-            h.record_assert({"phase": "one of WAIT_PHASES", "landed_rows": ">= 1"}, solution_landed)
+            # keel-web spec 012 (design §8): while the breakdown runs the rail narrates a phase and one
+            # truth at a time shows beneath it; when the beliefs land the page opens the review with no
+            # button pressed -- reaching the review card is the proof of the second half.
+            h.record_assert({"phase": "one of WAIT_PHASES", "truth": "non-empty"}, solution_landed)
             assert solution_landed["phase_line"] in WAIT_PHASES, (
                 f"expected the rail to narrate a waiting phase, saw {solution_landed['phase_line']!r}")
-            assert solution_landed["landed_rows"] >= 1, (
-                f"expected the beliefs to land in place before the review, saw {solution_landed['landed_rows']}")
+            assert solution_landed.get("truth_seen"), (
+                f"expected one truth at a time beneath the rail while waiting, saw {solution_landed.get('truth_seen')!r}")
 
         with recorder.step("§1.2 wire: SOLUTION is still unframed before approval",
                             party="stack", kind="assert") as h:
@@ -287,6 +298,14 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
                 shot = recorder.next_screenshot_name("overview-standing")
                 page.screenshot(path=str(recorder.screenshot_path(shot)), full_page=True)
                 h.add_screenshot(shot)
+                # keel-web spec 012 FR-013 (how-far-along-design.md): the overview counts its evidence
+                # above the cards -- "N of T beliefs have evidence" -- a count, never a score.
+                evidence_line = _safe_body(page, ".evidence__title")
+                h.capture_text("evidence_line", evidence_line)
+                counts = re.search(r"(\d+) of (\d+) beliefs have evidence", evidence_line)
+                assert counts, f"expected the evidence bar's headline on the overview, saw {evidence_line!r}"
+                assert int(counts.group(1)) <= int(counts.group(2)), f"evidence count exceeds the total: {evidence_line!r}"
+                assert int(counts.group(1)) >= 1, f"expected at least one belief with evidence after the reading, saw {evidence_line!r}"
                 h.record_assert(
                     [fx.PROBLEM_HEADLINE, fx.SOLUTION_HEADLINE, fx.COMMERCIAL_HEADLINE], body_text)
                 for headline in (fx.PROBLEM_HEADLINE, fx.SOLUTION_HEADLINE, fx.COMMERCIAL_HEADLINE):

@@ -72,15 +72,16 @@ def walk_stage(page: Page, recorder: Recorder, get_json: GetJson, project_id: st
             f"expected the {stage_type} claim verbatim, got {card['claim']!r}")
     chat.save_confirmation()
     landed = chat.wait_for_review(project_id, stage_type, timeout_s=60)
-    with recorder.step(f"§4.4: the beliefs land in place on {stage_type} before the founder moves on",
+    with recorder.step(f"§4.4: the truth card kept the founder company on {stage_type}, and the review opened itself",
                         party="founder", kind="assert") as h:
-        # design §3-§4 (frames C8, C9): the rail narrates a phase, the list lands in place, and the
-        # review opens only when the founder presses Review them.
-        h.record_assert({"phase": "one of WAIT_PHASES", "landed_rows": ">= 1"}, landed)
+        # keel-web spec 012 (design §8): while the breakdown runs the rail narrates a phase and one
+        # truth at a time shows beneath it; when the beliefs land the page opens the review with no
+        # button pressed -- reaching the review card is the proof of the second half.
+        h.record_assert({"phase": "one of WAIT_PHASES", "truth": "non-empty"}, landed)
         assert landed["phase_line"] in WAIT_PHASES, (
-            f"expected the rail to narrate a waiting phase on {stage_type}, saw {landed['phase_line']!r}")
-        assert landed["landed_rows"] >= 1, (
-            f"expected the beliefs to land in place before the review on {stage_type}, saw {landed['landed_rows']}")
+            f"expected the rail to narrate a waiting phase, saw {landed['phase_line']!r}")
+        assert landed.get("truth_seen"), (
+            f"expected one truth at a time beneath the rail while waiting, saw {landed.get('truth_seen')!r}")
 
     with recorder.step(f"§1.2 wire: {stage_type} is still unframed before approval",
                         party="stack", kind="assert") as h:

@@ -864,6 +864,7 @@ class Chat:
                 clicked = False
                 phase_seen: str | None = None
                 landed_rows = 0
+                truth_seen: str | None = None
                 while self.page.locator(".card.openc").count() == 0:
                     if time.monotonic() > deadline:
                         raise TimeoutError(
@@ -875,6 +876,11 @@ class Chat:
                     if phase_seen is None and sub in WAIT_PHASES:
                         phase_seen = sub
                     landed_rows = max(landed_rows, self.page.locator(".coming .belief").count())
+                    # keel-web spec 012 (design §8.1): one truth at a time keeps the founder company;
+                    # the review then opens itself (§8.2) -- no button to press, the loop's head sees
+                    # the card arrive.
+                    if truth_seen is None:
+                        truth_seen = _safe_text(lambda: self.page.locator(".truth__t").first.inner_text()).strip() or None
                     if not clicked:
                         continue_btn = self.page.get_by_role("button", name=re.compile(r"^(continue|review them)", re.I))
                         # `is_enabled`/`click` auto-wait on an element that can vanish between
@@ -896,8 +902,10 @@ class Chat:
                 if phase_seen:
                     h.capture_text("phase_line", phase_seen)
                 h.capture_text("landed_rows", str(landed_rows))
+                if truth_seen:
+                    h.capture_text("truth_seen", truth_seen)
                 h.capture_text("agent_turn_outcome", "beliefs_ready")
-        return {"phase_line": phase_seen, "landed_rows": landed_rows}
+        return {"phase_line": phase_seen, "landed_rows": landed_rows, "truth_seen": truth_seen}
 
     def start_over(self) -> None:
         with self._scope():
