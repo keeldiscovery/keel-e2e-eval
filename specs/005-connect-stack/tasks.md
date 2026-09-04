@@ -143,3 +143,25 @@ eval K=s001 && make down`.
   generated, `PeopleRoute` flips its toggle to *Who's been asked*, so the role cards (`.role`) a
   second `open_send_popup` needs are gone until the loop switches back -- journeys §1.4's own
   documented two-view toggle, not a bug.
+- **The gate, from cold (T015).** `make up && make eval K=s001 && make down` green twice on the
+  eval profile: `runs/20260904T020336Z-s001-smoke` (106 steps, 5:18, 3.5/5) and, after the
+  referee's own capture gaps were closed, `runs/20260904T021427Z-s001-smoke` (114 steps, 5:14,
+  **5.0/5** under policy v6, 82+ screenshots covering every lettered frame, zero LLM calls).
+  `make up` itself takes ~10s with a warm gradle; SC-002's ten-minute budget holds with room.
+- **Two operators, one stack.** A parallel worker was cycling the eval profile's `make down/up`
+  during this session's runs (keel-cloud rebooted under runs `215406Z`, `220055Z`), which reads
+  as "the database vanished mid-run" (`relation "inference_job" does not exist`, the landing
+  routing to *Set up Keel*). Resolved by coordinating over messages: the other worker moved to
+  the playground profile with a profile-suffixed runtime home. The `runs/` bundle stream is
+  shared between profiles, so some bundles in it today are theirs.
+- **The scripted runtime is faster than the screen.** Three harness races surfaced only because
+  keel-runtime answers in ~13ms: the agent-turn wait's "before" count must be taken in the same
+  breath as the send (`_bubbles_before_send`), *Save this* can land straight on the review with
+  C8 never observable, and the Continue button can vanish between a poll's `count()` and its
+  `is_enabled()`. A real agent would never expose any of these; the harness now tolerates all
+  three without a sleep.
+- **Score misses that were the referee's, not the product's** (the 3.5 → 5.0 delta): identity
+  never captured on project screens (ORI-U1), the nav click's stage identity (ORI-U2), the
+  buyer's role card missing from `invite_screen`, only Dana's P9 opened, and `REVIEW` in the
+  review card's upper-cased step line (added to the English-collision exemptions as a v6
+  judgement call, beside `EVIDENCE`).
