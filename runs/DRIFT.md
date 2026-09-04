@@ -1348,3 +1348,41 @@ the founder's own 10 years in payroll".
 **Shape of a fix**: drop the line; the statement names its own unknowns (every `*-frame.md`
 already requires it). keel-cloud spec `027-the-card-says-what-it-knows`, keel-web spec `011`.
 Held until the founder finishes testing.
+
+## 24. Non-blocking (found by the founder by hand): a failed breakdown leaves the landed screen
+counting forever, and Start over is refused without a word
+
+**Severity**: non-blocking for the scripted smoke (its jobs never fail), wedging with a live agent:
+the founder's step showed "Still working -- longer than usual" at 516 s on a job that had failed
+at 73 s, and *Start over* did nothing.
+
+**Where**: `keel-web` `src/components/chat/GuidedStep.tsx` -- the `childInteractionId` branch reads
+`job.status` only to pick a phase (never `FAILED_STATUSES`), and a refused `cancelChild` renders
+nothing. `keel-cloud` `InferenceOrchestrator.cancel` refuses any terminal row, and a `JOB_FAILED`
+child is terminal, so the chain's live parent (`ACCEPTED`) could not be abandoned from the screen.
+
+**Reproduction**: the founder's screenshots of 2026-09-04 11:28 (playground, a real `claude`);
+`inference_interaction` rows `1f8c8ff4` (PROBLEM_FRAME, ACCEPTED) and `5390b269`
+(PROBLEM_ASSUMPTIONS, JOB_FAILED); released by hand in the database.
+
+**Shape of a fix**: keel-cloud spec 027 FR-006 (cancel abandons every live row of a chain);
+keel-web spec 011 FR-008 (frame C10) and FR-010 (the refusal banner).
+
+## 25. Non-blocking (found by the founder by hand): the breakdown job burns its turn allowance
+trimming one field under a cap nobody told the model about
+
+**Severity**: non-blocking -- the runtime reports the failure honestly -- but two real breakdowns in
+a row failed (`error_max_budget_usd` at $0.258 against a $0.25 cap; then `error_max_turns` at
+three turns against an allowance of two plus the CLI's retry).
+
+**Where**: keel-runtime defaults (`KEEL_JOB_BUDGET_USD` 0.25, `KEEL_JOB_MAX_TURNS` 2); keel-cloud
+`ScreenResponseContracts.RATIONALE_OR_NOTE_MAX` 600 with no instruction naming it.
+
+**Reproduction**: an instrumented replay of job `e8ee292a` (`--output-format stream-json`): every
+refused attempt was the same rule -- `/result/normalization_rationale: must NOT have more than
+600 characters (got 704)`, then 640, then 613, then accepted; five turns, $0.38. The failure
+message the cloud stored read only "the executor reported an error".
+
+**Shape of a fix**: keel-cloud spec 026 FR-011 (the model is told the sizes; rationale cap 1 200);
+keel-runtime spec 002 FR-009..011 (defaults 1.00 / 6, a failure that names the rule, one recovery
+pass).

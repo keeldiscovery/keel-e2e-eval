@@ -687,7 +687,10 @@ class Chat:
         return {
             "kicker": _safe_text(lambda: card.locator(".understood__kicker").first.inner_text()),
             "claim": _safe_text(lambda: card.locator(".understood__claim").first.inner_text()),
-            "note": _safe_text(lambda: card.locator(".understood__note").first.inner_text()),
+            # keel-web spec 011: the card carries no note any more (the statement names its own
+            # unknowns); read it if an older build still renders one, else empty.
+            "note": _safe_text(lambda: card.locator(".understood__note").first.inner_text())
+            if card.locator(".understood__note").count() > 0 else "",
         }
 
     def landed_claim(self) -> str:
