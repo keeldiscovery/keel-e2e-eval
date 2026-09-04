@@ -13,6 +13,7 @@ because `stack/cloud.py` points `KEEL_V2_CONNECT_VERIFICATION_URI` at keel-web's
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -36,7 +37,8 @@ class AuthorizationPendingTimeout(RuntimeError):
 
 
 def _run_connect_check_script(config: StackConfig, recorder, *, step_name: str,
-                               wait_seconds: float) -> dict:
+                               wait_seconds: float, executor: str = "scripted",
+                               env_extra: dict[str, str] | None = None) -> dict:
     """The one place `keel_connect_check.py` is ever shelled out from -- `start_runtime_via_skill`
     (the first connect) and `reconnect` (spec 006-agent-optional US1 step 7) are two differently-
     named callers of the exact same invocation; the script itself has no notion of "first" vs
@@ -47,7 +49,7 @@ def _run_connect_check_script(config: StackConfig, recorder, *, step_name: str,
         sys.executable, str(script_path),
         "--runtime-path", str(config.keel_runtime),
         "--base-url", cloud_base_url,
-        "--executor", "scripted",
+        "--executor", executor,
         "--credential-backend", "file",
         "--no-browser",
         "--home", str(home_dir(config)),
@@ -56,7 +58,10 @@ def _run_connect_check_script(config: StackConfig, recorder, *, step_name: str,
 
     with recorder.step(step_name, party="stack", kind="protocol") as h:
         try:
-            completed = subprocess.run(cmd, capture_output=True, text=True, timeout=wait_seconds + 30)
+            # The skill script launches `keel connect` with the environment it inherits, so
+            # `env_extra` reaches the runtime (spec 008-stranger FR-001: the canary's own marker).
+            env = {**os.environ, **(env_extra or {})}
+            completed = subprocess.run(cmd, capture_output=True, text=True, timeout=wait_seconds + 30, env=env)
         except (OSError, subprocess.TimeoutExpired) as exc:
             h.record_wire({"cmd": cmd}, {"error": str(exc)})
             h.fail(f"could not run keel_connect_check.py: {exc}")
@@ -91,7 +96,9 @@ def _run_connect_check_script(config: StackConfig, recorder, *, step_name: str,
 
 
 def start_runtime_via_skill(config: StackConfig, recorder, *,
-                             wait_seconds: float = DEFAULT_WAIT_SECONDS) -> dict:
+                             wait_seconds: float = DEFAULT_WAIT_SECONDS,
+                             executor: str = "scripted",
+                             env_extra: dict[str, str] | None = None) -> dict:
     """Runs `keel_connect_check.py` exactly as spec US2 step 1 shows, parses its one line of JSON,
     and records the call as one step (`party="stack"`, since starting the runtime is stack
     plumbing, not a founder- or agent-observed moment -- the smoke's own interaction scopes begin
@@ -104,7 +111,8 @@ def start_runtime_via_skill(config: StackConfig, recorder, *,
     step as failed, so the transcript shows exactly what the script said).
     """
     return _run_connect_check_script(
-        config, recorder, step_name="keel-connect-skill: start the runtime", wait_seconds=wait_seconds)
+        config, recorder, step_name=f"keel-connect-skill: start the runtime ({executor} executor)",
+        wait_seconds=wait_seconds, executor=executor, env_extra=env_extra)
 
 
 def stop_runtime(config: StackConfig, recorder, *, timeout_s: float = 15) -> None:
@@ -136,7 +144,9 @@ def stop_runtime(config: StackConfig, recorder, *, timeout_s: float = 15) -> Non
 
 
 def reconnect(config: StackConfig, recorder, *,
-              wait_seconds: float = DEFAULT_WAIT_SECONDS) -> dict:
+              wait_seconds: float = DEFAULT_WAIT_SECONDS,
+              executor: str = "scripted",
+              env_extra: dict[str, str] | None = None) -> dict:
     """Spec 006-agent-optional (FR-002, US1 step 7): reruns keel-connect-skill's own script fresh,
     exactly as the first connect does. Edge cases: "reconnecting mints a new device authorization
     -- the old one is spent" -- the runtime process this session previously started was stopped by
@@ -145,4 +155,5 @@ def reconnect(config: StackConfig, recorder, *,
     code, not a resume of the old one.
     """
     return _run_connect_check_script(
-        config, recorder, step_name="keel-connect-skill: reconnect the runtime", wait_seconds=wait_seconds)
+        config, recorder, step_name=f"keel-connect-skill: reconnect the runtime ({executor} executor)",
+        wait_seconds=wait_seconds, executor=executor, env_extra=env_extra)

@@ -53,7 +53,7 @@ def _run_dirs_since(cutoff: datetime) -> list[Path]:
 def main() -> int:
     started = datetime.now(timezone.utc)
     result = subprocess.run(
-        [sys.executable, "-m", "pytest", "evals", "-q"],
+        [sys.executable, "-m", "pytest", "evals", "-q", "-m", "not live"],
         cwd=str(REPO_ROOT),
     )
 

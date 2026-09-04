@@ -3,7 +3,7 @@ PY := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
 PLAYWRIGHT := $(VENV)/bin/playwright
 
-.PHONY: up down eval eval-all report venv unit
+.PHONY: up down eval eval-live eval-all report venv unit
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
 # venv already exists (pip/playwright no-op when nothing changed).
@@ -27,7 +27,13 @@ down: venv
 # playground profile instead of the default eval profile -- `make eval K=s001 PROFILE=playground`
 # (relay-design.md §12.5: two profiles never share ports, a database, or now a runtime home).
 eval: venv
-	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) $(PY) -m pytest evals -q $(if $(K),-k $(K),)
+	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) $(PY) -m pytest evals -q -m "not live" $(if $(K),-k $(K),)
+
+# make eval-live runs the scenarios marked `live` -- a real `claude`, real money (spec 008-stranger-
+# who-gives-orders). Opt-in only; never part of `make eval`/`make eval-all`. Needs a logged-in
+# `claude` on PATH and a stack `make up` has already brought up (S-004 attacks S-001's project).
+eval-live: venv
+	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) $(PY) -m pytest evals -q -m live $(if $(K),-k $(K),)
 
 # make eval-all runs the FULL scenario set (s001 included) against one stack session (attaches to
 # an already-up stack from `make up`; does not tear it down -- `make down` is a separate step) and

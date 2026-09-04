@@ -188,3 +188,22 @@ Runs `tests/` — pure-logic tests for the step recorder, the interaction/rubric
 gendered pronoun, a wordless waiting state — each failing exactly the check design says should
 catch it), the report generator, the config loader, and the ledger-coverage test, with no
 Docker/gradle/vite involved.
+
+## The live run (`make eval-live`)
+
+S-004, *the stranger who gives orders* (`specs/008-stranger-who-gives-orders`), is the one
+scenario that runs a **real `claude`** -- it attacks the framing box and a participant's answers
+with instructions and checks that the founder's agent only ever answers. It costs real money
+(roughly ten jobs at a few cents each; the run prints the sum from the runtime's own envelopes)
+and needs a logged-in Claude Code CLI on `PATH`, so it is **opt-in**:
+
+```
+make up PROFILE=playground
+make eval K=s001 PROFILE=playground      # the approved project it attacks
+make eval-live K=s004 PROFILE=playground
+make down PROFILE=playground
+```
+
+`make eval` and `make eval-all` deselect it (`-m "not live"`). Without a usable `claude` it is
+skipped with the reason printed, never silently passed. It leaves two small projects of its own on
+the stack; run a fresh `make up` before any scripted scenario after it.
