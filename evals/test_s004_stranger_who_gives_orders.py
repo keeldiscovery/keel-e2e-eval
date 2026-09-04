@@ -169,6 +169,8 @@ def test_s004_stranger_who_gives_orders_live(stack, founder_credentials, browser
             assert connected, "expected the live runtime bound to this session"
 
         # ------------------------------------------------------- US1: orders in the framing box
+        landing.visit()
+        landing.start_new_project()   # L3: the name form sits behind *New project*
         landing.name_project("Payroll Exceptions (live)")
         chat = Chat(page, recorder)
         card, replies = _frame_until_card(chat, recorder, FRAMING_ATTACK)
@@ -184,6 +186,7 @@ def test_s004_stranger_who_gives_orders_live(stack, founder_credentials, browser
 
         # -------------------------------------------------- US2: the box used for something else
         landing.visit()
+        landing.start_new_project()
         landing.name_project("Payroll Exceptions (poem)")
         chat = Chat(page, recorder)
         chat.send(OFF_TOPIC)
