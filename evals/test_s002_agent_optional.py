@@ -1,0 +1,354 @@
+"""S-002, the agent-optional day (spec 006-agent-optional): a founder connects a runtime, creates
+a project, logs out; later the runtime is not running and they log back in. Creating a *new*
+project must be disabled -- but everything else they own must still work: read the project, send
+interview links, download the brief. "The local runtime is only needed to create a project or to
+infer the result."
+
+Journey coverage (keel-cloud `canon/journeys.md` §3, 2026-09-03): §1.0 (arrival -- the landing's
+four shapes, L4 in particular), §1.4 (inviting, with no agent), §1.5 (waiting -- the table's own
+two columns), §1.6 (reading what came back -- the one thing this scenario expects to find
+*not* offered), §1.10 (the brief, a derived summary, no agent needed to read it).
+
+**This scenario's own prediction (spec's "What I expect this to find")**: keel-web's People page
+never consults the agent state at all -- the read action is disabled only by `unreadCount === 0`,
+so with an unread answer and no runtime it is expected to be *offered*, not disabled with a
+reason. If confirmed, that is US1 acceptance scenario 3 failing and a `runs/DRIFT.md` entry, never
+a harness workaround (this repo owns no product code).
+
+Prelude (spec edge case): reuses whatever project already exists in this same stack session (an
+S-001 run, most naturally) if one does; otherwise builds its own via
+`evals/preludes.approved_project_with_one_read` -- a project approved through every stage, one
+role invited, one answer already read, agent connected throughout. Either way, this scenario's own
+work starts once that baseline exists: log out, stop the runtime, log back in, and walk US1's
+steps 2-8 against a *reused* project and a fresh agent-optional invitation of its own.
+"""
+
+from __future__ import annotations
+
+import re
+import time
+
+from evals import payroll_exceptions as fx
+from evals.facts import Fact
+from evals.payroll_exceptions import Participant
+from evals.preludes import approved_project_with_one_read
+from harness.browser import Auth, Brief, Connect, Landing, ParticipantBrowser, People, Shell, StageCard
+from harness.connect import reconnect, start_runtime_via_skill, stop_runtime
+from harness.evidence import finalize_run
+from harness.steps import Recorder
+
+# A second, genuinely different payroll manager (spec US1 step 4: a fresh, still-unread
+# invitation created while no agent is connected) -- same role as `fx.PARTICIPANTS[0]` (Dana
+# Okafor, already invited and read by the prelude), so her invitation's own `asks` carries the
+# same headings keel-runtime's bundled script's first INTERPRET entry resolves against (the
+# scripted executor's own cursor is per-process, spec's own edge case: a fresh runtime process
+# after `reconnect` starts that cursor over from 0 -- see `harness/connect.reconnect`'s docstring).
+SECOND_PARTICIPANT = Participant(
+    name="Priya Raman",
+    role_label=fx.PAYROLL_MANAGER_ROLE,
+    headings=fx.PAYROLL_MANAGER_HEADINGS,
+    answers={
+        "They handle exceptions themselves": "It lands on me every cycle, not anyone else.",
+        "It costs hours, not minutes": "The last one took most of an afternoon to untangle.",
+        "They've tried to fix it": "We tried a shared inbox rule once; nobody kept it up.",
+        "Exceptions have nowhere to live today": "Whoever notices just pings me directly.",
+        "Someone would accept being the owner": "I'd take it, if the tool actually assigned it.",
+    },
+)
+
+
+def _facts() -> dict[str, Fact]:
+    """S-001's own registry plus the one participant this scenario invites itself."""
+    result = dict(fx.facts())
+    slug = SECOND_PARTICIPANT.name.lower().replace(" ", "_")
+    for heading, text in SECOND_PARTICIPANT.answers.items():
+        heading_slug = heading.lower().replace(" ", "_").replace(",", "").replace("'", "")
+        result[f"{slug}_{heading_slug}"] = Fact(text=text, kind="answer", hops=["participant_page"])
+    return result
+
+
+def _project_id_from_url(url: str) -> str:
+    match = re.search(r"/p/([^/?#]+)", url)
+    if not match:
+        raise AssertionError(f"not on a project route, cannot read the project id: {url}")
+    return match.group(1)
+
+
+def _connect_agent(page, stack, recorder) -> dict:
+    """Runs the connect skill and, if it comes back needing device approval, drives frame B --
+    the same connect walk `evals/test_s001_smoke.py` opens the smoke with. Tolerates
+    `already_connected`/`connected` (a still-running runtime the new keel session already bound
+    to automatically -- journeys §1.0's own "login ... binds a still-running runtime
+    automatically") by skipping the browser approval it would have nothing left to approve."""
+    result = start_runtime_via_skill(stack, recorder)
+    if result["outcome"] == "authorization_started":
+        connect = Connect(page, recorder)
+        frame = connect.open(result["verification_uri"])
+        with recorder.step("§1.0: the verification URI opens frame B", party="founder", kind="assert") as h:
+            h.record_assert("B", frame)
+            assert frame == "B", f"expected the device-decision frame B, got {frame!r}"
+        connect.approve()
+        connect.wait_for_connected(timeout_s=30)
+        connect.go_to_projects()
+    return result
+
+
+def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
+    recorder = Recorder(run_dir)
+    web_base = f"http://localhost:{stack.web_port}"
+    cloud_base = f"http://localhost:{stack.cloud_port}"
+    started = time.monotonic()
+    passed = False
+    context = browser.new_context()
+
+    def _get_response(path: str):
+        return context.request.get(f"{cloud_base}{path}", timeout=10_000)
+
+    def _post_raw(path: str, body: dict):
+        return context.request.post(f"{cloud_base}{path}", data=body, timeout=10_000)
+
+    try:
+        page = context.new_page()
+
+        # ---------------------------------------------------------- the baseline (spec edge case)
+        Auth(page, recorder, web_base).log_in(
+            email=founder_credentials.email, password=founder_credentials.password)
+        landing = Landing(page, recorder, web_base)
+        arrival = landing.visit()
+
+        if not arrival["agent_connected"]:
+            _connect_agent(page, stack, recorder)
+
+        if arrival["has_projects"]:
+            # Same stack session as an already-run S-001 (or an earlier S-002) -- reuse that
+            # project wholesale rather than building a second one alongside it.
+            landing.visit()
+            landing.open_project(0)
+            project_id = _project_id_from_url(page.url)
+        else:
+            project_id, _ = approved_project_with_one_read(
+                page, recorder, browser, web_base=web_base, cloud_base=cloud_base)
+
+        # ------------------------------------------------------------------- US1 step 1: log out
+        landing.visit()
+        landing.log_out()
+        stop_runtime(stack, recorder)
+
+        # ------------------------------------------------------------ US1 step 2: L4 on re-login
+        Auth(page, recorder, web_base).log_in(
+            email=founder_credentials.email, password=founder_credentials.password)
+        landing = Landing(page, recorder, web_base)
+        arrival = landing.visit()
+        locked = landing.new_project_locked_reason()
+        with recorder.step("§1.0: the re-login landing reads L4 -- projects, no agent, creation locked",
+                            party="founder", kind="assert") as h:
+            h.record_assert(
+                {"frame": "L4", "agent_connected": False, "locked_present": True, "locked_enabled": False},
+                {"frame": arrival["frame"], "agent_connected": arrival["agent_connected"],
+                 "locked_present": locked["present"], "locked_enabled": locked["enabled"],
+                 "locked_reason": locked["reason"]})
+            assert arrival["has_projects"], "expected the baseline project to still be there after re-login"
+            assert not arrival["agent_connected"], (
+                f"expected no agent connected right after re-login, got frame {arrival['frame']!r}")
+            assert arrival["frame"] == "L4", f"expected L4 (projects, no agent), got {arrival['frame']!r}"
+            assert locked["present"], "expected the locked New project card to render"
+            assert not locked["enabled"], "expected New project disabled with no agent connected"
+            assert locked["reason"], "US1 acceptance scenario 1: expected a reason beside the locked action"
+
+        rows = landing.project_rows()
+        with recorder.step("§1.0: every project row is still clickable on L4", party="founder", kind="assert") as h:
+            h.record_assert(">=1 row", rows)
+            assert rows, "expected at least one project row to still render on L4"
+
+        with recorder.step("wire: POST /v2/projects refuses with no live agent",
+                            party="stack", kind="assert") as h:
+            response = _post_raw("/v2/projects", {"name": "S-002 wire probe (expected to refuse)"})
+            body = response.json()
+            h.record_assert({"status": 422, "rule": "agent"}, {"status": response.status, "body": body})
+            assert response.status == 422, (
+                f"US1 acceptance scenario 6: expected 422, got {response.status}: {body}")
+            assert body.get("rule") == "agent", f"expected rule 'agent', got {body}"
+
+        # ------------------------------------------------------------- US1 step 3: the project reads
+        landing.open_project(0)
+        project_id_now = _project_id_from_url(page.url)
+        with recorder.step("the reopened project is the same one from before logout",
+                            party="stack", kind="assert") as h:
+            h.record_assert(project_id, project_id_now)
+            assert project_id_now == project_id, f"expected the same project id, got {project_id_now!r}"
+        project_id = project_id_now
+
+        problem_card = StageCard(page, recorder)
+        opened = problem_card.open(project_id, "PROBLEM")
+        with recorder.step("the approved problem card still renders its claim and beliefs, no agent",
+                            party="founder", kind="assert") as h:
+            claim = problem_card.claim()
+            headings = problem_card.belief_headings()
+            h.record_assert({"is_draft": False, "claim": ">=1 char", "beliefs": ">=1"},
+                             {"is_draft": opened["is_draft"], "claim": claim, "beliefs": headings})
+            assert not opened["is_draft"], f"expected the approved (not draft) problem card, got {opened}"
+            assert claim, "expected the approved claim to still render with no agent"
+            assert headings, "expected the beliefs to still render with no agent"
+
+        shell = Shell(page, recorder)
+        nav_status = shell.nav_status("PROBLEM")
+        with recorder.step("the side nav's stage word still renders, unchanged and not disabled",
+                            party="founder", kind="assert") as h:
+            h.record_assert(">=1 char", nav_status)
+            assert nav_status, "expected the problem stage's side-nav status word to still render"
+
+        # ------------------------------------------------------ US1 step 4: inviting works, no agent
+        people = People(page, recorder)
+        people.open(project_id)
+        if page.locator(".role").count() == 0:
+            people.switch_to_kinds_tab()
+        people.open_send_popup(SECOND_PARTICIPANT.role_label)
+        people.fill_who(SECOND_PARTICIPANT.name,
+                         about=f"{SECOND_PARTICIPANT.role_label} at a 400-person company.")
+        preview = people.go_to_preview()
+        with recorder.step("§1.4: the preview shows what they'll be asked, no agent needed",
+                            party="founder", kind="assert") as h:
+            h.record_assert(">=1 char", preview)
+            assert preview, "expected a non-empty preview of what the participant will be asked"
+
+        with page.expect_response(
+            lambda r: r.url.endswith("/invitations") and r.request.method == "POST"
+        ) as invite_resp_info:
+            invite_url = people.generate_link(SECOND_PARTICIPANT.name.split()[0])
+        invite_response = invite_resp_info.value
+        with recorder.step("§1.4 wire: POST .../invitations succeeds with no live agent",
+                            party="stack", kind="assert") as h:
+            h.record_assert(201, invite_response.status)
+            assert invite_response.status == 201, (
+                f"US1 acceptance scenario 2: expected 201, got {invite_response.status}")
+        people.close_popup()
+        with recorder.step("§1.4: the generated link is real", party="founder", kind="assert") as h:
+            h.record_assert("non-empty url", invite_url)
+            assert invite_url, "expected a real invitation link, not a placeholder"
+
+        participant_context = browser.new_context()
+        try:
+            participant_page = participant_context.new_page()
+            pb = ParticipantBrowser(participant_page, recorder)
+            pb.open(invite_url)
+            pb.start()
+            pb.answer(SECOND_PARTICIPANT.answer_texts())
+            pb.submit()
+        finally:
+            participant_context.close()
+
+        # --------------------------------------------------- US1 step 5: reading is not offered
+        people.switch_to_who_tab()
+        rows = people.table_rows()
+        first_name = SECOND_PARTICIPANT.name.split()[0]
+        target_row = next((r for r in rows if first_name in r["person"]), None)
+        with recorder.step("§1.5: the new answer shows in Their answer; Your agent reads Not read yet",
+                            party="founder", kind="assert") as h:
+            h.record_assert({"their_answer": "answered", "your_agent": "not read yet"}, target_row)
+            assert target_row is not None, f"expected a row for {SECOND_PARTICIPANT.name!r}, got {rows}"
+            assert "answered" in target_row["their_answer"].lower(), (
+                f"expected Their answer to read Answered, got {target_row!r}")
+            assert "not read yet" in target_row["your_agent"].lower(), (
+                f"expected Your agent to read Not read yet, got {target_row!r}")
+
+        read_state = people.read_action_state()
+        with recorder.step("§1.5/§1.6: the read action is disabled and states why, with no agent",
+                            party="founder", kind="assert") as h:
+            h.record_assert({"enabled": False, "reason": "non-empty"}, read_state)
+            # US1 acceptance scenario 3 / this spec's own stated prediction: keel-web's People
+            # page never consults the agent state, so the button stays offered on `unreadCount >
+            # 0` alone. If this assertion fails, that is the finding -- record it in
+            # runs/DRIFT.md with this screen's evidence beside the wire evidence above, never
+            # worked around here.
+            assert not read_state["enabled"], (
+                "US1 scenario 3: expected the read action disabled with no agent connected, "
+                f"got {read_state!r}")
+            assert read_state["reason"], (
+                f"US1 scenario 3: expected a reason shown beside the disabled read action, got {read_state!r}")
+
+        # ------------------------------------------------------------- US1 step 6: the brief still downloads
+        shell.open_brief()
+        brief = Brief(page, recorder)
+        brief.open(project_id)
+        with recorder.step("§1.10: the brief renders the four lists, no agent",
+                            party="founder", kind="assert") as h:
+            headings = brief.list_headings()
+            h.record_assert(">=1 heading", headings)
+            assert headings, "expected at least one belief-status list on the brief"
+        brief.view_print()
+        who = brief.who_was_asked()
+        with recorder.step("§1.10: the print view names who was asked, no agent",
+                            party="founder", kind="assert") as h:
+            h.record_assert(">=1 name", who)
+            assert who, "expected the print view's Who was asked list to render"
+
+        with recorder.step("wire: GET .../standing reads 200 with no live agent",
+                            party="stack", kind="assert") as h:
+            response = _get_response(f"/v2/projects/{project_id}/standing")
+            h.record_assert(200, response.status)
+            assert response.status == 200, f"expected 200, got {response.status}: {response.text()}"
+
+        # -------------------------------------------------------------------- US1 step 7: reconnect
+        result = reconnect(stack, recorder)
+        with recorder.step("§1.0: reconnecting mints a new device authorization",
+                            party="stack", kind="assert") as h:
+            h.record_assert("authorization_started", result.get("outcome"))
+            assert result["outcome"] == "authorization_started", (
+                f"expected reconnecting to need a fresh device approval (the old one is spent), "
+                f"got {result}")
+        connect = Connect(page, recorder)
+        frame = connect.open(result["verification_uri"])
+        with recorder.step("§1.0: the verification URI opens frame B again", party="founder", kind="assert") as h:
+            h.record_assert("B", frame)
+            assert frame == "B", f"expected the device-decision frame B, got {frame!r}"
+        connect.approve()
+        connect.wait_for_connected(timeout_s=30)
+        connect.go_to_projects()
+
+        landing.visit()
+        with recorder.step("§1.0: the agent line reads connected again", party="founder", kind="assert") as h:
+            agent_line = shell.agent_line_text()
+            h.record_assert("agent connected", agent_line)
+            assert "agent connected" in agent_line.lower(), f"expected agent connected, got {agent_line!r}"
+
+        landing.open_project(0)
+        people = People(page, recorder)
+        people.open(project_id)
+        people.switch_to_who_tab()
+        read_state = people.read_action_state()
+        with recorder.step("§1.6: the read action is available again, reconnected",
+                            party="founder", kind="assert") as h:
+            h.record_assert({"enabled": True}, read_state)
+            assert read_state["enabled"], f"expected the read action enabled once reconnected, got {read_state!r}"
+
+        read_result = people.read_all_and_wait(timeout_s=60)
+        with recorder.step("§1.6: the toast names what moved", party="founder", kind="assert") as h:
+            h.record_assert("non-empty toast", read_result["toast_text"])
+            assert read_result["toast_text"].strip(), "expected a non-empty toast after the agent read the answer"
+
+        problem_card_after = StageCard(page, recorder)
+        opened_after = problem_card_after.open(project_id, "PROBLEM")
+        with recorder.step("§1.6: the card still carries a verdict once read",
+                            party="founder", kind="assert") as h:
+            h.record_assert("a status word", opened_after["status"])
+            assert opened_after["status"], "expected the problem card to still show a status word"
+
+        # --------------------------------------------------------- US1 step 8: new project allowed again
+        landing.visit()
+        arrival_final = landing.visit()
+        new_project_enabled = landing.new_project_enabled()
+        with recorder.step("§1.0: New project is live again, agent reconnected",
+                            party="founder", kind="assert") as h:
+            h.record_assert({"agent_connected": True, "new_project_enabled": True},
+                             {"agent_connected": arrival_final["agent_connected"],
+                              "new_project_enabled": new_project_enabled})
+            assert arrival_final["agent_connected"], "expected the agent connected on the final landing visit"
+            assert new_project_enabled, "expected New project enabled again once reconnected"
+
+        passed = True
+    finally:
+        context.close()
+        duration = time.monotonic() - started
+        finalize_run(run_dir, slug="s002-agent-optional", facts=_facts(), passed=passed,
+                     failed_step=recorder.failed_step, duration_s=duration)
+        print(f"\nrun bundle: {run_dir}")
