@@ -1007,7 +1007,7 @@ so the client is the side that drifted.
 `evals/test_s001_smoke.py`'s S4 section clicks it directly while still asserting the People
 unlock separately.
 
-## 17. BLOCKING (spec 006-agent-optional's own stated prediction, confirmed): the read action is
+## 17. RESOLVED -- was BLOCKING (spec 006-agent-optional's own stated prediction, confirmed): the read action is
 offered with no agent connected, refused only after the click, with the refusal never rendered
 
 **Severity: blocking** for US1 acceptance scenario 3 ("the founder is never left to discover it by
@@ -1091,7 +1091,15 @@ should render `isApiError(startReadings.error)` via `RemedyBanner`, the same pat
 `NameProjectStep` already uses for the equivalent `POST /v2/projects` refusal), so a refusal that
 does reach the wire is never silent either.
 
-## 18. Non-blocking: a reading batch's completion toast reappears on every later visit to People,
+**#17 RESOLVED 2026-09-04**: keel-web `cadbc19` -- `PeopleRoute.tsx` now reads the agent state from
+`useMe` and disables the read action with the reason beside it (`translate.ts`
+`READING_LOCKED_REASON`: "Needs your agent -- run keel connect to read them") whenever no agent is
+connected; the wire's own `rule: agent` refusal, if it ever arrives, renders as a `RemedyBanner`
+instead of vanishing. Confirmed by `20260904T034746Z-s002-agent-optional` (passed): the
+"§1.5/§1.6: the read action is disabled and states why, with no agent" step records
+`{enabled: false, reason: non-empty}`.
+
+## 18. RESOLVED -- was non-blocking: a reading batch's completion toast reappears on every later visit to People,
 not only "just after it finished"
 
 **Severity: non-blocking** -- cosmetic and confusing (a founder can read a stale "things moved"
@@ -1146,7 +1154,12 @@ or a small "last-toasted batch id" piece of state persisted alongside `batchId`)
 `showToast` the first time a given batch is observed `DONE`, not on every mount that happens to
 adopt it as "most recent."
 
-## 19. Non-blocking (worked around: log out and back in): a runtime that reconnects using its own
+**#18 RESOLVED 2026-09-04**: keel-web `cadbc19` -- the completion toast fires once per batch id
+(`sessionStorage` key `keel.reading-toast.<batchId>`), so a later visit to People that adopts the
+most recent `DONE` batch as its query no longer re-shows it. Confirmed by
+`20260904T034746Z-s002-agent-optional`: no stale toast after the re-login.
+
+## 19. RESOLVED -- was non-blocking (worked around: log out and back in): a runtime that reconnects using its own
 still-valid stored credential never rebinds the founder's already-open keel session
 
 **Severity: non-blocking** -- a real founder can still reach a connected state (by logging out and
@@ -1199,3 +1212,13 @@ session exists but is unbound, calling a new or existing `bind()`-shaped endpoin
 code at all, or (b) `POST /v2/me` (or a lightweight poll) could re-run the same "most recently
 seen live agent" auto-bind `open()` already does, on demand, so a still-open keel session can pick
 up a runtime that came back without forcing a fresh login.
+
+**#19 RESOLVED 2026-09-04**: keel-cloud `633c1ac` -- `AgentSessionService.create` now binds the new
+agent session to the founder's most recent ACTIVE keel session as well as to the one that approved
+the credential (the approving session stays bound, spec 020 FR-013), so a runtime that comes back
+from its stored credential turns the already-open landing green on its own; pinned end to end by
+`KeelSessionBindingTest.aRuntimeThatStartsAfterANewLoginBindsToTheSessionThatIsOpenNow`. The
+scenario's logout/login fallback is gone: `evals/test_s002_agent_optional.py` now waits (≤40s) for
+the open landing to read connected and fails the run if it never does. Confirmed by
+`20260904T041459Z-s002-agent-optional` (passed, 5.0/5 under policy v7): the step "§1.0: a silent
+reconnect binds the keel session that is open now (DRIFT #19)" records `agent_connected: true`.

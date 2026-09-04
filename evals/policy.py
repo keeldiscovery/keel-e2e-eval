@@ -208,6 +208,14 @@ Judgement calls made while filling in what the contract leaves to the implementa
    over four hops instead of eight, GUIDANCE/ORIENTATION over UI-only checks instead of UI-plus-
    wire ones. The four weights still sum to 1.0 and nothing here changes `score_categories`'s math
    (`harness/scoring.py`), only which checks feed it.
+
+10. **Policy v7: two more English-word collisions exempted from CLA-U1** -- "assumptions" (the
+   approval note's own copy) and "CONTRADICTED" (the brief's CSS-uppercased heading "what they
+   contradicted"). Same shape as judgement calls 1 and 5; see `_ENGLISH_COLLISION_EXEMPTIONS`.
+   FIDELITY's fact registry is a scenario's own responsibility: S-002 now registers only the
+   answers it actually puts on a screen (its own participant's, read back on P9 with no agent),
+   because a fact registered for a hop the run never visits is a check with nothing to check, not
+   evidence of infidelity (S-002's first green run scored FIDELITY 1.0 that way). No weight changes.
 """
 
 from __future__ import annotations
@@ -215,7 +223,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-POLICY_VERSION = 6
+POLICY_VERSION = 7
 
 CATEGORY_WEIGHTS: dict[str, float] = {
     "FIDELITY": 0.4,
@@ -371,7 +379,18 @@ CONNECT_STATES = {"AWAITING_CONFIRMATION", "ACCEPTED", "PENDING", "RUNNING", "DO
 # the `Need` token of the same spelling exactly as "EVIDENCE" does. Exempted for the same reason;
 # a raw `REVIEW` leaking as a *need* token would have to arrive in mixed-case JSON to be a leak at
 # all, and CLA-U2's structural sweep still catches that.
-_ENGLISH_COLLISION_EXEMPTIONS = {"roles", "EVIDENCE", "REVIEW"}
+#
+# Policy v7, judgement call 10, the same shape a third time, live-confirmed on the first green
+# S-002 run (`runs/20260904T034746Z-s002-agent-optional`) and on S-001 `20260904T025553Z`: the
+# final approval note's own copy reads "That's how the assumptions get validated." (`translate.ts`,
+# the founder's own phrasing for what the People page does) -- "assumptions" there is the English
+# plural, colliding with the retired aggregate handle of the same spelling; and the brief's own
+# section heading "Not holding up -- what they contradicted" is rendered upper-case by CSS, so
+# `.inner_text()` reads "CONTRADICTED", colliding with the verdict token. Both are approved house
+# copy in keel-web's copy-string guarantee, not leaks. Exempted for the same reason as "EVIDENCE";
+# a raw `CONTRADICTED` arriving as a verdict would come in mixed-case JSON and CLA-U2 still catches
+# that, and the retired handle vocabulary itself left with the agent protocol (keel-cloud spec 025).
+_ENGLISH_COLLISION_EXEMPTIONS = {"roles", "EVIDENCE", "REVIEW", "assumptions", "CONTRADICTED"}
 
 # See module docstring, judgement call 1: StageType names are excluded on purpose.
 CLARITY_TOKENS: set[str] = (

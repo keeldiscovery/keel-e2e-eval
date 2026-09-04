@@ -1418,7 +1418,7 @@ class ParticipantBrowser:
                     box.fill(answer_text)
                 h.add_screenshot(self._bstep.screenshot("participant-answers-filled"))
 
-    def answer(self, texts: list[str | None]) -> None:
+    def answer(self, texts: list[str | None]) -> list[str]:
         """Per-question control -- `texts[i]` fills only the i-th question's *main* box (DOM
         order). Iterates `.q` (one per question) rather than `.q > textarea.box` directly: each
         question wraps *two* such boxes (main, disconfirming), so indexing the flat box list
@@ -1426,14 +1426,23 @@ class ParticipantBrowser:
         `None` (or any falsy string) leaves that question's main box, probes and disconfirming
         answer all blank, which the server records as no answer at all for that assumption
         (journeys §2.2: "every question can be skipped").
+
+        Returns the texts actually typed, in DOM order. An invitation asks only what is still
+        open for that kind of person (keel-cloud computes the asks from the aggregate at invite
+        time), so a page may carry fewer questions than `texts` -- the caller must assert on, and
+        register as facts, only what came back here.
         """
+        typed: list[str] = []
         with self._scope():
             with self._bstep.step("participant answers questions") as h:
                 questions = self.page.locator(".q").all()
                 for question, text in zip(questions, texts):
                     if text:
                         question.locator("> textarea.box").first.fill(text)
+                        typed.append(text)
+                h.capture_text("typed_count", str(len(typed)))
                 h.add_screenshot(self._bstep.screenshot("participant-answers-filled"))
+        return typed
 
     def skip_one_question(self) -> None:
         """Leaves the last question's main box blank (still legal) -- spec US2 step 6's "skip one

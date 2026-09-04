@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-04
 
-**Status**: Draft — for the founder's review
+**Status**: Implemented 2026-09-04 — green on the playground profile; findings #17/#18 (keel-web) and #19 (keel-cloud) fixed and re-pinned
 
 **Input**: the founder's direction of 2026-09-04: a founder connects a runtime, creates a project,
 logs out; later the runtime is not running and they log back in. Creating a *new* project must be
@@ -38,7 +38,9 @@ card, with invitations already sent and at least one answer already read:
    real. A participant opens it in an isolated context and answers.
 5. **Reading is the one thing that is not offered.** Back on People, the new answer shows in
    *Their answer*; the *Your agent* column reads *Not read yet*; and the read action is **visibly
-   unavailable with its reason** — not merely refused after a click.
+   unavailable with its reason** — not merely refused after a click. **Seeing the answer still
+   works**: *See Priya's answers* (P9) shows her own words verbatim with no agent — the founder's
+   reading and the agent's inference are two different things.
 6. **The brief still downloads.** Nav → *Brief* → the standing renders with the four lists and the
    people who were asked; the print layout renders (`emulate_media("print")`).
 7. **Reconnect.** Run the connect skill again, approve the new device code in the browser, and the
@@ -74,6 +76,12 @@ beside the screen: with no live agent, `POST /v2/projects` answers `422 rule: ag
 - **Reconnecting mints a new device authorization** — the old one is spent. Step 7 runs the skill
   script fresh.
 - **The stale toast**: a completion toast from before the logout must not reappear after login.
+- **An invitation asks only what is still open for that kind of person.** keel-cloud derives the
+  asks from the aggregate at invite time, so the second payroll manager's page carries fewer
+  questions than the first's did (live: one, the solution-stage belief). The scenario types its
+  answers into whatever questions exist and asserts on — and registers as facts — only what was
+  actually typed. Likewise the prelude's participants' answers are not facts here: the run never
+  opens P9 for them.
 - Runs on the **playground** profile by default, like S-001, so two operators never collide.
 
 ## Requirements

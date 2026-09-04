@@ -15,8 +15,21 @@ from harness import scoring
 from harness.steps import Recorder
 
 
-def test_policy_version_is_6():
-    assert policy.POLICY_VERSION == 6
+def test_policy_version_is_7():
+    # v6 retired the agent-protocol half; v7 (judgement call 10) only widens the English-word
+    # collision exemptions -- the scenarios below still test v6's vocabulary claims unchanged.
+    assert policy.POLICY_VERSION == 7
+
+
+def test_v7_exempts_the_two_house_copy_collisions():
+    """Judgement call 10: approved keel-web copy must not read as an enum leak."""
+    assert "assumptions" not in policy.CLARITY_TOKENS
+    assert "CONTRADICTED" not in policy.CLARITY_TOKENS
+    assert policy.enum_violations("NOT HOLDING UP \u2014 WHAT THEY CONTRADICTED") == []
+    assert policy.enum_violations("That's how the assumptions get validated.") == []
+    # and the neighbours are still swept
+    assert policy.enum_violations("verdict: SUPPORTED") == ["SUPPORTED"]
+    assert policy.enum_violations("status AWAITING_CONFIRMATION") == ["AWAITING_CONFIRMATION"]
 
 
 def test_agent_protocol_checks_are_gone_from_the_registry():

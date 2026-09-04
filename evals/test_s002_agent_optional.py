@@ -15,6 +15,11 @@ so with an unread answer and no runtime it is expected to be *offered*, not disa
 reason. If confirmed, that is US1 acceptance scenario 3 failing and a `runs/DRIFT.md` entry, never
 a harness workaround (this repo owns no product code).
 
+**Resolved findings this scenario now pins**: #17 (the read action is disabled with its reason when
+no agent is connected), #18 (no stale completion toast after re-login) and #19 (a runtime that
+reconnects silently binds the keel session that is open now -- the logout/login workaround this
+file carried for one run is gone).
+
 Prelude (spec edge case): reuses whatever project already exists in this same stack session (an
 S-001 run, most naturally) if one does; otherwise builds its own via
 `evals/preludes.approved_project_with_one_read` -- a project approved through every stage, one
@@ -38,32 +43,41 @@ from harness.evidence import finalize_run
 from harness.steps import Recorder
 
 # A second, genuinely different payroll manager (spec US1 step 4: a fresh, still-unread
-# invitation created while no agent is connected) -- same role as `fx.PARTICIPANTS[0]` (Dana
-# Okafor, already invited and read by the prelude), so her invitation's own `asks` carries the
-# same headings keel-runtime's bundled script's first INTERPRET entry resolves against (the
-# scripted executor's own cursor is per-process, spec's own edge case: a fresh runtime process
-# after `reconnect` starts that cursor over from 0 -- see `harness/connect.reconnect`'s docstring).
+# invitation created while no agent is connected) -- same kind of person as `fx.PARTICIPANTS[0]`
+# (Dana Okafor, already invited and read by the prelude). An invitation asks only what is still
+# open for that kind of person at the moment it is generated (keel-cloud derives the asks from
+# the aggregate; a belief the agent has already found holding up is not asked again), so Priya's
+# page carries fewer questions than Dana's did -- live-confirmed (run
+# `20260904T040636Z-s002-agent-optional`): one question, the solution-stage belief. Her answers are
+# therefore an ordered list the harness types into whatever questions exist, first answer first,
+# and the scenario asserts on -- and registers as facts -- only what was actually typed.
 SECOND_PARTICIPANT = Participant(
     name="Priya Raman",
     role_label=fx.PAYROLL_MANAGER_ROLE,
-    headings=fx.PAYROLL_MANAGER_HEADINGS,
+    headings=[fx.SOLUTION_BELIEF_NOWHERE_TO_LIVE]
+    + [h for h in fx.PAYROLL_MANAGER_HEADINGS if h != fx.SOLUTION_BELIEF_NOWHERE_TO_LIVE],
     answers={
+        "Exceptions have nowhere to live today": "Inside the payroll tool, please -- that is where the exceptions already show up.",
         "They handle exceptions themselves": "It lands on me every cycle, not anyone else.",
         "It costs hours, not minutes": "The last one took most of an afternoon to untangle.",
         "They've tried to fix it": "We tried a shared inbox rule once; nobody kept it up.",
-        "Exceptions have nowhere to live today": "Whoever notices just pings me directly.",
         "Someone would accept being the owner": "I'd take it, if the tool actually assigned it.",
     },
 )
 
 
-def _facts() -> dict[str, Fact]:
-    """S-001's own registry plus the one participant this scenario invites itself."""
-    result = dict(fx.facts())
+def _facts(typed_answers: list[str]) -> dict[str, Fact]:
+    """S-001's statements and roles, plus the words this scenario's own participant actually typed.
+    The prelude's participants' *answers* are left out on purpose: their `participant_page` hop is
+    the founder's P9 popup, and this scenario never opens it for them (the prelude reads Dana
+    through the agent, not through P9). A fact registered for a screen the run never visits is not
+    evidence of infidelity, it is a check with nothing to check -- live-confirmed (run
+    `20260904T034746Z-s002-agent-optional`): FIDELITY 1.0 on a run where every word shown was
+    shown verbatim. Priya's facts are likewise only the answers her page had questions for."""
+    result = {key: fact for key, fact in fx.facts().items() if fact.kind != "answer"}
     slug = SECOND_PARTICIPANT.name.lower().replace(" ", "_")
-    for heading, text in SECOND_PARTICIPANT.answers.items():
-        heading_slug = heading.lower().replace(" ", "_").replace(",", "").replace("'", "")
-        result[f"{slug}_{heading_slug}"] = Fact(text=text, kind="answer", hops=["participant_page"])
+    for n, text in enumerate(typed_answers, start=1):
+        result[f"{slug}_answer_{n}"] = Fact(text=text, kind="answer", hops=["participant_page"])
     return result
 
 
@@ -128,6 +142,7 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
     recorder = Recorder(run_dir)
     web_base = f"http://localhost:{stack.web_port}"
     cloud_base = f"http://localhost:{stack.cloud_port}"
+    typed_answers: list[str] = []
     started = time.monotonic()
     passed = False
     context = browser.new_context()
@@ -273,7 +288,7 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
             pb = ParticipantBrowser(participant_page, recorder)
             pb.open(invite_url)
             pb.start()
-            pb.answer(SECOND_PARTICIPANT.answer_texts())
+            typed_answers = pb.answer(SECOND_PARTICIPANT.answer_texts())
             pb.submit()
         finally:
             participant_context.close()
@@ -295,6 +310,21 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
                 f"expected Their answer to read Answered, got {target_row!r}")
             assert "not read yet" in target_row["your_agent"].lower(), (
                 f"expected Your agent to read Not read yet, got {target_row!r}")
+
+        # §1.6: seeing a person's own words needs no agent -- the founder's reading and the
+        # agent's inference are two different things (screen-review design, People). This is the
+        # sentence S-002 exists to pin, so it is asserted here with the runtime dead, and it is
+        # also how Priya's typed answers reach FID's `participant_page` hop on the founder's screen.
+        people.open_answers_popup(first_name)
+        answers = people.answers_popup_text()
+        with recorder.step(f"§1.6: with no agent, P9 still shows {first_name}'s own words verbatim",
+                            party="founder", kind="assert") as h:
+            joined = "\n".join(row["answer"] for row in answers["qa"])
+            missing = [text for text in typed_answers if text not in joined]
+            h.record_assert(typed_answers, joined)
+            assert typed_answers, "expected the participant page to have carried at least one question"
+            assert not missing, f"expected {first_name}'s own words in P9, missing {missing}"
+        people.close_answers_popup()
 
         read_state = people.read_action_state()
 
@@ -374,31 +404,26 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
             connect.wait_for_connected(timeout_s=30)
             connect.go_to_projects()
         else:
-            # Live-confirmed (run `20260904T031913Z-s002-agent-optional` and its diagnostic
-            # follow-ups): this stack's stored, still-valid runtime credential makes
-            # `keel_connect_check.py` reconnect silently (`"connected"`), skipping the device-code
-            # dance -- no `verification_uri` is minted at all. keel-cloud only ever binds a keel
-            # session to a live agent at `POST /v2/login` (`KeelSessionService.open`'s own
-            # "most recently seen" auto-bind) or via the explicit device-approval `bind()` endpoint
-            # (`KeelSessionController`) -- neither fires here, so the *already-open* keel session
-            # from this scenario's own re-login (step 2) never rebinds on its own, no matter how
-            # long the reconnected runtime keeps heartbeating (confirmed: unchanged over 40 polls
-            # / 120s). keel-web's `/connect` bare entry (`ConnectRoute.tsx`'s `ScreenD`) offers no
-            # affordance for this either -- just a code box and the current (still-disconnected)
-            # state. The only path a real founder has to see it is what S-001's own arrival already
-            # proved works: log out and back in, so `POST /v2/login` re-derives the auto-bind
-            # against the now-live agent. Recorded as a `runs/DRIFT.md` finding, not silently
-            # routed around: this repo owns no product code, and this branch is real product
-            # behavior, driven the one way that actually reaches "agent connected" in the UI.
-            with recorder.step("DRIFT evidence: a silent reconnect never rebinds the open keel session",
+            # The stack's stored, still-valid runtime credential makes `keel_connect_check.py`
+            # reconnect silently ("connected") -- no device code is minted, so there is no frame B
+            # to approve. keel-cloud binds the new agent session to the founder's *currently open*
+            # keel session as well as to the one that approved the credential
+            # (`AgentSessionService.create`, the fix for runs/DRIFT.md #19), so the landing that is
+            # already open must turn green on its own, within the runtime's first heartbeat. Before
+            # that fix the only way through was to log out and back in; that workaround is gone,
+            # so a regression here fails the run instead of being routed around.
+            with recorder.step("§1.0: a silent reconnect binds the keel session that is open now (DRIFT #19)",
                                 party="stack", kind="assert") as h:
-                unchanged = landing.visit()
-                h.record_assert({"agent_connected": True}, {"agent_connected": unchanged["agent_connected"]})
+                deadline = time.monotonic() + 40
+                seen = landing.visit()
+                while not seen["agent_connected"] and time.monotonic() < deadline:
+                    time.sleep(2)
+                    seen = landing.visit()
+                h.record_assert({"agent_connected": True}, {"agent_connected": seen["agent_connected"]})
                 h.capture_text("screen", "landing")
-            landing.log_out()
-            Auth(page, recorder, web_base).log_in(
-                email=founder_credentials.email, password=founder_credentials.password)
-            landing = Landing(page, recorder, web_base)
+                assert seen["agent_connected"], (
+                    "DRIFT #19 regressed: the reconnected runtime never bound the open keel session "
+                    "(landing still reads no agent connected after 40s)")
 
         landing.visit()
         with recorder.step("§1.0: the agent line reads connected again", party="founder", kind="assert") as h:
@@ -444,6 +469,6 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
     finally:
         context.close()
         duration = time.monotonic() - started
-        finalize_run(run_dir, slug="s002-agent-optional", facts=_facts(), passed=passed,
+        finalize_run(run_dir, slug="s002-agent-optional", facts=_facts(typed_answers), passed=passed,
                      failed_step=recorder.failed_step, duration_s=duration)
         print(f"\nrun bundle: {run_dir}")
