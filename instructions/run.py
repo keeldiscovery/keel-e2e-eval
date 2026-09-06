@@ -149,7 +149,8 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
 
         if answer.errored:
             errored += 1
-        if answer.outcome is not None and not answer.schema_valid:
+        if answer.never_fit or (answer.outcome is not None and not answer.schema_valid) \
+                or (answer.outcome is None and answer.schema_error and not answer.errored):
             schema_invalid += 1
 
         failed = answer.error or (answer.schema_error if not answer.schema_valid else None)
@@ -170,6 +171,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         report_mod.write_case(run_dir, case, answer, diff)
         prompts.append({"case_id": case.case_id, "screen": case.screen, "prompt": case.prompt})
         status = ("ERROR" if answer.errored else
+                  "never fit its shape" if answer.never_fit else
                   answer.outcome or "no-outcome") + ("" if answer.schema_valid else " (invalid)")
         print(f"[{index}/{len(cases)}] {case.case_id:<44} {status}")
 

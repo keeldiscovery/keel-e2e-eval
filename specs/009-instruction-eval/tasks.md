@@ -20,24 +20,24 @@ the run proves it. A rubric change bumps `MARKS_VERSION`. Gate: `make unit`, the
 
 ## Phase 1: Read the world, spend nothing
 
-- [ ] T001 `requirements.txt`: add `pyyaml>=6.0` (the one new dependency, plan.md). `make venv`
+- [X] T001 `requirements.txt`: add `pyyaml>=6.0` (the one new dependency, plan.md). `make venv`
       re-resolves. `instructions/__init__.py` with the package docstring naming this spec and saying
       what makes this package different from `evals/` and `harness/`.
-- [ ] T002 `instructions/corpus.py` (FR-001): load every `canon/designs/measured-beliefs/corpus/*.yaml`
+- [X] T002 `instructions/corpus.py` (FR-001): load every `canon/designs/measured-beliefs/corpus/*.yaml`
       from the keel-cloud path in `stack.toml`, read-only, into the `Entry`/`GoldenBelief`/`Person`
       shapes of [data-model.md](data-model.md) §1. SHA-256 every file on load and expose
       `verify_unchanged()` for the end of a run. Carry the three notes: `founderPhrase` has nowhere
       to go, taps are English here and enum names on the wire, anchors carry a `stage` the aggregate's
       questionnaire does not.
-- [ ] T003 `instructions/contract.py` (FR-002): shell `./gradlew -q screenContracts --args="export <run>/contracts"`
+- [X] T003 `instructions/contract.py` (FR-002): shell `./gradlew -q screenContracts --args="export <run>/contracts"`
       in the keel-cloud checkout and read back `contracts/<SCREEN>.json`, `context-keys.json` and
       `manifest.json` per keel-cloud spec 029's contract. A missing task or a non-zero exit is a
       refusal to start naming the prerequisite, never a score.
-- [ ] T004 `instructions/instruction.py` (FR-003): read
+- [X] T004 `instructions/instruction.py` (FR-003): read
       `<keel-cloud>/src/main/resources/keel/inference-instructions/<stem>.md` and `.strip()` it, so
       the prompt carries exactly what `InferenceInstructionRegistry.get` returns. One table from
       `InferenceScreen` to file stem.
-- [ ] T005 `instructions/context.py` (FR-005): fill every key `context-keys.json` names for a screen,
+- [X] T005 `instructions/context.py` (FR-005): fill every key `context-keys.json` names for a screen,
       in its order, `null` where there is no value — statements and `market` from the entry,
       `existing_roles` derived from earlier stages' `askedOf` — `[]` for PROBLEM, PROBLEM's roles for
       SOLUTION, those plus SOLUTION's for COMMERCIAL ([research.md](research.md) R5a) — and for
@@ -45,47 +45,61 @@ the run proves it. A rubric change bumps `MARKS_VERSION`. Gate: `make unit`, the
       `ScreenContextBuilder.anchorsWritten` omits it. The tap English→enum table lives here, and the
       `existing_roles` set supplied is recorded per case so a duplicate-heavy extras list can be
       read as this first.
-- [ ] T006 `instructions/prompts.py` (FR-004): build `{instruction, context, interaction_history: [],
+- [X] T006 `instructions/prompts.py` (FR-004): build `{instruction, context, interaction_history: [],
       input: {content: ""}, response_contract}` — `InferenceJobService.buildRequestPayload`'s shape
       with the auto-screen empty-content sentinel — then `keel_runtime.executor.build_prompt`. Write
       no prompt text here.
-- [ ] T007 [P] `tests/test_instruction_context.py` and `tests/test_instruction_prompts.py` (FR-018):
+- [X] T007 [P] `tests/test_instruction_context.py` and `tests/test_instruction_prompts.py` (FR-018):
       the payload shape against a recorded key list; every key present and ordered; a blank anchor
       absent; a tap mapped; the empty-content sentinel. Stackless, no model.
-- [ ] T008 `instructions/run.py`: the `python -m instructions.run` entry point with `--dry-run`,
+- [X] T008 `instructions/run.py`: the `python -m instructions.run` entry point with `--dry-run`,
       `--baseline`, `-k`, `-n`, `--marks`; in dry-run it prints every prompt it would send and the
       estimated case count and cost, and calls nothing.
-- [ ] T009 Gate: `make unit` green; `python -m instructions.run --dry-run -k 01-countly` prints an
+- [X] T009 Gate: `make unit` green; `python -m instructions.run --dry-run -k 01-countly` prints an
       assumption prompt and a reading prompt in full. **Read them both** — `TASK`, `CONTRACT`, the
       `SOURCE MATERIAL` heading, the nonce-fenced block — before any money is spent
       ([quickstart.md](quickstart.md)).
+      - **Note (2026-09-06)**: gate passed, and it earned its keep. `make unit` green at 123 tests
+        (16 of them this feature's). The dry run printed both prompts in full and reading them
+        found a real bug before a penny was spent: the corpus keys its statements
+        `problem`/`solution`/`commercial` in **lower** case while `StageType` is upper, so every
+        `*_statement` was arriving `null` — the one value that makes an assumption screen
+        legitimately ask (decision 14), which would have turned the whole baseline into a
+        measurement of this harness. Fixed in `instructions/context.py` with a regression test.
+        The reading prompt confirmed the drift the baseline is meant to expose: the context is
+        `invitation_id` + `anchors`, and `interpret.md` still says it has "four fields" including
+        `raw_answer_text` and `assumptions`.
 
 ## Phase 2: Score, still with no model
 
-- [ ] T010 `instructions/align.py` (FR-009): the deterministic structural matcher of
+- [X] T010 `instructions/align.py` (FR-009): the deterministic structural matcher of
       [data-model.md](data-model.md) §4 — candidates by stage, type, measure kind and band overlap,
       or expected option and option-set overlap; pair score over the **seven** fields (the six, plus
       `founderPhrase`) with a heading tie-break; greedy maximum with ties broken by golden id order.
       Mark each pair `by: "structure"`.
-- [ ] T011 `instructions/score.py` (FR-011, FR-013): the metrics of
+- [X] T011 `instructions/score.py` (FR-011, FR-013): the metrics of
       [contracts/metrics-contract.md](contracts/metrics-contract.md) — golden-belief recall,
       per-field exact-match over matched pairs only **including `founderPhrase`** (absent on both
       sides agrees; present on one side only is a miss), the phrase-and-band pair read together in
       its four combinations, the **`NEEDS_INPUT`-as-failed-case** rule of decision 14, extra-belief
       count, anchoring accuracy with `GUESSED` precision and recall, the confusion matrix, and the
       per-case spread across N runs. Nothing is averaged before it is reported.
-- [ ] T012 `instructions/marks.py` + `instructions/marks.toml` (FR-014): `MARKS_VERSION = 1`, the
+- [X] T012 `instructions/marks.py` + `instructions/marks.toml` (FR-014): `MARKS_VERSION = 1`, the
       three marks, a TOML override, and the module docstring's append-only numbered judgement-calls
       block seeded with the **ten** from the metrics contract — the shape `evals/policy.py` uses.
-- [ ] T013 [P] `tests/test_instruction_align.py` (FR-018, SC-002): **the fixed point** — every corpus
+- [X] T013 [P] `tests/test_instruction_align.py` (FR-018, SC-002): **the fixed point** — every corpus
       entry aligned against itself scores 100 % recall and 100 % exact match on every field, with
       zero judge calls. Plus the hard case: `01-countly.yaml`'s `P4a`/`P4b`, two beliefs on one shared
       multi-select selection with identical option lists, in the produced set's reverse order.
-- [ ] T014 [P] `tests/test_instruction_score.py` (FR-018): the metric arithmetic on hand-built
+- [X] T014 [P] `tests/test_instruction_score.py` (FR-018): the metric arithmetic on hand-built
       fixtures — a reader that answers `ANCHORED` to everything must show high accuracy and zero
       `GUESSED` recall, which is the whole reason the two are reported apart.
-- [ ] T015 Gate: `make unit` green, including the fixed point. A matcher that cannot recognise the
+- [X] T015 Gate: `make unit` green, including the fixed point. A matcher that cannot recognise the
       golden set as itself cannot be trusted to score a model's.
+      - **Note (2026-09-06)**: the fixed point holds across all seven entries and all three stages
+        — 100 % recall, every scored field agreeing, every pair a belief with itself, and zero
+        ambiguities needing a judge. `01-countly`'s `P4a`/`P4b` pair the right way round when the
+        produced set is reversed, so position never decides a match.
 
 ## Phase 3: Call the model, leave a bundle
 
