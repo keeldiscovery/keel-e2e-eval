@@ -1,0 +1,12 @@
+# The three marks a run is judged against (spec 009, contracts/metrics-contract.md).
+#
+# Override with `make instruction-eval MARKS=<file>`; whatever judged a run is written into its
+# verdict.json with the MARKS_VERSION that judged it. Changing a number here, a metric definition,
+# or an alignment rule bumps instructions/marks.py's MARKS_VERSION -- the same rule
+# evals/policy.py states for POLICY_VERSION, and a separate constant so the two can never be
+# confused.
+
+[marks]
+anchoring_accuracy = 0.90
+golden_belief_recall = 0.80
+refusals = 0
