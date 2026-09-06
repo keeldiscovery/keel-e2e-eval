@@ -216,3 +216,25 @@ def test_measure_per_is_scored_because_two_measures_that_differ_in_per_are_two_m
         "which is exactly why `per` had to become a field of its own"
     assert align_mod.compare(per_incident, dict(per_incident))["per"] is True
     assert align_mod.compare(_GOLDEN_CHOICE, dict(_GOLDEN_CHOICE))["per"] is None
+
+
+def test_a_corpus_annotation_is_stripped_before_a_phrase_is_compared():
+    """MARKS_VERSION 3, judgement call 15. Twenty-two of the frozen corpus's eighty-eight
+    `founderPhrase` values end in a note written for a reviewer rather than by a founder. No
+    instruction can reproduce them, so they are taken off the golden side at comparison time —
+    which compares like with like, and leaves the corpus untouched."""
+    assert align_mod.normalise_phrase(
+        "scans each delivery on arrival (the present-tense half, per §8.1 step 3)") \
+        == "scans each delivery on arrival"
+    assert align_mod.normalise_phrase("£40 a month per site (proxied by comparable spend)") \
+        == "£40 a month per site"
+    # Nothing else is touched: no parenthetical, or one that is the whole phrase.
+    assert align_mod.normalise_phrase("about a week") == "about a week"
+    assert align_mod.normalise_phrase("(most weeks)") == "(most weeks)"
+
+    base = {"type": "CHOICE", "options": ["yes", "no"], "expected": "yes", "risk": "SUPPORTING",
+            "mark": "DIRECT", "heading": "h", "kind": None, "unit": None, "per": None}
+    golden = {**base, "founder_phrase": "flags a mismatch (the mechanism assumes the supplier)"}
+    produced = {**base, "founder_phrase": "flags a mismatch"}
+
+    assert align_mod.compare(golden, produced)["founder_phrase"] is True

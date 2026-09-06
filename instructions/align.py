@@ -36,6 +36,25 @@ def normalise(text) -> str:
     return re.sub(r"\s+", " ", str(text)).strip().lower()
 
 
+def normalise_phrase(text) -> str:
+    """A founder's phrase, with the corpus author's own annotations taken off first.
+
+    Twenty-two of the frozen corpus's eighty-eight `founderPhrase` values end in a parenthetical
+    written for a human reviewer rather than by the founder — *"scans each delivery on arrival (the
+    present-tense half, per §8.1 step 3)"*, *"£40 a month per site (proxied by comparable spend,
+    T1–T4 pass)"*. They are notes about the decomposition, not words anybody typed, and **no
+    instruction can or should reproduce them**; leaving them in made a quarter of the corpus
+    unmatchable on this field for a reason that has nothing to do with the prose being scored.
+
+    The corpus is frozen and this does not touch it (MARKS_VERSION 3, judgement call 15): the
+    annotation is stripped **on the golden side, at comparison time**, so the two sides are
+    compared as the same kind of thing. Only a trailing parenthetical is removed, and only when
+    something is left in front of it.
+    """
+    stripped = re.sub(r"\s*\([^()]*\)\s*$", "", str(text or "")).strip()
+    return normalise(stripped or text)
+
+
 @dataclass
 class Pair:
     golden_id: str
@@ -218,8 +237,8 @@ def compare(golden: dict, produced: dict, judge=None) -> dict:
         "expected_or_band": _expected_or_band(golden, produced, judge),
         "risk": normalise(golden.get("risk")) == normalise(produced.get("risk")),
         "mark": normalise(golden.get("mark")) == normalise(produced.get("mark")),
-        "founder_phrase": normalise(golden.get("founder_phrase"))
-        == normalise(produced.get("founder_phrase")),
+        "founder_phrase": normalise_phrase(golden.get("founder_phrase"))
+        == normalise_phrase(produced.get("founder_phrase")),
     }
 
 

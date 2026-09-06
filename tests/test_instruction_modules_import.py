@@ -26,7 +26,7 @@ def test_every_instruction_module_imports(name):
 
 
 _SCORECARD = {
-    "marks_version": 2,
+    "marks_version": 3,
     "model": {"claude_version": "2.1.263", "reported_model": "a-model",
               "job_timeout_seconds": 300.0, "job_max_turns": 6, "job_budget_usd": 1.0,
               "judge": "on"},
@@ -65,7 +65,7 @@ def test_the_report_renders_and_never_omits_what_it_cannot_measure(tmp_path):
                                     versions={"keel-cloud": {"commit": "abc", "dirty": False}})
     html = path.read_text(encoding="utf-8")
 
-    assert "MARKS_VERSION 2" in html
+    assert f"MARKS_VERSION {marks_mod.MARKS_VERSION}" in html
     assert "a-model" in html, "a run must always name the model it was judged under"
     assert "300.0s" in html, "and the wall clock it ran production's own"
     assert "register is not scored" in html

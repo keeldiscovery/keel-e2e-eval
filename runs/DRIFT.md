@@ -1502,3 +1502,53 @@ every later one, which is the one thing the versioning rule exists to prevent.
 `unit`, `MARKS_VERSION` goes to 2, and the baseline is re-scored from its own bundle rather than
 re-run — `scorecard.json` and `cases/**/diff.json` already carry everything needed, which is what
 the run-bundle contract's "re-reading" promise is for.
+
+## 28. Non-blocking: a quarter of the corpus's `founderPhrase` values are reviewer's notes, not founder's words
+
+**Severity: non-blocking**, and worked around here without touching the corpus — but recorded
+because the corpus is frozen and a defect in a frozen artefact does not stop being one.
+
+**Where**: `keel-cloud` `canon/designs/measured-beliefs/corpus/*.yaml`, the `founderPhrase` field.
+**Twenty-two of the eighty-eight** carry a trailing parenthetical written for a human reviewer:
+
+```yaml
+founderPhrase: scans each delivery on arrival (the present-tense half, per §8.1 step 3)
+founderPhrase: £40 a month per site (proxied by comparable spend, T1–T4 pass)
+founderPhrase: adjust the spreadsheet manually (the founder implies it doesn't hold)
+founderPhrase: not yet clear how much of that time is pure friction (a named unknown, given the standard pain proxy)
+founderPhrase: flags a mismatch (the mechanism assumes the supplier is the cause)
+```
+
+The field's own definition is *the founder's own precision word, as they wrote it* — provenance, so
+a review card can say *you said "about a week", which is 5 to 9 days*. A founder did not write *per
+§8.1 step 3*; the corpus author did, explaining the decomposition to whoever read the file next.
+
+**Reproduction**: `runs/20260906T195356Z-instructions/`, iteration 2 of the instruction eval.
+`founderPhrase` scored 31.1 % over 61 matched pairs, and the misses were dominated by exactly this:
+
+```
+S11  golden 'scans each delivery on arrival (the present-tense half, per §8.1 step 3)'
+     produced 'a phone app'
+C15  golden '£40 a month per site (proxied by comparable spend, T1–T4 pass)'
+     produced 'already pay for their POS and rota tools'
+P6   golden "adjust the spreadsheet manually (the founder implies it doesn't hold)"
+     produced ''
+```
+
+**No instruction can reproduce these**, and none should try — an instruction that emitted *"(the
+present-tense half, per §8.1 step 3)"* onto the founder's review card would be worse, not better.
+So 22 of 88 goldens were unmatchable on this field for a reason with nothing to do with the prose
+being scored.
+
+**Why the eval was adapted around it, and how.** The corpus is frozen (keel-cloud spec 029 SC-009)
+and this repo never edits it. The metric was made fair instead: `instructions/align.normalise_phrase`
+strips a **trailing** parenthetical **from the golden side, at comparison time**, so the two sides
+are compared as the same kind of thing. `MARKS_VERSION` goes to 3 with judgement call 15, and the
+earlier runs are re-scored from their own bundles rather than re-run. Nothing is softened: a phrase
+that is wrong in front of the bracket is still wrong.
+
+**The shape of a fix, explicitly not applied** (keel-cloud's, and only when the corpus is next
+legitimately opened): move the annotation to a sibling key — a `note:` beside `founderPhrase` — so
+the value holds what the founder wrote and the explanation still reaches the reader. The
+seven-entry corpus would need twenty-two edits and its checker would not notice, which is exactly
+why it should happen deliberately rather than as a side effect of a run.

@@ -50,7 +50,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 2
+MARKS_VERSION = 3
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 
