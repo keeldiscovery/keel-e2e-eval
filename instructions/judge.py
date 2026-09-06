@@ -65,13 +65,22 @@ class Judge:
 
     def same_answer_space(self, golden_options, produced_options, *, context: str = "") -> bool:
         """Do these two option lists offer the same answers, in different words?"""
+        # The question asked here is the founder's own (2026-09-06): do these two lists describe the
+        # same answer space? Not "are they the same list". An earlier wording asked whether every
+        # option corresponded, and answered DIFFERENT to 120 of 122 -- including pairs that were
+        # plainly one question in two registers, like ["monthly subscription", "one-off purchase",
+        # "free"] against ["a monthly subscription", "a yearly subscription", "one payment up
+        # front", "free"]. Different granularity is not a different question.
         return self._same(
             "answer_space",
-            "Two multiple-choice questions were written for the same interview, by two authors.\n"
-            "Do these two option lists offer the SAME set of possible answers, allowing for "
-            "different wording, register and length?\n"
-            "Answer SAME if a person picking from one could pick the corresponding option in the "
-            "other. Answer DIFFERENT if they are asking about different things.\n\n"
+            "Two authors independently wrote a multiple-choice question for the same interview.\n"
+            "Are these two lists asking a person about THE SAME THING?\n\n"
+            "Answer SAME if a person's real-world answer could sensibly be recorded in either "
+            "list -- even if the wording differs, even if one is longer or splits an option the "
+            "other keeps whole, even if one is a plain yes/no and the other names the cases.\n"
+            "Answer DIFFERENT only if they are about different subjects: one asks who did "
+            "something and the other asks how long it took, or one is about payment and the other "
+            "about a delivery.\n\n"
             f"List A: {json.dumps(list(golden_options))}\n"
             f"List B: {json.dumps(list(produced_options))}\n",
             context)
