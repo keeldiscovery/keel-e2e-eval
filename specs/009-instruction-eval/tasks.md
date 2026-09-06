@@ -190,25 +190,25 @@ the run proves it. A rubric change bumps `MARKS_VERSION`. Gate: `make unit`, the
 
 ## Phase 5: The aggregate's verdict, and the judge
 
-- [ ] T023 `instructions/validate.py` (FR-012): collect every produced belief set of a run into one
+- [X] T023 `instructions/validate.py` (FR-012): collect every produced belief set of a run into one
       batch in keel-cloud spec 029's batch shape (screen, market, roles, result) and hand it to
       `./gradlew -q screenContracts --args="validate <batch> <report>"` in **one** invocation; read
       back `accepted` or `{kind, rule, path, message}` plus the built bucket labels, into
       `validation.json`. The invariants are never reimplemented here.
-- [ ] T024 `instructions/score.py`: fold the aggregate's verdict into the scorecard —
+- [X] T024 `instructions/score.py`: fold the aggregate's verdict into the scorecard —
       `refusals_by_rule` (rule refusals only, and this is what the mark counts), shape refusals apart,
       schema-invalid answers apart again; and the bucket diff beside the corpus's `expected.buckets`.
-- [ ] T025 `instructions/judge.py` (FR-010): the bounded tie-breaker — only for two-or-more goldens
+- [X] T025 `instructions/judge.py` (FR-010): the bounded tie-breaker — only for two-or-more goldens
       tied at the top score, or a produced belief with no candidate; it sees two statements and may
       answer only *this one*, *that one* or *no match*; it can never assert a pair the structure
       rejected. Every call, its input and its answer recorded; `judged_fraction` in the scorecard and
       on the report, so a reader can discount the score by exactly the amount a model decided it.
-- [ ] T026 Gate: a full `make instruction-eval` produces a report carrying, per set, the aggregate's
+- [X] T026 Gate: a full `make instruction-eval` produces a report carrying, per set, the aggregate's
       verdict by rule id, and stating what fraction of the alignment the judge decided.
 
 ## Phase 6: Docs, findings, and the long part
 
-- [ ] T027 `instructions/report.py` (FR-019): `register.html` — one section per market in the run,
+- [X] T027 `instructions/report.py` (FR-019): `register.html` — one section per market in the run,
       the market's `country`/`region`/`language` at its head, then every produced anchor prompt and
       every produced option list for that market grouped by entry and stage, with the corpus's own
       anchor for the same stage beside it for reference. **No score, no tick, no cross**, and a
@@ -218,10 +218,10 @@ the run proves it. A rubric change bumps `MARKS_VERSION`. Gate: `make unit`, the
       that market, and record their reading with the run (SC-007). This is the design's own answer to
       a thing code cannot judge (§10 step 4) — **no metric is invented for it**, and the run's verdict
       does not depend on it.
-- [ ] T029 [P] `README.md` (FR-022): an `## The instruction eval (make instruction-eval)` section —
+- [X] T029 [P] `README.md` (FR-022): an `## The instruction eval (make instruction-eval)` section —
       what it measures, model-backed and opt-in, needs no stack, what it costs, the `MARKS_VERSION`
       rule, the register page and why it carries no number, and the model-comparability limit.
-- [ ] T030 [P] `AGENTS.md` (FR-022): amend "no Prism, no LLM, ever" to name its two exceptions —
+- [X] T030 [P] `AGENTS.md` (FR-022): amend "no Prism, no LLM, ever" to name its two exceptions —
       S-004 and this eval — rather than leave a rule the repo does not follow. Naming them is the
       point: everything not named stays deterministic. While there, correct "Both scenarios" to the
       four that now exist.

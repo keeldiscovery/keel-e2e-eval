@@ -255,6 +255,13 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     versions = json.loads((run_dir / "versions.json").read_text(encoding="utf-8"))
     path = report_mod.render_report(run_dir, verdict=verdict, scorecard=scorecard,
                                     versions=versions)
+    # The one artefact with no number in it (FR-019). Keyed by entry+stage, taking the first run of
+    # each case: the register is read once per instruction, not once per repetition.
+    produced_by_case = {}
+    for case, result in produced_sets:
+        produced_by_case.setdefault(f"{case.entry_id}/{case.subject}", result)
+    register = report_mod.render_register(
+        run_dir, entries_by_market=report_mod.register_blocks(corpus, produced_by_case))
 
     print()
     print(f"verdict: {'PASSED' if verdict['passed'] else 'FAILED'}   "
@@ -263,6 +270,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
           f"refusals {sum(totals['refusals_by_rule'].values()) if refusals_measured else 'not measured'} · "
           f"schema-invalid {totals['schema_invalid']} · errored {errored}")
     print(f"report: {path}")
+    print(f"register (unscored, for a person who knows the market): {register}")
     print(f"cost: ${total_cost:.2f}")
     return 0 if verdict["passed"] else 1
 

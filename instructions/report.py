@@ -327,13 +327,104 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
         parts.append(f"<details><summary>{_esc(entry['case_id'])} — {_esc(entry['screen'])}"
                      "</summary><pre>" + _esc(entry["prompt"]) + "</pre></details>")
 
-    parts.append("<h2>register.html</h2><p>Every produced anchor prompt and option list, grouped "
-                 "by market, with <b>no score, no tick and no cross</b> — it exists so a person "
-                 "who knows that market can read what a stranger there would have been asked. "
-                 "<span class='small'>(Written by spec 009 T027, this feature's Phase 6; not "
-                 "present in this bundle.)</span></p>")
+    parts.append("<h2><a href='register.html'>register.html</a></h2><p>Every produced anchor "
+                 "prompt and option list, grouped by market, with <b>no score, no tick and no "
+                 "cross</b> — it exists so a person who knows that market can read what a stranger "
+                 "there would have been asked, and their reading is recorded with this run "
+                 "(SC-012). <b>Nothing on that page contributes to the verdict above.</b></p>")
 
     parts.append("</main>")
     path = run_dir / "report.html"
     path.write_text("".join(parts), encoding="utf-8")
     return path
+
+
+# ---------------------------------------------------------------------------------- register.html
+
+def render_register(run_dir: Path, *, entries_by_market: dict) -> Path:
+    """The one artefact in this bundle with no number in it (spec 009 FR-019, T027).
+
+    Whether an anchor sounds like a supply yard in Texas or a builder's merchant in London is
+    design §3.8's *cannot be checked by code*, and §10 step 4 says what is done instead: a person
+    who knows the market reads the produced anchors and option lists, and **that reading is
+    recorded with the run**. So this page renders them, grouped by market, with the corpus's own
+    anchor for the same stage beside each for reference — and no score, no tick, no cross.
+
+    A metric here would look like evidence and would in fact be similarity to one hand-written
+    example (judgement call 10). Whether an option list *leads* — design §4's most expensive
+    authoring mistake, the one that collapses a dropdown's recall to 1 % — is the other thing this
+    page exists for and the other thing nothing scores.
+    """
+    parts = ["<!doctype html><meta charset='utf-8'><title>Register — "
+             f"{_esc(run_dir.name)}</title><style>" + _CSS + """
+.market{background:#eee9df;padding:10px 14px;border-radius:6px;margin:26px 0 10px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:10px 0}
+.pair>div{border:1px solid #e3ded6;border-radius:6px;padding:10px;background:#fff}
+.side{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#8a8378;margin-bottom:4px}
+ul{margin:4px 0 0 18px;padding:0}
+</style><main>"]
+    parts.append(f"<h1>Register</h1><p class='small'>{_esc(run_dir.name)}</p>")
+    parts.append("<div class='banner note'><b>Nothing on this page is scored, and nothing on it "
+                 "contributes to the run's verdict.</b> It exists so a person who knows the market "
+                 "can read what a stranger there would actually have been asked — whether the "
+                 "words are the ones people use, whether the units are the ones they answer in, "
+                 "and whether an option list quietly leads to the answer the founder hopes for. "
+                 "Design §3.8 says this cannot be checked by code; §10 step 4 says a person reads "
+                 "it and the reading is recorded with the run. That reading is the only thing that "
+                 "closes SC-012, and no metric here pretends to stand in for it.</div>")
+
+    for market_key, entries in entries_by_market.items():
+        parts.append(f"<div class='market'><b>{_esc(market_key)}</b></div>")
+        for entry_id, stages in entries.items():
+            for stage, block in stages.items():
+                parts.append(f"<h3>{_esc(entry_id)} · {_esc(stage)}</h3>")
+                parts.append("<div class='pair'>")
+                parts.append("<div><div class='side'>produced by the model</div>"
+                             + _anchors_html(block.get("produced") or []) + "</div>")
+                parts.append("<div><div class='side'>the corpus's own, for reference only</div>"
+                             + _anchors_html(block.get("golden") or []) + "</div>")
+                parts.append("</div>")
+    parts.append("</main>")
+    path = run_dir / "register.html"
+    path.write_text("".join(parts), encoding="utf-8")
+    return path
+
+
+def _anchors_html(anchors: list) -> str:
+    if not anchors:
+        return "<p class='small'>nothing produced for this stage</p>"
+    out = []
+    for anchor in anchors:
+        out.append(f"<p><b>{_esc(anchor.get('id'))}</b> — {_esc(anchor.get('prompt'))}</p>")
+        for selection in anchor.get("selections") or []:
+            control = selection.get("control")
+            out.append(f"<p class='small'>{_esc(selection.get('id'))} · {_esc(control)} — "
+                       f"{_esc(selection.get('prompt'))}</p>")
+            options = selection.get("options") or []
+            if options:
+                out.append("<ul>" + "".join(f"<li>{_esc(o)}</li>" for o in options) + "</ul>")
+            escape = selection.get("escape") or []
+            if escape:
+                out.append("<p class='small'>escape: "
+                           + _esc(", ".join(str(e) for e in escape)) + "</p>")
+    return "".join(out)
+
+
+def register_blocks(corpus, produced_by_case: dict) -> dict:
+    """Groups every produced questionnaire by market, entry and stage, beside the corpus's own."""
+    grouped = {}
+    for entry in corpus.entries:
+        market = entry.market or {}
+        key = " · ".join(str(part) for part in
+                         (market.get("country"), market.get("region"), market.get("language"))
+                         if part)
+        for stage in ("PROBLEM", "SOLUTION", "COMMERCIAL"):
+            produced = produced_by_case.get(f"{entry.id}/{stage}")
+            if produced is None:
+                continue
+            grouped.setdefault(key or "no market named", {}) \
+                   .setdefault(entry.id, {})[stage] = {
+                       "produced": (produced.get("questionnaire") or {}).get("anchors") or [],
+                       "golden": entry.anchors_for(stage),
+                   }
+    return grouped

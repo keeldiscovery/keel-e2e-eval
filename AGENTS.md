@@ -3,7 +3,18 @@
 keel-e2e-eval: the referee. It stands the whole connect stack up locally and proves the four
 applications (keel-cloud, keel-web, keel-runtime, keel-connect-skill) agree — with each other,
 and with the journey. It never talks to keel-skill or the retired agent-protocol/relay surfaces
-(archived 2026-09-03, `runs/DRIFT.md`'s dated retirement note); no Prism, no LLM, ever.
+(archived 2026-09-03, `runs/DRIFT.md`'s dated retirement note); no Prism, ever.
+
+**No LLM except in two named places** (amended 2026-09-06, spec 009). Naming them is the point:
+everything not named here stays deterministic, and a third would have to be argued for and added
+to this line rather than quietly written.
+- **S-004**, *the stranger who gives orders* (`evals/test_s004_stranger_who_gives_orders.py`,
+  spec 008) — opt-in through `make eval-live`, deselected from `make eval`/`make eval-all`.
+- **The instruction eval** (`instructions/`, spec 009) — `make instruction-eval`, needing no stack
+  at all, a dependency of nothing, and collected by no pytest run. It scores keel-cloud's
+  inference-instruction prose against a frozen golden corpus, and its rubric is versioned as
+  `instructions.marks.MARKS_VERSION`, separately from `evals/policy.py`'s `POLICY_VERSION`, so the
+  two can never be confused.
 
 **The canon comes first**: keel-cloud `canon/CANON.md` holds the governing documents,
 their precedence, and the ledger this repo's `tests/test_journey_coverage.py` enforces. This
@@ -16,10 +27,10 @@ referee. `make up` ends with the runtime not yet running; S-001 starts it, becau
 part of the journey.
 
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
-to `runs/DRIFT.md` with evidence and get fixed in the owning repo. Both scenarios are
-deterministic (keel-runtime's `--executor scripted`, never an LLM; the participants' typed
-answers are fixture data, never generated) and every assertion enforcing a journey moment cites
-it (`§n.m`). S-001 (`evals/test_s001_smoke.py`) walks the whole journey once, agent present
+to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The four scenarios are
+deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 above; the
+participants' typed answers are fixture data, never generated) and every assertion enforcing a
+journey moment cites it (`§n.m`). S-001 (`evals/test_s001_smoke.py`) walks the whole journey once, agent present
 throughout; S-002 (`evals/test_s002_agent_optional.py`, spec 006-agent-optional) starts from a
 project S-001 already built (in the same stack session) or its own prelude, then stops the
 runtime and proves everything a founder owns keeps working with no agent except creating a

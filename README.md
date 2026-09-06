@@ -129,6 +129,51 @@ boundary, so both profiles' services can live in one `docker-compose.yml` withou
 default (`eval`) invocation ever being able to see, let alone drop, the playground's own
 container or volume.
 
+## The instruction eval (`make instruction-eval`)
+
+The second of this repo's two model-backed exceptions (the other is S-004). It answers a question
+none of the browser scenarios can: **does keel-cloud's inference-instruction prose, sent to a real
+model exactly as production sends it, produce the measured beliefs the golden corpus says it
+should?**
+
+```bash
+make instruction-eval DRY=1 K=01-countly   # prints every prompt it would send; calls nothing
+make instruction-eval BASELINE=1           # the before-picture, taken once
+make instruction-eval K=reading N=1        # one subject, one run per case
+```
+
+- **No stack, and no `make up`.** It talks to no service. It shells keel-cloud's own
+  `screenContracts` task for the response contracts and for the aggregate's verdict, imports
+  keel-runtime's own `build_prompt` and `ClaudeCodeExecutor`, and reads the frozen corpus at
+  `keel-cloud/canon/designs/measured-beliefs/corpus/` — hashed on the way in and checked again at
+  the end, because the one thing that must never happen to a golden set is that it quietly moved to
+  make a run green.
+- **It costs real money**, on the founder's own account: about 124 calls a pass at N=1, and the
+  baseline of 2026-09-06 cost **$11.88** in 54 minutes. Start with `DRY=1` and read a prompt.
+- **It is a dependency of nothing** — not `eval`, not `eval-all`, not `eval-live` — and no pytest
+  run collects `instructions/`.
+- **Its rubric is versioned separately.** `instructions/marks.py`'s `MARKS_VERSION` is to this eval
+  what `POLICY_VERSION` is to `evals/policy.py`, and deliberately a different constant. Changing a
+  mark, a metric definition, an alignment rule or a judgement call bumps it; scores under different
+  versions describe different rubrics and are not comparable. A finished run can be re-scored from
+  its own bundle without spending again: `python -m instructions.rescore runs/<id>`, which writes
+  `scorecard-v<N>.json` beside the original rather than over it.
+- **The three marks**: anchoring accuracy ≥ 90 %, golden-belief recall ≥ 80 %, rule refusals = 0.
+  An **unmeasured** mark fails; it is not met.
+- **The model is not pinned.** keel-runtime sends no `--model` and this repo does not add one. The
+  model is named in the report header, and the marks are comparable only within it.
+
+### `register.html` carries no number, on purpose
+
+Every run also writes `register.html`: every produced anchor prompt and option list, grouped by
+market, with the corpus's own beside it — and **no score, no tick, no cross**. Whether an anchor
+sounds like a supply yard in Texas or a builder's merchant in London cannot be checked by code
+(design §3.8), and design §10 step 4 says what is done instead: a person who knows that market
+reads it, and **their reading is recorded with the run**. Whether an option list *leads* — the most
+expensive authoring mistake in the design — is the other thing that page is for and the other thing
+nothing scores. A metric for either would look like evidence and would in fact be similarity to one
+hand-written example.
+
 ## Scope and boundaries
 
 This repo **reports** drift and bugs in the product repos (`keel-cloud`, `keel-web`,
