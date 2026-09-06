@@ -362,7 +362,7 @@ def render_register(run_dir: Path, *, entries_by_market: dict) -> Path:
 .pair>div{border:1px solid #e3ded6;border-radius:6px;padding:10px;background:#fff}
 .side{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#8a8378;margin-bottom:4px}
 ul{margin:4px 0 0 18px;padding:0}
-</style><main>"]
+</style><main>"""]
     parts.append(f"<h1>Register</h1><p class='small'>{_esc(run_dir.name)}</p>")
     parts.append("<div class='banner note'><b>Nothing on this page is scored, and nothing on it "
                  "contributes to the run's verdict.</b> It exists so a person who knows the market "
