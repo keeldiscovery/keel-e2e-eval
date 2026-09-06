@@ -147,6 +147,11 @@ def ask(executor_module, validator_module, executor, case) -> Answer:
         request_payload=case.payload)
     started = time.monotonic()
     answer = Answer(case_id=case.case_id)
+    # `ClaudeCodeExecutor` sets `last_envelope` only after a call that got that far, so a timeout
+    # would leave the *previous* case's envelope standing and this bundle would file it under the
+    # wrong case id. Every number in a report must trace to an envelope that belongs to it, so the
+    # slate is cleared first: a timed-out case carries no envelope rather than someone else's.
+    executor.last_envelope = None
     try:
         response = executor.execute(request)
     except (executor_module.ExecutorUnavailable, executor_module.ExecutorTimeout,

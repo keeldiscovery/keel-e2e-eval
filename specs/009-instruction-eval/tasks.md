@@ -103,20 +103,26 @@ the run proves it. A rubric change bumps `MARKS_VERSION`. Gate: `make unit`, the
 
 ## Phase 3: Call the model, leave a bundle
 
-- [ ] T016 `instructions/runner.py` (FR-006, FR-007, FR-008): the pre-flight in the shape of S-004's
+- [X] T016 `instructions/runner.py` (FR-006, FR-007, FR-008): the pre-flight in the shape of S-004's
       `_claude_ready()` (`claude` on PATH and logged in, the keel-cloud checkout and its Gradle task,
       the corpus) refusing to start with the reason printed; then
       `keel_runtime.executor.ClaudeCodeExecutor` with `home=<run>/jobs`, N runs per case (default 3),
       and `keel_runtime.response_validator.validate_response` against the same contract. Record per
       call: prompt, envelope, recovery-pass flag, `num_turns`, `total_cost_usd`, wall clock. Refuse a
       second concurrent instruction-eval run.
-- [ ] T017 `instructions/report.py` (FR-015): the run directory through
+      - **Note**: `ClaudeCodeExecutor` raises `ExecutorUnavailable` for two different things and
+        this eval keeps them apart: *"the answer never fit its shape"* (`error_max_turns` after a
+        schema refusal) is the model being reached, told the contract, and failing it — a
+        measurement, counted as schema-invalid; a missing binary or a dead CLI is `errored` and
+        measures nothing. Without the split, a baseline against pre-029 prose would report its own
+        central finding as a harness failure.
+- [X] T017 `instructions/report.py` (FR-015): the run directory through
       `harness.evidence.new_run_dir` with slug `instructions`/`instructions-baseline`, `versions.json`
       through `harness.evidence.write_versions`, plus `verdict.json`, `scorecard.json`,
       `corpus.sha256` (checked again at the end), `contracts/`, and
       `cases/<entry>/<subject>/<run>/{prompt.txt,envelope.json,diff.json}` per
       [contracts/run-bundle-contract.md](contracts/run-bundle-contract.md).
-- [ ] T018 `instructions/report.py` (FR-016, FR-020, FR-021): `report.html`, self-contained — the
+- [X] T018 `instructions/report.py` (FR-016, FR-020, FR-021): `report.html`, self-contained — the
       header with the three marks, `MARKS_VERSION`, **one line naming the model this run was judged
       under** (the `claude` CLI version and whatever the envelope reports) and the sentence that the
       marks are comparable only within a model, and the five sibling commits; **the stated blind
@@ -124,22 +130,58 @@ the run proves it. A rubric change bumps `MARKS_VERSION`. Gate: `make unit`, the
       list leads is not scored either**; the reading section with the confusion matrix and every disagreement
       as a row; the assumption diffs golden-beside-produced with a tick per field; the spread; the
       prompts, collapsed.
-- [ ] T019 `Makefile` (FR-017): `instruction-eval` in `.PHONY` and as a target with the `venv`
+- [X] T019 `Makefile` (FR-017): `instruction-eval` in `.PHONY` and as a target with the `venv`
       prerequisite, `$(PY) -m instructions.run` and `BASELINE=`/`N=`/`K=`/`MARKS=`/`DRY=` passed
       through, preceded by a comment naming this spec, saying it needs no `make up`, and saying it
       costs real money. It is **not** a dependency of `eval`, `eval-all` or `eval-live`.
-- [ ] T020 Gate: `make eval K=s001` and `make unit` behave exactly as before — no new collection, no
+- [X] T020 Gate: `make eval K=s001` and `make unit` behave exactly as before — no new collection, no
       new marker, `evals/policy.py` and `POLICY_VERSION` untouched (SC-006).
+      - **Note (2026-09-06)**: confirmed without booting a stack, because nothing here can affect
+        one: `git diff` against this branch's base is **empty** for `evals/` and `pytest.ini`;
+        `POLICY_VERSION` is still 7 and `evals/policy.py` is byte-identical; `pytest evals -m "not
+        live"` still collects exactly S-001, S-002 and S-003 with S-004 deselected, and `pytest
+        instructions` collects nothing at all. `instruction-eval` is in `.PHONY` and is a
+        prerequisite of nothing.
 
 ## Phase 4: The baseline — before keel-cloud edits a single instruction
 
-- [ ] T021 `make instruction-eval BASELINE=1` against keel-cloud's **current** instructions (SC-001).
+- [X] T021 `make instruction-eval BASELINE=1` against keel-cloud's **current** instructions (SC-001).
       Expect every assumption case schema-invalid or refused and every reading case likewise; the
       verdict is `failed`. Keep the run directory and record its id here — it is the only measurement
       of the old instructions that will ever exist.
-- [ ] T022 Read the baseline report end to end and confirm every failure names the **contract**, not
+      - **Run: `runs/20260906T170528Z-instructions-baseline/`** (2026-09-06). keel-cloud `21d0ba1`,
+        keel-runtime `916583d`, `claude` 2.1.263, models `claude-opus-5[1m]` + `claude-haiku-4-5`.
+        **N=1, not 3** — a baseline is taken once, and the numbers below are stark enough that
+        three passes would have bought precision on a verdict that is not close. 124 cases (21
+        assumption + 103 reading; three of the corpus's 106 people left every anchor blank and
+        production would start no reading job for them either), 54 minutes, **$11.88**.
+        Verdict **failed**: golden-belief recall **17.0 %** against a mark of 80 %.
+      - **The prediction in [quickstart.md](quickstart.md) §1 was wrong, and usefully so.** It
+        expected every case "refused before a single belief is compared". Nothing was refused:
+        **0 schema-invalid, 0 shape refusals, 0 `NEEDS_INPUT`**. The CLI's `--json-schema`, built
+        from keel-cloud's exported contract, *forces* the envelope into the 028/029 shape whatever
+        the prose says — so the baseline measures **quality, not shape**, and the old instructions'
+        `question: {ask, disconfirming}` and `claimType`/`stance` never had a chance to appear.
+      - **6 of 21 assumption cases timed out** at keel-runtime's own production default of 120 s
+        (`runs/DRIFT.md` #26). They are `errored`, excluded from every quality metric, and are why
+        `cases` reads 124 while the quality denominators read 15.
+- [X] T022 Read the baseline report end to end and confirm every failure names the **contract**, not
       the harness. A failure this repo caused is a bug to fix now, while it is cheap; a green
       baseline is a bug to go and find.
+      - **Note (2026-09-06)**: read end to end. Every failure names the contract or the prose, not
+        the harness — with two exceptions, both found and both this repo's, both fixed:
+        `ClaudeCodeExecutor.last_envelope` was not cleared between calls, so a timed-out case filed
+        the previous case's envelope and cost under its own id (fixed, with
+        `tests/test_instruction_runner.py`); and the harness had already, before any spend, been
+        caught reading the corpus's lower-case statement keys as upper-case (T009's note). **The
+        baseline bundle predates the envelope fix**, so its six timed-out cases carry a stale
+        `envelope` block and their real token spend is missing from the $11.88 — the quality
+        metrics are unaffected, since a timed-out case scores nothing either way.
+      - **One number in `verdict.json` must not be read as measured**: `refusals` shows `0` and
+        `met: true`, but nothing was ever shown to the aggregate — `instructions/validate.py` is
+        T023, Phase 5, and does not exist yet. `marks.judge` treats an unmeasured refusal count as
+        a met mark, which is the one place the rubric currently flatters a run. Every other mark
+        refuses a `None` rather than passing it.
 
 ## Phase 5: The aggregate's verdict, and the judge
 

@@ -1394,3 +1394,111 @@ that was broken, one recovery pass), keel-web `bc1ab6f` (the body scrolls with a
 note, frame C10 for a failed breakdown, no empty promise while waiting, a refusal banner on Start
 over). Confirmed by `20260904T162141Z-s001-smoke`, `20260904T162403Z-s002-agent-optional` and
 `20260904T162527Z-s003-every-door`, all 5.0/5 on the merged stack.
+
+## 26. Blocking: every `*_ASSUMPTIONS` job runs at keel-runtime's own 120 s timeout, and 6 of 21 exceed it
+
+**Severity: blocking** for the assumption screens — a founder whose breakdown times out sees the
+job fail, not a slow job. Nothing in this repo can work around it: the timeout is production's own
+and the eval calls `ClaudeCodeExecutor` exactly as the runtime does, which is the point.
+
+**Where**: `keel-runtime` `keel_runtime/executor.py`, `ClaudeCodeExecutor.__init__` line 331:
+
+```python
+    def __init__(
+        self,
+        binary: str = "claude",
+        home: Path | str | None = None,
+        budget_usd: float = DEFAULT_JOB_BUDGET_USD,
+        max_turns: int = DEFAULT_JOB_MAX_TURNS,
+        timeout_seconds: float = 120.0,
+    ):
+```
+
+`keel_runtime/config.py` gives `DEFAULT_JOB_BUDGET_USD` and `DEFAULT_JOB_MAX_TURNS` overridable
+homes and env lookups; `timeout_seconds` has neither. `get_executor` never passes it, so **120 s is
+the number production ships and there is no way to change it without editing this line.**
+
+**Reproduction**: `runs/20260906T170528Z-instructions-baseline/`, the 21 `*_ASSUMPTIONS` cases,
+each one call through `ClaudeCodeExecutor` with keel-cloud's own exported contract and today's
+instruction bytes. Wall clock per case, from `cases/<entry>/<stage>/run1/envelope.json`:
+
+```
+120s  07-mulchrun/SOLUTION       TIMEOUT      120s  05-paidly/PROBLEM         TIMEOUT
+120s  05-paidly/COMMERCIAL       TIMEOUT      120s  04-linerly/PROBLEM        TIMEOUT
+120s  02-compliancelog/COMMERCIAL TIMEOUT     120s  01-countly/COMMERCIAL     TIMEOUT
+109s  01-countly/PROBLEM         ok           108s  04-linerly/SOLUTION       ok
+108s  03-lullaby/SOLUTION        ok           107s  07-mulchrun/PROBLEM       ok
+107s  05-paidly/SOLUTION         ok           106s  01-countly/SOLUTION       ok
+ 97s  07-mulchrun/COMMERCIAL     ok            97s  02-compliancelog/SOLUTION ok
+ 90s  06-repeatline/SOLUTION     ok            89s  06-repeatline/PROBLEM     ok
+ 87s  06-repeatline/COMMERCIAL   ok            87s  02-compliancelog/PROBLEM  ok
+ 86s  03-lullaby/COMMERCIAL      ok            85s  04-linerly/COMMERCIAL     ok
+ 81s  03-lullaby/PROBLEM         ok
+```
+
+**6 of 21 timed out — 29 %.** Of the 15 that finished, the slowest had **11 seconds of headroom**
+and the median had 23. This is not a tail: the whole distribution sits against the limit.
+
+Two things make it worse rather than better from here. keel-cloud spec 029's plan.md states
+outright that the three assumption instructions **grow** — "a phrase table and a tense procedure
+are added while two question paragraphs are removed" — and every one of these runs was against the
+*old, shorter* prose. And a timeout is not a cheap failure: `01-countly/COMMERCIAL` had already
+spent $0.28 of tokens when the 120 s elapsed, and that money buys nothing, because
+`ExecutorTimeout` is raised before any result is read.
+
+**Why the eval was not adapted around it.** The obvious workaround — pass `timeout_seconds=300` in
+`instructions/runner.py` — was deliberately not taken. This eval exists to measure what production
+sends and what production does with the answer; an eval with a longer timeout than production would
+report an instruction as working that a founder would watch fail. The six timeouts are recorded as
+`errored`, excluded from every quality metric, and named here instead.
+
+**The shape of a fix, explicitly not applied** (keel-runtime's to make, not this repo's): give
+`timeout_seconds` the same treatment `budget_usd` and `max_turns` already have — a
+`DEFAULT_JOB_TIMEOUT_SECONDS` in `config.py` with a home/env override, threaded through
+`get_executor`, and a default chosen against the measured distribution rather than a round number.
+Whatever the number becomes, the finding stands on its own: the assumption screens are a
+90-second-plus job today and are specified to get longer.
+
+## 27. Non-blocking: `measure.per` is part of a `Measure` and part of no metric
+
+**Severity: non-blocking** here, because it is a gap in this repo's own scoring rather than a
+product defect — but it is recorded here because acting on it is keel-cloud's, in the shape of what
+spec 029's instructions must teach.
+
+**Where**: this repo, `specs/009-instruction-eval/contracts/metrics-contract.md`, the exact-match
+table — it names `type`, `founderPhrase`, `measure.kind`, `measure.unit`, expected-or-band, `risk`
+and `mark`, and **not `measure.per`**.
+
+`keel-cloud` `domain/project/Measure.java` is a three-field record and its own Javadoc says so:
+*"Two measures are equal when all three fields are — which is what `V2` checks when an observation
+meets an expectation."* So a belief whose `per` differs from the golden one's is a **different
+measure**, and an answer given against it places nowhere.
+
+**Reproduction**: `runs/20260906T170528Z-instructions-baseline/`. Of 15 matched `INTERVAL` pairs,
+**9 disagree on `per`** while scoring `unit` and expected-or-band as agreeing:
+
+```
+01-countly/PROBLEM      P3   golden per=incident   produced per=week
+07-mulchrun/PROBLEM     P2   golden per=job        produced per=trip to the supply yard
+07-mulchrun/PROBLEM     P3   golden per=day        produced per=working day
+02-compliancelog/PROBLEM P1  golden per=(none)     produced per=person
+04-linerly/COMMERCIAL   C9   golden per=year       produced per=single purchase
+03-lullaby/COMMERCIAL   C10  golden per=month      produced per=month per paid baby app
+06-repeatline/PROBLEM   P1   golden per=day        produced per=shift
+03-lullaby/PROBLEM      P3   golden per=wake-up    produced per=night waking
+02-compliancelog/PROBLEM P2  golden per=report     produced per=quarterly report
+```
+
+`01-countly/PROBLEM/P3` is the clearest: *one to two hours* **per incident** and *one to two hours*
+**per week** are different claims about the same founder sentence, and today both score a clean
+sheet on every field the contract names.
+
+**Why the eval was not adapted around it.** Adding a `per` column is a metric definition change and
+therefore a `MARKS_VERSION` bump, and the baseline had to be taken under version 1 or it could not
+be compared with the runs that follow it. Doing it now would have made this run incomparable with
+every later one, which is the one thing the versioning rule exists to prevent.
+
+**The shape of a fix, explicitly not applied**: `per` becomes an eighth scored field alongside
+`unit`, `MARKS_VERSION` goes to 2, and the baseline is re-scored from its own bundle rather than
+re-run — `scorecard.json` and `cases/**/diff.json` already carry everything needed, which is what
+the run-bundle contract's "re-reading" promise is for.
