@@ -118,3 +118,101 @@ def test_founder_phrase_absent_on_both_sides_agrees_and_present_on_one_side_miss
                              {**base, "founder_phrase": None})["founder_phrase"] is False
     assert align_mod.compare({**base, "founder_phrase": "About A Week"},
                              {**base, "founder_phrase": "about a week "})["founder_phrase"] is True
+
+
+# ---------------------------------------------------- MARKS_VERSION 2: meaning, and `per`
+
+class _SayingSame:
+    """A judge that answers SAME to everything, to prove the judged path is reached at all."""
+
+    def available(self):
+        return True
+
+    def same_answer_space(self, a, b, context=""):
+        return True
+
+    def same_expected_option(self, a, b, context=""):
+        return True
+
+    def pick(self, statement, candidates):
+        return 0
+
+
+class _SayingDifferent(_SayingSame):
+    def same_answer_space(self, a, b, context=""):
+        return False
+
+    def same_expected_option(self, a, b, context=""):
+        return False
+
+
+_GOLDEN_CHOICE = {"type": "CHOICE", "options": ["me", "a member of staff", "the supplier left it"],
+                  "expected": "a member of staff", "risk": "LOAD_BEARING", "mark": "DIRECT",
+                  "founder_phrase": None, "heading": "Staff receive deliveries",
+                  "kind": None, "unit": None, "per": None}
+_PRODUCED_CHOICE = {"type": "CHOICE",
+                    "options": ["signed for it without opening anything",
+                                "someone on my team took it in", "the driver left it"],
+                    "expected": "someone on my team took it in", "risk": "LOAD_BEARING",
+                    "mark": "DIRECT", "founder_phrase": None,
+                    "heading": "Who took the delivery in", "kind": None, "unit": None, "per": None}
+
+
+def test_two_option_lists_with_no_shared_words_are_candidates_only_when_a_judge_says_so():
+    """The founder's decision of 2026-09-06, forced by the baseline: SOLUTION reached 0 of 23
+    goldens because the produced beliefs asked the same questions in different words. The corpus's
+    option words are one phrasing; Q2 binds a belief's list to its own selection's, never to the
+    corpus's."""
+    assert align_mod._option_overlap(_GOLDEN_CHOICE["options"],
+                                     _PRODUCED_CHOICE["options"]) == 0.0
+
+    assert align_mod.is_candidate(_GOLDEN_CHOICE, _PRODUCED_CHOICE) is False
+    assert align_mod.is_candidate(_GOLDEN_CHOICE, _PRODUCED_CHOICE, _SayingDifferent()) is False
+    assert align_mod.is_candidate(_GOLDEN_CHOICE, _PRODUCED_CHOICE, _SayingSame()) is True
+
+
+def test_an_expected_option_is_a_judged_semantic_match_and_still_tries_words_first():
+    same_words = dict(_GOLDEN_CHOICE)
+
+    # Equal strings never reach the judge at all.
+    assert align_mod.compare(_GOLDEN_CHOICE, same_words,
+                             _SayingDifferent())["expected_or_band"] is True
+    # Different words do, and the answer is the judge's.
+    assert align_mod.compare(_GOLDEN_CHOICE, _PRODUCED_CHOICE,
+                             _SayingSame())["expected_or_band"] is True
+    assert align_mod.compare(_GOLDEN_CHOICE, _PRODUCED_CHOICE,
+                             _SayingDifferent())["expected_or_band"] is False
+    # With no judge at all it degrades to MARKS_VERSION 1's rule rather than to nothing.
+    assert align_mod.compare(_GOLDEN_CHOICE, _PRODUCED_CHOICE)["expected_or_band"] is False
+
+
+def test_an_interval_is_never_judged_because_arithmetic_has_no_opinion():
+    a = {"type": "INTERVAL", "kind": "DURATION", "unit": "hours", "per": "incident",
+         "lower": {"value": 1.0, "inclusive": True, "exact": False},
+         "upper": {"value": 2.0, "inclusive": True, "exact": False},
+         "risk": "LOAD_BEARING", "mark": "DIRECT", "founder_phrase": None, "heading": "h",
+         "options": []}
+    wrong_kind = {**a, "kind": "MONEY"}
+
+    assert align_mod.is_candidate(a, wrong_kind, _SayingSame()) is False, \
+        "a judge must never rescue a measure kind"
+
+
+def test_measure_per_is_scored_because_two_measures_that_differ_in_per_are_two_measures():
+    """Judgement call 12. `01-countly/P3` in the baseline: one to two hours *per incident* and one
+    to two hours *per week* are different claims, and both scored a clean sheet before this."""
+    per_incident = {"type": "INTERVAL", "kind": "DURATION", "unit": "hours", "per": "incident",
+                    "lower": {"value": 1.0, "inclusive": True, "exact": False},
+                    "upper": {"value": 2.0, "inclusive": True, "exact": False},
+                    "risk": "LOAD_BEARING", "mark": "DIRECT", "founder_phrase": None,
+                    "heading": "h", "options": []}
+    per_week = {**per_incident, "per": "week"}
+
+    assert "per" in align_mod.FIELDS
+    fields = align_mod.compare(per_incident, per_week)
+
+    assert fields["per"] is False
+    assert fields["unit"] is True and fields["expected_or_band"] is True, \
+        "which is exactly why `per` had to become a field of its own"
+    assert align_mod.compare(per_incident, dict(per_incident))["per"] is True
+    assert align_mod.compare(_GOLDEN_CHOICE, dict(_GOLDEN_CHOICE))["per"] is None

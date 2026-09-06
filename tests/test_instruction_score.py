@@ -189,9 +189,31 @@ def test_the_spread_reports_every_run_and_averages_nothing():
 
 def test_three_ways_of_being_wrong_stay_three_numbers():
     totals = score_mod.totals([], [], refusals_by_rule={"E4": 2, "Q5": 1}, shape_refusals=3,
-                              schema_invalid=7, errored=1)
+                              schema_invalid=7, errored=1, refusals_measured=True)
 
     assert totals["refusals_by_rule"] == {"E4": 2, "Q5": 1}
     assert totals["shape_refusals"] == 3
     assert totals["schema_invalid"] == 7
     assert totals["errored"] == 1
+
+
+def test_an_unmeasured_refusal_count_fails_its_mark_rather_than_meeting_it():
+    """Judgement call 13, and the reason for it: the baseline of 2026-09-06 reported
+    `refusals: 0, met: true` while nothing had ever been shown to the aggregate."""
+    from instructions import marks as marks_mod
+    marks = marks_mod.load()
+
+    unmeasured = score_mod.totals([], [], refusals_measured=False)
+    unmeasured["anchoring_accuracy"] = 0.99
+    unmeasured["golden_belief_recall"] = 0.99
+    judged = marks_mod.judge(unmeasured, marks)
+
+    assert judged["refusals"]["measured"] is False
+    assert judged["refusals"]["value"] is None
+    assert judged["refusals"]["met"] is False
+    assert judged["passed"] is False, "two green marks and one unasked question is not a pass"
+
+    measured = score_mod.totals([], [], refusals_measured=True)
+    measured["anchoring_accuracy"] = 0.99
+    measured["golden_belief_recall"] = 0.99
+    assert marks_mod.judge(measured, marks)["passed"] is True

@@ -102,6 +102,7 @@ class AssumptionScore:
     matched: int = 0
     extra_beliefs: int = 0
     judged: int = 0
+    judged_candidacy: int = 0
     needs_input: bool = False
     needs_input_questions: list = field(default_factory=list)
     failed: str | None = None
@@ -121,7 +122,7 @@ class AssumptionScore:
 
 
 def score_assumptions(case, entry, result, *, failed: str | None = None,
-                      needs_input_questions=None) -> AssumptionScore:
+                      needs_input_questions=None, judge=None) -> AssumptionScore:
     """One assumption case, aligned and counted.
 
     A `NEEDS_INPUT`, a schema-invalid answer and an executor failure all land here as a case that
@@ -143,11 +144,12 @@ def score_assumptions(case, entry, result, *, failed: str | None = None,
 
     produced = result.get("assumptions")
     produced = produced if isinstance(produced, list) else []
-    alignment = align_mod.align(goldens, produced)
+    alignment = align_mod.align(goldens, produced, judge)
     score.alignment = alignment
     score.matched = len(alignment.matched)
     score.extra_beliefs = len(alignment.extra)
     score.judged = alignment.judged
+    score.judged_candidacy = alignment.judged_candidacy
 
     for pair in alignment.matched:
         for name in FIELDS:
@@ -169,7 +171,8 @@ def score_assumptions(case, entry, result, *, failed: str | None = None,
 
 def totals(reading_scores: list, assumption_scores: list, *, errored: int = 0,
            refusals_by_rule: dict | None = None, shape_refusals: int = 0,
-           schema_invalid: int = 0) -> dict:
+           schema_invalid: int = 0, refusals_measured: bool = False,
+           judge_calls: int = 0) -> dict:
     """The run's own numbers, each summed over its own denominator and never over another's."""
     given = sum(s.given for s in reading_scores)
     answered = sum(s.answered for s in reading_scores)
@@ -214,7 +217,13 @@ def totals(reading_scores: list, assumption_scores: list, *, errored: int = 0,
         "extra_beliefs": sum(s.extra_beliefs for s in assumption_scores),
         "needs_input_cases": sum(1 for s in assumption_scores if s.needs_input),
         "judged_fraction": (sum(s.judged for s in assumption_scores) / matched) if matched else 0.0,
+        "judged_pairs": sum(s.judged for s in assumption_scores),
+        "judged_candidacy_pairs": sum(s.judged_candidacy for s in assumption_scores),
+        "judged_any_fraction": ((sum(s.judged + s.judged_candidacy for s in assumption_scores)
+                                 / matched) if matched else 0.0),
+        "judge_calls": judge_calls,
         "refusals_by_rule": dict(refusals_by_rule or {}),
+        "refusals_measured": refusals_measured,
         "shape_refusals": shape_refusals,
         "schema_invalid": schema_invalid,
         "errored": errored,

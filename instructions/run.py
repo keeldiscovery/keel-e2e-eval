@@ -27,11 +27,13 @@ from stack.config import REPO_ROOT, load_config
 from . import contract as contract_mod
 from . import corpus as corpus_mod
 from . import instruction as instruction_mod
+from . import judge as judge_mod
 from . import marks as marks_mod
 from . import prompts as prompts_mod
 from . import report as report_mod
 from . import runner as runner_mod
 from . import score as score_mod
+from . import validate as validate_mod
 
 # Rough, and honest about being rough: the founder's own account pays, and the point of printing a
 # number before the first call is that nobody is surprised by the size of the bill, not that the
@@ -48,6 +50,8 @@ def main(argv=None) -> int:
     parser.add_argument("-k", dest="filter", default=None)
     parser.add_argument("-n", dest="n_runs", type=int, default=3)
     parser.add_argument("--marks", default=None)
+    parser.add_argument("--no-judge", action="store_true",
+                        help="score with the structural matcher alone (MARKS_VERSION 1's rule)")
     args = parser.parse_args(argv)
 
     config = load_config()
@@ -133,11 +137,18 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     cases = _all_cases(corpus, exported, instructions, executor_module, args)
     marks = marks_mod.load(args.marks)
 
-    executor = executor_module.ClaudeCodeExecutor(home=run_dir / "jobs")
+    # `ClaudeCodeExecutor` puts its per-job dirs at `<home>/jobs/<job_id>`, so the home is the run
+    # directory itself and the bundle's `jobs/` is exactly what the run-bundle contract describes.
+    # The wall clock is production's own default (keel-runtime `DEFAULT_JOB_TIMEOUT_SECONDS`) and
+    # is deliberately not overridden: an eval more patient than production would report an
+    # instruction as working that a founder watches fail.
+    executor = executor_module.ClaudeCodeExecutor(home=run_dir)
+    judge = judge_mod.NoJudge() if args.no_judge else judge_mod.Judge()
     people = {(e.id, p.person): p for e in corpus.entries for p in e.people()}
 
     reading_scores, assumption_scores, prompts, errored = [], [], [], 0
     schema_invalid = 0
+    produced_sets = []
     total_cost = 0.0
     reported_model = None
 
@@ -164,8 +175,10 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         else:
             questions = answer.questions if answer.outcome == "NEEDS_INPUT" else None
             score = score_mod.score_assumptions(case, entry, answer.result, failed=failed,
-                                                needs_input_questions=questions)
+                                                needs_input_questions=questions, judge=judge)
             assumption_scores.append(score)
+            if answer.schema_valid and answer.outcome == "COMPLETED" and answer.result:
+                produced_sets.append((case, answer.result))
             diff = _assumption_diff(case, entry, answer, score)
 
         report_mod.write_case(run_dir, case, answer, diff)
@@ -178,14 +191,40 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     corpus.verify_unchanged()
     report_mod.write_corpus_hashes(run_dir, corpus, when="after (unchanged)")
 
+    # The aggregate's own verdict on the whole run, in one JVM start (FR-012).
+    aggregate = {"accepted": 0, "refusals_by_rule": {}, "shape_refusals": 0, "case_faults": 0,
+                 "by_case": {}}
+    refusals_measured = False
+    if produced_sets:
+        try:
+            report = validate_mod.run(config.keel_cloud,
+                                      validate_mod.build_batch(produced_sets),
+                                      run_dir / "batch.json", run_dir / "validation.json")
+            aggregate = validate_mod.fold_in(report)
+            refusals_measured = True
+        except Exception as exc:                  # noqa: BLE001 - unmeasured, never mis-measured
+            print(f"the aggregate could not be asked: {exc}", file=sys.stderr)
+            (run_dir / "validation.json").write_text(
+                json.dumps({"unavailable": str(exc)}, indent=2), encoding="utf-8")
+
     totals = score_mod.totals(reading_scores, assumption_scores, errored=errored,
-                              schema_invalid=schema_invalid)
+                              schema_invalid=schema_invalid,
+                              refusals_by_rule=aggregate["refusals_by_rule"],
+                              shape_refusals=aggregate["shape_refusals"],
+                              refusals_measured=refusals_measured,
+                              judge_calls=judge.call_count)
     scorecard = {
         "marks_version": marks_mod.MARKS_VERSION,
         "marks": marks,
         "model": {"claude_version": facts.get("claude_version"),
-                  "reported_model": reported_model},
+                  "reported_model": reported_model,
+                  "job_timeout_seconds": executor.timeout_seconds,
+                  "job_max_turns": executor.max_turns,
+                  "job_budget_usd": executor.budget_usd,
+                  "judge": "off" if args.no_judge else "on"},
         "n_runs": args.n_runs,
+        "aggregate": {k: v for k, v in aggregate.items() if k != "by_case"},
+        "judge_calls": judge.calls,
         "contract_manifest": exported.manifest,
         "reading": [_reading_json(s) for s in reading_scores],
         "assumptions": [_assumption_json(s) for s in assumption_scores],
@@ -221,7 +260,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     print(f"verdict: {'PASSED' if verdict['passed'] else 'FAILED'}   "
           f"anchoring {_fmt(totals['anchoring_accuracy'])} · "
           f"recall {_fmt(totals['golden_belief_recall'])} · "
-          f"refusals {sum(totals['refusals_by_rule'].values())} · "
+          f"refusals {sum(totals['refusals_by_rule'].values()) if refusals_measured else 'not measured'} · "
           f"schema-invalid {totals['schema_invalid']} · errored {errored}")
     print(f"report: {path}")
     print(f"cost: ${total_cost:.2f}")
@@ -289,6 +328,7 @@ def _assumption_json(score) -> dict:
             "needs_input": score.needs_input,
             "needs_input_questions": score.needs_input_questions,
             "phrase_band": score.phrase_band, "judged": score.judged,
+            "judged_candidacy": score.judged_candidacy,
             "existing_roles": score.existing_roles, "failed": score.failed,
             "missing": [] if score.alignment is None else score.alignment.missing}
 

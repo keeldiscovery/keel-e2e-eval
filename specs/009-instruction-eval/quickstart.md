@@ -42,11 +42,27 @@ keel-cloud's exporter, and it is far cheaper to find now.
 make instruction-eval BASELINE=1
 ```
 
-**Expect it to fail, loudly, and keep the directory.** Today's `*-assumptions.md` emit
-`question: {ask, disconfirming}` and today's `interpret.md` emits `claimType` and `stance`; neither
-fits the contract spec 028 shipped, so every case is refused before a single belief is compared. A
-baseline that passed would mean the harness was measuring something other than the instruction, and
-the right response to a green baseline is to go and find the bug.
+**Expect it to fail, loudly, and keep the directory.** *(Rewritten 2026-09-06, after the run:
+what follows is what happened, not what was predicted.)*
+
+It was predicted that every case would be refused before a belief was compared — today's
+`*-assumptions.md` emit `question: {ask, disconfirming}` and today's `interpret.md` emits
+`claimType` and `stance`, so the reasoning went that nothing would fit the contract spec 028
+shipped. **That is not what happens, and the reason matters for every run after it.** The `claude`
+CLI is invoked with `--json-schema`, built by keel-runtime from keel-cloud's own exported
+`response_contract`, and the CLI *enforces* it: the envelope comes back in the 028/029 shape
+whatever the prose says. In the baseline of 2026-09-06 there were **zero** schema-invalid answers,
+**zero** shape refusals and **zero** `NEEDS_INPUT`.
+
+So the baseline measures **quality, not shape** — which is the more useful before-picture. What it
+found: golden-belief recall **17.0 %** against a mark of 80 %, `SOLUTION` reaching **0 of 23**
+golden beliefs across all seven entries, 76 extra beliefs, and `founderPhrase` agreeing on 3 of 15
+matched pairs. Meanwhile the *reading* screen already passes its mark — **95.0 %** anchoring
+accuracy with `GUESSED` recall of 1.00 — on an `interpret.md` that never says the word `ANCHORED`,
+because it too is reading its task off the `CONTRACT` block rather than the instruction.
+
+**A green baseline would still be a bug to go and find.** The rule that gave was the prediction
+about *how* it would be red, not the expectation that it would be.
 
 ```bash
 open runs/<id>-instructions-baseline/report.html

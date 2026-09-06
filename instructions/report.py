@@ -148,7 +148,8 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
     parts.append("<table><tr><th>Mark</th><th>This run</th><th>Required</th><th></th></tr>")
     parts.append(_mark_row("anchoring accuracy", judged["anchoring_accuracy"]))
     parts.append(_mark_row("golden-belief recall", judged["golden_belief_recall"]))
-    parts.append(_mark_row("refusals (rule)", judged["refusals"], fmt=lambda v: str(v)))
+    parts.append(_mark_row("refusals (rule)", judged["refusals"],
+                           fmt=lambda v: "not measured" if v is None else str(v)))
     parts.append("</table>")
 
     model = scorecard.get("model") or {}
@@ -164,6 +165,17 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
                  f"{_esc(verdict.get('errored'))} errored · "
                  f"${verdict.get('total_cost_usd') or 0:.2f} · "
                  f"{verdict.get('duration_s', 0):.0f}s</p>")
+    parts.append(f"<p class='small'>Executor caps, production's own and not overridden here: "
+                 f"wall clock <b>{_esc(model.get('job_timeout_seconds'))}s</b> · max turns "
+                 f"{_esc(model.get('job_max_turns'))} · budget "
+                 f"${_esc(model.get('job_budget_usd'))}. An eval more patient than production "
+                 f"would report an instruction as working that a founder watches fail. "
+                 f"Judge: <b>{_esc(model.get('judge') or 'on')}</b>, "
+                 f"{_esc(t.get('judge_calls', 0))} calls; it broke "
+                 f"{_esc(t.get('judged_pairs', 0))} ties and let "
+                 f"{_esc(t.get('judged_candidacy_pairs', 0))} pairs exist that the structure "
+                 f"rejected — <b>{_pct(t.get('judged_any_fraction'))}</b> of matched pairs "
+                 f"involved a model's opinion. Discount the recall by exactly that much.</p>")
 
     parts.append("<h2>Sibling commits</h2><table><tr><th>Repo</th><th>Commit</th><th>Dirty</th></tr>")
     for name, info in versions.items():
@@ -263,7 +275,8 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
                  "saw it</td></tr>"
                  f"<tr><td>shape refusals</td><td>{t['shape_refusals']}</td>"
                  "<td>it fit no contract the aggregate could read</td></tr>"
-                 f"<tr><td>rule refusals</td><td>{sum(t['refusals_by_rule'].values())}</td>"
+                 f"<tr><td>rule refusals</td><td>"
+                 f"{sum(t['refusals_by_rule'].values()) if t.get('refusals_measured') else 'not measured'}</td>"
                  f"<td>the aggregate read it and refused it: "
                  f"{_esc(json.dumps(t['refusals_by_rule']))}</td></tr></table>")
 

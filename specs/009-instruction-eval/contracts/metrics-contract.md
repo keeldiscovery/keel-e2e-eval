@@ -41,8 +41,15 @@ The confusion matrix `{aa, ag, ga, gg}` is reported per entry and overall, and e
 links to the anchor text that produced it.
 
 **Not an alignment problem, a failure**: an answer that omits an anchor id it was given, or invents
-one, is recorded in `missing_ids`/`extra_ids` and counted against `answered` — never quietly matched
-by position.
+one, is recorded in `missing_ids`/`extra_ids` and never quietly matched by position.
+
+*(Settled 2026-09-06, implementing it.)* An earlier draft of this page also said such an id was
+"counted against `answered`", which contradicts the formula above it — an id with no word back
+cannot be in a denominator defined as ids with a word back. The formula wins: **`answered` is the
+anchors given for which the model returned a word, and accuracy is `agree / answered`.** Because
+that denominator would flatter a model that quietly skipped the hard anchors, a run reports
+`given`, `answered`, `missing_ids` and `extra_ids` beside the accuracy, always, so the skipping is
+visible rather than absent. In the baseline of 2026-09-06 both were zero on all 103 cases.
 
 ## The assumption metrics
 
@@ -66,7 +73,8 @@ would double-penalise.
 | `founderPhrase` | equal after case- and whitespace-normalisation. Absent on both sides agrees (a `CHOICE` has no phrase); present on one side only is a miss |
 | `measure.kind` | equal (intervals only; a choice pair scores `n/a`, excluded from the rate) |
 | `measure.unit` | equal after case- and whitespace-normalisation (intervals only) |
-| expected-or-band | for a `CHOICE`, the expected options are equal after normalisation; for an `INTERVAL`, both bounds agree on value, `inclusive` and `exact` — an absent bound must be absent on both sides |
+| `measure.per` | equal after case- and whitespace-normalisation (intervals only). **Added at `MARKS_VERSION` 2**: `Measure` is a three-field record whose own Javadoc says all three decide equality for `V2`, so a belief whose `per` differs expects a different number and an answer against it places nowhere. Nine of the baseline's fifteen matched interval pairs disagreed on it while scoring a clean sheet on every field that then existed |
+| expected-or-band | for an `INTERVAL`, both bounds agree on value, `inclusive` and `exact` — an absent bound must be absent on both sides. For a `CHOICE`, **the expected options mean the same thing** — string equality first, and the judge asked only when that fails (`MARKS_VERSION` 2; see the clarification below) |
 | `risk` | equal |
 | `mark` | equal |
 

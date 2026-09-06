@@ -18,8 +18,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-# The six structural fields, plus founderPhrase -- the seven `score.py` reports separately.
-FIELDS = ("type", "kind", "unit", "expected_or_band", "risk", "mark", "founder_phrase")
+# The fields `score.py` reports separately. `per` joined at MARKS_VERSION 2 (judgement call 12):
+# `Measure` is a three-field record and all three decide equality for `V2`, so a belief whose `per`
+# differs expects a different number and an answer against it places nowhere.
+FIELDS = ("type", "kind", "unit", "per", "expected_or_band", "risk", "mark", "founder_phrase")
 
 # data-model.md §4: two Choices are candidates when their expected options match, or their option
 # sets overlap above this. Half the smaller list is the threshold -- enough that "did you recount
@@ -41,6 +43,11 @@ class Pair:
     score: float
     by: str
     fields: dict
+    #: True when the structure found no overlap at all and only the judge's reading of the two
+    #: option lists made this pair possible. Counted apart from `by == "judge"`, which is a *tie*
+    #: the judge broke: one is the judge letting a pair exist, the other the judge choosing
+    #: between pairs, and a reader discounting a score wants to know which.
+    judged_candidacy: bool = False
 
 
 @dataclass
@@ -52,7 +59,13 @@ class Alignment:
 
     @property
     def judged(self) -> int:
+        """Pairs a model decided outright -- a tie it broke."""
         return sum(1 for pair in self.matched if pair.by == "judge")
+
+    @property
+    def judged_candidacy(self) -> int:
+        """Pairs that exist only because a model read two option lists as the same answer space."""
+        return sum(1 for pair in self.matched if pair.judged_candidacy)
 
 
 # --------------------------------------------------------------------------- reading a produced belief
@@ -124,8 +137,8 @@ def _bound(raw):
 
 # ------------------------------------------------------------------------------------- candidates
 
-def is_candidate(golden: dict, produced: dict) -> bool:
-    """data-model.md §4's candidate rule, and nothing looser."""
+def structural_candidate(golden: dict, produced: dict) -> bool:
+    """The candidate rule with no opinion in it -- MARKS_VERSION 1's whole rule."""
     if not golden.get("type") or golden.get("type") != produced.get("type"):
         return False
     if golden["type"] == "INTERVAL":
@@ -137,6 +150,30 @@ def is_candidate(golden: dict, produced: dict) -> bool:
         return True
     return _option_overlap(golden.get("options") or [], produced.get("options") or []) \
         >= OPTION_OVERLAP_THRESHOLD
+
+
+def is_candidate(golden: dict, produced: dict, judge=None) -> bool:
+    """The candidate rule: arithmetic for an interval, meaning for a choice.
+
+    **An interval is never judged.** Same stage, same `measure.kind`, and bands that intersect --
+    all three are facts, and a model has no opinion to add.
+
+    **A choice is judged when the words do not line up.** Structural overlap is tried first: equal
+    expected options, or option sets overlapping above the threshold. Only when that fails is the
+    judge asked whether the two lists describe the same answer space, because the corpus's option
+    words are one reasonable phrasing and `Q2` binds a belief's list to *its own selection's*, never
+    to the corpus's (the founder's decision, 2026-09-06). Without a judge the old rule stands.
+    """
+    if structural_candidate(golden, produced):
+        return True
+    if golden.get("type") != "CHOICE" or produced.get("type") != "CHOICE":
+        return False                    # an interval is arithmetic; a model has nothing to add
+    if judge is None or not judge.available():
+        return False
+    if not golden.get("options") or not produced.get("options"):
+        return False
+    return judge.same_answer_space(golden["options"], produced["options"],
+                                   context=str(golden.get("heading") or "")[:60])
 
 
 def _bands_intersect(a: dict, b: dict) -> bool:
@@ -157,11 +194,17 @@ def _option_overlap(a: list, b: list) -> float:
 
 # ------------------------------------------------------------------------------------ field agreement
 
-def compare(golden: dict, produced: dict) -> dict:
-    """The seven fields, each `True`, `False` or `None` for not-applicable.
+def compare(golden: dict, produced: dict, judge=None) -> dict:
+    """The eight fields, each `True`, `False` or `None` for not-applicable.
 
-    `kind` and `unit` are `None` for a Choice pair (judgement call 2): a choice has no measure, and
-    counting the absence as agreement would flatter every Choice belief in the corpus.
+    `kind`, `unit` and `per` are `None` for a Choice pair (judgement call 2): a choice has no
+    measure, and counting the absence as agreement would flatter every Choice belief in the corpus.
+
+    For a Choice pair, `expected_or_band` is a **judged semantic match** since MARKS_VERSION 2
+    (judgement call 11): the corpus's option words are one reasonable phrasing, and two authors
+    naming the same answer in different registers agree. String equality is still tried first and
+    the judge is only asked when it fails, so a run with no judge degrades to the old rule rather
+    than to nothing.
     """
     is_interval = golden.get("type") == "INTERVAL" and produced.get("type") == "INTERVAL"
     return {
@@ -170,7 +213,9 @@ def compare(golden: dict, produced: dict) -> dict:
         if is_interval else None,
         "unit": (normalise(golden.get("unit")) == normalise(produced.get("unit")))
         if is_interval else None,
-        "expected_or_band": _expected_or_band(golden, produced),
+        "per": (normalise(golden.get("per")) == normalise(produced.get("per")))
+        if is_interval else None,
+        "expected_or_band": _expected_or_band(golden, produced, judge),
         "risk": normalise(golden.get("risk")) == normalise(produced.get("risk")),
         "mark": normalise(golden.get("mark")) == normalise(produced.get("mark")),
         "founder_phrase": normalise(golden.get("founder_phrase"))
@@ -178,12 +223,23 @@ def compare(golden: dict, produced: dict) -> dict:
     }
 
 
-def _expected_or_band(golden: dict, produced: dict) -> bool:
-    """Exact, not fuzzy -- the §8.3 phrase table is a fixture, and close is not applied."""
+def _expected_or_band(golden: dict, produced: dict, judge=None) -> bool:
+    """A band is exact; an expected option is read for meaning.
+
+    The band stays exact because the §8.3 phrase table is a fixture, not a judgement -- a band that
+    is close did not apply the table. An expected option is the opposite case: it is a word chosen
+    to name an answer, and *"a member of staff"* and *"Someone on my team took it in"* are the same
+    answer named twice (the founder's decision, 2026-09-06).
+    """
     if golden.get("type") != produced.get("type"):
         return False
     if golden.get("type") == "CHOICE":
-        return normalise(golden.get("expected")) == normalise(produced.get("expected"))
+        if normalise(golden.get("expected")) == normalise(produced.get("expected")):
+            return True
+        if judge is None or not judge.available():
+            return False
+        return judge.same_expected_option(golden.get("expected"), produced.get("expected"),
+                                          context=str(golden.get("heading") or "")[:60])
     for end in ("lower", "upper"):
         a, b = golden.get(end), produced.get(end)
         if (a is None) != (b is None):
@@ -212,13 +268,14 @@ def _heading_similarity(golden: dict, produced: dict) -> float:
 
 # ----------------------------------------------------------------------------------------- matching
 
-def align(goldens: list, produced_beliefs: list) -> Alignment:
+def align(goldens: list, produced_beliefs: list, judge=None) -> Alignment:
     """Greedy maximum over descending pair score, deterministic on every tie.
 
     Ties are broken by golden id order and then produced index, so two runs of the same inputs give
     byte-identical alignments -- which is what lets a report's numbers be traced to a diff on disk.
     A genuine top-score tie between two goldens for one produced belief is recorded in `ambiguous`
-    for the judge (`judge.py`, spec Phase 5) rather than settled here by an arbitrary rule.
+    and handed to the judge rather than settled here by an arbitrary rule; with no judge it falls
+    to golden id order, which is arbitrary but at least repeatable.
     """
     golden_views = [(g, golden_view(g)) for g in goldens]
     produced_views = [(i, produced_view(b)) for i, b in enumerate(produced_beliefs)]
@@ -226,33 +283,51 @@ def align(goldens: list, produced_beliefs: list) -> Alignment:
     scored = []
     for gi, (golden, gview) in enumerate(golden_views):
         for pi, pview in produced_views:
-            if not is_candidate(gview, pview):
+            structural = structural_candidate(gview, pview)
+            if not structural and not is_candidate(gview, pview, judge):
                 continue
-            fields = compare(gview, pview)
-            scored.append((pair_score(fields, gview, pview), gi, pi, fields))
+            fields = compare(gview, pview, judge)
+            scored.append((pair_score(fields, gview, pview), gi, pi, fields, not structural))
 
     scored.sort(key=lambda row: (-row[0], row[1], row[2]))
 
     alignment = Alignment()
     used_golden, used_produced = set(), set()
     best_for_produced = {}
-    for score, gi, pi, _fields in scored:
+    for score, gi, pi, _fields, _judged in scored:
         best_for_produced.setdefault(pi, []).append((score, gi))
-    for score, gi, pi, fields in scored:
+    for score, gi, pi, fields, judged_candidacy in scored:
         if gi in used_golden or pi in used_produced:
             continue
         rivals = [g for s, g in best_for_produced.get(pi, [])
                   if s == score and g != gi and g not in used_golden]
+        by = "structure"
         if rivals:
+            # A genuine tie: two goldens the structure likes equally for one produced belief. This
+            # is the one place a model decides a *pair* rather than a field, and it is choosing
+            # between equals rather than overruling arithmetic.
+            tied = [gi] + rivals
             alignment.ambiguous.append({
                 "produced_index": pi,
-                "golden_ids": [golden_views[gi][0].id] + [golden_views[r][0].id for r in rivals],
+                "golden_ids": [golden_views[g][0].id for g in tied],
                 "score": score,
             })
+            if judge is not None and judge.available():
+                chosen = judge.pick(str(produced_views[pi][1].get("statement") or ""),
+                                    [str(golden_views[g][1].get("statement") or "")
+                                     for g in tied])
+                if chosen is None:
+                    continue                      # the judge says none of them; leave it unmatched
+                gi = tied[chosen]
+                fields = compare(golden_views[gi][1], produced_views[pi][1], judge)
+                by = "judge"
+        if gi in used_golden:
+            continue
         used_golden.add(gi)
         used_produced.add(pi)
         alignment.matched.append(Pair(golden_id=golden_views[gi][0].id, produced_index=pi,
-                                      score=score, by="structure", fields=fields))
+                                      score=score, by=by, fields=fields,
+                                      judged_candidacy=judged_candidacy))
 
     alignment.missing = [g.id for gi, (g, _v) in enumerate(golden_views) if gi not in used_golden]
     alignment.extra = [pi for pi, _v in produced_views if pi not in used_produced]

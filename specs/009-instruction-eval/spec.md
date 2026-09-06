@@ -499,3 +499,57 @@ allow-list already excludes `KEEL_HOME` and `KEEL_BASE_URL`.
 
 **This repo still reports and never fixes.** An instruction that scores badly is a keel-cloud
 finding with a run bundle behind it, not a patch made here (AGENTS.md).
+
+---
+
+## Clarifications
+
+### 2026-09-06 — the founder, after reading the baseline
+
+The baseline run `runs/20260906T170528Z-instructions-baseline/` raised two questions this spec had
+not answered. Both were put to the founder and both were decided; `MARKS_VERSION` goes to **2** on
+the second, and every metric definition below is now the one in
+[contracts/metrics-contract.md](contracts/metrics-contract.md).
+
+**1. The per-job wall clock is a setting, not a constant.** Six of twenty-one `*_ASSUMPTIONS` jobs
+hit keel-runtime's hard-coded 120-second timeout, the slowest survivor finished eleven seconds
+clear, and spec 029 makes those instructions longer rather than shorter. **Decision**: keel-runtime
+gives `timeout_seconds` the same flag > env > file > default resolution `budget_usd` and `max_turns`
+already have (`KEEL_JOB_TIMEOUT_SECONDS` / `job_timeout_seconds`), with a new default of **300
+seconds**, threaded through `get_executor`. **This eval uses production's default and never its
+own** — an eval more patient than production would report an instruction as working that a founder
+watches fail — and the number is printed in every run header. Recorded in `runs/DRIFT.md` #26.
+
+**2. Option lists are matched by meaning, not by words.** `SOLUTION` reached 0 of 23 golden beliefs,
+and the produced beliefs were recognisably about the founder's business. The candidate rule required
+equal `expected` strings or a half-overlapping option set, and the corpus's option words are only
+one reasonable phrasing of an answer space. **`Q2` requires a belief's option list to equal *its own
+selection's* list — never the corpus's.** **Decision**:
+
+- A `CHOICE` pair with no structural overlap goes to **the judge** — the bounded reader this spec
+  already designed for ambiguous pairs — which decides whether two lists describe the same answer
+  space. An `INTERVAL` is never judged: kinds and bands are arithmetic and a model has no opinion
+  to add.
+- Exact-match on `expected` becomes a **judged semantic match**, string equality tried first.
+- **The judged fraction is reported on every run**, split two ways — pairs the judge *decided* (a
+  tie it broke) and pairs it merely *allowed to exist* (an option space it read as the same) — so a
+  reader can discount a recall by exactly the amount a model decided. Judgement calls 11 and 14.
+- **A leading option list stays unscored** and visible only on `register.html`, unchanged.
+
+*What happened when it was applied*, recorded because it is the interesting part: re-scoring the
+baseline under `MARKS_VERSION` 2 moved recall from 17.0 % to **18.2 %**. The judge was asked about
+122 option spaces and answered *different* to 120 of them. The produced `SOLUTION` beliefs were not
+the corpus's beliefs in other words — they were about other things, and the decision that could
+have rescued the number instead confirmed the finding. The two-percent-point rise is one pair.
+
+**Also decided in the same message, and already agreed rather than open:**
+
+- **An unmeasured mark fails.** `marks.judge` reported `refusals: 0, met: true` on a run where
+  nothing had ever been shown to the aggregate. A mark with no measurement behind it is not met
+  (judgement call 13).
+- **`measure.per` is a scored field** (judgement call 12).
+- **The baseline is re-scored, not re-run.** `scorecard-v2.json` is written beside the original
+  `scorecard.json` rather than over it: two scorecards under two rubrics are the evidence that the
+  rubric changed, and one of them overwritten is not. `python -m instructions.rescore <run>`.
+- **The register reading stays a person's job** (SC-007/SC-012). `register.html` is produced and
+  left ready; no metric is invented for it and no verdict depends on it.

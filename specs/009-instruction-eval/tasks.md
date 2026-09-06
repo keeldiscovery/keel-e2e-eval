@@ -146,9 +146,14 @@ the run proves it. A rubric change bumps `MARKS_VERSION`. Gate: `make unit`, the
 ## Phase 4: The baseline — before keel-cloud edits a single instruction
 
 - [X] T021 `make instruction-eval BASELINE=1` against keel-cloud's **current** instructions (SC-001).
-      Expect every assumption case schema-invalid or refused and every reading case likewise; the
-      verdict is `failed`. Keep the run directory and record its id here — it is the only measurement
-      of the old instructions that will ever exist.
+      The verdict is `failed`. Keep the run directory and record its id here — it is the only
+      measurement of the old instructions that will ever exist.
+      *(Amended 2026-09-06, after the run: this task originally said "expect every assumption case
+      schema-invalid or refused and every reading case likewise". That prediction was wrong. The
+      CLI's `--json-schema`, built from keel-cloud's exported contract, forces the envelope into
+      the 028/029 shape whatever the prose says — 0 schema-invalid, 0 shape refusals, 0
+      `NEEDS_INPUT`. The baseline measures quality, not shape. See
+      [quickstart.md](quickstart.md) §1, rewritten to match.)*
       - **Run: `runs/20260906T170528Z-instructions-baseline/`** (2026-09-06). keel-cloud `21d0ba1`,
         keel-runtime `916583d`, `claude` 2.1.263, models `claude-opus-5[1m]` + `claude-haiku-4-5`.
         **N=1, not 3** — a baseline is taken once, and the numbers below are stark enough that

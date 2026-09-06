@@ -25,6 +25,24 @@ part of what a number means:
 10. **v1**: the register is rendered and never scored. A metric here would look like evidence and
     be similarity to one hand-written example; the design requires a person, so the run records
     what the person said.
+11. **v2** *(the founder's decision, 2026-09-06, after the baseline)*: **option lists are matched
+    by meaning, not by words.** The corpus's option words are one reasonable phrasing of an answer
+    space; `Q2` requires a belief's list to equal *its own selection's* list and never the
+    corpus's. So a Choice pair with no structural overlap goes to the judge, which decides whether
+    two lists describe the same answer space, and `expected` becomes a judged semantic match
+    rather than a string comparison. The baseline's SOLUTION recall of 0/23 was what forced the
+    question: the produced beliefs were about the same things in different words.
+12. **v2**: `measure.per` is an eighth scored field. `Measure` is a three-field record and its own
+    Javadoc says all three decide equality for `V2`, so a belief whose `per` differs expects a
+    different number and an answer against it places nowhere. Nine of the baseline's fifteen
+    matched interval pairs disagreed on `per` while scoring a clean sheet on every field that
+    existed.
+13. **v2**: an **unmeasured** mark is not a met mark. `refusals` read `0 / met` in the baseline
+    because nothing had been shown to the aggregate yet; a mark with no measurement behind it now
+    fails, as the other two already did for a `None`.
+14. **v2**: the **judged fraction is reported on every run**, per case and overall, so a reader
+    can discount a score by exactly the amount a model decided. Judgement call 11 buys recall at
+    the cost of determinism, and this is the price tag.
 """
 
 from __future__ import annotations
@@ -32,7 +50,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 1
+MARKS_VERSION = 2
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 
@@ -57,11 +75,14 @@ def load(path: Path | str | None = None) -> dict:
 def judge(totals: dict, marks: dict) -> dict:
     """Each mark against its number. A run passes only if all three are met.
 
-    A `None` is a failure, not a pass: a mark with no measurement behind it has not been met, and
-    saying otherwise would let an empty run look green.
+    **An unmeasured mark is not a met mark** (judgement call 13). A `None` fails, and so does a
+    refusal count that was never taken: the baseline of 2026-09-06 reported `refusals: 0, met:
+    true` while nothing had been shown to the aggregate at all, which is the one way this rubric
+    could flatter a run. `refusals_measured` says whether anybody asked.
     """
     accuracy = totals.get("anchoring_accuracy")
     recall = totals.get("golden_belief_recall")
+    measured = bool(totals.get("refusals_measured"))
     refusals = sum((totals.get("refusals_by_rule") or {}).values())
     results = {
         "anchoring_accuracy": {
@@ -71,8 +92,9 @@ def judge(totals: dict, marks: dict) -> dict:
             "value": recall, "mark": marks["golden_belief_recall"],
             "met": recall is not None and recall >= marks["golden_belief_recall"]},
         "refusals": {
-            "value": refusals, "mark": marks["refusals"],
-            "met": refusals <= marks["refusals"]},
+            "value": refusals if measured else None, "measured": measured,
+            "mark": marks["refusals"],
+            "met": measured and refusals <= marks["refusals"]},
     }
     results["passed"] = all(r["met"] for r in results.values() if isinstance(r, dict))
     return results
