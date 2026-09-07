@@ -109,6 +109,23 @@ def finalize_run(run_dir: Path, *, slug: str, facts: dict | None = None, passed:
     return _read_json(run_dir / "scorecard.json")
 
 
+def write_generated(run_dir: Path, *, script: dict | None = None, inputs: dict | None = None) -> None:
+    """spec 010 FR-006: the script this run generated from the corpus, and what the founder and
+    each person typed, into the bundle beside the transcript.
+
+    **Nothing generated is committed** (spec judgement call 1): a checked-in script could go stale
+    against a corpus that moved and a run could be green anyway, which is the one thing freezing
+    the corpus exists to prevent. Written here instead, so `runs/<id>/` shows the corpus, the
+    screen and the wire side by side and a reader can check every value by eye (SC-009).
+    """
+    if script is not None:
+        (run_dir / "script.json").write_text(
+            json.dumps(script, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    if inputs is not None:
+        (run_dir / "inputs.json").write_text(
+            json.dumps(inputs, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
 # ------------------------------------------------------------------------------ failure capture
 
 def write_failure_capture(run_dir: Path, *, page_html: str | None, console_lines: list[str]) -> None:
@@ -199,6 +216,26 @@ def _thumbnails(run_dir: Path, screenshots: list[str]) -> str:
             f'<div style="font-size:11px;color:#666;text-align:center">{html.escape(name)}</div></a>'
         )
     return "".join(parts)
+
+
+def _generated_section(run_dir: Path) -> str:
+    """spec 010 FR-006: `script.json` and `inputs.json` rendered beside the transcript, so the
+    bundle shows the corpus, the screen and the wire without rerunning anything. Absent for every
+    scenario that generates neither (S-002, S-003), which is why this returns "" rather than an
+    empty heading."""
+    script = _read_json(run_dir / "script.json")
+    inputs = _read_json(run_dir / "inputs.json")
+    if script is None and inputs is None:
+        return ""
+    provenance = ""
+    if script:
+        provenance = (f'<p style="font-size:12px;color:#666">corpus entry '
+                      f'<b>{html.escape(str(script.get("_entry_id", "?")))}</b> &middot; sha256 '
+                      f'{html.escape(str(script.get("_entry_sha256", "?"))[:16])}… &middot; '
+                      f'{html.escape(str(script.get("_source", "")))}</p>')
+    return ("<h3>Generated from the corpus</h3>" + provenance
+            + _json_block("script.json (what keel-runtime answered from)", script)
+            + _json_block("inputs.json (what the founder and each person typed)", inputs))
 
 
 def _versions_table(versions: dict | None) -> str:
@@ -506,6 +543,7 @@ details summary {{ cursor: pointer; font-size: 12px; color: #555; }}
 {_score_header(scorecard)}
 <h3>Repo versions</h3>
 {_versions_table(versions)}
+{_generated_section(run_dir)}
 <h3>Interactions</h3>
 {interaction_cards_html if interaction_cards_html else '<p><em>No scored interactions (no scorecard.json).</em></p>'}
 {_scorecard_matrix(scorecard)}

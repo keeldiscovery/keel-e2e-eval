@@ -1,0 +1,288 @@
+# The smoke's own fixture, in keel-cloud's frozen-corpus shape (spec 010 FR-007, T001).
+#
+# **This repo owns and may edit this file. keel-cloud's corpus it may not.** One generator
+# (`harness/corpus_script.py`), one shape, two sources: this fixture, and the frozen golden set.
+# That is judgement call 3 -- the smoke keeps the payroll-exceptions journey, because its
+# assertions cite `canon/journeys.md` and the journey is what the smoke exists to walk; if it were
+# Countly it would duplicate S-005.
+#
+# Three things are recorded here rather than discovered mid-run:
+#
+# 1. **Eleven people, not three.** The journey's own three (Dana Okafor, Wei Zhang, Marcus Webb)
+#    are kept and are the first of their roles, so every §-cited assertion still reads true. Eight
+#    more join them because `Project.FLOOR` is **five**: below five people who described an
+#    occasion, every belief is `UNTESTED` whatever they said, and a smoke whose every line reads
+#    *Still asking* cannot walk FR-008's opened card at all -- no status word carries a direction,
+#    no median has anything to sit on, and GUI-U4 has nothing to judge. Five anchored people per
+#    anchor is the smallest fixture that walks the journey the spec describes.
+# 2. **A payroll manager is a PRACTITIONER and cannot settle a COMMERCIAL belief** (keel-cloud
+#    rule A3, live-confirmed in run `20260903T221034Z`). So the price stage is asked of *Someone
+#    who runs a payroll team*, a MANAGER, exactly as the retired fixture's own correction did.
+# 3. **The two bands are countly's own**, so their bucket scales are known rather than guessed:
+#    `Q1` is `01-countly`'s `S3` (DURATION, hours, per incident, 1..2) and `Q6` is its `C15`
+#    (MONEY, GBP, per month, at least 25). The `expected.buckets` below are therefore that entry's
+#    own, read off the frozen corpus, and a scale that comes back different is a real finding.
+#    The commercial claim reads in pounds for the same reason the market is `GB`: a dollar sign on
+#    a GB market was the old fixture's own inconsistency, not the journey's.
+#
+# `expected` here carries **buckets only**. The smoke asserts the journey's shape, not a golden
+# standing -- that is S-005/S-006/S-007's job against a corpus that was worked by hand and checked.
+# Declaring standings this repo had not hand-worked would be inventing a golden set, which is
+# exactly what the corpus is frozen to prevent.
+
+id: payroll-exceptions
+title: Payroll Exceptions
+
+market: {country: GB, region: null, language: en-GB}
+
+statements:
+  problem: >-
+    Payroll managers at 200-800-person companies lose one to two hours every month reconciling
+    payroll exceptions that nobody owns until payday forces the question.
+  solution: >-
+    An exceptions queue inside the payroll tool that assigns every exception an owner the day it
+    appears.
+  commercial: >-
+    £30 a seat per month, billed annually upfront.
+
+roles:
+  - id: manager
+    label: A payroll manager
+    roleType: PRACTITIONER
+    about: runs payroll at a 200-800-person company and handles the exceptions it throws
+  - id: lead
+    label: Someone who runs a payroll team
+    roleType: MANAGER
+    about: runs a payroll team and signs off on the tools it pays for
+
+beliefs:
+  # ------------------------------------------------------------------------------------ PROBLEM
+  - id: P1
+    stage: PROBLEM
+    heading: It costs hours, not minutes
+    statement: Sorting out the last payroll exception took the manager one to two hours.
+    founderPhrase: one to two hours every month
+    risk: LOAD_BEARING
+    askedOf: manager
+    mark: DIRECT
+    expectation:
+      type: INTERVAL
+      measure: {kind: DURATION, unit: hours, per: incident}
+      lower: {value: 1, inclusive: true, exact: false}
+      upper: {value: 2, inclusive: true, exact: false}
+    selection: Q1
+
+  - id: P2
+    stage: PROBLEM
+    heading: They handle exceptions themselves
+    statement: The manager sorted out the last exception personally.
+    founderPhrase: payroll managers lose one to two hours
+    risk: LOAD_BEARING
+    askedOf: manager
+    mark: DIRECT
+    expectation:
+      type: CHOICE
+      options: [I did, someone on my team, finance, nobody]
+      expected: I did
+    selection: Q2
+
+  - id: P3
+    stage: PROBLEM
+    heading: Exceptions have nowhere to live today
+    statement: The last exception sat in email while it was open, not in a system that owned it.
+    founderPhrase: nobody owns until payday forces the question
+    risk: SUPPORTING
+    askedOf: manager
+    mark: DIRECT
+    expectation:
+      type: CHOICE
+      options: [a spreadsheet, email, the payroll tool itself, nowhere]
+      expected: email
+    selection: Q3
+
+  # ----------------------------------------------------------------------------------- SOLUTION
+  - id: S1
+    stage: SOLUTION
+    heading: Someone would accept being the owner
+    statement: Someone ended up owning the last payroll problem without being assigned it.
+    founderPhrase: assigns every exception an owner
+    risk: LOAD_BEARING
+    askedOf: manager
+    mark: DIRECT
+    expectation:
+      type: CHOICE
+      options: ["yes", "no"]
+      expected: "yes"
+    selection: Q4
+
+  - id: S2
+    stage: SOLUTION
+    heading: They've tried to fix it
+    statement: Someone had already tried to change how exceptions get handled.
+    founderPhrase: the day it appears
+    risk: SUPPORTING
+    askedOf: manager
+    mark: DIRECT
+    expectation:
+      type: CHOICE
+      options: ["yes", "no"]
+      expected: "yes"
+    selection: Q5
+
+  # --------------------------------------------------------------------------------- COMMERCIAL
+  - id: C1
+    stage: COMMERCIAL
+    heading: They already spend at this level per seat
+    statement: They pay at least £25 a month per seat today for the closest payroll tool.
+    founderPhrase: £30 a seat per month
+    risk: SUPPORTING
+    askedOf: lead
+    mark: PROXY
+    expectation:
+      type: INTERVAL
+      measure: {kind: MONEY, unit: GBP, per: month}
+      lower: {value: 25, inclusive: true, exact: true}
+      upper: null
+    selection: Q6
+
+  - id: C2
+    stage: COMMERCIAL
+    heading: They'd pay annually, upfront
+    statement: The last payroll tool the team took on was billed annually, upfront.
+    founderPhrase: billed annually upfront
+    risk: LOAD_BEARING
+    askedOf: lead
+    mark: DIRECT
+    expectation:
+      type: CHOICE
+      options: [annually upfront, monthly, per run, we don't pay for software]
+      expected: annually upfront
+    selection: Q7
+
+questionnaire:
+  introduction: >-
+    Someone building a payroll tool would like to ask you about something that happened recently.
+    There are no right answers, and you can skip anything.
+  anchors:
+    - id: A1
+      stage: PROBLEM
+      prompt: >-
+        Think of the last payroll run where something didn't reconcile. Tell us what happened, in
+        a sentence or two.
+      taps: [hasn't happened, can't recall, rather not say]
+      selections:
+        - id: Q1
+          prompt: How long did sorting that one out take?
+          control: BUCKETS
+          escape: [can't recall]
+        - id: Q2
+          prompt: Who sorted it out?
+          control: OPTIONS
+          multiSelect: false
+          options: [I did, someone on my team, finance, nobody]
+          escape: [can't recall]
+        - id: Q3
+          prompt: Where did that exception live while it was open?
+          control: OPTIONS
+          multiSelect: false
+          options: [a spreadsheet, email, the payroll tool itself, nowhere]
+          other: true
+          escape: [can't recall]
+    - id: A2
+      stage: SOLUTION
+      prompt: >-
+        Think of the last time a payroll problem got sorted out without anyone being told to do
+        it. What happened?
+      taps: [hasn't happened, can't recall, rather not say]
+      selections:
+        - id: Q4
+          prompt: Did anyone end up owning it?
+          control: OPTIONS
+          multiSelect: false
+          options: ["yes", "no"]
+          escape: [can't recall]
+        - id: Q5
+          prompt: Had anyone tried to change how these get handled before?
+          control: OPTIONS
+          multiSelect: false
+          options: ["yes", "no"]
+          escape: [don't know]
+    - id: A3
+      stage: COMMERCIAL
+      prompt: >-
+        Think of the last payroll tool your team started paying for. What was it, and how did that
+        come about?
+      taps: [hasn't happened, can't recall, rather not say]
+      selections:
+        - id: Q6
+          prompt: What do you pay a month per seat today for the closest thing?
+          control: BUCKETS
+          escape: [don't know]
+        - id: Q7
+          prompt: How was that billed?
+          control: OPTIONS
+          multiSelect: false
+          options: [annually upfront, monthly, per run, we don't pay for software]
+          escape: [don't know]
+
+# Six payroll managers and five payroll leads. `anchoring` is the judgement keel-runtime's scripted
+# reading reproduces; Ines guesses on A1 and leaves A2 blank behind a tap, so the blank-anchor rule
+# (an anchor nobody wrote under is never in the context, so never in the answer) is walked once.
+answers:
+  - person: Dana Okafor
+    anchors:
+      A1: {text: "Last Tuesday I spent about two hours reconciling against invoices before I found the duplicate.", anchoring: ANCHORED}
+      A2: {text: "When something like this came up before, I ended up handling it without anyone assigning it to me.", anchoring: ANCHORED}
+    picks: {Q1: 1 h to 2 h, Q2: I did, Q3: a spreadsheet, Q4: "yes", Q5: "yes"}
+  - person: Wei Zhang
+    anchors:
+      A1: {text: "We had one last quarter, but our system catches most of it before it costs anyone real time.", anchoring: ANCHORED}
+      A2: {text: "Email, mostly. Whoever spotted it emails whoever they think should fix it, and that person owns it.", anchoring: ANCHORED}
+    picks: {Q1: under 15 min, Q2: I did, Q3: email, Q4: "yes", Q5: "no"}
+  - person: Priya Raman
+    anchors:
+      A1: {text: "March run. A starter's pension was wrong and it took most of an afternoon between me and finance.", anchoring: ANCHORED}
+      A2: {text: "One of my team picked it up on her own, but only because she saw it first.", anchoring: ANCHORED}
+    picks: {Q1: 2 h to 4 h, Q2: someone on my team, Q3: email, Q4: "no", Q5: "no"}
+  - person: Tomas Nilsen
+    anchors:
+      A1: {text: "A leaver was paid twice in June. I unpicked it myself over about ninety minutes.", anchoring: ANCHORED}
+      A2: {text: "Nobody owned it. It sat until payday made it somebody's problem, and that was me.", anchoring: ANCHORED}
+    picks: {Q1: 1 h to 2 h, Q2: I did, Q3: nowhere, Q4: "yes", Q5: "no"}
+  - person: Rachel Adeyemi
+    anchors:
+      A1: {text: "Overtime hours came through wrong last month; forty minutes, maybe, with the manager on the phone.", anchoring: ANCHORED}
+      A2: {text: "My deputy took it on herself last time, unprompted, and she still has it.", anchoring: ANCHORED}
+    picks: {Q1: 30 min to 1 h, Q2: I did, Q3: email, Q4: "yes", Q5: "no"}
+  - person: Ines Duarte
+    anchors:
+      A1: {text: "It happens most months, usually something with expenses. I couldn't pin one down.", anchoring: GUESSED}
+      A2: {text: "", tap: "hasn't happened"}
+    picks: {Q1: 1 h to 2 h, Q2: I did, Q3: email, Q4: "no", Q5: "no"}
+  - person: Marcus Webb
+    anchors:
+      A3: {text: "We moved onto a payroll bureau's portal last year. I signed it off, they billed us per run.", anchoring: ANCHORED}
+    picks: {Q6: £25 to £50, Q7: per run}
+  - person: Hannah Beck
+    anchors:
+      A3: {text: "A rota add-on, in the spring. Finance asked for it and I approved the spend.", anchoring: ANCHORED}
+    picks: {Q6: under £5, Q7: monthly}
+  - person: Yusuf Kaya
+    anchors:
+      A3: {text: "Payroll software renewal in January — same vendor, we just paid the year in one go.", anchoring: ANCHORED}
+    picks: {Q6: £10 to £20, Q7: annually upfront}
+  - person: Elena Sokolova
+    anchors:
+      A3: {text: "An expenses tool, about six months ago. Monthly, on the company card.", anchoring: ANCHORED}
+    picks: {Q6: £25 to £50, Q7: monthly}
+  - person: Ben Oyelaran
+    anchors:
+      A3: {text: "We took on a time-and-attendance system last autumn and paid the first year upfront.", anchoring: ANCHORED}
+    picks: {Q6: £5 to £10, Q7: annually upfront}
+
+expected:
+  # `01-countly`'s own S3 and C15 scales, because Q1 and Q6 carry countly's own bands (header
+  # note 3). Buckets only: see the header -- this repo does not invent golden standings.
+  buckets:
+    Q1: [under 15 min, 15 min to 30 min, 30 min to 1 h, 1 h to 2 h, 2 h to 4 h, 4 h to 8 h, 8 h to 1 day, "more than 1 day, say roughly"]
+    Q6: [under £5, £5 to £10, £10 to £20, £20 to £25, £25 to £50, £50 to £100, £100 to £200, "more than £200, say roughly"]

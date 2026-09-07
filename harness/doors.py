@@ -11,8 +11,23 @@ A door is an `<a href>` the founder can see. It is *dead* in one of four shapes 
     D4 unreachable     an external door that does not answer 2xx/3xx within 10 s, or a resource
                        404 during load (`/favicon.ico`)
 
-Everything that reads a page is here so the rule lives in one place; `judge` is a pure function
-over what was read, so `tests/test_doors.py` can exercise every verdict without a browser.
+**D5, every opener** (spec 010 FR-018, and **this repo's own rule**, not keel-cloud's).
+`every-door-design.md` has D1-D4 and predates a screen with a strip that expands, a dot that pops
+a box, and a modal. An in-page control that *reveals* content -- a strip row, a dot, the popover's
+*see all*, the modal's close, a chip tap -- is not an `<a href>` and no D1-D4 rule reaches it, but
+it is a door in every sense a founder cares about: it names something and it either opens it or it
+does not.
+
+    D5 opens_nothing   the control was exercised once and nothing appeared
+    D5 cannot_close    it opened what it named and would not close back to the screen it came from
+
+Judgement call 4 of the spec records that this is the referee's addition rather than keel-cloud's
+design; if the founder would rather it went into `every-door-design.md` first, it can wait for
+that. Until then it is stated here so it reads as chosen.
+
+Everything that reads a page is here so the rule lives in one place; `judge` and `judge_opener`
+are pure functions over what was read, so `tests/test_doors.py` and `tests/test_doors_d5.py` can
+exercise every verdict without a browser.
 """
 
 from __future__ import annotations
@@ -27,7 +42,10 @@ NOT_FOUND_MARKER = "This page doesn't exist."
 # (`&apos;` in JSX); match either so a copy change in quoting never hides a not-found page.
 _NOT_FOUND_RE = re.compile(r"This page doesn[’']t exist\.")
 
-VERDICTS = ("opens", "not_found", "blank", "failed_request", "unreachable", "skipped")
+# `opens_nothing` and `cannot_close` are D5's (see the module docstring); the first five are
+# keel-cloud's own design and are untouched.
+VERDICTS = ("opens", "not_found", "blank", "failed_request", "unreachable", "skipped",
+            "opens_nothing", "cannot_close")
 
 # keel-web's route table (`src/routes/AppRoutes.tsx`), as patterns over a path -- the walk's
 # coverage tally (§3.5 of the design) reports which of these at least one rendered link reached.
@@ -41,7 +59,9 @@ ROUTE_PATTERNS: dict[str, re.Pattern[str]] = {
     "/p/:id/people": re.compile(r"^/p/[^/]+/people$"),
     "/p/:id/invite": re.compile(r"^/p/[^/]+/invite$"),
     "/p/:id/invitations": re.compile(r"^/p/[^/]+/invitations$"),
-    "/p/:id/brief": re.compile(r"^/p/[^/]+/brief$"),
+    # spec 010: `/p/:id/brief` retires with `BriefRoute.tsx`; `/p/:id/print` -- the download page,
+    # which sits outside the project shell -- joins the table as a seed of its own (FR-017).
+    "/p/:id/print": re.compile(r"^/p/[^/]+/print$"),
     "/i/:token": re.compile(r"^/i/[^/]+$"),
 }
 
@@ -210,6 +230,80 @@ def open_door(page: Any, url: str, *, allow_401: bool = False, quiet_ms: int = 1
     if document_url["value"] != url:
         verdict.detail = f"{verdict.detail}; landed on {urlsplit(document_url['value']).path}"
     return verdict
+
+
+# ----------------------------------------------------------------------------- D5, every opener
+
+@dataclass
+class Opener:
+    """An in-page control that reveals content. `names` is what it says it will open -- a person's
+    name on a dot, a line's heading on a strip row -- and is what "opens what it names" means."""
+    source: str          # the page it was found on (path)
+    label: str           # the control's own visible words, or its aria-label
+    names: str = ""      # what it promises to reveal; "" when it promises nothing in particular
+
+
+def judge_opener(*, before: str, opened: str, closed: str | None, names: str = "") -> Verdict:
+    """D5 over three reads of the same region: before the control was used, after it was used, and
+    after it was used again to close (or `None` where the control is one-way by design).
+
+    Three verdicts and nothing looser:
+
+    - **opens_nothing** -- the opened read is no bigger than the before read. A control that
+      reveals nothing is dead in exactly the way a `<a href>` to a blank page is dead.
+    - **opens** but the promised words are missing -> also `opens_nothing`, with the promise
+      quoted: a dot labelled *Dana Okafor* that opens somebody else's box has not opened what it
+      names, and calling that "opens" would be the referee agreeing with the screen.
+    - **cannot_close** -- it opened, and the closed read still carries what the opened one added.
+      The design's own phrasing is *closes back to the screen it came from*; a box that will not
+      shut is a founder stuck on a screen they did not choose.
+    """
+    before_text = (before or "").strip()
+    opened_text = (opened or "").strip()
+    if len(opened_text) <= len(before_text):
+        return Verdict("opens_nothing", "the control was exercised once and nothing appeared", [])
+    revealed = opened_text
+    if names and names.strip().casefold() not in revealed.casefold():
+        return Verdict("opens_nothing",
+                       f"something appeared, but not what the control names ({names!r})", [])
+    if closed is None:
+        return Verdict("opens", "it opened what it names (one-way by design; no close to judge)", [])
+    closed_text = (closed or "").strip()
+    if len(closed_text) > len(before_text):
+        return Verdict("cannot_close",
+                       "it opened what it names but would not close back to the screen it came "
+                       "from", [])
+    return Verdict("opens", "it opened what it names and closed back", [])
+
+
+def open_opener(page: Any, control: Any, *, region: str, names: str = "",
+                 closer: Any = None, settle_ms: int = 250) -> Verdict:
+    """Exercises one opener **once** and judges it (D5). `region` is the selector whose text is
+    read three times; `closer` is the control that shuts it again (the same control, when it
+    toggles), or `None` for a one-way reveal.
+
+    A harness mechanic, not an assertion -- the rule is `judge_opener`'s, which is why that half
+    is pure and unit-tested against canned DOMs.
+    """
+    before = _text_of(page, region)
+    control.click()
+    page.wait_for_timeout(settle_ms)
+    opened = _text_of(page, region)
+    closed = None
+    if closer is not None:
+        try:
+            closer.click()
+            page.wait_for_timeout(settle_ms)
+            closed = _text_of(page, region)
+        except Exception as exc:  # noqa: BLE001 - a closer that cannot even be clicked is D5
+            return Verdict("cannot_close", f"the closing control could not be used: {exc}", [])
+    return judge_opener(before=before, opened=opened, closed=closed, names=names)
+
+
+def opener_rows(openers: list[Opener], verdicts: list[Verdict]) -> list[dict[str, Any]]:
+    """`doors.json`'s `openers` half: one row per control exercised."""
+    return [{**asdict(opener), "verdict": verdict.verdict, "detail": verdict.detail}
+            for opener, verdict in zip(openers, verdicts)]
 
 
 def check_external(request_context: Any, url: str, *, timeout_ms: int = 10_000) -> Verdict:

@@ -15,10 +15,10 @@ from harness import scoring
 from harness.steps import Recorder
 
 
-def test_policy_version_is_7():
-    # v6 retired the agent-protocol half; v7 (judgement call 10) only widens the English-word
-    # collision exemptions -- the scenarios below still test v6's vocabulary claims unchanged.
-    assert policy.POLICY_VERSION == 7
+def test_v6_vocabulary_survives_every_later_bump():
+    """The version constant itself is `tests/test_policy_v8.py`'s to assert -- this file proves
+    what **v6** claimed, and that no later bump quietly took it away."""
+    assert policy.POLICY_VERSION >= 7
 
 
 def test_v7_exempts_the_two_house_copy_collisions():
@@ -74,8 +74,10 @@ def test_seeded_connect_state_leak_fails_cla_u1(tmp_path):
     assert "AWAITING_CONFIRMATION" in checks[0]["detail"]
 
 
-def test_fid_hop_ids_are_the_four_screen_carried_hops_only():
-    assert set(policy.HOP_IDS) == {"stage_screen", "invite_screen", "participant_page", "brief"}
+def test_the_wire_only_hops_stayed_retired():
+    """v6 retired the five wire-only hops with the agent protocol that carried them. v8 restated
+    `HOP_IDS` for the measured-beliefs screens (`tests/test_policy_v8.py` asserts that list); what
+    this still proves is that no retired wire hop came back with it."""
     assert "agent_echo" not in policy.HOP_IDS
     assert "interpret_context" not in policy.HOP_IDS
     assert "recorded" not in policy.HOP_IDS

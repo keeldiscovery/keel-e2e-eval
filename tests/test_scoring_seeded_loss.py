@@ -11,6 +11,7 @@ hop. The weight-2 verbatim-participant-speech rule moves to `participant_page`
 
 from __future__ import annotations
 
+from evals import policy
 from evals.facts import Fact
 from harness import scoring
 from harness.steps import Recorder
@@ -189,33 +190,18 @@ def test_waiting_state_naming_what_is_waited_for_passes_gui_u3(tmp_path):
     assert checks[0]["pass"] is True
 
 
-# ---------------------------------------------------------- brief summarizing: waived, not failed
+# -------------------------------------------------------------- the waiver that retired with v8
 
-def test_brief_summarizing_an_assumption_passes_waived_with_reference(tmp_path):
-    """The brief renders a founder-authored summary sentence, not the raw assumption statement --
-    policy's `brief-findings-summarize` waiver means this counts as pass, flagged, citing
-    keel-cloud's api-design.md §6a (design §5's first shipped waiver)."""
-    recorder = Recorder(tmp_path)
-    with recorder.interaction("ui_visit"):
-        with recorder.step("founder opens the brief", party="founder", kind="browser") as h:
-            h.capture_text("screen", "brief")
-            h.capture_text("brief", "Payroll managers do spend hours a month chasing exceptions "
-                                     "(1 of 1 respondents).")  # summarized, not verbatim
-
-    facts = {
-        "assumption_problem": Fact(
-            text="Payroll managers spend multiple hours every month manually chasing down payroll exceptions.",
-            kind="assumption", hops=["brief"],
-        ),
-    }
-    scorecard = _score(tmp_path, facts)
-
-    checks = _checks_for(scorecard, "FID-assumption_problem-brief")
-    assert len(checks) == 1
-    check = checks[0]
-    assert check["pass"] is True
-    assert check["waived"] is not None
-    assert check["waived"]["reference"] == "keel-cloud canon/api-design.md §6a"
+def test_policy_8_carries_no_waivers_at_all(tmp_path):
+    """Policy 7's one waiver excused `("assumption", "brief")` -- a Brief screen keel-web no longer
+    has (`BriefRoute.tsx` is gone, and with it `/p/:id/brief`). v8 retires the hop and the waiver
+    together and replaces neither: a review card quotes the founder's own phrase verbatim, so
+    there is nothing left to excuse. A waiver that outlived its screen is a check that passes for
+    a reason nobody can look at, which is worse than no check."""
+    assert policy.WAIVERS == {}
+    assert policy.waiver_for("assumption", "review_card") is None
+    assert "brief" not in policy.HOP_IDS
+    assert "brief" not in policy.HOP_INTERACTION_TYPES
 
 
 # ------------------------------------------------------ corrupt answer at participant_page (w2)

@@ -216,6 +216,34 @@ Judgement calls made while filling in what the contract leaves to the implementa
    answers it actually puts on a screen (its own participant's, read back on P9 with no agent),
    because a fact registered for a hop the run never visits is a check with nothing to check, not
    evidence of infidelity (S-002's first green run scored FIDELITY 1.0 that way). No weight changes.
+
+11. **Policy v8: the measured-beliefs vocabulary** (spec 010-measured-beliefs-eval,
+   `contracts/policy-v8-contract.md`). The old claim -> stance -> verdict model is gone from
+   keel-cloud: `Stance`, `ClaimType`, `Question` and `Answer` no longer exist, a belief carries an
+   **expectation** over a **measure**, a participant **picks**, and the aggregate **places** each
+   anchored answer and reports a `BeliefStanding`. So the policy grows the vocabulary a founder
+   screen must never show raw -- placements, anchorings, taps, measure kinds, expectation types,
+   marks, selection controls, role types -- and retires the three phrases the evidence drill-down
+   used to say.
+
+   `HOP_IDS` is restated for the screens that now exist: `stage_screen`, `review_card`,
+   `invite_screen`, `participant_page`, `overview`, `opened_card`, `answers_modal`, `download`.
+   **`brief` retires** with keel-web's `BriefRoute.tsx`, and so does its one waiver -- a review
+   card quotes the founder's own phrase verbatim, so there is nothing left to excuse.
+
+   Two checks join: **ORI-U4** (a review card says, in the founder's own words, what the person
+   will be asked first) and **GUI-U4** (a status word carries a direction exactly when it should
+   -- for a drifted `INTERVAL`, and never for a `CHOICE`; design SS6.1, both sides).
+
+   And `Fact.absent_hops`, which has existed unused since spec 005, is finally **scored**
+   (FR-030): a fact declared absent from a hop fails FIDELITY if it is found there. That is design
+   rule `Q5` and the mockup's own line -- *"No line names your number or your answer. The band and
+   the expected pick are yours; the people you ask never see them."* -- turned from a sentence
+   into a check.
+
+   Policy 8 is additive plus two retirements. `CATEGORY_WEIGHTS`, `DEFAULT_WEIGHT`,
+   `FID_ANSWER_PARTICIPANT_PAGE_WEIGHT`, `COMPLETION_GATE_SCORE`, `normalize`, `fact_reaches_hop`
+   and every check from ORI-U1 to GUI-U3 are untouched; it reweights nothing.
 """
 
 from __future__ import annotations
@@ -223,7 +251,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-POLICY_VERSION = 7
+POLICY_VERSION = 8
 
 CATEGORY_WEIGHTS: dict[str, float] = {
     "FIDELITY": 0.4,
@@ -264,6 +292,10 @@ CHECKS: dict[str, dict[str, Any]] = {
     "CLA-U4": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
     "CLA-U5": {"attribute": "CLARITY", "weight": DEFAULT_WEIGHT},
     "GUI-U3": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
+    # Policy v8 (module docstring, judgement call 11): a review card names what the person will be
+    # asked first, and a status word carries a direction exactly when the design says it should.
+    "ORI-U4": {"attribute": "ORIENTATION", "weight": DEFAULT_WEIGHT},
+    "GUI-U4": {"attribute": "GUIDANCE", "weight": DEFAULT_WEIGHT},
 }
 
 # Policy v4: a raw project id (UUID) has no business appearing in a founder-facing arrival
@@ -275,7 +307,12 @@ UUID_RE = re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F
 # a screen or the participant survey can actually carry (policy v6, judgement call 9) -- the wire-
 # only hops (`agent_echo`, `interpret_context`, `recorded`, `roles_context`, `chat_turns`) are
 # retired with the agent-protocol harness.
-HOP_IDS = ["stage_screen", "invite_screen", "participant_page", "brief"]
+# Policy v8 (FR-026): the eight measured-beliefs screens. `brief` retires with keel-web's
+# `BriefRoute.tsx` -- there is no `/p/:id/brief` route any more, and a hop no screen can carry is
+# a check with nothing to check. `stage_screen` keeps its name: it is still the founder's own
+# naming-and-market surface, which is what it always meant.
+HOP_IDS = ["stage_screen", "review_card", "invite_screen", "participant_page",
+           "overview", "opened_card", "answers_modal", "download"]
 
 # hop ids reached via a ui_visit interaction's captured_text vs. a participant_visit's -- lets
 # harness/rubric.py know which interactions are even candidates for a given hop.
@@ -285,22 +322,23 @@ HOP_IDS = ["stage_screen", "invite_screen", "participant_page", "brief"]
 # places an answer's fidelity can be judged, and a scenario may capture either or both.
 HOP_INTERACTION_TYPES: dict[str, tuple[str, ...]] = {
     "stage_screen": ("ui_visit",),
+    "review_card": ("ui_visit",),
     "invite_screen": ("ui_visit",),
-    "brief": ("ui_visit",),
+    "overview": ("ui_visit",),
+    "opened_card": ("ui_visit",),
+    "answers_modal": ("ui_visit",),
+    "download": ("ui_visit",),
     "participant_page": ("participant_visit", "ui_visit"),
 }
 
 # Waivers (design §5): (fact kind, hop id) -> {reason, reference}. A waived hop counts as pass,
 # flagged, provided the hop's interaction actually exists (waivers excuse summarizing, not total
 # absence -- see harness/rubric.py).
-WAIVERS: dict[tuple[str, str], dict[str, str]] = {
-    ("assumption", "brief"): {
-        "id": "brief-findings-summarize",
-        "reason": "Brief.findings is a founder-authored summary sentence (with respondent counts), "
-                  "not a verbatim repeat of the assumption statement -- known, accepted contract gap.",
-        "reference": "keel-cloud canon/api-design.md §6a",
-    },
-}
+# Policy v8: **empty**, and deliberately so. The one entry policy 7 carried waived
+# `("assumption", "brief")` -- a Brief that no longer exists. Nothing replaces it: a review card
+# quotes the founder's own phrase verbatim (`p.you-said`, `span.strip__you`), so there is no
+# summarizing left to excuse.
+WAIVERS: dict[tuple[str, str], dict[str, str]] = {}
 
 
 def fid_weight(fact_kind: str, hop: str) -> int:
@@ -363,6 +401,21 @@ RULE_LITERALS = {"token", "concurrency", "schema", "context", "open_web", "scree
 # the device-authorization/runtime-job states a founder-facing screen must never leak raw.
 CONNECT_STATES = {"AWAITING_CONFIRMATION", "ACCEPTED", "PENDING", "RUNNING", "DONE", "EXPIRED"}
 
+# Policy v8 (FR-027, contracts/policy-v8-contract.md): the measured-beliefs wire vocabulary. Every
+# one of these is a raw enum keel-cloud serialises and a founder screen must never show as itself
+# -- `FounderVoice` and keel-web's `translate.ts` are what turn each of them into English.
+PLACEMENTS = {"INSIDE", "BELOW", "ABOVE", "OUTSIDE"}
+ANCHORINGS = {"ANCHORED", "GUESSED"}
+TAPS = {"HASNT_HAPPENED", "CANT_RECALL", "RATHER_NOT_SAY"}
+# Seven, not the founder's six: `RATE` is real (design §6.4 -- a rate is measured as the gap
+# between the last two incidents) and `01-countly`'s P2 carries it (spec judgement call 5).
+MEASURE_KINDS = {"COUNT", "DURATION", "MONEY", "SHARE", "TIME_SINCE", "PHYSICAL", "RATE"}
+EXPECTATION_TYPES = {"INTERVAL", "CHOICE"}
+MARKS = {"DIRECT", "PROXY"}
+SELECTION_CONTROLS = {"OPTIONS", "BUCKETS"}
+# `GATEKEEPER` joins the four the design names, for completeness of keel-cloud's own `RoleType`.
+ROLE_TYPES = {"PRACTITIONER", "BUYER", "CONSUMER", "MANAGER", "GATEKEEPER"}
+
 # Judgement call 5 (policy v3, live-confirmed 2026-08-30 once CLA-A2 started sweeping commit
 # `display` and CLA-U1 swept the brief's own ALL-CAPS section headers): two more English-word
 # collisions, the same shape as judgement call 1's StageType exemption. "roles" is FounderVoice's
@@ -390,12 +443,19 @@ CONNECT_STATES = {"AWAITING_CONFIRMATION", "ACCEPTED", "PENDING", "RUNNING", "DO
 # copy in keel-web's copy-string guarantee, not leaks. Exempted for the same reason as "EVIDENCE";
 # a raw `CONTRADICTED` arriving as a verdict would come in mixed-case JSON and CLA-U2 still catches
 # that, and the retired handle vocabulary itself left with the agent protocol (keel-cloud spec 025).
+#
+# Policy v8 predicted two more and **exempted neither pre-emptively** (spec T011): `RATE` and
+# `SHARE` are ordinary English words keel-web could legitimately print. The first red run decides,
+# and an exemption is added here by name with its excerpt quoted -- never by softening the sweep.
 _ENGLISH_COLLISION_EXEMPTIONS = {"roles", "EVIDENCE", "REVIEW", "assumptions", "CONTRADICTED"}
 
 # See module docstring, judgement call 1: StageType names are excluded on purpose.
 CLARITY_TOKENS: set[str] = (
     WORKFLOW_STATES | VERDICTS | NEEDS | RISKS | HANDLE_NAMES
     | (ACTION_NAMES - LICENSED_ACTION_NAMES) | RULE_LITERALS | CONNECT_STATES
+    # Policy v8 (FR-027): the measured-beliefs families.
+    | PLACEMENTS | ANCHORINGS | TAPS | MEASURE_KINDS | EXPECTATION_TYPES | MARKS
+    | SELECTION_CONTROLS | ROLE_TYPES
 ) - _ENGLISH_COLLISION_EXEMPTIONS
 
 # Policy v6, CLA-U4: strings the pre-round-5 surfaces this spec retires used to show a founder --
@@ -405,6 +465,12 @@ CLARITY_TOKENS: set[str] = (
 RETIRED_STRINGS = {
     "Conversation history", "Tell your Keel agent", "Something's off", "Ruled out",
     "This isn't working", "Recorded", "Not what I meant",
+    # Policy v8, FR-028: the evidence drill-down's own vocabulary, which went away with the
+    # claim/stance model (`Stance`, `ClaimType`, `Question` and `Answer` no longer exist in
+    # keel-cloud at all). A literal survival of one of these means a retired screen variant leaked
+    # back in, not a coincidence; none collides with ordinary English the way judgement calls 1
+    # and 5 had to exempt for.
+    "counted for", "counted against", "said, but didn't count",
 }
 
 # Policy v6, CLA-U5: a participant is never known to be one gender or another -- these six read
@@ -457,6 +523,30 @@ def retired_string_violations(text: str | None) -> list[str]:
         return []
     scanned = _strip_urls(text)
     return sorted({phrase for phrase in RETIRED_STRINGS if phrase in scanned})
+
+
+# ------------------------------------------------------------------------------ policy v8 checks
+
+# GUI-U4 (FR-029): the four direction clauses keel-web's own `driftClause` appends to a status
+# word, and the only four a status word may carry. They live here, not in `harness/rubric.py`,
+# because nothing in the rubric decides a wording rule on its own -- it asks this module.
+# `RATE` reverses (a longer gap is *less often*), which is why there are four and not two.
+DRIFT_CLAUSES = {
+    "smaller than you think", "bigger than you think",
+    "less often than you think", "more often than you think",
+}
+
+# ORI-U4 (FR-029): the two terms the review card's *What they'll be asked first* block is made of
+# -- the one story, and then the picks. Asserted as founder-readable words, never as a selector.
+ASKED_FIRST_TERMS = ("story", "pick")
+
+
+def carries_direction(status_word: str | None) -> bool:
+    """Does this status word carry one of the four direction clauses (GUI-U4)?"""
+    if not status_word:
+        return False
+    lowered = status_word.casefold()
+    return any(clause in lowered for clause in DRIFT_CLAUSES)
 
 
 def gendered_pronoun_violations(text: str | None) -> list[str]:

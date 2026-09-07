@@ -82,7 +82,10 @@ def test_tally_reports_unreached_routes_without_failing() -> None:
     t = doors.tally(found, base=base)
     assert t["reached"]["/p/:id"] == ["/"]
     assert t["reached"]["/p/:id/people"] == ["/p/abc"]
-    assert "/p/:id/brief" in t["unreached"]
+    # spec 010: `/p/:id/brief` retired with `BriefRoute.tsx`; the download page took its
+    # place in the route table and is unreached by these three links.
+    assert "/p/:id/brief" not in doors.ROUTE_PATTERNS
+    assert "/p/:id/print" in t["unreached"]
     rows = doors.rows(found, {f"{base}/p/abc": doors.Verdict("opens", "ok")})
     assert rows[0]["verdict"] == "opens" and rows[1]["verdict"] == "skipped" and rows[2]["route"] is None
 

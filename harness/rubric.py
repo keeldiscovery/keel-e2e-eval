@@ -187,6 +187,70 @@ def _gui_u2(ix: Interaction) -> CheckResult | None:
     return _result("GUI-U2", not has_url, f"pointer_to_agent={pointer!r}", ix)
 
 
+def _ori_u4(ix: Interaction) -> CheckResult | None:
+    """Policy v8, ORI-U4 (spec 010 FR-029): **does a review card say, in the founder's own words,
+    what the person will be asked first?**
+
+    The mockup's own block -- *What they'll be asked first*, *The one story*, *Then* -- is the
+    answer to the founder's first question about a questionnaire they will never see being
+    answered. Captured by `harness/browser.py`'s `ReviewCard` as `asked_first` (the `dl.qa`'s own
+    text) so this check is self-contained at scoring time, exactly as `_need_exists` is.
+
+    Skipped (None) when this visit is not a review card at all -- an overview has nothing to say
+    about what is asked first, and failing it for that would be measuring the wrong screen.
+    """
+    if ix.captured_text.get("screen") != "review_card":
+        return None
+    block = (ix.captured_text.get("asked_first") or "").strip()
+    lowered = block.casefold()
+    named = [term for term in policy.ASKED_FIRST_TERMS if term in lowered]
+    passed = bool(block) and len(named) == len(policy.ASKED_FIRST_TERMS)
+    detail = (f"asked_first={block[:200]!r}, names={named}" if block
+              else "no 'what they'll be asked first' block rendered on this review card")
+    return _result("ORI-U4", passed, detail, ix)
+
+
+def _gui_u4(ix: Interaction) -> CheckResult | None:
+    """Policy v8, GUI-U4 (spec 010 FR-029): **does a status word carry a direction exactly when it
+    should?**
+
+    Design §6.1, and deliberately two-sided. A drifted `INTERVAL` belief's status must carry one
+    of `policy.DRIFT_CLAUSES`; a `CHOICE` belief's must carry none, because there is no direction
+    to show -- a keel-web that invents one fails this just as hard as one that omits a real one.
+
+    Read off `belief_statuses`, a JSON list `harness/browser.py`'s `OpenedCard` captures per
+    strip: `{heading, expectation, drift, status}`. Skipped (None) when no belief on the captured
+    screen carried a status word at all.
+    """
+    raw = ix.captured_text.get("belief_statuses")
+    if not raw:
+        return None
+    try:
+        beliefs = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    beliefs = [b for b in beliefs if isinstance(b, dict) and (b.get("status") or "").strip()]
+    if not beliefs:
+        return None
+
+    problems: list[str] = []
+    for belief in beliefs:
+        status = belief.get("status") or ""
+        carries = policy.carries_direction(status)
+        expectation = (belief.get("expectation") or "").upper()
+        drift = (belief.get("drift") or "").upper()
+        heading = belief.get("heading") or "(unnamed line)"
+        if expectation == "CHOICE" and carries:
+            problems.append(f"{heading}: a CHOICE carries a direction -- {status!r}")
+        elif expectation == "INTERVAL" and drift in ("BELOW", "ABOVE") and not carries:
+            problems.append(f"{heading}: an INTERVAL drifted {drift} and its status is {status!r}")
+        elif expectation == "INTERVAL" and drift in ("NONE", "BOTH", "") and carries:
+            problems.append(f"{heading}: an INTERVAL with drift {drift or 'absent'} carries a "
+                            f"direction -- {status!r}")
+    detail = "; ".join(problems) if problems else f"{len(beliefs)} status word(s) read true"
+    return _result("GUI-U4", not problems, detail, ix)
+
+
 def _ui_visit_checks(ix: Interaction) -> list[CheckResult]:
     results = []
     screen = ix.captured_text.get("screen")
@@ -223,6 +287,12 @@ def _ui_visit_checks(ix: Interaction) -> list[CheckResult]:
     gui_u2 = _gui_u2(ix)
     if gui_u2 is not None:
         results.append(gui_u2)
+
+    # Policy v8 (spec 010 FR-029): the review card's own "asked first" block, and the two-sided
+    # direction rule. Both skip rather than fail on a screen they do not apply to.
+    for check in (_ori_u4(ix), _gui_u4(ix)):
+        if check is not None:
+            results.append(check)
 
     combined_text = "\n".join(v for k, v in ix.captured_text.items() if k not in ("state",))
     enum_violations = policy.enum_violations(combined_text)
@@ -333,6 +403,49 @@ def _fid_checks(interactions: list[Interaction],
                 target = candidates[-1]
                 results.setdefault(target.id, []).append(_result(
                     check_id, False, f"fact not found verbatim at '{hop}' (checked {len(candidates)} interaction(s))",
+                    target, attribute="FIDELITY", weight=weight, fact_id=fact_id, hop=hop,
+                ))
+
+        # Policy v8, FR-030: `Fact.absent_hops`, which has existed unused since spec 005, is
+        # scored for the first time. A founder's band, their own `founderPhrase` and their
+        # expected pick are declared **absent** from `participant_page` -- design rule Q5, and the
+        # mockup's own line, *"The band and the expected pick are yours; the people you ask never
+        # see them."* A sentence becomes a check.
+        #
+        # A hop that was never captured **fails**, with the same detail an absent positive hop
+        # produces: an absence cannot be proved from a screen nobody looked at. Matching is
+        # `policy.fact_reaches_hop` unchanged, so *found* means the same thing in both directions
+        # and normalization can never make an absence check stricter than its positive twin.
+        for hop in fact.absent_hops:
+            check_id = f"FID-{fact_id}-{hop}-absent"
+            weight = policy.fid_weight(fact.kind, hop)
+            candidate_types = policy.HOP_INTERACTION_TYPES.get(hop, ())
+            candidates = [ix for ix in interactions
+                          if ix.type in candidate_types and ix.captured_text.get(hop)]
+            if not candidates:
+                target = bucket()
+                results[target.id].append(_result(
+                    check_id, False,
+                    f"hop '{hop}' was never captured (no {candidate_types} interaction rendered "
+                    "it), so this fact's absence from it cannot be proved",
+                    target, attribute="FIDELITY", weight=weight, fact_id=fact_id, hop=hop,
+                ))
+                continue
+            found = next((c for c in candidates
+                          if policy.fact_reaches_hop(fact.text, c.captured_text[hop])), None)
+            if found is not None:
+                results.setdefault(found.id, []).append(_result(
+                    check_id, False,
+                    f"fact was found at '{hop}', which it is declared absent from: "
+                    f"{fact.text[:120]!r}",
+                    found, attribute="FIDELITY", weight=weight, fact_id=fact_id, hop=hop,
+                ))
+            else:
+                target = candidates[-1]
+                results.setdefault(target.id, []).append(_result(
+                    check_id, True,
+                    f"fact is absent from '{hop}', as declared (checked {len(candidates)} "
+                    "interaction(s))",
                     target, attribute="FIDELITY", weight=weight, fact_id=fact_id, hop=hop,
                 ))
     return results, extra
