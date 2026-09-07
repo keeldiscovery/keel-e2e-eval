@@ -420,7 +420,8 @@ and S-006/S-007 are still red on `runs/DRIFT.md` #30 — spending the founder's 
 run whose deterministic prerequisite is a known product disagreement would buy a red run at a real
 price. It is owed one run once #30 is settled.
 
-**Still owed, and named rather than left:**
+**Still owed, and named rather than left:** *(superseded by the rerun section below, 2026-09-07 —
+#31 is resolved, S-003 is green, and what S-006/S-007 stop on is now #34, not #30.)*
 
 - S-006 and S-007 are **red on `runs/DRIFT.md` #30**, by design: they assert the frozen corpus and
   the aggregate disagrees with it by one hollow respondent. Neither was softened.
@@ -431,3 +432,76 @@ price. It is owed one run once #30 is settled.
   here as a policy-9 candidate rather than changed under this spec's own version.
 - `make eval-all` and the full `make report RUN=<dir>` re-score of a pre-8 bundle (T056) were not
   run.
+
+### The rerun, 2026-09-07 — three fixes landed, one new finding, the set's runs of record
+
+Rerun after keel-cloud `da6d4bd` (#30), keel-web `0318d56` (#31) and this repo's own D5
+region-choice fixes. The runs of record are one `make eval-all` against one stack session:
+**`runs/INDEX-20260907T180011Z.html`**.
+
+| Scenario | Run | Result |
+|---|---|---|
+| S-001 | `20260907T174453Z-s001-smoke` | 5.0/5 |
+| S-002 | `20260907T174626Z-s002-agent-optional` | 4.5/5 |
+| S-003 | `20260907T174800Z-s003-every-door` | 5.0/5, all four openers `opens` |
+| S-005 | `20260907T174833Z-s005-countly` | 5.0/5 |
+| S-006 | `20260907T175158Z-s006-paidly` | red on `runs/DRIFT.md` #34 |
+| S-007 | `20260907T175606Z-s007-mulchrun` | red on `runs/DRIFT.md` #34 |
+
+**#31 is RESOLVED** — keel-web beeswarm-stacks coincident dots, and S-003's dot opener now opens
+what it names with no force-click fallback recorded for the first time. **#30 is fixed in
+keel-cloud and deliberately not marked RESOLVED**: the derivation is confirmed on the running
+product (a wordless response is stored, raises no reading job, and keel-cloud refuses a batch for
+it with `NOTHING_TO_READ`), but the `guessed` numbers this entry is about have still never been
+read off a screen, because S-006 and S-007 now stop **earlier**.
+
+**What they stop on is new: `runs/DRIFT.md` #34, blocking, keel-web's.** `PeopleRoute.tsx:106`
+computes `unreadCount` itself from `row.status === "ANSWERED"` and never reads keel-cloud's own
+`answersUnread`. A wordless respondent is `ANSWERED` for ever — they will never be `READ`, because
+there is nothing to read — so the People page permanently offers *Have your agent read the 1 new
+answer*, the batch it starts is refused 409 `NOTHING_TO_READ`, no toast or banner appears, and
+*Your agent has read every answer* can never render. It is the exact seam keel-cloud's #30 fix
+opened, on the half that did not move. Not adapted around: `answer_everyone` already has a *Nothing
+new to read* path and it is simply never taken, because keel-web never says that sentence.
+
+**What the referee got wrong about itself — four things, `runs/DRIFT.md` #33 and #35, each fixed
+with a test that fails against the old code:**
+
+1. **A tap note read as a thank-you** (#33a). `ParticipantPage.submit` matched `/thanks/i` anywhere
+   on the page, and `TAP_NOTE_HASNT_HAPPENED` (*"Thanks — that answers this part. On to the
+   next."*) is already on screen for anyone who tapped *it hasn't happened*. The person who both
+   taps and leaves an anchor blank — `05-paidly`'s Yara Haddad, `07-mulchrun`'s Cody Brandt, the
+   two people #30 is entirely about — had the first press read as a send, never got the second
+   press the blank-anchor nudge needs, and **was never submitted at all**. The run then reproduced
+   #30's exact symptom (`guessed` 2 vs 3 on the same five lines) against a product that had fixed
+   it. `tests/test_participant_submit_sent.py`.
+2. **`OpenedCard.belief_headings()`** (#33b) — a real method, on `StageCard`. `AttributeError`,
+   three minutes into a stack run. `tests/test_page_object_calls_exist.py` now catches this whole
+   class statically in 0.08 s.
+3. **`OpenedCard.open()["is_draft"]`** (#33c) — a key only `StageCard.open()` returns. The static
+   check covers attributes, not dictionary keys, and does not catch this one; that is said out loud
+   rather than claimed away.
+4. **The warm path's duplicate person** (#33d). S-002 runs off S-001's project, and spec 010 grew
+   the smoke to eleven people — so `fx.people()[1]` already has an invited-and-read row there
+   before S-002 invites its own. Matching the *first* row of that name found the smoke's, and two
+   *See Wei's answers* buttons made a bare role locator a strict-mode violation. Both now take the
+   last row, the table being in invitation order.
+5. **D5 judged an accordion over the whole card** (#35). `judge_opener` asks whether a region grew;
+   an opened stage card keeps one `openId`, so opening a row *closes* the row that was open and the
+   card's text does not grow. A live strip row read `opens_nothing` on two different projects.
+   Fixed by handing `open_opener` the row that was pressed; `_deep_text` now takes a locator as
+   well as a selector. This is #32's lesson one layer down — #32 fixed one of the two faults in
+   that same read.
+
+**S-002 had not been run since spec 010 rewrote these screens** (it is in no quickstart's
+per-scenario list), which is why three of the five above are its. It is green now.
+
+**Still owed:**
+
+- **S-004 was not run.** It attacks a project S-005/S-006 builds and its prerequisite is a green
+  S-006, which #34 prevents. Spending real money on a live run whose deterministic prerequisite is
+  a known product disagreement buys a red run at a real price. Owed one run once #34 is settled —
+  the nine boxes' cost is still not known.
+- **#30 stays open** until a green S-006 and S-007 say its numbers out loud.
+- `CLA-U5` on the download page remains the policy-9 candidate recorded above, unchanged.
+- The full `make report RUN=<dir>` re-score of a pre-8 bundle (T056) was still not run.

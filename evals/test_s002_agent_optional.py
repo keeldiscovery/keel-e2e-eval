@@ -251,10 +251,17 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
         with recorder.step("the approved problem card still renders its claim and beliefs, no agent",
                             party="founder", kind="assert") as h:
             claim = problem_card.claim()
-            headings = problem_card.belief_headings()
+            # An *opened* card draws its beliefs as strip rows, not as `StageCard`'s review-time
+            # `.belief .b-heading` list -- `belief_headings()` belongs to the review card and has
+            # never existed here. Reading it off `OpenedCard` raised `AttributeError` three
+            # minutes into a stack run, on the first `make eval-all` since spec 010 rewrote these
+            # screens (`runs/20260907T164650Z-s002-agent-optional`; `runs/DRIFT.md` #33's note on
+            # the referee's own grip).
+            headings = [row["heading"] for row in problem_card.strips() if row["heading"]]
+            is_draft = problem_card.is_draft()
             h.record_assert({"is_draft": False, "claim": ">=1 char", "beliefs": ">=1"},
-                             {"is_draft": opened["is_draft"], "claim": claim, "beliefs": headings})
-            assert not opened["is_draft"], f"expected the approved (not draft) problem card, got {opened}"
+                             {"is_draft": is_draft, "claim": claim, "beliefs": headings})
+            assert not is_draft, f"expected the approved (not draft) problem card, got {opened}"
             assert claim, "expected the approved claim to still render with no agent"
             assert headings, "expected the beliefs to still render with no agent"
 
@@ -315,7 +322,15 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
         people.switch_to_who_tab()
         rows = people.table_rows()
         first_name = SECOND_PARTICIPANT.person.split()[0]
-        target_row = next((r for r in rows if first_name in r["person"]), None)
+        # The **last** row bearing this name, not the first. On the warm path this scenario reuses
+        # S-001's own project, and spec 010 grew the smoke from three people to eleven -- so
+        # `SECOND_PARTICIPANT` (`fx.people()[1]`, Wei Zhang) already has a row there, invited and
+        # *read*, before S-002 invites its own. Matching the first row found the smoke's, whose
+        # `Your agent` correctly reads *Read · today · …*, and S-002 failed asserting the one thing
+        # it exists to assert (`runs/20260907T171131Z-s002-agent-optional`; `runs/DRIFT.md` #33).
+        # The table lists invitations in the order they were sent, so the row this scenario just
+        # created is the last of its name.
+        target_row = next((r for r in reversed(rows) if first_name in r["person"]), None)
         with recorder.step("§1.5: the new answer shows in Their answer; Your agent reads Not read yet",
                             party="founder", kind="assert") as h:
             h.record_assert({"their_answer": "answered", "your_agent": "not read yet"}, target_row)
@@ -329,7 +344,9 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
         # agent's inference are two different things (screen-review design, People). This is the
         # sentence S-002 exists to pin, so it is asserted here with the runtime dead, and it is
         # also how Priya's typed answers reach FID's `participant_page` hop on the founder's screen.
-        people.open_answers_popup(first_name)
+        # `last=True` for the same reason `target_row` is read from the end: on the warm path
+        # S-001's project already carries a read invitation for this person (`runs/DRIFT.md` #33).
+        people.open_answers_popup(first_name, last=True)
         answers = people.answers_popup_text()
         with recorder.step(f"§1.6: with no agent, P9 still shows {first_name}'s own words verbatim",
                             party="founder", kind="assert") as h:

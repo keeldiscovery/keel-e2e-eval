@@ -156,3 +156,77 @@ def test_the_popover_still_fails_when_checked_against_a_stale_name(browser):
     page.close()
     assert verdict.verdict == "opens_nothing"
     assert "not what the control names" in verdict.detail
+
+
+# ------------------------------------------------------- the accordion (the region, not the rule)
+
+# The same rows, wired the way `StageRoute.tsx` actually wires them: **one** `openId` for the whole
+# card, so `setOpenId(open ? undefined : id)` opens the pressed row *and closes the one that was
+# open*. `_STRIP_HTML` above toggles each row independently, which is why judging it over the whole
+# card worked; a real card never does. `firstMatchingVerdictId` means a row is already open when
+# the card renders, so the row D5 picks (the first *closed* one) always trades places with it.
+_ACCORDION_HTML = _STRIP_HTML.replace(
+    """
+<script>
+  document.querySelectorAll(".strip__head").forEach((head) => {
+    head.addEventListener("click", () => head.closest(".strip").classList.toggle("open"));
+  });
+</script>
+""",
+    """
+<script>
+  document.querySelectorAll(".strip__head").forEach((head) => {
+    head.addEventListener("click", () => {
+      const row = head.closest(".strip");
+      const wasOpen = row.classList.contains("open");
+      document.querySelectorAll(".strip.open").forEach((o) => o.classList.remove("open"));
+      if (!wasOpen) { row.classList.add("open"); }
+    });
+  });
+</script>
+""")
+
+
+def test_an_accordion_row_judged_over_the_whole_card_reads_as_opens_nothing(browser):
+    """The fault itself, reproduced: the control works, and D5 says it did nothing. Opening
+    `#line1` closes `#line2`, so the card's text does not grow -- and `judge_opener` compares
+    lengths, because a region that only ever gains content is what a region is supposed to be.
+    Nothing here is a bug in the rule; the region handed to it holds two controls' state."""
+    page = browser.new_page()
+    page.set_content(_ACCORDION_HTML)
+    control = page.locator("#line1 .strip__head")
+    verdict = doors.open_opener(page, control, region=".card.openc",
+                                 names="Picked up mulch in the last two weeks", closer=control)
+    page.close()
+    assert verdict.verdict == "opens_nothing"
+
+
+def test_the_same_accordion_row_judged_over_its_own_row_opens(browser):
+    """The fix: hand `open_opener` the row that was pressed. Its own text goes from the heading
+    alone to the heading plus the chart and the *Asked* quote, and back when it is pressed again --
+    which is what the founder sees and what D5 means."""
+    page = browser.new_page()
+    page.set_content(_ACCORDION_HTML)
+    row = page.locator("#line1")
+    control = row.locator(".strip__head")
+    verdict = doors.open_opener(page, control, region=row,
+                                 names="Picked up mulch in the last two weeks", closer=control)
+    page.close()
+    assert verdict.verdict == "opens"
+    assert "closed back" in verdict.detail
+
+
+def test_a_dead_accordion_row_still_fails_when_judged_over_its_own_row(browser):
+    """The companion: narrowing the region must not make D5 credulous. A row that takes the class
+    but reveals nothing (no CSS rule shows its content) is still a dead control when it is judged
+    over itself."""
+    page = browser.new_page()
+    page.set_content(_ACCORDION_HTML.replace(
+        '.lines .strip.open .strip__svg, .lines .strip.open .strip__read { display: block; }', ''))
+    row = page.locator("#line1")
+    control = row.locator(".strip__head")
+    verdict = doors.open_opener(page, control, region=row,
+                                 names="Picked up mulch in the last two weeks", closer=control)
+    page.close()
+    assert verdict.verdict == "opens_nothing"
+    assert "nothing appeared" in verdict.detail

@@ -1598,7 +1598,8 @@ is the smaller change and the first is the better one, because the unit is also 
 reads on their own form — and `km` is a label, not a word anybody says aloud. Either way `M1`'s
 remedy text should name the spelling as the fix when the family is right.
 
-## 30. Blocking: a respondent who writes no words counts nowhere, where the corpus counts them hollow
+## 30. FIXED in keel-cloud, awaiting an end-to-end run -- was blocking: a respondent who writes no
+words counts nowhere, where the corpus counts them hollow
 
 **Severity: blocking** — it is the difference between S-006 and S-007 being green and being red,
 and it is a disagreement between keel-cloud's aggregate and the frozen golden corpus, which the
@@ -1652,7 +1653,33 @@ seven entries' `guessed` numbers are re-worked. The first is almost certainly ri
 answered the picks and skipped the story is exactly the person the hollow dot was drawn for. It is
 keel-cloud's call, not this repo's, and the two must not be allowed to disagree quietly.
 
-## 31. Non-blocking: two people who answered the same thing are two dots the founder cannot both click
+**FIXED 2026-09-07 in keel-cloud `da6d4bd`** (spec 030 follow-on, *an answer with no words in it
+counts, hollow*): the first of the two shapes above, which is the one this entry argued for. A
+reading is now required only where there are words -- `AnchorAnswer.hasWords`,
+`Response.hasWordsToRead`, `Invitation.awaitsReading` -- and `Project.derive` no longer waits for a
+reading that can never come: a response whose every anchor is blank or tapped derives whole the
+moment it is stored, its picks kept as that person's observations and the standing showing them
+hollow on every belief those picks reach. Confirmed on the running product:
+`runs/20260907T163226Z-s006-paidly` stores Yara Haddad's response (she is on the People table, with
+a *See Yara's answers* link of her own) and keel-cloud raises **no** reading job for her -- the
+reading batch the founder starts for her is refused `NOTHING_TO_READ`, HTTP 409, which is keel-cloud
+saying in its own voice that she has already been counted and there is nothing left to read.
+
+**Not yet confirmed end to end, and deliberately not marked RESOLVED.** The numbers this entry is
+actually about -- `guessed` 3 rather than 2 on `P1`-`P4` and `S5` -- have still never been read off
+a screen or off the wire, because S-006 and S-007 now stop **earlier**, on the blank respondent, at
+**#34**: keel-web offers to read the very answer keel-cloud has just decided needs no reading, and
+the batch it starts can only 409. The aggregate's arithmetic is therefore right in keel-cloud's
+own tests and unobserved by this referee. This entry becomes RESOLVED when a green S-006 and S-007
+say the count out loud, and not before -- a fix confirmed by reading the diff is exactly what a
+referee is for not doing.
+
+*(The rerun that appeared to show #30 unfixed, `runs/20260907T161514Z-s006-paidly`, was this
+repo's own fault and is #33: the referee never sent the blank respondent at all, so keel-cloud was
+counting somebody who had not answered.)*
+
+## 31. RESOLVED -- was non-blocking: two people who answered the same thing are two dots the founder
+cannot both click
 
 **Severity: non-blocking** — every dot is reachable, but not by clicking where it is drawn.
 
@@ -1683,6 +1710,16 @@ door, because the control does open — for a founder with a keyboard, or a pixe
 cross axis, the way a beeswarm does, or nudge each duplicate along the axis by less than half a
 bucket. Either keeps the reading honest (the dot is still at its own value, to the eye) and makes
 every person clickable where they are drawn. It is keel-web's call.
+
+**RESOLVED 2026-09-07 in keel-web `0318d56`** (*a guess joins the same beeswarm stack as an anchored
+dot*): the first of the two shapes above -- coincident dots are beeswarm-stacked on the cross axis,
+so every person is clickable where they are drawn and a guessed dot stacks with an anchored one
+rather than hiding under it. Confirmed by `runs/20260907T170401Z-s003-every-door` (5.0/5): D5's dot
+opener reads `opens -- it opened what it names`, with **no** `(the click was dispatched on the
+control: another dot sat over it)` fallback in `doors.json` for the first time, and the popover
+opener -- which #31's overlap used to be able to hand a different person's said box -- opens what it
+names too. `harness/doors.py`'s force-click fallback is left in place: it is a fair thing for a
+referee to record, and removing it would only make the next such drawing fault harder to see.
 
 ## 32. Note (not a defect): the four places a `data-testid` would make the referee sturdier
 
@@ -1736,3 +1773,255 @@ actually open (which #31's coincident dots can substitute). Fixed in `harness/do
 `innerText` drops) and in `evals/test_s003_every_door.py`'s `_walk_openers` (reads the popover's
 promise off `.said .n`); `tests/test_doors_d5_reveal_regions.py` covers both against real markup,
 including a companion case each that shows D5 still fails a genuine dead or mismatched reveal.
+
+## 33. RESOLVED (this repo's own grip, not a product defect): four places the referee read the wrong
+thing, one of which made a fixed product look broken
+
+**Severity: note.** Nothing in `keel-cloud`, `keel-web`, `keel-runtime` or `keel-connect-skill` is
+wrong here. It is written down because the first of the three did real damage to the reading of a
+*product* finding -- it kept #30 looking unfixed for a whole rerun after keel-cloud had fixed it --
+and because #32 already made the case that the referee's own weak grips are worth naming out loud.
+All four were found by the same rerun, and all four are this repo's to fix (README, *Scope and
+boundaries*).
+
+### (a) A tap note read as a thank-you, so the one person the corpus writes with no words was never sent
+
+**Where**: `harness/browser.py`, `ParticipantPage.submit`.
+
+```python
+button = self.page.get_by_role("button", name=re.compile(r"^submit$", re.I))
+thanks = self.page.get_by_text(re.compile("thanks", re.I))
+button.click()
+for press in (1, 2):
+    try:
+        thanks.wait_for(state="visible", timeout=6_000)
+        break
+```
+
+`submit()` presses once, and presses again when the first press produced only keel-web's
+`BLANK_ANCHOR_NUDGE` -- which is what anyone who left an anchor blank always gets. It decided the
+first press had landed by matching `/thanks/i` **anywhere on the page**. Two different lines say
+*thanks*:
+
+- `TAP_NOTE_HASNT_HAPPENED` -- *"Thanks — that answers this part. On to the next."*
+  (`keel-web/src/lib/translate.ts:1272`, drawn by `ParticipantRoute.tsx:296` under **any** anchor
+  the person tapped *it hasn't happened* on). It is on screen **before Submit is pressed at all**.
+- the done state -- *"Thanks, {person}. Your answers have gone to {founder}."*
+  (`ParticipantRoute.tsx:128`), which replaces the whole form.
+
+For the one kind of person who does both -- taps *it hasn't happened* on one anchor and leaves
+another blank -- the first press therefore looked like a send. The loop broke, the second press the
+nudge needs was never made, and **the response was never stored**. That is `05-paidly`'s Yara
+Haddad and `07-mulchrun`'s Cody Brandt: the corpus's own blank respondents, the two people #30 is
+entirely about. `01-countly`'s Oliver Grant leaves an anchor blank but taps nothing, so no tap note
+is drawn, his second press happened, and S-005 was never affected -- which is exactly why S-005 was
+green throughout and only S-006 and S-007 were not.
+
+**Reproduction**: `runs/20260907T161514Z-s006-paidly`. The submit step passes in **0.0955 s** (it
+matched something already on screen) and its own `participant_page` capture ends:
+
+```
+... Thanks — that answers this part. On to the next. Can you think of one specific time this
+happened? When was it, roughly? Submit
+```
+
+-- the nudge, and the Submit button, still there, on a form that was never sent. The stack's own
+database names her as the only unsent person in the whole session:
+
+```sql
+select inv->>'personName', jsonb_typeof(inv->'response')
+from project_content pc, jsonb_array_elements(pc.content->'invitations') inv
+where jsonb_typeof(inv->'response') = 'null';
+--  Yara Haddad | null
+```
+
+The run then failed `FR-014 wire` with `guessed` 2 against the corpus's 3 on `P1`-`P4` and `S5`:
+the identical five lines and the identical numbers #30 produced before it was fixed. The referee
+had reproduced #30's symptom by never sending the respondent #30 is about.
+
+**Fixed** by reading the done state off the half of its sentence no other line on the page can say
+(`answers have gone to`). `tests/test_participant_submit_sent.py` covers it in the shape
+`test_doors_d5_reveal_regions.py` uses -- a real browser over the DOM `ParticipantRoute.tsx`
+renders, with the done state **replacing** the form the way React unmounts it, because with the two
+lines never on screen together the old locator failed silently rather than loudly. Two companion
+cases hold the other direction: a Submit that never reaches the done state must still raise, and a
+`.stale` server refusal must still be named a refusal. All three fail against the old locator.
+
+### (b) and (c) S-002 asking an opened card for two things it has never had
+
+`make eval-all` was run for the first time since spec 010 rewrote these screens, and S-002 --
+which is in no quickstart's per-scenario list and had not been run since -- failed twice in one
+assertion block, both times on `evals/test_s002_agent_optional.py`'s *the approved problem card
+still renders its claim and beliefs, no agent*:
+
+- `AttributeError: 'OpenedCard' object has no attribute 'belief_headings'`
+  (`runs/20260907T164650Z-s002-agent-optional`). `belief_headings()` is real, and belongs to
+  `StageCard`: the **review** card lists its beliefs as `.belief .b-heading`, where an opened card
+  draws strip rows. Fixed by reading the headings off `strips()`.
+- `KeyError: 'is_draft'` (`runs/20260907T170447Z-s002-agent-optional`). `StageCard.open()` returns
+  `{status, is_draft}`; `OpenedCard.open()` returns `{status, claim}` and never carried the key.
+  Fixed by giving `OpenedCard` the same `is_draft()` marker (the review hint's presence) so the
+  scenario can still say *which* of the two cards it is looking at rather than assume it.
+
+Both are the same fault in miniature: a page object rewritten under a scenario that was not rerun.
+Python found the first at the only moment it could -- three minutes into a stack run, after a
+Docker boot, a gradle boot and a login. `tests/test_page_object_calls_exist.py` now walks each
+scenario's AST, resolves every local bound to a `harness.browser` page object, and asserts every
+attribute reached through it exists on that class: 0.08 s, no stack, no browser, and it fails
+against (b) by name. It is deliberately conservative -- a name it cannot resolve to exactly one
+class is skipped rather than guessed at -- and it checks **attributes, not dictionary keys**, so it
+would not have caught (c); (c) is the reason to say so here rather than claim more for it.
+
+### (d) S-002's warm path matching a person the smoke had already invited *and read*
+
+With (b) and (c) fixed, S-002 ran on to the one assertion it exists to make -- *a new answer, with
+no agent running, reads "Not read yet"* -- and failed it
+(`runs/20260907T171131Z-s002-agent-optional`):
+
+```
+expected Your agent to read Not read yet, got {'person': 'Wei Zhang', 'kind': 'A payroll manager',
+ 'their_answer': 'Answered · today · See Wei's answers',
+ 'your_agent': 'Read · today · Three things moved on the problem card and two on your solution.'}
+```
+
+The row is right about the product and wrong about which row it is. S-002 runs **warm off S-001's
+own project** when there is one, and spec 010 grew the smoke from three people to eleven -- so
+`SECOND_PARTICIPANT` (`fx.people()[1]`, Wei Zhang) already has a row on that project, invited and
+read by the smoke, before S-002 invites its own. `next(r for r in rows if first_name in ...)` found
+the smoke's row, whose *Your agent* column correctly says **Read**. Nothing was broken; the
+referee was looking at the wrong Wei Zhang. Fixed by taking the **last** row of that name -- the
+table lists invitations in the order they were sent, so the one this scenario just created is the
+last. It is the same fault as (b) and (c) in a third costume: a scenario that had not been run
+since the fixture underneath it changed.
+
+**Confirmed** in the run of record, `runs/INDEX-20260907T180011Z.html`: S-002 is green at 4.5/5
+(`runs/20260907T174626Z-s002-agent-optional`) for the first time since spec 010 rewrote these
+screens, and S-005 stays green at 5.0/5 (`runs/20260907T174833Z-s005-countly`). (a) is confirmed
+the other way round, by S-006 and S-007 now reaching the blank respondent **submitted** and dying
+one step later on #34 rather than eight people later on a wrong number.
+
+**Whether any assertion was softened**: no. No corpus entry, no policy check and no journey
+citation was touched by any of the four.
+
+## 34. Blocking: keel-web offers to read an answer keel-cloud will never read, and the only thing the
+button it draws can do is 409
+
+**Severity: blocking** -- the founder's People page reaches a state it cannot leave. Its primary
+action is enabled, says there is one new answer, and does nothing at all when pressed; the page can
+never again say *Your agent has read every answer*. S-006 and S-007 both stop here, eight people
+short of the standings they exist to assert, which is why **#30 is still unconfirmed end to end**.
+
+**Where**: `keel-web` `src/routes/founder/PeopleRoute.tsx:106`.
+
+```tsx
+const unreadCount = allInvitations.filter((row) => row.status === "ANSWERED").length;
+```
+
+keel-web derives the unread count **itself**, from each invitation's `status`, and never reads
+keel-cloud's own `answersUnread` -- which is on the wire, is what the number means, and is already
+right. keel-cloud `da6d4bd` (the fix for #30) made a wordless response derive the moment it is
+stored: it is never queued for reading, and `FounderViewAssembler.answersUnread` excludes it
+through `Invitation.awaitsReading()`. But such a person's `status` stays `ANSWERED` **for ever** --
+the enum is `SENT | OPENED | ANSWERED | READ`, and they will never be read because there is nothing
+to read. So keel-web counts them unread in perpetuity, and:
+
+- the line above the table permanently reads *1 answer your agent hasn't read yet* (line 143);
+- *Your agent has read every answer* (line 146) can never render;
+- the primary button is enabled (line 237, `disabled={unreadCount === 0 || ...}`) and labelled
+  `Have your agent read the 1 new answer` (line 242);
+- pressing it starts a batch keel-cloud correctly refuses -- `ReadingRefusal.NOTHING_TO_READ`,
+  HTTP **409** -- and no toast, no banner and no change of any kind appears on the screen.
+
+Each half is right on its own; they disagree about who is unread. It is the same shape as #16 --
+keel-web deciding a screen from a wire field that does not mean what it is being asked to mean --
+and it appeared the moment keel-cloud's half of #30 landed.
+
+**Reproduction**: `runs/20260907T163226Z-s006-paidly` (Yara Haddad, 12th of 20) and
+`runs/20260907T163907Z-s007-mulchrun` (Cody Brandt) -- the same failure, two entries, two markets,
+so it is not one entry's quirk -- and again, unchanged, in the run of record
+(`runs/20260907T175158Z-s006-paidly`, `runs/20260907T175606Z-s007-mulchrun`,
+`runs/INDEX-20260907T180011Z.html`), where they are the only two red scenarios of the seven. Both die on the step after the blank respondent submits:
+
+```
+founder has the agent read the new answers
+  TimeoutError: Locator.wait_for: Timeout 120000ms exceeded.
+    waiting for locator(".toast[role='status']") to be visible
+```
+
+Each bundle's `failure/page.html` carries the offered button and `failure/console.log` the refusal:
+
+```html
+<button type="button" class="btn primary">Have your agent read the 1 new answer</button>
+```
+```
+[error] Failed to load resource: the server responded with a status of 409 (Conflict)
+```
+
+By hand, on the stack a run leaves up: answer a participant page with a tap on one anchor, no words
+under any, and a pick on every selection; then open People → *Who's been asked*. The row reads
+Answered, the button offers to read one answer, and every press 409s.
+
+**Whether the scenario adapted around it**: **no**, and it must not. `evals/preludes.py`'s
+`answer_everyone` already knows a wordless person produces no reading and already has a *Nothing
+new to read* path for exactly this -- it is never taken, because keel-web never says that sentence.
+Teaching the referee to skip the read because *it* knows the corpus person wrote nothing would make
+the harness agree with a screen that is telling the founder something untrue, and would hide the
+only symptom a founder would ever see. No corpus assertion was softened; no product file was
+touched.
+
+**The shape of a fix, explicitly not applied**: `PeopleRoute` should take the count from the wire's
+own `answersUnread` rather than recomputing it from `status`, so that the one place deciding what
+*waiting to be read* means is the place that already decides it (`Invitation.awaitsReading()`). If
+the count must stay client-side, `status` would need to distinguish a response derived without a
+reading from one still waiting for one -- but that is a wire change to avoid using a wire field
+that already exists. It is keel-web's call, not this repo's.
+
+## 35. RESOLVED (this repo's own region, not a product defect): D5 judged an accordion over the whole
+card, and read a working control as dead
+
+**Severity: note.** Nothing in keel-web is broken. This is #32's lesson again, one layer down: D5's
+*rule* was never wrong, the *region* handed to it was -- and this time the wrong region survived
+#32's own fix and stayed red for two more runs.
+
+**Where**: this repo, `evals/test_s003_every_door.py`'s `_walk_openers` (the strip-row opener) and
+`harness/doors.py`'s `open_opener`.
+
+```python
+control = opened.strip_locator(closed["heading"]).locator(".strip__head")
+verdict = doorway.open_opener(page, control, region=".card.openc", ...)
+```
+
+`judge_opener` asks whether the region's text **grew** -- which is the right question, and the
+reason it is pure and unit-tested. An opened stage card is a single-open **accordion**:
+
+```tsx
+const open = id === openId;                      // StageRoute.tsx
+onClick={... setOpenId(open ? undefined : id) ...}
+```
+
+One `openId` for the whole card, initialised by `firstMatchingVerdictId` so a row is already open
+when the card renders. Opening the row D5 picks (the first *closed* one) therefore **closes** the
+row that was open, and the card's own text does not grow -- it changes hands. Judged over
+`.card.openc`, a live, working strip row reads `opens_nothing`, *"the control was exercised once
+and nothing appeared"*.
+
+**Reproduction**: `runs/20260907T164818Z-s003-every-door` (*They handle exceptions themselves*, the
+payroll-exceptions project) and `runs/20260907T164331Z-s003-every-door` (*Picked up mulch in the
+last two weeks*, a `07-mulchrun` project) -- different projects, different lines, one cause. Both
+name a belief that has a `selection`, so both had an *Asked: "…"* quote and a chart to reveal.
+`runs/20260907T154237Z-s003-every-door`'s strip-row failure, which #32 attributed wholly to
+`_deep_text` walking past `display:none`, was **two** faults in the same read; #32 fixed one.
+
+**Fixed** by handing `open_opener` the row that was pressed rather than the card it sits in
+(`region=row`), `_deep_text` now taking a locator as well as a CSS string because a strip row is
+picked out by its heading text and cannot be written as one. Three cases in
+`tests/test_doors_d5_reveal_regions.py` against real accordion markup: the fault reproduced (the
+same row, judged over the whole card, reads `opens_nothing`), the fix (judged over its own row, it
+`opens` and closes back), and the companion that keeps D5 honest -- a row that takes the `.open`
+class but reveals nothing is still `opens_nothing` when judged over itself. Confirmed by
+`runs/20260907T170401Z-s003-every-door`: **5.0/5**, all four openers `opens`.
+
+**Whether anything was softened**: no. D1-D4 are untouched, `judge_opener` is untouched, and the
+narrowed region is checked in both directions by the companion case, and by
+`runs/20260907T174800Z-s003-every-door` in the run of record (`runs/INDEX-20260907T180011Z.html`),
+green at 5.0/5 with all four openers reading `opens`.

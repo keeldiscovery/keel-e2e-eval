@@ -39,6 +39,39 @@ three ports, or boots one and tears it down at the end of the session — the fa
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
+### The runs of record (2026-09-07, `runs/INDEX-20260907T180011Z.html`)
+
+One `make eval-all` against one stack session, on keel-cloud `da6d4bd`, keel-web `0318d56`,
+keel-runtime `ad91ab0` (`scripted-executor-measured`) and keel-connect-skill `43c1456`. Four of the
+six green; the two that are not are red on **one** product finding, and were not softened:
+
+| Scenario | Run | Result |
+|---|---|---|
+| S-001 smoke | `20260907T174453Z-s001-smoke` | **5.0/5** |
+| S-002 agent-optional | `20260907T174626Z-s002-agent-optional` | **4.5/5** |
+| S-003 every door | `20260907T174800Z-s003-every-door` | **5.0/5** — all four D5 openers `opens` |
+| S-005 `01-countly` | `20260907T174833Z-s005-countly` | **5.0/5** — all eighteen standings |
+| S-006 `05-paidly` | `20260907T175158Z-s006-paidly` | red on `runs/DRIFT.md` **#34** |
+| S-007 `07-mulchrun` | `20260907T175606Z-s007-mulchrun` | red on `runs/DRIFT.md` **#34** |
+
+**#34** is keel-web's: it offers to read an answer keel-cloud has already decided needs no reading,
+and the batch that button starts can only 409. It surfaced the moment keel-cloud's fix for **#30**
+landed — the two repos now disagree about who counts as unread — and it stops both corpus
+scenarios on the corpus's own blank respondent, eight people short of the standings they exist to
+assert. #30 itself is fixed in keel-cloud and is **not** marked RESOLVED, because the numbers it is
+about have still never been read off a screen: #34 stops the run before them.
+
+**S-004 was not run.** Its deterministic prerequisite is a green S-006 (it attacks a project S-005
+or S-006 builds), and spending the founder's own money on a live run whose prerequisite is a known
+product disagreement buys a red run at a real price. It is owed one run once #34 is settled.
+
+Three faults in this repo's own grip were found and fixed on the way (`runs/DRIFT.md` #33 and #35),
+each with a test that fails against the old code: a participant-page locator that read the product's
+*"Thanks — that answers this part"* tap note as a thank-you and so never sent the one person the
+corpus writes with no words; three page-object calls in S-002 that had not been run since spec 010
+rewrote the screens; and D5 judging a single-open accordion over the whole card, which read a
+working strip row as dead.
+
 ## Review a run
 
 Open `runs/<timestamp>-s001-smoke/report.html` in a browser: a header with the verdict, the five

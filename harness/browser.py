@@ -1763,6 +1763,14 @@ class OpenedCard:
     def what_it_measures(self) -> str:
         return _safe_text(lambda: self._card().locator(".measures .hint").first.inner_text())
 
+    def is_draft(self) -> bool:
+        """`StageCard`'s own draft marker, readable from here too: an approved card never draws the
+        review hint. S-002 asserts that the *approved* problem card still renders with no agent at
+        all, so it has to be able to say which of the two cards it is looking at rather than assume
+        it -- `OpenedCard.open()` returns `{status, claim}` and never carried an `is_draft` key
+        (`runs/DRIFT.md` #33)."""
+        return self.page.locator(".review-hint").count() > 0
+
     def key_legend(self) -> list[str]:
         """The strip key's own four lines -- what a filled dot, a hollow dot, the band and the
         median mean, in the founder's words (`StripKey`)."""
@@ -2278,12 +2286,22 @@ class People:
             })
         return out
 
-    def open_answers_popup(self, first_name: str) -> None:
-        """P9 -- *See <name>'s answers*, from the table row's own read link."""
+    def open_answers_popup(self, first_name: str, *, last: bool = False) -> None:
+        """P9 -- *See <name>'s answers*, from the table row's own read link.
+
+        `last=True` takes the **last** row of that name rather than insisting there is only one. A
+        project can hold two invitations for the same person, and S-002's warm path always does:
+        it runs off S-001's own project, where spec 010's eleven-person smoke has already invited
+        and read `fx.people()[1]`, then invites them again. One name, two *See Wei's answers*
+        buttons, and a bare role locator is a strict-mode violation rather than a finding
+        (`runs/20260907T172812Z-s002-agent-optional`; `runs/DRIFT.md` #33 (d)). The table lists
+        invitations in the order they were sent, so the last is the one a scenario just made.
+        """
         with self._scope():
             with self._bstep.step(f"founder reads {first_name}'s answers") as h:
-                self.page.get_by_role(
-                    "button", name=re.compile(f"see {re.escape(first_name)}", re.I)).click()
+                buttons = self.page.get_by_role(
+                    "button", name=re.compile(f"see {re.escape(first_name)}", re.I))
+                (buttons.last if last else buttons).click()
                 self.page.locator(".pop").wait_for(state="visible", timeout=10_000)
                 h.capture_text("participant_names", first_name)
                 h.add_screenshot(self._bstep.screenshot("people-answers-popup"))
@@ -2643,15 +2661,27 @@ class ParticipantPage:
         second press sends anyway (`ParticipantRoute.tsx`). Corpus people who left an anchor blank
         (`01-countly`'s Oliver, `05-paidly`'s Yara) meet it every run, so this presses twice when
         the first press produced a nudge rather than a thank-you, and never more than twice.
+
+        **What "sent" is read off, and why it is not the word *thanks*.** The done state replaces
+        the whole form with one line -- *"Thanks, {person}. Your answers have gone to {founder}."*
+        (`ParticipantRoute.tsx`'s `if (done)`). A bare `/thanks/` also matches
+        `TAP_NOTE_HASNT_HAPPENED`, *"Thanks -- that answers this part. On to the next."*, which
+        anybody who tapped *it hasn't happened* is already showing **before** they press Submit at
+        all. For the one corpus person who both taps and leaves an anchor blank (`05-paidly`'s
+        Yara Haddad, `07-mulchrun`'s Cody Brandt) that made the first press look like a send: the
+        loop broke, the second press the nudge needs was never made, and the response was never
+        stored -- the run then went red on a `guessed` count that was the product's own correct
+        arithmetic over a person who had never answered (`runs/DRIFT.md` #33). The half of that
+        sentence no other line on this page can say is what is waited for.
         """
         with self._scope():
             with self._bstep.step("participant submits their answers") as h:
                 button = self.page.get_by_role("button", name=re.compile(r"^submit$", re.I))
-                thanks = self.page.get_by_text(re.compile("thanks", re.I))
+                sent = self.page.get_by_text(re.compile(r"answers have gone to", re.I))
                 button.click()
                 for press in (1, 2):
                     try:
-                        thanks.wait_for(state="visible", timeout=6_000)
+                        sent.wait_for(state="visible", timeout=6_000)
                         break
                     except Exception:  # noqa: BLE001 - a nudge is not a failure, it is the design
                         if press == 2:

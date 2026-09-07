@@ -295,8 +295,13 @@ def _walk_openers(page, recorder, web_base, project_id, openers, verdicts) -> No
 
     closed = next((s for s in strips if not s["open"]), None)
     if closed is not None:
-        control = opened.strip_locator(closed["heading"]).locator(".strip__head")
-        verdict = doorway.open_opener(page, control, region=".card.openc",
+        # The region is **this row**, not the whole card. An opened card is a single-open
+        # accordion (`StageRoute.tsx` keeps one `openId`), so opening this row closes whichever row
+        # was open and the card's own text does not grow -- D5 read a live, working control as
+        # `opens_nothing` on exactly that (`doors.open_opener`'s note; `runs/DRIFT.md` #35).
+        row = opened.strip_locator(closed["heading"])
+        control = row.locator(".strip__head")
+        verdict = doorway.open_opener(page, control, region=row,
                                        names=closed["heading"], closer=control)
         openers.append(doorway.Opener(source=f"/p/{project_id}/s/PROBLEM",
                                        label=f"strip row: {closed['heading']}",

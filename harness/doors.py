@@ -314,9 +314,12 @@ _DEEP_TEXT_JS = r"""(el) => {
 }"""
 
 
-def _deep_text(page: Any, selector: str) -> str:
+def _deep_text(page: Any, selector: Any) -> str:
+    """`selector` is a CSS string, or a Playwright locator where the region cannot be written as
+    one. A strip row is the second kind: it is picked out by its heading text, and the region that
+    matters for D5 is *that* row (see `open_opener`'s note on accordions)."""
     try:
-        locator = page.locator(selector).first
+        locator = page.locator(selector).first if isinstance(selector, str) else selector.first
         if locator.count() == 0:
             return ""
         return locator.evaluate(_DEEP_TEXT_JS) or ""
@@ -324,14 +327,25 @@ def _deep_text(page: Any, selector: str) -> str:
         return ""
 
 
-def open_opener(page: Any, control: Any, *, region: str, names: str = "",
+def open_opener(page: Any, control: Any, *, region: Any, names: str = "",
                  closer: Any = None, settle_ms: int = 250, deep: bool = True) -> Verdict:
-    """Exercises one opener **once** and judges it (D5). `region` is the selector whose text is
-    read three times; `closer` is the control that shuts it again (the same control, when it
-    toggles), or `None` for a one-way reveal.
+    """Exercises one opener **once** and judges it (D5). `region` is the selector -- or locator --
+    whose text is read three times; `closer` is the control that shuts it again (the same control,
+    when it toggles), or `None` for a one-way reveal.
 
     A harness mechanic, not an assertion -- the rule is `judge_opener`'s, which is why that half
     is pure and unit-tested against canned DOMs.
+
+    **Pick the region the control acts on, not the screen it sits on.** `judge_opener` asks whether
+    the region grew, so a region holding more than this one control measures other controls' state
+    as well. An opened stage card is a single-open **accordion** -- `StageRoute.tsx` keeps one
+    `openId` and `setOpenId(open ? undefined : id)`, so opening a row *closes* the row that was
+    open -- and judged over the whole `.card.openc` the card's text does not grow when a row opens,
+    it merely changes hands. That read a live, working strip row as `opens_nothing` twice
+    (`runs/20260907T164818Z-s003-every-door`, and again in the `eval-all` beside it), which is the
+    referee disbelieving a control that did exactly what it names. Passing the row's own locator
+    makes the before/after read the row that was pressed. Same lesson as `runs/DRIFT.md` #32: D5's
+    rule was never wrong, the region handed to it was.
     """
     read = (lambda: _deep_text(page, region)) if deep else (lambda: _text_of(page, region))
     before = read()
