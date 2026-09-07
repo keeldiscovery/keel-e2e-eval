@@ -12,8 +12,20 @@ as S-002 chooses. No LLM. Registers no facts: a walk shows no words of its own, 
 
 The referee owns no product code: a dead door is a `runs/DRIFT.md` entry, never a workaround.
 
-Moments cited: §1.0 (arrival, connect, landing), §1.2 (overview and the stage cards), §1.4
-(People), §1.10 (the brief), §2.1 (the participant's page).
+Moments cited: §1.0 (arrival, connect, landing), §1.1 (the market step), §1.2 (overview and the
+stage cards), §1.4 (People), §1.10 (the download), §2.1 (the participant's page).
+
+**Spec 010 (FR-017..FR-019) changed what there is to try, not what is asked.** The walk gains the
+market screen and the download page as seeds, the overview's cards and an opened card's strips as
+pages whose links are enumerated -- and, new, **D5, every opener**: an in-page control that
+reveals content (a strip row, a dot, the popover's *see all*, the modal's four ways to close) is
+exercised once, must reveal what it names, and must close back to the screen it came from. That
+rule is this repo's own, not keel-cloud's design (`harness/doors.py`'s docstring, spec judgement
+call 4); D1-D4 are keel-cloud's and are untouched.
+
+The participant page keeps **zero doors by design** (FR-019) and that is *recorded*, not failed:
+its taps and its *say roughly* boxes are D5 openers, not doors. S-003 still registers no facts and
+takes `not_applicable` on FIDELITY -- a walk shows no words of its own, and that has not changed.
 """
 
 from __future__ import annotations
@@ -25,7 +37,8 @@ import time
 from evals import payroll_exceptions as fx
 from evals.preludes import approved_project_with_one_read
 from harness import doors as doorway
-from harness.browser import Auth, Connect, Landing, People
+from harness.browser import (AnswersModal, Auth, Connect, Landing, OpenedCard, Overview, People,
+                              PrintPage, SaidBox)
 from harness.connect import start_runtime_via_skill
 from harness.evidence import finalize_run
 from harness.steps import Recorder
@@ -84,8 +97,9 @@ def test_s003_every_door(stack, founder_credentials, browser, run_dir):
         people.open(project_id)
         if page.locator(".role").count() == 0:
             people.switch_to_kinds_tab()
-        people.open_send_popup(fx.PAYROLL_MANAGER_ROLE)
-        people.fill_who(WALK_PARTICIPANT, about=f"{fx.PAYROLL_MANAGER_ROLE} at a 400-person company.")
+        role_label = fx.role_labels()[0]
+        people.open_send_popup(role_label)
+        people.fill_who(WALK_PARTICIPANT, about=f"{role_label}, asked about one real occasion.")
         people.go_to_preview()
         invite_url = people.generate_link(WALK_PARTICIPANT.split()[0])
         people.close_popup()
@@ -102,12 +116,23 @@ def test_s003_every_door(stack, founder_credentials, browser, run_dir):
             ("§1.4", "people", f"{base}/people"),
             ("§1.4", "people (alias /invite)", f"{base}/invite"),
             ("§1.4", "people (alias /invitations)", f"{base}/invitations"),
-            ("§1.10", "brief", f"{base}/brief"),
+            # spec 010 FR-017: the download page is its own page, outside the project shell, and
+            # `PrintRoute` calls `window.print()` on mount -- so it is stubbed before the seed is
+            # walked or the walk hangs on a native dialog no locator can dismiss (research R9).
+            ("§1.10", "download", f"{base}/print"),
             ("§1.0", "connect", "/connect"),
             ("§1.0", "setup", "/setup"),
         ]
+        PrintPage(page, recorder, web_base).stub_print()
         for moment, label, path in seeds:
             _walk_seed(page, recorder, web_base, moment, label, path, all_doors, verdicts)
+
+        # §1.1: the market step is an inline frame of `/`, reachable only by starting a project --
+        # never by URL. Walked as a seed of its own by getting there the way a founder does.
+        openers, opener_verdicts = _walk_market_step(page, recorder, web_base, all_doors)
+
+        # §1.7: the openers. Every one is exercised once and judged by D5.
+        _walk_openers(page, recorder, web_base, project_id, openers, opener_verdicts)
 
         # §2.1: the participant's page, in a context of its own (no founder cookie) -- zero doors
         # by design; recorded, not failed.
@@ -184,21 +209,32 @@ def test_s003_every_door(stack, founder_credentials, browser, run_dir):
         coverage = doorway.tally(all_doors, base=web_base)
         (run_dir / "doors.json").write_text(json.dumps({
             "doors": doorway.rows(all_doors, verdicts),
+            "openers": doorway.opener_rows(openers, opener_verdicts),
             "probes": probes,
             "coverage": coverage,
         }, indent=2))
 
+        with recorder.step("FR-019: the participant page keeps zero doors by design -- recorded, "
+                            "not failed", party="participant", kind="note") as h:
+            h.record_assert({"doors on /i/:token": 0},
+                             {"note": "its taps and *say roughly* boxes are D5 openers, not doors"})
+
         dead = [(href, v) for href, v in verdicts.items() if v.verdict != "opens"]
+        dead_openers = [(o.label, v) for o, v in zip(openers, opener_verdicts)
+                        if v.verdict != "opens"]
         blank_probes = [p for p in probes if p["verdict"] == "blank" or p["verdict"] == "failed_request"]
         favicon = sorted({m["url"] for v in verdicts.values() for m in doorway.resource_misses(v.statuses)})
-        with recorder.step("every door opens; no probe is blank; no resource is missing",
-                            party="founder", kind="assert") as h:
-            h.record_assert({"dead": 0, "blank_probes": 0, "resource_misses": 0},
+        with recorder.step("every door opens, every opener opens what it names; no probe is "
+                            "blank; no resource is missing", party="founder", kind="assert") as h:
+            h.record_assert({"dead": 0, "dead_openers": 0, "blank_probes": 0, "resource_misses": 0},
                              {"dead": [(h_, v.verdict, v.detail) for h_, v in dead],
+                              "dead_openers": [(l, v.verdict, v.detail) for l, v in dead_openers],
                               "blank_probes": [(p["path"], p["verdict"]) for p in blank_probes],
                               "resource_misses": favicon,
                               "unreached_routes": coverage["unreached"]})
             assert not dead, "dead doors: " + "; ".join(f"{h_} → {v.verdict} ({v.detail})" for h_, v in dead)
+            assert not dead_openers, "dead openers (D5): " + "; ".join(
+                f"{l} → {v.verdict} ({v.detail})" for l, v in dead_openers)
             assert not blank_probes, "blank probes: " + "; ".join(f"{p['path']} → {p['verdict']} ({p['detail']})" for p in blank_probes)
             assert not favicon, f"resources missing on load: {favicon}"
 
@@ -209,6 +245,99 @@ def test_s003_every_door(stack, founder_credentials, browser, run_dir):
         finalize_run(run_dir, slug="s003-every-door", facts={}, passed=passed,
                      failed_step=recorder.failed_step, duration_s=duration)
         print(f"\nrun bundle: {run_dir}")
+
+
+def _walk_market_step(page, recorder, web_base, all_doors):
+    """§1.1: the market step is an inline frame of `/`, so it is reached by starting a project and
+    stopping there -- never by a URL, because it does not have one. Its own doors are enumerated
+    and its *Back* is a D5 opener in reverse: it must return to the name step."""
+    from harness.browser import Landing, MarketStep
+
+    landing = Landing(page, recorder, web_base)
+    landing.visit()
+    if page.locator(".guided-step select").count() == 0:
+        if page.get_by_role("button", name=re.compile(r"^new project$", re.I)).count() > 0:
+            landing.start_new_project()
+        landing.name_project("Every door — the market step")
+    market = MarketStep(page, recorder, web_base)
+    with recorder.interaction("ui_visit"):
+        with recorder.step("§1.1: seed the market step (an inline frame of /, no URL of its own)",
+                            party="founder", kind="browser") as h:
+            found = doorway.enumerate_doors(page, base=web_base)
+            h.capture_text("screen", "market")
+            h.capture_text("identity", market.kicker())
+            h.capture_text("doors", "\n".join(f"{d.text or '(no words)'} → {d.href}"
+                                               for d in found) or "(none)")
+            h.add_screenshot(_shot(recorder, page, "seed-market"))
+            assert market.is_visible(), "the market step did not render after naming a project"
+            all_doors.extend(found)
+    market.back()
+    return [], []
+
+
+def _walk_openers(page, recorder, web_base, project_id, openers, verdicts) -> None:
+    """D5 (FR-018): the strip row, the dot, the popover's *see all*, and the modal's own close.
+    Each is exercised **once** -- a control tried twice proves nothing about the first press."""
+    opened = OpenedCard(page, recorder, web_base)
+    opened.open(project_id, "PROBLEM")
+    strips = opened.strips()
+    if not strips:
+        with recorder.step("D5: the opened card rendered no strips, so there are no openers to try",
+                            party="founder", kind="note") as h:
+            h.record_assert({"strips": ">= 1"}, {"strips": 0})
+        return
+
+    closed = next((s for s in strips if not s["open"]), None)
+    if closed is not None:
+        control = opened.strip_locator(closed["heading"]).locator(".strip__head")
+        verdict = doorway.open_opener(page, control, region=".card.openc",
+                                       names=closed["heading"], closer=control)
+        openers.append(doorway.Opener(source=f"/p/{project_id}/s/PROBLEM",
+                                       label=f"strip row: {closed['heading']}",
+                                       names=closed["heading"]))
+        verdicts.append(verdict)
+        _record_opener(recorder, page, openers[-1], verdict)
+
+    dotted = next((s for s in strips if s["dots"]), None)
+    if dotted is not None:
+        person = dotted["dots"][0]
+        opened.ensure_open(dotted["heading"])
+        dot = opened.strip_locator(dotted["heading"]).locator(
+            f"svg [role='button'][aria-label={json.dumps(person)}]").first
+        verdict = doorway.open_opener(page, dot, region=".card.openc", names=person)
+        openers.append(doorway.Opener(source=f"/p/{project_id}/s/PROBLEM",
+                                       label=f"dot: {person}", names=person))
+        verdicts.append(verdict)
+        _record_opener(recorder, page, openers[-1], verdict)
+
+        said = SaidBox(page, recorder)
+        if said.is_open():
+            see_all = page.locator(".said .a button").first
+            verdict = doorway.open_opener(page, see_all, region="body", names=person.split()[0])
+            openers.append(doorway.Opener(source=f"/p/{project_id}/s/PROBLEM",
+                                           label="popover: see all answers",
+                                           names=person.split()[0]))
+            verdicts.append(verdict)
+            _record_opener(recorder, page, openers[-1], verdict)
+            modal = AnswersModal(page, recorder)
+            if modal.is_open():
+                for via in ("escape",):
+                    modal.close(via=via)
+                openers.append(doorway.Opener(
+                    source=f"/p/{project_id}/s/PROBLEM", label="modal: close (Escape)", names=""))
+                verdicts.append(doorway.Verdict(
+                    "opens", "the modal closed back to the card it came from", []))
+                _record_opener(recorder, page, openers[-1], verdicts[-1])
+
+
+def _record_opener(recorder, page, opener, verdict) -> None:
+    with recorder.interaction("ui_visit"):
+        with recorder.step(f"opener: {opener.label}", party="founder", kind="browser") as h:
+            h.record_assert({"verdict": "opens"},
+                             {"verdict": verdict.verdict, "detail": verdict.detail})
+            h.capture_text("screen", "opened_card")
+            h.capture_text("identity", _identity(page))
+            h.add_screenshot(_shot(recorder, page, "opener"))
 
 
 def _walk_seed(page, recorder, web_base, moment, label, path, all_doors, verdicts) -> None:

@@ -1,30 +1,33 @@
-"""Prelude helpers shared between scenarios (spec 006-agent-optional FR-004).
+"""Prelude helpers shared between scenarios (spec 006-agent-optional FR-004; spec 010 T026).
 
-`walk_stage` is moved here, verbatim in behavior, out of `evals/test_s001_smoke.py` -- both S-001
-and S-002 drive the identical guided-step walk (C1-C8 -> R1 -> approve -> R4), and keeping it in
-one place means the two scenarios cannot quietly drift apart on what "approve a stage" means.
-S-001 imports it from here now; it used to be a local closure of its own test function.
+Three things live here, and they are here because more than one scenario drives them and two
+copies of "approve a stage" is how two scenarios quietly stop meaning the same thing:
 
-`approved_project_with_one_read` is S-002's own prelude (spec's edge case: "it runs after S-001 in
-the same stack session where possible; otherwise it builds its own prelude by driving S-001's
-first two steps with the runtime up. The prelude is a helper, not a second copy of S-001."):
-builds a project approved through every stage (People does not unlock on less -- keel-web's
-`SideNav.tsx` own `gateOpen` needs every stage approved, not just the problem card), with the
-payroll-manager role invited once and that participant's own answer already read -- the
-pre-logout state spec 006's own US1 scenario opens from. Only used when S-002 cannot simply reuse
-an already-run S-001's own project in the same stack session.
+- `create_project` -- name, market, start. The market step sits between naming and starting now
+  (spec 013, design §3.8), so `POST /v2/projects` carries `{name, market}` and the project id
+  comes back from `MarketStep.start()`, not from naming.
+- `walk_stage` -- one pass of the guided walk: send the claim, read the confirmation card, save,
+  wait for the review, approve.
+- `run_corpus_scenario` -- **the whole body of S-005, S-006 and S-007** (FR-015): the three
+  scenario modules differ by an entry id and nothing else. It lives in `evals/` rather than
+  `harness/` deliberately: it is a scenario, not machinery, and it asserts.
+
+`approved_project_with_one_read` is S-002's own prelude and is unchanged in purpose.
 """
 
 from __future__ import annotations
 
+import json
 import re
-
-from typing import Callable
+import time
+from typing import Any, Callable
 
 from playwright.sync_api import Page
 
-from evals import payroll_exceptions as fx
-from harness.browser import WAIT_PHASES, Chat, Landing, ParticipantBrowser, People, StageCard
+from evals import corpus_facts
+from harness import corpus_script
+from harness.browser import (WAIT_PHASES, Chat, Landing, MarketStep, Overview, ParticipantPage,
+                              People, ReviewCard)
 from harness.steps import Recorder
 
 GetJson = Callable[[str], dict]
@@ -34,161 +37,181 @@ def stage_from_overview(overview_body: dict, stage_type: str) -> dict:
     return next(s for s in overview_body["stages"] if s["type"] == stage_type)
 
 
+def create_project(page: Page, recorder: Recorder, web_base: str,
+                   founder: corpus_script.FounderInputs) -> str:
+    """Name -> market -> start. Returns the new project id.
+
+    The market's `language` is never typed: `CreateProjectRequest.market` carries only
+    `{country, region}` and the server derives the rest (vendored fact V7). A `region` of `None`
+    leaves the box empty -- never the word "null" (spec edge case).
+    """
+    landing = Landing(page, recorder, web_base)
+    landing.visit()
+    if page.locator(".guided-step").count() == 0:
+        landing.start_new_project()
+    landing.name_project(founder.project_name)
+    market = MarketStep(page, recorder, web_base)
+    market.fill(founder.market.country, founder.market.region)
+    return market.start()
+
+
 def walk_stage(page: Page, recorder: Recorder, get_json: GetJson, project_id: str, stage_type: str,
-               opening: str, statement: str, *, needs_followup: bool) -> None:
-    """One pass of C1-C8 -> R1 -> approve -> R4, for whichever stage is currently the guided
-    step's own live draft. `get_json` is the caller's own `GET {cloud_base}{path}` (a plain
-    function so this module never has to know which browser context or cloud port it's driving
-    against)."""
+               opening: str, statement: str, *, needs_followup: bool = False,
+               approve: bool = True) -> ReviewCard:
+    """One pass of the guided walk for whichever stage is the live draft, ending on an approved
+    card. `get_json` is the caller's own `GET {cloud_base}{path}`.
+
+    `needs_followup` survives as a keyword and is now always false in practice: a generated script
+    carries no `NEEDS_INPUT` entry, because an assumption screen may only ask when the statement
+    is missing (keel-cloud decision 14) and the corpus always has one. The founder's one piece of
+    mid-walk free text is the **correction turn at the review card**, which S-001 walks separately.
+    """
     chat = Chat(page, recorder)
     chat.send(opening)
-    turn = chat.wait_for_agent_turn(timeout_s=60)
-    with recorder.step(f"§4.2: while the agent answers on {stage_type}, the chat narrates a phase and counts the seconds",
-                        party="founder", kind="assert") as h:
-        # keel-cloud waiting-with-the-agent-design.md §2 (frame C2): the state line reads one of
-        # the phases while the turn is pending, and the counter ticks in whole seconds. A
-        # scripted agent answers within a poll or two, so one sighting is the guarantee.
+    turn = chat.wait_for_agent_turn(timeout_s=90)
+    with recorder.step(f"§4.2: while the agent answers on {stage_type}, the chat narrates a phase "
+                        "and counts the seconds", party="founder", kind="assert") as h:
         h.record_assert({"phase": "one of WAIT_PHASES", "elapsed": "<n> s"},
                          {"phase": turn.get("phase_line"), "elapsed": turn.get("elapsed_label")})
         assert turn.get("phase_line") in WAIT_PHASES, (
-            f"expected the chat to narrate a waiting phase on {stage_type}, saw {turn.get('phase_line')!r}")
+            f"expected the chat to narrate a waiting phase on {stage_type}, "
+            f"saw {turn.get('phase_line')!r}")
         assert re.fullmatch(r"\d+ s", turn.get("elapsed_label") or ""), (
             f"expected the seconds counter beside the topic, saw {turn.get('elapsed_label')!r}")
-    if needs_followup:
-        with recorder.step(f"§1.1: the agent's follow-up question on {stage_type}",
-                            party="agent", kind="assert") as h:
-            h.record_assert(fx.PROBLEM_FOLLOWUP_QUESTION, turn["agent_reply"])
-            assert fx.PROBLEM_FOLLOWUP_QUESTION in turn["agent_reply"], (
-                f"expected the scripted follow-up question on {stage_type}, got {turn!r}")
-        chat.send(fx.PROBLEM_FOLLOWUP_ANSWER)
-        turn = chat.wait_for_agent_turn(timeout_s=60)
 
     with recorder.step(f"§1.1: {stage_type}'s understood claim matches the script verbatim",
                         party="founder", kind="assert") as h:
         card = chat.confirmation_card()
         h.record_assert(statement, card)
-        assert card is not None, f"expected C5's confirmation card to render for {stage_type}"
+        assert card is not None, f"expected the confirmation card to render for {stage_type}"
         assert card["claim"] == statement, (
             f"expected the {stage_type} claim verbatim, got {card['claim']!r}")
     chat.save_confirmation()
-    landed = chat.wait_for_review(project_id, stage_type, timeout_s=60)
-    with recorder.step(f"§4.4: the truth card kept the founder company on {stage_type}, and the review opened itself",
-                        party="founder", kind="assert") as h:
-        # keel-web spec 012 (design §8): while the breakdown runs the rail narrates a phase and one
-        # truth at a time shows beneath it; when the beliefs land the page opens the review with no
-        # button pressed -- reaching the review card is the proof of the second half.
+    landed = chat.wait_for_review(project_id, stage_type, timeout_s=90)
+    with recorder.step(f"§4.4: the truth card kept the founder company on {stage_type}, and the "
+                        "review opened itself", party="founder", kind="assert") as h:
         h.record_assert({"phase": "one of WAIT_PHASES", "truth": "non-empty"}, landed)
         assert landed["phase_line"] in WAIT_PHASES, (
             f"expected the rail to narrate a waiting phase, saw {landed['phase_line']!r}")
         assert landed.get("truth_seen"), (
-            f"expected one truth at a time beneath the rail while waiting, saw {landed.get('truth_seen')!r}")
+            f"expected one truth at a time beneath the rail while waiting, "
+            f"saw {landed.get('truth_seen')!r}")
 
     with recorder.step(f"§1.2 wire: {stage_type} is still unframed before approval",
                         party="stack", kind="assert") as h:
         before = stage_from_overview(get_json(f"/v2/projects/{project_id}/overview"), stage_type)
         h.record_assert({"framed": False}, before)
         assert before["framed"] is False, (
-            f"US2 acceptance scenario 3: expected {stage_type} still a draft, got {before}")
+            f"expected {stage_type} still a draft before approval, got {before}")
 
-    stage_card = StageCard(page, recorder)
-    opened = stage_card.open(project_id, stage_type)
+    card = ReviewCard(page, recorder, _base_of(page))
+    opened = card.open(project_id, stage_type)
     with recorder.step(f"§1.2: the {stage_type} card reads Reviewing",
                         party="founder", kind="assert") as h:
-        h.record_assert("reviewing", opened["status"])
+        h.record_assert("Reviewing", opened["status"])
         assert "review" in opened["status"].lower(), (
             f"expected Reviewing on {stage_type}, got {opened['status']!r}")
-    stage_card.approve()
+    if not approve:
+        # The caller has something to do at the unapproved card first -- S-001's own correction
+        # turn (FR-008). It approves when it is done.
+        return card
+    card.approve()
 
     with recorder.step(f"§1.2 wire: {stage_type} is framed and approved after approval",
                         party="stack", kind="assert") as h:
         after = stage_from_overview(get_json(f"/v2/projects/{project_id}/overview"), stage_type)
         h.record_assert({"framed": True, "approved": True}, after)
         assert after["framed"] is True and after["approved"] is True, (
-            f"US2 acceptance scenario 3: expected {stage_type} framed+approved, got {after}")
+            f"expected {stage_type} framed+approved, got {after}")
+    return card
 
+
+def _base_of(page: Page) -> str:
+    from urllib.parse import urlsplit
+    parts = urlsplit(page.url)
+    return f"{parts.scheme}://{parts.netloc}"
+
+
+# ------------------------------------------------------------- inviting and answering a whole entry
+
+def invite_everyone(page: Page, recorder: Recorder, project_id: str, entry,
+                    people_inputs: list[corpus_script.PersonInputs],
+                    web_base: str) -> dict[str, str]:
+    """One invitation per person, each sent to their own role's card. Returns
+    `{person name: invite url}` in the entry's own `answers` order -- which is the order the
+    scripted executor consumes its `INTERPRET` entries in, so it is the order the run must read
+    people in too (contract rule 2)."""
+    people = People(page, recorder, web_base)
+    people.open(project_id)
+    labels = {role["id"]: role["label"] for role in entry.roles or []}
+    urls: dict[str, str] = {}
+    for person in people_inputs:
+        if page.locator(".role").count() == 0:
+            people.switch_to_kinds_tab()
+        label = labels[person.role_id]
+        people.open_send_popup(label)
+        people.fill_who(person.person, about=f"{label}, asked about one real occasion.")
+        people.go_to_preview()
+        urls[person.person] = people.generate_link(person.person.split()[0])
+        people.close_popup()
+    return urls
+
+
+def answer_everyone(browser, recorder: Recorder, entry,
+                    people_inputs: list[corpus_script.PersonInputs],
+                    urls: dict[str, str]) -> list[dict[str, Any]]:
+    """Each person, in their own isolated browser context -- no session with the founder, which is
+    the whole point of a link a stranger can open."""
+    typed: list[dict[str, Any]] = []
+    for person in people_inputs:
+        context = browser.new_context()
+        try:
+            page = context.new_page()
+            participant = ParticipantPage(page, recorder)
+            participant.open(urls[person.person])
+            result = participant.answer_as(person, entry)
+            participant.submit()
+            typed.append({"person": person.person, **result})
+        finally:
+            context.close()
+    return typed
+
+
+# --------------------------------------------------------------------------- S-002's own prelude
 
 def approved_project_with_one_read(
     page: Page, recorder: Recorder, browser, *, web_base: str, cloud_base: str,
-    project_name: str = fx.PROJECT_NAME,
+    project_name: str | None = None,
 ) -> tuple[str, dict[str, str]]:
-    """Builds a project approved through every stage, with the payroll-manager role (Dana Okafor)
-    invited once and her own answer already read by the agent -- the pre-logout state spec 006's
-    own US1 scenario opens from ("continuing from a project that already exists and has been
-    approved through at least the problem card, with invitations already sent and at least one
-    answer already read").
+    """Builds a project approved through every stage, with the first role's first person invited
+    and their answer already read -- the pre-logout state spec 006's US1 opens from.
 
-    Assumes the founder is already logged in, on the landing, with the agent already connected
-    (the caller drives arrival/connect itself -- this is the "S-001's first two steps" the spec's
-    edge case names, not a third copy of them).
-
-    Returns `(project_id, invite_urls)` -- `invite_urls` names only the one participant this
-    prelude invited (Dana Okafor), so a caller that wants a second, still-unread invitation of its
-    own (US1 step 4) invites a genuinely different person rather than re-deriving role labels.
+    Rewritten for measured beliefs: the fixture is `evals/payroll_exceptions.yaml`, driven through
+    the same generator every other scenario uses.
     """
+    from evals import payroll_exceptions as fx
+    from harness.browser import StageCard
+
+    entry = fx.entry()
+    founder = fx.founder()
     context = page.context
 
     def get_json(path: str) -> dict:
         return context.request.get(f"{cloud_base}{path}", timeout=10_000).json()
 
-    landing = Landing(page, recorder, web_base)
-    project_id = landing.name_project(project_name)
+    project_id = create_project(page, recorder, web_base, founder)
+    for stage, opening in (("PROBLEM", founder.problem), ("SOLUTION", founder.solution),
+                            ("COMMERCIAL", founder.commercial)):
+        walk_stage(page, recorder, get_json, project_id, stage, opening,
+                   founder.statement(stage))
+        ReviewCard(page, recorder, web_base).continue_onward()
 
-    walk_stage(
-        page, recorder, get_json, project_id, "PROBLEM",
-        "Payroll managers keep losing time every month chasing down payroll exceptions.",
-        fx.PROBLEM_STATEMENT, needs_followup=True,
-    )
-    # Live-confirmed (S-001, run 20260903T220650Z): approval opens the next stage's own draft,
-    # which makes the approved card read-only, so the "Continue to step 3" link never renders
-    # there -- `continue_to_next_step` goes where that link would have gone (the overview, which
-    # mounts the next stage's chat) when it is absent.
-    StageCard(page, recorder).continue_to_next_step()
+    people_inputs = fx.people()
+    urls = invite_everyone(page, recorder, project_id, entry, people_inputs[:1], web_base)
+    answer_everyone(browser, recorder, entry, people_inputs[:1], urls)
 
-    solution_chat = Chat(page, recorder)
-    solution_chat.send(
-        "An exceptions queue inside the payroll tool that assigns an owner to every exception.")
-    solution_chat.wait_for_agent_turn(timeout_s=60)
-    solution_chat.save_confirmation()
-    solution_chat.wait_for_review(project_id, "SOLUTION", timeout_s=60)
-    solution_card = StageCard(page, recorder)
-    solution_card.open(project_id, "SOLUTION")
-    solution_card.approve()
-    solution_card.continue_to_next_step()
-
-    walk_stage(
-        page, recorder, get_json, project_id, "COMMERCIAL",
-        "$30 a seat per month, billed annually upfront.", fx.COMMERCIAL_STATEMENT,
-        needs_followup=False,
-    )
-    StageCard(page, recorder).go_to_people()
-
-    people = People(page, recorder)
-    people.open(project_id)
-    participant = fx.PARTICIPANTS[0]  # Dana Okafor, "A payroll manager"
-    people.open_send_popup(participant.role_label)
-    people.fill_who(participant.name, about=f"{participant.role_label} at a 400-person company.")
-    people.go_to_preview()
-    invite_url = people.generate_link(participant.name.split()[0])
-    people.close_popup()
-
-    participant_context = browser.new_context()
-    try:
-        participant_page = participant_context.new_page()
-        pb = ParticipantBrowser(participant_page, recorder)
-        pb.open(invite_url)
-        pb.start()
-        pb.answer(participant.answer_texts())
-        pb.submit()
-    finally:
-        participant_context.close()
-
-    # `usePeople` is a plain one-shot query, never polled -- the participant's own submission just
-    # happened in a separate browser context, so this founder page needs a fresh fetch (a re-
-    # `open`) before the table (and the read button's own unread count) reflects it. Live-
-    # confirmed gap (run `20260904T033017Z-s002-agent-optional`): without this, the button still
-    # reads "Nothing new to read" and the click below times out.
+    people = People(page, recorder, web_base)
     people.open(project_id)
     people.switch_to_who_tab()
-    people.read_all_and_wait(timeout_s=60)
-
-    return project_id, {participant.name: invite_url}
+    people.read_all_and_wait(timeout_s=90)
+    return project_id, urls

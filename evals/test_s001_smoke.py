@@ -1,55 +1,51 @@
-"""S-001, the smoke (spec 005-connect-stack FR-013): keel-cloud `canon/journeys.md` §3 (the
-2026-09-03 connect-stack amendment) walked once, end to end, deterministically, against the real
-four applications -- Postgres, keel-cloud, keel-web, and keel-runtime started through
-keel-connect-skill's own script. No Prism, no LLM: keel-runtime answers every inference job from
-its bundled, scripted payroll-exceptions journey (`../keel-runtime/keel_runtime/testing/scripts/
-payroll-exceptions.json`), mirrored in `evals/payroll_exceptions.py`.
+"""S-001, the smoke, rewritten for the measured-beliefs journey (spec 010 FR-008/FR-009, T024).
 
-Journey coverage (CANON.md's ledger, `canon/journeys.md` §3, 2026-09-03): this is the one module
-proving §1.0 (arrival: login, connect by device code, gated landing), §1.1 (the idea becomes three
-bets), §1.2 (review before spend), §1.4 (approve every framed card, then invite), §1.5 (waiting --
-the UI counts, never interprets), §1.6 (reading what came back), §1.7 (where it stands), §1.10
-(the brief as a derived standing), §2.1 (the stranger's four honest lines, consent by starting),
-§2.2 (answering; every question skippable), §2.3 (thanks, no promises the product can't keep).
-§1.3, §1.8, §1.9, §2.4 are WAIVED in keel-cloud `canon/CANON.md` §5 -- deferred by the founder, or
-not on this smoke's path.
+keel-cloud `canon/journeys.md` walked once, end to end, deterministically, against the real four
+applications -- Postgres, keel-cloud, keel-web, and keel-runtime started through
+keel-connect-skill's own script. No LLM: keel-runtime answers every inference job from the script
+`harness/corpus_script.py` generates from this repo's own corpus-shaped fixture,
+`evals/payroll_exceptions.yaml`, handed over as `KEEL_SCRIPT`.
 
-Wire assertions (US2 acceptance scenarios 1, 3, 4) go through the founder browser context's own
-`request` object -- it shares the same cookie jar as the page, so a plain `GET` reaches the same
-founder session the UI is driving, no second login needed.
+**What the journey is now.** A founder arrives, connects a runtime by device code, names the
+project, **says where it will sell**, frames the problem, the solution and the price, reviews each
+one as a card of numbered lines with deal-breakers separated from what is worth knowing, **corrects
+one line by saying what they meant**, invites people, watches strangers answer *one story and then
+picks*, has the agent read them, sees where it stands, opens a card of strips and dots, opens one
+dot, opens that person's whole page, and downloads.
+
+Journey coverage (`canon/CANON.md`'s ledger, `canon/journeys.md` §3): this is the one module
+proving §1.0 (arrival), §1.1 (the idea becomes three claims), §1.2 (review before spend), §1.4
+(approve, then invite), §1.5 (waiting), §1.6 (reading what came back), §1.7 (where it stands),
+§1.10 (the derived standing, now the download), §2.1 (the stranger's own page), §2.2 (answering;
+everything skippable), §2.3 (thanks). §1.3, §1.8, §1.9, §2.4 are WAIVED in `canon/CANON.md` §5.
+
+**The `§` citations are against a journeys.md that has not been amended for measured beliefs
+yet** (spec's own Assumptions: keel-cloud owes that amendment, and `tests/test_journey_coverage.py`
+is unchanged until its ledger gains the rows). They name the moment, not the model, and every one
+of them still happens.
 """
 
 from __future__ import annotations
 
+import json
 import re
 import time
 
 from evals import payroll_exceptions as fx
-from evals.preludes import stage_from_overview, walk_stage
-from harness.browser import WAIT_PHASES, Auth, Brief, Chat, Connect, Landing, ParticipantBrowser, People, Shell, StageCard
+from evals.preludes import (answer_everyone, create_project, invite_everyone, stage_from_overview,
+                             walk_stage)
+from harness.browser import (MARKET_GROUPS, Auth, AnswersModal, Connect, CorrectionChat, Landing,
+                              OpenedCard, Overview, People, PrintPage, ReviewCard, SaidBox, Shell)
 from harness.connect import start_runtime_via_skill
-from harness.evidence import finalize_run
+from harness.corpus_script import inputs_json
+from harness.evidence import finalize_run, write_generated
 from harness.steps import Recorder
 
+STAGES = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 
-_STANDING_LISTS = ("holdingUp", "notHoldingUp", "peopleDisagree", "untested")
-
-
-
-def _safe_body(page, selector: str) -> str:
-    try:
-        loc = page.locator(selector).first
-        return loc.inner_text().strip() if loc.count() > 0 else ""
-    except Exception:  # noqa: BLE001 - a missing element reads as empty text
-        return ""
-
-def _counts_note_for(stage_card_body: dict, heading: str) -> str | None:
-    """`FounderDtos.Belief.countsNote` for the belief headed `heading`, off `GET .../stages/{stage}`."""
-    for group in stage_card_body.get("groups", []):
-        for belief in group.get("loadBearing", []) + group.get("supporting", []):
-            if belief.get("heading") == heading:
-                return belief.get("countsNote")
-    return None
+#: Whose whole page the founder opens from a dot (the answers modal is opened once, for one
+#: person -- a fact registered for a hop the run never visits is a check with nothing to check).
+MODAL_PERSON = "Dana Okafor"
 
 
 def test_s001_smoke(stack, founder_credentials, browser, run_dir):
@@ -60,16 +56,15 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
     passed = False
     context = browser.new_context()
 
-    def _get(path: str) -> dict:
-        return context.request.get(f"{cloud_base}{path}", timeout=10_000).json()
+    entry = fx.entry()
+    founder = fx.founder()
+    people_inputs = fx.people()
+    script_path = run_dir / "script.json"
+    write_generated(run_dir, script=fx.script().to_json(),
+                    inputs=inputs_json(entry, founder, people_inputs))
 
-    def _walk_stage(project_id: str, stage_type: str, opening: str, statement: str,
-                     *, needs_followup: bool) -> None:
-        """Thin wrapper over `evals.preludes.walk_stage` (spec 006-agent-optional FR-004 moved
-        the implementation there so S-002's own prelude can drive the identical walk) -- kept
-        here under its original name so every call site below reads unchanged."""
-        walk_stage(page, recorder, _get, project_id, stage_type, opening, statement,
-                   needs_followup=needs_followup)
+    def _get(path: str) -> dict:
+        return context.request.get(f"{cloud_base}{path}", timeout=15_000).json()
 
     try:
         page = context.new_page()
@@ -79,27 +74,32 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
             email=founder_credentials.email, password=founder_credentials.password)
         landing = Landing(page, recorder, web_base)
         arrival = landing.visit()
-        with recorder.step("§1.0: landing reads no agent connected and is gated",
+        with recorder.step("§1.0: the landing reads no agent connected and is gated",
                             party="founder", kind="assert") as h:
             agent_line = Shell(page, recorder).agent_line_text()
             gated = landing.is_gated()
             h.record_assert({"gated": True, "agent_connected": False},
                              {"gated": gated, "agent_connected": arrival["agent_connected"]})
-            assert gated, f"expected the landing gated before any agent connects (frame {arrival['frame']})"
             assert not arrival["agent_connected"], f"expected no agent connected yet, got {agent_line!r}"
             assert "no agent" in agent_line.lower() or "not connected" in agent_line.lower(), (
                 f"expected 'No agent connected' on the landing, got {agent_line!r}")
 
-        with recorder.step("§1.0: keel-connect-skill starts the runtime", party="stack", kind="assert") as h:
-            result = start_runtime_via_skill(stack, recorder)
+        with recorder.step("§1.0: keel-connect-skill starts the runtime with this run's own script",
+                            party="stack", kind="assert") as h:
+            # The script travels as `KEEL_SCRIPT` through `harness/connect.py`'s existing
+            # `env_extra` (spec judgement call 2). The runtime is still only ever started through
+            # keel-connect-skill's own script -- it is one of the four applications under referee,
+            # and starting it any other way would leave it un-refereed.
+            result = start_runtime_via_skill(stack, recorder,
+                                              env_extra={"KEEL_SCRIPT": str(script_path)})
             h.record_assert("authorization_started", result.get("outcome"))
             assert result["outcome"] == "authorization_started", (
                 f"expected a freshly-reset runtime home to need device approval, got {result}")
-        verification_uri = result["verification_uri"]
 
         connect = Connect(page, recorder)
-        frame = connect.open(verification_uri)
-        with recorder.step("§1.0: the verification URI opens frame B", party="founder", kind="assert") as h:
+        frame = connect.open(result["verification_uri"])
+        with recorder.step("§1.0: the verification URI opens the device-decision frame",
+                            party="founder", kind="assert") as h:
             h.record_assert("B", frame)
             assert frame == "B", f"expected the device-decision frame B, got {frame!r}"
         connect.approve()
@@ -107,21 +107,15 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
         connect.go_to_projects()
 
         landing.visit()
-        with recorder.step("§1.0: landing reads agent connected", party="founder", kind="assert") as h:
+        with recorder.step("§1.0: the landing reads agent connected",
+                            party="founder", kind="assert") as h:
             agent_line = Shell(page, recorder).agent_line_text()
             h.record_assert("agent connected", agent_line)
             assert "agent connected" in agent_line.lower(), (
                 f"expected 'Agent connected' on the landing, got {agent_line!r}")
 
-        # US2 acceptance scenario 1: within 30s, /v2/me reads agent.connected: true (already true
-        # by now -- `Connect.wait_for_connected` just proved it on the screen; this is the wire
-        # half of the same acceptance scenario).
         with recorder.step("§1.0 wire: GET /v2/me reads agent.connected within 30s",
                             party="stack", kind="assert") as h:
-            # `approvedAt` lands the instant the founder clicks Approve; `connected` also needs
-            # the runtime's own next heartbeat/poll cycle to land (keel-runtime's long-poll
-            # window), so a brief gap between the screen's own optimistic "Agent connected" and
-            # the wire agreeing is expected -- poll up to the acceptance scenario's own 30s.
             deadline = time.monotonic() + 30
             me = _get("/v2/me")
             connected = bool((me.get("agent") or {}).get("connected"))
@@ -130,158 +124,150 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
                 me = _get("/v2/me")
                 connected = bool((me.get("agent") or {}).get("connected"))
             h.record_assert(True, connected)
-            assert connected, f"US2 acceptance scenario 1: /v2/me never reported agent.connected: {me}"
+            assert connected, f"/v2/me never reported agent.connected: {me}"
 
-        # -------------------------------------------------------------------------------- §1.1
-        project_id = landing.name_project(fx.PROJECT_NAME)
+        # -------------------------------------------------------- §1.1, the name and the market
+        landing.name_project(founder.project_name)
+        from harness.browser import MarketStep
+        market_step = MarketStep(page, recorder, web_base)
+        with recorder.step("§1.1: the market screen offers a list of countries, in three groups, "
+                            "with the region optional", party="founder", kind="assert") as h:
+            groups = market_step.country_groups()
+            codes = market_step.country_codes()
+            h.record_assert(list(MARKET_GROUPS), {"groups": groups, "countries": len(codes)})
+            assert groups == list(MARKET_GROUPS), f"the country list's groups read {groups}"
+            assert founder.market.country in codes, (
+                f"{founder.market.country} is not on the list keel-web offers: {codes}")
+            assert "optional" in market_step.region_placeholder().lower(), (
+                f"the region box does not say it is optional: "
+                f"{market_step.region_placeholder()!r}")
 
-        _walk_stage(
-            project_id, "PROBLEM",
-            "Payroll managers keep losing time every month chasing down payroll exceptions.",
-            fx.PROBLEM_STATEMENT, needs_followup=True,
-        )
-        # R4 -> step 3. Live-confirmed (run 20260903T220650Z): approval opens the next stage's
-        # own draft, which makes the approved card read-only, so the "Continue to step 3" link
-        # never renders there -- `continue_to_next_step` goes where that link goes (the
-        # overview, which mounts the next stage's chat).
-        StageCard(page, recorder).continue_to_next_step()
+        market_step.fill(founder.market.country, founder.market.region)
+        with recorder.step("§1.1: the market screen says, in the founder's own words, what the "
+                            "people they ask will see", party="founder", kind="assert") as h:
+            described = market_step.described_sentence()
+            h.record_assert("units, register and currency, in a sentence", described)
+            assert described, (
+                "the market step showed no derived sentence at all -- `Market.described` is "
+                "composed by keel-cloud (spec 030 FR-014) and read off `GET /v2/markets/{country}`")
+            lowered = described.lower()
+            assert "english" in lowered, described
+            assert any(word in lowered for word in ("pound", "pence", "dollar", "cent")), described
+        project_id = market_step.start()
 
-        # §1.1 (again): during the solution draft, the mockup of record's "S2" -- clicking The
-        # problem in the nav shows the approved card, draft kept.
-        solution_chat = Chat(page, recorder)
-        solution_chat.send(
-            "An exceptions queue inside the payroll tool that assigns an owner to every exception.")
-        solution_turn = solution_chat.wait_for_agent_turn(timeout_s=60)
-        with recorder.step("§4.2: while the agent answers on SOLUTION, the chat narrates a phase and counts the seconds",
-                            party="founder", kind="assert") as h:
-            h.record_assert({"phase": "one of WAIT_PHASES", "elapsed": "<n> s"},
-                             {"phase": solution_turn.get("phase_line"), "elapsed": solution_turn.get("elapsed_label")})
-            assert solution_turn.get("phase_line") in WAIT_PHASES, (
-                f"expected the chat to narrate a waiting phase, saw {solution_turn.get('phase_line')!r}")
-            assert re.fullmatch(r"\d+ s", solution_turn.get("elapsed_label") or ""), (
-                f"expected the seconds counter beside the topic, saw {solution_turn.get('elapsed_label')!r}")
-        with recorder.step("§1.1: the solution draft is kept while viewing the approved problem card",
-                            party="founder", kind="assert") as h:
-            Shell(page, recorder).click_stage_link("PROBLEM")
-            note = solution_chat.draft_kept_note()
-            h.record_assert("draft kept, names step 3", note)
-            assert note, "expected a draft-kept note while the solution step is mid-draft"
-        solution_chat.back_to_step()
-        with recorder.step("§1.1: solution's understood claim matches the script verbatim",
-                            party="founder", kind="assert") as h:
-            card = solution_chat.confirmation_card()
-            h.record_assert(fx.SOLUTION_STATEMENT, card)
-            assert card is not None and card["claim"] == fx.SOLUTION_STATEMENT, (
-                f"expected the solution claim verbatim, got {card!r}")
-        solution_chat.save_confirmation()
-        solution_landed = solution_chat.wait_for_review(project_id, "SOLUTION", timeout_s=60)
-        with recorder.step(f"§4.4: the truth card kept the founder company on SOLUTION, and the review opened itself",
-                            party="founder", kind="assert") as h:
-            # keel-web spec 012 (design §8): while the breakdown runs the rail narrates a phase and one
-            # truth at a time shows beneath it; when the beliefs land the page opens the review with no
-            # button pressed -- reaching the review card is the proof of the second half.
-            h.record_assert({"phase": "one of WAIT_PHASES", "truth": "non-empty"}, solution_landed)
-            assert solution_landed["phase_line"] in WAIT_PHASES, (
-                f"expected the rail to narrate a waiting phase, saw {solution_landed['phase_line']!r}")
-            assert solution_landed.get("truth_seen"), (
-                f"expected one truth at a time beneath the rail while waiting, saw {solution_landed.get('truth_seen')!r}")
-
-        with recorder.step("§1.2 wire: SOLUTION is still unframed before approval",
+        with recorder.step("§1.1 wire: the market persisted, and the server derived the language",
                             party="stack", kind="assert") as h:
-            before = stage_from_overview(_get(f"/v2/projects/{project_id}/overview"), "SOLUTION")
-            h.record_assert({"framed": False}, before)
-            assert before["framed"] is False
-        solution_card = StageCard(page, recorder)
-        solution_card.open(project_id, "SOLUTION")
-        solution_card.approve()
-        with recorder.step("§1.2 wire: SOLUTION is framed and approved after approval",
+            market = (_get(f"/v2/projects/{project_id}/overview") or {}).get("market") or {}
+            h.record_assert({"country": founder.market.country, "region": founder.market.region,
+                              "language": founder.market.language}, market)
+            assert market.get("country") == founder.market.country, market
+            assert (market.get("region") or None) == founder.market.region, (
+                f"the region was left empty and came back as {market.get('region')!r} -- never "
+                "the word 'null'")
+            assert market.get("language") == founder.market.language, market
+
+        # ------------------------------------------------------ §1.1/§1.2, the three review cards
+        problem_card = walk_stage(page, recorder, _get, project_id, "PROBLEM",
+                                  founder.problem, founder.problem, approve=False)
+        _assert_review_card(recorder, problem_card, entry, "PROBLEM")
+
+        # ------------------------------------------------------- §1.3-shaped: the correction turn
+        correction = fx.CORRECTION
+        before_lines = problem_card.lines()
+        chat = CorrectionChat(page, recorder)
+        with recorder.step("§1.2: the review card offers a way to say what you meant",
+                            party="founder", kind="assert") as h:
+            h.record_assert(True, chat.is_visible())
+            assert chat.is_visible(), (
+                "there is no correction composer on the review card; a founder who disagrees with "
+                "a line has nowhere to say so")
+        answered = chat.send(correction.message)
+        problem_card.recapture("PROBLEM", slug="review-after-correction")
+        after_lines = problem_card.lines()
+        with recorder.step("§1.2: the agent answers in the same card, with that one line redone "
+                            "and a before-and-after", party="agent", kind="assert") as h:
+            h.record_assert({"agent answered": True, "changes": ">= 1"},
+                             {"turns": [t["who"] for t in answered["turns"]],
+                              "changes": answered["changes"]})
+            assert any(turn["who"] == "agent" for turn in answered["turns"]), (
+                f"the correction went unanswered: {answered['turns']}")
+            assert answered["changes"], (
+                "the agent answered with no before-and-after; the founder cannot see what moved")
+        with recorder.step("§1.2: the correction changed the line it named and left the card "
+                            "unapproved", party="founder", kind="assert") as h:
+            changed = [(b["heading"], b["you_said"], a["you_said"])
+                       for b, a in zip(before_lines, after_lines) if b["you_said"] != a["you_said"]]
+            h.record_assert({"approved": False}, {"approved": problem_card.is_approved(),
+                                                   "changed": changed})
+            assert not problem_card.is_approved(), (
+                "the card approved itself while answering a correction; that decision was never "
+                "offered")
+
+        problem_card.approve()
+        with recorder.step("§1.2 wire: PROBLEM is framed and approved after approval",
                             party="stack", kind="assert") as h:
-            after = stage_from_overview(_get(f"/v2/projects/{project_id}/overview"), "SOLUTION")
+            after = stage_from_overview(_get(f"/v2/projects/{project_id}/overview"), "PROBLEM")
             h.record_assert({"framed": True, "approved": True}, after)
-            assert after["framed"] is True and after["approved"] is True
-        solution_card.continue_to_next_step()  # see the PROBLEM note above
+            assert after["framed"] and after["approved"], after
+        problem_card.continue_onward()
 
-        _walk_stage(project_id, "COMMERCIAL",
-                    "$30 a seat per month, billed annually upfront.", fx.COMMERCIAL_STATEMENT,
-                    needs_followup=False)
-        # S4: the last card approved -- People unlocks (journeys §1.4, the three-section
-        # navigation amendment) and the closing note's own *Go to People →* is the onward door.
-        # DRIFT #16 (resolved, keel-web `6912f7e`): the note used to never render at all, so this
-        # used to route through the side nav instead; both checks stand now -- the unlock, and
-        # the note's own button actually working.
+        for stage in ("SOLUTION", "COMMERCIAL"):
+            card = walk_stage(page, recorder, _get, project_id, stage,
+                              founder.statement(stage), founder.statement(stage), approve=False)
+            _assert_review_card(recorder, card, entry, stage)
+            card.approve()
+            card.continue_onward()
+
+        # -------------------------------------------------------------------------------- §1.4
         shell = Shell(page, recorder)
         with recorder.step("§1.4: People unlocks once every framed card is approved",
                             party="founder", kind="assert") as h:
             locked = shell.people_locked()
-            h.record_assert({"people_locked": False}, {"people_locked": locked,
-                                                        "why": shell.people_locked_reason()})
+            h.record_assert({"people_locked": False},
+                             {"people_locked": locked, "why": shell.people_locked_reason()})
             assert not locked, "expected the side nav's People entry to unlock after the last approval"
-        StageCard(page, recorder).go_to_people()
 
-        # -------------------------------------------------------------------------------- §1.4
-        people = People(page, recorder)
+        people = People(page, recorder, web_base)
         people.open(project_id)
-        with recorder.step("§1.4: People opens on one card per role", party="founder", kind="assert") as h:
+        with recorder.step("§1.4: People opens on one card per role",
+                            party="founder", kind="assert") as h:
             labels = " | ".join(card["label"] for card in people.role_cards())
-            h.record_assert([fx.PAYROLL_MANAGER_ROLE, fx.PAYROLL_TEAM_LEAD_ROLE], labels)
-            assert fx.PAYROLL_MANAGER_ROLE in labels, f"expected the payroll manager role card, got {labels!r}"
-            assert fx.PAYROLL_TEAM_LEAD_ROLE in labels, f"expected the team-lead role card, got {labels!r}"
+            h.record_assert(fx.role_labels(), labels)
+            for label in fx.role_labels():
+                assert label in labels, f"expected the {label!r} role card, got {labels!r}"
 
-        invite_urls: dict[str, str] = {}
-        for participant in fx.PARTICIPANTS:
-            # §1.4: from the first invitation the page has two views behind a toggle -- after
-            # a link is generated it shows *Who's been asked* (live-confirmed, run
-            # 20260904T013357Z), so every later send starts from *Kinds of people*.
-            if page.locator(".role").count() == 0:
-                people.switch_to_kinds_tab()
-            people.open_send_popup(participant.role_label)
-            people.fill_who(participant.name, about=f"{participant.role_label} at a 400-person company.")
-            people.go_to_preview()
-            invite_urls[participant.name] = people.generate_link(participant.name.split()[0])
-            people.close_popup()
-
+        invite_urls = invite_everyone(page, recorder, project_id, entry, people_inputs, web_base)
         people.switch_to_who_tab()
-        with recorder.step("§1.4/§1.5: the table lists all three, not opened",
+        with recorder.step("§1.4/§1.5: the table lists everyone invited, none opened",
                             party="founder", kind="assert") as h:
             rows = people.table_rows()
-            h.record_assert(len(fx.PARTICIPANTS), len(rows))
-            assert len(rows) == len(fx.PARTICIPANTS), f"expected {len(fx.PARTICIPANTS)} rows, got {rows}"
+            h.record_assert(len(people_inputs), len(rows))
+            assert len(rows) == len(people_inputs), f"expected {len(people_inputs)} rows, got {len(rows)}"
             for row in rows:
                 assert "not opened" in row["their_answer"].lower(), (
                     f"§1.5: expected {row['person']!r} to read 'Not opened', got {row['their_answer']!r}")
 
-        # -------------------------------------------------------------------------------- §2.1-3
-        for participant in fx.PARTICIPANTS:
-            participant_context = browser.new_context()
-            try:
-                participant_page = participant_context.new_page()
-                pb = ParticipantBrowser(participant_page, recorder)
-                pb.open(invite_urls[participant.name])
-                pb.start()
-                pb.answer(participant.answer_texts())
-                pb.submit()
-            finally:
-                participant_context.close()
-
-        # The founder's table now reads Answered; open P9 for each person and read their own
-        # words back verbatim (§1.6: "the founder can see any answer in the person's own words at
-        # any time; seeing changes nothing") -- every participant, so each one's typed answers
-        # reach FID's `participant_page` hop on the founder's own screen, not only Dana's.
-        people.open(project_id)
-        for participant in fx.PARTICIPANTS:
-            first_name = participant.name.split()[0]
-            people.open_answers_popup(first_name)
-            answers = people.answers_popup_text()
-            with recorder.step(f"§1.6/§2.2: P9 shows {first_name}'s own words verbatim",
-                                party="founder", kind="assert") as h:
-                joined = "\n".join(row["answer"] for row in answers["qa"])
-                missing = [text for text in participant.answers.values() if text not in joined]
-                h.record_assert(list(participant.answers.values()), joined)
-                assert not missing, f"expected {first_name}'s own words in P9, missing {missing}"
-            people.close_answers_popup()
+        # ------------------------------------------------------------------------------ §2.1-3
+        answer_everyone(browser, recorder, entry, people_inputs, invite_urls)
 
         # -------------------------------------------------------------------------------- §1.6
-        read_result = people.read_all_and_wait(timeout_s=60)
+        people.open(project_id)
+        for person in people_inputs:
+            if person.person not in fx.JOURNEY_PEOPLE:
+                continue
+            first_name = person.person.split()[0]
+            people.open_answers_popup(first_name)
+            answers = people.answers_popup_text()
+            with recorder.step(f"§1.6/§2.2: the founder reads {first_name}'s own words back",
+                                party="founder", kind="assert") as h:
+                joined = "\n".join(row["text"] for row in answers["qa"])
+                missing = [a.text for a in person.written() if a.text not in joined]
+                h.record_assert([a.text for a in person.written()], joined)
+                assert not missing, f"expected {first_name}'s own words, missing {missing}"
+            people.close_answers_popup()
+
+        people.switch_to_who_tab()
+        read_result = people.read_all_and_wait(timeout_s=max(120, 12 * len(people_inputs)))
         with recorder.step("§1.6: the toast names what moved", party="founder", kind="assert") as h:
             h.record_assert("non-empty toast", read_result["toast_text"])
             assert read_result["toast_text"].strip(), (
@@ -289,101 +275,216 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
         people.follow_toast_link()
 
         # -------------------------------------------------------------------------------- §1.7
-        with recorder.interaction("ui_visit"):
-            with recorder.step("§1.7: the overview shows the three cards' standing",
-                                party="founder", kind="assert") as h:
-                h.capture_text("screen", "overview")
-                body_text = page.locator("body").inner_text()
-                h.capture_text("stage_screen", body_text)
-                shot = recorder.next_screenshot_name("overview-standing")
-                page.screenshot(path=str(recorder.screenshot_path(shot)), full_page=True)
-                h.add_screenshot(shot)
-                # keel-web spec 012 FR-013 (how-far-along-design.md): the overview counts its evidence
-                # above the cards -- "N of T beliefs have evidence" -- a count, never a score.
-                evidence_line = _safe_body(page, ".evidence__title")
-                h.capture_text("evidence_line", evidence_line)
-                counts = re.search(r"(\d+) of (\d+) beliefs have evidence", evidence_line)
-                assert counts, f"expected the evidence bar's headline on the overview, saw {evidence_line!r}"
-                assert int(counts.group(1)) <= int(counts.group(2)), f"evidence count exceeds the total: {evidence_line!r}"
-                assert int(counts.group(1)) >= 1, f"expected at least one belief with evidence after the reading, saw {evidence_line!r}"
-                h.record_assert(
-                    [fx.PROBLEM_HEADLINE, fx.SOLUTION_HEADLINE, fx.COMMERCIAL_HEADLINE], body_text)
-                for headline in (fx.PROBLEM_HEADLINE, fx.SOLUTION_HEADLINE, fx.COMMERCIAL_HEADLINE):
-                    assert headline in body_text, f"expected {headline!r} on the overview"
-
-        problem_evidence = StageCard(page, recorder)
-        problem_evidence.open(project_id, "PROBLEM")
-        # The belief whose verdict matches the card's own status (here the MIXED one) renders
-        # open by default (`StageRoute.tsx`'s firstMatchingVerdictId) -- expand only if it
-        # didn't, since `.b-top` toggles and a second click would collapse it.
-        split_row = page.locator(".belief", has_text=fx.PROBLEM_BELIEF_HOURS_NOT_MINUTES).first
-        if split_row.locator(".b-top").first.get_attribute("aria-expanded") != "true":
-            problem_evidence.expand_belief(fx.PROBLEM_BELIEF_HOURS_NOT_MINUTES)
-        with recorder.step("§1.7: the split belief shows counted-for and counted-against quotes",
+        overview = Overview(page, recorder, web_base)
+        overview.open(project_id)
+        with recorder.step("§1.7: the bar says how many lines have answers",
                             party="founder", kind="assert") as h:
-            drill = problem_evidence.drilldown(fx.PROBLEM_BELIEF_HOURS_NOT_MINUTES)
-            h.record_assert({"for": ">=1", "against": ">=1"}, drill)
-            assert drill["for"] and drill["against"], f"expected both sides quoted, got {drill}"
+            counts = overview.lines_with_answers()
+            h.record_assert((len(entry.beliefs), len(entry.beliefs)), counts)
+            assert counts is not None, f"no lines-have-answers bar: {overview.evidence_line()!r}"
+            assert counts[1] == len(entry.beliefs), (
+                f"the bar counts {counts[1]} lines; the fixture has {len(entry.beliefs)}")
+            assert counts[0] >= 1, f"no line has answers after the reading: {counts}"
 
-        commercial_evidence = StageCard(page, recorder)
-        commercial_evidence.open(project_id, "COMMERCIAL")
-        with recorder.step("§1.7: the price card reads Not holding up", party="founder", kind="assert") as h:
-            status = commercial_evidence.status_word()
-            h.record_assert(fx.COMMERCIAL_HEADLINE, status)
-            assert fx.COMMERCIAL_HEADLINE.lower() in status.lower(), (
-                f"expected {fx.COMMERCIAL_HEADLINE!r} on the price card, got {status!r}")
+        with recorder.step("§1.7: the legend counts holding up / not holding up / people disagree "
+                            "/ not tested", party="founder", kind="assert") as h:
+            legend = overview.legend()
+            h.record_assert(list(overview.LEGEND_WORDS), legend)
+            assert set(legend) == set(overview.LEGEND_WORDS), legend
+            assert sum(legend.values()) == len(entry.beliefs), (
+                f"the legend's four counts sum to {sum(legend.values())}, not the "
+                f"{len(entry.beliefs)} lines there are: {legend}")
 
-        # US2 acceptance scenario 4: every applying belief in exactly one standing list, and each
-        # `line` equal to the same belief's `countsNote` on its own stage card.
-        with recorder.step("§1.7 wire: the standing lists every belief exactly once",
-                            party="stack", kind="assert") as h:
-            standing = _get(f"/v2/projects/{project_id}/standing")
-            all_lines = [line for name in _STANDING_LISTS for line in standing.get(name, [])]
-            seen: dict[str, int] = {}
-            for line in all_lines:
-                seen[line["heading"]] = seen.get(line["heading"], 0) + 1
-            duplicated = {heading: n for heading, n in seen.items() if n != 1}
-            h.record_assert({"lists": list(_STANDING_LISTS), "duplicated": {}},
-                             {"headings": sorted(seen), "duplicated": duplicated})
-            assert all_lines, "expected a non-empty standing read"
-            assert not duplicated, f"expected every belief exactly once across the standing lists: {duplicated}"
-
-        with recorder.step("§1.7 wire: each standing line equals its belief's own countsNote",
-                            party="stack", kind="assert") as h:
-            mismatches = []
-            for stage_type, heading in (
-                ("PROBLEM", fx.PROBLEM_BELIEF_HOURS_NOT_MINUTES),
-                ("SOLUTION", fx.SOLUTION_BELIEF_NOWHERE_TO_LIVE),
-                ("COMMERCIAL", fx.COMMERCIAL_BELIEF_ANNUALLY_UPFRONT),
-            ):
-                counts_note = _counts_note_for(_get(f"/v2/projects/{project_id}/stages/{stage_type}"), heading)
-                line = next((line for line in all_lines if line["heading"] == heading), None)
-                if line is None or line["line"] != counts_note:
-                    mismatches.append({"heading": heading, "line": line, "countsNote": counts_note})
-            h.record_assert([], mismatches)
-            assert not mismatches, f"standing lines disagree with the stage cards' countsNote: {mismatches}"
-
-        # ---------------------------------------------------------------------------------§1.10
-        Shell(page, recorder).open_brief()
-        brief = Brief(page, recorder)
-        brief.open(project_id)
-        with recorder.step("§1.10: the brief lists every belief by verdict",
+        with recorder.step("§1.7: *What this says* is present, in the founder's own language",
                             party="founder", kind="assert") as h:
-            headings = brief.list_headings()
-            h.record_assert(">=1 heading", headings)
-            assert headings, "expected at least one belief-status list on the brief"
-        brief.view_print()
-        who = brief.who_was_asked()
-        with recorder.step("§1.10: the print view names who was asked", party="founder", kind="assert") as h:
-            joined = " | ".join(who)
-            h.record_assert([p.name for p in fx.PARTICIPANTS], joined)
-            for participant in fx.PARTICIPANTS:
-                assert participant.name in joined, f"expected {participant.name!r} in Who was asked: {who}"
+            says = overview.what_this_says()
+            h.record_assert("a paragraph under the heading", says)
+            assert "what this says" in says.lower(), says
+            body = says.split("\n", 1)[1] if "\n" in says else ""
+            assert len(body.strip()) > 20, (
+                f"the heading rendered with no paragraph under it: {says!r}")
+
+        with recorder.step("§1.7: each stage card carries a status, its counts and its "
+                            "deal-breaker tally", party="founder", kind="assert") as h:
+            cards = overview.stage_cards()
+            h.record_assert(3, len(cards))
+            assert len(cards) == 3, [c["bet"] for c in cards]
+            for card in cards:
+                assert card["status"].strip(), f"{card['bet']} has no status word"
+                assert card["counts"].strip(), f"{card['bet']} has no counts"
+                assert "deal-breaker" in card["must"].lower(), card["must"]
+
+        # ------------------------------------------------- §1.7, the opened card and one person
+        expectation_of = {b.heading: b.type for b in entry.beliefs}
+        opened = OpenedCard(page, recorder, web_base)
+        opened.open(project_id, "PROBLEM", expectations=expectation_of)
+        strips = opened.strips()
+        with recorder.step("§1.7: the opened card's lines are collapsed, with the first open",
+                            party="founder", kind="assert") as h:
+            open_count = sum(1 for s in strips if s["open"])
+            h.record_assert(1, open_count)
+            assert strips, "the opened card rendered no strips at all"
+            assert open_count == 1, (
+                f"{open_count} of {len(strips)} lines rendered open; exactly one should")
+
+        with recorder.step("§1.7: every strip carries its number, its *You said*, a status and "
+                            "the question that produced it", party="founder", kind="assert") as h:
+            problems = [s["heading"] for s in strips
+                        if not (s["number"].strip() and s["you_said"].strip()
+                                and s["status"].strip() and s["read_line"].strip())]
+            h.record_assert([], problems)
+            assert not problems, f"a strip is missing part of its own line: {problems}"
+
+        with recorder.step("§1.7: a deal-breaker is marked as one",
+                            party="founder", kind="assert") as h:
+            load_bearing = {b.heading for b in entry.beliefs_for("PROBLEM")
+                            if b.risk == "LOAD_BEARING"}
+            marked = {s["heading"] for s in strips if s["deal_breaker"]}
+            h.record_assert(sorted(load_bearing), sorted(marked))
+            for heading in load_bearing:
+                assert any(heading in seen for seen in marked), (
+                    f"{heading!r} is load-bearing and the strip does not mark it a deal-breaker")
+
+        dotted = next((s for s in strips if MODAL_PERSON in s["dots"]), None)
+        with recorder.step(f"§1.7: {MODAL_PERSON}'s own answer is a dot on a line",
+                            party="founder", kind="assert") as h:
+            h.record_assert(f"a dot labelled {MODAL_PERSON}",
+                             {s["heading"]: s["dots"] for s in strips})
+            assert dotted is not None, (
+                f"no strip carries a mark for {MODAL_PERSON}; every anchored person is a dot")
+
+        opened.ensure_open(dotted["heading"])
+        opened.click_dot(dotted["heading"], MODAL_PERSON)
+        said = SaidBox(page, recorder)
+        with recorder.step("§1.7: the popover names the person, what they wrote and how it was "
+                            "read", party="founder", kind="assert") as h:
+            box = said.read()
+            h.record_assert({"name": MODAL_PERSON, "read_as": "present"}, box)
+            assert MODAL_PERSON.split()[0] in box["name"], box
+            assert box["read_as"].strip(), "the popover does not say how the answer was read"
+            assert box["see_all"].strip(), "the popover offers no way to see their full answers"
+
+        said.see_all()
+        modal = AnswersModal(page, recorder)
+        with recorder.step("§1.7: the modal shows their story and every pick with the question "
+                            "that asked it", party="founder", kind="assert") as h:
+            body = modal.capture(MODAL_PERSON)
+            h.record_assert({"story": "their own words", "picks": ">= 1"}, body)
+            assert body["story"].strip(), "the modal shows no story in their own words"
+            assert body["picks"], "the modal shows no picks at all"
+            for pick in body["picks"]:
+                assert pick["picked"].strip(), f"a pick with no answer: {pick}"
+        modal.close(via="footer")
+
+        # ------------------------------------------------------------------------------- §1.10
+        overview.open(project_id)
+        with recorder.step("§1.10: the overview offers Download", party="founder", kind="assert") as h:
+            label = overview.download_link_text()
+            h.record_assert("Download as PDF", label)
+            assert "download" in label.lower(), f"no Download door on the overview: {label!r}"
+        print_page = PrintPage(page, recorder, web_base)
+        print_page.stub_print()
+        overview.download()
+        print_page.capture_here()
+        with recorder.step("§1.10: the download renders a title page, an overview page and one "
+                            "page per stage", party="founder", kind="assert") as h:
+            sheets = print_page.sheets()
+            title = print_page.title_page()
+            h.record_assert({"sheets": 5, "name": founder.project_name},
+                             {"sheets": len(sheets), "title": title})
+            assert len(sheets) == 5, f"expected five sheets, got {len(sheets)}"
+            assert founder.project_name in title["name"], title
+            assert not print_page.has_founder_chrome(), (
+                "the download page rendered the founder's own chrome; it is its own page")
+
+        with recorder.step("§1.10: each stage's table names what it measures, what you said and "
+                            "the answers", party="founder", kind="assert") as h:
+            columns = print_page.table_columns()
+            h.record_assert([list(print_page.COLUMNS)] * 3, columns)
+            assert columns, "the download rendered no per-stage table"
+            for row in columns:
+                assert row[:3] == list(print_page.COLUMNS), row
+
+        with recorder.step("§1.10: a stage starts on a fresh page, by the stylesheet's own rule",
+                            party="founder", kind="assert") as h:
+            rule = print_page.fresh_page_rule()
+            h.record_assert("page", rule)
+            assert rule == "page", (
+                f"`.page + .page` carries break-before {rule!r}; a stage does not start fresh")
+
+        with recorder.step("the fixture hashes exactly as it did when the run began",
+                            party="stack", kind="assert") as h:
+            fx.corpus().verify_unchanged()
+            h.record_assert("unchanged", "unchanged")
 
         passed = True
     finally:
         context.close()
-        duration = time.monotonic() - started
-        finalize_run(run_dir, slug="s001-smoke", facts=fx.facts(), passed=passed,
-                     failed_step=recorder.failed_step, duration_s=duration)
+        finalize_run(run_dir, slug="s001-smoke", facts=fx.facts(modal_person=MODAL_PERSON),
+                     passed=passed, failed_step=recorder.failed_step,
+                     duration_s=time.monotonic() - started)
         print(f"\nrun bundle: {run_dir}")
+
+
+def _assert_review_card(recorder, card, entry, stage: str) -> None:
+    """§1.2, one card: the claim, the numbered lines, the deal-breaker rule line, *You said "…"*,
+    the chips with the expected pick marked, the *asked indirectly* mark, and *What they'll be
+    asked first*."""
+    lines = card.lines()
+    with recorder.step(f"§1.2: the {stage.lower()} card carries every line, numbered",
+                        party="founder", kind="assert") as h:
+        expected = [b.heading for b in entry.beliefs_for(stage)]
+        got = [line["heading"] for line in lines]
+        h.record_assert(expected, got)
+        missing = [heading for heading in expected if not any(heading in seen for seen in got)]
+        assert not missing, f"the {stage} card is missing lines: {missing}"
+        unnumbered = [line["heading"] for line in lines if not line["number"].strip()]
+        assert not unnumbered, f"a line has no number: {unnumbered}"
+
+    with recorder.step(f"§1.2: {stage.lower()}'s deal-breakers are separated from what is worth "
+                        "knowing, under their own rule lines", party="founder", kind="assert") as h:
+        rule_lines = card.rule_lines()
+        h.record_assert(["Deal-breakers · …", "Worth knowing · …"], rule_lines)
+        beliefs = entry.beliefs_for(stage)
+        if any(b.risk == "LOAD_BEARING" for b in beliefs):
+            assert any("deal-breaker" in line.lower() for line in rule_lines), rule_lines
+        if any(b.risk == "SUPPORTING" for b in beliefs):
+            assert any("worth knowing" in line.lower() for line in rule_lines), rule_lines
+
+    with recorder.step(f"§1.2: every {stage.lower()} line quotes the founder's own phrase and "
+                        "offers a pick list", party="founder", kind="assert") as h:
+        phrases = {b.heading: b.founder_phrase for b in entry.beliefs_for(stage) if b.founder_phrase}
+        problems = []
+        for line in lines:
+            for heading, phrase in phrases.items():
+                if heading in line["heading"] and phrase not in line["you_said"]:
+                    problems.append({"line": heading, "phrase": phrase, "read": line["you_said"]})
+            if not line["chips"]:
+                problems.append({"line": line["heading"], "chips": "none"})
+        h.record_assert([], problems)
+        assert not problems, f"a line does not read as the design says it must: {problems}"
+
+    with recorder.step(f"§1.2: the founder's expected pick is marked on every {stage.lower()} "
+                        "CHOICE line", party="founder", kind="assert") as h:
+        choices = {b.heading for b in entry.beliefs_for(stage) if b.type == "CHOICE"}
+        unmarked = [line["heading"] for line in lines
+                    if any(c in line["heading"] for c in choices)
+                    and not any(chip["expected"] for chip in line["chips"])]
+        h.record_assert([], unmarked)
+        assert not unmarked, f"a CHOICE line marks no expected pick: {unmarked}"
+
+    with recorder.step(f"§1.2: every PROXY line on {stage.lower()} is marked *asked indirectly*",
+                        party="founder", kind="assert") as h:
+        proxies = {b.heading for b in entry.beliefs_for(stage) if b.mark == "PROXY"}
+        marked = {line["heading"] for line in lines if line["proxy"]}
+        h.record_assert(sorted(proxies), sorted(marked))
+        for heading in proxies:
+            assert any(heading in seen for seen in marked), (
+                f"{heading!r} is asked indirectly and the card does not say so")
+
+    with recorder.step(f"§1.2: the {stage.lower()} card names what the person will be asked first",
+                        party="founder", kind="assert") as h:
+        asked_first = card.asked_first()
+        h.record_assert("one story, then the picks", asked_first)
+        assert asked_first, "no *what they'll be asked first* block on this review card"
+        assert "story" in asked_first.lower() and "pick" in asked_first.lower(), asked_first

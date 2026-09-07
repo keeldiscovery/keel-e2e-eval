@@ -35,9 +35,9 @@ import time
 
 from evals import payroll_exceptions as fx
 from evals.facts import Fact
-from evals.payroll_exceptions import Participant
 from evals.preludes import approved_project_with_one_read
-from harness.browser import Auth, Brief, Connect, Landing, ParticipantBrowser, People, Shell, StageCard
+from harness.browser import (Auth, Connect, Landing, OpenedCard, ParticipantPage, People,
+                              PrintPage, Shell)
 from harness.connect import reconnect, start_runtime_via_skill, stop_runtime
 from harness.evidence import finalize_run
 from harness.steps import Recorder
@@ -51,19 +51,11 @@ from harness.steps import Recorder
 # `20260904T040636Z-s002-agent-optional`): one question, the solution-stage belief. Her answers are
 # therefore an ordered list the harness types into whatever questions exist, first answer first,
 # and the scenario asserts on -- and registers as facts -- only what was actually typed.
-SECOND_PARTICIPANT = Participant(
-    name="Priya Raman",
-    role_label=fx.PAYROLL_MANAGER_ROLE,
-    headings=[fx.SOLUTION_BELIEF_NOWHERE_TO_LIVE]
-    + [h for h in fx.PAYROLL_MANAGER_HEADINGS if h != fx.SOLUTION_BELIEF_NOWHERE_TO_LIVE],
-    answers={
-        "Exceptions have nowhere to live today": "Inside the payroll tool, please -- that is where the exceptions already show up.",
-        "They handle exceptions themselves": "It lands on me every cycle, not anyone else.",
-        "It costs hours, not minutes": "The last one took most of an afternoon to untangle.",
-        "They've tried to fix it": "We tried a shared inbox rule once; nobody kept it up.",
-        "Someone would accept being the owner": "I'd take it, if the tool actually assigned it.",
-    },
-)
+# spec 010: the fixture is data now (`evals/payroll_exceptions.yaml`), read through the same
+# generator every other scenario uses. The second person is the fixture's own second one -- a
+# genuinely different person of the same kind, whose invitation is created while no agent is
+# connected (US1 step 4).
+SECOND_PARTICIPANT = fx.people()[1]
 
 
 def _facts(typed_answers: list[str]) -> dict[str, Fact]:
@@ -83,13 +75,19 @@ def _facts(typed_answers: list[str]) -> dict[str, Fact]:
         # (cold) they are extra evidence, but a warm run that reuses S-001's project never visits
         # them, and a fact registered for an unvisited hop scored FIDELITY 3.5 on
         # `20260904T044246Z-s002-agent-optional` for words that were never shown wrongly.
-        "project_name": base["project_name"],
-        "problem_statement": base["problem_statement"],
-        "solution_statement": Fact(text=base["solution_statement"].text, kind="statement", hops=["brief"]),
-        "commercial_statement": Fact(text=base["commercial_statement"].text, kind="statement", hops=["brief"]),
-        "payroll_manager_role": base["payroll_manager_role"],
+        "name": base["name"],
+        "statement.PROBLEM": base["statement.PROBLEM"],
+        # spec 010: `brief` retired with the route it named; the download page is where all three
+        # claims are read back now, and it needs no agent either.
+        "statement.SOLUTION": Fact(text=base["statement.SOLUTION"].text, kind="statement",
+                                    hops=["download"]),
+        "statement.COMMERCIAL": Fact(text=base["statement.COMMERCIAL"].text, kind="statement",
+                                      hops=["download"]),
     }
-    slug = SECOND_PARTICIPANT.name.lower().replace(" ", "_")
+    for key, fact in base.items():
+        if key.startswith("role."):
+            result[key] = fact
+    slug = SECOND_PARTICIPANT.person.lower().replace(" ", "_")
     for n, text in enumerate(typed_answers, start=1):
         result[f"{slug}_answer_{n}"] = Fact(text=text, kind="answer", hops=["participant_page"])
     return result
@@ -248,7 +246,7 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
             assert project_id_now == project_id, f"expected the same project id, got {project_id_now!r}"
         project_id = project_id_now
 
-        problem_card = StageCard(page, recorder)
+        problem_card = OpenedCard(page, recorder, web_base)
         opened = problem_card.open(project_id, "PROBLEM")
         with recorder.step("the approved problem card still renders its claim and beliefs, no agent",
                             party="founder", kind="assert") as h:
@@ -272,9 +270,11 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
         people.open(project_id)
         if page.locator(".role").count() == 0:
             people.switch_to_kinds_tab()
-        people.open_send_popup(SECOND_PARTICIPANT.role_label)
-        people.fill_who(SECOND_PARTICIPANT.name,
-                         about=f"{SECOND_PARTICIPANT.role_label} at a 400-person company.")
+        second_role = next(r["label"] for r in fx.entry().roles
+                            if r["id"] == SECOND_PARTICIPANT.role_id)
+        people.open_send_popup(second_role)
+        people.fill_who(SECOND_PARTICIPANT.person,
+                         about=f"{second_role}, asked about one real occasion.")
         preview = people.go_to_preview()
         with recorder.step("§1.4: the preview shows what they'll be asked, no agent needed",
                             party="founder", kind="assert") as h:
@@ -284,7 +284,7 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
         with page.expect_response(
             lambda r: r.url.endswith("/invitations") and r.request.method == "POST"
         ) as invite_resp_info:
-            invite_url = people.generate_link(SECOND_PARTICIPANT.name.split()[0])
+            invite_url = people.generate_link(SECOND_PARTICIPANT.person.split()[0])
         invite_response = invite_resp_info.value
         with recorder.step("§1.4 wire: POST .../invitations succeeds with no live agent",
                             party="stack", kind="assert") as h:
@@ -299,10 +299,10 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
         participant_context = browser.new_context()
         try:
             participant_page = participant_context.new_page()
-            pb = ParticipantBrowser(participant_page, recorder)
+            pb = ParticipantPage(participant_page, recorder)
             pb.open(invite_url)
-            pb.start()
-            typed_answers = pb.answer(SECOND_PARTICIPANT.answer_texts())
+            pb.answer_as(SECOND_PARTICIPANT, fx.entry())
+            typed_answers = [a.text for a in SECOND_PARTICIPANT.written() if a.text]
             pb.submit()
         finally:
             participant_context.close()
@@ -314,12 +314,12 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
         people.open(project_id)
         people.switch_to_who_tab()
         rows = people.table_rows()
-        first_name = SECOND_PARTICIPANT.name.split()[0]
+        first_name = SECOND_PARTICIPANT.person.split()[0]
         target_row = next((r for r in rows if first_name in r["person"]), None)
         with recorder.step("§1.5: the new answer shows in Their answer; Your agent reads Not read yet",
                             party="founder", kind="assert") as h:
             h.record_assert({"their_answer": "answered", "your_agent": "not read yet"}, target_row)
-            assert target_row is not None, f"expected a row for {SECOND_PARTICIPANT.name!r}, got {rows}"
+            assert target_row is not None, f"expected a row for {SECOND_PARTICIPANT.person!r}, got {rows}"
             assert "answered" in target_row["their_answer"].lower(), (
                 f"expected Their answer to read Answered, got {target_row!r}")
             assert "not read yet" in target_row["your_agent"].lower(), (
@@ -377,21 +377,22 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
             assert read_state["reason"], (
                 f"US1 scenario 3: expected a reason shown beside the disabled read action, got {read_state!r}")
 
-        # ------------------------------------------------------------- US1 step 6: the brief still downloads
-        shell.open_brief()
-        brief = Brief(page, recorder)
-        brief.open(project_id)
-        with recorder.step("§1.10: the brief renders the four lists, no agent",
+        # -------------------------------------------- US1 step 6: the download still downloads
+        # spec 010: `/p/:id/brief` is gone with `BriefRoute.tsx`. What a founder downloads now is
+        # the print page, and the sentence this step exists to pin is unchanged -- it needs no
+        # agent, because it is derived from what is already recorded.
+        print_page = PrintPage(page, recorder, web_base)
+        print_page.open(project_id)
+        with recorder.step("§1.10: the download renders its sheets with no agent",
                             party="founder", kind="assert") as h:
-            headings = brief.list_headings()
-            h.record_assert(">=1 heading", headings)
-            assert headings, "expected at least one belief-status list on the brief"
-        brief.view_print()
-        who = brief.who_was_asked()
-        with recorder.step("§1.10: the print view names who was asked, no agent",
+            sheets = print_page.sheets()
+            h.record_assert(">= 1 sheet", len(sheets))
+            assert sheets, "expected the download page to render its sheets with no agent"
+        with recorder.step("§1.10: the download quotes who was asked, no agent",
                             party="founder", kind="assert") as h:
-            h.record_assert(">=1 name", who)
-            assert who, "expected the print view's Who was asked list to render"
+            quotes = print_page.quotes()
+            h.record_assert(">=1 quote", len(quotes))
+            assert quotes, "expected the download's own *In their words* quotes to render"
 
         with recorder.step("wire: GET .../standing reads 200 with no live agent",
                             party="stack", kind="assert") as h:
@@ -460,7 +461,7 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
             h.record_assert("non-empty toast", read_result["toast_text"])
             assert read_result["toast_text"].strip(), "expected a non-empty toast after the agent read the answer"
 
-        problem_card_after = StageCard(page, recorder)
+        problem_card_after = OpenedCard(page, recorder, web_base)
         opened_after = problem_card_after.open(project_id, "PROBLEM")
         with recorder.step("§1.6: the card still carries a verdict once read",
                             party="founder", kind="assert") as h:

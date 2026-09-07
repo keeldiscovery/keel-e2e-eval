@@ -1,4 +1,24 @@
-"""Playwright page objects for the round-5 screens (spec 005-connect-stack FR-008): `Auth`
+"""Playwright page objects for the measured-beliefs screens (spec 010 T015-T022, on top of spec
+005-connect-stack FR-008).
+
+**What spec 010 added, and why this layer earns its keep** (plan.md's Complexity Tracking):
+keel-web has exactly **one** `data-testid` in its whole tree -- `median-tick` on the strip's median
+line -- so every other handle is a role, an `aria-label`, a heading or a stable class. Inline
+selectors are what specs 001-008 did with four screens, and they were already the thing most often
+broken; with a popover, a modal, an SVG strip and a print page, concentrating them here is the only
+way one keel-web pass does not redden seven scenarios at once. **Page objects hold selectors and
+never assertions**, so the rule against abstraction for its own sake still bites.
+
+New here: `MarketStep`, `ReviewCard`, `CorrectionChat`, `Overview`, `OpenedCard`, `SaidBox`,
+`AnswersModal`, `PrintPage`, and `ParticipantPage` (which replaces `ParticipantBrowser` -- there is
+no consent screen and no *Start* any more; the form is the page). **`Brief` is deleted** with the
+route it named: keel-web has no `BriefRoute.tsx` and no `/p/:id/brief`, and the `brief` hop retires
+with it (policy v8 FR-026). `StageCard` stays for the walk's own approve/continue moments, which
+are unchanged.
+
+The original round-5 note follows.
+
+Playwright page objects for the round-5 screens (spec 005-connect-stack FR-008): `Auth`
 (setup/login), `Connect` (device-approval frames B/C/G, plus A/D/E/F), `Landing` (L1-L4), `Shell`
 (agent line, side nav with status words), `Chat` (C1-C8: bubbles, composer, confirmation card),
 `StageCard` (R1/R2/R4, E1-E3), `People` (P1-P9: toggle, role cards, popup steps, table rows,
@@ -446,10 +466,15 @@ class Landing:
             _wait_for_url_change(self.page, lambda url: "/connect" in url)
             h.add_screenshot(self._bstep.screenshot("landing-gate-to-connect"))
 
-    def name_project(self, name: str) -> str:
-        """L1/L3's own step 1 (`NameProjectStep`, design §3.3): a direct errand,
-        `POST /v2/projects {name}`, landing straight on the new project's shell. Returns the new
-        project id parsed off the resulting URL (`/p/<id>`)."""
+    def name_project(self, name: str) -> None:
+        """L1/L3's own step 1 (`CreateProjectStep.tsx`): the name, and then *Save and continue*.
+
+        **It no longer creates the project.** Spec 013 put the market step between naming and
+        starting -- the market is what decides units, register and currency, and it is chosen
+        before anything is framed (design §3.8) -- so `POST /v2/projects` now carries
+        `{name, market}` and fires from `MarketStep.start()`. This method leaves the founder on
+        that step; `MarketStep` returns the project id.
+        """
         with self._bstep.step(f"founder names the project: {name!r}") as h:
             box = self.page.locator(".guided-step").get_by_role("textbox")
             if box.count() == 0:
@@ -457,12 +482,10 @@ class Landing:
             box.fill(name)
             h.add_screenshot(self._bstep.screenshot("landing-name-filled"))
             self.page.get_by_role("button", name=re.compile("save and continue", re.I)).click()
-            _wait_for_url_change(self.page, lambda url: "/p/" in url)
-            h.capture_text("screen", "overview")
-        match = re.search(r"/p/([^/?#]+)", self.page.url)
-        if not match:
-            raise AssertionError(f"naming the project did not land on a project shell: {self.page.url}")
-        return match.group(1)
+            self.page.locator(".guided-step select").first.wait_for(state="visible", timeout=15_000)
+            h.capture_text("screen", "market")
+            h.capture_text("stage_screen", _safe_text(
+                lambda: self.page.locator(".guided-step").first.inner_text()))
 
     def start_new_project(self) -> None:
         """L3's *New project* -- opens the same inline step-1 form L1 shows directly."""
@@ -1110,6 +1133,881 @@ class StageCard:
         return out
 
 
+
+# ------------------------------------------------------------------------------------ MarketStep
+
+# `lib/markets.ts`: the country list is fixed, grouped, and the region field is optional. The three
+# optgroup labels are asserted by name because the design's own point is that a founder picks from
+# a list rather than typing a country.
+MARKET_GROUPS = ("North America", "Europe", "Asia")
+
+
+class MarketStep:
+    """The market step (`components/MarketStep.tsx`), an inline frame of `/` between naming the
+    project and starting it (design §3.8: the market is what decides units, register and currency,
+    and it is chosen **before** anything is framed).
+
+    **The region input is found positionally.** Its `aria-label` is its own placeholder and the
+    placeholder depends on the country (`regionPlaceholder`: *"State or region, if it matters —
+    Texas, California, New York (optional)"* for US, and a shorter sentence everywhere else), so a
+    label-matched locator would find it for `07-mulchrun` and silently mismatch for every GB entry
+    (research R7). The text input that follows the country select is the region box, and that is
+    stable in a way its label is not.
+    """
+
+    def __init__(self, page: Page, *args: Any, party: str = "founder"):
+        self.page = page
+        recorder, self.base_url = _split_recorder_and_base(args, page)
+        self._bstep = _BrowserStep(recorder, page, party)
+        self._interaction_id: str | None = None
+
+    def _scope(self):
+        if self._interaction_id is None:
+            self._interaction_id = self._bstep.recorder.new_interaction_id()
+        return self._bstep.recorder.interaction("ui_visit", self._interaction_id)
+
+    # ------------------------------------------------------------------------------------- reads
+
+    def _country_select(self):
+        return self.page.locator(".guided-step select").first
+
+    def _region_input(self):
+        return self.page.locator(".guided-step input[type='text']").first
+
+    def question(self) -> str:
+        return _safe_text(lambda: self.page.locator(".guided-step__question").first.inner_text())
+
+    def kicker(self) -> str:
+        return _safe_text(lambda: self.page.locator(".guided-step__kicker").first.inner_text())
+
+    def hints(self) -> list[str]:
+        return _safe_all_texts(self.page, ".guided-step p.hint")
+
+    def country_groups(self) -> list[str]:
+        return [g.get_attribute("label") or ""
+                for g in self._country_select().locator("optgroup").all()]
+
+    def country_codes(self) -> list[str]:
+        return [o.get_attribute("value") or ""
+                for o in self._country_select().locator("option").all()]
+
+    def region_placeholder(self) -> str:
+        return self._region_input().get_attribute("placeholder") or ""
+
+    def described_sentence(self, *, timeout_s: float = 10) -> str:
+        """`Market.described`, off `GET /v2/markets/{country}` -- *"So the questions will be in
+        British English, in pounds and pence, kilometres, metres and working days."* Composed by
+        keel-cloud (spec 030 FR-014) and rendered verbatim; the read is debounced behind the
+        country select, so this waits rather than reading an empty string a moment too early.
+
+        `""` when it never arrives, which is the finding rather than a crash."""
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            for hint in _safe_all_texts(self.page, ".guided-step p.hint"):
+                lowered = hint.casefold()
+                if "so the questions" in lowered or "the questions will be" in lowered:
+                    return hint
+            self.page.wait_for_timeout(250)
+        return ""
+
+    def is_visible(self) -> bool:
+        return self._country_select().count() > 0
+
+    # ----------------------------------------------------------------------------------- actions
+
+    def fill(self, country: str, region: str | None = None) -> None:
+        """Chooses the country from the list and types the region, or leaves it empty. An entry
+        whose `market.region` is `null` (countly, paidly) leaves the box untouched -- never the
+        word "null", and never a space."""
+        with self._scope():
+            with self._bstep.step(
+                    f"founder says where this sells first: {country}"
+                    + (f", {region}" if region else " (no region)")) as h:
+                self._country_select().select_option(country)
+                if region:
+                    self._region_input().fill(region)
+                h.capture_text("screen", "market")
+                h.capture_text("stage_screen", _safe_text(
+                    lambda: self.page.locator(".guided-step").first.inner_text()))
+                h.capture_text("identity", self.kicker())
+                h.add_screenshot(self._bstep.screenshot("market-step"))
+
+    def back(self) -> None:
+        with self._scope():
+            with self._bstep.step("founder goes back from the market step") as h:
+                self.page.get_by_role("button", name=re.compile(r"^back$", re.I)).click()
+                self.page.locator(".guided-step__question").wait_for(state="visible", timeout=10_000)
+                h.add_screenshot(self._bstep.screenshot("market-back"))
+
+    def start(self) -> str:
+        """*Start* -- `POST /v2/projects {name, market}` (vendored fact V7: the request carries no
+        `language`; the server derives it). Returns the new project id off the resulting URL."""
+        with self._scope():
+            with self._bstep.step("founder starts the project") as h:
+                self.page.get_by_role("button", name=re.compile(r"^start$", re.I)).click()
+                _wait_for_url_change(self.page, lambda url: "/p/" in url)
+                h.capture_text("screen", "overview")
+                h.add_screenshot(self._bstep.screenshot("market-started"))
+        match = re.search(r"/p/([^/?#]+)", self.page.url)
+        if not match:
+            raise AssertionError(f"starting the project did not land on a project shell: {self.page.url}")
+        return match.group(1)
+
+
+# ------------------------------------------------------------------------------------ ReviewCard
+
+class ReviewCard:
+    """`StageRoute.tsx`'s `DraftReview` -- the unapproved draft (mockup screen 2), the one screen
+    a founder reads before anyone is asked anything.
+
+    Holds the handles; asserts nothing. Everything below is a read the scenario judges.
+    """
+
+    def __init__(self, page: Page, *args: Any, party: str = "founder"):
+        self.page = page
+        recorder, self.base_url = _split_recorder_and_base(args, page)
+        self._bstep = _BrowserStep(recorder, page, party)
+        self._interaction_id: str | None = None
+
+    def _scope(self):
+        if self._interaction_id is None:
+            self._interaction_id = self._bstep.recorder.new_interaction_id()
+        return self._bstep.recorder.interaction("ui_visit", self._interaction_id)
+
+    def _card(self):
+        return self.page.locator(".card.openc").first
+
+    # ------------------------------------------------------------------------------------- reads
+
+    def claim(self) -> str:
+        return _safe_text(lambda: self._card().locator("p.claim").first.inner_text())
+
+    def status_word(self) -> str:
+        return _safe_text(lambda: self._card().locator(".card-top .status").first.inner_text())
+
+    def landing_note(self) -> str:
+        return _safe_text(lambda: self.page.locator("p.landing-note").first.inner_text())
+
+    def group_headings(self) -> list[str]:
+        return _safe_all_texts(self.page, ".card.openc .who > h4")
+
+    def rule_lines(self) -> list[str]:
+        return _safe_all_texts(self.page, ".card.openc p.rule-line")
+
+    def asked_first(self) -> str:
+        """The *What they'll be asked first* block -- the `<h4>` and its own `dl.qa` (ORI-U4's
+        substrate). `""` when the block never rendered, which is itself the finding."""
+        block = self.page.locator(".card.openc .who", has=self.page.locator("dl.qa")).first
+        if block.count() == 0:
+            return ""
+        return _safe_text(lambda: block.inner_text())
+
+    def rationale_lines(self) -> list[str]:
+        """*Not asked, on purpose:* -- `StageCard.rationaleLines`, one `<li>` each. Empty is legal
+        (an entry whose normalization rationale named nothing)."""
+        return _safe_all_texts(self.page, ".card.openc ul.rationale > li")
+
+    def lines(self) -> list[dict[str, Any]]:
+        """One row per `div.belief`, in rendered order: `{number, heading, proxy, statement,
+        you_said, status, chips}` -- `chips` being `{text, expected, band, escape}` per
+        `Chips.tsx` (`span.chip`, `.expected` for the founder's own pick, `.band` for a bucket
+        inside the band, `.esc` for a way out)."""
+        out: list[dict[str, Any]] = []
+        rows = self.page.locator(".card.openc .belief")
+        for i in range(rows.count()):
+            row = rows.nth(i)
+            chips: list[dict[str, Any]] = []
+            chip_nodes = row.locator(".chips .chip")
+            for j in range(chip_nodes.count()):
+                chip = chip_nodes.nth(j)
+                classes = chip.get_attribute("class") or ""
+                chips.append({
+                    "text": _safe_text(lambda c=chip: c.inner_text()),
+                    "expected": "expected" in classes,
+                    "band": "band" in classes,
+                    "escape": "esc" in classes,
+                })
+            out.append({
+                "number": _safe_text(lambda r=row: r.locator(".b-num").first.inner_text()),
+                "heading": _safe_text(lambda r=row: r.locator(".b-heading").first.inner_text()),
+                "proxy": row.locator(".stand-in").count() > 0,
+                "statement": _safe_text(lambda r=row: r.locator(".b-detail").first.inner_text()),
+                "you_said": _safe_text(lambda r=row: r.locator("p.you-said").first.inner_text()),
+                "status": _safe_text(lambda r=row: r.locator(".b-status").first.inner_text()),
+                "chips": chips,
+            })
+        return out
+
+    def chip_labels(self, heading: str) -> list[str]:
+        """The offered list for the line headed `heading`, **in order** -- FR-013's own
+        `expected.buckets` comparison, read off a screen. Escapes are excluded: the corpus's
+        `buckets` are the scale, and the ways out are the selection's `escape` beside it."""
+        row = self.page.locator(".card.openc .belief", has_text=heading).first
+        labels: list[str] = []
+        chips = row.locator(".chips .chip")
+        for i in range(chips.count()):
+            chip = chips.nth(i)
+            if "esc" in (chip.get_attribute("class") or ""):
+                continue
+            text = _safe_text(lambda c=chip: c.inner_text())
+            labels.append(text.replace("\u2713", "").strip())
+        return labels
+
+    # ----------------------------------------------------------------------------------- actions
+
+    def open(self, project_id: str, stage: str) -> dict[str, Any]:
+        with self._scope():
+            with self._bstep.step(f"founder reads the {stage.lower()} review card") as h:
+                self.page.goto(f"{self.base_url}/p/{project_id}/s/{stage}", wait_until="load")
+                self._card().locator(".bet").wait_for(state="visible", timeout=65_000)
+                self._capture(h, stage)
+                h.add_screenshot(self._bstep.screenshot(f"review-{stage.lower()}"))
+        return {"status": self.status_word(), "claim": self.claim()}
+
+    def recapture(self, stage: str, *, slug: str = "review-again") -> None:
+        """Reads the card again into a fresh step -- what the correction turn's before-and-after
+        is judged on."""
+        with self._scope():
+            with self._bstep.step(f"founder reads the {stage.lower()} card again") as h:
+                self._capture(h, stage)
+                h.add_screenshot(self._bstep.screenshot(slug))
+
+    def _capture(self, h: StepHandle, stage: str) -> None:
+        h.capture_text("screen", "review_card")
+        h.capture_text("stage", stage)
+        h.capture_text("stage_identity", _safe_text(
+            lambda: self._card().locator(".bet").first.inner_text()))
+        h.capture_text("review_card", _safe_text(lambda: self._card().inner_text()))
+        h.capture_text("asked_first", self.asked_first())
+        Shell(self.page).capture_identity(h)
+
+    def approve(self) -> None:
+        with self._scope():
+            with self._bstep.step("founder approves the card") as h:
+                button = self.page.get_by_role("button", name=re.compile("these are right", re.I))
+                button.wait_for(state="visible", timeout=15_000)
+                button.click()
+                button.wait_for(state="detached", timeout=20_000)
+                h.capture_text("affordance", _safe_text(
+                    lambda: self.page.locator(".approved-note").first.inner_text()))
+                h.add_screenshot(self._bstep.screenshot("review-approved"))
+
+    def is_approved(self) -> bool:
+        """False while *These are right — approve* is still on the screen. The correction turn
+        must leave it False (FR-008): a card that answers a correction by approving itself has
+        taken a decision that was not offered."""
+        return self.page.get_by_role(
+            "button", name=re.compile("these are right", re.I)).count() == 0
+
+    def continue_onward(self) -> None:
+        """The approved card's own onward door -- *Continue to step N* or, on the last stage,
+        *Go to People*. Clicks whichever rendered rather than assuming a shape."""
+        with self._bstep.step("founder takes the card's onward door") as h:
+            link = self.page.locator(".actions").get_by_role(
+                "link", name=re.compile("continue to step|go to people", re.I))
+            if link.count() > 0:
+                link.first.click()
+            else:
+                match = re.search(r"(/p/[^/?#]+)", self.page.url)
+                self.page.goto(f"{self.base_url}{match.group(1)}", wait_until="load")
+            self.page.wait_for_selector(".chat, .ppl, .role, .ocards", timeout=20_000)
+            h.add_screenshot(self._bstep.screenshot("review-onward"))
+
+
+# --------------------------------------------------------------------------------- CorrectionChat
+
+class CorrectionChat:
+    """`components/review/CorrectionChat.tsx` -- the founder says what they meant and the agent
+    redoes one line, in the same card (mockup screen 2; keel-cloud spec 030's
+    `POST /v2/inference-interactions/{id}/corrections`).
+
+    This is the one place the smoke's founder types free text after the walk, and it is box **B6**
+    of S-004's nine.
+    """
+
+    COMPOSER_LABEL = "Say what you meant…"
+
+    def __init__(self, page: Page, recorder: Recorder, *, party: str = "founder"):
+        self.page = page
+        self._bstep = _BrowserStep(recorder, page, party)
+        self._interaction_id: str | None = None
+
+    def _scope(self):
+        if self._interaction_id is None:
+            self._interaction_id = self._bstep.recorder.new_interaction_id()
+        return self._bstep.recorder.interaction("ui_visit", self._interaction_id)
+
+    def is_visible(self) -> bool:
+        return self.page.locator(".chat .chat__composer").count() > 0
+
+    def turns(self) -> list[dict[str, str]]:
+        out: list[dict[str, str]] = []
+        msgs = self.page.locator(".chat__body .msg")
+        for i in range(msgs.count()):
+            msg = msgs.nth(i)
+            classes = msg.get_attribute("class") or ""
+            out.append({
+                "who": "you" if "you" in classes else "agent",
+                "text": _safe_text(lambda m=msg: m.locator(".bub").first.inner_text()),
+            })
+        return out
+
+    def changes(self) -> list[str]:
+        """The before-and-after lines the agent's own answer carries (`div.diffline`, rendered
+        `<s>{before}</s> → {after}`)."""
+        return _safe_all_texts(self.page, ".chat__body .diffline")
+
+    def send(self, message: str, *, timeout_s: float = 90) -> dict[str, Any]:
+        """Types the correction, sends it, and waits for the agent's answer to land in the same
+        card. Returns `{turns, changes}`."""
+        with self._scope():
+            with self._bstep.step(f"founder says what they meant: {message[:60]!r}") as h:
+                before = len(self.turns())
+                box = self.page.get_by_label(self.COMPOSER_LABEL)
+                box.wait_for(state="visible", timeout=15_000)
+                box.fill(message)
+                h.add_screenshot(self._bstep.screenshot("correction-typed"))
+                self.page.locator(".chat").get_by_role(
+                    "button", name=re.compile(r"^send$", re.I)).click()
+                deadline = time.monotonic() + timeout_s
+                while time.monotonic() < deadline:
+                    turns = self.turns()
+                    if len(turns) > before + 1 and turns[-1]["who"] == "agent":
+                        break
+                    self.page.wait_for_timeout(500)
+                h.capture_text("screen", "review_card")
+                h.capture_text("review_card", _safe_text(
+                    lambda: self.page.locator(".card.openc").first.inner_text()))
+                h.capture_text("correction_turns", json.dumps(self.turns()))
+                h.add_screenshot(self._bstep.screenshot("correction-answered"))
+        return {"turns": self.turns(), "changes": self.changes()}
+
+
+# -------------------------------------------------------------------------------------- Overview
+
+class Overview:
+    """`routes/founder/OverviewRoute.tsx` -- where it stands (mockup screen 4): the
+    lines-have-answers bar, the four-count legend, *What this says*, one card per stage, and the
+    Download link."""
+
+    LEGEND_WORDS = ("holding up", "not holding up", "people disagree", "not tested")
+
+    def __init__(self, page: Page, *args: Any, party: str = "founder"):
+        self.page = page
+        recorder, self.base_url = _split_recorder_and_base(args, page)
+        self._bstep = _BrowserStep(recorder, page, party)
+        self._interaction_id: str | None = None
+
+    def _scope(self):
+        if self._interaction_id is None:
+            self._interaction_id = self._bstep.recorder.new_interaction_id()
+        return self._bstep.recorder.interaction("ui_visit", self._interaction_id)
+
+    # ------------------------------------------------------------------------------------- reads
+
+    def evidence_line(self) -> str:
+        return _safe_text(lambda: self.page.locator(".evidence__title").first.inner_text())
+
+    def percent_line(self) -> str:
+        return _safe_text(lambda: self.page.locator(".evidence__pct").first.inner_text())
+
+    def people_line(self) -> str:
+        return _safe_text(lambda: self.page.locator(".evidence__people span").first.inner_text())
+
+    def lines_with_answers(self) -> tuple[int, int] | None:
+        """`(have, total)` off *N of T lines have answers*, or `None` when the bar never
+        rendered."""
+        match = re.search(r"(\d+) of (\d+) lines? have answers", self.evidence_line())
+        return (int(match.group(1)), int(match.group(2))) if match else None
+
+    def legend(self) -> dict[str, int]:
+        """The four counts, by their own founder-facing words rather than by position -- keel-web
+        renders `<span class="up"><i/>{n} holding up</span>` and its neighbours."""
+        out: dict[str, int] = {}
+        for cls, word in zip(("up", "down", "split", "none"), self.LEGEND_WORDS):
+            text = _safe_text(lambda c=cls: self.page.locator(f".legend .{c}").first.inner_text())
+            match = re.search(r"(\d+)", text)
+            out[word] = int(match.group(1)) if match else 0
+        return out
+
+    def what_this_says(self) -> str:
+        return _safe_text(lambda: self.page.locator(".next").first.inner_text())
+
+    def stage_cards(self) -> list[dict[str, str]]:
+        """`{bet, status, claim, counts, must, see}` per card, in rendered order."""
+        out: list[dict[str, str]] = []
+        cards = self.page.locator(".ocards .card")
+        for i in range(cards.count()):
+            card = cards.nth(i)
+            out.append({
+                "bet": _safe_text(lambda c=card: c.locator(".bet").first.inner_text()),
+                "status": _safe_text(lambda c=card: c.locator(".card-top .status").first.inner_text()),
+                "claim": _safe_text(lambda c=card: c.locator("p.claim").first.inner_text()),
+                "counts": _safe_text(lambda c=card: c.locator(".counts").first.inner_text()),
+                "must": _safe_text(lambda c=card: c.locator(".must").first.inner_text()),
+                "see": _safe_text(lambda c=card: c.locator(".see").first.inner_text()),
+            })
+        return out
+
+    def download_link_text(self) -> str:
+        return _safe_text(lambda: self.page.locator(".evidence__people a").first.inner_text())
+
+    # ----------------------------------------------------------------------------------- actions
+
+    def open(self, project_id: str, *, state_reader: StateReader | None = None) -> dict[str, Any]:
+        with self._scope():
+            with self._bstep.step("founder opens the overview") as h:
+                self.page.goto(f"{self.base_url}/p/{project_id}", wait_until="load")
+                self.page.wait_for_selector(".ocards, .guided-step", timeout=30_000)
+                self._capture(h)
+                _capture_state(h, project_id, state_reader)
+                h.add_screenshot(self._bstep.screenshot("overview"))
+        return {"evidence": self.evidence_line(), "legend": self.legend()}
+
+    def recapture(self, *, slug: str = "overview-again") -> None:
+        with self._scope():
+            with self._bstep.step("founder reads the overview again") as h:
+                self._capture(h)
+                h.add_screenshot(self._bstep.screenshot(slug))
+
+    def _capture(self, h: StepHandle) -> None:
+        h.capture_text("screen", "overview")
+        h.capture_text("overview", _safe_text(
+            lambda: self.page.locator(".shell__main").first.inner_text()))
+        h.capture_text("evidence_line", self.evidence_line())
+        Shell(self.page).capture_identity(h)
+        affordance = _safe_all_texts(self.page, ".ocards .see, .evidence__people a")
+        if affordance:
+            h.capture_text("affordance", "\n".join(affordance))
+
+    def open_card(self, stage_label: str) -> None:
+        with self._scope():
+            with self._bstep.step(f"founder opens the {stage_label!r} card") as h:
+                self.page.locator("a.card-link", has_text=stage_label).first.click()
+                _wait_for_url_change(self.page, lambda url: "/s/" in url)
+                h.add_screenshot(self._bstep.screenshot("overview-open-card"))
+
+    def download(self) -> None:
+        """*Download as PDF* -- an `<a href="/p/:id/print">`, not a button. `PrintPage` stubs
+        `window.print` before the route mounts; this follows the link the founder actually sees."""
+        with self._scope():
+            with self._bstep.step("founder takes Download") as h:
+                self.page.locator(".evidence__people a").first.click()
+                _wait_for_url_change(self.page, lambda url: url.endswith("/print"))
+                h.add_screenshot(self._bstep.screenshot("overview-download"))
+
+
+# ------------------------------------------------------------------- OpenedCard / SaidBox / modal
+
+class OpenedCard:
+    """`StageRoute.tsx`'s `OpenedCard` -- the framed, approved card once people have answered
+    (mockup screen 5): *What it measures*, one strip per line, the dots, and the median tick.
+
+    Two mechanics are recorded here rather than left to a scenario:
+
+    - **The row is the click target, not the caret glyph.** `span.caret` is a `<span>`; the handler
+      lives on the whole `div.strip` and deliberately ignores clicks that land on `svg`, `.said`
+      or a `button` (research R7). Clicking the caret works only by accident of hit-testing, and
+      D5's opener judge exercises the row.
+    - **SVG text is not `inner_text`.** The band label (*you said 1 to 2*), the tick numbers and
+      the unit all live in `<text>` inside the strip's `<svg>`, which Chromium's `innerText` does
+      not return. The `opened_card` capture appends them explicitly, or the fact registry's
+      `band.*` would be unprovable on the one screen that renders it.
+    """
+
+    def __init__(self, page: Page, *args: Any, party: str = "founder"):
+        self.page = page
+        recorder, self.base_url = _split_recorder_and_base(args, page)
+        self._bstep = _BrowserStep(recorder, page, party)
+        self._interaction_id: str | None = None
+
+    def _scope(self):
+        if self._interaction_id is None:
+            self._interaction_id = self._bstep.recorder.new_interaction_id()
+        return self._bstep.recorder.interaction("ui_visit", self._interaction_id)
+
+    def _card(self):
+        return self.page.locator(".card.openc").first
+
+    # ------------------------------------------------------------------------------------- reads
+
+    def claim(self) -> str:
+        return _safe_text(lambda: self._card().locator("p.claim").first.inner_text())
+
+    def status_word(self) -> str:
+        return _safe_text(lambda: self._card().locator(".card-top .status").first.inner_text())
+
+    def counts_text(self) -> str:
+        return _safe_text(lambda: self._card().locator(".counts").first.inner_text())
+
+    def deal_breakers_text(self) -> str:
+        return _safe_text(lambda: self._card().locator(".must").first.inner_text())
+
+    def what_it_measures(self) -> str:
+        return _safe_text(lambda: self._card().locator(".measures .hint").first.inner_text())
+
+    def key_legend(self) -> list[str]:
+        """The strip key's own four lines -- what a filled dot, a hollow dot, the band and the
+        median mean, in the founder's words (`StripKey`)."""
+        return _safe_all_texts(self.page, ".key > span")
+
+    def _strip(self, heading: str):
+        return self.page.locator(".strip", has_text=heading).first
+
+    def strips(self) -> list[dict[str, Any]]:
+        """One row per line, in rendered order: `{number, heading, deal_breaker, you_said, status,
+        counts_note, read_line, open, dots, median}`."""
+        out: list[dict[str, Any]] = []
+        rows = self.page.locator(".strip")
+        for i in range(rows.count()):
+            row = rows.nth(i)
+            classes = row.get_attribute("class") or ""
+            status_node = row.locator(".strip__status").first
+            out.append({
+                "number": _safe_text(lambda r=row: r.locator(".b-num").first.inner_text()),
+                "heading": _safe_text(lambda r=row: r.locator(".strip__head > b").first.inner_text()),
+                "deal_breaker": row.locator(".db").count() > 0,
+                "you_said": _safe_text(lambda r=row: r.locator(".strip__you").first.inner_text()),
+                "status": _safe_text(lambda s=status_node: s.inner_text()),
+                "counts_note": _safe_text(lambda s=status_node: s.locator(".sub").first.inner_text()),
+                "read_line": _safe_text(lambda r=row: r.locator(".strip__read").first.inner_text()),
+                "open": "open" in classes,
+                "dots": self._dots_of(row),
+                "median": row.locator("[data-testid='median-tick']").count() > 0,
+                "band_label": self._svg_text(row),
+            })
+        return out
+
+    @staticmethod
+    def _dots_of(row) -> list[str]:
+        """Every person's own mark on this strip, by the `aria-label` keel-web gives it -- a
+        `<circle>` for an Interval, a `<rect>` for a Choice."""
+        nodes = row.locator("svg [role='button'][aria-label]")
+        return [nodes.nth(i).get_attribute("aria-label") or "" for i in range(nodes.count())]
+
+    @staticmethod
+    def _svg_text(row) -> str:
+        nodes = row.locator("svg text")
+        return " ".join((nodes.nth(i).text_content() or "").strip() for i in range(nodes.count()))
+
+    def has_median(self, heading: str) -> bool:
+        """`line[data-testid="median-tick"]` -- the one testid keel-web has, and exactly the right
+        handle: where the entry's `expected.standings` gives no `median`, the screen must show
+        none, and an invented midpoint is a red run (research R10)."""
+        return self._strip(heading).locator("[data-testid='median-tick']").count() > 0
+
+    def strip(self, heading: str) -> dict[str, Any]:
+        return next(s for s in self.strips() if heading in s["heading"])
+
+    def dots(self, heading: str) -> list[str]:
+        return self._dots_of(self._strip(heading))
+
+    # ----------------------------------------------------------------------------------- actions
+
+    def open(self, project_id: str, stage: str, *,
+             expectations: dict[str, str] | None = None,
+             drifts: dict[str, str] | None = None,
+             state_reader: StateReader | None = None) -> dict[str, Any]:
+        """`expectations` and `drifts` map a line's heading to its own `INTERVAL`/`CHOICE` and its
+        wire drift. They are not read off the screen because they are not *on* the screen -- they
+        are what GUI-U4 judges the screen's status words against, and a page object that inferred
+        them from the picture it is checking would be marking its own homework."""
+        with self._scope():
+            with self._bstep.step(f"founder opens the {stage.lower()} card") as h:
+                self.page.goto(f"{self.base_url}/p/{project_id}/s/{stage}", wait_until="load")
+                self._card().locator(".bet").wait_for(state="visible", timeout=65_000)
+                self._capture(h, stage, expectations, drifts)
+                _capture_state(h, project_id, state_reader)
+                h.add_screenshot(self._bstep.screenshot(f"opened-{stage.lower()}"))
+        return {"status": self.status_word(), "claim": self.claim()}
+
+    def recapture(self, stage: str, *, expectations: dict[str, str] | None = None,
+                  drifts: dict[str, str] | None = None, slug: str = "opened-again") -> None:
+        with self._scope():
+            with self._bstep.step(f"founder reads the {stage.lower()} card again") as h:
+                self._capture(h, stage, expectations, drifts)
+                h.add_screenshot(self._bstep.screenshot(slug))
+
+    def _capture(self, h: StepHandle, stage: str, expectations, drifts) -> None:
+        strips = self.strips()
+        h.capture_text("screen", "opened_card")
+        h.capture_text("stage", stage)
+        h.capture_text("stage_identity", _safe_text(
+            lambda: self._card().locator(".bet").first.inner_text()))
+        body = _safe_text(lambda: self._card().inner_text())
+        svg_text = " ".join(s["band_label"] for s in strips if s["band_label"])
+        h.capture_text("opened_card", f"{body}\n{svg_text}".strip())
+        h.capture_text("belief_statuses", json.dumps([
+            {"heading": s["heading"], "status": s["status"],
+             "expectation": (expectations or {}).get(s["heading"], ""),
+             "drift": (drifts or {}).get(s["heading"], "")}
+            for s in strips]))
+        names = sorted({name for s in strips for name in s["dots"] if name})
+        if names:
+            h.capture_text("participant_names", "\n".join(names))
+        Shell(self.page).capture_identity(h)
+
+    def toggle_line(self, heading: str) -> None:
+        """Opens (or closes) one line. The whole row is the click target -- see the class
+        docstring -- so this clicks `div.strip__head`, never the caret glyph."""
+        with self._scope():
+            with self._bstep.step(f"founder opens the line {heading!r}") as h:
+                self._strip(heading).locator(".strip__head").first.click()
+                self.page.wait_for_timeout(250)
+                h.add_screenshot(self._bstep.screenshot("strip-toggled"))
+
+    def ensure_open(self, heading: str) -> None:
+        """The line whose verdict matches the card's own status already renders open
+        (`StageRoute.tsx`'s default-open rule), and a second click would collapse it."""
+        if "open" not in (self._strip(heading).get_attribute("class") or ""):
+            self.toggle_line(heading)
+
+    def click_dot(self, heading: str, person: str) -> None:
+        """One person's own mark on one line -- a D5 opener, judged by what it reveals."""
+        with self._scope():
+            with self._bstep.step(f"founder clicks {person}'s answer on {heading!r}") as h:
+                self._strip(heading).locator(
+                    f"svg [role='button'][aria-label={json.dumps(person)}]").first.click()
+                self.page.locator(".said").first.wait_for(state="visible", timeout=10_000)
+                h.capture_text("participant_names", person)
+                h.add_screenshot(self._bstep.screenshot("strip-dot-open"))
+
+    def strip_locator(self, heading: str):
+        """The raw locator, for `harness/doors.py`'s D5 walk -- which exercises controls this
+        class does not otherwise name."""
+        return self._strip(heading)
+
+
+class SaidBox:
+    """`components/strip/SaidBox.tsx` -- the popover one dot opens: who, what kind of person, what
+    they wrote, and how it was read (*Read as anchored… / a number offered as a guess…*)."""
+
+    def __init__(self, page: Page, recorder: Recorder, *, party: str = "founder"):
+        self.page = page
+        self._bstep = _BrowserStep(recorder, page, party)
+
+    def _box(self):
+        return self.page.locator(".said").first
+
+    def is_open(self) -> bool:
+        return self.page.locator(".said").count() > 0
+
+    def read(self) -> dict[str, str]:
+        box = self._box()
+        return {
+            "name": _safe_text(lambda: box.locator(".n").first.inner_text()),
+            "kind": _safe_text(lambda: box.locator(".k").first.inner_text()),
+            "words": _safe_text(lambda: box.locator(".w").first.inner_text()),
+            "read_as": _safe_text(lambda: box.locator(".r").first.inner_text()),
+            "see_all": _safe_text(lambda: box.locator(".a button").first.inner_text()),
+        }
+
+    def see_all(self) -> None:
+        with self._bstep.step("founder asks to see all of that person's answers") as h:
+            self._box().locator(".a button").first.click()
+            self.page.locator(".pop[role='dialog']").wait_for(state="visible", timeout=10_000)
+            h.add_screenshot(self._bstep.screenshot("said-see-all"))
+
+    def close(self) -> None:
+        with self._bstep.step("founder closes the answer popover") as h:
+            self._box().locator("button.x").first.click()
+            self.page.wait_for_timeout(200)
+            h.add_screenshot(self._bstep.screenshot("said-closed"))
+
+
+class AnswersModal:
+    """`components/people/PersonAnswersModal.tsx` -- one person's whole page, read back: their
+    story in their own words and every pick with the question that asked it.
+
+    Four ways to close (`FR-018`'s D5): the scrim, the `×`, the footer *Close*, and `Escape`.
+    """
+
+    CLOSERS = ("scrim", "x", "footer", "escape")
+
+    def __init__(self, page: Page, recorder: Recorder, *, party: str = "founder"):
+        self.page = page
+        self._bstep = _BrowserStep(recorder, page, party)
+        self._interaction_id: str | None = None
+
+    def _scope(self):
+        if self._interaction_id is None:
+            self._interaction_id = self._bstep.recorder.new_interaction_id()
+        return self._bstep.recorder.interaction("ui_visit", self._interaction_id)
+
+    def _pop(self):
+        return self.page.locator(".pop[role='dialog']").first
+
+    def is_open(self) -> bool:
+        return self.page.locator(".pop[role='dialog']").count() > 0
+
+    def read(self) -> dict[str, Any]:
+        pop = self._pop()
+        picks: list[dict[str, str]] = []
+        rows = pop.locator("p.p-q")
+        for i in range(rows.count()):
+            row = rows.nth(i)
+            picks.append({
+                "asked": _safe_text(lambda r=row: r.inner_text()),
+                "picked": _safe_text(lambda r=row: r.locator(".p-a").first.inner_text()),
+                "line": _safe_text(lambda r=row: r.locator(".p-r").first.inner_text()),
+            })
+        return {
+            "title": _safe_text(lambda: pop.locator("h2").first.inner_text()),
+            "kicker": _safe_text(lambda: pop.locator(".pop__kicker").first.inner_text()),
+            "story": _safe_text(lambda: pop.locator("p.story").first.inner_text()),
+            "section": _safe_text(lambda: pop.locator(".p-sec").first.inner_text()),
+            "picks": picks,
+        }
+
+    def capture(self, person: str) -> dict[str, Any]:
+        body = self.read()
+        with self._scope():
+            with self._bstep.step(f"founder reads all of {person}'s answers") as h:
+                h.capture_text("screen", "answers_modal")
+                h.capture_text("answers_modal", _safe_text(lambda: self._pop().inner_text()))
+                h.capture_text("participant_names", person)
+                Shell(self.page).capture_identity(h)
+                h.add_screenshot(self._bstep.screenshot("answers-modal"))
+        return body
+
+    def close(self, *, via: str = "footer") -> None:
+        with self._scope():
+            with self._bstep.step(f"founder closes the answers modal ({via})") as h:
+                if via == "scrim":
+                    self.page.locator(".scrim").first.click()
+                elif via == "x":
+                    self._pop().locator("button.x").first.click()
+                elif via == "escape":
+                    self.page.keyboard.press("Escape")
+                else:
+                    self._pop().get_by_role(
+                        "button", name=re.compile(r"^close$", re.I)).first.click()
+                self.page.locator(".pop[role='dialog']").wait_for(state="detached", timeout=10_000)
+                h.add_screenshot(self._bstep.screenshot("answers-modal-closed"))
+
+
+# ------------------------------------------------------------------------------------- PrintPage
+
+class PrintPage:
+    """`routes/founder/PrintRoute.tsx` -- the download (mockup screen 6), outside the project
+    shell: no brand row, no side nav, nothing but the sheets.
+
+    **`window.print()` fires on mount.** `PrintRoute` calls it as soon as the data lands, so an
+    unstubbed visit hangs the walk on a native dialog no Playwright locator can dismiss. `open()`
+    installs `window.print = () => {}` with `add_init_script` **before** navigating, exactly as
+    keel-web's own e2e suite does (research R9). That is a harness mechanic, recorded as one; the
+    PDF itself is out of scope and no scenario opens one.
+    """
+
+    COLUMNS = ("What it measures", "You said", "The answers")
+
+    def __init__(self, page: Page, *args: Any, party: str = "founder"):
+        self.page = page
+        recorder, self.base_url = _split_recorder_and_base(args, page)
+        self._bstep = _BrowserStep(recorder, page, party)
+        self._interaction_id: str | None = None
+        self._stubbed = False
+
+    def _scope(self):
+        if self._interaction_id is None:
+            self._interaction_id = self._bstep.recorder.new_interaction_id()
+        return self._bstep.recorder.interaction("ui_visit", self._interaction_id)
+
+    def stub_print(self) -> None:
+        """Idempotent, and safe to call before following the founder's own *Download as PDF*
+        link rather than navigating by URL."""
+        if not self._stubbed:
+            self.page.add_init_script("window.print = () => {};")
+            self._stubbed = True
+
+    # ------------------------------------------------------------------------------------- reads
+
+    def sheets(self) -> list[str]:
+        return _safe_all_texts(self.page, ".pages > .page")
+
+    def title_page(self) -> dict[str, str]:
+        title = self.page.locator(".ptitle").first
+        return {
+            "kicker": _safe_text(lambda: title.locator(".pkicker").first.inner_text()),
+            "name": _safe_text(lambda: title.locator("h1").first.inner_text()),
+            "sub": _safe_text(lambda: title.locator("p.psub").first.inner_text()),
+            "meta": " ".join(_safe_all_texts(self.page, ".ptitle p.pmeta")),
+        }
+
+    def headings(self) -> list[str]:
+        return _safe_all_texts(self.page, ".pages h2")
+
+    def table_columns(self) -> list[list[str]]:
+        """The four `<th>` of each per-stage table -- three named columns and one deliberately
+        unnamed status column."""
+        out: list[list[str]] = []
+        tables = self.page.locator("table.ptab")
+        for i in range(tables.count()):
+            out.append([h.strip() for h in tables.nth(i).locator("thead th").all_inner_texts()])
+        return out
+
+    def table_rows(self, index: int = 0) -> list[list[str]]:
+        rows = self.page.locator("table.ptab").nth(index).locator("tbody tr")
+        return [[c.strip() for c in rows.nth(i).locator("td").all_inner_texts()]
+                for i in range(rows.count())]
+
+    def quotes(self) -> list[str]:
+        return _safe_all_texts(self.page, ".pquotes p")
+
+    def fresh_page_rule(self) -> str | None:
+        """*A stage starts on a fresh page*, read off **the stylesheet's own rule** and never off
+        a pixel offset (research R9): the `@media print` block's `.page + .page` declaration.
+        `None` when no such rule exists, which is the finding rather than a crash."""
+        return self.page.evaluate(
+            r"""() => {
+                for (const sheet of Array.from(document.styleSheets)) {
+                  let rules;
+                  try { rules = Array.from(sheet.cssRules || []); } catch (e) { continue; }
+                  for (const rule of rules) {
+                    if (!rule.media || !String(rule.conditionText || rule.media.mediaText).includes('print')) continue;
+                    for (const inner of Array.from(rule.cssRules || [])) {
+                      if (inner.selectorText && inner.selectorText.replace(/\s+/g, ' ').includes('.page + .page')) {
+                        return inner.style.getPropertyValue('break-before')
+                            || inner.style.getPropertyValue('page-break-before') || null;
+                      }
+                    }
+                  }
+                }
+                return null;
+            }""")
+
+    def has_founder_chrome(self) -> bool:
+        """The download page is its own page (spec 013 FR-033): no brand row, no side nav."""
+        return (self.page.locator(".side-nav").count() > 0
+                or self.page.locator(".brandrow").count() > 0)
+
+    # ----------------------------------------------------------------------------------- actions
+
+    def open(self, project_id: str) -> None:
+        self.stub_print()
+        with self._scope():
+            with self._bstep.step("founder opens the download") as h:
+                self.page.goto(f"{self.base_url}/p/{project_id}/print", wait_until="load")
+                self.page.locator(".pages .page").first.wait_for(state="visible", timeout=30_000)
+                self._capture(h)
+                h.add_screenshot(self._bstep.screenshot("print"))
+
+    def capture_here(self) -> None:
+        """For a caller that reached `/print` by clicking the founder's own link."""
+        with self._scope():
+            with self._bstep.step("founder reads the download") as h:
+                self.page.locator(".pages .page").first.wait_for(state="visible", timeout=30_000)
+                self._capture(h)
+                h.add_screenshot(self._bstep.screenshot("print"))
+
+    def _capture(self, h: StepHandle) -> None:
+        h.capture_text("screen", "print")
+        h.capture_text("download", _safe_text(lambda: self.page.locator(".pages").first.inner_text()))
+        h.capture_text("identity", self.title_page()["name"])
+        names = _safe_all_texts(self.page, ".pquotes p span")
+        if names:
+            h.capture_text("participant_names", "\n".join(names))
+
 # ------------------------------------------------------------------------------------------ People
 
 class People:
@@ -1357,78 +2255,35 @@ class People:
                 h.add_screenshot(self._bstep.screenshot("people-toast-to-overview"))
 
 
-# ------------------------------------------------------------------------------------------- Brief
-
-class Brief:
-    """`routes/founder/BriefRoute.tsx` -- B1 (the live standing) and B2 (the print layout)."""
-
-    def __init__(self, page: Page, *args: Any, party: str = "founder"):
-        self.page = page
-        recorder, self.base_url = _split_recorder_and_base(args, page)
-        self._bstep = _BrowserStep(recorder, page, party)
-        self._interaction_id: str | None = None
-
-    def _scope(self):
-        if self._interaction_id is None:
-            self._interaction_id = self._bstep.recorder.new_interaction_id()
-        return self._bstep.recorder.interaction("ui_visit", self._interaction_id)
-
-    def open(self, project_id: str, *, state_reader: StateReader | None = None) -> None:
-        with self._scope():
-            with self._bstep.step("founder opens the brief") as h:
-                self.page.goto(f"{self.base_url}/p/{project_id}/brief", wait_until="load")
-                self.page.locator(".brief-head").wait_for(state="visible", timeout=15_000)
-                h.capture_text("screen", "brief")
-                Shell(self.page).capture_identity(h)
-                h.capture_text("brief", _safe_text(lambda: self.page.locator(".card.openc").first.inner_text()))
-                _capture_state(h, project_id, state_reader)
-                h.add_screenshot(self._bstep.screenshot("brief"))
-
-    def list_headings(self) -> list[str]:
-        return _safe_all_texts(self.page, ".blist h5")
-
-    def list_items(self, heading_substring: str) -> list[str]:
-        blist = self.page.locator(".blist", has_text=heading_substring).first
-        return blist.locator("li").all_inner_texts()
-
-    def download_button_present(self) -> bool:
-        return self.page.get_by_role("button", name=re.compile(r"^download the brief$", re.I)).count() > 0
-
-    def view_print(self) -> None:
-        """B1 -> B2: *Download the brief* triggers `window.print()` -- captured here by emulating
-        print media and screenshotting the otherwise-hidden `.doc-page`, exactly as keel-web's own
-        print stylesheet renders it (spec US2 step 9)."""
-        with self._scope():
-            with self._bstep.step("founder views the print layout") as h:
-                self.page.emulate_media(media="print")
-                doc = self.page.locator(".doc-page .doc")
-                doc.wait_for(state="attached", timeout=10_000)
-                h.capture_text("brief", _safe_text(lambda: doc.inner_text()))
-                h.add_screenshot(self._bstep.screenshot("brief-print"))
-                self.page.emulate_media(media="screen")
-
-    def who_was_asked(self) -> list[str]:
-        self.page.emulate_media(media="print")
-        try:
-            section = self.page.locator(".doc-page .doc")
-            heading = section.get_by_text("Who was asked", exact=False)
-            if heading.count() == 0:
-                return []
-            ul = section.locator("h2", has_text="Who was asked").locator("xpath=following-sibling::ul[1]")
-            return ul.locator("li").all_inner_texts()
-        finally:
-            self.page.emulate_media(media="screen")
-
-
 # ---------------------------------------------------------------------------------- Participant
 
-class ParticipantBrowser:
-    """A stranger: opens the tool-issued link in an isolated browser context (no session with the
-    founder), consents, answers, submits (design §3). The whole flow -- consent, questions,
-    submit -- is one `participant_visit` interaction (spec 005 FR-009): `open` opens the scope and
-    every later call folds into it. Takes no `base_url`: every URL it visits is handed to it (the
-    founder's own send popup, or a scenario's own stale/already-answered fixture link) -- never
-    built here.
+# `ParticipantRoute.tsx`'s own words for the three taps, and the enum names keel-cloud sends them
+# as. Matched by word first, by position second (the route does the same thing in reverse), so a
+# copy change in either repo shows up as a mismatch rather than as a silently unclicked chip.
+TAP_WORDS = {
+    "HASNT_HAPPENED": "it hasn't happened to me",
+    "CANT_RECALL": "it has, but I can't recall one",
+    "RATHER_NOT_SAY": "rather not say",
+}
+TAP_ORDER = ("HASNT_HAPPENED", "CANT_RECALL", "RATHER_NOT_SAY")
+OTHER_SAY_WHAT = "other, say what"
+
+
+class ParticipantPage:
+    """The stranger's page (`routes/participant/ParticipantRoute.tsx`, mockup screen 3), rewritten
+    for measured beliefs: **one story, then picks**.
+
+    What changed, and why the old `ParticipantBrowser` could not be patched into this: there is no
+    consent screen and no *Start* -- the form is the page, and consent is starting it; there is no
+    per-belief question with a free-text box each -- there is one story box per *anchor*, with its
+    taps, and then a pick per selection; and a tap is an answer of its own that greys the story and
+    gates that anchor's picks.
+
+    **What this page must never show** is as much of its job as what it does: no belief statement,
+    no band value, no `founderPhrase` and no expected option (design rule `Q5`). That is not
+    asserted here -- a page object asserts nothing -- but the whole page's text is captured under
+    the `participant_page` hop, which is what `evals/corpus_facts.py`'s `absent_hops` are scored
+    against.
     """
 
     def __init__(self, page: Page, recorder: Recorder):
@@ -1444,111 +2299,234 @@ class ParticipantBrowser:
             self._interaction_id = self._bstep.recorder.new_interaction_id()
         return self._bstep.recorder.interaction("participant_visit", self._interaction_id)
 
+    # ------------------------------------------------------------------------------------- reads
+
+    def introduction(self) -> str:
+        return _safe_text(lambda: self.page.locator("p.hello").first.inner_text())
+
+    def hints(self) -> list[str]:
+        return _safe_all_texts(self.page, ".iv > p.hint")
+
+    def sections(self) -> list[str]:
+        return _safe_all_texts(self.page, ".sect")
+
+    def _anchor_blocks(self):
+        """An anchor's own block is the `div.q` that carries a story box; a selection's block is a
+        `div.q` nested inside that one's `div.picks`. Both share the class, which is why this is
+        `:has(textarea.box)` rather than an index."""
+        return self.page.locator("div.q:has(> textarea.box)")
+
+    def anchors(self) -> list[dict[str, Any]]:
+        """`{prompt, taps, selections}` per anchor, in rendered order."""
+        out: list[dict[str, Any]] = []
+        blocks = self._anchor_blocks()
+        for i in range(blocks.count()):
+            block = blocks.nth(i)
+            out.append({
+                "prompt": _safe_text(lambda b=block: b.locator("> p").first.inner_text()),
+                "taps": [t.strip() for t in block.locator(".taps > .chip").all_inner_texts()],
+                "selections": [
+                    _safe_text(lambda s=s: s.locator("> p").first.inner_text())
+                    for s in block.locator(".picks > div.q").all()],
+            })
+        return out
+
+    def options_for(self, selection_prompt: str) -> list[str]:
+        """The list this selection actually offered, **in order** -- FR-013's `expected.buckets`,
+        read off the stranger's own screen. The ways out (`.opt.esc`) and the *other* box are
+        excluded: the corpus's `buckets` are the scale, and the escapes sit beside it."""
+        block = self._selection_block(selection_prompt)
+        labels: list[str] = []
+        rows = block.locator(".opts > .opt")
+        for i in range(rows.count()):
+            row = rows.nth(i)
+            classes = row.get_attribute("class") or ""
+            text = _safe_text(lambda r=row: r.inner_text()).strip()
+            if "esc" in classes or text == OTHER_SAY_WHAT:
+                continue
+            labels.append(text)
+        return labels
+
+    def escapes_for(self, selection_prompt: str) -> list[str]:
+        block = self._selection_block(selection_prompt)
+        return [_safe_text(lambda r=r: r.inner_text()).strip()
+                for r in block.locator(".opts > .opt.esc").all()]
+
+    def _anchor_block(self, prompt: str):
+        needle = " ".join(prompt.split())[:60]
+        blocks = self._anchor_blocks()
+        for i in range(blocks.count()):
+            block = blocks.nth(i)
+            text = " ".join(_safe_text(lambda b=block: b.locator("> p").first.inner_text()).split())
+            if needle in text:
+                return block
+        raise AssertionError(f"no story box on this page for the anchor {prompt[:60]!r}")
+
+    def _selection_block(self, prompt: str):
+        needle = " ".join(prompt.split())[:60]
+        blocks = self.page.locator(".picks > div.q")
+        for i in range(blocks.count()):
+            block = blocks.nth(i)
+            text = " ".join(_safe_text(lambda b=block: b.locator("> p").first.inner_text()).split())
+            if needle in text:
+                return block
+        raise AssertionError(f"no selection on this page asking {prompt[:60]!r}")
+
+    def offers(self, prompt: str) -> bool:
+        """Whether this page asks a given anchor or selection at all. A person offered an anchor
+        their role is not asked is a **refusal**, not a shrug (spec edge case), and this is how a
+        scenario proves the negative."""
+        needle = " ".join(prompt.split())[:60]
+        body = " ".join(_safe_text(lambda: self.page.locator(".iv").first.inner_text()).split())
+        return needle in body
+
+    # ----------------------------------------------------------------------------------- actions
+
     def open(self, url: str) -> None:
-        """Opens exactly the URL the founder's send popup showed -- never reconstructed. Waits
-        for the consent screen's own "asked if you" line (journeys §2.1's four honest lines: who
-        is asking, what it's about, how long, what happens to their words)."""
+        """Opens exactly the URL the founder's send popup showed -- never reconstructed."""
         with self._scope():
-            with self._bstep.step("participant opens the invitation link") as h:
+            with self._bstep.step("the stranger opens their link") as h:
                 self.page.goto(url, wait_until="load")
-                self.page.get_by_text(re.compile("asked if you", re.I)).wait_for(
-                    state="visible", timeout=15_000)
-                h.add_screenshot(self._bstep.screenshot("participant-consent-screen"))
+                self.page.locator(".iv p.hello").wait_for(state="visible", timeout=15_000)
+                h.add_screenshot(self._bstep.screenshot("participant-opened"))
                 self._capture_page_text(h)
 
-    def start(self) -> None:
-        """Consent by starting (journeys §2.1: "they agree by starting")."""
+    def tell_story(self, anchor_prompt: str, text: str | None, tap: str | None = None) -> None:
+        """One anchor: the story, or a tap instead of one. A tap of *it hasn't happened to me*
+        hides that anchor's picks entirely, which is the product's own rule and not this
+        harness's."""
         with self._scope():
-            with self._bstep.step("participant starts the survey") as h:
-                self.page.get_by_role("button", name=re.compile(r"^start$", re.I)).click()
-                self.page.wait_for_selector(".q", timeout=10_000)
-                h.add_screenshot(self._bstep.screenshot("participant-questions"))
-                self._capture_page_text(h)
+            with self._bstep.step(f"the stranger answers {anchor_prompt[:50]!r}") as h:
+                block = self._anchor_block(anchor_prompt)
+                if text:
+                    block.locator("> textarea.box").first.fill(text)
+                if tap:
+                    chips = block.locator(".taps > .chip")
+                    word = TAP_WORDS.get(tap, "")
+                    target = None
+                    for i in range(chips.count()):
+                        if _safe_text(lambda c=chips.nth(i): c.inner_text()).strip().casefold() == word:
+                            target = chips.nth(i)
+                            break
+                    if target is None and tap in TAP_ORDER and chips.count() > TAP_ORDER.index(tap):
+                        target = chips.nth(TAP_ORDER.index(tap))
+                    if target is None:
+                        raise AssertionError(
+                            f"no tap on this anchor reads {word!r} (offered: "
+                            f"{chips.all_inner_texts()})")
+                    target.click()
+                    self.page.wait_for_timeout(150)
+                h.add_screenshot(self._bstep.screenshot("participant-story"))
 
-    def answer_all(self, answer_text: str) -> None:
-        """Fills every question's main and disconfirming boxes with the same text, leaving every
-        follow-up blank -- `.q > textarea.box` (a direct-child combinator) reaches exactly those
-        two per question; a follow-up's textarea carries `box small` but sits one level deeper,
-        inside its own wrapper div, so it is not touched here."""
+    def pick(self, selection_prompt: str, values: list[str], *, other_text: str | None = None,
+             roughly: str | None = None) -> None:
+        """One selection. `values` are the labels as the person reads them; a multi-select takes
+        more than one. `other_text` fills the *other, say what* reveal and `roughly` the *say
+        roughly* one -- both left `None` by every deterministic scenario, because the corpus
+        records the bucket and not a number behind it, and inventing one would be inventing
+        corpus data."""
         with self._scope():
-            with self._bstep.step("participant answers every question") as h:
-                for box in self.page.locator(".q > textarea.box").all():
-                    box.fill(answer_text)
-                h.add_screenshot(self._bstep.screenshot("participant-answers-filled"))
+            with self._bstep.step(f"the stranger picks {values} for {selection_prompt[:40]!r}") as h:
+                block = self._selection_block(selection_prompt)
+                for value in values:
+                    row = self._option_row(block, value)
+                    row.click()
+                    self.page.wait_for_timeout(80)
+                    label = _safe_text(lambda r=row: r.inner_text()).strip()
+                    if label.endswith("say roughly") and roughly:
+                        row.locator(".opt__more input").first.fill(roughly)
+                    if label == OTHER_SAY_WHAT and other_text:
+                        row.locator(".opt__more input").first.fill(other_text)
+                h.add_screenshot(self._bstep.screenshot("participant-picked"))
 
-    def answer(self, texts: list[str | None]) -> list[str]:
-        """Per-question control -- `texts[i]` fills only the i-th question's *main* box (DOM
-        order). Iterates `.q` (one per question) rather than `.q > textarea.box` directly: each
-        question wraps *two* such boxes (main, disconfirming), so indexing the flat box list
-        one-per-question would silently misalign onto the previous question's disconfirming box.
-        `None` (or any falsy string) leaves that question's main box, probes and disconfirming
-        answer all blank, which the server records as no answer at all for that assumption
-        (journeys §2.2: "every question can be skipped").
+    @staticmethod
+    def _option_row(block, value: str):
+        rows = block.locator(".opts > .opt")
+        wanted = " ".join(str(value).split()).casefold()
+        for i in range(rows.count()):
+            row = rows.nth(i)
+            text = " ".join((row.inner_text() or "").split()).casefold()
+            if text == wanted:
+                return row
+        raise AssertionError(
+            f"no option on this selection reads {value!r} (offered: {rows.all_inner_texts()})")
 
-        Returns the texts actually typed, in DOM order. An invitation asks only what is still
-        open for that kind of person (keel-cloud computes the asks from the aggregate at invite
-        time), so a page may carry fewer questions than `texts` -- the caller must assert on, and
-        register as facts, only what came back here.
+    def answer_as(self, person, entry) -> dict[str, Any]:
+        """Types one corpus person's whole page: their story (or tap) per anchor, then every pick
+        their role's selections ask for.
+
+        `person` is a `harness.corpus_script.PersonInputs`; `entry` the corpus entry it came from,
+        which is what turns an anchor id into the prompt the screen shows. Returns
+        `{anchors, picks, skipped}` -- `skipped` naming any pick whose selection this page never
+        offered, which a scenario asserts on rather than this method deciding.
         """
-        typed: list[str] = []
+        typed_anchors: list[str] = []
+        typed_picks: list[str] = []
+        skipped: list[str] = []
+        for answer in person.anchors:
+            anchor = entry.anchor(answer.anchor_id) or {}
+            prompt = anchor.get("prompt") or ""
+            if not self.offers(prompt):
+                skipped.append(answer.anchor_id)
+                continue
+            self.tell_story(prompt, answer.text, tap=answer.tap)
+            typed_anchors.append(answer.anchor_id)
+        for pick in person.picks:
+            selection = next(
+                (s for a in (entry.questionnaire.get("anchors") or [])
+                 for s in a.get("selections") or [] if s["id"] == pick.selection_id), None)
+            prompt = (selection or {}).get("prompt") or ""
+            if not selection or not self.offers(prompt):
+                skipped.append(pick.selection_id)
+                continue
+            self.pick(prompt, pick.values)
+            typed_picks.append(pick.selection_id)
         with self._scope():
-            with self._bstep.step("participant answers questions") as h:
-                questions = self.page.locator(".q").all()
-                for question, text in zip(questions, texts):
-                    if text:
-                        question.locator("> textarea.box").first.fill(text)
-                        typed.append(text)
-                h.capture_text("typed_count", str(len(typed)))
-                h.add_screenshot(self._bstep.screenshot("participant-answers-filled"))
-        return typed
-
-    def skip_one_question(self) -> None:
-        """Leaves the last question's main box blank (still legal) -- spec US2 step 6's "skip one
-        question"."""
-        with self._scope():
-            with self._bstep.step("participant skips one question") as h:
-                questions = self.page.locator(".q")
-                count = questions.count()
-                for i in range(count - 1):
-                    questions.nth(i).locator("> textarea.box").first.fill(
-                        "Answering this one, at least.")
-                h.add_screenshot(self._bstep.screenshot("participant-one-skipped"))
+            with self._bstep.step(f"{person.person} has filled their page") as h:
+                self._capture_page_text(h)
+                h.capture_text("typed", json.dumps(
+                    {"anchors": typed_anchors, "picks": typed_picks, "skipped": skipped}))
+        return {"anchors": typed_anchors, "picks": typed_picks, "skipped": skipped}
 
     def submit(self) -> None:
         with self._scope():
-            with self._bstep.step("participant submits the response") as h:
+            with self._bstep.step("the stranger submits") as h:
                 self.page.get_by_role("button", name=re.compile(r"^submit$", re.I)).click()
-                self.page.get_by_text(re.compile("thanks", re.I)).wait_for(state="visible", timeout=10_000)
+                self.page.get_by_text(re.compile("thanks", re.I)).wait_for(
+                    state="visible", timeout=15_000)
                 h.add_screenshot(self._bstep.screenshot("participant-thank-you"))
                 self._capture_page_text(h)
 
-    def decline(self) -> None:
-        """*No thanks* on the consent screen -- client-side only: no request is ever sent."""
+    def submit_expect_nudge(self) -> str:
+        """A blank story is nudged once before it is accepted (`BLANK_ANCHOR_NUDGE`) -- the
+        product's own "can you think of one specific time" line, not a refusal."""
         with self._scope():
-            with self._bstep.step("participant clicks No thanks") as h:
-                self.page.get_by_role("button", name=re.compile("no thanks", re.I)).click()
-                self.page.get_by_text(re.compile("no problem", re.I)).wait_for(
-                    state="visible", timeout=10_000)
-                h.add_screenshot(self._bstep.screenshot("participant-declined"))
-                self._capture_page_text(h)
+            with self._bstep.step("the stranger submits with a blank story") as h:
+                self.page.get_by_role("button", name=re.compile(r"^submit$", re.I)).click()
+                self.page.wait_for_timeout(500)
+                nudge = _safe_text(lambda: self.page.locator(".iv .hint").last.inner_text())
+                h.add_screenshot(self._bstep.screenshot("participant-nudged"))
+        return nudge
 
     def submit_expect_notice(self) -> None:
-        """Submits with everything left blank -- the server refuses gently (422) and the page
-        renders an inline notice (`.stale`) on the same answering screen rather than advancing to
-        "thanks"."""
         with self._scope():
-            with self._bstep.step("participant submits with everything skipped") as h:
+            with self._bstep.step("the stranger submits and the server refuses gently") as h:
                 self.page.get_by_role("button", name=re.compile(r"^submit$", re.I)).click()
                 self.page.locator(".stale").wait_for(state="visible", timeout=10_000)
-                h.add_screenshot(self._bstep.screenshot("participant-all-skipped-notice"))
+                h.add_screenshot(self._bstep.screenshot("participant-notice"))
                 self._capture_page_text(h)
 
     def open_expect_notice(self, url: str) -> None:
-        """Opens a link that will not render the fresh consent screen -- gone stale (410) or
-        already answered (200) -- capturing whatever the page shows instead."""
+        """A link that will not render a fresh page -- gone stale (410), already answered, or
+        never real (404) -- capturing whatever the page shows instead."""
         with self._scope():
-            with self._bstep.step("participant opens a link that is no longer a fresh consent screen") as h:
+            with self._bstep.step("the stranger opens a link that is no longer fresh") as h:
                 self.page.goto(url, wait_until="load")
                 self.page.wait_for_selector(".hello, .stale", timeout=15_000)
                 h.add_screenshot(self._bstep.screenshot("participant-link-notice"))
                 self._capture_page_text(h)
+
+
+#: The old name, kept so a scenario this feature did not rewrite still imports. It is the same
+#: class: there is only one participant page, and it is this one.
+ParticipantBrowser = ParticipantPage
