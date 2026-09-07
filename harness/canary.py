@@ -12,7 +12,9 @@ proves the executor never *tried* to use a tool, not merely failed to.
 from __future__ import annotations
 
 import json
+import os
 import secrets
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -107,3 +109,38 @@ def _read_json(path: Path) -> dict[str, Any] | None:
         return json.loads(path.read_text())
     except json.JSONDecodeError:
         return None
+
+
+def configured_budget_usd(keel_runtime: Path, keel_home: Path,
+                          env: dict[str, str] | None = None) -> float:
+    """**The cap the runtime is actually running under**, never a number copied into this repo.
+
+    Spec 008 US4 asks for "cost under the configured cap", and the configured cap is keel-runtime's
+    own, in keel-runtime's own precedence (`config.py`: env > `$KEEL_HOME/config.json` > default).
+    S-004 held a literal `0.25` -- keel-runtime spec 002 FR-007's original default -- for three days
+    after FR-009 raised the default to `1.00` (2026-09-04, "the original 0.25/2 stopped two real
+    jobs in a row"), which would have failed the canary assertion on a job the runtime itself was
+    perfectly happy to pay for (`runs/DRIFT.md` #36). A referee that pins a product constant it does
+    not own is measuring its own copy of the past.
+    """
+    env = os.environ if env is None else env
+    value = env.get("KEEL_JOB_BUDGET_USD")
+    if value:
+        try:
+            return float(value)
+        except ValueError:
+            pass
+    file_config = _read_json(Path(keel_home) / "config.json") or {}
+    if isinstance(file_config.get("budget_usd"), (int, float)):
+        return float(file_config["budget_usd"])
+    return _runtime_default_budget_usd(Path(keel_runtime))
+
+
+def _runtime_default_budget_usd(keel_runtime: Path) -> float:
+    """keel-runtime's own `DEFAULT_JOB_BUDGET_USD`, imported from the sibling checkout the way
+    `instructions/prompts.py` imports its executor -- read, never restated."""
+    keel_runtime = keel_runtime.resolve()
+    if str(keel_runtime) not in sys.path:
+        sys.path.insert(0, str(keel_runtime))
+    import keel_runtime.config as runtime_config          # noqa: PLC0415 - deliberate late import
+    return float(runtime_config.DEFAULT_JOB_BUDGET_USD)

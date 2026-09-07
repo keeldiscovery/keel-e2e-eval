@@ -39,38 +39,48 @@ three ports, or boots one and tears it down at the end of the session — the fa
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
-### The runs of record (2026-09-07, `runs/INDEX-20260907T180011Z.html`)
+### The runs of record (2026-09-07, `runs/INDEX-20260907T191347Z.html`)
 
-One `make eval-all` against one stack session, on keel-cloud `da6d4bd`, keel-web `0318d56`,
-keel-runtime `ad91ab0` (`scripted-executor-measured`) and keel-connect-skill `43c1456`. Four of the
-six green; the two that are not are red on **one** product finding, and were not softened:
+One `make eval-all` against one stack session, on keel-cloud `da6d4bd`, keel-web `b462a2c`,
+keel-runtime `ad91ab0` (`scripted-executor-measured`) and keel-connect-skill `43c1456`. **All six
+green**, the first time the whole scripted set has been:
 
 | Scenario | Run | Result |
 |---|---|---|
-| S-001 smoke | `20260907T174453Z-s001-smoke` | **5.0/5** |
-| S-002 agent-optional | `20260907T174626Z-s002-agent-optional` | **4.5/5** |
-| S-003 every door | `20260907T174800Z-s003-every-door` | **5.0/5** — all four D5 openers `opens` |
-| S-005 `01-countly` | `20260907T174833Z-s005-countly` | **5.0/5** — all eighteen standings |
-| S-006 `05-paidly` | `20260907T175158Z-s006-paidly` | red on `runs/DRIFT.md` **#34** |
-| S-007 `07-mulchrun` | `20260907T175606Z-s007-mulchrun` | red on `runs/DRIFT.md` **#34** |
+| S-001 smoke | `20260907T185731Z-s001-smoke` | **5.0/5** |
+| S-002 agent-optional | `20260907T185859Z-s002-agent-optional` | **4.5/5** |
+| S-003 every door | `20260907T190032Z-s003-every-door` | **5.0/5** — all four D5 openers `opens` |
+| S-005 `01-countly` | `20260907T190106Z-s005-countly` | **5.0/5** — all eighteen standings |
+| S-006 `05-paidly` | `20260907T190429Z-s006-paidly` | **5.0/5** — all ten, `S6` on `FLOOR` |
+| S-007 `07-mulchrun` | `20260907T190905Z-s007-mulchrun` | **5.0/5** — US units, unconverted |
 
-**#34** is keel-web's: it offers to read an answer keel-cloud has already decided needs no reading,
-and the batch that button starts can only 409. It surfaced the moment keel-cloud's fix for **#30**
-landed — the two repos now disagree about who counts as unread — and it stops both corpus
-scenarios on the corpus's own blank respondent, eight people short of the standings they exist to
-assert. #30 itself is fixed in keel-cloud and is **not** marked RESOLVED, because the numbers it is
-about have still never been read off a screen: #34 stops the run before them.
+S-002's 4.5 is FIDELITY, unchanged from the last run of record and not a failure of the day it
+describes: the agent-optional day starts from a project already built, so `stage_screen` and
+`review_card` are hops it never visits, and one role's lead is not verbatim on the invite screen.
+No assertion in any of the six is red.
 
-**S-004 was not run.** Its deterministic prerequisite is a green S-006 (it attacks a project S-005
-or S-006 builds), and spending the founder's own money on a live run whose prerequisite is a known
-product disagreement buys a red run at a real price. It is owed one run once #34 is settled.
+**`runs/DRIFT.md` #34 and #30 are both RESOLVED by these runs.** keel-web `b462a2c` takes the
+People page's unread count from the overview's own `awaitingInterpretation` instead of recomputing
+it from each row's `status`, so a wordless respondent — derived the moment they are stored, with
+nothing to read — no longer holds the page in a state whose only action can 409. That unblocked
+#30, whose `guessed` numbers had never once been read off a screen: S-006 and S-007 now run past
+the blank respondent to the standings they exist to assert, and keel-cloud's aggregate says
+`guessed 3` where the corpus says 3 (`P1`–`P4`, `S5`), on the screen and on the wire beside it.
+The same two runs stand alone at `20260907T182834Z-s006-paidly` and `20260907T183308Z-s007-mulchrun`.
 
-Three faults in this repo's own grip were found and fixed on the way (`runs/DRIFT.md` #33 and #35),
-each with a test that fails against the old code: a participant-page locator that read the product's
-*"Thanks — that answers this part"* tap note as a thank-you and so never sent the one person the
-corpus writes with no words; three page-object calls in S-002 that had not been run since spec 010
-rewrote the screens; and D5 judging a single-open accordion over the whole card, which read a
-working strip row as dead.
+**S-004 ran, once, and did not finish.** The first live run of the adversarial scenario ever
+attempted (`20260907T184207Z-s004-stranger-who-gives-orders-live`, $0.6384 over four real jobs)
+attacked six of its nine boxes — the project name, the region, the three claim boxes and the story
+box, carrying A1–A6, with every assertion it reached green (each attacked claim box answered about
+the idea and carried no marker, URL or path forward) — then died at box **B8** on this repo's own
+grip
+(`runs/DRIFT.md` **#36**): a link into a finished corpus project does not carry the whole
+questionnaire, because keel-cloud freezes a link's `asks` from the beliefs still *open*. Fixed
+here with `tests/test_s004_live_choices.py`, along with a per-job cap this repo had copied from
+keel-runtime's spec three days before keel-runtime changed it. **One live run is still owed**: A7,
+A8 and the *other, say what* box have never been typed at a live model — A8 rides in the correction
+chat, which this run was never offered, because the live model answered the problem claim without a
+confirmation card.
 
 ## Review a run
 
