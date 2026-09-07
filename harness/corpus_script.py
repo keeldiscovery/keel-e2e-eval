@@ -266,16 +266,39 @@ def anchors_for_role(entry, role_id: str) -> list[str]:
 
 # -------------------------------------------------------------------------------- the script itself
 
-def _role_field(entry, belief, introduced: set[str]) -> dict:
+def introducing_stage(entry) -> dict[str, str]:
+    """Which stage each role is **new** on -- the first stage, in the walk's own order, whose
+    beliefs name it.
+
+    This is the one fact a per-stage generator cannot work out from its own stage. A role
+    introduced on PROBLEM already exists on the project by the time the SOLUTION screen answers,
+    and keel-cloud refuses a second `role.new` with the same label by name:
+
+        result.assumptions[0].role.new.label: a role labeled 'A payroll manager' already exists
+        on this project
+
+    Live-confirmed on the first run of the rewritten smoke (`runs/20260907T142617Z-s001-smoke`,
+    `SOLUTION_ASSUMPTIONS` -> `RESULT_INVALID`). keel-runtime's own bundled-script generator never
+    met it because it writes one stage and stops; this one writes three, so it has to know.
+    """
+    first: dict[str, str] = {}
+    for stage in STAGES:
+        for belief in entry.beliefs_for(stage):
+            if belief.asked_of and belief.asked_of not in first:
+                first[belief.asked_of] = stage
+    return first
+
+
+def _role_field(entry, belief, introduced: set[str], first_stage: dict[str, str]) -> dict:
     """The wire has **no `askedOf`** (vendored fact V4). A corpus `askedOf` is a role *id*; the
-    first belief in the entry to name a role emits `role.new` with its label, roleType and about,
-    and every later one emits `role.reuse` by label."""
+    first belief **in the whole entry** to name a role emits `role.new` with its label, roleType
+    and about, and every later one -- on that stage or any later one -- emits `role.reuse`."""
     role = entry.role(belief.asked_of)
     if role is None:
         raise CorpusScriptError(
             f"{entry.id}: belief {belief.id} is askedOf {belief.asked_of!r}, which the entry's "
             f"`roles` does not carry")
-    if belief.asked_of in introduced:
+    if belief.asked_of in introduced or first_stage.get(belief.asked_of) != belief.stage:
         return {"reuse": role["label"]}
     introduced.add(belief.asked_of)
     new = {"label": role["label"], "roleType": role["roleType"], "about": role["about"]}
@@ -284,7 +307,8 @@ def _role_field(entry, belief, introduced: set[str]) -> dict:
     return {"new": new}
 
 
-def _assumption(entry, belief, offered: dict[str, dict], introduced: set[str]) -> dict:
+def _assumption(entry, belief, offered: dict[str, dict], introduced: set[str],
+                first_stage: dict[str, str]) -> dict:
     if belief.selection not in offered:
         raise CorpusScriptError(
             f"{entry.id}: belief {belief.id} names selection {belief.selection!r}, which no "
@@ -296,7 +320,7 @@ def _assumption(entry, belief, offered: dict[str, dict], introduced: set[str]) -
         "mark": belief.mark,
         "expectation": expectation_of(entry, belief),
         "selection": belief.selection,
-        "role": _role_field(entry, belief, introduced),
+        "role": _role_field(entry, belief, introduced, first_stage),
     }
     if belief.founder_phrase:
         # Optional on the schema and always emitted: scoring it is half of why spec 029 put it
@@ -330,8 +354,11 @@ def introduction_for(entry) -> str:
     if given:
         return str(given)
     who = entry.title.split("—")[0].split("-")[0].strip() or entry.id
-    return (f"{who} would like to ask you about something that happened recently. "
-            "There are no right answers.")
+    # §2.1's four honest lines, in one sentence: who is asking, and what it is about. The wording
+    # is fixed and names the entry (contract rule 5) -- and it says *asked if you'd answer*,
+    # because that is the moment the journey names and `ORI-P1` scores.
+    return (f"{who} has asked if you'd answer a few questions about something that happened "
+            "recently. There are no right answers, and you can skip anything.")
 
 
 def normalization_rationale_for(entry) -> str:
@@ -345,8 +372,9 @@ def normalization_rationale_for(entry) -> str:
 def _assumptions_result(entry, stage: str) -> dict:
     offered = selections_for(entry, stage)
     introduced: set[str] = set()
+    first_stage = introducing_stage(entry)
     beliefs = entry.beliefs_for(stage)
-    assumptions = [_assumption(entry, b, offered, introduced) for b in beliefs]
+    assumptions = [_assumption(entry, b, offered, introduced, first_stage) for b in beliefs]
     anchors = _questionnaire_anchors(entry, stage)
     if len(assumptions) > MAX_ITEMS or len(anchors) > MAX_ITEMS:
         raise CorpusScriptError(
@@ -379,6 +407,15 @@ def _interpret_entries(entry) -> list[dict]:
                     f"{entry.id}: {person.person!r} wrote under anchor {anchor_id} but the corpus "
                     f"records anchoring {anchoring!r} -- neither ANCHORED nor GUESSED")
             anchorings.append({"anchorId": anchor_id, "anchoring": anchoring})
+        if not anchorings:
+            # **A person who wrote nothing is not a reading.** `05-paidly`'s Yara Haddad leaves
+            # both translator anchors blank and taps *hasn't happened* on the third, so keel-cloud
+            # queues no reading job for her at all ("Nothing new to read", live-confirmed
+            # `runs/20260907T151344Z-s006-paidly`). An entry for her would sit in the cursor and
+            # hand every later person the wrong judgement -- which is a worse failure than the
+            # contract's own "one entry per person" is a promise worth keeping. The order that
+            # matters is the order of *readings*, and this is it.
+            continue
         entries.append({"outcome": "COMPLETED",
                         "result": {"anchorings": anchorings, "unprompted": [], "flags": []}})
     return entries

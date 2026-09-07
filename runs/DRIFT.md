@@ -1,4 +1,4 @@
-# Drift and bugs found by S-001 and S-002
+# Drift and bugs found by the eval set
 
 This repo reports bugs in the product repos; it never fixes them (README, design §6). All
 findings below were surfaced by running the real stack, not by reading source alone -- each was
@@ -1597,3 +1597,130 @@ with the note that `M1` matches rather than reads (keel-cloud `4f39a4a`).
 is the smaller change and the first is the better one, because the unit is also what a participant
 reads on their own form — and `km` is a label, not a word anybody says aloud. Either way `M1`'s
 remedy text should name the spelling as the fix when the family is right.
+
+## 30. Blocking: a respondent who writes no words counts nowhere, where the corpus counts them hollow
+
+**Severity: blocking** — it is the difference between S-006 and S-007 being green and being red,
+and it is a disagreement between keel-cloud's aggregate and the frozen golden corpus, which the
+whole of spec 010 exists to notice.
+
+**Where**: `keel-cloud`, the aggregate's `guessed` count, against
+`keel-cloud/canon/designs/measured-beliefs/corpus/05-paidly.yaml` and `07-mulchrun.yaml`.
+
+The corpus says it in its own comment, on `01-countly` and again on `05-paidly`:
+
+```
+  # worked by hand: anchored people only count. 'guessed' is everyone shown hollow — a guessed
+  # anchor (Marcus, Tom on A1/A2; Daniel, Lena on A3) and a blank one (Oliver on A1/A2; Tom on A3)
+  # alike.
+```
+
+A **blank** anchor counts toward `guessed`. On the running product it does not — and, more than
+that, a respondent who wrote nothing **anywhere** produces no reading job at all. keel-cloud's
+People page says so in its own words the moment they answer: *"Nothing new to read."* Their picks
+are stored, and they appear in no count on any card.
+
+**Reproduction**: `runs/20260907T151620Z-s006-paidly` (`05-paidly`, twenty people). Yara Haddad
+leaves `A1` and `A2` blank, taps *hasn't happened* on `A2b`, and still picks `S1`–`S5`. Every
+translator belief comes back one guess short:
+
+```
+P1    guessed 2 vs 3        P2    guessed 2 vs 3        P3    guessed 2 vs 3
+P4    guessed 2 vs 3        S5    guessed 2 vs 3
+```
+
+Same shape in `runs/20260907T152317Z-s007-mulchrun`, where Cody Brandt is the blank respondent —
+there it also moves `inside`, because the corpus counts his picks and the product does not:
+
+```
+P1  inside 6 vs 7 | guessed 2 vs 3      P6  inside 6 vs 7 | guessed 2 vs 3
+```
+
+`01-countly` does not show it: its blank respondent, Oliver Grant, writes under the commercial
+anchor, so he *is* read, and a blank anchor on a person who was read does count hollow.
+`runs/20260907T145804Z-s005-countly` is green on every one of its eighteen standings.
+
+**Whether the scenario adapted around it**: **no.** S-006 and S-007 assert the corpus's own
+numbers and are red on exactly this. Softening the count would make the golden set agree with
+whatever the product happens to do, which is the one thing a frozen corpus exists to prevent.
+
+**The shape of a fix, explicitly not applied**: either the aggregate reads a submitted response
+with no written anchor as an unanchored (hollow) observation on every belief its picks reach —
+which is what the design's own key line promises the founder (*"one person, couldn't recall one —
+shown, never counted"*) — or the corpus's simulator stops counting a blank as a guess and the
+seven entries' `guessed` numbers are re-worked. The first is almost certainly right: a person who
+answered the picks and skipped the story is exactly the person the hollow dot was drawn for. It is
+keel-cloud's call, not this repo's, and the two must not be allowed to disagree quietly.
+
+## 31. Non-blocking: two people who answered the same thing are two dots the founder cannot both click
+
+**Severity: non-blocking** — every dot is reachable, but not by clicking where it is drawn.
+
+**Where**: `keel-web` `src/components/strip/Strip.tsx`. Each person is a `<circle class="p" r=4.5
+role="button" aria-label="{name}">` positioned by their own value. Two people with the same
+observation get the same `cx`, so the circles coincide exactly, and the one drawn second takes
+every click meant for the first.
+
+**Reproduction**: `runs/20260907T153949Z-s003-every-door`, S-003's D5 opener walk, on a `07-mulchrun`
+project:
+
+```
+<circle cy="30" r="4.5" class="p" cx="39.95" tabindex="0" role="button"
+        fill="#232823" aria-label="Marisol Ortega"></circle> intercepts pointer events
+```
+
+The dot the walk was exercising was Kaylee Nguyen's, underneath. Keyboard reaches both (each
+circle is `tabindex="0"` and handles Enter/Space), so nothing is unreachable — it is the mouse
+that cannot tell them apart.
+
+**Whether the scenario adapted around it**: partly, and it says so. `harness/doors.py`'s
+`open_opener` falls back to dispatching the click on the element itself and **records the fallback
+in the verdict's own detail** (`"the click was dispatched on the control: another dot sat over
+it"`), so `doors.json` shows every opener that needed one. It does not treat the overlap as a dead
+door, because the control does open — for a founder with a keyboard, or a pixel of jitter.
+
+**The shape of a fix, explicitly not applied**: jitter coincident dots by a couple of pixels on the
+cross axis, the way a beeswarm does, or nudge each duplicate along the axis by less than half a
+bucket. Either keeps the reading honest (the dot is still at its own value, to the eye) and makes
+every person clickable where they are drawn. It is keel-web's call.
+
+## 32. Note (not a defect): the four places a `data-testid` would make the referee sturdier
+
+**Severity: note.** Nothing is broken. This is the referee saying where its own grip is weakest,
+so that a keel-web pass can strengthen it deliberately rather than by accident — and so that a
+future red run can be told apart from a moved class name at a glance.
+
+**Where**: `keel-web`. `data-testid` appears **once** in the whole tree — `median-tick` on the
+strip's median line (`src/components/strip/Strip.tsx`) — and it is exactly the right handle in
+exactly the right place: *where the entry's `expected.standings` gives no median, the screen must
+show none*, and that assertion has nothing else to hold. Every other handle this repo uses is a
+role, an `aria-label`, a heading or a class, concentrated in `harness/browser.py`'s page objects so
+one keel-web pass cannot redden seven scenarios (spec 010's plan, Complexity Tracking).
+
+Four handles carry more weight than a class should, found while writing those page objects:
+
+1. **The region input on the market step** (`components/MarketStep.tsx`). Its `aria-label` *is* its
+   placeholder, and the placeholder depends on the country — *"State or region, if it matters —
+   Texas, California, New York (optional)"* for the US, a shorter sentence everywhere else. A
+   label-matched locator finds it for `07-mulchrun` and silently mismatches for every GB entry, so
+   `MarketStep` finds it **positionally**, as the text input following the country select. A
+   `data-testid="market-region"` would end that.
+2. **A strip row's click target** (`routes/founder/StageRoute.tsx`). `span.caret` is a `<span>`; the
+   handler is on the whole `div.strip` and ignores clicks landing on `svg`, `.said` or a `button`.
+   Clicking the caret works by accident of hit-testing. `data-testid="strip-toggle"` on whatever is
+   actually the control would say which it is.
+3. **The two chats** (`chat/ChatFrame.tsx` and `review/CorrectionChat.tsx`) share `div.chat`,
+   `div.chat__sub` and `div.msg`. The walk's `MutationObserver` on the state line picks up the
+   correction chat's own subtitle (*"Lines can't be edited by hand…"*) as if it were a waiting
+   phase; it is harmless only because that sentence is in no phase list. `data-testid="agent-chat"`
+   / `"correction-chat"` would make the two tellable apart.
+4. **The four legend counts on the overview** (`routes/founder/OverviewRoute.tsx`) are read off
+   `.legend .up/.down/.split/.none` — presentational class names carrying the whole of *9 holding
+   up · 3 not holding up · 6 people disagree · 0 not tested*, which is the mockup of record's own
+   line and S-005's literal assertion.
+
+**Whether the scenario adapted around it**: it did not need to — every one of these has a working
+handle today, and all four live in one file. **No request is being made of keel-web**: it is not
+this repo's to change, and asking for a testid would make the referee's convenience a product
+requirement (research R7's own decision). This is written down so that if keel-web ever adopts a
+testid convention, these four are where it would buy the most.

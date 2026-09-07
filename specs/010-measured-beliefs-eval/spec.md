@@ -512,20 +512,48 @@ units, register and currency) and because `INTERPRET`'s context is now `{invitat
 where it was `{invitation_id, assumptions}`. Every fixed key set therefore misses, and the executor
 raises `ExecutorUnavailable` on the very first job: nothing in this repo runs until this is fixed.
 
-- **RT-001** `infer_screen` MUST implement the current table, which is `ScreenContextBuilder.build`'s
-  own switch: `{project_name, market}` → `PROBLEM_FRAME`; `{problem_statement, existing_roles,
-  market}` → `PROBLEM_ASSUMPTIONS`; `{project_name, problem_statement, existing_roles, market}` →
-  `SOLUTION_FRAME`; `{solution_statement, problem_statement, existing_roles, market}` →
-  `SOLUTION_ASSUMPTIONS`; `{project_name, problem_statement, solution_statement, existing_roles,
-  market}` → `COMMERCIAL_FRAME`; `{commercial_statement, problem_statement, solution_statement,
-  existing_roles, market}` → `COMMERCIAL_ASSUMPTIONS`; `current_statement` present with
-  `solution_statement` absent → `SOLUTION_REFRAME`, present → `COMMERCIAL_REFRAME`; `invitation_id`
-  present → `INTERPRET`; `deal_breakers` present → `BRIEF`. Unknown key set → `ExecutorUnavailable`
-  naming the keys, as today. It SHOULD be derived from keel-cloud's own export rather than copied
-  by hand: `./gradlew -q screenContracts --args="export <dir>"` writes `context-keys.json`, the
-  authoritative ordered map, and keel-cloud's builder always writes every key for its screen —
-  filling an absent value with `null` rather than omitting the key. A key set is therefore fixed and
-  complete per screen, which is what makes an exact match the right rule rather than a fragile one.
+- **RT-001** `infer_screen` MUST implement the current table. **Corrected 2026-09-07, once the
+  implementation read keel-cloud's own export**: the table this requirement first wrote out by hand
+  was already stale in three rows when it was written, which is the whole argument for loading it
+  rather than transcribing it. The authoritative thirteen key sets, from
+  `./gradlew -q screenContracts --args="export <dir>"`'s own `context-keys.json` at keel-cloud
+  `89a2315`, are:
+
+  ```
+  PROBLEM_FRAME            project_name, market
+  PROBLEM_ASSUMPTIONS      problem_statement, existing_roles, market, founder_name
+  SOLUTION_FRAME           project_name, problem_statement, existing_roles, market
+  SOLUTION_ASSUMPTIONS     solution_statement, problem_statement, existing_roles, market, founder_name
+  SOLUTION_REFRAME         current_statement, problem_statement, assumptions, contradicted_evidence, market
+  COMMERCIAL_FRAME         project_name, problem_statement, solution_statement, existing_roles, market
+  COMMERCIAL_ASSUMPTIONS   commercial_statement, problem_statement, solution_statement, existing_roles, market, founder_name
+  COMMERCIAL_REFRAME       current_statement, problem_statement, solution_statement, assumptions, contradicted_evidence, market
+  INTERPRET                invitation_id, anchors
+  BRIEF                    project_name, market, claims
+  PROBLEM_ASSUMPTIONS.correction     problem_statement, existing_roles, market, founder_name, current_draft, founder_message
+  SOLUTION_ASSUMPTIONS.correction    solution_statement, problem_statement, existing_roles, market, founder_name, current_draft, founder_message
+  COMMERCIAL_ASSUMPTIONS.correction  commercial_statement, problem_statement, solution_statement, existing_roles, market, founder_name, current_draft, founder_message
+  ```
+
+  Three things the first draft of this requirement had wrong, each of which alone would have made
+  every job miss (research R1 predicted all three; the runs confirmed them):
+
+  1. **`founder_name`** is a fourth key on all three `*_ASSUMPTIONS` screens, written last and
+     always present — `null` when the founder has no name on file.
+  2. **`BRIEF` is `{project_name, market, claims}`.** `deal_breakers` is not a context key at all
+     any more, so the old *"`deal_breakers` present → `BRIEF`"* rule could never fire.
+  3. **Three `<SCREEN>.correction` key sets exist**, carrying `current_draft` and
+     `founder_message`. The smoke walks a correction turn (FR-008), so an executor that cannot
+     infer them cannot answer that job at all.
+
+  There is likewise no `current_statement`-present special case any more: every key set is fixed
+  and complete, so one exact match is the whole rule. An unknown key set → `ExecutorUnavailable`
+  naming the keys, as today. The table MUST be **derived from the export**, never copied by hand:
+  keel-cloud's builder always writes every key for its screen, filling an absent value with `null`
+  rather than omitting it, and that is what makes exact matching the right rule rather than a
+  fragile one. keel-runtime's `scripted-executor-measured` implements exactly this (its
+  `specs/001-scripted-executor/AMENDMENT-measured-beliefs.md`, A1), and this repo verified it
+  against a live stack rather than against hope.
 - **RT-002** `_resolve_interpret_result` MUST be rewritten for the new reading contract. The
   heading-to-id resolution through the context's `assumptions[]` goes away with `assumptions` — an
   `INTERPRET` context carries `anchors[] : {anchor_id, prompt, text, tap}` and nothing else. The

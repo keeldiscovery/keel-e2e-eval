@@ -97,7 +97,13 @@ def test_s003_every_door(stack, founder_credentials, browser, run_dir):
         people.open(project_id)
         if page.locator(".role").count() == 0:
             people.switch_to_kinds_tab()
-        role_label = fx.role_labels()[0]
+        # Whatever role *this* project has, not the smoke's: a warm S-003 walks whichever project
+        # is already on the stack, and that may be any of the corpus scenarios' (live-confirmed
+        # `runs/20260907T153903Z-s003-every-door`, which opened a Mulch Run project and then went
+        # looking for a payroll manager). The walk is about doors, not about whose project it is.
+        cards = people.role_cards()
+        assert cards, "the People page offered no role card to send from"
+        role_label = cards[0]["label"]
         people.open_send_popup(role_label)
         people.fill_who(WALK_PARTICIPANT, about=f"{role_label}, asked about one real occasion.")
         people.go_to_preview()

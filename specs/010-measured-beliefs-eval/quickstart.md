@@ -84,15 +84,21 @@ This set asserts the design, not the build (spec judgement call 7). On a first r
 siblings above, these are **findings, not bugs in the harness**, and each is owed a `runs/DRIFT.md`
 entry from #30:
 
-| Expected red | Why | Owner |
+**Updated 2026-09-07, after the first runs.** Every one of keel-web's nine wire gaps closed while
+this was being built (it re-vendored keel-cloud's wire and regenerated its types), and so did
+keel-cloud's stage drift. The table below is what it turned into: one row survived, none in the
+shape it was predicted, and one genuinely new finding took their place.
+
+| Expected red | What actually happened | Owner |
 |---|---|---|
-| the market is not persisted | keel-web wire gap 6 sends `{name}` only | keel-web |
-| the correction turn errors | keel-web wire gap 9 throws before it asks | keel-web |
-| no chips on any review card | keel-web wire gap 3 (`selectionFor` stubbed) | keel-web |
-| no dots on any strip | keel-web wire gap 4 (`marks = []`) | keel-web |
-| *What this says* / *What it measures* blank | keel-web wire gaps 5a/5b | keel-web |
-| stage drift missing its direction | keel-cloud spec 029 task **T057**, designed and unbuilt | keel-cloud |
-| the context table missed on `market` | **only if keel-runtime is not on `scripted-executor-measured`** | keel-runtime |
+| the market is not persisted | **closed** — keel-web sends `{name, market}`, and `GET /v2/markets/{country}` gives the step its own sentence | — |
+| the correction turn errors | **closed** — `useCorrectionTurn` asks, the card answers in place and stays unapproved | — |
+| no chips on any review card | **closed** — `Belief.selectionId` renders, and `expected.buckets` is read off the screen | — |
+| no dots on any strip | **closed** — every anchored person is a circle with their own `aria-label` | — |
+| *What this says* / *What it measures* blank | **closed** — both render | — |
+| stage drift missing its direction | **closed** — `Project.driftOfStage` and `StageSummary.drift` shipped; the assertion judgement call 7 wrote expecting red is green | — |
+| the context table missed on `market` | **only if keel-runtime is not on `scripted-executor-measured`** — still true, still the only diagnosis needed | keel-runtime |
+| **a blank respondent counts nowhere** | **new, and blocking**: the corpus counts a person who wrote no words as hollow; the product reads them not at all. `runs/DRIFT.md` #30 — S-006 and S-007 are red on it, by design | keel-cloud |
 
 The last one is different in kind from the others: it fails at the *first inference job*, before
 any assertion runs, with `ExecutorUnavailable` naming the keys. If a run dies there, the runtime

@@ -80,10 +80,12 @@ def role_labels() -> list[str]:
     return [role["label"] for role in entry().roles or []]
 
 
-def facts(*, modal_person: str | None = None) -> dict[str, Fact]:
+def facts(*, modal_person: str | None = None,
+          modal_anchor: str | None = None) -> dict[str, Fact]:
     """The Fact registry `harness/rubric.py`'s FID-* checks trace, restated for the
     measured-beliefs hops (FR-010): the project name, each stage's claim, each belief's
     `founderPhrase`, each role label, each anchor and selection prompt, and each person's own
     story -- plus, in `absent_hops`, the founder's band and expected pick declared absent from
     `participant_page`."""
-    return corpus_facts.facts_for(entry(), modal_person=modal_person)
+    return corpus_facts.facts_for(entry(), modal_person=modal_person,
+                                   modal_anchor=modal_anchor)

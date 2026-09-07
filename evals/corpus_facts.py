@@ -35,10 +35,12 @@ place where the obvious registry would have measured the wrong thing:
    the scenario against the entry's own `expected.buckets` (FR-013), which is a stronger check
    than a FIDELITY substring would have been.
 
-3. **A person's story reaches `answers_modal` only for the person whose modal is opened.** A fact
-   registered for a hop the run never visits is a check with nothing to check, not evidence of
-   infidelity (policy v7's own note, learned on S-002's first green run). So `facts_for` takes
-   `modal_person=` and only that person's stories carry the second hop.
+3. **A person's story reaches `answers_modal` only for the person whose modal is opened, and only
+   for the anchor whose strip opened it.** A fact registered for a hop the run never visits is a
+   check with nothing to check, not evidence of infidelity (policy v7's own note, learned on
+   S-002's first green run, and re-learned here: `PersonAnswersModal` shows the story of the
+   stage it was opened from, so a person's *other* stage's story is not on that screen and never
+   was). So `facts_for` takes `modal_person=` and `modal_anchor=`.
 """
 
 from __future__ import annotations
@@ -91,11 +93,13 @@ def expected_chip(belief) -> str | None:
     return f"{expected} {EXPECTED_TICK}"
 
 
-def facts_for(entry, *, modal_person: str | None = None) -> dict[str, Fact]:
+def facts_for(entry, *, modal_person: str | None = None,
+              modal_anchor: str | None = None) -> dict[str, Fact]:
     """Every fact this entry's scenario traces, keyed by the readable ids of data-model.md §5.
 
-    `modal_person` names the one person whose *answers modal* the scenario opens (judgement call
-    3); pass `None` when it opens none.
+    `modal_person` names the one person whose *answers modal* the scenario opens and
+    `modal_anchor` the anchor whose strip opened it (judgement call 3); pass `None` for either
+    when the scenario opens none.
     """
     facts: dict[str, Fact] = {
         "name": Fact(text=entry.title, kind="statement", hops=["stage_screen"]),
@@ -109,15 +113,27 @@ def facts_for(entry, *, modal_person: str | None = None) -> dict[str, Fact]:
                 text=str(statement).strip(), kind="statement",
                 hops=["review_card", "download"])
 
+    # A `founderPhrase` that **is** one of its own belief's option words cannot be declared absent
+    # from a page that must offer that option. `01-countly`'s `C17` is exactly that: the founder
+    # said *per site*, and `S17` asks "How is that tool priced?" with `per site` among the four
+    # answers. Design rule `Q5` forbids a *line* that names the founder's number or answer; it does
+    # not forbid the option list from containing the word the founder happened to use, and it
+    # could not -- the belief is about that word. Live-confirmed
+    # (`runs/20260907T145804Z-s005-countly`, `FID-phrase.C17-participant_page-absent`).
+    option_words = {str(option).strip().casefold()
+                    for belief in entry.beliefs
+                    for option in (belief.expectation or {}).get("options") or []}
+
     for belief in entry.beliefs:
         if belief.founder_phrase:
             # The founder's own precision word, beside the band (design §8.1 step 4). It is
             # quoted on the review card (`p.you-said`) and again on the opened card's strip
             # (`span.strip__you`) -- and it is the first thing rule Q5 forbids the stranger.
+            collides = belief.founder_phrase.strip().casefold() in option_words
             facts[f"phrase.{belief.id}"] = Fact(
                 text=belief.founder_phrase, kind="assumption",
                 hops=["review_card", "opened_card"],
-                absent_hops=list(NEVER_ON_THE_PARTICIPANT_PAGE))
+                absent_hops=[] if collides else list(NEVER_ON_THE_PARTICIPANT_PAGE))
         band = band_label(belief)
         if band:
             facts[f"band.{belief.id}"] = Fact(
@@ -152,7 +168,8 @@ def facts_for(entry, *, modal_person: str | None = None) -> dict[str, Fact]:
         slug = person.person.lower().replace(" ", "-")
         for anchor_id, written in person.written():
             hops = ["participant_page"]
-            if modal_person and person.person == modal_person:
+            if (modal_person and person.person == modal_person
+                    and (modal_anchor is None or anchor_id == modal_anchor)):
                 hops.append("answers_modal")
             facts[f"said.{slug}.{anchor_id}"] = Fact(
                 text=str(written.get("text")).strip(), kind="answer", hops=hops)

@@ -69,8 +69,22 @@ def test_every_measured_beliefs_family_is_swept():
                    "HASNT_HAPPENED", "CANT_RECALL", "RATHER_NOT_SAY",
                    "COUNT", "DURATION", "MONEY", "SHARE", "TIME_SINCE", "PHYSICAL", "RATE",
                    "INTERVAL", "CHOICE", "DIRECT", "PROXY", "OPTIONS", "BUCKETS",
-                   "PRACTITIONER", "BUYER", "CONSUMER", "MANAGER", "GATEKEEPER"):
+                   "PRACTITIONER", "BUYER", "CONSUMER", "GATEKEEPER"):
         assert token in policy.CLARITY_TOKENS, token
+
+
+def test_manager_and_answers_are_exempted_by_name_with_their_excerpts():
+    """The first red run decides, and it did (`runs/20260907T143953Z-s001-smoke`): the review
+    card's own role-group heading reads "A PAYROLL MANAGER CAN ANSWER ALL FIVE" and the download's
+    own column reads "THE ANSWERS", both upper-cased by CSS. Approved house copy, not leaks --
+    exempted **by name**, never by softening the sweep."""
+    assert "MANAGER" in policy._ENGLISH_COLLISION_EXEMPTIONS
+    assert "ANSWERS" in policy._ENGLISH_COLLISION_EXEMPTIONS
+    assert policy.enum_violations("A PAYROLL MANAGER CAN ANSWER ALL FIVE") == []
+    assert policy.enum_violations("WHAT IT MEASURES · YOU SAID · THE ANSWERS") == []
+    # and the neighbours in the same families are still swept
+    assert policy.enum_violations("roleType PRACTITIONER") == ["PRACTITIONER"]
+    assert policy.enum_violations("need: INVITE") == ["INVITE"]
 
 
 def test_rate_and_share_are_not_pre_emptively_exempted():
@@ -252,3 +266,22 @@ def test_absence_matching_is_the_same_matching_as_presence(tmp_path):
                               absent_hops=["participant_page"])}
     checks = _checks_for(_score(tmp_path, facts), "FID-band.P1-participant_page-absent")
     assert checks[0]["pass"] is False
+
+
+# ------------------------------------------------- the one absence that cannot honestly be claimed
+
+def test_a_founder_phrase_that_is_its_own_option_word_is_not_declared_absent():
+    """`01-countly`'s `C17`: the founder said *per site*, and `S17` asks "How is that tool priced?"
+    with `per site` among the four answers. Rule `Q5` forbids a **line** that names the founder's
+    number or answer; it cannot forbid the option list from containing the word the belief is
+    about. Live-confirmed (`runs/20260907T145804Z-s005-countly`)."""
+    from evals import corpus_facts
+    from harness import corpus_script
+    from stack.config import load_config
+
+    _, entry = corpus_script.entry_for(load_config(validate=False).keel_cloud, "01-countly")
+    facts = corpus_facts.facts_for(entry)
+    assert facts["phrase.C17"].text == "per site"
+    assert facts["phrase.C17"].absent_hops == []
+    # and every other phrase still is
+    assert facts["phrase.P1"].absent_hops == ["participant_page"]

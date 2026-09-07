@@ -276,8 +276,40 @@ def judge_opener(*, before: str, opened: str, closed: str | None, names: str = "
     return Verdict("opens", "it opened what it names and closed back", [])
 
 
+# Every text node under a region, SVG included. `innerText` drops SVG `<text>` entirely, and a
+# strip row that opens reveals a chart -- so an opener that genuinely revealed something would
+# read as `opens_nothing` against `innerText` alone. Same walker `harness/browser.py` uses for its
+# screen captures, inlined here so `harness/doors.py` stays importable with no browser at all.
+_DEEP_TEXT_JS = r"""(el) => {
+  if (!el) return "";
+  const parts = [];
+  const walk = (node) => {
+    for (const child of node.childNodes) {
+      if (child.nodeType === 3) {
+        const text = child.textContent.replace(/\s+/g, ' ').trim();
+        if (text) parts.push(text);
+      } else if (child.nodeType === 1 && !child.hidden) {
+        walk(child);
+      }
+    }
+  };
+  walk(el);
+  return parts.join(' ');
+}"""
+
+
+def _deep_text(page: Any, selector: str) -> str:
+    try:
+        locator = page.locator(selector).first
+        if locator.count() == 0:
+            return ""
+        return locator.evaluate(_DEEP_TEXT_JS) or ""
+    except Exception:  # noqa: BLE001 - a region that will not evaluate reads as no text
+        return ""
+
+
 def open_opener(page: Any, control: Any, *, region: str, names: str = "",
-                 closer: Any = None, settle_ms: int = 250) -> Verdict:
+                 closer: Any = None, settle_ms: int = 250, deep: bool = True) -> Verdict:
     """Exercises one opener **once** and judges it (D5). `region` is the selector whose text is
     read three times; `closer` is the control that shuts it again (the same control, when it
     toggles), or `None` for a one-way reveal.
@@ -285,19 +317,34 @@ def open_opener(page: Any, control: Any, *, region: str, names: str = "",
     A harness mechanic, not an assertion -- the rule is `judge_opener`'s, which is why that half
     is pure and unit-tested against canned DOMs.
     """
-    before = _text_of(page, region)
-    control.click()
+    read = (lambda: _deep_text(page, region)) if deep else (lambda: _text_of(page, region))
+    before = read()
+    forced = False
+    try:
+        control.click(timeout=5_000)
+    except Exception:  # noqa: BLE001 - see below
+        # Two people who answered the same thing are two dots at the same point, and the one on
+        # top intercepts the click meant for the one beneath (live-confirmed
+        # `runs/20260907T153949Z-s003-every-door`: Marisol Ortega's circle over Kaylee Nguyen's).
+        # That is a drawing, not a dead door -- the control is visible, enabled and stable, and a
+        # founder reaches it by clicking a pixel or two along. Dispatching the click on the element
+        # itself exercises *that* control; the fallback is recorded, never silent.
+        control.click(force=True, timeout=5_000)
+        forced = True
     page.wait_for_timeout(settle_ms)
-    opened = _text_of(page, region)
+    opened = read()
     closed = None
     if closer is not None:
         try:
             closer.click()
             page.wait_for_timeout(settle_ms)
-            closed = _text_of(page, region)
+            closed = read()
         except Exception as exc:  # noqa: BLE001 - a closer that cannot even be clicked is D5
             return Verdict("cannot_close", f"the closing control could not be used: {exc}", [])
-    return judge_opener(before=before, opened=opened, closed=closed, names=names)
+    verdict = judge_opener(before=before, opened=opened, closed=closed, names=names)
+    if forced:
+        verdict.detail += " (the click was dispatched on the control: another dot sat over it)"
+    return verdict
 
 
 def opener_rows(openers: list[Opener], verdicts: list[Verdict]) -> list[dict[str, Any]]:

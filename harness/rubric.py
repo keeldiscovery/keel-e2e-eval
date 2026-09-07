@@ -27,6 +27,18 @@ from evals.facts import Fact
 from harness.interactions import Interaction
 
 
+# Captures that are **evidence about** a screen rather than text **on** one. The CLARITY sweeps
+# read what a founder reads; a JSON blob the harness composed for its own checks is neither
+# rendered nor founder-facing, and sweeping it flags this repo's own braces as a product leak.
+# Live-confirmed (`runs/20260907T143953Z-s001-smoke`): `belief_statuses` alone produced
+# `CLA-U1 violations=['CHOICE', 'INTERVAL']` and `CLA-U2 violations=['{', '}', '": "', ...]` on a
+# screen that showed none of them.
+NOT_RENDERED_TEXT = frozenset({
+    "state", "belief_statuses", "correction_turns", "typed", "typed_count", "phases_observed",
+    "chat_phase_at_send", "doors", "resource_miss",
+})
+
+
 @dataclass
 class CheckResult:
     check_id: str
@@ -294,7 +306,8 @@ def _ui_visit_checks(ix: Interaction) -> list[CheckResult]:
         if check is not None:
             results.append(check)
 
-    combined_text = "\n".join(v for k, v in ix.captured_text.items() if k not in ("state",))
+    combined_text = "\n".join(v for k, v in ix.captured_text.items()
+                              if k not in NOT_RENDERED_TEXT)
     enum_violations = policy.enum_violations(combined_text)
     results.append(_result("CLA-U1", not enum_violations, f"violations={enum_violations}" if enum_violations else "clean", ix))
     structural_violations = policy.structural_violations(combined_text)

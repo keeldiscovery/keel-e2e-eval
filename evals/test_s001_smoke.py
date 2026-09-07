@@ -54,6 +54,7 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
     cloud_base = f"http://localhost:{stack.cloud_port}"
     started = time.monotonic()
     passed = False
+    modal_anchor = None
     context = browser.new_context()
 
     entry = fx.entry()
@@ -317,6 +318,12 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
         # ------------------------------------------------- §1.7, the opened card and one person
         expectation_of = {b.heading: b.type for b in entry.beliefs}
         opened = OpenedCard(page, recorder, web_base)
+        # All three, in the walk's own order. The journey says *opens a card*; opening every one
+        # is what makes the fact registry honest -- a `founderPhrase` declared to reach
+        # `opened_card` and never looked for on its own stage's card is a check with nothing to
+        # check, which is how S-002 once scored a fidelity miss for words nobody showed wrongly.
+        for stage in ("SOLUTION", "COMMERCIAL"):
+            opened.open(project_id, stage, expectations=expectation_of)
         opened.open(project_id, "PROBLEM", expectations=expectation_of)
         strips = opened.strips()
         with recorder.step("§1.7: the opened card's lines are collapsed, with the first open",
@@ -346,6 +353,9 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
                     f"{heading!r} is load-bearing and the strip does not mark it a deal-breaker")
 
         dotted = next((s for s in strips if MODAL_PERSON in s["dots"]), None)
+        # The anchor whose strip the modal is opened from -- the modal shows that stage's story,
+        # and only that one, so the registry claims only that one.
+        modal_anchor = (entry.anchors_for("PROBLEM") or [{}])[0].get("id")
         with recorder.step(f"§1.7: {MODAL_PERSON}'s own answer is a dot on a line",
                             party="founder", kind="assert") as h:
             h.record_assert(f"a dot labelled {MODAL_PERSON}",
@@ -402,8 +412,11 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
             columns = print_page.table_columns()
             h.record_assert([list(print_page.COLUMNS)] * 3, columns)
             assert columns, "the download rendered no per-stage table"
+            # keel-web renders these headings upper-case in CSS, and `inner_text()` returns what
+            # was rendered -- the words are the assertion, not their casing.
+            wanted = [c.casefold() for c in print_page.COLUMNS]
             for row in columns:
-                assert row[:3] == list(print_page.COLUMNS), row
+                assert [c.casefold() for c in row[:3]] == wanted, row
 
         with recorder.step("§1.10: a stage starts on a fresh page, by the stylesheet's own rule",
                             party="founder", kind="assert") as h:
@@ -420,7 +433,8 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
         passed = True
     finally:
         context.close()
-        finalize_run(run_dir, slug="s001-smoke", facts=fx.facts(modal_person=MODAL_PERSON),
+        finalize_run(run_dir, slug="s001-smoke",
+                     facts=fx.facts(modal_person=MODAL_PERSON, modal_anchor=modal_anchor),
                      passed=passed, failed_step=recorder.failed_step,
                      duration_s=time.monotonic() - started)
         print(f"\nrun bundle: {run_dir}")

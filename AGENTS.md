@@ -27,17 +27,30 @@ referee. `make up` ends with the runtime not yet running; S-001 starts it, becau
 part of the journey.
 
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
-to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The four scenarios are
+to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seven** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 above; the
-participants' typed answers are fixture data, never generated) and every assertion enforcing a
-journey moment cites it (`§n.m`). S-001 (`evals/test_s001_smoke.py`) walks the whole journey once, agent present
+participants' typed answers are fixture or corpus data, never generated) and every assertion
+enforcing a journey moment cites it (`§n.m`).
+
+**The corpus has a second job now** (spec 010): keel-cloud's frozen golden set
+(`canon/designs/measured-beliefs/corpus/*.yaml`) is not only what the instruction eval scores the
+instructions against — it is also **the script three browser scenarios run on**. S-005
+(`01-countly`), S-006 (`05-paidly`) and S-007 (`07-mulchrun`) generate a keel-runtime script from
+an entry (`harness/corpus_script.py`, reading through `instructions/corpus.py` so there is one
+reader and one hash), drive it through the real screens, and assert that entry's own `expected`
+section where a founder reads it and on the wire beside it. Spec 009 asks *did the prose reach
+these beliefs*; these ask *does the product reach these standings*. **Nothing generated is
+committed** — the script and the typed inputs go into the run bundle, so a run can never be green
+against a script that drifted from a corpus that moved, and `Corpus.verify_unchanged()` is called
+at the end of every one.
+
 throughout; S-002 (`evals/test_s002_agent_optional.py`, spec 006-agent-optional) starts from a
 project S-001 already built (in the same stack session) or its own prelude, then stops the
 runtime and proves everything a founder owns keeps working with no agent except creating a
 project and reading answers — it found the product offering the read action anyway, refused only
 on the wire and never explained on the screen (`runs/DRIFT.md` #17). The evidence bundle
 (`runs/<id>/`, report.html) is the product of a run; the scoring policy (`evals/policy.py`,
-versioned) is the yardstick. `make up / eval K=s001|s002 / down`; quickstarts in
+versioned) is the yardstick. `make up / eval K=s001|s002|s003|s005|s006|s007 / down`; quickstarts in
 `specs/*/quickstart.md`.
 
 **Two referee sessions never share the eval profile.** The stack's ports (55432/18080/5173) and

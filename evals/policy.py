@@ -447,7 +447,26 @@ ROLE_TYPES = {"PRACTITIONER", "BUYER", "CONSUMER", "MANAGER", "GATEKEEPER"}
 # Policy v8 predicted two more and **exempted neither pre-emptively** (spec T011): `RATE` and
 # `SHARE` are ordinary English words keel-web could legitimately print. The first red run decides,
 # and an exemption is added here by name with its excerpt quoted -- never by softening the sweep.
-_ENGLISH_COLLISION_EXEMPTIONS = {"roles", "EVIDENCE", "REVIEW", "assumptions", "CONTRADICTED"}
+# Policy v8, the same shape a fourth time, live-confirmed on the first green run of the rewritten
+# smoke (`runs/20260907T143953Z-s001-smoke`, four CLA-U1 hits across three review cards, the
+# answers modal and the download):
+#
+#   "A PAYROLL MANAGER CAN ANSWER ALL FIVE"   -- the review card's own role-group heading
+#                                                (`reviewGroupHeading`), rendered upper-case by CSS
+#   "THE ANSWERS"                             -- the download page's own table column
+#                                                (`PRINT_COL_THE_ANSWERS`), likewise
+#
+# "manager" there is the ordinary English noun in the founder's own copy, colliding with the
+# `RoleType` token of the same spelling; "answers" is the plural noun, colliding with the `Need`
+# token. Neither is a leak, and both are approved house copy. Exempted for exactly the reason
+# "EVIDENCE" and "REVIEW" are: a raw `MANAGER` arriving as a *roleType* would come in mixed-case
+# JSON, and CLA-U2's structural sweep still catches that.
+#
+# `RATE` and `SHARE` -- the two the plan predicted -- are **not** exempted: neither has turned up
+# in a founder screen's own copy in any run so far, and an exemption is added when a run produces
+# the excerpt, never before it.
+_ENGLISH_COLLISION_EXEMPTIONS = {"roles", "EVIDENCE", "REVIEW", "assumptions", "CONTRADICTED",
+                                  "MANAGER", "ANSWERS"}
 
 # See module docstring, judgement call 1: StageType names are excluded on purpose.
 CLARITY_TOKENS: set[str] = (

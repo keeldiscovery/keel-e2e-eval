@@ -170,6 +170,43 @@ def _safe_text(getter: Callable[[], str]) -> str:
         return ""
 
 
+# What a founder reads, word-separated. `innerText` runs two adjacent inline elements together --
+# `<b>…not minutes</b><span class="db">deal-breaker</span>` comes back as `minutesdeal-breaker`,
+# which the CLARITY sweep then reads as a camelCase field name on a screen that shows nothing of
+# the sort (live-confirmed: `runs/20260907T143953Z-s001-smoke`, `CLA-U2 violations=['minutesDEAL',
+# 'seatASKED']`). CSS puts visible space between them; this walker puts it back, by joining each
+# element's own text nodes rather than concatenating them. It also picks up SVG `<text>`, which
+# `innerText` drops entirely -- the band label lives there.
+_SCREEN_TEXT_JS = r"""(el) => {
+  if (!el) return "";
+  const parts = [];
+  const walk = (node) => {
+    for (const child of node.childNodes) {
+      if (child.nodeType === 3) {
+        const text = child.textContent.replace(/\s+/g, ' ').trim();
+        if (text) parts.push(text);
+      } else if (child.nodeType === 1) {
+        if (child.hidden) continue;
+        walk(child);
+      }
+    }
+  };
+  walk(el);
+  return parts.join(' ');
+}"""
+
+
+def _screen_text(page, selector: str) -> str:
+    """The rendered words of one region, separated (see `_SCREEN_TEXT_JS`)."""
+    try:
+        locator = page.locator(selector).first
+        if locator.count() == 0:
+            return ""
+        return locator.evaluate(_SCREEN_TEXT_JS) or ""
+    except Exception:  # noqa: BLE001 - a region that will not evaluate reads as no text
+        return ""
+
+
 def _safe_all_texts(page, selector: str) -> list[str]:
     try:
         return [t.strip() for t in page.locator(selector).all_inner_texts() if t.strip()]
@@ -660,6 +697,24 @@ WAIT_PHASES = {
 }
 _ELAPSED_RE = re.compile(r"^\d+ s$")
 
+# Records every value the chat's own state line (`div.chat__sub[role=status]`) ever holds, from
+# the moment it is installed. See `Chat.send`'s own note for why watching beats polling here.
+_PHASE_RECORDER = """() => {
+  window.__keelPhases = [];
+  if (window.__keelPhaseObserver) window.__keelPhaseObserver.disconnect();
+  const push = () => {
+    const el = document.querySelector('.chat .chat__sub');
+    const text = el ? (el.innerText || el.textContent || '').trim() : '';
+    if (text && window.__keelPhases[window.__keelPhases.length - 1] !== text) {
+      window.__keelPhases.push(text);
+    }
+  };
+  push();
+  const observer = new MutationObserver(push);
+  observer.observe(document.body, {subtree: true, childList: true, characterData: true});
+  window.__keelPhaseObserver = observer;
+}"""
+
 
 class Chat:
     """The guided step's own chat (`components/chat/ChatFrame.tsx`, `chat/GuidedStep.tsx`) --
@@ -716,6 +771,14 @@ class Chat:
             if card.locator(".understood__note").count() > 0 else "",
         }
 
+    def _recorded_phase(self) -> str | None:
+        """The first waiting phase the `MutationObserver` `send()` installed ever saw."""
+        try:
+            seen = self.page.evaluate("() => window.__keelPhases || []") or []
+        except Exception:  # noqa: BLE001 - a page that navigated away has nothing to report
+            return None
+        return next((line for line in seen if line in WAIT_PHASES), None)
+
     def landed_claim(self) -> str:
         """C8's own landed claim (`.landed__claim`) -- empty until the confirmation is saved."""
         return _safe_text(lambda: self.page.locator(".landed__claim").first.inner_text())
@@ -756,8 +819,26 @@ class Chat:
                 h.add_screenshot(self._bstep.screenshot("chat-composer-filled"))
                 self._bubbles_before_send = self.page.locator(_AGENT_BUBBLE).count()
                 self._had_card_before_send = self.confirmation_card() is not None
+                # Watch every render of the state line, rather than sampling it. keel-runtime's
+                # scripted executor answers a framing job in a fraction of a second (live-
+                # confirmed: `runs/20260907T143729Z-s001-smoke`, `phase_line=None` on COMMERCIAL),
+                # and a poll -- however tight -- can miss a phase that was genuinely on screen for
+                # one frame. A `MutationObserver` sees every value the element ever held, so this
+                # stops the *harness* from being the reason nobody saw the narration; it cannot
+                # make a phase render that never rendered, which is what keeps the assertion
+                # honest. Installed immediately before the click that starts the turn.
+                self.page.evaluate(_PHASE_RECORDER)
                 self.page.locator(".chat__foot button.btn.primary").click()
+                # The waiting phase, sampled in the same breath as the click. Spec 010's
+                # generated script answers a framing job in well under a second (live-confirmed:
+                # `runs/20260907T143214Z-s001-smoke`, `phase_line=None` on SOLUTION), so
+                # `wait_for_agent_turn`'s own first poll can already be too late to see the
+                # narration the design promises. Reading it here does not make the phase render;
+                # it stops the harness from being the reason nobody saw it. Exactly the mirror of
+                # the bubble-count baseline above, and recorded for the same reason.
+                self._phase_after_send = self.state_line()
                 h.capture_text("chat_sent", text)
+                h.capture_text("chat_phase_at_send", self._phase_after_send or "")
                 h.add_screenshot(self._bstep.screenshot("chat-sent"))
 
     def wait_for_agent_turn(self, *, timeout_s: float = 60) -> dict[str, str]:
@@ -783,10 +864,12 @@ class Chat:
                 # that already had a pending interaction when the chat was first opened).
                 bubbles_before = getattr(self, "_bubbles_before_send", None)
                 had_card = getattr(self, "_had_card_before_send", None)
+                phase_at_send = getattr(self, "_phase_after_send", None)
                 # Consumed once -- a later, unrelated wait on this same instance must not reuse
                 # a stale baseline from a send() several turns back.
                 self._bubbles_before_send = None
                 self._had_card_before_send = None
+                self._phase_after_send = None
                 if bubbles_before is None:
                     bubbles_before = self.page.locator(_AGENT_BUBBLE).count()
                 if had_card is None:
@@ -799,6 +882,7 @@ class Chat:
                 # to prove correct than trusting an inline JS closure's own argument-serialization
                 # to round-trip a captured-before count exactly.
                 deadline = time.monotonic() + timeout_s
+                turn_started = time.monotonic()
                 phase_seen: str | None = None
                 elapsed_seen: str | None = None
                 while True:
@@ -810,6 +894,10 @@ class Chat:
                     line = self.state_line()
                     if phase_seen is None and line in WAIT_PHASES:
                         phase_seen = line
+                    if phase_seen is None and phase_at_send in WAIT_PHASES:
+                        phase_seen = phase_at_send
+                    if phase_seen is None:
+                        phase_seen = self._recorded_phase()
                     counter = self.page.locator(".chat__elapsed")
                     if counter.count() > 0:
                         elapsed_seen = _safe_text(lambda c=counter: c.first.inner_text()).strip() or elapsed_seen
@@ -827,17 +915,25 @@ class Chat:
                 new_state = self.state_line()
                 if phase_seen is None and new_state in WAIT_PHASES:
                     phase_seen = new_state  # the reply landed while the phase line was still up
+                if phase_seen is None:
+                    phase_seen = self._recorded_phase()
                 h.capture_text("chat_state", new_state)
                 outcome = _infer_chat_outcome(new_state)
                 reply = self._latest_reply_text()
                 h.capture_text("agent_reply", reply)
                 h.capture_text("agent_turn_outcome", outcome)
+                try:
+                    h.capture_text("phases_observed", json.dumps(
+                        self.page.evaluate("() => window.__keelPhases || []")))
+                except Exception:  # noqa: BLE001 - evidence only
+                    pass
                 if phase_seen:
                     h.capture_text("phase_line", phase_seen)
                 if elapsed_seen:
                     h.capture_text("elapsed_label", elapsed_seen)
         return {"chat_state": new_state, "agent_reply": reply, "outcome": outcome,
-                "phase_line": phase_seen, "elapsed_label": elapsed_seen}
+                "phase_line": phase_seen, "elapsed_label": elapsed_seen,
+                "turn_seconds": round(time.monotonic() - turn_started, 3)}
 
     def _latest_reply_text(self) -> str:
         card = self.confirmation_card()
@@ -880,6 +976,7 @@ class Chat:
         """
         with self._scope():
             with self._bstep.step("the founder's agent works out the beliefs") as h:
+                waited_from = time.monotonic()
                 waiting_text = _safe_text(lambda: self.page.locator(".next.agent").first.inner_text())
                 if waiting_text:
                     h.capture_text("waiting_text", waiting_text)
@@ -888,6 +985,7 @@ class Chat:
                 phase_seen: str | None = None
                 landed_rows = 0
                 truth_seen: str | None = None
+                landed_at: float | None = None
                 while self.page.locator(".card.openc").count() == 0:
                     if time.monotonic() > deadline:
                         raise TimeoutError(
@@ -904,6 +1002,12 @@ class Chat:
                     # the card arrive.
                     if truth_seen is None:
                         truth_seen = _safe_text(lambda: self.page.locator(".truth__t").first.inner_text()).strip() or None
+                    # When the *landed* screen -- the one the truth card lives on -- first
+                    # appeared. The wait a founder sees is measured from here, not from the click
+                    # that started the job: an auto-chain can spend half a minute getting to this
+                    # screen, and a truth card cannot keep anybody company before it mounts.
+                    if landed_at is None and self.page.locator(".next.agent, .landed").count() > 0:
+                        landed_at = time.monotonic()
                     if not clicked:
                         continue_btn = self.page.get_by_role("button", name=re.compile(r"^(continue|review them)", re.I))
                         # `is_enabled`/`click` auto-wait on an element that can vanish between
@@ -922,13 +1026,21 @@ class Chat:
                 h.add_screenshot(self._bstep.screenshot("chat-review-ready"))
                 claim = _safe_text(lambda: self.page.locator(".card.openc .claim").first.inner_text())
                 h.capture_text("agent_reply", claim)
+                try:
+                    h.capture_text("phases_observed", json.dumps(
+                        self.page.evaluate("() => window.__keelPhases || []")))
+                except Exception:  # noqa: BLE001 - evidence only
+                    pass
                 if phase_seen:
                     h.capture_text("phase_line", phase_seen)
                 h.capture_text("landed_rows", str(landed_rows))
                 if truth_seen:
                     h.capture_text("truth_seen", truth_seen)
                 h.capture_text("agent_turn_outcome", "beliefs_ready")
-        return {"phase_line": phase_seen, "landed_rows": landed_rows, "truth_seen": truth_seen}
+        return {"phase_line": phase_seen, "landed_rows": landed_rows, "truth_seen": truth_seen,
+                "wait_seconds": round(time.monotonic() - waited_from, 3),
+                "landed_seconds": (round(time.monotonic() - landed_at, 3)
+                                   if landed_at is not None else 0.0)}
 
     def start_over(self) -> None:
         with self._scope():
@@ -1377,7 +1489,7 @@ class ReviewCard:
         h.capture_text("stage", stage)
         h.capture_text("stage_identity", _safe_text(
             lambda: self._card().locator(".bet").first.inner_text()))
-        h.capture_text("review_card", _safe_text(lambda: self._card().inner_text()))
+        h.capture_text("review_card", _screen_text(self.page, ".card.openc"))
         h.capture_text("asked_first", self.asked_first())
         Shell(self.page).capture_identity(h)
 
@@ -1476,8 +1588,14 @@ class CorrectionChat:
                         break
                     self.page.wait_for_timeout(500)
                 h.capture_text("screen", "review_card")
-                h.capture_text("review_card", _safe_text(
-                    lambda: self.page.locator(".card.openc").first.inner_text()))
+                h.capture_text("review_card", _screen_text(self.page, ".card.openc"))
+                # The card is still on screen behind the chat, so this visit is judged as the
+                # review card it is: ORI-U1 wants the project's identity and ORI-U4 wants the
+                # *asked first* block, and both are right here to be read.
+                Shell(self.page).capture_identity(h)
+                block = self.page.locator(".card.openc .who", has=self.page.locator("dl.qa")).first
+                if block.count() > 0:
+                    h.capture_text("asked_first", _safe_text(lambda: block.inner_text()))
                 h.capture_text("correction_turns", json.dumps(self.turns()))
                 h.add_screenshot(self._bstep.screenshot("correction-answered"))
         return {"turns": self.turns(), "changes": self.changes()}
@@ -1572,8 +1690,7 @@ class Overview:
 
     def _capture(self, h: StepHandle) -> None:
         h.capture_text("screen", "overview")
-        h.capture_text("overview", _safe_text(
-            lambda: self.page.locator(".shell__main").first.inner_text()))
+        h.capture_text("overview", _screen_text(self.page, ".shell__main"))
         h.capture_text("evidence_line", self.evidence_line())
         Shell(self.page).capture_identity(h)
         affordance = _safe_all_texts(self.page, ".ocards .see, .evidence__people a")
@@ -1734,9 +1851,7 @@ class OpenedCard:
         h.capture_text("stage", stage)
         h.capture_text("stage_identity", _safe_text(
             lambda: self._card().locator(".bet").first.inner_text()))
-        body = _safe_text(lambda: self._card().inner_text())
-        svg_text = " ".join(s["band_label"] for s in strips if s["band_label"])
-        h.capture_text("opened_card", f"{body}\n{svg_text}".strip())
+        h.capture_text("opened_card", _screen_text(self.page, ".card.openc"))
         h.capture_text("belief_statuses", json.dumps([
             {"heading": s["heading"], "status": s["status"],
              "expectation": (expectations or {}).get(s["heading"], ""),
@@ -1864,7 +1979,7 @@ class AnswersModal:
         with self._scope():
             with self._bstep.step(f"founder reads all of {person}'s answers") as h:
                 h.capture_text("screen", "answers_modal")
-                h.capture_text("answers_modal", _safe_text(lambda: self._pop().inner_text()))
+                h.capture_text("answers_modal", _screen_text(self.page, ".pop[role='dialog']"))
                 h.capture_text("participant_names", person)
                 Shell(self.page).capture_identity(h)
                 h.add_screenshot(self._bstep.screenshot("answers-modal"))
@@ -2002,7 +2117,7 @@ class PrintPage:
 
     def _capture(self, h: StepHandle) -> None:
         h.capture_text("screen", "print")
-        h.capture_text("download", _safe_text(lambda: self.page.locator(".pages").first.inner_text()))
+        h.capture_text("download", _screen_text(self.page, ".pages"))
         h.capture_text("identity", self.title_page()["name"])
         names = _safe_all_texts(self.page, ".pquotes p span")
         if names:
@@ -2266,6 +2381,9 @@ TAP_WORDS = {
     "RATHER_NOT_SAY": "rather not say",
 }
 TAP_ORDER = ("HASNT_HAPPENED", "CANT_RECALL", "RATHER_NOT_SAY")
+#: The phrase that carries the meaning, whichever repo's wording rendered it.
+TAP_NEEDLE = {"HASNT_HAPPENED": "hasn't happened", "CANT_RECALL": "recall",
+              "RATHER_NOT_SAY": "rather not"}
 OTHER_SAY_WHAT = "other, say what"
 
 
@@ -2292,7 +2410,7 @@ class ParticipantPage:
         self._interaction_id: str | None = None
 
     def _capture_page_text(self, h: StepHandle) -> None:
-        h.capture_text("participant_page", _safe_text(lambda: self.page.locator("body").inner_text()))
+        h.capture_text("participant_page", _screen_text(self.page, "body"))
 
     def _scope(self):
         if self._interaction_id is None:
@@ -2331,13 +2449,17 @@ class ParticipantPage:
             })
         return out
 
-    def options_for(self, selection_prompt: str) -> list[str]:
+    def options_for(self, selection_prompt: str, *, anchor_prompt: str | None = None) -> list[str]:
         """The list this selection actually offered, **in order** -- FR-013's `expected.buckets`,
         read off the stranger's own screen. The ways out (`.opt.esc`) and the *other* box are
         excluded: the corpus's `buckets` are the scale, and the escapes sit beside it."""
-        block = self._selection_block(selection_prompt)
+        block = self._selection_block(selection_prompt, anchor_prompt=anchor_prompt)
         labels: list[str] = []
-        rows = block.locator(".opts > .opt")
+        # Each row is wrapped in a keyed `<div>` of its own so its reveal box can sit beside it
+        # (`ParticipantRoute.tsx`'s `renderRow`), so `.opt` is a grandchild of `.opts`, never a
+        # direct child. Live-confirmed the hard way: a `>` here reads every selection as offering
+        # nothing at all.
+        rows = block.locator(".opts .opt")
         for i in range(rows.count()):
             row = rows.nth(i)
             classes = row.get_attribute("class") or ""
@@ -2347,10 +2469,10 @@ class ParticipantPage:
             labels.append(text)
         return labels
 
-    def escapes_for(self, selection_prompt: str) -> list[str]:
-        block = self._selection_block(selection_prompt)
+    def escapes_for(self, selection_prompt: str, *, anchor_prompt: str | None = None) -> list[str]:
+        block = self._selection_block(selection_prompt, anchor_prompt=anchor_prompt)
         return [_safe_text(lambda r=r: r.inner_text()).strip()
-                for r in block.locator(".opts > .opt.esc").all()]
+                for r in block.locator(".opts .opt.esc").all()]
 
     def _anchor_block(self, prompt: str):
         needle = " ".join(prompt.split())[:60]
@@ -2362,15 +2484,31 @@ class ParticipantPage:
                 return block
         raise AssertionError(f"no story box on this page for the anchor {prompt[:60]!r}")
 
-    def _selection_block(self, prompt: str):
+    def _selection_block(self, prompt: str, *, anchor_prompt: str | None = None):
+        """The selection asking `prompt`, **scoped to its own anchor** when one is named.
+
+        Two anchors can ask the identical question -- `05-paidly` asks *"Was that within the last
+        twelve months?"* on both `A2c` (`S7`) and `A3` (`S10`) -- and a page-wide match on the
+        prompt puts every `S10` pick into `S7`'s block, which reads on the wire as `S7` moving to
+        `MIXED` and `S10` reading `UNTESTED` with nobody's answer at all. Live-confirmed
+        (`runs/20260907T150329Z-s006-paidly`). The anchor is the scope that makes a prompt unique.
+        """
         needle = " ".join(prompt.split())[:60]
-        blocks = self.page.locator(".picks > div.q")
+        # `div.picks` is the anchor's **sibling**, not its child: `AnchorBlock` returns a fragment
+        # of `<div class="q">…</div>` followed by `<div class="picks">…</div>`. So the scope is the
+        # next `.picks` after this anchor's own block, which is exactly the picks that anchor gates.
+        blocks = (self._anchor_block(anchor_prompt).locator(
+                      "xpath=following-sibling::div[contains(@class,'picks')][1]"
+                  ).locator("> div.q")
+                  if anchor_prompt else self.page.locator(".picks > div.q"))
         for i in range(blocks.count()):
             block = blocks.nth(i)
             text = " ".join(_safe_text(lambda b=block: b.locator("> p").first.inner_text()).split())
             if needle in text:
                 return block
-        raise AssertionError(f"no selection on this page asking {prompt[:60]!r}")
+        raise AssertionError(
+            f"no selection asking {prompt[:60]!r}"
+            + (f" under the anchor {anchor_prompt[:50]!r}" if anchor_prompt else " on this page"))
 
     def offers(self, prompt: str) -> bool:
         """Whether this page asks a given anchor or selection at all. A person offered an anchor
@@ -2402,24 +2540,29 @@ class ParticipantPage:
                     block.locator("> textarea.box").first.fill(text)
                 if tap:
                     chips = block.locator(".taps > .chip")
-                    word = TAP_WORDS.get(tap, "")
+                    # keel-cloud composes the tap's own words ("It hasn't happened"), keel-web has
+                    # its own constants ("it hasn't happened to me"), and neither is this repo's
+                    # to fix -- so the match is on the phrase that carries the meaning, and the
+                    # wire's own order is the fallback.
+                    needle = TAP_NEEDLE.get(tap, "")
                     target = None
                     for i in range(chips.count()):
-                        if _safe_text(lambda c=chips.nth(i): c.inner_text()).strip().casefold() == word:
+                        text = _safe_text(lambda c=chips.nth(i): c.inner_text()).strip().casefold()
+                        if needle and needle in text:
                             target = chips.nth(i)
                             break
                     if target is None and tap in TAP_ORDER and chips.count() > TAP_ORDER.index(tap):
                         target = chips.nth(TAP_ORDER.index(tap))
                     if target is None:
                         raise AssertionError(
-                            f"no tap on this anchor reads {word!r} (offered: "
+                            f"no tap on this anchor reads {needle!r} (offered: "
                             f"{chips.all_inner_texts()})")
                     target.click()
                     self.page.wait_for_timeout(150)
                 h.add_screenshot(self._bstep.screenshot("participant-story"))
 
     def pick(self, selection_prompt: str, values: list[str], *, other_text: str | None = None,
-             roughly: str | None = None) -> None:
+             roughly: str | None = None, anchor_prompt: str | None = None) -> None:
         """One selection. `values` are the labels as the person reads them; a multi-select takes
         more than one. `other_text` fills the *other, say what* reveal and `roughly` the *say
         roughly* one -- both left `None` by every deterministic scenario, because the corpus
@@ -2427,21 +2570,23 @@ class ParticipantPage:
         corpus data."""
         with self._scope():
             with self._bstep.step(f"the stranger picks {values} for {selection_prompt[:40]!r}") as h:
-                block = self._selection_block(selection_prompt)
+                block = self._selection_block(selection_prompt, anchor_prompt=anchor_prompt)
                 for value in values:
                     row = self._option_row(block, value)
                     row.click()
                     self.page.wait_for_timeout(80)
                     label = _safe_text(lambda r=row: r.inner_text()).strip()
-                    if label.endswith("say roughly") and roughly:
-                        row.locator(".opt__more input").first.fill(roughly)
-                    if label == OTHER_SAY_WHAT and other_text:
-                        row.locator(".opt__more input").first.fill(other_text)
+                    # The reveal is the row's *sibling*, inside the same keyed wrapper.
+                    reveal = row.locator("xpath=..").locator(".opt__more input")
+                    if label.endswith("say roughly") and roughly and reveal.count() > 0:
+                        reveal.first.fill(roughly)
+                    if label == OTHER_SAY_WHAT and other_text and reveal.count() > 0:
+                        reveal.first.fill(other_text)
                 h.add_screenshot(self._bstep.screenshot("participant-picked"))
 
     @staticmethod
     def _option_row(block, value: str):
-        rows = block.locator(".opts > .opt")
+        rows = block.locator(".opts .opt")
         wanted = " ".join(str(value).split()).casefold()
         for i in range(rows.count()):
             row = rows.nth(i)
@@ -2472,14 +2617,18 @@ class ParticipantPage:
             self.tell_story(prompt, answer.text, tap=answer.tap)
             typed_anchors.append(answer.anchor_id)
         for pick in person.picks:
-            selection = next(
-                (s for a in (entry.questionnaire.get("anchors") or [])
-                 for s in a.get("selections") or [] if s["id"] == pick.selection_id), None)
+            owner, selection = None, None
+            for anchor in entry.questionnaire.get("anchors") or []:
+                for candidate in anchor.get("selections") or []:
+                    if candidate["id"] == pick.selection_id:
+                        owner, selection = anchor, candidate
             prompt = (selection or {}).get("prompt") or ""
             if not selection or not self.offers(prompt):
                 skipped.append(pick.selection_id)
                 continue
-            self.pick(prompt, pick.values)
+            # Scoped to the anchor that owns it: two anchors can ask the same question, and the
+            # anchor is what tells them apart (`_selection_block`'s own note).
+            self.pick(prompt, pick.values, anchor_prompt=(owner or {}).get("prompt"))
             typed_picks.append(pick.selection_id)
         with self._scope():
             with self._bstep.step(f"{person.person} has filled their page") as h:
@@ -2489,11 +2638,33 @@ class ParticipantPage:
         return {"anchors": typed_anchors, "picks": typed_picks, "skipped": skipped}
 
     def submit(self) -> None:
+        """Sends the page. **A blank story is nudged once before it is accepted** -- the product's
+        own `BLANK_ANCHOR_NUDGE` ("Can you think of one specific time this happened?"), and a
+        second press sends anyway (`ParticipantRoute.tsx`). Corpus people who left an anchor blank
+        (`01-countly`'s Oliver, `05-paidly`'s Yara) meet it every run, so this presses twice when
+        the first press produced a nudge rather than a thank-you, and never more than twice.
+        """
         with self._scope():
-            with self._bstep.step("the stranger submits") as h:
-                self.page.get_by_role("button", name=re.compile(r"^submit$", re.I)).click()
-                self.page.get_by_text(re.compile("thanks", re.I)).wait_for(
-                    state="visible", timeout=15_000)
+            with self._bstep.step("participant submits their answers") as h:
+                button = self.page.get_by_role("button", name=re.compile(r"^submit$", re.I))
+                thanks = self.page.get_by_text(re.compile("thanks", re.I))
+                button.click()
+                for press in (1, 2):
+                    try:
+                        thanks.wait_for(state="visible", timeout=6_000)
+                        break
+                    except Exception:  # noqa: BLE001 - a nudge is not a failure, it is the design
+                        if press == 2:
+                            raise
+                        notice = _safe_text(
+                            lambda: self.page.locator(".stale").first.inner_text())
+                        if notice:
+                            h.capture_text("refusal", notice)
+                            raise AssertionError(
+                                f"the server refused this response rather than nudging: {notice!r}")
+                        h.capture_text("nudge", _safe_text(
+                            lambda: self.page.locator(".iv .hint").last.inner_text()))
+                        button.click()
                 h.add_screenshot(self._bstep.screenshot("participant-thank-you"))
                 self._capture_page_text(h)
 

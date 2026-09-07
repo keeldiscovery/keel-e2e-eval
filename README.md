@@ -59,8 +59,8 @@ make report RUN=runs/20260903T120000Z-s001-smoke
 Every run also gets a scorecard (`specs/eval-scoring-design.md`): steps get tagged into
 **interactions** (`ui_visit`, `agent_turn`, `participant_visit`, `arrival` — spec
 `005-connect-stack` FR-009), each interaction is checked against `evals/policy.py`'s versioned
-rubric (currently v6), and the checks roll up into four category scores and one run score out of
-5. `report.html`'s header shows the big X/5, a bar per category, the policy version, and a gated
+rubric (currently **v8**, spec 010's measured-beliefs vocabulary), and the checks roll
+up into four category scores and one run score out of 5. `report.html`'s header shows the big X/5, a bar per category, the policy version, and a gated
 badge if the run didn't finish; below that, one card per interaction; a scorecard matrix sits at
 the bottom.
 
@@ -191,32 +191,63 @@ cross-repo bug (not a config problem in this repo), the run's evidence bundle ca
 - Why the scenario was, or was not, adapted around it.
 - The shape of a fix, explicitly **not applied** — this repo diagnoses, the product repo fixes.
 
-## The two scenarios
+## The seven scenarios
 
-`evals/test_s001_smoke.py` walks keel-cloud `canon/journeys.md` §3 (2026-09-03's connect-stack
-amendment) end to end, once, deterministically: arrival and device-code connect, naming the
-project, the problem/solution/commercial frame-and-review cycle (including one scripted
-`NEEDS_INPUT` follow-up), inviting and interviewing three participants (Dana Okafor, Wei Zhang,
-Marcus Webb — `evals/payroll_exceptions.py`), reading their answers, the resulting standing
-(*People disagree* / *Holding up* / *Not holding up*), the evidence drill-down, and the brief
-(screen plus its print view). Every assertion enforcing a journey moment cites it (`§n.m`);
-`tests/test_journey_coverage.py` checks that against keel-cloud `canon/CANON.md`'s own ledger.
+**S-001, the smoke** (`evals/test_s001_smoke.py`) walks keel-cloud `canon/journeys.md` end to end,
+once, deterministically, on the measured-beliefs screens: arrival and device-code connect, naming
+the project, **saying where it will sell** (the market decides units, register and currency, and
+it is chosen before anything is framed), the problem/solution/commercial frame-and-review cycle,
+**one correction turn** at a review card — the founder says what they meant and the agent redoes
+one line, in place, leaving the card unapproved — inviting eleven people, the stranger's own page
+of *one story, then picks*, the reading, the overview's lines-have-answers bar and its four
+counts, an opened card of strips and dots, one dot's popover, that person's whole page, and
+Download. Every assertion enforcing a journey moment cites it (`§n.m`);
+`tests/test_journey_coverage.py` checks that against `canon/CANON.md`'s own ledger.
 
-`evals/test_s002_agent_optional.py` (spec `006-agent-optional`) is "the agent-optional day": a
-founder connects a runtime, builds up a project (through S-001's own history in the same stack
-session, or its own prelude, `evals/preludes.approved_project_with_one_read`, from cold), logs
-out, stops the runtime, and logs back in. It proves that *creating* a project or *reading* an
-answer are the only two things a live agent gates — everything else (opening an approved card,
-inviting someone, generating a real link, downloading and printing the brief) keeps working with
-no agent at all, with three direct wire assertions beside the screen (`POST /v2/projects` → 422
-`rule: "agent"`; `POST .../invitations` → 201; `GET .../standing` → 200). It also proves the
-reconnect: approving a fresh device code (or, when the runtime's own stored credential is still
-valid and reconnects silently, logging back in again — `runs/DRIFT.md` #19) brings the agent line
-back, and using the read action once reconnected moves the card. As written and run against the
-live stack, US1 acceptance scenario 3 (the read action disabled with a reason when no agent) fails
-— the product offers the action anyway, refuses it only on the wire, and shows nothing on the
-screen (`runs/DRIFT.md` #17); this is `specs/006-agent-optional/spec.md`'s own stated prediction,
-confirmed, not an assumption the scenario was written to avoid finding.
+**S-002, the agent-optional day** (`evals/test_s002_agent_optional.py`, spec `006-agent-optional`):
+a founder connects a runtime, builds a project, logs out, stops the runtime, and logs back in. It
+proves that *creating* a project and *reading* an answer are the only two things a live agent
+gates — everything else (opening an approved card, inviting someone, generating a real link,
+downloading) keeps working with no agent at all, with three wire assertions beside the screen
+(`POST /v2/projects` → 422 `rule: "agent"`; `POST .../invitations` → 201; `GET .../standing` →
+200). Its own prediction that the read action would be offered anyway, refused only on the wire
+and explained nowhere on the screen, was confirmed on the first run (`runs/DRIFT.md` #17).
+
+**S-003, every door** (`evals/test_s003_every_door.py`, spec `007-every-door`): every link on
+every screen, opened once and judged by keel-cloud's own D1–D4 — plus, spec 010's own addition,
+**D5, every opener**: a control that *reveals* rather than navigates (a strip row, a dot, the
+popover's *see all*, the modal's four ways to close) is exercised once, must reveal what it names,
+and must close back to the screen it came from. `doors.json` lists every route, link and opener.
+
+**S-004, the stranger who gives orders** (`evals/test_s004_stranger_who_gives_orders.py`, spec
+`008-stranger-who-gives-orders`) — live, opt-in, below.
+
+**S-005, S-006 and S-007** (`test_s005_countly.py`, `test_s006_paidly.py`,
+`test_s007_mulchrun.py`) drive keel-cloud's **frozen golden corpus** through the real screens.
+This is the corpus's second job: spec 009's instruction eval asks *did the prose reach these
+beliefs*, and these three ask *does the product, driven through real screens, reach these
+standings* — one golden truth, checked from two directions. Each builds its own project on its
+entry's own market, types that entry's statements and every person's answers, and asserts the
+entry's whole `expected` section — the pick lists it offers, every belief's verdict, drift, counts
+and median, and each stage's verdict — **on the rendered overview, on the opened cards, on the
+download page, and again on the wire beside them**. The entry id is the only thing that differs
+between the three modules (`evals/corpus_scenario.py` is the body; `tests/test_scenario_set.py`
+asserts that rather than hoping it):
+
+- `01-countly` is the approved mockup's own entry, and its scenario asserts the mockup literally —
+  *18 of 18 lines have answers · 9 holding up · 3 not holding up · 6 people disagree · 0 not
+  tested* — plus the corpus's only shared multi-select selection, which is the only thing that
+  proves a shared pick list does not make two lines share a verdict.
+- `05-paidly` is the widest questionnaire: two roles asked their own anchor sets and not each
+  other's, twenty people, and `S6` sitting **exactly on `FLOOR = 5`**.
+- `07-mulchrun` is the only US market: dollars and cents, miles, feet and cubic yards never
+  converted, and a duration scale cut at the band's own rounded edges (*about 45 minutes* → 35…55).
+
+Nothing generated is committed. Each run writes the script it generated from the corpus
+(`runs/<id>/script.json`) and everything the founder and each person typed (`inputs.json`) into
+its own bundle, so a reader sees the corpus, the screen and the wire side by side without
+rerunning anything — and a run can never be green against a script that drifted from the corpus,
+which `Corpus.verify_unchanged()` re-checks at the end of every one.
 
 The old S-002…S-011 (an eleven-scenario set against a since-retired agent-protocol/relay stack,
 unrelated to the current S-002 above) are gone — recorded in git history and in `runs/DRIFT.md`'s
@@ -238,13 +269,17 @@ Docker/gradle/vite involved.
 
 S-004, *the stranger who gives orders* (`specs/008-stranger-who-gives-orders`), is the one
 scenario that runs a **real `claude`** -- it attacks the framing box and a participant's answers
-with instructions and checks that the founder's agent only ever answers. It costs real money
+with instructions and checks that the founder's agent only ever answers. Spec 010 grew it from
+two boxes to **nine** — the project name, the region, the three claim moments of the walk's own
+composer, the correction chat, the participant's story box, *say roughly* and *other, say what* —
+and from four attacks to eight. Every assertion is a shape or an absence, never a wording. It
+costs real money
 (roughly ten jobs at a few cents each; the run prints the sum from the runtime's own envelopes)
 and needs a logged-in Claude Code CLI on `PATH`, so it is **opt-in**:
 
 ```
 make up PROFILE=playground
-make eval K=s001 PROFILE=playground      # the approved project it attacks
+make eval K=s005 PROFILE=playground       # the corpus project it attacks
 make eval-live K=s004 PROFILE=playground
 make down PROFILE=playground
 ```

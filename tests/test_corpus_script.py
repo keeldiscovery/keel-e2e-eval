@@ -113,11 +113,14 @@ def test_the_questionnaire_carries_enum_taps_and_no_stage_key(canned):
     assert all("stage" not in s for s in anchors[0]["selections"])
 
 
-def test_interpret_is_one_entry_per_person_in_order_and_omits_a_blank_anchor(canned):
+def test_interpret_is_one_entry_per_reading_in_order_and_omits_a_blank_anchor(canned):
+    """Rule 2, corrected by contact with the real aggregate: one entry per **reading**, in the
+    entry's order -- not one per person. keel-cloud queues no reading job for somebody who wrote
+    nothing at all (`05-paidly`'s Yara Haddad), and an entry for them would sit in the executor's
+    cursor and hand every later person the wrong judgement."""
     interpret = cs.generate(canned).screens["INTERPRET"]
-    assert len(interpret) == len(canned.answers)          # rule 2
+    assert len(interpret) == 1                            # Ada wrote; Grace did not
     assert interpret[0]["result"]["anchorings"] == [{"anchorId": "A1", "anchoring": "ANCHORED"}]
-    assert interpret[1]["result"]["anchorings"] == []     # rule 3: Grace wrote nothing
     # rule 4: only the running stack knows the real invitation id, so the generator never writes it
     assert all("invitationId" not in e["result"] for e in interpret)
 
@@ -296,3 +299,49 @@ def test_the_script_serialises_with_its_provenance(entry_id):
     assert body["_entry_sha256"] == entry.sha256
     assert body["_source"].endswith(entry.path.name)
     assert body["_generated_by"] == "harness/corpus_script.py"
+
+
+# --------------------------------------------------- a role is new once, on the stage it appears
+
+def test_a_role_is_introduced_once_across_the_whole_entry(tmp_path):
+    """Live-confirmed the hard way (`runs/20260907T142617Z-s001-smoke`): a role introduced on
+    PROBLEM already exists on the project by the time the SOLUTION screen answers, and keel-cloud
+    refuses a second `role.new` with the same label **by name** --
+
+        result.assumptions[0].role.new.label: a role labeled 'A payroll manager' already exists
+
+    keel-runtime's own bundled-script generator never met this because it writes one stage and
+    stops. This one writes three, so `role.new` is scoped to the entry, not the stage."""
+    raw = copy.deepcopy(CANNED)
+    raw["beliefs"].append({
+        "id": "B3", "stage": "SOLUTION", "heading": "Still them", "statement": "They did it again.",
+        "risk": "SUPPORTING", "askedOf": "r1", "mark": "DIRECT",
+        "expectation": {"type": "CHOICE", "options": ["yes", "no"], "expected": "yes"},
+        "selection": "S3"})
+    raw["questionnaire"]["anchors"].append({
+        "id": "A2", "stage": "SOLUTION", "prompt": "And then?",
+        "selections": [{"id": "S3", "prompt": "Again?", "control": "OPTIONS",
+                         "multiSelect": False, "options": ["yes", "no"], "escape": ["can't recall"]}]})
+    entry = _entry(raw, tmp_path)
+    screens = cs.generate(entry).screens
+    assert screens["PROBLEM_ASSUMPTIONS"][0]["result"]["assumptions"][0]["role"] == {
+        "new": {"label": "Someone", "roleType": "PRACTITIONER", "about": "does a thing"}}
+    assert screens["SOLUTION_ASSUMPTIONS"][0]["result"]["assumptions"][0]["role"] == {
+        "reuse": "Someone"}
+
+
+@pytest.mark.parametrize("entry_id", CHOSEN)
+def test_no_role_is_introduced_twice_in_any_chosen_entry(entry_id):
+    entry = next(e for e in _corpus_entries() if e.id == entry_id)
+    screens = cs.generate(entry).screens
+    introduced: list[str] = []
+    for stage in cs.STAGES:
+        key = cs.ASSUMPTIONS_SCREEN[stage]
+        for assumption in screens.get(key, [{}])[0].get("result", {}).get("assumptions", []):
+            new = assumption["role"].get("new")
+            if new:
+                introduced.append(new["label"])
+    assert len(introduced) == len(set(introduced)), (
+        f"{entry_id} introduces a role twice: {introduced}")
+    assert len(introduced) == len(entry.roles), (
+        f"{entry_id} has {len(entry.roles)} roles and introduces {introduced}")

@@ -161,8 +161,8 @@ beliefs:
 
 questionnaire:
   introduction: >-
-    Someone building a payroll tool would like to ask you about something that happened recently.
-    There are no right answers, and you can skip anything.
+    Someone building a payroll tool has asked if you'd answer a few questions about something that
+    happened recently. There are no right answers, and you can skip anything.
   anchors:
     - id: A1
       stage: PROBLEM
@@ -242,7 +242,7 @@ answers:
   - person: Priya Raman
     anchors:
       A1: {text: "March run. A starter's pension was wrong and it took most of an afternoon between me and finance.", anchoring: ANCHORED}
-      A2: {text: "One of my team picked it up on her own, but only because she saw it first.", anchoring: ANCHORED}
+      A2: {text: "Someone on my team picked it up unprompted, but only because they saw it first.", anchoring: ANCHORED}
     picks: {Q1: 2 h to 4 h, Q2: someone on my team, Q3: email, Q4: "no", Q5: "no"}
   - person: Tomas Nilsen
     anchors:
@@ -252,7 +252,7 @@ answers:
   - person: Rachel Adeyemi
     anchors:
       A1: {text: "Overtime hours came through wrong last month; forty minutes, maybe, with the manager on the phone.", anchoring: ANCHORED}
-      A2: {text: "My deputy took it on herself last time, unprompted, and she still has it.", anchoring: ANCHORED}
+      A2: {text: "My deputy picked it up unprompted last time, and still owns it.", anchoring: ANCHORED}
     picks: {Q1: 30 min to 1 h, Q2: I did, Q3: email, Q4: "yes", Q5: "no"}
   - person: Ines Duarte
     anchors:
