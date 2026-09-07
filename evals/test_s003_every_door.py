@@ -318,11 +318,20 @@ def _walk_openers(page, recorder, web_base, project_id, openers, verdicts) -> No
 
         said = SaidBox(page, recorder)
         if said.is_open():
+            # The popover's own promise lives in the said box that is actually open, not in
+            # `person` (the dot the walk *meant* to click) -- DRIFT #31's coincident dots can put
+            # a different person's box on screen (harness fallback for that stays as it is), and
+            # `seeAllAnswersLabel` renders "See all of {that box's name}'s answers" from whatever
+            # `.said .n` is showing. Reading the promise from `person` instead of from the region
+            # the button is actually in is this repo's own region-choice bug: it does not weaken
+            # what D5 checks (the see-all button still has to open a modal that matches whatever
+            # it names), it just names the button correctly.
+            shown_name = said.read()["name"] or person
             see_all = page.locator(".said .a button").first
-            verdict = doorway.open_opener(page, see_all, region="body", names=person.split()[0])
+            verdict = doorway.open_opener(page, see_all, region="body", names=shown_name.split()[0])
             openers.append(doorway.Opener(source=f"/p/{project_id}/s/PROBLEM",
                                            label="popover: see all answers",
-                                           names=person.split()[0]))
+                                           names=shown_name.split()[0]))
             verdicts.append(verdict)
             _record_opener(recorder, page, openers[-1], verdict)
             modal = AnswersModal(page, recorder)

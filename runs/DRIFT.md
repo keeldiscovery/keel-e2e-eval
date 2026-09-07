@@ -1724,3 +1724,15 @@ handle today, and all four live in one file. **No request is being made of keel-
 this repo's to change, and asking for a testid would make the referee's convenience a product
 requirement (research R7's own decision). This is written down so that if keel-web ever adopts a
 testid convention, these four are where it would buy the most.
+
+**RESOLVED, this repo's own grip, not keel-web's**: `runs/20260907T154237Z-s003-every-door`'s D5
+walk found three openers that did not reveal what they name; #31 above is the one that is
+keel-web's (left alone). The other two were this referee misreading its own region — the strip row
+because `_deep_text` walked past CSS `display:none` and counted a line's always-mounted, still-
+hidden chart and quote as already "before" any toggle, and the popover because `_walk_openers`
+named the *see all* button's promise from the dot it meant to click rather than from the said box
+actually open (which #31's coincident dots can substitute). Fixed in `harness/doors.py`'s
+`_DEEP_TEXT_JS` (skips a CSS-hidden subtree, same as `innerText` would, while still walking the SVG
+`innerText` drops) and in `evals/test_s003_every_door.py`'s `_walk_openers` (reads the popover's
+promise off `.said .n`); `tests/test_doors_d5_reveal_regions.py` covers both against real markup,
+including a companion case each that shows D5 still fails a genuine dead or mismatched reveal.

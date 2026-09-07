@@ -403,8 +403,16 @@ screens put most of what a founder presses inside the page: a strip row, a dot, 
 with four ways out. D5 found three openers that did not reveal what they name on its first walk
 (`runs/20260907T154237Z-s003-every-door`), one of which is a real drawing problem in keel-web
 (`runs/DRIFT.md` #31: two people who answered the same thing are two dots at the same point, and
-the upper takes every click meant for the lower). The other two are this repo's own region choice
-and are owed a fix here, not there — recorded rather than quietly widened.
+the upper takes every click meant for the lower). The other two were this repo's own region
+choice, fixed here, not there: the strip row because `_deep_text` walked past CSS `display:none`
+and read a line's always-mounted, still-hidden chart and quote as already present before any
+toggle (`StageRoute.tsx` renders every line unconditionally; only `.strip.open` shows it), and the
+popover because `_walk_openers` named the *see all* button's promise from the dot it meant to
+click rather than from the said box actually open, which #31's coincident dots can substitute for
+a different person's. `harness/doors.py`'s `_DEEP_TEXT_JS` now skips a CSS-hidden subtree and
+`evals/test_s003_every_door.py` now reads the popover's promise off `.said .n`;
+`tests/test_doors_d5_reveal_regions.py` covers both against real markup, each with a companion
+case proving D5 still fails a genuine dead or mismatched reveal (`runs/DRIFT.md` #32).
 
 **What the nine boxes cost to attack: not yet known.** S-004 is written, collects, and is deselected
 from `make eval` and `make eval-all`; it has **not been run**. It attacks a project S-005 builds,

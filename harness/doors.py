@@ -280,15 +280,31 @@ def judge_opener(*, before: str, opened: str, closed: str | None, names: str = "
 # strip row that opens reveals a chart -- so an opener that genuinely revealed something would
 # read as `opens_nothing` against `innerText` alone. Same walker `harness/browser.py` uses for its
 # screen captures, inlined here so `harness/doors.py` stays importable with no browser at all.
+#
+# A strip's own reveal is drawn by CSS, not by mounting: `StageRoute.tsx` renders every line's
+# `.strip__svg`/`.strip__read`/`.strip__you`/`.said` unconditionally and `app.css`'s
+# `.lines .strip .strip__svg{display:none}` / `.lines .strip.open .strip__svg{display:block}`
+# (and siblings) is what shows or hides them -- so a walk that only checks the `hidden` attribute
+# (as `innerText` itself effectively does, by way of the render tree) finds the same text before
+# and after the toggle and reads a real reveal as `opens_nothing`. `isRendered` below skips a
+# subtree CSS has hidden (`display:none` or `visibility:hidden`), same as `innerText` would, while
+# still walking into the SVG `innerText` drops -- the region D5 needs is "what a founder can
+# actually see", not "everything the DOM happens to hold".
 _DEEP_TEXT_JS = r"""(el) => {
   if (!el) return "";
   const parts = [];
+  const isRendered = (node) => {
+    if (node.hidden) return false;
+    const style = window.getComputedStyle(node);
+    if (!style) return true;
+    return style.display !== "none" && style.visibility !== "hidden";
+  };
   const walk = (node) => {
     for (const child of node.childNodes) {
       if (child.nodeType === 3) {
         const text = child.textContent.replace(/\s+/g, ' ').trim();
         if (text) parts.push(text);
-      } else if (child.nodeType === 1 && !child.hidden) {
+      } else if (child.nodeType === 1 && isRendered(child)) {
         walk(child);
       }
     }
