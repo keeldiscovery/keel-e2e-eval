@@ -1552,3 +1552,48 @@ legitimately opened): move the annotation to a sibling key — a `note:` beside 
 the value holds what the founder wrote and the explanation still reaches the reader. The
 seven-entry corpus would need twenty-two edits and its checker would not notice, which is exactly
 why it should happen deliberately rather than as a side effect of a run.
+
+## 29. Non-blocking: `Market`'s unit families are spelled inconsistently, and `M1` is a literal match
+
+**Severity: non-blocking** — one refused belief set in one eval run, worked around in prose. But it
+is a trap any author will fall into, because the rule reads as being about markets and is in fact
+about spelling.
+
+**Where**: `keel-cloud` `src/main/java/com/keeldiscovery/cloud/domain/project/Market.java`:
+
+```java
+    private static final Set<String> IMPERIAL = Set.of(
+            "miles", "feet", "yards", "cubic yards", "inches", "pounds", "gallons");
+
+    private static final Set<String> METRIC = Set.of(
+            "km", "m", "cm", "kg", "g", "litres", "cubic metres");
+```
+
+The imperial family is spelled in **full words**; the metric family in **abbreviations**. `M1`'s
+check is `unitFamily().contains(measure.unit())` — an exact set membership test, not a reading. So
+`miles` is accepted and `kilometres` is refused, in favour of `km`.
+
+**Reproduction**: `runs/20260906T220749Z-instructions/`, iteration 4, case
+`04-linerly/PROBLEM/run1`. The instruction said to use "the word these people say, in this market's
+family"; a London cyclist says *kilometres*; the aggregate refused the whole set:
+
+```
+M1: belief 'The rider covered at least fifty kilometres commuting by bike last week.' is measured
+in kilometres, which is not a unit people use in GB — Fix: measure it in one of
+[kg, cm, m, km, litres, cubic metres, g], or ask it of a role in a market that uses kilometres
+```
+
+The remedy line is worth reading twice: *"measure it in one of [… km …], or ask it of a role in a
+market that uses kilometres"*. There is no such market. The refusal is telling the author their
+market is wrong when their spelling is.
+
+**Why the eval was not adapted around it.** A refusal is a refusal — it is a result the founder
+would never have been shown, and softening it here would hide exactly what this eval exists to
+find. The instructions were changed instead: all four unit vocabularies are now stated verbatim,
+with the note that `M1` matches rather than reads (keel-cloud `4f39a4a`).
+
+**The shape of a fix, explicitly not applied**: either spell both families as words (`kilometres`,
+`metres`, `kilograms`) and normalise on the way in, or accept both spellings per unit. The second
+is the smaller change and the first is the better one, because the unit is also what a participant
+reads on their own form — and `km` is a label, not a word anybody says aloud. Either way `M1`'s
+remedy text should name the spelling as the fix when the family is right.
