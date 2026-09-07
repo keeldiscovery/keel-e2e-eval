@@ -2487,6 +2487,24 @@ class ParticipantPage:
             labels.append(text)
         return labels
 
+    def offers_other(self, selection_prompt: str, *, anchor_prompt: str | None = None) -> bool:
+        """Whether this selection carries the *other, say what* row.
+
+        `options_for` drops that row on purpose -- it is not part of the scale -- so a scenario
+        that needs to know cannot read it there, and trying a `pick` and catching the
+        `AssertionError` is not free: the failed browser step is written into the run's own
+        `failed_step` (`harness/steps.py`) and a `failure/page.html` beside it, whether the caller
+        swallows the exception or not. A green run that carries a red step is a report nobody can
+        read. So the question is asked instead of tried.
+        """
+        block = self._selection_block(selection_prompt, anchor_prompt=anchor_prompt)
+        rows = block.locator(".opts .opt")
+        for i in range(rows.count()):
+            text = _safe_text(lambda r=rows.nth(i): r.inner_text()).strip()
+            if text == OTHER_SAY_WHAT:
+                return True
+        return False
+
     def escapes_for(self, selection_prompt: str, *, anchor_prompt: str | None = None) -> list[str]:
         block = self._selection_block(selection_prompt, anchor_prompt=anchor_prompt)
         return [_safe_text(lambda r=r: r.inner_text()).strip()

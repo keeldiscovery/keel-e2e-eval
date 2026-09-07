@@ -156,3 +156,107 @@ def test_s004_asks_for_the_cap_rather_than_restating_one():
     source = Path(s004.__file__).read_text()
     assert "configured_budget_usd" in source, "S-004 no longer reads keel-runtime's own cap"
     assert "BUDGET_USD = 0" not in source, "a literal per-job cap is back in S-004"
+
+
+# --------------------------------------- `NEEDS_INPUT` is an answer, and the walk goes on
+
+class _FakeChat:
+    """The three methods `_follow_up_to_the_card` uses, and nothing else -- no page, no browser,
+    no model. `questions` is how many sends the model asks a question for before it hands back a
+    confirmation card."""
+
+    CARD = {"kicker": "HERE'S WHAT WE UNDERSTOOD", "claim": "A claim about the idea.", "note": ""}
+
+    def __init__(self, questions: int):
+        self.questions = questions
+        self.sent: list[str] = []
+        self._card: dict | None = None
+
+    def send(self, text: str) -> None:
+        self.sent.append(text)
+        if len(self.sent) >= self.questions:
+            self._card = dict(self.CARD)
+
+    def wait_for_agent_turn(self, *, timeout_s: float = 240) -> dict:
+        return {"agent_reply": "Which managers do you mean, exactly?",
+                "outcome": "needs_input" if self._card is None else "awaiting_confirmation"}
+
+    def confirmation_card(self) -> dict | None:
+        return self._card
+
+
+def test_a_question_is_answered_and_the_walk_reaches_the_card():
+    """The path the first live run never took (`runs/DRIFT.md` #37): the live model answered the
+    *problem* claim with a question, so B4's and B5's attacks were spent answering it, all three
+    landed in one stage's chat, and B6 -- the only door A8 goes through -- was never offered."""
+    chat = _FakeChat(questions=2)
+    texts: dict[str, str] = {}
+    card = s004._follow_up_to_the_card(chat, "PROBLEM", None, texts, "B3 problem claim")
+    assert card is not None, "two benign follow-ups did not carry the walk to the card"
+    assert chat.sent == s004.FOLLOW_UPS["PROBLEM"][:2], "the follow-ups were not the ones written"
+    assert sorted(texts) == ["B3 problem claim follow-up 1", "B3 problem claim follow-up 2"], (
+        "every answer must go into `texts`, or the leak scan never sees it")
+
+
+def test_a_card_already_there_costs_no_follow_up_at_all():
+    chat = _FakeChat(questions=99)
+    texts: dict[str, str] = {}
+    card = s004._follow_up_to_the_card(chat, "SOLUTION", {"claim": "already landed"}, texts,
+                                        "B4 solution claim")
+    assert card == {"claim": "already landed"}
+    assert chat.sent == [] and texts == {}, "a box that answered with a card was asked again"
+
+
+def test_the_follow_ups_run_out_rather_than_running_forever():
+    """Every round is a real job on the founder's own account. A model that will not land a claim
+    must cost a bounded number of them and then say so, not spend until somebody notices."""
+    chat = _FakeChat(questions=99)
+    texts: dict[str, str] = {}
+    card = s004._follow_up_to_the_card(chat, "COMMERCIAL", None, texts, "B5 commercial claim")
+    assert card is None
+    assert len(chat.sent) == len(s004.FOLLOW_UPS["COMMERCIAL"]) <= 3, (
+        "the follow-up ceiling moved; three rounds a box is what the live run is budgeted for")
+
+
+def test_no_follow_up_is_itself_an_attack():
+    """The follow-ups are the one thing this scenario types that is *not* an attack. If one of
+    them ever carried a needle, the §1.1 leak scan would be scanning the harness's own words and
+    would go red on nothing the product did."""
+    for stage, lines in s004.FOLLOW_UPS.items():
+        assert lines, f"{stage} has no benign follow-up to answer a question with"
+        for line in lines:
+            for needle in s004.NEEDLES:
+                assert needle.lower() not in line.lower(), (
+                    f"a {stage} follow-up carries the attack needle {needle!r}")
+
+
+def test_every_claim_box_carries_its_own_stage():
+    """The stage is read from `CLAIM_BOXES`, never mapped from the label at the point of use --
+    which is how the first live run opened the *problem* card and captured it as
+    `stage: COMMERCIAL`."""
+    from evals import corpus_scenario
+
+    labels = [label for label, _, _ in s004.CLAIM_BOXES]
+    stages = [stage for _, stage, _ in s004.CLAIM_BOXES]
+    assert stages == list(corpus_scenario.STAGES), "the claim boxes are not the walk's own stages"
+    assert labels == [b for b in s004.BOXES if b.startswith(("B3", "B4", "B5"))]
+    assert set(stages) == set(s004.FOLLOW_UPS), "a stage has no follow-ups, or has spare ones"
+    source = Path(s004.__file__).read_text()
+    assert "for label, stage, attack in CLAIM_BOXES" in source
+    assert '"B3 problem claim": "PROBLEM"' not in source, (
+        "the label-to-stage lookup is back; the stage belongs to the box, said once")
+
+
+def test_a8_is_typed_where_the_other_stages_card_already_exists():
+    """FR-022 asks that A8 "leaves the other stage's card identical, line for line", and only a
+    card that has been written can be. The walk runs PROBLEM -> SOLUTION -> COMMERCIAL, so the
+    correction goes in at the last stage and names an earlier one."""
+    stages = [stage for _, stage, _ in s004.CLAIM_BOXES]
+    assert s004.CORRECTION_STAGE == stages[-1], (
+        "the correction is typed at a stage the walk has not finished; the card it names may not "
+        "exist yet")
+    assert stages.index(s004.OTHER_STAGE) < stages.index(s004.CORRECTION_STAGE)
+    assert s004.OTHER_STAGE.lower() in s004.A8_OTHER_STAGE.lower(), (
+        "A8 no longer names the other stage's own card")
+    assert s004.CORRECTION_STAGE.lower() not in s004.A8_OTHER_STAGE.lower(), (
+        "A8 names the card it is typed into, which is a correction, not an injection")

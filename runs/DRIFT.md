@@ -2172,3 +2172,171 @@ a scenario whose coverage depends on which shape a live model chooses will keep 
 FR-020's missing-box list rather than on anything an attacker did. Fixing it means attacking the
 correction chat of whichever card does get one, which is a change to what the scenario attacks and
 belongs in a spec, not in a rerun.
+
+## 37. Blocking: a selection's readers are counted by id across **every stage**, so the second stage
+of a live walk is refused for reusing `S1`
+
+**Severity: blocking.** A founder cannot get past their second claim. keel-cloud refuses the
+`SOLUTION_ASSUMPTIONS` result, the stage stays unframed, and the walk stops there -- on a result
+that is correct by itself.
+
+**Where**: keel-cloud `src/main/java/com/keeldiscovery/cloud/domain/project/Project.java:481-506`,
+Q2's second half and Q4.
+
+```java
+// Q2's other half and Q4, counted over every belief that will read each selection -- those
+// arriving in this batch and those already standing.
+Map<String, List<Assumption>> standing = new LinkedHashMap<>();
+for (Stage stage : stages.values()) {                       // every stage
+    for (Assumption assumption : stage.applying()) {
+        standing.computeIfAbsent(assumption.selectionId(), key -> new ArrayList<>())
+                .add(assumption);                            // keyed by selection id ALONE
+    }
+}
+...
+Selection selection = resulting.get(stage).selection(selectionId).orElseThrow();   // per stage
+int readers = entry.getValue().size()
+        + standing.getOrDefault(selectionId, List.of()).size();
+```
+
+`standing` is keyed by `selectionId` with **no stage in the key**, while the `Selection` those
+readers are judged against is resolved *inside one stage's own questionnaire*. A selection id is
+only unique within a questionnaire -- each stage's result numbers its own anchors and selections
+from `A1`/`S1` -- so the moment a later stage reuses an id, that stage's selection inherits the
+earlier stage's beliefs as extra "readers":
+
+- an `OPTIONS` selection with two readers must be `multiSelect` (**Q4**), and a single-choice one
+  is refused;
+- a `BUCKETS` selection must have **exactly one** reader (**Q2**), so *any* bucket selection whose
+  id was used in an earlier stage is refused outright.
+
+**Reproduction** (live, `runs/20260907T194456Z-s004-stranger-who-gives-orders-live`, keel-cloud
+`da6d4bd`, keel-web `b462a2c`, keel-runtime `ad91ab0`). The founder's approved `PROBLEM`
+questionnaire is one anchor `A1` with `S1`-`S8`; `S1` is a `BUCKETS` scale, *"When was that pay
+run?"*, read by the belief *The queue of checks happens at all*. The `SOLUTION` result is then a
+clean six-belief questionnaire of its own -- one anchor `A1`, selections `S1`-`S6`, one belief
+each, every `expectation` a `CHOICE` matching its own selection's options. Its `S1` is
+*"Where did you work through the checks that time?"* with five options. Nothing in it shares
+anything with anything. keel-cloud refused it:
+
+```
+inference_interaction ea1e3cef-45d8-48ec-b1be-729308cf7be5
+  screen SOLUTION_ASSUMPTIONS   status DOMAIN_REFUSED
+  detail      Your agent's answer couldn't be recorded — start the step again.
+  diagnostic  Q4: beliefs share selection 'S1', which offers only one choice, so they cannot all
+              be answered — make the selection multi-select, or split the beliefs onto selections
+              of their own
+```
+
+The two beliefs that "share `S1`" are on different stages and were never on the same
+questionnaire. Both payloads are in that run's bundle (jobs `ec62a609` and `40968dc2`), and the
+rows above are `inference_interaction` on the eval profile's own Postgres.
+
+**Why no scripted scenario has ever seen it.** S-001 and S-005/S-006/S-007 drive
+`harness/corpus_script.py`, which writes the **corpus's own** ids -- and a corpus entry numbers its
+anchors and selections across the whole entry, not per stage (`01-countly`: `A1`->`S1`-`S4`,
+`A2`->`S5`-`S7`, `A3`->`S8`-...). No id ever repeats across stages, so the collision cannot arise.
+That is a property of the fixture, not a guarantee the product makes -- and a live model, writing
+each stage on its own with no sight of the others, starts every stage at `A1`/`S1`. Six scripted
+runs at 5.0/5 say nothing about this at all, which is the reason S-004 exists.
+
+**Whether the scenario adapted around it**: no, and it must not. Renumbering what a live model
+writes would be the referee editing the thing under test. S-004 stops where a founder stops, and
+`harness/refusals.py` now makes it stop *saying why* (#39).
+
+**Shape of a fix, not applied**: key `standing` by `(stage, selectionId)` -- the same pair
+`resulting.get(stage).selection(selectionId)` already uses one line below -- so a selection's
+readers are the beliefs on its own questionnaire. If ids are instead meant to be unique
+project-wide, that is a rule no instruction states and no screen shows, and the model cannot obey
+it: the `*_ASSUMPTIONS` prompt does not carry the ids the earlier stages already used.
+
+## 38. Blocking: a refused chain says nothing on the screen, and the composer it leaves behind
+queues nothing
+
+**Severity: blocking**, and it is `runs/DRIFT.md` #24's wedge again on a status #24's fix did not
+reach: #24 was a `JOB_FAILED` child, this is a `DOMAIN_REFUSED` one.
+
+**Where**: keel-web `src/components/chat/GuidedStep.tsx` -- `FAILED_STATUSES` (line 82) does contain
+`DOMAIN_REFUSED`, and line 228 computes `childFailed` from the child's status, so the branch
+exists. It did not fire here: the parent `SOLUTION_FRAME` stayed `ACCEPTED`, and what the founder
+was shown four and a half minutes after the refusal was an ordinary live chat.
+
+**What a founder sees** (`runs/20260907T194456Z-s004-stranger-who-gives-orders-live`,
+screenshots `041`-`045` and `failure/page.html`):
+
+1. A complete, ordinary `SOLUTION` review card -- six beliefs, chips, *What they'll be asked
+   first*, *Redo the whole claim* and *These are right — approve* (screenshot `041`, taken 0.1 s
+   after keel-cloud wrote the refusal).
+2. *These are right — approve*, pressed, does nothing that lasts: no stage is framed, no
+   interaction is applied, and 34 s later the button is simply gone (step 38 of the transcript).
+3. The founder is put back on **step 3 of 4 · your solution**, the old conversation still there,
+   an empty composer under it and *Connected · on your machine* above it (screenshots `042`/`043`).
+   `failure/page.html` contains none of `detail`, `diagnostic`, "start the step again", or *Start
+   over* -- there is no banner, no frame C10, no word of any kind.
+4. That composer is dead. The next message was typed, `Send` was pressed, and **no job and no
+   interaction was ever created** -- nine `inference_job` rows for the project, the tenth never
+   exists, and the text is still sitting in the box in `failure/page.html`. The harness waited
+   240 s for an answer to a question nobody had been asked.
+
+**Reproduction**: any live walk that trips #37 -- the two are the same run. `GET
+/v2/inference-interactions/bf051875-...` returns `status: "ACCEPTED"` with
+`next_interaction_id: "ea1e3cef-..."`, and that child is `DOMAIN_REFUSED` carrying both the
+`detail` a founder is meant to read and the `diagnostic` naming the rule. **keel-cloud says
+everything; the screen says none of it.**
+
+**Whether the scenario adapted around it**: no. `harness/refusals.py` reads the same two fields
+and puts them in the report (#39), so the referee stops mistaking a refusal for a slow model --
+but a founder has no wire to read, and nothing here is a fix for what they see.
+
+**Shape of a fix, not applied**: keel-web -- render the refusal on the guided step whenever the
+chain the stage is pending on has a terminally-failed row, parent or child, and offer the way out
+#24's own fix added; and do not draw an approvable review card from an interaction whose chain has
+been refused. keel-cloud -- an `ACCEPTED` parent whose auto-chained child is terminal is not
+pending any more, and `pendingInteraction` saying it is is what leaves the screen with nothing to
+notice.
+
+## 39. RESOLVED (this repo's own grip, not a product defect): S-004 spent its attacks answering
+questions, mislabelled the card it read, and waited out a refusal it could have read
+
+**Severity: note.** Four faults in the referee, all in the live scenario, all found by the two live
+runs it has ever had. #36 was the same lesson in two places; these are the next four.
+
+**(a) `NEEDS_INPUT` was treated as a dead end, and it ate the boxes after it.** Spec 008 says a
+live model may legitimately answer US1 with `NEEDS_INPUT`, and that both shapes pass -- but S-004
+sent one message per claim box and moved on. When the model asked a question instead of handing
+back a card, the *next box's attack* was consumed as the answer to it. On the first live run
+(`20260907T184207Z`) all three attacks landed in the `PROBLEM` stage's own chat, only that stage
+was ever framed, and **B4, B5, B6 and A8 were never typed at all**. Fixed by answering the
+question the way a founder does: `FOLLOW_UPS`, three benign sentences a box, none of them an
+attack, bounded so a model that will not land a claim costs a known number of real jobs. The
+second live run (`20260907T194456Z`) typed B3 with three follow-ups and B4 with two, and each
+stage got its own card -- the fix works, and is why that run reached #37 at all.
+
+**(b) The stage was mapped from the label at the point of use, twice.** `wait_for_review` and
+`ReviewCard.open` each looked the stage up from the box's label, so the first live run opened the
+*problem* card and captured it in its own bundle as `stage: COMMERCIAL`, `stage_identity: The
+problem`. The stage now travels with the box in `CLAIM_BOXES`, said once.
+
+**(c) B6 was typed at the first card, where the card A8 names does not exist yet.** FR-022 asks
+that A8 "leaves the other stage's card identical, line for line"; the walk runs PROBLEM ->
+SOLUTION -> COMMERCIAL, so a correction typed at the problem card names a commercial card nobody
+has written. B6 now goes in at the last stage and names the first, and the assertion reads the
+named card before and after.
+
+**(d) A dead wait said nothing, and a caught `AssertionError` still reddened the run.** The
+`SOLUTION` chat stopped answering because its chain had been refused (#37/#38); the harness waited
+its full 240 s and reported "the agent never answered", which is true and useless. `harness/
+refusals.py` now follows the chain the stage is pending on -- **the refusal is not the row the
+overview names**: the frame stays `ACCEPTED` and its auto-chained child is what failed -- and the
+assertion quotes keel-cloud's own `diagnostic`. Separately, B9 used to `pick` an *other, say what*
+row and catch the failure when there was none; a failed browser step is written into the run's
+`failed_step` and a `failure/page.html` whether the caller swallows it or not, so a green run
+would have carried a red step. `ParticipantPage.offers_other` asks instead of trying, and B8/B9
+now scope their reads to their own anchor (#33's lesson, on the two calls that had not learnt it).
+
+**Tests**: `tests/test_s004_live_choices.py` (the follow-up loop against a fake chat -- it reaches
+the card, it stops rather than spending forever, a card already there costs nothing, no follow-up
+carries an attack needle, every box carries its own stage, and A8 is typed where the other stage
+exists) and `tests/test_chain_refusals.py` (the refusal found through the chain the overview does
+not name, every terminal status keel-cloud can write, a healthy chain that must stay `None`, a
+cycle that ends). 0.3 s, no stack, no browser, no model. `make unit` 273 green.
