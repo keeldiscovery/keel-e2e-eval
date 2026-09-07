@@ -177,6 +177,10 @@ def run(stack, founder_credentials, browser, run_dir, *, entry_id: str, slug: st
 
         # -------------------------------------------------------------- the people, and the read
         urls = invite_everyone(page, recorder, project_id, entry, people_inputs, web_base)
+
+        # ------------------------------------------------- *What this says*, before any reading
+        _assert_no_paragraph_yet(recorder, page, web_base, _get, project_id)
+
         # Read after each person, so the reading jobs arrive in the entry's own order and the
         # corpus's own anchorings land on the corpus's own people (`answer_everyone`'s note).
         typed = answer_everyone(browser, recorder, entry, people_inputs, urls,
@@ -193,6 +197,7 @@ def run(stack, founder_credentials, browser, run_dir, *, entry_id: str, slug: st
         overview = Overview(page, recorder, web_base)
         overview.open(project_id)
         _assert_overview(recorder, overview, entry, standings)
+        _assert_what_this_says(recorder, overview, _get, project_id, script)
         if extra is not None:
             extra({"recorder": recorder, "page": page, "entry": entry, "overview": overview,
                    "project_id": project_id, "get": _get, "web_base": web_base,
@@ -325,15 +330,6 @@ def _assert_overview(recorder, overview, entry, standings) -> None:
         h.record_assert(want, got)
         assert got == want, f"the legend reads {got}; the entry's standings say {want}"
 
-    with recorder.step("§1.7: *What this says* is present, in the founder's own language",
-                        party="founder", kind="assert") as h:
-        says = overview.what_this_says()
-        h.record_assert("a paragraph, not a heading alone", says)
-        assert "what this says" in says.lower(), says
-        body = says.split("\n", 1)[1] if "\n" in says else ""
-        assert len(body.strip()) > 20, (
-            f"the *What this says* heading rendered with no paragraph under it: {says!r}")
-
     with recorder.step("§1.7: every stage card carries a status, its counts and its deal-breaker "
                         "tally", party="founder", kind="assert") as h:
         cards = overview.stage_cards()
@@ -344,6 +340,64 @@ def _assert_overview(recorder, overview, entry, standings) -> None:
             assert card["counts"].strip(), f"{card['bet']} has no counts"
             assert "deal-breaker" in card["must"].lower(), (
                 f"{card['bet']} has no deal-breaker tally: {card['must']!r}")
+
+
+def _assert_no_paragraph_yet(recorder, page, web_base, get, project_id) -> None:
+    """FR-008 / keel-cloud spec 030 FR-006: before anything has been read there is no paragraph,
+    and the wire says so **in its own words** rather than leaving a block that reads as a bug.
+
+    Read here, one moment before the first person's answer is read, because it is the only moment
+    it can be read: `Project.whatThisSays` is written once and replaced whole, and every reading
+    after the first one leaves it standing.
+    """
+    overview = Overview(page, recorder, web_base)
+    overview.open(project_id)
+    with recorder.step("§1.7: before the first reading, *What this says* carries the server's own "
+                        "'not yet' line and no paragraph", party="founder", kind="assert") as h:
+        wire = get(f"/v2/projects/{project_id}/overview") or {}
+        note = wire.get("whatThisSaysNote")
+        shown = overview.what_this_says_paragraph()
+        heading = overview.what_this_says()
+        h.record_assert({"whatThisSays": None, "note": note},
+                         {"whatThisSays": wire.get("whatThisSays"), "on the screen": shown})
+        assert wire.get("whatThisSays") is None, (
+            "a paragraph exists before anything was read: " f"{wire.get('whatThisSays')!r}")
+        assert note, (
+            "the wire carries neither a paragraph nor a note, so the overview shows the founder "
+            "nothing at all where the paragraph will be")
+        assert "what this says" in heading.lower(), (
+            f"no *What this says* heading on the overview at all: {heading!r}")
+        assert shown == note, (
+            f"the overview shows {shown!r} where the server's own note reads {note!r}")
+
+
+def _assert_what_this_says(recorder, overview, get, project_id, script) -> None:
+    """FR-008: the overview renders the paragraph the `BRIEF` pipeline wrote, **verbatim**.
+
+    Three claims in one step, and they are different findings: that keel-cloud ran the job and
+    applied what came back (the wire carries the scripted paragraph), that the "not yet" note has
+    stood down (`whatThisSaysNote` is gone), and that keel-web rendered the server's words rather
+    than words of its own (the screen equals the wire, character for character).
+
+    Before this existed the check was *a heading and more than twenty characters under it*, which
+    `whatThisSaysNote` satisfies on its own -- so six green runs at 5.0/5 had never once seen a
+    paragraph, and 51 `BRIEF` jobs had failed unremarked behind
+    `ReadingBatchService.sayWhatThisSays`'s own `catch`.
+    """
+    scripted = script.screens["BRIEF"][0]["result"]["whatThisSays"]
+    with recorder.step("§1.7: *What this says* is the agent's own paragraph, rendered verbatim "
+                        "from the wire", party="founder", kind="assert") as h:
+        wire = get(f"/v2/projects/{project_id}/overview") or {}
+        paragraph = overview.what_this_says_paragraph()
+        h.record_assert(scripted, {"wire": wire.get("whatThisSays"), "screen": paragraph})
+        assert wire.get("whatThisSays") == scripted, (
+            "the BRIEF job never produced the overview's paragraph -- the wire carries "
+            f"{wire.get('whatThisSays')!r} where the script answered {scripted!r}")
+        assert not wire.get("whatThisSaysNote"), (
+            "the server still offers its 'not yet' note beside a paragraph that exists: "
+            f"{wire.get('whatThisSaysNote')!r}")
+        assert paragraph == scripted, (
+            f"the overview renders {paragraph!r}, not the server's own {scripted!r}")
 
 
 def _assert_stage_card(recorder, opened, entry, stage, standings, stages_expected,

@@ -81,7 +81,8 @@ def canned(tmp_path):
 def test_a_canned_entry_becomes_a_script_keyed_by_screen(canned):
     script = cs.generate(canned)
     assert set(script.screens) == {
-        "PROBLEM_FRAME", "SOLUTION_FRAME", "COMMERCIAL_FRAME", "PROBLEM_ASSUMPTIONS", "INTERPRET"}
+        "PROBLEM_FRAME", "SOLUTION_FRAME", "COMMERCIAL_FRAME", "PROBLEM_ASSUMPTIONS", "INTERPRET",
+        "BRIEF"}
     # Rule 6: a screen the entry cannot produce is absent, not present-and-empty -- the executor
     # refusing by name is a better failure than answering the wrong shape.
     assert "SOLUTION_ASSUMPTIONS" not in script.screens
@@ -320,9 +321,15 @@ def test_every_literal_in_the_script_came_from_the_entry(entry_id):
                  "label", "roleType", "about", "market", "id", "prompt", "control",
                  "multiSelect", "options", "escape", "other", "taps", "type", "measure",
                  "kind", "unit", "per", "lower", "upper", "value", "inclusive", "exact",
-                 "expected", "anchorings", "stage", "anchorId", "anchoring", "unprompted", "flags"}
+                 "expected", "anchorings", "stage", "anchorId", "anchoring", "unprompted", "flags",
+                 "whatThisSays"}
     allowed |= set(cs.TAP_ENUM.values())                             # the enum tap names
-    allowed |= {cs.introduction_for(entry), cs.normalization_rationale_for(entry)}  # rule 5
+    # Rule 5's required strings: the three the wire demands and the entry does not carry. The
+    # BRIEF paragraph joins the other two here for the same reason -- it is composed, from the
+    # entry's own `expected.stages` and nothing else, and `test_the_brief_paragraph_says_only_
+    # what_the_entry_says` below is what holds it to that.
+    allowed |= {cs.introduction_for(entry), cs.normalization_rationale_for(entry),
+                cs.what_this_says_for(entry)}
 
     strays = sorted({s for s in _all_strings(script.screens) if s not in allowed})
     assert not strays, f"{entry_id}: the script carries values the entry does not: {strays}"
@@ -410,3 +417,110 @@ def test_no_role_is_introduced_twice_in_any_chosen_entry(entry_id):
         f"{entry_id} introduces a role twice: {introduced}")
     assert len(introduced) == len(entry.roles), (
         f"{entry_id} has {len(entry.roles)} roles and introduces {introduced}")
+
+
+# ------------------------------------------------------------------- BRIEF, and *What this says*
+#
+# keel-cloud starts a `BRIEF` job of its own every time a reading batch finishes
+# (`ReadingBatchService.sayWhatThisSays`), and the one field it comes back with is what the
+# overview renders under *What this says*. A script with no `BRIEF` entry does not skip that job,
+# it fails it -- `ScriptedExecutor` refusing by name, the exception swallowed by
+# `sayWhatThisSays`'s own catch, and the founder left reading `whatThisSaysNote` forever. Six
+# green scripted runs said nothing about the paragraph because no scripted run had ever produced
+# one; these are the tests that keep it produced.
+
+BRIEF_MAX = 1200                    # `ScreenResponseContracts.RATIONALE_OR_NOTE_MAX`, restated
+                                    # here so a drift in the module's own constant is a red test
+
+
+def test_every_entry_carries_a_brief_entry_of_the_contract_shape(canned):
+    for entry in list(_corpus_entries()) + [canned, __import__(
+            "evals.payroll_exceptions", fromlist=["entry"]).entry()]:
+        brief = cs.generate(entry).screens["BRIEF"]
+        assert len(brief) == 1, f"{entry.id}: one entry is enough -- the cursor repeats the last"
+        assert brief[0]["outcome"] == "COMPLETED"
+        # The whole contract: one field, and nothing else on the result.
+        assert set(brief[0]["result"]) == {"whatThisSays"}
+
+
+@pytest.mark.parametrize("entry_id", CHOSEN + ("payroll-exceptions",))
+def test_the_brief_paragraph_satisfies_keel_clouds_own_result_schema(entry_id):
+    """`{"whatThisSays": string}`, non-blank, <= 1200 code points, and no link anywhere in it
+    (`ScreenResponseContracts.briefSchema`, `NO_LINK_PATTERN`, `ScreenResultApplier.briefCommand`).
+    A paragraph that fails any of these is a `RESULT_INVALID` on the wire, mid-run, with the
+    failure swallowed -- so it is checked here instead."""
+    if entry_id == "payroll-exceptions":
+        from evals import payroll_exceptions as fx
+        entry = fx.entry()
+    else:
+        entry = next(e for e in _corpus_entries() if e.id == entry_id)
+    paragraph = cs.generate(entry).screens["BRIEF"][0]["result"]["whatThisSays"]
+    assert isinstance(paragraph, str) and paragraph.strip()
+    assert len(paragraph) <= BRIEF_MAX
+    assert not cs.NO_LINK.search(paragraph), paragraph
+
+
+def test_the_brief_paragraph_is_marked_scripted_and_says_one_sentence_a_stage(canned):
+    """It names the entry, says the referee wrote it, and then says one thing per stage. A reader
+    of a bundle must never mistake this for a model's judgement."""
+    paragraph = cs.generate(canned).screens["BRIEF"][0]["result"]["whatThisSays"]
+    assert paragraph.startswith("Scripted by the referee from corpus entry 00-canned,")
+    assert "not written by a model" in paragraph
+    for claim in cs.STAGE_CLAIM.values():
+        assert paragraph.count(claim) == 1, f"{claim} should be said once: {paragraph!r}"
+
+
+def test_the_brief_paragraph_reads_the_entrys_own_stage_verdicts(tmp_path):
+    raw = copy.deepcopy(CANNED)
+    raw["expected"]["stages"] = {"PROBLEM": "CONTRADICTED", "SOLUTION": "MIXED",
+                                 "COMMERCIAL": "SUPPORTED"}
+    paragraph = cs.what_this_says_for(_entry(raw, tmp_path))
+    assert "The problem claim is not holding up." in paragraph
+    assert "The solution claim has people disagreeing." in paragraph
+    assert "The commercial claim is holding up." in paragraph
+
+
+def test_a_stage_the_entry_judges_not_is_said_to_be_unjudged_rather_than_invented(canned):
+    """`CANNED` (and this repo's own `payroll_exceptions.yaml`) judge no stage. Saying *not
+    tested* there would be the generator writing a verdict the entry never wrote."""
+    paragraph = cs.what_this_says_for(canned)
+    assert paragraph.count("carries no verdict in this entry.") == 3
+    for word in cs.VERDICT_SENTENCE.values():
+        assert word not in paragraph
+
+
+def test_a_verdict_the_four_do_not_carry_is_refused_by_name(tmp_path):
+    raw = copy.deepcopy(CANNED)
+    raw["expected"]["stages"] = {"PROBLEM": "PROBABLY_FINE"}
+    with pytest.raises(cs.CorpusScriptError) as exc:
+        cs.what_this_says_for(_entry(raw, tmp_path))
+    assert "PROBABLY_FINE" in str(exc.value) and "00-canned" in str(exc.value)
+
+
+def test_a_paragraph_over_the_wires_cap_is_refused_rather_than_sent(tmp_path, monkeypatch):
+    raw = copy.deepcopy(CANNED)
+    raw["id"] = "00-canned"
+    entry = _entry(raw, tmp_path)
+    monkeypatch.setattr(cs, "WHAT_THIS_SAYS_MAX", 20)
+    with pytest.raises(cs.CorpusScriptError) as exc:
+        cs.what_this_says_for(entry)
+    assert "caps it at 20" in str(exc.value)
+
+
+def test_a_paragraph_carrying_a_link_is_refused_rather_than_sent(tmp_path, monkeypatch):
+    entry = _entry(tmp_path=tmp_path)
+    monkeypatch.setitem(cs.STAGE_CLAIM, "PROBLEM", "See https://example.test the problem claim")
+    with pytest.raises(cs.CorpusScriptError) as exc:
+        cs.what_this_says_for(entry)
+    assert "carries a link" in str(exc.value)
+
+
+def test_brief_is_the_screen_name_keel_clouds_own_context_keys_export_uses():
+    """The executor infers the screen from the context key set, so the script's key must be
+    keel-cloud's own name for it -- read from keel-runtime's bundled copy of that export rather
+    than trusted (#33's lesson)."""
+    config = load_config(validate=False)
+    table = json.loads((config.keel_runtime / "keel_runtime" / "testing" / "contracts"
+                        / "context-keys.json").read_text(encoding="utf-8"))
+    assert cs.BRIEF_SCREEN in table
+    assert sorted(table[cs.BRIEF_SCREEN]) == ["claims", "market", "project_name"]

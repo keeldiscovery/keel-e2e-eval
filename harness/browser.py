@@ -1651,6 +1651,27 @@ class Overview:
     def what_this_says(self) -> str:
         return _safe_text(lambda: self.page.locator(".next").first.inner_text())
 
+    def what_this_says_paragraph(self) -> str:
+        """**Only the paragraph** -- not the heading above it and not the hint below it.
+
+        `OverviewRoute.tsx` renders `<div class="next"><b>What this says</b><br/>{text}<p
+        class="hint">…</p></div>`: the paragraph is the box's own bare text node, and the two
+        things around it are keel-web's fixed copy. `what_this_says()`'s `inner_text` returns all
+        three run together, which is enough to say *something rendered* and not nearly enough to
+        say the server's own words rendered **verbatim** -- comparing that against the wire would
+        never match, and comparing it loosely is how six green runs said nothing about the
+        paragraph at all. So this reads the text nodes and nothing else.
+
+        The same read serves the "not yet" note: keel-web renders `whatThisSays ??
+        whatThisSaysNote` into that one position, so which of the two is standing there is a
+        question for the wire beside it, never for a wording match here.
+        """
+        return _safe_text(lambda: self.page.locator(".next").first.evaluate(
+            r"""(el) => Array.from(el.childNodes)
+                  .filter((n) => n.nodeType === 3)
+                  .map((n) => n.textContent)
+                  .join(' ').replace(/\s+/g, ' ').trim()""")) or ""
+
     def stage_cards(self) -> list[dict[str, str]]:
         """`{bet, status, claim, counts, must, see}` per card, in rendered order."""
         out: list[dict[str, str]] = []
@@ -1692,6 +1713,10 @@ class Overview:
         h.capture_text("screen", "overview")
         h.capture_text("overview", _screen_text(self.page, ".shell__main"))
         h.capture_text("evidence_line", self.evidence_line())
+        # The *What this says* paragraph on its own, so a bundle's reader can see which of the two
+        # things keel-web renders into that one box -- the agent's paragraph or the server's "not
+        # yet" note -- without re-deriving it from the whole screen's text.
+        h.capture_text("what_this_says", self.what_this_says_paragraph())
         Shell(self.page).capture_identity(h)
         affordance = _safe_all_texts(self.page, ".ocards .see, .evidence__people a")
         if affordance:
@@ -2453,17 +2478,34 @@ class ParticipantPage:
         return self.page.locator("div.q:has(> textarea.box)")
 
     def anchors(self) -> list[dict[str, Any]]:
-        """`{prompt, taps, selections}` per anchor, in rendered order."""
+        """`{prompt, taps, selections}` per anchor, in rendered order.
+
+        **`div.picks` is the anchor's sibling, not its child.** `AnchorBlock` returns a fragment --
+        `<div class="q">…story box…</div>` followed by `<div class="picks">…</div>` (and
+        `class="picks off"` when a tap dims them) -- so `block.locator(".picks > div.q")` matches
+        nothing, ever, and every anchor came back with `selections: []`. `_selection_block` below
+        already knew this and walked the following sibling; this read did not, and being wrong here
+        is silent: an empty list is a legal answer to *what does this anchor ask*.
+
+        It cost the fourth live S-004 run its last three boxes (`runs/DRIFT.md` #44,
+        `runs/20260907T223817Z-s004-stranger-who-gives-orders-live`): both of the scenario's
+        choices of what to attack read `anchors()["selections"]`, so B8's *say roughly* control
+        could not be found on a page that was rendering three of them. No scripted scenario reads
+        this method -- `answer_as` goes through `_selection_block` -- which is why six green runs
+        never saw it.
+        """
         out: list[dict[str, Any]] = []
         blocks = self._anchor_blocks()
         for i in range(blocks.count()):
             block = blocks.nth(i)
+            picks = block.locator(
+                "xpath=following-sibling::div[contains(@class,'picks')][1]")
             out.append({
                 "prompt": _safe_text(lambda b=block: b.locator("> p").first.inner_text()),
                 "taps": [t.strip() for t in block.locator(".taps > .chip").all_inner_texts()],
                 "selections": [
                     _safe_text(lambda s=s: s.locator("> p").first.inner_text())
-                    for s in block.locator(".picks > div.q").all()],
+                    for s in picks.locator("> div.q").all()],
             })
         return out
 

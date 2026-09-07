@@ -2518,3 +2518,243 @@ card. `make unit` 279 green, 0.3 s, no stack, no browser, no model.
 **Not verified live, by design.** The run was the one run this rerun had, and there was no rerun
 whatever happened. Both fixes are written from that run's own bundle, in the same way `#39`(d)
 was, and B6-B9 are still owed a live walk.
+
+**CONFIRMED LIVE 2026-09-07** by the fourth run,
+`runs/20260907T223817Z-s004-stranger-who-gives-orders-live` ($2.7027 over sixteen real jobs).
+**B6 passed and the walk went on past it** -- the first time it has. Both halves held on a live
+model:
+
+- (a) `agent_said()` dropped the `who: "you"` turn, so B6's scan came back `leaks: {}` -- against a
+  model that had again refused the order rather than obeyed it. The needle sitting in the founder's
+  own echoed message no longer reddens a box the product passed.
+- (b) `_other_stage_card()` read the approved `PROBLEM` card through `OpenedCard` and got **five
+  real lines** with their headings, deal-breaker marks, *You said* quotes and *Asked:* lines, where
+  the third run's `ReviewCard` read got `[]`. FR-022's "identical, line for line" compared
+  something for the first time, and it held: the card was byte-identical before and after A8.
+
+The run is red, but at **B8** and on a different fault of this repo's own (`#44`), four boxes
+further on than this entry.
+
+
+## 42. Non-blocking (worked around): keel-runtime's bundled scripted-executor script carries no
+`BRIEF` entry, so every reading run off it fails the job that writes *What this says*
+
+**Severity: non-blocking**, and worked around here in full for the four scenarios that hand the
+runtime a script of their own. It is recorded because it is the *reason* six green scripted runs
+had never once produced the overview's paragraph, and because the same gap is still live for the
+two scenarios that do not.
+
+**Where**: keel-runtime, `tools/generate_bundled_script.py` and the file it writes,
+`keel_runtime/testing/scripts/countly-problem.json`. The generator's own screen table:
+
+```python
+STATEMENT_SCREEN = {
+    "PROBLEM": ("problem", "PROBLEM_FRAME", "PROBLEM_ASSUMPTIONS"),
+    "SOLUTION": ("solution", "SOLUTION_FRAME", "SOLUTION_ASSUMPTIONS"),
+    "COMMERCIAL": ("commercial", "COMMERCIAL_FRAME", "COMMERCIAL_ASSUMPTIONS"),
+```
+
+and the bundled file it produced carries exactly `PROBLEM_FRAME`, `PROBLEM_ASSUMPTIONS` and
+`INTERPRET`. There is no `BRIEF`. Its own docstring says what it is for -- *"so `--executor
+scripted` with no `--script` answers a real screen with a real belief set instead of failing at
+the first job with a schema error"* -- and keel-cloud has since grown a screen it starts **by
+itself**, with no founder and no agent asking for it:
+
+```java
+    private void sayWhatThisSays(ReadingBatch finished, UserId userId, KeelSessionId keelSessionId) {
+        try {
+            orchestrator.start(userId, keelSessionId, new InferenceOrchestrator.StartRequest(
+                    finished.projectId(), InferenceScreen.BRIEF, null, null, false, null));
+        } catch (RuntimeException notWritten) {
+            log.info("no paragraph written for project {} after batch {}: {}", ...);
+        }
+    }
+```
+(`ReadingBatchService.java`, spec 030.) So a reading finishing on the bundled script queues a
+`BRIEF` job the script cannot answer, `ScriptedExecutor` refuses it by name, and
+`sayWhatThisSays`'s own `catch` swallows the refusal. The founder is left reading
+`FounderVoice.whatThisSaysNote()` -- *"Nothing to say across the three claims yet…"* -- for ever,
+on a project whose answers have all been read.
+
+**Reproduction** (live, this stack session, `runs/INDEX-20260907T223801Z.html`). S-002 is the one
+scenario in the set that starts the runtime with no `KEEL_SCRIPT` and then reads an answer, so it
+is the one row left:
+
+```
+select screen, status, count(*) from inference_interaction group by 1,2;
+ BRIEF | APPLIED    | 50
+ BRIEF | JOB_FAILED |  1
+
+select detail from inference_interaction where screen='BRIEF' and status='JOB_FAILED';
+ LLM_UNAVAILABLE: LLM_UNAVAILABLE: scripted executor has no entry for BRIEF
+```
+
+The one failed row is S-001's project, at 22:25:37Z -- inside S-002's own window, on the runtime
+S-002 started without a script. The other fifty are the four scenarios that hand over a
+generated one and are green.
+
+**Whether the scenario adapted around it**: yes, in this repo's own region and only there.
+`harness/corpus_script.py` now emits a `BRIEF` entry per entry (`what_this_says_for`), so S-001,
+S-005, S-006 and S-007 answer the job keel-cloud starts and assert the paragraph on the screen
+against the wire. S-002 and S-003 deliberately still start the runtime the plain way -- a founder
+with no script is exactly what S-002 is about -- so the failing job above is left standing rather
+than papered over with a script S-002 has no business carrying.
+
+**Shape of a fix, not applied**: keel-runtime -- `generate_bundled_script.py` emits a `BRIEF`
+entry alongside `INTERPRET`. The contract is one field and no structure
+(`{"whatThisSays": <non-blank string, <= 1200 code points, no link>}`,
+`ScreenResponseContracts.briefSchema`), so nothing about it needs a model; the corpus entry's own
+`expected.stages` is enough to compose one, which is exactly what this repo's generator now does.
+
+## 43. BLOCKING: keel-cloud's shipped `BRIEF` instruction describes a contract that was deleted,
+so a real agent can never write `Overview.whatThisSays` at all
+
+**Severity: blocking.** The overview's *What this says* paragraph -- spec 030 FR-006/FR-008, the
+one thing on that screen a model is for -- cannot be produced by a live agent. Every real `BRIEF`
+job is instructed to return a result shape `ResultSchemaValidator` refuses.
+
+**Where**: keel-cloud `src/main/resources/keel/inference-instructions/brief.md` (the resource
+`InferenceScreen.BRIEF.resourceName()` loads), and its draft mirror
+`canon/drafts/inference-instructions-draft/brief/brief.md`. Neither file contains the string
+`whatThisSays` anywhere. What the shipped instruction tells the model, verbatim:
+
+```
+Sizes: none of this result's fields (`findings`, `openDecisions`, `goingAhead`) carries a length cap.
+
+Your context has five fields: `deal_breakers` — ... `going_ahead_reasoning` — ... and
+`problem_statement`, `solution_statement`, `commercial_statement` — the approved claims.
+```
+```json
+{"outcome": "COMPLETED", "result": {"findings": ["...", "..."], "openDecisions": ["..."], "goingAhead": "<only when a deal-breaker is CONTRADICTED; otherwise omit this key>"}}
+```
+
+Every clause of that is superseded. The context keel-cloud actually builds is three fields, not
+five (`ScreenContextBuilder`, `case BRIEF -> project_name, market, claims`), and the result
+contract is one field with a cap the instruction says does not exist:
+
+```java
+    private static Map<String, Object> briefSchema() {
+        return object(List.of("whatThisSays"), Map.of(
+                "whatThisSays", string(RATIONALE_OR_NOTE_MAX)));   // 1200, and NO_LINK_PATTERN
+    }
+```
+
+A model that obeys the instruction returns `{findings, openDecisions, goingAhead}`, and
+`ResultSchemaValidator.validate` refuses it for a missing required `whatThisSays` -- into
+`ReadingBatchService.sayWhatThisSays`'s own `catch`, which logs and moves on. There is no screen,
+no banner and no retry: the founder simply keeps reading the "not yet" note.
+
+**Why no run had ever found it.** The scripted set never reached the screen at all (`#42`), and
+the three live S-004 runs before this one all died before the reading at the end of the walk, so
+no `BRIEF` job has ever been sent to a real model by anything in this repo. The instruction eval
+(spec 009) maps `BRIEF -> brief.md` in `instructions/instruction.py` and scores no `BRIEF` case,
+so it had never sent one either.
+
+**Reproduction**: any reading batch finishing on a project whose runtime is on the real executor.
+**Not reproduced live, and that is said plainly rather than claimed away.** The fourth live S-004
+run (`runs/20260907T223817Z-s004-stranger-who-gives-orders-live`) would have sent the first real
+`BRIEF` job this repo has ever caused -- its own reading of the stranger's answers is the last
+step of the walk -- and it stopped four boxes short of it on `#44`. So what is established here is
+the disagreement between two files in one repository, read side by side and quoted above; what is
+still owed is the refusal on the wire.
+
+**Whether the scenario adapted around it**: no, and it cannot be. This repo owns no product prose,
+and the scripted paragraph `harness/corpus_script.py` now writes proves only that the *contract*
+is satisfiable -- it says nothing about whether the instruction that a real agent reads asks for
+it, which is precisely what is broken.
+
+**Shape of a fix, not applied**: keel-cloud -- rewrite `brief.md` (and its draft mirror) against
+the spec-030 contract: the context is `{project_name, market, claims}` where each claim carries
+its stage, statement, approval, verdict, drift and already-worded belief standings; the result is
+`{"whatThisSays": "<one paragraph>"}`, at most 1200 code points, carrying no link; and every
+number in it is quoted from `claims[].beliefs[].median_reads` rather than computed. Spec 030's own
+FR-008 describes the screen; the instruction is the half that did not move with it.
+
+## 44. RESOLVED (this repo's own grip, not a product defect): `ParticipantPage.anchors()` read a
+`div.picks` that is the anchor's **sibling** as though it were its child, so every anchor came back
+asking nothing
+
+**Severity: note.** Nothing in the four products is broken. It is `#33`/`#35`/`#41`'s lesson once
+more -- the referee reading the wrong region -- and it is what the fourth live S-004 run came back
+red on, at box **B8 of nine**, two boxes past the one the third run stopped at
+(`runs/20260907T223817Z-s004-stranger-who-gives-orders-live`, **$2.7027** over sixteen real jobs).
+
+**Where**: this repo, `harness/browser.py`, `ParticipantPage.anchors()`.
+
+```python
+"selections": [
+    _safe_text(lambda s=s: s.locator("> p").first.inner_text())
+    for s in block.locator(".picks > div.q").all()],
+```
+
+`AnchorBlock` returns a **fragment**, not a wrapper (keel-web
+`src/routes/participant/ParticipantRoute.tsx:262-312`):
+
+```tsx
+    <>
+      <div className="q">
+        <p>{anchor.prompt}</p>
+        <textarea className={state.tap ? "box off" : "box"} ... />
+        ...
+      </div>
+
+      {hidePicks ? null : (
+        <div className={dimPicks ? "picks off" : "picks"}>
+          {anchor.selections.map((selection) => ( <SelectionBlock ... /> ))}
+        </div>
+      )}
+    </>
+```
+
+`div.picks` is the anchor block's **next sibling**. `block.locator(".picks > div.q")` therefore
+matches nothing, ever, and every anchor came back `selections: []`. `_selection_block` three
+methods below already knew this and walks
+`xpath=following-sibling::div[contains(@class,'picks')][1]`; this read did not. Being wrong here is
+**silent**: an empty list is a legal answer to *what does this anchor ask*, so nothing raised and
+nothing looked odd in a bundle.
+
+**What it cost.** S-004 is the only caller -- every scripted scenario answers through `answer_as`,
+which goes via `_selection_block` -- so six green scripted runs said nothing about it. Both of
+S-004's choices of what to attack read `anchors()["selections"]`: `_carried_choice` (the corpus's
+own preferred `GUESSED` control, when the link still carries it) and `_page_choice` (the fallback,
+the first control on the page offering a *say roughly*). Both were searching an empty list, so the
+run stopped on
+
+```
+AssertionError: this link carries no anchor with a *say roughly* control at all; B8 cannot be
+attacked here
+```
+
+on a page whose own captured text, in the step immediately above it, offers three of them:
+
+> ... Before that one, when was the previous mismatch? under 1 day ... **more than 3 months, say
+> roughly** ... How long did the recount and fixing the numbers take, that time? under 15 min ...
+> **more than 1 day, say roughly** ... What do you pay a month today ... **more than £200, say
+> roughly** ...
+
+**B7, B8 and B9 were therefore never typed**, and the canary sweep, the standings-unchanged check
+and both leak sweeps sit behind them, exactly as they did after the third run.
+
+**What the run did establish, and it is the whole of `#41`.** B6 passed and the walk went on past
+it. `agent_said()` dropped the founder's own echoed message, so B6's scan came back `leaks: {}`
+against a model that had again refused the order; and `_other_stage_card()` read the approved
+`PROBLEM` card through `OpenedCard` and got **five real lines** where the third run got `[]`, so
+FR-022's "identical, line for line" compared something. Both are confirmed live and `#41` is
+RESOLVED above.
+
+**Whether the scenario adapted around it**: this is the referee's own region, so it is fixed here
+rather than filed against a product repo -- and fixed by *reading the right region*, never by
+loosening what B8 demands. `anchors()` now scopes to the same following-sibling `div.picks`
+`_selection_block` uses, which also keeps a `class="picks off"` block (a dimmed one, after a tap)
+and correctly reads no selections at all for a `hidePicks` anchor.
+
+**Tests**: `tests/test_participant_anchor_selections.py` (new, 4) -- a real Playwright page over
+the markup `ParticipantRoute.tsx` renders: the sibling block read per anchor, a dimmed `picks off`
+block still read as that anchor's, a `hidePicks` anchor still reading none (the fix must not reach
+into the next anchor's block), and the *say roughly* hunt B8 actually performs, run end to end over
+`anchors()` + `options_for`. Two of the four fail against the old read and pass against the new.
+`make unit` 295 green, 1.2 s, no stack, no model.
+
+**Not verified live, by design.** There was one run and no rerun. B7, B8 and B9, attacks A3, A6 and
+A7, the canary sweep, the standings-unchanged check and both leak sweeps are still owed a live
+walk -- and so, behind them, is the first real `BRIEF` job this repo has ever caused (`#43`).

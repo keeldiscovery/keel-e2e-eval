@@ -60,8 +60,9 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
     entry = fx.entry()
     founder = fx.founder()
     people_inputs = fx.people()
+    script = fx.script()
     script_path = run_dir / "script.json"
-    write_generated(run_dir, script=fx.script().to_json(),
+    write_generated(run_dir, script=script.to_json(),
                     inputs=inputs_json(entry, founder, people_inputs))
 
     def _get(path: str) -> dict:
@@ -248,6 +249,32 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
                 assert "not opened" in row["their_answer"].lower(), (
                     f"§1.5: expected {row['person']!r} to read 'Not opened', got {row['their_answer']!r}")
 
+        # ------------------------------------------------- *What this says*, before any reading
+        # §1.7 / FR-008: the paragraph is written by the `BRIEF` screen when a reading batch
+        # finishes, so before the first reading there is none -- and keel-cloud says so in its own
+        # words (`FounderVoice.whatThisSaysNote`) rather than leaving a block that reads as a bug.
+        # This is the only moment it can be read: the paragraph is replaced whole and never
+        # cleared, so every reading after the first leaves it standing.
+        pre_overview = Overview(page, recorder, web_base)
+        pre_overview.open(project_id)
+        with recorder.step("§1.7: before the first reading, *What this says* carries the server's "
+                            "own 'not yet' line and no paragraph",
+                            party="founder", kind="assert") as h:
+            wire = _get(f"/v2/projects/{project_id}/overview") or {}
+            note = wire.get("whatThisSaysNote")
+            shown = pre_overview.what_this_says_paragraph()
+            h.record_assert({"whatThisSays": None, "note": note},
+                             {"whatThisSays": wire.get("whatThisSays"), "on the screen": shown})
+            assert wire.get("whatThisSays") is None, (
+                f"a paragraph exists before anything was read: {wire.get('whatThisSays')!r}")
+            assert note, (
+                "the wire carries neither a paragraph nor a note, so the overview shows the "
+                "founder nothing at all where the paragraph will be")
+            assert "what this says" in pre_overview.what_this_says().lower(), (
+                f"no *What this says* heading on the overview: {pre_overview.what_this_says()!r}")
+            assert shown == note, (
+                f"the overview shows {shown!r} where the server's own note reads {note!r}")
+
         # ------------------------------------------------------------------------------ §2.1-3
         answer_everyone(browser, recorder, entry, people_inputs, invite_urls)
 
@@ -296,14 +323,27 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
                 f"the legend's four counts sum to {sum(legend.values())}, not the "
                 f"{len(entry.beliefs)} lines there are: {legend}")
 
-        with recorder.step("§1.7: *What this says* is present, in the founder's own language",
-                            party="founder", kind="assert") as h:
-            says = overview.what_this_says()
-            h.record_assert("a paragraph under the heading", says)
-            assert "what this says" in says.lower(), says
-            body = says.split("\n", 1)[1] if "\n" in says else ""
-            assert len(body.strip()) > 20, (
-                f"the heading rendered with no paragraph under it: {says!r}")
+        # §1.7 / FR-008: the paragraph the `BRIEF` pipeline wrote, on the screen **verbatim**.
+        # Three different findings in one step -- keel-cloud ran the job and applied what came
+        # back, the "not yet" note stood down, and keel-web rendered the server's own words. The
+        # check this replaces was *a heading and twenty characters under it*, which the note
+        # satisfies by itself: six green runs had never once seen a paragraph, because no
+        # scripted run had ever produced one.
+        brief_paragraph = script.screens["BRIEF"][0]["result"]["whatThisSays"]
+        with recorder.step("§1.7: *What this says* is the agent's own paragraph, rendered "
+                            "verbatim from the wire", party="founder", kind="assert") as h:
+            wire = _get(f"/v2/projects/{project_id}/overview") or {}
+            paragraph = overview.what_this_says_paragraph()
+            h.record_assert(brief_paragraph,
+                             {"wire": wire.get("whatThisSays"), "screen": paragraph})
+            assert wire.get("whatThisSays") == brief_paragraph, (
+                "the BRIEF job never produced the overview's paragraph -- the wire carries "
+                f"{wire.get('whatThisSays')!r} where the script answered {brief_paragraph!r}")
+            assert not wire.get("whatThisSaysNote"), (
+                "the server still offers its 'not yet' note beside a paragraph that exists: "
+                f"{wire.get('whatThisSaysNote')!r}")
+            assert paragraph == brief_paragraph, (
+                f"the overview renders {paragraph!r}, not the server's own {brief_paragraph!r}")
 
         with recorder.step("§1.7: each stage card carries a status, its counts and its "
                             "deal-breaker tally", party="founder", kind="assert") as h:

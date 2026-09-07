@@ -5,7 +5,10 @@ deterministically:
 
 1. a **keel-runtime scripted-executor script**, keyed by the screen names keel-cloud's own
    `context-keys.json` uses -- handed to the runtime as `KEEL_SCRIPT` and written into the run
-   bundle as `runs/<id>/script.json`;
+   bundle as `runs/<id>/script.json`. That includes **`BRIEF`**, which keel-cloud starts by itself
+   after every reading batch to write the overview's *What this says* paragraph: a script without
+   one does not skip the job, it fails it, and the founder is left reading the "not yet" note
+   forever (`what_this_says_for`);
 2. the **founder's typed inputs** -- the name, the market, the three statements and (S-001 only)
    the one correction;
 3. **each person's typed inputs** -- the story text per written anchor, the tap, and one pick per
@@ -32,6 +35,7 @@ so a run can never be green against a script that drifted from the corpus.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,6 +50,7 @@ _STATEMENT_KEY = {"PROBLEM": "problem", "SOLUTION": "solution", "COMMERCIAL": "c
 FRAME_SCREEN = {stage: f"{stage}_FRAME" for stage in STAGES}
 ASSUMPTIONS_SCREEN = {stage: f"{stage}_ASSUMPTIONS" for stage in STAGES}
 CORRECTION_SCREEN = {stage: f"{stage}_ASSUMPTIONS.correction" for stage in STAGES}
+BRIEF_SCREEN = "BRIEF"
 
 # contracts/vendored-wire-facts.md §V4: `assumptions` and `questionnaire.anchors` are each
 # `maxItems: 8`. countly's PROBLEM stage is exactly 8 beliefs and 1 anchor -- at the cap, not over
@@ -55,6 +60,27 @@ MAX_ITEMS = 8
 # The wire's drift enum, upper-case; the corpus writes it lower. Reconciled in `drift_equal` and
 # nowhere else, so no scenario carries the convention (spec edge case; research R10).
 DRIFTS = ("NONE", "BELOW", "ABOVE", "BOTH")
+
+# keel-cloud's `BRIEF` result contract, whole: one field, `whatThisSays`, a non-blank string of at
+# most 1200 code points carrying no link (`ScreenResponseContracts.briefSchema` /
+# `RATIONALE_OR_NOTE_MAX` / `NO_LINK_PATTERN`, and `ScreenResultApplier.briefCommand`'s own
+# non-blank check). Restated here the way `MAX_ITEMS` restates the questionnaire caps -- and
+# enforced below rather than trusted, so a paragraph that grew past the cap is a refusal in this
+# repo before it is a `RESULT_INVALID` on the wire.
+WHAT_THIS_SAYS_MAX = 1200
+NO_LINK = re.compile(r"https?://|www\.", re.IGNORECASE)
+
+# The four verdicts an entry's `expected.stages` may carry, each as one plain sentence. The words
+# are the referee's own and deliberately not keel-web's status words: this paragraph is scripted
+# evidence that the BRIEF pipeline ran, never a second copy of what a screen must say.
+STAGE_CLAIM = {"PROBLEM": "The problem claim", "SOLUTION": "The solution claim",
+               "COMMERCIAL": "The commercial claim"}
+VERDICT_SENTENCE = {
+    "SUPPORTED": "is holding up",
+    "CONTRADICTED": "is not holding up",
+    "MIXED": "has people disagreeing",
+    "UNTESTED": "has not been tested",
+}
 
 
 class CorpusScriptError(RuntimeError):
@@ -375,6 +401,56 @@ def normalization_rationale_for(entry) -> str:
             f"Taken verbatim from the frozen corpus entry {entry.id}.")
 
 
+def what_this_says_for(entry) -> str:
+    """The `BRIEF` screen's whole result (FR-001; keel-cloud spec 030 FR-006/FR-008).
+
+    **Why this screen is scripted at all.** keel-cloud starts a `BRIEF` job of its own every time
+    a reading batch finishes (`ReadingBatchService.sayWhatThisSays`) and writes the one field it
+    comes back with onto `Project.whatThisSays`, which the overview renders under *What this
+    says*. A script with no `BRIEF` entry does not make that job not happen -- it makes it fail,
+    `ScriptedExecutor` refusing by name (*"scripted executor has no entry for BRIEF"*), the
+    exception swallowed by `sayWhatThisSays`'s own `catch`, and the overview left showing
+    `whatThisSaysNote` instead. Six green scripted runs said nothing whatever about the paragraph,
+    because no scripted run had ever produced one.
+
+    **Why a script may write it.** The contract is one field and no structure at all --
+    `{"whatThisSays": string}`, non-blank, at most 1200 code points, carrying no link. Nothing in
+    it is a shape only a model can hand back, so a deterministic paragraph satisfies it exactly.
+    What a model is *for* here (which of the three claims a founder should worry about) is a
+    judgement, and this repo does not pretend to it: the paragraph says, in the first sentence,
+    that the referee wrote it, and then one plain sentence per stage taken from the entry's own
+    `expected.stages` and nowhere else.
+
+    A verdict outside the four is a refusal, named, never softened (FR-004).
+    """
+    stages = (entry.expected or {}).get("stages") or {}
+    sentences = [f"Scripted by the referee from corpus entry {entry.id}, not written by a model."]
+    for stage in STAGES:
+        verdict = stages.get(stage)
+        if verdict is None:
+            # An entry that judges no stage (this repo's own `payroll_exceptions.yaml` fixture)
+            # gets a sentence saying exactly that. Saying "not tested" instead would be the
+            # generator inventing a verdict the entry never wrote.
+            sentences.append(f"{STAGE_CLAIM[stage]} carries no verdict in this entry.")
+            continue
+        word = VERDICT_SENTENCE.get(str(verdict).strip().upper())
+        if word is None:
+            raise CorpusScriptError(
+                f"{entry.id}: expected.stages says {stage} is {verdict!r}, which is not one of "
+                f"{', '.join(sorted(VERDICT_SENTENCE))}")
+        sentences.append(f"{STAGE_CLAIM[stage]} {word}.")
+    paragraph = " ".join(sentences)
+    if len(paragraph) > WHAT_THIS_SAYS_MAX:
+        raise CorpusScriptError(
+            f"{entry.id}: the scripted *What this says* paragraph is {len(paragraph)} code "
+            f"points; keel-cloud's BRIEF contract caps it at {WHAT_THIS_SAYS_MAX}")
+    if NO_LINK.search(paragraph):
+        raise CorpusScriptError(
+            f"{entry.id}: the scripted *What this says* paragraph carries a link, which "
+            "keel-cloud's BRIEF contract forbids: " + paragraph)
+    return paragraph
+
+
 def _assumptions_result(entry, stage: str) -> dict:
     offered = selections_for(entry, stage)
     introduced: set[str] = set()
@@ -490,6 +566,14 @@ def generate(entry, *, correction: Correction | None = None) -> GeneratedScript:
     interpret = _interpret_entries(entry)
     if interpret:
         screens["INTERPRET"] = interpret
+    # **One entry, and one is enough.** keel-cloud queues a `BRIEF` job after *every* reading
+    # batch, and the corpus scenarios read after every person -- but `ScriptedExecutor` repeats a
+    # screen's last entry once its cursor runs off the end, so the paragraph is the same after the
+    # first reading and after the twentieth. It is emitted unconditionally: the screen is legal
+    # only once all three claims are framed, and an entry that cannot frame three claims has
+    # already been refused above.
+    screens[BRIEF_SCREEN] = [
+        {"outcome": "COMPLETED", "result": {"whatThisSays": what_this_says_for(entry)}}]
     return GeneratedScript(
         entry_id=entry.id,
         entry_sha256=entry.sha256,
