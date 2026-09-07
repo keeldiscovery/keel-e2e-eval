@@ -248,11 +248,17 @@ def anchor_of_selection(entry, selection_id: str) -> dict | None:
 
 def role_of_anchor(entry, anchor_id: str) -> str | None:
     """Which role is asked this anchor -- read off the `askedOf` edge of the beliefs whose
-    selections live on it, because a corpus anchor records no role of its own."""
+    selections live on it, because a corpus anchor records no role of its own.
+
+    Matched against **this anchor's own stage** (design decision 18, DRIFT #37): a selection id is
+    unique only within one stage's own questionnaire, so a belief on another stage naming the same
+    bare id is not a reader of this anchor, even though the id string matches.
+    """
     anchor = entry.anchor(anchor_id) or {}
+    stage = anchor.get("stage")
     ids = {s["id"] for s in anchor.get("selections") or []}
     for belief in entry.beliefs:
-        if belief.selection in ids and belief.asked_of:
+        if belief.stage == stage and belief.selection in ids and belief.asked_of:
             return belief.asked_of
     return None
 
@@ -396,6 +402,14 @@ def _interpret_entries(entry) -> list[dict]:
     `anchorId` for one is an id the context does not carry and keel-runtime refuses it.
     `invitationId` is **not written** (rule 4) -- only the running stack knows the real one, and
     keel-runtime fills it from the job's own context (RT-002).
+
+    Every anchoring also carries **`stage`** (keel-cloud measured-beliefs decision 18, `Q7`, DRIFT
+    #37): an anchor id is unique only within one stage's own questionnaire and free to repeat on
+    another, because a link can carry occasions from more than one approved stage and every one of
+    them calls its first occasion `A1`. The pair is what the wire now requires and what the reader
+    hands back, keyed by `(stage, anchorId)` and never by the bare id -- the frozen corpus numbers
+    its ids across the whole entry (still valid; nothing here changes for it), but the script must
+    not assume a future entry, or a live model, will.
     """
     entries = []
     for person in entry.people():
@@ -406,7 +420,13 @@ def _interpret_entries(entry) -> list[dict]:
                 raise CorpusScriptError(
                     f"{entry.id}: {person.person!r} wrote under anchor {anchor_id} but the corpus "
                     f"records anchoring {anchoring!r} -- neither ANCHORED nor GUESSED")
-            anchorings.append({"anchorId": anchor_id, "anchoring": anchoring})
+            anchor = entry.anchor(anchor_id)
+            if anchor is None or not anchor.get("stage"):
+                raise CorpusScriptError(
+                    f"{entry.id}: {person.person!r} wrote under anchor {anchor_id!r}, which the "
+                    "entry's own questionnaire carries no stage for")
+            anchorings.append({"stage": anchor["stage"], "anchorId": anchor_id,
+                               "anchoring": anchoring})
         if not anchorings:
             # **A person who wrote nothing is not a reading.** `05-paidly`'s Yara Haddad leaves
             # both translator anchors blank and taps *hasn't happened* on the third, so keel-cloud
@@ -533,9 +553,6 @@ def person_inputs(entry) -> list[PersonInputs]:
     A person is only ever offered the anchors their role is asked; being offered another role's is
     a refusal, not a shrug -- so this raises rather than quietly widening the set.
     """
-    by_selection = {s["id"]: s
-                    for anchor in (entry.questionnaire.get("anchors") or [])
-                    for s in anchor.get("selections") or []}
     people: list[PersonInputs] = []
     for person in entry.people():
         role_ids = {role_of_anchor(entry, anchor_id) for anchor_id in person.anchors}
@@ -551,6 +568,15 @@ def person_inputs(entry) -> list[PersonInputs]:
             raise CorpusScriptError(
                 f"{entry.id}: {person.person!r} is role {role_id!r} and was offered anchor(s) "
                 f"{', '.join(strays)}, which that role is not asked")
+
+        # Scoped to this role's own anchors, never the whole entry (design decision 18, DRIFT
+        # #37): a selection id is unique only within one stage's own questionnaire, and another
+        # role, on another stage, may reuse it. Built fresh per person rather than once for the
+        # entry, so a reused id on a role this person is not asked never shadows their own.
+        by_selection = {s["id"]: s
+                        for anchor in (entry.questionnaire.get("anchors") or [])
+                        if anchor.get("id") in offered
+                        for s in anchor.get("selections") or []}
 
         anchors = []
         for anchor_id, written in person.anchors.items():

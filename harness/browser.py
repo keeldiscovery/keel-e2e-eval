@@ -2652,9 +2652,16 @@ class ParticipantPage:
                 continue
             self.tell_story(prompt, answer.text, tap=answer.tap)
             typed_anchors.append(answer.anchor_id)
+        # Scoped to this person's own anchors, never the whole entry (design decision 18, DRIFT
+        # #37): a selection id is unique only within one stage's own questionnaire and free to
+        # repeat on another's, so resolving a pick's owner against every anchor in the entry can
+        # find a different stage's same-named selection instead of this person's own.
+        own_anchor_ids = {answer.anchor_id for answer in person.anchors}
         for pick in person.picks:
             owner, selection = None, None
             for anchor in entry.questionnaire.get("anchors") or []:
+                if anchor.get("id") not in own_anchor_ids:
+                    continue
                 for candidate in anchor.get("selections") or []:
                     if candidate["id"] == pick.selection_id:
                         owner, selection = anchor, candidate

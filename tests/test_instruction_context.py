@@ -117,6 +117,11 @@ def test_a_blank_anchor_is_never_offered_and_a_tap_is_mapped_to_its_enum(entry):
     assert built["anchors"][0]["prompt"] == "Think of the last delivery."
     assert built["anchors"][0]["tap"] is None
     assert built["anchors"][1]["tap"] == "HASNT_HAPPENED"
+    # decision 18 / DRIFT #37: stage travels beside anchor_id, first -- A1 is on the entry's own
+    # questionnaire (PROBLEM); A3 is not on it at all, so its stage is None rather than invented.
+    assert list(built["anchors"][0]) == ["stage", "anchor_id", "prompt", "text", "tap"]
+    assert built["anchors"][0]["stage"] == "PROBLEM"
+    assert built["anchors"][1]["stage"] is None
 
 
 def test_the_tap_table_covers_every_tap_the_frozen_corpus_writes():

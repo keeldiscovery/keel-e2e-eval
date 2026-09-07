@@ -2340,3 +2340,45 @@ carries an attack needle, every box carries its own stage, and A8 is typed where
 exists) and `tests/test_chain_refusals.py` (the refusal found through the chain the overview does
 not name, every terminal status keel-cloud can write, a healthy chain that must stay `None`, a
 cycle that ends). 0.3 s, no stack, no browser, no model. `make unit` 273 green.
+
+## 40. Note (not a defect): the referee now follows the `(stage, id)` pair `#37`'s own fix made
+
+**Severity: note.** keel-cloud fixed `#37`/`#38`'s keel-cloud half at `932fdfe` (spec 030
+follow-on, measured-beliefs design decision 18, invariant `Q7`): a selection or anchor id is
+unique only within one stage's own questionnaire and free to repeat on another's, keyed as the
+pair `(stage, id)` through `Project`'s Q1–Q6, `Interpretation.anchorings`, the stored document,
+and the wire -- `INTERPRET`'s context `anchors[]` and its result `anchorings[]` now both carry
+`stage`, and `InvitationDetail.answers[]` gained a required `stage` alongside `anchorId`.
+`InteractionView` also gained `refusal` -- a founder-voiced line, `#38`'s own half -- with keel-web
+rendering it in a separate fix this repo does not touch.
+
+This is **not** a resolution of `#37` or `#38` -- both stay open until a live run (the same walk
+that found them) confirms the fix on the wire. What this note records is that the referee's own
+generator and instruction harness would not have silently mismeasured a fixed product against a
+stale contract:
+
+- `harness/corpus_script.py` -- `_interpret_entries` refuses (rather than omits) a written anchor
+  it cannot resolve a stage for, and now emits `{stage, anchorId, anchoring}` per anchoring. Two
+  latent bugs, neither ever tripped by the frozen corpus (it numbers ids across the whole entry,
+  which stays valid and unchanged) but both real for a future entry or a live model that numbers
+  each stage fresh from `A1`/`S1`: `person_inputs`'s `by_selection` was built once for the whole
+  entry, so whichever stage's own selection was authored last would silently validate every other
+  stage's pick against it; `role_of_anchor` matched a bare selection id the same way. Both are now
+  scoped to `(stage, id)`.
+- `instructions/context.py`'s `anchors_for` (the `INTERPRET` context this eval sends a real model)
+  and `instructions/score.py`'s `score_reading` (what it does with the answer) now carry and
+  require `stage` the same way, matching keel-cloud's own export rather than a cached shape --
+  `score_reading` refuses an anchoring with no `stage`, or the wrong one, exactly as it already
+  refused an omitted or invented `anchorId` (judgement call 6's own three lines, unmoved).
+  `MARKS_VERSION` stays 3: a required field arriving is not a rubric change (marks.py's own rule).
+- `evals/corpus_facts.py`'s fact registry and `harness/browser.py`'s `ParticipantPage.answer_as`
+  keyed their own anchor/selection lookups the same defensive way, for the same reason -- neither
+  is reachable by `make unit` (the first only by `tests/test_policy_v8.py`'s unrelated `phrase.*`
+  keys, the second not at all), so this is reasoned, not run.
+
+**Tests**: `tests/test_corpus_script.py::test_a_selection_id_reused_on_a_different_stage_resolves_to_its_own_stage`
+(a two-stage entry whose `PROBLEM` and `SOLUTION` cards each call their own sole anchor `A1` and
+sole selection `S1`; the script keeps both assumption cards, both picks and both reading entries
+distinct rather than merged), plus two new `instructions/score.py` cases (a `stage`-less anchoring
+refused like an omitted one; the wrong `stage` refused like an invented one). `make unit` 276
+green.

@@ -556,14 +556,19 @@ raises `ExecutorUnavailable` on the very first job: nothing in this repo runs un
   against a live stack rather than against hope.
 - **RT-002** `_resolve_interpret_result` MUST be rewritten for the new reading contract. The
   heading-to-id resolution through the context's `assumptions[]` goes away with `assumptions` — an
-  `INTERPRET` context carries `anchors[] : {anchor_id, prompt, text, tap}` and nothing else. The
-  executor still fills `invitationId` from the context (keel-cloud refuses otherwise), and now
-  passes each `anchorings[].anchorId` through unchanged, refusing with `ExecutorUnavailable` an
-  `anchorId` the context's `anchors[]` does not carry — the same honesty the heading rule had.
+  `INTERPRET` context carries `anchors[] : {stage, anchor_id, prompt, text, tap}` and nothing else.
+  **`stage` is new** (keel-cloud measured-beliefs decision 18, `Q7`, DRIFT #37): an anchor id is
+  unique only within one stage's own questionnaire and free to repeat on another's, because a link
+  can carry occasions from more than one approved stage and every one of them calls its first
+  occasion `A1`. The executor still fills `invitationId` from the context (keel-cloud refuses
+  otherwise), and now passes each `anchorings[].stage` and `.anchorId` through unchanged as the
+  pair, refusing with `ExecutorUnavailable` a `(stage, anchorId)` the context's `anchors[]` does
+  not carry — the same honesty the heading rule had.
 - **RT-003** The result shapes the script may carry MUST be the current ones:
   `{assumptions, questionnaire: {anchors}, normalization_rationale}` for the three assumption
-  screens, and `{invitationId, anchorings, unprompted, flags}` for the reading. `claimType`,
-  `stance`, `perAnswer`, `assumptionId` and `evidence` no longer appear anywhere.
+  screens, and `{invitationId, anchorings: [{stage, anchorId, anchoring}], unprompted, flags}` for
+  the reading — `stage` required on every anchoring, same reason as RT-002. `claimType`, `stance`,
+  `perAnswer`, `assumptionId` and `evidence` no longer appear anywhere.
 - **RT-004** The bundled default script `keel_runtime/testing/scripts/payroll-exceptions.json` is
   written in the retired shapes and cannot be applied by keel-cloud. It MUST be regenerated or
   retired, because `--executor scripted` with no `--script` is otherwise a trap that fails at the

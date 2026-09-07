@@ -151,26 +151,33 @@ def facts_for(entry, *, modal_person: str | None = None,
                 text=role["label"], kind="role", hops=["invite_screen"])
 
     for anchor in (entry.questionnaire or {}).get("anchors") or []:
+        # Keyed by `(stage, id)`, never the bare id (keel-cloud measured-beliefs decision 18, `Q7`,
+        # DRIFT #37): an anchor or selection id is unique only within one stage's own
+        # questionnaire and free to repeat on another's. The frozen corpus numbers its ids across
+        # the whole entry and so never collides, but a fact registry that joined on the bare id
+        # would silently overwrite one stage's fact with another's the day that stops being true.
+        stage = anchor.get("stage")
         if anchor.get("prompt"):
             # The one story the stranger is asked. It is the anchor's own prompt on their page;
             # the opened card's `Asked: "…"` line quotes the *selection's* prompt, which is a
             # different string, so this fact does not claim that hop.
-            facts[f"anchor.{anchor['id']}"] = Fact(
+            facts[f"anchor.{stage}.{anchor['id']}"] = Fact(
                 text=" ".join(str(anchor["prompt"]).split()), kind="about_line",
                 hops=["participant_page"])
         for selection in anchor.get("selections") or []:
             if selection.get("prompt"):
-                facts[f"asked.{selection['id']}"] = Fact(
+                facts[f"asked.{stage}.{selection['id']}"] = Fact(
                     text=" ".join(str(selection["prompt"]).split()), kind="about_line",
                     hops=["participant_page", "opened_card"])
 
     for person in entry.people():
         slug = person.person.lower().replace(" ", "-")
         for anchor_id, written in person.written():
+            stage = (entry.anchor(anchor_id) or {}).get("stage")
             hops = ["participant_page"]
             if (modal_person and person.person == modal_person
                     and (modal_anchor is None or anchor_id == modal_anchor)):
                 hops.append("answers_modal")
-            facts[f"said.{slug}.{anchor_id}"] = Fact(
+            facts[f"said.{slug}.{stage}.{anchor_id}"] = Fact(
                 text=str(written.get("text")).strip(), kind="answer", hops=hops)
     return facts

@@ -120,7 +120,11 @@ def test_interpret_is_one_entry_per_reading_in_order_and_omits_a_blank_anchor(ca
     cursor and hand every later person the wrong judgement."""
     interpret = cs.generate(canned).screens["INTERPRET"]
     assert len(interpret) == 1                            # Ada wrote; Grace did not
-    assert interpret[0]["result"]["anchorings"] == [{"anchorId": "A1", "anchoring": "ANCHORED"}]
+    # stage travels with anchorId (measured-beliefs decision 18, DRIFT #37): a link can carry
+    # occasions from more than one approved stage, and every stage's own questionnaire numbers its
+    # first occasion A1, so the pair -- not the bare id -- is what the reader hands back.
+    assert interpret[0]["result"]["anchorings"] == [
+        {"stage": "PROBLEM", "anchorId": "A1", "anchoring": "ANCHORED"}]
     # rule 4: only the running stack knows the real invitation id, so the generator never writes it
     assert all("invitationId" not in e["result"] for e in interpret)
 
@@ -150,6 +154,67 @@ def test_the_typed_inputs_carry_the_market_the_statements_and_every_pick(canned)
     assert people[1].pick("S1").is_escape is True
     assert people[1].anchors[0].tap == "CANT_RECALL"
     assert people[1].written() == []
+
+
+# --------------------------------------------- Q7: a selection id belongs to its own stage alone
+
+def test_a_selection_id_reused_on_a_different_stage_resolves_to_its_own_stage(tmp_path):
+    """Measured-beliefs design decision 18, `Q7` (DRIFT #37): a selection id is unique only within
+    one stage's own questionnaire and free to repeat on another's -- a live model numbers every
+    stage fresh from `S1`. `by_selection` used to be built once for the whole entry, so whichever
+    stage's own `S1` happened to be authored last would silently validate every other stage's pick
+    against it too; `role_of_anchor` matched a bare selection id the same way. Here PROBLEM's own
+    `S1` is a yes/no and SOLUTION's own `S1` -- a different role's, on a different anchor -- is a
+    red/blue, and each person's pick is checked, and the script's two assumption cards and two
+    reading entries stay distinct rather than merged into one."""
+    raw = copy.deepcopy(CANNED)
+    raw["roles"].append({"id": "r2", "label": "Someone else", "roleType": "PRACTITIONER",
+                          "about": "does another thing"})
+    raw["beliefs"].append({
+        "id": "B3", "stage": "SOLUTION", "heading": "Which one", "statement": "It was the red one.",
+        "risk": "LOAD_BEARING", "askedOf": "r2", "mark": "DIRECT",
+        "expectation": {"type": "CHOICE", "options": ["red", "blue"], "expected": "red"},
+        "selection": "S1"})
+    raw["questionnaire"]["anchors"].append({
+        "id": "A2", "stage": "SOLUTION", "prompt": "Think of that again.",
+        "selections": [{"id": "S1", "prompt": "Which colour?", "control": "OPTIONS",
+                         "multiSelect": False, "options": ["red", "blue"],
+                         "escape": ["can't recall"]}]})
+    raw["answers"] = [
+        {"person": "Ada Lovelace",
+         "anchors": {"A1": {"text": "Last Tuesday, for about an hour.", "anchoring": "ANCHORED"}},
+         "picks": {"S1": "yes", "S2": "1 h to 2 h"}},
+        {"person": "Zora Okafor",
+         "anchors": {"A2": {"text": "It was red, definitely.", "anchoring": "ANCHORED"}},
+         "picks": {"S1": "red"}},
+    ]
+    entry = _entry(raw, tmp_path)
+
+    screens = cs.generate(entry).screens
+    problem_s1 = screens["PROBLEM_ASSUMPTIONS"][0]["result"]["questionnaire"]["anchors"][0][
+        "selections"][0]
+    solution_s1 = screens["SOLUTION_ASSUMPTIONS"][0]["result"]["questionnaire"]["anchors"][0][
+        "selections"][0]
+    assert problem_s1["id"] == solution_s1["id"] == "S1"
+    assert problem_s1["options"] == ["yes", "no"]
+    assert solution_s1["options"] == ["red", "blue"]          # a different S1, on a different stage
+
+    # Each pick is validated against -- and carries only the value legal for -- its own stage's S1.
+    people = cs.person_inputs(entry)
+    by_name = {p.person: p for p in people}
+    assert by_name["Ada Lovelace"].role_id == "r1"
+    assert by_name["Zora Okafor"].role_id == "r2"
+    assert by_name["Ada Lovelace"].pick("S1").values == ["yes"]
+    assert by_name["Zora Okafor"].pick("S1").values == ["red"]
+
+    # Two distinct reading entries, each keyed by (stage, anchorId) -- not merged into one because
+    # both happen to write under an anchor that answers to the label `S1`/`A1` conventions share.
+    interpret = screens["INTERPRET"]
+    assert len(interpret) == 2
+    assert interpret[0]["result"]["anchorings"] == [
+        {"stage": "PROBLEM", "anchorId": "A1", "anchoring": "ANCHORED"}]
+    assert interpret[1]["result"]["anchorings"] == [
+        {"stage": "SOLUTION", "anchorId": "A2", "anchoring": "ANCHORED"}]
 
 
 # ---------------------------------------------------------------------- FR-004, the four refusals
@@ -255,7 +320,7 @@ def test_every_literal_in_the_script_came_from_the_entry(entry_id):
                  "label", "roleType", "about", "market", "id", "prompt", "control",
                  "multiSelect", "options", "escape", "other", "taps", "type", "measure",
                  "kind", "unit", "per", "lower", "upper", "value", "inclusive", "exact",
-                 "expected", "anchorings", "anchorId", "anchoring", "unprompted", "flags"}
+                 "expected", "anchorings", "stage", "anchorId", "anchoring", "unprompted", "flags"}
     allowed |= set(cs.TAP_ENUM.values())                             # the enum tap names
     allowed |= {cs.introduction_for(entry), cs.normalization_rationale_for(entry)}  # rule 5
 

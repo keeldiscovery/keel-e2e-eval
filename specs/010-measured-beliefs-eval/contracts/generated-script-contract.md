@@ -40,6 +40,14 @@ Rules the file obeys, each one a unit test in `tests/test_corpus_script.py`:
 6. **A screen the entry cannot produce is absent**, not present-and-empty.
 7. **`<STAGE>_ASSUMPTIONS.correction` appears only for a scenario that corrects** (S-001), and
    carries the assumptions envelope plus `reply` and `changes[] {heading, before, after}`.
+8. **Every `anchorings[]` entry carries `stage` beside `anchorId`**, keyed by the pair and never
+   the bare id (keel-cloud measured-beliefs decision 18, `Q7`, DRIFT #37): an anchor id is unique
+   only within one stage's own questionnaire and free to repeat on another's, because a link can
+   carry occasions from more than one approved stage and every one of them calls its first
+   occasion `A1`. The frozen corpus numbers its ids across the whole entry and so never collides
+   (rule unchanged for it), but the generator does not assume a future entry, or a live model,
+   will do the same — `by_selection` and `role_of_anchor` are scoped to `(stage, id)` for the same
+   reason.
 
 ## `runs/<id>/inputs.json`
 

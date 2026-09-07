@@ -54,25 +54,35 @@ class ReadingScore:
 
 
 def score_reading(case, entry, person, result, *, failed: str | None = None) -> ReadingScore:
-    """One reading case: the model's word per anchor against the corpus's own."""
+    """One reading case: the model's word per anchor against the corpus's own.
+
+    Matched by **`(stage, anchorId)`, never the bare id** (measured-beliefs decision 18, DRIFT
+    #37): an anchor id is unique only within one stage's own questionnaire, so the pair is what the
+    context handed the model (`context.anchors_for`) and what the contract now requires back. A
+    produced anchoring with no `stage` -- or the wrong one -- is not a match; it refuses the same
+    way an omitted or invented id already did, rather than resolving it by guessing.
+    """
     score = ReadingScore(case_id=case.case_id, entry_id=entry.id, subject=case.subject,
                          run_index=case.run_index, failed=failed)
-    given = {anchor_id: answer.get("anchoring")
-             for anchor_id, answer in person.written()}
+    given = {}
+    for anchor_id, answer in person.written():
+        stage = (entry.anchor(anchor_id) or {}).get("stage")
+        given[(stage, anchor_id)] = answer.get("anchoring")
     score.given = len(given)
     if failed or not isinstance(result, dict):
-        score.missing_ids = sorted(given)
+        score.missing_ids = sorted(anchor_id for _, anchor_id in given)
         return score
 
     produced = {}
     raw = result.get("anchorings")
     if isinstance(raw, list):
         for item in raw:
-            if isinstance(item, dict) and isinstance(item.get("anchorId"), str):
-                produced[item["anchorId"]] = item.get("anchoring")
+            if (isinstance(item, dict) and isinstance(item.get("anchorId"), str)
+                    and isinstance(item.get("stage"), str)):
+                produced[(item["stage"], item["anchorId"])] = item.get("anchoring")
 
-    for anchor_id, golden in given.items():
-        answer = produced.get(anchor_id)
+    for (stage, anchor_id), golden in given.items():
+        answer = produced.get((stage, anchor_id))
         if answer not in ("ANCHORED", "GUESSED"):
             score.missing_ids.append(anchor_id)
             score.per_anchor.append({"anchor_id": anchor_id, "golden": golden,
@@ -86,7 +96,7 @@ def score_reading(case, entry, person, result, *, failed: str | None = None) -> 
         score.per_anchor.append({"anchor_id": anchor_id, "golden": golden,
                                  "produced": answer, "agree": agree})
 
-    score.extra_ids = sorted(set(produced) - set(given))
+    score.extra_ids = sorted(anchor_id for _, anchor_id in (set(produced) - set(given)))
     return score
 
 

@@ -81,6 +81,11 @@ def anchors_for(entry, person) -> list:
     for anchor_id, answer in person.written():
         golden_anchor = entry.anchor(anchor_id) or {}
         anchors.append({
+            # stage travels beside anchor_id, first (measured-beliefs decision 18, DRIFT #37):
+            # `ScreenContextBuilder.anchorsWritten` writes it because a link can carry occasions
+            # from more than one approved stage and every stage's own questionnaire numbers its
+            # first occasion A1 -- the pair, not the bare id, is what tells two occasions apart.
+            "stage": golden_anchor.get("stage"),
             "anchor_id": anchor_id,
             "prompt": golden_anchor.get("prompt"),
             "text": answer.get("text"),

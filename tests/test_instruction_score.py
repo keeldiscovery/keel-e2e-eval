@@ -13,10 +13,17 @@ from instructions.corpus import Entry, GoldenBelief, Person
 from instructions.prompts import Case
 
 
-def _entry(beliefs=()):
+READING_ANCHOR_IDS = ("A1", "A2", "A3", "A4", "A9")
+
+
+def _entry(beliefs=(), *, anchor_ids=READING_ANCHOR_IDS):
+    # Every anchor this file's reading fixtures write under, stage-tagged PROBLEM so
+    # `score_reading`'s own `entry.anchor(anchor_id)` lookup (measured-beliefs decision 18, DRIFT
+    # #37) resolves the same stage the wire's own `result["anchorings"]` entries below carry.
+    anchors = [{"id": a, "stage": "PROBLEM"} for a in anchor_ids]
     return Entry(id="09-fixture", title="t", market={}, statements={}, roles=[],
-                 beliefs=list(beliefs), questionnaire={"anchors": []}, answers=[], expected={},
-                 path=None, sha256="0" * 64)
+                 beliefs=list(beliefs), questionnaire={"anchors": anchors}, answers=[],
+                 expected={}, path=None, sha256="0" * 64)
 
 
 def _case(kind, subject, run_index=1):
@@ -43,7 +50,7 @@ def _belief(bid, expected="yes"):
 
 def test_a_reader_that_says_anchored_to_everything_scores_high_and_recalls_nothing():
     person = _person(A1="ANCHORED", A2="ANCHORED", A3="ANCHORED", A4="GUESSED")
-    result = {"anchorings": [{"anchorId": a, "anchoring": "ANCHORED"}
+    result = {"anchorings": [{"stage": "PROBLEM", "anchorId": a, "anchoring": "ANCHORED"}
                              for a in ("A1", "A2", "A3", "A4")]}
 
     score = score_mod.score_reading(_case("READING", "Priya"), _entry(), person, result)
@@ -58,8 +65,8 @@ def test_a_reader_that_says_anchored_to_everything_scores_high_and_recalls_nothi
 
 def test_a_reader_that_spots_the_guess_has_precision_and_recall_of_one():
     person = _person(A1="ANCHORED", A2="GUESSED")
-    result = {"anchorings": [{"anchorId": "A1", "anchoring": "ANCHORED"},
-                             {"anchorId": "A2", "anchoring": "GUESSED"}]}
+    result = {"anchorings": [{"stage": "PROBLEM", "anchorId": "A1", "anchoring": "ANCHORED"},
+                             {"stage": "PROBLEM", "anchorId": "A2", "anchoring": "GUESSED"}]}
 
     totals = score_mod.totals(
         [score_mod.score_reading(_case("READING", "Priya"), _entry(), person, result)], [])
@@ -71,7 +78,7 @@ def test_a_reader_that_spots_the_guess_has_precision_and_recall_of_one():
 
 def test_an_omitted_anchor_is_recorded_and_never_quietly_matched_by_position():
     person = _person(A1="ANCHORED", A2="GUESSED")
-    result = {"anchorings": [{"anchorId": "A9", "anchoring": "ANCHORED"}]}
+    result = {"anchorings": [{"stage": "PROBLEM", "anchorId": "A9", "anchoring": "ANCHORED"}]}
 
     score = score_mod.score_reading(_case("READING", "Priya"), _entry(), person, result)
 
@@ -90,6 +97,33 @@ def test_a_failed_reading_case_answers_no_anchor_at_all():
 
     assert score.answered == 0 and score.missing_ids == ["A1"]
     assert score.failed.startswith("outcome")
+
+
+def test_an_anchoring_with_no_stage_is_refused_the_same_as_an_omitted_one():
+    """Measured-beliefs decision 18 / DRIFT #37: `stage` is required on the wire now (the same
+    pair the context handed the model), so an anchoring missing it is not a match -- it is treated
+    exactly like an omitted anchor, never resolved by the bare id alone."""
+    person = _person(A1="ANCHORED")
+    result = {"anchorings": [{"anchorId": "A1", "anchoring": "ANCHORED"}]}   # no "stage"
+
+    score = score_mod.score_reading(_case("READING", "Priya"), _entry(), person, result)
+
+    assert score.answered == 0
+    assert score.missing_ids == ["A1"]
+    assert score.anchoring_accuracy is None
+
+
+def test_a_stage_that_does_not_match_the_goldens_own_is_not_a_match():
+    """Two occasions can share the bare id `A1` on two different stages (a link spanning both) --
+    the wrong stage is a wrong answer, not a coincidence to accept."""
+    person = _person(A1="ANCHORED")
+    result = {"anchorings": [{"stage": "SOLUTION", "anchorId": "A1", "anchoring": "ANCHORED"}]}
+
+    score = score_mod.score_reading(_case("READING", "Priya"), _entry(), person, result)
+
+    assert score.answered == 0
+    assert score.missing_ids == ["A1"]
+    assert score.extra_ids == ["A1"], "the same id, wrong stage, is an extra -- not a match"
 
 
 # ----------------------------------------------------------------------------------- assumptions
