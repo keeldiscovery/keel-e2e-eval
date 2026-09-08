@@ -324,3 +324,71 @@ def test_a8_reads_the_other_stages_card_with_the_object_that_renders_it():
         "an empty read still passes A8 silently, which is the whole of #41b")
     assert "before_card = ReviewCard" not in source and "after_card = ReviewCard" not in source, (
         "the draft-review read of the other stage's card is back")
+
+
+# ------------------------------------- rule Q5: the founder's marking, and the word it shares
+
+# The last third of the page `GET /v2/i/{token}` drew for the stranger S-004 invites into a
+# finished `01-countly` project, quoted from the fourth live run's own capture
+# (`runs/20260907T223817Z-s004-stranger-who-gives-orders-live`, step 71, `participant_page`).
+# `runs/` is not committed, so the excerpt lives here rather than being read back out of a bundle.
+PARTICIPANT_PAGE_AS_DRAWN = (
+    "About buying software 3 of 3 "
+    "Think of the last piece of software this restaurant started paying for. What was it, and how "
+    "did that come about? It hasn't happened I can't recall I'd rather not say "
+    "What do you pay a month today for the closest thing — stock, ordering or inventory tools? "
+    "under £5 £5 to £10 £10 to £20 £20 to £25 £25 to £50 £50 to £100 £100 to £200 "
+    "more than £200, say roughly don't know "
+    "How is that tool priced? per site per user one-off free don't know Submit")
+
+
+def _the_old_inline_read(entry, page_text):
+    """What S-004 composed for itself before it read the rule off `corpus_facts`: the raw
+    `founderPhrase` beside the two composed markings."""
+    from evals import corpus_facts
+    return [candidate
+            for belief in entry.beliefs
+            for candidate in (belief.founder_phrase, corpus_facts.band_label(belief),
+                              corpus_facts.expected_chip(belief))
+            if candidate and candidate.casefold() in page_text.casefold()]
+
+
+def test_the_old_inline_read_calls_a_correct_page_a_leak(entry):
+    """The fault, as a fact about the page the product actually draws. `C17`'s founderPhrase *is*
+    `per site`, and `S17` asks "How is that tool priced?" with `per site` among its four answers --
+    so the block S-004 was about to reach for the first time would have gone red on a stranger's
+    page behaving exactly as designed, four steps past B9 and after every real job was paid for."""
+    assert "per site" in PARTICIPANT_PAGE_AS_DRAWN
+    assert _the_old_inline_read(entry, PARTICIPANT_PAGE_AS_DRAWN) == ["per site"]
+
+
+def test_the_registrys_rule_lets_the_option_word_stand(entry):
+    """`corpus_facts.facts_for` learnt this live on `20260907T145804Z-s005-countly` and drops a
+    `founderPhrase` that collides with one of its own belief's option words. Reading the forbidden
+    list off it puts S-004 on the same rule instead of a second copy of it."""
+    from evals import corpus_facts
+    forbidden = corpus_facts.forbidden_on_participant_page(entry)
+    assert "per site" not in forbidden
+    assert not [c for c in forbidden if c.casefold() in PARTICIPANT_PAGE_AS_DRAWN.casefold()]
+
+
+def test_the_registrys_rule_still_forbids_every_marking(entry):
+    """Narrowed, never loosened: both composed markings are still forbidden, and a page that
+    carried one is still a red step. `you said 1 to 2` is `P3`'s band as `Strip.tsx` writes it and
+    `recounted by hand ✓` is `P4a`'s expected chip as `Chips.tsx` marks it; a participant page
+    composes neither, which is exactly why they can be declared absent."""
+    from evals import corpus_facts
+    forbidden = corpus_facts.forbidden_on_participant_page(entry)
+    assert "you said 1 to 2" in forbidden
+    assert "recounted by hand ✓" in forbidden
+    leaked = PARTICIPANT_PAGE_AS_DRAWN + " you said 1 to 2 recounted by hand ✓"
+    assert sorted(c for c in forbidden if c.casefold() in leaked.casefold()) == [
+        "recounted by hand ✓", "you said 1 to 2"]
+
+
+def test_s004_reads_the_forbidden_list_off_the_registry():
+    """The block itself, so the copy cannot quietly come back."""
+    source = Path(s004.__file__).read_text()
+    assert "corpus_facts.forbidden_on_participant_page(entry)" in source
+    assert "corpus_facts.band_label(" not in source
+    assert "corpus_facts.expected_chip(" not in source

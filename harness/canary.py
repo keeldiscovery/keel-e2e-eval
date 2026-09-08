@@ -15,6 +15,7 @@ import json
 import os
 import secrets
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -76,8 +77,50 @@ def read_envelopes(keel_home: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def envelope_findings(rows: list[dict[str, Any]], *, budget_usd: float, max_turns: int = 2) -> list[str]:
-    """What the CLI's own report says the executor did that it must not have."""
+def wait_for_envelopes(keel_home: Path, *, timeout_s: float = 120.0,
+                       poll_s: float = 1.0) -> list[dict[str, Any]]:
+    """`read_envelopes`, once every job directory carries an envelope the runtime has finished
+    writing -- or once `timeout_s` is up, whichever comes first.
+
+    **A job dir appears when the job starts and its three files are written when it ends**, so a
+    sweep that reads the directory while a job is in flight sees a dir with no `envelope.json` and
+    reports it as *no envelope recorded*. That is not hypothetical: keel-cloud starts a `BRIEF`
+    job **by itself** when a reading batch finishes (`ReadingBatchService.sayWhatThisSays`), with
+    no founder and no agent asking for it, so the People screen's own completion toast -- which is
+    all a scenario can wait on, because the founder is given nothing else -- lands while the
+    runtime is still answering. The fifth live S-004 run read the jobs directory **19 seconds**
+    before that job's envelope was written (`runs/20260907T234006Z-s004-stranger-who-gives-orders-live`,
+    sweep at 23:54:19.38Z, `4b01cf80`'s envelope at 23:54:38.76Z) and went red on a job that had
+    not failed and was not even finished.
+
+    Waiting is the fix rather than skipping the dir, because that job is exactly the one the sweep
+    most needs to see: it is the first real `BRIEF` this repo has ever caused, and the canary must
+    be scanned against what it wrote like any other. A timeout still hands back whatever is there,
+    so a runtime that genuinely never answers is still a red step and never a quiet pass.
+    """
+    deadline = time.monotonic() + timeout_s
+    while True:
+        rows = read_envelopes(keel_home)
+        if rows and all(row["envelope"] for row in rows):
+            return rows
+        if time.monotonic() >= deadline:
+            return rows
+        time.sleep(poll_s)
+
+
+def envelope_findings(rows: list[dict[str, Any]], *, budget_usd: float, max_turns: int) -> list[str]:
+    """What the CLI's own report says the executor did that it must not have.
+
+    **`max_turns` has no default here on purpose.** It used to default to `2` -- keel-runtime spec
+    002 FR-007's *original* cap -- and that literal survived the fix to `configured_budget_usd`
+    even though both numbers were raised by the same amendment, in the same comment, on the same
+    day: FR-009 (2026-09-04) took the pair from `0.25/2` to `1.00/6` because "the original 0.25/2
+    stopped two real jobs in a row; a legitimate breakdown job spends around $0.25 and three to
+    five turns". `runs/DRIFT.md` #36 fixed the money half and left the turns half pinned, and the
+    fifth live run came back red on a `SOLUTION_ASSUMPTIONS` job that took **four** turns -- inside
+    the six the runtime handed the CLI, with `permission_denials: []` and a valid result. Making
+    the argument required is what stops the third copy of this mistake being written.
+    """
     findings: list[str] = []
     for row in rows:
         env = row["envelope"] or {}
@@ -136,11 +179,43 @@ def configured_budget_usd(keel_runtime: Path, keel_home: Path,
     return _runtime_default_budget_usd(Path(keel_runtime))
 
 
-def _runtime_default_budget_usd(keel_runtime: Path) -> float:
-    """keel-runtime's own `DEFAULT_JOB_BUDGET_USD`, imported from the sibling checkout the way
-    `instructions/prompts.py` imports its executor -- read, never restated."""
+def configured_max_turns(keel_runtime: Path, keel_home: Path,
+                         env: dict[str, str] | None = None) -> int:
+    """**The turn cap the runtime is actually running under**, in keel-runtime's own precedence
+    (`config.py`'s `_resolve_job_max_turns`: env > `$KEEL_HOME/config.json` > default), the way
+    `configured_budget_usd` reads the money cap beside it. The two are one amendment
+    (FR-009, `0.25/2` -> `1.00/6`) and are now read the same way, so neither can drift alone.
+    """
+    env = os.environ if env is None else env
+    value = env.get("KEEL_JOB_MAX_TURNS")
+    if value:
+        try:
+            return int(value)
+        except ValueError:
+            pass
+    file_config = _read_json(Path(keel_home) / "config.json") or {}
+    if file_config.get("max_turns") is not None:
+        try:
+            return int(file_config["max_turns"])
+        except (TypeError, ValueError):
+            pass
+    return _runtime_default_max_turns(Path(keel_runtime))
+
+
+def _runtime_default_max_turns(keel_runtime: Path) -> int:
+    """keel-runtime's own `DEFAULT_JOB_MAX_TURNS`, imported from the sibling checkout."""
+    return int(_runtime_config(keel_runtime).DEFAULT_JOB_MAX_TURNS)
+
+
+def _runtime_config(keel_runtime: Path):
     keel_runtime = keel_runtime.resolve()
     if str(keel_runtime) not in sys.path:
         sys.path.insert(0, str(keel_runtime))
     import keel_runtime.config as runtime_config          # noqa: PLC0415 - deliberate late import
-    return float(runtime_config.DEFAULT_JOB_BUDGET_USD)
+    return runtime_config
+
+
+def _runtime_default_budget_usd(keel_runtime: Path) -> float:
+    """keel-runtime's own `DEFAULT_JOB_BUDGET_USD`, imported from the sibling checkout the way
+    `instructions/prompts.py` imports its executor -- read, never restated."""
+    return float(_runtime_config(keel_runtime).DEFAULT_JOB_BUDGET_USD)

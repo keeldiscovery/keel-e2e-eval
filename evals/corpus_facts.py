@@ -93,6 +93,21 @@ def expected_chip(belief) -> str | None:
     return f"{expected} {EXPECTED_TICK}"
 
 
+def forbidden_on_participant_page(entry) -> list[str]:
+    """The founder's own markings that rule `Q5` says the stranger's page may never carry -- the
+    one list, derived from the one registry.
+
+    S-004 built this inline from `(founder_phrase, band_label, expected_chip)` and so missed the
+    collision `facts_for` had already been taught live: a `founderPhrase` that **is** one of its
+    belief's own option words cannot be declared absent from a page that must offer that option
+    (`01-countly`'s `C17`, *per site*, beside `S17`'s "How is that tool priced?" -- judgement call
+    1 above, `runs/20260907T145804Z-s005-countly`). Reading the texts back off `facts_for`'s own
+    `absent_hops` keeps the two scenarios on one rule rather than two copies of it.
+    """
+    return [fact.text for fact in facts_for(entry).values()
+            if "participant_page" in (fact.absent_hops or [])]
+
+
 def facts_for(entry, *, modal_person: str | None = None,
               modal_anchor: str | None = None) -> dict[str, Fact]:
     """Every fact this entry's scenario traces, keyed by the readable ids of data-model.md §5.
