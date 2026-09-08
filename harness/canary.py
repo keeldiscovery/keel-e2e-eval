@@ -202,6 +202,52 @@ def configured_max_turns(keel_runtime: Path, keel_home: Path,
     return _runtime_default_max_turns(Path(keel_runtime))
 
 
+def cap_sources(keel_runtime: Path, keel_home: Path,
+                env: dict[str, str] | None = None) -> dict[str, str]:
+    """**Where each cap came from**, in keel-runtime's own words: `env`, `config.json`, or
+    `keel-runtime default`.
+
+    The numbers alone are not provenance. The sixth live run
+    (`runs/20260908T010010Z-s004-stranger-who-gives-orders-live`) reported `max_turns: 8` where
+    keel-runtime's own `DEFAULT_JOB_MAX_TURNS` is `6`, because the shell it was launched from
+    carried `KEEL_JOB_MAX_TURNS=8` from another workspace's settings -- and the runtime under test
+    genuinely ran under 8, so `configured_max_turns` was right and the bundle was not wrong. But a
+    reader of that bundle could only tell the difference by re-deriving it, which is how a run gets
+    read later as if it had been made under production's own defaults (`runs/DRIFT.md` #46).
+
+    So the source travels with the number. Nothing here decides a cap; it re-walks the same
+    precedence the two readers above walk and names the step that answered.
+    """
+    env = os.environ if env is None else env
+    file_config = _read_json(Path(keel_home) / "config.json") or {}
+    sources = {}
+
+    value = env.get("KEEL_JOB_BUDGET_USD")
+    if value and _parses(value, float):
+        sources["budget_usd"] = "env KEEL_JOB_BUDGET_USD"
+    elif isinstance(file_config.get("budget_usd"), (int, float)):
+        sources["budget_usd"] = f"{keel_home}/config.json"
+    else:
+        sources["budget_usd"] = "keel-runtime default"
+
+    value = env.get("KEEL_JOB_MAX_TURNS")
+    if value and _parses(value, int):
+        sources["max_turns"] = "env KEEL_JOB_MAX_TURNS"
+    elif file_config.get("max_turns") is not None and _parses(file_config["max_turns"], int):
+        sources["max_turns"] = f"{keel_home}/config.json"
+    else:
+        sources["max_turns"] = "keel-runtime default"
+    return sources
+
+
+def _parses(value, kind) -> bool:
+    try:
+        kind(value)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
 def _runtime_default_max_turns(keel_runtime: Path) -> int:
     """keel-runtime's own `DEFAULT_JOB_MAX_TURNS`, imported from the sibling checkout."""
     return int(_runtime_config(keel_runtime).DEFAULT_JOB_MAX_TURNS)

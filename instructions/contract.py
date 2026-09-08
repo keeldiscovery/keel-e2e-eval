@@ -25,6 +25,9 @@ SCREENS_ASSUMPTIONS = {
     "COMMERCIAL": "COMMERCIAL_ASSUMPTIONS",
 }
 SCREEN_READING = "INTERPRET"
+# spec 009 follow-on: the screen nobody asks for -- keel-cloud starts it by itself
+# when a reading batch finishes (`ReadingBatchService.sayWhatThisSays`, spec 030).
+SCREEN_BRIEF = "BRIEF"
 
 
 class ContractUnavailable(RuntimeError):

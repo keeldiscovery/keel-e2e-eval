@@ -10,3 +10,9 @@
 anchoring_accuracy = 0.90
 golden_belief_recall = 0.80
 refusals = 0
+# MARKS_VERSION 4 (judgement calls 15-17), narrowed at 5 (20-21): the BRIEF subject. Every
+# paragraph must meet all four of `instructions/brief.py`'s per-case marks -- shape, coverage,
+# register, source_material -- so this is 1.00 and not a fraction: a paragraph that invents a
+# number has not half-worked. Whether the design's own verdict phrase appears is **observed on
+# register.html and not marked** (judgement call 20).
+brief_paragraphs = 1.00

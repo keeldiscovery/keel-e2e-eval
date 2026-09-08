@@ -43,6 +43,65 @@ part of what a number means:
 14. **v2**: the **judged fraction is reported on every run**, per case and overall, so a reader
     can discount a score by exactly the amount a model decided. Judgement call 11 buys recall at
     the cost of determinism, and this is the price tag.
+15. **v4** *(spec 009 follow-on, 2026-09-07)*: **a new subject is a rubric change.** The `BRIEF`
+    screen joins the reading and the assumptions, and a fourth mark joins the three:
+    `brief_paragraphs`, the fraction of BRIEF cases that met **all four** of `instructions/brief.py`'s
+    per-case marks (shape, coverage, register, source_material). Adding a subject changes what a
+    passing run means even where every existing number is untouched, so scores before and after
+    this bump are not comparable and the constant says so. (There is no v3 judgement call: v3
+    bumped for keel-cloud's `(stage, anchorId)` pair, recorded in `score.score_reading` itself.)
+16. **v4**: `brief_paragraphs` is **all four marks or nothing**, per case. A paragraph that is the
+    right shape and names no verdict has not half-worked; it is a paragraph a founder would read
+    and be misled by, and averaging the four marks together would hide exactly that.
+17. **v4**: **the paragraph is rendered as well as marked.** `brief.md`'s contract is one free-text
+    field, so almost everything about a good paragraph is wording -- design §3.8's *cannot be
+    checked by code*. The four marks cover only what `brief.md` states as a rule; the paragraph
+    itself goes on `register.html` beside its entry's standings, unscored, for the same person who
+    reads the anchors (judgement call 10, one subject wider). A mark this narrow can be wrong
+    about a paragraph that is right, and the run has to leave the evidence for that.
+18. **v4**: **the ordinary-English field names are exempt from `source_material`**, exactly as
+    `evals/policy.py`'s judgement calls 1, 5 and 10 exempt theirs. `inside`, `outside`, `guessed`,
+    `escaped`, `claims`, `beliefs`, `statement`, `heading`, `risk`, `verdict` and `drift` are
+    words `brief.md` itself tells the model to write -- *"how many people landed **inside** the
+    founder's own band"* is the instruction's own sentence -- so sweeping them would flag the
+    paragraph the instruction asks for. What is swept is the shape a field name has and prose does
+    not (`instructions/brief.py`'s `CONTEXT_FIELD_NAMES`).
+19. **v4, and stated before the run rather than after it**: the BRIEF context this eval sends is
+    production's in every field but one -- `median_reads`, which keel-cloud renders with
+    `Measure.say` (rounding minutes to the nearest five above ten, climbing to the largest unit a
+    person would use, putting the market's symbol on money). This repo does not own that
+    arithmetic and will not keep a copy of it (`runs/DRIFT.md` #33/#36/#41/#44/#45, five times the
+    same lesson), so the middle answer goes over in the corpus's own unit: `0.75 hours`, where
+    production would say `45 minutes`.
+
+    **`brief.md` names that exact string as a wrong way to say a number** -- *"you quote it
+    exactly: 45 minutes, not forty-five minutes, not 0.75 hours"* -- so on the one corpus entry
+    whose deciding line has a median (`01-countly`'s `P3`), a model is caught between the rule and
+    the example. Whichever it does is worth recording, and the `coverage` mark scores it against
+    the **rule**: quote what you were handed. A miss there is this eval's own limit, named here,
+    and never a keel-cloud finding. What would close it is a context keel-cloud exports rather than
+    one this repo assembles; that is a spec, not a rerun.
+20. **v5** *(the first BRIEF run, `runs/20260908T004022Z-instructions`, $1.20 over seven real
+    calls, and no rerun)*: **the design's verdict phrase is observed and never marked.** v4's
+    `coverage` required each claim's verdict to be named in `FounderVoice`'s own words -- *holding
+    up*, *not holding up*, *people disagree*, *still asking*. The run came back **0 of 7**, and
+    reading the paragraphs showed the mark was wrong, not the instruction: `brief.md`'s own next
+    sentence is *"Write them into ordinary sentences -- 'the problem is real', 'nobody pays
+    anything like that today'"*, and that is exactly what came back (*"The problem is real"*,
+    *"Your solution splits twice"*, *"On price the ground is firm"*). A code check on the words
+    scores the paragraph the instruction asks for as a failure, which is judgement call 10's rule
+    arriving from the other direction. So `verdict_phrasing` records per stage whether the phrase
+    appears, `register.html` renders it beside the paragraph, and a person decides.
+21. **v5**: **a split is counted from both sides.** v4's *no invented `N of M`* allowed only
+    `inside` of `inside + outside`. `brief.md`'s third thing a paragraph says is *who the split is
+    between*, named by the answers people gave -- *"six of nine had a member of staff take the
+    delivery in; three took it in themselves"* -- so `outside` of the same total is a count the
+    standings contain too. `02-compliancelog` was marked down for *6 of 10 rebuilt the draft they
+    were handed*, which is its own line's `outside` read out exactly as asked.
+
+    Both fixes were made **from that run's own bundle and re-scored without spending again**
+    (`python -m instructions.rescore`), which is what a versioned rubric and a kept bundle are
+    for. The v4 scorecard stays in the bundle beside the v5 one; neither overwrites the other.
 """
 
 from __future__ import annotations
@@ -50,7 +109,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 3
+MARKS_VERSION = 5
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 
@@ -58,6 +117,7 @@ DEFAULTS = {
     "anchoring_accuracy": 0.90,
     "golden_belief_recall": 0.80,
     "refusals": 0,
+    "brief_paragraphs": 1.00,
 }
 
 
@@ -82,6 +142,8 @@ def judge(totals: dict, marks: dict) -> dict:
     """
     accuracy = totals.get("anchoring_accuracy")
     recall = totals.get("golden_belief_recall")
+    brief = totals.get("brief_paragraphs")
+    brief_measured = bool(totals.get("brief_measured"))
     measured = bool(totals.get("refusals_measured"))
     refusals = sum((totals.get("refusals_by_rule") or {}).values())
     results = {
@@ -95,6 +157,15 @@ def judge(totals: dict, marks: dict) -> dict:
             "value": refusals if measured else None, "measured": measured,
             "mark": marks["refusals"],
             "met": measured and refusals <= marks["refusals"]},
+        # v4 (judgement calls 15-17): every BRIEF paragraph meeting all four of its own marks.
+        # Unmeasured is not met here either -- a run filtered to one subject reports the other
+        # subjects' marks as unmeasured and fails, which is the same rule `refusals` has had
+        # since v2 and the reason a filtered run's verdict is never read as a pass.
+        "brief_paragraphs": {
+            "value": brief, "measured": brief_measured,
+            "mark": marks["brief_paragraphs"],
+            "met": brief_measured and brief is not None
+                    and brief >= marks["brief_paragraphs"]},
     }
     results["passed"] = all(r["met"] for r in results.values() if isinstance(r, dict))
     return results

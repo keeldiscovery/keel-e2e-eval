@@ -47,7 +47,7 @@ class Case:
     """One prompt this run would send, and everything needed to explain it afterwards."""
 
     case_id: str
-    kind: str                 # ASSUMPTIONS | READING
+    kind: str                 # ASSUMPTIONS | READING | BRIEF
     entry_id: str
     screen: str
     subject: str              # the stage, or the person
@@ -92,7 +92,8 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
     before it reports it.
     """
     from . import context as context_mod          # noqa: PLC0415 - avoids a circular import
-    from .contract import SCREEN_READING, SCREENS_ASSUMPTIONS   # noqa: PLC0415
+    from .contract import (SCREEN_BRIEF, SCREEN_READING,        # noqa: PLC0415
+                            SCREENS_ASSUMPTIONS)
 
     cases = []
     for stage in stages:
@@ -125,4 +126,19 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
                 subject=person.person, run_index=run_index, payload=payload)
             case.prompt = render(executor_module, payload, job_id=_slug(case.case_id))
             cases.append(case)
+
+    # The BRIEF screen: one case an entry, because there is one paragraph a project. It is built
+    # last for the same reason production writes it last -- it is what a founder reads once every
+    # stage has been approved and every answer read.
+    keys = exported.keys_for(SCREEN_BRIEF)
+    contract = exported.for_screen(SCREEN_BRIEF)
+    context = context_mod.build_brief(entry, keys)
+    payload = payload_for(instructions_by_screen[SCREEN_BRIEF], context, contract)
+    for run_index in range(1, n_runs + 1):
+        case = Case(
+            case_id=f"{entry.id}/BRIEF/run{run_index}",
+            kind="BRIEF", entry_id=entry.id, screen=SCREEN_BRIEF, subject="BRIEF",
+            run_index=run_index, payload=payload)
+        case.prompt = render(executor_module, payload, job_id=_slug(case.case_id))
+        cases.append(case)
     return cases

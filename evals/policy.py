@@ -244,6 +244,44 @@ Judgement calls made while filling in what the contract leaves to the implementa
    Policy 8 is additive plus two retirements. `CATEGORY_WEIGHTS`, `DEFAULT_WEIGHT`,
    `FID_ANSWER_PARTICIPANT_PAGE_WEIGHT`, `COMPLETION_GATE_SCORE`, `normalize`, `fact_reaches_hop`
    and every check from ORI-U1 to GUI-U3 are untouched; it reweights nothing.
+
+12. **Policy v9: `CLA-U5` stops sweeping a person's own words.** The check reads *no gendered
+   pronoun in an element that renders a participant's name*, and the download page renders both:
+   keel-web's `PrintRoute.tsx` draws an *In their words* block where each participant's verbatim
+   answer sits beside their name. A person who wrote *"my supplier sends his invoices late"* is
+   quoted, not described, and v8 counted that as the product writing *his* next to a name. It is
+   the same class of mistake as judgement calls 1, 5 and 10 -- a sweep firing on the product's
+   *correct* behaviour -- and the fix is the same shape: exempt what the check was never about,
+   and keep every other side of it red.
+
+   **Keyed on structure, never on words.** keel-web marks a quotation by where it puts it, and
+   the three places it does are `div.pquotes p`'s own text nodes (the download page's *In their
+   words*; the attribution is a child `<span>` beside them), `div.said span.w` (the popover one
+   dot opens) and `p.story` inside the person modal. A capture reads those regions and records
+   them under `participant_quotes` (`PARTICIPANT_QUOTE_KEYS`); `text_outside_quotations` removes
+   them from what `CLA-U5` sweeps, matching on the quotation exactly as the product rendered it --
+   the curly quotation marks it wraps them in included, so a removal is anchored on the product's
+   own glyphs and cannot silently swallow a bare word. **Nothing keys on the words themselves**: a
+   pronoun list matched against a phrase list would be this policy deciding which sentences are
+   quotations, which is precisely what it must not do.
+
+   **Every other sweep still reads the quotations.** `CLA-U1`, `CLA-U2` and `CLA-U4` are
+   unchanged and still read the whole captured screen, quotations and all -- a raw enum or a
+   retired string is a leak wherever it renders, and a participant cannot type `LOAD_BEARING` by
+   accident. Only `CLA-U5` narrows, because it is the only check whose subject is *who wrote
+   this*. And it still fires on product-authored text beside a name: *In their words*, the
+   attribution `<span>`, the said box's *Read as…* line and its *See <name>'s answers* button all
+   stay in the swept text.
+
+   **`AnswersPopup`'s `span.p-a` is deliberately not exempted.** It renders a participant's typed
+   answer with no quotation marking of any kind -- no glyphs, no wrapper class of its own -- so
+   there is no structure to key on, and inventing one here would be this repo deciding what
+   keel-web meant. If `CLA-U5` ever fires there, that is a finding for `runs/DRIFT.md` (keel-web
+   marks one surface's quotations and not another's), not a fourth selector typed into this file.
+
+   Policy 9 changes one check's swept text and nothing else. `CATEGORY_WEIGHTS`, `DEFAULT_WEIGHT`,
+   `FID_ANSWER_PARTICIPANT_PAGE_WEIGHT`, `COMPLETION_GATE_SCORE`, `normalize`, `fact_reaches_hop`,
+   `HOP_IDS` and every other check are untouched; it reweights nothing and retires nothing.
 """
 
 from __future__ import annotations
@@ -251,7 +289,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-POLICY_VERSION = 8
+POLICY_VERSION = 9
 
 CATEGORY_WEIGHTS: dict[str, float] = {
     "FIDELITY": 0.4,
@@ -497,6 +535,12 @@ RETIRED_STRINGS = {
 GENDERED_PRONOUNS = {"he", "him", "his", "she", "her", "hers"}
 _WORD_RE = re.compile(r"[A-Za-z']+")
 
+# Policy v9 (judgement call 12), CLA-U5: the captured-text keys under which a capture records text
+# **the product itself renders as a quotation of a participant**. The capture keys on keel-web's
+# own structure (`harness/browser.py`'s `_PARTICIPANT_QUOTE_JS`); this policy only names the key,
+# so nothing here ever decides which sentences are somebody's own words.
+PARTICIPANT_QUOTE_KEYS = frozenset({"participant_quotes"})
+
 _URL_RE = re.compile(r"\S+://\S+")
 _CAMEL_CASE_RE = re.compile(r"\b[a-z][a-z0-9]*[A-Z][a-zA-Z0-9]*\b")
 _JSON_PUNCT_RE = re.compile(r'[{}\[\]]|"\s*:\s*"?|\'\s*:\s*\'?')
@@ -574,3 +618,31 @@ def gendered_pronoun_violations(text: str | None) -> list[str]:
         return []
     words = {w.lower() for w in _WORD_RE.findall(text)}
     return sorted(words & GENDERED_PRONOUNS)
+
+
+def text_outside_quotations(text: str | None, quotations) -> str:
+    """CLA-U5 (policy v9, judgement call 12): `text` with every quotation the product rendered as
+    a participant's own words removed, and nothing else removed.
+
+    `quotations` are the strings a capture read off keel-web's own quotation structure, **exactly
+    as it rendered them** -- the curly quotation marks the product wraps them in included. The
+    removal is a literal substring removal anchored on those glyphs, which is why a one-word
+    quotation cannot blow a hole in the sweep: `"his"` is removed only where the page actually
+    drew a quotation whose whole content was that word, never where the product wrote it in a
+    sentence of its own.
+
+    Whitespace is collapsed on both sides first, because `harness/browser.py`'s two reads collapse
+    it per text node and the quotation must match the copy of itself sitting inside the whole
+    screen's captured text. `CLA-U5` only extracts words afterwards, so collapsing costs the sweep
+    nothing.
+
+    A blank quotation is ignored rather than removed: removing an empty string would be removing
+    everything, and a capture that found no words is not evidence that the page quoted nobody.
+    """
+    scanned = _WHITESPACE_RE.sub(" ", text or "")
+    for quotation in quotations or ():
+        collapsed = _WHITESPACE_RE.sub(" ", quotation or "").strip()
+        if not collapsed:
+            continue
+        scanned = scanned.replace(collapsed, " ")
+    return scanned

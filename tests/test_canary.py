@@ -128,3 +128,49 @@ def test_s004_reads_both_caps_and_waits_for_the_envelopes() -> None:
     assert "canary_mod.configured_max_turns(" in source, "S-004 pins its own turn cap again"
     assert "canary_mod.wait_for_envelopes(" in source, "S-004 reads the envelopes too early again"
     assert "canary_mod.read_envelopes(" not in source
+
+
+# ------------------------------------------------------- where a cap came from (`runs/DRIFT.md` #46)
+
+def test_cap_sources_names_the_step_that_answered(tmp_path):
+    """The numbers alone are not provenance. The sixth live run reported `max_turns: 8` where
+    keel-runtime's own default is 6, because the shell it was launched from carried
+    `KEEL_JOB_MAX_TURNS=8` from another workspace's settings. `configured_max_turns` was right --
+    the runtime genuinely ran under 8 -- and the bundle gave a reader no way to tell without
+    re-deriving it."""
+    config = load_config()
+    env = {"KEEL_JOB_MAX_TURNS": "8"}
+
+    assert canary.cap_sources(config.keel_runtime, tmp_path, env=env) == {
+        "budget_usd": "keel-runtime default",
+        "max_turns": "env KEEL_JOB_MAX_TURNS",
+    }
+    assert canary.configured_max_turns(config.keel_runtime, tmp_path, env=env) == 8
+
+
+def test_cap_sources_names_the_home_config_when_that_is_what_answered(tmp_path):
+    (tmp_path / "config.json").write_text('{"budget_usd": 2.5, "max_turns": 9}')
+    sources = canary.cap_sources(load_config().keel_runtime, tmp_path, env={})
+    assert sources == {"budget_usd": f"{tmp_path}/config.json",
+                        "max_turns": f"{tmp_path}/config.json"}
+
+
+def test_cap_sources_falls_back_to_keel_runtimes_own_default(tmp_path):
+    """The state a founder's own laptop is in, and the one a bundle should be able to claim."""
+    config = load_config()
+    sources = canary.cap_sources(config.keel_runtime, tmp_path, env={})
+    assert sources == {"budget_usd": "keel-runtime default",
+                        "max_turns": "keel-runtime default"}
+    assert canary.configured_max_turns(config.keel_runtime, tmp_path, env={}) == \
+        canary._runtime_default_max_turns(config.keel_runtime)
+
+
+def test_an_unparseable_override_is_not_the_source_it_did_not_decide(tmp_path):
+    """keel-runtime falls through an unparseable env value rather than dying on it, and so must
+    the provenance: naming `env` for a value that decided nothing would be a lie about the run."""
+    config = load_config()
+    env = {"KEEL_JOB_MAX_TURNS": "not-a-number"}
+    assert canary.cap_sources(config.keel_runtime, tmp_path, env=env)["max_turns"] == \
+        "keel-runtime default"
+    assert canary.configured_max_turns(config.keel_runtime, tmp_path, env=env) == \
+        canary._runtime_default_max_turns(config.keel_runtime)

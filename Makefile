@@ -54,14 +54,16 @@ unit: venv
 # exactly as production sends it, produce the measured beliefs the frozen golden corpus says it
 # should? Unlike every other target here it needs **no `make up`** and no stack at all -- it talks
 # to no service, only to keel-cloud's exporter, keel-runtime's own build_prompt, and the `claude`
-# CLI. Like `eval-live` it **costs real money** on the founder's own account (about 127 calls a
-# pass at N=1), so start with DRY=1 and read a prompt. Deliberately NOT a dependency of `eval`,
+# CLI. Like `eval-live` it **costs real money** on the founder's own account (about 131 calls a
+# pass at N=1, the seven BRIEF paragraphs included), so start with DRY=1 and read a prompt.
+# Deliberately NOT a dependency of `eval`,
 # `eval-all` or `eval-live`, and it never reads or writes evals/policy.py -- its own rubric is
 # versioned separately as instructions/marks.py's MARKS_VERSION.
 #
 #   make instruction-eval DRY=1 K=01-countly    prints the prompts, calls nothing
 #   make instruction-eval BASELINE=1            the before-picture, once, and never again
 #   make instruction-eval K=reading N=1         one subject, one run per case
+#   make instruction-eval K=brief N=1           the BRIEF paragraph, seven calls
 instruction-eval: venv
 	$(PY) -m instructions.run $(if $(DRY),--dry-run,) $(if $(BASELINE),--baseline,) \
 		$(if $(K),-k $(K),) $(if $(N),-n $(N),) $(if $(MARKS),--marks $(MARKS),)

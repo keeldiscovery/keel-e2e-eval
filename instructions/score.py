@@ -27,6 +27,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from . import align as align_mod
+from . import brief as brief_mod
 
 FIELDS = align_mod.FIELDS
 
@@ -182,7 +183,7 @@ def score_assumptions(case, entry, result, *, failed: str | None = None,
 def totals(reading_scores: list, assumption_scores: list, *, errored: int = 0,
            refusals_by_rule: dict | None = None, shape_refusals: int = 0,
            schema_invalid: int = 0, refusals_measured: bool = False,
-           judge_calls: int = 0) -> dict:
+           judge_calls: int = 0, brief_scores: list | None = None) -> dict:
     """The run's own numbers, each summed over its own denominator and never over another's."""
     given = sum(s.given for s in reading_scores)
     answered = sum(s.answered for s in reading_scores)
@@ -207,7 +208,12 @@ def totals(reading_scores: list, assumption_scores: list, *, errored: int = 0,
         for key, value in s.phrase_band.items():
             phrase_band[key] += value
 
+    # MARKS_VERSION 4: the BRIEF subject's own numbers, folded in beside the other two and never
+    # summed with them -- three subjects, three denominators (`instructions/brief.py`).
+    brief = brief_mod.totals(brief_scores or [])
+
     return {
+        **brief,
         "anchoring_accuracy": (agreed / answered) if answered else None,
         "guessed_precision": (confusion["gg"] / called_guessed) if called_guessed else None,
         "guessed_recall": (confusion["gg"] / was_guessed) if was_guessed else None,

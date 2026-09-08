@@ -24,10 +24,14 @@ from pathlib import Path
 
 from stack.config import load_config
 
+from . import brief as brief_mod
+from . import context as context_mod
+from . import contract as contract_mod
 from . import corpus as corpus_mod
 from . import judge as judge_mod
 from . import marks as marks_mod
 from . import prompts as prompts_mod
+from . import report as report_mod
 from . import score as score_mod
 
 
@@ -49,13 +53,22 @@ def main(argv=None) -> int:
     judge = judge_mod.NoJudge() if args.no_judge else judge_mod.Judge()
 
     people = {(e.id, p.person): p for e in corpus.entries for p in e.people()}
-    reading_scores, assumption_scores = [], []
+    reading_scores, assumption_scores, brief_scores = [], [], []
+    # MARKS_VERSION 4: a BRIEF case is marked against the context it was sent, and the bundle
+    # keeps the prompt rather than the object. The context is a pure function of the frozen entry
+    # and the exported key list the bundle also keeps, so it is rebuilt from both -- the same way
+    # `score_assumptions` re-derives its goldens from the corpus rather than from the scorecard.
+    try:
+        brief_keys = contract_mod.read(run_dir / "contracts").keys_for(contract_mod.SCREEN_BRIEF)
+    except Exception:                             # noqa: BLE001 - a bundle taken before BRIEF
+        brief_keys = None                         # existed has no BRIEF case to score either
 
     for envelope, directory in _cases(run_dir):
         case_id = envelope["case_id"]
         entry_id, subject, run_part = case_id.split("/")
         entry = corpus.by_id(entry_id)
-        kind = "ASSUMPTIONS" if envelope["screen"].endswith("ASSUMPTIONS") else "READING"
+        kind = ("BRIEF" if envelope["screen"] == contract_mod.SCREEN_BRIEF
+                else "ASSUMPTIONS" if envelope["screen"].endswith("ASSUMPTIONS") else "READING")
         case = prompts_mod.Case(case_id=case_id, kind=kind, entry_id=entry_id,
                                 screen=envelope["screen"], subject=subject,
                                 run_index=int(run_part.replace("run", "")), payload={})
@@ -64,7 +77,16 @@ def main(argv=None) -> int:
         failed = envelope.get("error") or (
             envelope.get("schema_error") if not envelope.get("schema_valid") else None)
 
-        if kind == "READING":
+        if kind == "BRIEF":
+            if brief_keys is None:
+                continue
+            case.payload = {"context": context_mod.build_brief(entry, brief_keys)}
+            questions = envelope.get("questions") if envelope.get("outcome") == "NEEDS_INPUT" \
+                else None
+            brief_scores.append(brief_mod.score_brief(
+                case, entry, envelope.get("result"), outcome=envelope.get("outcome"),
+                failed=failed, needs_input_questions=questions))
+        elif kind == "READING":
             reading_scores.append(score_mod.score_reading(
                 case, entry, people[(entry_id, subject)], envelope.get("result"), failed=failed))
         else:
@@ -88,7 +110,8 @@ def main(argv=None) -> int:
     measured = validation.is_file() and "unavailable" not in validation.read_text(encoding="utf-8")
 
     totals = score_mod.totals(reading_scores, assumption_scores, errored=errored,
-                              refusals_measured=measured, judge_calls=judge.call_count)
+                              refusals_measured=measured, judge_calls=judge.call_count,
+                              brief_scores=brief_scores)
     marks = marks_mod.load()
     judged = marks_mod.judge(totals, marks)
 
@@ -101,6 +124,7 @@ def main(argv=None) -> int:
         "contract_manifest": original.get("contract_manifest"),
         "reading": [_reading_json(s) for s in reading_scores],
         "assumptions": [_assumption_json(s) for s in assumption_scores],
+        "brief": [_brief_json(s) for s in brief_scores],
         "totals": totals,
         "judge_calls": judge.calls,
         "spread": {
@@ -112,18 +136,32 @@ def main(argv=None) -> int:
     out = run_dir / f"scorecard-v{marks_mod.MARKS_VERSION}.json"
     out.write_text(json.dumps(scorecard, indent=2, default=str), encoding="utf-8")
 
+    # The register is the one page a rubric change can genuinely alter without a new call: what a
+    # newer rubric moved *out* of the marks has to be readable somewhere, and this is where it
+    # goes (judgement calls 17 and 20). Written beside the original, never over it, for the same
+    # reason the scorecard is.
+    if brief_scores:
+        report_mod.render_register(
+            run_dir, entries_by_market={},
+            paragraphs=report_mod.paragraph_blocks(corpus, brief_scores),
+            filename=f"register-v{marks_mod.MARKS_VERSION}.html")
+
     print(f"re-scored {run_dir.name} under MARKS_VERSION {marks_mod.MARKS_VERSION} "
           f"(was {original.get('marks_version')})")
     print(f"  recall     {_fmt(totals['golden_belief_recall'])}  "
           f"(was {_fmt(original['totals']['golden_belief_recall'])})")
     print(f"  anchoring  {_fmt(totals['anchoring_accuracy'])}  "
           f"(was {_fmt(original['totals']['anchoring_accuracy'])})")
+    print(f"  brief      {_fmt(totals['brief_paragraphs'])}  "
+          f"(was {_fmt((original.get('totals') or {}).get('brief_paragraphs'))})")
     print(f"  refusals   {'measured' if measured else 'NOT measured'}  "
           f"-> mark met: {judged['refusals']['met']}")
     print(f"  judge      {judge.call_count} calls, deciding "
           f"{_fmt(totals['judged_fraction'])} of matched pairs")
     print(f"  passed     {judged['passed']}")
     print(f"  written    {out}")
+    if brief_scores:
+        print(f"  register   {run_dir / f'register-v{marks_mod.MARKS_VERSION}.html'}")
     return 0
 
 
@@ -144,6 +182,13 @@ def _reading_json(s) -> dict:
             "agreed": s.agreed, "anchoring_accuracy": s.anchoring_accuracy,
             "confusion": s.confusion, "per_anchor": s.per_anchor,
             "missing_ids": s.missing_ids, "extra_ids": s.extra_ids, "failed": s.failed}
+
+
+def _brief_json(s) -> dict:
+    return {"case_id": s.case_id, "entry_id": s.entry_id, "run_index": s.run_index,
+            "paragraph": s.paragraph, "length": s.length, "marks": s.marks,
+            "findings": s.findings, "phrasing": s.phrasing, "met": s.met, "failed": s.failed,
+            "needs_input": s.needs_input}
 
 
 def _assumption_json(s) -> dict:

@@ -196,6 +196,63 @@ _SCREEN_TEXT_JS = r"""(el) => {
 }"""
 
 
+# Policy v9 (evals/policy.py judgement call 12), CLA-U5: the three places keel-web renders a
+# participant's own words as a **quotation**, keyed on where it draws them and never on what they
+# say. There is no `<blockquote>`, no `<q>` and no `data-*` anywhere in keel-web's tree, so the
+# structure *is* these three regions:
+#
+#   `.pquotes p`      the download page's *In their words* block (`PrintRoute.tsx`). The person's
+#                     own words are the `<p>`'s **own text nodes**; the attribution is a child
+#                     `<span>` beside them, which stays swept.
+#   `.said .w`        the popover one dot opens (`SaidBox.tsx`), beside `.n` (the name), `.k` (the
+#                     kind of person) and `.r` (*Read as…*, product-authored and still swept).
+#   `.pop .story`     the person modal (`PersonAnswersModal.tsx`), the same `Testimony.quote`.
+#
+# The text comes back **as the product rendered it**, curly quotation marks and all, because
+# `policy.text_outside_quotations` anchors its removal on those glyphs. Whitespace is collapsed
+# per text node exactly as `_SCREEN_TEXT_JS` collapses it, so a quotation matches the copy of
+# itself inside the whole screen's captured text character for character.
+#
+# `AnswersPopup`'s `.p-a` is deliberately absent: it renders a participant's typed answer with no
+# quotation marking of any kind, so there is no structure to read. See policy judgement call 12.
+_PARTICIPANT_QUOTE_JS = r"""() => {
+  const collapse = (text) => text.replace(/\s+/g, ' ').trim();
+  const out = [];
+  for (const p of document.querySelectorAll('.pquotes p')) {
+    const own = Array.from(p.childNodes)
+      .filter((n) => n.nodeType === 3)
+      .map((n) => collapse(n.textContent))
+      .filter(Boolean)
+      .join(' ');
+    if (own) out.push(own);
+  }
+  for (const el of document.querySelectorAll('.said .w, .pop .story')) {
+    const text = collapse(el.textContent || '');
+    if (text) out.push(text);
+  }
+  return out;
+}"""
+
+
+def _participant_quotations(page) -> list[str]:
+    """Every quotation of a participant this page is currently rendering (policy v9)."""
+    try:
+        return [q for q in (page.evaluate(_PARTICIPANT_QUOTE_JS) or []) if q]
+    except Exception:  # noqa: BLE001 - a page that will not evaluate quotes nobody, and CLA-U5
+        return []      # then sweeps everything, which is v8's behaviour and never quieter than it
+
+
+def _capture_participant_quotations(h: StepHandle, page) -> None:
+    """Records them under `participant_quotes`, the key `policy.PARTICIPANT_QUOTE_KEYS` names.
+
+    Nothing is captured on a screen that quotes nobody, so `CLA-U5` on every other screen is
+    exactly the check policy v6 wrote.
+    """
+    quotations = _participant_quotations(page)
+    if quotations:
+        h.capture_text("participant_quotes", "\n".join(quotations))
+
+
 def _screen_text(page, selector: str) -> str:
     """The rendered words of one region, separated (see `_SCREEN_TEXT_JS`)."""
     try:
@@ -1893,6 +1950,10 @@ class OpenedCard:
         names = sorted({name for s in strips for name in s["dots"] if name})
         if names:
             h.capture_text("participant_names", "\n".join(names))
+        # Policy v9: an open strip line draws its said box, and the said box quotes the person it
+        # names (`.said .w`). Same rule as the download page's -- the quotation stays out of
+        # CLA-U5's sweep and in everything else's.
+        _capture_participant_quotations(h, self.page)
         Shell(self.page).capture_identity(h)
 
     def toggle_line(self, heading: str) -> None:
@@ -1918,6 +1979,7 @@ class OpenedCard:
                     f"svg [role='button'][aria-label={json.dumps(person)}]").first.click()
                 self.page.locator(".said").first.wait_for(state="visible", timeout=10_000)
                 h.capture_text("participant_names", person)
+                _capture_participant_quotations(h, self.page)
                 h.add_screenshot(self._bstep.screenshot("strip-dot-open"))
 
     def strip_locator(self, heading: str):
@@ -2155,6 +2217,10 @@ class PrintPage:
         names = _safe_all_texts(self.page, ".pquotes p span")
         if names:
             h.capture_text("participant_names", "\n".join(names))
+        # Policy v9: this page names a participant *and* quotes them verbatim, which is the one
+        # combination CLA-U5 was mismeasuring. The whole `download` text above is unchanged --
+        # FIDELITY and the other three CLARITY sweeps still read the quotations.
+        _capture_participant_quotations(h, self.page)
 
 # ------------------------------------------------------------------------------------------ People
 
@@ -2329,6 +2395,7 @@ class People:
                 (buttons.last if last else buttons).click()
                 self.page.locator(".pop").wait_for(state="visible", timeout=10_000)
                 h.capture_text("participant_names", first_name)
+                _capture_participant_quotations(h, self.page)
                 h.add_screenshot(self._bstep.screenshot("people-answers-popup"))
 
     def answers_popup_text(self) -> dict[str, Any]:

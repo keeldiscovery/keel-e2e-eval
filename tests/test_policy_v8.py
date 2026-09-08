@@ -27,8 +27,11 @@ def _score(run_dir, facts=None):
 
 # ------------------------------------------------------------------------------------ the bump
 
-def test_policy_version_is_8():
-    assert policy.POLICY_VERSION == 8
+def test_v8_vocabulary_survives_every_later_bump():
+    """The exact constant is the newest version's file to assert (`tests/test_policy_v9.py`, and
+    `tests/test_policy_v6.py` before it) -- this file proves what **v8** claimed and that no later
+    bump quietly took it away."""
+    assert policy.POLICY_VERSION >= 8
 
 
 def test_hop_ids_are_the_eight_measured_beliefs_screens():

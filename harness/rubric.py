@@ -320,11 +320,23 @@ def _ui_visit_checks(ix: Interaction) -> list[CheckResult]:
 
     # Policy v6, CLA-U5: applicable only where this visit actually names a participant --
     # skipped (None), not failed, on any screen that never renders one.
+    #
+    # Policy v9 (judgement call 12): and it sweeps the text *outside* whatever this visit captured
+    # as the product's own quotation of a participant. The download page draws a person's verbatim
+    # answer beside their name (*In their words*), and v8 read their `his` as the product's. The
+    # quotations come off keel-web's own structure at capture time -- this module receives them
+    # already separated, and decides nothing about which sentences they are.
     participant_names = ix.captured_text.get("participant_names", "")
     if participant_names.strip():
-        pronouns = policy.gendered_pronoun_violations(combined_text)
+        quotations = [q for key in policy.PARTICIPANT_QUOTE_KEYS
+                      for q in ix.captured_text.get(key, "").splitlines()]
+        swept = policy.text_outside_quotations(combined_text, quotations)
+        pronouns = policy.gendered_pronoun_violations(swept)
+        quoted_note = (f", {len(quotations)} participant quotation"
+                       f"{'' if len(quotations) == 1 else 's'} not swept" if quotations else "")
         results.append(_result("CLA-U5", not pronouns,
-                                f"pronouns={pronouns}" if pronouns else "clean", ix))
+                                (f"pronouns={pronouns}" if pronouns else "clean") + quoted_note,
+                                ix))
 
     # Policy v6, GUI-U3: applicable only where this visit actually rendered a waiting state.
     waiting_text = ix.captured_text.get("waiting_text")

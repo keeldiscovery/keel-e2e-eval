@@ -150,6 +150,8 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
     parts.append(_mark_row("golden-belief recall", judged["golden_belief_recall"]))
     parts.append(_mark_row("refusals (rule)", judged["refusals"],
                            fmt=lambda v: "not measured" if v is None else str(v)))
+    parts.append(_mark_row("BRIEF paragraphs (all four marks)", judged["brief_paragraphs"],
+                           fmt=lambda v: "not measured" if v is None else _pct(v)))
     parts.append("</table>")
 
     model = scorecard.get("model") or {}
@@ -306,6 +308,63 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
             parts.append(f"<tr><td>{_esc(case['case_id'])}</td><td>{_esc(asked)}</td></tr>")
         parts.append("</table>")
 
+    # ---------------------------------------------------------------------------------- brief
+    if t.get("brief_measured"):
+        parts.append("<h2>What this says (the BRIEF screen)</h2>")
+        parts.append(f"<p><b>{_pct(t['brief_paragraphs'])}</b> of {t['brief_cases']} paragraphs "
+                     f"met all four marks · {t['brief_needs_input']} asked a question on a screen "
+                     "with nobody to ask.</p>")
+        parts.append("<div class='banner note'><b>The context this subject sends is not, in one "
+                     "field, the context production sends.</b> keel-cloud renders "
+                     "<code>median_reads</code> with <code>Measure.say</code>, which rounds and "
+                     "re-units (<em>45 minutes</em>, <em>£7.50</em>); this repo does not own that "
+                     "arithmetic and refuses to keep a copy of it, so the middle answer is handed "
+                     "over in the corpus's own unit (<em>0.75 hours</em>) and the mark checks "
+                     "<code>brief.md</code>'s own rule against that string -- <em>you quote it "
+                     "exactly, never convert</em>. <code>claims[].drift</code>, "
+                     "<code>below</code> and <code>above</code> are written and left "
+                     "<code>null</code> for the same reason: the corpus does not carry them and "
+                     "<code>Project.driftOfStage</code> is keel-cloud's.<br>"
+                     "<b>And the paragraph is rendered as well as marked.</b> Almost everything "
+                     "about a good paragraph is wording, which design §3.8 says cannot be checked "
+                     "by code -- so every paragraph is on <a href='register.html'>register.html</a> "
+                     "beside its entry's own standings, unscored, for a person to read.</div>")
+        by_mark = t.get("brief_by_mark") or {}
+        parts.append("<table><tr><th>Mark</th><th>Met</th><th>What it checks</th></tr>")
+        for name, what in (
+                ("shape", "one paragraph, no heading, bullet, stage label or link, ≤ 1200"),
+                ("coverage", "each claim's verdict named in the design's words; the deciding "
+                             "line's number quoted; no invented <em>N of M</em>"),
+                ("register", "second person, and no money the context never carried"),
+                ("source_material", "no id, field name or enum name; never NEEDS_INPUT")):
+            row = by_mark.get(name) or {}
+            parts.append(f"<tr><td><code>{_esc(name)}</code></td>"
+                         f"<td>{row.get('met', 0)} / {row.get('of', 0)}</td><td>{what}</td></tr>")
+        parts.append("</table>")
+
+        parts.append("<h3>Per case</h3><table><tr><th>Case</th><th>Length</th><th>shape</th>"
+                     "<th>coverage</th><th>register</th><th>source</th></tr>")
+        for case in scorecard.get("brief") or []:
+            cells = "".join(
+                f"<td class='{'tick' if case['marks'].get(n) is True else 'cross'}'>"
+                f"{'✓' if case['marks'].get(n) is True else '✗'}</td>"
+                for n in ("shape", "coverage", "register", "source_material"))
+            parts.append(f"<tr><td>{_esc(case['case_id'])}</td><td>{case['length']}</td>{cells}</tr>")
+        parts.append("</table>")
+
+        misses = [c for c in (scorecard.get("brief") or []) if not c["met"]]
+        if misses:
+            parts.append(f"<h3>What the misses were ({len(misses)})</h3><table>"
+                         "<tr><th>Case</th><th>Mark</th><th>Finding</th></tr>")
+            for case in misses:
+                for name, met in case["marks"].items():
+                    if met is True:
+                        continue
+                    parts.append(f"<tr><td>{_esc(case['case_id'])}</td>"
+                                 f"<td><code>{_esc(name)}</code></td>"
+                                 f"<td>{_esc(case['findings'].get(name))}</td></tr>")
+            parts.append("</table>")
+
     # ---------------------------------------------------------------------------------- spread
     parts.append("<h2>The spread</h2><p class='small'>Each of the N runs on its own. A case that "
                  "passes twice and fails once is an unstable instruction, not a 67 %.</p>")
@@ -341,7 +400,9 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
 
 # ---------------------------------------------------------------------------------- register.html
 
-def render_register(run_dir: Path, *, entries_by_market: dict) -> Path:
+def render_register(run_dir: Path, *, entries_by_market: dict,
+                    paragraphs: dict | None = None,
+                    filename: str = "register.html") -> Path:
     """The one artefact in this bundle with no number in it (spec 009 FR-019, T027).
 
     Whether an anchor sounds like a supply yard in Texas or a builder's merchant in London is
@@ -373,6 +434,32 @@ ul{margin:4px 0 0 18px;padding:0}
                  "it and the reading is recorded with the run. That reading is the only thing that "
                  "closes SC-012, and no metric here pretends to stand in for it.</div>")
 
+    if paragraphs:
+        parts.append("<h2>What this says — the paragraphs, whole</h2>")
+        parts.append("<div class='banner note'><b>One paragraph per entry, exactly as the model "
+                     "wrote it, with that entry's own three verdicts beside it.</b> The four "
+                     "marks on the report cover only what <code>brief.md</code> states as a rule; "
+                     "whether this reads like someone who has read all three cards, in the "
+                     "register of that market, is design §3.8's <em>cannot be checked by code</em> "
+                     "— and a mark that narrow can be wrong about a paragraph that is right. "
+                     "<b>Nothing here is scored.</b></div>")
+        for market_key, entries in paragraphs.items():
+            parts.append(f"<div class='market'><b>{_esc(market_key)}</b></div>")
+            for entry_id, block in entries.items():
+                verdicts = " · ".join(f"{stage} {verdict}"
+                                      for stage, verdict in (block.get("stages") or {}).items())
+                parts.append(f"<h3>{_esc(entry_id)}</h3>"
+                             f"<p class='small'>{_esc(block.get('title'))} — {_esc(verdicts)}</p>")
+                if block.get("paragraph"):
+                    parts.append("<div class='pair'><div><div class='side'>the model's own "
+                                 "paragraph</div><p>" + _esc(block["paragraph"]) + "</p>"
+                                 + _phrasing_html(block.get("phrasing") or []) + "</div>"
+                                 "<div><div class='side'>this entry's standings, for reference "
+                                 "only</div>" + _standings_html(block.get("standings") or {})
+                                 + "</div></div>")
+                else:
+                    parts.append("<p class='small'>no paragraph was produced for this entry</p>")
+
     for market_key, entries in entries_by_market.items():
         parts.append(f"<div class='market'><b>{_esc(market_key)}</b></div>")
         for entry_id, stages in entries.items():
@@ -385,7 +472,7 @@ ul{margin:4px 0 0 18px;padding:0}
                              + _anchors_html(block.get("golden") or []) + "</div>")
                 parts.append("</div>")
     parts.append("</main>")
-    path = run_dir / "register.html"
+    path = run_dir / filename
     path.write_text("".join(parts), encoding="utf-8")
     return path
 
@@ -408,6 +495,64 @@ def _anchors_html(anchors: list) -> str:
                 out.append("<p class='small'>escape: "
                            + _esc(", ".join(str(e) for e in escape)) + "</p>")
     return "".join(out)
+
+
+def _phrasing_html(phrasing: list) -> str:
+    """Judgement call 20: **observed, never marked.** `brief.md` licenses the paraphrase by
+    example -- *"Write them into ordinary sentences: 'the problem is real'"* -- so whether the
+    design's own verdict phrase literally appears is something a person reads off the paragraph
+    above, not something a number stands in for. No tick, no cross; the word *carries* or *says it
+    another way*, and the sentence is right there to judge."""
+    if not phrasing:
+        return ""
+    rows = []
+    for row in phrasing:
+        if row.get("verdict") is None:
+            rows.append(f"<li>{_esc(row.get('stage'))} — unapproved, no status to name</li>")
+            continue
+        how = ("carries the design's own phrase" if row.get("present")
+               else "says it another way — read the sentence above")
+        rows.append(f"<li>{_esc(row.get('stage'))} is {_esc(row.get('verdict'))} "
+                    f"(<em>{_esc(row.get('phrase'))}</em>): {how}</li>")
+    return ("<div class='side'>the four verdict words, observed and not scored</div><ul>"
+            + "".join(rows) + "</ul>")
+
+
+def _standings_html(standings: dict) -> str:
+    if not standings:
+        return "<p class='small'>this entry records no standings</p>"
+    rows = "".join(
+        f"<tr><td>{_esc(k)}</td><td>{_esc(v.get('verdict'))}</td><td>{_esc(v.get('drift'))}</td>"
+        f"<td>{_esc(v.get('inside'))}/{_esc((v.get('inside') or 0) + (v.get('outside') or 0))}</td>"
+        f"<td>{_esc(v.get('median', '—'))}</td></tr>" for k, v in standings.items())
+    return ("<table><tr><th>line</th><th>verdict</th><th>drift</th><th>inside</th>"
+            f"<th>median</th></tr>{rows}</table>")
+
+
+def paragraph_blocks(corpus, brief_scores: list) -> dict:
+    """Every BRIEF paragraph, grouped by market beside its entry's own standings (judgement call
+    17). Keyed by entry and taking the **first** run of each case, exactly as the anchors are:
+    the register is read once per instruction, not once per repetition."""
+    first = {}
+    for score in brief_scores or []:
+        first.setdefault(score.entry_id, score)
+    grouped = {}
+    for entry in corpus.entries:
+        score = first.get(entry.id)
+        if score is None:
+            continue
+        market = entry.market or {}
+        key = " · ".join(str(part) for part in
+                         (market.get("country"), market.get("region"), market.get("language"))
+                         if part)
+        grouped.setdefault(key or "no market named", {})[entry.id] = {
+            "title": entry.title,
+            "paragraph": score.paragraph,
+            "phrasing": score.phrasing,
+            "stages": (entry.expected or {}).get("stages") or {},
+            "standings": (entry.expected or {}).get("standings") or {},
+        }
+    return grouped
 
 
 def register_blocks(corpus, produced_by_case: dict) -> dict:

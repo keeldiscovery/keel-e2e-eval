@@ -16,8 +16,8 @@ import importlib
 
 import pytest
 
-MODULES = ["align", "context", "contract", "corpus", "instruction", "judge", "marks", "prompts",
-           "report", "rescore", "run", "runner", "score", "validate"]
+MODULES = ["align", "brief", "context", "contract", "corpus", "instruction", "judge", "marks",
+           "prompts", "report", "rescore", "run", "runner", "score", "validate"]
 
 
 @pytest.mark.parametrize("name", MODULES)
@@ -26,13 +26,13 @@ def test_every_instruction_module_imports(name):
 
 
 _SCORECARD = {
-    "marks_version": 3,
+    "marks_version": 4,
     "model": {"claude_version": "2.1.263", "reported_model": "a-model",
               "job_timeout_seconds": 300.0, "job_max_turns": 6, "job_budget_usd": 1.0,
               "judge": "on"},
     "contract_manifest": {"keel_cloud_commit": "abc1234", "keel_cloud_dirty": False,
                           "generated_at": "2026-09-06T00:00:00Z"},
-    "reading": [], "assumptions": [], "prompts": [],
+    "reading": [], "assumptions": [], "brief": [], "prompts": [],
     "spread": {"recall": {}, "anchoring": {}},
     "totals": {
         "anchoring_accuracy": 0.95, "guessed_precision": 0.8, "guessed_recall": 1.0,
@@ -49,6 +49,9 @@ _SCORECARD = {
         "judged_candidacy_pairs": 0, "judged_any_fraction": 0.0, "judge_calls": 0,
         "refusals_by_rule": {}, "refusals_measured": True, "shape_refusals": 0,
         "schema_invalid": 0, "errored": 0,
+        "brief_cases": 1, "brief_paragraphs": 1.0, "brief_needs_input": 0, "brief_measured": True,
+        "brief_by_mark": {n: {"met": 1, "of": 1} for n in
+                          ("shape", "coverage", "register", "source_material")},
     },
 }
 
@@ -71,6 +74,25 @@ def test_the_report_renders_and_never_omits_what_it_cannot_measure(tmp_path):
     assert "register is not scored" in html
     assert "option list leads is not scored" in html
     assert "Wording is free" in html
+    # MARKS_VERSION 4: the BRIEF subject's own section, and the deviation it must always name.
+    assert "What this says (the BRIEF screen)" in html
+    assert "Measure.say" in html, "the one field this subject does not send as production sends it"
+
+
+def test_the_register_carries_every_brief_paragraph_whole_and_unscored(tmp_path):
+    from instructions import report as report_mod
+
+    paragraphs = {"GB · en-GB": {"01-countly": {
+        "title": "Countly", "paragraph": "Your problem claim is not holding up.",
+        "stages": {"PROBLEM": "CONTRADICTED"},
+        "standings": {"P1": {"verdict": "SUPPORTED", "drift": "NONE", "inside": 9, "outside": 0}}}}}
+
+    path = report_mod.render_register(tmp_path, entries_by_market={}, paragraphs=paragraphs)
+    html = path.read_text(encoding="utf-8")
+
+    assert "Your problem claim is not holding up." in html
+    assert "Nothing here is scored" in html
+    assert "PROBLEM CONTRADICTED" in html
 
 
 def test_the_register_renders_and_says_that_nothing_on_it_is_scored(tmp_path):

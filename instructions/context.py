@@ -125,6 +125,141 @@ def build_assumptions(entry, stage: str, keys: list) -> dict:
     return context
 
 
+# ------------------------------------------------------------------------------- the BRIEF screen
+
+# `ScreenContextBuilder.claimsWithStandings` iterates `StageType.values()`, so the three claims
+# arrive in the founder's own order and all three are always present.
+_BRIEF_STAGES = ("PROBLEM", "SOLUTION", "COMMERCIAL")
+
+
+def build_brief(entry, keys: list) -> dict:
+    """The `BRIEF` screen's context: what the founder called it, where they sell, and the three
+    claims with every line's standing under them (keel-cloud spec 030 FR-009).
+
+    `ScreenContextBuilder`'s BRIEF case writes exactly three keys --
+
+        context.put("project_name", project.name().orElse(null));
+        context.put("market", market(project.market().orElse(null)));
+        context.put("claims", claimsWithStandings(project));
+
+    -- and this fills them from the entry's own `expected.standings` and nothing else, in the
+    exporter's own key order like every other screen here.
+    """
+    context = {}
+    for key in keys:
+        if key == "project_name":
+            context[key] = entry.title
+        elif key == "market":
+            context[key] = market_of(entry)
+        elif key == "claims":
+            context[key] = claims_for(entry)
+        else:
+            context[key] = None
+    return context
+
+
+def market_of(entry) -> dict | None:
+    """`ScreenContextBuilder.market`'s own three keys, in its own order."""
+    market = entry.market or {}
+    if not market:
+        return None
+    return {"country": market.get("country"), "region": market.get("region"),
+            "language": market.get("language")}
+
+
+def claims_for(entry) -> list:
+    """`claimsWithStandings`: `{stage, statement, approved, verdict, drift, beliefs}` x 3.
+
+    A stage the entry judges is `approved` -- the corpus's `expected.stages` is the aggregate's
+    verdict *after* approval and reading, and there is no unapproved stage in this frozen set. One
+    that carries no verdict is unapproved, and then carries no beliefs and a `null` verdict and
+    drift, exactly as the builder writes it (product-constitution §5.1: there is no status at all
+    before approval, and the paragraph must not invent one).
+    """
+    stages = (entry.expected or {}).get("stages") or {}
+    claims = []
+    for stage in _BRIEF_STAGES:
+        verdict = stages.get(stage)
+        approved = verdict is not None
+        claims.append({
+            "stage": stage,
+            "statement": _statement(entry, stage),
+            "approved": approved,
+            "verdict": str(verdict).upper() if approved else None,
+            # `Project.driftOfStage` is keel-cloud's, and this repo does not own it (see the
+            # module docstring's own rule and `runs/DRIFT.md` #45's lesson) -- the corpus carries
+            # no stage drift, so the key is written and left `null` rather than derived here.
+            "drift": None,
+            "beliefs": belief_standings(entry, stage) if approved else [],
+        })
+    return claims
+
+
+def belief_standings(entry, stage: str) -> list:
+    """`beliefStandings`: fourteen fields a line, in the builder's own order.
+
+    Three of them the corpus does not evidence, and each is written and left `null` rather than
+    computed here (`build_assumptions`'s own rule, one layer down):
+
+    - `below` / `above` -- `expected.standings` records which side a line drifted to and not how
+      many people were on it.
+    - `median_reads` -- keel-cloud renders this with `Measure.say`, which rounds and re-units
+      ("45 minutes", "£7.50"); see `median_reads()` for what is handed over instead and why.
+    """
+    standings = (entry.expected or {}).get("standings") or {}
+    out = []
+    for belief in entry.beliefs_for(stage):
+        standing = standings.get(belief.id) or {}
+        out.append({
+            "heading": belief.heading or None,
+            "statement": belief.statement,
+            "risk": belief.risk,
+            "mark": belief.mark,
+            "founder_phrase": belief.founder_phrase,
+            "verdict": str(standing.get("verdict") or "").upper() or None,
+            "drift": str(standing.get("drift") or "").upper() or None,
+            "median_reads": median_reads(belief, standing),
+            "inside": standing.get("inside"),
+            "outside": standing.get("outside"),
+            "below": None,
+            "above": None,
+            "guessed": standing.get("guessed"),
+            "escaped": standing.get("escaped", 0),
+        })
+    return out
+
+
+def median_reads(belief, standing: dict) -> str | None:
+    """The middle answer, **in the measure's own spoken unit and not keel-cloud's phrase**.
+
+    `ScreenContextBuilder` writes `band.measure().say(standing.median())`, and `Measure.say` is a
+    piece of keel-cloud the referee does not own: it rounds minutes to the nearest five above ten,
+    climbs to the largest unit a person would use, and puts the market's currency symbol on money.
+    Copying it here would be `runs/DRIFT.md` #33/#36/#41/#44/#45 for the sixth time -- the referee
+    holding its own copy of something it does not own -- and a paragraph would then be scored
+    against this repo's arithmetic rather than the product's.
+
+    So the number is handed over as the corpus writes it, in the unit the corpus writes it in:
+    `0.75 hours`, not `45 minutes`. **That is a deviation from the context production builds, and
+    it is named in the report rather than hidden.** It also sharpens the one rule this subject can
+    check hardest: brief.md says *you quote it exactly -- not forty-five minutes, not 0.75 hours,
+    not about three quarters of an hour*, and a model handed `0.75 hours` that writes `45 minutes`
+    has converted a number it was told never to convert.
+
+    `None` for a `CHOICE`, which has no band and so no middle to have -- exactly as keel-cloud
+    writes `null` for anything that is not an `Interval`.
+    """
+    if belief.type != "INTERVAL":
+        return None
+    median = standing.get("median")
+    if median is None:
+        return None
+    unit = (belief.measure or {}).get("unit")
+    if isinstance(median, float) and median.is_integer():
+        median = int(median)
+    return f"{median} {unit}" if unit else str(median)
+
+
 def build_reading(entry, person, keys: list) -> dict:
     """The reading screen's whole world: an invitation id and the occasions written under."""
     context = {}

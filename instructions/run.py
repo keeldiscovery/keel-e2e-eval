@@ -24,6 +24,7 @@ from pathlib import Path
 
 from stack.config import REPO_ROOT, load_config
 
+from . import brief as brief_mod
 from . import contract as contract_mod
 from . import corpus as corpus_mod
 from . import instruction as instruction_mod
@@ -40,7 +41,8 @@ from . import validate as validate_mod
 # number is right to the cent.
 COST_PER_CASE_ESTIMATE_USD = 0.06
 
-SCREENS = list(contract_mod.SCREENS_ASSUMPTIONS.values()) + [contract_mod.SCREEN_READING]
+SCREENS = (list(contract_mod.SCREENS_ASSUMPTIONS.values())
+           + [contract_mod.SCREEN_READING, contract_mod.SCREEN_BRIEF])
 
 
 def main(argv=None) -> int:
@@ -87,7 +89,8 @@ def _all_cases(corpus, exported, instructions, executor_module, args) -> list:
         cases = [c for c in cases
                  if needle in c.case_id.lower()
                  or (needle == "reading" and c.kind == "READING")
-                 or (needle == "assumptions" and c.kind == "ASSUMPTIONS")]
+                 or (needle == "assumptions" and c.kind == "ASSUMPTIONS")
+                 or (needle == "brief" and c.kind == "BRIEF")]
     return cases
 
 
@@ -104,7 +107,7 @@ def _dry_run(config, corpus, executor_module, args) -> int:
         print(f"  {screen:<24} keys: {exported.keys_for(screen)}")
     print()
 
-    shown = {"ASSUMPTIONS": False, "READING": False}
+    shown = {"ASSUMPTIONS": False, "READING": False, "BRIEF": False}
     for case in cases:
         if shown[case.kind]:
             continue
@@ -117,8 +120,9 @@ def _dry_run(config, corpus, executor_module, args) -> int:
 
     assumptions = sum(1 for c in cases if c.kind == "ASSUMPTIONS")
     reading = sum(1 for c in cases if c.kind == "READING")
+    brief = sum(1 for c in cases if c.kind == "BRIEF")
     print("-" * 100)
-    print(f"{len(cases)} cases: {assumptions} assumption, {reading} reading, "
+    print(f"{len(cases)} cases: {assumptions} assumption, {reading} reading, {brief} brief, "
           f"N={args.n_runs} runs per case")
     print(f"rough estimate at ${COST_PER_CASE_ESTIMATE_USD:.2f} a case: "
           f"${len(cases) * COST_PER_CASE_ESTIMATE_USD:.2f} of the founder's own money")
@@ -146,7 +150,8 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     judge = judge_mod.NoJudge() if args.no_judge else judge_mod.Judge()
     people = {(e.id, p.person): p for e in corpus.entries for p in e.people()}
 
-    reading_scores, assumption_scores, prompts, errored = [], [], [], 0
+    reading_scores, assumption_scores, brief_scores = [], [], []
+    prompts, errored = [], 0
     schema_invalid = 0
     produced_sets = []
     total_cost = 0.0
@@ -165,7 +170,18 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
             schema_invalid += 1
 
         failed = answer.error or (answer.schema_error if not answer.schema_valid else None)
-        if case.kind == "READING":
+        if case.kind == "BRIEF":
+            questions = answer.questions if answer.outcome == "NEEDS_INPUT" else None
+            score = brief_mod.score_brief(case, entry, answer.result, outcome=answer.outcome,
+                                          failed=failed, needs_input_questions=questions)
+            brief_scores.append(score)
+            diff = {"case_id": case.case_id, "kind": case.kind, "failed": failed,
+                    "needs_input": score.needs_input, "paragraph": score.paragraph,
+                    "length": score.length, "marks": score.marks, "findings": score.findings,
+                    "deciding_lines": {
+                        c.get("stage"): brief_mod.deciding_line(c)
+                        for c in (case.payload.get("context") or {}).get("claims") or []}}
+        elif case.kind == "READING":
             score = score_mod.score_reading(case, entry, people[(case.entry_id, case.subject)],
                                             answer.result, failed=failed)
             reading_scores.append(score)
@@ -212,7 +228,8 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
                               refusals_by_rule=aggregate["refusals_by_rule"],
                               shape_refusals=aggregate["shape_refusals"],
                               refusals_measured=refusals_measured,
-                              judge_calls=judge.call_count)
+                              judge_calls=judge.call_count,
+                              brief_scores=brief_scores)
     scorecard = {
         "marks_version": marks_mod.MARKS_VERSION,
         "marks": marks,
@@ -228,6 +245,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         "contract_manifest": exported.manifest,
         "reading": [_reading_json(s) for s in reading_scores],
         "assumptions": [_assumption_json(s) for s in assumption_scores],
+        "brief": [_brief_json(s) for s in brief_scores],
         "totals": totals,
         "spread": {
             "recall": score_mod.spread(assumption_scores, lambda s: s.golden_belief_recall),
@@ -261,13 +279,15 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     for case, result in produced_sets:
         produced_by_case.setdefault(f"{case.entry_id}/{case.subject}", result)
     register = report_mod.render_register(
-        run_dir, entries_by_market=report_mod.register_blocks(corpus, produced_by_case))
+        run_dir, entries_by_market=report_mod.register_blocks(corpus, produced_by_case),
+        paragraphs=report_mod.paragraph_blocks(corpus, brief_scores))
 
     print()
     print(f"verdict: {'PASSED' if verdict['passed'] else 'FAILED'}   "
           f"anchoring {_fmt(totals['anchoring_accuracy'])} · "
           f"recall {_fmt(totals['golden_belief_recall'])} · "
           f"refusals {sum(totals['refusals_by_rule'].values()) if refusals_measured else 'not measured'} · "
+          f"brief {_fmt(totals['brief_paragraphs']) if totals['brief_measured'] else 'not measured'} · "
           f"schema-invalid {totals['schema_invalid']} · errored {errored}")
     print(f"report: {path}")
     print(f"register (unscored, for a person who knows the market): {register}")
@@ -326,6 +346,15 @@ def _reading_json(score) -> dict:
             "confusion": score.confusion, "per_anchor": score.per_anchor,
             "missing_ids": score.missing_ids, "extra_ids": score.extra_ids,
             "failed": score.failed}
+
+
+def _brief_json(score) -> dict:
+    return {"case_id": score.case_id, "entry_id": score.entry_id, "run_index": score.run_index,
+            "paragraph": score.paragraph, "length": score.length, "marks": score.marks,
+            "findings": score.findings, "phrasing": score.phrasing,
+            "met": score.met, "failed": score.failed,
+            "needs_input": score.needs_input,
+            "needs_input_questions": score.needs_input_questions}
 
 
 def _assumption_json(score) -> dict:

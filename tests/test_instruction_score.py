@@ -250,4 +250,8 @@ def test_an_unmeasured_refusal_count_fails_its_mark_rather_than_meeting_it():
     measured = score_mod.totals([], [], refusals_measured=True)
     measured["anchoring_accuracy"] = 0.99
     measured["golden_belief_recall"] = 0.99
+    # MARKS_VERSION 4 added a fourth subject, and its mark answers to the same rule: an unmeasured
+    # BRIEF is not a met BRIEF, so this run is a pass only once all four have been asked.
+    assert marks_mod.judge(measured, marks)["passed"] is False
+    measured["brief_paragraphs"], measured["brief_measured"] = 1.0, True
     assert marks_mod.judge(measured, marks)["passed"] is True
