@@ -11,7 +11,6 @@ KEEL_DB_USERNAME=keel  KEEL_DB_PASSWORD=keel
 KEEL_SERVER_PORT=18080
 KEEL_V2_FOUNDER_BASE_URL=http://localhost:5173/p
 KEEL_V2_PARTICIPANT_BASE_URL=http://localhost:5173/i
-KEEL_V2_FOUNDER_DISPLAY_NAME=Eval Founder
 JAVA_HOME=<from stack.toml or environment>
 ```
 

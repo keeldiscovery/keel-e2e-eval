@@ -41,7 +41,10 @@ def build_env(config: StackConfig) -> dict[str, str]:
         # a URL keel-web does not serve -- it serves /p and /i.
         "KEEL_V2_FOUNDER_BASE_URL": f"http://localhost:{config.web_port}/p",
         "KEEL_V2_PARTICIPANT_BASE_URL": f"http://localhost:{config.web_port}/i",
-        "KEEL_V2_FOUNDER_DISPLAY_NAME": "Eval Founder",
+        # KEEL_V2_FOUNDER_DISPLAY_NAME deleted: keel-cloud no longer reads that property -- the
+        # participant page and the founder-side read now name the founder from the one account's
+        # own name (application/FounderNames), the same account `stack.auth.ensure_founder_account`
+        # sets up with FOUNDER_NAME below. Nothing here needs to configure the name twice.
         # spec 005 FR-002: the URL the runtime's device-authorization response hands back
         # (`verification_uri`) must be a keel-web URL the browser can open -- keel-cloud's own
         # default falls back to KEEL_V2_FOUNDER_BASE_URL + "/connect" already, but this is set
