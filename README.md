@@ -49,6 +49,12 @@ make eval K=s002    # runs the agent-optional day (evals/test_s002_agent_optiona
                     # an S-001 run's own project in the same session, or builds its own prelude
 make eval K=s008    # the runtime that travelled inside the skill: resolved with no
                     # KEEL_RUNTIME_PATH, connected by device code, said twice, disconnected
+make eval K=s009    # four packaging trees, four installers, one skill -- the same contract
+                    # shapes byte for byte after an installer moved the bytes (A-6)
+make acceptance     # the containerised beds: Debian 12 (Python 3.11) and Debian 11 (the 3.9
+                    # floor), linux/arm64 and linux/amd64, against this stack at
+                    # host.docker.internal:18080. The model-driven half needs the caller's own
+                    # ANTHROPIC_API_KEY / COPILOT_GITHUB_TOKEN and skips itself by name without.
 make down           # asks a runtime a scenario left running to disconnect (and reads the outcome
                     # that proves it went), then everything else; idempotent
 ```
@@ -57,6 +63,54 @@ make down           # asks a runtime a scenario left running to disconnect (and 
 three ports, or boots one and tears it down at the end of the session — the fast-iteration path
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
+
+### The runs of record for spec 013 (2026-09-09)
+
+One stack session — `make up`, `make eval K=s009`, `make acceptance`, `make eval K=s001`,
+`make eval K=s008`, `make down` — on keel-cloud `8acb805`, keel-web `b0a5015`, keel-runtime
+`638c0dc` and keel-connect-skill `4eb0548`, skill `VERSION` 1.0.0, bundled runtime
+`0.1.0+638c0dc`. `make unit` green at 425 before and **448** after.
+
+| What | Run | Result |
+|---|---|---|
+| S-009 skill distribution | `20260909T054513Z-s009-skill-distribution` | **PASSED, not scored** |
+| `make acceptance` | `20260909T054621Z-acceptance` | **PASSED (stackless half)**; model-driven half **SKIPPED** |
+| S-001 smoke | `20260909T055055Z-s001-smoke` | **PASSED, 5.0/5** |
+| S-008 bundled runtime | `20260909T055234Z-s008-bundled-runtime` | **PASSED, not scored** |
+
+**L1 proves the four packaging trees are byte-identical as *built*. S-009 asks what an installer
+does to them** — acceptance row A-6, *does a copied skill still work after an installer moved it*.
+Each tree is installed the way its own installer installs it (`install.sh --host claude` is
+**executed**; the other three are the directory copies their installers perform), and then the
+skill's own script is run out of the result with no `KEEL_RUNTIME_PATH` and no checkout anywhere
+on the machine. All four answer `authorization_started` with one key set and four different
+device codes; against a single connected runtime all four answer `already_connected` **byte for
+byte** but `last_heartbeat_at`.
+
+**The beds are `make acceptance`** (`stack/containers/acceptance/`): Debian 12 with Python 3.11,
+Node 22 and both host CLIs, and Debian 11 — which *is* the 3.9 floor — each built for
+`linux/arm64` and `linux/amd64` and run against the eval stack at
+`http://host.docker.internal:18080`. Four probes, four passes: **3.11.2** on bookworm and
+**3.9.2** on bullseye, both architectures, each answering `authorization_started` and deriving its
+own home at `~/.keel/host.docker.internal-18080/` with nothing loose beside it. Baked in and
+printed by the build (T-6): claude 2.1.266, GitHub Copilot CLI 1.0.83, Node v22.14.0.
+
+**The model-driven half did not run, and that is recorded rather than glossed.**
+`claude -p "keel connect"` and `copilot -p "keel connect"` need `ANTHROPIC_API_KEY` /
+`COPILOT_GITHUB_TOKEN` **from the caller's own shell** — never a file, never a keychain (T-5) —
+and neither is set here. The half skips itself by name, says what it would have measured, and
+writes `{"result": "skipped", "reason": "…"}` into the run record. A run whose record says that is
+not a green run of B1.
+
+**Four findings** (`runs/DRIFT.md`): **#49**, the floor bed's distribution has left support —
+Debian 11's security suite expired on 2026-09-07 and its packages already 404, so the bed builds
+from `archive.debian.org` and the entry says when that comes due; **#50**, this machine's Docker
+has no `buildx`, and the legacy builder gets both architectures wrong in two different ways —
+without both accommodations one architecture's green is the other architecture's image; **#51**,
+the finding of the night — **between `authorization_started` and approval there is a live runtime
+that "keel disconnect" says is not running**, because the heartbeat is written when the runtime
+connects; and **#52**, §10.2 reads a `source: "bundled"` key off `keel status` that no shipped
+contract carries.
 
 ### The runs of record for spec 011 (2026-09-09)
 
@@ -377,7 +431,7 @@ cross-repo bug (not a config problem in this repo), the run's evidence bundle ca
 - Why the scenario was, or was not, adapted around it.
 - The shape of a fix, explicitly **not applied** — this repo diagnoses, the product repo fixes.
 
-## The eight scenarios
+## The nine scenarios
 
 **S-001, the smoke** (`evals/test_s001_smoke.py`) walks keel-cloud `canon/journeys.md` end to end,
 once, deterministically, on the measured-beliefs screens: arrival and device-code connect, naming
@@ -465,6 +519,19 @@ its own bundle, so a reader sees the corpus, the screen and the wire side by sid
 rerunning anything — and a run can never be green against a script that drifted from the corpus,
 which `Corpus.verify_unchanged()` re-checks at the end of every one.
 
+**S-009, four trees, one skill** (`evals/test_s009_skill_distribution.py`, spec
+`013-skill-distribution`) is the packaging referee, and the question it answers is acceptance row
+**A-6**: *does a copied skill still work after an installer moved it?* keel-connect-skill's own L1
+compares the four `make dist` trees byte for byte **as built**; S-009 installs each of them the
+way its own installer does — the plugin's `skills/` into a project's `.claude/skills/`, the bare
+tree through `install.sh --host claude` **run for real**, the Copilot tree into a repository's
+`.github/skills/`, the Spec Kit tree into `.specify/extensions/keel/` with its manifest read
+structurally — and then runs the skill's own script from each, with no `KEEL_RUNTIME_PATH` and no
+checkout reachable. One key set across four `authorization_started`s, four different device codes,
+and then one connected runtime read by all four trees answering `already_connected` **byte for
+byte** but the heartbeat's own clock. It is **not scored**, for S-008's reason: no policy
+attribute applies to a scenario about what ships.
+
 The old S-002…S-011 (an eleven-scenario set against a since-retired agent-protocol/relay stack,
 unrelated to the current S-002 above) are gone — recorded in git history and in `runs/DRIFT.md`'s
 2026-09-03 retirement note, not lost.
@@ -480,9 +547,11 @@ Runs `tests/` — pure-logic tests for the step recorder, the interaction/rubric
 gendered pronoun, a wordless waiting state — each failing exactly the check design says should
 catch it), the report generator, the config loader, the ledger-coverage test, S-004's own live choices
 (the follow-up loop, the carried questionnaire, keel-runtime's cap), the chain-refusal
-reader, the bundled runtime the referee runs (spec 012) and the door out of it (spec 011 — the
-two doors, `make down`'s log line, and the five source properties S-001's tail must keep), with no
-Docker/gradle/vite involved. **425 tests** as of spec 011.
+reader, the bundled runtime the referee runs (spec 012), the door out of it (spec 011 — the two
+doors, `make down`'s log line, and the five source properties S-001's tail must keep) and the
+packaging beds (spec 013 — the secret rule, the `--bare` trap, the ambient base URL and both
+legacy-builder accommodations, every one of them a property that would otherwise only be
+observable during a paid run), with no Docker/gradle/vite involved. **448 tests** as of spec 013.
 
 ## The live run (`make eval-live`)
 

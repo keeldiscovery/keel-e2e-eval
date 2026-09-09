@@ -3138,3 +3138,172 @@ S-001 and S-008 both assert `environment == "localhost:18080"`.
 
 **Tests**: `tests/test_bundled_runtime.py` (26), `evals/test_s008_bundled_runtime.py`,
 `evals/test_s001_smoke.py`'s connect leg.
+
+
+## 49. Note (nobody's product defect, and dated): the floor bed's distribution has left support --
+Debian 11's security suite expired two days ago and its packages are already gone
+
+**Severity: note**, recorded because it is the reason two lines in
+`stack/containers/acceptance/Dockerfile.floor` do not look like a normal Dockerfile, and because
+the bed it is about has a shelf life somebody will need told.
+
+**Where**: this repo, `stack/containers/acceptance/Dockerfile.floor`; the subject is Debian 11
+(bullseye), which keel-cloud `canon/designs/keel-skill-design.md` §10.4 names as the floor stage
+*"which ships **Python 3.9**"*.
+
+**What was observed**, building from `debian:11-slim` on 2026-09-09:
+
+```
+E: Release file for http://deb.debian.org/debian-security/dists/bullseye-security/InRelease
+   is expired (invalid since 1d 8h 22min 17s).
+...
+E: Failed to fetch .../libpython3.9-stdlib_3.9.2-1+deb11u7_arm64.deb  404  Not Found
+```
+
+Two separate things, in order. The security suite's `InRelease` went stale on **2026-09-07**, so
+apt refuses it and `apt-get update` exits 100. Telling apt to accept it anyway
+(`Acquire::Check-Valid-Until=false`) gets past that and straight into the second: the packages
+themselves have been pruned from the pool, and `python3` -- the one package this stage exists to
+install -- 404s. `archive.debian.org` has `bullseye main` (where a retired Debian lives out its
+retirement) and **no `Release` file for `bullseye-security` at all**, also a 404, measured the
+same day.
+
+**What the bed does about it, and why that is honest.** `sources.list` is rewritten to
+`archive.debian.org/debian bullseye main`, the security suite is dropped rather than re-pointed
+(it exists in neither place), and `Check-Valid-Until` stays off. Python 3.9.2 is Python 3.9.2
+whether or not a security suite is still being published, and this stage's entire job is *does
+the floor interpreter still run this*. Both images build and both answer
+`authorization_started`; the run of record is `runs/20260909T054621Z-acceptance`.
+
+**What it costs, and when it comes due.** Debian 11 is the last Debian that ships 3.9 as
+`python3`. When `archive.debian.org` stops serving it, or the image is pulled, this bed must
+become an image built from a 3.9 source tarball -- or the design's floor moves. Neither is
+urgent; both are cheaper to decide before the day it breaks than on it.
+
+**Tests**: `tests/test_skill_distribution.py`, and the bed itself (`make acceptance`).
+
+
+## 50. Note (this repo's own grip, not a product defect): the founder's Docker has no `buildx`, and
+the legacy builder gets both architectures wrong in two different ways
+
+**Severity: note**, recorded because without both accommodations *one architecture's green is the
+other architecture's image*, which is the worst kind of pass.
+
+**Where**: this repo, `stack/containers/acceptance/Dockerfile`, `Dockerfile.floor` and
+`run-acceptance.sh`. The subject is `docker` 29.5.2 on colima, where `docker buildx` answers
+`unknown command` -- no BuildKit, no `--platform`-aware builder.
+
+**What was observed**, 2026-09-09, building the floor stage for `linux/arm64` and then for
+`linux/amd64`:
+
+1. **The layer cache is not keyed by platform.** The amd64 build was handed the arm64 build's
+   layers and failed at the first `COPY` with *"image ... was found but does not provide the
+   specified platform (linux/amd64)"*. Naming the platform in an `ARG` that the first `RUN`
+   consumes (`--build-arg BUILD_PLATFORM=linux/amd64`) puts it in the cache key, which is what
+   BuildKit would have done unasked.
+2. **A `COPY` onto a `RUN`-produced intermediate is rejected under `--platform`.** Same error, and
+   `--pull` does not help: the daemon cannot confirm an intermediate image's platform. Measured
+   fix: **every `COPY` ahead of every `RUN`**. It costs nothing here -- the skill is the payload,
+   not a build input -- and it is the difference between an amd64 row that exists and one that
+   does not.
+
+**Not adapted around, and not installed around.** Installing `docker-buildx` would fix both, and
+would also be this session reaching into the founder's own machine to change how Docker works.
+The two accommodations live in the files that need them, each with the measurement that produced
+it written above it, so the day buildx arrives they can both be deleted and the reason is on the
+page.
+
+**Tests**: `tests/test_skill_distribution.py` asserts both are still in place; the run of record
+is `runs/20260909T054621Z-acceptance`, four images, two architectures, four green probes.
+
+
+## 51. Owed (keel-runtime, with keel-connect-skill and the disconnect design): between
+`authorization_started` and approval there is a live runtime that "keel disconnect" says is not
+running
+
+**Severity: owed, and it is a founder-facing hole rather than a contract disagreement.** Every
+piece here does exactly what its own contract promises. What they add up to is a process a founder
+cannot stop by asking.
+
+**Where**: keel-runtime `keel_runtime/cli.py::_run_connect` (the heartbeat is written when the
+runtime *connects*, after the device code is redeemed; `_install_heartbeat_shutdown_handlers` runs
+early, but there is no file to remove yet), against
+`canon/designs/keel-disconnect-design.md` invariant **D1** -- *"A home with no readable heartbeat
+... is `not_running`. One answer."*
+
+**What was observed**, live, in `runs/20260909T054513Z-s009-skill-distribution` (steps 9-17) and
+again in every container of `runs/20260909T054621Z-acceptance`:
+
+```
+step 9   plugin      authorization_started  pid 48404
+step 14  plugin      keel_disconnect.py ->  {"outcome": "not_running", "environment": "localhost:18080"}
+$ ps -eo pid,command | grep keel_runtime
+48404  python -m keel_runtime connect --home .../homes/plugin --executor scripted ...
+```
+
+Four device authorizations, four live `keel connect` processes, four `not_running` answers. The
+homes were then deleted and the processes went on polling for codes nobody will ever approve;
+S-009's teardown `SIGTERM`s them by the pid `authorization_started` handed back, which is a
+cleanup, not a fix.
+
+**The founder's version of this.** Say "keel connect". Get a code and a URL. Do not open the
+browser -- lunch, a meeting, a change of mind. Say "keel disconnect". Be told *nothing is
+running*. There is now a Python process polling Keel Cloud until the machine is rebooted, and the
+skill has just told the founder there isn't one. Say "keel connect" again and there are two.
+
+**Why nothing here is wrong, and what the fix would be.** D1's one-answer rule is deliberate and
+good: a missing, unreadable, malformed or short heartbeat must not be four different outcomes. The
+gap is that *the heartbeat is not the only evidence a runtime exists* between launch and connect.
+The cheapest fix is in keel-runtime: write the heartbeat (or a launch record naming the pid) as
+soon as `connect` has a pid and a home, before the device code is redeemed, and let `status` and
+`disconnect` see a runtime that is starting. That is one repository's change and it needs no new
+outcome name -- a pre-connect runtime that is signalled and leaves is still `stopped`.
+
+**Not adapted around.** S-009 asserts `not_running` **as observed**, cites this entry beside the
+assertion, and says in its own comment that the pair of them is the finding. The acceptance bed
+records the same answer from inside four containers. When keel-runtime closes it, S-009's
+assertion changes to `disconnected` and this entry is marked RESOLVED with the run that showed it.
+
+**Tests**: `evals/test_s009_skill_distribution.py` step 5 (all four trees), and
+`stack/containers/acceptance/run-acceptance.sh`'s probe.
+
+
+## 52. Note (the design, not the code): B1's assertion 2 reads `source: "bundled"` off `keel
+status`, and no shipped contract carries a `source` key
+
+**Severity: note.** Nothing is broken. A design paragraph names a field that does not exist, and
+the bed that was supposed to assert it has to assert something else -- so the substitution is
+written down rather than left for the next reader to notice.
+
+**Where**: keel-cloud `canon/designs/keel-skill-design.md` §10.2 (B1's asserted list, item 2:
+*"The runtime is the **bundled** one -- `keel status` reports `source: "bundled"`"*) and §10.1
+(L3: *"It passes `--runtime-path <checkout>` and asserts `source` is `"checkout"`"*).
+
+**What was observed**, 2026-09-09, against keel-connect-skill `4eb0548` and its bundled
+`0.1.0+638c0dc`:
+
+```
+$ python3 -m keel_runtime status --home /tmp/probe
+{"running": false, "home": "/tmp/probe", "base_url": "...", "environment": "localhost:18081",
+ "executor": "claude", "executor_on_path": true}
+```
+
+No `source`. `scripts/_runtime_location.py` *computes* one -- `SOURCE_CHECKOUT`, `SOURCE_BUNDLED`,
+`SOURCE_PATH`, with a comment saying it is *"reported so a founder and a referee can both see
+**why**, not only **what**"* -- and then neither script's seven-shape contract nor
+`status-cli-output.md` carries it out. It is a private variable with a public docstring.
+
+**What the bed asserts instead**, and why it is not weaker: with `KEEL_RUNTIME_PATH` and
+`KEEL_HOME` absent from the container (asserted), no `keel` on `PATH` and no checkout anywhere in
+the image, rules 1 and 3 of the resolution order are impossible -- so a runtime that answers at
+all came from rule 2. That is the same proof S-008 makes with its stripped-tree control, arrived
+at by elimination rather than by reading a field. It is one line longer and it depends on nothing
+that has not shipped.
+
+**What resolving it would take**: one key on `status`'s two shapes and one line in
+keel-cloud's `specs/021-keel-runtime-status/contracts/status-cli-output.md`, whose own guarantee 2
+says the contract is amended before the code. Worth doing for the reason the design gives -- *why*
+is better evidence than *what* -- and worth nobody's night.
+
+**Tests**: `tests/test_skill_distribution.py` (the bed asserts absence-of-override, not `source`),
+and `runs/20260909T054621Z-acceptance`.

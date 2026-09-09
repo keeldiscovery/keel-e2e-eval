@@ -1,0 +1,81 @@
+# B3, the floor stage: Debian 11, which ships **Python 3.9** -- the floor itself.
+#
+# keel-cloud `canon/designs/keel-skill-design.md` §10.4: *"It installs the same
+# `dist/bare/keel-connect` and runs `python3 scripts/keel_connect_check.py` and
+# `python3 -m keel_runtime status`. Nothing else. It is the cheapest test here and the one that
+# proves §4's claim on a real distribution rather than a matrix row; if it fails while the bed
+# stage passes, the finding is R-1's."*
+#
+# **Nothing else** is the specification, so there is no Node here, no host CLI, and no network
+# tooling beyond `ca-certificates`. A skill that needs any of those to answer has stopped being
+# "2,070 lines of dependency-free Python that travel inside a skill".
+#
+# Built for both architectures like its sibling:
+#
+#   docker build --platform linux/amd64 \
+#     -f stack/containers/acceptance/Dockerfile.floor \
+#     -t keel-acceptance-floor:amd64 ../keel-connect-skill/dist/bare
+#
+# This is also the one bed where this repository can observe something its own machine cannot:
+# S-008 records `python_too_old` as **never observed**, because the oldest interpreter on the
+# founder's Mac is Apple's 3.9.6 -- the floor itself. Debian 11 is that same floor on a real
+# distribution; an image one release older would be the gate, and is not built here because
+# Debian 10 is out of even LTS support and would be measuring a machine nobody has.
+
+FROM debian:11-slim
+
+# The same tree, from the same context, as the CLI stage copies (D1).
+COPY keel-connect /root/.claude/skills/keel-connect
+COPY keel-connect /opt/keel-connect
+
+# **The `COPY`s come first, and that is a workaround with a reason** (`runs/DRIFT.md` #50). With
+# the legacy builder and `--platform`, a `COPY` whose *destination* is an image produced by a
+# `RUN` is rejected -- *"image ... was found but does not provide the specified platform
+# (linux/amd64)"* -- because the daemon cannot confirm the intermediate image's platform.
+# Measured 2026-09-09: the same Dockerfile with its `COPY`s ahead of every `RUN` builds cleanly on
+# both architectures. It costs nothing here (the skill is the payload, not a build input) and it
+# is the difference between an amd64 row that exists and one that does not.
+
+# **The layer cache has to be told which architecture this is** (`runs/DRIFT.md` #50, this repo's
+# own grip). There is no `buildx` on the founder's Docker (29.5.2 -- `docker buildx` is *unknown
+# command*), so these builds go through the legacy builder, which keys its cache by instruction
+# text alone and **not by platform**: build arm64, then build amd64, and the second build is
+# handed the first one's layers until a `COPY` fails with *"image ... does not provide the
+# specified platform (linux/amd64)"*. Naming the platform in an `ARG` that the first `RUN`
+# consumes puts it into the cache key, which is what BuildKit would have done unasked. Without
+# this, one architecture's "green" is the other architecture's image.
+ARG BUILD_PLATFORM=unknown
+RUN echo "$BUILD_PLATFORM" > /etc/keel-acceptance-platform
+
+# **`archive.debian.org` and `Acquire::Check-Valid-Until=false` -- a finding, not a shrug**
+# (`runs/DRIFT.md` #49). Debian 11 (bullseye) has left LTS. Measured here on 2026-09-09, from
+# `debian:11-slim` itself: `deb.debian.org`'s `bullseye-security` `InRelease` is *"expired
+# (invalid since 1d 8h)"* -- so it went stale on 2026-09-07 -- and the packages behind it are
+# already gone from the pool (`libpython3.9-stdlib_3.9.2-1+deb11u7` → **404**). A build that took
+# the image's own default sources cannot install `python3` at all, and dies at `apt-get update`
+# with exit 100.
+#
+# So the sources are pointed at `archive.debian.org`, where a released Debian lives out its
+# retirement, and apt is told not to refuse metadata for being old. That is the right call for a
+# bed whose entire job is *"does the floor interpreter still run this"* -- Python 3.9.2 is 3.9.2
+# whether or not a security suite is still being published. It is the wrong call for anything
+# that ships, and nothing here ships.
+#
+# `bullseye-security` is dropped rather than re-pointed, because it exists in neither place any
+# more: `deb.debian.org` still lists it and 404s its packages, and `archive.debian.org` has no
+# `Release` file for it at all (404, measured the same day). One suite, `bullseye main`, from the
+# archive, is what is left of Debian 11 and it is enough to install a Python 3.9.
+#
+# What it means for the bed: **the floor stage has a shelf life.** Debian 11 is the last
+# distribution that ships 3.9 as `python3`, so when it stops being installable at all this bed
+# has to become an image built from a 3.9 tarball, or the floor has to move. Recorded rather than
+# quietly patched around, because the day it stops working is the day somebody needs to know why.
+RUN set -eux; \
+    printf 'deb http://archive.debian.org/debian bullseye main\n' > /etc/apt/sources.list; \
+    apt-get -o Acquire::Check-Valid-Until=false update; \
+    apt-get install -y --no-install-recommends ca-certificates python3; \
+    rm -rf /var/lib/apt/lists/*; \
+    python3 --version
+
+WORKDIR /root
+CMD ["/bin/sh", "-c", "python3 --version && python3 /opt/keel-connect/scripts/keel_connect_check.py --base-url http://127.0.0.1:1 --no-browser --wait-seconds 5"]

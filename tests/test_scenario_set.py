@@ -1,5 +1,5 @@
-"""The set itself (spec 010 FR-016/T055, research R12; spec 012 adds the eighth): **eight**
-scenarios, one of them live.
+"""The set itself (spec 010 FR-016/T055, research R12; spec 012 adds the eighth and spec 013 the
+ninth): **nine** scenarios, one of them live.
 
 FR-016 asks that `K=s005|s006|s007` dispatch exactly as `s001`-`s003` do, that all three run under
 `make eval` and `make eval-all`, and that none is live. **`K` is pytest's own `-k`**, so none of
@@ -27,6 +27,9 @@ EXPECTED = {
     # spec 012-bundled-runtime: the runtime that travelled inside the skill, resolved with no
     # `KEEL_RUNTIME_PATH` anywhere, connected, said twice, and disconnected again (A-7).
     "test_s008_bundled_runtime.py",
+    # spec 013-skill-distribution: four packaging trees, four installers, one skill -- the same
+    # contract shapes byte for byte on the far side of an install (A-6).
+    "test_s009_skill_distribution.py",
 }
 
 
@@ -34,9 +37,9 @@ def _scenario_files() -> set[str]:
     return {p.name for p in EVALS.glob("test_s*.py")}
 
 
-def test_there_are_eight_scenarios():
+def test_there_are_nine_scenarios():
     assert _scenario_files() == EXPECTED, (
-        "the scenario set moved; README.md and AGENTS.md name these eight by number")
+        "the scenario set moved; README.md and AGENTS.md name these nine by number")
 
 
 def test_exactly_one_scenario_is_live():

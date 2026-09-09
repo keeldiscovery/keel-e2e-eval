@@ -44,8 +44,21 @@ is that door and has no fallback; `stop_runtime` is `make down`'s and keeps one.
 stays configured for the two places that *read* its source: `harness/canary.py` and
 `instructions/prompts.py`.
 
+**And what ships is refereed too** (spec `013-skill-distribution`): **S-009** installs
+keel-connect-skill's four `make dist` trees the way their own installers install them — a
+plugin's `skills/`, `install.sh --host claude` run for real, a repository's `.github/skills/`, a
+Spec Kit extension directory — and asserts the same contract shapes byte for byte out of all
+four, which is L1's gate on the far side of an install (A-6). `make acceptance`
+(`stack/containers/acceptance/`) takes the same question to Linux: Debian 12 and Debian 11 — the
+3.9 floor itself — on `linux/arm64` and `linux/amd64`, against this stack at
+`host.docker.internal:18080`. Its **model-driven half** (`claude -p`, `copilot -p`) reads
+`ANTHROPIC_API_KEY`/`COPILOT_GITHUB_TOKEN` **from the caller's own shell and nowhere else** (T-5);
+with neither set it skips itself by name and the reason goes into the run record. As with
+`make dist` and `make runtime`, this repo **gates on the built trees and names the command** —
+it never writes to a sibling.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
-to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **eight** scenarios are
+to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **nine** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 above; the
 participants' typed answers are fixture or corpus data, never generated) and every assertion
 enforcing a journey moment cites it (`§n.m`).
