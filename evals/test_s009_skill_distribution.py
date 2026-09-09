@@ -187,7 +187,7 @@ def _tree_digest(root: Path) -> dict:
     return digest
 
 
-def test_s009_skill_distribution(stack, founder_credentials, browser, run_dir):
+def test_s009_skill_distribution(stack, founder_one, browser, run_dir):
     recorder = Recorder(run_dir)
     web_base = f"http://localhost:{stack.web_port}"
     expected_environment = f"localhost:{stack.cloud_port}"
@@ -369,8 +369,7 @@ def test_s009_skill_distribution(stack, founder_credentials, browser, run_dir):
 
         # ------------------------ 6. one runtime, four readers: `already_connected`, byte for byte
         page = context.new_page()
-        Auth(page, recorder, web_base).log_in(email=founder_credentials.email,
-                                               password=founder_credentials.password)
+        Auth(page, recorder, web_base).sign_in(founder_one)
         shared_home = homes / "shared"
         shared_home.mkdir(parents=True, exist_ok=True)
         first = _run_script(installed["plugin"] / "scripts" / "keel_connect_check.py",

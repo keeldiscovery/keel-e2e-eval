@@ -109,3 +109,63 @@ def test_playground_ports_override_from_stack_toml(tmp_path):
 def test_unknown_profile_raises_config_error(tmp_path):
     with pytest.raises(ConfigError):
         load_config(tmp_path / "absent.toml", validate=False, profile="nope")
+
+
+# ---------------------------------------------------- what keel-cloud is told about keel-web
+# (spec 015 second half; keel-cloud `canon/designs/google-sign-in-design.md` §5.1, §10.3)
+
+def test_the_founder_base_url_is_an_origin_and_carries_no_path(tmp_path):
+    """**A harness fault this spec found and fixed, before any of it ran.**
+
+    `KEEL_V2_FOUNDER_BASE_URL` used to be `http://localhost:5173/p`, matching the deleted
+    `keel.v2.founder-base-url` *property* that had a project path baked onto it for `OpenWebUrls`.
+    keel-cloud now derives three things from the env var, all by appending to it:
+    `/connect` (`keel.v2.connect.verification-uri`), `/v2/auth/google/callback`
+    (`keel.v2.auth.google.redirect-uri`) and -- since spec 032 -- **`/login`**, where every
+    refused sign-in lands (`AuthError.location`) and, plus the stored `return_to`, where a
+    successful one is sent (`GoogleCallbackController`). Its own default is a bare
+    `http://localhost:5173`.
+
+    Left at `.../p`, this stack would have sent a signed-in founder to `/p/` and a refused one to
+    `/p/login?auth_error=...` -- both of which keel-web's router resolves through
+    `/p/:projectId/*`, as a project whose id is the word *login*. Every scenario would have gone
+    red at its first step, for a reason none of their screens could have explained.
+    """
+    from stack import cloud
+
+    env = cloud.build_env(load_config(tmp_path / "absent.toml", validate=False))
+    assert env["KEEL_V2_FOUNDER_BASE_URL"] == "http://localhost:5173"
+    assert not env["KEEL_V2_FOUNDER_BASE_URL"].endswith("/p")
+    # The participant base URL is *not* an origin: it is used verbatim to mint invitation links,
+    # and keel-web serves the stranger's page at `/i/:token`.
+    assert env["KEEL_V2_PARTICIPANT_BASE_URL"] == "http://localhost:5173/i"
+    # Both derivations keel-cloud would otherwise compute for itself are still set explicitly,
+    # and both must agree with the origin above.
+    assert env["KEEL_V2_CONNECT_VERIFICATION_URI"] == "http://localhost:5173/connect"
+    assert env["KEEL_GOOGLE_REDIRECT_URI"] == \
+        "http://localhost:18080/v2/auth/google/callback"
+
+
+def test_the_playground_profile_gets_its_own_origin(tmp_path):
+    from stack import cloud
+
+    env = cloud.build_env(load_config(tmp_path / "absent.toml", validate=False,
+                                      profile="playground"))
+    assert env["KEEL_V2_FOUNDER_BASE_URL"] == "http://localhost:5174"
+    assert env["KEEL_V2_CONNECT_VERIFICATION_URI"] == "http://localhost:5174/connect"
+
+
+def test_the_readiness_gate_left_the_route_the_password_took_with_it():
+    """§10.3: `stack/cloud.py` polled `GET /v2/setup` for a `200` and keel-cloud spec 032 deletes
+    that route. `GET /v2/me` expecting `401` proves the same three things -- the JVM is listening,
+    Flyway has run, the security chain is wired -- and adds no route to the product for the
+    harness's benefit."""
+    import inspect
+
+    from stack import cloud
+
+    assert (cloud.READY_PATH, cloud.READY_STATUS) == ("/v2/me", 401)
+    for function in (cloud.is_up, cloud.up):
+        source = inspect.getsource(function)
+        assert "/v2/setup" not in source, "the boot gate still polls a route that is gone"
+        assert "READY_PATH" in source

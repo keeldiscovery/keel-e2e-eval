@@ -32,8 +32,11 @@ def _score(tmp_path):
     return scoring.score_bundle(tmp_path, scenario="policy-v9", complete=True)
 
 
-def test_the_version_is_nine():
-    assert policy.POLICY_VERSION == 9
+def test_the_version_moved_past_nine():
+    """v9's own checks are unchanged by v10 (`evals/policy.py` judgement call 13 narrows `ORI-U1`
+    and nothing else), so this file keeps proving both sides of `CLA-U5` -- it just no longer pins
+    the number, which `tests/test_policy_v10.py` owns."""
+    assert policy.POLICY_VERSION >= 9
 
 
 # ------------------------------------------------------- the quiet half: a quotation is not swept

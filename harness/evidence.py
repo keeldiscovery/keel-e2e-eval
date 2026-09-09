@@ -189,6 +189,10 @@ def _read_json(path: Path) -> dict | None:
 PARTY_COLOR = {
     "agent": "#6d5bd0",
     "founder": "#1a7f5a",
+    # The second founder on a two-founder instance (S-010). A report about two people telling them
+    # apart at a glance is the whole reason this row exists; unknown parties still fall back to
+    # grey, so nothing depends on it being here.
+    "founder-b": "#0f6f8c",
     "participant": "#b3691b",
     "stack": "#555",
 }

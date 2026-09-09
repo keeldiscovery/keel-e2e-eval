@@ -162,7 +162,7 @@ def _run_check_script(script: Path, *, interpreter: str, empty_path: Path,
     return body
 
 
-def test_s008_bundled_runtime(stack, founder_credentials, browser, run_dir):
+def test_s008_bundled_runtime(stack, founder_one, browser, run_dir):
     recorder = Recorder(run_dir)
     web_base = f"http://localhost:{stack.web_port}"
     cloud_base = f"http://localhost:{stack.cloud_port}"
@@ -280,8 +280,7 @@ def test_s008_bundled_runtime(stack, founder_credentials, browser, run_dir):
 
         # ------------------------------------------------------------- 5. the founder's own walk
         page = context.new_page()
-        Auth(page, recorder, web_base).log_in(email=founder_credentials.email,
-                                               password=founder_credentials.password)
+        Auth(page, recorder, web_base).sign_in(founder_one)
         landing = Landing(page, recorder, web_base)
         arrival = landing.visit()
         with recorder.step("§1.0: the founder arrives, and the landing says where the agent is",

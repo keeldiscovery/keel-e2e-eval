@@ -1,154 +1,151 @@
-"""Founder auth bootstrap (spec 005 FR-005, keel-cloud spec 023): keel-cloud's founder web routes
-need a session; there is no agent key any more (`keel connect`'s device flow replaces it) -- so
-something still has to establish the one founder account before the browser can log in and the
-smoke can drive a discovery.
+"""Who the referee signs in as, and the one browserless way to hold a founder session
+(keel-cloud `canon/designs/google-sign-in-design.md` §10.4).
 
-`ensure_founder_account` is the "recipes/conftest step" round-2's design asked for and spec 005
-keeps: idempotent against `GET /v2/setup` (an already-set-up instance is left alone), called from
-`evals/conftest.py`'s `stack` fixture so it runs once per attach-or-boot, whichever a scenario
-session actually does.
+**What this module used to be, and why almost none of it is left.** Until keel-cloud spec 032 it
+held `FOUNDER_PASSWORD`, an `ensure_founder_account` that called `POST /v2/setup` once, and a
+`runs/.stack/founder.json` that had to be cleared at teardown so it never outlived the postgres
+volume it described. Sign in with Google deletes the whole apparatus: `/v2/setup` and `/v2/login`
+are gone from the wire, an account exists the moment somebody signs in, and the stub issuer is
+stateless -- so there is nothing to provision, nothing to persist between runs, and nothing to
+clear. `FOUNDER_NAME` and `FOUNDER_EMAIL` survive as **assertion constants** (they are in
+greetings, participant pages and screenshots, and §10.2 keeps them deliberately), and what joins
+them is `StubFounder` plus the two identities the stub is configured with.
 
-**Judgement call -- where credentials live.** `runs/.stack/founder.json`, alongside the pid files
-`stack/processes.py` already keeps there: this is stack machinery (how to reach the one account
-this harness itself created), not a scored run's evidence, so it does not belong under a run
-bundle's own directory. Spec 023 FR-005 mints no agent key any more, so there is nothing
-mint-once to capture -- only the email/password this harness itself chose, stored so a later
-attach (not a fresh boot) can log back in.
+**The identities live in `stack/oidc.py`, once.** `FOUNDER_ONE`/`FOUNDER_TWO` here are the same
+two records under the names §10.4 gives them, so a scenario reads
+`sign_in(page, ..., FOUNDER_TWO)` rather than reaching into the stub's own configuration. They are
+not a second source of truth: `test_stub_oidc.py` asserts the two lists are the same objects.
 
-**Why `teardown()` must delete this file.** `stack.postgres.down()` is `docker compose down -v` --
-every `make down` drops the postgres volume, so the account `founder.json` describes stops
-existing the moment teardown runs. A stale file surviving past that point would describe
-credentials for an account that is gone; `clear_stored()` (called from `stack.lifecycle.teardown`)
-keeps the file's presence in sync with the account's actual lifetime.
+**`login_and_keel_session` is the only browserless founder session in this harness, and it is not
+a shortcut** (§10.8). It walks `GET /v2/auth/google/start` -> the stub's `/authorize` -> `GET
+/v2/auth/google/callback`, in that order, on a real `requests.Session` whose cookie jar ends up
+holding the session the real callback opened. The one thing it supplies that a browser would click
+is *which identity*, and it supplies it the way §10.2 says: by adding `identity=<id>` to the
+authorize URL keel-cloud itself redirected to. There is no function anywhere in this harness that
+produces a founder session by any other means, and there must never be one.
 
-**The self-healing case: attaching to a stack this process didn't boot.** `GET /v2/setup` reporting
-`accountExists: true` says nothing about *which* password is behind it -- a stored `founder.json`
-might describe a different setup entirely (e.g. someone re-ran `docker compose up` by hand outside
-this harness's own teardown). `ensure_founder_account` verifies the stored credentials with a real
-`POST /v2/login` round-trip rather than trusting the file blind, and raises with a clear remedy
-(`make down && make up`) when they don't work.
+**Why the identity cannot ride on the `/start` call.** §10.4 sketches
+`start?return_to=/&login_hint=<sub>` and expects the hint to be carried through. It is not:
+`GoogleStartController` reads exactly one query parameter (`return_to`) and `GoogleSignIn.start`
+builds the authorize URL from the discovery document and its own configuration, so an extra
+parameter on `/start` is dropped on the floor and the browserless caller lands on the picker's
+HTML with nothing to click. Following the redirect by hand and appending `identity=` to *the URL
+keel-cloud produced* is the same code path with the click supplied -- keel-cloud's own `state`,
+`nonce`, `redirect_uri` and PKCE challenge are the ones that travel, untouched -- and it is what
+this module does.
 """
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
-from pathlib import Path
 
 import requests
 
-from stack.config import REPO_ROOT, StackConfig
+from stack import oidc
+from stack.config import StackConfig
+from stack.stub_oidc.server import Identity
 
-CREDENTIALS_PATH = REPO_ROOT / "runs" / ".stack" / "founder.json"
-
+#: Founder A's name and address, unchanged across the password's whole retirement (§10.2). Every
+#: assertion that reads a greeting, a participant page or a project owner still reads these.
 FOUNDER_NAME = "Eval Founder"
 FOUNDER_EMAIL = "eval-founder@keel-e2e-eval.test"
-FOUNDER_PASSWORD = "eval-founder-password-1"  # noqa: S105 - a fixed, throwaway harness fixture, never a real secret
 
 
 @dataclass(frozen=True)
-class FounderCredentials:
-    name: str
+class StubFounder:
+    """One founder the referee can sign in as (§10.4). `id` is the handle the stub's picker and
+    its `?identity=` parameter answer to, `sub` is what keel-cloud keys the account on (§3.4),
+    `name` is the picker button's label and the greeting's word, and `email` is what `/v2/me`
+    carries back."""
+
+    id: str
+    sub: str
     email: str
-    password: str
+    name: str
+
+    @classmethod
+    def of(cls, identity: Identity) -> "StubFounder":
+        return cls(id=identity.id, sub=identity.sub, email=identity.email, name=identity.name)
+
+
+#: The two founders, under §10.4's names. Built from `stack/oidc.py`'s own list so the stub and
+#: the scenarios can never disagree about who exists.
+FOUNDER_ONE = StubFounder.of(oidc.FOUNDER_A)
+FOUNDER_TWO = StubFounder.of(oidc.FOUNDER_B)
 
 
 @dataclass(frozen=True)
 class KeelSession:
-    """The keel session `POST /v2/setup`/`POST /v2/login` opens server-side (keel-cloud spec 023
-    FR-002) -- `boundAgentSessionId` is null until a runtime connects through `keel connect`."""
+    """What `GET /v2/me` reports once the callback has opened a session -- `boundAgentSessionId`
+    is null until a runtime connects through `keel connect`."""
 
-    keel_session_id: str
+    keel_session_id: str | None
     bound_agent_session_id: str | None
+    agent_connected: bool
+    name: str
+    email: str
+    picture: str | None
 
 
-def _read_stored() -> FounderCredentials | None:
-    if not CREDENTIALS_PATH.exists():
-        return None
-    try:
-        raw = json.loads(CREDENTIALS_PATH.read_text())
-        return FounderCredentials(name=raw["name"], email=raw["email"], password=raw["password"])
-    except (json.JSONDecodeError, KeyError, TypeError):
-        return None
+def cloud_base(config: StackConfig) -> str:
+    return f"http://localhost:{config.cloud_port}"
 
 
-def _write_stored(creds: FounderCredentials) -> None:
-    CREDENTIALS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CREDENTIALS_PATH.write_text(json.dumps({
-        "name": creds.name, "email": creds.email, "password": creds.password,
-    }, indent=2))
+def sign_in_session(config: StackConfig, founder: StubFounder = FOUNDER_ONE, *,
+                    return_to: str = "/") -> requests.Session:
+    """A `requests.Session` carrying the founder session the **real callback** opened.
 
-
-def clear_stored() -> None:
-    """Called from `stack.lifecycle.teardown()` -- see this module's docstring on why a
-    `founder.json` must never outlive the postgres volume it describes."""
-    CREDENTIALS_PATH.unlink(missing_ok=True)
-
-
-def account_exists(config: StackConfig) -> bool:
-    """A direct, side-effect-free `GET /v2/setup` read: `evals/conftest.py`'s
-    `founder_credentials` fixture calls this *before* provisioning, so a scenario can observe the
-    genuinely virgin instance (`accountExists: false`) the one time in a stack's lifetime it is
-    ever true -- `ensure_founder_account` itself would otherwise consume that moment as a side
-    effect of provisioning."""
-    base = f"http://localhost:{config.cloud_port}"
-    response = requests.get(f"{base}/v2/setup", timeout=10)
-    response.raise_for_status()
-    return bool(response.json().get("accountExists", False))
-
-
-def ensure_founder_account(config: StackConfig) -> FounderCredentials:
-    """`GET /v2/setup` -> `accountExists`. `False`: `POST /v2/setup` once, store nothing but
-    email/password (spec 023 FR-005: no agent key is minted or returned any more). `True`: reuse
-    `runs/.stack/founder.json`, verified live via `POST /v2/login` rather than trusted blind.
+    Three hops, none of them skipped: `/v2/auth/google/start` (which writes the `login_attempt`
+    row and the state on this caller's own servlet session -- the cookie jar is what makes that
+    the same browser), the stub's `/authorize` with the click supplied, and
+    `/v2/auth/google/callback`, which verifies the ID token and rotates the session id. What comes
+    back is a cookie jar and nothing else; no token of any kind is ever in this process's hands.
     """
-    base = f"http://localhost:{config.cloud_port}"
-    status = requests.get(f"{base}/v2/setup", timeout=10)
-    status.raise_for_status()
-    if not status.json().get("accountExists"):
-        response = requests.post(f"{base}/v2/setup", json={
-            "name": FOUNDER_NAME, "email": FOUNDER_EMAIL, "password": FOUNDER_PASSWORD,
-        }, timeout=10)
-        if response.status_code >= 400:
-            raise RuntimeError(f"POST /v2/setup failed: {response.status_code} {response.text}")
-        body = response.json()
-        creds = FounderCredentials(name=body["name"], email=body["email"], password=FOUNDER_PASSWORD)
-        _write_stored(creds)
-        return creds
-
-    stored = _read_stored()
-    if stored is not None:
-        login = requests.post(f"{base}/v2/login", json={
-            "email": stored.email, "password": stored.password,
-        }, timeout=10)
-        if login.status_code < 400:
-            return stored
-
-    raise RuntimeError(
-        "keel-cloud reports a founder account already exists, but this harness has no working "
-        f"credentials for it ({CREDENTIALS_PATH} is missing, stale, or describes a different "
-        "account). Run `make down` (drops the postgres volume) and `make up` again to start from "
-        "a fresh account."
-    )
-
-
-def login_and_keel_session(config: StackConfig, credentials: FounderCredentials) -> tuple[requests.Session, KeelSession]:
-    """`POST /v2/login` on a fresh `requests.Session` (spec 005 FR-013's wire-level assertions
-    against `GET .../overview` and `GET .../standing` -- these need their own founder-session
-    cookie, entirely separate from the browser's own; the project they read belongs to the one
-    founder account regardless of which session reads it). Returns the session (its cookie jar
-    now carries the founder session) and the keel session login opened, for assertions that want
-    `keelSessionId`/`boundAgentSessionId` directly (US2 acceptance scenario 1's "runtime connects
-    within 30s" check reads `boundAgentSessionId` becoming non-null, not just the screen).
-    """
-    base = f"http://localhost:{config.cloud_port}"
+    base = cloud_base(config)
     session = requests.Session()
-    response = session.post(f"{base}/v2/login", json={
-        "email": credentials.email, "password": credentials.password,
-    }, timeout=10)
+    started = session.get(f"{base}/v2/auth/google/start", params={"return_to": return_to},
+                          allow_redirects=False, timeout=10)
+    if started.status_code != 302:
+        raise RuntimeError(
+            f"GET /v2/auth/google/start answered {started.status_code}, not a 302 to the issuer "
+            f"({started.text[:200]!r})")
+    authorize_url = started.headers.get("Location", "")
+    if not authorize_url.startswith(oidc.issuer_url(config)):
+        # The one thing worth checking here: keel-cloud is pointed at *this profile's* stub. A
+        # redirect to accounts.google.com means KEEL_OIDC_ISSUER never reached the JVM, and every
+        # scenario downstream would fail for a reason nobody could read off its own screen.
+        raise RuntimeError(
+            f"keel-cloud redirected sign-in to {authorize_url[:120]!r}, not to this profile's "
+            f"stub issuer at {oidc.issuer_url(config)} -- is KEEL_OIDC_ISSUER reaching the JVM?")
+    joined = "&" if "?" in authorize_url else "?"
+    landed = session.get(f"{authorize_url}{joined}identity={founder.id}", timeout=15)
+    if landed.status_code >= 400:
+        raise RuntimeError(
+            f"the sign-in round trip ended {landed.status_code} at {landed.url} "
+            f"({landed.text[:200]!r})")
+    if "auth_error=" in landed.url:
+        raise RuntimeError(f"keel-cloud refused the sign-in: {landed.url}")
+    return session
+
+
+def read_me(config: StackConfig, session: requests.Session) -> KeelSession:
+    """`GET /v2/me` -- where `keelSessionId` lives now that `LoginResponse` is gone (§10.4)."""
+    response = session.get(f"{cloud_base(config)}/v2/me", timeout=10)
     if response.status_code >= 400:
-        raise RuntimeError(f"POST /v2/login failed: {response.status_code} {response.text}")
+        raise RuntimeError(f"GET /v2/me answered {response.status_code}: {response.text[:200]}")
     body = response.json()
-    return session, KeelSession(
-        keel_session_id=body["keelSessionId"], bound_agent_session_id=body.get("boundAgentSessionId"),
+    return KeelSession(
+        keel_session_id=body.get("keelSessionId"),
+        bound_agent_session_id=(body.get("agent") or {}).get("agentSessionId"),
+        agent_connected=bool((body.get("agent") or {}).get("connected")),
+        name=body["name"], email=body["email"], picture=body.get("picture"),
     )
+
+
+def login_and_keel_session(config: StackConfig, founder: StubFounder = FOUNDER_ONE,
+                           ) -> tuple[requests.Session, KeelSession]:
+    """Keeps its name and its job from the password era: a founder session on a plain
+    `requests.Session`, for the wire-level assertions that want one without a browser. What
+    changed is only how the session is opened, and where `keelSessionId` is read from."""
+    session = sign_in_session(config, founder)
+    return session, read_me(config, session)

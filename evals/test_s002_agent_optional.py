@@ -150,7 +150,7 @@ def _connect_agent(page, stack, recorder) -> dict:
     return result
 
 
-def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
+def test_s002_agent_optional(stack, founder_one, browser, run_dir):
     recorder = Recorder(run_dir)
     web_base = f"http://localhost:{stack.web_port}"
     cloud_base = f"http://localhost:{stack.cloud_port}"
@@ -172,8 +172,7 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
         page = context.new_page()
 
         # ---------------------------------------------------------- the baseline (spec edge case)
-        Auth(page, recorder, web_base).log_in(
-            email=founder_credentials.email, password=founder_credentials.password)
+        Auth(page, recorder, web_base).sign_in(founder_one)
         landing = Landing(page, recorder, web_base)
         arrival = landing.visit()
 
@@ -196,8 +195,10 @@ def test_s002_agent_optional(stack, founder_credentials, browser, run_dir):
         stop_runtime(stack, recorder)
 
         # ------------------------------------------------------------ US1 step 2: L4 on re-login
-        Auth(page, recorder, web_base).log_in(
-            email=founder_credentials.email, password=founder_credentials.password)
+        # US1's whole point is *the founder logs back in with no runtime*, and that second
+        # login is now the Google round trip end to end -- start, the stub's picker, the callback,
+        # a rotated session id and a fresh keel session. The assertions below it are untouched.
+        Auth(page, recorder, web_base).sign_in(founder_one)
         landing = Landing(page, recorder, web_base)
         arrival = landing.visit()
         if arrival["agent_connected"]:

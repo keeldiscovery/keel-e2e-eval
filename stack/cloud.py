@@ -21,6 +21,15 @@ from stack.processes import is_port_open, require_port_free, spawn, wait_for_htt
 
 NAME = "cloud"
 
+# **Why the readiness gate asks `/v2/me` and expects a 401** (google-sign-in-design.md §10.3).
+# It used to poll `GET /v2/setup` for a `200`, and keel-cloud spec 032 deletes that route with the
+# password. `/v2/me` answering `401` proves the same three things -- the JVM is listening, Flyway
+# has run, and the security chain is wired -- and adds no route to the product for the harness's
+# benefit. `GET /v2/auth/google/start` would also answer, but it writes a `login_attempt` row on
+# every boot poll, which is a silly way to learn a port is open.
+READY_PATH = "/v2/me"
+READY_STATUS = 401
+
 
 def _process_name(config: StackConfig) -> str:
     """Split-stacks (relay-design.md §12.5): profile-suffixed pid/log names so a playground
@@ -38,14 +47,26 @@ def build_env(config: StackConfig) -> dict[str, str]:
         "KEEL_DB_USERNAME": "keel",
         "KEEL_DB_PASSWORD": "keel",
         "KEEL_SERVER_PORT": str(config.cloud_port),
-        # Load-bearing (design §2): the shipped defaults point at localhost:3000/{projects,i},
-        # a URL keel-web does not serve -- it serves /p and /i.
-        "KEEL_V2_FOUNDER_BASE_URL": f"http://localhost:{config.web_port}/p",
+        # **`KEEL_V2_FOUNDER_BASE_URL` is an ORIGIN, and carries no path.** It used to be
+        # `.../p`, matching the deleted `keel.v2.founder-base-url` *property* that had a project
+        # path baked onto it for `OpenWebUrls`'s screen links. That property is gone (keel-cloud's
+        # 030 follow-on) and the env var that outlived it is now the origin three things derive
+        # from: `/connect` (the device verification URI), `/v2/auth/google/callback` (the redirect
+        # URI) and -- since keel-cloud spec 032 -- **`/login`, where every refused sign-in lands,
+        # and the destination a successful one is sent to** (`AuthError.location`,
+        # `GoogleCallbackController`, `application.yml`'s own default of `http://localhost:5173`).
+        # Left at `.../p` this stack would send a signed-in founder to `/p/` and a refused one to
+        # `/p/login?auth_error=...`, both of which keel-web resolves as a project id (its router's
+        # `/p/:projectId/*`) rather than as a screen. Found reading spec 032 before `make up`,
+        # and asserted in `tests/test_config.py`.
+        "KEEL_V2_FOUNDER_BASE_URL": f"http://localhost:{config.web_port}",
+        # The participant base URL is *not* an origin: `participant-base-url` is used verbatim to
+        # mint invitation links, and keel-web serves the stranger's page at `/i/:token`.
         "KEEL_V2_PARTICIPANT_BASE_URL": f"http://localhost:{config.web_port}/i",
         # KEEL_V2_FOUNDER_DISPLAY_NAME deleted: keel-cloud no longer reads that property -- the
-        # participant page and the founder-side read now name the founder from the one account's
-        # own name (application/FounderNames), the same account `stack.auth.ensure_founder_account`
-        # sets up with FOUNDER_NAME below. Nothing here needs to configure the name twice.
+        # participant page and the founder-side read name the founder from the *owning* account's
+        # own name (application/FounderNames), which since keel-cloud spec 032 is whichever
+        # founder signed in with Google and created the project. Nothing here configures a name.
         # spec 005 FR-002: the URL the runtime's device-authorization response hands back
         # (`verification_uri`) must be a keel-web URL the browser can open -- keel-cloud's own
         # default falls back to KEEL_V2_FOUNDER_BASE_URL + "/connect" already, but this is set
@@ -66,8 +87,8 @@ def is_up(config: StackConfig) -> bool:
     if not is_port_open(config.cloud_port):
         return False
     try:
-        response = requests.get(f"http://localhost:{config.cloud_port}/v2/setup", timeout=3)
-        return response.status_code == 200
+        response = requests.get(f"http://localhost:{config.cloud_port}{READY_PATH}", timeout=3)
+        return response.status_code == READY_STATUS
     except requests.exceptions.RequestException:
         return False
 
@@ -88,7 +109,7 @@ def up(config: StackConfig) -> None:
         log_path=log_path,
     )
     wait_for_http(
-        f"http://localhost:{config.cloud_port}/v2/setup",
+        f"http://localhost:{config.cloud_port}{READY_PATH}",
         config.cloud_boot_timeout,
-        ok_statuses={200},
+        ok_statuses={READY_STATUS},
     )

@@ -1,5 +1,6 @@
-"""The set itself (spec 010 FR-016/T055, research R12; spec 012 adds the eighth and spec 013 the
-ninth): **nine** scenarios, one of them live.
+"""The set itself (spec 010 FR-016/T055, research R12; spec 012 adds the eighth, spec 013 the
+ninth, and spec 015's second half the tenth and eleventh): **eleven** scenarios, one of them
+live.
 
 FR-016 asks that `K=s005|s006|s007` dispatch exactly as `s001`-`s003` do, that all three run under
 `make eval` and `make eval-all`, and that none is live. **`K` is pytest's own `-k`**, so none of
@@ -30,6 +31,11 @@ EXPECTED = {
     # spec 013-skill-distribution: four packaging trees, four installers, one skill -- the same
     # contract shapes byte for byte on the far side of an install (A-6).
     "test_s009_skill_distribution.py",
+    # spec 015-stub-oidc-and-two-founders, second half (keel-cloud google-sign-in-design.md
+    # §10.6): two founders on one instance, and every one of another founder's routes a bare 404.
+    "test_s010_two_founders.py",
+    # ... and §10.7: the callback's own refusals, each with the founder-voiced line §5.5 names.
+    "test_s011_bad_token.py",
 }
 
 
@@ -37,9 +43,20 @@ def _scenario_files() -> set[str]:
     return {p.name for p in EVALS.glob("test_s*.py")}
 
 
-def test_there_are_nine_scenarios():
+def test_there_are_eleven_scenarios():
     assert _scenario_files() == EXPECTED, (
-        "the scenario set moved; README.md and AGENTS.md name these nine by number")
+        "the scenario set moved; README.md and AGENTS.md name these eleven by number")
+
+
+def test_the_two_new_scenarios_are_deterministic_and_in_the_smoke():
+    """S-010 and S-011 are the whole reason design decisions 12 and 13 exist: isolation and the
+    refusal table are proven by `make eval`, on no model and no money, rather than by a live run
+    somebody has to opt into."""
+    for name in ("test_s010_two_founders.py", "test_s011_bad_token.py"):
+        body = (EVALS / name).read_text()
+        assert "pytest.mark.live" not in body, f"{name} must not be live"
+        assert "claude" not in body.lower(), (
+            f"{name} names a model; both new scenarios are deterministic by design")
 
 
 def test_exactly_one_scenario_is_live():

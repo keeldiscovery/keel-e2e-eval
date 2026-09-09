@@ -63,7 +63,7 @@ def _connect_agent(page, stack, recorder) -> None:
         connect.go_to_projects()
 
 
-def test_s003_every_door(stack, founder_credentials, browser, run_dir):
+def test_s003_every_door(stack, founder_one, browser, run_dir):
     recorder = Recorder(run_dir)
     web_base = f"http://localhost:{stack.web_port}"
     started = time.monotonic()
@@ -77,8 +77,7 @@ def test_s003_every_door(stack, founder_credentials, browser, run_dir):
         page = context.new_page()
 
         # ------------------------------------------------------------------ §1.0 arrival, warm or cold
-        Auth(page, recorder, web_base).log_in(
-            email=founder_credentials.email, password=founder_credentials.password)
+        Auth(page, recorder, web_base).sign_in(founder_one)
         landing = Landing(page, recorder, web_base)
         arrival = landing.visit()
         if not arrival["agent_connected"]:

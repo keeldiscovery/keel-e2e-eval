@@ -282,6 +282,25 @@ Judgement calls made while filling in what the contract leaves to the implementa
    Policy 9 changes one check's swept text and nothing else. `CATEGORY_WEIGHTS`, `DEFAULT_WEIGHT`,
    `FID_ANSWER_PARTICIPANT_PAGE_WEIGHT`, `COMPLETION_GATE_SCORE`, `normalize`, `fact_reaches_hop`,
    `HOP_IDS` and every other check are untouched; it reweights nothing and retires nothing.
+
+13. **Policy v10: `ORI-U1` stops exempting a screen that cannot exist.** The check asks *does this
+   screen orient the founder about which project this is*, and it has always skipped two screens
+   that are visited before any project is in view: `login` and `setup`. keel-cloud spec 032
+   retires `/v2/setup` and keel-web spec 014 retires the screen (google-sign-in-design.md §4.7),
+   so `setup` is now a value nothing can capture -- and an exemption for a screen that cannot
+   occur is not harmless: it is a hole any future capture could be tagged into, silently, and the
+   check would skip rather than fail. **v10 exempts `login` only.**
+
+   `login` stays exempt, and stays exempt for the reason it always was: it is the one screen a
+   founder reaches with no project and no session, and since spec 015's second half it is
+   *provably* the same screen on a fresh instance and a busy one -- there is no `accountExists`
+   branch left for it to have two shapes of. What changed underneath it is the whole login (a
+   password became a Google round trip through a stub issuer's account picker); what did not
+   change is that a screen with no project in view has no project identity to carry.
+
+   Policy 10 narrows one exemption and nothing else. `CATEGORY_WEIGHTS`, `DEFAULT_WEIGHT`,
+   `FID_ANSWER_PARTICIPANT_PAGE_WEIGHT`, `COMPLETION_GATE_SCORE`, `normalize`, `fact_reaches_hop`,
+   `HOP_IDS` and every other check are untouched; it reweights nothing and retires no check.
 """
 
 from __future__ import annotations
@@ -289,7 +308,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-POLICY_VERSION = 9
+POLICY_VERSION = 10
 
 CATEGORY_WEIGHTS: dict[str, float] = {
     "FIDELITY": 0.4,

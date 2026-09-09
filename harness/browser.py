@@ -329,13 +329,25 @@ def _step_cm(bstep: "_BrowserStep", name: str):
 # ------------------------------------------------------------------------------------------- Auth
 
 class Auth:
-    """`/setup` and `/login` (design §2.3/§2.5/§2.6; `routes/auth/SetupRoute.tsx`/
-    `LoginRoute.tsx`).
+    """`/login`, and the whole of the Google round trip behind its one button (keel-cloud
+    `canon/designs/google-sign-in-design.md` §6, §10.2, §10.4; `routes/auth/LoginRoute.tsx`).
+
+    **`set_up` is gone with `/setup`** (§4.7): there is no virgin instance any more, no setup
+    form, and no "Your founder account is ready" screen. An account exists the moment somebody
+    signs in, and the first founder gets no special treatment (decision 3).
 
     **Accepts its `recorder`/`base_url` arguments in either order** -- same reasoning, and same
     fix, as `Landing`'s own docstring below: told apart by type (a `Recorder` vs. a plain string)
     rather than by position, since this file's own callers have not agreed on one order.
     """
+
+    #: What keel-web's one control is labelled (`lib/translate.ts`'s `LOGIN_GOOGLE_BUTTON`). It is
+    #: an `<a class="btn google">`, not a `<button>` -- a navigation, not a fetch -- so its
+    #: accessible role is **link**. The design's §10.4 sketch says
+    #: `get_by_role("button", name="Continue with Google")`, which matches nothing on the real
+    #: screen; this is the corrected locator and the reason is written here rather than
+    #: rediscovered in a browser.
+    GOOGLE_BUTTON = "Continue with Google"
 
     def __init__(self, page: Page, arg2: Any, arg3: Any, *, party: str = "founder"):
         self.page = page
@@ -343,43 +355,141 @@ class Auth:
         self.base_url = base_url.rstrip("/")
         self._bstep = _BrowserStep(recorder, page, party)
 
-    def set_up(self, *, name: str, email: str, password: str) -> None:
-        """Fills and submits the setup form; ends on `ScreenA` ("Your founder account is ready")
-        -- setup no longer shows an agent key (FR-005). Rubric's ORI-U1 is explicitly exempt for
-        `screen="setup"` (`harness/rubric.py`'s `_ui_visit_checks`)."""
-        with self._bstep.step("founder sets up the founder account") as h:
-            self.page.goto(f"{self.base_url}/setup", wait_until="load")
-            self.page.locator(".auth-title").wait_for(state="visible", timeout=15_000)
-            self.page.get_by_label("Your name").fill(name)
-            self.page.get_by_label("Email").fill(email)
-            self.page.get_by_label("Password").fill(password)
-            h.add_screenshot(self._bstep.screenshot("setup-filled"))
-            self.page.get_by_role("button", name="Create account").click()
-            self.page.get_by_text("Your founder account is ready").wait_for(
-                state="visible", timeout=15_000)
-            h.capture_text("screen", "setup")
-            h.add_screenshot(self._bstep.screenshot("setup-done"))
+    # ------------------------------------------------------------------------------- the screen
 
-    def log_in(self, *, email: str, password: str) -> None:
-        """Drives the real `/login` screen -- never a transplanted cookie."""
-        with self._bstep.step("founder logs in") as h:
-            self.page.goto(f"{self.base_url}/login", wait_until="load")
+    def open_login(self, *, user_code: str | None = None) -> dict:
+        """L1 -- the login screen, before anyone has signed in (§10.4). The same screen on a fresh
+        instance and a busy one, which is itself worth reading: there is no `accountExists` branch
+        left for a scenario to take. Returns the title, the hint, whether the one control is
+        there, and whatever `auth_error` line is showing."""
+        with self._bstep.step("founder opens the login screen") as h:
+            url = f"{self.base_url}/login"
+            if user_code:
+                url = f"{url}?user_code={user_code}"
+            self.page.goto(url, wait_until="load")
             self.page.locator(".auth-title").wait_for(state="visible", timeout=15_000)
-            self.page.get_by_label("Email").fill(email)
-            self.page.get_by_label("Password").fill(password)
-            h.add_screenshot(self._bstep.screenshot("login-filled"))
-            self.page.get_by_role("button", name="Log in").click()
-            # This transition re-renders in place -- no URL change, no full navigation (post-login
-            # routes to Connect frame A/H when no live agent is bound yet or one already is) -- so
-            # wait for the auth card's own heading to move on from "Log in", or vanish entirely
-            # (the landing has none).
-            self.page.wait_for_function(
-                "() => { const h = document.querySelector('.auth-title'); "
-                "return !h || !/^log in$/i.test((h.textContent || '').trim()); }",
-                timeout=15_000,
-            )
+            read = self._read_login()
             h.capture_text("screen", "login")
-            h.add_screenshot(self._bstep.screenshot("logged-in"))
+            h.record_wire(None, read)
+            h.add_screenshot(self._bstep.screenshot("login"))
+        return read
+
+    def _read_login(self) -> dict:
+        return {
+            "title": _safe_text(lambda: self.page.locator(".auth-title").first.inner_text()),
+            "hints": [t.strip() for t in self.page.locator(".card .hint").all_inner_texts()],
+            "google_button": self.page.get_by_role("link", name=self.GOOGLE_BUTTON).count() > 0,
+            "error_banner": _safe_text(
+                lambda: self.page.locator(".err[role=alert]").first.inner_text()),
+            "url": self.page.url,
+        }
+
+    def login_screen(self) -> dict:
+        """The same read, of whatever login screen the page is already on -- what S-011 uses after
+        a refusal has bounced the browser back here."""
+        self.page.locator(".auth-title").wait_for(state="visible", timeout=15_000)
+        return self._read_login()
+
+    def auth_error_text(self) -> str:
+        """The founder-voiced line under the button, banner or plain hint. §5.5 renders `cancelled`
+        as a plain `.hint` and the other four in an `.err` banner, so both are read here and the
+        caller asserts which shape it wanted."""
+        read = self._read_login()
+        if read["error_banner"].strip():
+            return read["error_banner"].strip()
+        # The plain line: the last hint that is neither the standing sub-title nor the footer.
+        standing = {"Your Keel projects are waiting.",
+                    "New here? The same button makes your account."}
+        extra = [t for t in read["hints"] if t and t not in standing]
+        return extra[-1] if extra else ""
+
+    # -------------------------------------------------------------------------- the round trip
+
+    def sign_in(self, founder, *, return_to: str = "/", stub_break: str | None = None,
+                cancel: bool = False, expect: str = "home") -> dict:
+        """Drives the real `/login` screen through the real callback -- never a transplanted
+        cookie, never a password, never a seeded session.
+
+        Three clicks' worth of code that traverses `GET /v2/auth/google/start`, the stub issuer's
+        `/authorize`, its account picker, `GET /v2/auth/google/callback`, the token exchange, the
+        ID-token verification, account creation-or-refresh, session rotation, the `keel_session`
+        open, and the redirect home. That is more of the real login than the password path ever
+        covered.
+
+        `founder` is a `stack.auth.StubFounder` (or anything with a `.name`): the picker's button
+        is labelled with the identity's own name, which is exactly what a person on the playground
+        profile reads and clicks.
+
+        `stub_break`/`cancel` are S-011's levers and nothing else's. `stub_break` is carried into
+        the picker's own hidden fields by the stub (its `_CARRIED` tuple), so the click that
+        follows is the same click every other scenario makes; `cancel` follows the picker's own
+        *Cancel* link, which is the stub's `error=access_denied`. Both end on `/login` with an
+        `auth_error`, and `expect="login"` says so.
+        """
+        label = founder.name
+        title = ("founder signs in with Google" if expect == "home"
+                 else f"founder tries to sign in with Google ({stub_break or 'cancelled'})")
+        with self._bstep.step(title) as h:
+            self._goto_login(return_to)
+            h.add_screenshot(self._bstep.screenshot("login"))
+            # A navigation, not a fetch: the control is an `<a href>` and what comes back is a
+            # `Location` the browser follows out of keel-web's origin entirely.
+            self.page.get_by_role("link", name=self.GOOGLE_BUTTON).click()
+            self._wait_for_picker()
+            if stub_break:
+                # The stub carries `stub_break` back through the picker's hidden fields, so this
+                # re-issues the *same* authorize request with one thing declared broken and then
+                # takes the ordinary click. Nothing about keel-cloud's half changes.
+                self.page.goto(f"{self.page.url}&stub_break={stub_break}", wait_until="load")
+                self._wait_for_picker()
+            h.add_screenshot(self._bstep.screenshot("stub-picker"))
+            if cancel:
+                self.page.get_by_role("link", name="Cancel").click()
+            else:
+                self.page.get_by_role("button", name=label, exact=True).click()
+            if expect == "home":
+                _wait_for_url_change(
+                    self.page,
+                    lambda url: url.startswith(self.base_url) and "/login" not in url,
+                    timeout_ms=20_000)
+                result = {"landed": self.page.url}
+            else:
+                _wait_for_url_change(
+                    self.page,
+                    lambda url: url.startswith(self.base_url) and "/login" in url,
+                    timeout_ms=20_000)
+                self.page.locator(".auth-title").wait_for(state="visible", timeout=15_000)
+                result = {"landed": self.page.url, **self._read_login(),
+                          "line": self.auth_error_text()}
+            h.capture_text("screen", "login")
+            h.record_wire(None, {"founder": label, "stub_break": stub_break,
+                                 "cancelled": cancel, **result})
+            h.add_screenshot(self._bstep.screenshot(
+                "signed-in" if expect == "home" else "sign-in-refused"))
+        return result
+
+    def _goto_login(self, return_to: str) -> None:
+        """keel-web computes `return_to` itself and never reads it off the address bar (spec 014
+        D-05): a `user_code` in the query means a terminal is waiting and the button carries
+        `/connect?user_code=...`. So a scenario asks for a destination and this opens the screen
+        that produces it, rather than forging a `start` URL of its own."""
+        if return_to.startswith("/connect?user_code="):
+            code = return_to.split("user_code=", 1)[1]
+            self.page.goto(f"{self.base_url}/login?user_code={code}", wait_until="load")
+        else:
+            self.page.goto(f"{self.base_url}/login", wait_until="load")
+        self.page.locator(".auth-title").wait_for(state="visible", timeout=15_000)
+
+    def _wait_for_picker(self) -> None:
+        self.page.get_by_role("heading", name="Choose an account").wait_for(
+            state="visible", timeout=20_000)
+
+    def log_in(self, founder=None, *, return_to: str = "/") -> dict:
+        """The name every scenario has called for nine specs, pointed at `sign_in`. Kept because
+        renaming it in nine files would be the whole of this change's diff and would say nothing;
+        `sign_in` is the name §10.4 gives and the one new scenarios use."""
+        from stack.auth import FOUNDER_ONE
+        return self.sign_in(founder or FOUNDER_ONE, return_to=return_to)
 
 
 # ---------------------------------------------------------------------------------------- Connect
@@ -516,6 +626,12 @@ class Landing:
         else:
             frame = "L1" if agent_connected else "L2"
         return {"frame": frame, "has_projects": has_projects, "agent_connected": agent_connected}
+
+    def greeting(self) -> str:
+        """The landing's own `.hello` line, read without navigating or acting -- a pure getter, so
+        it records no step (this file's read/action split). It is what S-010 asserts names *this*
+        founder and not the other one (keel-cloud google-sign-in-design.md §10.6 step 3)."""
+        return _safe_text(lambda: self.page.locator(".hello").first.inner_text())
 
     def agent_line_text(self) -> str:
         return _safe_text(lambda: self.page.locator(".agentline").first.inner_text())
