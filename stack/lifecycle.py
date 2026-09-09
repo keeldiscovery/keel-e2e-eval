@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import time
 
-from stack import auth, cloud, postgres, runtime, web
+from stack import auth, cloud, oidc, postgres, runtime, web
 from stack.config import StackConfig, load_config
 from stack.processes import teardown_all_processes
 
@@ -20,12 +20,27 @@ def quick_gates_pass(config: StackConfig) -> bool:
     The runtime-home gate is deliberately not part of this: spec 005 US1 says `make up` ends with
     the runtime **not yet running** (the smoke starts it) -- "already up" for attach purposes
     means the three long-running processes answering, exactly as before.
+
+    Spec 015 makes it **four**: the stub OIDC issuer (`stack/oidc.py`) is a long-running process
+    of the same kind, and once keel-cloud's login is Google sign-in a stack whose issuer is down
+    is a stack nobody can log into -- so "already up" must include it, or `make eval` would
+    cheerfully attach to a stack with no way in.
     """
-    return postgres.is_up(config) and cloud.is_up(config) and web.is_up(config)
+    return (oidc.is_up(config) and postgres.is_up(config) and cloud.is_up(config)
+            and web.is_up(config))
 
 
 def boot(config: StackConfig) -> None:
     """Brings the whole stack up, printing each gate as it passes (FR-001, SC-001)."""
+    # The stub issuer comes up **first** (keel-cloud google-sign-in-design.md 10.3): keel-cloud
+    # fetches the discovery document lazily, on the first sign-in rather than at startup, so
+    # nothing here depends on the order -- but bringing it up first means the first login of a run
+    # is never also the first discovery of a dead port. It is stateless: nothing of it survives.
+    print(f"[up] ({config.profile}) stub-oidc: booting on {config.oidc_port} ...")
+    oidc.up(config)
+    print(f"[up] ({config.profile}) stub-oidc: ready on {config.oidc_port}, signing for "
+          f"{[identity.id for identity in oidc.STUB_IDENTITIES]}")
+
     print(f"[up] ({config.profile}) postgres: booting on {config.postgres_port} ...")
     postgres.up(config)
     print(f"[up] ({config.profile}) postgres: ready on {config.postgres_port}")
@@ -92,11 +107,15 @@ def teardown(config: StackConfig | None = None) -> None:
         # outcome a caller must treat as a failure -- but a teardown that raises leaves Postgres
         # and two JVMs behind, so it is printed loudly and the rest of the teardown runs.
         print(f"[down] ({config.profile}) WARNING: the runtime did not stop -- {outcome}")
-    print(f"[down] ({config.profile}) stopping keel-web and keel-cloud ...")
+    print(f"[down] ({config.profile}) stopping keel-web, keel-cloud and the stub issuer ...")
     teardown_all_processes(config.profile)
     time.sleep(0.5)
     print(f"[down] ({config.profile}) stopping postgres ...")
     postgres.down(config)
+    # The stub issuer keeps nothing but its signing key, and that key never outlives the run that
+    # made it (spec 015; keel-cloud google-sign-in-design.md 10.3). Both profiles, not just eval:
+    # each clears only its own.
+    oidc.clear_key(config)
     if config.profile == "eval":
         # postgres.down() drops the eval project's volume (-v) -- the founder account
         # stack/auth.py stored credentials for no longer exists once this returns

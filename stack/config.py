@@ -16,7 +16,7 @@ DEFAULT_PATHS = {
     "keel_runtime": "../keel-runtime",
     "keel_connect_skill": "../keel-connect-skill",
 }
-DEFAULT_PORTS = {"postgres": 55432, "cloud": 18080, "web": 5173}
+DEFAULT_PORTS = {"postgres": 55432, "cloud": 18080, "web": 5173, "oidc": 18090}
 DEFAULT_TIMEOUTS = {"cloud_boot": 120, "web_boot": 60}
 
 # Split-stacks (relay-design.md §12.5, the account-collision incident): the playground profile's
@@ -24,7 +24,7 @@ DEFAULT_TIMEOUTS = {"cloud_boot": 120, "web_boot": 60}
 # ("eval") profile's own ports above are entirely unchanged. `stack/postgres.py` also puts the
 # playground profile in its own Compose *project* (never the eval profile's default project), so
 # an eval `make down` can never see, let alone drop, the playground's own container or volume.
-DEFAULT_PLAYGROUND_PORTS = {"postgres": 55433, "cloud": 18081, "web": 5174}
+DEFAULT_PLAYGROUND_PORTS = {"postgres": 55433, "cloud": 18081, "web": 5174, "oidc": 18091}
 PROFILES = ("eval", "playground")
 
 
@@ -43,6 +43,10 @@ class StackConfig:
     web_port: int
     cloud_boot_timeout: int
     web_boot_timeout: int
+    # Defaulted, and last, so a StackConfig built by hand before this feature still constructs:
+    # the stub OIDC issuer's port (spec 015; keel-cloud google-sign-in-design.md 10.3) -- eval
+    # 18090, playground 18091, fixed per profile like every other port here.
+    oidc_port: int = 18090
     profile: str = "eval"
 
     @property
@@ -156,6 +160,7 @@ def load_config(toml_path: Path | None = None, *, validate: bool = True,
         postgres_port=int(ports["postgres"]),
         cloud_port=int(ports["cloud"]),
         web_port=int(ports["web"]),
+        oidc_port=int(ports["oidc"]),
         cloud_boot_timeout=int(timeouts["cloud_boot"]),
         web_boot_timeout=int(timeouts["web_boot"]),
         profile=profile,

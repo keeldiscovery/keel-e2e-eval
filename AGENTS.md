@@ -57,6 +57,19 @@ with neither set it skips itself by name and the reason goes into the run record
 `make dist` and `make runtime`, this repo **gates on the built trees and names the command** —
 it never writes to a sibling.
 
+**And there is a fourth service now** (spec `015-stub-oidc-and-two-founders`, keel-cloud
+`canon/designs/google-sign-in-design.md` §10.1-§10.3): `stack/stub_oidc/`, a standard-library OIDC
+issuer `make up` starts first, on **18090** (eval) / **18091** (playground). keel-cloud's founder
+login is becoming Sign in with Google, and §3.6 is the whole test story -- **the issuer is
+configuration**. `KEEL_OIDC_ISSUER` defaults to Google and a deployment sets nothing; this stack
+names the stub, so the product keeps exactly one login path and the eval walks all of it. The stub
+has no password, no bypass header, no test-only route and no second trusted key, and it refuses a
+bad PKCE verifier, a reused code, a mismatched `redirect_uri` and an unknown client -- a stub that
+accepted anything would prove nothing about keel-cloud's half. Its two identities (**founder A**
+*Eval Founder*, **founder B** *Nour Haddad*) live in `stack/oidc.py`, once. **The second half --
+the login step in `stack/auth.py`/`harness/browser.py`, and S-010/S-011 -- waits on keel-cloud spec
+032**; the scenario set is still nine.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **nine** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 above; the
@@ -84,7 +97,8 @@ on the wire and never explained on the screen (`runs/DRIFT.md` #17). The evidenc
 versioned) is the yardstick. `make up / eval K=s001|s002|s003|s005|s006|s007 / down`; quickstarts in
 `specs/*/quickstart.md`.
 
-**Two referee sessions never share the eval profile.** The stack's ports (55432/18080/5173) and
+**Two referee sessions never share the eval profile.** The stack's ports (55432/18080/5173/18090)
+and
 runtime home are fixed per profile, not per process — a second `make up`/`make eval`/`make down`
 against the default (eval) profile while another is mid-run restarts keel-cloud and drops the
 database out from under it (live-confirmed: two sessions racing the same checkout, 2026-09-03).

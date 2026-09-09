@@ -11,6 +11,10 @@ keel_connect_skill = "../keel-connect-skill"
 postgres = 55432
 cloud = 18080
 web = 5173
+# The stub OIDC issuer (spec 015; keel-cloud google-sign-in-design.md 10.3). A fourth service,
+# a plain Python process like the JVM and vite are -- not Docker Compose, which runs Postgres
+# only.
+oidc = 18090
 
 [timeouts]
 cloud_boot = 120
@@ -23,3 +27,4 @@ web_boot = 60
 postgres = 55433
 cloud = 18081
 web = 5174
+oidc = 18091

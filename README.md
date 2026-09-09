@@ -41,9 +41,10 @@ keel-runtime's source rather than run it: `harness/canary.py`'s cap defaults and
 ## Run
 
 ```bash
-make up            # boots Postgres (55432), keel-cloud (18080), keel-web (5173); resets the
-                    # runtime home; prints four gates. The runtime itself is NOT started here --
-                    # a scenario starts it, because starting it is part of the journey.
+make up            # boots the stub OIDC issuer (18090), Postgres (55432), keel-cloud (18080)
+                    # and keel-web (5173); resets the runtime home; prints five gates. The
+                    # runtime itself is NOT started here -- a scenario starts it, because
+                    # starting it is part of the journey.
 make eval K=s001    # runs the smoke (matches evals/test_s001_smoke.py); prints the run directory
 make eval K=s002    # runs the agent-optional day (evals/test_s002_agent_optional.py) -- reuses
                     # an S-001 run's own project in the same session, or builds its own prelude
@@ -60,7 +61,7 @@ make down           # asks a runtime a scenario left running to disconnect (and 
 ```
 
 `make eval` alone (no `make up` first) attaches to an already-up stack if one is answering on all
-three ports, or boots one and tears it down at the end of the session — the fast-iteration path
+four ports, or boots one and tears it down at the end of the session — the fast-iteration path
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
@@ -449,11 +450,37 @@ The report still generates, with the failing step anchored at the top, `failure/
 `failure/console.log` captured at the moment of failure. `tests/test_browser_failure_capture.py`
 covers the same failure-capture path automatically, with no stack required.
 
+## The stub OIDC issuer (`stack/stub_oidc/`, spec `015-stub-oidc-and-two-founders`)
+
+A fourth service, started first by `make up`: a standard-library OIDC issuer on **18090** (eval) /
+**18091** (playground) serving `/.well-known/openid-configuration`, `/jwks`, `/authorize` and
+`/token`. keel-cloud is moving its founder login to Sign in with Google (its
+`canon/designs/google-sign-in-design.md`), and §3.6 of that design is the whole test story: **the
+issuer is configuration**. `KEEL_OIDC_ISSUER` defaults to `https://accounts.google.com` and a
+deployment sets nothing; this stack points keel-cloud at the stub, so there is exactly one login
+path in the product and the eval walks all of it — no test-only login, no bypass header, no seeded
+cookie, and (once the second half lands) no password anywhere.
+
+It signs a real RS256 ID token against a key `make up` generates with `openssl` into
+`runs/.stack/`, and it is deliberately strict: a bad PKCE verifier, a reused code, a mismatched
+`redirect_uri` or an unknown client are all refused, because a stub that accepts anything proves
+nothing about the client's half. `GET /authorize` with no identity shows an account picker — one
+button per founder, labelled with that founder's own name — and `?identity=founder-a` (or
+`?login_hint=<sub>`) supplies the click for a browserless caller.
+
+**Two founders**, in `stack/oidc.py` and nowhere else: **founder A** *Eval Founder*
+(`eval-founder@keel-e2e-eval.test`, `sub` `stub-founder-1`) and **founder B** *Nour Haddad*
+(`second-founder@keel-e2e-eval.test`, `sub` `stub-founder-2`).
+
+**Only the first half has landed.** The login step (`stack/auth.py`, `harness/browser.py`) and the
+two new scenarios S-010 and S-011 wait on keel-cloud spec `032-google-sign-in`; until it lands the
+four `KEEL_GOOGLE_*`/`KEEL_OIDC_ISSUER` variables `stack/cloud.py` passes are read by nobody.
+
 ## Ports (fixed, never 5432/8080)
 
-Postgres 55432, keel-cloud 18080, keel-web 5173 — so this stack never collides with a
-developer's own Postgres or dev server. `make up` fails fast, naming the port and its owner, if
-any of the three is already taken. The runtime binds no fixed port of its own; it long-polls
+Postgres 55432, keel-cloud 18080, keel-web 5173, the stub OIDC issuer 18090 — so this stack never
+collides with a developer's own Postgres or dev server. `make up` fails fast, naming the port and
+its owner, if any of the four is already taken. The runtime binds no fixed port of its own; it long-polls
 keel-cloud over HTTP the same way it would from a founder's own laptop.
 
 ## Split stacks: the playground profile
@@ -463,12 +490,13 @@ second, entirely separate **playground** profile exists for poking at the produc
 ever touching an eval run's own data:
 
 ```bash
-make up PROFILE=playground    # Postgres 55433, keel-cloud 18081, keel-web 5174
+make up PROFILE=playground    # Postgres 55433, keel-cloud 18081, keel-web 5174, stub OIDC 18091
 make down PROFILE=playground
 ```
 
 The two profiles cannot collide: separate ports (`stack.toml`'s `[playground.ports]`), separate
-pid files (`cloud-playground`/`web-playground`), and separate Docker Compose *projects*
+pid files (`cloud-playground`/`web-playground`/`oidc-playground`), and separate Docker Compose
+*projects*
 (`stack/postgres.py` runs the playground under `-p keel-eval-playground`, a real named volume
 rather than the eval profile's `tmpfs`) — Compose's project name, not the file, is the isolation
 boundary, so both profiles' services can live in one `docker-compose.yml` without `make down`'s
