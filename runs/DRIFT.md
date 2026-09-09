@@ -3596,13 +3596,16 @@ moves to accommodate a result has stopped being a mark.*
 and `register.html`, which carries all seven paragraphs whole and unscored.
 
 
-## 57. Owed (keel-runtime, and it is the finding of the night): a runtime that died on the first
-SIGTERM is reported `did_not_stop`, because a zombie answers `os.kill(pid, 0)`
+## 57. RESOLVED -- was owed (keel-runtime, and it was the finding of the night): a runtime that
+died on the first SIGTERM was reported `did_not_stop`, because a zombie answers `os.kill(pid, 0)`
 
-**Severity: owed, and blocking for the containerised beds.** All four probes of `make acceptance`
-are red on it — both images, both architectures — and they are the beds keel-cloud
-`canon/designs/keel-skill-design.md` §10.2 (B1) and §10.4 (B3) exist to certify. The runtime is
-stopped in every one of them. The door out cannot tell.
+**Closed by keel-runtime `a0756b6`** (merge commit, *"treat a zombie pid as not alive"*),
+carried into this workspace by keel-connect-skill `20cf41d` (`RUNTIME_VERSION` bumped to
+`0.1.0+a0756b6`, verified against the committed file). **Was: owed, and blocking for the
+containerised beds** -- all four probes of `make acceptance` were red on it, both images, both
+architectures, and they are the beds keel-cloud `canon/designs/keel-skill-design.md` §10.2 (B1)
+and §10.4 (B3) exist to certify. The runtime was stopped in every one of them; the door out could
+not tell.
 
 **Where**: keel-runtime `keel_runtime/heartbeat.py::pid_alive`, which is POSIX liveness by
 `os.kill(pid, 0)` — *"`ProcessLookupError` => False, `PermissionError` => True"* — used by
@@ -3689,7 +3692,47 @@ the un-softened outcome list and the absence of `--init`, so a later green has t
 keel-runtime.
 
 **Tests**: `tests/test_skill_distribution.py::test_the_acceptance_probe_still_refuses_did_not_stop`
-and `::test_the_beds_do_not_arrange_a_reaping_pid_1`; the bed itself (`make acceptance`). The runs
-of record are `runs/20260909T074912Z-acceptance` (four red probes) and, for the contrast,
+and `::test_the_beds_do_not_arrange_a_reaping_pid_1`; the bed itself (`make acceptance`). The run
+that found it was `runs/20260909T074912Z-acceptance` (four red probes) and, for the contrast,
 `runs/20260909T074401Z-s009-skill-distribution`, where the same door out on the same runtime
 answers `disconnected` in 60 ms because the host's PID 1 reaps.
+
+### The fix, and the run that showed it
+
+keel-runtime `a0756b6` makes `pid_alive` zombie-aware: on Linux it reads `/proc/<pid>/stat` and
+treats state `Z` as gone; where the pid is the caller's own child it also tries
+`os.waitpid(pid, os.WNOHANG)`, which reaps and answers in one call; macOS (no `/proc`) falls back
+to `ps -o stat=`. This is exactly the fix this entry's *"what the fix would take"* section
+described, and it landed the same way: **`disconnect.py` needed no change at all** -- it already
+injected `alive` as a seam -- and `status` picked up the same correction for free.
+
+**Not adapted around, still.** `run-acceptance.sh`'s probe still accepts exactly
+`disconnected | not_running | stale_pid_cleared`, `did_not_stop` still fails it, and the bed is
+still not run with `--init` -- `tests/test_skill_distribution.py`'s two pins are unchanged and
+still green. The fix came from keel-runtime, as this entry always said it had to.
+
+**Observed, on the run this entry was closed by**: `runs/20260909T082843Z-acceptance`, four of
+four stackless probes, all `disconnected` in well under a second, `--init` absent from every
+`docker run` in the script:
+
+```
+cli-arm64     Debian 12, Python 3.11.2   disconnect: disconnected   waited_ms: 54   signal: SIGTERM
+floor-arm64   Debian 11, Python 3.9.2    disconnect: disconnected   waited_ms: 58   signal: SIGTERM
+cli-amd64     Debian 12, Python 3.11.2   disconnect: disconnected   waited_ms: 56   signal: SIGTERM
+floor-amd64   Debian 11, Python 3.9.2    disconnect: disconnected   waited_ms: 54   signal: SIGTERM
+```
+
+`builds failed: 0`, `stackless probes: 4 run, 0 failed`. The model-driven half skipped both hosts
+by name (`ANTHROPIC_API_KEY` / `COPILOT_GITHUB_TOKEN` unset in this shell) -- expected, T-5, and
+recorded in `results/model-driven.json`, not this entry's concern.
+
+**One retry, and why.** The first attempt after the fix landed (`runs/20260909T082155Z-acceptance`)
+still showed `floor-amd64` red on `did_not_stop`: `keel-acceptance-floor:amd64`'s own build failed
+on an unrelated Debian-11-under-qemu package postinst crash (`python3.9 -c 'import imp;
+print(imp.get_tag())'` segfaulting, status 139, on emulated amd64), and `docker build`'s failure
+left that tag pointing at a stale image built *before* `a0756b6` -- so the probe measured the old
+runtime under a new name. Not this entry's defect recurring: `docker rmi` of all four tags forced
+a clean rebuild, and the retry above is what a fresh image measures. Left as a caution for the next
+run rather than a `DRIFT.md` entry of its own -- the failure was in Debian's own archive packaging
+under emulation, not in anything this repository or keel-runtime owns, and it did not reproduce on
+the clean rebuild.

@@ -83,7 +83,7 @@ neither was run.
 | S-007 mulchrun | `20260909T073935Z-s007-mulchrun` | **PASSED, 5.0/5** |
 | S-008 bundled runtime | `20260909T074349Z-s008-bundled-runtime` | **PASSED, not scored** |
 | S-009 skill distribution | `20260909T074401Z-s009-skill-distribution` | **PASSED, not scored** |
-| `make acceptance` | `20260909T074912Z-acceptance` | **FAILED — 4 of 4 probes** (`runs/DRIFT.md` #57); model-driven half **SKIPPED** |
+| `make acceptance` | `20260909T074912Z-acceptance` | **FAILED — 4 of 4 probes** (`runs/DRIFT.md` #57, since RESOLVED — see below); model-driven half **SKIPPED** |
 
 S-002's 4.5 is the same FIDELITY it has scored across every set of runs of record and is not a
 failure of the day (see below). **S-005 is a re-run and is labelled one**: its place in the
@@ -111,6 +111,24 @@ only variable being PID 1: `--init` → `disconnected` in **54 ms**; without →
 **15005 ms**. Written up as **`runs/DRIFT.md` #57** with the `/proc` state `Z` caught in the act.
 **Not adapted around**: the probe still refuses `did_not_stop`, the bed is still not run with
 `--init`, and two stackless tests pin both so a later green has to come from keel-runtime.
+
+**#57 is now RESOLVED, by keel-runtime `a0756b6`** — *"treat a zombie pid as not alive"* —
+carried into this workspace by keel-connect-skill `20cf41d` (`RUNTIME_VERSION` bumped to
+`0.1.0+a0756b6`). Rerun with rebuilt beds (a stale `keel-acceptance-floor:amd64` image had to be
+force-removed first — the fixed skill tree was in `dist/bare`, but that one image's own build had
+failed the run before on an unrelated Debian-11-under-qemu package crash, leaving its tag pointed
+at bits from before `a0756b6`), `runs/20260909T082843Z-acceptance` is green four of four, all
+`disconnected` in 54-58 ms, `--init` still absent from the script:
+
+| Probe | Distribution | Python | Outcome | `waited_ms` |
+|---|---|---|---|---|
+| `cli-arm64` | Debian 12 | 3.11.2 | `disconnected` | 54 |
+| `floor-arm64` | Debian 11 | 3.9.2 | `disconnected` | 58 |
+| `cli-amd64` | Debian 12 | 3.11.2 | `disconnected` | 56 |
+| `floor-amd64` | Debian 11 | 3.9.2 | `disconnected` | 54 |
+
+builds failed: 0, stackless probes: 4 run, 0 failed. Model-driven half skipped both hosts by
+name, same as above.
 
 **The model-driven half did not run**, as always without secrets in the caller's own shell (T-5):
 `ANTHROPIC_API_KEY` and `COPILOT_GITHUB_TOKEN` are unset, both halves skip themselves by name, and

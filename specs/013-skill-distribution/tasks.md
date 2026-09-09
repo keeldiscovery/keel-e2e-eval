@@ -87,12 +87,22 @@ Copilot CLI 1.0.83**, Node **v22.14.0**.
   skill invisible — and both are recorded as `skipped` with the variable named. **A-4, A-6's model
   half and A-11 are not green**; they are unmeasured, which is a different thing and is what the
   record says.
-- **`runs/DRIFT.md` #51 is open, and it is the finding of the night.** Between
-  `authorization_started` and approval there is a live `keel connect` that `keel disconnect`
-  reports `not_running` for. It is keel-runtime's to close; S-009 asserts what it observed.
+- **`runs/DRIFT.md` #51 is RESOLVED** (was: open, and the finding of the night — between
+  `authorization_started` and approval there was a live `keel connect` that `keel disconnect`
+  reported `not_running` for). Closed by keel-runtime `bfc0ad6`, which writes the heartbeat in
+  `state="awaiting_approval"` the moment `connect` has a pid and a home; S-009 now asserts
+  `disconnected` and the pid pairing (`runs/20260909T074401Z-s009-skill-distribution`).
 - **#52 is open**: `source` is a design field with no contract behind it. One key on `status` and
   one line in keel-cloud's `status-cli-output.md` would close it.
 - **#49 has a deadline nobody has set**: the floor bed builds from `archive.debian.org` today.
+- **#57 was discovered and is RESOLVED.** Closing #51 made the door out actually signal a
+  pre-approval runtime — and inside these beds' containers `pid_alive`'s `os.kill(pid, 0)`
+  answered "alive" for a zombie, so all four `make acceptance` probes went red on `did_not_stop`
+  (`runs/20260909T074912Z-acceptance`). Closed by keel-runtime `a0756b6` (zombie-aware
+  `pid_alive`), carried by keel-connect-skill `20cf41d` (`RUNTIME_VERSION` `0.1.0+a0756b6`); rerun
+  green four of four, `disconnected` in 54-58 ms, no `--init`
+  (`runs/20260909T082843Z-acceptance`). Neither the probe's accepted-outcome list nor the absence
+  of `--init` moved — `tests/test_skill_distribution.py`'s two pins are unchanged.
 - **The Windows job** (`acceptance.yml`, §10.3) is keel-runtime's, step 11, and out of scope here.
 - **The instruction eval and S-004** were not run: neither is touched by this feature and both
   cost real money.
