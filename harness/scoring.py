@@ -64,15 +64,29 @@ def score_categories(results_by_interaction: dict[str, list[rubric.CheckResult]]
     }
 
 
-def compute_run_score(categories: dict[str, float], *, complete: bool) -> float:
+def compute_run_score(categories: dict[str, float], *, complete: bool) -> float | None:
     """Run score = weighted mean of the four categories (policy weights; a category absent from
     this run -- e.g. no participant-page ever happened -- is left out of both the numerator and
     the weight total, rather than scored as a 0, since it carries no evidence either way).
     `complete=False` caps the result at policy.COMPLETION_GATE_SCORE (design's "a beautiful
-    half-run can't outscore an ugly complete one")."""
+    half-run can't outscore an ugly complete one").
+
+    **`None` when no category applies at all** (spec 012). The rule above already says an absent
+    category carries no evidence either way; a run where *every* category is absent used to score
+    `0.0` regardless, which says "as bad as a run can be" about a run that measured nothing of the
+    kind these four attributes measure. S-008 is the scenario that made it visible -- it referees
+    a contract between the skill and the runtime, and never puts a founder in front of a screen
+    the policy has a check for. `None` reads as *not scored*, and the report says so in words.
+
+    This is not a policy change and `POLICY_VERSION` does not move: no check, weight or waiver in
+    `evals/policy.py` is touched, and every run with at least one applicable category scores
+    exactly what it scored before -- the pre-9 runs of record re-score unchanged.
+    """
     present = {a: w for a, w in policy.CATEGORY_WEIGHTS.items() if a in categories}
     total_weight = sum(present.values())
-    raw = sum(categories[a] * w for a, w in present.items()) / total_weight if total_weight else 0.0
+    if not total_weight:
+        return None
+    raw = sum(categories[a] * w for a, w in present.items()) / total_weight
     if not complete:
         raw = min(raw, policy.COMPLETION_GATE_SCORE)
     return round_half(raw)

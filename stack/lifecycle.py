@@ -40,21 +40,39 @@ def boot(config: StackConfig) -> None:
     web.up(config)
     print(f"[up] ({config.profile}) keel-web: ready on {config.web_port}")
 
+    # spec 012 FR-002: the runtime a founder runs is the one that travelled inside the skill, so
+    # the stack refuses to boot without it and names the one command that builds it. It does not
+    # run that command: `make runtime` writes into a sibling repository, and this repo owns no
+    # product code (see `runtime.BundledRuntimeMissing` for the whole argument).
+    print(f"[up] ({config.profile}) bundled-runtime: checking "
+          f"{runtime.bundled_runtime_dir(config)} ...")
+    runtime.require_bundled_runtime(config)
+    print(f"[up] ({config.profile}) bundled-runtime: ready "
+          f"({runtime.bundled_runtime_version(config) or 'no RUNTIME_VERSION stamp'})")
+
     # spec 005 FR-003/edge cases: wiped every `make up` so no credential or heartbeat from a
     # prior run survives into this session -- the smoke's own first assertion (the landing reads
-    # "No agent connected") depends on this gate being genuinely clean.
+    # "No agent connected") depends on this gate being genuinely clean. Spec 012 leaves one file
+    # behind it: a `config.json` naming this profile's Keel, so the isolated home says which Keel
+    # it belongs to (FR-004).
     print(f"[up] ({config.profile}) runtime-home: resetting {runtime.home_dir(config)} ...")
     runtime.reset(config)
-    print(f"[up] ({config.profile}) runtime-home: ready, empty of a heartbeat "
-          f"(the smoke starts the runtime itself)")
+    print(f"[up] ({config.profile}) runtime-home: ready, empty of a heartbeat, naming "
+          f"{config.cloud_base_url} (the smoke starts the runtime itself)")
 
     print("[up] all gates passed")
 
 
 def teardown(config: StackConfig | None = None) -> None:
-    """Kills a runtime the smoke left running, then killpg the recorded process groups, wait,
-    then `docker compose down -v` (contract order). Idempotent and safe when only part of the
-    stack came up.
+    """Disconnects a runtime a scenario left running, then killpg the recorded process groups,
+    wait, then `docker compose down -v` (contract order). Idempotent and safe when only part of
+    the stack came up.
+
+    **`kill` became `disconnect`** (spec 012 FR-003, design §11): teardown asks the runtime to go
+    -- the same command keel-connect-skill's own `keel_disconnect.py` shells for a founder who
+    says "keel disconnect" -- and reads the outcome that proves it went, instead of signalling a
+    pid out of a heartbeat file and hoping. It stays idempotent (`not_running` is a normal,
+    successful answer) and it still never fails on `did_not_stop`.
 
     Split-stacks (relay-design.md §12.5): every step below is scoped to `config.profile` --
     `teardown_all_processes(config.profile)` only ever kills that profile's own pid files, and
@@ -64,8 +82,16 @@ def teardown(config: StackConfig | None = None) -> None:
     eval account's stored credentials.
     """
     config = config or load_config()
-    print(f"[down] ({config.profile}) stopping keel-runtime (if the smoke left one running) ...")
-    runtime.kill(config)
+    print(f"[down] ({config.profile}) disconnecting keel-runtime (if a scenario left one "
+          f"running) ...")
+    outcome = runtime.disconnect(config)
+    print(f"[down] ({config.profile}) keel-runtime: {outcome.get('outcome')} "
+          f"(via {outcome.get('via')})")
+    if outcome.get("outcome") in runtime.DID_NOT_STOP_OUTCOMES:
+        # Spec 012 FR-003 / keel-runtime's disconnect contract guarantee 3: `timeout` is the one
+        # outcome a caller must treat as a failure -- but a teardown that raises leaves Postgres
+        # and two JVMs behind, so it is printed loudly and the rest of the teardown runs.
+        print(f"[down] ({config.profile}) WARNING: the runtime did not stop -- {outcome}")
     print(f"[down] ({config.profile}) stopping keel-web and keel-cloud ...")
     teardown_all_processes(config.profile)
     time.sleep(0.5)

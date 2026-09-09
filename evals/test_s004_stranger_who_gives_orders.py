@@ -512,8 +512,11 @@ def test_s004_stranger_who_gives_orders_live(stack, founder_credentials, browser
                 live_card = ReviewCard(page, recorder, web_base)
                 live_card.open(live_project_id, stage)
                 correction = CorrectionChat(page, recorder)
-                assert correction.is_visible(), (
+                # keel-web `c807634`: the panel is asked for, not always open. B6 is still the
+                # same box and still the same attack -- the stranger clicks the link first.
+                assert correction.is_offered(), (
                     f"the {stage} review card offers no correction chat; B6 cannot be attacked")
+                correction.ask()
                 answered = correction.send(f"{A1_ORDER} {A8_OTHER_STAGE}", timeout_s=240)
                 attacked.append("B6 correction chat")
                 texts["B6 correction chat"] = json.dumps(agent_said(answered))

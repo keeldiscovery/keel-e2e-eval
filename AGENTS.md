@@ -26,8 +26,21 @@ script (`harness/connect.py`), because that skill is itself one of the four appl
 referee. `make up` ends with the runtime not yet running; S-001 starts it, because starting it is
 part of the journey.
 
+**And the runtime that runs is the one that travelled inside the skill** (spec
+`012-bundled-runtime`, keel-cloud `canon/designs/keel-skill-design.md` §3.2): the `keel_runtime/`
+package `make runtime` puts beside keel-connect-skill's scripts, **not** the `../keel-runtime`
+checkout. Nothing here passes `--runtime-path`, and `KEEL_RUNTIME_PATH`, `KEEL_HOME` and
+`KEEL_BASE_URL` are scrubbed out of every child this stack launches — a founder is on the skill's
+rule 2 and so is the referee. `make up` gates on the package and names
+`make -C ../keel-connect-skill runtime` rather than running it: **this repo never writes to a
+sibling repository**, and that target refuses on a dirty keel-runtime checkout anyway. `make down`
+asks the runtime to `disconnect` (through the skill's own `keel_disconnect.py` when it exists) and
+reads the outcome that proves it went; it does not signal a pid. The `../keel-runtime` checkout
+stays configured for the two places that *read* its source: `harness/canary.py` and
+`instructions/prompts.py`.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
-to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seven** scenarios are
+to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **eight** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 above; the
 participants' typed answers are fixture or corpus data, never generated) and every assertion
 enforcing a journey moment cites it (`§n.m`).

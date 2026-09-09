@@ -52,6 +52,41 @@ class StackConfig:
         keel_runtime` directly, so the connect skill stays under referee)."""
         return self.keel_connect_skill / "scripts" / "keel_connect_check.py"
 
+    @property
+    def disconnect_script_path(self) -> Path:
+        """keel-connect-skill's own way *out* (its spec `002-keel-disconnect`,
+        contracts/skill-disconnect-output.md). Spec 012: `make down` stops the runtime by asking
+        the same script a founder's "keel disconnect" asks, instead of signalling a pid.
+
+        It may not exist yet -- spec 002 is being written in that repo as this one lands -- so
+        `stack.runtime.disconnect` treats it as *preferred, not required* and falls back to the
+        bundled runtime's own `disconnect` subcommand, which is the command this script shells
+        anyway. Both answer the same four runtime outcomes.
+        """
+        return self.keel_connect_skill / "scripts" / "keel_disconnect.py"
+
+    @property
+    def bundled_runtime_path(self) -> Path:
+        """The runtime that **travelled inside the skill** -- `<skill root>/keel_runtime/`, put
+        there by `make -C ../keel-connect-skill runtime` and gitignored in that repo (keel-cloud
+        `canon/designs/keel-skill-design.md` §3.1, invariant D2).
+
+        This is the runtime a founder runs, so from spec 012 on it is the runtime the referee
+        runs: `stack/runtime.py` reads `status` from it and the connect script resolves it with no
+        `KEEL_RUNTIME_PATH` in the environment at all (T-1). `keel_runtime` -- the *checkout* --
+        stays configured for the things that read keel-runtime's **source** rather than run it
+        (`harness/canary.py`'s caps, `instructions/prompts.py`'s `build_prompt`).
+        """
+        return self.keel_connect_skill / "keel_runtime"
+
+    @property
+    def cloud_base_url(self) -> str:
+        """The Keel this profile's runtime talks to -- `http://localhost:18080` on eval,
+        `:18081` on playground. Named on the `connect` the skill launches, and written into the
+        runtime home's own `config.json` (spec 012 FR-004), so an ambient `KEEL_BASE_URL` from the
+        operator's shell can never decide which Keel a run's `status` describes."""
+        return f"http://localhost:{self.cloud_port}"
+
 
 def load_config(toml_path: Path | None = None, *, validate: bool = True,
                  profile: str = "eval") -> StackConfig:

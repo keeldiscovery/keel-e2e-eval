@@ -16,6 +16,7 @@ import sys
 from stack.config import PROFILES, ConfigError, load_config
 from stack.lifecycle import boot, quick_gates_pass, teardown
 from stack.processes import HealthGateTimeout, PortTaken
+from stack.runtime import BundledRuntimeMissing
 
 
 def main() -> int:
@@ -49,7 +50,10 @@ def main() -> int:
         return 0
     try:
         boot(config)
-    except (PortTaken, HealthGateTimeout) as exc:
+    except (PortTaken, HealthGateTimeout, BundledRuntimeMissing) as exc:
+        # spec 012: a missing bundled runtime fails `make up` fast, with the one command that
+        # fixes it -- never a stack that boots and then reports `runtime_unavailable` from inside
+        # a scenario, where it reads as a product defect rather than a build step nobody ran.
         print(f"[up] failed: {exc}", file=sys.stderr)
         return 1
     return 0
