@@ -66,6 +66,36 @@ def test_s010_re_reads_founder_as_revision_and_reading_batches():
     assert "batches_after" in body
 
 
+def test_s010_reads_each_founder_reads_own_id_key():
+    """**A harness fault this test exists because of.** The three ids S-010 needs to build §4.3's
+    by-id routes each live under a different key, and the first pass guessed `id` for all of them.
+    A key that comes back `None` turns a real id into `NOWHERE`, and the scenario then proves that
+    a project which exists nowhere answers 404 -- which it does, and which is not the point.
+
+    Confirmed against the live wire, keel-cloud `866a611`:
+      GET .../invitations -> {"invitations": [{"invitationId": ...}]}
+      GET .../roles       -> {"roles":       [{"roleId": ...}]}
+      GET .../readings    -> [{"batchId": ...}]                       (a bare list)
+      GET /v2/projects    -> [{"projectId": ...}]                     (not `id`)
+    """
+    body = _source(S010)
+    assert '_first(invitations_a, "invitations", "invitationId")' in body
+    assert '_first(roles_a, "roles", "roleId")' in body
+    assert '_first(readings_a, None, "batchId")' in body
+    assert 'row.get("projectId")' in body
+    assert 'row.get("id")' not in body
+
+
+def test_s010_reads_the_revision_after_its_own_write():
+    """`revision_before` is what step 5 re-reads to prove founder B moved nothing. S-010 mints an
+    invitation of its own when A's project has none, and inviting somebody moves the revision -- so
+    a read taken a moment too early would fail the check on this scenario's own write."""
+    body = _source(S010)
+    invite = body.index("invitation_urls = _invite_one(")
+    read = body.index('revision_before = overview_a.get("revision")')
+    assert invite < read, "the revision is read before S-010's own invitation moves it"
+
+
 def test_s010_never_signs_founder_b_in_as_founder_a():
     body = _source(S010)
     assert "sign_in(founder_two)" in body

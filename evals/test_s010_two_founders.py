@@ -51,7 +51,7 @@ import time
 import uuid
 
 from evals.preludes import approved_project_with_one_read
-from harness.browser import Auth, Connect, Landing, ParticipantPage
+from harness.browser import Auth, Connect, Landing, ParticipantPage, People
 from harness.connect import start_runtime_via_skill
 from harness.evidence import finalize_run
 from harness.steps import Recorder
@@ -81,6 +81,34 @@ def _connect_agent(page, stack, recorder, script_path=None) -> dict:
         connect.wait_for_connected(timeout_s=30)
         connect.go_to_projects()
     return result
+
+
+def _first(payload, wrapper: str | None, id_key: str):
+    """The first row's own id, off whichever shape this founder read uses: a bare list, or a list
+    under `wrapper`. Returns `None` when there is nothing there, which the caller turns into a
+    well-formed id that exists nowhere."""
+    rows = payload if isinstance(payload, list) else (payload or {}).get(wrapper) or []
+    return rows[0].get(id_key) if rows else None
+
+
+#: The one person S-010 invites when it has to mint an invitation of its own. Not a corpus name:
+#: nothing about this scenario reads an answer, and a name from a fixture would suggest otherwise.
+INVITED = "Sam Okonjo"
+
+
+def _invite_one(page, recorder, web_base: str, project_id: str, role_label: str) -> dict[str, str]:
+    """One invitation, on whichever role the project actually has. Returns `{person: url}`, the
+    shape `evals/preludes.invite_everyone` returns."""
+    people = People(page, recorder, web_base)
+    people.open(project_id)
+    if page.locator(".role").count() == 0:
+        people.switch_to_kinds_tab()
+    people.open_send_popup(role_label)
+    people.fill_who(INVITED, about=f"{role_label}, asked about one real occasion.")
+    people.go_to_preview()
+    url = people.generate_link(INVITED.split()[0])
+    people.close_popup()
+    return {INVITED: url}
 
 
 def _bare_404(response, where: str) -> dict:
@@ -138,6 +166,9 @@ def test_s010_two_founders(stack, founder_one, founder_two, browser, run_dir):
         landing_a.visit()
         rows = landing_a.project_rows()
         if rows:
+            # Warm after S-001 or S-002 in the same stack session: that project is already
+            # approved through every stage and has people on it, which is more state to refuse
+            # than this scenario would build for itself.
             landing_a.open_project(0)
             project_a = _project_id_from_url(page_a.url)
             invitation_urls = {}
@@ -145,20 +176,40 @@ def test_s010_two_founders(stack, founder_one, founder_two, browser, run_dir):
             project_a, invitation_urls = approved_project_with_one_read(
                 page_a, recorder, browser, web_base=web_base, cloud_base=cloud_base)
 
+        roles_a = _a_json(f"/v2/projects/{project_a}/roles")
+
+        if not invitation_urls:
+            # **Step 7 is never skipped.** The participant page naming the owner rather than
+            # whichever row an unordered `LIMIT 1` returned (O4) is the assertion that fails today
+            # for a reason that has nothing to do with sign-in, which is exactly why it is here --
+            # so an invitation is minted rather than inherited.
+            #
+            # **The role label comes off the wire, never off a fixture.** Warm in a full
+            # `make eval-all` pass, the project A already has is whichever one is listed first --
+            # Countly, Paidly, Mulchrun or Payroll -- and each carries its own role labels. A
+            # fixture's label typed into `open_send_popup` would look for a card that project has
+            # never had.
+            role_label = _first(roles_a, "roles", "label")
+            assert role_label, f"founder A's project has no role to invite anyone to: {roles_a}"
+            invitation_urls = _invite_one(page_a, recorder, web_base, project_a, role_label)
+
+        # **Read after the invitation, never before it.** Inviting somebody moves the project's
+        # revision, and `revision_before` is what step 5 re-reads to prove founder B moved nothing.
+        # Taken a moment too early it would be this scenario's own write that failed the check.
         overview_a = _a_json(f"/v2/projects/{project_a}/overview")
         revision_before = overview_a.get("revision")
         invitations_a = _a_json(f"/v2/projects/{project_a}/invitations")
-        roles_a = _a_json(f"/v2/projects/{project_a}/roles")
         readings_a = _a_json(f"/v2/projects/{project_a}/readings")
 
-        def _first_id(payload, *keys):
-            rows = payload if isinstance(payload, list) else next(
-                (payload[k] for k in keys if isinstance(payload.get(k), list)), [])
-            return (rows[0].get("id") or rows[0].get("batchId")) if rows else None
-
-        invitation_id = _first_id(invitations_a, "invitations") or NOWHERE
-        role_id = _first_id(roles_a, "roles") or NOWHERE
-        batch_id = _first_id(readings_a, "readings", "batches") or NOWHERE
+        # **The wire's own key names, not a guess.** Each founder read wraps its rows differently
+        # and each row names its id after itself: `invitations` under an `invitations` key with
+        # `invitationId`, `roles` under `roles` with `roleId`, and `readings` as a **bare list** of
+        # `batchId`. `tests/test_two_founders_and_refusals.py` pins all three, because a key that
+        # comes back `None` here would quietly turn a real id into `NOWHERE` and S-010 would prove
+        # that a nonexistent project 404s -- which it does, and which is not the point.
+        invitation_id = _first(invitations_a, "invitations", "invitationId") or NOWHERE
+        role_id = _first(roles_a, "roles", "roleId") or NOWHERE
+        batch_id = _first(readings_a, None, "batchId") or NOWHERE
         stage_type = (overview_a.get("stages") or [{}])[0].get("type") or "PROBLEM"
 
         with recorder.step("§1.2: founder A's project is real, and its parts are nameable",
@@ -237,18 +288,28 @@ def test_s010_two_founders(stack, founder_one, founder_two, browser, run_dir):
                 "another founder's project must be indistinguishable from a wrong id -- 404, and "
                 f"the body empty (§4.5). These were not: {bad}")
 
+        # **Well-formed bodies, on purpose.** Each carries the fields its own DTO declares and
+        # `revision_before`, the revision A's project is genuinely at -- so a 404 here is the
+        # ownership check and never a body keel-cloud could not read. `POST /readings` declares no
+        # body at all.
         writes = [
-            (f"/v2/projects/{project_a}/stages/{stage_type}/approval", {}, "POST stages/approval"),
+            (f"/v2/projects/{project_a}/stages/{stage_type}/approval",
+             {"expectedRevision": revision_before}, "POST stages/{stage}/approval"),
             (f"/v2/projects/{project_a}/invitations",
-             {"roleId": role_id, "person": "Nobody At All"}, "POST invitations"),
-            (f"/v2/projects/{project_a}/readings", {}, "POST readings"),
+             {"roleId": role_id, "personName": "Nobody At All",
+              "about": "a person founder B has no business inviting",
+              "expectedRevision": revision_before}, "POST invitations"),
+            (f"/v2/projects/{project_a}/readings", None, "POST readings"),
         ]
         with recorder.step("§1.2 wire: the two writes and the reading batch answer B the same "
                             "bare 404 -- and the batch does not half-execute",
                             party="founder-b", kind="assert") as h:
             results = []
             for path, body, where in writes:
-                response = context_b.request.post(f"{cloud_base}{path}", data=body, timeout=15_000)
+                response = (context_b.request.post(f"{cloud_base}{path}", data=body,
+                                                    timeout=15_000)
+                            if body is not None
+                            else context_b.request.post(f"{cloud_base}{path}", timeout=15_000))
                 results.append(_bare_404(response, where))
             batches_after = _a_json(f"/v2/projects/{project_a}/readings")
             h.record_assert({"every one": "404 with an empty body",
@@ -342,7 +403,8 @@ def test_s010_two_founders(stack, founder_one, founder_two, browser, run_dir):
                             "all of it", party="stack", kind="assert") as h:
             listed = _a_json("/v2/projects")
             rows = listed if isinstance(listed, list) else listed.get("projects", [])
-            ids = [row.get("id") for row in rows] if isinstance(rows, list) else []
+            # `GET /v2/projects` rows name the id `projectId`, not `id`.
+            ids = [row.get("projectId") for row in rows] if isinstance(rows, list) else []
             h.record_assert({"contains": project_a}, {"ids": ids})
             assert project_a in ids, (
                 f"founder A's own project left A's list: {listed!r}")

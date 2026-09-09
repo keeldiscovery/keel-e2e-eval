@@ -1,4 +1,13 @@
-# Tasks: A stub issuer, and two founders — the first half
+# Tasks: A stub issuer, and two founders
+
+**Both halves are here.** Phases 1–4 and the two sections after them are the **first half**,
+written and closed on 2026-09-09 before keel-cloud spec 032 existed. Phases 5–8 at the bottom are
+the **second half** ([spec-second-half.md](spec-second-half.md)), written against keel-cloud
+`master` `866a611` once 032 had landed.
+
+---
+
+# The first half
 
 **Input**: [spec.md](spec.md) (FR-001..010, SC-001..004, the six clarifications) with
 [plan.md](plan.md), against keel-cloud `canon/designs/google-sign-in-design.md` §10.1–§10.3,
@@ -169,3 +178,74 @@ gives, because each gates the next:
 **Also waiting on 032**: the playground's one-time `make down PROFILE=playground` before the first
 `make up` after `V35`/`V36` lands (§10.5) — its Postgres is a named volume and `founder_account` is
 dropped and recreated.
+
+
+---
+
+# The second half
+
+**Input**: [spec-second-half.md](spec-second-half.md) (FR-101..110, SC-101..103, the five
+clarifications), against keel-cloud `canon/designs/google-sign-in-design.md` §10.4–§10.7 and §13.
+
+**The siblings, read at**: keel-cloud `866a611` on `master` (**its code this time**: spec 032
+merged at `465b4dd`, and spec 035 *one runtime per founder* at `866a611`), keel-web `07843b0`,
+keel-runtime `d30dbd0`, keel-connect-skill `f06f481` (bundled runtime `0.1.0+d30dbd0`).
+
+**Rules** (AGENTS.md): this repo owns no product code and never writes to a sibling. `POLICY_VERSION`
+moves to **10** and the reasoning is judgement call 13 in `evals/policy.py`; `MARKS_VERSION` does
+not move. The scenarios become **eleven** and S-004 is still the only live one.
+
+## Phase 5: the door, before anything walks through it
+
+- [X] T101 `stack/cloud.py`'s readiness gate off `/v2/setup` (deleted by spec 032) and onto
+      `GET /v2/me` with `ok_statuses={401}` (§10.3), as `READY_PATH`/`READY_STATUS` so `is_up` and
+      `up` cannot disagree. **First, or nothing boots.**
+- [X] T102 **`KEEL_V2_FOUNDER_BASE_URL` becomes an origin.** Found reading spec 032, before
+      `make up`: keel-cloud appends `/login` to it for every refused sign-in and the stored
+      `return_to` for every successful one, and this stack had it at `.../p`. A harness fault, not
+      a sibling's — `tests/test_config.py` holds it with the whole derivation written down.
+- [X] T103 `stack/auth.py` shrunk to who the referee signs in as: `StubFounder`,
+      `FOUNDER_ONE`/`FOUNDER_TWO` built from `stack/oidc.py`'s own list, `sign_in_session`,
+      `read_me`, `login_and_keel_session`. `FOUNDER_PASSWORD`, `ensure_founder_account`,
+      `account_exists`, `clear_stored` and `runs/.stack/founder.json` **deleted**;
+      `stack/lifecycle.py` no longer imports `stack.auth` at all.
+- [X] T104 `harness/browser.py:Auth.sign_in(identity)` — the link, the picker, the founder's own
+      name, the callback. `set_up` deleted with `/setup`. `open_login`/`login_screen`/
+      `auth_error_text` added for L1 and for S-011's reads. `Landing.greeting()` added, a pure
+      getter, for the two-founder assertion.
+- [X] T105 `evals/conftest.py`: `founder_credentials` → `founder_one`/`founder_two`, no I/O; the
+      virgin-instance capture → **L1**, the login screen before anyone has signed in, which is now
+      the same screen on a fresh instance and a busy one.
+
+## Phase 6: every scenario, through the new door
+
+- [X] T106 S-001, S-002 (both logins), S-003, S-005–S-009 and `corpus_scenario.run`: one line each.
+- [X] T107 S-004's prelude, and **only** its prelude (decision 12): it is live and deselected from
+      `make eval`, so isolation does not live there. Not run — it costs real money.
+- [X] T108 `tests/test_stub_oidc.py`'s *"the second half is untouched"* becomes its inverse, plus a
+      sweep over every scenario and the page objects for `/v2/setup`, `/v2/login`, `add_cookies`
+      and `FOUNDER_PASSWORD` — read off the **code**, never the prose, so a file may still narrate
+      what was deleted.
+
+## Phase 7: the two new scenarios
+
+- [X] T109 **S-010** `evals/test_s010_two_founders.py` (§10.6): A signs in, connects a scripted
+      runtime and builds a project; B signs in in a fresh browser context; §4.3's ten reads, two
+      writes and half-executing reading batch all answer B a bare 404; that 404 is byte-identical
+      to one for an id that exists nowhere; A's revision and reading batches are unmoved; the
+      participant page names the owner; A's runtime is still A's and B's creation is refused for
+      want of **B's** agent.
+- [X] T110 **S-011** `evals/test_s011_bad_token.py` (§10.7): six `stub_break`s, the cancel, the
+      replay (G2), a state minted in a different browser (G1), and G8 when a run configures a
+      domain — each with §5.5's exact line, `/v2/me` 401, and no wire detail on the screen.
+- [X] T111 `tests/test_two_founders_and_refusals.py`: what a run would find out too late — that
+      S-010 goes at *every* route §4.3 lists, that S-011's five lines are §5.5's verbatim, and that
+      every `stub_break` the stub can produce is driven.
+- [X] T112 The scenario set becomes **eleven** (`tests/test_scenario_set.py`), still one live.
+- [X] T113 Policy **v10** (`evals/policy.py` judgement call 13, `tests/test_policy_v10.py`):
+      `ORI-U1` stops exempting `setup`. An exemption for a screen that cannot occur is a hole a
+      future capture could be tagged into, silently skipping rather than failing.
+
+## Phase 8: the run of record
+
+See [README.md](../../README.md)'s own section for the table. `make unit`: **537 → 568**.

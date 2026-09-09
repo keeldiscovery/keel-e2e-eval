@@ -66,12 +66,20 @@ names the stub, so the product keeps exactly one login path and the eval walks a
 has no password, no bypass header, no test-only route and no second trusted key, and it refuses a
 bad PKCE verifier, a reused code, a mismatched `redirect_uri` and an unknown client -- a stub that
 accepted anything would prove nothing about keel-cloud's half. Its two identities (**founder A**
-*Eval Founder*, **founder B** *Nour Haddad*) live in `stack/oidc.py`, once. **The second half --
-the login step in `stack/auth.py`/`harness/browser.py`, and S-010/S-011 -- waits on keel-cloud spec
-032**; the scenario set is still nine.
+*Eval Founder*, **founder B** *Nour Haddad*) live in `stack/oidc.py`, once.
+
+**The second half has landed** (keel-cloud `master` 866a611 carries spec 032). There is no
+password anywhere: `harness/browser.py:Auth.sign_in(identity)` clicks the real *Continue with
+Google*, clicks the founder's own name on the stub's account picker, and comes back through the
+real callback -- and `stack/auth.py`'s one browserless sign-in walks the same three hops on a
+`requests.Session`. **Never a transplanted cookie, never a seeded session, and no function
+anywhere in this harness that produces a founder session by any other means.** Two scenarios came
+with it: **S-010** (two founders on one instance -- every one of another founder's routes a bare
+404) and **S-011** (the callback's own refusals, each with the founder-voiced line the design
+names). The scenario set is **eleven**.
 
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
-to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **nine** scenarios are
+to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **eleven** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 above; the
 participants' typed answers are fixture or corpus data, never generated) and every assertion
 enforcing a journey moment cites it (`§n.m`).

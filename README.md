@@ -65,6 +65,10 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
+### The full-suite run of record for spec 015's second half (2026-09-10) — **`runs/INDEX-PLACEHOLDER.html`**
+
+RUN_OF_RECORD_BODY
+
 ### The full-suite run of record (2026-09-09) — **`runs/INDEX-20260909T074414Z.html`**
 
 One stack session — `make up`, `make eval-all`, `make eval K=s005`, `make acceptance`, `make down`
@@ -636,7 +640,7 @@ cross-repo bug (not a config problem in this repo), the run's evidence bundle ca
 - Why the scenario was, or was not, adapted around it.
 - The shape of a fix, explicitly **not applied** — this repo diagnoses, the product repo fixes.
 
-## The nine scenarios
+## The eleven scenarios
 
 **S-001, the smoke** (`evals/test_s001_smoke.py`) walks keel-cloud `canon/journeys.md` end to end,
 once, deterministically, on the measured-beliefs screens: arrival and device-code connect, naming
@@ -737,9 +741,37 @@ and then one connected runtime read by all four trees answering `already_connect
 byte** but the heartbeat's own clock. It is **not scored**, for S-008's reason: no policy
 attribute applies to a scenario about what ships.
 
+**S-010, two founders, one instance** (`evals/test_s010_two_founders.py`, spec
+`015-stub-oidc-and-two-founders`) is the scenario that could not exist while there was one
+password and one account. Both founders exist because both **signed in** — there is no fixture
+that inserts a row and no second password. Founder A signs in as *Eval Founder*, connects a
+scripted runtime and builds a project; founder B signs in as *Nour Haddad* in a **fresh browser
+context** (a new cookie jar, not a new tab); and then every founder-reachable route the design's
+§4.3 lists — the ten reads, the two writes, and the reading batch that used to snapshot the
+victim's project and write its row *before* refusing — answers B a **bare 404**, body and all. The
+sharpest assertion is the one that makes 404 mean what it says: another founder's project and an
+id that exists nowhere must be **byte-identical** in status, body and headers, or the status code
+is a 403 in disguise. Beside it: A's project revision and reading batches unmoved, the participant
+page naming the project's **owner** (not whichever row an unordered `LIMIT 1` returned), A's
+runtime still A's, and B's own creation refused for want of **B's** agent — a refusal about B,
+never a 404 and never a silent success on somebody else's runtime.
+
+**S-011, a token that isn't right** (`evals/test_s011_bad_token.py`, same spec) turns the design's
+§5.5 — ten failure modes, five founder-voiced lines — from a table into a contract. The stub
+issuer's `?stub_break=` makes the next ID token wrong in exactly one declared way, so what is
+measured is *keel-cloud refusing*, never the stub's ability to lie. Eleven cases in one browser:
+`iss`, `aud`, `exp`, `sig`, `nonce` and `email_verified`; the picker's own *Cancel*; the callback
+URL replayed; a `state` minted in a different browser context; and the allowed domain when a run
+configures one (recorded as skipped, with its reason, when it does not). Every one asserts the
+same four things — the browser is on `/login`, the visible line is §5.5's own **sentence** for
+that rule, `GET /v2/me` is `401` so no session was opened, and there is no JWT, rule id, status
+code or JSON anywhere on the screen. Then it signs in for real and proves none of it created an
+account or moved the one that existed. Neither scenario is scored: no policy attribute applies to
+a scenario about who owns what, or about a door refusing.
+
 The old S-002…S-011 (an eleven-scenario set against a since-retired agent-protocol/relay stack,
-unrelated to the current S-002 above) are gone — recorded in git history and in `runs/DRIFT.md`'s
-2026-09-03 retirement note, not lost.
+unrelated to the current S-002 or to S-010/S-011 above) are gone — recorded in git history and in
+`runs/DRIFT.md`'s 2026-09-03 retirement note, not lost.
 
 ## Stackless unit tests
 
@@ -756,7 +788,11 @@ reader, the bundled runtime the referee runs (spec 012), the door out of it (spe
 doors, `make down`'s log line, and the five source properties S-001's tail must keep) and the
 packaging beds (spec 013 — the secret rule, the `--bare` trap, the ambient base URL and both
 legacy-builder accommodations, every one of them a property that would otherwise only be
-observable during a paid run), with no Docker/gradle/vite involved. **448 tests** as of spec 013.
+observable during a paid run), the stub OIDC issuer itself (spec 015 — a real server on a real
+socket, its refusals, its picker and its six declared lies) and what the two-founder and refusal
+scenarios promise (that S-010 goes at *every* route the design lists, and that S-011's five lines
+are keel-web's verbatim), with no Docker/gradle/vite involved. **568 tests** as of spec 015's
+second half.
 
 ## The live run (`make eval-live`)
 
