@@ -3022,13 +3022,29 @@ unparseable override reported as *not* the source, because naming `env` for a va
 nothing would be a lie about the run.
 
 
-## 47. Owed (keel-connect-skill, and it is a build step nobody ran): the runtime that travels
-inside the skill is behind keel-runtime's `master` by the goodbye, so a founder's runtime still
-leaves keel-cloud to time it out
+## 47. RESOLVED -- was owed (keel-connect-skill, and it was a build step nobody had run): the
+runtime that travels inside the skill was behind keel-runtime's `master` by the goodbye, so a
+founder's runtime left keel-cloud to time it out
 
-**Severity: owed.** Nothing is broken and nothing regressed. What this says is that the thing a
-founder actually runs is not the thing keel-runtime's `master` says it is, and the gap is exactly
-one feature wide.
+**Resolved 2026-09-09**, in the repository that owned it and by the one command this entry named.
+keel-connect-skill re-ran `make runtime` against a clean keel-runtime `638c0dc` and committed the
+new stamp (`4eb0548`, *"Bundled runtime refreshed to keel-runtime 638c0dc (goodbye call, Copilot
+executor)"*): `RUNTIME_VERSION` reads `0.1.0+638c0dc` and the bundled `cloud_client.py` carries
+`end_agent_session`. **Proven live, twice, on spec `011-keel-disconnect`'s runs of record:**
+
+- `runs/20260909T052154Z-s008-bundled-runtime` -- step 8 records `"path observed": "goodbye"`
+  where it recorded `"staleness"` before, on a bundle whose `versions.json` names
+  `"runtime_version": "0.1.0+638c0dc"`. The scenario's probe is now an **assertion**: a run that
+  falls back to staleness is red.
+- `runs/20260909T052003Z-s001-smoke` -- the smoke's new tail asks keel-connect-skill's own
+  `keel_disconnect.py` to stop the runtime and then reads `GET /v2/me`: `agent.connected` was
+  false **5 ms** after `disconnected` was answered, against keel-cloud's own 90-second
+  `presence-threshold`. Nothing but §4's goodbye can do that, which is why the design wrote the
+  bound at two seconds and let it be red until keel-runtime's step 4 landed.
+
+**Severity when open: owed.** Nothing was broken and nothing had regressed. What it said is that
+the thing a founder actually runs was not the thing keel-runtime's `master` said it was, and the
+gap was exactly one feature wide.
 
 **Where**: keel-connect-skill, `RUNTIME_VERSION` and the gitignored `keel_runtime/` package
 `make runtime` writes into it (keel-cloud `canon/designs/keel-skill-design.md` §3.1, invariant D2).
@@ -3078,7 +3094,15 @@ status` (local truth, against a home it wiped itself) and then asserts `/v2/me` 
 whatever the network did. When the bundle is rebuilt the scenario records `"path observed":
 "goodbye"` and passes on the same assertion, with no edit.
 
-**Tests**: `evals/test_s008_bundled_runtime.py` step 8, and `_agent_session_of` beside it.
+**Tests**: `evals/test_s008_bundled_runtime.py` step 8, and `_agent_session_of` beside it; the
+two-second bound is `evals/test_s001_smoke.py`'s tail, and `tests/test_disconnect_tail.py` holds
+both of them to it without a stack.
+
+**What the shape of this entry is worth keeping.** It was closed by the repository that owned the
+gap, on the command this entry named, and it was closed *without either scenario being edited to
+suit it*: S-008 recorded which of the two paths it saw rather than asserting the one it wished
+for, and S-001's bound was written at two seconds from the start. Both went green on the fix
+alone.
 
 
 ## 48. Note (this repo's own grip, not a product defect): the referee had been starting the

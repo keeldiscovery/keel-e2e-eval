@@ -13,6 +13,15 @@ one line by saying what they meant**, invites people, watches strangers answer *
 picks*, has the agent read them, sees where it stands, opens a card of strips and dots, opens one
 dot, opens that person's whole page, and downloads.
 
+**And then leaves** (spec `011-keel-disconnect`, keel-cloud
+`canon/designs/keel-disconnect-design.md` §8.4). The smoke starts the runtime through
+keel-connect-skill's own script, so it stops it through that skill's own *other* script,
+`scripts/keel_disconnect.py` -- `disconnected`, the heartbeat gone, the landing reading *No agent
+connected* again (one run, that line proven both ways), and `GET /v2/me` reading
+`agent.connected` false **within two seconds**. That bound is the whole point: keel-cloud's
+presence threshold is ninety seconds, so a slack bound would pass with no goodbye implemented at
+all, and this is the only place in this repository where §4's goodbye is proven end to end.
+
 Journey coverage (`canon/CANON.md`'s ledger, `canon/journeys.md` §3): this is the one module
 proving §1.0 (arrival), §1.1 (the idea becomes three claims), §1.2 (review before spend), §1.4
 (approve, then invite), §1.5 (waiting), §1.6 (reading what came back), §1.7 (where it stands),
@@ -36,10 +45,11 @@ from evals.preludes import (answer_everyone, create_project, invite_everyone, st
                              walk_stage)
 from harness.browser import (MARKET_GROUPS, Auth, AnswersModal, Connect, CorrectionChat, Landing,
                               OpenedCard, Overview, People, PrintPage, ReviewCard, SaidBox, Shell)
-from harness.connect import start_runtime_via_skill
+from harness.connect import start_runtime_via_skill, stop_runtime_via_skill
 from harness.corpus_script import inputs_json
 from harness.evidence import finalize_run, write_generated
 from harness.steps import Recorder
+from stack import runtime as stack_runtime
 
 STAGES = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 
@@ -484,6 +494,83 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
             h.record_assert("page", rule)
             assert rule == "page", (
                 f"`.page + .page` carries break-before {rule!r}; a stage does not start fresh")
+
+        # ----------------------------------------------------- §1.0, the other way: the door out
+        # Spec `011-keel-disconnect` (keel-cloud `canon/designs/keel-disconnect-design.md` §8.4).
+        # The smoke started the runtime through keel-connect-skill's own script; it stops it
+        # through that skill's own *other* script, and never `python3 -m keel_runtime disconnect`.
+        # Four assertions, and the fourth is the only place in this repository where §4's goodbye
+        # is proven end to end.
+        stopped = stop_runtime_via_skill(stack, recorder)
+        gone_at = time.monotonic()
+        with recorder.step("§1.0: \"keel disconnect\" answers `disconnected`, with the pid it "
+                            "watched leave", party="founder", kind="assert") as h:
+            h.record_assert({"outcome": "disconnected", "pid observed": True},
+                             {"outcome": stopped.get("outcome"), "pid observed": "pid" in stopped,
+                              "via": stopped.get("via")})
+            assert stopped["outcome"] == "disconnected", (
+                f"a running runtime stops with a proof it went, in the skill's own vocabulary; "
+                f"got {stopped}")
+            assert "pid" in stopped, (
+                f"`disconnected` carries the pid that was signalled and observed gone: {stopped}")
+            assert stopped.get("via") == stack_runtime.VIA_SKILL_SCRIPT, (
+                f"the tail must go through the founder's own door, not the runtime's: {stopped}")
+
+        with recorder.step("§1.0: the heartbeat that named the runtime is gone from the home",
+                            party="stack", kind="assert") as h:
+            heartbeat = stack_runtime.heartbeat_path(stack)
+            h.record_assert({"runtime.heartbeat.json exists": False},
+                             {"runtime.heartbeat.json exists": heartbeat.exists(),
+                              "path": str(heartbeat)})
+            assert not heartbeat.exists(), (
+                f"`disconnected` was answered while {heartbeat} is still on disk -- the outcome "
+                f"and the file it is derived from disagree (keel-runtime's D3)")
+
+        with recorder.step("§1.0 wire: GET /v2/me reads agent.connected false within two seconds "
+                            "-- the goodbye, and nothing else could do it that fast",
+                            party="stack", kind="assert") as h:
+            # **Two seconds is the entire assertion.** keel-cloud derives `agent.connected` from
+            # `last_seen_at` against `keel.v2.connect.presence-threshold` (`PT90S`), so a
+            # thirty-second bound -- which the connect leg above uses, correctly, for the other
+            # direction -- would pass with no goodbye implemented at all. Only keel-runtime's last
+            # act (design §4, invariant G3: sent *after* the heartbeat is removed) can put a false
+            # here inside two seconds of the disconnect answering.
+            #
+            # Measured from the moment `disconnect` returned, which is why this step comes before
+            # the landing check below rather than after it, as the design lists them: reloading a
+            # page first would spend the whole budget on a browser navigation and leave the bound
+            # proving nothing.
+            deadline = gone_at + 2.0
+            me = _get("/v2/me")
+            connected = bool((me.get("agent") or {}).get("connected"))
+            while connected and time.monotonic() < deadline:
+                me = _get("/v2/me")
+                connected = bool((me.get("agent") or {}).get("connected"))
+            elapsed_ms = round((time.monotonic() - gone_at) * 1000)
+            h.record_wire({"bound_s": 2.0}, {"elapsed_ms": elapsed_ms, "/v2/me": me})
+            h.record_assert({"agent.connected": False, "within_s": 2.0},
+                             {"agent.connected": connected, "elapsed_ms": elapsed_ms})
+            assert not connected, (
+                f"/v2/me still reads agent.connected {elapsed_ms} ms after the runtime said "
+                f"goodbye. Either keel-runtime sent no goodbye (design §4) or keel-cloud did not "
+                f"end the session (spec 033); this is the staleness window, not the goodbye: {me}")
+
+        landing.visit()
+        with recorder.step("§1.0: the landing reads *No agent connected* again -- one run, that "
+                            "line proven both ways", party="founder", kind="assert") as h:
+            agent_line = Shell(page, recorder).agent_line_text()
+            h.record_assert("no agent connected", agent_line)
+            assert "no agent" in agent_line.lower() or "not connected" in agent_line.lower(), (
+                f"expected 'No agent connected' on the landing after a disconnect, got "
+                f"{agent_line!r}")
+
+        stopped_again = stop_runtime_via_skill(stack, recorder)
+        with recorder.step("§1.0: saying it twice is `not_running`, not an error",
+                            party="founder", kind="assert") as h:
+            h.record_assert({"outcome": "not_running"},
+                             {"outcome": stopped_again.get("outcome")})
+            assert stopped_again["outcome"] == "not_running", (
+                f"the door out is idempotent by its own contract (D10); got {stopped_again}")
 
         with recorder.step("the fixture hashes exactly as it did when the run began",
                             party="stack", kind="assert") as h:

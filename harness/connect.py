@@ -21,6 +21,12 @@ changed and both are the point (design §3.2, §13 step 9):
   a green run that never touched the runtime it claims to referee. The stack names the home and
   the base URL on the command line instead, so what the run says it did is what it did (T-1).
 
+**Spec 011: the way out is the same discipline as the way in.** `stop_runtime_via_skill` shells
+keel-connect-skill's *other* script, `scripts/keel_disconnect.py`, and never
+`python3 -m keel_runtime disconnect` (keel-cloud `canon/designs/keel-disconnect-design.md` §8.4).
+It is deliberately separate from `stop_runtime`, which is `make down`'s door and keeps the
+fallback a teardown needs; see its own docstring for the one-sentence difference.
+
 The seven outcomes of that script's contract are all recognised here, `python_too_old` included:
 a referee that read an unknown outcome as "unrecognized" would report the wrong thing about the
 one machine state -- an interpreter below the floor -- the skill exists to explain.
@@ -185,6 +191,58 @@ def stop_runtime(config: StackConfig, recorder, *, timeout_s: float = 15) -> dic
         if after.get("running", False):
             h.fail(f"disconnect answered {name!r} but status still reads running: {after}")
             raise RuntimeError(f"disconnect answered {name!r} but status still reads running: {after}")
+        return outcome
+
+
+def stop_runtime_via_skill(config: StackConfig, recorder, *,
+                            timeout_s: float = 60) -> dict:
+    """Spec `011-keel-disconnect`: the founder's own way **out**, through the same discipline the
+    way in already obeys.
+
+    `harness/connect.py`'s opening rule is that this harness never shells `python3 -m keel_runtime`
+    itself, because keel-connect-skill is one of the four applications under referee. The
+    disconnect obeys the identical rule and the design says so in as many words (keel-cloud
+    `canon/designs/keel-disconnect-design.md` §8.4): *"a new `harness/connect.py::
+    stop_runtime_via_skill` shelling `scripts/keel_disconnect.py`, never `python3 -m keel_runtime
+    disconnect`."*
+
+    So this is **not** `stop_runtime` with a different name. `stop_runtime` is `make down`'s door:
+    it prefers the script, falls through to the bundled runtime's own command when a sibling has
+    not landed one yet, and accepts either vocabulary, because a teardown that cannot tear down is
+    worse than a teardown that took the lower layer. This one has no fallback: it fails, loudly,
+    if keel-connect-skill has no `scripts/keel_disconnect.py`, because the whole point of S-001's
+    tail is to referee **that script's** contract -- `disconnected`, in the founder's vocabulary,
+    is a word only it says.
+
+    Returns the parsed outcome dict verbatim (the caller asserts on it, as S-001's tail does).
+    Raises `RuntimeError` for `did_not_stop`/`timeout` -- the one outcome the contract says a
+    caller must treat as a failure -- and `DisconnectScriptMissing` when the script is not there.
+    """
+    with recorder.step("keel-connect-skill: the founder says \"keel disconnect\"",
+                        party="stack", kind="protocol") as h:
+        before = stack_runtime.status(config)
+        outcome = stack_runtime.disconnect_via_skill_script(config, timeout=timeout_s)
+        if outcome is None:
+            script = config.disconnect_script_path
+            h.record_wire({"script": str(script)}, {"error": "no parseable outcome"})
+            h.fail(f"keel-connect-skill's own way out did not answer: {script}")
+            raise stack_runtime.DisconnectScriptMissing(
+                f"S-001's tail referees keel-connect-skill's `keel_disconnect.py` and that script "
+                f"either is not at {script} or did not print one line of JSON carrying an "
+                f"`outcome`. This tail deliberately has no fallback to `python3 -m keel_runtime "
+                f"disconnect` (design §8.4).")
+        after = stack_runtime.status(config)
+        h.record_wire({"home": str(home_dir(config)), "via": outcome.get("via")},
+                       {"before": before, "disconnect": outcome, "after": after})
+
+        name = outcome.get("outcome")
+        if name in stack_runtime.DID_NOT_STOP_OUTCOMES:
+            h.fail(f"the runtime did not stop: {outcome}")
+            raise RuntimeError(f"the runtime did not stop: {outcome}")
+        if after.get("running", False):
+            h.fail(f"disconnect answered {name!r} but status still reads running: {after}")
+            raise RuntimeError(
+                f"disconnect answered {name!r} but status still reads running: {after}")
         return outcome
 
 

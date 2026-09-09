@@ -36,13 +36,18 @@ moment in the founder's journey.
   Apple's `/usr/bin/python3` 3.9.6 — the floor itself). The floor is asserted instead: the whole
   script runs under it and answers a contract outcome rather than a `SyntaxError`, which is the
   half of the version gate this machine *can* observe. The skip is recorded in the bundle.
-- **the goodbye.** keel-runtime's `_say_goodbye` is a deliberate no-op on `master` — `CloudClient`
-  has no `end_agent_session` yet (its spec 003 second pass owes it, keel-cloud's spec 033 endpoint
-  is already there) — so `/v2/me` does not flip the moment the runtime leaves; it waits out
-  keel-cloud's 90-second `presence-threshold`. The scenario probes for the fast path, records
-  which of the two it observed, and asserts the staleness path's own guarantee: **local truth
-  first** — `keel status` reads not-running immediately, whatever the network did.
-  `runs/DRIFT.md` #47 carries it as owed.
+
+**And one thing it could not prove until tonight, and now does** (`runs/DRIFT.md` #47, RESOLVED).
+When this scenario was written, the runtime bundled inside the skill was `0.1.0+a05f9bc`, four
+commits behind keel-runtime's `master`: `_say_goodbye` was a seam with no call in it, because
+`CloudClient` had no `end_agent_session`. `/v2/me` therefore went on naming this run's own agent
+session as connected for the whole probe window, and the scenario recorded `"path observed":
+"staleness"` rather than adapting around it. keel-connect-skill has since re-run `make runtime`
+(`4eb0548`, bundling `0.1.0+638c0dc`), so the goodbye now travels with the skill and the fast path
+is what a founder gets. **The probe is an assertion now**: the path must be `goodbye`, inside a
+window an eighth of keel-cloud's 90-second `presence-threshold`, and a run that falls back to
+staleness is red. The other half is asserted either way — **local truth first** (invariant G3):
+`keel status` reads not-running the moment `disconnect` answered, whatever the network did.
 """
 
 from __future__ import annotations
@@ -403,8 +408,8 @@ def test_s008_bundled_runtime(stack, founder_credentials, browser, run_dir):
                 f"disconnect is idempotent by its own contract; got {stopped_again}")
 
         # ------------------------------------------- 8. what keel-cloud knows, and how fast
-        with recorder.step("keel-cloud learns the agent is gone -- by goodbye if it has one, by "
-                            "staleness otherwise", party="stack", kind="assert") as h:
+        with recorder.step("keel-cloud is told the agent is going, and does not wait out the "
+                            "staleness window", party="stack", kind="assert") as h:
             local = stack_runtime.status(stack)
             deadline = time.monotonic() + GOODBYE_WINDOW_SECONDS
 
@@ -418,8 +423,11 @@ def test_s008_bundled_runtime(stack, founder_credentials, browser, run_dir):
                 me, still = _ours_still_connected()
             path = "goodbye" if not still else "staleness"
             h.record_wire({"window_s": GOODBYE_WINDOW_SECONDS},
-                           {"path observed": path, "local status": local, "/v2/me": me})
-            h.record_assert({"local truth first: keel status not running": True},
+                           {"path observed": path, "local status": local, "/v2/me": me,
+                            "bundled runtime":
+                                stack_runtime.bundled_runtime_version(stack)})
+            h.record_assert({"local truth first: keel status not running": True,
+                              "path observed": "goodbye"},
                              {"local truth first: keel status not running":
                                   not local.get("running", False),
                               "path observed": path})
@@ -428,13 +436,16 @@ def test_s008_bundled_runtime(stack, founder_credentials, browser, run_dir):
             # not-running, and that is the assertion this scenario is entitled to make today.
             assert not local.get("running", False), (
                 f"the heartbeat must be gone the moment disconnect answered; got {local}")
-            if path == "staleness":
-                # keel-runtime's goodbye is a no-op on master: `CloudClient` has no
-                # `end_agent_session` yet (its spec 003 second pass owes it). Recorded as owed in
-                # `runs/DRIFT.md` #47, never adapted around and never asserted away.
-                assert _agent_session_of(me) == session_id, (
-                    "expected either a goodbye inside the window or the staleness path; got "
-                    f"neither: {me}")
+            # And the goodbye itself (spec 011). This was `runs/DRIFT.md` #47 — observed as
+            # `staleness` while the bundled copy was `0.1.0+a05f9bc`, recorded rather than
+            # adapted around — and it is an assertion now that keel-connect-skill bundles a
+            # runtime carrying `CloudClient.end_agent_session`. The window is an eighth of
+            # keel-cloud's own presence threshold, so nothing but a goodbye can make it pass.
+            assert path == "goodbye", (
+                f"this run's own agent session {session_id} is still connected "
+                f"{GOODBYE_WINDOW_SECONDS}s after the runtime left, so keel-cloud was never told "
+                f"— it is waiting out the 90-second staleness window instead. The bundled runtime "
+                f"is {stack_runtime.bundled_runtime_version(stack)!r}: {me}")
 
         passed = True
     finally:
