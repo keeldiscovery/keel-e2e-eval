@@ -35,7 +35,12 @@ rule 2 and so is the referee. `make up` gates on the package and names
 `make -C ../keel-connect-skill runtime` rather than running it: **this repo never writes to a
 sibling repository**, and that target refuses on a dirty keel-runtime checkout anyway. `make down`
 asks the runtime to `disconnect` (through the skill's own `keel_disconnect.py` when it exists) and
-reads the outcome that proves it went; it does not signal a pid. The `../keel-runtime` checkout
+reads the outcome that proves it went; it does not signal a pid. **And S-001 now leaves the same
+way a founder does** (spec `011-keel-disconnect`): its tail shells that script and only that
+script — never `python3 -m keel_runtime disconnect` — and asserts `GET /v2/me` reads
+`agent.connected` false **within two seconds**, which is the one end-to-end proof of
+keel-runtime's goodbye in any of the four repositories. `harness.connect.stop_runtime_via_skill`
+is that door and has no fallback; `stop_runtime` is `make down`'s and keeps one. The `../keel-runtime` checkout
 stays configured for the two places that *read* its source: `harness/canary.py` and
 `instructions/prompts.py`.
 

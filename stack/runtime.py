@@ -32,6 +32,13 @@ handed only a `--home` resolves the address every other call names.
 it does not -- and read the outcome it answers with. `stopped`/`disconnected` is a *proof* the
 process is gone rather than a signal sent and hoped for; `not_running` is the idempotent second
 call. Teardown still never fails on `did_not_stop`.
+
+**Spec 011 splits that in two.** `disconnect` below is `make down`'s -- preferring the script and
+falling through when a sibling has not landed it -- and `disconnect_via_skill_script` is the
+founder's own door with no fallback at all, which is what S-001's tail requires (keel-cloud
+`canon/designs/keel-disconnect-design.md` §8.4: "shelling `scripts/keel_disconnect.py`, never
+`python3 -m keel_runtime disconnect`"). Only that path answers in the skill's own vocabulary, and
+`disconnected` is the word the tail asserts.
 """
 
 from __future__ import annotations
@@ -89,6 +96,19 @@ def home_dir(config: StackConfig) -> Path:
     """
     name = "keel-home" if config.profile == "eval" else f"keel-home-{config.profile}"
     return REPO_ROOT / "runs" / ".stack" / name
+
+
+#: keel-runtime's own name for the one file that says which process is "the runtime on this
+#: home" (`keel_runtime/heartbeat.py`'s `HEARTBEAT_FILENAME`). Named here because spec 011's S-001
+#: tail asserts its *absence* after a disconnect: an outcome that says `disconnected` while the
+#: file it is derived from is still on disk would be a finding, not a pass.
+HEARTBEAT_FILENAME = "runtime.heartbeat.json"
+
+
+def heartbeat_path(config: StackConfig) -> Path:
+    """`<this profile's home>/runtime.heartbeat.json` -- what `disconnect` removes, and what
+    `status` reads to decide whether anything is running."""
+    return home_dir(config) / HEARTBEAT_FILENAME
 
 
 def bundled_runtime_dir(config: StackConfig) -> Path:
@@ -253,31 +273,61 @@ def is_gate_clear(config: StackConfig) -> bool:
     return home.is_dir() and not status(config).get("running", False)
 
 
+#: What `via` says when the founder's own way out is the one that answered. Spec 011 makes this
+#: the *required* path for S-001's tail (design §8.4: "shelling `scripts/keel_disconnect.py`,
+#: never `python3 -m keel_runtime disconnect`"), while `make down` keeps the fallback below.
+VIA_SKILL_SCRIPT = "keel-connect-skill/scripts/keel_disconnect.py"
+
+
+class DisconnectScriptMissing(RuntimeError):
+    """keel-connect-skill has no `scripts/keel_disconnect.py`. Raised only by the callers that
+    require the founder's own door (spec 011, S-001's tail); `make down` never sees it, because a
+    teardown that cannot tear down because a sibling moved is not a teardown."""
+
+
+def disconnect_via_skill_script(config: StackConfig, *, timeout: float = 60) -> dict | None:
+    """keel-connect-skill's `scripts/keel_disconnect.py`, run with this stack's own `--home` and a
+    scrubbed environment so the script resolves the bundled runtime itself (its contract
+    `specs/002-keel-disconnect/contracts/skill-disconnect-output.md`).
+
+    Returns the parsed outcome dict with `via` naming the script, or `None` when the script is not
+    there at all or answered something that is not one line of JSON carrying an `outcome` -- the
+    two cases `disconnect` below falls through on. It is a separate function because spec 011 has
+    a caller that must **not** fall through: S-001's tail asserts the *skill's* vocabulary
+    (`disconnected`), which only this path speaks.
+    """
+    script = config.disconnect_script_path
+    if not script.is_file():
+        return None
+    cmd = [sys.executable, str(script), "--home", str(home_dir(config))]
+    try:
+        result = subprocess.run(
+            cmd, env=runtime_env(config), capture_output=True, text=True, timeout=timeout)
+        body = json.loads(result.stdout.strip().splitlines()[-1])
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError, IndexError):
+        return None
+    if not isinstance(body, dict) or "outcome" not in body:
+        return None
+    body["via"] = VIA_SKILL_SCRIPT
+    return body
+
+
 def disconnect(config: StackConfig, *, timeout: float = 60) -> dict:
     """Stops the runtime the way a founder's "keel disconnect" does, and **reads the proof**.
 
-    Preferred path: keel-connect-skill's `scripts/keel_disconnect.py`, run with this stack's own
-    `--home` and a scrubbed environment, so the script resolves the bundled runtime itself (spec
-    012 FR-003). That script is that repo's spec `002-keel-disconnect` and may not have landed
-    yet; when the file is absent this falls through to `<bundled runtime> disconnect`, which is
-    the command the script shells anyway -- the same four outcomes, one layer lower.
+    Preferred path: keel-connect-skill's `scripts/keel_disconnect.py`
+    (`disconnect_via_skill_script` above). That script is that repo's spec `002-keel-disconnect`
+    and may not have landed yet; when the file is absent this falls through to
+    `<bundled runtime> disconnect`, which is the command the script shells anyway -- the same four
+    outcomes, one layer lower.
 
     Returns the parsed outcome dict, with `via` naming which of the two paths answered. Never
     raises: `{"outcome": "unavailable", ...}` is the answer when neither path could be run at all,
     so a teardown is never blocked by a missing sibling (idempotent, as `kill` was).
     """
-    script = config.disconnect_script_path
-    if script.is_file():
-        cmd = [sys.executable, str(script), "--home", str(home_dir(config))]
-        try:
-            result = subprocess.run(
-                cmd, env=runtime_env(config), capture_output=True, text=True, timeout=timeout)
-            body = json.loads(result.stdout.strip().splitlines()[-1])
-            if isinstance(body, dict) and "outcome" in body:
-                body["via"] = "keel-connect-skill/scripts/keel_disconnect.py"
-                return body
-        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError, IndexError):
-            pass  # fall through to the runtime's own command rather than fail a teardown
+    body = disconnect_via_skill_script(config, timeout=timeout)
+    if body is not None:
+        return body
 
     body = _run_runtime(config, ["disconnect", "--home", str(home_dir(config))], timeout=timeout)
     if body is None or "outcome" not in body:

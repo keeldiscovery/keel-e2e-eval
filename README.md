@@ -58,6 +58,39 @@ three ports, or boots one and tears it down at the end of the session — the fa
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
+### The runs of record for spec 011 (2026-09-09)
+
+One stack session — `make up`, `make eval K=s001`, `make eval K=s008`, `make down` — on keel-cloud
+`8acb805`, keel-web `b0a5015`, keel-runtime `638c0dc` and keel-connect-skill `4eb0548`, with the
+**bundled runtime `0.1.0+638c0dc`** — the refresh that closed `runs/DRIFT.md` #47. `make unit`
+green at 407 before and **425** after.
+
+| Scenario | Run | Result |
+|---|---|---|
+| S-001 smoke | `20260909T052003Z-s001-smoke` | **PASSED, 5.0/5** |
+| S-008 bundled runtime | `20260909T052154Z-s008-bundled-runtime` | **PASSED, not scored** |
+
+**The smoke has an ending now** (spec `011-keel-disconnect`, keel-cloud
+`canon/designs/keel-disconnect-design.md` §8.4). S-001 has always started a runtime through
+keel-connect-skill's own script; it now stops one through that skill's *other* script,
+`scripts/keel_disconnect.py`, and asserts four things: `disconnected` with the pid it watched
+leave, no `runtime.heartbeat.json` in the home, the landing reading *No agent connected* again
+(one run, that line proven **both ways**), and `GET /v2/me` reading `agent.connected` false
+**within two seconds**.
+
+**Two seconds is the entire assertion.** keel-cloud derives that field from `last_seen_at` against
+`keel.v2.connect.presence-threshold` (`PT90S`), so a thirty-second bound would pass with no
+goodbye implemented at all. It passed at **5 ms** — only keel-runtime's last act (design §4) can
+do that, and this is the only place in the four repositories where the goodbye is proven end to
+end. S-008's step 8 stopped recording which path it saw and now asserts `goodbye`; **`runs/DRIFT.md`
+#47 is RESOLVED**, closed in the repository that owned it by the one command this repo named
+(`make runtime` in keel-connect-skill, `4eb0548`) and with neither scenario edited to suit it.
+
+`make down` printed
+`[down] (eval) keel-runtime: not_running (via keel-connect-skill/scripts/keel_disconnect.py)` —
+the founder's own script answering the teardown, with the runtime already gone because the
+scenarios had used the same door.
+
 ### The runs of record for spec 012 (2026-09-09)
 
 One stack session — `make up`, `make eval K=s001`, `make eval K=s008`, `make down` — on keel-cloud
@@ -354,7 +387,12 @@ it is chosen before anything is framed), the problem/solution/commercial frame-a
 one line, in place, leaving the card unapproved — inviting eleven people, the stranger's own page
 of *one story, then picks*, the reading, the overview's lines-have-answers bar and its four
 counts, an opened card of strips and dots, one dot's popover, that person's whole page, and
-Download. Every assertion enforcing a journey moment cites it (`§n.m`);
+Download — **and then the founder leaves**: spec `011-keel-disconnect` gives the smoke a tail
+that stops the runtime through keel-connect-skill's *other* script, `scripts/keel_disconnect.py`,
+and asserts `disconnected`, an absent heartbeat, the landing reading *No agent connected* a second
+time in one run, and `GET /v2/me` going false **within two seconds** — the only end-to-end proof
+of keel-runtime's goodbye anywhere in the four repositories. Every assertion enforcing a journey
+moment cites it (`§n.m`);
 `tests/test_journey_coverage.py` checks that against `canon/CANON.md`'s own ledger.
 
 **S-002, the agent-optional day** (`evals/test_s002_agent_optional.py`, spec `006-agent-optional`):
@@ -408,6 +446,14 @@ rather than raise. Then the founder's own walk: connect → `authorization_start
 and URL → approve at keel-web's `/connect` → say it again → `already_connected` → disconnect →
 `not_running`, ending on what keel-cloud knows and how fast it learned it.
 
+Its last step is where `runs/DRIFT.md` #47 was found and where it was closed. It **recorded**
+`"path observed": "staleness"` while the bundled copy carried the goodbye's seam without its call,
+and asserted only the half it was entitled to (*local truth first* — `keel status` reads
+not-running the moment `disconnect` answers). keel-connect-skill has since re-run `make runtime`,
+so spec `011-keel-disconnect` turned that probe into an **assertion**: the path must be `goodbye`,
+inside an eighth of keel-cloud's presence threshold, and a run that falls back to staleness is
+red. Neither scenario was edited to suit the fix.
+
 It is **not scored**, on purpose: none of the policy's four attributes applies to a scenario about
 a contract between two programs. And it is the only scenario that resets the runtime home it
 starts from — it owns that lifecycle, it is last in the set, and a credential an earlier scenario
@@ -433,8 +479,10 @@ Runs `tests/` — pure-logic tests for the step recorder, the interaction/rubric
 (including seeded-loss fixtures: a truncated statement, a leaked enum, a retired string, a
 gendered pronoun, a wordless waiting state — each failing exactly the check design says should
 catch it), the report generator, the config loader, the ledger-coverage test, S-004's own live choices
-(the follow-up loop, the carried questionnaire, keel-runtime's cap) and the chain-refusal
-reader, with no Docker/gradle/vite involved.
+(the follow-up loop, the carried questionnaire, keel-runtime's cap), the chain-refusal
+reader, the bundled runtime the referee runs (spec 012) and the door out of it (spec 011 — the
+two doors, `make down`'s log line, and the five source properties S-001's tail must keep), with no
+Docker/gradle/vite involved. **425 tests** as of spec 011.
 
 ## The live run (`make eval-live`)
 
