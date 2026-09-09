@@ -3,7 +3,7 @@ PY := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
 PLAYWRIGHT := $(VENV)/bin/playwright
 
-.PHONY: up down eval eval-live eval-all report venv unit instruction-eval
+.PHONY: up down eval eval-live eval-all report venv unit instruction-eval acceptance
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
 # venv already exists (pip/playwright no-op when nothing changed).
@@ -49,6 +49,26 @@ report: venv
 # The harness's own stackless unit tests (steps/evidence/report/config) -- no stack required.
 unit: venv
 	$(PY) -m pytest tests -q
+
+# spec 013-skill-distribution: the packaging beds (keel-cloud `canon/designs/keel-skill-design.md`
+# §10.2 B1 and §10.4 B3). Builds the two acceptance images -- Debian 12 with Python 3.11, Node 22
+# and both host CLIs; Debian 11, which *is* the 3.9 floor -- for `linux/arm64` and `linux/amd64`,
+# and runs the skill's own script inside each against the eval stack on the host
+# (`KEEL_BASE_URL=http://host.docker.internal:18080`). Needs `make up` first.
+#
+# Two halves. The **stackless** one needs no secret and always runs. The **model-driven** one
+# (`claude -p "keel connect"`, `copilot -p "keel connect"`) needs `ANTHROPIC_API_KEY` /
+# `COPILOT_GITHUB_TOKEN` **from the caller's own shell** -- never a file, never a keychain (T-5) --
+# and is skipped, by name and with its reason in the run record, when they are not there. Like
+# `eval-live` and `instruction-eval` it costs real money when it does run.
+#
+#   make acceptance                          both architectures, both images
+#   make acceptance PLATFORMS=linux/arm64    the native one only
+#   make acceptance SKIP_BUILD=1             re-run the checks against images already built
+acceptance: venv
+	PLATFORMS="$(if $(PLATFORMS),$(PLATFORMS),linux/arm64 linux/amd64)" \
+	SKIP_BUILD="$(if $(SKIP_BUILD),$(SKIP_BUILD),0)" \
+	stack/containers/acceptance/run-acceptance.sh
 
 # spec 009-instruction-eval: does keel-cloud's inference-instruction prose, sent to a real model
 # exactly as production sends it, produce the measured beliefs the frozen golden corpus says it

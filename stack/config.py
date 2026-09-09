@@ -80,6 +80,20 @@ class StackConfig:
         return self.keel_connect_skill / "keel_runtime"
 
     @property
+    def skill_dist_path(self) -> Path:
+        """`<keel-connect-skill>/dist/` -- the four packaging trees `make dist` writes and that
+        repo gitignores (keel-cloud `canon/designs/keel-skill-design.md` §8.1).
+
+        Spec `013-skill-distribution` (S-009) installs each of them into a fresh, temporary,
+        Claude-Code-shaped home and runs the skill's own script out of the result: the question
+        A-6 asks is *does a copied skill still work after an installer moved it*, and it can only
+        be answered against the bytes a build wrote, never against a working tree. Like the
+        bundled runtime this is **gated on and never built here** -- `make dist` writes into a
+        sibling repository, and this repo owns no product code.
+        """
+        return self.keel_connect_skill / "dist"
+
+    @property
     def cloud_base_url(self) -> str:
         """The Keel this profile's runtime talks to -- `http://localhost:18080` on eval,
         `:18081` on playground. Named on the `connect` the skill launches, and written into the
