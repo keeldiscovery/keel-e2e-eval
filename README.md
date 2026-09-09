@@ -13,6 +13,22 @@ bundled, deterministic script (`--executor scripted`). See `specs/e2e-eval-desig
 001) and `specs/eval-scoring-design.md` (feature 002) for the original harness/scoring designs of
 record, and `specs/005-connect-stack/` for the spec this rewrite follows.
 
+**The runtime this stack runs is the one that travelled inside the skill** (spec
+`012-bundled-runtime`; keel-cloud `canon/designs/keel-skill-design.md` §3.1/§3.2). keel-connect-
+skill carries a copy of `keel_runtime/` beside its scripts, put there by `make runtime` in that
+repo and gitignored there, and that copy — not the `../keel-runtime` checkout — is what
+`keel connect` starts here. Nothing passes `--runtime-path` and `KEEL_RUNTIME_PATH` is scrubbed
+out of every child this stack launches, so a founder's path is the path under referee. `make up`
+refuses to boot without it and names the one command that builds it:
+
+```
+make -C ../keel-connect-skill runtime
+```
+
+The `../keel-runtime` checkout stays configured in `stack.toml` for the two places that **read**
+keel-runtime's source rather than run it: `harness/canary.py`'s cap defaults and
+`instructions/prompts.py`'s `build_prompt`.
+
 ## Prerequisites
 
 - Sibling checkouts at `../keel-cloud`, `../keel-web`, `../keel-runtime`, `../keel-connect-skill`
@@ -31,7 +47,10 @@ make up            # boots Postgres (55432), keel-cloud (18080), keel-web (5173)
 make eval K=s001    # runs the smoke (matches evals/test_s001_smoke.py); prints the run directory
 make eval K=s002    # runs the agent-optional day (evals/test_s002_agent_optional.py) -- reuses
                     # an S-001 run's own project in the same session, or builds its own prelude
-make down           # kills a runtime a scenario left running, then everything else; idempotent
+make eval K=s008    # the runtime that travelled inside the skill: resolved with no
+                    # KEEL_RUNTIME_PATH, connected by device code, said twice, disconnected
+make down           # asks a runtime a scenario left running to disconnect (and reads the outcome
+                    # that proves it went), then everything else; idempotent
 ```
 
 `make eval` alone (no `make up` first) attaches to an already-up stack if one is answering on all
@@ -39,7 +58,38 @@ three ports, or boots one and tears it down at the end of the session — the fa
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
-### The runs of record (2026-09-07, `runs/INDEX-20260908T005926Z.html`)
+### The runs of record for spec 012 (2026-09-09)
+
+One stack session — `make up`, `make eval K=s001`, `make eval K=s008`, `make down` — on keel-cloud
+`d393511`, keel-web `b0a5015`, keel-runtime `638c0dc` and keel-connect-skill `d5469a0`, with the
+**bundled runtime `0.1.0+a05f9bc`**, which every bundle now names. `make unit` green at 377 before
+and **407** after.
+
+| Scenario | Run | Result |
+|---|---|---|
+| S-001 smoke | `20260909T050008Z-s001-smoke` | **PASSED, 5.0/5** |
+| S-008 bundled runtime | `20260909T050141Z-s008-bundled-runtime` | **PASSED, not scored** |
+
+**"Not scored" is a third state, and it is the honest one here.** All four policy attributes are
+*not applicable* to S-008 — it referees the contract between keel-connect-skill's script and
+keel-runtime, and never puts a founder in front of a screen the policy has a check for. A run with
+no applicable category used to come out `0.0/5`, which says "as bad as a run can be" about a run
+that measured nothing of that kind; it reads `not scored` now. `POLICY_VERSION` did not move and
+no earlier run re-scores.
+
+**Two findings, both recorded** (`runs/DRIFT.md`): **#47**, the runtime bundled inside the skill is
+four commits behind keel-runtime's `master` and therefore has the goodbye's seam without its call,
+so keel-cloud waits out its 90-second presence threshold after a disconnect — the remedy is
+`make runtime` in keel-connect-skill, which this repo names and does not run; and **#48**, the
+referee had been starting the keel-runtime *checkout* all along, and an ambient `KEEL_RUNTIME_PATH`
+would have put it back even after the flag was dropped.
+
+**One thing this pass fixed that was not its own**: keel-web `c807634` made the review card's
+correction panel *asked for* rather than always open (a founder change from playground testing),
+and S-001 had not followed it. The page object now clicks *Change a line*; the journey moment
+asserted is unchanged.
+
+### The earlier runs of record (2026-09-07, `runs/INDEX-20260908T005926Z.html`)
 
 One `make eval-all` against one stack session, on keel-cloud `d4202c6`
 (`028-measured-beliefs-aggregate`), keel-web `b189ce9`, keel-runtime `8ad0342`
@@ -294,7 +344,7 @@ cross-repo bug (not a config problem in this repo), the run's evidence bundle ca
 - Why the scenario was, or was not, adapted around it.
 - The shape of a fix, explicitly **not applied** — this repo diagnoses, the product repo fixes.
 
-## The seven scenarios
+## The eight scenarios
 
 **S-001, the smoke** (`evals/test_s001_smoke.py`) walks keel-cloud `canon/journeys.md` end to end,
 once, deterministically, on the measured-beliefs screens: arrival and device-code connect, naming
@@ -345,6 +395,23 @@ asserts that rather than hoping it):
   other's, twenty people, and `S6` sitting **exactly on `FLOOR = 5`**.
 - `07-mulchrun` is the only US market: dollars and cents, miles, feet and cubic yards never
   converted, and a duration scale cut at the band's own rounded edges (*about 45 minutes* → 35…55).
+
+**S-008, the runtime that travelled inside the skill**
+(`evals/test_s008_bundled_runtime.py`, spec `012-bundled-runtime`) proves the referee is
+refereeing the thing a founder gets. It asserts what is on disk (the bundled package, and no
+`KEEL_RUNTIME_PATH` in the environment the skill's script is handed), the five keys `keel status`
+now carries (`home`, `base_url`, `environment`, `executor`, `executor_on_path`), and two negative
+controls that turn "it resolved the bundled one" from a hope into a proof — a copy of the skill
+tree with `keel_runtime/` **removed** and an **empty `PATH`** must answer `runtime_unavailable`,
+and the oldest interpreter on the machine must run the whole script and answer a contract outcome
+rather than raise. Then the founder's own walk: connect → `authorization_started` with the code
+and URL → approve at keel-web's `/connect` → say it again → `already_connected` → disconnect →
+`not_running`, ending on what keel-cloud knows and how fast it learned it.
+
+It is **not scored**, on purpose: none of the policy's four attributes applies to a scenario about
+a contract between two programs. And it is the only scenario that resets the runtime home it
+starts from — it owns that lifecycle, it is last in the set, and a credential an earlier scenario
+left behind would turn its `authorization_started` into a `connected`.
 
 Nothing generated is committed. Each run writes the script it generated from the corpus
 (`runs/<id>/script.json`) and everything the founder and each person typed (`inputs.json`) into

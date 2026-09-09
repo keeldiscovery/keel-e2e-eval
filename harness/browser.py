@@ -1594,7 +1594,16 @@ class CorrectionChat:
     of S-004's nine.
     """
 
-    COMPOSER_LABEL = "Say what you meant…"
+    #: keel-web 2026-09-08 rewrote the placeholder ("Say what you meant -- which line, and what it
+    #: should say."), and it is the composer's `aria-label` as well. Matched on its opening words
+    #: so a copy edit is not a harness failure; the words themselves are what a founder reads.
+    COMPOSER_LABEL = re.compile(r"^Say what you meant", re.I)
+
+    #: **The panel is asked for, not always open** (keel-web `c807634`, a founder change from
+    #: playground testing, 2026-09-08): a *Change a line* text link beside *Redo the whole claim*
+    #: opens it with the caret in the composer, and it reads *Change another line* once the
+    #: exchange has started. A refused draft opens it on load, since the correction is the way out.
+    ASK_LINK = re.compile(r"^Change an?(other)? line$", re.I)
 
     def __init__(self, page: Page, recorder: Recorder, *, party: str = "founder"):
         self.page = page
@@ -1607,7 +1616,29 @@ class CorrectionChat:
         return self._bstep.recorder.interaction("ui_visit", self._interaction_id)
 
     def is_visible(self) -> bool:
+        """Is the composer on the screen right now -- i.e. is the panel open."""
         return self.page.locator(".chat .chat__composer").count() > 0
+
+    def is_offered(self) -> bool:
+        """Is there a way to say what you meant at all -- the panel open already, or the link
+        that opens it. This is the question the journey asks (*a founder who disagrees with a line
+        has somewhere to say so*); whether it is open on arrival is the product's choice, and
+        since 2026-09-08 the product's answer is "when you ask"."""
+        return self.is_visible() or self.page.get_by_role(
+            "button", name=self.ASK_LINK).count() > 0
+
+    def ask(self) -> None:
+        """Clicks *Change a line* (or *Change another line*), the way a founder opens the panel.
+        A no-op when it is already open -- a second click on the link would close it again while
+        it is still empty."""
+        if self.is_visible():
+            return
+        with self._scope():
+            with self._bstep.step("founder asks to change a line") as h:
+                self.page.get_by_role("button", name=self.ASK_LINK).first.click()
+                self.page.locator(".chat .chat__composer").wait_for(
+                    state="visible", timeout=15_000)
+                h.add_screenshot(self._bstep.screenshot("correction-opened"))
 
     def turns(self) -> list[dict[str, str]]:
         out: list[dict[str, str]] = []
@@ -1629,6 +1660,9 @@ class CorrectionChat:
     def send(self, message: str, *, timeout_s: float = 90) -> dict[str, Any]:
         """Types the correction, sends it, and waits for the agent's answer to land in the same
         card. Returns `{turns, changes}`."""
+        # The panel is asked for, not always open: a caller who goes straight to `send` means
+        # "correct a line", and opening it is part of doing that, not a separate journey moment.
+        self.ask()
         with self._scope():
             with self._bstep.step(f"founder says what they meant: {message[:60]!r}") as h:
                 before = len(self.turns())

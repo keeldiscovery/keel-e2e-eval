@@ -8,15 +8,29 @@ module changing too.
 
 US2 step 1: the browser then opens whatever `verification_uri` this hands back -- a keel-web URL,
 because `stack/cloud.py` points `KEEL_V2_CONNECT_VERIFICATION_URI` at keel-web's own `/connect`.
+
+**Spec 012: the runtime the script starts is the one that travelled inside the skill.** Two lines
+changed and both are the point (design §3.2, §13 step 9):
+
+- `--runtime-path` is **not passed any more**. The skill resolves `<skill root>/keel_runtime/`
+  itself -- rule 2 of its own resolution order, the rule a founder is on.
+- `KEEL_RUNTIME_PATH` is **scrubbed from the environment** (`stack.runtime.scrubbed_env`), along
+  with `KEEL_HOME` and `KEEL_BASE_URL`. Dropping the flag alone would not have been enough: this
+  repo is worked on from shells that export `KEEL_RUNTIME_PATH` (keel-connect-playground's own
+  walk-through environment does), and an inherited one would silently put the *checkout* back --
+  a green run that never touched the runtime it claims to referee. The stack names the home and
+  the base URL on the command line instead, so what the run says it did is what it did (T-1).
+
+The seven outcomes of that script's contract are all recognised here, `python_too_old` included:
+a referee that read an unknown outcome as "unrecognized" would report the wrong thing about the
+one machine state -- an interpreter below the floor -- the skill exists to explain.
 """
 
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
-import time
 
 from stack.config import StackConfig
 from stack.runtime import home_dir
@@ -28,6 +42,13 @@ DEFAULT_WAIT_SECONDS = 15
 class RuntimeUnavailable(RuntimeError):
     """The script reported `runtime_unavailable` or `internal_error` -- no usable keel-runtime
     could be found or launched at all."""
+
+
+class PythonTooOld(RuntimeError):
+    """The script reported `python_too_old` -- the interpreter running it is below keel-runtime's
+    3.9 floor (design §3.3/§4). Nothing was resolved and nothing was run. Its own exception,
+    because "the referee's interpreter is too old" is a fact about this machine, not a runtime
+    that could not be found."""
 
 
 class AuthorizationPendingTimeout(RuntimeError):
@@ -44,10 +65,14 @@ def _run_connect_check_script(config: StackConfig, recorder, *, step_name: str,
     named callers of the exact same invocation; the script itself has no notion of "first" vs
     "again" connect, only whatever `stack.runtime.status` finds when it starts."""
     script_path = config.connect_check_script_path
-    cloud_base_url = f"http://localhost:{config.cloud_port}"
+    cloud_base_url = config.cloud_base_url
+    # The home is this stack's own (isolation, `stack/runtime.py`'s docstring) and it names its
+    # Keel in a `config.json`, so the `status` call the script makes -- which is never given a
+    # `--base-url` by its own contract -- still resolves this profile's address and answers with
+    # an `environment` naming it.
+    stack_runtime.ensure_home_names_keel(config)
     cmd = [
         sys.executable, str(script_path),
-        "--runtime-path", str(config.keel_runtime),
         "--base-url", cloud_base_url,
         "--executor", executor,
         "--credential-backend", "file",
@@ -60,7 +85,9 @@ def _run_connect_check_script(config: StackConfig, recorder, *, step_name: str,
         try:
             # The skill script launches `keel connect` with the environment it inherits, so
             # `env_extra` reaches the runtime (spec 008-stranger FR-001: the canary's own marker).
-            env = {**os.environ, **(env_extra or {})}
+            # Scrubbed first (spec 012 FR-004): no `KEEL_RUNTIME_PATH` reaches the script, so the
+            # runtime it resolves can only be the one bundled inside it.
+            env = stack_runtime.scrubbed_env(env_extra)
             completed = subprocess.run(cmd, capture_output=True, text=True, timeout=wait_seconds + 30, env=env)
         except (OSError, subprocess.TimeoutExpired) as exc:
             h.record_wire({"cmd": cmd}, {"error": str(exc)})
@@ -79,6 +106,13 @@ def _run_connect_check_script(config: StackConfig, recorder, *, step_name: str,
 
         h.record_wire({"cmd": cmd}, body)
         outcome = body.get("outcome")
+
+        if outcome == "python_too_old":
+            h.fail(f"python_too_old: {body.get('message')}")
+            raise PythonTooOld(
+                f"the interpreter running keel_connect_check.py is Python "
+                f"{body.get('found')}, below the {body.get('required')} floor: "
+                f"{body.get('message')}")
 
         if outcome in ("runtime_unavailable", "internal_error"):
             h.fail(f"{outcome}: {body.get('message')}")
@@ -115,32 +149,43 @@ def start_runtime_via_skill(config: StackConfig, recorder, *,
         wait_seconds=wait_seconds, executor=executor, env_extra=env_extra)
 
 
-def stop_runtime(config: StackConfig, recorder, *, timeout_s: float = 15) -> None:
-    """Spec 006-agent-optional (FR-002, US1 step 1): stops a runtime this session started, the
-    same way `make down`/`stack/lifecycle.teardown` does -- `stack.runtime.kill`'s own SIGTERM by
-    heartbeat pid, never `python3 -m keel_runtime` shelled directly (this stack never launches the
-    runtime itself; it only ever stops one it -- or a prior session -- already launched through
-    the connect skill).
+def stop_runtime(config: StackConfig, recorder, *, timeout_s: float = 15) -> dict:
+    """Spec 006-agent-optional (FR-002, US1 step 1) as amended by spec 012 (FR-003): stops a
+    runtime this session started the same way `make down`/`stack/lifecycle.teardown` does -- by
+    **asking it to disconnect** and reading the outcome that proves it went.
 
-    Waits for `stack.runtime.status` to read not-running before returning: a fire-and-forget
-    SIGTERM racing the scenario's very next assertion (that a fresh login has nothing to bind) is
-    exactly the kind of flake this repo's other waits are written to avoid. Idempotent, like
-    `runtime.kill` itself -- a no-op, recorded as such, if the runtime was already stopped.
+    `stack.runtime.disconnect` runs keel-connect-skill's own `scripts/keel_disconnect.py` when
+    that script exists, and the bundled runtime's `disconnect` command when it does not; either
+    way this is the door a founder uses, not a SIGTERM aimed at a pid out of a heartbeat file.
+    The proof is in the answer: `stopped`/`disconnected` is emitted only after the pid was
+    observed **not alive** (keel-runtime's disconnect contract, guarantee 4), and `not_running` is
+    the idempotent second call -- so the "wait for status to catch up" loop this function used to
+    need is gone. It is still confirmed against `status` afterwards, because the outcome and the
+    heartbeat disagreeing would itself be a finding.
+
+    Returns the disconnect outcome dict (S-008 asserts on it). Raises `RuntimeError` only for
+    `did_not_stop`/`timeout` -- the one outcome the contract says a caller must treat as a
+    failure -- or for a `status` that still reads running after a stop was claimed.
     """
-    with recorder.step("the runtime is stopped (heartbeat pid, as `make down` does)",
+    with recorder.step("the runtime is asked to disconnect (as `make down` does)",
                         party="stack", kind="protocol") as h:
         before = stack_runtime.status(config)
-        h.record_wire(None, {"before": before})
-        stack_runtime.kill(config)
-        deadline = time.monotonic() + timeout_s
+        outcome = stack_runtime.disconnect(config, timeout=timeout_s + 45)
         after = stack_runtime.status(config)
-        while after.get("running", False) and time.monotonic() < deadline:
-            time.sleep(0.2)
-            after = stack_runtime.status(config)
-        h.record_wire(None, {"after": after})
+        h.record_wire({"home": str(home_dir(config))},
+                       {"before": before, "disconnect": outcome, "after": after})
+
+        name = outcome.get("outcome")
+        if name in stack_runtime.DID_NOT_STOP_OUTCOMES:
+            h.fail(f"the runtime did not stop: {outcome}")
+            raise RuntimeError(f"the runtime did not stop: {outcome}")
+        if name not in stack_runtime.STOPPED_OUTCOMES:
+            h.fail(f"unrecognized disconnect outcome: {outcome}")
+            raise RuntimeError(f"unrecognized disconnect outcome: {outcome}")
         if after.get("running", False):
-            h.fail(f"runtime still reports running {timeout_s}s after SIGTERM: {after}")
-            raise RuntimeError(f"runtime did not stop within {timeout_s}s: {after}")
+            h.fail(f"disconnect answered {name!r} but status still reads running: {after}")
+            raise RuntimeError(f"disconnect answered {name!r} but status still reads running: {after}")
+        return outcome
 
 
 def reconnect(config: StackConfig, recorder, *,

@@ -94,9 +94,20 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
             # and starting it any other way would leave it un-refereed.
             result = start_runtime_via_skill(stack, recorder,
                                               env_extra={"KEEL_SCRIPT": str(script_path)})
-            h.record_assert("authorization_started", result.get("outcome"))
+            # spec 012 FR-005: the outcome, and *which Keel it is about*. `environment` is on all
+            # seven shapes of the script's contract now, and the runtime derives it from the base
+            # URL it resolved -- so this one assertion says the skill reached this profile's own
+            # keel-cloud and not the founder's, or the playground's, or none at all.
+            expected_environment = f"localhost:{stack.cloud_port}"
+            h.record_assert({"outcome": "authorization_started",
+                              "environment": expected_environment},
+                             {"outcome": result.get("outcome"),
+                              "environment": result.get("environment")})
             assert result["outcome"] == "authorization_started", (
                 f"expected a freshly-reset runtime home to need device approval, got {result}")
+            assert result.get("environment") == expected_environment, (
+                f"expected the skill to name this profile's own Keel, got "
+                f"{result.get('environment')!r} (contract: `environment` is on all seven shapes)")
 
         connect = Connect(page, recorder)
         frame = connect.open(result["verification_uri"])
@@ -179,10 +190,19 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
         chat = CorrectionChat(page, recorder)
         with recorder.step("§1.2: the review card offers a way to say what you meant",
                             party="founder", kind="assert") as h:
-            h.record_assert(True, chat.is_visible())
-            assert chat.is_visible(), (
-                "there is no correction composer on the review card; a founder who disagrees with "
-                "a line has nowhere to say so")
+            # The panel is **asked for** since keel-web `c807634` (a founder change from
+            # playground testing, 2026-09-08): a *Change a line* link beside *Redo the whole
+            # claim* opens it. The journey moment is unchanged -- a founder who disagrees with a
+            # line has somewhere to say so -- so the assertion follows the product to the link,
+            # and the founder clicks it before typing.
+            offered = chat.is_offered()
+            h.record_assert(True, offered)
+            assert offered, (
+                "there is no way to correct a line on the review card -- neither an open composer "
+                "nor a *Change a line* link; a founder who disagrees with a line has nowhere to "
+                "say so")
+            chat.ask()
+            assert chat.is_visible(), "*Change a line* did not open the composer it names"
         answered = chat.send(correction.message)
         problem_card.recapture("PROBLEM", slug="review-after-correction")
         after_lines = problem_card.lines()

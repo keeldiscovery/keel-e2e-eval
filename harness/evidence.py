@@ -58,12 +58,27 @@ def _git_info(path: Path) -> dict:
 
 
 def write_versions(run_dir: Path, config) -> None:
+    """The four siblings a run ran against, **plus the runtime that actually ran** (spec 012).
+
+    `keel-runtime` names the *checkout*, which since spec 012 is only read from (caps,
+    `build_prompt`) and no longer run. What runs is the copy that travelled inside the skill, and
+    it is gitignored there -- so its commit cannot come from `git`, and `RUNTIME_VERSION` beside
+    the skill is the record of which keel-runtime commit `make runtime` copied. A run that could
+    not name the runtime it ran would be a run nobody can reproduce.
+    """
+    from stack import runtime as stack_runtime  # noqa: PLC0415 -- avoids a circular import
+
     repos = {
         "keel-e2e-eval": _git_info(REPO_ROOT),
         "keel-cloud": _git_info(config.keel_cloud),
         "keel-web": _git_info(config.keel_web),
         "keel-runtime": _git_info(config.keel_runtime),
         "keel-connect-skill": _git_info(config.keel_connect_skill),
+        "keel-runtime (bundled, the one that runs)": {
+            "path": str(stack_runtime.bundled_runtime_dir(config)),
+            "runtime_version": stack_runtime.bundled_runtime_version(config),
+            "present": stack_runtime.bundled_runtime_present(config),
+        },
     }
     (run_dir / "versions.json").write_text(json.dumps(repos, indent=2))
 
@@ -317,7 +332,15 @@ def _score_header(scorecard: dict | None) -> str:
           </div>
         </div>""")
     gated_badge = _badge("GATED -- incomplete run, capped", "#b3261e") if scorecard.get("gated") else ""
-    run_score_label = f"{run_score:g}/5" if run_score is not None else "?/5"
+    # Three states, not two (spec 012): a score; **not scored**, when every one of the four
+    # attributes is not applicable to this scenario (S-008 referees a contract, not a screen);
+    # and `?/5`, which means scoring itself has not answered yet.
+    if run_score is not None:
+        run_score_label = f"{run_score:g}/5"
+    elif len(not_applicable) == len(_CATEGORY_ORDER):
+        run_score_label = "not scored"
+    else:
+        run_score_label = "?/5"
     return f"""
     <div style="border:2px solid #333;border-radius:10px;padding:16px 20px;margin:16px 0 24px">
       <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap">

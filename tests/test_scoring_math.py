@@ -188,3 +188,38 @@ def test_rescoring_is_idempotent_and_never_mutates_transcript_or_screenshots(tmp
     verdict = json.loads((tmp_path / "verdict.json").read_text())
     assert verdict["policy_version"] == policy.POLICY_VERSION
     assert verdict["score"] is not None
+
+
+# ----------------------------------------------- spec 012: a run with nothing to score is not a zero
+
+def test_a_run_where_every_category_is_not_applicable_is_not_scored_rather_than_zero():
+    """S-008 is the motivating case: it referees the contract between keel-connect-skill's script
+    and keel-runtime, and never puts a founder in front of a screen any of the four attributes has
+    a check for. `0.0` there says "as bad as a run can be" about a run that measured nothing of
+    that kind -- which is the same mistake `compute_run_score` already refuses to make for a
+    single absent category."""
+    assert scoring.compute_run_score({}, complete=True) is None
+    assert scoring.compute_run_score({}, complete=False) is None
+
+
+def test_every_run_with_one_applicable_category_scores_exactly_what_it_scored_before():
+    """The change is confined to the empty case: no run of record re-scores."""
+    assert scoring.compute_run_score({"GUIDANCE": 5.0}, complete=True) == 5.0
+    assert scoring.compute_run_score({"ORIENTATION": 4.0, "CLARITY": 4.0}, complete=True) == 4.0
+    assert scoring.compute_run_score({"GUIDANCE": 5.0}, complete=False) == policy.COMPLETION_GATE_SCORE
+
+
+def test_the_report_says_not_scored_rather_than_a_question_mark(tmp_path):
+    """Three states, and a reader must be able to tell them apart: a score, *not scored* (nothing
+    here is scoreable), and `?/5` (scoring has not answered yet)."""
+    from harness import evidence
+
+    unscoreable = {"policy_version": policy.POLICY_VERSION, "categories": {},
+                    "not_applicable_categories": ["CLARITY", "FIDELITY", "GUIDANCE", "ORIENTATION"],
+                    "run_score": None, "gated": False, "complete": True}
+    assert "not scored" in evidence._score_header(unscoreable)
+
+    unanswered = {"policy_version": policy.POLICY_VERSION, "categories": {"GUIDANCE": 5.0},
+                   "not_applicable_categories": ["CLARITY"], "run_score": None,
+                   "gated": False, "complete": True}
+    assert "?/5" in evidence._score_header(unanswered)

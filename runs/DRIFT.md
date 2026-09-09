@@ -3020,3 +3020,97 @@ assertion that was already green. The run stands as it is, with this entry besid
 config named when that is what answered, the fall-back to keel-runtime's own default, and an
 unparseable override reported as *not* the source, because naming `env` for a value that decided
 nothing would be a lie about the run.
+
+
+## 47. Owed (keel-connect-skill, and it is a build step nobody ran): the runtime that travels
+inside the skill is behind keel-runtime's `master` by the goodbye, so a founder's runtime still
+leaves keel-cloud to time it out
+
+**Severity: owed.** Nothing is broken and nothing regressed. What this says is that the thing a
+founder actually runs is not the thing keel-runtime's `master` says it is, and the gap is exactly
+one feature wide.
+
+**Where**: keel-connect-skill, `RUNTIME_VERSION` and the gitignored `keel_runtime/` package
+`make runtime` writes into it (keel-cloud `canon/designs/keel-skill-design.md` §3.1, invariant D2).
+
+**What was observed**, live, in `runs/20260909T050141Z-s008-bundled-runtime` (S-008 step 8):
+
+```
+"path observed": "staleness"
+"local status":  {"running": false, ...}
+"/v2/me":        agentSessionId still the one this run connected, connected: true
+```
+
+S-008 disconnects the runtime, gets `disconnected` back with the pid it observed leave, and then
+watches `GET /v2/me` for twelve seconds. keel-cloud goes on naming **this run's own agent session**
+as connected for the whole window — it computes `connected` from `last_seen_at` against
+`keel.v2.connect.presence-threshold` (`PT90S`), so a runtime that left without saying so is
+indistinguishable from one between two long-polls until a minute and a half has passed.
+
+**Why, and it is not keel-runtime's `master`'s fault any more.** `_say_goodbye` was a deliberate
+no-op while keel-cloud had no endpoint to call; keel-cloud shipped it (spec `033-agent-session-
+goodbye`, `d393511`) and keel-runtime's `638c0dc` — *"Merge spec 003 second pass: the goodbye is
+real now, not just its seam"* — gave `CloudClient` its `end_agent_session`. **The bundled copy this
+run ran is `0.1.0+a05f9bc`**, which is four commits earlier and has the seam without the call. The
+run bundle names it, which is the whole point of `versions.json` carrying `RUNTIME_VERSION` from
+this spec on:
+
+```
+"keel-runtime (bundled, the one that runs)": {"runtime_version": "0.1.0+a05f9bc", "present": true}
+```
+
+**The remedy is one command, in the repository that owns it**: `make runtime` in
+keel-connect-skill, on a clean keel-runtime checkout, which recopies the package and restamps
+`RUNTIME_VERSION` (that file *is* committed there; the package it names is not). This repo does
+not run it — `make up` gates on the package and names the command instead, because a referee that
+wrote into a sibling would have stopped being a referee (spec 012's own clarification).
+
+**What it cost this run: one false green, caught.** S-008's first draft asserted `/v2/me`'s
+`agent.connected` alone after approving the device, and it passed **instantly** — on the *previous*
+scenario's session, which was still inside its 90-second window. The runtime this run started had
+not even redeemed its device code yet, and the next step caught it by answering
+`authorization_started` where `already_connected` was expected. The scenario now waits on `keel
+status` (local truth, against a home it wiped itself) and then asserts `/v2/me` names **that**
+`agentSessionId` — so no scenario here can ever again be green on somebody else's runtime.
+
+**Not adapted around.** S-008 asserts the staleness path's own guarantee rather than the goodbye's
+— *local truth first, always*: `keel status` reads not-running the moment `disconnect` answers,
+whatever the network did. When the bundle is rebuilt the scenario records `"path observed":
+"goodbye"` and passes on the same assertion, with no edit.
+
+**Tests**: `evals/test_s008_bundled_runtime.py` step 8, and `_agent_session_of` beside it.
+
+
+## 48. Note (this repo's own grip, not a product defect): the referee had been starting the
+keel-runtime **checkout**, and an ambient `KEEL_RUNTIME_PATH` would have put it back
+
+**Severity: note**, recorded because it is what spec `012-bundled-runtime` exists to fix and
+because the second half of it would have survived the first.
+
+**Where**: this repo, `harness/connect.py` and `stack/runtime.py`.
+
+**What was wrong.** Every scenario since spec 005 started `keel connect` through
+keel-connect-skill's script with `--runtime-path <../keel-runtime>` — **rule 1** of that script's
+own resolution order, the documented *development override* (keel-cloud
+`canon/designs/keel-skill-design.md` §3.2, invariant X-4). A founder is on **rule 2**: the
+`keel_runtime/` package that travels inside the skill. Six months of green runs said something
+true about a runtime nobody ships.
+
+**The second half, which is the part worth writing down.** Dropping the flag is not enough. This
+repository is worked on from shells that export `KEEL_RUNTIME_PATH` — the founder's own
+keel-connect-playground walk-through environment is one, and it was set in the shell that ran this
+very feature's live runs (`runs/DRIFT.md` #46 recorded the same shell's `KEEL_JOB_*` reaching a
+runtime). The script reads the environment variable when the flag is absent, so a checkout would
+have gone straight back in, in a run whose bundle said it had not. `stack.runtime.scrubbed_env`
+removes `KEEL_RUNTIME_PATH`, `KEEL_HOME` and `KEEL_BASE_URL` from every child this stack launches,
+and S-008 asserts the absence rather than assuming it (T-1).
+
+**A third thing fell out of it.** `keel status` takes `--home` and no `--base-url`, so with
+`KEEL_BASE_URL` scrubbed and keel-runtime's `CLOUD_BASE_URL` still empty, an isolated home names no
+Keel at all and `environment` reads `null`. Before the scrub it read `localhost:18081` — the
+*playground's* address — on an eval-profile run. Neither is what the run was talking to. `make up`
+now writes `{"base_url": "http://localhost:<this profile's port>"}` into the home it owns, and
+S-001 and S-008 both assert `environment == "localhost:18080"`.
+
+**Tests**: `tests/test_bundled_runtime.py` (26), `evals/test_s008_bundled_runtime.py`,
+`evals/test_s001_smoke.py`'s connect leg.
