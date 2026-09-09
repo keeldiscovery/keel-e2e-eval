@@ -27,9 +27,10 @@ def test_every_instruction_module_imports(name):
 
 _SCORECARD = {
     "marks_version": 4,
-    "model": {"claude_version": "2.1.263", "reported_model": "a-model",
+    "model": {"host": "claude", "cli": "claude", "cli_version": "2.1.263",
+              "pinned_model": None, "reported_model": "a-model",
               "job_timeout_seconds": 300.0, "job_max_turns": 6, "job_budget_usd": 1.0,
-              "judge": "on"},
+              "max_ai_credits": None, "judge": "on", "judge_host": "claude"},
     "contract_manifest": {"keel_cloud_commit": "abc1234", "keel_cloud_dirty": False,
                           "generated_at": "2026-09-06T00:00:00Z"},
     "reading": [], "assumptions": [], "brief": [], "prompts": [],

@@ -2,6 +2,10 @@
 
     --dry-run        print every prompt this run would send, and the case count and estimate;
                      call nothing, spend nothing
+    --host HOST      which host answers: `claude` (the default, and every published mark) or
+                     `copilot`. It decides the CLI the pre-flight requires, the executor
+                     keel-runtime constructs, and the prompt that host is sent -- and nothing
+                     else. **Two hosts' runs are different measurements and are never averaged.**
     --baseline       name the bundle `-instructions-baseline`, and say in the report that a red
                      result is the expected one
     -k SUBSTRING     only cases whose case id contains it (`-k 01-countly`, `-k reading`)
@@ -18,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -49,6 +54,10 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="instructions.run", description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--baseline", action="store_true")
+    # spec 014 FR-001. `choices` rather than a free string: an unknown host is refused by
+    # argparse, before a prerequisite is checked and before anything is spent.
+    parser.add_argument("--host", default="claude", choices=("claude", "copilot"),
+                        help="which host answers (default: claude)")
     parser.add_argument("-k", dest="filter", default=None)
     parser.add_argument("-n", dest="n_runs", type=int, default=3)
     parser.add_argument("--marks", default=None)
@@ -57,14 +66,22 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     config = load_config()
+    # keel-runtime is imported *before* the pre-flight now, because the pre-flight asks it which
+    # CLI this host needs (`EXECUTOR_BINARIES`) rather than writing the name down again. The
+    # import costs nothing and spends nothing.
     try:
-        facts = runner_mod.preflight(config, dry_run=args.dry_run)
+        executor_module, validator_module = prompts_mod.load_runtime(config.keel_runtime)
+    except prompts_mod.RuntimeUnavailable as reason:
+        print(f"instruction eval cannot start: {reason}", file=sys.stderr)
+        return 2
+    try:
+        facts = runner_mod.preflight(config, dry_run=args.dry_run, host=args.host,
+                                     executor_module=executor_module)
     except runner_mod.NotReady as reason:
         print(f"instruction eval cannot start: {reason}", file=sys.stderr)
         return 2
 
     corpus = corpus_mod.load(config.keel_cloud)
-    executor_module, validator_module = prompts_mod.load_runtime(config.keel_runtime)
 
     if args.dry_run:
         return _dry_run(config, corpus, executor_module, args)
@@ -83,7 +100,7 @@ def _all_cases(corpus, exported, instructions, executor_module, args) -> list:
     cases = []
     for entry in corpus.entries:
         cases.extend(prompts_mod.build_cases(entry, exported, instructions, executor_module,
-                                             n_runs=args.n_runs))
+                                             n_runs=args.n_runs, host=args.host))
     if args.filter:
         needle = args.filter.lower()
         cases = [c for c in cases
@@ -101,6 +118,7 @@ def _dry_run(config, corpus, executor_module, args) -> int:
     instructions = _instructions_for(config)
     cases = _all_cases(corpus, exported, instructions, executor_module, args)
 
+    print(f"host: {args.host} -- every prompt below is the one this host's executor sends")
     print(f"contract exported from keel-cloud {exported.manifest.get('keel_cloud_commit')}"
           f"{' (dirty)' if exported.manifest.get('keel_cloud_dirty') else ''}")
     for screen in SCREENS:
@@ -132,8 +150,9 @@ def _dry_run(config, corpus, executor_module, args) -> int:
 
 def _real_run(config, corpus, executor_module, validator_module, facts, args) -> int:
     started = time.monotonic()
-    run_dir = report_mod.start_bundle(config, baseline=args.baseline)
+    run_dir = report_mod.start_bundle(config, baseline=args.baseline, host=args.host)
     print(f"run bundle: {run_dir}")
+    print(f"host: {args.host} ({facts.get('cli')} {facts.get('cli_version') or 'version unknown'})")
 
     exported = contract_mod.export(config.keel_cloud, run_dir / "contracts")
     report_mod.write_corpus_hashes(run_dir, corpus, when="before")
@@ -141,12 +160,19 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     cases = _all_cases(corpus, exported, instructions, executor_module, args)
     marks = marks_mod.load(args.marks)
 
-    # `ClaudeCodeExecutor` puts its per-job dirs at `<home>/jobs/<job_id>`, so the home is the run
+    # Both executors put their per-job dirs at `<home>/jobs/<job_id>`, so the home is the run
     # directory itself and the bundle's `jobs/` is exactly what the run-bundle contract describes.
     # The wall clock is production's own default (keel-runtime `DEFAULT_JOB_TIMEOUT_SECONDS`) and
     # is deliberately not overridden: an eval more patient than production would report an
     # instruction as working that a founder watches fail.
-    executor = executor_module.ClaudeCodeExecutor(home=run_dir)
+    #
+    # **Through `get_executor`, never by naming a class** (spec 014 FR-003). It is the same
+    # function `keel_runtime.cli` calls for `--executor`, so which class a host means, what
+    # `claude-code` aliases to, and which caps each constructor is given are keel-runtime's to
+    # decide -- and a second table here would be the sixth version of `runs/DRIFT.md`
+    # #33/#36/#41/#44/#45: the referee holding its own copy of something it does not own.
+    pinned_model = os.environ.get("KEEL_COPILOT_MODEL") or None
+    executor = executor_module.get_executor(args.host, home=run_dir, copilot_model=pinned_model)
     judge = judge_mod.NoJudge() if args.no_judge else judge_mod.Judge()
     people = {(e.id, p.person): p for e in corpus.entries for p in e.people()}
 
@@ -155,12 +181,22 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     schema_invalid = 0
     produced_sets = []
     total_cost = 0.0
+    total_premium = 0.0
+    premium_seen = False
     reported_model = None
+
+    # Written before the first call, so a run that dies at case one still says what it was.
+    started_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    report_mod.write_manifest(run_dir, _manifest(args, facts, executor, pinned_model,
+                                                 None, started_at))
 
     for index, case in enumerate(cases, start=1):
         answer = runner_mod.ask(executor_module, validator_module, executor, case)
         total_cost += answer.total_cost_usd or 0.0
-        reported_model = reported_model or _model_of(answer.envelope)
+        if answer.premium_requests is not None:
+            premium_seen = True
+            total_premium += answer.premium_requests
+        reported_model = reported_model or answer.reported_model
         entry = corpus.by_id(case.entry_id)
 
         if answer.errored:
@@ -197,7 +233,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
                 produced_sets.append((case, answer.result))
             diff = _assumption_diff(case, entry, answer, score)
 
-        report_mod.write_case(run_dir, case, answer, diff)
+        report_mod.write_case(run_dir, case, answer, diff, host=args.host)
         prompts.append({"case_id": case.case_id, "screen": case.screen, "prompt": case.prompt})
         status = ("ERROR" if answer.errored else
                   "never fit its shape" if answer.never_fit else
@@ -233,12 +269,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     scorecard = {
         "marks_version": marks_mod.MARKS_VERSION,
         "marks": marks,
-        "model": {"claude_version": facts.get("claude_version"),
-                  "reported_model": reported_model,
-                  "job_timeout_seconds": executor.timeout_seconds,
-                  "job_max_turns": executor.max_turns,
-                  "job_budget_usd": executor.budget_usd,
-                  "judge": "off" if args.no_judge else "on"},
+        "model": _model_block(args, facts, executor, pinned_model, reported_model),
         "n_runs": args.n_runs,
         "aggregate": {k: v for k, v in aggregate.items() if k != "by_case"},
         "judge_calls": judge.calls,
@@ -259,6 +290,10 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     verdict = {
         "scenario": "instructions",
         "baseline": bool(args.baseline),
+        # spec 014 FR-005: which host, on the one file a gate is read off.
+        "host": args.host,
+        "cli": facts.get("cli"),
+        "cli_version": facts.get("cli_version"),
         "passed": bool(judged["passed"]) and errored == 0,
         "errored": errored,
         "marks": judged,
@@ -267,12 +302,18 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         "n_runs": args.n_runs,
         "cases": len(cases),
         "duration_s": round(time.monotonic() - started, 3),
-        "total_cost_usd": round(total_cost, 4),
+        # C-7: one of these two, never both, and never one filled in from the other. Copilot
+        # reports premium requests and no dollars; a `$0.00` on a Copilot report would be a lie
+        # in the shape of a number.
+        "total_cost_usd": round(total_cost, 4) if not premium_seen else None,
+        "total_premium_requests": round(total_premium, 4) if premium_seen else None,
     }
     report_mod.write_verdict(run_dir, verdict)
+    report_mod.write_manifest(run_dir, _manifest(args, facts, executor, pinned_model,
+                                                 reported_model, started_at))
     versions = json.loads((run_dir / "versions.json").read_text(encoding="utf-8"))
     path = report_mod.render_report(run_dir, verdict=verdict, scorecard=scorecard,
-                                    versions=versions)
+                                    versions=versions, host=args.host)
     # The one artefact with no number in it (FR-019). Keyed by entry+stage, taking the first run of
     # each case: the register is read once per instruction, not once per repetition.
     produced_by_case = {}
@@ -280,7 +321,8 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         produced_by_case.setdefault(f"{case.entry_id}/{case.subject}", result)
     register = report_mod.render_register(
         run_dir, entries_by_market=report_mod.register_blocks(corpus, produced_by_case),
-        paragraphs=report_mod.paragraph_blocks(corpus, brief_scores))
+        paragraphs=report_mod.paragraph_blocks(corpus, brief_scores),
+        host=args.host, cli_version=facts.get("cli_version"), model=reported_model)
 
     print()
     print(f"verdict: {'PASSED' if verdict['passed'] else 'FAILED'}   "
@@ -291,7 +333,13 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
           f"schema-invalid {totals['schema_invalid']} · errored {errored}")
     print(f"report: {path}")
     print(f"register (unscored, for a person who knows the market): {register}")
-    print(f"cost: ${total_cost:.2f}")
+    if premium_seen:
+        print(f"cost: {total_premium:g} premium requests "
+              f"(this host reports no dollars, and none are invented)")
+    else:
+        print(f"cost: ${total_cost:.2f}")
+    print(f"host: {args.host} · cli {facts.get('cli_version')} · "
+          f"model {reported_model or 'not reported'} · pinned {pinned_model or 'nothing'}")
     return 0 if verdict["passed"] else 1
 
 
@@ -299,16 +347,55 @@ def _fmt(value) -> str:
     return "—" if value is None else f"{value * 100:.1f}%"
 
 
-def _model_of(envelope) -> str | None:
-    if not isinstance(envelope, dict):
-        return None
-    for key in ("model", "modelUsage", "model_usage"):
-        value = envelope.get(key)
-        if isinstance(value, str):
-            return value
-        if isinstance(value, dict) and value:
-            return ", ".join(sorted(value))
-    return None
+def _model_block(args, facts, executor, pinned_model, reported_model) -> dict:
+    """Everything a mark is only comparable within (spec 014 FR-005).
+
+    `job_max_turns` and `job_budget_usd` are read with `getattr`, and that is not defensiveness:
+    `CopilotExecutor` **has neither**, because the CLI has no flag for either and keel-runtime
+    refuses to pretend otherwise (C-7). `None` here means "this host has no such cap", which is a
+    fact about the host and is exactly what the report should say.
+    """
+    return {
+        "host": args.host,
+        "cli": facts.get("cli"),
+        "cli_version": facts.get("cli_version"),
+        "pinned_model": pinned_model,
+        "reported_model": reported_model,
+        "job_timeout_seconds": getattr(executor, "timeout_seconds", None),
+        "job_max_turns": getattr(executor, "max_turns", None),
+        "job_budget_usd": getattr(executor, "budget_usd", None),
+        "max_ai_credits": getattr(executor, "max_ai_credits", None),
+        "judge": "off" if args.no_judge else "on",
+        # The tie-breaker is the referee's, not the subject's, and it stays on `claude` on both
+        # hosts so the *scoring* is one constant across the comparison. Written down rather than
+        # assumed (spec 014's fifth clarification).
+        "judge_host": "off" if args.no_judge else "claude",
+    }
+
+
+def _manifest(args, facts, executor, pinned_model, reported_model, started_at) -> dict:
+    """`manifest.json`: what this run was, in the one file that is written before the first call.
+
+    A bundle whose run died at case one still names its host, its CLI and its rubric -- which is
+    the difference between a failed run somebody can read and a directory somebody has to guess
+    about.
+    """
+    return {
+        "scenario": "instructions",
+        "baseline": bool(args.baseline),
+        "host": args.host,
+        "cli": {"binary": facts.get("cli"), "version": facts.get("cli_version")},
+        "model": {"pinned": pinned_model, "reported": reported_model},
+        "marks_version": marks_mod.MARKS_VERSION,
+        "n_runs": args.n_runs,
+        "filter": args.filter,
+        "judge": "off" if args.no_judge else "on",
+        "caps": {"job_timeout_seconds": getattr(executor, "timeout_seconds", None),
+                 "job_max_turns": getattr(executor, "max_turns", None),
+                 "job_budget_usd": getattr(executor, "budget_usd", None),
+                 "max_ai_credits": getattr(executor, "max_ai_credits", None)},
+        "started_at": started_at,
+    }
 
 
 def _assumption_diff(case, entry, answer, score) -> dict:

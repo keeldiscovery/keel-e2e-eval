@@ -48,6 +48,12 @@ def main(argv=None) -> int:
 
     run_dir = Path(args.run_dir)
     original = json.loads((run_dir / "scorecard.json").read_text(encoding="utf-8"))
+    # A re-scored bundle keeps the host that answered it (spec 014 FR-006). Reading it off the
+    # bundle rather than defaulting matters most here: a rescore is where a register page is
+    # rewritten months later, and a Copilot bundle whose new register said "Claude Code" would be
+    # the exact mistake the host title exists to prevent. A bundle from before spec 014 carries
+    # no host and is `claude`, which is what it was.
+    host = _host_of(run_dir, original)
     config = load_config()
     corpus = corpus_mod.load(config.keel_cloud)
     judge = judge_mod.NoJudge() if args.no_judge else judge_mod.Judge()
@@ -144,10 +150,13 @@ def main(argv=None) -> int:
         report_mod.render_register(
             run_dir, entries_by_market={},
             paragraphs=report_mod.paragraph_blocks(corpus, brief_scores),
+            host=host,
+            cli_version=(original.get("model") or {}).get("cli_version"),
+            model=(original.get("model") or {}).get("reported_model"),
             filename=f"register-v{marks_mod.MARKS_VERSION}.html")
 
-    print(f"re-scored {run_dir.name} under MARKS_VERSION {marks_mod.MARKS_VERSION} "
-          f"(was {original.get('marks_version')})")
+    print(f"re-scored {run_dir.name} ({host}) under MARKS_VERSION "
+          f"{marks_mod.MARKS_VERSION} (was {original.get('marks_version')})")
     print(f"  recall     {_fmt(totals['golden_belief_recall'])}  "
           f"(was {_fmt(original['totals']['golden_belief_recall'])})")
     print(f"  anchoring  {_fmt(totals['anchoring_accuracy'])}  "
@@ -163,6 +172,20 @@ def main(argv=None) -> int:
     if brief_scores:
         print(f"  register   {run_dir / f'register-v{marks_mod.MARKS_VERSION}.html'}")
     return 0
+
+
+def _host_of(run_dir: Path, original: dict) -> str:
+    """The host this bundle was answered by: its `manifest.json`, else its scorecard's model
+    block, else `claude` -- which is what every bundle taken before spec 014 was."""
+    manifest_path = run_dir / "manifest.json"
+    if manifest_path.is_file():
+        try:
+            host = json.loads(manifest_path.read_text(encoding="utf-8")).get("host")
+        except ValueError:
+            host = None
+        if host:
+            return host
+    return (original.get("model") or {}).get("host") or "claude"
 
 
 def _fmt(value) -> str:

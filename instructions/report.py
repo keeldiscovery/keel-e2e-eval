@@ -24,11 +24,27 @@ from harness.evidence import new_run_dir, write_versions
 from . import marks as marks_mod
 
 
-def start_bundle(config, *, baseline: bool) -> Path:
+# Which host answered is part of a bundle's *name*, not only of its contents (spec 014 FR-005).
+# Two hosts' runs are different measurements that must never be averaged, and the cheapest place
+# to say so is the one string that appears in every `ls`, every README line and every citation.
+# `claude` keeps the bare name it has always had, so every existing run of record still reads as
+# what it is rather than being retroactively renamed.
+HOST_SUFFIXES = {"claude": "", "copilot": "-copilot"}
+
+
+def start_bundle(config, *, baseline: bool, host: str = "claude") -> Path:
     slug = "instructions-baseline" if baseline else "instructions"
+    slug += HOST_SUFFIXES.get(host, f"-{host}")
     run_dir = new_run_dir(slug)
     write_versions(run_dir, config)
     return run_dir
+
+
+def write_manifest(run_dir: Path, manifest: dict) -> None:
+    """`manifest.json`: host, CLI, model and rubric, written **before the first call** and again
+    after the last (spec 014 FR-005). A run that died at case one still names what it was."""
+    (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, default=str),
+                                           encoding="utf-8")
 
 
 def write_corpus_hashes(run_dir: Path, corpus, *, when: str = "before") -> None:
@@ -52,12 +68,19 @@ def case_dir(run_dir: Path, case) -> Path:
     return path
 
 
-def write_case(run_dir: Path, case, answer, diff: dict) -> None:
-    """`prompt.txt`, `envelope.json`, `diff.json` -- the three files a finding is quoted from."""
+def write_case(run_dir: Path, case, answer, diff: dict, *, host: str = "claude") -> None:
+    """`prompt.txt`, `envelope.json`, `diff.json` -- the three files a finding is quoted from.
+
+    `prompt.txt` is what **this host** was sent, byte for byte: on Copilot that includes the
+    `SYSTEM` and `RESPONSE` sections the CLI has no flag for, which Claude receives as flags
+    (design §5.4, C-8). `instructions/prompts.py` renders each with keel-runtime's own renderer,
+    so neither bundle ever carries the other host's prompt.
+    """
     directory = case_dir(run_dir, case)
     (directory / "prompt.txt").write_text(case.prompt, encoding="utf-8")
     (directory / "envelope.json").write_text(json.dumps({
         "case_id": case.case_id,
+        "host": host,
         "screen": case.screen,
         "outcome": answer.outcome,
         "schema_valid": answer.schema_valid,
@@ -65,6 +88,8 @@ def write_case(run_dir: Path, case, answer, diff: dict) -> None:
         "recovery_pass": answer.recovery_pass,
         "num_turns": answer.num_turns,
         "total_cost_usd": answer.total_cost_usd,
+        "premium_requests": answer.premium_requests,
+        "reported_model": answer.reported_model,
         "duration_s": round(answer.duration_s, 3),
         "error": answer.error,
         "result": answer.result,
@@ -116,6 +141,22 @@ def _pct(value) -> str:
     return "—" if value is None else f"{value * 100:.1f}%"
 
 
+def _spend(verdict: dict) -> str:
+    """What this run cost, **in the unit its host reports** (spec 014 FR-007, design C-7).
+
+    Claude Code reports dollars; Copilot reports premium requests and no dollars at all. A
+    `$0.00` on a Copilot report would be a lie in the shape of a number, so the two are never
+    converted into one another and a run that reported neither says so.
+    """
+    premium = verdict.get("total_premium_requests")
+    if premium is not None:
+        return f"{premium:g} premium requests (this host reports no dollars)"
+    dollars = verdict.get("total_cost_usd")
+    if dollars is not None:
+        return f"${dollars:.2f}"
+    return "cost not reported"
+
+
 def _mark_row(name: str, result: dict, fmt=_pct) -> str:
     cls = "met" if result["met"] else "missed"
     word = "met" if result["met"] else "NOT met"
@@ -123,14 +164,31 @@ def _mark_row(name: str, result: dict, fmt=_pct) -> str:
             f"<td>{result['mark']}</td><td class='mark {cls}'>{word}</td></tr>")
 
 
-def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: dict) -> Path:
+# The host's own name for itself, for a page a person reads (spec 014 FR-006).
+HOST_NAMES = {"claude": "Claude Code", "copilot": "GitHub Copilot"}
+
+
+def host_name(host) -> str:
+    return HOST_NAMES.get(host, str(host or "unknown host"))
+
+
+def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: dict,
+                  host: str = "claude") -> Path:
     t = scorecard["totals"]
     judged = verdict["marks"]
     baseline = verdict.get("baseline")
+    named_host = host_name(host)
 
-    parts = ["<!doctype html><meta charset='utf-8'><title>Instruction eval — "
-             f"{_esc(run_dir.name)}</title><style>{_CSS}</style><main>"]
-    parts.append(f"<h1>The instruction eval</h1><p class='small'>{_esc(run_dir.name)}</p>")
+    parts = [f"<!doctype html><meta charset='utf-8'><title>Instruction eval on {_esc(named_host)}"
+             f" — {_esc(run_dir.name)}</title><style>{_CSS}</style><main>"]
+    parts.append(f"<h1>The instruction eval on {_esc(named_host)}</h1>"
+                 f"<p class='small'>{_esc(run_dir.name)}</p>")
+    parts.append(
+        f"<div class='banner note'><b>This run was answered by {_esc(named_host)}</b> "
+        f"(<code>{_esc((scorecard.get('model') or {}).get('cli_version') or 'version unknown')}"
+        "</code>). keel-cloud <code>canon/designs/keel-skill-design.md</code> §5.5: <b>two runs "
+        "under different hosts are different measurements and must never be averaged.</b> Read "
+        "this page against the same host's own previous run, never against the other's.</div>")
 
     if baseline:
         parts.append("<div class='banner note'><b>This is the baseline.</b> It measures "
@@ -156,22 +214,34 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
 
     model = scorecard.get("model") or {}
     parts.append(
-        "<p><b>Judged under:</b> "
-        f"<code>{_esc(model.get('claude_version') or 'unknown claude CLI')}</code>"
+        f"<p><b>Judged under:</b> {_esc(named_host)}, "
+        f"<code>{_esc(model.get('cli_version') or 'unknown CLI version')}</code>"
         + (f", model <code>{_esc(model.get('reported_model'))}</code>"
-           if model.get("reported_model") else "")
-        + ". keel-runtime sends no <code>--model</code> and this repo does not add one, so "
-          "<b>these marks are comparable only within this model</b>.</p>")
+           if model.get("reported_model") else ", and <b>the CLI reported no model</b>")
+        + (f", pinned with <code>--model {_esc(model.get('pinned_model'))}</code>"
+           if model.get("pinned_model")
+           else ", <b>nothing pinned</b> — so what answered is whatever this CLI's router chose "
+                "on the day (design §5.4, C-5)")
+        + ". <b>These marks are comparable only within this host and this model.</b> "
+          f"The tie-breaking judge is <code>{_esc(model.get('judge_host') or 'off')}</code> on "
+          "both hosts, deliberately, so the scoring is one constant across a comparison.</p>")
     parts.append(f"<p class='small'>MARKS_VERSION {marks_mod.MARKS_VERSION} · N = "
                  f"{_esc(verdict.get('n_runs'))} · {_esc(verdict.get('cases'))} cases · "
                  f"{_esc(verdict.get('errored'))} errored · "
-                 f"${verdict.get('total_cost_usd') or 0:.2f} · "
+                 f"{_spend(verdict)} · "
                  f"{verdict.get('duration_s', 0):.0f}s</p>")
+    caps = (f"max turns {_esc(model.get('job_max_turns'))}"
+            if model.get("job_max_turns") is not None
+            else "<b>no turn cap</b> — this CLI has no flag for one")
+    caps += (f" · budget ${_esc(model.get('job_budget_usd'))}"
+             if model.get("job_budget_usd") is not None
+             else " · <b>no dollar cap</b> — this CLI has none, and none is invented (C-7)")
+    if model.get("max_ai_credits") is not None:
+        caps += f" · max AI credits {_esc(model.get('max_ai_credits'))}"
     parts.append(f"<p class='small'>Executor caps, production's own and not overridden here: "
-                 f"wall clock <b>{_esc(model.get('job_timeout_seconds'))}s</b> · max turns "
-                 f"{_esc(model.get('job_max_turns'))} · budget "
-                 f"${_esc(model.get('job_budget_usd'))}. An eval more patient than production "
-                 f"would report an instruction as working that a founder watches fail. "
+                 f"wall clock <b>{_esc(model.get('job_timeout_seconds'))}s</b> · "
+                 f"{caps}. An eval more patient than production would "
+                 f"report an instruction as working that a founder watches fail. "
                  f"Judge: <b>{_esc(model.get('judge') or 'on')}</b>, "
                  f"{_esc(t.get('judge_calls', 0))} calls; it broke "
                  f"{_esc(t.get('judged_pairs', 0))} ties and let "
@@ -402,6 +472,8 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
 
 def render_register(run_dir: Path, *, entries_by_market: dict,
                     paragraphs: dict | None = None,
+                    host: str = "claude", cli_version: str | None = None,
+                    model: str | None = None,
                     filename: str = "register.html") -> Path:
     """The one artefact in this bundle with no number in it (spec 009 FR-019, T027).
 
@@ -416,7 +488,8 @@ def render_register(run_dir: Path, *, entries_by_market: dict,
     authoring mistake, the one that collapses a dropdown's recall to 1 % — is the other thing this
     page exists for and the other thing nothing scores.
     """
-    parts = ["<!doctype html><meta charset='utf-8'><title>Register — "
+    named_host = host_name(host)
+    parts = [f"<!doctype html><meta charset='utf-8'><title>Register on {_esc(named_host)} — "
              f"{_esc(run_dir.name)}</title><style>" + _CSS + """
 .market{background:#eee9df;padding:10px 14px;border-radius:6px;margin:26px 0 10px}
 .pair{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:10px 0}
@@ -424,7 +497,17 @@ def render_register(run_dir: Path, *, entries_by_market: dict,
 .side{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#8a8378;margin-bottom:4px}
 ul{margin:4px 0 0 18px;padding:0}
 </style><main>"""]
-    parts.append(f"<h1>Register</h1><p class='small'>{_esc(run_dir.name)}</p>")
+    # FR-006: the page a person reads with their own judgement must say **whose words these
+    # are** before they read a single one. Register is exactly the thing that differs between two
+    # models, and a reader comparing Copilot's prose to a memory of Claude's without being told
+    # would be the most expensive quiet mistake this bundle could make.
+    parts.append(f"<h1>Register — {_esc(named_host)}</h1>"
+                 f"<p class='small'>{_esc(run_dir.name)} · every word on this page was written "
+                 f"by {_esc(named_host)}"
+                 + (f", <code>{_esc(cli_version)}</code>" if cli_version else "")
+                 + (f", model <code>{_esc(model)}</code>" if model
+                    else ", model not reported by the CLI")
+                 + "</p>")
     parts.append("<div class='banner note'><b>Nothing on this page is scored, and nothing on it "
                  "contributes to the run's verdict.</b> It exists so a person who knows the market "
                  "can read what a stranger there would actually have been asked — whether the "
