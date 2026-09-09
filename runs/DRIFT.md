@@ -3307,3 +3307,219 @@ is better evidence than *what* -- and worth nobody's night.
 
 **Tests**: `tests/test_skill_distribution.py` (the bed asserts absence-of-override, not `source`),
 and `runs/20260909T054621Z-acceptance`.
+
+
+## 53. Owed (keel-runtime): on the Copilot path `last_envelope` cannot say which model answered,
+and the Copilot router changes model between calls
+
+**Severity: owed, and it is one key wide.** Nothing is broken. What it means is that the two hosts'
+job records answer *"which model wrote this?"* in two different places, and anything reading the
+one place both hosts are documented to share gets `null` on one of them.
+
+**Where**: keel-runtime `keel_runtime/executor.py::CopilotExecutor._envelope`, against keel-cloud
+`canon/designs/keel-skill-design.md` §5.4 (*"normalise `result` into `last_envelope`"*), §5.4's own
+**C-5** (*"a Copilot subject that does not pin `--model` measures the router, not a model"*) and
+§5.5 (*"the bundle and `verdict.json` record host, CLI version and pinned model"*).
+
+**What was observed**, in every one of the 129 answered jobs of
+`runs/20260909T061537Z-instructions-copilot`:
+
+```
+envelope keys: type, is_error, structured_output, num_turns, executor, premium_requests, exit_code
+```
+
+No `model`. The Claude path's envelope is the CLI's own `result` event and carries `modelUsage`,
+which is where this eval's every previous run of record got its
+`"reported_model": "claude-haiku-4-5-20251001, claude-opus-5[1m]"` from. `CopilotExecutor` builds
+its envelope by hand and does not put the model in it, although the model is right there in the
+stream it just parsed — `session.auto_mode_resolved.chosenModel`, which §5.4 itself names.
+
+**Why it matters more here than it would on Claude.** The Copilot router picks a model per call:
+the design records two calls four minutes apart answered by `gpt-5.6-luna` and
+`mai-code-1.1-flash`, and this account rejects **every** slug offered to `--model`, so nothing can
+be pinned on this machine (keel-runtime spec 005 / C-5). A Copilot job record that omits the model
+is therefore omitting the one field that changes. `poller` does write `events.jsonl` beside
+`envelope.json`, so the fact is recoverable — but only by re-parsing a stream, and only by someone
+who knows to.
+
+**Not adapted around.** `instructions/runner.py::reported_model` reads the envelope first and
+falls back to this run's own events (`auto_mode_resolved.chosenModel`, else the usage checkpoint's
+per-model breakdown), because §5.5 requires a measured run to name the model it measured and a run
+that could not would have to record `None`. That fallback is one field read off a host's own
+stream, not a second copy of any behaviour — and it is written to be deleted the day the envelope
+carries the key.
+
+**What resolving it would take**: one line in `_envelope` putting
+`_copilot_model(events)` (the same shape as `_copilot_premium_requests`) under `model`.
+
+**Tests**: `tests/test_instruction_host.py::test_a_copilot_run_names_the_model_its_own_router_chose`
+and the three beside it; the bundle is `runs/20260909T061537Z-instructions-copilot`.
+
+
+## 54. Owed (keel-cloud, and it is the finding of the night): the assumption instructions are a
+Claude-shaped instruction — 98.5 % golden-belief recall on Claude Code, **76.1 % on GitHub
+Copilot**, and the commercial screen collapses to 61.5 %
+
+**Severity: owed, against the instruction prose and not against the harness.** keel-cloud
+`canon/designs/keel-skill-design.md` §5.5 exists to ask exactly this question, and says what to do
+with a red answer: *"fix the instruction prose so it works on both (best); pin a different Copilot
+model (acceptable, recorded); lower a mark (**not** acceptable)."* Nothing was pinned — this
+account's CLI accepts no `--model` slug at all — and no mark moved.
+
+**Where**: keel-cloud `src/main/resources/keel/inference-instructions/` — the three
+`*_ASSUMPTIONS` screens, `COMMERCIAL` worst.
+
+**What was observed.** One `make instruction-eval HOST=copilot N=1`, 131 cases, GitHub Copilot CLI
+1.0.83, every case answered by `gpt-5.6-luna`, against the Claude run of record
+`runs/20260907T000724Z-instructions` (same corpus, same contract, same rubric — `MARKS_VERSION` 3's
+reading and assumption metrics are unchanged at 5, so the two are directly comparable):
+
+| Stage | Copilot | Claude |
+|---|---|---|
+| PROBLEM | 34/39 = **87.2 %** | 116/117 = 99.1 % |
+| SOLUTION | 17/23 = **73.9 %** | 66/69 = 95.7 % |
+| COMMERCIAL | 16/26 = **61.5 %** | 78/78 = 100.0 % |
+| **all three** | 67/88 = **76.1 %** | 260/264 = 98.5 % |
+
+Two of the 131 jobs died of Copilot CLI transients (`runs/DRIFT.md` #55) and one of them was a
+COMMERCIAL case, so **excluding both, recall is 67/84 = 79.8 %** — still under the 0.80 mark, by
+two tenths of a point. The gate is missed either way, and it is missed on the instruction, not on
+the errors.
+
+**What it looks like up close.** `01-countly`'s commercial screen, the corpus's five goldens
+against Copilot's four produced beliefs:
+
+```
+G C14  The owner-manager is the buyer                       mark DIRECT
+G C15  They already spend at this level on the closest thing mark PROXY    <- missing
+G C16  Budget exists                                        mark DIRECT    <- missing
+G C17  They'd rather pay per site                           mark DIRECT
+G C18  Nobody else needs to approve                         mark DIRECT
+
+P  A manager loses one to two hours checking a mismatched delivery   mark DIRECT  <- a PROBLEM belief
+P  The manager paid for the comparable software                      mark PROXY
+P  The comparable software is charged per site                       mark PROXY
+P  Nobody else had to approve the purchase                           mark PROXY
+```
+
+Three things at once, and each is a different sentence of the instruction not landing:
+
+1. **it under-generates** — four beliefs where the corpus has five, and two of the five never
+   appear at all;
+2. **it marks almost everything `PROXY`** — three beliefs whose goldens are `DIRECT`. Across the
+   run, `mark` agrees on **80.6 %** of matched pairs against Claude's **95.8 %**. `DIRECT` versus
+   `PROXY` is not a shade of wording; it is what a founder is told the evidence *is*;
+3. **it carries a belief across screens** — the commercial screen's first produced belief is about
+   a manager losing one to two hours checking a delivery, which is the problem screen's subject.
+
+`measure.per` agrees on 76 % against Claude's 85.6 %; `founder_phrase` is a dead heat (35.8 % vs
+36.2 %), and `expected_or_band` is actually **better** on Copilot (70.1 % vs 68.8 %). So this is
+not "a weaker model across the board". It is three specific instructions — *how many beliefs*,
+*which mark*, *which screen you are on* — that one model reads and the other does not.
+
+**Anchoring is fine, and that is the point of naming this one narrowly.** The reading screen scored
+**95.3 %** on Copilot against 96.5 % on Claude, well over its 0.90 mark, and rule refusals were
+**0** on both. The same prose, from the same exporter, through the same `build_prompt`, on the same
+corpus: one screen transfers to a second host and one does not.
+
+**Not adapted around.** No mark moved, `MARKS_VERSION` did not move, and the run was taken once at
+`N=1` and not repeated. Copilot is therefore **"runs, unmeasured"** in §5.5's own words — parts 1,
+2 and 4 of the gate are not this repo's, and part 3 is red.
+
+**Tests**: none — this is a measurement, and its evidence is a bundle:
+`runs/20260909T061537Z-instructions-copilot` (`report.html`, `scorecard.json`, and
+`cases/01-countly/COMMERCIAL/run1/diff.json` for the table above).
+
+
+## 55. Owed (keel-runtime, small): two of 131 Copilot jobs died of CLI transients, one of them
+reported as an **authentication failure** on a machine that was authenticated
+
+**Severity: owed.** 1.5 % of a run, no retry anywhere, and one of the two carries a message that
+would send a founder to fix something that is not broken.
+
+**Where**: keel-runtime `keel_runtime/executor.py::CopilotExecutor._assert_ran` and
+`COPILOT_AUTH_MARKERS`.
+
+**What was observed**, in `runs/20260909T061537Z-instructions-copilot`, between 129 jobs that
+worked:
+
+```
+07-mulchrun/COMMERCIAL/run1     ExecutorUnavailable: Error: Failed to load models
+                                Error: Model catalog request timed out after 30000ms
+07-mulchrun/Travis Buckley/run1 ExecutorAuthFailure: Error: Authentication token found but
+                                could not be validated.
+```
+
+The founder was logged in throughout; the very next job succeeded, and so did the 60 after it.
+
+**Why the second one is the interesting half.** `Authentication token found but could not be
+validated` is one of the three strings keel-runtime spec 005 measured against genuinely
+unauthenticated runs and put in `COPILOT_AUTH_MARKERS` — and that work is right: it is exactly the
+string an invalid token produces. What this run shows is that **1.0.83 also produces it when it
+simply could not reach GitHub to validate a good one**, four seconds after a model-catalogue
+timeout on the same machine. The marker is not wrong; it is *not sufficient*, and the failure it
+names is the one a founder is least able to diagnose ("log in again" when they are logged in).
+
+**What resolving it would take, and it is not a longer marker list.** The two messages are the same
+event — GitHub was unreachable for a few seconds — and the honest fix is a bounded retry on the
+Copilot path for a transient class (`could not be validated`, `request timed out`, `Failed to load
+models`) before either exception is raised, with the retry recorded in the envelope the way
+`recovery_pass` already is. A second-best fix is to move `could not be validated` out of
+`COPILOT_AUTH_MARKERS` and let it be `ExecutorUnavailable`, which fails the safe way; that loses a
+real signal for an invalid token, which is why the retry is better.
+
+**Not adapted around.** Both cases are counted as `errored` in the run, which makes the verdict
+`FAILED` on its own (`passed = marks passed and errored == 0`), and the run's own numbers are
+reported with and without them (#54) rather than quietly excluding them.
+
+**Tests**: `tests/test_instruction_host.py::test_an_unauthenticated_copilot_is_named_as_that_and_not_as_a_session_error`
+holds this repo's pre-flight to the same marker list; the evidence is the two
+`cases/07-mulchrun/*/run1/envelope.json` files in the bundle.
+
+
+## 56. Owed (keel-cloud, `brief.md`, and it is a source-material leak): Copilot wrote the word
+`brief.md` forbids by name, twice, and both times it was an enum name out of its own context
+
+**Severity: owed**, against one sentence of one instruction. It cost the BRIEF mark two of seven.
+
+**Where**: keel-cloud `src/main/resources/keel/inference-instructions/brief.md`, line 36:
+
+> analogue stood in for it. Say *the closest thing they already buy today*; never the word proxy.
+
+**What was observed**, in `runs/20260909T061537Z-instructions-copilot`. Seven paragraphs, five
+meeting all four marks, and the two that did not failed on the **same mark for the same reason**:
+
+```
+04-linerly/BRIEF/run1   "The price proxy is less firm: the rough annual spend you used came
+                         back as 45 GBP, so treat the £40 as unproven..."
+07-mulchrun/BRIEF/run1  "The $3.50 per cubic yard is still a proxy rather than a settled
+                         number: 3 of 6 were inside your $2.50 to $4.00 band..."
+```
+
+Claude's run of the same seven paragraphs (`runs/20260908T004022Z-instructions`, re-scored at
+`MARKS_VERSION` 5) met all four marks on all seven. Shape, coverage and register were **7 of 7 on
+Copilot too**; only `source_material` moved.
+
+**Where the word came from, and why that makes this a real finding rather than a slip.** `PROXY` is
+a `mark` enum value, and `ScreenContextBuilder`'s BRIEF context ships every belief's `mark` — so
+the word is *in the model's own context object*, under a field name, on every paragraph it writes.
+`brief.md` tells it not to use that word and offers the replacement in the same breath, and
+`01-countly`'s paragraph shows the instruction working: *"the closest thing they already buy
+today"*, the instruction's own phrase, verbatim. Two models read the same sentence and one of them
+treats a context enum as vocabulary.
+
+That is precisely what the `source_material` mark exists to catch (`MARKS_VERSION` 4, judgement
+call 18: *"what is swept is the shape a field name has and prose does not"*), and it caught it.
+
+**What resolving it would take**: the sentence is already explicit, so the cheapest change is to
+make it structural rather than lexical — the instruction naming `mark` among the fields whose
+*values* are never written into the paragraph, beside the ids and the field names it already
+names. Whether that is worth doing before the assumption screens' larger gap (#54) is keel-cloud's
+call, not this repo's.
+
+**Not adapted around.** No mark was widened and `MARKS_VERSION` did not move. §5.5: *a mark that
+moves to accommodate a result has stopped being a mark.*
+
+**Tests**: none — a measurement. The evidence is
+`runs/20260909T061537Z-instructions-copilot/scorecard.json` (`brief[]`, `findings.source_material`)
+and `register.html`, which carries all seven paragraphs whole and unscored.

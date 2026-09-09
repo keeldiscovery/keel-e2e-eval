@@ -1,4 +1,4 @@
-"""The prompt, built by keel-runtime rather than written here (spec 009 FR-004).
+"""The prompt, built by keel-runtime rather than written here (spec 009 FR-004, spec 014 FR-004).
 
 `request_payload` is `InferenceJobService.buildRequestPayload`'s shape, including the
 empty-content sentinel an auto screen carries -- `InferenceOrchestrator.start` passes `""` for a
@@ -6,6 +6,19 @@ screen with nothing founder-typed, and that empty string is what reaches the pro
 `founder_text:` line. The rendering itself is `keel_runtime.executor.build_prompt`, imported and
 never copied: the nonce fence, the `SOURCE MATERIAL` heading and the `TASK`/`CONTRACT` ordering
 are the runtime's to define, and a copy of them here would be a second prompt to keep in step.
+
+**Two hosts, one body, two renderings** (keel-cloud `canon/designs/keel-skill-design.md` §5.4,
+C-8). The body is shared and must be: *"a comparison whose sides were sent different prompts
+measures nothing"*. But Claude Code receives the fixed `SYSTEM_PROMPT` as `--system-prompt` and
+the envelope schema as `--json-schema`, and **Copilot's CLI has neither flag**, so on that host
+both move into the text above the fence. That difference is the runtime's own
+`_render_copilot_prompt`, and it is called here rather than reproduced -- so `DRY=1 HOST=copilot`
+prints what Copilot is actually sent, and `cases/**/prompt.txt` in a Copilot bundle is what
+Copilot was actually sent.
+
+A keel-runtime that no longer offers those renderers makes this module **refuse to start**, by
+name. Falling back to the other host's rendering would measure the wrong prompt and file it under
+the right host, which is the one failure a bundle cannot be re-read out of.
 """
 
 from __future__ import annotations
@@ -76,14 +89,46 @@ def payload_for(instruction: str, context: dict, response_contract: dict) -> dic
     }
 
 
-def render(executor_module, payload: dict, *, job_id: str = "eval") -> str:
-    """keel-runtime's own `build_prompt`. The nonce is fresh on every call, by design."""
+def _require(executor_module, name: str):
+    """A keel-runtime attribute this eval cannot proceed without, or a refusal naming it."""
+    attribute = getattr(executor_module, name, None)
+    if attribute is None:
+        raise RuntimeUnavailable(
+            f"keel-runtime's executor has no `{name}` -- this eval renders each host's prompt "
+            "with the runtime's own renderer and will not substitute another host's")
+    return attribute
+
+
+def render(executor_module, payload: dict, *, job_id: str = "eval", host: str = "claude") -> str:
+    """keel-runtime's own renderer **for this host**. The nonce is fresh on every call, by design.
+
+    `claude` gets `build_prompt`, unchanged since spec 009. `copilot` gets the same body with the
+    `SYSTEM` and `RESPONSE` sections the CLI has no flag for placed above it -- keel-runtime's
+    `_render_copilot_prompt`, called rather than copied (C-8).
+    """
     request = executor_module.InferenceRequest(
         job_id=job_id, interaction_id=job_id, turn_number=1, request_payload=payload)
+    if canonical_host(executor_module, host) == "copilot":
+        sections = _require(executor_module, "_prompt_sections")(request)
+        schema = _require(executor_module, "_build_envelope_schema")(
+            payload.get("response_contract") or {})
+        return _require(executor_module, "_render_copilot_prompt")(sections, schema)
     return executor_module.build_prompt(request)
 
 
+def canonical_host(executor_module, host: str) -> str:
+    """keel-runtime's own alias table (`claude-code` -> `claude`), asked rather than copied.
+
+    One place decides the alias and it is not this one -- `keel_runtime.config` -- so a `HOST` this
+    eval does not recognise is reported as it was given rather than guessed at, exactly as the
+    runtime reports it.
+    """
+    resolve = getattr(executor_module, "canonical_executor_name", None)
+    return resolve(host) if callable(resolve) else host
+
+
 def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_runs: int = 3,
+                host: str = "claude",
                 stages=("PROBLEM", "SOLUTION", "COMMERCIAL")) -> list:
     """Every case one corpus entry produces: three assumption screens and one reading per person.
 
@@ -108,7 +153,8 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
                 case_id=f"{entry.id}/{stage}/run{run_index}",
                 kind="ASSUMPTIONS", entry_id=entry.id, screen=screen, subject=stage,
                 run_index=run_index, payload=payload, existing_roles=roles)
-            case.prompt = render(executor_module, payload, job_id=_slug(case.case_id))
+            case.prompt = render(executor_module, payload, job_id=_slug(case.case_id),
+                             host=host)
             cases.append(case)
 
     keys = exported.keys_for(SCREEN_READING)
@@ -124,7 +170,8 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
                 case_id=f"{entry.id}/{person.person}/run{run_index}",
                 kind="READING", entry_id=entry.id, screen=SCREEN_READING,
                 subject=person.person, run_index=run_index, payload=payload)
-            case.prompt = render(executor_module, payload, job_id=_slug(case.case_id))
+            case.prompt = render(executor_module, payload, job_id=_slug(case.case_id),
+                             host=host)
             cases.append(case)
 
     # The BRIEF screen: one case an entry, because there is one paragraph a project. It is built
@@ -139,6 +186,7 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
             case_id=f"{entry.id}/BRIEF/run{run_index}",
             kind="BRIEF", entry_id=entry.id, screen=SCREEN_BRIEF, subject="BRIEF",
             run_index=run_index, payload=payload)
-        case.prompt = render(executor_module, payload, job_id=_slug(case.case_id))
+        case.prompt = render(executor_module, payload, job_id=_slug(case.case_id),
+                             host=host)
         cases.append(case)
     return cases

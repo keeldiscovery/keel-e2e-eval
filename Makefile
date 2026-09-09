@@ -80,10 +80,23 @@ acceptance: venv
 # `eval-all` or `eval-live`, and it never reads or writes evals/policy.py -- its own rubric is
 # versioned separately as instructions/marks.py's MARKS_VERSION.
 #
+# **HOST={claude,copilot}**, default `claude` (spec 014; keel-cloud
+# `canon/designs/keel-skill-design.md` §5.5, the third part of the "supported" gate). It decides
+# three things and nothing else: which CLI the pre-flight requires and probes, which executor
+# keel-runtime's own `get_executor` constructs, and which of that runtime's two renderings of the
+# same prompt body the host is sent. Corpus, contract, marks, `MARKS_VERSION`, judge, scorer and
+# bundle layout are shared -- a comparison whose sides were sent different prompts measures
+# nothing. **Two hosts' runs are different measurements and are never averaged**; a Copilot run
+# lands in `runs/<stamp>-instructions-copilot/` and its report and register say whose words they
+# are. Copilot bills the founder's plan in premium requests, not dollars, and neither figure is
+# ever converted into the other.
+#
 #   make instruction-eval DRY=1 K=01-countly    prints the prompts, calls nothing
 #   make instruction-eval BASELINE=1            the before-picture, once, and never again
 #   make instruction-eval K=reading N=1         one subject, one run per case
 #   make instruction-eval K=brief N=1           the BRIEF paragraph, seven calls
+#   make instruction-eval HOST=copilot N=1      the other host, one run per case
 instruction-eval: venv
-	$(PY) -m instructions.run $(if $(DRY),--dry-run,) $(if $(BASELINE),--baseline,) \
+	$(PY) -m instructions.run --host $(if $(HOST),$(HOST),claude) \
+		$(if $(DRY),--dry-run,) $(if $(BASELINE),--baseline,) \
 		$(if $(K),-k $(K),) $(if $(N),-n $(N),) $(if $(MARKS),--marks $(MARKS),)

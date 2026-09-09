@@ -64,6 +64,65 @@ three ports, or boots one and tears it down at the end of the session — the fa
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
+### The run of record for spec 014 — **the instruction eval on a second host** (2026-09-09)
+
+`make instruction-eval HOST=copilot N=1`, once, on the founder's own Copilot plan. Run of record:
+**`runs/20260909T061537Z-instructions-copilot`** — 131 cases, 35 minutes, **129 premium requests**
+(this host reports no dollars and none are invented), GitHub Copilot CLI **1.0.83**, **nothing
+pinned** (`--model` accepts no slug on this account, keel-runtime spec 005 / C-5) and every one of
+the 129 answered cases answered by **`gpt-5.6-luna`**. Judged at `MARKS_VERSION` **5**, unmoved.
+
+**Verdict: FAILED. Copilot does not meet keel-cloud `canon/designs/keel-skill-design.md` §5.5's
+"supported" gate**, whose third part is this repository's. In the design's own words it is
+**"runs, unmeasured"**.
+
+| Subject | Mark | Copilot (`gpt-5.6-luna`) | Claude (run of record) |
+|---|---|---|---|
+| reading — anchoring accuracy | ≥ 0.90 | **95.3 %** ✅ | 96.5 % ✅ |
+| assumptions — golden-belief recall | ≥ 0.80 | **76.1 %** ❌ | 98.5 % ✅ |
+| rule refusals | 0 | **0** ✅ | 0 ✅ |
+| BRIEF — all four marks | 1.00 | **5 / 7 = 71.4 %** ❌ | 7 / 7 ✅ |
+| errored | 0 | **2** ❌ | 0 ✅ |
+
+The Claude column is `runs/20260907T000724Z-instructions` (N=3) for the first three and
+`runs/20260908T004022Z-instructions` re-scored at v5 for the fourth. `MARKS_VERSION` 3 → 5 changed
+only the BRIEF subject's judgement calls, so the reading and assumption numbers are directly
+comparable; **the two runs are still different measurements and nothing here averages them.**
+
+**The recall gap is a screen, not a slope** (`runs/DRIFT.md` **#54**, the finding of the night):
+
+| Stage | Copilot | Claude |
+|---|---|---|
+| PROBLEM | 34/39 = 87.2 % | 116/117 = 99.1 % |
+| SOLUTION | 17/23 = 73.9 % | 66/69 = 95.7 % |
+| COMMERCIAL | **16/26 = 61.5 %** | 78/78 = 100.0 % |
+
+Excluding the two CLI transients below, recall is 67/84 = **79.8 %** — still under the mark, by two
+tenths of a point. Up close (`cases/01-countly/COMMERCIAL/run1/diff.json`) the commercial screen
+does three things at once: it produces four beliefs where the corpus has five, it marks three
+`DIRECT` goldens `PROXY` (`mark` agrees on 80.6 % against Claude's 95.8 %), and it carries a
+*problem*-stage belief onto the commercial screen. It is not a weaker model across the board —
+`expected_or_band` is **better** on Copilot (70.1 % vs 68.8 %) and `founder_phrase` is a dead heat
+(35.8 % vs 36.2 %). Three specific instructions transfer badly; the reading screen transfers fine.
+
+**Both BRIEF failures are one word** (`runs/DRIFT.md` **#56**). `shape`, `coverage` and `register`
+were 7 of 7 on Copilot; only `source_material` moved, and both times because the paragraph used
+**`proxy`** — which `brief.md` forbids by name in the same sentence that offers the replacement,
+and which is a `mark` enum value sitting in the model's own BRIEF context. `01-countly`'s paragraph
+shows the instruction working, verbatim: *"the closest thing they already buy today"*.
+
+**Two of 131 jobs died of Copilot CLI transients** (`runs/DRIFT.md` **#55**) — a model-catalogue
+timeout, and `Authentication token found but could not be validated` **on a machine that was logged
+in**, four seconds later and 60 successful jobs before the end. The second is one of the three
+strings keel-runtime measured against genuinely unauthenticated runs, so a founder hitting it is
+told to fix something that is not broken. Both are counted as `errored` rather than excluded.
+
+**Four findings** (`runs/DRIFT.md`): **#53**, `CopilotExecutor.last_envelope` cannot say which model
+answered while the Claude one can, on the host whose router changes model between calls; **#54**,
+the assumption instructions are Claude-shaped; **#55**, the transients above; **#56**, the `proxy`
+leak. **No mark was lowered and `MARKS_VERSION` did not move** — §5.5: *a mark that moves to
+accommodate a result has stopped being a mark.*
+
 ### The runs of record for spec 013 (2026-09-09)
 
 One stack session — `make up`, `make eval K=s009`, `make acceptance`, `make eval K=s001`,
@@ -346,6 +405,7 @@ make instruction-eval DRY=1 K=01-countly   # prints every prompt it would send; 
 make instruction-eval BASELINE=1           # the before-picture, taken once
 make instruction-eval K=reading N=1        # one subject, one run per case
 make instruction-eval K=brief N=1          # the BRIEF paragraph, one call an entry
+make instruction-eval HOST=copilot N=1     # the other host (spec 014)
 ```
 
 - **No stack, and no `make up`.** It talks to no service. It shells keel-cloud's own
@@ -400,7 +460,42 @@ for the same reason: the corpus does not carry them and `Project.driftOfStage` i
 with no score — judgement call 10's rule one subject wider. Almost everything about a good
 paragraph is wording, and a mark this narrow can be wrong about a paragraph that is right.
 - **The model is not pinned.** keel-runtime sends no `--model` and this repo does not add one. The
-  model is named in the report header, and the marks are comparable only within it.
+  model is named in the report header, and the marks are comparable only within it. On Copilot
+  `KEEL_COPILOT_MODEL` is the way to pin one where a machine has a slug the CLI accepts; this
+  account's does not, so the run of record records `pinned_model: null` and the router's choice.
+
+### Two hosts (`HOST={claude,copilot}`, spec 014)
+
+keel-cloud `canon/designs/keel-skill-design.md` §5 says Claude Code is **one of two hosts**, and
+§5.5 makes this eval the third part of a four-part "supported" gate: a host is supported only when
+*its* run of record is green at the current `MARKS_VERSION`. So `make instruction-eval` takes
+`HOST`, default `claude`.
+
+`HOST` decides **three things and nothing else**: which CLI `instructions/runner.py::preflight`
+requires and probes, which executor **keel-runtime's own `get_executor`** constructs, and which of
+that runtime's two renderings of one shared prompt body the host is sent. Corpus, contract, marks,
+`MARKS_VERSION`, judge, scorer, aligner and bundle layout are shared — *a comparison whose sides
+were sent different prompts measures nothing*.
+
+- **The prompt body is shared; two sections are the host's.** Claude Code receives the fixed
+  `SYSTEM_PROMPT` as `--system-prompt` and the envelope schema as `--json-schema`; Copilot's CLI has
+  neither flag, so both move into the text above the nonce fence (design §5.4, C-8). This eval calls
+  keel-runtime's own `_render_copilot_prompt` rather than reproducing it, so
+  `make instruction-eval DRY=1 HOST=copilot` prints what Copilot is really sent and every
+  `cases/**/prompt.txt` is what that host was really sent. A keel-runtime without that renderer
+  makes the eval **refuse to start**, never fall back to the other host's prompt.
+- **A Copilot run lands in `runs/<stamp>-instructions-copilot/`**, and its `manifest.json` (written
+  before the first call), `verdict.json`, `report.html` and `register.html` all name the host, the
+  CLI version and the model. `register.html` says whose words are on it *before the first word of
+  them*: register is exactly what two models differ on, and it is the page a person reads with
+  their own judgement.
+- **Copilot reports premium requests, never dollars** (C-7). The verdict carries
+  `total_premium_requests` **or** `total_cost_usd`, never both and never one derived from the
+  other — a `$0.00` beside a metered run reads as free.
+- **The tie-breaking judge stays on `claude` on both hosts**, deliberately, so the *scoring* is one
+  constant across the comparison. `judge_host` is written into the bundle rather than assumed.
+- **Two runs under different hosts are different measurements and are never averaged.** There is no
+  `HOST=both`, for that reason.
 
 ### `register.html` carries no number, on purpose
 
