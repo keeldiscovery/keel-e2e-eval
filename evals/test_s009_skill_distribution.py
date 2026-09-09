@@ -333,25 +333,39 @@ def test_s009_skill_distribution(stack, founder_credentials, browser, run_dir):
                 h.record_wire({"tree": name,
                                 "the pid `authorization_started` handed back":
                                     started_bodies[name].get("pid")}, body)
-                # **`not_running`, and it is a finding rather than a surprise** (`runs/DRIFT.md`
-                # #51). Every one of these homes has a live `keel connect` in it -- this scenario
-                # was handed its pid four steps ago -- but the heartbeat is written when the
-                # runtime *connects*, and none of these has been approved yet. The disconnect
-                # contract's D1 is explicit that a home with no readable heartbeat is
-                # `not_running`, so the script is answering exactly what it promises; what the
-                # pair of them adds up to is a founder who says "keel connect", walks away from
-                # the browser, says "keel disconnect", is told nothing is running, and still has
-                # a process polling. Asserted as observed, recorded as owed, never adapted around
-                # -- and this scenario stops those processes itself in its own teardown, by the
-                # pid the contract handed it, because a referee that leaked four of them every
-                # run would be a worse citizen than the gap it found.
-                h.record_assert({"outcome": "not_running (D1: no heartbeat yet, and DRIFT #51)"},
+                # **`disconnected`, and this line is the evidence that closed `runs/DRIFT.md`
+                # #51.** Every one of these homes has a live `keel connect` in it -- this scenario
+                # was handed its pid four steps ago -- and none of them has been approved. Until
+                # keel-runtime `bfc0ad6` the heartbeat was written when the runtime *connected*,
+                # so before approval there was nothing on disk for the door out to find, and D1's
+                # one-answer rule made that `not_running`: a founder could say "keel connect",
+                # walk away from the browser, say "keel disconnect", be told nothing was running,
+                # and still have a process polling. This assertion stood at `not_running` and said
+                # so, so that the day the runtime's lifecycle moved it would be a *failing* line
+                # rather than a silent one -- which is exactly how it was found, on
+                # `runs/20260909T071411Z-s009-skill-distribution`.
+                #
+                # `bfc0ad6` writes the heartbeat in `state="awaiting_approval"` the instant
+                # `connect` has a pid and a home. The door out now finds that runtime, signals it,
+                # and proves it went: the runtime's `stopped`, which this skill renders
+                # `disconnected`, carrying the pid it stopped and the signal it sent. No new
+                # outcome name was needed and no contract was loosened -- keel-cloud `c317fc3`
+                # amended `status-cli-output.md` to say `connected` may be false while a *present*
+                # heartbeat awaits approval, and added no key. The teardown below stays as a net.
+                h.record_assert({"outcome": "disconnected (the pre-approval heartbeat, DRIFT #51)"},
                                  {"outcome": body.get("outcome"),
+                                  "pid": body.get("pid"),
+                                  "signal": body.get("signal"),
                                   "environment": body.get("environment")})
-                assert body["outcome"] == "not_running", (
-                    f"the {name} install's door out answered {body}. Before approval there is no "
-                    f"heartbeat, so D1 says `not_running`; anything else means the runtime's own "
-                    f"lifecycle moved and `runs/DRIFT.md` #51 needs rereading")
+                assert body["outcome"] == "disconnected", (
+                    f"the {name} install's door out answered {body}. Since keel-runtime `bfc0ad6` "
+                    f"a runtime awaiting device approval has already written its heartbeat, so "
+                    f"the door out finds it and stops it; `not_running` here would mean that "
+                    f"pre-approval heartbeat has regressed and `runs/DRIFT.md` #51 has reopened")
+                assert body.get("pid") == started_bodies[name].get("pid"), (
+                    f"and it is *this* runtime that was stopped: the door out reports pid "
+                    f"{body.get('pid')}, `authorization_started` handed back "
+                    f"{started_bodies[name].get('pid')}")
 
         # ------------------------ 6. one runtime, four readers: `already_connected`, byte for byte
         page = context.new_page()
@@ -447,11 +461,13 @@ def test_s009_skill_distribution(stack, founder_credentials, browser, run_dir):
                         _run_script(script, base_url=stack.cloud_base_url, home=home)
                     except Exception:  # noqa: BLE001 -- teardown never masks a real failure
                         pass
-        # Then the pids, for the four that were never approved and therefore never had a
-        # heartbeat for the door to find (`runs/DRIFT.md` #51). This is a **cleanup**, not a
-        # workaround: the assertion above stands at `not_running` and says why. A referee that
-        # left four `keel connect` processes polling a device code nobody will ever approve --
-        # every single run -- would be leaving a mess it had just finished describing.
+        # Then the pids -- now a **net**, not the cleanup it used to be. While `runs/DRIFT.md` #51
+        # was open this loop was the only thing that stopped the four unapproved runtimes, because
+        # the door out could not see them; since keel-runtime `bfc0ad6` step 5 stops them itself
+        # and by the time this runs there is normally nothing left to signal. It stays because a
+        # run that fails *before* step 5 -- during the installs, or the four connects -- still has
+        # processes polling a device code nobody will ever approve, and a referee that left four
+        # of those behind on every red run would be leaving a mess of its own making.
         for name, body in started_bodies.items():
             pid = body.get("pid")
             if not pid:

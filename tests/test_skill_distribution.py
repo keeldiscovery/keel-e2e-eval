@@ -234,18 +234,57 @@ def test_s009_asserts_one_shape_across_the_four_trees():
         "claim about the shape and not an accident of caching")
 
 
-def test_s009_records_the_pre_approval_gap_rather_than_asserting_it_away():
-    """`runs/DRIFT.md` #51: before approval there is a live runtime and no heartbeat, so the door
-    out answers `not_running`. S-009 asserts what it observed and cites the entry."""
+def test_s009_asserts_the_door_out_stops_a_runtime_awaiting_approval():
+    """`runs/DRIFT.md` #51, now RESOLVED. keel-runtime `bfc0ad6` writes the heartbeat in
+    `state="awaiting_approval"` as soon as `connect` has a pid and a home, so the door out finds a
+    runtime that has not been approved yet and stops it: `disconnected`, with the pid it stopped.
+
+    The assertion moved because the product moved, and it moved *upward* -- from recording a gap
+    to proving it closed. The pid check is what makes that a proof rather than a hopeful word: the
+    runtime the door out reports stopping is the one `authorization_started` named."""
     body = S009.read_text()
-    assert 'body["outcome"] == "not_running"' in body
+    assert 'body["outcome"] == "disconnected"' in body
+    assert 'body["outcome"] == "not_running"' not in body, (
+        "the pre-approval gap is closed; an S-009 still asserting `not_running` here would be "
+        "pinning the old behaviour and would fail against any current keel-runtime")
+    assert 'body.get("pid") == started_bodies[name].get("pid")' in body, (
+        "and it is *this* runtime that was stopped, not merely some runtime")
     assert "#51" in body
     assert "SIGTERM" in body, (
-        "and it cleans up the processes it started, by the pid the contract handed it -- a "
-        "referee that leaked four of them a run would be worse than the gap it found")
+        "the pid loop stays as a net for a run that fails before step 5 -- a referee that left "
+        "four `keel connect` processes polling on every red run would be a mess of its own making")
 
 
 def test_the_four_findings_are_in_the_ledger():
     for number in (49, 50, 51, 52):
         assert re.search(r"^## %d\. " % number, DRIFT, re.M), (
             f"spec 013's finding #{number} is not in runs/DRIFT.md")
+
+
+def test_the_acceptance_probe_still_refuses_did_not_stop():
+    """`runs/DRIFT.md` #57. The probe accepts exactly the three outcomes that mean *the runtime is
+    not running any more*, and `did_not_stop` is not one of them -- it is keel-runtime saying it
+    could not prove the runtime went.
+
+    All four probes are red on it tonight (`runs/20260909T074912Z-acceptance`) because the runtime
+    dies on the first SIGTERM and `pid_alive`'s `os.kill(pid, 0)` cannot tell a zombie from a live
+    process. The cheapest way to a green bed would be to widen this list by one word, which would
+    buy the colour by deleting the assertion, so the list is pinned here."""
+    body = RUNNER.read_text()
+    assert 'disconnect.get("outcome") not in ("disconnected", "not_running", "stale_pid_cleared")' \
+        in body, ("the door out's accepted outcomes have moved; if `did_not_stop` was added, "
+                  "`runs/DRIFT.md` #57 has been softened rather than fixed")
+    assert '"did_not_stop"' not in body
+
+
+def test_the_beds_do_not_arrange_a_reaping_pid_1():
+    """`runs/DRIFT.md` #57's other half, and the more tempting workaround of the two.
+
+    `docker run --init` interposes `/sbin/docker-init` as PID 1, which reaps; with it, the same
+    image on the same skill answers `disconnected` in 54 ms instead of `did_not_stop` in 15005.
+    That is a one-flag green, and it would be this repository arranging an init a founder's
+    devcontainer will not have. The bed's job is to run the skill the way the image runs it."""
+    body = _code(RUNNER)
+    assert "--init" not in body, (
+        "the containerised beds must not be handed a reaping PID 1 to make #57 go green -- the "
+        "defect is that `keel disconnect` cannot see a zombie, and every container has that PID 1")

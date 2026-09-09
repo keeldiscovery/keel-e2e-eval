@@ -64,6 +64,70 @@ three ports, or boots one and tears it down at the end of the session — the fa
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
+### The full-suite run of record (2026-09-09) — **`runs/INDEX-20260909T074414Z.html`**
+
+One stack session — `make up`, `make eval-all`, `make eval K=s005`, `make acceptance`, `make down`
+— on keel-cloud `c317fc3`, keel-web `b0a5015`, keel-runtime `80b883b` and keel-connect-skill
+`d49d867`, skill `VERSION` 1.0.0, **bundled runtime `0.1.0+80b883b`** (the stamp `make up`'s own
+gate prints, and the commit keel-runtime is on). `make unit` green at **483** before and **489**
+after. Every deterministic scenario, S-004 and the instruction eval excepted — both cost money and
+neither was run.
+
+| What | Run | Result |
+|---|---|---|
+| S-001 smoke | `20260909T072913Z-s001-smoke` | **PASSED, 5.0/5** |
+| S-002 agent-optional | `20260909T073050Z-s002-agent-optional` | **PASSED, 4.5/5** |
+| S-003 every door | `20260909T073059Z-s003-every-door` | **PASSED, 5.0/5** |
+| S-005 countly | `20260909T074500Z-s005-countly` | **PASSED, 5.0/5** (re-run; see below) |
+| S-006 paidly | `20260909T073459Z-s006-paidly` | **PASSED, 5.0/5** |
+| S-007 mulchrun | `20260909T073935Z-s007-mulchrun` | **PASSED, 5.0/5** |
+| S-008 bundled runtime | `20260909T074349Z-s008-bundled-runtime` | **PASSED, not scored** |
+| S-009 skill distribution | `20260909T074401Z-s009-skill-distribution` | **PASSED, not scored** |
+| `make acceptance` | `20260909T074912Z-acceptance` | **FAILED — 4 of 4 probes** (`runs/DRIFT.md` #57); model-driven half **SKIPPED** |
+
+S-002's 4.5 is the same FIDELITY it has scored across every set of runs of record and is not a
+failure of the day (see below). **S-005 is a re-run and is labelled one**: its place in the
+`eval-all` pass (`20260909T073133Z-s005-countly`) died on `Page.goto: Timeout 30000ms exceeded`
+navigating to a participant link — the vite dev server not answering a first request inside thirty
+seconds, no product assertion involved. Re-run in the same session it is green at 5.0, the same
+score it took in that session's own first pass. Recorded rather than quietly re-rolled.
+
+**#51 is closed, and S-009 is how.** `runs/DRIFT.md` #51 — *between `authorization_started` and
+approval there is a live runtime that "keel disconnect" says is not running* — is **RESOLVED** by
+keel-runtime `bfc0ad6`, which writes the heartbeat in `state="awaiting_approval"` the moment
+`connect` has a pid and a home, with keel-cloud `c317fc3` amending `status-cli-output.md` alongside
+it (`connected` may be false while a present heartbeat awaits approval; no key added). S-009 step 5
+had stood at `not_running` *as observed*, citing the entry, so the fix arrived as a **failing**
+assertion rather than a silent one; it now asserts `disconnected` **and** that the pid the door out
+stopped is the pid `authorization_started` handed back. Four trees, four runtimes, ~60 ms each.
+
+**The acceptance bed is red, and it is the finding of the night.** Closing #51 made the door out
+actually signal a pre-approval runtime — and inside a container it cannot *see* that the runtime
+died. `pid_alive` is `os.kill(pid, 0)`, which succeeds for a **zombie**, and a container's PID 1 is
+an ordinary process that never reaps. So all four probes wait the full `10 + 5` seconds and answer
+`did_not_stop`, with a message saying the process *"is stuck in a call the operating system will
+not interrupt"* about a process that died on the first SIGTERM. Isolated on the same image with the
+only variable being PID 1: `--init` → `disconnected` in **54 ms**; without → `did_not_stop` in
+**15005 ms**. Written up as **`runs/DRIFT.md` #57** with the `/proc` state `Z` caught in the act.
+**Not adapted around**: the probe still refuses `did_not_stop`, the bed is still not run with
+`--init`, and two stackless tests pin both so a later green has to come from keel-runtime.
+
+**The model-driven half did not run**, as always without secrets in the caller's own shell (T-5):
+`ANTHROPIC_API_KEY` and `COPILOT_GITHUB_TOKEN` are unset, both halves skip themselves by name, and
+`results/model-driven.json` records the reason. A run whose record says that is not a green run
+of B1.
+
+**One harness fault, fixed here with a stackless test.** S-002 and S-003 failed the first pass at
+*founder closes the send popup* on a Playwright strict-mode violation: `^Done$|^close$` was
+searched page-wide and matched both the dialog's *Done* and the reading toast's own
+`aria-label="Close"` ×, which since keel-web `b0a5015` stands for thirty seconds rather than until
+a reload. Nobody's product moved — the referee was reaching outside the dialog it meant to close.
+`People.close_popup()` now searches inside `.pop`, and `tests/test_people_close_popup_scope.py`
+holds it against real DOM (three of its four cases fail against the old locator).
+
+`make down` closed the session with
+`[down] (eval) keel-runtime: disconnected (via keel-connect-skill/scripts/keel_disconnect.py)`.
+
 ### The run of record for spec 014 — **the instruction eval on a second host** (2026-09-09)
 
 `make instruction-eval HOST=copilot N=1`, once, on the founder's own Copilot plan. Run of record:

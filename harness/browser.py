@@ -2388,9 +2388,26 @@ class People:
                 h.add_screenshot(self._bstep.screenshot("people-link-copied"))
 
     def close_popup(self, *, label: str = "Done") -> None:
+        """Close the send popup by its own dismissing button -- searched **inside the dialog**.
+
+        The scope is the fix and not a detail. The button was looked for page-wide, and the
+        reading toast (keel-web's `SaidBox`) carries an `aria-label="Close"` x of its own; since
+        keel-web `b0a5015` that toast stands for thirty seconds rather than until a reload, and
+        the referee walks the whole People screen inside one of them. `^Done$|^close$` then
+        matched two buttons in two different components and Playwright's strict mode -- correctly
+        -- refused to guess between them, which is what failed S-002 and S-003 at
+        `runs/20260909T070205Z-s002-agent-optional` and `runs/20260909T070207Z-s003-every-door`.
+
+        Nothing about the product moved: a toast that outlives the click that raised it is the
+        behaviour `b0a5015` shipped on purpose. The referee was reaching outside the dialog it
+        meant to close, and `.pop` -- the same node the detach-wait below already names -- is the
+        only place this method has ever intended to click.
+        """
         with self._scope():
             with self._bstep.step("founder closes the send popup") as h:
-                self.page.get_by_role("button", name=re.compile(f"^{re.escape(label)}$|^close$", re.I)).click()
+                popup = self.page.locator(".pop")
+                popup.get_by_role(
+                    "button", name=re.compile(f"^{re.escape(label)}$|^close$", re.I)).click()
                 self.page.wait_for_selector(".pop", state="detached", timeout=10_000)
                 h.add_screenshot(self._bstep.screenshot("people-popup-closed"))
 

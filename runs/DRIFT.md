@@ -3217,13 +3217,74 @@ page.
 is `runs/20260909T054621Z-acceptance`, four images, two architectures, four green probes.
 
 
-## 51. Owed (keel-runtime, with keel-connect-skill and the disconnect design): between
-`authorization_started` and approval there is a live runtime that "keel disconnect" says is not
-running
+## 51. RESOLVED -- was owed (keel-runtime, with keel-connect-skill and the disconnect design):
+between `authorization_started` and approval there was a live runtime that "keel disconnect" said
+was not running
 
-**Severity: owed, and it is a founder-facing hole rather than a contract disagreement.** Every
-piece here does exactly what its own contract promises. What they add up to is a process a founder
-cannot stop by asking.
+**Closed by keel-runtime `bfc0ad6`** (merged `80b883b`, *"Write a launch record before device
+approval, so disconnect can find it"*), with keel-cloud `c317fc3` amending the status contract
+alongside it. **Was: owed, and a founder-facing hole rather than a contract disagreement** -- every
+piece did exactly what its own contract promised; what they added up to was a process a founder
+could not stop by asking.
+
+### The fix, and the run that showed it
+
+`heartbeat.write_awaiting_approval` now writes the same `runtime.heartbeat.json` the moment
+`connect` has a pid and a home -- before the device code is even requested, let alone redeemed --
+with `agent_session_id: null` and `state="awaiting_approval"`. `auth.authorize_device` refreshes it
+on every poll tick, so a founder who takes minutes to click approve never watches it go stale, and
+`create_agent_session`'s existing write overwrites it with the real connected heartbeat. This is
+the cheap fix the *"what the fix would be"* paragraph below named, and it landed the way that
+paragraph predicted: **`disconnect.py` needed no change at all** -- it only ever reads `pid` -- and
+no new outcome name was invented. A pre-approval runtime that is signalled and leaves is `stopped`,
+which the skill renders `disconnected`.
+
+**Observed, on the run this entry was closed by**: `runs/20260909T074401Z-s009-skill-distribution`,
+step 5, all four packaging trees. Each tree starts a `keel connect` that is never approved, then
+runs that same tree's `keel_disconnect.py` against its home:
+
+```
+step  9  plugin   authorization_started   (pid 35995)
+step 14  plugin   keel_disconnect.py ->   {"outcome": "disconnected", "pid": 35995,
+                                           "signal": "SIGTERM", "environment": "localhost:18080"}
+step 15  bare                        ->   {"outcome": "disconnected", "pid": 36000, "signal": "SIGTERM", ...}
+step 16  copilot-repo                ->   {"outcome": "disconnected", "pid": 36009, "signal": "SIGTERM", ...}
+step 17  speckit                     ->   {"outcome": "disconnected", "pid": 36012, "signal": "SIGTERM", ...}
+```
+
+The pid the door out reports stopping is the pid `authorization_started` handed back four steps
+earlier -- S-009 now asserts that pairing too, so the green is *this runtime stopped* and not
+merely *some runtime stopped*.
+
+**The containers are a different story, and it is `#57`, not this entry.** All four probes of
+`runs/20260909T074912Z-acceptance` now answer `did_not_stop` where they used to answer
+`not_running`. That is neither a regression of this fix nor a reason to leave this entry open: the
+door out is doing exactly what this entry asked for -- it *finds* the pre-approval runtime and
+signals it, and the runtime dies on the first SIGTERM in tens of milliseconds. What it cannot do,
+under a PID 1 that does not reap, is *see* that it died: `pid_alive`'s `os.kill(pid, 0)` goes on
+answering "alive" for a zombie. Closing this entry made that second defect reachable for the first
+time, which is what closing a finding is supposed to do. It is written up on its own evidence as
+**#57**.
+
+**How it was caught is the point.** The assertion that closed this entry is the assertion that
+recorded it. S-009 stood at `not_running`, cited this entry beside it, and said in its own comment
+that anything else meant the runtime's lifecycle had moved -- so when tonight's `make eval-all` ran
+against `80b883b`, step 5 failed **loudly** with `assert 'disconnected' == 'not_running'`
+(`runs/20260909T071411Z-s009-skill-distribution`). A gap recorded as an observation rather than
+adapted around is a gap that tells you the day it closes.
+
+### The other half: the status contract
+
+keel-cloud `c317fc3` amends
+`specs/021-keel-runtime-status/contracts/status-cli-output.md`, dropping the old *"`connected` is
+always true when present"* claim. A heartbeat is now present while approval is pending, so
+`status` prints the running shape with `agent_session_id: null` and **`connected: false`** -- the
+room guarantee 4 had already reserved for *running but not yet connected*. **No key was added or
+removed**; two keys' value sets widened. D1's one-answer rule -- the thing this entry was always
+careful not to blame -- is untouched: a home with no readable heartbeat is still `not_running`, and
+there simply is no such home between launch and approval any more.
+
+### What it was (kept, because the shape of the hole is the reason the fix is the right one)
 
 **Where**: keel-runtime `keel_runtime/cli.py::_run_connect` (the heartbeat is written when the
 runtime *connects*, after the device code is redeemed; `_install_heartbeat_shutdown_handlers` runs
@@ -3259,13 +3320,16 @@ soon as `connect` has a pid and a home, before the device code is redeemed, and 
 `disconnect` see a runtime that is starting. That is one repository's change and it needs no new
 outcome name -- a pre-connect runtime that is signalled and leaves is still `stopped`.
 
-**Not adapted around.** S-009 asserts `not_running` **as observed**, cites this entry beside the
-assertion, and says in its own comment that the pair of them is the finding. The acceptance bed
-records the same answer from inside four containers. When keel-runtime closes it, S-009's
-assertion changes to `disconnected` and this entry is marked RESOLVED with the run that showed it.
+**Not adapted around.** S-009 asserted `not_running` **as observed**, cited this entry beside the
+assertion, and said in its own comment that the pair of them was the finding. The acceptance bed
+recorded the same answer from inside four containers. That promise -- *when keel-runtime closes it,
+S-009's assertion changes to `disconnected` and this entry is marked RESOLVED with the run that
+showed it* -- is what the section at the top of this entry is.
 
-**Tests**: `evals/test_s009_skill_distribution.py` step 5 (all four trees), and
-`stack/containers/acceptance/run-acceptance.sh`'s probe.
+**Tests**: `evals/test_s009_skill_distribution.py` step 5 (all four trees, now asserting
+`disconnected` **and** the pid), `stack/containers/acceptance/run-acceptance.sh`'s probe, and
+`tests/test_skill_distribution.py::test_s009_asserts_the_door_out_stops_a_runtime_awaiting_approval`,
+which pins the new assertion and refuses an S-009 that has drifted back to `not_running`.
 
 
 ## 52. Note (the design, not the code): B1's assertion 2 reads `source: "bundled"` off `keel
@@ -3304,6 +3368,13 @@ that has not shipped.
 keel-cloud's `specs/021-keel-runtime-status/contracts/status-cli-output.md`, whose own guarantee 2
 says the contract is amended before the code. Worth doing for the reason the design gives -- *why*
 is better evidence than *what* -- and worth nobody's night.
+
+**Still open, re-checked 2026-09-09** against keel-cloud `c317fc3` -- which amends this very file,
+`specs/021-keel-runtime-status/contracts/status-cli-output.md`, and whose own message says *"no key
+added or removed"*. It amends guarantee 4 (`connected` may be false while a *present* heartbeat
+awaits approval -- the other half of #51) and leaves `source` exactly where this entry found it:
+computed in `scripts/_runtime_location.py`, carried by neither shape. `grep -n source` over the
+contract still returns nothing. The entry stands unchanged.
 
 **Tests**: `tests/test_skill_distribution.py` (the bed asserts absence-of-override, not `source`),
 and `runs/20260909T054621Z-acceptance`.
@@ -3523,3 +3594,102 @@ moves to accommodate a result has stopped being a mark.*
 **Tests**: none — a measurement. The evidence is
 `runs/20260909T061537Z-instructions-copilot/scorecard.json` (`brief[]`, `findings.source_material`)
 and `register.html`, which carries all seven paragraphs whole and unscored.
+
+
+## 57. Owed (keel-runtime, and it is the finding of the night): a runtime that died on the first
+SIGTERM is reported `did_not_stop`, because a zombie answers `os.kill(pid, 0)`
+
+**Severity: owed, and blocking for the containerised beds.** All four probes of `make acceptance`
+are red on it — both images, both architectures — and they are the beds keel-cloud
+`canon/designs/keel-skill-design.md` §10.2 (B1) and §10.4 (B3) exist to certify. The runtime is
+stopped in every one of them. The door out cannot tell.
+
+**Where**: keel-runtime `keel_runtime/heartbeat.py::pid_alive`, which is POSIX liveness by
+`os.kill(pid, 0)` — *"`ProcessLookupError` => False, `PermissionError` => True"* — used by
+`disconnect.disconnect` as the `alive` collaborator for both of its waits, and by `status`.
+`os.kill(pid, 0)` succeeds for a **zombie**: a process that has exited and whose exit status no one
+has reaped. The pid still exists as a table entry; the process does not.
+
+**How it became reachable.** It did not regress tonight; it became *observable* tonight. While #51
+was open the pre-approval path had no heartbeat, so `keel disconnect` answered `not_running` and
+signalled nothing — every container probe stopped one step before this line. `bfc0ad6` writes the
+heartbeat from the start of connect, so the door out now really signals, really waits, and really
+reports what it sees.
+
+**What was observed**, `runs/20260909T074912Z-acceptance`, all four probes, verbatim:
+
+```
+[probe] cli-arm64  (keel-acceptance:arm64, linux/arm64)
+        python 3.11.2 on aarch64 (Debian GNU/Linux 12 (bookworm))
+        connect: authorization_started  environment: host.docker.internal:18080
+        disconnect: did_not_stop
+        FAILED: the door out answered 'did_not_stop'
+```
+
+```json
+{"outcome": "did_not_stop", "pid": 17, "waited_ms": 15049,
+ "message": "the keel-runtime process did not exit after SIGTERM and SIGKILL; it is stuck in a
+             call the operating system will not interrupt."}
+```
+
+`waited_ms` 15049 is `GRACE_SECONDS` 10 + `KILL_AFTER_SECONDS` 5 exactly: both waits ran to their
+deadline. **And the message is false.** Nothing is stuck; nothing survives SIGKILL. The process was
+already dead before the SIGKILL was sent.
+
+**Isolated, 2026-09-09, same image and same skill, PID 1 the only variable:**
+
+```
+docker run --rm -i           keel-acceptance:arm64   pid1 = "python3 -"
+  -> {"outcome": "did_not_stop", "pid": 9,  "waited_ms": 15005}          wall 15.16 s
+
+docker run --rm -i --init    keel-acceptance:arm64   pid1 = "/sbin/docker-init -- python3 -"
+  -> {"outcome": "disconnected", "pid": 10, "waited_ms": 54,
+      "signal": "SIGTERM"}                                                wall 0.13 s
+```
+
+Fifty-four milliseconds, on SIGTERM, on the clean path. **The runtime's own shutdown is not in
+question and never was** — it honours SIGTERM and leaves at once in both runs. Only the proof
+differs.
+
+**And the zombie caught in the act**, same image, reading `/proc` directly:
+
+```json
+{"pid1": "python3 -", "connect": {"pid": 9, "outcome": "authorization_started"},
+ "ppid_before": "1", "state_before": "S",
+ "state_after_sigkill": "Z", "os_kill_0_says_alive": true}
+```
+
+`/proc/9/stat` reads state **`Z`** and `os.kill(9, 0)` still returns cleanly. That is the whole
+defect in two lines. Note `ppid_before: 1`: the launcher detaches the runtime, so it is reparented
+to PID 1 — which is the point, because *whose* PID 1 it lands on decides everything. On the
+founder's macOS and on any systemd Linux, PID 1 reaps immediately, the zombie never lasts a poll
+interval, and `pid_alive` is right by luck. Inside a container whose PID 1 is an ordinary process —
+a devcontainer, a CI job, `docker run python3` — nothing reaps, and it is wrong for as long as the
+container lives.
+
+**The founder's version of this.** Work in a devcontainer. Say "keel connect", then change your
+mind and say "keel disconnect". Wait fifteen seconds at a frozen cursor and be told the runtime
+*is stuck in a call the operating system will not interrupt* — about a process that died before
+you finished reading the sentence. Say "keel connect" again: the heartbeat was deliberately left
+in place (D6, and D6 is right), so the skill has to work out whether the corpse is a live runtime.
+
+**What the fix would take.** `pid_alive` should not count a zombie as alive. On Linux, read
+`/proc/<pid>/stat` and treat state `Z` as gone; where the pid is this process's own child,
+`os.waitpid(pid, os.WNOHANG)` both reaps it and answers the question. macOS has no `/proc` and
+wants `sysctl`/`KERN_PROC` or `ps -o stat=`. It is one function, it has one caller that matters,
+and `disconnect.py` needs no change at all — it already injects `alive` as a seam. `status` gets
+the same correction for free and stops reporting `running: true` of a corpse.
+
+**Not adapted around.** `run-acceptance.sh`'s probe still accepts exactly
+`disconnected | not_running | stale_pid_cleared` and still fails on `did_not_stop`, and the bed is
+**not** run with `--init`. Adding `--init` would turn all four probes green tonight and would be
+this repository arranging a PID 1 the founder's devcontainer will not have — the run of record
+says FAILED, four of four, and this entry says why. `tests/test_skill_distribution.py` pins both
+the un-softened outcome list and the absence of `--init`, so a later green has to come from
+keel-runtime.
+
+**Tests**: `tests/test_skill_distribution.py::test_the_acceptance_probe_still_refuses_did_not_stop`
+and `::test_the_beds_do_not_arrange_a_reaping_pid_1`; the bed itself (`make acceptance`). The runs
+of record are `runs/20260909T074912Z-acceptance` (four red probes) and, for the contrast,
+`runs/20260909T074401Z-s009-skill-distribution`, where the same door out on the same runtime
+answers `disconnected` in 60 ms because the host's PID 1 reaps.
