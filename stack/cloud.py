@@ -15,6 +15,7 @@ import os
 
 import requests
 
+from stack import oidc
 from stack.config import REPO_ROOT, StackConfig
 from stack.processes import is_port_open, require_port_free, spawn, wait_for_http
 
@@ -51,6 +52,13 @@ def build_env(config: StackConfig) -> dict[str, str]:
         # explicitly so the gate (US1 acceptance scenario 3) never depends on that fallback.
         "KEEL_V2_CONNECT_VERIFICATION_URI": f"http://localhost:{config.web_port}/connect",
     })
+    # Sign in with Google, pointed at this profile's stub issuer (keel-cloud
+    # `canon/designs/google-sign-in-design.md` 10.3). Wired now, ahead of keel-cloud spec 032,
+    # and **harmless until then**: today's keel-cloud reads none of these four, and an unknown
+    # environment variable is not a boot failure. The one thing that differs between production
+    # and this harness is `KEEL_OIDC_ISSUER` naming a different URL -- there is no flag, no
+    # bypass header and no test-only login anywhere (10.8).
+    env.update(oidc.cloud_env(config))
     return env
 
 

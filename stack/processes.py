@@ -122,7 +122,10 @@ def teardown_all_processes(profile: str = "eval") -> None:
     """
     if not PID_DIR.exists():
         return
-    names = ("cloud", "web") if profile == "eval" else ("cloud-playground", "web-playground")
+    # Spec 015 adds the stub OIDC issuer as the third spawned process (`stack/oidc.py`), and it
+    # is profile-suffixed for the same reason the other two are.
+    names = (("cloud", "web", "oidc") if profile == "eval"
+             else ("cloud-playground", "web-playground", "oidc-playground"))
     for name in names:
         killpg_by_name(name)
 
@@ -163,8 +166,8 @@ def require_port_free(port: int, label: str) -> None:
     if is_port_open(port):
         raise PortTaken(
             f"port {port} ({label}) is already in use by {port_owner_hint(port)} -- "
-            f"keel-e2e-eval's ports are fixed (55432/18080/5173) and must be free before "
-            f"`make up` boots this stack."
+            f"keel-e2e-eval's ports are fixed (55432/18080/5173/18090 on the eval profile) "
+            f"and must be free before `make up` boots this stack."
         )
 
 
