@@ -3502,6 +3502,27 @@ corpus: one screen transfers to a second host and one does not.
 `cases/01-countly/COMMERCIAL/run1/diff.json` for the table above).
 
 
+**AMENDED 2026-09-10 by a second measurement** (spec `016-copilot-e2e`,
+`runs/20260910T213217Z-instructions-copilot`): **the collapse was mostly one sample, and this entry
+overstated its own diagnosis.** A second `HOST=copilot N=1` run, same `MARKS_VERSION` 5, same model
+`gpt-5.6-luna` (**pinned** this time rather than router-chosen), against keel-cloud instruction
+prose that has **not changed by one byte** since (`git log 8acb805..085382e --
+src/main/resources/keel/inference-instructions/` is empty):
+
+| Stage | 2026-09-09 | 2026-09-10 |
+|---|---|---|
+| PROBLEM | 34/39 = 87.2 % | 33/39 = **84.6 %** |
+| SOLUTION | 17/23 = 73.9 % | 18/23 = **78.3 %** |
+| COMMERCIAL | **16/26 = 61.5 %** | **21/26 = 80.8 %** |
+| total | 67/88 = 76.1 % | **72/88 = 81.8 %** |
+
+So *"the commercial screen collapses"* was a run, not a slope: it recovered nineteen points with
+nothing changed on either side. **The gap this entry is really about survives** -- 81.8 % against
+Claude's 98.5 % is still sixteen points on the same corpus and the same prompt body -- and so does
+every mechanism named below, which was read off diffs rather than off the headline number. What
+does not survive is the claim that one screen is where it lives. A single N=1 run is too thin to
+locate it, and this entry should not have located it from one.
+
 ## 55. Owed (keel-runtime, small): two of 131 Copilot jobs died of CLI transients, one of them
 reported as an **authentication failure** on a machine that was authenticated
 
@@ -3595,6 +3616,16 @@ moves to accommodate a result has stopped being a mark.*
 `runs/20260909T061537Z-instructions-copilot/scorecard.json` (`brief[]`, `findings.source_material`)
 and `register.html`, which carries all seven paragraphs whole and unscored.
 
+
+**STILL OWED after a second measurement 2026-09-10** (spec `016-copilot-e2e`,
+`runs/20260910T213217Z-instructions-copilot`): `source_material` came back **7 of 7** and the word
+`proxy` appears in none of the seven paragraphs, so BRIEF is 100 % and the mark is met. **That does
+not close this entry.** `brief.md` is unchanged, `PROXY` is still a `mark` enum value sitting in
+the BRIEF context `ScreenContextBuilder` hands the model, and the rule against writing it is still
+prose rather than structure -- so what changed is that this run did not trip it, on the same model
+and the same instruction that tripped it twice before. A leak that is one sample away from
+returning is not a leak that has been fixed, and the proposed fix (name `mark` among the fields
+whose *values* are never written into the paragraph) is untouched.
 
 ## 57. RESOLVED -- was owed (keel-runtime, and it was the finding of the night): a runtime that
 died on the first SIGTERM was reported `did_not_stop`, because a zombie answers `os.kill(pid, 0)`
@@ -3736,3 +3767,279 @@ a clean rebuild, and the retry above is what a fresh image measures. Left as a c
 run rather than a `DRIFT.md` entry of its own -- the failure was in Debian's own archive packaging
 under emulation, not in anything this repository or keel-runtime owns, and it did not reproduce on
 the clean rebuild.
+
+
+## 58. Owed (keel-runtime, with keel-cloud's contract file beside it): `keel status` answers
+`executor: "claude"` about a runtime that is demonstrably running on Copilot
+
+**Found by S-012 (spec `016-copilot-e2e`), `runs/20260910T203101Z-s012-copilot-host-and-thinker-live`**,
+at the first assertion of leg two -- and it is the reason that run has a leg one and no leg two.
+Nothing was adapted around: leg two's gate now reads the runtime's own startup line, the `status`
+reading goes into the bundle beside it, and this entry is what the assertion that used to be there
+became.
+
+**What was observed.** Copilot, as the host, ran the skill; the skill passed `--host copilot`; the
+runtime started and wrote its own startup line into the launch log this run owns:
+
+```
+KEEL_EXECUTOR=copilot source=flag binary=/opt/homebrew/bin/copilot version=GitHub Copilot CLI 1.0.83. model=claude-sonnet-5
+```
+
+Its heartbeat, in the same home, read `state: "connected"` with a real `agent_session_id`. Asked
+about that same home, seconds later, `keel status` answered:
+
+```json
+{"running": true, "executor": "claude", "executor_on_path": true, ...}
+```
+
+**Where**: keel-runtime `keel_runtime/cli.py`'s `_run_status`, which fills `executor` from
+`config.resolve_executor(args, file_config)` -- the **caller's** resolution, run fresh in the
+`status` process. That process had no `--executor`, no `KEEL_EXECUTOR`, and no `executor` key in
+the home's `config.json`, so resolution fell through to the environment markers, where
+`CLAUDECODE=1` (the referee is a Claude Code session) answered `claude`. The runtime that is
+actually running resolved `copilot` from `--executor copilot`, in a different process, minutes
+earlier, and nothing it resolved is written down anywhere `status` reads.
+
+**It is truthful by the contract's own words and false by every reading of the shape it sits in.**
+keel-cloud `specs/021-keel-runtime-status/contracts/status-cli-output.md` defines the key as
+*"which executor this home **would** run a job with (`claude`, `copilot`, `scripted`, `stub`, ...),
+resolved the same way `connect` resolves it."* Read as written, `claude` is correct. But the key is
+in the **running** shape, beside `running: true`, `connected: true` and an `agent_session_id`, and
+a founder -- or a referee -- reading it there reads *"the runtime you have is on claude"*. It is
+the same defect keel-runtime spec 005 already refused to ship once: C-10 declined a
+`claude_on_path` boolean *"because it reads `false` on a healthy Copilot-hosted runtime, which is a
+lie about health."* `executor: "claude"` on a healthy Copilot-hosted runtime is a lie about that
+runtime, in a key one word away from the one C-10 protected.
+
+**Why it matters beyond a referee's assertion.** §5.5 part 2 makes a host supported only when the
+journey is green *through that host*, and `status` is the one place a founder, a support
+conversation or a bug report can ask which host a live runtime is on. Today the answer depends on
+which shell asked. Two founders on two machines, one runtime, two different answers -- and the one
+who asks from inside Claude Code is told `claude` however the runtime was launched.
+
+**The fix is a write, not a read.** `connect` already knows: it prints the line quoted above. The
+heartbeat is the file that describes *this runtime* and it is written by the same process --
+`executor` (and the pinned `model`) belong in it, next to `pid`, `agent_session_id` and
+`base_url`, and `status` should report the heartbeat's value in the **running** shape and keep
+resolving for the caller only in the not-running one, where there is no runtime to describe.
+`status-cli-output.md` then gains one sentence saying which of the two a reader is looking at.
+`runs/DRIFT.md` #51 has the shape of the precedent: the heartbeat grew `state` for exactly this
+kind of "the file that names the runtime should say what the runtime is doing" reason.
+
+**Not adapted around.** S-012 asserts `KEEL_EXECUTOR=copilot source=flag` off the runtime's own
+launch log (`harness/copilot_host.launch_executor_in`) and, independently, that every per-job
+envelope the runtime wrote carries `"executor": "copilot"`. `source=flag` is asserted too, so a
+runtime that arrived at `copilot` by guessing from a `PATH` with only one CLI on it would not
+satisfy the scenario either -- the point is that **the skill's line was obeyed**, not that the
+answer came out right. Four stackless tests hold the reader and one holds the correction
+(`tests/test_s012_copilot_host.py`), so a future edit that puts `status.get("executor")` back into
+an assertion is red before it is run.
+
+
+## 59. Owed (keel-runtime), and it is the finding of the day: **every Copilot job fails on the
+upgraded plan**, because `assistant.message` from an Anthropic-vendored model carries no `phase`
+
+**Found by S-012 (spec `016-copilot-e2e`)**, `runs/20260910T203439Z-s012-copilot-host-and-thinker-live`,
+on the first inference job of leg two. **It is a fault in reading, not in thinking**: the model
+answered correctly, in the right shape, twice, and keel-runtime threw both answers away.
+
+**What the model wrote** (`jobs/<id>/events.jsonl`, the `PROBLEM` framing job, verbatim):
+
+```json
+{"outcome": "NEEDS_INPUT", "questions": [{"id": "q1", "question": "When these payroll exceptions
+ sit unowned until payday, what actually goes wrong -- a missed or late payment, an angry
+ employee, a compliance issue? What specifically breaks?", "input_type": "text",
+ "required": true}]}
+```
+
+`NEEDS_INPUT` is in that job's own `allowed_outcomes`; the question object carries all four of
+`id`, `question`, `input_type`, `required`; nothing exceeds `maxLength` and nothing matches the
+URL-refusing `pattern`. `validate_response` would have passed it. It never saw it.
+
+**What keel-runtime recorded** (`jobs/<id>/envelope.json`):
+
+```json
+{"type": "result", "is_error": true, "structured_output": null, "num_turns": 2,
+ "executor": "copilot", "premium_requests": 1, "exit_code": 0}
+```
+
+**Where**: keel-runtime `keel_runtime/executor.py::_copilot_final_answer`, whose whole rule is
+
+```python
+if data.get("phase") != "final_answer":
+    continue
+```
+
+and whose docstring explains why: *"a tool-calling turn emits an `assistant.message` with empty
+`content` and a populated `toolRequests` ... Only the `final_answer`-phase message carries the
+whole answer."* Sound reasoning, and it was measured against a real CLI. But the field is not
+always there.
+
+**The measurement, 2026-09-10, GitHub Copilot CLI 1.0.83, same machine, same flags, one variable:**
+
+| `--model` | vendor | `assistant.message.data.phase` | `_copilot_final_answer` |
+|---|---|---|---|
+| `gpt-5.6-luna` | OpenAI | `"final_answer"` | reads the answer |
+| `claude-sonnet-5` | `anthropic` (the checkpoint's own `vendor` field) | **absent** | returns `None` |
+
+The `assistant.message` keys on the failing path are `apiCallId, content, interactionId,
+messageId, model, reasoningBlocks, reasoningOpaque, reasoningText, rte, toolRequests, turnId` --
+`content` is populated and correct; there is simply no `phase`.
+
+**Why it bites now, and why nothing warned.** keel-runtime pins no model by default
+(`CopilotExecutor.model` is `None`; C-5 was closed *by mechanism, not by measurement*, because on
+2026-09-09 this CLI refused every slug offered to `--model`). So the router chooses. On
+2026-09-09 it chose `gpt-5.6-luna` for all 129 answered cases of
+`runs/20260909T061537Z-instructions-copilot`, and the path worked. **The founder upgraded their
+Copilot plan on 2026-09-10, and the CLI's own resolver now logs `Using default model:
+claude-sonnet-5`** -- so an unpinned Copilot runtime on this account now fails *every job it is
+ever given*, having spent a premium request on each, twice (the schema-recovery pass re-runs and
+fails identically: two `result` events, two session ids, one envelope).
+
+**And the failure is silent in the worst place.** `exit_code` is `0`, there is no `session.error`,
+`_assert_ran` passes, `_assert_closed_shape` passes (`tool_count: 0`), and the job is reported to
+keel-cloud as failed with nothing naming the cause. A founder sees a chat that stops answering.
+This repository already knows that shape: `runs/DRIFT.md` #37 is the same silence from the other
+side of the wire.
+
+**The fix is one line and its own test.** `_copilot_final_answer` should prefer the
+`final_answer`-phase message and **fall back to the last `assistant.message` with non-empty
+`content` and no `toolRequests`** when no event carries a phase at all -- which is exactly the
+distinction the docstring says the phase was standing in for. Second-best, and cheaper: treat "no
+event in this run carries `phase`" as its own condition and take the last non-empty content, so a
+run that *does* carry phases keeps today's strict rule. Either way the regression test is a
+fixture of Anthropic-vendored events, which this bundle now contains.
+
+**Beside it, two smaller things this measurement settles.**
+
+- **C-5 is fully exercisable now, and has become load-bearing.** Every slug offered to `--model`
+  on 2026-09-10 was accepted -- `gpt-5.6-luna`, `gpt-5.1`, `gpt-5`, `gpt-4.1`, `gpt-5-mini`,
+  `gpt-5-codex`, `claude-haiku-4.5`, `claude-sonnet-5`, `mai-code-1.1-flash` -- where on
+  2026-09-09 every one was refused. spec 005's Assumptions should be amended: the pin is no longer
+  a property this machine lacks. And pinning has stopped being only about *comparability*: on this
+  account it is the difference between a runtime that works and one that fails every job.
+- **`KEEL_EXECUTOR=... model=<slug>` already tells the truth** and is how S-012 asserts the pin
+  arrived (`model=gpt-5.6-luna` in the launch log). It is the same line #58 asks the heartbeat to
+  learn from.
+
+**Not adapted around.** S-012 pins `gpt-5.6-luna` -- keel-runtime's own documented mechanism
+(`KEEL_COPILOT_MODEL`), and the model spec 005 says a *measured* run must name rather than leave
+to a router -- and records the pin, the reported model and this entry in its bundle. Nothing in
+the harness reads an answer Copilot wrote, and no assertion was loosened: the `claude-sonnet-5`
+run stands in `runs/` as the evidence, red, with its envelopes.
+
+
+## 60. Owed (keel-cloud): a `JOB_FAILED` tells the founder *"your agent went away"* about an agent
+that never went anywhere
+
+**Found by S-012 (spec `016-copilot-e2e`)**, `runs/20260910T205507Z-s012-copilot-host-and-thinker-live`,
+on the wire beside #59's own evidence. Small, one sentence of prose, and it sends a founder to look
+in exactly the wrong place.
+
+**What was observed.** `SOLUTION_FRAME`'s job failed, and
+`GET /v2/inference-interactions?project_id=` answered:
+
+```
+SOLUTION_FRAME  SOLUTION  status=JOB_FAILED  job=FAILED
+  detail:  'Your agent went away before it answered.'
+  refusal: 'Your agent went away before it answered, so nothing was saved. Check i[t is connected]'
+```
+
+**What had actually happened.** The agent was connected throughout -- its heartbeat was fresh, its
+`agent_session_id` unchanged, and it answered two more jobs on the same runtime afterwards. It had
+answered this one **twice**, promptly, and keel-runtime had rejected both, because the model wrote
+a `statement` of ~570 and then ~490 characters where that job's own
+`completed_result_schema` says `"maxLength": 400`. The recovery pass (spec 002 FR-011) ran and
+failed the same way, so the runtime reported the job failed -- correctly, and with no way to say
+why in the shape `POST /v2/inference-jobs/{id}/fail` gives it.
+
+**And keel-cloud already knows the truth**, in the same row, in its own `diagnostic` -- caught
+verbatim in the run of record (`runs/20260910T211318Z-s012-copilot-host-and-thinker-live`, all
+four attempts on `SOLUTION_FRAME`):
+
+```
+status=JOB_FAILED
+diagnostic: INVALID_LLM_RESPONSE: result.statement: longer than maxLength 400
+refusal:    Your agent went away before it answered, so nothing was saved.
+            Check it is still running, then start the step again.
+```
+
+The wire names the field, the rule and the number. The founder is told to check a connection that
+was never lost. **The information is not missing; only the sentence is.**
+
+So the one cause keel-cloud names is the one cause that was not it. The three a founder might
+actually be facing -- the model overran a declared size, the model wrote something that did not
+validate, the model could not be reached -- are all rendered as *your agent went away*, and the
+advice attached (*check it is connected*) is advice about a thing that is already true.
+`runs/DRIFT.md` **#55** is the same family from keel-runtime's side: *"a founder hitting it is told
+to fix something that is not broken."*
+
+**Where**: keel-cloud's founder-voiced line for `JOB_FAILED` (`FounderVoice`, the `refusal`/`detail`
+pair spec 022 FR-021 puts on the interaction view). The fix is not a new key on the wire: the
+runtime's `fail` call already distinguishes *"I could not reach a model"* from *"the model
+answered and I would not accept it"* in its own envelope (`is_error` with a `last_schema_error`
+beside `structured_output: null`), so the honest line is a second sentence chosen from what the
+agent reported, with *"your agent went away"* kept for the case where it actually did.
+
+**Why it is worth an entry at all.** This is the sentence a founder reads when a live host has an
+off day, and every host will. It is also the sentence that will be read most often by whoever is
+deciding whether Copilot is usable, which is the question spec 016 exists to answer.
+
+**Beside it, a harness fault of this repository's own, fixed here rather than recorded as drift.**
+`harness/refusals.py::stage_refusal` reads the overview's `pendingInteraction` and nothing else --
+so on a **terminal** failure, where nothing is pending any more, it answered `None` and the
+scenario reported *"the agent never answered within 300.0s"* about a wire that had known the reason
+within seconds. That is `runs/DRIFT.md` #37's own sentence, one status wider, and S-004 had the
+identical blind spot. `latest_failure` and `why_the_stage_stopped` now read the founder-gated
+interaction list as well, keel-cloud's own `refusal` line travels with the finding, and six
+stackless tests hold it (`tests/test_refusals_terminal_failure.py`).
+
+
+## 61. Owed (keel-runtime, small): the one recovery pass tells the model to halve a field and
+does not check that it did -- on this host the field came back **longer**
+
+**Found by S-012 (spec `016-copilot-e2e`)**, `runs/20260910T211318Z-s012-copilot-host-and-thinker-live`,
+and it is the reason that run's leg two stops at SOLUTION rather than finishing the journey.
+
+**Where**: keel-runtime `keel_runtime/executor.py`'s `_RECOVERY_SECTION_TEMPLATE` and the single
+retry around it (spec 002 FR-011):
+
+```
+RECOVERY -- your previous answer was refused: {error}. Answer again with what you have;
+cut the named field to half its length; change nothing else.
+```
+
+The instruction is exactly right and it is **advisory**. Every `SOLUTION_FRAME` attempt in the run
+of record answered `COMPLETED` with a well-formed `result.statement` and every one of them broke
+that job's own `"maxLength": 400`:
+
+| attempt | first pass | recovery pass |
+|---|---|---|
+| job `03c4d0c1` | 471 | **496** |
+| job `94878281` | 449 | 441 |
+
+Told its answer was *"longer than maxLength 400"* and asked to halve it, `gpt-5.6-luna` came back
+**twenty-five characters longer** the first time and eight shorter the second. Four attempts across
+two jobs, four overruns, no landing. The `PROBLEM` screen's statements fit and that stage went
+green; nothing about the machinery is broken, and the same runtime answered five other jobs
+cleanly in the same run.
+
+**This is a fact about a model before it is a fault in a program**, and it is recorded because it
+is the fact that decides whether this host can be used: a founder on this plan cannot get past the
+solution step. But there is a program-shaped half, and it is small:
+
+- **the retry is fixed at one and its success is never checked against the thing that failed.**
+  The executor already has the schema error, the field name and the offending length in
+  `last_schema_error`; a second pass, or a check that the named field actually got shorter before
+  spending the pass at all, costs one call and would have landed `94878281`'s 441 with one more
+  nudge;
+- **nothing escalates.** A model that ignores a size instruction twice is a model the runtime could
+  name in the failure it reports, which is the other half of `runs/DRIFT.md` **#60** -- the founder
+  is told *"your agent went away"* while `diagnostic` reads
+  `INVALID_LLM_RESPONSE: result.statement: longer than maxLength 400`.
+
+**Not adapted around.** S-012 does what a founder does -- says more, three times, bounded -- and
+then fails with keel-cloud's own sentence in the assertion message. No cap was widened, no
+assertion loosened, and `evals/policy.py` was not touched. keel-cloud
+`canon/designs/keel-skill-design.md` §5.5's own remedy list applies unchanged: fix the prose so it
+works on both hosts, or pin a different model and record it -- never move the mark.

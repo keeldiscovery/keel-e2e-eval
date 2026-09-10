@@ -5,9 +5,10 @@ applications (keel-cloud, keel-web, keel-runtime, keel-connect-skill) agree — 
 and with the journey. It never talks to keel-skill or the retired agent-protocol/relay surfaces
 (archived 2026-09-03, `runs/DRIFT.md`'s dated retirement note); no Prism, ever.
 
-**No LLM except in two named places** (amended 2026-09-06, spec 009). Naming them is the point:
-everything not named here stays deterministic, and a third would have to be argued for and added
-to this line rather than quietly written.
+**No LLM except in three named places** (amended 2026-09-06, spec 009; amended again
+2026-09-10, spec 016). Naming them is the point: everything not named here stays
+deterministic, and a fourth would have to be argued for and added to this line rather than
+quietly written — which is exactly how the third arrived.
 - **S-004**, *the stranger who gives orders* (`evals/test_s004_stranger_who_gives_orders.py`,
   spec 008) — opt-in through `make eval-live`, deselected from `make eval`/`make eval-all`.
 - **The instruction eval** (`instructions/`, spec 009) — `make instruction-eval`, needing no stack
@@ -15,6 +16,21 @@ to this line rather than quietly written.
   inference-instruction prose against a frozen golden corpus, and its rubric is versioned as
   `instructions.marks.MARKS_VERSION`, separately from `evals/policy.py`'s `POLICY_VERSION`, so the
   two can never be confused.
+- **S-012**, *Copilot, host and thinker* (`evals/test_s012_copilot_host_and_thinker.py`, spec
+  `016-copilot-e2e`) — the third, and here is the argument for it. keel-cloud
+  `canon/designs/keel-skill-design.md` §5.5 makes a host "supported" only when four things are
+  true, and **two of them are this repository's**: S-001 green *through that host*, and the
+  instruction eval's run of record green on it. The second has been measurable since spec 014.
+  The first never has: no scenario here had ever let an agent host load the skill and decide for
+  itself to run it, and the acceptance bed that writes `copilot -p "keel connect"` has skipped
+  itself in all four of its run records for want of a `COPILOT_GITHUB_TOKEN` the founder does not
+  use. A gate with a part nobody can measure is not a gate. So S-012 is live for the same reason
+  S-004 is — **the thing under referee is a model's behaviour, and no script can stand in
+  for it** — and it is opt-in through `make eval-live`, deselected from `make eval`/`make
+  eval-all`, and skipped by name with its reason when no usable `copilot` is there. It runs
+  Copilot twice as a *host* (the two `copilot -p "keel connect"` legs) and then as a *thinker*
+  (the journey keel-runtime hands it), and every assertion about the host leg is made against the
+  **runtime's own artefacts**, never against what the model said.
 
 **The canon comes first**: keel-cloud `canon/CANON.md` holds the governing documents,
 their precedence, and the ledger this repo's `tests/test_journey_coverage.py` enforces. This
@@ -76,12 +92,12 @@ real callback -- and `stack/auth.py`'s one browserless sign-in walks the same th
 anywhere in this harness that produces a founder session by any other means.** Two scenarios came
 with it: **S-010** (two founders on one instance -- every one of another founder's routes a bare
 404) and **S-011** (the callback's own refusals, each with the founder-voiced line the design
-names). The scenario set is **eleven**.
+names). The scenario set is **twelve**.
 
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
-to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **eleven** scenarios are
-deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 above; the
-participants' typed answers are fixture or corpus data, never generated) and every assertion
+to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **twelve** scenarios are
+deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
+the participants' typed answers are fixture or corpus data, never generated) and every assertion
 enforcing a journey moment cites it (`§n.m`).
 
 **The corpus has a second job now** (spec 010): keel-cloud's frozen golden set

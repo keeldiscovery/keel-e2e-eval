@@ -55,25 +55,56 @@ def _capture_the_login_screen(stack: StackConfig, browser) -> None:
     made here, once, before any scenario ran. There is no virgin instance any more -- **this is
     the same screen on a fresh instance and a busy one**, and that sameness is what is asserted.
 
+    **`/` is no longer that screen, and that is the product's own doing** (keel-web spec
+    `015-landing-page` FR-001, landed at keel-web `d5d8645`, after this repository's last run of
+    record). A visitor keel-cloud does not know used to be bounced from `/` to `/login` -- *"a
+    login screen as the first thing a product says about itself"* -- and now renders the landing
+    page instead: same route, same one call, no redirect between the two. `LandingRoute` returns
+    `<MarketingPage />` on the 401 and `AppRoutes`'s `AuthGate` leaves `/` alone for exactly that
+    reason.
+
+    So this waited fifteen seconds for a redirect the product deliberately removed, and took every
+    scenario in this repository down with it. It is a **harness fault, not a finding**: a referee
+    pinned to the past cannot call the present (AGENTS.md), and keel-web's own spec says `/login`
+    is otherwise unchanged -- *"it stays the one-button Google page of spec 014"*. The screen is
+    opened directly now, which is what `harness/browser.py::Auth._goto_login` has always done and
+    is why sign-in itself never noticed.
+
+    The stranger's door is captured beside it rather than dropped, because *what `/` shows somebody
+    with no session* is a thing a run of record should be able to show a reader.
+
     Evidence goes to `runs/.stack/`, alongside this harness's other stack-lifecycle artifacts, not
     a scored run bundle: it is a one-time stack-boot observation, not a scenario.
     """
     from stack.config import REPO_ROOT
 
+    web_base = f"http://localhost:{stack.web_port}"
+    shot_dir = REPO_ROOT / "runs" / ".stack"
+    shot_dir.mkdir(parents=True, exist_ok=True)
     context = browser.new_context()
     try:
         page = context.new_page()
-        page.goto(f"http://localhost:{stack.web_port}/", wait_until="load")
-        page.wait_for_url("**/login", timeout=15_000)
+
+        # The stranger's door: `/`, with no session at all.
+        page.goto(f"{web_base}/", wait_until="load")
+        page.get_by_role("link", name="Log in").first.wait_for(state="visible", timeout=20_000)
+        page.screenshot(path=str(shot_dir / "landing-page-before-anyone-signed-in.png"),
+                        full_page=True)
+        assert "/login" not in page.url, (
+            f"a visitor with no session was redirected to {page.url} -- keel-web spec 015 FR-001 "
+            f"says `/` splits by session, not by redirect")
+        assert page.get_by_label("Password").count() == 0, (
+            "a password field anywhere on the stranger's landing page would mean keel-cloud kept "
+            "one (google-sign-in-design.md §10.8)")
+
+        # The login screen itself, opened the way `Auth._goto_login` opens it.
+        page.goto(f"{web_base}/login", wait_until="load")
         page.locator("h1.auth-title").wait_for(state="visible", timeout=15_000)
         heading = page.locator("h1.auth-title").inner_text()
-        shot_dir = REPO_ROOT / "runs" / ".stack"
-        shot_dir.mkdir(parents=True, exist_ok=True)
         page.screenshot(path=str(shot_dir / "login-screen-before-anyone-signed-in.png"),
                         full_page=True)
         assert heading.strip().lower() == "log in", (
-            f"expected an unauthenticated landing visit to route to the login screen, got heading "
-            f"{heading!r} at {page.url}")
+            f"expected the login screen, got heading {heading!r} at {page.url}")
         assert page.get_by_role("link", name="Continue with Google").count() == 1, (
             "the login screen must carry exactly one way in (design §6) -- and it is a link, "
             "because signing in is a navigation and not a fetch")

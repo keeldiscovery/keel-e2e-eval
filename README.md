@@ -52,6 +52,8 @@ make eval K=s008    # the runtime that travelled inside the skill: resolved with
                     # KEEL_RUNTIME_PATH, connected by device code, said twice, disconnected
 make eval K=s009    # four packaging trees, four installers, one skill -- the same contract
                     # shapes byte for byte after an installer moved the bytes (A-6)
+make eval-live K=s012  # LIVE, opt-in, costs premium requests: GitHub Copilot as the *host* that
+                    # loads and runs the skill, and as the *thinker* that answers the journey
 make acceptance     # the containerised beds: Debian 12 (Python 3.11) and Debian 11 (the 3.9
                     # floor), linux/arm64 and linux/amd64, against this stack at
                     # host.docker.internal:18080. The model-driven half needs the caller's own
@@ -64,6 +66,189 @@ make down           # asks a runtime a scenario left running to disconnect (and 
 four ports, or boots one and tears it down at the end of the session — the fast-iteration path
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
+
+### The run of record for spec 016 — **Copilot, host and thinker** (2026-09-10)
+
+`make eval-live K=s012`, on the founder's own Copilot plan, upgraded that morning. Run of record:
+**`runs/20260910T211318Z-s012-copilot-host-and-thinker-live`** — 17 min, GitHub Copilot CLI
+**1.0.83**, on keel-cloud `085382e`, keel-web `d5d8645`, keel-runtime `d30dbd0` and
+keel-connect-skill `f06f481` (`release` `f1ea305`), bundled runtime `0.1.0+d30dbd0`. `make unit`
+green at **571** before and **634** after.
+
+**Two questions were asked and they got two different answers.**
+
+**(a) Does the keel-connect skill load and run with Copilot CLI as the host? Yes — green, and green
+on every attempt.** This is the first time any run in this repository has shown it: spec 013's
+acceptance bed writes `copilot -p "keel connect"` and has **never executed it** (all four run
+records read `"result": "skipped"`, for want of a `COPILOT_GITHUB_TOKEN` the founder does not use),
+and spec 014 ran Copilot 131 times as a *thinker* with no skill anywhere near it. Leg one, in
+order, with nothing asserted from Copilot's prose:
+
+- a **fresh `COPILOT_HOME`** under the run bundle, and the founder's login survived it — the stored
+  OAuth credential is not under `~/.copilot`, so isolation cost nothing and no token was copied
+  anywhere (`credential_plan` records which of the three ways answered);
+- `copilot plugin marketplace add keeldiscovery/keel-marketplace` → *Marketplace "keel" added
+  successfully*, then `copilot plugin install keel@keel` → *Plugin "keel" installed successfully.
+  Installed 1 skill.* — Copilot's own two commands, against the real public marketplace, whose
+  plugin is built from keel-connect-skill's `release` branch;
+- `copilot skill list --json` names it, from the right place:
+  `{"name": "keel-connect", "source": "plugin", "path": ".../installed-plugins/keel/keel/skills/keel-connect"}`;
+- `copilot -p "keel connect" --allow-tool 'shell(python3:*)' --allow-tool skill
+  --no-custom-instructions --output-format json` — three words, and **Copilot worked out the
+  rest**: it called the `skill` tool with `{"skill": "keel-connect"}`, read `SKILL.md`, and ran
+  `python3 <plugin>/skills/keel-connect/scripts/keel_connect_check.py --host copilot` — the
+  `--host copilot` line being the one D5 exception in that file, obeyed;
+- the traces, which is what is actually asserted: `runtime.heartbeat.json` in state
+  **`awaiting_approval`** with a live pid; a launch log carrying `KEEL_USER_CODE=` and
+  `KEEL_VERIFICATION_URI=http://localhost:5173/connect?user_code=…`; and the eval cloud's own
+  `GET /v2/device-authorizations?user_code=` answering **200, not yet approved** — so the code is
+  one *this* Keel issued and not one a confident host invented;
+- the founder approved it at keel-web's `/connect`, and a second `copilot -p "keel connect"` came
+  back *"Keel is already connected — no action needed, on `localhost:18080`."*
+
+Two premium requests, one per leg. Both transcripts and both usage files are in the bundle.
+
+**(b) Is keel-runtime compatible with Copilot doing the inference end to end? Not on this plan —
+and the reason is one line of keel-runtime.** Leg two got a third of the way and stopped, and what
+stopped it is worth more than a green run would have been.
+
+| | |
+|---|---|
+| the executor | **`copilot`, `source=flag`** — the skill told the runtime, the runtime obeyed, and nothing in the scenario passed `--executor` |
+| PROBLEM | **framed, assumptions applied, card reviewed and approved, zero refusals** — the whole stage, answered by Copilot |
+| SOLUTION | **four attempts, four refusals**, every one `INVALID_LLM_RESPONSE: result.statement: longer than maxLength 400` |
+| jobs | 5 completed, 2 failed |
+| premium requests | 2 hosting + 7 thinking = **9 recorded** (a failed job spends twice, so ~11 actually) |
+
+**Four findings, and the first two are the ones that matter** (`runs/DRIFT.md`):
+
+- **#59, the finding of the day.** The plan upgrade changed Copilot's default model to
+  `claude-sonnet-5`, and on that model **every keel-runtime job fails**. Copilot's
+  Anthropic-vendored `assistant.message` events carry **no `phase` key**, and
+  `executor._copilot_final_answer` reads only the `final_answer`-phase message — so a correct
+  answer, in the right shape, is thrown away, the job is reported failed, `exit_code` is `0` and no
+  error is raised anywhere. Measured with one variable: `gpt-5.6-luna` emits `phase`,
+  `claude-sonnet-5` does not. The red run stands as
+  `runs/20260910T203439Z-s012-copilot-host-and-thinker-live`.
+- **#61.** With a model the runtime *can* read, `gpt-5.6-luna` will not hold the 400-character
+  `statement` cap on the solution screen: 471 → **496** and 449 → 441 across two jobs, told each
+  time that its answer was *"longer than maxLength 400"* and asked to halve it. Four overruns, no
+  landing. A fact about a model first — but the recovery pass is fixed at one and never checks that
+  the field it named actually got shorter.
+- **#58.** `keel status` answered `executor: "claude"` about a runtime whose own launch log reads
+  `KEEL_EXECUTOR=copilot`. Truthful by the contract's words — *"which executor this home **would**
+  run a job with"* — and false by every reading of a key sitting beside `running: true`. Leg two's
+  gate reads the runtime's own startup line instead, and the `status` answer goes into the bundle
+  beside it.
+- **#60.** A `JOB_FAILED` tells the founder *"Your agent went away before it answered… Check it is
+  still running"* about an agent that never went anywhere, while the same row's `diagnostic` reads
+  `INVALID_LLM_RESPONSE: result.statement: longer than maxLength 400`. The information is not
+  missing; only the sentence is.
+
+**No mark was moved, no cap widened and no assertion loosened.** §5.5's own line: *a mark that moves
+to accommodate a result has stopped being a mark.*
+
+**Three harness faults, all three this repository's own, all three fixed with stackless tests.**
+
+1. **`/` stopped redirecting a stranger to `/login`**, deliberately (keel-web spec
+   `015-landing-page` FR-001, landed at keel-web `d5d8645` after this repo's last run of record).
+   `evals/conftest.py`'s L1 capture waited fifteen seconds for that redirect inside a
+   **session-scoped fixture**, so it took all twelve scenarios down at once, none of them for a
+   reason in their own subject. Found on the first attempt at the live run, before a single premium
+   request was spent. The login screen is opened directly now (as `Auth._goto_login` always has,
+   which is why signing in never noticed), and the stranger's own door is captured and asserted
+   beside it rather than dropped (`tests/test_the_strangers_door.py`).
+2. **`harness/refusals.py` could not see a job that failed.** It starts from the overview's
+   `pendingInteraction`, and a terminal failure leaves nothing pending — so the run reported *"the
+   agent never answered within 300.0s"* about a wire that had known the reason within seconds.
+   `runs/DRIFT.md` #37's own sentence, one status wider, and S-004 had the identical blind spot.
+   `latest_failure`/`why_the_stage_stopped` now read the founder-gated interaction list too, and
+   keel-cloud's founder-voiced line travels with the finding — which is how #60 was caught at all.
+3. **A renamed constant left one reference behind in a live scenario**, and every stackless test
+   still passed, because they import a module and read its constants and none of them *executes*
+   the body. It surfaced as a `NameError` three minutes into a paid run.
+   `tests/test_scenarios_have_no_undefined_names.py` now reads every scenario with `symtable` and
+   fails on a name nothing defines, with a seeded-loss fixture proving it catches the exact shape.
+
+**And AGENTS.md's two named LLM places became three**, which is what that rule asks for: *"a third
+would have to be argued for and added to this line rather than quietly written."* The argument is
+that §5.5 makes a host supported only when four things are true, **two of them this repository's**,
+and one of those two had never been measurable at all. A gate with an unmeasurable part is not a
+gate. `tests/test_scenario_set.py` now fails if a live scenario is not named in `AGENTS.md`.
+
+### The run of record for spec 016's second half — **the instruction eval, pinned** (2026-09-10)
+
+`KEEL_COPILOT_MODEL=gpt-5.6-luna make instruction-eval HOST=copilot N=1`, once, on the upgraded
+plan. Run of record: **`runs/20260910T213217Z-instructions-copilot`** — 131 cases, 35 minutes,
+**131 premium requests** (this host reports no dollars and none are invented), GitHub Copilot CLI
+**1.0.83**, model **`gpt-5.6-luna`, pinned** — the first Copilot run this repository has ever taken
+with `--model` actually set, because on 2026-09-09 the CLI refused every slug offered to it and on
+2026-09-10 it accepts all of them (keel-runtime spec 005 / C-5; `runs/DRIFT.md` #59). Judged at
+`MARKS_VERSION` **5**, unmoved.
+
+**Verdict: PASSED.** Every mark met, nothing errored.
+
+| Subject | Mark | Copilot, 2026-09-10 (pinned `gpt-5.6-luna`) | Copilot, 2026-09-09 (unpinned) | Claude (run of record) |
+|---|---|---|---|---|
+| reading — anchoring accuracy | ≥ 0.90 | **95.4 %** ✅ | 95.3 % ✅ | 96.5 % ✅ |
+| assumptions — golden-belief recall | ≥ 0.80 | **81.8 %** ✅ | 76.1 % ❌ | 98.5 % ✅ |
+| rule refusals | 0 | **0** ✅ | 0 ✅ | 0 ✅ |
+| BRIEF — all four marks | 1.00 | **7 / 7 = 100 %** ✅ | 5 / 7 ❌ | 7 / 7 ✅ |
+| errored | 0 | **0** ✅ | 2 ❌ | 0 ✅ |
+
+**The two runs are the same measurement this time** — same corpus, same prompt body, same
+`MARKS_VERSION`, same model — which is exactly what pinning bought, and it makes the comparison
+above a real one rather than two different questions side by side. **They are still not averaged.**
+
+**What moved, and what it means.** keel-cloud's inference-instruction prose has **not changed by
+one byte** between the two runs (`git log 8acb805..085382e -- src/main/resources/keel/inference-instructions/`
+is empty), so nothing here is a fix landing. What changed is the sample:
+
+| Stage | 2026-09-09 | 2026-09-10 |
+|---|---|---|
+| PROBLEM | 34/39 = 87.2 % | 33/39 = 84.6 % |
+| SOLUTION | 17/23 = 73.9 % | 18/23 = 78.3 % |
+| COMMERCIAL | **16/26 = 61.5 %** | **21/26 = 80.8 %** |
+| total | 67/88 = 76.1 % | **72/88 = 81.8 %** |
+
+`runs/DRIFT.md` **#54** called the commercial screen *"a screen, not a slope"* and made it the
+finding of that night. It recovered nineteen points with nothing changed on either side, so that
+entry is **amended**: the collapse was mostly one sample, and #54 should not have located the gap
+from a single N=1 run. The gap it is really about survives — **81.8 % against Claude's 98.5 %** is
+sixteen points on the same corpus — and so does every mechanism it named, which was read off diffs
+rather than off the headline. **#56** is amended too, and is **not** closed: `source_material` is
+7 of 7 and the word `proxy` appears nowhere, but `brief.md` is unchanged and `PROXY` is still a
+`mark` enum value sitting in the model's own BRIEF context. A leak one sample away from returning
+has not been fixed.
+
+**The mark is met by 1.8 points, on an N=1 run whose predecessor missed it by 3.9.** That is worth
+saying plainly next to the word PASSED.
+
+### Does Copilot meet the "supported" gate? **Part 3 yes, part 2 no — so not yet.**
+
+keel-cloud `canon/designs/keel-skill-design.md` §5.5 lists a host as supported only when **all
+four** are true. Two are this repository's, and after today they disagree:
+
+| | Part | Verdict |
+|---|---|---|
+| 1 | the runtime's suite passes on a runner with that host's CLI | **not this repo's** |
+| 2 | keel-e2e-eval **S-001 green through that host** | ❌ **no** — S-012's leg two framed and approved PROBLEM and then failed SOLUTION four times, every one `result.statement: longer than maxLength 400` (`runs/DRIFT.md` #61). The journey does not complete. |
+| 3 | the instruction eval's run of record **green at the current `MARKS_VERSION`** | ✅ **yes**, above — and for the first time |
+| 4 | release notes name the host CLI version range | **not this repo's** |
+
+So Copilot is **still "runs, unmeasured"** in the design's own words, but for a different and much
+narrower reason than on 2026-09-09. Then it was the thinking that missed the marks; now the
+thinking clears them and the **journey** is what does not finish. And the two blockers in front of
+part 2 are both small and both named:
+
+- **#59** — an unpinned Copilot runtime on this plan fails *every* job, because the plan's default
+  model is now `claude-sonnet-5` and its `assistant.message` events carry no `phase` key.
+  One line in `_copilot_final_answer`.
+- **#61** — pinned to a model the runtime can read, `gpt-5.6-luna` will not hold a 400-character
+  `statement`, and the single recovery pass never checks that the field it named got shorter.
+
+Neither is a mark that needs moving. §5.5's own remedy list applies unchanged: fix the prose so it
+works on both hosts, or pin a different model and record it — **never lower a mark**.
 
 ### The full-suite run of record for spec 015's second half (2026-09-10) — **`runs/INDEX-20260910T000441Z.html`**
 
@@ -238,12 +423,19 @@ holds it against real DOM (three of its four cases fail against the old locator)
 `make instruction-eval HOST=copilot N=1`, once, on the founder's own Copilot plan. Run of record:
 **`runs/20260909T061537Z-instructions-copilot`** — 131 cases, 35 minutes, **129 premium requests**
 (this host reports no dollars and none are invented), GitHub Copilot CLI **1.0.83**, **nothing
-pinned** (`--model` accepts no slug on this account, keel-runtime spec 005 / C-5) and every one of
+pinned** (`--model` accepted no slug on this account **that day** — it accepts every one of them
+since the plan upgrade, and spec 016's run is pinned; keel-runtime spec 005 / C-5) and every one of
 the 129 answered cases answered by **`gpt-5.6-luna`**. Judged at `MARKS_VERSION` **5**, unmoved.
 
 **Verdict: FAILED. Copilot does not meet keel-cloud `canon/designs/keel-skill-design.md` §5.5's
 "supported" gate**, whose third part is this repository's. In the design's own words it is
 **"runs, unmeasured"**.
+
+> **Superseded as the Copilot run of record, 2026-09-10** (spec 016, above): a second run on the
+> same model, pinned, at the same `MARKS_VERSION`, **passes every mark** — recall 81.8 %, BRIEF
+> 7/7, errored 0 — against keel-cloud instruction prose that never changed. Part 3 of the gate is
+> now met; part 2 is not. This section is kept as written, because it is what was measured that
+> night and because two of its four findings needed amending rather than deleting.
 
 | Subject | Mark | Copilot (`gpt-5.6-luna`) | Claude (run of record) |
 |---|---|---|---|
@@ -602,6 +794,8 @@ make instruction-eval BASELINE=1           # the before-picture, taken once
 make instruction-eval K=reading N=1        # one subject, one run per case
 make instruction-eval K=brief N=1          # the BRIEF paragraph, one call an entry
 make instruction-eval HOST=copilot N=1     # the other host (spec 014)
+KEEL_COPILOT_MODEL=gpt-5.6-luna \
+  make instruction-eval HOST=copilot N=1   # ... pinned, which spec 016 says a measured run must be
 ```
 
 - **No stack, and no `make up`.** It talks to no service. It shells keel-cloud's own
@@ -655,10 +849,16 @@ for the same reason: the corpus does not carry them and `Project.driftOfStage` i
 **And every paragraph is rendered whole on `register.html`**, beside its entry's own standings,
 with no score — judgement call 10's rule one subject wider. Almost everything about a good
 paragraph is wording, and a mark this narrow can be wrong about a paragraph that is right.
-- **The model is not pinned.** keel-runtime sends no `--model` and this repo does not add one. The
-  model is named in the report header, and the marks are comparable only within it. On Copilot
-  `KEEL_COPILOT_MODEL` is the way to pin one where a machine has a slug the CLI accepts; this
-  account's does not, so the run of record records `pinned_model: null` and the router's choice.
+- **On Claude the model is not pinned; on Copilot it now is** (spec 016, 2026-09-10). keel-runtime
+  sends no `--model` of its own and this repo adds none; the model is named in the report header,
+  and the marks are comparable only within it. `KEEL_COPILOT_MODEL` is the way to pin one, and it
+  was unusable until this month: on 2026-09-09 this account's CLI refused **every** slug offered to
+  `--model`, so spec 014's run records `pinned_model: null` and the router's choice. On the
+  upgraded plan every slug is accepted, and **pinning has stopped being only about comparability**
+  — an unpinned Copilot runtime here now takes the plan's default, `claude-sonnet-5`, on which
+  keel-runtime cannot read an answer at all (`runs/DRIFT.md` #59). Spec 016's run of record pins
+  `gpt-5.6-luna`, which is also what spec 014's router happened to choose, so the two runs are one
+  measurement rather than two.
 
 ### Two hosts (`HOST={claude,copilot}`, spec 014)
 
@@ -851,6 +1051,39 @@ code or JSON anywhere on the screen. Then it signs in for real and proves none o
 account or moved the one that existed. Neither scenario is scored: no policy attribute applies to
 a scenario about who owns what, or about a door refusing.
 
+**S-012, Copilot, host and thinker** (`evals/test_s012_copilot_host_and_thinker.py`, spec
+`016-copilot-e2e`) is the second live scenario and the third named LLM place (AGENTS.md), and it
+exists because keel-cloud `canon/designs/keel-skill-design.md` §5.5 makes a host "supported" only
+when four things are true and **two of them are this repository's** — S-001 green *through that
+host*, and the instruction eval green on it. The second has been measurable since spec 014. The
+first never had been: no scenario here had ever let an agent host load the skill and decide for
+itself to run it.
+
+**Leg one is the host.** keel-connect-skill's plugin is installed into a **fresh `COPILOT_HOME`**
+from the real public marketplace with Copilot's own two commands, `copilot skill list` is asked
+whether it can see `keel-connect` as a plugin skill, and then the founder's three words — *"keel
+connect"* — are said to `copilot -p`. **Nothing after that is asserted from Copilot's prose**: a
+host that answered *"Keel is connected!"* and started nothing would pass a grep of its reply and
+fails every one of the real checks — the heartbeat file in state `awaiting_approval`, the launch
+log's `KEEL_USER_CODE=` and `KEEL_VERIFICATION_URI=` lines, and the **eval cloud's own** answer to
+`GET /v2/device-authorizations?user_code=`. The reply is read exactly once, for a loose *"it said
+connected"* on the second run, and that check can never be the only evidence of anything. (Compare
+`make acceptance`'s model-driven half, which greps the reply for a `XXXX-XXXX` shape and the word
+`device`, says so in its own comment, and has never run.)
+
+**Leg two is the thinker**, on that same runtime — which is on the Copilot executor because the
+skill read `SKILL.md`'s one Copilot line and passed `--host copilot`, and nothing in the scenario
+passes `--executor`. The founder's journey follows, with Copilot answering every screen, and
+**every card assertion is a shape or an absence** (spec 008's judgement call 8): lines present and
+numbered, at least one deal-breaker, nothing refused. It reads the roles and questions **off the
+screen**, never out of the fixture, because on a live run they are the model's own and the
+fixture's *"A payroll manager"* is a label nothing on the page ever had — the same mistake S-010
+made once and the same fix.
+
+It is **not scored**, for S-008's and S-009's reason: no attribute of `evals/policy.py` applies to
+a scenario about which host loaded a skill and which model answered a job. The evidence is the
+transcript, the two Copilot transcripts beside it, and the per-job envelopes.
+
 The old S-002…S-011 (an eleven-scenario set against a since-retired agent-protocol/relay stack,
 unrelated to the current S-002 or to S-010/S-011 above) are gone — recorded in git history and in
 `runs/DRIFT.md`'s 2026-09-03 retirement note, not lost.
@@ -873,12 +1106,17 @@ legacy-builder accommodations, every one of them a property that would otherwise
 observable during a paid run), the stub OIDC issuer itself (spec 015 — a real server on a real
 socket, its refusals, its picker and its six declared lies) and what the two-founder and refusal
 scenarios promise (that S-010 goes at *every* route the design lists, and that S-011's five lines
-are keel-web's verbatim), with no Docker/gradle/vite involved. **568 tests** as of spec 015's
-second half.
+are keel-web's verbatim), with no Docker/gradle/vite involved. **634 tests** as of spec 016.
 
-## The live run (`make eval-live`)
+## The live runs (`make eval-live`)
 
-S-004, *the stranger who gives orders* (`specs/008-stranger-who-gives-orders`), is the one
+**There are two now.** `make eval-live` selects the `live` marker, so `K=` picks between them:
+`K=s004` is the stranger who gives orders, on a real `claude`; `K=s012` is Copilot as host and
+thinker, on a real `copilot` (spec `016-copilot-e2e`, above). Both are opt-in, both cost the
+founder's own money, both are deselected from `make eval`/`make eval-all`, and both skip
+themselves **by name with a reason** when their CLI is missing rather than passing quietly.
+
+S-004, *the stranger who gives orders* (`specs/008-stranger-who-gives-orders`), is the
 scenario that runs a **real `claude`** -- it attacks the framing box and a participant's answers
 with instructions and checks that the founder's agent only ever answers. Spec 010 grew it from
 two boxes to **nine** — the project name, the region, the three claim moments of the walk's own

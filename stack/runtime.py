@@ -243,8 +243,13 @@ def _run_runtime(config: StackConfig, argv: list[str], *, timeout: float) -> dic
         return None
 
 
-def status(config: StackConfig) -> dict:
+def status(config: StackConfig, *, home: Path | None = None) -> dict:
     """`<bundled runtime> status --home <home>`.
+
+    **`home` overrides the profile's own** (spec `016-copilot-e2e`): S-012 gives the skill a
+    `KEEL_HOME` under its own run bundle, because leg one's runtime is started by *Copilot*, not
+    by this harness, and its home has to be somewhere a run bundle can carry. Every other caller
+    passes nothing and gets `home_dir(config)`, unchanged.
 
     The runtime that answers is the one that travelled inside the skill (spec 012 FR-001), not the
     checkout -- the same package, resolved the same way, a founder's "keel connect" would run.
@@ -260,7 +265,7 @@ def status(config: StackConfig) -> dict:
     `status` this stack cannot even shell out to is definitely not a runtime this stack can call
     connected.
     """
-    body = _run_runtime(config, ["status", "--home", str(home_dir(config))], timeout=10)
+    body = _run_runtime(config, ["status", "--home", str(home or home_dir(config))], timeout=10)
     if body is None or "running" not in body:
         return {"running": False}
     return body
@@ -285,7 +290,8 @@ class DisconnectScriptMissing(RuntimeError):
     teardown that cannot tear down because a sibling moved is not a teardown."""
 
 
-def disconnect_via_skill_script(config: StackConfig, *, timeout: float = 60) -> dict | None:
+def disconnect_via_skill_script(config: StackConfig, *, timeout: float = 60,
+                                 home: Path | None = None) -> dict | None:
     """keel-connect-skill's `scripts/keel_disconnect.py`, run with this stack's own `--home` and a
     scrubbed environment so the script resolves the bundled runtime itself (its contract
     `specs/002-keel-disconnect/contracts/skill-disconnect-output.md`).
@@ -299,7 +305,7 @@ def disconnect_via_skill_script(config: StackConfig, *, timeout: float = 60) -> 
     script = config.disconnect_script_path
     if not script.is_file():
         return None
-    cmd = [sys.executable, str(script), "--home", str(home_dir(config))]
+    cmd = [sys.executable, str(script), "--home", str(home or home_dir(config))]
     try:
         result = subprocess.run(
             cmd, env=runtime_env(config), capture_output=True, text=True, timeout=timeout)
@@ -312,7 +318,7 @@ def disconnect_via_skill_script(config: StackConfig, *, timeout: float = 60) -> 
     return body
 
 
-def disconnect(config: StackConfig, *, timeout: float = 60) -> dict:
+def disconnect(config: StackConfig, *, timeout: float = 60, home: Path | None = None) -> dict:
     """Stops the runtime the way a founder's "keel disconnect" does, and **reads the proof**.
 
     Preferred path: keel-connect-skill's `scripts/keel_disconnect.py`
@@ -325,15 +331,17 @@ def disconnect(config: StackConfig, *, timeout: float = 60) -> dict:
     raises: `{"outcome": "unavailable", ...}` is the answer when neither path could be run at all,
     so a teardown is never blocked by a missing sibling (idempotent, as `kill` was).
     """
-    body = disconnect_via_skill_script(config, timeout=timeout)
+    body = disconnect_via_skill_script(config, timeout=timeout, home=home)
     if body is not None:
         return body
 
-    body = _run_runtime(config, ["disconnect", "--home", str(home_dir(config))], timeout=timeout)
+    body = _run_runtime(config, ["disconnect", "--home", str(home or home_dir(config))],
+                        timeout=timeout)
     if body is None or "outcome" not in body:
         return {"outcome": "unavailable",
                 "message": "neither keel-connect-skill's keel_disconnect.py nor the bundled "
-                           f"runtime's own `disconnect` could be run against {home_dir(config)}",
+                           f"runtime's own `disconnect` could be run against "
+                           f"{home or home_dir(config)}",
                 "via": None}
     body["via"] = "bundled keel_runtime disconnect"
     return body
