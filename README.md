@@ -65,6 +65,92 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
+### The full-suite run of record for spec 015's second half (2026-09-10) — **`runs/INDEX-20260910T000441Z.html`**
+
+One stack session — `make up`, `make eval-all`, one re-run of S-010, `make down` — on keel-cloud
+`866a611` (spec 032 *Sign in with Google* and spec 035 *one runtime per founder*), keel-web
+`07843b0`, keel-runtime `d30dbd0` and keel-connect-skill `f06f481`, bundled runtime
+`0.1.0+d30dbd0`. `make unit` green at **537** before and **571** after. Every deterministic
+scenario; S-004 and the instruction eval excepted — both cost money and neither was run.
+
+**Every one of these signed in through Google.** There is no password anywhere in this run: each
+scenario opened keel-web's `/login`, clicked *Continue with Google*, clicked *Eval Founder* on the
+stub issuer's account picker, and came back through `/v2/auth/google/callback` with a session the
+real callback opened.
+
+| What | Run | Result |
+|---|---|---|
+| S-001 smoke | `20260909T234619Z-s001-smoke` | **PASSED, 5.0/5** |
+| S-002 agent-optional | `20260909T234802Z-s002-agent-optional` | **PASSED, 4.5/5** |
+| S-003 every door | `20260909T234812Z-s003-every-door` | **PASSED, 5.0/5** |
+| S-005 countly | `20260909T234845Z-s005-countly` | **PASSED, 5.0/5** |
+| S-006 paidly | `20260909T235230Z-s006-paidly` | **PASSED, 5.0/5** |
+| S-007 mulchrun | `20260909T235645Z-s007-mulchrun` | **PASSED, 5.0/5** |
+| S-008 bundled runtime | `20260910T000106Z-s008-bundled-runtime` | **PASSED, not scored** |
+| S-009 skill distribution | `20260910T000121Z-s009-skill-distribution` | **PASSED, not scored** |
+| S-010 two founders | `20260910T000658Z-s010-two-founders` | **PASSED, 5.0/5** (re-run; see below) |
+| S-011 a token that isn't right | `20260910T000206Z-s011-bad-token` | **PASSED, not scored** |
+
+S-002's 4.5 is the same FIDELITY it has scored across every set of runs of record and is not a
+failure of the day. S-010's 5.0 is scored over ORIENTATION and CLARITY only: FIDELITY and GUIDANCE
+are `not_applicable`, because the one screen it visits on the way to its subject is the People page
+it mints an invitation on. Nothing about *who owns what* is a thing this policy measures, and the
+score should be read as "the two screens it passed through were clean", not as a verdict on
+isolation. That verdict is the twenty-six steps in its transcript.
+
+**No `runs/DRIFT.md` entry came out of this run, and that is worth saying out loud**, because
+§10.6 predicted one: *"this assertion fails today for a reason that has nothing to do with
+sign-in"*, about the participant page naming the wrong founder. It does not fail. keel-cloud spec
+031 landed ownership before spec 032 landed sign-in, exactly as the design's step 2 said it should,
+so the first two-founder instance this repository has ever booted found every one of §4.3's leaks
+already closed:
+
+- all ten of §4.3's reads answered founder B **404 with an empty body**, and so did both writes and
+  the reading batch that used to snapshot the victim's project and insert its row before refusing;
+- another founder's project and a well-formed id that exists nowhere were **byte-identical** —
+  same status, same empty body, same headers;
+- founder A's project revision and reading batches were unmoved by any of it;
+- the participant page said *"Your answers go to Eval Founder"* — the project's **owner**, not
+  whichever row an unordered `LIMIT 1` returned;
+- `/v2/me` answered each session about **its own caller** (`Eval Founder` / `Nour Haddad`), with A's
+  agent `connected: true` against a real `agentSessionId` and B's `connected: false` with nulls
+  throughout — A's runtime is not B's agent;
+- and founder B's own `POST /v2/projects` was refused `422 {"rule":"agent"}` — *your agent is not
+  connected* — a refusal about **B**, never a 404 and never a silent success on somebody else's
+  runtime.
+
+S-011 drove eleven refusals in one browser — `iss`, `aud`, `exp`, `sig`, `nonce`,
+`email_verified`, the picker's *Cancel*, the callback URL replayed, and a `state` minted in a
+different browser context — and every one landed on `/login` with §5.5's own sentence, `GET /v2/me`
+answering `401`, and no JWT, rule id, status code or JSON anywhere on the screen. G8 (the allowed
+domain) recorded itself skipped, with the variable named and the line it would have asserted, since
+this stack deliberately configures no `KEEL_GOOGLE_ALLOWED_DOMAIN`.
+
+**Three harness faults, all three fixed with a stackless test, none of them anybody's product.**
+
+1. **`KEEL_V2_FOUNDER_BASE_URL` was not an origin.** Found reading keel-cloud spec 032 *before*
+   `make up`. It sat at `http://localhost:5173/p`, left over from the deleted
+   `keel.v2.founder-base-url` property; keel-cloud now appends `/login` to it for every refused
+   sign-in and the stored `return_to` for every successful one. Left alone, this stack would have
+   sent a signed-in founder to `/p/` and a refused one to `/p/login?auth_error=…`, both of which
+   keel-web's router resolves as a project whose id is the word *login*. Every scenario would have
+   gone red at its first step. `tests/test_config.py` holds it, with the whole derivation written
+   down.
+2. **The design's login locator does not match the real screen.** §10.4 writes
+   `get_by_role("button", name="Continue with Google")`; keel-web renders an `<a class="btn
+   google">`, deliberately, because signing in is a navigation and not a fetch. It is
+   `get_by_role("link", …)`, and a test asserts it stays that way.
+3. **S-010 read the wire with the wrong key names, and asked a warm project for a fixture's role.**
+   This is the one the run itself found: its place in the `eval-all` pass
+   (`20260910T000134Z-s010-two-founders`) died looking for a *"A payroll manager"* card on the
+   Mulchrun project, whose roles are *Crew leads*. Fixed to read the role label — and the
+   invitation, role and batch ids, each of which the wire names after itself — off the wire, and
+   re-run green in the same session. Recorded rather than quietly re-rolled, and four stackless
+   tests now pin the shapes.
+
+`make down` closed the session with
+`[down] (eval) keel-runtime: disconnected (via keel-connect-skill/scripts/keel_disconnect.py)`.
+
 ### The full-suite run of record (2026-09-09) — **`runs/INDEX-20260909T074414Z.html`**
 
 One stack session — `make up`, `make eval-all`, `make eval K=s005`, `make acceptance`, `make down`
@@ -636,7 +722,7 @@ cross-repo bug (not a config problem in this repo), the run's evidence bundle ca
 - Why the scenario was, or was not, adapted around it.
 - The shape of a fix, explicitly **not applied** — this repo diagnoses, the product repo fixes.
 
-## The nine scenarios
+## The eleven scenarios
 
 **S-001, the smoke** (`evals/test_s001_smoke.py`) walks keel-cloud `canon/journeys.md` end to end,
 once, deterministically, on the measured-beliefs screens: arrival and device-code connect, naming
@@ -737,9 +823,37 @@ and then one connected runtime read by all four trees answering `already_connect
 byte** but the heartbeat's own clock. It is **not scored**, for S-008's reason: no policy
 attribute applies to a scenario about what ships.
 
+**S-010, two founders, one instance** (`evals/test_s010_two_founders.py`, spec
+`015-stub-oidc-and-two-founders`) is the scenario that could not exist while there was one
+password and one account. Both founders exist because both **signed in** — there is no fixture
+that inserts a row and no second password. Founder A signs in as *Eval Founder*, connects a
+scripted runtime and builds a project; founder B signs in as *Nour Haddad* in a **fresh browser
+context** (a new cookie jar, not a new tab); and then every founder-reachable route the design's
+§4.3 lists — the ten reads, the two writes, and the reading batch that used to snapshot the
+victim's project and write its row *before* refusing — answers B a **bare 404**, body and all. The
+sharpest assertion is the one that makes 404 mean what it says: another founder's project and an
+id that exists nowhere must be **byte-identical** in status, body and headers, or the status code
+is a 403 in disguise. Beside it: A's project revision and reading batches unmoved, the participant
+page naming the project's **owner** (not whichever row an unordered `LIMIT 1` returned), A's
+runtime still A's, and B's own creation refused for want of **B's** agent — a refusal about B,
+never a 404 and never a silent success on somebody else's runtime.
+
+**S-011, a token that isn't right** (`evals/test_s011_bad_token.py`, same spec) turns the design's
+§5.5 — ten failure modes, five founder-voiced lines — from a table into a contract. The stub
+issuer's `?stub_break=` makes the next ID token wrong in exactly one declared way, so what is
+measured is *keel-cloud refusing*, never the stub's ability to lie. Eleven cases in one browser:
+`iss`, `aud`, `exp`, `sig`, `nonce` and `email_verified`; the picker's own *Cancel*; the callback
+URL replayed; a `state` minted in a different browser context; and the allowed domain when a run
+configures one (recorded as skipped, with its reason, when it does not). Every one asserts the
+same four things — the browser is on `/login`, the visible line is §5.5's own **sentence** for
+that rule, `GET /v2/me` is `401` so no session was opened, and there is no JWT, rule id, status
+code or JSON anywhere on the screen. Then it signs in for real and proves none of it created an
+account or moved the one that existed. Neither scenario is scored: no policy attribute applies to
+a scenario about who owns what, or about a door refusing.
+
 The old S-002…S-011 (an eleven-scenario set against a since-retired agent-protocol/relay stack,
-unrelated to the current S-002 above) are gone — recorded in git history and in `runs/DRIFT.md`'s
-2026-09-03 retirement note, not lost.
+unrelated to the current S-002 or to S-010/S-011 above) are gone — recorded in git history and in
+`runs/DRIFT.md`'s 2026-09-03 retirement note, not lost.
 
 ## Stackless unit tests
 
@@ -756,7 +870,11 @@ reader, the bundled runtime the referee runs (spec 012), the door out of it (spe
 doors, `make down`'s log line, and the five source properties S-001's tail must keep) and the
 packaging beds (spec 013 — the secret rule, the `--bare` trap, the ambient base URL and both
 legacy-builder accommodations, every one of them a property that would otherwise only be
-observable during a paid run), with no Docker/gradle/vite involved. **448 tests** as of spec 013.
+observable during a paid run), the stub OIDC issuer itself (spec 015 — a real server on a real
+socket, its refusals, its picker and its six declared lies) and what the two-founder and refusal
+scenarios promise (that S-010 goes at *every* route the design lists, and that S-011's five lines
+are keel-web's verbatim), with no Docker/gradle/vite involved. **568 tests** as of spec 015's
+second half.
 
 ## The live run (`make eval-live`)
 

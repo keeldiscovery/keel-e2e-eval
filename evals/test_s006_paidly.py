@@ -65,6 +65,6 @@ def _paidly_extras(ctx) -> None:
             f"(would have read {want!r})")
 
 
-def test_s006_paidly(stack, founder_credentials, browser, run_dir):
-    corpus_scenario.run(stack, founder_credentials, browser, run_dir,
+def test_s006_paidly(stack, founder_one, browser, run_dir):
+    corpus_scenario.run(stack, founder_one, browser, run_dir,
                         entry_id=ENTRY_ID, slug="s006-paidly", extra=_paidly_extras)

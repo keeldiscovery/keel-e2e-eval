@@ -200,7 +200,10 @@ def test_make_down_prints_the_disconnect_outcome_and_which_door_answered(config,
                                           "via": stack_runtime.VIA_SKILL_SCRIPT})
     monkeypatch.setattr(lifecycle, "teardown_all_processes", lambda _profile: None)
     monkeypatch.setattr(lifecycle.postgres, "down", lambda _config: None)
-    monkeypatch.setattr(lifecycle.auth, "clear_stored", lambda: None)
+    # No `lifecycle.auth.clear_stored` to stub any more: `runs/.stack/founder.json` went with
+    # the password (keel-cloud google-sign-in-design.md §10.4), so teardown has no credential to
+    # clear and `stack/lifecycle.py` no longer imports `stack.auth` at all.
+    monkeypatch.setattr(lifecycle.oidc, "clear_key", lambda _config: None)
     monkeypatch.setattr(lifecycle.time, "sleep", lambda _s: None)
 
     lifecycle.teardown(config)
@@ -223,7 +226,10 @@ def test_make_down_warns_loudly_on_did_not_stop_and_still_tears_the_rest_down(co
                         lambda _profile: stopped.setdefault("processes", True))
     monkeypatch.setattr(lifecycle.postgres, "down",
                         lambda _config: stopped.setdefault("postgres", True))
-    monkeypatch.setattr(lifecycle.auth, "clear_stored", lambda: None)
+    # No `lifecycle.auth.clear_stored` to stub any more: `runs/.stack/founder.json` went with
+    # the password (keel-cloud google-sign-in-design.md §10.4), so teardown has no credential to
+    # clear and `stack/lifecycle.py` no longer imports `stack.auth` at all.
+    monkeypatch.setattr(lifecycle.oidc, "clear_key", lambda _config: None)
     monkeypatch.setattr(lifecycle.time, "sleep", lambda _s: None)
 
     lifecycle.teardown(config)

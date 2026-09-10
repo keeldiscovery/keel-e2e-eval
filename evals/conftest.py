@@ -12,8 +12,7 @@ import pytest
 from playwright.sync_api import sync_playwright
 
 from harness.evidence import new_run_dir, write_versions
-from stack import auth as stack_auth
-from stack.auth import FounderCredentials
+from stack.auth import FOUNDER_ONE, FOUNDER_TWO, StubFounder
 from stack.config import PROFILES, StackConfig, load_config
 from stack.lifecycle import boot, quick_gates_pass
 from stack.lifecycle import teardown as stack_teardown
@@ -48,53 +47,63 @@ def stack(stack_config: StackConfig):
         stack_teardown(stack_config)
 
 
-def _capture_virgin_instance_routes_to_setup(stack: StackConfig, browser) -> None:
-    """Task item 5's other auth moment (S-008's own "unauthenticated screen routes to login" is a
-    per-scenario, always-reproducible check; this one is not -- `GET /v2/setup`'s `accountExists`
-    is only ever `false` once in a stack's whole lifetime, the instant before this same fixture's
-    `ensure_founder_account` call provisions it). **Judgement call**: captured here, once, rather
-    than inside a scenario -- a scenario can't safely observe a virgin instance without either
-    running first by accident of collection order or tearing down the shared account every other
-    scenario in the same `pytest evals` session depends on. Evidence (a screenshot) goes to
-    `runs/.stack/`, alongside this harness's other stack-lifecycle artifacts, not a scored run
-    bundle's own directory -- this is a one-time stack-boot observation, not a scenario.
-    """
-    from pathlib import Path
+def _capture_the_login_screen(stack: StackConfig, browser) -> None:
+    """**L1, the login screen, before anyone has signed in** (keel-cloud
+    `canon/designs/google-sign-in-design.md` §10.4). This replaces the virgin-instance capture it
+    stands in the place of, and the replacement is the point: the retired setup route's `accountExists`
+    was true exactly once in a stack's whole lifetime, so the old observation could only ever be
+    made here, once, before any scenario ran. There is no virgin instance any more -- **this is
+    the same screen on a fresh instance and a busy one**, and that sameness is what is asserted.
 
+    Evidence goes to `runs/.stack/`, alongside this harness's other stack-lifecycle artifacts, not
+    a scored run bundle: it is a one-time stack-boot observation, not a scenario.
+    """
     from stack.config import REPO_ROOT
 
-    if stack_auth.account_exists(stack):
-        return  # not virgin -- either a prior session already set it up, or the file was reused
     context = browser.new_context()
     try:
         page = context.new_page()
         page.goto(f"http://localhost:{stack.web_port}/", wait_until="load")
-        page.wait_for_url("**/setup", timeout=10_000)
+        page.wait_for_url("**/login", timeout=15_000)
+        page.locator("h1.auth-title").wait_for(state="visible", timeout=15_000)
         heading = page.locator("h1.auth-title").inner_text()
         shot_dir = REPO_ROOT / "runs" / ".stack"
         shot_dir.mkdir(parents=True, exist_ok=True)
-        page.screenshot(path=str(shot_dir / "virgin-instance-routes-to-setup.png"), full_page=True)
-        assert "set up" in heading.lower(), (
-            f"expected a virgin instance's landing visit to route to the setup screen, got heading "
+        page.screenshot(path=str(shot_dir / "login-screen-before-anyone-signed-in.png"),
+                        full_page=True)
+        assert heading.strip().lower() == "log in", (
+            f"expected an unauthenticated landing visit to route to the login screen, got heading "
             f"{heading!r} at {page.url}")
+        assert page.get_by_role("link", name="Continue with Google").count() == 1, (
+            "the login screen must carry exactly one way in (design §6) -- and it is a link, "
+            "because signing in is a navigation and not a fetch")
+        assert page.get_by_label("Password").count() == 0, (
+            "a password field on the login screen would mean keel-cloud kept one (§10.8)")
     finally:
         context.close()
 
 
 @pytest.fixture(scope="session")
-def founder_credentials(stack: StackConfig, browser) -> FounderCredentials:
-    """Founder-experience round 2: the "recipes/conftest step" that checks `GET /v2/setup` and
-    performs setup once, idempotent (`stack.auth.ensure_founder_account`'s own docstring has the
-    full derivation). Session-scoped, same lifetime as `stack`: every scenario in one `pytest
-    evals` invocation shares the one founder account this establishes, exactly as a real founder's
-    single account would persist across every discovery they start.
+def founder_one(stack: StackConfig, browser) -> StubFounder:
+    """Founder A -- *Eval Founder*, the identity every scenario but S-010 signs in as.
 
-    Depends on `browser` (not just `stack`) so the virgin-instance-routes-to-setup observation
-    (task item 5) can run *before* `ensure_founder_account` provisions the account -- the one and
-    only moment in a stack's lifetime that instance is genuinely virgin.
+    **No I/O and no provisioning.** The password era's `ensure_founder_account` called
+    the retired setup route once and stored credentials; there is nothing to provision now, because an
+    account exists the moment somebody signs in and the first founder is not special (decision 3).
+    What is left is a record naming who to click on the stub's picker.
+
+    It still depends on `browser`, for one reason: the L1 capture above wants to happen once per
+    stack session, before any scenario has signed in.
     """
-    _capture_virgin_instance_routes_to_setup(stack, browser)
-    return stack_auth.ensure_founder_account(stack)
+    _capture_the_login_screen(stack, browser)
+    return FOUNDER_ONE
+
+
+@pytest.fixture(scope="session")
+def founder_two(stack: StackConfig) -> StubFounder:
+    """Founder B -- *Nour Haddad*, the second person on the instance (S-010). No `browser`
+    dependency: nothing about B is observed before the scenarios run."""
+    return FOUNDER_TWO
 
 
 def _slug_from_test_name(name: str) -> str:

@@ -365,7 +365,7 @@ def _other_stage_card(page, recorder, web_base, project_id: str) -> dict:
     return read
 
 
-def test_s004_stranger_who_gives_orders_live(stack, founder_credentials, browser, run_dir):
+def test_s004_stranger_who_gives_orders_live(stack, founder_one, browser, run_dir):
     reason = _claude_ready()
     if reason:
         pytest.skip(reason)
@@ -394,8 +394,12 @@ def test_s004_stranger_who_gives_orders_live(stack, founder_credentials, browser
 
     try:
         page = context.new_page()
-        Auth(page, recorder, web_base).log_in(
-            email=founder_credentials.email, password=founder_credentials.password)
+        # One line, and it is the only line spec 015's second half changes in this scenario.
+        # **The second founder is not here**: S-004 is live, model-backed and deselected from
+        # `make eval`/`make eval-all`, so isolation assertions living in it would be proven only
+        # when somebody opts into a paid run (design decision 12). They are S-010's, deterministic
+        # and in the smoke.
+        Auth(page, recorder, web_base).sign_in(founder_one)
         landing = Landing(page, recorder, web_base)
         arrival = landing.visit()
 

@@ -72,6 +72,6 @@ def _countly_extras(ctx) -> None:
             "stopped proving anything")
 
 
-def test_s005_countly(stack, founder_credentials, browser, run_dir):
-    corpus_scenario.run(stack, founder_credentials, browser, run_dir,
+def test_s005_countly(stack, founder_one, browser, run_dir):
+    corpus_scenario.run(stack, founder_one, browser, run_dir,
                         entry_id=ENTRY_ID, slug="s005-countly", extra=_countly_extras)

@@ -4,11 +4,12 @@
 
 **Created**: 2026-09-09
 
-**Status**: **First half implemented** — `stack/stub_oidc/`, `stack/oidc.py`, the ports, the
-lifecycle wiring and 46 stackless tests, green, with a live `make up` walk recorded in
-[tasks.md](tasks.md). The **second half** (§10.4–§10.7 of the design: the picker in
-`harness/browser.py`, `stack/auth.py`'s password, S-010 and S-011) is **not started and waits on
-keel-cloud spec 032**, which is being built in parallel.
+**Status**: **Both halves implemented.** The first half (`stack/stub_oidc/`, `stack/oidc.py`, the
+ports, the lifecycle wiring, 46 stackless tests) landed on its own, ahead of keel-cloud spec 032,
+and is recorded below and in [tasks.md](tasks.md). The **second half** (§10.4–§10.7 of the design:
+the picker in `harness/browser.py`, `stack/auth.py`'s password, S-010 and S-011) landed once
+keel-cloud `master` carried 032 — its requirements, its scenarios and its run of record are in
+[spec-second-half.md](spec-second-half.md) and the second half of [tasks.md](tasks.md).
 
 **Input**: keel-cloud `canon/designs/google-sign-in-design.md` (design of record, 2026-09-08),
 §12 step 4: *"keel-e2e-eval, spec `015-stub-oidc-and-two-founders`, first half (§10.1–§10.3):

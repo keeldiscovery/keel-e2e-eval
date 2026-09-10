@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import time
 
-from stack import auth, cloud, oidc, postgres, runtime, web
+from stack import cloud, oidc, postgres, runtime, web
 from stack.config import StackConfig, load_config
 from stack.processes import teardown_all_processes
 
@@ -91,10 +91,9 @@ def teardown(config: StackConfig | None = None) -> None:
 
     Split-stacks (relay-design.md §12.5): every step below is scoped to `config.profile` --
     `teardown_all_processes(config.profile)` only ever kills that profile's own pid files, and
-    `postgres.down(config)` only ever addresses that profile's own Compose project. The eval
-    profile's own founder credentials (`stack/auth.py`) are cleared only when tearing down the
-    eval profile itself -- a playground teardown has never touched, and must never touch, the
-    eval account's stored credentials.
+    `postgres.down(config)` only ever addresses that profile's own Compose project, and
+    `oidc.clear_key(config)` only ever removes that profile's own signing key. There is no stored
+    founder credential left to scope: it went with the password (google-sign-in-design.md §10.4).
     """
     config = config or load_config()
     print(f"[down] ({config.profile}) disconnecting keel-runtime (if a scenario left one "
@@ -116,9 +115,8 @@ def teardown(config: StackConfig | None = None) -> None:
     # made it (spec 015; keel-cloud google-sign-in-design.md 10.3). Both profiles, not just eval:
     # each clears only its own.
     oidc.clear_key(config)
-    if config.profile == "eval":
-        # postgres.down() drops the eval project's volume (-v) -- the founder account
-        # stack/auth.py stored credentials for no longer exists once this returns
-        # (founder-experience round 2).
-        auth.clear_stored()
+    # Nothing else to clear. `runs/.stack/founder.json` and `stack.auth.clear_stored()` went
+    # with the password (keel-cloud google-sign-in-design.md §10.4): an account exists the moment
+    # somebody signs in with Google, the stub is stateless, and this harness therefore persists
+    # no credential of any kind between runs.
     print(f"[down] ({config.profile}) done")

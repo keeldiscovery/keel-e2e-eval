@@ -79,6 +79,6 @@ def _mulchrun_extras(ctx) -> None:
         assert not leaks, f"a US market screen carries {leaks}: {body[:400]!r}"
 
 
-def test_s007_mulchrun(stack, founder_credentials, browser, run_dir):
-    corpus_scenario.run(stack, founder_credentials, browser, run_dir,
+def test_s007_mulchrun(stack, founder_one, browser, run_dir):
+    corpus_scenario.run(stack, founder_one, browser, run_dir,
                         entry_id=ENTRY_ID, slug="s007-mulchrun", extra=_mulchrun_extras)

@@ -266,12 +266,16 @@ def _gui_u4(ix: Interaction) -> CheckResult | None:
 def _ui_visit_checks(ix: Interaction) -> list[CheckResult]:
     results = []
     screen = ix.captured_text.get("screen")
-    # ORI-U1 asks "does this screen orient the founder about *which project* this is" -- round 2's
-    # own `/login`/`/setup` screens (`FounderBrowser.log_in`, `evals/conftest.py`'s virgin-instance
-    # check) are visited before any project is even in view, so there is no project identity marker
-    # for them to carry and none should be expected -- live-confirmed 2026-08-30 (eval-all run):
-    # an earlier draft failed every scenario's own login step on exactly this inapplicable ground.
-    if screen not in ("login", "setup"):
+    # ORI-U1 asks "does this screen orient the founder about *which project* this is". The login
+    # screen is visited before any project is in view, so there is no project identity marker for
+    # it to carry and none should be expected -- live-confirmed 2026-08-30 (eval-all run): an
+    # earlier draft failed every scenario's own login step on exactly this inapplicable ground.
+    #
+    # **Policy v10 drops `setup` from the exemption** (evals/policy.py judgement call 13):
+    # keel-cloud spec 032 retired `/v2/setup` and keel-web spec 014 retired the screen, so it is a
+    # value nothing can capture -- and an exemption for a screen that cannot occur is a hole a
+    # future capture could be tagged into, silently skipping rather than failing.
+    if screen != "login":
         identity = ix.captured_text.get("identity", "")
         results.append(_result("ORI-U1", bool(identity.strip()),
                                 f"identity={identity!r}" if identity else "no project identity captured", ix))

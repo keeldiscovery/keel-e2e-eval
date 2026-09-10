@@ -58,7 +58,7 @@ STAGES = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 MODAL_PERSON = "Dana Okafor"
 
 
-def test_s001_smoke(stack, founder_credentials, browser, run_dir):
+def test_s001_smoke(stack, founder_one, browser, run_dir):
     recorder = Recorder(run_dir)
     web_base = f"http://localhost:{stack.web_port}"
     cloud_base = f"http://localhost:{stack.cloud_port}"
@@ -82,8 +82,10 @@ def test_s001_smoke(stack, founder_credentials, browser, run_dir):
         page = context.new_page()
 
         # -------------------------------------------------------------------------------- §1.0
-        Auth(page, recorder, web_base).log_in(
-            email=founder_credentials.email, password=founder_credentials.password)
+        # The Google round trip, through the stub issuer's own account picker (keel-cloud
+        # google-sign-in-design.md §10.4). Setup is no longer a first-run branch: there is no
+        # virgin instance to detect, so this scenario opens on L1 for every run.
+        Auth(page, recorder, web_base).sign_in(founder_one)
         landing = Landing(page, recorder, web_base)
         arrival = landing.visit()
         with recorder.step("§1.0: the landing reads no agent connected and is gated",

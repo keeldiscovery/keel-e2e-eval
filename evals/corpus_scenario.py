@@ -85,7 +85,7 @@ def expected_legend(entry) -> dict[str, int]:
     return counts
 
 
-def run(stack, founder_credentials, browser, run_dir, *, entry_id: str, slug: str,
+def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         extra=None) -> None:
     """The whole scenario. `entry_id` is the only argument that differs between S-005, S-006 and
     S-007 (FR-015).
@@ -124,8 +124,7 @@ def run(stack, founder_credentials, browser, run_dir, *, entry_id: str, slug: st
 
     try:
         page = context.new_page()
-        Auth(page, recorder, web_base).log_in(
-            email=founder_credentials.email, password=founder_credentials.password)
+        Auth(page, recorder, web_base).sign_in(founder_one)
 
         # ------------------------------------------------------------------------ the runtime
         # The script travels as `KEEL_SCRIPT` through `harness/connect.py`'s existing `env_extra`

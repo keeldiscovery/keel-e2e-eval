@@ -30,7 +30,8 @@ from stack import oidc
 from stack.auth import FOUNDER_EMAIL, FOUNDER_NAME
 from stack.config import load_config
 from stack.stub_oidc import keys as keymod
-from stack.stub_oidc.server import STUB_BREAKS, Identity, make_server, pkce_challenge
+from stack.stub_oidc.server import (STUB_BREAKS, Identity, make_server, picker_html,
+                                     pkce_challenge)
 
 CLIENT_ID = "test-client"
 CLIENT_SECRET = "test-client-secret"  # noqa: S105 - a stub's own fixture, never a real secret
@@ -608,15 +609,135 @@ def test_boot_brings_the_stub_up_first_and_the_gates_check_it():
     assert "oidc.is_up(config)" in inspect.getsource(lifecycle.quick_gates_pass)
 
 
-def test_the_second_half_is_untouched():
-    """Spec 015's second half -- the picker in `harness/browser.py:log_in`, S-010, S-011, and
-    `stack/auth.py` losing `FOUNDER_PASSWORD` -- waits on keel-cloud spec 032, which is being
-    built in parallel. Until it lands the password login is still the one that works, and this
-    test is what would notice it being half-removed."""
+def _code_only(source: str) -> str:
+    """A module's source with every docstring and comment removed, so a check for a deleted name
+    cannot be tripped by the sentence explaining that it was deleted."""
+    import ast
+
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        body = node.body
+        if (body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant)
+                and isinstance(body[0].value.value, str)):
+            node.body = body[1:] or [ast.Pass()]
+    return ast.unparse(tree)
+
+
+def test_the_second_half_has_landed_and_the_password_is_gone():
+    """The inverse of the assertion this file carried through the first half. keel-cloud spec 032
+    landed, so §10.4-§10.7 are built: `stack/auth.py` has no password of any kind, the picker is
+    what `harness/browser.py:Auth.sign_in` clicks, and S-010 and S-011 exist.
+
+    `FOUNDER_PASSWORD` is **deleted, not commented out** (§10.8), and so is every other way into
+    keel-cloud that is not `/authorize` -> the callback. This test is what would notice one
+    growing back."""
     from pathlib import Path
 
     from stack import auth
-    assert auth.FOUNDER_PASSWORD  # still the login of record until keel-cloud 032 lands
+
+    assert not hasattr(auth, "FOUNDER_PASSWORD")
+    assert not hasattr(auth, "ensure_founder_account")
+    assert not hasattr(auth, "clear_stored")
+    # The **code**, not the prose: this module's docstring narrates what was deleted and why, and
+    # a check that could not tell that apart from the thing itself would forbid saying so.
+    code = _code_only(Path(auth.__file__).read_text())
+    for forbidden in ("FOUNDER_PASSWORD", "password", "/v2/setup", "/v2/login"):
+        assert forbidden not in code, f"stack/auth.py still carries {forbidden!r}"
+
     evals = Path(__file__).resolve().parent.parent / "evals"
-    assert not (evals / "test_s010_two_founders.py").exists()
-    assert not (evals / "test_s011_token_that_isnt_right.py").exists()
+    assert (evals / "test_s010_two_founders.py").exists()
+    assert (evals / "test_s011_bad_token.py").exists()
+
+
+def test_no_scenario_reaches_a_retired_route_or_a_password():
+    """§10.8, swept across the whole scenario set rather than trusted per file: no `/v2/setup`, no
+    `/v2/login`, no password field, and no cookie this harness did not receive from a real
+    `Set-Cookie`."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    offenders = []
+    for path in sorted((root / "evals").glob("*.py")) + [root / "harness" / "browser.py"]:
+        # Code, never prose: several of these files narrate what the password's retirement took
+        # with it, and a sweep that could not tell the two apart would forbid saying so.
+        body = _code_only(path.read_text())
+        for needle in ("/v2/setup", "/v2/login", "add_cookies", "FOUNDER_PASSWORD"):
+            if needle in body:
+                offenders.append(f"{path.name}: {needle}")
+    assert not offenders, (
+        "the login the eval walks must be the one keel-cloud has, with no bypass anywhere: "
+        f"{offenders}")
+
+
+def test_the_sign_in_step_clicks_a_link_and_then_the_founders_own_name():
+    """The shape §10.4 asks for, asserted where a browser is not available.
+
+    **The design's own locator is wrong and this is the correction.** §10.4 writes
+    `get_by_role("button", name="Continue with Google")`; keel-web's `GoogleSignInButton` renders
+    an `<a class="btn google" href="/v2/auth/google/start?...">` -- a navigation, not a fetch --
+    whose accessible role is **link**. A button locator would match nothing on the real screen."""
+    import inspect
+
+    from harness.browser import Auth
+
+    source = inspect.getsource(Auth.sign_in)
+    assert 'get_by_role("link", name=self.GOOGLE_BUTTON)' in source
+    assert 'get_by_role("button", name=label, exact=True)' in source, (
+        "the picker's own button, labelled with the identity's name (§10.2)")
+    assert Auth.GOOGLE_BUTTON == "Continue with Google"
+    assert not hasattr(Auth, "set_up"), "`set_up` is deleted with /setup (§4.7)"
+
+
+def test_the_picker_button_the_scenarios_click_is_the_one_the_stub_draws():
+    """The one place the harness's two halves could drift apart silently: the label
+    `Auth.sign_in` asks Playwright for is the label `picker_html` writes."""
+    from stack import oidc
+
+    markup = picker_html(oidc.STUB_IDENTITIES, {"state": "s", "nonce": "n"})
+    for identity in oidc.STUB_IDENTITIES:
+        assert f"<button type=\"submit\">{identity.name}</button>" in markup
+    assert "Eval Founder" in markup and "Nour Haddad" in markup
+
+
+def test_a_stub_break_survives_the_picker_so_the_click_is_the_ordinary_click():
+    """S-011 re-issues the same authorize request with one thing declared broken and then takes
+    the ordinary click (`Auth.sign_in(stub_break=...)`). That only works because the stub carries
+    `stub_break` back through the picker's hidden fields."""
+    from stack import oidc as oidc_module
+
+    markup = picker_html(oidc_module.STUB_IDENTITIES,
+                         {"state": "s", "nonce": "n", "stub_break": "sig"})
+    assert 'name="stub_break" value="sig"' in markup
+    from stack.stub_oidc.server import _CARRIED
+    assert "stub_break" in _CARRIED
+
+
+def test_the_two_founders_are_the_two_stack_auth_names_them():
+    from stack import auth, oidc
+
+    assert (auth.FOUNDER_ONE.sub, auth.FOUNDER_ONE.name) == (oidc.FOUNDER_A.sub,
+                                                             oidc.FOUNDER_A.name)
+    assert (auth.FOUNDER_TWO.sub, auth.FOUNDER_TWO.name) == (oidc.FOUNDER_B.sub,
+                                                             oidc.FOUNDER_B.name)
+    assert auth.FOUNDER_ONE.name == "Eval Founder"
+    assert auth.FOUNDER_TWO.name == "Nour Haddad"
+    assert auth.FOUNDER_ONE.id == "founder-a" and auth.FOUNDER_TWO.id == "founder-b"
+
+
+def test_the_browserless_session_walks_start_authorize_callback_and_nothing_else():
+    """§10.8's "no shortcut around the callback", read off the one function that could take one.
+    It must reach `/v2/auth/google/start`, must add the identity to *keel-cloud's own* authorize
+    URL rather than building one, and must never touch a token endpoint or a cookie directly."""
+    import inspect
+
+    from stack import auth
+
+    source = inspect.getsource(auth.sign_in_session)
+    assert "/v2/auth/google/start" in source
+    assert "identity={founder.id}" in source
+    assert "/token" not in source and "cookies.set" not in source
+    assert "allow_redirects=False" in source, (
+        "the authorize URL has to be read off keel-cloud's own Location header, or the identity "
+        "cannot be supplied on the request keel-cloud actually built")
