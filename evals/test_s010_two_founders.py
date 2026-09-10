@@ -51,7 +51,7 @@ import time
 import uuid
 
 from evals.preludes import approved_project_with_one_read
-from harness.browser import Auth, Connect, Landing, ParticipantPage, People
+from harness.browser import Auth, Connect, Landing, People
 from harness.connect import start_runtime_via_skill
 from harness.evidence import finalize_run
 from harness.steps import Recorder
@@ -354,12 +354,22 @@ def test_s010_two_founders(stack, founder_one, founder_two, browser, run_dir):
         if invitation_urls:
             context_nobody = browser.new_context()
             page_nobody = context_nobody.new_page()
-            participant = ParticipantPage(page_nobody, recorder)
             url = next(iter(invitation_urls.values()))
-            participant.open(url)
+            # **Opened with a plain `goto`, and deliberately not through `ParticipantPage`.** That
+            # page object scopes a `participant_visit` interaction, and the policy's `GUI-P1` asks
+            # of one *did this participant reach a successful submit* -- which S-010 never intends
+            # to, because it is not walking the stranger's journey (S-001 and S-005..S-007 do that,
+            # eleven people at a time). It is reading one line: whose name the form says is asking.
+            # Driving the page object here would fail a check on ground it does not apply to,
+            # which is the mistake `evals/policy.py`'s judgement calls 1, 5, 10 and 12 are each a
+            # correction of.
             with recorder.step("§2.1: the participant's form names the project's owner, not "
                                 "whichever founder a LIMIT 1 found (O4)",
                                 party="participant", kind="assert") as h:
+                page_nobody.goto(url, wait_until="load")
+                # `.iv p.hello` is the form's own intro line -- *"<founder> asked if you'd answer
+                # a few questions about <about>"* -- and the same element the page object waits on.
+                page_nobody.locator(".iv p.hello").wait_for(state="visible", timeout=15_000)
                 asked_by = page_nobody.locator("body").inner_text()
                 h.record_assert({"names": founder_one.name, "never": founder_two.name},
                                  {"page": asked_by[:600]})

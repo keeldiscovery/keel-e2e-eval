@@ -248,4 +248,28 @@ not move. The scenarios become **eleven** and S-004 is still the only live one.
 
 ## Phase 8: the run of record
 
-See [README.md](../../README.md)'s own section for the table. `make unit`: **537 → 568**.
+- [X] T114 `make unit`: **537 → 571**.
+- [X] T115 `make up` (five gates, the stub first on 18090), `make eval-all`, one re-run of S-010,
+      `make down` — one stack session, keel-cloud `866a611`, keel-web `07843b0`, keel-runtime
+      `d30dbd0`, keel-connect-skill `f06f481`. **Every deterministic scenario green**, every one of
+      them signed in through Google, no password anywhere in the run:
+      `runs/INDEX-20260910T000441Z.html`. The table, the three harness faults and the evidence are
+      in [README.md](../../README.md)'s own section.
+- [X] T116 **No `runs/DRIFT.md` entry**, and that is the finding rather than the absence of one.
+      §10.6 predicted the participant-page assertion would fail *"for a reason that has nothing to
+      do with sign-in"*; it does not, because keel-cloud landed ownership (spec 031) before sign-in
+      (spec 032), exactly as §12 step 2 said it should. The first two-founder instance this
+      repository has ever booted found every leak §4.3 lists already closed.
+
+## What is left undone
+
+- **S-004 was not run.** It is live, model-backed and costs real money; its one changed login line
+  is committed and `make eval-live` is the founder's call.
+- **The playground profile's one-time `make down PROFILE=playground`** before its first
+  `make up` after `V36` (§10.5): its Postgres is a named volume and `founder_account` was dropped
+  and recreated. Not this half's to do, and named here so it is not a surprise.
+- **G8, the allowed-domain refusal**, is driven only when a run sets `KEEL_GOOGLE_ALLOWED_DOMAIN`.
+  S-011 records the skip with its reason and the line it would have asserted, so it is visible debt
+  rather than silent.
+- **CANON.md's §4 ledger** is keel-cloud's file and this repo does not write to a sibling. If a
+  §1.0 row should now name S-010 and S-011, that is a keel-cloud edit.

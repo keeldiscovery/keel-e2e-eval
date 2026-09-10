@@ -96,6 +96,19 @@ def test_s010_reads_the_revision_after_its_own_write():
     assert invite < read, "the revision is read before S-010's own invitation moves it"
 
 
+def test_s010_reads_the_participant_page_without_claiming_to_be_a_participant():
+    """`ParticipantPage` scopes a `participant_visit`, and `GUI-P1` asks of one *did this
+    participant reach a successful submit*. S-010 never intends to -- it reads one line, whose name
+    the form says is asking -- so driving the page object would fail a check on ground it does not
+    apply to. Caught by the first live pass scoring the scenario `GUIDANCE 0.0`."""
+    tree = _module(S010)
+    imported = {alias.name for node in ast.walk(tree)
+                if isinstance(node, ast.ImportFrom) for alias in node.names}
+    assert "ParticipantPage" not in imported, (
+        "S-010 imports the page object whose interaction scope it must not open")
+    assert "page_nobody.goto(url" in _source(S010)
+
+
 def test_s010_never_signs_founder_b_in_as_founder_a():
     body = _source(S010)
     assert "sign_in(founder_two)" in body
