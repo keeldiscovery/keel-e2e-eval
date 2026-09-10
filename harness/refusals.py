@@ -83,8 +83,62 @@ def stage_refusal(get_json: GetJson, project_id: str, stage: str) -> dict[str, A
     return None
 
 
+def latest_failure(get_json: GetJson, project_id: str, stage: str) -> dict[str, Any] | None:
+    """The most recent terminally-failed interaction on `stage`, found **without a pending one**.
+
+    `stage_refusal` above starts from the overview's `pendingInteraction`, and that is the whole of
+    its reach. It is enough for the shape spec 008 met -- a chain refused *while the stage is still
+    waiting on it* -- and it is structurally blind to the other shape, which spec 016 met:
+
+        SOLUTION_FRAME  status=JOB_FAILED  job=FAILED
+        STAGE SOLUTION  framed=False  pending: None
+
+    A job that fails is terminal, so nothing is pending any more, so the overview names no
+    interaction, so `stage_refusal` answers `None` and the scenario reports *"the agent never
+    answered within 300s"* about a wire that knew exactly why within seconds. That is the same
+    sentence `runs/DRIFT.md` #37 was written about, one status wider.
+
+    So this asks the founder-gated list instead -- `GET /v2/inference-interactions?project_id=` --
+    and takes the newest terminal failure whose `stage` matches. keel-cloud's own `refusal` (the
+    founder-voiced line, `runs/DRIFT.md` #38) travels with it, because what the *founder* was told
+    is often the finding rather than the status code.
+    """
+    rows = get_json(f"/v2/inference-interactions?project_id={project_id}")
+    if not isinstance(rows, list):
+        return None
+    failed = [row for row in rows
+              if row.get("stage") == stage and row.get("status") in TERMINAL_FAILURE_STATUSES]
+    if not failed:
+        return None
+    newest = max(failed, key=lambda row: str(row.get("updated_at") or row.get("created_at") or ""))
+    return {
+        "interaction_id": newest.get("interaction_id"),
+        "screen": newest.get("screen"),
+        "stage": newest.get("stage"),
+        "status": newest.get("status"),
+        "detail": newest.get("detail"),
+        "diagnostic": newest.get("diagnostic"),
+        # What the founder is actually shown. Quoted, never composed.
+        "refusal": newest.get("refusal"),
+        "job": (newest.get("job") or {}).get("status"),
+    }
+
+
+def why_the_stage_stopped(get_json: GetJson, project_id: str, stage: str) -> dict[str, Any] | None:
+    """Whichever of the two reads finds something: the pending chain first (spec 008's shape),
+    then the terminal-failure list (spec 016's). One call for a scenario that only wants to know
+    *why nothing happened*, however the wire chose to record it."""
+    return (stage_refusal(get_json, project_id, stage)
+            or latest_failure(get_json, project_id, stage))
+
+
 def describe(refusal: dict[str, Any]) -> str:
     """One line for an assertion message, in keel-cloud's words and not the referee's."""
     words = refusal.get("diagnostic") or refusal.get("detail") or ""
-    return (f"{refusal.get('screen')} is {refusal.get('status')} "
+    line = (f"{refusal.get('screen')} is {refusal.get('status')} "
             f"({refusal.get('interaction_id')}): {words}")
+    # The founder-voiced line, when there is one, because what the founder was told is frequently
+    # the finding (`runs/DRIFT.md` #60: an agent that never went away, told it went away).
+    if refusal.get("refusal"):
+        line += f" -- the founder is shown: {refusal['refusal']!r}"
+    return line
