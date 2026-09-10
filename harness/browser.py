@@ -170,6 +170,25 @@ def _safe_text(getter: Callable[[], str]) -> str:
         return ""
 
 
+def settle_after_approve(*, is_approved: Callable[[], bool], is_offered: Callable[[], bool],
+                         sleep: Callable[[], None], timeout_s: float = 90.0,
+                         clock: Callable[[], float] = time.monotonic) -> str:
+    """What the screen settled to after *These are right -- approve* was pressed and its button
+    left the page: `"approved"` (the approved note is up), `"redrawn"` (the approve button is
+    back -- keel-cloud refused the apply and its one retry redrew the card, DRIFT #38) or
+    `"unsettled"` (neither within `timeout_s`; the wire assertion that follows says what the row
+    is). Pure: the three callables are the whole of its contact with a browser."""
+    deadline = clock() + timeout_s
+    while True:
+        if is_approved():
+            return "approved"
+        if is_offered():
+            return "redrawn"
+        if clock() >= deadline:
+            return "unsettled"
+        sleep()
+
+
 # What a founder reads, word-separated. `innerText` runs two adjacent inline elements together --
 # `<b>…not minutes</b><span class="db">deal-breaker</span>` comes back as `minutesdeal-breaker`,
 # which the CLARITY sweep then reads as a camelCase field name on a screen that shows nothing of
@@ -1667,15 +1686,62 @@ class ReviewCard:
         Shell(self.page).capture_identity(h)
 
     def approve(self) -> None:
+        """R1's *These are right -- approve*. One thing can legitimately happen on the way: keel-cloud
+        refuses the apply on one of its own Q rules (live on Copilot, 2026-09-10: Q6, the
+        questionnaire's introduction named the expected role), gives the draft its one retry
+        (keel-cloud DRIFT #38) and puts the **redrawn card back in front of the founder,
+        unapproved**, with the agent's own account of what moved. That is the product working, not
+        a fault: a founder facing it reads the reply and approves once more. So does this step --
+        exactly once, recorded as its own transcript entry -- and a second redraw is left for the
+        wire assertion that follows to name."""
         with self._scope():
             with self._bstep.step("founder approves the card") as h:
-                button = self.page.get_by_role("button", name=re.compile("these are right", re.I))
-                button.wait_for(state="visible", timeout=15_000)
-                button.click()
-                button.wait_for(state="detached", timeout=20_000)
+                self._click_approve()
+                outcome = settle_after_approve(
+                    is_approved=lambda: self.page.locator(".approved-note").count() > 0,
+                    is_offered=lambda: self._approve_button().count() > 0,
+                    sleep=lambda: self.page.wait_for_timeout(500))
                 h.capture_text("affordance", _safe_text(
                     lambda: self.page.locator(".approved-note").first.inner_text()))
+                h.capture_text("outcome", outcome)
                 h.add_screenshot(self._bstep.screenshot("review-approved"))
+            if outcome != "redrawn":
+                return
+            with self._bstep.step("the apply was refused and the agent redrew the card (keel-cloud's "
+                                  "one retry, DRIFT #38); the founder reads why and approves once "
+                                  "more") as h:
+                agent_turns = [turn["text"] for turn in self._chat_turns() if turn["who"] == "agent"]
+                h.capture_text("agent_reply", agent_turns[-1] if agent_turns else "")
+                h.add_screenshot(self._bstep.screenshot("review-redrawn"))
+                self._click_approve()
+                second = settle_after_approve(
+                    is_approved=lambda: self.page.locator(".approved-note").count() > 0,
+                    is_offered=lambda: self._approve_button().count() > 0,
+                    sleep=lambda: self.page.wait_for_timeout(500))
+                h.capture_text("outcome", second)
+                h.add_screenshot(self._bstep.screenshot("review-approved-again"))
+
+    def _approve_button(self):
+        return self.page.get_by_role("button", name=re.compile("these are right", re.I))
+
+    def _click_approve(self) -> None:
+        button = self._approve_button()
+        button.wait_for(state="visible", timeout=15_000)
+        button.click()
+        button.wait_for(state="detached", timeout=20_000)
+
+    def _chat_turns(self) -> list[dict[str, str]]:
+        """The correction chat under the card, read the way `CorrectionChat.turns` reads it."""
+        out: list[dict[str, str]] = []
+        msgs = self.page.locator(".chat__body .msg")
+        for i in range(msgs.count()):
+            msg = msgs.nth(i)
+            classes = msg.get_attribute("class") or ""
+            out.append({
+                "who": "you" if "you" in classes else "agent",
+                "text": _safe_text(lambda m=msg: m.locator(".bub").first.inner_text()),
+            })
+        return out
 
     def is_approved(self) -> bool:
         """False while *These are right — approve* is still on the screen. The correction turn

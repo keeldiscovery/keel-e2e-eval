@@ -3995,6 +3995,16 @@ interaction list as well, keel-cloud's own `refusal` line travels with the findi
 stackless tests hold it (`tests/test_refusals_terminal_failure.py`).
 
 
+**Update 2026-09-10, later the same day.** The founder chose the two-limit shape -- a target the model
+can count and a ceiling with room under it -- and keel-cloud `fe7ccd6` carries it: a frame's or
+reframe's `statement` now has `maxLength` 600 and, in the schema's own `description` (read by both
+hosts, ignored by every validator), *"one paragraph of about seventy words; the 600-character cap is
+a ceiling, not a target"*; the instruction files' `Sizes:` lines say the same. S-012 then **passed**
+(`runs/20260910T224557Z-s012-copilot-host-and-thinker-live`, 11 jobs, 0 failed, score 5.0): the three
+frame statements landed at 412, 513 and 439 characters -- every one of them over the old cap, every
+one under the new one. The sentence a founder reads on a failed job (*"your agent went away"*) is
+unchanged and stays owed.
+
 ## 61. Owed (keel-runtime, small): the one recovery pass tells the model to halve a field and
 does not check that it did -- on this host the field came back **longer**
 
@@ -4043,3 +4053,7 @@ then fails with keel-cloud's own sentence in the assertion message. No cap was w
 assertion loosened, and `evals/policy.py` was not touched. keel-cloud
 `canon/designs/keel-skill-design.md` §5.5's own remedy list applies unchanged: fix the prose so it
 works on both hosts, or pin a different model and record it -- never move the mark.
+
+**Update 2026-09-10.** With keel-cloud `fe7ccd6`'s 600-character ceiling the recovery pass was never
+needed in the passing S-012 run; the program-shaped half above (check the named field actually got
+shorter before spending the one pass; name the model's overrun in the failure) is still owed.
