@@ -4,8 +4,12 @@
 
 **Created**: 2026-09-10
 
-**Status**: Implemented. One live run of record, `make eval-live K=s012`, plus one
-`make instruction-eval HOST=copilot N=1` on the upgraded plan.
+**Status**: Implemented, and both runs taken. `make eval-live K=s012` --
+`runs/20260910T211318Z-s012-copilot-host-and-thinker-live`: **leg one green, leg two red at
+SOLUTION**. `KEEL_COPILOT_MODEL=gpt-5.6-luna make instruction-eval HOST=copilot N=1` --
+`runs/20260910T213217Z-instructions-copilot`: **PASSED**, every mark, nothing errored. Four
+`runs/DRIFT.md` entries (#58-#61) and two amendments (#54, #56). §5.5's gate: **part 3 met for the
+first time, part 2 not met.** See [tasks.md](tasks.md) and `README.md`.
 
 **Input**: the founder upgraded their GitHub Copilot plan and asked for proof of two things this
 repository had never measured together:
@@ -56,9 +60,16 @@ carried between them:
 on 2026-09-09, that CLI 1.0.83 rejected **every** slug offered to `--model` -- its own router's
 choice included -- so `CopilotExecutor.model` defaults to `None` and C-5 ("the Copilot path pins
 `--model`; `auto` is never used in a measured run") was closed *by mechanism, not by measurement*.
-On the upgraded plan `--model claude-sonnet-5` is accepted, and `claude-sonnet-5` is what the CLI's
-own resolver now names as the default. Both legs and the instruction eval pin it through
-`KEEL_COPILOT_MODEL`, and every bundle records `pinned_model` beside the reported one.
+On the upgraded plan **every** slug is accepted, so the pin is real at last -- and it turned out to
+be load-bearing rather than merely tidy. **The run pins two models, because it has two subjects.**
+The *host* keeps the plan's own default, `claude-sonnet-5`, since leg one asks what a founder's own
+Copilot does with the skill and choosing a slug to suit the runtime would measure a founder nobody
+is. The *runtime* pins `gpt-5.6-luna` through `KEEL_COPILOT_MODEL`, because on `claude-sonnet-5`
+keel-runtime cannot read an answer at all (`runs/DRIFT.md` #59: Copilot's Anthropic-vendored
+`assistant.message` events carry no `phase` key, and `_copilot_final_answer` reads only the
+`final_answer`-phase message) -- and because it is the model spec 014's router happened to choose,
+which makes the instruction-eval comparison one measurement rather than two. Every bundle records
+both pins, the reported model, and why they differ.
 
 ## User scenarios
 
@@ -76,9 +87,12 @@ own resolver now names as the default. Both legs and the instruction eval pin it
    keel@keel` -- Copilot's own two commands, against the real public marketplace, into that home.
 3. `copilot skill list --json` names `keel-connect`, and its source is a **plugin**.
 4. `copilot -p "keel connect" --allow-tool 'shell(python3:*)' --allow-tool skill --no-auto-update
-   --no-ask-user --output-format json --model claude-sonnet-5`, with `KEEL_BASE_URL` naming the
-   eval cloud and `KEEL_RUNTIME_PATH` scrubbed. **Never `--bare`** -- there is no such flag on this
-   CLI, and its Claude equivalent skips skill discovery (spec 013 T-2).
+   --no-ask-user --no-custom-instructions --output-format json --usage-output-file … --model
+   claude-sonnet-5`, with `KEEL_BASE_URL` naming the eval cloud and `KEEL_RUNTIME_PATH` scrubbed.
+   **Never `--bare`** -- there is no such flag on this CLI, and its Claude equivalent skips skill
+   discovery (spec 013 T-2). `--no-custom-instructions` because the run bundle lives inside
+   keel-e2e-eval, whose `AGENTS.md` describes this harness and what its scenarios assert: **the
+   referee's own instructions must never reach the thing under referee.**
 5. The traces, asserted in this order and none of them Copilot's prose:
    - `<KEEL_HOME>/runtime.heartbeat.json` exists and reads `state: "awaiting_approval"`;
    - `<KEEL_HOME>/keel-connect-check.launch.log` carries a `KEEL_USER_CODE=` line and a
@@ -88,13 +102,18 @@ own resolver now names as the default. Both legs and the instruction eval pin it
 6. The founder approves it: sign in as founder A through the stub issuer's picker, open the
    verification URI, click *Approve this device*, and read *device approved*.
 7. `copilot -p "keel connect"` a second time -> the skill's `already_connected`. Asserted through
-   the **runtime's own `status`** (running, connected, `executor == "copilot"`), with a loose
-   check that Copilot's reply says *connected*. Both transcripts go into the bundle.
+   the **runtime's own `status`** (running, connected), with a loose check that Copilot's reply says
+   *connected*. Both transcripts go into the bundle.
 
 **Leg two -- the thinker.** The same runtime, now connected, on the Copilot executor.
 
-8. `status.executor == "copilot"` -- the skill passed `--host copilot` because `SKILL.md` told it
-   to, and nothing in this scenario passed `--executor`.
+8. The runtime is on the Copilot executor, because the skill passed `--host copilot` -- `SKILL.md`
+   told it to, and nothing in this scenario passes `--executor`. Read off the runtime's **own
+   startup line**, `KEEL_EXECUTOR=copilot source=flag ... model=gpt-5.6-luna`, and **not** off
+   `keel status`, which the run found answers about its *caller* rather than about the live process
+   (`runs/DRIFT.md` #58; the `status` reading goes into the bundle beside it). `source=flag` is
+   asserted too: a runtime that arrived at `copilot` by guessing from a `PATH` with one CLI on it
+   would prove nothing about the skill's line.
 9. The founder's journey, on `evals/payroll_exceptions.yaml`'s own market and statements: name and
    market; PROBLEM, SOLUTION and COMMERCIAL each framed by Copilot, reviewed and **approved
    as-is**; one person invited; that person's own corpus answers typed in an isolated browser
@@ -110,7 +129,7 @@ own resolver now names as the default. Both legs and the instruction eval pin it
 
 ### Then, once: the instruction eval on the upgraded plan
 
-`make instruction-eval HOST=copilot N=1` with `KEEL_COPILOT_MODEL=claude-sonnet-5`, compared
+`make instruction-eval HOST=copilot N=1` with `KEEL_COPILOT_MODEL=gpt-5.6-luna`, compared
 against `runs/20260909T061537Z-instructions-copilot` (recall 76.1 %, anchoring 95.3 %, BRIEF 5/7,
 errored 2) at the same `MARKS_VERSION` **5**, and read against §5.5's gate.
 
@@ -129,7 +148,9 @@ errored 2) at the same `MARKS_VERSION` **5**, and read against §5.5's gate.
 - **FR-005** `COPILOT_HOME` and `KEEL_HOME` are both fresh, under the run bundle, and named on the
   command line. `KEEL_RUNTIME_PATH` is scrubbed (T-1), so the runtime that answers can only be the
   one that travelled inside the plugin.
-- **FR-006** Leg two asserts `status.executor == "copilot"` before the first job.
+- **FR-006** Leg two asserts the runtime is on the Copilot executor before the first job, from the
+  runtime's own `KEEL_EXECUTOR=` startup line and with `source=flag`, never from `keel status`
+  (`runs/DRIFT.md` #58).
 - **FR-007** Every card assertion is a shape or an absence. Nothing asserts what Copilot wrote.
 - **FR-008** The bundle records: both Copilot transcripts, both usage files, the plugin/skill
   listings, the launch log, the heartbeat, the per-job envelopes, the pinned and reported model,

@@ -2,7 +2,7 @@
 
 **Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md) | **Branch**: `016-copilot-e2e`
 
-`make unit`: **571** before, **606** after, green.
+`make unit`: **571** before, **634** after, green.
 
 ## Phase 1 — read before writing anything
 
@@ -31,10 +31,18 @@ Each of these was a real measurement on 2026-09-10, and each changed a decision.
 - [X] T008 **Does an isolated `COPILOT_HOME` keep the login?** Yes. The founder's stored OAuth
       credential is not under `~/.copilot`, so leg one's isolation is free and no token has to be
       copied anywhere. Recorded in the bundle by `credential_plan`.
-- [X] T009 **Does `--model` accept a slug now?** Yes — `claude-sonnet-5`, which is also what the
-      CLI's own resolver logs as *"Using default model"* on the upgraded plan. **C-5 has never been
-      exercisable before** (keel-runtime spec 005: on 2026-09-09 every slug was refused). One tiny
-      call confirmed it end to end and cost **1 premium request**.
+- [X] T009 **Does `--model` accept a slug now?** Yes — **every** slug offered was accepted
+      (`gpt-5.6-luna`, `gpt-5.1`, `gpt-5`, `gpt-4.1`, `gpt-5-mini`, `gpt-5-codex`,
+      `claude-haiku-4.5`, `claude-sonnet-5`, `mai-code-1.1-flash`), where on 2026-09-09 every one
+      was refused. **C-5 has never been exercisable before** (keel-runtime spec 005). One tiny
+      call confirmed it end to end and cost **1 premium request**. The plan's own default is now
+      `claude-sonnet-5`, which the CLI's resolver logs as *"Using default model"*.
+- [X] T009a **Which model does the run pin?** Two, for two subjects, and they had to differ
+      (`runs/DRIFT.md` #59). The **host** keeps the founder's own default `claude-sonnet-5`,
+      because leg one asks what a founder's own Copilot does with the skill. The **runtime** pins
+      `gpt-5.6-luna` through `KEEL_COPILOT_MODEL`, because on `claude-sonnet-5` keel-runtime cannot
+      read an answer at all — and because it is the model spec 014's router chose, which makes the
+      instruction-eval comparison one measurement rather than two.
 - [X] T010 **Is the model probe free?** Yes: `-p ""` with an accepted slug reaches the
       empty-prompt check and is refused there, with a usage file reading
       `totalPremiumRequestCost: 0`. So `model_accepted` can never buy inference by accident.
@@ -55,7 +63,7 @@ Each of these was a real measurement on 2026-09-10, and each changed a decision.
       `disconnect`. Default unchanged, so no existing caller moved.
 - [X] T014 `evals/test_s012_copilot_host_and_thinker.py` — both legs, `_walk_stage_live`,
       `_agent_answers`.
-- [X] T015 `tests/test_s012_copilot_host.py` — **31 stackless tests**, every one of them a
+- [X] T015 `tests/test_s012_copilot_host.py` — **37 stackless tests**, every one of them a
       property that would otherwise only be observable during a paid run.
 
 ## Phase 4 — the amendment AGENTS.md's own rule requires
@@ -92,3 +100,35 @@ Each of these was a real measurement on 2026-09-10, and each changed a decision.
 - [X] T021 `make up`, `make eval-live K=s012`, `make down`.
 - [X] T022 `make instruction-eval HOST=copilot N=1` with `KEEL_COPILOT_MODEL` pinned, once.
 - [X] T023 `runs/DRIFT.md` for anything found; `README.md` for both runs.
+
+## What the runs said
+
+**S-012, `runs/20260910T211318Z-s012-copilot-host-and-thinker-live`** -- leg one **green** (plugin
+installed from the real marketplace, `copilot skill list` names it as a plugin skill, Copilot
+called the `skill` tool and then ran the script with `--host copilot`, heartbeat
+`awaiting_approval`, the code confirmed by the eval cloud, approved in the browser,
+`already_connected` on the second ask); leg two **red at SOLUTION**, four attempts, every one
+`INVALID_LLM_RESPONSE: result.statement: longer than maxLength 400`. PROBLEM went the whole way --
+framed, assumptions applied, card reviewed and approved, zero refusals. 2 hosting + 7 thinking
+premium requests recorded.
+
+**The instruction eval, `runs/20260910T213217Z-instructions-copilot`** -- `KEEL_COPILOT_MODEL=gpt-5.6-luna`,
+131 cases, 35 min, 131 premium requests, **PASSED**: anchoring 95.4 %, recall 81.8 %, refusals 0,
+BRIEF 7/7, errored 0, at `MARKS_VERSION` 5 unmoved.
+
+**Findings**: `runs/DRIFT.md` **#58** (`keel status` names the caller's executor, not the
+runtime's), **#59** (no `phase` on Anthropic-vendored events -- every job fails on the plan's
+default model), **#60** (a `JOB_FAILED` says "your agent went away" while `diagnostic` names the
+real cause), **#61** (the single recovery pass does not check the field it named got shorter).
+**#54 amended** (the commercial-screen collapse was mostly one sample: 61.5 % -> 80.8 % with
+nothing changed on either side) and **#56 amended** (the `proxy` leak did not recur and is not
+fixed).
+
+**The gate** (keel-cloud `canon/designs/keel-skill-design.md` §5.5): part 3 **met for the first
+time**; part 2 **not met**, because the journey does not finish. Copilot remains "runs,
+unmeasured" -- for a narrower reason than on 2026-09-09, and with both blockers named.
+
+**Three harness faults of this repository's own**, each fixed with stackless tests: the stranger's
+door (keel-web spec 015 removed the `/login` redirect and a session fixture waited for it),
+`harness/refusals.py`'s blindness to a terminal job failure, and a scenario reading a name nothing
+defined. `make unit` **571 -> 634**.
