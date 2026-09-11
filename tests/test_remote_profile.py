@@ -167,6 +167,18 @@ def test_no_gate_means_no_http_credentials_anywhere(eval_config):
     assert browser_module.context_options(eval_config, viewport=None) == {"viewport": None}
 
 
+class _FakeContext(str):
+    """A context that is also its own name, so `== "context-1"` still reads; it records the init
+    scripts the referee wrapper adds (GoatCounter's opt-out, every context)."""
+    def __new__(cls, name):
+        obj = super().__new__(cls, name)
+        obj.scripts = []
+        return obj
+
+    def add_init_script(self, script):
+        self.scripts.append(script)
+
+
 class _FakeBrowser:
     def __init__(self):
         self.calls = []
@@ -174,7 +186,7 @@ class _FakeBrowser:
 
     def new_context(self, **kwargs):
         self.calls.append(kwargs)
-        return f"context-{len(self.calls)}"
+        return _FakeContext(f"context-{len(self.calls)}")
 
     def close(self):
         self.closed = True
@@ -200,13 +212,16 @@ def test_an_explicit_http_credentials_argument_wins(eval_config):
     assert fake.calls[0]["http_credentials"]["username"] == "somebody"
 
 
-def test_the_conftest_fixture_only_wraps_when_there_is_a_gate():
-    """Read as source, because the fixture itself needs a Playwright process. The two branches
-    are the whole of the claim: a local session yields the raw `Browser` object."""
+def test_the_conftest_fixture_always_wraps_the_browser():
+    """Read as source, because the fixture itself needs a Playwright process. Spec 017 wrapped
+    only behind a gate; since 2026-09-11 every context is the referee's for GoatCounter too, so
+    the fixture wraps on every profile and the wrapper adds nothing but the opt-out when there is
+    no gate (the test above proves the options are the caller's own)."""
     from stack.config import REPO_ROOT
 
     source = (REPO_ROOT / "evals" / "conftest.py").read_text()
-    assert "GatedBrowser(b, stack_config) if gate_http_credentials(stack_config) else b" in source
+    assert "yield GatedBrowser(b, stack_config)" in source
+    assert "if gate_http_credentials(stack_config) else b" not in source
 
 
 # ------------------------------------------------------------------ what the runtime is told
