@@ -1,12 +1,10 @@
 # The Claude that wakes on a red matrix (keel-cloud e2e-matrix-design.md §6.4; the founder's rule,
 # 2026-09-11: "you should be aware of it and should be able to put in a fix").
 #
-# Two doors, one brief (matrix/RED.md):
-#   1. `red`     -- automation: the summary job opened "Matrix is red" or commented on it; Claude
-#                   reads the run's bundles, classifies each red cell, opens a PR for a harness
-#                   fault, and writes the rest on the issue. Never loosens an assertion.
-#   2. `mention` -- interactive: the founder writes @claude on any issue or pull request and
-#                   Claude answers there, with the same brief.
+# One door here, the interactive one: the founder writes @claude on any issue or pull request and
+# Claude answers there. The automatic door -- the Claude that reads a red matrix -- is the `wake`
+# job at the end of matrix.yml, because an issue opened by a workflow's own token never triggers
+# another workflow. Same brief for both: matrix/RED.md.
 #
 # Authentication is the founder's Max subscription (organisation secret KEEL_RUNTIME_CI_CLAUDE,
 # the same `claude setup-token` login the cells use). The Claude GitHub app must be installed on
@@ -14,8 +12,6 @@
 name: matrix-red
 
 on:
-  issues:
-    types: [opened, labeled]
   issue_comment:
     types: [created]
   pull_request_review_comment:
@@ -29,40 +25,10 @@ permissions:
   id-token: write
 
 concurrency:
-  group: matrix-red-${{ github.event.issue.number || github.event.pull_request.number }}
+  group: matrix-red-${{ github.event.issue.number }}
   cancel-in-progress: false
 
 jobs:
-  red:
-    name: a red matrix, read and acted on
-    # The summary job's own issue (title + label), opened or commented on by the Actions bot.
-    if: >-
-      github.event.issue != null
-      && github.event.issue.title == 'Matrix is red'
-      && contains(join(github.event.issue.labels.*.name, ','), 'matrix')
-      && (github.event_name == 'issues' || github.event.comment.user.login == 'github-actions[bot]')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: anthropics/claude-code-action@v1
-        env:
-          GH_TOKEN: ${{ github.token }}
-        with:
-          claude_code_oauth_token: ${{ secrets.KEEL_RUNTIME_CI_CLAUDE }}
-          track_progress: true
-          use_sticky_comment: true
-          claude_args: "--allowedTools Read,Edit,Write,Glob,Grep,Bash(gh:*),Bash(git:*),Bash(python3:*),Bash(make unit),Bash(ls:*),Bash(cat:*),Bash(tar:*),Bash(unzip:*) --max-turns 60"
-          prompt: |
-            Read matrix/RED.md in this checkout first and follow it exactly. Then act on issue
-            #${{ github.event.issue.number }}: its latest comment names the run. Report on the
-            issue when done.
-
   mention:
     name: "@claude, asked by the founder"
     if: >-
