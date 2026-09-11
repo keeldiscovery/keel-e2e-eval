@@ -1,0 +1,635 @@
+# The e2e matrix on the staging twin.
+# spec 020-matrix-workflow; keel-cloud `canon/designs/e2e-matrix-design.md` §6 end to end.
+#
+# THE REFEREE OWNS THE SCHEDULE (invariant M9). This is the one workflow that decides what runs;
+# keel-cloud, keel-runtime, keel-web and keel-connect-skill each carry a four-line
+# `dispatch-matrix.yml` that only *tells* this one something changed.
+#
+# IT IS INERT UNTIL THE FOUNDER SWITCHES IT ON. Every job that costs anything is gated on the
+# repository variable KEEL_STAGING_ENABLED being exactly `true`. Until the twin exists (design §13
+# steps 1-4), a push to master runs one free job on one Linux runner, prints one line saying the
+# matrix is off, and stops -- which is what makes merging this file today safe. Set the variable at
+# Settings -> Secrets and variables -> Actions -> Variables.
+#
+# WHAT IT COSTS WHEN IT IS ON (design §10). Runner minutes are free: this repository is public.
+# The bill is model spend -- about 13 premium requests for a Copilot cell and about $1.50 of API
+# for a Claude cell, so ~39 requests and ~$4.50 per qualifying change, the same again nightly, and
+# ~117 requests and ~$13.50 for the weekly eighteen. That is why the per-change set is six and not
+# eighteen, and why `[skip e2e]` in a commit message exists in the senders.
+#
+# WHAT IT NEVER DOES (invariants M2, M3, M8). It never touches production: the AWS role it assumes
+# cannot see `keel-prod` or read `/keel/prod/*`, by policy rather than by convention. A green
+# matrix deploys nothing. A red matrix rolls nothing back -- the failing build stays up so the
+# founder can sign in as that cell's founder in the morning and look at what it did (§7).
+
+name: matrix
+
+on:
+  # The cross-repository half (§6.2). Each sender POSTs {repo, sha, why}; the receiver debounces
+  # through `concurrency` below, so five merges in ten minutes cost one run.
+  repository_dispatch:
+    types: [matrix]
+  push:
+    branches: [master]
+  schedule:
+    - cron: "0 3 * * *"     # nightly, 03:00 UTC -- the six Ubuntu cells
+    - cron: "0 4 * * 0"     # Sunday, 04:00 UTC -- the full eighteen
+  workflow_dispatch:
+    inputs:
+      set:
+        description: "which named set of cells to run"
+        type: choice
+        options: [per_change, nightly, weekly]
+        default: per_change
+      cells:
+        description: "optional comma-separated cell ids, e.g. ubuntu-24.04-claude-py3.13"
+        type: string
+        default: ""
+
+# §6.2's debounce, in the receiver and never in the senders: one run per source repository, the
+# older one cancelled. `client_payload.repo` is the sender's name; a push, a schedule or a hand
+# dispatch is this repository's own.
+concurrency:
+  group: matrix-${{ github.event.client_payload.repo || github.repository }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write     # design decision 8: OIDC into AWS, never a stored access key
+
+env:
+  # The twin (§3). One name, fixed by a GoDaddy A record; not a variable, because a second staging
+  # hostname would be a second design.
+  KEEL_REMOTE_WEB_URL: https://eval.keeldiscovery.com
+  AWS_REGION: us-east-1
+
+jobs:
+  # ------------------------------------------------------------------------------------- select
+  #
+  # Free, always, on every event -- and the cheapest place in the whole matrix to fail. It reads
+  # matrix/cells.toml with the same `python -m matrix` that `make matrix-check` runs on the
+  # founder's Mac, so a cells.toml that drifts from design §5.2 is caught here, before a role is
+  # assumed, a box is deployed or a model is asked anything.
+  select:
+    name: select the cells
+    runs-on: ubuntu-24.04
+    outputs:
+      enabled: ${{ steps.gate.outputs.enabled }}
+      set: ${{ steps.pick.outputs.set }}
+      cells: ${{ steps.pick.outputs.cells }}
+      count: ${{ steps.pick.outputs.count }}
+      repo: ${{ steps.pick.outputs.repo }}
+      sha: ${{ steps.pick.outputs.sha }}
+      why: ${{ steps.pick.outputs.why }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - id: pick
+        name: Which set, and which cells
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          CRON: ${{ github.event.schedule }}
+          INPUT_SET: ${{ inputs.set }}
+          INPUT_CELLS: ${{ inputs.cells }}
+          PAYLOAD_REPO: ${{ github.event.client_payload.repo }}
+          PAYLOAD_SHA: ${{ github.event.client_payload.sha }}
+          PAYLOAD_WHY: ${{ github.event.client_payload.why }}
+        run: |
+          set -euo pipefail
+          case "$EVENT" in
+            schedule)
+              # Two crons, two sets (§5.2). 04:00 on a Sunday is the eighteen; 03:00 is the six.
+              if [ "$CRON" = "0 4 * * 0" ]; then set_name=weekly; else set_name=nightly; fi
+              why="schedule $CRON" ;;
+            workflow_dispatch)
+              set_name="${INPUT_SET:-per_change}"
+              why="workflow_dispatch by ${{ github.actor }}" ;;
+            repository_dispatch)
+              set_name=per_change
+              why="${PAYLOAD_WHY:-a change in ${PAYLOAD_REPO:-a sibling}}" ;;
+            *)
+              set_name=per_change
+              why="push to master" ;;
+          esac
+          repo="${PAYLOAD_REPO:-${{ github.repository }}}"
+          sha="${PAYLOAD_SHA:-${{ github.sha }}}"
+          cells=$(python -m matrix --set "$set_name" --cells "${INPUT_CELLS:-}" --json)
+          count=$(python -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$cells")
+          {
+            echo "set=$set_name"
+            echo "cells=$cells"
+            echo "count=$count"
+            echo "repo=$repo"
+            echo "sha=$sha"
+            echo "why=$why"
+          } >> "$GITHUB_OUTPUT"
+          python -m matrix --set "$set_name" --cells "${INPUT_CELLS:-}"
+
+      - id: gate
+        name: Is the twin switched on?
+        shell: bash
+        env:
+          ENABLED: ${{ vars.KEEL_STAGING_ENABLED }}
+          SET: ${{ steps.pick.outputs.set }}
+          COUNT: ${{ steps.pick.outputs.count }}
+          WHY: ${{ steps.pick.outputs.why }}
+        run: |
+          set -euo pipefail
+          if [ "${ENABLED:-}" = "true" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Matrix **$SET**, $COUNT cell(s) — $WHY." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Matrix skipped: the staging twin is not switched on (repository variable \`KEEL_STAGING_ENABLED\` is not \`true\`). $SET would have run $COUNT cell(s) — $WHY." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ------------------------------------------------------------------------------ deploy-staging
+  #
+  # §6.3: the change that fires the matrix must be ON staging before the cells sign in. This job
+  # does from a runner what `deploy.sh` does from the founder's Mac -- same script, same eight
+  # steps, same image (invariant M1).
+  #
+  # On `ubuntu-24.04-arm` so the arm64 image builds natively: the twin is a t4g, and QEMU on an x86
+  # runner would be minutes of emulation for an identical artifact.
+  deploy-staging:
+    name: deploy the twin
+    needs: select
+    if: needs.select.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      deployed: ${{ steps.deploy.outputs.deployed }}
+      oidc_tag: ${{ steps.oidc.outputs.tag }}
+    steps:
+      - name: Check out keel-e2e-eval (the referee, and the stub issuer's source)
+        uses: actions/checkout@v4
+        with:
+          path: keel-e2e-eval
+
+      # keel-cloud and keel-web are private, so a checkout of them needs a token this repository
+      # holds: KEEL_SIBLINGS_TOKEN, a fine-grained PAT with read-only Contents on those two and
+      # nothing else. It is NOT the dispatch token (that one lives in the senders) and it is NOT an
+      # AWS credential (there is none, anywhere, by decision 8).
+      - name: The siblings' token must exist before anything else is attempted
+        shell: bash
+        env:
+          SIBLINGS: ${{ secrets.KEEL_SIBLINGS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SIBLINGS:-}" ]; then
+            echo "::error::KEEL_STAGING_ENABLED is true but the secret KEEL_SIBLINGS_TOKEN is not set."
+            echo "::error::It is a fine-grained token with read-only Contents on keeldiscovery/keel-cloud and keeldiscovery/keel-web -- the two private repositories this job checks out. Settings -> Secrets and variables -> Actions -> Secrets."
+            exit 1
+          fi
+
+      # Full history, because the commit this job must build is named by a SHORT sha (the tag
+      # deploy.sh speaks), and `actions/checkout`'s own `ref` cannot resolve one.
+      - name: Check out keel-cloud
+        uses: actions/checkout@v4
+        with:
+          repository: keeldiscovery/keel-cloud
+          token: ${{ secrets.KEEL_SIBLINGS_TOKEN }}
+          path: keel-cloud
+          fetch-depth: 0
+
+      # keel-web is built into the bundle deploy.sh ships, so it is checked out at the same commit
+      # the trigger names when keel-web is what changed, and at master otherwise.
+      - name: Check out keel-web
+        uses: actions/checkout@v4
+        with:
+          repository: keeldiscovery/keel-web
+          ref: ${{ endsWith(needs.select.outputs.repo, 'keel-web') && needs.select.outputs.sha || 'master' }}
+          token: ${{ secrets.KEEL_SIBLINGS_TOKEN }}
+          path: keel-web
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: The tools deploy.sh names (aws, jq, docker, npm, git)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq jq
+          fi
+          if ! command -v aws >/dev/null 2>&1; then
+            curl -sS "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o /tmp/awscli.zip
+            unzip -q /tmp/awscli.zip -d /tmp
+            sudo /tmp/aws/install
+          fi
+          aws --version && jq --version && docker --version && npm --version
+
+      - name: Assume keel-ci-deploy (OIDC, no stored key — design decision 8)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.KEEL_CI_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # deploy.sh passes `--profile` on EVERY aws call -- it was written for a Mac with named
+      # profiles, and botocore drops the environment credential provider the moment a profile is
+      # named explicitly. So the session this runner was just handed is written into a `default`
+      # profile, which is what `KEEL_PROFILE="${AWS_PROFILE:-keel}"` in common.sh then picks up.
+      # Nothing is printed: `aws configure set` reads its values from the environment.
+      - name: Put the assumed session where deploy.sh looks for it
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
+          aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
+          aws configure set aws_session_token "$AWS_SESSION_TOKEN"
+          aws configure set region "$AWS_REGION"
+          echo "AWS_PROFILE=default" >> "$GITHUB_ENV"
+          aws sts get-caller-identity --query Arn --output text
+
+      # WHICH TAG (§6.3's last paragraph). A keel-cloud change deploys the new keel-cloud; a skill,
+      # runtime, web or e2e change stays on the tag the twin already runs, read from
+      # /keel/staging/deployed-tag, which deploy.sh itself keeps -- so staging is never behind
+      # production when the thing under test is the plugin. Either way the tag is a SHORT sha of
+      # the commit this job then checks out, which is invariant M1 stated as a command: the image
+      # tag names the source the image was built from, on staging and later on production.
+      - id: tag
+        name: Which keel-cloud tag the twin should be running
+        shell: bash
+        working-directory: keel-cloud
+        env:
+          TRIGGER_REPO: ${{ needs.select.outputs.repo }}
+          TRIGGER_SHA: ${{ needs.select.outputs.sha }}
+        run: |
+          set -euo pipefail
+          case "$TRIGGER_REPO" in
+            *keel-cloud)
+              git checkout --quiet "$TRIGGER_SHA"
+              echo "keel-cloud changed: the twin moves to $TRIGGER_SHA" ;;
+            *)
+              deployed=$(aws ssm get-parameter --name /keel/staging/deployed-tag \
+                           --query 'Parameter.Value' --output text 2>/dev/null || echo "")
+              if [ -z "$deployed" ] || [ "$deployed" = "None" ]; then
+                echo "::error::/keel/staging/deployed-tag is empty: the twin has never been deployed."
+                echo "::error::Run ./deploy/bin/deploy.sh --target staging <tag> from the Mac once (design §13 step 1), then re-run this."
+                exit 1
+              fi
+              git checkout --quiet "$deployed"
+              echo "the change is elsewhere: the twin stays on $deployed" ;;
+          esac
+          echo "tag=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # THE STUB ISSUER'S IMAGE (§3, spec 018). Its tag is the sha1 of the two trees it is built
+      # from, so it changes exactly when the stub changes and never when a README does -- which is
+      # also what makes "or the tag is absent" one question instead of two: a changed stub IS an
+      # absent tag. The ECR repository is IMMUTABLE, so an unchanged stub is never re-pushed.
+      - id: oidc
+        name: Build and push keel-oidc, only when the stub changed
+        shell: bash
+        working-directory: keel-e2e-eval
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          tag=$( { git rev-parse HEAD:stack/stub_oidc; git rev-parse HEAD:stack/containers/oidc; } \
+                 | sha1sum | cut -c1-12 )
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if aws ecr describe-images --repository-name keel-oidc \
+               --image-ids "imageTag=$tag" >/dev/null 2>&1; then
+            echo "keel-oidc:$tag is already in ECR — the stub has not changed."
+            echo "built=false" >> "$GITHUB_OUTPUT"
+          else
+            make oidc-image TAG="$tag" PUSH=1 PLATFORM=linux/arm64 \
+              DOCKER_HOST=unix:///var/run/docker.sock \
+              OIDC_IMAGE_REPO="$REGISTRY/keel-oidc"
+            echo "built=true" >> "$GITHUB_OUTPUT"
+          fi
+          aws ssm put-parameter --name /keel/staging/oidc-image-tag --type String \
+            --overwrite --value "$tag" \
+            --description "the keel-oidc image the twin runs; written by keel-e2e-eval's matrix"
+
+      # THE DEPLOY ITSELF. deploy.sh builds the jar, the arm64 image and keel-web's dist/, pushes
+      # to ECR and rolls the twin over SSM -- no SSH, no open port 22. KEEL_INSTANCE_ID and
+      # KEEL_ELASTIC_IP come from repository variables because the CI role carries no
+      # `ec2:Describe*` (§4.2's spec 036 amendment: it cannot be scoped to one instance).
+      #
+      # It is skipped when the tag is already in ECR: keel-cloud's repository is IMMUTABLE, so
+      # re-pushing a tag that exists is refused by AWS, and a tag that exists is a twin already
+      # running it. That is the "redeploys the tag" case of §6.3 reaching the same end state for
+      # nothing.
+      - id: deploy
+        name: deploy.sh --target staging
+        shell: bash
+        working-directory: keel-cloud
+        env:
+          KEEL_INSTANCE_ID: ${{ vars.KEEL_INSTANCE_ID }}
+          KEEL_ELASTIC_IP: ${{ vars.KEEL_ELASTIC_IP }}
+          KEEL_WEB_DIR: ${{ github.workspace }}/keel-web
+          TAG: ${{ steps.tag.outputs.tag }}
+          OIDC_BUILT: ${{ steps.oidc.outputs.built }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEEL_INSTANCE_ID:-}" ] || [ -z "${KEEL_ELASTIC_IP:-}" ]; then
+            echo "::error::KEEL_INSTANCE_ID and KEEL_ELASTIC_IP must both be set as repository variables (the CI role has no ec2:Describe*)."
+            exit 1
+          fi
+          if aws ecr describe-images --repository-name keel-cloud \
+               --image-ids "imageTag=$TAG" >/dev/null 2>&1; then
+            echo "keel-cloud:$TAG is already in ECR — the twin is already on it; not redeploying."
+            echo "deployed=skipped" >> "$GITHUB_OUTPUT"
+            if [ "$OIDC_BUILT" = "true" ]; then
+              echo "::notice::A new keel-oidc image was pushed, and /keel/staging/oidc-image-tag now names it. The twin picks it up on its next deploy; to take it now, run ./deploy/bin/deploy.sh --target staging <a new keel-cloud tag> from the Mac."
+            fi
+          else
+            ./deploy/bin/deploy.sh --target staging "$TAG"
+            echo "deployed=$TAG" >> "$GITHUB_OUTPUT"
+          fi
+
+      # §6.3's gate: THE CELLS START ONLY WHEN BOTH OF THESE ANSWER. `/v2/me` 401 is keel-cloud
+      # listening with Flyway migrated and the security chain wired; the discovery document is
+      # sign-in itself, because on staging the stub IS the door (§4.1).
+      - name: The gate — /v2/me answers 401 and the issuer's discovery answers 200
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            me=$(curl -s -o /dev/null -w '%{http_code}' "$KEEL_REMOTE_WEB_URL/v2/me" || echo 000)
+            oidc=$(curl -s -o /dev/null -w '%{http_code}' \
+                     "$KEEL_REMOTE_WEB_URL/oidc/.well-known/openid-configuration" || echo 000)
+            echo "attempt $attempt: /v2/me $me, /oidc discovery $oidc"
+            if [ "$me" = "401" ] && [ "$oidc" = "200" ]; then
+              echo "The twin is up: $KEEL_REMOTE_WEB_URL" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::The twin did not answer: /v2/me wanted 401 (got $me), the issuer's discovery wanted 200 (got $oidc). No cell runs."
+          exit 1
+
+  # ---------------------------------------------------------------------------------------- cell
+  #
+  # One job per cell (§5.3). Checkout, this cell's Python, the harness, the host's own CLI from
+  # npm, and the journey against the twin. THE PLUGIN COMES FROM THE PUBLIC MARKETPLACE, never from
+  # a checkout (decision 5): the scenario does that itself, exactly as a founder would.
+  #
+  # A cell's Python is the RUNTIME's -- what `python3` resolves to when the host CLI runs the
+  # skill's script. The harness itself needs 3.11+ (tomllib, and this repository's own floor), so it
+  # gets its own interpreter and the cell's Python is left to be the thing under test.
+  cell:
+    name: ${{ matrix.cell.id }}
+    needs: [select, deploy-staging]
+    if: needs.select.outputs.enabled == 'true'
+    runs-on: ${{ matrix.cell.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        cell: ${{ fromJSON(needs.select.outputs.cells) }}
+    defaults:
+      run:
+        shell: bash      # Git bash on Windows; nothing below is written twice
+    env:
+      # spec 017's remote profile: URLs, not processes. `make up` is never run here -- the twin is
+      # already up, and a referee that could tear down the thing it is refereeing is a footgun.
+      KEEL_EVAL_PROFILE: remote
+      KEEL_REMOTE_GATE_USER: harness
+      KEEL_REMOTE_GATE_PASSWORD: ${{ secrets.KEEL_STAGING_HARNESS_PASSWORD }}
+      # §4.3: this is the name of the founder the cell registers with the twin's picker, which is
+      # what the founder reads in the morning.
+      KEEL_REMOTE_CELL: ${{ matrix.cell.id }}
+      KEEL_JOURNEY_HOST: ${{ matrix.cell.host }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: harness-python
+        name: The harness's own interpreter (3.12), which is never the cell's axis
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Last wins on PATH: from here, `python3` is the cell's Python, which is what the skill's
+      # script and the bundled runtime are run by. That is the axis (§5.1, spec 004's floor).
+      - name: The cell's Python (${{ matrix.cell.python }}) — the runtime's
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.cell.python }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install the harness and Playwright's chromium
+        env:
+          HARNESS_PYTHON: ${{ steps.harness-python.outputs.python-path }}
+        run: |
+          set -euo pipefail
+          "$HARNESS_PYTHON" -m venv .venv
+          if [ "$RUNNER_OS" = "Windows" ]; then venv_py=".venv/Scripts/python.exe"; else venv_py=".venv/bin/python"; fi
+          echo "VENV_PY=$venv_py" >> "$GITHUB_ENV"
+          "$venv_py" -m pip install -q --upgrade pip
+          "$venv_py" -m pip install -q -r requirements.txt
+          "$venv_py" -m playwright install chromium
+          "$venv_py" --version
+          python3 --version      # the cell's own, for the record
+
+      # Installed exactly as keel-runtime's acceptance.yml installs them, including the 1.0.83 pin
+      # that spec 005's prompt-transport amendment measured.
+      - name: Install the Claude Code CLI from npm, version printed
+        if: matrix.cell.host == 'claude'
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+
+      - name: Install the Copilot CLI from npm, pinned to 1.0.83, version printed
+        if: matrix.cell.host == 'copilot'
+        run: |
+          npm install -g @github/copilot@1.0.83 || npm install -g @github/copilot@latest
+          copilot --version
+
+      - name: Note which run bundles existed before this cell ran
+        run: |
+          set -euo pipefail
+          ls runs > runs-before.txt 2>/dev/null || : > runs-before.txt
+
+      # The journey, and — on the one nightly cell that carries them — the corpus scenarios.
+      # `make eval-live` is the founder's own command; Windows runners have no `make`, so the same
+      # command's body is spelled out there and nowhere else.
+      - name: Run ${{ join(matrix.cell.scenarios, ', ') }}
+        env:
+          ANTHROPIC_API_KEY: ${{ matrix.cell.host == 'claude' && secrets.ANTHROPIC_API_KEY || '' }}
+          # KEEL_RUNTIME_CI_COPILOT is the organisation secret's name; COPILOT_GITHUB_TOKEN is the
+          # name the CLI itself reads. Mapped here, as acceptance.yml maps it.
+          COPILOT_GITHUB_TOKEN: ${{ matrix.cell.host == 'copilot' && secrets.KEEL_RUNTIME_CI_COPILOT || '' }}
+          # C-5's pin, spec 016: gpt-5.6-luna emits the `phase` key CopilotExecutor reads, and the
+          # plan's own default (claude-sonnet-5) does not -- runs/DRIFT.md #59. Claude has no
+          # counterpart: keel-runtime's Claude executor takes no model, so a Claude cell's runtime
+          # model is recorded, not pinned (spec 019).
+          KEEL_COPILOT_MODEL: ${{ matrix.cell.host == 'copilot' && 'gpt-5.6-luna' || '' }}
+          LIVE_K: ${{ matrix.cell.live_k }}
+          EVAL_K: ${{ matrix.cell.eval_k }}
+        run: |
+          set -euo pipefail
+          status=0
+          if [ -n "$LIVE_K" ]; then
+            if command -v make >/dev/null 2>&1; then
+              make eval-live K="$LIVE_K" HOST="$KEEL_JOURNEY_HOST" PROFILE=remote || status=$?
+            else
+              "$VENV_PY" -m pytest evals -q -m live -k "$LIVE_K" || status=$?
+            fi
+          fi
+          if [ -n "$EVAL_K" ]; then
+            if command -v make >/dev/null 2>&1; then
+              make eval K="$EVAL_K" PROFILE=remote || status=$?
+            else
+              "$VENV_PY" -m pytest evals -q -m "not live" -k "$EVAL_K" || status=$?
+            fi
+          fi
+          exit $status
+
+      # Always: a red cell is exactly the cell whose bundle the founder wants. The bundles are
+      # found by diffing `runs/` against the listing taken before the run rather than by globbing
+      # it: `runs/` is gitignored (only DRIFT.md is tracked), so a fresh checkout starts empty --
+      # but a cell that runs four scenarios writes four bundles, and the row belongs to the ones
+      # THIS run wrote.
+      - name: Collect this cell's run bundles and its summary row
+        if: always()
+        env:
+          CELL: ${{ matrix.cell.id }}
+          SET: ${{ needs.select.outputs.set }}
+        run: |
+          set -euo pipefail
+          # The venv when there is one; the cell's own Python when the install step is what failed.
+          "${VENV_PY:-python3}" - <<'PY'
+          import json, os, pathlib, shutil
+
+          # UTF-8 everywhere, explicitly: a failed step is named "§1.2 SOLUTION" and a row
+          # carries an em dash, and Windows would otherwise read and write these in cp1252 and
+          # take the whole bundle down with a UnicodeEncodeError at the last step.
+
+          cell = os.environ["CELL"]
+          # Tolerant of a cell that died before it got as far as listing: this step is
+          # `if: always()`, and a step that crashes here would take the bundle with it.
+          listing = pathlib.Path("runs-before.txt")
+          before = set(listing.read_text(encoding="utf-8").split()) if listing.is_file() else set()
+          runs = pathlib.Path("runs")
+          new = sorted(d for d in runs.iterdir()
+                       if d.is_dir() and d.name not in before) if runs.is_dir() else []
+
+          out = pathlib.Path("_cell")
+          (out / "runs").mkdir(parents=True, exist_ok=True)
+          rows = []
+          for bundle in new:
+              shutil.copytree(bundle, out / "runs" / bundle.name, dirs_exist_ok=True)
+              verdict = bundle / "verdict.json"
+              if verdict.is_file():
+                  v = json.loads(verdict.read_text(encoding="utf-8"))
+                  rows.append({
+                      "cell": cell,
+                      "scenario": v.get("scenario", bundle.name),
+                      "verdict": "PASSED" if v.get("passed") else "FAILED",
+                      "score": v.get("score"),
+                      "failed_step": v.get("failed_step"),
+                      "bundle": bundle.name,
+                  })
+          if not rows:
+              rows.append({"cell": cell, "scenario": "(none)", "verdict": "NO BUNDLE",
+                           "score": None, "failed_step": "the run wrote no verdict.json",
+                           "bundle": "-"})
+          (out / "rows.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
+
+          header = ("| cell | scenario | verdict | score | failed step |\n"
+                    "|---|---|---|---|---|\n")
+          body = "".join(
+              f"| `{r['cell']}` | {r['scenario']} | **{r['verdict']}** | "
+              f"{'—' if r['score'] is None else r['score']} | {r['failed_step'] or '—'} |\n"
+              for r in rows)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
+              handle.write(header + body)
+          PY
+
+      - name: Upload this cell's run bundles
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runs-${{ matrix.cell.id }}
+          path: _cell/runs
+          retention-days: 30      # §6.4's own number
+          if-no-files-found: warn
+
+      - name: Upload this cell's summary row
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: row-${{ matrix.cell.id }}
+          path: _cell/rows.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  # ------------------------------------------------------------------------------------- summary
+  #
+  # §6.4's third place a verdict is recorded: ONE TABLE, eighteen rows at most. (The other two are
+  # the run bundle above, and the label on the founder the cell signed in as, which the scenario
+  # itself patches into the twin's registry -- that is the dropdown the founder opens in the
+  # morning, and it is written by `stack/remote.py`, not here.)
+  summary:
+    name: the table
+    needs: [select, deploy-staging, cell]
+    if: always() && needs.select.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: row-*
+          path: rows
+          merge-multiple: false
+
+      - name: One table
+        shell: bash
+        env:
+          SET: ${{ needs.select.outputs.set }}
+          WHY: ${{ needs.select.outputs.why }}
+          REPO: ${{ needs.select.outputs.repo }}
+          SHA: ${{ needs.select.outputs.sha }}
+          TAG: ${{ needs.deploy-staging.outputs.tag }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, pathlib
+
+          rows = []
+          for path in sorted(pathlib.Path("rows").rglob("rows.json")):
+              rows.extend(json.loads(path.read_text(encoding="utf-8")))
+          rows.sort(key=lambda r: (r["cell"], r["scenario"]))
+
+          lines = [
+              f"## Matrix `{os.environ['SET']}` — {os.environ['WHY']}",
+              "",
+              f"`{os.environ['REPO']}` at `{os.environ['SHA']}`, against "
+              f"https://eval.keeldiscovery.com on keel-cloud `{os.environ['TAG']}`.",
+              "",
+              "| cell | scenario | verdict | score | failed step |",
+              "|---|---|---|---|---|",
+          ]
+          for r in rows:
+              score = "—" if r.get("score") is None else r["score"]
+              lines.append(f"| `{r['cell']}` | {r['scenario']} | **{r['verdict']}** | "
+                           f"{score} | {r.get('failed_step') or '—'} |")
+          if not rows:
+              lines.append("| — | — | no rows were uploaded | — | — |")
+          lines += ["", "Each cell's bundle is the artifact named `runs-<cell>` (30 days); "
+                        "`make report RUN=runs/<id>` rebuilds its report.html from a downloaded one.",
+                    "", "A red cell is information, never a trigger: production deploys stay a "
+                        "founder's command from the Mac (invariant M8)."]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
+              handle.write("\n".join(lines) + "\n")
+          PY

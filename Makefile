@@ -3,7 +3,8 @@ PY := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
 PLAYWRIGHT := $(VENV)/bin/playwright
 
-.PHONY: up down eval eval-live eval-all report venv unit instruction-eval acceptance oidc-image
+.PHONY: up down eval eval-live eval-all report venv unit instruction-eval acceptance oidc-image \
+        matrix-check
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
 # venv already exists (pip/playwright no-op when nothing changed).
@@ -30,7 +31,7 @@ down: venv
 # playground profile instead of the default eval profile -- `make eval K=s001 PROFILE=playground`
 # (relay-design.md §12.5: two profiles never share ports, a database, or now a runtime home).
 eval: venv
-	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) $(PY) -m pytest evals -q -m "not live" $(if $(K),-k $(K),)
+	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) $(PY) -m pytest evals -q -m "not live" $(if $(K),-k "$(K)",)
 
 # make eval-live runs the scenarios marked `live` -- a real `claude`, real money (spec 008-stranger-
 # who-gives-orders). Opt-in only; never part of `make eval`/`make eval-all`. Needs a logged-in
@@ -52,7 +53,7 @@ eval: venv
 eval-live: venv
 	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) \
 	KEEL_JOURNEY_HOST=$(if $(HOST),$(HOST),copilot) \
-	$(PY) -m pytest evals -q -m live $(if $(K),-k $(K),)
+	$(PY) -m pytest evals -q -m live $(if $(K),-k "$(K)",)
 
 # make eval-all runs the FULL scenario set (s001 included) against one stack session (attaches to
 # an already-up stack from `make up`; does not tear it down -- `make down` is a separate step) and
@@ -118,7 +119,7 @@ acceptance: venv
 instruction-eval: venv
 	$(PY) -m instructions.run --host $(if $(HOST),$(HOST),claude) \
 		$(if $(DRY),--dry-run,) $(if $(BASELINE),--baseline,) \
-		$(if $(K),-k $(K),) $(if $(N),-n $(N),) $(if $(MARKS),--marks $(MARKS),)
+		$(if $(K),-k "$(K)",) $(if $(N),-n $(N),) $(if $(MARKS),--marks $(MARKS),)
 
 # spec 018-gated-registry-stub: the stub OIDC issuer as a container, which is the one service the
 # staging twin runs that production does not (keel-cloud `canon/designs/e2e-matrix-design.md` §3
@@ -150,3 +151,17 @@ oidc-image:
 			-f stack/containers/oidc/Dockerfile -t "$$image" . ; \
 		$(if $(PUSH),docker push "$$image",true) ; \
 	fi
+
+# spec 020-matrix-workflow: the three named cell sets, validated and printed -- the SAME code
+# `.github/workflows/matrix.yml`'s `select` job runs (`python -m matrix --set <name> --json`), so a
+# founder who edits matrix/cells.toml finds out here what a runner would otherwise find out after
+# assuming a role and deploying a box. Stackless, offline, stdlib only: no venv, no network, no
+# secret, nothing to spend.
+#
+#   make matrix-check                      the three sets, one line a cell
+#   make matrix-check SET=nightly          just that one
+#   make matrix-check SET=weekly CELLS=ubuntu-24.04-claude-py3.13
+#
+# Python 3.11+ (tomllib). A cell's own Python is a different question and is never this one.
+matrix-check:
+	python3 -m matrix $(if $(SET),--set $(SET),) $(if $(CELLS),--cells $(CELLS),)

@@ -896,6 +896,102 @@ make oidc-image TAG=$(git rev-parse --short HEAD)            # buildx, linux/arm
 make oidc-image TAG=<sha> PUSH=1 OIDC_IMAGE_REPO=<ecr repo>  # what spec 020's workflow will run
 ```
 
+## The matrix (spec `020-matrix-workflow`)
+
+*keel-cloud [`canon/designs/e2e-matrix-design.md`](../keel-cloud/canon/designs/e2e-matrix-design.md)
+§5 and §6.*
+
+Every qualifying change deploys keel-cloud to the **staging twin** and runs the founder's journey
+through the real plugin on real Windows, macOS and Linux runners, once per host and per Python.
+This repository is the referee, so **this repository owns the schedule** (invariant M9): the other
+four dispatch, and `.github/workflows/matrix.yml` decides what runs.
+
+**The cells are data**, in [`matrix/cells.toml`](matrix/cells.toml), and one reader serves both the
+founder and the workflow:
+
+```bash
+make matrix-check                                            # the three sets, one line a cell
+make matrix-check SET=nightly                                # just that one
+make matrix-check SET=weekly CELLS=ubuntu-24.04-claude-py3.13
+```
+
+`make matrix-check` is `python -m matrix`, which is exactly what the workflow's `select` job runs —
+stackless, offline, stdlib only, and the cheapest place in the whole matrix to fail. It validates
+the file (every cell a combination the axes allow, no cell named twice) **and** the design's
+coverage rules, so a `cells.toml` that drifts from §5.2 is caught before a role is assumed, a box
+is deployed or a model is asked anything. `tests/test_matrix_cells.py` holds the real file to the
+same rules in `make unit`.
+
+| Set | Cells | What | When |
+|---|---|---|---|
+| `per_change` | 6 | each OS once per host; 3.9 on the Ubuntu cells, 3.13 elsewhere | a push to master here, or a dispatch from keel-cloud / keel-runtime / keel-connect-skill / keel-web |
+| `nightly` | 6 | Ubuntu only, both hosts, every Python; the corpus scenarios ride on one Claude cell | 03:00 UTC |
+| `weekly` | 18 | the full product of the three axes | Sunday 04:00 UTC |
+
+The axes are three operating systems, two hosts and **three** Pythons — 3.9 (spec 004's floor),
+3.12 (what Ubuntu 24.04 ships and what this harness runs on) and 3.13. The design's §5.1 names two
+while its §5.2 and §10 count eighteen weekly cells and six nightly ones; `matrix/cells.toml`'s
+header carries that arithmetic and why the third value is 3.12.
+
+A **cell** is one (OS, host, Python) run once, as one runner job, named
+`<os>-<host>-py<python>` — and that name is also `KEEL_REMOTE_CELL`, which is the founder
+`stack/remote.py` registers with the twin's picker, which is the line the founder reads the next
+morning (design §4.3). A cell's Python is the **runtime's**: what `python3` resolves to when the
+host CLI runs the skill's script. The harness needs 3.11+ and gets its own interpreter, so a 3.9
+cell is a 3.9 measurement of the thing under test and never of the referee.
+
+**It is inert until the founder switches it on.** Every job that costs anything is gated on the
+repository variable `KEEL_STAGING_ENABLED` being exactly `true`; until then a push runs one free
+job that prints one line and stops. That is what makes these workflows safe to merge before the
+twin exists.
+
+### What the founder must set, once
+
+*Settings → Secrets and variables → Actions, in **keel-e2e-eval**.*
+
+| Variable | Value |
+|---|---|
+| `KEEL_STAGING_ENABLED` | `true` — the master switch; anything else skips the whole matrix |
+| `KEEL_CI_DEPLOY_ROLE_ARN` | the `keel-ci-deploy` role `provision.sh --target staging` created |
+| `KEEL_INSTANCE_ID` | the twin's instance id (the CI role carries no `ec2:Describe*`) |
+| `KEEL_ELASTIC_IP` | the twin's Elastic IP, likewise |
+
+| Secret | What |
+|---|---|
+| `KEEL_STAGING_HARNESS_PASSWORD` | the `harness` gate password, whose bcrypt is `/keel/staging/oidc-gate-harness-hash`. The founder's own gate password is never here. |
+| `KEEL_SIBLINGS_TOKEN` | a fine-grained token with **read-only Contents** on keel-cloud and keel-web — the two private repositories the deploy job checks out |
+| `ANTHROPIC_API_KEY`, `KEEL_RUNTIME_CI_COPILOT` | already organisation secrets, shared with keel-runtime; nothing to do |
+
+`KEEL_DISPATCH_TOKEN` is **not** set here: it is the senders' secret, one per repository, and it
+only needs the right to POST `/dispatches` on this one.
+
+### The first run, in order (design §13 step 5)
+
+1. `make matrix-check` on the Mac — the three sets read right.
+2. Set `KEEL_STAGING_ENABLED=false` (or leave it unset) and merge. A push runs `select` alone,
+   green, one line.
+3. The twin exists (keel-cloud spec 036, design §13 steps 1–4) and answers `/v2/me` 401.
+4. Set the four variables and the two secrets above, then `KEEL_STAGING_ENABLED=true`.
+5. **Run → matrix → Run workflow**, `set: per_change`, `cells: ubuntu-24.04-claude-py3.13`. One
+   cell, one model bill, the whole path proved.
+6. Then `cells: windows-latest-copilot-py3.9` — the cell this week was about.
+7. Then the per-change six with no `cells` at all. Only then the schedules matter.
+
+### Where a verdict ends up (§6.4)
+
+Three places, and the first two are this repository's:
+
+1. **The run bundle**, uploaded as the artifact `runs-<cell>` for 30 days — the same directory a
+   local run writes, so `make report RUN=runs/<id>` works on a downloaded one.
+2. **The workflow summary**: one table, at most eighteen rows — cell, scenario, verdict, score,
+   failed step.
+3. **The identity's label** in the twin's registry, patched by the scenario itself through
+   `stack/remote.py` — the dropdown the founder opens in the morning.
+
+A failed cell fails the workflow, and that is all it does. **A green matrix triggers nothing** and
+a red one rolls nothing back (invariant M8): production deploys stay a founder's command from the
+Mac, and the failing build stays up so the founder can sign in as that cell's founder and look.
+
 ## The instruction eval (`make instruction-eval`)
 
 The second of this repo's two model-backed exceptions (the other is S-004). It answers a question
