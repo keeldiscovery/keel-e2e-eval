@@ -45,6 +45,10 @@ on:
         description: "optional comma-separated cell ids, e.g. ubuntu-24.04-claude-py3.13"
         type: string
         default: ""
+      deploy:
+        description: "deploy the twin first (false: cells only, against what staging already runs)"
+        type: boolean
+        default: true
 
 # §6.2's debounce, in the receiver and never in the senders: one run per source repository, the
 # older one cancelled. `client_payload.repo` is the sender's name; a push, a schedule or a hand
@@ -75,6 +79,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       enabled: ${{ steps.gate.outputs.enabled }}
+      deploy: ${{ steps.deploy-gate.outputs.deploy }}
       set: ${{ steps.pick.outputs.set }}
       cells: ${{ steps.pick.outputs.cells }}
       count: ${{ steps.pick.outputs.count }}
@@ -148,6 +153,34 @@ jobs:
             echo "Matrix skipped: the staging twin is not switched on (repository variable \`KEEL_STAGING_ENABLED\` is not \`true\`). $SET would have run $COUNT cell(s) — $WHY." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      # Cells only, two ways: a hand dispatch that says `deploy: false` (a rerun against what the
+      # twin already runs), or a repository that has no KEEL_SIBLINGS_TOKEN yet -- in which case
+      # the deploy cannot check out the private siblings, so it is skipped with a warning rather
+      # than failing and taking every cell down with it. The cells then measure whatever staging
+      # has, and the summary says so.
+      - id: deploy-gate
+        name: Deploy the twin first, or cells only?
+        shell: bash
+        env:
+          ENABLED: ${{ steps.gate.outputs.enabled }}
+          INPUT_DEPLOY: ${{ inputs.deploy }}
+          EVENT: ${{ github.event_name }}
+          SIBLINGS: ${{ secrets.KEEL_SIBLINGS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ "$ENABLED" != "true" ]; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT" = "workflow_dispatch" ] && [ "${INPUT_DEPLOY:-true}" = "false" ]; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Cells only, by request: the twin was not redeployed; the cells ran against what it already runs." >> "$GITHUB_STEP_SUMMARY"
+          elif [ -z "${SIBLINGS:-}" ]; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::KEEL_SIBLINGS_TOKEN is not set, so the twin was not redeployed; the cells ran against what it already runs. Set it (a fine-grained token, read-only Contents on keel-cloud and keel-web) and the deploy job runs first."
+            echo "Deploy skipped: \`KEEL_SIBLINGS_TOKEN\` is not set. The cells ran against what the twin already runs." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
   # ------------------------------------------------------------------------------ deploy-staging
   #
   # §6.3: the change that fires the matrix must be ON staging before the cells sign in. This job
@@ -159,7 +192,7 @@ jobs:
   deploy-staging:
     name: deploy the twin
     needs: select
-    if: needs.select.outputs.enabled == 'true'
+    if: needs.select.outputs.deploy == 'true'
     runs-on: ubuntu-24.04-arm
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
@@ -387,7 +420,12 @@ jobs:
   cell:
     name: ${{ matrix.cell.id }}
     needs: [select, deploy-staging]
-    if: needs.select.outputs.enabled == 'true'
+    # A skipped deploy (cells only) still runs the cells; a failed one does not.
+    if: >-
+      !cancelled()
+      && needs.select.outputs.enabled == 'true'
+      && needs.deploy-staging.result != 'failure'
+      && needs.deploy-staging.result != 'cancelled'
     runs-on: ${{ matrix.cell.os }}
     timeout-minutes: 45
     strategy:
