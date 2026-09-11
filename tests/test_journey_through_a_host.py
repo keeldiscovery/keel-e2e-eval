@@ -131,7 +131,10 @@ def test_both_hosts_are_asked_the_founders_own_three_words(name, tmp_path):
     host recognised what a founder means -- and it must be the same three words on both hosts, or
     the two cells are not running the same scenario."""
     argv, _ = _argv(name, tmp_path)
-    assert argv[0] == name
+    # The binary is resolved through PATH now (a Windows `.cmd` shim cannot be launched by its
+    # bare name), so the first element is the resolved path whose basename is the host's CLI.
+    import os as _os
+    assert _os.path.basename(argv[0]).split(".")[0] == name
     assert argv[1] == "-p"
     assert argv[2] == "keel connect"
     joined = " ".join(argv).lower()
