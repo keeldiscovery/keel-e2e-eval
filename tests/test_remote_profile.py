@@ -575,3 +575,27 @@ def test_remote_loads_without_keel_cloud_or_keel_web_beside_it(tmp_path, monkeyp
     (tmp_path / "keel-connect-skill").mkdir()
     with _pytest.raises(cfgmod.ConfigError):
         cfgmod.load_config(toml, profile="eval")
+
+
+# ------------------------------------------------------------- the referee is never a visitor
+
+def test_every_referee_context_carries_goatcounters_opt_out():
+    from harness.browser import RefereeBrowser, SKIP_GOATCOUNTER_INIT, GatedBrowser
+    assert GatedBrowser is RefereeBrowser
+    assert "skipgc" in SKIP_GOATCOUNTER_INIT and "'t'" in SKIP_GOATCOUNTER_INIT
+
+    class FakeContext:
+        def __init__(self): self.scripts = []
+        def add_init_script(self, script): self.scripts.append(script)
+
+    class FakeBrowser:
+        def __init__(self): self.kwargs = None
+        def new_context(self, **kwargs):
+            self.kwargs = kwargs; return FakeContext()
+
+    from stack import config as cfgmod
+    cfg = cfgmod.load_config(profile="eval", validate=False)
+    fake = FakeBrowser()
+    ctx = RefereeBrowser(fake, cfg).new_context()
+    assert ctx.scripts == [SKIP_GOATCOUNTER_INIT]
+    assert fake.kwargs == {}  # no gate on the eval profile: the caller's own options, untouched

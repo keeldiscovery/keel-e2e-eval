@@ -184,7 +184,7 @@ def playwright_instance():
 def browser(playwright_instance, stack_config):
     """The session's one Chromium.
 
-    **Wrapped, and only when there is a gate to get through** (spec 017; e2e-matrix-design.md
+    **Wrapped, always** (spec 017 wrapped it only behind a gate; e2e-matrix-design.md
     §4.2). Nineteen scenario modules call `browser.new_context()`; on the staging twin every one
     of those contexts has to carry the basic-auth credential Caddy asks for in front of the
     issuer's picker. `harness.browser.GatedBrowser` adds it to `new_context` and delegates
@@ -193,6 +193,9 @@ def browser(playwright_instance, stack_config):
     `gate_http_credentials` is `None` and no wrapper is built.
     """
     b = playwright_instance.chromium.launch()
-    yield GatedBrowser(b, stack_config) if gate_http_credentials(stack_config) else b
+    # Always wrapped now: the wrapper also marks every context as the referee's for GoatCounter
+    # (harness.browser.SKIP_GOATCOUNTER_INIT), on every profile. With no gate credential the
+    # context options are exactly the caller's own, as before.
+    yield GatedBrowser(b, stack_config)
     b.close()
 

@@ -156,9 +156,17 @@ def context_options(config, **kwargs) -> dict:
     return kwargs
 
 
-class GatedBrowser:
+#: GoatCounter's own opt-out (its `#toggle-goatcounter` sets exactly this): a browser carrying it
+#: is never counted, whatever host it visits. Every referee context carries it, so a run against
+#: production -- keel-runtime's acceptance fetching a device code, a founder's own test from this
+#: Mac -- never shows up as a visitor (the first morning status, 2026-09-11).
+SKIP_GOATCOUNTER_INIT = "try { localStorage.setItem('skipgc', 't'); } catch (e) {}"
+
+
+class RefereeBrowser:
     """A Playwright `Browser` with one method changed: `new_context()` carries the gate
-    credential (§4.2).
+    credential when the profile has one (§4.2), and always marks the context as the referee's
+    so GoatCounter ignores it.
 
     **Why a wrapper and not a line in every scenario.** Nineteen scenario modules call
     `browser.new_context()` and every one of them is the referee's own contract with the product;
@@ -177,15 +185,23 @@ class GatedBrowser:
         self._config = config
 
     def new_context(self, **kwargs):
-        return self._browser.new_context(**context_options(self._config, **kwargs))
+        context = self._browser.new_context(**context_options(self._config, **kwargs))
+        context.add_init_script(SKIP_GOATCOUNTER_INIT)
+        return context
 
     def __getattr__(self, name):
         return getattr(self._browser, name)
 
 
+#: The name spec 017 introduced; the class grew the analytics opt-out and a truer name.
+GatedBrowser = RefereeBrowser
+
+
 def new_context(browser, config, **kwargs):
     """The explicit form, for a caller that has a raw `Browser` and this profile's config."""
-    return browser.new_context(**context_options(config, **kwargs))
+    context = browser.new_context(**context_options(config, **kwargs))
+    context.add_init_script(SKIP_GOATCOUNTER_INIT)
+    return context
 
 
 def _split_recorder_and_base(args: tuple, page: Page) -> tuple[Recorder, str]:
