@@ -58,6 +58,7 @@ import pytest
 from evals import payroll_exceptions as fx
 from evals.preludes import create_project
 from harness import agent_host, canary as canary_mod, refusals
+from stack import remote
 from harness.browser import (Auth, Chat, Connect, Landing, OpenedCard, Overview, ParticipantPage,
                               People, ReviewCard, Shell)
 from harness.evidence import finalize_run, write_generated, write_host
@@ -70,6 +71,18 @@ pytestmark = pytest.mark.live
 #: `KEEL_JOURNEY_HOST`. An unknown value raises rather than falling back: a typo that quietly ran
 #: the other host would spend the founder's money on a measurement nobody asked for.
 HOST = agent_host.journey_host()
+
+
+def _environment_of(base_url: str) -> str:
+    """What keel-runtime's `status.environment` says for a base URL (its `config.environment_for`):
+    `host:port` when the URL carries a port, the bare host otherwise. Mirrored here rather than
+    imported so the referee never imports the runtime it is judging."""
+    from urllib.parse import urlsplit
+    parts = urlsplit(base_url)
+    host = parts.hostname or ""
+    if ":" in host:
+        host = f"[{host}]"
+    return f"{host}:{parts.port}" if parts.port else host
 
 #: `runs/<stamp>-s012-journey-<host>/`. The matrix uploads one bundle per cell and a reader
 #: looking at eighteen of them has only the name to go on until they open one.
@@ -378,8 +391,13 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
         pytest.skip(ready["reason"])
 
     recorder = Recorder(run_dir)
-    web_base = f"http://localhost:{stack.web_port}"
-    cloud_base = f"http://localhost:{stack.cloud_port}"
+    # Spec 017: the stack's own addresses -- `http://localhost:<port>` on the eval and playground
+    # profiles, the twin's URLs on `remote` -- and the founder this run signs in as: the built-in
+    # Eval Founder locally, a founder registered for this cell against the twin's gated chooser.
+    web_base = stack.web_base_url
+    cloud_base = stack.cloud_base_url
+    cell_label = f"{remote.cell_name()} · {HOST} · journey · {time.strftime('%Y-%m-%d', time.gmtime())}"
+    founder_one = remote.identity_to_sign_in_as(stack, cell_label, fallback=founder_one)
     started = _now()
     passed = False
     context = browser.new_context()
@@ -646,7 +664,7 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                 f"the runtime chose {EXPECTED_EXECUTOR!r} by {launched.get('source')!r} rather "
                 f"than by an explicit term -- the skill is meant to *tell* it, so a run that "
                 f"guessed right off an environment marker has not proven the skill's line works")
-            assert status.get("environment") == f"localhost:{stack.cloud_port}", (
+            assert status.get("environment") == _environment_of(cloud_base), (
                 f"the runtime names {status.get('environment')!r}, not this stack's Keel")
 
         with recorder.step("C-5: the pin the skill's own launch carried -- or, on a host whose "
@@ -821,6 +839,14 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
     finally:
         context.close()
         shutil.rmtree(host.work_dir, ignore_errors=True)
+        # Spec 017 / e2e-matrix-design §6.4: the verdict goes onto the cell's own founder in the
+        # twin's chooser, so the founder's morning picker reads it. Local profiles: no I/O.
+        if stack.is_remote:
+            verdict = "PASSED" if passed else f"FAILED at {recorder.failed_step or 'an unnamed step'}"
+            try:
+                remote.label_cell_identity(stack, founder_one.id, f"{cell_label} — {verdict}")
+            except Exception as exc:  # noqa: BLE001 - the label is evidence, never the verdict
+                print(f"\ncould not label the cell's founder in the chooser: {exc}")
         # `facts.json` is the scorer's own registry and this scenario is unscored, so it would
         # otherwise be `{}`. One string goes in beside it -- a *string*, so `scoring.read_facts`
         # skips it rather than reading an empty Fact out of it -- because a bundle whose verdict

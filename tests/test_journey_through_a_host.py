@@ -469,3 +469,17 @@ def test_a_note_in_facts_json_is_never_read_back_as_a_fact(tmp_path):
     assert json.loads((tmp_path / "facts.json").read_text())["the journey's host"].startswith(
         "claude")
     assert read_facts(tmp_path) == {}
+
+
+# ---------------------------------------------------------------------- spec 017 follow-up
+# The scenario names the stack by `stack.web_base_url`/`cloud_base_url` now, and asserts the
+# runtime's `environment` against what keel-runtime derives from that address -- mirrored, not
+# imported (the referee never imports the runtime it judges).
+
+def test_environment_of_mirrors_the_runtime_for_local_and_remote_addresses():
+    from evals.test_s012_journey_through_a_host import _environment_of
+
+    assert _environment_of("http://localhost:18080") == "localhost:18080"
+    assert _environment_of("https://eval.keeldiscovery.com") == "eval.keeldiscovery.com"
+    assert _environment_of("https://eval.keeldiscovery.com:8443/") == "eval.keeldiscovery.com:8443"
+    assert _environment_of("http://[::1]:18080") == "[::1]:18080"
