@@ -165,7 +165,7 @@ jobs:
           ENABLED: ${{ steps.gate.outputs.enabled }}
           INPUT_DEPLOY: ${{ inputs.deploy }}
           EVENT: ${{ github.event_name }}
-          SIBLINGS: ${{ secrets.KEEL_SIBLINGS_TOKEN }}
+          SIBLINGS: ${{ secrets.KEEL_SIBLINGS_TOKEN || secrets.KEEL_SIBLINGS }}
         run: |
           set -euo pipefail
           if [ "$ENABLED" != "true" ]; then
@@ -205,13 +205,14 @@ jobs:
           path: keel-e2e-eval
 
       # keel-cloud and keel-web are private, so a checkout of them needs a token this repository
-      # holds: KEEL_SIBLINGS_TOKEN, a fine-grained PAT with read-only Contents on those two and
+      # holds: KEEL_SIBLINGS_TOKEN (or KEEL_SIBLINGS -- the founder stored it under that name on
+      # 2026-09-11, and either spelling is read), a fine-grained PAT with read-only Contents on those two and
       # nothing else. It is NOT the dispatch token (that one lives in the senders) and it is NOT an
       # AWS credential (there is none, anywhere, by decision 8).
       - name: The siblings' token must exist before anything else is attempted
         shell: bash
         env:
-          SIBLINGS: ${{ secrets.KEEL_SIBLINGS_TOKEN }}
+          SIBLINGS: ${{ secrets.KEEL_SIBLINGS_TOKEN || secrets.KEEL_SIBLINGS }}
         run: |
           set -euo pipefail
           if [ -z "${SIBLINGS:-}" ]; then
@@ -226,7 +227,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: keeldiscovery/keel-cloud
-          token: ${{ secrets.KEEL_SIBLINGS_TOKEN }}
+          token: ${{ secrets.KEEL_SIBLINGS_TOKEN || secrets.KEEL_SIBLINGS }}
           path: keel-cloud
           fetch-depth: 0
 
@@ -237,7 +238,7 @@ jobs:
         with:
           repository: keeldiscovery/keel-web
           ref: ${{ endsWith(needs.select.outputs.repo, 'keel-web') && needs.select.outputs.sha || 'master' }}
-          token: ${{ secrets.KEEL_SIBLINGS_TOKEN }}
+          token: ${{ secrets.KEEL_SIBLINGS_TOKEN || secrets.KEEL_SIBLINGS }}
           path: keel-web
 
       - uses: actions/setup-java@v4
