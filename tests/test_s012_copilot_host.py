@@ -1,9 +1,16 @@
-"""S-012's own stackless tests (spec `016-copilot-e2e`).
+"""S-012's **Copilot instance**, held by its own stackless tests (spec `016-copilot-e2e`).
 
 Everything here is a property that would otherwise only be observable **during a paid run** --
 which is the same reason spec 013's packaging beds have stackless tests: the argv a live leg builds,
 the environment it hands a child, and the readers that turn a runtime's artefacts into an
 assertion. A live run is the wrong place to discover that a flag name was wrong.
+
+Spec 019 made the scenario *the journey through a host* and gave the Claude half an equal one; the
+properties that belong to **both** hosts -- the two command lines side by side, the isolation, the
+bundle's name and how `KEEL_JOURNEY_HOST` is read -- moved to
+`tests/test_journey_through_a_host.py`. What stayed here is everything true of this CLI alone, and
+it is unchanged on purpose: the Copilot argv that was measured green on 2026-09-10 must still be
+the argv, flag for flag.
 
 Nothing here shells `copilot`, and nothing here needs a stack, a browser or a model.
 """
@@ -371,7 +378,7 @@ def test_an_absent_skill_is_absent():
 # ------------------------------------------------------------------ the scenario's own promises
 
 SCENARIO = (Path(__file__).resolve().parent.parent / "evals"
-            / "test_s012_copilot_host_and_thinker.py").read_text()
+            / "test_s012_journey_through_a_host.py").read_text()
 
 
 def test_the_scenario_never_starts_the_runtime_itself():
@@ -411,7 +418,7 @@ def test_the_pinned_model_is_one_keel_runtime_can_actually_read():
     `final_answer`-phase message -- so on `claude-sonnet-5`, the upgraded plan's own default,
     every keel-runtime job fails while the model answers correctly. The scenario pins a model that
     emits the field, and says why in the same place it says which."""
-    from evals import test_s012_copilot_host_and_thinker as s012
+    from evals import test_s012_journey_through_a_host as s012
     assert s012.RUNTIME_MODEL == "gpt-5.6-luna"
     assert "#59" in SCENARIO, (
         "the pin is a choice made because of a product fault; the entry that records that fault "
@@ -427,6 +434,6 @@ def test_the_scenario_is_live_and_skips_by_name():
 def test_the_settled_statuses_and_the_refused_ones_never_overlap():
     """Two readings of "this interaction ended well" that disagreed would make the run's central
     claim -- zero refusals, every job COMPLETED -- unfalsifiable."""
-    from evals import test_s012_copilot_host_and_thinker as s012
+    from evals import test_s012_journey_through_a_host as s012
     assert not (s012.SETTLED & s012.REFUSED)
     assert "APPLIED" in s012.SETTLED and "DOMAIN_REFUSED" in s012.REFUSED

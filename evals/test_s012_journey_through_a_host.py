@@ -1,25 +1,38 @@
-"""S-012 -- Copilot, host and thinker (spec `016-copilot-e2e`).
+"""S-012 -- the journey through a host (specs `016-copilot-e2e` and `019-journey-through-a-host`).
 
 **Live**, opt-in through `make eval-live K=s012`, never part of `make eval`/`make eval-all`, and it
-spends the founder's own premium requests.
+spends the founder's own money on whichever host it is pointed at.
+
+**One scenario, two hosts.** `KEEL_JOURNEY_HOST` (set by `make eval-live K=s012 HOST=claude|copilot`,
+default `copilot` so the command that produced the spec 016 run of record still means what it
+meant) decides which. keel-cloud `canon/designs/e2e-matrix-design.md` §5.1 is why: the matrix's
+three axes are an OS, a Python and a **host**, and *"the scenario each cell runs is S-001, the
+founder's journey, through the host"*. A scenario that existed for one host could only ever fill a
+third of the grid.
+
+What differs between the two hosts is a handful of flags, one environment variable and the way
+each CLI prints what it knows -- all of it behind `harness/agent_host.py`. What does not differ is
+everything below: the same legs, in the same order, asserting the same shapes, on the same wire.
 
 Two legs, one runtime, and the runtime is what joins them.
 
-**Leg one, the host.** keel-connect-skill's plugin is installed into a **fresh `COPILOT_HOME`**
-from the real public marketplace with Copilot's own two commands, `copilot skill list` is asked
-whether it can see `keel-connect` as a plugin skill, and then the founder's three words --
-*"keel connect"* -- are said to `copilot -p`. Everything after that is asserted against the
-**runtime's own artefacts**, never Copilot's prose: the heartbeat file in state
-`awaiting_approval`, the launch log's `KEEL_USER_CODE=` and `KEEL_VERIFICATION_URI=` lines, and the
-eval cloud's own answer to `GET /v2/device-authorizations?user_code=`. A host that said *"Keel is
-connected!"* and started nothing would pass a grep of its reply and fails every one of these.
+**Leg one, the host.** keel-connect-skill's plugin is installed into a **fresh host home**
+(`CLAUDE_CONFIG_DIR` / `COPILOT_HOME`) from the real public marketplace with that host's own two
+commands, the CLI is asked whether it can see `keel-connect` and whether it came from the plugin,
+and then the founder's three words -- *"keel connect"* -- are said to `claude -p` / `copilot -p`.
+Everything after that is asserted against the **runtime's own artefacts**, never the host's prose:
+the heartbeat file in state `awaiting_approval`, the launch log's `KEEL_USER_CODE=` and
+`KEEL_VERIFICATION_URI=` lines, and the eval cloud's own answer to
+`GET /v2/device-authorizations?user_code=`. A host that said *"Keel is connected!"* and started
+nothing would pass a grep of its reply and fails every one of these.
 
-**Leg two, the thinker.** That same runtime is on the **Copilot executor**, because the skill read
-`SKILL.md`'s one Copilot line and passed `--host copilot` -- nothing in this scenario passes
-`--executor`, and `status.executor` is asserted before the first job. Then the founder's journey
-from S-001's own legs, with Copilot answering every screen: three stages framed, reviewed and
-approved as-is, one person invited and answered, the reading read, *What this says* written, the
-overview and one card opened.
+**Leg two, the thinker.** That same runtime is on **that host's executor**, because the skill told
+it so -- Copilot by `SKILL.md`'s one `--host copilot` line, Claude by the skill's own host
+detection -- and nothing in this scenario passes an executor of its own; `source=flag` is asserted
+beside the name, because a runtime that guessed right off a `PATH` would prove nothing about the
+skill. Then the founder's journey from S-001's own legs, with the host's model answering every
+screen: three stages framed, reviewed and approved as-is, one person invited and answered, the
+reading read, *What this says* written, the overview and one card opened.
 
 **Every card assertion is a shape or an absence** (spec 008's judgement call 8, and spec 016
 FR-007). A live model's sentence is not stable and a test that pinned one would be measuring the
@@ -28,7 +41,7 @@ deal-breaker, and was not refused.
 
 **Not scored.** No attribute of `evals/policy.py` applies to a scenario about which host loaded a
 skill and which model answered a job -- the same reason S-008 and S-009 are not scored. The
-evidence is the transcript, the two Copilot transcripts beside it, and the per-job envelopes.
+evidence is the transcript, the two host transcripts beside it, and the per-job envelopes.
 
 The referee owns no product code: a fault here is a `runs/DRIFT.md` entry, never a workaround.
 """
@@ -37,21 +50,30 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import time
 
 import pytest
 
 from evals import payroll_exceptions as fx
 from evals.preludes import create_project
-from harness import canary as canary_mod
-from harness import copilot_host, refusals
+from harness import agent_host, canary as canary_mod, refusals
 from harness.browser import (Auth, Chat, Connect, Landing, OpenedCard, Overview, ParticipantPage,
                               People, ReviewCard, Shell)
-from harness.evidence import finalize_run, write_generated
+from harness.evidence import finalize_run, write_generated, write_host
 from harness.steps import Recorder
 from stack import runtime as stack_runtime
 
 pytestmark = pytest.mark.live
+
+#: **Which host this run is the journey through**, resolved once, at import, from
+#: `KEEL_JOURNEY_HOST`. An unknown value raises rather than falling back: a typo that quietly ran
+#: the other host would spend the founder's money on a measurement nobody asked for.
+HOST = agent_host.journey_host()
+
+#: `runs/<stamp>-s012-journey-<host>/`. The matrix uploads one bundle per cell and a reader
+#: looking at eighteen of them has only the name to go on until they open one.
+BUNDLE = agent_host.bundle_slug(HOST)
 
 #: The founder's own three words. Not "run the keel connect skill", not "use the keel-connect
 #: plugin to start the runtime" -- the point of leg one is that a host with the skill installed
@@ -81,19 +103,31 @@ THE_FOUNDER_SAYS = "keel connect"
 #: measured run.*
 RUNTIME_MODEL = "gpt-5.6-luna"
 
+#: **What the runtime pins, per host -- and one of the two is deliberately nothing.**
+#: keel-runtime's `ClaudeCodeExecutor._build_argv` never passes a model and there is no
+#: `KEEL_CLAUDE_MODEL` to set, so a Claude journey's runtime model is **recorded, not pinned**:
+#: read back off the per-job envelopes the CLI itself writes. Inventing a pin that the runtime
+#: ignores would put a fact about the referee into the bundle.
+RUNTIME_MODEL_FOR_HOST = {"copilot": RUNTIME_MODEL, "claude": None}
+
 #: **The host's model is a different question, and gets the founder's own answer.** Leg one asks
-#: what happens when the founder types "keel connect" into *their* Copilot, so it pins what their
-#: Copilot would have chosen anyway -- CLI 1.0.83 on the upgraded plan logs *"Using default model:
-#: claude-sonnet-5"*. Pinning it keeps the run reproducible without making it unrepresentative;
-#: putting the runtime's slug here instead would have measured a founder nobody is. The two pins
-#: disagree because #59 made them disagree, and the bundle records both and why.
-HOST_MODEL = "claude-sonnet-5"
+#: what happens when the founder types "keel connect" into *their* CLI, so it pins what their CLI
+#: would have chosen anyway -- Copilot CLI 1.0.83 on the upgraded plan logs *"Using default model:
+#: claude-sonnet-5"*, and Claude Code's default is whatever that account is configured for, which
+#: this run records rather than overrides. Pinning keeps the run reproducible without making it
+#: unrepresentative; putting the runtime's slug here instead would have measured a founder nobody
+#: is. On Copilot the two pins disagree because #59 made them disagree, and the bundle records
+#: both and why.
+HOST_MODEL_FOR_HOST = {"copilot": "claude-sonnet-5", "claude": None}
+
+#: The Copilot-era name for the host pin's override, kept because a run record names it.
+HOST_MODEL_ENV = ("KEEL_JOURNEY_HOST_MODEL", "KEEL_S012_HOST_MODEL")
 
 #: The founder's own three, in the order the guided walk takes them.
 STAGES = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 
-#: What the runtime's `status` must say before leg two spends anything (FR-006).
-EXPECTED_EXECUTOR = "copilot"
+#: What the runtime's own startup line must say before leg two spends anything (FR-006).
+EXPECTED_EXECUTOR = agent_host.EXECUTOR_FOR_HOST[HOST]
 
 #: keel-cloud's own terminal-failure statuses, borrowed from `harness/refusals.py` so the two
 #: readings of "refused" cannot drift apart.
@@ -154,12 +188,12 @@ def _walk_stage_live(page, recorder, get_json, project_id, stage, opening, *, ti
     if (turn or {}).get("stopped"):
         stops.append(turn["stopped"])
 
-    with recorder.step(f"§1.1: {stage} comes back as a confirmation card Copilot wrote",
+    with recorder.step(f"§1.1: {stage} comes back as a confirmation card the host's model wrote",
                         party="founder", kind="assert") as h:
         h.record_assert({"a card": "with a non-empty claim", "stops": []},
                          {"card": card, "what stopped it, in keel-cloud's own words": stops})
         assert card is not None, (
-            f"Copilot never landed a confirmation card on {stage} after {len(FOLLOW_UPS)} "
+            f"{HOST} never landed a confirmation card on {stage} after {len(FOLLOW_UPS)} "
             f"benign follow-ups"
             + ("; the wire says: " + " | ".join(refusals.describe(s) for s in stops)
                if stops else ", and the wire had nothing to add"))
@@ -258,7 +292,7 @@ def _invite_one_live(page, recorder, project_id: str, web_base: str, person_name
     Deliberately not `evals/preludes.py::invite_everyone`, which reads its role labels out of the
     corpus entry (`{role["id"]: role["label"] for role in entry.roles}`). That is right for a
     scripted run, where the script *is* the corpus, and wrong here: on a live run the roles are
-    **Copilot's**, invented from the founder's own three statements, and the fixture's *"A payroll
+    **the host's model's**, invented from the founder's own three statements, and the fixture's *"A payroll
     manager"* is a label nothing on this page ever had. This repository has made that exact mistake
     once already, in S-010 -- *"asked a warm project for a fixture's role"* -- and the fix was the
     same one: read the label off the screen.
@@ -268,10 +302,10 @@ def _invite_one_live(page, recorder, project_id: str, web_base: str, person_name
     if page.locator(".role").count() == 0:
         people.switch_to_kinds_tab()
     cards = people.role_cards()
-    with recorder.step("§1.4: the roles on the People page are the ones Copilot wrote",
+    with recorder.step("§1.4: the roles on the People page are the ones the host wrote",
                         party="founder", kind="assert") as h:
         h.record_assert({"role cards": ">= 1, each with a label"}, cards)
-        assert cards, "Copilot's approved cards produced no role to ask anybody"
+        assert cards, "the approved cards produced no role to ask anybody"
         assert cards[0]["label"].strip(), f"a role card has no label: {cards[0]!r}"
     label = cards[0]["label"]
     people.open_send_popup(label)
@@ -287,7 +321,7 @@ def _answer_whatever_is_asked(browser, recorder, url: str, person_name: str) -> 
 
     `ParticipantPage.answer_as(person, entry)` resolves a corpus person's answers against the
     corpus's own anchor and selection prompts. On a live project there is no corpus: the anchors
-    are the ones Copilot wrote, and every one of that method's `offers(prompt)` checks would fail
+    are the ones the host wrote, and every one of that method's `offers(prompt)` checks would fail
     silently into `skipped`, submitting an empty page. So this reads the rendered page instead --
     the same move S-004 makes with `_page_choice`, for the same reason: *what is offered is the
     page's to say.*
@@ -301,7 +335,7 @@ def _answer_whatever_is_asked(browser, recorder, url: str, person_name: str) -> 
         participant = ParticipantPage(page, recorder)
         participant.open(url)
         drawn = participant.anchors()
-        with recorder.step("§2.1: the stranger's page carries the questions Copilot wrote",
+        with recorder.step("§2.1: the stranger's page carries the questions the host wrote",
                             party="participant", kind="assert") as h:
             h.record_assert({"anchors": ">= 1"}, drawn)
             assert drawn, f"the invitation link rendered no questions at all: {url}"
@@ -337,8 +371,9 @@ def _web_base_of(page) -> str:
 
 # --------------------------------------------------------------------------------- the scenario
 
-def test_s012_copilot_host_and_thinker_live(stack, founder_one, browser, run_dir):
-    ready = copilot_host.readiness()
+@pytest.mark.bundle(BUNDLE)
+def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
+    ready = agent_host.readiness(HOST)
     if not ready["ok"]:
         pytest.skip(ready["reason"])
 
@@ -352,41 +387,60 @@ def test_s012_copilot_host_and_thinker_live(stack, founder_one, browser, run_dir
     founder = fx.founder()
     # **The fixture supplies the founder's three statements and a person's name, and nothing
     # else.** Its beliefs, roles, anchors and typed answers are a *script's* data; on a live run
-    # Copilot writes all four, so anything read from the fixture past this point would be a
-    # question nobody asked.
+    # the host's model writes all four, so anything read from the fixture past this point would be
+    # a question nobody asked.
     person_name = fx.people()[0].person
     write_generated(run_dir, inputs={"project": founder.project_name,
                                      "market": founder.market.country,
                                      "statements": {stage: founder.statement(stage)
                                                      for stage in STAGES},
                                      "person": person_name,
+                                     "host": HOST,
                                      "the stranger's story": THE_STRANGER_SAYS})
 
     keel_home = run_dir / "keel-home"
-    copilot_home_dir = run_dir / "copilot-home"
-    artifacts = run_dir / "copilot"
-    model = os.environ.get("KEEL_COPILOT_MODEL") or RUNTIME_MODEL
-    host_model = os.environ.get("KEEL_S012_HOST_MODEL") or HOST_MODEL
+    host_home_dir = run_dir / f"{HOST}-home"
+    artifacts = run_dir / HOST
+    model = os.environ.get("KEEL_COPILOT_MODEL") or RUNTIME_MODEL_FOR_HOST[HOST]
+    host_model = next((os.environ[name] for name in HOST_MODEL_ENV if os.environ.get(name)),
+                      HOST_MODEL_FOR_HOST[HOST])
     # C-5 again: an unpinned run measures the router, not a model. It is still allowed -- spec 005
-    # shipped exactly that -- but the bundle must never imply a pin that was refused. Both probes
-    # are free (`-p ""` is refused before inference), so this costs nothing to be sure of.
-    if not copilot_host.model_accepted(model):
+    # shipped exactly that -- but the bundle must never imply a pin that was refused. On Copilot
+    # both probes are free (`-p ""` is refused before inference), so this costs nothing to be sure
+    # of; on Claude there is no free probe and `model_accepted` says so rather than pretending,
+    # which is why an unpinned Claude run (the default) never reaches either branch.
+    if model and not agent_host.host_type(HOST).model_accepted(model):
         with recorder.step("C-5: `--model` refuses the runtime's slug on this account, so that "
                             "half of the run is unpinned and says so",
                             party="stack", kind="note") as h:
             h.record_wire({"slug": model, "whose": "the runtime's"}, {"pinned": None})
         model = None
-    if not copilot_host.model_accepted(host_model):
+    if host_model and not agent_host.host_type(HOST).model_accepted(host_model):
         with recorder.step("C-5: `--model` refuses the host's slug on this account, so that half "
                             "of the run is unpinned and says so",
                             party="stack", kind="note") as h:
             h.record_wire({"slug": host_model, "whose": "the host's"}, {"pinned": None})
         host_model = None
 
-    host = copilot_host.CopilotHost(home=copilot_home_dir, keel_home=keel_home,
-                                    base_url=cloud_base, artifacts=artifacts,
-                                    model=host_model, runtime_model=model)
+    host = agent_host.build_host(HOST, home=host_home_dir, keel_home=keel_home,
+                                 base_url=cloud_base, artifacts=artifacts,
+                                 model=host_model, runtime_model=model)
     host.write_home_config()
+    credential = host.credential_plan()
+    # **versions.json says which host, which CLI and which models** (spec 019). The run_dir fixture
+    # has already written the five repositories this run stood on; this adds the sixth thing a
+    # matrix cell is defined by and a reader of eighteen bundles needs first.
+    write_host(run_dir, {"host": HOST, "cli": ready["version"], "binary": host.binary,
+                         "home_var": host.home_var, "home": str(host_home_dir),
+                         "work_dir": str(host.work_dir),
+                         "executor expected": EXPECTED_EXECUTOR,
+                         "model (the host's own --model)": host_model,
+                         "model (the runtime's)": model,
+                         "model (the runtime's), how": (
+                             "pinned through KEEL_COPILOT_MODEL" if model else
+                             "not pinned -- this host's executor takes no model, so the bundle "
+                             "records what answered instead"),
+                         "credential": credential})
 
     def _get(path: str) -> dict:
         return context.request.get(f"{cloud_base}{path}", timeout=20_000).json()
@@ -406,63 +460,66 @@ def test_s012_copilot_host_and_thinker_live(stack, founder_one, browser, run_dir
             h.record_assert({"agent_connected": False, "heartbeat": None},
                              {"agent_connected": arrival["agent_connected"],
                               "agent line": agent_line,
-                              "heartbeat": copilot_host.read_heartbeat(keel_home),
+                              "heartbeat": agent_host.read_heartbeat(keel_home),
                               "KEEL_HOME": str(keel_home),
-                              "COPILOT_HOME": str(copilot_home_dir)})
+                              host.home_var: str(host_home_dir)})
             assert not arrival["agent_connected"], (
                 f"expected no agent connected yet, got {agent_line!r}")
-            assert copilot_host.read_heartbeat(keel_home) is None, (
-                "this run's KEEL_HOME already carries a heartbeat before Copilot has said a word")
+            assert agent_host.read_heartbeat(keel_home) is None, (
+                f"this run's KEEL_HOME already carries a heartbeat before {HOST} has said a word")
 
-        # =========================================================== LEG ONE: Copilot as the host
-        with recorder.step("leg one: how this Copilot is authenticated, and which model it pins",
+        # ======================================================= LEG ONE: the host that loads it
+        with recorder.step(f"leg one: how this {HOST} is authenticated, and which model it pins",
                             party="stack", kind="note") as h:
-            h.record_wire({"COPILOT_HOME": str(copilot_home_dir)},
-                           {"credential": copilot_host.credential_plan(),
+            h.record_wire({host.home_var: str(host_home_dir)},
+                           {"credential": credential,
                             "cli": ready["version"],
                             "pinned_model (the host's own --model)": host_model,
-                            "pinned_model (the runtime's KEEL_COPILOT_MODEL)": model,
-                            "why they differ": ("runs/DRIFT.md #59 -- the plan's default model "
-                                                "answers correctly and keel-runtime cannot read "
-                                                "it, so the host keeps the founder's own default "
-                                                "and the runtime pins one it can read"),
-                            "KEEL_RUNTIME_PATH in the child": "scrubbed (T-1)"})
+                            "pinned_model (the runtime's)": model,
+                            "why they differ": ("runs/DRIFT.md #59 -- on Copilot the plan's "
+                                                "default model answers correctly and keel-runtime "
+                                                "cannot read it, so the host keeps the founder's "
+                                                "own default and the runtime pins one it can "
+                                                "read. On Claude the runtime's executor takes no "
+                                                "model at all, so there is nothing to pin and the "
+                                                "bundle records what answered."),
+                            "KEEL_RUNTIME_PATH in the child": "scrubbed (T-1)",
+                            "the session this harness runs in": "scrubbed, so the skill's own "
+                                                                "host detection sees one host"})
 
         with recorder.step("leg one: the plugin is installed from the real marketplace with "
-                            "Copilot's own two commands", party="stack", kind="assert") as h:
+                            f"{HOST}'s own two commands", party="stack", kind="assert") as h:
             added = host.add_marketplace()
             installed = host.install_plugin()
-            h.record_wire({"marketplace": copilot_host.MARKETPLACE_SOURCE,
-                            "plugin": copilot_host.PLUGIN_SPEC},
+            h.record_wire({"marketplace": agent_host.MARKETPLACE_SOURCE,
+                            "plugin": agent_host.PLUGIN_SPEC},
                            {"add": added, "install": installed,
                             "list": host.plugin_list()})
             assert added["exit_code"] == 0, (
-                f"`copilot plugin marketplace add {copilot_host.MARKETPLACE_SOURCE}` failed: "
-                f"{added['stderr'] or added['stdout']}")
+                f"`{' '.join(added['cmd'])}` failed: {added['stderr'] or added['stdout']}")
             assert installed["exit_code"] == 0, (
-                f"`copilot plugin install {copilot_host.PLUGIN_SPEC}` failed: "
+                f"`{' '.join(installed['cmd'])}` failed: "
                 f"{installed['stderr'] or installed['stdout']}")
 
-        with recorder.step("leg one: `copilot skill list` sees keel-connect, as a plugin skill",
+        with recorder.step(f"leg one: {HOST} sees keel-connect, and as a plugin skill",
                             party="stack", kind="assert") as h:
-            listing = host.skill_list()
-            hit = copilot_host.find_skill(listing["skills"])
-            from_plugin = copilot_host.describes_a_plugin(hit)
-            h.record_assert({"skill": copilot_host.SKILL_NAME, "source": "a plugin"},
-                             {"found": hit, "from a plugin": from_plugin,
-                              "raw": listing["raw"][:4000]})
-            assert hit is not None, (
-                f"`copilot skill list --json` does not name {copilot_host.SKILL_NAME!r} after the "
-                f"plugin installed cleanly: {listing['raw'][:1000]!r}")
-            assert from_plugin, (
-                f"{copilot_host.SKILL_NAME!r} is visible but not as a plugin skill: {hit!r}")
+            proof = host.skill_proof()
+            h.record_assert({"skill": agent_host.SKILL_NAME, "source": "a plugin"},
+                             {"found": proof["found"], "from a plugin": proof["from_plugin"],
+                              "detail": proof["detail"], "raw": proof["raw"][:4000]})
+            assert proof["found"], (
+                f"`{' '.join(proof['cmd'])}` does not name {agent_host.SKILL_NAME!r} after the "
+                f"plugin installed cleanly: {proof['raw'][:1000]!r}")
+            assert proof["from_plugin"], (
+                f"{agent_host.SKILL_NAME!r} is visible but not as a plugin skill: "
+                f"{proof['detail']!r}")
 
-        with recorder.step('leg one: the founder says "keel connect" to Copilot, once',
+        with recorder.step(f'leg one: the founder says "keel connect" to {HOST}, once',
                             party="founder", kind="protocol") as h:
-            first = copilot_host.say(host, THE_FOUNDER_SAYS, slug="connect-1")
-            h.record_wire({"argv": first.argv, "cwd": str(artifacts)},
+            first = host.say(THE_FOUNDER_SAYS, slug="connect-1")
+            h.record_wire({"argv": first.argv, "cwd": str(host.work_dir)},
                            {"exit_code": first.exit_code, "model": first.model,
-                            "premium_requests": first.premium_requests,
+                            "spend": first.spend(),
                             "tools": first.tools_used,
                             "reply": first.reply_text[:4000],
                             "stderr": first.stderr[:2000],
@@ -470,31 +527,31 @@ def test_s012_copilot_host_and_thinker_live(stack, founder_one, browser, run_dir
 
         with recorder.step("leg one: a runtime is really there -- the heartbeat says "
                             "`awaiting_approval`", party="stack", kind="assert") as h:
-            heartbeat = copilot_host.read_heartbeat(keel_home)
-            h.record_assert({"state": copilot_host.STATE_AWAITING_APPROVAL,
+            heartbeat = agent_host.read_heartbeat(keel_home)
+            h.record_assert({"state": agent_host.STATE_AWAITING_APPROVAL,
                               "pid": "a live one", "agent_session_id": None},
                              heartbeat)
             assert heartbeat is not None, (
-                "Copilot answered but no runtime heartbeat exists under this run's KEEL_HOME "
-                f"({keel_home}) -- so nothing was started, whatever the reply said. Copilot said: "
+                f"{HOST} answered but no runtime heartbeat exists under this run's KEEL_HOME "
+                f"({keel_home}) -- so nothing was started, whatever the reply said. It said: "
                 f"{first.reply_text[:400]!r}")
-            assert heartbeat.get("state") == copilot_host.STATE_AWAITING_APPROVAL, (
+            assert heartbeat.get("state") == agent_host.STATE_AWAITING_APPROVAL, (
                 f"expected a runtime waiting for device approval, the heartbeat reads "
                 f"{heartbeat.get('state')!r}")
             assert heartbeat.get("pid"), f"the heartbeat names no pid: {heartbeat!r}"
 
         with recorder.step("leg one: the launch log carries the code and the device page URL",
                             party="stack", kind="assert") as h:
-            log_text = copilot_host.read_launch_log(keel_home)
-            user_code = copilot_host.user_code_in(log_text)
-            verification_uri = copilot_host.verification_uri_in(log_text)
+            log_text = agent_host.read_launch_log(keel_home)
+            user_code = agent_host.user_code_in(log_text)
+            verification_uri = agent_host.verification_uri_in(log_text)
             h.record_assert({"KEEL_USER_CODE=": "XXXX-XXXX",
                               "KEEL_VERIFICATION_URI=": f"{web_base}/connect"},
                              {"user_code": user_code, "verification_uri": verification_uri,
                               "log": log_text[:2000]})
-            assert copilot_host.looks_like_a_user_code(user_code), (
+            assert agent_host.looks_like_a_user_code(user_code), (
                 f"no `KEEL_USER_CODE=` line of the right shape in {keel_home}/"
-                f"{copilot_host.LAUNCH_LOG_FILENAME}: {log_text[:500]!r}")
+                f"{agent_host.LAUNCH_LOG_FILENAME}: {log_text[:500]!r}")
             assert verification_uri and verification_uri.startswith(f"{web_base}/connect"), (
                 f"the launch log's verification URI is not this stack's own /connect: "
                 f"{verification_uri!r}")
@@ -507,7 +564,7 @@ def test_s012_copilot_host_and_thinker_live(stack, founder_one, browser, run_dir
             h.record_assert({"http": 200, "approved": False},
                              {"http": response.status, "body": body})
             assert response.ok, (
-                f"the eval cloud does not know the code Copilot relayed ({user_code!r}): "
+                f"the eval cloud does not know the code {HOST} relayed ({user_code!r}): "
                 f"HTTP {response.status}. A code this Keel never issued means the skill talked to "
                 f"a different Keel, or the host invented one.")
             assert not body.get("approved"), (
@@ -527,19 +584,19 @@ def test_s012_copilot_host_and_thinker_live(stack, founder_one, browser, run_dir
 
         with recorder.step('leg one: the founder says "keel connect" a second time -- the skill\'s '
                             "`already_connected`", party="founder", kind="protocol") as h:
-            second = copilot_host.say(host, THE_FOUNDER_SAYS, slug="connect-2")
+            second = host.say(THE_FOUNDER_SAYS, slug="connect-2")
             h.record_wire({"argv": second.argv},
                            {"exit_code": second.exit_code, "model": second.model,
-                            "premium_requests": second.premium_requests,
+                            "spend": second.spend(),
                             "tools": second.tools_used,
                             "reply": second.reply_text[:4000],
                             "transcript": str(second.transcript_path)})
 
-        with recorder.step("leg one: the runtime's own `status` says connected -- and Copilot's "
+        with recorder.step("leg one: the runtime's own `status` says connected -- and the host's "
                             "reply says so too (loosely, and never on its own)",
                             party="stack", kind="assert") as h:
             status = _status()
-            said_connected = copilot_host.mentions_connected(second.reply_text)
+            said_connected = agent_host.mentions_connected(second.reply_text)
             h.record_assert({"running": True, "connected": True, "reply mentions connected": True},
                              {"status": status, "reply mentions connected": said_connected,
                               "reply": second.reply_text[:1000]})
@@ -547,13 +604,13 @@ def test_s012_copilot_host_and_thinker_live(stack, founder_one, browser, run_dir
             assert status.get("connected"), (
                 f"the runtime never completed device approval: {status}")
             assert said_connected, (
-                "the runtime is connected but Copilot's second reply never says so, so the skill's "
-                f"`already_connected` was not relayed: {second.reply_text[:400]!r}")
+                f"the runtime is connected but {HOST}'s second reply never says so, so the "
+                f"skill's `already_connected` was not relayed: {second.reply_text[:400]!r}")
 
-        # =========================================================== LEG TWO: Copilot as the thinker
-        with recorder.step("leg two: the runtime is on the Copilot executor, because the skill "
-                            "passed `--host copilot` and nothing here passed `--executor`",
-                            party="stack", kind="assert") as h:
+        # ==================================================== LEG TWO: the host that answers it
+        with recorder.step(f"leg two: the runtime is on the {EXPECTED_EXECUTOR} executor, because "
+                            "the skill told it which host it was running under and nothing here "
+                            "named an executor", party="stack", kind="assert") as h:
             # **Read off the runtime's own startup line, not off `keel status`** (`runs/DRIFT.md`
             # #58). keel-cloud's contract defines `status.executor` as *"which executor this home
             # **would** run a job with ... resolved the same way `connect` resolves it"* -- the
@@ -562,8 +619,15 @@ def test_s012_copilot_host_and_thinker_live(stack, founder_one, browser, run_dir
             # answers `claude` about a runtime whose own log says `KEEL_EXECUTOR=copilot`. That
             # is the first thing this scenario found and it is recorded, not adapted around: the
             # `status` reading goes into the bundle beside the one that knows.
-            launched = copilot_host.launch_executor_in(
-                copilot_host.read_launch_log(keel_home))
+            #
+            # **`source=flag` is asserted on both hosts, and it is the same chain both times.**
+            # Copilot gets there because `SKILL.md` carries the one D5 exception telling it to add
+            # `--host copilot`; Claude gets there because the skill's own `detect_host` reads the
+            # `CLAUDECODE=1` its CLI sets for the shell it runs the script in. Either way the
+            # *script* passes `--executor`, so the runtime records an explicit term -- and a run
+            # that arrived at the right name by `source=path` or `source=host` would be a runtime
+            # that guessed right, which proves nothing about the skill.
+            launched = agent_host.launch_executor_in(agent_host.read_launch_log(keel_home))
             status = _status()
             h.record_assert({"KEEL_EXECUTOR": EXPECTED_EXECUTOR, "source": "flag"},
                              {"the runtime's own startup line": launched,
@@ -573,11 +637,11 @@ def test_s012_copilot_host_and_thinker_live(stack, founder_one, browser, run_dir
                               "environment": status.get("environment")})
             assert launched is not None, (
                 f"the runtime left no `KEEL_EXECUTOR=` line in {keel_home}/"
-                f"{copilot_host.LAUNCH_LOG_FILENAME}, so which executor it chose is unknowable")
+                f"{agent_host.LAUNCH_LOG_FILENAME}, so which executor it chose is unknowable")
             assert launched["executor"] == EXPECTED_EXECUTOR, (
                 f"the runtime is on {launched['executor']!r}, not {EXPECTED_EXECUTOR!r} -- the "
-                f"skill's `--host copilot` line did not reach the runtime (SKILL.md, the D5 "
-                f"exception)")
+                f"skill did not tell it which host it was running under (SKILL.md's D5 "
+                f"exception for Copilot; the script's own host detection for Claude)")
             assert launched.get("source") == "flag", (
                 f"the runtime chose {EXPECTED_EXECUTOR!r} by {launched.get('source')!r} rather "
                 f"than by an explicit term -- the skill is meant to *tell* it, so a run that "
@@ -585,9 +649,11 @@ def test_s012_copilot_host_and_thinker_live(stack, founder_one, browser, run_dir
             assert status.get("environment") == f"localhost:{stack.cloud_port}", (
                 f"the runtime names {status.get('environment')!r}, not this stack's Keel")
 
-        with recorder.step("C-5: the pin the skill's own launch carried, exercised for the first "
-                            "time", party="stack", kind="assert") as h:
-            h.record_assert({"model": model}, {"the runtime's own startup line": launched})
+        with recorder.step("C-5: the pin the skill's own launch carried -- or, on a host whose "
+                            "executor takes no model, the absence of one, said out loud",
+                            party="stack", kind="assert") as h:
+            h.record_assert({"model": model}, {"the runtime's own startup line": launched,
+                                               "pinned": bool(model)})
             if model:
                 assert launched.get("model") == model, (
                     f"the runtime launched with model {launched.get('model')!r} where this run "
@@ -612,14 +678,14 @@ def test_s012_copilot_host_and_thinker_live(stack, founder_one, browser, run_dir
         people.open(project_id)
         people.switch_to_who_tab()
         read_result = people.read_all_and_wait(timeout_s=420)
-        with recorder.step("§1.6: Copilot read the answer, and the toast names what moved",
+        with recorder.step("§1.6: the host read the answer, and the toast names what moved",
                             party="founder", kind="assert") as h:
             h.record_assert("a non-empty toast", read_result["toast_text"])
             assert read_result["toast_text"].strip(), (
                 "the reading produced no toast, so nothing was read")
 
         overview = Overview(page, recorder, web_base)
-        with recorder.step("§1.7: *What this says* -- the paragraph Copilot wrote, unasked",
+        with recorder.step("§1.7: *What this says* -- the paragraph the host wrote, unasked",
                             party="founder", kind="assert") as h:
             # keel-cloud starts a BRIEF job by itself when a reading batch finishes
             # (`ReadingBatchService.sayWhatThisSays`), so the founder is given nothing to wait on
@@ -637,7 +703,7 @@ def test_s012_copilot_host_and_thinker_live(stack, founder_one, browser, run_dir
             h.record_assert({"whatThisSays": "non-empty, and rendered verbatim"},
                              {"wire": paragraph, "screen": on_screen})
             assert paragraph and paragraph.strip(), (
-                "no *What this says* paragraph after the reading -- the BRIEF job Copilot was "
+                "no *What this says* paragraph after the reading -- the BRIEF job the host was "
                 "given never produced one")
             assert on_screen == paragraph, (
                 f"the overview renders {on_screen!r}, not the server's own {paragraph!r}")
@@ -686,50 +752,55 @@ def test_s012_copilot_host_and_thinker_live(stack, founder_one, browser, run_dir
                              {"interactions": len(interactions), "refusals": refused,
                               "not settled": unsettled, "jobs not COMPLETED": bad_jobs,
                               "statuses": sorted({i.get("status") for i in interactions})})
-            assert not refused, f"Copilot's work was refused: {refused}"
+            assert not refused, f"the host's work was refused: {refused}"
             assert not bad_jobs, f"a job did not complete: {bad_jobs}"
             assert not unsettled, f"an interaction never settled: {unsettled}"
 
-        with recorder.step("what it cost: premium requests, from Copilot's own numbers and never "
-                            "a dollar figure (C-7)", party="stack", kind="note") as h:
+        with recorder.step("what it cost, in this host's own unit and never converted into the "
+                            "other's (C-7)", party="stack", kind="note") as h:
             rows = canary_mod.wait_for_envelopes(keel_home, timeout_s=180)
-            job_premium = []
+            per_job = []
             for row in rows:
-                envelope = row["envelope"] or {}
-                job_premium.append({"job_id": row["job_id"],
-                                     "premium_requests": envelope.get("premium_requests"),
-                                     "num_turns": envelope.get("num_turns"),
-                                     "is_error": envelope.get("is_error"),
-                                     "executor": envelope.get("executor"),
-                                     "model": envelope.get("model")})
-            thinking = sum(float(r["premium_requests"] or 0) for r in job_premium)
-            hosting = sum(float(run.premium_requests or 0) for run in (first, second))
+                facts = host.envelope_facts(row["envelope"])
+                per_job.append({"job_id": row["job_id"], **facts})
             caps = canary_mod.cap_sources(stack.keel_runtime, keel_home)
-            spend = {"host legs (copilot -p)": hosting,
-                     "thinking (keel-runtime jobs)": thinking,
-                     "total premium requests": hosting + thinking,
+            spend = {"host legs": [run.spend() for run in (first, second)],
+                     "thinking (keel-runtime jobs)": [
+                         {k: v for k, v in row.items()
+                          if k in ("job_id", "premium_requests", "total_cost_usd", "model")}
+                         for row in per_job],
                      "jobs": len(rows),
-                     "total_cost_usd": None,
                      "pinned_model (runtime)": model,
                      "pinned_model (host)": host_model,
                      "reported model (host)": second.model,
                      "cap sources": caps}
-            h.record_wire({"per job": job_premium}, spend)
+            h.record_wire({"per job": per_job}, spend)
             (run_dir / "spend.json").write_text(json.dumps(
-                {**spend, "per job": job_premium}, indent=2) + "\n")
-            errored = [r for r in job_premium if r["is_error"]]
+                {"host": HOST, **spend, "per job": per_job}, indent=2) + "\n")
+            errored = [r for r in per_job if r["is_error"]]
+            assert per_job, "the runtime wrote no job envelopes at all"
             assert not errored, f"a keel-runtime job envelope reports an error: {errored}"
-            # The second, independent proof that **Copilot did the thinking**: every envelope the
-            # runtime wrote names its own executor, and these were written per job by the process
-            # that ran them. The startup line says which executor was chosen; this says which one
-            # answered.
-            wrong_host = [r for r in job_premium if r["executor"] != EXPECTED_EXECUTOR]
-            assert job_premium, "the runtime wrote no job envelopes at all"
-            assert not wrong_host, (
-                f"a job was answered by an executor that is not {EXPECTED_EXECUTOR!r}: "
-                f"{wrong_host}")
-        print(f"\nS-012 premium requests: {hosting} hosting + {thinking} thinking = "
-              f"{hosting + thinking} over {len(rows)} jobs; model {model or 'unpinned'}")
+            # **The second, independent proof that this host did the thinking** -- where the
+            # envelope can carry it. `CopilotExecutor._envelope` stamps `executor` on every job,
+            # written by the process that ran it, so the startup line says which executor was
+            # *chosen* and this says which one *answered*. `ClaudeCodeExecutor` passes the CLI's
+            # own `result` event through unchanged and that event names no executor, so on that
+            # host the cross-check does not exist and the bundle says so rather than the scenario
+            # quietly asserting less on both.
+            if host.envelope_names_its_executor:
+                wrong_host = [r for r in per_job if r["executor"] != EXPECTED_EXECUTOR]
+                assert not wrong_host, (
+                    f"a job was answered by an executor that is not {EXPECTED_EXECUTOR!r}: "
+                    f"{wrong_host}")
+            else:
+                with recorder.step("...and on this host the per-job envelope names no executor "
+                                    "at all, so the startup line is the only reading there is",
+                                    party="stack", kind="note") as note:
+                    note.record_wire(None, {"envelope keys": sorted(rows[0]["envelope"] or {}),
+                                            "why": per_job[0]["why"]})
+        print(f"\nS-012 journey through {HOST}: {len(rows)} jobs; "
+              f"host legs {[run.spend() for run in (first, second)]}; "
+              f"runtime model {model or 'unpinned (this executor takes none)'}")
 
         # ------------------------------------------------------------------- the way a founder goes
         with recorder.step('§1.0: "keel disconnect" against this run\'s own home',
@@ -749,6 +820,16 @@ def test_s012_copilot_host_and_thinker_live(stack, founder_one, browser, run_dir
         passed = True
     finally:
         context.close()
-        finalize_run(run_dir, slug="s012-copilot-host-and-thinker", facts={}, passed=passed,
+        shutil.rmtree(host.work_dir, ignore_errors=True)
+        # `facts.json` is the scorer's own registry and this scenario is unscored, so it would
+        # otherwise be `{}`. One string goes in beside it -- a *string*, so `scoring.read_facts`
+        # skips it rather than reading an empty Fact out of it -- because a bundle whose verdict
+        # says `s012-journey-claude` should say which host, which CLI and which model in the
+        # file a reader opens next. The structured record is `versions.json`'s `host` block.
+        finalize_run(run_dir, slug=BUNDLE, passed=passed,
+                     facts={"the journey's host": (
+                         f"{HOST} · {ready['version']} · host model "
+                         f"{host_model or 'the account default, recorded not pinned'} · runtime "
+                         f"model {model or 'unpinned (this executor takes none)'}")},
                      failed_step=recorder.failed_step, duration_s=_now() - started)
         print(f"\nrun bundle: {run_dir}")

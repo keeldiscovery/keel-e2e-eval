@@ -83,6 +83,29 @@ def write_versions(run_dir: Path, config) -> None:
     (run_dir / "versions.json").write_text(json.dumps(repos, indent=2))
 
 
+def write_host(run_dir: Path, record: dict) -> None:
+    """**Which host this run went through, merged into `versions.json`** (spec 019).
+
+    `versions.json` is already the bundle's answer to *"what did this run stand on"*, and the
+    matrix (keel-cloud `canon/designs/e2e-matrix-design.md` §5.1) makes the host one of three
+    things a cell is defined by, beside its OS and its Python. It arrives separately from
+    `write_versions` because the run_dir fixture writes that one before a scenario has resolved a
+    thing -- a scenario that never gets past the stack fixture still leaves a bundle naming the
+    five repositories, and this adds the sixth fact once there is one to add.
+
+    Merges rather than replaces, so calling it twice cannot lose what `write_versions` wrote.
+    """
+    path = run_dir / "versions.json"
+    existing: dict = {}
+    if path.is_file():
+        try:
+            existing = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            existing = {}
+    existing["host"] = {**(existing.get("host") or {}), **record}
+    path.write_text(json.dumps(existing, indent=2))
+
+
 # -------------------------------------------------------------------------------- verdict.json
 
 def write_verdict(run_dir: Path, scenario: str, passed: bool, failed_step: str | None,

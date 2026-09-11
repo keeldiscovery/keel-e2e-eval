@@ -35,8 +35,24 @@ eval: venv
 # make eval-live runs the scenarios marked `live` -- a real `claude`, real money (spec 008-stranger-
 # who-gives-orders). Opt-in only; never part of `make eval`/`make eval-all`. Needs a logged-in
 # `claude` on PATH and a stack `make up` has already brought up (S-004 attacks S-001's project).
+#
+# **HOST={claude,copilot}**, default `copilot`, and it means something to exactly one scenario:
+# S-012, the journey through a host (spec 019-journey-through-a-host; keel-cloud
+# `canon/designs/e2e-matrix-design.md` §5.1, where the host is one of the matrix's three axes).
+# It decides which CLI installs the plugin from the marketplace, which CLI is told "keel connect",
+# which executor the runtime must end up on, and what the run bundle is called
+# (`runs/<stamp>-s012-journey-<host>/`). The default is `copilot` so the command that produced the
+# spec 016 run of record still means what it meant. `HOST` reaches the scenario as
+# `KEEL_JOURNEY_HOST` -- the same spelling `instruction-eval` uses for its own two hosts, and a
+# different variable, because they are different subjects and one run never sets both.
+#
+#   make eval-live K=s012                 the Copilot journey (today's command, unchanged)
+#   make eval-live K=s012 HOST=claude     the same journey through Claude Code
+#   make eval-live K=s004                 the stranger who gives orders (HOST means nothing here)
 eval-live: venv
-	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) $(PY) -m pytest evals -q -m live $(if $(K),-k $(K),)
+	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) \
+	KEEL_JOURNEY_HOST=$(if $(HOST),$(HOST),copilot) \
+	$(PY) -m pytest evals -q -m live $(if $(K),-k $(K),)
 
 # make eval-all runs the FULL scenario set (s001 included) against one stack session (attaches to
 # an already-up stack from `make up`; does not tear it down -- `make down` is a separate step) and

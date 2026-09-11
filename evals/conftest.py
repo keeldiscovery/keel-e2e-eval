@@ -153,7 +153,19 @@ def run_dir(request: pytest.FixtureRequest, stack: StackConfig):
     """One evidence-bundle directory per test, with versions.json already written -- a scenario
     that never gets further than the stack fixture still leaves a bundle naming what it ran
     against.
+
+    The name is the test's, unless the scenario names it itself with `@pytest.mark.bundle(...)`
+    (spec 019). Exactly one scenario does: S-012 runs the same journey through either host and its
+    bundle is `s012-journey-<host>`, because the matrix uploads one per cell and a reader looking
+    at eighteen of them has only the directory name to go on until they open one. Deriving it from
+    the test name cannot say that -- the host is read from the environment, not from a parameter.
     """
+    marker = request.node.get_closest_marker("bundle")
+    if marker and marker.args and str(marker.args[0]).strip():
+        slug = str(marker.args[0]).strip()
+        path = new_run_dir(slug)
+        write_versions(path, stack)
+        return path
     slug = _slug_from_test_name(request.node.name)
     path = new_run_dir(slug)
     write_versions(path, stack)
