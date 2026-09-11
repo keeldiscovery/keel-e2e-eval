@@ -4005,6 +4005,59 @@ frame statements landed at 412, 513 and 439 characters -- every one of them over
 one under the new one. The sentence a founder reads on a failed job (*"your agent went away"*) is
 unchanged and stays owed.
 
+**Further sightings 2026-09-11, on the matrix's own cells (`runs/DRIFT.md` #66), and they widen this
+entry rather than repeat it.** The sentence was recorded against one cause -- a model that answered
+and was refused. On four days' worth of cloud cells it turned out to be the sentence for **every**
+terminal job failure, whatever the runtime reported, and the runtime reported four different things:
+
+- **`LLM_UNAVAILABLE: Credit balance is too low`** -- run **34567061448**,
+  `macos-latest-claude-py3.13`, `COMMERCIAL_FRAME`, four attempts, all four identical:
+
+  ```
+  COMMERCIAL_FRAME is JOB_FAILED (29a09b47-2c0d-4c2c-a4e9-50a6bb1c8669):
+    LLM_UNAVAILABLE: LLM_UNAVAILABLE: Credit balance is too low
+    -- the founder is shown: 'Your agent went away before it answered, so nothing was saved.
+       Check it is still running, then start the step again.'
+  ```
+
+  The agent was connected, the runtime was healthy, and the one thing the founder could do about it
+  -- top up an account -- is the one thing the sentence does not mention.
+
+- **`LLM_UNAVAILABLE: The filename, directory name, or volume label syntax is incorrect.`** -- the
+  same run **34567061448**, `windows-latest-claude-py3.13`, `PROBLEM_FRAME`, four attempts. This is
+  keel-runtime launching an npm `.cmd` shim through `cmd.exe` (keel-runtime spec
+  `006-executor-shape-and-windows` User Story 2), i.e. a **launch fault on the founder's own
+  machine**, and it reaches the founder as an agent that went away.
+
+- **`EXECUTOR_AUTH_FAILED`**, twice, in two different words on two different hosts -- run
+  **34561667390**, `macos-latest-copilot-py3.13`: `Error: No authentication information found.`; run
+  **34598148751**, `ubuntu-24.04-claude-py3.9`: `Not logged in · Please run /login`. Both are #64's
+  stripped token. Four attempts each, the same founder sentence each time, and in both cases the
+  thing to check is a credential, not a connection.
+
+- **`INVALID_LLM_RESPONSE: COMPLETED requires a 'result'`** -- runs **34602329238**,
+  **34607630153** and **34614646990**, the INTERPRET job (#63). This one is #60's own original
+  family, three more times.
+
+So five causes now share one sentence, and **not one of them is an agent that went away**. The
+`diagnostic` beside it names every one of them exactly; the founder is shown none of them. Nothing
+about the fix changes: the refusal line should be chosen from what the runtime reported, and *"your
+agent went away"* kept for the case where it did.
+
+**One sighting this entry does not get to claim.** Run **34600368707**, `ubuntu-24.04-claude-py3.9`,
+stopped at `COMMERCIAL_ASSUMPTIONS` -- but the bundle carries no wire refusal at all. Its nine job
+directories all hold `is_error: false` envelopes, the assumptions job never wrote a tenth, the
+heartbeat's last line is `2026-09-11T13:02:08.251Z` and the scenario's own failure is three seconds
+later:
+
+```
+TimeoutError: the COMMERCIAL review card never rendered within 480.0s of saving the confirmed claim
+```
+
+The job was still in flight when the artifact was sealed, so whatever keel-runtime posted after that
+-- `EXECUTOR_TIMEOUT` is the path `poller.py` would have taken -- is not in the bundle and is not
+quoted here.
+
 ## 61. Owed (keel-runtime, small): the one recovery pass tells the model to halve a field and
 does not check that it did -- on this host the field came back **longer**
 
@@ -4057,3 +4110,445 @@ works on both hosts, or pin a different model and record it -- never move the ma
 **Update 2026-09-10.** With keel-cloud `fe7ccd6`'s 600-character ceiling the recovery pass was never
 needed in the passing S-012 run; the program-shaped half above (check the named field actually got
 shorter before spending the one pass; name the model's overrun in the failure) is still owed.
+
+
+## 62. Owed (keel-cloud, and it is a model event before it is a defect): a COMMERCIAL card arrived
+with **no deal-breaker on it at all**, and nothing between the model and the founder said so
+
+**Found by S-012 on the matrix**, run **34567061448**, cell `macos-latest-copilot-py3.13`, bundle
+`20260911T054420Z-s012-journey-copilot`, at §1.2's shape assertion on the third card:
+
+```
+AssertionError: the COMMERCIAL card separates no deal-breaker from what is worth knowing:
+['Worth knowing · shapes the price, not whether there is one']
+assert False
+ +  where False = any(<generator object _walk_stage_live.<locals>.<genexpr> ...>)
+```
+
+Host GitHub Copilot CLI 1.0.83, host model `claude-sonnet-5`, the runtime's model `gpt-5.6-luna`
+pinned through `KEEL_COPILOT_MODEL` (`versions.json`). **The assertion is spec `016-copilot-e2e`
+FR-007's own kind** -- *"every card assertion is a shape or an absence; nothing asserts what Copilot
+wrote"* -- so nothing here is a judgement about the model's taste. The card had one rule line and it
+was the wrong one.
+
+**What was observed.** The founder typed a price -- *"£30 a seat per month, billed annually
+upfront."* -- answered the agent's one question, and asked it to write up what it had. The claim it
+wrote back (transcript seq 57, verbatim in `report.html`) ends:
+
+> The expected buyer is unknown, as are the buying path and comparable current spend. The proposed
+> model is £30 per seat per month, billed annually upfront. The evidence for time saved, current
+> workaround, and whether the value justifies this price are unknown.
+
+The founder saved it, and the beliefs the model then worked out were **one line**:
+
+```
+lines: 1
+rule lines: ["Worth knowing · shapes the price, not whether there is one"]
+1. Managers spend one to two hours each month on payroll exceptions
+   "Payroll managers at companies with 200-800 employees spend one to two hours each month
+    reconciling payroll exceptions."
+   proxy: false   status: Not asked yet
+   You said "one to two hours". They'll pick from: under 30 min / 30 min to 1 h / 1 h to 2 h /
+   2 h to 4 h / 4 h to 8 h / 8 h to 1 month / can't recall / rather not say
+```
+
+*Deal-breakers · if any of these is wrong, there is no claim left* is simply not on the card. The
+same run's PROBLEM card carried eight lines under both rule lines and its SOLUTION card three under
+one, and both passed the identical assertion (transcript seq 34 and 49) -- so this is one screen of
+one run, not a broken renderer.
+
+**And the one line it did carry is the PROBLEM screen's subject**: *one to two hours each month on
+payroll exceptions*, with the founder-phrase *"one to two hours"* -- the phrase the founder typed at
+the **problem** step, not at the price step. That is `runs/DRIFT.md` **#54**'s third mechanism
+(*"it carries a belief across screens"*) on a different corpus entry and a different day. It is
+recorded here as a sighting beside #54, not re-diagnosed.
+
+**Where the rule lives, and where it does not.** keel-cloud
+`canon/designs/measured-beliefs-design.md` §5 leaves risk untouched and says so in one line --
+*"Risk (`LOAD_BEARING` / `SUPPORTING`) and I9 (at least one load-bearing belief per stage) are
+unchanged"* -- and `aggregate-design-r7.md` §A2 says where the check now sits: *"`approve` requires
+at least one applying `LOAD_BEARING` assumption in the stage. Falsifiability, checked at the gate.
+This retires the per-batch I9."* The code agrees, in `Project.approve`:
+
+```java
+boolean hasLoadBearing = stage.applying().stream().anyMatch(a -> a.risk() == Risk.LOAD_BEARING);
+DomainException.require(hasLoadBearing, "A2",
+        "stage " + stageType + " has no applying LOAD_BEARING assumption, so it cannot be "
+                + "falsified by anything an interview could produce",
+        "add at least one LOAD_BEARING assumption to this stage before approving it");
+```
+
+So the rule is real and it is checked **one step later than the card**. `introduceAssumptions` takes
+a set with no load-bearing belief without complaint, the review card renders it, and the founder
+meets A2 only when they press approve on a card they have already read and believed.
+
+**And no instruction asks for one.** The three `*_ASSUMPTIONS` files' Phase 4 is a per-belief
+negation test whose *default* is the wrong side of this rule -- *"`risk` defaults to `SUPPORTING`"*
+(`commercial-assumptions.md` line 97), *"A `PROXY` defaults to `SUPPORTING`"* (line 241) -- and the
+only sentence about how many there should be guards the other end:
+
+> Most sets have two or three `LOAD_BEARING` beliefs and the rest supporting; a set where everything
+> is load-bearing has not been asked the question.
+
+The count sentence a few lines earlier is about beliefs, not deal-breakers: *"produce the final set
+-- at least one belief; typically three to seven"*. `grep -n "at least one"` over all ten
+instruction files returns that belief count, `E1`'s interval bound, the `MIXED` split and the
+reframe's founder turn -- and nothing at all about risk. A model that answers *"the buyer is unknown, the buying path is unknown, the
+comparable spend is unknown"* and then marks its one surviving belief `SUPPORTING` has followed every
+sentence it was given.
+
+**Why it is worth an entry.** A COMMERCIAL card with nothing that could sink it is a questionnaire
+that cannot come back with bad news, and the founder reads it, corrects a band or two, and approves.
+The stage where that is caught today is the one place the founder has already committed. The card is
+also the artefact this whole design is named for -- `the-card-says-what-it-knows-design.md` -- and on
+this run it did not say the one thing it knew least about itself.
+
+**Two remedies, and this repository recommends rather than decides.**
+
+1. **A mark in the instruction eval.** `instructions/marks.py` has four
+   (`anchoring_accuracy`, `golden_belief_recall`, `refusals`, `brief_paragraphs`) and none of them
+   would have moved for this set: recall counts matched goldens, not risk. A fifth -- *every produced
+   assumption set carries at least one `LOAD_BEARING`* -- is a boolean per case, costs no model call
+   beyond the runs already taken, and would say whether this is one sample (#54's own lesson) or a
+   slope. It is also the cheap half: a mark measures, it does not protect a founder.
+2. **An apply-time refusal with the retry keel-cloud already has.** `InferenceOrchestrator` catches
+   `DomainException` from the applier and spends **one retry with the refusal in the context**
+   before anything is refused to the founder -- *"a card refused by an invariant is a card the agent
+   can very often redraw -- it is being told exactly which rule it broke and why -- and the founder
+   is not asked anything mid-job"* -- which is how a `Q6` violation is handled today. Moving A2's
+   falsifiability check (or a sibling of it) to `introduceAssumptions` would put this refusal on that
+   same road: the model is told *"this set has no deal-breaker"* while it can still answer, and the
+   founder never sees the card that lacked one. The cost is that a founder who deliberately wants a
+   stage of supporting lines cannot have one until approval, which is a product call and keel-cloud's
+   to make.
+
+**Not adapted around.** The assertion was not loosened and the cell stands red in the matrix with its
+bundle. `evals/policy.py` was not touched and `POLICY_VERSION` did not move.
+
+**Tests**: none -- this is a live model verdict. The evidence is run **34567061448**'s
+`runs-macos-latest-copilot-py3.13` artifact: `verdict.json` (`failed_step`), `transcript.jsonl`
+seq 62-64 (the card whole, the assertion, and the PROBLEM/SOLUTION cards that passed it at seq 34
+and 49) and `report.html`.
+
+
+## 63. Owed (keel-runtime -- **fixed on master, not yet in what a founder installs**): the model
+answered `COMPLETED` with no `result`, three times, and the CLI that could have refused it did not
+
+**Found by S-012 on the matrix**, three separate runs on two operating systems, all at the same
+screen:
+
+| run | cell | bundle | job |
+|---|---|---|---|
+| **34602329238** | `ubuntu-24.04-claude-py3.9` | `20260911T130727Z-s012-journey-claude` | `bf60a640` |
+| **34607630153** | `ubuntu-24.04-claude-py3.9` | `20260911T140245Z-s012-journey-claude` | `90813f22` |
+| **34614646990** | `macos-latest-claude-py3.13` | `20260911T151218Z-s012-journey-claude` | `e4da34c5` |
+
+Each failed leg two's exit gate, and each failed it with the same wire:
+
+```
+AssertionError: the host's work was refused: [{'interaction_id': 'b1028772-...', 'screen':
+'INTERPRET', 'status': 'JOB_FAILED', 'detail': 'Your agent went away before it answered.',
+'diagnostic': "INVALID_LLM_RESPONSE: INVALID_LLM_RESPONSE: COMPLETED requires a 'result'"}]
+```
+
+**What the model actually wrote** -- `keel-home/jobs/<id>/envelope.json`, byte-identical in all
+three bundles:
+
+```json
+{"result": "{\"outcome\":\"COMPLETED\",\"questions\":[]}",
+ "structured_output": {"outcome": "COMPLETED", "questions": []},
+ "is_error": false, "subtype": "success", "num_turns": 2, "stop_reason": "tool_use"}
+```
+
+An outcome, an empty `questions`, and no `result`. On a screen whose own contract is
+`allowed_outcomes: ["COMPLETED"]` and whose instruction (`interpret.md`, carried verbatim in
+`request.json`) says *"A reading has one outcome; there is no `NEEDS_INPUT` on this screen ... You
+always return `COMPLETED`"* and prints the shape with its `result` filled in. The model returned the
+one legal outcome and the other outcome's key.
+
+**Where, and why the CLI let it through.** The runtime that ran these jobs is the one a founder
+installs -- `claude plugin install keel@keel` from the public marketplace, unpacked into the run's
+own `claude-home/plugins/cache/keel/keel/1.0.0/skills/keel-connect/` -- and its
+`_build_envelope_schema` is in every one of the three bundles, unchanged:
+
+```python
+    return {
+        "type": "object",
+        "properties": {
+            "outcome": {"enum": allowed_outcomes},
+            "questions": _QUESTIONS_SCHEMA,
+            "result": completed_result_schema,
+        },
+        "required": ["outcome"],
+        "additionalProperties": False,
+    }
+```
+
+`result` and `questions` both optional; `outcome` alone required. That document is what the CLI is
+handed as `--json-schema`, so the CLI validated the answer and **passed it** -- correctly, against
+the schema it was given. `validate_response` then refused the same answer a moment later with its
+own rule, the one recovery pass did not land, and keel-cloud recorded the job failed. Two enforcers,
+two different rules, and the model was shown the looser one.
+
+**Status: keel-runtime master now enforces the pairing where it can still be answered.** Spec
+`006-executor-shape-and-windows`, merged as **6ee82dc** on 2026-09-11, names runs 34602329238 and
+34607630153 as its own input and moves the requirement into the schema itself -- an `if`/`then`
+chain, one branch per allowed outcome, *"the COMPLETED branch requires `result` and the NEEDS_INPUT
+branch requires `questions`, and neither branch permits the other's key"*. Its own acceptance
+scenario 2 is this answer: *"it satisfies no branch -- the refusal now happens inside the CLI's own
+loop, where a further turn is still available."* The shape took three measurements to settle: a bare
+`anyOf` is `400 tools.0.custom.input_schema.type: Field required` (acceptance run 34613046096), and
+with a `type` added it is `400 tools.0.custom.input_schema: input_schema does not support oneOf,
+allOf, or anyOf at the top level` (acceptance run 34613957652) -- so `if`/`then` is not a preference,
+it is the only conditional the API leaves at the level a cross-field rule has to live at. And the
+first Windows Claude acceptance run on that shape shows the loop actually doing the work
+(keel-runtime acceptance run **34614963281**, job *model-driven half (claude, copilot) on
+windows-latest*, the three-line-prompt case):
+
+```
+schema refusals seen: root: must have required property 'outcome',
+                      root: must NOT have additional properties ('$PARAMETER_NAME' is not allowed)
+```
+
+The CLI refused, the model corrected, and the job came back green -- in-loop, before anything
+reached keel-cloud. Those two particular refusals are about `outcome` and about padding rather than
+about the `COMPLETED`/`result` pairing; what they evidence is the **mechanism** the pairing now
+rides on, which is the half this entry could not see working before.
+
+**Why this is still an entry, and still owed.** Because **what a founder installs is not master.**
+The marketplace serves `keel-connect-skill` at `ref: "release"`, and the third sighting --
+run 34614646990, 15:11 UTC, seven minutes after 4b4a329 landed the first half of the fix in
+keel-runtime -- ran the flat schema quoted above out of the plugin cache, not the sibling checkout
+whose `versions.json` line reads `0.1.0+4b4a329`. Two commits in keel-runtime close nothing until
+`make runtime` in keel-connect-skill and a push to `release` carry them to the founder; until then
+`versions.json`'s *"keel-runtime (bundled, the one that runs)"* names a different file from the one
+that ran. **The entry closes when a matrix cell runs a released plugin whose
+`_build_envelope_schema` carries the branches**, and not before.
+
+**Beside it, one thing the founder saw.** All three runs showed the same
+*"Your agent went away before it answered"* -- `runs/DRIFT.md` **#60**, three more times, about an
+agent that had answered, in about a minute (`duration_ms: 64344`, `is_error: false`,
+`subtype: "success"` on the first of the three), from a home whose heartbeat never left
+`state: "connected"`.
+
+**Not adapted around.** Leg two's gate (*zero refusals, every job `COMPLETED`*) was not widened and
+the three cells stand red with their bundles.
+
+**Tests**: keel-runtime's, not this repository's -- spec 006's own table runs `_build_envelope_schema`
+and `validate_response` over the same answers and requires them to agree answer for answer. The
+evidence here is the three `runs-*` artifacts named in the table above.
+
+
+## 64. Owed (keel-runtime's docs, and keel-connect-skill's beside them): **both hosts strip their own
+credential from the shells they run tools in**, so a runtime started from inside one has none
+
+**Found by the matrix's first cloud runs**, then measured on the bench. This is the fault that cost
+two whole runs before anything in the product was wrong.
+
+**What was observed on the founder's Mac, 2026-09-11**, three `-p` probes -- each host asked, in one
+non-interactive turn, to print the environment of a shell it runs a tool in:
+
+- **Copilot CLI** strips `COPILOT_GITHUB_TOKEN` and leaves `GH_TOKEN` alone.
+- **Claude Code** strips `CLAUDE_CODE_OAUTH_TOKEN` **by that exact name** -- every other
+  `CLAUDE_CODE_*` travels.
+
+Both are sensible on their own terms: a host does not hand its own credential to the programs it
+runs. The consequence is not.
+
+**Why it lands on Keel and on nobody else.** The keel-connect skill starts the runtime *from inside
+that shell* -- it is a script the host runs as a tool. So for a caller whose **only** credential is
+that variable (a CI runner; a founder who authenticates by env var rather than by `/login`), the
+host is authenticated, the skill runs, the runtime starts, `keel status` says connected, and the
+executor it spawns has nothing. Every job then fails, and it fails as an auth error on a machine
+that is logged in -- which is `runs/DRIFT.md` **#55**'s family, one layer up.
+
+Two runs, two hosts, the same shape:
+
+```
+run 34561667390  macos-latest-copilot-py3.13
+  PROBLEM_FRAME is JOB_FAILED (9943ef40-227f-450c-bc15-fac21e144c5a):
+    EXECUTOR_AUTH_FAILED: Error: No authentication information found.
+    -- the founder is shown: 'Your agent went away before it answered, so nothing was saved.'
+  (four attempts, four identical failures)
+
+run 34598148751  ubuntu-24.04-claude-py3.9
+  PROBLEM_FRAME is JOB_FAILED (751c092b-81ec-4cf6-bf0e-77d5c7776ef8):
+    EXECUTOR_AUTH_FAILED: Not logged in · Please run /login
+    -- the founder is shown: 'Your agent went away before it answered, so nothing was saved.'
+  (four attempts, four identical failures)
+```
+
+In the Copilot run the token was in the cell as `COPILOT_GITHUB_TOKEN`; in the Claude run it was in
+the cell as `CLAUDE_CODE_OAUTH_TOKEN`. Both reached the host. Neither reached the runtime.
+
+**Where**: keel-runtime `keel_runtime/executor.py`'s allow-list -- which is not itself wrong. Spec
+FR-002's discipline (*"nothing reaches the child but the CLI's own auth/config"*) is right, and so is
+C-4's per-executor split. The variable simply was not there to pass on.
+
+**Status: the mechanism is fixed, in two places, and both are measured.**
+
+- keel-runtime **5482e5b** adds `_CREDENTIAL_TWINS` -- `KEEL_CLAUDE_CODE_OAUTH_TOKEN` and
+  `KEEL_COPILOT_GITHUB_TOKEN`, *"names no host strips; when one is set and the CLI's own name is
+  absent, it is handed to the CLI under the name the CLI reads."* Its commit message carries the
+  measurement and names the failing cell.
+- keel-e2e-eval's matrix hands each host what survives it: Copilot's organisation secret as
+  **`GH_TOKEN`**, not `COPILOT_GITHUB_TOKEN` (*"under the first name it reached the executor with
+  nothing and every job failed `EXECUTOR_AUTH_FAILED`; under the second, the host, the skill, the
+  runtime and the executor all see the same token"*), and Claude's as both
+  `CLAUDE_CODE_OAUTH_TOKEN` (for the host) and `KEEL_CLAUDE_CODE_OAUTH_TOKEN` (for the runtime). The
+  bundles record which: `versions.json`'s `host.credential` block reads
+  `{"how": "env token", "variable": "GH_TOKEN"}` on a Copilot cell and
+  `{"how": "oauth_token", "authMethod": "oauth_token", "loggedIn": true}` on a Claude one.
+
+**What is still owed, and it is not code.** **The product's own documentation for the founder who
+authenticates by environment variable.** Nothing a founder reads says any of this. A founder who
+exports `CLAUDE_CODE_OAUTH_TOKEN`, installs the plugin and says *"keel connect"* gets a connected
+runtime and a chat that fails every job with *"your agent went away"*, and there is no sentence
+anywhere -- not in keel-connect-skill's README, not in the skill's own output, not in
+`keel status` -- that would let them find the cause. Three things would:
+
+1. **A paragraph in keel-connect-skill's README and keel-runtime's** saying, in a founder's words,
+   that a host hides its own token from the tools it runs, that Keel is such a tool, and that the
+   `KEEL_`-prefixed twin is how a token reaches the runtime.
+2. **A pre-flight the skill can do before it reports success** -- the runtime knows which executor it
+   resolved and can see whether that executor has any credential path at all (a twin, the CLI's own
+   name, or a stored login). A `keel connect` that answers *"connected, but the executor has no
+   credential I can see"* costs one check and saves a whole session.
+3. **`keel status` saying it.** #58 already asks the heartbeat to describe *this* runtime rather than
+   the caller's shell; how the executor is authenticated belongs in the same line.
+
+**Not adapted around.** No assertion was loosened; both runs stand red in the matrix with their
+bundles, and the matrix's env block carries the measurement as a comment rather than as folklore.
+
+**Tests**: keel-runtime's `_build_env` tests hold the twins. The evidence here is the two job logs
+quoted above (`gh run view --job 103145520833 --log`, `gh run view --job 103258707002 --log`) and
+keel-runtime **5482e5b**.
+
+
+## 65. Owed (keel-marketplace, and it is one field wide): `claude plugin install` clones the plugin
+over **SSH**, so a founder with no GitHub key cannot install Keel from the marketplace as published
+
+**Found by the matrix's first cloud run**, **34561667390**, every Claude cell, at the second thing a
+founder does:
+
+```
+AssertionError: `claude plugin install keel@keel` failed: ✘ Failed to install plugin "keel@keel":
+Failed to clone repository: Cloning into '.../claude-home/plugins/cache/temp_github_1789100317920_mc4tmh'...
+  git@github.com: Permission denied (publickey).
+  fatal: Could not read from remote repository.
+```
+
+Not a Keel failure and not a runner failure: the CLI chose `git@github.com:` for a **public**
+repository, and a machine with no key cannot answer for it.
+
+**Where**: keel-marketplace `.claude-plugin/marketplace.json`, the plugin's `source`:
+
+```json
+"source": { "source": "github", "repo": "keeldiscovery/keel-connect-skill", "ref": "release" }
+```
+
+The `github`-shaped source is what the CLI turns into an SSH remote. Everything downstream of it is
+right -- one repository serves both hosts, the `release` ref is the published one, and the same file
+is served at `.github/plugin/` for Copilot's CLI.
+
+**Why it is worth an entry.** This is the **first** command in the founder's path
+(`keel-connect-skill`'s README and keel-marketplace's README both open with
+`claude plugin marketplace add keeldiscovery/keel-marketplace` and then this install), and it fails
+closed for every founder who has never set up a GitHub SSH key -- which is most founders who are not
+already GitHub contributors. The repository is public; the wall is the transport, not the
+permission. A founder reading *"Permission denied (publickey)"* about a public repository has no way
+to know the plugin was never private.
+
+**Not adapted around, and the workaround is recorded as a workaround.** The matrix cells rewrite the
+transport before either CLI runs, in a step that says what it is:
+
+```yaml
+# `claude plugin install` clones the plugin repository over SSH (`git@github.com:`), and a
+# runner has no key: "Permission denied (publickey)", first cloud run 2026-09-11. Git's own
+# rewrite sends that clone over HTTPS instead, which a public repository answers to anyone.
+# (Recorded for the product: a founder with no GitHub SSH key would meet the same wall.)
+- name: Clone GitHub over HTTPS, never SSH (a runner has no key)
+  run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+```
+
+A founder does not have that step, and this repository will not pretend they do.
+
+**What resolving it would take, and it is a measurement before it is a change.** The marketplace
+schema also admits a `url`-shaped source. **Measure whether a `url` source pointing at
+`https://github.com/keeldiscovery/keel-connect-skill.git` clones over HTTPS on both CLIs** -- one
+install into a fresh host home on a machine with no SSH key, which is a `docker run` and no model
+call -- and if it does, switch the source and keep the `ref`. If it does not, the finding belongs
+upstream with the CLI, and the README gains the sentence the founder needs instead. Either way this
+is keel-marketplace's call and one field of one file.
+
+**Tests**: none -- an install measurement. The evidence is run **34561667390**'s job log
+(`gh run view --job 103145520852 --log`, `macos-latest-claude-py3.13`; the Ubuntu and Windows Claude
+cells carry the same lines) and keel-marketplace `1e01e12`.
+
+
+## 66. Note (where the runs of record now live, and it is not this directory alone): the **staging
+twin and the GitHub Actions matrix** are a second referee surface, first green 2026-09-11
+
+**Severity: note.** Nothing is broken. It is written down because the five entries above this one
+cite nine different eleven-digit run ids rather than a `runs/` directory, and a reader who only
+knows this repository's own convention would not know where to look.
+
+**What changed.** keel-cloud `canon/designs/e2e-matrix-design.md` (written 2026-09-10) puts a
+**staging twin** of production at `eval.keeldiscovery.com` -- one more `t4g.small`, the same AMI,
+the same scripts, different values, *"a tag deployed to staging is byte-for-byte the tag that can be
+deployed to production afterwards"* -- with the stub OIDC issuer as its only door. A GitHub Actions
+matrix in this repository (`.github/workflows/matrix.yml`) then runs S-012 through the **real
+plugin, installed from the public marketplace**, on real Windows, macOS and Linux runners, one cell
+per operating system × host × Python. The cell's own harness is the evaluator: *"the same
+`policy.py` and the same `report.html`, so a cell's verdict means what a local run's means."*
+
+**Where a run of record lives now.** §6.4 names three places, and the first is the one that matters
+to a reader of this file:
+
+> 1. **The run bundle**, uploaded as the job artifact (`runs/<stamp>-<cell>/`), 30-day retention --
+>    the same directory a local run writes, so `make report RUN=` works on a downloaded one.
+
+So a cell's bundle is a `runs/` bundle in every respect except where it is kept. To read one:
+
+```
+gh run download <run-id> -R keeldiscovery/keel-e2e-eval -n runs-<cell> -D <dir>
+gh run view --job <job-id> -R keeldiscovery/keel-e2e-eval --log
+```
+
+`runs-<cell>` is the artifact name; `row-<cell>` beside it is the one-line verdict the summary table
+is built from. **Thirty days** is the whole of it (§8: *"the run bundles outlive the reset as
+workflow artifacts (30 days)"*), so an entry that cites a cell and expects to be readable next
+quarter must quote its evidence into this file rather than point at it -- which is what #62 through
+#65 do.
+
+**The first unattended green**, and it is worth its date: run **34617201215**, 2026-09-11 15:37 UTC,
+four cells, all four `PASSED` at score 5.0 --
+
+| cell | scenario | verdict |
+|---|---|---|
+| `macos-latest-claude-py3.13` | `s012-journey-claude-short` | PASSED 5.0 |
+| `macos-latest-copilot-py3.13` | `s012-journey-copilot-short` | PASSED 5.0 |
+| `windows-latest-claude-py3.13` | `s012-journey-claude-short` | PASSED 5.0 |
+| `windows-latest-copilot-py3.13` | `s012-journey-copilot-short` | PASSED 5.0 |
+
+Three minutes and ten seconds of wall clock for the whole run, 15:37:14 to 15:40:24 UTC, on a
+`workflow_dispatch` at `2f70e8d`. **Read it for exactly what it is**: the
+`short` legs of spec `021-short-journey` -- plugin installed from the public marketplace into a
+fresh host home, *"keel connect"*, device approval at `/connect`, the executor proved on its own
+host by flag, the corpus founder's project created, the PROBLEM statement typed, one confirmation
+card back with a non-empty claim, the wire asked whether anything was refused, the spend written
+down, `keel disconnect`. It is not the full journey (FR-003 keeps that unchanged, nightly and
+weekly), and the full-journey cells above it in this file are red. *"A short run is a shorter
+journey, never a laxer one"* (FR-004) -- and it is still a shorter journey.
+
+**What this does not change.** §6.4's last paragraph is the sentence to keep: *"a failed cell fails
+the workflow; a failed workflow is a red check on the commit in the repository that fired it, and
+nothing more. No automatic rollback of staging, no automatic anything toward production ... the
+matrix being green is information for that decision, not a trigger."* And this file's own rule is
+untouched: **this repository reports bugs in the product repos; it never fixes them.** A cell going
+green closes nothing above it. #63's status says so in its own words -- the fix is on keel-runtime's
+master and the entry stays open until a cell runs a *released* plugin that carries it.
+
+**Tests**: `tests/test_matrix_cells.py`, `tests/test_matrix_notify.py` and
+`tests/test_matrix_workflow.py` hold the sets, the issue's four verbs and the skip matcher. The
+evidence is run **34617201215**'s four `row-*` artifacts.
