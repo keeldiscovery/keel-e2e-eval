@@ -449,6 +449,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The referee runs two things itself on the remote profile -- the bundled runtime, for
+      # `status` and `disconnect`, and the canary's cap sources -- and both live in the two PUBLIC
+      # siblings. They are checked out inside the workspace (actions/checkout cannot go above it)
+      # and stack.toml is pointed at them; the two private siblings are not needed here, and the
+      # remote profile no longer asks for them (spec 020, first cloud run).
+      - name: Check out keel-connect-skill (public)
+        uses: actions/checkout@v4
+        with:
+          repository: keeldiscovery/keel-connect-skill
+          path: siblings/keel-connect-skill
+
+      - name: Check out keel-runtime (public)
+        uses: actions/checkout@v4
+        with:
+          repository: keeldiscovery/keel-runtime
+          path: siblings/keel-runtime
+
+      - name: Bundle the runtime into the skill, and point stack.toml at the siblings
+        run: |
+          set -euo pipefail
+          src=siblings/keel-runtime; dst=siblings/keel-connect-skill
+          rm -rf "$dst/keel_runtime"
+          cp -R "$src/keel_runtime" "$dst/keel_runtime"
+          find "$dst/keel_runtime" -name '__pycache__' -type d -prune -exec rm -rf {} +
+          version=$(awk -F'"' '/^__version__/ {print $2; exit}' "$src/keel_runtime/__init__.py")
+          printf '%s+%s\n' "$version" "$(git -C "$src" rev-parse --short HEAD)" > "$dst/RUNTIME_VERSION"
+          cat "$dst/RUNTIME_VERSION"
+          python - <<'PY'
+          import re, pathlib
+          p = pathlib.Path("stack.toml"); s = p.read_text()
+          s = re.sub(r'^keel_runtime = .*$', 'keel_runtime = "siblings/keel-runtime"', s, flags=re.M)
+          s = re.sub(r'^keel_connect_skill = .*$', 'keel_connect_skill = "siblings/keel-connect-skill"', s, flags=re.M)
+          p.write_text(s); print(s.split("[ports]")[0])
+          PY
+
       - id: harness-python
         name: The harness's own interpreter (3.12), which is never the cell's axis
         uses: actions/setup-python@v5

@@ -545,3 +545,33 @@ def test_a_config_built_by_hand_before_this_spec_still_constructs(eval_config):
     assert playground.cloud_base_url == "http://localhost:18081"
     assert playground.gate_credential is None
     assert playground.is_remote is False
+
+
+# ------------------------------------------------------- the private siblings, absent on a runner
+
+def test_remote_loads_without_keel_cloud_or_keel_web_beside_it(tmp_path, monkeypatch):
+    """A GitHub runner has the two public siblings checked out and the two private ones absent
+    (spec 020); the remote profile starts neither, so it must not demand them."""
+    from stack import config as cfgmod
+    (tmp_path / "keel-runtime").mkdir()
+    (tmp_path / "keel-connect-skill").mkdir()
+    toml = tmp_path / "stack.toml"
+    toml.write_text(
+        "[paths]\n"
+        f'keel_cloud = "{tmp_path / "keel-cloud"}"\n'
+        f'keel_web = "{tmp_path / "keel-web"}"\n'
+        f'keel_runtime = "{tmp_path / "keel-runtime"}"\n'
+        f'keel_connect_skill = "{tmp_path / "keel-connect-skill"}"\n'
+    )
+    env = {"KEEL_REMOTE_WEB_URL": "https://eval.example.test"}
+    cfg = cfgmod.load_config(toml, profile="remote", env=env)
+    assert cfg.is_remote and cfg.keel_connect_skill == tmp_path / "keel-connect-skill"
+    # and the two the referee runs itself are still required
+    (tmp_path / "keel-connect-skill").rmdir()
+    import pytest as _pytest
+    with _pytest.raises(cfgmod.ConfigError):
+        cfgmod.load_config(toml, profile="remote", env=env)
+    # the local profile still demands all four
+    (tmp_path / "keel-connect-skill").mkdir()
+    with _pytest.raises(cfgmod.ConfigError):
+        cfgmod.load_config(toml, profile="eval")

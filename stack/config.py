@@ -274,8 +274,15 @@ def load_config(toml_path: Path | None = None, *, validate: bool = True,
             candidate = (REPO_ROOT / candidate).resolve()
         resolved[name] = candidate
 
+    # The remote profile starts nothing, so keel-cloud and keel-web are not needed beside the
+    # checkout -- and on a GitHub runner they cannot be (both private; spec 020). What the referee
+    # still runs itself on that profile is the bundled runtime (`status`, `disconnect`) and the
+    # canary's cap sources, so keel-connect-skill and keel-runtime are validated everywhere.
+    must_exist = ("keel_runtime", "keel_connect_skill") if profile == REMOTE_PROFILE else tuple(resolved)
     if validate:
         for name, candidate in resolved.items():
+            if name not in must_exist:
+                continue
             if not candidate.is_dir():
                 raise ConfigError(
                     f"stack.toml: sibling '{name}' is configured at {candidate}, but no such "
