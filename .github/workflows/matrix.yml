@@ -551,7 +551,13 @@ jobs:
       # command's body is spelled out there and nowhere else.
       - name: Run ${{ join(matrix.cell.scenarios, ', ') }}
         env:
-          ANTHROPIC_API_KEY: ${{ matrix.cell.host == 'claude' && secrets.ANTHROPIC_API_KEY || '' }}
+          # Claude cells run on the founder's Max subscription: KEEL_RUNTIME_CI_CLAUDE is the
+          # organisation secret holding a `claude setup-token` login, handed to the CLI as
+          # CLAUDE_CODE_OAUTH_TOKEN (the founder's decision, 2026-09-11). The console key is the
+          # fallback and is passed only when the subscription token is absent, so the two never
+          # compete for the CLI's attention.
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ matrix.cell.host == 'claude' && secrets.KEEL_RUNTIME_CI_CLAUDE || '' }}
+          ANTHROPIC_API_KEY: ${{ matrix.cell.host == 'claude' && secrets.KEEL_RUNTIME_CI_CLAUDE == '' && secrets.ANTHROPIC_API_KEY || '' }}
           # KEEL_RUNTIME_CI_COPILOT is the organisation secret's name. It is handed to the cell as
           # GH_TOKEN, NOT as COPILOT_GITHUB_TOKEN: measured 2026-09-11 (first cloud run, then two
           # probes on the founder's Mac), the Copilot CLI strips COPILOT_GITHUB_TOKEN from the
