@@ -65,12 +65,15 @@ class AuthorizationPendingTimeout(RuntimeError):
 
 def _run_connect_check_script(config: StackConfig, recorder, *, step_name: str,
                                wait_seconds: float, executor: str = "scripted",
-                               env_extra: dict[str, str] | None = None) -> dict:
+                               env_extra: dict[str, str] | None = None,
+                               script_path=None) -> dict:
     """The one place `keel_connect_check.py` is ever shelled out from -- `start_runtime_via_skill`
     (the first connect) and `reconnect` (spec 006-agent-optional US1 step 7) are two differently-
     named callers of the exact same invocation; the script itself has no notion of "first" vs
     "again" connect, only whatever `stack.runtime.status` finds when it starts."""
-    script_path = config.connect_check_script_path
+    # `script_path` names another tree's copy of the script (S-013 runs an *older* bundle's);
+    # the default is this stack's own skill checkout.
+    script_path = script_path or config.connect_check_script_path
     cloud_base_url = config.cloud_base_url
     # The home is this stack's own (isolation, `stack/runtime.py`'s docstring) and it names its
     # Keel in a `config.json`, so the `status` call the script makes -- which is never given a
@@ -128,7 +131,14 @@ def _run_connect_check_script(config: StackConfig, recorder, *, step_name: str,
             h.fail(f"authorization_pending_timeout: {body.get('message')}")
             raise AuthorizationPendingTimeout(body.get("message", "authorization_pending_timeout"))
 
-        if outcome not in ("authorization_started", "connected", "already_connected"):
+        # keel-connect-skill spec 005 (upgrade in place): `upgraded` carries the relaunch's own
+        # outcome in `then`, and a relaunch that timed out is the same failure a first launch
+        # would be; `upgrade_waiting` is a legitimate answer the scenario asserts on.
+        if outcome == "upgraded" and body.get("then") == "authorization_pending_timeout":
+            h.fail(f"upgraded, then authorization_pending_timeout: {body.get('message')}")
+            raise AuthorizationPendingTimeout(body.get("message", "authorization_pending_timeout"))
+        if outcome not in ("authorization_started", "connected", "already_connected",
+                           "upgraded", "upgrade_waiting"):
             h.fail(f"unrecognized outcome from keel_connect_check.py: {outcome!r}")
             raise RuntimeUnavailable(f"unrecognized outcome from keel_connect_check.py: {outcome!r}")
 
@@ -138,7 +148,8 @@ def _run_connect_check_script(config: StackConfig, recorder, *, step_name: str,
 def start_runtime_via_skill(config: StackConfig, recorder, *,
                              wait_seconds: float = DEFAULT_WAIT_SECONDS,
                              executor: str = "scripted",
-                             env_extra: dict[str, str] | None = None) -> dict:
+                             env_extra: dict[str, str] | None = None,
+                             script_path=None) -> dict:
     """Runs `keel_connect_check.py` exactly as spec US2 step 1 shows, parses its one line of JSON,
     and records the call as one step (`party="stack"`, since starting the runtime is stack
     plumbing, not a founder- or agent-observed moment -- the smoke's own interaction scopes begin
@@ -152,7 +163,7 @@ def start_runtime_via_skill(config: StackConfig, recorder, *,
     """
     return _run_connect_check_script(
         config, recorder, step_name=f"keel-connect-skill: start the runtime ({executor} executor)",
-        wait_seconds=wait_seconds, executor=executor, env_extra=env_extra)
+        wait_seconds=wait_seconds, executor=executor, env_extra=env_extra, script_path=script_path)
 
 
 def stop_runtime(config: StackConfig, recorder, *, timeout_s: float = 15) -> dict:

@@ -81,7 +81,10 @@ per_change = [
 # this set nothing but the minutes of a cell that was already running. They need keel-cloud's
 # corpus directory, which the cell job checks out beside the two public siblings.
 nightly = [
-    { os = "macos-latest",   host = "claude",  python = "3.13", scenarios = ["s012", "s005", "s006", "s007"] },
+    { os = "macos-latest",   host = "claude",  python = "3.13", scenarios = ["s012", "s005", "s006", "s007", "s013"] },
+    # spec 022: the same journey with the skill reaching Claude through the Spec Kit extension --
+    # `specify extension add`, the two commands as project skills -- short, once a night.
+    { os = "macos-latest",   host = "claude",  python = "3.13", legs = "short", install = "speckit" },
     { os = "macos-latest",   host = "copilot", python = "3.13" },
     { os = "windows-latest", host = "claude",  python = "3.13" },
     { os = "windows-latest", host = "copilot", python = "3.13" },

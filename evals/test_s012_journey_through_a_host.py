@@ -71,6 +71,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import shutil
 import time
 
@@ -122,7 +123,8 @@ ENTRY_ID = agent_host.journey_entry()
 
 #: `runs/<stamp>-s012-journey-<host>[-short]/`. The matrix uploads one bundle per cell and a reader
 #: looking at eighteen of them has only the name to go on until they open one.
-BUNDLE = agent_host.bundle_slug(HOST, LEGS)
+INSTALL = agent_host.journey_install()
+BUNDLE = agent_host.bundle_slug(HOST, LEGS, INSTALL)
 
 #: The founder's own three words. Not "run the keel connect skill", not "use the keel-connect
 #: plugin to start the runtime" -- the point of leg one is that a host with the skill installed
@@ -540,7 +542,7 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
     # whose founder walked it, and how far.
     write_block(run_dir, "journey", {
         "entry": entry.id, "entry_sha256": entry.sha256, "title": founder.project_name,
-        "person": person_name, "legs": LEGS,
+        "person": person_name, "legs": LEGS, "install": INSTALL,
         "legs, what that means": (
             "the host leg entire, plus the first model job -- the PROBLEM frame's confirmation "
             "card -- and then the way out" if SHORT else
@@ -574,7 +576,8 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
 
     host = agent_host.build_host(HOST, home=host_home_dir, keel_home=keel_home,
                                  base_url=cloud_base, artifacts=artifacts,
-                                 model=host_model, runtime_model=model)
+                                 model=host_model, runtime_model=model,
+                                 install=INSTALL)
     host.write_home_config()
     credential = host.credential_plan()
     # **versions.json says which host, which CLI and which models** (spec 019). The run_dir fixture
@@ -637,32 +640,61 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                             "the session this harness runs in": "scrubbed, so the skill's own "
                                                                 "host detection sees one host"})
 
-        with recorder.step("leg one: the plugin is installed from the real marketplace with "
-                            f"{HOST}'s own two commands", party="stack", kind="assert") as h:
-            added = host.add_marketplace()
-            installed = host.install_plugin()
-            h.record_wire({"marketplace": agent_host.MARKETPLACE_SOURCE,
-                            "plugin": agent_host.PLUGIN_SPEC},
-                           {"add": added, "install": installed,
-                            "list": host.plugin_list()})
-            assert added["exit_code"] == 0, (
-                f"`{' '.join(added['cmd'])}` failed: {added['stderr'] or added['stdout']}")
-            assert installed["exit_code"] == 0, (
-                f"`{' '.join(installed['cmd'])}` failed: "
-                f"{installed['stderr'] or installed['stdout']}")
+        if INSTALL == "speckit":
+            # The Spec Kit road (spec 022): the extension `make dist` wrote, added to a Spec Kit
+            # project in the host's own working directory, and the commands Spec Kit registers
+            # as this host's project skills. Built here when the checkout has no dist/ yet.
+            source_tree = stack.keel_connect_skill / "dist" / "speckit"
+            if not (source_tree / "extension.yml").is_file():
+                subprocess.run(["make", "-C", str(stack.keel_connect_skill), "dist"],
+                               check=True, capture_output=True, timeout=300)
+            with recorder.step("leg one: the Spec Kit extension is added to a project, with "
+                                "Spec Kit's own two commands", party="stack", kind="assert") as h:
+                installed = host.install_extension(source_tree)
+                h.record_wire({"source": str(source_tree), "work_dir": str(host.work_dir)},
+                               installed)
+                assert installed["exit_code"] == 0, (
+                    f"`{' '.join(installed['cmd'])}` failed: "
+                    f"{installed['stderr'] or installed['stdout']}")
 
-        with recorder.step(f"leg one: {HOST} sees keel-connect, and as a plugin skill",
-                            party="stack", kind="assert") as h:
-            proof = host.skill_proof()
-            h.record_assert({"skill": agent_host.SKILL_NAME, "source": "a plugin"},
-                             {"found": proof["found"], "from a plugin": proof["from_plugin"],
-                              "detail": proof["detail"], "raw": proof["raw"][:4000]})
-            assert proof["found"], (
-                f"`{' '.join(proof['cmd'])}` does not name {agent_host.SKILL_NAME!r} after the "
-                f"plugin installed cleanly: {proof['raw'][:1000]!r}")
-            assert proof["from_plugin"], (
-                f"{agent_host.SKILL_NAME!r} is visible but not as a plugin skill: "
-                f"{proof['detail']!r}")
+            with recorder.step(f"leg one: {HOST} sees {agent_host.EXTENSION_SKILL_NAME}, as a "
+                                "project skill Spec Kit registered", party="stack", kind="assert") as h:
+                proof = host.extension_proof()
+                h.record_assert({"skill file": "present", "listed by specify": True},
+                                 {"found": proof["found"], "listed": proof["listed"],
+                                  "skill_file": proof["skill_file"], "raw": proof["raw"]})
+                assert proof["found"], (
+                    f"Spec Kit did not register {agent_host.EXTENSION_SKILL_NAME!r} at "
+                    f"{proof['skill_file']}")
+                assert proof["listed"], (
+                    f"`specify extension list` does not name keel: {proof['raw'][:800]!r}")
+        else:
+            with recorder.step("leg one: the plugin is installed from the real marketplace with "
+                                f"{HOST}'s own two commands", party="stack", kind="assert") as h:
+                added = host.add_marketplace()
+                installed = host.install_plugin()
+                h.record_wire({"marketplace": agent_host.MARKETPLACE_SOURCE,
+                                "plugin": agent_host.PLUGIN_SPEC},
+                               {"add": added, "install": installed,
+                                "list": host.plugin_list()})
+                assert added["exit_code"] == 0, (
+                    f"`{' '.join(added['cmd'])}` failed: {added['stderr'] or added['stdout']}")
+                assert installed["exit_code"] == 0, (
+                    f"`{' '.join(installed['cmd'])}` failed: "
+                    f"{installed['stderr'] or installed['stdout']}")
+
+            with recorder.step(f"leg one: {HOST} sees keel-connect, and as a plugin skill",
+                                party="stack", kind="assert") as h:
+                proof = host.skill_proof()
+                h.record_assert({"skill": agent_host.SKILL_NAME, "source": "a plugin"},
+                                 {"found": proof["found"], "from a plugin": proof["from_plugin"],
+                                  "detail": proof["detail"], "raw": proof["raw"][:4000]})
+                assert proof["found"], (
+                    f"`{' '.join(proof['cmd'])}` does not name {agent_host.SKILL_NAME!r} after the "
+                    f"plugin installed cleanly: {proof['raw'][:1000]!r}")
+                assert proof["from_plugin"], (
+                    f"{agent_host.SKILL_NAME!r} is visible but not as a plugin skill: "
+                    f"{proof['detail']!r}")
 
         with recorder.step(f'leg one: the founder says "keel connect" to {HOST}, once',
                             party="founder", kind="protocol") as h:

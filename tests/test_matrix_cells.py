@@ -141,8 +141,18 @@ def test_ubuntu_is_in_the_weekly_set_and_nowhere_else(matrix):
     assert len([c for c in matrix.sets["weekly"] if c.os.startswith("ubuntu")]) == 6
 
 
-def test_nightly_is_six_cells(matrix):
-    assert len(matrix.sets["nightly"]) == 6
+def test_nightly_is_six_plugin_cells_and_one_speckit_cell(matrix):
+    nightly = matrix.sets["nightly"]
+    assert len([c for c in nightly if c.install == "plugin"]) == 6
+    speckit = [c for c in nightly if c.install == "speckit"]
+    assert [(c.os, c.host, c.python, c.legs) for c in speckit] == [("macos-latest", "claude", "3.13", "short")]
+    assert speckit[0].id == "macos-latest-claude-py3.13-speckit"
+
+
+def test_the_speckit_cell_is_nightlys_alone(matrix):
+    for name, cells in matrix.sets.items():
+        if name != "nightly":
+            assert not [c for c in cells if c.install == "speckit"], name
 
 
 def test_nightly_buys_whole_what_a_merge_bought_short(matrix):
@@ -184,8 +194,10 @@ def test_weekly_is_the_whole_journey_everywhere(matrix):
 
 
 def test_nothing_but_per_change_is_short(matrix):
-    """One set is short; the other two are what confirms it was enough."""
-    assert {c.legs for c in matrix.sets["nightly"]} == {"full"}
+    """One set is short; the other two are what confirms it was enough. The nightly's one Spec
+    Kit cell is short by design (spec 022): it proves the road, and the plugin cells beside it
+    prove the runtime at full length."""
+    assert {c.legs for c in matrix.sets["nightly"] if c.install == "plugin"} == {"full"}
     assert {c.legs for c in matrix.sets["per_change"]} == {"short"}
 
 
@@ -228,6 +240,7 @@ def test_a_cells_dict_carries_everything_the_job_needs():
         "python": "3.13",
         "scenarios": ["s012", "s005", "s006"],
         "legs": "full",
+        "install": "plugin",
         "live_k": "s012",
         "eval_k": "s005 or s006",
     }
@@ -299,7 +312,7 @@ def test_every_cell_in_every_set_is_json_serialisable(matrix):
 def test_as_matrix_is_the_list_a_github_strategy_takes(matrix):
     entries = matrix.as_matrix("per_change")
     assert isinstance(entries, list) and len(entries) == 4
-    assert all(set(e) == {"id", "os", "host", "python", "scenarios", "legs", "live_k", "eval_k"}
+    assert all(set(e) == {"id", "os", "host", "python", "scenarios", "legs", "install", "live_k", "eval_k"}
                for e in entries)
 
 
