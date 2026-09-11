@@ -409,7 +409,9 @@ class ClaudeHost(AgentHost):
         argv = [self.binary, "-p", prompt,
                 "--allowedTools", ALLOWED_TOOLS,
                 "--permission-mode", PERMISSION_MODE,
-                "--setting-sources", SETTING_SOURCES,
+                # Spec Kit registers the extension's commands as *project* skills, so that
+                # install needs the project source beside the fresh home's own (spec 022).
+                "--setting-sources", SETTING_SOURCES if self.install == "plugin" else SETTING_SOURCES + ",project",
                 # `stream-json` rather than `json`: the single result line carries the cost and
                 # the model but not the tool calls, and *which tools the host called* is what leg
                 # one shows about **how** the skill was run.

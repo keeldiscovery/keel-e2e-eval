@@ -52,6 +52,12 @@ SET_NAMES = ("per_change", "nightly", "weekly")
 #: gets, so every cell written before spec 021 means what it meant.
 LEGS = ("short", "full")
 DEFAULT_LEGS = "full"
+#: How leg one puts the skill in front of the host (spec 022; `harness/agent_host.py`'s own
+#: `INSTALLS`): the marketplace `plugin`, or the Spec Kit extension (`speckit`). Reaches the
+#: runner as `KEEL_JOURNEY_INSTALL`, and IS part of the cell's id -- the same OS, host and Python
+#: through Spec Kit is a different runner job with its own bundle and its own founder in the picker.
+INSTALLS = ("plugin", "speckit")
+DEFAULT_INSTALL = "plugin"
 
 
 class CellsError(ValueError):
@@ -74,11 +80,14 @@ class Cell:
     #: same cell appearing in `per_change` short and in `nightly` full is one runner job in two
     #: sets, not two cells. It reaches the runner as `KEEL_JOURNEY_LEGS`.
     legs: str = DEFAULT_LEGS
+    #: `plugin` or `speckit` (spec 022). Part of the id, unlike `legs`.
+    install: str = DEFAULT_INSTALL
 
     @property
     def id(self) -> str:
         """`ubuntu-24.04-claude-py3.9`. The job name, the artifact name, and `KEEL_REMOTE_CELL`."""
-        return f"{self.os}-{self.host}-py{self.python}"
+        base = f"{self.os}-{self.host}-py{self.python}"
+        return base if self.install == DEFAULT_INSTALL else f"{base}-{self.install}"
 
     def k(self, which: Sequence[str]) -> str:
         """This cell's scenarios that are in `which`, as one pytest `-k` expression (`s012 or
@@ -101,6 +110,9 @@ class Cell:
             # a cell carrying corpus scenarios beside the journey passes it all the same, and they
             # ignore it.
             "legs": self.legs,
+            # `KEEL_JOURNEY_INSTALL` in the cell job's env (spec 022): the marketplace plugin, or
+            # the Spec Kit extension. The workflow installs Spec Kit's CLI only when it says so.
+            "install": self.install,
             # The two pytest selectors, pre-split: live scenarios cost money and go through
             # `make eval-live`, the rest are free and go through `make eval`.
             "live_k": self.k(live),
@@ -199,7 +211,7 @@ def load(path: Path | None = None) -> Matrix:
             if not isinstance(entry, dict):
                 problems.append(f"{where} must be a table")
                 continue
-            unknown = set(entry) - {"os", "host", "python", "scenarios", "legs"}
+            unknown = set(entry) - {"os", "host", "python", "scenarios", "legs", "install"}
             if unknown:
                 problems.append(f"{where} has unknown key(s) {sorted(unknown)}")
             values = {}
@@ -222,8 +234,13 @@ def load(path: Path | None = None) -> Matrix:
                                 f"the host leg plus the first model job, `full` is the whole "
                                 f"journey, and a cell that says nothing gets {DEFAULT_LEGS!r}")
                 legs = DEFAULT_LEGS
+            install = entry.get("install", DEFAULT_INSTALL)
+            if install not in INSTALLS:
+                problems.append(f"{where}: install={install!r} is not one of {list(INSTALLS)} -- the "
+                                f"marketplace plugin, or the Spec Kit extension")
+                install = DEFAULT_INSTALL
             cells.append(Cell(os=values["os"], host=values["host"], python=values["python"],
-                              scenarios=scenarios, legs=legs))
+                              scenarios=scenarios, legs=legs, install=install))
         ids = [cell.id for cell in cells]
         duplicates = sorted({i for i in ids if ids.count(i) > 1})
         if duplicates:
@@ -269,7 +286,8 @@ def coverage_problems(matrix: Matrix) -> list[str]:
     4. **nightly spends the 3.9 floor**, on Windows, both hosts. spec 004's floor is a promise and
        a promise nothing runs against is not one; it moved from per_change to nightly rather than
        being dropped.
-    5. **Neither cheap set leaves for Ubuntu**, and nightly is six cells.
+    5. **Neither cheap set leaves for Ubuntu**, and nightly is six plugin cells plus the one
+       Spec Kit cell (spec 022).
     6. **weekly is the full product of the axes, every cell at full length.** Ubuntu is here, and
        this is the confirmation that nothing is hiding in a corner.
     """
@@ -301,6 +319,18 @@ def coverage_problems(matrix: Matrix) -> list[str]:
                         f"also names {beyond}, which is the cheap set stopping being cheap")
 
     nightly = matrix.sets.get("nightly", ())
+    # spec 022: exactly one Spec Kit cell, and it rides the nightly on macOS through Claude, short
+    # -- the extension is the same tree as the plugin, so one cell proves the road and not the
+    # runtime twice. Every other rule below reads the plugin cells only.
+    speckit = [c for c in nightly if c.install == "speckit"]
+    if [(c.os, c.host, c.legs) for c in speckit] != [("macos-latest", "claude", "short")]:
+        problems.append("nightly carries exactly one Spec Kit cell, macOS through Claude, the short "
+                        f"journey (spec 022); it carries {[c.id for c in speckit]}")
+    elsewhere = sorted(c.id for name, cells in matrix.sets.items() if name != "nightly"
+                       for c in cells if c.install == "speckit")
+    if elsewhere:
+        problems.append(f"the Spec Kit cell is nightly's alone (spec 022): {elsewhere}")
+    nightly = tuple(c for c in nightly if c.install == "plugin")
     strayed = sorted({cell.os for cell in nightly if cell.os.startswith(CHEAP_SETS_SKIP)})
     if strayed:
         problems.append(f"nightly leaves {CHEAP_SETS_SKIP!r} to the weekly set (spec 021, "

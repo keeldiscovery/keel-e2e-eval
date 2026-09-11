@@ -104,6 +104,7 @@ def test_a_skipped_push_still_says_so_in_the_summary():
 def test_a_cell_exports_its_own_legs():
     assert JOBS["cell"]["env"]["KEEL_JOURNEY_LEGS"] == "${{ matrix.cell.legs }}"
     assert JOBS["cell"]["env"]["KEEL_JOURNEY_HOST"] == "${{ matrix.cell.host }}"
+    assert JOBS["cell"]["env"]["KEEL_JOURNEY_INSTALL"] == "${{ matrix.cell.install }}"
 
 
 def test_the_cell_job_never_decides_how_far_it_goes():

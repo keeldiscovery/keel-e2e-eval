@@ -474,6 +474,8 @@ jobs:
       # spec 021: `short` on the four per-change cells -- the host leg and the first model job --
       # and `full` everywhere else. The cell's own field, so the set decides and the job reads.
       KEEL_JOURNEY_LEGS: ${{ matrix.cell.legs }}
+      # spec 022: `plugin` (the marketplace) or `speckit` (the extension, added to a project).
+      KEEL_JOURNEY_INSTALL: ${{ matrix.cell.install }}
     steps:
       - uses: actions/checkout@v4
 
@@ -596,6 +598,15 @@ jobs:
         run: |
           npm install -g @github/copilot@1.0.83 || npm install -g @github/copilot@latest
           copilot --version
+
+      - name: Install Spec Kit's CLI into the harness venv, pinned, and build the extension tree
+        if: matrix.cell.install == 'speckit'
+        run: |
+          set -euo pipefail
+          .venv/bin/python -m pip install -q "git+https://github.com/github/spec-kit.git@v1.0.6"
+          .venv/bin/specify --version
+          make -C siblings/keel-connect-skill dist
+          ls siblings/keel-connect-skill/dist/speckit
 
       - name: Note which run bundles existed before this cell ran
         run: |

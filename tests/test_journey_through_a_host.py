@@ -225,7 +225,7 @@ def test_the_scenario_names_its_own_bundle_and_finalises_under_the_same_name():
     bundle's directory and its verdict would disagree about which cell it is."""
     assert "@pytest.mark.bundle(BUNDLE)" in SCENARIO
     assert "finalize_run(run_dir, slug=BUNDLE" in SCENARIO
-    assert "BUNDLE = agent_host.bundle_slug(HOST, LEGS)" in SCENARIO
+    assert "BUNDLE = agent_host.bundle_slug(HOST, LEGS, INSTALL)" in SCENARIO
 
 
 def test_the_run_dir_fixture_honours_the_marker():
@@ -673,3 +673,22 @@ def test_a_host_built_with_the_default_binary_still_resolves_it_through_path(mon
     host = agent_host.build_host("copilot", home=tmp_path / "h", keel_home=tmp_path / "k",
                                  base_url="http://localhost:18080", artifacts=tmp_path / "a")
     assert host.binary.endswith("copilot.cmd")
+
+
+# ----------------------------------------------------------------- how the skill arrives (spec 022)
+
+def test_the_default_install_is_the_marketplace_plugin():
+    assert agent_host.journey_install({}) == "plugin"
+    assert agent_host.journey_install({"KEEL_JOURNEY_INSTALL": ""}) == "plugin"
+
+
+def test_the_speckit_install_is_read_and_named_in_the_bundle():
+    assert agent_host.journey_install({"KEEL_JOURNEY_INSTALL": " SpecKit "}) == "speckit"
+    assert agent_host.bundle_slug("claude", "short", "speckit") == "s012-journey-claude-short-speckit"
+    assert agent_host.bundle_slug("claude", "full", "plugin") == "s012-journey-claude"
+
+
+def test_an_unknown_install_is_refused_by_name():
+    with pytest.raises(agent_host.UnknownInstall):
+        agent_host.journey_install({"KEEL_JOURNEY_INSTALL": "pip"})
+

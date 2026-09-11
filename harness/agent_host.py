@@ -49,6 +49,7 @@ import json
 import os
 import re
 import shutil
+import sys
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -144,7 +145,48 @@ def journey_legs(environ: dict[str, str] | None = None) -> str:
     return raw
 
 
-def bundle_slug(host: str | None = None, legs: str | None = None) -> str:
+#: **How the skill reached the host** (keel-cloud `canon/designs/upgrade-in-place-design.md` §5;
+#: the founder, 2026-09-11: *"I also want an e2e eval which exercises spec kit extension"*).
+#: `plugin` is the marketplace plugin, `claude plugin install keel@keel` / `copilot plugin install
+#: keel@keel` -- what every cell ran until today. `speckit` adds the Spec Kit extension to a
+#: project instead (`specify extension add <tree> --dev`, the built `dist/speckit/` of the skill
+#: checkout), and Spec Kit registers the two commands as the host's own project skills
+#: (`.claude/skills/speckit-keel-connect`, `.github/skills/speckit-keel-connect`). Everything
+#: after "keel connect" is the same runtime, the same home, the same assertions.
+INSTALLS = ("plugin", "speckit")
+DEFAULT_INSTALL = "plugin"
+INSTALL_ENV = "KEEL_JOURNEY_INSTALL"
+#: The skill Spec Kit registers for the connect command, in the host's project skills directory.
+EXTENSION_SKILL_NAME = "speckit-keel-connect"
+SPECKIT_SKILL_DIRS = {"claude": ".claude/skills", "copilot": ".github/skills"}
+
+
+class UnknownInstall(ValueError):
+    """`KEEL_JOURNEY_INSTALL` named something that is neither `plugin` nor `speckit`."""
+
+
+def journey_install(environ: dict[str, str] | None = None) -> str:
+    """Which packaging leg one installs -- `KEEL_JOURNEY_INSTALL`, or `plugin`."""
+    env = os.environ if environ is None else environ
+    raw = (env.get(INSTALL_ENV) or "").strip().lower()
+    if not raw:
+        return DEFAULT_INSTALL
+    if raw not in INSTALLS:
+        raise UnknownInstall(
+            f"{INSTALL_ENV}={raw!r} is not a packaging this journey knows. It is one of "
+            f"{list(INSTALLS)}: the marketplace plugin, or the Spec Kit extension.")
+    return raw
+
+
+def specify_binary() -> str | None:
+    """Spec Kit's CLI: the harness venv's own copy first (the cell installs it there), then PATH."""
+    beside = Path(sys.executable).parent / ("specify.exe" if os.name == "nt" else "specify")
+    if beside.is_file():
+        return str(beside)
+    return shutil.which("specify")
+
+
+def bundle_slug(host: str | None = None, legs: str | None = None, install: str | None = None) -> str:
     """The run bundle's own name: `s012-journey-<host>`, and `-short` when it is the short one.
 
     The host is *in the directory name* because the matrix uploads one bundle per cell and a
@@ -160,6 +202,10 @@ def bundle_slug(host: str | None = None, legs: str | None = None) -> str:
     chosen_host = journey_host() if host is None else host
     chosen_legs = journey_legs() if legs is None else legs
     suffix = "" if chosen_legs == DEFAULT_LEGS else f"-{chosen_legs}"
+    # spec 022: the Spec Kit road carries its own suffix, after the length, so a `runs/`
+    # directory holding both kinds sorts them by eye.
+    chosen_install = journey_install() if install is None else install
+    suffix += "" if chosen_install == DEFAULT_INSTALL else f"-{chosen_install}"
     return f"s012-journey-{chosen_host}{suffix}"
 
 
@@ -443,9 +489,11 @@ class AgentHost:
                  binary: str | None = None, model: str | None = None,
                  runtime_model: str | None = None,
                  base_env: dict[str, str] | None = None,
-                 work_dir: Path | None = None):
+                 work_dir: Path | None = None, install: str = DEFAULT_INSTALL):
         self.home = Path(home)
         self.keel_home = Path(keel_home)
+        #: `plugin` or `speckit` -- how leg one puts the skill in front of this host (spec 022).
+        self.install = install
         self.base_url = base_url
         self.artifacts = Path(artifacts)
         if binary:
@@ -552,6 +600,45 @@ class AgentHost:
         done = self._cli(["plugin", "list"])
         return {"exit_code": done.returncode, "stdout": done.stdout.strip(),
                 "stderr": done.stderr.strip()}
+
+    # ------------------------------------------------------------ the Spec Kit extension (speckit)
+
+    def install_extension(self, source_tree: Path) -> dict:
+        """`specify init` in the host's own working directory, then `specify extension add
+        <tree> --dev` -- the two commands a Spec Kit user runs, against the tree `make dist` wrote.
+        Spec Kit then registers the extension's commands as this host's project skills."""
+        specify = specify_binary()
+        if not specify:
+            return {"exit_code": 127, "stdout": "",
+                    "stderr": "no `specify` CLI in the harness venv or on PATH", "cmd": ["specify"]}
+        init = [specify, "init", ".", "--here", "--force", "--non-interactive",
+                "--integration", self.name, "--ignore-agent-tools"]
+        add = [specify, "extension", "add", str(source_tree), "--dev"]
+        done_init = subprocess.run(init, capture_output=True, encoding="utf-8", errors="replace",
+                                   timeout=300, env=self.env(), cwd=str(self.work_dir))
+        if done_init.returncode != 0:
+            return {"exit_code": done_init.returncode, "stdout": done_init.stdout.strip(),
+                    "stderr": done_init.stderr.strip(), "cmd": init}
+        done_add = subprocess.run(add, capture_output=True, encoding="utf-8", errors="replace",
+                                  timeout=300, env=self.env(), cwd=str(self.work_dir))
+        return {"exit_code": done_add.returncode, "stdout": done_add.stdout.strip(),
+                "stderr": done_add.stderr.strip(), "cmd": add, "init": init}
+
+    def extension_proof(self) -> dict:
+        """The skill Spec Kit registered, where this host reads project skills from, and the
+        extension in `specify extension list` -- the two facts that say the commands reached the
+        host through Spec Kit and not through a plugin."""
+        skill_file = self.work_dir / SPECKIT_SKILL_DIRS[self.name] / EXTENSION_SKILL_NAME / "SKILL.md"
+        specify = specify_binary()
+        listing = ""
+        if specify:
+            done = subprocess.run([specify, "extension", "list"], capture_output=True,
+                                  encoding="utf-8", errors="replace", timeout=120,
+                                  env=self.env(), cwd=str(self.work_dir))
+            listing = (done.stdout or "") + (done.stderr or "")
+        (self.artifacts / "speckit-extension-list.txt").write_text(listing)
+        return {"found": skill_file.is_file(), "listed": "keel" in listing.lower(),
+                "skill_file": str(skill_file), "raw": listing[:4000]}
 
     def skill_proof(self) -> dict:
         """**Can this CLI see `keel-connect`, and did it come from the plugin?**
