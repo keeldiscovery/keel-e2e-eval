@@ -52,8 +52,13 @@ make eval K=s008    # the runtime that travelled inside the skill: resolved with
                     # KEEL_RUNTIME_PATH, connected by device code, said twice, disconnected
 make eval K=s009    # four packaging trees, four installers, one skill -- the same contract
                     # shapes byte for byte after an installer moved the bytes (A-6)
-make eval-live K=s012  # LIVE, opt-in, costs premium requests: GitHub Copilot as the *host* that
-                    # loads and runs the skill, and as the *thinker* that answers the journey
+make eval-live K=s012  # LIVE, opt-in, costs real money: the founder's journey through a host --
+                    # the host installs the plugin from the public marketplace, is told "keel
+                    # connect", and then answers every job. HOST=claude|copilot, default copilot
+make eval-live K=s012 HOST=claude   # the same journey through Claude Code. Needs a credential in
+                    # THIS shell: an isolated CLAUDE_CONFIG_DIR does not keep the founder's stored
+                    # login (measured), so export ANTHROPIC_API_KEY, or CLAUDE_CODE_OAUTH_TOKEN
+                    # from `claude setup-token`. Without one it skips by name and spends nothing.
 make acceptance     # the containerised beds: Debian 12 (Python 3.11) and Debian 11 (the 3.9
                     # floor), linux/arm64 and linux/amd64, against this stack at
                     # host.docker.internal:18080. The model-driven half needs the caller's own
@@ -68,6 +73,10 @@ from `make up && make eval` and the from-cold path are the same command. Either 
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
 ### The run of record for spec 016 — **Copilot, host and thinker** (2026-09-10)
+
+*Since spec `019-journey-through-a-host` this scenario is `S-012, the journey through a host` and
+takes `HOST=claude|copilot`. The run below is its **Copilot instance**, whose command
+(`make eval-live K=s012`) and whose argv are unchanged; the Claude instance has not been run yet.*
 
 `make eval-live K=s012`, on the founder's own Copilot plan, upgraded that morning. Run of record:
 **`runs/20260910T211318Z-s012-copilot-host-and-thinker-live`** — 17 min, GitHub Copilot CLI
@@ -1157,29 +1166,52 @@ code or JSON anywhere on the screen. Then it signs in for real and proves none o
 account or moved the one that existed. Neither scenario is scored: no policy attribute applies to
 a scenario about who owns what, or about a door refusing.
 
-**S-012, Copilot, host and thinker** (`evals/test_s012_copilot_host_and_thinker.py`, spec
-`016-copilot-e2e`) is the second live scenario and the third named LLM place (AGENTS.md), and it
-exists because keel-cloud `canon/designs/keel-skill-design.md` §5.5 makes a host "supported" only
-when four things are true and **two of them are this repository's** — S-001 green *through that
-host*, and the instruction eval green on it. The second has been measurable since spec 014. The
-first never had been: no scenario here had ever let an agent host load the skill and decide for
-itself to run it.
+**S-012, the journey through a host** (`evals/test_s012_journey_through_a_host.py`, specs
+`016-copilot-e2e` and `019-journey-through-a-host`) is the second live scenario and the third named
+LLM place (AGENTS.md), and it exists because keel-cloud `canon/designs/keel-skill-design.md` §5.5
+makes a host "supported" only when four things are true and **two of them are this repository's** —
+S-001 green *through that host*, and the instruction eval green on it. The second has been
+measurable since spec 014. The first never had been: no scenario here had ever let an agent host
+load the skill and decide for itself to run it.
 
-**Leg one is the host.** keel-connect-skill's plugin is installed into a **fresh `COPILOT_HOME`**
-from the real public marketplace with Copilot's own two commands, `copilot skill list` is asked
-whether it can see `keel-connect` as a plugin skill, and then the founder's three words — *"keel
-connect"* — are said to `copilot -p`. **Nothing after that is asserted from Copilot's prose**: a
-host that answered *"Keel is connected!"* and started nothing would pass a grep of its reply and
-fails every one of the real checks — the heartbeat file in state `awaiting_approval`, the launch
-log's `KEEL_USER_CODE=` and `KEEL_VERIFICATION_URI=` lines, and the **eval cloud's own** answer to
+**One scenario, two hosts.** `make eval-live K=s012 HOST=claude|copilot` (default `copilot`, so the
+command that produced the spec 016 run of record still means what it meant) sets
+`KEEL_JOURNEY_HOST`, and that decides which CLI installs the plugin, which CLI is told *"keel
+connect"*, which executor the runtime must end up on, and what the bundle is called
+(`runs/<stamp>-s012-journey-<host>/`). keel-cloud `canon/designs/e2e-matrix-design.md` §5.1 is why:
+the matrix's three axes are an OS, a Python and a **host**, and *"the scenario each cell runs is
+S-001, the founder's journey, through the host"*. Every difference between the two lives in
+`harness/agent_host.py`; nothing that is asserted differs, and the Copilot argv did not move a flag.
+
+**Leg one is the host.** keel-connect-skill's plugin is installed into a **fresh host home**
+(`CLAUDE_CONFIG_DIR` / `COPILOT_HOME`) from the real public marketplace with that host's own two
+commands — the same two argv but for the binary, because one marketplace repository serves both —
+the CLI is asked whether it can see `keel-connect` and whether it came from the plugin, and then
+the founder's three words — *"keel connect"* — are said to `claude -p` / `copilot -p`. **Nothing
+after that is asserted from the host's prose**: a host that answered *"Keel is connected!"* and
+started nothing would pass a grep of its reply and fails every one of the real checks — the
+heartbeat file in state `awaiting_approval`, the launch log's `KEEL_USER_CODE=` and
+`KEEL_VERIFICATION_URI=` lines, and the **eval cloud's own** answer to
 `GET /v2/device-authorizations?user_code=`. The reply is read exactly once, for a loose *"it said
 connected"* on the second run, and that check can never be the only evidence of anything. (Compare
 `make acceptance`'s model-driven half, which greps the reply for a `XXXX-XXXX` shape and the word
 `device`, says so in its own comment, and has never run.)
 
-**Leg two is the thinker**, on that same runtime — which is on the Copilot executor because the
-skill read `SKILL.md`'s one Copilot line and passed `--host copilot`, and nothing in the scenario
-passes `--executor`. The founder's journey follows, with Copilot answering every screen, and
+Three things differ between the hosts and each was measured before a line was written. **An
+isolated home keeps the founder's Copilot login and does *not* keep their Claude one** — `claude
+auth status` in a fresh config dir reads `authMethod: none` — so a Claude run needs
+`ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` in the caller's own shell and skips by name,
+naming both commands, when neither is there. **There is no `claude skill list`**, so the proof is
+`claude plugin details keel`'s component inventory (`Skills (1)  keel-connect`) — a stronger
+reading, since the inventory is that plugin's own. And **there is no `--no-custom-instructions` on
+Claude Code**, so the rule *the referee's own `AGENTS.md` never reaches the thing under referee* is
+kept for both hosts by running them from an empty directory outside this repository, with Copilot
+keeping its flag as well.
+
+**Leg two is the thinker**, on that same runtime — which is on that host's executor because the
+skill told it so (`SKILL.md`'s one `--host copilot` line for Copilot; the script's own host
+detection for Claude), with `source=flag` asserted beside the name, and nothing in the scenario
+passing `--executor`. The founder's journey follows, with the host answering every screen, and
 **every card assertion is a shape or an absence** (spec 008's judgement call 8): lines present and
 numbered, at least one deal-breaker, nothing refused. It reads the roles and questions **off the
 screen**, never out of the fixture, because on a live run they are the model's own and the
@@ -1188,7 +1220,9 @@ made once and the same fix.
 
 It is **not scored**, for S-008's and S-009's reason: no attribute of `evals/policy.py` applies to
 a scenario about which host loaded a skill and which model answered a job. The evidence is the
-transcript, the two Copilot transcripts beside it, and the per-job envelopes.
+transcript, the two host transcripts beside it, and the per-job envelopes — and `versions.json`'s
+`host` block, which names the host, the CLI version, both models and which credential answered, so
+a reader of many bundles can place each one in the matrix's grid.
 
 The old S-002…S-011 (an eleven-scenario set against a since-retired agent-protocol/relay stack,
 unrelated to the current S-002 or to S-010/S-011 above) are gone — recorded in git history and in
@@ -1214,17 +1248,23 @@ socket, its refusals, its picker and its six declared lies) and what the two-fou
 scenarios promise (that S-010 goes at *every* route the design lists, and that S-011's five lines
 are keel-web's verbatim), the `remote` profile (spec 017 — its URLs and their defaults, the gate
 credential and its scoping, boot/teardown/status starting and stopping nothing, and the registry
-helpers against mocked HTTP, each paired with the local behaviour it must not disturb) and the
+helpers against mocked HTTP, each paired with the local behaviour it must not disturb), the
 gated registry stub (spec 018 — the gate, the three registry routes, the picker's order and
-labels, and the atomic write), with no Docker/gradle/vite involved. **712 tests** as of spec 018.
+labels, and the atomic write) and the journey's host abstraction (spec 019 — the two hosts'
+command lines side by side, the environment and home isolation, the bundle's name and how `HOST`
+is read, beside the Copilot instance's own argv, which did not move), with no
+Docker/gradle/vite involved. **764 tests** as of spec 019.
 
 ## The live runs (`make eval-live`)
 
 **There are two now.** `make eval-live` selects the `live` marker, so `K=` picks between them:
-`K=s004` is the stranger who gives orders, on a real `claude`; `K=s012` is Copilot as host and
-thinker, on a real `copilot` (spec `016-copilot-e2e`, above). Both are opt-in, both cost the
+`K=s004` is the stranger who gives orders, on a real `claude`; `K=s012` is the founder's journey
+through a host, on a real `copilot` or a real `claude` — `HOST=` chooses, default `copilot` (specs
+`016-copilot-e2e` and `019-journey-through-a-host`, above). Both are opt-in, both cost the
 founder's own money, both are deselected from `make eval`/`make eval-all`, and both skip
-themselves **by name with a reason** when their CLI is missing rather than passing quietly.
+themselves **by name with a reason** when their CLI is missing rather than passing quietly — and
+S-012's Claude instance skips the same way when the shell carries no credential for a fresh
+`CLAUDE_CONFIG_DIR` to use.
 
 S-004, *the stranger who gives orders* (`specs/008-stranger-who-gives-orders`), is the
 scenario that runs a **real `claude`** -- it attacks the framing box and a participant's answers

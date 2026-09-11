@@ -13,7 +13,7 @@ policy and get a legitimately re-derived scorecard (SC-004).
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
+from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -154,8 +154,15 @@ def write_facts(run_dir: Path, facts: dict[str, Fact]) -> None:
     RUN=<dir>` can re-run FIDELITY checks without the original Scenario object -- scoring stays a
     pure function of the bundle (spec edge case), not of whatever Python object happened to be
     live in the process that ran the eval.
+
+    An entry that is **not** a `Fact` is written through as it stands (spec 019: S-012 records
+    which host, which CLI and which model as one line here, beside a registry that is empty
+    because the scenario is unscored). It is safe on the way back in as long as it is not
+    dict-shaped: `read_facts` builds a `Fact` from anything with a `.get`, and skips everything
+    else on the `AttributeError`. So a string is a note a reader sees and the scorer does not.
     """
-    raw = {fact_id: asdict(fact) for fact_id, fact in facts.items()}
+    raw = {fact_id: (asdict(fact) if is_dataclass(fact) else fact)
+           for fact_id, fact in facts.items()}
     (run_dir / "facts.json").write_text(json.dumps(raw, indent=2))
 
 

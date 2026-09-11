@@ -36,10 +36,11 @@ EXPECTED = {
     "test_s010_two_founders.py",
     # ... and §10.7: the callback's own refusals, each with the founder-voiced line §5.5 names.
     "test_s011_bad_token.py",
-    # spec 016-copilot-e2e: GitHub Copilot as the **host** that loads and runs the skill, and as
-    # the **thinker** that answers the journey. The third named LLM place, argued for on
-    # AGENTS.md's own terms rather than quietly written -- see `test_the_third_llm_place_is_named`.
-    "test_s012_copilot_host_and_thinker.py",
+    # spec 016-copilot-e2e, generalised by spec 019-journey-through-a-host: the host that loads
+    # and runs the skill, and the thinker that answers the journey -- Copilot or Claude Code,
+    # chosen by `KEEL_JOURNEY_HOST`. The third named LLM place, argued for on AGENTS.md's own
+    # terms rather than quietly written -- see `test_the_third_llm_place_is_named`.
+    "test_s012_journey_through_a_host.py",
 }
 
 
@@ -70,7 +71,7 @@ def test_exactly_two_scenarios_are_live():
     live = {name for name in _scenario_files()
             if "pytestmark = pytest.mark.live" in (EVALS / name).read_text()}
     assert live == {"test_s004_stranger_who_gives_orders.py",
-                     "test_s012_copilot_host_and_thinker.py"}, (
+                     "test_s012_journey_through_a_host.py"}, (
         "the named LLM exceptions do not change in number or in name without AGENTS.md changing "
         f"with them; this run found {sorted(live)}")
 
@@ -79,7 +80,7 @@ def test_the_third_llm_place_is_named_in_agents_md():
     """The other half of the amendment, and the half a test can hold: a live scenario that
     AGENTS.md does not name is exactly the "quietly written" third the rule forbids."""
     agents = (REPO / "AGENTS.md").read_text()
-    assert "test_s012_copilot_host_and_thinker.py" in agents, (
+    assert "test_s012_journey_through_a_host.py" in agents, (
         "S-012 is live and AGENTS.md does not name it -- the LLM exceptions are named in one "
         "place on purpose")
     assert "three named places" in agents, (
@@ -91,7 +92,10 @@ def test_the_three_new_scenarios_need_no_makefile_edit_to_dispatch():
     name. What the Makefile must still say is that `eval` deselects `live` and `eval-live` selects
     it -- the only two lines FR-016 actually depends on."""
     assert '-m "not live"' in MAKEFILE
-    assert re.search(r"eval-live:.*\n.*-m live", MAKEFILE), (
+    # The recipe is more than one line since spec 019 (`HOST=` sets `KEEL_JOURNEY_HOST` on the
+    # line above), so this reads the whole of `eval-live`'s body rather than only its first line.
+    assert re.search(r"^eval-live:[^\n]*\n(?:\t[^\n]*\n)*?\t[^\n]*-m live", MAKEFILE,
+                      re.MULTILINE), (
         "`make eval-live` no longer selects the live marker")
     assert "$(if $(K),-k $(K),)" in MAKEFILE, "`K` no longer reaches pytest as `-k`"
 
