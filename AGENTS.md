@@ -17,8 +17,8 @@ added to this line rather than quietly written — which is exactly how the thir
   `instructions.marks.MARKS_VERSION`, separately from `evals/policy.py`'s `POLICY_VERSION`, so the
   two can never be confused.
 - **S-012**, *the journey through a host* (`evals/test_s012_journey_through_a_host.py`, specs
-  `016-copilot-e2e` and `019-journey-through-a-host`) — the third, and here is the argument for
-  it. keel-cloud `canon/designs/keel-skill-design.md` §5.5 makes a host "supported" only when four
+  `016-copilot-e2e`, `019-journey-through-a-host` and `021-short-journey`) — the third, and here
+  is the argument for it. keel-cloud `canon/designs/keel-skill-design.md` §5.5 makes a host "supported" only when four
   things are true, and **two of them are this repository's**: S-001 green *through that host*, and
   the instruction eval's run of record green on it. The second has been measurable since spec 014.
   The first never has: no scenario here had ever let an agent host load the skill and decide for
@@ -37,6 +37,14 @@ added to this line rather than quietly written — which is exactly how the thir
   §5.1 makes the host one of the matrix's three axes and *"the scenario each cell runs is S-001,
   the founder's journey, through the host"*. That widens a named place; it does not add one. A
   second live scenario would still have to be argued for here.
+
+  **And it is still one scenario at two lengths** (spec 021). `LEGS=short` stops it after the host
+  leg and the **first** model job, which is what every qualifying change now buys; `LEGS=full` is
+  what the nightly and weekly sets buy. That is a *stopping point* in one story, not a second
+  story: the assertion the short run makes about the confirmation card is literally the same
+  function the full run calls, and nothing new is asserted from the model's prose because the run
+  is shorter. A `test_s013_short_journey.py` would have been a fourth named place and would have
+  had to be argued for; this is not one.
 
 **The canon comes first**: keel-cloud `canon/CANON.md` holds the governing documents,
 their precedence, and the ledger this repo's `tests/test_journey_coverage.py` enforces. This

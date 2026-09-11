@@ -54,11 +54,17 @@ make eval K=s009    # four packaging trees, four installers, one skill -- the sa
                     # shapes byte for byte after an installer moved the bytes (A-6)
 make eval-live K=s012  # LIVE, opt-in, costs real money: the founder's journey through a host --
                     # the host installs the plugin from the public marketplace, is told "keel
-                    # connect", and then answers every job. HOST=claude|copilot, default copilot
-make eval-live K=s012 HOST=claude   # the same journey through Claude Code. Needs a credential in
-                    # THIS shell: an isolated CLAUDE_CONFIG_DIR does not keep the founder's stored
-                    # login (measured), so export ANTHROPIC_API_KEY, or CLAUDE_CODE_OAUTH_TOKEN
-                    # from `claude setup-token`. Without one it skips by name and spends nothing.
+                    # connect", and then answers every job. HOST=claude|copilot, default copilot;
+                    # LEGS=short|full, default full; ENTRY=<corpus id>, default 03-lullaby
+make eval-live K=s012 HOST=claude LEGS=short   # the SHORT journey (spec 021): the host leg entire
+                    # plus the FIRST model job -- the PROBLEM frame's confirmation card landing --
+                    # and then the way out. ~2 premium requests / ~$0.30 a run, where the whole
+                    # journey is ~13 / ~$1.50. It is what every qualifying change runs.
+make eval-live K=s012 HOST=claude   # the same journey through Claude Code, whole. Needs a
+                    # credential in THIS shell: an isolated CLAUDE_CONFIG_DIR does not keep the
+                    # founder's stored login (measured), so export ANTHROPIC_API_KEY, or
+                    # CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`. Without one it skips by
+                    # name and spends nothing.
 make acceptance     # the containerised beds: Debian 12 (Python 3.11) and Debian 11 (the 3.9
                     # floor), linux/arm64 and linux/amd64, against this stack at
                     # host.docker.internal:18080. The model-driven half needs the caller's own
@@ -922,11 +928,24 @@ coverage rules, so a `cells.toml` that drifts from §5.2 is caught before a role
 is deployed or a model is asked anything. `tests/test_matrix_cells.py` holds the real file to the
 same rules in `make unit`.
 
-| Set | Cells | What | When |
-|---|---|---|---|
-| `per_change` | 6 | each OS once per host; 3.9 on the Ubuntu cells, 3.13 elsewhere | a push to master here, or a dispatch from keel-cloud / keel-runtime / keel-connect-skill / keel-web |
-| `nightly` | 6 | Ubuntu only, both hosts, every Python; the corpus scenarios ride on one Claude cell | 03:00 UTC |
-| `weekly` | 18 | the full product of the three axes | Sunday 04:00 UTC |
+**The sets, as the founder set them on 2026-09-11** (spec `021-short-journey`; the design's §5.2
+counted six per change, six nightly on Ubuntu, eighteen weekly, and decision 4 marks that
+**[overrulable]**):
+
+| Set | Cells | Journey | What | When |
+|---|---|---|---|---|
+| `per_change` | **4** | **short** | macOS and Windows × both hosts, Python 3.13, S-012 alone | a push to master here, or a dispatch from keel-cloud / keel-runtime / keel-connect-skill / keel-web |
+| `nightly` | **6** | full | those same 4, whole — plus Windows × both hosts on the **3.9 floor**; the corpus scenarios ride on the macOS Claude cell | 03:00 UTC |
+| `weekly` | 18 | full | the full product of the three axes, Ubuntu included | Sunday 04:00 UTC |
+
+Three things to read off that table. **A merge buys the short journey** — the host leg entire
+(marketplace, *"keel connect"*, device approval, the runtime on the host's executor) plus the first
+model job, the PROBLEM frame's confirmation card. That is the part that breaks when an OS, a Python
+or a host CLI moves, and it is about two premium requests a cell instead of thirteen. **The night
+buys it whole**, on the same four cells, so nothing is measured less often than daily — that rule
+is enforced, not remembered. And **Ubuntu is weekly only**: fewer than 5% of founders, so it is
+bought once a week rather than once a merge. `legs` is a per-cell field in `cells.toml`, optional,
+defaulting to `full`, and the workflow exports it as `KEEL_JOURNEY_LEGS`.
 
 The axes are three operating systems, two hosts and **three** Pythons — 3.9 (spec 004's floor),
 3.12 (what Ubuntu 24.04 ships and what this harness runs on) and 3.13. The design's §5.1 names two
@@ -959,7 +978,7 @@ twin exists.
 | Secret | What |
 |---|---|
 | `KEEL_STAGING_HARNESS_PASSWORD` | the `harness` gate password, whose bcrypt is `/keel/staging/oidc-gate-harness-hash`. The founder's own gate password is never here. |
-| `KEEL_SIBLINGS_TOKEN` | a fine-grained token with **read-only Contents** on keel-cloud and keel-web — the two private repositories the deploy job checks out |
+| `KEEL_SIBLINGS_TOKEN` | a fine-grained token with **read-only Contents** on keel-cloud and keel-web — the two private repositories the deploy job checks out, and (spec 021) the one directory a **cell** checks out: `canon/designs/measured-beliefs/corpus`, which is S-012's founder and S-005/6/7's whole subject. A cell without it warns and then fails by name rather than walking a founder nobody wrote down. |
 | `ANTHROPIC_API_KEY`, `KEEL_RUNTIME_CI_COPILOT` | already organisation secrets, shared with keel-runtime; nothing to do |
 
 `KEEL_DISPATCH_TOKEN` is **not** set here: it is the senders' secret, one per repository, and it
@@ -972,10 +991,13 @@ only needs the right to POST `/dispatches` on this one.
    green, one line.
 3. The twin exists (keel-cloud spec 036, design §13 steps 1–4) and answers `/v2/me` 401.
 4. Set the four variables and the two secrets above, then `KEEL_STAGING_ENABLED=true`.
-5. **Run → matrix → Run workflow**, `set: per_change`, `cells: ubuntu-24.04-claude-py3.13`. One
-   cell, one model bill, the whole path proved.
-6. Then `cells: windows-latest-copilot-py3.9` — the cell this week was about.
-7. Then the per-change six with no `cells` at all. Only then the schedules matter.
+5. **Run → matrix → Run workflow**, `set: per_change`, `cells: macos-latest-claude-py3.13`. One
+   cell, the **short** journey, about two premium requests, and the whole path proved.
+6. Then `cells: windows-latest-copilot-py3.13` — Windows is where two of that week's three runtime
+   bugs lived.
+7. Then the per-change four with no `cells` at all; then `set: nightly, cells:
+   windows-latest-copilot-py3.9`, which is the floor and the full journey in one cell. Only then
+   the schedules matter.
 
 ### Where a verdict ends up (§6.4)
 
@@ -988,9 +1010,29 @@ Three places, and the first two are this repository's:
 3. **The identity's label** in the twin's registry, patched by the scenario itself through
    `stack/remote.py` — the dropdown the founder opens in the morning.
 
+And, since spec `021-short-journey`, a fourth — because the three above are all places a founder
+has to **go and look at**:
+
+4. **One issue, titled `Matrix is red`, labelled `matrix`.** A cell fails and the `summary` job
+   opens it, carrying the run's table and a link. It stays red and the next run **comments** on the
+   same issue rather than opening a second. Everything passes and it comments *green again* and
+   closes it. A run where no cell produced a row — a failed deploy, a cancelled run — says nothing
+   at all: a run that measured nothing is never green. The decision is `matrix/notify.py`, held by
+   `tests/test_matrix_notify.py`; the workflow does four `gh issue` calls with no branches of its
+   own, holding a `GITHUB_TOKEN` with `issues: write` **scoped to that one job**.
+
 A failed cell fails the workflow, and that is all it does. **A green matrix triggers nothing** and
 a red one rolls nothing back (invariant M8): production deploys stay a founder's command from the
-Mac, and the failing build stays up so the founder can sign in as that cell's founder and look.
+Mac, and the failing build stays up so the founder can sign in as that cell's founder and look. The
+issue is information too.
+
+### `[skip e2e]`, everywhere now
+
+§6.2's override is the founder's own word where a path filter cannot judge — *"not for minor UI bug
+fixes"*. The four **senders** have honoured it since spec 020; since spec 021 the **receiver** does
+too, so `[skip e2e]` in the head commit of a push to *this* repository skips the matrix the same way
+it does on a merge to keel-cloud. It is matched literally (`grep -qF`), on the `push` event only,
+and a skipped push still writes one line to the job summary saying the words were read.
 
 ## The instruction eval (`make instruction-eval`)
 
@@ -1263,7 +1305,7 @@ account or moved the one that existed. Neither scenario is scored: no policy att
 a scenario about who owns what, or about a door refusing.
 
 **S-012, the journey through a host** (`evals/test_s012_journey_through_a_host.py`, specs
-`016-copilot-e2e` and `019-journey-through-a-host`) is the second live scenario and the third named
+`016-copilot-e2e`, `019-journey-through-a-host` and `021-short-journey`) is the second live scenario and the third named
 LLM place (AGENTS.md), and it exists because keel-cloud `canon/designs/keel-skill-design.md` §5.5
 makes a host "supported" only when four things are true and **two of them are this repository's** —
 S-001 green *through that host*, and the instruction eval green on it. The second has been
@@ -1278,6 +1320,19 @@ connect"*, which executor the runtime must end up on, and what the bundle is cal
 the matrix's three axes are an OS, a Python and a **host**, and *"the scenario each cell runs is
 S-001, the founder's journey, through the host"*. Every difference between the two lives in
 `harness/agent_host.py`; nothing that is asserted differs, and the Copilot argv did not move a flag.
+
+**Two lengths, and a corpus founder** (spec 021). `LEGS=short` stops the journey after the **first
+model job** — leg one entire, then the PROBLEM frame's confirmation card landing — and leaves by the
+same door; `LEGS=full` (the default) is everything below. The short one asserts exactly what the
+full one asserts up to that point and nothing more, because it is literally the same function
+(`_land_the_card`), and its bundle says so in its name (`…-s012-journey-<host>-short/`). And the
+founder is a **golden corpus** founder: `ENTRY=<id>`, default `03-lullaby`, so the project name is
+the entry's title, the market is its market, the three statements are typed verbatim, and the one
+person invited is the entry's first, with their own story text per anchor and their own picks —
+read through `harness/corpus_script.py`, the same module the six scripted scenarios read them
+through. What the model writes is still the model's: on a live run the anchors and pick lists are
+its own, so the person's stories go into them in order, their picks are used where the model's list
+offers them, and the bundle records which were theirs. None of it is asserted.
 
 **Leg one is the host.** keel-connect-skill's plugin is installed into a **fresh host home**
 (`CLAUDE_CONFIG_DIR` / `COPILOT_HOME`) from the real public marketplace with that host's own two
@@ -1310,15 +1365,16 @@ detection for Claude), with `source=flag` asserted beside the name, and nothing 
 passing `--executor`. The founder's journey follows, with the host answering every screen, and
 **every card assertion is a shape or an absence** (spec 008's judgement call 8): lines present and
 numbered, at least one deal-breaker, nothing refused. It reads the roles and questions **off the
-screen**, never out of the fixture, because on a live run they are the model's own and the
-fixture's *"A payroll manager"* is a label nothing on the page ever had — the same mistake S-010
-made once and the same fix.
+screen**, never out of the corpus entry, because on a live run they are the model's own and the
+entry's own role label is one nothing on the page need ever have had — the same mistake S-010 made
+once and the same fix.
 
 It is **not scored**, for S-008's and S-009's reason: no attribute of `evals/policy.py` applies to
 a scenario about which host loaded a skill and which model answered a job. The evidence is the
 transcript, the two host transcripts beside it, and the per-job envelopes — and `versions.json`'s
-`host` block, which names the host, the CLI version, both models and which credential answered, so
-a reader of many bundles can place each one in the matrix's grid.
+`host` block, which names the host, the CLI version, both models and which credential answered, and
+its `journey` block, which names the corpus entry, its sha256 and how far the run went, so a reader
+of many bundles can place each one in the matrix's grid.
 
 The old S-002…S-011 (an eleven-scenario set against a since-retired agent-protocol/relay stack,
 unrelated to the current S-002 or to S-010/S-011 above) are gone — recorded in git history and in
@@ -1348,15 +1404,21 @@ helpers against mocked HTTP, each paired with the local behaviour it must not di
 gated registry stub (spec 018 — the gate, the three registry routes, the picker's order and
 labels, and the atomic write) and the journey's host abstraction (spec 019 — the two hosts'
 command lines side by side, the environment and home isolation, the bundle's name and how `HOST`
-is read, beside the Copilot instance's own argv, which did not move), with no
-Docker/gradle/vite involved. **764 tests** as of spec 019.
+is read, beside the Copilot instance's own argv, which did not move), the matrix's own data and
+the workflow it feeds (specs 020 and 021 — the cells file held to its six coverage rules, the
+`legs` field, the short journey's two axes and its shared card assertion, the `Matrix is red`
+issue's four branches and two silences, and the workflow's `[skip e2e]` matcher **run under
+bash** against the messages a founder writes), with no Docker/gradle/vite involved.
+**911 tests** as of spec 021.
 
 ## The live runs (`make eval-live`)
 
 **There are two now.** `make eval-live` selects the `live` marker, so `K=` picks between them:
 `K=s004` is the stranger who gives orders, on a real `claude`; `K=s012` is the founder's journey
-through a host, on a real `copilot` or a real `claude` — `HOST=` chooses, default `copilot` (specs
-`016-copilot-e2e` and `019-journey-through-a-host`, above). Both are opt-in, both cost the
+through a host, on a real `copilot` or a real `claude` — `HOST=` chooses, default `copilot`;
+`LEGS=short|full` chooses how far, default `full`; `ENTRY=` chooses whose founder walks it, default
+`03-lullaby` (specs `016-copilot-e2e`, `019-journey-through-a-host` and `021-short-journey`,
+above). Both are opt-in, both cost the
 founder's own money, both are deselected from `make eval`/`make eval-all`, and both skip
 themselves **by name with a reason** when their CLI is missing rather than passing quietly — and
 S-012's Claude instance skips the same way when the shell carries no credential for a fresh
