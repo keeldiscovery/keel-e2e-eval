@@ -483,3 +483,28 @@ def test_environment_of_mirrors_the_runtime_for_local_and_remote_addresses():
     assert _environment_of("https://eval.keeldiscovery.com") == "eval.keeldiscovery.com"
     assert _environment_of("https://eval.keeldiscovery.com:8443/") == "eval.keeldiscovery.com:8443"
     assert _environment_of("http://[::1]:18080") == "[::1]:18080"
+
+
+def test_the_chooser_is_clicked_by_identity_id_not_by_name():
+    from harness.browser import chooser_button_selector
+    sel = chooser_button_selector("ubuntu-24.04-copilot-py3.9-20260911T044858-ab12")
+    assert 'input[name="identity"][value="ubuntu-24.04-copilot-py3.9-20260911T044858-ab12"]' in sel
+    assert sel.endswith('button[type="submit"]')
+    assert 'value="a\\"b"' in chooser_button_selector('a"b')
+
+
+def test_hosts_resolve_their_binary_through_path_lookup(monkeypatch):
+    import shutil
+    from harness import copilot_host, claude_host
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    assert copilot_host.readiness("copilot")["ok"] is False
+    assert claude_host.readiness("claude")["ok"] is False
+    seen = {}
+    monkeypatch.setattr(shutil, "which", lambda name: r"C:\\tools\\%s.cmd" % name)
+    import subprocess
+    def fake_run(argv, **kw):
+        seen["argv"] = argv
+        raise OSError("stop here")
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    copilot_host.readiness("copilot")
+    assert seen["argv"][0].endswith("copilot.cmd")

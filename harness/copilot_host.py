@@ -86,6 +86,10 @@ def readiness(binary: str = "copilot") -> dict[str, Any]:
 
     Returns `{ok, reason, version, catalogue_probe}`; `reason` is `None` when `ok`.
     """
+    # The resolved path, never the bare name: on Windows the CLI is `copilot.cmd`, which a bare
+    # name cannot launch without a shell (the runtime met the same wall, keel-runtime PR #1;
+    # the first cloud run skipped every Windows cell on it).
+    binary = shutil.which(binary) or binary
     if shutil.which(binary) is None:
         return {"ok": False, "reason": f"no `{binary}` on PATH -- the Copilot journey needs "
                                         f"GitHub Copilot CLI",
@@ -125,6 +129,10 @@ def model_accepted(slug: str, binary: str = "copilot") -> bool:
     `totalPremiumRequestCost: 0` (measured, CLI 1.0.83), so the probe can never buy inference by
     accident on the day a slug starts working.
     """
+    # The resolved path, never the bare name: on Windows the CLI is `copilot.cmd`, which a bare
+    # name cannot launch without a shell (the runtime met the same wall, keel-runtime PR #1;
+    # the first cloud run skipped every Windows cell on it).
+    binary = shutil.which(binary) or binary
     try:
         probe = subprocess.run(
             [binary, "-p", "", "--model", slug, "--no-ask-user", "--no-auto-update",

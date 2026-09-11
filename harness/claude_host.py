@@ -117,6 +117,10 @@ def readiness(binary: str = "claude") -> dict[str, Any]:
 
     Returns `{ok, reason, version, auth, isolated_auth}`; `reason` is `None` when `ok`.
     """
+    # The resolved path, never the bare name: on Windows the CLI is `claude.cmd`, which a bare
+    # name cannot launch without a shell (the runtime met the same wall, keel-runtime PR #1;
+    # the first cloud run skipped every Windows cell on it).
+    binary = shutil.which(binary) or binary
     if shutil.which(binary) is None:
         return {"ok": False, "reason": f"no `{binary}` on PATH -- the Claude journey needs Claude "
                                         f"Code", "version": None, "auth": None,
@@ -165,6 +169,10 @@ def model_accepted(slug: str, binary: str = "claude") -> bool:  # noqa: ARG001
     run loudly on the first word, and the bundle records the model that actually answered, read
     off the CLI's own `result` event.
     """
+    # The resolved path, never the bare name: on Windows the CLI is `claude.cmd`, which a bare
+    # name cannot launch without a shell (the runtime met the same wall, keel-runtime PR #1;
+    # the first cloud run skipped every Windows cell on it).
+    binary = shutil.which(binary) or binary
     return True
 
 

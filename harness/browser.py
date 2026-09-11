@@ -540,7 +540,11 @@ class Auth:
             if cancel:
                 self.page.get_by_role("link", name="Cancel").click()
             else:
-                self.page.get_by_role("button", name=label, exact=True).click()
+                # By the identity's id, never its name: two founders may share a name (a cell that
+                # re-registers on the same day; the twin's chooser, first cloud run 2026-09-11,
+                # "strict mode violation ... resolved to 2 elements"). The stub's chooser carries
+                # the id as a hidden field in each form, on every profile.
+                self.page.locator(chooser_button_selector(founder.id)).first.click()
             if expect == "home":
                 _wait_for_url_change(
                     self.page,
@@ -584,6 +588,14 @@ class Auth:
         `sign_in` is the name §10.4 gives and the one new scenarios use."""
         from stack.auth import FOUNDER_ONE
         return self.sign_in(founder or FOUNDER_ONE, return_to=return_to)
+
+
+def chooser_button_selector(identity_id: str) -> str:
+    """The stub chooser's submit button for one identity, found through the hidden `identity`
+    field its `<form>` carries (google-sign-in-design §10.2) -- unique by construction, where the
+    button's visible name is not."""
+    safe = identity_id.replace("\\", "\\\\").replace('"', '\\"')
+    return f'form:has(input[name="identity"][value="{safe}"]) button[type="submit"]'
 
 
 # ---------------------------------------------------------------------------------------- Connect
