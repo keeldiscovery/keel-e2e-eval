@@ -517,6 +517,13 @@ jobs:
 
       # Installed exactly as keel-runtime's acceptance.yml installs them, including the 1.0.83 pin
       # that spec 005's prompt-transport amendment measured.
+      # `claude plugin install` clones the plugin repository over SSH (`git@github.com:`), and a
+      # runner has no key: "Permission denied (publickey)", first cloud run 2026-09-11. Git's own
+      # rewrite sends that clone over HTTPS instead, which a public repository answers to anyone.
+      # (Recorded for the product: a founder with no GitHub SSH key would meet the same wall.)
+      - name: Clone GitHub over HTTPS, never SSH (a runner has no key)
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+
       - name: Install the Claude Code CLI from npm, version printed
         if: matrix.cell.host == 'claude'
         run: |
@@ -540,9 +547,15 @@ jobs:
       - name: Run ${{ join(matrix.cell.scenarios, ', ') }}
         env:
           ANTHROPIC_API_KEY: ${{ matrix.cell.host == 'claude' && secrets.ANTHROPIC_API_KEY || '' }}
-          # KEEL_RUNTIME_CI_COPILOT is the organisation secret's name; COPILOT_GITHUB_TOKEN is the
-          # name the CLI itself reads. Mapped here, as acceptance.yml maps it.
-          COPILOT_GITHUB_TOKEN: ${{ matrix.cell.host == 'copilot' && secrets.KEEL_RUNTIME_CI_COPILOT || '' }}
+          # KEEL_RUNTIME_CI_COPILOT is the organisation secret's name. It is handed to the cell as
+          # GH_TOKEN, NOT as COPILOT_GITHUB_TOKEN: measured 2026-09-11 (first cloud run, then two
+          # probes on the founder's Mac), the Copilot CLI strips COPILOT_GITHUB_TOKEN from the
+          # shells it runs its tools in and leaves GH_TOKEN alone. The runtime is started from
+          # inside such a shell (the skill's script), so under the first name it reached the
+          # executor with nothing and every job failed EXECUTOR_AUTH_FAILED; under the second, the
+          # host, the skill, the runtime and the executor all see the same token (the CLI's own
+          # precedence: COPILOT_GITHUB_TOKEN > GH_TOKEN > GITHUB_TOKEN > the stored login).
+          GH_TOKEN: ${{ matrix.cell.host == 'copilot' && secrets.KEEL_RUNTIME_CI_COPILOT || '' }}
           # C-5's pin, spec 016: gpt-5.6-luna emits the `phase` key CopilotExecutor reads, and the
           # plan's own default (claude-sonnet-5) does not -- runs/DRIFT.md #59. Claude has no
           # counterpart: keel-runtime's Claude executor takes no model, so a Claude cell's runtime
@@ -553,15 +566,19 @@ jobs:
         run: |
           set -euo pipefail
           status=0
+          # Windows runners DO carry a `make` (Git for Windows), and the Makefile's venv rule is
+          # POSIX (`.venv/bin/python`) -- first cloud run, 2026-09-11 -- so the decision is the
+          # OS, never `command -v make`.
+          use_make=1; [ "$RUNNER_OS" = "Windows" ] && use_make=0
           if [ -n "$LIVE_K" ]; then
-            if command -v make >/dev/null 2>&1; then
+            if [ "$use_make" = 1 ]; then
               make eval-live K="$LIVE_K" HOST="$KEEL_JOURNEY_HOST" PROFILE=remote || status=$?
             else
               "$VENV_PY" -m pytest evals -q -m live -k "$LIVE_K" || status=$?
             fi
           fi
           if [ -n "$EVAL_K" ]; then
-            if command -v make >/dev/null 2>&1; then
+            if [ "$use_make" = 1 ]; then
               make eval K="$EVAL_K" PROFILE=remote || status=$?
             else
               "$VENV_PY" -m pytest evals -q -m "not live" -k "$EVAL_K" || status=$?
