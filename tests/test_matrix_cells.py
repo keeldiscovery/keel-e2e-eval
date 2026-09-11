@@ -3,11 +3,21 @@
 
 Two halves, and the first is the one that matters.
 
-**The file as it stands must meet the design's coverage rules.** Not "the validator can express
-them" -- the real `matrix/cells.toml`, the one the workflow reads, is asserted here cell by cell:
-per_change covers every OS once per host and spends at least one cell on the 3.9 floor, nightly is
-Ubuntu only, weekly is the full product of the axes, and every cell everywhere is a combination the
-axes allow. A cells.toml that drifts from §5.2 fails `make unit` before it costs a runner minute.
+**The file as it stands must meet the coverage rules.** Not "the validator can express them" --
+the real `matrix/cells.toml`, the one the workflow reads, is asserted here cell by cell. The rules
+are **spec 021's**, not §5.2's, because the founder changed the sets on 2026-09-11 and the design
+section they came from is the one being amended:
+
+1. `per_change` is macOS and Windows, each host, the current Python, the **short** journey, S-012
+   alone -- four cells.
+2. `nightly` runs every one of those four again at **full** length, plus Windows on the 3.9 floor,
+   both hosts -- six cells -- and the corpus scenarios ride on exactly one of them, macOS x Claude.
+3. **Ubuntu is in neither cheap set** ("fewer than 5% of founders") and is in `weekly`, whole.
+4. `weekly` **is** the product of the axes, eighteen cells, every one of them full.
+5. Every cell everywhere is a combination the axes allow, no set names a cell twice, and `legs` is
+   `short` or `full` and defaults to `full`.
+
+A cells.toml that drifts from those fails `make unit` before it costs a runner minute.
 
 **And the reader must refuse a bad file loudly.** The `select` job is the cheapest place in the
 whole matrix to fail -- before a role is assumed, before a box is deployed, before a model is asked
@@ -55,6 +65,21 @@ MINIMAL = """
 """
 
 
+
+#: A file whose `per_change` is the right four, with the other two sets left empty -- so a rule
+#: about `nightly` or `weekly` can be caught failing without every `per_change` rule tripping
+#: alongside it and hiding which one was under test.
+PER_CHANGE_FOUR = MINIMAL.replace(
+    'per_change = [{ os = "ubuntu-24.04", host = "claude", python = "3.9" }]',
+    '\n'.join([
+        'per_change = [',
+        '    { os = "macos-latest", host = "claude", python = "3.13", legs = "short" },',
+        '    { os = "macos-latest", host = "copilot", python = "3.13", legs = "short" },',
+        '    { os = "windows-latest", host = "claude", python = "3.13", legs = "short" },',
+        '    { os = "windows-latest", host = "copilot", python = "3.13", legs = "short" },',
+        ']',
+    ]))
+
 # ---------------------------------------------------------------- the file, as the design wants it
 
 def test_the_real_file_loads_and_validates(matrix):
@@ -83,34 +108,57 @@ def test_the_axes_are_the_designs_axes(matrix):
     assert matrix.axes["python"] == ("3.9", "3.12", "3.13")
 
 
-def test_per_change_is_six_cells(matrix):
-    assert len(matrix.sets["per_change"]) == 6
+def test_per_change_is_four_cells(matrix):
+    """Spec 021, the founder's decision of 2026-09-11. Six became four when Ubuntu left, and each
+    of the four buys the short journey rather than the whole one."""
+    assert len(matrix.sets["per_change"]) == 4
 
 
-def test_per_change_runs_every_os_once_per_host(matrix):
+def test_per_change_is_macos_and_windows_once_per_host(matrix):
     covered = sorted((c.os, c.host) for c in matrix.sets["per_change"])
-    assert covered == sorted(itertools.product(matrix.axes["os"], matrix.axes["host"]))
+    assert covered == sorted(itertools.product(["macos-latest", "windows-latest"],
+                                               matrix.axes["host"]))
 
 
-def test_per_change_spends_the_floor_on_ubuntu_and_the_current_elsewhere(matrix):
-    # §5.2: "each OS once per host; Python 3.9 on the Ubuntu cells, 3.13 elsewhere".
+def test_per_change_is_the_current_python_everywhere(matrix):
     for cell in matrix.sets["per_change"]:
-        assert cell.python == ("3.9" if cell.os.startswith("ubuntu") else "3.13"), cell.id
+        assert cell.python == "3.13", cell.id
 
 
-def test_per_change_touches_the_floor_at_least_once(matrix):
-    assert any(c.python == "3.9" for c in matrix.sets["per_change"])
+def test_per_change_runs_the_short_journey_and_only_the_journey(matrix):
+    """The two halves of what makes the cheap set cheap: two model jobs instead of thirteen, and
+    nothing riding along beside them."""
+    for cell in matrix.sets["per_change"]:
+        assert cell.legs == "short", cell.id
+        assert cell.scenarios == ("s012",), cell.id
 
 
-def test_nightly_is_ubuntu_only(matrix):
-    assert {c.os for c in matrix.sets["nightly"]} == {"ubuntu-24.04"}
+def test_ubuntu_is_in_the_weekly_set_and_nowhere_else(matrix):
+    """*"Fewer than 5% of founders"* -- so Ubuntu is bought once a week rather than once a merge.
+    It is not dropped, and this asserts both halves of that."""
+    for name in ("per_change", "nightly"):
+        assert not [c.id for c in matrix.sets[name] if c.os.startswith("ubuntu")], name
+    assert len([c for c in matrix.sets["weekly"] if c.os.startswith("ubuntu")]) == 6
 
 
-def test_nightly_is_six_cells_both_hosts_every_python(matrix):
-    nightly = matrix.sets["nightly"]
-    assert len(nightly) == 6
-    assert sorted((c.host, c.python) for c in nightly) == sorted(
-        itertools.product(matrix.axes["host"], matrix.axes["python"]))
+def test_nightly_is_six_cells(matrix):
+    assert len(matrix.sets["nightly"]) == 6
+
+
+def test_nightly_buys_whole_what_a_merge_bought_short(matrix):
+    """The rule that makes the short per-change journey safe: everything a merge measured in part
+    is measured in full within the day, on the same cell."""
+    full = {(c.os, c.host, c.python) for c in matrix.sets["nightly"] if c.legs == "full"}
+    for cell in matrix.sets["per_change"]:
+        assert (cell.os, cell.host, cell.python) in full, cell.id
+
+
+def test_nightly_keeps_the_39_floor_that_per_change_gave_up(matrix):
+    """spec 004's floor is a promise. It moved from per_change to nightly rather than being
+    dropped -- Windows, both hosts, every night."""
+    floor = [c for c in matrix.sets["nightly"] if c.python == "3.9"]
+    assert sorted(c.id for c in floor) == ["windows-latest-claude-py3.9",
+                                           "windows-latest-copilot-py3.9"]
 
 
 def test_nightly_carries_the_corpus_on_exactly_one_claude_cell(matrix):
@@ -120,6 +168,7 @@ def test_nightly_carries_the_corpus_on_exactly_one_claude_cell(matrix):
                 if {"s005", "s006", "s007"} <= set(c.scenarios)]
     assert len(carriers) == 1
     assert carriers[0].host == "claude"
+    assert carriers[0].os == "macos-latest", "spec 021: the Ubuntu cell it used to ride is gone"
     # And it still runs the journey: the corpus rides on a cell, it does not replace one.
     assert "s012" in carriers[0].scenarios
 
@@ -128,6 +177,16 @@ def test_weekly_is_the_full_product(matrix):
     weekly = {(c.os, c.host, c.python) for c in matrix.sets["weekly"]}
     assert weekly == matrix.product
     assert len(matrix.sets["weekly"]) == 18
+
+
+def test_weekly_is_the_whole_journey_everywhere(matrix):
+    assert {c.legs for c in matrix.sets["weekly"]} == {"full"}
+
+
+def test_nothing_but_per_change_is_short(matrix):
+    """One set is short; the other two are what confirms it was enough."""
+    assert {c.legs for c in matrix.sets["nightly"]} == {"full"}
+    assert {c.legs for c in matrix.sets["per_change"]} == {"short"}
 
 
 def test_every_cell_runs_at_least_one_scenario(matrix):
@@ -168,9 +227,54 @@ def test_a_cells_dict_carries_everything_the_job_needs():
         "host": "claude",
         "python": "3.13",
         "scenarios": ["s012", "s005", "s006"],
+        "legs": "full",
         "live_k": "s012",
         "eval_k": "s005 or s006",
     }
+
+
+# ------------------------------------------------------------------------------ legs (spec 021)
+
+def test_a_cell_that_says_nothing_about_legs_runs_the_whole_journey():
+    """The default is what every cell written before spec 021 meant, so adding the field changed
+    no existing cell's behaviour."""
+    cell = m.Cell(os="ubuntu-24.04", host="claude", python="3.13", scenarios=("s012",))
+    assert cell.legs == "full" == m.DEFAULT_LEGS
+    assert cell.as_dict(live=("s012",))["legs"] == "full"
+
+
+def test_legs_is_read_off_the_file_and_reaches_the_workflow(tmp_path):
+    path = write(tmp_path, MINIMAL.replace('python = "3.9" }', 'python = "3.9", legs = "short" }'))
+    cell = m.load(path).sets["per_change"][0]
+    assert cell.legs == "short"
+    assert cell.as_dict(live=("s012",))["legs"] == "short"
+
+
+def test_legs_is_not_part_of_a_cells_id():
+    """A cell is one (OS, host, Python). The same cell appearing short in per_change and full in
+    nightly is one runner job in two sets, not two cells -- and its id is its founder in the
+    twin's picker, which cannot be two people (§4.3)."""
+    short = m.Cell(os="macos-latest", host="claude", python="3.13", scenarios=("s012",),
+                   legs="short")
+    full = m.Cell(os="macos-latest", host="claude", python="3.13", scenarios=("s012",))
+    assert short.id == full.id == "macos-latest-claude-py3.13"
+
+
+def test_legs_outside_the_two_is_refused_by_name(tmp_path):
+    path = write(tmp_path, MINIMAL.replace('python = "3.9" }', 'python = "3.9", legs = "half" }'))
+    with pytest.raises(m.CellsError) as excinfo:
+        m.load(path)
+    message = str(excinfo.value)
+    assert "half" in message and "short" in message and "full" in message
+
+
+def test_the_harness_and_the_matrix_agree_on_what_legs_there_are():
+    """`matrix/cells.py` restates them rather than importing, so that `python -m matrix` stays
+    stdlib-only. This is the seam that keeps the restatement true."""
+    from harness import agent_host
+
+    assert set(m.LEGS) == set(agent_host.LEGS)
+    assert m.DEFAULT_LEGS == agent_host.DEFAULT_LEGS
 
 
 def test_the_two_selectors_are_pytest_k_expressions():
@@ -194,8 +298,8 @@ def test_every_cell_in_every_set_is_json_serialisable(matrix):
 
 def test_as_matrix_is_the_list_a_github_strategy_takes(matrix):
     entries = matrix.as_matrix("per_change")
-    assert isinstance(entries, list) and len(entries) == 6
-    assert all(set(e) == {"id", "os", "host", "python", "scenarios", "live_k", "eval_k"}
+    assert isinstance(entries, list) and len(entries) == 4
+    assert all(set(e) == {"id", "os", "host", "python", "scenarios", "legs", "live_k", "eval_k"}
                for e in entries)
 
 
@@ -214,8 +318,8 @@ def test_narrowing_keeps_the_order_asked_for(matrix):
 
 def test_narrowing_ignores_blank_entries(matrix):
     # "a,b," and "" are both what a workflow input hands over when a human types loosely.
-    assert len(matrix.cells("per_change", "".split(","))) == 6
-    assert len(matrix.cells("per_change", ["ubuntu-24.04-claude-py3.9", " ", ""])) == 1
+    assert len(matrix.cells("per_change", "".split(","))) == 4
+    assert len(matrix.cells("per_change", ["macos-latest-claude-py3.13", " ", ""])) == 1
 
 
 def test_narrowing_to_a_cell_the_set_does_not_have_raises_by_name(matrix):
@@ -327,15 +431,61 @@ def test_a_cell_with_an_empty_scenario_list_is_refused(tmp_path):
 
 def test_coverage_catches_a_per_change_set_that_misses_a_combination(tmp_path):
     problems = m.coverage_problems(m.load(write(tmp_path, MINIMAL)))
-    assert any("every OS once per host" in p for p in problems)
+    assert any("once per host" in p for p in problems)
 
 
-def test_coverage_catches_a_nightly_that_leaves_ubuntu(tmp_path):
-    body = MINIMAL.replace(
-        "nightly = []",
-        'nightly = [{ os = "macos-latest", host = "claude", python = "3.13" }]')
+def test_coverage_catches_a_per_change_cell_on_ubuntu(tmp_path):
+    """Ubuntu back in the cheap set is the decision of 2026-09-11 being undone by accident."""
+    problems = m.coverage_problems(m.load(write(tmp_path, MINIMAL)))
+    assert any("ubuntu-24.04" in p for p in problems), problems
+
+
+def test_coverage_catches_a_per_change_cell_that_runs_the_whole_journey(tmp_path):
+    body = PER_CHANGE_FOUR.replace(', legs = "short" }', ' }', 1)
     problems = m.coverage_problems(m.load(write(tmp_path, body)))
-    assert any("Ubuntu only" in p for p in problems)
+    assert any("SHORT journey" in p for p in problems), problems
+
+
+def test_coverage_catches_a_per_change_cell_carrying_a_corpus_scenario(tmp_path):
+    body = PER_CHANGE_FOUR.replace(
+        ', legs = "short" }', ', legs = "short", scenarios = ["s012", "s005"] }', 1)
+    problems = m.coverage_problems(m.load(write(tmp_path, body)))
+    assert any("cheap set stopping being cheap" in p for p in problems), problems
+
+
+def test_coverage_catches_a_per_change_cell_off_the_current_python(tmp_path):
+    body = PER_CHANGE_FOUR.replace('python = "3.13", legs = "short" }',
+                                   'python = "3.9", legs = "short" }', 1)
+    problems = m.coverage_problems(m.load(write(tmp_path, body)))
+    assert any("current Python" in p for p in problems), problems
+
+
+def test_coverage_catches_a_nightly_that_wandered_onto_ubuntu(tmp_path):
+    body = PER_CHANGE_FOUR.replace(
+        "nightly = []",
+        'nightly = [{ os = "ubuntu-24.04", host = "claude", python = "3.13" }]')
+    problems = m.coverage_problems(m.load(write(tmp_path, body)))
+    assert any("leaves 'ubuntu'" in p for p in problems), problems
+
+
+def test_coverage_catches_a_nightly_that_never_buys_the_short_cells_whole(tmp_path):
+    """The rule the short per-change journey rests on: what a merge measures in part, the night
+    measures in full, on the same cell, within the day."""
+    problems = m.coverage_problems(m.load(write(tmp_path, PER_CHANGE_FOUR)))
+    assert any("bought short on a merge and never bought whole" in p for p in problems), problems
+
+
+def test_coverage_catches_a_nightly_that_drops_the_floor(tmp_path):
+    problems = m.coverage_problems(m.load(write(tmp_path, PER_CHANGE_FOUR)))
+    assert any("spends no cell on Python 3.9" in p for p in problems), problems
+
+
+def test_coverage_catches_a_weekly_cell_that_runs_short(tmp_path):
+    body = MINIMAL.replace(
+        "weekly = []",
+        'weekly = [{ os = "macos-latest", host = "claude", python = "3.13", legs = "short" }]')
+    problems = m.coverage_problems(m.load(write(tmp_path, body)))
+    assert any("full journey everywhere" in p for p in problems), problems
 
 
 def test_coverage_catches_a_weekly_that_is_not_the_full_product(tmp_path):
@@ -365,14 +515,24 @@ def test_the_cli_prints_one_set_when_asked(capsys):
     assert m.main(["--set", "nightly"]) == 0
     out = capsys.readouterr().out
     assert "nightly" in out and "per_change" not in out
-    assert "windows-latest" not in out
+    assert "ubuntu-24.04" not in out, "spec 021: Ubuntu is weekly"
+
+
+def test_the_cli_prints_how_far_each_cell_goes(capsys):
+    """A founder reading `make matrix-check` before a merge is reading what it will cost, and
+    `short` against `full` is most of that cost."""
+    assert m.main(["--set", "per_change"]) == 0
+    out = capsys.readouterr().out
+    assert "short" in out
+    assert "full" not in out
 
 
 def test_the_cli_emits_json_for_the_workflow(capsys):
     assert m.main(["--set", "per_change", "--json"]) == 0
     entries = json.loads(capsys.readouterr().out)
-    assert len(entries) == 6
-    assert entries[0]["id"] == "ubuntu-24.04-claude-py3.9"
+    assert len(entries) == 4
+    assert entries[0]["id"] == "macos-latest-claude-py3.13"
+    assert entries[0]["legs"] == "short"
 
 
 def test_the_cli_narrows_to_the_cells_input(capsys):

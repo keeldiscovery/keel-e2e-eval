@@ -8,6 +8,13 @@ model), parameterised by host rather than a Copilot-only scenario"* -- because e
 differ by an OS, a Python and a **host**, and a cell whose scenario only exists for one host can
 only ever fill a third of the grid.
 
+It also owns the journey's other two axes, for the same reason (spec `021-short-journey`):
+`KEEL_JOURNEY_LEGS`, which decides whether a run is the whole journey or the host leg plus the
+first model job, and `KEEL_JOURNEY_ENTRY`, which decides whose founder walks it. All three are
+read once, at import, from the environment `make eval-live` sets -- never from a pytest parameter,
+because the bundle's name is derived from them and a parameter would put them in a node id
+instead.
+
 This module is where the two hosts are told apart, and it is deliberately the **only** place. What
 a founder does is the same on both: add the public marketplace, install the plugin, check the CLI
 can see the skill, say *"keel connect"*, approve the device, and let the runtime the skill started
@@ -89,15 +96,101 @@ def journey_host(environ: dict[str, str] | None = None) -> str:
     return raw
 
 
-def bundle_slug(host: str | None = None) -> str:
-    """The run bundle's own name: `s012-journey-<host>`.
+# ------------------------------------------------------------------- how much of the journey
+
+#: The two lengths this journey comes in (spec `021-short-journey`; the founder's decision,
+#: 2026-09-11). **`full`** is everything S-012 has always done: both legs, all three stages, the
+#: person, the reading, the brief, the overview. **`short`** is the host leg entire -- the plugin
+#: from the marketplace into a fresh host home, *"keel connect"*, the device approval, the runtime
+#: on that host's executor -- plus the **first model job only**, the PROBLEM frame's confirmation
+#: card landing, and then the founder's own way out.
+#:
+#: It exists because the per-change set runs on every qualifying change and the full journey is
+#: about thirteen premium requests a cell. The short one is the part that breaks when an OS, a
+#: Python or a host CLI moves -- an install, a device flow, an executor, one job -- and it is what
+#: the four per-change cells now spend. The full journey stays nightly and weekly, where it is
+#: paid for once a day rather than once a merge.
+LEGS = ("short", "full")
+
+#: **`full`, so every command written down before today still means what it meant.** The spec 016
+#: run of record and spec 019's own quickstart are `make eval-live K=s012` with nothing else said,
+#: and a default that silently shortened them would make every earlier run record ambiguous.
+DEFAULT_LEGS = "full"
+
+#: The one environment variable the scenario reads for it, set by `make eval-live LEGS=`.
+LEGS_ENV = "KEEL_JOURNEY_LEGS"
+
+
+class UnknownLegs(ValueError):
+    """`KEEL_JOURNEY_LEGS` named something that is neither `short` nor `full`.
+
+    Refused rather than defaulted, for `UnknownHost`'s reason turned the other way up: a typo that
+    quietly ran the **full** journey would spend about thirteen premium requests where the founder
+    asked for two, and a typo that quietly ran the short one would file a cheap measurement under
+    a name that promises an expensive one.
+    """
+
+
+def journey_legs(environ: dict[str, str] | None = None) -> str:
+    """How much of the journey this run is -- `KEEL_JOURNEY_LEGS`, or `full`."""
+    env = os.environ if environ is None else environ
+    raw = (env.get(LEGS_ENV) or "").strip().lower()
+    if not raw:
+        return DEFAULT_LEGS
+    if raw not in LEGS:
+        raise UnknownLegs(
+            f"{LEGS_ENV}={raw!r} is not a length this journey comes in. It is one of "
+            f"{list(LEGS)} -- `make eval-live K=s012 LEGS=short` or `LEGS=full`.")
+    return raw
+
+
+def bundle_slug(host: str | None = None, legs: str | None = None) -> str:
+    """The run bundle's own name: `s012-journey-<host>`, and `-short` when it is the short one.
 
     The host is *in the directory name* because the matrix uploads one bundle per cell and a
     reader looking at eighteen of them has only the name to go on until they open one. It is also
     why this is a function rather than a constant: the name is a fact about the run, resolved
     once, at import, from the same place the scenario resolves everything else about the host.
+
+    **The full journey's name does not move** (spec 021). `s012-journey-copilot` means today what
+    it meant yesterday, and the suffix is carried only by the run that did less -- so a reader who
+    finds a bundle without it knows they are looking at the whole journey, and a `runs/` directory
+    holding both kinds sorts them by eye.
     """
-    return f"s012-journey-{journey_host() if host is None else host}"
+    chosen_host = journey_host() if host is None else host
+    chosen_legs = journey_legs() if legs is None else legs
+    suffix = "" if chosen_legs == DEFAULT_LEGS else f"-{chosen_legs}"
+    return f"s012-journey-{chosen_host}{suffix}"
+
+
+# --------------------------------------------------------------------- whose founder it is
+
+#: The golden-corpus entry S-012's founder is (spec `021-short-journey`; keel-cloud
+#: `canon/designs/measured-beliefs/corpus/`). Until today the journey's founder came from this
+#: repository's own `evals/payroll_exceptions.yaml` -- the *smoke's* fixture, borrowed. The
+#: corpus is the set the product's judgement is measured against everywhere else in this
+#: repository, and a journey that walks a founder nobody wrote down is a journey whose inputs no
+#: other scenario shares.
+#:
+#: `03-lullaby` by default: a CONSUMER role, one role only, three anchors, minutes and small
+#: money -- the shortest path through the three stages that still exercises a real market, and
+#: the entry whose first person (Amira Saleh) wrote under every one of her anchors.
+DEFAULT_ENTRY = "03-lullaby"
+
+#: The environment variable that chooses another one, set by `make eval-live ENTRY=`.
+ENTRY_ENV = "KEEL_JOURNEY_ENTRY"
+
+
+def journey_entry(environ: dict[str, str] | None = None) -> str:
+    """Which corpus entry this journey's founder is -- `KEEL_JOURNEY_ENTRY`, or `03-lullaby`.
+
+    Unlike the host and the legs this is **not** checked against a list here: the corpus is
+    keel-cloud's and this repository does not carry a copy of its filenames. An entry the corpus
+    does not hold is refused by `harness/corpus_script.py:entry_for`, by name, with the ids there
+    actually are -- which is the same refusal the six scripted scenarios get.
+    """
+    env = os.environ if environ is None else environ
+    return (env.get(ENTRY_ENV) or "").strip() or DEFAULT_ENTRY
 
 
 #: Which executor name each host's runtime must end up on. It is the *canonical* name -- the skill

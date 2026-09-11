@@ -1,8 +1,9 @@
-# The matrix, as data (spec 020-matrix-workflow; keel-cloud `canon/designs/e2e-matrix-design.md`
-# §5). This file is the ONLY place the cells are written down: `.github/workflows/matrix.yml`'s
-# `select` job reads it, `make matrix-check` reads it, and `tests/test_matrix_cells.py` holds it to
-# the design's own coverage rules. A founder who wants a different set edits this file and nothing
-# else -- decision 4's "[overrulable] -- promote nightly to eighteen at any time" is one line here.
+# The matrix, as data (specs 020-matrix-workflow and 021-short-journey; keel-cloud
+# `canon/designs/e2e-matrix-design.md` §5). This file is the ONLY place the cells are written down:
+# `.github/workflows/matrix.yml`'s `select` job reads it, `make matrix-check` reads it, and
+# `tests/test_matrix_cells.py` holds it to the six coverage rules. A founder who wants a different
+# set edits this file and nothing else -- decision 4's "[overrulable]" is one line here, and spec
+# 021 is that overrule having been used.
 #
 # THE PYTHON AXIS HAS THREE VALUES AND THE DESIGN'S §5.1 NAMES TWO. That is reconciled here rather
 # than quietly: §5.2 and §10 both count eighteen weekly cells and six nightly ones, and 3 OS x 2
@@ -10,8 +11,25 @@
 # set is "6 / 6 / 6" (two hosts x three Pythons), and the design's own picker sample in §4.3 reads
 # `ubuntu · copilot · py3.12`. So the axis is the floor (3.9, spec 004's promise), the current
 # (3.13, what brew/winget hand out) and 3.12 -- what Ubuntu 24.04 ships as its system Python and
-# what this harness itself runs on. The per-change six still spends 3.9 on Ubuntu and 3.13
-# elsewhere, exactly as §5.2 says, so nothing about the cheap set changed.
+# what this harness itself runs on. (Spec 021 has since moved which of the three each set spends:
+# see the next paragraph. The axis itself did not move.)
+#
+# THE SETS ARE SPEC 021's, NOT §5.2's, AND THE FOUNDER CHANGED THEM ON 2026-09-11. Three
+# decisions, each one a line below:
+#
+#   1. A qualifying change buys the SHORT journey on four cells -- the host leg entire (the plugin
+#      from the marketplace into a fresh host home, "keel connect", device approval, the runtime on
+#      the host's executor) plus the FIRST model job, the PROBLEM frame's confirmation card, and
+#      then the way out. That is the part that breaks when an OS, a Python or a host CLI moves.
+#      The whole journey is about thirteen premium requests a cell; the short one is two.
+#   2. UBUNTU LEAVES per_change AND nightly -- "fewer than 5% of founders" -- and stays in the
+#      weekly eighteen, whole. It is not dropped; it is bought once a week rather than once a
+#      merge.
+#   3. The FLOOR (3.9) moves from per_change to nightly, on Windows, both hosts. spec 004's floor
+#      is still a promise and the night is still every night.
+#
+# `legs` is the new per-cell field. It is optional and defaults to `full`, so a cell written
+# before today means what it meant, and the workflow exports it as KEEL_JOURNEY_LEGS.
 #
 # A cell's Python is the runtime's, not the harness's: it is what `python3` resolves to when the
 # host CLI runs the skill's script, which is what the bundled runtime is then executed by (spec 003
@@ -40,38 +58,41 @@ live = ["s004", "s012"]
 
 [sets]
 
-# Every qualifying change (§5.2, six cells): each OS once per host, Python 3.9 on the Ubuntu cells
-# and 3.13 elsewhere. "An OS bug shows up on any Python, a Python-floor bug shows up on any OS, and
-# the pairwise six catch both per change."
+# Every qualifying change (spec 021, FOUR cells): macOS and Windows, each host, the current
+# Python, the SHORT journey. These are the two operating systems founders install the plugin on
+# and the Python brew and winget hand them; Ubuntu and the floor are bought overnight instead.
+#
+# Nothing here overrides `scenarios`: the cheap set runs S-012 and only S-012, which is what
+# `coverage_problems` holds it to.
 per_change = [
-    { os = "ubuntu-24.04",   host = "claude",  python = "3.9" },
-    { os = "ubuntu-24.04",   host = "copilot", python = "3.9" },
-    { os = "macos-latest",   host = "claude",  python = "3.13" },
+    { os = "macos-latest",   host = "claude",  python = "3.13", legs = "short" },
+    { os = "macos-latest",   host = "copilot", python = "3.13", legs = "short" },
+    { os = "windows-latest", host = "claude",  python = "3.13", legs = "short" },
+    { os = "windows-latest", host = "copilot", python = "3.13", legs = "short" },
+]
+
+# Nightly, 03:00 UTC (spec 021, SIX cells): the four a merge bought short, bought WHOLE -- so a
+# break the short journey cannot see is at most a day old -- plus Windows on the 3.9 floor, both
+# hosts, which is where spec 004's promise is now kept. Ubuntu is weekly.
+#
+# The corpus scenarios ride on ONE cell, macOS x Claude (decision 11): S-005/6/7 drive the
+# product's own judgement through the real screens against the frozen corpus, they call no model
+# at all, and they are the nightly's answer to "did the reading still read right" -- so they cost
+# this set nothing but the minutes of a cell that was already running. They need keel-cloud's
+# corpus directory, which the cell job checks out beside the two public siblings.
+nightly = [
+    { os = "macos-latest",   host = "claude",  python = "3.13", scenarios = ["s012", "s005", "s006", "s007"] },
     { os = "macos-latest",   host = "copilot", python = "3.13" },
     { os = "windows-latest", host = "claude",  python = "3.13" },
     { os = "windows-latest", host = "copilot", python = "3.13" },
+    { os = "windows-latest", host = "claude",  python = "3.9" },
+    { os = "windows-latest", host = "copilot", python = "3.9" },
 ]
 
-# Nightly, 03:00 UTC (§5.2, six cells): Ubuntu only, both hosts, every Python -- the axis the
-# per-change set spends only two values of. Linux minutes only, which is why this one is the cheap
-# one to run every night.
-#
-# The corpus scenarios ride on ONE Claude cell (decision 11): S-005/6/7 drive the product's own
-# judgement through the real screens against the frozen corpus, they call no model at all, and they
-# are the nightly's answer to "did the reading still read right" -- so they cost this set nothing
-# but the minutes of a cell that was already running.
-nightly = [
-    { os = "ubuntu-24.04", host = "claude",  python = "3.9" },
-    { os = "ubuntu-24.04", host = "claude",  python = "3.12" },
-    { os = "ubuntu-24.04", host = "claude",  python = "3.13", scenarios = ["s012", "s005", "s006", "s007"] },
-    { os = "ubuntu-24.04", host = "copilot", python = "3.9" },
-    { os = "ubuntu-24.04", host = "copilot", python = "3.12" },
-    { os = "ubuntu-24.04", host = "copilot", python = "3.13" },
-]
-
-# Weekly, Sunday 04:00 UTC (§5.2, eighteen cells): the full product of the three axes. "A weekly
-# confirmation that nothing is hiding in a corner." `tests/test_matrix_cells.py` asserts this set
-# IS the product rather than trusting the list below to stay complete.
+# Weekly, Sunday 04:00 UTC (§5.2, eighteen cells): the full product of the three axes, every one
+# of them the whole journey. "A weekly confirmation that nothing is hiding in a corner", and the
+# one set Ubuntu is in. `tests/test_matrix_cells.py` asserts this set IS the product rather than
+# trusting the list below to stay complete.
 weekly = [
     { os = "ubuntu-24.04",   host = "claude",  python = "3.9" },
     { os = "ubuntu-24.04",   host = "claude",  python = "3.12" },

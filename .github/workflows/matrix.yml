@@ -136,16 +136,26 @@ jobs:
           python -m matrix --set "$set_name" --cells "${INPUT_CELLS:-}"
 
       - id: gate
-        name: Is the twin switched on?
+        name: Is the twin switched on, and did the founder say [skip e2e]?
         shell: bash
         env:
           ENABLED: ${{ vars.KEEL_STAGING_ENABLED }}
           SET: ${{ steps.pick.outputs.set }}
           COUNT: ${{ steps.pick.outputs.count }}
           WHY: ${{ steps.pick.outputs.why }}
+          EVENT: ${{ github.event_name }}
+          # §6.2's override, and until spec 021 the FOUR SENDERS honoured it and the receiver did
+          # not -- so `[skip e2e]` on a merge to keel-cloud was obeyed and the same words on a
+          # merge to this repository were not. Read through the environment, never interpolated
+          # into the script: a commit message is a stranger's text and `${{ }}` inside `run:` is
+          # substituted before bash ever sees it.
+          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           set -euo pipefail
-          if [ "${ENABLED:-}" = "true" ]; then
+          if [ "$EVENT" = "push" ] && printf '%s' "${HEAD_COMMIT_MESSAGE:-}" | grep -qF '[skip e2e]'; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Matrix skipped: the head commit says \`[skip e2e]\`. $SET would have run $COUNT cell(s) — $WHY. (The founder's own override, §6.2 — a path filter cannot tell a bug fix from a redesign, so the commit message is the human's word.)" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${ENABLED:-}" = "true" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
             echo "Matrix **$SET**, $COUNT cell(s) — $WHY." >> "$GITHUB_STEP_SUMMARY"
           else
@@ -458,6 +468,9 @@ jobs:
       # what the founder reads in the morning.
       KEEL_REMOTE_CELL: ${{ matrix.cell.id }}
       KEEL_JOURNEY_HOST: ${{ matrix.cell.host }}
+      # spec 021: `short` on the four per-change cells -- the host leg and the first model job --
+      # and `full` everywhere else. The cell's own field, so the set decides and the job reads.
+      KEEL_JOURNEY_LEGS: ${{ matrix.cell.legs }}
     steps:
       - uses: actions/checkout@v4
 
@@ -478,6 +491,38 @@ jobs:
           repository: keeldiscovery/keel-runtime
           path: siblings/keel-runtime
 
+      # THE GOLDEN CORPUS, and the third sibling a cell needs (spec 021). S-012's founder is a
+      # corpus founder now -- the entry's title, market and three statements, and its first
+      # person's own story and picks -- and the nightly cell's S-005/6/7 read the same directory.
+      # keel-cloud is private, so this is the read-only siblings token and nothing but the corpus
+      # directory: a sparse checkout of about 60 kB, never the repository.
+      #
+      # A cell without the token gets a warning here and a NAMED failure in the scenario
+      # ("no corpus at ..."), never a quiet fallback to some other founder. A bundle that
+      # measured a different person than it says it did is worse than one that measured nobody.
+      - id: siblings-token
+        name: Is there a token for the private sibling the corpus lives in?
+        env:
+          SIBLINGS: ${{ secrets.KEEL_SIBLINGS_TOKEN || secrets.KEEL_SIBLINGS }}
+        run: |
+          set -euo pipefail
+          if [ -n "${SIBLINGS:-}" ]; then
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::KEEL_SIBLINGS_TOKEN is not set, so keel-cloud's golden corpus cannot be checked out. S-012's founder and the corpus scenarios read it, and this cell will fail by name rather than measure a founder nobody wrote down."
+          fi
+
+      - name: Check out keel-cloud's golden corpus (private, read-only, that directory only)
+        if: steps.siblings-token.outputs.have == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: keeldiscovery/keel-cloud
+          token: ${{ secrets.KEEL_SIBLINGS_TOKEN || secrets.KEEL_SIBLINGS }}
+          path: siblings/keel-cloud
+          sparse-checkout: canon/designs/measured-beliefs/corpus
+          sparse-checkout-cone-mode: false
+
       - name: Bundle the runtime into the skill, and point stack.toml at the siblings
         run: |
           set -euo pipefail
@@ -493,6 +538,7 @@ jobs:
           p = pathlib.Path("stack.toml"); s = p.read_text()
           s = re.sub(r'^keel_runtime = .*$', 'keel_runtime = "siblings/keel-runtime"', s, flags=re.M)
           s = re.sub(r'^keel_connect_skill = .*$', 'keel_connect_skill = "siblings/keel-connect-skill"', s, flags=re.M)
+          s = re.sub(r'^keel_cloud = .*$', 'keel_cloud = "siblings/keel-cloud"', s, flags=re.M)
           p.write_text(s); print(s.split("[ports]")[0])
           PY
 
@@ -698,14 +744,28 @@ jobs:
     needs: [select, deploy-staging, cell]
     if: always() && needs.select.outputs.enabled == 'true'
     runs-on: ubuntu-24.04
+    # Scoped to this job alone (spec 021): the whole workflow reads contents and mints an OIDC
+    # token, and exactly one job of it may write an issue. A job-level block REPLACES the
+    # workflow's, so `contents: read` is restated here -- and `id-token` is not, because nothing
+    # in this job goes near AWS.
+    permissions:
+      contents: read
+      issues: write
     steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - uses: actions/download-artifact@v4
         with:
           pattern: row-*
           path: rows
           merge-multiple: false
 
-      - name: One table
+      - id: table
+        name: One table
         shell: bash
         env:
           SET: ${{ needs.select.outputs.set }}
@@ -744,4 +804,75 @@ jobs:
                         "founder's command from the Mac (invariant M8)."]
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
               handle.write("\n".join(lines) + "\n")
+
+          # The same table, on its own, for the issue below to carry -- and the two numbers its
+          # decision turns on, written where a `run:` block can read them without parsing YAML.
+          pathlib.Path("table.md").write_text("\n".join(lines[4:]) + "\n", encoding="utf-8")
+          red = any((r.get("verdict") or "").upper() != "PASSED" for r in rows)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"red={'true' if red else 'false'}\n")
+              handle.write(f"ran_any={'true' if rows else 'false'}\n")
           PY
+
+      # ------------------------------------------------------------------------- and one issue
+      #
+      # §6.4 records a verdict in three places a founder has to GO AND LOOK AT. A red matrix on a
+      # Sunday night is a red matrix nobody sees until Monday, so this is the fourth: ONE issue,
+      # titled `Matrix is red`, labelled `matrix`. A second red run comments on it rather than
+      # opening a second; the first all-green run says "green again" and closes it.
+      #
+      # The decision -- which of open / comment / close / nothing, and with what body -- is
+      # `python -m matrix.notify`, held by `tests/test_matrix_notify.py`, because four branches
+      # and two edge cases inside a `run:` block are four branches nothing can check. What is left
+      # here is four `gh issue` calls with no branches of their own.
+      #
+      # STILL NOT A TRIGGER (invariant M8, decision 12). An issue is information. Nothing here
+      # deploys anything, rolls anything back, or touches production.
+      - name: Tell the founder when the matrix turns red, and when it is green again
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RED: ${{ steps.table.outputs.red || 'true' }}
+          RAN_ANY: ${{ steps.table.outputs.ran_any || 'false' }}
+          CELLS_RESULT: ${{ needs.cell.result }}
+          SET: ${{ needs.select.outputs.set }}
+          WHY: ${{ needs.select.outputs.why }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # A cell job that failed outright -- crashed before pytest, or timed out -- wrote no
+          # row, so the table cannot see it. Either reading of red is red, and a matrix where
+          # every cell crashed is the reddest one there is: it ALSO counts as having run, or the
+          # "measured nothing, say nothing" rule below would swallow it.
+          red="$RED"
+          ran_any="$RAN_ANY"
+          case "$CELLS_RESULT" in
+            failure) red=true; ran_any=true ;;
+            success) ran_any=true ;;
+          esac
+          # Found by TITLE, not by label: `gh issue list --label matrix` fails outright on a
+          # repository where nobody has created that label yet, which is every repository until
+          # the first red run -- and failing to find the issue must never fail the step.
+          number=$(gh issue list --state open --limit 100 \
+                     --json number,title \
+                     --jq 'map(select(.title == "Matrix is red")) | first | .number // empty' \
+                     || true)
+          plan=$(python -m matrix.notify --red "$red" --ran-any "$ran_any" \
+                   --issue "${number:-}" --table-file table.md --run-url "$RUN_URL" \
+                   --set "$SET" --why "$WHY" --body-out issue-body.md)
+          action=$(python -c 'import json,sys; print(json.loads(sys.argv[1])["action"])' "$plan")
+          why=$(python -c 'import json,sys; print(json.loads(sys.argv[1])["why"])' "$plan")
+          echo "$action: $why"
+          case "$action" in
+            open)    # ...and the label has to exist before an issue may carry it. Idempotent,
+                     # and its failure is never this step's failure.
+                     gh label create matrix --color d73a4a \
+                       --description "the e2e matrix on the staging twin" 2>/dev/null || true
+                     gh issue create --title "Matrix is red" --label matrix --body-file issue-body.md ;;
+            comment) gh issue comment "$number" --body-file issue-body.md ;;
+            close)   gh issue comment "$number" --body-file issue-body.md
+                     gh issue close "$number" ;;
+            *)       : ;;
+          esac

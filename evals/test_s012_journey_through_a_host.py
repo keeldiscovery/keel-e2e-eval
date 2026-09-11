@@ -1,4 +1,5 @@
-"""S-012 -- the journey through a host (specs `016-copilot-e2e` and `019-journey-through-a-host`).
+"""S-012 -- the journey through a host (specs `016-copilot-e2e`, `019-journey-through-a-host`
+and `021-short-journey`).
 
 **Live**, opt-in through `make eval-live K=s012`, never part of `make eval`/`make eval-all`, and it
 spends the founder's own money on whichever host it is pointed at.
@@ -39,6 +40,26 @@ FR-007). A live model's sentence is not stable and a test that pinned one would 
 weather; what is asserted is that the card exists, carries numbered lines, separates at least one
 deal-breaker, and was not refused.
 
+**Two lengths, and the short one is what every qualifying change runs** (spec 021).
+`KEEL_JOURNEY_LEGS=short` (`make eval-live K=s012 HOST=... LEGS=short`) stops the journey after the
+**first model job** -- the host leg entire, then the PROBLEM frame's confirmation card landing --
+and leaves by the same door. It asserts exactly the assertions the full journey makes up to that
+point and **not one thing more**: nothing is read out of the model's prose that was not read out
+of it before, and no new shape is claimed because the run is shorter. `full` is unchanged and is
+what the nightly and weekly sets run. The bundle's own name carries the difference.
+
+**The founder is a golden-corpus founder** (spec 021). `KEEL_JOURNEY_ENTRY`, default `03-lullaby`,
+names an entry in keel-cloud's `canon/designs/measured-beliefs/corpus/`; the entry's title is the
+project name, its market is the market, its three statements are typed verbatim, and its **first
+person** answers with their own story text and their own picks. They are read through
+`harness/corpus_script.py` -- the same `founder_inputs`/`person_inputs` the six scripted scenarios
+read them through, reused rather than copied, so the journey's founder and the corpus scenarios'
+founder are the same founder rather than two people who happen to agree. What this does **not**
+change is the model's half: the beliefs, the roles, the anchors and the pick lists on a live run
+are the host model's own, so the person's story goes into the anchors the model wrote, in order,
+and their picks are used where the model's own option list happens to offer them. Which is which
+is recorded in the bundle, never asserted (spec 016 FR-007).
+
 **Not scored.** No attribute of `evals/policy.py` applies to a scenario about which host loaded a
 skill and which model answered a job -- the same reason S-008 and S-009 are not scored. The
 evidence is the transcript, the two host transcripts beside it, and the per-job envelopes.
@@ -55,13 +76,12 @@ import time
 
 import pytest
 
-from evals import payroll_exceptions as fx
 from evals.preludes import create_project
-from harness import agent_host, canary as canary_mod, refusals
+from harness import agent_host, canary as canary_mod, corpus_script, refusals
 from stack import remote
 from harness.browser import (Auth, Chat, Connect, Landing, OpenedCard, Overview, ParticipantPage,
                               People, ReviewCard, Shell)
-from harness.evidence import finalize_run, write_generated, write_host
+from harness.evidence import finalize_run, write_block, write_generated, write_host
 from harness.steps import Recorder
 from stack import runtime as stack_runtime
 
@@ -84,9 +104,25 @@ def _environment_of(base_url: str) -> str:
         host = f"[{host}]"
     return f"{host}:{parts.port}" if parts.port else host
 
-#: `runs/<stamp>-s012-journey-<host>/`. The matrix uploads one bundle per cell and a reader
+#: **How much of this journey is run**, resolved once, at import, from `KEEL_JOURNEY_LEGS`
+#: (spec 021). `short` is the host leg plus the first model job; `full` is everything. An unknown
+#: value raises for the same reason an unknown host does -- one typo either overspends or
+#: underspends the founder's money and files the result under the wrong name.
+LEGS = agent_host.journey_legs()
+
+#: True when this run stops after the PROBLEM frame's confirmation card. Read in exactly two
+#: places below -- where leg two would go on, and where the bundle records what it did -- so the
+#: short journey is a *stopping point* in the one story and never a second story.
+SHORT = LEGS == "short"
+
+#: **Whose founder walks it** -- an entry id in keel-cloud's golden corpus (`KEEL_JOURNEY_ENTRY`,
+#: default `03-lullaby`). Resolved at import beside the other two axes; the entry itself is read
+#: inside the test, where the stack fixture has told us where keel-cloud is.
+ENTRY_ID = agent_host.journey_entry()
+
+#: `runs/<stamp>-s012-journey-<host>[-short]/`. The matrix uploads one bundle per cell and a reader
 #: looking at eighteen of them has only the name to go on until they open one.
-BUNDLE = agent_host.bundle_slug(HOST)
+BUNDLE = agent_host.bundle_slug(HOST, LEGS)
 
 #: The founder's own three words. Not "run the keel connect skill", not "use the keel-connect
 #: plugin to start the runtime" -- the point of leg one is that a host with the skill installed
@@ -166,15 +202,15 @@ def _now() -> float:
     return time.monotonic()
 
 
-def _walk_stage_live(page, recorder, get_json, project_id, stage, opening, *, timeout_s=300.0):
-    """One stage of the guided walk, against a **live** model.
+def _land_the_card(page, recorder, get_json, project_id, stage, opening, *, timeout_s=300.0):
+    """**The first model job of a stage**: the founder says their statement, the host's model
+    thinks, and a confirmation card carrying a non-empty claim comes back.
 
-    Deliberately not `evals/preludes.py::walk_stage`. That one asserts the confirmation card's
-    claim **verbatim** against the generated script, which is exactly right for a scripted executor
-    and meaningless against a model that writes its own sentence; and its 90-second waits are a
-    scripted runtime's, not a live one's. Copying it here rather than growing a `live=` branch on
-    it is the choice spec 016's plan states: `walk_stage` is six deterministic scenarios' contract
-    with the corpus, and a conditional in it would make all six read like this one.
+    Split out of `_walk_stage_live` for spec 021 and for nothing else: the short journey ends here,
+    on the PROBLEM stage, and the full journey goes straight on from here into the review. Both
+    call this; neither has a copy of it. The assertion the short run makes is therefore *literally*
+    the assertion the full run makes at the same point, rather than a second one written to look
+    like it.
     """
     chat = Chat(page, recorder)
     chat.send(opening)
@@ -217,7 +253,21 @@ def _walk_stage_live(page, recorder, get_json, project_id, stage, opening, *, ti
         with recorder.step(f"§1.1: {stage} landed, but not on the first try",
                             party="stack", kind="note") as h:
             h.record_wire(None, {"jobs that failed before the card": stops})
+    return chat, card
 
+
+def _walk_stage_live(page, recorder, get_json, project_id, stage, opening, *, timeout_s=300.0):
+    """One stage of the guided walk, against a **live** model.
+
+    Deliberately not `evals/preludes.py::walk_stage`. That one asserts the confirmation card's
+    claim **verbatim** against the generated script, which is exactly right for a scripted executor
+    and meaningless against a model that writes its own sentence; and its 90-second waits are a
+    scripted runtime's, not a live one's. Copying it here rather than growing a `live=` branch on
+    it is the choice spec 016's plan states: `walk_stage` is six deterministic scenarios' contract
+    with the corpus, and a conditional in it would make all six read like this one.
+    """
+    chat, _card = _land_the_card(page, recorder, get_json, project_id, stage, opening,
+                                 timeout_s=timeout_s)
     chat.save_confirmation()
     landed = chat.wait_for_review(project_id, stage, timeout_s=timeout_s + 180)
     with recorder.step(f"§1.2: the {stage} review opened itself, with no button pressed",
@@ -292,11 +342,44 @@ def _agent_answers(chat, recorder, get_json, project_id, stage, *, timeout_s):
         return {"stopped": stopped, "agent_reply": ""}
 
 
-#: One benign sentence per anchor, and the same one every time. Its *content* is asserted nowhere:
-#: what leg two needs from the stranger is that a real answer reached keel-cloud and produced a
-#: reading, not that any particular words did.
-THE_STRANGER_SAYS = ("Last month it took me about two hours the day before the pay run, and one "
-                     "person was nearly paid the wrong amount because a timesheet came in late.")
+#: **The last resort, and only that** (spec 021). The stranger's words are the corpus person's own
+#: -- one story per anchor they wrote under, in the corpus's own order -- and this sentence is used
+#: only where a live model wrote more anchors than that person has stories for. Its *content* is
+#: asserted nowhere either way: what leg two needs from the stranger is that a real answer reached
+#: keel-cloud and produced a reading, not that any particular words did.
+THE_STRANGER_SAYS = ("I am thinking of the last time this happened to me, and it went much the "
+                     "way I described above.")
+
+
+def _story_texts(person) -> list[str]:
+    """The corpus person's own story text, per anchor they wrote under, in the corpus's order.
+
+    `PersonInputs.written()` is `harness/corpus_script.py`'s own reading of *wrote something* --
+    the same one the six scripted scenarios type from -- so a blank anchor in the corpus is a
+    blank anchor here and this repository has one answer to that question, not two.
+    """
+    return [(a.text or "").strip() for a in person.written() if (a.text or "").strip()]
+
+
+def _their_pick(person, options: list[str]) -> tuple[str, bool]:
+    """Which of the **model's own** options this corpus person picked, and whether it is theirs.
+
+    A live run has no corpus questionnaire: the anchors and the pick lists are the host model's,
+    invented from the founder's three statements, and a corpus selection id (`S2`) names nothing on
+    the page. So the match is by **value**, case- and space-insensitively, across every pick the
+    person made: *"3 to 4"* is theirs whichever selection the model hung it under. Where nothing
+    of theirs is offered, the first option is taken -- exactly what this scenario did before spec
+    021 -- and the caller records which of the two happened.
+
+    Returns `(option, it_was_theirs)`. Never asserts: a model that offered none of the person's
+    answers has written a different questionnaire, which is a finding for the bundle and not a
+    failure of the journey (FR-007).
+    """
+    theirs = {str(v).strip().casefold() for pick in person.picks for v in pick.values}
+    for option in options:
+        if str(option).strip().casefold() in theirs:
+            return option, True
+    return options[0], False
 
 
 def _invite_one_live(page, recorder, project_id: str, web_base: str, person_name: str) -> str:
@@ -305,8 +388,9 @@ def _invite_one_live(page, recorder, project_id: str, web_base: str, person_name
     Deliberately not `evals/preludes.py::invite_everyone`, which reads its role labels out of the
     corpus entry (`{role["id"]: role["label"] for role in entry.roles}`). That is right for a
     scripted run, where the script *is* the corpus, and wrong here: on a live run the roles are
-    **the host's model's**, invented from the founder's own three statements, and the fixture's *"A payroll
-    manager"* is a label nothing on this page ever had. This repository has made that exact mistake
+    **the host's model's**, invented from the founder's own three statements, and the entry's own
+    *"New parents"* is a label nothing on this page need ever have had. This repository has made
+    that exact mistake
     once already, in S-010 -- *"asked a warm project for a fixture's role"* -- and the fix was the
     same one: read the label off the screen.
     """
@@ -329,19 +413,24 @@ def _invite_one_live(page, recorder, project_id: str, web_base: str, person_name
     return url
 
 
-def _answer_whatever_is_asked(browser, recorder, url: str, person_name: str) -> dict:
-    """The stranger answers **the questions the page actually asks**, in their own browser context.
+def _answer_whatever_is_asked(browser, recorder, url: str, person) -> dict:
+    """The corpus person answers **the questions the page actually asks**, in their own context.
 
     `ParticipantPage.answer_as(person, entry)` resolves a corpus person's answers against the
-    corpus's own anchor and selection prompts. On a live project there is no corpus: the anchors
-    are the ones the host wrote, and every one of that method's `offers(prompt)` checks would fail
-    silently into `skipped`, submitting an empty page. So this reads the rendered page instead --
-    the same move S-004 makes with `_page_choice`, for the same reason: *what is offered is the
-    page's to say.*
+    *corpus's* own anchor and selection prompts. On a live project there is no corpus
+    questionnaire: the anchors are the ones the host wrote, and every one of that method's
+    `offers(prompt)` checks would fail silently into `skipped`, submitting an empty page. So this
+    reads the rendered page instead -- the same move S-004 makes with `_page_choice`, for the same
+    reason: *what is offered is the page's to say.*
 
-    A story in every anchor, and the first offered option in every selection under it. Nothing
-    about which option is asserted anywhere; what leg two needs is a real answer on the wire.
+    What spec 021 changed is **whose words go into it**. The story under the nth anchor is the
+    corpus person's own nth story, and a selection is answered with their own value wherever the
+    model's option list offers it. Where it does not -- a model that asked something the corpus
+    person was never asked -- the first option is taken, as before, and the bundle says which
+    answers were theirs and which were the fallback. Nothing about either is asserted; what leg two
+    needs is a real answer on the wire (FR-007).
     """
+    stories = _story_texts(person)
     context = browser.new_context()
     try:
         page = context.new_page()
@@ -352,26 +441,42 @@ def _answer_whatever_is_asked(browser, recorder, url: str, person_name: str) -> 
                             party="participant", kind="assert") as h:
             h.record_assert({"anchors": ">= 1"}, drawn)
             assert drawn, f"the invitation link rendered no questions at all: {url}"
-        answered, picked = [], []
+        answered, picked, theirs_used, fell_back = [], [], [], []
+        told = 0
         for anchor in drawn:
             prompt = anchor.get("prompt") or ""
             if not prompt:
                 continue
-            participant.tell_story(prompt, THE_STRANGER_SAYS)
-            answered.append(prompt[:60])
+            hers = told < len(stories)
+            story = stories[told] if hers else THE_STRANGER_SAYS
+            participant.tell_story(prompt, story)
+            told += 1
+            answered.append({"prompt": prompt[:60], "said": story[:200],
+                              "whose": (person.person if hers else
+                                        "nobody's -- the model wrote more anchors than this "
+                                        "person has stories, so the last resort was typed")})
+            (theirs_used if hers else fell_back).append(f"anchor: {prompt[:50]}")
             for selection in anchor.get("selections") or []:
                 options = participant.options_for(selection, anchor_prompt=prompt)
                 if not options:
                     continue
-                participant.pick(selection, [options[0]], anchor_prompt=prompt)
-                picked.append(f"{selection[:40]} -> {options[0]}")
+                option, was_theirs = _their_pick(person, options)
+                participant.pick(selection, [option], anchor_prompt=prompt)
+                picked.append(f"{selection[:40]} -> {option}"
+                              + ("" if was_theirs else "  (the page's own first option; none of "
+                                                        "this person's answers was offered)"))
+                (theirs_used if was_theirs else fell_back).append(f"pick: {selection[:44]}")
         participant.submit()
-        with recorder.step(f"§2.3: {person_name} sent their answers",
+        with recorder.step(f"§2.3: {person.person} sent their answers",
                             party="participant", kind="assert") as h:
             h.record_assert({"anchors answered": len(drawn)},
-                             {"answered": answered, "picked": picked})
+                             {"answered": answered, "picked": picked,
+                              "the corpus person's own words and answers, used": theirs_used,
+                              "the model asked what the corpus did not, so the page's own answer "
+                              "was taken": fell_back})
             assert answered, "the stranger typed nothing anywhere"
-        return {"answered": answered, "picked": picked}
+        return {"answered": answered, "picked": picked, "theirs": theirs_used,
+                "not theirs": fell_back}
     finally:
         context.close()
 
@@ -396,25 +501,52 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
     # Eval Founder locally, a founder registered for this cell against the twin's gated chooser.
     web_base = stack.web_base_url
     cloud_base = stack.cloud_base_url
-    cell_label = f"{remote.cell_name()} · {HOST} · journey · {time.strftime('%Y-%m-%d', time.gmtime())}"
+    cell_label = (f"{remote.cell_name()} · {HOST} · journey ({LEGS}) · "
+                  f"{time.strftime('%Y-%m-%d', time.gmtime())}")
     founder_one = remote.identity_to_sign_in_as(stack, cell_label, fallback=founder_one)
     started = _now()
     passed = False
     context = browser.new_context()
 
-    founder = fx.founder()
-    # **The fixture supplies the founder's three statements and a person's name, and nothing
-    # else.** Its beliefs, roles, anchors and typed answers are a *script's* data; on a live run
-    # the host's model writes all four, so anything read from the fixture past this point would be
-    # a question nobody asked.
-    person_name = fx.people()[0].person
-    write_generated(run_dir, inputs={"project": founder.project_name,
+    # **The founder, and the one person, come from the golden corpus** (spec 021) -- through
+    # `harness/corpus_script.py`, which is the same module the six scripted scenarios read the
+    # same entry through. Reused rather than copied: `founder_inputs` already refuses an entry
+    # with a missing statement by name, `person_inputs` already refuses a person offered an anchor
+    # their role is not asked, and a second reader here would be a second chance to be wrong about
+    # both. A corpus this run cannot reach raises with the directory it looked in -- never a
+    # fallback to some other founder, because a bundle that quietly measured a different person is
+    # worse than one that measured nobody.
+    corpus, entry = corpus_script.entry_for(stack.keel_cloud, ENTRY_ID)
+    founder = corpus_script.founder_inputs(entry)
+    # **The entry's beliefs, roles, anchors and taps are a *script's* data and are read nowhere
+    # below.** On a live run the host's model writes all four. What this run takes from the entry
+    # is exactly what a founder types (the name, the market, the three statements) and exactly
+    # what one person says (their story per anchor, their picks) -- and the model's half stays
+    # free and shape-asserted (spec 016 FR-007).
+    person = corpus_script.person_inputs(entry)[0]
+    person_name = person.person
+    write_generated(run_dir, inputs={"entry": entry.id,
+                                     "project": founder.project_name,
                                      "market": founder.market.country,
                                      "statements": {stage: founder.statement(stage)
                                                      for stage in STAGES},
                                      "person": person_name,
+                                     "their stories": _story_texts(person),
+                                     "their picks": {p.selection_id: p.values
+                                                      for p in person.picks},
                                      "host": HOST,
-                                     "the stranger's story": THE_STRANGER_SAYS})
+                                     "legs": LEGS})
+    # The sixth and seventh facts a reader of eighteen bundles needs after the five repositories:
+    # whose founder walked it, and how far.
+    write_block(run_dir, "journey", {
+        "entry": entry.id, "entry_sha256": entry.sha256, "title": founder.project_name,
+        "person": person_name, "legs": LEGS,
+        "legs, what that means": (
+            "the host leg entire, plus the first model job -- the PROBLEM frame's confirmation "
+            "card -- and then the way out" if SHORT else
+            "both legs: three stages framed, reviewed and approved, one person invited and "
+            "answered, the reading read, the brief written, the overview and one card opened"),
+        "corpus": str(corpus.directory)})
 
     keel_home = run_dir / "keel-home"
     host_home_dir = run_dir / f"{HOST}-home"
@@ -678,75 +810,102 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                     f"pinned {model!r}: `KEEL_COPILOT_MODEL` did not reach the executor")
 
         project_id = create_project(page, recorder, web_base, founder)
-        for stage in STAGES:
-            _walk_stage_live(page, recorder, _get, project_id, stage, founder.statement(stage))
-            ReviewCard(page, recorder, web_base).continue_onward()
 
-        people = People(page, recorder, web_base)
-        people.open(project_id)
-        with recorder.step("§1.4: People unlocks once every framed card is approved",
-                            party="founder", kind="assert") as h:
-            locked = Shell(page, recorder).people_locked()
-            h.record_assert({"people_locked": False}, {"people_locked": locked})
-            assert not locked, "People stayed locked after all three approvals"
+        # **The first model job, and on the short journey the only one** (spec 021). The founder
+        # types the entry's PROBLEM statement and the host's model answers it with a confirmation
+        # card. `_land_the_card` is one function, called from here and from `_walk_stage_live`, so
+        # the assertion the short run makes is *the same assertion* the full run makes at the same
+        # point -- not a copy of it that would have to be kept in step.
+        if SHORT:
+            _land_the_card(page, recorder, _get, project_id, "PROBLEM",
+                           founder.statement("PROBLEM"))
+            # Nothing is asserted about *stopping*: the short journey does less, it does not do
+            # something else. This is a note, and every assertion below it -- no refusals, every
+            # job COMPLETED, what it cost, the founder's own way out -- is one both lengths make.
+            with recorder.step("spec 021: the short journey stops here -- the host leg and the "
+                                "first model job are what a qualifying change buys",
+                                party="stack", kind="note") as h:
+                h.record_wire({agent_host.LEGS_ENV: LEGS},
+                               {"asserted": "the plugin from the public marketplace, the skill "
+                                            "seen as a plugin skill, a runtime awaiting "
+                                            "approval, a code this Keel issued, the device "
+                                            "approved, `already_connected`, the executor chosen "
+                                            "by flag, the pin, and one confirmation card",
+                                "not run, and run nightly and weekly instead": (
+                                    "the PROBLEM review, SOLUTION, COMMERCIAL, the person, the "
+                                    "reading, *What this says*, the overview and one card"),
+                                "the founder this run typed as": founder.project_name,
+                                "the entry they came from": entry.id})
+        else:
+            for stage in STAGES:
+                _walk_stage_live(page, recorder, _get, project_id, stage, founder.statement(stage))
+                ReviewCard(page, recorder, web_base).continue_onward()
 
-        url = _invite_one_live(page, recorder, project_id, web_base, person_name)
-        _answer_whatever_is_asked(browser, recorder, url, person_name)
+            people = People(page, recorder, web_base)
+            people.open(project_id)
+            with recorder.step("§1.4: People unlocks once every framed card is approved",
+                                party="founder", kind="assert") as h:
+                locked = Shell(page, recorder).people_locked()
+                h.record_assert({"people_locked": False}, {"people_locked": locked})
+                assert not locked, "People stayed locked after all three approvals"
 
-        people.open(project_id)
-        people.switch_to_who_tab()
-        read_result = people.read_all_and_wait(timeout_s=420)
-        with recorder.step("§1.6: the host read the answer, and the toast names what moved",
-                            party="founder", kind="assert") as h:
-            h.record_assert("a non-empty toast", read_result["toast_text"])
-            assert read_result["toast_text"].strip(), (
-                "the reading produced no toast, so nothing was read")
+            url = _invite_one_live(page, recorder, project_id, web_base, person_name)
+            _answer_whatever_is_asked(browser, recorder, url, person)
 
-        overview = Overview(page, recorder, web_base)
-        with recorder.step("§1.7: *What this says* -- the paragraph the host wrote, unasked",
-                            party="founder", kind="assert") as h:
-            # keel-cloud starts a BRIEF job by itself when a reading batch finishes
-            # (`ReadingBatchService.sayWhatThisSays`), so the founder is given nothing to wait on
-            # and this polls the wire the runtime is answering.
-            deadline = _now() + 420
-            paragraph = None
-            while _now() < deadline:
-                wire = _get(f"/v2/projects/{project_id}/overview") or {}
-                paragraph = wire.get("whatThisSays")
-                if paragraph and paragraph.strip():
-                    break
-                page.wait_for_timeout(3_000)
-            overview.open(project_id)
-            on_screen = overview.what_this_says_paragraph()
-            h.record_assert({"whatThisSays": "non-empty, and rendered verbatim"},
-                             {"wire": paragraph, "screen": on_screen})
-            assert paragraph and paragraph.strip(), (
-                "no *What this says* paragraph after the reading -- the BRIEF job the host was "
-                "given never produced one")
-            assert on_screen == paragraph, (
-                f"the overview renders {on_screen!r}, not the server's own {paragraph!r}")
+            people.open(project_id)
+            people.switch_to_who_tab()
+            read_result = people.read_all_and_wait(timeout_s=420)
+            with recorder.step("§1.6: the host read the answer, and the toast names what moved",
+                                party="founder", kind="assert") as h:
+                h.record_assert("a non-empty toast", read_result["toast_text"])
+                assert read_result["toast_text"].strip(), (
+                    "the reading produced no toast, so nothing was read")
 
-        with recorder.step("§1.7: the overview carries the bar, the legend and three stage cards",
-                            party="founder", kind="assert") as h:
-            counts = overview.lines_with_answers()
-            legend = overview.legend()
-            cards = overview.stage_cards()
-            h.record_assert({"stage cards": 3, "legend": list(overview.LEGEND_WORDS)},
-                             {"lines with answers": counts, "legend": legend,
-                              "stage cards": [c["bet"] for c in cards]})
-            assert len(cards) == 3, [c["bet"] for c in cards]
-            assert set(legend) == set(overview.LEGEND_WORDS), legend
+            overview = Overview(page, recorder, web_base)
+            with recorder.step("§1.7: *What this says* -- the paragraph the host wrote, unasked",
+                                party="founder", kind="assert") as h:
+                # keel-cloud starts a BRIEF job by itself when a reading batch finishes
+                # (`ReadingBatchService.sayWhatThisSays`), so the founder is given nothing to wait on
+                # and this polls the wire the runtime is answering.
+                deadline = _now() + 420
+                paragraph = None
+                while _now() < deadline:
+                    wire = _get(f"/v2/projects/{project_id}/overview") or {}
+                    paragraph = wire.get("whatThisSays")
+                    if paragraph and paragraph.strip():
+                        break
+                    page.wait_for_timeout(3_000)
+                overview.open(project_id)
+                on_screen = overview.what_this_says_paragraph()
+                h.record_assert({"whatThisSays": "non-empty, and rendered verbatim"},
+                                 {"wire": paragraph, "screen": on_screen})
+                assert paragraph and paragraph.strip(), (
+                    "no *What this says* paragraph after the reading -- the BRIEF job the host was "
+                    "given never produced one")
+                assert on_screen == paragraph, (
+                    f"the overview renders {on_screen!r}, not the server's own {paragraph!r}")
 
-        opened = OpenedCard(page, recorder, web_base)
-        opened.open(project_id, "PROBLEM")
-        with recorder.step("§1.7: one card, opened -- strips, numbers and a status on each",
-                            party="founder", kind="assert") as h:
-            strips = opened.strips()
-            h.record_assert({"strips": ">= 1, each with a number and a status"},
-                             {"strips": len(strips), "first": (strips[0] if strips else None)})
-            assert strips, "the opened PROBLEM card rendered no strips"
-            for strip in strips:
-                assert str(strip.get("number") or "").strip(), f"an unnumbered strip: {strip!r}"
+            with recorder.step("§1.7: the overview carries the bar, the legend and three stage cards",
+                                party="founder", kind="assert") as h:
+                counts = overview.lines_with_answers()
+                legend = overview.legend()
+                cards = overview.stage_cards()
+                h.record_assert({"stage cards": 3, "legend": list(overview.LEGEND_WORDS)},
+                                 {"lines with answers": counts, "legend": legend,
+                                  "stage cards": [c["bet"] for c in cards]})
+                assert len(cards) == 3, [c["bet"] for c in cards]
+                assert set(legend) == set(overview.LEGEND_WORDS), legend
+
+            opened = OpenedCard(page, recorder, web_base)
+            opened.open(project_id, "PROBLEM")
+            with recorder.step("§1.7: one card, opened -- strips, numbers and a status on each",
+                                party="founder", kind="assert") as h:
+                strips = opened.strips()
+                h.record_assert({"strips": ">= 1, each with a number and a status"},
+                                 {"strips": len(strips), "first": (strips[0] if strips else None)})
+                assert strips, "the opened PROBLEM card rendered no strips"
+                for strip in strips:
+                    assert str(strip.get("number") or "").strip(), f"an unnumbered strip: {strip!r}"
 
         # ------------------------------------------------- what it cost, and what never happened
         with recorder.step("leg two: zero refusals, every job COMPLETED",
@@ -816,7 +975,8 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                                     party="stack", kind="note") as note:
                     note.record_wire(None, {"envelope keys": sorted(rows[0]["envelope"] or {}),
                                             "why": per_job[0]["why"]})
-        print(f"\nS-012 journey through {HOST}: {len(rows)} jobs; "
+        print(f"\nS-012 {LEGS} journey through {HOST} as {founder.project_name!r} "
+              f"({entry.id}): {len(rows)} jobs; "
               f"host legs {[run.spend() for run in (first, second)]}; "
               f"runtime model {model or 'unpinned (this executor takes none)'}")
 
@@ -856,6 +1016,12 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                      facts={"the journey's host": (
                          f"{HOST} · {ready['version']} · host model "
                          f"{host_model or 'the account default, recorded not pinned'} · runtime "
-                         f"model {model or 'unpinned (this executor takes none)'}")},
+                         f"model {model or 'unpinned (this executor takes none)'}"),
+                            "the journey's founder": (
+                         f"{ENTRY_ID} · {founder.project_name} · "
+                         f"{founder.market.country} · one person, {person_name}"),
+                            "the journey's length": (
+                         f"{LEGS} · " + ("the host leg and the first model job" if SHORT else
+                                          "both legs, whole"))},
                      failed_step=recorder.failed_step, duration_s=_now() - started)
         print(f"\nrun bundle: {run_dir}")
