@@ -616,12 +616,15 @@ def chooser_button_selector(identity_id: str) -> str:
 
 # ---------------------------------------------------------------------------------------- Connect
 
-_CONNECT_FRAME_TITLES = {
-    "F": "Log in to approve a device",
-    "B": "A device wants to act as your agent",
-    "C": "Device approved",
-    "G": "Device denied",
-    "E": "That code has run out",
+# Each frame's title, in both vocabularies: keel-web spec 017 ("your AI", keel-cloud
+# canon/designs/your-ai-design.md §5) renamed every connect screen, and the harness reads either
+# so the matrix stays green across the two deploys. The first of each pair is the old title.
+_CONNECT_FRAME_TITLES: dict[str, tuple[str, ...]] = {
+    "F": ("Log in to approve a device", "Log in to approve it"),
+    "B": ("A device wants to act as your agent", "Something wants to connect as your AI"),
+    "C": ("Device approved", "Approved"),
+    "G": ("Device denied", "Denied"),
+    "E": ("That code has run out",),
 }
 
 
@@ -645,10 +648,12 @@ class Connect:
             self.page.goto(verification_uri, wait_until="load")
             self.page.locator(".auth-title").wait_for(state="visible", timeout=15_000)
             title = _safe_text(lambda: self.page.locator(".auth-title").first.inner_text())
-            frame = next((k for k, v in _CONNECT_FRAME_TITLES.items() if v in title), None)
+            frame = next((k for k, titles in _CONNECT_FRAME_TITLES.items()
+                          if any(t in title for t in titles)), None)
             if frame is None:
                 lowered = title.lower()
-                frame = "A" if ("connect your agent" in lowered or "account is ready" in lowered) else "?"
+                frame = "A" if ("connect your agent" in lowered or "connect your ai" in lowered
+                                or "account is ready" in lowered) else "?"
             h.capture_text("screen", "connect")
             h.capture_text("stage_screen", title)
             h.add_screenshot(self._bstep.screenshot(f"connect-{frame.lower()}"))
@@ -661,8 +666,10 @@ class Connect:
         """Frame B's *Approve this device* -- the direct, no-judgement action the constitution's
         new row names (screen-review-design.md §11: "an errand, not a judgement")."""
         with self._bstep.step("founder approves the device") as h:
-            self.page.get_by_role("button", name="Approve this device").click()
-            self.page.get_by_text(re.compile("device approved", re.I)).wait_for(
+            # *Approve this device* before spec 017, *Approve* after it; the approved screen's
+            # title likewise *Device approved* / *Approved*.
+            self.page.get_by_role("button", name=re.compile(r"^approve( this device)?$", re.I)).click()
+            self.page.locator(".auth-title", has_text=re.compile("approved", re.I)).wait_for(
                 state="visible", timeout=15_000)
             h.add_screenshot(self._bstep.screenshot("connect-b-approved"))
 
@@ -688,7 +695,7 @@ class Connect:
         re-approved; the way back is running `keel connect` again for a fresh one."""
         with self._bstep.step("founder denies the device") as h:
             self.page.get_by_role("button", name="Deny").click()
-            self.page.get_by_text(re.compile("device denied", re.I)).wait_for(
+            self.page.locator(".auth-title", has_text=re.compile("denied", re.I)).wait_for(
                 state="visible", timeout=15_000)
             h.add_screenshot(self._bstep.screenshot("connect-g-denied"))
 
@@ -987,6 +994,7 @@ class Shell:
 # first two are wire-true (job QUEUED / RUNNING), the rest are the clock's; "Done." is C9's.
 WAIT_PHASES = {
     "Sending your words…", "Sending your claim…", "Your agent has picked it up.",
+    "Your AI has picked it up.",
     "Thinking it over…", "Working out what must be true…", "Still working — longer than usual.",
     "Done.",
 }
@@ -1984,7 +1992,10 @@ class Overview:
     lines-have-answers bar, the four-count legend, *What this says*, one card per stage, and the
     Download link."""
 
-    LEGEND_WORDS = ("holding up", "not holding up", "people disagree", "not tested")
+    #: The legend's four words as keel-web spec 017 writes them (*not asked yet* replaced *not
+    #: tested*, one word for the empty state everywhere). `legend()` reads the counts by class,
+    #: never by these words, so both deploys parse the same.
+    LEGEND_WORDS = ("holding up", "not holding up", "people disagree", "not asked yet")
 
     def __init__(self, page: Page, *args: Any, party: str = "founder"):
         self.page = page
@@ -2064,8 +2075,14 @@ class Overview:
             })
         return out
 
+    #: The download, by its own word: *Download as PDF* before spec 017, *Download the brief*
+    #: after it -- and after it the slot can hold another `<a>` first (*Go to People*, or the
+    #: reading action), so "the first link in the row" stopped being the download.
+    DOWNLOAD_LINK = re.compile("download", re.I)
+
     def download_link_text(self) -> str:
-        return _safe_text(lambda: self.page.locator(".evidence__people a").first.inner_text())
+        return _safe_text(lambda: self.page.locator(".evidence__people a", has_text=self.DOWNLOAD_LINK)
+                          .first.inner_text())
 
     # ----------------------------------------------------------------------------------- actions
 
@@ -2110,7 +2127,7 @@ class Overview:
         `window.print` before the route mounts; this follows the link the founder actually sees."""
         with self._scope():
             with self._bstep.step("founder takes Download") as h:
-                self.page.locator(".evidence__people a").first.click()
+                self.page.locator(".evidence__people a", has_text=self.DOWNLOAD_LINK).first.click()
                 _wait_for_url_change(self.page, lambda url: url.endswith("/print"))
                 h.add_screenshot(self._bstep.screenshot("overview-download"))
 
@@ -2769,7 +2786,7 @@ class People:
         never a wire poll of its own."""
         with self._scope():
             with self._bstep.step("founder has the agent read the new answers") as h:
-                self.page.get_by_role("button", name=re.compile("have your agent read", re.I)).click()
+                self.page.get_by_role("button", name=re.compile(r"have your (agent|ai) read", re.I)).click()
                 progress = self.page.locator(".bulk")
                 if progress.count() > 0:
                     h.capture_text("waiting_text", _safe_text(lambda: progress.first.inner_text()))

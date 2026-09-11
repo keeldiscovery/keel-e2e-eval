@@ -52,7 +52,7 @@ def test_a_typo_is_refused_by_name_rather_than_run_as_the_other_host():
 
 
 def test_the_makefile_passes_host_through_and_defaults_it_to_copilot():
-    assert "KEEL_JOURNEY_HOST=$(if $(HOST),$(HOST),copilot)" in MAKEFILE, (
+    assert "KEEL_JOURNEY_HOST=$(if $(HOST),$(HOST),$(if $(KEEL_JOURNEY_HOST),$(KEEL_JOURNEY_HOST),copilot))" in MAKEFILE, (
         "`make eval-live K=s012 HOST=claude` no longer reaches the scenario")
     assert "-m live" in MAKEFILE
 
@@ -100,7 +100,7 @@ def test_only_the_short_bundle_carries_a_suffix():
 
 
 def test_the_makefile_passes_the_length_through():
-    assert "KEEL_JOURNEY_LEGS=$(if $(LEGS),$(LEGS),full)" in MAKEFILE, (
+    assert "KEEL_JOURNEY_LEGS=$(if $(LEGS),$(LEGS),$(if $(KEEL_JOURNEY_LEGS),$(KEEL_JOURNEY_LEGS),full))" in MAKEFILE, (
         "`make eval-live K=s012 LEGS=short` no longer reaches the scenario")
 
 
@@ -149,7 +149,7 @@ def test_an_unknown_entry_is_refused_by_the_corpus_reader_and_not_here():
 
 
 def test_the_makefile_passes_the_entry_through():
-    assert "KEEL_JOURNEY_ENTRY=$(if $(ENTRY),$(ENTRY),03-lullaby)" in MAKEFILE
+    assert "KEEL_JOURNEY_ENTRY=$(if $(ENTRY),$(ENTRY),$(if $(KEEL_JOURNEY_ENTRY),$(KEEL_JOURNEY_ENTRY),03-lullaby))" in MAKEFILE
 
 
 def test_the_scenario_reads_its_founder_through_the_scripted_scenarios_own_reader():

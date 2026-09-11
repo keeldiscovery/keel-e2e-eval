@@ -58,6 +58,20 @@ STAGES = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 MODAL_PERSON = "Dana Okafor"
 
 
+
+# The agent line in both vocabularies -- *No agent connected* / *Agent connected* before keel-web
+# spec 017, *Your AI isn't connected* / *Your AI is connected* after it (keel-cloud
+# canon/designs/your-ai-design.md §3). Read either, so the matrix stays green across the deploys.
+def _reads_not_connected(agent_line: str) -> bool:
+    lowered = agent_line.lower()
+    return "no agent" in lowered or "not connected" in lowered or "isn't connected" in lowered \
+        or "isn’t connected" in lowered or "went away" in lowered
+
+
+def _reads_connected(agent_line: str) -> bool:
+    lowered = agent_line.lower()
+    return "agent connected" in lowered or "ai is connected" in lowered
+
 def test_s001_smoke(stack, founder_one, browser, run_dir):
     recorder = Recorder(run_dir)
     web_base = f"http://localhost:{stack.web_port}"
@@ -95,8 +109,8 @@ def test_s001_smoke(stack, founder_one, browser, run_dir):
             h.record_assert({"gated": True, "agent_connected": False},
                              {"gated": gated, "agent_connected": arrival["agent_connected"]})
             assert not arrival["agent_connected"], f"expected no agent connected yet, got {agent_line!r}"
-            assert "no agent" in agent_line.lower() or "not connected" in agent_line.lower(), (
-                f"expected 'No agent connected' on the landing, got {agent_line!r}")
+            assert _reads_not_connected(agent_line), (
+                f"expected 'No agent connected' / 'Your AI isn't connected' on the landing, got {agent_line!r}")
 
         with recorder.step("§1.0: keel-connect-skill starts the runtime with this run's own script",
                             party="stack", kind="assert") as h:
@@ -136,8 +150,8 @@ def test_s001_smoke(stack, founder_one, browser, run_dir):
                             party="founder", kind="assert") as h:
             agent_line = Shell(page, recorder).agent_line_text()
             h.record_assert("agent connected", agent_line)
-            assert "agent connected" in agent_line.lower(), (
-                f"expected 'Agent connected' on the landing, got {agent_line!r}")
+            assert _reads_connected(agent_line), (
+                f"expected 'Agent connected' / 'Your AI is connected' on the landing, got {agent_line!r}")
 
         with recorder.step("§1.0 wire: GET /v2/me reads agent.connected within 30s",
                             party="stack", kind="assert") as h:
@@ -347,7 +361,7 @@ def test_s001_smoke(stack, founder_one, browser, run_dir):
             assert counts[0] >= 1, f"no line has answers after the reading: {counts}"
 
         with recorder.step("§1.7: the legend counts holding up / not holding up / people disagree "
-                            "/ not tested", party="founder", kind="assert") as h:
+                            "/ not asked yet", party="founder", kind="assert") as h:
             legend = overview.legend()
             h.record_assert(list(overview.LEGEND_WORDS), legend)
             assert set(legend) == set(overview.LEGEND_WORDS), legend
@@ -562,9 +576,9 @@ def test_s001_smoke(stack, founder_one, browser, run_dir):
                             "line proven both ways", party="founder", kind="assert") as h:
             agent_line = Shell(page, recorder).agent_line_text()
             h.record_assert("no agent connected", agent_line)
-            assert "no agent" in agent_line.lower() or "not connected" in agent_line.lower(), (
-                f"expected 'No agent connected' on the landing after a disconnect, got "
-                f"{agent_line!r}")
+            assert _reads_not_connected(agent_line), (
+                f"expected 'No agent connected' / 'Your AI isn't connected' on the landing after a "
+                f"disconnect, got {agent_line!r}")
 
         stopped_again = stop_runtime_via_skill(stack, recorder)
         with recorder.step("§1.0: saying it twice is `not_running`, not an error",

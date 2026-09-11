@@ -56,7 +56,7 @@ LEGEND_OF_VERDICT = {
     "SUPPORTED": "holding up",
     "CONTRADICTED": "not holding up",
     "MIXED": "people disagree",
-    "UNTESTED": "not tested",
+    "UNTESTED": "not asked yet",
 }
 
 

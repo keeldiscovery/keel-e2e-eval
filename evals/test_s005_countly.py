@@ -23,7 +23,7 @@ ENTRY_ID = "01-countly"
 # entry's `expected.standings` by `corpus_scenario.expected_legend`, so this is a second, human
 # statement of the same arithmetic -- if the two ever disagree, one of them was typed wrong, and
 # that is exactly what a mockup of record is for.
-MOCKUP_LEGEND = {"holding up": 9, "not holding up": 3, "people disagree": 6, "not tested": 0}
+MOCKUP_LEGEND = {"holding up": 9, "not holding up": 3, "people disagree": 6, "not asked yet": 0}
 MOCKUP_LINES = (18, 18)
 
 
