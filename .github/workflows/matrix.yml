@@ -557,6 +557,10 @@ jobs:
           # fallback and is passed only when the subscription token is absent, so the two never
           # compete for the CLI's attention.
           CLAUDE_CODE_OAUTH_TOKEN: ${{ matrix.cell.host == 'claude' && secrets.KEEL_RUNTIME_CI_CLAUDE || '' }}
+          # ...and its twin, because Claude Code strips CLAUDE_CODE_OAUTH_TOKEN by exact name from
+          # the shell the runtime is started in (measured 2026-09-11); the runtime hands the twin
+          # to its own claude under the real name (keel-runtime executor, _CREDENTIAL_TWINS).
+          KEEL_CLAUDE_CODE_OAUTH_TOKEN: ${{ matrix.cell.host == 'claude' && secrets.KEEL_RUNTIME_CI_CLAUDE || '' }}
           ANTHROPIC_API_KEY: ${{ matrix.cell.host == 'claude' && secrets.KEEL_RUNTIME_CI_CLAUDE == '' && secrets.ANTHROPIC_API_KEY || '' }}
           # KEEL_RUNTIME_CI_COPILOT is the organisation secret's name. It is handed to the cell as
           # GH_TOKEN, NOT as COPILOT_GITHUB_TOKEN: measured 2026-09-11 (first cloud run, then two
