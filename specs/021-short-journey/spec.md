@@ -5,10 +5,11 @@
 **Created**: 2026-09-11
 
 **Status**: Implemented, **never run live**. `make unit` **821 → 911**, green. `actionlint` (1.7.12,
-with shellcheck) is clean. Nothing here spent a model request or touched a stack, and nothing here
-can: the matrix is still gated on `KEEL_STAGING_ENABLED`, which is still unset, and `make eval-live`
-is still the founder's own command to type. What this specification changes is **what a qualifying
-change buys, whose founder it buys it as, and who gets told when it goes red.**
+with shellcheck) is clean. **Nothing here spent a model request, ran a stack or touched AWS.**
+`make eval-live` is still the founder's own command to type, and the merge that lands this carries
+`[skip e2e]` so that the four new per-change cells are the founder's to start rather than this
+change's to start for them. What this specification changes is **what a qualifying change buys,
+whose founder it buys it as, and who gets told when it goes red.**
 
 **Input**: the founder's decisions of 2026-09-11, in conversation, after the first cloud runs of
 spec 020. Five of them, and the first is the one the rest follow from:
@@ -171,8 +172,9 @@ that measured nothing is never green, and a deploy failure is not a red matrix.
   replaces the workflow's.
 - **FR-011 A run that produced no rows says nothing at all** — it neither opens an issue nor closes
   one. A cell job that *failed outright* wrote no row either, and that one counts as red.
-- **FR-012 Nothing here is a trigger.** No deploy, no rollback, no production. The matrix is still
-  inert until `KEEL_STAGING_ENABLED` is `true`.
+- **FR-012 Nothing here is a trigger.** No deploy, no rollback, no production, and no issue opened
+  by anything but a cell's own verdict. `KEEL_STAGING_ENABLED` remains the master switch, and the
+  `[skip e2e]` on this change's own merge is the first use of FR-009.
 
 ## What is deliberately not built
 
