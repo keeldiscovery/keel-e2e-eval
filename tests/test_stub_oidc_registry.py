@@ -493,3 +493,15 @@ def test_the_served_chooser_uses_the_issuer_it_was_started_with(ungated):
              "code_challenge": "c" * 43, "code_challenge_method": "S256"}
     page = requests.get(f"{ungated}/authorize", params=query, timeout=5).text
     assert f'action="{ungated}/authorize"' in page
+
+
+# ------------------------------------------------------------------- the client pair, from env
+
+def test_the_stub_takes_its_client_pair_from_the_env_file_keel_cloud_reads():
+    from stack.stub_oidc.__main__ import client_from_env
+    from stack.stub_oidc.identity import CLIENT_ID, CLIENT_SECRET
+    assert client_from_env({}) == (CLIENT_ID, CLIENT_SECRET)
+    assert client_from_env({"KEEL_GOOGLE_CLIENT_ID": "keel-staging-1", "KEEL_GOOGLE_CLIENT_SECRET": "s3"}) == ("keel-staging-1", "s3")
+    # half a pair is no pair: the built-ins, not a mix that would accept nothing
+    assert client_from_env({"KEEL_GOOGLE_CLIENT_ID": "keel-staging-1"}) == (CLIENT_ID, CLIENT_SECRET)
+    assert client_from_env({"KEEL_GOOGLE_CLIENT_ID": " ", "KEEL_GOOGLE_CLIENT_SECRET": "s3"}) == (CLIENT_ID, CLIENT_SECRET)

@@ -18,6 +18,8 @@ pass:
 from __future__ import annotations
 
 import argparse
+import os
+from typing import Mapping
 import sys
 from pathlib import Path
 
@@ -25,6 +27,17 @@ from stack.stub_oidc.identity import CLIENT_ID, CLIENT_SECRET, STUB_IDENTITIES
 from stack.stub_oidc.keys import load_or_generate
 from stack.stub_oidc.registry import Registry
 from stack.stub_oidc.server import make_server
+
+
+def client_from_env(env: "Mapping[str, str]") -> tuple[str, str]:
+    """The (client id, client secret) the stub should accept: the env pair keel-cloud is given,
+    when both are set and non-blank; the built-in pair otherwise. Never one of each -- a mixed
+    pair would accept nothing and say nothing about why."""
+    cid = (env.get("KEEL_GOOGLE_CLIENT_ID") or "").strip()
+    secret = (env.get("KEEL_GOOGLE_CLIENT_SECRET") or "").strip()
+    if cid and secret:
+        return cid, secret
+    return CLIENT_ID, CLIENT_SECRET
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -35,8 +48,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--issuer", default=None,
                         help="the origin the discovery document names (default "
                              "http://localhost:<port>)")
-    parser.add_argument("--client-id", default=CLIENT_ID)
-    parser.add_argument("--client-secret", default=CLIENT_SECRET)
+    # The client keel-cloud presents. In a container the pair arrives through the same rendered
+    # env file keel-cloud reads (KEEL_GOOGLE_CLIENT_ID / KEEL_GOOGLE_CLIENT_SECRET), so the secret
+    # never sits in argv or `docker inspect`; a flag still wins, and the built-in pair is what the
+    # local profiles get with neither. (Staging's first sign-in, 2026-09-11: POST /token 401 --
+    # keel-cloud presented the parameter-store secret, the stub checked its built-in one.)
+    client_id_default, client_secret_default = client_from_env(os.environ)
+    parser.add_argument("--client-id", default=client_id_default)
+    parser.add_argument("--client-secret", default=client_secret_default)
     parser.add_argument("--host", default="127.0.0.1",
                         help="the address to bind (default 127.0.0.1; a container needs 0.0.0.0, "
                              "where the only thing that can reach it is the compose network)")
