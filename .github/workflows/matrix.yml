@@ -929,8 +929,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         with:
           claude_code_oauth_token: ${{ secrets.KEEL_RUNTIME_CI_CLAUDE }}
-          track_progress: true
-          use_sticky_comment: true
+          # No track_progress / sticky comment here: those exist for issue and pull-request
+          # events, and this job runs on whatever event ran the matrix (run 34614646990's wake
+          # step failed on exactly that). The prompt tells Claude where to write.
           claude_args: "--allowedTools Read,Edit,Write,Glob,Grep,Bash(gh:*),Bash(git:*),Bash(python3:*),Bash(make unit),Bash(ls:*),Bash(cat:*),Bash(tar:*),Bash(unzip:*) --max-turns 60"
           prompt: |
             Read matrix/RED.md in this checkout first and follow it exactly. Then act on issue
