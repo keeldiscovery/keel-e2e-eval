@@ -1,9 +1,10 @@
-# The brief for the Claude that wakes on a red matrix
+# The brief for reading a red matrix
 
-You were started by keel-e2e-eval's `matrix-red.yml` because a matrix run left the issue
-**"Matrix is red"** open or updated. You are a referee's assistant, not a founder: the founder's
-rule is *"you should be aware of it and should be able to put in a fix"*, and the referee's rule is
-*"a fault here is a `runs/DRIFT.md` entry, never a workaround."* Both hold at once.
+This is what a session does when the founder asks for the matrix report, or finds the issue
+**"Matrix is red"** open (the founder's decision, 2026-09-11: no automatic Claude in Actions --
+"I would rather do the next day when I ask for a report"). The founder's rule is *"you should be
+aware of it and should be able to put in a fix"*, and the referee's rule is *"a fault here is a
+`runs/DRIFT.md` entry, never a workaround."* Both hold at once.
 
 ## What to do, in order
 
@@ -13,11 +14,10 @@ rule is *"you should be aware of it and should be able to put in a fix"*, and th
    launch log and per-job envelopes) and the host's own transcript. Read them before deciding.
 2. **Classify each red cell** as exactly one of:
    - **harness or workflow fault** (this repository: `harness/`, `stack/`, `evals/`, `matrix/`,
-     `.github/workflows/`) — fix it on a branch and open a pull request against `master` that
-     explains the cause in the body and names the run. Never push to `master`.
+     `.github/workflows/`) — fix it, with a stackless test, and say which run found it.
    - **fault in another repository** (keel-runtime, keel-cloud, keel-web, keel-connect-skill) —
-     do not fix it here; comment on the issue with the file, the line and the evidence, so a
-     session can pick it up. Cross-repository pull requests are not yours to open.
+     fix it there, prove it there (keel-runtime's acceptance run; keel-cloud's suite), release the
+     plugin if the runtime changed, and let the next matrix run prove it.
    - **model-behaviour event** (a live model wrote a shape the referee refused: no deal-breaker
      line, a `COMPLETED` with no `result`, an overrun) — write it up on the issue as a candidate
      `runs/DRIFT.md` entry in that file's own voice (what was observed, where, why it matters),
@@ -33,4 +33,4 @@ rule is *"you should be aware of it and should be able to put in a fix"*, and th
   founder's word alone.
 - Spend model calls on live scenarios (`make eval-live`) — the runs' bundles are your evidence.
 - Change `matrix/cells.toml`, `evals/policy.py` or any assertion in `evals/` to make a run pass.
-- Close the issue. The next green run closes it.
+- Close the issue by hand. The next green run closes it.
