@@ -47,12 +47,31 @@ eval: venv
 # `KEEL_JOURNEY_HOST` -- the same spelling `instruction-eval` uses for its own two hosts, and a
 # different variable, because they are different subjects and one run never sets both.
 #
-#   make eval-live K=s012                 the Copilot journey (today's command, unchanged)
+# **LEGS={short,full}**, default `full`, and it also means something to S-012 alone (spec
+# 021-short-journey). `full` is the whole journey -- both legs, three stages, the person, the
+# reading, the brief. `short` is the host leg entire (marketplace, "keel connect", device
+# approval, the runtime on the host's executor) plus the FIRST model job only -- the PROBLEM
+# frame's confirmation card landing -- and then the way out. Same assertions, up to that point;
+# nothing new is asserted from the model's prose. The short bundle says so in its own name
+# (`runs/<stamp>-s012-journey-<host>-short/`); the full one's name is unchanged.
+#
+# **ENTRY=<corpus entry id>**, default `03-lullaby`. S-012's founder is a **golden corpus**
+# founder now, not the smoke's payroll fixture: the entry's title is the project name, its market
+# is the market, its three statements are typed verbatim, and its first person answers with their
+# own story text and their own picks. The corpus is keel-cloud's
+# `canon/designs/measured-beliefs/corpus/`, read through the same `harness/corpus_script.py` the
+# six scripted scenarios read it through. An id the corpus does not hold is refused by name.
+#
+#   make eval-live K=s012                 the Copilot journey, whole (today's command, unchanged)
 #   make eval-live K=s012 HOST=claude     the same journey through Claude Code
-#   make eval-live K=s004                 the stranger who gives orders (HOST means nothing here)
+#   make eval-live K=s012 HOST=claude LEGS=short    the per-change cell's own run
+#   make eval-live K=s012 ENTRY=05-paidly           a different founder walks it
+#   make eval-live K=s004                 the stranger who gives orders (none of these apply)
 eval-live: venv
 	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) \
 	KEEL_JOURNEY_HOST=$(if $(HOST),$(HOST),copilot) \
+	KEEL_JOURNEY_LEGS=$(if $(LEGS),$(LEGS),full) \
+	KEEL_JOURNEY_ENTRY=$(if $(ENTRY),$(ENTRY),03-lullaby) \
 	$(PY) -m pytest evals -q -rs -l -m live $(if $(K),-k "$(K)",)
 
 # make eval-all runs the FULL scenario set (s001 included) against one stack session (attaches to

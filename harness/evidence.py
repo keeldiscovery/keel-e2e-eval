@@ -83,6 +83,26 @@ def write_versions(run_dir: Path, config) -> None:
     (run_dir / "versions.json").write_text(json.dumps(repos, indent=2))
 
 
+def write_block(run_dir: Path, name: str, record: dict) -> None:
+    """Merge one named block into `versions.json`, keeping everything already there.
+
+    `versions.json` is the bundle's answer to *"what did this run stand on"*, and the run_dir
+    fixture writes it before a scenario has resolved a thing. A scenario that learns another such
+    fact later -- which host it went through, which corpus entry its founder is -- adds it here
+    rather than rewriting the file, so a run that dies early still leaves the five repositories
+    behind and a run that gets further leaves more.
+    """
+    path = run_dir / "versions.json"
+    existing: dict = {}
+    if path.is_file():
+        try:
+            existing = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            existing = {}
+    existing[name] = {**(existing.get(name) or {}), **record}
+    path.write_text(json.dumps(existing, indent=2))
+
+
 def write_host(run_dir: Path, record: dict) -> None:
     """**Which host this run went through, merged into `versions.json`** (spec 019).
 
@@ -95,15 +115,7 @@ def write_host(run_dir: Path, record: dict) -> None:
 
     Merges rather than replaces, so calling it twice cannot lose what `write_versions` wrote.
     """
-    path = run_dir / "versions.json"
-    existing: dict = {}
-    if path.is_file():
-        try:
-            existing = json.loads(path.read_text())
-        except json.JSONDecodeError:
-            existing = {}
-    existing["host"] = {**(existing.get("host") or {}), **record}
-    path.write_text(json.dumps(existing, indent=2))
+    write_block(run_dir, "host", record)
 
 
 # -------------------------------------------------------------------------------- verdict.json

@@ -62,8 +62,161 @@ def test_the_makefile_passes_host_through_and_defaults_it_to_copilot():
 def test_the_bundle_carries_the_host():
     """`runs/<stamp>-s012-journey-<host>/`. The matrix uploads one bundle per cell and a reader
     looking at eighteen of them has only the directory name to go on until they open one."""
-    assert agent_host.bundle_slug("claude") == "s012-journey-claude"
-    assert agent_host.bundle_slug("copilot") == "s012-journey-copilot"
+    assert agent_host.bundle_slug("claude", "full") == "s012-journey-claude"
+    assert agent_host.bundle_slug("copilot", "full") == "s012-journey-copilot"
+
+
+# ------------------------------------------------------------------ how far it goes (spec 021)
+
+def test_the_default_length_is_the_whole_journey():
+    """`make eval-live K=s012` with no `LEGS=` is spec 016's and spec 019's own command, and it
+    means what it meant: both legs, three stages, the person, the reading, the brief."""
+    assert agent_host.journey_legs({}) == "full"
+    assert agent_host.journey_legs({"KEEL_JOURNEY_LEGS": ""}) == "full"
+    assert agent_host.DEFAULT_LEGS == "full"
+
+
+@pytest.mark.parametrize("raw,expected", [("short", "short"), ("FULL", "full"),
+                                          (" Short ", "short")])
+def test_the_length_is_read_case_and_space_insensitively(raw, expected):
+    assert agent_host.journey_legs({"KEEL_JOURNEY_LEGS": raw}) == expected
+
+
+def test_an_unknown_length_raises_rather_than_quietly_spending_the_wrong_amount():
+    """A typo that ran `full` where the founder asked for `short` spends about thirteen premium
+    requests instead of two; a typo the other way files a cheap measurement under a name that
+    promises an expensive one. Neither is a thing to guess at."""
+    with pytest.raises(agent_host.UnknownLegs) as excinfo:
+        agent_host.journey_legs({"KEEL_JOURNEY_LEGS": "half"})
+    assert "half" in str(excinfo.value) and "short" in str(excinfo.value)
+
+
+def test_only_the_short_bundle_carries_a_suffix():
+    """The full journey's bundle name does not move: `s012-journey-copilot` means today what it
+    meant yesterday, and a reader who finds a name without `-short` knows what they have."""
+    assert agent_host.bundle_slug("claude", "short") == "s012-journey-claude-short"
+    assert agent_host.bundle_slug("copilot", "short") == "s012-journey-copilot-short"
+    assert agent_host.bundle_slug("claude", "full") == "s012-journey-claude"
+
+
+def test_the_makefile_passes_the_length_through():
+    assert "KEEL_JOURNEY_LEGS=$(if $(LEGS),$(LEGS),full)" in MAKEFILE, (
+        "`make eval-live K=s012 LEGS=short` no longer reaches the scenario")
+
+
+def test_the_scenario_reads_its_length_once_at_import_and_branches_on_it_by_name():
+    assert "LEGS = agent_host.journey_legs()" in SCENARIO
+    assert 'SHORT = LEGS == "short"' in SCENARIO
+
+
+def test_the_short_journey_asserts_the_card_through_the_very_same_function():
+    """The founder's own rule: *"assertions in short mode are the same ones the full journey makes
+    up to that point"*. It is held by `_land_the_card` being one function called from two places,
+    rather than by two blocks that look alike today."""
+    assert SCENARIO.count("def _land_the_card(") == 1
+    assert SCENARIO.count("_land_the_card(page, recorder, _get, project_id") == 1
+    assert "chat, _card = _land_the_card(" in SCENARIO, (
+        "the full journey's walk goes through it too, or the two would be free to drift")
+
+
+def test_the_short_journey_still_leaves_by_the_founders_own_door():
+    """Whatever else it skips, it never skips `keel disconnect` -- a runtime left running is a
+    runtime the next cell inherits."""
+    tail = SCENARIO.split("if SHORT:", 1)[1]
+    assert "disconnect_via_skill_script" in tail
+    assert "zero refusals, every job COMPLETED" in tail, (
+        "the wire checks are made by both lengths, not only by the long one")
+
+
+# ------------------------------------------------------------ whose founder walks it (spec 021)
+
+def test_the_default_founder_is_the_lullaby_entry():
+    assert agent_host.journey_entry({}) == "03-lullaby"
+    assert agent_host.journey_entry({"KEEL_JOURNEY_ENTRY": ""}) == "03-lullaby"
+    assert agent_host.journey_entry({"KEEL_JOURNEY_ENTRY": " 05-paidly "}) == "05-paidly"
+
+
+def test_an_unknown_entry_is_refused_by_the_corpus_reader_and_not_here():
+    """This repository carries no list of the corpus's filenames and should not grow one: the one
+    reader that opens the corpus already refuses an id by name, with the ids there actually are,
+    and that is the refusal the six scripted scenarios get too."""
+    from harness import corpus_script
+
+    assert agent_host.journey_entry({"KEEL_JOURNEY_ENTRY": "99-nope"}) == "99-nope"
+    source = (REPO / "harness" / "corpus_script.py").read_text()
+    assert "no corpus entry {entry_id!r}" in source
+    assert hasattr(corpus_script, "entry_for")
+
+
+def test_the_makefile_passes_the_entry_through():
+    assert "KEEL_JOURNEY_ENTRY=$(if $(ENTRY),$(ENTRY),03-lullaby)" in MAKEFILE
+
+
+def test_the_scenario_reads_its_founder_through_the_scripted_scenarios_own_reader():
+    """Reuse, not a copy (the founder's own word). `founder_inputs` already refuses an entry with
+    a missing statement by name and `person_inputs` already refuses a person offered an anchor
+    their role is not asked; a second reader here would be a second chance to be wrong about
+    both."""
+    assert "corpus, entry = corpus_script.entry_for(stack.keel_cloud, ENTRY_ID)" in SCENARIO
+    assert "founder = corpus_script.founder_inputs(entry)" in SCENARIO
+    assert "person = corpus_script.person_inputs(entry)[0]" in SCENARIO
+    assert "payroll_exceptions" not in SCENARIO, (
+        "the smoke's fixture stays the smoke's; S-012 no longer borrows it")
+
+
+def test_the_founder_types_the_entrys_own_title_market_and_three_statements():
+    """What `founder_inputs` hands back, checked against the entry the journey defaults to --
+    through the real corpus, so a corpus edit that emptied a statement fails here."""
+    from harness import corpus_script
+    from stack.config import load_config
+
+    _, entry = corpus_script.entry_for(load_config(validate=False).keel_cloud, "03-lullaby")
+    founder = corpus_script.founder_inputs(entry)
+    assert founder.project_name == entry.title
+    assert founder.market.country == "GB"
+    assert founder.correction is None, "the correction is S-001's turn, not the journey's"
+    for stage in ("PROBLEM", "SOLUTION", "COMMERCIAL"):
+        assert founder.statement(stage).strip()
+        assert founder.statement(stage) == entry.statements[stage.lower()].strip()
+
+
+def test_the_one_person_is_the_entrys_first_and_brings_their_own_words():
+    from harness import corpus_script
+    from evals.test_s012_journey_through_a_host import _story_texts
+    from stack.config import load_config
+
+    _, entry = corpus_script.entry_for(load_config(validate=False).keel_cloud, "03-lullaby")
+    person = corpus_script.person_inputs(entry)[0]
+    assert person.person == "Amira Saleh"
+    stories = _story_texts(person)
+    assert len(stories) == 3, "she wrote under all three of her role's anchors"
+    assert stories[0].startswith("Last night. Up at one")
+    assert all(s.strip() for s in stories)
+
+
+def test_their_pick_prefers_their_own_answer_and_falls_back_to_the_pages_first():
+    """On a live run the option list is the model's, not the corpus's, so a corpus value is used
+    where it is offered and the page's own first option where it is not. Which of the two happened
+    goes into the bundle; neither is ever asserted (FR-007)."""
+    from evals.test_s012_journey_through_a_host import _their_pick
+    from harness import corpus_script
+
+    person = corpus_script.PersonInputs(
+        person="Amira Saleh", role_id="parent",
+        picks=[corpus_script.Pick(selection_id="S2", values=["3 to 4"]),
+               corpus_script.Pick(selection_id="S4", values=["no"])])
+    assert _their_pick(person, ["1 to 2", "3 to 4", "5 or more"]) == ("3 to 4", True)
+    assert _their_pick(person, ["  3 TO 4 ", "other"]) == ("  3 TO 4 ", True)
+    assert _their_pick(person, ["daily", "weekly"]) == ("daily", False)
+
+
+def test_the_bundle_says_whose_founder_and_how_far():
+    """A reader of eighteen bundles needs the founder and the length beside the host, or two
+    bundles from two sets look like the same run that disagreed."""
+    assert 'write_block(run_dir, "journey", {' in SCENARIO
+    for key in ('"entry": entry.id', '"entry_sha256": entry.sha256', '"legs": LEGS'):
+        assert key in SCENARIO, key
+    assert "the journey's founder" in SCENARIO and "the journey's length" in SCENARIO
 
 
 def test_the_scenario_names_its_own_bundle_and_finalises_under_the_same_name():
@@ -72,7 +225,7 @@ def test_the_scenario_names_its_own_bundle_and_finalises_under_the_same_name():
     bundle's directory and its verdict would disagree about which cell it is."""
     assert "@pytest.mark.bundle(BUNDLE)" in SCENARIO
     assert "finalize_run(run_dir, slug=BUNDLE" in SCENARIO
-    assert "BUNDLE = agent_host.bundle_slug(HOST)" in SCENARIO
+    assert "BUNDLE = agent_host.bundle_slug(HOST, LEGS)" in SCENARIO
 
 
 def test_the_run_dir_fixture_honours_the_marker():
