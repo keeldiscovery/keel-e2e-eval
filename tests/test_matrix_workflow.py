@@ -138,10 +138,14 @@ def test_a_cell_without_the_token_warns_rather_than_pretending():
 
 # ------------------------------------------------------------------------------- the issue, scoped
 
-def test_only_the_summary_job_may_write_an_issue():
+def test_only_the_summary_and_wake_jobs_may_write_an_issue():
+    """The summary writes the issue; the wake job (the Claude that reads a red matrix, founder's
+    rule of 2026-09-11) comments on it and may open a pull request. Nothing else may."""
     assert JOBS["summary"]["permissions"] == {"contents": "read", "issues": "write"}
+    assert JOBS["wake"]["permissions"]["issues"] == "write"
+    assert JOBS["wake"]["permissions"]["pull-requests"] == "write"
     for name, job in JOBS.items():
-        if name == "summary":
+        if name in ("summary", "wake"):
             continue
         assert "issues" not in (job.get("permissions") or {}), name
     assert DOC[True] is not None  # `on:` parsed; the workflow-level permissions stay read-only
@@ -182,7 +186,23 @@ def test_a_cell_job_that_crashed_outright_still_counts_as_red():
     """A cell that failed before pytest wrote no row, so the table cannot see it -- and a matrix
     where every cell crashed is the reddest one there is."""
     run = step_named("summary", "Tell the founder")["run"]
-    assert "CELLS_RESULT" in run and "failure) red=true; ran_any=true" in run
+    assert "CELLS_RESULT" in run and "failure)   red=true; ran_any=true" in run
+    # ...and a CANCELLED run is neither: it measured nothing (the false alarm of 2026-09-11).
+    assert "cancelled) red=false; ran_any=false" in run
+
+
+def test_the_wake_job_runs_only_on_a_red_matrix_and_never_closes_the_issue():
+    job = JOBS["wake"]
+    assert "needs.cell.result == 'failure'" in job["if"]
+    assert "needs.select.outputs.enabled == 'true'" in job["if"]
+    prompt = next(st for st in job["steps"] if "anthropics/claude-code-action" in str(st.get("uses")))
+    assert "matrix/RED.md" in prompt["with"]["prompt"]
+    assert "KEEL_RUNTIME_CI_CLAUDE" in prompt["with"]["claude_code_oauth_token"]
+
+
+def test_a_hand_dispatch_has_its_own_concurrency_lane():
+    group = DOC["concurrency"]["group"]
+    assert "github.run_id" in group and "workflow_dispatch" in group
 
 
 def test_the_issue_is_information_and_never_a_trigger():
