@@ -1,0 +1,13 @@
+# The stub issuer's image (stack/containers/oidc/Dockerfile) needs stack/stub_oidc/ and nothing
+# else; without this file `docker build .` shipped the whole checkout -- 21 GB of run bundles
+# under runs/ -- as the build context, and filled the disk (2026-09-10). Everything below is
+# either generated, a virtualenv, or evidence that lives on the founder's Mac only.
+runs/
+.venv/
+.git/
+node_modules/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.idea/
+specs/
