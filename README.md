@@ -763,6 +763,8 @@ keel-cloud over HTTP the same way it would from a founder's own laptop.
 
 ## Split stacks: the playground profile
 
+(And a **third** profile that starts nothing at all: *the remote profile*, below.)
+
 `make up`/`make down`/`make eval*` all default to the **eval** profile above — unchanged. A
 second, entirely separate **playground** profile exists for poking at the product by hand without
 ever touching an eval run's own data:
@@ -780,6 +782,62 @@ rather than the eval profile's `tmpfs`) — Compose's project name, not the file
 boundary, so both profiles' services can live in one `docker-compose.yml` without `make down`'s
 default (`eval`) invocation ever being able to see, let alone drop, the playground's own
 container or volume.
+
+## The remote profile: running against a deployment (spec `017-remote-profile`)
+
+A third profile beside `eval` and `playground`, and the only one that **starts nothing**. The two
+local profiles boot Postgres, keel-cloud, keel-web and the stub issuer as their own processes;
+`remote` names three URLs that already answer — the staging twin
+(keel-cloud `canon/designs/e2e-matrix-design.md` §3), or any deployment a founder points it at.
+
+```bash
+export KEEL_REMOTE_WEB_URL=https://eval.keeldiscovery.com
+export KEEL_REMOTE_GATE_USER=harness
+export KEEL_REMOTE_GATE_PASSWORD=...        # from your own password manager; never a file here
+
+make up PROFILE=remote        # asks three questions, starts nothing
+make eval K=s001 PROFILE=remote
+make down PROFILE=remote      # a no-op that says so
+```
+
+`make up PROFILE=remote` is three checks and no processes: keel-web's `/` answers **200**,
+keel-cloud's `/v2/me` answers **401** (the same readiness gate a local boot uses), and the issuer's
+discovery document answers **200 and names itself**. Any of the three failing prints the URL and
+the status it got. `make down PROFILE=remote` disconnects a runtime this machine left running and
+stops — it never touches a Postgres, a Compose project or a pid file, because none of them are
+its, and on staging the box has other runs against it.
+
+| Variable | Required | Default | What it names |
+|---|---|---|---|
+| `KEEL_REMOTE_WEB_URL` | yes | — | keel-web's origin. The founder's screens, and what the other two default from. |
+| `KEEL_REMOTE_CLOUD_URL` | no | the web URL | keel-cloud's origin. One Caddy serves both on the twin; a deployment that splits them names this. |
+| `KEEL_REMOTE_OIDC_URL` | no | `<web>/oidc` | the stub issuer's base URL — where Caddy proxies it on the twin. |
+| `KEEL_REMOTE_GATE_USER` | no | — | the basic-auth user in front of the issuer's `/authorize` (§4.2). Set with the password or not at all. |
+| `KEEL_REMOTE_GATE_PASSWORD` | no | — | its password. Read from your shell, written nowhere: not to a run bundle, not to a log line. |
+| `KEEL_REMOTE_CELL` | no | `local` | which matrix cell this run is (`windows-copilot-py3.9`) — it names the identity a cell registers. |
+
+**The gate rides two requests and no others.** When both gate variables are set, every Playwright
+browser context carries `http_credentials` **scoped to the issuer's origin**, and the browserless
+sign-in (`stack/auth.py`) sends the same basic auth on the `/authorize` hop alone. keel-cloud's
+`/v2/*` and keel-web's pages are as open on staging as they are in production, so nothing else
+here ever sends it.
+
+**A cell signs in as its own founder.** On the twin each matrix cell registers an identity before
+it runs and patches its verdict into the identity's label afterwards, so the founder's next
+morning is a picker that reads as the log they asked for (§4.3, §6.4). `stack/remote.py` is those
+two calls — `register_cell_identity(config, label)` and `label_cell_identity(config, id, label)` —
+plus `identity_to_sign_in_as(config, label)`, which registers on `remote` and hands back the
+built-in *Eval Founder* on every other profile with no I/O at all.
+
+**The runtime home is still this run's own.** `runs/.stack/keel-home-remote`, reset by `make up`,
+carrying a `config.json` that names the remote cloud — so the runtime's `KEEL_BASE_URL` is the
+deployment's without anybody exporting one.
+
+**The eval and playground profiles are untouched by all of it.** Same ports, same four processes,
+same teardown, no credential anywhere — and the `KEEL_REMOTE_*` variables are ignored entirely
+unless the profile is `remote`, so a shell that still has them exported cannot point a local run
+at staging. `tests/test_remote_profile.py` pairs every remote assertion with the local one it must
+not disturb.
 
 ## The instruction eval (`make instruction-eval`)
 
@@ -1106,7 +1164,10 @@ legacy-builder accommodations, every one of them a property that would otherwise
 observable during a paid run), the stub OIDC issuer itself (spec 015 — a real server on a real
 socket, its refusals, its picker and its six declared lies) and what the two-founder and refusal
 scenarios promise (that S-010 goes at *every* route the design lists, and that S-011's five lines
-are keel-web's verbatim), with no Docker/gradle/vite involved. **634 tests** as of spec 016.
+are keel-web's verbatim), the `remote` profile (spec 017 — its URLs and their defaults, the gate
+credential and its scoping, boot/teardown/status starting and stopping nothing, and the registry
+helpers against mocked HTTP, each paired with the local behaviour it must not disturb), with no
+Docker/gradle/vite involved. **678 tests** as of spec 017.
 
 ## The live runs (`make eval-live`)
 

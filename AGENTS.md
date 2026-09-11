@@ -141,3 +141,12 @@ make down PROFILE=playground
 pytest (`evals/conftest.py`'s `stack_config` fixture); nothing here defaults to guessing which
 profile a running stack is on, so a mismatched `PROFILE` just attaches to (or boots) the wrong
 one's own three ports.
+
+**There is a third profile, and it starts nothing** (spec `017-remote-profile`).
+`PROFILE=remote` names three URLs read from `KEEL_REMOTE_WEB_URL` and its two optional companions
+instead of booting anything: `make up PROFILE=remote` asks whether they answer and `make down
+PROFILE=remote` is a no-op. It exists for the staging twin the matrix runs against (keel-cloud
+`canon/designs/e2e-matrix-design.md`), and the invariant it is written around is that the eval and
+playground profiles behave exactly as they did — if you are changing something in `stack/` or
+`harness/browser.py`, that is the property to keep. README's *remote profile* section has the
+variable table.

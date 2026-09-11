@@ -120,6 +120,74 @@ def _origin(page: Page) -> str:
     return f"{parts.scheme}://{parts.netloc}"
 
 
+# ------------------------------------------------------------------ the gate in front of the door
+
+def gate_http_credentials(config) -> dict | None:
+    """Playwright's `http_credentials` for the **issuer's origin only**, or `None` (spec 017;
+    keel-cloud `canon/designs/e2e-matrix-design.md` §4.2).
+
+    On the staging twin Caddy stands basic auth in front of `/oidc/authorize` -- the account
+    picker, and nothing else. keel-web's pages and keel-cloud's `/v2/*` are as open as
+    production's, so the credential is scoped to the issuer's own origin: a browser context that
+    sent it everywhere would be a browser no founder is using, and a redirect to somewhere
+    unexpected would quietly hand a password to it.
+
+    `None` on both local profiles, which is what makes this function a no-op for every existing
+    scenario: `browser.new_context()` without `http_credentials` is the call it always made.
+    """
+    credential = getattr(config, "gate_credential", None)
+    if not credential:
+        return None
+    user, password = credential
+    parts = urlsplit(getattr(config, "oidc_base_url", "") or "")
+    origin = f"{parts.scheme}://{parts.netloc}" if parts.netloc else None
+    options = {"username": user, "password": password}
+    if origin:
+        options["origin"] = origin
+    return options
+
+
+def context_options(config, **kwargs) -> dict:
+    """The keyword arguments a `browser.new_context()` should carry for this profile -- whatever
+    the caller asked for, plus the gate credential when there is a gate."""
+    credential = gate_http_credentials(config)
+    if credential and "http_credentials" not in kwargs:
+        kwargs["http_credentials"] = credential
+    return kwargs
+
+
+class GatedBrowser:
+    """A Playwright `Browser` with one method changed: `new_context()` carries the gate
+    credential (§4.2).
+
+    **Why a wrapper and not a line in every scenario.** Nineteen scenario modules call
+    `browser.new_context()` and every one of them is the referee's own contract with the product;
+    editing all nineteen to thread a credential through would be modifying the referee to
+    accommodate a deployment, which is exactly what §11's invariant forbids. `evals/conftest.py`
+    wraps the session browser instead, once, and only when a gate credential exists -- so on the
+    eval and playground profiles the fixture yields the raw `Browser` object and nothing in this
+    file is reached at all.
+
+    Everything else is delegated, including `close()`, so the fixture that owns the browser owns
+    it exactly as before.
+    """
+
+    def __init__(self, browser, config):
+        self._browser = browser
+        self._config = config
+
+    def new_context(self, **kwargs):
+        return self._browser.new_context(**context_options(self._config, **kwargs))
+
+    def __getattr__(self, name):
+        return getattr(self._browser, name)
+
+
+def new_context(browser, config, **kwargs):
+    """The explicit form, for a caller that has a raw `Browser` and this profile's config."""
+    return browser.new_context(**context_options(config, **kwargs))
+
+
 def _split_recorder_and_base(args: tuple, page: Page) -> tuple[Recorder, str]:
     """This module's real callers have, at different points, constructed these classes as
     `(page, recorder)`, `(page, recorder, base_url)`, and `(page, base_url, recorder)` -- the
@@ -438,6 +506,13 @@ class Auth:
         `founder` is a `stack.auth.StubFounder` (or anything with a `.name`): the picker's button
         is labelled with the identity's own name, which is exactly what a person on the playground
         profile reads and clicks.
+
+        **The gate changes nothing here** (spec 017; e2e-matrix-design.md §4.2). On the staging
+        twin the picker is behind Caddy's basic auth, and the credential rides the browser
+        *context* (`gate_http_credentials` above, scoped to the issuer's origin) rather than any
+        step in this method: the clicks are the same clicks, in the same order, on the same
+        screens. A cell signs in as the identity it registered minutes earlier, which is a
+        different `founder.name` and no different code.
 
         `stub_break`/`cancel` are S-011's levers and nothing else's. `stub_break` is carried into
         the picker's own hidden fields by the stub (its `_CARRIED` tuple), so the click that

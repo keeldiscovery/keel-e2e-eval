@@ -72,8 +72,13 @@ def _process_name(config: StackConfig) -> str:
 
 
 def issuer_url(config: StackConfig) -> str:
-    """What `KEEL_OIDC_ISSUER` will name, and what the discovery document calls itself."""
-    return f"http://localhost:{config.oidc_port}"
+    """What `KEEL_OIDC_ISSUER` will name, and what the discovery document calls itself.
+
+    Spec 017: on the two local profiles this is `http://localhost:<this profile's oidc port>`,
+    unchanged; on the `remote` profile it is `KEEL_REMOTE_OIDC_URL` (default `<web>/oidc`, which
+    is where Caddy proxies the stub on the staging twin), because there is no local port to name
+    and the issuer is a thing that already exists."""
+    return config.oidc_base_url
 
 
 def discovery_url(config: StackConfig) -> str:
@@ -117,7 +122,7 @@ def cloud_env(config: StackConfig) -> dict[str, str]:
         "KEEL_GOOGLE_CLIENT_ID": CLIENT_ID,
         "KEEL_GOOGLE_CLIENT_SECRET": CLIENT_SECRET,
         "KEEL_GOOGLE_REDIRECT_URI":
-            f"http://localhost:{config.cloud_port}/v2/auth/google/callback",
+            f"{config.cloud_base_url}/v2/auth/google/callback",
     }
 
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import time
 
-from stack import cloud, oidc, postgres, runtime, web
+from stack import cloud, oidc, postgres, remote, runtime, web
 from stack.config import StackConfig, load_config
 from stack.processes import teardown_all_processes
 
@@ -25,13 +25,44 @@ def quick_gates_pass(config: StackConfig) -> bool:
     of the same kind, and once keel-cloud's login is Google sign-in a stack whose issuer is down
     is a stack nobody can log into -- so "already up" must include it, or `make eval` would
     cheerfully attach to a stack with no way in.
+
+    Spec 017 makes it **three answers instead of four processes** on the `remote` profile: there
+    is nothing local to be up, so "already up" is the same three questions `make up
+    PROFILE=remote` asks (`stack/remote.py:checks`) -- and they are the right ones, because a
+    scenario attaching to a deployment that is mid-deploy would fail somewhere far less
+    legible.
     """
+    if config.is_remote:
+        return remote.is_up(config)
     return (oidc.is_up(config) and postgres.is_up(config) and cloud.is_up(config)
             and web.is_up(config))
 
 
 def boot(config: StackConfig) -> None:
-    """Brings the whole stack up, printing each gate as it passes (FR-001, SC-001)."""
+    """Brings the whole stack up, printing each gate as it passes (FR-001, SC-001).
+
+    **The `remote` profile boots nothing** (spec 017; e2e-matrix-design.md §11). It names three
+    URLs that already answer and the whole of `make up PROFILE=remote` is asking them whether
+    they do -- keel-web 200, keel-cloud's `/v2/me` 401, the issuer's discovery document 200 and
+    naming itself. Starting a Postgres, a JVM or a Vite here would be starting a *second* Keel
+    beside the one under test, and tearing one down would be tearing down somebody's staging box.
+    """
+    if config.is_remote:
+        print("[up] (remote) nothing to start -- checking the three URLs this profile "
+              "names")
+        print(f"[up] (remote) web {config.web_base_url}, cloud {config.cloud_base_url}, "
+              f"issuer {config.oidc_base_url}"
+              f"{' (behind a gate as ' + config.gate_user + ')' if config.gate_credential else ''}")
+        remote.require_answering(config)
+        # The runtime home is still this run's own (spec 012 FR-004, and S-012's own temp home):
+        # `runs/.stack/keel-home-remote`, wiped, carrying a `config.json` that names the *remote*
+        # Keel. That is what makes `KEEL_BASE_URL` for the runtime the cloud URL without anybody
+        # exporting anything.
+        print(f"[up] (remote) runtime-home: resetting {runtime.home_dir(config)} ...")
+        runtime.reset(config)
+        print(f"[up] (remote) runtime-home: ready, naming {config.cloud_base_url}")
+        print("[up] all gates passed")
+        return
     # The stub issuer comes up **first** (keel-cloud google-sign-in-design.md 10.3): keel-cloud
     # fetches the discovery document lazily, on the first sign-in rather than at startup, so
     # nothing here depends on the order -- but bringing it up first means the first login of a run
@@ -96,6 +127,17 @@ def teardown(config: StackConfig | None = None) -> None:
     founder credential left to scope: it went with the password (google-sign-in-design.md §10.4).
     """
     config = config or load_config()
+    if config.is_remote:
+        # A no-op, and deliberately a loud one (spec 017). There is nothing local to stop, and
+        # the thing this profile names is a deployment other cells may be mid-run against -- a
+        # referee that could tear it down is a referee with a footgun. The runtime a scenario
+        # left running is disconnected, because that one *is* this machine's.
+        print("[down] (remote) nothing to stop -- this profile starts no process")
+        outcome = runtime.disconnect(config)
+        print(f"[down] (remote) keel-runtime: {outcome.get('outcome')} "
+              f"(via {outcome.get('via')})")
+        print("[down] (remote) done")
+        return
     print(f"[down] ({config.profile}) disconnecting keel-runtime (if a scenario left one "
           f"running) ...")
     outcome = runtime.disconnect(config)
