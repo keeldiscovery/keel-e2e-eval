@@ -508,3 +508,12 @@ def test_hosts_resolve_their_binary_through_path_lookup(monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
     copilot_host.readiness("copilot")
     assert seen["argv"][0].endswith("copilot.cmd")
+
+
+def test_a_host_built_with_the_default_binary_still_resolves_it_through_path(monkeypatch, tmp_path):
+    import shutil
+    from harness import agent_host
+    monkeypatch.setattr(shutil, "which", lambda name: r"C:\\tools\\%s.cmd" % name)
+    host = agent_host.build_host("copilot", home=tmp_path / "h", keel_home=tmp_path / "k",
+                                 base_url="http://localhost:18080", artifacts=tmp_path / "a")
+    assert host.binary.endswith("copilot.cmd")

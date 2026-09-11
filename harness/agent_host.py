@@ -356,9 +356,11 @@ class AgentHost:
         self.base_url = base_url
         self.artifacts = Path(artifacts)
         if binary:
-            # Resolved through PATH: on Windows the CLI is a `.cmd` shim, which Popen cannot launch
-            # by its bare name (keel-runtime PR #1 found the same; the first cloud run re-found it).
-            self.binary = shutil.which(binary) or binary
+            self.binary = binary
+        # Resolved through PATH, whether passed in or the class default: on Windows the CLI is a
+        # `.cmd` shim, which Popen cannot launch by its bare name (keel-runtime PR #1 found the
+        # same; the first cloud run re-found it in readiness, the third in add_marketplace).
+        self.binary = shutil.which(self.binary) or self.binary
         #: `--model` for the **host** CLI: what the founder's own agent answers with when they type
         #: "keel connect". Leg one's subject is the founder's real CLI, so this is each host's own
         #: default rather than a slug chosen to suit the runtime.
