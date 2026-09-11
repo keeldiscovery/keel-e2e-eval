@@ -5,7 +5,7 @@ keel-cloud `canon/designs/e2e-matrix-design.md` §5).
 `python -m matrix --set <name> --json` and `make matrix-check` runs `python -m matrix`; they are
 the same code over the same file, so a founder who edits `cells.toml` finds out on their own Mac
 what the workflow would have found out on a runner -- before the runner spends a model request on
-it. Nothing here touches the network, a stack, a runner or a secret: it is a TOML file, three
+it. Nothing here touches the network, a stack, a runner or a secret: it is a TOML file, six
 coverage rules and a JSON dump.
 
 **What a cell is** (§5.3): one (OS, host, Python) combination run once, as one runner job, with a
@@ -13,6 +13,13 @@ list of scenarios. Its `id` -- `<os>-<host>-py<python>` -- is the whole of its i
 name, the artifact's name, and `KEEL_REMOTE_CELL`, which is what `stack/remote.py` names the
 founder it registers with the twin's picker, which is what the founder reads the next morning
 (§4.3). So ids are unique within a set, and the validator says so.
+
+**How far a cell goes is a field, not a scenario.** `legs` (spec 021) is `short` or `full` and
+defaults to `full`; the workflow exports it as `KEEL_JOURNEY_LEGS` and S-012 reads it. The four
+per-change cells are `short` -- the host leg plus the first model job -- and everything else is
+`full`. It is deliberately **not** part of a cell's `id`: the same machine appearing short in one
+set and full in another is one cell in two sets, not two cells, and its id is the founder it
+registers with the twin's picker (§4.3), which cannot be two people.
 
 **Why the scenarios are split into two lists.** `s012` (and `s004`) are `-m live`: a real host CLI,
 a real model, real money, `make eval-live`. `s005`/`s006`/`s007` are not: they drive the product's
@@ -39,6 +46,13 @@ CELLS_TOML = Path(__file__).resolve().parent / "cells.toml"
 #: The three named sets, in the order §5.2 tables them (cheap, nightly, everything).
 SET_NAMES = ("per_change", "nightly", "weekly")
 
+#: How much of S-012 a cell runs (spec `021-short-journey`; `harness/agent_host.py`'s own `LEGS`,
+#: restated here rather than imported so this module stays stdlib-only and importable by a
+#: workflow step that has no harness). `full` is the default and is what a cell that says nothing
+#: gets, so every cell written before spec 021 means what it meant.
+LEGS = ("short", "full")
+DEFAULT_LEGS = "full"
+
 
 class CellsError(ValueError):
     """`cells.toml` says something the design does not allow. Raised with **every** problem found,
@@ -55,6 +69,11 @@ class Cell:
     host: str
     python: str
     scenarios: tuple[str, ...]
+    #: `short` or `full` -- how much of the journey this cell buys (spec 021). Optional in the
+    #: file and **not** part of the cell's id: a cell is still one (OS, host, Python), and the
+    #: same cell appearing in `per_change` short and in `nightly` full is one runner job in two
+    #: sets, not two cells. It reaches the runner as `KEEL_JOURNEY_LEGS`.
+    legs: str = DEFAULT_LEGS
 
     @property
     def id(self) -> str:
@@ -78,6 +97,10 @@ class Cell:
             "host": self.host,
             "python": self.python,
             "scenarios": list(self.scenarios),
+            # `KEEL_JOURNEY_LEGS` in the cell job's env. S-012 is the only scenario that reads it;
+            # a cell carrying corpus scenarios beside the journey passes it all the same, and they
+            # ignore it.
+            "legs": self.legs,
             # The two pytest selectors, pre-split: live scenarios cost money and go through
             # `make eval-live`, the rest are free and go through `make eval`.
             "live_k": self.k(live),
@@ -176,7 +199,7 @@ def load(path: Path | None = None) -> Matrix:
             if not isinstance(entry, dict):
                 problems.append(f"{where} must be a table")
                 continue
-            unknown = set(entry) - {"os", "host", "python", "scenarios"}
+            unknown = set(entry) - {"os", "host", "python", "scenarios", "legs"}
             if unknown:
                 problems.append(f"{where} has unknown key(s) {sorted(unknown)}")
             values = {}
@@ -193,8 +216,14 @@ def load(path: Path | None = None) -> Matrix:
                          if "scenarios" in entry else default_scenarios)
             if not scenarios:
                 problems.append(f"{where} runs no scenarios")
+            legs = entry.get("legs", DEFAULT_LEGS)
+            if legs not in LEGS:
+                problems.append(f"{where}: legs={legs!r} is not one of {list(LEGS)} -- `short` is "
+                                f"the host leg plus the first model job, `full` is the whole "
+                                f"journey, and a cell that says nothing gets {DEFAULT_LEGS!r}")
+                legs = DEFAULT_LEGS
             cells.append(Cell(os=values["os"], host=values["host"], python=values["python"],
-                              scenarios=scenarios))
+                              scenarios=scenarios, legs=legs))
         ids = [cell.id for cell in cells]
         duplicates = sorted({i for i in ids if ids.count(i) > 1})
         if duplicates:
@@ -208,44 +237,103 @@ def load(path: Path | None = None) -> Matrix:
     return Matrix(axes=axes, live=live, default_scenarios=default_scenarios, sets=sets)
 
 
-# ------------------------------------------------------------------- the design's coverage rules
+# -------------------------------------------------------------------------- the coverage rules
+
+#: **The operating system the per-change and nightly sets deliberately leave out** (the founder's
+#: decision, 2026-09-11: *"fewer than 5% of founders"*). Ubuntu is not dropped -- it is weekly, in
+#: full, every Sunday. It is dropped from the sets that run on a merge and overnight, because the
+#: minutes there buy more on the two operating systems founders actually install the plugin on.
+#: Written as a prefix because the runner label carries a version (`ubuntu-24.04`) and the rule is
+#: about the OS.
+CHEAP_SETS_SKIP = "ubuntu"
+
 
 def coverage_problems(matrix: Matrix) -> list[str]:
-    """The three rules §5.2 states in prose, as checks. They are here rather than only in the test
-    suite so that `make matrix-check` enforces them too: the founder editing cells.toml on a
-    Sunday is exactly the reader who would not run `make unit` afterwards."""
+    """The design's coverage rules, as checks -- **rewritten by spec 021** (the founder's
+    decisions of 2026-09-11), which is why they no longer read like §5.2's prose.
+
+    They are here rather than only in the test suite so that `make matrix-check` enforces them
+    too: the founder editing cells.toml on a Sunday is exactly the reader who would not run
+    `make unit` afterwards.
+
+    The six rules, in the order they are checked:
+
+    1. **per_change is the two operating systems founders install on, each host, on the current
+       Python, running the short journey.** Four cells. Ubuntu is not in it and neither is the
+       floor: a merge buys the host leg and the first model job on macOS and Windows.
+    2. **per_change runs only the journey, and only the short one.** A corpus scenario or a full
+       journey in the cheap set is the cheap set stopping being cheap.
+    3. **nightly carries every per_change combination again, at full length.** What a merge buys
+       short, the night buys whole -- so a break the short journey cannot see is at most a day
+       old.
+    4. **nightly spends the 3.9 floor**, on Windows, both hosts. spec 004's floor is a promise and
+       a promise nothing runs against is not one; it moved from per_change to nightly rather than
+       being dropped.
+    5. **Neither cheap set leaves for Ubuntu**, and nightly is six cells.
+    6. **weekly is the full product of the axes, every cell at full length.** Ubuntu is here, and
+       this is the confirmation that nothing is hiding in a corner.
+    """
     problems: list[str] = []
+    everyday = [os_ for os_ in matrix.axes["os"] if not os_.startswith(CHEAP_SETS_SKIP)]
 
     per_change = matrix.sets.get("per_change", ())
     covered = {(cell.os, cell.host) for cell in per_change}
-    want = set(itertools.product(matrix.axes["os"], matrix.axes["host"]))
+    want = set(itertools.product(everyday, matrix.axes["host"]))
     if covered != want:
         missing = sorted(want - covered)
-        problems.append(f"per_change must run every OS once per host (§5.2); it misses {missing}")
-    if not any(cell.python == "3.9" for cell in per_change):
-        problems.append("per_change spends no cell on Python 3.9 -- spec 004's floor is a promise, "
-                        "and a promise nothing runs against per change is a promise")
+        extra = sorted(covered - want)
+        problems.append("per_change must run each of "
+                        f"{everyday} once per host and nothing else (spec 021)"
+                        + (f"; it misses {missing}" if missing else "")
+                        + (f"; it also names {extra}" if extra else ""))
+    current = matrix.axes["python"][-1] if matrix.axes["python"] else ""
+    off_axis = sorted({c.id for c in per_change if c.python != current})
+    if off_axis:
+        problems.append(f"per_change runs the current Python ({current}) and only it (spec 021); "
+                        f"{off_axis} do not")
+    not_short = sorted({c.id for c in per_change if c.legs != "short"})
+    if not_short:
+        problems.append(f"per_change runs the SHORT journey (spec 021): {not_short} would run the "
+                        f"whole one on every qualifying change")
+    beyond = sorted({s for c in per_change for s in c.scenarios} - set(matrix.default_scenarios))
+    if beyond:
+        problems.append(f"per_change runs only {list(matrix.default_scenarios)} (spec 021); it "
+                        f"also names {beyond}, which is the cheap set stopping being cheap")
 
     nightly = matrix.sets.get("nightly", ())
-    not_ubuntu = sorted({cell.os for cell in nightly if not cell.os.startswith("ubuntu")})
-    if not_ubuntu:
-        problems.append(f"nightly is Ubuntu only (§5.2 and §10's 'Linux 6 / 0 / 0'); it names "
-                        f"{not_ubuntu}")
+    strayed = sorted({cell.os for cell in nightly if cell.os.startswith(CHEAP_SETS_SKIP)})
+    if strayed:
+        problems.append(f"nightly leaves {CHEAP_SETS_SKIP!r} to the weekly set (spec 021, "
+                        f"'fewer than 5% of founders'); it names {strayed}")
+    nightly_full = {(c.os, c.host, c.python) for c in nightly if c.legs == "full"}
+    unheld = sorted({(c.os, c.host, c.python) for c in per_change} - nightly_full)
+    if unheld:
+        problems.append(f"nightly must run every per_change cell at full length (spec 021): "
+                        f"{unheld} are bought short on a merge and never bought whole")
+    floor = matrix.axes["python"][0] if matrix.axes["python"] else ""
+    if not any(cell.python == floor for cell in nightly):
+        problems.append(f"nightly spends no cell on Python {floor} -- spec 004's floor is a "
+                        f"promise, and per_change no longer runs it, so the night is where it is "
+                        f"kept")
 
-    weekly = {(cell.os, cell.host, cell.python) for cell in matrix.sets.get("weekly", ())}
-    if weekly != matrix.product:
-        missing = sorted(matrix.product - weekly)
-        extra = sorted(weekly - matrix.product)
-        problems.append(f"weekly must be the full product of the axes (§5.2, eighteen cells)"
+    weekly = matrix.sets.get("weekly", ())
+    combos = {(c.os, c.host, c.python) for c in weekly}
+    if combos != matrix.product:
+        missing = sorted(matrix.product - combos)
+        extra = sorted(combos - matrix.product)
+        problems.append("weekly must be the full product of the axes (§5.2, eighteen cells)"
                         + (f"; missing {missing}" if missing else "")
                         + (f"; unexpected {extra}" if extra else ""))
+    shortened = sorted({c.id for c in weekly if c.legs != "full"})
+    if shortened:
+        problems.append(f"weekly is the full journey everywhere (spec 021); {shortened} are short")
     return problems
 
 
 def validate(matrix: Matrix) -> None:
     problems = coverage_problems(matrix)
     if problems:
-        raise CellsError("cells.toml does not meet the design's coverage rules:\n  - "
+        raise CellsError("cells.toml does not meet the coverage rules:\n  - "
                          + "\n  - ".join(problems))
 
 
@@ -264,7 +352,7 @@ def render(matrix: Matrix, set_name: str | None = None,
             free = cell.k([s for s in cell.scenarios if s not in matrix.live])
             what = "  ".join(part for part in (
                 f"live: {live}" if live else "", f"free: {free}" if free else "") if part)
-            lines.append(f"    {cell.id:<34}  {what}")
+            lines.append(f"    {cell.id:<34}  {cell.legs:<6}  {what}")
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
