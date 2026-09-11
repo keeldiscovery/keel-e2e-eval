@@ -574,14 +574,14 @@ jobs:
             if [ "$use_make" = 1 ]; then
               make eval-live K="$LIVE_K" HOST="$KEEL_JOURNEY_HOST" PROFILE=remote || status=$?
             else
-              "$VENV_PY" -m pytest evals -q -rs -m live -k "$LIVE_K" || status=$?
+              "$VENV_PY" -m pytest evals -q -rs -l -m live -k "$LIVE_K" || status=$?
             fi
           fi
           if [ -n "$EVAL_K" ]; then
             if [ "$use_make" = 1 ]; then
               make eval K="$EVAL_K" PROFILE=remote || status=$?
             else
-              "$VENV_PY" -m pytest evals -q -rs -m "not live" -k "$EVAL_K" || status=$?
+              "$VENV_PY" -m pytest evals -q -rs -l -m "not live" -k "$EVAL_K" || status=$?
             fi
           fi
           exit $status

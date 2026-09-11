@@ -53,7 +53,7 @@ eval: venv
 eval-live: venv
 	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) \
 	KEEL_JOURNEY_HOST=$(if $(HOST),$(HOST),copilot) \
-	$(PY) -m pytest evals -q -rs -m live $(if $(K),-k "$(K)",)
+	$(PY) -m pytest evals -q -rs -l -m live $(if $(K),-k "$(K)",)
 
 # make eval-all runs the FULL scenario set (s001 included) against one stack session (attaches to
 # an already-up stack from `make up`; does not tear it down -- `make down` is a separate step) and
