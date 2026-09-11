@@ -439,6 +439,11 @@ jobs:
     env:
       # spec 017's remote profile: URLs, not processes. `make up` is never run here -- the twin is
       # already up, and a referee that could tear down the thing it is refereeing is a footgun.
+      # Python's UTF-8 mode: every default encoding -- file reads and writes, subprocess text,
+      # the console -- is UTF-8, on Windows too, where the locale is cp1252 and the harness's own
+      # evidence files carry the CLIs' check marks and padlocks (fifth cloud run, 2026-09-11:
+      # "'charmap' codec can't encode character '\u2705'" while writing a transcript).
+      PYTHONUTF8: "1"
       KEEL_EVAL_PROFILE: remote
       KEEL_REMOTE_GATE_USER: harness
       KEEL_REMOTE_GATE_PASSWORD: ${{ secrets.KEEL_STAGING_HARNESS_PASSWORD }}
