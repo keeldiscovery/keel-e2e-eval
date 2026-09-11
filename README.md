@@ -754,6 +754,10 @@ button per founder, labelled with that founder's own name — and `?identity=fou
 two new scenarios S-010 and S-011 wait on keel-cloud spec `032-google-sign-in`; until it lands the
 four `KEEL_GOOGLE_*`/`KEEL_OIDC_ISSUER` variables `stack/cloud.py` passes are read by nobody.
 
+Spec `018-gated-registry-stub` adds two flags to the same package for the staging twin — a gate in
+front of `/authorize` and a per-cell identity registry behind it — and changes nothing about the
+above: the local profiles pass neither flag. See *the gated registry stub*, below.
+
 ## Ports (fixed, never 5432/8080)
 
 Postgres 55432, keel-cloud 18080, keel-web 5173, the stub OIDC issuer 18090 — so this stack never
@@ -838,6 +842,50 @@ same teardown, no credential anywhere — and the `KEEL_REMOTE_*` variables are 
 unless the profile is `remote`, so a shell that still has them exported cannot point a local run
 at staging. `tests/test_remote_profile.py` pairs every remote assertion with the local one it must
 not disturb.
+
+## The gated registry stub (spec `018-gated-registry-stub`)
+
+Two flags on the same `stack/stub_oidc/` package, neither of which a local profile passes:
+
+```bash
+python -m stack.stub_oidc --port 18090 --key key.pem \
+  --gated --registry /var/lib/keel-oidc/identities.json
+```
+
+**`--gated`** refuses `/authorize` and the registry routes with a plain-text **403** unless the
+request carries an `X-Keel-Gate-User` header — the header Caddy sets from the basic auth it just
+checked on the staging twin. The stub never sees a password; all it learns is a user name, and it
+uses it for one thing: **`founder` may sign in as any identity, and every other principal may sign
+in only as identities it registered** (invariant M6 — the harness cannot be the founder).
+
+**`--registry <path>`** keeps the identity list in a JSON file (atomically written: temp file,
+`os.replace`, so a reader on `/authorize` never sees half a document). Without it the registry is
+an in-memory list, which is why the local profiles need nothing.
+
+| Route | Answers |
+|---|---|
+| `POST /identities` | `{id, name, email, label}` → **201**. `sub` is derived (`cell-<id>`) and never taken from the request; `email_verified` is always true; `hd` is never set. **409** on a duplicate id (a built-in one included), **400** on anything malformed. |
+| `PATCH /identities/<id>` | `{"label": …}` → **200**. The label and nothing else: a request that also carries a name, an email or a `sub` changes none of them. **404** for an unknown id. |
+| `GET /identities` | the registrations **newest first**, and the two built-in identities named separately. |
+
+The picker renders registered identities newest first with each one's label under its button, then
+the two built-in founders. `?identity=<id>` and `?login_hint=<sub>` find registered identities
+exactly as they find built-in ones.
+
+**Ungated is byte-for-byte what it was**: no header is read, the two built-in founders sign in, and
+the picker's HTML is unchanged — `tests/test_stub_oidc.py`, spec 015's own file, was not edited by
+this feature and its 54 tests pass.
+
+**The container image.** `stack/containers/oidc/Dockerfile` is the same package on
+`python:3.12-slim` with `openssl` (the one external tool `keys.py` uses) and **no Python
+dependency at all** — which is why `Identity`, the client and the two founders moved into
+`stack/stub_oidc/identity.py`, with `stack/oidc.py` re-exporting the same objects under the same
+names.
+
+```bash
+make oidc-image TAG=$(git rev-parse --short HEAD)            # buildx, linux/arm64
+make oidc-image TAG=<sha> PUSH=1 OIDC_IMAGE_REPO=<ecr repo>  # what spec 020's workflow will run
+```
 
 ## The instruction eval (`make instruction-eval`)
 
@@ -1166,8 +1214,9 @@ socket, its refusals, its picker and its six declared lies) and what the two-fou
 scenarios promise (that S-010 goes at *every* route the design lists, and that S-011's five lines
 are keel-web's verbatim), the `remote` profile (spec 017 — its URLs and their defaults, the gate
 credential and its scoping, boot/teardown/status starting and stopping nothing, and the registry
-helpers against mocked HTTP, each paired with the local behaviour it must not disturb), with no
-Docker/gradle/vite involved. **678 tests** as of spec 017.
+helpers against mocked HTTP, each paired with the local behaviour it must not disturb) and the
+gated registry stub (spec 018 — the gate, the three registry routes, the picker's order and
+labels, and the atomic write), with no Docker/gradle/vite involved. **712 tests** as of spec 018.
 
 ## The live runs (`make eval-live`)
 

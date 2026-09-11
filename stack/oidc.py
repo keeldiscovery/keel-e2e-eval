@@ -34,35 +34,27 @@ import requests
 
 from stack.config import REPO_ROOT, StackConfig
 from stack.processes import is_port_open, require_port_free, spawn, wait_for_http
+from stack.stub_oidc import identity
+from stack.stub_oidc.identity import Identity  # noqa: F401 - re-exported here
 from stack.stub_oidc.keys import generate_pem
-from stack.stub_oidc.server import Identity
 
 NAME = "oidc"
 BOOT_TIMEOUT_S = 30
 
-#: The client keel-cloud presents to the stub. Fixed, non-secret, and the same on both profiles --
-#: it is a string two local processes agree on, not a credential (§7's "the eval stack never has
-#: one at all"). A real client id and secret live in a founder's own `.envrc` and never here.
-CLIENT_ID = "keel-eval-client"
-CLIENT_SECRET = "keel-eval-client-secret"  # noqa: S105 - see above: not a secret, by construction
-
-#: The two founders, in one place (§10.2). Founder A keeps today's `stack/auth.py` `FOUNDER_NAME`
-#: and `FOUNDER_EMAIL` on purpose: those strings are already in greetings, participant pages and
-#: screenshots, and nothing about Google sign-in is a reason to churn them. `picture` is `None` for
-#: both, so the header's no-picture fallback is the state the whole eval set runs in.
-FOUNDER_A = Identity(
-    id="founder-a",
-    sub="stub-founder-1",
-    email="eval-founder@keel-e2e-eval.test",
-    name="Eval Founder",
-)
-FOUNDER_B = Identity(
-    id="founder-b",
-    sub="stub-founder-2",
-    email="second-founder@keel-e2e-eval.test",
-    name="Nour Haddad",
-)
-STUB_IDENTITIES = [FOUNDER_A, FOUNDER_B]
+#: The client and the two founders. **The same objects**, re-exported from the stub package's own
+#: `identity.py` so `oidc.CLIENT_ID`, `oidc.FOUNDER_A`, `oidc.FOUNDER_B` and
+#: `oidc.STUB_IDENTITIES` still name what they always named -- `stack/auth.py` builds
+#: `FOUNDER_ONE`/`FOUNDER_TWO` from them and the tests assert against them here.
+#:
+#: They moved down one level for spec 018 (e2e-matrix-design.md §3): the same server runs as a
+#: container on the staging twin, and this module cannot go with it -- it imports `requests`,
+#: `stack.config` and `stack.processes`, none of which a stub issuer needs. The data belongs to
+#: the package that serves it; this module is the local profiles' lifecycle around it.
+CLIENT_ID = identity.CLIENT_ID
+CLIENT_SECRET = identity.CLIENT_SECRET
+FOUNDER_A = identity.FOUNDER_A
+FOUNDER_B = identity.FOUNDER_B
+STUB_IDENTITIES = identity.STUB_IDENTITIES
 
 
 def _process_name(config: StackConfig) -> str:
