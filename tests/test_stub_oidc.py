@@ -684,8 +684,9 @@ def test_the_sign_in_step_clicks_a_link_and_then_the_founders_own_name():
 
     source = inspect.getsource(Auth.sign_in)
     assert 'get_by_role("link", name=self.GOOGLE_BUTTON)' in source
-    assert 'get_by_role("button", name=label, exact=True)' in source, (
-        "the picker's own button, labelled with the identity's name (§10.2)")
+    assert "chooser_button_selector(founder.id)" in source, (
+        "the picker's own submit button, found through the hidden `identity` field its form "
+        "carries (§10.2) -- unique by construction, where the visible name is not")
     assert Auth.GOOGLE_BUTTON == "Continue with Google"
     assert not hasattr(Auth, "set_up"), "`set_up` is deleted with /setup (§4.7)"
 
