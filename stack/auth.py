@@ -88,7 +88,9 @@ class KeelSession:
 
 
 def cloud_base(config: StackConfig) -> str:
-    return f"http://localhost:{config.cloud_port}"
+    """This profile's own Keel: `http://localhost:18080` on eval, `:18081` on playground, and
+    whatever `KEEL_REMOTE_CLOUD_URL` names on remote (spec 017)."""
+    return config.cloud_base_url
 
 
 def sign_in_session(config: StackConfig, founder: StubFounder = FOUNDER_ONE, *,
@@ -118,7 +120,14 @@ def sign_in_session(config: StackConfig, founder: StubFounder = FOUNDER_ONE, *,
             f"keel-cloud redirected sign-in to {authorize_url[:120]!r}, not to this profile's "
             f"stub issuer at {oidc.issuer_url(config)} -- is KEEL_OIDC_ISSUER reaching the JVM?")
     joined = "&" if "?" in authorize_url else "?"
-    landed = session.get(f"{authorize_url}{joined}identity={founder.id}", timeout=15)
+    # **The gate, on this hop and no other** (spec 017; e2e-matrix-design.md §4.2). On staging
+    # Caddy stands basic auth in front of `/oidc/authorize` only, so the browserless sign-in
+    # sends the same credential the browser context carries and sends it nowhere else: keel-cloud
+    # answers `/start` and the callback with no credential at all, exactly as it does locally.
+    # `config.gate_credential` is `None` on every local run, and `requests` with `auth=None` is
+    # byte-for-byte the request this line made before this feature existed.
+    landed = session.get(f"{authorize_url}{joined}identity={founder.id}", timeout=15,
+                         auth=config.gate_credential)
     if landed.status_code >= 400:
         raise RuntimeError(
             f"the sign-in round trip ended {landed.status_code} at {landed.url} "

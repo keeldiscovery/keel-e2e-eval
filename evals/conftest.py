@@ -11,6 +11,7 @@ import re
 import pytest
 from playwright.sync_api import sync_playwright
 
+from harness.browser import GatedBrowser, gate_http_credentials
 from harness.evidence import new_run_dir, write_versions
 from stack.auth import FOUNDER_ONE, FOUNDER_TWO, StubFounder
 from stack.config import PROFILES, StackConfig, load_config
@@ -24,7 +25,11 @@ def stack_config() -> StackConfig:
     `PROFILE=`) so `make eval K=s001 PROFILE=playground` attaches this whole session to the
     split-stacks playground profile instead of the default eval one (relay-design.md §12.5) --
     two referee sessions sharing one checkout must never collide on ports, a database, or a
-    runtime home; running one on each profile is how they don't."""
+    runtime home; running one on each profile is how they don't.
+
+    `PROFILE=remote` (spec 017) resolves the third profile instead: three URLs read from the
+    environment, no local process, and -- when the deployment has a gate in front of its issuer --
+    the basic-auth credential every browser context and the browserless sign-in carry."""
     profile = os.environ.get("KEEL_EVAL_PROFILE", "eval")
     if profile not in PROFILES:
         profile = "eval"
@@ -78,7 +83,7 @@ def _capture_the_login_screen(stack: StackConfig, browser) -> None:
     """
     from stack.config import REPO_ROOT
 
-    web_base = f"http://localhost:{stack.web_port}"
+    web_base = stack.web_base_url
     shot_dir = REPO_ROOT / "runs" / ".stack"
     shot_dir.mkdir(parents=True, exist_ok=True)
     context = browser.new_context()
@@ -164,8 +169,18 @@ def playwright_instance():
 
 
 @pytest.fixture(scope="session")
-def browser(playwright_instance):
+def browser(playwright_instance, stack_config):
+    """The session's one Chromium.
+
+    **Wrapped, and only when there is a gate to get through** (spec 017; e2e-matrix-design.md
+    §4.2). Nineteen scenario modules call `browser.new_context()`; on the staging twin every one
+    of those contexts has to carry the basic-auth credential Caddy asks for in front of the
+    issuer's picker. `harness.browser.GatedBrowser` adds it to `new_context` and delegates
+    everything else, so the scenarios are untouched -- and on the eval and playground profiles
+    this fixture yields the same raw `Browser` object it always yielded, because
+    `gate_http_credentials` is `None` and no wrapper is built.
+    """
     b = playwright_instance.chromium.launch()
-    yield b
+    yield GatedBrowser(b, stack_config) if gate_http_credentials(stack_config) else b
     b.close()
 

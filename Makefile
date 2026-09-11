@@ -3,7 +3,7 @@ PY := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
 PLAYWRIGHT := $(VENV)/bin/playwright
 
-.PHONY: up down eval eval-live eval-all report venv unit instruction-eval acceptance
+.PHONY: up down eval eval-live eval-all report venv unit instruction-eval acceptance oidc-image
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
 # venv already exists (pip/playwright no-op when nothing changed).
@@ -16,6 +16,9 @@ $(PY):
 
 # PROFILE=playground boots/tears down the split-stacks playground profile (its own ports/volume,
 # relay-design.md §12.5) instead of the default eval profile -- `make up PROFILE=playground`.
+# PROFILE=remote (spec 017) starts nothing at all: `up` asks the three URLs named by
+# KEEL_REMOTE_WEB_URL (and its two optional companions) whether they answer, and `down` is a
+# no-op that says so.
 up: venv
 	$(PY) -m stack.cli up $(if $(PROFILE),$(PROFILE),eval)
 
@@ -100,3 +103,34 @@ instruction-eval: venv
 	$(PY) -m instructions.run --host $(if $(HOST),$(HOST),claude) \
 		$(if $(DRY),--dry-run,) $(if $(BASELINE),--baseline,) \
 		$(if $(K),-k $(K),) $(if $(N),-n $(N),) $(if $(MARKS),--marks $(MARKS),)
+
+# spec 018-gated-registry-stub: the stub OIDC issuer as a container, which is the one service the
+# staging twin runs that production does not (keel-cloud `canon/designs/e2e-matrix-design.md` §3
+# and §4). Same package the eval profile spawns as a local process; `--gated` and `--registry` are
+# the only difference, and they are flags rather than a build.
+#
+# arm64 because the staging box is a `t4g.micro`. **buildx when there is one, the legacy builder
+# when there is not**: the founder's own Docker (29.5.2, through Colima) has no `docker buildx`,
+# which `runs/DRIFT.md` #50 already records for the acceptance bed -- so this probes rather than
+# assuming, and prints which builder it used.
+#
+#   make oidc-image TAG=$(git rev-parse --short HEAD)
+#   make oidc-image TAG=<sha> PLATFORM=linux/amd64
+#   make oidc-image TAG=<sha> PUSH=1 OIDC_IMAGE_REPO=<account>.dkr.ecr.<region>.amazonaws.com/keel-oidc
+oidc-image:
+	@if [ -z "$(TAG)" ]; then echo "usage: make oidc-image TAG=<tag> [PUSH=1]"; exit 2; fi
+	@set -eu; \
+	export DOCKER_HOST="$(if $(DOCKER_HOST),$(DOCKER_HOST),unix://$(HOME)/.colima/default/docker.sock)"; \
+	platform="$(if $(PLATFORM),$(PLATFORM),linux/arm64)"; \
+	image="$(if $(OIDC_IMAGE_REPO),$(OIDC_IMAGE_REPO),keel-oidc):$(TAG)"; \
+	if docker buildx version >/dev/null 2>&1; then \
+		echo "[oidc-image] buildx, $$platform -> $$image"; \
+		docker buildx build --platform "$$platform" \
+			-f stack/containers/oidc/Dockerfile -t "$$image" \
+			$(if $(PUSH),--push,--load) . ; \
+	else \
+		echo "[oidc-image] no buildx on this Docker -- legacy builder, $$platform -> $$image"; \
+		docker build --platform "$$platform" \
+			-f stack/containers/oidc/Dockerfile -t "$$image" . ; \
+		$(if $(PUSH),docker push "$$image",true) ; \
+	fi

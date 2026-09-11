@@ -7,6 +7,13 @@ before this existed) -- `make up PROFILE=playground` passes "playground" through
 `load_config`, which resolves an entirely separate port set (and, in stack/postgres.py, an
 entirely separate Compose project), so a playground boot/teardown can never collide with, or
 destroy, the default eval profile's own stack or data.
+
+**The third profile starts nothing** (spec 017; keel-cloud `canon/designs/e2e-matrix-design.md`
+§11). `make up PROFILE=remote` asks three URLs whether they answer -- keel-web 200, keel-cloud's
+`/v2/me` 401, the issuer's discovery document 200 -- and `make down PROFILE=remote` is a no-op
+that says so. The URLs come from `KEEL_REMOTE_WEB_URL` and its two optional companions; a missing
+one is a `ConfigError` naming the variable, here, rather than a connection refused four screens
+later.
 """
 
 from __future__ import annotations
@@ -16,6 +23,7 @@ import sys
 from stack.config import PROFILES, ConfigError, load_config
 from stack.lifecycle import boot, quick_gates_pass, teardown
 from stack.processes import HealthGateTimeout, PortTaken
+from stack.remote import RemoteNotAnswering
 from stack.runtime import BundledRuntimeMissing
 
 
@@ -45,12 +53,16 @@ def main() -> int:
 
     # up
     if quick_gates_pass(config):
-        print(f"[up] ({config.profile}) stack already answering on all three ports -- "
-              f"attaching, not re-booting")
+        if config.is_remote:
+            print(f"[up] (remote) {config.web_base_url} is answering -- nothing to start")
+        else:
+            print(f"[up] ({config.profile}) stack already answering on all three ports -- "
+                  f"attaching, not re-booting")
         return 0
     try:
         boot(config)
-    except (PortTaken, HealthGateTimeout, BundledRuntimeMissing) as exc:
+    except (PortTaken, HealthGateTimeout, BundledRuntimeMissing,
+            RemoteNotAnswering) as exc:
         # spec 012: a missing bundled runtime fails `make up` fast, with the one command that
         # fixes it -- never a stack that boots and then reports `runtime_unavailable` from inside
         # a scenario, where it reads as a product defect rather than a build step nobody ran.
