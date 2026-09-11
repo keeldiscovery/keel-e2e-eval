@@ -54,7 +54,7 @@ def _wait_ready(config: StackConfig, timeout_s: float) -> None:
         last = subprocess.run(
             [*_compose_args(config), "exec", "-T", _service_name(config),
              "pg_isready", "-U", "keel", "-d", "keel_cloud"],
-            cwd=str(REPO_ROOT), capture_output=True, text=True,
+            cwd=str(REPO_ROOT), capture_output=True, encoding="utf-8", errors="replace",
         )
         if last.returncode == 0:
             return
@@ -77,6 +77,6 @@ def is_up(config: StackConfig) -> bool:
     result = subprocess.run(
         [*_compose_args(config), "exec", "-T", _service_name(config),
          "pg_isready", "-U", "keel", "-d", "keel_cloud"],
-        cwd=str(REPO_ROOT), capture_output=True, text=True,
+        cwd=str(REPO_ROOT), capture_output=True, encoding="utf-8", errors="replace",
     )
     return result.returncode == 0

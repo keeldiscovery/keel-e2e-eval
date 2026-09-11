@@ -95,7 +95,7 @@ def readiness(binary: str = "copilot") -> dict[str, Any]:
                                         f"GitHub Copilot CLI",
                 "version": None, "catalogue_probe": None}
     try:
-        version = subprocess.run([binary, "--version"], capture_output=True, text=True,
+        version = subprocess.run([binary, "--version"], capture_output=True, encoding="utf-8", errors="replace",
                                  timeout=30).stdout.strip()
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"ok": False, "reason": f"`{binary} --version` did not answer: {exc}",
@@ -104,7 +104,7 @@ def readiness(binary: str = "copilot") -> dict[str, Any]:
         probe = subprocess.run(
             [binary, "-p", "say ok", "--model", "keel-e2e-eval-no-such-model",
              "--no-ask-user", "--no-auto-update", "--log-level", "none"],
-            capture_output=True, text=True, timeout=120)
+            capture_output=True, encoding="utf-8", errors="replace", timeout=120)
         text = (probe.stdout + probe.stderr).strip()
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"ok": False, "reason": f"`{binary} -p` did not answer: {exc}",
@@ -137,7 +137,7 @@ def model_accepted(slug: str, binary: str = "copilot") -> bool:
         probe = subprocess.run(
             [binary, "-p", "", "--model", slug, "--no-ask-user", "--no-auto-update",
              "--log-level", "none"],
-            capture_output=True, text=True, timeout=120)
+            capture_output=True, encoding="utf-8", errors="replace", timeout=120)
     except (OSError, subprocess.TimeoutExpired):
         return False
     return f'Model "{slug}" from --model flag is not available.' not in (probe.stdout + probe.stderr)

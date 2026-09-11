@@ -94,7 +94,7 @@ def _run_connect_check_script(config: StackConfig, recorder, *, step_name: str,
             # Scrubbed first (spec 012 FR-004): no `KEEL_RUNTIME_PATH` reaches the script, so the
             # runtime it resolves can only be the one bundled inside it.
             env = stack_runtime.scrubbed_env(env_extra)
-            completed = subprocess.run(cmd, capture_output=True, text=True, timeout=wait_seconds + 30, env=env)
+            completed = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace", timeout=wait_seconds + 30, env=env)
         except (OSError, subprocess.TimeoutExpired) as exc:
             h.record_wire({"cmd": cmd}, {"error": str(exc)})
             h.fail(f"could not run keel_connect_check.py: {exc}")

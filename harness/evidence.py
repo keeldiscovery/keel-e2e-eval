@@ -45,11 +45,11 @@ def _git_info(path: Path) -> dict:
     try:
         commit = subprocess.run(
             ["git", "-C", str(path), "rev-parse", "HEAD"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, encoding="utf-8", errors="replace", timeout=10,
         ).stdout.strip()
         status = subprocess.run(
             ["git", "-C", str(path), "status", "--porcelain"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, encoding="utf-8", errors="replace", timeout=10,
         ).stdout
         dirty = bool(status.strip())
         return {"path": str(path), "commit": commit or None, "dirty": dirty}

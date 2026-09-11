@@ -137,7 +137,7 @@ def port_owner_hint(port: int) -> str:
     try:
         out = subprocess.run(
             ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True, encoding="utf-8", errors="replace", timeout=5,
         )
         lines = [line for line in out.stdout.splitlines() if line and not line.startswith("COMMAND")]
         if lines:

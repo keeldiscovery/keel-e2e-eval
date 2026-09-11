@@ -426,7 +426,12 @@ class AgentHost:
     # ------------------------------------------------------------- installing, the founder's way
 
     def _cli(self, args: list[str], *, timeout: float = 240) -> subprocess.CompletedProcess:
-        return subprocess.run([self.binary, *args], capture_output=True, text=True,
+        # UTF-8, explicitly, everywhere this harness reads a CLI: `text=True` decodes with the
+        # console's locale, cp1252 on a Windows runner, and `claude plugin list` prints a
+        # character that has no cp1252 mapping -- the reader thread died and `stdout` came back
+        # None with exit code 0 (fourth cloud run, 2026-09-11). `errors="replace"` keeps a stray
+        # byte from ever taking a reading down again.
+        return subprocess.run([self.binary, *args], capture_output=True, encoding="utf-8", errors="replace",
                               timeout=timeout, env=self.env(), cwd=str(self.work_dir))
 
     def _marketplace_argv(self, source: str) -> list[str]:
@@ -503,7 +508,7 @@ class AgentHost:
         assert not any(flag in argv for flag in self.forbidden_flags), argv
 
         try:
-            done = subprocess.run(argv, capture_output=True, text=True, timeout=timeout,
+            done = subprocess.run(argv, capture_output=True, encoding="utf-8", errors="replace", timeout=timeout,
                                   env=self.env(), cwd=str(self.work_dir))
         except subprocess.TimeoutExpired as exc:
             partial = exc.stdout

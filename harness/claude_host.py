@@ -94,7 +94,7 @@ def _auth_status(binary: str, config_dir: Path, base_env: dict[str, str] | None 
     env = scrub_session(dict(os.environ if base_env is None else base_env))
     env["CLAUDE_CONFIG_DIR"] = str(config_dir)
     try:
-        done = subprocess.run([binary, "auth", "status"], capture_output=True, text=True,
+        done = subprocess.run([binary, "auth", "status"], capture_output=True, encoding="utf-8", errors="replace",
                               timeout=60, env=env)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"error": f"`{binary} auth status` did not answer: {exc}"}
@@ -126,7 +126,7 @@ def readiness(binary: str = "claude") -> dict[str, Any]:
                                         f"Code", "version": None, "auth": None,
                 "isolated_auth": None}
     try:
-        version = subprocess.run([binary, "--version"], capture_output=True, text=True,
+        version = subprocess.run([binary, "--version"], capture_output=True, encoding="utf-8", errors="replace",
                                  timeout=60).stdout.strip()
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"ok": False, "reason": f"`{binary} --version` did not answer: {exc}",

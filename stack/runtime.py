@@ -230,7 +230,7 @@ def _run_runtime(config: StackConfig, argv: list[str], *, timeout: float) -> dic
             cwd=str(config.keel_connect_skill),
             env=runtime_env(config),
             capture_output=True,
-            text=True,
+            encoding="utf-8", errors="replace",
             timeout=timeout,
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -308,7 +308,7 @@ def disconnect_via_skill_script(config: StackConfig, *, timeout: float = 60,
     cmd = [sys.executable, str(script), "--home", str(home or home_dir(config))]
     try:
         result = subprocess.run(
-            cmd, env=runtime_env(config), capture_output=True, text=True, timeout=timeout)
+            cmd, env=runtime_env(config), capture_output=True, encoding="utf-8", errors="replace", timeout=timeout)
         body = json.loads(result.stdout.strip().splitlines()[-1])
     except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError, IndexError):
         return None
