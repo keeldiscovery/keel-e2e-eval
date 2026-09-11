@@ -444,6 +444,12 @@ jobs:
       # evidence files carry the CLIs' check marks and padlocks (fifth cloud run, 2026-09-11:
       # "'charmap' codec can't encode character '\u2705'" while writing a transcript).
       PYTHONUTF8: "1"
+      # The runtime's per-job executor timeout (KEEL_JOB_TIMEOUT_SECONDS, default 300). A Claude
+      # assumptions card took 178 s, 256 s and then more than 300 s on the founder's Max token
+      # (2026-09-11, run 34600368707: EXECUTOR_TIMEOUT on COMMERCIAL_ASSUMPTIONS), so a cell gives
+      # the model seven minutes -- still inside the harness's own 480 s wait for the card, so a
+      # job that overruns is read back as a failure rather than as a silence.
+      KEEL_JOB_TIMEOUT_SECONDS: "420"
       KEEL_EVAL_PROFILE: remote
       KEEL_REMOTE_GATE_USER: harness
       KEEL_REMOTE_GATE_PASSWORD: ${{ secrets.KEEL_STAGING_HARNESS_PASSWORD }}
