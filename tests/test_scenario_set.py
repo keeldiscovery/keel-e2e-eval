@@ -97,7 +97,10 @@ def test_the_three_new_scenarios_need_no_makefile_edit_to_dispatch():
     assert re.search(r"^eval-live:[^\n]*\n(?:\t[^\n]*\n)*?\t[^\n]*-m live", MAKEFILE,
                       re.MULTILINE), (
         "`make eval-live` no longer selects the live marker")
-    assert "$(if $(K),-k $(K),)" in MAKEFILE, "`K` no longer reaches pytest as `-k`"
+    # Quoted since spec 020: a matrix cell that carries the corpus passes
+    # `K="s005 or s006 or s007"`, and an unquoted `$(K)` hands pytest four arguments where `-k`
+    # takes one. Invisible to every single-token call, which is every call a founder types.
+    assert '$(if $(K),-k "$(K)",)' in MAKEFILE, "`K` no longer reaches pytest as `-k`"
 
 
 def test_eval_all_still_deselects_the_live_one():

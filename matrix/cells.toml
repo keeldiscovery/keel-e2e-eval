@@ -1,0 +1,94 @@
+# The matrix, as data (spec 020-matrix-workflow; keel-cloud `canon/designs/e2e-matrix-design.md`
+# §5). This file is the ONLY place the cells are written down: `.github/workflows/matrix.yml`'s
+# `select` job reads it, `make matrix-check` reads it, and `tests/test_matrix_cells.py` holds it to
+# the design's own coverage rules. A founder who wants a different set edits this file and nothing
+# else -- decision 4's "[overrulable] -- promote nightly to eighteen at any time" is one line here.
+#
+# THE PYTHON AXIS HAS THREE VALUES AND THE DESIGN'S §5.1 NAMES TWO. That is reconciled here rather
+# than quietly: §5.2 and §10 both count eighteen weekly cells and six nightly ones, and 3 OS x 2
+# hosts x 2 Pythons is twelve and four. Eighteen is 3 x 2 x **3**, §10's per-OS split for the weekly
+# set is "6 / 6 / 6" (two hosts x three Pythons), and the design's own picker sample in §4.3 reads
+# `ubuntu · copilot · py3.12`. So the axis is the floor (3.9, spec 004's promise), the current
+# (3.13, what brew/winget hand out) and 3.12 -- what Ubuntu 24.04 ships as its system Python and
+# what this harness itself runs on. The per-change six still spends 3.9 on Ubuntu and 3.13
+# elsewhere, exactly as §5.2 says, so nothing about the cheap set changed.
+#
+# A cell's Python is the runtime's, not the harness's: it is what `python3` resolves to when the
+# host CLI runs the skill's script, which is what the bundled runtime is then executed by (spec 003
+# of the skill, and what `make acceptance`'s Debian 11 bed proves locally). The harness itself
+# needs 3.11+ (tomllib) and the workflow gives it its own interpreter, so a 3.9 cell is a 3.9
+# measurement of the thing under test and never of the referee.
+
+[axes]
+# The runner labels, verbatim: a cell's `os` IS its `runs-on`.
+os = ["ubuntu-24.04", "macos-latest", "windows-latest"]
+host = ["claude", "copilot"]
+python = ["3.9", "3.12", "3.13"]
+
+[scenarios]
+# What a cell runs when it does not say otherwise: S-012, the founder's journey through the cell's
+# host (spec 019). §5.1: "the scenario each cell runs is S-001, the founder's journey, through the
+# host ... S-012 becomes the Copilot instance of it".
+default = ["s012"]
+# Which of them are `-m live` -- a real model, real money, `make eval-live`. Everything else is
+# `make eval`, deterministic and free. The workflow splits a cell's list on this, which is how the
+# nightly's corpus cell (S-005/6/7, decision 11: "they cost nothing but minutes") rides on a cell
+# that is already paid for.
+live = ["s004", "s012"]
+
+# ------------------------------------------------------------------------------------- the sets
+
+[sets]
+
+# Every qualifying change (§5.2, six cells): each OS once per host, Python 3.9 on the Ubuntu cells
+# and 3.13 elsewhere. "An OS bug shows up on any Python, a Python-floor bug shows up on any OS, and
+# the pairwise six catch both per change."
+per_change = [
+    { os = "ubuntu-24.04",   host = "claude",  python = "3.9" },
+    { os = "ubuntu-24.04",   host = "copilot", python = "3.9" },
+    { os = "macos-latest",   host = "claude",  python = "3.13" },
+    { os = "macos-latest",   host = "copilot", python = "3.13" },
+    { os = "windows-latest", host = "claude",  python = "3.13" },
+    { os = "windows-latest", host = "copilot", python = "3.13" },
+]
+
+# Nightly, 03:00 UTC (§5.2, six cells): Ubuntu only, both hosts, every Python -- the axis the
+# per-change set spends only two values of. Linux minutes only, which is why this one is the cheap
+# one to run every night.
+#
+# The corpus scenarios ride on ONE Claude cell (decision 11): S-005/6/7 drive the product's own
+# judgement through the real screens against the frozen corpus, they call no model at all, and they
+# are the nightly's answer to "did the reading still read right" -- so they cost this set nothing
+# but the minutes of a cell that was already running.
+nightly = [
+    { os = "ubuntu-24.04", host = "claude",  python = "3.9" },
+    { os = "ubuntu-24.04", host = "claude",  python = "3.12" },
+    { os = "ubuntu-24.04", host = "claude",  python = "3.13", scenarios = ["s012", "s005", "s006", "s007"] },
+    { os = "ubuntu-24.04", host = "copilot", python = "3.9" },
+    { os = "ubuntu-24.04", host = "copilot", python = "3.12" },
+    { os = "ubuntu-24.04", host = "copilot", python = "3.13" },
+]
+
+# Weekly, Sunday 04:00 UTC (§5.2, eighteen cells): the full product of the three axes. "A weekly
+# confirmation that nothing is hiding in a corner." `tests/test_matrix_cells.py` asserts this set
+# IS the product rather than trusting the list below to stay complete.
+weekly = [
+    { os = "ubuntu-24.04",   host = "claude",  python = "3.9" },
+    { os = "ubuntu-24.04",   host = "claude",  python = "3.12" },
+    { os = "ubuntu-24.04",   host = "claude",  python = "3.13" },
+    { os = "ubuntu-24.04",   host = "copilot", python = "3.9" },
+    { os = "ubuntu-24.04",   host = "copilot", python = "3.12" },
+    { os = "ubuntu-24.04",   host = "copilot", python = "3.13" },
+    { os = "macos-latest",   host = "claude",  python = "3.9" },
+    { os = "macos-latest",   host = "claude",  python = "3.12" },
+    { os = "macos-latest",   host = "claude",  python = "3.13" },
+    { os = "macos-latest",   host = "copilot", python = "3.9" },
+    { os = "macos-latest",   host = "copilot", python = "3.12" },
+    { os = "macos-latest",   host = "copilot", python = "3.13" },
+    { os = "windows-latest", host = "claude",  python = "3.9" },
+    { os = "windows-latest", host = "claude",  python = "3.12" },
+    { os = "windows-latest", host = "claude",  python = "3.13" },
+    { os = "windows-latest", host = "copilot", python = "3.9" },
+    { os = "windows-latest", host = "copilot", python = "3.12" },
+    { os = "windows-latest", host = "copilot", python = "3.13" },
+]
