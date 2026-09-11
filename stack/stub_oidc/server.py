@@ -278,7 +278,8 @@ _PICKER_CSS = (
 )
 
 
-def picker_html(identities: Sequence[Identity], params: dict[str, str]) -> str:
+def picker_html(identities: Sequence[Identity], params: dict[str, str],
+                authorize_url: str = "/authorize") -> str:
     """One minimal page: `<h1>Choose an account</h1>` and one `<button>` per identity, labelled
     with that identity's own name (§10.2) -- which is what Playwright clicks and what a person on
     the playground profile reads. No styling worth the name.
@@ -297,12 +298,12 @@ def picker_html(identities: Sequence[Identity], params: dict[str, str]) -> str:
         label = (f'<p class="label">{html.escape(identity.label)}</p>'
                  if identity.label else "")
         forms.append(
-            f'<form method="get" action="/authorize">{hidden}'
+            f'<form method="get" action="{html.escape(authorize_url)}">{hidden}'
             f'<button type="submit">{html.escape(identity.name)}</button>'
             f'{label}'
             f'<p>{html.escape(identity.email)}</p></form>'
         )
-    cancel = html.escape("/authorize?" + urlencode({**params, "cancel": "1"}))
+    cancel = html.escape(authorize_url + "?" + urlencode({**params, "cancel": "1"}))
     return (
         "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
         "<title>Choose an account</title>"
@@ -561,8 +562,13 @@ class _Handler(BaseHTTPRequestHandler):
         # same one the click takes, with the click supplied (§10.2).
         hint = query.get("identity") or query.get("login_hint")
         if not hint:
+            # The page posts back to the ISSUER's own advertised /authorize, never a root-relative
+            # "/authorize": mounted under a path (staging serves the stub at
+            # https://eval.keeldiscovery.com/oidc), a root-relative action lands on keel-web's
+            # 404 -- the founder's first click on staging, 2026-09-11.
             self._html(200, picker_html(stub.identities,
-                                        {k: query[k] for k in _CARRIED if query.get(k)}))
+                                        {k: query[k] for k in _CARRIED if query.get(k)},
+                                        authorize_url=f"{stub.issuer}/authorize"))
             return
         identity = stub.identity_for(hint)
         if identity is None:

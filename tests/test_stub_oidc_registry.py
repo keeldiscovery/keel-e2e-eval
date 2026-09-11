@@ -472,3 +472,24 @@ def test_a_refused_write_does_not_poison_the_keep_alive_connection(gated):
     assert allowed.status_code == 201, allowed.text
     assert session.get(f"{gated}/identities", headers=_gate(HARNESS_GATE_USER),
                        timeout=5).status_code == 200
+
+
+# ------------------------------------------------------------------ the chooser under a mount
+
+def test_the_chooser_posts_back_to_the_advertised_authorize_url_not_the_site_root():
+    """On staging the stub is mounted at https://eval.keeldiscovery.com/oidc; a root-relative
+    form action lands on keel-web's 404 (the founder's first click, 2026-09-11). The page must
+    use the same absolute /authorize the discovery document advertises."""
+    page = picker_html(list(STUB_IDENTITIES), {"state": "s"},
+                       authorize_url="https://eval.example.test/oidc/authorize")
+    assert 'action="https://eval.example.test/oidc/authorize"' in page
+    assert 'action="/authorize"' not in page
+    assert 'href="https://eval.example.test/oidc/authorize?' in page
+
+
+def test_the_served_chooser_uses_the_issuer_it_was_started_with(ungated):
+    query = {"client_id": CLIENT_ID, "redirect_uri": REDIRECT_URI, "response_type": "code",
+             "scope": "openid email profile", "state": "s", "nonce": "n",
+             "code_challenge": "c" * 43, "code_challenge_method": "S256"}
+    page = requests.get(f"{ungated}/authorize", params=query, timeout=5).text
+    assert f'action="{ungated}/authorize"' in page
