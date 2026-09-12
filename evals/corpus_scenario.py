@@ -148,6 +148,21 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         # entry or it is not measuring that entry at all.
         if stack_runtime.status(stack).get("running"):
             stop_runtime(stack, recorder)
+        if stack.is_remote:
+            # On the twin this scenario signed in as a founder registered minutes ago, and the
+            # profile's runtime home still holds the credential the PREVIOUS scenario's founder
+            # approved: left alone, `keel connect` reconnects as that founder's device, this
+            # founder's screens read "no AI connected", and the project-name field stays disabled
+            # (the nightly of 2026-09-12, run 34662465285: S-005 green, then S-006 and S-007 red
+            # at "founder names the project" with `<input disabled>`). A fresh home makes the
+            # device this founder's, through the same approval S-005 already walks. Locally every
+            # scenario is the one Eval Founder, and the saved credential is right as it is.
+            with recorder.step("the runtime home is put back the way `make up` leaves it: this "
+                                "founder's device, not the previous scenario's",
+                                party="stack", kind="protocol") as h:
+                stack_runtime.reset(stack)
+                h.record_wire({"home": str(stack_runtime.home_dir(stack))},
+                               {"after": stack_runtime.status(stack)})
         result = start_runtime_via_skill(stack, recorder,
                                           env_extra={"KEEL_SCRIPT": str(script_path)})
         landing = Landing(page, recorder, web_base)

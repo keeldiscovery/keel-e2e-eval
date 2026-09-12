@@ -76,3 +76,15 @@ def test_a_scenario_the_matrix_runs_signs_in_as_the_cells_own_founder(scenario_i
     assert "remote.identity_to_sign_in_as(" in text, (
         f"{scenario_id} is in a matrix set but signs in as the built-in founder; on the twin it "
         "must sign in as `remote.identity_to_sign_in_as(stack, <label>, fallback=founder_one)`")
+
+
+def test_the_corpus_scenarios_start_from_a_fresh_runtime_home_on_the_twin():
+    """Run 34662465285: with per-scenario founders on the twin, a runtime home carrying the
+    previous scenario's credential reconnects as the previous founder's device, and the next
+    founder's project-name field is disabled. The shared corpus body resets the home on `remote`
+    before it starts the runtime, the way S-013 does unconditionally."""
+    text = (EVALS / "corpus_scenario.py").read_text(encoding="utf-8")
+    before_start = text.split("start_runtime_via_skill(stack, recorder,", 1)[0]
+    assert "stack_runtime.reset(stack)" in before_start, (
+        "corpus_scenario.run must reset the runtime home (on the remote profile) before "
+        "start_runtime_via_skill, or the second founder inherits the first founder's device")
