@@ -4552,3 +4552,45 @@ master and the entry stays open until a cell runs a *released* plugin that carri
 **Tests**: `tests/test_matrix_cells.py`, `tests/test_matrix_notify.py` and
 `tests/test_matrix_workflow.py` hold the sets, the issue's four verbs and the skip matcher. The
 evidence is run **34617201215**'s four `row-*` artifacts.
+
+## 67. Model event (Copilot, `gpt-5.6-luna` pinned, CLI 1.0.83): the run of record on the 393-case corpus misses two of the four marks -- one forbidden word and one invented unit
+
+**Run**: `runs/20260912T191613Z-instructions-copilot`, 2026-09-12 19:16–20:42 UTC on the founder's
+Mac, `HOST=copilot`, `KEEL_COPILOT_MODEL=gpt-5.6-luna`, N=3 over all 393 cases (63 assumption,
+309 reading, 21 brief), `MARKS_VERSION` 5, judge on Claude, 0 errored, 0 schema-invalid, 393
+premium requests. This is the first Copilot run on the corpus as it stands after specs 022 and
+the measured-beliefs work (the two earlier runs, #57's amendment, were 131 cases at N=1).
+
+| mark | value | mark | met |
+|---|---|---|---|
+| anchoring accuracy | **95.1 %** | ≥ 0.90 | yes |
+| golden-belief recall | **85.6 %** | ≥ 0.80 | yes -- and up from 81.8 % on the smaller corpus |
+| refusals | **1** | 0 | **no** |
+| brief paragraphs | **13 of 21 (57.1 %)** | 1.00 | **no** |
+
+**The refusal, exactly one, is an invented unit.** `03-lullaby/PROBLEM/run3`: the model measured a
+belief in *"wake-ups"*, and keel-cloud's `measure` rule refused it -- *`'wake-ups' is not a duration
+this model can hold in minutes — Fix: use one of minutes, hours, days, weeks, months, years,
+working-hours, working-days or working-weeks`*. The product answered correctly; the mark counts
+the model having needed to be told.
+
+**The briefs, eight misses in twenty-one, and seven of them are one word.** `brief.md` forbids
+the word *proxy* by name, and the model used it in seven paragraphs (01-countly run3,
+02-compliancelog run1, 03-lullaby runs 1 and 3, 04-linerly runs 1–3, 05-paidly run3), each
+otherwise a paragraph of the right shape, register and coverage. The eighth (01-countly run2)
+also miscounted: *"7 of the 7"* is no line's inside-plus-outside. The same paragraphs from the
+same prompt on Claude do not carry the word: this is the pattern #57 named -- *"one screen
+transfers to a second host and one does not"* -- now with a single word as its cleanest example.
+
+**Not adapted around.** No mark moved, no word was struck from `brief.md`, N was not lowered.
+Copilot therefore stays **"runs, unmeasured"** (keel-skill-design §5.5), with these numbers on
+the page rather than the 2026-09-09 ones: parts 1, 2 and 4 of the gate are green on both macOS
+and Windows (the matrix, 2026-09-11/12) and part 3 is red by one word and one unit.
+
+**What would turn it green, and whose it is.** Both misses are instruction-following on this
+model, not reading: a prompt that names the forbidden word in the RESPONSE section (keel-runtime's
+`_render_copilot_prompt`, C-8) and repeats the unit list where the measure is asked for would be
+the product's move, measured again at N=3 before it counts -- never a loosened mark.
+
+**Tests**: none -- this is a measurement, and its evidence is the bundle named above
+(`verdict.json`, `scorecard.json` → `brief[]` and `validation.json` → `03-lullaby/PROBLEM/run3`).
