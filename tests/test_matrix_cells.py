@@ -112,16 +112,18 @@ def test_the_axes_are_the_designs_axes(matrix):
     assert matrix.all_hosts == ("claude", "copilot", "codex")
 
 
-def test_per_change_is_four_cells(matrix):
-    """Spec 021, the founder's decision of 2026-09-11. Six became four when Ubuntu left, and each
-    of the four buys the short journey rather than the whole one."""
-    assert len(matrix.sets["per_change"]) == 4
+def test_per_change_is_two_cells(matrix):
+    """Spec 021, the founder's decision of 2026-09-11: six became four when Ubuntu left. Then
+    2026-09-12: four became two when Copilot moved to the weekly set with Codex -- a merge buys
+    Claude Code on macOS and Windows, short, and nothing else."""
+    assert len(matrix.sets["per_change"]) == 2
+    assert matrix.everyday_hosts == ("claude",)
 
 
 def test_per_change_is_macos_and_windows_once_per_host(matrix):
     covered = sorted((c.os, c.host) for c in matrix.sets["per_change"])
     assert covered == sorted(itertools.product(["macos-latest", "windows-latest"],
-                                               matrix.axes["host"]))
+                                               matrix.everyday_hosts))
 
 
 def test_per_change_is_the_current_python_everywhere(matrix):
@@ -145,14 +147,17 @@ def test_ubuntu_is_in_the_weekly_set_and_nowhere_else(matrix):
     assert len([c for c in matrix.sets["weekly"] if c.os.startswith("ubuntu")]) == 6
 
 
-def test_nightly_is_six_plugin_cells_one_speckit_cell_and_one_unmeasured_host(matrix):
+def test_nightly_is_three_claude_plugin_cells_and_one_speckit_cell(matrix):
+    """The founder, 2026-09-12: Claude Code every night; Copilot and Codex once a week. The
+    night is the two per_change cells whole, plus the 3.9 floor on Windows, plus the Spec Kit
+    road -- and no other host."""
     nightly = matrix.sets["nightly"]
-    measured = [c for c in nightly if c.install == "plugin" and c.host in matrix.axes["host"]]
-    assert len(measured) == 6
-    unmeasured = [c for c in nightly if c.host in matrix.unmeasured_hosts]
-    assert [(c.os, c.host, c.python, c.legs, c.install) for c in unmeasured] == [
-        ("macos-latest", "codex", "3.13", "full", "plugin"),
-        ("windows-latest", "codex", "3.13", "full", "plugin")]
+    plugin = [c for c in nightly if c.install == "plugin"]
+    assert sorted(c.id for c in plugin) == ["macos-latest-claude-py3.13",
+                                            "windows-latest-claude-py3.13",
+                                            "windows-latest-claude-py3.9"]
+    assert {c.host for c in nightly} == {"claude"}
+    assert not [c for c in nightly if c.host in matrix.unmeasured_hosts]
     speckit = [c for c in nightly if c.install == "speckit"]
     assert [(c.os, c.host, c.python, c.legs) for c in speckit] == [("macos-latest", "claude", "3.13", "short")]
     assert speckit[0].id == "macos-latest-claude-py3.13-speckit"
@@ -176,8 +181,7 @@ def test_nightly_keeps_the_39_floor_that_per_change_gave_up(matrix):
     """spec 004's floor is a promise. It moved from per_change to nightly rather than being
     dropped -- Windows, both hosts, every night."""
     floor = [c for c in matrix.sets["nightly"] if c.python == "3.9"]
-    assert sorted(c.id for c in floor) == ["windows-latest-claude-py3.9",
-                                           "windows-latest-copilot-py3.9"]
+    assert sorted(c.id for c in floor) == ["windows-latest-claude-py3.9"]
 
 
 def test_nightly_carries_the_corpus_on_exactly_one_claude_cell(matrix):
@@ -193,9 +197,15 @@ def test_nightly_carries_the_corpus_on_exactly_one_claude_cell(matrix):
 
 
 def test_weekly_is_the_full_product(matrix):
-    weekly = {(c.os, c.host, c.python) for c in matrix.sets["weekly"]}
-    assert weekly == matrix.product
-    assert len(matrix.sets["weekly"]) == 18
+    measured = {(c.os, c.host, c.python) for c in matrix.sets["weekly"]
+                if c.host in matrix.axes["host"]}
+    assert measured == matrix.product
+    assert len(measured) == 18
+    # ...plus the unmeasured host on the two operating systems founders install on (spec 008),
+    # weekly rather than nightly since 2026-09-12.
+    codex = sorted(c.id for c in matrix.sets["weekly"] if c.host == "codex")
+    assert codex == ["macos-latest-codex-py3.13", "windows-latest-codex-py3.13"]
+    assert len(matrix.sets["weekly"]) == 20
 
 
 # ------------------------------------------------------------- an unmeasured host (spec 008)
@@ -359,7 +369,7 @@ def test_every_cell_in_every_set_is_json_serialisable(matrix):
 
 def test_as_matrix_is_the_list_a_github_strategy_takes(matrix):
     entries = matrix.as_matrix("per_change")
-    assert isinstance(entries, list) and len(entries) == 4
+    assert isinstance(entries, list) and len(entries) == 2
     assert all(set(e) == {"id", "os", "host", "python", "scenarios", "legs", "install", "live_k", "eval_k"}
                for e in entries)
 
@@ -379,7 +389,7 @@ def test_narrowing_keeps_the_order_asked_for(matrix):
 
 def test_narrowing_ignores_blank_entries(matrix):
     # "a,b," and "" are both what a workflow input hands over when a human types loosely.
-    assert len(matrix.cells("per_change", "".split(","))) == 4
+    assert len(matrix.cells("per_change", "".split(","))) == 2
     assert len(matrix.cells("per_change", ["macos-latest-claude-py3.13", " ", ""])) == 1
 
 
@@ -492,7 +502,7 @@ def test_a_cell_with_an_empty_scenario_list_is_refused(tmp_path):
 
 def test_coverage_catches_a_per_change_set_that_misses_a_combination(tmp_path):
     problems = m.coverage_problems(m.load(write(tmp_path, MINIMAL)))
-    assert any("once per host" in p for p in problems)
+    assert any("once per everyday host" in p for p in problems)
 
 
 def test_coverage_catches_a_per_change_cell_on_ubuntu(tmp_path):
@@ -591,7 +601,7 @@ def test_the_cli_prints_how_far_each_cell_goes(capsys):
 def test_the_cli_emits_json_for_the_workflow(capsys):
     assert m.main(["--set", "per_change", "--json"]) == 0
     entries = json.loads(capsys.readouterr().out)
-    assert len(entries) == 4
+    assert len(entries) == 2
     assert entries[0]["id"] == "macos-latest-claude-py3.13"
     assert entries[0]["legs"] == "short"
 
@@ -614,3 +624,18 @@ def test_the_cli_refuses_json_without_a_set(capsys):
     with pytest.raises(SystemExit):
         m.main(["--json"])
     assert "--set" in capsys.readouterr().err
+
+
+def test_a_measured_host_outside_host_everyday_is_refused_in_nightly_and_per_change(tmp_path):
+    """The founder, 2026-09-12: Claude Code every night, Copilot and Codex once a week. The rule
+    reads `[axes].host_everyday`; a Copilot cell back in nightly is the decision being undone by
+    accident, and the file says so by name."""
+    body = MINIMAL.replace('host = ["claude", "copilot"]',
+                           'host = ["claude", "copilot"]\n    host_everyday = ["claude"]') \
+                  .replace("nightly = []", 'nightly = [{ os = "macos-latest", host = "copilot", python = "3.13" }]')
+    problems = m.coverage_problems(m.load(write(tmp_path, body)))
+    assert any("belong to the weekly set" in p and "copilot" in p for p in problems), problems
+    body = MINIMAL.replace('host = ["claude", "copilot"]',
+                           'host = ["claude", "copilot"]\n    host_everyday = ["cursor"]')
+    with pytest.raises(m.CellsError, match="host_everyday"):
+        m.load(write(tmp_path, body))

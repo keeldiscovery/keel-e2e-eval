@@ -48,6 +48,10 @@ host = ["claude", "copilot"]
 # KEEL_RUNTIME_CI_CODEX, one nightly journey a night. It leaves this list for `host` the day the
 # gate is green for it.
 host_unmeasured = ["codex"]
+# The hosts a merge and the night pay for (the founder, 2026-09-12: "Claude Code is the one we
+# want to run daily in the night; Copilot and Codex only once a week"). Copilot stays measured
+# and stays in the weekly product; it is simply bought weekly rather than nightly and per merge.
+host_everyday = ["claude"]
 python = ["3.9", "3.12", "3.13"]
 
 [scenarios]
@@ -72,10 +76,9 @@ live = ["s004", "s012"]
 # Nothing here overrides `scenarios`: the cheap set runs S-012 and only S-012, which is what
 # `coverage_problems` holds it to.
 per_change = [
+    # 2026-09-12: two cells, not four -- Copilot moved to the weekly set with Codex.
     { os = "macos-latest",   host = "claude",  python = "3.13", legs = "short" },
-    { os = "macos-latest",   host = "copilot", python = "3.13", legs = "short" },
     { os = "windows-latest", host = "claude",  python = "3.13", legs = "short" },
-    { os = "windows-latest", host = "copilot", python = "3.13", legs = "short" },
 ]
 
 # Nightly, 03:00 UTC (spec 021, SIX cells): the four a merge bought short, bought WHOLE -- so a
@@ -92,16 +95,8 @@ nightly = [
     # spec 022: the same journey with the skill reaching Claude through the Spec Kit extension --
     # `specify extension add`, the two commands as project skills -- short, once a night.
     { os = "macos-latest",   host = "claude",  python = "3.13", legs = "short", install = "speckit" },
-    { os = "macos-latest",   host = "copilot", python = "3.13" },
     { os = "windows-latest", host = "claude",  python = "3.13" },
-    { os = "windows-latest", host = "copilot", python = "3.13" },
     { os = "windows-latest", host = "claude",  python = "3.9" },
-    { os = "windows-latest", host = "copilot", python = "3.9" },
-    # keel-runtime spec 008: the unmeasured host, once a night on each operating system founders
-    # install on, whole -- decision 10's second part (the end-to-end scenario through the host)
-    # measured every night until it is green (the founder, 2026-09-12: "test both").
-    { os = "macos-latest",   host = "codex",   python = "3.13" },
-    { os = "windows-latest", host = "codex",   python = "3.13" },
 ]
 
 # Weekly, Sunday 04:00 UTC (§5.2, eighteen cells): the full product of the three axes, every one
@@ -127,4 +122,9 @@ weekly = [
     { os = "windows-latest", host = "copilot", python = "3.9" },
     { os = "windows-latest", host = "copilot", python = "3.12" },
     { os = "windows-latest", host = "copilot", python = "3.13" },
+    # keel-runtime spec 008: the unmeasured host, once a week on each operating system founders
+    # install on, whole (the founder, 2026-09-12: "test both", then "Copilot and Codex only once
+    # a week"). Decision 10's second part, measured weekly until the gate is green.
+    { os = "macos-latest",   host = "codex",   python = "3.13" },
+    { os = "windows-latest", host = "codex",   python = "3.13" },
 ]

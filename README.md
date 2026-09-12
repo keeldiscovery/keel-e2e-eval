@@ -934,9 +934,9 @@ counted six per change, six nightly on Ubuntu, eighteen weekly, and decision 4 m
 
 | Set | Cells | Journey | What | When |
 |---|---|---|---|---|
-| `per_change` | **4** | **short** | macOS and Windows × both hosts, Python 3.13, S-012 alone | a push to master here, or a dispatch from keel-cloud / keel-runtime / keel-connect-skill / keel-web |
-| `nightly` | **6** + 1 + 1 | full | those same 4, whole — plus Windows × both hosts on the **3.9 floor**; the corpus scenarios ride on the macOS Claude cell; one short Spec Kit cell; and macOS and Windows × **Codex**, the unmeasured host (keel-runtime spec 008), bought nightly and owed nowhere | 03:00 UTC |
-| `weekly` | 18 | full | the full product of the three axes, Ubuntu included | Sunday 04:00 UTC |
+| `per_change` | **2** | **short** | macOS and Windows × Claude Code, Python 3.13, S-012 alone (the founder, 2026-09-12: Copilot and Codex are weekly) | a push to master here, or a dispatch from keel-cloud / keel-runtime / keel-connect-skill / keel-web |
+| `nightly` | **3** + 1 | full | those same 2, whole — plus Windows × Claude on the **3.9 floor**; the corpus scenarios ride on the macOS Claude cell; one short Spec Kit cell. Claude Code only: `[axes].host_everyday` | 03:00 UTC |
+| `weekly` (18 measured + 2 Codex) | 18 | full | the full product of the three axes, Ubuntu included | Sunday 04:00 UTC |
 
 Three things to read off that table. **A merge buys the short journey** — the host leg entire
 (marketplace, *"keel connect"*, device approval, the runtime on the host's executor) plus the first

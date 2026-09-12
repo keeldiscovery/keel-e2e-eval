@@ -133,6 +133,11 @@ class Matrix:
     #: weekly, never in per_change (a merge buys the measured hosts and nothing else), and not
     #: part of the product the weekly set must cover. `[axes].host_unmeasured` in cells.toml.
     unmeasured_hosts: tuple[str, ...] = ()
+    #: The hosts a merge and the night pay for (the founder, 2026-09-12: *"Claude Code is the one
+    #: we want to run daily in the night; Copilot and Codex only once a week"*). A measured host
+    #: not named here is bought weekly, whole, and nowhere else. `[axes].host_everyday`; defaults
+    #: to every measured host, which is what the file meant before the founder narrowed it.
+    everyday_hosts: tuple[str, ...] = ()
 
     @property
     def all_hosts(self) -> tuple[str, ...]:
@@ -200,6 +205,12 @@ def load(path: Path | None = None) -> Matrix:
     if overlap:
         problems.append(f"[axes].host_unmeasured names {overlap}, which [axes].host already "
                         f"names as measured -- a host is one or the other")
+    everyday = (_str_list(axes_raw.get("host_everyday"), "[axes].host_everyday", problems)
+                if "host_everyday" in axes_raw else axes["host"])
+    stray = sorted(set(everyday) - set(axes["host"]))
+    if stray:
+        problems.append(f"[axes].host_everyday names {stray}, which [axes].host does not: only a "
+                        f"measured host is bought on a merge")
 
     scenarios_raw = raw.get("scenarios", {})
     default_scenarios = _str_list(scenarios_raw.get("default", []), "[scenarios].default", problems)
@@ -268,7 +279,7 @@ def load(path: Path | None = None) -> Matrix:
     if problems:
         raise CellsError(f"{path}:\n  - " + "\n  - ".join(problems))
     return Matrix(axes=axes, live=live, default_scenarios=default_scenarios, sets=sets,
-                  unmeasured_hosts=unmeasured)
+                  unmeasured_hosts=unmeasured, everyday_hosts=everyday)
 
 
 # -------------------------------------------------------------------------- the coverage rules
@@ -313,13 +324,15 @@ def coverage_problems(matrix: Matrix) -> list[str]:
 
     per_change = matrix.sets.get("per_change", ())
     covered = {(cell.os, cell.host) for cell in per_change}
-    # An unmeasured host is never bought on a merge: the measured hosts are what a change owes.
-    want = set(itertools.product(everyday, matrix.axes["host"]))
+    # A merge buys the everyday hosts and nothing else: never an unmeasured host, and -- since
+    # 2026-09-12 -- not a measured host the founder moved to the weekly set either.
+    want = set(itertools.product(everyday, matrix.everyday_hosts))
     if covered != want:
         missing = sorted(want - covered)
         extra = sorted(covered - want)
         problems.append("per_change must run each of "
-                        f"{everyday} once per host and nothing else (spec 021)"
+                        f"{everyday} once per everyday host {list(matrix.everyday_hosts)} and "
+                        "nothing else (spec 021, narrowed 2026-09-12)"
                         + (f"; it misses {missing}" if missing else "")
                         + (f"; it also names {extra}" if extra else ""))
     current = matrix.axes["python"][-1] if matrix.axes["python"] else ""
@@ -363,6 +376,11 @@ def coverage_problems(matrix: Matrix) -> list[str]:
         problems.append(f"nightly spends no cell on Python {floor} -- spec 004's floor is a "
                         f"promise, and per_change no longer runs it, so the night is where it is "
                         f"kept")
+    weekly_only = sorted({c.id for c in nightly if c.host in matrix.axes["host"]
+                          and c.host not in matrix.everyday_hosts})
+    if weekly_only:
+        problems.append(f"nightly buys only the everyday hosts {list(matrix.everyday_hosts)} "
+                        f"(the founder, 2026-09-12); {weekly_only} belong to the weekly set")
 
     weekly = matrix.sets.get("weekly", ())
     # An unmeasured host may ride the weekly set but is not owed by it: the product is the
