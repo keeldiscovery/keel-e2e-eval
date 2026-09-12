@@ -159,7 +159,7 @@ RUNTIME_MODEL = "gpt-5.6-luna"
 #: `KEEL_CLAUDE_MODEL` to set, so a Claude journey's runtime model is **recorded, not pinned**:
 #: read back off the per-job envelopes the CLI itself writes. Inventing a pin that the runtime
 #: ignores would put a fact about the referee into the bundle.
-RUNTIME_MODEL_FOR_HOST = {"copilot": RUNTIME_MODEL, "claude": None}
+RUNTIME_MODEL_FOR_HOST = {"copilot": RUNTIME_MODEL, "claude": None, "codex": None}
 
 #: **The host's model is a different question, and gets the founder's own answer.** Leg one asks
 #: what happens when the founder types "keel connect" into *their* CLI, so it pins what their CLI
@@ -169,7 +169,10 @@ RUNTIME_MODEL_FOR_HOST = {"copilot": RUNTIME_MODEL, "claude": None}
 #: unrepresentative; putting the runtime's slug here instead would have measured a founder nobody
 #: is. On Copilot the two pins disagree because #59 made them disagree, and the bundle records
 #: both and why.
-HOST_MODEL_FOR_HOST = {"copilot": "claude-sonnet-5", "claude": None}
+HOST_MODEL_FOR_HOST = {"copilot": "claude-sonnet-5", "claude": None, "codex": None}
+#: keel-runtime's per-host pin variable (spec 005 C-5 for Copilot, spec 008 for Codex); Claude's
+#: executor takes none. Read here so a cell's environment can pin the runtime's model.
+RUNTIME_MODEL_ENV_FOR_HOST = {"copilot": "KEEL_COPILOT_MODEL", "codex": "KEEL_CODEX_MODEL"}
 
 #: The Copilot-era name for the host pin's override, kept because a run record names it.
 HOST_MODEL_ENV = ("KEEL_JOURNEY_HOST_MODEL", "KEEL_S012_HOST_MODEL")
@@ -553,7 +556,8 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
     keel_home = run_dir / "keel-home"
     host_home_dir = run_dir / f"{HOST}-home"
     artifacts = run_dir / HOST
-    model = os.environ.get("KEEL_COPILOT_MODEL") or RUNTIME_MODEL_FOR_HOST[HOST]
+    model = (os.environ.get(RUNTIME_MODEL_ENV_FOR_HOST.get(HOST, ""))
+             or RUNTIME_MODEL_FOR_HOST[HOST])
     host_model = next((os.environ[name] for name in HOST_MODEL_ENV if os.environ.get(name)),
                       HOST_MODEL_FOR_HOST[HOST])
     # C-5 again: an unpinned run measures the router, not a model. It is still allowed -- spec 005
@@ -590,7 +594,7 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                          "model (the host's own --model)": host_model,
                          "model (the runtime's)": model,
                          "model (the runtime's), how": (
-                             "pinned through KEEL_COPILOT_MODEL" if model else
+                             f"pinned through {RUNTIME_MODEL_ENV_FOR_HOST.get(HOST)}" if model else
                              "not pinned -- this host's executor takes no model, so the bundle "
                              "records what answered instead"),
                          "credential": credential})

@@ -41,6 +41,13 @@
 # The runner labels, verbatim: a cell's `os` IS its `runs-on`.
 os = ["ubuntu-24.04", "macos-latest", "windows-latest"]
 host = ["claude", "copilot"]
+# A host the matrix buys but does not owe (keel-runtime spec 008, the founder's ask of 2026-09-12:
+# "ensure that our application is compatible with Codex"): it runs, and it has not passed
+# keel-skill-design §5.5's four-part gate. Allowed in nightly and weekly, never in per_change, and
+# not part of the product weekly must cover. Codex's cell bills OpenAI API tokens against
+# KEEL_RUNTIME_CI_CODEX, one nightly journey a night. It leaves this list for `host` the day the
+# gate is green for it.
+host_unmeasured = ["codex"]
 python = ["3.9", "3.12", "3.13"]
 
 [scenarios]
@@ -90,6 +97,9 @@ nightly = [
     { os = "windows-latest", host = "copilot", python = "3.13" },
     { os = "windows-latest", host = "claude",  python = "3.9" },
     { os = "windows-latest", host = "copilot", python = "3.9" },
+    # keel-runtime spec 008: the unmeasured host, once a night, whole -- decision 10's second
+    # part (the end-to-end scenario through the host) measured every night until it is green.
+    { os = "macos-latest",   host = "codex",   python = "3.13" },
 ]
 
 # Weekly, Sunday 04:00 UTC (§5.2, eighteen cells): the full product of the three axes, every one

@@ -935,7 +935,7 @@ counted six per change, six nightly on Ubuntu, eighteen weekly, and decision 4 m
 | Set | Cells | Journey | What | When |
 |---|---|---|---|---|
 | `per_change` | **4** | **short** | macOS and Windows × both hosts, Python 3.13, S-012 alone | a push to master here, or a dispatch from keel-cloud / keel-runtime / keel-connect-skill / keel-web |
-| `nightly` | **6** | full | those same 4, whole — plus Windows × both hosts on the **3.9 floor**; the corpus scenarios ride on the macOS Claude cell | 03:00 UTC |
+| `nightly` | **6** + 1 + 1 | full | those same 4, whole — plus Windows × both hosts on the **3.9 floor**; the corpus scenarios ride on the macOS Claude cell; one short Spec Kit cell; and one macOS × **Codex** cell, the unmeasured host (keel-runtime spec 008), bought nightly and owed nowhere | 03:00 UTC |
 | `weekly` | 18 | full | the full product of the three axes, Ubuntu included | Sunday 04:00 UTC |
 
 Three things to read off that table. **A merge buys the short journey** — the host leg entire
@@ -947,7 +947,7 @@ is enforced, not remembered. And **Ubuntu is weekly only**: fewer than 5% of fou
 bought once a week rather than once a merge. `legs` is a per-cell field in `cells.toml`, optional,
 defaulting to `full`, and the workflow exports it as `KEEL_JOURNEY_LEGS`.
 
-The axes are three operating systems, two hosts and **three** Pythons — 3.9 (spec 004's floor),
+The axes are three operating systems, two measured hosts (plus Codex as `host_unmeasured`: allowed in nightly and weekly, never owed by per_change or the weekly product) and **three** Pythons — 3.9 (spec 004's floor),
 3.12 (what Ubuntu 24.04 ships and what this harness runs on) and 3.13. The design's §5.1 names two
 while its §5.2 and §10 count eighteen weekly cells and six nightly ones; `matrix/cells.toml`'s
 header carries that arithmetic and why the third value is 3.12.

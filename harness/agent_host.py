@@ -60,7 +60,9 @@ from typing import Any
 
 #: The two hosts the plugin ships for, co-equal (keel-cloud `canon/designs/keel-skill-design.md`
 #: §5). Ordered as the design's matrix axis orders them, which is also alphabetical.
-HOSTS = ("claude", "copilot")
+HOSTS = ("claude", "copilot", "codex")
+#: keel-runtime spec 008 (2026-09-12): Codex is the third, and the one that is *runs, unmeasured*
+#: -- keel-skill-design §5.5's gate is what this journey measures for it, nightly, until green.
 
 #: **Copilot, so today's command keeps working.** `make eval-live K=s012` with no `HOST=` is the
 #: command that produced `runs/20260910T211318Z-s012-copilot-host-and-thinker-live`, and a default
@@ -158,7 +160,8 @@ DEFAULT_INSTALL = "plugin"
 INSTALL_ENV = "KEEL_JOURNEY_INSTALL"
 #: The skill Spec Kit registers for the connect command, in the host's project skills directory.
 EXTENSION_SKILL_NAME = "speckit-keel-connect"
-SPECKIT_SKILL_DIRS = {"claude": ".claude/skills", "copilot": ".github/skills"}
+SPECKIT_SKILL_DIRS = {"claude": ".claude/skills", "copilot": ".github/skills",
+                      "codex": ".agents/skills"}
 
 
 class UnknownInstall(ValueError):
@@ -243,7 +246,7 @@ def journey_entry(environ: dict[str, str] | None = None) -> str:
 #: sends `claude-code` for Claude (a permanent accepted alias, keel-connect-skill's invariant
 #: C-12) and keel-runtime's `canonical_executor_name` resolves it before it prints the startup
 #: line, so this is what a log actually says.
-EXECUTOR_FOR_HOST = {"claude": "claude", "copilot": "copilot"}
+EXECUTOR_FOR_HOST = {"claude": "claude", "copilot": "copilot", "codex": "codex"}
 
 
 # ------------------------------------------------------------------- the plugin, and what it leaves
@@ -487,6 +490,9 @@ class AgentHost:
     #: `tests/test_journey_through_a_host.py` can check an argv against them rather than trusting
     #: that nobody ever pastes one in.
     forbidden_flags: tuple[str, ...] = ()
+    #: Codex reads "additional input from stdin" when stdin is not a TTY (measured 0.154.0), and a
+    #: runner's stdin is a pipe nobody closes; the host that says so gets `/dev/null` instead.
+    stdin_devnull: bool = False
 
     def __init__(self, *, home: Path, keel_home: Path, base_url: str, artifacts: Path,
                  binary: str | None = None, model: str | None = None,
@@ -692,7 +698,8 @@ class AgentHost:
 
         try:
             done = subprocess.run(argv, capture_output=True, encoding="utf-8", errors="replace", timeout=timeout,
-                                  env=self.env(), cwd=str(self.work_dir))
+                                  env=self.env(), cwd=str(self.work_dir),
+                                  stdin=subprocess.DEVNULL if self.stdin_devnull else None)
         except subprocess.TimeoutExpired as exc:
             partial = exc.stdout
             transcript.write_text(partial.decode("utf-8", "replace")
@@ -746,6 +753,10 @@ def host_type(name: str | None = None) -> type[AgentHost]:
         from harness.claude_host import ClaudeHost  # noqa: PLC0415 -- see docstring
 
         return ClaudeHost
+    if chosen == "codex":
+        from harness.codex_host import CodexHost  # noqa: PLC0415
+
+        return CodexHost
     from harness.copilot_host import CopilotHost  # noqa: PLC0415
 
     return CopilotHost

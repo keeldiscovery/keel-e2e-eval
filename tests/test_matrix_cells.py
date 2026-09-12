@@ -95,7 +95,7 @@ def test_every_cell_everywhere_is_a_combination_the_axes_allow(matrix):
     for set_name, cells in matrix.sets.items():
         for cell in cells:
             assert cell.os in matrix.axes["os"], f"{set_name}: {cell.id}"
-            assert cell.host in matrix.axes["host"], f"{set_name}: {cell.id}"
+            assert cell.host in matrix.all_hosts, f"{set_name}: {cell.id}"
             assert cell.python in matrix.axes["python"], f"{set_name}: {cell.id}"
 
 
@@ -106,6 +106,10 @@ def test_the_axes_are_the_designs_axes(matrix):
     assert matrix.axes["os"] == ("ubuntu-24.04", "macos-latest", "windows-latest")
     assert matrix.axes["host"] == ("claude", "copilot")
     assert matrix.axes["python"] == ("3.9", "3.12", "3.13")
+    # keel-runtime spec 008: Codex runs and is not measured, so it is bought (nightly) and not owed
+    # (per_change, the weekly product). It moves into `host` the day the gate is green for it.
+    assert matrix.unmeasured_hosts == ("codex",)
+    assert matrix.all_hosts == ("claude", "copilot", "codex")
 
 
 def test_per_change_is_four_cells(matrix):
@@ -141,9 +145,13 @@ def test_ubuntu_is_in_the_weekly_set_and_nowhere_else(matrix):
     assert len([c for c in matrix.sets["weekly"] if c.os.startswith("ubuntu")]) == 6
 
 
-def test_nightly_is_six_plugin_cells_and_one_speckit_cell(matrix):
+def test_nightly_is_six_plugin_cells_one_speckit_cell_and_one_unmeasured_host(matrix):
     nightly = matrix.sets["nightly"]
-    assert len([c for c in nightly if c.install == "plugin"]) == 6
+    measured = [c for c in nightly if c.install == "plugin" and c.host in matrix.axes["host"]]
+    assert len(measured) == 6
+    unmeasured = [c for c in nightly if c.host in matrix.unmeasured_hosts]
+    assert [(c.os, c.host, c.python, c.legs, c.install) for c in unmeasured] == \
+        [("macos-latest", "codex", "3.13", "full", "plugin")]
     speckit = [c for c in nightly if c.install == "speckit"]
     assert [(c.os, c.host, c.python, c.legs) for c in speckit] == [("macos-latest", "claude", "3.13", "short")]
     assert speckit[0].id == "macos-latest-claude-py3.13-speckit"
@@ -187,6 +195,45 @@ def test_weekly_is_the_full_product(matrix):
     weekly = {(c.os, c.host, c.python) for c in matrix.sets["weekly"]}
     assert weekly == matrix.product
     assert len(matrix.sets["weekly"]) == 18
+
+
+# ------------------------------------------------------------- an unmeasured host (spec 008)
+
+UNMEASURED = MINIMAL.replace('host = ["claude", "copilot"]',
+                             'host = ["claude", "copilot"]\n    host_unmeasured = ["codex"]')
+
+
+def test_an_unmeasured_host_is_allowed_in_nightly_and_weekly_and_never_owed(tmp_path):
+    body = UNMEASURED.replace("nightly = []", 'nightly = [{ os = "macos-latest", host = "codex", python = "3.13" }]') \
+                     .replace("weekly = []", 'weekly = [{ os = "ubuntu-24.04", host = "codex", python = "3.9" }]')
+    loaded = m.load(write(tmp_path, body))
+    assert loaded.unmeasured_hosts == ("codex",)
+    assert [c.id for c in loaded.sets["nightly"]] == ["macos-latest-codex-py3.13"]
+    problems = m.coverage_problems(loaded)
+    # per_change still owes the measured hosts and nothing about codex; weekly's product is the
+    # measured hosts' and the codex cell is neither missing nor unexpected.
+    assert not any("codex" in p for p in problems), problems
+
+
+def test_an_unmeasured_host_in_per_change_is_refused(tmp_path):
+    body = UNMEASURED.replace(
+        'per_change = [{ os = "ubuntu-24.04", host = "claude", python = "3.9" }]',
+        'per_change = [{ os = "macos-latest", host = "codex", python = "3.13", legs = "short" }]')
+    problems = m.coverage_problems(m.load(write(tmp_path, body)))
+    assert any("also names" in p and "codex" in p for p in problems), problems
+
+
+def test_a_host_cannot_be_both_measured_and_unmeasured(tmp_path):
+    body = MINIMAL.replace('host = ["claude", "copilot"]',
+                           'host = ["claude", "copilot"]\n    host_unmeasured = ["copilot"]')
+    with pytest.raises(m.CellsError, match="one or the other"):
+        m.load(write(tmp_path, body))
+
+
+def test_a_host_outside_both_lists_is_still_refused(tmp_path):
+    body = UNMEASURED.replace("nightly = []", 'nightly = [{ os = "macos-latest", host = "cursor", python = "3.13" }]')
+    with pytest.raises(m.CellsError, match="cursor"):
+        m.load(write(tmp_path, body))
 
 
 def test_weekly_is_the_whole_journey_everywhere(matrix):

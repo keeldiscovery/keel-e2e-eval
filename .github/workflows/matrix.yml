@@ -613,6 +613,13 @@ jobs:
         run: |
           npm install -g @github/copilot@1.0.83 || npm install -g @github/copilot@latest
           copilot --version
+      # keel-runtime spec 008: the unmeasured host. Unpinned on purpose -- the version the day has
+      # is what the release notes will name once the gate is green -- and printed for the record.
+      - name: Install the Codex CLI from npm, version printed
+        if: matrix.cell.host == 'codex'
+        run: |
+          npm install -g @openai/codex
+          codex --version
 
       - name: Install Spec Kit's CLI into the harness venv, pinned, and build the extension tree
         if: matrix.cell.install == 'speckit'
@@ -653,6 +660,14 @@ jobs:
           # host, the skill, the runtime and the executor all see the same token (the CLI's own
           # precedence: COPILOT_GITHUB_TOKEN > GH_TOKEN > GITHUB_TOKEN > the stored login).
           GH_TOKEN: ${{ matrix.cell.host == 'copilot' && secrets.KEEL_RUNTIME_CI_COPILOT || '' }}
+          # KEEL_RUNTIME_CI_CODEX is an OpenAI API key (the founder's, 2026-09-12; billed per
+          # token on the API, not on a ChatGPT plan). It reaches the cell as KEEL_CODEX_API_KEY
+          # and nothing else: measured, `codex exec` ignores OPENAI_API_KEY in the environment,
+          # so the harness's Codex host signs the cell's own isolated CODEX_HOME in with
+          # `codex login --with-api-key` (harness/codex_host.py), and the key is never written
+          # anywhere the bundle carries. No model pin: Codex's unmeasured run answers with the
+          # account's default and the runtime's startup line says model=default (spec 008).
+          KEEL_CODEX_API_KEY: ${{ matrix.cell.host == 'codex' && secrets.KEEL_RUNTIME_CI_CODEX || '' }}
           # C-5's pin, spec 016: gpt-5.6-luna emits the `phase` key CopilotExecutor reads, and the
           # plan's own default (claude-sonnet-5) does not -- runs/DRIFT.md #59. Claude has no
           # counterpart: keel-runtime's Claude executor takes no model, so a Claude cell's runtime

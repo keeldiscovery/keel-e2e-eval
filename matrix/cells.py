@@ -128,6 +128,15 @@ class Matrix:
     live: tuple[str, ...]
     default_scenarios: tuple[str, ...]
     sets: dict[str, tuple[Cell, ...]]
+    #: Hosts the matrix may buy but does not owe (keel-runtime spec 008, 2026-09-12): a host that
+    #: runs but has not passed keel-skill-design §5.5's four-part gate. Allowed in nightly and
+    #: weekly, never in per_change (a merge buys the measured hosts and nothing else), and not
+    #: part of the product the weekly set must cover. `[axes].host_unmeasured` in cells.toml.
+    unmeasured_hosts: tuple[str, ...] = ()
+
+    @property
+    def all_hosts(self) -> tuple[str, ...]:
+        return tuple(self.axes["host"]) + tuple(self.unmeasured_hosts)
 
     def cells(self, set_name: str, only: Iterable[str] | None = None) -> list[Cell]:
         """The cells of one named set, optionally narrowed to a list of ids -- the workflow's
@@ -185,6 +194,12 @@ def load(path: Path | None = None) -> Matrix:
     for name, values in axes.items():
         if not values:
             problems.append(f"[axes].{name} names no values")
+    unmeasured = (_str_list(axes_raw.get("host_unmeasured"), "[axes].host_unmeasured", problems)
+                  if "host_unmeasured" in axes_raw else ())
+    overlap = sorted(set(unmeasured) & set(axes["host"]))
+    if overlap:
+        problems.append(f"[axes].host_unmeasured names {overlap}, which [axes].host already "
+                        f"names as measured -- a host is one or the other")
 
     scenarios_raw = raw.get("scenarios", {})
     default_scenarios = _str_list(scenarios_raw.get("default", []), "[scenarios].default", problems)
@@ -217,12 +232,13 @@ def load(path: Path | None = None) -> Matrix:
             values = {}
             for axis in ("os", "host", "python"):
                 value = entry.get(axis)
+                allowed = axes[axis] + (unmeasured if axis == "host" else ())
                 if not isinstance(value, str):
                     problems.append(f"{where} is missing a {axis}")
                     value = ""
-                elif axes[axis] and value not in axes[axis]:
+                elif allowed and value not in allowed:
                     problems.append(f"{where}: {axis}={value!r} is not one of "
-                                    f"{list(axes[axis])}")
+                                    f"{list(allowed)}")
                 values[axis] = value
             scenarios = (_str_list(entry["scenarios"], f"{where}.scenarios", problems)
                          if "scenarios" in entry else default_scenarios)
@@ -251,7 +267,8 @@ def load(path: Path | None = None) -> Matrix:
 
     if problems:
         raise CellsError(f"{path}:\n  - " + "\n  - ".join(problems))
-    return Matrix(axes=axes, live=live, default_scenarios=default_scenarios, sets=sets)
+    return Matrix(axes=axes, live=live, default_scenarios=default_scenarios, sets=sets,
+                  unmeasured_hosts=unmeasured)
 
 
 # -------------------------------------------------------------------------- the coverage rules
@@ -296,6 +313,7 @@ def coverage_problems(matrix: Matrix) -> list[str]:
 
     per_change = matrix.sets.get("per_change", ())
     covered = {(cell.os, cell.host) for cell in per_change}
+    # An unmeasured host is never bought on a merge: the measured hosts are what a change owes.
     want = set(itertools.product(everyday, matrix.axes["host"]))
     if covered != want:
         missing = sorted(want - covered)
@@ -347,7 +365,9 @@ def coverage_problems(matrix: Matrix) -> list[str]:
                         f"kept")
 
     weekly = matrix.sets.get("weekly", ())
-    combos = {(c.os, c.host, c.python) for c in weekly}
+    # An unmeasured host may ride the weekly set but is not owed by it: the product is the
+    # measured hosts' (keel-runtime spec 008).
+    combos = {(c.os, c.host, c.python) for c in weekly if c.host not in matrix.unmeasured_hosts}
     if combos != matrix.product:
         missing = sorted(matrix.product - combos)
         extra = sorted(combos - matrix.product)

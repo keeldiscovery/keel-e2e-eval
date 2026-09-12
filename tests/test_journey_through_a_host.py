@@ -288,7 +288,11 @@ def test_both_hosts_are_asked_the_founders_own_three_words(name, tmp_path):
     # bare name), so the first element is the resolved path whose basename is the host's CLI.
     import os as _os
     assert _os.path.basename(argv[0]).split(".")[0] == name
-    assert argv[1] == "-p"
+    if name == "codex":
+        # `codex exec "<prompt>"`: the CLI's non-interactive verb (keel-runtime spec 008).
+        assert argv[1] == "exec"
+    else:
+        assert argv[1] == "-p"
     assert argv[2] == "keel connect"
     joined = " ".join(argv).lower()
     for word in ("keel_connect_check", "skill.md", "scripts/"):
@@ -321,7 +325,7 @@ def test_no_flag_that_would_hide_the_skill_is_ever_passed(name, tmp_path):
     for flag in host_type.forbidden_flags:
         assert flag not in argv
     for blanket in ("--allow-all-tools", "--allow-all", "--yolo",
-                    "--dangerously-skip-permissions"):
+                    "--dangerously-skip-permissions", "--dangerously-bypass-approvals-and-sandbox"):
         assert blanket not in argv, f"{blanket} would hide what the skill actually needed"
 
 
@@ -335,6 +339,13 @@ def test_each_host_grants_exactly_the_two_tools_the_skill_needs(name, tmp_path):
     if name == "claude":
         assert argv[argv.index("--allowedTools") + 1] == "Skill,Bash(python3:*)"
         assert argv[argv.index("--permission-mode") + 1] == "dontAsk"
+    elif name == "codex":
+        # Codex has no per-tool grant. What stands between the skill and the runtime is the
+        # sandbox (a write under ~/.keel and the network, measured refused), so the journey
+        # names the sandbox off explicitly and every command still lands in the stream as a
+        # `command_execution` item, which is what keeps "what the skill needed" observable.
+        assert argv[argv.index("--sandbox") + 1] == "danger-full-access"
+        assert "--json" in argv and "--skip-git-repo-check" in argv
     else:
         grants = [argv[i + 1] for i, a in enumerate(argv) if a == "--allow-tool"]
         assert grants == ["shell(python3:*)", "skill"]
@@ -345,6 +356,9 @@ def test_each_run_is_machine_readable_so_the_bundle_carries_more_than_prose(name
     """Both transcripts have to name the tools that were called and what the run cost, or the
     bundle's only evidence about leg one is the model's own sentence."""
     argv, _ = _argv(name, tmp_path)
+    if name == "codex":
+        assert "--json" in argv
+        return
     fmt = argv[argv.index("--output-format") + 1]
     if name == "claude":
         # `json` would carry the cost and the model but not the tool calls.
@@ -365,17 +379,19 @@ def test_the_model_is_pinned_only_when_there_is_one(name, tmp_path):
     """C-5: `--model` is passed when a slug is pinned and **absent** when it is not. A run that
     sent `--model auto` would be claiming a pin it does not have -- and the Claude journey is
     unpinned by default, so this is the branch it takes."""
+    flag = "-m" if name == "codex" else "--model"
     argv, _ = _argv(name, tmp_path, model=None)
-    assert "--model" not in argv
+    assert flag not in argv
     assert "auto" not in argv
     argv, _ = _argv(name, tmp_path, model="a-slug")
-    assert argv[argv.index("--model") + 1] == "a-slug"
+    assert argv[argv.index(flag) + 1] == "a-slug"
 
 
 # --------------------------------------------------------------------------- the two homes
 
 @pytest.mark.parametrize("name,variable", [("claude", "CLAUDE_CONFIG_DIR"),
-                                            ("copilot", "COPILOT_HOME")])
+                                            ("copilot", "COPILOT_HOME"),
+                                            ("codex", "CODEX_HOME")])
 def test_each_host_is_moved_to_this_runs_own_home(name, variable, tmp_path):
     env = _host(name, tmp_path).env()
     assert env[variable] == str(tmp_path / f"{name}-home")
@@ -404,8 +420,10 @@ def test_the_session_this_harness_runs_in_never_reaches_the_host(name, tmp_path)
                    "CLAUDE_CODE_MESSAGING_SOCKET"):
         assert leaked not in env, f"{leaked} reached {name}"
     # The other host's home is gone too; each host puts its own back.
-    other = "COPILOT_HOME" if name == "claude" else "CLAUDE_CONFIG_DIR"
-    assert other not in env
+    homes = {"claude": "CLAUDE_CONFIG_DIR", "copilot": "COPILOT_HOME", "codex": "CODEX_HOME"}
+    for other_host, other in homes.items():
+        if other_host != name:
+            assert other not in env, f"{other} reached {name}"
 
 
 @pytest.mark.parametrize("name", agent_host.HOSTS)
@@ -451,7 +469,10 @@ def test_both_hosts_install_from_the_one_public_marketplace(name, tmp_path):
     host = _host(name, tmp_path)
     assert host._marketplace_argv(agent_host.MARKETPLACE_SOURCE) == [
         "plugin", "marketplace", "add", "keeldiscovery/keel-marketplace"]
-    assert host._install_argv(agent_host.PLUGIN_SPEC) == ["plugin", "install", "keel@keel"]
+    # Codex's one different verb, measured: `codex plugin add keel@keel` installs the release
+    # branch's tree from the marketplace's Codex-shaped manifest (keel-runtime spec 008).
+    verb = "add" if name == "codex" else "install"
+    assert host._install_argv(agent_host.PLUGIN_SPEC) == ["plugin", verb, "keel@keel"]
 
 
 def test_the_scenario_installs_from_the_marketplace_and_never_from_a_checkout():
@@ -577,9 +598,11 @@ def test_the_scenario_reads_its_host_from_the_environment_and_nowhere_else():
 def test_each_host_expects_its_own_executor_and_they_are_the_canonical_names():
     """The skill sends `claude-code` for Claude -- a permanent accepted alias -- and keel-runtime
     canonicalises it before it prints the startup line, so what a log actually says is `claude`."""
-    assert agent_host.EXECUTOR_FOR_HOST == {"claude": "claude", "copilot": "copilot"}
+    assert agent_host.EXECUTOR_FOR_HOST == {"claude": "claude", "copilot": "copilot", "codex": "codex"}
     assert copilot_host.CopilotHost.executor == "copilot"
     assert claude_host.ClaudeHost.executor == "claude"
+    from harness import codex_host
+    assert codex_host.CodexHost.executor == "codex"
 
 
 def test_the_runtimes_pin_is_per_host_and_one_of_them_is_honestly_nothing():
@@ -588,8 +611,12 @@ def test_the_runtimes_pin_is_per_host_and_one_of_them_is_honestly_nothing():
     the referee into the bundle."""
     from evals import test_s012_journey_through_a_host as s012
 
-    assert s012.RUNTIME_MODEL_FOR_HOST == {"copilot": "gpt-5.6-luna", "claude": None}
+    assert s012.RUNTIME_MODEL_FOR_HOST == {"copilot": "gpt-5.6-luna", "claude": None, "codex": None}
     assert s012.HOST_MODEL_FOR_HOST["claude"] is None
+    # Codex: unpinned on both sides until the gate says which model to measure on; the account's
+    # default (measured gpt-6-astra) answers and the runtime's line says model=default.
+    assert s012.HOST_MODEL_FOR_HOST["codex"] is None
+    assert s012.RUNTIME_MODEL_ENV_FOR_HOST == {"copilot": "KEEL_COPILOT_MODEL", "codex": "KEEL_CODEX_MODEL"}
 
 
 def test_the_bundle_records_the_host_the_cli_and_the_models():
