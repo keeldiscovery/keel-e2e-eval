@@ -150,8 +150,9 @@ def test_nightly_is_six_plugin_cells_one_speckit_cell_and_one_unmeasured_host(ma
     measured = [c for c in nightly if c.install == "plugin" and c.host in matrix.axes["host"]]
     assert len(measured) == 6
     unmeasured = [c for c in nightly if c.host in matrix.unmeasured_hosts]
-    assert [(c.os, c.host, c.python, c.legs, c.install) for c in unmeasured] == \
-        [("macos-latest", "codex", "3.13", "full", "plugin")]
+    assert [(c.os, c.host, c.python, c.legs, c.install) for c in unmeasured] == [
+        ("macos-latest", "codex", "3.13", "full", "plugin"),
+        ("windows-latest", "codex", "3.13", "full", "plugin")]
     speckit = [c for c in nightly if c.install == "speckit"]
     assert [(c.os, c.host, c.python, c.legs) for c in speckit] == [("macos-latest", "claude", "3.13", "short")]
     assert speckit[0].id == "macos-latest-claude-py3.13-speckit"

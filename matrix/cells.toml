@@ -97,9 +97,11 @@ nightly = [
     { os = "windows-latest", host = "copilot", python = "3.13" },
     { os = "windows-latest", host = "claude",  python = "3.9" },
     { os = "windows-latest", host = "copilot", python = "3.9" },
-    # keel-runtime spec 008: the unmeasured host, once a night, whole -- decision 10's second
-    # part (the end-to-end scenario through the host) measured every night until it is green.
+    # keel-runtime spec 008: the unmeasured host, once a night on each operating system founders
+    # install on, whole -- decision 10's second part (the end-to-end scenario through the host)
+    # measured every night until it is green (the founder, 2026-09-12: "test both").
     { os = "macos-latest",   host = "codex",   python = "3.13" },
+    { os = "windows-latest", host = "codex",   python = "3.13" },
 ]
 
 # Weekly, Sunday 04:00 UTC (§5.2, eighteen cells): the full product of the three axes, every one
