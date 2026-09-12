@@ -78,8 +78,12 @@ def preflight(config, *, dry_run: bool = False, host: str = "claude",
             f"no `{binary}` on PATH -- this eval calls a real model through the {host} CLI, "
             "exactly as a founder's own runtime would")
     facts["cli_version"] = _cli_version(binary)
-    reason = _copilot_ready(binary, executor_module) if host == "copilot" \
-        else _claude_ready(binary)
+    if host == "copilot":
+        reason = _copilot_ready(binary, executor_module)
+    elif host == "codex":
+        reason = _codex_ready(binary, executor_module)
+    else:
+        reason = _claude_ready(binary)
     if reason:
         raise NotReady(reason)
     return facts
@@ -165,6 +169,44 @@ def _copilot_ready(binary: str, executor_module) -> str | None:
     return None
 
 
+def _codex_ready(binary: str, executor_module) -> str | None:
+    """A reason to stop, or `None`. One short call in the executor's own closed shape
+    (keel-runtime spec 008): `codex exec -` with the runtime's `CODEX_EXEC_FLAGS` and every
+    `CODEX_DISABLED_FEATURES` flag, the prompt on stdin. The exit code is not consulted; the
+    `error`/`turn.failed` events and stderr are, against keel-runtime's own `CODEX_AUTH_MARKERS`,
+    for the reason `_copilot_ready` gives."""
+    flags = list(getattr(executor_module, "CODEX_EXEC_FLAGS", ()) or ())
+    disabled = getattr(executor_module, "CODEX_DISABLED_FEATURES", ()) or ()
+    argv = [binary, "exec", "-"] + flags
+    for feature in disabled:
+        argv += ["--disable", feature]
+    try:
+        done = subprocess.run(argv, input="Reply with the single word ok.",
+                              capture_output=True, text=True, timeout=180)
+    except Exception as exc:                      # noqa: BLE001 - any failure is a reason to stop
+        return f"`{binary} exec` did not answer: {exc}"
+
+    events = _jsonl(done.stdout)
+    errors = []
+    for event in events:
+        if event.get("type") == "error":
+            errors.append(str(event.get("message") or event))
+        elif event.get("type") == "turn.failed":
+            errors.append(str((event.get("error") or {}).get("message") or event))
+    stderr = (done.stderr or "").strip()
+    markers = [m.lower() for m in getattr(executor_module, "CODEX_AUTH_MARKERS", ()) or ()]
+    for text in [stderr] + errors:
+        if text and any(marker in text.lower() for marker in markers):
+            return (f"`{binary}` is not logged in here: {text.splitlines()[0]} -- run "
+                    f"`{binary} login` before spending a run")
+    if errors:
+        return f"`{binary}` answered with an error: {'; '.join(errors)}"
+    if not events:
+        return (f"`{binary} exec` produced no JSONL at all "
+                f"(exit {done.returncode}): {stderr or 'no stderr'}")
+    return None
+
+
 def _jsonl(stdout: str) -> list:
     """Every JSON object on its own line. Not `_parse_stream_events`: that one is the executor's,
     and this probe is the referee's own, with nothing riding on it but a yes or a no."""
@@ -238,6 +280,9 @@ class Answer:
     # runtime never invents a figure it was not given. So does this eval: one of these two is
     # `None` on every run, and neither is filled in from the other.
     premium_requests: float | None = None
+    # keel-runtime spec 008: Codex reports tokens against a plan -- `usage` from the CLI's own
+    # `turn.completed` -- and no dollars and no premium requests. Same rule: never converted.
+    tokens: dict | None = None
     reported_model: str | None = None
     duration_s: float = 0.0
     error: str | None = None          # ExecutorUnavailable/Timeout: not a score
@@ -277,6 +322,7 @@ def ask(executor_module, validator_module, executor, case) -> Answer:
         answer.duration_s = time.monotonic() - started
         answer.envelope = executor.last_envelope or {}
         answer.premium_requests = answer.envelope.get("premium_requests")
+        answer.tokens = answer.envelope.get("tokens")
         answer.reported_model = reported_model(answer.envelope, executor)
         return answer
     except executor_module.InvalidResponse as exc:
@@ -286,6 +332,7 @@ def ask(executor_module, validator_module, executor, case) -> Answer:
         answer.duration_s = time.monotonic() - started
         answer.envelope = executor.last_envelope or {}
         answer.premium_requests = answer.envelope.get("premium_requests")
+        answer.tokens = answer.envelope.get("tokens")
         answer.reported_model = reported_model(answer.envelope, executor)
         return answer
 
@@ -295,6 +342,7 @@ def ask(executor_module, validator_module, executor, case) -> Answer:
     answer.num_turns = answer.envelope.get("num_turns")
     answer.total_cost_usd = answer.envelope.get("total_cost_usd")
     answer.premium_requests = answer.envelope.get("premium_requests")
+    answer.tokens = answer.envelope.get("tokens")
     answer.reported_model = reported_model(answer.envelope, executor)
 
     contract = case.payload.get("response_contract") or {}

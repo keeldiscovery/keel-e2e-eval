@@ -108,7 +108,10 @@ def render(executor_module, payload: dict, *, job_id: str = "eval", host: str = 
     """
     request = executor_module.InferenceRequest(
         job_id=job_id, interaction_id=job_id, turn_number=1, request_payload=payload)
-    if canonical_host(executor_module, host) == "copilot":
+    # Codex (keel-runtime spec 008) has the same arrangement: no system-prompt flag and a schema
+    # flag that strict structured outputs refuse for Keel's either/or envelope, so it gets the
+    # same rendered prompt as Copilot -- the runtime's own function, not a copy.
+    if canonical_host(executor_module, host) in ("copilot", "codex"):
         sections = _require(executor_module, "_prompt_sections")(request)
         schema = _require(executor_module, "_build_envelope_schema")(
             payload.get("response_contract") or {})

@@ -29,7 +29,7 @@ from . import marks as marks_mod
 # to say so is the one string that appears in every `ls`, every README line and every citation.
 # `claude` keeps the bare name it has always had, so every existing run of record still reads as
 # what it is rather than being retroactively renamed.
-HOST_SUFFIXES = {"claude": "", "copilot": "-copilot"}
+HOST_SUFFIXES = {"claude": "", "copilot": "-copilot", "codex": "-codex"}
 
 
 def start_bundle(config, *, baseline: bool, host: str = "claude") -> Path:
@@ -151,6 +151,10 @@ def _spend(verdict: dict) -> str:
     premium = verdict.get("total_premium_requests")
     if premium is not None:
         return f"{premium:g} premium requests (this host reports no dollars)"
+    tokens = verdict.get("total_tokens")
+    if tokens:
+        return (f"{tokens.get('input_tokens', 0)} input + {tokens.get('output_tokens', 0)} output "
+                "tokens (this host reports tokens against a plan, no dollars)")
     dollars = verdict.get("total_cost_usd")
     if dollars is not None:
         return f"${dollars:.2f}"
@@ -165,7 +169,7 @@ def _mark_row(name: str, result: dict, fmt=_pct) -> str:
 
 
 # The host's own name for itself, for a page a person reads (spec 014 FR-006).
-HOST_NAMES = {"claude": "Claude Code", "copilot": "GitHub Copilot"}
+HOST_NAMES = {"claude": "Claude Code", "copilot": "GitHub Copilot", "codex": "Codex"}
 
 
 def host_name(host) -> str:

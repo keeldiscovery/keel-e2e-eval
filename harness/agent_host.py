@@ -417,9 +417,12 @@ class HostRun:
 HOST_SESSION_VARS_EXACT = (
     "CLAUDECODE", "CLAUDE_PID", "CLAUDE_EFFORT", "AI_AGENT",
     "COPILOT_CLI", "COPILOT_AGENT_SESSION_ID",
+    # Codex's session handles (keel-runtime spec 008): a command Codex runs sees these, and the
+    # skill's `detect_host` reads the first two.
+    "CODEX_THREAD_ID", "CODEX_SESSION_ID", "CODEX_SANDBOX", "CODEX_SANDBOX_NETWORK_DISABLED", "CODEX_CI",
     # Both home variables go too, and each host puts its own back in `env()`: an inherited one is
     # the founder's real home, which is the one thing an isolated run must not reach.
-    "CLAUDE_CONFIG_DIR", "COPILOT_HOME",
+    "CLAUDE_CONFIG_DIR", "COPILOT_HOME", "CODEX_HOME",
 )
 
 #: `CLAUDE_CODE_*` is swept by prefix rather than by name, because it is a growing family of

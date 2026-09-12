@@ -2,8 +2,8 @@
 
     --dry-run        print every prompt this run would send, and the case count and estimate;
                      call nothing, spend nothing
-    --host HOST      which host answers: `claude` (the default, and every published mark) or
-                     `copilot`. It decides the CLI the pre-flight requires, the executor
+    --host HOST      which host answers: `claude` (the default, and every published mark),
+                     `copilot` or `codex`. It decides the CLI the pre-flight requires, the executor
                      keel-runtime constructs, and the prompt that host is sent -- and nothing
                      else. **Two hosts' runs are different measurements and are never averaged.**
     --baseline       name the bundle `-instructions-baseline`, and say in the report that a red
@@ -56,7 +56,7 @@ def main(argv=None) -> int:
     parser.add_argument("--baseline", action="store_true")
     # spec 014 FR-001. `choices` rather than a free string: an unknown host is refused by
     # argparse, before a prerequisite is checked and before anything is spent.
-    parser.add_argument("--host", default="claude", choices=("claude", "copilot"),
+    parser.add_argument("--host", default="claude", choices=("claude", "copilot", "codex"),
                         help="which host answers (default: claude)")
     parser.add_argument("-k", dest="filter", default=None)
     parser.add_argument("-n", dest="n_runs", type=int, default=3)
@@ -171,8 +171,14 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     # `claude-code` aliases to, and which caps each constructor is given are keel-runtime's to
     # decide -- and a second table here would be the sixth version of `runs/DRIFT.md`
     # #33/#36/#41/#44/#45: the referee holding its own copy of something it does not own.
-    pinned_model = os.environ.get("KEEL_COPILOT_MODEL") or None
-    executor = executor_module.get_executor(args.host, home=run_dir, copilot_model=pinned_model)
+    # Each host's pin is its own variable, the same names keel-runtime reads (spec 005 C-5 for
+    # Copilot; spec 008 for Codex, whose unpinned run answers with the account's default model).
+    pinned_model = (os.environ.get("KEEL_CODEX_MODEL") if args.host == "codex"
+                    else os.environ.get("KEEL_COPILOT_MODEL")) or None
+    executor = executor_module.get_executor(
+        args.host, home=run_dir,
+        copilot_model=pinned_model if args.host != "codex" else None,
+        codex_model=pinned_model if args.host == "codex" else None)
     judge = judge_mod.NoJudge() if args.no_judge else judge_mod.Judge()
     people = {(e.id, p.person): p for e in corpus.entries for p in e.people()}
 
@@ -183,6 +189,8 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     total_cost = 0.0
     total_premium = 0.0
     premium_seen = False
+    total_tokens = {"input_tokens": 0, "output_tokens": 0}
+    tokens_seen = False
     reported_model = None
 
     # Written before the first call, so a run that dies at case one still says what it was.
@@ -196,6 +204,10 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         if answer.premium_requests is not None:
             premium_seen = True
             total_premium += answer.premium_requests
+        if answer.tokens:
+            tokens_seen = True
+            for key in total_tokens:
+                total_tokens[key] += int(answer.tokens.get(key) or 0)
         reported_model = reported_model or answer.reported_model
         entry = corpus.by_id(case.entry_id)
 
@@ -305,8 +317,10 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         # C-7: one of these two, never both, and never one filled in from the other. Copilot
         # reports premium requests and no dollars; a `$0.00` on a Copilot report would be a lie
         # in the shape of a number.
-        "total_cost_usd": round(total_cost, 4) if not premium_seen else None,
+        "total_cost_usd": round(total_cost, 4) if not (premium_seen or tokens_seen) else None,
         "total_premium_requests": round(total_premium, 4) if premium_seen else None,
+        # keel-runtime spec 008: Codex's unit. Input and output, summed over the run, never priced.
+        "total_tokens": dict(total_tokens) if tokens_seen else None,
     }
     report_mod.write_verdict(run_dir, verdict)
     report_mod.write_manifest(run_dir, _manifest(args, facts, executor, pinned_model,
@@ -336,6 +350,9 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     if premium_seen:
         print(f"cost: {total_premium:g} premium requests "
               f"(this host reports no dollars, and none are invented)")
+    elif tokens_seen:
+        print(f"cost: {total_tokens['input_tokens']} input + {total_tokens['output_tokens']} output "
+              f"tokens (this host reports tokens against a plan; no dollars are invented)")
     else:
         print(f"cost: ${total_cost:.2f}")
     print(f"host: {args.host} · cli {facts.get('cli_version')} · "
