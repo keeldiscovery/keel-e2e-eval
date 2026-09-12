@@ -74,8 +74,8 @@ def _reads_connected(agent_line: str) -> bool:
 
 def test_s001_smoke(stack, founder_one, browser, run_dir):
     recorder = Recorder(run_dir)
-    web_base = f"http://localhost:{stack.web_port}"
-    cloud_base = f"http://localhost:{stack.cloud_port}"
+    web_base = stack.web_base_url
+    cloud_base = stack.cloud_base_url
     started = time.monotonic()
     passed = False
     modal_anchor = None

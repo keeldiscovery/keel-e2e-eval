@@ -29,6 +29,7 @@ from evals.preludes import answer_everyone, create_project, invite_everyone, wal
 from harness import corpus_script
 from harness.browser import Auth, Connect, Landing, OpenedCard, Overview, PrintPage, People, ReviewCard, Shell
 from harness.connect import start_runtime_via_skill, stop_runtime
+from stack import remote
 from stack import runtime as stack_runtime
 from harness.evidence import finalize_run, write_generated
 from harness.steps import Recorder
@@ -96,8 +97,17 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
     second entry would also need belongs above it, not in it.
     """
     recorder = Recorder(run_dir)
-    web_base = f"http://localhost:{stack.web_port}"
-    cloud_base = f"http://localhost:{stack.cloud_port}"
+    # Spec 017: the stack's own addresses -- `http://localhost:<port>` on the eval and playground
+    # profiles, the twin's URLs on `remote` -- and the founder this run signs in as: the built-in
+    # Eval Founder locally, a founder registered for this cell against the twin's gated chooser.
+    # (The nightly of 2026-09-12, run 34660286884, found both hard-wired to localhost: S-005/6/7
+    # rode the macOS x Claude cell for the first time and every one of them failed at sign-in with
+    # `ERR_CONNECTION_REFUSED at http://localhost:443/login`.)
+    web_base = stack.web_base_url
+    cloud_base = stack.cloud_base_url
+    cell_label = (f"{remote.cell_name()} · corpus {slug} · "
+                  f"{time.strftime('%Y-%m-%d', time.gmtime())}")
+    founder_one = remote.identity_to_sign_in_as(stack, cell_label, fallback=founder_one)
     started = time.monotonic()
     passed = False
     context = browser.new_context()

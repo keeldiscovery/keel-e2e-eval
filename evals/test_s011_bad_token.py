@@ -94,8 +94,8 @@ def _screen_is_clean(page) -> dict:
 
 def test_s011_bad_token(stack, founder_one, founder_two, browser, run_dir):
     recorder = Recorder(run_dir)
-    web_base = f"http://localhost:{stack.web_port}"
-    cloud_base = f"http://localhost:{stack.cloud_port}"
+    web_base = stack.web_base_url
+    cloud_base = stack.cloud_base_url
     started = time.monotonic()
     passed = False
     context = browser.new_context()

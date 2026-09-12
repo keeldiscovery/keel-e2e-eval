@@ -65,7 +65,7 @@ def _connect_agent(page, stack, recorder) -> None:
 
 def test_s003_every_door(stack, founder_one, browser, run_dir):
     recorder = Recorder(run_dir)
-    web_base = f"http://localhost:{stack.web_port}"
+    web_base = stack.web_base_url
     started = time.monotonic()
     passed = False
     context = browser.new_context()
@@ -88,7 +88,7 @@ def test_s003_every_door(stack, founder_one, browser, run_dir):
             project_id = _project_id_from_url(page.url)
         else:
             project_id, _ = approved_project_with_one_read(
-                page, recorder, browser, web_base=web_base, cloud_base=f"http://localhost:{stack.cloud_port}")
+                page, recorder, browser, web_base=web_base, cloud_base=stack.cloud_base_url)
 
         # A participant link of this run's own, so §2.1's page is a seed too (§1.4: one link,
         # one person). It adds one asked row; S-002 runs before this file in `make eval`.

@@ -106,10 +106,10 @@ real callback -- and `stack/auth.py`'s one browserless sign-in walks the same th
 anywhere in this harness that produces a founder session by any other means.** Two scenarios came
 with it: **S-010** (two founders on one instance -- every one of another founder's routes a bare
 404) and **S-011** (the callback's own refusals, each with the founder-voiced line the design
-names). The scenario set is **twelve**.
+names). The scenario set is **thirteen**.
 
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
-to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **twelve** scenarios are
+to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **thirteen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
 the participants' typed answers are fixture or corpus data, never generated) and every assertion
 enforcing a journey moment cites it (`§n.m`).

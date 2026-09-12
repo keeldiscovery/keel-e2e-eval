@@ -39,6 +39,7 @@ from harness.browser import Auth, Connect, Landing
 from harness.connect import start_runtime_via_skill, stop_runtime
 from harness.evidence import finalize_run
 from harness.steps import Recorder
+from stack import remote
 from stack import runtime as stack_runtime
 
 OLDER_VERSION = "1.0.0"
@@ -68,8 +69,13 @@ def _checkout_version(skill_root: Path) -> str:
 
 def test_s013_upgrade_in_place(stack, founder_one, browser, run_dir):
     recorder = Recorder(run_dir)
-    web_base = f"http://localhost:{stack.web_port}"
-    cloud_base = f"http://localhost:{stack.cloud_port}"
+    # Spec 017: the stack's own addresses, and this cell's own registered founder on `remote`
+    # (the nightly of 2026-09-12 found both hard-wired to localhost; see corpus_scenario.py).
+    web_base = stack.web_base_url
+    cloud_base = stack.cloud_base_url
+    cell_label = (f"{remote.cell_name()} · upgrade-in-place · "
+                  f"{time.strftime('%Y-%m-%d', time.gmtime())}")
+    founder_one = remote.identity_to_sign_in_as(stack, cell_label, fallback=founder_one)
     started = time.monotonic()
     passed = False
     context = browser.new_context()

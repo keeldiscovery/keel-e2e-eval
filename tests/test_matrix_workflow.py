@@ -201,3 +201,21 @@ def test_the_issue_is_information_and_never_a_trigger():
     run = step_named("summary", "Tell the founder")["run"]
     for forbidden in ("deploy.sh", "aws ", "workflow_dispatch", "gh workflow run"):
         assert forbidden not in run, forbidden
+
+
+# ------------------------------------------------- the twin follows keel-cloud, whoever pushed first
+
+def test_the_deploy_step_skips_only_when_the_twin_already_runs_the_tag():
+    """2026-09-12: the step used to read "the tag is in ECR" as "the twin runs it". The night
+    production was deployed first (the same image tag, invariant M1) the keel-cloud dispatch left
+    the twin six commits behind and every cell green on the wrong build. The skip must be decided
+    by /keel/staging/deployed-tag -- what deploy.sh writes last -- and a tag that is in ECR but
+    not on the twin must be a loud red, because an immutable repository means this job cannot
+    push it again and only the Mac can move the twin."""
+    run = step_named("deploy-staging", "deploy.sh --target staging")["run"]
+    assert "/keel/staging/deployed-tag" in run
+    assert '[ "$running" = "$TAG" ]' in run, "the skip compares the tag the twin runs, not ECR"
+    assert "the twin is already on it" not in run, "an ECR hit is not evidence the twin runs it"
+    ecr_branch = run.split("elif aws ecr describe-images", 1)[1].split("else", 1)[0]
+    assert "exit 1" in ecr_branch, "in ECR but not on the twin: fail, do not test the wrong build"
+    assert "deploy.sh --target staging $TAG" in ecr_branch, "and say which command moves it"

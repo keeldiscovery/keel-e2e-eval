@@ -164,8 +164,8 @@ def _run_check_script(script: Path, *, interpreter: str, empty_path: Path,
 
 def test_s008_bundled_runtime(stack, founder_one, browser, run_dir):
     recorder = Recorder(run_dir)
-    web_base = f"http://localhost:{stack.web_port}"
-    cloud_base = f"http://localhost:{stack.cloud_port}"
+    web_base = stack.web_base_url
+    cloud_base = stack.cloud_base_url
     expected_environment = f"localhost:{stack.cloud_port}"
     started = time.monotonic()
     passed = False

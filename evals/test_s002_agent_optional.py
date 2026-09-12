@@ -152,8 +152,8 @@ def _connect_agent(page, stack, recorder) -> dict:
 
 def test_s002_agent_optional(stack, founder_one, browser, run_dir):
     recorder = Recorder(run_dir)
-    web_base = f"http://localhost:{stack.web_port}"
-    cloud_base = f"http://localhost:{stack.cloud_port}"
+    web_base = stack.web_base_url
+    cloud_base = stack.cloud_base_url
     typed_answers: list[str] = []
     started = time.monotonic()
     passed = False

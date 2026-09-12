@@ -369,10 +369,18 @@ jobs:
       # KEEL_ELASTIC_IP come from repository variables because the CI role carries no
       # `ec2:Describe*` (§4.2's spec 036 amendment: it cannot be scoped to one instance).
       #
-      # It is skipped when the tag is already in ECR: keel-cloud's repository is IMMUTABLE, so
-      # re-pushing a tag that exists is refused by AWS, and a tag that exists is a twin already
-      # running it. That is the "redeploys the tag" case of §6.3 reaching the same end state for
-      # nothing.
+      # It is skipped when the twin ALREADY RUNS the tag -- /keel/staging/deployed-tag, which
+      # deploy.sh itself writes last -- and that is the "redeploys the tag" case of §6.3 reaching
+      # the same end state for nothing.
+      #
+      # A tag that is in ECR is NOT the same thing as a twin running it. Until 2026-09-12 this step
+      # read the ECR check as "the twin is already on it", and the night the founder deployed
+      # production first (prod pushes the same image tag, invariant M1) the keel-cloud dispatch for
+      # bd0b0a0 found the tag in ECR, said so, and left the twin on 8d0f69a -- six commits behind,
+      # with the apex change untested, while every cell reported green. keel-cloud's repository is
+      # IMMUTABLE, so this job cannot push the tag again either: it fails loudly, names the two
+      # tags, and says which command moves the twin. Red is the right colour for a twin the
+      # referee cannot move; green on the wrong build was the fault.
       - id: deploy
         name: deploy.sh --target staging
         shell: bash
@@ -389,13 +397,20 @@ jobs:
             echo "::error::KEEL_INSTANCE_ID and KEEL_ELASTIC_IP must both be set as repository variables (the CI role has no ec2:Describe*)."
             exit 1
           fi
-          if aws ecr describe-images --repository-name keel-cloud \
-               --image-ids "imageTag=$TAG" >/dev/null 2>&1; then
-            echo "keel-cloud:$TAG is already in ECR — the twin is already on it; not redeploying."
+          running=$(aws ssm get-parameter --name /keel/staging/deployed-tag \
+                      --query 'Parameter.Value' --output text 2>/dev/null || echo "")
+          if [ "$running" = "$TAG" ]; then
+            echo "the twin already runs keel-cloud:$TAG (/keel/staging/deployed-tag); not redeploying."
             echo "deployed=skipped" >> "$GITHUB_OUTPUT"
             if [ "$OIDC_BUILT" = "true" ]; then
               echo "::notice::A new keel-oidc image was pushed, and /keel/staging/oidc-image-tag now names it. The twin picks it up on its next deploy; to take it now, run ./deploy/bin/deploy.sh --target staging <a new keel-cloud tag> from the Mac."
             fi
+          elif aws ecr describe-images --repository-name keel-cloud \
+                 --image-ids "imageTag=$TAG" >/dev/null 2>&1; then
+            echo "::error::keel-cloud:$TAG is already in ECR (production took it first) but the twin runs ${running:-nothing}. ECR tags are immutable, so this job cannot push it again; the cells would test the wrong build."
+            echo "::error::Move the twin from the Mac: ./deploy/bin/deploy.sh --target staging $TAG -- then re-run this."
+            echo "The twin is behind: it runs \`${running:-nothing}\`, keel-cloud asked for \`$TAG\`, and only the Mac can move it (\`./deploy/bin/deploy.sh --target staging $TAG\`)." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           else
             ./deploy/bin/deploy.sh --target staging "$TAG"
             echo "deployed=$TAG" >> "$GITHUB_OUTPUT"

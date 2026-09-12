@@ -41,6 +41,10 @@ EXPECTED = {
     # chosen by `KEEL_JOURNEY_HOST`. The third named LLM place, argued for on AGENTS.md's own
     # terms rather than quietly written -- see `test_the_third_llm_place_is_named`.
     "test_s012_journey_through_a_host.py",
+    # spec 022-upgrade-in-place: a skill already installed at an older VERSION is upgraded in
+    # place by the same install line, and the runtime it carries moves with it. Deterministic,
+    # rides the nightly's macOS x Claude cell beside the corpus trio.
+    "test_s013_upgrade_in_place.py",
 }
 
 
@@ -48,9 +52,9 @@ def _scenario_files() -> set[str]:
     return {p.name for p in EVALS.glob("test_s*.py")}
 
 
-def test_there_are_twelve_scenarios():
+def test_there_are_thirteen_scenarios():
     assert _scenario_files() == EXPECTED, (
-        "the scenario set moved; README.md and AGENTS.md name these twelve by number")
+        "the scenario set moved; README.md and AGENTS.md name these thirteen by number")
 
 
 def test_the_two_new_scenarios_are_deterministic_and_in_the_smoke():

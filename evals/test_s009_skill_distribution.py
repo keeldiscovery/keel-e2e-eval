@@ -189,7 +189,7 @@ def _tree_digest(root: Path) -> dict:
 
 def test_s009_skill_distribution(stack, founder_one, browser, run_dir):
     recorder = Recorder(run_dir)
-    web_base = f"http://localhost:{stack.web_port}"
+    web_base = stack.web_base_url
     expected_environment = f"localhost:{stack.cloud_port}"
     started = time.monotonic()
     passed = False
