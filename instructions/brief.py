@@ -15,7 +15,7 @@ reads like someone who has read all three cards cannot be checked by code. So th
 subject wider), and what is *marked* here is only what a rule in `brief.md` states in so many
 words and a structure can carry:
 
-1. `shape` -- one paragraph, no headings, no bullets, no stage label, no link, <= 1200 code
+1. `shape` -- one paragraph, no headings, no bullets, no stage label, no link, <= 2000 code
    points, never blank. Every clause of it is `brief.md`'s own *What the paragraph never
    contains* list, and `ScreenResponseContracts.briefSchema`'s own two limits.
 2. `coverage` -- the deciding line's number quoted exactly beside the founder's own phrase,
@@ -76,7 +76,10 @@ _BULLET_GLYPHS = ("•", "‣", "◦", "⁃")
 _LEADING_MARKER_RE = re.compile(r"^\s*(?:[-*#>]|\d+[.)])\s")
 # `ScreenResponseContracts.NO_LINK_PATTERN`, restated as the contract states it.
 _LINK_RE = re.compile(r"https?://|www\.", re.IGNORECASE)
-WHAT_THIS_SAYS_MAX = 1200
+# 2 000 since MARKS_VERSION 7 (judgement call 23, the founder, 2026-09-13: "I plan to revisit the
+# brief structure, so for now increase the cap on brief to 2000") -- the contract's own edge,
+# `ScreenResponseContracts.WHAT_THIS_SAYS_MAX`, after DRIFT #68; this mirrors it and nothing else.
+WHAT_THIS_SAYS_MAX = 2000
 
 # `brief.md`: "never PROBLEM, SOLUTION or COMMERCIAL". Case-sensitive and whole-word, the way
 # `evals/policy.py`'s own enum sweep reads them -- the lower-case English words are the founder's

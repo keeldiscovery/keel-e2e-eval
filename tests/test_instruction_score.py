@@ -264,7 +264,7 @@ def test_v6_the_rule_refusal_mark_is_a_rate_over_the_answers_the_aggregate_judge
     case-runs it never saw; shape refusals keep their absolute zero."""
     from instructions import marks as marks_mod
     marks = marks_mod.load()
-    assert marks_mod.MARKS_VERSION == 6
+    assert marks_mod.MARKS_VERSION == 7
     green = {"anchoring_accuracy": 0.99, "golden_belief_recall": 0.99,
              "brief_paragraphs": 1.0, "brief_measured": True}
 

@@ -21,4 +21,8 @@ shape_refusals = 0
 # register, source_material -- so this is 1.00 and not a fraction: a paragraph that invents a
 # number has not half-worked. Whether the design's own verdict phrase appears is **observed on
 # register.html and not marked** (judgement call 20).
+# MARKS_VERSION 7 (judgement call 23, the founder, 2026-09-13): the `shape` fault's length edge
+# follows the contract, which moved `whatThisSays` from 1 200 to 2 000 characters (keel-cloud
+# `ScreenResponseContracts.WHAT_THIS_SAYS_MAX`, DRIFT #68). The four marks and this number are
+# unchanged; a paragraph is judged against the edge production actually enforces.
 brief_paragraphs = 1.00

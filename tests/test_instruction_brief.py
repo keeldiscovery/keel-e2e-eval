@@ -178,7 +178,7 @@ def test_a_good_paragraph_meets_all_four_marks(case, entry):
     ("# Heading. " + _GOOD, "list or heading marker"),
     (_GOOD + " See https://keel.example for more.", "web address"),
     (_GOOD.replace("Your problem claim", "PROBLEM"), "stage label"),
-    ("x" * 1201, "over the contract's 1200"),
+    ("x" * 2001, "over the contract's 2000"),
     ("   ", "blank"),
 ])
 def test_every_shape_rule_brief_md_states_is_a_miss(case, entry, paragraph, fragment):
@@ -327,7 +327,7 @@ def test_a_result_carrying_no_paragraph_fails_rather_than_scoring_nothing(case, 
 def test_the_marks_version_is_six_and_the_marks_file_carries_the_brief_number():
     # v5 narrowed the brief mark; v6 (judgement call 22, 2026-09-12) moved the rule-refusal mark
     # to a rate and left this one exactly where it was.
-    assert marks_mod.MARKS_VERSION == 6
+    assert marks_mod.MARKS_VERSION == 7
     assert marks_mod.load()["brief_paragraphs"] == 1.00
 
 
