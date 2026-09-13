@@ -14,22 +14,35 @@
 # what this harness itself runs on. (Spec 021 has since moved which of the three each set spends:
 # see the next paragraph. The axis itself did not move.)
 #
-# THE FOUNDER CHANGED THE SETS AGAIN ON 2026-09-13 (design §15): "we cannot afford to do a
+# THE FOUNDER SET THE STANDING STRATEGY ON 2026-09-13 (design §16, on top of §15 the same day):
+# "the journey I want to test in staging is Lullaby using Claude end to end alone, and every time
+# you deploy I want you to clean up the staging DB so that when I log in I just see that scenario
+# alone; and in the weekly we run that Lullaby completed scenario for Codex, Copilot and Claude on
+# both Mac and Windows ... on Saturday when I wake up I should be able to see 4x2 = 8 scenarios
+# completed." So:
+#
+#   - `per_change` is ONE cell: macOS x Claude Code x 3.13, the WHOLE journey, S-012 alone. Every
+#     qualifying push wipes the twin (the workflow's `deploy the twin` job runs keel-cloud's
+#     `reset.sh --target staging` after the deploy) and then runs this one cell, so the twin holds
+#     one founder and one Lullaby project. About thirteen model jobs a push, up from four.
+#   - `weekly` is EIGHT cells on Python 3.13, Saturday 04:00 UTC: {macOS, Windows} x {Claude,
+#     Copilot, Codex}, six whole journeys; the Spec Kit road cell on macOS (short); and Windows x
+#     Claude on the 3.9 floor, whole -- the SUBSTITUTE for a Windows Spec Kit cell, which cannot
+#     run today (the cell job installs Spec Kit's CLI at `.venv/bin/specify`, a POSIX path). The
+#     corpus riders S-005/6/7 and S-013 ride the macOS Claude 3.13 cell, free.
+#   - `nightly` stays EMPTY (§15). Its name stays for a hand dispatch; there is no cron for it.
+#   - Python 3.12 is `python_suspended`: it was Ubuntu 24.04's system Python and left with Ubuntu.
+#     3.9 stays on the axis as spec 004's floor, bought by the one Windows cell above and by hand.
+#   - The weekly PRODUCT the coverage rules owe is the active OS x the measured hosts x the
+#     CURRENT Python only (the last on the axis) -- six cells, not eighteen.
+#
+# THE FOUNDER CHANGED THE SETS BEFORE THAT ON 2026-09-13 (design §15): "we cannot afford to do a
 # nightly run; we can only afford a weekly run. Suspend the nightly from today, only the weekly;
 # and the weekly I want to test the entire matrix -- Copilot, Codex and Claude -- against Windows
-# and Mac. Suspend Ubuntu; this is the only way we can reduce cost." So:
-#
-#   - `nightly` is EMPTY. Its name stays (a hand `inputs[set]=nightly` selects nothing and says
-#     so) and its cron is gone from the workflow. Everything it carried -- the floor, the corpus
-#     riders, the Spec Kit cell, "bought short on a merge, bought whole soon after" -- is the
-#     weekly's now, once a week rather than once a night.
-#   - `weekly` is the product of TWO operating systems x THREE hosts x THREE Pythons, eighteen
-#     cells, every one whole. Ubuntu is `os_suspended`: still a name the axis knows (a future
-#     cell naming it validates), owed by no set and present in none.
-#   - Codex is a measured host (keel-cloud CANON.md waiver W-042-1, 2026-09-13): it left
-#     `host_unmeasured` for `host`, so the weekly product owes it on every Python like the others.
-#   - `per_change` is untouched: two Claude cells, short, about two model calls each. It is the
-#     one remaining every-merge spend; suspending it is emptying that list.
+# and Mac. Suspend Ubuntu; this is the only way we can reduce cost." That made `nightly` empty
+# (its 03:00 cron gone from the workflow), Ubuntu `os_suspended` (still a name the axis knows,
+# owed by no set and present in none), and Codex a measured host (keel-cloud CANON.md waiver
+# W-042-1) that left `host_unmeasured` for `host`.
 #
 # THE SETS BEFORE THAT WERE SPEC 021's, NOT §5.2's, AND THE FOUNDER CHANGED THEM ON 2026-09-11.
 # Three decisions, each one a line below, kept here because they still explain per_change:
@@ -73,7 +86,14 @@ host_unmeasured = []
 # daily; Copilot and Codex only once a week" -- and since 2026-09-13 nothing runs daily at all).
 # A measured host not named here is bought weekly, whole, and nowhere else.
 host_everyday = ["claude"]
+# The operating system a merge pays for (the founder, 2026-09-13, design §16: "Lullaby using
+# Claude end to end alone ... on Mac for now"). One cell a push; Windows is bought weekly.
+os_everyday = ["macos-latest"]
 python = ["3.9", "3.12", "3.13"]
+# A Python the axis still knows but no set may name (design §16): 3.12 was Ubuntu 24.04's system
+# Python and left with Ubuntu. The weekly product is on the CURRENT Python (the last one here);
+# 3.9 stays as spec 004's floor, bought by one Windows cell a week and by hand dispatch.
+python_suspended = ["3.12"]
 
 [scenarios]
 # What a cell runs when it does not say otherwise: S-012, the founder's journey through the cell's
@@ -90,58 +110,41 @@ live = ["s004", "s012"]
 
 [sets]
 
-# Every qualifying change (spec 021; two cells since 2026-09-12): macOS and Windows, Claude Code,
-# the current Python, the SHORT journey. These are the two operating systems founders install
-# the plugin on and the Python brew and winget hand them; the floor is bought weekly instead.
-# The one remaining every-merge spend (2026-09-13): about two model calls a cell.
-#
-# Nothing here overrides `scenarios`: the cheap set runs S-012 and only S-012, which is what
-# `coverage_problems` holds it to.
+# Every qualifying change (design §16, 2026-09-13): ONE cell, macOS x Claude Code x 3.13, the
+# WHOLE lullaby journey, S-012 alone -- after the workflow has wiped the twin. "Every time you
+# deploy, clean up the staging DB so that when I log in I just see that scenario alone." About
+# thirteen model jobs a push. Nothing here overrides `scenarios`: the corpus riders are the
+# weekly's, and a rider here would put a second founder on the twin the founder did not ask for.
 per_change = [
-    # 2026-09-12: two cells, not four -- Copilot moved to the weekly set with Codex.
-    { os = "macos-latest",   host = "claude",  python = "3.13", legs = "short" },
-    { os = "windows-latest", host = "claude",  python = "3.13", legs = "short" },
+    { os = "macos-latest",   host = "claude",  python = "3.13", legs = "full" },
 ]
 
-# Nightly: SUSPENDED (the founder, 2026-09-13: "we cannot afford to do a nightly run; only the
-# weekly"). The set stays named so `inputs[set]=nightly` by hand still resolves -- to nothing,
-# and `python -m matrix --set nightly` prints `(0 cells)` -- and its 03:00 cron is gone from
-# `.github/workflows/matrix.yml`. What it carried (the two per_change cells whole, the 3.9 floor
-# on Windows, the corpus riders on macOS x Claude, the Spec Kit cell) is in `weekly` below.
-# Reinstating a night is putting cells back here and the cron back in the workflow -- and
-# `coverage_problems` will then ask, again, that what a merge buys short the night buys whole.
+# Nightly: SUSPENDED (design §15, the founder, 2026-09-13: "we cannot afford to do a nightly
+# run"). The set stays named so `inputs[set]=nightly` by hand still resolves -- to nothing --
+# and there is no cron for it. Reinstating a night is putting cells back here and a cron back in
+# `.github/workflows/matrix.yml`, and `coverage_problems` will then need its rule rewritten.
 nightly = []
 
-# Weekly, Sunday 04:00 UTC (design §15, 2026-09-13; EIGHTEEN cells): the full product of the
-# axes minus the suspended OS -- macOS and Windows x Claude Code, Copilot and Codex x the three
-# Pythons -- every one of them the whole journey. "Test the entire matrix against Windows and
-# Mac." `tests/test_matrix_cells.py` asserts this set IS the product rather than trusting the
-# list below to stay complete.
+# Weekly, Saturday 04:00 UTC (design §16, 2026-09-13; EIGHT cells): "on Saturday when I wake up I
+# should be able to see 4x2 = 8 scenarios completed." Six whole lullaby journeys -- macOS and
+# Windows x Claude Code, Copilot, Codex, on 3.13 -- plus the Spec Kit road on macOS (short, spec
+# 022) and Windows x Claude on the 3.9 floor, whole. That last one is the substitute for a Windows
+# Spec Kit cell (see the header); the day the Spec Kit install step has a Windows path, it
+# becomes `{ os = "windows-latest", host = "claude", python = "3.13", legs = "short", install =
+# "speckit" }` and the floor moves back to a hand dispatch. The twin is wiped before this set
+# runs too (the deploy job), so Saturday morning holds these eight founders and nothing older.
 #
 # The corpus scenarios ride on ONE cell, macOS x Claude x 3.13 (decision 11): S-005/6/7 and S-013
 # drive the product's own judgement through the real screens against the frozen corpus, call no
-# model at all, and cost this set nothing but the minutes of a cell already running. They need
-# keel-cloud's corpus directory, which the cell job checks out beside the two public siblings.
-# The Spec Kit cell (spec 022) rides here too: the same journey with the skill reaching Claude
-# through the Spec Kit extension, short, once a week.
+# model at all, and cost this set nothing but the minutes of a cell already running. They land
+# under their own founders in the picker, beside the eight.
 weekly = [
-    { os = "macos-latest",   host = "claude",  python = "3.9" },
-    { os = "macos-latest",   host = "claude",  python = "3.12" },
     { os = "macos-latest",   host = "claude",  python = "3.13", scenarios = ["s012", "s005", "s006", "s007", "s013"] },
     { os = "macos-latest",   host = "claude",  python = "3.13", legs = "short", install = "speckit" },
-    { os = "macos-latest",   host = "copilot", python = "3.9" },
-    { os = "macos-latest",   host = "copilot", python = "3.12" },
     { os = "macos-latest",   host = "copilot", python = "3.13" },
-    { os = "macos-latest",   host = "codex",   python = "3.9" },
-    { os = "macos-latest",   host = "codex",   python = "3.12" },
     { os = "macos-latest",   host = "codex",   python = "3.13" },
-    { os = "windows-latest", host = "claude",  python = "3.9" },
-    { os = "windows-latest", host = "claude",  python = "3.12" },
     { os = "windows-latest", host = "claude",  python = "3.13" },
-    { os = "windows-latest", host = "copilot", python = "3.9" },
-    { os = "windows-latest", host = "copilot", python = "3.12" },
+    { os = "windows-latest", host = "claude",  python = "3.9" },
     { os = "windows-latest", host = "copilot", python = "3.13" },
-    { os = "windows-latest", host = "codex",   python = "3.9" },
-    { os = "windows-latest", host = "codex",   python = "3.12" },
     { os = "windows-latest", host = "codex",   python = "3.13" },
 ]

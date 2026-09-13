@@ -219,3 +219,43 @@ def test_the_deploy_step_skips_only_when_the_twin_already_runs_the_tag():
     ecr_branch = run.split("elif aws ecr describe-images", 1)[1].split("else", 1)[0]
     assert "exit 1" in ecr_branch, "in ECR but not on the twin: fail, do not test the wrong build"
     assert "deploy.sh --target staging $TAG" in ecr_branch, "and say which command moves it"
+
+
+# ------------------------------------------------------------ design §16: one Saturday cron, and the wipe
+
+def test_there_is_exactly_one_cron_and_it_is_saturday_0400():
+    """Design §16 (the founder, 2026-09-13): *"on Saturday when I wake up I should be able to see
+    4x2 = 8 scenarios completed."* One cron, the weekly; the nightly's is gone (§15)."""
+    on = DOC[True] if True in DOC else DOC["on"]
+    crons = [entry["cron"] for entry in on["schedule"]]
+    assert crons == ["0 4 * * 6"]
+    assert "schedule)" in TEXT and "set_name=weekly" in TEXT, "every schedule is the weekly"
+
+
+def test_every_deploy_wipes_the_twin_with_keel_clouds_own_reset_script():
+    """Design §16: *"every time you deploy I want you to clean up the staging DB so that when I
+    log in I just see that scenario alone."* The wipe is keel-cloud's reset.sh -- the one script
+    that deletes anything on staging and refuses prod outright -- run inside the deploy job after
+    the deploy step and before the gate the cells wait on, on the tag the job settled on."""
+    steps = JOBS["deploy-staging"]["steps"]
+    names = [(s.get("id"), s.get("name") or "") for s in steps]
+    deploy_at = next(i for i, (sid, _) in enumerate(names) if sid == "deploy")
+    wipe_at = next(i for i, (sid, _) in enumerate(names) if sid == "wipe")
+    gate_at = next(i for i, (_, name) in enumerate(names) if name.startswith("The gate"))
+    assert deploy_at < wipe_at < gate_at
+    wipe = steps[wipe_at]
+    assert "./deploy/bin/reset.sh --target staging \"$TAG\"" in wipe["run"]
+    assert wipe["working-directory"] == "keel-cloud"
+    assert wipe["env"]["TAG"] == "${{ steps.tag.outputs.tag }}"
+    # The same two repository variables deploy.sh needs, because the CI role has no ec2:Describe*.
+    assert wipe["env"]["KEEL_INSTANCE_ID"] == "${{ vars.KEEL_INSTANCE_ID }}"
+    assert wipe["env"]["KEEL_ELASTIC_IP"] == "${{ vars.KEEL_ELASTIC_IP }}"
+    # A hand dispatch may keep the twin's data; a push or the schedule always wipes.
+    assert wipe["if"] == "inputs.wipe != false"
+    on = DOC[True] if True in DOC else DOC["on"]
+    assert on["workflow_dispatch"]["inputs"]["wipe"]["default"] is True
+
+
+def test_the_wipe_never_names_production():
+    run = step_named("deploy-staging", "reset.sh --target staging")["run"]
+    assert "prod" not in run

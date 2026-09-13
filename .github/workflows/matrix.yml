@@ -11,13 +11,14 @@
 # matrix is off, and stops -- which is what makes merging this file today safe. Set the variable at
 # Settings -> Secrets and variables -> Actions -> Variables.
 #
-# WHAT IT COSTS WHEN IT IS ON (design §10, narrowed by §15 on 2026-09-13). Runner minutes are
-# free: this repository is public. The bill is model spend -- about 13 model jobs for a whole
-# journey, two for a short one. A qualifying change buys two short Claude cells; the Sunday
-# weekly buys eighteen whole journeys (macOS and Windows x Claude, Copilot, Codex x three
-# Pythons) plus one short Spec Kit cell. There is NO nightly since 2026-09-13 (the founder: "we
-# cannot afford a nightly run"). That is why `[skip e2e]` in a commit message exists in the
-# senders, and why the per-change set is two and not eighteen.
+# WHAT IT COSTS WHEN IT IS ON (design §10, narrowed by §15 and §16 on 2026-09-13). Runner minutes
+# are free: this repository is public. The bill is model spend -- about 13 model jobs for a whole
+# journey, two for a short one. A qualifying change WIPES THE TWIN and buys ONE whole Claude
+# journey on macOS ("Lullaby using Claude end to end alone; every time you deploy, clean up the
+# staging DB"); the Saturday weekly wipes it again and buys eight cells (macOS and Windows x
+# Claude, Copilot, Codex whole, the Spec Kit road short, and the Windows 3.9 floor whole). There
+# is NO nightly since 2026-09-13 (the founder: "we cannot afford a nightly run"). That is why
+# `[skip e2e]` in a commit message exists in the senders.
 #
 # WHAT IT NEVER DOES (invariants M2, M3, M8). It never touches production: the AWS role it assumes
 # cannot see `keel-prod` or read `/keel/prod/*`, by policy rather than by convention. A green
@@ -34,9 +35,10 @@ on:
   push:
     branches: [master]
   schedule:
-    # ONE cron since 2026-09-13 (design §15): the nightly's `0 3 * * *` is suspended, not the
-    # set's name -- `inputs[set]=nightly` by hand still resolves, to no cells.
-    - cron: "0 4 * * 0"     # Sunday, 04:00 UTC -- the weekly eighteen, whole
+    # ONE cron since 2026-09-13 (design §15/§16): the nightly's `0 3 * * *` is suspended, not the
+    # set's name -- `inputs[set]=nightly` by hand still resolves, to no cells. Saturday, so the
+    # founder wakes to "4x2 = 8 scenarios completed" on the weekend.
+    - cron: "0 4 * * 6"     # Saturday, 04:00 UTC -- the weekly eight
   workflow_dispatch:
     inputs:
       set:
@@ -54,6 +56,10 @@ on:
         default: ""
       deploy:
         description: "deploy the twin first (false: cells only, against what staging already runs)"
+        type: boolean
+        default: true
+      wipe:
+        description: "after the deploy, wipe the twin (reset.sh: the database and the registry go; the tag comes back up) so it holds only this run's founders. Ignored when deploy is false."
         type: boolean
         default: true
 
@@ -424,6 +430,34 @@ jobs:
             ./deploy/bin/deploy.sh --target staging "$TAG"
             echo "deployed=$TAG" >> "$GITHUB_OUTPUT"
           fi
+
+      # THE WIPE (design §16, the founder, 2026-09-13: "every time you deploy I want you to clean
+      # up the staging DB so that when I log in I just see that scenario alone"). keel-cloud's own
+      # reset.sh, the same script the founder runs from the Mac and the ONLY thing that deletes
+      # anything on staging: the stack goes down, the Postgres volume and the stub issuer's
+      # registry are removed, Caddy's certificate is kept, and the tag this job just settled on
+      # comes back up on an empty database. It refuses `--target prod` outright, so invariant M2
+      # holds by the script's own refusal and not only by the role's policy. It runs whether the
+      # deploy above rolled a new tag or found the twin already on it -- a deploy EVENT is what
+      # earns a clean twin -- and it needs nothing deploy.sh did not: the same profile, the same
+      # two repository variables, ssm:SendCommand on the tagged instance. A hand dispatch may say
+      # `wipe: false` to keep what the twin holds; a push or the schedule always wipes. Every
+      # founder registered by earlier cells is gone with the registry; the cells that follow
+      # register their own (§4.3), and the founder's own identity is re-created through the gate
+      # when they next need it (§4.4).
+      - id: wipe
+        name: reset.sh --target staging — the twin holds only this run's founders
+        if: inputs.wipe != false
+        shell: bash
+        working-directory: keel-cloud
+        env:
+          KEEL_INSTANCE_ID: ${{ vars.KEEL_INSTANCE_ID }}
+          KEEL_ELASTIC_IP: ${{ vars.KEEL_ELASTIC_IP }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          ./deploy/bin/reset.sh --target staging "$TAG"
+          echo "The twin was wiped after the deploy (design §16): it holds only this run's founders and projects." >> "$GITHUB_STEP_SUMMARY"
 
       # §6.3's gate: THE CELLS START ONLY WHEN BOTH OF THESE ANSWER. `/v2/me` 401 is keel-cloud
       # listening with Flyway migrated and the security chain wired; the discovery document is

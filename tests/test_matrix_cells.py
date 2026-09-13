@@ -9,14 +9,16 @@ are **design §15's** (the founder, 2026-09-13: *"we cannot afford a nightly run
 ... the entire matrix -- Copilot, Codex and Claude -- against Windows and Mac; suspend Ubuntu"*),
 on top of spec 021's of 2026-09-11:
 
-1. `per_change` is macOS and Windows x Claude Code, the current Python, the **short** journey,
-   S-012 alone -- two cells. The one remaining every-merge spend.
-2. `nightly` is **empty** -- suspended. The name stays for a hand dispatch; its cron is gone.
-3. **Ubuntu is suspended**: still on the axis, named by no set, owed by none.
-4. `weekly` **is** the product of the active axes -- two OS x three measured hosts x three Pythons,
-   eighteen cells, every one of them the whole lullaby journey through the brief -- plus the one
-   short Spec Kit cell that proves the extension road. The corpus riders and the 3.9 floor live
-   here now.
+1. `per_change` is ONE cell -- macOS x Claude Code x 3.13, the **whole** journey, S-012 alone
+   (design §16, the founder: *"Lullaby using Claude end to end alone; every time you deploy,
+   clean up the staging DB"*; the wipe is the workflow's, `test_matrix_workflow.py`).
+2. `nightly` is **empty** -- suspended. The name stays for a hand dispatch; there is no cron.
+3. **Ubuntu and Python 3.12 are suspended**: still on the axes, named by no set, owed by none.
+4. `weekly` is EIGHT cells (*"on Saturday when I wake up I should be able to see 4x2 = 8
+   scenarios completed"*): the product of the active OS x the measured hosts on 3.13 -- six whole
+   lullaby journeys through the brief -- plus the short Spec Kit road on macOS and Windows x
+   Claude on the 3.9 floor, whole (the substitute for a Windows Spec Kit cell). The corpus riders
+   ride the macOS Claude 3.13 cell.
 5. Every cell everywhere is a combination the axes allow, no set names a cell twice, and `legs` is
    `short` or `full` and defaults to `full`.
 
@@ -55,7 +57,9 @@ MINIMAL = """
     [axes]
     os = ["ubuntu-24.04", "macos-latest", "windows-latest"]
     os_suspended = ["ubuntu-24.04"]
+    os_everyday = ["macos-latest"]
     host = ["claude", "copilot"]
+    host_everyday = ["claude"]
     python = ["3.9", "3.13"]
 
     [scenarios]
@@ -70,19 +74,12 @@ MINIMAL = """
 
 
 
-#: A file whose `per_change` is the right four, with the other two sets left empty -- so a rule
-#: about `nightly` or `weekly` can be caught failing without every `per_change` rule tripping
-#: alongside it and hiding which one was under test.
-PER_CHANGE_FOUR = MINIMAL.replace(
+#: A file whose `per_change` is the right one cell (design §16), with the other two sets left
+#: empty -- so a rule about `nightly` or `weekly` can be caught failing without every
+#: `per_change` rule tripping alongside it and hiding which one was under test.
+PER_CHANGE_ONE = MINIMAL.replace(
     'per_change = [{ os = "ubuntu-24.04", host = "claude", python = "3.9" }]',
-    '\n'.join([
-        'per_change = [',
-        '    { os = "macos-latest", host = "claude", python = "3.13", legs = "short" },',
-        '    { os = "macos-latest", host = "copilot", python = "3.13", legs = "short" },',
-        '    { os = "windows-latest", host = "claude", python = "3.13", legs = "short" },',
-        '    { os = "windows-latest", host = "copilot", python = "3.13", legs = "short" },',
-        ']',
-    ]))
+    'per_change = [{ os = "macos-latest", host = "claude", python = "3.13", legs = "full" }]')
 
 # ---------------------------------------------------------------- the file, as the design wants it
 
@@ -113,22 +110,23 @@ def test_the_axes_are_the_designs_axes(matrix):
     assert matrix.active_os == ("macos-latest", "windows-latest")
     assert matrix.axes["host"] == ("claude", "copilot", "codex")
     assert matrix.axes["python"] == ("3.9", "3.12", "3.13")
+    assert matrix.suspended_python == ("3.12",)
+    assert matrix.active_python == ("3.9", "3.13")
+    assert matrix.current_python == "3.13"
+    assert matrix.everyday_os == ("macos-latest",)
     assert matrix.unmeasured_hosts == ()
     assert matrix.all_hosts == ("claude", "copilot", "codex")
 
 
-def test_per_change_is_two_cells(matrix):
-    """Spec 021, the founder's decision of 2026-09-11: six became four when Ubuntu left. Then
-    2026-09-12: four became two when Copilot moved to the weekly set with Codex -- a merge buys
-    Claude Code on macOS and Windows, short, and nothing else."""
-    assert len(matrix.sets["per_change"]) == 2
+def test_per_change_is_one_cell(matrix):
+    """Spec 021 (2026-09-11): six became four. 2026-09-12: four became two. Design §16
+    (2026-09-13): two became ONE -- the founder: *"the journey I want to test in staging is
+    Lullaby using Claude end to end alone, and every time you deploy I want you to clean up the
+    staging DB so that when I log in I just see that scenario alone."* macOS, Claude Code, the
+    current Python, the whole journey."""
+    assert [c.id for c in matrix.sets["per_change"]] == ["macos-latest-claude-py3.13"]
     assert matrix.everyday_hosts == ("claude",)
-
-
-def test_per_change_is_macos_and_windows_once_per_host(matrix):
-    covered = sorted((c.os, c.host) for c in matrix.sets["per_change"])
-    assert covered == sorted(itertools.product(["macos-latest", "windows-latest"],
-                                               matrix.everyday_hosts))
+    assert matrix.everyday_os == ("macos-latest",)
 
 
 def test_per_change_is_the_current_python_everywhere(matrix):
@@ -136,12 +134,13 @@ def test_per_change_is_the_current_python_everywhere(matrix):
         assert cell.python == "3.13", cell.id
 
 
-def test_per_change_runs_the_short_journey_and_only_the_journey(matrix):
-    """The two halves of what makes the cheap set cheap: two model jobs instead of thirteen, and
-    nothing riding along beside them."""
+def test_per_change_runs_the_whole_journey_and_only_the_journey(matrix):
+    """The whole journey -- three stages, five people, the reading, the brief -- and nothing riding
+    beside it: a corpus rider would be a second founder on a twin meant to hold one project."""
     for cell in matrix.sets["per_change"]:
-        assert cell.legs == "short", cell.id
+        assert cell.legs == "full", cell.id
         assert cell.scenarios == ("s012",), cell.id
+        assert cell.install == "plugin", cell.id
 
 
 def test_ubuntu_is_suspended_everywhere(matrix):
@@ -152,10 +151,17 @@ def test_ubuntu_is_suspended_everywhere(matrix):
         assert not [c.id for c in cells if c.os.startswith("ubuntu")], name
 
 
+def test_python_312_is_suspended_everywhere(matrix):
+    """Design §16: 3.12 was Ubuntu 24.04's system Python and left with Ubuntu. Still on the axis,
+    bought nowhere; the weekly product is on the current Python and the floor rides one cell."""
+    for name, cells in matrix.sets.items():
+        assert not [c.id for c in cells if c.python == "3.12"], name
+
+
 def test_nightly_is_suspended_and_empty(matrix):
     """The founder, 2026-09-13: *"we cannot afford to do a nightly run; only the weekly."* The set
     keeps its name so `inputs[set]=nightly` by hand resolves to nothing rather than to an error;
-    its cron is gone from the workflow (`test_matrix_workflow.py` holds that half)."""
+    there is no cron for it (`test_matrix_workflow.py` holds that half)."""
     assert matrix.sets["nightly"] == ()
     assert matrix.cells("nightly") == []
 
@@ -182,13 +188,15 @@ def test_weekly_buys_whole_what_a_merge_bought_short(matrix):
         assert (cell.os, cell.host, cell.python) in full, cell.id
 
 
-def test_weekly_keeps_the_39_floor(matrix):
-    """spec 004's floor is a promise. per_change gave it up (spec 021), the nightly kept it, and
-    since 2026-09-13 the weekly product keeps it -- every host, both operating systems."""
+def test_weekly_keeps_the_39_floor_on_one_windows_cell(matrix):
+    """spec 004's floor is a promise. per_change gave it up (spec 021), the nightly kept it, the
+    §15 weekly kept it on six cells, and since design §16 ONE cell keeps it: Windows x Claude
+    Code x 3.9, whole -- the substitute for a Windows Spec Kit cell, which the cell job cannot
+    install today (`.venv/bin/specify` is a POSIX path). Windows because that is where the
+    floor's bugs have lived."""
     floor = sorted(c.id for c in matrix.sets["weekly"] if c.python == "3.9")
-    assert floor == ["macos-latest-claude-py3.9", "macos-latest-codex-py3.9",
-                     "macos-latest-copilot-py3.9", "windows-latest-claude-py3.9",
-                     "windows-latest-codex-py3.9", "windows-latest-copilot-py3.9"]
+    assert floor == ["windows-latest-claude-py3.9"]
+    assert [c.legs for c in matrix.sets["weekly"] if c.python == "3.9"] == ["full"]
 
 
 def test_weekly_carries_the_corpus_on_exactly_one_claude_cell(matrix):
@@ -205,17 +213,23 @@ def test_weekly_carries_the_corpus_on_exactly_one_claude_cell(matrix):
     assert "s012" in carriers[0].scenarios
 
 
-def test_weekly_is_the_full_product_of_the_active_axes(matrix):
-    """The founder, 2026-09-13: *"the weekly run I want to test the entire matrix -- Copilot,
-    Codex and Claude -- against Windows and Mac."* Eighteen plugin cells: two OS x three hosts x
-    three Pythons, no Ubuntu, Codex owed like the others."""
+def test_weekly_is_eight_cells_the_product_on_the_current_python_plus_two(matrix):
+    """The founder, 2026-09-13 (design §16): *"in the weekly we run that Lullaby completed
+    scenario for Codex, Copilot and Claude on both Mac and Windows ... on Saturday when I wake
+    up I should be able to see 4x2 = 8 scenarios completed."* Six plugin cells on 3.13 -- two OS x
+    three hosts -- plus the Spec Kit road on macOS and the Windows 3.9 floor: eight."""
     plugin = [c for c in matrix.sets["weekly"] if c.install == "plugin"]
-    combos = {(c.os, c.host, c.python) for c in plugin}
-    assert combos == matrix.product
-    assert len(combos) == 18 == len(plugin)
+    on_current = {(c.os, c.host, c.python) for c in plugin if c.python == "3.13"}
+    assert on_current == matrix.product
+    assert len(on_current) == 6
     assert {c.os for c in plugin} == {"macos-latest", "windows-latest"}
     assert {c.host for c in plugin} == {"claude", "copilot", "codex"}
-    assert len(matrix.sets["weekly"]) == 19
+    assert len(matrix.sets["weekly"]) == 8
+    assert sorted(c.id for c in matrix.sets["weekly"]) == [
+        "macos-latest-claude-py3.13", "macos-latest-claude-py3.13-speckit",
+        "macos-latest-codex-py3.13", "macos-latest-copilot-py3.13",
+        "windows-latest-claude-py3.13", "windows-latest-claude-py3.9",
+        "windows-latest-codex-py3.13", "windows-latest-copilot-py3.13"]
 
 
 def test_every_weekly_plugin_cell_runs_the_lullaby_journey_end_to_end(matrix):
@@ -274,12 +288,13 @@ def test_weekly_is_the_whole_journey_everywhere(matrix):
     assert {c.legs for c in matrix.sets["weekly"] if c.install == "plugin"} == {"full"}
 
 
-def test_nothing_but_per_change_is_short(matrix):
-    """One set is short; the weekly is what confirms it was enough. The weekly's one Spec Kit
-    cell is short by design (spec 022): it proves the road, and the plugin cell beside it proves
-    the runtime at full length."""
-    assert {c.legs for c in matrix.sets["weekly"] if c.install == "plugin"} == {"full"}
-    assert {c.legs for c in matrix.sets["per_change"]} == {"short"}
+def test_only_the_speckit_road_is_short(matrix):
+    """Since design §16 every plugin cell everywhere -- the merge's one and the weekly's seven --
+    is the whole journey. The one Spec Kit cell is short by design (spec 022): it proves the
+    road, and the plugin cell beside it proves the runtime at full length."""
+    for name, cells in matrix.sets.items():
+        assert {c.legs for c in cells if c.install == "plugin"} <= {"full"}, name
+    assert [c.id for c in matrix.sets["weekly"] if c.legs == "short"] == ["macos-latest-claude-py3.13-speckit"]
 
 
 def test_every_cell_runs_at_least_one_scenario(matrix):
@@ -392,7 +407,7 @@ def test_every_cell_in_every_set_is_json_serialisable(matrix):
 
 def test_as_matrix_is_the_list_a_github_strategy_takes(matrix):
     entries = matrix.as_matrix("per_change")
-    assert isinstance(entries, list) and len(entries) == 2
+    assert isinstance(entries, list) and len(entries) == 1
     assert all(set(e) == {"id", "os", "host", "python", "scenarios", "legs", "install", "live_k", "eval_k"}
                for e in entries)
 
@@ -406,13 +421,13 @@ def test_cells_can_be_narrowed_to_one_id(matrix):
 
 
 def test_narrowing_keeps_the_order_asked_for(matrix):
-    ids = ["windows-latest-copilot-py3.9", "macos-latest-codex-py3.13"]
+    ids = ["windows-latest-copilot-py3.13", "macos-latest-codex-py3.13"]
     assert [c.id for c in matrix.cells("weekly", ids)] == ids
 
 
 def test_narrowing_ignores_blank_entries(matrix):
     # "a,b," and "" are both what a workflow input hands over when a human types loosely.
-    assert len(matrix.cells("per_change", "".split(","))) == 2
+    assert len(matrix.cells("per_change", "".split(","))) == 1
     assert len(matrix.cells("per_change", ["macos-latest-claude-py3.13", " ", ""])) == 1
 
 
@@ -534,28 +549,39 @@ def test_coverage_catches_a_per_change_cell_on_ubuntu(tmp_path):
     assert any("ubuntu-24.04" in p for p in problems), problems
 
 
-def test_coverage_catches_a_per_change_cell_that_runs_the_whole_journey(tmp_path):
-    body = PER_CHANGE_FOUR.replace(', legs = "short" }', ' }', 1)
+def test_coverage_catches_a_per_change_cell_that_runs_short(tmp_path):
+    """Design §16: a merge buys the WHOLE journey -- the founder signs in to see the brief."""
+    body = PER_CHANGE_ONE.replace(', legs = "full" }', ', legs = "short" }', 1)
     problems = m.coverage_problems(m.load(write(tmp_path, body)))
-    assert any("SHORT journey" in p for p in problems), problems
+    assert any("WHOLE journey" in p for p in problems), problems
+
+
+def test_coverage_catches_a_per_change_that_buys_windows_too(tmp_path):
+    """Design §16: one everyday operating system, macOS; Windows is the weekly's."""
+    body = PER_CHANGE_ONE.replace(
+        'per_change = [{ os = "macos-latest", host = "claude", python = "3.13", legs = "full" }]',
+        'per_change = [{ os = "macos-latest", host = "claude", python = "3.13", legs = "full" },'
+        ' { os = "windows-latest", host = "claude", python = "3.13", legs = "full" }]')
+    problems = m.coverage_problems(m.load(write(tmp_path, body)))
+    assert any("also names" in p and "windows-latest" in p for p in problems), problems
 
 
 def test_coverage_catches_a_per_change_cell_carrying_a_corpus_scenario(tmp_path):
-    body = PER_CHANGE_FOUR.replace(
-        ', legs = "short" }', ', legs = "short", scenarios = ["s012", "s005"] }', 1)
+    body = PER_CHANGE_ONE.replace(
+        ', legs = "full" }', ', legs = "full", scenarios = ["s012", "s005"] }', 1)
     problems = m.coverage_problems(m.load(write(tmp_path, body)))
-    assert any("cheap set stopping being cheap" in p for p in problems), problems
+    assert any("the twin holds one project" in p for p in problems), problems
 
 
 def test_coverage_catches_a_per_change_cell_off_the_current_python(tmp_path):
-    body = PER_CHANGE_FOUR.replace('python = "3.13", legs = "short" }',
-                                   'python = "3.9", legs = "short" }', 1)
+    body = PER_CHANGE_ONE.replace('python = "3.13", legs = "full" }',
+                                   'python = "3.9", legs = "full" }', 1)
     problems = m.coverage_problems(m.load(write(tmp_path, body)))
     assert any("current Python" in p for p in problems), problems
 
 
 def test_coverage_catches_a_weekly_cell_on_a_suspended_os(tmp_path):
-    body = PER_CHANGE_FOUR.replace(
+    body = PER_CHANGE_ONE.replace(
         "weekly = []",
         'weekly = [{ os = "ubuntu-24.04", host = "claude", python = "3.13" }]')
     problems = m.coverage_problems(m.load(write(tmp_path, body)))
@@ -566,22 +592,22 @@ def test_coverage_catches_a_weekly_cell_on_a_suspended_os(tmp_path):
 def test_coverage_catches_a_nightly_that_came_back_by_accident(tmp_path):
     """The founder suspended the night on 2026-09-13; a cell put back there without the cron and
     without this rule being rewritten is the decision being undone by accident."""
-    body = PER_CHANGE_FOUR.replace(
+    body = PER_CHANGE_ONE.replace(
         "nightly = []",
         'nightly = [{ os = "macos-latest", host = "claude", python = "3.13" }]')
     problems = m.coverage_problems(m.load(write(tmp_path, body)))
     assert any("nightly is suspended" in p for p in problems), problems
 
 
-def test_coverage_catches_a_weekly_that_never_buys_the_short_cells_whole(tmp_path):
-    """The rule the short per-change journey rests on: what a merge measures in part, the week
-    measures in full, on the same cell."""
-    problems = m.coverage_problems(m.load(write(tmp_path, PER_CHANGE_FOUR)))
-    assert any("bought short on a merge and never bought whole" in p for p in problems), problems
+def test_coverage_catches_a_weekly_that_never_buys_the_merge_cell(tmp_path):
+    """What a merge measures, the week measures too, on the same cell -- so a Saturday can be
+    read against the Monday-to-Friday merges."""
+    problems = m.coverage_problems(m.load(write(tmp_path, PER_CHANGE_ONE)))
+    assert any("bought on a merge and never on a Saturday" in p for p in problems), problems
 
 
 def test_coverage_catches_a_weekly_that_drops_the_floor(tmp_path):
-    problems = m.coverage_problems(m.load(write(tmp_path, PER_CHANGE_FOUR)))
+    problems = m.coverage_problems(m.load(write(tmp_path, PER_CHANGE_ONE)))
     assert any("spends no cell on Python 3.9" in p for p in problems), problems
 
 
@@ -611,7 +637,20 @@ def test_coverage_catches_a_weekly_that_is_not_the_full_product(tmp_path):
         "weekly = []",
         'weekly = [{ os = "macos-latest", host = "claude", python = "3.13" }]')
     problems = m.coverage_problems(m.load(write(tmp_path, body)))
-    assert any("full product" in p for p in problems)
+    assert any("product of the active operating systems" in p for p in problems), problems
+
+
+def test_coverage_catches_a_weekly_cell_on_a_suspended_python(tmp_path):
+    body = MINIMAL.replace('python = ["3.9", "3.13"]', 'python = ["3.9", "3.12", "3.13"]\n    python_suspended = ["3.12"]').replace(
+        "weekly = []", 'weekly = [{ os = "macos-latest", host = "claude", python = "3.12" }]')
+    problems = m.coverage_problems(m.load(write(tmp_path, body)))
+    assert any("suspended Python" in p and "macos-latest-claude-py3.12" in p for p in problems), problems
+
+
+def test_suspending_the_current_python_is_refused(tmp_path):
+    body = MINIMAL.replace('python = ["3.9", "3.13"]', 'python = ["3.9", "3.13"]\n    python_suspended = ["3.13"]')
+    with pytest.raises(m.CellsError, match="current Python"):
+        m.load(write(tmp_path, body))
 
 
 def test_validate_raises_when_coverage_is_wrong(tmp_path):
@@ -626,9 +665,12 @@ def test_the_cli_prints_the_three_sets(capsys):
     out = capsys.readouterr().out
     for name in m.SET_NAMES:
         assert name in out
-    assert "windows-latest-codex-py3.9" in out
+    assert "windows-latest-claude-py3.9" in out
+    assert "windows-latest-codex-py3.13" in out
     assert "ubuntu" not in out, "design §15: Ubuntu is suspended"
+    assert "py3.12" not in out, "design §16: Python 3.12 is suspended"
     assert "nightly  (0 cells)" in out
+    assert "weekly  (8 cells)" in out and "per_change  (1 cell)" in out
 
 
 def test_the_cli_prints_one_set_when_asked(capsys):
@@ -650,24 +692,27 @@ def test_the_cli_prints_how_far_each_cell_goes(capsys):
     `short` against `full` is most of that cost."""
     assert m.main(["--set", "per_change"]) == 0
     out = capsys.readouterr().out
-    assert "short" in out
-    assert "full" not in out
+    assert "full" in out
+    assert "short" not in out
+    assert m.main(["--set", "weekly"]) == 0
+    assert "short" in capsys.readouterr().out, "the Spec Kit road cell"
 
 
 def test_the_cli_emits_json_for_the_workflow(capsys):
     assert m.main(["--set", "per_change", "--json"]) == 0
     entries = json.loads(capsys.readouterr().out)
-    assert len(entries) == 2
+    assert len(entries) == 1
     assert entries[0]["id"] == "macos-latest-claude-py3.13"
-    assert entries[0]["legs"] == "short"
+    assert entries[0]["legs"] == "full"
+    assert entries[0]["scenarios"] == ["s012"]
 
 
 def test_the_cli_narrows_to_the_cells_input(capsys):
     assert m.main(["--set", "weekly", "--cells",
-                   "macos-latest-claude-py3.13,windows-latest-copilot-py3.9", "--json"]) == 0
+                   "macos-latest-claude-py3.13,windows-latest-copilot-py3.13", "--json"]) == 0
     entries = json.loads(capsys.readouterr().out)
     assert [e["id"] for e in entries] == ["macos-latest-claude-py3.13",
-                                          "windows-latest-copilot-py3.9"]
+                                          "windows-latest-copilot-py3.13"]
 
 
 def test_the_cli_exits_two_and_says_why_on_a_bad_file(tmp_path, capsys):
@@ -686,12 +731,13 @@ def test_a_measured_host_outside_host_everyday_is_refused_in_per_change(tmp_path
     """The founder, 2026-09-12: a merge buys Claude Code; Copilot and Codex are weekly. The rule
     reads `[axes].host_everyday`; a Copilot cell in per_change is the decision being undone by
     accident, and the file says so by name."""
-    body = PER_CHANGE_FOUR.replace('host = ["claude", "copilot"]',
-                                   'host = ["claude", "copilot"]\n    host_everyday = ["claude"]')
+    body = PER_CHANGE_ONE.replace(
+        'per_change = [{ os = "macos-latest", host = "claude", python = "3.13", legs = "full" }]',
+        'per_change = [{ os = "macos-latest", host = "claude", python = "3.13", legs = "full" },'
+        ' { os = "macos-latest", host = "copilot", python = "3.13", legs = "full" }]')
     problems = m.coverage_problems(m.load(write(tmp_path, body)))
     assert any("also names" in p and "copilot" in p for p in problems), problems
-    body = MINIMAL.replace('host = ["claude", "copilot"]',
-                           'host = ["claude", "copilot"]\n    host_everyday = ["cursor"]')
+    body = MINIMAL.replace('host_everyday = ["claude"]', 'host_everyday = ["cursor"]')
     with pytest.raises(m.CellsError, match="host_everyday"):
         m.load(write(tmp_path, body))
 
