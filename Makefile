@@ -143,15 +143,24 @@ acceptance: venv
 # three times -- about a seventh of the corpus -- for shopping models and checking a prompt change
 # before the full run. It is never a run of record: the refusal mark's denominator is the whole
 # corpus, and the gate says so.
+# **MODELS=<file>|exported** (keel-cloud `canon/designs/model-routing-design.md` §7): pin each
+# job class -- assumptions, reading, brief -- to the model the table names for this host, through
+# the job's own `model` key, exactly as the cloud will send it. `MODELS=exported` uses the table
+# keel-cloud's exporter wrote beside the contracts: the run of record for the cloud's own table.
+# Never beside `KEEL_<HOST>_MODEL` (the runtime drops it at 0.5.0); the run refuses both at once.
+#
+#   make instruction-screen HOST=codex MODELS=candidates.json     one entry, per-class pins
+#   make instruction-eval HOST=codex MODELS=exported              the cloud's table, in full
 instruction-screen: venv
 	$(PY) -m instructions.run --host $(if $(HOST),$(HOST),claude) \
 		$(if $(DRY),--dry-run,) -k "$(if $(K),$(K),01-countly)" -n $(if $(N),$(N),3) \
-		$(if $(MARKS),--marks $(MARKS),)
+		$(if $(MARKS),--marks $(MARKS),) $(if $(MODELS),--models $(MODELS),)
 
 instruction-eval: venv
 	$(PY) -m instructions.run --host $(if $(HOST),$(HOST),claude) \
 		$(if $(DRY),--dry-run,) $(if $(BASELINE),--baseline,) \
-		$(if $(K),-k "$(K)",) $(if $(N),-n $(N),) $(if $(MARKS),--marks $(MARKS),)
+		$(if $(K),-k "$(K)",) $(if $(N),-n $(N),) $(if $(MARKS),--marks $(MARKS),) \
+		$(if $(MODELS),--models $(MODELS),)
 
 # spec 018-gated-registry-stub: the stub OIDC issuer as a container, which is the one service the
 # staging twin runs that production does not (keel-cloud `canon/designs/e2e-matrix-design.md` §3

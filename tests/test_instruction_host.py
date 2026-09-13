@@ -439,7 +439,9 @@ def test_the_manifest_is_written_before_the_first_call_and_names_host_cli_and_ru
 
     assert written["host"] == "copilot"
     assert written["cli"] == {"binary": "copilot", "version": "1.0.83"}
-    assert written["model"] == {"pinned": None, "reported": None}
+    # spec 022 (model routing) added the two per-class fields, `None` on a single-model run.
+    assert written["model"] == {"pinned": None, "reported": None, "per_class": None,
+                                "table": None}
     assert written["marks_version"] == marks_mod.MARKS_VERSION
     assert written["started_at"] == "2026-09-09T00:00:00Z"
 

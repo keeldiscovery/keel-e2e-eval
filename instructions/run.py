@@ -11,6 +11,10 @@
     -k SUBSTRING     only cases whose case id contains it (`-k 01-countly`, `-k reading`)
     -n N             runs per case (default 3)
     --marks FILE     an alternative marks file
+    --models FILE    a model-routing table (keel-cloud `model-routing-design.md` §4) pinning each
+                     job class -- assumptions, reading, brief -- through the job's own `model`
+                     key, exactly as the cloud sends it; `exported` means the table keel-cloud's
+                     own exporter wrote beside the contracts. Never beside `KEEL_<HOST>_MODEL`.
 
 **Read a prompt before spending anything.** The dry run exists for exactly that: an assumption
 prompt and a reading prompt, in full, with `TASK`, `CONTRACT`, the `SOURCE MATERIAL` heading and
@@ -35,6 +39,7 @@ from . import corpus as corpus_mod
 from . import instruction as instruction_mod
 from . import judge as judge_mod
 from . import marks as marks_mod
+from . import models as models_mod
 from . import prompts as prompts_mod
 from . import report as report_mod
 from . import runner as runner_mod
@@ -61,9 +66,22 @@ def main(argv=None) -> int:
     parser.add_argument("-k", dest="filter", default=None)
     parser.add_argument("-n", dest="n_runs", type=int, default=3)
     parser.add_argument("--marks", default=None)
+    parser.add_argument("--models", default=None,
+                        help="a model-routing table pinning each job class through the job's "
+                             "`model` key, or `exported` for keel-cloud's own")
     parser.add_argument("--no-judge", action="store_true",
                         help="score with the structural matcher alone (MARKS_VERSION 1's rule)")
     args = parser.parse_args(argv)
+
+    # A table given as a file is read before anything else is asked for, so a typo in it is the
+    # first thing said and not the last; `exported` has to wait for the exporter. Both refuse
+    # beside a legacy `KEEL_<HOST>_MODEL`: a run pins one way (design §6).
+    if args.models is not None and args.models != "exported":
+        try:
+            models_mod.select(args.models, host=args.host, environ=os.environ)
+        except models_mod.ModelsUnavailable as reason:
+            print(f"instruction eval cannot start: {reason}", file=sys.stderr)
+            return 2
 
     config = load_config()
     # keel-runtime is imported *before* the pre-flight now, because the pre-flight asks it which
@@ -117,8 +135,17 @@ def _dry_run(config, corpus, executor_module, args) -> int:
     exported = contract_mod.export(config.keel_cloud, into)
     instructions = _instructions_for(config)
     cases = _all_cases(corpus, exported, instructions, executor_module, args)
+    try:
+        table = models_mod.select(args.models, host=args.host, exported=exported,
+                                  environ=os.environ)
+    except models_mod.ModelsUnavailable as reason:
+        print(f"instruction eval cannot start: {reason}", file=sys.stderr)
+        return 2
+    models_mod.stamp(cases, table, args.host)
 
     print(f"host: {args.host} -- every prompt below is the one this host's executor sends")
+    print(f"models pinned through the job's `model` key: {models_mod.describe(table, args.host)}"
+          + (f" (from {table.source})" if table else ""))
     print(f"contract exported from keel-cloud {exported.manifest.get('keel_cloud_commit')}"
           f"{' (dirty)' if exported.manifest.get('keel_cloud_dirty') else ''}")
     for screen in SCREENS:
@@ -160,6 +187,26 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     cases = _all_cases(corpus, exported, instructions, executor_module, args)
     marks = marks_mod.load(args.marks)
 
+    # The model-routing table (keel-cloud model-routing-design.md §7 step 2): each case is pinned
+    # through the wire's own sixth key, `model: {<host>: <model>}`, stamped after the prompt was
+    # rendered so it is never in the prompt. `pinned_model` below stays the single-model pin of
+    # the runs of record so far; the two are exclusive and `select` refuses both at once.
+    try:
+        table = models_mod.select(args.models, host=args.host, exported=exported,
+                                  environ=os.environ)
+    except models_mod.ModelsUnavailable as reason:
+        print(f"instruction eval cannot start: {reason}", file=sys.stderr)
+        return 2
+    models_mod.stamp(cases, table, args.host)
+    # keel-runtime 0.5.0 reads the key; anything older reads a constructor pin, so on an older
+    # runtime the per-case value is put where that runtime looks (`apply_fallback`), one case at a
+    # time. Asked of the runtime module itself, never assumed.
+    routing_runtime = models_mod.reads_the_job_key(sys.modules.get("keel_runtime"))
+    if table is not None:
+        print(f"models pinned through the job's `model` key: "
+              f"{models_mod.describe(table, args.host)} (from {table.source}; "
+              f"keel-runtime {'reads the key' if routing_runtime else 'is older than 0.5.0, so each case is pinned on the executor instead'})")
+
     # Both executors put their per-job dirs at `<home>/jobs/<job_id>`, so the home is the run
     # directory itself and the bundle's `jobs/` is exactly what the run-bundle contract describes.
     # The wall clock is production's own default (keel-runtime `DEFAULT_JOB_TIMEOUT_SECONDS`) and
@@ -196,9 +243,10 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     # Written before the first call, so a run that dies at case one still says what it was.
     started_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     report_mod.write_manifest(run_dir, _manifest(args, facts, executor, pinned_model,
-                                                 None, started_at))
+                                                 None, started_at, table=table))
 
     for index, case in enumerate(cases, start=1):
+        models_mod.apply_fallback(executor, case, table, routing_runtime=routing_runtime)
         answer = runner_mod.ask(executor_module, validator_module, executor, case)
         total_cost += answer.total_cost_usd or 0.0
         if answer.premium_requests is not None:
@@ -283,7 +331,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     scorecard = {
         "marks_version": marks_mod.MARKS_VERSION,
         "marks": marks,
-        "model": _model_block(args, facts, executor, pinned_model, reported_model),
+        "model": _model_block(args, facts, executor, pinned_model, reported_model, table=table),
         "n_runs": args.n_runs,
         "aggregate": {k: v for k, v in aggregate.items() if k != "by_case"},
         "judge_calls": judge.calls,
@@ -313,6 +361,9 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         "marks": judged,
         "marks_version": marks_mod.MARKS_VERSION,
         "model": scorecard["model"],
+        # keel-cloud model-routing-design.md §7: the per-class pins this run measured, `None`
+        # where the host answered on its CLI's default; `null` for a single-model run.
+        "models_used": table.models_used(args.host) if table else None,
         "n_runs": args.n_runs,
         "cases": len(cases),
         "duration_s": round(time.monotonic() - started, 3),
@@ -326,7 +377,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     }
     report_mod.write_verdict(run_dir, verdict)
     report_mod.write_manifest(run_dir, _manifest(args, facts, executor, pinned_model,
-                                                 reported_model, started_at))
+                                                 reported_model, started_at, table=table))
     versions = json.loads((run_dir / "versions.json").read_text(encoding="utf-8"))
     path = report_mod.render_report(run_dir, verdict=verdict, scorecard=scorecard,
                                     versions=versions, host=args.host)
@@ -359,7 +410,9 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     else:
         print(f"cost: ${total_cost:.2f}")
     print(f"host: {args.host} · cli {facts.get('cli_version')} · "
-          f"model {reported_model or 'not reported'} · pinned {pinned_model or 'nothing'}")
+          f"model {reported_model or 'not reported'} · pinned "
+          + (f"per class {models_mod.describe(table, args.host)}" if table
+             else (pinned_model or 'nothing')))
     return 0 if verdict["passed"] else 1
 
 
@@ -367,7 +420,7 @@ def _fmt(value) -> str:
     return "—" if value is None else f"{value * 100:.1f}%"
 
 
-def _model_block(args, facts, executor, pinned_model, reported_model) -> dict:
+def _model_block(args, facts, executor, pinned_model, reported_model, table=None) -> dict:
     """Everything a mark is only comparable within (spec 014 FR-005).
 
     `job_max_turns` and `job_budget_usd` are read with `getattr`, and that is not defensiveness:
@@ -381,6 +434,10 @@ def _model_block(args, facts, executor, pinned_model, reported_model) -> dict:
         "cli_version": facts.get("cli_version"),
         "pinned_model": pinned_model,
         "reported_model": reported_model,
+        # The per-class pins (model-routing-design.md §7), carried here so a rescore and the
+        # report keep them; `None` for a single-model run.
+        "models_used": table.models_used(args.host) if table else None,
+        "models_source": table.source if table else None,
         "job_timeout_seconds": getattr(executor, "timeout_seconds", None),
         "job_max_turns": getattr(executor, "max_turns", None),
         "job_budget_usd": getattr(executor, "budget_usd", None),
@@ -393,7 +450,8 @@ def _model_block(args, facts, executor, pinned_model, reported_model) -> dict:
     }
 
 
-def _manifest(args, facts, executor, pinned_model, reported_model, started_at) -> dict:
+def _manifest(args, facts, executor, pinned_model, reported_model, started_at,
+              table=None) -> dict:
     """`manifest.json`: what this run was, in the one file that is written before the first call.
 
     A bundle whose run died at case one still names its host, its CLI and its rubric -- which is
@@ -405,7 +463,9 @@ def _manifest(args, facts, executor, pinned_model, reported_model, started_at) -
         "baseline": bool(args.baseline),
         "host": args.host,
         "cli": {"binary": facts.get("cli"), "version": facts.get("cli_version")},
-        "model": {"pinned": pinned_model, "reported": reported_model},
+        "model": {"pinned": pinned_model, "reported": reported_model,
+                  "per_class": table.models_used(args.host) if table else None,
+                  "table": table.source if table else None},
         "marks_version": marks_mod.MARKS_VERSION,
         "n_runs": args.n_runs,
         "filter": args.filter,

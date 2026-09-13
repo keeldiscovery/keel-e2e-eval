@@ -40,6 +40,11 @@ class ExportedContract:
     contracts: dict          # SCREEN -> {allowed_outcomes, completed_result_schema, needs_input_schema?}
     context_keys: dict       # SCREEN -> [key, ...]  ordered; the order is the contract
     manifest: dict
+    #: The optional fourth file, `model-routing.json` -- keel-cloud's own model-routing table
+    #: (canon/designs/model-routing-design.md §4), exported beside the contracts so a run of
+    #: record can say it measured the cloud's table and not a file of its own. `None` on an
+    #: export older than that design; `instructions.models.select("exported", ...)` refuses then.
+    model_routing: dict | None = None
 
     def for_screen(self, screen: str) -> dict:
         try:
@@ -99,5 +104,12 @@ def read(directory: Path) -> ExportedContract:
         if not path.is_file():
             raise ContractUnavailable(f"the manifest names {screen} but {path} is missing")
         contracts[screen] = json.loads(path.read_text(encoding="utf-8"))
+    routing_path = directory / "model-routing.json"
+    model_routing = None
+    if routing_path.is_file():
+        model_routing = json.loads(routing_path.read_text(encoding="utf-8"))
+        if not isinstance(model_routing, dict):
+            raise ContractUnavailable(f"{routing_path} is not a JSON object")
     return ExportedContract(directory=directory, contracts=contracts,
-                            context_keys=context_keys, manifest=manifest)
+                            context_keys=context_keys, manifest=manifest,
+                            model_routing=model_routing)

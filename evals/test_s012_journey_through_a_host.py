@@ -84,6 +84,7 @@ from harness.browser import (Auth, Chat, Connect, Landing, OpenedCard, Overview,
                               People, ReviewCard, Shell)
 from harness.evidence import finalize_run, write_block, write_generated, write_host
 from harness.steps import Recorder
+from instructions import models as models_mod
 from stack import runtime as stack_runtime
 
 pytestmark = pytest.mark.live
@@ -558,6 +559,17 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
     artifacts = run_dir / HOST
     model = (os.environ.get(RUNTIME_MODEL_ENV_FOR_HOST.get(HOST, ""))
              or RUNTIME_MODEL_FOR_HOST[HOST])
+    # keel-cloud `canon/designs/model-routing-design.md` §6: from keel-runtime 0.5.0 the model a
+    # job runs on comes from the job's own `model` key -- the cloud's table, else the CLI's
+    # default -- and the `KEEL_<HOST>_MODEL` variables are not read. So on that runtime the
+    # referee pins nothing and says so, rather than recording a pin the runtime never saw; the
+    # table itself is read off the keel-cloud checkout (its resource, the source of truth) and
+    # `None` while the cloud has no table yet.
+    runtime_stamp = stack_runtime.bundled_runtime_version(stack)
+    routing_runtime = models_mod.reads_the_job_key(runtime_stamp or "")
+    routing_table = models_mod.from_keel_cloud(stack.keel_cloud)
+    if routing_runtime:
+        model = None
     host_model = next((os.environ[name] for name in HOST_MODEL_ENV if os.environ.get(name)),
                       HOST_MODEL_FOR_HOST[HOST])
     # C-5 again: an unpinned run measures the router, not a model. It is still allowed -- spec 005
@@ -594,9 +606,19 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                          "model (the host's own --model)": host_model,
                          "model (the runtime's)": model,
                          "model (the runtime's), how": (
+                             f"keel-runtime {runtime_stamp} takes each job's model from the "
+                             f"job's own `model` key (keel-cloud's model-routing table"
+                             f"{', absent on this checkout' if routing_table is None else ''}, "
+                             "else the CLI's default); nothing is pinned by this referee"
+                             if routing_runtime else
                              f"pinned through {RUNTIME_MODEL_ENV_FOR_HOST.get(HOST)}" if model else
                              "not pinned -- this host's executor takes no model, so the bundle "
                              "records what answered instead"),
+                         "model routing table": (
+                             {"source": routing_table.source, "version": routing_table.version,
+                              "row for this host": routing_table.hosts.get(HOST) or {},
+                              "classes": routing_table.classes}
+                             if routing_table else None),
                          "credential": credential})
 
     def _get(path: str) -> dict:
@@ -993,6 +1015,46 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
             errored = [r for r in per_job if r["is_error"]]
             assert per_job, "the runtime wrote no job envelopes at all"
             assert not errored, f"a keel-runtime job envelope reports an error: {errored}"
+
+        # ------------------------------------------- the model each job asked for is the cloud's
+        # keel-cloud model-routing-design.md §10 step 3: on a runtime that reads the job's `model`
+        # key, what every job *requested* must be exactly what the cloud's table names for this
+        # host and that job's class -- and `None`, the CLI's default, where the table has no
+        # entry (it ships empty). The job's class comes from the interaction the cloud reports
+        # for it, its screen mapped the way `InferenceScreen.jobClass()` maps it. Not a loosened
+        # assertion: an older runtime, or a checkout with no table yet, is a note that says which,
+        # never a pass.
+        screen_by_job = {(i.get("job") or {}).get("job_id"): i.get("screen")
+                         for i in interactions if i.get("job")}
+        requested = []
+        for row in rows:
+            facts = models_mod.job_model_facts(keel_home / "jobs" / row["job_id"])
+            screen = screen_by_job.get(row["job_id"])
+            expected = (routing_table.resolve_screen(HOST, screen)
+                        if routing_table is not None and screen else None)
+            requested.append({"job_id": row["job_id"], "screen": screen,
+                              "class": models_mod.SCREEN_TO_CLASS.get(screen or ""),
+                              "expected": expected, **facts})
+        if routing_runtime and routing_table is not None:
+            with recorder.step("every job requested the model keel-cloud's own table names for "
+                                "this host and its class (model-routing-design §10 step 3)",
+                                party="stack", kind="assert") as h:
+                known = [r for r in requested if r["screen"]]
+                wrong = [r for r in known if r["model_requested"] != r["expected"]]
+                h.record_assert({"jobs off the table": []},
+                                {"per job": requested, "jobs off the table": wrong,
+                                 "table": routing_table.source})
+                assert known, "no job could be tied to a screen, so nothing was checked"
+                assert not wrong, (
+                    f"a job asked for a model the cloud's table does not name for {HOST}: {wrong}")
+        else:
+            with recorder.step("the model routing check does not apply here, and this is why",
+                                party="stack", kind="note") as note:
+                note.record_wire(None, {
+                    "per job": requested,
+                    "why": (f"keel-runtime {runtime_stamp} is older than 0.5.0 and reads no "
+                            "job `model` key" if not routing_runtime else
+                            "keel-cloud has no model-routing.json on this checkout")})
             # **The second, independent proof that this host did the thinking** -- where the
             # envelope can carry it. `CopilotExecutor._envelope` stamps `executor` on every job,
             # written by the process that ran it, so the startup line says which executor was

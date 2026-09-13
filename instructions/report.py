@@ -90,6 +90,8 @@ def write_case(run_dir: Path, case, answer, diff: dict, *, host: str = "claude")
         "total_cost_usd": answer.total_cost_usd,
         "premium_requests": answer.premium_requests,
         "reported_model": answer.reported_model,
+        # The wire's own pin for this case (`instructions/models.py`), `None` on the CLI default.
+        "model_requested": getattr(case, "model", None),
         "duration_s": round(answer.duration_s, 3),
         "error": answer.error,
         "result": answer.result,
@@ -219,15 +221,27 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
     parts.append("</table>")
 
     model = scorecard.get("model") or {}
+    per_class = model.get("models_used")
+    if per_class:
+        # keel-cloud model-routing-design.md §7: the pins went through the job's own `model`
+        # key, one per class -- the run the cloud's table actually claims.
+        pinned = (", pinned per job class through the job's own <code>model</code> key: "
+                  + " · ".join(f"{_esc(job_class)} <code>{_esc(name)}</code>" if name
+                               else f"{_esc(job_class)} <b>the CLI's default</b>"
+                               for job_class, name in per_class.items())
+                  + (f" (table: <code>{_esc(model.get('models_source'))}</code>)"
+                     if model.get("models_source") else ""))
+    elif model.get("pinned_model"):
+        pinned = f", pinned with <code>--model {_esc(model.get('pinned_model'))}</code>"
+    else:
+        pinned = (", <b>nothing pinned</b> — so what answered is whatever this CLI's router "
+                  "chose on the day (design §5.4, C-5)")
     parts.append(
         f"<p><b>Judged under:</b> {_esc(named_host)}, "
         f"<code>{_esc(model.get('cli_version') or 'unknown CLI version')}</code>"
         + (f", model <code>{_esc(model.get('reported_model'))}</code>"
            if model.get("reported_model") else ", and <b>the CLI reported no model</b>")
-        + (f", pinned with <code>--model {_esc(model.get('pinned_model'))}</code>"
-           if model.get("pinned_model")
-           else ", <b>nothing pinned</b> — so what answered is whatever this CLI's router chose "
-                "on the day (design §5.4, C-5)")
+        + pinned
         + ". <b>These marks are comparable only within this host and this model.</b> "
           f"The tie-breaking judge is <code>{_esc(model.get('judge_host') or 'off')}</code> on "
           "both hosts, deliberately, so the scoring is one constant across a comparison.</p>")

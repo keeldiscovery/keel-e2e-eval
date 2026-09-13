@@ -68,6 +68,9 @@ class Case:
     payload: dict
     prompt: str = ""
     existing_roles: list = field(default_factory=list)
+    #: The model the wire's `model` key pins for this case (`instructions/models.py`), or `None`
+    #: for the CLI's default. Stamped after the prompt is rendered; never in the prompt.
+    model: str | None = None
 
     @property
     def bundle_path(self) -> str:
