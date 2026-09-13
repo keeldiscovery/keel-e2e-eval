@@ -149,7 +149,7 @@ def test_run_py_refuses_a_bad_table_before_the_preflight_and_the_lock(monkeypatc
     bad = tmp_path / "bad.json"
     bad.write_text(json.dumps({"hosts": {}, "classes": {"brief": "enormous"}}))
     monkeypatch.setattr(run_mod, "load_config", lambda: pytest.fail("the config was loaded"))
-    assert run_mod.main(["--host", "codex", "--models", str(bad)]) == 2
+    assert run_mod.main(["--host", "codex", "--models", str(bad), "--why", "new-model:codex:x"]) == 2
     assert "ladder is exactly" in capsys.readouterr().err
 
 
