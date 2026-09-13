@@ -368,3 +368,22 @@ def test_executor_kwargs_follow_the_runtime_generation():
         "codex_model": "gpt-6-astra", "copilot_model": None}
     assert models.executor_kwargs("copilot", "gpt-5-mini", routing_runtime=False) == {
         "copilot_model": "gpt-5-mini", "codex_model": None}
+
+
+def test_ask_hands_the_jobs_model_to_a_routing_runtime_through_the_pollers_rule(tmp_path):
+    """The one step production's poller does (spec 009) -- `InferenceRequest.model` from
+    `request_payload["model"][host_key]` -- the eval does too, or a `--models` run is unpinned
+    while its envelope says otherwise (found live on 2026-09-13, Copilot answered on the default)."""
+    import sys
+    from instructions import runner
+    sys.path.insert(0, str((__import__("pathlib").Path(__file__).resolve().parents[2] / "keel-runtime")))
+    import keel_runtime.executor as executor_module
+    import keel_runtime.poller as poller
+    assert "model" in executor_module.InferenceRequest.__dataclass_fields__
+
+    class Host:
+        host_key = "codex"
+    payload = {"model": {"codex": "gpt-6-astra", "copilot": "x"}}
+    assert runner._model_kwarg(executor_module, Host(), payload) == {"model": "gpt-6-astra"}
+    assert runner._model_kwarg(executor_module, Host(), {}) == {"model": None}
+    assert poller._model_for(Host(), payload) == "gpt-6-astra"

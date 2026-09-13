@@ -293,11 +293,30 @@ class Answer:
         return self.error is not None and not self.never_fit
 
 
+def _model_kwarg(executor_module, executor, request_payload: dict) -> dict:
+    """The model the job names for this executor's host, resolved by keel-runtime's own rule.
+
+    In production `keel_runtime.poller` reads `request_payload["model"][<host_key>]` into
+    `InferenceRequest.model` before an executor sees the job (spec 009); this eval calls the
+    executor directly and so must do the poller's one step itself -- through the poller's own
+    function, never a second copy of the rule. A runtime older than 0.5.0 has neither the field
+    nor the function, and gets nothing (its pin is on the executor, `models.apply_fallback`)."""
+    import importlib  # noqa: PLC0415 - late, beside the late executor import
+    try:
+        poller = importlib.import_module(executor_module.__name__.rsplit(".", 1)[0] + ".poller")
+        resolve = poller._model_for
+    except (ImportError, AttributeError):
+        return {}
+    if "model" not in getattr(executor_module.InferenceRequest, "__dataclass_fields__", {}):
+        return {}
+    return {"model": resolve(executor, request_payload)}
+
+
 def ask(executor_module, validator_module, executor, case) -> Answer:
     """One case, one call. An executor failure is recorded as an error, never as a bad answer."""
     request = executor_module.InferenceRequest(
         job_id=_job_id(case), interaction_id=_job_id(case), turn_number=1,
-        request_payload=case.payload)
+        request_payload=case.payload, **_model_kwarg(executor_module, executor, case.payload))
     started = time.monotonic()
     answer = Answer(case_id=case.case_id)
     # `ClaudeCodeExecutor` sets `last_envelope` only after a call that got that far, so a timeout
