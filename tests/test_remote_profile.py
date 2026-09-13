@@ -614,3 +614,15 @@ def test_every_referee_context_carries_goatcounters_opt_out():
     ctx = RefereeBrowser(fake, cfg).new_context()
     assert ctx.scripts == [SKIP_GOATCOUNTER_INIT]
     assert fake.kwargs == {}  # no gate on the eval profile: the caller's own options, untouched
+
+
+def test_identity_to_sign_in_as_passes_the_short_name_through(monkeypatch):
+    """The founder, 2026-09-13: the name keel-web greets by carries the journey's length, so a
+    full and a short run of one cell on one day are two visibly different founders."""
+    seen = {}
+    monkeypatch.setattr(remote, "register_cell_identity",
+                        lambda config, label, name=None, **kw: seen.update(label=label, name=name) or "founder")
+    config = _config(**{REMOTE_GATE_USER_VAR: "harness", REMOTE_GATE_PASSWORD_VAR: "secret"})
+    assert remote.identity_to_sign_in_as(config, "cell · claude · journey (full) · 2026-09-13",
+                                         name="Eval 0913 cell full") == "founder"
+    assert seen == {"label": "cell · claude · journey (full) · 2026-09-13", "name": "Eval 0913 cell full"}

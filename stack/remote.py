@@ -195,11 +195,12 @@ def registered_identities(config: StackConfig) -> list[dict]:
 
 
 def identity_to_sign_in_as(config: StackConfig, label: str,
-                           fallback: StubFounder = FOUNDER_ONE) -> StubFounder:
+                           fallback: StubFounder = FOUNDER_ONE, *,
+                           name: str | None = None) -> StubFounder:
     """**The one call a scenario makes.** On the remote profile: register this cell's own founder
     and return it. Anywhere else: the built-in *Eval Founder*, with no I/O at all -- so the eval
     and playground profiles behave exactly as they did, which is the invariant this whole spec is
     written around."""
     if not config.is_remote:
         return fallback
-    return register_cell_identity(config, label)
+    return register_cell_identity(config, label, name=name)

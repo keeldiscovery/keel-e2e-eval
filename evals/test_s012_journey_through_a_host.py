@@ -509,7 +509,13 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
     cloud_base = stack.cloud_base_url
     cell_label = (f"{remote.cell_name()} · {HOST} · journey ({LEGS}) · "
                   f"{time.strftime('%Y-%m-%d', time.gmtime())}")
-    founder_one = remote.identity_to_sign_in_as(stack, cell_label, fallback=founder_one)
+    # The short name -- what keel-web greets the founder by and the project list shows -- carries
+    # the journey's length too (the founder, 2026-09-13: a full run and a short run of the same
+    # cell on the same day were indistinguishable inside the product; only the chooser's long
+    # label said which). "Eval 0913 windows-latest-claude-py3.13 full" / "... short".
+    cell_name = f"Eval {time.strftime('%m%d', time.gmtime())} {remote.cell_name()} {LEGS}"
+    founder_one = remote.identity_to_sign_in_as(stack, cell_label, fallback=founder_one,
+                                                name=cell_name)
     started = _now()
     passed = False
     context = browser.new_context()
