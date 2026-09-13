@@ -66,8 +66,13 @@ eval: venv
 #   make eval-live K=s012 HOST=claude     the same journey through Claude Code
 #   make eval-live K=s012 HOST=claude LEGS=short    the per-change cell's own run
 #   make eval-live K=s012 ENTRY=05-paidly           a different founder walks it
+#   make eval-live K=s012 PEOPLE=2                  two people answer instead of five
 #   make eval-live K=s004                 the stranger who gives orders (none of these apply)
-# HOST=/LEGS=/ENTRY= on the command line win; otherwise the environment's own KEEL_JOURNEY_* is
+#
+# **PEOPLE=<n>**, default five on the full journey and always one on the short one (the founder,
+# 2026-09-13: five people so the brief at the end has a verdict -- the product calls a line *Too
+# few to call* under five; readings run on the routing table's light model, so five is cheap).
+# HOST=/LEGS=/ENTRY=/PEOPLE= on the command line win; otherwise the environment's own KEEL_JOURNEY_* is
 # kept (a cell exports them from cells.toml and then calls this target -- run 34614646990's
 # macOS cells ran the FULL journey because this line used to overwrite `short` with `full`);
 # only with neither does the default apply.
@@ -76,6 +81,7 @@ eval-live: venv
 	KEEL_JOURNEY_HOST=$(if $(HOST),$(HOST),$(if $(KEEL_JOURNEY_HOST),$(KEEL_JOURNEY_HOST),copilot)) \
 	KEEL_JOURNEY_LEGS=$(if $(LEGS),$(LEGS),$(if $(KEEL_JOURNEY_LEGS),$(KEEL_JOURNEY_LEGS),full)) \
 	KEEL_JOURNEY_ENTRY=$(if $(ENTRY),$(ENTRY),$(if $(KEEL_JOURNEY_ENTRY),$(KEEL_JOURNEY_ENTRY),03-lullaby)) \
+	KEEL_JOURNEY_PEOPLE=$(if $(PEOPLE),$(PEOPLE),$(KEEL_JOURNEY_PEOPLE)) \
 	$(PY) -m pytest evals -q -rs -l -m live $(if $(K),-k "$(K)",)
 
 # make eval-all runs the FULL scenario set (s001 included) against one stack session (attaches to

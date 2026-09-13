@@ -686,6 +686,25 @@ def person_inputs(entry) -> list[PersonInputs]:
     return people
 
 
+def people_to_invite(entry, count: int) -> tuple[list[PersonInputs], list[str]]:
+    """The first `count` people of the entry, in corpus order, that a live journey can type for.
+
+    A person the harness cannot type -- nothing written under any anchor, taps only -- is
+    skipped and named, never silently replaced by a blank page (S-012's own rule: a bundle that
+    quietly measured a different person is worse than one that measured nobody). Fewer than
+    `count` typeable people is not an error here; the scenario records how many it got.
+    """
+    chosen, skipped = [], []
+    for person in person_inputs(entry):
+        if len(chosen) == count:
+            break
+        if person.written():
+            chosen.append(person)
+        else:
+            skipped.append(person.person)
+    return chosen, skipped
+
+
 def inputs_json(entry, founder: FounderInputs, people: list[PersonInputs]) -> dict:
     """`runs/<id>/inputs.json` (contracts/generated-script-contract.md)."""
     return {

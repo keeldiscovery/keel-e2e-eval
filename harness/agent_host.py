@@ -147,6 +147,49 @@ def journey_legs(environ: dict[str, str] | None = None) -> str:
     return raw
 
 
+# --------------------------------------------------------------- how many people answer
+
+#: **How many of the entry's people the full journey invites and answers** (the founder,
+#: 2026-09-13: *"how many interviews are attended? If it's just one I want to increase it to five,
+#: for the problem, so that I see a completed brief. Since we're using the minis for reading, we
+#: can afford it."*). The product calls a line *Too few to call* below five people, so one person
+#: could never finish a brief with a verdict in it; five can. Readings scale with people and run
+#: on the routing table's `light` model where a row exists (keel-cloud
+#: `canon/designs/model-routing-design.md` §3), which is what makes five affordable.
+#:
+#: The short journey never invites anybody, so it is always `1` there whatever the environment
+#: says -- the number is what the full journey would spend, and a short bundle must not claim a
+#: count it did not pay for.
+DEFAULT_PEOPLE = 5
+
+#: The environment variable that changes it, set by `make eval-live K=s012 PEOPLE=`.
+PEOPLE_ENV = "KEEL_JOURNEY_PEOPLE"
+
+
+class UnknownPeople(ValueError):
+    """`KEEL_JOURNEY_PEOPLE` is not a whole number of at least one.
+
+    Refused rather than defaulted, for `UnknownLegs`'s reason: a typo that quietly ran five
+    people where the founder typed one, or one where they typed five, either overspends or files
+    a cheap measurement under an expensive name.
+    """
+
+
+def journey_people(legs: str | None = None, environ: dict[str, str] | None = None) -> int:
+    """How many people the journey invites -- `KEEL_JOURNEY_PEOPLE`, or five; always one on `short`."""
+    env = os.environ if environ is None else environ
+    if (legs or journey_legs(env)) == "short":
+        return 1
+    raw = (env.get(PEOPLE_ENV) or "").strip()
+    if not raw:
+        return DEFAULT_PEOPLE
+    if not raw.isdigit() or int(raw) < 1:
+        raise UnknownPeople(
+            f"{PEOPLE_ENV}={raw!r} is not a whole number of people of at least one -- "
+            f"`make eval-live K=s012 PEOPLE=5`.")
+    return int(raw)
+
+
 #: **How the skill reached the host** (keel-cloud `canon/designs/upgrade-in-place-design.md` §5;
 #: the founder, 2026-09-11: *"I also want an e2e eval which exercises spec kit extension"*).
 #: `plugin` is the marketplace plugin, `claude plugin install keel@keel` / `copilot plugin install

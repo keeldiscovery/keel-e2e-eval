@@ -159,7 +159,9 @@ def test_the_scenario_reads_its_founder_through_the_scripted_scenarios_own_reade
     both."""
     assert "corpus, entry = corpus_script.entry_for(stack.keel_cloud, ENTRY_ID)" in SCENARIO
     assert "founder = corpus_script.founder_inputs(entry)" in SCENARIO
-    assert "person = corpus_script.person_inputs(entry)[0]" in SCENARIO
+    # Amended 2026-09-13: the people come through the same reader, five of them on `full`.
+    assert "people_chosen, people_skipped = corpus_script.people_to_invite(entry, PEOPLE)" in SCENARIO
+    assert "person = people_chosen[0]" in SCENARIO
     assert "payroll_exceptions" not in SCENARIO, (
         "the smoke's fixture stays the smoke's; S-012 no longer borrows it")
 
@@ -719,3 +721,99 @@ def test_an_unknown_install_is_refused_by_name():
     with pytest.raises(agent_host.UnknownInstall):
         agent_host.journey_install({"KEEL_JOURNEY_INSTALL": "pip"})
 
+
+# ------------------------------------------------- how many people answer (spec 021, amended)
+
+def test_the_full_journey_invites_five_people_by_default():
+    """The founder, 2026-09-13: *"increase it to five, so that I see a completed brief."* The
+    product calls a line *Too few to call* under five people; one person never finished a brief
+    with a verdict in it."""
+    assert agent_host.DEFAULT_PEOPLE == 5
+    assert agent_host.journey_people("full", {}) == 5
+    assert agent_host.journey_people("full", {"KEEL_JOURNEY_PEOPLE": ""}) == 5
+    assert agent_host.journey_people(None, {"KEEL_JOURNEY_LEGS": "full"}) == 5
+
+
+def test_people_can_be_set_by_the_environment_on_the_full_journey():
+    assert agent_host.journey_people("full", {"KEEL_JOURNEY_PEOPLE": "2"}) == 2
+    assert agent_host.journey_people("full", {"KEEL_JOURNEY_PEOPLE": " 12 "}) == 12
+
+
+def test_the_short_journey_always_counts_one_whatever_the_environment_says():
+    """The short journey never reaches the People page; a short bundle must not claim a count
+    it did not pay for."""
+    assert agent_host.journey_people("short", {}) == 1
+    assert agent_host.journey_people("short", {"KEEL_JOURNEY_PEOPLE": "5"}) == 1
+    assert agent_host.journey_people(None, {"KEEL_JOURNEY_LEGS": "short",
+                                            "KEEL_JOURNEY_PEOPLE": "9"}) == 1
+
+
+@pytest.mark.parametrize("raw", ["0", "-1", "five", "2.5"])
+def test_a_people_count_that_is_not_a_whole_number_is_refused(raw):
+    with pytest.raises(agent_host.UnknownPeople) as excinfo:
+        agent_host.journey_people("full", {"KEEL_JOURNEY_PEOPLE": raw})
+    assert raw in str(excinfo.value)
+
+
+def test_the_make_target_and_the_scenario_carry_the_people_axis():
+    assert "KEEL_JOURNEY_PEOPLE=$(if $(PEOPLE),$(PEOPLE),$(KEEL_JOURNEY_PEOPLE))" in MAKEFILE, (
+        "`make eval-live K=s012 PEOPLE=n` no longer reaches the scenario")
+    assert "PEOPLE = agent_host.journey_people(LEGS)" in SCENARIO
+    assert "corpus_script.people_to_invite(entry, PEOPLE)" in SCENARIO
+    for key in ('"people": people_names', '"people_count": len(people_chosen)'):
+        assert key in SCENARIO, f"the journey block no longer records {key}"
+
+
+def _lullaby():
+    from harness import corpus_script
+    from stack.config import load_config
+    config = load_config(validate=False)
+    keel_cloud = Path(config.keel_cloud)
+    if not (keel_cloud / "canon" / "designs" / "measured-beliefs" / "corpus").is_dir():
+        pytest.skip(f"no keel-cloud corpus at {keel_cloud}")
+    return corpus_script.entry_for(keel_cloud, "03-lullaby")[1]
+
+
+def test_the_first_five_people_are_taken_in_corpus_order():
+    from harness import corpus_script
+    entry = _lullaby()
+    everyone = corpus_script.person_inputs(entry)
+    chosen, skipped = corpus_script.people_to_invite(entry, 5)
+    assert [p.person for p in chosen] == [p.person for p in everyone[:5]]
+    assert all(p.written() for p in chosen)
+    assert skipped == []
+    one, _ = corpus_script.people_to_invite(entry, 1)
+    assert [p.person for p in one] == [everyone[0].person]
+
+
+def test_a_person_with_nothing_written_is_skipped_by_name():
+    """A taps-only person cannot be typed for on a live page; they are named in the bundle's
+    inputs rather than sent in with a blank page."""
+    from dataclasses import replace
+    from harness import corpus_script
+    entry = _lullaby()
+    everyone = corpus_script.person_inputs(entry)
+    silent = replace(everyone[1], anchors=[replace(a, text=None, tap="HASNT_HAPPENED")
+                                           for a in everyone[1].anchors])
+    fake = [everyone[0], silent, *everyone[2:]]
+    chosen, skipped = corpus_script.people_to_invite.__wrapped__(fake, 3) if hasattr(
+        corpus_script.people_to_invite, "__wrapped__") else _invite_from(fake, 3)
+    assert [p.person for p in chosen] == [everyone[0].person, everyone[2].person, everyone[3].person]
+    assert skipped == [everyone[1].person]
+
+
+def _invite_from(people, count):
+    """`people_to_invite` over a list the test built, through the same rule."""
+    from harness import corpus_script
+
+    class Entry:
+        pass
+
+    class _Person:
+        pass
+    saved = corpus_script.person_inputs
+    corpus_script.person_inputs = lambda entry: people
+    try:
+        return corpus_script.people_to_invite(Entry(), count)
+    finally:
+        corpus_script.person_inputs = saved

@@ -32,8 +32,11 @@ it so -- Copilot by `SKILL.md`'s one `--host copilot` line, Claude by the skill'
 detection -- and nothing in this scenario passes an executor of its own; `source=flag` is asserted
 beside the name, because a runtime that guessed right off a `PATH` would prove nothing about the
 skill. Then the founder's journey from S-001's own legs, with the host's model answering every
-screen: three stages framed, reviewed and approved as-is, one person invited and answered, the
-reading read, *What this says* written, the overview and one card opened.
+screen: three stages framed, reviewed and approved as-is, the entry's first five people invited
+and answered (`KEEL_JOURNEY_PEOPLE`, default five on `full`, always one on `short` -- the founder,
+2026-09-13: *"increase it to five, so that I see a completed brief"*; the product calls a line
+*Too few to call* under five people), the reading read, *What this says* written, the overview and
+one card opened.
 
 **Every card assertion is a shape or an absence** (spec 008's judgement call 8, and spec 016
 FR-007). A live model's sentence is not stable and a test that pinned one would be measuring the
@@ -121,6 +124,11 @@ SHORT = LEGS == "short"
 #: default `03-lullaby`). Resolved at import beside the other two axes; the entry itself is read
 #: inside the test, where the stack fixture has told us where keel-cloud is.
 ENTRY_ID = agent_host.journey_entry()
+
+#: **How many of the entry's people are invited and answer** (`KEEL_JOURNEY_PEOPLE`; five on the
+#: full journey, always one on the short one, which never reaches the People page). Five is the
+#: product's own *Too few to call* threshold, so the brief at the end has a verdict to say.
+PEOPLE = agent_host.journey_people(LEGS)
 
 #: `runs/<stamp>-s012-journey-<host>[-short]/`. The matrix uploads one bundle per cell and a reader
 #: looking at eighteen of them has only the name to go on until they open one.
@@ -535,29 +543,43 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
     # is exactly what a founder types (the name, the market, the three statements) and exactly
     # what one person says (their story per anchor, their picks) -- and the model's half stays
     # free and shape-asserted (spec 016 FR-007).
-    person = corpus_script.person_inputs(entry)[0]
+    # The first `PEOPLE` of the entry's people, in corpus order, that the harness can type for;
+    # a taps-only person is skipped by name rather than sent in with a blank page.
+    people_chosen, people_skipped = corpus_script.people_to_invite(entry, PEOPLE)
+    assert people_chosen, f"{entry.id} offers nobody the harness can type for"
+    person = people_chosen[0]
     person_name = person.person
+    people_names = [p.person for p in people_chosen]
     write_generated(run_dir, inputs={"entry": entry.id,
                                      "project": founder.project_name,
                                      "market": founder.market.country,
                                      "statements": {stage: founder.statement(stage)
                                                      for stage in STAGES},
                                      "person": person_name,
-                                     "their stories": _story_texts(person),
-                                     "their picks": {p.selection_id: p.values
-                                                      for p in person.picks},
+                                     "people": people_names,
+                                     "people_count": len(people_chosen),
+                                     "people asked for": PEOPLE,
+                                     "people skipped (nothing written the harness could type)":
+                                         people_skipped,
+                                     "their stories": {p.person: _story_texts(p)
+                                                       for p in people_chosen},
+                                     "their picks": {p.person: {k.selection_id: k.values
+                                                                 for k in p.picks}
+                                                     for p in people_chosen},
                                      "host": HOST,
                                      "legs": LEGS})
     # The sixth and seventh facts a reader of eighteen bundles needs after the five repositories:
     # whose founder walked it, and how far.
     write_block(run_dir, "journey", {
         "entry": entry.id, "entry_sha256": entry.sha256, "title": founder.project_name,
-        "person": person_name, "legs": LEGS, "install": INSTALL,
+        "person": person_name, "people": people_names, "people_count": len(people_chosen),
+        "legs": LEGS, "install": INSTALL,
         "legs, what that means": (
             "the host leg entire, plus the first model job -- the PROBLEM frame's confirmation "
             "card -- and then the way out" if SHORT else
-            "both legs: three stages framed, reviewed and approved, one person invited and "
-            "answered, the reading read, the brief written, the overview and one card opened"),
+            f"both legs: three stages framed, reviewed and approved, {len(people_chosen)} "
+            f"people invited and answered, the reading read, the brief written, the overview "
+            f"and one card opened"),
         "corpus": str(corpus.directory)})
 
     keel_home = run_dir / "keel-home"
@@ -913,8 +935,25 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                 h.record_assert({"people_locked": False}, {"people_locked": locked})
                 assert not locked, "People stayed locked after all three approvals"
 
-            url = _invite_one_live(page, recorder, project_id, web_base, person_name)
-            _answer_whatever_is_asked(browser, recorder, url, person)
+            # Each of the chosen people gets their own link and answers in their own words, in
+            # corpus order (the founder, 2026-09-13: five, so the brief has a verdict to say).
+            answers = {}
+            for one in people_chosen:
+                url = _invite_one_live(page, recorder, project_id, web_base, one.person)
+                answers[one.person] = _answer_whatever_is_asked(browser, recorder, url, one)
+            with recorder.step(f"spec 021 (amended 2026-09-13): {len(people_chosen)} people "
+                                "invited and answered, each on their own link",
+                                party="stack", kind="assert") as h:
+                # The harness's own inputs, never the model's reading of them: every chosen
+                # person was sent in and typed at least one story.
+                h.record_assert({"people": people_names},
+                                 {name: {"anchors answered": len(a["answered"]),
+                                         "picks": len(a["picked"])}
+                                  for name, a in answers.items()})
+                assert list(answers) == people_names, (
+                    f"invited {people_names}, answered {list(answers)}")
+                assert all(a["answered"] for a in answers.values()), (
+                    "a chosen person typed nothing anywhere")
 
             people.open(project_id)
             people.switch_to_who_tab()
@@ -1006,6 +1045,10 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                 per_job.append({"job_id": row["job_id"], **facts})
             caps = canary_mod.cap_sources(stack.keel_runtime, keel_home)
             spend = {"host legs": [run.spend() for run in (first, second)],
+                     "people": len(people_chosen),
+                     "readings scale with people": (
+                         "one reading job an answered anchor, on the routing table's light model "
+                         "where the cloud has a row for this host (model-routing-design.md §3)"),
                      "thinking (keel-runtime jobs)": [
                          {k: v for k, v in row.items()
                           if k in ("job_id", "premium_requests", "total_cost_usd", "model")}
@@ -1123,7 +1166,9 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                          f"model {model or 'unpinned (this executor takes none)'}"),
                             "the journey's founder": (
                          f"{ENTRY_ID} · {founder.project_name} · "
-                         f"{founder.market.country} · one person, {person_name}"),
+                         f"{founder.market.country} · "
+                         + (f"{len(people_chosen)} people, {', '.join(people_names)}"
+                            if not SHORT else "nobody invited (short)")),
                             "the journey's length": (
                          f"{LEGS} · " + ("the host leg and the first model job" if SHORT else
                                           "both legs, whole"))},

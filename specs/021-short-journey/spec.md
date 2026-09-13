@@ -209,3 +209,40 @@ that measured nothing is never green, and a deploy failure is not a red matrix.
    60 kB, and a cell without the token warns loudly and then fails by name.
 3. **The issue is a fourth place a verdict is recorded**, where §6.4 names three. The three it names
    are all places a founder has to go and look at; the founder asked to be told instead.
+
+## Amendment, 2026-09-13 — five people on the full journey
+
+The founder, the day the routing table put the readings on a light model: *"For the full
+scenario, how many interviews are attended? If it's just one I want to increase it to five, for the
+problem, so that I see a completed brief. Since we're using the minis for reading, we can afford
+it."* One person could never finish a brief with a verdict in it — the product calls a line *Too
+few to call* under five people (keel-web `translate.ts`, landing-page-design-v2 §4.2) — so the
+journey that exists to show the brief ended on a paragraph that could only say *not yet*.
+
+**What changes.** The full journey invites and answers the entry's **first five people**, in corpus
+order, each on their own participant link with their own stories and picks
+(`harness/corpus_script.py::people_to_invite`, `evals/test_s012_journey_through_a_host.py`). A
+person with nothing written under any anchor — taps only — is skipped by name and recorded in the
+bundle's `inputs`, never sent in with a blank page. The short journey never reaches the People page
+and always counts one.
+
+**The knob.** `KEEL_JOURNEY_PEOPLE` (`harness/agent_host.py::journey_people`, `make eval-live K=s012
+PEOPLE=<n>`): default **5** on `full`, **always 1** on `short` whatever the environment says; a
+value that is not a whole number of at least one is refused by name (`UnknownPeople`), for
+`UnknownLegs`'s reason.
+
+**What is asserted, and what is not.** One new step, on the harness's own inputs only: every chosen
+person was invited and typed at least one story. Every card assertion stays a shape or an absence
+(spec 016 FR-007); no verdict word is read out of the model's reading — the five answers are what
+lets the model *have* a verdict, not something this scenario grades. No existing assertion or
+timeout moved.
+
+**The bundle.** `inputs` and the `journey` block gain `people` (names) and `people_count`; `inputs`
+also names who was asked for and who was skipped; `spend.json` gains `people` and the note that
+readings scale with people. The verdict's *founder* line reads *five people, Amira Saleh, …*.
+
+**Cost.** Five people is about five reading jobs per answered anchor set instead of one, on the
+routing table's `light` model where the cloud has a row for the host (keel-cloud
+`canon/designs/model-routing-design.md` §3 — `gpt-5.4-mini` on Codex and Copilot as of table v3;
+Claude's row pending), and the same three assumptions jobs and one brief as before. The weekly is
+the only scheduled set that runs the full journey (the founder's decision of the same day).
