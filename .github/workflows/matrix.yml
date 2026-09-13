@@ -99,6 +99,7 @@ jobs:
       set: ${{ steps.pick.outputs.set }}
       cells: ${{ steps.pick.outputs.cells }}
       count: ${{ steps.pick.outputs.count }}
+      page_only: ${{ steps.pick.outputs.page_only }}
       repo: ${{ steps.pick.outputs.repo }}
       sha: ${{ steps.pick.outputs.sha }}
       why: ${{ steps.pick.outputs.why }}
@@ -141,12 +142,24 @@ jobs:
           esac
           repo="${PAYLOAD_REPO:-${{ github.repository }}}"
           sha="${PAYLOAD_SHA:-${{ github.sha }}}"
-          cells=$(python -m matrix --set "$set_name" --cells "${INPUT_CELLS:-}" --scenarios "${INPUT_SCENARIOS:-}" --json)
+          # Design §16.1 (the founder, 2026-09-13): a push to keel-web only changes the page. It
+          # deploys the twin so the page can be seen, and neither wipes nor runs a journey -- the
+          # project the founder is reviewing stays exactly as it was. keel-cloud, keel-runtime and
+          # the skill are what a journey can break; their pushes deploy, wipe and run Lullaby alone.
+          page_only=false
+          if [ "$EVENT" = repository_dispatch ] && [ "$PAYLOAD_REPO" = keeldiscovery/keel-web ]; then
+            page_only=true
+            cells='[]'
+            why="$why (keel-web only: deploy, no wipe, no cells -- design §16.1)"
+          else
+            cells=$(python -m matrix --set "$set_name" --cells "${INPUT_CELLS:-}" --scenarios "${INPUT_SCENARIOS:-}" --json)
+          fi
           count=$(python -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$cells")
           {
             echo "set=$set_name"
             echo "cells=$cells"
             echo "count=$count"
+            echo "page_only=$page_only"
             echo "repo=$repo"
             echo "sha=$sha"
             echo "why=$why"
@@ -447,7 +460,7 @@ jobs:
       # when they next need it (§4.4).
       - id: wipe
         name: reset.sh --target staging — the twin holds only this run's founders
-        if: inputs.wipe != false
+        if: inputs.wipe != false && needs.select.outputs.page_only != 'true'
         shell: bash
         working-directory: keel-cloud
         env:

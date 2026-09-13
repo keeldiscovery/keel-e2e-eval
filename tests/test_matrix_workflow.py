@@ -250,8 +250,9 @@ def test_every_deploy_wipes_the_twin_with_keel_clouds_own_reset_script():
     # The same two repository variables deploy.sh needs, because the CI role has no ec2:Describe*.
     assert wipe["env"]["KEEL_INSTANCE_ID"] == "${{ vars.KEEL_INSTANCE_ID }}"
     assert wipe["env"]["KEEL_ELASTIC_IP"] == "${{ vars.KEEL_ELASTIC_IP }}"
-    # A hand dispatch may keep the twin's data; a push or the schedule always wipes.
-    assert wipe["if"] == "inputs.wipe != false"
+    # A hand dispatch may keep the twin's data; a push or the schedule always wipes -- except a
+    # push to keel-web alone (design §16.1): the page is deployed, the twin's data stays.
+    assert wipe["if"] == "inputs.wipe != false && needs.select.outputs.page_only != 'true'"
     on = DOC[True] if True in DOC else DOC["on"]
     assert on["workflow_dispatch"]["inputs"]["wipe"]["default"] is True
 
@@ -259,3 +260,14 @@ def test_every_deploy_wipes_the_twin_with_keel_clouds_own_reset_script():
 def test_the_wipe_never_names_production():
     run = step_named("deploy-staging", "reset.sh --target staging")["run"]
     assert "prod" not in run
+
+
+def test_a_keel_web_push_deploys_the_twin_and_neither_wipes_nor_runs_a_cell():
+    """Design §16.1 (the founder, 2026-09-13): *"a push to keel-web only deploys the twin so you can
+    see the page."* The select job answers no cells and page_only=true for keel-web's dispatch; the
+    wipe step reads that output; keel-cloud/runtime/skill dispatches are unchanged."""
+    pick = next(s for s in JOBS["select"]["steps"] if s.get("id") == "pick")
+    assert 'PAYLOAD_REPO" = keeldiscovery/keel-web' in pick["run"]
+    assert "page_only=true" in pick["run"] and "cells='[]'" in pick["run"]
+    assert JOBS["select"]["outputs"]["page_only"] == "${{ steps.pick.outputs.page_only }}"
+    assert "PAYLOAD_REPO" in pick["env"]
