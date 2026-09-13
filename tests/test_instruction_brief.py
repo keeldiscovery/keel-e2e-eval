@@ -324,8 +324,10 @@ def test_a_result_carrying_no_paragraph_fails_rather_than_scoring_nothing(case, 
 
 # ------------------------------------------------------------------------------------- the totals
 
-def test_the_marks_version_is_five_and_the_marks_file_carries_the_new_number():
-    assert marks_mod.MARKS_VERSION == 5
+def test_the_marks_version_is_six_and_the_marks_file_carries_the_brief_number():
+    # v5 narrowed the brief mark; v6 (judgement call 22, 2026-09-12) moved the rule-refusal mark
+    # to a rate and left this one exactly where it was.
+    assert marks_mod.MARKS_VERSION == 6
     assert marks_mod.load()["brief_paragraphs"] == 1.00
 
 
