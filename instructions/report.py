@@ -210,7 +210,9 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
     parts.append("<table><tr><th>Mark</th><th>This run</th><th>Required</th><th></th></tr>")
     parts.append(_mark_row("anchoring accuracy", judged["anchoring_accuracy"]))
     parts.append(_mark_row("golden-belief recall", judged["golden_belief_recall"]))
-    parts.append(_mark_row("refusals (rule)", judged["refusals"],
+    parts.append(_mark_row("shape refusals", judged.get("shape_refusals", {"value": None, "mark": 0, "met": False}),
+                           lambda v: "—" if v is None else str(v)))
+    parts.append(_mark_row("refusals (rule), as a rate of answers judged", judged["refusals"],
                            fmt=lambda v: "not measured" if v is None else str(v)))
     parts.append(_mark_row("BRIEF paragraphs (all four marks)", judged["brief_paragraphs"],
                            fmt=lambda v: "not measured" if v is None else _pct(v)))

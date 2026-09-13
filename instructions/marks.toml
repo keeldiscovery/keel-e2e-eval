@@ -9,7 +9,13 @@
 [marks]
 anchoring_accuracy = 0.90
 golden_belief_recall = 0.80
-refusals = 0
+# MARKS_VERSION 6 (judgement call 22, the founder, 2026-09-12): a rule refusal is the product
+# correcting the model -- one extra call, nothing a founder sees -- so the mark is a RATE over the
+# answers the aggregate judged, not an absolute zero. The denominator is small (63 assumption
+# answers on a full N=3 run), so 0.02 means "at most one correction across the corpus". Shape
+# refusals -- an envelope the runtime had to repair -- stay at zero.
+rule_refusal_rate = 0.02
+shape_refusals = 0
 # MARKS_VERSION 4 (judgement calls 15-17), narrowed at 5 (20-21): the BRIEF subject. Every
 # paragraph must meet all four of `instructions/brief.py`'s per-case marks -- shape, coverage,
 # register, source_material -- so this is 1.00 and not a fraction: a paragraph that invents a

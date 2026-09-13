@@ -28,6 +28,7 @@ from . import brief as brief_mod
 from . import context as context_mod
 from . import contract as contract_mod
 from . import corpus as corpus_mod
+from . import validate as validate_mod
 from . import judge as judge_mod
 from . import marks as marks_mod
 from . import prompts as prompts_mod
@@ -114,9 +115,23 @@ def main(argv=None) -> int:
                   "never fit its shape" not in str(e.get("error")))
     validation = run_dir / "validation.json"
     measured = validation.is_file() and "unavailable" not in validation.read_text(encoding="utf-8")
+    # v6: the aggregate's own verdict is in the bundle, so a rescore carries the refusal counts
+    # and their denominator forward rather than reading a kept run as if nothing was refused.
+    aggregate = {"accepted": 0, "refusals_by_rule": {}, "shape_refusals": 0}
+    if measured:
+        try:
+            aggregate = validate_mod.fold_in(json.loads(validation.read_text(encoding="utf-8")))
+        except Exception as exc:                  # noqa: BLE001 - unmeasured, never mis-measured
+            print(f"validation.json could not be folded in: {exc}", file=sys.stderr)
+            measured = False
 
     totals = score_mod.totals(reading_scores, assumption_scores, errored=errored,
-                              refusals_measured=measured, judge_calls=judge.call_count,
+                              refusals_by_rule=aggregate["refusals_by_rule"],
+                              shape_refusals=aggregate["shape_refusals"],
+                              refusals_measured=measured,
+                              refusals_shown=aggregate["accepted"]
+                              + sum(aggregate["refusals_by_rule"].values()),
+                              judge_calls=judge.call_count,
                               brief_scores=brief_scores)
     marks = marks_mod.load()
     judged = marks_mod.judge(totals, marks)

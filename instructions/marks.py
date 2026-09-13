@@ -53,6 +53,13 @@ part of what a number means:
 16. **v4**: `brief_paragraphs` is **all four marks or nothing**, per case. A paragraph that is the
     right shape and names no verdict has not half-worked; it is a paragraph a founder would read
     and be misled by, and averaging the four marks together would hide exactly that.
+22. **v6** *(the founder, 2026-09-12)*: **the rule-refusal mark is a rate, and shape refusals
+    keep their zero.** A rule refusal is the product correcting the model (one extra call, nothing
+    a founder sees), and an absolute zero made one invented unit in 1,179 case-runs a failed host.
+    `rule_refusal_rate` is refusals over the answers the aggregate actually judged -- 63 on a full
+    N=3 run -- so 0.02 reads "at most one correction across the corpus". `shape_refusals` stays
+    an absolute zero: an envelope the runtime had to repair is a different failure. Applied to
+    every host equally, and every earlier bundle can be re-scored under it without spending.
 17. **v4**: **the paragraph is rendered as well as marked.** `brief.md`'s contract is one free-text
     field, so almost everything about a good paragraph is wording -- design §3.8's *cannot be
     checked by code*. The four marks cover only what `brief.md` states as a rule; the paragraph
@@ -109,14 +116,15 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 5
+MARKS_VERSION = 6
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 
 DEFAULTS = {
     "anchoring_accuracy": 0.90,
     "golden_belief_recall": 0.80,
-    "refusals": 0,
+    "rule_refusal_rate": 0.02,
+    "shape_refusals": 0,
     "brief_paragraphs": 1.00,
 }
 
@@ -146,6 +154,12 @@ def judge(totals: dict, marks: dict) -> dict:
     brief_measured = bool(totals.get("brief_measured"))
     measured = bool(totals.get("refusals_measured"))
     refusals = sum((totals.get("refusals_by_rule") or {}).values())
+    # v6 (judgement call 22): the rule-refusal mark is a rate over the answers the aggregate
+    # judged -- `refusals_shown`, accepted plus refused -- never over case-runs that were never
+    # shown to it. A run that shows the aggregate nothing has no rate and is unmeasured.
+    shown = int(totals.get("refusals_shown") or 0)
+    rate = (refusals / shown) if (measured and shown) else None
+    shape = totals.get("shape_refusals")
     results = {
         "anchoring_accuracy": {
             "value": accuracy, "mark": marks["anchoring_accuracy"],
@@ -155,8 +169,13 @@ def judge(totals: dict, marks: dict) -> dict:
             "met": recall is not None and recall >= marks["golden_belief_recall"]},
         "refusals": {
             "value": refusals if measured else None, "measured": measured,
-            "mark": marks["refusals"],
-            "met": measured and refusals <= marks["refusals"]},
+            "rate": rate, "shown": shown if measured else None,
+            "mark": marks["rule_refusal_rate"],
+            "met": measured and rate is not None and rate <= marks["rule_refusal_rate"]},
+        "shape_refusals": {
+            "value": shape if measured else None, "measured": measured,
+            "mark": marks["shape_refusals"],
+            "met": measured and shape is not None and shape <= marks["shape_refusals"]},
         # v4 (judgement calls 15-17): every BRIEF paragraph meeting all four of its own marks.
         # Unmeasured is not met here either -- a run filtered to one subject reports the other
         # subjects' marks as unmeasured and fails, which is the same rule `refusals` has had

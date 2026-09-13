@@ -247,7 +247,7 @@ def test_an_unmeasured_refusal_count_fails_its_mark_rather_than_meeting_it():
     assert judged["refusals"]["met"] is False
     assert judged["passed"] is False, "two green marks and one unasked question is not a pass"
 
-    measured = score_mod.totals([], [], refusals_measured=True)
+    measured = score_mod.totals([], [], refusals_measured=True, refusals_shown=63)
     measured["anchoring_accuracy"] = 0.99
     measured["golden_belief_recall"] = 0.99
     # MARKS_VERSION 4 added a fourth subject, and its mark answers to the same rule: an unmeasured
@@ -255,3 +255,38 @@ def test_an_unmeasured_refusal_count_fails_its_mark_rather_than_meeting_it():
     assert marks_mod.judge(measured, marks)["passed"] is False
     measured["brief_paragraphs"], measured["brief_measured"] = 1.0, True
     assert marks_mod.judge(measured, marks)["passed"] is True
+
+
+
+def test_v6_the_rule_refusal_mark_is_a_rate_over_the_answers_the_aggregate_judged():
+    """Judgement call 22 (the founder, 2026-09-12): one invented unit in a full run is one
+    correction, not a failed host. The denominator is what the aggregate judged, never the
+    case-runs it never saw; shape refusals keep their absolute zero."""
+    from instructions import marks as marks_mod
+    marks = marks_mod.load()
+    assert marks_mod.MARKS_VERSION == 6
+    green = {"anchoring_accuracy": 0.99, "golden_belief_recall": 0.99,
+             "brief_paragraphs": 1.0, "brief_measured": True}
+
+    one_in_63 = score_mod.totals([], [], refusals_by_rule={"measure": 1}, refusals_measured=True,
+                                 refusals_shown=63)
+    one_in_63.update(green)
+    judged = marks_mod.judge(one_in_63, marks)
+    assert judged["refusals"]["value"] == 1
+    assert abs(judged["refusals"]["rate"] - 1 / 63) < 1e-9
+    assert judged["refusals"]["met"] is True and judged["passed"] is True
+
+    two_in_63 = score_mod.totals([], [], refusals_by_rule={"measure": 2}, refusals_measured=True,
+                                 refusals_shown=63)
+    two_in_63.update(green)
+    assert marks_mod.judge(two_in_63, marks)["refusals"]["met"] is False
+
+    shape = score_mod.totals([], [], shape_refusals=1, refusals_measured=True, refusals_shown=63)
+    shape.update(green)
+    judged = marks_mod.judge(shape, marks)
+    assert judged["shape_refusals"]["met"] is False and judged["passed"] is False
+
+    nothing_shown = score_mod.totals([], [], refusals_measured=True, refusals_shown=0)
+    nothing_shown.update(green)
+    assert marks_mod.judge(nothing_shown, marks)["refusals"]["met"] is False, \
+        "a run that showed the aggregate nothing has no rate"

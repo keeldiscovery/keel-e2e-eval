@@ -183,6 +183,7 @@ def score_assumptions(case, entry, result, *, failed: str | None = None,
 def totals(reading_scores: list, assumption_scores: list, *, errored: int = 0,
            refusals_by_rule: dict | None = None, shape_refusals: int = 0,
            schema_invalid: int = 0, refusals_measured: bool = False,
+           refusals_shown: int = 0,
            judge_calls: int = 0, brief_scores: list | None = None) -> dict:
     """The run's own numbers, each summed over its own denominator and never over another's."""
     given = sum(s.given for s in reading_scores)
@@ -239,6 +240,8 @@ def totals(reading_scores: list, assumption_scores: list, *, errored: int = 0,
                                  / matched) if matched else 0.0),
         "judge_calls": judge_calls,
         "refusals_by_rule": dict(refusals_by_rule or {}),
+        # v6: how many answers the aggregate judged (accepted + refused) -- the rate's denominator.
+        "refusals_shown": int(refusals_shown or 0),
         "refusals_measured": refusals_measured,
         "shape_refusals": shape_refusals,
         "schema_invalid": schema_invalid,

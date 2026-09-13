@@ -546,9 +546,13 @@ def test_the_rubric_did_not_move():
     """FR-008. A second host is not a rubric change: the same marks, judged the same way, asked
     of somebody else. A `MARKS_VERSION` bump here would make the two hosts' runs incomparable in
     the one direction the design needs them comparable."""
-    assert marks_mod.MARKS_VERSION == 5
+    # v6 (judgement call 22, the founder, 2026-09-12) moved the rule-refusal mark to a rate and
+    # added the shape-refusal zero -- for every host at once, which is what keeps this test's
+    # point: the hosts are still judged by one rubric, and no host got its own.
+    assert marks_mod.MARKS_VERSION == 6
     assert marks_mod.DEFAULTS == {"anchoring_accuracy": 0.90, "golden_belief_recall": 0.80,
-                                  "refusals": 0, "brief_paragraphs": 1.00}
+                                  "rule_refusal_rate": 0.02, "shape_refusals": 0,
+                                  "brief_paragraphs": 1.00}
 
 
 def test_the_makefile_defaults_to_claude_and_threads_the_host_through():

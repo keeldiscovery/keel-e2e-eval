@@ -276,6 +276,8 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
                               refusals_by_rule=aggregate["refusals_by_rule"],
                               shape_refusals=aggregate["shape_refusals"],
                               refusals_measured=refusals_measured,
+                              refusals_shown=aggregate["accepted"]
+                              + sum(aggregate["refusals_by_rule"].values()),
                               judge_calls=judge.call_count,
                               brief_scores=brief_scores)
     scorecard = {
@@ -342,7 +344,8 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     print(f"verdict: {'PASSED' if verdict['passed'] else 'FAILED'}   "
           f"anchoring {_fmt(totals['anchoring_accuracy'])} · "
           f"recall {_fmt(totals['golden_belief_recall'])} · "
-          f"refusals {sum(totals['refusals_by_rule'].values()) if refusals_measured else 'not measured'} · "
+          f"refusals {sum(totals['refusals_by_rule'].values()) if refusals_measured else 'not measured'}"
+          f"{' of ' + str(totals['refusals_shown']) + ' judged' if refusals_measured else ''} · "
           f"brief {_fmt(totals['brief_paragraphs']) if totals['brief_measured'] else 'not measured'} · "
           f"schema-invalid {totals['schema_invalid']} · errored {errored}")
     print(f"report: {path}")
