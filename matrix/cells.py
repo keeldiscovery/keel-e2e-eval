@@ -195,13 +195,13 @@ class Matrix:
             return chosen
         narrowed: list[Cell] = []
         for cell in chosen:
-            unknown = [k for k in keep if k not in cell.scenarios]
-            if unknown:
-                raise CellsError(f"{cell.id} does not carry {unknown} -- the `scenarios` input may only "
-                                 f"keep scenarios a cell already runs (it has {list(cell.scenarios)})")
             kept = tuple(sc for sc in cell.scenarios if sc in keep)
             if kept:
                 narrowed.append(dataclasses.replace(cell, scenarios=kept))
+        if not narrowed:
+            raise CellsError(f"no chosen cell carries any of {keep} -- the `scenarios` input keeps "
+                             f"scenarios cells already run; the set's cells carry "
+                             f"{sorted({sc for cell in chosen for sc in cell.scenarios})}")
         return narrowed
 
     def as_matrix(self, set_name: str, only: Iterable[str] | None = None,
