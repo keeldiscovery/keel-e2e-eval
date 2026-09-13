@@ -222,10 +222,17 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     # Copilot; spec 008 for Codex, whose unpinned run answers with the account's default model).
     pinned_model = (os.environ.get("KEEL_CODEX_MODEL") if args.host == "codex"
                     else os.environ.get("KEEL_COPILOT_MODEL")) or None
+    if routing_runtime and pinned_model:
+        # keel-runtime 0.5.0 reads no such variable (spec 009): honouring it here would be the
+        # referee pinning what production cannot, and ignoring it would be an unpinned run
+        # wearing a pin's name. Either is a lie; refuse before the first call.
+        print(f"keel-runtime {'.'.join(map(str, models_mod.runtime_version(executor_module)))} "
+              f"ignores KEEL_<HOST>_MODEL; pin with MODELS=<file> (the job's `model` key) instead",
+              file=sys.stderr)
+        return 2
     executor = executor_module.get_executor(
         args.host, home=run_dir,
-        copilot_model=pinned_model if args.host != "codex" else None,
-        codex_model=pinned_model if args.host == "codex" else None)
+        **models_mod.executor_kwargs(args.host, pinned_model, routing_runtime))
     judge = judge_mod.NoJudge() if args.no_judge else judge_mod.Judge()
     people = {(e.id, p.person): p for e in corpus.entries for p in e.people()}
 

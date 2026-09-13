@@ -358,3 +358,13 @@ def test_the_makefile_passes_models_to_both_targets():
     from stack.config import REPO_ROOT                                       # noqa: PLC0415
     text = (REPO_ROOT / "Makefile").read_text()
     assert text.count("$(if $(MODELS),--models $(MODELS),)") == 2
+
+
+def test_executor_kwargs_follow_the_runtime_generation():
+    from instructions import models
+    assert models.executor_kwargs("codex", "gpt-6-astra", routing_runtime=True) == {}
+    assert models.executor_kwargs("copilot", None, routing_runtime=True) == {}
+    assert models.executor_kwargs("codex", "gpt-6-astra", routing_runtime=False) == {
+        "codex_model": "gpt-6-astra", "copilot_model": None}
+    assert models.executor_kwargs("copilot", "gpt-5-mini", routing_runtime=False) == {
+        "copilot_model": "gpt-5-mini", "codex_model": None}

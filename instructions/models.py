@@ -276,3 +276,17 @@ def describe(table: ModelTable | None, host: str) -> str:
         return "nothing"
     used = table.models_used(host)
     return " · ".join(f"{job_class}={model or 'default'}" for job_class, model in used.items())
+
+
+def executor_kwargs(host: str, pinned_model, routing_runtime: bool) -> dict:
+    """The model keyword `get_executor` is given, by runtime generation.
+
+    keel-runtime 0.5.0 (spec 009) dropped `copilot_model`/`codex_model` from `get_executor`: the
+    model is the job's, read from `request_payload["model"]`, so a routing runtime gets no model
+    keyword at all -- and a `KEEL_<HOST>_MODEL` pin would be silently ignored there, which the
+    caller refuses before reaching here. An older runtime keeps the 0.4.0 shape."""
+    if routing_runtime:
+        return {}
+    if host == "codex":
+        return {"codex_model": pinned_model, "copilot_model": None}
+    return {"copilot_model": pinned_model, "codex_model": None}
