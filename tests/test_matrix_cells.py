@@ -694,3 +694,19 @@ def test_a_measured_host_outside_host_everyday_is_refused_in_per_change(tmp_path
                            'host = ["claude", "copilot"]\n    host_everyday = ["cursor"]')
     with pytest.raises(m.CellsError, match="host_everyday"):
         m.load(write(tmp_path, body))
+
+
+def test_the_scenarios_input_keeps_only_named_scenarios_on_the_chosen_cells():
+    """2026-09-13: the founder's review run -- the weekly macOS Claude cell with the journey alone,
+    so the twin holds one project; a scenario the cell does not carry is refused, and a cell left
+    with nothing is dropped rather than run empty."""
+    matrix = m.load()
+    rows = matrix.as_matrix("weekly", ["macos-latest-claude-py3.13"], ["s012"])
+    assert [r["id"] for r in rows] == ["macos-latest-claude-py3.13"]
+    assert rows[0]["scenarios"] == ["s012"] and rows[0]["legs"] == "full"
+    riders_only = matrix.as_matrix("weekly", None, ["s005"])
+    assert [r["id"] for r in riders_only] == ["macos-latest-claude-py3.13"]
+    assert riders_only[0]["scenarios"] == ["s005"]
+    with pytest.raises(m.CellsError):
+        matrix.as_matrix("weekly", ["windows-latest-copilot-py3.13"], ["s005"])
+    assert m.main(["--set", "weekly", "--cells", "macos-latest-claude-py3.13", "--scenarios", "s012", "--json"]) == 0

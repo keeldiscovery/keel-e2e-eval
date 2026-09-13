@@ -40,6 +40,7 @@ import itertools
 import json
 import sys
 import tomllib
+import dataclasses
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Sequence
@@ -160,13 +161,18 @@ class Matrix:
         """The axis minus the suspended: what any set may name and what the weekly must cover."""
         return tuple(os_ for os_ in self.axes["os"] if os_ not in self.suspended_os)
 
-    def cells(self, set_name: str, only: Iterable[str] | None = None) -> list[Cell]:
+    def cells(self, set_name: str, only: Iterable[str] | None = None,
+              scenarios: Iterable[str] | None = None) -> list[Cell]:
         """The cells of one named set, optionally narrowed to a list of ids -- the workflow's
         `cells` input, which is how §13 step 5 runs *one* cell first (`ubuntu / claude / 3.13`) and
-        then the Windows / Copilot one, before ever running six."""
+        then the Windows / Copilot one, before ever running six -- and optionally to a list of
+        scenarios (the workflow's `scenarios` input, 2026-09-13): each chosen cell keeps only the
+        scenarios named, which must all be ones it already carries. The founder's use: the weekly
+        macOS Claude cell with the journey alone, no corpus riders, so the twin holds one project
+        for review. A cell left with nothing is dropped."""
         if set_name not in self.sets:
             raise CellsError(f"unknown set {set_name!r} -- cells.toml names {sorted(self.sets)}")
-        chosen = list(self.sets[set_name])
+        chosen = self._narrow_scenarios(list(self.sets[set_name]), scenarios)
         if only is None:
             return chosen
         wanted = [c.strip() for c in only if c and c.strip()]
@@ -180,8 +186,27 @@ class Matrix:
                 f"{sorted(by_id)}")
         return [by_id[w] for w in wanted]
 
-    def as_matrix(self, set_name: str, only: Iterable[str] | None = None) -> list[dict[str, Any]]:
-        return [cell.as_dict(self.live) for cell in self.cells(set_name, only)]
+    @staticmethod
+    def _narrow_scenarios(chosen: list[Cell], scenarios: Iterable[str] | None) -> list[Cell]:
+        if scenarios is None:
+            return chosen
+        keep = [x.strip() for x in scenarios if x and x.strip()]
+        if not keep:
+            return chosen
+        narrowed: list[Cell] = []
+        for cell in chosen:
+            unknown = [k for k in keep if k not in cell.scenarios]
+            if unknown:
+                raise CellsError(f"{cell.id} does not carry {unknown} -- the `scenarios` input may only "
+                                 f"keep scenarios a cell already runs (it has {list(cell.scenarios)})")
+            kept = tuple(sc for sc in cell.scenarios if sc in keep)
+            if kept:
+                narrowed.append(dataclasses.replace(cell, scenarios=kept))
+        return narrowed
+
+    def as_matrix(self, set_name: str, only: Iterable[str] | None = None,
+                  scenarios: Iterable[str] | None = None) -> list[dict[str, Any]]:
+        return [cell.as_dict(self.live) for cell in self.cells(set_name, only, scenarios)]
 
     @property
     def product(self) -> set[tuple[str, str, str]]:
@@ -430,12 +455,12 @@ def validate(matrix: Matrix) -> None:
 # ------------------------------------------------------------------------------------ the two CLIs
 
 def render(matrix: Matrix, set_name: str | None = None,
-           only: Iterable[str] | None = None) -> str:
+           only: Iterable[str] | None = None, scenarios: Iterable[str] | None = None) -> str:
     """What `make matrix-check` prints: the three sets, one line a cell, so the founder reads what
     would run before it runs."""
     lines = []
     for set_name in ((set_name,) if set_name else SET_NAMES):
-        cells = matrix.cells(set_name, only)
+        cells = matrix.cells(set_name, only, scenarios)
         lines.append(f"{set_name}  ({len(cells)} cell{'s' if len(cells) != 1 else ''})")
         for cell in cells:
             live = cell.k(matrix.live)
@@ -457,6 +482,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--cells", default="",
                         help="comma-separated cell ids to narrow the set to (the workflow's own "
                              "`cells` input)")
+    parser.add_argument("--scenarios", default="",
+                        help="comma-separated scenario ids to keep on every chosen cell (the "
+                             "workflow's own `scenarios` input); each must be one the cell carries")
     parser.add_argument("--json", action="store_true",
                         help="emit the set as the JSON list `strategy.matrix.include` takes")
     parser.add_argument("--file", type=Path, default=None, help="a cells.toml other than the one "
@@ -467,12 +495,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         matrix = load(args.file)
         validate(matrix)
         only = args.cells.split(",") if args.cells.strip() else None
+        keep = args.scenarios.split(",") if args.scenarios.strip() else None
         if args.json:
             if not args.set_name:
                 parser.error("--json needs --set")
-            print(json.dumps(matrix.as_matrix(args.set_name, only), separators=(",", ":")))
+            print(json.dumps(matrix.as_matrix(args.set_name, only, keep), separators=(",", ":")))
         else:
-            print(render(matrix, args.set_name, only), end="")
+            print(render(matrix, args.set_name, only, keep), end="")
     except CellsError as exc:
         print(f"matrix/cells.toml: {exc}", file=sys.stderr)
         return 2

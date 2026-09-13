@@ -48,6 +48,10 @@ on:
         description: "optional comma-separated cell ids, e.g. ubuntu-24.04-claude-py3.13"
         type: string
         default: ""
+      scenarios:
+        description: "optional comma-separated scenario ids to keep on the chosen cells, e.g. s012 (the journey alone, no corpus riders)"
+        type: string
+        default: ""
       deploy:
         description: "deploy the twin first (false: cells only, against what staging already runs)"
         type: boolean
@@ -107,6 +111,7 @@ jobs:
           CRON: ${{ github.event.schedule }}
           INPUT_SET: ${{ inputs.set }}
           INPUT_CELLS: ${{ inputs.cells }}
+          INPUT_SCENARIOS: ${{ inputs.scenarios }}
           PAYLOAD_REPO: ${{ github.event.client_payload.repo }}
           PAYLOAD_SHA: ${{ github.event.client_payload.sha }}
           PAYLOAD_WHY: ${{ github.event.client_payload.why }}
@@ -130,7 +135,7 @@ jobs:
           esac
           repo="${PAYLOAD_REPO:-${{ github.repository }}}"
           sha="${PAYLOAD_SHA:-${{ github.sha }}}"
-          cells=$(python -m matrix --set "$set_name" --cells "${INPUT_CELLS:-}" --json)
+          cells=$(python -m matrix --set "$set_name" --cells "${INPUT_CELLS:-}" --scenarios "${INPUT_SCENARIOS:-}" --json)
           count=$(python -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$cells")
           {
             echo "set=$set_name"
@@ -140,7 +145,7 @@ jobs:
             echo "sha=$sha"
             echo "why=$why"
           } >> "$GITHUB_OUTPUT"
-          python -m matrix --set "$set_name" --cells "${INPUT_CELLS:-}"
+          python -m matrix --set "$set_name" --cells "${INPUT_CELLS:-}" --scenarios "${INPUT_SCENARIOS:-}"
 
       - id: gate
         name: Is the twin switched on, and did the founder say [skip e2e]?
