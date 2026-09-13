@@ -3,7 +3,7 @@ PY := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
 PLAYWRIGHT := $(VENV)/bin/playwright
 
-.PHONY: up down eval eval-live eval-all report venv unit instruction-eval acceptance oidc-image \
+.PHONY: up down eval eval-live eval-all report venv unit instruction-eval instruction-screen acceptance oidc-image \
         matrix-check
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
@@ -139,6 +139,15 @@ acceptance: venv
 #   make instruction-eval K=reading N=1         one subject, one run per case
 #   make instruction-eval K=brief N=1           the BRIEF paragraph, seven calls
 #   make instruction-eval HOST=copilot N=1      the other host, one run per case
+# The screen (the founder, 2026-09-12): one entry of the seven, every stage and every person,
+# three times -- about a seventh of the corpus -- for shopping models and checking a prompt change
+# before the full run. It is never a run of record: the refusal mark's denominator is the whole
+# corpus, and the gate says so.
+instruction-screen: venv
+	$(PY) -m instructions.run --host $(if $(HOST),$(HOST),claude) \
+		$(if $(DRY),--dry-run,) -k "$(if $(K),$(K),01-countly)" -n $(if $(N),$(N),3) \
+		$(if $(MARKS),--marks $(MARKS),)
+
 instruction-eval: venv
 	$(PY) -m instructions.run --host $(if $(HOST),$(HOST),claude) \
 		$(if $(DRY),--dry-run,) $(if $(BASELINE),--baseline,) \

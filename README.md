@@ -1113,7 +1113,15 @@ paragraph is wording, and a mark this narrow can be wrong about a paragraph that
   `gpt-5.6-luna`, which is also what spec 014's router happened to choose, so the two runs are one
   measurement rather than two.
 
-### Two hosts (`HOST={claude,copilot}`, spec 014)
+### The screen: `make instruction-screen HOST=<host> [K=<entry>] [N=3]`
+
+One entry of the seven (`01-countly` unless `K=` says otherwise), every stage and every person,
+three times: about a seventh of the corpus in a few minutes. It is for shopping models
+(`KEEL_CODEX_MODEL=... make instruction-screen HOST=codex`) and for checking a prompt change
+before spending on the full run. **It is never a run of record**: the refusal mark's denominator is
+the whole corpus and its verdict is judged on a filtered run, which is never a pass by rule.
+
+### Three hosts (`HOST={claude,copilot,codex}`, spec 014 and keel-runtime spec 008)
 
 keel-cloud `canon/designs/keel-skill-design.md` §5 says Claude Code is **one of two hosts**, and
 §5.5 makes this eval the third part of a four-part "supported" gate: a host is supported only when
