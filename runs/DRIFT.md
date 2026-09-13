@@ -4594,3 +4594,120 @@ the product's move, measured again at N=3 before it counts -- never a loosened m
 
 **Tests**: none -- this is a measurement, and its evidence is the bundle named above
 (`verdict.json`, `scorecard.json` → `brief[]` and `validation.json` → `03-lullaby/PROBLEM/run3`).
+
+## 68. Model event (Claude Code, `claude-sonnet-5` unpinned, Windows, both scheduled sets): the BRIEF paragraph lands over the wire's 1,200-character edge five times running, and Claude Code gives up
+
+**Found by S-012 on the matrix, twice in one morning**: the nightly run **34745834200** (schedule,
+2026-09-13 07:40 UTC), cell `windows-latest-claude-py3.13`, bundle
+`20260913T074314Z-s012-journey-claude`; and the weekly run **34748097732** (08:36 UTC), cell
+`windows-latest-claude-py3.12`, bundle `20260913T091005Z-s012-journey-claude`. Both at §1.7 after
+a 421-second wait:
+
+```
+AssertionError: no *What this says* paragraph after the reading -- the BRIEF job the host was
+given never produced one
+assert (None)
+```
+
+Host Claude Code, no pin (keel-cloud's routing table v1 was empty; `execution.json`:
+`model_requested: null, model_used: claude-sonnet-5`). Plugin 2.3.0, runtime 0.5.0, cloud e285b1b --
+the same code the 04:02 nightly (34736943403) had passed, Windows 3.13 included.
+
+**What the model wrote** (`keel-home/jobs/6522ede8…/events.jsonl` and `…/d00d9f42…/events.jsonl`,
+the BRIEF job's five `StructuredOutput` calls, verbatim tool results):
+
+```
+1  {"$PARAMETER_NAME": "{\"outcome\": \"COMPLETED\", ..."}      -- 3.13; on 3.12: {"$FUNCTION_NAME": "StructuredOutput"}
+   Output does not match required schema: root: must have required property 'outcome',
+   root: must NOT have additional properties ('$PARAMETER_NAME' is not allowed)
+2  /result/whatThisSays: must NOT have more than 1200 characters (got 1356)    -- 3.12: got 1345
+3  /result/whatThisSays: must NOT have more than 1200 characters (got 1298)    -- 3.12: got 1296
+4  /result/whatThisSays: must NOT have more than 1200 characters (got 1243)    -- 3.12: got 1243
+5  /result/whatThisSays: must NOT have more than 1200 characters (got 1233)    -- 3.12: got 1218
+```
+
+then the CLI's own verdict, `subtype: error_max_structured_output_retries`, `num_turns: 6`,
+`errors: ["Failed to provide valid structured output after 5 attempts — last StructuredOutput
+error: Output does not match required schema: /result/whatThisSays: must NOT have more than 1200
+characters (got 1233)"]`. The runtime reported the job failed; the screen showed *"Nothing to say
+across the three claims yet"*; the referee found no paragraph.
+
+**What it is.** The 1,200 cap is the wire's own edge (spec 026, words-are-words §L3: `whatThisSays`
+carries `maxLength` 1200, and the CONTRACT section shows the model that schema). The model shortened
+on every attempt -- by 58, 55, 10 and 10 characters -- and never crossed the line before Claude
+Code's fifth strike. One of the five was spent on a placeholder-named tool call
+(`$PARAMETER_NAME` / `$FUNCTION_NAME` in place of the real arguments), a Claude Code + sonnet-5
+quirk that leaves four real tries, not five. The reading before it was right (§1.6 passed, *"Nothing
+moved"*), and the same brief from the same prompt came in under the cap at 04:02.
+
+**Not adapted around.** The assertion stands; the timeout stands; the cap stands (it is the
+product's, and a longer paragraph is exactly what it exists to refuse).
+
+**Options, and they are the founder's, all product-side.** (a) keel-cloud's `brief.md` states the
+cap in the model's own unit -- *about 180 words* -- beside the schema's characters, so the first
+draft lands under it rather than being trimmed toward it. (b) keel-runtime counts `whatThisSays`
+before submitting and asks once for a shorter paragraph in words, the way the cloud's own rule
+refusals are corrected in one extra call. (c) Nothing: on the evidence a rerun goes green, and
+the referee counts the event. None of these is a referee change.
+
+**Tests**: none -- a measurement; the evidence is the two bundles named above (`transcript.jsonl`
+seq 95, `keel-home/jobs/<id>/events.jsonl`, `envelope.json`).
+
+## 69. Model event (Copilot, `claude-sonnet-5` unpinned, CLI 1.0.83): the second shape #59's no-phase fallback has met -- a SOLUTION_FRAME second turn answered as prose, then the JSON
+
+**Found by S-012 on the matrix**, the weekly run **34748097732** (2026-09-13 08:36 UTC), cell
+`ubuntu-24.04-copilot-py3.9`, bundle `20260913T083740Z-s012-journey-copilot`, at leg two's
+"zero refusals, every job COMPLETED":
+
+```
+AssertionError: the host's work was refused: [{'interaction_id': 'e518d8ae-…', 'screen':
+'SOLUTION_FRAME', 'status': 'JOB_FAILED', 'detail': 'Your AI went away before it answered.',
+'diagnostic': 'INVALID_LLM_RESPONSE: INVALID_LLM_RESPONSE: final_answer is not JSON: Expecting
+value: line 1 column 1 (char 0)'}]
+```
+
+Host GitHub Copilot CLI 1.0.83, no pin (`execution.json`: `model_requested: null, model_used:
+claude-sonnet-5`), plugin 2.3.0, runtime 0.5.0. The journey otherwise ran to the opened card
+(§1.7 passed, seven strips) and the reading read right.
+
+**What the model wrote** (`keel-home/jobs/15c01b41…/events.jsonl`, two `assistant.message`
+events, both `phase: null`). Turn one, a `NEEDS_INPUT` asking how the app improves on guessing;
+the scripted founder answered *"that's the whole of it"*. Turn two, verbatim:
+
+> The founder declined to elaborate further ("that's the whole of it"), so mechanics of
+> improvement stays declined. Completing now with a shorter statement.
+>
+> {"outcome": "COMPLETED", "result": {"statement": "A phone app for parents of babies under six
+> months listens to overnight crying at the point they'd normally start guessing, and outputs a
+> likely need — hunger, nappy, wind, temperature — so the …
+
+Two sentences of narration, then a well-formed envelope. #59's fallback (runtime 0.4.0+: no
+`phase` → the last `assistant.message` is the answer) handed the whole message to the JSON
+reader, which stopped at *T*. The envelope: `is_error: true, structured_output: null,
+num_turns: 2, premium_requests: 1`.
+
+**What it is.** The RESPONSE section says *"exactly one JSON object … and nothing else: no prose
+before it"*, and the model wrote prose before it -- on the second turn, after being told there was
+nothing more to say, which is when a model narrates. The reader held the model to the sentence.
+Same family as #59 (reading, not thinking), but this time the answer really is not a bare object,
+so the reader is not wrong; it is strict.
+
+**Not adapted around.** No assertion moved.
+
+**Options, the founder's, product-side.** (a) keel-runtime's Copilot/Codex reader accepts one JSON
+object embedded in prose -- find the outermost `{…}` in the final message and parse that -- the way
+the cloud's `words-are-words` already reads only the keys it knows and ignores the rest; a shape
+refusal would then count only when no object is there at all. (b) Nothing: count the event, rerun
+goes green on the evidence. (c) The pin: on the routing table's Copilot row the second turn would
+run on the certified model rather than the account default, which is the table's purpose.
+
+**Tests**: none -- a measurement; evidence is the bundle named above.
+
+**2026-09-13, the same weekly run, no number of its own:** `macos-latest-codex-py3.13`
+(`20260913T092446Z-s012-journey-codex`) and `windows-latest-codex-py3.13`
+(`20260913T092621Z-s012-journey-codex`) failed at leg one -- *"codex answered but no runtime
+heartbeat exists … It said: ''"* -- because the OpenAI account behind `KEEL_RUNTIME_CI_CODEX` had no
+credits: twelve `error` events reading *"You have no credits remaining. Add credits to continue
+using the API at https://platform.openai.com/settings/organization/billing/."* then
+`turn.failed`. Infrastructure; the plugin listed fine (`keel@keel installed, enabled 2.3.0`).
+Green again once the account is funded.
