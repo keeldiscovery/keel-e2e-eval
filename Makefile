@@ -149,18 +149,24 @@ acceptance: venv
 # keel-cloud's exporter wrote beside the contracts: the run of record for the cloud's own table.
 # Never beside `KEEL_<HOST>_MODEL` (the runtime drops it at 0.5.0); the run refuses both at once.
 #
-#   make instruction-screen HOST=codex MODELS=candidates.json     one entry, per-class pins
-#   make instruction-eval HOST=codex MODELS=exported              the cloud's table, in full
+# **WHY=<event>** (the founder, 2026-09-13, design §7.1): every run that spends says why --
+# `WHY=instruction:<file>`, `WHY=prompt:<file>`, `WHY=contract:<file>` earn a screen;
+# `WHY=new-model:<host>:<model>` earns the full run. Without one the run refuses at the door and
+# prints the policy; `DRY=1` needs none. The reason is written into the bundle's manifest.
+#
+#   make instruction-screen HOST=codex WHY=contract:brief.md MODELS=candidates.json   one entry
+#   make instruction-eval HOST=codex WHY=new-model:codex:gpt-6-astra MODELS=exported   the certificate
 instruction-screen: venv
 	$(PY) -m instructions.run --host $(if $(HOST),$(HOST),claude) \
 		$(if $(DRY),--dry-run,) -k "$(if $(K),$(K),01-countly)" -n $(if $(N),$(N),3) \
-		$(if $(MARKS),--marks $(MARKS),) $(if $(MODELS),--models $(MODELS),)
+		$(if $(MARKS),--marks $(MARKS),) $(if $(MODELS),--models $(MODELS),) \
+		$(if $(WHY),--why "$(WHY)",)
 
 instruction-eval: venv
 	$(PY) -m instructions.run --host $(if $(HOST),$(HOST),claude) \
 		$(if $(DRY),--dry-run,) $(if $(BASELINE),--baseline,) \
 		$(if $(K),-k "$(K)",) $(if $(N),-n $(N),) $(if $(MARKS),--marks $(MARKS),) \
-		$(if $(MODELS),--models $(MODELS),)
+		$(if $(MODELS),--models $(MODELS),) $(if $(WHY),--why "$(WHY)",)
 
 # spec 018-gated-registry-stub: the stub OIDC issuer as a container, which is the one service the
 # staging twin runs that production does not (keel-cloud `canon/designs/e2e-matrix-design.md` §3

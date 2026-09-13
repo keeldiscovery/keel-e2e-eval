@@ -66,12 +66,22 @@ def main(argv=None) -> int:
     parser.add_argument("-k", dest="filter", default=None)
     parser.add_argument("-n", dest="n_runs", type=int, default=3)
     parser.add_argument("--marks", default=None)
+    parser.add_argument("--why", default=None,
+                        help="why this run is paid for: instruction:<file>, prompt:<file>, "
+                             "contract:<file> (a screen) or new-model:<host>:<model> (the full run); "
+                             "refused without one unless --dry-run (design §7.1)")
     parser.add_argument("--models", default=None,
                         help="a model-routing table pinning each job class through the job's "
                              "`model` key, or `exported` for keel-cloud's own")
     parser.add_argument("--no-judge", action="store_true",
                         help="score with the structural matcher alone (MARKS_VERSION 1's rule)")
     args = parser.parse_args(argv)
+    from . import why as why_mod  # noqa: PLC0415
+    try:
+        args.why_record = why_mod.check(args.why, screen=bool(args.filter), dry_run=args.dry_run)
+    except why_mod.NoReason as refusal:
+        print(refusal, file=sys.stderr)
+        return 2
 
     # A table given as a file is read before anything else is asked for, so a typo in it is the
     # first thing said and not the last; `exported` has to wait for the exporter. Both refuse
@@ -467,6 +477,7 @@ def _manifest(args, facts, executor, pinned_model, reported_model, started_at,
     """
     return {
         "scenario": "instructions",
+        "why": getattr(args, "why_record", None),
         "baseline": bool(args.baseline),
         "host": args.host,
         "cli": {"binary": facts.get("cli"), "version": facts.get("cli_version")},

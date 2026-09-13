@@ -16,6 +16,10 @@ added to this line rather than quietly written — which is exactly how the thir
   inference-instruction prose against a frozen golden corpus, and its rubric is versioned as
   `instructions.marks.MARKS_VERSION`, separately from `evals/policy.py`'s `POLICY_VERSION`, so the
   two can never be confused.
+  **It spends the founder's money and runs only for a named event** (keel-cloud
+  `canon/designs/model-routing-design.md` §7.1; `instructions/why.py`): `WHY=instruction:…`,
+  `prompt:…` or `contract:…` earns one screen, `WHY=new-model:<host>:<model>` earns the full run,
+  and a code change earns nothing. Never run it on a schedule, in CI, or "to be sure".
 - **S-012**, *the journey through a host* (`evals/test_s012_journey_through_a_host.py`, specs
   `016-copilot-e2e`, `019-journey-through-a-host` and `021-short-journey`) — the third, and here
   is the argument for it. keel-cloud `canon/designs/keel-skill-design.md` §5.5 makes a host "supported" only when four
