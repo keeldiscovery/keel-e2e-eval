@@ -1338,8 +1338,10 @@ same door; `LEGS=full` (the default) is everything below. The short one asserts 
 full one asserts up to that point and nothing more, because it is literally the same function
 (`_land_the_card`), and its bundle says so in its name (`…-s012-journey-<host>-short/`). And the
 founder is a **golden corpus** founder: `ENTRY=<id>`, default `03-lullaby`, so the project name is
-the entry's title, the market is its market, the three statements are typed verbatim, and the one
-person invited is the entry's first, with their own story text per anchor and their own picks —
+the entry's title, the market is its market, the three statements are typed verbatim, and the
+people invited are the entry's first five on the full journey (`PEOPLE=<n>`, `KEEL_JOURNEY_PEOPLE`;
+one on the short journey -- the founder, 2026-09-13: five, so the brief has a verdict), each with
+their own story text per anchor and their own picks —
 read through `harness/corpus_script.py`, the same module the six scripted scenarios read them
 through. What the model writes is still the model's: on a live run the anchors and pick lists are
 its own, so the person's stories go into them in order, their picks are used where the model's list
