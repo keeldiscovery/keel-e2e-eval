@@ -24,8 +24,13 @@ registers with the twin's picker (§4.3), which cannot be two people.
 **Why the scenarios are split into two lists.** `s012` (and `s004`) are `-m live`: a real host CLI,
 a real model, real money, `make eval-live`. `s005`/`s006`/`s007` are not: they drive the product's
 own judgement against the frozen corpus and call no model at all. One cell can carry both -- the
-nightly's Claude cell does (decision 11) -- so each cell offers the two pytest `-k` expressions its
-workflow step needs, and either may be empty.
+weekly's macOS Claude cell does (decision 11) -- so each cell offers the two pytest `-k`
+expressions its workflow step needs, and either may be empty.
+
+**The nightly is suspended** (design §15, the founder, 2026-09-13: *"we cannot afford to do a
+nightly run; only the weekly"*). The set name stays -- a hand dispatch may still name it and gets
+nothing -- and the coverage rules hold it EMPTY, so a cell put back there is a decision being
+undone by accident until the rule is rewritten with the cron.
 """
 
 from __future__ import annotations
@@ -43,7 +48,9 @@ from typing import Any, Iterable, Sequence
 #: a second matrix nobody knew about.
 CELLS_TOML = Path(__file__).resolve().parent / "cells.toml"
 
-#: The three named sets, in the order §5.2 tables them (cheap, nightly, everything).
+#: The three named sets, in the order §5.2 tables them (cheap, nightly, everything). `nightly`
+#: is suspended since 2026-09-13 (design §15) and must be empty; the name is kept so a hand
+#: `inputs[set]=nightly` resolves to "no cells" rather than to an error.
 SET_NAMES = ("per_change", "nightly", "weekly")
 
 #: How much of S-012 a cell runs (spec `021-short-journey`; `harness/agent_host.py`'s own `LEGS`,
@@ -129,10 +136,15 @@ class Matrix:
     default_scenarios: tuple[str, ...]
     sets: dict[str, tuple[Cell, ...]]
     #: Hosts the matrix may buy but does not owe (keel-runtime spec 008, 2026-09-12): a host that
-    #: runs but has not passed keel-skill-design §5.5's four-part gate. Allowed in nightly and
-    #: weekly, never in per_change (a merge buys the measured hosts and nothing else), and not
-    #: part of the product the weekly set must cover. `[axes].host_unmeasured` in cells.toml.
+    #: runs but has not passed keel-skill-design §5.5's four-part gate. Allowed in weekly, never
+    #: in per_change (a merge buys the measured hosts and nothing else), and not part of the
+    #: product the weekly set must cover. `[axes].host_unmeasured` in cells.toml; empty since
+    #: Codex passed the gate (2026-09-13).
     unmeasured_hosts: tuple[str, ...] = ()
+    #: Operating systems the axis still names but no set owes or may name (the founder,
+    #: 2026-09-13: Ubuntu, *"fewer than 5% of founders"*, suspended everywhere to cut cost).
+    #: `[axes].os_suspended`. The weekly product is the axis minus these.
+    suspended_os: tuple[str, ...] = ()
     #: The hosts a merge and the night pay for (the founder, 2026-09-12: *"Claude Code is the one
     #: we want to run daily in the night; Copilot and Codex only once a week"*). A measured host
     #: not named here is bought weekly, whole, and nowhere else. `[axes].host_everyday`; defaults
@@ -142,6 +154,11 @@ class Matrix:
     @property
     def all_hosts(self) -> tuple[str, ...]:
         return tuple(self.axes["host"]) + tuple(self.unmeasured_hosts)
+
+    @property
+    def active_os(self) -> tuple[str, ...]:
+        """The axis minus the suspended: what any set may name and what the weekly must cover."""
+        return tuple(os_ for os_ in self.axes["os"] if os_ not in self.suspended_os)
 
     def cells(self, set_name: str, only: Iterable[str] | None = None) -> list[Cell]:
         """The cells of one named set, optionally narrowed to a list of ids -- the workflow's
@@ -168,8 +185,9 @@ class Matrix:
 
     @property
     def product(self) -> set[tuple[str, str, str]]:
-        """Every (os, host, python) the axes allow -- what the weekly set must be."""
-        return set(itertools.product(self.axes["os"], self.axes["host"], self.axes["python"]))
+        """Every (os, host, python) the axes allow, the suspended OS left out -- what the weekly
+        set must be (design §15: eighteen since 2026-09-13, two OS x three hosts x three Pythons)."""
+        return set(itertools.product(self.active_os, self.axes["host"], self.axes["python"]))
 
 
 # --------------------------------------------------------------------------------------- loading
@@ -201,6 +219,15 @@ def load(path: Path | None = None) -> Matrix:
             problems.append(f"[axes].{name} names no values")
     unmeasured = (_str_list(axes_raw.get("host_unmeasured"), "[axes].host_unmeasured", problems)
                   if "host_unmeasured" in axes_raw else ())
+    suspended = (_str_list(axes_raw.get("os_suspended"), "[axes].os_suspended", problems)
+                 if "os_suspended" in axes_raw else ())
+    unknown_os = sorted(set(suspended) - set(axes["os"]))
+    if unknown_os:
+        problems.append(f"[axes].os_suspended names {unknown_os}, which [axes].os does not: only "
+                        f"an operating system the axis knows can be suspended")
+    if axes["os"] and set(suspended) >= set(axes["os"]):
+        problems.append("[axes].os_suspended suspends every operating system -- a matrix with "
+                        "nowhere to run")
     overlap = sorted(set(unmeasured) & set(axes["host"]))
     if overlap:
         problems.append(f"[axes].host_unmeasured names {overlap}, which [axes].host already "
@@ -279,59 +306,49 @@ def load(path: Path | None = None) -> Matrix:
     if problems:
         raise CellsError(f"{path}:\n  - " + "\n  - ".join(problems))
     return Matrix(axes=axes, live=live, default_scenarios=default_scenarios, sets=sets,
-                  unmeasured_hosts=unmeasured, everyday_hosts=everyday)
+                  unmeasured_hosts=unmeasured, everyday_hosts=everyday, suspended_os=suspended)
 
 
 # -------------------------------------------------------------------------- the coverage rules
 
-#: **The operating system the per-change and nightly sets deliberately leave out** (the founder's
-#: decision, 2026-09-11: *"fewer than 5% of founders"*). Ubuntu is not dropped -- it is weekly, in
-#: full, every Sunday. It is dropped from the sets that run on a merge and overnight, because the
-#: minutes there buy more on the two operating systems founders actually install the plugin on.
-#: Written as a prefix because the runner label carries a version (`ubuntu-24.04`) and the rule is
-#: about the OS.
-CHEAP_SETS_SKIP = "ubuntu"
-
-
 def coverage_problems(matrix: Matrix) -> list[str]:
     """The design's coverage rules, as checks -- **rewritten by spec 021** (the founder's
-    decisions of 2026-09-11), which is why they no longer read like §5.2's prose.
+    decisions of 2026-09-11) and **again by design §15** (2026-09-13: the nightly suspended, Ubuntu
+    suspended, Codex measured), which is why they no longer read like §5.2's prose.
 
     They are here rather than only in the test suite so that `make matrix-check` enforces them
     too: the founder editing cells.toml on a Sunday is exactly the reader who would not run
     `make unit` afterwards.
 
-    The six rules, in the order they are checked:
+    The rules, in the order they are checked:
 
-    1. **per_change is the two operating systems founders install on, each host, on the current
-       Python, running the short journey.** Four cells. Ubuntu is not in it and neither is the
-       floor: a merge buys the host leg and the first model job on macOS and Windows.
+    1. **per_change is the active operating systems, each everyday host, on the current Python,
+       running the short journey.** Two cells today (macOS and Windows x Claude Code). Neither a
+       suspended OS nor the floor: a merge buys the host leg and the first model job.
     2. **per_change runs only the journey, and only the short one.** A corpus scenario or a full
        journey in the cheap set is the cheap set stopping being cheap.
-    3. **nightly carries every per_change combination again, at full length.** What a merge buys
-       short, the night buys whole -- so a break the short journey cannot see is at most a day
-       old.
-    4. **nightly spends the 3.9 floor**, on Windows, both hosts. spec 004's floor is a promise and
-       a promise nothing runs against is not one; it moved from per_change to nightly rather than
-       being dropped.
-    5. **Neither cheap set leaves for Ubuntu**, and nightly is six plugin cells plus the one
-       Spec Kit cell (spec 022).
-    6. **weekly is the full product of the axes, every cell at full length.** Ubuntu is here, and
-       this is the confirmation that nothing is hiding in a corner.
+    3. **nightly is empty.** Suspended 2026-09-13 to cut cost; a cell here is the decision being
+       undone by accident. When a night returns, this rule is rewritten with its cron.
+    4. **No set names a suspended operating system.** Ubuntu is not dropped from the axis, it is
+       bought nowhere.
+    5. **weekly buys whole what a merge bought short**, keeps the 3.9 floor, carries the corpus
+       riders on one macOS Claude cell and exactly one Spec Kit cell (spec 022), and is otherwise
+       **the full product of the active axes at full length** -- eighteen cells: two OS x three
+       measured hosts x three Pythons. An unmeasured host may ride it and is not owed by it.
     """
     problems: list[str] = []
-    everyday = [os_ for os_ in matrix.axes["os"] if not os_.startswith(CHEAP_SETS_SKIP)]
+    active = list(matrix.active_os)
 
     per_change = matrix.sets.get("per_change", ())
     covered = {(cell.os, cell.host) for cell in per_change}
     # A merge buys the everyday hosts and nothing else: never an unmeasured host, and -- since
     # 2026-09-12 -- not a measured host the founder moved to the weekly set either.
-    want = set(itertools.product(everyday, matrix.everyday_hosts))
+    want = set(itertools.product(active, matrix.everyday_hosts))
     if covered != want:
         missing = sorted(want - covered)
         extra = sorted(covered - want)
         problems.append("per_change must run each of "
-                        f"{everyday} once per everyday host {list(matrix.everyday_hosts)} and "
+                        f"{active} once per everyday host {list(matrix.everyday_hosts)} and "
                         "nothing else (spec 021, narrowed 2026-09-12)"
                         + (f"; it misses {missing}" if missing else "")
                         + (f"; it also names {extra}" if extra else ""))
@@ -350,51 +367,56 @@ def coverage_problems(matrix: Matrix) -> list[str]:
                         f"also names {beyond}, which is the cheap set stopping being cheap")
 
     nightly = matrix.sets.get("nightly", ())
-    # spec 022: exactly one Spec Kit cell, and it rides the nightly on macOS through Claude, short
-    # -- the extension is the same tree as the plugin, so one cell proves the road and not the
-    # runtime twice. Every other rule below reads the plugin cells only.
-    speckit = [c for c in nightly if c.install == "speckit"]
-    if [(c.os, c.host, c.legs) for c in speckit] != [("macos-latest", "claude", "short")]:
-        problems.append("nightly carries exactly one Spec Kit cell, macOS through Claude, the short "
-                        f"journey (spec 022); it carries {[c.id for c in speckit]}")
-    elsewhere = sorted(c.id for name, cells in matrix.sets.items() if name != "nightly"
-                       for c in cells if c.install == "speckit")
-    if elsewhere:
-        problems.append(f"the Spec Kit cell is nightly's alone (spec 022): {elsewhere}")
-    nightly = tuple(c for c in nightly if c.install == "plugin")
-    strayed = sorted({cell.os for cell in nightly if cell.os.startswith(CHEAP_SETS_SKIP)})
-    if strayed:
-        problems.append(f"nightly leaves {CHEAP_SETS_SKIP!r} to the weekly set (spec 021, "
-                        f"'fewer than 5% of founders'); it names {strayed}")
-    nightly_full = {(c.os, c.host, c.python) for c in nightly if c.legs == "full"}
-    unheld = sorted({(c.os, c.host, c.python) for c in per_change} - nightly_full)
-    if unheld:
-        problems.append(f"nightly must run every per_change cell at full length (spec 021): "
-                        f"{unheld} are bought short on a merge and never bought whole")
-    floor = matrix.axes["python"][0] if matrix.axes["python"] else ""
-    if not any(cell.python == floor for cell in nightly):
-        problems.append(f"nightly spends no cell on Python {floor} -- spec 004's floor is a "
-                        f"promise, and per_change no longer runs it, so the night is where it is "
-                        f"kept")
-    weekly_only = sorted({c.id for c in nightly if c.host in matrix.axes["host"]
-                          and c.host not in matrix.everyday_hosts})
-    if weekly_only:
-        problems.append(f"nightly buys only the everyday hosts {list(matrix.everyday_hosts)} "
-                        f"(the founder, 2026-09-12); {weekly_only} belong to the weekly set")
+    if nightly:
+        problems.append(f"nightly is suspended (design §15, the founder, 2026-09-13: 'we cannot "
+                        f"afford a nightly run'); it names {sorted(c.id for c in nightly)} -- put "
+                        f"the cron back in matrix.yml and rewrite this rule before any cell")
+
+    for name, cells in matrix.sets.items():
+        strayed = sorted({c.id for c in cells if c.os in matrix.suspended_os})
+        if strayed:
+            problems.append(f"{name} names a suspended operating system "
+                            f"{list(matrix.suspended_os)} (design §15, 2026-09-13): {strayed}")
 
     weekly = matrix.sets.get("weekly", ())
+    # spec 022: exactly one Spec Kit cell, macOS through Claude, short -- the extension is the
+    # same tree as the plugin, so one cell proves the road and not the runtime twice. It rode
+    # the nightly until 2026-09-13; it rides the weekly now. Every other rule reads plugin cells.
+    speckit = [c for c in weekly if c.install == "speckit"]
+    if [(c.os, c.host, c.legs) for c in speckit] != [("macos-latest", "claude", "short")]:
+        problems.append("weekly carries exactly one Spec Kit cell, macOS through Claude, the short "
+                        f"journey (spec 022, moved from nightly 2026-09-13); it carries "
+                        f"{[c.id for c in speckit]}")
+    elsewhere = sorted(c.id for name, cells in matrix.sets.items() if name != "weekly"
+                       for c in cells if c.install == "speckit")
+    if elsewhere:
+        problems.append(f"the Spec Kit cell is weekly's alone (spec 022): {elsewhere}")
+    plugin_weekly = tuple(c for c in weekly if c.install == "plugin")
+    weekly_full = {(c.os, c.host, c.python) for c in plugin_weekly if c.legs == "full"}
+    unheld = sorted({(c.os, c.host, c.python) for c in per_change} - weekly_full)
+    if unheld:
+        problems.append(f"weekly must run every per_change cell at full length (spec 021, the "
+                        f"night's duty since 2026-09-13): {unheld} are bought short on a merge and "
+                        f"never bought whole")
+    floor = matrix.axes["python"][0] if matrix.axes["python"] else ""
+    if not any(cell.python == floor for cell in plugin_weekly):
+        problems.append(f"weekly spends no cell on Python {floor} -- spec 004's floor is a "
+                        f"promise, and no other set runs it")
     # An unmeasured host may ride the weekly set but is not owed by it: the product is the
     # measured hosts' (keel-runtime spec 008).
-    combos = {(c.os, c.host, c.python) for c in weekly if c.host not in matrix.unmeasured_hosts}
+    combos = {(c.os, c.host, c.python) for c in plugin_weekly
+              if c.host not in matrix.unmeasured_hosts}
     if combos != matrix.product:
         missing = sorted(matrix.product - combos)
         extra = sorted(combos - matrix.product)
-        problems.append("weekly must be the full product of the axes (§5.2, eighteen cells)"
+        problems.append("weekly must be the full product of the active axes (design §15, "
+                        "eighteen cells: two OS x three hosts x three Pythons)"
                         + (f"; missing {missing}" if missing else "")
                         + (f"; unexpected {extra}" if extra else ""))
-    shortened = sorted({c.id for c in weekly if c.legs != "full"})
+    shortened = sorted({c.id for c in plugin_weekly if c.legs != "full"})
     if shortened:
-        problems.append(f"weekly is the full journey everywhere (spec 021); {shortened} are short")
+        problems.append(f"weekly is the full journey everywhere but the Spec Kit cell (spec 021); "
+                        f"{shortened} are short")
     return problems
 
 

@@ -917,8 +917,8 @@ founder and the workflow:
 
 ```bash
 make matrix-check                                            # the three sets, one line a cell
-make matrix-check SET=nightly                                # just that one
-make matrix-check SET=weekly CELLS=ubuntu-24.04-claude-py3.13
+make matrix-check SET=weekly                                 # just that one
+make matrix-check SET=weekly CELLS=macos-latest-claude-py3.13
 ```
 
 `make matrix-check` is `python -m matrix`, which is exactly what the workflow's `select` job runs —
@@ -928,29 +928,32 @@ coverage rules, so a `cells.toml` that drifts from §5.2 is caught before a role
 is deployed or a model is asked anything. `tests/test_matrix_cells.py` holds the real file to the
 same rules in `make unit`.
 
-**The sets, as the founder set them on 2026-09-11** (spec `021-short-journey`; the design's §5.2
-counted six per change, six nightly on Ubuntu, eighteen weekly, and decision 4 marks that
-**[overrulable]**):
+**The sets, as the founder set them on 2026-09-13** (design §15, on top of spec
+`021-short-journey`'s of 2026-09-11; decision 4 marks the sets **[overrulable]** and this is that
+overrule used twice):
 
 | Set | Cells | Journey | What | When |
 |---|---|---|---|---|
-| `per_change` | **2** | **short** | macOS and Windows × Claude Code, Python 3.13, S-012 alone (the founder, 2026-09-12: Copilot and Codex are weekly) | a push to master here, or a dispatch from keel-cloud / keel-runtime / keel-connect-skill / keel-web |
-| `nightly` | **3** + 1 | full | those same 2, whole — plus Windows × Claude on the **3.9 floor**; the corpus scenarios ride on the macOS Claude cell; one short Spec Kit cell. Claude Code only: `[axes].host_everyday` | 03:00 UTC |
-| `weekly` (18 measured + 2 Codex) | 18 | full | the full product of the three axes, Ubuntu included | Sunday 04:00 UTC |
+| `per_change` | **2** | **short** | macOS and Windows × Claude Code, Python 3.13, S-012 alone — the one remaining every-merge spend, about two model jobs a cell | a push to master here, or a dispatch from keel-cloud / keel-runtime / keel-connect-skill / keel-web |
+| `nightly` | **0** | — | **suspended** (the founder: *"we cannot afford to do a nightly run"*). The name stays so a hand dispatch resolves to nothing; the 03:00 cron is gone | never |
+| `weekly` | **18** + 1 | full | the product of the active axes — macOS and Windows × Claude Code, Copilot, Codex × 3.9 / 3.12 / 3.13 — every cell the whole lullaby journey through the brief; the corpus scenarios and S-013 ride on the macOS Claude 3.13 cell; one short Spec Kit cell | Sunday 04:00 UTC |
 
 Three things to read off that table. **A merge buys the short journey** — the host leg entire
 (marketplace, *"keel connect"*, device approval, the runtime on the host's executor) plus the first
 model job, the PROBLEM frame's confirmation card. That is the part that breaks when an OS, a Python
-or a host CLI moves, and it is about two premium requests a cell instead of thirteen. **The night
-buys it whole**, on the same four cells, so nothing is measured less often than daily — that rule
-is enforced, not remembered. And **Ubuntu is weekly only**: fewer than 5% of founders, so it is
-bought once a week rather than once a merge. `legs` is a per-cell field in `cells.toml`, optional,
-defaulting to `full`, and the workflow exports it as `KEEL_JOURNEY_LEGS`.
+or a host CLI moves, and it is about two model jobs a cell instead of thirteen. **The week buys it
+whole**, on the same two cells and sixteen more, so nothing is measured less often than weekly —
+that rule is enforced, not remembered. And **Ubuntu is suspended**: *"fewer than 5% of
+founders"*, so it is on the axis (`[axes].os_suspended`), named by no set and owed by none.
+`legs` is a per-cell field in `cells.toml`, optional, defaulting to `full`, and the workflow
+exports it as `KEEL_JOURNEY_LEGS`.
 
-The axes are three operating systems, two measured hosts (plus Codex as `host_unmeasured`: allowed in nightly and weekly, never owed by per_change or the weekly product) and **three** Pythons — 3.9 (spec 004's floor),
-3.12 (what Ubuntu 24.04 ships and what this harness runs on) and 3.13. The design's §5.1 names two
-while its §5.2 and §10 count eighteen weekly cells and six nightly ones; `matrix/cells.toml`'s
-header carries that arithmetic and why the third value is 3.12.
+The axes are three operating systems (one suspended), three measured hosts (Codex since
+2026-09-13, keel-cloud CANON.md waiver W-042-1; `[axes].host_unmeasured` is empty and stays for
+the next host) and **three** Pythons — 3.9 (spec 004's floor), 3.12 (what Ubuntu 24.04 ships and
+what this harness runs on) and 3.13. The design's §5.1 named two hosts and three OSes while §5.2
+and §10 counted eighteen weekly cells and six nightly ones; §15 and `matrix/cells.toml`'s header
+carry today's arithmetic (2 × 3 × 3) and why the third Python is 3.12.
 
 A **cell** is one (OS, host, Python) run once, as one runner job, named
 `<os>-<host>-py<python>` — and that name is also `KEEL_REMOTE_CELL`, which is the founder
@@ -995,9 +998,9 @@ only needs the right to POST `/dispatches` on this one.
    cell, the **short** journey, about two premium requests, and the whole path proved.
 6. Then `cells: windows-latest-copilot-py3.13` — Windows is where two of that week's three runtime
    bugs lived.
-7. Then the per-change four with no `cells` at all; then `set: nightly, cells:
+7. Then the per-change two with no `cells` at all; then `set: weekly, cells:
    windows-latest-copilot-py3.9`, which is the floor and the full journey in one cell. Only then
-   the schedules matter.
+   the schedule matters (there is one: Sunday).
 
 ### Where a verdict ends up (§6.4)
 

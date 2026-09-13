@@ -44,7 +44,7 @@ added to this line rather than quietly written — which is exactly how the thir
 
   **And it is still one scenario at two lengths** (spec 021). `LEGS=short` stops it after the host
   leg and the **first** model job, which is what every qualifying change now buys; `LEGS=full` is
-  what the nightly and weekly sets buy. That is a *stopping point* in one story, not a second
+  what the weekly set buys (the nightly is suspended since 2026-09-13, design §15). That is a *stopping point* in one story, not a second
   story: the assertion the short run makes about the confirmation card is literally the same
   function the full run calls, and nothing new is asserted from the model's prose because the run
   is shorter. A `test_s013_short_journey.py` would have been a fourth named place and would have

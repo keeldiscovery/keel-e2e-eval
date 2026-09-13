@@ -43,7 +43,8 @@ EXPECTED = {
     "test_s012_journey_through_a_host.py",
     # spec 022-upgrade-in-place: a skill already installed at an older VERSION is upgraded in
     # place by the same install line, and the runtime it carries moves with it. Deterministic,
-    # rides the nightly's macOS x Claude cell beside the corpus trio.
+    # rides the weekly's macOS x Claude 3.13 cell beside the corpus trio (the nightly's until
+    # 2026-09-13, design §15).
     "test_s013_upgrade_in_place.py",
 }
 
