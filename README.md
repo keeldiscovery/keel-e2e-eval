@@ -967,6 +967,16 @@ repository variable `KEEL_STAGING_ENABLED` being exactly `true`; until then a pu
 job that prints one line and stops. That is what makes these workflows safe to merge before the
 twin exists.
 
+**The twin is off between runs** (spec `023-staging-on-demand`; design §16, 2026-09-23). The
+deploy job starts the instance and waits for it to answer over SSM before it deploys, and a
+`stop-staging` job stops it after the cells, whether they were green, red or cancelled. A stopped
+twin costs its disk and its address and nothing else. Two consequences for a hand dispatch: with
+`deploy: true` (the default) the run brings the box up and takes it down; with `deploy: false`
+the run neither starts nor stops it, so **against a stopped twin a cells-only dispatch fails at
+the gate, by design** — dispatch with `deploy: true`, or start the box from the Mac first and
+stop it after. The CI role may start and stop `keel-staging` and no other instance (keel-cloud
+spec 043).
+
 ### What the founder must set, once
 
 *Settings → Secrets and variables → Actions, in **keel-e2e-eval**.*
@@ -975,7 +985,7 @@ twin exists.
 |---|---|
 | `KEEL_STAGING_ENABLED` | `true` — the master switch; anything else skips the whole matrix |
 | `KEEL_CI_DEPLOY_ROLE_ARN` | the `keel-ci-deploy` role `provision.sh --target staging` created |
-| `KEEL_INSTANCE_ID` | the twin's instance id (the CI role carries no `ec2:Describe*`) |
+| `KEEL_INSTANCE_ID` | the twin's instance id (the CI role carries no `ec2:Describe*`); also what `stop-staging` stops and `deploy-staging` starts |
 | `KEEL_ELASTIC_IP` | the twin's Elastic IP, likewise |
 
 | Secret | What |

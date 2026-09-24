@@ -20,6 +20,12 @@
 # is NO nightly since 2026-09-13 (the founder: "we cannot afford a nightly run"). That is why
 # `[skip e2e]` in a commit message exists in the senders.
 #
+# THE TWIN IS OFF BETWEEN RUNS (spec 023; design §16, the founder, 2026-09-23: "staging being
+# ephemeral"). `deploy-staging` starts the instance before it deploys and `stop-staging` stops it
+# after the cells, whatever they did -- green, red or cancelled. A stopped twin pays for its disk
+# and its address and nothing else. A hand dispatch with `deploy: false` neither starts nor stops
+# it: cells only means the founder brought the box up, and the referee does not take it down.
+#
 # WHAT IT NEVER DOES (invariants M2, M3, M8). It never touches production: the AWS role it assumes
 # cannot see `keel-prod` or read `/keel/prod/*`, by policy rather than by convention. A green
 # matrix deploys nothing. A red matrix rolls nothing back -- the failing build stays up so the
@@ -59,7 +65,7 @@ on:
         type: boolean
         default: true
       wipe:
-        description: "after the deploy, wipe the twin (reset.sh: the database and the registry go; the tag comes back up) so it holds only this run's founders. Ignored when deploy is false."
+        description: "after the deploy, wipe the twin (reset.sh: the database and the registry go; the tag comes back up) so it holds only this run's founders. Ignored when deploy is false (the box is started first and stopped after)"
         type: boolean
         default: true
 
@@ -327,6 +333,62 @@ jobs:
           aws configure set region "$AWS_REGION"
           echo "AWS_PROFILE=default" >> "$GITHUB_ENV"
           aws sts get-caller-identity --query Arn --output text
+
+      # THE TWIN IS OFF UNTIL THIS STEP (spec 023, design §16). Start it; a box that is already
+      # running makes this a no-op. The role's StartStopStaging statement (keel-cloud spec 043) is
+      # tag-scoped to Name=keel-staging exactly as RunOnStaging is, so the same call against
+      # keel-prod fails at IAM. KEEL_INSTANCE_ID is a repository variable for the same reason the
+      # deploy step reads it from one: the role carries no ec2:Describe*.
+      - name: Start the twin
+        shell: bash
+        env:
+          KEEL_INSTANCE_ID: ${{ vars.KEEL_INSTANCE_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEEL_INSTANCE_ID:-}" ]; then
+            echo "::error::KEEL_INSTANCE_ID must be set as a repository variable (the CI role has no ec2:Describe*)."
+            exit 1
+          fi
+          aws ec2 start-instances --instance-ids "$KEEL_INSTANCE_ID" \
+            --query 'StartingInstances[0].[PreviousState.Name,CurrentState.Name]' --output text
+
+      # WAIT BY DOING. "Is it up" is answered by asking the box to do something and seeing whether
+      # it does: ssm send-command of `true`, then get-command-invocation until Success -- the two
+      # calls the role already has (RunOnStaging, ReadTheCommand). Not `ec2 wait
+      # instance-status-ok` and not `ssm describe-instance-information`: neither can be scoped to
+      # one instance, and the policy refuses every Describe* on purpose. A stopped t4g takes
+      # about a minute to boot and for the SSM agent to register; five minutes is the ceiling.
+      - name: Wait for the twin
+        shell: bash
+        env:
+          KEEL_INSTANCE_ID: ${{ vars.KEEL_INSTANCE_ID }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if command_id=$(aws ssm send-command --instance-ids "$KEEL_INSTANCE_ID" \
+                              --document-name AWS-RunShellScript --parameters commands=true \
+                              --query 'Command.CommandId' --output text 2>/dev/null); then
+              for _ in $(seq 1 5); do
+                status=$(aws ssm get-command-invocation --command-id "$command_id" \
+                           --instance-id "$KEEL_INSTANCE_ID" --query Status --output text \
+                           2>/dev/null || echo Pending)
+                case "$status" in
+                  Success)
+                    echo "attempt $attempt: the twin answers over SSM."
+                    echo "The twin was started for this run (spec 023); \`stop-staging\` stops it after the cells." >> "$GITHUB_STEP_SUMMARY"
+                    exit 0 ;;
+                  Failed|Cancelled|TimedOut|Undeliverable|Terminated) break ;;
+                esac
+                sleep 2
+              done
+              echo "attempt $attempt: command $command_id ended $status"
+            else
+              echo "attempt $attempt: SSM does not know the instance yet"
+            fi
+            sleep 10
+          done
+          echo "::error::keel-staging did not come online in 5 minutes"
+          exit 1
 
       # WHICH TAG (§6.3's last paragraph). A keel-cloud change deploys the new keel-cloud; a skill,
       # runtime, web or e2e change stays on the tag the twin already runs, read from
@@ -832,6 +894,43 @@ jobs:
           path: _cell/rows.json
           retention-days: 7
           if-no-files-found: warn
+
+  # -------------------------------------------------------------------------------- stop-staging
+  #
+  # THE TWIN GOES BACK OFF (spec 023, design §16). Its own job, not a step in `summary`: that job's
+  # permissions omit `id-token` on purpose (spec 021 -- "nothing in this job goes near AWS"), and
+  # a stop is an AWS call, so it lives with the other AWS calls under a block that may mint the
+  # token. `always()` so it runs on green, on red and on cancel; gated on `deploy` so a run that
+  # did not start the box does not stop a box the founder started by hand. The role's
+  # StartStopStaging statement (keel-cloud spec 043) reaches keel-staging and nothing else.
+  stop-staging:
+    name: stop the twin
+    needs: [select, deploy-staging, cell]
+    if: always() && needs.select.outputs.deploy == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Assume keel-ci-deploy (OIDC, no stored key — design decision 8)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.KEEL_CI_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Stop the twin
+        shell: bash
+        env:
+          KEEL_INSTANCE_ID: ${{ vars.KEEL_INSTANCE_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEEL_INSTANCE_ID:-}" ]; then
+            echo "::error::KEEL_INSTANCE_ID must be set as a repository variable (the CI role has no ec2:Describe*)."
+            exit 1
+          fi
+          aws ec2 stop-instances --instance-ids "$KEEL_INSTANCE_ID" \
+            --query 'StoppingInstances[0].[PreviousState.Name,CurrentState.Name]' --output text
+          echo "The twin was stopped after the cells (spec 023); the next run starts it." >> "$GITHUB_STEP_SUMMARY"
 
   # ------------------------------------------------------------------------------------- summary
   #
