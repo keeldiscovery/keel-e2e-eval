@@ -282,6 +282,74 @@ render until the founder is back. It moves to immediately after the sign-in and 
 approval, where it asserts exactly what it asserted before, and the scenario says why it is there
 rather than leaving the next reader to rediscover it.
 
+## And one more cell: the framing alone, for the effort comparison (2026-09-29)
+
+**The founder:** *"I want to test only the framing-and-assumptions part -- the problem framed,
+broken into lines and questions -- at different effort settings, not the whole journey, to keep
+spend down."*
+
+So the Keel door is bought twice a Saturday: once whole, and once at one stage.
+
+- **FR-022** A second weekly cell, `macos-latest-keel-py3.13-short` -- same door, same OS, same
+  Python, `legs = "short"`, `install = "none"` -- which signs up through `/signup`, starts a
+  project, types the PROBLEM statement, and stops on the review card that keel-cloud's chained
+  `PROBLEM_ASSUMPTIONS` produced. **Un-approved**: approving is the one thing the founder did not
+  ask for.
+- **FR-023** **`short` reaches the assumptions on a door with no host leg, and nowhere else.** Spec
+  021 defined `short` as *the host leg plus the first model job*, and on the three CLI doors the
+  host leg is the thing being measured -- the plugin from the marketplace, the three words, the
+  device approval, the executor chosen by flag -- so a confirmation card is a fair place to stop,
+  and **that is left byte for byte as it was**: the per-change cell and the Spec Kit cell buy
+  exactly what they have always bought. The Keel door has no host leg, so a `short` that stopped
+  after one model job there would have measured a claim with no lines under it, which is not a
+  thing a founder ever sees. `agent_host.SHORT_REACHES_THE_ASSUMPTIONS` is the one place that says
+  which, and `short_stops_at(host)` is the one sentence the bundle carries about it.
+- **FR-024** The lines are read through `_read_the_lines`, **the same function the full journey
+  calls at the same point** -- spec 021's own rule, one stage further along: the assertion the
+  short run makes is *literally* the assertion the full run makes, not a copy that would have to be
+  kept in step. It returns the card un-approved and the caller decides.
+- **FR-025** **The expected spend, from the design.** `PROBLEM_FRAME` 30 credits +
+  `PROBLEM_ASSUMPTIONS` 155 credits = **185 credits**, which is **$1.85 at list price** and
+  60,000 + 307,500 = **367,500 µUSD ≈ $0.37** of Keel's own measured inference at `xhigh`
+  (`ai-credits-design.md` §4.1's two rows, `n=21`, run of record
+  `20260913T024219Z-instructions`) — against 1,250 credits and about $2.44 for the whole journey
+  (§6.3). Ten framing runs cost less than two whole ones.
+- **FR-026** **Nothing here pins an effort.** `output_config.effort` is keel-cloud's, `xhigh` by
+  default (spec 045 FR-017); two runs of this cell against two settings differ by what keel-cloud
+  was configured with, and a referee that set it would be measuring itself. What the cell owes the
+  comparison is the **pair of numbers each run produced**, on the bundle, readable without opening
+  a database: `facts.json` gains one line — *what the framing measured* — carrying the job count,
+  the models that answered (`execution.model_used`), what keel-cloud says it paid
+  (`actual_cost_micro_usd`, in µUSD and in dollars), and how long the founder waited by this
+  harness's own clock.
+- **FR-027** **No token counts, and their absence is said rather than filled in.** keel-cloud's
+  `execution` object is five strings, a boolean and the cost (spec 045 FR-043; design §15 amendment
+  1); FR-023 computes the cost *from* usage and reports only the cost. So `tokens` reads `null` with
+  the reason beside it, and whatever timestamps the job row happens to carry are picked up when
+  present and named absent when not — with the harness's own wall clock recorded either way,
+  because it is the one timing that is always there.
+- **FR-028** **`legs` becomes part of a cell's id.** Spec 021 kept it out on the grounds that *"the
+  same cell appearing short in per_change and full in nightly is one runner job in two sets, not
+  two cells"*. No cell is short in one set and full in another today — `per_change` is full,
+  `nightly` is empty — and the case that does exist inverts it: two Keel's-AI cells in the **same**
+  set are two runner jobs, two bundles, two artifacts and two founders in the twin's picker, and an
+  id **is** a founder (design §4.3). So the id names everything that is not the default, which is
+  the rule `install` already followed. The Spec Kit cell's id gains `-short` with it — truthfully:
+  it buys two model jobs where the plugin cell beside it buys thirteen, and until today its id said
+  nothing about that.
+- **FR-029** The coverage rule is revised from *exactly one Keel's-AI cell in weekly* to **exactly
+  one FULL one, with at most one SHORT one beside it** — both installing nothing, both weekly's
+  alone, both refused in `per_change`. A third is somebody forgetting whose money this is; a second
+  *full* one is paying twice for the same measurement.
+
+### Success criteria
+
+- **SC-008** `python -m matrix --set weekly` prints **ten** cells, the tenth being
+  `macos-latest-keel-py3.13-short`, and `--set per_change` still prints exactly one.
+- **SC-009** One dispatched run of that cell alone lands a bundle whose verdict is `PASSED`, whose
+  transcript ends on the PROBLEM review card, and whose `facts.json` carries *what the framing
+  measured* with a non-zero µUSD figure. *Not met; the founder's to spend.*
+
 ## What this pass does not do
 
 - **It does not add a fourteenth scenario, or a fourth named LLM place.** S-012 is widened by a

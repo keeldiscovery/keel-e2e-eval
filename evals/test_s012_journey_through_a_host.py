@@ -442,18 +442,21 @@ def _land_the_card(page, recorder, get_json, project_id, stage, opening, *, time
     return chat, card
 
 
-def _walk_stage_live(page, recorder, get_json, project_id, stage, opening, *, timeout_s=300.0):
-    """One stage of the guided walk, against a **live** model.
+def _read_the_lines(page, recorder, get_json, project_id, stage, chat, *, timeout_s=300.0):
+    """**The stage's second model job, and what it produced**: the founder saves the confirmation
+    card, keel-cloud chains the frame's own `<STAGE>_ASSUMPTIONS` off it with nothing pressed, and
+    the review card lands carrying numbered lines, pick lists and a separated deal-breaker.
 
-    Deliberately not `evals/preludes.py::walk_stage`. That one asserts the confirmation card's
-    claim **verbatim** against the generated script, which is exactly right for a scripted executor
-    and meaningless against a model that writes its own sentence; and its 90-second waits are a
-    scripted runtime's, not a live one's. Copying it here rather than growing a `live=` branch on
-    it is the choice spec 016's plan states: `walk_stage` is six deterministic scenarios' contract
-    with the corpus, and a conditional in it would make all six read like this one.
+    Split out of `_walk_stage_live` for the same reason `_land_the_card` was split out of it (spec
+    021), and for one more: the **short Keel's-AI cell** stops here (spec 024, the founder,
+    2026-09-29 -- *"only the framing-and-assumptions part, at different effort settings, to keep
+    spend down"*). So the assertions that cell makes about the lines are *literally* the
+    assertions the full journey makes at the same point, called from the same function, rather
+    than a copy of them that would have to be kept in step.
+
+    Returns the `ReviewCard` page object, un-approved: whether to approve it is the caller's, and
+    it is the one thing the short run does not do.
     """
-    chat, _card = _land_the_card(page, recorder, get_json, project_id, stage, opening,
-                                 timeout_s=timeout_s)
     chat.save_confirmation()
     review_timeout_s = KEELS_AI_JOB_WAIT_S if KEELS_AI else timeout_s + 180
     landed = _wait_for_review_card(chat, recorder, get_json, project_id, stage,
@@ -489,7 +492,23 @@ def _walk_stage_live(page, recorder, get_json, project_id, stage, opening, *, ti
         assert all(line.get("chips") for line in lines), (
             f"a {stage} line offers no pick list at all: "
             f"{[l.get('heading') for l in lines if not l.get('chips')]}")
+    return card_page
 
+
+def _walk_stage_live(page, recorder, get_json, project_id, stage, opening, *, timeout_s=300.0):
+    """One stage of the guided walk, against a **live** model.
+
+    Deliberately not `evals/preludes.py::walk_stage`. That one asserts the confirmation card's
+    claim **verbatim** against the generated script, which is exactly right for a scripted executor
+    and meaningless against a model that writes its own sentence; and its 90-second waits are a
+    scripted runtime's, not a live one's. Copying it here rather than growing a `live=` branch on
+    it is the choice spec 016's plan states: `walk_stage` is six deterministic scenarios' contract
+    with the corpus, and a conditional in it would make all six read like this one.
+    """
+    chat, _card = _land_the_card(page, recorder, get_json, project_id, stage, opening,
+                                 timeout_s=timeout_s)
+    card_page = _read_the_lines(page, recorder, get_json, project_id, stage, chat,
+                                timeout_s=timeout_s)
     card_page.approve()
     with recorder.step(f"§1.2 wire: {stage} is framed and approved after approval, and nothing on "
                         "the chain was refused", party="stack", kind="assert") as h:
@@ -851,6 +870,12 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
     #: one-line fact can be written from `finally` on a run that died at any point -- an empty
     #: list is itself the true thing to say about a run that never got a job answered.
     door_jobs: list[dict] = []
+    #: How long the founder waited for the problem to be framed and broken into lines, by **this
+    #: harness's own clock** -- the one timing that is always available, because keel-cloud's
+    #: `execution` report carries none and a job row's timestamps are whatever it happens to put
+    #: there (spec 024, the founder's effort comparison: the number has to be readable off the
+    #: bundle without opening a database). `None` on a run that never got that far.
+    framing_took_s: float | None = None
 
     def _the_keel_door_in_one_line() -> str:
         """`facts.json`'s one string on this door (spec 024 FR-013), in the shape the other three
@@ -860,6 +885,32 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                 f"no runtime · the wire reports execution.host={EXPECTED_EXECUTOR!r} · "
                 + (f"models {', '.join(models)}" if models else
                    "no job of this journey reported a model"))
+
+    def _what_the_framing_measured() -> str:
+        """**The effort comparison, on one line, in `facts.json`** (spec 024, the founder,
+        2026-09-29: *"at different effort settings"*).
+
+        keel-cloud chooses the effort (`output_config.effort`, `xhigh` by default -- spec 045
+        FR-017) and this repository pins none: two runs of this cell against two settings differ by
+        what keel-cloud was configured with, and what a reader needs is the pair of numbers each
+        one produced. So the line carries the models that answered, what keel-cloud says it paid,
+        and how long the founder waited -- all three readable off the bundle without opening a
+        database, which is the whole point of putting it here rather than in `spend.json` alone.
+
+        **There are no token counts, and their absence is said rather than filled in.** keel-cloud's
+        `execution` object is five strings, a boolean and the cost; tokens are not on that wire at
+        all (spec 045 FR-023 computes the cost *from* usage and reports only the cost).
+        """
+        models = sorted({str(row.get("model_used")) for row in door_jobs if row.get("model_used")})
+        micro = sum(row.get("actual_cost_micro_usd") or 0 for row in door_jobs)
+        waited = ("unknown -- the framing never finished" if framing_took_s is None
+                  else f"{framing_took_s:.1f}s")
+        return (f"{len(door_jobs)} job(s) · "
+                + (f"models {', '.join(models)}" if models else "no model reported")
+                + f" · {micro:,} µUSD (${micro / 1_000_000:.4f}) of Keel's own inference"
+                + f" · the founder waited {waited}"
+                + " · tokens: not on the wire (keel-cloud reports cost, not usage)"
+                + " · effort: keel-cloud's own `output_config.effort`, pinned by nothing here")
 
     def _me() -> dict:
         return _get("/v2/me") or {}
@@ -1346,25 +1397,49 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
         # the assertion the short run makes is *the same assertion* the full run makes at the same
         # point -- not a copy of it that would have to be kept in step.
         if SHORT:
-            _land_the_card(page, recorder, _get, project_id, "PROBLEM",
-                           founder.statement("PROBLEM"))
+            framing_started = _now()
+            chat, _first_card = _land_the_card(page, recorder, _get, project_id, "PROBLEM",
+                                               founder.statement("PROBLEM"))
+            if agent_host.short_reaches_the_assumptions(HOST):
+                # **On a door with no host leg, one model job is not a founder-visible outcome.**
+                # Spec 021's `short` is *the host leg plus the first model job*, and on the three
+                # CLI doors the host leg is the thing being measured -- the install, the three
+                # words, the device approval, the executor -- so a confirmation card is a fair
+                # place to stop. On the Keel door there is no host leg at all, so a run that
+                # stopped there would have measured a claim with no lines under it, which is not
+                # something a founder ever sees. The founder's own words (2026-09-29): *"only the
+                # framing-and-assumptions part -- the problem framed, broken into lines and
+                # questions -- at different effort settings, to keep spend down."* That is one
+                # interaction chain: `PROBLEM_FRAME` and the `PROBLEM_ASSUMPTIONS` keel-cloud
+                # chains off it. `_read_the_lines` is the same function the full journey calls at
+                # the same point, so the assertions are the same assertions.
+                _read_the_lines(page, recorder, _get, project_id, "PROBLEM", chat)
+            framing_took_s = _now() - framing_started
             if KEELS_AI:
                 _the_number_went_down()
             # Nothing is asserted about *stopping*: the short journey does less, it does not do
             # something else. This is a note, and every assertion below it -- no refusals, every
             # job COMPLETED, what it cost, the founder's own way out -- is one both lengths make.
-            with recorder.step("spec 021: the short journey stops here -- the host leg and the "
-                                "first model job are what a qualifying change buys",
-                                party="stack", kind="note") as h:
-                h.record_wire({agent_host.LEGS_ENV: LEGS},
-                               {"asserted": "the plugin from the public marketplace, the skill "
-                                            "seen as a plugin skill, a runtime awaiting "
-                                            "approval, a code this Keel issued, the device "
-                                            "approved, `already_connected`, the executor chosen "
-                                            "by flag, the pin, and one confirmation card",
-                                "not run, and run nightly and weekly instead": (
-                                    "the PROBLEM review, SOLUTION, COMMERCIAL, the person, the "
+            with recorder.step("spec 021: the short journey stops here -- and on this door that is "
+                                "the framing and its assumptions", party="stack", kind="note") as h:
+                h.record_wire({agent_host.LEGS_ENV: LEGS, "host": HOST},
+                               {"asserted": (
+                                    "sign-up through the Google door, 1,500 credits and no agent "
+                                    "line, a project started with no runtime bound, the problem "
+                                    "framed, and the lines and questions keel-cloud chained off "
+                                    "it -- read through the same function the full journey reads "
+                                    "them through"
+                                    if agent_host.short_reaches_the_assumptions(HOST) else
+                                    "the plugin from the public marketplace, the skill seen as a "
+                                    "plugin skill, a runtime awaiting approval, a code this Keel "
+                                    "issued, the device approved, `already_connected`, the "
+                                    "executor chosen by flag, the pin, and one confirmation card"),
+                                "not run, and run weekly instead": (
+                                    "the PROBLEM approval, SOLUTION, COMMERCIAL, the people, the "
                                     "reading, *What this says*, the overview and one card"),
+                                "what it stops after": agent_host.short_stops_at(HOST),
+                                "the framing took, by this harness's own clock": round(
+                                    framing_took_s, 1),
                                 "the founder this run typed as": founder.project_name,
                                 "the entry they came from": entry.id})
         else:
@@ -1757,7 +1832,9 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                          + (f"{len(people_chosen)} people, {', '.join(people_names)}"
                             if not SHORT else "nobody invited (short)")),
                             "the journey's length": (
-                         f"{LEGS} · " + ("the host leg and the first model job" if SHORT else
-                                          "both legs, whole"))},
+                         f"{LEGS} · " + (agent_host.short_stops_at(HOST) if SHORT else
+                                          "both legs, whole")),
+                            **({"what the framing measured": _what_the_framing_measured()}
+                               if KEELS_AI and SHORT else {})},
                      failed_step=recorder.failed_step, duration_s=_now() - started)
         print(f"\nrun bundle: {run_dir}")

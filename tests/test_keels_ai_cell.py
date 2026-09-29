@@ -330,13 +330,19 @@ def test_the_matrix_knows_keel_as_an_axis_value_with_no_cli():
     assert "keel" in matrix.all_hosts
 
 
-def test_there_is_exactly_one_keel_cell_and_it_is_weekly_whole_and_installs_nothing():
+def test_the_keel_door_is_two_weekly_cells_and_both_install_nothing():
+    """One **whole** journey -- about $2.44 of Keel's own inference -- and one
+    framing-and-assumptions run beside it (the founder, 2026-09-29: *"only the
+    framing-and-assumptions part, at different effort settings, to keep spend down"*), which is
+    PROBLEM_FRAME 30 + PROBLEM_ASSUMPTIONS 155 = 185 credits, $1.85 at list price, and 60,000 +
+    307,500 = 367,500 µUSD ≈ **$0.37** of Keel's own inference (ai-credits-design.md §4.1)."""
     matrix = matrix_cells.load()
     weekly = [c for c in matrix.cells("weekly") if c.host == "keel"]
-    assert [c.id for c in weekly] == ["macos-latest-keel-py3.13"]
-    assert weekly[0].legs == "full"
-    assert weekly[0].install == matrix_cells.NO_INSTALL
-    assert weekly[0].scenarios == ("s012",)
+    assert [c.id for c in weekly] == ["macos-latest-keel-py3.13",
+                                      "macos-latest-keel-py3.13-short"]
+    assert [c.legs for c in weekly] == ["full", "short"]
+    assert all(c.install == matrix_cells.NO_INSTALL for c in weekly)
+    assert all(c.scenarios == ("s012",) for c in weekly)
     for other in ("per_change", "nightly"):
         assert not [c for c in matrix.cells(other) if c.host == "keel"]
 
@@ -345,11 +351,15 @@ def test_the_cells_id_does_not_spell_the_absence_of_an_install():
     cell = matrix_cells.Cell(os="macos-latest", host="keel", python="3.13", scenarios=("s012",),
                              install=matrix_cells.NO_INSTALL)
     assert cell.id == "macos-latest-keel-py3.13"
+    # ...and the short one beside it is named for its legs and still not for its non-install.
+    short = matrix_cells.Cell(os="macos-latest", host="keel", python="3.13", scenarios=("s012",),
+                              legs="short", install=matrix_cells.NO_INSTALL)
+    assert short.id == "macos-latest-keel-py3.13-short"
 
 
-def test_the_weekly_set_is_nine_cells_and_per_change_is_still_one():
+def test_the_weekly_set_is_ten_cells_and_per_change_is_still_one():
     matrix = matrix_cells.load()
-    assert len(matrix.cells("weekly")) == 9
+    assert len(matrix.cells("weekly")) == 10
     assert len(matrix.cells("per_change")) == 1
     assert matrix.cells("per_change")[0].host == "claude"
 
@@ -372,7 +382,9 @@ def test_a_keel_cell_in_per_change_is_refused_and_the_message_says_whose_money_i
     assert any("Keel's** Anthropic account" in p or "Keel's own AI" in p for p in problems), problems
 
 
-def test_a_second_keel_cell_is_refused():
+def test_a_second_whole_keel_cell_is_refused():
+    """The rule was *exactly one*; it is now *exactly one **whole** one, with at most one short one
+    beside it*. A second whole journey would be paying twice for the same measurement."""
     matrix = matrix_cells.load()
     broken = matrix_cells.Matrix(
         axes=matrix.axes, live=matrix.live, default_scenarios=matrix.default_scenarios,
@@ -384,7 +396,7 @@ def test_a_second_keel_cell_is_refused():
         everyday_os=matrix.everyday_os, suspended_os=matrix.suspended_os,
         suspended_python=matrix.suspended_python, hostless_hosts=matrix.hostless_hosts)
     problems = matrix_cells.coverage_problems(broken)
-    assert any("exactly one Keel's-AI cell" in p for p in problems), problems
+    assert any("exactly one whole Keel's-AI journey" in p for p in problems), problems
 
 
 def test_the_keel_cell_does_not_disturb_the_weekly_product_or_the_spec_kit_rule():
@@ -624,3 +636,92 @@ def test_the_door_is_read_off_the_shell_that_the_credits_assertions_already_read
     assert "have your (agent|ai) read" not in click, (
         "the button name is a literal in the click again, so the next door keel-web adds is "
         "another thirty-second timeout on a green journey")
+
+
+# ------------------------- the framing-only run (the founder, 2026-09-29: effort comparison)
+
+def test_short_reaches_the_assumptions_on_the_keel_door_and_nowhere_else():
+    """Spec 021 defined `short` as *the host leg plus the first model job*, and on the three CLI
+    doors the host leg IS the thing being measured -- the plugin, the three words, the device
+    approval, the executor chosen by flag -- so a confirmation card is a fair place to stop.
+    **That is left exactly as it was.**
+
+    The Keel door has no host leg. A `short` that stopped after one model job there would have
+    measured a claim with no lines under it, which is not a thing a founder ever sees. The
+    founder's own words (2026-09-29): *"only the framing-and-assumptions part -- the problem
+    framed, broken into lines and questions -- at different effort settings, to keep spend down."*
+    """
+    assert agent_host.SHORT_REACHES_THE_ASSUMPTIONS == agent_host.HOSTS_WITHOUT_A_CLI
+    assert agent_host.short_reaches_the_assumptions("keel") is True
+    for host in agent_host.CLI_HOSTS:
+        assert agent_host.short_reaches_the_assumptions(host) is False, host
+
+
+def test_each_door_says_in_one_sentence_where_its_short_run_stopped():
+    """A reader of a `-short` bundle never has to guess which of the two stopping points it
+    bought."""
+    assert "PROBLEM_FRAME + PROBLEM_ASSUMPTIONS" in agent_host.short_stops_at("keel")
+    assert "un-approved" in agent_host.short_stops_at("keel")
+    for host in agent_host.CLI_HOSTS:
+        assert "the host leg entire" in agent_host.short_stops_at(host), host
+
+
+def test_the_short_run_reads_the_lines_through_the_very_same_function_the_full_run_calls():
+    """Spec 021's own rule, one stage further along: *"the assertion the short run makes is
+    literally the assertion the full run makes at the same point"*. Held by `_read_the_lines`
+    being one function called from two places, not by two blocks that look alike today."""
+    assert SCENARIO.count("def _read_the_lines(") == 1
+    assert SCENARIO.count("_read_the_lines(page, recorder, _get, project_id, \"PROBLEM\", chat)") == 1
+    assert SCENARIO.count("card_page = _read_the_lines(page, recorder, get_json, project_id, stage, chat,") == 1
+
+
+def test_the_short_run_does_not_approve_the_card_it_read():
+    """`_read_the_lines` hands the card back un-approved and the caller decides: the full journey
+    approves it and walks on, the framing run stops there. Approving is the one thing the founder
+    did not ask for."""
+    import re as _re
+
+    body = SCENARIO[SCENARIO.index("def _read_the_lines("):SCENARIO.index("def _walk_stage_live(")]
+    assert "card_page.approve()" not in body, (
+        "the shared reader approves the card, so the framing run would approve one too")
+    assert _re.search(r"card_page = _read_the_lines\(.*?\n.*?\n\s+card_page\.approve\(\)",
+                      SCENARIO, _re.S), (
+        "the full journey no longer approves the card the shared reader hands it back")
+
+
+def test_the_framing_run_records_what_the_effort_comparison_needs():
+    """The founder compares two effort settings by reading two bundles, so the pair of numbers has
+    to be on the bundle and not in a database: the models that answered, what keel-cloud says it
+    paid, and how long the founder waited."""
+    assert "def _what_the_framing_measured()" in SCENARIO
+    assert '"what the framing measured": _what_the_framing_measured()' in SCENARIO
+    assert "framing_took_s" in SCENARIO
+    assert "of Keel's own inference" in SCENARIO
+
+
+def test_the_bundle_never_prints_a_token_count_because_the_wire_carries_none():
+    """keel-cloud's `execution` object is five strings, a boolean and the cost (spec 045 FR-043;
+    design §15 amendment 1). Spec 045 FR-023 computes the cost *from* usage and reports only the
+    cost, so a bundle that printed tokens would be printing a number nobody reported."""
+    facts = keel_host.execution_facts({"execution": {"host": "api"}})
+    assert facts["tokens"] is None
+    assert "tokens: not on the wire" in SCENARIO
+
+
+def test_whatever_timing_the_wire_carries_is_picked_up_and_its_absence_is_named():
+    with_timing = keel_host.execution_facts(
+        {"job_id": "j", "created_at": "t0", "completed_at": "t1", "execution": {"host": "api"}})
+    assert with_timing["timing, as keel-cloud reported it"] == {"created_at": "t0",
+                                                               "completed_at": "t1"}
+    assert keel_host.execution_facts({"execution": {"host": "api"}})[
+        "timing, as keel-cloud reported it"] is None
+
+
+def test_nothing_here_pins_an_effort_setting():
+    """`output_config.effort` is keel-cloud's (spec 045 FR-017, `xhigh` by default). Two runs of
+    this cell against two settings differ by what keel-cloud was configured with; a referee that
+    set it would be measuring itself."""
+    for path in ("harness/keel_host.py", "harness/agent_host.py",
+                 "evals/test_s012_journey_through_a_host.py", "matrix/cells.toml"):
+        body = (REPO / path).read_text(encoding="utf-8")
+        assert "output_config" not in body or "pinned by nothing here" in body, path

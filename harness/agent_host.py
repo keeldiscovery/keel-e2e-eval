@@ -110,6 +110,38 @@ AI_PATH_OWN = "OWN"
 AI_PATH_KEEL = "KEEL"
 
 
+#: **What `short` stops after, per door** (spec 021, amended by spec `024-keels-ai-cell`; the
+#: founder, 2026-09-29: *"only the framing-and-assumptions part -- the problem framed, broken into
+#: lines and questions -- at different effort settings, to keep spend down"*).
+#:
+#: Spec 021 defined `short` as *the host leg plus the first model job*, and on the three CLI doors
+#: the host leg is the thing being measured: the plugin from the marketplace, the three words, the
+#: device approval, the executor chosen by flag. A confirmation card is a fair place to stop there,
+#: and **that is left exactly as it was** -- the per-change cell and the Spec Kit cell buy what they
+#: have always bought.
+#:
+#: The Keel door has no host leg. A `short` that stopped after one model job there would have
+#: measured a claim with no lines under it, which is not a thing a founder ever sees; so on a door
+#: with no CLI, `short` reaches the frame's own chained `<STAGE>_ASSUMPTIONS` and stops on the
+#: review card, un-approved. One interaction chain, two model jobs, and every assertion made
+#: through the same function the full journey calls at the same point.
+SHORT_REACHES_THE_ASSUMPTIONS = HOSTS_WITHOUT_A_CLI
+
+
+def short_reaches_the_assumptions(host: str | None = None) -> bool:
+    """Whether `LEGS=short` on this door goes on to the frame's own chained assumptions."""
+    return (journey_host() if host is None else host) in SHORT_REACHES_THE_ASSUMPTIONS
+
+
+def short_stops_at(host: str | None = None) -> str:
+    """One sentence for the bundle, so a reader of a `-short` bundle never has to guess which of
+    the two stopping points it bought."""
+    if short_reaches_the_assumptions(host):
+        return ("the problem framed and the lines and questions keel-cloud chained off it "
+                "(PROBLEM_FRAME + PROBLEM_ASSUMPTIONS), on the review card, un-approved")
+    return "the host leg entire, plus the first model job -- the PROBLEM confirmation card"
+
+
 def ai_path_facts(me: dict | None) -> dict:
     """What `GET /v2/me` says about which AI this account runs on, read once, in one place.
 

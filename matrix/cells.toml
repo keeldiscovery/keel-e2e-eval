@@ -25,13 +25,14 @@
 #     qualifying push wipes the twin (the workflow's `deploy the twin` job runs keel-cloud's
 #     `reset.sh --target staging` after the deploy) and then runs this one cell, so the twin holds
 #     one founder and one Lullaby project. About thirteen model jobs a push, up from four.
-#   - `weekly` is NINE cells on Python 3.13, Saturday 04:00 UTC: {macOS, Windows} x {Claude,
+#   - `weekly` is TEN cells on Python 3.13, Saturday 04:00 UTC: {macOS, Windows} x {Claude,
 #     Copilot, Codex}, six whole journeys; the Spec Kit road cell on macOS (short); Windows x
 #     Claude on the 3.9 floor, whole -- the SUBSTITUTE for a Windows Spec Kit cell, which cannot
 #     run today (the cell job installs Spec Kit's CLI at `.venv/bin/specify`, a POSIX path); and
-#     since spec 024 the OTHER DOOR, macOS x Keel's own AI, whole, which is the founder's eight
-#     plus the one cell that measures the road a founder who never installs anything takes. The
-#     corpus riders S-005/6/7 and S-013 ride the macOS Claude 3.13 cell, free.
+#     since spec 024 the OTHER DOOR twice, macOS x Keel's own AI -- once whole, and once at the
+#     framing and its assumptions alone, for the founder's effort comparison. That is the
+#     founder's eight, plus the two cells that measure the road a founder who never installs
+#     anything takes. The corpus riders S-005/6/7 and S-013 ride the macOS Claude 3.13 cell, free.
 #   - `nightly` stays EMPTY (§15). Its name stays for a hand dispatch; there is no cron for it.
 #   - Python 3.12 is `python_suspended`: it was Ubuntu 24.04's system Python and left with Ubuntu.
 #     3.9 stays on the axis as spec 004's floor, bought by the one Windows cell above and by hand.
@@ -178,4 +179,22 @@ weekly = [
     # runtime -- and the bundle says so; the OS is not inert, because the whole founder journey is
     # driven through a browser on it.
     { os = "macos-latest",   host = "keel",    python = "3.13", install = "none" },
+    # ...and the same door at one stage instead of six (the founder, 2026-09-29): "I want to test
+    # only the framing-and-assumptions part -- the problem framed, broken into lines and questions
+    # -- at different effort settings, to keep spend down." `legs = "short"` on a door with no host
+    # leg reaches the frame's own chained PROBLEM_ASSUMPTIONS and stops on the review card,
+    # un-approved (harness/agent_host.py's `short_reaches_the_assumptions`), because one model job
+    # on this door would be a claim with no lines under it -- not a thing a founder ever sees.
+    #
+    # PROBLEM_FRAME 30 + PROBLEM_ASSUMPTIONS 155 = 185 credits, $1.85 at list price, and
+    # 60,000 + 307,500 = 367,500 microUSD -- about $0.37 of Keel's own inference at xhigh
+    # (ai-credits-design.md section 4.1's two measured rows), against $2.44 for the whole journey.
+    # keel-cloud chooses the effort and this repository pins none: two runs of this cell against
+    # two settings differ by keel-cloud's own configuration, and the bundle's facts.json carries
+    # the models, the cost and the wait so the pair can be read without opening a database.
+    #
+    # `legs` is part of a cell id since this cell exists: two Keel cells in one set are two runner
+    # jobs, two bundles and two founders in the picker, and two cells cannot be one id (design
+    # section 4.3). The Spec Kit cell's id gains `-short` with it, for the same reason and truthfully.
+    { os = "macos-latest",   host = "keel",    python = "3.13", legs = "short", install = "none" },
 ]

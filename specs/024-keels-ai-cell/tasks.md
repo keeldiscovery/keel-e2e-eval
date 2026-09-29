@@ -4,7 +4,7 @@
 
 `make unit`: **1031** before this branch, **1041** after the two commits that precede this feature
 (the door-words fix and `keep_twin`), **1092** after phases 1-6, **1105** after
-phase 7. Green.
+phase 7, **1111** after the reading button, **1119** after phase 8. Green.
 
 ## Phase 0 — the two things the matrix found first, each its own commit
 
@@ -212,3 +212,38 @@ Anthropic key instead of on the CLI each cell had just installed.
       deployed -- but note that this fix is worth deploying **before** spec 045, not after: 044
       alone writes the wrong `ai_path` and grants the credits, and 045 is what starts spending
       them.
+
+
+## Phase 8 - the framing alone, at different effort settings (the founder, 2026-09-29)
+
+*"I want to test only the framing-and-assumptions part -- the problem framed, broken into lines and
+questions -- at different effort settings, not the whole journey, to keep spend down."*
+
+- [X] T039 `harness/browser.py`: the reading button's word belongs to the door too
+      (`READ_BUTTON_FOR_DOOR`, `Shell.door()`). Found by matrix run 36636769648 -- the whole journey
+      green on Keel's AI through all three stages, then thirty seconds of waiting on the People page
+      for *Have your AI read* where keel-web spec 024 FR-014 renders *Have Keel read*. Its own
+      commit; the CLI doors' regex is byte for byte unmoved.
+- [X] T040 `evals/test_s012_journey_through_a_host.py`: `_read_the_lines` extracted from
+      `_walk_stage_live`, so the framing run and the full journey read the lines through **one**
+      function (spec 021's rule, one stage along). It hands the card back un-approved.
+- [X] T041 `harness/agent_host.py`: `SHORT_REACHES_THE_ASSUMPTIONS`, `short_reaches_the_assumptions`
+      and `short_stops_at` -- one place that says what `short` stops after on each door, and one
+      sentence the bundle carries about it. The three CLI doors are unchanged.
+- [X] T042 `facts.json` gains *what the framing measured*: the job count, the models that answered,
+      the µUSD keel-cloud says it paid, and the wait by this harness's own clock -- and says that
+      tokens are not on that wire at all rather than filling a number in.
+- [X] T043 `harness/keel_host.py::execution_facts` picks up whatever timing the job row carries and
+      names its absence; `tokens` is `None` with the reason.
+- [X] T044 `matrix/cells.py`: `legs` joins the id (the argument is in [spec.md](spec.md) FR-028),
+      and the coverage rule becomes *one full Keel cell, at most one short one beside it*.
+- [X] T045 `matrix/cells.toml`: the tenth weekly cell, with the design's own two numbers above it.
+- [X] T046 `.github/workflows/matrix.yml`, `matrix/cells.toml`: the header counts. Nothing else in
+      the workflow moves -- a `keel` cell still matches no host-gated step.
+- [X] T047 **8 more stackless tests**: the per-door `short`, the one sentence each door gives for
+      it, the one shared reader and that it does not approve, the effort line, the absent tokens,
+      the wire timing, and that nothing here pins an effort. Plus the id and count expectations in
+      `tests/test_matrix_cells.py` moved with FR-028 (the Spec Kit cell's id gains `-short`).
+- [ ] T048 One dispatched run of `macos-latest-keel-py3.13-short`, then a second with keel-cloud's
+      effort changed, and the two `facts.json` lines read side by side. The founder's to spend, and
+      the cheapest paid thing in this repository at about $0.37.

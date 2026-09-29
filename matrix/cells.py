@@ -89,10 +89,19 @@ class Cell:
     host: str
     python: str
     scenarios: tuple[str, ...]
-    #: `short` or `full` -- how much of the journey this cell buys (spec 021). Optional in the
-    #: file and **not** part of the cell's id: a cell is still one (OS, host, Python), and the
-    #: same cell appearing in `per_change` short and in `nightly` full is one runner job in two
-    #: sets, not two cells. It reaches the runner as `KEEL_JOURNEY_LEGS`.
+    #: `short` or `full` -- how much of the journey this cell buys (spec 021), **and part of the
+    #: id since spec 024**.
+    #:
+    #: Spec 021 kept it out on the grounds that *"the same cell appearing in `per_change` short and
+    #: in `nightly` full is one runner job in two sets, not two cells"*. No cell is short in one
+    #: set and full in another today -- `per_change` is full, `nightly` is empty -- and the case
+    #: that does exist inverts the reasoning: spec 024 puts **two Keel's-AI cells in the weekly
+    #: set**, one whole and one that stops after the framing and its assumptions, and those are two
+    #: runner jobs, two bundles, two artifacts and two founders in the twin's picker. Two cells
+    #: cannot be one id (design §4.3), so the id names anything that is not the default -- which is
+    #: the rule `install` already followed.
+    #:
+    #: It reaches the runner as `KEEL_JOURNEY_LEGS`.
     legs: str = DEFAULT_LEGS
     #: `plugin` or `speckit` (spec 022). Part of the id, unlike `legs`.
     install: str = DEFAULT_INSTALL
@@ -101,9 +110,15 @@ class Cell:
     def id(self) -> str:
         """`ubuntu-24.04-claude-py3.9`. The job name, the artifact name, and `KEEL_REMOTE_CELL`."""
         base = f"{self.os}-{self.host}-py{self.python}"
-        # `none` is the absence of a road, not another road (spec 024), so it is not named here.
-        return (base if self.install in (DEFAULT_INSTALL, NO_INSTALL)
-                else f"{base}-{self.install}")
+        # One rule: the id names every axis value that is not the default. `legs` first because it
+        # is the coarser fact (how much of the journey), the install road second.
+        if self.legs != DEFAULT_LEGS:
+            base = f"{base}-{self.legs}"
+        # ...except `none`, which is the absence of a road and not another one (spec 024): an id
+        # ending `-none` would read as a third packaging of a skill that was never installed.
+        if self.install not in (DEFAULT_INSTALL, NO_INSTALL):
+            base = f"{base}-{self.install}"
+        return base
 
     def k(self, which: Sequence[str]) -> str:
         """This cell's scenarios that are in `which`, as one pytest `-k` expression (`s012 or
@@ -425,10 +440,11 @@ def coverage_problems(matrix: Matrix) -> list[str]:
        Windows cannot install Spec Kit's CLI today) and the 3.9 floor on at least one cell (spec
        004's promise; the Windows Claude 3.9 cell is the substitute for a Windows Spec Kit cell).
        Every per_change cell is in it whole; the corpus riders ride one macOS Claude cell.
-    5. **Exactly one Keel's-AI cell, weekly, whole, installing nothing** (spec 024). It is not
-       part of the product -- there is no OS x Python grid to cover when no CLI runs on the OS and
-       no `python3` runs a script -- and it is refused in `per_change` because it spends **Keel's
-       own** Anthropic account rather than the founder's plan.
+    5. **Exactly one WHOLE Keel's-AI cell in weekly, at most one SHORT one beside it, both
+       installing nothing** (spec 024, amended 2026-09-29 for the founder's effort comparison).
+       Neither is part of the product -- there is no OS x Python grid to cover when no CLI runs on
+       the OS and no `python3` runs a script -- and both are refused in `per_change` because they
+       spend **Keel's own** Anthropic account rather than the founder's plan.
     """
     problems: list[str] = []
     current = matrix.current_python
@@ -506,19 +522,35 @@ def coverage_problems(matrix: Matrix) -> list[str]:
     # id does not pretend otherwise about.
     keels_ai = [c for c in weekly if c.host in matrix.hostless_hosts]
     if matrix.hostless_hosts:
-        if len(keels_ai) != 1:
+        # **Exactly one FULL Keel's-AI cell, and at most one SHORT one beside it** (spec 024,
+        # amended 2026-09-29). The rule was "exactly one"; the founder asked for a second cell
+        # that buys only the framing and its assumptions, so the effort settings can be compared
+        # without paying for a whole journey each time. One whole journey is about $2.44 of Keel's
+        # own inference (ai-credits-design.md §6.3); one framing is about $0.37 (§4.1's
+        # PROBLEM_FRAME 60,000 µUSD + PROBLEM_ASSUMPTIONS 307,500 µUSD). A *third* would be
+        # somebody forgetting whose money this is, and a *second full* one would be paying twice
+        # for the same measurement.
+        full_keels_ai = [c for c in keels_ai if c.legs == DEFAULT_LEGS]
+        short_keels_ai = [c for c in keels_ai if c.legs != DEFAULT_LEGS]
+        if len(full_keels_ai) != 1:
             problems.append(
-                f"weekly carries exactly one Keel's-AI cell (spec 024): it carries "
-                f"{[c.id for c in keels_ai]}. One journey a Saturday is about $2.44 of Keel's own "
+                f"weekly carries exactly one whole Keel's-AI journey (spec 024): it carries "
+                f"{[c.id for c in full_keels_ai]}. One a Saturday is about $2.44 of Keel's own "
                 f"inference (ai-credits-design.md §6.3); two is two.")
-        for cell in keels_ai:
-            if cell.legs != DEFAULT_LEGS:
+        if len(short_keels_ai) > 1:
+            problems.append(
+                f"weekly carries at most one short Keel's-AI cell beside the whole one (spec 024, "
+                f"2026-09-29 -- the framing-and-assumptions run, about $0.37 of Keel's own "
+                f"inference): it carries {[c.id for c in short_keels_ai]}.")
+        for cell in short_keels_ai:
+            if cell.legs != "short":
                 problems.append(
-                    f"the Keel's-AI cell runs the whole journey (spec 024): {cell.id} is "
-                    f"{cell.legs!r}. `short` stops before the part of this journey that is new.")
+                    f"a Keel's-AI cell is `full` or `short` and nothing else: {cell.id} is "
+                    f"{cell.legs!r}")
+        for cell in keels_ai:
             if cell.install != NO_INSTALL:
                 problems.append(
-                    f"the Keel's-AI cell installs nothing (spec 024): {cell.id} says "
+                    f"a Keel's-AI cell installs nothing (spec 024): {cell.id} says "
                     f"install={cell.install!r}, and there is no skill and no host CLI on that "
                     f"door to install one onto.")
         stray = sorted(c.id for name, cells in matrix.sets.items() if name != "weekly"

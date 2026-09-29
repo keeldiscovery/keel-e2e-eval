@@ -178,7 +178,10 @@ def test_weekly_carries_the_one_speckit_cell(matrix):
     thirteen -- the runtime it reaches is not proved twice."""
     speckit = [c for c in matrix.sets["weekly"] if c.install == "speckit"]
     assert [(c.os, c.host, c.python, c.legs) for c in speckit] == [("macos-latest", "claude", "3.13", "short")]
-    assert speckit[0].id == "macos-latest-claude-py3.13-speckit"
+    # Its id gains `-short` with spec 024's id rule (the id names every axis value that is not
+    # the default), which is truthful: this cell buys two model jobs where the plugin cell beside
+    # it buys thirteen, and until today its id said nothing about that.
+    assert speckit[0].id == "macos-latest-claude-py3.13-short-speckit"
     for name, cells in matrix.sets.items():
         if name != "weekly":
             assert not [c for c in cells if c.install == "speckit"], name
@@ -241,11 +244,12 @@ def test_weekly_is_eight_cells_the_product_on_the_current_python_plus_two(matrix
                           if c.host not in matrix.hostless_hosts]
     assert len(the_founders_eight) == 8
     assert sorted(c.id for c in the_founders_eight) == [
-        "macos-latest-claude-py3.13", "macos-latest-claude-py3.13-speckit",
+        "macos-latest-claude-py3.13", "macos-latest-claude-py3.13-short-speckit",
         "macos-latest-codex-py3.13", "macos-latest-copilot-py3.13",
         "windows-latest-claude-py3.13", "windows-latest-claude-py3.9",
         "windows-latest-codex-py3.13", "windows-latest-copilot-py3.13"]
-    assert len(matrix.sets["weekly"]) == 9, "eight, plus the Keel's-AI door (spec 024)"
+    assert len(matrix.sets["weekly"]) == 10, (
+        "eight, plus the Keel's-AI door whole and the Keel's-AI framing beside it (spec 024)")
 
 
 def test_weekly_carries_the_one_keels_ai_cell(matrix):
@@ -257,10 +261,14 @@ def test_weekly_carries_the_one_keels_ai_cell(matrix):
     installing nothing, and refused in `per_change` by name.
     """
     keels_ai = [c for c in matrix.sets["weekly"] if c.host in matrix.hostless_hosts]
-    assert [c.id for c in keels_ai] == ["macos-latest-keel-py3.13"]
-    assert keels_ai[0].legs == "full"
-    assert keels_ai[0].install == m.NO_INSTALL
-    assert keels_ai[0].scenarios == ("s012",)
+    assert [c.id for c in keels_ai] == ["macos-latest-keel-py3.13",
+                                        "macos-latest-keel-py3.13-short"]
+    # One WHOLE journey -- about $2.44 of Keel's own inference -- and one framing-and-assumptions
+    # run beside it, about $0.37 (§4.1: PROBLEM_FRAME 60,000 + PROBLEM_ASSUMPTIONS 307,500 µUSD),
+    # which is what the founder's effort comparison buys (2026-09-29).
+    assert [c.legs for c in keels_ai] == ["full", "short"]
+    assert all(c.install == m.NO_INSTALL for c in keels_ai)
+    assert all(c.scenarios == ("s012",) for c in keels_ai)
     # It is nowhere else, and `coverage_problems` says so rather than this test alone.
     assert not [c for c in matrix.sets["per_change"] if c.host in matrix.hostless_hosts]
     assert not [c for c in matrix.sets["nightly"] if c.host in matrix.hostless_hosts]
@@ -276,12 +284,15 @@ def test_every_weekly_plugin_cell_runs_the_lullaby_journey_end_to_end(matrix):
         if cell.install == "plugin":
             assert cell.legs == "full", cell.id
             assert "s012" in cell.scenarios, cell.id
-    assert [c.id for c in matrix.sets["weekly"] if c.legs == "short"] == ["macos-latest-claude-py3.13-speckit"]
-    # ...and the Keel's-AI cell is `full` too (spec 024): `short` stops before the part of that
-    # journey which is new.
-    for cell in matrix.sets["weekly"]:
-        if cell.host in matrix.hostless_hosts:
-            assert cell.legs == "full", cell.id
+    # ...and since spec 024 the Keel's-AI framing cell is short beside it, on a door that has
+    # no plugin and no road at all (`test_weekly_carries_the_one_keels_ai_cell` counts both).
+    assert sorted(c.id for c in matrix.sets["weekly"] if c.legs == "short") == [
+        "macos-latest-claude-py3.13-short-speckit", "macos-latest-keel-py3.13-short"]
+    # ...and the Keel's-AI door is bought BOTH ways since 2026-09-29: whole, and once more at the
+    # framing alone, for the founder's effort comparison. `test_weekly_carries_the_one_keels_ai_cell`
+    # is where the pair is held.
+    assert sorted(c.legs for c in matrix.sets["weekly"]
+                  if c.host in matrix.hostless_hosts) == ["full", "short"]
 
 
 # ------------------------------------------------------------- an unmeasured host (spec 008)
@@ -333,7 +344,10 @@ def test_only_the_speckit_road_is_short(matrix):
     road, and the plugin cell beside it proves the runtime at full length."""
     for name, cells in matrix.sets.items():
         assert {c.legs for c in cells if c.install == "plugin"} <= {"full"}, name
-    assert [c.id for c in matrix.sets["weekly"] if c.legs == "short"] == ["macos-latest-claude-py3.13-speckit"]
+    # ...and since spec 024 the Keel's-AI framing cell is short beside it, on a door that has
+    # no plugin and no road at all (`test_weekly_carries_the_one_keels_ai_cell` counts both).
+    assert sorted(c.id for c in matrix.sets["weekly"] if c.legs == "short") == [
+        "macos-latest-claude-py3.13-short-speckit", "macos-latest-keel-py3.13-short"]
 
 
 def test_every_cell_runs_at_least_one_scenario(matrix):
@@ -398,14 +412,27 @@ def test_legs_is_read_off_the_file_and_reaches_the_workflow(tmp_path):
     assert cell.as_dict(live=("s012",))["legs"] == "short"
 
 
-def test_legs_is_not_part_of_a_cells_id():
-    """A cell is one (OS, host, Python). The same cell appearing short in per_change and full in
-    nightly is one runner job in two sets, not two cells -- and its id is its founder in the
-    twin's picker, which cannot be two people (§4.3)."""
+def test_legs_is_part_of_a_cells_id_since_spec_024():
+    """**This rule inverted, and here is the argument.** Spec 021 kept `legs` out of the id on the
+    grounds that *"the same cell appearing short in per_change and full in nightly is one runner
+    job in two sets, not two cells"*. No cell is short in one set and full in another today --
+    per_change is full and nightly is empty -- and the case that does exist is the opposite one:
+    spec 024 puts two Keel's-AI cells in the **same** set, one whole and one that stops after the
+    framing, and those are two runner jobs, two bundles, two artifacts and two founders in the
+    twin's picker. An id is a founder (§4.3) and two cells cannot be one person, so the id names
+    everything that is not the default -- which is the rule `install` already followed."""
     short = m.Cell(os="macos-latest", host="claude", python="3.13", scenarios=("s012",),
                    legs="short")
     full = m.Cell(os="macos-latest", host="claude", python="3.13", scenarios=("s012",))
-    assert short.id == full.id == "macos-latest-claude-py3.13"
+    assert full.id == "macos-latest-claude-py3.13"
+    assert short.id == "macos-latest-claude-py3.13-short"
+    # Both suffixes, in one order, coarsest first.
+    both = m.Cell(os="macos-latest", host="claude", python="3.13", scenarios=("s012",),
+                  legs="short", install="speckit")
+    assert both.id == "macos-latest-claude-py3.13-short-speckit"
+    # ...and `none` is still never spelled, because it is the absence of a road.
+    assert m.Cell(os="macos-latest", host="keel", python="3.13", scenarios=("s012",),
+                  legs="short", install=m.NO_INSTALL).id == "macos-latest-keel-py3.13-short"
 
 
 def test_legs_outside_the_two_is_refused_by_name(tmp_path):
@@ -710,8 +737,9 @@ def test_the_cli_prints_the_three_sets(capsys):
     assert "py3.12" not in out, "design §16: Python 3.12 is suspended"
     assert "nightly  (0 cells)" in out
     # Nine since spec 024: the founder's eight, plus the Keel's-AI door.
-    assert "weekly  (9 cells)" in out and "per_change  (1 cell)" in out
+    assert "weekly  (10 cells)" in out and "per_change  (1 cell)" in out
     assert "macos-latest-keel-py3.13" in out
+    assert "macos-latest-keel-py3.13-short" in out
 
 
 def test_the_cli_prints_one_set_when_asked(capsys):

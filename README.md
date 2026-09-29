@@ -1463,9 +1463,22 @@ answers every job in process on its own Anthropic account (keel-cloud specs `044
 with its host axis widened by a **door**:
 
 ```
-make keels-ai                       # the whole journey, against KEEL_REMOTE_WEB_URL
-make eval-live K=s012 HOST=keel PROFILE=remote     # the same thing, spelled out
+make keels-ai                                        # the whole journey
+make keels-ai LEGS=short                             # the framing and its assumptions, and stop
+make eval-live K=s012 HOST=keel PROFILE=remote       # the same thing, spelled out
 ```
+
+**`LEGS=short` on this door is the framing and its assumptions** (the founder, 2026-09-29: *"only
+the framing-and-assumptions part -- the problem framed, broken into lines and questions -- at
+different effort settings, to keep spend down"*). On the three CLI doors spec 021's `short` is the
+host leg plus the first model job, and that is **unchanged**; the Keel door has no host leg, so a
+run that stopped after one job there would have measured a claim with no lines under it. It stops
+on the review card, un-approved, reading the lines through the same function the full journey calls
+at the same point. `PROBLEM_FRAME` 30 + `PROBLEM_ASSUMPTIONS` 155 = **185 credits**, $1.85 at list
+price and **367,500 µUSD ≈ $0.37** of Keel's own inference at `xhigh` (design §4.1) — against
+about $2.44 for the whole journey. keel-cloud chooses the effort and this repository pins none;
+what the run leaves behind for the comparison is one line in `facts.json` naming the models that
+answered, what keel-cloud says it paid and how long the founder waited.
 
 **It is the only thing in this repository that spends the company's money.** Every other live
 target bills the founder's own plan — his Max subscription, his Copilot seat, his OpenAI key.

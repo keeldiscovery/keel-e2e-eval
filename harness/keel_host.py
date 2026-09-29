@@ -246,9 +246,20 @@ def execution_facts(job: dict | None) -> dict:
     job = job or {}
     execution = job.get("execution") or {}
     cost = execution.get("actual_cost_micro_usd")
+    # **Whatever timing the wire happens to carry, and no invention.** keel-cloud's `execution`
+    # object is five strings, a boolean and the cost (spec 045 FR-043; design §15 amendment 1) --
+    # it carries **no token counts**, so a bundle that printed any would be printing a number
+    # nobody reported. The job row's own timestamps are a different matter: they are whatever
+    # keel-cloud puts there, so they are picked up if present and named absent if not, and the
+    # scenario records its own wall clock beside them either way.
+    timing = {key: job.get(key) for key in
+              ("created_at", "started_at", "completed_at", "updated_at", "duration_ms")
+              if job.get(key) is not None}
     return {
         "job_id": job.get("job_id"),
         "status": job.get("status"),
+        "timing, as keel-cloud reported it": timing or None,
+        "tokens": None,  # not on the wire at all -- see the comment above.
         "host": execution.get("host"),
         "host_version": execution.get("host_version"),
         "model_requested": execution.get("model_requested"),
