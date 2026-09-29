@@ -1,5 +1,5 @@
-"""S-012 -- the journey through a host (specs `016-copilot-e2e`, `019-journey-through-a-host`
-and `021-short-journey`).
+"""S-012 -- the journey through a host (specs `016-copilot-e2e`, `019-journey-through-a-host`,
+`021-short-journey` and `024-keels-ai-cell`).
 
 **Live**, opt-in through `make eval-live K=s012`, never part of `make eval`/`make eval-all`, and it
 spends the founder's own money on whichever host it is pointed at.
@@ -15,7 +15,27 @@ What differs between the two hosts is a handful of flags, one environment variab
 each CLI prints what it knows -- all of it behind `harness/agent_host.py`. What does not differ is
 everything below: the same legs, in the same order, asserting the same shapes, on the same wire.
 
-Two legs, one runtime, and the runtime is what joins them.
+**...and one of the four is not a host at all** (spec 024). keel-cloud
+`canon/designs/ai-credits-design.md` §6: *"The door decides the AI."* A founder who signs up with
+Google at keel-web's `/signup` runs on **Keel's** AI -- nothing to install, no skill to load, no
+*"keel connect"* to say, no device to approve and no runtime anywhere -- and keel-cloud answers
+every job in process on its own Anthropic account (keel-cloud specs 044 and 045). So
+`HOST=keel` **skips leg one entire** -- skipped, never asserted loosely: `harness/keel_host.py`
+raises from every one of its host-leg methods, so an edit that reached for one gets a sentence
+rather than an empty result that would read as a pass -- and asserts instead the six things only
+that door shows: `1,500 credits available` on the shell line and **no** agent line,
+`aiPath: "KEEL"` on the wire, a balance that drops the moment the first framing is held,
+`execution.host: "api"` with a present, non-zero `actual_cost_micro_usd` on every job, the
+founder's screens reading *Keel* rather than *your AI*, and a `KEEL_HOME` still empty when the
+brief is written. Leg two is the same leg two: the founder's journey is the founder's journey
+whichever AI is answering it.
+
+It is also **the only run in this repository that spends the company's money** rather than the
+founder's own plan -- about 1,250 credits, $12.50 at list price and about $2.44 of actual
+inference (design §6.3) -- which is why `matrix/cells.py` buys it once a Saturday and refuses it
+in `per_change` by name.
+
+Two legs, one runtime, and the runtime is what joins them -- on three of the four doors.
 
 **Leg one, the host.** keel-connect-skill's plugin is installed into a **fresh host home**
 (`CLAUDE_CONFIG_DIR` / `COPILOT_HOME`) from the real public marketplace with that host's own two
@@ -81,7 +101,8 @@ import time
 import pytest
 
 from evals.preludes import create_project
-from harness import agent_host, canary as canary_mod, corpus_script, refusals
+from harness import (agent_host, canary as canary_mod, corpus_script,
+                     keel_host as keels_ai, refusals)
 from stack import remote
 from harness.browser import (Auth, Chat, Connect, Landing, OpenedCard, Overview, ParticipantPage,
                               People, ReviewCard, Shell)
@@ -96,6 +117,22 @@ pytestmark = pytest.mark.live
 #: `KEEL_JOURNEY_HOST`. An unknown value raises rather than falling back: a typo that quietly ran
 #: the other host would spend the founder's money on a measurement nobody asked for.
 HOST = agent_host.journey_host()
+
+#: **True when this run is the journey through Keel's own AI** (spec `024-keels-ai-cell`;
+#: keel-cloud `canon/designs/ai-credits-design.md` §6: *"The door decides the AI"*). Read from the
+#: host axis and nowhere else, so the door is chosen the same way the host is and by the same
+#: command. It is the only flag in this file, and it turns off exactly one thing -- **leg one** --
+#: and turns on six assertions that are only true behind the Google door. Leg two is untouched:
+#: the founder's journey is the founder's journey whichever AI is answering it.
+KEELS_AI = not agent_host.has_a_cli(HOST)
+
+#: How often, on the Keel door, a wait on the screen stops to ask the wire whether the door is
+#: bolted (spec 024 FR-010). Thirty seconds, not three hundred: `LLM_UNAVAILABLE:
+#: KEEL_AI_DISABLED` is answered by keel-cloud **before a socket is opened** (keel-cloud spec 045
+#: FR-032), and a run that waited five minutes for it and then reported a timeout would be
+#: reporting the referee's own patience instead of the product's own sentence. Only this door
+#: chunks its wait; the three CLI hosts wait exactly as they waited before, in one call.
+NAMED_REASON_POLL_S = 30.0
 
 
 def _environment_of(base_url: str) -> str:
@@ -168,7 +205,12 @@ RUNTIME_MODEL = "gpt-5.6-luna"
 #: `KEEL_CLAUDE_MODEL` to set, so a Claude journey's runtime model is **recorded, not pinned**:
 #: read back off the per-job envelopes the CLI itself writes. Inventing a pin that the runtime
 #: ignores would put a fact about the referee into the bundle.
-RUNTIME_MODEL_FOR_HOST = {"copilot": RUNTIME_MODEL, "claude": None, "codex": None}
+#:
+#: **And on the Keel door there is no runtime at all**, so there is nothing to pin and nobody to
+#: pin it: keel-cloud chooses the model per screen class from its own routing table and reports
+#: what answered in `execution.model_used` (keel-cloud spec 045 FR-016/FR-018/FR-043), which this
+#: run records and asserts nothing about.
+RUNTIME_MODEL_FOR_HOST = {"copilot": RUNTIME_MODEL, "claude": None, "codex": None, "keel": None}
 
 #: **The host's model is a different question, and gets the founder's own answer.** Leg one asks
 #: what happens when the founder types "keel connect" into *their* CLI, so it pins what their CLI
@@ -178,7 +220,7 @@ RUNTIME_MODEL_FOR_HOST = {"copilot": RUNTIME_MODEL, "claude": None, "codex": Non
 #: unrepresentative; putting the runtime's slug here instead would have measured a founder nobody
 #: is. On Copilot the two pins disagree because #59 made them disagree, and the bundle records
 #: both and why.
-HOST_MODEL_FOR_HOST = {"copilot": "claude-sonnet-5", "claude": None, "codex": None}
+HOST_MODEL_FOR_HOST = {"copilot": "claude-sonnet-5", "claude": None, "codex": None, "keel": None}
 #: keel-runtime's per-host pin variable (spec 005 C-5 for Copilot, spec 008 for Codex); Claude's
 #: executor takes none. Read here so a cell's environment can pin the runtime's model.
 RUNTIME_MODEL_ENV_FOR_HOST = {"copilot": "KEEL_COPILOT_MODEL", "codex": "KEEL_CODEX_MODEL"}
@@ -216,6 +258,94 @@ def _now() -> float:
     return time.monotonic()
 
 
+class KeelsAiRefused(AssertionError):
+    """**The door is shut, and keel-cloud said so by name** (spec 024 FR-010; keel-cloud spec 045
+    FR-032, FR-037, FR-039, FR-009).
+
+    An `AssertionError` rather than a bare exception because that is what it is: the journey's
+    first requirement of this door is that the door opens, and it did not. It carries keel-cloud's
+    own words and is raised **where the wire said them**, not five minutes later on a screen that
+    never changed.
+    """
+
+
+def _named_failure(get_json, project_id: str) -> dict | None:
+    """The first job of this project that failed for one of Keel's-AI four named reasons, or
+    `None`.
+
+    Read off the founder-gated list -- the same document `harness/refusals.py::latest_failure`
+    reads -- because the reason travels in the job's `error_message` and **not** in its
+    `error.code` (keel-cloud spec 045 Assumption 11: the five wire codes are not extended, because
+    a sixth would be a founder-visible vocabulary change keel-web has no spec for). So the code
+    beside it is one of the five ordinary ones -- `LLM_UNAVAILABLE` for a disabled executor and for
+    the daily cap, `EXECUTOR_TIMEOUT` for the job clock, `INTERNAL_ERROR` for a restart sweep --
+    and the name is in the message.
+    """
+    rows = get_json(f"/v2/inference-interactions?project_id={project_id}")
+    if not isinstance(rows, list):
+        return None
+    for row in rows:
+        job = row.get("job") or {}
+        error = job.get("error") or {}
+        message = error.get("message") or job.get("error_message") or ""
+        reason = keels_ai.named_reason(message)
+        if reason:
+            return {"reason": reason, "why": keels_ai.NAMED_REASONS[reason],
+                    "screen": row.get("screen"), "interaction_id": row.get("interaction_id"),
+                    "job_id": job.get("job_id"), "job_status": job.get("status"),
+                    "error_code": error.get("code"), "error_message": message}
+    return None
+
+
+def _refuse_if_the_door_is_shut(recorder, get_json, project_id: str) -> None:
+    """Raise `KeelsAiRefused`, in a step of its own, the moment the wire names one of the four.
+
+    The step is what makes the verdict readable: `recorder.failed_step` takes the **first** failed
+    step's name, so a bundle whose executor was switched off says `KEEL_AI_DISABLED` in
+    `verdict.json` and in the matrix's own summary row -- which is the difference between a
+    founder reading *the key is missing on the twin* and a founder reading *something timed out*.
+    """
+    found = _named_failure(get_json, project_id)
+    if found is None:
+        return
+    with recorder.step(f"spec 024 FR-010: Keel's AI could not run this job -- {found['reason']}",
+                        party="stack", kind="assert") as h:
+        h.record_assert({"a job that ran": True}, found)
+        raise KeelsAiRefused(
+            f"Keel's AI refused this journey at {found['screen']}: {found['error_code']} / "
+            f"{found['error_message']} -- {found['why']}. Nothing here waited for a timeout; "
+            f"keel-cloud named the reason and this is it.")
+
+
+def _wait_for_turn(chat, recorder, get_json, project_id: str, *, timeout_s: float) -> dict:
+    """`Chat.wait_for_agent_turn`, and on the Keel door **a question to the wire every thirty
+    seconds while it waits** (spec 024 FR-010).
+
+    The three CLI hosts take the branch they have always taken -- one call, one wait, byte for
+    byte what spec 016 wrote -- because on those hosts a job that fails leaves a `runs/DRIFT.md`
+    #37-shaped silence that the existing `except TimeoutError` already interrogates, and nothing
+    about them fails *before a socket is opened*.
+
+    Keel's AI does. `KEEL_AI_DISABLED` and `KEEL_AI_DAILY_CAP` are answered in under a second and
+    the screen simply never changes, so the ceiling is split into chunks and the wire is asked
+    between them. The total wait is the same total wait; what changes is how long a door that was
+    never going to open takes to say so.
+    """
+    if not KEELS_AI:
+        return chat.wait_for_agent_turn(timeout_s=timeout_s)
+    deadline = _now() + timeout_s
+    while True:
+        remaining = deadline - _now()
+        if remaining <= 0:
+            raise TimeoutError(
+                f"no agent turn within {timeout_s}s, and the wire named none of "
+                f"{sorted(keels_ai.NAMED_REASONS)}")
+        try:
+            return chat.wait_for_agent_turn(timeout_s=min(NAMED_REASON_POLL_S, remaining))
+        except TimeoutError:
+            _refuse_if_the_door_is_shut(recorder, get_json, project_id)
+
+
 def _land_the_card(page, recorder, get_json, project_id, stage, opening, *, timeout_s=300.0):
     """**The first model job of a stage**: the founder says their statement, the host's model
     thinks, and a confirmation card carrying a non-empty claim comes back.
@@ -235,6 +365,12 @@ def _land_the_card(page, recorder, get_json, project_id, stage, opening, *, time
     for round_no, benign in enumerate(FOLLOW_UPS, start=1):
         if card is not None:
             break
+        # Spec 024 FR-010, before a single follow-up is typed: the three benign sentences exist
+        # because a *live model* sometimes answers a claim box with a question and a founder would
+        # say more. They are the wrong answer to a door with no key behind it, where each one
+        # spends another framing's worth of credits arriving at the same sentence.
+        if KEELS_AI:
+            _refuse_if_the_door_is_shut(recorder, get_json, project_id)
         stopped = (turn or {}).get("stopped")
         if stopped:
             stops.append(stopped)
@@ -344,7 +480,7 @@ def _agent_answers(chat, recorder, get_json, project_id, stage, *, timeout_s):
     only once those are spent.
     """
     try:
-        return chat.wait_for_agent_turn(timeout_s=timeout_s)
+        return _wait_for_turn(chat, recorder, get_json, project_id, timeout_s=timeout_s)
     except TimeoutError as exc:
         stopped = refusals.why_the_stage_stopped(get_json, project_id, stage)
         if stopped is None:
@@ -573,7 +709,10 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
     write_block(run_dir, "journey", {
         "entry": entry.id, "entry_sha256": entry.sha256, "title": founder.project_name,
         "person": person_name, "people": people_names, "people_count": len(people_chosen),
-        "legs": LEGS, "install": INSTALL,
+        "legs": LEGS, "install": (agent_host.NO_INSTALL if KEELS_AI else INSTALL),
+        "door": ("Keel's own AI, through the Google sign-up door (spec 024): no host CLI, no "
+                 "plugin, no skill, no runtime" if KEELS_AI else
+                 f"the founder's own AI, through {HOST}"),
         "legs, what that means": (
             "the host leg entire, plus the first model job -- the PROBLEM frame's confirmation "
             "card -- and then the way out" if SHORT else
@@ -583,7 +722,12 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
         "corpus": str(corpus.directory)})
 
     keel_home = run_dir / "keel-home"
-    host_home_dir = run_dir / f"{HOST}-home"
+    # ...and the host's own home beside it -- `claude-home`, `copilot-home`, `codex-home`. On the
+    # Keel door there is no host and therefore no home, and the name it *would* have had is
+    # `keel-home`, which is already `KEEL_HOME`'s. Two different things must not be one directory,
+    # least of all the two whose emptiness this door's evidence rests on, so it is named for what
+    # it is: a directory nothing will ever be put in.
+    host_home_dir = run_dir / ("no-host-home" if KEELS_AI else f"{HOST}-home")
     artifacts = run_dir / HOST
     model = (os.environ.get(RUNTIME_MODEL_ENV_FOR_HOST.get(HOST, ""))
              or RUNTIME_MODEL_FOR_HOST[HOST])
@@ -647,7 +791,17 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                               "row for this host": routing_table.hosts.get(HOST) or {},
                               "classes": routing_table.classes}
                              if routing_table else None),
-                         "credential": credential})
+                         "credential": credential,
+                         # spec 024 FR-002/FR-013: on the Keel door the two names are different
+                         # words about different subjects, and a reader gets both.
+                         "door": (("Keel's own AI (keel-cloud spec 045). `keel` is the door, the "
+                                   "cell id and this bundle's name; `api` is what keel-cloud's "
+                                   "own executor reports as `execution.host`, because there is no "
+                                   "CLI and no host -- only an HTTP client against a provider.")
+                                  if KEELS_AI else f"the founder's own AI, through {HOST}"),
+                         "cli, why": ("there is no host CLI on this door, so there is no version "
+                                      "to record" if KEELS_AI else None),
+                         "install": (agent_host.NO_INSTALL if KEELS_AI else INSTALL)})
 
     def _get(path: str) -> dict:
         return context.request.get(f"{cloud_base}{path}", timeout=20_000).json()
@@ -655,247 +809,445 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
     def _status() -> dict:
         return stack_runtime.status(stack, home=keel_home)
 
+    #: What the Keel door's jobs reported, filled once they exist. Held out here so the bundle's
+    #: one-line fact can be written from `finally` on a run that died at any point -- an empty
+    #: list is itself the true thing to say about a run that never got a job answered.
+    door_jobs: list[dict] = []
+
+    def _the_keel_door_in_one_line() -> str:
+        """`facts.json`'s one string on this door (spec 024 FR-013), in the shape the other three
+        doors' line has: who answered, through what, and with which models."""
+        models = sorted({str(row.get("model_used")) for row in door_jobs if row.get("model_used")})
+        return ("keel · Keel's own AI, through the Google sign-up door · no host CLI, no plugin, "
+                f"no runtime · the wire reports execution.host={EXPECTED_EXECUTOR!r} · "
+                + (f"models {', '.join(models)}" if models else
+                   "no job of this journey reported a model"))
+
+    def _me() -> dict:
+        return _get("/v2/me") or {}
+
+    def _credits_now() -> int | None:
+        value = _me().get("creditsAvailable")
+        return value if isinstance(value, int) and not isinstance(value, bool) else None
+
     try:
         page = context.new_page()
-        Auth(page, recorder, web_base).sign_in(founder_one)
+        auth = Auth(page, recorder, web_base)
+        if KEELS_AI:
+            # **The door is the whole of the message** (keel-cloud spec 044 FR-014,
+            # `GoogleSignIn.doorOf`). Nothing here says which AI the founder wants, because there
+            # is no field that could: keel-cloud reads the door off the pre-login record's own
+            # stored `return_to`, and `/signup`'s is `/` where the code story's is
+            # `/connect?user_code=…`. Same three hops, same real callback, same stub picker --
+            # a different screen, and therefore a different account.
+            auth.sign_up(founder_one)
+        else:
+            auth.sign_in(founder_one)
         landing = Landing(page, recorder, web_base)
         arrival = landing.visit()
 
-        with recorder.step("§1.0: the landing reads no agent connected, and this run's own homes "
-                            "are empty", party="founder", kind="assert") as h:
-            agent_line = Shell(page, recorder).agent_line_text()
-            h.record_assert({"agent_connected": False, "heartbeat": None},
-                             {"agent_connected": arrival["agent_connected"],
-                              "agent line": agent_line,
-                              "heartbeat": agent_host.read_heartbeat(keel_home),
-                              "KEEL_HOME": str(keel_home),
-                              host.home_var: str(host_home_dir)})
-            assert not arrival["agent_connected"], (
-                f"expected no agent connected yet, got {agent_line!r}")
-            assert agent_host.read_heartbeat(keel_home) is None, (
-                f"this run's KEEL_HOME already carries a heartbeat before {HOST} has said a word")
+        if KEELS_AI:
+            # ================================================ THE DOOR: what only Keel's AI shows
+            with recorder.step("spec 024: the landing reads a number, not an agent -- 1,500 "
+                                "credits, no agent line, and this run's KEEL_HOME is empty",
+                                party="founder", kind="assert") as h:
+                shell = Shell(page, recorder)
+                me = _me()
+                credits_line = shell.credits_line_text()
+                h.record_assert({"credits line": f"{agent_host.KEELS_AI_GRANT:,} credits available",
+                                  "agent line present": False,
+                                  "aiPath": "KEEL",
+                                  "creditsAvailable": agent_host.KEELS_AI_GRANT,
+                                  "heartbeat": None},
+                                 {"credits line": credits_line,
+                                  "agent line present": shell.agent_line_present(),
+                                  "aiPath": me.get("aiPath"),
+                                  "creditsAvailable": me.get("creditsAvailable"),
+                                  "agent (spec 045 FR-047: answered truthfully, and not "
+                                  "connected)": me.get("agent"),
+                                  "heartbeat": agent_host.read_heartbeat(keel_home),
+                                  "KEEL_HOME": str(keel_home)})
+                # The wire first: what the founder is shown is keel-web's reading of it, and a
+                # bundle that could not tell a formatting change from a grant change would be
+                # useless on the morning either happened.
+                assert me.get("aiPath") == "KEEL", (
+                    f"the account this run made is not on Keel's AI: /v2/me says aiPath="
+                    f"{me.get('aiPath')!r}. The sign-up door is what decides it (keel-cloud spec "
+                    f"044 FR-014), so either the door moved or keel-cloud read it differently.")
+                assert me.get("creditsAvailable") == agent_host.KEELS_AI_GRANT, (
+                    f"a new Keel's-AI account is granted {agent_host.KEELS_AI_GRANT} credits once, "
+                    f"at creation (keel-cloud spec 044 FR-017); /v2/me says "
+                    f"{me.get('creditsAvailable')!r}. A monthly grant budget that is already "
+                    f"spent reads as 0 here, and is a finding, not a pass.")
+                assert credits_line == f"{agent_host.KEELS_AI_GRANT:,} credits available", (
+                    f"the shell line reads {credits_line!r}, not "
+                    f"{agent_host.KEELS_AI_GRANT:,} credits available (keel-web spec 024 FR-011)")
+                assert not shell.agent_line_present(), (
+                    "the shell drew an agent line on Keel's AI -- keel-web spec 024 FR-011 "
+                    "renders exactly one of the two, and a founder on this road has no agent to "
+                    "be told about")
+                assert agent_host.read_heartbeat(keel_home) is None, (
+                    f"this run's KEEL_HOME already carries a heartbeat, and on this door nothing "
+                    f"could have written one ({keel_home})")
+
+            with recorder.step("spec 024: there is no leg one on this door, and it is skipped "
+                                "rather than asserted loosely", party="stack", kind="note") as h:
+                h.record_wire({"host": HOST, "install": agent_host.NO_INSTALL},
+                               {"not run": ["the marketplace and the plugin install",
+                                            "the CLI's own skill listing",
+                                            'the founder saying "keel connect"',
+                                            "the device code, the /connect approval and "
+                                            "`already_connected`",
+                                            "the runtime's `KEEL_EXECUTOR=` startup line",
+                                            "keel-connect-skill's own way out"],
+                                "why": ("keel-cloud `ai-credits-design.md` §6: the door decides "
+                                        "the AI. A founder who signs up with Google installs "
+                                        "nothing and runs nothing; keel-cloud answers every job "
+                                        "on its own account (spec 045)."),
+                                "how it is kept honest": (
+                                    "`harness/keel_host.py` raises `NoHostHere` from every one of "
+                                    "those methods, so a future edit that reached for leg one on "
+                                    "this door gets a sentence and not an empty result"),
+                                "credential": credential})
+        else:
+            with recorder.step("§1.0: the landing reads no agent connected, and this run's own "
+                                "homes are empty", party="founder", kind="assert") as h:
+                agent_line = Shell(page, recorder).agent_line_text()
+                h.record_assert({"agent_connected": False, "heartbeat": None},
+                                 {"agent_connected": arrival["agent_connected"],
+                                  "agent line": agent_line,
+                                  "heartbeat": agent_host.read_heartbeat(keel_home),
+                                  "KEEL_HOME": str(keel_home),
+                                  host.home_var: str(host_home_dir)})
+                assert not arrival["agent_connected"], (
+                    f"expected no agent connected yet, got {agent_line!r}")
+                assert agent_host.read_heartbeat(keel_home) is None, (
+                    f"this run's KEEL_HOME already carries a heartbeat before {HOST} has said a "
+                    f"word")
 
         # ======================================================= LEG ONE: the host that loads it
-        with recorder.step(f"leg one: how this {HOST} is authenticated, and which model it pins",
-                            party="stack", kind="note") as h:
-            h.record_wire({host.home_var: str(host_home_dir)},
-                           {"credential": credential,
-                            "cli": ready["version"],
-                            "pinned_model (the host's own --model)": host_model,
-                            "pinned_model (the runtime's)": model,
-                            "why they differ": ("runs/DRIFT.md #59 -- on Copilot the plan's "
-                                                "default model answers correctly and keel-runtime "
-                                                "cannot read it, so the host keeps the founder's "
-                                                "own default and the runtime pins one it can "
-                                                "read. On Claude the runtime's executor takes no "
-                                                "model at all, so there is nothing to pin and the "
-                                                "bundle records what answered."),
-                            "KEEL_RUNTIME_PATH in the child": "scrubbed (T-1)",
-                            "the session this harness runs in": "scrubbed, so the skill's own "
-                                                                "host detection sees one host"})
-
-        if INSTALL == "speckit":
-            # The Spec Kit road (spec 022): the extension `make dist` wrote, added to a Spec Kit
-            # project in the host's own working directory, and the commands Spec Kit registers
-            # as this host's project skills. Built here when the checkout has no dist/ yet.
-            source_tree = stack.keel_connect_skill / "dist" / "speckit"
-            if not (source_tree / "extension.yml").is_file():
-                subprocess.run(["make", "-C", str(stack.keel_connect_skill), "dist"],
-                               check=True, capture_output=True, timeout=300)
-            with recorder.step("leg one: the Spec Kit extension is added to a project, with "
-                                "Spec Kit's own two commands", party="stack", kind="assert") as h:
-                installed = host.install_extension(source_tree)
-                h.record_wire({"source": str(source_tree), "work_dir": str(host.work_dir)},
-                               installed)
-                assert installed["exit_code"] == 0, (
-                    f"`{' '.join(installed['cmd'])}` failed: "
-                    f"{installed['stderr'] or installed['stdout']}")
-
-            with recorder.step(f"leg one: {HOST} sees {agent_host.EXTENSION_SKILL_NAME}, as a "
-                                "project skill Spec Kit registered", party="stack", kind="assert") as h:
-                proof = host.extension_proof()
-                h.record_assert({"skill file": "present", "listed by specify": True},
-                                 {"found": proof["found"], "listed": proof["listed"],
-                                  "skill_file": proof["skill_file"], "raw": proof["raw"]})
-                assert proof["found"], (
-                    f"Spec Kit did not register {agent_host.EXTENSION_SKILL_NAME!r} at "
-                    f"{proof['skill_file']}")
-                assert proof["listed"], (
-                    f"`specify extension list` does not name keel: {proof['raw'][:800]!r}")
+        if KEELS_AI:
+            first = second = None
         else:
-            with recorder.step("leg one: the plugin is installed from the real marketplace with "
-                                f"{HOST}'s own two commands", party="stack", kind="assert") as h:
-                added = host.add_marketplace()
-                installed = host.install_plugin()
-                h.record_wire({"marketplace": agent_host.MARKETPLACE_SOURCE,
-                                "plugin": agent_host.PLUGIN_SPEC},
-                               {"add": added, "install": installed,
-                                "list": host.plugin_list()})
-                assert added["exit_code"] == 0, (
-                    f"`{' '.join(added['cmd'])}` failed: {added['stderr'] or added['stdout']}")
-                assert installed["exit_code"] == 0, (
-                    f"`{' '.join(installed['cmd'])}` failed: "
-                    f"{installed['stderr'] or installed['stdout']}")
+            with recorder.step(f"leg one: how this {HOST} is authenticated, and which model it pins",
+                                party="stack", kind="note") as h:
+                h.record_wire({host.home_var: str(host_home_dir)},
+                               {"credential": credential,
+                                "cli": ready["version"],
+                                "pinned_model (the host's own --model)": host_model,
+                                "pinned_model (the runtime's)": model,
+                                "why they differ": ("runs/DRIFT.md #59 -- on Copilot the plan's "
+                                                    "default model answers correctly and keel-runtime "
+                                                    "cannot read it, so the host keeps the founder's "
+                                                    "own default and the runtime pins one it can "
+                                                    "read. On Claude the runtime's executor takes no "
+                                                    "model at all, so there is nothing to pin and the "
+                                                    "bundle records what answered."),
+                                "KEEL_RUNTIME_PATH in the child": "scrubbed (T-1)",
+                                "the session this harness runs in": "scrubbed, so the skill's own "
+                                                                    "host detection sees one host"})
 
-            with recorder.step(f"leg one: {HOST} sees keel-connect, and as a plugin skill",
+            if INSTALL == "speckit":
+                # The Spec Kit road (spec 022): the extension `make dist` wrote, added to a Spec Kit
+                # project in the host's own working directory, and the commands Spec Kit registers
+                # as this host's project skills. Built here when the checkout has no dist/ yet.
+                source_tree = stack.keel_connect_skill / "dist" / "speckit"
+                if not (source_tree / "extension.yml").is_file():
+                    subprocess.run(["make", "-C", str(stack.keel_connect_skill), "dist"],
+                                   check=True, capture_output=True, timeout=300)
+                with recorder.step("leg one: the Spec Kit extension is added to a project, with "
+                                    "Spec Kit's own two commands", party="stack", kind="assert") as h:
+                    installed = host.install_extension(source_tree)
+                    h.record_wire({"source": str(source_tree), "work_dir": str(host.work_dir)},
+                                   installed)
+                    assert installed["exit_code"] == 0, (
+                        f"`{' '.join(installed['cmd'])}` failed: "
+                        f"{installed['stderr'] or installed['stdout']}")
+
+                with recorder.step(f"leg one: {HOST} sees {agent_host.EXTENSION_SKILL_NAME}, as a "
+                                    "project skill Spec Kit registered", party="stack", kind="assert") as h:
+                    proof = host.extension_proof()
+                    h.record_assert({"skill file": "present", "listed by specify": True},
+                                     {"found": proof["found"], "listed": proof["listed"],
+                                      "skill_file": proof["skill_file"], "raw": proof["raw"]})
+                    assert proof["found"], (
+                        f"Spec Kit did not register {agent_host.EXTENSION_SKILL_NAME!r} at "
+                        f"{proof['skill_file']}")
+                    assert proof["listed"], (
+                        f"`specify extension list` does not name keel: {proof['raw'][:800]!r}")
+            else:
+                with recorder.step("leg one: the plugin is installed from the real marketplace with "
+                                    f"{HOST}'s own two commands", party="stack", kind="assert") as h:
+                    added = host.add_marketplace()
+                    installed = host.install_plugin()
+                    h.record_wire({"marketplace": agent_host.MARKETPLACE_SOURCE,
+                                    "plugin": agent_host.PLUGIN_SPEC},
+                                   {"add": added, "install": installed,
+                                    "list": host.plugin_list()})
+                    assert added["exit_code"] == 0, (
+                        f"`{' '.join(added['cmd'])}` failed: {added['stderr'] or added['stdout']}")
+                    assert installed["exit_code"] == 0, (
+                        f"`{' '.join(installed['cmd'])}` failed: "
+                        f"{installed['stderr'] or installed['stdout']}")
+
+                with recorder.step(f"leg one: {HOST} sees keel-connect, and as a plugin skill",
+                                    party="stack", kind="assert") as h:
+                    proof = host.skill_proof()
+                    h.record_assert({"skill": agent_host.SKILL_NAME, "source": "a plugin"},
+                                     {"found": proof["found"], "from a plugin": proof["from_plugin"],
+                                      "detail": proof["detail"], "raw": proof["raw"][:4000]})
+                    assert proof["found"], (
+                        f"`{' '.join(proof['cmd'])}` does not name {agent_host.SKILL_NAME!r} after the "
+                        f"plugin installed cleanly: {proof['raw'][:1000]!r}")
+                    assert proof["from_plugin"], (
+                        f"{agent_host.SKILL_NAME!r} is visible but not as a plugin skill: "
+                        f"{proof['detail']!r}")
+
+            with recorder.step(f'leg one: the founder says "keel connect" to {HOST}, once',
+                                party="founder", kind="protocol") as h:
+                first = host.say(THE_FOUNDER_SAYS, slug="connect-1")
+                h.record_wire({"argv": first.argv, "cwd": str(host.work_dir)},
+                               {"exit_code": first.exit_code, "model": first.model,
+                                "spend": first.spend(),
+                                "tools": first.tools_used,
+                                "reply": first.reply_text[:4000],
+                                "stderr": first.stderr[:2000],
+                                "transcript": str(first.transcript_path)})
+
+            with recorder.step("leg one: a runtime is really there -- the heartbeat says "
+                                "`awaiting_approval`", party="stack", kind="assert") as h:
+                heartbeat = agent_host.read_heartbeat(keel_home)
+                h.record_assert({"state": agent_host.STATE_AWAITING_APPROVAL,
+                                  "pid": "a live one", "agent_session_id": None},
+                                 heartbeat)
+                assert heartbeat is not None, (
+                    f"{HOST} answered but no runtime heartbeat exists under this run's KEEL_HOME "
+                    f"({keel_home}) -- so nothing was started, whatever the reply said. It said: "
+                    f"{first.reply_text[:400]!r}")
+                assert heartbeat.get("state") == agent_host.STATE_AWAITING_APPROVAL, (
+                    f"expected a runtime waiting for device approval, the heartbeat reads "
+                    f"{heartbeat.get('state')!r}")
+                assert heartbeat.get("pid"), f"the heartbeat names no pid: {heartbeat!r}"
+
+            with recorder.step("leg one: the launch log carries the code and the device page URL",
                                 party="stack", kind="assert") as h:
-                proof = host.skill_proof()
-                h.record_assert({"skill": agent_host.SKILL_NAME, "source": "a plugin"},
-                                 {"found": proof["found"], "from a plugin": proof["from_plugin"],
-                                  "detail": proof["detail"], "raw": proof["raw"][:4000]})
-                assert proof["found"], (
-                    f"`{' '.join(proof['cmd'])}` does not name {agent_host.SKILL_NAME!r} after the "
-                    f"plugin installed cleanly: {proof['raw'][:1000]!r}")
-                assert proof["from_plugin"], (
-                    f"{agent_host.SKILL_NAME!r} is visible but not as a plugin skill: "
-                    f"{proof['detail']!r}")
+                log_text = agent_host.read_launch_log(keel_home)
+                user_code = agent_host.user_code_in(log_text)
+                verification_uri = agent_host.verification_uri_in(log_text)
+                h.record_assert({"KEEL_USER_CODE=": "XXXX-XXXX",
+                                  "KEEL_VERIFICATION_URI=": f"{web_base}/connect"},
+                                 {"user_code": user_code, "verification_uri": verification_uri,
+                                  "log": log_text[:2000]})
+                assert agent_host.looks_like_a_user_code(user_code), (
+                    f"no `KEEL_USER_CODE=` line of the right shape in {keel_home}/"
+                    f"{agent_host.LAUNCH_LOG_FILENAME}: {log_text[:500]!r}")
+                assert verification_uri and verification_uri.startswith(f"{web_base}/connect"), (
+                    f"the launch log's verification URI is not this stack's own /connect: "
+                    f"{verification_uri!r}")
 
-        with recorder.step(f'leg one: the founder says "keel connect" to {HOST}, once',
-                            party="founder", kind="protocol") as h:
-            first = host.say(THE_FOUNDER_SAYS, slug="connect-1")
-            h.record_wire({"argv": first.argv, "cwd": str(host.work_dir)},
-                           {"exit_code": first.exit_code, "model": first.model,
-                            "spend": first.spend(),
-                            "tools": first.tools_used,
-                            "reply": first.reply_text[:4000],
-                            "stderr": first.stderr[:2000],
-                            "transcript": str(first.transcript_path)})
+            with recorder.step("leg one: the code is one **this Keel** issued, and it is not approved "
+                                "yet", party="stack", kind="assert") as h:
+                response = context.request.get(
+                    f"{cloud_base}/v2/device-authorizations?user_code={user_code}", timeout=20_000)
+                body = response.json() if response.ok else {"status": response.status}
+                h.record_assert({"http": 200, "approved": False},
+                                 {"http": response.status, "body": body})
+                assert response.ok, (
+                    f"the eval cloud does not know the code {HOST} relayed ({user_code!r}): "
+                    f"HTTP {response.status}. A code this Keel never issued means the skill talked to "
+                    f"a different Keel, or the host invented one.")
+                assert not body.get("approved"), (
+                    f"the code was already approved before the founder touched it: {body}")
 
-        with recorder.step("leg one: a runtime is really there -- the heartbeat says "
-                            "`awaiting_approval`", party="stack", kind="assert") as h:
-            heartbeat = agent_host.read_heartbeat(keel_home)
-            h.record_assert({"state": agent_host.STATE_AWAITING_APPROVAL,
-                              "pid": "a live one", "agent_session_id": None},
-                             heartbeat)
-            assert heartbeat is not None, (
-                f"{HOST} answered but no runtime heartbeat exists under this run's KEEL_HOME "
-                f"({keel_home}) -- so nothing was started, whatever the reply said. It said: "
-                f"{first.reply_text[:400]!r}")
-            assert heartbeat.get("state") == agent_host.STATE_AWAITING_APPROVAL, (
-                f"expected a runtime waiting for device approval, the heartbeat reads "
-                f"{heartbeat.get('state')!r}")
-            assert heartbeat.get("pid"), f"the heartbeat names no pid: {heartbeat!r}"
+            connect = Connect(page, recorder)
+            frame = connect.open(verification_uri)
+            with recorder.step("leg one: the verification URI opens the device-decision frame",
+                                party="founder", kind="assert") as h:
+                h.record_assert("B", frame)
+                assert frame == "B", f"expected the device-decision frame B, got {frame!r}"
+                on_screen = connect.user_code()
+                assert user_code in on_screen, (
+                    f"the screen shows {on_screen!r} where the launch log said {user_code!r}")
+            connect.approve()
+            connect.wait_for_connected(timeout_s=60)
 
-        with recorder.step("leg one: the launch log carries the code and the device page URL",
-                            party="stack", kind="assert") as h:
-            log_text = agent_host.read_launch_log(keel_home)
-            user_code = agent_host.user_code_in(log_text)
-            verification_uri = agent_host.verification_uri_in(log_text)
-            h.record_assert({"KEEL_USER_CODE=": "XXXX-XXXX",
-                              "KEEL_VERIFICATION_URI=": f"{web_base}/connect"},
-                             {"user_code": user_code, "verification_uri": verification_uri,
-                              "log": log_text[:2000]})
-            assert agent_host.looks_like_a_user_code(user_code), (
-                f"no `KEEL_USER_CODE=` line of the right shape in {keel_home}/"
-                f"{agent_host.LAUNCH_LOG_FILENAME}: {log_text[:500]!r}")
-            assert verification_uri and verification_uri.startswith(f"{web_base}/connect"), (
-                f"the launch log's verification URI is not this stack's own /connect: "
-                f"{verification_uri!r}")
+            with recorder.step('leg one: the founder says "keel connect" a second time -- the skill\'s '
+                                "`already_connected`", party="founder", kind="protocol") as h:
+                second = host.say(THE_FOUNDER_SAYS, slug="connect-2")
+                h.record_wire({"argv": second.argv},
+                               {"exit_code": second.exit_code, "model": second.model,
+                                "spend": second.spend(),
+                                "tools": second.tools_used,
+                                "reply": second.reply_text[:4000],
+                                "transcript": str(second.transcript_path)})
 
-        with recorder.step("leg one: the code is one **this Keel** issued, and it is not approved "
-                            "yet", party="stack", kind="assert") as h:
-            response = context.request.get(
-                f"{cloud_base}/v2/device-authorizations?user_code={user_code}", timeout=20_000)
-            body = response.json() if response.ok else {"status": response.status}
-            h.record_assert({"http": 200, "approved": False},
-                             {"http": response.status, "body": body})
-            assert response.ok, (
-                f"the eval cloud does not know the code {HOST} relayed ({user_code!r}): "
-                f"HTTP {response.status}. A code this Keel never issued means the skill talked to "
-                f"a different Keel, or the host invented one.")
-            assert not body.get("approved"), (
-                f"the code was already approved before the founder touched it: {body}")
+            with recorder.step("leg one: the runtime's own `status` says connected -- and the host's "
+                                "reply says so too (loosely, and never on its own)",
+                                party="stack", kind="assert") as h:
+                status = _status()
+                said_connected = agent_host.mentions_connected(second.reply_text)
+                h.record_assert({"running": True, "connected": True, "reply mentions connected": True},
+                                 {"status": status, "reply mentions connected": said_connected,
+                                  "reply": second.reply_text[:1000]})
+                assert status.get("running"), f"the runtime is not running after approval: {status}"
+                assert status.get("connected"), (
+                    f"the runtime never completed device approval: {status}")
+                assert said_connected, (
+                    f"the runtime is connected but {HOST}'s second reply never says so, so the "
+                    f"skill's `already_connected` was not relayed: {second.reply_text[:400]!r}")
 
-        connect = Connect(page, recorder)
-        frame = connect.open(verification_uri)
-        with recorder.step("leg one: the verification URI opens the device-decision frame",
-                            party="founder", kind="assert") as h:
-            h.record_assert("B", frame)
-            assert frame == "B", f"expected the device-decision frame B, got {frame!r}"
-            on_screen = connect.user_code()
-            assert user_code in on_screen, (
-                f"the screen shows {on_screen!r} where the launch log said {user_code!r}")
-        connect.approve()
-        connect.wait_for_connected(timeout_s=60)
+            # ========= LEG TWO's one runtime question -- still the host's, so still in this arm.
+            # Which executor the runtime chose is the last thing leg one proves and the first
+            # thing leg two rests on, and on the Keel door there is no runtime to ask it of. What
+            # answered *there* is read off keel-cloud's own `execution` report at the end of the
+            # journey instead (spec 024 FR-007). Everything below this arm -- the walk, the
+            # people, the reading, the brief -- is the same journey on all four doors.
+            with recorder.step(f"leg two: the runtime is on the {EXPECTED_EXECUTOR} executor, because "
+                                "the skill told it which host it was running under and nothing here "
+                                "named an executor", party="stack", kind="assert") as h:
+                # **Read off the runtime's own startup line, not off `keel status`** (`runs/DRIFT.md`
+                # #58). keel-cloud's contract defines `status.executor` as *"which executor this home
+                # **would** run a job with ... resolved the same way `connect` resolves it"* -- the
+                # caller's resolution, not the live process's. Asked from this harness (a Claude Code
+                # session, so `CLAUDECODE=1` is in the environment `resolve_executor` reads) it
+                # answers `claude` about a runtime whose own log says `KEEL_EXECUTOR=copilot`. That
+                # is the first thing this scenario found and it is recorded, not adapted around: the
+                # `status` reading goes into the bundle beside the one that knows.
+                #
+                # **`source=flag` is asserted on both hosts, and it is the same chain both times.**
+                # Copilot gets there because `SKILL.md` carries the one D5 exception telling it to add
+                # `--host copilot`; Claude gets there because the skill's own `detect_host` reads the
+                # `CLAUDECODE=1` its CLI sets for the shell it runs the script in. Either way the
+                # *script* passes `--executor`, so the runtime records an explicit term -- and a run
+                # that arrived at the right name by `source=path` or `source=host` would be a runtime
+                # that guessed right, which proves nothing about the skill.
+                launched = agent_host.launch_executor_in(agent_host.read_launch_log(keel_home))
+                status = _status()
+                h.record_assert({"KEEL_EXECUTOR": EXPECTED_EXECUTOR, "source": "flag"},
+                                 {"the runtime's own startup line": launched,
+                                  "keel status (DRIFT #58: the caller's resolution, not this "
+                                  "runtime's)": {"executor": status.get("executor"),
+                                                 "executor_on_path": status.get("executor_on_path")},
+                                  "environment": status.get("environment")})
+                assert launched is not None, (
+                    f"the runtime left no `KEEL_EXECUTOR=` line in {keel_home}/"
+                    f"{agent_host.LAUNCH_LOG_FILENAME}, so which executor it chose is unknowable")
+                assert launched["executor"] == EXPECTED_EXECUTOR, (
+                    f"the runtime is on {launched['executor']!r}, not {EXPECTED_EXECUTOR!r} -- the "
+                    f"skill did not tell it which host it was running under (SKILL.md's D5 "
+                    f"exception for Copilot; the script's own host detection for Claude)")
+                assert launched.get("source") == "flag", (
+                    f"the runtime chose {EXPECTED_EXECUTOR!r} by {launched.get('source')!r} rather "
+                    f"than by an explicit term -- the skill is meant to *tell* it, so a run that "
+                    f"guessed right off an environment marker has not proven the skill's line works")
+                assert status.get("environment") == _environment_of(cloud_base), (
+                    f"the runtime names {status.get('environment')!r}, not this stack's Keel")
 
-        with recorder.step('leg one: the founder says "keel connect" a second time -- the skill\'s '
-                            "`already_connected`", party="founder", kind="protocol") as h:
-            second = host.say(THE_FOUNDER_SAYS, slug="connect-2")
-            h.record_wire({"argv": second.argv},
-                           {"exit_code": second.exit_code, "model": second.model,
-                            "spend": second.spend(),
-                            "tools": second.tools_used,
-                            "reply": second.reply_text[:4000],
-                            "transcript": str(second.transcript_path)})
+            with recorder.step("C-5: the pin the skill's own launch carried -- or, on a host whose "
+                                "executor takes no model, the absence of one, said out loud",
+                                party="stack", kind="assert") as h:
+                h.record_assert({"model": model}, {"the runtime's own startup line": launched,
+                                                   "pinned": bool(model)})
+                if model:
+                    assert launched.get("model") == model, (
+                        f"the runtime launched with model {launched.get('model')!r} where this run "
+                        f"pinned {model!r}: `KEEL_COPILOT_MODEL` did not reach the executor")
 
-        with recorder.step("leg one: the runtime's own `status` says connected -- and the host's "
-                            "reply says so too (loosely, and never on its own)",
-                            party="stack", kind="assert") as h:
-            status = _status()
-            said_connected = agent_host.mentions_connected(second.reply_text)
-            h.record_assert({"running": True, "connected": True, "reply mentions connected": True},
-                             {"status": status, "reply mentions connected": said_connected,
-                              "reply": second.reply_text[:1000]})
-            assert status.get("running"), f"the runtime is not running after approval: {status}"
-            assert status.get("connected"), (
-                f"the runtime never completed device approval: {status}")
-            assert said_connected, (
-                f"the runtime is connected but {HOST}'s second reply never says so, so the "
-                f"skill's `already_connected` was not relayed: {second.reply_text[:400]!r}")
-
-        # ==================================================== LEG TWO: the host that answers it
-        with recorder.step(f"leg two: the runtime is on the {EXPECTED_EXECUTOR} executor, because "
-                            "the skill told it which host it was running under and nothing here "
-                            "named an executor", party="stack", kind="assert") as h:
-            # **Read off the runtime's own startup line, not off `keel status`** (`runs/DRIFT.md`
-            # #58). keel-cloud's contract defines `status.executor` as *"which executor this home
-            # **would** run a job with ... resolved the same way `connect` resolves it"* -- the
-            # caller's resolution, not the live process's. Asked from this harness (a Claude Code
-            # session, so `CLAUDECODE=1` is in the environment `resolve_executor` reads) it
-            # answers `claude` about a runtime whose own log says `KEEL_EXECUTOR=copilot`. That
-            # is the first thing this scenario found and it is recorded, not adapted around: the
-            # `status` reading goes into the bundle beside the one that knows.
-            #
-            # **`source=flag` is asserted on both hosts, and it is the same chain both times.**
-            # Copilot gets there because `SKILL.md` carries the one D5 exception telling it to add
-            # `--host copilot`; Claude gets there because the skill's own `detect_host` reads the
-            # `CLAUDECODE=1` its CLI sets for the shell it runs the script in. Either way the
-            # *script* passes `--executor`, so the runtime records an explicit term -- and a run
-            # that arrived at the right name by `source=path` or `source=host` would be a runtime
-            # that guessed right, which proves nothing about the skill.
-            launched = agent_host.launch_executor_in(agent_host.read_launch_log(keel_home))
-            status = _status()
-            h.record_assert({"KEEL_EXECUTOR": EXPECTED_EXECUTOR, "source": "flag"},
-                             {"the runtime's own startup line": launched,
-                              "keel status (DRIFT #58: the caller's resolution, not this "
-                              "runtime's)": {"executor": status.get("executor"),
-                                             "executor_on_path": status.get("executor_on_path")},
-                              "environment": status.get("environment")})
-            assert launched is not None, (
-                f"the runtime left no `KEEL_EXECUTOR=` line in {keel_home}/"
-                f"{agent_host.LAUNCH_LOG_FILENAME}, so which executor it chose is unknowable")
-            assert launched["executor"] == EXPECTED_EXECUTOR, (
-                f"the runtime is on {launched['executor']!r}, not {EXPECTED_EXECUTOR!r} -- the "
-                f"skill did not tell it which host it was running under (SKILL.md's D5 "
-                f"exception for Copilot; the script's own host detection for Claude)")
-            assert launched.get("source") == "flag", (
-                f"the runtime chose {EXPECTED_EXECUTOR!r} by {launched.get('source')!r} rather "
-                f"than by an explicit term -- the skill is meant to *tell* it, so a run that "
-                f"guessed right off an environment marker has not proven the skill's line works")
-            assert status.get("environment") == _environment_of(cloud_base), (
-                f"the runtime names {status.get('environment')!r}, not this stack's Keel")
-
-        with recorder.step("C-5: the pin the skill's own launch carried -- or, on a host whose "
-                            "executor takes no model, the absence of one, said out loud",
-                            party="stack", kind="assert") as h:
-            h.record_assert({"model": model}, {"the runtime's own startup line": launched,
-                                               "pinned": bool(model)})
-            if model:
-                assert launched.get("model") == model, (
-                    f"the runtime launched with model {launched.get('model')!r} where this run "
-                    f"pinned {model!r}: `KEEL_COPILOT_MODEL` did not reach the executor")
+        # spec 024 FR-006: the number before anything has been asked of Keel's AI. Read off the
+        # wire rather than off the screen, because what is being measured is the ledger and the
+        # screen is only keel-web's reading of it (`creditsAvailable` is `SUM(credits)` computed
+        # at read time -- keel-cloud spec 044 FR-033, design X2).
+        credits_before = _credits_now() if KEELS_AI else None
 
         project_id = create_project(page, recorder, web_base, founder)
+
+        if KEELS_AI:
+            with recorder.step("spec 024: a project started with no runtime bound, because a "
+                                "Keel's-AI account is never asked for an agent",
+                                party="founder", kind="assert") as h:
+                # keel-cloud spec 045 FR-045: `POST /v2/projects`' live-agent refusal (422 rule
+                # "agent", *"your AI is not connected"*) does not run for a KEEL account -- and
+                # keel-web spec 024 FR-013 does not render the gate card or the lock beside *New
+                # project*. So a project exists, and the fact that it exists is the assertion.
+                # (Until keel-cloud spec 045 lands, this is exactly where the journey stops: spec
+                # 044's own *what this pass does not do* leaves the 422 in place for a KEEL
+                # account with no runtime bound, after the credit gate has already answered.)
+                h.record_assert({"project": "created with no agent connected"},
+                                 {"project_id": project_id,
+                                  "agent": (_me().get("agent") or {}),
+                                  "creditsAvailable": credits_before})
+                assert project_id, "no project was created"
+
+        credits_after_first_job = None
+
+        def _the_number_went_down() -> None:
+            """**spec 024 FR-006**, made once, after the PROBLEM framing has run.
+
+            keel-cloud writes the `HOLD` -- `credits = −price` -- in the **same transaction as the
+            job insert** (`ai-credits-design.md` §8.3, invariant X1), so the balance moves when
+            the work is *started*, not when it lands: *"the number drops when the hold is written,
+            not when the job ends"* (keel-cloud spec 044, US6 scenario 3). The card having landed
+            is therefore well past the moment this measures, which is the point -- a strictly
+            smaller number here is the ledger having charged for work Keel's AI actually did.
+            """
+            nonlocal credits_after_first_job
+            credits_after_first_job = _credits_now()
+            with recorder.step("spec 024: the credits line went down once Keel's AI did the first "
+                                "framing", party="stack", kind="assert") as h:
+                spent = (None if credits_before is None or credits_after_first_job is None
+                         else credits_before - credits_after_first_job)
+                h.record_assert({"credits after": f"< {credits_before}"},
+                                 {"credits before": credits_before,
+                                  "credits after": credits_after_first_job,
+                                  "spent, in credits": spent,
+                                  "what a framing costs, per the design": (
+                                      "540 credits for all six framing kinds; the PROBLEM frame "
+                                      "alone is 30 and its assumptions 155 "
+                                      "(ai-credits-design.md §4.1)"),
+                                  "on the screen": Shell(page, recorder).credits_line_text()})
+                assert credits_before is not None and credits_after_first_job is not None, (
+                    f"/v2/me answered no integer creditsAvailable on a KEEL account "
+                    f"(before={credits_before!r}, after={credits_after_first_job!r}); keel-cloud "
+                    f"spec 044 FR-033 makes it null only on an OWN one")
+                assert credits_after_first_job < credits_before, (
+                    f"Keel's AI framed the problem and the ledger did not move: "
+                    f"{credits_before} -> {credits_after_first_job}. The HOLD is written in the "
+                    f"same transaction as the job insert (design §8.3, X1), so a balance that "
+                    f"did not drop means no job of this founder's was ever priced.")
+
+        def _the_screens_say_keel() -> None:
+            """**spec 024 FR-009**, made where the founder is actually reading (keel-web spec 024
+            FR-014, `AI_SUBJECT_KEEL`).
+
+            Twenty-seven strings say *Keel* on this road where they say *your AI* on the other
+            one, all through one substitution. Pinning twenty-seven sentences here would make this
+            repository a second copy of keel-web's `translate.ts` and would go red on a copy
+            review the founder has not finished, so what is asserted is the **property** the
+            substitution exists to produce: the chat says who it is, and the word *your AI*
+            appears nowhere on the founder's own screen.
+            """
+            shell = Shell(page, recorder)
+            with recorder.step("spec 024: the founder's screens say Keel, never *your AI*",
+                                party="founder", kind="assert") as h:
+                name = Chat(page, recorder).chat_name()
+                stragglers = shell.says_your_ai()
+                h.record_assert({"chat name": "Keel", "lines saying *your AI*": []},
+                                 {"chat name": name, "lines saying *your AI*": stragglers,
+                                  "credits line": shell.credits_line_text(),
+                                  "agent line present": shell.agent_line_present()})
+                assert name.strip() == "Keel", (
+                    f"the chat calls itself {name!r} on a Keel's-AI project; keel-web spec 024 "
+                    f"FR-014 makes it {'Keel'!r} behind this door")
+                assert not stragglers, (
+                    f"a founder on Keel's AI was told about *your AI*, which they do not have: "
+                    f"{stragglers}")
+
+        # The words, read on the screen `create_project` just landed the founder on -- the
+        # project's own PROBLEM chat, before a single thing has been said to it. Asserted here
+        # rather than after a stage because this is where `.chat__name` is certainly on screen,
+        # and because what FR-009 is about is what a founder *arrives* to.
+        if KEELS_AI:
+            _the_screens_say_keel()
 
         # **The first model job, and on the short journey the only one** (spec 021). The founder
         # types the entry's PROBLEM statement and the host's model answers it with a confirmation
@@ -905,6 +1257,8 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
         if SHORT:
             _land_the_card(page, recorder, _get, project_id, "PROBLEM",
                            founder.statement("PROBLEM"))
+            if KEELS_AI:
+                _the_number_went_down()
             # Nothing is asserted about *stopping*: the short journey does less, it does not do
             # something else. This is a note, and every assertion below it -- no refusals, every
             # job COMPLETED, what it cost, the founder's own way out -- is one both lengths make.
@@ -925,6 +1279,9 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
         else:
             for stage in STAGES:
                 _walk_stage_live(page, recorder, _get, project_id, stage, founder.statement(stage))
+                # The ledger has moved exactly once at this point (spec 024 FR-006).
+                if KEELS_AI and stage == STAGES[0]:
+                    _the_number_went_down()
                 ReviewCard(page, recorder, web_base).continue_onward()
 
             people = People(page, recorder, web_base)
@@ -1036,111 +1393,216 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
             assert not bad_jobs, f"a job did not complete: {bad_jobs}"
             assert not unsettled, f"an interaction never settled: {unsettled}"
 
-        with recorder.step("what it cost, in this host's own unit and never converted into the "
-                            "other's (C-7)", party="stack", kind="note") as h:
-            rows = canary_mod.wait_for_envelopes(keel_home, timeout_s=180)
-            per_job = []
-            for row in rows:
-                facts = host.envelope_facts(row["envelope"])
-                per_job.append({"job_id": row["job_id"], **facts})
-            caps = canary_mod.cap_sources(stack.keel_runtime, keel_home)
-            spend = {"host legs": [run.spend() for run in (first, second)],
-                     "people": len(people_chosen),
-                     "readings scale with people": (
-                         "one reading job an answered anchor, on the routing table's light model "
-                         "where the cloud has a row for this host (model-routing-design.md §3)"),
-                     "thinking (keel-runtime jobs)": [
-                         {k: v for k, v in row.items()
-                          if k in ("job_id", "premium_requests", "total_cost_usd", "model")}
-                         for row in per_job],
-                     "jobs": len(rows),
-                     "pinned_model (runtime)": model,
-                     "pinned_model (host)": host_model,
-                     "reported model (host)": second.model,
-                     "cap sources": caps}
-            h.record_wire({"per job": per_job}, spend)
-            (run_dir / "spend.json").write_text(json.dumps(
-                {"host": HOST, **spend, "per job": per_job}, indent=2) + "\n")
-            errored = [r for r in per_job if r["is_error"]]
-            assert per_job, "the runtime wrote no job envelopes at all"
-            assert not errored, f"a keel-runtime job envelope reports an error: {errored}"
-
-        # ------------------------------------------- the model each job asked for is the cloud's
-        # keel-cloud model-routing-design.md §10 step 3: on a runtime that reads the job's `model`
-        # key, what every job *requested* must be exactly what the cloud's table names for this
-        # host and that job's class -- and `None`, the CLI's default, where the table has no
-        # entry (it ships empty). The job's class comes from the interaction the cloud reports
-        # for it, its screen mapped the way `InferenceScreen.jobClass()` maps it. Not a loosened
-        # assertion: an older runtime, or a checkout with no table yet, is a note that says which,
-        # never a pass.
-        screen_by_job = {(i.get("job") or {}).get("job_id"): i.get("screen")
-                         for i in interactions if i.get("job")}
-        requested = []
-        for row in rows:
-            facts = models_mod.job_model_facts(keel_home / "jobs" / row["job_id"])
-            screen = screen_by_job.get(row["job_id"])
-            expected = (routing_table.resolve_screen(HOST, screen)
-                        if routing_table is not None and screen else None)
-            requested.append({"job_id": row["job_id"], "screen": screen,
-                              "class": models_mod.SCREEN_TO_CLASS.get(screen or ""),
-                              "expected": expected, **facts})
-        if routing_runtime and routing_table is not None:
-            with recorder.step("every job requested the model keel-cloud's own table names for "
-                                "this host and its class (model-routing-design §10 step 3)",
-                                party="stack", kind="assert") as h:
-                known = [r for r in requested if r["screen"]]
-                wrong = [r for r in known if r["model_requested"] != r["expected"]]
-                h.record_assert({"jobs off the table": []},
-                                {"per job": requested, "jobs off the table": wrong,
-                                 "table": routing_table.source})
-                assert known, "no job could be tied to a screen, so nothing was checked"
-                assert not wrong, (
-                    f"a job asked for a model the cloud's table does not name for {HOST}: {wrong}")
-        else:
-            with recorder.step("the model routing check does not apply here, and this is why",
-                                party="stack", kind="note") as note:
-                note.record_wire(None, {
-                    "per job": requested,
-                    "why": (f"keel-runtime {runtime_stamp} is older than 0.5.0 and reads no "
-                            "job `model` key" if not routing_runtime else
-                            "keel-cloud has no model-routing.json on this checkout")})
-            # **The second, independent proof that this host did the thinking** -- where the
-            # envelope can carry it. `CopilotExecutor._envelope` stamps `executor` on every job,
-            # written by the process that ran it, so the startup line says which executor was
-            # *chosen* and this says which one *answered*. `ClaudeCodeExecutor` passes the CLI's
-            # own `result` event through unchanged and that event names no executor, so on that
-            # host the cross-check does not exist and the bundle says so rather than the scenario
-            # quietly asserting less on both.
-            if host.envelope_names_its_executor:
-                wrong_host = [r for r in per_job if r["executor"] != EXPECTED_EXECUTOR]
+        if KEELS_AI:
+            # ------------------------------------- what Keel's own AI did, and what it cost Keel
+            # **Read off keel-cloud's own `execution` report, because there is no runtime home to
+            # read.** On the three CLI doors the second, independent proof of who did the thinking
+            # is `<KEEL_HOME>/jobs/*/envelope.json`, written by the process that ran the job. No
+            # such process exists here, and the equivalent document is the `execution` block
+            # keel-cloud's own executor settles each job with (keel-cloud spec 045 FR-043): written
+            # by the executor, not by the founder, not by the model, and not by this harness.
+            #
+            # It is not a weaker reading; on this door it is the only one, and the *absence* of
+            # the other is asserted rather than assumed -- see the empty `KEEL_HOME` below, which
+            # is what makes "nothing else could have written this" a measurement.
+            with recorder.step("spec 024: every job was answered by Keel's own AI, and every one "
+                                "of them cost something", party="stack", kind="assert") as h:
+                per_job = [keels_ai.execution_facts(i.get("job")) for i in interactions
+                           if i.get("job")]
+                door_jobs[:] = per_job
+                wrong_host = [r for r in per_job if r["host"] != EXPECTED_EXECUTOR]
+                costless = [r for r in per_job
+                            if not r["cost_reported"] or (r["actual_cost_micro_usd"] or 0) <= 0]
+                spent_micro = sum(r["actual_cost_micro_usd"] or 0 for r in per_job)
+                h.record_assert({"execution.host": EXPECTED_EXECUTOR,
+                                  "actual_cost_micro_usd": "present and > 0 on every job"},
+                                 {"jobs": len(per_job), "per job": per_job,
+                                  "jobs not answered by Keel's AI": wrong_host,
+                                  "jobs with no cost reported": costless,
+                                  "what this journey cost Keel, in micro-dollars": spent_micro,
+                                  "...in dollars": round(spent_micro / 1_000_000, 4),
+                                  "what the design expects": (
+                                      "a five-participant journey is 1,250 credits ($12.50 at "
+                                      "list) and about $2.44 of Keel's own inference "
+                                      "(ai-credits-design.md §6.3)"),
+                                  "models, recorded and asserted against nothing": sorted(
+                                      {(r["model_requested"], r["model_used"]) for r in per_job})})
+                assert per_job, "keel-cloud reported no jobs at all for this project"
                 assert not wrong_host, (
-                    f"a job was answered by an executor that is not {EXPECTED_EXECUTOR!r}: "
-                    f"{wrong_host}")
-            else:
-                with recorder.step("...and on this host the per-job envelope names no executor "
-                                    "at all, so the startup line is the only reading there is",
-                                    party="stack", kind="note") as note:
-                    note.record_wire(None, {"envelope keys": sorted(rows[0]["envelope"] or {}),
-                                            "why": per_job[0]["why"]})
-        print(f"\nS-012 {LEGS} journey through {HOST} as {founder.project_name!r} "
-              f"({entry.id}): {len(rows)} jobs; "
-              f"host legs {[run.spend() for run in (first, second)]}; "
-              f"runtime model {model or 'unpinned (this executor takes none)'}")
+                    f"a job of this project was not answered by Keel's AI: {wrong_host}. "
+                    f"`execution.host` must read {EXPECTED_EXECUTOR!r} on this door (keel-cloud "
+                    f"spec 045 FR-043) -- `claude`, `copilot` or `codex` there would mean a "
+                    f"runtime answered a founder who has none.")
+                assert not costless, (
+                    f"a settled job carries no actual cost: {costless}. Invariant X6 -- *every "
+                    f"settled job records its actual cost beside its price* -- is the one thing "
+                    f"keel-cloud spec 045 exists to deliver, and a cell that passed on a null "
+                    f"would be certifying it unmet. (Zero is not a pass either: spec 045 FR-027 "
+                    f"makes zero mean the job failed before a call was made.)")
 
-        # ------------------------------------------------------------------- the way a founder goes
-        with recorder.step('§1.0: "keel disconnect" against this run\'s own home',
-                            party="stack", kind="assert") as h:
-            outcome = stack_runtime.disconnect_via_skill_script(stack, home=keel_home, timeout=60)
-            after = _status()
-            h.record_assert({"outcome": "disconnected", "running after": False},
-                             {"disconnect": outcome, "after": after})
-            assert outcome is not None, (
-                "keel-connect-skill's own way out answered nothing at all")
-            assert outcome.get("outcome") in stack_runtime.STOPPED_OUTCOMES, (
-                f"the runtime did not stop: {outcome}")
-            assert not after.get("running", False), (
-                f"disconnect answered {outcome.get('outcome')!r} but status still reads running: "
-                f"{after}")
+            with recorder.step("spec 024: nothing ever started a process -- this run's KEEL_HOME "
+                                "is as empty as it was before the first screen",
+                                party="stack", kind="assert") as h:
+                leftovers = sorted(q.name for q in keel_home.iterdir()) if keel_home.is_dir() else []
+                h.record_assert({"KEEL_HOME contents": [], "heartbeat": None,
+                                  "launch log": "", "subprocesses run by the harness": 0},
+                                 {"KEEL_HOME": str(keel_home), "contents": leftovers,
+                                  "heartbeat": agent_host.read_heartbeat(keel_home),
+                                  "launch log": agent_host.read_launch_log(keel_home)[:400],
+                                  "subprocesses run by the harness": host.subprocesses_run,
+                                  "agent, on the wire": (_me().get("agent") or {})})
+                assert not leftovers, (
+                    f"this run's KEEL_HOME is not empty: {leftovers}. On the Keel door nothing "
+                    f"installs, nothing connects and nothing runs, so anything in here was "
+                    f"written by something that should not exist.")
+                assert agent_host.read_heartbeat(keel_home) is None
+                assert host.subprocesses_run == 0, (
+                    f"the Keel door ran {host.subprocesses_run} subprocess(es); it is supposed to "
+                    f"run none, ever")
+                assert not (_me().get("agent") or {}).get("connected"), (
+                    "an agent is connected to a founder who never installed one")
+
+            spend = {"door": "Keel's own AI, on Keel's own Anthropic account",
+                     "people": len(people_chosen),
+                     "credits at sign-up": agent_host.KEELS_AI_GRANT,
+                     "credits before the first framing": credits_before,
+                     "credits after the first framing": credits_after_first_job,
+                     "credits now": _credits_now(),
+                     "credits spent by this journey": (
+                         None if credits_before is None or _credits_now() is None
+                         else credits_before - _credits_now()),
+                     "what the design expects a five-participant journey to cost": (
+                         "1,250 credits -- 540 framing + 45 readings + 105 brief + 560 "
+                         "conversation (ai-credits-design.md §6.3) -- which is $12.50 at list "
+                         "price and about $2.44 of Keel's own inference"),
+                     "what Keel actually paid, in micro-dollars": sum(
+                         r["actual_cost_micro_usd"] or 0 for r in per_job),
+                     "per job": per_job,
+                     "jobs": len(per_job)}
+            (run_dir / "spend.json").write_text(json.dumps({"host": HOST, **spend}, indent=2) + "\n")
+            print(f"\nS-012 {LEGS} journey through Keel's own AI as {founder.project_name!r} "
+                  f"({entry.id}): {len(per_job)} jobs; "
+                  f"{spend['credits spent by this journey']} credits; "
+                  f"{spend['what Keel actually paid, in micro-dollars']} micro-dollars of "
+                  f"Keel's own inference")
+
+            with recorder.step("spec 024: there is no way out to take -- there was never a "
+                                "runtime", party="stack", kind="note") as h:
+                h.record_wire(None, {
+                    "not run": "keel-connect-skill's `keel_disconnect.py`",
+                    "why": ("`make down` and every other door end by asking the skill's own way "
+                            "out and proving `agent.connected` went false within two seconds "
+                            "(spec 011). Here nothing was ever connected: shelling that script "
+                            "would be asserting something about a repository this door does not "
+                            "touch, against a home it never wrote in."),
+                    "what stands in its place": ("the empty KEEL_HOME above, which is the same "
+                                                 "claim made from the other end")})
+        else:
+            with recorder.step("what it cost, in this host's own unit and never converted into the "
+                                "other's (C-7)", party="stack", kind="note") as h:
+                rows = canary_mod.wait_for_envelopes(keel_home, timeout_s=180)
+                per_job = []
+                for row in rows:
+                    facts = host.envelope_facts(row["envelope"])
+                    per_job.append({"job_id": row["job_id"], **facts})
+                caps = canary_mod.cap_sources(stack.keel_runtime, keel_home)
+                spend = {"host legs": [run.spend() for run in (first, second)],
+                         "people": len(people_chosen),
+                         "readings scale with people": (
+                             "one reading job an answered anchor, on the routing table's light model "
+                             "where the cloud has a row for this host (model-routing-design.md §3)"),
+                         "thinking (keel-runtime jobs)": [
+                             {k: v for k, v in row.items()
+                              if k in ("job_id", "premium_requests", "total_cost_usd", "model")}
+                             for row in per_job],
+                         "jobs": len(rows),
+                         "pinned_model (runtime)": model,
+                         "pinned_model (host)": host_model,
+                         "reported model (host)": second.model,
+                         "cap sources": caps}
+                h.record_wire({"per job": per_job}, spend)
+                (run_dir / "spend.json").write_text(json.dumps(
+                    {"host": HOST, **spend, "per job": per_job}, indent=2) + "\n")
+                errored = [r for r in per_job if r["is_error"]]
+                assert per_job, "the runtime wrote no job envelopes at all"
+                assert not errored, f"a keel-runtime job envelope reports an error: {errored}"
+
+            # ------------------------------------------- the model each job asked for is the cloud's
+            # keel-cloud model-routing-design.md §10 step 3: on a runtime that reads the job's `model`
+            # key, what every job *requested* must be exactly what the cloud's table names for this
+            # host and that job's class -- and `None`, the CLI's default, where the table has no
+            # entry (it ships empty). The job's class comes from the interaction the cloud reports
+            # for it, its screen mapped the way `InferenceScreen.jobClass()` maps it. Not a loosened
+            # assertion: an older runtime, or a checkout with no table yet, is a note that says which,
+            # never a pass.
+            screen_by_job = {(i.get("job") or {}).get("job_id"): i.get("screen")
+                             for i in interactions if i.get("job")}
+            requested = []
+            for row in rows:
+                facts = models_mod.job_model_facts(keel_home / "jobs" / row["job_id"])
+                screen = screen_by_job.get(row["job_id"])
+                expected = (routing_table.resolve_screen(HOST, screen)
+                            if routing_table is not None and screen else None)
+                requested.append({"job_id": row["job_id"], "screen": screen,
+                                  "class": models_mod.SCREEN_TO_CLASS.get(screen or ""),
+                                  "expected": expected, **facts})
+            if routing_runtime and routing_table is not None:
+                with recorder.step("every job requested the model keel-cloud's own table names for "
+                                    "this host and its class (model-routing-design §10 step 3)",
+                                    party="stack", kind="assert") as h:
+                    known = [r for r in requested if r["screen"]]
+                    wrong = [r for r in known if r["model_requested"] != r["expected"]]
+                    h.record_assert({"jobs off the table": []},
+                                    {"per job": requested, "jobs off the table": wrong,
+                                     "table": routing_table.source})
+                    assert known, "no job could be tied to a screen, so nothing was checked"
+                    assert not wrong, (
+                        f"a job asked for a model the cloud's table does not name for {HOST}: {wrong}")
+            else:
+                with recorder.step("the model routing check does not apply here, and this is why",
+                                    party="stack", kind="note") as note:
+                    note.record_wire(None, {
+                        "per job": requested,
+                        "why": (f"keel-runtime {runtime_stamp} is older than 0.5.0 and reads no "
+                                "job `model` key" if not routing_runtime else
+                                "keel-cloud has no model-routing.json on this checkout")})
+                # **The second, independent proof that this host did the thinking** -- where the
+                # envelope can carry it. `CopilotExecutor._envelope` stamps `executor` on every job,
+                # written by the process that ran it, so the startup line says which executor was
+                # *chosen* and this says which one *answered*. `ClaudeCodeExecutor` passes the CLI's
+                # own `result` event through unchanged and that event names no executor, so on that
+                # host the cross-check does not exist and the bundle says so rather than the scenario
+                # quietly asserting less on both.
+                if host.envelope_names_its_executor:
+                    wrong_host = [r for r in per_job if r["executor"] != EXPECTED_EXECUTOR]
+                    assert not wrong_host, (
+                        f"a job was answered by an executor that is not {EXPECTED_EXECUTOR!r}: "
+                        f"{wrong_host}")
+                else:
+                    with recorder.step("...and on this host the per-job envelope names no executor "
+                                        "at all, so the startup line is the only reading there is",
+                                        party="stack", kind="note") as note:
+                        note.record_wire(None, {"envelope keys": sorted(rows[0]["envelope"] or {}),
+                                                "why": per_job[0]["why"]})
+            print(f"\nS-012 {LEGS} journey through {HOST} as {founder.project_name!r} "
+                  f"({entry.id}): {len(rows)} jobs; "
+                  f"host legs {[run.spend() for run in (first, second)]}; "
+                  f"runtime model {model or 'unpinned (this executor takes none)'}")
+
+            # ------------------------------------------------------------------- the way a founder goes
+            with recorder.step('§1.0: "keel disconnect" against this run\'s own home',
+                                party="stack", kind="assert") as h:
+                outcome = stack_runtime.disconnect_via_skill_script(stack, home=keel_home, timeout=60)
+                after = _status()
+                h.record_assert({"outcome": "disconnected", "running after": False},
+                                 {"disconnect": outcome, "after": after})
+                assert outcome is not None, (
+                    "keel-connect-skill's own way out answered nothing at all")
+                assert outcome.get("outcome") in stack_runtime.STOPPED_OUTCOMES, (
+                    f"the runtime did not stop: {outcome}")
+                assert not after.get("running", False), (
+                    f"disconnect answered {outcome.get('outcome')!r} but status still reads running: "
+                    f"{after}")
 
         passed = True
     finally:
@@ -1161,6 +1623,7 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
         # file a reader opens next. The structured record is `versions.json`'s `host` block.
         finalize_run(run_dir, slug=BUNDLE, passed=passed,
                      facts={"the journey's host": (
+                         _the_keel_door_in_one_line() if KEELS_AI else
                          f"{HOST} · {ready['version']} · host model "
                          f"{host_model or 'the account default, recorded not pinned'} · runtime "
                          f"model {model or 'unpinned (this executor takes none)'}"),

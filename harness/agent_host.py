@@ -60,9 +60,52 @@ from typing import Any
 
 #: The two hosts the plugin ships for, co-equal (keel-cloud `canon/designs/keel-skill-design.md`
 #: §5). Ordered as the design's matrix axis orders them, which is also alphabetical.
-HOSTS = ("claude", "copilot", "codex")
+HOSTS = ("claude", "copilot", "codex", "keel")
 #: keel-runtime spec 008 (2026-09-12): Codex is the third, and the one that is *runs, unmeasured*
 #: -- keel-skill-design §5.5's gate is what this journey measures for it, nightly, until green.
+
+#: **The fourth value is not a host, and that is the whole of spec `024-keels-ai-cell`.**
+#: keel-cloud `canon/designs/ai-credits-design.md` §6: *"The door decides the AI."* A founder who
+#: signs up with Google runs on **Keel's** AI -- no CLI to install, no skill to load, no `keel
+#: connect` to say, no device to approve, and no runtime anywhere -- and keel-cloud answers every
+#: job on its own Anthropic account (keel-cloud spec 045). The journey after that is the same
+#: journey, so it is the same scenario with its host axis widened by a door, exactly as spec 019
+#: widened it by a host and spec 022 by a packaging.
+#:
+#: Named as a list rather than as `host == "keel"` because what the rest of this module and
+#: `matrix/cells.py` actually need to know is *does this axis value bring a CLI*, and the answer
+#: decides three unrelated things: whether leg one runs at all, whether a runner installs anything
+#: from npm, and whether the weekly set's product owes a cell for it (it does not -- there is no
+#: OS x Python grid to cover when nothing is installed and nothing is executed).
+HOSTS_WITHOUT_A_CLI = ("keel",)
+
+#: The axis values that **are** a founder's own agent CLI: the ones with a binary, a home, a
+#: marketplace, a `-p` argv and a leg one. Every property that is about a *command line* is a
+#: property of these three and of nothing else, which is why the stackless tests that put the
+#: command lines side by side parametrise over this and not over `HOSTS` -- a Keel's-AI run has no
+#: argv to compare, and a test that asked it for one would be asking the wrong question rather
+#: than finding a bug.
+CLI_HOSTS = tuple(h for h in HOSTS if h not in HOSTS_WITHOUT_A_CLI)
+
+
+#: **What keel-cloud grants a founder who comes in through the Google door**, once per Google
+#: identity, in the same transaction as the `founder_account` row (keel-cloud spec 044 FR-017;
+#: `ai-credits-design.md` §5). One credit is one cent of what Keel charges, so 1,500 is the
+#: "free for your first project" the plans page sells -- *one project with up to 20 participants:
+#: the problem framing, twenty interview readings and the brief* -- and it costs Keel about $3.00
+#: of expected inference (§5), or $4.53 at the design's buffered figure.
+#:
+#: Written down here, once, because S-012 asserts it twice on that door: as the integer
+#: `/v2/me.creditsAvailable` answers, and as the sentence keel-web renders from it. A run where
+#: the two disagree is a formatting change; a run where both moved is a grant change; and a
+#: bundle that could not tell them apart would be no use on the morning either happened.
+KEELS_AI_GRANT = 1500
+
+
+def has_a_cli(host: str | None = None) -> bool:
+    """Whether this axis value is a founder's own agent CLI, or Keel's own AI behind the Google
+    door. Leg one exists for exactly the hosts this is true of."""
+    return (journey_host() if host is None else host) not in HOSTS_WITHOUT_A_CLI
 
 #: **Copilot, so today's command keeps working.** `make eval-live K=s012` with no `HOST=` is the
 #: command that produced `runs/20260910T211318Z-s012-copilot-host-and-thinker-live`, and a default
@@ -95,7 +138,8 @@ def journey_host(environ: dict[str, str] | None = None) -> str:
     if raw not in HOSTS:
         raise UnknownHost(
             f"{HOST_ENV}={raw!r} is not a host this journey knows. It is one of {list(HOSTS)} -- "
-            f"`make eval-live K=s012 HOST=claude` or `HOST=copilot`.")
+            f"`make eval-live K=s012 HOST=claude` or `HOST=copilot`, and `HOST=keel` for the "
+            f"Google door, where there is no host CLI at all (spec 024).")
     return raw
 
 
@@ -198,8 +242,14 @@ def journey_people(legs: str | None = None, environ: dict[str, str] | None = Non
 #: checkout), and Spec Kit registers the two commands as the host's own project skills
 #: (`.claude/skills/speckit-keel-connect`, `.github/skills/speckit-keel-connect`). Everything
 #: after "keel connect" is the same runtime, the same home, the same assertions.
-INSTALLS = ("plugin", "speckit")
+#: ...and `none` (spec 024), which is not a third road but the **absence** of one: on the Keel
+#: door there is no skill and no host, so nothing was installed anywhere. It is a value rather
+#: than a `None` because `versions.json` has to say something and `plugin` would be a lie; it is
+#: kept out of a cell id and out of a bundle name for the opposite reason -- a name ending
+#: `-none` reads as a third packaging, which is exactly what it is not.
+INSTALLS = ("plugin", "speckit", "none")
 DEFAULT_INSTALL = "plugin"
+NO_INSTALL = "none"
 INSTALL_ENV = "KEEL_JOURNEY_INSTALL"
 #: The skill Spec Kit registers for the connect command, in the host's project skills directory.
 EXTENSION_SKILL_NAME = "speckit-keel-connect"
@@ -250,8 +300,11 @@ def bundle_slug(host: str | None = None, legs: str | None = None, install: str |
     suffix = "" if chosen_legs == DEFAULT_LEGS else f"-{chosen_legs}"
     # spec 022: the Spec Kit road carries its own suffix, after the length, so a `runs/`
     # directory holding both kinds sorts them by eye.
+    # spec 024: `none` is the absence of a road, not another road, so it is not named here. A
+    # bundle called `s012-journey-keel-none` would read as a third packaging of a skill that was
+    # never installed; `s012-journey-keel` says the one true thing about the run.
     chosen_install = journey_install() if install is None else install
-    suffix += "" if chosen_install == DEFAULT_INSTALL else f"-{chosen_install}"
+    suffix += "" if chosen_install in (DEFAULT_INSTALL, NO_INSTALL) else f"-{chosen_install}"
     return f"s012-journey-{chosen_host}{suffix}"
 
 
@@ -289,7 +342,15 @@ def journey_entry(environ: dict[str, str] | None = None) -> str:
 #: sends `claude-code` for Claude (a permanent accepted alias, keel-connect-skill's invariant
 #: C-12) and keel-runtime's `canonical_executor_name` resolves it before it prints the startup
 #: line, so this is what a log actually says.
-EXECUTOR_FOR_HOST = {"claude": "claude", "copilot": "copilot", "codex": "codex"}
+#:
+#: **`keel` maps to `api`, and the two words are about two different things** (spec 024 FR-002).
+#: `keel` is the *door* -- what a reader of a cell id, a bundle name and a summary row needs, and
+#: the name the product gives the founder. `api` is what keel-cloud's own executor reports as
+#: `execution.host` (keel-cloud spec 045 FR-043), truthfully, because there is no CLI and no host
+#: -- only an HTTP client against a provider. A cell called `…-api-py3.13` would name a transport
+#: where the reader wanted a door; an assertion that said `keel` would be asserting a word the
+#: wire does not use. So both exist, and the bundle prints them side by side.
+EXECUTOR_FOR_HOST = {"claude": "claude", "copilot": "copilot", "codex": "codex", "keel": "api"}
 
 
 # ------------------------------------------------------------------- the plugin, and what it leaves
@@ -800,6 +861,10 @@ def host_type(name: str | None = None) -> type[AgentHost]:
         from harness.codex_host import CodexHost  # noqa: PLC0415
 
         return CodexHost
+    if chosen == "keel":
+        from harness.keel_host import KeelHost  # noqa: PLC0415
+
+        return KeelHost
     from harness.copilot_host import CopilotHost  # noqa: PLC0415
 
     return CopilotHost

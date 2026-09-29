@@ -279,7 +279,7 @@ def _argv(name: str, tmp_path: Path, **kw) -> tuple[list[str], str]:
     return recorded.argv, recorded.cwd
 
 
-@pytest.mark.parametrize("name", agent_host.HOSTS)
+@pytest.mark.parametrize("name", agent_host.CLI_HOSTS)
 def test_both_hosts_are_asked_the_founders_own_three_words(name, tmp_path):
     """`-p "keel connect"`, and nothing that names the skill, the plugin or the script. A prompt
     that said "run the connect script" would prove the *shell* works and nothing about whether the
@@ -301,7 +301,7 @@ def test_both_hosts_are_asked_the_founders_own_three_words(name, tmp_path):
         assert word not in joined, f"{name}'s prompt or flags name {word!r}; the founder does not"
 
 
-@pytest.mark.parametrize("name", agent_host.HOSTS)
+@pytest.mark.parametrize("name", agent_host.CLI_HOSTS)
 def test_neither_host_is_run_from_inside_this_repository(name, tmp_path):
     """**The referee's own instructions must never reach the thing under referee.** Both CLIs
     discover instructions from the working directory and its git root, and a run bundle lives
@@ -315,7 +315,7 @@ def test_neither_host_is_run_from_inside_this_repository(name, tmp_path):
         assert "--no-custom-instructions" in argv
 
 
-@pytest.mark.parametrize("name", agent_host.HOSTS)
+@pytest.mark.parametrize("name", agent_host.CLI_HOSTS)
 def test_no_flag_that_would_hide_the_skill_is_ever_passed(name, tmp_path):
     """spec 013's T-2 trap, on both hosts. `--bare` skips skill auto-discovery on Claude Code and
     does not exist on Copilot's CLI at all, and the three beside it reach the same end by another
@@ -331,7 +331,7 @@ def test_no_flag_that_would_hide_the_skill_is_ever_passed(name, tmp_path):
         assert blanket not in argv, f"{blanket} would hide what the skill actually needed"
 
 
-@pytest.mark.parametrize("name", agent_host.HOSTS)
+@pytest.mark.parametrize("name", agent_host.CLI_HOSTS)
 def test_each_host_grants_exactly_the_two_tools_the_skill_needs(name, tmp_path):
     """One skill, two spellings: `Skill` + `Bash(python3:*)` on Claude Code, `skill` +
     `shell(python3:*)` on Copilot. Nothing else is approved, because leg one records the tools the
@@ -353,7 +353,7 @@ def test_each_host_grants_exactly_the_two_tools_the_skill_needs(name, tmp_path):
         assert grants == ["shell(python3:*)", "skill"]
 
 
-@pytest.mark.parametrize("name", agent_host.HOSTS)
+@pytest.mark.parametrize("name", agent_host.CLI_HOSTS)
 def test_each_run_is_machine_readable_so_the_bundle_carries_more_than_prose(name, tmp_path):
     """Both transcripts have to name the tools that were called and what the run cost, or the
     bundle's only evidence about leg one is the model's own sentence."""
@@ -376,7 +376,7 @@ def test_only_claude_is_told_which_settings_to_load_and_it_is_the_fresh_homes_ow
     assert claude_host.SETTING_SOURCES == "user"
 
 
-@pytest.mark.parametrize("name", agent_host.HOSTS)
+@pytest.mark.parametrize("name", agent_host.CLI_HOSTS)
 def test_the_model_is_pinned_only_when_there_is_one(name, tmp_path):
     """C-5: `--model` is passed when a slug is pinned and **absent** when it is not. A run that
     sent `--model auto` would be claiming a pin it does not have -- and the Claude journey is
@@ -401,7 +401,7 @@ def test_each_host_is_moved_to_this_runs_own_home(name, variable, tmp_path):
     assert env["KEEL_BASE_URL"] == "http://localhost:18080"
 
 
-@pytest.mark.parametrize("name", agent_host.HOSTS)
+@pytest.mark.parametrize("name", agent_host.CLI_HOSTS)
 def test_the_runtime_path_is_scrubbed_on_both_hosts(name, tmp_path):
     """Invariant T-1, in the one place the journey can lose it. The founder's own shell exports
     `KEEL_RUNTIME_PATH` (keel-connect-playground's settings do), and an inherited one would put
@@ -409,7 +409,7 @@ def test_the_runtime_path_is_scrubbed_on_both_hosts(name, tmp_path):
     assert "KEEL_RUNTIME_PATH" not in _host(name, tmp_path).env()
 
 
-@pytest.mark.parametrize("name", agent_host.HOSTS)
+@pytest.mark.parametrize("name", agent_host.CLI_HOSTS)
 def test_the_session_this_harness_runs_in_never_reaches_the_host(name, tmp_path):
     """**The subject is a founder's own CLI, and a founder's CLI is not running inside another
     one.** It is not hygiene: the skill's own host detection reads exactly these names and *"two
@@ -428,7 +428,7 @@ def test_the_session_this_harness_runs_in_never_reaches_the_host(name, tmp_path)
             assert other not in env, f"{other} reached {name}"
 
 
-@pytest.mark.parametrize("name", agent_host.HOSTS)
+@pytest.mark.parametrize("name", agent_host.CLI_HOSTS)
 def test_a_credential_in_the_callers_shell_is_never_scrubbed(name, tmp_path):
     """The one exception to the sweep, and it is a credential rather than a session handle:
     `claude setup-token` mints `CLAUDE_CODE_OAUTH_TOKEN` for exactly the case a Claude cell is in.
@@ -451,7 +451,7 @@ def test_only_copilots_runtime_pin_travels_on_the_environment(tmp_path):
     assert not [k for k in claude_env if k.endswith("_MODEL")]
 
 
-@pytest.mark.parametrize("name", agent_host.HOSTS)
+@pytest.mark.parametrize("name", agent_host.CLI_HOSTS)
 def test_the_fresh_keel_home_names_its_keel(name, tmp_path):
     """`keel status` and the skill's own door out take no `--base-url`, so a home that does not
     name its Keel answers `environment: null` -- and the journey asserts `environment` reads this
@@ -462,7 +462,7 @@ def test_the_fresh_keel_home_names_its_keel(name, tmp_path):
 
 # ------------------------------------------------------- one marketplace, two install commands
 
-@pytest.mark.parametrize("name", agent_host.HOSTS)
+@pytest.mark.parametrize("name", agent_host.CLI_HOSTS)
 def test_both_hosts_install_from_the_one_public_marketplace(name, tmp_path):
     """`keeldiscovery/keel-marketplace` carries `.claude-plugin/marketplace.json` and a
     byte-identical `.github/plugin/marketplace.json`, so **one repository serves both hosts** --
@@ -600,7 +600,11 @@ def test_the_scenario_reads_its_host_from_the_environment_and_nowhere_else():
 def test_each_host_expects_its_own_executor_and_they_are_the_canonical_names():
     """The skill sends `claude-code` for Claude -- a permanent accepted alias -- and keel-runtime
     canonicalises it before it prints the startup line, so what a log actually says is `claude`."""
-    assert agent_host.EXECUTOR_FOR_HOST == {"claude": "claude", "copilot": "copilot", "codex": "codex"}
+    assert {h: agent_host.EXECUTOR_FOR_HOST[h] for h in agent_host.CLI_HOSTS} == {
+        "claude": "claude", "copilot": "copilot", "codex": "codex"}
+    # ...and the fourth axis value is not a host at all, so its two names differ on purpose:
+    # `keel` is the door, `api` is what keel-cloud's own executor reports (spec 024 FR-002).
+    assert agent_host.EXECUTOR_FOR_HOST["keel"] == "api"
     assert copilot_host.CopilotHost.executor == "copilot"
     assert claude_host.ClaudeHost.executor == "claude"
     from harness import codex_host
@@ -613,7 +617,11 @@ def test_the_runtimes_pin_is_per_host_and_one_of_them_is_honestly_nothing():
     the referee into the bundle."""
     from evals import test_s012_journey_through_a_host as s012
 
-    assert s012.RUNTIME_MODEL_FOR_HOST == {"copilot": "gpt-5.6-luna", "claude": None, "codex": None}
+    assert {h: s012.RUNTIME_MODEL_FOR_HOST[h] for h in agent_host.CLI_HOSTS} == {
+        "copilot": "gpt-5.6-luna", "claude": None, "codex": None}
+    # And on the Keel door there is no runtime to pin at all (spec 024).
+    assert s012.RUNTIME_MODEL_FOR_HOST["keel"] is None
+    assert s012.HOST_MODEL_FOR_HOST["keel"] is None
     assert s012.HOST_MODEL_FOR_HOST["claude"] is None
     # Codex: unpinned on both sides until the gate says which model to measure on; the account's
     # default (measured gpt-6-astra) answers and the runtime's line says model=default.

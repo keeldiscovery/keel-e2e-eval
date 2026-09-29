@@ -987,6 +987,52 @@ class Shell:
     def agent_line_text(self) -> str:
         return _safe_text(lambda: self.page.locator(".agentline").first.inner_text())
 
+    # ------------------------------------------------- the other door's line (keel-web spec 024)
+
+    def agent_line_present(self) -> bool:
+        """Whether the shell draws an agent line at all.
+
+        keel-web spec 024 FR-011 renders **exactly one** of two things at the top right, and which
+        one is the whole of what the door decided: `keelPath ? <CreditsLine/> : <AgentLine/>`. So
+        on Keel's AI this must be `False` -- not *saying something else*, **absent** -- and a
+        founder on that road is never told about an agent they do not have.
+        """
+        return self.page.locator(".agentline").count() > 0
+
+    def credits_line_text(self) -> str:
+        """`.creditsline` -- *"1,500 credits available"* (keel-web spec 024 FR-011; keel-cloud
+        `ai-credits-design.md` §6.2).
+
+        keel-web's own `creditsLine()` is `${creditsAmount(credits)} credits available`, where the
+        amount is `toLocaleString("en-US")` -- so the comma is the product's, a negative balance
+        carries a real minus sign (U+2212) rather than a hyphen, and the word `credits` is never
+        made singular. All three are keel-web's decisions and are read here exactly as rendered.
+        """
+        return _safe_text(lambda: self.page.locator(".creditsline").first.inner_text())
+
+    def credits_line_present(self) -> bool:
+        return self.page.locator(".creditsline").count() > 0
+
+    #: What a founder on Keel's AI must never be shown (keel-web spec 024 FR-014,
+    #: `AI_SUBJECT_KEEL`): twenty-seven strings say *Keel* where the own-AI road says *your AI*.
+    #: Swept as a **property** rather than pinned sentence by sentence -- twenty-seven literals
+    #: here would make this repository a second copy of keel-web's `translate.ts`, and would go
+    #: red on a copy review the founder has not finished. The property survives a rewording.
+    YOUR_AI_WORDS = ("your ai",)
+
+    def says_your_ai(self) -> list[str]:
+        """Every line of the **founder's own screen** that still calls the AI *your AI*.
+
+        Read off `.shell__main` and the shell's chrome, which is the founder's project and nothing
+        else: the marketing pages, `/plans` and the Get started panel describe the own-AI road on
+        purpose and always will, and a sweep that reached them would be asserting that keel-web
+        stop selling the other door.
+        """
+        text = self.main_text() + "\n" + _safe_text(
+            lambda: self.page.locator(".shell").first.inner_text())
+        return [line.strip() for line in text.splitlines()
+                if any(word in line.lower() for word in self.YOUR_AI_WORDS)]
+
     def nav_status(self, stage: str) -> str:
         """The status word beside a stage's own side-nav entry (`SideNav.tsx`'s `StageEntry`) --
         e.g. *Being described*, *Reviewing*, *Approved · nobody asked yet*, *Holding up · 2 read,
@@ -1141,6 +1187,15 @@ class Chat:
 
     def topic(self) -> str:
         return _safe_text(lambda: self.page.locator(".chat__topic").first.inner_text())
+
+    def chat_name(self) -> str:
+        """`.chat__name` -- who the founder is talking to, in the product's own words
+        (`ChatFrame.tsx`'s `chatName(keelPath)`; keel-web spec 024 FR-014).
+
+        *Your AI* on the own-AI road, **Keel** behind the Google door. It is the one string the
+        door's whole vocabulary substitution can be read off in a single call, which is why S-012
+        asserts it by value and sweeps the rest of the screen as a property."""
+        return _safe_text(lambda: self.page.locator(".chat__name").first.inner_text())
 
     def kicker(self) -> str:
         return _safe_text(lambda: self.page.locator(".guided-step__kicker").first.inner_text())

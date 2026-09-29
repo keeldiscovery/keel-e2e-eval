@@ -406,10 +406,19 @@ def test_the_scenario_never_names_an_executor():
 
 def test_the_scenario_asserts_the_runtimes_artefacts_before_it_reads_a_reply():
     """FR-003, as an ordering property: the heartbeat assertion comes before the one loose read of
-    Copilot's own words, so a bundle can never show a run whose only evidence was prose."""
-    heartbeat_at = SCENARIO.index("read_heartbeat(keel_home)\n            h.record_assert")
+    Copilot's own words, so a bundle can never show a run whose only evidence was prose.
+
+    Read by a pattern rather than by an exact indent since spec 024, which put leg one inside an
+    arm of its own (the Keel door has no leg one). The property is the *order*, and an ordering
+    test that also pinned a column would fail on a reindent and say nothing about the order.
+    """
+    import re as _re
+
+    match = _re.search(r"read_heartbeat\(keel_home\)\n\s+h\.record_assert", SCENARIO)
+    assert match is not None, (
+        "the heartbeat is no longer asserted through a recorded step in leg one")
     mentions_at = SCENARIO.index("mentions_connected(second.reply_text)")
-    assert heartbeat_at < mentions_at
+    assert match.start() < mentions_at
 
 
 def test_the_pinned_model_is_one_keel_runtime_can_actually_read():
