@@ -60,6 +60,15 @@ added to this line rather than quietly written — which is exactly how the thir
   what the amendment rule permits; a fourteenth scenario would have been a fourth place and would
   have had to be argued for.
 
+  **And every one of those doors is now entered the way a founder enters it** (spec 024, the
+  second half). keel-cloud decides which AI an account runs on from the door it was *created*
+  through -- the stored `return_to` of that first sign-in -- and `/connect` is the only path that
+  answers `OWN`. S-012 signed in at the plain `/login` before it installed anything, so on the
+  twin (where every cell registers its own founder minutes earlier) every CLI cell was creating a
+  **Keel's-AI** account with a 1,500-credit grant. The legs are in the founder's own order now --
+  install, *"keel connect"*, the code, and only then `/login?user_code=...` -- and so are the
+  corpus riders' and S-013's. Nothing was removed; two assertions were added.
+
   **And it is still one scenario at two lengths** (spec 021). `LEGS=short` stops it after the host
   leg and the **first** model job, which is what every qualifying change now buys; `LEGS=full` is
   what the weekly set and, since design §16, every per-change cell buy (the nightly is suspended since 2026-09-13). That is a *stopping point* in one story, not a second

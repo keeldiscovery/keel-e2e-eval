@@ -100,7 +100,7 @@ import time
 
 import pytest
 
-from evals.preludes import create_project
+from evals.preludes import create_project, own_ai_door
 from harness import (agent_host, canary as canary_mod, corpus_script,
                      keel_host as keels_ai, refusals)
 from stack import remote
@@ -833,20 +833,25 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
     try:
         page = context.new_page()
         auth = Auth(page, recorder, web_base)
-        if KEELS_AI:
-            # **The door is the whole of the message** (keel-cloud spec 044 FR-014,
-            # `GoogleSignIn.doorOf`). Nothing here says which AI the founder wants, because there
-            # is no field that could: keel-cloud reads the door off the pre-login record's own
-            # stored `return_to`, and `/signup`'s is `/` where the code story's is
-            # `/connect?user_code=…`. Same three hops, same real callback, same stub picker --
-            # a different screen, and therefore a different account.
-            auth.sign_up(founder_one)
-        else:
-            auth.sign_in(founder_one)
         landing = Landing(page, recorder, web_base)
-        arrival = landing.visit()
 
+        # **The door is the whole of the message** (keel-cloud spec 044 FR-014,
+        # `GoogleSignIn.doorOf`). Nothing in this harness says which AI the founder wants, because
+        # there is no field that could: keel-cloud reads the door off the pre-login record's own
+        # stored `return_to`. `/signup`'s is `/` and makes a KEEL account with a 1,500-credit
+        # grant; the code story's is `/connect?user_code=...` and makes an OWN one. Same three
+        # hops, same real callback, same stub picker -- a different screen, and therefore a
+        # different account.
+        #
+        # **And that is why the legs are in this order now.** On the three CLI doors the founder
+        # cannot sign in yet: they have no code, because they have installed nothing and said
+        # nothing. So leg one runs first, the runtime prints the code, and the sign-in happens
+        # where a founder's actually does -- at `/login?user_code=...`. Until spec 024 this
+        # scenario signed in at the plain `/login` before leg one, which made every CLI cell a
+        # KEEL account with a grant it should never have had.
         if KEELS_AI:
+            auth.sign_up(founder_one)
+            arrival = landing.visit()
             # ================================================ THE DOOR: what only Keel's AI shows
             with recorder.step("spec 024: the landing reads a number, not an agent -- 1,500 "
                                 "credits, no agent line, and this run's KEEL_HOME is empty",
@@ -910,17 +915,18 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                                     "this door gets a sentence and not an empty result"),
                                 "credential": credential})
         else:
-            with recorder.step("§1.0: the landing reads no agent connected, and this run's own "
-                                "homes are empty", party="founder", kind="assert") as h:
-                agent_line = Shell(page, recorder).agent_line_text()
-                h.record_assert({"agent_connected": False, "heartbeat": None},
-                                 {"agent_connected": arrival["agent_connected"],
-                                  "agent line": agent_line,
-                                  "heartbeat": agent_host.read_heartbeat(keel_home),
+            # **§1.0's other half, and it happens before anybody signs in now.** Until spec 024
+            # this was one step read off the landing, which meant signing in first -- and signing
+            # in first is exactly what put these cells through the wrong door. The half that needs
+            # a session (*no agent connected*) moves down to where the session is; this half is a
+            # filesystem read and is now made **earlier** than it was, before one command has run.
+            with recorder.step("§1.0: this run's own homes are empty before a word is said",
+                                party="stack", kind="assert") as h:
+                h.record_assert({"heartbeat": None, "launch log": ""},
+                                 {"heartbeat": agent_host.read_heartbeat(keel_home),
+                                  "launch log": agent_host.read_launch_log(keel_home)[:200],
                                   "KEEL_HOME": str(keel_home),
                                   host.home_var: str(host_home_dir)})
-                assert not arrival["agent_connected"], (
-                    f"expected no agent connected yet, got {agent_line!r}")
                 assert agent_host.read_heartbeat(keel_home) is None, (
                     f"this run's KEEL_HOME already carries a heartbeat before {HOST} has said a "
                     f"word")
@@ -1045,6 +1051,53 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                     f"the launch log's verification URI is not this stack's own /connect: "
                     f"{verification_uri!r}")
 
+            # ==================== THE DOOR, on the three CLI roads: the code story (spec 024)
+            # keel-cloud spec 044 FR-014, `GoogleSignIn.doorOf`: the door an account is **made**
+            # on is read back off the pre-login record's own stored `return_to`, and `/connect` is
+            # the ONLY path that answers `OWN`. Everything else -- including the bare `/` this
+            # scenario signed in with until today -- answers `KEEL`, grants 1,500 credits, and
+            # (once keel-cloud spec 045 lands) hands that founder's jobs to Keel's own Anthropic
+            # key instead of to the CLI this cell has just installed. Eight weekly cells would
+            # have been spending the company's money on a founder who brought their own.
+            #
+            # So the founder signs in where a founder actually does: their AI printed a code, and
+            # they take it to `/login?user_code=...` -- the code story, *Continue with Google*,
+            # which keel-web spec 024 FR-005 leaves byte for byte alone -- carrying
+            # `/connect?user_code=...` as the `return_to`.
+            landed = auth.sign_in_with_code(founder_one, user_code)
+            with recorder.step("§10.6: the code survived the login -- the founder comes back to "
+                                "the approval screen, not to the project list",
+                                party="founder", kind="assert") as h:
+                h.record_assert({"landed on": f"/connect?user_code={user_code}"}, landed)
+                assert "/connect" in landed["landed"] and user_code in landed["landed"], (
+                    f"the sign-in that carried {user_code!r} came back to {landed['landed']!r}. "
+                    f"keel-cloud stores the `return_to` at `start` and brings the founder back to "
+                    f"it, so a landing anywhere else means the code did not travel -- and the "
+                    f"account this run just created is on the wrong side of `GoogleSignIn.doorOf`.")
+
+            arrival = landing.visit()
+            with recorder.step("§1.0: the landing reads no agent connected -- the runtime is "
+                                "waiting for this founder to approve it",
+                                party="founder", kind="assert") as h:
+                agent_line = Shell(page, recorder).agent_line_text()
+                h.record_assert({"agent_connected": False},
+                                 {"agent_connected": arrival["agent_connected"],
+                                  "agent line": agent_line,
+                                  "heartbeat": agent_host.read_heartbeat(keel_home)})
+                assert not arrival["agent_connected"], (
+                    f"expected no agent connected yet, got {agent_line!r}")
+
+            # One reader for every scenario that connects a runtime (spec 024), so the journey and
+            # the corpus riders cannot quietly stop meaning the same thing about the same door.
+            own_ai_door(page, recorder, stack, _get, through_the_code_story=True)
+
+            # **And this read needs the session, which is why it is here and not above.**
+            # keel-cloud's `SecurityConfig` gates `GET /v2/device-authorizations` on a founder
+            # session (spec 023 FR-001: *"a runtime has no credential yet when it starts or polls
+            # a device authorization, but only the founder's own browser ever reads one back by
+            # code"*) -- the two POSTs on the same base path are `permitAll`, the GET is not. So
+            # the earliest any scenario can ask *"is this a code this Keel issued"* is after the
+            # sign-in, and the sign-in is now the code story's.
             with recorder.step("leg one: the code is one **this Keel** issued, and it is not approved "
                                 "yet", party="stack", kind="assert") as h:
                 response = context.request.get(
@@ -1498,6 +1551,33 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                     "what stands in its place": ("the empty KEEL_HOME above, which is the same "
                                                  "claim made from the other end")})
         else:
+            # ------------ spec 024 FR-002, read the other way round: keel-cloud's own `execution`
+            # report must name **this cell's host**, never `api`. It is the same document the Keel
+            # door is judged by, and on these doors it is the cloud's own independent
+            # corroboration that the runner's CLI did the thinking. A cell that had quietly become
+            # a KEEL account -- the fault spec 024 found -- would report `api` here and nowhere
+            # else, while every runtime artefact went on saying exactly what it always said.
+            with recorder.step(f"spec 024: keel-cloud reports every job as {HOST}'s own, never as "
+                                "Keel's AI", party="stack", kind="assert") as h:
+                cloud_side = [keels_ai.execution_facts(i.get("job")) for i in interactions
+                              if (i.get("job") or {}).get("execution")]
+                not_this_host = [r for r in cloud_side if r["host"] != HOST]
+                h.record_assert({"execution.host": HOST, "jobs answered elsewhere": []},
+                                 {"jobs carrying an execution report": len(cloud_side),
+                                  "per job": cloud_side,
+                                  "jobs answered elsewhere": not_this_host,
+                                  "why none of them is not a pass and not a failure": (
+                                      f"keel-runtime reports `execution` from 0.5.0 (spec 042); "
+                                      f"this run's bundled runtime is {runtime_stamp}, and an "
+                                      f"older one reports nothing at all. The startup line and "
+                                      f"the per-job envelopes above are what stand in for it")})
+                assert not not_this_host, (
+                    f"keel-cloud says a job of this journey was answered by "
+                    f"{sorted({r['host'] for r in not_this_host})} and not by {HOST!r}. `api` "
+                    f"there means this account runs on Keel's own AI (keel-cloud spec 045 "
+                    f"FR-043) -- i.e. the cell came in through the wrong door and keel-cloud is "
+                    f"spending Keel's Anthropic key on a founder who has their own CLI.")
+
             with recorder.step("what it cost, in this host's own unit and never converted into the "
                                 "other's (C-7)", party="stack", kind="note") as h:
                 rows = canary_mod.wait_for_envelopes(keel_home, timeout_s=180)

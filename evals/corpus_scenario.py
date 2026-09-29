@@ -25,7 +25,8 @@ import time
 from typing import Any
 
 from evals import corpus_facts
-from evals.preludes import answer_everyone, create_project, invite_everyone, walk_stage
+from evals.preludes import (answer_everyone, create_project, invite_everyone,
+                            own_ai_door, walk_stage)
 from harness import corpus_script
 from harness.browser import Auth, Connect, Landing, OpenedCard, Overview, PrintPage, People, ReviewCard, Shell
 from harness.connect import start_runtime_via_skill, stop_runtime
@@ -134,9 +135,19 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
 
     try:
         page = context.new_page()
-        Auth(page, recorder, web_base).sign_in(founder_one)
+        auth = Auth(page, recorder, web_base)
 
         # ------------------------------------------------------------------------ the runtime
+        # **The runtime starts BEFORE the founder signs in, and that ordering is the product's,
+        # not a convenience** (spec `024-keels-ai-cell`; keel-cloud spec 044 FR-014,
+        # `GoogleSignIn.doorOf`). keel-cloud decides which AI an account runs on from the door it
+        # was **created** through -- read back off the pre-login record's own stored `return_to`
+        # -- and `/connect` is the only path that answers `OWN`. A bare `/` answers `KEEL`, grants
+        # 1,500 credits, and once keel-cloud spec 045 lands hands that founder's jobs to Keel's
+        # own Anthropic key. On the twin every one of these scenarios registers a brand-new
+        # identity minutes before it signs in, so every one of them was creating an account on the
+        # wrong door. It starts the runtime first now, takes the code the runtime printed, and
+        # signs in at `/login?user_code=...` the way a first-time founder does.
         # The script travels as `KEEL_SCRIPT` through `harness/connect.py`'s existing `env_extra`
         # (spec judgement call 2): the env var touches one repo and leaves keel-connect-skill's
         # stable output contract alone. The runtime is still only ever started through that
@@ -166,13 +177,37 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         result = start_runtime_via_skill(stack, recorder,
                                           env_extra={"KEEL_SCRIPT": str(script_path)})
         landing = Landing(page, recorder, web_base)
-        if result.get("outcome") == "authorization_started":
+        user_code = result.get("user_code")
+        if result.get("outcome") == "authorization_started" and user_code:
+            # The first-time flow, in the founder's own order: the code the runtime just printed
+            # goes to `/login?user_code=...`, and the `return_to` that travels with it is
+            # `/connect?user_code=...` -- the one path `GoogleSignIn.doorOf` reads as OWN.
+            auth.sign_in_with_code(founder_one, user_code)
             connect = Connect(page, recorder)
             connect.open(result["verification_uri"])
             connect.approve()
             connect.wait_for_connected(timeout_s=30)
             connect.go_to_projects()
+        else:
+            # **No code, so no code story.** The runtime reconnected on a credential the home
+            # already held (`connected` / `already_connected`), which is what a local profile
+            # does: `make up` leaves a home behind and every scenario there is the one built-in
+            # Eval Founder, whose account was created by whichever run first signed in. There is
+            # nothing to carry and nothing to decide -- `ai_path` is immutable, so this sign-in
+            # cannot move it either way -- and the ordinary door is what a returning founder uses.
+            with recorder.step("no device code: the runtime reconnected on the credential its "
+                                "home already held, so this founder signs in as a returning one",
+                                party="stack", kind="note") as h:
+                h.record_wire({"outcome": result.get("outcome")},
+                               {"user_code": user_code,
+                                "why it does not decide a door": (
+                                    "keel-cloud reads the door only on the branch that CREATES "
+                                    "the account (keel-cloud spec 044 FR-014); a returning "
+                                    "founder keeps whatever their row already says")})
+            auth.sign_in(founder_one)
         landing.visit()
+        own_ai_door(page, recorder, stack, _get,
+                    through_the_code_story=bool(user_code))
 
         # ------------------------------------------------------------------------- the market
         project_id = create_project(page, recorder, web_base, founder)

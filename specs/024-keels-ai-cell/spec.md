@@ -186,6 +186,102 @@ once.
 - **FR-016** Nothing here writes to a sibling repository and no product code is fixed. What a run
   finds goes to `runs/DRIFT.md`, and only once a run has found it.
 
+## What this pass also fixes: the other three doors were on the wrong one
+
+**Found while writing this spec, on 2026-09-29, and it is the more urgent half.**
+
+keel-cloud spec 044 FR-014 decides which AI an account runs on from the door it was **created**
+through, read back off the pre-login record's own stored `return_to`:
+
+> *"an account created on a sign-in whose stored `return_to` is the connect-approval path
+> (`/connect`, which is the only `return_to` keel-web builds carrying a `user_code`) is `OWN`;
+> every other first sign-in is `KEEL`."*
+
+S-012 signed in at the plain `/login`, with a `return_to` of `/`, **before** installing anything
+and before saying *"keel connect"*. So did the corpus riders and S-013. On the twin each of those
+cells registers a brand-new identity minutes before it signs in, so that sign-in is the one that
+**creates** the account — and every one of them was creating a `KEEL` account, taking a
+1,500-credit grant it was never entitled to, on a founder who was about to connect their own
+runtime. Once keel-cloud spec 045 lands, keel-cloud would answer all eight weekly cells' jobs on
+**Keel's own Anthropic key** instead of on the CLI the cell had just installed and just paid for.
+
+Nothing was wrong with the product. The referee was walking a door no founder walks: the design's
+own first-time flow is *install → say "keel connect" → the runtime prints a code and a URL → sign
+in at `/login?user_code=…` → approve at `/connect`*, and a founder cannot sign in before that
+because until their AI has printed them a code **they have nothing to sign in with**.
+
+### The leg order, before and after
+
+| | before | after |
+|---|---|---|
+| 1 | sign in at `/login` (`return_to=/`) | this run's homes are empty — a filesystem read, no session |
+| 2 | the landing: no agent connected, homes empty | install the plugin (or the Spec Kit extension) |
+| 3 | install the plugin / the Spec Kit extension | the CLI sees `keel-connect`, and as a plugin skill |
+| 4 | the CLI sees `keel-connect` | say *"keel connect"* |
+| 5 | say *"keel connect"* | the heartbeat reads `awaiting_approval` |
+| 6 | the heartbeat reads `awaiting_approval` | the launch log carries the code and the device URL |
+| 7 | the launch log carries the code and the URL | **sign in at `/login?user_code=…`** (`return_to=/connect?user_code=…`) |
+| 8 | the code is one this Keel issued, unapproved | **the code survived the login** — the founder lands back on `/connect` |
+| 9 | `/connect` opens frame B; approve | the landing: no agent connected |
+| 10 | say *"keel connect"* again → `already_connected` | **the door: `aiPath == "OWN"`, `creditsAvailable == null`, no credits line** |
+| 11 | the executor startup line, `source=flag` | the code is one this Keel issued, unapproved |
+| 12 | the journey | `/connect` opens frame B; approve |
+| 13 | | say *"keel connect"* again → `already_connected` |
+| 14 | | the executor startup line, `source=flag` |
+| 15 | | the journey |
+
+Two assertions are **added** (steps 8 and 10), one is **split** (§1.0's homes-are-empty half moves
+*earlier*, before a single command has run; its no-agent-connected half moves to where the session
+now is), and **not one is removed or loosened**.
+
+### Requirements
+
+- **FR-017** On the three CLI doors and on the Spec Kit road the founder signs in through
+  `Auth.sign_in_with_code(founder, user_code)` — `/login?user_code=…`, *Continue with Google*,
+  `return_to=/connect?user_code=…` — and the plain `/login` appears in S-012 **nowhere at all**.
+  The Keel door keeps `/signup` and `return_to=/`, which is the whole of what makes it the Keel
+  door.
+- **FR-018** The code is asserted to have **survived the login**: the sign-in lands back on
+  `/connect?user_code=…` and not on the project list (keel-cloud
+  `canon/designs/google-sign-in-design.md` §10.6; S-010's own docstring says this assertion
+  belongs to the connect journey, and this is that journey).
+- **FR-019** After that sign-in and before the approval: `/v2/me.aiPath == "OWN"`,
+  `creditsAvailable` is `null` (not zero — spec 044 assumption 8 makes null mean *this account has
+  no balance* and absent mean *this server predates the field*), and the shell draws **no** credits
+  line. One reader, `evals/preludes.py::own_ai_door`, is used by S-012, by the corpus riders and by
+  S-013, because two copies of *which door did this account come through* is how two scenarios
+  quietly stop meaning the same thing.
+  It **asserts** only where the answer is about this run — a code travelled, `stack.is_remote`
+  (so the founder was registered minutes ago and this sign-in wrote the row), and keel-cloud
+  answers the field at all — and records which of the three it got otherwise. Locally every
+  scenario is the one built-in *Eval Founder*, whose account may have been created by a run weeks
+  ago against a database `make down` does not drop, and `ai_path` is immutable.
+- **FR-020** keel-cloud's own `execution` report on a CLI cell's jobs must name **that cell's
+  host** and never `api`. It is the same document FR-007 judges the Keel door by, read the other
+  way round: a cell that had quietly become a `KEEL` account would say `api` there and nowhere
+  else, while every runtime artefact went on saying exactly what it always said. Jobs that carry
+  no `execution` at all are a **note** naming the bundled runtime's version (keel-runtime reports
+  it from 0.5.0, spec 042), never a pass.
+- **FR-021** The corpus riders (S-005/6/7) and S-013 start their runtime **before** they sign in,
+  for the same reason and through the same door. A rider whose runtime reconnected on a credential
+  its home already held prints no code; there is then no door to choose — keel-cloud reads `doorOf`
+  only on the branch that **creates** an account, and a returning founder keeps whatever their row
+  already says — so it signs in as a returning founder and the bundle says which of the two
+  happened. S-013 does not take that branch: it resets the home itself and its own next assertion
+  is `authorization_started`, so a missing code there is a product fault.
+
+### What could not be moved, and why
+
+`GET /v2/device-authorizations?user_code=` is **founder-session gated** — keel-cloud's
+`SecurityConfig` gates the GET on `founderSession` while the two POSTs on the same base path are
+`permitAll`, deliberately (spec 023 FR-001: *"a runtime has no credential yet when it starts or
+polls a device authorization, but only the founder's own browser ever reads one back by code"*).
+So *"is this a code this Keel issued, and is it unapproved"* **cannot** be asked before the
+sign-in by anybody, including keel-web's own code story, whose time-left line simply does not
+render until the founder is back. It moves to immediately after the sign-in and before the
+approval, where it asserts exactly what it asserted before, and the scenario says why it is there
+rather than leaving the next reader to rediscover it.
+
 ## What this pass does not do
 
 - **It does not add a fourteenth scenario, or a fourth named LLM place.** S-012 is widened by a
@@ -228,3 +324,11 @@ once.
   is `FAILED` and whose `failed_step` names `KEEL_AI_DISABLED`, **within one minute of the first
   statement being typed**, with no `TimeoutError` anywhere in the transcript. *Not met, and cannot
   be met today.*
+- **SC-006** On a twin running keel-cloud spec 044, every CLI cell of the weekly set lands a
+  bundle whose door step reads `aiPath: "OWN"` and `creditsAvailable: null`, and whose
+  `credit_ledger` holds **no row at all** for that cell's founder (keel-cloud spec 044 FR-016;
+  checked by the founder from the Mac, not by this repository, which does not open that database).
+  *Not met: keel-cloud spec 044 is on a branch.*
+- **SC-007** The same bundles' `execution` reports name `claude`, `copilot` or `codex` and never
+  `api`. *Not met, for the same reason, and because the `execution` key itself needs keel-runtime
+  0.5.0 on the cell.*

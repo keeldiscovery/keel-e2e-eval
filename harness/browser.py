@@ -685,6 +685,25 @@ class Auth:
         from stack.auth import FOUNDER_ONE
         return self.sign_in(founder or FOUNDER_ONE, return_to=return_to)
 
+    def sign_in_with_code(self, founder, user_code: str) -> dict:
+        """**The door a founder who brings their own AI comes in through** (keel-cloud
+        `canon/designs/google-sign-in-design.md` §10.6; spec 044 FR-014, `GoogleSignIn.doorOf`).
+
+        The first-time flow is *install -> say "keel connect" -> the runtime prints a code and a
+        URL -> sign in at `/login?user_code=...` -> approve at `/connect`*, and the `return_to`
+        that travels with it is `/connect?user_code=...`. keel-cloud reads exactly that stored
+        `return_to` back when it **creates** the account: `/connect` is the only path that makes an
+        `OWN` account, and every other one -- including a bare `/` -- makes a `KEEL` account with a
+        1,500-credit grant.
+
+        So this is not a convenience wrapper. A founder who is about to connect a runtime, but
+        signs in at the plain `/login` first, arrives on the wrong side of that branch -- and once
+        keel-cloud spec 045 lands, their jobs run on **Keel's** Anthropic key instead of on the
+        CLI they already pay for. The door is the whole of the message, and this is how a scenario
+        says which one it came through.
+        """
+        return self.sign_in(founder, return_to=f"/connect?user_code={user_code}", door="code")
+
     def sign_up(self, founder, *, return_to: str = "/") -> dict:
         """**The door that makes an account on Keel's own AI** (keel-web spec 024 FR-003;
         keel-cloud spec 044 FR-014, `GoogleSignIn.doorOf`).

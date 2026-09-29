@@ -1491,6 +1491,27 @@ that door alone and the wire is asked between the chunks.
 spec 045 is an untracked draft with no code, and keel-web's spec 024 is on a branch. Everything
 that can be proven without a twin is held by `make unit`.
 
+### ...and writing it found that the other three doors were on the wrong one
+
+keel-cloud decides which AI an account runs on from the door it was **created** through, read off
+the stored `return_to` of that first sign-in (spec 044 FR-014, `GoogleSignIn.doorOf`): `/connect`
+is the only path that answers `OWN`, and **everything else answers `KEEL`**. S-012 signed in at
+the plain `/login`, with a `return_to` of `/`, *before* it installed anything — and on the twin
+every cell registers a brand-new identity minutes earlier, so that sign-in is the one that creates
+the account. Every CLI cell was quietly making a Keel's-AI account with a 1,500-credit grant, and
+once keel-cloud spec 045 lands, keel-cloud would answer all eight weekly cells' jobs on **Keel's
+own Anthropic key** instead of on the CLI each cell had just installed.
+
+Nothing was wrong with the product; the referee was walking a door no founder walks. The design's
+own first-time flow is *install → say "keel connect" → the runtime prints a code and a URL → sign
+in at `/login?user_code=…` → approve at `/connect`*, and a founder cannot sign in any earlier
+because until their AI has printed a code **they have nothing to sign in with**. So S-012's legs
+are in that order now, and so are the corpus riders' and S-013's: the runtime starts first, the
+code comes back, and `Auth.sign_in_with_code` carries it. Two assertions were added — *the code
+survived the login*, and *this account is `OWN` with no credits line* — one was split so its
+session-free half runs earlier than before, and none was removed or loosened. `specs/024-keels-ai-cell/spec.md`
+has the leg order before and after, side by side.
+
 S-004, *the stranger who gives orders* (`specs/008-stranger-who-gives-orders`), is the
 scenario that runs a **real `claude`** -- it attacks the framing box and a participant's answers
 with instructions and checks that the founder's agent only ever answers. Spec 010 grew it from

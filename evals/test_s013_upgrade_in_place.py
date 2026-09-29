@@ -35,6 +35,7 @@ import tempfile
 import time
 from pathlib import Path
 
+from evals.preludes import own_ai_door
 from harness.browser import Auth, Connect, Landing
 from harness.connect import start_runtime_via_skill, stop_runtime
 from harness.evidence import finalize_run
@@ -106,16 +107,35 @@ def test_s013_upgrade_in_place(stack, founder_one, browser, run_dir):
                 f"{OLDER_VERSION} (keel-connect-skill spec 005 made it 2.0.0)")
 
         # ------------------------------------------------------------ 1. the older bundle connects
+        # **The runtime starts before the founder signs in** (spec `024-keels-ai-cell`; keel-cloud
+        # spec 044 FR-014, `GoogleSignIn.doorOf`). keel-cloud decides which AI an account runs on
+        # from the door it was **created** through, read back off the pre-login record's own
+        # stored `return_to`, and `/connect` is the only path that answers `OWN`. A bare `/`
+        # answers `KEEL`, grants 1,500 credits, and once keel-cloud spec 045 lands runs that
+        # founder's jobs on Keel's own Anthropic key. On the twin this scenario registers a
+        # brand-new identity minutes before it signs in, so it was creating an account on the
+        # wrong door every time. The code the runtime prints is what fixes it, and this scenario
+        # already demands one -- its own next assertion is `authorization_started`.
         page = context.new_page()
-        Auth(page, recorder, web_base).sign_in(founder_one)
-        Landing(page, recorder, web_base).visit()
+        auth = Auth(page, recorder, web_base)
 
         result = start_runtime_via_skill(stack, recorder,
                                          script_path=older / "scripts" / "keel_connect_check.py")
         with recorder.step("§1.0: the older bundle's runtime asks for this device to be approved",
                             party="stack", kind="assert") as h:
-            h.record_assert({"outcome": "authorization_started"}, {"outcome": result.get("outcome")})
+            h.record_assert({"outcome": "authorization_started", "user_code": "XXXX-XXXX"},
+                            {"outcome": result.get("outcome"), "user_code": result.get("user_code")})
             assert result["outcome"] == "authorization_started", result
+            assert result.get("user_code"), (
+                f"the older bundle asked for an approval but printed no code, so the founder has "
+                f"nothing to take to `/login?user_code=...`: {result}")
+
+        # The first-time flow, in the founder's own order: the code goes to `/login?user_code=...`
+        # and the `return_to` that travels with it is `/connect?user_code=...`.
+        auth.sign_in_with_code(founder_one, result["user_code"])
+        Landing(page, recorder, web_base).visit()
+        own_ai_door(page, recorder, stack, _get, through_the_code_story=True)
+
         connect = Connect(page, recorder)
         connect.open(result["verification_uri"])
         connect.approve()

@@ -101,6 +101,39 @@ CLI_HOSTS = tuple(h for h in HOSTS if h not in HOSTS_WITHOUT_A_CLI)
 #: bundle that could not tell them apart would be no use on the morning either happened.
 KEELS_AI_GRANT = 1500
 
+#: keel-cloud's own two words for which AI an account runs on (`/v2/me.aiPath`; keel-cloud spec
+#: 044 FR-033, `canon/openapi-v2.yaml`'s `MeResponse.aiPath`). `OWN` is a founder's own Claude
+#: Code, Copilot or Codex; `KEEL` is Keel's own Anthropic account. **Nothing changes it after the
+#: account is created** (FR-013: no route, no flag, no admin path), and what creates it is the
+#: door -- the stored `return_to` of the sign-in that first wrote the row.
+AI_PATH_OWN = "OWN"
+AI_PATH_KEEL = "KEEL"
+
+
+def ai_path_facts(me: dict | None) -> dict:
+    """What `GET /v2/me` says about which AI this account runs on, read once, in one place.
+
+    Returns `{ai_path, credits, reported, own, keel}`. `reported` is False against a keel-cloud
+    that predates spec 044 -- the field is simply absent there -- which is a **note**, never a
+    pass and never a failure: a referee pinned to one version of the present is the same fault as
+    one pinned to the past (`AGENTS.md`), and the scenarios that read this say which of the three
+    they got.
+
+    `credits` is `null` on an `OWN` account and **not** zero, deliberately (spec 044, assumption
+    8: *"a null says 'this account has no balance'; an absent key is indistinguishable from an old
+    server"*), so the two are told apart here rather than at four call sites.
+    """
+    body = me or {}
+    path = body.get("aiPath")
+    credits = body.get("creditsAvailable")
+    return {
+        "ai_path": path,
+        "credits": credits,
+        "reported": path in (AI_PATH_OWN, AI_PATH_KEEL),
+        "own": path == AI_PATH_OWN,
+        "keel": path == AI_PATH_KEEL,
+    }
+
 
 def has_a_cli(host: str | None = None) -> bool:
     """Whether this axis value is a founder's own agent CLI, or Keel's own AI behind the Google

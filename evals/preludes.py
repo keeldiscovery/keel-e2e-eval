@@ -26,9 +26,86 @@ from playwright.sync_api import Page
 
 from evals import corpus_facts
 from harness import corpus_script
+from harness import agent_host
 from harness.browser import (WAIT_PHASES, Chat, Landing, MarketStep, Overview, ParticipantPage,
-                              People, ReviewCard)
+                              People, ReviewCard, Shell)
 from harness.steps import Recorder
+
+
+# --------------------------------------------------------------------- which door made this account
+
+def own_ai_door(page: Page, recorder: Recorder, stack, get_json: Callable[[str], dict], *,
+                through_the_code_story: bool) -> None:
+    """**This account runs on the founder's own AI, and the shell says so** (spec
+    `024-keels-ai-cell`; keel-cloud spec 044 FR-013/FR-014, keel-web spec 024 FR-011).
+
+    One reader for every scenario that connects a runtime, because two copies of *which door did
+    this account come through* is how two scenarios quietly stop meaning the same thing -- and
+    this one is worth real money: keel-cloud writes `ai_path` when the account is **created**,
+    from the pre-login record's own stored `return_to`, and nothing ever changes it. `/connect` is
+    the only path that answers `OWN`. A bare `/` answers `KEEL`, grants 1,500 credits, and (once
+    keel-cloud spec 045 lands) runs that founder's jobs on **Keel's own** Anthropic key instead of
+    on the CLI they already pay for.
+
+    **Asserted on the twin, recorded everywhere else, and that is not a softening.** Three things
+    have to be true before the answer is about *this* run:
+
+    1. `through_the_code_story` -- this run signed in carrying a `user_code`. Without one there
+       was no door to choose: the runtime reconnected on a credential its home already held, and a
+       returning founder keeps whatever their row already says.
+    2. `stack.is_remote` -- on the twin the cell registered a brand-new identity minutes ago, so
+       the sign-in that just happened is the one that wrote the row. Locally every scenario is the
+       one built-in *Eval Founder*, whose account may have been created by a run three weeks ago
+       against a database `make down` does not drop; `ai_path` is immutable, so an assertion there
+       would be measuring an older run's door.
+    3. keel-cloud answers an `aiPath` at all -- one that predates spec 044 answers none, and a
+       referee pinned to one version of the present is the same fault as one pinned to the past.
+
+    Whichever of the three it got is written into the step, so a reader never has to guess whether
+    a green bundle measured this.
+    """
+    shell = Shell(page, recorder)
+    facts = agent_host.ai_path_facts(get_json("/v2/me") or {})
+    judged = through_the_code_story and stack.is_remote and facts["reported"]
+    with recorder.step("spec 024: this account is on the founder's own AI, made through the code "
+                        "story's own door", party="founder", kind="assert") as h:
+        h.record_assert({"aiPath": agent_host.AI_PATH_OWN, "creditsAvailable": None,
+                          "credits line": "absent"},
+                         {**facts,
+                          "credits line present": shell.credits_line_present(),
+                          "credits line": shell.credits_line_text(),
+                          "agent line": shell.agent_line_text(),
+                          "asserted, not just recorded": judged,
+                          "why": (
+                              "this cell registered its own founder with the twin minutes ago, so "
+                              "the sign-in that just happened is the one that created the account "
+                              "and the door is this run's"
+                              if judged else
+                              "this run signed in with no device code, so no door was chosen: the "
+                              "runtime reconnected on a credential its home already held"
+                              if not through_the_code_story else
+                              "keel-cloud answers no `aiPath` here, so it predates spec 044"
+                              if not facts["reported"] else
+                              "this is the built-in Eval Founder on a local profile, whose account "
+                              "may predate this run; `ai_path` is immutable, so an assertion would "
+                              "be measuring an older run's door")})
+        if not judged:
+            return
+        assert facts["own"], (
+            f"this founder's account was created on the wrong door: /v2/me says aiPath="
+            f"{facts['ai_path']!r}. The first-time flow signs in at `/login?user_code=...`, so the "
+            f"stored `return_to` is `/connect?user_code=...` -- the only path "
+            f"`GoogleSignIn.doorOf` reads as OWN (keel-cloud spec 044 FR-014). A KEEL account here "
+            f"means keel-cloud granted this founder 1,500 credits and, once spec 045 lands, will "
+            f"answer their jobs on Keel's own Anthropic key rather than on the runtime this "
+            f"scenario just connected.")
+        assert facts["credits"] is None, (
+            f"an OWN account carries no balance at all, and `creditsAvailable` is null rather than "
+            f"absent for exactly that reason (spec 044 assumption 8); this one says "
+            f"{facts['credits']!r}")
+        assert not shell.credits_line_present(), (
+            "the shell drew a credits line for a founder who brought their own AI -- keel-web "
+            "spec 024 FR-011 renders exactly one of the two, and this road gets the agent line")
 
 GetJson = Callable[[str], dict]
 

@@ -222,13 +222,17 @@ def test_the_scenario_reads_the_door_off_the_host_axis_and_nowhere_else():
     assert "KEELS_AI = not agent_host.has_a_cli(HOST)" in SCENARIO
 
 
-def test_the_founder_signs_up_at_the_signup_door_and_signs_in_everywhere_else():
+def test_the_founder_signs_up_at_the_signup_door_and_in_with_a_code_at_the_other():
     """keel-cloud spec 044 FR-014: the door is the whole of the message. keel-cloud reads it off
     the pre-login record's own stored `return_to` -- `/` from `/signup`, `/connect?user_code=…`
     from the code story -- so nothing about `ai_path` travels from this harness, and nothing
-    could."""
+    could. **The plain `/login` appears in this scenario nowhere at all**, on any door: it is the
+    one door that makes the wrong account for both of them."""
     assert "auth.sign_up(founder_one)" in SCENARIO
-    assert "auth.sign_in(founder_one)" in SCENARIO
+    assert "auth.sign_in_with_code(founder_one, user_code)" in SCENARIO
+    assert "auth.sign_in(founder_one)" not in SCENARIO, (
+        "a bare `/login` sign-in is back in S-012; on a CLI door it creates a KEEL account with a "
+        "1,500-credit grant (keel-cloud spec 044 FR-014)")
 
 
 def test_the_scenario_fails_fast_on_a_shut_door_rather_than_waiting_out_a_timeout():
@@ -386,3 +390,155 @@ def test_the_make_target_says_whose_money_it_spends():
     head = MAKEFILE.split("keels-ai: venv", 1)[0]
     assert "COMPANY'S MONEY" in head.upper()
     assert "$2.44" in head and "1,250 credits" in head
+
+
+# ------------------------------------------------- the other door, and the order the legs run in
+
+def test_the_cli_doors_sign_in_only_after_the_runtime_has_printed_a_code():
+    """**The fault spec 024 found in the other three doors** (keel-cloud spec 044 FR-014,
+    `GoogleSignIn.doorOf`): S-012 used to sign in at the plain `/login` *first*, with a
+    `return_to` of `/`, and only then install anything and say *"keel connect"*. keel-cloud reads
+    the door off the stored `return_to` when it CREATES the account, and `/connect` is the only
+    path that answers `OWN` -- so every CLI cell was making a `KEEL` account with a 1,500-credit
+    grant, and once keel-cloud spec 045 lands keel-cloud would answer those cells' jobs on Keel's
+    own Anthropic key instead of on the CLI the cell had just installed. Eight weekly cells.
+
+    The order is the property, so the order is what is asserted: the founder cannot sign in until
+    their AI has printed them a code.
+    """
+    install_at = SCENARIO.index("host.install_plugin()")
+    said_at = SCENARIO.index('host.say(THE_FOUNDER_SAYS, slug="connect-1")')
+    code_at = SCENARIO.index("user_code = agent_host.user_code_in(log_text)")
+    signed_at = SCENARIO.index("auth.sign_in_with_code(founder_one, user_code)")
+    approved_at = SCENARIO.index("connect.approve()")
+    assert install_at < said_at < code_at < signed_at < approved_at, (
+        "the legs are back in the order that made every CLI cell a KEEL account")
+
+
+def test_the_keel_door_still_signs_up_before_anything_because_it_has_nothing_to_wait_for():
+    signup_at = SCENARIO.index("auth.sign_up(founder_one)")
+    said_at = SCENARIO.index('host.say(THE_FOUNDER_SAYS, slug="connect-1")')
+    assert signup_at < said_at, (
+        "the Keel door installs nothing and says nothing, so there is no code to wait for and the "
+        "sign-up is the first thing that happens")
+
+
+def test_the_half_of_the_first_assertion_that_needs_no_session_moved_earlier_not_later():
+    """Nothing was dropped when §1.0 was split. The homes-are-empty read is a filesystem read and
+    is now made **before** the install rather than after the sign-in; the agent-line read needs a
+    session and is made where the session now is."""
+    empty_at = SCENARIO.index("this run's own homes are empty before a word is said")
+    install_at = SCENARIO.index("host.install_plugin()")
+    agent_line_at = SCENARIO.index("the landing reads no agent connected -- the runtime is")
+    signed_at = SCENARIO.index("auth.sign_in_with_code(founder_one, user_code)")
+    assert empty_at < install_at
+    assert signed_at < agent_line_at
+
+
+def test_the_code_read_that_needs_a_session_is_after_the_sign_in_and_says_why():
+    """keel-cloud's `SecurityConfig` gates `GET /v2/device-authorizations` on a founder session
+    (spec 023 FR-001) -- the two POSTs on the same base path are `permitAll`, the GET is not. So
+    *"is this a code this Keel issued"* cannot be asked before the sign-in, and the scenario says
+    so where it asks it rather than leaving the next reader to rediscover it."""
+    signed_at = SCENARIO.index("auth.sign_in_with_code(founder_one, user_code)")
+    # The call site, not the docstring's mention of it.
+    wire_at = SCENARIO.index('f"{cloud_base}/v2/device-authorizations?user_code={user_code}"')
+    assert signed_at < wire_at
+    assert "gates `GET /v2/device-authorizations` on a founder" in SCENARIO
+
+
+def test_the_code_is_asserted_to_have_survived_the_login():
+    """keel-cloud stores the `return_to` at `start` and brings the founder back to it
+    (google-sign-in-design.md §10.6). A landing anywhere else means the code did not travel -- and
+    that the account was made on the wrong side of `doorOf`."""
+    assert '"/connect" in landed["landed"] and user_code in landed["landed"]' in SCENARIO
+
+
+def test_one_reader_says_which_door_an_account_was_made_on():
+    """Two copies of *which door did this account come through* is how two scenarios quietly stop
+    meaning the same thing, and this one is worth real money."""
+    from evals import preludes
+
+    for module in ("test_s012_journey_through_a_host", "corpus_scenario",
+                   "test_s013_upgrade_in_place"):
+        body = (REPO / "evals" / f"{module}.py").read_text(encoding="utf-8")
+        assert "own_ai_door(" in body, module
+    assert callable(preludes.own_ai_door)
+
+
+def test_the_door_reader_asserts_only_where_the_answer_is_about_this_run():
+    """Three things have to be true before `aiPath` is about *this* sign-in: a code travelled, the
+    twin registered this founder minutes ago, and keel-cloud answers the field at all. Locally the
+    account is the built-in Eval Founder's and may predate the run -- `ai_path` is immutable, so
+    an assertion there would be measuring an older run's door."""
+    import inspect
+
+    from evals import preludes
+
+    source = inspect.getsource(preludes.own_ai_door)
+    assert 'judged = through_the_code_story and stack.is_remote and facts["reported"]' in source
+    assert "if not judged:" in source
+    assert 'assert facts["own"]' in source
+    assert 'assert facts["credits"] is None' in source
+    assert "assert not shell.credits_line_present()" in source
+
+
+def test_the_wire_reader_tells_an_absent_field_from_a_null_balance():
+    """spec 044 assumption 8: `creditsAvailable` is **null** on an OWN account and **absent** on a
+    keel-cloud that predates the field. A reader that could not tell them apart would report an
+    old server as an OWN account."""
+    assert agent_host.ai_path_facts({"aiPath": "OWN", "creditsAvailable": None}) == {
+        "ai_path": "OWN", "credits": None, "reported": True, "own": True, "keel": False}
+    assert agent_host.ai_path_facts({}) == {
+        "ai_path": None, "credits": None, "reported": False, "own": False, "keel": False}
+    assert agent_host.ai_path_facts(None)["reported"] is False
+    assert agent_host.ai_path_facts({"aiPath": "KEEL", "creditsAvailable": 1500})["keel"] is True
+
+
+def test_the_riders_start_the_runtime_before_they_sign_in():
+    """S-005/6/7 and S-013 reuse the journey's own road -- a runtime, a device code, an approval
+    -- and each registers its own founder on the twin minutes before signing in. So each of them
+    was creating a KEEL account too, and each of them now takes the code story."""
+    corpus = (REPO / "evals" / "corpus_scenario.py").read_text(encoding="utf-8")
+    assert corpus.index("result = start_runtime_via_skill(") < corpus.index(
+        "auth.sign_in_with_code(founder_one, user_code)")
+
+    s013 = (REPO / "evals" / "test_s013_upgrade_in_place.py").read_text(encoding="utf-8")
+    assert s013.index("result = start_runtime_via_skill(") < s013.index(
+        'auth.sign_in_with_code(founder_one, result["user_code"])')
+
+
+def test_a_rider_with_no_code_falls_back_by_name_and_says_why():
+    """A runtime that reconnected on a credential its home already held prints no code, which is
+    what a local profile does. There is no door to choose then -- keel-cloud reads `doorOf` only
+    on the branch that CREATES the account -- so the ordinary sign-in is right, and the bundle
+    says which of the two happened."""
+    corpus = (REPO / "evals" / "corpus_scenario.py").read_text(encoding="utf-8")
+    assert 'if result.get("outcome") == "authorization_started" and user_code:' in corpus
+    assert "no device code: the runtime reconnected on the credential its " in corpus
+    assert "through_the_code_story=bool(user_code)" in corpus
+
+
+def test_s013_refuses_to_go_on_without_a_code_rather_than_falling_back():
+    """S-013 resets the runtime home itself and its own next assertion is `authorization_started`,
+    so a missing code there is a product fault and not a local profile."""
+    s013 = (REPO / "evals" / "test_s013_upgrade_in_place.py").read_text(encoding="utf-8")
+    assert 'assert result.get("user_code")' in s013
+
+
+def test_the_cli_doors_cross_check_keel_clouds_own_execution_report():
+    """spec 024 FR-002 read the other way round: a cell that had quietly become a KEEL account
+    would report `api` in keel-cloud's own `execution` block and nowhere else, while every runtime
+    artefact went on saying exactly what it always said."""
+    assert 'not_this_host = [r for r in cloud_side if r["host"] != HOST]' in SCENARIO
+    assert "assert not not_this_host" in SCENARIO
+
+
+def test_sign_in_with_code_builds_the_one_return_to_that_answers_own():
+    import inspect
+
+    from harness.browser import Auth
+
+    source = inspect.getsource(Auth.sign_in_with_code)
+    assert 'return_to=f"/connect?user_code={user_code}"' in source
+    assert 'door="code"' in source

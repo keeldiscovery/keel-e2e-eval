@@ -3,7 +3,8 @@
 **Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md) | **Branch**: `024-keels-ai-cell`
 
 `make unit`: **1031** before this branch, **1041** after the two commits that precede this feature
-(the door-words fix and `keep_twin`), **1092** after. Green.
+(the door-words fix and `keep_twin`), **1092** after phases 1-6, **1105** after
+phase 7. Green.
 
 ## Phase 0 — the two things the matrix found first, each its own commit
 
@@ -169,3 +170,45 @@ There is no third way to exercise the rest. This repository has three profiles �
 `playground` and `remote` — and no recorded or replayed mode; `AGENTS.md` says **no Prism, ever**,
 and the two local profiles boot keel-cloud from the sibling checkout, which would have to be on
 `044-ai-credits` with spec 045 built. It is not.
+
+
+## Phase 7 - the other three doors were on the wrong one (2026-09-29, its own commit)
+
+Found while writing this spec, and the more urgent half of it: keel-cloud reads the door off the
+stored `return_to` of the sign-in that **creates** an account, and S-012 signed in at the plain
+`/login` before it installed anything. On the twin every cell registers a brand-new identity
+minutes earlier, so every CLI cell was creating a `KEEL` account with a 1,500-credit grant -- and
+once keel-cloud spec 045 lands, keel-cloud would answer eight weekly cells' jobs on **Keel's own**
+Anthropic key instead of on the CLI each cell had just installed.
+
+- [X] T030 Read keel-cloud's `GoogleSignIn.doorOf` and `SecurityConfig` line by line. **Two
+      findings that decided the shape of the fix**: `doorOf` is called **only on the create
+      branch**, so a returning founder's door cannot be moved by anything; and
+      `GET /v2/device-authorizations` is **`founderSession`-gated** while the two POSTs beside it
+      are `permitAll`, so *"is this a code this Keel issued"* cannot be asked before the sign-in
+      by anybody -- including keel-web's own code story.
+- [X] T031 `harness/browser.py::Auth.sign_in_with_code` -- the one door that answers `OWN`,
+      named for what it is rather than spelled out at four call sites.
+- [X] T032 `harness/agent_host.py::ai_path_facts`, `AI_PATH_OWN`, `AI_PATH_KEEL` -- one reader
+      that tells a **null** balance from an **absent** field (spec 044 assumption 8).
+- [X] T033 `evals/preludes.py::own_ai_door` -- one door assertion for S-012, the corpus riders and
+      S-013, asserting only where the answer is about this run and saying which of the three cases
+      it got otherwise.
+- [X] T034 S-012's legs reordered for the three CLI doors and the Spec Kit road (the table is in
+      [spec.md](spec.md)): two assertions added, one split so its session-free half runs
+      **earlier**, none removed and none loosened. The Keel door is untouched.
+- [X] T035 `evals/corpus_scenario.py` and `evals/test_s013_upgrade_in_place.py` -- the runtime
+      starts before the sign-in, and the sign-in carries the code. The riders fall back by name,
+      with the reason, when the runtime reconnected on a credential its home already held.
+- [X] T036 FR-020: keel-cloud's own `execution` report on a CLI cell must name that cell's host
+      and never `api`.
+- [X] T037 **13 more stackless tests** in `tests/test_keels_ai_cell.py`: the leg order as an
+      ordering property on five anchors, the split assertion moving earlier and not later, the
+      session-gated read being after the sign-in *and saying why*, the code surviving the login,
+      the one shared door reader and its three guards, the null/absent distinction, both riders'
+      order, the rider fallback and S-013's refusal of it, the `execution` cross-check, and
+      `sign_in_with_code`'s one `return_to`.
+- [ ] T038 A run. Still the founder's to spend, and still not runnable until keel-cloud 044 is
+      deployed -- but note that this fix is worth deploying **before** spec 045, not after: 044
+      alone writes the wrong `ai_path` and grants the credits, and 045 is what starts spending
+      them.
