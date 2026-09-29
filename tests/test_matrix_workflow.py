@@ -271,3 +271,74 @@ def test_a_keel_web_push_deploys_the_twin_and_neither_wipes_nor_runs_a_cell():
     assert "page_only=true" in pick["run"] and "cells='[]'" in pick["run"]
     assert JOBS["select"]["outputs"]["page_only"] == "${{ steps.pick.outputs.page_only }}"
     assert "PAYLOAD_REPO" in pick["env"]
+
+
+# ------------------------------------------------- the founder keeps the twin (2026-09-29)
+
+def test_the_dispatch_can_ask_for_the_twin_to_be_left_running():
+    """The founder, 2026-09-29: the twin is to stay up for manual testing until he says
+    otherwise. One `workflow_dispatch` input, default false, so nothing about an unattended run
+    changes."""
+    on = DOC[True] if True in DOC else DOC["on"]
+    keep = on["workflow_dispatch"]["inputs"]["keep_twin"]
+    assert keep["type"] == "boolean"
+    assert keep["default"] is False
+    assert keep["description"] == "leave the twin running after the cells, for manual testing"
+
+
+def test_keep_twin_skips_the_stop_and_leaves_every_other_condition_where_it_was():
+    """The two properties worth an assertion each:
+
+    1. the flag is **ANDed onto** `stop-staging`'s existing `if`, so a red cell, a cancelled run
+       and a cells-only dispatch all still behave exactly as spec 023 built them; and
+    2. nothing in that condition reads the cells' result, so a FAILED cell still stops the twin
+       when `keep_twin` is false.
+    """
+    condition = JOBS["stop-staging"]["if"]
+    assert condition == ("always() && needs.select.outputs.deploy == 'true' "
+                         "&& inputs.keep_twin != true")
+    assert "needs.cell.result" not in condition, (
+        "a red cell must still stop the twin; only the founder's own flag may keep it up")
+    assert JOBS["stop-staging"]["needs"] == ["select", "deploy-staging", "cell"]
+
+
+def test_an_unattended_run_never_keeps_the_twin():
+    """`keep_twin` is a dispatch input and nothing else. On a push, a schedule or a
+    repository_dispatch `inputs.keep_twin` is null, `null != true` is true, and `stop-staging`
+    runs -- which is the whole of spec 023's bill still holding for every automatic run."""
+    on = DOC[True] if True in DOC else DOC["on"]
+    for event in ("push", "schedule", "repository_dispatch"):
+        assert event in on
+        assert not isinstance(on[event], dict) or "inputs" not in on[event]
+
+
+def test_the_summary_says_when_the_twin_was_left_up_because_stop_staging_cannot():
+    """`stop-staging` is skipped **whole**, so the sentence that explains an unstopped box cannot
+    live inside it. It lives where the founder reads the table."""
+    step = step_named("summary", "Say so when the twin was left running")
+    assert step["if"] == ("always() && inputs.keep_twin == true "
+                          "&& needs.select.outputs.deploy == 'true'")
+    assert "kept running at the founder's request" in step["run"]
+    assert "$KEEL_REMOTE_WEB_URL" in step["run"], (
+        "the note is worth nothing without the address the founder asked for the box in order to "
+        "open")
+
+
+def test_the_start_tolerates_a_twin_that_is_already_running_and_one_still_stopping():
+    """Since `keep_twin`, an already-running twin is the ordinary case. `start-instances` on a
+    `running` instance is a no-op that answers 200, so the step is correct without asking; the one
+    state it cannot start from is `stopping`, which a previous run's own `stop-staging` leaves
+    behind for a minute -- so a refused call is retried rather than fatal."""
+    run = step_named("deploy-staging", "Start the twin")["run"]
+    assert "for attempt in $(seq 1 6); do" in run
+    assert "the box is most likely still stopping" in run
+    assert "would not accept a start in one minute" in run
+
+
+def test_the_wait_asserts_no_transition_so_a_box_that_was_already_up_passes_at_once():
+    """"Is it up" is answered by asking the box to do something. Nothing in the loop compares a
+    before-state with an after-state, so a twin that has been running for a week passes on its
+    first attempt instead of waiting for a boot that already happened."""
+    run = step_named("deploy-staging", "Wait for the twin")["run"]
+    assert "PreviousState" not in run and "pending" not in run
+    assert "aws ssm send-command" in run and "get-command-invocation" in run

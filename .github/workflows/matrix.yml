@@ -26,6 +26,14 @@
 # and its address and nothing else. A hand dispatch with `deploy: false` neither starts nor stops
 # it: cells only means the founder brought the box up, and the referee does not take it down.
 #
+# ...UNLESS THE FOUNDER ASKS FOR IT BACK (the founder, 2026-09-29: the twin is to stay up for
+# manual testing until he says otherwise). `keep_twin: true` on a hand dispatch skips `stop-staging`
+# and says so in the summary. It is a DISPATCH INPUT and nothing else: a push, a schedule or a
+# repository dispatch carries no such input, so `inputs.keep_twin` is null there, `null != true`,
+# and the twin still goes off after every unattended run. The bill is the founder's to accept for
+# as long as he wants the box: a t4g.micro left running is dollars a week, not the tens of hours a
+# month spec 023 was written for (A-11).
+#
 # WHAT IT NEVER DOES (invariants M2, M3, M8). It never touches production: the AWS role it assumes
 # cannot see `keel-prod` or read `/keel/prod/*`, by policy rather than by convention. A green
 # matrix deploys nothing. A red matrix rolls nothing back -- the failing build stays up so the
@@ -65,9 +73,13 @@ on:
         type: boolean
         default: true
       wipe:
-        description: "after the deploy, wipe the twin (reset.sh: the database and the registry go; the tag comes back up) so it holds only this run's founders. Ignored when deploy is false (the box is started first and stopped after)"
+        description: "after the deploy, wipe the twin (reset.sh: the database and the registry go; the tag comes back up) so it holds only this run's founders. Ignored when deploy is false (the box is started first and stopped after, unless keep_twin says otherwise)"
         type: boolean
         default: true
+      keep_twin:
+        description: "leave the twin running after the cells, for manual testing"
+        type: boolean
+        default: false
 
 # §6.2's debounce, in the receiver and never in the senders: one run per source repository, the
 # older one cancelled. `client_payload.repo` is the sender's name; a push, a schedule or a hand
@@ -334,11 +346,19 @@ jobs:
           echo "AWS_PROFILE=default" >> "$GITHUB_ENV"
           aws sts get-caller-identity --query Arn --output text
 
-      # THE TWIN IS OFF UNTIL THIS STEP (spec 023, design §16). Start it; a box that is already
-      # running makes this a no-op. The role's StartStopStaging statement (keel-cloud spec 043) is
-      # tag-scoped to Name=keel-staging exactly as RunOnStaging is, so the same call against
-      # keel-prod fails at IAM. KEEL_INSTANCE_ID is a repository variable for the same reason the
-      # deploy step reads it from one: the role carries no ec2:Describe*.
+      # THE TWIN IS OFF UNTIL THIS STEP (spec 023, design §16) -- OR IT IS ALREADY UP, which since
+      # `keep_twin` (2026-09-29) is the ordinary case rather than the unusual one. `start-instances`
+      # on a `running` instance is a NO-OP: AWS answers 200 with PreviousState=CurrentState=running
+      # and starts nothing, so this step is correct whichever state the box is in and asserts no
+      # transition. The one state it cannot start from is `stopping` (IncorrectInstanceState), which
+      # is exactly what a previous run's `stop-staging` leaves behind for a minute or so -- so a
+      # failed call is retried rather than fatal, and only a box that will not start in a minute is
+      # an error.
+      #
+      # The role's StartStopStaging statement (keel-cloud spec 043) is tag-scoped to
+      # Name=keel-staging exactly as RunOnStaging is, so the same call against keel-prod fails at
+      # IAM. KEEL_INSTANCE_ID is a repository variable for the same reason the deploy step reads it
+      # from one: the role carries no ec2:Describe*.
       - name: Start the twin
         shell: bash
         env:
@@ -349,8 +369,17 @@ jobs:
             echo "::error::KEEL_INSTANCE_ID must be set as a repository variable (the CI role has no ec2:Describe*)."
             exit 1
           fi
-          aws ec2 start-instances --instance-ids "$KEEL_INSTANCE_ID" \
-            --query 'StartingInstances[0].[PreviousState.Name,CurrentState.Name]' --output text
+          for attempt in $(seq 1 6); do
+            if aws ec2 start-instances --instance-ids "$KEEL_INSTANCE_ID" \
+                 --query 'StartingInstances[0].[PreviousState.Name,CurrentState.Name]' \
+                 --output text; then
+              exit 0
+            fi
+            echo "attempt $attempt: start-instances was refused (the box is most likely still stopping)"
+            sleep 10
+          done
+          echo "::error::keel-staging would not accept a start in one minute"
+          exit 1
 
       # WAIT BY DOING. "Is it up" is answered by asking the box to do something and seeing whether
       # it does: ssm send-command of `true`, then get-command-invocation until Success -- the two
@@ -358,6 +387,11 @@ jobs:
       # instance-status-ok` and not `ssm describe-instance-information`: neither can be scoped to
       # one instance, and the policy refuses every Describe* on purpose. A stopped t4g takes
       # about a minute to boot and for the SSM agent to register; five minutes is the ceiling.
+      #
+      # It asserts NO TRANSITION, which is why it still reads right on an already-running twin
+      # (`keep_twin`, 2026-09-29): the question is "does the box do what it is told", and a box
+      # that has been up for a week answers it on the first attempt and passes immediately.
+      # Nothing here compares a before-state with an after-state, and nothing here would notice.
       - name: Wait for the twin
         shell: bash
         env:
@@ -903,10 +937,17 @@ jobs:
   # token. `always()` so it runs on green, on red and on cancel; gated on `deploy` so a run that
   # did not start the box does not stop a box the founder started by hand. The role's
   # StartStopStaging statement (keel-cloud spec 043) reaches keel-staging and nothing else.
+  #
+  # ...AND IT IS SKIPPED WHOLE WHEN THE FOUNDER ASKED TO KEEP IT (2026-09-29). `keep_twin` is a
+  # `workflow_dispatch` input, so on a push, a schedule or a repository dispatch `inputs.keep_twin`
+  # is null; `null != true`, and every unattended run still stops the box. The `always()` and the
+  # `deploy` gate are untouched by it, which is the property that matters: a RED cell still stops
+  # the twin when `keep_twin` is false, because the two conditions are ANDed and neither reads the
+  # cells' result.
   stop-staging:
     name: stop the twin
     needs: [select, deploy-staging, cell]
-    if: always() && needs.select.outputs.deploy == 'true'
+    if: always() && needs.select.outputs.deploy == 'true' && inputs.keep_twin != true
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -962,6 +1003,16 @@ jobs:
           pattern: row-*
           path: rows
           merge-multiple: false
+
+      # `stop-staging` is skipped whole when the founder asked to keep the box, so the sentence
+      # that says so cannot live in it. It lives here, where the founder reads the table, and it
+      # names the address they asked for the box in order to open.
+      - name: Say so when the twin was left running
+        if: always() && inputs.keep_twin == true && needs.select.outputs.deploy == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "The twin was **kept running at the founder's request** (\`keep_twin: true\`) — $KEEL_REMOTE_WEB_URL. It stays up, and costs its instance-hours, until a run without the flag stops it or the founder stops it from the Mac." >> "$GITHUB_STEP_SUMMARY"
 
       - id: table
         name: One table
