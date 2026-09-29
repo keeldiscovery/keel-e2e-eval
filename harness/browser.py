@@ -444,27 +444,71 @@ class Auth:
     rather than by position, since this file's own callers have not agreed on one order.
     """
 
-    #: What keel-web's one control is labelled (`lib/translate.ts`'s `LOGIN_GOOGLE_BUTTON`). It is
-    #: an `<a class="btn google">`, not a `<button>` -- a navigation, not a fetch -- so its
-    #: accessible role is **link**. The design's §10.4 sketch says
-    #: `get_by_role("button", name="Continue with Google")`, which matches nothing on the real
-    #: screen; this is the corrected locator and the reason is written here rather than
-    #: rediscovered in a browser.
-    GOOGLE_BUTTON = "Continue with Google"
+    #: **The word on the Google button belongs to the door, not to the product** (keel-web spec
+    #: `024-front-door` FR-003, FR-004 and FR-005; `lib/translate.ts`'s `LOGIN_GOOGLE_SIGNUP`,
+    #: `LOGIN_GOOGLE_LOGIN` and `LOGIN_GOOGLE_BUTTON`). Until spec 024 there was one door and one
+    #: word; there are now three doors and three words, and a harness that knew only the old one
+    #: failed at the **stack-boot capture** -- which every scenario in this repository runs before
+    #: it runs anything of its own, so one renamed button was every cell red.
+    #:
+    #: - `code`   -- `/login?user_code=…`, the founder's own AI printed a code and is waiting.
+    #:               FR-005 leaves that branch byte for byte alone, so this word does not move.
+    #: - `login`  -- plain `/login`, the *Back to see a project?* card.
+    #: - `signup` -- `/signup`, the door an account is **made** on, which keel-cloud reads as
+    #:               `ai_path = KEEL` (keel-cloud spec 044 FR-014).
+    #:
+    #: Every one of them is an `<a class="btn google">`, not a `<button>` -- a navigation, not a
+    #: fetch -- so the accessible role is **link** on all three. (google-sign-in-design.md §10.4's
+    #: own sketch says `get_by_role("button", …)`, which matched nothing on the real screen even
+    #: before spec 024; that correction is spec 015's and still stands.)
+    GOOGLE_BUTTON_FOR_DOOR = {
+        "code": "Continue with Google",
+        "login": "Log in with Google",
+        "signup": "Sign up with Google",
+    }
+
+    #: Kept under its old name and its old value -- the **code story's** word, which spec 024 did
+    #: not touch. Nine specs' worth of prose and one run record name it.
+    GOOGLE_BUTTON = GOOGLE_BUTTON_FOR_DOOR["code"]
+
+    #: What a door card carries whatever happened: keel-web spec 024's `DoorCard` draws the
+    #: Privacy/Terms line and the *other door* line on both doors, as plain `.hint`s, and the code
+    #: story carries its own two. They are **not** refusal lines, and `auth_error_text` must not
+    #: read one as if it were. The two pre-024 spellings stay: a twin deployed from a keel-web
+    #: that predates spec 024 still shows them, and a referee pinned to one version of the present
+    #: is the same fault as one pinned to the past.
+    STANDING_HINTS = frozenset({
+        # spec 024's two door-card hints, on both `/login` and `/signup`.
+        "Keel's Privacy and Terms.",
+        "New to Keel? Sign up free",
+        "Already have an account? Log in",
+        # ...and what `/login` said before spec 024 retired the two-story card.
+        "Your Keel projects are waiting.",
+        "New here? The same button makes your account.",
+    })
 
     def __init__(self, page: Page, arg2: Any, arg3: Any, *, party: str = "founder"):
         self.page = page
         recorder, base_url = (arg3, arg2) if isinstance(arg2, str) else (arg2, arg3)
         self.base_url = base_url.rstrip("/")
         self._bstep = _BrowserStep(recorder, page, party)
+        #: Which of the three doors this instance is looking at, so every read and every click
+        #: asks for that door's own word. Set by whichever method opened a screen; `login` until
+        #: one has, because a bare `Auth(page, …)` pointed at nothing is pointed at `/login`.
+        self._door = "login"
 
     # ------------------------------------------------------------------------------- the screen
+
+    def google_button_name(self, door: str | None = None) -> str:
+        """The word on **this** door's Google control (spec 024). One lookup, one place."""
+        return self.GOOGLE_BUTTON_FOR_DOOR[door or self._door]
 
     def open_login(self, *, user_code: str | None = None) -> dict:
         """L1 -- the login screen, before anyone has signed in (§10.4). The same screen on a fresh
         instance and a busy one, which is itself worth reading: there is no `accountExists` branch
         left for a scenario to take. Returns the title, the hint, whether the one control is
         there, and whatever `auth_error` line is showing."""
+        self._door = "code" if user_code else "login"
         with self._bstep.step("founder opens the login screen") as h:
             url = f"{self.base_url}/login"
             if user_code:
@@ -481,7 +525,10 @@ class Auth:
         return {
             "title": _safe_text(lambda: self.page.locator(".auth-title").first.inner_text()),
             "hints": [t.strip() for t in self.page.locator(".card .hint").all_inner_texts()],
-            "google_button": self.page.get_by_role("link", name=self.GOOGLE_BUTTON).count() > 0,
+            "door": self._door,
+            "google_button": self.page.get_by_role(
+                "link", name=self.google_button_name()).count() > 0,
+            "google_button_name": self.google_button_name(),
             "error_banner": _safe_text(
                 lambda: self.page.locator(".err[role=alert]").first.inner_text()),
             "url": self.page.url,
@@ -496,19 +543,29 @@ class Auth:
     def auth_error_text(self) -> str:
         """The founder-voiced line under the button, banner or plain hint. §5.5 renders `cancelled`
         as a plain `.hint` and the other four in an `.err` banner, so both are read here and the
-        caller asserts which shape it wanted."""
+        caller asserts which shape it wanted.
+
+        **Read structurally first, by exclusion second** (keel-web spec 024). On spec 024's
+        `DoorCard` the refusal is the `children` slot **inside `.story`**, while the Privacy/Terms
+        line and the *other door* line are `.hint`s outside it -- so the quiet `cancelled` line is
+        `.story p.hint` and nothing else is. The old exclusion read stays underneath for a twin
+        still serving the pre-024 card, where there is no `.story` wrapper at all; what it excludes
+        is now `STANDING_HINTS`, which names both vocabularies.
+        """
         read = self._read_login()
         if read["error_banner"].strip():
             return read["error_banner"].strip()
-        # The plain line: the last hint that is neither the standing sub-title nor the footer.
-        standing = {"Your Keel projects are waiting.",
-                    "New here? The same button makes your account."}
-        extra = [t for t in read["hints"] if t and t not in standing]
+        quiet = self.page.locator(".story p.hint")
+        if quiet.count() > 0:
+            return _safe_text(lambda: quiet.first.inner_text()).strip()
+        # The plain line: the last hint that is neither a standing line nor the footer.
+        extra = [t for t in read["hints"] if t and t not in self.STANDING_HINTS]
         return extra[-1] if extra else ""
 
     # -------------------------------------------------------------------------- the round trip
 
-    def sign_in(self, founder, *, return_to: str = "/", stub_break: str | None = None,
+    def sign_in(self, founder, *, return_to: str = "/", door: str | None = None,
+                stub_break: str | None = None,
                 cancel: bool = False, expect: str = "home") -> dict:
         """Drives the real `/login` screen through the real callback -- never a transplanted
         cookie, never a password, never a seeded session.
@@ -530,6 +587,13 @@ class Auth:
         screens. A cell signs in as the identity it registered minutes earlier, which is a
         different `founder.name` and no different code.
 
+        `door` names which of spec 024's three doors to walk in through (`login`, `signup`,
+        `code`); with nothing said it is inferred from `return_to`, which is what every caller
+        written before spec 024 already relied on. **`signup` is the only way an account is made
+        on Keel's own AI** -- keel-cloud reads the door off the pre-login record's `return_to`
+        (spec 044 FR-014), so the word on the button and the `ai_path` of the account it makes are
+        two ends of one fact.
+
         `stub_break`/`cancel` are S-011's levers and nothing else's. `stub_break` is carried into
         the picker's own hidden fields by the stub (its `_CARRIED` tuple), so the click that
         follows is the same click every other scenario makes; `cancel` follows the picker's own
@@ -540,11 +604,12 @@ class Auth:
         title = ("founder signs in with Google" if expect == "home"
                  else f"founder tries to sign in with Google ({stub_break or 'cancelled'})")
         with self._bstep.step(title) as h:
-            self._goto_login(return_to)
+            self._goto_door(return_to, door)
             h.add_screenshot(self._bstep.screenshot("login"))
             # A navigation, not a fetch: the control is an `<a href>` and what comes back is a
-            # `Location` the browser follows out of keel-web's origin entirely.
-            self.page.get_by_role("link", name=self.GOOGLE_BUTTON).click()
+            # `Location` the browser follows out of keel-web's origin entirely. Which word is on
+            # it is the door's (spec 024), and `self._door` is what `_goto_door` just settled.
+            self.page.get_by_role("link", name=self.google_button_name()).click()
             self._wait_for_picker()
             if stub_break:
                 # The stub carries `stub_break` back through the picker's hidden fields, so this
@@ -582,17 +647,32 @@ class Auth:
                 "signed-in" if expect == "home" else "sign-in-refused"))
         return result
 
-    def _goto_login(self, return_to: str) -> None:
+    def _goto_door(self, return_to: str, door: str | None = None) -> None:
         """keel-web computes `return_to` itself and never reads it off the address bar (spec 014
         D-05): a `user_code` in the query means a terminal is waiting and the button carries
         `/connect?user_code=...`. So a scenario asks for a destination and this opens the screen
-        that produces it, rather than forging a `start` URL of its own."""
-        if return_to.startswith("/connect?user_code="):
+        that produces it, rather than forging a `start` URL of its own.
+
+        Spec 024 gives that rule a third answer. `/signup` is its own screen and its own word, and
+        it is the **only** door that makes an account on Keel's own AI; a caller asks for it by
+        name because nothing in a `return_to` of `/` distinguishes *sign up* from *log in* --
+        both carry `/`, and keel-cloud reads them the same way on a **returning** founder.
+        """
+        if door is None:
+            door = "code" if return_to.startswith("/connect?user_code=") else "login"
+        self._door = door
+        if door == "code":
             code = return_to.split("user_code=", 1)[1]
             self.page.goto(f"{self.base_url}/login?user_code={code}", wait_until="load")
+        elif door == "signup":
+            self.page.goto(f"{self.base_url}/signup", wait_until="load")
         else:
             self.page.goto(f"{self.base_url}/login", wait_until="load")
         self.page.locator(".auth-title").wait_for(state="visible", timeout=15_000)
+
+    #: The name every caller before spec 024 used. Kept pointing at `_goto_door`, because the
+    #: method did not change its job -- it gained a third door.
+    _goto_login = _goto_door
 
     def _wait_for_picker(self) -> None:
         self.page.get_by_role("heading", name="Choose an account").wait_for(
@@ -604,6 +684,18 @@ class Auth:
         `sign_in` is the name §10.4 gives and the one new scenarios use."""
         from stack.auth import FOUNDER_ONE
         return self.sign_in(founder or FOUNDER_ONE, return_to=return_to)
+
+    def sign_up(self, founder, *, return_to: str = "/") -> dict:
+        """**The door that makes an account on Keel's own AI** (keel-web spec 024 FR-003;
+        keel-cloud spec 044 FR-014, `GoogleSignIn.doorOf`).
+
+        The same three hops as `sign_in` -- there is no second login path and there must never be
+        one -- through `/signup` and its own *Sign up with Google*, with `return_to=/`. What makes
+        the account `KEEL` is not a field on this screen and not anything this harness sends: it
+        is the `return_to` keel-cloud stored at `start`, which is `/` from this door and
+        `/connect?user_code=…` from the other. The door **is** the answer.
+        """
+        return self.sign_in(founder, return_to=return_to, door="signup")
 
 
 def chooser_button_selector(identity_id: str) -> str:

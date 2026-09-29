@@ -340,6 +340,12 @@ this stack deliberately configures no `KEEL_GOOGLE_ALLOWED_DOMAIN`.
    `get_by_role("button", name="Continue with Google")`; keel-web renders an `<a class="btn
    google">`, deliberately, because signing in is a navigation and not a fetch. It is
    `get_by_role("link", …)`, and a test asserts it stays that way.
+   **And since 2026-09-29 the *word* is the door's, not the product's** (keel-web spec
+   `024-front-door`): `/signup` says *Sign up with Google*, plain `/login` says *Log in with
+   Google*, and only `/login?user_code=…` still says *Continue with Google*. The harness reads it
+   out of `harness/browser.py::Auth.GOOGLE_BUTTON_FOR_DOOR` — one table, keyed by door — because
+   the old literal sat in four places, and the one in the session-scoped stack-boot capture turned
+   a renamed button into every cell red before a scenario ran.
 3. **S-010 read the wire with the wrong key names, and asked a warm project for a fixture's role.**
    This is the one the run itself found: its place in the `eval-all` pass
    (`20260910T000134Z-s010-two-founders`) died looking for a *"A payroll manager"* card on the

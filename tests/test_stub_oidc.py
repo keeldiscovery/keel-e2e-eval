@@ -683,12 +683,69 @@ def test_the_sign_in_step_clicks_a_link_and_then_the_founders_own_name():
     from harness.browser import Auth
 
     source = inspect.getsource(Auth.sign_in)
-    assert 'get_by_role("link", name=self.GOOGLE_BUTTON)' in source
+    assert 'get_by_role("link", name=self.google_button_name())' in source
     assert "chooser_button_selector(founder.id)" in source, (
         "the picker's own submit button, found through the hidden `identity` field its form "
         "carries (§10.2) -- unique by construction, where the visible name is not")
     assert Auth.GOOGLE_BUTTON == "Continue with Google"
     assert not hasattr(Auth, "set_up"), "`set_up` is deleted with /setup (§4.7)"
+
+
+def test_the_word_on_the_button_belongs_to_the_door():
+    """keel-web spec `024-front-door` FR-003/FR-004/FR-005: three doors, three words.
+
+    Found the hard way (2026-09-29): the plain `/login` card became *Log in with Google*, this
+    harness still asked for *Continue with Google*, and the stack-boot capture -- which every
+    scenario runs before its own first line -- matched nothing and reddened every cell. So the
+    word is a table keyed by door, and this is the table.
+    """
+    from harness.browser import Auth
+
+    assert Auth.GOOGLE_BUTTON_FOR_DOOR == {
+        "code": "Continue with Google",
+        "login": "Log in with Google",
+        "signup": "Sign up with Google",
+    }
+    # FR-005 leaves the code story alone, so the constant nine specs name does not move.
+    assert Auth.GOOGLE_BUTTON == Auth.GOOGLE_BUTTON_FOR_DOOR["code"]
+
+
+def test_the_door_is_inferred_from_the_destination_and_nameable_by_hand():
+    """`return_to=/connect?user_code=…` is the code story and everything else is the log-in card;
+    `/signup` cannot be inferred from a `return_to` of `/` (keel-cloud reads the same `/` for a
+    returning founder), so it is asked for by name -- which is what `sign_up` does."""
+    import inspect
+
+    from harness.browser import Auth
+
+    source = inspect.getsource(Auth._goto_door)
+    assert 'door = "code" if return_to.startswith("/connect?user_code=") else "login"' in source
+    assert 'elif door == "signup":' in source and "/signup" in source
+    assert 'door="signup"' in inspect.getsource(Auth.sign_up)
+
+
+def test_the_standing_hints_name_both_vocabularies_so_a_refusal_is_never_one_of_them():
+    """`auth_error_text` must not read keel-web's Privacy/Terms line or its *other door* line as a
+    founder-voiced refusal. Spec 024's two and the pre-024 two are both named, because the twin
+    may be on either."""
+    from harness.browser import Auth
+
+    assert "Keel's Privacy and Terms." in Auth.STANDING_HINTS
+    assert "New to Keel? Sign up free" in Auth.STANDING_HINTS
+    assert "Your Keel projects are waiting." in Auth.STANDING_HINTS
+
+
+def test_the_quiet_refusal_is_read_structurally_before_it_is_read_by_exclusion():
+    """Spec 024's `DoorCard` puts the `?auth_error=` line **inside `.story`** and its two standing
+    hints outside it, so the `cancelled` line has a selector of its own. The exclusion read stays
+    underneath for a twin still serving the pre-024 card."""
+    import inspect
+
+    from harness.browser import Auth
+
+    source = inspect.getsource(Auth.auth_error_text)
+    assert ".story p.hint" in source
+    assert "self.STANDING_HINTS" in source
 
 
 def test_the_picker_button_the_scenarios_click_is_the_one_the_stub_draws():

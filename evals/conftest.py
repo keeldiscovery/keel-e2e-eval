@@ -11,7 +11,7 @@ import re
 import pytest
 from playwright.sync_api import sync_playwright
 
-from harness.browser import GatedBrowser, gate_http_credentials
+from harness.browser import Auth, GatedBrowser, gate_http_credentials
 from harness.evidence import new_run_dir, write_versions
 from stack.auth import FOUNDER_ONE, FOUNDER_TWO, StubFounder
 from stack.config import PROFILES, StackConfig, load_config
@@ -78,6 +78,20 @@ def _capture_the_login_screen(stack: StackConfig, browser) -> None:
     The stranger's door is captured beside it rather than dropped, because *what `/` shows somebody
     with no session* is a thing a run of record should be able to show a reader.
 
+    **Discovered, 2026-09-29, by the matrix against the new staging tag: it happened again, one
+    door along.** keel-web spec `024-front-door` FR-004 renames this card's control from *Continue
+    with Google* to **Log in with Google** -- the plain `/login` card is the *Back to see a
+    project?* door now, and there are three doors with three words (FR-003 `/signup` says *Sign up
+    with Google*; FR-005 leaves `/login?user_code=…` saying *Continue with Google*, byte for
+    byte). This check named the old word, matched nothing, and -- being session-scoped and depended
+    on by `founder_one` -- took **every cell** down before a single scenario ran, exactly as the
+    redirect did. Same class of fault, same verdict: a **harness fault**, not a `runs/DRIFT.md`
+    entry. keel-web renamed a thing keel-web owns and said so in its own spec.
+
+    The fix is not a new literal. The word is now a function of the door
+    (`harness/browser.py::Auth.GOOGLE_BUTTON_FOR_DOOR`), read here from the same table every
+    scenario clicks through, so the next door keel-web adds is one row and not four greps.
+
     Evidence goes to `runs/.stack/`, alongside this harness's other stack-lifecycle artifacts, not
     a scored run bundle: it is a one-time stack-boot observation, not a scenario.
     """
@@ -102,7 +116,7 @@ def _capture_the_login_screen(stack: StackConfig, browser) -> None:
             "a password field anywhere on the stranger's landing page would mean keel-cloud kept "
             "one (google-sign-in-design.md §10.8)")
 
-        # The login screen itself, opened the way `Auth._goto_login` opens it.
+        # The login screen itself, opened the way `Auth._goto_door` opens it.
         page.goto(f"{web_base}/login", wait_until="load")
         page.locator("h1.auth-title").wait_for(state="visible", timeout=15_000)
         heading = page.locator("h1.auth-title").inner_text()
@@ -110,9 +124,11 @@ def _capture_the_login_screen(stack: StackConfig, browser) -> None:
                         full_page=True)
         assert heading.strip().lower() == "log in", (
             f"expected the login screen, got heading {heading!r} at {page.url}")
-        assert page.get_by_role("link", name="Continue with Google").count() == 1, (
-            "the login screen must carry exactly one way in (design §6) -- and it is a link, "
-            "because signing in is a navigation and not a fetch")
+        login_button = Auth.GOOGLE_BUTTON_FOR_DOOR["login"]
+        assert page.get_by_role("link", name=login_button).count() == 1, (
+            f"the login screen must carry exactly one way in (design §6), labelled "
+            f"{login_button!r} (keel-web spec 024 FR-004) -- and it is a link, because signing in "
+            f"is a navigation and not a fetch")
         assert page.get_by_label("Password").count() == 0, (
             "a password field on the login screen would mean keel-cloud kept one (§10.8)")
     finally:

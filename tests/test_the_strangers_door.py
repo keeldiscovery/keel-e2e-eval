@@ -70,7 +70,20 @@ def test_both_screens_still_refuse_a_password():
 
 
 def test_the_login_screen_still_carries_exactly_one_way_in():
-    assert 'name="Continue with Google"' in CAPTURE
+    """**And it is asked for by the door's own word, never by a literal** -- the second harness
+    fault this file exists for (2026-09-29). keel-web spec `024-front-door` FR-004 renamed this
+    card's control to *Log in with Google*; the capture named the old word, matched nothing, and
+    took every cell down before a scenario ran, exactly as the removed redirect did. The word now
+    comes from `Auth.GOOGLE_BUTTON_FOR_DOOR`, which is the same table every scenario clicks
+    through, so the next door keel-web adds is one row and not four greps."""
+    from harness.browser import Auth
+
+    assert 'Auth.GOOGLE_BUTTON_FOR_DOOR["login"]' in CAPTURE, (
+        "the capture is naming a button label of its own again instead of reading the door's")
+    assert '"Continue with Google"' not in CAPTURE, (
+        "the code story's word is back on the plain login card; spec 024 FR-004 says it is "
+        "*Log in with Google* there, and *Continue with Google* only at /login?user_code=")
+    assert Auth.GOOGLE_BUTTON_FOR_DOOR["login"] == "Log in with Google"
     assert 'get_by_role("link"' in CAPTURE, (
         "keel-web renders the control as an anchor with class `btn google`, deliberately, because "
         "signing in is a navigation and not a fetch (README, harness fault 2 of spec 015)")

@@ -146,7 +146,11 @@ def test_s011_bad_token(stack, founder_one, founder_two, browser, run_dir):
             h.record_assert({"title": "Log in", "one way in": True, "/v2/me": 401},
                              {**read, "/v2/me": _me_status()})
             assert read["title"].strip() == "Log in", read
-            assert read["google_button"], "the login screen has no Continue with Google"
+            # Spec 024 FR-004 renamed this door's word to *Log in with Google*; `read` asks for
+            # whichever word the door it opened actually carries, so the assertion is the door's
+            # and not a literal this file has to keep in step.
+            assert read["google_button"], (
+                f"the login screen has no {read['google_button_name']!r}")
             assert _me_status() == 401, "something had already opened a session"
 
         # -------------------------------------------------- the six declared ways a token is wrong
@@ -184,7 +188,8 @@ def test_s011_bad_token(stack, founder_one, founder_two, browser, run_dir):
         other = browser.new_context()
         other_page = other.new_page()
         other_page.goto(f"{web_base}/login", wait_until="load")
-        other_page.get_by_role("link", name=Auth.GOOGLE_BUTTON).click()
+        # The plain log-in door's own word (spec 024 FR-004), not the code story's.
+        other_page.get_by_role("link", name=Auth.GOOGLE_BUTTON_FOR_DOOR["login"]).click()
         other_page.get_by_role("heading", name="Choose an account").wait_for(
             state="visible", timeout=20_000)
         # That other browser's own authorize request -- its `state` is on *its* servlet session.
