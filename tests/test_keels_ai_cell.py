@@ -577,3 +577,50 @@ def test_sign_in_with_code_builds_the_one_return_to_that_answers_own():
     source = inspect.getsource(Auth.sign_in_with_code)
     assert 'return_to=f"/connect?user_code={user_code}"' in source
     assert 'door="code"' in source
+
+
+# -------------------------------------------- the words a page object has to CLICK, per door
+
+def test_the_reading_button_is_named_by_the_door_and_the_cli_wording_does_not_move():
+    """**Matrix run 36636769648**: the whole journey green on Keel's AI through all three stages,
+    and then thirty seconds of waiting on the People page for a button whose word the door had
+    changed. keel-web spec 024 FR-014 puts `READING_BUTTON_LABEL` through the same `perDoor`
+    substitution as the other twenty-six strings, so *Have your AI read the N new answers* reads
+    *Have Keel read the N new answers* behind the Google door.
+
+    Two names, never one loosened pattern: a regex that matched both would also match a keel-web
+    that had put the wrong word on the wrong door, which is the one thing worth catching here.
+    """
+    from harness.browser import READ_BUTTON_FOR_DOOR, Shell
+
+    own = READ_BUTTON_FOR_DOOR[Shell.DOOR_OWN]
+    keel = READ_BUTTON_FOR_DOOR[Shell.DOOR_KEEL]
+    # The own-AI reading is byte for byte the one this harness has always used.
+    assert own.pattern == r"have your (agent|ai) read"
+    assert keel.pattern == r"have keel read"
+    assert own.search("Have your AI read the 5 new answers")
+    assert own.search("Have your agent read the 5 new answers")
+    assert keel.search("Have Keel read the 5 new answers")
+    # Neither door's name matches the other's screen.
+    assert not own.search("Have Keel read the 5 new answers")
+    assert not keel.search("Have your AI read the 5 new answers")
+
+
+def test_the_door_is_read_off_the_shell_that_the_credits_assertions_already_read():
+    """One reading of the door, in the place that already had to know it: the shell draws exactly
+    one of `.creditsline` and `.agentline` (keel-web spec 024 FR-011), so the screen is the thing
+    that knows -- and a flag threaded through four constructors is a flag that can disagree with
+    it."""
+    import inspect
+
+    from harness.browser import People, Shell
+
+    source = inspect.getsource(Shell.door)
+    assert "self.credits_line_present()" in source
+    assert (Shell.DOOR_KEEL, Shell.DOOR_OWN) == ("keel", "own")
+    click = inspect.getsource(People.read_all_and_wait)
+    assert "door = Shell(self.page).door()" in click
+    assert "READ_BUTTON_FOR_DOOR[door]" in click
+    assert "have your (agent|ai) read" not in click, (
+        "the button name is a literal in the click again, so the next door keel-web adds is "
+        "another thirty-second timeout on a green journey")

@@ -1032,6 +1032,30 @@ class Shell:
     def credits_line_present(self) -> bool:
         return self.page.locator(".creditsline").count() > 0
 
+    #: The two doors, as the shell itself distinguishes them.
+    DOOR_KEEL = "keel"
+    DOOR_OWN = "own"
+
+    def door(self) -> str:
+        """**Which AI this founder runs on, read off the screen they are on** (keel-web spec 024
+        FR-011: `keelPath ? <CreditsLine/> : <AgentLine/>` -- exactly one of the two, on every
+        signed-in page).
+
+        This is the same read the credits assertions make, and it is here so that everything which
+        depends on the door depends on **one** reading of it. keel-web spec 024 FR-014 puts
+        twenty-seven strings through one substitution, and any of them a page object has to
+        *click* is a locator that has to know the door: *Have your AI read the N new answers*
+        becomes *Have Keel read the N new answers*, and a locator that knew only the first waited
+        thirty seconds for a button that was never going to be there (matrix run 36636769648, the
+        whole journey green on Keel's AI through all three stages and then a timeout on the People
+        page).
+
+        Read off the rendered page rather than passed in, for the reason `Auth._read_login` reads
+        its own door: the screen is the thing that knows, and a flag threaded through four
+        constructors is a flag that can disagree with it.
+        """
+        return self.DOOR_KEEL if self.credits_line_present() else self.DOOR_OWN
+
     #: What a founder on Keel's AI must never be shown (keel-web spec 024 FR-014,
     #: `AI_SUBJECT_KEEL`): twenty-seven strings say *Keel* where the own-AI road says *your AI*.
     #: Swept as a **property** rather than pinned sentence by sentence -- twenty-seven literals
@@ -2726,6 +2750,20 @@ class PrintPage:
 
 # ------------------------------------------------------------------------------------------ People
 
+#: **The reading button's own name, per door** (keel-web spec 024 FR-014's `READING_BUTTON_LABEL`,
+#: through `perDoor`). The own-AI reading is byte for byte the one this harness has always used --
+#: `(agent|ai)` because keel-web renamed *your agent* to *your AI* in its spec 017 and both
+#: spellings have been in front of this harness -- and the Keel reading is the substitution's own
+#: output, `Your AI` -> `Keel`.
+#:
+#: Two names, not one loosened pattern: a regex that matched both would also match a keel-web that
+#: had put the wrong word on the wrong door, which is the one thing worth catching here.
+READ_BUTTON_FOR_DOOR = {
+    Shell.DOOR_OWN: re.compile(r"have your (agent|ai) read", re.I),
+    Shell.DOOR_KEEL: re.compile(r"have keel read", re.I),
+}
+
+
 class People:
     """`routes/founder/PeopleRoute.tsx` -- P1-P9: role cards, the three-step send popup, the
     two-actor table, the answers popup, the reading progress, and the toast."""
@@ -2947,12 +2985,21 @@ class People:
     # -------------------------------------------------------------------- reading (agent_turn)
 
     def read_all_and_wait(self, *, timeout_s: float = 60) -> dict[str, str]:
-        """*Have your agent read the N new answers* (P5→P6→P7): clicks the button, then waits on
-        the screen's own progress line and per-row *Reading…* state, then the completion toast --
-        never a wire poll of its own."""
+        """*Have your AI read the N new answers* -- or, behind the Google door, *Have Keel read
+        the N new answers* (P5→P6→P7; keel-web spec 024 FR-014). Clicks the button, then waits
+        on the screen's own progress line and per-row *Reading…* state, then the completion
+        toast -- never a wire poll of its own.
+
+        **The door is read off the shell, not passed in** (`Shell.door`), which is the same
+        reading the credits assertions make. Found by matrix run 36636769648: the whole journey
+        green on Keel's AI through all three stages, and then thirty seconds of waiting on a
+        button whose word the door had changed.
+        """
         with self._scope():
             with self._bstep.step("founder has the agent read the new answers") as h:
-                self.page.get_by_role("button", name=re.compile(r"have your (agent|ai) read", re.I)).click()
+                door = Shell(self.page).door()
+                h.capture_text("door", door)
+                self.page.get_by_role("button", name=READ_BUTTON_FOR_DOOR[door]).click()
                 progress = self.page.locator(".bulk")
                 if progress.count() > 0:
                     h.capture_text("waiting_text", _safe_text(lambda: progress.first.inner_text()))
