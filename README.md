@@ -1444,7 +1444,7 @@ bash** against the messages a founder writes), with no Docker/gradle/vite involv
 
 **There are two now.** `make eval-live` selects the `live` marker, so `K=` picks between them:
 `K=s004` is the stranger who gives orders, on a real `claude`; `K=s012` is the founder's journey
-through a host, on a real `copilot` or a real `claude` — `HOST=` chooses, default `copilot`;
+through a host, on a real `copilot`, `claude` or `codex` — `HOST=` chooses, default `copilot`;
 `LEGS=short|full` chooses how far, default `full`; `ENTRY=` chooses whose founder walks it, default
 `03-lullaby` (specs `016-copilot-e2e`, `019-journey-through-a-host` and `021-short-journey`,
 above). Both are opt-in, both cost the
@@ -1452,6 +1452,44 @@ founder's own money, both are deselected from `make eval`/`make eval-all`, and b
 themselves **by name with a reason** when their CLI is missing rather than passing quietly — and
 S-012's Claude instance skips the same way when the shell carries no credential for a fresh
 `CLAUDE_CONFIG_DIR` to use.
+
+### ...and one of them has a fourth door (`make keels-ai`, spec `024-keels-ai-cell`)
+
+keel-cloud `canon/designs/ai-credits-design.md` §6: **"The door decides the AI."** A founder who
+signs up with Google at keel-web's `/signup` runs on **Keel's** AI — nothing to install, no skill
+to load, no `keel connect` to say, no device to approve and no runtime anywhere — and keel-cloud
+answers every job in process on its own Anthropic account (keel-cloud specs `044-ai-credits` and
+`045-keels-ai-executor`). The journey after that is the same journey, so it is the same scenario
+with its host axis widened by a **door**:
+
+```
+make keels-ai                       # the whole journey, against KEEL_REMOTE_WEB_URL
+make eval-live K=s012 HOST=keel PROFILE=remote     # the same thing, spelled out
+```
+
+**It is the only thing in this repository that spends the company's money.** Every other live
+target bills the founder's own plan — his Max subscription, his Copilot seat, his OpenAI key.
+This one bills Keel's Anthropic account: about **1,250 credits** a journey, which is **$12.50 at
+list price** and about **$2.44 of actual inference** (design §6.3, the five-participant row),
+inside the 1,500 the grant gives and inside keel-cloud spec 045's $10.00-a-day-per-founder cap.
+So the matrix buys it **once a Saturday and never on a merge**, and `matrix/cells.py`'s coverage
+rules refuse it in `per_change` by name.
+
+Leg one is **skipped**, not weakened: `harness/keel_host.py` raises from `add_marketplace`,
+`install_plugin`, `skill_proof`, `say` and the rest, so a future edit that reached for it gets a
+sentence rather than an empty result that would read as a pass. What is asserted instead is the
+six things only that door shows — `1,500 credits available` on the shell line and **no** agent
+line, `aiPath: "KEEL"` and `creditsAvailable: 1500` on the wire, a balance that drops once the
+first framing is held, `execution.host: "api"` with a present, non-zero `actual_cost_micro_usd`
+on every job, the founder's screens reading *Keel* rather than *your AI*, and a `KEEL_HOME` that
+is still empty when the brief is written. And when the door is bolted — no
+`KEEL_ANTHROPIC_API_KEY` on the deployment — the run **fails fast on keel-cloud's own sentence**
+(`LLM_UNAVAILABLE: KEEL_AI_DISABLED`) rather than waiting out a timeout: the wait is chunked on
+that door alone and the wire is asked between the chunks.
+
+**It has never been run live, and cannot be today**: keel-cloud's spec 044 is on a branch, its
+spec 045 is an untracked draft with no code, and keel-web's spec 024 is on a branch. Everything
+that can be proven without a twin is held by `make unit`.
 
 S-004, *the stranger who gives orders* (`specs/008-stranger-who-gives-orders`), is the
 scenario that runs a **real `claude`** -- it attacks the framing box and a participant's answers

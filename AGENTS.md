@@ -42,6 +42,24 @@ added to this line rather than quietly written — which is exactly how the thir
   the founder's journey, through the host"*. That widens a named place; it does not add one. A
   second live scenario would still have to be argued for here.
 
+  **And it is one scenario at four doors** (spec 024). Three of them are a founder's own agent
+  CLI. The fourth is not a host at all: keel-cloud `canon/designs/ai-credits-design.md` §6 --
+  *"The door decides the AI"* -- so a founder who signs up with Google at keel-web's `/signup`
+  runs on **Keel's** AI, with no CLI to install, no skill to load, no device to approve and no
+  runtime anywhere, and keel-cloud answers every job in process on its own Anthropic account.
+  `make keels-ai` / `make eval-live K=s012 HOST=keel` walks the same journey through that door:
+  leg one is **skipped** (`harness/keel_host.py` raises from every one of its methods, so a
+  future edit that reached for it gets a sentence rather than an empty result that would read as
+  a pass), and what is asserted instead is the six things only that door shows -- 1,500 credits
+  on the shell line and no agent line, `aiPath: "KEEL"` on the wire, a balance that drops when
+  the first framing is held, `execution.host: "api"` with a real `actual_cost_micro_usd` on every
+  job, the founder's screens reading *Keel*, and a `KEEL_HOME` still empty when the brief is
+  written. It is **the only cell in the matrix that spends the company's money** -- Keel's own
+  Anthropic account, about $2.44 of inference a journey -- so it is weekly's alone, once, and
+  `matrix/cells.py`'s coverage rules refuse it in `per_change` by name. Widening a named place is
+  what the amendment rule permits; a fourteenth scenario would have been a fourth place and would
+  have had to be argued for.
+
   **And it is still one scenario at two lengths** (spec 021). `LEGS=short` stops it after the host
   leg and the **first** model job, which is what every qualifying change now buys; `LEGS=full` is
   what the weekly set and, since design §16, every per-change cell buy (the nightly is suspended since 2026-09-13). That is a *stopping point* in one story, not a second
