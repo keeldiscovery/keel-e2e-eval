@@ -4,7 +4,8 @@
 
 `make unit`: **1031** before this branch, **1041** after the two commits that precede this feature
 (the door-words fix and `keep_twin`), **1092** after phases 1-6, **1105** after
-phase 7, **1111** after the reading button, **1119** after phase 8. Green.
+phase 7, **1111** after the reading button, **1119** after phase 8,
+**1127** after phase 9. Green.
 
 ## Phase 0 — the two things the matrix found first, each its own commit
 
@@ -247,3 +248,27 @@ questions -- at different effort settings, not the whole journey, to keep spend 
 - [ ] T048 One dispatched run of `macos-latest-keel-py3.13-short`, then a second with keel-cloud's
       effort changed, and the two `facts.json` lines read side by side. The founder's to spend, and
       the cheapest paid thing in this repository at about $0.37.
+
+
+## Phase 9 - the execution report was read off the wrong document (matrix run 36643795391)
+
+- [X] T049 Read keel-cloud `canon/openapi-v2.yaml` on `045-keels-ai-executor` and
+      `ConnectDtos.JobDetail`. **`InteractionView.job` is `{job_id, turn_number, status, outcome,
+      error}` and carries no `execution` at all**; the report is `InferenceJobDetail.execution`
+      from `GET /v2/inference-jobs/{jobId}`, whose `host` enum spec 045 widened to
+      `[claude, copilot, codex, api]`, and the key is `execution` (a bare record component, no
+      `@JsonProperty`) rather than `execution_payload`.
+- [X] T050 `harness/keel_host.py`: `JOB_DETAIL_PATH` and `jobs_with_their_execution` -- one reader
+      that fetches each job's own detail and carries the interaction's `screen` across.
+      `execution_facts`'s docstring now says which document it takes.
+- [X] T051 Both cross-checks pointed at it: the Keel door's cost assertion, and the CLI doors'
+      FR-020 check -- which had been **asserting nothing at all** because it filtered on a key the
+      stub never has.
+- [X] T052 **8 more stackless tests**, against the contract's own shapes: the stub verbatim (and
+      that reading it answers `None` to everything, which is the bug), the detail verbatim (and
+      every field the fetcher gets out of it, including the screen and the three timestamps), the
+      fall-back note when a detail does not answer, an interaction with no job yet, the guard that
+      no scenario reads a stub again, the CLI check counting what it read, the framing line reading
+      the same number, and the contract's own `api` enum value.
+- [ ] T053 Re-run `macos-latest-keel-py3.13-short`. The cell got to its last step on run
+      36643795391, so this is the run that closes it.

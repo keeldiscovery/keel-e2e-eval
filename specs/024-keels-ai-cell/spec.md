@@ -350,6 +350,44 @@ So the Keel door is bought twice a Saturday: once whole, and once at one stage.
   transcript ends on the PROBLEM review card, and whose `facts.json` carries *what the framing
   measured* with a non-zero µUSD figure. *Not met; the founder's to spend.*
 
+## Where the `execution` report lives (found by matrix run 36643795391)
+
+The short Keel cell got its lines and failed on its **last** step -- *"a job of this project was
+not answered by Keel's AI"* -- while keel-cloud's own log showed both jobs settled by the executor
+with `host=api` and a cost. The harness was reading the wrong document.
+
+`GET /v2/inference-interactions?project_id=` answers an array of `InteractionView`, and
+`InteractionView.job` carries **five things**:
+
+```
+job: { job_id, turn_number, status, outcome, error{code, message} }
+```
+
+**There is no `execution` on it and there never was.** The report lives on
+`InferenceJobDetail.execution`, from `GET /v2/inference-jobs/{jobId}` (keel-cloud
+`canon/openapi-v2.yaml` on `045-keels-ai-executor`), whose `host` enum spec 045 FR-043 widened to
+`[claude, copilot, codex, api]`. The key is `execution` and **not** `execution_payload`:
+`ConnectDtos.JobDetail` declares it as a bare record component with no `@JsonProperty`, so Jackson
+serialises the name as written.
+
+- **FR-030** Every reading of an `execution` report goes through
+  `harness/keel_host.py::jobs_with_their_execution(get_json, interactions)`, which fetches each
+  job's own detail and carries the interaction's `screen` across (the only place `screen` exists,
+  and what tells `PROBLEM_FRAME`'s 30 credits from `PROBLEM_ASSUMPTIONS`'s 155). `execution_facts`
+  takes an `InferenceJobDetail` and its docstring says so; a test asserts no scenario passes it a
+  list stub again.
+- **FR-031** **The CLI doors' cross-check (FR-020) had the same bug, and worse.** It filtered on
+  `job["execution"]`, a key the stub never has, so its list was always empty and the step asserted
+  **nothing** while reading green. It now reads every job's detail, asserts on the ones that report
+  a host, and records how many it read beside how many reported.
+- **FR-032** `facts.json`'s *what the framing measured* sums the same `door_jobs` the assertion
+  reads, so the cost on the bundle and the cost in the assertion are one number read once.
+
+**Why this was the worst shape a reading can have**: the stub and the detail agree on `job_id`,
+`status` and `error`, so a reader pointed at the wrong one does not raise, does not miss a key, and
+does not say it could not answer -- it answers `None` to everything and reports `cost_reported:
+false`, which looks exactly like a keel-cloud that has not reported yet.
+
 ## What this pass does not do
 
 - **It does not add a fourteenth scenario, or a fourth named LLM place.** S-012 is widened by a

@@ -725,3 +725,151 @@ def test_nothing_here_pins_an_effort_setting():
                  "evals/test_s012_journey_through_a_host.py", "matrix/cells.toml"):
         body = (REPO / path).read_text(encoding="utf-8")
         assert "output_config" not in body or "pinned by nothing here" in body, path
+
+
+# --------------------------- where the execution report lives (matrix run 36643795391)
+
+#: `InteractionView.job`, verbatim from keel-cloud `canon/openapi-v2.yaml`: five things, and
+#: **`execution` is not one of them**. `required: [job_id, turn_number, status]`, plus `outcome` and
+#: `error{code,message}`.
+INTERACTION_LIST_JOB_STUB = {
+    "job_id": "11111111-1111-1111-1111-111111111111",
+    "turn_number": 1,
+    "status": "COMPLETED",
+    "outcome": "COMPLETED",
+    "error": None,
+}
+
+#: `InferenceJobDetail`, from `GET /v2/inference-jobs/{jobId}` -- the only place the report lives,
+#: with `execution.host` carrying spec 045's own new enum value `api`.
+JOB_DETAIL = {
+    "job_id": "11111111-1111-1111-1111-111111111111",
+    "interaction_id": "22222222-2222-2222-2222-222222222222",
+    "turn_number": 1,
+    "agent_session_id": None,          # spec 045: null on a Keel's-AI job, and that is the mechanism
+    "keel_session_id": "33333333-3333-3333-3333-333333333333",
+    "status": "COMPLETED",
+    "created_at": "2026-09-29T19:00:00Z",
+    "started_at": "2026-09-29T19:00:01Z",
+    "completed_at": "2026-09-29T19:01:24Z",
+    "response": {"outcome": "COMPLETED", "result": {}},
+    "error": None,
+    "execution": {
+        "host": "api",
+        "host_version": "anthropic-java/2.8.0",
+        "model_requested": "claude-sonnet-5",
+        "model_used": "claude-sonnet-5",
+        "retried_unpinned": False,
+        "actual_cost_micro_usd": 307484,
+    },
+}
+
+
+def test_the_interaction_lists_job_stub_carries_no_execution_and_that_was_the_bug():
+    """**Matrix run 36643795391**: the short Keel cell got its lines and then failed on its last
+    step claiming no job had been answered by Keel's AI -- while keel-cloud's own log showed both
+    jobs settled with `host=api` and a cost.
+
+    `InteractionView.job` carries `{job_id, turn_number, status, outcome, error}` and **no
+    `execution`**. So reading it produced a well-formed answer that was entirely `None`, which is
+    the worst shape a reading can have: not a missing key, not an exception, a wrong answer.
+    """
+    facts = keel_host.execution_facts(INTERACTION_LIST_JOB_STUB)
+    assert facts["host"] is None
+    assert facts["model_used"] is None
+    assert facts["actual_cost_micro_usd"] is None
+    assert facts["cost_reported"] is False
+    # ...and the stub itself: this is what the contract says is on it, and nothing more.
+    assert "execution" not in INTERACTION_LIST_JOB_STUB
+
+
+def test_the_report_is_read_from_the_jobs_own_detail_and_the_key_is_execution():
+    """keel-cloud `canon/openapi-v2.yaml` on `045-keels-ai-executor`:
+    `InferenceJobDetail.execution`, from `GET /v2/inference-jobs/{jobId}`. The key is `execution`
+    and **not** `execution_payload` -- `ConnectDtos.JobDetail` declares it as a bare record
+    component with no `@JsonProperty`, so Jackson serialises the name as written."""
+    assert keel_host.JOB_DETAIL_PATH == "/v2/inference-jobs/{job_id}"
+    asked: list[str] = []
+
+    def get_json(path):
+        asked.append(path)
+        return JOB_DETAIL
+
+    rows = keel_host.jobs_with_their_execution(
+        get_json, [{"screen": "PROBLEM_ASSUMPTIONS", "job": INTERACTION_LIST_JOB_STUB}])
+    assert asked == ["/v2/inference-jobs/11111111-1111-1111-1111-111111111111"]
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["host"] == "api"
+    assert row["host_version"] == "anthropic-java/2.8.0"
+    assert row["model_requested"] == "claude-sonnet-5"
+    assert row["model_used"] == "claude-sonnet-5"
+    assert row["retried_unpinned"] is False
+    assert row["actual_cost_micro_usd"] == 307484
+    assert row["cost_reported"] is True
+    # The screen is carried across from the interaction, because that is the only place it exists
+    # -- and it is what tells PROBLEM_FRAME's 30 credits from PROBLEM_ASSUMPTIONS's 155.
+    assert row["screen"] == "PROBLEM_ASSUMPTIONS"
+    assert row["read from"] == "/v2/inference-jobs/11111111-1111-1111-1111-111111111111"
+    # The detail's own timestamps come with it.
+    assert row["timing, as keel-cloud reported it"] == {
+        "created_at": "2026-09-29T19:00:00Z",
+        "started_at": "2026-09-29T19:00:01Z",
+        "completed_at": "2026-09-29T19:01:24Z"}
+
+
+def test_a_job_whose_detail_does_not_answer_says_which_document_it_fell_back_to():
+    rows = keel_host.jobs_with_their_execution(
+        lambda _path: None, [{"screen": "PROBLEM_FRAME", "job": INTERACTION_LIST_JOB_STUB}])
+    assert rows[0]["cost_reported"] is False
+    assert "job stub" in rows[0]["read from"]
+
+
+def test_an_interaction_with_no_job_yet_is_skipped_rather_than_fetched():
+    assert keel_host.jobs_with_their_execution(
+        lambda _p: (_ for _ in ()).throw(AssertionError("nothing to fetch")),
+        [{"screen": "PROBLEM_FRAME"}, {"screen": "BRIEF", "job": {}}]) == []
+
+
+def test_no_scenario_reads_the_execution_report_off_the_interaction_list_again():
+    """The one guard that keeps the run-36643795391 shape from coming back: the list's stub and a
+    job's detail have the same shape for the keys anybody usually wants, so a reader pointed at the
+    wrong one answers `None` without ever saying it could not."""
+    assert 'execution_facts(i.get("job"))' not in SCENARIO
+    assert '(i.get("job") or {}).get("execution")' not in SCENARIO
+    assert SCENARIO.count("keels_ai.jobs_with_their_execution(_get, interactions)") == 2, (
+        "both doors -- the Keel one and the CLI cross-check -- read it through the one fetcher")
+
+
+def test_the_cli_cross_check_counts_the_jobs_it_read_as_well_as_the_ones_that_reported():
+    """It was worse than wrong before: the filter tested a key that is never on the stub, so the
+    list was always empty and the step asserted nothing while reading green."""
+    assert '"jobs read": len(fetched)' in SCENARIO
+    assert 'cloud_side = [r for r in fetched if r["host"]]' in SCENARIO
+
+
+def test_the_framing_line_reads_its_cost_from_the_same_place():
+    """`facts.json`'s *what the framing measured* sums `door_jobs`, and `door_jobs` is filled by
+    the fetcher -- so the cost on the bundle and the cost in the assertion are one number read
+    once."""
+    assert "door_jobs[:] = per_job" in SCENARIO
+    assert 'micro = sum(row.get("actual_cost_micro_usd") or 0 for row in door_jobs)' in SCENARIO
+
+
+def test_the_contracts_execution_host_enum_now_admits_the_value_this_cell_asserts():
+    """keel-cloud spec 045 FR-043 added `api` to `execution.host`'s enum, which is what makes the
+    Keel door's assertion a contract assertion rather than a hope."""
+    contract = Path("/Users/athulrajeev/Documents/projects/keel-cloud")
+    if not contract.is_dir():
+        pytest.skip("no keel-cloud checkout beside this one")
+    import subprocess
+
+    shown = subprocess.run(
+        ["git", "-C", str(contract), "show", "045-keels-ai-executor:canon/openapi-v2.yaml"],
+        capture_output=True, encoding="utf-8", errors="replace", timeout=60)
+    if shown.returncode != 0:
+        pytest.skip("keel-cloud has no 045-keels-ai-executor branch here")
+    assert "enum: [claude, copilot, codex, api]" in shown.stdout
+    assert "InferenceJobDetail.execution" in shown.stdout
+    assert "execution_payload" not in shown.stdout, (
+        "the contract renamed the key; the harness reads `execution`")

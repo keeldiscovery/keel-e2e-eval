@@ -1579,8 +1579,13 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
             # is what makes "nothing else could have written this" a measurement.
             with recorder.step("spec 024: every job was answered by Keel's own AI, and every one "
                                 "of them cost something", party="stack", kind="assert") as h:
-                per_job = [keels_ai.execution_facts(i.get("job")) for i in interactions
-                           if i.get("job")]
+                # **Each job's own detail, never the interaction list's stub.** `InteractionView.job`
+                # carries `{job_id, turn_number, status, outcome, error}` and no `execution` at all
+                # (keel-cloud `canon/openapi-v2.yaml`), so reading it here answered `None` to every
+                # question and `cost_reported` False -- a well-formed wrong answer, which is the
+                # worst shape a reading can have. Matrix run 36643795391 failed on exactly that,
+                # with keel-cloud's own log showing both jobs settled `host=api` with a cost.
+                per_job = keels_ai.jobs_with_their_execution(_get, interactions)
                 door_jobs[:] = per_job
                 wrong_host = [r for r in per_job if r["host"] != EXPECTED_EXECUTOR]
                 costless = [r for r in per_job
@@ -1678,12 +1683,18 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
             # else, while every runtime artefact went on saying exactly what it always said.
             with recorder.step(f"spec 024: keel-cloud reports every job as {HOST}'s own, never as "
                                 "Keel's AI", party="stack", kind="assert") as h:
-                cloud_side = [keels_ai.execution_facts(i.get("job")) for i in interactions
-                              if (i.get("job") or {}).get("execution")]
+                # Same correction as the Keel door's, and here it had been worse than wrong: the
+                # filter tested `job["execution"]` on the interaction list's stub, which never has
+                # that key, so `cloud_side` was always empty and this step asserted **nothing**
+                # while reading green. It fetches each job's own detail now, and the jobs that
+                # carry no report at all (keel-runtime before 0.5.0) are counted and named.
+                fetched = keels_ai.jobs_with_their_execution(_get, interactions)
+                cloud_side = [r for r in fetched if r["host"]]
                 not_this_host = [r for r in cloud_side if r["host"] != HOST]
                 h.record_assert({"execution.host": HOST, "jobs answered elsewhere": []},
-                                 {"jobs carrying an execution report": len(cloud_side),
-                                  "per job": cloud_side,
+                                 {"jobs read": len(fetched),
+                                  "jobs carrying an execution report": len(cloud_side),
+                                  "per job": fetched,
                                   "jobs answered elsewhere": not_this_host,
                                   "why none of them is not a pass and not a failure": (
                                       f"keel-runtime reports `execution` from 0.5.0 (spec 042); "

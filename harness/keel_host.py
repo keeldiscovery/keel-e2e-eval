@@ -231,12 +231,63 @@ NAMED_REASONS = {
 }
 
 
+#: **Where the `execution` report actually lives** (keel-cloud `canon/openapi-v2.yaml` on
+#: `045-keels-ai-executor`: `InferenceJobDetail.execution`, from `GET /v2/inference-jobs/{jobId}`).
+#:
+#: Found by matrix run 36643795391 -- the short Keel cell got its lines, then failed on its last
+#: step claiming no job had been answered by Keel's AI, while keel-cloud's own log showed both jobs
+#: settled with `host=api` and a cost. The harness was reading the **interaction list's** `job`
+#: stub, and `InteractionView.job` carries exactly five things:
+#: `{job_id, turn_number, status, outcome, error{code,message}}`. **There is no `execution` on it
+#: and there never was**, so every field read `None` and `cost_reported` read False -- a silent
+#: wrong answer rather than a missing key, which is the worst shape a reading can have.
+#:
+#: The key is `execution` and not `execution_payload`: keel-cloud's `ConnectDtos.JobDetail`
+#: declares it as a bare record component with no `@JsonProperty`, so Jackson serialises the name
+#: as written.
+JOB_DETAIL_PATH = "/v2/inference-jobs/{job_id}"
+
+
+def jobs_with_their_execution(get_json, interactions: list[dict] | None) -> list[dict]:
+    """Every job of a project, **with the `execution` report fetched from the job's own detail**.
+
+    One reader, because the mistake this exists to prevent is not a typo: the interaction list's
+    `job` stub has the same *shape* as a detail for the four keys anybody usually wants (`job_id`,
+    `status`, `error`), so reading `execution` off it returns a well-formed answer that is entirely
+    `None`. A test asserts no scenario passes a list stub to `execution_facts` again.
+
+    `get_json` is the caller's own authenticated `GET {cloud_base}{path}`
+    (`/v2/inference-jobs/**` is founder-session gated, like the interactions list beside it). The
+    interaction's `screen` is carried across, because that is the only place it exists and it is
+    what tells `PROBLEM_FRAME`'s 30 credits from `PROBLEM_ASSUMPTIONS`'s 155.
+    """
+    out: list[dict] = []
+    for row in interactions or []:
+        stub = row.get("job") or {}
+        job_id = stub.get("job_id")
+        if not job_id:
+            continue
+        detail = get_json(JOB_DETAIL_PATH.format(job_id=job_id)) or {}
+        facts = execution_facts(detail if detail.get("job_id") else stub)
+        facts["job_id"] = facts.get("job_id") or job_id
+        facts["screen"] = row.get("screen")
+        facts["read from"] = (JOB_DETAIL_PATH.format(job_id=job_id) if detail.get("job_id")
+                              else "the interaction list's own job stub -- the detail did not answer")
+        out.append(facts)
+    return out
+
+
 def execution_facts(job: dict | None) -> dict:
     """What **keel-cloud's own `execution` report** says about who answered a job and what it cost.
 
     The counterpart of the other three hosts' `envelope_facts`, and deliberately not called that:
     it reads a different document, written by a different process, off the wire rather than off a
-    runtime home. `job` is the `job` object a `/v2/inference-interactions` row carries.
+    runtime home.
+
+    **`job` is an `InferenceJobDetail`** -- the body of `GET /v2/inference-jobs/{jobId}` -- and
+    **never** the `job` stub a `/v2/inference-interactions` row carries, which has no `execution`
+    key at all and would answer `None` to every question below without ever saying it could not.
+    `jobs_with_their_execution` above is the one place that fetches the right document.
 
     `host` must read `api` (spec 045 FR-043), `actual_cost_micro_usd` must be present and above
     zero (FR-023/FR-025; FR-027 makes zero mean *failed before any call*, which is a finding and
