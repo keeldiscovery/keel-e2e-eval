@@ -4,7 +4,7 @@ PIP := $(VENV)/bin/pip
 PLAYWRIGHT := $(VENV)/bin/playwright
 
 .PHONY: up down eval eval-live eval-all report venv unit instruction-eval instruction-screen acceptance oidc-image \
-        matrix-check
+        matrix-check keels-ai
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
 # venv already exists (pip/playwright no-op when nothing changed).
@@ -83,6 +83,34 @@ eval-live: venv
 	KEEL_JOURNEY_ENTRY=$(if $(ENTRY),$(ENTRY),$(if $(KEEL_JOURNEY_ENTRY),$(KEEL_JOURNEY_ENTRY),03-lullaby)) \
 	KEEL_JOURNEY_PEOPLE=$(if $(PEOPLE),$(PEOPLE),$(KEEL_JOURNEY_PEOPLE)) \
 	$(PY) -m pytest evals -q -rs -l -m live $(if $(K),-k "$(K)",)
+
+# make keels-ai runs S-012 through THE OTHER DOOR (spec 024-keels-ai-cell; keel-cloud
+# `canon/designs/ai-credits-design.md` §6: "The door decides the AI"). The founder signs up at
+# keel-web's /signup instead of saying "keel connect" to a CLI, keel-cloud marks the account
+# `ai_path = KEEL` from the door alone and grants 1,500 credits, and every job of the journey is
+# answered by keel-cloud on KEEL'S OWN Anthropic account. Nothing is installed, no runtime is
+# started, and this run's KEEL_HOME is asserted empty at the end.
+#
+# IT SPENDS THE COMPANY'S MONEY, NOT THE FOUNDER'S. Every other live target bills the founder's
+# own plan; this one bills Keel's Anthropic account -- about 1,250 credits a journey, which is
+# $12.50 at list price and about $2.44 of actual inference (design §6.3, the five-participant
+# row). That is why the matrix buys it once a Saturday and never on a merge, and why there is no
+# short form of it here.
+#
+# PROFILE=remote by default, because the door only exists on a deployment: it needs keel-cloud
+# with spec 044 and spec 045 and a KEEL_ANTHROPIC_API_KEY, and keel-web with spec 024. Point it
+# at a local stack with PROFILE=eval if you have one carrying all four.
+#
+#   make keels-ai                          the whole journey, against KEEL_REMOTE_WEB_URL
+#   make keels-ai ENTRY=05-paidly          a different corpus founder walks it
+#   make keels-ai PEOPLE=2                 two people answer instead of five (cheaper)
+#
+# It is `eval-live` with the host axis set, and nothing else: one scenario, one command, four
+# doors (AGENTS.md's third named LLM place, widened rather than multiplied).
+keels-ai: venv
+	$(MAKE) eval-live K=s012 HOST=keel LEGS=full \
+	  PROFILE=$(if $(PROFILE),$(PROFILE),remote) \
+	  $(if $(ENTRY),ENTRY=$(ENTRY),) $(if $(PEOPLE),PEOPLE=$(PEOPLE),)
 
 # make eval-all runs the FULL scenario set (s001 included) against one stack session (attaches to
 # an already-up stack from `make up`; does not tear it down -- `make down` is a separate step) and

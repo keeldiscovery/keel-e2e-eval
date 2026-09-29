@@ -115,7 +115,11 @@ def test_the_axes_are_the_designs_axes(matrix):
     assert matrix.current_python == "3.13"
     assert matrix.everyday_os == ("macos-latest",)
     assert matrix.unmeasured_hosts == ()
-    assert matrix.all_hosts == ("claude", "copilot", "codex")
+    # spec 024: a fourth axis value that is **not a host CLI** -- the Google door. It is its own
+    # list, not a member of `[axes].host`, because the weekly product is an OS x host x Python
+    # grid and there is no grid to cover when nothing is installed and nothing is executed.
+    assert matrix.hostless_hosts == ("keel",)
+    assert matrix.all_hosts == ("claude", "copilot", "codex", "keel")
 
 
 def test_per_change_is_one_cell(matrix):
@@ -217,19 +221,49 @@ def test_weekly_is_eight_cells_the_product_on_the_current_python_plus_two(matrix
     """The founder, 2026-09-13 (design §16): *"in the weekly we run that Lullaby completed
     scenario for Codex, Copilot and Claude on both Mac and Windows ... on Saturday when I wake
     up I should be able to see 4x2 = 8 scenarios completed."* Six plugin cells on 3.13 -- two OS x
-    three hosts -- plus the Spec Kit road on macOS and the Windows 3.9 floor: eight."""
-    plugin = [c for c in matrix.sets["weekly"] if c.install == "plugin"]
+    three hosts -- plus the Spec Kit road on macOS and the Windows 3.9 floor: **the founder's
+    eight**, and this test is still about those eight.
+
+    Spec 024 adds a ninth beside them and does not move any of them: the Keel's-AI door, which is
+    not a plugin cell, not a packaging road and not part of the product -- it installs nothing and
+    executes nothing, so there is no OS x Python grid for the product to owe on it. It is counted
+    in `test_weekly_carries_the_one_keels_ai_cell` and excluded here by the same filter the Spec
+    Kit road is excluded by, so the founder's own eight stay eight.
+    """
+    plugin = [c for c in matrix.sets["weekly"]
+              if c.install == "plugin" and c.host not in matrix.hostless_hosts]
     on_current = {(c.os, c.host, c.python) for c in plugin if c.python == "3.13"}
     assert on_current == matrix.product
     assert len(on_current) == 6
     assert {c.os for c in plugin} == {"macos-latest", "windows-latest"}
     assert {c.host for c in plugin} == {"claude", "copilot", "codex"}
-    assert len(matrix.sets["weekly"]) == 8
-    assert sorted(c.id for c in matrix.sets["weekly"]) == [
+    the_founders_eight = [c for c in matrix.sets["weekly"]
+                          if c.host not in matrix.hostless_hosts]
+    assert len(the_founders_eight) == 8
+    assert sorted(c.id for c in the_founders_eight) == [
         "macos-latest-claude-py3.13", "macos-latest-claude-py3.13-speckit",
         "macos-latest-codex-py3.13", "macos-latest-copilot-py3.13",
         "windows-latest-claude-py3.13", "windows-latest-claude-py3.9",
         "windows-latest-codex-py3.13", "windows-latest-copilot-py3.13"]
+    assert len(matrix.sets["weekly"]) == 9, "eight, plus the Keel's-AI door (spec 024)"
+
+
+def test_weekly_carries_the_one_keels_ai_cell(matrix):
+    """spec `024-keels-ai-cell`; keel-cloud `canon/designs/ai-credits-design.md` §6.
+
+    The ninth cell, and the only one in the whole matrix that spends **Keel's own** Anthropic
+    account rather than the founder's plan -- about 1,250 credits a journey, $12.50 at list price
+    and about $2.44 of actual inference (§6.3, the five-participant row). Once a Saturday, whole,
+    installing nothing, and refused in `per_change` by name.
+    """
+    keels_ai = [c for c in matrix.sets["weekly"] if c.host in matrix.hostless_hosts]
+    assert [c.id for c in keels_ai] == ["macos-latest-keel-py3.13"]
+    assert keels_ai[0].legs == "full"
+    assert keels_ai[0].install == m.NO_INSTALL
+    assert keels_ai[0].scenarios == ("s012",)
+    # It is nowhere else, and `coverage_problems` says so rather than this test alone.
+    assert not [c for c in matrix.sets["per_change"] if c.host in matrix.hostless_hosts]
+    assert not [c for c in matrix.sets["nightly"] if c.host in matrix.hostless_hosts]
 
 
 def test_every_weekly_plugin_cell_runs_the_lullaby_journey_end_to_end(matrix):
@@ -243,6 +277,11 @@ def test_every_weekly_plugin_cell_runs_the_lullaby_journey_end_to_end(matrix):
             assert cell.legs == "full", cell.id
             assert "s012" in cell.scenarios, cell.id
     assert [c.id for c in matrix.sets["weekly"] if c.legs == "short"] == ["macos-latest-claude-py3.13-speckit"]
+    # ...and the Keel's-AI cell is `full` too (spec 024): `short` stops before the part of that
+    # journey which is new.
+    for cell in matrix.sets["weekly"]:
+        if cell.host in matrix.hostless_hosts:
+            assert cell.legs == "full", cell.id
 
 
 # ------------------------------------------------------------- an unmeasured host (spec 008)
@@ -670,7 +709,9 @@ def test_the_cli_prints_the_three_sets(capsys):
     assert "ubuntu" not in out, "design §15: Ubuntu is suspended"
     assert "py3.12" not in out, "design §16: Python 3.12 is suspended"
     assert "nightly  (0 cells)" in out
-    assert "weekly  (8 cells)" in out and "per_change  (1 cell)" in out
+    # Nine since spec 024: the founder's eight, plus the Keel's-AI door.
+    assert "weekly  (9 cells)" in out and "per_change  (1 cell)" in out
+    assert "macos-latest-keel-py3.13" in out
 
 
 def test_the_cli_prints_one_set_when_asked(capsys):

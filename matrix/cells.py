@@ -64,8 +64,14 @@ DEFAULT_LEGS = "full"
 #: `INSTALLS`): the marketplace `plugin`, or the Spec Kit extension (`speckit`). Reaches the
 #: runner as `KEEL_JOURNEY_INSTALL`, and IS part of the cell's id -- the same OS, host and Python
 #: through Spec Kit is a different runner job with its own bundle and its own founder in the picker.
-INSTALLS = ("plugin", "speckit")
+#: ...and `none` (spec 024), which is the **absence** of a road rather than a third one: on the
+#: Keel door there is no skill and no host CLI, so nothing was installed anywhere. It is a value
+#: because a cell has to say something and `plugin` would be a lie, and it is kept **out of the
+#: cell's id** for the opposite reason -- `…-py3.13-none` reads as a third packaging, which is
+#: exactly what it is not.
+INSTALLS = ("plugin", "speckit", "none")
 DEFAULT_INSTALL = "plugin"
+NO_INSTALL = "none"
 
 
 class CellsError(ValueError):
@@ -95,7 +101,9 @@ class Cell:
     def id(self) -> str:
         """`ubuntu-24.04-claude-py3.9`. The job name, the artifact name, and `KEEL_REMOTE_CELL`."""
         base = f"{self.os}-{self.host}-py{self.python}"
-        return base if self.install == DEFAULT_INSTALL else f"{base}-{self.install}"
+        # `none` is the absence of a road, not another road (spec 024), so it is not named here.
+        return (base if self.install in (DEFAULT_INSTALL, NO_INSTALL)
+                else f"{base}-{self.install}")
 
     def k(self, which: Sequence[str]) -> str:
         """This cell's scenarios that are in `which`, as one pytest `-k` expression (`s012 or
@@ -158,10 +166,22 @@ class Matrix:
     #: Pythons the axis still names but no set may name (design §16: 3.12 left with Ubuntu).
     #: `[axes].python_suspended`. The weekly product is on the current Python only.
     suspended_python: tuple[str, ...] = ()
+    #: **Axis values that are not a host CLI at all** (spec `024-keels-ai-cell`; keel-cloud
+    #: `canon/designs/ai-credits-design.md` §6: *"The door decides the AI"*). `keel` is the
+    #: Google door: no plugin, no skill, no `keel connect`, no runtime, and every job answered by
+    #: keel-cloud on **Keel's own Anthropic account**. `[axes].host_without_a_cli`.
+    #:
+    #: It is a list of its own rather than a member of `[axes].host` for three reasons that all
+    #: fall out of the same fact -- nothing is installed and nothing is executed. The weekly
+    #: product is an OS x host x Python grid, and there is no grid to cover when no CLI runs on
+    #: the OS and no `python3` runs the skill's script; the runner installs nothing for it; and
+    #: the money is **Keel's**, not the founder's, so no merge may ever buy one.
+    hostless_hosts: tuple[str, ...] = ()
 
     @property
     def all_hosts(self) -> tuple[str, ...]:
-        return tuple(self.axes["host"]) + tuple(self.unmeasured_hosts)
+        return (tuple(self.axes["host"]) + tuple(self.unmeasured_hosts)
+                + tuple(self.hostless_hosts))
 
     @property
     def active_os(self) -> tuple[str, ...]:
@@ -275,6 +295,14 @@ def load(path: Path | None = None) -> Matrix:
     if overlap:
         problems.append(f"[axes].host_unmeasured names {overlap}, which [axes].host already "
                         f"names as measured -- a host is one or the other")
+    hostless = (_str_list(axes_raw.get("host_without_a_cli"), "[axes].host_without_a_cli",
+                          problems)
+                if "host_without_a_cli" in axes_raw else ())
+    clash = sorted(set(hostless) & (set(axes["host"]) | set(unmeasured)))
+    if clash:
+        problems.append(f"[axes].host_without_a_cli names {clash}, which [axes].host or "
+                        f"[axes].host_unmeasured already names -- an axis value either brings a "
+                        f"CLI or it does not")
     everyday = (_str_list(axes_raw.get("host_everyday"), "[axes].host_everyday", problems)
                 if "host_everyday" in axes_raw else axes["host"])
     stray = sorted(set(everyday) - set(axes["host"]))
@@ -329,7 +357,7 @@ def load(path: Path | None = None) -> Matrix:
             values = {}
             for axis in ("os", "host", "python"):
                 value = entry.get(axis)
-                allowed = axes[axis] + (unmeasured if axis == "host" else ())
+                allowed = axes[axis] + ((unmeasured + hostless) if axis == "host" else ())
                 if not isinstance(value, str):
                     problems.append(f"{where} is missing a {axis}")
                     value = ""
@@ -366,7 +394,8 @@ def load(path: Path | None = None) -> Matrix:
         raise CellsError(f"{path}:\n  - " + "\n  - ".join(problems))
     return Matrix(axes=axes, live=live, default_scenarios=default_scenarios, sets=sets,
                   unmeasured_hosts=unmeasured, everyday_hosts=everyday, suspended_os=suspended,
-                  everyday_os=everyday_os, suspended_python=suspended_python)
+                  everyday_os=everyday_os, suspended_python=suspended_python,
+                  hostless_hosts=hostless)
 
 
 # -------------------------------------------------------------------------- the coverage rules
@@ -396,6 +425,10 @@ def coverage_problems(matrix: Matrix) -> list[str]:
        Windows cannot install Spec Kit's CLI today) and the 3.9 floor on at least one cell (spec
        004's promise; the Windows Claude 3.9 cell is the substitute for a Windows Spec Kit cell).
        Every per_change cell is in it whole; the corpus riders ride one macOS Claude cell.
+    5. **Exactly one Keel's-AI cell, weekly, whole, installing nothing** (spec 024). It is not
+       part of the product -- there is no OS x Python grid to cover when no CLI runs on the OS and
+       no `python3` runs a script -- and it is refused in `per_change` because it spends **Keel's
+       own** Anthropic account rather than the founder's plan.
     """
     problems: list[str] = []
     current = matrix.current_python
@@ -426,6 +459,17 @@ def coverage_problems(matrix: Matrix) -> list[str]:
     riding = sorted({c.id for c in per_change if c.install != "plugin"})
     if riding:
         problems.append(f"per_change installs the marketplace plugin, never the Spec Kit road: {riding}")
+    # Rule 1b (spec 024): **whose money**. Every other live cell spends the founder's own plan --
+    # his Max subscription, his Copilot seat, his OpenAI key. A `keel` cell spends **Keel's own
+    # Anthropic account**, the company's, and the same one real founders' jobs run on. A merge
+    # that bought one would bill the company on every push.
+    on_keels_money = sorted({c.id for c in per_change if c.host in matrix.hostless_hosts})
+    if on_keels_money:
+        problems.append(
+            f"per_change names {on_keels_money}, which runs on Keel's own AI and therefore on "
+            f"**Keel's** Anthropic account rather than the founder's own plan (spec 024; "
+            f"ai-credits-design.md §6.3: about $2.44 of inference a journey). A merge never buys "
+            f"one -- it is the weekly set's, once a Saturday.")
 
     nightly = matrix.sets.get("nightly", ())
     if nightly:
@@ -447,7 +491,7 @@ def coverage_problems(matrix: Matrix) -> list[str]:
     # spec 022: exactly one Spec Kit cell, macOS through Claude, short -- the extension is the
     # same tree as the plugin, so one cell proves the road and not the runtime twice. Windows
     # cannot carry one today: the cell job installs Spec Kit's CLI at `.venv/bin/specify`.
-    speckit = [c for c in weekly if c.install == "speckit"]
+    speckit = [c for c in weekly if c.install == "speckit" and c.host not in matrix.hostless_hosts]
     if [(c.os, c.host, c.legs) for c in speckit] != [("macos-latest", "claude", "short")]:
         problems.append("weekly carries exactly one Spec Kit cell, macOS through Claude, the short "
                         f"journey (spec 022); it carries {[c.id for c in speckit]}")
@@ -455,7 +499,34 @@ def coverage_problems(matrix: Matrix) -> list[str]:
                        for c in cells if c.install == "speckit")
     if elsewhere:
         problems.append(f"the Spec Kit cell is weekly's alone (spec 022): {elsewhere}")
-    plugin_weekly = tuple(c for c in weekly if c.install == "plugin")
+    # spec 024: exactly one Keel's-AI cell, weekly, whole, and nowhere else. Its OS is the
+    # everyday one (macOS) because the only thing the OS decides on this door is which machine
+    # drives the browser, and its Python is the current one because a cell's Python is the
+    # *runtime's* and this cell runs none -- the axis is inert here, which the bundle says and the
+    # id does not pretend otherwise about.
+    keels_ai = [c for c in weekly if c.host in matrix.hostless_hosts]
+    if matrix.hostless_hosts:
+        if len(keels_ai) != 1:
+            problems.append(
+                f"weekly carries exactly one Keel's-AI cell (spec 024): it carries "
+                f"{[c.id for c in keels_ai]}. One journey a Saturday is about $2.44 of Keel's own "
+                f"inference (ai-credits-design.md §6.3); two is two.")
+        for cell in keels_ai:
+            if cell.legs != DEFAULT_LEGS:
+                problems.append(
+                    f"the Keel's-AI cell runs the whole journey (spec 024): {cell.id} is "
+                    f"{cell.legs!r}. `short` stops before the part of this journey that is new.")
+            if cell.install != NO_INSTALL:
+                problems.append(
+                    f"the Keel's-AI cell installs nothing (spec 024): {cell.id} says "
+                    f"install={cell.install!r}, and there is no skill and no host CLI on that "
+                    f"door to install one onto.")
+        stray = sorted(c.id for name, cells in matrix.sets.items() if name != "weekly"
+                       for c in cells if c.host in matrix.hostless_hosts)
+        if stray:
+            problems.append(f"the Keel's-AI cell is weekly's alone (spec 024): {stray}")
+    plugin_weekly = tuple(c for c in weekly
+                          if c.install == "plugin" and c.host not in matrix.hostless_hosts)
     weekly_full = {(c.os, c.host, c.python) for c in plugin_weekly if c.legs == "full"}
     unheld = sorted({(c.os, c.host, c.python) for c in per_change} - weekly_full)
     if unheld:

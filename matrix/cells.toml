@@ -25,10 +25,12 @@
 #     qualifying push wipes the twin (the workflow's `deploy the twin` job runs keel-cloud's
 #     `reset.sh --target staging` after the deploy) and then runs this one cell, so the twin holds
 #     one founder and one Lullaby project. About thirteen model jobs a push, up from four.
-#   - `weekly` is EIGHT cells on Python 3.13, Saturday 04:00 UTC: {macOS, Windows} x {Claude,
-#     Copilot, Codex}, six whole journeys; the Spec Kit road cell on macOS (short); and Windows x
+#   - `weekly` is NINE cells on Python 3.13, Saturday 04:00 UTC: {macOS, Windows} x {Claude,
+#     Copilot, Codex}, six whole journeys; the Spec Kit road cell on macOS (short); Windows x
 #     Claude on the 3.9 floor, whole -- the SUBSTITUTE for a Windows Spec Kit cell, which cannot
-#     run today (the cell job installs Spec Kit's CLI at `.venv/bin/specify`, a POSIX path). The
+#     run today (the cell job installs Spec Kit's CLI at `.venv/bin/specify`, a POSIX path); and
+#     since spec 024 the OTHER DOOR, macOS x Keel's own AI, whole, which is the founder's eight
+#     plus the one cell that measures the road a founder who never installs anything takes. The
 #     corpus riders S-005/6/7 and S-013 ride the macOS Claude 3.13 cell, free.
 #   - `nightly` stays EMPTY (§15). Its name stays for a hand dispatch; there is no cron for it.
 #   - Python 3.12 is `python_suspended`: it was Ubuntu 24.04's system Python and left with Ubuntu.
@@ -82,6 +84,21 @@ host = ["claude", "copilot", "codex"]
 # Allowed in the weekly set, never in per_change, not part of the product. Empty since Codex
 # joined `host`; the mechanism stays for the next host.
 host_unmeasured = []
+# AN AXIS VALUE THAT IS NOT A HOST CLI AT ALL (spec 024-keels-ai-cell; keel-cloud
+# `canon/designs/ai-credits-design.md` §6: "The door decides the AI"). A founder who signs up with
+# Google at keel-web's /signup is on KEEL'S AI: nothing to install, no skill to load, no
+# "keel connect" to say, no device to approve and no runtime anywhere -- keel-cloud answers every
+# job in process on its own Anthropic account (keel-cloud spec 045). The journey after that is the
+# same journey, so it is the same scenario with its host axis widened by a DOOR, exactly as spec
+# 019 widened it by a host and spec 022 by a packaging.
+#
+# It is its own list, not a member of `host`, because nothing is installed and nothing is
+# executed: there is no OS x Python grid for the weekly product to owe (no CLI runs on the OS, no
+# `python3` runs the skill's script), the runner installs nothing for it, and -- the reason that
+# matters -- THE MONEY IS KEEL'S. Every other live cell spends the founder's own plan; this one
+# spends the company's Anthropic account, about $2.44 of inference a journey (design §6.3). So it
+# is weekly's alone, once, whole, and `coverage_problems` refuses it in per_change by name.
+host_without_a_cli = ["keel"]
 # The hosts a merge pays for (the founder, 2026-09-12: "Claude Code is the one we want to run
 # daily; Copilot and Codex only once a week" -- and since 2026-09-13 nothing runs daily at all).
 # A measured host not named here is bought weekly, whole, and nowhere else.
@@ -147,4 +164,18 @@ weekly = [
     { os = "windows-latest", host = "claude",  python = "3.9" },
     { os = "windows-latest", host = "copilot", python = "3.13" },
     { os = "windows-latest", host = "codex",   python = "3.13" },
+    # THE OTHER DOOR (spec 024-keels-ai-cell), and the only cell in the matrix that spends Keel's
+    # own money rather than the founder's. S-012 whole, through keel-web's /signup: 1,500 credits
+    # on the shell line, no agent line, no runtime, every job answered by keel-cloud on Keel's own
+    # Anthropic account and priced in the ledger. About 1,250 credits a run -- $12.50 at list
+    # price, about $2.44 of actual inference (ai-credits-design.md §6.3, the five-participant
+    # row) -- comfortably inside the 1,500 the grant gives and inside keel-cloud spec 045's
+    # $10.00-a-day-per-founder cap.
+    #
+    # `install = "none"` because there is nothing to install; the id stays
+    # `macos-latest-keel-py3.13`, since `none` is the absence of a road and not a third one. The
+    # Python axis is INERT on this cell -- a cell's Python is the runtime's, and this cell runs no
+    # runtime -- and the bundle says so; the OS is not inert, because the whole founder journey is
+    # driven through a browser on it.
+    { os = "macos-latest",   host = "keel",    python = "3.13", install = "none" },
 ]

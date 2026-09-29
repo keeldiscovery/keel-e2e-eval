@@ -15,10 +15,12 @@
 # are free: this repository is public. The bill is model spend -- about 13 model jobs for a whole
 # journey, two for a short one. A qualifying change WIPES THE TWIN and buys ONE whole Claude
 # journey on macOS ("Lullaby using Claude end to end alone; every time you deploy, clean up the
-# staging DB"); the Saturday weekly wipes it again and buys eight cells (macOS and Windows x
-# Claude, Copilot, Codex whole, the Spec Kit road short, and the Windows 3.9 floor whole). There
-# is NO nightly since 2026-09-13 (the founder: "we cannot afford a nightly run"). That is why
-# `[skip e2e]` in a commit message exists in the senders.
+# staging DB"); the Saturday weekly wipes it again and buys nine cells (macOS and Windows x
+# Claude, Copilot, Codex whole, the Spec Kit road short, the Windows 3.9 floor whole, and -- spec
+# 024 -- one journey through KEEL'S OWN AI, the only cell in the matrix that spends the company's
+# Anthropic account rather than the founder's own plan: about $2.44 of inference a run, once a
+# Saturday, and never on a merge). There is NO nightly since 2026-09-13 (the founder: "we cannot
+# afford a nightly run"). That is why `[skip e2e]` in a commit message exists in the senders.
 #
 # THE TWIN IS OFF BETWEEN RUNS (spec 023; design §16, the founder, 2026-09-23: "staging being
 # ephemeral"). `deploy-staging` starts the instance before it deploys and `stop-staging` stops it
