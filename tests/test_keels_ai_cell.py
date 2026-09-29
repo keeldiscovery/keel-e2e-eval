@@ -160,6 +160,41 @@ def test_the_host_type_lookup_finds_it():
     assert agent_host.host_type("keel") is keel_host.KeelHost
 
 
+# ------------------------------------------------------------- the job-wait ceiling, per host
+
+def test_the_keel_door_carries_the_new_job_wait_and_the_cli_hosts_carry_the_old_one():
+    """2026-09-29 measurement, staging twin run 36625025566: keel-cloud's own job-timeout
+    abandonment for the in-process jobs S-012 waits on is moving from 300s to 600s, so the door's
+    own ceiling has to clear the new number, not the old one -- while the three CLI hosts, whose
+    jobs never run against that clock, keep exactly the ceiling S-012 has always given them."""
+    assert keel_host.KeelHost.keels_ai_job_wait_s == 660.0
+    for name in ("claude", "copilot", "codex"):
+        assert agent_host.host_type(name).keels_ai_job_wait_s == 480.0
+    assert agent_host.AgentHost.keels_ai_job_wait_s == 480.0
+
+
+def test_the_new_ceiling_clears_keel_clouds_600s_abandonment_with_a_margin():
+    assert keel_host.KeelHost.keels_ai_job_wait_s > 600.0
+
+
+def test_the_scenario_reads_the_ceiling_off_the_host_object_not_an_if_chain():
+    assert "KEELS_AI_JOB_WAIT_S = agent_host.host_type(HOST).keels_ai_job_wait_s" in SCENARIO
+    assert 'if HOST == "keel":' not in SCENARIO
+
+
+def test_the_review_card_wait_and_the_brief_wait_both_fail_fast_on_the_keel_door():
+    """Neither wait may sit out its full ceiling on a job the wire already knows was refunded
+    (spec 024 FR-010): the review card's wait is chunked exactly as the agent-turn wait is, and
+    the BRIEF paragraph's wait asks the wire on every poll rather than only after its deadline."""
+    assert "def _wait_for_review_card(" in SCENARIO
+    assert ("try:\n            return chat.wait_for_review(project_id, stage,\n"
+            "                                         timeout_s=min(NAMED_REASON_POLL_S, "
+            "remaining))\n        except TimeoutError:\n            "
+            "_refuse_if_the_door_is_shut(recorder, get_json, project_id)") in SCENARIO
+    assert ("if KEELS_AI:\n                        _refuse_if_the_door_is_shut(recorder, _get, "
+            "project_id)") in SCENARIO
+
+
 # ------------------------------------------------------------------- what the wire is read for
 
 def test_the_execution_report_is_read_for_the_host_the_cost_and_the_two_models():

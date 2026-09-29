@@ -134,6 +134,16 @@ KEELS_AI = not agent_host.has_a_cli(HOST)
 #: chunks its wait; the three CLI hosts wait exactly as they waited before, in one call.
 NAMED_REASON_POLL_S = 30.0
 
+#: **The Keel door's own job-wait ceiling** (`AgentHost.keels_ai_job_wait_s`; spec 024 FR-010,
+#: measured on the staging twin, run 36625025566, 2026-09-29): keel-cloud's own job-timeout
+#: abandonment for the assumptions job behind a stage's review card, and for the BRIEF job behind
+#: *What this says*, moved from 300s to 600s there, so the waits that used to fit inside 300s need
+#: to fit inside 600s instead. Read off the host object, exactly as `EXECUTOR_FOR_HOST` and every
+#: other per-host fact this scenario asks for, rather than an `if HOST == "keel"` beside each wait
+#: -- 480s for the three CLI hosts (unchanged; none of their jobs run against that clock), 660s for
+#: the Keel door.
+KEELS_AI_JOB_WAIT_S = agent_host.host_type(HOST).keels_ai_job_wait_s
+
 
 def _environment_of(base_url: str) -> str:
     """What keel-runtime's `status.environment` says for a base URL (its `config.environment_for`):
@@ -346,6 +356,32 @@ def _wait_for_turn(chat, recorder, get_json, project_id: str, *, timeout_s: floa
             _refuse_if_the_door_is_shut(recorder, get_json, project_id)
 
 
+def _wait_for_review_card(chat, recorder, get_json, project_id: str, stage: str, *,
+                           timeout_s: float) -> dict:
+    """`Chat.wait_for_review`, chunked exactly as `_wait_for_turn` chunks the agent-turn wait, and
+    for the same reason (spec 024 FR-010). The card this waits for is the *chained* job's -- the
+    assumptions job `save_confirmation` starts -- so the same four named reasons can fail it after
+    the claim was already saved and the screen simply stops moving: a flat page-poll would sit out
+    the whole `timeout_s` ceiling before saying so, on a job the wire already knows was refunded.
+
+    Only the Keel door chunks; the three CLI hosts take the one call they have always taken.
+    """
+    if not KEELS_AI:
+        return chat.wait_for_review(project_id, stage, timeout_s=timeout_s)
+    deadline = _now() + timeout_s
+    while True:
+        remaining = deadline - _now()
+        if remaining <= 0:
+            raise TimeoutError(
+                f"the {stage} review card never rendered within {timeout_s}s of saving the "
+                f"confirmed claim, and the wire named none of {sorted(keels_ai.NAMED_REASONS)}")
+        try:
+            return chat.wait_for_review(project_id, stage,
+                                         timeout_s=min(NAMED_REASON_POLL_S, remaining))
+        except TimeoutError:
+            _refuse_if_the_door_is_shut(recorder, get_json, project_id)
+
+
 def _land_the_card(page, recorder, get_json, project_id, stage, opening, *, timeout_s=300.0):
     """**The first model job of a stage**: the founder says their statement, the host's model
     thinks, and a confirmation card carrying a non-empty claim comes back.
@@ -419,7 +455,9 @@ def _walk_stage_live(page, recorder, get_json, project_id, stage, opening, *, ti
     chat, _card = _land_the_card(page, recorder, get_json, project_id, stage, opening,
                                  timeout_s=timeout_s)
     chat.save_confirmation()
-    landed = chat.wait_for_review(project_id, stage, timeout_s=timeout_s + 180)
+    review_timeout_s = KEELS_AI_JOB_WAIT_S if KEELS_AI else timeout_s + 180
+    landed = _wait_for_review_card(chat, recorder, get_json, project_id, stage,
+                                    timeout_s=review_timeout_s)
     with recorder.step(f"§1.2: the {stage} review opened itself, with no button pressed",
                         party="founder", kind="assert") as h:
         h.record_assert({"the review opened": True}, landed)
@@ -1379,14 +1417,20 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                                 party="founder", kind="assert") as h:
                 # keel-cloud starts a BRIEF job by itself when a reading batch finishes
                 # (`ReadingBatchService.sayWhatThisSays`), so the founder is given nothing to wait on
-                # and this polls the wire the runtime is answering.
-                deadline = _now() + 420
+                # and this polls the wire the runtime is answering. On the Keel door this is the
+                # scenario's other in-process job (spec 024 FR-010), so it gets the same ceiling
+                # `KEELS_AI_JOB_WAIT_S` gives the review card, and the same fail-fast: the wire is
+                # asked whether the door is shut on every poll rather than only after the deadline,
+                # so a refunded BRIEF job is reported in seconds, not in the full ceiling.
+                deadline = _now() + (KEELS_AI_JOB_WAIT_S if KEELS_AI else 420)
                 paragraph = None
                 while _now() < deadline:
                     wire = _get(f"/v2/projects/{project_id}/overview") or {}
                     paragraph = wire.get("whatThisSays")
                     if paragraph and paragraph.strip():
                         break
+                    if KEELS_AI:
+                        _refuse_if_the_door_is_shut(recorder, _get, project_id)
                     page.wait_for_timeout(3_000)
                 overview.open(project_id)
                 on_screen = overview.what_this_says_paragraph()

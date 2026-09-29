@@ -630,6 +630,14 @@ class AgentHost:
     #: Codex reads "additional input from stdin" when stdin is not a TTY (measured 0.154.0), and a
     #: runner's stdin is a pipe nobody closes; the host that says so gets `/dev/null` instead.
     stdin_devnull: bool = False
+    #: **How long S-012's own waits for an assumptions job's review card, or the BRIEF job's
+    #: paragraph, may run before the scenario calls one a timeout** (spec 024 FR-010; measured on
+    #: the staging twin, run 36625025566, 2026-09-29). 480 seconds for every host by default -- the
+    #: ceiling S-012 has used since spec 016 for the review card (a 300s job wait plus a 180s
+    #: margin) -- because none of the three CLI hosts' jobs run against keel-cloud's own
+    #: job-timeout abandonment clock; only `KeelHost` overrides this, because only that door's jobs
+    #: do.
+    keels_ai_job_wait_s: float = 480.0
 
     def __init__(self, *, home: Path, keel_home: Path, base_url: str, artifacts: Path,
                  binary: str | None = None, model: str | None = None,
