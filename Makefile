@@ -199,13 +199,21 @@ acceptance: venv
 #
 # **WHY=<event>** (the founder, 2026-09-13, design §7.1): every run that spends says why --
 # `WHY=instruction:<file>`, `WHY=prompt:<file>`, `WHY=contract:<file>` earn a screen;
-# `WHY=new-model:<host>:<model>` earns the full run. Without one the run refuses at the door and
-# prints the policy; `DRY=1` needs none. The reason is written into the bundle's manifest.
+# `WHY=new-model:<host>:<model>` and `WHY=marks:<version>` earn the full run. Without one the run
+# refuses at the door and prints the policy; `DRY=1` needs none. The reason is written into the
+# bundle's manifest.
+#
+# `marks:` is the fifth event (spec 025 FR-023) and is **full-run only**. The other four name a
+# change to the *subject*; this one names a change to the *ruler*, and the standing gate reads
+# "green at the current MARKS_VERSION" -- so a rubric that moved has no run of record at all until
+# one is spent, and a screen is one entry and cannot be one.
 #
 #   make instruction-screen HOST=codex WHY=contract:brief.md MODELS=candidates.json   one entry
 #   make instruction-eval HOST=codex WHY=new-model:codex:gpt-6-astra MODELS=exported   the certificate
 #   make instruction-eval HOST=claude WHY=new-model:claude:claude-sonnet-5-5 MODELS=exported
 #       -- the 2026-09-30 certificate's own shape: claude-sonnet-5-5 at medium, from the table
+#   make instruction-eval HOST=claude WHY=marks:8 MODELS=exported
+#       -- MARKS_VERSION 8's own run of record (spec 025 T030), ~2.5 h and ~$15
 instruction-screen: venv
 	$(PY) -m instructions.run --host $(if $(HOST),$(HOST),claude) \
 		$(if $(DRY),--dry-run,) -k "$(if $(K),$(K),01-countly)" -n $(if $(N),$(N),3) \

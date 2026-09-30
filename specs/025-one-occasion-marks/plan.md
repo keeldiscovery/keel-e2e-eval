@@ -166,6 +166,24 @@ The rule applied is stated once and applied twice:
 Deriving it by precedence was the tempting alternative and it is refused for one reason: it would
 make the corpus's own word about a person a function of arithmetic. The corpus is the reviewer.
 
+## 2A. What the plan had to add once the work started
+
+Three files this plan's table did not name, each for a reason it could not have known:
+
+- **`evals/payroll_exceptions.yaml` and `tests/test_corpus_script.py`'s `CANNED`** — this repository
+  has two corpus-*shaped* fixtures of its own, and both carried the scalar `stage`. Neither is the
+  golden corpus and neither is merged; they simply follow the shape. Spec 021's deviation 3 is
+  untouched: still no corpus **copy** here.
+- **keel-cloud's `sim/check_corpus.py` and `CorpusFixture.java`** — decision 18 was in keel-cloud's
+  code twice and on nobody's list. Both moved with the corpus, in the corpus commit.
+- **`harness/corpus_script.py`'s `occasion_for`** — the `QUESTIONS` contract wants an occasion of
+  two to five words and the corpus carries none, so it is composed from the anchor's own id, the way
+  `introduction_for` and `what_this_says_for` already are under rule 5.
+
+And one decision the plan could not take until the code was read: **`resolve_reads`' chain rule is
+stated positively — the referent must own its expectation** — because a chain cannot arise off this
+eval's own `earlier_lines` at all. See `tasks.md` Discovered **D8**.
+
 ## 3. What is deliberately not built
 
 - **No `make` target of its own.** `make instruction-eval` with the new `WHY`.

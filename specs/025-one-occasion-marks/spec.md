@@ -4,11 +4,25 @@
 
 **Created**: 2026-09-30
 
-**Status**: Draft — for the founder's review. **Nothing here has been run and nothing here has
-spent.** The keel-cloud half is not landed either: `keel-cloud` sits on `048-lines-then-questions`
-at `71e6fe7`, which is that spec's phase 1 (the baseline and the ledger) and no more. This
-specification is written ahead of both siblings so that the run of record — the last task, and the
-only paid one — has something to be green against the moment they land.
+**Status**: **Implemented, 2026-09-30, except the run of record — which has not been spent and is
+the founder's to type.** Phases 1–9 are landed on this branch, `make unit` is green at every commit,
+and keel-cloud's half landed first: `048-lines-then-questions` and `049-one-occasion-once` are both
+in, and the corpus revision this spec decides is keel-cloud commit `4652739` on
+`049-one-occasion-once` (`check_corpus.py` green on all seven entries, `./gradlew check` 1,548 tests
+0 failures). **Nothing here has spent anything**; T030 is the only paid task and it is unticked.
+
+**Three amendments the work made to this document, each recorded in `tasks.md`'s Discovered ledger
+rather than edited into the text above as though it had always said so:**
+
+1. **The corpus revision moves `02-compliancelog`'s `expected.standings`** (D3). FR-007 and the
+   per-entry table do not say so, and they should: Daniel Achebe's merged anchoring is re-read as
+   `ANCHORED`, so his answers count, and all six PROBLEM lines go `inside` +1 / `guessed` −1. No
+   verdict, no drift and no median moves, and no other entry's `expected` block moves at all.
+2. **keel-cloud's validator takes the `QUESTIONS` shape and does not take `earlier_beliefs`** (D12).
+   US6's risk is live, FR-019 is what answers it, and the prerequisite is written out for keel-cloud
+   in `validate.py` and in T030. It is the one thing open at the end of this spec.
+3. **Phase 2's tests land with the phases they certify** (D11), so `make unit` is green at every
+   commit — the rule this repository works to, and the way keel-cloud's sibling 049 ran.
 
 **The design's own numbering calls this spec `025-one-questionnaire`.** It is branched
 `025-one-occasion-marks` because what this repository owns is not the questionnaire — keel-cloud

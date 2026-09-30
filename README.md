@@ -248,7 +248,7 @@ four** are true. Two are this repository's, and after today they disagree:
 |---|---|---|
 | 1 | the runtime's suite passes on a runner with that host's CLI | **not this repo's** |
 | 2 | keel-e2e-eval **S-001 green through that host** | ❌ **no** — S-012's leg two framed and approved PROBLEM and then failed SOLUTION four times, every one `result.statement: longer than maxLength 400` (`runs/DRIFT.md` #61). The journey does not complete. |
-| 3 | the instruction eval's run of record **green at the current `MARKS_VERSION`** | ✅ **yes**, above — and for the first time |
+| 3 | the instruction eval's run of record **green at the current `MARKS_VERSION`** | ✅ **yes**, above, at `MARKS_VERSION` 7 — and for the first time. ⚠ **`MARKS_VERSION` is 8 since 2026-09-30** (spec `025-one-occasion-marks`), and this part is **unmet on every host** until the v8 run of record is spent: `make instruction-eval HOST=claude WHY=marks:8 MODELS=exported`. A run under an earlier rubric is not a run under this one, and the corpus moved, so no bundle on disk can be re-scored into it. |
 | 4 | release notes name the host CLI version range | **not this repo's** |
 
 So Copilot is **still "runs, unmeasured"** in the design's own words, but for a different and much
@@ -1111,18 +1111,48 @@ KEEL_COPILOT_MODEL=gpt-5.6-luna \
   versions describe different rubrics and are not comparable. A finished run can be re-scored from
   its own bundle without spending again: `python -m instructions.rescore runs/<id>`, which writes
   `scorecard-v<N>.json` beside the original rather than over it.
-- **The four marks**: anchoring accuracy ≥ 90 %, golden-belief recall ≥ 80 %, rule refusals = 0,
-  and (`MARKS_VERSION` 4) **every BRIEF paragraph meeting all four of its own marks**. An
-  **unmeasured** mark fails; it is not met — which is why a run filtered to one subject
-  (`K=brief`) reports the other subjects as unmeasured and never comes back a pass.
 
-### The three subjects
+  **`MARKS_VERSION` is 8** since 2026-09-30 (spec `025-one-occasion-marks`, judgement calls 23–27),
+  and **a v7 bundle cannot be re-scored to v8**. Every earlier bump was a pure rubric change and
+  was re-scored for free; this one moved the **corpus** as well — keel-cloud's golden set went
+  23 anchors to 16 when `A1` and `A2` merged in every entry — and `rescore.py` re-reads the corpus
+  and re-derives the goldens from it, so a v7 bundle re-scored after the revision would align
+  answers given to one questionnaire against a different one. That is the second independent reason
+  a run of record must be spent; the first is the standing gate below. `rescore.py` is unchanged and
+  is simply not used across this bump.
+- **The five marks**: anchoring accuracy ≥ 90 %, golden-belief recall ≥ 80 %, rule refusals a
+  **rate** ≤ 0.02 (`MARKS_VERSION` 6), shape refusals = 0, and (`MARKS_VERSION` 4) **every BRIEF
+  paragraph meeting all four of its own marks**. **Not one of the five numbers has ever moved.** An
+  **unmeasured** mark fails; it is not met — which is why a run filtered to one subject
+  (`K=brief`) reports the other subjects as unmeasured and never comes back a pass, and why a run
+  that asked the aggregate a shape it cannot take reports the marks that depended on it unmeasured
+  rather than zero.
+- **`anchoring_accuracy`'s denominator is 160 written person-anchor pairs at `N=1`** since the
+  corpus revision, and was 238. A rate over a different denominator is a different measurement even
+  where the definition is word for word the same.
+
+### The four subjects
 
 The assumption screens and the reading screen were spec 009's two. **The `BRIEF` screen is the
 third** (spec 009 follow-on, keel-cloud spec 030): the one screen nobody asks for —
 `ReadingBatchService.sayWhatThisSays` starts the job by itself the moment a reading batch finishes,
 and the paragraph it writes is what a founder reads under *What this says*. One case an entry,
 because there is one paragraph a project.
+
+**And the `QUESTIONS` screen is the fourth** (keel-cloud spec 048, this repo's spec 025): the one
+call that writes the project's *one* questionnaire, once every framed stage is approved. One case
+an entry, after that entry's three assumptions cases and before its readings, on the `light` tier —
+Haiku 4.5 — and carrying no `effort`, for the same reason a reading carries none. `-k questions`
+selects it.
+
+**Its answer is not scored, and that is a decision rather than an omission.** A recall-shaped mark
+over the corpus's anchors would be similarity to one hand-written questionnaire — judgement call
+10's whole argument arriving on a fourth subject. `Q8` — *two anchors about one occasion* — is
+already refused by the aggregate, by rule, and `validate.py`'s rule is that the aggregate is asked
+rather than restated. And `minutes` is `FormComposer`'s, is not on the wire this eval reads, and is
+not rendered to a participant at all. So `QUESTIONS` is measured by `rule_refusal_rate` (where `Q5`,
+`Q6`, `Q7` and `Q8` are now reachable), by `shape_refusals`, and by `register.html`, which renders
+every produced occasion, prompt and option list unscored for a person to read.
 
 `instructions/context.py`'s `build_brief` assembles `ScreenContextBuilder`'s own three keys —
 `project_name`, `market`, `claims` — from the entry's own `expected.standings`, and
@@ -1199,9 +1229,12 @@ were sent different prompts measures nothing*.
 
 ### `register.html` carries no number, on purpose
 
-Every run also writes `register.html`: every produced anchor prompt and option list, and (`MARKS_VERSION`
-4) every BRIEF paragraph whole, grouped by market, with the corpus's own beside it — and **no score,
-no tick, no cross**. Whether an anchor
+Every run also writes `register.html`: the whole produced questionnaire — one a project since
+`MARKS_VERSION` 8, written by one `QUESTIONS` call — and (`MARKS_VERSION` 4) every BRIEF paragraph
+whole, grouped by market, with the corpus's own whole revised anchor list beside it, and **no score,
+no tick, no cross**. It was grouped by entry × stage while every stage wrote its own questionnaire;
+a merged occasion serves more than one stage's beliefs, so there is no per-stage list left to put
+anything next to. Whether an anchor
 sounds like a supply yard in Texas or a builder's merchant in London cannot be checked by code
 (design §3.8), and design §10 step 4 says what is done instead: a person who knows that market
 reads it, and **their reading is recorded with the run**. Whether an option list *leads* — the most

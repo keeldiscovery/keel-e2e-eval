@@ -124,20 +124,20 @@ papered over.
       carries design §6A.4's eight keys and no more, 1-based within each stage, and is empty for
       `PROBLEM`; `build_questions` carries 048 FR-011's five keys with `measurements` 0-based
       project-wide.
-- [ ] T015 `tests/test_instruction_models.py`: a table naming `questions` parses; one naming an
+- [X] T015 `tests/test_instruction_models.py`: a table naming `questions` parses; one naming an
       unknown class still refuses by name; `models_used`/`efforts_used` report four classes; the
       `questions` class resolves to the `light` tier and to **no** effort.
-- [ ] T016 `tests/test_instruction_questions.py` (new): `build_cases` on one entry at `n_runs=1`
+- [X] T016 `tests/test_instruction_questions.py` (new): `build_cases` on one entry at `n_runs=1`
       emits three assumptions cases, then exactly one `QUESTIONS` case with id
       `<entry>/QUESTIONS/run1`, then the readings, then the brief; `-k questions` selects it; its
       payload carries `questions.md` and keel-cloud's exported `QUESTIONS` contract.
-- [ ] T017 `tests/test_instruction_validate.py` (new or extended): a batch case carries
+- [X] T017 `tests/test_instruction_validate.py` (new or extended): a batch case carries
       `earlier_beliefs` in the order `earlier_lines` numbered them; a `QUESTIONS` case kind is
       emitted; a validator that does not know either shape makes the run report the marks unmeasured
       and name the prerequisite.
-- [ ] T018 `tests/test_instruction_why.py`: `WHY=marks:8` earns the full run and not a screen;
+- [X] T018 `tests/test_instruction_why.py`: `WHY=marks:8` earns the full run and not a screen;
       `WHY=marks` with no version is refused; the four existing events are unchanged.
-- [ ] T019 `tests/test_journey_through_a_host.py`: the story count becomes **2** with the message
+- [X] T019 `tests/test_journey_through_a_host.py`: the story count becomes **2** with the message
       *"she wrote under both of her role's anchors"*; and, against a fixture page, one section title
       per anchor block with none of the three old stage strings, and exactly one *"About N minutes"*
       line with `N >= 10`.
@@ -172,18 +172,18 @@ papered over.
 
 ## Phase 6 — the new screen
 
-- [ ] T026 `instructions/contract.py`, `instruction.py`, `models.py`, `context.build_questions`,
+- [X] T026 `instructions/contract.py`, `instruction.py`, `models.py`, `context.build_questions`,
       `prompts.build_cases`, `run.py`'s `-k questions` and printed line, and
       `report.register_blocks` regrouped by entry. T014, T015 and T016 go green.
 
 ## Phase 7 — the aggregate
 
-- [ ] T027 `instructions/validate.py`: `earlier_beliefs` on every assumptions case; the `QUESTIONS`
+- [X] T027 `instructions/validate.py`: `earlier_beliefs` on every assumptions case; the `QUESTIONS`
       case kind; the named refusal when keel-cloud's validator knows neither. T017 goes green.
 
 ## Phase 8 — the journey, the harness and the `WHY`
 
-- [ ] T028 `harness/corpus_script.py` (`role_of_anchor` against the list, the questionnaire off the
+- [X] T028 `harness/corpus_script.py` (`role_of_anchor` against the list, the questionnaire off the
       assumptions result and onto a `QUESTIONS` script entry, the anchoring export losing `stage`);
       `harness/browser.py` (`sections()` load-bearing, `preview_minutes()`, the two decision-18
       citations rewritten); `evals/corpus_facts.py`; `evals/tools/curated_proof_run.py`;
@@ -192,14 +192,16 @@ papered over.
 
 ## Phase 9 — the documents
 
-- [ ] T029 `README.md` and `AGENTS.md`: the v8 gate, the fifth `WHY` event, the new denominator, and
+- [X] T029 `README.md` and `AGENTS.md`: the v8 gate, the fifth `WHY` event, the new denominator, and
       the note that a v7 bundle **cannot** be re-scored to v8 because the corpus moved. This
       specification, its plan and these tasks updated with whatever the work found.
 
 ## Phase 10 — the run, which is the founder's to spend
 
-- [ ] **T030 — the run of record.** After 048 and 049 have both landed, after T022's corpus commit,
-      and after `make unit` is green. One run, once.
+- [ ] **T030 — the run of record.** **Every precondition is met**: keel-cloud `048` and `049` have
+      landed, T022's corpus revision is keel-cloud commit `4652739` on `049-one-occasion-once`
+      (`check_corpus.py` green on all seven, `./gradlew check` 1,548 tests 0 failures), and
+      `make unit` is green on this branch. One run, once, and it is the founder's to type.
 
       ```sh
       cd /Users/athulrajeev/Documents/projects/keel-e2e-eval
@@ -244,6 +246,28 @@ papered over.
       `rule_refusal_rate` ≤ 0.02, `shape_refusals` = 0, `brief_paragraphs` = 1.00 — with
       `anchors_given` at three times 160, `Q8` firing **at most once** across the corpus,
       `unresolved_reads` reported, and `corpus.sha256` identical before and after.
+
+      **⚠ One thing to read the run against, and it is not in the spec as drafted** (Discovered
+      **D12**). keel-cloud's validator takes the `QUESTIONS` batch case and **does not read
+      `earlier_beliefs`**: `ScreenContractTool.projectFor` frames the case's own stage and approves
+      no earlier one, so `ScreenResultApplier.resolveReads` has nothing to resolve against. The run
+      therefore behaves in one of two ways, and both are findings rather than surprises:
+
+      - **No answer carries a `reads`** — `unresolved_reads` and `resolved_reads` are both **0**,
+        nothing needed the shape, and the verdict's `unmet_prerequisites` is empty. Read that zero
+        as keel-cloud 049's risk 2 (*Sonnet does not reach for a reference at all*), which is a
+        finding about the instruction and not about this rubric.
+      - **Some answer carries a `reads`** — the run reports `rule_refusal_rate` and
+        `shape_refusals` **UNMEASURED**, names the prerequisite in `verdict.json`'s
+        `unmet_prerequisites`, and **fails**. That is FR-019 working: an unmeasured mark is not a
+        met mark, and it must never be softened to a warning or scored as a refusal. The fix is one
+        keel-cloud change — `projectFor` introducing and approving the batch's `earlier_beliefs` —
+        and then this run again. **Nothing is re-run to get a better number**; it is re-run because
+        the prerequisite landed.
+
+      `align.resolve_reads` is unaffected either way: it resolves against the `earlier_lines` this
+      eval numbered and sent, so `golden_belief_recall` is measured correctly whatever the validator
+      can or cannot take. What the missing shape costs is the *aggregate's* two marks, not recall.
 
       **And it is the founder's to start.** Design §11.4, answered on 2026-09-30: *"Yes, after both
       specs land — and it is now ~2.5 h and ~$15."*
@@ -314,3 +338,69 @@ task it was found under. Nothing here is a change of mind about the design; it i
   is untouched.
 - **D11 (the phases).** The ordering amendment at the top of this file: T010–T019 land with the
   phases they certify, so `make unit` is green at every commit. See the note above for why.
+- **D12 (T027, and it is the finding this phase exists to make).** **keel-cloud's validator takes
+  the `QUESTIONS` shape and does *not* take `earlier_beliefs`** — measured, not assumed, by
+  `validate.shapes_taken`, which reads
+  `keel-cloud/src/test/java/…/tooling/ScreenContractTool.java` itself:
+  `{"questions": True, "earlier_beliefs": False}`.
+  `ScreenContractTool.projectFor` frames the case's own stage and **approves no earlier one**, so
+  `ScreenResultApplier.resolveReads` has an empty `earlierLinesOf` and refuses every reference the
+  model wrote — which is US6's risk arriving exactly as written. FR-018 puts the beliefs on the
+  batch; FR-019 is what happens because nothing reads them yet. `validate.unmet_prerequisites`
+  therefore reports, **by name and with the prerequisite**, and only when the batch actually reached
+  for the shape: a run whose answers carry no `reads` needs nothing and is unaffected.
+  **Open, and it is keel-cloud's**: `projectFor` must introduce and approve the batch's
+  `earlier_beliefs`, per stage, in the order the case's own `earlier_lines` numbered them. Until it
+  does, a run whose answers carry a `reads` reports `rule_refusal_rate` and `shape_refusals`
+  **unmeasured** — not zero, and not met.
+- **D13 (T026, confirmed against the real file rather than predicted).** FR-012 was written from
+  reading `models.parse`; the exported table **already names it**. keel-cloud's
+  `src/main/resources/keel/model-routing.json` is at `version: 7` and carries
+  `"questions": "light"`, so `MODELS=exported` refused to start on this branch from the moment 048
+  landed — `ModelsUnavailable: classes names 'questions'`. The risk row *"the run does not begin"*
+  was live, not hypothetical.
+- **D14 (T026).** `report.register_blocks` read the produced questionnaire off each stage's
+  **assumptions** result, and 048 FR-013 removed the object from that contract altogether — so the
+  register would have been blank rather than wrong, which is worse. Regrouping by entry was half the
+  fix; the other half is that `_anchors_html` now renders **two different shapes** on the two sides,
+  because a produced anchor carries an `occasion` and a `reads`, and the corpus's carries an `id`,
+  its `stages`, a `control` and an `options` list. Each key is shown where it exists and nothing is
+  invented where it is not.
+- **D15 (T028).** The `QUESTIONS` contract requires an `occasion` of **two to five words**, and
+  **the corpus carries none** — its anchors were authored before the field existed. So
+  `corpus_script.occasion_for` composes one from the anchor's own id (`"occasion of A1"`), the way
+  `introduction_for`, `normalization_rationale_for` and `what_this_says_for` are already composed
+  under rule 5, and `test_every_literal_in_the_script_came_from_the_entry` allows it as the fourth
+  such string. It is the same three words keel-cloud's own `CorpusFixture` composes, for the same
+  reason.
+- **D16 (T028).** The questionnaire came off the **correction** result too, and no requirement said
+  so: `correction_result` calls `_assumptions_result` and re-emits the whole card, so dropping the
+  object from one dropped it from both. `test_a_correction_re_emits_the_whole_card_plus_reply_and_changes`
+  now asserts its absence rather than its presence.
+- **D17 (T028).** `harness/corpus_script.py`'s `_questions_anchors` refuses a selection **no belief
+  reads**, because 048 FR-017 does. All seven corpus entries pass it; the fixture entries do too. It
+  is a refusal rather than an empty `reads` because an empty `reads` is the one thing the server
+  cannot derive a control from.
+
+
+## The run of record, in one block
+
+Everything above is done and committed. **This is the only thing left, it is the only thing that
+spends, and it is the founder's to type.**
+
+```sh
+cd /Users/athulrajeev/Documents/projects/keel-e2e-eval
+make instruction-eval HOST=claude WHY=marks:8 MODELS=exported
+```
+
+`HOST=claude` — the Claude Code CLI on the Max plan, which is what spec 047 certified. CLI only: no
+API path, no `KEEL_CLAUDE_MODEL`, no second host. `WHY=marks:8` — the fifth `WHY` event, full-run
+only, and the reason goes into the bundle's `manifest.json`. `MODELS=exported` — keel-cloud's own
+table, which pins `claude-sonnet-5-5` on `standard` for `assumptions` and `brief` at **effort
+`medium`**, and Haiku 4.5 on `light` for `reading` and the new `questions` with no effort at all.
+`N` stays at its default of **3**. **`CLAUDE_CODE_EFFORT_LEVEL` is not exported by anybody anywhere
+near this run**: it is process-wide and would reach the judge as well as the subject, which is why
+`judge.py` strips it by name and why the judge answers at the CLI's own default.
+
+Expect **~2.5 h** and **~$15** (spec 047's run `20260930T024851Z-instructions`, measured at $15.19
+over 393 job-runs; this one is ~414 and moves in both directions by less than the noise).
