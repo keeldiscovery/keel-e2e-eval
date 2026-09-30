@@ -276,15 +276,19 @@ def role_of_anchor(entry, anchor_id: str) -> str | None:
     """Which role is asked this anchor -- read off the `askedOf` edge of the beliefs whose
     selections live on it, because a corpus anchor records no role of its own.
 
-    Matched against **this anchor's own stage** (design decision 18, DRIFT #37): a selection id is
-    unique only within one stage's own questionnaire, so a belief on another stage naming the same
-    bare id is not a reader of this anchor, even though the id string matches.
+    Matched against **the stages this anchor's occasion serves** (`MARKS_VERSION` 8, judgement call
+    25; keel-cloud spec 049). It used to be matched against the anchor's one `stage`, because
+    decision 18 (DRIFT #37) made a selection id unique only within one stage's own questionnaire and
+    a belief on another stage naming the same bare id was not a reader of this anchor. There is one
+    questionnaire a project now, `Q7` is project-wide, and a merged occasion is read by two stages'
+    beliefs -- so the anchor's `stages` list is what a belief's own stage is matched against, and a
+    selection id is already unique across the entry.
     """
     anchor = entry.anchor(anchor_id) or {}
-    stage = anchor.get("stage")
+    stages = anchor.get("stages") or []
     ids = {s["id"] for s in anchor.get("selections") or []}
     for belief in entry.beliefs:
-        if belief.stage == stage and belief.selection in ids and belief.asked_of:
+        if belief.stage in stages and belief.selection in ids and belief.asked_of:
             return belief.asked_of
     return None
 
@@ -479,13 +483,12 @@ def _interpret_entries(entry) -> list[dict]:
     `invitationId` is **not written** (rule 4) -- only the running stack knows the real one, and
     keel-runtime fills it from the job's own context (RT-002).
 
-    Every anchoring also carries **`stage`** (keel-cloud measured-beliefs decision 18, `Q7`, DRIFT
-    #37): an anchor id is unique only within one stage's own questionnaire and free to repeat on
-    another, because a link can carry occasions from more than one approved stage and every one of
-    them calls its first occasion `A1`. The pair is what the wire now requires and what the reader
-    hands back, keyed by `(stage, anchorId)` and never by the bare id -- the frozen corpus numbers
-    its ids across the whole entry (still valid; nothing here changes for it), but the script must
-    not assume a future entry, or a live model, will.
+    An anchoring is **the bare `anchorId`** (keel-cloud spec 049: `AnchorRef` is a bare id).
+    It carried a `stage` while decision 18 stood -- an id was unique only within one stage's own
+    questionnaire, a link could carry occasions from more than one approved stage, and every one of
+    them called its first occasion `A1`. There is one questionnaire a project now, `Q7` is
+    project-wide, and a merged occasion is asked once and answered once, so the pair would name
+    nothing the id does not.
     """
     entries = []
     for person in entry.people():
@@ -496,13 +499,11 @@ def _interpret_entries(entry) -> list[dict]:
                 raise CorpusScriptError(
                     f"{entry.id}: {person.person!r} wrote under anchor {anchor_id} but the corpus "
                     f"records anchoring {anchoring!r} -- neither ANCHORED nor GUESSED")
-            anchor = entry.anchor(anchor_id)
-            if anchor is None or not anchor.get("stage"):
+            if entry.anchor(anchor_id) is None:
                 raise CorpusScriptError(
                     f"{entry.id}: {person.person!r} wrote under anchor {anchor_id!r}, which the "
-                    "entry's own questionnaire carries no stage for")
-            anchorings.append({"stage": anchor["stage"], "anchorId": anchor_id,
-                               "anchoring": anchoring})
+                    "entry's own questionnaire does not carry")
+            anchorings.append({"anchorId": anchor_id, "anchoring": anchoring})
         if not anchorings:
             # **A person who wrote nothing is not a reading.** `05-paidly`'s Yara Haddad leaves
             # both translator anchors blank and taps *hasn't happened* on the third, so keel-cloud

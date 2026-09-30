@@ -2,15 +2,27 @@
 
 **Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md) | **Branch**: `025-one-occasion-marks`
 
-`make unit`: not run on this branch — **nothing below Phase 1 is implemented**. This file is written
-ahead of both siblings (keel-cloud is on `048-lines-then-questions` at `71e6fe7`, phase 1 only), and
-the order below is the order the work can actually be done in.
+`make unit`: **green at every commit on this branch.** Baseline at `04fcb50`, before a line was
+written: **1,141 passed** (Discovered D1). This file was drafted ahead of both siblings (keel-cloud
+was on `048-lines-then-questions` at `71e6fe7`, phase 1 only); both have since landed, and the order
+below is the order the work was actually done in.
 
-**Tests first.** Phase 2 is written and red before Phase 3 begins, and every phase after it closes
-by turning its own tests green. The one exception is the corpus itself, which is keel-cloud's file
-and whose tests are red until that commit lands — named in Phase 4 and nowhere else.
+**Tests first.** Every phase's own tests are written before the code that turns them green, and
+**no test is deleted to make a phase pass**.
 
-**Nothing below spends a model call except T029**, which is the founder's to type.
+**Amended at implementation (Discovered D11).** As drafted, every test sat in Phase 2 and `make
+unit` was red across the Phase 2 commit. The rule this repository works to is the gate green before
+every commit — which is how keel-cloud's sibling 049 ran too, one phase at a time with `./gradlew
+check` green each time. So **each of T010–T019 lands in the commit of the phase it certifies**,
+written first within that phase and ticked there.
+
+**And the corpus is why the first commit is wide.** T022 revises keel-cloud's seven files, and from
+the moment it does, everything here that read an anchor's `stage` is red — the corpus reader, the
+reading context, the match key, the script generator, the fact registry and the proof tool. They
+land in one commit, which is the *one commit wide* red window plan §4 predicted, named rather than
+papered over.
+
+**Nothing below spends a model call except T030**, which is the founder's to type.
 
 ## Phase 1 — read before writing anything
 
@@ -92,23 +104,23 @@ and whose tests are red until that commit lands — named in Phase 4 and nowhere
 
 ## Phase 2 — the tests, first and red
 
-- [ ] T010 `tests/test_instruction_marks.py` (new): `MARKS_VERSION == 8`; the judgement-call list
+- [X] T010 `tests/test_instruction_marks.py` (new): `MARKS_VERSION == 8`; the judgement-call list
       parses to 1–27 with none missing, none struck and none renumbered; every number in
       `marks.toml`'s `[marks]` equals its value at `aa3b584`.
-- [ ] T011 `tests/test_corpus_script.py`: the corpus shape, against **the real seven files** —
+- [X] T011 `tests/test_corpus_script.py`: the corpus shape, against **the real seven files** —
       every anchor carries a non-empty `stages` list and no `stage`; anchor ids and selection ids are
       unique across an entry; every belief's `selection` is on an anchor whose `stages` contain that
       belief's stage; no person names a struck id; the seven entries carry **16** anchors and **160**
       written person-anchor pairs. Keep `assert len(entry.anchors_for("PROBLEM")) == 1` for
       `01-countly` and add the sibling assertion that the same anchor is returned for `SOLUTION`.
-- [ ] T012 `tests/test_instruction_score.py`: `score_reading` on the bare id — a result whose
+- [X] T012 `tests/test_instruction_score.py`: `score_reading` on the bare id — a result whose
       anchorings carry no `stage` scores 1.0 against a merged fixture; one that carries a `stage` is
       neither refused nor read for it; `missing_ids`/`extra_ids` are bare ids.
-- [ ] T013 `tests/test_instruction_reads.py` (new): `align.resolve_reads` — a `reads`-carrying belief
+- [X] T013 `tests/test_instruction_reads.py` (new): `align.resolve_reads` — a `reads`-carrying belief
       aligns identically to the same belief with the expectation longhand, on all eight fields; an
       out-of-range ordinal, a stage that is not earlier, a chain and a both-at-once belief are each
       counted in `unresolved_reads` and left unmatched; `align.FIELDS` is unchanged.
-- [ ] T014 `tests/test_instruction_context.py`: `anchors_for` writes no `stage`; `earlier_lines`
+- [X] T014 `tests/test_instruction_context.py`: `anchors_for` writes no `stage`; `earlier_lines`
       carries design §6A.4's eight keys and no more, 1-based within each stage, and is empty for
       `PROBLEM`; `build_questions` carries 048 FR-011's five keys with `measurements` 0-based
       project-wide.
@@ -132,29 +144,29 @@ and whose tests are red until that commit lands — named in Phase 4 and nowhere
 
 ## Phase 3 — the rubric
 
-- [ ] T020 `instructions/marks.py`: `MARKS_VERSION = 8`; judgement call **23** transcribed in from
+- [X] T020 `instructions/marks.py`: `MARKS_VERSION = 8`; judgement call **23** transcribed in from
       `marks.toml`'s own words; **24, 25, 26 and 27** appended in plan §2's words verbatim.
       `DEFAULTS` and `judge()` untouched.
-- [ ] T021 `instructions/marks.toml`: the v8 header — what moved, what did not, and that scores
+- [X] T021 `instructions/marks.toml`: the v8 header — what moved, what did not, and that scores
       across the bump are not comparable. **No number in `[marks]`.**
 
 ## Phase 4 — the corpus
 
-- [ ] T022 **The revision, as a keel-cloud commit**, against spec *The corpus revision, entry by
+- [X] T022 **The revision, as a keel-cloud commit**, against spec *The corpus revision, entry by
       entry*: seven `A1 + A2` merges; `stage` → `stages` on every anchor; merged prompts, merged
       answer texts, merged taps and re-read anchorings; `05-paidly`'s `A2b`/`A2c` untouched; ids not
       renumbered; the two `02-compliancelog` people decided as the table says. **This branch writes
       no corpus file.** `make unit` here is red until that commit lands, and that is the point.
-- [ ] T023 `instructions/corpus.py`: `Entry.anchors_for` matches the list; `_entry` refuses a scalar
+- [X] T023 `instructions/corpus.py`: `Entry.anchors_for` matches the list; `_entry` refuses a scalar
       `stage` by entry and anchor id; note 3 of the docstring rewritten. T011 goes green.
 
 ## Phase 5 — the marks that read the corpus
 
-- [ ] T024 `instructions/score.py`: `score_reading` on the bare id, its decision-18 paragraph
+- [X] T024 `instructions/score.py`: `score_reading` on the bare id, its decision-18 paragraph
       replaced by one naming 049 and this spec; `score_assumptions` calls `resolve_reads` before
       `align`; `unresolved_reads` per case and in `totals`. `instructions/context.py`:
       `anchors_for` drops `stage`; `earlier_lines` added. T012, T013 and part of T014 go green.
-- [ ] T025 `instructions/align.py`: `resolve_reads`, and T001's finding written into the module
+- [X] T025 `instructions/align.py`: `resolve_reads`, and T001's finding written into the module
       docstring with its five line references so nobody traces it twice. `FIELDS`, `produced_view`,
       `compare` and `align` untouched.
 
@@ -239,3 +251,66 @@ and whose tests are red until that commit lands — named in Phase 4 and nowhere
 - [ ] T031 Whatever T030 finds → `README.md` (the run of record, its table and its bundle name),
       `runs/DRIFT.md` (anything that surprised), and this file. **A red mark is a finding, not a
       reason to run again.**
+
+## Discovered
+
+What the code turned out to say that the spec, the plan or this file did not. Each entry names the
+task it was found under. Nothing here is a change of mind about the design; it is what the work met.
+
+- **D1 (baseline).** `make unit` at `04fcb50`, before a line was written: **1,141 passed**, 0
+  failed, in 2 m 23 s. That is the number every commit on this branch is held to.
+- **D2 (T022).** **keel-cloud's own gate needs three environment variables that no document in
+  *this* repository names.** `./gradlew check` without them fails 275 of 1,329 tests on
+  `DockerClientProviderStrategy` alone — Testcontainers cannot find the daemon. keel-cloud's
+  `AGENTS.md` (lines 78–89) has them: `JAVA_HOME`, `DOCKER_HOST=unix://$HOME/.colima/default/docker.sock`
+  and `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock`, with Colima running. With them:
+  **1,548 tests, 0 failures**. Recorded because a green-looking corpus commit taken without them
+  would have been a corpus nobody had actually checked.
+- **D3 (T022, and it is the one number the spec's table did not carry).** The revision moves
+  `02-compliancelog`'s **`expected.standings`**, and nothing in spec *The corpus revision* or FR-007
+  said so. Daniel Achebe's merged anchoring is re-read as `ANCHORED`, so his answers now count, and
+  all six PROBLEM lines go `inside` +1 / `guessed` −1: `P1` 7/2→8/1, `P2` 4/2→5/1, `P3` 8/3→9/2,
+  `P4` 5/3→6/2, `P5` 5/3→6/2, `P6` 7/3→8/2. **No verdict, no drift and no median moves**, and the
+  other six entries' `expected` blocks are untouched. `check_corpus.py` found it, which is what the
+  corpus's own checker is for.
+- **D4 (T022).** **Decision 18 was in keel-cloud's code twice, and neither place was on any list.**
+  `canon/designs/measured-beliefs/sim/check_corpus.py` keyed every questionnaire item by
+  `(stage, id)` through `model.ref`/`model.resolve`, and
+  `src/test/java/…/corpus/CorpusFixture.java`'s `AnchorSpec` carried a scalar `StageType`. Both
+  moved with the files: the checker keys by the bare id and `Q1` now asks *does the owning anchor's
+  occasion serve this belief's stage*, and `CorpusFixture` carries `List<StageType> stages` and
+  **refuses a file still writing the scalar**, by file and by anchor — the same refusal
+  `instructions/corpus.py` makes here, for the same reason.
+- **D5 (T023).** **This repository has two corpus-shaped fixtures of its own**, and the spec named
+  neither: `evals/payroll_exceptions.yaml` (S-013's entry) and `tests/test_corpus_script.py`'s
+  `CANNED`. Both carried the scalar `stage` and both now carry `stages`. Neither is the golden
+  corpus and neither is merged — `payroll`'s `A2` is genuinely another occasion (*"the last time a
+  payroll problem got sorted out without anyone being told to"*), so it keeps its own anchor with
+  `stages: [SOLUTION]`. Spec 021's deviation 3 is untouched: still no corpus **copy** here.
+- **D6 (T020).** **Three tests outside the marks file pinned `MARKS_VERSION == 7`** —
+  `test_instruction_brief.py`, `test_instruction_host.py` and `test_instruction_score.py`. Each was
+  asserting something else (the BRIEF number, one rubric for every host, the v6 rate) and using the
+  version as a proxy for *nothing moved*. Each now asserts its own claim and leaves the version to
+  `tests/test_instruction_marks.py`, which is T010 and the one place that should pin it.
+- **D7 (T020).** **Judgement call 22 sits between 16 and 17 in `marks.py`'s list**, out of numeric
+  order, and has since v6. It is **left exactly where it is**: the list's rule is append-only and
+  struck-nowhere, not sorted, and moving a call would be an edit to the history of what a number
+  means. T010 parses the numbers and asserts the *set* is 1–27, which is the claim that matters.
+- **D8 (T025).** **A chain cannot arise off this eval's own `earlier_lines`**, so FR-011's
+  chain clause had to be given a meaning that is testable here. The eval numbers `earlier_lines`
+  from the corpus's golden beliefs, every one of which owns its measurement, and a `reads` names a
+  *different* stage's list and so can never name another belief in the same answer. The rule
+  implemented is design §6A.5 step 4 stated positively — **the referent must own its
+  expectation**: a line that itself carries a `reads`, or that carries neither a `measure` nor an
+  `options` list, is not a referent and the reference is counted `unresolved`. It is in the module
+  because the contract states it and a list this module is *handed* is not a list it wrote.
+- **D9 (T024).** `score_assumptions` reads the case's own
+  `payload["context"]["earlier_lines"]` — **the list this eval numbered and sent in that very
+  prompt** — and not a second walk of the corpus. One place decides the ordinal, which is the same
+  discipline `ScreenContextBuilder.earlierLinesOf` keeps on the other side.
+- **D10 (T028, found early because it broke).** `evals/tools/curated_proof_run.py`'s `rank_of`
+  read `anchor["stage"]` and ranked by `STAGES.index`. A section is an occasion now, so the rank is
+  the anchor's **position in the one questionnaire**. Its graceful degradation on a count mismatch
+  is untouched.
+- **D11 (the phases).** The ordering amendment at the top of this file: T010–T019 land with the
+  phases they certify, so `make unit` is green at every commit. See the note above for why.

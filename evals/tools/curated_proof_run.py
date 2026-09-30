@@ -651,11 +651,15 @@ def _answer_page(participant: ParticipantPage, person, entry, *,
     def rendered_block(block) -> str:
         return " ".join(block.get("selections") or [])
 
-    # Within the stage first, and only across stages when the page has no sections to go by: the
-    # solution's story belongs in the solution's box even on a run whose solution questions
-    # happen to spell like the commercial ones.
+    # Within the occasion first, and only across occasions when the page has no sections to go by:
+    # a story belongs in the box that asks about that occasion even on a run whose questions happen
+    # to spell alike. The rank is the anchor's **position in the questionnaire**, because a section
+    # is an occasion now and the questionnaire is the project's (keel-cloud spec 048/049); it was
+    # the anchor's `stage` while a section was a stage and every stage owned its own anchors.
+    order = [a.get("id") for a in (entry.questionnaire.get("anchors") or [])]
+
     def rank_of(anchor: dict):
-        return STAGES.index(anchor["stage"]) if anchor.get("stage") in STAGES else None
+        return order.index(anchor["id"]) if anchor.get("id") in order else None
 
     pairs: list[tuple] = []
     used: list[dict] = []
@@ -762,11 +766,15 @@ _BLOCKS_WITH_SECTIONS = r"""
 def _sectioned_blocks(participant: ParticipantPage) -> list[dict[str, Any]]:
     """`anchors()`, plus each block's section and that section's rank on the page.
 
-    A page with three sections in stage order is the ordinary case, and the rank is then the
-    stage: a story about the last mulch pickup belongs in section 1 whatever the box's opening
-    line says. Where the read disagrees with the page object about how many story boxes there are
-    -- a keel-web change this tool has not seen -- the sections are dropped and every block
-    becomes rank `None`, which is the same as not constraining at all.
+    **One section per occasion, in questionnaire order**, is the ordinary case since keel-cloud
+    specs 048/049: the page draws a section for each anchor the one questionnaire carries, titled by
+    the occasion, and the rank is that anchor's place in it -- so a story about the last mulch
+    pickup belongs in the section that asks about the mulch pickup whatever the box's opening line
+    says. It was *three sections in stage order* while a stage owned its own questionnaire.
+
+    Where the read disagrees with the page object about how many story boxes there are -- a keel-web
+    change this tool has not seen -- the sections are dropped and every block becomes rank `None`,
+    which is the same as not constraining at all. That degradation is unchanged.
     """
     blocks = participant.anchors()
     try:

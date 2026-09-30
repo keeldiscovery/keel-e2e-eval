@@ -11,6 +11,32 @@ tie.
 **Why headings are only a tie-break.** Wording is free (design §10 step 4): a heading that reads
 differently is not a wrong belief, and scoring it would make the eval grade prose. It breaks ties
 between otherwise equal candidates and contributes nothing else.
+
+**This module scores the model's RAW answer, and nothing ever applies it.** Traced end to end at
+`master` `aa3b584` (spec 025 T001, `MARKS_VERSION` 8 judgement call 27), so that nobody traces it a
+second time:
+
+1. `runner.py:388` -- `answer.result = response.get("result")`. The structured output the host CLI
+   returned. JSON-schema-validated against keel-cloud's exported contract (`runner.py:385-389`,
+   `validator_module.validate_response`) and **applied to nothing**.
+2. `run.py:306` -- `score_mod.score_assumptions(case, entry, answer.result, ...)`.
+3. `score.py:161-163` -- `produced = result.get("assumptions")`, then `align(goldens, produced, judge)`.
+4. `align.produced_view` (below) reads `belief.get("expectation")`; with no expectation it yields
+   `type: None`.
+5. `align.structural_candidate` (below) returns `False` on `not golden["type"] or golden["type"] !=
+   produced["type"]`, and `is_candidate` refuses too -- *an interval is never judged*, so the judge
+   is not asked either.
+
+And keel-cloud's validator does not close it: `instructions/validate.py` shells
+`./gradlew -q screenContracts --args="validate <batch> <report>"` and `fold_in` reads only
+`accepted` and `refusal` -- a verdict, never a resolved `Assumption`.
+
+**So a belief carrying `reads: {stage, line}` and no expectation would never be a candidate, never
+align, and `golden_belief_recall` would fall by one line per reference** -- design §6A.8's *"an
+alignment-rule change and a real regression, not a rubric question"*. `resolve_reads` below is that
+change: it gives a referencing belief the referent's own expectation **before** alignment, out of
+the `earlier_lines` this eval itself numbered and sent. `FIELDS`, `produced_view`, `compare` and
+`align` are untouched by it -- what changes is that a referencing belief arrives at them whole.
 """
 
 from __future__ import annotations
@@ -351,6 +377,90 @@ def align(goldens: list, produced_beliefs: list, judge=None) -> Alignment:
     alignment.missing = [g.id for gi, (g, _v) in enumerate(golden_views) if gi not in used_golden]
     alignment.extra = [pi for pi, _v in produced_views if pi not in used_produced]
     return alignment
+
+
+# ------------------------------------------------------------- a belief that reads another belief
+
+def resolve_reads(produced: list, earlier: list) -> tuple:
+    """`(beliefs, unresolved)` -- every produced belief, with a resolved `reads` given its referent's
+    whole expectation, and the count of references that could not be resolved.
+
+    This is `ScreenResultApplier`'s step 2 of design §6A.5, done here **because nothing does it
+    here**: see the module docstring. It is deliberately not a module named for the applier
+    (`runs/DRIFT.md` #33/#36/#41/#44/#45, five times the same lesson: this repo keeps no copy of the
+    cloud's arithmetic). It is not the server's resolution at all -- the server resolves against
+    beliefs on a live aggregate; this resolves against `earlier`, the list **this repository built,
+    numbered and sent in the context of that very case** (`context.earlier_lines`). It is the eval
+    reading its own homework, which is what an aligner does, and it belongs beside `produced_view`
+    because it is the last thing that happens to a produced belief before it is one.
+
+    **Only the expectation is copied.** `risk`, `mark`, `founderPhrase`, `heading` and `statement`
+    stay the referencing belief's own, because they are its own claim about its own stage.
+
+    **Four references are not resolved**, each counted and each left to fail to match -- production
+    gives a derivation failure one repair turn and this eval has never had one:
+
+    - an ordinal out of range, or naming a stage that is not in `earlier` at all;
+    - a `reads` that is not `{stage, line}` -- a shape the contract does not state;
+    - a **chain**: the referent must **own** its expectation (design §6A.5 step 4). A line that
+      carries a `reads` of its own, or that carries neither a `measure` nor an `options` list, is
+      not a referent -- one indirection too many, and the second belief could have named the first.
+      It cannot arise off this eval's own `earlier_lines`, which are built from golden beliefs that
+      each own their measurement; the rule is here because the contract states it and a list this
+      module is *handed* is not a list it wrote.
+    - **both at once**: a belief carrying `reads` *and* an expectation keeps its own and is counted
+      here anyway, because design §6A.5 says *"Both, or neither, is a shape refusal"* and a shape
+      the contract refuses is not a reference that worked.
+
+    The input list is never mutated: a resolved belief is a shallow copy with `expectation` added.
+    """
+    by_handle = {}
+    for line in earlier or []:
+        if isinstance(line, dict) and line.get("stage") is not None and line.get("line") is not None:
+            by_handle[(str(line["stage"]), line["line"])] = line
+
+    beliefs, unresolved = [], 0
+    for belief in produced or []:
+        if not isinstance(belief, dict) or not isinstance(belief.get("reads"), dict):
+            beliefs.append(belief)
+            continue
+        reads = belief["reads"]
+        handle = (str(reads.get("stage")), reads.get("line"))
+        line = by_handle.get(handle)
+        own = belief.get("expectation")
+        if line is None or (isinstance(own, dict) and own) or not _owns_its_measurement(line):
+            # Out of range, a stage that is not an earlier one, a both-at-once shape, or a chain
+            # -- one reason each, and the belief goes to the aligner exactly as it arrived.
+            unresolved += 1
+            beliefs.append(belief)
+            continue
+        resolved = dict(belief)
+        resolved["expectation"] = _expectation_of(line)
+        beliefs.append(resolved)
+    return beliefs, unresolved
+
+
+def _owns_its_measurement(line: dict) -> bool:
+    """Whether an `earlier_lines` entry is a referent at all: it carries its own band, and it does
+    not itself read somebody else's (design §6A.5 step 4)."""
+    if line.get("reads") is not None:
+        return False
+    band = line.get("band") if isinstance(line.get("band"), dict) else None
+    if band is None:
+        return False
+    return isinstance(line.get("measure"), dict) or isinstance(band.get("options"), list)
+
+
+def _expectation_of(line: dict) -> dict:
+    """The referent's whole expectation, out of `earlier_lines`' `measure` and `band` -- the
+    `Measure`, the `Bound`s, or the `options` and `expected`, and nothing else."""
+    band = line.get("band") if isinstance(line.get("band"), dict) else {}
+    measure = line.get("measure")
+    if isinstance(measure, dict):
+        return {"type": "INTERVAL", "measure": dict(measure),
+                "lower": band.get("lower"), "upper": band.get("upper")}
+    return {"type": "CHOICE", "options": list(band.get("options") or []),
+            "expected": band.get("expected")}
 
 
 def as_wire(belief) -> dict:

@@ -57,33 +57,36 @@ class ReadingScore:
 def score_reading(case, entry, person, result, *, failed: str | None = None) -> ReadingScore:
     """One reading case: the model's word per anchor against the corpus's own.
 
-    Matched by **`(stage, anchorId)`, never the bare id** (measured-beliefs decision 18, DRIFT
-    #37): an anchor id is unique only within one stage's own questionnaire, so the pair is what the
-    context handed the model (`context.anchors_for`) and what the contract now requires back. A
-    produced anchoring with no `stage` -- or the wrong one -- is not a match; it refuses the same
-    way an omitted or invented id already did, rather than resolving it by guessing.
+    Matched by **the bare `anchorId`** (`MARKS_VERSION` 8, judgement call 24; keel-cloud spec 049,
+    `one-occasion-once-design.md` §8.2). It was `(stage, anchorId)` from `MARKS_VERSION` 3, and the
+    reason is why the docstring is replaced here rather than deleted: measured-beliefs decision 18
+    (DRIFT #37) said an anchor id was unique only within one stage's own questionnaire, three
+    questionnaires each numbered their first occasion `A1`, and the pair was the only thing that
+    told two occasions apart. **Spec 049 supersedes decision 18.** There is one questionnaire a
+    project, `Q7` is project-wide, `AnchorRef` is a bare id, and a merged occasion serves more than
+    one stage's beliefs -- so a `stage` on an anchoring names nothing.
+
+    A produced anchoring that carries a `stage` anyway is **neither refused nor read for it**: the
+    key is the id, and an extra field a model wrote is not a wrong answer. An omitted or invented id
+    still refuses, exactly as before.
     """
     score = ReadingScore(case_id=case.case_id, entry_id=entry.id, subject=case.subject,
                          run_index=case.run_index, failed=failed)
-    given = {}
-    for anchor_id, answer in person.written():
-        stage = (entry.anchor(anchor_id) or {}).get("stage")
-        given[(stage, anchor_id)] = answer.get("anchoring")
+    given = {anchor_id: answer.get("anchoring") for anchor_id, answer in person.written()}
     score.given = len(given)
     if failed or not isinstance(result, dict):
-        score.missing_ids = sorted(anchor_id for _, anchor_id in given)
+        score.missing_ids = sorted(given)
         return score
 
     produced = {}
     raw = result.get("anchorings")
     if isinstance(raw, list):
         for item in raw:
-            if (isinstance(item, dict) and isinstance(item.get("anchorId"), str)
-                    and isinstance(item.get("stage"), str)):
-                produced[(item["stage"], item["anchorId"])] = item.get("anchoring")
+            if isinstance(item, dict) and isinstance(item.get("anchorId"), str):
+                produced[item["anchorId"]] = item.get("anchoring")
 
-    for (stage, anchor_id), golden in given.items():
-        answer = produced.get((stage, anchor_id))
+    for anchor_id, golden in given.items():
+        answer = produced.get(anchor_id)
         if answer not in ("ANCHORED", "GUESSED"):
             score.missing_ids.append(anchor_id)
             score.per_anchor.append({"anchor_id": anchor_id, "golden": golden,
@@ -97,7 +100,7 @@ def score_reading(case, entry, person, result, *, failed: str | None = None) -> 
         score.per_anchor.append({"anchor_id": anchor_id, "golden": golden,
                                  "produced": answer, "agree": agree})
 
-    score.extra_ids = sorted(anchor_id for _, anchor_id in (set(produced) - set(given)))
+    score.extra_ids = sorted(set(produced) - set(given))
     return score
 
 
@@ -116,6 +119,15 @@ class AssumptionScore:
     judged_candidacy: int = 0
     needs_input: bool = False
     needs_input_questions: list = field(default_factory=list)
+    #: References this case's answer made that could not be given a referent's expectation -- an
+    #: ordinal out of range, a stage that is not an earlier one, a chain, or a belief carrying both
+    #: a `reads` and an expectation. Reported, never retried: production gives a derivation failure
+    #: one repair turn and this eval has never had one (`MARKS_VERSION` 8, judgement call 27).
+    unresolved_reads: int = 0
+    #: References that *were* resolved. Reported beside the failures so that a run in which the
+    #: model never reached for a reference at all reads as a zero rather than as a silence
+    #: (keel-cloud spec 049 risk 2).
+    resolved_reads: int = 0
     failed: str | None = None
     field_hits: dict = field(default_factory=dict)      # field -> [agreed, applicable]
     phrase_band: dict = field(default_factory=lambda: {
@@ -155,6 +167,16 @@ def score_assumptions(case, entry, result, *, failed: str | None = None,
 
     produced = result.get("assumptions")
     produced = produced if isinstance(produced, list) else []
+    # `MARKS_VERSION` 8, judgement call 27: a belief carrying `reads: {stage, line}` is given its
+    # referent's whole expectation **before** alignment, out of the `earlier_lines` this eval
+    # itself numbered and sent in this case's own context. Without it `produced_view` reads no
+    # expectation, `structural_candidate` refuses the pair on `type`, and recall falls by one line
+    # per reference -- see `align.py`'s module docstring for the five line references.
+    referencing = sum(1 for b in produced if isinstance(b, dict) and isinstance(b.get("reads"), dict))
+    produced, unresolved = align_mod.resolve_reads(
+        produced, (case.payload.get("context") or {}).get("earlier_lines") or [])
+    score.unresolved_reads = unresolved
+    score.resolved_reads = referencing - unresolved
     alignment = align_mod.align(goldens, produced, judge)
     score.alignment = alignment
     score.matched = len(alignment.matched)
@@ -232,6 +254,11 @@ def totals(reading_scores: list, assumption_scores: list, *, errored: int = 0,
                                for name, (hits, total) in field_hits.items()},
         "phrase_band": phrase_band,
         "extra_beliefs": sum(s.extra_beliefs for s in assumption_scores),
+        # keel-cloud spec 049 / `MARKS_VERSION` 8 judgement call 27. Both halves are reported: a
+        # run that provoked no reference at all is a finding about the instruction, and a zero that
+        # is visible is not the same thing as a silence.
+        "unresolved_reads": sum(s.unresolved_reads for s in assumption_scores),
+        "resolved_reads": sum(s.resolved_reads for s in assumption_scores),
         "needs_input_cases": sum(1 for s in assumption_scores if s.needs_input),
         "judged_fraction": (sum(s.judged for s in assumption_scores) / matched) if matched else 0.0,
         "judged_pairs": sum(s.judged for s in assumption_scores),

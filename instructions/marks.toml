@@ -6,6 +6,24 @@
 # evals/policy.py states for POLICY_VERSION, and a separate constant so the two can never be
 # confused.
 
+# MARKS_VERSION 8 (judgement calls 23-27, 2026-09-30; keel-cloud `one-occasion-once-design.md` §8.2
+# and §6A.8, specs 048/049, this repo's spec 025). **Not one number below moves**, and the rubric
+# still moved, three ways at once -- a metric definition, an alignment rule, and the corpus the
+# rubric reads:
+#   - `score_reading` keys on the bare `anchorId`; the `(stage, anchorId)` pair v3 bumped for is
+#     gone, because one questionnaire a project makes `Q7` project-wide.
+#   - the golden corpus was **revised**: an anchor carries `stages`, a list, and in every entry the
+#     `A1` and `A2` that named one past event are one anchor. 23 anchors -> 16, and
+#     `anchoring_accuracy`'s denominator 238 written person-anchor pairs -> 160 at N=1.
+#   - `align.resolve_reads` gives a belief that carries `reads: {stage, line}` the referent's own
+#     expectation before alignment, and counts a reference it cannot resolve as `unresolved_reads`.
+#   - the eval gained the `QUESTIONS` screen, one Haiku call an entry. It is rendered on
+#     `register.html` and **not scored** (judgement call 10); `Q8` reaches `rule_refusal_rate`.
+# **Scores before and after this bump are not comparable**, and -- unlike v4->v5 and v5->v6 -- a v7
+# bundle **cannot be re-scored** to v8: `rescore.py` re-reads the corpus, and the corpus moved, so a
+# re-score would align old answers against a questionnaire nobody was asked. That is why a run of
+# record is spent (`WHY=marks:8`, `instructions/why.py`).
+
 [marks]
 anchoring_accuracy = 0.90
 golden_belief_recall = 0.80

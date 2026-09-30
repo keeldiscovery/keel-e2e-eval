@@ -109,6 +109,40 @@ part of what a number means:
     Both fixes were made **from that run's own bundle and re-scored without spending again**
     (`python -m instructions.rescore`), which is what a versioned rubric and a kept bundle are
     for. The v4 scorecard stays in the bundle beside the v5 one; neither overwrites the other.
+23. **v7** *(the founder, 2026-09-13)*: **the `shape` fault's length edge follows the contract**,
+    which moved `whatThisSays` from 1 200 to 2 000 characters (keel-cloud
+    `ScreenResponseContracts.WHAT_THIS_SAYS_MAX`, `runs/DRIFT.md` #68). The four marks and
+    `brief_paragraphs`'s number are unchanged; a paragraph is judged against the edge production
+    actually enforces. **Transcribed here at v8 from `marks.toml`, which has cited it since v7 while
+    this list did not carry it** (spec 025 FR-003). It is a transcription and not a new call: no
+    number and no rule moves with it, and the list is now what it says it is -- append-only and
+    complete.
+24. **v8** *(the founder, 2026-09-30; `one-occasion-once-design.md` §8.2)*: **the match key is the
+    bare `anchorId` again, because the questionnaire is the project's.** v3 made it
+    `(stage, anchorId)` when a stage owned its questionnaire and three of them each numbered from
+    `A1`. One questionnaire per project makes `Q7` project-wide, so the pair carries no information
+    the id does not, and a `stage` on an anchoring names nothing -- a merged occasion serves more
+    than one stage's beliefs.
+25. **v8** *(design §8.2)*: **a corpus anchor's `stage` becomes `stages`, a list, and is a label
+    rather than a key.** `Entry.anchors_for(stage)` returns the anchors whose `stages` contain it,
+    and one anchor may be returned for two stages. Scores before and after are not comparable and
+    the constant says so.
+26. **v8** *(design §6A.8)*: **a belief that reads another belief's measurement is aligned and
+    counted as an ordinary belief.** Two lines reading one control are two lines in the recall
+    denominator; the control they share is one, and `anchoring_accuracy` counts person-anchor pairs
+    rather than controls, so it does not see the change.
+27. **v8, and it is the correction 26 was written conditional on** *(design §6A.8: "That answer
+    depends on one fact this pass did not verify ... Spec 049's first task is to check it")*: **the
+    expectation is copied here, not by the server, because this eval scores the model's raw
+    answer.** `runner.py` stores `response["result"]` and applies it to nothing; `score.py` hands
+    `result["assumptions"]` straight to `align.align`; `produced_view` reads `belief["expectation"]`
+    and a belief carrying only `reads` has none, so `structural_candidate` refuses it on `type`
+    before a judge is ever asked. keel-cloud's validator is shelled for a verdict and never hands an
+    applied `Assumption` back. So `align.resolve_reads` copies the referent's whole expectation out
+    of the `earlier_lines` **this eval itself numbered and sent**, before alignment, and a reference
+    that cannot be resolved is counted as `unresolved_reads` and left to fail to match. 26 holds
+    *because of* this call, not in spite of it: with it, `align.FIELDS` does not change and the
+    recall denominator does not change.
 """
 
 from __future__ import annotations
@@ -116,7 +150,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 7
+MARKS_VERSION = 8
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 

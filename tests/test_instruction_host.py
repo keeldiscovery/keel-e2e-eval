@@ -549,9 +549,11 @@ def test_the_rubric_did_not_move():
     of somebody else. A `MARKS_VERSION` bump here would make the two hosts' runs incomparable in
     the one direction the design needs them comparable."""
     # v6 (judgement call 22, the founder, 2026-09-12) moved the rule-refusal mark to a rate and
-    # added the shape-refusal zero -- for every host at once, which is what keeps this test's
-    # point: the hosts are still judged by one rubric, and no host got its own.
-    assert marks_mod.MARKS_VERSION == 7
+    # added the shape-refusal zero; v7 (23) followed the contract's length edge; v8 (24-27) moved
+    # the match key, the corpus and an alignment rule. Every one of them moved for **every host at
+    # once**, which is what keeps this test's point: the hosts are still judged by one rubric, and
+    # no host ever got its own. The version itself is pinned by `test_instruction_marks.py`; what
+    # is asserted here is that the five numbers a host is judged against have never moved.
     assert marks_mod.DEFAULTS == {"anchoring_accuracy": 0.90, "golden_belief_recall": 0.80,
                                   "rule_refusal_rate": 0.02, "shape_refusals": 0,
                                   "brief_paragraphs": 1.00}

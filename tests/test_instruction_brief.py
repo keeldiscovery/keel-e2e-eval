@@ -324,10 +324,13 @@ def test_a_result_carrying_no_paragraph_fails_rather_than_scoring_nothing(case, 
 
 # ------------------------------------------------------------------------------------- the totals
 
-def test_the_marks_version_is_six_and_the_marks_file_carries_the_brief_number():
-    # v5 narrowed the brief mark; v6 (judgement call 22, 2026-09-12) moved the rule-refusal mark
-    # to a rate and left this one exactly where it was.
-    assert marks_mod.MARKS_VERSION == 7
+def test_the_brief_number_has_not_moved_at_any_bump_since_it_was_set():
+    # v5 narrowed the brief mark; v6 (judgement call 22, 2026-09-12) moved the rule-refusal mark to
+    # a rate, v7 (23) followed the contract's length edge, and v8 (24-27) moved the match key, the
+    # corpus and an alignment rule -- and every one of them left this number exactly where it was.
+    # The version itself is `tests/test_instruction_marks.py`'s to pin; this file's claim is that
+    # the BRIEF subject's number survived the bumps.
+    assert marks_mod.MARKS_VERSION >= 7
     assert marks_mod.load()["brief_paragraphs"] == 1.00
 
 

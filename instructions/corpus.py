@@ -14,9 +14,16 @@ Three things the corpus says differently from the wire, and this package has to 
    phrase the founder never used is a different fault from a wrong band.
 2. **Taps are English here and enum names on the wire.** The corpus writes *hasn't happened*; the
    contract wants `HASNT_HAPPENED`. That table lives in `context.py`, deliberately in one place.
-3. **A corpus anchor carries a `stage`; the aggregate's questionnaire does not.** A corpus
-   questionnaire is the whole project's, and a screen emits one stage's -- so a stage's expected
-   questionnaire is the anchors whose `stage` matches, and their selections.
+3. **A corpus anchor carries `stages`, a list, and the aggregate's questionnaire carries none.** A
+   corpus questionnaire has always been the whole project's; since keel-cloud spec 048 the
+   aggregate's is too, written once by the `QUESTIONS` screen. So `stages` stopped being *which
+   stage's questionnaire owns this anchor* -- a key -- and became *which stages' beliefs this one
+   occasion serves* -- a label, and a list, because a merged occasion serves two
+   (`one-occasion-once-design.md` §8.2, `MARKS_VERSION` 8 judgement call 25). A stage's expected
+   questionnaire is the anchors whose `stages` **contain** it, and their selections; the same anchor
+   object is returned for every stage it serves. **A file still carrying the scalar `stage` is a
+   refusal to start**, not a fallback: it is a corpus written against a questionnaire nobody is
+   asked any more, and scoring against it would be a measurement of the wrong thing.
 """
 
 from __future__ import annotations
@@ -97,8 +104,14 @@ class Entry:
         return None
 
     def anchors_for(self, stage: str) -> list:
-        """This stage's own anchors -- note 3 above: the corpus's questionnaire is the project's."""
-        return [a for a in (self.questionnaire.get("anchors") or []) if a.get("stage") == stage]
+        """The anchors this stage's beliefs read -- note 3 above, and `MARKS_VERSION` 8's call 25.
+
+        Matches a **list**: an anchor whose `stages` contain `stage`. One merged occasion is
+        therefore returned for two stages, and the two lists share the object -- which is the point,
+        because it is one occasion and the participant is asked about it once.
+        """
+        return [a for a in (self.questionnaire.get("anchors") or [])
+                if stage in (a.get("stages") or [])]
 
     def anchor(self, anchor_id: str) -> dict | None:
         for anchor in self.questionnaire.get("anchors") or []:
@@ -166,7 +179,33 @@ def load(keel_cloud: Path) -> Corpus:
     return Corpus(entries=entries, directory=directory, hashes=hashes)
 
 
+def _check_anchors(raw: dict, path: Path) -> None:
+    """A refusal to start for an anchor written against the old shape, by entry and by anchor id.
+
+    Not a fallback and not a warning. The scalar `stage` said which stage's questionnaire owned the
+    anchor, and there is no such thing any more (keel-cloud spec 048/049, `one-occasion-once-design.md`
+    §8.2; keel-e2e-eval spec 025 FR-006). A reader that quietly took `stage` for a one-element
+    `stages` would score a merged occasion twice and call it agreement.
+    """
+    entry_id = raw.get("id") or path.name
+    for anchor in (raw.get("questionnaire") or {}).get("anchors") or []:
+        anchor_id = anchor.get("id")
+        if "stage" in anchor:
+            raise CorpusError(
+                f"{entry_id}: anchor {anchor_id} carries the scalar `stage`. Since the 2026-09-30 "
+                f"revision an anchor carries `stages`, a non-empty list of the stages whose beliefs "
+                f"its one occasion serves (keel-cloud one-occasion-once-design.md §8.2, "
+                f"keel-e2e-eval spec 025 FR-006). {path}")
+        stages = anchor.get("stages")
+        if not isinstance(stages, list) or not stages \
+                or any(stage not in STAGES for stage in stages):
+            raise CorpusError(
+                f"{entry_id}: anchor {anchor_id} has `stages` {stages!r}; it must be a non-empty "
+                f"list drawn from {', '.join(STAGES)}. {path}")
+
+
 def _entry(raw: dict, path: Path, digest: str) -> Entry:
+    _check_anchors(raw, path)
     beliefs = [
         GoldenBelief(
             id=b["id"],
