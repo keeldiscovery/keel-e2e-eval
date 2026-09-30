@@ -33,6 +33,7 @@ it is corpus prose and model prose, both already in this bundle.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -43,6 +44,29 @@ _ARGV = ["claude", "-p", "--tools", "", "--strict-mcp-config", "--setting-source
 
 _SAME = "SAME"
 _DIFFERENT = "DIFFERENT"
+
+#: Names that would move the ruler rather than the thing measured. A subject pinned to an effort
+#: level asks for it through the environment -- `CLAUDE_CODE_EFFORT_LEVEL`, the form
+#: keel-runtime's `_build_env` allow-lists through to the CLI -- and `subprocess.run` inherits the
+#: parent environment when it is given no `env=`. So a run launched at one effort level would have
+#: scored itself at that level too, silently: 392 judge calls on the run of record's shape, at
+#: whatever the subject was set to. The judge is this repo's ruler and always answers at the CLI's
+#: own default, so these are **stripped** rather than overridden -- there is no value of
+#: `CLAUDE_CODE_EFFORT_LEVEL` that means "the default", and the only way to ask for the default is
+#: to say nothing.
+JUDGE_UNSET_ENV = ("CLAUDE_CODE_EFFORT_LEVEL", "CLAUDE_CODE_ALWAYS_ENABLE_EFFORT",
+                   "CLAUDE_CODE_MAX_EFFORT_REMINDER")
+
+
+def judge_env(environ=None) -> dict:
+    """The environment a judge call runs in: the parent's, minus every knob above.
+
+    Everything else is passed through untouched -- `PATH` finds the CLI, `HOME` finds its
+    credentials, and a judge that could not authenticate would answer `None` to every question and
+    quietly cost the run its recall.
+    """
+    source = os.environ if environ is None else environ
+    return {name: value for name, value in source.items() if name not in JUDGE_UNSET_ENV}
 
 
 @dataclass
@@ -136,7 +160,7 @@ class Judge:
             return self._cache[key]
         try:
             done = subprocess.run(_ARGV, input=question, capture_output=True, text=True,
-                                  timeout=self.timeout_s)
+                                  timeout=self.timeout_s, env=judge_env())
             body = json.loads(done.stdout.strip().splitlines()[-1]) if done.stdout.strip() else {}
             answer = None if body.get("is_error") else str(body.get("result") or "").strip()
         except Exception as exc:                  # noqa: BLE001 - a judge that fails answers None
