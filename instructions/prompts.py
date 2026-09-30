@@ -71,6 +71,11 @@ class Case:
     #: The model the wire's `model` key pins for this case (`instructions/models.py`), or `None`
     #: for the CLI's default. Stamped after the prompt is rendered; never in the prompt.
     model: str | None = None
+    #: The effort the wire's `effort` key pins for this case (keel-cloud table v6, spec 047), or
+    #: `None` for the CLI's own default -- which on Claude Code is `xhigh`. `None` on every reading
+    #: by construction: `reading` routes to the `light` tier, whose row carries no effort, because
+    #: `effort` errors on Haiku 4.5. Stamped with the model; never in the prompt.
+    effort: str | None = None
 
     @property
     def bundle_path(self) -> str:

@@ -846,6 +846,11 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                          "model routing table": (
                              {"source": routing_table.source, "version": routing_table.version,
                               "row for this host": routing_table.hosts.get(HOST) or {},
+                              # keel-cloud table v6 (spec 047): the second half of the pin, from
+                              # the same host x tier coordinate. Recorded, never set -- what the
+                              # runtime passes to its CLI is the cloud's choice, and a bundle that
+                              # named the model without the effort would name half of what ran.
+                              "effort row for this host": (routing_table.efforts or {}).get(HOST) or {},
                               "classes": routing_table.classes}
                              if routing_table else None),
                          "credential": credential,
@@ -890,10 +895,15 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
         """**The effort comparison, on one line, in `facts.json`** (spec 024, the founder,
         2026-09-29: *"at different effort settings"*).
 
-        keel-cloud chooses the effort (`output_config.effort`, `xhigh` by default -- spec 045
-        FR-017) and this repository pins none: two runs of this cell against two settings differ by
-        what keel-cloud was configured with, and what a reader needs is the pair of numbers each
-        one produced. So the line carries the models that answered, what keel-cloud says it paid,
+        keel-cloud chooses the effort (`output_config.effort`, **`medium`** by default since
+        2026-09-30 -- spec 047, run of record `20260930T024851Z-instructions`; `xhigh` under spec
+        045 FR-017 before it) and this repository pins none: two runs of this cell against two
+        settings differ by what keel-cloud was configured with, and what a reader needs is the pair
+        of numbers each one produced. **Pinning none is more important now, not less**: since
+        keel-cloud table v6 the effort a CLI host's own runtime runs at also comes from that table,
+        on the job wire's `effort` key, so a cell that exported `CLAUDE_CODE_EFFORT_LEVEL` would be
+        overriding the very thing this run exists to observe -- which is why `scrub_session`'s
+        `CLAUDE_CODE_` prefix sweep is load-bearing rather than hygienic. So the line carries the models that answered, what keel-cloud says it paid,
         and how long the founder waited -- all three readable off the bundle without opening a
         database, which is the whole point of putting it here rather than in `spend.json` alone.
 

@@ -373,7 +373,13 @@ def test_executor_kwargs_follow_the_runtime_generation():
 def test_ask_hands_the_jobs_model_to_a_routing_runtime_through_the_pollers_rule(tmp_path):
     """The one step production's poller does (spec 009) -- `InferenceRequest.model` from
     `request_payload["model"][host_key]` -- the eval does too, or a `--models` run is unpinned
-    while its envelope says otherwise (found live on 2026-09-13, Copilot answered on the default)."""
+    while its envelope says otherwise (found live on 2026-09-13, Copilot answered on the default).
+
+    keel-cloud spec 047 / keel-runtime 0.6.0 add the second half of the pin on the same road, so
+    the eval takes the effort from the poller's own `_effort_for` too. **Through the poller's
+    functions, never a second copy of the rules**, and that matters more for the effort than for
+    the model: the one thing this referee must never do is decide for itself how hard the subject
+    thinks."""
     import sys
     from instructions import runner
     sys.path.insert(0, str((__import__("pathlib").Path(__file__).resolve().parents[2] / "keel-runtime")))
@@ -384,6 +390,154 @@ def test_ask_hands_the_jobs_model_to_a_routing_runtime_through_the_pollers_rule(
     class Host:
         host_key = "codex"
     payload = {"model": {"codex": "gpt-6-astra", "copilot": "x"}}
-    assert runner._model_kwarg(executor_module, Host(), payload) == {"model": "gpt-6-astra"}
-    assert runner._model_kwarg(executor_module, Host(), {}) == {"model": None}
+    kwargs = runner._model_kwarg(executor_module, Host(), payload)
+    assert kwargs["model"] == "gpt-6-astra"
+    assert runner._model_kwarg(executor_module, Host(), {})["model"] is None
     assert poller._model_for(Host(), payload) == "gpt-6-astra"
+
+    # The effort half, on a runtime new enough to have it. An older one simply has neither the
+    # field nor the function and gets nothing for it, independently of the model.
+    if "effort" in executor_module.InferenceRequest.__dataclass_fields__:
+        class Claude:
+            host_key = "claude"
+        pinned = {"model": {"claude": "claude-sonnet-5-5"}, "effort": {"claude": "medium"}}
+        assert runner._model_kwarg(executor_module, Claude(), pinned) == {
+            "model": "claude-sonnet-5-5", "effort": "medium"}
+        # A reading: the `light` row names a model and no effort, because `effort` errors on
+        # Haiku 4.5. The payload carries no `effort` key at all and the runtime gets `None`.
+        reading = {"model": {"claude": "claude-haiku-4-5-20251001"}}
+        assert runner._model_kwarg(executor_module, Claude(), reading) == {
+            "model": "claude-haiku-4-5-20251001", "effort": None}
+        assert kwargs["effort"] is None, "codex has no efforts row and is handed no effort"
+
+
+# ----------------------------------------------------------------- the pin's second half (v6)
+#
+# keel-cloud spec 047, table v6, run of record 20260930T024851Z-instructions: a certificate is a
+# model AND an effort level. The table gains an `efforts` block of the same host x tier shape and
+# the wire gains a seventh key `effort`; keel-runtime 0.6.0 turns it into `claude --effort <level>`.
+#
+# This is also how the eval stopped needing CLAUDE_CODE_EFFORT_LEVEL. That variable is process-wide:
+# it reached the judge too, which is why `judge.judge_env()` strips it by name. The `effort` key is
+# per job, travels the path a founder's job takes, and is recorded in the bundle -- so a run of
+# record can now STATE the effort it was taken at instead of it being a fact about whoever typed
+# the command.
+
+V6 = {
+    "version": 6,
+    "hosts": {
+        "claude": {"standard": "claude-sonnet-5-5", "light": "claude-haiku-4-5-20251001"},
+        "codex": {"standard": "gpt-6-astra", "light": "gpt-5.4-mini"},
+        "copilot": {"standard": "gpt-6-astra", "light": "gpt-5.4-mini"},
+    },
+    "efforts": {"claude": {"standard": "medium"}},
+    "_tiers": ["light", "standard", "frontier"],
+    "classes": {"frame": "standard", "assumptions": "standard", "reframe": "standard",
+                "reading": "light", "brief": "standard"},
+}
+
+
+def test_v6_resolves_the_effort_at_the_classes_own_tier():
+    table = models_mod.parse(V6, source="v6")
+
+    assert table.resolve_effort("claude", "assumptions") == "medium"
+    assert table.resolve_effort("claude", "brief") == "medium"
+    assert table.resolve_effort("claude", "frame") == "medium"
+    # The reading is the one that matters: it routes to `light`, whose row carries no effort,
+    # because `effort` ERRORS on Haiku 4.5. Nothing has to say so -- the shape says it.
+    assert table.resolve_effort("claude", "reading") is None
+    # And the other two hosts have no `efforts` row at all, because neither CLI has an effort flag.
+    assert table.resolve_effort("codex", "assumptions") is None
+    assert table.resolve_effort("copilot", "brief") is None
+
+
+def test_v6_efforts_used_is_the_per_class_record_a_verdict_carries():
+    table = models_mod.parse(V6, source="v6")
+
+    assert table.efforts_used("claude") == {
+        "assumptions": "medium", "reading": None, "brief": "medium"}
+    assert table.efforts_used("codex") == {
+        "assumptions": None, "reading": None, "brief": None}
+
+
+def test_a_table_older_than_v6_pins_no_effort_anywhere():
+    """Absent means "the CLI's own default", never "fail" -- design §4's rule for `hosts`, applied
+    to the second half of a pin. Every pre-v6 table still loads and every payload it stamps is
+    byte-identical to what it stamped before."""
+    without = {k: v for k, v in V6.items() if k != "efforts"}
+    table = models_mod.parse(without, source="v5")
+
+    assert table.efforts == {}
+    assert table.resolve_effort("claude", "assumptions") is None
+    assert table.efforts_used("claude") == {
+        "assumptions": None, "reading": None, "brief": None}
+
+
+def test_stamp_writes_the_seventh_key_and_leaves_a_reading_untouched():
+    table = models_mod.parse(V6, source="v6")
+    cases = [_case("ASSUMPTIONS"), _case("READING"), _case("BRIEF")]
+    models_mod.stamp(cases, table, "claude")
+
+    assumptions, reading, brief = cases
+    assert assumptions.payload["model"] == {"claude": "claude-sonnet-5-5"}
+    assert assumptions.payload["effort"] == {"claude": "medium"}
+    assert assumptions.effort == "medium"
+    assert brief.payload["effort"] == {"claude": "medium"}
+    # The reading: a model, and no `effort` key at all.
+    assert reading.payload["model"] == {"claude": "claude-haiku-4-5-20251001"}
+    assert "effort" not in reading.payload
+    assert reading.effort is None
+    # The key order the cloud writes: the five, then model, then effort.
+    assert list(assumptions.payload)[-2:] == ["model", "effort"]
+
+
+def test_stamp_on_a_host_with_no_efforts_row_writes_no_seventh_key():
+    table = models_mod.parse(V6, source="v6")
+    cases = [_case("ASSUMPTIONS")]
+    models_mod.stamp(cases, table, "codex")
+
+    assert cases[0].payload["model"] == {"codex": "gpt-6-astra"}
+    assert "effort" not in cases[0].payload
+    assert cases[0].effort is None
+
+
+def test_stamp_clears_a_stale_effort_the_way_it_clears_a_stale_model():
+    table = models_mod.parse({k: v for k, v in V6.items() if k != "efforts"}, source="v5")
+    case = _case("ASSUMPTIONS")
+    case.payload["effort"] = {"claude": "xhigh"}
+    case.effort = "xhigh"
+    models_mod.stamp([case], table, "claude")
+
+    assert "effort" not in case.payload
+    assert case.effort is None
+
+
+def test_an_effort_outside_the_cli_ladder_refuses_to_start():
+    bad = dict(V6, efforts={"claude": {"standard": "ultra"}})
+    with pytest.raises(models_mod.ModelsUnavailable) as refusal:
+        models_mod.parse(bad, source="bad")
+    assert "ultra" in str(refusal.value)
+    assert "low, medium, high, xhigh, max" in str(refusal.value)
+
+
+def test_an_effort_on_an_unknown_tier_refuses_to_start():
+    bad = dict(V6, efforts={"claude": {"premium": "medium"}})
+    with pytest.raises(models_mod.ModelsUnavailable) as refusal:
+        models_mod.parse(bad, source="bad")
+    assert "premium" in str(refusal.value)
+
+
+def test_an_effort_for_a_host_with_no_models_row_refuses_to_start():
+    """The one refusal `hosts` cannot give, and keel-cloud's `ModelRouting` gives it too: an effort
+    with no model beside it pins how hard to think about a model nobody named."""
+    bad = dict(V6, hosts={"claude": V6["hosts"]["claude"]},
+               efforts={"codex": {"standard": "medium"}})
+    with pytest.raises(models_mod.ModelsUnavailable) as refusal:
+        models_mod.parse(bad, source="bad")
+    assert "codex" in str(refusal.value)
+
+
+def test_an_efforts_block_that_is_not_an_object_refuses_to_start():
+    for value in ("medium", ["medium"], 7):
+        with pytest.raises(models_mod.ModelsUnavailable):
+            models_mod.parse(dict(V6, efforts=value), source="bad")

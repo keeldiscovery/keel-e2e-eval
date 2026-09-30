@@ -11,6 +11,20 @@ will send -- `case.payload["model"] = {<host>: <model>}` -- and never through th
 run judged this way is the run the table actually claims: `standard` on the assumption and brief
 cases, `light` on the readings, through the path a founder's job takes.
 
+**Since keel-cloud spec 047 (table v6, 2026-09-30) a pin has two halves**, and this module reads
+both. The table gains an optional `efforts` block of the same `host x tier` shape, and the wire
+gains a seventh key `effort` beside `model`; keel-runtime 0.6.0 turns it into `claude --effort
+<level>`. A certificate is a model AND an effort level: run `20260930T024851Z-instructions`
+certified `claude-sonnet-5-5` *at effort `medium`*, and the Claude Code CLI's own default is
+`xhigh` -- 3.7x the thinking and 2.4x the wall clock, for marks `medium` already holds.
+
+**And this is why the eval never wanted `CLAUDE_CODE_EFFORT_LEVEL`.** Until v6 the only way to run
+a subject at an effort was to export that variable, which is process-wide: it reached the judge too,
+and `judge.judge_env()` had to strip it by name so a run could not score itself at its own setting.
+The `effort` key is per job, travels the path a founder's job takes, and is recorded in the bundle
+-- so a run of record can now *state* the effort it was taken at instead of it being a fact about
+whoever typed the command.
+
 The file is the design's §4 shape, read whole and never copied:
 
     {"version": 1,
@@ -34,6 +48,15 @@ from pathlib import Path
 
 #: The wire's sixth key (design §5).
 MODEL_KEY = "model"
+
+#: The wire's seventh key (design §5, keel-cloud spec 047). Written beside `model` and only when
+#: the table pins one; absent means the CLI's own default, exactly as for `model`.
+EFFORT_KEY = "effort"
+
+#: The ladder an `efforts` value must name -- Claude Code 2.1.284's own `--effort` vocabulary
+#: (`keel-runtime/tests/fixtures/claude/effort-help.txt`), which is also the API's
+#: `output_config.effort` ladder and keel-cloud's `ModelRouting.EFFORT_LADDER`.
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
 
 #: The ladder (design §3): light → standard → frontier. Exactly these three, in this order.
 TIERS = ("light", "standard", "frontier")
@@ -82,6 +105,10 @@ class ModelTable:
     version: object = None
     source: str = ""
     tiers: tuple = field(default=TIERS)
+    #: The `efforts` block, `{host: {tier: effort}}` -- empty for a table older than v6, which
+    #: means "no effort anywhere" and therefore every CLI's own default, exactly as an absent
+    #: `hosts` row means the CLI's own model.
+    efforts: dict = field(default_factory=dict)
 
     def tier_for(self, job_class: str) -> str | None:
         return self.classes.get(job_class)
@@ -104,6 +131,36 @@ class ModelTable:
         """The wire's `model` value for one case -- `{host: model}` -- or `None` for no key."""
         model = self.resolve_kind(host, kind)
         return None if model is None else {host: model}
+
+    def resolve_effort(self, host: str, job_class: str) -> str | None:
+        """The effort this host pins for this class, or `None` -- the CLI's own default.
+
+        Looked up at the class's own tier and no other, which is what keeps a reading clean: the
+        `reading` class routes to `light`, keel-cloud's `light` row carries no effort, and `effort`
+        errors on Haiku 4.5.
+        """
+        tier = self.tier_for(job_class)
+        if tier is None:
+            return None
+        return (self.efforts.get(host) or {}).get(tier)
+
+    def resolve_effort_kind(self, host: str, kind: str) -> str | None:
+        return self.resolve_effort(host, KIND_TO_CLASS[kind])
+
+    def resolve_effort_screen(self, host: str, screen: str) -> str | None:
+        job_class = SCREEN_TO_CLASS.get(screen)
+        return None if job_class is None else self.resolve_effort(host, job_class)
+
+    def effort_job_map(self, host: str, kind: str) -> dict | None:
+        """The wire's `effort` value for one case -- `{host: effort}` -- or `None` for no key."""
+        effort = self.resolve_effort_kind(host, kind)
+        return None if effort is None else {host: effort}
+
+    def efforts_used(self, host: str) -> dict:
+        """The per-class record a verdict carries beside `models_used`, `None` where this host runs
+        the class at its CLI's own default."""
+        return {job_class: self.resolve_effort(host, job_class)
+                for job_class in ("assumptions", "reading", "brief")}
 
     def models_used(self, host: str) -> dict:
         """The per-class record a verdict carries: `{assumptions, reading, brief}`, `None` where
@@ -149,12 +206,39 @@ def parse(document: object, *, source: str = "") -> ModelTable:
         raise ModelsUnavailable(
             f"classes says nothing about {', '.join(missing)} -- every class this eval measures "
             "must name its tier, so that a missing one is never a silent default")
+    efforts = document.get("efforts")
+    if efforts is None:
+        efforts = {}
+    elif not isinstance(efforts, dict):
+        raise ModelsUnavailable(
+            f"{source or 'the model table'}: `efforts` must be an object of host -> tier -> "
+            "effort (keel-cloud model-routing-design.md §4, v6)")
+    else:
+        for host, row in efforts.items():
+            if not isinstance(row, dict):
+                raise ModelsUnavailable(f"efforts.{host} is not an object of tier -> effort")
+            if host not in hosts:
+                # keel-cloud refuses this at startup and so does this reader: an effort with no
+                # model beside it pins how hard to think about a model nobody named.
+                raise ModelsUnavailable(
+                    f"efforts.{host} has no `hosts` row -- an effort with no model beside it "
+                    "pins how hard to think about a model nobody named")
+            for tier, effort in row.items():
+                if tier not in TIERS:
+                    raise ModelsUnavailable(
+                        f"efforts.{host} names tier {tier!r}; the ladder is exactly "
+                        f"{', '.join(TIERS)}")
+                if effort not in EFFORTS:
+                    raise ModelsUnavailable(
+                        f"efforts.{host}.{tier} is {effort!r}; the CLI's ladder is exactly "
+                        f"{', '.join(EFFORTS)}")
     tiers = document.get("_tiers")
     if tiers is not None and tuple(tiers) != TIERS:
         raise ModelsUnavailable(
             f"_tiers is {tiers!r}; the ladder is exactly {list(TIERS)} (design §3)")
     return ModelTable(hosts={h: dict(r) for h, r in hosts.items()}, classes=dict(classes),
-                      version=document.get("version"), source=source)
+                      version=document.get("version"), source=source,
+                      efforts={h: dict(r) for h, r in efforts.items()})
 
 
 def load(path: Path) -> ModelTable:
@@ -207,19 +291,31 @@ def select(spec: str | None, *, host: str, exported=None, environ=None) -> Model
 
 
 def stamp(cases, table: ModelTable | None, host: str) -> None:
-    """Puts the wire's sixth key on every case the table pins, **after** the prompt is rendered:
-    the key is the cloud's choice, not the model's, and never appears in the prompt (design §5).
-    The payload order stays the cloud's -- the five keys `buildRequestPayload` writes, then
-    `model`."""
+    """Puts the wire's sixth and seventh keys on every case the table pins, **after** the prompt is
+    rendered: they are the cloud's choice, not the model's, and never appear in the prompt (design
+    §5). The payload order stays the cloud's -- the five keys `buildRequestPayload` writes, then
+    `model`, then `effort`.
+
+    `effort` is written only when the table pins one for that case's class, which since v6 means
+    the Sonnet-tier classes on `claude` and nothing else: a reading routes to `light`, whose row
+    carries no effort, because `effort` errors on Haiku 4.5. So a reading's payload is byte-
+    identical to the one this function wrote before v6, and so is every Codex and Copilot case's.
+    """
     for case in cases:
         case.model = None
+        case.effort = None
         case.payload.pop(MODEL_KEY, None)
+        case.payload.pop(EFFORT_KEY, None)
         if table is None:
             continue
         job_map = table.job_map(host, case.kind)
         if job_map is not None:
             case.payload[MODEL_KEY] = job_map
             case.model = job_map[host]
+        effort_map = table.effort_job_map(host, case.kind)
+        if effort_map is not None:
+            case.payload[EFFORT_KEY] = effort_map
+            case.effort = effort_map[host]
 
 
 def runtime_version(module) -> tuple:

@@ -81,14 +81,22 @@ class KeelHost(AgentHost):
     envelope_names_its_executor = False
     forbidden_flags = ()
     stdin_devnull = False
-    #: keel-cloud's own `keel.v2.keels-ai.job-timeout` is moving from `PT300S` to `PT600S`
-    #: (measured on the staging twin, run 36625025566, 2026-09-29): the assumptions job behind the
+    #: keel-cloud's own `keel.v2.keels-ai.job-timeout` moved from `PT300S` to `PT600S` (measured
+    #: on the staging twin, run 36625025566, 2026-09-29): the assumptions job behind the
     #: COMMERCIAL review card was measured there at ~280-290s at effort xhigh, close enough to the
-    #: old 300s ceiling that keel-cloud is raising it. 660 covers the new 600s ceiling plus the
-    #: same order of margin the old 480s (300 + 180) kept over the old one; the BRIEF job's own
-    #: wait -- S-012's other in-process job on this door -- is raised the same way and for the same
-    #: reason (spec 024 FR-010). The three CLI hosts are untouched: `AgentHost.keels_ai_job_wait_s`
-    #: stays 480 for them, because none of their jobs run against keel-cloud's clock at all.
+    #: old 300s ceiling that keel-cloud raised it. 660 covers the 600s ceiling plus the same order
+    #: of margin the old 480s (300 + 180) kept over the old one; the BRIEF job's own wait --
+    #: S-012's other in-process job on this door -- is raised the same way and for the same reason
+    #: (spec 024 FR-010). The three CLI hosts are untouched: `AgentHost.keels_ai_job_wait_s` stays
+    #: 480 for them, because none of their jobs run against keel-cloud's clock at all.
+    #:
+    #: **This number does NOT come down with keel-cloud spec 047 (2026-09-30), and that is the
+    #: point of saying so here.** That spec moved keel-cloud's own default effort to `medium`, and
+    #: at `medium` the same job should finish in well under a fifth of the time -- but it also left
+    #: every `InferenceCharge.timeout()` exactly where it was, deliberately, because those are the
+    #: API dispatcher's deadlines and the run that measured `medium` was a CLI run. A referee's
+    #: wait must cover the ceiling the subject is actually allowed, not the duration it is expected
+    #: to take, or a slow-but-legal job becomes a red cell.
     keels_ai_job_wait_s = 660.0
 
     def __init__(self, **kwargs):

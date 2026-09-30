@@ -381,6 +381,10 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         # keel-cloud model-routing-design.md §7: the per-class pins this run measured, `None`
         # where the host answered on its CLI's default; `null` for a single-model run.
         "models_used": table.models_used(args.host) if table else None,
+        # spec 047 / table v6: the other half of the pin, recorded the same way. A certificate is a
+        # model AND an effort level, so a verdict that named only the model would be claiming half
+        # of what it measured. `None` per class where this host runs at its CLI's own default.
+        "efforts_used": table.efforts_used(args.host) if table else None,
         "n_runs": args.n_runs,
         "cases": len(cases),
         "duration_s": round(time.monotonic() - started, 3),
@@ -454,6 +458,7 @@ def _model_block(args, facts, executor, pinned_model, reported_model, table=None
         # The per-class pins (model-routing-design.md §7), carried here so a rescore and the
         # report keep them; `None` for a single-model run.
         "models_used": table.models_used(args.host) if table else None,
+        "efforts_used": table.efforts_used(args.host) if table else None,
         "models_source": table.source if table else None,
         "job_timeout_seconds": getattr(executor, "timeout_seconds", None),
         "job_max_turns": getattr(executor, "max_turns", None),
@@ -484,6 +489,14 @@ def _manifest(args, facts, executor, pinned_model, reported_model, started_at,
         "model": {"pinned": pinned_model, "reported": reported_model,
                   "per_class": table.models_used(args.host) if table else None,
                   "table": table.source if table else None},
+        # spec 047: what the subject was asked to think at, per class, from the table's own
+        # `efforts` block -- and NOT from CLAUDE_CODE_EFFORT_LEVEL, which is process-wide and would
+        # reach the judge too. A manifest that could not state the effort could not state what the
+        # run measured, because the certificate is a pair.
+        "effort": {"per_class": table.efforts_used(args.host) if table else None,
+                   "how": ("the job's own `effort` key, keel-cloud model-routing-design.md §5"
+                           if table and table.efforts else
+                           "not pinned -- every CLI answered at its own default")},
         "marks_version": marks_mod.MARKS_VERSION,
         "n_runs": args.n_runs,
         "filter": args.filter,

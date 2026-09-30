@@ -310,13 +310,18 @@ So the Keel door is bought twice a Saturday: once whole, and once at one stage.
   kept in step. It returns the card un-approved and the caller decides.
 - **FR-025** **The expected spend, from the design.** `PROBLEM_FRAME` 30 credits +
   `PROBLEM_ASSUMPTIONS` 155 credits = **185 credits**, which is **$1.85 at list price** and
-  60,000 + 307,500 = **367,500 µUSD ≈ $0.37** of Keel's own measured inference at `xhigh`
+  60,000 + 132,500 = **192,500 µUSD ≈ $0.19** of Keel's own measured inference at `medium`
   (`ai-credits-design.md` §4.1's two rows, `n=21`, run of record
-  `20260913T024219Z-instructions`) — against 1,250 credits and about $2.44 for the whole journey
-  (§6.3). Ten framing runs cost less than two whole ones.
-- **FR-026** **Nothing here pins an effort.** `output_config.effort` is keel-cloud's, `xhigh` by
-  default (spec 045 FR-017); two runs of this cell against two settings differ by what keel-cloud
-  was configured with, and a referee that set it would be measuring itself. What the cell owes the
+  **`20260930T024851Z-instructions`**) — against 1,250 credits and about **$1.81** for the whole
+  journey (§6.3). Ten framing runs cost less than two whole ones, and the cell got cheaper without
+  changing: **the prices did not move, the measured cost behind them did** (keel-cloud spec 047).
+  Was 367,500 µUSD ≈ $0.37 against $2.44, at `xhigh` on the 2026-09-13 record.
+- **FR-026** **Nothing here pins an effort.** `output_config.effort` is keel-cloud's — **`medium`
+  by default since 2026-09-30** (spec 047; `xhigh` under spec 045 FR-017 before it); two runs of
+  this cell against two settings differ by what keel-cloud was configured with, and a referee that
+  set it would be measuring itself. That is **more** true now, not less: the effort a founder's own
+  CLI runs at comes from keel-cloud's routing table on the job wire, so a cell that exported
+  `CLAUDE_CODE_EFFORT_LEVEL` would be overriding the very thing the run exists to observe. What the cell owes the
   comparison is the **pair of numbers each run produced**, on the bundle, readable without opening
   a database: `facts.json` gains one line — *what the framing measured* — carrying the job count,
   the models that answered (`execution.model_used`), what keel-cloud says it paid
@@ -402,10 +407,13 @@ false`, which looks exactly like a keel-cloud that has not reported yet.
 - **It does not test the grant budget, the ledger, the daily cap or a refund.** All four are
   keel-cloud's, all four are observable from a database this repository does not open, and three of
   the four would need a second account or a broken key to reach.
-- **It does not assert a model id.** `model_requested` and `model_used` are recorded. Pinning
-  `claude-sonnet-5` here would put a fact about keel-cloud's routing table into a bundle that
-  cannot see the table, and spec 045's own Assumption 5 says the mismatch between `host: "api"` and
-  a `claude`-row model is deliberate.
+- **It does not assert a model id.** `model_requested` and `model_used` are recorded. Pinning one
+  here would put a fact about keel-cloud's routing table into a bundle that cannot see the table,
+  and spec 045's own Assumption 5 says the mismatch between `host: "api"` and a `claude`-row model
+  is deliberate. **2026-09-30 is what that rule bought**: keel-cloud's table went to v6 and the
+  `claude` `standard` row became `claude-sonnet-5-5`, and not one live assertion in this repository
+  had to move — only the stub wire bodies this repository's own unit tests feed to its readers,
+  which name a realistic id because a reader test needs one, and assert that the reader read it.
 - **It does not switch an account.** There is no route that does (keel-cloud spec 044 FR-013), so a
   cell that walked both doors would be two founders, which is two cells.
 - **It does not run on `per_change`, and it has no `short` cell.** `short` resolves — the length

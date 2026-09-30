@@ -183,6 +183,20 @@ acceptance: venv
 # keel-cloud's exporter wrote beside the contracts: the run of record for the cloud's own table.
 # Never beside `KEEL_<HOST>_MODEL` (the runtime drops it at 0.5.0); the run refuses both at once.
 #
+# **And since keel-cloud table v6 (spec 047, 2026-09-30) the same file pins the EFFORT**, through
+# the job's own `effort` key, from the table's `efforts` block at the same host x tier coordinate.
+# A certificate is a model AND an effort level: run 20260930T024851Z-instructions certified
+# claude-sonnet-5-5 *at effort medium*, and the Claude Code CLI's own default is xhigh.
+#
+# **Do not export CLAUDE_CODE_EFFORT_LEVEL to run at an effort.** It is process-wide: it reaches
+# the judge as well as the subject, which is the whole reason `instructions/judge.py` strips it by
+# name in `judge_env()` -- a run set that way would score itself at its own setting. With MODELS
+# the effort travels per job, on the path a founder's job takes, and the bundle RECORDS it
+# (`manifest.json`'s `effort.per_class`, the scorecard's and verdict's `efforts_used`), so a run of
+# record can state the effort it was taken at instead of it being a fact about whoever typed the
+# command. Readings are exempt by construction: `reading` routes to the `light` tier, whose row
+# carries no effort, because `effort` errors on Haiku 4.5.
+#
 # **WHY=<event>** (the founder, 2026-09-13, design §7.1): every run that spends says why --
 # `WHY=instruction:<file>`, `WHY=prompt:<file>`, `WHY=contract:<file>` earn a screen;
 # `WHY=new-model:<host>:<model>` earns the full run. Without one the run refuses at the door and
@@ -190,6 +204,8 @@ acceptance: venv
 #
 #   make instruction-screen HOST=codex WHY=contract:brief.md MODELS=candidates.json   one entry
 #   make instruction-eval HOST=codex WHY=new-model:codex:gpt-6-astra MODELS=exported   the certificate
+#   make instruction-eval HOST=claude WHY=new-model:claude:claude-sonnet-5-5 MODELS=exported
+#       -- the 2026-09-30 certificate's own shape: claude-sonnet-5-5 at medium, from the table
 instruction-screen: venv
 	$(PY) -m instructions.run --host $(if $(HOST),$(HOST),claude) \
 		$(if $(DRY),--dry-run,) -k "$(if $(K),$(K),01-countly)" -n $(if $(N),$(N),3) \

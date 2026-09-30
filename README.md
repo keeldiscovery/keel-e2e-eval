@@ -1475,8 +1475,10 @@ host leg plus the first model job, and that is **unchanged**; the Keel door has 
 run that stopped after one job there would have measured a claim with no lines under it. It stops
 on the review card, un-approved, reading the lines through the same function the full journey calls
 at the same point. `PROBLEM_FRAME` 30 + `PROBLEM_ASSUMPTIONS` 155 = **185 credits**, $1.85 at list
-price and **367,500 µUSD ≈ $0.37** of Keel's own inference at `xhigh` (design §4.1) — against
-about $2.44 for the whole journey. keel-cloud chooses the effort and this repository pins none;
+price and **192,500 µUSD ≈ $0.19** of Keel's own inference at `medium` (design §4.1, run of record
+`20260930T024851Z-instructions`) — against about **$1.81** for the whole journey. It was $0.37
+against $2.44 at `xhigh`: **the prices did not move, the measured cost behind them did**
+(keel-cloud spec 047). keel-cloud chooses the effort and this repository pins none;
 what the run leaves behind for the comparison is one line in `facts.json` naming the models that
 answered, what keel-cloud says it paid and how long the founder waited.
 

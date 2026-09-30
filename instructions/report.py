@@ -92,6 +92,9 @@ def write_case(run_dir: Path, case, answer, diff: dict, *, host: str = "claude")
         "reported_model": answer.reported_model,
         # The wire's own pin for this case (`instructions/models.py`), `None` on the CLI default.
         "model_requested": getattr(case, "model", None),
+        # Both halves of it (keel-cloud table v6): `None` on every reading by construction, because
+        # `reading` routes to the `light` tier whose row carries no effort.
+        "effort_requested": getattr(case, "effort", None),
         "duration_s": round(answer.duration_s, 3),
         "error": answer.error,
         "result": answer.result,
@@ -222,13 +225,23 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
 
     model = scorecard.get("model") or {}
     per_class = model.get("models_used")
+    per_class_effort = model.get("efforts_used") or {}
     if per_class:
         # keel-cloud model-routing-design.md §7: the pins went through the job's own `model`
-        # key, one per class -- the run the cloud's table actually claims.
-        pinned = (", pinned per job class through the job's own <code>model</code> key: "
-                  + " · ".join(f"{_esc(job_class)} <code>{_esc(name)}</code>" if name
-                               else f"{_esc(job_class)} <b>the CLI's default</b>"
-                               for job_class, name in per_class.items())
+        # key, one per class -- the run the cloud's table actually claims. Since table v6 the
+        # effort goes the same way and is named beside it, because a certificate is a pair and a
+        # header that gave only the model would be reporting half of what ran.
+        def _leg(job_class, name):
+            if not name:
+                return f"{_esc(job_class)} <b>the CLI's default</b>"
+            effort = per_class_effort.get(job_class)
+            at = (f" at <code>{_esc(effort)}</code>" if effort
+                  else " at <b>the CLI's own effort</b>")
+            return f"{_esc(job_class)} <code>{_esc(name)}</code>{at}"
+
+        pinned = (", pinned per job class through the job's own <code>model</code> and "
+                  "<code>effort</code> keys: "
+                  + " · ".join(_leg(job_class, name) for job_class, name in per_class.items())
                   + (f" (table: <code>{_esc(model.get('models_source'))}</code>)"
                      if model.get("models_source") else ""))
     elif model.get("pinned_model"):

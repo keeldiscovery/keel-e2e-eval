@@ -201,13 +201,13 @@ def test_the_execution_report_is_read_for_the_host_the_cost_and_the_two_models()
     facts = keel_host.execution_facts({
         "job_id": "j1", "status": "COMPLETED",
         "execution": {"host": "api", "host_version": "anthropic-java/1.2.3",
-                      "model_requested": "claude-sonnet-5", "model_used": "claude-sonnet-5",
-                      "retried_unpinned": False, "actual_cost_micro_usd": 307484}})
+                      "model_requested": "claude-sonnet-5-5", "model_used": "claude-sonnet-5-5",
+                      "retried_unpinned": False, "actual_cost_micro_usd": 132500}})
     assert facts["host"] == "api"
-    assert facts["actual_cost_micro_usd"] == 307484
+    assert facts["actual_cost_micro_usd"] == 132500
     assert facts["cost_reported"] is True
-    assert facts["model_requested"] == "claude-sonnet-5"
-    assert facts["model_used"] == "claude-sonnet-5"
+    assert facts["model_requested"] == "claude-sonnet-5-5"
+    assert facts["model_used"] == "claude-sonnet-5-5"
 
 
 def test_a_missing_cost_reads_as_not_reported_rather_than_as_zero():
@@ -757,10 +757,10 @@ JOB_DETAIL = {
     "execution": {
         "host": "api",
         "host_version": "anthropic-java/2.8.0",
-        "model_requested": "claude-sonnet-5",
-        "model_used": "claude-sonnet-5",
+        "model_requested": "claude-sonnet-5-5",
+        "model_used": "claude-sonnet-5-5",
         "retried_unpinned": False,
-        "actual_cost_micro_usd": 307484,
+        "actual_cost_micro_usd": 132500,
     },
 }
 
@@ -802,10 +802,10 @@ def test_the_report_is_read_from_the_jobs_own_detail_and_the_key_is_execution():
     row = rows[0]
     assert row["host"] == "api"
     assert row["host_version"] == "anthropic-java/2.8.0"
-    assert row["model_requested"] == "claude-sonnet-5"
-    assert row["model_used"] == "claude-sonnet-5"
+    assert row["model_requested"] == "claude-sonnet-5-5"
+    assert row["model_used"] == "claude-sonnet-5-5"
     assert row["retried_unpinned"] is False
-    assert row["actual_cost_micro_usd"] == 307484
+    assert row["actual_cost_micro_usd"] == 132500
     assert row["cost_reported"] is True
     # The screen is carried across from the interaction, because that is the only place it exists
     # -- and it is what tells PROBLEM_FRAME's 30 credits from PROBLEM_ASSUMPTIONS's 155.

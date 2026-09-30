@@ -294,22 +294,34 @@ class Answer:
 
 
 def _model_kwarg(executor_module, executor, request_payload: dict) -> dict:
-    """The model the job names for this executor's host, resolved by keel-runtime's own rule.
+    """The model AND the effort the job names for this executor's host, resolved by keel-runtime's
+    own rules.
 
     In production `keel_runtime.poller` reads `request_payload["model"][<host_key>]` into
-    `InferenceRequest.model` before an executor sees the job (spec 009); this eval calls the
-    executor directly and so must do the poller's one step itself -- through the poller's own
-    function, never a second copy of the rule. A runtime older than 0.5.0 has neither the field
-    nor the function, and gets nothing (its pin is on the executor, `models.apply_fallback`)."""
+    `InferenceRequest.model` before an executor sees the job (spec 009), and since keel-runtime
+    0.6.0 `request_payload["effort"][<host_key>]` into `InferenceRequest.effort` (spec 010); this
+    eval calls the executor directly and so must do the poller's steps itself -- **through the
+    poller's own functions, never a second copy of the rule**. That matters more for the effort than
+    it did for the model: the one thing this eval must never do is decide for itself how hard the
+    subject thinks, because then the bundle would record the referee's opinion rather than the
+    cloud's table.
+
+    A runtime that lacks either field or either function gets nothing for it, independently: 0.5.x
+    takes the model and no effort (its pin is on the executor, `models.apply_fallback`), and
+    anything older than 0.5.0 takes neither.
+    """
     import importlib  # noqa: PLC0415 - late, beside the late executor import
     try:
         poller = importlib.import_module(executor_module.__name__.rsplit(".", 1)[0] + ".poller")
-        resolve = poller._model_for
-    except (ImportError, AttributeError):
+    except ImportError:
         return {}
-    if "model" not in getattr(executor_module.InferenceRequest, "__dataclass_fields__", {}):
-        return {}
-    return {"model": resolve(executor, request_payload)}
+    fields = getattr(executor_module.InferenceRequest, "__dataclass_fields__", {})
+    kwargs = {}
+    for name, function in (("model", "_model_for"), ("effort", "_effort_for")):
+        resolve = getattr(poller, function, None)
+        if resolve is not None and name in fields:
+            kwargs[name] = resolve(executor, request_payload)
+    return kwargs
 
 
 def ask(executor_module, validator_module, executor, case) -> Answer:

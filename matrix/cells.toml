@@ -187,11 +187,13 @@ weekly = [
     # on this door would be a claim with no lines under it -- not a thing a founder ever sees.
     #
     # PROBLEM_FRAME 30 + PROBLEM_ASSUMPTIONS 155 = 185 credits, $1.85 at list price, and
-    # 60,000 + 307,500 = 367,500 microUSD -- about $0.37 of Keel's own inference at xhigh
-    # (ai-credits-design.md section 4.1's two measured rows), against $2.44 for the whole journey.
-    # keel-cloud chooses the effort and this repository pins none: two runs of this cell against
-    # two settings differ by keel-cloud's own configuration, and the bundle's facts.json carries
-    # the models, the cost and the wait so the pair can be read without opening a database.
+    # 60,000 + 132,500 = 192,500 microUSD -- about $0.19 of Keel's own inference at medium
+    # (ai-credits-design.md section 4.1's two measured rows, run of record
+    # 20260930T024851Z-instructions), against $1.81 for the whole journey. It was $0.37 against
+    # $2.44 at xhigh: the prices did not move, the measured cost behind them did (keel-cloud spec
+    # 047). keel-cloud chooses the effort and this repository pins none: two runs of this cell
+    # against two settings differ by keel-cloud's own configuration, and the bundle's facts.json
+    # carries the models, the cost and the wait so the pair can be read without opening a database.
     #
     # `legs` is part of a cell id since this cell exists: two Keel cells in one set are two runner
     # jobs, two bundles and two founders in the picker, and two cells cannot be one id (design
