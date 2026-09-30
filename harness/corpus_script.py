@@ -51,6 +51,10 @@ FRAME_SCREEN = {stage: f"{stage}_FRAME" for stage in STAGES}
 ASSUMPTIONS_SCREEN = {stage: f"{stage}_ASSUMPTIONS" for stage in STAGES}
 CORRECTION_SCREEN = {stage: f"{stage}_ASSUMPTIONS.correction" for stage in STAGES}
 BRIEF_SCREEN = "BRIEF"
+# keel-cloud spec 048: the one call that writes the project's one questionnaire, after every
+# framed stage is approved. It took the questionnaire off the three `*_ASSUMPTIONS` results, so a
+# script that still put one there would be scripting a shape production no longer sends.
+QUESTIONS_SCREEN = "QUESTIONS"
 
 # contracts/vendored-wire-facts.md §V4: `assumptions` and `questionnaire.anchors` are each
 # `maxItems: 8`. countly's PROBLEM stage is exactly 8 beliefs and 1 anchor -- at the cap, not over
@@ -365,21 +369,80 @@ def _assumption(entry, belief, offered: dict[str, dict], introduced: set[str],
     return assumption
 
 
-def _questionnaire_anchors(entry, stage: str) -> list[dict]:
+def measurement_index(entry) -> dict[str, int]:
+    """Every belief's **0-based, project-wide** index -- `ScreenContextBuilder.measurementsOf`'s own
+    walk, and the array a `QUESTIONS` selection's `reads` points into (keel-cloud 048 FR-011).
+
+    Three stages in the founder's own order, beliefs in introduction order, numbered once through.
+    Every corpus belief owns its measurement -- the frozen set was authored by hand against one
+    questionnaire and restates nothing -- so nothing is filtered out here.
+    """
+    index: dict[str, int] = {}
+    for stage in STAGES:
+        for belief in entry.beliefs_for(stage):
+            index[belief.id] = len(index)
+    return index
+
+
+def occasion_for(entry, anchor: dict) -> str:
+    """The occasion a `QUESTIONS` anchor names, **composed from the anchor's own id and nothing
+    else** (rule 1: the script carries no value the entry does not).
+
+    The contract wants two to five words (`ScreenResultApplier`, `one-occasion-once-design.md` §4)
+    and **the corpus carries none** -- its anchors were authored before the field existed. So it is
+    composed, the way `introduction_for` and `what_this_says_for` already are, and it is the same
+    three words keel-cloud's own `CorpusFixture` composes for the same reason.
+    """
+    return f"occasion of {anchor.get('id')}"
+
+
+def _questions_anchors(entry) -> list[dict]:
+    """The whole project's questionnaire, in the wire's `QUESTIONS` shape (048 FR-012).
+
+    **No `id`, no `control`, no `multiSelect` and no `options`** -- the server derives all four from
+    the beliefs a selection `reads` (048 FR-016 to FR-020), and an `options` value in the answer is
+    ignored. What the model writes is the occasion, the prompt, the taps and, per selection, which
+    measurements it asks about.
+    """
+    index = measurement_index(entry)
+    by_selection: dict[str, list[int]] = {}
+    for belief in entry.beliefs:
+        if belief.selection:
+            by_selection.setdefault(belief.selection, []).append(index[belief.id])
+
     anchors = []
-    for anchor in entry.anchors_for(stage):
+    for anchor in entry.questionnaire.get("anchors") or []:
+        selections = []
+        for selection in anchor.get("selections") or []:
+            reads = sorted(by_selection.get(selection["id"], []))
+            if not reads:
+                raise CorpusScriptError(
+                    f"{entry.id}: selection {selection['id']} on anchor {anchor.get('id')} is read "
+                    "by no belief, and 048 FR-017 refuses a selection that reads nothing")
+            written = {"reads": reads, "prompt": selection["prompt"]}
+            for key in ("escape", "other"):
+                if selection.get(key) is not None:
+                    written[key] = selection[key]
+            selections.append(written)
         written = {
-            "id": anchor["id"],
+            "occasion": occasion_for(entry, anchor),
             "prompt": anchor["prompt"],
-            # A corpus anchor carries a `stage`; the wire's questionnaire does not (the screen
-            # emits one stage's). `instructions/corpus.py`'s own note 3.
-            "selections": [{k: v for k, v in s.items() if k != "stage"}
-                           for s in anchor.get("selections") or []],
+            "selections": selections,
         }
         if anchor.get("taps"):
             written["taps"] = [tap_of(entry, t) for t in anchor["taps"]]
         anchors.append(written)
     return anchors
+
+
+def questions_result(entry) -> dict:
+    """The `QUESTIONS` screen's whole result: `{introduction, anchors}` and nothing else."""
+    anchors = _questions_anchors(entry)
+    if len(anchors) > MAX_ITEMS:
+        raise CorpusScriptError(
+            f"{entry.id}: the questionnaire has {len(anchors)} anchors; the wire caps them at "
+            f"maxItems {MAX_ITEMS} (vendored fact V4)")
+    return {"introduction": introduction_for(entry), "anchors": anchors}
 
 
 def introduction_for(entry) -> str:
@@ -456,19 +519,21 @@ def what_this_says_for(entry) -> str:
 
 
 def _assumptions_result(entry, stage: str) -> dict:
+    """One stage's card. **No `questionnaire`** (keel-cloud spec 048 FR-013): the assumptions
+    contract lost the object and its place in the required set, because one `QUESTIONS` call writes
+    the project's one questionnaire once every framed stage is approved. A script still emitting one
+    would be scripting a shape production no longer sends, and keel-cloud would refuse it."""
     offered = selections_for(entry, stage)
     introduced: set[str] = set()
     first_stage = introducing_stage(entry)
     beliefs = entry.beliefs_for(stage)
     assumptions = [_assumption(entry, b, offered, introduced, first_stage) for b in beliefs]
-    anchors = _questionnaire_anchors(entry, stage)
-    if len(assumptions) > MAX_ITEMS or len(anchors) > MAX_ITEMS:
+    if len(assumptions) > MAX_ITEMS:
         raise CorpusScriptError(
-            f"{entry.id}: {stage} has {len(assumptions)} beliefs and {len(anchors)} anchors; the "
-            f"wire caps each at maxItems {MAX_ITEMS} (vendored fact V4)")
+            f"{entry.id}: {stage} has {len(assumptions)} beliefs; the wire caps them at maxItems "
+            f"{MAX_ITEMS} (vendored fact V4)")
     return {
         "assumptions": assumptions,
-        "questionnaire": {"introduction": introduction_for(entry), "anchors": anchors},
         "normalization_rationale": normalization_rationale_for(entry),
     }
 
@@ -564,6 +629,11 @@ def generate(entry, *, correction: Correction | None = None) -> GeneratedScript:
     if correction is not None:
         screens[CORRECTION_SCREEN[correction.stage]] = [
             {"outcome": "COMPLETED", "result": correction_result(entry, correction)}]
+    # **One `QUESTIONS` entry an entry.** The job fires once, on the approval that makes every
+    # framed stage approved (048 FR-022), and it writes the whole project's questionnaire.
+    if entry.questionnaire.get("anchors"):
+        screens[QUESTIONS_SCREEN] = [
+            {"outcome": "COMPLETED", "result": questions_result(entry)}]
     interpret = _interpret_entries(entry)
     if interpret:
         screens["INTERPRET"] = interpret
@@ -654,10 +724,11 @@ def person_inputs(entry) -> list[PersonInputs]:
                 f"{entry.id}: {person.person!r} is role {role_id!r} and was offered anchor(s) "
                 f"{', '.join(strays)}, which that role is not asked")
 
-        # Scoped to this role's own anchors, never the whole entry (design decision 18, DRIFT
-        # #37): a selection id is unique only within one stage's own questionnaire, and another
-        # role, on another stage, may reuse it. Built fresh per person rather than once for the
-        # entry, so a reused id on a role this person is not asked never shadows their own.
+        # Scoped to this role's own anchors, never the whole entry. It read *decision 18, DRIFT
+        # #37* while a selection id was unique only within one stage's own questionnaire and
+        # another role on another stage could reuse it; `Q7` is project-wide now and ids no longer
+        # repeat, and the scoping stands for the reason that outlives it -- a person is offered
+        # only the anchors their role is asked, and a pick must resolve against one of those.
         by_selection = {s["id"]: s
                         for anchor in (entry.questionnaire.get("anchors") or [])
                         if anchor.get("id") in offered

@@ -2859,8 +2859,9 @@ class People:
 
     def go_to_preview(self) -> str:
         """P3 -- *Next — see what they'll be asked →*; returns the rendered preview text (the
-        participant page's own top, then the sections by stage -- design §7.2's own promise: "the
-        preview, as the person will see it")."""
+        participant page's own top, then one section per occasion -- design §7.2's own promise:
+        "the preview, as the person will see it"). It promised *the sections by stage* until
+        keel-cloud specs 048/049 made a section an occasion."""
         with self._scope():
             with self._bstep.step("founder previews what they'll be asked") as h:
                 self.page.get_by_role("button", name=re.compile("next", re.I)).click()
@@ -2869,6 +2870,21 @@ class People:
                 h.capture_text("invite_screen", preview)
                 h.add_screenshot(self._bstep.screenshot("people-send-popup-preview"))
         return preview
+
+    #: *"About N minutes"* on the founder's preview -- `SendPopup`'s own line, and the **only**
+    #: place `minutes` is rendered at all (`one-occasion-once-design.md` §4: it is not on the
+    #: participant page). The number is `FormComposer`'s `max(10, 2 x anchors + selections)`.
+    MINUTES_LINE = re.compile(r"About\s+(\d+)\s+minutes", re.I)
+
+    @classmethod
+    def preview_minutes(cls, preview: str) -> list[int]:
+        """Every *"About N minutes"* figure in a preview, as integers, in the order they appear.
+
+        A **list**, because the assertion that matters is that there is exactly one: three sections
+        each carrying their own estimate is precisely the shape one occasion asked once removes, and
+        a reader that returned the first would not be able to tell one from three.
+        """
+        return [int(m.group(1)) for m in cls.MINUTES_LINE.finditer(preview or "")]
 
     def generate_link(self, first_name: str | None = None) -> str:
         """P3→P4 -- *Generate <name>'s link*; waits for the link box and returns the URL shown --
@@ -3102,6 +3118,15 @@ class ParticipantPage:
         return _safe_all_texts(self.page, ".iv > p.hint")
 
     def sections(self) -> list[str]:
+        """The section titles on the participant's page, in page order.
+
+        **Load-bearing since spec 025** (FR-021). It was written with the page object and called by
+        nothing for as long as a section was a stage and a stage's title was a fixed string. Since
+        keel-cloud specs 048/049 **a section is an occasion**: one per anchor the project's one
+        questionnaire carries, titled by the occasion the model named, so the count is a fact about
+        the page and the titles are the model's own words. S-012 asserts the count against
+        `anchors()` and asserts that none of the three old stage titles is among them.
+        """
         return _safe_all_texts(self.page, ".sect")
 
     def _anchor_blocks(self):
@@ -3203,6 +3228,11 @@ class ParticipantPage:
         prompt puts every `S10` pick into `S7`'s block, which reads on the wire as `S7` moving to
         `MIXED` and `S10` reading `UNTESTED` with nobody's answer at all. Live-confirmed
         (`runs/20260907T150329Z-s006-paidly`). The anchor is the scope that makes a prompt unique.
+
+        **That is still true under one questionnaire.** `Q7` being project-wide makes the *ids*
+        unique; it says nothing about the *words*, and `05-paidly`'s two anchors are two different
+        occasions that happen to ask the same question about each. What changed is only the
+        vocabulary: two anchors, not two stages.
         """
         needle = " ".join(prompt.split())[:60]
         # `div.picks` is the anchor's **sibling**, not its child: `AnchorBlock` returns a fragment
@@ -3327,10 +3357,13 @@ class ParticipantPage:
                 continue
             self.tell_story(prompt, answer.text, tap=answer.tap)
             typed_anchors.append(answer.anchor_id)
-        # Scoped to this person's own anchors, never the whole entry (design decision 18, DRIFT
-        # #37): a selection id is unique only within one stage's own questionnaire and free to
-        # repeat on another's, so resolving a pick's owner against every anchor in the entry can
-        # find a different stage's same-named selection instead of this person's own.
+        # Scoped to this person's own anchors, never the whole entry. The scoping is unchanged and
+        # the reason is now the **id space itself**: since keel-cloud specs 048/049 a selection id
+        # is unique across the whole project (`Q7`, project-wide), so two selections can no longer
+        # share an id -- but a person is offered only the anchors their role is asked, and
+        # resolving a pick's owner against every anchor in the entry would still reach one this
+        # person never saw. (It read *decision 18, DRIFT #37* while ids repeated across stages;
+        # spec 049 supersedes that, and the scoping outlives the reason it was written for.)
         own_anchor_ids = {answer.anchor_id for answer in person.anchors}
         for pick in person.picks:
             owner, selection = None, None

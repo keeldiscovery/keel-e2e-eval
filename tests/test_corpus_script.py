@@ -81,8 +81,8 @@ def canned(tmp_path):
 def test_a_canned_entry_becomes_a_script_keyed_by_screen(canned):
     script = cs.generate(canned)
     assert set(script.screens) == {
-        "PROBLEM_FRAME", "SOLUTION_FRAME", "COMMERCIAL_FRAME", "PROBLEM_ASSUMPTIONS", "INTERPRET",
-        "BRIEF"}
+        "PROBLEM_FRAME", "SOLUTION_FRAME", "COMMERCIAL_FRAME", "PROBLEM_ASSUMPTIONS", "QUESTIONS",
+        "INTERPRET", "BRIEF"}
     # Rule 6: a screen the entry cannot produce is absent, not present-and-empty -- the executor
     # refusing by name is a better failure than answering the wrong shape.
     assert "SOLUTION_ASSUMPTIONS" not in script.screens
@@ -91,8 +91,11 @@ def test_a_canned_entry_becomes_a_script_keyed_by_screen(canned):
 
 def test_the_assumptions_envelope_is_the_contract_shape(canned):
     result = cs.generate(canned).screens["PROBLEM_ASSUMPTIONS"][0]["result"]
-    assert set(result) == {"assumptions", "questionnaire", "normalization_rationale"}
-    assert set(result["questionnaire"]) == {"introduction", "anchors"}
+    # **No `questionnaire`** since keel-cloud spec 048 FR-013 took the object off the assumptions
+    # contract: one `QUESTIONS` call writes the project's one questionnaire, once every framed
+    # stage is approved. A script still emitting one would be scripting a shape production no
+    # longer sends, and keel-cloud would refuse it.
+    assert set(result) == {"assumptions", "normalization_rationale"}
     first, second = result["assumptions"]
     # V4: there is no `askedOf` on the wire. The first belief naming a role introduces it; every
     # later one reuses it by label.
@@ -107,11 +110,30 @@ def test_the_assumptions_envelope_is_the_contract_shape(canned):
     assert "lower" in second["expectation"] and "upper" not in second["expectation"]
 
 
-def test_the_questionnaire_carries_enum_taps_and_no_stage_key(canned):
-    anchors = cs.generate(canned).screens["PROBLEM_ASSUMPTIONS"][0]["result"]["questionnaire"]["anchors"]
-    assert anchors[0]["taps"] == ["HASNT_HAPPENED", "CANT_RECALL"]
-    assert "stage" not in anchors[0]
-    assert all("stage" not in s for s in anchors[0]["selections"])
+def test_the_questionnaire_is_one_questions_entry_carrying_enum_taps_and_no_derived_keys(canned):
+    """keel-cloud 048 FR-012: the `QUESTIONS` contract has **no `id`, no `control`, no
+    `multiSelect` and no `options` anywhere in it**. The server derives all four from the beliefs a
+    selection `reads` (FR-016 to FR-020), and an `options` value in the answer is ignored -- so a
+    script that wrote one would be scripting a field production throws away."""
+    questions = cs.generate(canned).screens["QUESTIONS"]
+    assert len(questions) == 1, "one call a project, on the approval that approves the last stage"
+    result = questions[0]["result"]
+    assert set(result) == {"introduction", "anchors"}
+    anchor = result["anchors"][0]
+    assert set(anchor) == {"occasion", "prompt", "taps", "selections"}
+    assert anchor["taps"] == ["HASNT_HAPPENED", "CANT_RECALL"]
+    assert anchor["occasion"] == "occasion of A1"
+    for key in ("id", "stage", "stages"):
+        assert key not in anchor
+    for selection in anchor["selections"]:
+        assert set(selection) <= {"reads", "prompt", "escape", "other"}
+        assert selection["reads"], "048 FR-017 refuses a selection that reads nothing"
+
+
+def test_a_selections_reads_are_zero_based_project_wide_measurement_indices(canned):
+    selections = cs.generate(canned).screens["QUESTIONS"][0]["result"]["anchors"][0]["selections"]
+    assert [s["reads"] for s in selections] == [[0], [1]]
+    assert cs.measurement_index(canned) == {"B1": 0, "B2": 1}
 
 
 def test_interpret_is_one_entry_per_reading_in_order_and_omits_a_blank_anchor(canned):
@@ -135,8 +157,8 @@ def test_a_correction_re_emits_the_whole_card_plus_reply_and_changes(canned):
     correction = cs.Correction(stage="PROBLEM", belief_id="B1",
                                 message="line 1 is wrong", expected_change="It happened twice.")
     result = cs.generate(canned, correction=correction).screens["PROBLEM_ASSUMPTIONS.correction"][0]["result"]
-    assert set(result) >= {"assumptions", "questionnaire", "normalization_rationale",
-                            "reply", "changes"}
+    assert set(result) >= {"assumptions", "normalization_rationale", "reply", "changes"}
+    assert "questionnaire" not in result, "048 FR-013 took it off the card, correction and all"
     assert result["changes"] == [{"heading": "It happens", "before": "It happened.",
                                    "after": "It happened twice."}]
     assert result["assumptions"][0]["statement"] == "It happened twice."
@@ -158,17 +180,19 @@ def test_the_typed_inputs_carry_the_market_the_statements_and_every_pick(canned)
     assert people[1].written() == []
 
 
-# --------------------------------------------- Q7: a selection id belongs to its own stage alone
+# ------------------------------ Q7 is project-wide: a pick resolves against this role's own anchors
 
-def test_a_selection_id_reused_on_a_different_stage_resolves_to_its_own_stage(tmp_path):
-    """Measured-beliefs design decision 18, `Q7` (DRIFT #37): a selection id is unique only within
-    one stage's own questionnaire and free to repeat on another's -- a live model numbers every
-    stage fresh from `S1`. `by_selection` used to be built once for the whole entry, so whichever
-    stage's own `S1` happened to be authored last would silently validate every other stage's pick
-    against it too; `role_of_anchor` matched a bare selection id the same way. Here PROBLEM's own
-    `S1` is a yes/no and SOLUTION's own `S1` -- a different role's, on a different anchor -- is a
-    red/blue, and each person's pick is checked, and the script's two assumption cards and two
-    reading entries stay distinct rather than merged into one."""
+def test_a_pick_resolves_against_the_anchors_this_persons_role_is_actually_asked(tmp_path):
+    """**This test used to be about a selection id repeating across stages** (decision 18, DRIFT
+    #37): a live model numbered every stage fresh from `S1`, `by_selection` was built once for the
+    whole entry, and whichever stage's `S1` was authored last silently validated every other
+    stage's pick. keel-cloud specs 048/049 supersede that -- one questionnaire a project, `Q7`
+    project-wide, ids unique across the entry -- so two selections can no longer *be* `S1`.
+
+    **The scoping it was written for outlives the reason.** A person is offered only the anchors
+    their role is asked, and a pick must resolve against one of those; an entry-wide lookup would
+    still reach a selection this person never saw. That is what is asserted here, with two roles on
+    two anchors, and it is why `by_selection` is still built per person rather than once."""
     raw = copy.deepcopy(CANNED)
     raw["roles"].append({"id": "r2", "label": "Someone else", "roleType": "PRACTITIONER",
                           "about": "does another thing"})
@@ -176,10 +200,10 @@ def test_a_selection_id_reused_on_a_different_stage_resolves_to_its_own_stage(tm
         "id": "B3", "stage": "SOLUTION", "heading": "Which one", "statement": "It was the red one.",
         "risk": "LOAD_BEARING", "askedOf": "r2", "mark": "DIRECT",
         "expectation": {"type": "CHOICE", "options": ["red", "blue"], "expected": "red"},
-        "selection": "S1"})
+        "selection": "S3"})
     raw["questionnaire"]["anchors"].append({
         "id": "A2", "stages": ["SOLUTION"], "prompt": "Think of that again.",
-        "selections": [{"id": "S1", "prompt": "Which colour?", "control": "OPTIONS",
+        "selections": [{"id": "S3", "prompt": "Which colour?", "control": "OPTIONS",
                          "multiSelect": False, "options": ["red", "blue"],
                          "escape": ["can't recall"]}]})
     raw["answers"] = [
@@ -188,26 +212,26 @@ def test_a_selection_id_reused_on_a_different_stage_resolves_to_its_own_stage(tm
          "picks": {"S1": "yes", "S2": "1 h to 2 h"}},
         {"person": "Zora Okafor",
          "anchors": {"A2": {"text": "It was red, definitely.", "anchoring": "ANCHORED"}},
-         "picks": {"S1": "red"}},
+         "picks": {"S3": "red"}},
     ]
     entry = _entry(raw, tmp_path)
 
     screens = cs.generate(entry).screens
-    problem_s1 = screens["PROBLEM_ASSUMPTIONS"][0]["result"]["questionnaire"]["anchors"][0][
-        "selections"][0]
-    solution_s1 = screens["SOLUTION_ASSUMPTIONS"][0]["result"]["questionnaire"]["anchors"][0][
-        "selections"][0]
-    assert problem_s1["id"] == solution_s1["id"] == "S1"
-    assert problem_s1["options"] == ["yes", "no"]
-    assert solution_s1["options"] == ["red", "blue"]          # a different S1, on a different stage
 
-    # Each pick is validated against -- and carries only the value legal for -- its own stage's S1.
+    # One questionnaire, written once, carrying both anchors and every selection id once.
+    anchors = screens["QUESTIONS"][0]["result"]["anchors"]
+    assert [a["occasion"] for a in anchors] == ["occasion of A1", "occasion of A2"]
+    assert [s["reads"] for a in anchors for s in a["selections"]] == [[0], [1], [2]]
+
+    # Each person's pick resolves against the anchors their own role is asked, and nobody else's.
     people = cs.person_inputs(entry)
     by_name = {p.person: p for p in people}
     assert by_name["Ada Lovelace"].role_id == "r1"
     assert by_name["Zora Okafor"].role_id == "r2"
     assert by_name["Ada Lovelace"].pick("S1").values == ["yes"]
-    assert by_name["Zora Okafor"].pick("S1").values == ["red"]
+    assert by_name["Zora Okafor"].pick("S3").values == ["red"]
+    assert cs.anchors_for_role(entry, "r1") == ["A1"]
+    assert cs.anchors_for_role(entry, "r2") == ["A2"]
 
     # Two distinct reading entries, keyed by the **bare** `anchorId` (keel-cloud spec 049:
     # `AnchorRef` is a bare id) -- and still distinct, because `A1` and `A2` are two occasions.
@@ -316,7 +340,7 @@ def test_every_literal_in_the_script_came_from_the_entry(entry_id):
     allowed = _entry_strings(entry)
     allowed |= set(script.screens)                                   # screen keys
     allowed |= {"COMPLETED", "outcome", "result"}
-    allowed |= {"assumptions", "questionnaire", "introduction", "anchors",
+    allowed |= {"assumptions", "introduction", "anchors", "occasion", "reads",
                  "normalization_rationale", "heading", "statement", "risk", "mark",
                  "expectation", "selection", "role", "new", "reuse", "founderPhrase",
                  "label", "roleType", "about", "market", "id", "prompt", "control",
@@ -331,6 +355,10 @@ def test_every_literal_in_the_script_came_from_the_entry(entry_id):
     # what_the_entry_says` below is what holds it to that.
     allowed |= {cs.introduction_for(entry), cs.normalization_rationale_for(entry),
                 cs.what_this_says_for(entry)}
+    # And the fourth composed string: `occasion` is two to five words on the wire and **the corpus
+    # carries none** -- its anchors were authored before the field existed -- so it is composed
+    # from the anchor's own id and nothing else, the way the other three are.
+    allowed |= {cs.occasion_for(entry, a) for a in entry.questionnaire.get("anchors") or []}
 
     strays = sorted({s for s in _all_strings(script.screens) if s not in allowed})
     assert not strays, f"{entry_id}: the script carries values the entry does not: {strays}"
