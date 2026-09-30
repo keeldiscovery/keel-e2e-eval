@@ -60,7 +60,7 @@ class Case:
     """One prompt this run would send, and everything needed to explain it afterwards."""
 
     case_id: str
-    kind: str                 # ASSUMPTIONS | READING | BRIEF
+    kind: str                 # ASSUMPTIONS | QUESTIONS | READING | BRIEF
     entry_id: str
     screen: str
     subject: str              # the stage, or the person
@@ -141,15 +141,16 @@ def canonical_host(executor_module, host: str) -> str:
 def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_runs: int = 3,
                 host: str = "claude",
                 stages=("PROBLEM", "SOLUTION", "COMMERCIAL")) -> list:
-    """Every case one corpus entry produces: three assumption screens and one reading per person.
+    """Every case one corpus entry produces: three assumption screens, **one `QUESTIONS` call**, one
+    reading per person, and one brief.
 
     `n_runs` repeats each case, because a case that passes twice and fails once is an unstable
     instruction rather than a two-thirds one -- `score.py` reports the spread and averages nothing
     before it reports it.
     """
     from . import context as context_mod          # noqa: PLC0415 - avoids a circular import
-    from .contract import (SCREEN_BRIEF, SCREEN_READING,        # noqa: PLC0415
-                            SCREENS_ASSUMPTIONS)
+    from .contract import (SCREEN_BRIEF, SCREEN_QUESTIONS,      # noqa: PLC0415
+                            SCREEN_READING, SCREENS_ASSUMPTIONS)
 
     cases = []
     for stage in stages:
@@ -167,6 +168,23 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
             case.prompt = render(executor_module, payload, job_id=_slug(case.case_id),
                              host=host)
             cases.append(case)
+
+    # The `QUESTIONS` screen (keel-cloud spec 048): one call an entry, **after** the three
+    # assumptions cases and before the readings, because that is the order production runs them in
+    # -- the job fires on the approval that makes every framed stage approved (048 FR-022), and the
+    # case id is what `-k` filters on. It has no stage and no existing roles: it is handed the
+    # settled measurements and writes one questionnaire for the whole project.
+    keys = exported.keys_for(SCREEN_QUESTIONS)
+    contract = exported.for_screen(SCREEN_QUESTIONS)
+    context = context_mod.build_questions(entry, keys)
+    payload = payload_for(instructions_by_screen[SCREEN_QUESTIONS], context, contract)
+    for run_index in range(1, n_runs + 1):
+        case = Case(
+            case_id=f"{entry.id}/QUESTIONS/run{run_index}",
+            kind="QUESTIONS", entry_id=entry.id, screen=SCREEN_QUESTIONS, subject="QUESTIONS",
+            run_index=run_index, payload=payload)
+        case.prompt = render(executor_module, payload, job_id=_slug(case.case_id), host=host)
+        cases.append(case)
 
     keys = exported.keys_for(SCREEN_READING)
     contract = exported.for_screen(SCREEN_READING)

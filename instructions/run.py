@@ -8,7 +8,8 @@
                      else. **Two hosts' runs are different measurements and are never averaged.**
     --baseline       name the bundle `-instructions-baseline`, and say in the report that a red
                      result is the expected one
-    -k SUBSTRING     only cases whose case id contains it (`-k 01-countly`, `-k reading`)
+    -k SUBSTRING     only cases whose case id contains it (`-k 01-countly`, `-k reading`,
+                     `-k questions`)
     -n N             runs per case (default 3)
     --marks FILE     an alternative marks file
     --models FILE    a model-routing table (keel-cloud `model-routing-design.md` §4) pinning each
@@ -52,7 +53,8 @@ from . import validate as validate_mod
 COST_PER_CASE_ESTIMATE_USD = 0.06
 
 SCREENS = (list(contract_mod.SCREENS_ASSUMPTIONS.values())
-           + [contract_mod.SCREEN_READING, contract_mod.SCREEN_BRIEF])
+           + [contract_mod.SCREEN_QUESTIONS, contract_mod.SCREEN_READING,
+              contract_mod.SCREEN_BRIEF])
 
 
 def main(argv=None) -> int:
@@ -135,6 +137,7 @@ def _all_cases(corpus, exported, instructions, executor_module, args) -> list:
                  if needle in c.case_id.lower()
                  or (needle == "reading" and c.kind == "READING")
                  or (needle == "assumptions" and c.kind == "ASSUMPTIONS")
+                 or (needle == "questions" and c.kind == "QUESTIONS")
                  or (needle == "brief" and c.kind == "BRIEF")]
     return cases
 
@@ -162,7 +165,7 @@ def _dry_run(config, corpus, executor_module, args) -> int:
         print(f"  {screen:<24} keys: {exported.keys_for(screen)}")
     print()
 
-    shown = {"ASSUMPTIONS": False, "READING": False, "BRIEF": False}
+    shown = {"ASSUMPTIONS": False, "QUESTIONS": False, "READING": False, "BRIEF": False}
     for case in cases:
         if shown[case.kind]:
             continue
@@ -174,11 +177,12 @@ def _dry_run(config, corpus, executor_module, args) -> int:
         print()
 
     assumptions = sum(1 for c in cases if c.kind == "ASSUMPTIONS")
+    questions = sum(1 for c in cases if c.kind == "QUESTIONS")
     reading = sum(1 for c in cases if c.kind == "READING")
     brief = sum(1 for c in cases if c.kind == "BRIEF")
     print("-" * 100)
-    print(f"{len(cases)} cases: {assumptions} assumption, {reading} reading, {brief} brief, "
-          f"N={args.n_runs} runs per case")
+    print(f"{len(cases)} cases: {assumptions} assumption, {questions} questions, "
+          f"{reading} reading, {brief} brief, N={args.n_runs} runs per case")
     print(f"rough estimate at ${COST_PER_CASE_ESTIMATE_USD:.2f} a case: "
           f"${len(cases) * COST_PER_CASE_ESTIMATE_USD:.2f} of the founder's own money")
     print("nothing was called and nothing was spent")
@@ -250,6 +254,10 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     prompts, errored = [], 0
     schema_invalid = 0
     produced_sets = []
+    # The `QUESTIONS` answers, kept apart from `produced_sets` because they are a different shape
+    # and a different subject: they go to the aggregate and to `register.html`, and nothing scores
+    # them (spec 025 FR-017).
+    questionnaires = []
     total_cost = 0.0
     total_premium = 0.0
     premium_seen = False
@@ -294,6 +302,17 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
                     "deciding_lines": {
                         c.get("stage"): brief_mod.deciding_line(c)
                         for c in (case.payload.get("context") or {}).get("claims") or []}}
+        elif case.kind == "QUESTIONS":
+            # **Not scored** (FR-017, judgement call 10). It goes to the aggregate, where `Q5`,
+            # `Q6` and `Q8` are reachable, and to `register.html`, where a person reads the
+            # produced anchor prompts beside the corpus's own. A mark here would be similarity to
+            # one hand-written questionnaire.
+            score = None
+            if answer.schema_valid and answer.outcome == "COMPLETED" and answer.result:
+                questionnaires.append((case, answer.result))
+            diff = {"case_id": case.case_id, "kind": case.kind, "failed": failed,
+                    "questionnaire": (answer.result or {}).get("questionnaire")
+                    if isinstance(answer.result, dict) else None}
         elif case.kind == "READING":
             score = score_mod.score_reading(case, entry, people[(case.entry_id, case.subject)],
                                             answer.result, failed=failed)
@@ -324,17 +343,27 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     aggregate = {"accepted": 0, "refusals_by_rule": {}, "shape_refusals": 0, "case_faults": 0,
                  "by_case": {}}
     refusals_measured = False
-    if produced_sets:
+    unmet = []
+    shown_to_aggregate = produced_sets + questionnaires
+    if shown_to_aggregate:
+        batch = validate_mod.build_batch(shown_to_aggregate)
+        # FR-019: a shape this batch needs and keel-cloud's validator does not take makes the marks
+        # that depended on it **unmeasured**, by name. Never softened to a warning, never scored as
+        # a refusal -- an unmeasured mark is not a met mark (judgement call 13), and a green run
+        # that never showed the aggregate a questionnaire, or showed it a reference it had nothing
+        # to resolve against, is the one way this rubric could flatter itself.
+        unmet = validate_mod.unmet_prerequisites(config.keel_cloud, batch)
         try:
-            report = validate_mod.run(config.keel_cloud,
-                                      validate_mod.build_batch(produced_sets),
+            report = validate_mod.run(config.keel_cloud, batch,
                                       run_dir / "batch.json", run_dir / "validation.json")
             aggregate = validate_mod.fold_in(report)
-            refusals_measured = True
+            refusals_measured = not unmet
         except Exception as exc:                  # noqa: BLE001 - unmeasured, never mis-measured
             print(f"the aggregate could not be asked: {exc}", file=sys.stderr)
             (run_dir / "validation.json").write_text(
                 json.dumps({"unavailable": str(exc)}, indent=2), encoding="utf-8")
+        for reason in unmet:
+            print(f"the aggregate was asked a shape it does not take: {reason}", file=sys.stderr)
 
     totals = score_mod.totals(reading_scores, assumption_scores, errored=errored,
                               schema_invalid=schema_invalid,
@@ -351,6 +380,9 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         "model": _model_block(args, facts, executor, pinned_model, reported_model, table=table),
         "n_runs": args.n_runs,
         "aggregate": {k: v for k, v in aggregate.items() if k != "by_case"},
+        # FR-019: what the validator could not be asked, in its own words, on the one file a gate
+        # is read off. Empty is the ordinary case and says so.
+        "unmet_prerequisites": unmet,
         "judge_calls": judge.calls,
         "contract_manifest": exported.manifest,
         "reading": [_reading_json(s) for s in reading_scores],
@@ -377,6 +409,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         "errored": errored,
         "marks": judged,
         "marks_version": marks_mod.MARKS_VERSION,
+        "unmet_prerequisites": unmet,
         "model": scorecard["model"],
         # keel-cloud model-routing-design.md §7: the per-class pins this run measured, `None`
         # where the host answered on its CLI's default; `null` for a single-model run.
@@ -405,8 +438,8 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     # The one artefact with no number in it (FR-019). Keyed by entry+stage, taking the first run of
     # each case: the register is read once per instruction, not once per repetition.
     produced_by_case = {}
-    for case, result in produced_sets:
-        produced_by_case.setdefault(f"{case.entry_id}/{case.subject}", result)
+    for case, result in questionnaires:
+        produced_by_case.setdefault(case.entry_id, result)
     register = report_mod.render_register(
         run_dir, entries_by_market=report_mod.register_blocks(corpus, produced_by_case),
         paragraphs=report_mod.paragraph_blocks(corpus, brief_scores),
@@ -419,6 +452,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
           f"refusals {sum(totals['refusals_by_rule'].values()) if refusals_measured else 'not measured'}"
           f"{' of ' + str(totals['refusals_shown']) + ' judged' if refusals_measured else ''} · "
           f"brief {_fmt(totals['brief_paragraphs']) if totals['brief_measured'] else 'not measured'} · "
+          f"reads {totals['resolved_reads']} resolved / {totals['unresolved_reads']} not · "
           f"schema-invalid {totals['schema_invalid']} · errored {errored}")
     print(f"report: {path}")
     print(f"register (unscored, for a person who knows the market): {register}")
