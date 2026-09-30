@@ -273,59 +273,91 @@ def test_a_keel_web_push_deploys_the_twin_and_neither_wipes_nor_runs_a_cell():
     assert "PAYLOAD_REPO" in pick["env"]
 
 
-# ------------------------------------------------- the founder keeps the twin (2026-09-29)
+# ------------------------------------------- the founder keeps the twin up (2026-09-29/30)
 
-def test_the_dispatch_can_ask_for_the_twin_to_be_left_running():
-    """The founder, 2026-09-29: the twin is to stay up for manual testing until he says
-    otherwise. One `workflow_dispatch` input, default false, so nothing about an unattended run
-    changes."""
+def test_the_dispatch_can_ask_to_stop_the_twin():
+    """The founder, 2026-09-29/30: "keep the staging up for now until I say; let's use it for all
+    manual testing." The default flipped on 2026-09-30, and the input flipped with it: one
+    `workflow_dispatch` input, `stop_twin`, default false, so a dispatch that says nothing about it
+    leaves the twin running."""
     on = DOC[True] if True in DOC else DOC["on"]
-    keep = on["workflow_dispatch"]["inputs"]["keep_twin"]
-    assert keep["type"] == "boolean"
-    assert keep["default"] is False
-    assert keep["description"] == "leave the twin running after the cells, for manual testing"
+    inputs = on["workflow_dispatch"]["inputs"]
+    assert "keep_twin" not in inputs, (
+        "keep_twin is removed outright, not kept as a deprecated alias -- no caller outside this "
+        "workflow ever set it (the four senders POST repository_dispatch, which carries no "
+        "workflow_dispatch inputs at all), so there is nothing an ignored alias would protect")
+    stop = inputs["stop_twin"]
+    assert stop["type"] == "boolean"
+    assert stop["default"] is False
+    assert stop["description"] == (
+        "stop the twin after the cells; the founder keeps it running for manual testing until he "
+        "says otherwise")
 
 
-def test_keep_twin_skips_the_stop_and_leaves_every_other_condition_where_it_was():
-    """The two properties worth an assertion each:
+def test_stop_twin_true_is_the_only_thing_that_runs_the_stop():
+    """The two properties worth an assertion each, both inverted from before 2026-09-30 but
+    otherwise unchanged:
 
-    1. the flag is **ANDed onto** `stop-staging`'s existing `if`, so a red cell, a cancelled run
-       and a cells-only dispatch all still behave exactly as spec 023 built them; and
-    2. nothing in that condition reads the cells' result, so a FAILED cell still stops the twin
-       when `keep_twin` is false.
+    1. `stop_twin == true` is **ANDed onto** `stop-staging`'s existing `if`, so a cancelled run and
+       a cells-only dispatch still behave exactly as spec 023 built them (deploy-gated, always());
+       and
+    2. nothing in that condition reads the cells' result, so a FAILED cell does not stop the twin
+       either -- only the founder's own flag does.
     """
     condition = JOBS["stop-staging"]["if"]
     assert condition == ("always() && needs.select.outputs.deploy == 'true' "
-                         "&& inputs.keep_twin != true")
+                         "&& inputs.stop_twin == true")
     assert "needs.cell.result" not in condition, (
-        "a red cell must still stop the twin; only the founder's own flag may keep it up")
+        "a red cell must not stop the twin on its own; only the founder's own flag may take it down")
     assert JOBS["stop-staging"]["needs"] == ["select", "deploy-staging", "cell"]
 
 
-def test_an_unattended_run_never_keeps_the_twin():
-    """`keep_twin` is a dispatch input and nothing else. On a push, a schedule or a
-    repository_dispatch `inputs.keep_twin` is null, `null != true` is true, and `stop-staging`
-    runs -- which is the whole of spec 023's bill still holding for every automatic run."""
+def test_a_push_leaves_the_twin_up():
+    """`stop_twin` is a dispatch input and nothing else. On a push (or a schedule or a
+    repository_dispatch) `inputs.stop_twin` is null, `null == true` is false, and `stop-staging`
+    does not run -- the twin stays up for every unattended run, which is the founder's standing
+    instruction holding by default now rather than by exception."""
     on = DOC[True] if True in DOC else DOC["on"]
     for event in ("push", "schedule", "repository_dispatch"):
         assert event in on
         assert not isinstance(on[event], dict) or "inputs" not in on[event]
 
 
-def test_the_summary_says_when_the_twin_was_left_up_because_stop_staging_cannot():
-    """`stop-staging` is skipped **whole**, so the sentence that explains an unstopped box cannot
-    live inside it. It lives where the founder reads the table."""
+def test_a_dispatch_with_no_stop_twin_also_leaves_the_twin_up():
+    """`stop_twin`'s own default is false, so a hand dispatch that says nothing about it -- exactly
+    like a push -- leaves `inputs.stop_twin` false and `stop-staging` does not run."""
+    on = DOC[True] if True in DOC else DOC["on"]
+    assert on["workflow_dispatch"]["inputs"]["stop_twin"]["default"] is False
+
+
+def test_a_red_cell_does_not_stop_the_twin():
+    """A FAILED cell is exactly the case spec 023 built `stop-staging` to still fire for -- and
+    exactly the case the founder's standing instruction must not be overridden by. Neither
+    `needs.cell.result` nor any other read of the cells' outcome appears in the condition, so a red
+    cell is indistinguishable from a green one here: only `inputs.stop_twin == true` stops the
+    twin."""
+    condition = JOBS["stop-staging"]["if"]
+    assert "cell.result" not in condition
+    assert "outputs.red" not in condition
+    assert condition.count("inputs.stop_twin") == 1
+
+
+def test_the_summary_says_when_the_twin_is_left_running():
+    """`stop-staging` is skipped whenever the twin is left up -- since 2026-09-30, every run that
+    does not say `stop_twin: true` -- so the sentence that explains it cannot live inside that job.
+    It lives where the founder reads the table."""
     step = step_named("summary", "Say so when the twin was left running")
-    assert step["if"] == ("always() && inputs.keep_twin == true "
-                          "&& needs.select.outputs.deploy == 'true'")
-    assert "kept running at the founder's request" in step["run"]
+    assert step["if"] == ("always() && needs.select.outputs.deploy == 'true' "
+                          "&& inputs.stop_twin != true")
+    assert "The twin was left running (the founder's standing instruction, 2026-09-29)" in step["run"]
     assert "$KEEL_REMOTE_WEB_URL" in step["run"], (
         "the note is worth nothing without the address the founder asked for the box in order to "
         "open")
 
 
 def test_the_start_tolerates_a_twin_that_is_already_running_and_one_still_stopping():
-    """Since `keep_twin`, an already-running twin is the ordinary case. `start-instances` on a
+    """Since the default flipped on 2026-09-30, an already-running twin is the ordinary case.
+    `start-instances` on a
     `running` instance is a no-op that answers 200, so the step is correct without asking; the one
     state it cannot start from is `stopping`, which a previous run's own `stop-staging` leaves
     behind for a minute -- so a refused call is retried rather than fatal."""

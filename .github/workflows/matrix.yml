@@ -23,19 +23,31 @@
 # Saturday, and never on a merge. There is NO nightly since 2026-09-13 (the founder: "we cannot
 # afford a nightly run"). That is why `[skip e2e]` in a commit message exists in the senders.
 #
-# THE TWIN IS OFF BETWEEN RUNS (spec 023; design §16, the founder, 2026-09-23: "staging being
-# ephemeral"). `deploy-staging` starts the instance before it deploys and `stop-staging` stops it
-# after the cells, whatever they did -- green, red or cancelled. A stopped twin pays for its disk
-# and its address and nothing else. A hand dispatch with `deploy: false` neither starts nor stops
-# it: cells only means the founder brought the box up, and the referee does not take it down.
+# THE TWIN STAYS UP BETWEEN RUNS, BY DEFAULT, SINCE 2026-09-30 (spec 023's "ephemeral" design of
+# 2026-09-23, amended by the founder, 2026-09-29/30: "keep the staging up for now until I say;
+# let's use it for all manual testing"). `deploy-staging` starts the instance before it deploys
+# (a no-op when it is already up); `stop-staging` now runs ONLY when a hand dispatch explicitly
+# says `stop_twin: true`. A stopped twin pays for its disk and its address and nothing else; a
+# running one is a t4g.micro's dollars a week, which the founder has chosen to spend so the box is
+# always there for him to sign into. A hand dispatch with `deploy: false` neither starts nor stops
+# it either way: cells only means the founder brought the box up, and the referee does not take it
+# down.
 #
-# ...UNLESS THE FOUNDER ASKS FOR IT BACK (the founder, 2026-09-29: the twin is to stay up for
-# manual testing until he says otherwise). `keep_twin: true` on a hand dispatch skips `stop-staging`
-# and says so in the summary. It is a DISPATCH INPUT and nothing else: a push, a schedule or a
-# repository dispatch carries no such input, so `inputs.keep_twin` is null there, `null != true`,
-# and the twin still goes off after every unattended run. The bill is the founder's to accept for
-# as long as he wants the box: a t4g.micro left running is dollars a week, not the tens of hours a
-# month spec 023 was written for (A-11).
+# DATED NOTE (2026-09-30): until today this section read the other way around -- the twin was OFF
+# between runs by default, and a hand dispatch had to say `keep_twin: true` to leave it up. The
+# founder's 2026-09-29/30 instruction inverted the default, so the input inverted with it:
+# `keep_twin` is REMOVED, not kept as a deprecated alias -- nothing outside this workflow ever set
+# it (the four senders in keel-cloud, keel-runtime, keel-web and keel-connect-skill each POST
+# `repository_dispatch`, which carries no `workflow_dispatch` inputs at all), so there is no caller
+# a silently-ignored alias would be protecting, and keeping one around would only invite a founder
+# to type `keep_twin: true` on some future dispatch and read nothing back for it. `stop_twin: true`
+# on a hand dispatch is what takes the box down now, and it IS a DISPATCH INPUT and nothing else:
+# a push, a schedule or a repository dispatch carries no such input, so `inputs.stop_twin` is null
+# there, `null == true` is false, and the twin stays up after every unattended run too -- which is
+# the property the founder asked for (A-11's tens-of-hours figure was the cost of redeploying an
+# ephemeral twin on every push, not the cost of leaving a running one up; that bill is his to
+# accept for as long as he wants the box, and `stop_twin: true` (or a stop from the Mac) is how he
+# takes it back when he says otherwise).
 #
 # WHAT IT NEVER DOES (invariants M2, M3, M8). It never touches production: the AWS role it assumes
 # cannot see `keel-prod` or read `/keel/prod/*`, by policy rather than by convention. A green
@@ -76,11 +88,11 @@ on:
         type: boolean
         default: true
       wipe:
-        description: "after the deploy, wipe the twin (reset.sh: the database and the registry go; the tag comes back up) so it holds only this run's founders. Ignored when deploy is false (the box is started first and stopped after, unless keep_twin says otherwise)"
+        description: "after the deploy, wipe the twin (reset.sh: the database and the registry go; the tag comes back up) so it holds only this run's founders. Ignored when deploy is false (the box is started first and left running after the cells, unless stop_twin says otherwise)"
         type: boolean
         default: true
-      keep_twin:
-        description: "leave the twin running after the cells, for manual testing"
+      stop_twin:
+        description: "stop the twin after the cells; the founder keeps it running for manual testing until he says otherwise"
         type: boolean
         default: false
 
@@ -349,8 +361,9 @@ jobs:
           echo "AWS_PROFILE=default" >> "$GITHUB_ENV"
           aws sts get-caller-identity --query Arn --output text
 
-      # THE TWIN IS OFF UNTIL THIS STEP (spec 023, design §16) -- OR IT IS ALREADY UP, which since
-      # `keep_twin` (2026-09-29) is the ordinary case rather than the unusual one. `start-instances`
+      # THE TWIN IS OFF UNTIL THIS STEP (spec 023, design §16) -- OR, since the default flipped on
+      # 2026-09-30, IT IS ALREADY UP, which is now the ordinary case rather than the unusual one.
+      # `start-instances`
       # on a `running` instance is a NO-OP: AWS answers 200 with PreviousState=CurrentState=running
       # and starts nothing, so this step is correct whichever state the box is in and asserts no
       # transition. The one state it cannot start from is `stopping` (IncorrectInstanceState), which
@@ -392,8 +405,8 @@ jobs:
       # about a minute to boot and for the SSM agent to register; five minutes is the ceiling.
       #
       # It asserts NO TRANSITION, which is why it still reads right on an already-running twin
-      # (`keep_twin`, 2026-09-29): the question is "does the box do what it is told", and a box
-      # that has been up for a week answers it on the first attempt and passes immediately.
+      # (the ordinary case since the default flipped on 2026-09-30): the question is "does the box
+      # do what it is told", and a box that has been up for a week answers it on the first attempt.
       # Nothing here compares a before-state with an after-state, and nothing here would notice.
       - name: Wait for the twin
         shell: bash
@@ -412,7 +425,7 @@ jobs:
                 case "$status" in
                   Success)
                     echo "attempt $attempt: the twin answers over SSM."
-                    echo "The twin was started for this run (spec 023); \`stop-staging\` stops it after the cells." >> "$GITHUB_STEP_SUMMARY"
+                    echo "The twin is up for this run (spec 023); it stays running afterward unless this dispatch asked for \`stop_twin: true\`." >> "$GITHUB_STEP_SUMMARY"
                     exit 0 ;;
                   Failed|Cancelled|TimedOut|Undeliverable|Terminated) break ;;
                 esac
@@ -934,23 +947,27 @@ jobs:
 
   # -------------------------------------------------------------------------------- stop-staging
   #
-  # THE TWIN GOES BACK OFF (spec 023, design §16). Its own job, not a step in `summary`: that job's
+  # THE TWIN GOES BACK OFF -- BUT ONLY WHEN ASKED (spec 023, design §16, amended by the founder's
+  # standing instruction of 2026-09-29/30). Its own job, not a step in `summary`: that job's
   # permissions omit `id-token` on purpose (spec 021 -- "nothing in this job goes near AWS"), and
   # a stop is an AWS call, so it lives with the other AWS calls under a block that may mint the
-  # token. `always()` so it runs on green, on red and on cancel; gated on `deploy` so a run that
-  # did not start the box does not stop a box the founder started by hand. The role's
-  # StartStopStaging statement (keel-cloud spec 043) reaches keel-staging and nothing else.
+  # token. `always()` so it would run on green, on red and on cancel alike; gated on `deploy` so a
+  # run that did not start the box never stops a box the founder started by hand.
   #
-  # ...AND IT IS SKIPPED WHOLE WHEN THE FOUNDER ASKED TO KEEP IT (2026-09-29). `keep_twin` is a
-  # `workflow_dispatch` input, so on a push, a schedule or a repository dispatch `inputs.keep_twin`
-  # is null; `null != true`, and every unattended run still stops the box. The `always()` and the
-  # `deploy` gate are untouched by it, which is the property that matters: a RED cell still stops
-  # the twin when `keep_twin` is false, because the two conditions are ANDed and neither reads the
-  # cells' result.
+  # ...AND, SINCE 2026-09-30, GATED ON `stop_twin` TOO -- INVERTED FROM WHAT IT WAS. Until today
+  # this job ran on every unattended run and was skipped only when a hand dispatch said
+  # `keep_twin: true`; now it is skipped by default and runs only when a hand dispatch says
+  # `stop_twin: true`. `stop_twin` is a `workflow_dispatch` input, so on a push, a schedule or a
+  # repository dispatch `inputs.stop_twin` is null; `null == true` is false, and the twin stays up
+  # after every unattended run. The `always()` and the `deploy` gate are untouched by the flip,
+  # which is the property that matters: a RED cell still leaves the decision to `stop_twin` alone,
+  # because none of the three conditions reads the cells' result -- a red cell no more stops the
+  # twin on its own than it did before. The role's StartStopStaging statement (keel-cloud spec 043)
+  # reaches keel-staging and nothing else.
   stop-staging:
     name: stop the twin
     needs: [select, deploy-staging, cell]
-    if: always() && needs.select.outputs.deploy == 'true' && inputs.keep_twin != true
+    if: always() && needs.select.outputs.deploy == 'true' && inputs.stop_twin == true
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -1007,15 +1024,16 @@ jobs:
           path: rows
           merge-multiple: false
 
-      # `stop-staging` is skipped whole when the founder asked to keep the box, so the sentence
-      # that says so cannot live in it. It lives here, where the founder reads the table, and it
-      # names the address they asked for the box in order to open.
+      # `stop-staging` is skipped whole whenever the twin is left up -- which, since 2026-09-30, is
+      # every run that does not say `stop_twin: true` -- so the sentence that says so cannot live
+      # in it. It lives here, where the founder reads the table, and it names the address he asked
+      # to keep up in order to open it.
       - name: Say so when the twin was left running
-        if: always() && inputs.keep_twin == true && needs.select.outputs.deploy == 'true'
+        if: always() && needs.select.outputs.deploy == 'true' && inputs.stop_twin != true
         shell: bash
         run: |
           set -euo pipefail
-          echo "The twin was **kept running at the founder's request** (\`keep_twin: true\`) — $KEEL_REMOTE_WEB_URL. It stays up, and costs its instance-hours, until a run without the flag stops it or the founder stops it from the Mac." >> "$GITHUB_STEP_SUMMARY"
+          echo "The twin was left running (the founder's standing instruction, 2026-09-29) — $KEEL_REMOTE_WEB_URL. It stays up, and costs its instance-hours, until a run with \`stop_twin: true\` stops it or the founder stops it from the Mac." >> "$GITHUB_STEP_SUMMARY"
 
       - id: table
         name: One table

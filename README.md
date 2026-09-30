@@ -973,15 +973,39 @@ repository variable `KEEL_STAGING_ENABLED` being exactly `true`; until then a pu
 job that prints one line and stops. That is what makes these workflows safe to merge before the
 twin exists.
 
-**The twin is off between runs** (spec `023-staging-on-demand`; design §16, 2026-09-23). The
-deploy job starts the instance and waits for it to answer over SSM before it deploys, and a
-`stop-staging` job stops it after the cells, whether they were green, red or cancelled. A stopped
-twin costs its disk and its address and nothing else. Two consequences for a hand dispatch: with
-`deploy: true` (the default) the run brings the box up and takes it down; with `deploy: false`
-the run neither starts nor stops it, so **against a stopped twin a cells-only dispatch fails at
-the gate, by design** — dispatch with `deploy: true`, or start the box from the Mac first and
-stop it after. The CI role may start and stop `keel-staging` and no other instance (keel-cloud
+**The twin stays up between runs, by default, since 2026-09-30** (spec `023-staging-on-demand`'s
+"ephemeral" design of 2026-09-23, amended by the founder, 2026-09-29/30: *"keep the staging up for
+now until I say; let's use it for all manual testing."*). The deploy job starts the instance
+(a no-op if it is already up) and waits for it to answer over SSM before it deploys; the
+`stop-staging` job now runs **only** when a hand dispatch says `stop_twin: true` — never on a
+push, the schedule or a `repository_dispatch`. A stopped twin costs its disk and its address and
+nothing else; a running one is a t4g.micro's dollars a week, which the founder has chosen to
+spend so the box is always there for him to sign into. Two consequences for a hand dispatch: with
+`deploy: true` (the default) the run brings the box up (or leaves it up) and, only with
+`stop_twin: true`, takes it down after; with `deploy: false` the run neither starts nor stops it
+regardless of `stop_twin` — cells only means the founder brought the box up, and the referee does
+not take it down. The CI role may start and stop `keel-staging` and no other instance (keel-cloud
 spec 043).
+
+*(`keep_twin`, the input this replaced, is removed outright rather than kept as a deprecated
+alias: nothing outside this workflow ever set it — the four senders in keel-cloud, keel-runtime,
+keel-web and keel-connect-skill each POST `repository_dispatch`, which carries no
+`workflow_dispatch` inputs at all — so there was no caller for a silently-ignored alias to
+protect.)*
+
+**To stop the twin by hand**, dispatch with `stop_twin: true`. To do that without also spending a
+model run or touching what the twin currently holds, pair it with the `nightly` set (§15's own
+trick: `nightly = []` in `matrix/cells.toml`, kept exactly so a hand dispatch can resolve to zero
+cells) and `wipe: false`:
+
+```bash
+gh workflow run matrix.yml -f set=nightly -f wipe=false -f stop_twin=true
+```
+
+`deploy` is left at its default (`true`), which is what lets `deploy-staging` — and so
+`stop-staging`, which is gated on it — run at all; `set: nightly` runs no cell and spends nothing;
+`wipe: false` leaves whatever the founder was reviewing on the twin exactly as it was, right up
+until the stop.
 
 ### What the founder must set, once
 
