@@ -103,7 +103,7 @@ import pytest
 
 from evals.preludes import create_project, own_ai_door
 from harness import (agent_host, canary as canary_mod, corpus_script,
-                     keel_host as keels_ai, refusals)
+                     keel_host as keels_ai, refusals, stranger_stories)
 from stack import remote
 from harness.browser import (Auth, Chat, Connect, Landing, OpenedCard, Overview, ParticipantPage,
                               People, PrintPage, ReviewCard, Shell)
@@ -927,11 +927,21 @@ def _agent_answers(chat, recorder, get_json, project_id, stage, *, timeout_s):
         return {"stopped": stopped, "agent_reply": ""}
 
 
-#: **The last resort, and only that** (spec 021). The stranger's words are the corpus person's own
-#: -- one story per anchor they wrote under, in the corpus's own order -- and this sentence is used
-#: only where a live model wrote more anchors than that person has stories for. Its *content* is
-#: asserted nowhere either way: what leg two needs from the stranger is that a real answer reached
-#: keel-cloud and produced a reading, not that any particular words did.
+#: **Retired by spec 028, and kept so the lesson can be grepped for.** This was the last resort
+#: wherever a live model wrote more anchors than the corpus person had stories for, and matrix run
+#: 36895521843 is what it cost: the host wrote four anchors, Lullaby's revised corpus carries two
+#: stories, and this sentence went under the other two. keel-cloud's INTERPRET read it correctly --
+#: it is somebody saying they are *thinking of* an occasion, which is a **guess**, and a guess is
+#: `BeliefStanding.guessed`'s own *"answers shown to the founder that count towards nothing"*. So
+#: the five commercial picks were made, stored, shown and counted for nothing: `untested: 5` of
+#: `total: 5` with `peopleAnswered: 5`, and §1.7 then blamed keel-web's panel for drawing no rows
+#: it had nothing to draw.
+#:
+#: `harness/stranger_stories.py` replaced it with three honest paths -- this person's own matching
+#: story, a sentence composed from this person's own facts, or a tapped escape. **Nothing types
+#: this constant.** `tests/test_stranger_stories.py::test_the_filler_is_named_exactly_once_in_the
+#: _journey_and_typed_nowhere` is the assertion that it stays that way; AGENTS.md's rule is invert
+#: or move, never delete, and a deleted constant is a lesson nobody can grep for.
 THE_STRANGER_SAYS = ("I am thinking of the last time this happened to me, and it went much the "
                      "way I described above.")
 
@@ -943,14 +953,13 @@ THE_STRANGER_SAYS = ("I am thinking of the last time this happened to me, and it
 OLD_STAGE_SECTION_TITLES = ("About your work", "About a possible tool", "About buying software")
 
 
-def _story_texts(person) -> list[str]:
-    """The corpus person's own story text, per anchor they wrote under, in the corpus's order.
-
-    `PersonInputs.written()` is `harness/corpus_script.py`'s own reading of *wrote something* --
-    the same one the six scripted scenarios type from -- so a blank anchor in the corpus is a
-    blank anchor here and this repository has one answer to that question, not two.
-    """
-    return [(a.text or "").strip() for a in person.written() if (a.text or "").strip()]
+#: **`_story_texts` stood here and is gone** (spec 028 T022). It answered *this person's stories,
+#: in the corpus's order*, and the caller handed them out **by position** -- which is how the
+#: corpus's app-purchase story ended up under the host's *"opened an app during a night waking"*
+#: while the host's *"the last baby app you bought"* got the filler. Order was never the question.
+#: `stranger_stories.plan()` is this repository's one reading of *which words this stranger types*,
+#: it matches by occasion, and it still reads `PersonInputs.written()` through
+#: `instructions/corpus.py` -- so there is still exactly one reading of *wrote something*.
 
 
 def _their_pick(person, options: list[str]) -> tuple[str, bool]:
@@ -1029,7 +1038,7 @@ def _invite_one_live(page, recorder, project_id: str, web_base: str, person_name
     return url
 
 
-def _answer_whatever_is_asked(browser, recorder, url: str, person) -> dict:
+def _answer_whatever_is_asked(browser, recorder, url: str, person, entry) -> dict:
     """The corpus person answers **the questions the page actually asks**, in their own context.
 
     `ParticipantPage.answer_as(person, entry)` resolves a corpus person's answers against the
@@ -1039,14 +1048,26 @@ def _answer_whatever_is_asked(browser, recorder, url: str, person) -> dict:
     reads the rendered page instead -- the same move S-004 makes with `_page_choice`, for the same
     reason: *what is offered is the page's to say.*
 
-    What spec 021 changed is **whose words go into it**. The story under the nth anchor is the
-    corpus person's own nth story, and a selection is answered with their own value wherever the
-    model's option list offers it. Where it does not -- a model that asked something the corpus
-    person was never asked -- the first option is taken, as before, and the bundle says which
-    answers were theirs and which were the fallback. Nothing about either is asserted; what leg two
-    needs is a real answer on the wire (FR-007).
+    What spec 021 changed is **whose words go into it**. A selection is answered with the corpus
+    person's own value wherever the model's option list offers it; where it does not, the first
+    option is taken and the bundle says which answers were theirs and which were the fallback.
+
+    **What spec 028 changed is that the stranger stopped lying about having an occasion.** The
+    story under the nth anchor used to be that person's own nth story, by position, with a filler
+    sentence under every anchor past the end -- and run 36895521843 is what that cost: four anchors
+    written, two stories carried, two fillers typed, every one of them read as a **guess** by
+    keel-cloud's INTERPRET, and the whole COMMERCIAL stage left `untested: 5` with five people
+    answered. `harness/stranger_stories.py` plans every anchor instead: this person's own
+    **matching** story, a first-person sentence composed from this person's own facts, or an honest
+    tap. Nothing about the words is asserted -- what leg two needs from the stranger is that a real
+    answer reached keel-cloud and produced a reading (FR-007) -- but the bundle now says, per
+    anchor, which of the three paths it took and where every part of it came from.
+
+    **The picks are decided before the story is typed, and that is load-bearing** (spec 028
+    FR-010). A composed sentence is written *from* the ticks about to be made, so a stranger whose
+    story contradicts their own answers is impossible rather than merely unlikely. The decision is
+    `_their_pick`'s, unchanged.
     """
-    stories = _story_texts(person)
     context = browser.new_context()
     try:
         page = context.new_page()
@@ -1074,26 +1095,47 @@ def _answer_whatever_is_asked(browser, recorder, url: str, person) -> dict:
             assert not offending, (
                 f"the page still titles a section by a stage: {offending}. A section is an "
                 "occasion since keel-cloud spec 048")
-        answered, picked, theirs_used, fell_back = [], [], [], []
-        told = 0
-        for anchor in drawn:
-            prompt = anchor.get("prompt") or ""
-            if not prompt:
-                continue
-            hers = told < len(stories)
-            story = stories[told] if hers else THE_STRANGER_SAYS
-            participant.tell_story(prompt, story)
-            told += 1
-            answered.append({"prompt": prompt[:60], "said": story[:200],
-                              "whose": (person.person if hers else
-                                        "nobody's -- the model wrote more anchors than this "
-                                        "person has stories, so the last resort was typed")})
-            (theirs_used if hers else fell_back).append(f"anchor: {prompt[:50]}")
-            for selection in anchor.get("selections") or []:
-                options = participant.options_for(selection, anchor_prompt=prompt)
+        # ----------------------------------------------- every tick decided, before a word is typed
+        # Read-only: `options_for` reads the option rows the page drew and `_their_pick` chooses
+        # among them. Nothing is clicked and nothing is filled in this pass, so the page the second
+        # pass types into is the page this one measured.
+        prompts = [(anchor.get("prompt") or "") for anchor in drawn]
+        live = [i for i, prompt in enumerate(prompts) if prompt]
+        chosen: dict[int, list[tuple[str, str, bool]]] = {}
+        for i in live:
+            rows = []
+            for selection in drawn[i].get("selections") or []:
+                options = participant.options_for(selection, anchor_prompt=prompts[i])
                 if not options:
                     continue
                 option, was_theirs = _their_pick(person, options)
+                rows.append((selection, option, was_theirs))
+            chosen[i] = rows
+
+        # ------------------------------------------------------- one plan per anchor, then typing
+        plans = stranger_stories.plan(
+            [prompts[i] for i in live], entry, person.person,
+            {n: [(selection, option) for selection, option, _ in chosen[i]]
+             for n, i in enumerate(live)})
+
+        answered, picked, theirs_used, fell_back = [], [], [], []
+        for n, i in enumerate(live):
+            plan, prompt = plans[n], prompts[i]
+            participant.tell_story(prompt, plan.text, plan.tap)
+            answered.append({"prompt": prompt[:60], "said": (plan.text or "")[:200] or None,
+                              "tapped": plan.tap, "path": plan.path,
+                              "whose": (person.person if plan.path != stranger_stories.COMPOSED
+                                        else f"{person.person}'s own facts, composed")})
+            (theirs_used if plan.path == stranger_stories.THEIR_OWN_STORY
+             else fell_back).append(f"anchor: {prompt[:50]} ({plan.path})")
+            if plan.tap:
+                # A tap is an answer of its own and it dims that anchor's picks (`class="picks
+                # off"`) -- the product's rule, not this harness's. Ticking behind it would be
+                # answering a question the page has stopped asking.
+                picked.extend(f"{selection[:40]} -> not ticked: the anchor is tapped "
+                              f"{plan.tap}" for selection, _, _ in chosen[i])
+                continue
+            for selection, option, was_theirs in chosen[i]:
                 participant.pick(selection, [option], anchor_prompt=prompt)
                 picked.append(f"{selection[:40]} -> {option}"
                               + ("" if was_theirs else "  (the page's own first option; none of "
@@ -1102,14 +1144,32 @@ def _answer_whatever_is_asked(browser, recorder, url: str, person) -> dict:
         participant.submit()
         with recorder.step(f"§2.3: {person.person} sent their answers",
                             party="participant", kind="assert") as h:
-            h.record_assert({"anchors answered": len(drawn)},
-                             {"answered": answered, "picked": picked,
+            paths = {path: sum(1 for plan in plans if plan.path == path)
+                     for path in stranger_stories.PATHS}
+            h.record_assert({"anchors answered": len(live),
+                              "anchors answered with the filler": 0},
+                             {"what the stranger did with each anchor the host wrote":
+                                  stranger_stories.typed(plans),
+                              "paths taken": paths,
+                              "answered": answered, "picked": picked,
                               "the corpus person's own words and answers, used": theirs_used,
                               "the model asked what the corpus did not, so the page's own answer "
                               "was taken": fell_back})
             assert answered, "the stranger typed nothing anywhere"
+            # **Not an assertion about words** (FR-007). It is an assertion about *this harness*:
+            # every anchor the host drew got a story or a tap, and the retired filler went into
+            # none of them. A referee that types a guess cannot then fail the product for not
+            # counting it (spec 028, run 36895521843).
+            silent = [a["prompt"] for a in answered if not a["said"] and not a["tapped"]]
+            assert not silent, f"the stranger left an anchor blank and untapped: {silent}"
+            fillers = [a["prompt"] for a in answered
+                       if (a["said"] or "").startswith(THE_STRANGER_SAYS[:40])]
+            assert not fillers, (
+                f"the retired filler reached the page under {fillers} -- keel-cloud reads it as a "
+                f"guess and counts it towards nothing (spec 028 FR-017)")
         return {"answered": answered, "picked": picked, "theirs": theirs_used,
-                "not theirs": fell_back}
+                "not theirs": fell_back, "plans": plans,
+                "typed": stranger_stories.typed(plans)}
     finally:
         context.close()
 
@@ -1180,8 +1240,14 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                                      "people asked for": PEOPLE,
                                      "people skipped (nothing written the harness could type)":
                                          people_skipped,
-                                     "their stories": {p.person: _story_texts(p)
-                                                       for p in people_chosen},
+                                     # The corpus's own stories, before the matcher sees a single
+                                     # host prompt: what each person brought, in the corpus's own
+                                     # order, with its anchoring. Which anchor each one lands under
+                                     # is §2.3's record and not this one's (spec 028).
+                                     "their stories": {
+                                         p.person: [{"anchor": a.anchor_id, "text": a.text,
+                                                     "tap": a.tap} for a in p.anchors]
+                                         for p in people_chosen},
                                      "their picks": {p.person: {k.selection_id: k.values
                                                                  for k in p.picks}
                                                      for p in people_chosen},
@@ -2023,7 +2089,8 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
             answers = {}
             for one in people_chosen:
                 url = _invite_one_live(page, recorder, project_id, web_base, one.person)
-                answers[one.person] = _answer_whatever_is_asked(browser, recorder, url, one)
+                answers[one.person] = _answer_whatever_is_asked(browser, recorder, url, one,
+                                                                 entry)
             with recorder.step(f"spec 021 (amended 2026-09-13): {len(people_chosen)} people "
                                 "invited and answered, each on their own link",
                                 party="stack", kind="assert") as h:

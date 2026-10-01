@@ -347,3 +347,46 @@ def test_the_record_says_which_path_and_where_every_part_came_from(lullaby):
 def test_a_person_the_entry_does_not_name_is_refused_rather_than_guessed_at(lullaby):
     with pytest.raises(KeyError):
         ss.plan(RUN_36895521843, lullaby, "Nobody At All", RUN_PICKS)
+# --------------------------------------------------------------------- the filler, proven dead
+
+def test_the_filler_is_named_twice_in_the_journey_and_typed_nowhere():
+    """FR-017: *a named, asserted-never-used constant.*
+
+    Twice, and exactly twice: its own definition, and the §2.3 guard that fails the run if it ever
+    reaches the page. A third reading means somebody reached for it again, which is the whole of
+    run 36895521843.
+    """
+    source = JOURNEY.read_text()
+    assert source.count("THE_STRANGER_SAYS") == 2, (
+        "`THE_STRANGER_SAYS` is read somewhere other than its definition and its own never-used "
+        "guard -- the filler is being typed again, and keel-cloud's INTERPRET reads it as a guess "
+        "(spec 028, run 36895521843)")
+    assert "I am thinking of the last time this happened to me" in source, (
+        "the filler's own words are gone from the module -- keep them, with the reason, so the "
+        "lesson is greppable (AGENTS.md: invert or move, never delete)")
+
+
+def test_the_one_reading_of_the_filler_is_the_guard_that_it_never_reaches_the_page():
+    body = JOURNEY.read_text().split("def _answer_whatever_is_asked", 1)[1].split("\ndef ", 1)[0]
+    assert "fillers" in body and "THE_STRANGER_SAYS" in body
+    # Never an argument to `tell_story`: the constant is compared against, never typed.
+    for line in body.splitlines():
+        if "tell_story" in line:
+            assert "THE_STRANGER_SAYS" not in line, line
+
+
+def test_the_journey_reads_the_module_and_no_longer_has_its_own_story_reader():
+    source = JOURNEY.read_text()
+    assert "stranger_stories" in source
+    assert "def _story_texts" not in source, (
+        "`_story_texts` handed out stories by position; `stranger_stories.plan` is now this "
+        "repository's one reading of which words a stranger types")
+
+
+def test_the_journey_decides_its_picks_before_it_tells_its_story():
+    """FR-010 as a source order: within `_answer_whatever_is_asked`, the options are read and the
+    ticks decided above the `tell_story` call, not below it."""
+    body = JOURNEY.read_text().split("def _answer_whatever_is_asked", 1)[1].split("\ndef ", 1)[0]
+    assert body.index("_their_pick(") < body.index("tell_story("), (
+        "the story is typed before the picks are decided, so a composed sentence cannot be made "
+        "to agree with them")
