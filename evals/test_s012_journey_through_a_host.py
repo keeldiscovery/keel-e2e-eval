@@ -94,6 +94,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import shutil
 import time
@@ -105,7 +106,7 @@ from harness import (agent_host, canary as canary_mod, corpus_script,
                      keel_host as keels_ai, refusals)
 from stack import remote
 from harness.browser import (Auth, Chat, Connect, Landing, OpenedCard, Overview, ParticipantPage,
-                              People, ReviewCard, Shell)
+                              People, PrintPage, ReviewCard, Shell)
 from harness.evidence import finalize_run, write_block, write_generated, write_host
 from harness.steps import Recorder
 from instructions import models as models_mod
@@ -591,6 +592,59 @@ def _beliefs_on(card: dict) -> list[dict]:
         out.extend(group.get("loadBearing") or [])
         out.extend(group.get("supporting") or [])
     return out
+
+
+# ------------------------------------------------------- the deck's own three readings, derived
+# **These three are the wire's own arithmetic, restated here so the deck can be compared against
+# it** (spec 027 §1.7). Each one is keel-web's own helper, read at keel-web master `7e5a2a8` and
+# written out in Python: `measuredStatus`+`washOf` (`src/lib/translate.ts`,
+# `src/components/brief/ShipFigure.tsx`), `linesOfStage` and `worstStage`
+# (`src/components/brief/lines.ts`).
+#
+# Restating them is the opposite of recomputing a verdict. Every input is a field `GET
+# /v2/projects/{id}/overview` or `GET /v2/projects/{id}/standing` sent; nothing here decides a
+# verdict, a median or a standing, and if keel-cloud's own numbers moved these would move with
+# them. What they let the referee say is *the screen's number is the wire's number*, which is the
+# one thing a screen can get wrong on its own.
+
+#: `Verdict` -> the band and panel modifier keel-web paints it with. `measuredStatus` answers tone
+#: `good`/`bad`/`warn` for the three verdicts and `mute` for everything else, and `washOf` collapses
+#: anything that is not one of the first three to `none` -- so an absent verdict and an `UNTESTED`
+#: one are the same wash, which is what *no evidence* has always meant on a `.bar`.
+_WASH_OF_VERDICT = {"SUPPORTED": "good", "CONTRADICTED": "bad", "MIXED": "warn"}
+
+#: Worst first (keel-web `WORST_FIRST`): a deal-breaker that failed is worse than one people split
+#: on, and **`UNTESTED` before `SUPPORTED`**, because *nothing known* is a worse place to be than
+#: *holding up*.
+_WORST_FIRST = ("CONTRADICTED", "MIXED", "UNTESTED", "SUPPORTED")
+
+
+def _band_wash(summary: dict) -> str:
+    """The `band--*`/`panel--*` modifier this stage's own verdict implies."""
+    return _WASH_OF_VERDICT.get((summary.get("verdict") or "").upper(), "none")
+
+
+def _stage_lines(standing: dict, stage: str) -> dict:
+    """`GET /v2/projects/{id}/standing`'s four lists filtered to one stage, with the two numbers
+    the panel's count line is made of: `total` over all four, `holding` from `holdingUp` alone."""
+    def of(key: str) -> list:
+        return [line for line in (standing.get(key) or []) if line.get("stage") == stage]
+    up, down, split, none = (of("holdingUp"), of("notHoldingUp"),
+                             of("peopleDisagree"), of("untested"))
+    return {"holdingUp": len(up), "notHoldingUp": len(down), "peopleDisagree": len(split),
+            "untested": len(none), "holding": len(up),
+            "total": len(up) + len(down) + len(split) + len(none)}
+
+
+def _worst_stage(by_stage: dict) -> str:
+    """The stage keel-web opens at rest: the worst verdict the wire sent, a tie going to the
+    **deepest band** -- which is `STAGES` order, problem first, on the design's own argument that
+    the keel is the part whose failure capsizes the rest."""
+    def rank(stage: str) -> int:
+        verdict = ((by_stage.get(stage) or {}).get("verdict") or "UNTESTED").upper()
+        return _WORST_FIRST.index(verdict) if verdict in _WORST_FIRST \
+            else _WORST_FIRST.index("UNTESTED")
+    return min(STAGES, key=rank)
 
 
 def _the_questions_land(page, recorder, get_json, post_json, project_id, *, timeout_s=None):
@@ -1911,6 +1965,59 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                     f"People stayed locked with all three cards approved and the questions READY. "
                     f"keel-web says: {shell.people_locked_reason()!r}")
 
+            # ---------------------------------- the deck, before anybody has answered anything
+            # **The download's disabled state, and this is the only moment it can be read.**
+            # keel-web spec 027 FR-025 state 3: while `Standing.people` holds no `READ`, *Download
+            # the brief* is replaced by a control that is present, disabled and says why --
+            # *Nothing to hand over yet*, with *The brief fills as your AI reads answers.* beside
+            # it. Every stage is approved here, so the route renders the deck rather than the
+            # walk's step; nobody has answered, so nothing has been read. One reading later the
+            # state is gone for the rest of the project's life, which is the same reason
+            # `_assert_no_paragraph_yet` reads the "not yet" note where it does.
+            #
+            # **This is where the assertion that used to read *What this says*' own "not yet" note
+            # on this screen now stands.** keel-web spec 027 FR-020 took the paragraph off the
+            # overview and FR-027 prints it on page 1 of the sheet, which prints no note at all
+            # ("a sheet does not explain to itself why a block it left out is missing"). So the
+            # founder-facing sentence for *there is nothing yet* is the download's own, and it is
+            # asserted here beside the wire's note, which keel-cloud still composes.
+            overview = Overview(page, recorder, web_base)
+            overview.open(project_id)
+            with recorder.step("§1.7: with every stage approved and nobody asked, the deck stands "
+                                "and there is nothing to hand over yet",
+                                party="founder", kind="assert") as h:
+                wire = _get(f"/v2/projects/{project_id}/overview") or {}
+                download = overview.download_state()
+                h.record_assert({"deck": True, "download enabled": False,
+                                  "label": "Nothing to hand over yet",
+                                  "whatThisSays": None, "a note in its place": "non-empty"},
+                                 {"deck": overview.is_deck(),
+                                  "download": download,
+                                  "ship": overview.ship_caption(),
+                                  "panels": [{"stage": q["stage"], "word": q["word"]}
+                                             for q in overview.panels()],
+                                  "whatThisSays": wire.get("whatThisSays"),
+                                  "whatThisSaysNote": wire.get("whatThisSaysNote"),
+                                  "on the overview, which no longer draws it":
+                                      overview.carries_what_this_says()})
+                assert overview.is_deck(), (
+                    "every stage is approved and the overview is still drawing the walk's step; "
+                    "the deck is what an approved project's overview is (keel-web spec 027)")
+                assert download["label"].strip(), (
+                    "the deck's foot offers no download control at all -- not a disabled one "
+                    "either, which is the state keel-web FR-025 requires here")
+                assert not download["enabled"], (
+                    f"the download is live before a single answer has been read: {download!r}")
+                assert download["why"].strip(), (
+                    "the download is disabled and says nothing about why; a disabled control that "
+                    "does not say why is a bug the founder has to guess at (design §6.1 "
+                    "decision 5)")
+                assert not overview.carries_what_this_says(), (
+                    "the overview still draws a *What this says* block; keel-web spec 027 FR-020 "
+                    "moved it to page 1 of the sheet and this screen is the deck now")
+                assert wire.get("whatThisSays") is None, (
+                    f"a paragraph exists before anything was read: {wire.get('whatThisSays')!r}")
+
             # Each of the chosen people gets their own link and answers in their own words, in
             # corpus order (the founder, 2026-09-13: five, so the brief has a verdict to say).
             answers = {}
@@ -1940,7 +2047,21 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                 assert read_result["toast_text"].strip(), (
                     "the reading produced no toast, so nothing was read")
 
-            overview = Overview(page, recorder, web_base)
+            # --------------------------------------------------------------------------- §1.7
+            # **The overview is the deck now** (keel-web spec 027 `brief-ship`, merged to master
+            # `7e5a2a8` and deployed). What stood here until that deploy -- the evidence bar, the
+            # four-word legend, the 207-word *What this says* paragraph and the three `.ocards`
+            # cards -- is gone from this route, and matrix run 36870786241 died waiting thirty
+            # seconds for `.ocards` on a screen that no longer draws it.
+            #
+            # Nothing below is deleted. The three assertions that stood here stand still, in the
+            # place the thing they are about now stands:
+            #
+            # | what it asserted | where it stands now |
+            # |---|---|
+            # | the paragraph exists and is rendered verbatim | the sheet's page 1, under its own heading |
+            # | three stage cards, each with a status | three panels, each naming its stage and its word |
+            # | the legend's four words | **nowhere on this screen** -- the four counts are `GET /standing`'s own four lists, and the per-stage half is each panel's own count line, which is asserted against them |
             with recorder.step("§1.7: *What this says* -- the paragraph the host wrote, unasked",
                                 party="founder", kind="assert") as h:
                 # keel-cloud starts a BRIEF job by itself when a reading batch finishes
@@ -1960,26 +2081,248 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                     if KEELS_AI:
                         _refuse_if_the_door_is_shut(recorder, _get, project_id)
                     page.wait_for_timeout(3_000)
-                overview.open(project_id)
-                on_screen = overview.what_this_says_paragraph()
-                h.record_assert({"whatThisSays": "non-empty, and rendered verbatim"},
-                                 {"wire": paragraph, "screen": on_screen})
+                # **The screen half of this assertion moved and did not loosen.** keel-web spec 027
+                # FR-020 took the paragraph off the overview and FR-027 prints it on page 1 of the
+                # sheet, verbatim, under `WHAT_THIS_SAYS_HEADING`. So the wire half is asserted
+                # here, where the job is waited for, and the rendered-verbatim half is asserted on
+                # the sheet below -- against `PrintPage.what_this_says_paragraph()`, which reads
+                # page 1's own `p.pclaim` and not the stage pages' three claims.
+                h.record_assert({"whatThisSays": "non-empty"},
+                                 {"wire": paragraph,
+                                  "and the overview no longer draws it":
+                                      not overview.carries_what_this_says()})
                 assert paragraph and paragraph.strip(), (
                     "no *What this says* paragraph after the reading -- the BRIEF job the host was "
                     "given never produced one")
-                assert on_screen == paragraph, (
-                    f"the overview renders {on_screen!r}, not the server's own {paragraph!r}")
 
-            with recorder.step("§1.7: the overview carries the bar, the legend and three stage cards",
+            overview.open(project_id)
+            overview_wire = _get(f"/v2/projects/{project_id}/overview") or {}
+            standing_wire = _get(f"/v2/projects/{project_id}/standing") or {}
+            by_stage = {row.get("type"): row for row in overview_wire.get("stages") or []}
+
+            with recorder.step("§1.7: the deck -- one band per stage, coloured by the verdict the "
+                                "wire sent, and one panel per band saying it in words",
                                 party="founder", kind="assert") as h:
-                counts = overview.lines_with_answers()
-                legend = overview.legend()
-                cards = overview.stage_cards()
-                h.record_assert({"stage cards": 3, "legend": list(overview.LEGEND_WORDS)},
-                                 {"lines with answers": counts, "legend": legend,
-                                  "stage cards": [c["bet"] for c in cards]})
-                assert len(cards) == 3, [c["bet"] for c in cards]
-                assert set(legend) == set(overview.LEGEND_WORDS), legend
+                bands = overview.bands()
+                panels = overview.panels()
+                expected = {stage: _band_wash(by_stage.get(stage) or {}) for stage in STAGES}
+                got_wash = {band["stage"]: band["wash"] for band in bands}
+                got_word = {q["stage"]: q["word"] for q in panels}
+                h.record_assert({"bands": 3, "panels": 3, "wash by stage": expected,
+                                  "every band names its stage and its word": True},
+                                 {"ship": overview.ship_caption(),
+                                  "ship, in one line": overview.ship_label(),
+                                  "bands": bands, "panels": panels,
+                                  "wash the wire implies": expected,
+                                  "the verdicts the wire sent": {
+                                      stage: (by_stage.get(stage) or {}).get("verdict")
+                                      for stage in STAGES}})
+                assert len(bands) == 3, f"the ship drew {len(bands)} bands, not three: {bands}"
+                assert len(panels) == 3, f"the deck drew {len(panels)} panels, not three: {panels}"
+                assert set(got_wash) == set(STAGES), (
+                    f"the bands name {sorted(got_wash)}; a band is one stage and there are three")
+                assert set(got_word) == set(STAGES), (
+                    f"the panels name {sorted(got_word)}; a panel is one stage and there are three")
+                # **Colour is never the only carrier** (keel-web FR-003/SC-005): every band's own
+                # verdict is a word within 8px of it, and the figure says all three in one line.
+                # So the word is asserted as well as the wash, and a deck that lost every colour
+                # would still pass this step.
+                wordless = [stage for stage, word in got_word.items() if not (word or "").strip()]
+                assert not wordless, (
+                    f"a panel carries no status word at all: {wordless} -- colour would be the "
+                    f"only carrier of those verdicts")
+                nameless = [q["stage"] for q in panels if not (q["name"] or "").strip()]
+                assert not nameless, f"a panel does not name its own stage: {nameless}"
+                wrong = {stage: {"wash": got_wash[stage], "the wire's verdict":
+                                  (by_stage.get(stage) or {}).get("verdict"),
+                                  "expected": expected[stage]}
+                          for stage in STAGES if got_wash[stage] != expected[stage]}
+                assert not wrong, (
+                    f"a band is coloured for a verdict the wire did not send: {wrong}. Position "
+                    f"means stage and colour means verdict (keel-web FR-002); a band that "
+                    f"disagrees with `GET /overview` is the deck inventing a verdict.")
+
+            with recorder.step("§1.7: each panel's count line is the wire's own three numbers, and "
+                                "each one carries at least one line that held or did not",
+                                party="founder", kind="assert") as h:
+                # **Every number compared, never recomputed.** *N of M lines holding* is a plain
+                # count over `GET /standing`'s own four lists filtered to the stage; the
+                # deal-breaker clause and the people clause are `StageSummary`'s own
+                # `dealBreakersHolding`/`dealBreakersTotal`/`peopleAnswered`. The referee does the
+                # same filter the screen does and compares the two; it computes no verdict and no
+                # median (AGENTS.md's house rule, and keel-web SC-006's own claim).
+                panels = {q["stage"]: q for q in overview.panels()}
+                faults = []
+                reported = {}
+                for stage in STAGES:
+                    panel = panels.get(stage)
+                    summary = by_stage.get(stage) or {}
+                    counted = _stage_lines(standing_wire, stage)
+                    count_line = (panel or {}).get("count") or ""
+                    held = Overview.lines_of(panel or {}, Overview.PANEL_HELD)
+                    failed = Overview.lines_of(panel or {}, Overview.PANEL_DID_NOT_HOLD)
+                    reported[stage] = {
+                        "count line": count_line,
+                        "the wire's own numbers": counted,
+                        "peopleAnswered": summary.get("peopleAnswered"),
+                        "dealBreakers": [summary.get("dealBreakersHolding"),
+                                          summary.get("dealBreakersTotal")],
+                        "HELD rows shown": len(held),
+                        "DID NOT HOLD rows shown": len(failed),
+                        "the tails behind them": [
+                            Overview.tail_of(panel or {}, Overview.PANEL_HELD),
+                            Overview.tail_of(panel or {}, Overview.PANEL_DID_NOT_HOLD)],
+                    }
+                    if panel is None:
+                        faults.append(f"{stage}: no panel at all")
+                        continue
+                    want_lines = f"{counted['holding']} of {counted['total']} line"
+                    if want_lines not in count_line:
+                        faults.append(f"{stage}: the count line reads {count_line!r}; "
+                                       f"`GET /standing` says {want_lines}…")
+                    people_answered = summary.get("peopleAnswered")
+                    if people_answered is None:
+                        faults.append(f"{stage}: the wire reports no `peopleAnswered`")
+                    elif not re.search(rf"\b{people_answered}\b\s+(person|people)\s+answered",
+                                        count_line):
+                        faults.append(f"{stage}: the count line reads {count_line!r}; the wire "
+                                       f"says {people_answered} answered")
+                    total = summary.get("dealBreakersTotal") or 0
+                    if total and "deal-breaker" not in count_line:
+                        faults.append(f"{stage}: {total} deal-breakers on the wire and no "
+                                       f"deal-breaker clause in {count_line!r}")
+                    if not total and "deal-breaker" in count_line:
+                        faults.append(f"{stage}: no deal-breaker on the wire and the count line "
+                                       f"says {count_line!r} -- *0 of 0* is what keel-web's own "
+                                       f"edge case forbids")
+                    if counted["total"] and not (held or failed):
+                        faults.append(f"{stage}: {counted['total']} lines on the wire and the "
+                                       f"panel shows none of them")
+                h.record_assert({"faults": []}, {"faults": faults, "per stage": reported})
+                assert not faults, f"a panel and the wire disagree: {faults}"
+
+            with recorder.step("§1.7: the worst stage's panel is the one open at rest",
+                                party="founder", kind="assert") as h:
+                # keel-web FR-016: worst is `CONTRADICTED` → `MIXED` → `UNTESTED` → `SUPPORTED`,
+                # a tie going to the **deepest band** -- problem, then solution, then price, on the
+                # design's own argument that a ship is laid down keel-first and the keel is the
+                # part whose failure capsizes the rest. The referee orders the verdicts the wire
+                # sent; it decides none.
+                #
+                # *Open at rest* is read as **no tail**: a part that is open shows every line it
+                # has, and `moreLabel` renders only behind the three a closed part shows. The
+                # marker itself (`panel--worst`) is asserted beside it, because that marker is what
+                # the phone's CSS hoists (FR-018) and keel-web spec 028/029 ship that CSS.
+                marked = overview.worst_panel()
+                want = _worst_stage(by_stage)
+                panel = overview.panel(marked) if marked else None
+                tails = [Overview.tail_of(panel or {}, Overview.PANEL_HELD),
+                          Overview.tail_of(panel or {}, Overview.PANEL_DID_NOT_HOLD)]
+                h.record_assert({"panel--worst": want, "tails on it": [None, None]},
+                                 {"panel--worst": marked, "the wire's worst": want,
+                                  "the verdicts the wire sent": {
+                                      stage: (by_stage.get(stage) or {}).get("verdict")
+                                      for stage in STAGES},
+                                  "tails on it": tails})
+                assert marked == want, (
+                    f"keel-web marked {marked!r} the worst panel; the verdicts the wire sent make "
+                    f"it {want!r}. The worst band is the one a founder should look at and the one "
+                    f"that opens itself (keel-web FR-016).")
+                assert not any(tails), (
+                    f"the worst panel is closed: it carries the tails {tails}. Every other panel "
+                    f"may show three lines and a tail; this one is open at rest.")
+
+            with recorder.step("§1.7: now a reading exists, *Download the brief* is live",
+                                party="founder", kind="assert") as h:
+                # The other side of the disabled control asserted before the invites went out
+                # (keel-web FR-025 states 1 and 3). `href` and not a click, because the control is
+                # `target="_blank"` and following it is the next step's own business.
+                download = overview.download_state()
+                read = [p for p in (standing_wire.get("people") or [])
+                        if (p.get("status") or "").upper() == "READ"]
+                h.record_assert({"enabled": True, "href": f"/p/{project_id}/print"},
+                                 {"download": download, "answers read, on the wire": len(read)})
+                assert read, (
+                    "the wire reports no READ answer after the reading, so the download has "
+                    "nothing to be live for and this step is measuring the wrong thing")
+                assert download["enabled"], (
+                    f"the download is still disabled with {len(read)} answers read: {download!r}")
+                assert (download["href"] or "").endswith(f"/p/{project_id}/print"), (
+                    f"the download points at {download['href']!r}, not at this project's sheet")
+
+            # ------------------------------------------------- §1.7, the brief the founder hands over
+            # **In this same context, by URL, with `window.print` stubbed** -- `PrintRoute` raises
+            # the dialog as soon as its five reads land, and no Playwright locator can dismiss a
+            # native one. The founder's own door is the `target="_blank"` link asserted above;
+            # `Overview.download()` follows it and answers the popup, and the journey does not
+            # spend a second tab to prove a link it has already read.
+            print_page = PrintPage(page, recorder, web_base)
+            print_page.open(project_id)
+            with recorder.step("§1.7: the brief is five pages, and page 1 carries the paragraph "
+                                "under its own heading and the 16:9 block",
+                                party="founder", kind="assert") as h:
+                one = print_page.page_one()
+                block = print_page.block_169()
+                printed = print_page.what_this_says_paragraph()
+                h.record_assert({"pages": 5, "whatThisSays": "rendered verbatim",
+                                  "16:9 block": {"bands": 3, "panels": 3, "caption": "present"}},
+                                 {"pages": print_page.page_count(), "page 1": one,
+                                  "16:9": block,
+                                  "the heading above it": print_page.what_this_says_heading(),
+                                  "the wire's own paragraph": paragraph})
+                assert print_page.page_count() == 5, (
+                    f"the brief is {print_page.page_count()} pages; keel-web spec 027 FR-024/FR-030 "
+                    f"make it five -- page 1, one page a stage, and the evidence")
+                assert not print_page.has_founder_chrome(), (
+                    "the sheet rendered the founder's own chrome; it is its own page")
+                assert founder.project_name in one["name"], (
+                    f"page 1 is headed {one['name']!r}, not {founder.project_name!r}")
+                assert print_page.what_this_says_heading().strip(), (
+                    "page 1 prints a paragraph under no heading -- `WHAT_THIS_SAYS_HEADING` is "
+                    "what tells a reader what the paragraph is")
+                # **The assertion that stood on the overview, unchanged, on the page that draws it
+                # now**: the server's own words, character for character. Comparing loosely is how
+                # six green runs said nothing about the paragraph at all.
+                assert printed == paragraph, (
+                    f"page 1 prints {printed!r}, not the server's own {paragraph!r}")
+                assert block["present"], (
+                    "page 1 drew no 16:9 block; FR-026 makes it the thing a founder lifts straight "
+                    "into a deck, and it is the same `ShipFigure` at a different size")
+                assert len(block["bands"]) == 3 and len(block["panels"]) == 3, block
+                assert block["caption"].strip(), (
+                    "the 16:9 block carries no caption, so nothing on the sheet says what it is for")
+
+            with recorder.step("§1.7: the evidence page counts every line and names nobody",
+                                party="founder", kind="assert") as h:
+                # keel-web FR-029 / SC-009, and the principle is **P8** -- a stranger's words held
+                # on their terms. This is the page most likely to be forwarded to an agency or an
+                # investor, and a table of names is a list that travels. The named quotes stay on
+                # the stage pages, where a founder can check them, and that is asserted too.
+                evidence = print_page.evidence_page()
+                people_on_the_wire = [str(p.get("personName") or "")
+                                      for p in (standing_wire.get("people") or [])]
+                lines_total = sum(_stage_lines(standing_wire, stage)["total"] for stage in STAGES)
+                cells = " ".join(cell for row in evidence["rows"] for cell in row)
+                leaked = sorted({name for name in people_on_the_wire
+                                  if name.strip() and name in cells})
+                h.record_assert({"rows": lines_total, "names on page 5": [],
+                                  "columns": list(PrintPage.EVIDENCE_COLUMNS)},
+                                 {"rows": len(evidence["rows"]), "columns": evidence["columns"],
+                                  "heading": evidence["heading"], "lede": evidence["lede"],
+                                  "names on page 5": leaked,
+                                  "the people the wire names": people_on_the_wire,
+                                  "named quotes, on the stage pages where they belong":
+                                      print_page.quotes()[:3]})
+                assert evidence["heading"].strip(), "the evidence page carries no heading"
+                assert len(evidence["rows"]) == lines_total, (
+                    f"the evidence page draws {len(evidence['rows'])} rows for the "
+                    f"{lines_total} lines `GET /standing` carries -- every line, or it is not the "
+                    f"evidence")
+                assert not leaked, (
+                    f"page 5 names {leaked}. Principle P8: this is the page that gets forwarded, "
+                    f"and keel-web FR-029 puts no participant name on it.")
+                assert not evidence["names"], (
+                    f"page 5 drew an *In their words* block with names in it: {evidence['names']}")
 
             opened = OpenedCard(page, recorder, web_base)
             opened.open(project_id, "PROBLEM")
