@@ -3,7 +3,8 @@
 **Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md) | **Branch**: `026-journey-one-questionnaire`
 
 `make unit`: **green at every commit on this branch.** Baseline at `a7d1d72`, before a line was
-written: **1,217 passed** (Discovered **D-0**).
+written: **1,217 passed** (Discovered **D-0**). At the end: **1,262 passed** — forty-five new tests,
+none deleted, and one red commit caught and fixed in the next one (**D-14**).
 
 **Tests first, within each phase.** Each phase's own tests are written before the code that turns
 them green and land in the same commit (spec 025 D11's rule, kept). **No test is deleted**, and no
@@ -88,9 +89,9 @@ spec.md's *The next live run*, and it is the founder's to type.
 
 ## Phase 6 — the documents, and the run the founder types (FR-022 … FR-024)
 
-- [ ] **T025** the bundle's `journey` block says the full journey waits for the one questionnaire.
-- [ ] **T026** `README.md`'s S-012 section and `AGENTS.md`'s third named place: one sentence each.
-- [ ] **T027** spec.md's *The next live run* — the dispatch inputs, the Mac command, the bundle
+- [X] **T025** the bundle's `journey` block says the full journey waits for the one questionnaire.
+- [X] **T026** `README.md`'s S-012 section and `AGENTS.md`'s third named place: one sentence each.
+- [X] **T027** spec.md's *The next live run* — the dispatch inputs, the Mac command, the bundle
       name, and why there is no `WHY` on it. **Written, never typed.**
 
 ## Discovered

@@ -371,3 +371,44 @@ def test_the_review_cards_asked_first_reader_names_the_block_keel_web_deleted():
     browser = (REPO / "harness" / "browser.py").read_text()
     reader = browser[browser.index("def asked_first"):][:1600]
     assert "026" in reader and "FR-011" in reader
+
+
+# ------------------------------------------------------------------- phase 6: the bundle says what it did
+
+def test_the_bundle_name_does_not_move():
+    """FR-022. `s012-journey-<host>` means what it meant; a reader comparing this week's bundle
+    with last week's must not have to translate a name."""
+    from harness import agent_host
+    assert agent_host.bundle_slug("claude", "full", "plugin") == "s012-journey-claude"
+    assert agent_host.bundle_slug("claude", "short", "plugin") == "s012-journey-claude-short"
+
+
+def test_the_journey_block_says_the_full_run_waits_for_the_one_questionnaire():
+    """FR-023: a reader of a green bundle can tell a run that waited for `READY` from one taken
+    before this spec."""
+    block = SCENARIO[SCENARIO.index('write_block(run_dir, "journey"'):][:2200]
+    assert "questionnaire" in block
+
+
+@pytest.mark.parametrize("name", ["spec.md", "plan.md", "tasks.md"])
+def test_the_spec_kit_trio_is_on_the_branch(name):
+    assert (REPO / "specs" / "026-journey-one-questionnaire" / name).is_file()
+
+
+def test_the_next_live_run_is_written_down_and_not_typed():
+    """FR-024. S-012 spends; this branch spends nothing. The command the founder types is in the
+    spec, with its dispatch inputs and its bundle name."""
+    spec = (REPO / "specs" / "026-journey-one-questionnaire" / "spec.md").read_text()
+    assert "make eval-live K=s012" in spec
+    assert "macos-latest-claude-py3.13" in spec
+    assert "runs/<stamp>-s012-journey-claude/" in spec
+
+
+def test_there_is_no_why_invented_for_the_journey():
+    """FR-024, and `instructions/why.py`'s own boundary: `WHY=` gates the instruction eval and
+    nothing else. A sixth named event for S-012 would be adding a gate where the design has none."""
+    spec = (REPO / "specs" / "026-journey-one-questionnaire" / "spec.md").read_text()
+    assert "WHY" in spec
+    assert "instruction-eval" in spec
+    scenario_has_why = "WHY" in SCENARIO
+    assert not scenario_has_why, "the journey scenario grew a WHY gate it does not have"

@@ -1145,9 +1145,12 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
         "legs, what that means": (
             "the host leg entire, plus the first model job -- the PROBLEM frame's confirmation "
             "card -- and then the way out" if SHORT else
-            f"both legs: three stages framed, reviewed and approved, {len(people_chosen)} "
-            f"people invited and answered, the reading read, the brief written, the overview "
-            f"and one card opened"),
+            f"both legs: three stages framed, reviewed and approved, the project's one "
+            f"questionnaire waited for until the overview read questionsState READY and then "
+            f"read whole (keel-cloud spec 048 -- a run taken before keel-e2e-eval spec 026 "
+            f"says nothing here about the questionnaire, because it did not wait for one), "
+            f"{len(people_chosen)} people invited and answered, the reading read, the brief "
+            f"written, the overview and one card opened"),
         "corpus": str(corpus.directory)})
 
     keel_home = run_dir / "keel-home"
