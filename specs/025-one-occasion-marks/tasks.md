@@ -198,7 +198,7 @@ papered over.
 
 ## Phase 10 — the run, which is the founder's to spend
 
-- [ ] **T030 — the run of record.** **Every precondition is met**: keel-cloud `048` and `049` have
+- [x] **T030 — the run of record.** **Every precondition is met**: keel-cloud `048` and `049` have
       landed, T022's corpus revision is keel-cloud commit `4652739` on `049-one-occasion-once`
       (`check_corpus.py` green on all seven, `./gradlew check` 1,548 tests 0 failures), and
       `make unit` is green on this branch. One run, once, and it is the founder's to type.
@@ -272,9 +272,44 @@ papered over.
       **And it is the founder's to start.** Design §11.4, answered on 2026-09-30: *"Yes, after both
       specs land — and it is now ~2.5 h and ~$15."*
 
-- [ ] T031 Whatever T030 finds → `README.md` (the run of record, its table and its bundle name),
+- [x] T031 Whatever T030 finds → `README.md` (the run of record, its table and its bundle name),
       `runs/DRIFT.md` (anything that surprised), and this file. **A red mark is a finding, not a
       reason to run again.**
+
+      **It took two runs, and the first one is recorded as a finding rather than deleted.**
+
+      - **`runs/20260930T234025Z-instructions`** — 414 cases, 3 h 16 m, $15.65, 0 errored.
+        **FAILED on `shape_refusals = 21`** (mark 0) with the other four green: anchoring 0.981,
+        recall 0.955, refusals 0 of 63, brief 1.0. Seventeen of the 21 were **this harness's**
+        (Discovered **D18** below); four were the model's, an `occasion` of 9, 9, 9 and 11 words.
+        It stays on disk and stays named in `README.md` and `runs/DRIFT.md` **#70**.
+      - The harness fix is D18 (keel-e2e-eval `9d9012b`); the seeding and the tightened `occasion`
+        rule are keel-cloud spec 049 Discovered **D37** (`04ede28`). **No mark moved, N stayed at
+        3, and the corpus is unchanged.**
+      - **Screened first**, which is the only reason the second run was worth spending:
+        `make instruction-screen HOST=claude K=questions N=3 WHY=instruction:049-questions-occasion
+        MODELS=exported` → `runs/20261001T032025Z-instructions`, 21 jobs, 73 min, **$3.01**,
+        **0 refusals of any kind and no occasion over eight words**. (`K=` takes a *subject*, which
+        the Makefile has documented since the four subjects existed; `K=questions` is the cheapest
+        slice that reaches all seven entries' questionnaires. Nothing needed adding.)
+      - **`runs/20261001T043420Z-instructions` is the run of record.** 414 cases at N=3,
+        **3 h 11 m**, **$15.41**, Claude Code CLI 2.1.284, `MARKS_VERSION` 8, 0 errored, 0
+        schema-invalid, `unmet_prerequisites: []`. **PASSED — all five marks:**
+
+        | mark | value | mark | met |
+        |---|---|---|---|
+        | anchoring accuracy | **98.33 %** | ≥ 0.90 | yes |
+        | golden-belief recall | **93.18 %** (246 of 264) | ≥ 0.80 | yes |
+        | rule refusals | **0 of 84 shown** | rate ≤ 0.02 | yes |
+        | shape refusals | **0** | 0 | yes |
+        | BRIEF paragraphs | **21 / 21** | 1.00 | yes |
+
+        `models_used`: `claude-sonnet-5-5` at effort **medium** on `assumptions` and `brief`,
+        `claude-haiku-4-5-20251001` with no effort on `questions` and `reading`, from keel-cloud's
+        own exported table. `CLAUDE_CODE_EFFORT_LEVEL` unset for the whole command.
+        **Recall is 2.3 points below the first run (0.955 → 0.932) and the mark is 0.80**: the
+        spread between two runs of the same rubric on the same corpus, not a regression anything
+        here caused — nothing in either fix touches the assumptions screens.
 
 ## Discovered
 
@@ -418,6 +453,18 @@ task it was found under. Nothing here is a change of mind about the design; it i
 
   **The failed run stays on disk and stays recorded as a finding.** It is not the run of record,
   and it is not deleted: a rubric's first answer is evidence about the harness.
+
+  **And one thing the wrong seed was hiding.** Re-validating that run's own answers with the
+  measurements attached — free, before anything was spent again — turned up a **`Q6`** rule refusal
+  on `02-compliancelog/QUESTIONS/run1` that the canned three had made unreachable: the introduction
+  named a band value of a belief that only exists on the real project. So the wrong seed was
+  suppressing *rule* coverage as well as inventing shape refusals, which is the sharper version of
+  FR-019's argument: a validator shown the wrong state is not merely strict, it is measuring
+  something else.
+
+  **Screened, then re-run.** `K=questions` (21 jobs, 73 min, $3.01) came back **0 refusals of any
+  kind, longest occasion 8 words**; `runs/20261001T043420Z-instructions` is the run of record, all
+  five marks met. The numbers are in T031 above and in `runs/DRIFT.md` #70.
 
 
 ## The run of record, in one block

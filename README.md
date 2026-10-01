@@ -78,6 +78,53 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
+### The run of record for spec 025 — **`MARKS_VERSION` 8, Claude** (2026-10-01)
+
+`make instruction-eval HOST=claude WHY=marks:8 MODELS=exported`, on the founder's Max plan. Run of
+record: **`runs/20261001T043420Z-instructions`** — **414 cases** (63 assumption, 21 questions, 309
+reading, 21 brief) at N=3, **3 h 11 m**, **$15.41**, Claude Code CLI **2.1.284**, 0 errored, 0
+schema-invalid. Models from keel-cloud's own exported table: `claude-sonnet-5-5` at effort
+**medium** on `assumptions` and `brief`, **Haiku 4.5** with no effort on `questions` and `reading`.
+Judge on, Claude, at the CLI's own default — `CLAUDE_CODE_EFFORT_LEVEL` was unset for the whole
+command (`env -u`), because it is process-wide and would reach the judge as well as the subject.
+
+**Verdict: PASSED — all five marks, at `MARKS_VERSION` 8, for the first time.**
+
+| Subject | Mark | 2026-10-01 (the record) | 2026-09-30 (the first attempt) |
+|---|---|---|---|
+| reading — anchoring accuracy | ≥ 0.90 | **98.3 %** ✅ | 98.1 % ✅ |
+| assumptions — golden-belief recall | ≥ 0.80 | **93.2 %** ✅ (246 of 264) | 95.5 % ✅ |
+| rule refusals | rate ≤ 0.02 | **0 of 84** ✅ | 0 of 63 ✅ |
+| shape refusals | 0 | **0** ✅ | **21** ❌ |
+| BRIEF — all four marks | 1.00 | **21 / 21** ✅ | 21 / 21 ✅ |
+| errored | 0 | **0** ✅ | 0 ✅ |
+
+**It is the second run, and the first one is a finding rather than a deletion.**
+`runs/20260930T234025Z-instructions` (414 cases, 3 h 16 m, $15.65) failed on `shape_refusals = 21`
+with the other four marks green, and **seventeen of the twenty-one were this harness's own
+arithmetic**: `validate.build_batch` sent keel-cloud's validator a `QUESTIONS` case carrying **no
+measurements**, so `ScreenContractTool.projectFor` seeded it with its canned project of **three**
+settled beliefs — while the model's own prompt for `01-countly` had carried **eighteen** and the
+model had answered `reads` 0–17 correctly. Every `reads >= 3` came back *"names measurement N, and
+this project has 3"*. The eval failed the model for a list the eval never sent, on the one mark set
+at an absolute zero. The batch now carries `measurements` (spec 025 Discovered **D18**) and
+keel-cloud's `projectFor` seeds the project from them (keel-cloud spec 049 Discovered **D37**).
+The other four were real — an `occasion` of 9, 9, 9 and 11 words against a rule of *two to five, at
+most eight* — and `questions.md` now states the limit as a hard rule in three places. Both are in
+`runs/DRIFT.md` **#70**.
+
+**Screened before it was spent**, which is what the screen is for:
+`make instruction-screen HOST=claude K=questions N=3 WHY=instruction:049-questions-occasion
+MODELS=exported` — `runs/20261001T032025Z-instructions`, the 7 `QUESTIONS` cases × 3 runs only,
+73 min, $3.01, **0 refusals of any kind and no occasion over eight words**. (`K=` takes a *subject*
+as well as an entry; `K=questions` is the cheapest slice that covers all seven entries'
+questionnaires.) A screen is never a run of record, and this one reports the other three subjects
+unmeasured and comes back `passed: false`, exactly as the rule says it must.
+
+**Nothing was adapted around.** No mark moved, N stayed at 3, the corpus is unchanged
+(`corpus.sha256` matches before and after), and the two fixes are both in the measuring apparatus
+and the instruction prose rather than in the rubric.
+
 ### The run of record for spec 016 — **Copilot, host and thinker** (2026-09-10)
 
 *Since spec `019-journey-through-a-host` this scenario is `S-012, the journey through a host` and
@@ -248,7 +295,7 @@ four** are true. Two are this repository's, and after today they disagree:
 |---|---|---|
 | 1 | the runtime's suite passes on a runner with that host's CLI | **not this repo's** |
 | 2 | keel-e2e-eval **S-001 green through that host** | ❌ **no** — S-012's leg two framed and approved PROBLEM and then failed SOLUTION four times, every one `result.statement: longer than maxLength 400` (`runs/DRIFT.md` #61). The journey does not complete. |
-| 3 | the instruction eval's run of record **green at the current `MARKS_VERSION`** | ✅ **yes**, above, at `MARKS_VERSION` 7 — and for the first time. ⚠ **`MARKS_VERSION` is 8 since 2026-09-30** (spec `025-one-occasion-marks`), and this part is **unmet on every host** until the v8 run of record is spent: `make instruction-eval HOST=claude WHY=marks:8 MODELS=exported`. A run under an earlier rubric is not a run under this one, and the corpus moved, so no bundle on disk can be re-scored into it. |
+| 3 | the instruction eval's run of record **green at the current `MARKS_VERSION`** | ✅ **yes for Copilot**, above, at `MARKS_VERSION` 7 — and for the first time. ⚠ **`MARKS_VERSION` is 8 since 2026-09-30** (spec `025-one-occasion-marks`), and a run under an earlier rubric is not a run under this one — the corpus moved, so no bundle on disk can be re-scored into it. **Claude is green at v8** since 2026-10-01 (`runs/20261001T043420Z-instructions`, at the top of this file). **Copilot is not**: no v8 run has been taken on that host, so part 3 is **unmet for Copilot** until one is. |
 | 4 | release notes name the host CLI version range | **not this repo's** |
 
 So Copilot is **still "runs, unmeasured"** in the design's own words, but for a different and much
@@ -1119,7 +1166,10 @@ KEEL_COPILOT_MODEL=gpt-5.6-luna \
   and re-derives the goldens from it, so a v7 bundle re-scored after the revision would align
   answers given to one questionnaire against a different one. That is the second independent reason
   a run of record must be spent; the first is the standing gate below. `rescore.py` is unchanged and
-  is simply not used across this bump.
+  is simply not used across this bump. **The v8 run of record was spent on
+  2026-10-01** — `runs/20261001T043420Z-instructions`, Claude, all five marks met —
+  and it took two runs to get there: see the section at the top of this file and
+  `runs/DRIFT.md` #70.
 - **The five marks**: anchoring accuracy ≥ 90 %, golden-belief recall ≥ 80 %, rule refusals a
   **rate** ≤ 0.02 (`MARKS_VERSION` 6), shape refusals = 0, and (`MARKS_VERSION` 4) **every BRIEF
   paragraph meeting all four of its own marks**. **Not one of the five numbers has ever moved.** An
@@ -1193,6 +1243,13 @@ three times: about a seventh of the corpus in a few minutes. It is for shopping 
 (`KEEL_CODEX_MODEL=... make instruction-screen HOST=codex`) and for checking a prompt change
 before spending on the full run. **It is never a run of record**: the refusal mark's denominator is
 the whole corpus and its verdict is judged on a filtered run, which is never a pass by rule.
+
+**`K=` takes a subject as well as an entry** — `K=assumptions`, `K=questions`, `K=reading`,
+`K=brief` — which is `instructions/run.py`'s own filter and has been since those subjects existed.
+`K=questions` is the cheapest slice that covers **all seven entries' questionnaires**: 21 jobs,
+about 70 minutes and $3 on Haiku, and it is what screened the `occasion` wording on 2026-10-01
+(`runs/20261001T032025Z-instructions`). A screen by subject is still a screen: the subjects it did
+not run come back unmeasured, and unmeasured is not met.
 
 ### Three hosts (`HOST={claude,copilot,codex}`, spec 014 and keel-runtime spec 008)
 
