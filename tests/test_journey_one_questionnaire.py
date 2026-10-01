@@ -104,3 +104,196 @@ def test_the_absence_of_chips_is_not_asserted_either():
     body = _code_of("_read_the_lines")
     assert "assert not chipped" not in body
     assert "049" in body, "the review step never says why an early chip is legal"
+
+
+# ------------------------------------------------------ phase 3: the newest terminal failure, by screen
+
+def _rows() -> list[dict]:
+    """Two failures and one good row, in the shape `GET /v2/inference-interactions` answers.
+
+    The `QUESTIONS` row carries **no stage**, which is the whole point: `InferenceScreen.QUESTIONS`
+    is not a stage's screen and never was.
+    """
+    return [
+        {"interaction_id": "i1", "screen": "PROBLEM_ASSUMPTIONS", "stage": "PROBLEM",
+         "status": "APPLIED", "updated_at": "2026-10-01T10:00:00Z"},
+        {"interaction_id": "i2", "screen": "QUESTIONS", "stage": None, "status": "JOB_FAILED",
+         "updated_at": "2026-10-01T10:05:00Z", "detail": "the model gave up",
+         "diagnostic": "RESULT_INVALID", "refusal": {"rule": "screen", "problem": "no questions"},
+         "job": {"status": "FAILED"}},
+        {"interaction_id": "i3", "screen": "QUESTIONS", "stage": None, "status": "JOB_FAILED",
+         "updated_at": "2026-10-01T10:09:00Z", "detail": "and again",
+         "job": {"status": "FAILED"}},
+    ]
+
+
+def _get_json(rows):
+    def get(path: str):
+        assert path.startswith("/v2/inference-interactions?project_id="), path
+        return rows
+    return get
+
+
+def test_the_newest_terminal_failure_on_a_screen_is_found():
+    """FR-021. The newest of the two `QUESTIONS` failures, with keel-cloud's own words beside it."""
+    found = refusals.latest_failure_on_screen(_get_json(_rows()), "p1", "QUESTIONS")
+    assert found is not None
+    assert found["interaction_id"] == "i3"
+    assert found["screen"] == "QUESTIONS"
+    assert found["job"] == "FAILED"
+
+
+def test_the_stage_keyed_reader_is_blind_to_it_which_is_why_the_new_one_exists():
+    """D-5. `latest_failure` filters on `row["stage"] == stage`, and a `QUESTIONS` row has none, so
+    asked about any of the three stages it answers `None` -- *nothing happened* about a wire that
+    knows exactly what did (`runs/DRIFT.md` #37's shape, one axis over)."""
+    get = _get_json(_rows())
+    for stage in ("PROBLEM", "SOLUTION", "COMMERCIAL"):
+        assert refusals.latest_failure(get, "p1", stage) is None
+
+
+def test_a_screen_that_never_failed_answers_none_rather_than_the_newest_row():
+    found = refusals.latest_failure_on_screen(_get_json(_rows()), "p1", "BRIEF")
+    assert found is None
+
+
+def test_a_settled_row_on_that_screen_is_not_a_failure():
+    rows = [{"interaction_id": "i1", "screen": "QUESTIONS", "stage": None, "status": "APPLIED"}]
+    assert refusals.latest_failure_on_screen(_get_json(rows), "p1", "QUESTIONS") is None
+
+
+def test_a_wire_that_answers_something_other_than_a_list_is_not_guessed_at():
+    assert refusals.latest_failure_on_screen(lambda path: {"error": "nope"}, "p1",
+                                             "QUESTIONS") is None
+
+
+def test_the_stage_keyed_reader_still_reads_exactly_what_it_read():
+    """The refactor that gave the two functions one private helper must not have moved the old
+    one. Same rows, keyed by stage, same answer."""
+    rows = [
+        {"interaction_id": "a", "screen": "SOLUTION_FRAME", "stage": "SOLUTION",
+         "status": "JOB_FAILED", "updated_at": "2026-10-01T09:00:00Z", "job": {"status": "FAILED"}},
+        {"interaction_id": "b", "screen": "SOLUTION_FRAME", "stage": "SOLUTION",
+         "status": "JOB_FAILED", "updated_at": "2026-10-01T09:30:00Z", "job": {"status": "FAILED"}},
+    ]
+    found = refusals.latest_failure(_get_json(rows), "p1", "SOLUTION")
+    assert found is not None and found["interaction_id"] == "b"
+    assert found["stage"] == "SOLUTION"
+
+
+# ------------------------------------------------------------- phase 3: the wait, where the founder waits
+
+def test_the_questions_step_is_called_between_the_last_approval_and_people():
+    """plan §2. The `QUESTIONS` job fires on every approval; only the last one's questionnaire is
+    the one a stranger answers, and the founder's own next click after the third *Continue* is
+    People -- which keel-web 026 FR-017 locks until `READY`."""
+    walk = SCENARIO.index("_walk_stage_live(page, recorder, _get, project_id, stage, founder")
+    lands = SCENARIO.index("_the_questions_land(page, recorder, _get, _post")
+    # `_invite_one_live` builds a `People` of its own far earlier in the file, so the one this is
+    # about is the one AFTER the wait -- the founder's own next screen.
+    people = SCENARIO.index("people = People(page, recorder, web_base)", lands)
+    assert walk < lands < people, (
+        "the questions wait is not between the stage loop and People")
+
+
+def test_the_wait_polls_the_overview_for_the_state_the_product_reads():
+    """FR-004 and FR-015: `Overview.questionsState`, the same field keel-web's side nav gates on and
+    the same gate `Project.invite` enforces. A fourth computation of it, in the referee, is exactly
+    what keel-web 026 FR-017 stopped doing."""
+    body = _function_source("_the_questions_land")
+    assert "questionsState" in body
+    assert "/overview" in body
+    assert "READY" in body
+
+
+def test_the_ceiling_is_read_off_the_host_object_and_never_branched_on_by_name():
+    """FR-005, and the rule `KEELS_AI_JOB_WAIT_S` already works to: per-host facts are read off the
+    host type, never written as an `if HOST == "keel"` beside each wait."""
+    assert "QUESTIONS_WAIT_S" in SCENARIO
+    constant = re.search(r"QUESTIONS_WAIT_S = .*?\n\n", SCENARIO, re.S)
+    assert constant, "QUESTIONS_WAIT_S is not defined at module level"
+    assert "KEELS_AI_JOB_WAIT_S" in constant.group(0)
+    body = _function_source("_the_questions_land")
+    assert 'HOST == "keel"' not in body
+
+
+def test_the_ceiling_is_the_abandonment_plus_slack_and_says_so():
+    """FR-005. keel-cloud's own `QUESTIONS` abandonment is PT300S; a Haiku 4.5 call is estimated at
+    ~18 s and measured at one to three minutes live. 420 is a number with an argument behind it."""
+    assert "420" in SCENARIO
+    assert "PT300S" in SCENARIO or "300s" in SCENARIO
+
+
+def test_a_failed_attempt_is_retried_exactly_once_through_the_products_own_endpoint():
+    """FR-006. `POST /v2/projects/{id}/questionnaire/retry` is refused in every state but `FAILED`
+    (422, rule `screen`), so the only state it is sent in is the only one it is legal in."""
+    body = _function_source("_the_questions_land")
+    assert "/questionnaire/retry" in body
+    assert body.count("/questionnaire/retry") == 1, (
+        "the retry endpoint is named more than once; one send, one place")
+    assert "retried" in body
+
+
+def test_a_second_failure_fails_with_keel_clouds_own_reason():
+    """FR-006 and FR-008: never *nothing happened within 420 s* about a wire that named it."""
+    body = _function_source("_the_questions_land")
+    assert "latest_failure_on_screen" in body
+    assert "QUESTIONS" in body
+
+
+def test_the_keel_door_asks_the_wire_on_every_poll():
+    """FR-007, spec 024 FR-010: `KEEL_AI_DISABLED` is answered before a socket is opened, and a run
+    that sat out the whole ceiling for it would be reporting the referee's patience."""
+    body = _function_source("_the_questions_land")
+    assert "_refuse_if_the_door_is_shut" in body
+    assert "KEELS_AI" in body
+
+
+# ------------------------------------------------------- phase 3: what the questions have to be
+
+def test_every_selection_must_offer_a_pick_list_and_that_is_the_moved_assertion():
+    """FR-010. This is `assert all(line.get("chips"))`, on the document that owns it now."""
+    body = _function_source("_the_questions_land")
+    assert "offers no pick list" in body, (
+        "the moved assertion has not landed: nothing in the questions step says a selection must "
+        "offer something to pick")
+    assert "BUCKETS" in body and "OPTIONS" in body
+
+
+def test_the_ids_are_asserted_project_wide_because_q7_is_project_wide_now():
+    """FR-011. `Q7` scoped ids to a stage until 048; it scopes them to the project now, and 049
+    reduced `AnchorRef`/`SelectionRef` to a bare id. An id still carrying a stage would mean the
+    wire had not moved."""
+    body = _function_source("_the_questions_land")
+    assert "Q7" in body
+    assert "stage" in body
+
+
+def test_each_stage_cards_slice_resolves_against_the_one_questionnaire():
+    """FR-012: `GET /v2/projects/{id}/stages/{stage}`, every `selectionId` resolved by bare id."""
+    body = _function_source("_the_questions_land")
+    assert "/stages/" in body
+    assert "selectionId" in body
+
+
+def test_reads_resolve_to_a_stage_and_a_line_a_founder_can_count_to():
+    """FR-013, and D-2: `reads` itself never reaches a founder -- `readsBelief` is what does."""
+    body = _function_source("_the_questions_land")
+    assert "readsBelief" in body
+    assert "line" in body
+
+
+def test_the_slice_is_read_on_the_screen_too_and_not_only_on_the_wire():
+    """FR-014: keel-web 026 FR-020's `strip__read`, through `OpenedCard.strips()`'s own `read_line`
+    -- written for spec 030 and load-bearing for the first time here."""
+    body = _function_source("_the_questions_land")
+    assert "OpenedCard" in body
+    assert "read_line" in body
+
+
+def test_no_assertion_is_made_about_the_words_the_model_wrote():
+    """Spec 016 FR-007 stands. The questions step asserts counts, resolutions and presences; the
+    prompts, the option labels and the `Asked:` sentences are the model's own."""
+    body = _function_source("_the_questions_land")
+    for forbidden in ("Think of the last", "About that night", "Asked:"):
+        assert forbidden not in body, f"the questions step pins the model's own words: {forbidden}"

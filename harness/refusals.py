@@ -103,11 +103,39 @@ def latest_failure(get_json: GetJson, project_id: str, stage: str) -> dict[str, 
     founder-voiced line, `runs/DRIFT.md` #38) travels with it, because what the *founder* was told
     is often the finding rather than the status code.
     """
+    return _newest_terminal(get_json, project_id, lambda row: row.get("stage") == stage)
+
+
+def latest_failure_on_screen(get_json: GetJson, project_id: str,
+                             screen: str) -> dict[str, Any] | None:
+    """The same read, keyed on the **screen** instead of the stage -- for the screens that have no
+    stage to be keyed on (spec `026-journey-one-questionnaire` FR-021).
+
+    `latest_failure` above filters `row["stage"] == stage`, and that is the whole of its reach.
+    It was written when every screen a live journey could meet belonged to one of the three stages.
+    Two do not: `BRIEF`, and -- since keel-cloud spec 048 -- **`QUESTIONS`**, the one call that
+    writes the project's one questionnaire. `InferenceScreen.QUESTIONS` carries no stage, by
+    construction: the questionnaire is the project's.
+
+    So asked about a failed `QUESTIONS` job through the stage-keyed door, this module answers
+    `None` -- *nothing happened* about a wire that knows exactly what did, which is `runs/DRIFT.md`
+    #37's shape one axis over, and the same shape `latest_failure` itself was written to end.
+
+    Both functions read one private helper, so *terminal* cannot come to mean two things here.
+    """
+    return _newest_terminal(get_json, project_id, lambda row: row.get("screen") == screen)
+
+
+def _newest_terminal(get_json: GetJson, project_id: str,
+                     matches: Callable[[dict[str, Any]], bool]) -> dict[str, Any] | None:
+    """The newest terminally-failed row the founder-gated list carries that `matches`, as a flat
+    dict -- keel-cloud's own `refusal` included, because what the *founder* was told is frequently
+    the finding rather than the status code."""
     rows = get_json(f"/v2/inference-interactions?project_id={project_id}")
     if not isinstance(rows, list):
         return None
     failed = [row for row in rows
-              if row.get("stage") == stage and row.get("status") in TERMINAL_FAILURE_STATUSES]
+              if matches(row) and row.get("status") in TERMINAL_FAILURE_STATUSES]
     if not failed:
         return None
     newest = max(failed, key=lambda row: str(row.get("updated_at") or row.get("created_at") or ""))

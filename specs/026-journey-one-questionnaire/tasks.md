@@ -45,23 +45,23 @@ spec.md's *The next live run*, and it is the founder's to type.
 
 ## Phase 3 — the questions land (FR-004 … FR-014)
 
-- [ ] **T012** `harness/refusals.py`: `latest_failure_on_screen(get_json, project_id, screen)` —
+- [X] **T012** `harness/refusals.py`: `latest_failure_on_screen(get_json, project_id, screen)` —
       the newest terminal failure on a **screen**, for the two screens that carry no stage
       (`QUESTIONS`, `BRIEF`). `latest_failure` keeps its exact behaviour and both read one private
       helper, so the two readings of *terminal* cannot drift (**D-5**).
-- [ ] **T013** `tests/test_journey_one_questionnaire.py`: the new reader, against hand-built rows —
+- [X] **T013** `tests/test_journey_one_questionnaire.py`: the new reader, against hand-built rows —
       a `QUESTIONS` row with a null `stage` is found by screen and **not** found by
       `latest_failure` at any stage, which is the blindness the function exists to end.
-- [ ] **T014** `evals/test_s012_journey_through_a_host.py`: `QUESTIONS_WAIT_S`, the module constant,
+- [X] **T014** `evals/test_s012_journey_through_a_host.py`: `QUESTIONS_WAIT_S`, the module constant,
       read off `AgentHost.keels_ai_job_wait_s` on the Keel door and 420 s elsewhere, with the
       arithmetic written down (PT300S + two minutes).
-- [ ] **T015** `_the_questions_land(...)`: the poll, the one retry, the failure sentence, and the
+- [X] **T015** `_the_questions_land(...)`: the poll, the one retry, the failure sentence, and the
       four assertions (the wire's questionnaire; the pick lists; the ids; the per-stage slice and its
       `readsBelief`), plus the screen read through `OpenedCard.strips()`.
-- [ ] **T016** `tests/test_journey_one_questionnaire.py`: the step is called once, between the stage
+- [X] **T016** `tests/test_journey_one_questionnaire.py`: the step is called once, between the stage
       loop and People, on the full journey only; the ceiling is read off the host object and not
       branched on by name; the retry is sent to the right path and sent once.
-- [ ] **T017** `tests/test_review_card_chips_markup.py` (new): keel-web's real `ReviewLine` markup
+- [X] **T017** `tests/test_review_card_chips_markup.py` (new): keel-web's real `ReviewLine` markup
       with and without a selection, and `ApprovedCard`'s real `.strip__read`, through `ReviewCard`
       and `OpenedCard`. Proves `lines()[i]["chips"] == []` on a card with no questionnaire and that
       `strips()[i]["read_line"]` is already the slice's founder-facing end.
@@ -204,6 +204,24 @@ entry names where it was found and what was done about it.
   the check -- and the test now asserts **both** halves: the assertion is gone from the code, and
   the quotation is still in the comment. A rule this repository was going to need again: every
   moved assertion on this branch leaves its own text behind on purpose.
+
+- **D-12 — a fixture whose point is an absent node pays Playwright's thirty-second auto-wait for
+  every one of them.** `tests/test_review_card_chips_markup.py` ran for **over eight minutes** and
+  had to be killed: the page objects read optional nodes through `_safe_text` (a belief with no
+  `p.you-said`, a strip with no `.strip__read`), `_safe_text` swallows the timeout, and the timeout
+  is 30 s each by default. *Absent* is exactly what these fixtures are about, so the cost is
+  structural rather than incidental. Answered with one named constant,
+  `_ABSENT_IS_THE_POINT_MS = 250`, on the page: thirty-three seconds became under ten, and a quarter
+  of a second is far longer than a `set_content` page ever needs. Worth the ledger entry because the
+  next markup test written here will meet it on its first run.
+
+- **D-13 — a stale `questionsState` still reads `FAILED` for a second or two after the retry is
+  accepted, so *retry once* cannot be written as a flag.** `POST …/questionnaire/retry` answers 202
+  with an `interactionId` and the new job starts asynchronously; the very next poll can still read
+  `FAILED` from the attempt that was just retried. A naive `if retried: break` would therefore
+  report *the retry failed too* without the retry having run at all. The wait compares the newest
+  `QUESTIONS` failure's own `interaction_id` against the one it retried, and treats `FAILED` as
+  terminal only when it belongs to a **different** attempt.
 
 - **D-10 — `instructions/models.py` needed nothing.** `SCREEN_TO_CLASS` has carried
   `"QUESTIONS": "questions"` since spec 025 phase 6, and `REPORTED_CLASSES` carries `questions`, so
