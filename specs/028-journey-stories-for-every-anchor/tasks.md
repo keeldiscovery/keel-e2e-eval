@@ -79,7 +79,8 @@ somewhere else with the reason above it.
 ## Discovered
 
 - **D-0 — the baseline.** `make unit` at `581dc0b`: **1,283 passed** in 157s. At the end of this
-  branch: **1,318 passed** — thirty-five new tests, none deleted, no assertion removed.
+  branch: **1,363 passed** — eighty new tests (60 in `tests/test_stranger_stories.py`, 20 in
+  `tests/test_journey_untested_stage.py`), none deleted, and no assertion removed anywhere.
 
 - **D-01 — the filler was never the whole of the bug; the *order* was the other half.** The shortfall
   (four anchors, two stories) explains two filler sentences. It does not explain which two: the
@@ -127,6 +128,35 @@ somewhere else with the reason above it.
   5)` never reaches him. So FR-014 is held by unit test only, and the unit test uses the real corpus
   person rather than a fixture — which is the whole reason the module takes an `Entry` and a name
   instead of a hand-built object.
+
+- **D-08 — a tap dims its anchor's picks, so nothing is ticked behind one.** `ParticipantPage`'s
+  own reading is `class="picks off"` when a tap dims them, and the class docstring is explicit: *a
+  tap is an answer of its own that greys the story and gates that anchor's picks*. The escape path
+  therefore reads the options (to plan with) and ticks none of them, recording
+  `not ticked: the anchor is tapped <TAP>` per selection. Ticking behind a tap would be answering a
+  question the page has stopped asking, and on Lullaby nobody notices because
+  `people_to_invite(entry, 5)` never reaches the one person with a tap (D-07).
+
+- **D-09 — `tests/test_journey_through_a_host.py` was testing the deleted reader, and the
+  assertion moved rather than going.** `test_the_one_person_is_the_entrys_first_and_brings_their_own_words`
+  imported `_story_texts`. `PersonInputs.written()` is what that function wrapped, so the same three
+  claims are made against it directly, and the test gained a fourth: the two anchor ids the revised
+  corpus carries are `["A1", "A3"]`. Which anchor each story lands under is now
+  `tests/test_stranger_stories.py`'s question, which is where the matcher is.
+
+- **D-10 — `GET /stages/{stage}` is fetched a second time, after the readings, and it has to be.**
+  The journey already reads all three cards once, at line 829, for the questionnaire slices — before
+  anybody has answered, when every `standing` is empty. §1.7a needs them *after* the readings,
+  because `BeliefStanding.guessed` is only populated once there is something to read. Three extra
+  `GET`s against a stack that is already up, and the only wire read in this scenario that exists to
+  answer *was the harness honest*.
+
+- **D-11 — the stemmer's threshold is three characters, not four, and it changed no score.** With a
+  four-character floor *apps* does not match *app*, which is the one plural that matters in a corpus
+  of app purchases. Dropping it to three also mangles a few words (*cries* → *crie*) — identically
+  on both sides of every comparison, so no pair's score moves. All of the matcher's cases pass
+  either way, including the red run's four prompts, which is the evidence that the change is a
+  widening and not a re-tuning.
 
 ## The next live run
 
