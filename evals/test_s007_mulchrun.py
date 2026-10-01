@@ -70,13 +70,36 @@ def _mulchrun_extras(ctx) -> None:
             assert all(family in label or "more than" in label for label in buckets.get(key) or []), (
                 f"{key} is not in {family}: {buckets.get(key)}")
 
-    with recorder.step("T031: no metric unit and no other currency reaches a founder screen",
+    # **The same sweep over strictly more text, because the screen changed under it.** It read
+    # three things: the evidence bar's headline, the *What this says* box, and the three
+    # `OverviewCard` claim sentences. keel-web spec 027 retired all three from this route (FR-020)
+    # and moved the paragraph to page 1 of the sheet (FR-027). So the sweep reads **the whole
+    # deck** -- the ship's caption, every panel's name, status word, claim and count line, every
+    # HELD and DID NOT HOLD clause, and the foot -- and the printed paragraph beside it. Nothing
+    # it swept before is out of its reach now; several things it never swept are in it.
+    with recorder.step("T031: no metric unit and no other currency reaches the deck",
                         party="founder", kind="assert") as h:
-        body = " ".join([overview.evidence_line(), overview.what_this_says()]
-                        + [card["claim"] for card in overview.stage_cards()])
+        body = overview.deck_text()
         leaks = [token for token in METRIC_LEAKS if token in body]
         h.record_assert([], leaks)
+        assert body.strip(), "the deck rendered no text at all, so this swept nothing"
         assert not leaks, f"a US market screen carries {leaks}: {body[:400]!r}"
+
+    print_page = ctx["print_page"]
+    print_page.open(ctx["project_id"])
+    with recorder.step("T031: and none reaches the paragraph the founder hands over",
+                        party="founder", kind="assert") as h:
+        # The half of the old sweep that moved. `Overview.whatThisSays` is the model's own prose
+        # about a US market's numbers, which is the single most likely place for a metric unit to
+        # appear -- so it is swept where it is now drawn rather than dropped with the box it used
+        # to sit in.
+        paragraph = print_page.what_this_says_paragraph()
+        leaks = [token for token in METRIC_LEAKS if token in paragraph]
+        h.record_assert([], leaks)
+        assert paragraph.strip(), (
+            "page 1 of the brief prints no paragraph, so the one piece of model prose about this "
+            "market's numbers went unswept")
+        assert not leaks, f"the printed paragraph carries {leaks}: {paragraph[:400]!r}"
 
 
 def test_s007_mulchrun(stack, founder_one, browser, run_dir):

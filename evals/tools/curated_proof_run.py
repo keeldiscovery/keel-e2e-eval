@@ -992,12 +992,17 @@ def run(*, executor: str, stop_at: float, turn_timeout_s: float, read_timeout_s:
             # ------------------------------------------------------------------------ the frames
             overview = Overview(page, recorder, web_base)
             overview.open(project_id)
+            # **The deck** (keel-web spec 027 `brief-ship`). The bar, the legend, the three cards
+            # and the paragraph all left this route: the first three have successors here and the
+            # paragraph is recorded below, off the sheet that prints it now.
             summary["overview"] = {
-                "evidence_line": overview.evidence_line(),
+                "ship_caption": overview.ship_caption(),
+                "ship_label": overview.ship_label(),
                 "people_line": overview.people_line(),
-                "legend": overview.legend(),
-                "what_this_says": overview.what_this_says_paragraph(),
-                "cards": overview.stage_cards(),
+                "bands": overview.bands(),
+                "panels": overview.panels(),
+                "download": overview.download_state(),
+                "foot": [overview.foot_line(), overview.five_words()],
             }
             summary["frames"].append(_shoot(page, proof_dir / FRAME_OVERVIEW, label="05 overview"))
             shutil.copyfile(proof_dir / FRAME_OVERVIEW, run_dir / FRAME_OVERVIEW)
@@ -1005,11 +1010,17 @@ def run(*, executor: str, stop_at: float, turn_timeout_s: float, read_timeout_s:
             print_page = PrintPage(page, recorder, web_base)
             print_page.open(project_id)
             summary["download"] = {
-                "title_page": print_page.title_page(),
+                "page_one": print_page.page_one(),
+                "block_169": print_page.block_169(),
                 "headings": print_page.headings(),
                 "sheets": len(print_page.sheets()),
+                "stage_table_columns": print_page.table_columns(),
+                "evidence_page": print_page.evidence_page(),
                 "quotes": print_page.quotes()[:6],
             }
+            # The paragraph, off page 1 -- where it is drawn since keel-web FR-027, and scoped to
+            # page 1 because pages 2-4 each draw a `p.pclaim` of their own (spec 027 D-2).
+            summary["overview"]["what_this_says"] = print_page.what_this_says_paragraph()
             summary["frames"].append(_shoot(page, proof_dir / FRAME_DOWNLOAD, label="08 download"))
             shutil.copyfile(proof_dir / FRAME_DOWNLOAD, run_dir / FRAME_DOWNLOAD)
 

@@ -2080,7 +2080,14 @@ class ReviewCard:
             else:
                 match = re.search(r"(/p/[^/?#]+)", self.page.url)
                 self.page.goto(f"{self.base_url}{match.group(1)}", wait_until="load")
-            self.page.wait_for_selector(".chat, .ppl, .role, .ocards", timeout=20_000)
+            # The three places the onward door can land: the next stage's chat/guided step, the
+            # People page, or -- on the last stage, or on the URL fallback below -- the overview,
+            # **which is the deck since keel-web spec 027** and draws no `.ocards` at all. The old
+            # class is kept at the end for a deploy that predates the deck; `.ocards` alone here
+            # would have waited the full twenty seconds on the current build.
+            self.page.wait_for_selector(
+                ".chat, .ppl, .role, .deck, .ship, .panels, .guided-step, .ocards",
+                timeout=20_000)
             h.add_screenshot(self._bstep.screenshot("review-onward"))
 
 
