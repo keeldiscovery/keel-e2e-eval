@@ -68,9 +68,9 @@ spec.md's *The next live run*, and it is the founder's to type.
 
 ## Phase 4 — People unlocks on the state the product unlocks on (FR-015 … FR-017)
 
-- [ ] **T018** `tests/test_journey_one_questionnaire.py`: the People step names `questionsState`,
+- [X] **T018** `tests/test_journey_one_questionnaire.py`: the People step names `questionsState`,
       still asserts all three approvals, and records `people_locked_reason()`.
-- [ ] **T019** `evals/test_s012_journey_through_a_host.py`: the People step, rewritten to assert
+- [X] **T019** `evals/test_s012_journey_through_a_host.py`: the People step, rewritten to assert
       both facts in one step with keel-web's own sentence in the evidence.
 
 ## Phase 5 — the sweep (FR-018 … FR-021)

@@ -297,3 +297,28 @@ def test_no_assertion_is_made_about_the_words_the_model_wrote():
     body = _function_source("_the_questions_land")
     for forbidden in ("Think of the last", "About that night", "Asked:"):
         assert forbidden not in body, f"the questions step pins the model's own words: {forbidden}"
+
+
+# -------------------------------------------------------------------- phase 4: People unlocks on READY
+
+def test_people_unlocks_on_the_state_the_product_unlocks_on():
+    """FR-015. keel-web's `gateOpen = questionsState === "READY"`, `Project.invite`'s
+    `rule: "questionnaire"`, and now the referee -- one gate, read three times, computed once."""
+    step = SCENARIO[SCENARIO.index("§1.4: People unlocks"):][:4200]
+    assert "questionsState" in step or "READY" in step, (
+        "the People step still reads nothing but the approvals")
+
+
+def test_the_old_reading_is_kept_beside_the_new_one():
+    """FR-016. *Approved and still locked* and *unlocked while unapproved* are two faults, and one
+    assertion could not tell them apart."""
+    step = SCENARIO[SCENARIO.index("§1.4: People unlocks"):][:4200]
+    assert "approved" in step
+    assert "people_locked" in step
+
+
+def test_a_locked_people_entry_reports_keel_webs_own_sentence():
+    """FR-017: *Writing the questions for your lines. People opens when they land.* is worth more
+    in a bundle than `False`."""
+    step = SCENARIO[SCENARIO.index("§1.4: People unlocks"):][:4200]
+    assert "people_locked_reason" in step

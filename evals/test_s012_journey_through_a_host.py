@@ -1846,11 +1846,54 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
 
             people = People(page, recorder, web_base)
             people.open(project_id)
-            with recorder.step("§1.4: People unlocks once every framed card is approved",
-                                party="founder", kind="assert") as h:
-                locked = Shell(page, recorder).people_locked()
-                h.record_assert({"people_locked": False}, {"people_locked": locked})
-                assert not locked, "People stayed locked after all three approvals"
+            with recorder.step("§1.4: People unlocks once the questions are written -- and every "
+                                "framed card is still approved", party="founder",
+                                kind="assert") as h:
+                # **Two facts, in one step, because they are two different faults** (spec 026
+                # FR-015/FR-016; keel-cloud spec 048 FR-028/FR-029; keel-web spec 026 FR-017).
+                #
+                # The sentence this step used to make -- *People unlocks once every framed card is
+                # approved* -- was the whole rule until 048. It is now half of it: approving the
+                # last card no longer makes the questions exist, so for a minute or two the three
+                # cards are all approved and there is nothing anybody can be sent. keel-web stopped
+                # recomputing the gate from the cards and reads `Overview.questionsState` instead
+                # (`gateOpen = questionsState === "READY"`), which is the same gate
+                # `Project.invite` enforces on the wire (`rule: "questionnaire"`, *"no questions
+                # have been written for this project yet"*).
+                #
+                # So the referee reads it too, rather than becoming the one party in the system
+                # computing it a fourth way -- and keeps the old reading beside it, because
+                # *approved and still locked* and *unlocked while unapproved* are two different
+                # faults and one assertion could not tell them apart. `_the_questions_land` above
+                # has already waited for READY; what this adds is that the **screen** agrees.
+                shell = Shell(page, recorder)
+                locked = shell.people_locked()
+                overview_body = get_json(f"/v2/projects/{project_id}/overview") or {}
+                approvals = {s.get("type"): s.get("approved")
+                             for s in overview_body.get("stages") or []}
+                unapproved = [stage for stage in STAGES if approvals.get(stage) is not True]
+                h.record_assert({"people_locked": False, "questionsState": "READY",
+                                  "approved": {stage: True for stage in STAGES}},
+                                 {"people_locked": locked,
+                                  # FR-017: keel-web's own sentence, so a failure says *Writing the
+                                  # questions for your lines* or *We couldn't write the questions
+                                  # for your lines* instead of `True`.
+                                  "why, in keel-web's own words": (shell.people_locked_reason()
+                                                                   if locked else None),
+                                  "questionsState": overview_body.get("questionsState"),
+                                  "approved": approvals})
+                assert not unapproved, (
+                    f"the journey reached People with {unapproved} unapproved; People unlocking "
+                    f"here would mean keel-cloud let an invitation out before the lines were "
+                    f"accepted")
+                assert overview_body.get("questionsState") == "READY", (
+                    f"the overview reads questionsState="
+                    f"{overview_body.get('questionsState')!r} at the People page, having read "
+                    f"READY a moment ago -- the questionnaire was rewritten or withdrawn between "
+                    f"the two")
+                assert not locked, (
+                    f"People stayed locked with all three cards approved and the questions READY. "
+                    f"keel-web says: {shell.people_locked_reason()!r}")
 
             # Each of the chosen people gets their own link and answers in their own words, in
             # corpus order (the founder, 2026-09-13: five, so the brief has a verdict to say).
