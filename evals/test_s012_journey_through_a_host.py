@@ -445,7 +445,13 @@ def _land_the_card(page, recorder, get_json, project_id, stage, opening, *, time
 def _read_the_lines(page, recorder, get_json, project_id, stage, chat, *, timeout_s=300.0):
     """**The stage's second model job, and what it produced**: the founder saves the confirmation
     card, keel-cloud chains the frame's own `<STAGE>_ASSUMPTIONS` off it with nothing pressed, and
-    the review card lands carrying numbered lines, pick lists and a separated deal-breaker.
+    the review card lands carrying numbered lines and a separated deal-breaker.
+
+    **It does not carry pick lists, and since keel-cloud spec 048 it cannot** -- the questionnaire
+    is the project's, written by one `QUESTIONS` call after the last framed stage is approved, which
+    is after every card this reads. The assertion that every line offers a pick list has moved to
+    `_the_questions_land`; the long comment at the step below says why, and spec 026 FR-002 is the
+    requirement.
 
     Split out of `_walk_stage_live` for the same reason `_land_the_card` was split out of it (spec
     021), and for one more: the **short Keel's-AI cell** stops here (spec 024, the founder,
@@ -478,10 +484,43 @@ def _read_the_lines(page, recorder, get_json, project_id, stage, chat, *, timeou
                         "deal-breaker", party="founder", kind="assert") as h:
         lines = card_page.lines()
         rule_lines = card_page.rule_lines()
+        # **The chips are recorded here and asserted below, after the questions land** (spec 026
+        # FR-002/FR-003; keel-cloud spec 048; keel-web spec 026 FR-012).
+        #
+        # Until 048 a stage *could not be approved without its own questionnaire* --
+        # `ScreenResultApplier.confirmCommand` ran `frame -> introduceRoles ->
+        # introduceAssumptions -> approve` in one apply and `introduceAssumptions` took a
+        # questionnaire -- so *the lines are approved* and *the questions exist* were one event and
+        # every review card a founder ever read had pick lists under its lines. This step asserted
+        # that, correctly, for as long as it was true:
+        #
+        #     assert all(line.get("chips") for line in lines)
+        #
+        # 048 splits that moment in two. `introduceAssumptions` takes beliefs, roles and
+        # rationales; the questionnaire is the **project's** and is written by **one `QUESTIONS`
+        # call** that runs when the last framed stage is approved -- strictly after every card this
+        # function reads. keel-web 026 FR-012 draws the consequence in markup: `ReviewLine` renders
+        # `{selection ? <Chips …/> : null}`, and a card on which no line resolves a control says so
+        # **once**, in `QUESTIONS_NOT_WRITTEN_YET`, rather than drawing empty pick lists. Matrix run
+        # 36862514753 on staging 782a01a -- the first run on the new build -- went red here in under
+        # two minutes, on the first card of three, for asserting a screen shows something the
+        # product is designed not to show it.
+        #
+        # **The assertion is moved, not dropped**: `_the_questions_land` below makes it against the
+        # project's one questionnaire (every selection offers a pick list) and against the slice
+        # each approved card carries. And the **absence** of chips is not asserted either, because
+        # it is not reliably true: a `SOLUTION` or `COMMERCIAL` line that `reads` an earlier stage's
+        # measurement is given the referent's own `selectionId` (keel-cloud 049 FR-013), so it owns
+        # a control the earlier approval already wrote and draws chips on an unapproved card. That
+        # is 049 working, and a run that refused it would be refusing the feature.
+        chipped = [line.get("heading") for line in lines if line.get("chips")]
         h.record_assert({"lines": ">= 1, each numbered", "rule lines": "one names deal-breakers"},
                          {"lines": len(lines), "rule lines": rule_lines,
                           "headings": [line.get("heading") for line in lines],
-                          "first line": (lines[0] if lines else None)})
+                          "first line": (lines[0] if lines else None),
+                          "lines carrying a pick list already (keel-cloud 049: a line that reads "
+                          "an earlier stage's measurement owns that stage's control), recorded "
+                          "and asserted nowhere": chipped})
         assert lines, f"the {stage} card rendered no lines at all"
         unnumbered = [line.get("heading") for line in lines
                       if not str(line.get("number") or "").strip()]
@@ -489,9 +528,6 @@ def _read_the_lines(page, recorder, get_json, project_id, stage, chat, *, timeou
         assert any("deal-breaker" in line.lower() for line in rule_lines), (
             f"the {stage} card separates no deal-breaker from what is worth knowing: "
             f"{rule_lines!r}")
-        assert all(line.get("chips") for line in lines), (
-            f"a {stage} line offers no pick list at all: "
-            f"{[l.get('heading') for l in lines if not l.get('chips')]}")
     return card_page
 
 

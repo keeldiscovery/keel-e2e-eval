@@ -35,11 +35,11 @@ spec.md's *The next live run*, and it is the founder's to type.
 
 ## Phase 2 — the review card asks for what a review card can have (FR-001 … FR-003)
 
-- [ ] **T010** `tests/test_journey_one_questionnaire.py` (new): the chips assertion is gone from
+- [X] **T010** `tests/test_journey_one_questionnaire.py` (new): the chips assertion is gone from
       `_read_the_lines`; the three that remain are still there verbatim; the comment that replaced it
       names 048, keel-web 026 FR-012 and run 36862514753; `_read_the_lines` still records the chip
       counts so the bundle keeps the number it stopped asserting.
-- [ ] **T011** `evals/test_s012_journey_through_a_host.py::_read_the_lines`: delete nothing, assert
+- [X] **T011** `evals/test_s012_journey_through_a_host.py::_read_the_lines`: delete nothing, assert
       three of the four, and write the reason where the fourth stood, pointing at the step FR-010
       moves it to.
 
@@ -195,6 +195,15 @@ entry names where it was found and what was done about it.
   as evidence, and the accounting then says what failed. The retry's value is that the failure is
   reported **where it happened, with keel-cloud's own reason**, instead of as a 420-second silence.
   The step's comment now says so.
+
+- **D-11 — the comment that replaced the assertion *is* the assertion, as far as a grep is
+  concerned.** The first run of `tests/test_journey_one_questionnaire.py` went red on its own first
+  test: the long comment above the step quotes `assert all(line.get("chips") for line in lines)` so
+  a reader can see what left, and a source test that greps the raw function body reads that
+  quotation as the assertion still standing. Answered with `_code_of`, which drops `#` lines before
+  the check -- and the test now asserts **both** halves: the assertion is gone from the code, and
+  the quotation is still in the comment. A rule this repository was going to need again: every
+  moved assertion on this branch leaves its own text behind on purpose.
 
 - **D-10 — `instructions/models.py` needed nothing.** `SCREEN_TO_CLASS` has carried
   `"QUESTIONS": "questions"` since spec 025 phase 6, and `REPORTED_CLASSES` carries `questions`, so
