@@ -41,10 +41,15 @@ _STAGE_SCREEN = {"PROBLEM": "PROBLEM_ASSUMPTIONS", "SOLUTION": "SOLUTION_ASSUMPT
 _TOOL = (Path("src") / "test" / "java" / "com" / "keeldiscovery" / "cloud" / "tooling"
          / "ScreenContractTool.java")
 
-#: The two shapes this eval needs the validator to take, and the marker in its source that says it
-#: does. `earlier_beliefs` is the batch key that would let `ScreenResultApplier` resolve a
-#: `reads: {stage, line}`; `QUESTIONS` is the screen whose case seeds a project with settled lines.
-_SHAPE_MARKERS = {"earlier_beliefs": "earlier_beliefs", "questions": "InferenceScreen.QUESTIONS"}
+#: The three shapes this eval needs the validator to take, and the marker in its source that says
+#: it does. `earlier_beliefs` is the batch key that would let `ScreenResultApplier` resolve a
+#: `reads: {stage, line}`; `QUESTIONS` is the screen whose case seeds a project with settled lines;
+#: `measurements` is the batch key that makes those settled lines **the ones the model was shown**,
+#: so a `reads` index means the same belief on both sides. The marker is the *read* and not the
+#: word: `measurements` appears in that file's prose already, and a shape read off a comment is a
+#: shape assumed.
+_SHAPE_MARKERS = {"earlier_beliefs": "earlier_beliefs", "questions": "InferenceScreen.QUESTIONS",
+                  "measurements": 'get("measurements")'}
 
 
 def shapes_taken(keel_cloud: Path) -> dict:
@@ -68,6 +73,8 @@ def shapes_needed(batch: dict) -> set:
     for case in batch.get("cases") or []:
         if case.get("screen") == "QUESTIONS":
             needed.add("questions")
+            if case.get("measurements"):
+                needed.add("measurements")
             continue
         produced = (case.get("result") or {}).get("assumptions")
         if isinstance(produced, list) and any(
@@ -108,6 +115,17 @@ _PREREQUISITE = {
         "`Q6`, `Q7` and `Q8` are unreachable and `rule_refusal_rate` has not been measured on the "
         "screen this rubric bumped for. **Prerequisite for keel-cloud**: spec 048 FR-015 and spec "
         "049's `ScreenContractTool` QUESTIONS case."),
+    "measurements": (
+        "keel-cloud's `screenContracts validate` does not read the `QUESTIONS` batch case's "
+        "`measurements`: `ScreenContractTool.projectFor` seeds that case with a canned project of "
+        "three settled beliefs, so a `reads` index the model wrote against the array it was "
+        "actually shown is refused for naming a measurement the seeded project does not have. "
+        "**Prerequisite for keel-cloud**: `projectFor` must seed the `QUESTIONS` project from the "
+        "batch's own `measurements`, in the given index order, so `measurements[i]` on the seeded "
+        "project is the i-th entry the model saw (keel-e2e-eval spec 025 FR-018/FR-019). Until it "
+        "does, `rule_refusal_rate` and `shape_refusals` are UNMEASURED on any run that showed a "
+        "questionnaire call more measurements than the canned project carries -- they are not "
+        "zero, and they are not met."),
 }
 
 
@@ -126,8 +144,14 @@ def build_batch(cases_and_results) -> dict:
     earlier stages' approved beliefs travel with the case, per stage, **in the order
     `context.earlier_lines` numbered them**, which is the order the ordinal counts in.
 
-    **And a `QUESTIONS` case is a case.** Its result is applied through `writeQuestionnaire`, which
-    is the only way `Q5`, `Q6`, `Q7` and `Q8` are reachable at all and counted by rule id.
+    **And a `QUESTIONS` case is a case** — which is why it carries **`measurements`** (spec 025
+    FR-018, Discovered D18). Its result is applied through `writeQuestionnaire`, the only way `Q5`,
+    `Q6`, `Q7` and `Q8` are reachable at all and counted by rule id; and its only cross-reference,
+    `reads`, is a 0-based index into the `measurements` array the model was shown. A case that
+    carried no measurements left the validator to seed a canned project of its own, and every index
+    past the end of *that* project came back a shape refusal — a fault **this eval created**, on a
+    mark set at an absolute zero. So the settled beliefs travel with the case, **in
+    `context.measurements`' own order**, which is the order the index counts in.
     """
     cases = []
     for case, result in cases_and_results:
@@ -144,10 +168,26 @@ def build_batch(cases_and_results) -> dict:
             "statement": _statement_of(case),
             "result": result,
         }
-        if case.kind != "QUESTIONS":
+        if case.kind == "QUESTIONS":
+            entry["measurements"] = _measurements(context)
+        else:
             entry["earlier_beliefs"] = _earlier_beliefs(context)
         cases.append(entry)
     return {"cases": cases}
+
+
+def _measurements(context: dict) -> list:
+    """The settled beliefs **the model was given**, in `measurements`' own order and numbering.
+
+    The same objects the context carried, not a second derivation of them -- `_earlier_beliefs`'
+    rule one screen along, and for the harder version of the same reason. A `QUESTIONS` answer's
+    only cross-reference is `reads`, a 0-based index into this array; a validator seeded with a
+    *different* array resolves index 3 to a belief the model never saw, or to nothing at all, and
+    counts the model's own arithmetic as a shape refusal. One place decides the index, and it is
+    `instructions/context.measurements_for`.
+    """
+    measurements = context.get("measurements")
+    return list(measurements) if isinstance(measurements, list) else []
 
 
 def _earlier_beliefs(context: dict) -> list:

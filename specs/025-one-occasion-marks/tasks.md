@@ -382,6 +382,43 @@ task it was found under. Nothing here is a change of mind about the design; it i
   is a refusal rather than an empty `reads` because an empty `reads` is the one thing the server
   cannot derive a control from.
 
+- **D18 (T030's first attempt, and it is a fault this eval created).** The run of record was taken
+  — `runs/20260930T234025Z-instructions`, 414 cases, 3 h 16 m, $15.65 — and it **failed on
+  `shape_refusals = 21`** against a mark of 0 while the other four marks passed (`anchoring` 0.981,
+  `recall` 0.955, `refusals` 0/63, `brief` 1.0). All 21 are the 7 `QUESTIONS` cases × 3 runs, and
+  **17 of the 21 were the harness's**. `build_batch` emitted a `QUESTIONS` case as
+  `{case_id, screen, market, roles, statement, result}` and carried **no measurements**, so
+  keel-cloud's `ScreenContractTool.projectFor` seeded it with its own canned project of **three**
+  settled beliefs (`settleALinePerStage`) — while the model's prompt had carried **18** for
+  `01-countly` and the model had answered `reads` 0–17 correctly, in two clean occasions. Every
+  `reads >= 3` therefore came back *"names measurement N, and this project has 3"*: the eval failed
+  the model for the eval's own arithmetic, on the one mark set at an absolute zero.
+
+  **The fix is `earlier_beliefs`' own rule, one screen along.** `build_batch` writes
+  **`measurements`** on every `QUESTIONS` case, as `context.get("measurements")` **unmodified** —
+  the same list of dicts `ScreenContextBuilder.measurements` wrote into the model's own context
+  (`index`, `stage`, `heading`, `statement`, `risk`, `mark`, `role`, `expectation`), in that order,
+  which is the order the index counts in. One place decides the index and it is
+  `instructions/context.measurements_for`. `earlier_beliefs` stays absent on a `QUESTIONS` case: it
+  names no stage and reads no earlier line.
+
+  **And FR-019 gains a third shape.** `_SHAPE_MARKERS` now carries `measurements`, read off
+  `ScreenContractTool.java` by the marker `get("measurements")` — **the read and not the word**,
+  because the word is already in that file's prose and a shape read off a comment is a shape
+  assumed. `shapes_needed` asks for it only where a `QUESTIONS` case actually carries measurements,
+  and `_PREREQUISITE["measurements"]` names the canned three and reports
+  `rule_refusal_rate`/`shape_refusals` **UNMEASURED** until `projectFor` seeds from the batch.
+
+  **The other 4 of the 21 are real, and they are the model's**: `06-repeatline` run1/run3 and
+  `07-mulchrun` run1/run2, where Haiku wrote an `occasion` of 9, 9, 9 and 11 words against a rule
+  of *two to five, at most 8* — *"the last phone or online tool the practice bought"*, *"the last
+  time you placed a supply order the night before"*. Fixed in keel-cloud `049`'s own ledger, in
+  `questions.md` and in the `QUESTIONS` schema's `occasion` description, and screened before the
+  run was taken again.
+
+  **The failed run stays on disk and stays recorded as a finding.** It is not the run of record,
+  and it is not deleted: a rubric's first answer is evidence about the harness.
+
 
 ## The run of record, in one block
 
