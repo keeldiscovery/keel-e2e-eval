@@ -1901,7 +1901,25 @@ class ReviewCard:
 
     def asked_first(self) -> str:
         """The *What they'll be asked first* block -- the `<h4>` and its own `dl.qa` (ORI-U4's
-        substrate). `""` when the block never rendered, which is itself the finding."""
+        substrate). `""` when the block never rendered, which is itself the finding.
+
+        **And since 2026-09-30 it never renders, so this answers `""` for ever** (keel-web spec 026
+        FR-011; keel-e2e-eval spec `026-journey-one-questionnaire` Discovered D-6). keel-web
+        **deleted** the block rather than emptying it -- a stage no longer owns a questionnaire, so
+        on a card being reviewed there was never anything for it to draw, and a block that renders
+        nothing is a block a founder wonders about -- along with its five strings
+        (`REVIEW_ASKED_FIRST_HEADING`, `REVIEW_ONE_STORY_TERM`, `REVIEW_THEN_TERM`,
+        `reviewThenLine`, `REVIEW_ASKED_FIRST_HINT`). What stands in its place is one sentence,
+        `QUESTIONS_NOT_WRITTEN_YET`, and only when no line on the card resolves a control.
+
+        **This method is deliberately left alone.** `evals/test_s001_smoke.py`,
+        `evals/corpus_scenario.py` and `harness/rubric.py`'s **ORI-U4** all still require the block,
+        and what ORI-U4 should measure now that the founder reads the questions on the People page
+        instead (`journeys.md` §1.2; keel-web 026 FR-014's *Read the questions*) is a rubric
+        question with its own spec. S-012 only captures this as evidence and asserts nothing about
+        it. The ledger entry is where the argument is; this note is so the next reader finds it
+        instead of an empty string.
+        """
         block = self.page.locator(".card.openc .who", has=self.page.locator("dl.qa")).first
         if block.count() == 0:
             return ""

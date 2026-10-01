@@ -322,3 +322,52 @@ def test_a_locked_people_entry_reports_keel_webs_own_sentence():
     in a bundle than `False`."""
     step = SCENARIO[SCENARIO.index("§1.4: People unlocks"):][:4200]
     assert "people_locked_reason" in step
+
+
+# ------------------------------------------------------------------------------ phase 5: the sweep
+
+def test_the_minutes_comment_no_longer_claims_the_participant_never_sees_them():
+    """FR-018 / D-7. keel-web 026 FR-004 renders *About N minutes* on the participant page for the
+    first time; the design named that as a drift and keel-web fixed it."""
+    body = _function_source("_invite_one_live")
+    assert "never on the participant's page" not in body, (
+        "the scenario still says `minutes` is never on the participant page -- keel-web 026 FR-004 "
+        "put it there")
+    assert "026 FR-004" in body
+
+
+def test_the_preview_minutes_assertion_itself_did_not_move():
+    """FR-018. It counts *About N minutes* lines in the founder's **preview** string, which is
+    still exactly one -- one questionnaire, one estimate -- and `N >= 10` is still the floor."""
+    body = _function_source("_invite_one_live")
+    assert "exactly one 'About N minutes' line" in body
+    assert "preview said" in body
+
+
+def test_the_short_journey_no_longer_claims_to_buy_the_questions():
+    """FR-019 / D-8. Since 048 the assumptions job writes no questionnaire and the `QUESTIONS` job
+    fires on the **approval**, which the short run deliberately never makes."""
+    from harness import agent_host
+    sentence = agent_host.short_stops_at("keel")
+    assert "questions" not in sentence.lower(), sentence
+    assert "PROBLEM_ASSUMPTIONS" in sentence, (
+        "the sentence lost the screens it was right about along with the word it was wrong about")
+
+
+def test_the_accounting_step_says_a_questions_retry_shows_up_in_it():
+    """FR-020 / D-9. The retry does not remove the first attempt's failed interaction, and the
+    tail's *every job COMPLETED* step will name it. Deliberate, and said out loud."""
+    at = SCENARIO.index("leg two: zero refusals")
+    # The reason stands *above* the step, which is where this branch's reasons go.
+    tail = SCENARIO[at - 1200:at + 1400]
+    assert "QUESTIONS" in tail
+    assert "retry" in tail
+
+
+def test_the_review_cards_asked_first_reader_names_the_block_keel_web_deleted():
+    """D-6. Not fixed here -- three other places in this repository still require it, and what
+    ORI-U4 measures now is a rubric question with its own spec. Named, so the next reader finds the
+    ledger entry instead of an empty string."""
+    browser = (REPO / "harness" / "browser.py").read_text()
+    reader = browser[browser.index("def asked_first"):][:1600]
+    assert "026" in reader and "FR-011" in reader

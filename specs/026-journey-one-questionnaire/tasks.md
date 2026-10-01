@@ -75,15 +75,15 @@ spec.md's *The next live run*, and it is the founder's to type.
 
 ## Phase 5 — the sweep (FR-018 … FR-021)
 
-- [ ] **T020** `_invite_one_live`'s minutes comment — keel-web 026 FR-004 puts *About N minutes* on
+- [X] **T020** `_invite_one_live`'s minutes comment — keel-web 026 FR-004 puts *About N minutes* on
       the participant page for the first time. The **assertion** does not move (**D-7**).
-- [ ] **T021** `harness/agent_host.py::short_stops_at` and the scenario's own short-journey note:
+- [X] **T021** `harness/agent_host.py::short_stops_at` and the scenario's own short-journey note:
       the short run buys the framing and its lines, **not** its questions (**D-8**).
-- [ ] **T022** the end-of-run accounting step's comment: a `QUESTIONS` retry shows up there, and why
+- [X] **T022** the end-of-run accounting step's comment: a `QUESTIONS` retry shows up there, and why
       that is right.
-- [ ] **T023** `harness/browser.py::ReviewCard.asked_first` — a dated note naming keel-web 026
+- [X] **T023** `harness/browser.py::ReviewCard.asked_first` — a dated note naming keel-web 026
       FR-011, which deleted the block it reads. **Not fixed here** (**D-6**).
-- [ ] **T024** `tests/test_journey_through_a_host.py`: the short journey's own sentence, asserted
+- [X] **T024** `tests/test_journey_through_a_host.py`: the short journey's own sentence, asserted
       against the new wording.
 
 ## Phase 6 — the documents, and the run the founder types (FR-022 … FR-024)
@@ -231,6 +231,14 @@ entry names where it was found and what was done about it.
   leg, three stages and the questions, so on a live run it would have cost everything up to it
   before raising. Fixed in the commit that introduced it, and recorded because the two names for one
   reader are a trap this file will set again.
+
+- **D-15 — a founder's quotation is left as it was said.** `harness/agent_host.py`'s
+  `short_stops_at` sits under the founder's own 2026-09-29 words: *"only the framing-and-assumptions
+  part — the problem framed, broken into **lines and questions** — at different effort settings, to
+  keep spend down."* That sentence was true of the product on the day it was spoken, and 048 landed
+  after it. The **code's** description of what the length buys is corrected; the quotation above it
+  is not, and the correction says so in as many words. A quotation edited to agree with a later
+  build is a record nobody can trust.
 
 - **D-10 — `instructions/models.py` needed nothing.** `SCREEN_TO_CLASS` has carried
   `"QUESTIONS": "questions"` since spec 025 phase 6, and `REPORTED_CLASSES` carries `questions`, so

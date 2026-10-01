@@ -946,13 +946,22 @@ def _invite_one_live(page, recorder, project_id: str, web_base: str, person_name
     people.open_send_popup(label)
     people.fill_who(person_name, about=f"{label}, asked about one real occasion.")
     preview = people.go_to_preview()
-    # FR-021, and shape only: `minutes` is rendered in exactly one place in the whole product --
-    # `SendPopup`'s *"About N minutes"* line, never on the participant's page
-    # (`one-occasion-once-design.md` §4). **One** is the assertion: three sections each carrying
-    # their own estimate is precisely the shape one occasion asked once removes. `N >= 10` is
+    # FR-021, and shape only. **One** is the assertion: three sections each carrying their own
+    # estimate is precisely the shape one occasion asked once removes. `N >= 10` is
     # `FormComposer`'s floor and the only arithmetic anybody may claim about it here; the anchors
     # and selections on a live page are the model's own, so no exact N is asserted (spec 016
     # FR-007).
+    #
+    # **This used to say `minutes` is rendered in exactly one place in the whole product and never
+    # on the participant's page, and that is no longer true** (spec 026 FR-018).
+    # `one-occasion-once-design.md` §4 named it as a drift rather than fixing it -- *"`journeys.md`
+    # §2.1's mock shows *About 15 minutes* on the stranger's first screen and the page does not show
+    # it"* -- and **keel-web spec 026 FR-004 fixed it**: `ParticipantRoute.tsx` now renders
+    # `About N minutes` under the consent line, omitted entirely where the number is absent or not
+    # positive. The assertion below did not move with the fact, and did not need to: it counts the
+    # lines in the **founder's preview string**, which is still exactly one -- one questionnaire,
+    # one estimate -- and the participant's own copy of the number is a second rendering of the
+    # same one.
     with recorder.step("§1.5: the founder's preview names the minutes once",
                         party="founder", kind="assert") as h:
         minutes = People.preview_minutes(preview)
@@ -1813,9 +1822,13 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                                {"asserted": (
                                     "sign-up through the Google door, 1,500 credits and no agent "
                                     "line, a project started with no runtime bound, the problem "
-                                    "framed, and the lines and questions keel-cloud chained off "
-                                    "it -- read through the same function the full journey reads "
-                                    "them through"
+                                    "framed, and the lines keel-cloud chained off it -- read "
+                                    "through the same function the full journey reads them "
+                                    "through. NOT its questions: since keel-cloud spec 048 the "
+                                    "assumptions job writes no questionnaire, and the one "
+                                    "QUESTIONS call that writes the project's one questionnaire "
+                                    "fires on the *approval*, which this length deliberately "
+                                    "never makes"
                                     if agent_host.short_reaches_the_assumptions(HOST) else
                                     "the plugin from the public marketplace, the skill seen as a "
                                     "plugin skill, a runtime awaiting approval, a code this Keel "
@@ -1977,6 +1990,14 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                     assert str(strip.get("number") or "").strip(), f"an unnumbered strip: {strip!r}"
 
         # ------------------------------------------------- what it cost, and what never happened
+        # **A QUESTIONS retry shows up here, and that is the design** (spec 026 FR-020). The one
+        # retry `_the_questions_land` is allowed to spend does not remove the attempt it retried
+        # from this list, so a journey whose questions failed once and then landed is a journey with
+        # a failed job in it and this step names it. Deliberate, and the same posture
+        # `_land_the_card`'s three benign follow-ups already take: the run goes on so that People,
+        # the readings and the brief are all in the bundle as evidence, and the accounting at the
+        # end says what failed. What the retry buys is that the failure was reported **where it
+        # happened, in keel-cloud's own words**, instead of as a 420-second silence.
         with recorder.step("leg two: zero refusals, every job COMPLETED",
                             party="stack", kind="assert") as h:
             interactions = context.request.get(
