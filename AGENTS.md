@@ -84,6 +84,20 @@ added to this line rather than quietly written — which is exactly how the thir
   was dropped** — the comment where the old one stood quotes it and says where it went, which is
   the rule this repository works to whenever a product moves under a scenario.
 
+  **And §1.7 moved with keel-web 027** (spec `027-journey-brief-ship`). The overview is **the
+  deck** now -- the keel ship as one band per stage, three panels of *Held* and *Did not hold*,
+  and *Download the brief* -- so the evidence bar, the four-count legend, the three stage cards
+  and the *What this says* paragraph all left that screen, and `Overview.open` waited thirty
+  seconds for a class (`.ocards`) that keel-web still draws **on a different screen**. §1.7 reads
+  the deck: three bands coloured by the verdict the wire sent, three panels whose count lines are
+  compared against `GET /overview` and `GET /standing` number for number, the worst panel open at
+  rest, and the download live exactly when a reading exists. The paragraph is asserted on **page 1
+  of the brief**, which the journey now opens and reads whole -- five pages, the 16:9 block, and an
+  evidence page that carries every line's counts and **nobody's name**. **No assertion was
+  dropped**: three moved with the reason written where they stood, and the one whose subject no
+  longer exists anywhere -- keel-cloud's own *not yet* note -- was inverted into the download's
+  disabled state, which is what a founder actually reads at that moment.
+
   **And it is still one scenario at two lengths** (spec 021). `LEGS=short` stops it after the host
   leg and the **first** model job, which is what every qualifying change now buys; `LEGS=full` is
   what the weekly set and, since design §16, every per-change cell buy (the nightly is suspended since 2026-09-13). That is a *stopping point* in one story, not a second

@@ -1477,6 +1477,26 @@ through. What the model writes is still the model's: on a live run the anchors a
 its own, so the person's stories go into them in order, their picks are used where the model's list
 offers them, and the bundle records which were theirs. None of it is asserted.
 
+**What §1.7 reads, since keel-web spec 027 `brief-ship`** (spec `027-journey-brief-ship`). The
+founder's overview is **the deck**: the keel ship with one band per stage coloured by that stage's
+verdict, three panels of *Held* and *Did not hold* in the words the wire sent, and *Download the
+brief*. So the evidence bar, the four-count legend, the three stage cards and the *What this says*
+paragraph are gone from that screen — and matrix run **36870786241** spent a whole live Lullaby
+journey (the framing, the one questionnaire, five invites, five answers, five readings, the BRIEF
+job, project at revision 34) and then said nothing about any of it, because `Overview.open` was
+waiting for `.ocards`, which keel-web still draws on the **stage** page.
+
+§1.7 now reads: the deck's three bands and three panels; **every number on them against the wire**
+— *N of M lines holding* against `GET /standing`'s four lists filtered to the stage, the
+deal-breaker clause and the counted people against `GET /overview`'s own `StageSummary`; the worst
+stage's panel marked and open at rest; the download **disabled before any reading** (*Nothing to
+hand over yet*, with its why) and **live after one**; and then the brief itself, opened by URL in
+the same context with `window.print` stubbed — five pages, page 1's paragraph verbatim under its own
+heading beside the 16:9 block, and an evidence page carrying one row per line and **no participant
+name at all** (principle P8: that is the page that gets forwarded). The page objects are proved
+against keel-web's own markup offline, in `tests/test_journey_brief_ship_markup.py`, so a selector
+can never again cost a live journey.
+
 **Leg one is the host.** keel-connect-skill's plugin is installed into a **fresh host home**
 (`CLAUDE_CONFIG_DIR` / `COPILOT_HOME`) from the real public marketplace with that host's own two
 commands — the same two argv but for the binary, because one marketplace repository serves both —

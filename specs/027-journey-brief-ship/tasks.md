@@ -3,7 +3,8 @@
 **Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md) | **Branch**: `027-journey-brief-ship`
 
 `make unit`: **green at every commit on this branch.** Baseline at `736a61e`, before a line was
-written: **1,262 passed** (Discovered **D-0**).
+written: **1,262 passed** (Discovered **D-0**). At the end: **1,283 passed** — twenty-one new tests,
+none deleted, and no assertion removed anywhere.
 
 **Tests first, within each phase.** Each phase's own tests are written before the code that turns
 them green and land in the same commit (spec 025 D11's rule, kept by spec 026 and kept here). **No
@@ -96,7 +97,8 @@ somewhere else with the reason above it.
       kept and compared against the panels' rows.
 - [X] **T032** `evals/test_s005_countly.py`: every one of the mockup's five numbers kept, read off
       the deck — except *not asked yet*, which the deck draws nowhere and which is asserted against
-      the wire with the reason above it (**D-9**).
+      the wire with the reason above it (**D-6**). A second step ties the mockup's four counts to the
+      deck's three rows, so neither human statement can be edited alone.
 - [X] **T033** `evals/test_s007_mulchrun.py`: the metric-leak sweep reads the deck's own text and the
       printed paragraph.
 - [X] **T034** `evals/tools/curated_proof_run.py`: the overview and download blocks read the new
@@ -107,7 +109,10 @@ somewhere else with the reason above it.
 ## Phase 5 — the ledger and the governing documents
 
 - [X] **T040** this `tasks.md`'s `## Discovered`, written as the work found things and not after.
-- [X] **T041** `AGENTS.md` and `README.md` read for a sentence that stopped being true. **D-10.**
+- [X] **T041** `AGENTS.md` and `README.md` — one paragraph each, beside the paragraph spec 026 put
+      there, naming the deck, the red run and that nothing was dropped. **D-10.**
+- [X] **T042** the whole repository grepped for the retired selectors, not only the page object the
+      red run named: `ReviewCard.continue_onward`'s own wait had `.ocards` in it too (**D-12**).
 
 ## Phase 6 — the command
 
@@ -226,11 +231,15 @@ entry names where it was found and what was done about it.
   things the DOM actually carries (plan Decision 5). Worth one look from the founder beside keel-web's
   own open questions, and not a failure.
 
-- **D-10 — `AGENTS.md` and `README.md` needed no edit, and that is a finding worth one line.** Both
-  describe the harness by its scenarios, its targets and its bundle layout; neither names a selector,
-  a page object's method or a screen's composition. The one sentence that could have gone stale —
-  `README.md`'s account of what a run bundle holds — names `transcript.jsonl`, `report.html`,
-  `facts.json` and `spend.json`, all unchanged. Read and left alone.
+- **D-10 — `AGENTS.md` and `README.md` each needed one paragraph, in the place spec 026 put
+  its own.** Both describe S-012 by what it asserts, and both carry a *"and what it asserts about
+  the cards moved when keel-cloud 048 moved it"* paragraph from the branch before this one. A
+  paragraph each is added beside it, naming the deck, naming the red run, and naming that no
+  assertion was dropped — which is the sentence a reader of a green bundle needs in order to tell a
+  run taken under this spec from one taken before it. `README.md`'s historical run notes are left
+  exactly as they were: *"`whatThisSays` was still not observed rendered on a live overview"* is a
+  true record of what run 36563095946 found, and rewriting a run's own findings is not this
+  repository's practice.
 
 - **D-11 — `tests/test_page_object_calls_exist.py` is why the retired readers are kept, and it says
   so by passing.** The static check walks each scenario's AST and asserts every attribute reached
@@ -243,6 +252,39 @@ entry names where it was found and what was done about it.
   *in `make unit`*, which is the one place this repository finds that class of mistake cheaply
   (`runs/DRIFT.md` #33). Every one is kept, every one answers empty or is re-pointed, and the check
   passes untouched.
+
+- **D-12 — `ReviewCard.continue_onward` waited for `.ocards` too, and on the last stage it
+  would have cost twenty seconds on every run.** Found by grepping the whole repository for the
+  retired selectors rather than only the page object the red run named. The approved card's onward
+  door is *Continue to step N* or, on the last stage, *Go to People*; the wait after it was
+  `".chat, .ppl, .role, .ocards"`, and that fourth alternative was the overview — which is the deck
+  now. It is not the fault that killed run 36870786241 (the method's URL fallback and the People
+  page's own classes carry the common cases), but it is the same fault one axis over, and it would
+  have been silent: a twenty-second wait that ends in a timeout `wait_for_selector` raises on, in a
+  method no scenario asserts the duration of. Widened to the deck's three classes plus
+  `.guided-step`, with `.ocards` kept at the end for a deploy that predates the deck.
+
+- **D-13 — the download opens a second tab, so S-001's own `overview.download()` had to learn to
+  answer which page it landed on.** keel-web FR-025 gives the ready control `target="_blank"` and
+  `rel="noopener"`, so the founder's click leaves the overview standing behind the sheet — which is
+  the design's point (§6.1 decision 4) and which `_wait_for_url_change` on the original page can
+  never see. Two consequences, both handled rather than worked around. `Overview.download()` opens
+  the popup through `context.expect_page()` and **returns the `Page`**, falling back to the
+  in-place navigation so it still works against a deploy that has not shipped the attribute; and
+  `PrintPage.stub_print()` installs its `window.print` no-op on the **context**, because a
+  page-scoped `add_init_script` is not inherited by a tab the click opens and an unstubbed
+  `PrintRoute` raises a native dialog no locator can dismiss. S-012 does not take the click at all
+  (plan Decision 6): it asserts the link — label, enabled state, `href` — and then reaches the
+  sheet by URL in the one page it already has.
+
+- **D-14 — the sheet was five pages before this and is five pages after it, which is why nobody
+  noticed it had been rewritten.** `evals/test_s001_smoke.py` and `corpus_scenario._assert_download`
+  both assert `len(sheets) == 5`. Until keel-web 027 that was a title page, an overview page and
+  three stages; now it is page 1, three stages and the evidence page (keel-web FR-029/FR-030,
+  SC-008). The count assertion is correct in both worlds and proves nothing about either, so both
+  steps gained the composition beside it — page 1's name and hand-off line, the 16:9 block's
+  presence, and page 5's four columns and no names. A count that cannot fail is not a check, and
+  this one had been passing over a rewrite.
 
 ## The next live run
 
