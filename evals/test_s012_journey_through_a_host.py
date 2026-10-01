@@ -2089,8 +2089,9 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                 # page 1's own `p.pclaim` and not the stage pages' three claims.
                 h.record_assert({"whatThisSays": "non-empty"},
                                  {"wire": paragraph,
-                                  "and the overview no longer draws it":
-                                      not overview.carries_what_this_says()})
+                                  "where its screen half is asserted": (
+                                      "page 1 of the brief, below -- the overview was asserted to "
+                                      "draw no *What this says* block before the invites went out")})
                 assert paragraph and paragraph.strip(), (
                     "no *What this says* paragraph after the reading -- the BRIEF job the host was "
                     "given never produced one")
