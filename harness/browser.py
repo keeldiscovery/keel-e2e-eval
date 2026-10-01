@@ -2196,14 +2196,62 @@ class CorrectionChat:
 # -------------------------------------------------------------------------------------- Overview
 
 class Overview:
-    """`routes/founder/OverviewRoute.tsx` -- where it stands (mockup screen 4): the
-    lines-have-answers bar, the four-count legend, *What this says*, one card per stage, and the
-    Download link."""
+    """`routes/founder/OverviewRoute.tsx` -- **the deck** (keel-web spec 027 `brief-ship`,
+    merged to master `7e5a2a8`; keel-cloud `canon/designs/brief-page-design.md` §3, status
+    APPROVED).
 
-    #: The legend's four words as keel-web spec 017 writes them (*not asked yet* replaced *not
-    #: tested*, one word for the empty state everywhere). `legend()` reads the counts by class,
-    #: never by these words, so both deploys parse the same.
+    What this screen was until that deploy, and what every read below used to be written against:
+    the lines-have-answers bar (`.evidence__title`), the four-count legend (`.legend`), the *What
+    this says* paragraph (`.next`), three `OverviewCard`s (`.ocards .card`) with their minibars and
+    claim sentences, and the Download link in the evidence bar's action slot
+    (`.evidence__people a`).
+
+    **Every one of those nodes is gone from this route.** What stands in their place is the deck:
+
+    | the deck | the markup | what it replaced |
+    |---|---|---|
+    | the founder's own ship, mark 1a's three paths as one band per stage | `svg.ship` with `path.band[data-stage].band--{good,warn,bad,none}`, each wrapped in the stage page's own `<a>` | the three-segment bar and the four-word legend |
+    | the caption under it | `p.ship__caption` -- *Countly · 18 lines · 12 asked* | the bar's *N of T lines have answers* |
+    | three panels, in the bands' own top-to-bottom order | `div.panel[data-stage]` with `a.panel__name`, `span.panel__word`, `p.panel__count`, and a `dl.panel__body` of **HELD** and **DID NOT HOLD** rows | the three `OverviewCard`s |
+    | the foot | `.deck__foot` -- the band sentence, the five words, and the download | the evidence bar's action slot |
+    | *What this says* | **not on this screen at all** -- it prints on page 1 of the download, and `PrintPage.what_this_says_paragraph()` is what reads it | `.next`'s own paragraph |
+
+    **The retired reads are kept, not deleted** (`evidence_line`, `percent_line`,
+    `lines_with_answers`, `legend`, `stage_cards`, `what_this_says`,
+    `what_this_says_paragraph`): each one now answers *empty* on the deck, which is a finding a
+    scenario can assert rather than a crash, and each one's docstring names the read that succeeded
+    it. A scenario that wants the old number asks the new reader for it; a scenario that wants to
+    say *the old screen is gone* asks the old one.
+    """
+
+    #: The legend's four words as keel-web spec 017 wrote them. **Retired from this screen with
+    #: spec 027** -- `.legend` is drawn by `StageRoute`'s own opened card now and by nothing on the
+    #: overview. Kept because `legend()` is kept, and because the four words are still the
+    #: vocabulary `corpus_scenario.LEGEND_OF_VERDICT` maps a verdict into.
     LEGEND_WORDS = ("holding up", "not holding up", "people disagree", "not asked yet")
+
+    #: **What `open()` waits for.** Three alternatives, deliberately, and in this order: the deck's
+    #: own wrapper, the ship (which the phone shell of keel-web specs 028/029 keeps and may move
+    #: inside other chrome), the panels column, and the walk's current step -- because
+    #: `OverviewRoute` renders `GuidedStep` instead of the deck while any stage is still a draft,
+    #: which is the state this page object is opened in for most of the journey. `.ocards` is
+    #: **not** here any more: it still exists in keel-web, on `StageRoute`'s opened card, so
+    #: waiting for it on this route waited thirty seconds for a node that renders on a different
+    #: screen (matrix run 36870786241).
+    DECK = ".deck, .ship, .panels, .guided-step"
+
+    #: **GUI-U1's own reader** (`harness/rubric.py::_need_exists`): where a stage still needs
+    #: something, this screen must offer a way onward, and the deck's ways onward are each panel's
+    #: stage link, each band's link and the download. The two retired selectors stay at the end of
+    #: the list so an older bundle and an older deploy still read the same -- the check's meaning is
+    #: unchanged and only the nodes it is read off moved.
+    AFFORDANCE = ".panel__name, .ship a, .deck__foot a, .ocards .see, .evidence__people a"
+
+    #: The two parts of a panel, by the words `translate.ts` gives them (`PANEL_HELD`,
+    #: `PANEL_DID_NOT_HOLD`). Matched case-insensitively off the `dt`, never by position, because
+    #: a part with no lines renders no `dt` at all (`StagePanel`'s `Part` returns `null`).
+    PANEL_HELD = "held"
+    PANEL_DID_NOT_HOLD = "did not hold"
 
     def __init__(self, page: Page, *args: Any, party: str = "founder"):
         self.page = page
@@ -2216,26 +2264,265 @@ class Overview:
             self._interaction_id = self._bstep.recorder.new_interaction_id()
         return self._bstep.recorder.interaction("ui_visit", self._interaction_id)
 
-    # ------------------------------------------------------------------------------------- reads
+    # ------------------------------------------------------------------------ the deck: the ship
+
+    def is_deck(self) -> bool:
+        """True once this route is the deck rather than the walk's current step. The deck and
+        `GuidedStep` are the route's only two renderings, so this is how a scenario says *the
+        framing is done* without re-deriving it from the wire."""
+        return self.page.locator(".ship, .panels").count() > 0
+
+    def ship_label(self) -> str:
+        """The figure's own one-line accessible name (keel-web FR-004, `shipStatusLabel`): all
+        three stages and their verdict words, in the bands' top-to-bottom order. Colour is never
+        the only carrier of a verdict, and this is the read that proves it."""
+        return (self.page.locator("svg.ship[aria-label]").first.get_attribute("aria-label") or "")
+
+    def ship_caption(self) -> str:
+        """`p.ship__caption` -- *Countly · 18 lines · 12 asked* (`shipCaption`, FR-007). The
+        successor to the evidence bar's project line and to half of `lines_with_answers()`."""
+        return _safe_text(lambda: self.page.locator(".ship__caption").first.inner_text())
+
+    def ship_counts(self) -> tuple[int, int] | None:
+        """`(lines, asked)` off the caption, or `None` when it never rendered.
+
+        **The successor to `lines_with_answers()`, and deliberately not the same pair.** The bar
+        said *N of T lines **have answers***; the caption says how many lines there are and how
+        many people were asked. The per-stage half of the old number -- how many of a stage's lines
+        are holding -- is `panels()[i]["count"]`, and the whole-project roll-up is `GET
+        /v2/projects/{id}/standing`'s own four lists, which is where a scenario should take it from.
+        """
+        text = self.ship_caption()
+        lines = re.search(r"(\d+)\s+lines?\b", text)
+        asked = re.search(r"(\d+)\s+asked\b", text)
+        return (int(lines.group(1)), int(asked.group(1))) if lines and asked else None
+
+    def bands(self) -> list[dict[str, Any]]:
+        """One row per band of the ship, in the figure's own top-to-bottom order (`BAND_ORDER`:
+        price, solution, problem -- the mark laid down keel-first, read upwards).
+
+        `{stage, wash, lit, label, href}`. `wash` is the band's own verdict modifier --
+        `good`/`warn`/`bad`/`none`, off `band--*` -- which is the one class a scenario can compare
+        against the verdict the wire sent; `label` is the link's `aria-label` (*The problem — not
+        holding up*), which is the same verdict in words.
+        """
+        out: list[dict[str, Any]] = []
+        bands = self.page.locator(".ship .band")
+        for i in range(bands.count()):
+            band = bands.nth(i)
+            classes = (band.get_attribute("class") or "").split()
+            link = band.locator("xpath=ancestor::*[local-name()='a'][1]")
+            out.append({
+                "stage": band.get_attribute("data-stage"),
+                "wash": next((c.split("--", 1)[1] for c in classes if c.startswith("band--")), None),
+                "lit": "lit" in classes,
+                "label": (link.first.get_attribute("aria-label") or "") if link.count() else "",
+                "href": (link.first.get_attribute("href") or "") if link.count() else "",
+            })
+        return out
+
+    # ---------------------------------------------------------------------- the deck: the panels
+
+    #: One panel, read in the browser rather than in Python: `dl.panel__body` is a flat run of
+    #: `dt`/`dd` pairs, so pairing a part's label with its own rows is a walk over sibling nodes
+    #: and not something a CSS selector can express. Everything this returns is text the page
+    #: already drew.
+    _PANEL_JS = r"""(el) => {
+      const text = (n) => n ? n.textContent.replace(/\s+/g, ' ').trim() : '';
+      const parts = {};
+      const body = el.querySelector('dl.panel__body');
+      if (body) {
+        let label = null;
+        for (const child of Array.from(body.children)) {
+          if (child.tagName === 'DT') { label = text(child); parts[label] = parts[label] || []; }
+          else if (child.tagName === 'DD' && label !== null) {
+            for (const li of Array.from(child.querySelectorAll('li'))) {
+              const more = li.querySelector('button.more');
+              if (more) { parts[label].push({more: text(more)}); continue; }
+              parts[label].push({
+                heading: text(li.querySelector('b')),
+                tag: text(li.querySelector('.tag')),
+                line: text(li.querySelector('.fails__line')),
+                pip: (li.querySelector('.pip')?.className || '').replace('pip', '').trim(),
+              });
+            }
+          }
+        }
+      }
+      const classes = Array.from(el.classList);
+      return {
+        stage: el.getAttribute('data-stage'),
+        wash: (classes.find((c) => c.startsWith('panel--') && c !== 'panel--worst') || '')
+                 .replace('panel--', '') || null,
+        worst: classes.includes('panel--worst'),
+        lit: classes.includes('lit'),
+        name: text(el.querySelector('.panel__name')),
+        word: text(el.querySelector('.panel__word')),
+        tone: (Array.from(el.querySelector('.panel__word')?.classList || [])
+                 .find((c) => c.startsWith('st-')) || '').replace('st-', '') || null,
+        claim: text(el.querySelector('.panel__claim')),
+        count: text(el.querySelector('.panel__count')),
+        parts,
+      };
+    }"""
+
+    def panels(self) -> list[dict[str, Any]]:
+        """One row per panel, in the DOM's own order -- which on the desktop deck is the bands'
+        order, and stays the DOM order on a phone (keel-web FR-018 hoists the worst panel with
+        CSS `order`, never with a second DOM order, so this read is the same on both).
+
+        `{stage, wash, worst, lit, name, word, tone, claim, count, parts}`, where `parts` maps a
+        part's own label (*Held*, *Did not hold*) to its rows. A row is either a line --
+        `{heading, tag, line, pip}` -- or the part's tail, `{more: "2 more ›"}`. **A part with no
+        lines renders no `dt`**, so an absent key means *this stage has nothing in that list*,
+        which is a finding and not a missing node.
+
+        The successor to `stage_cards()`. The names differ because the things differ: a card had a
+        `.bet`, a minibar, a `.counts` row, a `.must` row and an *Open · N lines ›* door; a panel
+        has its stage's name as a link, one status word, one count line, and the lines themselves.
+        """
+        out: list[dict[str, Any]] = []
+        panels = self.page.locator(".panel[data-stage]")
+        for i in range(panels.count()):
+            out.append(panels.nth(i).evaluate(self._PANEL_JS))
+        return out
+
+    def panel(self, stage: str) -> dict[str, Any] | None:
+        """One stage's panel by its `data-stage`, or `None`."""
+        return next((p for p in self.panels() if (p.get("stage") or "") == stage), None)
+
+    @classmethod
+    def part_of(cls, panel: dict[str, Any], label: str) -> list[dict[str, Any]]:
+        """A panel's *Held* or *Did not hold* rows, matched on the label case-insensitively (the
+        `dt` is CSS-uppercased, so what `inner_text` returns depends on the deploy) -- `[]` when
+        that part has no `dt` at all."""
+        for key, rows in (panel.get("parts") or {}).items():
+            if key.strip().casefold() == label.strip().casefold():
+                return rows
+        return []
+
+    @classmethod
+    def lines_of(cls, panel: dict[str, Any], label: str) -> list[dict[str, Any]]:
+        """The same part's **lines**, with the tail row dropped."""
+        return [row for row in cls.part_of(panel, label) if "more" not in row]
+
+    @classmethod
+    def tail_of(cls, panel: dict[str, Any], label: str) -> str | None:
+        """That part's tail, *2 more ›*, or `None` when the part is open."""
+        return next((row["more"] for row in cls.part_of(panel, label) if "more" in row), None)
+
+    def worst_panel(self) -> str | None:
+        """The `data-stage` of the one panel keel-web marked `panel--worst` (FR-016) -- the worst
+        verdict the wire sent, deepest band breaking a tie. It is the panel that is **open at
+        rest**, so `tail_of()` answers `None` for both of its parts."""
+        panel = self.page.locator(".panel--worst[data-stage]")
+        return panel.first.get_attribute("data-stage") if panel.count() else None
+
+    def open_every_tail(self, *, limit: int = 12) -> int:
+        """Click every *N more ›* tail until none is left, and answer how many were clicked.
+
+        A budget moves a number; it never deletes one (keel-web FR-015), so this is how a scenario
+        counts a stage's lines off the screen instead of off the three a panel shows at rest.
+        Clicking opens the rest in place: it fetches nothing and navigates nowhere.
+        """
+        clicked = 0
+        while clicked < limit:
+            tails = self.page.locator(".panel .fails button.more")
+            if tails.count() == 0:
+                return clicked
+            tails.first.click()
+            clicked += 1
+        return clicked
+
+    # ------------------------------------------------------------------------- the deck: the foot
+
+    def foot_line(self) -> str:
+        """`.deck__foot .left` -- *Every band opens its stage page, with the claim, every line and
+        every person's answer.* (`BAND_OPENS_STAGE_LINE`, FR-019)."""
+        return _safe_text(lambda: self.page.locator(".deck__foot .left").first.inner_text())
+
+    def five_words(self) -> str:
+        """`.deck__foot .five` -- *Every line, every answer, named.* (`EVERY_LINE_EVERY_ANSWER`)."""
+        return _safe_text(lambda: self.page.locator(".deck__foot .five").first.inner_text())
+
+    def people_line(self) -> str:
+        """`p.deck__people` -- the line that stands **only while an answer is waiting on a
+        reader** (FR-021, `evidenceBarPeopleLine`): absent, by design, once every answer is read.
+        Was `.evidence__people span` on the evidence bar."""
+        return _safe_text(lambda: self.page.locator(".deck__people").first.inner_text())
+
+    def deck_text(self) -> str:
+        """The whole deck as a founder reads it -- the ship's caption, every panel and the foot.
+        What a clarity sweep over *this screen* should be given, now that the screen is the deck."""
+        return _screen_text(self.page, ".deck") + "\n" + _screen_text(self.page, ".deck__foot")
+
+    #: The download, by its own word: *Download as PDF* before keel-web spec 017, *Download the
+    #: brief* after it (`DOWNLOAD_PDF_LABEL`), and *Nothing to hand over yet*
+    #: (`DOWNLOAD_NOTHING_YET`) in the disabled state spec 027 added.
+    DOWNLOAD_LINK = re.compile("download|nothing to hand over", re.I)
+
+    #: The control itself, in both states: an `<a class="btn primary btn--sheet" href>` once a
+    #: reading exists, an `<a class="btn btn--sheet" aria-disabled="true">` with no `href` before
+    #: one. Both are `.btn--sheet`, which is why the state is read off `href`/`aria-disabled`
+    #: rather than off which selector matched.
+    DOWNLOAD_SELECTOR = ".deck__foot a.btn--sheet, .deck__foot a"
+
+    def download_state(self) -> dict[str, Any]:
+        """`{label, enabled, href, why}` for the download, in whichever of its two states this
+        screen is in (keel-web FR-023/design §6.1 decision 5).
+
+        `enabled` is *has an `href` and is not `aria-disabled`* -- an anchor with no `href`
+        navigates nowhere, which is the whole mechanism of the disabled state. `why` is the hint
+        beside it (`.deck__why`, *The brief fills as your AI reads answers.*), which is why a
+        disabled control here is not a silent grey one.
+        """
+        link = self.page.locator(self.DOWNLOAD_SELECTOR, has_text=self.DOWNLOAD_LINK).first
+        if self.page.locator(self.DOWNLOAD_SELECTOR, has_text=self.DOWNLOAD_LINK).count() == 0:
+            return {"label": "", "enabled": False, "href": None, "why": ""}
+        href = link.get_attribute("href")
+        disabled = (link.get_attribute("aria-disabled") or "").lower() == "true"
+        return {
+            "label": _safe_text(lambda: link.inner_text()),
+            "enabled": bool(href) and not disabled,
+            "href": href,
+            "why": _safe_text(lambda: self.page.locator(".deck__why").first.inner_text()),
+        }
+
+    def download_link_text(self) -> str:
+        """The download's own word, in either state. Was read off `.evidence__people a`."""
+        return self.download_state()["label"]
+
+    # --------------------------------------------------- the reads spec 027 retired, kept as reads
 
     def evidence_line(self) -> str:
+        """`.evidence__title` -- **retired with keel-web spec 027** (design §7, FR-020: the
+        headline *18 of 18 lines have answers* left this page with the whole evidence bar).
+        Answers `""` on the deck. Its successor is `ship_caption()`."""
         return _safe_text(lambda: self.page.locator(".evidence__title").first.inner_text())
 
     def percent_line(self) -> str:
+        """`.evidence__pct` -- **retired with keel-web spec 027** (*all tested*). Answers `""` on
+        the deck; no single sentence succeeded it, and the per-stage verdict words
+        (`panels()[i]["word"]`) are what the screen says instead."""
         return _safe_text(lambda: self.page.locator(".evidence__pct").first.inner_text())
 
-    def people_line(self) -> str:
-        return _safe_text(lambda: self.page.locator(".evidence__people span").first.inner_text())
-
     def lines_with_answers(self) -> tuple[int, int] | None:
-        """`(have, total)` off *N of T lines have answers*, or `None` when the bar never
-        rendered."""
+        """`(have, total)` off *N of T lines have answers* -- **retired with keel-web spec 027**,
+        so `None` on the deck. `ship_counts()` carries the total; a stage's own *N of M lines
+        holding* is `panels()[i]["count"]`."""
         match = re.search(r"(\d+) of (\d+) lines? have answers", self.evidence_line())
         return (int(match.group(1)), int(match.group(2))) if match else None
 
     def legend(self) -> dict[str, int]:
-        """The four counts, by their own founder-facing words rather than by position -- keel-web
-        renders `<span class="up"><i/>{n} holding up</span>` and its neighbours."""
+        """The four counts by their own founder-facing words -- **retired from this screen with
+        keel-web spec 027** (design §7: the four-word legend went with the bar). Answers
+        `{word: 0}` for all four on the deck, so a scenario that still wants the four counts must
+        take them from `GET /v2/projects/{id}/standing`'s own four lists, which is the one place
+        they were ever computed.
+
+        `legend_present()` is how a scenario asks whether the legend is on the screen at all; this
+        read alone cannot say, because four zeroes is also what a brand-new project would show.
+        """
         out: dict[str, int] = {}
         for cls, word in zip(("up", "down", "split", "none"), self.LEGEND_WORDS):
             text = _safe_text(lambda c=cls: self.page.locator(f".legend .{c}").first.inner_text())
@@ -2243,32 +2530,52 @@ class Overview:
             out[word] = int(match.group(1)) if match else 0
         return out
 
+    def legend_present(self) -> bool:
+        """Is the retired four-count legend on this screen at all? False on the deck."""
+        return self.page.locator(".legend").count() > 0
+
     def what_this_says(self) -> str:
+        """`.next` -- the box the *What this says* heading, paragraph and hint shared. **The
+        paragraph is not on this screen any more** (keel-web spec 027 FR-027, amended: it prints on
+        page 1 of the download, under its own heading). Answers `""` on the deck;
+        `PrintPage.what_this_says()` is the read that succeeded it."""
         return _safe_text(lambda: self.page.locator(".next").first.inner_text())
 
     def what_this_says_paragraph(self) -> str:
-        """**Only the paragraph** -- not the heading above it and not the hint below it.
+        """**Only the paragraph**, off the box's own bare text nodes -- and the box is gone from
+        this route with keel-web spec 027, so this answers `""` on the deck.
 
-        `OverviewRoute.tsx` renders `<div class="next"><b>What this says</b><br/>{text}<p
-        class="hint">…</p></div>`: the paragraph is the box's own bare text node, and the two
-        things around it are keel-web's fixed copy. `what_this_says()`'s `inner_text` returns all
-        three run together, which is enough to say *something rendered* and not nearly enough to
-        say the server's own words rendered **verbatim** -- comparing that against the wire would
+        Kept, rather than deleted, because *the overview no longer shows the paragraph* is itself
+        an assertion a scenario makes (keel-web FR-020/FR-027), and `carries_what_this_says()`
+        beside it is the same finding stated as a presence. The paragraph itself is read by
+        `PrintPage.what_this_says_paragraph()`, whose docstring carries the text-nodes argument
+        this one used to: comparing a heading plus a hint plus a paragraph against the wire would
         never match, and comparing it loosely is how six green runs said nothing about the
-        paragraph at all. So this reads the text nodes and nothing else.
-
-        The same read serves the "not yet" note: keel-web renders `whatThisSays ??
-        whatThisSaysNote` into that one position, so which of the two is standing there is a
-        question for the wire beside it, never for a wording match here.
+        paragraph at all.
         """
+        if self.page.locator(".next").count() == 0:
+            return ""
         return _safe_text(lambda: self.page.locator(".next").first.evaluate(
             r"""(el) => Array.from(el.childNodes)
                   .filter((n) => n.nodeType === 3)
                   .map((n) => n.textContent)
                   .join(' ').replace(/\s+/g, ' ').trim()""")) or ""
 
+    def carries_what_this_says(self) -> bool:
+        """Does this screen render a *What this says* block at all? False on the deck, by
+        design -- the one assertion keel-web FR-020 asks for from this side."""
+        return self.page.locator(".next").count() > 0
+
     def stage_cards(self) -> list[dict[str, str]]:
-        """`{bet, status, claim, counts, must, see}` per card, in rendered order."""
+        """`{bet, status, claim, counts, must, see}` per `OverviewCard` -- **retired with keel-web
+        spec 027** (design §7, FR-020: the three cards, their minibars, their claim sentences, the
+        deal-breaker row and *Open · N lines ›* all left this page for the panels). Answers `[]`
+        on the deck; `panels()` is the read that succeeded it.
+
+        `.ocards` still exists in keel-web -- on `StageRoute`'s **opened card**, which is a
+        different screen and is `OpenedCard`'s to read. That is why this answers `[]` here rather
+        than raising, and why `DECK` above no longer waits for it.
+        """
         out: list[dict[str, str]] = []
         cards = self.page.locator(".ocards .card")
         for i in range(cards.count()):
@@ -2283,26 +2590,18 @@ class Overview:
             })
         return out
 
-    #: The download, by its own word: *Download as PDF* before spec 017, *Download the brief*
-    #: after it -- and after it the slot can hold another `<a>` first (*Go to People*, or the
-    #: reading action), so "the first link in the row" stopped being the download.
-    DOWNLOAD_LINK = re.compile("download", re.I)
-
-    def download_link_text(self) -> str:
-        return _safe_text(lambda: self.page.locator(".evidence__people a", has_text=self.DOWNLOAD_LINK)
-                          .first.inner_text())
-
     # ----------------------------------------------------------------------------------- actions
 
     def open(self, project_id: str, *, state_reader: StateReader | None = None) -> dict[str, Any]:
         with self._scope():
             with self._bstep.step("founder opens the overview") as h:
                 self.page.goto(f"{self.base_url}/p/{project_id}", wait_until="load")
-                self.page.wait_for_selector(".ocards, .guided-step", timeout=30_000)
+                self.page.wait_for_selector(self.DECK, timeout=30_000)
                 self._capture(h)
                 _capture_state(h, project_id, state_reader)
                 h.add_screenshot(self._bstep.screenshot("overview"))
-        return {"evidence": self.evidence_line(), "legend": self.legend()}
+        return {"ship": self.ship_caption(), "panels": self.panels(),
+                "download": self.download_state()}
 
     def recapture(self, *, slug: str = "overview-again") -> None:
         with self._scope():
@@ -2313,31 +2612,71 @@ class Overview:
     def _capture(self, h: StepHandle) -> None:
         h.capture_text("screen", "overview")
         h.capture_text("overview", _screen_text(self.page, ".shell__main"))
-        h.capture_text("evidence_line", self.evidence_line())
-        # The *What this says* paragraph on its own, so a bundle's reader can see which of the two
-        # things keel-web renders into that one box -- the agent's paragraph or the server's "not
-        # yet" note -- without re-deriving it from the whole screen's text.
-        h.capture_text("what_this_says", self.what_this_says_paragraph())
+        # The deck's own three readings, so a bundle's reader sees what the founder saw without
+        # re-deriving it from the whole screen's text. `evidence_line` was this key until spec 027
+        # retired the bar; the caption is what stands in its place and the name says which.
+        h.capture_text("ship_caption", self.ship_caption())
+        h.capture_text("ship_label", self.ship_label())
+        h.capture_text("panels", json.dumps(self.panels()))
+        h.capture_text("download", json.dumps(self.download_state()))
         Shell(self.page).capture_identity(h)
-        affordance = _safe_all_texts(self.page, ".ocards .see, .evidence__people a")
+        # **GUI-U1's own key, re-pointed and not re-scoped** (`harness/rubric.py::_need_exists`):
+        # the check asks *where a stage still needs something, does this screen offer a way
+        # onward*, and the deck's ways onward are each panel's stage link, each band's link and
+        # the download. The two retired selectors stay in the list so an older bundle and an older
+        # deploy still read the same.
+        affordance = _safe_all_texts(self.page, self.AFFORDANCE)
         if affordance:
             h.capture_text("affordance", "\n".join(affordance))
 
     def open_card(self, stage_label: str) -> None:
+        """A card's own door, before spec 027. `a.card-link` is gone with the cards; the panel's
+        head link and the band itself are what open a stage page now -- `open_panel()`."""
         with self._scope():
             with self._bstep.step(f"founder opens the {stage_label!r} card") as h:
                 self.page.locator("a.card-link", has_text=stage_label).first.click()
                 _wait_for_url_change(self.page, lambda url: "/s/" in url)
                 h.add_screenshot(self._bstep.screenshot("overview-open-card"))
 
-    def download(self) -> None:
-        """*Download as PDF* -- an `<a href="/p/:id/print">`, not a button. `PrintPage` stubs
-        `window.print` before the route mounts; this follows the link the founder actually sees."""
+    def open_panel(self, stage: str) -> None:
+        """The panel's own head link, *THE PROBLEM ›* -- one of the deck's two doors to a stage
+        page (FR-019; the other is the band). Keyed on `data-stage` rather than on the stage's
+        founder-facing name, because the name is `translate.ts`'s to change."""
+        with self._scope():
+            with self._bstep.step(f"founder opens the {stage} panel") as h:
+                self.page.locator(f".panel[data-stage='{stage}'] a.panel__name").first.click()
+                _wait_for_url_change(self.page, lambda url: "/s/" in url)
+                h.add_screenshot(self._bstep.screenshot("overview-open-panel"))
+
+    def download(self) -> "Page":
+        """*Download the brief* -- and since keel-web spec 027 it is an `<a target="_blank">`, so
+        following it **opens a second tab** and leaves the overview standing behind the sheet
+        (design §6.1 decision 4).
+
+        Answers whichever `Page` the sheet landed on: the popup where one opened, this page where
+        the deploy still navigates in place. A caller that wants the sheet without the founder's
+        click uses `PrintPage.open(project_id)`, which stays in this one context either way.
+
+        `PrintPage.stub_print()` must have run **on the context** before this (it installs
+        `window.print = () => {}` with `add_init_script`), or the new tab raises the native print
+        dialog on mount and no locator can dismiss it.
+        """
         with self._scope():
             with self._bstep.step("founder takes Download") as h:
-                self.page.locator(".evidence__people a", has_text=self.DOWNLOAD_LINK).first.click()
-                _wait_for_url_change(self.page, lambda url: url.endswith("/print"))
+                link = self.page.locator(self.DOWNLOAD_SELECTOR,
+                                          has_text=self.DOWNLOAD_LINK).first
+                target = (link.get_attribute("target") or "").lower()
+                landed = self.page
+                if target == "_blank":
+                    with self.page.context.expect_page() as popup:
+                        link.click()
+                    landed = popup.value
+                    landed.wait_for_load_state("load")
+                else:
+                    link.click()
+                    _wait_for_url_change(self.page, lambda url: url.endswith("/print"))
                 h.add_screenshot(self._bstep.screenshot("overview-download"))
+        return landed
 
 
 # ------------------------------------------------------------------- OpenedCard / SaidBox / modal
@@ -2643,17 +2982,47 @@ class AnswersModal:
 # ------------------------------------------------------------------------------------- PrintPage
 
 class PrintPage:
-    """`routes/founder/PrintRoute.tsx` -- the download (mockup screen 6), outside the project
-    shell: no brand row, no side nav, nothing but the sheets.
+    """`routes/founder/PrintRoute.tsx` -- **the brief, five A4 pages of it** (keel-web spec 027
+    `brief-ship` FR-024..FR-030; keel-cloud `canon/designs/brief-page-design.md` §6), outside the
+    project shell: no brand row, no side nav, nothing but the sheets.
 
-    **`window.print()` fires on mount.** `PrintRoute` calls it as soon as the data lands, so an
-    unstubbed visit hangs the walk on a native dialog no Playwright locator can dismiss. `open()`
-    installs `window.print = () => {}` with `add_init_script` **before** navigating, exactly as
-    keel-web's own e2e suite does (research R9). That is a harness mechanic, recorded as one; the
-    PDF itself is out of scope and no scenario opens one.
+    | page | what is on it | the markup |
+    |---|---|---|
+    | 1 | the kicker, the name, the sub, the two meta lines, the hand-off line, the ruled 16:9 block, and **`whatThisSays` under its own heading** | `.pkicker`, `h1`, `p.psub`, `p.pmeta`, `p.phandoff`, `.p169` + `p.p169__cap`, `h3` + `p.pclaim` |
+    | 2-4 | one stage each: the claim, the meta, **HELD** and **DID NOT HOLD** with no three-line limit, the table, the named quotes | `h2`, `p.pclaim`, `p.pmeta`, `p.plab` + `ul.plist`, `table.ptab`, `.pquotes` |
+    | 5 | the evidence: every line, the question that measured it, where the answers landed -- and **nobody's name** | `h2`, `p.pmeta`, `table.ptab` |
+
+    **Two things moved onto this page with spec 027 and are read here for the first time.** The
+    *What this says* paragraph, which was the overview's (`Overview.what_this_says_paragraph`
+    answers `""` now and says so), and the hand-off line, which was under the overview's download
+    button. **Today's separate title page is retired** (FR-030), so `.ptitle` -- which `title_page`
+    read for three specs -- no longer exists and page 1 *is* the first `.page`.
+
+    **`window.print()` fires on mount.** `PrintRoute` calls it as soon as its five reads land, so
+    an unstubbed visit hangs the walk on a native dialog no Playwright locator can dismiss.
+    `open()` installs `window.print = () => {}` with `add_init_script` **before** navigating,
+    exactly as keel-web's own e2e suite does (research R9). Since spec 027 the overview's download
+    is `target="_blank"`, so the stub goes on the **context** where there is one and on the page
+    otherwise -- a page-scoped init script never reaches the tab the founder's own click opens.
+    That is a harness mechanic, recorded as one; the PDF itself is out of scope and no scenario
+    opens one.
     """
 
+    #: The three named columns of a **stage** table (pages 2-4). The fourth `<th>` is deliberately
+    #: unnamed: it is the status column.
     COLUMNS = ("What it measures", "You said", "The answers")
+
+    #: The four named columns of the **evidence** table (page 5, FR-029). All four are named, and
+    #: none of them is a person.
+    EVIDENCE_COLUMNS = ("Line", "The question asked", "Where they landed", "Counted")
+
+    #: Page 1's own heading above the paragraph (`WHAT_THIS_SAYS_HEADING`). Matched
+    #: case-insensitively on its words, never asserted as the selector.
+    WHAT_THIS_SAYS_HEADING = re.compile("what this says", re.I)
+
+    #: The five pages, as the sheet's own blocks. `.pages > .page` and not `.pages .page`, so a
+    #: block that ever nests inside a page is not counted as a page of its own.
+    PAGE = ".pages > .page"
 
     def __init__(self, page: Page, *args: Any, party: str = "founder"):
         self.page = page
@@ -2668,45 +3037,212 @@ class PrintPage:
         return self._bstep.recorder.interaction("ui_visit", self._interaction_id)
 
     def stub_print(self) -> None:
-        """Idempotent, and safe to call before following the founder's own *Download as PDF*
-        link rather than navigating by URL."""
-        if not self._stubbed:
-            self.page.add_init_script("window.print = () => {};")
-            self._stubbed = True
+        """Idempotent, and safe to call before following the founder's own *Download the brief*
+        link rather than navigating by URL.
+
+        Installed on the **context** where the page has one, because spec 027's download opens a
+        second tab (`target="_blank"`) and a page-scoped init script is not inherited by it. Falls
+        back to the page for a `set_content` page in a markup test, which has no context worth
+        reaching for.
+        """
+        if self._stubbed:
+            return
+        script = "window.print = () => {};"
+        context = getattr(self.page, "context", None)
+        try:
+            (context or self.page).add_init_script(script)
+        except Exception:  # noqa: BLE001 - a stub that cannot be installed is the caller's finding
+            self.page.add_init_script(script)
+        self._stubbed = True
 
     # ------------------------------------------------------------------------------------- reads
 
     def sheets(self) -> list[str]:
-        return _safe_all_texts(self.page, ".pages > .page")
+        return _safe_all_texts(self.page, self.PAGE)
+
+    def page_count(self) -> int:
+        """Five, since spec 027 (FR-024): page 1, three stage pages, the evidence page. It was
+        five before it too -- a title page, an overview page and three stages -- which is why the
+        count alone never proved the sheet had changed, and why `page_one()` and
+        `evidence_page()` below read the two that are new."""
+        return self.page.locator(self.PAGE).count()
+
+    def _page(self, index: int):
+        return self.page.locator(self.PAGE).nth(index)
+
+    def page_one(self) -> dict[str, str]:
+        """Page 1, whole: `{kicker, name, sub, meta, handoff, caption, what_this_says}`. The two
+        meta lines are joined, as `title_page()` has always joined them."""
+        first = self._page(0)
+        return {
+            "kicker": _safe_text(lambda: first.locator(".pkicker").first.inner_text()),
+            "name": _safe_text(lambda: first.locator("h1").first.inner_text()),
+            "sub": _safe_text(lambda: first.locator("p.psub").first.inner_text()),
+            "meta": " ".join(t.strip() for t in first.locator("p.pmeta").all_inner_texts()),
+            "handoff": _safe_text(lambda: first.locator("p.phandoff").first.inner_text()),
+            "caption": _safe_text(lambda: first.locator(".p169__cap").first.inner_text()),
+            "what_this_says": self.what_this_says_paragraph(),
+        }
 
     def title_page(self) -> dict[str, str]:
-        title = self.page.locator(".ptitle").first
-        return {
-            "kicker": _safe_text(lambda: title.locator(".pkicker").first.inner_text()),
-            "name": _safe_text(lambda: title.locator("h1").first.inner_text()),
-            "sub": _safe_text(lambda: title.locator("p.psub").first.inner_text()),
-            "meta": " ".join(_safe_all_texts(self.page, ".ptitle p.pmeta")),
-        }
+        """Page 1's own four identity lines -- **the name every caller of this method wanted**.
+
+        Re-pointed, not re-scoped: it read `.ptitle`, and keel-web spec 027 FR-030 retired the
+        separate title page ("a five-page document does not need a cover made of metadata"), so
+        page 1 carries the kicker, the name, the sub and the meta lines directly. Every assertion
+        made through this reader stands where it stood.
+        """
+        one = self.page_one()
+        return {k: one[k] for k in ("kicker", "name", "sub", "meta")}
+
+    def handoff_line(self) -> str:
+        """`p.phandoff` -- the twenty-eight words addressed to whoever builds this (`HANDOFF_LINE`,
+        FR-022). It was under the overview's download button; it prints at the top of the thing
+        being handed over now."""
+        return _safe_text(lambda: self.page.locator("p.phandoff").first.inner_text())
+
+    def what_this_says_heading(self) -> str:
+        """Page 1's `h3` above the paragraph. `""` when the paragraph is absent -- `PrintRoute`
+        renders the heading and the paragraph together or neither, and prints no *not yet* note in
+        its place, because a sheet does not explain to itself why a block it left out is missing."""
+        heading = self._page(0).locator("h3", has_text=self.WHAT_THIS_SAYS_HEADING)
+        return _safe_text(lambda: heading.first.inner_text()) if heading.count() else ""
+
+    def what_this_says_paragraph(self) -> str:
+        """**The paragraph the host wrote, unasked** -- `Overview.whatThisSays` on the wire, now
+        page 1's and this reader's (keel-web spec 027 FR-027 as amended).
+
+        **Page 1's own `p.pclaim`, and nothing else.** Pages 2-4 each draw a `p.pclaim` too --
+        `StageSummary.claim`, a different field with a different author -- so a sheet-wide
+        `p.pclaim` would read the problem stage's claim and compare *that* against the paragraph on
+        the wire. The scope is page 1, where the paragraph is the only `.pclaim` there is.
+
+        The argument the overview's reader used to carry holds here: comparing a heading plus a
+        paragraph against the wire would never match, and comparing it loosely is how six green
+        runs said nothing about the paragraph at all. So this reads the paragraph's own node.
+        """
+        claim = self._page(0).locator("p.pclaim")
+        return _safe_text(lambda: claim.first.inner_text()) if claim.count() else ""
+
+    def what_this_says(self) -> str:
+        """The heading and the paragraph together, as a founder reads the block -- the shape
+        `Overview.what_this_says()` had. `""` when neither rendered."""
+        return " ".join(part for part in (self.what_this_says_heading(),
+                                           self.what_this_says_paragraph()) if part).strip()
+
+    def block_169(self) -> dict[str, Any]:
+        """The ruled 16:9 block on page 1 (FR-026): the **same `ShipFigure`** at a different size,
+        plus one `ppanel` per stage with its status word and its count line, plus the caption that
+        says what it is for (`P169_CAPTION`, *16:9 · lift this block straight into a deck*).
+
+        `{present, caption, bands, panels}`. `bands` are the figure's own `path.band[data-stage]`
+        washes -- the figure is `aria-hidden` here and carries no `aria-label`, because without a
+        `projectId` it is a drawing and says so.
+        """
+        block = self.page.locator(".p169")
+        if block.count() == 0:
+            return {"present": False, "caption": "", "bands": [], "panels": []}
+        bands = []
+        nodes = block.first.locator(".band[data-stage]")
+        for i in range(nodes.count()):
+            band = nodes.nth(i)
+            classes = (band.get_attribute("class") or "").split()
+            bands.append({
+                "stage": band.get_attribute("data-stage"),
+                "wash": next((c.split("--", 1)[1] for c in classes if c.startswith("band--")), None),
+            })
+        panels = []
+        ppanels = block.first.locator(".ppanel")
+        for i in range(ppanels.count()):
+            node = ppanels.nth(i)
+            panels.append({
+                "head": _safe_text(lambda n=node: n.locator(".ppanel__head").first.inner_text()),
+                "word": _safe_text(lambda n=node: n.locator(".ppanel__word").first.inner_text()),
+                "count": _safe_text(lambda n=node: n.locator(".ppanel__in").first.inner_text()),
+            })
+        return {"present": True,
+                "caption": _safe_text(lambda: self.page.locator(".p169__cap").first.inner_text()),
+                "bands": bands, "panels": panels}
 
     def headings(self) -> list[str]:
         return _safe_all_texts(self.page, ".pages h2")
 
+    def parts(self, index: int = 1) -> dict[str, list[str]]:
+        """One stage page's **HELD** / **DID NOT HOLD** parts (`p.plab` + the `ul.plist` after it),
+        by the part's own label. `index` is the page's index among the five, so the three stage
+        pages are 1, 2 and 3. No three-line limit here: §4.3's limit is a viewport's, and a sheet
+        of A4 is not a viewport."""
+        return self._page(index).evaluate(r"""(el) => {
+          const text = (n) => n ? n.textContent.replace(/\s+/g, ' ').trim() : '';
+          const out = {};
+          let label = null;
+          for (const child of Array.from(el.children)) {
+            if (child.classList.contains('plab')) { label = text(child); out[label] = out[label] || []; }
+            else if (child.classList.contains('plist') && label !== null) {
+              for (const li of Array.from(child.children)) out[label].push(text(li));
+            }
+          }
+          return out;
+        }""")
+
     def table_columns(self) -> list[list[str]]:
-        """The four `<th>` of each per-stage table -- three named columns and one deliberately
-        unnamed status column."""
+        """The `<th>` of each **stage** table -- pages 2-4, three named columns and one
+        deliberately unnamed status column.
+
+        **Scoped to the stage pages, which it did not have to be before.** Page 5's evidence table
+        is a `table.ptab` too (FR-029), so the sheet-wide read this used to do returns four rows
+        now and the fourth's columns are the evidence page's own four -- which is a caller's
+        assertion failing on a correct product. `evidence_columns()` reads that one.
+        """
         out: list[list[str]] = []
-        tables = self.page.locator("table.ptab")
-        for i in range(tables.count()):
-            out.append([h.strip() for h in tables.nth(i).locator("thead th").all_inner_texts()])
+        pages = self.page.locator(self.PAGE)
+        for i in range(1, max(pages.count() - 1, 1)):
+            tables = pages.nth(i).locator("table.ptab")
+            for j in range(tables.count()):
+                out.append([h.strip() for h in tables.nth(j).locator("thead th").all_inner_texts()])
         return out
 
     def table_rows(self, index: int = 0) -> list[list[str]]:
+        """A table's body rows, by the table's index **among the sheet's tables** (unchanged):
+        0, 1 and 2 are the stage tables, 3 is the evidence table."""
         rows = self.page.locator("table.ptab").nth(index).locator("tbody tr")
         return [[c.strip() for c in rows.nth(i).locator("td").all_inner_texts()]
                 for i in range(rows.count())]
 
+    def evidence_page(self) -> dict[str, Any]:
+        """Page 5 -- the evidence (FR-029; design §6.2, §6.3, note 17).
+
+        `{heading, lede, columns, rows, names, quotes}`. `names` and `quotes` are the two things
+        that must be **empty**: this is the page most likely to be forwarded to an agency or an
+        investor, and principle P8 is that a stranger's words are held on their terms, so a table
+        of names is a list that travels. The named quotes stay on the stage pages, where a founder
+        can check them.
+        """
+        last = self._page(self.page_count() - 1)
+        table = last.locator("table.ptab").first
+        rows: list[list[str]] = []
+        if last.locator("table.ptab").count():
+            body = table.locator("tbody tr")
+            for i in range(body.count()):
+                rows.append([c.strip() for c in body.nth(i).locator("td").all_inner_texts()])
+        return {
+            "heading": _safe_text(lambda: last.locator("h2").first.inner_text()),
+            "lede": _safe_text(lambda: last.locator("p.pmeta").first.inner_text()),
+            "columns": ([h.strip() for h in table.locator("thead th").all_inner_texts()]
+                        if last.locator("table.ptab").count() else []),
+            "rows": rows,
+            "names": _safe_all_texts(last, ".pquotes p span"),
+            "quotes": _safe_all_texts(last, ".pquotes p"),
+        }
+
     def quotes(self) -> list[str]:
         return _safe_all_texts(self.page, ".pquotes p")
+
+    def participant_names(self) -> list[str]:
+        """Every name the sheet prints beside a quotation, over all five pages (`.pquotes p span`).
+        The stage pages carry them; the evidence page must not, which `evidence_page()["names"]`
+        is the scoped read of."""
+        return _safe_all_texts(self.page, ".pquotes p span")
 
     def fresh_page_rule(self) -> str | None:
         """*A stage starts on a fresh page*, read off **the stylesheet's own rule** and never off
@@ -2735,14 +3271,24 @@ class PrintPage:
         return (self.page.locator(".side-nav").count() > 0
                 or self.page.locator(".brandrow").count() > 0)
 
+    def print_was_called(self) -> bool:
+        """Did the route raise the print dialog? `stub_print` replaces `window.print` with a
+        no-op, so the sheet is proved to have *finished* by its five pages rendering, never by a
+        dialog -- this is the record of the call, for a bundle's reader, and not a wait."""
+        return bool(self.page.evaluate(
+            "() => Boolean(window.print && window.print.toString().includes('=>'))"))
+
     # ----------------------------------------------------------------------------------- actions
 
     def open(self, project_id: str) -> None:
+        """Navigate to `/p/{id}/print` **in this same context** -- no founder click, no second tab
+        and no native dialog. `Overview.download()` is the founder's own way here and answers
+        whichever page the sheet landed on."""
         self.stub_print()
         with self._scope():
             with self._bstep.step("founder opens the download") as h:
                 self.page.goto(f"{self.base_url}/p/{project_id}/print", wait_until="load")
-                self.page.locator(".pages .page").first.wait_for(state="visible", timeout=30_000)
+                self.page.locator(self.PAGE).first.wait_for(state="visible", timeout=30_000)
                 self._capture(h)
                 h.add_screenshot(self._bstep.screenshot("print"))
 
@@ -2750,7 +3296,7 @@ class PrintPage:
         """For a caller that reached `/print` by clicking the founder's own link."""
         with self._scope():
             with self._bstep.step("founder reads the download") as h:
-                self.page.locator(".pages .page").first.wait_for(state="visible", timeout=30_000)
+                self.page.locator(self.PAGE).first.wait_for(state="visible", timeout=30_000)
                 self._capture(h)
                 h.add_screenshot(self._bstep.screenshot("print"))
 
@@ -2758,7 +3304,11 @@ class PrintPage:
         h.capture_text("screen", "print")
         h.capture_text("download", _screen_text(self.page, ".pages"))
         h.capture_text("identity", self.title_page()["name"])
-        names = _safe_all_texts(self.page, ".pquotes p span")
+        # The paragraph on its own, under the key the overview's capture used to carry it under --
+        # so a bundle's reader finds *What this says* where they have always found it, on the one
+        # screen that draws it now (keel-web spec 027 FR-027).
+        h.capture_text("what_this_says", self.what_this_says_paragraph())
+        names = self.participant_names()
         if names:
             h.capture_text("participant_names", "\n".join(names))
         # Policy v9: this page names a participant *and* quotes them verbatim, which is the one
