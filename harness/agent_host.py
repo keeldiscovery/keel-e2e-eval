@@ -137,7 +137,13 @@ def short_stops_at(host: str | None = None) -> str:
     """One sentence for the bundle, so a reader of a `-short` bundle never has to guess which of
     the two stopping points it bought."""
     if short_reaches_the_assumptions(host):
-        return ("the problem framed and the lines and questions keel-cloud chained off it "
+        # **Not *and questions*, since keel-cloud spec 048** (keel-e2e-eval spec 026 FR-019). The
+        # assumptions job stopped writing a questionnaire: there is one for the whole project now,
+        # written by a `QUESTIONS` call that fires on the *approval*. This length stops at the
+        # review card, un-approved, so it buys the two screens it names and no third one. The
+        # founder's own 2026-09-29 words above are left exactly as they were said -- a quotation is
+        # not a specification, and it was true of the product on the day it was spoken.
+        return ("the problem framed and the lines keel-cloud chained off it "
                 "(PROBLEM_FRAME + PROBLEM_ASSUMPTIONS), on the review card, un-approved")
     return "the host leg entire, plus the first model job -- the PROBLEM confirmation card"
 

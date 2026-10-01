@@ -144,6 +144,26 @@ NAMED_REASON_POLL_S = 30.0
 #: the Keel door.
 KEELS_AI_JOB_WAIT_S = agent_host.host_type(HOST).keels_ai_job_wait_s
 
+#: **How long the founder waits for the project's one questionnaire** (spec
+#: `026-journey-one-questionnaire` FR-005; keel-cloud spec 048).
+#:
+#: Since 048 the questionnaire is the **project's**, not a stage's, and it is written by one
+#: `QUESTIONS` call that keel-cloud starts when the last framed stage is approved. So there is a
+#: gap -- minutes, not milliseconds -- between the founder approving their last card and People
+#: unlocking, and this is how long the journey is prepared to sit in it.
+#:
+#: **420 s on the three CLI doors**, and it is keel-cloud's own arithmetic rather than a guess: the
+#: `QUESTIONS` job's abandonment deadline is **PT300S**, and two minutes are added for the queue,
+#: the hand-off to the runtime and this poll's own 3-second granularity. The call itself is
+#: estimated at ~18 s on Haiku 4.5 (`assumptions-step-design.md` §6.4) and measured at one to three
+#: minutes against a live host, so the ceiling is about three times the worst measurement.
+#:
+#: **The Keel door's own number instead, read off the host object** -- 660 s, because keel-cloud
+#: moved its in-process job abandonment from 300 s to 600 s there (spec 024 FR-010, measured on the
+#: twin, run 36625025566). Read the way `KEELS_AI_JOB_WAIT_S` itself is read, and never written as
+#: an `if HOST == "keel"` beside this wait: per-host facts belong to `harness/agent_host.py`.
+QUESTIONS_WAIT_S = KEELS_AI_JOB_WAIT_S if KEELS_AI else 420.0
+
 
 def _environment_of(base_url: str) -> str:
     """What keel-runtime's `status.environment` says for a base URL (its `config.environment_for`):
@@ -445,7 +465,13 @@ def _land_the_card(page, recorder, get_json, project_id, stage, opening, *, time
 def _read_the_lines(page, recorder, get_json, project_id, stage, chat, *, timeout_s=300.0):
     """**The stage's second model job, and what it produced**: the founder saves the confirmation
     card, keel-cloud chains the frame's own `<STAGE>_ASSUMPTIONS` off it with nothing pressed, and
-    the review card lands carrying numbered lines, pick lists and a separated deal-breaker.
+    the review card lands carrying numbered lines and a separated deal-breaker.
+
+    **It does not carry pick lists, and since keel-cloud spec 048 it cannot** -- the questionnaire
+    is the project's, written by one `QUESTIONS` call after the last framed stage is approved, which
+    is after every card this reads. The assertion that every line offers a pick list has moved to
+    `_the_questions_land`; the long comment at the step below says why, and spec 026 FR-002 is the
+    requirement.
 
     Split out of `_walk_stage_live` for the same reason `_land_the_card` was split out of it (spec
     021), and for one more: the **short Keel's-AI cell** stops here (spec 024, the founder,
@@ -478,10 +504,43 @@ def _read_the_lines(page, recorder, get_json, project_id, stage, chat, *, timeou
                         "deal-breaker", party="founder", kind="assert") as h:
         lines = card_page.lines()
         rule_lines = card_page.rule_lines()
+        # **The chips are recorded here and asserted below, after the questions land** (spec 026
+        # FR-002/FR-003; keel-cloud spec 048; keel-web spec 026 FR-012).
+        #
+        # Until 048 a stage *could not be approved without its own questionnaire* --
+        # `ScreenResultApplier.confirmCommand` ran `frame -> introduceRoles ->
+        # introduceAssumptions -> approve` in one apply and `introduceAssumptions` took a
+        # questionnaire -- so *the lines are approved* and *the questions exist* were one event and
+        # every review card a founder ever read had pick lists under its lines. This step asserted
+        # that, correctly, for as long as it was true:
+        #
+        #     assert all(line.get("chips") for line in lines)
+        #
+        # 048 splits that moment in two. `introduceAssumptions` takes beliefs, roles and
+        # rationales; the questionnaire is the **project's** and is written by **one `QUESTIONS`
+        # call** that runs when the last framed stage is approved -- strictly after every card this
+        # function reads. keel-web 026 FR-012 draws the consequence in markup: `ReviewLine` renders
+        # `{selection ? <Chips …/> : null}`, and a card on which no line resolves a control says so
+        # **once**, in `QUESTIONS_NOT_WRITTEN_YET`, rather than drawing empty pick lists. Matrix run
+        # 36862514753 on staging 782a01a -- the first run on the new build -- went red here in under
+        # two minutes, on the first card of three, for asserting a screen shows something the
+        # product is designed not to show it.
+        #
+        # **The assertion is moved, not dropped**: `_the_questions_land` below makes it against the
+        # project's one questionnaire (every selection offers a pick list) and against the slice
+        # each approved card carries. And the **absence** of chips is not asserted either, because
+        # it is not reliably true: a `SOLUTION` or `COMMERCIAL` line that `reads` an earlier stage's
+        # measurement is given the referent's own `selectionId` (keel-cloud 049 FR-013), so it owns
+        # a control the earlier approval already wrote and draws chips on an unapproved card. That
+        # is 049 working, and a run that refused it would be refusing the feature.
+        chipped = [line.get("heading") for line in lines if line.get("chips")]
         h.record_assert({"lines": ">= 1, each numbered", "rule lines": "one names deal-breakers"},
                          {"lines": len(lines), "rule lines": rule_lines,
                           "headings": [line.get("heading") for line in lines],
-                          "first line": (lines[0] if lines else None)})
+                          "first line": (lines[0] if lines else None),
+                          "lines carrying a pick list already (keel-cloud 049: a line that reads "
+                          "an earlier stage's measurement owns that stage's control), recorded "
+                          "and asserted nowhere": chipped})
         assert lines, f"the {stage} card rendered no lines at all"
         unnumbered = [line.get("heading") for line in lines
                       if not str(line.get("number") or "").strip()]
@@ -489,9 +548,6 @@ def _read_the_lines(page, recorder, get_json, project_id, stage, chat, *, timeou
         assert any("deal-breaker" in line.lower() for line in rule_lines), (
             f"the {stage} card separates no deal-breaker from what is worth knowing: "
             f"{rule_lines!r}")
-        assert all(line.get("chips") for line in lines), (
-            f"a {stage} line offers no pick list at all: "
-            f"{[l.get('heading') for l in lines if not l.get('chips')]}")
     return card_page
 
 
@@ -521,6 +577,274 @@ def _walk_stage_live(page, recorder, get_json, project_id, stage, opening, *, ti
         assert after.get("framed") is True and after.get("approved") is True, (
             f"expected {stage} framed+approved, got {after}")
     return card_page
+
+
+def _beliefs_on(card: dict) -> list[dict]:
+    """Every belief a stage card carries, both buckets, in render order.
+
+    `StageCard.groups[] -> {roleLabel, loadBearing[], supporting[]}` is the wire's own shape
+    (`canon/openapi-v2.yaml`), and both halves point at controls: the split is *what happens if this
+    is wrong*, not *is this asked*.
+    """
+    out: list[dict] = []
+    for group in card.get("groups") or []:
+        out.extend(group.get("loadBearing") or [])
+        out.extend(group.get("supporting") or [])
+    return out
+
+
+def _the_questions_land(page, recorder, get_json, post_json, project_id, *, timeout_s=None):
+    """**The project's one questionnaire, waited for where keel-cloud actually writes it** (spec
+    `026-journey-one-questionnaire` FR-004 to FR-014; keel-cloud specs 048 and 049; keel-web spec
+    026).
+
+    Until 048 this step could not have existed, because the moment it waits for did not: a stage
+    could not be approved without its own questionnaire, so *the lines are approved* and *the
+    questions exist* were one event. 048 splits them. `introduceAssumptions` takes beliefs, roles
+    and rationales; `writeQuestionnaire` is its own command, applied by **one `QUESTIONS` call**
+    that keel-cloud starts when `allFramedStagesApproved()` becomes true and that sees every settled
+    belief on the project. The founder is left looking at three approved cards and a People entry
+    that is still locked -- which is what `Overview.questionsState` exists to say, in four words:
+    `NOT_STARTED`, `WRITING`, `READY`, `FAILED`.
+
+    **Waited for once, after the third approval, and not after each one.** A `QUESTIONS` call runs
+    after *every* approval in this walk -- an unframed stage is skipped rather than waited on
+    (`journeys.md` §1.2) -- so the first two write questionnaires that are rewritten whole before
+    anybody is ever shown them. The one that matters is the one standing after the last approval,
+    and the place the founder waits for it is the place their next click is: People.
+
+    **Four assertions, in the order the evidence arrives.**
+
+    1. the state reaches `READY` inside the ceiling, with one retry spent on a `FAILED`;
+    2. the questionnaire itself -- anchors with prompts, **every selection offering a pick list**
+       (this is the assertion `_read_the_lines` used to make against a review card's chips), and
+       ids that are the project's rather than a stage's;
+    3. each stage card's **slice**: every `selectionId` its beliefs name resolves against that one
+       questionnaire, and every `readsBelief` points at a stage and a line that exist;
+    4. the same thing on the screen, because a slice that reached a JSON reader and not a founder
+       is not the feature.
+
+    Nothing here reads a word the model wrote (spec 016 FR-007): the prompts, the option labels and
+    the card's own sentences are its own, and what is asserted is presence, resolution and count.
+    """
+    ceiling = QUESTIONS_WAIT_S if timeout_s is None else timeout_s
+    screen = corpus_script.QUESTIONS_SCREEN
+    retry_path = f"/v2/projects/{project_id}/questionnaire/retry"
+    started = _now()
+    deadline = started + ceiling
+    seen: list[str | None] = []
+    state: str | None = None
+    retried: dict | None = None
+    retried_the_attempt: str | None = None
+
+    while _now() < deadline:
+        state = (get_json(f"/v2/projects/{project_id}/overview") or {}).get("questionsState")
+        if not seen or seen[-1] != state:
+            seen.append(state)
+        if state == "READY":
+            break
+        if state == "FAILED":
+            # keel-cloud's own words for what went wrong, read off the screen that has no stage
+            # (`InferenceScreen.QUESTIONS` carries none -- the questionnaire is the project's), so
+            # `latest_failure`'s stage key cannot find it.
+            failure = refusals.latest_failure_on_screen(get_json, project_id, screen)
+            this_attempt = (failure or {}).get("interaction_id")
+            if retried is None:
+                # FR-006, and it is the founder's own button: keel-web spec 026 FR-019 offers *Try
+                # again* beside the locked People entry and nowhere else, and keel-cloud refuses
+                # the endpoint in every state but `FAILED` (422, rule `screen`) -- so the only
+                # state it is sent in is the only state it is legal in. Once, and only once.
+                with recorder.step("§1.3: the QUESTIONS call gave up, so the founder presses *Try "
+                                    "again* -- once", party="founder", kind="note") as h:
+                    retried = post_json(retry_path)
+                    retried_the_attempt = this_attempt
+                    h.record_wire({"the founder's one control": "Try again"},
+                                   {"answer": retried, "what keel-cloud said went wrong": failure})
+            elif this_attempt and this_attempt != retried_the_attempt:
+                # The retry failed too. Stop here rather than sitting out the ceiling: the wire has
+                # said everything it is going to say.
+                break
+        if KEELS_AI:
+            # Spec 024 FR-010, on every poll rather than after the deadline: `KEEL_AI_DISABLED` and
+            # `KEEL_AI_DAILY_CAP` are answered before a socket is opened, so a run that waited the
+            # whole ceiling for one would be reporting the referee's patience, not the product's
+            # sentence.
+            _refuse_if_the_door_is_shut(recorder, get_json, project_id)
+        page.wait_for_timeout(3_000)
+
+    waited = _now() - started
+    with recorder.step("§1.3: keel-cloud wrote the project's one questionnaire, and the overview "
+                        "says so", party="stack", kind="assert") as h:
+        failure = refusals.latest_failure_on_screen(get_json, project_id, screen)
+        h.record_assert({"questionsState": "READY"},
+                         {"questionsState": state, "the states it went through, in order": seen,
+                          "the founder waited, in seconds": round(waited, 1),
+                          "the ceiling, in seconds": ceiling,
+                          "the retry, where one was spent": retried,
+                          "what keel-cloud said went wrong": failure,
+                          "whose clock the ceiling is": (
+                              "keel-cloud's QUESTIONS abandonment plus queue and poll slack; the "
+                              "Keel door's own 600s abandonment where this is that door")})
+        assert state is not None, (
+            "the overview answered no `questionsState` at all. keel-cloud spec 048 FR-039 puts it "
+            "there, so a build without it is older than 048 -- which means this journey is being "
+            "run against a deployment that still writes a questionnaire per stage, and the rest of "
+            "these assertions would be measuring something else. (keel-web falls back to "
+            "`stages.every(approved)` for exactly that case; the referee does not, because the "
+            "fallback would hide the finding.)")
+        assert state == "READY", (
+            f"the project's questionnaire never became READY within {ceiling:.0f}s -- it went "
+            f"{seen} and stopped at {state!r}"
+            + (f". keel-cloud says: {refusals.describe(failure)}" if failure else
+               ". The wire named nothing: a NOT_STARTED at the deadline means the approval started "
+               "no QUESTIONS job at all, and a WRITING means one is still running.")
+            + (f" One retry was spent: {retried}." if retried else ""))
+
+    questionnaire = get_json(f"/v2/projects/{project_id}/questionnaire") or {}
+    anchors = questionnaire.get("anchors") or []
+    selections = [(anchor, selection) for anchor in anchors
+                  for selection in (anchor.get("selections") or [])]
+    selection_ids = [str(selection.get("id") or "") for _anchor, selection in selections]
+    anchor_ids = [str(anchor.get("id") or "") for anchor in anchors]
+
+    with recorder.step("§1.3: the one questionnaire -- occasions with prompts, every control with "
+                        "something to pick, and the project's own ids",
+                        party="stack", kind="assert") as h:
+        unnamed = [anchor for anchor in anchors
+                   if not str(anchor.get("id") or "").strip()
+                   or not str(anchor.get("prompt") or "").strip()]
+        # FR-010, and this is `_read_the_lines`'s old `assert all(line.get("chips"))`, made on the
+        # document that owns the pick lists now. `BUCKETS` carries labels, `OPTIONS` carries
+        # options (`canon/openapi-v2.yaml`'s `Selection`); a control a stranger is shown with
+        # neither is a control they cannot answer. The words themselves are the model's and nothing
+        # asserts them (spec 016 FR-007).
+        empty = [f"{anchor.get('id')}/{selection.get('id')} ({selection.get('control')})"
+                 for anchor, selection in selections
+                 if not (selection.get("options") if selection.get("control") == "OPTIONS"
+                         else selection.get("buckets"))]
+        unknown_control = [selection.get("control") for _anchor, selection in selections
+                           if selection.get("control") not in ("BUCKETS", "OPTIONS")]
+        # FR-011. `Q7` scoped an id to its stage's questionnaire until 048 -- *"ids may repeat
+        # across stages"* -- and scopes it to the project now. 049 finished the job: `AnchorRef`
+        # and `SelectionRef` are a bare id and `qualified()` is gone. So a duplicate id here is a
+        # rule broken, and a `stage` key anywhere on this document means the wire never moved.
+        repeated_anchors = sorted({i for i in anchor_ids if anchor_ids.count(i) > 1})
+        repeated_selections = sorted({i for i in selection_ids if selection_ids.count(i) > 1})
+        still_staged = ([f"anchor {anchor.get('id')}" for anchor in anchors if "stage" in anchor]
+                        + [f"selection {selection.get('id')}"
+                           for _anchor, selection in selections if "stage" in selection])
+        h.record_assert({"state": "READY", "anchors": ">= 1, each with an id and a prompt",
+                          "selections": "each offering a pick list",
+                          "ids": "unique across the project, and never qualified by a stage"},
+                         {"state": questionnaire.get("state"),
+                          "introduction, recorded and asserted nowhere -- it is the model's own "
+                          "sentence": questionnaire.get("introduction"),
+                          "anchors": len(anchors), "selections": len(selections),
+                          "anchor ids": anchor_ids, "selection ids": selection_ids,
+                          "occasions per anchor, counted and never read": [
+                              len(anchor.get("selections") or []) for anchor in anchors],
+                          "controls": sorted({selection.get("control")
+                                              for _anchor, selection in selections}),
+                          "anchors missing an id or a prompt": unnamed,
+                          "controls offering nothing to pick": empty})
+        assert questionnaire.get("state") == "READY", (
+            f"the questionnaire read answers state={questionnaire.get('state')!r} where the "
+            f"overview said READY; the two are the same derivation and must agree")
+        assert anchors, (
+            "keel-cloud says the questions are READY and the questionnaire carries no occasion at "
+            "all. One questionnaire with nothing on it is not a questionnaire a stranger can "
+            "answer.")
+        assert not unnamed, f"an occasion carries no id or no prompt: {unnamed}"
+        assert not unknown_control, (
+            f"a control is neither BUCKETS nor OPTIONS: {unknown_control}")
+        assert not empty, (
+            f"a control on the one questionnaire offers no pick list at all: {empty}. This is the "
+            f"assertion the review card used to make about its chips, moved to the document that "
+            f"owns it since keel-cloud spec 048.")
+        assert not repeated_anchors and not repeated_selections, (
+            f"an id repeats on the project's one questionnaire -- anchors {repeated_anchors}, "
+            f"selections {repeated_selections}. `Q7` is project-wide since 048; an id that names "
+            f"two controls puts one opaque id on two questions.")
+        assert not still_staged, (
+            f"the questionnaire still qualifies an id by a stage: {still_staged}. keel-cloud spec "
+            f"049 reduced AnchorRef and SelectionRef to a bare id and deleted `qualified()`.")
+        assert any(anchor.get("selections") for anchor in anchors), (
+            "no occasion on the questionnaire carries a single control, so there is nothing to "
+            "pick anywhere on the page")
+
+    cards = {stage: (get_json(f"/v2/projects/{project_id}/stages/{stage}") or {})
+             for stage in STAGES}
+    with recorder.step("§1.3: each card carries its slice of the one questionnaire, and every line "
+                        "that reads an earlier line points at one that exists",
+                        party="stack", kind="assert") as h:
+        known_selections = set(selection_ids)
+        known_anchors = set(anchor_ids)
+        numbers = {stage: {belief.get("number") for belief in _beliefs_on(card)}
+                   for stage, card in cards.items()}
+        dangling, outside, reads, bad_reads, resolved = [], [], [], [], []
+        for stage, card in cards.items():
+            for belief in _beliefs_on(card):
+                chosen = belief.get("selectionId")
+                if chosen:
+                    (resolved if chosen in known_selections else dangling).append(
+                        f"{stage}: {belief.get('heading')} -> {chosen}")
+                # FR-013, keel-cloud 049 §6A.5: the founder-visible end of *one answer, two lines*.
+                # `reads` itself never reaches a founder -- it is the model's own index into the
+                # QUESTIONS context, resolved server-side -- and this object is what does.
+                reference = belief.get("readsBelief")
+                if reference:
+                    where = f"{stage}: {belief.get('heading')} -> {reference}"
+                    reads.append(where)
+                    if (reference.get("stage") not in STAGES
+                            or not isinstance(reference.get("line"), int)
+                            or reference.get("line") not in numbers.get(reference.get("stage"), set())):
+                        bad_reads.append(where)
+            for anchor in ((card.get("questionnaire") or {}).get("anchors") or []):
+                if str(anchor.get("id") or "") not in known_anchors:
+                    outside.append(f"{stage}: {anchor.get('id')}")
+        h.record_assert({"selections that resolve": "all of them",
+                          "anchors on a card's slice": "a subset of the project's",
+                          "references that resolve": "all of them"},
+                         {"lines reading a control": resolved,
+                          "lines whose control is on no questionnaire": dangling,
+                          "slice sizes": {stage: len((card.get("questionnaire") or {}).get("anchors")
+                                                      or []) for stage, card in cards.items()},
+                          "anchors on a slice that the project does not carry": outside,
+                          "lines measured with an earlier line": reads,
+                          "references that point nowhere": bad_reads})
+        assert not dangling, (
+            f"a line names a control the project's one questionnaire does not carry: {dangling}. "
+            f"Since 048 there is one id space (`Q7`), so a `selectionId` resolves by its bare id or "
+            f"it resolves nowhere.")
+        assert not outside, (
+            f"a card's slice carries an occasion the project's questionnaire does not: {outside}")
+        assert resolved, (
+            "not one line on any of the three cards reads a control, so the questionnaire that was "
+            "just written is about nothing the founder asked")
+        assert not bad_reads, (
+            f"a line says it is measured with another line that does not exist: {bad_reads}")
+
+    opened = OpenedCard(page, recorder, _web_base_of(page))
+    on_screen: dict[str, list[str]] = {}
+    for stage in STAGES:
+        opened.open(project_id, stage)
+        on_screen[stage] = [str(strip.get("read_line") or "").strip()
+                            for strip in opened.strips()
+                            if str(strip.get("read_line") or "").strip()]
+    with recorder.step("§1.3: and the founder can see it -- each approved card says what each line "
+                        "is asked with", party="founder", kind="assert") as h:
+        # keel-web spec 026 FR-020's one slot, three readings: the line's own question, *same pick
+        # list as line N*, or *measured with the problem's line 3*. Which of the three a line draws
+        # is the model's and the product's business; that one of them is drawn at all is what
+        # proves the slice reached the founder and not only a JSON reader. Nothing reads the
+        # sentence (spec 016 FR-007).
+        h.record_assert({"cards saying what a line is asked with": ">= 1"}, on_screen)
+        assert any(on_screen.values()), (
+            f"not one of the three approved cards tells the founder what any line is asked with: "
+            f"{on_screen}. The questionnaire is on the wire and the cards are not showing their "
+            f"slice of it.")
+    return {"questionnaire": questionnaire, "cards": cards, "waited_s": waited,
+            "states": seen, "retried": retried}
 
 
 def _agent_answers(chat, recorder, get_json, project_id, stage, *, timeout_s):
@@ -622,13 +946,22 @@ def _invite_one_live(page, recorder, project_id: str, web_base: str, person_name
     people.open_send_popup(label)
     people.fill_who(person_name, about=f"{label}, asked about one real occasion.")
     preview = people.go_to_preview()
-    # FR-021, and shape only: `minutes` is rendered in exactly one place in the whole product --
-    # `SendPopup`'s *"About N minutes"* line, never on the participant's page
-    # (`one-occasion-once-design.md` §4). **One** is the assertion: three sections each carrying
-    # their own estimate is precisely the shape one occasion asked once removes. `N >= 10` is
+    # FR-021, and shape only. **One** is the assertion: three sections each carrying their own
+    # estimate is precisely the shape one occasion asked once removes. `N >= 10` is
     # `FormComposer`'s floor and the only arithmetic anybody may claim about it here; the anchors
     # and selections on a live page are the model's own, so no exact N is asserted (spec 016
     # FR-007).
+    #
+    # **This used to say `minutes` is rendered in exactly one place in the whole product and never
+    # on the participant's page, and that is no longer true** (spec 026 FR-018).
+    # `one-occasion-once-design.md` §4 named it as a drift rather than fixing it -- *"`journeys.md`
+    # §2.1's mock shows *About 15 minutes* on the stranger's first screen and the page does not show
+    # it"* -- and **keel-web spec 026 FR-004 fixed it**: `ParticipantRoute.tsx` now renders
+    # `About N minutes` under the consent line, omitted entirely where the number is absent or not
+    # positive. The assertion below did not move with the fact, and did not need to: it counts the
+    # lines in the **founder's preview string**, which is still exactly one -- one questionnaire,
+    # one estimate -- and the participant's own copy of the number is a second rendering of the
+    # same one.
     with recorder.step("§1.5: the founder's preview names the minutes once",
                         party="founder", kind="assert") as h:
         minutes = People.preview_minutes(preview)
@@ -812,9 +1145,12 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
         "legs, what that means": (
             "the host leg entire, plus the first model job -- the PROBLEM frame's confirmation "
             "card -- and then the way out" if SHORT else
-            f"both legs: three stages framed, reviewed and approved, {len(people_chosen)} "
-            f"people invited and answered, the reading read, the brief written, the overview "
-            f"and one card opened"),
+            f"both legs: three stages framed, reviewed and approved, the project's one "
+            f"questionnaire waited for until the overview read questionsState READY and then "
+            f"read whole (keel-cloud spec 048 -- a run taken before keel-e2e-eval spec 026 "
+            f"says nothing here about the questionnaire, because it did not wait for one), "
+            f"{len(people_chosen)} people invited and answered, the reading read, the brief "
+            f"written, the overview and one card opened"),
         "corpus": str(corpus.directory)})
 
     keel_home = run_dir / "keel-home"
@@ -906,6 +1242,20 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
 
     def _get(path: str) -> dict:
         return context.request.get(f"{cloud_base}{path}", timeout=20_000).json()
+
+    def _post(path: str) -> dict:
+        """The one POST this journey makes to keel-cloud directly, and it exists for one button:
+        *Try again* beside a locked People entry (keel-web spec 026 FR-019). Every other act of
+        this journey goes through the screen, because the screen is what is under referee; this one
+        is a founder's single click on a control whose whole content is that it was clicked, and
+        driving it through the side nav would mean waiting for a `FAILED` to render before the
+        wire's own `FAILED` could be acted on."""
+        response = context.request.post(f"{cloud_base}{path}", timeout=20_000)
+        try:
+            body = response.json()
+        except Exception:  # noqa: BLE001 - a 422 carries a Refusal; anything else is evidence too
+            body = {"text": response.text()[:400]}
+        return {"status": response.status, **(body if isinstance(body, dict) else {"body": body})}
 
     def _status() -> dict:
         return stack_runtime.status(stack, home=keel_home)
@@ -1475,9 +1825,13 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                                {"asserted": (
                                     "sign-up through the Google door, 1,500 credits and no agent "
                                     "line, a project started with no runtime bound, the problem "
-                                    "framed, and the lines and questions keel-cloud chained off "
-                                    "it -- read through the same function the full journey reads "
-                                    "them through"
+                                    "framed, and the lines keel-cloud chained off it -- read "
+                                    "through the same function the full journey reads them "
+                                    "through. NOT its questions: since keel-cloud spec 048 the "
+                                    "assumptions job writes no questionnaire, and the one "
+                                    "QUESTIONS call that writes the project's one questionnaire "
+                                    "fires on the *approval*, which this length deliberately "
+                                    "never makes"
                                     if agent_host.short_reaches_the_assumptions(HOST) else
                                     "the plugin from the public marketplace, the skill seen as a "
                                     "plugin skill, a runtime awaiting approval, a code this Keel "
@@ -1499,13 +1853,63 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                     _the_number_went_down()
                 ReviewCard(page, recorder, web_base).continue_onward()
 
+            # **And now the founder waits for the questions** (spec 026; keel-cloud spec 048).
+            # The third approval is what starts the `QUESTIONS` call that writes the project's one
+            # questionnaire, and People is locked until it lands -- so this is both where a founder
+            # actually waits and the only place the pick lists the review cards no longer carry can
+            # be asserted. `_read_the_lines`'s own comment points here.
+            _the_questions_land(page, recorder, _get, _post, project_id)
+
             people = People(page, recorder, web_base)
             people.open(project_id)
-            with recorder.step("§1.4: People unlocks once every framed card is approved",
-                                party="founder", kind="assert") as h:
-                locked = Shell(page, recorder).people_locked()
-                h.record_assert({"people_locked": False}, {"people_locked": locked})
-                assert not locked, "People stayed locked after all three approvals"
+            with recorder.step("§1.4: People unlocks once the questions are written -- and every "
+                                "framed card is still approved", party="founder",
+                                kind="assert") as h:
+                # **Two facts, in one step, because they are two different faults** (spec 026
+                # FR-015/FR-016; keel-cloud spec 048 FR-028/FR-029; keel-web spec 026 FR-017).
+                #
+                # The sentence this step used to make -- *People unlocks once every framed card is
+                # approved* -- was the whole rule until 048. It is now half of it: approving the
+                # last card no longer makes the questions exist, so for a minute or two the three
+                # cards are all approved and there is nothing anybody can be sent. keel-web stopped
+                # recomputing the gate from the cards and reads `Overview.questionsState` instead
+                # (`gateOpen = questionsState === "READY"`), which is the same gate
+                # `Project.invite` enforces on the wire (`rule: "questionnaire"`, *"no questions
+                # have been written for this project yet"*).
+                #
+                # So the referee reads it too, rather than becoming the one party in the system
+                # computing it a fourth way -- and keeps the old reading beside it, because
+                # *approved and still locked* and *unlocked while unapproved* are two different
+                # faults and one assertion could not tell them apart. `_the_questions_land` above
+                # has already waited for READY; what this adds is that the **screen** agrees.
+                shell = Shell(page, recorder)
+                locked = shell.people_locked()
+                overview_body = _get(f"/v2/projects/{project_id}/overview") or {}
+                approvals = {row.get("type"): row.get("approved")
+                             for row in overview_body.get("stages") or []}
+                unapproved = [stage for stage in STAGES if approvals.get(stage) is not True]
+                h.record_assert({"people_locked": False, "questionsState": "READY",
+                                  "approved": {stage: True for stage in STAGES}},
+                                 {"people_locked": locked,
+                                  # FR-017: keel-web's own sentence, so a failure says *Writing the
+                                  # questions for your lines* or *We couldn't write the questions
+                                  # for your lines* instead of `True`.
+                                  "why, in keel-web's own words": (shell.people_locked_reason()
+                                                                   if locked else None),
+                                  "questionsState": overview_body.get("questionsState"),
+                                  "approved": approvals})
+                assert not unapproved, (
+                    f"the journey reached People with {unapproved} unapproved; People unlocking "
+                    f"here would mean keel-cloud let an invitation out before the lines were "
+                    f"accepted")
+                assert overview_body.get("questionsState") == "READY", (
+                    f"the overview reads questionsState="
+                    f"{overview_body.get('questionsState')!r} at the People page, having read "
+                    f"READY a moment ago -- the questionnaire was rewritten or withdrawn between "
+                    f"the two")
+                assert not locked, (
+                    f"People stayed locked with all three cards approved and the questions READY. "
+                    f"keel-web says: {shell.people_locked_reason()!r}")
 
             # Each of the chosen people gets their own link and answers in their own words, in
             # corpus order (the founder, 2026-09-13: five, so the brief has a verdict to say).
@@ -1589,6 +1993,14 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                     assert str(strip.get("number") or "").strip(), f"an unnumbered strip: {strip!r}"
 
         # ------------------------------------------------- what it cost, and what never happened
+        # **A QUESTIONS retry shows up here, and that is the design** (spec 026 FR-020). The one
+        # retry `_the_questions_land` is allowed to spend does not remove the attempt it retried
+        # from this list, so a journey whose questions failed once and then landed is a journey with
+        # a failed job in it and this step names it. Deliberate, and the same posture
+        # `_land_the_card`'s three benign follow-ups already take: the run goes on so that People,
+        # the readings and the brief are all in the bundle as evidence, and the accounting at the
+        # end says what failed. What the retry buys is that the failure was reported **where it
+        # happened, in keel-cloud's own words**, instead of as a 420-second silence.
         with recorder.step("leg two: zero refusals, every job COMPLETED",
                             party="stack", kind="assert") as h:
             interactions = context.request.get(

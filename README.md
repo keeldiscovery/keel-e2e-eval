@@ -1512,6 +1512,21 @@ screen**, never out of the corpus entry, because on a live run they are the mode
 entry's own role label is one nothing on the page need ever have had — the same mistake S-010 made
 once and the same fix.
 
+**And since keel-cloud spec 048 the questions are a step of their own** (spec
+`026-journey-one-questionnaire`). A stage is approved **on its lines**: the questionnaire is the
+project's, written by one `QUESTIONS` call keel-cloud starts when the last framed stage is
+approved, so a review card is read before any pick list can exist and asking it for chips was
+asserting a screen shows what the product is designed not to show it (matrix run 36862514753 died
+there in ninety seconds). So the review step asks for numbered lines and a deal-breaker, and the
+pick lists are asserted after the third approval — the journey waits for `Overview.questionsState`
+to read `READY` (420 s on the CLI doors, keel-cloud's own 300 s abandonment plus slack; one
+`POST …/questionnaire/retry` on a `FAILED`, then keel-cloud's own reason), then reads
+`GET /v2/projects/{id}/questionnaire` whole: every control offers something to pick, every id is
+unique across the **project** (`Q7` since 048) and carries no stage (049), every `selectionId` a
+card names resolves, and every *measured with the problem's line 3* points at a line that exists.
+People unlocks on that same state, which is the gate keel-web reads and the gate `Project.invite`
+enforces.
+
 It is **not scored**, for S-008's and S-009's reason: no attribute of `evals/policy.py` applies to
 a scenario about which host loaded a skill and which model answered a job. The evidence is the
 transcript, the two host transcripts beside it, and the per-job envelopes — and `versions.json`'s

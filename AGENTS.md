@@ -75,6 +75,15 @@ added to this line rather than quietly written — which is exactly how the thir
   install, *"keel connect"*, the code, and only then `/login?user_code=...` -- and so are the
   corpus riders' and S-013's. Nothing was removed; two assertions were added.
 
+  **And what it asserts about the cards moved when keel-cloud 048 moved it** (spec
+  `026-journey-one-questionnaire`). One questionnaire belongs to the project now, written by one
+  `QUESTIONS` call after the last framed stage is approved, so a review card is read before any
+  pick list exists. The review step asks for numbered lines and a deal-breaker; *every line offers
+  a pick list* is made after the third approval, against the project's own questionnaire and the
+  slice each approved card carries, once `Overview.questionsState` reads `READY`. **No assertion
+  was dropped** — the comment where the old one stood quotes it and says where it went, which is
+  the rule this repository works to whenever a product moves under a scenario.
+
   **And it is still one scenario at two lengths** (spec 021). `LEGS=short` stops it after the host
   leg and the **first** model job, which is what every qualifying change now buys; `LEGS=full` is
   what the weekly set and, since design §16, every per-change cell buy (the nightly is suspended since 2026-09-13). That is a *stopping point* in one story, not a second
