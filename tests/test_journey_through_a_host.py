@@ -183,20 +183,27 @@ def test_the_founder_types_the_entrys_own_title_market_and_three_statements():
 
 
 def test_the_one_person_is_the_entrys_first_and_brings_their_own_words():
+    """**The reader moved and the assertion did not loosen** (spec 028 T022). This read
+    `_story_texts(person)`, which has been deleted: it answered *this person's stories, in the
+    corpus's order*, and the caller handed them out by **position**, which is how run 36895521843
+    filed the purchase story under the wrong occasion. `PersonInputs.written()` is the thing it
+    wrapped and is still this repository's one reading of *wrote something*, so the same three
+    claims are made against it here. Which anchor each story lands under is
+    `tests/test_stranger_stories.py`'s, where the matcher lives."""
     from harness import corpus_script
-    from evals.test_s012_journey_through_a_host import _story_texts
     from stack.config import load_config
 
     _, entry = corpus_script.entry_for(load_config(validate=False).keel_cloud, "03-lullaby")
     person = corpus_script.person_inputs(entry)[0]
     assert person.person == "Amira Saleh"
-    stories = _story_texts(person)
+    stories = [(a.text or "").strip() for a in person.written()]
     # Two, not three, since the 2026-09-30 corpus revision: Amira wrote under `A1`, `A2` and `A3`,
     # and `A1` and `A2` were one wake-up all along -- `A2`'s own prompt was *"Think of that same
     # wake-up"*. One occasion, one story box (keel-cloud spec 049, `MARKS_VERSION` 8 call 25).
     assert len(stories) == 2, "she wrote under both of her role's anchors"
     assert stories[0].startswith("Last night. Up at one")
     assert all(s.strip() for s in stories)
+    assert [a.anchor_id for a in person.written()] == ["A1", "A3"]
 
 
 def test_their_pick_prefers_their_own_answer_and_falls_back_to_the_pages_first():

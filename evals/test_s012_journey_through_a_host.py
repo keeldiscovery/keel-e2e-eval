@@ -103,7 +103,7 @@ import pytest
 
 from evals.preludes import create_project, own_ai_door
 from harness import (agent_host, canary as canary_mod, corpus_script,
-                     keel_host as keels_ai, refusals)
+                     keel_host as keels_ai, refusals, stranger_stories)
 from stack import remote
 from harness.browser import (Auth, Chat, Connect, Landing, OpenedCard, Overview, ParticipantPage,
                               People, PrintPage, ReviewCard, Shell)
@@ -636,6 +636,97 @@ def _stage_lines(standing: dict, stage: str) -> dict:
             "total": len(up) + len(down) + len(split) + len(none)}
 
 
+def _tested_lines(counted: dict) -> int:
+    """How many of a stage's lines the five answers actually **tested**: `holdingUp` +
+    `notHoldingUp` + `peopleDisagree`, from `GET /standing`'s own lists.
+
+    `untested` is deliberately not in it. A panel has two parts, *Held* and *Did not hold*, and no
+    third one (keel-web spec 027 FR-008…FR-012), so an untested line has nowhere on a panel to be
+    and a stage whose every line is untested draws nothing -- correctly. The assertion that read
+    *lines on the wire and no rows on the panel* as a fault blamed keel-web for obeying its own
+    spec, and spent matrix run 36895521843 doing it (spec 028 FR-018/FR-019).
+    """
+    return counted["holdingUp"] + counted["notHoldingUp"] + counted["peopleDisagree"]
+
+
+def _tail_number(tail: str | None) -> int:
+    """The *N* in a part's tail, *2 more ›* -- `0` where the part is open.
+
+    **A budget moves a number; it never deletes one** (keel-web FR-015). A part closed at the
+    rest-of-three limit shows three rows and a tail standing for the rest, so counting only the
+    rows would under-count every closed part and opening the tails first would break *the worst
+    stage's panel is the one open at rest* three steps below, which reads exactly those tails.
+    """
+    if not tail:
+        return 0
+    found = re.search(r"\d+", tail)
+    return int(found.group()) if found else 0
+
+
+def _panel_accounting(panel: dict | None, counted: dict) -> dict:
+    """What this panel accounts for, against what the wire says it should: one sum against one sum.
+
+    `{tested, held, did not hold, tails, accounted}`. Every number is counted, never computed: the
+    four on the left are rows and tails on the screen, the one on the right is a length of a list
+    the wire sent.
+    """
+    held = Overview.lines_of(panel or {}, Overview.PANEL_HELD)
+    failed = Overview.lines_of(panel or {}, Overview.PANEL_DID_NOT_HOLD)
+    tails = [_tail_number(Overview.tail_of(panel or {}, Overview.PANEL_HELD)),
+             _tail_number(Overview.tail_of(panel or {}, Overview.PANEL_DID_NOT_HOLD))]
+    return {"tested on the wire": _tested_lines(counted),
+            "HELD rows shown": len(held), "DID NOT HOLD rows shown": len(failed),
+            "the tails' own numbers": tails,
+            "rows the panel accounts for": len(held) + len(failed) + sum(tails)}
+
+
+#: What `GET /stages/{stage}` says about **how the answers were read**, summed over the stage's own
+#: beliefs. `anchored` is `inside + outside` -- the answers that counted, either way; `guessed` is
+#: keel-cloud's own *"answers shown to the founder that count towards nothing"*; `escaped` is
+#: *"answers that recorded nothing at all -- an escape, or a blank occasion"*. These three are the
+#: only place on the wire that can tell a lying referee from a broken product (spec 028 FR-021).
+ANCHORING_KEYS = ("anchored", "guessed", "escaped")
+
+
+def _stage_anchoring(card: dict) -> dict:
+    """One approved card's `BeliefStanding` counts, summed over every belief it carries."""
+    out = {key: 0 for key in ANCHORING_KEYS}
+    out["lines"] = 0
+    for group in (card or {}).get("groups") or []:
+        for belief in (group.get("loadBearing") or []) + (group.get("supporting") or []):
+            standing = belief.get("standing") or {}
+            out["lines"] += 1
+            out["anchored"] += (standing.get("inside") or 0) + (standing.get("outside") or 0)
+            out["guessed"] += standing.get("guessed") or 0
+            out["escaped"] += standing.get("escaped") or 0
+    return out
+
+
+def _whose_fault(anchoring: dict) -> str:
+    """Who to look at when an approved stage is entirely untested and everybody answered.
+
+    **Anchored nothing and guessed something is the stranger's**: the answers reached keel-cloud,
+    were shown to the founder, and counted towards nothing -- which is what the wire says about a
+    sentence that is not an occasion. That is this repository's bug and spec 028 is the fix for the
+    one shape of it that has happened. Anything else is keel-cloud's: answers that were read as
+    occasions and counted, on a stage that still has nothing standing, is a product finding.
+    """
+    if anchoring["anchored"] == 0 and anchoring["guessed"] > 0:
+        return ("THE STRANGER'S -- this harness typed something keel-cloud read as a guess, not "
+                "an occasion. A guess is shown to the founder and counts towards nothing "
+                "(`BeliefStanding.guessed`), so the picks underneath it were stored and tested "
+                "nothing. Read §2.3's own per-anchor record: whichever anchor's `path` is "
+                "*composed from their own facts* is where to look first (spec 028)")
+    if anchoring["anchored"] == 0 and anchoring["escaped"] > 0:
+        return ("THE STRANGER'S -- every answer on this stage's occasion was an escape. An escape "
+                "is an honest answer and it tests nothing, so a stage asked only of people who "
+                "escaped it is a stage nobody answered")
+    return ("KEEL-CLOUD'S -- the answers were read as occasions and counted "
+            f"(anchored {anchoring['anchored']}) and the stage still has nothing standing. That "
+            "is a product finding, and the first this scenario has been able to make: a "
+            "`runs/DRIFT.md` entry, never a workaround here (AGENTS.md)")
+
+
 def _worst_stage(by_stage: dict) -> str:
     """The stage keel-web opens at rest: the worst verdict the wire sent, a tie going to the
     **deepest band** -- which is `STAGES` order, problem first, on the design's own argument that
@@ -927,11 +1018,21 @@ def _agent_answers(chat, recorder, get_json, project_id, stage, *, timeout_s):
         return {"stopped": stopped, "agent_reply": ""}
 
 
-#: **The last resort, and only that** (spec 021). The stranger's words are the corpus person's own
-#: -- one story per anchor they wrote under, in the corpus's own order -- and this sentence is used
-#: only where a live model wrote more anchors than that person has stories for. Its *content* is
-#: asserted nowhere either way: what leg two needs from the stranger is that a real answer reached
-#: keel-cloud and produced a reading, not that any particular words did.
+#: **Retired by spec 028, and kept so the lesson can be grepped for.** This was the last resort
+#: wherever a live model wrote more anchors than the corpus person had stories for, and matrix run
+#: 36895521843 is what it cost: the host wrote four anchors, Lullaby's revised corpus carries two
+#: stories, and this sentence went under the other two. keel-cloud's INTERPRET read it correctly --
+#: it is somebody saying they are *thinking of* an occasion, which is a **guess**, and a guess is
+#: `BeliefStanding.guessed`'s own *"answers shown to the founder that count towards nothing"*. So
+#: the five commercial picks were made, stored, shown and counted for nothing: `untested: 5` of
+#: `total: 5` with `peopleAnswered: 5`, and §1.7 then blamed keel-web's panel for drawing no rows
+#: it had nothing to draw.
+#:
+#: `harness/stranger_stories.py` replaced it with three honest paths -- this person's own matching
+#: story, a sentence composed from this person's own facts, or a tapped escape. **Nothing types
+#: this constant.** `tests/test_stranger_stories.py::test_the_filler_is_named_exactly_once_in_the
+#: _journey_and_typed_nowhere` is the assertion that it stays that way; AGENTS.md's rule is invert
+#: or move, never delete, and a deleted constant is a lesson nobody can grep for.
 THE_STRANGER_SAYS = ("I am thinking of the last time this happened to me, and it went much the "
                      "way I described above.")
 
@@ -943,14 +1044,13 @@ THE_STRANGER_SAYS = ("I am thinking of the last time this happened to me, and it
 OLD_STAGE_SECTION_TITLES = ("About your work", "About a possible tool", "About buying software")
 
 
-def _story_texts(person) -> list[str]:
-    """The corpus person's own story text, per anchor they wrote under, in the corpus's order.
-
-    `PersonInputs.written()` is `harness/corpus_script.py`'s own reading of *wrote something* --
-    the same one the six scripted scenarios type from -- so a blank anchor in the corpus is a
-    blank anchor here and this repository has one answer to that question, not two.
-    """
-    return [(a.text or "").strip() for a in person.written() if (a.text or "").strip()]
+#: **`_story_texts` stood here and is gone** (spec 028 T022). It answered *this person's stories,
+#: in the corpus's order*, and the caller handed them out **by position** -- which is how the
+#: corpus's app-purchase story ended up under the host's *"opened an app during a night waking"*
+#: while the host's *"the last baby app you bought"* got the filler. Order was never the question.
+#: `stranger_stories.plan()` is this repository's one reading of *which words this stranger types*,
+#: it matches by occasion, and it still reads `PersonInputs.written()` through
+#: `instructions/corpus.py` -- so there is still exactly one reading of *wrote something*.
 
 
 def _their_pick(person, options: list[str]) -> tuple[str, bool]:
@@ -1029,7 +1129,7 @@ def _invite_one_live(page, recorder, project_id: str, web_base: str, person_name
     return url
 
 
-def _answer_whatever_is_asked(browser, recorder, url: str, person) -> dict:
+def _answer_whatever_is_asked(browser, recorder, url: str, person, entry) -> dict:
     """The corpus person answers **the questions the page actually asks**, in their own context.
 
     `ParticipantPage.answer_as(person, entry)` resolves a corpus person's answers against the
@@ -1039,14 +1139,26 @@ def _answer_whatever_is_asked(browser, recorder, url: str, person) -> dict:
     reads the rendered page instead -- the same move S-004 makes with `_page_choice`, for the same
     reason: *what is offered is the page's to say.*
 
-    What spec 021 changed is **whose words go into it**. The story under the nth anchor is the
-    corpus person's own nth story, and a selection is answered with their own value wherever the
-    model's option list offers it. Where it does not -- a model that asked something the corpus
-    person was never asked -- the first option is taken, as before, and the bundle says which
-    answers were theirs and which were the fallback. Nothing about either is asserted; what leg two
-    needs is a real answer on the wire (FR-007).
+    What spec 021 changed is **whose words go into it**. A selection is answered with the corpus
+    person's own value wherever the model's option list offers it; where it does not, the first
+    option is taken and the bundle says which answers were theirs and which were the fallback.
+
+    **What spec 028 changed is that the stranger stopped lying about having an occasion.** The
+    story under the nth anchor used to be that person's own nth story, by position, with a filler
+    sentence under every anchor past the end -- and run 36895521843 is what that cost: four anchors
+    written, two stories carried, two fillers typed, every one of them read as a **guess** by
+    keel-cloud's INTERPRET, and the whole COMMERCIAL stage left `untested: 5` with five people
+    answered. `harness/stranger_stories.py` plans every anchor instead: this person's own
+    **matching** story, a first-person sentence composed from this person's own facts, or an honest
+    tap. Nothing about the words is asserted -- what leg two needs from the stranger is that a real
+    answer reached keel-cloud and produced a reading (FR-007) -- but the bundle now says, per
+    anchor, which of the three paths it took and where every part of it came from.
+
+    **The picks are decided before the story is typed, and that is load-bearing** (spec 028
+    FR-010). A composed sentence is written *from* the ticks about to be made, so a stranger whose
+    story contradicts their own answers is impossible rather than merely unlikely. The decision is
+    `_their_pick`'s, unchanged.
     """
-    stories = _story_texts(person)
     context = browser.new_context()
     try:
         page = context.new_page()
@@ -1074,26 +1186,47 @@ def _answer_whatever_is_asked(browser, recorder, url: str, person) -> dict:
             assert not offending, (
                 f"the page still titles a section by a stage: {offending}. A section is an "
                 "occasion since keel-cloud spec 048")
-        answered, picked, theirs_used, fell_back = [], [], [], []
-        told = 0
-        for anchor in drawn:
-            prompt = anchor.get("prompt") or ""
-            if not prompt:
-                continue
-            hers = told < len(stories)
-            story = stories[told] if hers else THE_STRANGER_SAYS
-            participant.tell_story(prompt, story)
-            told += 1
-            answered.append({"prompt": prompt[:60], "said": story[:200],
-                              "whose": (person.person if hers else
-                                        "nobody's -- the model wrote more anchors than this "
-                                        "person has stories, so the last resort was typed")})
-            (theirs_used if hers else fell_back).append(f"anchor: {prompt[:50]}")
-            for selection in anchor.get("selections") or []:
-                options = participant.options_for(selection, anchor_prompt=prompt)
+        # ----------------------------------------------- every tick decided, before a word is typed
+        # Read-only: `options_for` reads the option rows the page drew and `_their_pick` chooses
+        # among them. Nothing is clicked and nothing is filled in this pass, so the page the second
+        # pass types into is the page this one measured.
+        prompts = [(anchor.get("prompt") or "") for anchor in drawn]
+        live = [i for i, prompt in enumerate(prompts) if prompt]
+        chosen: dict[int, list[tuple[str, str, bool]]] = {}
+        for i in live:
+            rows = []
+            for selection in drawn[i].get("selections") or []:
+                options = participant.options_for(selection, anchor_prompt=prompts[i])
                 if not options:
                     continue
                 option, was_theirs = _their_pick(person, options)
+                rows.append((selection, option, was_theirs))
+            chosen[i] = rows
+
+        # ------------------------------------------------------- one plan per anchor, then typing
+        plans = stranger_stories.plan(
+            [prompts[i] for i in live], entry, person.person,
+            {n: [(selection, option) for selection, option, _ in chosen[i]]
+             for n, i in enumerate(live)})
+
+        answered, picked, theirs_used, fell_back = [], [], [], []
+        for n, i in enumerate(live):
+            plan, prompt = plans[n], prompts[i]
+            participant.tell_story(prompt, plan.text, plan.tap)
+            answered.append({"prompt": prompt[:60], "said": (plan.text or "")[:200] or None,
+                              "tapped": plan.tap, "path": plan.path,
+                              "whose": (person.person if plan.path != stranger_stories.COMPOSED
+                                        else f"{person.person}'s own facts, composed")})
+            (theirs_used if plan.path == stranger_stories.THEIR_OWN_STORY
+             else fell_back).append(f"anchor: {prompt[:50]} ({plan.path})")
+            if plan.tap:
+                # A tap is an answer of its own and it dims that anchor's picks (`class="picks
+                # off"`) -- the product's rule, not this harness's. Ticking behind it would be
+                # answering a question the page has stopped asking.
+                picked.extend(f"{selection[:40]} -> not ticked: the anchor is tapped "
+                              f"{plan.tap}" for selection, _, _ in chosen[i])
+                continue
+            for selection, option, was_theirs in chosen[i]:
                 participant.pick(selection, [option], anchor_prompt=prompt)
                 picked.append(f"{selection[:40]} -> {option}"
                               + ("" if was_theirs else "  (the page's own first option; none of "
@@ -1102,14 +1235,32 @@ def _answer_whatever_is_asked(browser, recorder, url: str, person) -> dict:
         participant.submit()
         with recorder.step(f"§2.3: {person.person} sent their answers",
                             party="participant", kind="assert") as h:
-            h.record_assert({"anchors answered": len(drawn)},
-                             {"answered": answered, "picked": picked,
+            paths = {path: sum(1 for plan in plans if plan.path == path)
+                     for path in stranger_stories.PATHS}
+            h.record_assert({"anchors answered": len(live),
+                              "anchors answered with the filler": 0},
+                             {"what the stranger did with each anchor the host wrote":
+                                  stranger_stories.typed(plans),
+                              "paths taken": paths,
+                              "answered": answered, "picked": picked,
                               "the corpus person's own words and answers, used": theirs_used,
                               "the model asked what the corpus did not, so the page's own answer "
                               "was taken": fell_back})
             assert answered, "the stranger typed nothing anywhere"
+            # **Not an assertion about words** (FR-007). It is an assertion about *this harness*:
+            # every anchor the host drew got a story or a tap, and the retired filler went into
+            # none of them. A referee that types a guess cannot then fail the product for not
+            # counting it (spec 028, run 36895521843).
+            silent = [a["prompt"] for a in answered if not a["said"] and not a["tapped"]]
+            assert not silent, f"the stranger left an anchor blank and untapped: {silent}"
+            fillers = [a["prompt"] for a in answered
+                       if (a["said"] or "").startswith(THE_STRANGER_SAYS[:40])]
+            assert not fillers, (
+                f"the retired filler reached the page under {fillers} -- keel-cloud reads it as a "
+                f"guess and counts it towards nothing (spec 028 FR-017)")
         return {"answered": answered, "picked": picked, "theirs": theirs_used,
-                "not theirs": fell_back}
+                "not theirs": fell_back, "plans": plans,
+                "typed": stranger_stories.typed(plans)}
     finally:
         context.close()
 
@@ -1180,8 +1331,14 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                                      "people asked for": PEOPLE,
                                      "people skipped (nothing written the harness could type)":
                                          people_skipped,
-                                     "their stories": {p.person: _story_texts(p)
-                                                       for p in people_chosen},
+                                     # The corpus's own stories, before the matcher sees a single
+                                     # host prompt: what each person brought, in the corpus's own
+                                     # order, with its anchoring. Which anchor each one lands under
+                                     # is §2.3's record and not this one's (spec 028).
+                                     "their stories": {
+                                         p.person: [{"anchor": a.anchor_id, "text": a.text,
+                                                     "tap": a.tap} for a in p.anchors]
+                                         for p in people_chosen},
                                      "their picks": {p.person: {k.selection_id: k.values
                                                                  for k in p.picks}
                                                      for p in people_chosen},
@@ -2023,7 +2180,8 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
             answers = {}
             for one in people_chosen:
                 url = _invite_one_live(page, recorder, project_id, web_base, one.person)
-                answers[one.person] = _answer_whatever_is_asked(browser, recorder, url, one)
+                answers[one.person] = _answer_whatever_is_asked(browser, recorder, url, one,
+                                                                 entry)
             with recorder.step(f"spec 021 (amended 2026-09-13): {len(people_chosen)} people "
                                 "invited and answered, each on their own link",
                                 party="stack", kind="assert") as h:
@@ -2046,6 +2204,65 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                 h.record_assert("a non-empty toast", read_result["toast_text"])
                 assert read_result["toast_text"].strip(), (
                     "the reading produced no toast, so nothing was read")
+
+            # ------------------------------------------------------------------------- §1.7a
+            # **The fault matrix run 36895521843 actually showed, and nothing asserted** (spec 028
+            # FR-020 … FR-022). That run read five answers and moved *"Seven things ... on the
+            # problem card and four on your solution"* -- and nothing on the commercial. All five
+            # COMMERCIAL lines came back `untested` with `peopleAnswered: 5`, because the stranger
+            # had typed a filler sentence under the two anchors the corpus had no story for and
+            # keel-cloud read it, correctly, as a guess. The journey then failed three steps later
+            # on keel-web's panel for drawing no rows it had nothing to draw.
+            #
+            # This is the step that catches it where it happens -- at the readings, before any
+            # screen -- and **names the party from the wire**. `GET /stages/{stage}` carries
+            # `BeliefStanding.guessed` and `inside`/`outside` on every belief, which is the only
+            # place the wire says whether the answers were read as occasions at all. Nothing here
+            # is inferred: every number is a field keel-cloud sent (AGENTS.md's house rule).
+            #
+            # It stands **before** the deck deliberately. A stage with nothing standing is not a
+            # screen bug, and the step that can blame this harness has to run before the steps
+            # that blame the product.
+            with recorder.step("§1.7a: every approved stage was tested by somebody -- no stage is "
+                                "entirely untested after everyone answered",
+                                party="stack", kind="assert") as h:
+                standing_after = _get(f"/v2/projects/{project_id}/standing") or {}
+                overview_after = _get(f"/v2/projects/{project_id}/overview") or {}
+                stages_after = {row.get("type"): row
+                                for row in overview_after.get("stages") or []}
+                untested_faults, read_as = [], {}
+                for stage in STAGES:
+                    counted = _stage_lines(standing_after, stage)
+                    summary = stages_after.get(stage) or {}
+                    answered_by = summary.get("peopleAnswered")
+                    anchoring = _stage_anchoring(
+                        _get(f"/v2/projects/{project_id}/stages/{stage}") or {})
+                    read_as[stage] = {
+                        "the wire's own numbers": counted,
+                        "peopleAnswered": answered_by,
+                        "people invited by this run": len(people_chosen),
+                        "how the answers were read, summed over this stage's beliefs": anchoring,
+                    }
+                    if not counted["total"]:
+                        continue
+                    if counted["untested"] != counted["total"]:
+                        continue
+                    if (answered_by or 0) < len(people_chosen):
+                        # Fewer people answered than were invited: the stage having nothing is
+                        # arithmetic, not a fault, and the people table is where that is read.
+                        read_as[stage]["why this is not a fault"] = (
+                            f"{answered_by} of {len(people_chosen)} answered")
+                        continue
+                    untested_faults.append(
+                        f"{stage}: every one of its {counted['total']} lines is untested and "
+                        f"{answered_by} people answered its occasion. Whose fault: "
+                        f"{_whose_fault(anchoring)}")
+                h.record_assert({"stages entirely untested after everyone answered": [],
+                                  "people invited": len(people_chosen)},
+                                 {"faults": untested_faults, "per stage": read_as})
+                assert not untested_faults, (
+                    "a stage the founder approved was tested by nobody, and five people "
+                    f"answered: {untested_faults}")
 
             # --------------------------------------------------------------------------- §1.7
             # **The overview is the deck now** (keel-web spec 027 `brief-ship`, merged to master
@@ -2144,7 +2361,7 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                     f"disagrees with `GET /overview` is the deck inventing a verdict.")
 
             with recorder.step("§1.7: each panel's count line is the wire's own three numbers, and "
-                                "each one carries at least one line that held or did not",
+                                "each panel accounts for every tested line",
                                 party="founder", kind="assert") as h:
                 # **Every number compared, never recomputed.** *N of M lines holding* is a plain
                 # count over `GET /standing`'s own four lists filtered to the stage; the
@@ -2160,16 +2377,14 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                     summary = by_stage.get(stage) or {}
                     counted = _stage_lines(standing_wire, stage)
                     count_line = (panel or {}).get("count") or ""
-                    held = Overview.lines_of(panel or {}, Overview.PANEL_HELD)
-                    failed = Overview.lines_of(panel or {}, Overview.PANEL_DID_NOT_HOLD)
+                    accounting = _panel_accounting(panel, counted)
                     reported[stage] = {
                         "count line": count_line,
                         "the wire's own numbers": counted,
                         "peopleAnswered": summary.get("peopleAnswered"),
                         "dealBreakers": [summary.get("dealBreakersHolding"),
                                           summary.get("dealBreakersTotal")],
-                        "HELD rows shown": len(held),
-                        "DID NOT HOLD rows shown": len(failed),
+                        **accounting,
                         "the tails behind them": [
                             Overview.tail_of(panel or {}, Overview.PANEL_HELD),
                             Overview.tail_of(panel or {}, Overview.PANEL_DID_NOT_HOLD)],
@@ -2196,10 +2411,35 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                         faults.append(f"{stage}: no deal-breaker on the wire and the count line "
                                        f"says {count_line!r} -- *0 of 0* is what keel-web's own "
                                        f"edge case forbids")
-                    if counted["total"] and not (held or failed):
-                        faults.append(f"{stage}: {counted['total']} lines on the wire and the "
-                                       f"panel shows none of them")
-                h.record_assert({"faults": []}, {"faults": faults, "per stage": reported})
+                    # **The accounting, and the assertion that used to stand here is gone for
+                    # cause** (spec 028 FR-018/FR-019). It read `counted["total"] and not (held or
+                    # failed)` -- *this stage has lines and the panel shows none of them* -- and
+                    # matrix run 36895521843 is what that cost: `COMMERCIAL` had five lines, every
+                    # one of them `untested`, and a panel has two parts and no third, so there was
+                    # nothing for it to draw and it correctly drew nothing. The referee failed
+                    # keel-web for obeying keel-web's own spec, and named the wrong repository,
+                    # which is the worst thing a referee can do. What stands in its place is
+                    # stricter in the direction that matters: the panel must account for **every
+                    # tested line and no others**, tails counted at their own number. An
+                    # all-untested stage is now a correct zero on both sides -- and the fault the
+                    # red run actually showed is §1.7a's, above, where the readings are.
+                    if accounting["rows the panel accounts for"] != accounting[
+                            "tested on the wire"]:
+                        tails = accounting["the tails' own numbers"]
+                        faults.append(
+                            f"{stage}: the wire has {accounting['tested on the wire']} tested "
+                            f"lines (holdingUp {counted['holdingUp']} + notHoldingUp "
+                            f"{counted['notHoldingUp']} + peopleDisagree "
+                            f"{counted['peopleDisagree']}) and the panel accounts for "
+                            f"{accounting['rows the panel accounts for']} -- "
+                            f"{accounting['HELD rows shown']} held, "
+                            f"{accounting['DID NOT HOLD rows shown']} did not hold, tails "
+                            f"{tails}. A budget moves a number and never deletes one (keel-web "
+                            f"FR-015), so a tail counts at its own N")
+                h.record_assert({"faults": [],
+                                  "rows the panel accounts for":
+                                      "the wire's own tested lines, per stage"},
+                                 {"faults": faults, "per stage": reported})
                 assert not faults, f"a panel and the wire disagree: {faults}"
 
             with recorder.step("§1.7: the worst stage's panel is the one open at rest",
