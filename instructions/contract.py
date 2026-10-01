@@ -28,6 +28,10 @@ SCREEN_READING = "INTERPRET"
 # spec 009 follow-on: the screen nobody asks for -- keel-cloud starts it by itself
 # when a reading batch finishes (`ReadingBatchService.sayWhatThisSays`, spec 030).
 SCREEN_BRIEF = "BRIEF"
+# keel-cloud spec 048: the one call that writes the project's one questionnaire. It has no stage,
+# it fires on the approval that makes every framed stage approved, and its answer is rendered on
+# `register.html` and never scored (spec 025 FR-017, `MARKS_VERSION` 8 judgement call 10).
+SCREEN_QUESTIONS = "QUESTIONS"
 
 
 class ContractUnavailable(RuntimeError):

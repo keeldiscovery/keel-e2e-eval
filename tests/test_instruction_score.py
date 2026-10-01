@@ -17,19 +17,22 @@ READING_ANCHOR_IDS = ("A1", "A2", "A3", "A4", "A9")
 
 
 def _entry(beliefs=(), *, anchor_ids=READING_ANCHOR_IDS):
-    # Every anchor this file's reading fixtures write under, stage-tagged PROBLEM so
-    # `score_reading`'s own `entry.anchor(anchor_id)` lookup (measured-beliefs decision 18, DRIFT
-    # #37) resolves the same stage the wire's own `result["anchorings"]` entries below carry.
-    anchors = [{"id": a, "stage": "PROBLEM"} for a in anchor_ids]
+    # Every anchor this file's reading fixtures write under. `A1` is a **merged occasion** --
+    # `stages: [PROBLEM, SOLUTION]`, the shape every corpus entry's first anchor has carried since
+    # the 2026-09-30 revision -- because the whole point of judgement call 24 is that one anchor
+    # answering to two stages is one judgement and not two.
+    anchors = [{"id": a, "stages": ["PROBLEM", "SOLUTION"] if a == "A1" else ["PROBLEM"]}
+               for a in anchor_ids]
     return Entry(id="09-fixture", title="t", market={}, statements={}, roles=[],
                  beliefs=list(beliefs), questionnaire={"anchors": anchors}, answers=[],
                  expected={}, path=None, sha256="0" * 64)
 
 
-def _case(kind, subject, run_index=1):
+def _case(kind, subject, run_index=1, earlier_lines=None):
+    payload = {"context": {"earlier_lines": earlier_lines}} if earlier_lines else {}
     return Case(case_id=f"09-fixture/{subject}/run{run_index}", kind=kind, entry_id="09-fixture",
                 screen="INTERPRET" if kind == "READING" else "PROBLEM_ASSUMPTIONS",
-                subject=subject, run_index=run_index, payload={})
+                subject=subject, run_index=run_index, payload=payload)
 
 
 def _person(**anchors):
@@ -99,31 +102,49 @@ def test_a_failed_reading_case_answers_no_anchor_at_all():
     assert score.failed.startswith("outcome")
 
 
-def test_an_anchoring_with_no_stage_is_refused_the_same_as_an_omitted_one():
-    """Measured-beliefs decision 18 / DRIFT #37: `stage` is required on the wire now (the same
-    pair the context handed the model), so an anchoring missing it is not a match -- it is treated
-    exactly like an omitted anchor, never resolved by the bare id alone."""
+def test_an_anchoring_with_no_stage_scores_a_full_sheet_against_a_merged_anchor():
+    """`MARKS_VERSION` 8, judgement call 24 (spec 025 SC-004): the match key is the bare `anchorId`.
+
+    `AnchorRef` is a bare id since keel-cloud spec 049, so this is the shape the wire now carries,
+    and `A1` here is a merged occasion serving PROBLEM and SOLUTION. Under v3's `(stage, anchorId)`
+    this scored 0 of 1 with `A1` missing; it is one judgement and it agrees.
+    """
     person = _person(A1="ANCHORED")
-    result = {"anchorings": [{"anchorId": "A1", "anchoring": "ANCHORED"}]}   # no "stage"
+    result = {"anchorings": [{"anchorId": "A1", "anchoring": "ANCHORED"}]}   # no "stage", by design
 
     score = score_mod.score_reading(_case("READING", "Priya"), _entry(), person, result)
 
-    assert score.answered == 0
-    assert score.missing_ids == ["A1"]
-    assert score.anchoring_accuracy is None
+    assert score.answered == 1
+    assert score.missing_ids == []
+    assert score.extra_ids == []
+    assert score.anchoring_accuracy == 1.0
 
 
-def test_a_stage_that_does_not_match_the_goldens_own_is_not_a_match():
-    """Two occasions can share the bare id `A1` on two different stages (a link spanning both) --
-    the wrong stage is a wrong answer, not a coincidence to accept."""
+def test_a_stage_a_model_wrote_anyway_is_neither_refused_nor_read_for():
+    """The key is the id. A `stage` a model wrote is an extra field, not a wrong answer -- and
+    naming the *other* stage the merged occasion serves is not a disagreement about anything, which
+    is exactly why the pair stopped being the key."""
     person = _person(A1="ANCHORED")
     result = {"anchorings": [{"stage": "SOLUTION", "anchorId": "A1", "anchoring": "ANCHORED"}]}
 
     score = score_mod.score_reading(_case("READING", "Priya"), _entry(), person, result)
 
-    assert score.answered == 0
-    assert score.missing_ids == ["A1"]
-    assert score.extra_ids == ["A1"], "the same id, wrong stage, is an extra -- not a match"
+    assert score.answered == 1
+    assert score.agreed == 1
+    assert score.missing_ids == []
+    assert score.extra_ids == []
+
+
+def test_missing_and_extra_ids_are_bare_ids():
+    """Spec 025 acceptance 3.3: the set arithmetic is over bare ids, both ways."""
+    person = _person(A1="ANCHORED", A2="GUESSED")
+    result = {"anchorings": [{"anchorId": "A1", "anchoring": "ANCHORED"},
+                             {"anchorId": "A9", "anchoring": "GUESSED"}]}
+
+    score = score_mod.score_reading(_case("READING", "Priya"), _entry(), person, result)
+
+    assert score.missing_ids == ["A2"]
+    assert score.extra_ids == ["A9"]
 
 
 # ----------------------------------------------------------------------------------- assumptions
@@ -264,7 +285,9 @@ def test_v6_the_rule_refusal_mark_is_a_rate_over_the_answers_the_aggregate_judge
     case-runs it never saw; shape refusals keep their absolute zero."""
     from instructions import marks as marks_mod
     marks = marks_mod.load()
-    assert marks_mod.MARKS_VERSION == 7
+    # The rate and its denominator are v6's and have survived v7 and v8 untouched; the version
+    # itself is `tests/test_instruction_marks.py`'s to pin.
+    assert marks_mod.MARKS_VERSION >= 6
     green = {"anchoring_accuracy": 0.99, "golden_belief_recall": 0.99,
              "brief_paragraphs": 1.0, "brief_measured": True}
 
@@ -290,3 +313,39 @@ def test_v6_the_rule_refusal_mark_is_a_rate_over_the_answers_the_aggregate_judge
     nothing_shown.update(green)
     assert marks_mod.judge(nothing_shown, marks)["refusals"]["met"] is False, \
         "a run that showed the aggregate nothing has no rate"
+
+
+# ------------------------------- spec 025 FR-011: the reference is resolved before it is aligned
+
+def test_score_assumptions_resolves_a_reference_before_it_aligns_and_reports_both_counts():
+    """`MARKS_VERSION` 8, judgement call 27. The case's own `earlier_lines` -- the list this eval
+    numbered and sent in that very prompt -- is what the ordinal is resolved against."""
+    entry = _entry([_belief("P1", "yes")])
+    lines = [{"stage": "PROBLEM", "line": 1, "heading": "h", "statement": "s", "measure": None,
+              "band": {"options": ["yes", "no"], "expected": "yes"},
+              "role": "Someone", "risk": "LOAD_BEARING"}]
+    result = {"assumptions": [
+        {"heading": "P1", "statement": "P1.", "risk": "LOAD_BEARING", "mark": "DIRECT",
+         "reads": {"stage": "PROBLEM", "line": 1}}]}
+
+    score = score_mod.score_assumptions(
+        _case("ASSUMPTIONS", "PROBLEM", earlier_lines=lines), entry, result)
+
+    assert score.matched == 1, "without resolve_reads this is 0 and recall falls by one line"
+    assert score.golden_belief_recall == 1.0
+    assert (score.resolved_reads, score.unresolved_reads) == (1, 0)
+
+
+def test_an_unresolvable_reference_is_counted_and_left_to_fail_to_match():
+    entry = _entry([_belief("P1", "yes")])
+    result = {"assumptions": [
+        {"heading": "P1", "statement": "P1.", "risk": "LOAD_BEARING", "mark": "DIRECT",
+         "reads": {"stage": "PROBLEM", "line": 9}}]}
+
+    score = score_mod.score_assumptions(_case("ASSUMPTIONS", "PROBLEM"), entry, result)
+
+    assert score.matched == 0
+    assert (score.resolved_reads, score.unresolved_reads) == (0, 1)
+    totals = score_mod.totals([], [score])
+    assert totals["unresolved_reads"] == 1
+    assert totals["resolved_reads"] == 0

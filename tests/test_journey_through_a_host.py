@@ -191,7 +191,10 @@ def test_the_one_person_is_the_entrys_first_and_brings_their_own_words():
     person = corpus_script.person_inputs(entry)[0]
     assert person.person == "Amira Saleh"
     stories = _story_texts(person)
-    assert len(stories) == 3, "she wrote under all three of her role's anchors"
+    # Two, not three, since the 2026-09-30 corpus revision: Amira wrote under `A1`, `A2` and `A3`,
+    # and `A1` and `A2` were one wake-up all along -- `A2`'s own prompt was *"Think of that same
+    # wake-up"*. One occasion, one story box (keel-cloud spec 049, `MARKS_VERSION` 8 call 25).
+    assert len(stories) == 2, "she wrote under both of her role's anchors"
     assert stories[0].startswith("Last night. Up at one")
     assert all(s.strip() for s in stories)
 

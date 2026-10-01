@@ -165,7 +165,7 @@ questionnaire:
     happened recently. There are no right answers, and you can skip anything.
   anchors:
     - id: A1
-      stage: PROBLEM
+      stages: [PROBLEM]
       prompt: >-
         Think of the last payroll run where something didn't reconcile. Tell us what happened, in
         a sentence or two.
@@ -189,7 +189,7 @@ questionnaire:
           other: true
           escape: [can't recall]
     - id: A2
-      stage: SOLUTION
+      stages: [SOLUTION]
       prompt: >-
         Think of the last time a payroll problem got sorted out without anyone being told to do
         it. What happened?
@@ -208,7 +208,7 @@ questionnaire:
           options: ["yes", "no"]
           escape: [don't know]
     - id: A3
-      stage: COMMERCIAL
+      stages: [COMMERCIAL]
       prompt: >-
         Think of the last payroll tool your team started paying for. What was it, and how did that
         come about?

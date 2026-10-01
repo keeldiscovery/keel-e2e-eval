@@ -557,6 +557,13 @@ def _agent_answers(chat, recorder, get_json, project_id, stage, *, timeout_s):
 THE_STRANGER_SAYS = ("I am thinking of the last time this happened to me, and it went much the "
                      "way I described above.")
 
+#: The three titles a participant page drew while **a section was a stage** -- keel-web's own
+#: strings, from `journeys.md` §2.2. Since keel-cloud specs 048/049 a section is an **occasion**,
+#: titled by the occasion the model named, so none of these may appear on the page at all. They are
+#: written out here because the assertion is that they are *absent*: there is nothing else to read
+#: them off, and a set that came from the page would be an assertion about itself.
+OLD_STAGE_SECTION_TITLES = ("About your work", "About a possible tool", "About buying software")
+
 
 def _story_texts(person) -> list[str]:
     """The corpus person's own story text, per anchor they wrote under, in the corpus's order.
@@ -614,7 +621,22 @@ def _invite_one_live(page, recorder, project_id: str, web_base: str, person_name
     label = cards[0]["label"]
     people.open_send_popup(label)
     people.fill_who(person_name, about=f"{label}, asked about one real occasion.")
-    people.go_to_preview()
+    preview = people.go_to_preview()
+    # FR-021, and shape only: `minutes` is rendered in exactly one place in the whole product --
+    # `SendPopup`'s *"About N minutes"* line, never on the participant's page
+    # (`one-occasion-once-design.md` §4). **One** is the assertion: three sections each carrying
+    # their own estimate is precisely the shape one occasion asked once removes. `N >= 10` is
+    # `FormComposer`'s floor and the only arithmetic anybody may claim about it here; the anchors
+    # and selections on a live page are the model's own, so no exact N is asserted (spec 016
+    # FR-007).
+    with recorder.step("§1.5: the founder's preview names the minutes once",
+                        party="founder", kind="assert") as h:
+        minutes = People.preview_minutes(preview)
+        h.record_assert({"About N minutes lines": 1, "N": ">= 10"}, {"found": minutes})
+        assert len(minutes) == 1, (
+            "the preview must carry exactly one 'About N minutes' line -- one questionnaire, one "
+            f"estimate; found {minutes}")
+        assert minutes[0] >= 10, f"FormComposer's floor is ten minutes; the preview said {minutes}"
     url = people.generate_link(person_name.split()[0])
     people.close_popup()
     return url
@@ -648,6 +670,23 @@ def _answer_whatever_is_asked(browser, recorder, url: str, person) -> dict:
                             party="participant", kind="assert") as h:
             h.record_assert({"anchors": ">= 1"}, drawn)
             assert drawn, f"the invitation link rendered no questions at all: {url}"
+        # FR-021, and shape only: **a section is an occasion**, not a stage (keel-cloud specs
+        # 048/049). One section title per anchor block, and none of the three titles a stage used
+        # to draw. The titles themselves are the model's own words and nothing asserts them --
+        # spec 016 FR-007 -- so this is a count and a set difference and no more.
+        with recorder.step("§2.1a: one section per occasion, and no stage titles left",
+                            party="participant", kind="assert") as h:
+            sections = participant.sections()
+            stage_titles = {t.strip().lower() for t in OLD_STAGE_SECTION_TITLES}
+            h.record_assert({"sections": len(drawn), "stage titles": 0},
+                            {"sections": sections, "anchor blocks": len(drawn)})
+            assert len(sections) == len(drawn), (
+                f"the page drew {len(sections)} section titles for {len(drawn)} anchor blocks -- "
+                "one occasion is one section")
+            offending = [t for t in sections if t.strip().lower() in stage_titles]
+            assert not offending, (
+                f"the page still titles a section by a stage: {offending}. A section is an "
+                "occasion since keel-cloud spec 048")
         answered, picked, theirs_used, fell_back = [], [], [], []
         told = 0
         for anchor in drawn:

@@ -4711,3 +4711,79 @@ credits: twelve `error` events reading *"You have no credits remaining. Add cred
 using the API at https://platform.openai.com/settings/organization/billing/."* then
 `turn.failed`. Infrastructure; the plugin listed fine (`keel@keel installed, enabled 2.3.0`).
 Green again once the account is funded.
+
+## 70. RESOLVED -- was this eval's own (and a model event beside it): the `QUESTIONS` batch case sent keel-cloud's validator **no measurements**, so 17 of 21 "shape refusals" on the v8 run of record were the harness failing a model for a list the harness never sent
+
+**Found by the run of record itself.** `runs/20260930T234025Z-instructions` -- 414 cases at N=3,
+3 h 16 m, $15.65, Claude Code CLI 2.1.284, `MARKS_VERSION` 8, 0 errored -- came back **failed on
+`shape_refusals = 21` against a mark of 0**, with the other four marks green: `anchoring_accuracy`
+0.981, `golden_belief_recall` 0.955, `refusals` 0 of 63, `brief_paragraphs` 1.0. All 21 are the
+seven `QUESTIONS` cases times three runs. **They are two different faults, and only one of them is
+the model's.**
+
+**(a) Seventeen of the 21: the eval's own arithmetic.** `instructions/validate.py`'s `build_batch`
+emitted a `QUESTIONS` case as `{case_id, screen, market, roles, statement, result}` -- **no
+measurements**. keel-cloud's `ScreenContractTool.projectFor` therefore seeded that case with
+`settleALinePerStage`'s canned project of **three** settled beliefs. The model's own prompt for
+`01-countly` had carried **eighteen** (`cases/01-countly/QUESTIONS/run1/prompt.txt`, the
+`measurements` array, index 0-17), and the model had answered `reads` 0-17 correctly across two
+clean occasions. Every `reads >= 3` therefore came back
+
+> `result.anchors[0].selections[3].reads` -- *names measurement 3, and this project has 3 -- reads
+> is a 0-based index into the measurements array you were given*
+
+-- which is the validator telling the truth about a project the eval built wrong. On a mark set at
+an **absolute zero**, that is a failed run of record caused entirely by the measuring apparatus. It
+is `#`-worthy for the same reason D12/D36 were: `ScreenContractTool` took the *shape* of a context
+key without ever taking its *state*, one screen along.
+
+**(b) Four of the 21: real, and Haiku's.** An `occasion` of **9, 9, 9 and 11 words** where
+`ScreenResultApplier` refuses anything over eight -- `06-repeatline/QUESTIONS` run1 and run3
+(*"the last phone or online tool the practice bought"*), `07-mulchrun/QUESTIONS` run1 (*"ordering
+supplies by phone the evening before a job"*) and run2 (*"the last time you placed a supply order
+the night before"*). `questions.md` stated the rule once, as prose -- *"two to five words naming the
+past event, in their words"* -- and nowhere as a limit.
+
+**(c) And one refusal the canned project was hiding.** Re-validating the failed run's own answers
+with the measurements attached turned up a **`Q6`** rule refusal on `02-compliancelog/QUESTIONS/run1`
+that had never been reachable before: the introduction named a band value (*"The firm has 200 to 500
+people."*) of a belief that only exists on the real seeded project. It is gone in the new run, but
+it is worth recording that the wrong seed was suppressing rule coverage as well as inventing shape
+refusals.
+
+**Fixed in both repositories, neither by moving a mark.**
+
+- keel-e2e-eval `9d9012b` (spec 025 Discovered **D18**): `build_batch` writes **`measurements`** on
+  every `QUESTIONS` case, as `context["measurements"]` **unmodified** -- the same list
+  `ScreenContextBuilder.measurements` wrote into the model's own context, in the order the index
+  counts in. `validate._SHAPE_MARKERS` gains a third shape, read off `ScreenContractTool.java` by
+  the marker `get("measurements")` (the read, not the word -- the word is already in that file's
+  prose), so a keel-cloud that cannot seed from the batch makes the refusal marks **UNMEASURED by
+  name** rather than zero.
+- keel-cloud `04ede28` (spec 049 Discovered **D37**): `projectFor` seeds a `QUESTIONS` project from
+  the batch's `measurements` when present -- roles first, then stage by stage exactly as
+  `applyEarlierBeliefs` replays `earlier_beliefs` -- so `measurements[i]` on the seeded project is
+  the i-th entry the model saw. The canned three stay where the key is absent. And `questions.md`
+  (with its byte-identical draft) now states the limit as a **hard rule in three places**, in the
+  same words each time: ***"An occasion is two to five words. Never more than eight. Count them."***
+  -- plus the two failure shapes verbatim and where the qualifiers belong (the anchor's prompt, 300
+  characters). `ScreenResponseContracts`' `occasion` gains a `description` beside its `maxLength`,
+  since JSON Schema can cap code points and cannot count words. **No new rule id, no changed cap.**
+
+**Measured, twice.** The screen `make instruction-screen HOST=claude K=questions N=3
+WHY=instruction:049-questions-occasion MODELS=exported` -- `runs/20261001T032025Z-instructions`, the
+21 `QUESTIONS` jobs only, 73 min, $3.01 -- came back **0 refusals of any kind, longest occasion 8
+words**. The run of record was then re-taken: **`runs/20261001T043420Z-instructions`**, 414 cases,
+**3 h 11 m**, **$15.41**, 0 errored, **all five marks met** (anchoring 98.3 %, recall 93.2 %,
+refusals 0 of 84, shape refusals 0, brief 21/21), 0 occasions over eight words across all 21
+questionnaires.
+
+**The failed run stays on disk.** It is not the run of record and it is not deleted: a rubric's
+first answer is evidence about the harness, and this one was.
+
+**Tests**: keel-e2e-eval `tests/test_instruction_validate.py` (the `measurements` key, its shape
+need, and the prerequisite sentence), keel-cloud `ScreenContractToolTest` (18 now: `reads: [17]`
+against eighteen measurements accepted, `reads: [18]` still refused with the existing message, the
+key absent still getting the canned three) and `InferenceInstructionRegistryTest` (the occasion
+sentence, and the draft identical byte for byte). `make unit` 1,217 passed; `./gradlew check` 1,554
+tests, 0 failures.

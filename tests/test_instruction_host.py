@@ -164,30 +164,32 @@ def test_every_case_a_copilot_run_builds_carries_the_copilot_prompt(monkeypatch)
         return f"prompt-for-{host}"
 
     monkeypatch.setattr(prompts_mod, "render", _record)
-    cases = _build_three_kinds(host="copilot")
+    cases = _build_four_kinds(host="copilot")
 
-    assert {c.kind for c in cases} == {"ASSUMPTIONS", "READING", "BRIEF"}, \
-        "all three loops must be exercised or this test proves nothing"
+    assert {c.kind for c in cases} == {"ASSUMPTIONS", "QUESTIONS", "READING", "BRIEF"}, \
+        "all four loops must be exercised or this test proves nothing"
     assert set(seen) == {"copilot"}
     assert {c.prompt for c in cases} == {"prompt-for-copilot"}
 
 
-def _build_three_kinds(*, host):
-    """One entry with one stage's beliefs, one person who wrote something, and a BRIEF."""
+def _build_four_kinds(*, host):
+    """One entry with one stage's beliefs, one person who wrote something, a `QUESTIONS` call and a
+    BRIEF -- **all four** loops of `build_cases`, so this proves what it claims about a host."""
     contract = {"allowed_outcomes": ["COMPLETED"]}
     exported = types.SimpleNamespace(
         keys_for=lambda screen: ["market"] if "ASSUMPTIONS" in screen else
-        (["invitation_id", "anchors"] if screen == "INTERPRET" else ["project_name"]),
+        (["invitation_id", "anchors"] if screen == "INTERPRET" else
+         (["project_name", "measurements"] if screen == "QUESTIONS" else ["project_name"])),
         for_screen=lambda screen: contract)
     person = types.SimpleNamespace(
         person="p1", written=lambda: [("A1", {"text": "twice a week", "tap": None})])
     entry = types.SimpleNamespace(
         id="e1", title="Entry", market={"country": "GB"}, statements={"problem": "s"},
         expected={"stages": {}}, people=lambda: [person],
-        beliefs_for=lambda stage: [], role=lambda rid: {}, anchor=lambda aid: {"stage": "PROBLEM"})
+        beliefs_for=lambda stage: [], role=lambda rid: {}, anchor=lambda aid: {"id": aid})
     instructions = {screen: "INSTRUCTION" for screen in
                     ("PROBLEM_ASSUMPTIONS", "SOLUTION_ASSUMPTIONS", "COMMERCIAL_ASSUMPTIONS",
-                     "INTERPRET", "BRIEF")}
+                     "QUESTIONS", "INTERPRET", "BRIEF")}
     return prompts_mod.build_cases(entry, exported, instructions, _FakeRuntime,
                                    n_runs=1, host=host)
 
@@ -549,9 +551,11 @@ def test_the_rubric_did_not_move():
     of somebody else. A `MARKS_VERSION` bump here would make the two hosts' runs incomparable in
     the one direction the design needs them comparable."""
     # v6 (judgement call 22, the founder, 2026-09-12) moved the rule-refusal mark to a rate and
-    # added the shape-refusal zero -- for every host at once, which is what keeps this test's
-    # point: the hosts are still judged by one rubric, and no host got its own.
-    assert marks_mod.MARKS_VERSION == 7
+    # added the shape-refusal zero; v7 (23) followed the contract's length edge; v8 (24-27) moved
+    # the match key, the corpus and an alignment rule. Every one of them moved for **every host at
+    # once**, which is what keeps this test's point: the hosts are still judged by one rubric, and
+    # no host ever got its own. The version itself is pinned by `test_instruction_marks.py`; what
+    # is asserted here is that the five numbers a host is judged against have never moved.
     assert marks_mod.DEFAULTS == {"anchoring_accuracy": 0.90, "golden_belief_recall": 0.80,
                                   "rule_refusal_rate": 0.02, "shape_refusals": 0,
                                   "brief_paragraphs": 1.00}

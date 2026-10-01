@@ -61,11 +61,16 @@ EFFORTS = ("low", "medium", "high", "xhigh", "max")
 #: The ladder (design §3): light → standard → frontier. Exactly these three, in this order.
 TIERS = ("light", "standard", "frontier")
 
-#: The five job classes the cloud's `InferenceScreen.jobClass()` names (design §3).
-CLASSES = ("frame", "assumptions", "reframe", "reading", "brief")
+#: The **six** job classes the cloud's `InferenceScreen.jobClass()` names (design §3). `questions`
+#: joined at keel-cloud spec 048 FR-009, on the `light` tier, and **this list is why it had to**:
+#: `parse` below raises `ModelsUnavailable` on a class name it does not know, so `MODELS=exported`
+#: would have refused to start against the cloud's own table the moment it named one (spec 025
+#: FR-012). Found by reading the table, not by a failed run.
+CLASSES = ("frame", "assumptions", "reframe", "reading", "brief", "questions")
 
-#: The three this eval measures, by the `Case.kind` it already sorts the corpus into.
-KIND_TO_CLASS = {"ASSUMPTIONS": "assumptions", "READING": "reading", "BRIEF": "brief"}
+#: The **four** this eval measures, by the `Case.kind` it already sorts the corpus into.
+KIND_TO_CLASS = {"ASSUMPTIONS": "assumptions", "READING": "reading", "BRIEF": "brief",
+                 "QUESTIONS": "questions"}
 
 #: Every screen's class, for a journey (S-012) that sees screens rather than kinds.
 SCREEN_TO_CLASS = {
@@ -73,8 +78,12 @@ SCREEN_TO_CLASS = {
     "PROBLEM_ASSUMPTIONS": "assumptions", "SOLUTION_ASSUMPTIONS": "assumptions",
     "COMMERCIAL_ASSUMPTIONS": "assumptions",
     "SOLUTION_REFRAME": "reframe", "COMMERCIAL_REFRAME": "reframe",
-    "INTERPRET": "reading", "BRIEF": "brief",
+    "INTERPRET": "reading", "BRIEF": "brief", "QUESTIONS": "questions",
 }
+
+#: The classes a verdict reports, in the order a run runs them. `questions` joins here too, so the
+#: verdict says which model wrote the questionnaires rather than leaving a fourth subject unnamed.
+REPORTED_CLASSES = ("assumptions", "questions", "reading", "brief")
 
 #: keel-runtime 0.4.0's per-host pin variables (design §2). Refused beside `--models`: a run that
 #: pinned two ways would not know which one answered. Gone from the runtime at 0.5.0.
@@ -158,15 +167,16 @@ class ModelTable:
 
     def efforts_used(self, host: str) -> dict:
         """The per-class record a verdict carries beside `models_used`, `None` where this host runs
-        the class at its CLI's own default."""
+        the class at its CLI's own default. `questions` routes to `light`, whose row carries no
+        effort -- for the same reason a reading's does not."""
         return {job_class: self.resolve_effort(host, job_class)
-                for job_class in ("assumptions", "reading", "brief")}
+                for job_class in REPORTED_CLASSES}
 
     def models_used(self, host: str) -> dict:
-        """The per-class record a verdict carries: `{assumptions, reading, brief}`, `None` where
-        this host runs the class on its CLI's default."""
+        """The per-class record a verdict carries: `{assumptions, questions, reading, brief}`,
+        `None` where this host runs the class on its CLI's default."""
         return {job_class: self.resolve(host, job_class)
-                for job_class in ("assumptions", "reading", "brief")}
+                for job_class in REPORTED_CLASSES}
 
     def names_for(self, host: str) -> set:
         """Every model this host's row names, any tier -- what a journey may see requested."""

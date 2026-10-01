@@ -576,17 +576,28 @@ ul{margin:4px 0 0 18px;padding:0}
                 else:
                     parts.append("<p class='small'>no paragraph was produced for this entry</p>")
 
+    if entries_by_market:
+        parts.append("<h2>The questionnaire — one a project, whole</h2>")
+        parts.append("<div class='banner note'><b>One questionnaire per entry, written by one "
+                     "<code>QUESTIONS</code> call</b> (keel-cloud spec 048), beside the corpus's "
+                     "own whole revised list. It was rendered stage by stage while every stage "
+                     "wrote its own; a merged occasion serves more than one stage's beliefs, so "
+                     "there is no per-stage list left to put anything next to. <b>Nothing here is "
+                     "scored</b> — not the occasions, not the prompts, not the option lists.</div>")
     for market_key, entries in entries_by_market.items():
         parts.append(f"<div class='market'><b>{_esc(market_key)}</b></div>")
-        for entry_id, stages in entries.items():
-            for stage, block in stages.items():
-                parts.append(f"<h3>{_esc(entry_id)} · {_esc(stage)}</h3>")
-                parts.append("<div class='pair'>")
-                parts.append("<div><div class='side'>produced by the model</div>"
-                             + _anchors_html(block.get("produced") or []) + "</div>")
-                parts.append("<div><div class='side'>the corpus's own, for reference only</div>"
-                             + _anchors_html(block.get("golden") or []) + "</div>")
-                parts.append("</div>")
+        for entry_id, block in entries.items():
+            questionnaire = block.get("questionnaire") or {}
+            parts.append(f"<h3>{_esc(entry_id)}</h3>")
+            if questionnaire.get("introduction"):
+                parts.append("<p class='small'>introduction: "
+                             + _esc(questionnaire["introduction"]) + "</p>")
+            parts.append("<div class='pair'>")
+            parts.append("<div><div class='side'>produced by the model</div>"
+                         + _anchors_html(questionnaire.get("produced") or []) + "</div>")
+            parts.append("<div><div class='side'>the corpus's own, for reference only</div>"
+                         + _anchors_html(questionnaire.get("golden") or []) + "</div>")
+            parts.append("</div>")
     parts.append("</main>")
     path = run_dir / filename
     path.write_text("".join(parts), encoding="utf-8")
@@ -594,14 +605,28 @@ ul{margin:4px 0 0 18px;padding:0}
 
 
 def _anchors_html(anchors: list) -> str:
+    """One anchor a paragraph, with its selections under it.
+
+    Both sides are rendered by this one function and the two sides carry different keys, which is
+    the point. A **produced** anchor has an `occasion` and no `id`, no `control` and no `options`:
+    the server derives all four (048 FR-016 to FR-020), so a model that wrote one would have been
+    ignored. A **corpus** anchor has an `id`, its `stages`, and its selections' controls and option
+    lists. Each key is shown where it exists and nothing is invented where it does not.
+    """
     if not anchors:
-        return "<p class='small'>nothing produced for this stage</p>"
+        return "<p class='small'>nothing produced</p>"
     out = []
     for anchor in anchors:
-        out.append(f"<p><b>{_esc(anchor.get('id'))}</b> — {_esc(anchor.get('prompt'))}</p>")
+        name = anchor.get("occasion") or anchor.get("id")
+        stages = anchor.get("stages")
+        label = f"{name} · {', '.join(str(s) for s in stages)}" if stages else name
+        out.append(f"<p><b>{_esc(label)}</b> — {_esc(anchor.get('prompt'))}</p>")
         for selection in anchor.get("selections") or []:
             control = selection.get("control")
-            out.append(f"<p class='small'>{_esc(selection.get('id'))} · {_esc(control)} — "
+            reads = selection.get("reads")
+            side = (f"reads {reads}" if reads is not None
+                    else f"{selection.get('id')} · {control}")
+            out.append(f"<p class='small'>{_esc(side)} — "
                        f"{_esc(selection.get('prompt'))}</p>")
             options = selection.get("options") or []
             if options:
@@ -671,21 +696,36 @@ def paragraph_blocks(corpus, brief_scores: list) -> dict:
     return grouped
 
 
-def register_blocks(corpus, produced_by_case: dict) -> dict:
-    """Groups every produced questionnaire by market, entry and stage, beside the corpus's own."""
+def register_blocks(corpus, produced_by_entry: dict) -> dict:
+    """Groups every produced questionnaire by market and **entry**, beside the corpus's own.
+
+    **By entry, not entry × stage** (spec 025 FR-016). It used to read the produced questionnaire
+    off each stage's *assumptions* result, because that is where a questionnaire came from while
+    every stage wrote its own. keel-cloud spec 048 took it off the assumptions result entirely and
+    gave it to one `QUESTIONS` call a project, so the old grouping would have rendered three empty
+    stages an entry -- a blank register that still looked like a register.
+
+    The whole entry's revised anchor list goes beside it, because a merged occasion serves two
+    stages and there is no longer a per-stage list to put anything next to.
+
+    **No score, no tick, no cross** (judgement call 10). The register is the one artefact with no
+    number in it, and the `QUESTIONS` answer is measured only by `rule_refusal_rate` and
+    `shape_refusals` -- a mark here would be similarity to one hand-written questionnaire.
+    """
     grouped = {}
     for entry in corpus.entries:
+        produced = produced_by_entry.get(entry.id)
+        if produced is None:
+            continue
         market = entry.market or {}
         key = " · ".join(str(part) for part in
                          (market.get("country"), market.get("region"), market.get("language"))
                          if part)
-        for stage in ("PROBLEM", "SOLUTION", "COMMERCIAL"):
-            produced = produced_by_case.get(f"{entry.id}/{stage}")
-            if produced is None:
-                continue
-            grouped.setdefault(key or "no market named", {}) \
-                   .setdefault(entry.id, {})[stage] = {
-                       "produced": (produced.get("questionnaire") or {}).get("anchors") or [],
-                       "golden": entry.anchors_for(stage),
-                   }
+        grouped.setdefault(key or "no market named", {})[entry.id] = {
+            "questionnaire": {
+                "produced": produced.get("anchors") or [],
+                "introduction": produced.get("introduction"),
+                "golden": entry.questionnaire.get("anchors") or [],
+            },
+        }
     return grouped

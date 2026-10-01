@@ -23,6 +23,7 @@ STEMS = {
     "COMMERCIAL_REFRAME": "commercial-reframe",
     "INTERPRET": "interpret",
     "BRIEF": "brief",
+    "QUESTIONS": "questions",
 }
 
 

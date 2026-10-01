@@ -31,6 +31,12 @@ _STATEMENT_KEYS = {
 # stage introduced which role is read off the `askedOf` edge -- the only evidence in the file.
 _EARLIER_STAGES = {"PROBLEM": (), "SOLUTION": ("PROBLEM",), "COMMERCIAL": ("PROBLEM", "SOLUTION")}
 
+#: The founder's own order, which is `StageType.values()`'s. Every walk that numbers something
+#: project-wide -- `earlier_lines`, `measurements`, `claims` -- walks it in this order and no other,
+#: because an ordinal that meant one belief here and another in the aligner is the one failure a
+#: reference by ordinal has to make impossible.
+STAGES = ("PROBLEM", "SOLUTION", "COMMERCIAL")
+
 
 def tap_enum(tap):
     """The enum name for a corpus tap, or `None` for no tap. An unknown tap is passed through
@@ -81,17 +87,155 @@ def anchors_for(entry, person) -> list:
     for anchor_id, answer in person.written():
         golden_anchor = entry.anchor(anchor_id) or {}
         anchors.append({
-            # stage travels beside anchor_id, first (measured-beliefs decision 18, DRIFT #37):
-            # `ScreenContextBuilder.anchorsWritten` writes it because a link can carry occasions
-            # from more than one approved stage and every stage's own questionnaire numbers its
-            # first occasion A1 -- the pair, not the bare id, is what tells two occasions apart.
-            "stage": golden_anchor.get("stage"),
+            # **No `stage`** (`MARKS_VERSION` 8, judgement call 24; keel-cloud spec 049).
+            # `anchorsWritten` used to write one because every stage's own questionnaire numbered
+            # its first occasion `A1` and the pair was what told two occasions apart. There is one
+            # questionnaire a project now, `Q7` is project-wide, and a merged occasion serves more
+            # than one stage's beliefs -- so a `stage` here would name nothing. `interpret.md` has
+            # described its context as `{anchor_id, prompt, text, tap}` all along (design §5.2).
             "anchor_id": anchor_id,
             "prompt": golden_anchor.get("prompt"),
             "text": answer.get("text"),
             "tap": tap_enum(answer.get("tap")),
         })
     return anchors
+
+
+# --------------------------------------------------------------- the earlier stages' lines (049)
+
+def measure_of(belief) -> dict | None:
+    """`{kind, unit, per}` for an `INTERVAL`; **present and `None`** for a Choice, which has none.
+
+    `ScreenContextBuilder.measureOf`'s own shape and its own three keys, in its own order.
+    """
+    if belief.type != "INTERVAL":
+        return None
+    measure = belief.measure or {}
+    return {"kind": measure.get("kind"), "unit": measure.get("unit"), "per": measure.get("per")}
+
+
+def band_of(belief) -> dict:
+    """`{lower, upper}` with their `inclusive`/`exact` flags for an `INTERVAL`,
+    `{options, expected}` for a `CHOICE` (design §6A.4, `ScreenContextBuilder.bandOf`).
+
+    **The flags are carried, not dropped.** A reference copies the band and not only the measure,
+    and `BucketBuilder` builds a different scale for an exclusive bound than for an inclusive one.
+    """
+    expectation = belief.expectation or {}
+    if belief.type == "INTERVAL":
+        return {"lower": _bound(expectation.get("lower")),
+                "upper": _bound(expectation.get("upper"))}
+    return {"options": list(expectation.get("options") or []),
+            "expected": expectation.get("expected")}
+
+
+def _bound(raw):
+    if not isinstance(raw, dict):
+        return None
+    return {"value": raw.get("value"), "inclusive": bool(raw.get("inclusive", True)),
+            "exact": bool(raw.get("exact", False))}
+
+
+def _role_label(entry, role_id: str):
+    return (entry.role(role_id) or {}).get("label", role_id) if role_id else None
+
+
+def earlier_lines(entry, stage: str) -> list:
+    """`earlier_lines` for an assumptions screen: the approved earlier stages' lines (design §6A.4).
+
+    **Exactly eight keys -- seven things, since `stage` and `line` are one handle**: `stage`,
+    `line` (**1-based within its own stage**), `heading`, `statement`, `measure`, `band`, `role`
+    (the role's *label*) and `risk`. And deliberately not `mark`, not `founderPhrase`, not
+    `selection` and no id at all -- the whole point of `{stage, line}` is that it is an ordinal into
+    a list this side numbered, never a UUID a model has to copy back.
+
+    `[]` for `PROBLEM`, which has no earlier stage -- and the key is then simply not sent, exactly
+    as `putEarlierLines` returns without writing it.
+
+    **This is the list `align.resolve_reads` resolves a `reads` against**, because it is the list
+    this eval numbered and sent. Same walk, same order, one place -- an ordinal that meant one
+    belief in the context and another in the aligner is the failure the reference design exists to
+    make impossible.
+    """
+    lines = []
+    for earlier in _EARLIER_STAGES.get(stage, ()):
+        for number, belief in enumerate(entry.beliefs_for(earlier), start=1):
+            lines.append({
+                "stage": earlier,
+                "line": number,
+                "heading": belief.heading or None,
+                "statement": belief.statement,
+                "measure": measure_of(belief),
+                "band": band_of(belief),
+                "role": _role_label(entry, belief.asked_of),
+                "risk": belief.risk,
+            })
+    return lines
+
+
+# --------------------------------------------------------------------- the QUESTIONS screen (048)
+
+def measurements_for(entry) -> list:
+    """`measurements[]`: every settled belief on the project, **indexed 0-based project-wide**.
+
+    `ScreenContextBuilder.measurements`' own eight keys in its own order -- `index`, `stage`,
+    `heading`, `statement`, `risk`, `mark`, `role`, `expectation`. `stage` is a label here and the
+    index is the key, which is the same move `earlier_lines` makes one screen earlier.
+
+    Every corpus belief owns its own measurement (the frozen set was authored by hand against one
+    questionnaire and restates nothing), so nothing is filtered out here the way
+    `measurementsOf`'s `ownsItsMeasurement()` filters a referencing belief out in production.
+    """
+    out = []
+    for stage in STAGES:
+        for belief in entry.beliefs_for(stage):
+            out.append({
+                "index": len(out),
+                "stage": stage,
+                "heading": belief.heading or None,
+                "statement": belief.statement,
+                "risk": belief.risk,
+                "mark": belief.mark,
+                "role": _role_label(entry, belief.asked_of),
+                "expectation": belief.expectation or {},
+            })
+    return out
+
+
+def stage_statements(entry) -> dict:
+    """`stage_statements`: each stage's own statement, keyed by stage, `None` where none is framed.
+
+    All three keys always, the way `market` is always written: a key that appears and disappears is
+    a key the instruction has to write two paragraphs about.
+    """
+    return {stage: _statement(entry, stage) for stage in STAGES}
+
+
+def build_questions(entry, keys: list) -> dict:
+    """The one `QUESTIONS` screen's context (keel-cloud 048 FR-011), and no more.
+
+    `{project_name, market, founder_name, stage_statements, measurements[]}`, filled key by key in
+    the exporter's own order like every other screen here.
+
+    **`founder_name` is `None`, and that is the corpus and not a gap.** A corpus entry records a
+    project, its market, its roles and its people; it records nobody's name for the founder, so the
+    key is written and left `null` rather than invented -- `build_brief`'s own rule for `drift` and
+    `below`/`above`, one screen along. The instruction uses it to address the participant, which no
+    mark reads.
+    """
+    context = {}
+    for key in keys:
+        if key == "project_name":
+            context[key] = entry.title
+        elif key == "market":
+            context[key] = market_of(entry)
+        elif key == "stage_statements":
+            context[key] = stage_statements(entry)
+        elif key == "measurements":
+            context[key] = measurements_for(entry)
+        else:
+            context[key] = None
+    return context
 
 
 def _statement(entry, stage: str):
@@ -128,8 +272,9 @@ def build_assumptions(entry, stage: str, keys: list) -> dict:
 # ------------------------------------------------------------------------------- the BRIEF screen
 
 # `ScreenContextBuilder.claimsWithStandings` iterates `StageType.values()`, so the three claims
-# arrive in the founder's own order and all three are always present.
-_BRIEF_STAGES = ("PROBLEM", "SOLUTION", "COMMERCIAL")
+# arrive in the founder's own order and all three are always present -- `STAGES` above, under the
+# name this screen has called it since spec 009.
+_BRIEF_STAGES = STAGES
 
 
 def build_brief(entry, keys: list) -> dict:

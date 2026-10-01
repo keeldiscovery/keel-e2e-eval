@@ -44,7 +44,7 @@ CANNED = {
          "selection": "S2"},
     ],
     "questionnaire": {"anchors": [
-        {"id": "A1", "stage": "PROBLEM", "prompt": "Tell us what happened.",
+        {"id": "A1", "stages": ["PROBLEM"], "prompt": "Tell us what happened.",
          "taps": ["hasn't happened", "can't recall"],
          "selections": [
              {"id": "S1", "prompt": "Did it?", "control": "OPTIONS", "multiSelect": False,
@@ -81,8 +81,8 @@ def canned(tmp_path):
 def test_a_canned_entry_becomes_a_script_keyed_by_screen(canned):
     script = cs.generate(canned)
     assert set(script.screens) == {
-        "PROBLEM_FRAME", "SOLUTION_FRAME", "COMMERCIAL_FRAME", "PROBLEM_ASSUMPTIONS", "INTERPRET",
-        "BRIEF"}
+        "PROBLEM_FRAME", "SOLUTION_FRAME", "COMMERCIAL_FRAME", "PROBLEM_ASSUMPTIONS", "QUESTIONS",
+        "INTERPRET", "BRIEF"}
     # Rule 6: a screen the entry cannot produce is absent, not present-and-empty -- the executor
     # refusing by name is a better failure than answering the wrong shape.
     assert "SOLUTION_ASSUMPTIONS" not in script.screens
@@ -91,8 +91,11 @@ def test_a_canned_entry_becomes_a_script_keyed_by_screen(canned):
 
 def test_the_assumptions_envelope_is_the_contract_shape(canned):
     result = cs.generate(canned).screens["PROBLEM_ASSUMPTIONS"][0]["result"]
-    assert set(result) == {"assumptions", "questionnaire", "normalization_rationale"}
-    assert set(result["questionnaire"]) == {"introduction", "anchors"}
+    # **No `questionnaire`** since keel-cloud spec 048 FR-013 took the object off the assumptions
+    # contract: one `QUESTIONS` call writes the project's one questionnaire, once every framed
+    # stage is approved. A script still emitting one would be scripting a shape production no
+    # longer sends, and keel-cloud would refuse it.
+    assert set(result) == {"assumptions", "normalization_rationale"}
     first, second = result["assumptions"]
     # V4: there is no `askedOf` on the wire. The first belief naming a role introduces it; every
     # later one reuses it by label.
@@ -107,11 +110,30 @@ def test_the_assumptions_envelope_is_the_contract_shape(canned):
     assert "lower" in second["expectation"] and "upper" not in second["expectation"]
 
 
-def test_the_questionnaire_carries_enum_taps_and_no_stage_key(canned):
-    anchors = cs.generate(canned).screens["PROBLEM_ASSUMPTIONS"][0]["result"]["questionnaire"]["anchors"]
-    assert anchors[0]["taps"] == ["HASNT_HAPPENED", "CANT_RECALL"]
-    assert "stage" not in anchors[0]
-    assert all("stage" not in s for s in anchors[0]["selections"])
+def test_the_questionnaire_is_one_questions_entry_carrying_enum_taps_and_no_derived_keys(canned):
+    """keel-cloud 048 FR-012: the `QUESTIONS` contract has **no `id`, no `control`, no
+    `multiSelect` and no `options` anywhere in it**. The server derives all four from the beliefs a
+    selection `reads` (FR-016 to FR-020), and an `options` value in the answer is ignored -- so a
+    script that wrote one would be scripting a field production throws away."""
+    questions = cs.generate(canned).screens["QUESTIONS"]
+    assert len(questions) == 1, "one call a project, on the approval that approves the last stage"
+    result = questions[0]["result"]
+    assert set(result) == {"introduction", "anchors"}
+    anchor = result["anchors"][0]
+    assert set(anchor) == {"occasion", "prompt", "taps", "selections"}
+    assert anchor["taps"] == ["HASNT_HAPPENED", "CANT_RECALL"]
+    assert anchor["occasion"] == "occasion of A1"
+    for key in ("id", "stage", "stages"):
+        assert key not in anchor
+    for selection in anchor["selections"]:
+        assert set(selection) <= {"reads", "prompt", "escape", "other"}
+        assert selection["reads"], "048 FR-017 refuses a selection that reads nothing"
+
+
+def test_a_selections_reads_are_zero_based_project_wide_measurement_indices(canned):
+    selections = cs.generate(canned).screens["QUESTIONS"][0]["result"]["anchors"][0]["selections"]
+    assert [s["reads"] for s in selections] == [[0], [1]]
+    assert cs.measurement_index(canned) == {"B1": 0, "B2": 1}
 
 
 def test_interpret_is_one_entry_per_reading_in_order_and_omits_a_blank_anchor(canned):
@@ -121,11 +143,12 @@ def test_interpret_is_one_entry_per_reading_in_order_and_omits_a_blank_anchor(ca
     cursor and hand every later person the wrong judgement."""
     interpret = cs.generate(canned).screens["INTERPRET"]
     assert len(interpret) == 1                            # Ada wrote; Grace did not
-    # stage travels with anchorId (measured-beliefs decision 18, DRIFT #37): a link can carry
-    # occasions from more than one approved stage, and every stage's own questionnaire numbers its
-    # first occasion A1, so the pair -- not the bare id -- is what the reader hands back.
+    # The **bare** anchorId, and no stage (keel-cloud spec 049: `AnchorRef` is a bare id;
+    # `MARKS_VERSION` 8 call 24). It was a `(stage, anchorId)` pair while every stage owned its own
+    # questionnaire and each numbered its first occasion `A1`; there is one questionnaire a project
+    # now, so the pair names nothing the id does not.
     assert interpret[0]["result"]["anchorings"] == [
-        {"stage": "PROBLEM", "anchorId": "A1", "anchoring": "ANCHORED"}]
+        {"anchorId": "A1", "anchoring": "ANCHORED"}]
     # rule 4: only the running stack knows the real invitation id, so the generator never writes it
     assert all("invitationId" not in e["result"] for e in interpret)
 
@@ -134,8 +157,8 @@ def test_a_correction_re_emits_the_whole_card_plus_reply_and_changes(canned):
     correction = cs.Correction(stage="PROBLEM", belief_id="B1",
                                 message="line 1 is wrong", expected_change="It happened twice.")
     result = cs.generate(canned, correction=correction).screens["PROBLEM_ASSUMPTIONS.correction"][0]["result"]
-    assert set(result) >= {"assumptions", "questionnaire", "normalization_rationale",
-                            "reply", "changes"}
+    assert set(result) >= {"assumptions", "normalization_rationale", "reply", "changes"}
+    assert "questionnaire" not in result, "048 FR-013 took it off the card, correction and all"
     assert result["changes"] == [{"heading": "It happens", "before": "It happened.",
                                    "after": "It happened twice."}]
     assert result["assumptions"][0]["statement"] == "It happened twice."
@@ -157,17 +180,19 @@ def test_the_typed_inputs_carry_the_market_the_statements_and_every_pick(canned)
     assert people[1].written() == []
 
 
-# --------------------------------------------- Q7: a selection id belongs to its own stage alone
+# ------------------------------ Q7 is project-wide: a pick resolves against this role's own anchors
 
-def test_a_selection_id_reused_on_a_different_stage_resolves_to_its_own_stage(tmp_path):
-    """Measured-beliefs design decision 18, `Q7` (DRIFT #37): a selection id is unique only within
-    one stage's own questionnaire and free to repeat on another's -- a live model numbers every
-    stage fresh from `S1`. `by_selection` used to be built once for the whole entry, so whichever
-    stage's own `S1` happened to be authored last would silently validate every other stage's pick
-    against it too; `role_of_anchor` matched a bare selection id the same way. Here PROBLEM's own
-    `S1` is a yes/no and SOLUTION's own `S1` -- a different role's, on a different anchor -- is a
-    red/blue, and each person's pick is checked, and the script's two assumption cards and two
-    reading entries stay distinct rather than merged into one."""
+def test_a_pick_resolves_against_the_anchors_this_persons_role_is_actually_asked(tmp_path):
+    """**This test used to be about a selection id repeating across stages** (decision 18, DRIFT
+    #37): a live model numbered every stage fresh from `S1`, `by_selection` was built once for the
+    whole entry, and whichever stage's `S1` was authored last silently validated every other
+    stage's pick. keel-cloud specs 048/049 supersede that -- one questionnaire a project, `Q7`
+    project-wide, ids unique across the entry -- so two selections can no longer *be* `S1`.
+
+    **The scoping it was written for outlives the reason.** A person is offered only the anchors
+    their role is asked, and a pick must resolve against one of those; an entry-wide lookup would
+    still reach a selection this person never saw. That is what is asserted here, with two roles on
+    two anchors, and it is why `by_selection` is still built per person rather than once."""
     raw = copy.deepcopy(CANNED)
     raw["roles"].append({"id": "r2", "label": "Someone else", "roleType": "PRACTITIONER",
                           "about": "does another thing"})
@@ -175,10 +200,10 @@ def test_a_selection_id_reused_on_a_different_stage_resolves_to_its_own_stage(tm
         "id": "B3", "stage": "SOLUTION", "heading": "Which one", "statement": "It was the red one.",
         "risk": "LOAD_BEARING", "askedOf": "r2", "mark": "DIRECT",
         "expectation": {"type": "CHOICE", "options": ["red", "blue"], "expected": "red"},
-        "selection": "S1"})
+        "selection": "S3"})
     raw["questionnaire"]["anchors"].append({
-        "id": "A2", "stage": "SOLUTION", "prompt": "Think of that again.",
-        "selections": [{"id": "S1", "prompt": "Which colour?", "control": "OPTIONS",
+        "id": "A2", "stages": ["SOLUTION"], "prompt": "Think of that again.",
+        "selections": [{"id": "S3", "prompt": "Which colour?", "control": "OPTIONS",
                          "multiSelect": False, "options": ["red", "blue"],
                          "escape": ["can't recall"]}]})
     raw["answers"] = [
@@ -187,35 +212,35 @@ def test_a_selection_id_reused_on_a_different_stage_resolves_to_its_own_stage(tm
          "picks": {"S1": "yes", "S2": "1 h to 2 h"}},
         {"person": "Zora Okafor",
          "anchors": {"A2": {"text": "It was red, definitely.", "anchoring": "ANCHORED"}},
-         "picks": {"S1": "red"}},
+         "picks": {"S3": "red"}},
     ]
     entry = _entry(raw, tmp_path)
 
     screens = cs.generate(entry).screens
-    problem_s1 = screens["PROBLEM_ASSUMPTIONS"][0]["result"]["questionnaire"]["anchors"][0][
-        "selections"][0]
-    solution_s1 = screens["SOLUTION_ASSUMPTIONS"][0]["result"]["questionnaire"]["anchors"][0][
-        "selections"][0]
-    assert problem_s1["id"] == solution_s1["id"] == "S1"
-    assert problem_s1["options"] == ["yes", "no"]
-    assert solution_s1["options"] == ["red", "blue"]          # a different S1, on a different stage
 
-    # Each pick is validated against -- and carries only the value legal for -- its own stage's S1.
+    # One questionnaire, written once, carrying both anchors and every selection id once.
+    anchors = screens["QUESTIONS"][0]["result"]["anchors"]
+    assert [a["occasion"] for a in anchors] == ["occasion of A1", "occasion of A2"]
+    assert [s["reads"] for a in anchors for s in a["selections"]] == [[0], [1], [2]]
+
+    # Each person's pick resolves against the anchors their own role is asked, and nobody else's.
     people = cs.person_inputs(entry)
     by_name = {p.person: p for p in people}
     assert by_name["Ada Lovelace"].role_id == "r1"
     assert by_name["Zora Okafor"].role_id == "r2"
     assert by_name["Ada Lovelace"].pick("S1").values == ["yes"]
-    assert by_name["Zora Okafor"].pick("S1").values == ["red"]
+    assert by_name["Zora Okafor"].pick("S3").values == ["red"]
+    assert cs.anchors_for_role(entry, "r1") == ["A1"]
+    assert cs.anchors_for_role(entry, "r2") == ["A2"]
 
-    # Two distinct reading entries, each keyed by (stage, anchorId) -- not merged into one because
-    # both happen to write under an anchor that answers to the label `S1`/`A1` conventions share.
+    # Two distinct reading entries, keyed by the **bare** `anchorId` (keel-cloud spec 049:
+    # `AnchorRef` is a bare id) -- and still distinct, because `A1` and `A2` are two occasions.
     interpret = screens["INTERPRET"]
     assert len(interpret) == 2
     assert interpret[0]["result"]["anchorings"] == [
-        {"stage": "PROBLEM", "anchorId": "A1", "anchoring": "ANCHORED"}]
+        {"anchorId": "A1", "anchoring": "ANCHORED"}]
     assert interpret[1]["result"]["anchorings"] == [
-        {"stage": "SOLUTION", "anchorId": "A2", "anchoring": "ANCHORED"}]
+        {"anchorId": "A2", "anchoring": "ANCHORED"}]
 
 
 # ---------------------------------------------------------------------- FR-004, the four refusals
@@ -315,7 +340,7 @@ def test_every_literal_in_the_script_came_from_the_entry(entry_id):
     allowed = _entry_strings(entry)
     allowed |= set(script.screens)                                   # screen keys
     allowed |= {"COMPLETED", "outcome", "result"}
-    allowed |= {"assumptions", "questionnaire", "introduction", "anchors",
+    allowed |= {"assumptions", "introduction", "anchors", "occasion", "reads",
                  "normalization_rationale", "heading", "statement", "risk", "mark",
                  "expectation", "selection", "role", "new", "reuse", "founderPhrase",
                  "label", "roleType", "about", "market", "id", "prompt", "control",
@@ -330,6 +355,10 @@ def test_every_literal_in_the_script_came_from_the_entry(entry_id):
     # what_the_entry_says` below is what holds it to that.
     allowed |= {cs.introduction_for(entry), cs.normalization_rationale_for(entry),
                 cs.what_this_says_for(entry)}
+    # And the fourth composed string: `occasion` is two to five words on the wire and **the corpus
+    # carries none** -- its anchors were authored before the field existed -- so it is composed
+    # from the anchor's own id and nothing else, the way the other three are.
+    allowed |= {cs.occasion_for(entry, a) for a in entry.questionnaire.get("anchors") or []}
 
     strays = sorted({s for s in _all_strings(script.screens) if s not in allowed})
     assert not strays, f"{entry_id}: the script carries values the entry does not: {strays}"
@@ -350,6 +379,110 @@ def test_countlys_problem_stage_sits_exactly_on_the_cap():
     entry = next(e for e in _corpus_entries() if e.id == "01-countly")
     assert len(entry.beliefs_for("PROBLEM")) == cs.MAX_ITEMS
     assert len(entry.anchors_for("PROBLEM")) == 1
+    # Spec 025 acceptance 7.6: this line still reads 1 after the revision, and for a new reason --
+    # `01-countly`'s merged `A1` carries PROBLEM *and* SOLUTION in its `stages`, so the same one
+    # anchor is returned for both. The sibling assertion is what says the 1 is not a coincidence.
+    assert [a["id"] for a in entry.anchors_for("SOLUTION")] == ["A1"]
+    assert entry.anchors_for("PROBLEM")[0] is entry.anchors_for("SOLUTION")[0], \
+        "one occasion, one object -- not two copies that could drift"
+
+
+# --------------------------------------------- spec 025 T011: the revised corpus, against the real
+#                                               seven files and never against a copy of them
+
+def _every_corpus_entry():
+    """**All seven**, not `CHOSEN`'s three: the shape claims below are about the corpus, and spec
+    021's deviation 3 stands -- no corpus copy in this repository, so these read the real files."""
+    return corpus_reader.load(load_config(validate=False).keel_cloud).entries
+
+
+def test_every_anchor_carries_a_stages_list_and_no_scalar_stage():
+    for entry in _every_corpus_entry():
+        for anchor in entry.questionnaire.get("anchors") or []:
+            where = f"{entry.id}/{anchor.get('id')}"
+            assert "stage" not in anchor, f"{where} still carries the scalar `stage`"
+            assert isinstance(anchor.get("stages"), list) and anchor["stages"], \
+                f"{where} has no `stages` list"
+            assert set(anchor["stages"]) <= set(corpus_reader.STAGES), where
+
+
+def test_the_corpus_carries_sixteen_anchors_and_a_hundred_and_sixty_written_pairs():
+    """Spec 025's own counting, re-counted here from the files (SC-002).
+
+    **23 anchors -> 16, 238 written person-anchor pairs -> 160.** The second number is
+    `anchoring_accuracy`'s denominator at `N=1`, and it is the reason `MARKS_VERSION` moved: a rate
+    over a different denominator is a different measurement even where the definition is
+    word-for-word the same.
+    """
+    entries = _every_corpus_entry()
+    assert len(entries) == 7
+    anchors = sum(len(e.questionnaire.get("anchors") or []) for e in entries)
+    written = sum(len(person.written()) for e in entries for person in e.people())
+    people = sum(len(e.people()) for e in entries)
+    selections = sum(len(a.get("selections") or [])
+                     for e in entries for a in e.questionnaire.get("anchors") or [])
+    assert (anchors, written, people, selections) == (16, 160, 106, 87), \
+        "a merge moves a selection between anchors and never deletes one, so 87 does not move"
+
+
+def test_no_entry_names_a_struck_anchor_and_every_id_is_unique_project_wide():
+    """`Q7`, project-wide (keel-cloud spec 048): one questionnaire a project, so an anchor id and a
+    selection id are unique across the whole entry, and `A2` -- merged into `A1` in all seven -- is
+    named by nobody. `05-paidly`'s `A2b` and `A2c` are other occasions and are untouched."""
+    for entry in _every_corpus_entry():
+        anchors = entry.questionnaire.get("anchors") or []
+        anchor_ids = [a["id"] for a in anchors]
+        selection_ids = [s["id"] for a in anchors for s in a.get("selections") or []]
+        assert len(anchor_ids) == len(set(anchor_ids)), entry.id
+        assert len(selection_ids) == len(set(selection_ids)), entry.id
+        assert "A2" not in anchor_ids, f"{entry.id}: A2 was merged into A1"
+        for person in entry.people():
+            unknown = set(person.anchors) - set(anchor_ids)
+            assert not unknown, f"{entry.id}: {person.person} names {sorted(unknown)}"
+
+
+def test_every_belief_reads_a_selection_on_an_anchor_its_own_stage_is_served_by():
+    """`Q1` under one questionnaire: the anchor that owns a belief's selection must be an anchor
+    whose occasion serves that belief's stage -- which is what `stages` being a list buys."""
+    for entry in _every_corpus_entry():
+        owner = {s["id"]: a for a in entry.questionnaire.get("anchors") or []
+                 for s in a.get("selections") or []}
+        for belief in entry.beliefs:
+            anchor = owner.get(belief.selection)
+            assert anchor is not None, f"{entry.id}/{belief.id}: {belief.selection} is on no anchor"
+            assert belief.stage in anchor["stages"], (
+                f"{entry.id}/{belief.id} is {belief.stage} and reads {belief.selection} on "
+                f"{anchor['id']}, whose occasion serves {anchor['stages']}")
+
+
+def test_the_merged_anchor_is_returned_for_both_stages_in_every_entry():
+    """SC-003. In all seven entries the problem stage's occasion and the solution stage's were the
+    same past event, so `anchors_for` returns the same anchor for both."""
+    for entry in _every_corpus_entry():
+        problem = entry.anchors_for("PROBLEM")
+        assert len(problem) == 1, entry.id
+        assert problem[0] in entry.anchors_for("SOLUTION"), \
+            f"{entry.id}: the merged occasion serves the solution stage too"
+
+
+def test_a_file_still_carrying_the_scalar_stage_refuses_to_start(tmp_path):
+    """FR-006: a refusal naming the entry, the anchor and this specification -- never a fallback.
+    A reader that took `stage` for a one-element `stages` would score a merged occasion twice."""
+    raw = copy.deepcopy(CANNED)
+    raw["questionnaire"]["anchors"][0].pop("stages")
+    raw["questionnaire"]["anchors"][0]["stage"] = "PROBLEM"
+    with pytest.raises(corpus_reader.CorpusError) as exc:
+        _entry(raw, tmp_path)
+    assert "00-canned" in str(exc.value) and "A1" in str(exc.value)
+    assert "025" in str(exc.value) and "stages" in str(exc.value)
+
+
+def test_an_empty_or_unknown_stages_list_refuses_too(tmp_path):
+    for stages in ([], ["PROMBLEM"], "PROBLEM"):
+        raw = copy.deepcopy(CANNED)
+        raw["questionnaire"]["anchors"][0]["stages"] = stages
+        with pytest.raises(corpus_reader.CorpusError):
+            _entry(raw, tmp_path)
 
 
 def test_the_shared_selection_is_one_selection_named_twice():
@@ -391,7 +524,7 @@ def test_a_role_is_introduced_once_across_the_whole_entry(tmp_path):
         "expectation": {"type": "CHOICE", "options": ["yes", "no"], "expected": "yes"},
         "selection": "S3"})
     raw["questionnaire"]["anchors"].append({
-        "id": "A2", "stage": "SOLUTION", "prompt": "And then?",
+        "id": "A2", "stages": ["SOLUTION"], "prompt": "And then?",
         "selections": [{"id": "S3", "prompt": "Again?", "control": "OPTIONS",
                          "multiSelect": False, "options": ["yes", "no"], "escape": ["can't recall"]}]})
     entry = _entry(raw, tmp_path)

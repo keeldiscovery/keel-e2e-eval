@@ -99,11 +99,18 @@ def test_the_register_carries_every_brief_paragraph_whole_and_unscored(tmp_path)
 def test_the_register_renders_and_says_that_nothing_on_it_is_scored(tmp_path):
     from instructions import report as report_mod
 
-    blocks = {"GB · en-GB": {"01-countly": {"PROBLEM": {
-        "produced": [{"id": "A1", "prompt": "Think of the last delivery.", "selections": [
-            {"id": "S1", "prompt": "Who took it in?", "control": "OPTIONS",
-             "options": ["me", "a member of staff"], "escape": ["can't recall"]}]}],
-        "golden": [{"id": "A1", "prompt": "Think of the last delivery.", "selections": []}]}}}}
+    # By entry, not entry x stage (spec 025 FR-016): one questionnaire a project, written by one
+    # `QUESTIONS` call, and a produced anchor carries an `occasion` and no id -- the server derives
+    # the ids, the controls and the option lists (keel-cloud 048 FR-016 to FR-020).
+    blocks = {"GB · en-GB": {"01-countly": {"questionnaire": {
+        "introduction": "A few questions about something that happened.",
+        "produced": [{"occasion": "the last delivery", "prompt": "Think of the last delivery.",
+                      "selections": [{"reads": [0], "prompt": "Who took it in?",
+                                      "escape": ["can't recall"]}]}],
+        "golden": [{"id": "A1", "stages": ["PROBLEM", "SOLUTION"],
+                    "prompt": "Think of the last delivery.", "selections": [
+                        {"id": "S1", "prompt": "Who took it in?", "control": "OPTIONS",
+                         "options": ["me", "a member of staff"]}]}]}}}}
 
     path = report_mod.render_register(tmp_path, entries_by_market=blocks)
     html = path.read_text(encoding="utf-8")

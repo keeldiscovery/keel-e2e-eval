@@ -39,11 +39,12 @@ def entry():
         beliefs=[_belief("P1", "PROBLEM", "manager"),
                  _belief("S1", "SOLUTION", "manager"),
                  _belief("C1", "COMMERCIAL", "buyer")],
+        # One merged occasion serving two stages -- the shape every corpus entry's first anchor has
+        # carried since the 2026-09-30 revision (`MARKS_VERSION` 8, judgement call 25).
         questionnaire={"anchors": [
-            {"id": "A1", "stage": "PROBLEM", "prompt": "Think of the last delivery.",
-             "taps": ["hasn't happened"], "selections": []},
-            {"id": "A2", "stage": "SOLUTION", "prompt": "Think of that same delivery.",
-             "taps": [], "selections": []}]},
+            {"id": "A1", "stages": ["PROBLEM", "SOLUTION"],
+             "prompt": "Think of the last delivery.",
+             "taps": ["hasn't happened"], "selections": []}]},
         answers=[], expected={}, path=None, sha256="0" * 64)
 
 
@@ -117,13 +118,76 @@ def test_a_blank_anchor_is_never_offered_and_a_tap_is_mapped_to_its_enum(entry):
     assert built["anchors"][0]["prompt"] == "Think of the last delivery."
     assert built["anchors"][0]["tap"] is None
     assert built["anchors"][1]["tap"] == "HASNT_HAPPENED"
-    # decision 18 / DRIFT #37: stage travels beside anchor_id, first -- A1 is on the entry's own
-    # questionnaire (PROBLEM); A3 is not on it at all, so its stage is None rather than invented.
-    assert list(built["anchors"][0]) == ["stage", "anchor_id", "prompt", "text", "tap"]
-    assert built["anchors"][0]["stage"] == "PROBLEM"
-    assert built["anchors"][1]["stage"] is None
+    # `MARKS_VERSION` 8, judgement call 24 (keel-cloud spec 049): **no `stage`**. It used to travel
+    # beside `anchor_id`, first, because decision 18 (DRIFT #37) made the pair the only thing that
+    # told two occasions apart. One questionnaire a project makes `Q7` project-wide and a merged
+    # occasion serves two stages' beliefs, so a `stage` here would name nothing -- and this is the
+    # four keys `interpret.md` has described its context as all along (design §5.2's drift).
+    assert list(built["anchors"][0]) == ["anchor_id", "prompt", "text", "tap"]
+    assert all("stage" not in anchor for anchor in built["anchors"])
 
 
 def test_the_tap_table_covers_every_tap_the_frozen_corpus_writes():
     for english in ("hasn't happened", "can't recall", "rather not say"):
         assert context_mod.tap_enum(english) in {"HASNT_HAPPENED", "CANT_RECALL", "RATHER_NOT_SAY"}
+
+
+# ----------------------------------------------- spec 025 T014: `earlier_lines` (keel-cloud 049)
+
+EARLIER_KEYS = ["stage", "line", "heading", "statement", "measure", "band", "role", "risk"]
+
+
+def test_earlier_lines_is_empty_for_the_problem_stage(entry):
+    """`[]`, and the key is then never written at all -- exactly as `putEarlierLines` returns
+    without writing it. The problem screen is where a project's first line is invented."""
+    assert context_mod.earlier_lines(entry, "PROBLEM") == []
+
+
+def test_earlier_lines_carries_design_6A4s_eight_keys_and_no_more(entry):
+    lines = context_mod.earlier_lines(entry, "SOLUTION")
+
+    assert len(lines) == 1
+    assert list(lines[0]) == EARLIER_KEYS, "the eight keys, in the builder's own order"
+    assert lines[0]["stage"] == "PROBLEM"
+    assert lines[0]["line"] == 1
+    assert lines[0]["role"] == "Restaurant managers", "the role's label, not its id"
+    assert "mark" not in lines[0], "a later stage makes its own DIRECT/PROXY judgement"
+    assert "founderPhrase" not in lines[0] and "founder_phrase" not in lines[0], \
+        "the founder's words are about that stage's claim, not this one's"
+    assert "selection" not in lines[0] and "id" not in lines[0], "nothing on the wire names an id"
+
+
+def test_the_line_number_is_one_based_within_each_stage(entry):
+    """`{stage, line}`, not a flat index: the list is grouped by stage in the context, and a reader
+    of a failed job should see at a glance which stage was being joined."""
+    lines = context_mod.earlier_lines(entry, "COMMERCIAL")
+
+    assert [(l["stage"], l["line"]) for l in lines] == [("PROBLEM", 1), ("SOLUTION", 1)]
+
+
+def test_a_choice_line_carries_a_null_measure_and_its_options(entry):
+    line = context_mod.earlier_lines(entry, "SOLUTION")[0]
+    assert line["measure"] is None, "present and null -- a Choice has no measure"
+    assert line["band"] == {"options": ["yes", "no"], "expected": "yes"}
+
+
+def test_an_interval_line_carries_its_measure_and_its_bands_own_flags():
+    """The flags are carried, not dropped: `BucketBuilder` builds a different scale for an exclusive
+    bound than for an inclusive one, so a later stage deciding whether its number is the same number
+    has to be shown the same band."""
+    interval = {"type": "INTERVAL",
+                "measure": {"kind": "DURATION", "unit": "minutes", "per": "wake-up"},
+                "lower": {"value": 20, "inclusive": True, "exact": False},
+                "upper": {"value": 45, "inclusive": False, "exact": False}}
+    entry = Entry(id="09-fixture", title="t", market={},
+                  statements={"PROBLEM": "p", "SOLUTION": "s"},
+                  roles=[{"id": "parent", "label": "New parents"}],
+                  beliefs=[_belief("P1", "PROBLEM", "parent", expectation=interval)],
+                  questionnaire={"anchors": []}, answers=[], expected={}, path=None,
+                  sha256="0" * 64)
+
+    line = context_mod.earlier_lines(entry, "SOLUTION")[0]
+
+    assert line["measure"] == {"kind": "DURATION", "unit": "minutes", "per": "wake-up"}
+    assert line["band"] == {"lower": {"value": 20, "inclusive": True, "exact": False},
+                            "upper": {"value": 45, "inclusive": False, "exact": False}}

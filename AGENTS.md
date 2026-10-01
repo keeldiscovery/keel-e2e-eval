@@ -18,8 +18,14 @@ added to this line rather than quietly written — which is exactly how the thir
   two can never be confused.
   **It spends the founder's money and runs only for a named event** (keel-cloud
   `canon/designs/model-routing-design.md` §7.1; `instructions/why.py`): `WHY=instruction:…`,
-  `prompt:…` or `contract:…` earns one screen, `WHY=new-model:<host>:<model>` earns the full run,
-  and a code change earns nothing. Never run it on a schedule, in CI, or "to be sure".
+  `prompt:…` or `contract:…` earns one screen, `WHY=new-model:<host>:<model>` and
+  `WHY=marks:<version>` earn the full run, and a code change earns nothing. Never run it on a
+  schedule, in CI, or "to be sure".
+  **`marks:` is the fifth event** (spec 025 FR-023, 2026-09-30), and it is full-run only. The other
+  four name a change to the *subject*; this one names a change to the **ruler**. The standing gate
+  reads *green at the current `MARKS_VERSION`*, so a rubric that moved has no run of record at all
+  until one is spent, and a screen is one entry and cannot be one. The policy widened by one named
+  event, in the open, which is the amendment shape this document asks for — it did not loosen.
 - **S-012**, *the journey through a host* (`evals/test_s012_journey_through_a_host.py`, specs
   `016-copilot-e2e`, `019-journey-through-a-host` and `021-short-journey`) — the third, and here
   is the argument for it. keel-cloud `canon/designs/keel-skill-design.md` §5.5 makes a host "supported" only when four
