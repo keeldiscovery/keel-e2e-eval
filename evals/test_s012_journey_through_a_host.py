@@ -1868,9 +1868,9 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                 # has already waited for READY; what this adds is that the **screen** agrees.
                 shell = Shell(page, recorder)
                 locked = shell.people_locked()
-                overview_body = get_json(f"/v2/projects/{project_id}/overview") or {}
-                approvals = {s.get("type"): s.get("approved")
-                             for s in overview_body.get("stages") or []}
+                overview_body = _get(f"/v2/projects/{project_id}/overview") or {}
+                approvals = {row.get("type"): row.get("approved")
+                             for row in overview_body.get("stages") or []}
                 unapproved = [stage for stage in STAGES if approvals.get(stage) is not True]
                 h.record_assert({"people_locked": False, "questionsState": "READY",
                                   "approved": {stage: True for stage in STAGES}},

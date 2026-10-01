@@ -223,6 +223,15 @@ entry names where it was found and what was done about it.
   `QUESTIONS` failure's own `interaction_id` against the one it retried, and treats `FAILED` as
   terminal only when it belongs to a **different** attempt.
 
+- **D-14 — the scenario's wire reader is called `_get` inside the test and `get_json` inside every
+  helper, and the People step was written with the helper's name.** `make unit` caught it in the
+  same breath, through `tests/test_scenarios_have_no_undefined_names.py` — *"a `NameError` waiting
+  for the branch that reaches it, and in a live scenario that branch costs money"* — which is
+  exactly the fault it exists for: the People step runs only on the full journey, after the host
+  leg, three stages and the questions, so on a live run it would have cost everything up to it
+  before raising. Fixed in the commit that introduced it, and recorded because the two names for one
+  reader are a trap this file will set again.
+
 - **D-10 — `instructions/models.py` needed nothing.** `SCREEN_TO_CLASS` has carried
   `"QUESTIONS": "questions"` since spec 025 phase 6, and `REPORTED_CLASSES` carries `questions`, so
   the tail's *every job requested the model the cloud's table names for its class* assertion already
