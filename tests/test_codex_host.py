@@ -70,3 +70,39 @@ def test_readiness_names_a_missing_cli_by_name(monkeypatch):
     monkeypatch.setattr(codex_host.shutil, "which", lambda b: None)
     ready = codex_host.readiness(env={})
     assert ready["ok"] is False and "@openai/codex" in ready["reason"]
+
+
+# ------------------------------------------------------------------------- the effort (2026-10-03)
+#
+# Measured on codex-cli 0.154.0 with a ChatGPT login: `codex exec` has no `--effort` flag, the
+# effort is `-c model_reasoning_effort=<level>`, and it is accepted beside `-m`. The argv is the
+# only record of it -- `codex exec --json` names neither the model nor the effort anywhere in the
+# stream -- so these pin the argv, flag for flag, without running the CLI.
+
+def _host(tmp_path, env):
+    return codex_host.CodexHost(home=tmp_path / "home", keel_home=tmp_path / "keel",
+                                base_url="http://127.0.0.1:1", artifacts=tmp_path / "art",
+                                work_dir=tmp_path / "work", model="gpt-5.6-terra",
+                                base_env={"PATH": "/fake/bin", **env})
+
+
+def test_the_effort_is_a_config_override_after_the_model_and_only_when_asked(tmp_path):
+    argv = _host(tmp_path, {codex_host.EFFORT_ENV: "high"})._say_argv("keel connect",
+                                                                      usage_path=tmp_path / "u")
+    assert argv[argv.index("-m") + 1] == "gpt-5.6-terra"
+    assert argv[argv.index("-c") + 1] == "model_reasoning_effort=high"
+    assert argv.index("-c") > argv.index("-m")
+    assert "--effort" not in argv
+
+    unset = _host(tmp_path, {})._say_argv("keel connect", usage_path=tmp_path / "u")
+    assert "-c" not in unset and not any("model_reasoning_effort" in a for a in unset)
+    assert unset == argv[:argv.index("-c")]
+
+
+def test_the_effort_does_not_travel_to_the_runtime_and_refuses_a_word_off_the_ladder(tmp_path):
+    import pytest
+    host = _host(tmp_path, {codex_host.EFFORT_ENV: "medium"})
+    assert host.effort == "medium"
+    assert codex_host.EFFORT_ENV not in host.env()
+    with pytest.raises(ValueError):
+        _host(tmp_path, {codex_host.EFFORT_ENV: "max"})
