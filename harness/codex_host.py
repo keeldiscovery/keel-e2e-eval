@@ -60,6 +60,15 @@ from harness.agent_host import (MARKETPLACE_SOURCE, PLUGIN_NAME, PLUGIN_SPEC,  #
 #: The key's name in the caller's shell. The matrix sets it from `KEEL_RUNTIME_CI_CODEX`; a
 #: founder running the journey from the Mac exports it themselves. Never read from a file (T-5).
 API_KEY_ENV = "KEEL_CODEX_API_KEY"
+#: The host's own reasoning effort for leg one, from the caller's shell, like the key. Measured
+#: 2026-10-03 on codex-cli 0.154.0 with a ChatGPT login: `codex exec` takes no `--effort` flag;
+#: the effort is a config override, `-c model_reasoning_effort=<level>`, and it is accepted beside
+#: `-m` on that account (a one-line probe answered `ok`). Unset means the model's own catalogue
+#: default (`~/.codex/models_cache.json`'s `default_reasoning_level`), which the stream never
+#: names -- so, as for the model, the argv is the record and nothing is guessed.
+EFFORT_ENV = "KEEL_CODEX_EFFORT"
+#: The ladder every visible model in that catalogue supports (`supported_reasoning_levels`).
+EFFORTS = ("low", "medium", "high", "xhigh")
 SANDBOX = "danger-full-access"
 FORBIDDEN_FLAGS = ("--bare", "--dangerously-bypass-approvals-and-sandbox",
                    "--dangerously-bypass-hook-trust", "--ignore-user-config")
@@ -251,6 +260,10 @@ class CodexHost(AgentHost):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._login: dict = {"how": "none"}
+        #: `-c model_reasoning_effort=<level>` for the host CLI, or nothing: the model's default.
+        self.effort = (self._base_env.get(EFFORT_ENV) or "").strip() or None
+        if self.effort is not None and self.effort not in EFFORTS:
+            raise ValueError(f"{EFFORT_ENV}={self.effort!r} is not one of {', '.join(EFFORTS)}")
         key = (self._base_env.get(API_KEY_ENV) or "").strip()
         if key:
             done = login_with_api_key(self.binary, self.home, key, base_env=self._base_env)
@@ -263,6 +276,7 @@ class CodexHost(AgentHost):
         executor's own `codex`. The API key itself does not travel: it is already in `auth.json`."""
         env = super().env(extra)
         env.pop(API_KEY_ENV, None)
+        env.pop(EFFORT_ENV, None)
         env["KEEL_CODEX_HOME"] = str(self.home)
         return env
 
@@ -330,6 +344,8 @@ class CodexHost(AgentHost):
                 "--sandbox", SANDBOX, "--color", "never", "-C", str(self.work_dir)]
         if self.model:
             argv += ["-m", self.model]
+        if self.effort:
+            argv += ["-c", f"model_reasoning_effort={self.effort}"]
         return argv
 
     def _make_run(self, **kwargs) -> CodexRun:
