@@ -4787,3 +4787,127 @@ against eighteen measurements accepted, `reads: [18]` still refused with the exi
 key absent still getting the canned three) and `InferenceInstructionRegistryTest` (the occasion
 sentence, and the draft identical byte for byte). `make unit` 1,217 passed; `./gradlew check` 1,554
 tests, 0 failures.
+
+## 71. RESOLVED -- was this eval's own, and it is the finding of the day: the participant step waited 15 s for a selector keel-web stopped drawing, and took the readings, the brief and the deck off **every cell of the matrix**
+
+**Found by the hand dispatch of 2026-10-03** (run **37144449885**, `set=weekly`,
+`cells=macos-latest-copilot-py3.13,macos-latest-codex-py3.13`, `scenarios=s012`,
+`deploy: false`), written up in keel-cloud-docs
+`canon/drafts/matrix-codex-copilot-v8-2026-10-03.md` §5. The Copilot cell got 86 of 87 steps green
+-- the host leg, all three framings, all three approvals, the project's one questionnaire -- and
+then failed at **`the stranger opens their link`** after 15.5 s.
+
+**The product was fine and the referee was holding a stale name.** The bundle's own
+`failure/page.html` is the **Keel Interview** opening screen, rendered correctly: the *KEEL* /
+*Research interview* header, the server's introduction, the consent block, *About 20 minutes · 3
+parts · You can skip any question.* and a **Begin** button. keel-web **042**
+(`1e71083`, 2026-10-02, *"the participant's page becomes the Keel Interview"*) replaced the single
+scroll with a **pager** -- one screen to consent on, one screen per occasion, one to finish on --
+and moved the opening screen onto `main.iv-body` / `p.iv-intro`. `ParticipantPage.open` was waiting
+on `.iv p.hello`, which on that route now draws **only** the notice states (*This page doesn't
+exist*, the 410 notice, `ALREADY_ANSWERED`). It could not resolve on a healthy page, ever.
+
+**Host- and model-independent, and today's weekly said so six times over**: on run **37113552244**
+the same step failed on macOS × Claude, Windows × Claude 3.13, Windows × Claude 3.9, macOS ×
+Copilot, Windows × Copilot **and** on the `keel` door -- which runs no host CLI, no plugin and no
+runtime at all. A break that reaches the door with no host in it is not in the hosts. The corpus
+riders S-005/6/7 failed the same morning on *"§1.2: the problem card names what the person will be
+asked first"*, which is a different product move landing on a different assertion.
+
+**What it cost.** Nothing downstream of the stranger's first screen was measured on any cell: spec
+028's stories under every anchor, the five people's answers, **the readings** (routing v8's `light`
+tier, `gpt-5.6-luna` on five jobs), **the brief** (the `brief` class), and spec 027's other half --
+the deck's three bands, its *Held / Did not hold* panels and *Download the brief*. v8's light tier
+and brief class were therefore deployed and unexercised end to end on every host.
+
+**Fixed here, in the referee's own repository** (branch `028-interview-pager`), which is the rule:
+a scenario follows the product it refereed when the product moves, with the reason written where the
+old assertion stood. `harness/browser.py`'s `ParticipantPage` is a pager now --
+
+| the single scroll | the Keel Interview (042) |
+|---|---|
+| `.iv p.hello` (the wait, and `introduction()`) | `header.iv-head` + `main.iv-body p.iv-intro` |
+| `.iv > p.hint` (`hints()`, the skip affordance) | `p.iv-method`, `p.iv-facts`, `p.iv-why`, `p.iv-tapnote`, `p.iv-nudge`, `p.iv-draft` |
+| every `.sect` on one page | `h1.iv-sect`, one per part -- `sections()` walks the pager |
+| every `div.q` on one page | `main.iv-body div.q`, one occasion's worth |
+| `.iv` (`offers()`) | `main.iv-body` -- the screen showing, since there is no `.iv` on the open form at all |
+| `button[name=/^submit$/]` | the last part's primary, *Send my answers* (`PARTICIPANT_SUBMIT_LABEL`) |
+| the last `.iv .hint` (the nudge) | `p.iv-nudge` |
+| -- | **Begin** / **Continue**, **Next**, **Back**, and the `.iv-done` completion screen |
+
+-- and three methods are new because the pager needs them: `begin()` (the gate, which takes
+**Continue** as well as **Begin**, because 042 FR-014 keeps unsent answers in `localStorage` per
+link and resumes at the part they were left on), `next_part()`/`back()`/`go_to_part()` (the pager,
+pressing through the product's one `BLANK_ANCHOR_NUDGE` where it fires and raising rather than
+pressing a third time), and `questionnaire()` (the read-only walk).
+
+**`questionnaire()` is the part worth reading twice.** `harness/stranger_stories.py`'s
+story-to-occasion matching is **global** -- the highest-scoring pair anywhere in the grid first,
+each corpus occasion spent at most once -- and that is the whole of spec 028's fix for run
+36895521843. A pager that was answered occasion by occasion could put one person's night-waking
+story under two different occasions, so the interview is **walked read-only first**, every occasion
+and every option list collected, and the typing pass walks it again. Nothing is clicked in the read
+pass but *Next* and *Back*, and nothing is typed, so the page the second pass types into is the page
+the first one measured.
+
+**No timeout was loosened.** It is 15 s, as it was. What was wrong was the name of the thing waited
+for, and a page that genuinely takes longer than fifteen seconds is a page a run should go red
+about.
+
+**And the `participant_page` hop grew with the page.** `evals/corpus_facts.py` scores the
+**absences** against that hop -- no belief statement, no band value, no expected option anywhere a
+stranger can read (design rule `Q5`) -- and on a pager a capture of `body` is one occasion, not the
+questionnaire. `ParticipantPage` now keeps **every screen the stranger has been shown**
+(`seen_text()`) and the hop carries all of them, so the opening screen's consent block and the
+completion screen are swept too, which the single scroll never offered.
+
+**Also moved, for the same product move**: `evals/test_s010_two_founders.py`'s one inline
+`.iv p.hello` wait (it reads whose name the form says is asking, deliberately without the page
+object), `evals/test_s004_stranger_who_gives_orders.py` (it begins the interview, chooses what to
+attack over the **whole** interview rather than over whichever occasion is first, and walks to the
+part that draws it), and `evals/tools/curated_proof_run.py`'s `_sectioned_blocks` (the `.sect`-
+walking script it kept beside `anchors()` is deleted: `questionnaire()` returns the occasions in
+page order with their anchors and option lists from one read, so there is no second opinion left to
+reconcile).
+
+**Tests**: `tests/test_participant_sections_are_occasions.py` and
+`tests/test_participant_submit_sent.py` both drive a real pager in a real browser now (the same
+shape they always had, and for the same reason -- what went wrong was a *region*, and strings
+cannot show it), `tests/test_participant_anchor_selections.py` renders its anchors inside
+`main.iv-body`, and `tests/test_participant_interview_pager.py` is new: Begin, the counter, Next
+and Back, the one nudge pressed through, *Send my answers*, the completion screen, and a page that
+never sends still failing.
+
+## 72. Owed (keel-runtime, one field wide), carried over from the hand dispatch of 2026-10-03: the bundle cannot **measure** that `--effort medium` reached the CLI
+
+**Asked of this repository, and it cannot be answered here.** The matrix is the only place the
+whole effort chain runs at once -- keel-cloud's `model-routing.json` v8 carries
+`efforts.copilot.standard = medium`, keel-runtime 0.7.0's `_effort_for` reads
+`request_payload["effort"][<host>]`, and `CopilotExecutor._build_argv` turns it into
+`--effort medium`, last, after `--model` -- so the twin is the only place it can be measured.
+
+**It is not in the bundle.** `keel_runtime/poller.py`'s `_execution_report` writes
+`execution.json` as exactly five fields -- `host`, `host_version`, `model_requested`, `model_used`,
+`retried_unpinned` -- and no executor sets a `last_effort` or a `last_argv` for it to read.
+`request.json` is `_prompt_sections`' seven keys (`nonce`, `task`, `contract`, `founder_text`,
+`participant_answers`, `earlier_turns`, `project_context`) and carries no `effort`. The launch log
+names the executor, the binary and the version, and `config.py` has **no effort knob on purpose**
+(spec 010: the effort comes with the job and a second source of truth is what 0.5.0 spent a spec
+removing). So no file anywhere in a run bundle contains the string `--effort medium`, and **there is
+nothing on this side to read**: adding the field is a keel-runtime change, not a keel-e2e-eval one,
+and the `028-interview-pager` pass deliberately did not make it.
+
+**What the bundle does prove today**, on run 37144449885's Copilot cell: the *model* flag's effect,
+measured -- `model_requested == model_used ==` v8's slug on all nine jobs, eight `gpt-5.6-terra` and
+one `gpt-5.6-luna`, `retried_unpinned` false everywhere -- and, beside it, the Copilot CLI's own
+session record naming `"reasoning_effort":"medium"` on the standard jobs. The second is
+**consistent with** the flag and is not proof of it, because `medium` is also both v8 slugs'
+catalogue default (measured; `harness/copilot_host.py`'s own note). The rest of the chain is code
+and table, not measurement.
+
+**The ask, and it is one field.** `_execution_report` to carry `effort_requested` (the value
+`_effort_for` returned for this job) and, better, the **resolved argv** the executor ran -- which
+would close the model claim and the effort claim in one line, for all three hosts, and would make
+*the flag the CLI was actually given* a fact a bundle carries rather than an inference from two
+repositories' source. Until then *"the effort reached the CLI"* is an inference on Copilot and an
+unmeasured blank on Codex.

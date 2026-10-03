@@ -679,6 +679,7 @@ def _answer_page(participant: ParticipantPage, person, entry, *,
             record["unmatched"].append({"anchor": answer.anchor_id,
                                         "why": "the page has no story box left for it"})
             continue
+        participant.go_to_part(block["part"])
         participant.tell_story(block["prompt"], answer.text, tap=answer.tap)
         record["anchors"].append({"anchor": answer.anchor_id, "asked": block["prompt"],
                                   "wrote": bool(answer.text), "tap": answer.tap})
@@ -694,7 +695,7 @@ def _answer_page(participant: ParticipantPage, person, entry, *,
             pick = person.pick(selection["id"])
             if pick is not None:
                 wanted.append((pick, selection))
-    offered = [(block["prompt"], prompt) for block in rendered
+    offered = [(block, prompt) for block in rendered
                if block["prompt"] not in hidden
                for prompt in block.get("selections") or []]
 
@@ -708,8 +709,12 @@ def _answer_page(participant: ParticipantPage, person, entry, *,
                                         "asked_by_the_corpus": selection.get("prompt"),
                                         "why": "the model's own form asks nothing like it"})
             continue
-        anchor_prompt, asked = where
-        options = participant.options_for(asked, anchor_prompt=anchor_prompt)
+        block, asked = where
+        anchor_prompt = block["prompt"]
+        # The option rows come from the walk, which read them part by part; the live page shows one
+        # occasion at a time since keel-web 042, so a control three parts along is not on screen to
+        # be asked about.
+        options = (block.get("options") or {}).get(asked) or []
         chosen: list[str] = []
         hows: list[str] = []
         for value in pick.values:
@@ -728,43 +733,15 @@ def _answer_page(participant: ParticipantPage, person, entry, *,
             family = _family(pick.values[-1])
             span = _span(pick.values[-1], family) if family else None
             roughly = f"{_representative(span):g}" if span else None
+        participant.go_to_part(block["part"])
         participant.pick(asked, chosen, roughly=roughly, anchor_prompt=anchor_prompt)
         record["picks"].append({"selection": selection["id"], "asked": asked,
                                 "picked": chosen, "how": hows})
     return record
 
 
-#: The stranger's page, block by block, **with the section each block sits under**. The page
-#: object reads the blocks (`ParticipantPage.anchors`) and never the sections they are grouped
-#: into, and the sections are what say which stage a story belongs to -- keel-web renders one
-#: `.sect` per stage, in stage order, and the story boxes follow theirs. Mirrors the page object's
-#: own selectors exactly (`div.q:has(> textarea.box)`, and `.picks` as the block's *sibling*), and
-#: the caller falls back to `anchors()` if it ever reads a different set.
-_BLOCKS_WITH_SECTIONS = r"""
-() => {
-  const out = [];
-  let section = "";
-  for (const el of Array.from(document.querySelectorAll(".sect, div.q"))) {
-    if (el.classList.contains("sect")) { section = (el.innerText || "").trim(); continue; }
-    if (!el.querySelector(":scope > textarea.box")) continue;
-    const prompt = el.querySelector(":scope > p");
-    const next = el.nextElementSibling;
-    const picks = next && next.classList.contains("picks") ? next : null;
-    out.push({
-      section: section,
-      prompt: prompt ? prompt.innerText.trim() : "",
-      selections: picks
-        ? Array.from(picks.querySelectorAll(":scope > div.q > p")).map((n) => n.innerText.trim())
-        : [],
-    });
-  }
-  return out;
-}
-"""
-
-
 def _sectioned_blocks(participant: ParticipantPage) -> list[dict[str, Any]]:
-    """`anchors()`, plus each block's section and that section's rank on the page.
+    """Every story box in the interview, with the occasion it sits under and that occasion's rank.
 
     **One section per occasion, in questionnaire order**, is the ordinary case since keel-cloud
     specs 048/049: the page draws a section for each anchor the one questionnaire carries, titled by
@@ -772,24 +749,17 @@ def _sectioned_blocks(participant: ParticipantPage) -> list[dict[str, Any]]:
     pickup belongs in the section that asks about the mulch pickup whatever the box's opening line
     says. It was *three sections in stage order* while a stage owned its own questionnaire.
 
-    Where the read disagrees with the page object about how many story boxes there are -- a keel-web
-    change this tool has not seen -- the sections are dropped and every block becomes rank `None`,
-    which is the same as not constraining at all. That degradation is unchanged.
+    It read the whole scroll -- `anchors()` for the blocks and a `.sect`-walking script for the
+    grouping, with the script dropped when the two disagreed. keel-web **042** made the page a
+    pager, so a section is a *part*: `ParticipantPage.questionnaire()` walks it once and already
+    returns the occasions in page order with their anchors and option lists, which is the same two
+    facts from one read and with no second opinion to reconcile. The rank is the part's own index,
+    and `part` says which screen to be on before typing into the block (`go_to_part`).
     """
-    blocks = participant.anchors()
-    try:
-        read = participant.page.evaluate(_BLOCKS_WITH_SECTIONS)
-    except Exception:  # noqa: BLE001 - a section read is an optimisation, never a requirement
-        read = []
-    if len(read) != len(blocks):
-        return [{**block, "rank": None} for block in blocks]
-    order: list[str] = []
-    for row in read:
-        if row["section"] and row["section"] not in order:
-            order.append(row["section"])
-    return [{**block, "section": row["section"],
-             "rank": order.index(row["section"]) if row["section"] in order else None}
-            for block, row in zip(blocks, read)]
+    return [{**anchor, "section": part["title"], "rank": part["part"] - 1,
+             "part": part["part"]}
+            for part in participant.questionnaire()
+            for anchor in part["anchors"]]
 
 
 def _cost(keel_home: Path) -> dict[str, Any]:

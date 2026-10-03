@@ -374,6 +374,28 @@ def _safe_all_texts(page, selector: str) -> list[str]:
         return []
 
 
+def _optional_text(locator) -> str:
+    """The text of a locator that may legitimately not be on the page at all -- **without paying
+    for a wait**.
+
+    `_safe_text(lambda: locator.inner_text())` looks like it costs nothing when the element is
+    absent, and it costs the context's whole default timeout: Playwright waits for the selector to
+    appear, raises, and `_safe_text` swallows the exception. Thirty seconds, to learn that a line
+    this screen does not draw is not drawn. On a page with a handful of optional lines -- which is
+    every screen of keel-web's Keel Interview, where the nudge, the kept-answers line and the tap
+    note are each there or not -- a read of the screen took minutes. `count()` answers now.
+
+    Measured while writing the `028-interview-pager` pass: the pager's unit test went from 229 s to
+    seconds on this one change, and the same cost was being paid on every live run.
+    """
+    try:
+        if locator.count() == 0:
+            return ""
+        return locator.first.inner_text()
+    except Exception:  # noqa: BLE001 - capture is advisory, never load-bearing for the scenario
+        return ""
+
+
 def _capture_state(h: StepHandle, project_id: str, state_reader: StateReader | None) -> None:
     if state_reader is None:
         return
@@ -3653,47 +3675,257 @@ TAP_NEEDLE = {"HASNT_HAPPENED": "hasn't happened", "CANT_RECALL": "recall",
               "RATHER_NOT_SAY": "rather not"}
 OTHER_SAY_WHAT = "other, say what"
 
+# ------------------------------------------------ the Keel Interview's own chrome (keel-web 042)
+
+#: The labels this harness **presses**, copied from keel-web `src/lib/translate.ts` (spec 042, the
+#: Keel Interview, merged 2026-10-02). Only the acting words are here: a button this harness clicks
+#: is a button it has to spell, so a copy change in keel-web shows up as a named mismatch instead
+#: of a fifteen-second wait on nothing -- which is exactly how the stale `.iv p.hello` selector hid
+#: (matrix run 37144449885, `keel-cloud-docs canon/drafts/matrix-codex-copilot-v8-2026-10-03.md`
+#: §5: six cells, every host, and the `keel` door that runs no host at all).
+#: Nothing the *model* wrote is ever spelled here -- spec 016 FR-007 stands.
+INTERVIEW_HEAD_WHAT = "Research interview"
+INTERVIEW_BEGIN = "Begin"
+#: Begin's label when this phone is already holding unsent answers (`localStorage`, 042 FR-014).
+INTERVIEW_CONTINUE = "Continue"
+INTERVIEW_NEXT = "Next"
+INTERVIEW_BACK = "Back"
+#: `PARTICIPANT_SUBMIT_LABEL` -- the last part's primary. It was *Submit*; 042 made it this.
+INTERVIEW_SEND = "Send my answers"
+INTERVIEW_DONE_TITLE = "That's it."
+
+#: `sectionCounter(i, M)` -- *"2 of 3"* -- the only place the interview says which part this is,
+#: and therefore the harness's one handle on the pager's position.
+_PART_COUNTER = re.compile(r"^\s*(\d+)\s+of\s+(\d+)\s*$")
+#: The half of `INTERVIEW_DONE_LEAD` no other line on this page can say (see `send`).
+_SENT_LINE = re.compile(r"answers have gone to", re.I)
+
 
 class ParticipantPage:
-    """The stranger's page (`routes/participant/ParticipantRoute.tsx`, mockup screen 3), rewritten
-    for measured beliefs: **one story, then picks**.
+    """The stranger's page (`routes/participant/ParticipantRoute.tsx`) -- **one story, then
+    picks**, and since keel-web spec 042 **the Keel Interview**: a pager.
 
-    What changed, and why the old `ParticipantBrowser` could not be patched into this: there is no
-    consent screen and no *Start* -- the form is the page, and consent is starting it; there is no
-    per-belief question with a free-text box each -- there is one story box per *anchor*, with its
-    taps, and then a pick per selection; and a tap is an answer of its own that greys the story and
-    gates that anchor's picks.
+    What 042 changed, and why this page object had to follow it (`runs/DRIFT.md` #71; the rule is
+    that a scenario follows the product it refereed when the product moves, with the reason written
+    where the old assertion stood):
+
+    * The single scroll became **one screen at a time** under a fixed header and a progress line:
+      an **opening screen** to consent on, then **one screen per occasion**, then a **completion
+      screen**. The chrome is `div.iv-page` > `header.iv-head` + `div.iv-progress` +
+      `main.iv-body` + `footer.iv-foot`, and `main.iv-body` is re-rendered per screen.
+    * The opening screen's intro moved from `p.hello` to **`p.iv-intro`** inside `main.iv-body`,
+      and `p.hello` survives on that route **only** for the notice states -- *This page doesn't
+      exist* (404), the 410 notice and `ALREADY_ANSWERED`, which still wear the old `.iv-shell iv`
+      column. So `open_expect_notice` below still reads `.hello` and `open` no longer can.
+    * Getting past the opening screen is an act: **Begin** (or **Continue**, when this phone is
+      holding kept answers). Nothing downstream of it renders until it is pressed.
+    * The send moved to the **last part's own primary**, labelled *Send my answers*; every earlier
+      part's primary is *Next*, and *Back* appears from part 2 on.
+    * The thank-you became the completion screen: `.iv-done` with *That's it.* and
+      `INTERVIEW_DONE_LEAD`, whose *"Your answers have gone to …"* clause is unchanged and is still
+      the one sentence that means *sent*.
 
     **What this page must never show** is as much of its job as what it does: no belief statement,
     no band value, no `founderPhrase` and no expected option (design rule `Q5`). That is not
     asserted here -- a page object asserts nothing -- but the whole page's text is captured under
     the `participant_page` hop, which is what `evals/corpus_facts.py`'s `absent_hops` are scored
-    against.
+    against. Under a pager that hop had to grow with it: see `_remember_screen`.
     """
 
     def __init__(self, page: Page, recorder: Recorder):
         self.page = page
         self._bstep = _BrowserStep(recorder, page, party="participant")
         self._interaction_id: str | None = None
+        #: Every screen the stranger has been shown, in the order they were shown it.
+        self._seen: list[str] = []
+        #: The whole interview, read once by `questionnaire()` and kept.
+        self._questionnaire: list[dict[str, Any]] | None = None
+
+    def _remember_screen(self) -> None:
+        """Keep the screen the stranger is looking at now.
+
+        **The page is a pager, so `body` is one part of the interview and not the whole of it.** The
+        `participant_page` hop is what `evals/corpus_facts.py` scores the **absences** against -- no
+        belief statement, no band value and no expected option anywhere a stranger can read (design
+        rule `Q5`) -- and a capture of screen one alone would have made that check quieter without
+        anybody asking it to. Every screen is kept as it is left, and the hop carries all of them;
+        the opening screen's consent block and the completion screen are swept now too, which the
+        single scroll never offered.
+        """
+        text = _screen_text(self.page, "div.iv-page") or _screen_text(self.page, "body")
+        if text and (not self._seen or self._seen[-1] != text):
+            self._seen.append(text)
+
+    def seen_text(self) -> str:
+        """Every screen the stranger has been shown so far, joined -- the pager's answer to *what
+        has this page said to this person*. A scenario sweeping the participant's words for a leak
+        reads this rather than `body`, which is one part of an interview."""
+        self._remember_screen()
+        return "\n\n".join(self._seen) or _screen_text(self.page, "body")
 
     def _capture_page_text(self, h: StepHandle) -> None:
-        h.capture_text("participant_page", _screen_text(self.page, "body"))
+        h.capture_text("participant_page", self.seen_text())
 
     def _scope(self):
         if self._interaction_id is None:
             self._interaction_id = self._bstep.recorder.new_interaction_id()
         return self._bstep.recorder.interaction("participant_visit", self._interaction_id)
 
+    def _settled(self, predicate: Callable[[], bool], *, timeout_s: float) -> bool:
+        """Poll `predicate` until it is true or the clock runs out.
+
+        A route change inside the interview is a React re-render, not a navigation, and the pager
+        has no URL of its own -- so there is nothing to `wait_for_url` on and nothing to load. The
+        current value is checked first, every time, because the screen may already have changed by
+        the time this is called (the module header's own rule).
+        """
+        deadline = time.monotonic() + timeout_s
+        while True:
+            try:
+                if predicate():
+                    return True
+            except Exception:  # noqa: BLE001 - a half-rendered screen reads as not-there-yet
+                pass
+            if time.monotonic() >= deadline:
+                return False
+            self.page.wait_for_timeout(100)
+
+    # ------------------------------------------------------------------------------- the pager
+
+    def _body(self):
+        return self.page.locator("main.iv-body").first
+
+    def _primary(self):
+        """The one primary button on whichever screen is showing: Begin/Continue on the opening
+        screen, Next or *Send my answers* on a part. Never the Back link."""
+        return self.page.locator("main.iv-body .iv-actions button.btn.primary").first
+
+    def _back_link(self):
+        return self.page.locator("main.iv-body .iv-actions button.btn.link").first
+
+    def screen(self) -> str:
+        """Which of the pager's three screens is showing -- `opening`, `part`, `done`, or
+        `unknown` for anything else (a notice state, or a page still loading)."""
+        if self.page.locator("main.iv-body .iv-done").count():
+            return "done"
+        if self.page.locator("main.iv-body p.iv-n").count():
+            return "part"
+        if self.page.locator("main.iv-body p.iv-intro").count():
+            return "opening"
+        return "unknown"
+
+    def part(self) -> dict[str, Any]:
+        """`{index, total, title, counter}` for the part on screen -- read off `sectionCounter`'s
+        own *"N of M"* line and the occasion's own heading, and off nothing else.
+
+        The index is the page's, not a count this harness keeps: a pager the harness thinks it is
+        on part 3 of while the page is on part 2 would type one occasion's story under another,
+        which is the whole failure `harness/stranger_stories.py` exists to stop.
+        """
+        counter = _optional_text(self.page.locator("main.iv-body p.iv-n"))
+        match = _PART_COUNTER.match(" ".join(counter.split()))
+        if match is None:
+            raise AssertionError(
+                "the interview is not on a part screen: its counter line reads "
+                f"{counter!r}, not `N of M` (the screen is {self.screen()!r})")
+        return {"index": int(match.group(1)), "total": int(match.group(2)),
+                "title": _optional_text(
+                    self.page.locator("main.iv-body h1.iv-sect")).strip(),
+                "counter": " ".join(counter.split())}
+
+    def part_count(self) -> int:
+        """How many occasions this interview has -- *M* of the counter, so it is the page's own
+        count and not `len(sections())`."""
+        return self.part()["total"]
+
     # ------------------------------------------------------------------------------------- reads
 
+    def head(self) -> dict[str, str]:
+        """The fixed header: the wordmark and what this page says it is. 042 FR-015's own words,
+        and the first thing a stranger reads."""
+        header = self.page.locator("header.iv-head")
+        return {"words": " ".join(_optional_text(header).split()),
+                "what": _optional_text(header.locator(".iv-head__what")).strip()}
+
     def introduction(self) -> str:
-        return _safe_text(lambda: self.page.locator("p.hello").first.inner_text())
+        """The one sentence the interview opens with -- *"<founder> asked if you'd answer a few
+        questions about …"*, or the occasion sentence the assumption step wrote.
+
+        `p.iv-intro` since 042. It was `p.hello`, which now belongs to the notice states alone.
+        """
+        return _optional_text(self.page.locator("main.iv-body p.iv-intro"))
+
+    def method_line(self) -> str:
+        return _optional_text(self.page.locator("main.iv-body p.iv-method"))
+
+    def consent(self) -> dict[str, Any]:
+        """The consent block as a stranger reads it: its heading and every line under it
+        (`section.iv-consent`). Server-voiced and never paraphrased by keel-web (P8), which is why
+        this reads the region rather than matching a sentence."""
+        block = self.page.locator("main.iv-body section.iv-consent")
+        return {
+            "heading": _optional_text(block.locator("h2")).strip(),
+            "lines": _safe_all_texts(self.page, "main.iv-body section.iv-consent p"),
+        }
+
+    def facts_line(self) -> str:
+        """*About 20 minutes · 3 parts · You can skip any question.* -- the facts line, which is
+        where the **skip affordance** lives since 042 (it was a `p.hint` beside the form)."""
+        return _optional_text(self.page.locator("main.iv-body p.iv-facts"))
+
+    def why_line(self) -> str:
+        return _optional_text(self.page.locator("main.iv-body p.iv-why"))
+
+    def draft_line(self) -> str:
+        """The one sentence the page says about kept answers, drawn under **Continue** and nowhere
+        else (042 FR-014). Empty when this phone is holding nothing, which is every fresh context
+        this harness opens."""
+        return _optional_text(self.page.locator("main.iv-body p.iv-draft"))
+
+    def primary_label(self) -> str:
+        return _optional_text(self.page.locator(
+            "main.iv-body .iv-actions button.btn.primary")).strip()
+
+    def opening(self) -> dict[str, Any]:
+        """Everything the opening screen says, in one read -- what a stranger sees before they have
+        agreed to anything. Captured by `open` so the bundle carries it whether or not a scenario
+        asserts on it."""
+        return {"head": self.head(), "introduction": self.introduction(),
+                "method": self.method_line(), "consent": self.consent(),
+                "facts": self.facts_line(), "why": self.why_line(),
+                "button": self.primary_label(), "kept answers": self.draft_line()}
 
     def hints(self) -> list[str]:
-        return _safe_all_texts(self.page, ".iv > p.hint")
+        """The interview's own asides on whichever screen is showing: the method cue, the facts
+        line (the skip affordance), the why-note, a tap's note, the one nudge, the kept-answers
+        line.
+
+        It read `.iv > p.hint` while every one of those was a `p.hint` on one scroll. 042 gave each
+        its own class and put them on different screens; the method is unchanged -- *what else is
+        this page telling me* -- and the regions are now named.
+        """
+        return _safe_all_texts(self.page, ", ".join(
+            f"main.iv-body {klass}" for klass in
+            ("p.iv-method", "p.iv-facts", "p.iv-why", "p.iv-tapnote", "p.iv-nudge", "p.iv-draft")))
+
+    def nudge(self) -> str:
+        """The product's one `BLANK_ANCHOR_NUDGE`, read where the pager draws it: `p.iv-nudge`,
+        under the part it fired on. It was the last `.iv .hint` on the scroll."""
+        return _optional_text(self.page.locator("main.iv-body p.iv-nudge")).strip()
+
+    def completion(self) -> dict[str, str]:
+        """The completion screen (`.iv-done`): *That's it.*, the thank-you, what happens next, and
+        the one link off this page."""
+        done = self.page.locator("main.iv-body .iv-done")
+        return {
+            "title": _optional_text(done.locator("h1")).strip(),
+            "lead": _optional_text(done.locator(".iv-done__lead")).strip(),
+            "next": _optional_text(done.locator(".iv-done__next")).strip(),
+            "what_is_keel": _optional_text(done.locator("a.iv-done__what")).strip(),
+        }
 
     def sections(self) -> list[str]:
-        """The section titles on the participant's page, in page order.
+        """The occasion titles of the whole interview, in page order.
 
         **Load-bearing since spec 025** (FR-021). It was written with the page object and called by
         nothing for as long as a section was a stage and a stage's title was a fixed string. Since
@@ -3701,17 +3933,27 @@ class ParticipantPage:
         questionnaire carries, titled by the occasion the model named, so the count is a fact about
         the page and the titles are the model's own words. S-012 asserts the count against
         `anchors()` and asserts that none of the three old stage titles is among them.
+
+        It read every `.sect` on one scroll. Under 042 an occasion's title is `h1.iv-sect` and only
+        one is on screen at a time, so this is the **pager's** read -- `questionnaire()` walks the
+        whole interview once and this names the parts it found. The walk is cached, so asking for
+        the sections and then for the anchors pages the interview once, not twice.
         """
-        return _safe_all_texts(self.page, ".sect")
+        return [part["title"] for part in self.questionnaire()]
 
     def _anchor_blocks(self):
         """An anchor's own block is the `div.q` that carries a story box; a selection's block is a
         `div.q` nested inside that one's `div.picks`. Both share the class, which is why this is
-        `:has(textarea.box)` rather than an index."""
-        return self.page.locator("div.q:has(> textarea.box)")
+        `:has(textarea.box)` rather than an index. Scoped to `main.iv-body`, which is the one part
+        of the interview on screen."""
+        return self.page.locator("main.iv-body div.q:has(> textarea.box)")
 
     def anchors(self) -> list[dict[str, Any]]:
-        """`{prompt, taps, selections}` per anchor, in rendered order.
+        """`{prompt, taps, selections}` per anchor **on the screen showing now**, in rendered order.
+
+        One screen is one occasion since 042, so this is normally a list of one; `questionnaire()`
+        is what reads the whole interview. The anchor's own markup is unchanged -- `AnchorBlock` is
+        the same component, moved onto a part screen.
 
         **`div.picks` is the anchor's sibling, not its child.** `AnchorBlock` returns a fragment --
         `<div class="q">…story box…</div>` followed by `<div class="picks">…</div>` (and
@@ -3742,10 +3984,61 @@ class ParticipantPage:
             })
         return out
 
+    def questionnaire(self) -> list[dict[str, Any]]:
+        """The **whole** interview, read once by walking the pager, and left back on part one:
+        `[{part, of, title, anchors: [{prompt, taps, selections, options, part}]}]`.
+
+        Why it exists at all. The single scroll let a scenario read every occasion, decide every
+        answer and only then type -- which is what `harness/stranger_stories.py` needs, because the
+        story-to-occasion matching is **global** (the highest-scoring pair anywhere in the grid
+        first, each corpus occasion spent at most once). Matching part by part would put one
+        person's night-waking story under two different occasions, which is the fault spec 028 was
+        written to end. So the pager is walked read-only first, every occasion and every option list
+        is collected, and the typing pass walks it again.
+
+        Nothing is clicked except *Next* and *Back*, and nothing is typed, so the page the typing
+        pass types into is the page this one measured.
+
+        **It spends the product's one nudge**, deliberately and once: `nudgeOnce` fires on the first
+        *Next* pressed with a blank story anywhere in that part, and on a read-only walk every story
+        is blank. `next_part` presses through it and records it. The nudge is global-once in
+        `ParticipantRoute.tsx`, so no later *Next* or *Send my answers* can be held by it -- and
+        this harness asserts nothing about the nudge in S-012 (`submit_expect_nudge` is the method
+        that does, from a part a scenario has deliberately left blank).
+        """
+        if self._questionnaire is not None:
+            return self._questionnaire
+        self.ensure_begun()
+        self.go_to_first_part()
+        parts: list[dict[str, Any]] = []
+        while True:
+            here = self.part()
+            anchors = self.anchors()
+            for anchor in anchors:
+                anchor["part"] = here["index"]
+                anchor["options"] = {
+                    selection: self.options_for(selection, anchor_prompt=anchor["prompt"])
+                    for selection in anchor["selections"]}
+            parts.append({"part": here["index"], "of": here["total"], "title": here["title"],
+                          "anchors": anchors})
+            if here["index"] >= here["total"]:
+                break
+            self.next_part()
+        self.go_to_first_part()
+        self._questionnaire = parts
+        with self._scope():
+            with self._bstep.step("the stranger reads the whole interview before answering") as h:
+                h.capture_text("questionnaire", json.dumps(parts, ensure_ascii=False, indent=2))
+                self._capture_page_text(h)
+        return parts
+
     def options_for(self, selection_prompt: str, *, anchor_prompt: str | None = None) -> list[str]:
         """The list this selection actually offered, **in order** -- FR-013's `expected.buckets`,
         read off the stranger's own screen. The ways out (`.opt.esc`) and the *other* box are
-        excluded: the corpus's `buckets` are the scale, and the escapes sit beside it."""
+        excluded: the corpus's `buckets` are the scale, and the escapes sit beside it.
+
+        The selection must be on the screen showing now; `questionnaire()` carries every part's
+        options for a caller that wants them all."""
         block = self._selection_block(selection_prompt, anchor_prompt=anchor_prompt)
         labels: list[str] = []
         # Each row is wrapped in a keyed `<div>` of its own so its reveal box can sit beside it
@@ -3793,7 +4086,10 @@ class ParticipantPage:
             text = " ".join(_safe_text(lambda b=block: b.locator("> p").first.inner_text()).split())
             if needle in text:
                 return block
-        raise AssertionError(f"no story box on this page for the anchor {prompt[:60]!r}")
+        where = (f"part {self.part()['counter']}" if self.screen() == "part"
+                 else f"the {self.screen()} screen")
+        raise AssertionError(
+            f"no story box on {where} for the anchor {prompt[:60]!r}")
 
     def _selection_block(self, prompt: str, *, anchor_prompt: str | None = None):
         """The selection asking `prompt`, **scoped to its own anchor** when one is named.
@@ -3808,6 +4104,11 @@ class ParticipantPage:
         unique; it says nothing about the *words*, and `05-paidly`'s two anchors are two different
         occasions that happen to ask the same question about each. What changed is only the
         vocabulary: two anchors, not two stages.
+
+        **And it is still true under the pager** -- more weakly, which is why the scoping stays.
+        042 puts one occasion on a screen, so two anchors asking the same question are usually on
+        two screens and cannot be confused; but a questionnaire that puts two anchors under one
+        occasion would put them back on one screen, and that is the product's call to make.
         """
         needle = " ".join(prompt.split())[:60]
         # `div.picks` is the anchor's **sibling**, not its child: `AnchorBlock` returns a fragment
@@ -3816,7 +4117,7 @@ class ParticipantPage:
         blocks = (self._anchor_block(anchor_prompt).locator(
                       "xpath=following-sibling::div[contains(@class,'picks')][1]"
                   ).locator("> div.q")
-                  if anchor_prompt else self.page.locator(".picks > div.q"))
+                  if anchor_prompt else self.page.locator("main.iv-body .picks > div.q"))
         for i in range(blocks.count()):
             block = blocks.nth(i)
             text = " ".join(_safe_text(lambda b=block: b.locator("> p").first.inner_text()).split())
@@ -3824,31 +4125,230 @@ class ParticipantPage:
                 return block
         raise AssertionError(
             f"no selection asking {prompt[:60]!r}"
-            + (f" under the anchor {anchor_prompt[:50]!r}" if anchor_prompt else " on this page"))
+            + (f" under the anchor {anchor_prompt[:50]!r}" if anchor_prompt
+               else " on the screen showing now"))
 
     def offers(self, prompt: str) -> bool:
-        """Whether this page asks a given anchor or selection at all. A person offered an anchor
-        their role is not asked is a **refusal**, not a shrug (spec edge case), and this is how a
-        scenario proves the negative."""
+        """Whether **the screen showing now** asks a given anchor or selection at all. A person
+        offered an anchor their role is not asked is a **refusal**, not a shrug (spec edge case),
+        and this is how a scenario proves the negative.
+
+        It read the whole `.iv` scroll. Under 042 there is no `.iv` on the open form at all -- the
+        interview is `div.iv-page`, and `.iv` survives only on the notice column -- and the words a
+        stranger can read are the words of the part they are on. The question this answers is
+        therefore *is it on this screen*, and `answer_as` walks the parts rather than asking once.
+        """
         needle = " ".join(prompt.split())[:60]
-        body = " ".join(_safe_text(lambda: self.page.locator(".iv").first.inner_text()).split())
+        body = " ".join(_optional_text(self.page.locator("main.iv-body")).split())
         return needle in body
 
     # ----------------------------------------------------------------------------------- actions
 
     def open(self, url: str) -> None:
-        """Opens exactly the URL the founder's send popup showed -- never reconstructed."""
+        """Opens exactly the URL the founder's send popup showed -- never reconstructed -- and
+        lands on the interview's **opening screen**.
+
+        It waited fifteen seconds for `.iv p.hello`. keel-web 042 moved that first screen to
+        `main.iv-body` / `p.iv-intro` behind a **Begin**, and left `p.hello` on the notice states
+        alone, so the wait could never resolve on a healthy page: the product was fine and the
+        referee was holding a selector nothing draws. It cost six cells of the matrix their whole
+        participant leg on 2026-10-03 -- every host, plus the `keel` door that runs no host CLI, no
+        plugin and no runtime -- and with it every reading, the brief and the deck
+        (`runs/DRIFT.md` #71; `keel-cloud-docs canon/drafts/matrix-codex-copilot-v8-2026-10-03.md`
+        §5). The timeout is unchanged at fifteen seconds: what was wrong was the name of the thing
+        waited for, and a page that genuinely takes longer than that is a page this run should say
+        so about.
+
+        Three waits, not one, because the three are different claims: the interview's own chrome is
+        there, the opening screen is the screen, and the gate is a real button.
+        """
         with self._scope():
             with self._bstep.step("the stranger opens their link") as h:
                 self.page.goto(url, wait_until="load")
-                self.page.locator(".iv p.hello").wait_for(state="visible", timeout=15_000)
+                self.page.locator("header.iv-head").wait_for(state="visible", timeout=15_000)
+                self.page.locator("main.iv-body p.iv-intro").wait_for(
+                    state="visible", timeout=15_000)
+                self.page.locator("main.iv-body .iv-actions button.btn.primary").first.wait_for(
+                    state="visible", timeout=15_000)
+                self._remember_screen()
+                h.capture_text("opening", json.dumps(self.opening(), ensure_ascii=False, indent=2))
                 h.add_screenshot(self._bstep.screenshot("participant-opened"))
                 self._capture_page_text(h)
+
+    def begin(self) -> dict[str, Any]:
+        """Presses the opening screen's one button and lands on a part.
+
+        The label is **Begin**, or **Continue** when this phone is already holding unsent answers
+        (042 FR-014 keeps them in `localStorage`, per link, and `Continue` resumes at the part they
+        were left on). Every participant context this harness opens is fresh, so it is Begin every
+        time -- but a reload mid-journey, or a harness that reopened the same link in the same
+        context, gets Continue, and the only thing that changes is which part it lands on. That is
+        why the landing part is **read** afterwards rather than assumed to be one.
+
+        Anything else under that button is a refusal to guess: a label this method does not know is
+        a copy change in keel-web, and pressing it blind would walk the interview somewhere nobody
+        wrote down.
+        """
+        with self._scope():
+            with self._bstep.step("the stranger presses Begin") as h:
+                button = self._primary()
+                label = self.primary_label()
+                if label not in (INTERVIEW_BEGIN, INTERVIEW_CONTINUE):
+                    raise AssertionError(
+                        f"the opening screen's one button reads {label!r}, which is neither "
+                        f"{INTERVIEW_BEGIN!r} nor {INTERVIEW_CONTINUE!r}")
+                kept = self.draft_line()
+                # The opening screen as the stranger leaves it, so the consent block they agreed
+                # to by pressing this is in the `participant_page` hop (`_remember_screen`).
+                self._remember_screen()
+                button.click()
+                if not self._settled(lambda: self.screen() == "part", timeout_s=15.0):
+                    raise AssertionError(
+                        f"{label!r} did not open the first part: the interview is still on the "
+                        f"{self.screen()!r} screen")
+                part = self.part()
+                self._remember_screen()
+                h.capture_text("began", json.dumps(
+                    {"pressed": label, "kept answers": kept or None, "landed on": part},
+                    ensure_ascii=False))
+                h.add_screenshot(self._bstep.screenshot("participant-part"))
+        return part
+
+    def ensure_begun(self) -> dict[str, Any]:
+        """The part the stranger is on, pressing Begin first when they are still on the opening
+        screen. Idempotent, so a scenario may press Begin itself and a method that needs a part
+        may ask for one."""
+        if self.screen() == "opening":
+            return self.begin()
+        return self.part()
+
+    def go_to_first_part(self) -> dict[str, Any]:
+        """Back until the interview is on part one. A no-op when it already is, and the only thing
+        **Continue** can make necessary."""
+        part = self.part()
+        while part["index"] > 1:
+            part = self.back()
+        return part
+
+    def go_to_part(self, index: int) -> dict[str, Any]:
+        """The part numbered `index` (1-based, the page's own numbering), Next or Back from
+        wherever the interview is now. For a scenario that chose which occasion to act on by
+        reading all of them (`questionnaire()`) and must now get to the screen that draws it."""
+        part = self.part()
+        if not 1 <= index <= part["total"]:
+            raise AssertionError(
+                f"this interview has {part['total']} parts; there is no part {index}")
+        while part["index"] < index:
+            part = self.next_part()
+        while part["index"] > index:
+            part = self.back()
+        return part
+
+    def _press_through_the_nudge(self, h: StepHandle, expect_label: str,
+                                 landed: Callable[[], bool]) -> None:
+        """Press the part screen's primary, and press it once more when the first press produced
+        only the product's own `BLANK_ANCHOR_NUDGE`.
+
+        The nudge is the design (042/026 FR-029): the first *Next* or *Send my answers* pressed with
+        a blank story in scope asks *"Can you think of one specific time this happened?"* and does
+        not move; the second press proceeds, and no later press nudges again. So one retry, never
+        two -- a press that neither moved the interview on nor said why is a failure and is raised
+        as one.
+
+        A `.stale` notice is keel-cloud **refusing** the response, which is never nudged at and
+        never pressed through: it is named (`runs/DRIFT.md` #33's other branch).
+
+        **It waits for whichever of the three answers comes first**, not for the landing and then
+        the clock. Waiting fifteen seconds to find out that the page nudged instead cost the
+        pager's own unit test fifteen seconds per part and would have cost a live journey the same
+        on every occasion a stranger leaves blank. A nudge already on screen when the press is made
+        is not an answer to *this* press -- `nudgedAt` survives the second press in
+        `ParticipantRoute.tsx` -- so only a nudge that was not there before stops the wait, and the
+        second press is given the whole clock to land in.
+        """
+        # The screen as the stranger **leaves** it, with their stories and taps on it, which is
+        # not the blank one remembered on arrival. Both go into the hop (`_remember_screen`).
+        self._remember_screen()
+        button = self._primary()
+        label = self.primary_label()
+        if label != expect_label:
+            raise AssertionError(
+                f"this part's primary reads {label!r}, not {expect_label!r}")
+        for press in (1, 2):
+            before = self.nudge()
+            button.click()
+            self._settled(
+                lambda: (landed()
+                         or bool(_optional_text(self.page.locator(".stale")).strip())
+                         or (bool(self.nudge()) and self.nudge() != before)),
+                timeout_s=15.0)
+            if landed():
+                return
+            notice = _optional_text(self.page.locator(".stale")).strip()
+            if notice:
+                h.capture_text("refusal", notice)
+                raise AssertionError(
+                    f"the server refused this response rather than nudging: {notice!r}")
+            nudge = self.nudge()
+            if not nudge or press == 2:
+                raise AssertionError(
+                    f"pressing {label!r} neither moved the interview on nor said why"
+                    + (f" -- the page says {nudge!r}" if nudge else ""))
+            h.capture_text("nudge", nudge)
+
+    def next_part(self) -> dict[str, Any]:
+        """**Next**, from one occasion to the next. The last part has no Next -- it sends -- and
+        asking for one there is a mistake worth a sentence rather than a click on *Send my
+        answers*."""
+        here = self.part()
+        if here["index"] >= here["total"]:
+            raise AssertionError(
+                f"part {here['counter']} is the last one: its primary sends, it has no Next")
+        with self._scope():
+            with self._bstep.step(
+                    f"the stranger goes on from part {here['counter']}") as h:
+                self._press_through_the_nudge(
+                    h, INTERVIEW_NEXT,
+                    lambda: self.screen() == "part" and self.part()["index"] == here["index"] + 1)
+                there = self.part()
+                self._remember_screen()
+                h.capture_text("part", json.dumps(there, ensure_ascii=False))
+                h.add_screenshot(self._bstep.screenshot("participant-part"))
+        return there
+
+    def back(self) -> dict[str, Any]:
+        """**Back**, which 042 draws from part 2 on. Never nudges -- going back is not an answer."""
+        here = self.part()
+        if here["index"] <= 1:
+            raise AssertionError(
+                f"part {here['counter']} is the first one: the interview draws no Back there")
+        with self._scope():
+            with self._bstep.step(f"the stranger goes back from part {here['counter']}") as h:
+                label = _optional_text(self.page.locator(
+                    "main.iv-body .iv-actions button.btn.link")).strip()
+                if label != INTERVIEW_BACK:
+                    raise AssertionError(
+                        f"this part's secondary reads {label!r}, not {INTERVIEW_BACK!r}")
+                self._remember_screen()
+                self._back_link().click()
+                if not self._settled(
+                        lambda: self.screen() == "part"
+                        and self.part()["index"] == here["index"] - 1, timeout_s=15.0):
+                    raise AssertionError(
+                        f"{INTERVIEW_BACK!r} did not go back from part {here['counter']}")
+                there = self.part()
+                self._remember_screen()
+                h.capture_text("part", json.dumps(there, ensure_ascii=False))
+        return there
 
     def tell_story(self, anchor_prompt: str, text: str | None, tap: str | None = None) -> None:
         """One anchor: the story, or a tap instead of one. A tap of *it hasn't happened to me*
         hides that anchor's picks entirely, which is the product's own rule and not this
-        harness's."""
+        harness's.
+
+        The anchor must be on the screen showing now -- one occasion is one screen since 042, so a
+        caller walks the parts (`answer_as` does) rather than reaching across them.
+        """
         with self._scope():
             with self._bstep.step(f"the stranger answers {anchor_prompt[:50]!r}") as h:
                 block = self._anchor_block(anchor_prompt)
@@ -3913,25 +4413,25 @@ class ParticipantPage:
             f"no option on this selection reads {value!r} (offered: {rows.all_inner_texts()})")
 
     def answer_as(self, person, entry) -> dict[str, Any]:
-        """Types one corpus person's whole page: their story (or tap) per anchor, then every pick
-        their role's selections ask for.
+        """Types one corpus person's whole interview: their story (or tap) per anchor, then every
+        pick their role's selections ask for -- **part by part**, pressing Begin first and *Next*
+        between occasions, and stopping on the last part so `submit` can send it.
 
         `person` is a `harness.corpus_script.PersonInputs`; `entry` the corpus entry it came from,
         which is what turns an anchor id into the prompt the screen shows. Returns
-        `{anchors, picks, skipped}` -- `skipped` naming any pick whose selection this page never
-        offered, which a scenario asserts on rather than this method deciding.
+        `{anchors, picks, skipped}` -- `skipped` naming any anchor or pick no screen of this
+        interview ever offered, which a scenario asserts on rather than this method deciding.
+
+        It typed the whole of one scroll and `offers()` asked of the whole page. Under 042 `offers`
+        can only answer for the screen showing, so the walk is the loop: on each part, whatever of
+        this person's answers that part asks for, then on. An answer is typed once -- the `typed`
+        lists are the guard -- so a prompt two occasions happen to share cannot be answered twice,
+        and anything still untyped when the last part is reached was genuinely never asked.
         """
         typed_anchors: list[str] = []
         typed_picks: list[str] = []
-        skipped: list[str] = []
-        for answer in person.anchors:
-            anchor = entry.anchor(answer.anchor_id) or {}
-            prompt = anchor.get("prompt") or ""
-            if not self.offers(prompt):
-                skipped.append(answer.anchor_id)
-                continue
-            self.tell_story(prompt, answer.text, tap=answer.tap)
-            typed_anchors.append(answer.anchor_id)
+        self.ensure_begun()
+        self.go_to_first_part()
         # Scoped to this person's own anchors, never the whole entry. The scoping is unchanged and
         # the reason is now the **id space itself**: since keel-cloud specs 048/049 a selection id
         # is unique across the whole project (`Q7`, project-wide), so two selections can no longer
@@ -3940,22 +4440,41 @@ class ParticipantPage:
         # person never saw. (It read *decision 18, DRIFT #37* while ids repeated across stages;
         # spec 049 supersedes that, and the scoping outlives the reason it was written for.)
         own_anchor_ids = {answer.anchor_id for answer in person.anchors}
-        for pick in person.picks:
-            owner, selection = None, None
-            for anchor in entry.questionnaire.get("anchors") or []:
-                if anchor.get("id") not in own_anchor_ids:
+        while True:
+            here = self.part()
+            for answer in person.anchors:
+                if answer.anchor_id in typed_anchors:
                     continue
-                for candidate in anchor.get("selections") or []:
-                    if candidate["id"] == pick.selection_id:
-                        owner, selection = anchor, candidate
-            prompt = (selection or {}).get("prompt") or ""
-            if not selection or not self.offers(prompt):
-                skipped.append(pick.selection_id)
-                continue
-            # Scoped to the anchor that owns it: two anchors can ask the same question, and the
-            # anchor is what tells them apart (`_selection_block`'s own note).
-            self.pick(prompt, pick.values, anchor_prompt=(owner or {}).get("prompt"))
-            typed_picks.append(pick.selection_id)
+                anchor = entry.anchor(answer.anchor_id) or {}
+                prompt = anchor.get("prompt") or ""
+                if not prompt or not self.offers(prompt):
+                    continue
+                self.tell_story(prompt, answer.text, tap=answer.tap)
+                typed_anchors.append(answer.anchor_id)
+            for pick in person.picks:
+                if pick.selection_id in typed_picks:
+                    continue
+                owner, selection = None, None
+                for anchor in entry.questionnaire.get("anchors") or []:
+                    if anchor.get("id") not in own_anchor_ids:
+                        continue
+                    for candidate in anchor.get("selections") or []:
+                        if candidate["id"] == pick.selection_id:
+                            owner, selection = anchor, candidate
+                prompt = (selection or {}).get("prompt") or ""
+                if not selection or not prompt or not self.offers(prompt):
+                    continue
+                # Scoped to the anchor that owns it: two anchors can ask the same question, and the
+                # anchor is what tells them apart (`_selection_block`'s own note).
+                self.pick(prompt, pick.values, anchor_prompt=(owner or {}).get("prompt"))
+                typed_picks.append(pick.selection_id)
+            if here["index"] >= here["total"]:
+                break
+            self.next_part()
+        skipped = ([answer.anchor_id for answer in person.anchors
+                    if answer.anchor_id not in typed_anchors]
+                   + [pick.selection_id for pick in person.picks
+                      if pick.selection_id not in typed_picks])
         with self._scope():
             with self._bstep.step(f"{person.person} has filled their page") as h:
                 self._capture_page_text(h)
@@ -3963,71 +4482,101 @@ class ParticipantPage:
                     {"anchors": typed_anchors, "picks": typed_picks, "skipped": skipped}))
         return {"anchors": typed_anchors, "picks": typed_picks, "skipped": skipped}
 
-    def submit(self) -> None:
-        """Sends the page. **A blank story is nudged once before it is accepted** -- the product's
-        own `BLANK_ANCHOR_NUDGE` ("Can you think of one specific time this happened?"), and a
-        second press sends anyway (`ParticipantRoute.tsx`). Corpus people who left an anchor blank
-        (`01-countly`'s Oliver, `05-paidly`'s Yara) meet it every run, so this presses twice when
-        the first press produced a nudge rather than a thank-you, and never more than twice.
+    def send(self) -> dict[str, str]:
+        """**Send my answers**, from the last part, and the completion screen that answers it.
 
-        **What "sent" is read off, and why it is not the word *thanks*.** The done state replaces
-        the whole form with one line -- *"Thanks, {person}. Your answers have gone to {founder}."*
-        (`ParticipantRoute.tsx`'s `if (done)`). A bare `/thanks/` also matches
+        **A blank story is nudged once before it is accepted** -- the product's own
+        `BLANK_ANCHOR_NUDGE` ("Can you think of one specific time this happened?"), and a second
+        press sends anyway. Corpus people who left an anchor blank (`01-countly`'s Oliver,
+        `05-paidly`'s Yara) meet it, so `_press_through_the_nudge` presses twice when the first
+        press produced a nudge rather than a completion screen, and never more than twice.
+
+        **What "sent" is read off, and why it is not the word *thanks*.** The completion screen
+        replaces the pager's body with `.iv-done` -- *That's it.* over *"Thanks, {person}. Your
+        answers have gone to {founder}."* (`INTERVIEW_DONE_LEAD`). A bare `/thanks/` also matches
         `TAP_NOTE_HASNT_HAPPENED`, *"Thanks -- that answers this part. On to the next."*, which
-        anybody who tapped *it hasn't happened* is already showing **before** they press Submit at
+        anybody who tapped *it hasn't happened* is already showing **before** the send is pressed at
         all. For the one corpus person who both taps and leaves an anchor blank (`05-paidly`'s
         Yara Haddad, `07-mulchrun`'s Cody Brandt) that made the first press look like a send: the
         loop broke, the second press the nudge needs was never made, and the response was never
         stored -- the run then went red on a `guessed` count that was the product's own correct
         arithmetic over a person who had never answered (`runs/DRIFT.md` #33). The half of that
-        sentence no other line on this page can say is what is waited for.
+        sentence no other line on this page can say is what is waited for, and 042 changed neither
+        sentence.
         """
+        here = self.part()
+        if here["index"] != here["total"]:
+            raise AssertionError(
+                f"the interview is on part {here['counter']}: only the last part sends")
         with self._scope():
             with self._bstep.step("participant submits their answers") as h:
-                button = self.page.get_by_role("button", name=re.compile(r"^submit$", re.I))
-                sent = self.page.get_by_text(re.compile(r"answers have gone to", re.I))
-                button.click()
-                for press in (1, 2):
-                    try:
-                        sent.wait_for(state="visible", timeout=6_000)
-                        break
-                    except Exception:  # noqa: BLE001 - a nudge is not a failure, it is the design
-                        if press == 2:
-                            raise
-                        notice = _safe_text(
-                            lambda: self.page.locator(".stale").first.inner_text())
-                        if notice:
-                            h.capture_text("refusal", notice)
-                            raise AssertionError(
-                                f"the server refused this response rather than nudging: {notice!r}")
-                        h.capture_text("nudge", _safe_text(
-                            lambda: self.page.locator(".iv .hint").last.inner_text()))
-                        button.click()
+                self._press_through_the_nudge(h, INTERVIEW_SEND, self._sent)
+                done = self.completion()
+                self._remember_screen()
+                h.capture_text("completion", json.dumps(done, ensure_ascii=False, indent=2))
                 h.add_screenshot(self._bstep.screenshot("participant-thank-you"))
                 self._capture_page_text(h)
+        return done
+
+    def _sent(self) -> bool:
+        """The completion screen, **and** the one sentence only it can say. Either alone would be
+        credulous: `.iv-done` is a region a future screen could borrow, and the thank-you is the
+        claim that the server took the answers."""
+        if not self.page.locator("main.iv-body .iv-done").count():
+            return False
+        return bool(_SENT_LINE.search(_optional_text(self.page.locator(".iv-done__lead"))))
+
+    def submit(self) -> dict[str, str]:
+        """Sends the interview -- the name every scenario calls, kept.
+
+        It pressed one *Submit* on one scroll. Under 042 sending is the **last part's** primary, so
+        this walks there first: Begin if the stranger is still on the opening screen, *Next*
+        through any part left on screen, then `send()`. A scenario that has already typed its way
+        to the last part (`answer_as` leaves it there) finds nothing left to walk, which is the
+        common case and costs one read of the counter.
+        """
+        self.ensure_begun()
+        while True:
+            here = self.part()
+            if here["index"] >= here["total"]:
+                break
+            self.next_part()
+        return self.send()
 
     def submit_expect_nudge(self) -> str:
         """A blank story is nudged once before it is accepted (`BLANK_ANCHOR_NUDGE`) -- the
-        product's own "can you think of one specific time" line, not a refusal."""
+        product's own "can you think of one specific time" line, not a refusal.
+
+        Pressed from whichever part the stranger is on, because 042's nudge fires on *Next* as
+        well as on *Send my answers* and scoped to that part's own anchors. It reads `p.iv-nudge`,
+        the class the pager draws it with; it was the last `.iv .hint` on the scroll.
+        """
         with self._scope():
             with self._bstep.step("the stranger submits with a blank story") as h:
-                self.page.get_by_role("button", name=re.compile(r"^submit$", re.I)).click()
-                self.page.wait_for_timeout(500)
-                nudge = _safe_text(lambda: self.page.locator(".iv .hint").last.inner_text())
+                self._primary().click()
+                self._settled(lambda: bool(self.nudge()), timeout_s=5.0)
+                nudge = self.nudge()
+                h.capture_text("nudge", nudge)
                 h.add_screenshot(self._bstep.screenshot("participant-nudged"))
         return nudge
 
     def submit_expect_notice(self) -> None:
         with self._scope():
             with self._bstep.step("the stranger submits and the server refuses gently") as h:
-                self.page.get_by_role("button", name=re.compile(r"^submit$", re.I)).click()
+                self._primary().click()
                 self.page.locator(".stale").wait_for(state="visible", timeout=10_000)
                 h.add_screenshot(self._bstep.screenshot("participant-notice"))
                 self._capture_page_text(h)
 
     def open_expect_notice(self, url: str) -> None:
         """A link that will not render a fresh page -- gone stale (410), already answered, or
-        never real (404) -- capturing whatever the page shows instead."""
+        never real (404) -- capturing whatever the page shows instead.
+
+        **This one still reads `.hello`, and that is not an oversight.** keel-web 042 moved only the
+        *open form* onto the pager; the four notice states it renders instead (`isPending`, 404, the
+        410 `ParticipantNoticeView`, `ALREADY_ANSWERED`) still wear the old `.iv-shell iv` column
+        with `p.hello` in it. The selector that went stale is the one on the happy path.
+        """
         with self._scope():
             with self._bstep.step("the stranger opens a link that is no longer fresh") as h:
                 self.page.goto(url, wait_until="load")

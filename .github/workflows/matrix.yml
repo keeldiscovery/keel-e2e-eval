@@ -836,11 +836,17 @@ jobs:
           # anywhere the bundle carries. No model pin: Codex's unmeasured run answers with the
           # account's default and the runtime's startup line says model=default (spec 008).
           KEEL_CODEX_API_KEY: ${{ matrix.cell.host == 'codex' && secrets.KEEL_RUNTIME_CI_CODEX || '' }}
-          # C-5's pin, spec 016: gpt-5.6-luna emits the `phase` key CopilotExecutor reads, and the
-          # plan's own default (claude-sonnet-5) does not -- runs/DRIFT.md #59. Claude has no
-          # counterpart: keel-runtime's Claude executor takes no model, so a Claude cell's runtime
-          # model is recorded, not pinned (spec 019).
-          KEEL_COPILOT_MODEL: ${{ matrix.cell.host == 'copilot' && 'gpt-5.6-luna' || '' }}
+          # **No runtime model pin on any cell.** Spec 016's C-5 pin lived here --
+          # `KEEL_COPILOT_MODEL: gpt-5.6-luna`, because gpt-5.6-luna emits the `phase` key
+          # CopilotExecutor reads and the plan's own default (claude-sonnet-5) did not
+          # (runs/DRIFT.md #59). It has been **inert since keel-runtime 0.7.0**: the model a job
+          # runs on comes from the job's own `model` key -- keel-cloud's model-routing table --
+          # "and from nowhere else" (`keel_runtime/config.py`), and no `KEEL_<HOST>_MODEL` reader
+          # survives. The hand dispatch of 2026-10-03 (run 37144449885) proved it from the outside:
+          # had the variable still been read, all nine jobs would have run `luna`, and eight ran
+          # `gpt-5.6-terra` -- which is exactly what routing v8 names for the copilot row. Deleted
+          # so nobody reads the cell as pinned; the bundle records the table and what answered
+          # (`versions.json`'s `model routing table`), which is the measurement.
           LIVE_K: ${{ matrix.cell.live_k }}
           EVAL_K: ${{ matrix.cell.eval_k }}
         run: |

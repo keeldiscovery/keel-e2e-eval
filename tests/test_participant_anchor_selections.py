@@ -63,7 +63,11 @@ def _anchor(prompt: str, *, taps: list[str] | None = None, selections: list[tupl
     return head + f'<div class="{klass}">{picks}</div>'
 
 
-_PAGE = "<div class='iv'>" + "".join([
+# `main.iv-body` is the scope every one of these reads is now taken in: keel-web 042 made the
+# interview a pager, so one occasion's blocks are the only blocks on screen, and `anchors()` says so
+# (`runs/DRIFT.md` #71). The anchor's own markup is untouched by that move -- `AnchorBlock` is the
+# same component -- which is the whole point of holding it here separately.
+_PAGE = "<div class='iv-page'><main class='iv-body'>" + "".join([
     _anchor(_A1, taps=["It hasn't happened", "I can't recall"], selections=[
         (_S1, ["under 1 day", "1 day to 2 days", "more than 3 months, say roughly"]),
         (_S2, ["under 15 min", "more than 1 day, say roughly"]),
@@ -72,7 +76,7 @@ _PAGE = "<div class='iv'>" + "".join([
     _anchor(_A2, taps=["I can't recall"], selections=[(_S3, ["me", "a member of staff"])], dim=True),
     # `hidePicks`: the person tapped *it hasn't happened*, so keel-web renders no picks at all.
     _anchor(_A3, taps=["It hasn't happened"], selections=[], hide=True),
-]) + "</div>"
+]) + "</main></div>"
 
 
 @pytest.fixture(scope="module")
