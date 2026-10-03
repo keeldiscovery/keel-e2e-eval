@@ -667,6 +667,16 @@ def _tail_number(tail: str | None) -> int:
 def _panel_accounting(panel: dict | None, counted: dict) -> dict:
     """What this panel accounts for, against what the wire says it should: one sum against one sum.
 
+    **2026-10-03: no subject on the board, and kept for the reason the thing it counted was kept**
+    (keel-web **038** FR-009/FR-013). A card is a snapshot of deal-breakers: it has no *Held* list,
+    no worth-knowing line and no line past the second failing deal-breaker, so there is no sum on
+    the screen to put against `GET /standing`'s. What stands in its place is
+    `_expected_card()` -- the state rule, the cap and the tail at its own number -- and the
+    whole-project line count, which moved to the ship column's own tile (FR-003) and is asserted
+    there. This function, `_tested_lines` and `_tail_number` keep their last callers in
+    `tests/test_journey_untested_stage.py`, which is the record of what run 36895521843 cost; a
+    reader is retired when the thing it reads is.
+
     `{tested, held, did not hold, tails, accounted}`. Every number is counted, never computed: the
     four on the left are rows and tails on the screen, the one on the right is a length of a list
     the wire sent.
@@ -726,6 +736,93 @@ def _whose_fault(anchoring: dict) -> str:
             f"(anchored {anchoring['anchored']}) and the stage still has nothing standing. That "
             "is a product finding, and the first this scenario has been able to make: a "
             "`runs/DRIFT.md` entry, never a workaround here (AGENTS.md)")
+
+
+# --------------------------------------------- the board's own rule, restated (keel-web spec 038)
+# **The same discipline as the three above, for the four regions keel-web `038-overview-board`
+# (merged `4540aa3`, 2026-10-01; keel-cloud `canon/designs/overview-board-design.md` §4) put in
+# their place.** Every input below is a field `GET /overview` or `GET /standing` sent; nothing here
+# decides a verdict, a median or a standing. What they let the referee say is *the card is in the
+# state the wire's own numbers put it in, and its rows are the wire's own rows* -- which is the one
+# thing a card can get wrong on its own.
+
+#: `measuredStatus`'s tone, **unwashed** -- `mute` where `washOf` would say `none`. The pill and
+#: the band wear the washed one (`_WASH_OF_VERDICT`); the headline word wears this one, because
+#: `OverviewRoute` writes `st-${headline.tone}` straight off `measuredStatus` (FR-001).
+_TONE_OF_VERDICT = {"SUPPORTED": "good", "CONTRADICTED": "bad", "MIXED": "warn"}
+
+#: The verdict rule's own floor, as `translate.ts`'s `VERDICT_PEOPLE_FLOOR` spells it. State C's row
+#: is `panelAnsweredOfFloor` -- *3 people answered · 5 needed* -- and design open question 4's
+#: offer of a `peopleNeeded` wire field is the one the founder declined, so there is nothing on the
+#: wire to read it off and this is the number the screen must say.
+VERDICT_PEOPLE_FLOOR = 5
+
+
+def _status_tone(summary: dict) -> str:
+    """The tone `measuredStatus` gives this stage's own verdict, unwashed."""
+    return _TONE_OF_VERDICT.get((summary.get("verdict") or "").upper(), "mute")
+
+
+def _stage_deal_breakers(standing: dict, stage: str) -> list[dict]:
+    """**State B's own rows, taken from the wire** (keel-web 038 FR-010): `notHoldingUp ∩ stage ∩
+    LOAD_BEARING` **then** `peopleDisagree ∩ stage ∩ LOAD_BEARING`, each in `GET /standing`'s own
+    order -- so the first two are the two worst, which is the whole of the cap's own argument (P5).
+
+    `{heading, tone, assumptionId}`: `heading` is `beliefHeading` -- `heading`, falling back to
+    `statement` -- and `tone` is the glyph the row must carry, `bad` for a `CONTRADICTED`
+    deal-breaker and `warn` for a `MIXED` one. The glyph is the **only** carrier left of which of
+    the two a row is, now that the risk tag and the landed clause have gone (design §5.7).
+    """
+    def of(key: str, tone: str) -> list[dict]:
+        return [{"heading": " ".join(((line.get("heading") or line.get("statement") or "")
+                                      ).split()),
+                 "tone": tone, "assumptionId": line.get("assumptionId")}
+                for line in (standing.get(key) or [])
+                if line.get("stage") == stage
+                and (line.get("risk") or "").upper() == "LOAD_BEARING"]
+    return of("notHoldingUp", "bad") + of("peopleDisagree", "warn")
+
+
+def _expected_card(summary: dict, failed: list[dict]) -> dict:
+    """**What keel-web 038's own rule makes this stage's card**, from the wire alone.
+
+    The three states are exhaustive and disjoint and the order *is* the rule (FR-009, design
+    §4.3): **C** where the verdict is `UNTESTED` or absent, **A** where
+    `dealBreakersHolding === dealBreakersTotal`, **B** otherwise. From that follow the body's own
+    numbers -- how many rows, whether there is a tail and at what number, and whether the foot is
+    drawn at all.
+
+    **The one edge case** (FR-012, design §4.3): `dealBreakersTotal === 0` satisfies state A's
+    condition and *No major blockers* would be true but hollow, so the card draws **no row** and
+    shows the foot's *N people answered* alone.
+    """
+    verdict = (summary.get("verdict") or "").upper()
+    total = summary.get("dealBreakersTotal") or 0
+    holding = summary.get("dealBreakersHolding") or 0
+    if verdict not in _WASH_OF_VERDICT:
+        state = "C"
+    elif holding == total:
+        state = "A"
+    else:
+        state = "B"
+    over = max(len(failed) - Overview.ROW_CAP, 0)
+    if state == "B":
+        rows = min(len(failed), Overview.ROW_CAP)
+    elif state == "A":
+        rows = 1 if total else 0
+    else:
+        rows = 1
+    return {"state": state,
+            "rows": rows,
+            "tail": over if state == "B" and over else 0,
+            "foot": state != "C",
+            "deal-breakers, on the wire": [holding, total],
+            "peopleAnswered": summary.get("peopleAnswered"),
+            "every failing deal-breaker the wire carries": [row["heading"] for row in failed],
+            "the two the cap shows": [row["heading"] for row in failed[:Overview.ROW_CAP]]
+                                     if state == "B" else [],
+            "their own glyphs": [row["tone"] for row in failed[:Overview.ROW_CAP]]
+                                if state == "B" else []}
 
 
 def _worst_stage(by_stage: dict) -> str:
@@ -2224,8 +2321,18 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                                   "whatThisSays": None, "a note in its place": "non-empty"},
                                  {"deck": overview.is_deck(),
                                   "download": download,
-                                  "ship": overview.ship_caption(),
-                                  "panels": [{"stage": q["stage"], "word": q["word"]}
+                                  # The ship column, as keel-web **038** draws it: the worst
+                                  # stage's own word, its tip, and the two tiles. `ship_caption()`
+                                  # is recorded beside them and answers `''` -- FR-004 retired
+                                  # `shipCaption`'s only caller, and a bundle that shows the empty
+                                  # string is a bundle that shows which deploy it ran against.
+                                  "headline": overview.headline(),
+                                  "the tip under it": overview.headline_note(),
+                                  "tiles": overview.tiles(),
+                                  "ship caption, retired by 038 FR-004":
+                                      overview.ship_caption(),
+                                  "panels": [{"stage": q["stage"], "state": q["state"],
+                                              "word": q["word"]}
                                              for q in overview.panels()],
                                   "whatThisSays": wire.get("whatThisSays"),
                                   "whatThisSaysNote": wire.get("whatThisSaysNote"),
@@ -2392,6 +2499,28 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
             standing_wire = _get(f"/v2/projects/{project_id}/standing") or {}
             by_stage = {row.get("type"): row for row in overview_wire.get("stages") or []}
 
+            # **The deck is the board now** (keel-web spec `038-overview-board`, merged `4540aa3`
+            # 2026-10-01 and live on staging; keel-cloud `canon/designs/overview-board-design.md`
+            # §4). `runs/DRIFT.md` **#73** is what reading the old regions cost: every panel came
+            # back `word: ""`, `claim: ""`, `parts: {}` on a board that was drawing *Will they pay
+            # · both deal-breakers hold · 5 people answered* perfectly well, and the matrix's last
+            # step was red on every cell that reached it -- a stale referee, not a product fault.
+            # It was reached for the first time with five answers on run 37147770058; before that
+            # #71's participant red had stopped every cell short of the readings, and the deck
+            # with no reading at all passes.
+            #
+            # **Nothing below is deleted.** Three assertions lost their **subject** rather than
+            # their selector, and each one says so where it stood, with the FR that removed it:
+            #
+            # | what it asserted | where it stands now |
+            # |---|---|
+            # | *Held* / *Did not hold*, three panels of two parts | **gone** (FR-009/FR-013) -- a card is a snapshot of deal-breakers, in three exhaustive states. The state rule, the cap of two and the tail at its own number are asserted in its place, against `GET /standing`'s own two lists |
+            # | *N of M lines holding* in the count line | **the ship column's own tile** (FR-012/FR-025 -- `panelLinesHolding` lost its last caller; the card's foot is `panelDealBreakers · panelPeopleAnswered` alone). Asserted against `GET /standing`'s four lists summed, where the number now is |
+            # | the worst panel is **open at rest**, with no tail on either part | **the headline word** (FR-001/FR-008/FR-011) -- a card does not expand, the whole card is a link to its stage page, and the worst stage's own word leads the ship column. `panel--worst` is asserted still, because the phone's CSS hoists off it (spec 027 FR-018) |
+            #
+            # And the one that only lost its selector is the one that went red: the status word is
+            # in `span.panel__pill` now, not `span.panel__word` (FR-006), and it carries the word
+            # **alone** -- never `statusWithDrift` (FR-007).
             with recorder.step("§1.7: the deck -- one band per stage, coloured by the verdict the "
                                 "wire sent, and one panel per band saying it in words",
                                 party="founder", kind="assert") as h:
@@ -2400,9 +2529,13 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                 expected = {stage: _band_wash(by_stage.get(stage) or {}) for stage in STAGES}
                 got_wash = {band["stage"]: band["wash"] for band in bands}
                 got_word = {q["stage"]: q["word"] for q in panels}
+                band_label = {band["stage"]: band["label"] for band in bands}
+                by_panel = {q["stage"]: q for q in panels}
                 h.record_assert({"bands": 3, "panels": 3, "wash by stage": expected,
-                                  "every band names its stage and its word": True},
-                                 {"ship": overview.ship_caption(),
+                                  "every band names its stage and its word": True,
+                                  "every card is a link to its own stage page": True},
+                                 {"headline": overview.headline(),
+                                  "tiles": overview.tiles(),
                                   "ship, in one line": overview.ship_label(),
                                   "bands": bands, "panels": panels,
                                   "wash the wire implies": expected,
@@ -2415,16 +2548,52 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                     f"the bands name {sorted(got_wash)}; a band is one stage and there are three")
                 assert set(got_word) == set(STAGES), (
                     f"the panels name {sorted(got_word)}; a panel is one stage and there are three")
-                # **Colour is never the only carrier** (keel-web FR-003/SC-005): every band's own
-                # verdict is a word within 8px of it, and the figure says all three in one line.
-                # So the word is asserted as well as the wash, and a deck that lost every colour
-                # would still pass this step.
+                # **Colour is never the only carrier** (keel-web spec 027 FR-003/SC-005, and 038
+                # FR-006 keeps it): every band's own verdict is a word within 8px of it, and the
+                # figure says all three in one line. So the word is asserted as well as the wash,
+                # and a board that lost every colour would still pass this step. **The word moved
+                # into the pill and did not go** -- which is the whole of DRIFT #73.
                 wordless = [stage for stage, word in got_word.items() if not (word or "").strip()]
                 assert not wordless, (
                     f"a panel carries no status word at all: {wordless} -- colour would be the "
                     f"only carrier of those verdicts")
                 nameless = [q["stage"] for q in panels if not (q["name"] or "").strip()]
                 assert not nameless, f"a panel does not name its own stage: {nameless}"
+                # **The pill carries the status word alone** (FR-007): `measuredStatus(verdict)
+                # .label`, never `statusWithDrift`. Measured by keel-web, *Not holding up · smaller
+                # than you think* wraps the head on every failing card, and the drift clause is the
+                # nuance *"remember this is a snapshot"* argues against -- it is not deleted from
+                # the product, the stage page and the printed sheet keep it. So the pill's word is
+                # asserted to be one of the five `measuredStatus` can say and to carry no clause.
+                drifting = {stage: word for stage, word in got_word.items()
+                            if word.strip().casefold() not in Overview.STATUS_WORDS}
+                assert not drifting, (
+                    f"a card's pill says something other than the five words `measuredStatus` has: "
+                    f"{drifting}. The pill carries the status word **alone** (keel-web 038 FR-007) "
+                    f"-- a drift clause in it is the head wrapping on every failing card, and a "
+                    f"sentence in it is a word a model wrote")
+                # **Two carriers, one verdict.** The band's own `aria-label` is *The problem —
+                # People disagree*, read off a different node by a different reader; the pill is
+                # read off the card. Comparing them is how the referee says *the screen agrees with
+                # itself* without holding a copy of keel-web's own strings: the band may append a
+                # drift clause and the pill may not, so the pill's word has to be inside the band's
+                # label, not equal to it.
+                disagreeing = {stage: {"the pill": got_word[stage],
+                                        "the band's own label": band_label.get(stage, "")}
+                                for stage in STAGES
+                                if got_word[stage].strip().casefold()
+                                not in (band_label.get(stage) or "").casefold()}
+                assert not disagreeing, (
+                    f"a card's pill and its own band say different verdicts: {disagreeing}. Both "
+                    f"are `measuredStatus` on the verdict the wire sent, read off two nodes; a "
+                    f"screen that disagrees with itself is drawing one of them from something else")
+                # The tone is the one class a scenario can put against the verdict the wire sent,
+                # and on the board it is `panel__pill--<tone>` (FR-006) where it was `st-*`.
+                mistoned = {stage: {"the pill's tone": by_panel[stage]["tone"],
+                                     "the wash the wire implies": expected[stage]}
+                             for stage in STAGES if by_panel[stage]["tone"] != expected[stage]}
+                assert not mistoned, (
+                    f"a card's pill is tinted for a verdict the wire did not send: {mistoned}")
                 wrong = {stage: {"wash": got_wash[stage], "the wire's verdict":
                                   (by_stage.get(stage) or {}).get("verdict"),
                                   "expected": expected[stage]}
@@ -2433,119 +2602,315 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                     f"a band is coloured for a verdict the wire did not send: {wrong}. Position "
                     f"means stage and colour means verdict (keel-web FR-002); a band that "
                     f"disagrees with `GET /overview` is the deck inventing a verdict.")
+                # **FR-008: the whole card is the link** to `/p/{id}/s/{stage}`, and nothing inside
+                # it is a second control -- which is what makes the tail a count that navigates
+                # rather than the in-place expander the founder struck on 2026-09-30. `href` and
+                # not a click: following it is the stage page's own business.
+                undoored = {stage: by_panel[stage]["href"] for stage in STAGES
+                            if not (by_panel[stage]["href"] or "").endswith(
+                                f"/p/{project_id}/s/{stage}")}
+                assert not undoored, (
+                    f"a card is not a link to its own stage page: {undoored}. The whole card is "
+                    f"the door (keel-web 038 FR-008), and it is the only one the body has now "
+                    f"that the rows carry no control of their own")
 
-            with recorder.step("§1.7: each panel's count line is the wire's own three numbers, and "
-                                "each panel accounts for every tested line",
+            with recorder.step("§1.7: each card is in exactly one of 038's three states, and its "
+                                "rows, its cap and its foot are that state's own rule",
                                 party="founder", kind="assert") as h:
-                # **Every number compared, never recomputed.** *N of M lines holding* is a plain
-                # count over `GET /standing`'s own four lists filtered to the stage; the
-                # deal-breaker clause and the people clause are `StageSummary`'s own
-                # `dealBreakersHolding`/`dealBreakersTotal`/`peopleAnswered`. The referee does the
-                # same filter the screen does and compares the two; it computes no verdict and no
-                # median (AGENTS.md's house rule, and keel-web SC-006's own claim).
+                # **Every number compared, never recomputed.** The state is `dealBreakersHolding`
+                # against `dealBreakersTotal` and the verdict, all three `StageSummary`'s own; the
+                # rows are `GET /standing`'s `notHoldingUp` then `peopleDisagree`, filtered to the
+                # stage and to `LOAD_BEARING`, in the wire's own order; the foot's two clauses are
+                # the deal-breaker pair and `peopleAnswered`. The referee does the same filter the
+                # screen does and compares the two; it computes no verdict and no median
+                # (AGENTS.md's house rule).
+                #
+                # **Two assertions stood here and have lost their subject** -- written here rather
+                # than deleted, with the FR that removed each:
+                #
+                # - *N of M lines holding* in the count line. **Gone** (keel-web 038
+                #   FR-012/FR-025): the card's foot is `panelDealBreakers · panelPeopleAnswered`
+                #   alone, and `panelLinesHolding` lost its last caller on this screen -- *"a
+                #   snapshot of deal-breakers has no use for a count of every line"*. The number
+                #   itself did not go: it is the ship column's own `lines` tile (FR-003), and the
+                #   step below asserts it there against the same four lists.
+                # - *the panel accounts for every tested line and no others* (`_panel_accounting`,
+                #   spec 028 FR-018/FR-019). **Gone** (FR-009/FR-013): a card has no *Held* list,
+                #   no worth-knowing line and no failing deal-breaker past the second, so there is
+                #   no sum on the screen to put against the wire's. What stands in its place is
+                #   stricter about what the card *does* promise -- the state rule, the cap of two,
+                #   the tail at its own number, and the foot drawn in exactly two of the three
+                #   states.
+                #
+                #   **And the assertion that used to stand here is gone for cause twice over now**
+                #   (spec 028 FR-018/FR-019, kept verbatim because a record of a move is the half
+                #   that survives deletion). The first version read `counted["total"] and not
+                #   (held or failed)` -- *this stage has lines and the panel shows none of them* --
+                #   and matrix run 36895521843 is what that cost: `COMMERCIAL` had five lines,
+                #   every one of them `untested`, and a panel had two parts and no third, so there
+                #   was nothing for it to draw and it correctly drew nothing. The referee failed
+                #   keel-web for obeying keel-web's own spec, and named the wrong repository, which
+                #   is the worst thing a referee can do. Its replacement, the accounting above, is
+                #   what keel-web 038 then took the subject of. An all-untested stage is state C
+                #   here, which the state rule reads directly -- and the fault the red run actually
+                #   showed is §1.7a's, above, where the readings are.
                 panels = {q["stage"]: q for q in overview.panels()}
                 faults = []
                 reported = {}
                 for stage in STAGES:
                     panel = panels.get(stage)
                     summary = by_stage.get(stage) or {}
-                    counted = _stage_lines(standing_wire, stage)
-                    count_line = (panel or {}).get("count") or ""
-                    accounting = _panel_accounting(panel, counted)
+                    failed = _stage_deal_breakers(standing_wire, stage)
+                    want = _expected_card(summary, failed)
+                    state = Overview.state_of(panel or {})
+                    rows = Overview.rows_of(panel or {})
+                    fails = Overview.fails_of(panel or {})
+                    tail = Overview.card_tail(panel or {})
+                    foot = ((panel or {}).get("count") or "").strip()
                     reported[stage] = {
-                        "count line": count_line,
-                        "the wire's own numbers": counted,
-                        "peopleAnswered": summary.get("peopleAnswered"),
-                        "dealBreakers": [summary.get("dealBreakersHolding"),
-                                          summary.get("dealBreakersTotal")],
-                        **accounting,
-                        "the tails behind them": [
-                            Overview.tail_of(panel or {}, Overview.PANEL_HELD),
-                            Overview.tail_of(panel or {}, Overview.PANEL_DID_NOT_HOLD)],
+                        "data-state": state, "the state the wire's numbers make": want["state"],
+                        "rows": [{"tone": row["tone"], "box": row["box"],
+                                   "heading": row["heading"], "text": row["text"]}
+                                  for row in rows],
+                        "tail": tail, "foot": foot,
+                        "the wire's own numbers": _stage_lines(standing_wire, stage),
+                        "the rule, from the wire": want,
                     }
                     if panel is None:
-                        faults.append(f"{stage}: no panel at all")
+                        faults.append(f"{stage}: no card at all")
                         continue
-                    want_lines = f"{counted['holding']} of {counted['total']} line"
-                    if want_lines not in count_line:
-                        faults.append(f"{stage}: the count line reads {count_line!r}; "
-                                       f"`GET /standing` says {want_lines}…")
-                    people_answered = summary.get("peopleAnswered")
-                    if people_answered is None:
-                        faults.append(f"{stage}: the wire reports no `peopleAnswered`")
-                    elif not re.search(rf"\b{people_answered}\b\s+(person|people)\s+answered",
-                                        count_line):
-                        faults.append(f"{stage}: the count line reads {count_line!r}; the wire "
-                                       f"says {people_answered} answered")
-                    total = summary.get("dealBreakersTotal") or 0
-                    if total and "deal-breaker" not in count_line:
-                        faults.append(f"{stage}: {total} deal-breakers on the wire and no "
-                                       f"deal-breaker clause in {count_line!r}")
-                    if not total and "deal-breaker" in count_line:
-                        faults.append(f"{stage}: no deal-breaker on the wire and the count line "
-                                       f"says {count_line!r} -- *0 of 0* is what keel-web's own "
-                                       f"edge case forbids")
-                    # **The accounting, and the assertion that used to stand here is gone for
-                    # cause** (spec 028 FR-018/FR-019). It read `counted["total"] and not (held or
-                    # failed)` -- *this stage has lines and the panel shows none of them* -- and
-                    # matrix run 36895521843 is what that cost: `COMMERCIAL` had five lines, every
-                    # one of them `untested`, and a panel has two parts and no third, so there was
-                    # nothing for it to draw and it correctly drew nothing. The referee failed
-                    # keel-web for obeying keel-web's own spec, and named the wrong repository,
-                    # which is the worst thing a referee can do. What stands in its place is
-                    # stricter in the direction that matters: the panel must account for **every
-                    # tested line and no others**, tails counted at their own number. An
-                    # all-untested stage is now a correct zero on both sides -- and the fault the
-                    # red run actually showed is §1.7a's, above, where the readings are.
-                    if accounting["rows the panel accounts for"] != accounting[
-                            "tested on the wire"]:
-                        tails = accounting["the tails' own numbers"]
+                    if state not in Overview.CARD_STATES:
                         faults.append(
-                            f"{stage}: the wire has {accounting['tested on the wire']} tested "
-                            f"lines (holdingUp {counted['holdingUp']} + notHoldingUp "
-                            f"{counted['notHoldingUp']} + peopleDisagree "
-                            f"{counted['peopleDisagree']}) and the panel accounts for "
-                            f"{accounting['rows the panel accounts for']} -- "
-                            f"{accounting['HELD rows shown']} held, "
-                            f"{accounting['DID NOT HOLD rows shown']} did not hold, tails "
-                            f"{tails}. A budget moves a number and never deletes one (keel-web "
-                            f"FR-015), so a tail counts at its own N")
+                            f"{stage}: the card carries `data-state={state!r}`; keel-web 038 "
+                            f"FR-009 draws one of {list(Overview.CARD_STATES)} and the three are "
+                            f"exhaustive and disjoint")
+                        continue
+                    if state != want["state"]:
+                        faults.append(
+                            f"{stage}: the card is in state {state}; the wire's own numbers "
+                            f"(verdict {summary.get('verdict')!r}, deal-breakers "
+                            f"{want['deal-breakers, on the wire']}) make it {want['state']}")
+                    if len(rows) != want["rows"]:
+                        faults.append(
+                            f"{stage}: state {state} drew {len(rows)} rows and its rule draws "
+                            f"{want['rows']} -- {[row['text'] for row in rows]}")
+                    answered = summary.get("peopleAnswered")
+                    if answered is None:
+                        faults.append(f"{stage}: the wire reports no `peopleAnswered`")
+                    # ---- state C: one grey row, and **no foot** -- this row *is* the count.
+                    if state == "C" and rows:
+                        text = rows[0]["text"]
+                        if rows[0]["box"] != "wait":
+                            faults.append(f"{stage}: state C's row is not the grey one: "
+                                           f"{rows[0]!r}")
+                        if answered is not None and not re.search(
+                                rf"\b{answered}\b\s+(person|people)\s+answered", text):
+                            faults.append(f"{stage}: state C's row reads {text!r}; the wire says "
+                                           f"{answered} answered")
+                        if f"{VERDICT_PEOPLE_FLOOR} needed" not in text:
+                            faults.append(
+                                f"{stage}: state C's row reads {text!r} and never says the floor. "
+                                f"`panelAnsweredOfFloor` is the one place on this screen the "
+                                f"verdict rule's own five is spelled out, and a founder below it "
+                                f"is owed the number (keel-web 038 FR-009)")
+                    # ---- state A: one green row, *No major blockers* -- or none at all where the
+                    # stage carries no deal-breaker, which is FR-012's own edge case: *No major
+                    # blockers* would be true but hollow, so the foot's *N people answered* stands
+                    # alone rather than dressing an absence up as an all-clear.
+                    if state == "A" and rows:
+                        if rows[0]["box"] != "ok":
+                            faults.append(f"{stage}: state A's row is not the green one: "
+                                           f"{rows[0]!r}")
+                        if not rows[0]["text"]:
+                            faults.append(f"{stage}: state A drew an empty row")
+                    # ---- state B: the two worst failing deal-breakers, `CONTRADICTED` before
+                    # `MIXED`, each one `beliefHeading` **alone** with its own glyph -- and the
+                    # glyph is the only carrier left of which of the two it is (design §5.7).
+                    if state == "B":
+                        if not rows:
+                            faults.append(
+                                f"{stage}: state B drew no row at all. A stage's verdict is the "
+                                f"worst among its applying load-bearing beliefs, so a MIXED stage "
+                                f"must carry a MIXED deal-breaker -- an empty red block is "
+                                f"unreachable (keel-web 038 SC-003)")
+                        if len(fails) > Overview.ROW_CAP:
+                            faults.append(
+                                f"{stage}: {len(fails)} failing rows on the card; the founder's "
+                                f"own cap is {Overview.ROW_CAP} and the rest are the tail "
+                                f"(FR-009/FR-011)")
+                        got_headings = [row["heading"] for row in fails]
+                        if got_headings != want["the two the cap shows"]:
+                            faults.append(
+                                f"{stage}: the card's rows are {got_headings}; `GET /standing`'s "
+                                f"own two lists, filtered to this stage's deal-breakers and in "
+                                f"the wire's order, make them {want['the two the cap shows']} "
+                                f"(FR-010 -- notHoldingUp before peopleDisagree, so the two shown "
+                                f"are the two worst)")
+                        got_tones = [row["tone"] for row in fails]
+                        if got_tones != want["their own glyphs"]:
+                            faults.append(
+                                f"{stage}: the rows' glyphs are {got_tones} and the wire's "
+                                f"verdicts make them {want['their own glyphs']} -- ✕ for "
+                                f"CONTRADICTED, ! for MIXED, and the glyph is the only carrier "
+                                f"left of which it is")
+                    # ---- the tail: *+N more ›*, present only where more than the cap failed, and
+                    # at the number the wire's own lists make. **It is not the expander the founder
+                    # struck on 2026-09-30** (FR-011): it opens nothing, holds nothing, fetches
+                    # nothing and moves nothing -- it is text inside the card's own link, which is
+                    # why `open_every_tail()` has no subject on this screen.
+                    if want["tail"] and not tail:
+                        faults.append(
+                            f"{stage}: {len(failed)} deal-breakers failed and the card shows "
+                            f"{len(fails)} with no tail. Nothing is lost to the cap only because "
+                            f"the tail says how many more (FR-011)")
+                    elif tail and not want["tail"]:
+                        faults.append(
+                            f"{stage}: the card carries the tail {tail!r} and the wire has "
+                            f"{len(failed)} failing deal-breakers, which the cap of "
+                            f"{Overview.ROW_CAP} does not exceed")
+                    elif tail and _tail_number(tail) != want["tail"]:
+                        faults.append(
+                            f"{stage}: the tail reads {tail!r}; {len(failed)} failed and "
+                            f"{len(fails)} are shown, so it is {want['tail']} more")
+                    # ---- the foot: `panelDealBreakers · panelPeopleAnswered`, in states A and B
+                    # and **not** in C (FR-009/FR-012). It is the only per-stage people count left
+                    # on the board and the only thing that supplies the denominator the rows and
+                    # the tail cannot.
+                    if want["foot"] and not foot:
+                        faults.append(
+                            f"{stage}: state {state} draws no foot. It is the only per-stage "
+                            f"people count left on the board and the rows' own denominator "
+                            f"(FR-012)")
+                    if not want["foot"] and foot:
+                        faults.append(
+                            f"{stage}: state C drew the foot {foot!r} as well as its count row. "
+                            f"The row *is* the count there, and saying it twice is the repetition "
+                            f"FR-009 took out")
+                    if foot:
+                        if answered is not None and not re.search(
+                                rf"\b{answered}\b\s+(person|people)\s+answered", foot):
+                            faults.append(f"{stage}: the foot reads {foot!r}; the wire says "
+                                           f"{answered} answered")
+                        total = summary.get("dealBreakersTotal") or 0
+                        if total and "deal-breaker" not in foot:
+                            faults.append(f"{stage}: {total} deal-breakers on the wire and no "
+                                           f"deal-breaker clause in {foot!r}")
+                        if not total and "deal-breaker" in foot:
+                            faults.append(f"{stage}: no deal-breaker on the wire and the foot "
+                                           f"says {foot!r} -- *0 of 0* is what keel-web's own "
+                                           f"edge case forbids")
                 h.record_assert({"faults": [],
-                                  "rows the panel accounts for":
-                                      "the wire's own tested lines, per stage"},
+                                  "each card": "in the state the wire's own numbers make it, with "
+                                               "that state's own rows, cap, tail and foot"},
                                  {"faults": faults, "per stage": reported})
-                assert not faults, f"a panel and the wire disagree: {faults}"
+                assert not faults, f"a card and the wire disagree: {faults}"
 
-            with recorder.step("§1.7: the worst stage's panel is the one open at rest",
+            with recorder.step("§1.7: the ship column leads with the worst stage's own word, and "
+                                "its two tiles are the wire's own counts",
                                 party="founder", kind="assert") as h:
-                # keel-web FR-016: worst is `CONTRADICTED` → `MIXED` → `UNTESTED` → `SUPPORTED`,
-                # a tie going to the **deepest band** -- problem, then solution, then price, on the
-                # design's own argument that a ship is laid down keel-first and the keel is the
-                # part whose failure capsizes the rest. The referee orders the verdicts the wire
-                # sent; it decides none.
+                # **This is where *the worst panel is open at rest* stands now.** keel-web spec 027
+                # FR-016 marked the worst stage's panel and opened it; spec 038 FR-008 made the
+                # whole card a link and FR-011 made the tail a count, so **no card expands and
+                # there is nothing to be open**. The subject of that assertion -- *a founder is
+                # shown the worst stage first, without hunting for it* -- moved up the page into
+                # FR-001's headline word: `measuredStatus(worstStage(overview.stages)).label`,
+                # bare, 22 px serif, in that stage's own tone. `panel--worst` is asserted still,
+                # because the phone's CSS hoists the worst card off exactly that marker (spec 027
+                # FR-018, shipped by specs 028/029), so the marker has a live job even though
+                # *open at rest* no longer does.
                 #
-                # *Open at rest* is read as **no tail**: a part that is open shows every line it
-                # has, and `moreLabel` renders only behind the three a closed part shows. The
-                # marker itself (`panel--worst`) is asserted beside it, because that marker is what
-                # the phone's CSS hoists (FR-018) and keel-web spec 028/029 ship that CSS.
+                # The referee orders the verdicts the wire sent; it decides none. Worst is
+                # `CONTRADICTED` → `MIXED` → `UNTESTED` → `SUPPORTED`, a tie going to the
+                # **deepest band** -- problem, then solution, then price, on the design's own
+                # argument that a ship is laid down keel-first and the keel is the part whose
+                # failure capsizes the rest.
                 marked = overview.worst_panel()
                 want = _worst_stage(by_stage)
-                panel = overview.panel(marked) if marked else None
-                tails = [Overview.tail_of(panel or {}, Overview.PANEL_HELD),
-                          Overview.tail_of(panel or {}, Overview.PANEL_DID_NOT_HOLD)]
-                h.record_assert({"panel--worst": want, "tails on it": [None, None]},
+                worst_summary = by_stage.get(want) or {}
+                headline = overview.headline()
+                note = overview.headline_note()
+                tiles = overview.tiles()
+                worst_card = overview.panel(want) or {}
+                # FR-002: `TIP_TOO_FEW_TO_CALL` stands under the headline **only** while the
+                # headline reads *Too few to call*, which is `UNTESTED` with somebody having
+                # answered -- both of them fields the wire sent. The slot is empty in every other
+                # state, by design: the other three tips are written about one belief and are false
+                # about a project, and there is no shipped sentence that is true of a project in a
+                # good state.
+                too_few = ((worst_summary.get("verdict") or "").upper() not in _WASH_OF_VERDICT
+                           and (worst_summary.get("peopleAnswered") or 0) > 0)
+                # FR-003: `N` *lines* from `Standing`'s four lists summed, and `N` *people asked*
+                # from `standing.people.length`. **Two, not three** -- the market tile duplicates
+                # the brand row. This is the tile the count line's *N of M lines holding* became.
+                lines_on_wire = sum(len(standing_wire.get(key) or [])
+                                    for key in ("holdingUp", "notHoldingUp", "peopleDisagree",
+                                                "untested"))
+                asked_on_wire = len(standing_wire.get("people") or [])
+                def of_label(needle: str):
+                    """The tile by its own label, never by position -- `STAT_LABEL_LINES` is
+                    *lines* and `STAT_LABEL_PEOPLE` is *people asked*, and a reordering of the two
+                    is not a fault this step is about."""
+                    return next((tile for tile in tiles
+                                 if needle in tile["label"].casefold()), None)
+
+                lines_tile, asked_tile = of_label("line"), of_label("asked")
+                h.record_assert({"panel--worst": want,
+                                  "the headline word": "the worst stage's own",
+                                  "the tip under it": "only while it reads *Too few to call*",
+                                  "tiles": [lines_on_wire, asked_on_wire]},
                                  {"panel--worst": marked, "the wire's worst": want,
                                   "the verdicts the wire sent": {
                                       stage: (by_stage.get(stage) or {}).get("verdict")
                                       for stage in STAGES},
-                                  "tails on it": tails})
+                                  "headline": headline,
+                                  "the worst card's own pill": worst_card.get("word"),
+                                  "the tone the wire implies": _status_tone(worst_summary),
+                                  "the tip under it": note,
+                                  "is it *Too few to call*, from the wire": too_few,
+                                  "tiles": tiles,
+                                  "the wire's own counts": {"lines": lines_on_wire,
+                                                             "people asked": asked_on_wire}})
                 assert marked == want, (
                     f"keel-web marked {marked!r} the worst panel; the verdicts the wire sent make "
-                    f"it {want!r}. The worst band is the one a founder should look at and the one "
-                    f"that opens itself (keel-web FR-016).")
-                assert not any(tails), (
-                    f"the worst panel is closed: it carries the tails {tails}. Every other panel "
-                    f"may show three lines and a tail; this one is open at rest.")
+                    f"it {want!r}. It is the card the phone hoists to the top of the column "
+                    f"(keel-web spec 027 FR-018), and the stage the headline word speaks for.")
+                assert headline["word"], (
+                    "the ship column carries no headline word at all (`p.overall`). It is the one "
+                    "word the whole board leads with (keel-web 038 FR-001), and without it a "
+                    "founder has to read three cards to learn where the project stands")
+                # **The screen agrees with itself, and the referee holds no copy of keel-web's own
+                # strings.** The headline and the worst card's pill are both
+                # `measuredStatus(that stage's verdict)`, read off two nodes by two readers.
+                assert headline["word"].strip().casefold() == (
+                        worst_card.get("word") or "").strip().casefold(), (
+                    f"the headline reads {headline['word']!r} and the worst stage's own card says "
+                    f"{worst_card.get('word')!r}. Both are `measuredStatus` on the verdict the "
+                    f"wire sent for {want}; a board that disagrees with itself is drawing one of "
+                    f"them from something else (keel-web 038 FR-001)")
+                assert headline["tone"] == _status_tone(worst_summary), (
+                    f"the headline is toned {headline['tone']!r} and the wire's verdict for {want}"
+                    f" ({worst_summary.get('verdict')!r}) makes it "
+                    f"{_status_tone(worst_summary)!r}. The word is in the worst stage's own tone "
+                    f"(FR-001), unwashed -- `mute` where a band would be `none`")
+                assert bool(note) == too_few, (
+                    f"the tip under the headline is {note!r} and the headline reads "
+                    f"{headline['word']!r}. keel-web 038 FR-002 draws `TIP_TOO_FEW_TO_CALL` there "
+                    f"**only** while the project is too few to call, and leaves the slot empty "
+                    f"otherwise -- the other three tips are written about one belief and are false "
+                    f"about a project")
+                assert len(tiles) == 2, (
+                    f"the ship column drew {len(tiles)} stat tiles, not two: {tiles}. Two is the "
+                    f"founder's own answer to design open question 6 -- the market tile the mock "
+                    f"draws duplicates the brand row (FR-003)")
+                assert lines_tile and lines_tile["value"] == lines_on_wire, (
+                    f"the lines tile reads {lines_tile!r}; `GET /standing`'s four lists hold "
+                    f"{lines_on_wire} lines. **This is where the count line's *N of M lines "
+                    f"holding* went** (FR-003, FR-012/FR-025): the number is the ship column's "
+                    f"now, and it is still the wire's own")
+                assert asked_tile and asked_tile["value"] == asked_on_wire, (
+                    f"the people tile reads {asked_tile!r}; `Standing.people` holds "
+                    f"{asked_on_wire}. The label keeps the word *asked*: a person invited is not a "
+                    f"person who answered (FR-003, P4)")
 
             with recorder.step("§1.7: now a reading exists, *Download the brief* is live",
                                 party="founder", kind="assert") as h:
