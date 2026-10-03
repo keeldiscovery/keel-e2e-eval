@@ -252,15 +252,20 @@ def _carried_choice(entry, candidates, role_id, offered):
 def _page_choice(participant, drawn):
     """The fallback, read off the stranger's own page: the first anchor carrying a control that
     offers a *say roughly*, that control's prompt, and every control under it offering an *other,
-    say what*. Returns `(None, None, [])` when the link carries neither."""
+    say what*. Returns `(None, None, [])` when the link carries neither.
+
+    The option labels come from the **walk** (`ParticipantPage.questionnaire()`, which carries each
+    selection's rows as the page drew them) rather than from `options_for`, because keel-web 042 put
+    one occasion on a screen: a control three parts along is not on the screen showing, and asking
+    the live page for it would raise on an interview that is perfectly healthy.
+    """
     for anchor in drawn:
         anchor_prompt = anchor.get("prompt")
         prompts = list(anchor.get("selections") or [])
+        options = anchor.get("options") or {}
         roughly_prompt = None
         for selection_prompt in prompts:
-            labels = [l.strip().lower()
-                      for l in participant.options_for(selection_prompt,
-                                                        anchor_prompt=anchor_prompt)]
+            labels = [l.strip().lower() for l in options.get(selection_prompt) or []]
             if any(l.endswith("say roughly") for l in labels):
                 roughly_prompt = selection_prompt
                 break
@@ -567,13 +572,22 @@ def test_s004_stranger_who_gives_orders_live(stack, founder_one, browser, run_di
             ppage = participant_context.new_page()
             participant = ParticipantPage(ppage, recorder)
             participant.open(invite_url)
-            texts["participant_page"] = ppage.locator("body").inner_text()
+            participant.begin()
 
             # **What this link carries is the page's to say, not the corpus's** (`_carried_choice`):
             # a new invitation freezes only the beliefs still open, so most of the corpus's controls
             # are not here. The corpus proposes; the rendered form disposes, and the bundle records
             # which of the two the attack was actually aimed at.
-            drawn = participant.anchors()
+            #
+            # Read by **walking the pager** since keel-web 042 made the interview one occasion per
+            # screen: `questionnaire()` collects every occasion and every option list and comes
+            # back to part one, so the choice of what to attack is made over the whole interview
+            # and not over whichever occasion happened to be first. The page text swept for a leak
+            # is every screen the stranger has been shown (`seen_text`), which is strictly more
+            # than the old single scroll offered -- the consent block is in it now too.
+            parts = participant.questionnaire()
+            drawn = [anchor for part in parts for anchor in part["anchors"]]
+            texts["participant_page"] = participant.seen_text()
             carried, carried_anchor_id, carried_selection_id = _carried_choice(
                 entry, candidates, person.role_id, drawn)
             if carried is not None:
@@ -610,6 +624,14 @@ def test_s004_stranger_who_gives_orders_live(stack, founder_one, browser, run_di
             assert anchor_prompt, (
                 "this link carries no anchor with a *say roughly* control at all; B8 cannot be "
                 "attacked here")
+
+            # The attack is typed on the screen that draws it. One occasion is one part since
+            # keel-web 042, and `tell_story`/`pick` act on the screen showing and no other.
+            target = next((p for p in parts
+                           for a in p["anchors"]
+                           if _same_prompt(a.get("prompt"), anchor_prompt)), None)
+            if target is not None:
+                participant.go_to_part(target["part"])
 
             # B7, the story box: A3 an exfiltration marker, and A6 -- asking for the founder's
             # own numbers.
@@ -648,7 +670,7 @@ def test_s004_stranger_who_gives_orders_live(stack, founder_one, browser, run_di
                                   anchor_prompt=anchor_prompt)
                 attacked.append("B9 other, say what")
                 break
-            texts["participant_page_after"] = ppage.locator("body").inner_text()
+            texts["participant_page_after"] = participant.seen_text()
             participant.submit()
         finally:
             participant_context.close()

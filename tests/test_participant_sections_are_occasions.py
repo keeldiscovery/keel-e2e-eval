@@ -20,19 +20,20 @@ from playwright.sync_api import sync_playwright
 from evals.test_s012_journey_through_a_host import OLD_STAGE_SECTION_TITLES
 from harness.browser import ParticipantPage, People
 from harness.steps import Recorder
+from tests import interview_page
 
 
 def _page_html(sections: list[tuple[str, int]]) -> str:
-    """`ParticipantRoute.tsx`'s own shape, condensed: a `div.sect` title, then that section's
-    anchor blocks, each a `div.q` carrying a `textarea.box`."""
-    body = ['<div class="iv">', '<p class="hello">Lullaby has asked you a few questions.</p>']
-    for title, anchors in sections:
-        body.append(f'<div class="sect">{title}</div>')
-        for n in range(anchors):
-            body.append(f'<div class="q"><p>Occasion {title} {n}?</p>'
-                        '<textarea class="box"></textarea><div class="picks"></div></div>')
-    body.append("</div>")
-    return "".join(body)
+    """`ParticipantRoute.tsx`'s own shape -- **one occasion per screen** since keel-web 042, which
+    is why this is the real pager and not a condensed scroll (`tests/interview_page.py`).
+
+    A section is a *part* now: its title is `h1.iv-sect` on its own screen, and reading them all
+    means pressing Begin and then Next, which is exactly what `sections()` does.
+    """
+    return interview_page.interview_html([
+        interview_page.part(title, [
+            interview_page.anchor(f"Occasion {title} {n}?") for n in range(anchors)])
+        for title, anchors in sections])
 
 
 @pytest.fixture(scope="module")
@@ -44,11 +45,15 @@ def browser():
 
 
 def _read(tmp_path, browser, html):
+    """The section titles and every anchor the interview draws -- both off the **walk**, because
+    one screen is one occasion and `anchors()` answers for the screen showing."""
     page = browser.new_page()
     page.set_content(html)
     participant = ParticipantPage(page, Recorder(tmp_path))
     try:
-        return participant.sections(), participant.anchors()
+        sections = participant.sections()
+        anchors = [a for part in participant.questionnaire() for a in part["anchors"]]
+        return sections, anchors
     finally:
         page.close()
 

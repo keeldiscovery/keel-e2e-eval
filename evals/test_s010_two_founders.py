@@ -367,9 +367,14 @@ def test_s010_two_founders(stack, founder_one, founder_two, browser, run_dir):
                                 "whichever founder a LIMIT 1 found (O4)",
                                 party="participant", kind="assert") as h:
                 page_nobody.goto(url, wait_until="load")
-                # `.iv p.hello` is the form's own intro line -- *"<founder> asked if you'd answer
-                # a few questions about <about>"* -- and the same element the page object waits on.
-                page_nobody.locator(".iv p.hello").wait_for(state="visible", timeout=15_000)
+                # `main.iv-body p.iv-intro` is the interview's own intro line -- *"<founder> asked
+                # if you'd answer a few questions about <about>"* -- and the same element the page
+                # object waits on. It was `.iv p.hello` until keel-web 042 (the Keel Interview)
+                # made the open form a pager: `.iv` is now the notice column alone and `p.hello`
+                # only ever draws *This page doesn't exist* and the 410/answered notices, so the
+                # old wait could not resolve on a healthy page (`runs/DRIFT.md` #71).
+                page_nobody.locator("main.iv-body p.iv-intro").wait_for(
+                    state="visible", timeout=15_000)
                 asked_by = page_nobody.locator("body").inner_text()
                 h.record_assert({"names": founder_one.name, "never": founder_two.name},
                                  {"page": asked_by[:600]})

@@ -105,8 +105,9 @@ from evals.preludes import create_project, own_ai_door
 from harness import (agent_host, canary as canary_mod, corpus_script,
                      keel_host as keels_ai, refusals, stranger_stories)
 from stack import remote
-from harness.browser import (Auth, Chat, Connect, Landing, OpenedCard, Overview, ParticipantPage,
-                              People, PrintPage, ReviewCard, Shell)
+from harness.browser import (INTERVIEW_BEGIN, INTERVIEW_CONTINUE, INTERVIEW_DONE_TITLE,
+                              INTERVIEW_HEAD_WHAT, Auth, Chat, Connect, Landing, OpenedCard,
+                              Overview, ParticipantPage, People, PrintPage, ReviewCard, Shell)
 from harness.evidence import finalize_run, write_block, write_generated, write_host
 from harness.steps import Recorder
 from instructions import models as models_mod
@@ -1164,21 +1165,68 @@ def _answer_whatever_is_asked(browser, recorder, url: str, person, entry) -> dic
         page = context.new_page()
         participant = ParticipantPage(page, recorder)
         participant.open(url)
-        drawn = participant.anchors()
+        # ------------------------------------------------ §2.1 the opening screen, and the gate
+        # keel-web 042 (the Keel Interview, 2026-10-02) put a screen in front of the questions:
+        # the research-interview header, the server's own introduction, the consent block, the
+        # facts line -- and **Begin**. The assertions the single scroll made about *what a stranger
+        # sees* (the introduction, the consent text, the skip affordance) are made here, where the
+        # product draws them now, plus the gate itself: a gate nobody presses is a questionnaire
+        # nobody reaches, which is exactly how this leg failed on 2026-10-03.
+        # Nothing here asserts a word the model wrote (spec 016 FR-007) -- the header and the
+        # button are keel-web's own constants, and the introduction and the consent block are read
+        # and counted, never matched.
+        with recorder.step("§2.1: the stranger lands on the Keel Interview's opening screen",
+                            party="participant", kind="assert") as h:
+            opening = participant.opening()
+            h.record_assert(
+                {"the header says what this page is": INTERVIEW_HEAD_WHAT,
+                 "an introduction": "non-empty",
+                 "the consent block": ">= 1 line",
+                 "the skip affordance": "on the facts line",
+                 "one gate": f"{INTERVIEW_BEGIN!r} or {INTERVIEW_CONTINUE!r}"},
+                opening)
+            assert opening["head"]["what"] == INTERVIEW_HEAD_WHAT, (
+                "the interview's header must say what this page is; it reads "
+                f"{opening['head']['what']!r}")
+            assert opening["introduction"].strip(), (
+                f"the opening screen said nothing about who is asking or what about: {url}")
+            assert opening["consent"]["lines"], (
+                "a stranger is told what happens to their answers before they answer any of them "
+                "(P8); the consent block drew no lines at all")
+            assert "skip" in opening["facts"].lower(), (
+                "the facts line is where a stranger reads that any question can be skipped; it "
+                f"reads {opening['facts']!r}")
+            assert opening["button"] in (INTERVIEW_BEGIN, INTERVIEW_CONTINUE), (
+                f"the opening screen's one button reads {opening['button']!r}, which is neither "
+                f"{INTERVIEW_BEGIN!r} nor {INTERVIEW_CONTINUE!r}")
+        participant.begin()
+        # --------------------------------------- the whole interview, read before a word is typed
+        # One occasion is one screen since 042, so the questions cannot be read off the page at
+        # once: `questionnaire()` walks the pager read-only, collects every occasion and every
+        # option list the page drew, and comes back to part one. The walk is what
+        # `stranger_stories.plan` needs -- its matching is **global** (the highest-scoring pair
+        # anywhere in the grid first, each corpus occasion spent at most once), and matching part
+        # by part would put one person's story under two occasions, which is the fault spec 028
+        # exists to end.
+        parts = participant.questionnaire()
+        drawn = [anchor for part in parts for anchor in part["anchors"]]
         with recorder.step("§2.1: the stranger's page carries the questions the host wrote",
                             party="participant", kind="assert") as h:
-            h.record_assert({"anchors": ">= 1"}, drawn)
+            h.record_assert({"anchors": ">= 1"}, {"parts": len(parts), "anchors": drawn})
             assert drawn, f"the invitation link rendered no questions at all: {url}"
         # FR-021, and shape only: **a section is an occasion**, not a stage (keel-cloud specs
         # 048/049). One section title per anchor block, and none of the three titles a stage used
         # to draw. The titles themselves are the model's own words and nothing asserts them --
-        # spec 016 FR-007 -- so this is a count and a set difference and no more.
+        # spec 016 FR-007 -- so this is a count and a set difference and no more. Under 042 a
+        # section is also one **part** of the pager, so this is the same claim counted on the page
+        # the product actually draws.
         with recorder.step("§2.1a: one section per occasion, and no stage titles left",
                             party="participant", kind="assert") as h:
             sections = participant.sections()
             stage_titles = {t.strip().lower() for t in OLD_STAGE_SECTION_TITLES}
             h.record_assert({"sections": len(drawn), "stage titles": 0},
-                            {"sections": sections, "anchor blocks": len(drawn)})
+                            {"sections": sections, "anchor blocks": len(drawn),
+                             "parts the pager drew": len(parts)})
             assert len(sections) == len(drawn), (
                 f"the page drew {len(sections)} section titles for {len(drawn)} anchor blocks -- "
                 "one occasion is one section")
@@ -1187,16 +1235,17 @@ def _answer_whatever_is_asked(browser, recorder, url: str, person, entry) -> dic
                 f"the page still titles a section by a stage: {offending}. A section is an "
                 "occasion since keel-cloud spec 048")
         # ----------------------------------------------- every tick decided, before a word is typed
-        # Read-only: `options_for` reads the option rows the page drew and `_their_pick` chooses
-        # among them. Nothing is clicked and nothing is filled in this pass, so the page the second
-        # pass types into is the page this one measured.
+        # Read-only, and the read is the walk's own: `questionnaire()` carries each selection's
+        # option rows exactly as the page drew them, and `_their_pick` chooses among them. Nothing
+        # was clicked but Next and Back and nothing was filled, so the page the second pass types
+        # into is the page this one measured.
         prompts = [(anchor.get("prompt") or "") for anchor in drawn]
         live = [i for i, prompt in enumerate(prompts) if prompt]
         chosen: dict[int, list[tuple[str, str, bool]]] = {}
         for i in live:
             rows = []
             for selection in drawn[i].get("selections") or []:
-                options = participant.options_for(selection, anchor_prompt=prompts[i])
+                options = (drawn[i].get("options") or {}).get(selection) or []
                 if not options:
                     continue
                 option, was_theirs = _their_pick(person, options)
@@ -1209,44 +1258,69 @@ def _answer_whatever_is_asked(browser, recorder, url: str, person, entry) -> dic
             {n: [(selection, option) for selection, option, _ in chosen[i]]
              for n, i in enumerate(live)})
 
-        answered, picked, theirs_used, fell_back = [], [], [], []
+        # The typing pass walks the pager a second time, because an anchor is typed on the screen
+        # that draws it: `ParticipantPage.offers` answers for the screen showing and no other. So
+        # the loop is by part, in the page's own order, and *Next* is pressed between them --
+        # including over a part with nothing of this person's on it.
+        by_part: dict[int, list[int]] = {}
         for n, i in enumerate(live):
-            plan, prompt = plans[n], prompts[i]
-            participant.tell_story(prompt, plan.text, plan.tap)
-            answered.append({"prompt": prompt[:60], "said": (plan.text or "")[:200] or None,
-                              "tapped": plan.tap, "path": plan.path,
-                              "whose": (person.person if plan.path != stranger_stories.COMPOSED
-                                        else f"{person.person}'s own facts, composed")})
-            (theirs_used if plan.path == stranger_stories.THEIR_OWN_STORY
-             else fell_back).append(f"anchor: {prompt[:50]} ({plan.path})")
-            if plan.tap:
-                # A tap is an answer of its own and it dims that anchor's picks (`class="picks
-                # off"`) -- the product's rule, not this harness's. Ticking behind it would be
-                # answering a question the page has stopped asking.
-                picked.extend(f"{selection[:40]} -> not ticked: the anchor is tapped "
-                              f"{plan.tap}" for selection, _, _ in chosen[i])
-                continue
-            for selection, option, was_theirs in chosen[i]:
-                participant.pick(selection, [option], anchor_prompt=prompt)
-                picked.append(f"{selection[:40]} -> {option}"
-                              + ("" if was_theirs else "  (the page's own first option; none of "
-                                                        "this person's answers was offered)"))
-                (theirs_used if was_theirs else fell_back).append(f"pick: {selection[:44]}")
-        participant.submit()
+            by_part.setdefault(drawn[i].get("part") or 1, []).append(n)
+
+        answered, picked, theirs_used, fell_back = [], [], [], []
+        for part in parts:
+            for n in by_part.get(part["part"], []):
+                i = live[n]
+                plan, prompt = plans[n], prompts[i]
+                participant.tell_story(prompt, plan.text, plan.tap)
+                answered.append({"prompt": prompt[:60], "said": (plan.text or "")[:200] or None,
+                                  "tapped": plan.tap, "path": plan.path,
+                                  "part": part["counter"] if "counter" in part
+                                          else f"{part['part']} of {part['of']}",
+                                  "whose": (person.person if plan.path != stranger_stories.COMPOSED
+                                            else f"{person.person}'s own facts, composed")})
+                (theirs_used if plan.path == stranger_stories.THEIR_OWN_STORY
+                 else fell_back).append(f"anchor: {prompt[:50]} ({plan.path})")
+                if plan.tap:
+                    # A tap is an answer of its own and it dims that anchor's picks (`class="picks
+                    # off"`) -- the product's rule, not this harness's. Ticking behind it would be
+                    # answering a question the page has stopped asking.
+                    picked.extend(f"{selection[:40]} -> not ticked: the anchor is tapped "
+                                  f"{plan.tap}" for selection, _, _ in chosen[i])
+                    continue
+                for selection, option, was_theirs in chosen[i]:
+                    participant.pick(selection, [option], anchor_prompt=prompt)
+                    picked.append(f"{selection[:40]} -> {option}"
+                                  + ("" if was_theirs else "  (the page's own first option; none "
+                                                            "of this person's answers was offered)"))
+                    (theirs_used if was_theirs else fell_back).append(f"pick: {selection[:44]}")
+            if part["part"] < part["of"]:
+                participant.next_part()
+        # The last part's primary is *Send my answers* (042), and what answers it is the completion
+        # screen -- *That's it.* over *"… your answers have gone to <founder>"*, which is the one
+        # sentence on this page that means **stored** (`ParticipantPage.send`'s own note).
+        sent = participant.submit()
         with recorder.step(f"§2.3: {person.person} sent their answers",
                             party="participant", kind="assert") as h:
             paths = {path: sum(1 for plan in plans if plan.path == path)
                      for path in stranger_stories.PATHS}
             h.record_assert({"anchors answered": len(live),
-                              "anchors answered with the filler": 0},
+                              "anchors answered with the filler": 0,
+                              "the completion screen": INTERVIEW_DONE_TITLE},
                              {"what the stranger did with each anchor the host wrote":
                                   stranger_stories.typed(plans),
                               "paths taken": paths,
                               "answered": answered, "picked": picked,
+                              "the completion screen": sent,
                               "the corpus person's own words and answers, used": theirs_used,
                               "the model asked what the corpus did not, so the page's own answer "
                               "was taken": fell_back})
             assert answered, "the stranger typed nothing anywhere"
+            # 042's last screen. `send()` already waited on the one clause that means *stored*;
+            # this is the other half of what the stranger is left looking at, and it is the whole
+            # of what sits between the send and the founder's own screens.
+            assert sent["title"] == INTERVIEW_DONE_TITLE, (
+                f"the interview ended on {sent['title']!r}, not on the completion screen's own "
+                f"{INTERVIEW_DONE_TITLE!r}")
             # **Not an assertion about words** (FR-007). It is an assertion about *this harness*:
             # every anchor the host drew got a story or a tap, and the retired filler went into
             # none of them. A referee that types a guess cannot then fail the product for not

@@ -104,31 +104,51 @@ def test_carried_choice_is_none_when_the_link_carries_nothing_wanted(entry, peop
 def test_page_choice_falls_back_to_whatever_offers_say_roughly():
     """When no corpus candidate survives, B8 is aimed at the page's own interval control -- and the
     *other* candidates handed back are its siblings, because `options_for` deliberately drops the
-    *other, say what* row and so cannot be asked which control carries one."""
+    *other, say what* row and so cannot be asked which control carries one.
 
-    class FakeParticipant:
-        def __init__(self, options):
-            self.options = options
+    The option rows come **with the anchor**, from `ParticipantPage.questionnaire()`'s walk, since
+    keel-web 042 put one occasion on a screen: a control three parts along is not on the screen
+    showing and asking the live page for it would raise on a healthy interview (`runs/DRIFT.md`
+    #71). The page object is handed in and deliberately never consulted, which is what the
+    exploding stand-in below asserts.
+    """
 
-        def options_for(self, prompt, *, anchor_prompt=None):
-            return self.options.get((anchor_prompt, prompt), [])
+    class NeverAsked:
+        def options_for(self, prompt, *, anchor_prompt=None):  # pragma: no cover - must not run
+            raise AssertionError(
+                "the live screen was asked for an option list the walk already carried")
 
-    drawn = [{"prompt": "An anchor with no scale.", "selections": ["Who took it in?"]},
-             {"prompt": "An anchor with one.", "selections": ["How long did it take?",
-                                                              "What did you do? Pick all."]}]
-    participant = FakeParticipant({
-        ("An anchor with no scale.", "Who took it in?"): ["me", "a member of staff"],
-        ("An anchor with one.", "How long did it take?"): ["under 15 min", "8 h to 1 day",
-                                                            "more than 1 day, say roughly"],
-        ("An anchor with one.", "What did you do? Pick all."): ["recounted by hand", "let it go"],
-    })
-    anchor_prompt, selection_prompt, others = s004._page_choice(participant, drawn)
+    drawn = [{"prompt": "An anchor with no scale.", "part": 1,
+              "selections": ["Who took it in?"],
+              "options": {"Who took it in?": ["me", "a member of staff"]}},
+             {"prompt": "An anchor with one.", "part": 2,
+              "selections": ["How long did it take?", "What did you do? Pick all."],
+              "options": {"How long did it take?": ["under 15 min", "8 h to 1 day",
+                                                    "more than 1 day, say roughly"],
+                          "What did you do? Pick all.": ["recounted by hand", "let it go"]}}]
+    anchor_prompt, selection_prompt, others = s004._page_choice(NeverAsked(), drawn)
     assert anchor_prompt == "An anchor with one."
     assert selection_prompt == "How long did it take?"
     assert others == ["What did you do? Pick all."]
 
-    nothing = FakeParticipant({("An anchor with no scale.", "Who took it in?"): ["me"]})
-    assert s004._page_choice(nothing, drawn[:1]) == (None, None, [])
+    assert s004._page_choice(NeverAsked(), drawn[:1]) == (None, None, [])
+
+
+def test_page_choice_reaches_an_occasion_that_is_not_the_first_part():
+    """The pager's own failure mode, stated. The only *say roughly* on this interview is on part
+    **three**; a choice made over the screen showing would have found none at all, which is the
+    sentence the live run died on before spec 028 (*"this link carries no anchor with a say roughly
+    control"*, `runs/DRIFT.md` #44)."""
+    drawn = [{"prompt": "Part one's occasion.", "part": 1, "selections": ["Who took it in?"],
+              "options": {"Who took it in?": ["me", "a member of staff"]}},
+             {"prompt": "Part two's occasion.", "part": 2, "selections": [], "options": {}},
+             {"prompt": "Part three's occasion.", "part": 3, "selections": ["How much, that time?"],
+              "options": {"How much, that time?": ["under $10", "more than $100, say roughly"]}}]
+
+    anchor_prompt, selection_prompt, others = s004._page_choice(None, drawn)
+
+    assert (anchor_prompt, selection_prompt, others) == (
+        "Part three's occasion.", "How much, that time?", [])
 
 
 # ----------------------------------------------------- the cap is keel-runtime's, not a copy
