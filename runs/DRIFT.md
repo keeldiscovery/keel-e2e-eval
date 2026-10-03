@@ -4911,3 +4911,64 @@ would close the model claim and the effort claim in one line, for all three host
 *the flag the CLI was actually given* a fact a bundle carries rather than an inference from two
 repositories' source. Until then *"the effort reached the CLI"* is an inference on Copilot and an
 unmeasured blank on Codex.
+
+## 73. Owed (keel-e2e-eval's own, and it was hiding behind #71): §1.7's **deck** half reads a panel keel-web **038** replaced -- `.panel__word`, `.panel__claim` and the *Held / Did not hold* `<dl>` are all gone
+
+**Found by the re-run that proved #71 fixed** -- run **37147770058**, job **111275179422**, bundle
+`20261003T192535Z-s012-journey-copilot`, `score 2.0`, `policy_version 10`, scenario wall clock
+**611.3 s**. 244 steps, 243 green. The participant leg is green end to end for the first time since
+keel-web 042, five people answered, the readings ran, §1.7a passed and the host wrote the brief's
+*What this says* paragraph. The one red is the last step:
+
+```
+§1.7: the deck -- one band per stage, coloured by the verdict the wire sent, and one panel per
+      band saying it in words
+AssertionError: a panel carries no status word at all: ['COMMERCIAL', 'SOLUTION', 'PROBLEM']
+                -- colour would be the only carrier of those verdicts
+```
+
+**It is this repository's, not keel-web's, and not a fault at all on the product's side.** Every
+panel came back `word: ""`, `tone: null`, `claim: ""`, `parts: {}` -- and `name`, `wash`, `worst`
+and `count` came back right, so the panel is on the page and drawing: *Will they pay · both
+deal-breakers hold · 5 people answered*, *The problem · 2 of 4 deal-breakers hold · 5 people
+answered* (`panel--warn`, `panel--worst`). The bands are right too and say the verdict in words
+(*The problem — People disagree*), against a wire that sent
+`{PROBLEM: MIXED, SOLUTION: SUPPORTED, COMMERCIAL: SUPPORTED}`. What the referee cannot read is
+four regions keel-web **spec 038** (`038-overview-board`, merged `4540aa3` 2026-10-01; design
+`overview-board-design.md`, APPROVED 2026-10-01, third pass) stopped drawing:
+
+| `Overview._PANEL_JS` reads | keel-web 038 draws (`src/components/brief/StagePanel.tsx`) |
+|---|---|
+| `.panel__word`, tone off `st-*` | **`.panel__pill`** carrying `status.label` and a glyph, tone off `panel__pill--<tone>` |
+| `.panel__claim` | **nothing** -- the panel carries no claim any more |
+| `dl.panel__body`'s `dt`/`dd` pairs -- *Held* / *Did not hold*, `li > b`/`.tag`/`.fails__line`/`.pip`, and a `button.more` tail | **`.snap` / `.snaps` / `.snaprow`** -- a *deal-breaker snapshot*: `data-state` **A** *No major blockers*, **B** up to two failed deal-breaker headings (`.ln`) then a `+N more ›` tail (`.tailrow .tail`), **C** *N answered of the floor* |
+| -- | `data-state` **A/B/C** on the panel itself, which is the shape the rest should be read through |
+
+**Why nothing noticed for two days.** §1.7's deck half is the one part of S-012 that **had never
+run**: #71's participant red stopped every cell of the matrix before the readings, so the deck was
+reached with **no reading** (where it passes -- *Nothing to hand over yet*, state C) and never once
+with five. keel-cloud-docs `canon/drafts/matrix-codex-copilot-v8-2026-10-03.md` §2 lists it under
+*"not reached, and so proved by nothing here"*; this is what was behind that line.
+
+**It is a design-level follow-up and not a rename, which is why `028-interview-pager` did not
+guess at it.** Three of §1.7's assertions have lost their **subject**, not their selector:
+*"three panels of Held and Did not hold"*, *"the worst panel open at rest"* and the tails
+`Overview.open_every_tail`/`tail_of` expand -- 038's panel has no two-part list and nothing to
+expand. The rule this repository works to is that a scenario follows the product with the reason
+written where the old assertion stood, and writing that needs 038's spec and
+`overview-board-design.md` §4.3 read first. Inventing an assertion against a snapshot nobody here
+has read would be the mistake `evals/policy.py`'s judgement calls are each a correction of.
+
+**The ask**: read keel-web `specs/038-overview-board/spec.md` and
+`canon/designs/overview-board-design.md` §4.3, then move `Overview._PANEL_JS`, `panels()`,
+`worst_panel()`, `open_every_tail()`, `part_of/lines_of/tail_of` and S-012 §1.7 onto the
+deal-breaker snapshot -- the pill and its tone against the verdict the wire sent, `data-state`
+against `dealBreakersHolding`/`dealBreakersTotal`, and the B state's headings and `+N more ›`
+against `GET /standing`'s own lists. Until then the matrix's last step is red on every cell that
+reaches it, and the deck is the last thing between a green journey and the promotion.
+
+**What the re-run did prove**, and it is most of what #71 took away: the whole participant leg
+(the opening screen, Begin, both parts, *Send my answers*, the completion screen -- five strangers,
+five sends), §2.1/§2.1a/§2.3, the five readings (`light` tier), §1.6's toast, §1.7a's *no stage
+entirely untested*, and §1.7's *What this says* paragraph. The brief and the deck's download gate
+were reached; the deck's panels are where it stops.
