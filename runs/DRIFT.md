@@ -4912,7 +4912,7 @@ would close the model claim and the effort claim in one line, for all three host
 repositories' source. Until then *"the effort reached the CLI"* is an inference on Copilot and an
 unmeasured blank on Codex.
 
-## 73. Owed (keel-e2e-eval's own, and it was hiding behind #71): §1.7's **deck** half reads a panel keel-web **038** replaced -- `.panel__word`, `.panel__claim` and the *Held / Did not hold* `<dl>` are all gone
+## 73. RESOLVED -- was this eval's own, and it was hiding behind #71: §1.7's **deck** half read a panel keel-web **038** replaced -- `.panel__word`, `.panel__claim` and the *Held / Did not hold* `<dl>` were all gone
 
 **Found by the re-run that proved #71 fixed** -- run **37147770058**, job **111275179422**, bundle
 `20261003T192535Z-s012-journey-copilot`, `score 2.0`, `policy_version 10`, scenario wall clock
@@ -4972,3 +4972,57 @@ reaches it, and the deck is the last thing between a green journey and the promo
 five sends), §2.1/§2.1a/§2.3, the five readings (`light` tier), §1.6's toast, §1.7a's *no stage
 entirely untested*, and §1.7's *What this says* paragraph. The brief and the deck's download gate
 were reached; the deck's panels are where it stops.
+
+### Fixed, 2026-10-03 (`029-deck-038`)
+
+**§1.7's deck region follows 038 onto the board, and three assertions are written up where they
+stood rather than moved.** The spec and the design were read first (keel-web
+`specs/038-overview-board/spec.md`, `canon/designs/overview-board-design.md` §4.1-§4.7), because
+three of the four regions had lost their **subject** and a find-and-replace would have invented an
+assertion against a snapshot nobody here had read.
+
+**The one that only lost its selector** -- and the one that actually went red: the status word is
+`span.panel__pill` now, not `span.panel__word`, tone off `panel__pill--<tone>` and not `st-*`
+(FR-006). `_PANEL_JS` reads **both**, the pill where there is one and the old node where there is
+not, so a bundle written before 2026-10-01 still reads the same. It also takes the leading `<i>`
+out of the pill before reporting the word, which is the bug the new unit module caught before any
+cell paid for it: `measuredStatus`'s label with `✓` glued to its front is not the word, and
+FR-007's whole promise is that **the word is alone in there** -- never `statusWithDrift`.
+
+**The three whose subject is gone, each with the FR that removed it:**
+
+| what stood in §1.7 | what it reads now | FR |
+|---|---|---|
+| *three panels of Held and Did not hold*, and `_panel_accounting`'s row-for-row sum against `GET /standing` | **gone.** A card is a snapshot of deal-breakers in three exhaustive, disjoint states, so there is no sum on the screen to put against the wire's. In its place, and stricter about what the card *does* promise: `data-state` against the wire's own verdict and `dealBreakersHolding`/`dealBreakersTotal`; state B's rows against `notHoldingUp` then `peopleDisagree` filtered to the stage and to `LOAD_BEARING`, **heading for heading and glyph for glyph**; the cap of two; `+N more ›` at its own number; the foot in exactly two of the three states | FR-009, FR-010, FR-013 |
+| *the worst panel is open at rest*, read as *no tail on either part* | **the headline word.** No card expands any more -- the whole card is a link and the tail is text inside it -- so the subject (*a founder is shown the worst stage first, without hunting*) is `p.overall`: `measuredStatus(worstStage(stages)).label`, bare, in that stage's own **unwashed** tone. Asserted against the worst card's own pill, so the referee holds no copy of keel-web's strings and the two carriers have to agree. `panel--worst` is asserted **still**, because the phone's CSS hoists off exactly that marker (spec 027 FR-018) | FR-001, FR-008, FR-011 |
+| *N of M lines holding* in the count line | **the ship column's `lines` tile**, against `GET /standing`'s four lists summed. `panelLinesHolding` lost its last caller on this screen and the foot is `panelDealBreakers · panelPeopleAnswered` alone -- but the number did not go, it moved up the page, and `shipCaption` went with it (`ship_caption()` and `ship_counts()` answer empty/`None` here, kept) | FR-003, FR-004, FR-012, FR-025 |
+
+**Two assertions were added that 038 made assertable**, and neither is a loosening: the whole card
+is a link to `/p/{id}/s/{stage}` (FR-008 -- the only door the body has, now that no row carries a
+control), and `TIP_TOO_FEW_TO_CALL` stands under the headline **only** while the project is too few
+to call, which is `UNTESTED` with somebody having answered -- both fields the wire sent (FR-002).
+
+**No timeout was loosened and nothing absent is waited for.** `headline()`, `headline_note()`,
+`tiles()` and `ship_caption()` all read through `_optional_text`/`count()`, the pattern the
+`028-interview-pager` pass introduced after measuring what a `_safe_text` on an absent node costs
+(229 s to seconds, on one change). `open_every_tail()` keeps its `count()` guard and answers `0`
+here, where FR-011 left it nothing to open.
+
+**Held against markup**: `tests/test_overview_board_markup.py`, 20 cases -- the pill with its tone
+and its glyph, the three states' rows, the cap and the tail, the card as the door, the ship column
+and its two tiles, the retired two-part reads answering empty rather than raising, and the red
+step itself reproduced with no browser against staging and no model call (`.panel__word` is not a
+node on that screen). `.venv/bin/python -m pytest tests -q`: **1401 passed** (1381 before).
+
+**What is still owed, and it is not in the matrix.** The same 038 drift sits on the **local-stack**
+scenarios' own §1.7 deck halves -- `evals/test_s001_smoke.py`, `evals/corpus_scenario.py` (S-005,
+S-006, S-007) and `evals/test_s005_countly.py`'s `T027`. All four take their counts off
+`open_every_tail()` + `lines_of(PANEL_HELD/PANEL_DID_NOT_HOLD)` and off `ship_counts()`, which now
+answer `0` and `None` on a board. They are `make eval`'s, not the matrix's; nothing scheduled runs
+them, and the promotion does not wait on them. Their fix is the same judgement pass this entry
+records, done per scenario against what each one is actually for -- the corpus riders compare a
+corpus entry's four counts, which `GET /standing` can still answer for number for number even
+though the card no longer draws them.
+
+**The proof run** is recorded in keel-cloud-docs
+`canon/drafts/matrix-codex-copilot-v8-2026-10-03.md` §5, with its run id and its verdict.

@@ -2251,6 +2251,28 @@ class Overview:
     scenario can assert rather than a crash, and each one's docstring names the read that succeeded
     it. A scenario that wants the old number asks the new reader for it; a scenario that wants to
     say *the old screen is gone* asks the old one.
+
+    ---
+
+    **And the deck became the board** (keel-web spec `038-overview-board`, merged `4540aa3`
+    2026-10-01 and live on staging; keel-cloud `canon/designs/overview-board-design.md` §4,
+    APPROVED 2026-10-01, third pass). Four more regions moved, and `runs/DRIFT.md` **#73** is what
+    reading the old ones cost: every panel came back `word: ""`, `claim: ""`, `parts: {}` on a
+    board that was drawing correctly.
+
+    | the deck (spec 027) | the board (spec 038) | the FR |
+    |---|---|---|
+    | `span.panel__word`, tone off `st-*` | **`span.panel__pill`** -- `measuredStatus(verdict).label` **alone** with a leading glyph, tone off `panel__pill--<tone>` | FR-006, FR-007 |
+    | `p.panel__claim` | **nothing**; the claim is on the stage page and on pages 2-4 of the sheet | FR-013 (design §5.3) |
+    | `dl.panel__body`'s *Held* / *Did not hold* `dt`/`dd` pairs, `li > b`/`.tag`/`.fails__line`/`.pip`, and a `button.more` tail | **the deal-breaker snapshot** -- `data-state` **A**/**B**/**C** on the card, `span.snap`, `span.snaps > span.snaprow` with `i.gl--{bad,warn}` and `span.ln`, and a `span.tailrow > span.tail` reading *+N more ›* | FR-009 … FR-011 |
+    | `a.panel__name` was the one door | **the whole card is an `<a class="panel">`** to `/p/{id}/s/{stage}`; nothing inside it is a second control | FR-008 |
+    | `p.ship__caption` -- *Countly · 18 lines · 12 asked* | **`p.overall`** (the worst stage's own word), `p.overall__why` and **`.tiles .tile`** (two tiles: *lines*, *people asked*) | FR-001 … FR-004 |
+
+    So `panels()` answers both shapes: `word`/`tone` read the pill where there is one and the old
+    `.panel__word` where there is not, and `claim`/`parts` answer empty on the board rather than
+    raising -- the same *retired, not deleted* rule as the reads above. The board's own regions are
+    new keys (`state`, `rows`, `tail`, `href`, `pill`) and three new readers (`headline()`,
+    `headline_note()`, `tiles()`).
     """
 
     #: The legend's four words as keel-web spec 017 wrote them. **Retired from this screen with
@@ -2274,13 +2296,39 @@ class Overview:
     #: stage link, each band's link and the download. The two retired selectors stay at the end of
     #: the list so an older bundle and an older deploy still read the same -- the check's meaning is
     #: unchanged and only the nodes it is read off moved.
-    AFFORDANCE = ".panel__name, .ship a, .deck__foot a, .ocards .see, .evidence__people a"
+    #: `a.panel[data-stage]` leads it since keel-web 038 FR-008: **the whole card is the link**,
+    #: so `.panel__name` is a `<span>` on the board and not the door it was on the deck. Both are
+    #: in the list, and the two retired selectors stay at the end, for the same reason as before --
+    #: the check's meaning is unchanged and only the nodes it is read off moved.
+    AFFORDANCE = ("a.panel[data-stage], .panel__name, .ship a, .deck__foot a, .ocards .see, "
+                  ".evidence__people a")
 
     #: The two parts of a panel, by the words `translate.ts` gives them (`PANEL_HELD`,
     #: `PANEL_DID_NOT_HOLD`). Matched case-insensitively off the `dt`, never by position, because
     #: a part with no lines renders no `dt` at all (`StagePanel`'s `Part` returns `null`).
+    #:
+    #: **2026-10-03 (keel-web 038 FR-009/FR-013): no subject on the board.** The card has no
+    #: two-part list at all -- `PANEL_HELD` and `PANEL_DID_NOT_HOLD` keep their last callers in
+    #: `tests/test_journey_brief_ship_markup.py` and in `evals/`'s local-stack scenarios, and
+    #: `part_of`/`lines_of`/`tail_of` answer empty on a board rather than raising. A reader is
+    #: retired when its words are.
     PANEL_HELD = "held"
     PANEL_DID_NOT_HOLD = "did not hold"
+
+    #: The card's three states, as `data-state` carries them (keel-web 038 FR-009; design §4.3) --
+    #: **exhaustive and disjoint**, in the order the rule is written in: **C** below the floor,
+    #: **A** every deal-breaker holding, **B** otherwise.
+    CARD_STATES = ("A", "B", "C")
+
+    #: The founder's own cap on a state-B card (FR-009, design §4.3): *"just show at most 2 and a
+    #: +2 more."* `StagePanel.ROW_CAP`.
+    ROW_CAP = 2
+
+    #: The five words `measuredStatus` can put in a pill, lower-cased. `LEGEND_WORDS` is the first
+    #: four; `UNTESTED` splits in two on whether anybody answered at all (`MEASURED_STATUS_*` in
+    #: keel-web `translate.ts`), and both are `mute`.
+    STATUS_WORDS = ("holding up", "not holding up", "people disagree", "not asked yet",
+                    "too few to call")
 
     def __init__(self, page: Page, *args: Any, party: str = "founder"):
         self.page = page
@@ -2308,9 +2356,16 @@ class Overview:
         return (self.page.locator("svg.ship[aria-label]").first.get_attribute("aria-label") or "")
 
     def ship_caption(self) -> str:
-        """`p.ship__caption` -- *Countly · 18 lines · 12 asked* (`shipCaption`, FR-007). The
-        successor to the evidence bar's project line and to half of `lines_with_answers()`."""
-        return _safe_text(lambda: self.page.locator(".ship__caption").first.inner_text())
+        """`p.ship__caption` -- *Countly · 18 lines · 12 asked* (`shipCaption`, spec 027 FR-007).
+        The successor to the evidence bar's project line and to half of `lines_with_answers()`.
+
+        **2026-10-03: no subject on the board** (keel-web 038 FR-004 -- *"`shipCaption` loses its
+        only caller. The string stays in `translate.ts` with a dated note, because a string is
+        retired by the founder and not by a layout."*). The ship column draws `headline()`,
+        `headline_note()` and `tiles()` in its place, and the two numbers this carried are the two
+        tiles. Answers `''` there, off a `count()` and not a wait.
+        """
+        return _optional_text(self.page.locator(".ship__caption"))
 
     def ship_counts(self) -> tuple[int, int] | None:
         """`(lines, asked)` off the caption, or `None` when it never rendered.
@@ -2320,6 +2375,11 @@ class Overview:
         many people were asked. The per-stage half of the old number -- how many of a stage's lines
         are holding -- is `panels()[i]["count"]`, and the whole-project roll-up is `GET
         /v2/projects/{id}/standing`'s own four lists, which is where a scenario should take it from.
+
+        **2026-10-03: `None` on the board** (keel-web 038 FR-004, with `ship_caption()`). The
+        line count is `tiles()[0]["value"]` and the people-asked count is `tiles()[1]["value"]`;
+        the per-stage *N of M lines holding* clause went with `panelLinesHolding`'s last caller
+        (FR-012/FR-025), and the card's foot is `panelDealBreakers · panelPeopleAnswered` alone.
         """
         text = self.ship_caption()
         lines = re.search(r"(\d+)\s+lines?\b", text)
@@ -2352,12 +2412,33 @@ class Overview:
 
     # ---------------------------------------------------------------------- the deck: the panels
 
-    #: One panel, read in the browser rather than in Python: `dl.panel__body` is a flat run of
-    #: `dt`/`dd` pairs, so pairing a part's label with its own rows is a walk over sibling nodes
-    #: and not something a CSS selector can express. Everything this returns is text the page
-    #: already drew.
+    #: One panel, read in the browser rather than in Python -- **both shapes of it**, because the
+    #: harness floats at keel-web's HEAD and a bundle written before 2026-10-01 is still read with
+    #: the same reader.
+    #:
+    #: The deck's `dl.panel__body` is a flat run of `dt`/`dd` pairs, so pairing a part's label with
+    #: its own rows is a walk over sibling nodes and not something a CSS selector can express. The
+    #: board's snapshot (keel-web 038 FR-009 … FR-011) is a run of `span.snap` / `span.snaps >
+    #: span.snaprow`, where the row's own glyph (`i.gl--bad` / `i.gl--warn`) is the only carrier
+    #: left of *not holding up* versus *people disagree*, so it is read as a field of its own.
+    #: Everything this returns is text the page already drew; nothing here is computed.
     _PANEL_JS = r"""(el) => {
       const text = (n) => n ? n.textContent.replace(/\s+/g, ' ').trim() : '';
+      //: **The words of a node with its glyph taken out.** Every region 038 added carries its
+      //: tone as a leading `<i>` -- the pill's `✓`/`!`/`✕`/`–` (FR-006) and each snapshot row's
+      //: `i.gl` (FR-009) -- and `.snap` carries its own string as a bare text node beside that
+      //: `<i>`, so there is no inner element to read the words off. Removing the `<i>` is the only
+      //: way to get the word alone, and the word alone is what FR-007 promises is in the pill.
+      const said = (n) => {
+        if (!n) return '';
+        const copy = n.cloneNode(true);
+        for (const gl of Array.from(copy.querySelectorAll('i, .gl'))) gl.remove();
+        return copy.textContent.replace(/\s+/g, ' ').trim();
+      };
+      const toneOf = (n, prefix) => (Array.from(n?.classList || [])
+          .find((c) => c.startsWith(prefix)) || '').replace(prefix, '') || null;
+
+      // ---- spec 027's two-part list. Absent on the board: `parts` is then `{}` (FR-009/FR-013).
       const parts = {};
       const body = el.querySelector('dl.panel__body');
       if (body) {
@@ -2378,20 +2459,49 @@ class Overview:
           }
         }
       }
+
+      // ---- spec 038's snapshot. One row per `.snap` (states A and C) or `.snaprow` (state B),
+      // in the DOM's own order, with the tail -- itself a `.snaprow` -- marked as such.
+      const rows = [];
+      for (const node of Array.from(el.querySelectorAll('.snap, .snaps .snaprow'))) {
+        const tail = node.querySelector('.tail');
+        const line = node.querySelector('.ln');
+        rows.push({
+          tone: toneOf(node.querySelector('.gl'), 'gl--'),
+          text: said(node),
+          heading: text(line),
+          tail: Boolean(tail),
+          box: toneOf(node, 'snap--'),
+        });
+      }
+
       const classes = Array.from(el.classList);
+      const pill = el.querySelector('.panel__pill');
+      const legacy = el.querySelector('.panel__word');
       return {
         stage: el.getAttribute('data-stage'),
+        //: keel-web 038 FR-009: `A` / `B` / `C`, and `null` on a spec 027 deck, which had no state.
+        state: el.getAttribute('data-state'),
         wash: (classes.find((c) => c.startsWith('panel--') && c !== 'panel--worst') || '')
                  .replace('panel--', '') || null,
         worst: classes.includes('panel--worst'),
         lit: classes.includes('lit'),
         name: text(el.querySelector('.panel__name')),
-        word: text(el.querySelector('.panel__word')),
-        tone: (Array.from(el.querySelector('.panel__word')?.classList || [])
-                 .find((c) => c.startsWith('st-')) || '').replace('st-', '') || null,
+        //: **The status word, wherever the panel carries it** -- `.panel__word` on a deck,
+        //: `.panel__pill` on a board (FR-006). The subject never moved; the selector did.
+        word: legacy ? text(legacy) : said(pill),
+        tone: legacy ? toneOf(legacy, 'st-') : toneOf(pill, 'panel__pill--'),
+        //: The pill's own leading glyph -- `✓` good, `!` warn, `✕` bad, `–` mute (FR-006): a
+        //: second carrier beside the tint, never the only one.
+        glyph: text(pill?.querySelector('i')),
+        //: **Retired on the board** (FR-013, design §5.3): the card carries no claim, so this is
+        //: `''` there. The claim is on the stage page and on pages 2-4 of the sheet.
         claim: text(el.querySelector('.panel__claim')),
         count: text(el.querySelector('.panel__count')),
+        //: FR-008: the whole card is the link. `''` on a deck, where `a.panel__name` was.
+        href: el.getAttribute('href') || '',
         parts,
+        rows,
       };
     }"""
 
@@ -2400,15 +2510,38 @@ class Overview:
         order, and stays the DOM order on a phone (keel-web FR-018 hoists the worst panel with
         CSS `order`, never with a second DOM order, so this read is the same on both).
 
-        `{stage, wash, worst, lit, name, word, tone, claim, count, parts}`, where `parts` maps a
-        part's own label (*Held*, *Did not hold*) to its rows. A row is either a line --
-        `{heading, tag, line, pip}` -- or the part's tail, `{more: "2 more ›"}`. **A part with no
-        lines renders no `dt`**, so an absent key means *this stage has nothing in that list*,
-        which is a finding and not a missing node.
+        `{stage, state, wash, worst, lit, name, word, tone, glyph, claim, count, href, parts,
+        rows}`.
+
+        **Six of those are read the same on a deck and on a board**: `stage`, `wash`, `worst`,
+        `lit`, `name` and `count`. Three follow the thing they are about:
+
+        - **`word` / `tone`** -- `span.panel__word` + `st-*` on a deck, `span.panel__pill` +
+          `panel__pill--*` on a board (keel-web 038 FR-006). The pill carries
+          `measuredStatus(verdict).label` **alone**, never `statusWithDrift` (FR-007), and `glyph`
+          is its leading `✓`/`!`/`✕`/`–`.
+        - **`claim`** -- `''` on a board. The card carries no claim (FR-013, design §5.3); the stage
+          page and pages 2-4 of the sheet do.
+        - **`parts`** -- `{}` on a board. There is no two-part *Held* / *Did not hold* list
+          (FR-009). On a deck it maps a part's own label to its rows, a row being either a line --
+          `{heading, tag, line, pip}` -- or the part's tail, `{more: "2 more ›"}`; **a part with no
+          lines renders no `dt`**, so an absent key means *this stage has nothing in that list*,
+          which is a finding and not a missing node.
+
+        And three are the board's own:
+
+        - **`state`** -- `data-state`: `A`, `B` or `C` (FR-009), `None` on a deck.
+        - **`rows`** -- the snapshot, in the DOM's own order. `{tone, text, heading, tail, box}`:
+          `tone` is the row glyph's (`bad`/`warn` on a failing row, `ok`/`wait` elsewhere), `text`
+          is the row's words with the glyph taken out, `heading` is `span.ln`'s own node where
+          there is one, `tail` marks the *+N more ›* row, and `box` is `snap--ok`/`snap--wait` for
+          states A and C. `[]` on a deck.
+        - **`href`** -- the card's own link, because **the whole card is the link** (FR-008).
 
         The successor to `stage_cards()`. The names differ because the things differ: a card had a
-        `.bet`, a minibar, a `.counts` row, a `.must` row and an *Open · N lines ›* door; a panel
-        has its stage's name as a link, one status word, one count line, and the lines themselves.
+        `.bet`, a minibar, a `.counts` row, a `.must` row and an *Open · N lines ›* door; a board's
+        card has its stage's name, one status word in a pill, at most two failing deal-breakers and
+        one foot -- and it is itself the door.
         """
         out: list[dict[str, Any]] = []
         panels = self.page.locator(".panel[data-stage]")
@@ -2424,7 +2557,12 @@ class Overview:
     def part_of(cls, panel: dict[str, Any], label: str) -> list[dict[str, Any]]:
         """A panel's *Held* or *Did not hold* rows, matched on the label case-insensitively (the
         `dt` is CSS-uppercased, so what `inner_text` returns depends on the deploy) -- `[]` when
-        that part has no `dt` at all."""
+        that part has no `dt` at all.
+
+        **2026-10-03: no subject on the board** (keel-web 038 FR-009/FR-013). A card is a snapshot
+        of deal-breakers and has no two-part list, so this answers `[]` for both labels there --
+        empty, which a scenario can assert, and never a raise. `rows_of()` and `fails_of()` are
+        what read the board."""
         for key, rows in (panel.get("parts") or {}).items():
             if key.strip().casefold() == label.strip().casefold():
                 return rows
@@ -2437,22 +2575,74 @@ class Overview:
 
     @classmethod
     def tail_of(cls, panel: dict[str, Any], label: str) -> str | None:
-        """That part's tail, *2 more ›*, or `None` when the part is open."""
+        """That part's tail, *2 more ›*, or `None` when the part is open. **Retired on the board
+        with `part_of()`** -- the board's tail is `card_tail()`, which is text and not a control."""
         return next((row["more"] for row in cls.part_of(panel, label) if "more" in row), None)
 
+    # ------------------------------------------- the board: the card's three states (spec 038)
+
+    @classmethod
+    def state_of(cls, panel: dict[str, Any]) -> str | None:
+        """The card's `data-state` -- `A`, `B` or `C` (keel-web 038 FR-009; design §4.3), `None` on
+        a spec 027 deck, which had no state because it had no three states."""
+        return panel.get("state") or None
+
+    @classmethod
+    def rows_of(cls, panel: dict[str, Any]) -> list[dict[str, Any]]:
+        """Every row of the card's body **except the tail**, in the DOM's own order.
+
+        One row in state A (*No major blockers*) or C (*N people answered · 5 needed*); at most
+        `ROW_CAP` in state B, each one a failing deal-breaker's heading. `[]` on a deck.
+        """
+        return [row for row in (panel.get("rows") or []) if not row.get("tail")]
+
+    @classmethod
+    def fails_of(cls, panel: dict[str, Any]) -> list[dict[str, Any]]:
+        """State B's rows alone -- the ones whose glyph says a deal-breaker failed, `✕` for
+        `CONTRADICTED` (`gl--bad`) and `!` for `MIXED` (`gl--warn`) (FR-010).
+
+        The row glyph is the **only** carrier left of which of the two it is, now that the risk tag
+        and the landed clause have gone (design §5.7), which is why it is read as a field.
+        """
+        return [row for row in cls.rows_of(panel) if row.get("tone") in ("bad", "warn")]
+
+    @classmethod
+    def card_tail(cls, panel: dict[str, Any]) -> str | None:
+        """The card's own tail, *+2 more ›*, or `None` where two or fewer deal-breakers failed.
+
+        **It is not the tail `tail_of()` read** (FR-011). That one was a `button.more` that opened
+        the rest in place; this one is `span.tail` -- **text inside the card's own link**. It opens
+        nothing, holds nothing, fetches nothing and moves nothing, which is why `open_every_tail()`
+        has no subject on the board.
+        """
+        return next((row.get("text") for row in (panel.get("rows") or []) if row.get("tail")), None)
+
     def worst_panel(self) -> str | None:
-        """The `data-stage` of the one panel keel-web marked `panel--worst` (FR-016) -- the worst
-        verdict the wire sent, deepest band breaking a tie. It is the panel that is **open at
-        rest**, so `tail_of()` answers `None` for both of its parts."""
+        """The `data-stage` of the one panel keel-web marked `panel--worst` -- the worst verdict the
+        wire sent, deepest band breaking a tie.
+
+        **The marker stands; what it means changed.** On the deck it marked the panel that was
+        *open at rest* (spec 027 FR-016), and `tail_of()` answered `None` for both of its parts. A
+        board's cards do not expand at all (keel-web 038 FR-008/FR-011), so the marker's whole job
+        is now the one spec 027 FR-018 also gave it: **it is what the phone's CSS hoists to the top
+        of the column**, and keel-web specs 028/029 ship that CSS. The *worst stage leads* half of
+        the old assertion is read on the ship column instead -- `headline()`, FR-001.
+        """
         panel = self.page.locator(".panel--worst[data-stage]")
         return panel.first.get_attribute("data-stage") if panel.count() else None
 
     def open_every_tail(self, *, limit: int = 12) -> int:
         """Click every *N more ›* tail until none is left, and answer how many were clicked.
 
-        A budget moves a number; it never deletes one (keel-web FR-015), so this is how a scenario
-        counts a stage's lines off the screen instead of off the three a panel shows at rest.
-        Clicking opens the rest in place: it fetches nothing and navigates nowhere.
+        A budget moves a number; it never deletes one (keel-web spec 027 FR-015), so this is how a
+        scenario counts a stage's lines off the screen instead of off the three a panel shows at
+        rest. Clicking opens the rest in place: it fetches nothing and navigates nowhere.
+
+        **2026-10-03: no subject on the board** (keel-web 038 FR-011). The founder struck the
+        in-place expander on 2026-09-30, and `+N more ›` is a count inside the card's own link --
+        there is nothing on this screen to expand. This answers `0` there, and answers it off a
+        `count()` rather than a wait, so a scenario that still calls it pays nothing (see
+        `_optional_text`'s own note on what a `.count()`-less read of an absent node costs).
         """
         clicked = 0
         while clicked < limit:
@@ -2462,6 +2652,52 @@ class Overview:
             tails.first.click()
             clicked += 1
         return clicked
+
+    # -------------------------------------------------- the board: the ship column (spec 038)
+
+    def headline(self) -> dict[str, Any]:
+        """`p.overall` -- **the word the whole board leads with** (keel-web 038 FR-001; design
+        §4.1): `measuredStatus(worstStage(overview.stages)).label`, in that stage's own tone, and
+        nothing else. `{word, tone}`, and `{"word": "", "tone": None}` where it never rendered.
+
+        **Bare, with no drift clause and no count** -- drift belongs to a belief, and a project's
+        drift is not a thing. This is where *the worst stage leads* is read now that a card does
+        not expand: the ship column says the worst stage's word before any card is read.
+        """
+        node = self.page.locator("p.overall")
+        if not node.count():
+            return {"word": "", "tone": None}
+        classes = (node.first.get_attribute("class") or "").split()
+        return {"word": _optional_text(node.first).strip(),
+                "tone": next((c.split("-", 1)[1] for c in classes if c.startswith("st-")), None)}
+
+    def headline_note(self) -> str:
+        """`p.overall__why` -- `TIP_TOO_FEW_TO_CALL` verbatim, and **only** while the headline reads
+        *Too few to call* (FR-002). Empty in every other state, by design: the other three tips are
+        written about one belief and are false about a project, and there is no shipped sentence
+        that is true of a project in a good state."""
+        return _optional_text(self.page.locator("p.overall__why")).strip()
+
+    def tiles(self) -> list[dict[str, Any]]:
+        """`.tiles .tile` -- **the two stat tiles** (FR-003): `N` / *lines* from `Standing`'s four
+        lists summed, and `N` / *people asked* from `standing.people.length`.
+
+        `[{value, label}]`, `value` an `int` where the tile drew a number. **Two, not the mock's
+        three**: the market tile duplicates the brand row, which design open question 6 names and
+        the founder's *"two tiles"* answers.
+
+        This is where the ship caption's own line count went: `shipCaption` lost its only caller
+        with FR-004, so `ship_counts()` answers `None` on a board and the number it used to carry
+        is read here.
+        """
+        out: list[dict[str, Any]] = []
+        tiles = self.page.locator(".tiles .tile")
+        for i in range(tiles.count()):
+            tile = tiles.nth(i)
+            raw = _optional_text(tile.locator("b")).strip()
+            out.append({"value": int(raw) if raw.isdigit() else None,
+                        "label": _optional_text(tile.locator(".tile__label")).strip()})
+        return out
 
     # ------------------------------------------------------------------------- the deck: the foot
 
