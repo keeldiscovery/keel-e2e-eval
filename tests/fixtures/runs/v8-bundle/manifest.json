@@ -1,0 +1,10 @@
+{
+  "scenario": "instructions",
+  "host": "claude",
+  "marks_version": 8,
+  "why": {
+    "event": "marks",
+    "version": 8
+  },
+  "started_at": "2026-10-01T04:34:20Z"
+}

@@ -1,0 +1,7 @@
+# slice.yaml with one value changed, failing exactly invariant 3 (spec 029 T004):
+# problem.urgency is asked in V1, so 24 are asked.
+base: ../slice.yaml
+invariant: 3
+key: problem.urgency
+path: [respondent, asked_in_v1]
+value: true

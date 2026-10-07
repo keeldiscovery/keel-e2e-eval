@@ -1,0 +1,7 @@
+# slice.yaml with one value changed, failing exactly invariant 1 (spec 029 T004):
+# solution.trialability's order is 10, so SOLUTION's order is not contiguous.
+base: ../slice.yaml
+invariant: 1
+key: solution.trialability
+path: [order]
+value: 10

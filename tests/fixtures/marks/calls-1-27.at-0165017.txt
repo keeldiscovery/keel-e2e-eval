@@ -1,0 +1,134 @@
+1.  **v1**: exact-match is over matched pairs only, so recall and exactness are not
+    double-counted.
+2.  **v1**: `measure.kind`/`measure.unit` are `n/a` for a Choice pair and excluded from the rate
+    rather than counted as agreeing.
+3.  **v1**: extra beliefs are counted and not marked. Over-generation is a finding first.
+4.  **v1**: band equality is exact, because the phrase table is a fixture, not a judgement.
+5.  **v1**: `GUESSED` precision and recall are mandatory beside accuracy, never optional.
+6.  **v1**: a shape refusal, a schema-invalid answer and a rule refusal are three different lines.
+7.  **v1**: the spread is reported; nothing is averaged before it is reported.
+8.  **v1**: `founderPhrase` is a scored exact-match field, and absent-on-both-sides agrees, because
+    a `CHOICE` has no phrase and requiring one would penalise every Choice belief.
+9.  **v1**: a `NEEDS_INPUT` from an assumption screen whose statement was present is a failed case
+    counted in the recall denominator, per design decision 14 -- not excluded, and not softened.
+10. **v1**: the register is rendered and never scored. A metric here would look like evidence and
+    be similarity to one hand-written example; the design requires a person, so the run records
+    what the person said.
+11. **v2** *(the founder's decision, 2026-09-06, after the baseline)*: **option lists are matched
+    by meaning, not by words.** The corpus's option words are one reasonable phrasing of an answer
+    space; `Q2` requires a belief's list to equal *its own selection's* list and never the
+    corpus's. So a Choice pair with no structural overlap goes to the judge, which decides whether
+    two lists describe the same answer space, and `expected` becomes a judged semantic match
+    rather than a string comparison. The baseline's SOLUTION recall of 0/23 was what forced the
+    question: the produced beliefs were about the same things in different words.
+12. **v2**: `measure.per` is an eighth scored field. `Measure` is a three-field record and its own
+    Javadoc says all three decide equality for `V2`, so a belief whose `per` differs expects a
+    different number and an answer against it places nowhere. Nine of the baseline's fifteen
+    matched interval pairs disagreed on `per` while scoring a clean sheet on every field that
+    existed.
+13. **v2**: an **unmeasured** mark is not a met mark. `refusals` read `0 / met` in the baseline
+    because nothing had been shown to the aggregate yet; a mark with no measurement behind it now
+    fails, as the other two already did for a `None`.
+14. **v2**: the **judged fraction is reported on every run**, per case and overall, so a reader
+    can discount a score by exactly the amount a model decided. Judgement call 11 buys recall at
+    the cost of determinism, and this is the price tag.
+15. **v4** *(spec 009 follow-on, 2026-09-07)*: **a new subject is a rubric change.** The `BRIEF`
+    screen joins the reading and the assumptions, and a fourth mark joins the three:
+    `brief_paragraphs`, the fraction of BRIEF cases that met **all four** of `instructions/brief.py`'s
+    per-case marks (shape, coverage, register, source_material). Adding a subject changes what a
+    passing run means even where every existing number is untouched, so scores before and after
+    this bump are not comparable and the constant says so. (There is no v3 judgement call: v3
+    bumped for keel-cloud's `(stage, anchorId)` pair, recorded in `score.score_reading` itself.)
+16. **v4**: `brief_paragraphs` is **all four marks or nothing**, per case. A paragraph that is the
+    right shape and names no verdict has not half-worked; it is a paragraph a founder would read
+    and be misled by, and averaging the four marks together would hide exactly that.
+22. **v6** *(the founder, 2026-09-12)*: **the rule-refusal mark is a rate, and shape refusals
+    keep their zero.** A rule refusal is the product correcting the model (one extra call, nothing
+    a founder sees), and an absolute zero made one invented unit in 1,179 case-runs a failed host.
+    `rule_refusal_rate` is refusals over the answers the aggregate actually judged -- 63 on a full
+    N=3 run -- so 0.02 reads "at most one correction across the corpus". `shape_refusals` stays
+    an absolute zero: an envelope the runtime had to repair is a different failure. Applied to
+    every host equally, and every earlier bundle can be re-scored under it without spending.
+17. **v4**: **the paragraph is rendered as well as marked.** `brief.md`'s contract is one free-text
+    field, so almost everything about a good paragraph is wording -- design §3.8's *cannot be
+    checked by code*. The four marks cover only what `brief.md` states as a rule; the paragraph
+    itself goes on `register.html` beside its entry's standings, unscored, for the same person who
+    reads the anchors (judgement call 10, one subject wider). A mark this narrow can be wrong
+    about a paragraph that is right, and the run has to leave the evidence for that.
+18. **v4**: **the ordinary-English field names are exempt from `source_material`**, exactly as
+    `evals/policy.py`'s judgement calls 1, 5 and 10 exempt theirs. `inside`, `outside`, `guessed`,
+    `escaped`, `claims`, `beliefs`, `statement`, `heading`, `risk`, `verdict` and `drift` are
+    words `brief.md` itself tells the model to write -- *"how many people landed **inside** the
+    founder's own band"* is the instruction's own sentence -- so sweeping them would flag the
+    paragraph the instruction asks for. What is swept is the shape a field name has and prose does
+    not (`instructions/brief.py`'s `CONTEXT_FIELD_NAMES`).
+19. **v4, and stated before the run rather than after it**: the BRIEF context this eval sends is
+    production's in every field but one -- `median_reads`, which keel-cloud renders with
+    `Measure.say` (rounding minutes to the nearest five above ten, climbing to the largest unit a
+    person would use, putting the market's symbol on money). This repo does not own that
+    arithmetic and will not keep a copy of it (`runs/DRIFT.md` #33/#36/#41/#44/#45, five times the
+    same lesson), so the middle answer goes over in the corpus's own unit: `0.75 hours`, where
+    production would say `45 minutes`.
+
+    **`brief.md` names that exact string as a wrong way to say a number** -- *"you quote it
+    exactly: 45 minutes, not forty-five minutes, not 0.75 hours"* -- so on the one corpus entry
+    whose deciding line has a median (`01-countly`'s `P3`), a model is caught between the rule and
+    the example. Whichever it does is worth recording, and the `coverage` mark scores it against
+    the **rule**: quote what you were handed. A miss there is this eval's own limit, named here,
+    and never a keel-cloud finding. What would close it is a context keel-cloud exports rather than
+    one this repo assembles; that is a spec, not a rerun.
+20. **v5** *(the first BRIEF run, `runs/20260908T004022Z-instructions`, $1.20 over seven real
+    calls, and no rerun)*: **the design's verdict phrase is observed and never marked.** v4's
+    `coverage` required each claim's verdict to be named in `FounderVoice`'s own words -- *holding
+    up*, *not holding up*, *people disagree*, *still asking*. The run came back **0 of 7**, and
+    reading the paragraphs showed the mark was wrong, not the instruction: `brief.md`'s own next
+    sentence is *"Write them into ordinary sentences -- 'the problem is real', 'nobody pays
+    anything like that today'"*, and that is exactly what came back (*"The problem is real"*,
+    *"Your solution splits twice"*, *"On price the ground is firm"*). A code check on the words
+    scores the paragraph the instruction asks for as a failure, which is judgement call 10's rule
+    arriving from the other direction. So `verdict_phrasing` records per stage whether the phrase
+    appears, `register.html` renders it beside the paragraph, and a person decides.
+21. **v5**: **a split is counted from both sides.** v4's *no invented `N of M`* allowed only
+    `inside` of `inside + outside`. `brief.md`'s third thing a paragraph says is *who the split is
+    between*, named by the answers people gave -- *"six of nine had a member of staff take the
+    delivery in; three took it in themselves"* -- so `outside` of the same total is a count the
+    standings contain too. `02-compliancelog` was marked down for *6 of 10 rebuilt the draft they
+    were handed*, which is its own line's `outside` read out exactly as asked.
+
+    Both fixes were made **from that run's own bundle and re-scored without spending again**
+    (`python -m instructions.rescore`), which is what a versioned rubric and a kept bundle are
+    for. The v4 scorecard stays in the bundle beside the v5 one; neither overwrites the other.
+23. **v7** *(the founder, 2026-09-13)*: **the `shape` fault's length edge follows the contract**,
+    which moved `whatThisSays` from 1 200 to 2 000 characters (keel-cloud
+    `ScreenResponseContracts.WHAT_THIS_SAYS_MAX`, `runs/DRIFT.md` #68). The four marks and
+    `brief_paragraphs`'s number are unchanged; a paragraph is judged against the edge production
+    actually enforces. **Transcribed here at v8 from `marks.toml`, which has cited it since v7 while
+    this list did not carry it** (spec 025 FR-003). It is a transcription and not a new call: no
+    number and no rule moves with it, and the list is now what it says it is -- append-only and
+    complete.
+24. **v8** *(the founder, 2026-09-30; `one-occasion-once-design.md` §8.2)*: **the match key is the
+    bare `anchorId` again, because the questionnaire is the project's.** v3 made it
+    `(stage, anchorId)` when a stage owned its questionnaire and three of them each numbered from
+    `A1`. One questionnaire per project makes `Q7` project-wide, so the pair carries no information
+    the id does not, and a `stage` on an anchoring names nothing -- a merged occasion serves more
+    than one stage's beliefs.
+25. **v8** *(design §8.2)*: **a corpus anchor's `stage` becomes `stages`, a list, and is a label
+    rather than a key.** `Entry.anchors_for(stage)` returns the anchors whose `stages` contain it,
+    and one anchor may be returned for two stages. Scores before and after are not comparable and
+    the constant says so.
+26. **v8** *(design §6A.8)*: **a belief that reads another belief's measurement is aligned and
+    counted as an ordinary belief.** Two lines reading one control are two lines in the recall
+    denominator; the control they share is one, and `anchoring_accuracy` counts person-anchor pairs
+    rather than controls, so it does not see the change.
+27. **v8, and it is the correction 26 was written conditional on** *(design §6A.8: "That answer
+    depends on one fact this pass did not verify ... Spec 049's first task is to check it")*: **the
+    expectation is copied here, not by the server, because this eval scores the model's raw
+    answer.** `runner.py` stores `response["result"]` and applies it to nothing; `score.py` hands
+    `result["assumptions"]` straight to `align.align`; `produced_view` reads `belief["expectation"]`
+    and a belief carrying only `reads` has none, so `structural_candidate` refuses it on `type`
+    before a judge is ever asked. keel-cloud's validator is shelled for a verdict and never hands an
+    applied `Assumption` back. So `align.resolve_reads` copies the referent's whole expectation out
+    of the `earlier_lines` **this eval itself numbered and sent**, before alignment, and a reference
+    that cannot be resolved is counted as `unresolved_reads` and left to fail to match. 26 holds
+    *because of* this call, not in spite of it: with it, `align.FIELDS` does not change and the
+    recall denominator does not change.

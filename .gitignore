@@ -2,6 +2,8 @@ __pycache__/
 *.py[cod]
 .venv/
 runs/
+# spec 029: a two-file fixture bundle the rescore refusal is tested on (not a run).
+!tests/fixtures/runs/
 node_modules/
 .pytest_cache/
 .specify/feature.json

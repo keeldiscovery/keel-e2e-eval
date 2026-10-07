@@ -29,12 +29,12 @@ fixes. `DRY=1` (T028) spends nothing.
 
 **Purpose**: the inputs read once and the fixtures every later phase tests against.
 
-- [ ] T001 Read, in full, before writing a line: `contracts/marks-v9.md` §1–§8, `contracts/marks-v9.toml`, `contracts/dimension-registry.yaml` (header, `common`, the `problem.*` entries, `checks`), `contracts/screen-shapes.md`, `phase0-reconciliation.md` §B (keel-cloud-docs drafts; decisions 5, 8, 9, 14, 15, 16, 17), `HANDOFF.md` §4; this repository's `instructions/*.py`, `tests/test_instruction_*.py`, `specs/025-one-occasion-marks/{plan,tasks}.md`; the frozen `03-lullaby.yaml` (r2, read only). Record the `make unit` baseline count at `a673a67` as Discovered D1 in `specs/029-marks-v9-vectors/tasks.md`.
+- [X] T001 Read, in full, before writing a line: `contracts/marks-v9.md` §1–§8, `contracts/marks-v9.toml`, `contracts/dimension-registry.yaml` (header, `common`, the `problem.*` entries, `checks`), `contracts/screen-shapes.md`, `phase0-reconciliation.md` §B (keel-cloud-docs drafts; decisions 5, 8, 9, 14, 15, 16, 17), `HANDOFF.md` §4; this repository's `instructions/*.py`, `tests/test_instruction_*.py`, `specs/025-one-occasion-marks/{plan,tasks}.md`; the frozen `03-lullaby.yaml` (r2, read only). Record the `make unit` baseline count at `a673a67` as Discovered D1 in `specs/029-marks-v9-vectors/tasks.md`.
 - [ ] T002 When keel-cloud 058 lands: re-read its actual `screenContracts compare` CLI, its `dimension-registry.json` export and its `ScreenContractTool` case kinds against `specs/029-marks-v9-vectors/contracts/screen-shapes.md` §2, §5, §6; correct **this feature's** contracts page and research R3/R4/R10, never the sibling; record the diff as Discovered.
-- [ ] T003 [P] Extract judgement calls 1–27 once from `master` (`git show 0165017:instructions/marks.py`, the module docstring from `1.` to the end of `27.`) into `tests/fixtures/marks/calls-1-27.at-0165017.txt`, byte for byte, for SC-001.
-- [ ] T004 [P] Write `tests/fixtures/registry/slice.yaml`: a hand-sized 25-key registry in `contracts/dimension-registry.yaml`'s shape (Lullaby values; every `founder.normalized`, `respondent.*`, `answers.*`, `weight`, `order`), passing all seven invariants, and `tests/fixtures/registry/broken/` with one file per invariant that fails exactly it.
-- [ ] T005 [P] Write `tests/fixtures/corpus/09-fixture-r3.yaml` (data-model §2: `revision: 3`, 12 people — 2 `recency: no`, 1 `chip: cant_recall`, 1 vague `GUESSED`, 8 `ANCHORED`; `founder_calibration` on 25 keys with two `unsure`; `respondent_questions` 8/9/6; `expected.standings` on 25; `vector_verdicts`) and `tests/fixtures/corpus/10-fixture-r3-b2b.yaml` (`persona.decision_maker: {role: buyer}`). Neither is a corpus entry; values are invented and small.
-- [ ] T006 [P] Write `tests/fixtures/compare/09-fixture.agree.out.json` (an engine output matching `09-fixture-r3.yaml`'s `expected` on all 28 marked keys, with `belief_sentence` and counts), `tests/fixtures/compare/09-fixture.disagree.out.json` (two rows wrong: one `status`, one `deciding`), and `tests/fixtures/runs/v8-bundle/{manifest.json,scorecard.json}` (`marks_version: 8`, the v8 record's shape) for the rescore refusal.
+- [X] T003 [P] Extract judgement calls 1–27 once from `master` (`git show 0165017:instructions/marks.py`, the module docstring from `1.` to the end of `27.`) into `tests/fixtures/marks/calls-1-27.at-0165017.txt`, byte for byte, for SC-001.
+- [X] T004 [P] Write `tests/fixtures/registry/slice.yaml`: a hand-sized 25-key registry in `contracts/dimension-registry.yaml`'s shape (Lullaby values; every `founder.normalized`, `respondent.*`, `answers.*`, `weight`, `order`), passing all seven invariants, and `tests/fixtures/registry/broken/` with one file per invariant that fails exactly it.
+- [X] T005 [P] Write `tests/fixtures/corpus/09-fixture-r3.yaml` (data-model §2: `revision: 3`, 12 people — 2 `recency: no`, 1 `chip: cant_recall`, 1 vague `GUESSED`, 8 `ANCHORED`; `founder_calibration` on 25 keys with two `unsure`; `respondent_questions` 8/9/6; `expected.standings` on 25; `vector_verdicts`) and `tests/fixtures/corpus/10-fixture-r3-b2b.yaml` (`persona.decision_maker: {role: buyer}`). Neither is a corpus entry; values are invented and small.
+- [X] T006 [P] Write `tests/fixtures/compare/09-fixture.agree.out.json` (an engine output matching `09-fixture-r3.yaml`'s `expected` on all 28 marked keys, with `belief_sentence` and counts), `tests/fixtures/compare/09-fixture.disagree.out.json` (two rows wrong: one `status`, one `deciding`), and `tests/fixtures/runs/v8-bundle/{manifest.json,scorecard.json}` (`marks_version: 8`, the v8 record's shape) for the rescore refusal.
 
 ---
 
@@ -258,4 +258,18 @@ founder's to type, and are the only unticked boxes that should be left when the 
 What the code turned out to say that the spec, the plan or this file did not. Each entry names the
 task it was found under. Nothing here is a change of mind about the design; it is what the work met.
 
-- **D1 (baseline).** *(T001: the `make unit` count at `a673a67`, before a line was written.)*
+- **D1 (baseline).** *(T001.)* `make unit` at `977b789` (= `a673a67` + plan and tasks, no code):
+  **1401 passed** in 118 s. Taken in the worktree with `stack.toml`'s sibling paths pointed one
+  level further up (`../../../../keel-*`, marked `skip-worktree`, never committed): the committed
+  `../keel-cloud` resolves to `.claude/worktrees/keel-cloud` from a worktree, and every test that
+  reads a sibling refuses at import there.
+- **D2 (T004).** The seven `broken/` registry fixtures are **patches** of `slice.yaml`
+  (`{base, invariant, key, path, value}`), not seven 800-line copies: one value changed each,
+  applied by the test, and each fails exactly the invariant it names.
+- **D3 (T005, r3 schema).** The golden plan carries **`problem.prevalence` itself** (`part: 1,
+  control: gate_yes_no, codes: [yes, no]`): the registry asks it in Part 1 and counts it in the 8,
+  so `respondent_questions` must hold it for `plan()` to equal the file (marks §5's excerpt leaves
+  it as a comment). And `problem.importance`'s plan row carries **`own_item: <code>`**: both the
+  engine (the share who picked the problem's own item, A-7) and `option_validity` (*never first*)
+  need to know which code is the problem's, and nothing else in r3 says. A third ask of the r3
+  writer beside O-2/O-3.
