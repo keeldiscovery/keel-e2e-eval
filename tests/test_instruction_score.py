@@ -232,3 +232,176 @@ def test_totals_roll_calibration_into_the_three_marks(entry, registry):
     assert totals["calibration_validity"] == {"hit": 17, "of": 17}
     assert totals["option_validity"] == 1.0
     assert totals["no_leak"] == 1.0
+
+
+# --------------------------------------------- US3: respondent (063; calls 30-32, marks §2.2-§2.3)
+
+def _respond(entry, registry, part, mutate=None, *, link="PRIMARY", judge=None, label_only=False):
+    result = fx.respondent_result(entry, part, link=link, label_only=label_only)
+    if mutate:
+        mutate(result)
+    return score_mod.score_respondent(fx.respondent_case(entry, part, link=link), entry,
+                                      registry, entry.plan(), result, judge=judge)
+
+
+def _item(result, key):
+    return next(i for i in result["items"] if i["key"] == key)
+
+
+@pytest.mark.parametrize("part, count, sweeps", [(1, 8, 16), (2, 9, 9), (3, 6, 6)])
+def test_coverage_per_part_is_the_plan_exactly_once_each(entry, registry, part, count, sweeps):
+    score = _respond(entry, registry, part)
+    assert (score.coverage_hit, score.coverage_of) == (count, count)
+    assert (score.validity_hit, score.validity_of) == (count, count), score.faults
+    assert (score.leak_clean, score.leak_of) == (sweeps, sweeps), \
+        "sweep A on Part 1's items, sweep B on every item"
+
+
+def test_a_label_only_answer_is_held_to_the_count(entry, registry):
+    score = _respond(entry, registry, 1, label_only=True)
+    assert score.validity_hit == score.validity_of == 8, score.faults
+
+
+def _options(result, key):
+    return _item(result, key)["options"]
+
+
+@pytest.mark.parametrize("name, mutate, words", [
+    ("control", lambda r: _item(r, "problem.severity").__setitem__("control", "single_choice"),
+     "control 'single_choice'"),
+    ("founder code missing", lambda r: _options(r, "problem.consequence").pop(0),
+     "missing code(s) ['late']"),
+    ("a distractor missing", lambda r: _options(r, "problem.consequence").pop(2),
+     "missing code(s) ['missed_train']"),
+    ("something else not last", lambda r: _options(r, "problem.consequence").insert(
+        0, _options(r, "problem.consequence").pop()), "not last"),
+    ("fixed scale grew", lambda r: _options(r, "problem.severity").append(
+        {"label": "Off the scale", "code": "off_scale"}), "nothing added"),
+    ("chips", lambda r: _item(r, "problem.severity").__setitem__("chips", []), "chips []"),
+    ("anchor", lambda r: _item(r, "problem.severity").__setitem__("anchor", "last_purchase"),
+     "anchor 'last_purchase'"),
+    ("own item first", lambda r: _options(r, "problem.importance").insert(
+        0, _options(r, "problem.importance").pop(1)), "own item (finding_keys) is first"),
+    ("not sure", lambda r: _options(r, "problem.severity")[0].__setitem__(
+        "label", "Not sure, really"), "not-sure option"),
+    ("options on a number", lambda r: _item(r, "problem.duration").__setitem__(
+        "options", ["5", "10"]), "options on a number_with_unit control"),
+])
+def test_validity_fails_on_each_respondent_rule_made_to_fail_once(entry, registry, name, mutate,
+                                                                  words):
+    score = _respond(entry, registry, 1, mutate)
+    validity = [f for f in score.faults if f["check"] == "option_validity"]
+    assert len(validity) == 1, (name, score.faults)
+    assert words in validity[0]["evidence"], (name, validity[0]["evidence"])
+
+
+def test_a_founder_number_among_band_edges_is_a_fault_and_a_registry_edge_is_not(entry, registry):
+    good = _respond(entry, registry, 2)
+    assert not [f for f in good.faults if f["key"] == "solution.effectiveness_threshold"]
+    founder = {"value": 7, "unit": "minutes"}
+    dimension = registry.by_key("solution.effectiveness_threshold")
+    row = entry.respondent_questions["solution.effectiveness_threshold"]
+    item = {"key": dimension.key, "question": "How much sooner?",
+            "options": ["Under 7", "7 to 10", "10 to 20", "20 or more", "Nothing would"]}
+    assert any("band edge" in f for f in score_mod.respondent_checks(item, dimension, row, founder))
+    founder["value"] = 5
+    assert score_mod.respondent_checks(dict(item, options=["Under 5", "5 to 10", "10 to 20",
+                                                           "20 or more", "Nothing would"]),
+                                       dimension, row, founder) == [], \
+        "5 is the registry's own edge, never the founder's to have leaked"
+
+
+def test_sweep_a_runs_on_part_one_and_sweep_b_on_every_part(entry, registry):
+    leak_a = _respond(entry, registry, 1, lambda r: _item(r, "problem.severity").__setitem__(
+        "question", "How bad was it before the beep?"))
+    assert [f["sweep"] for f in leak_a.faults if f["check"] == "no_leak"] == ["A"]
+    part2 = _respond(entry, registry, 2, lambda r: _item(r, "solution.compatibility").__setitem__(
+        "question", "When would the beep have helped?"))
+    assert not [f for f in part2.faults if f["check"] == "no_leak"], \
+        "after the reveal the mechanism may be named"
+    leak_b = _respond(entry, registry, 2, lambda r: _item(r, "solution.relative_advantage")
+                      .__setitem__("question", "Would a shorter search have mattered?"))
+    faults = [f for f in leak_b.faults if f["check"] == "no_leak"]
+    assert [f["sweep"] for f in faults] == ["B"] and "a shorter search" in faults[0]["evidence"]
+
+
+def test_sweep_b_catches_a_founder_number_the_registry_did_not_fix(entry, registry):
+    score = _respond(entry, registry, 1, lambda r: _item(r, "problem.duration").__setitem__(
+        "question", "Was it more like 15 minutes?"))
+    assert any("15" in f["evidence"] for f in score.faults if f.get("sweep") == "B")
+    window = _respond(entry, registry, 1, lambda r: _item(r, "problem.frequency").__setitem__(
+        "question", "On how many of the last 7 nights?"))
+    assert not [f for f in window.faults if f["check"] == "no_leak"], \
+        "the founder said up to 4 of 7; the 7 is the registry's window"
+
+
+def test_the_b2b_link_scores_the_six_part_three_items(registry):
+    b2b = fx.entry(fx.ENTRY_B2B)
+    score = _respond(b2b, registry, 3, link="COMMERCIAL_B2B")
+    assert (score.coverage_hit, score.coverage_of) == (6, 6)
+    assert score.validity_hit == 6, score.faults
+    assert score.link == "COMMERCIAL_B2B" and score.subject == "B2B"
+
+
+def test_totals_roll_both_question_screens_into_the_same_three_marks(entry, registry):
+    totals = score_mod.totals([_calibrate(entry, registry)], [_respond(entry, registry, 1),
+                                                              _respond(entry, registry, 2)])
+    assert totals["respondent_coverage"] == {"hit": 17, "of": 17}
+    assert totals["dimension_coverage"] == 1.0
+    assert totals["calibration_leak"]["of"] + totals["respondent_leak"]["of"] == 9 + 16 + 9
+
+
+# -------------------------------------------------------------- US3: INTERPRET (064; call 33)
+
+def _read(entry, name, result):
+    person = entry.person(name)
+    return score_mod.score_interpret(fx.interpret_case(entry, name), entry, person, result)
+
+
+def _answer(entry, name, word, **extra):
+    return {"invitationId": f"{entry.id}/{name}", "anchoring": word, **extra}
+
+
+def test_one_judgement_a_readable_person_keyed_on_the_person(entry):
+    readable = [p.person for p in entry.readable()]
+    scores = [_read(entry, n, _answer(entry, n, entry.person(n).anchoring)) for n in readable]
+    totals = score_mod.totals(interpret_scores=scores)
+    assert totals["people_given"] == 9 and totals["people_answered"] == 9
+    assert totals["anchoring_accuracy"] == 1.0
+    assert totals["confusion"] == {"aa": 8, "ag": 0, "ga": 0, "gg": 1}
+    assert totals["guessed_precision"] == 1.0 and totals["guessed_recall"] == 1.0
+
+
+def test_a_reader_that_answers_anchored_to_everyone_has_guessed_recall_zero(entry):
+    scores = [_read(entry, p.person, _answer(entry, p.person, "ANCHORED"))
+              for p in entry.readable()]
+    totals = score_mod.totals(interpret_scores=scores)
+    assert totals["anchoring_accuracy"] == 8 / 9
+    assert totals["guessed_recall"] == 0.0 and totals["guessed_precision"] is None
+
+
+def test_the_chipped_person_is_never_in_any_count(entry):
+    assert "Jo Judd" not in [p.person for p in entry.readable()]
+    scores = [_read(entry, p.person, _answer(entry, p.person, p.anchoring))
+              for p in entry.readable()]
+    assert all(s.subject != "Jo Judd" for s in scores)
+
+
+def test_a_stage_or_anchor_id_is_neither_read_nor_refused(entry):
+    score = _read(entry, "Ann Abbott", _answer(entry, "Ann Abbott", "ANCHORED",
+                                                stage="PROBLEM", anchorId="A1"))
+    assert score.answered == 1 and score.agreed == 1 and score.shape_fault == 0
+
+
+def test_a_word_outside_the_two_is_a_shape_refusal_counted_against_the_zero(entry):
+    score = _read(entry, "Ann Abbott", _answer(entry, "Ann Abbott", "PROBABLY"))
+    assert score.shape_fault == 1 and score.answered == 0
+    assert score.missing_ids == ["Ann Abbott"]
+    assert score_mod.totals(interpret_scores=[score], shape_refusals=0)["shape_refusals"] == 1
+
+
+def test_another_persons_invitation_is_an_extra_id_and_this_person_missing(entry):
+    score = _read(entry, "Ann Abbott", {"invitationId": "09-fixture/Someone Else",
+                                        "anchoring": "ANCHORED"})
+    assert score.extra_ids == ["09-fixture/Someone Else"] and score.missing_ids == ["Ann Abbott"]
+    assert score.answered == 0

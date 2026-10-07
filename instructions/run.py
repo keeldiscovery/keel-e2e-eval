@@ -559,6 +559,21 @@ def _score(case, entry, answer, failed, state, judge) -> dict:
         diff["line"] = (f"  coverage {score.coverage_hit}/{score.coverage_of} · validity "
                         f"{score.validity_hit}/{score.validity_of} · leak {score.leak_clean}/"
                         f"{score.leak_of} (judged {score.leak_judged})")
+    elif case.kind == "RESPONDENT":
+        score = score_mod.score_respondent(case, entry, entry.registry, entry.plan(), result,
+                                           judge=judge, failed=failed)
+        state.respondent.append(score)
+        diff.update(faults=score.faults, coverage_passed=score.coverage_passed)
+        diff["line"] = (f"  coverage {score.coverage_hit}/{score.coverage_of} · validity "
+                        f"{score.validity_hit}/{score.validity_of} · leak {score.leak_clean}/"
+                        f"{score.leak_of} (judged {score.leak_judged})")
+    elif case.kind == "READING":
+        score = score_mod.score_interpret(case, entry, entry.person(case.subject), result,
+                                          failed=failed)
+        state.interpret.append(score)
+        diff.update(golden=score.golden, produced=score.produced,
+                    missing_ids=score.missing_ids, extra_ids=score.extra_ids)
+        diff["line"] = (f"  {score.produced or 'no word'} (corpus {score.golden})")
     return diff
 
 

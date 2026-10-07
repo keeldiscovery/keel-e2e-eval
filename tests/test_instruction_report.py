@@ -85,3 +85,31 @@ def test_the_register_carries_no_score_tick_cross_met_or_mark(tmp_path, corpus):
     assert "✓" not in html and "✗" not in html
     for word in ("score", "met", "mark"):
         assert not re.search(rf"\b{word}\b", html, re.IGNORECASE), word
+
+
+def test_the_respondent_block_sits_beside_the_plan_with_the_reveal_between_parts(tmp_path, corpus):
+    entry = corpus.entries[0]
+    produced = _produced(fx.registry())
+    for part in (1, 2, 3):
+        produced["03-lullaby"][f"RESPONDENT_PART{part}"] = (
+            f"03-lullaby/RESPONDENT_PART{part}/run1", fx.respondent_result(entry, part))
+    produced["03-lullaby"]["RESPONDENT_B2B"] = (
+        "03-lullaby/RESPONDENT_B2B/run1", fx.respondent_result(entry, 3, link="COMMERCIAL_B2B"))
+    blocks = report_mod.register_blocks(corpus, produced, fx.registry(), _AGGREGATE)
+    block = blocks["GB · en-GB"]["03-lullaby"]
+    assert len(block["respondent"]) == 23
+    gate = block["respondent"][0]
+    assert (gate["key"], gate["part"], gate["control"], gate["codes"]) == (
+        "problem.prevalence", 1, "gate_yes_no", ["yes", "no"])
+    assert block["reveal"]["title"] == "What we are testing"
+    assert len(block["b2b"]) == 6
+
+    html = _visible(report_mod.render_register(tmp_path, entries_by_market=blocks,
+                                               paragraphs={}).read_text(encoding="utf-8"))
+    part1_end = html.index("problem.current_solution_satisfaction</b> · part 1")
+    reveal = html.index("<b>The reveal</b>")
+    part2_start = html.index("solution.compatibility</b> · part 2")
+    assert part1_end < reveal < part2_start, "the reveal sits between parts 1 and 2"
+    assert "The decision-maker's link (COMMERCIAL_B2B)" in html
+    for word in ("score", "met", "mark"):
+        assert not re.search(rf"\b{word}\b", html, re.IGNORECASE), word

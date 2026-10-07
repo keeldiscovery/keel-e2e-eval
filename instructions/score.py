@@ -301,6 +301,247 @@ def score_calibration(case, entry, registry, result, *, judge=None,
     return score
 
 
+# -------------------------------------------------------------- respondent (063; calls 30-32)
+
+#: Respondent controls whose answer is typed or tapped, never picked from a list.
+_FREE_CONTROLS = ("segmented_0_to_7", "number_with_unit", "two_numbers_optional")
+_SOMETHING_ELSE_RE = re.compile(r"^\s*something else\b", re.IGNORECASE)
+_NUMBER_RE = re.compile(r"(?<![\d.])(\d+(?:\.\d+)?)(?![\d.])")
+
+
+def _option_label(option):
+    return option.get("label") if isinstance(option, dict) else option
+
+
+def _option_code(option):
+    return option.get("code") if isinstance(option, dict) else None
+
+
+def _registry_numbers(dimension) -> set:
+    """The numbers a respondent item may carry because the registry puts them there -- band edges,
+    the axis, the 7-night window -- and never because the founder said them."""
+    numbers = set()
+    normalized = dimension.normalized
+    for edge in normalized.get("bins") or []:
+        numbers |= {float(n) for n in _NUMBER_RE.findall(str(edge))}
+    for name in ("axis_max", "axis_step"):
+        if isinstance(normalized.get(name), (int, float)):
+            numbers.add(float(normalized[name]))
+    if "7 nights" in (dimension.founder.get("guidance") or "") or \
+            "7 nights" in (dimension.respondent.get("guidance") or ""):
+        numbers.add(7.0)
+    return numbers
+
+
+def _founder_numbers(answer) -> set:
+    if not isinstance(answer, dict):
+        return set()
+    return {float(v) for k, v in answer.items()
+            if k in ("lower", "upper", "value") and isinstance(v, (int, float))}
+
+
+def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None) -> list:
+    """Every structural rule of marks §2.2's respondent side, for one item; `[]` is valid.
+
+    The result's items carry labels (screen-shapes §3). Where an option also carries its `code`
+    the code checks run in full -- every code of the golden plan present, none foreign, none
+    repeated, `Something else` last, the problem's own item never first on Importance; on a
+    label-only item the count stands in for them."""
+    faults = []
+    control = dimension.respondent.get("control")
+    if plan_row.get("control") not in (None, control):
+        faults.append(f"the plan's control {plan_row.get('control')!r} is not the registry's "
+                      f"{control!r}")
+    if item.get("control") not in (None, control):
+        faults.append(f"control {item.get('control')!r}; the registry's is {control!r}")
+    for name in ("chips", "anchor"):
+        if name in item and item[name] != dimension.respondent.get(name):
+            faults.append(f"{name} {item[name]!r}; the registry's is "
+                          f"{dimension.respondent.get(name)!r}")
+    options = item.get("options")
+    if control in _FREE_CONTROLS:
+        if options:
+            faults.append(f"{len(options)} options on a {control} control")
+        return faults
+    if control == "gate_yes_no":
+        if options and len(options) != 2:
+            faults.append(f"{len(options)} options on the gate; it is Yes or No")
+        return faults
+    if not isinstance(options, list) or not options:
+        return faults + [f"no options on a closed {control} control"]
+    golden = [c for c in plan_row.get("codes") or []]
+    labels = [str(_option_label(o) or "") for o in options]
+    tail_is_else = bool(labels) and bool(_SOMETHING_ELSE_RE.match(labels[-1]))
+    elsewhere = [i for i, label in enumerate(labels[:-1]) if _SOMETHING_ELSE_RE.match(label)]
+    if elsewhere:
+        faults.append("'Something else' is not last")
+    want = [c for c in golden if c != "something_else"]
+    got = len(options) - (1 if tail_is_else else 0) - len(elsewhere)
+    if golden and got != len(want):
+        faults.append(f"{got} options; the plan has {len(want)}"
+                      + (" (the scale is fixed: nothing added)" if control == "single_choice_5"
+                         else ""))
+    codes = [_option_code(o) for o in options]
+    if any(codes):
+        coded = [c for c in codes if c and c != "something_else"]
+        missing = [c for c in want if c not in coded]
+        foreign = [c for c in coded if c not in want]
+        repeated = sorted({c for c in coded if coded.count(c) > 1})
+        if missing:
+            faults.append(f"missing code(s) {missing}")
+        if foreign:
+            faults.append(f"code(s) {foreign} are not the plan's")
+        if repeated:
+            faults.append(f"code(s) repeated: {repeated}")
+        own = plan_row.get("own_item")
+        if own and codes and codes[0] == own:
+            faults.append(f"the problem's own item ({own}) is first")
+    for label in labels:
+        if _NOT_SURE_RE.search(label):
+            faults.append(f"option {label!r} is a not-sure option -- the chip is UI")
+    if control == "single_choice_bands":
+        said = _founder_numbers(founder_answer) - _registry_numbers(dimension)
+        edges = {float(n) for label in labels for n in _NUMBER_RE.findall(label)}
+        if said & edges:
+            faults.append(f"a founder number {sorted(said & edges)} is a band edge")
+    return faults
+
+
+def sweep_b(texts, dimension, founder: dict) -> dict:
+    """Sweep B (call 32): the founder's own value for dimension *d* -- the chosen phrase, or a
+    number they gave that the registry did not fix -- in respondent item *d*. A hit is a fault: the
+    stranger is being told the answer the founder hopes for."""
+    blob = " ".join(str(t) for t in texts if t)
+    hits = []
+    phrase = text_mod.normalise((founder or {}).get("belief_phrase"))
+    if phrase and phrase in text_mod.normalise(blob):
+        hits.append(f"the founder's phrase {phrase!r}")
+    said = _founder_numbers((founder or {}).get("answer")) - _registry_numbers(dimension)
+    shown = {float(n) for n in _NUMBER_RE.findall(blob)}
+    for number in sorted(said & shown):
+        hits.append(f"the founder's number {number:g}")
+    return {"fault": bool(hits), "hits": len(hits), "evidence": "; ".join(hits)}
+
+
+@dataclass
+class RespondentScore(CalibrationScore):
+    part: int = 0
+    link: str = "PRIMARY"
+
+
+def score_respondent(case, entry, registry, plan, result, *, judge=None,
+                     failed: str | None = None) -> RespondentScore:
+    """One `RESPONDENT_QUESTIONS` case (063): coverage against the plan's part (call 30), validity
+    on the respondent side of §2.2, sweep A on Part 1's items (the stranger has not been told the
+    idea yet) and sweep B on every item (the founder's own values, never shown to a stranger)."""
+    part = case.meta.get("part")
+    link = case.meta.get("link") or "PRIMARY"
+    plan = plan if plan is not None else entry.plan(registry)
+    keys = list(plan.get(part) or [])
+    score = RespondentScore(case_id=case.case_id, entry_id=entry.id, subject=case.subject,
+                            run_index=case.run_index, coverage_of=len(keys), failed=failed,
+                            part=part, link=link)
+    items = (result or {}).get("items") if isinstance(result, dict) else None
+    if failed or not isinstance(items, list):
+        score.failed = failed or "the result carried no items list"
+        return score
+    items = [i for i in items if isinstance(i, dict)]
+    produced = [i.get("key") for i in items]
+    coverage = _coverage_faults(produced, keys)
+    score.coverage_passed = not coverage
+    score.coverage_hit = len(keys) if score.coverage_passed else 0
+    for fault in coverage:
+        score.faults.append({"key": None, "check": "dimension_coverage", "evidence": fault})
+    for item in items:
+        key = item.get("key")
+        if key not in keys:
+            continue
+        dimension = registry.by_key(key)
+        plan_row = (entry.respondent_questions or {}).get(key) or {}
+        founder = entry.founder_calibration.get(key) or {}
+        score.validity_of += 1
+        checks = respondent_checks(item, dimension, plan_row, founder.get("answer"))
+        if checks:
+            score.faults.append({"key": key, "check": "option_validity",
+                                 "evidence": "; ".join(checks)})
+        else:
+            score.validity_hit += 1
+        texts = [item.get("question")] + [_option_label(o) for o in item.get("options") or []]
+        if part == 1 and link == "PRIMARY":
+            score.leak_of += 1
+            swept = sweep_a(texts, entry, judge)
+            score.leak_hits += swept["hits"]
+            score.leak_judged += swept["judged"]
+            if swept["fault"]:
+                score.faults.append({"key": key, "check": "no_leak", "sweep": "A",
+                                     "evidence": swept["evidence"]})
+            else:
+                score.leak_clean += 1
+        score.leak_of += 1
+        swept = sweep_b(texts, dimension, founder)
+        score.leak_hits += swept["hits"]
+        if swept["fault"]:
+            score.faults.append({"key": key, "check": "no_leak", "sweep": "B",
+                                 "evidence": swept["evidence"]})
+        else:
+            score.leak_clean += 1
+    return score
+
+
+# ------------------------------------------------------------------ INTERPRET (064; call 33)
+
+@dataclass
+class InterpretScore:
+    case_id: str
+    entry_id: str
+    subject: str                  # the person
+    run_index: int
+    given: int = 1
+    answered: int = 0
+    agreed: int = 0
+    golden: str | None = None
+    produced: object = None
+    confusion: dict = field(default_factory=lambda: {"aa": 0, "ag": 0, "ga": 0, "gg": 0})
+    missing_ids: list = field(default_factory=list)
+    extra_ids: list = field(default_factory=list)
+    shape_fault: int = 0
+    failed: str | None = None
+
+    @property
+    def anchoring_accuracy(self):
+        return _fraction(self.agreed, self.answered)
+
+
+def score_interpret(case, entry, person, result, *, failed: str | None = None) -> InterpretScore:
+    """One read of one gate story: the model's word against the corpus's (call 33, one judgement a
+    respondent). **Keyed on the person**: the result's `invitationId` must be the one the context
+    carried, and a `stage` or an `anchorId` a model writes anyway is neither read nor refused (US3.4).
+    An `anchoring` outside `ANCHORED`/`GUESSED` is a shape refusal, counted against the zero."""
+    expected_id = f"{entry.id}/{person.person}"
+    score = InterpretScore(case_id=case.case_id, entry_id=entry.id, subject=person.person,
+                           run_index=case.run_index, golden=person.anchoring, failed=failed)
+    if failed or not isinstance(result, dict):
+        score.missing_ids = [person.person]
+        return score
+    invitation = result.get("invitationId")
+    if invitation is not None and invitation != expected_id:
+        score.extra_ids = [invitation]
+        score.missing_ids = [person.person]
+        return score
+    answer = result.get("anchoring")
+    score.produced = answer
+    if answer not in ("ANCHORED", "GUESSED"):
+        if answer is not None:
+            score.shape_fault = 1
+        score.missing_ids = [person.person]
+        return score
+    score.answered = 1
+    score.agreed = int(answer == person.anchoring)
+    key = ("g" if person.anchoring == "GUESSED" else "a") + ("g" if answer == "GUESSED" else "a")
+    score.confusion[key] += 1
+    return score
+
+
 # ------------------------------------------------------------------------------------- totals
 
 def _fraction(hit, of):

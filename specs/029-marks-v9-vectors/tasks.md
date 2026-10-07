@@ -134,15 +134,15 @@ second and third commands (need W1, 063, 064): 9 cases with the three marks at 1
 
 ### Tests for User Story 3
 
-- [ ] T039 [P] [US3] `tests/test_instruction_score.py` — `score_respondent` on `09-fixture-r3.yaml` + `slice.yaml`: coverage per part = `Entry.plan()` (8/9/6) exactly once each (US3.1); validity fails on each respondent-side check made to fail once — control ≠ `respondent.control`, a founder code missing, fewer than two distractors, `something_else` not last on a set, a fixed scale with an extra word, a founder number among numeric band edges, `chips` ≠ `respondent.chips`, `anchor` ≠ `respondent.anchor`, `problem.importance`'s own item first; sweep A on the 8 Part-1 items, sweep B (the founder's label, phrase or number for dimension *d* in item *d*) on all 23 across parts; a `RESPONDENT_B2B` case on the B2B fixture scores the six part-3 items with no context card and no reveal.
-- [ ] T040 [P] [US3] `tests/test_instruction_score.py` — `score_interpret` keys on the person: a result `{invitationId, anchoring}` for each of the nine readable people scores against `answers[].anchoring`; the confusion matrix, `guessed_precision`, `guessed_recall`, `missing_ids`, `extra_ids` keyed by person; a chipped person never appears in any count (`chipped_skipped` = 1); a result carrying `stage` or `anchorId` is neither read nor refused (US3.4); `anchoring` outside the two words is a shape refusal counted at zero; `totals` rolls `anchoring_accuracy` over `people_answered`.
-- [ ] T041 [P] [US3] `tests/test_instruction_report.py`: the respondent block — 23 items beside the plan row `key · part · control · codes`, the reveal title/body between parts 1 and 2, `RESPONDENT_B2B` as its own block; still no score word anywhere.
+- [X] T039 [P] [US3] `tests/test_instruction_score.py` — `score_respondent` on `09-fixture-r3.yaml` + `slice.yaml`: coverage per part = `Entry.plan()` (8/9/6) exactly once each (US3.1); validity fails on each respondent-side check made to fail once — control ≠ `respondent.control`, a founder code missing, fewer than two distractors, `something_else` not last on a set, a fixed scale with an extra word, a founder number among numeric band edges, `chips` ≠ `respondent.chips`, `anchor` ≠ `respondent.anchor`, `problem.importance`'s own item first; sweep A on the 8 Part-1 items, sweep B (the founder's label, phrase or number for dimension *d* in item *d*) on all 23 across parts; a `RESPONDENT_B2B` case on the B2B fixture scores the six part-3 items with no context card and no reveal.
+- [X] T040 [P] [US3] `tests/test_instruction_score.py` — `score_interpret` keys on the person: a result `{invitationId, anchoring}` for each of the nine readable people scores against `answers[].anchoring`; the confusion matrix, `guessed_precision`, `guessed_recall`, `missing_ids`, `extra_ids` keyed by person; a chipped person never appears in any count (`chipped_skipped` = 1); a result carrying `stage` or `anchorId` is neither read nor refused (US3.4); `anchoring` outside the two words is a shape refusal counted at zero; `totals` rolls `anchoring_accuracy` over `people_answered`.
+- [X] T041 [P] [US3] `tests/test_instruction_report.py`: the respondent block — 23 items beside the plan row `key · part · control · codes`, the reveal title/body between parts 1 and 2, `RESPONDENT_B2B` as its own block; still no score word anywhere.
 
 ### Implementation for User Story 3
 
-- [ ] T042 [US3] `instructions/score.py`: `RespondentScore` and `score_respondent(case, entry, registry, plan, result, *, judge, failed)` — coverage against `plan[part]`, validity (every §2.2 respondent check), sweep A on part 1, sweep B on every part with the founder's values read from `founder_calibration`; `totals` fills `respondent_*` and rolls `dimension_coverage`/`option_validity`/`no_leak` over both screens. T039 green.
-- [ ] T043 [US3] `instructions/score.py`: `InterpretScore` and `score_interpret(case, entry, person, result, *, failed)` — one judgement per person, `GUESSED` precision and recall (call 5), `missing_ids`/`extra_ids` by person; `instructions/run.py`: score `RESPONDENT` and `READING` cases, `chipped_skipped` counted from `entry.people()` − `entry.readable()` − gate-Nos and printed. T040 green.
-- [ ] T044 [US3] `instructions/report.py`: `register_blocks` for the respondent items, the reveal and the B2B link (`screen-shapes.md` §7.3). T041 green.
+- [X] T042 [US3] `instructions/score.py`: `RespondentScore` and `score_respondent(case, entry, registry, plan, result, *, judge, failed)` — coverage against `plan[part]`, validity (every §2.2 respondent check), sweep A on part 1, sweep B on every part with the founder's values read from `founder_calibration`; `totals` fills `respondent_*` and rolls `dimension_coverage`/`option_validity`/`no_leak` over both screens. T039 green.
+- [X] T043 [US3] `instructions/score.py`: `InterpretScore` and `score_interpret(case, entry, person, result, *, failed)` — one judgement per person, `GUESSED` precision and recall (call 5), `missing_ids`/`extra_ids` by person; `instructions/run.py`: score `RESPONDENT` and `READING` cases, `chipped_skipped` counted from `entry.people()` − `entry.readable()` − gate-Nos and printed. T040 green.
+- [X] T044 [US3] `instructions/report.py`: `register_blocks` for the respondent items, the reveal and the B2B link (`screen-shapes.md` §7.3). T041 green.
 - [ ] T045 [US3] **keel-cloud 063's and 064's screens** (the founder's; spends ≈ $1 + ≈ $1): `make instruction-screen K=03-lullaby/RESPONDENT …WHY=instruction:respondent-questions.md…` → 9 calls, coverage 1.00 over 69, validity 1.00 over 69, `no_leak` 1.00 over 93 (SC-007); `make instruction-screen K=03-lullaby/INTERPRET …WHY=instruction:interpret.md…` → 27 calls, `anchoring_accuracy` ≥ 0.90 over 27 (24 `ANCHORED` / 3 `GUESSED`), precision and recall reported, `missing_ids`/`extra_ids` empty (SC-008). Surprises → `runs/DRIFT.md`.
 
 **Checkpoint**: US1–US3 — every scored screen is proven on the entry the calibration was. `make unit` green.
@@ -336,4 +336,19 @@ task it was found under. Nothing here is a change of mind about the design; it i
   `leak_hits` counts words, `leak_judged` judge-decided questions, so `judged_fraction` is
   judge-decided over all hits. A `NEEDS_INPUT` on any v9 screen is a failed case: every screen is
   handed the corpus's own inputs, so there is nothing to ask.
+- **D13 (T042, the respondent result carries labels).** screen-shapes §3 gives a respondent item
+  `options: [label..]` -- no codes -- so on a label-only item `option_validity` can hold the count
+  (the plan's codes less `something_else`, which code appends) but not which codes are there.
+  `score_respondent` therefore runs the code checks in full **whenever an option carries a `code`**
+  (every plan code present, none foreign, none repeated, `Something else` last, Importance's own
+  item -- r3's `own_item`, D3 -- never first) and the count otherwise; the gap is 063's to close by
+  returning codes, or 058's batch to close with `R2`. Sweep B reads the founder's chosen phrase and
+  any number the founder gave that the registry does not itself put on the item (band edges, the
+  axis, the 7-night window): Lullaby's *at least 5 minutes* is the registry's own band edge and is
+  not a leak; a founder's *15 to 25 minutes* in a Duration item is.
+- **D14 (T043).** A read whose `invitationId` names another person counts that id in `extra_ids`
+  and this person in `missing_ids`, and is not answered; an `anchoring` outside the two words is a
+  shape refusal added to `shape_refusals` beside the aggregate's own (Edge Cases). The run prints
+  each read as *the model's word (corpus word)*, and `chipped_skipped` counts the chipped stories
+  of the entries a run read.
 

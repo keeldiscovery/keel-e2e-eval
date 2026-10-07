@@ -151,3 +151,47 @@ def calibration_case(entry, vector, run_index=1):
                             kind="CALIBRATION", entry_id=entry.id,
                             screen="CALIBRATION_QUESTIONS", subject=vector,
                             run_index=run_index, payload={}, meta={"vector": vector})
+
+
+def respondent_item(entry, key, *, label_only=False) -> dict:
+    """An item meeting every §2.2 respondent rule, written from the golden plan row."""
+    row = entry.respondent_questions[key]
+    item = {"key": key, "question": f"Thinking about that time: {key.split('.')[1].replace('_', ' ')}?"}
+    if row["control"] in ("segmented_0_to_7", "number_with_unit", "two_numbers_optional",
+                          "gate_yes_no"):
+        item["options"] = None
+        return item
+    options = []
+    for i, code in enumerate(row.get("codes") or [], start=1):
+        label = "Something else" if code == "something_else" else f"Choice {i}"
+        options.append(label if label_only else {"label": label, "code": code})
+    item["options"] = options
+    return item
+
+
+def respondent_result(entry, part, *, link="PRIMARY", label_only=False) -> dict:
+    keys = entry.plan()[part]
+    result = {"part": part, "link": link,
+              "items": [respondent_item(entry, k, label_only=label_only) for k in keys]}
+    if part == 2:
+        result["reveal"] = {"title": "What we are testing", "body": "A small thing you could try."}
+    return result
+
+
+def respondent_case(entry, part, *, link="PRIMARY", run_index=1):
+    from instructions import prompts as prompts_mod                   # noqa: PLC0415
+    label = "B2B" if link == "COMMERCIAL_B2B" else f"PART{part}"
+    plan = entry.plan()
+    return prompts_mod.Case(case_id=f"{entry.id}/RESPONDENT_{label}/run{run_index}",
+                            kind="RESPONDENT", entry_id=entry.id,
+                            screen="RESPONDENT_QUESTIONS", subject=label, run_index=run_index,
+                            payload={}, meta={"part": part, "link": link,
+                                              "plan": list(plan[part])})
+
+
+def interpret_case(entry, person, run_index=1):
+    from instructions import prompts as prompts_mod                   # noqa: PLC0415
+    return prompts_mod.Case(case_id=f"{entry.id}/INTERPRET/{person}/run{run_index}",
+                            kind="READING", entry_id=entry.id, screen="INTERPRET",
+                            subject=person, run_index=run_index, payload={},
+                            meta={"person": person})
