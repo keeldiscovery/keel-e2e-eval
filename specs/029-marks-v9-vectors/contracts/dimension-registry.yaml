@@ -1,0 +1,1420 @@
+# Dimension registry v1 — Phase 0.2 of the vector redesign
+# Date: 2026-10-06
+# Status: DRAFT for the founder's review. Nothing here is built or committed.
+# Follows: registry-schema.draft.md (field names and enum values are pinned there; this file fills
+#          them and renames nothing). Where a field could not be filled exactly as specified, the field
+#          is kept and a `_note` says why.
+# Carries forward: dimension-registry.draft.yaml (2026-10-06), upgraded to the schema, with the HANDOFF §3
+#          fixes applied: per-option belief phrase, contiguous bins + fixed 7-night window on Prevalence,
+#          Retention ≠ Frequency, Ability to pay as a pure ordinal (no mixed option).
+# Meanings: one sentence each, in the words of Keel_Evidence_Validation_Framework.pdf §4–§6.
+# Worked example: 03-lullaby (GB market, £; parents of babies under six months; woken in the night; they
+#          try feeding, changing, rocking; ~20 min to settle; an app listens to the cry and suggests the
+#          need; £6 a month; the same person uses, decides and pays).
+#
+# DECISIONS (closed by the founder 2026-10-07) — numbered as they were tabled; each is marked `_decided: N` where it bites.
+#   The questions are kept as filled on 2026-10-06; the OUTCOME line under each is the founder's decision.
+#   1. `founder.unsure_allowed: false` on problem.prevalence. It is the gate; a study with no gate has no
+#      denominator. Every other dimension offers "I'm not sure" (= LEFT OUT).
+#      OUTCOME: confirmed — no "I'm not sure" on Prevalence (reconciliation 11).
+#   2. `BAR_SET` is the status word for the one threshold dimension (solution.effectiveness_threshold),
+#      per HANDOFF Decision 4. It never reaches HOLDING_UP or NOT_HOLDING_UP; the drift clause says where
+#      the bar landed against the founder's number. The founder-facing label proposed: "Bar set".
+#      OUTCOME: confirmed — `BAR_SET`, label "Bar set", reachable only by Effectiveness threshold (reconciliation 10).
+#   3. `respondent.asked_in_v1: false` on problem.urgency and commercial.retention_potential (parts count
+#      8 / 9 / 6 = 23). Their calibration screens are STILL shown to the founder (the registry stays whole);
+#      a founder belief there reads NOT_ASKED_YET with the sub-line "not asked in this round".
+#      OUTCOME: shown; a belief there reads NOT_ASKED_YET "not asked in this round" (reconciliation 12).
+#   4. solution.adoption_friction: respondent control changed from the draft's multi_choice to
+#      single_choice so the respondent's answer is on the same effort ladder as the founder's (ordinal
+#      compare). The draft's "tick what you'd have had to do" could not be compared to a single belief.
+#      OUTCOME: confirmed en bloc (reconciliation 13).
+#   5. Interval drift templates use a fourth placeholder `{side}` (smaller / larger / both ways), filled by
+#      the engine from Standing.drift, beside the schema's `{founder}`, `{observed}`, `{n}`.
+#      OUTCOME: confirmed en bloc (reconciliation 13).
+#   6. Above-the-band on a deal-breaker: Prevalence that comes in ABOVE the founder's bin is HOLDING_UP with
+#      the drift clause "more than you think" (proportion_from_gate; below the bin is NOT_HOLDING_UP).
+#      Frequency and Duration KEEP today's magnitude rule: a number outside the founder's interval in either
+#      direction is outside. The Lullaby example carries the Prevalence case (founder "6 to 8 in 10",
+#      observed 0.83).
+#      OUTCOME: both halves confirmed — the split rule stands (reconciliation 8); the compare parameters are
+#      as marks §2.5 tables them, ordinal band = the founder's rung ± 1 (reconciliation 9).
+#   7. commercial.ability_to_pay: the smoke test's "only for a one-time purchase" option is dropped as the
+#      one mixed option (HANDOFF §3); the scale is four ordered codes. Recurring-vs-one-off lives in Price.
+#      OUTCOME: confirmed en bloc (reconciliation 13).
+#   8. problem.importance is compared as the share of anchored people who picked the problem's own item in
+#      a trade-off list, mapped onto the founder's rank band (ordinal_band); there is no respondent rating.
+#      OUTCOME: confirmed en bloc — Importance closed on both sides (reconciliation 13).
+#   9. commercial.commitment keeps the draft's founder multi_choice (rungs the founder believes people
+#      would take); the engine reads the founder's highest ticked rung as the belief.
+#      OUTCOME: confirmed en bloc (reconciliation 13).
+#  10. commercial.existing_sacrifice's number is "roughly how much, all together, in the last three months";
+#      commercial.wtp_hypothesis's first number is "what the last comparable thing cost". Two money
+#      numbers, two different questions, one minute apart.
+#      OUTCOME: both money questions KEPT (reconciliation 13).
+#  11. Price is in the market's currency (GBP for GB); the Lullaby example is £5–12 a month.
+#      OUTCOME: confirmed en bloc (reconciliation 13).
+#  12. Three fixed respondent-only codes are never offered to the founder: `own_instinct` on trust_risk,
+#      `not_useful` on target_circumstance, `nothing_yet` on commitment. They count as OUTSIDE.
+#      OUTCOME: confirmed en bloc (reconciliation 13).
+#  Also decided 2026-10-07 and bearing on this file: the gate rule (a gate-No answers nothing more) is
+#      confirmed, so the six commercial Lullaby examples' `n=11` is stale and is reworked at n ≤ 10 when
+#      corpus r3 is written (reconciliation 14; see the `_note` under each); a chipped story is set GUESSED
+#      by code with no model call (reconciliation 5); respondent questions are written at Lock (reconciliation 1).
+
+common:
+  left_out:
+    ask_respondent: false
+    status: LEFT_OUT
+    note: "You weren't sure, so this was left out of the study. The brief says it is untested."
+  chips:
+    default: ["I can't recall", "I'd rather not say"]
+    numeric_extra: "That's a rough guess"          # marks the answer GUESSED: shown hollow, never counted
+  something_else:
+    rule: >-
+      Every closed respondent item whose belief is a SET (multi_choice, multi_choice_ordered,
+      multi_choice_ladder, branch_pick_number's pick) and every single_choice built from a
+      market-specific option set ends with "Something else". Fixed scales (single_choice_5, bands,
+      0-to-7, yes/no) do not. "Something else" is an observation placed OUTSIDE, kept verbatim, never
+      a row of its own on the answers page (spec 050).
+  floor:
+    default: 5
+    unit: anchored people
+    note: "Today's FLOOR = 5; fewer anchored people is Too few to call whatever they say. Never per belief."
+  context_placeholders:
+    "{actor}": "Context WHO, singular, as the founder wrote it (Lullaby: 'parent')."
+    "{actor_plural}": "Context WHO, plural, as the founder wrote it (Lullaby: 'parents of babies under six months')."
+    "{job}": "Context WHAT: the outcome the actor is trying to reach, described without the product (Lullaby: 'work out what the baby needs and settle them')."
+    "{circumstance}": "Context WHEN: the trigger and situation (Lullaby: 'the baby cries in the night')."
+    _note: >-
+      Filled by code from the Context step, never by a model. Belief sentences are deterministic
+      (HANDOFF §5 row 4). Templates below also use {value}, exactly once each.
+  drift_placeholders:
+    "{founder}": "the founder's belief, as the belief sentence's value"
+    "{observed}": "what the anchored people said: the middle answer with unit for intervals, the leading option(s) for choices and sets"
+    "{n}": "anchored people counted (the gate for Prevalence)"
+    "{side}": "intervals only: 'smaller' | 'larger' | 'both ways', from Standing.drift (decision 5)"
+  compare_rules:
+    _note: "One line each, agreeing with marks-v9 §2.5 (the one compare table); the deterministic engine (HANDOFF §5 row 11) is specified in Phase 1 A from these."
+    proportion_from_gate: "share of gate answers that are Yes, placed against the founder's proportion bin: in the bin or ABOVE it is HOLDING_UP (drift 'more than you think' when above), below it is NOT_HOLDING_UP; no PEOPLE_DISAGREE possible (decision 6)"
+    interval_contains_median: "today's magnitude rule: per-person placement inside/below/above the band, outside in either direction is outside; floor, one-in-three split (>= 2/3 inside HOLDING_UP, <= 1/3 NOT_HOLDING_UP, else PEOPLE_DISAGREE), drift from the outside placements"
+    ordinal_band: "the founder's rung +/- 1 is the band; a respondent pick in it is inside, else outside; tolerance dimensions (reliability, adoption friction) also count the whole more-forgiving side as inside; then today's split and floor. On problem.importance the share who picked the problem's own item is mapped onto the rank band instead (see its _note): in band HOLDING_UP, else NOT_HOLDING_UP"
+    choice_majority: "inside = picked the founder's option; outside = any other; today's split and floor"
+    set_overlap: "holds when every founder code is ticked by at least half of anchored people and no unpicked code by more than half; a founder code under a third, or an unpicked code over half, is NOT_HOLDING_UP; between is PEOPLE_DISAGREE"
+    ordered_set_overlap: "set_overlap on the codes plus the modal first step must equal the founder's first step"
+    threshold_band: "median respondent band placed against the founder's number; status is always BAR_SET; the drift clause carries where the bar landed"
+    price_hypothesis: "no comparison; last-purchase prices are shown as context; status NOT_TESTED_BY_DESIGN"
+    role_chain_match: "choice_majority on the role-chain code"
+    ladder_rung: "inside = ticked the founder's highest rung or a higher one; 'Nothing yet' is outside; today's split and floor"
+
+dimensions:
+
+# ───────────────────────── PROBLEM (9) · Part 1 asks 8 ─────────────────────────
+
+- key: problem.prevalence
+  vector: PROBLEM
+  order: 1
+  name: Prevalence
+  meaning: "How much of the target segment experiences the problem within a defined period."
+  weight: DEAL_BREAKER
+  founder:
+    control: single_choice
+    guidance: >-
+      Out of 10 people in the segment, how many had this at least once in the last 7 nights. The window
+      is fixed at 7 nights (the gate's window); the bins are contiguous fifths of the segment.
+    normalized:
+      kind: proportion_bin
+      window: "7 nights"
+      codes: [p_0_20, p_20_40, p_40_60, p_60_80, p_80_100]
+    option_rule: >-
+      Exactly 5 options, contiguous: fewer than 2 in 10 · 2 to 4 · 4 to 6 · 6 to 8 · 8 to 10. No gaps
+      (the smoke test's 5-6 / 7-8 / 9-10 had holes). Each option carries its own belief phrase
+      (only a few · a minority · around half · most · nearly all); never the label.
+    belief_template: "{value} of these {actor_plural} had this at least once in the last 7 nights."
+    unsure_allowed: false
+    _decided: 1
+  respondent:
+    asked_in_v1: true
+    part: 1
+    anchor: that_night
+    control: gate_yes_no
+    guidance: >-
+      This item IS the gate: "In the last 7 nights, did [the circumstance] happen to you?" Yes / No.
+      Explicit, never inferred from the story. No → graceful exit; the person still counts in the
+      denominator. Yes → the story prompt (the anchor test), then the rest of Part 1. Never names the
+      idea, the app or the mechanism.
+    option_rule: "Yes · No. No distractors, no 'Something else'. Chips: none (a gate must be answered)."
+    chips: []
+  answers:
+    shape: choice
+    compare_rule: proportion_from_gate
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, TOO_FEW_TO_CALL, NOT_ASKED_YET]
+    drift_template: "{side} than you think · you said {founder} · {observed} of {n} said yes"
+    floor: 5
+    _note: "Floor counts gate answers, not anchored people: the gate is explicit. LEFT_OUT unreachable (decision 1)."
+  left_out:
+    ask_respondent: false
+    status: LEFT_OUT
+    note: "Unreachable: 'I'm not sure' is not offered on the gate."
+  lullaby:
+    founder_question: "Out of 10 parents of babies under six months, how many do you think had a night in the last 7 nights when the baby cried and they had to decide what to try?"
+    founder_options:
+      - {label: "Fewer than 2 in 10", normalized: p_0_20, belief_phrase: "Only a few"}
+      - {label: "2 to 4 in 10", normalized: p_20_40, belief_phrase: "A minority"}
+      - {label: "4 to 6 in 10", normalized: p_40_60, belief_phrase: "Around half"}
+      - {label: "6 to 8 in 10", normalized: p_60_80, belief_phrase: "Most"}
+      - {label: "8 to 10 in 10", normalized: p_80_100, belief_phrase: "Nearly all"}
+    founder_answer: "6 to 8 in 10"
+    belief_sentence: "Most of these parents of babies under six months had this at least once in the last 7 nights."
+    respondent_question: "In the last 7 nights, did your baby wake crying and you had to decide what to try?"
+    respondent_options: ["Yes", "No"]
+    expected:
+      status: HOLDING_UP
+      drift: "more than you think · you said Most · 10 of 12 said yes"
+      counts: "12 answered the gate · 10 yes, 2 no (Leo: hasn't happened; Hugo: ten days ago) · 0.83, ABOVE the 0.6–0.8 bin: holding up with the drift clause (decision 6, the worked above-the-band case on a deal-breaker)"
+
+- key: problem.frequency
+  vector: PROBLEM
+  order: 2
+  name: Frequency
+  meaning: "How often an affected person experiences the problem."
+  weight: DEAL_BREAKER
+  founder:
+    control: numeric_interval
+    guidance: "On how many nights out of 7 an affected person faces it: a range on a 0–7 axis, whole nights."
+    normalized:
+      kind: interval
+      unit_options: ["nights out of 7"]
+      default_unit: "nights out of 7"
+      axis_max: 7
+      axis_step: 1
+      extend_by: 0
+      bins: [0, 1, 2, 3, 4, 5, 6, 7]
+    option_rule: "No options: a two-handle range on 0–7. Belief value = the range with its unit ('4 to 7 nights out of 7')."
+    belief_template: "{actor_plural} face this on {value}."
+    unsure_allowed: true
+  respondent:
+    asked_in_v1: true
+    part: 1
+    anchor: that_night
+    control: segmented_0_to_7
+    guidance: "Count the nights in the last 7 nights on which it happened, not the wakings. Never shows the founder's range."
+    option_rule: "Fixed segmented control 0–7, one tap. No 'Something else'."
+    chips: ["I can't recall", "I'd rather not say", "That's a rough guess"]
+  answers:
+    shape: interval
+    compare_rule: interval_contains_median
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "{side} than you think · you said {founder} · middle answer {observed} · {n} described it"
+    floor: 5
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "In a typical week, on how many nights out of 7 do you think a parent is woken by a cry and has to work out what the baby needs?"
+    founder_numeric: {unit: "nights out of 7", axis: "0–7, whole nights", picked: "4 to 7"}
+    founder_answer: "4 to 7 nights out of 7"
+    belief_sentence: "Parents of babies under six months face this on 4 to 7 nights out of 7."
+    respondent_question: "Thinking about the last 7 nights, on how many did your baby wake crying and you had to decide what to try?"
+    respondent_options: ["0", "1", "2", "3", "4", "5", "6", "7"]
+    expected:
+      status: HOLDING_UP
+      drift: null
+      counts: "n=8 anchored, 2 guessed (Finn, Jonas) · median 5 nights · 6 inside, 2 below"
+
+- key: problem.severity
+  vector: PROBLEM
+  order: 3
+  name: Severity
+  meaning: "How disruptive or difficult an occurrence is when it happens."
+  weight: SHAPES
+  founder:
+    control: single_choice
+    guidance: "How disruptive one episode is to the actor, on an anchored five-point scale written as scenarios, not adjectives."
+    normalized:
+      kind: ordinal
+      codes: [barely, a_little, moderately, very, extremely]
+    option_rule: "Exactly 5 options mapped in order onto the codes; each a one-line scenario of the aftermath; each with its own belief phrase."
+    belief_template: "For {actor_plural}, one episode {value}."
+    unsure_allowed: true
+  respondent:
+    asked_in_v1: true
+    part: 1
+    anchor: that_night
+    control: single_choice_5
+    guidance: "About that night only: how much it knocked the rest of the night. Fixed five-point scale with the same anchors as the founder's, in the respondent's register. Never 'usually'."
+    option_rule: "Fixed scale, 5 options, same order as the codes. No 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+  answers:
+    shape: choice
+    compare_rule: ordinal_band
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "{side} than you think · you said {founder} · most of the {n} said {observed}"
+    floor: 5
+    _note: "{side} on an ordinal is 'milder' | 'harsher'."
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "When it happens, how disruptive do you think one of these episodes is for the parent?"
+    founder_options:
+      - {label: "A minor interruption; they are back asleep in no time", normalized: barely, belief_phrase: "barely dents the night"}
+      - {label: "Annoying, but the night is mostly intact", normalized: a_little, belief_phrase: "takes a little off the night"}
+      - {label: "They are fully awake and the rest of the night is lighter", normalized: moderately, belief_phrase: "leaves the rest of the night broken"}
+      - {label: "They lose a large part of the night's sleep", normalized: very, belief_phrase: "costs a large part of the night's sleep"}
+      - {label: "They feel overwhelmed and the night is effectively lost", normalized: extremely, belief_phrase: "writes the night off"}
+    founder_answer: "They lose a large part of the night's sleep"
+    belief_sentence: "For parents of babies under six months, one episode costs a large part of the night's sleep."
+    respondent_question: "Think about that night. How much did it knock the rest of your night?"
+    respondent_options: ["Barely; I was back asleep in no time", "A little; the night was mostly fine", "A fair bit; I was wide awake for a while", "A lot; I lost a big chunk of sleep", "Completely; the night was written off"]
+    expected:
+      status: PEOPLE_DISAGREE
+      drift: "milder than you think · you said it costs a large part of the night · 3 of the 8 said a little or barely"
+      counts: "n=8 anchored · 5 inside the ±1 band (4 a lot, 1 completely) · 3 milder, two rungs down or more (2 a little, 1 barely) · 5/8 is between a third and two thirds"
+
+- key: problem.duration
+  vector: PROBLEM
+  order: 4
+  name: Duration
+  meaning: "How long an occurrence or its resolution takes."
+  weight: DEAL_BREAKER
+  founder:
+    control: numeric_interval
+    guidance: "From the trigger to resolution, how long a typical episode takes: a range with a unit. Axis 0–60 min by 5, extends by 30; hours allowed."
+    normalized:
+      kind: interval
+      unit_options: [minutes, hours]
+      default_unit: minutes
+      axis_max: 60
+      axis_step: 5
+      extend_by: 30
+    option_rule: "No options: a two-handle range with a unit picker. Belief value = the range with its unit."
+    belief_template: "A typical episode takes {value} from start to finish."
+    unsure_allowed: true
+  respondent:
+    asked_in_v1: true
+    part: 1
+    anchor: that_night
+    control: number_with_unit
+    guidance: "That night: how long from the crying starting until the baby settled, as a number with a unit. 'That's a rough guess' marks it GUESSED (shown, not counted). Never shows the founder's range."
+    option_rule: "One number + unit (minutes | hours). No bands, no 'Something else'."
+    chips: ["I can't recall", "I'd rather not say", "That's a rough guess"]
+  answers:
+    shape: interval
+    compare_rule: interval_contains_median
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "{side} than you think · you said {founder} · middle answer {observed} · {n} described it"
+    floor: 5
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "From the moment the baby starts crying, how long do you think it takes a parent to work out what the baby needs and get them settled?"
+    founder_numeric: {unit: minutes, axis: "0–60 min by 5, extends by 30", picked: "15 to 25"}
+    founder_answer: "15 to 25 minutes"
+    belief_sentence: "A typical episode takes 15 to 25 minutes from start to finish."
+    respondent_question: "That night, roughly how long was it from the crying starting until the baby settled?"
+    respondent_options: ["a number", "minutes | hours"]
+    expected:
+      status: NOT_HOLDING_UP
+      drift: "smaller than you think · you said 15 to 25 minutes · middle answer 11 min · 7 described it"
+      counts: "n=7 anchored, 3 guessed · median 11 min · 2 inside, 5 below"
+
+- key: problem.importance
+  vector: PROBLEM
+  order: 5
+  name: Importance
+  meaning: "How much the actor cares about improving this problem relative to other competing problems."
+  weight: SHAPES
+  founder:
+    control: rank_pick
+    guidance: "Where this ranks among the actor's difficulties in the circumstance: a rank band, not a rating. The model writes 4–6 distractor difficulties for the same circumstance; they are reused on the respondent side."
+    normalized:
+      kind: rank_band
+      codes: [biggest, top_three, middle, minor, negligible]
+    option_rule: "Exactly 5 options in rank order mapped onto the codes; each with a belief phrase ('the biggest difficulty', 'one of the top three', ...)."
+    belief_template: "Among the difficulties that come with {circumstance}, this is {value}."
+    unsure_allowed: true
+    _decided: 8
+  respondent:
+    asked_in_v1: true
+    part: 1
+    anchor: that_night
+    control: single_choice
+    guidance: "A trade-off, not a rating: 'If you could make one part of [the circumstance] easier, which would it be?' Closed pick (no text box). The problem's own item sits among the model's distractors, never first. Elicited in the respondent's own terms; never names the idea."
+    option_rule: "5–6 difficulties for the circumstance including the problem's own, order shuffled per project with the problem's item never first, plus 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+  answers:
+    shape: choice
+    compare_rule: ordinal_band
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "{side} than you think · you said {founder} · {observed} of {n} would fix this first"
+    floor: 5
+    _note: "Share who picked the problem's item is placed on the band: biggest ≥ 1/2 · top_three 1/4–1/2 · middle 1/10–1/4 · minor 1/25–1/10 · negligible below. {side} = 'lower' | 'higher'. PEOPLE_DISAGREE is unreachable on a share; kept for the enum."
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "Compared with the other things that make nights hard with a baby under six months, where do you think working out what the cry means ranks for the parent?"
+    founder_options:
+      - {label: "Their biggest night-time difficulty", normalized: biggest, belief_phrase: "the biggest difficulty"}
+      - {label: "One of their top three", normalized: top_three, belief_phrase: "one of the top three"}
+      - {label: "Somewhere in the middle", normalized: middle, belief_phrase: "a middling one"}
+      - {label: "A minor one compared with the others", normalized: minor, belief_phrase: "a minor one"}
+      - {label: "It barely registers against the others", normalized: negligible, belief_phrase: "barely on the list"}
+    founder_answer: "One of their top three"
+    belief_sentence: "Among the difficulties that come with the baby crying in the night, this is one of the top three."
+    respondent_question: "If you could make one part of nights with your baby easier, which would it be?"
+    respondent_options: ["Getting the baby back down after a feed", "Working out what the cry means", "Getting myself back to sleep afterwards", "Sharing the night with my partner more evenly", "The early-morning wake-ups", "Something else"]
+    expected:
+      status: HOLDING_UP
+      drift: null
+      counts: "n=8 anchored · 3 picked 'working out what the cry means' (0.38, inside 1/4–1/2)"
+
+- key: problem.consequence
+  vector: PROBLEM
+  order: 6
+  name: Consequence
+  meaning: "What downstream effects result from the problem."
+  weight: SHAPES
+  founder:
+    control: multi_choice
+    guidance: "Which effects follow an episode: lost time, sleep, errors, stress, cost, risk, impact on others. The model writes the options for this circumstance."
+    normalized:
+      kind: set
+      codes: model_written
+      code_rule: "4–6 slug codes written by the model for the circumstance (e.g. lost_sleep, partner_woken, stress, next_day_fatigue, sought_help, looked_it_up); ordered as presented."
+    option_rule: "4–6 options, each one effect, each with a belief phrase; the belief sentence joins the ticked phrases with 'and'."
+    belief_template: "After an episode, {actor_plural} are left with {value}."
+    unsure_allowed: true
+  respondent:
+    asked_in_v1: true
+    part: 1
+    anchor: that_night
+    control: multi_choice
+    guidance: "What actually happened after that night, tick all that apply; include effects the founder did not name so the respondent is not led; include 'Nothing much'."
+    option_rule: "Founder's codes + 1–2 distractors + 'Nothing much' + 'Something else'. Order shuffled, founder's codes not grouped."
+    chips: ["I can't recall", "I'd rather not say"]
+  answers:
+    shape: choice
+    compare_rule: set_overlap
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "you said {founder} · the {n} who described it mostly ticked {observed}"
+    floor: 5
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "Which of these do you think usually follow from a night with one of these episodes? Pick all that apply."
+    founder_options:
+      - {label: "The parent loses sleep", normalized: lost_sleep, belief_phrase: "lost sleep"}
+      - {label: "The other parent or partner is woken too", normalized: partner_woken, belief_phrase: "a partner woken too"}
+      - {label: "The parent feels stressed, anxious or guilty", normalized: stress, belief_phrase: "stress"}
+      - {label: "The parent is tired and less effective the next day", normalized: next_day_fatigue, belief_phrase: "a worse next day"}
+      - {label: "The parent turns to a doctor, nurse or helpline", normalized: sought_help, belief_phrase: "a call to a professional"}
+      - {label: "The parent searches online or asks family or friends", normalized: looked_it_up, belief_phrase: "a search for answers"}
+    founder_answer: "lost_sleep, stress, next_day_fatigue"
+    belief_sentence: "After an episode, parents of babies under six months are left with lost sleep and stress and a worse next day."
+    respondent_question: "After that night, what happened, if anything? Tick all that apply."
+    respondent_options: ["I was short on sleep", "My partner was woken too", "I felt stressed, anxious or guilty", "I was tired and less effective the next day", "I spoke to a doctor, nurse or helpline", "I searched online or asked family or friends", "Nothing much", "Something else"]
+    expected:
+      status: HOLDING_UP
+      drift: null
+      counts: "n=8 anchored · lost sleep 8, next-day 6, stress 5 · partner woken 3, looked it up 2, sought help 0"
+
+- key: problem.workaround_burden
+  vector: PROBLEM
+  order: 7
+  name: Workaround burden
+  meaning: "The time, effort, steps, money, or inconvenience currently spent coping with the problem."
+  weight: SHAPES
+  founder:
+    control: multi_choice
+    guidance: "Which actions people take in the moment, as a set; the founder's tick order is the believed sequence."
+    normalized:
+      kind: ordered_set
+      codes: model_written
+      code_rule: "4–6 slug codes for the actions in this circumstance (e.g. feed, change, rock_hold, soothe_aids, check_comfort, look_up_or_ask); the founder's tick order is stored."
+    option_rule: "4–6 options, each one action, each with a belief phrase; the belief sentence lists the ticked phrases in tick order."
+    belief_template: "In the moment, {actor_plural} try {value}, in that order."
+    unsure_allowed: true
+  respondent:
+    asked_in_v1: true
+    part: 1
+    anchor: that_night
+    control: multi_choice_ordered
+    guidance: "That night: tick what you tried, in the order you tried it. Reconstructs the actual sequence of attempts; never names the idea."
+    option_rule: "Founder's codes + 1–2 distractors + 'Something else'; ticks are numbered in tap order."
+    chips: ["I can't recall", "I'd rather not say"]
+  answers:
+    shape: choice
+    compare_rule: ordered_set_overlap
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "you said {founder} · the {n} who described it mostly tried {observed}"
+    floor: 5
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "What do you think parents actually do, in the moment, to work out what the baby needs? Pick all that apply, in the order they try them."
+    founder_options:
+      - {label: "Try feeding the baby", normalized: feed, belief_phrase: "feeding"}
+      - {label: "Check and change the nappy", normalized: change, belief_phrase: "a nappy change"}
+      - {label: "Rock, hold or walk with the baby", normalized: rock_hold, belief_phrase: "rocking"}
+      - {label: "Use a dummy, white noise or a swaddle", normalized: soothe_aids, belief_phrase: "a dummy or white noise"}
+      - {label: "Check the temperature, clothing or room", normalized: check_comfort, belief_phrase: "a comfort check"}
+      - {label: "Look up advice or ask someone", normalized: look_up_or_ask, belief_phrase: "looking it up"}
+    founder_answer: "feed, change, rock_hold (in that order)"
+    belief_sentence: "In the moment, parents of babies under six months try feeding, a nappy change, rocking, in that order."
+    respondent_question: "That night, what did you try? Tick them in the order you tried them."
+    respondent_options: ["Fed the baby", "Checked or changed the nappy", "Rocked, held or walked with the baby", "Dummy, white noise or swaddle", "Checked temperature, clothing or the room", "Looked up advice or asked someone", "Something else"]
+    expected:
+      status: HOLDING_UP
+      drift: null
+      counts: "n=8 anchored · feed 7, change 6, rock 6 · first step feed for 5 of 8"
+
+- key: problem.current_solution_satisfaction
+  vector: PROBLEM
+  order: 8
+  name: Current solution
+  meaning: "How adequately the actor's current method or alternative solves the job."
+  weight: SHAPES
+  founder:
+    control: single_choice
+    guidance: "How well today's way of handling it serves them: an ordered five-point scale written as outcomes, from works reliably to no reliable way."
+    normalized:
+      kind: ordinal
+      codes: [works_well, mostly_works, hit_and_miss, works_poorly, no_reliable_way]
+    option_rule: "Exactly 5 options in order onto the codes; each a one-line outcome; each with a belief phrase."
+    belief_template: "The way {actor_plural} handle it today {value}."
+    unsure_allowed: true
+  respondent:
+    asked_in_v1: true
+    part: 1
+    anchor: that_night
+    control: single_choice_5
+    guidance: "How well their own approach worked that night, not in general: five ordered outcomes from 'worked straight away' to 'didn't work at all'. Never names the idea."
+    option_rule: "Fixed scale, 5 options, same order as the codes. No 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+  answers:
+    shape: choice
+    compare_rule: ordinal_band
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "{side} than you think · you said {founder} · most of the {n} said {observed}"
+    floor: 5
+    _note: "{side} on this ordinal is 'works better' | 'works worse'."
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "Thinking about how parents work out what the baby needs today, how well do you think that way of doing it serves them?"
+    founder_options:
+      - {label: "Very well; they rarely feel stuck", normalized: works_well, belief_phrase: "works reliably"}
+      - {label: "Fairly well; it works most nights", normalized: mostly_works, belief_phrase: "works most of the time"}
+      - {label: "Mixed; it works about half the time", normalized: hit_and_miss, belief_phrase: "is hit and miss"}
+      - {label: "Poorly; they often end up guessing", normalized: works_poorly, belief_phrase: "works poorly: they end up guessing"}
+      - {label: "Very poorly; they have no reliable way at all", normalized: no_reliable_way, belief_phrase: "gives them no reliable way at all"}
+    founder_answer: "Poorly; they often end up guessing"
+    belief_sentence: "The way parents of babies under six months handle it today works poorly: they end up guessing."
+    respondent_question: "That night, how well did your usual way of working out what the baby needed work?"
+    respondent_options: ["It worked straight away", "It worked after a try or two", "It worked eventually, after a lot of guessing", "It didn't really work; the baby settled on their own", "It didn't work at all"]
+    expected:
+      status: NOT_HOLDING_UP
+      drift: "works better than you think · you said it works poorly · most of the 8 said it worked after a try or two"
+      counts: "n=8 anchored · 2 inside the ±1 band (1 a lot of guessing, 1 didn't really work) · 6 better (4 after a try or two, 2 straight away) · 2/8 is a third or less"
+
+- key: problem.urgency
+  vector: PROBLEM
+  order: 9
+  name: Urgency
+  meaning: "How quickly the actor feels compelled to act when the problem occurs."
+  weight: SHAPES
+  founder:
+    control: single_choice
+    guidance: "How soon after the trigger the actor feels they must act: contiguous time bins plus 'waits to see'."
+    normalized:
+      kind: ordinal
+      codes: [within_a_minute, within_five_minutes, five_to_ten_minutes, after_ten_minutes, waits_to_see]
+    option_rule: "Exactly 5 options in order onto the codes, bins contiguous (under 1 min · 1–5 · 5–10 · over 10 · waits); each with a belief phrase."
+    belief_template: "When it starts, {actor_plural} feel they must act {value}."
+    unsure_allowed: true
+  respondent:
+    asked_in_v1: false
+    part: null
+    anchor: that_night
+    control: single_choice
+    guidance: "NOT ASKED IN V1. When asked: that night, how long after it started did you do the first thing; same bins. Never names the idea."
+    option_rule: "Founder's 5 bins, no distractors, no 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+    _why: >-
+      Decided 2026-10-06 (HANDOFF §2, Part 1 = 8): time-to-action on a recalled night is the weakest
+      recall of the set and overlaps Workaround burden's first step; it is pilot evidence (timestamps).
+      Kept in the registry so the brief has a row and V2 can switch it on without a schema change.
+  answers:
+    shape: choice
+    compare_rule: ordinal_band
+    status_vocabulary: [NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "{side} than you think · you said {founder} · most of the {n} acted {observed}"
+    floor: 5
+    _note: "In V1 a founder belief here reads NOT_ASKED_YET · 'not asked in this round' (decision 3). {side} = 'sooner' | 'later' when switched on."
+    _decided: 3
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "When the baby cries at night and the cause is not clear, how soon do you think a parent feels they must act?"
+    founder_options:
+      - {label: "Right away, within the first minute", normalized: within_a_minute, belief_phrase: "within the first minute"}
+      - {label: "Within a few minutes", normalized: within_five_minutes, belief_phrase: "within a few minutes"}
+      - {label: "After the crying has gone on for 5 to 10 minutes", normalized: five_to_ten_minutes, belief_phrase: "after five to ten minutes of crying"}
+      - {label: "Only once it has gone on longer than 10 minutes, or gets louder", normalized: after_ten_minutes, belief_phrase: "only after ten minutes or more"}
+      - {label: "They wait to see whether the baby settles alone", normalized: waits_to_see, belief_phrase: "only if the baby does not settle alone"}
+    founder_answer: "I'm not sure"
+    belief_sentence: "Left out: you weren't sure."
+    respondent_question: null
+    respondent_options: []
+    expected:
+      status: LEFT_OUT
+      drift: null
+      counts: "not asked"
+
+# ───────────────────────── SOLUTION (9) · Part 2 asks 9 ─────────────────────────
+
+- key: solution.compatibility
+  vector: SOLUTION
+  order: 1
+  name: Compatibility
+  meaning: "How well the proposed approach fits the actor's existing workflow, values, routines, and context."
+  weight: DEAL_BREAKER
+  founder:
+    control: single_choice
+    guidance: "At what point in the real episode the mechanism would be used: ordered positions in the sequence of attempts, ending with 'it would not fit'."
+    normalized:
+      kind: ordinal
+      codes: [before_any_attempt, after_first_attempt_fails, after_several_attempts, only_when_nothing_works, would_not_fit]
+    option_rule: "Exactly 5 options in order onto the codes, worded for this mechanism's moment of use; each with a belief phrase."
+    belief_template: "It fits into the episode {value}."
+    unsure_allowed: true
+  respondent:
+    asked_in_v1: true
+    part: 2
+    anchor: the_reveal
+    guidance: "Thinking about that night, at what point, if any, could the mechanism's moment of use (from the reveal, e.g. 'hold the phone near the cot for ten seconds') have fitted. Options worded from the respondent's account's shape, never from the founder's pick."
+    control: single_choice
+    option_rule: "Founder's codes + 'At no point that night' (= would_not_fit) + 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+  answers:
+    shape: choice
+    compare_rule: choice_majority
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "{side} than you think · you said {founder} · most of the {n} said {observed}"
+    floor: 5
+    _note: "{side} on this order is 'earlier' | 'later'; 'at no point' has no direction and reads plain Not holding up."
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "During a night-time crying episode, at what point would a parent most naturally hold the phone near the cot and let it listen?"
+    founder_options:
+      - {label: "Straight away, before trying anything", normalized: before_any_attempt, belief_phrase: "right at the start, before anything is tried"}
+      - {label: "After the first thing they try has not worked", normalized: after_first_attempt_fails, belief_phrase: "once the first attempt has failed"}
+      - {label: "After several attempts, when they are out of ideas", normalized: after_several_attempts, belief_phrase: "only after several attempts"}
+      - {label: "Only once the baby has been crying for a long time", normalized: only_when_nothing_works, belief_phrase: "only when nothing has worked"}
+      - {label: "It would not fit into the episode at all", normalized: would_not_fit, belief_phrase: "nowhere; it would not fit"}
+    founder_answer: "Straight away, before trying anything"
+    belief_sentence: "It fits into the episode right at the start, before anything is tried."
+    respondent_question: "Thinking about that night, at what point, if any, could you have held the phone near the cot for ten seconds?"
+    respondent_options: ["Straight away, before I tried anything", "After the first thing I tried didn't work", "After several tries, when I was out of ideas", "Only once the crying had gone on a long time", "At no point that night", "Something else"]
+    expected:
+      status: NOT_HOLDING_UP
+      drift: "later than you think · you said right at the start · most of the 8 said after the first thing didn't work"
+      counts: "n=8 anchored · 2 inside, 4 after the first try, 1 after several, 1 at no point"
+
+- key: solution.relative_advantage
+  vector: SOLUTION
+  order: 2
+  name: Relative advantage
+  meaning: "The improvement the user expects over the current alternative before the new solution is worth changing behavior for."
+  weight: DEAL_BREAKER
+  founder:
+    control: single_choice
+    guidance: "The one thing that must be materially better than the current routine for people to switch."
+    normalized:
+      kind: categorical
+      codes: [fewer_attempts, shorter_time, less_worry, less_help_needed, easier_recovery]
+    option_rule: "Exactly 5 options onto the codes, worded for this circumstance; each with a belief phrase naming the improvement as a noun phrase."
+    belief_template: "To be worth switching to, it must mainly deliver {value}."
+    unsure_allowed: true
+  respondent:
+    asked_in_v1: true
+    part: 2
+    anchor: the_reveal
+    control: single_choice
+    guidance: "If you had had that information that night, what, if anything, would have gone differently: one pick, including 'nothing would have changed'. Never the founder's pick first."
+    option_rule: "Founder's codes + 'Nothing would have changed' + 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+  answers:
+    shape: choice
+    compare_rule: choice_majority
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "you said {founder} · most of the {n} said {observed}"
+    floor: 5
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "Compared with how a parent copes today, what would have to be clearly better for them to prefer a suggestion from the app?"
+    founder_options:
+      - {label: "Fewer things tried before the baby settles", normalized: fewer_attempts, belief_phrase: "fewer things tried before the baby settles"}
+      - {label: "A shorter time until the baby settles", normalized: shorter_time, belief_phrase: "a shorter time to settle"}
+      - {label: "Less worry and second-guessing while it is happening", normalized: less_worry, belief_phrase: "less worry in the moment"}
+      - {label: "Less need to wake or call on someone else", normalized: less_help_needed, belief_phrase: "less need for a second pair of hands"}
+      - {label: "Less strain afterwards, such as getting back to sleep", normalized: easier_recovery, belief_phrase: "an easier recovery afterwards"}
+    founder_answer: "Fewer things tried before the baby settles"
+    belief_sentence: "To be worth switching to, it must mainly deliver fewer things tried before the baby settles."
+    respondent_question: "If you had had a suggestion of what the cry meant that night, what, if anything, would have gone differently?"
+    respondent_options: ["I'd have tried fewer things", "The baby would have settled sooner", "I'd have worried less", "I wouldn't have needed to wake anyone", "I'd have got back to sleep more easily", "Nothing would have changed", "Something else"]
+    expected:
+      status: HOLDING_UP
+      drift: null
+      counts: "n=8 anchored · 6 inside (fewer things), 1 settled sooner, 1 nothing would have changed"
+
+- key: solution.effectiveness_threshold
+  vector: SOLUTION
+  order: 3
+  name: Effectiveness threshold
+  meaning: "The minimum outcome improvement that would make the solution useful."
+  weight: DEAL_BREAKER
+  founder:
+    control: numeric_threshold
+    guidance: "The smallest improvement per episode that would matter, as one number with a unit (minutes or percent). This sets a bar; interviews never clear it (HANDOFF Decision 4)."
+    normalized:
+      kind: threshold
+      unit_options: [minutes, percent]
+      default_unit: minutes
+      axis_max: 30
+      axis_step: 5
+      extend_by: 15
+      bins: ["0-5", "5-10", "10-20", "20+"]
+    option_rule: "No options: one handle with a unit picker. Belief value = 'at least N unit'. The bins are the respondent's bands and must be contiguous."
+    belief_template: "It is worth using only if it saves at least {value} per episode."
+    unsure_allowed: true
+    _decided: 2
+  respondent:
+    asked_in_v1: true
+    part: 2
+    anchor: the_reveal
+    control: single_choice_bands
+    guidance: "How much sooner that night would have needed to end for a suggestion to have been worth it: contiguous bands plus 'nothing would have made it worth it'. Never the founder's number."
+    option_rule: "Fixed bands from normalized.bins in the founder's unit, plus 'Nothing would have made it worth it'. No 'Something else'."
+    chips: ["I can't recall", "I'd rather not say", "That's a rough guess"]
+  answers:
+    shape: interval
+    compare_rule: threshold_band
+    status_vocabulary: [BAR_SET, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "bar set {side} than yours · you set {founder} · middle answer {observed} · {n} described it"
+    floor: 5
+    _note: "Never HOLDING_UP, never NOT_HOLDING_UP: the brief says where the bar sits, never that it is met. 'Nothing would make it worth it' counts as the top band. {side} = 'higher' | 'lower' | 'level with' (decision 2)."
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "What is the smallest reduction in the time it takes to settle the baby that would make the app worth using for a parent?"
+    founder_numeric: {unit: minutes, axis: "0–30 min by 5, extends by 15", picked: "5"}
+    founder_answer: "at least 5 minutes"
+    belief_sentence: "It is worth using only if it saves at least 5 minutes per episode."
+    respondent_question: "For a suggestion like that to have been worth it that night, how much sooner would the baby have needed to settle?"
+    respondent_options: ["Under 5 minutes sooner", "5 to 10 minutes sooner", "10 to 20 minutes sooner", "More than 20 minutes sooner", "Nothing would have made it worth it"]
+    expected:
+      status: BAR_SET
+      drift: "bar set higher than yours · you set 5 minutes · middle answer 10 to 20 minutes · 8 described it"
+      counts: "n=8 anchored · under 5: 1 · 5–10: 2 · 10–20: 4 · 20+: 1 · bar set at 10 min"
+
+- key: solution.trust_risk
+  vector: SOLUTION
+  order: 4
+  name: Trust / risk
+  meaning: "The conditions that make the user willing or unwilling to rely on the solution and the risks that matter."
+  weight: SHAPES
+  founder:
+    control: multi_choice
+    guidance: "Which conditions must hold before people act on the mechanism's output: evidence, transparency, stakes, privacy, safety."
+    normalized:
+      kind: set
+      codes: model_written
+      code_rule: "4–6 slug codes for this mechanism (e.g. labelled_suggestion, gives_reason, medical_escalation, audio_private, expert_backing, safe_actions_only). The respondent side adds the fixed code own_instinct ('I'd go with my own instinct either way'), never offered to the founder."
+    option_rule: "4–6 options, each one condition, each with a belief phrase; ticked phrases joined with 'and'."
+    belief_template: "{actor_plural} would act on it only if {value}."
+    unsure_allowed: true
+    _decided: 12
+  respondent:
+    asked_in_v1: true
+    part: 2
+    anchor: the_reveal
+    control: multi_choice
+    guidance: "What would need to be true before you acted on a suggestion like that, that night: tick all; include 'I'd go with my own instinct either way'."
+    option_rule: "Founder's codes + 1–2 distractors + 'I'd go with my own instinct either way' + 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+  answers:
+    shape: choice
+    compare_rule: set_overlap
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "you said {founder} · the {n} who described it also need {observed}"
+    floor: 5
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "Which of these would a parent need to be true before they acted on a suggestion about what the baby may need? Pick all that apply."
+    founder_options:
+      - {label: "It says plainly that it is a suggestion, not a diagnosis", normalized: labelled_suggestion, belief_phrase: "it is plainly labelled a suggestion"}
+      - {label: "It explains why it is suggesting that need", normalized: gives_reason, belief_phrase: "it gives its reason"}
+      - {label: "It points to a doctor when the cry could signal something serious", normalized: medical_escalation, belief_phrase: "it knows when to say 'call a doctor'"}
+      - {label: "Audio of the baby is not stored or shared", normalized: audio_private, belief_phrase: "the audio stays on the phone"}
+      - {label: "A paediatrician or other expert stands behind it", normalized: expert_backing, belief_phrase: "an expert stands behind it"}
+      - {label: "It suggests only safe actions, never medicine or anything risky", normalized: safe_actions_only, belief_phrase: "it only ever suggests safe things to try"}
+    founder_answer: "labelled_suggestion, safe_actions_only"
+    belief_sentence: "Parents of babies under six months would act on it only if it is plainly labelled a suggestion and it only ever suggests safe things to try."
+    respondent_question: "What would have needed to be true before you acted on a suggestion like that, that night? Tick all that apply."
+    respondent_options: ["It says plainly it is a suggestion, not a diagnosis", "It explains why", "It tells me when to call a doctor", "The recording isn't stored or shared", "A paediatrician stands behind it", "It only suggests safe things to try", "I'd go with my own instinct either way", "Something else"]
+    expected:
+      status: NOT_HOLDING_UP
+      drift: "you said labelled a suggestion and safe actions only · the 8 who described it also need the recording not stored (5 of 8)"
+      counts: "n=8 anchored · labelled 6, safe actions 5 · not stored 5 (unpicked, over half) · own instinct 2"
+
+- key: solution.reliability_tolerance
+  vector: SOLUTION
+  order: 5
+  name: Reliability tolerance
+  meaning: "How much error, inconsistency, or failure the user can tolerate before value or trust collapses."
+  weight: SHAPES
+  founder:
+    control: single_choice
+    guidance: "How often the output could be wrong before people stop using it: ordered failure bands out of ten, never a target accuracy number."
+    normalized:
+      kind: ordinal
+      codes: [never_wrong, one_in_ten, one_in_five, one_in_three, half_the_time]
+    option_rule: "Exactly 5 options in order onto the codes (0 · about 1 in 10 · about 2–3 in 10 · about 3–4 in 10 · 5 or more in 10), contiguous; each with a belief phrase."
+    belief_template: "They keep using it as long as it is wrong no more than {value}."
+    unsure_allowed: true
+  respondent:
+    asked_in_v1: true
+    part: 2
+    anchor: the_reveal
+    control: single_choice
+    guidance: "If a suggestion had turned out wrong, at what point would you stop relying on it: the same bands, anchored to that night's kind of episode. Never the founder's band."
+    option_rule: "Founder's 5 bands in order, no distractors, no 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+  answers:
+    shape: choice
+    compare_rule: ordinal_band
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "{side} than you think · you said {founder} · most of the {n} would stop at {observed}"
+    floor: 5
+    _note: "Tolerance dimension: a pick more forgiving than the founder's counts inside. {side} = 'stricter' (the only outside direction)."
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "Out of 10 night-time episodes, how many times could the app's suggestion be wrong before a parent stops using it?"
+    founder_options:
+      - {label: "Never; one miss would be enough", normalized: never_wrong, belief_phrase: "never"}
+      - {label: "Rarely; about 1 in 10", normalized: one_in_ten, belief_phrase: "about one time in ten"}
+      - {label: "Occasionally; about 2 or 3 in 10", normalized: one_in_five, belief_phrase: "about one time in five"}
+      - {label: "Fairly often; about 3 or 4 in 10", normalized: one_in_three, belief_phrase: "about one time in three"}
+      - {label: "Half the time or more, as long as it sometimes helps", normalized: half_the_time, belief_phrase: "half the time"}
+    founder_answer: "Occasionally; about 2 or 3 in 10"
+    belief_sentence: "They keep using it as long as it is wrong no more than about one time in five."
+    respondent_question: "If a suggestion like that had turned out wrong, at what point would you stop relying on it?"
+    respondent_options: ["After the first wrong one", "After about 1 in 10 were wrong", "After about 2 or 3 in 10 were wrong", "After about 3 or 4 in 10 were wrong", "I'd keep using it even if half were wrong"]
+    expected:
+      status: HOLDING_UP
+      drift: null
+      counts: "n=8 anchored · 4 at 2–3 in 10, 2 more forgiving (inside) · 2 stricter"
+
+- key: solution.adoption_friction
+  vector: SOLUTION
+  order: 6
+  name: Adoption friction
+  meaning: "The additional effort, behavior change, setup, learning, or interruption required to use the solution."
+  weight: SHAPES
+  founder:
+    control: single_choice
+    guidance: "The most extra effort a user would accept at the moment of use: an ordered effort ladder from nothing extra to a daytime setup."
+    normalized:
+      kind: ordinal
+      codes: [nothing_extra, one_tap, a_few_taps, setup_once, daytime_setup]
+    option_rule: "Exactly 5 options in order onto the codes, worded for this mechanism's moment of use; each with a belief phrase."
+    belief_template: "The most extra effort they would accept at the moment of use is {value}."
+    unsure_allowed: true
+    _decided: 4
+  respondent:
+    asked_in_v1: true
+    part: 2
+    anchor: the_reveal
+    control: single_choice
+    guidance: "That night, with the phone where it was and your hands as they were, how much could you have managed before giving up on it: the same effort ladder, plus 'I wouldn't have reached for the phone at all'."
+    option_rule: "Founder's 5 rungs in order + 'I wouldn't have reached for the phone at all' (outside, no direction). No 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+  answers:
+    shape: choice
+    compare_rule: ordinal_band
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "{side} than you think · you said {founder} · most of the {n} could have managed {observed}"
+    floor: 5
+    _note: "Tolerance dimension: a pick further up the ladder than the founder's counts inside. {side} = 'less effort'."
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "At 3 a.m., how much extra effort would a parent put into getting the app listening before giving up on it?"
+    founder_options:
+      - {label: "None; it must work with the phone already in hand", normalized: nothing_extra, belief_phrase: "nothing at all"}
+      - {label: "One tap to start", normalized: one_tap, belief_phrase: "a single tap"}
+      - {label: "A few taps, such as opening the app and pressing listen", normalized: a_few_taps, belief_phrase: "a few taps"}
+      - {label: "A short one-time setup, then one tap each night", normalized: setup_once, belief_phrase: "a one-time setup, then a tap"}
+      - {label: "A longer setup, such as entering the baby's details, if done in the daytime", normalized: daytime_setup, belief_phrase: "a proper setup done in the daytime"}
+    founder_answer: "A few taps, such as opening the app and pressing listen"
+    belief_sentence: "The most extra effort they would accept at the moment of use is a few taps."
+    respondent_question: "That night, with the phone where it was, how much could you have managed before giving up on it?"
+    respondent_options: ["Nothing extra; it would have to just work", "One tap", "A few taps", "Something I'd set up earlier in the day, then a tap", "I wouldn't have reached for the phone at all"]
+    expected:
+      status: PEOPLE_DISAGREE
+      drift: "less effort than you think · you said a few taps · 3 of the 8 could have managed nothing extra, or wouldn't have reached for the phone"
+      counts: "n=8 anchored · 5 inside (3 a few taps or more, 2 one tap: the ±1 rung) · 2 nothing extra · 1 wouldn't have reached for the phone · 5/8 is between a third and two thirds"
+
+- key: solution.trialability
+  vector: SOLUTION
+  order: 7
+  name: Trialability
+  meaning: "What must be true for the user to try the solution with acceptable risk and commitment."
+  weight: SHAPES
+  founder:
+    control: multi_choice
+    guidance: "Which conditions make a first try acceptable: trial length, setup, reversibility, privacy, cost."
+    normalized:
+      kind: set
+      codes: model_written
+      code_rule: "4–6 slug codes for this mechanism (e.g. free_no_card, recommendation, daytime_practice, data_promise, easy_exit); ordered as presented."
+    option_rule: "4–6 options, each one condition, each with a belief phrase; ticked phrases joined with 'and'."
+    belief_template: "They would try it for the first time if {value}."
+    unsure_allowed: true
+  respondent:
+    asked_in_v1: true
+    part: 2
+    anchor: the_reveal
+    control: multi_choice
+    guidance: "What would have made trying something like this easy enough to consider, tick all; anchored to the last thing they started using for the baby where the story allows."
+    option_rule: "Founder's codes + 1–2 distractors + 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+  answers:
+    shape: choice
+    compare_rule: set_overlap
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "you said {founder} · the {n} who described it mostly ticked {observed}"
+    floor: 5
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "What would make it acceptable for a parent to try the app for the first time? Pick all that apply."
+    founder_options:
+      - {label: "Free to try, with no card details", normalized: free_no_card, belief_phrase: "it is free with no card details"}
+      - {label: "A recommendation from another parent or a health professional", normalized: recommendation, belief_phrase: "someone they trust recommends it"}
+      - {label: "Trying it in the daytime first, not in the middle of a night", normalized: daytime_practice, belief_phrase: "they can try it in daylight first"}
+      - {label: "A clear promise about what happens to the recordings", normalized: data_promise, belief_phrase: "it is clear what happens to the recordings"}
+      - {label: "Being able to stop and delete everything at any time", normalized: easy_exit, belief_phrase: "they can delete everything at any time"}
+    founder_answer: "free_no_card, easy_exit"
+    belief_sentence: "They would try it for the first time if it is free with no card details and they can delete everything at any time."
+    respondent_question: "What would have made trying something like this easy enough to consider? Tick all that apply."
+    respondent_options: ["Free to try, no card details", "Recommended by another parent or a health professional", "Trying it in the daytime first", "A clear promise about the recordings", "Being able to stop and delete everything", "Something else"]
+    expected:
+      status: HOLDING_UP
+      drift: null
+      counts: "n=8 anchored · free 7, delete 5 · daytime 3, promise 3, recommendation 2"
+
+- key: solution.observability
+  vector: SOLUTION
+  order: 8
+  name: Observability
+  meaning: "How the user would recognize whether the solution is helping."
+  weight: SHAPES
+  founder:
+    control: multi_choice
+    guidance: "What would tell the user it helped: the signals they would use to judge success."
+    normalized:
+      kind: set
+      codes: model_written
+      code_rule: "4–6 slug codes for this mechanism (e.g. settled_sooner, fewer_tries, need_matched, felt_calmer, back_to_sleep, next_day_better); ordered as presented."
+    option_rule: "4–6 options, each one signal, each with a belief phrase; ticked phrases joined with 'and'."
+    belief_template: "They would know it helped when {value}."
+    unsure_allowed: true
+  respondent:
+    asked_in_v1: true
+    part: 2
+    anchor: the_reveal
+    control: multi_choice
+    guidance: "How would you personally have decided whether it helped that night: tick all."
+    option_rule: "Founder's codes + 1–2 distractors + 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+  answers:
+    shape: choice
+    compare_rule: set_overlap
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "you said {founder} · the {n} who described it would mostly judge it by {observed}"
+    floor: 5
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "After a night-time episode, how would a parent judge whether the app had been worth using? Pick all that apply."
+    founder_options:
+      - {label: "The baby settled sooner than usual", normalized: settled_sooner, belief_phrase: "the baby settled sooner than usual"}
+      - {label: "They tried fewer things before it worked", normalized: fewer_tries, belief_phrase: "they tried fewer things"}
+      - {label: "The suggested need turned out to be the right one", normalized: need_matched, belief_phrase: "the suggestion was right"}
+      - {label: "They felt calmer and more in control", normalized: felt_calmer, belief_phrase: "they felt calmer"}
+      - {label: "Everyone got back to sleep faster", normalized: back_to_sleep, belief_phrase: "everyone was back asleep faster"}
+      - {label: "The next day felt less exhausting", normalized: next_day_better, belief_phrase: "the next day was easier"}
+    founder_answer: "settled_sooner, fewer_tries"
+    belief_sentence: "They would know it helped when the baby settled sooner than usual and they tried fewer things."
+    respondent_question: "How would you personally have decided whether it helped that night? Tick all that apply."
+    respondent_options: ["The baby settled sooner than usual", "I tried fewer things before something worked", "The suggestion turned out to be right", "I felt calmer", "Everyone got back to sleep faster", "The next day felt less exhausting", "Something else"]
+    expected:
+      status: HOLDING_UP
+      drift: null
+      counts: "n=8 anchored · settled sooner 6, fewer things 5 · suggestion right 4, calmer 3"
+
+- key: solution.target_circumstance
+  vector: SOLUTION
+  order: 9
+  name: Target circumstance
+  meaning: "The situations in which the proposed solution is most and least valuable."
+  weight: SHAPES
+  founder:
+    control: single_choice
+    guidance: "In which kind of episode the mechanism matters most: the narrow context, not universal usefulness."
+    normalized:
+      kind: categorical
+      codes: model_written
+      code_rule: "4–6 slug codes for kinds of episode in this circumstance (e.g. first_wake, late_repeated_wakes, routine_failed, alone, first_weeks). The respondent side adds the fixed code not_useful ('It wouldn't be useful to me'), never offered to the founder."
+    option_rule: "4–6 options, each one kind of episode, each with a belief phrase starting 'when ...'."
+    belief_template: "It matters most {value}."
+    unsure_allowed: true
+    _decided: 12
+  respondent:
+    asked_in_v1: true
+    part: 2
+    anchor: the_reveal
+    control: single_choice
+    guidance: "When would something like this be most useful to you, with that night in mind: one pick, including 'It wouldn't be useful to me'."
+    option_rule: "Founder's codes + 'It wouldn't be useful to me' + 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+  answers:
+    shape: choice
+    compare_rule: choice_majority
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "you said {founder} · most of the {n} said {observed}"
+    floor: 5
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "In which kind of night-time episode would a parent find the app most valuable?"
+    founder_options:
+      - {label: "The first wake-up of the night, when they are still fairly alert", normalized: first_wake, belief_phrase: "at the first wake-up, while they are still alert"}
+      - {label: "Repeated wake-ups late in the night, when they are exhausted", normalized: late_repeated_wakes, belief_phrase: "late in the night, after repeated wake-ups"}
+      - {label: "A cry that has not stopped after the usual routine", normalized: routine_failed, belief_phrase: "when the usual routine has not stopped the crying"}
+      - {label: "Nights when they are alone with the baby", normalized: alone, belief_phrase: "when they are alone with the baby"}
+      - {label: "The first weeks with a new baby", normalized: first_weeks, belief_phrase: "in the first weeks with a new baby"}
+    founder_answer: "A cry that has not stopped after the usual routine"
+    belief_sentence: "It matters most when the usual routine has not stopped the crying."
+    respondent_question: "With that night in mind, when would something like this be most useful to you?"
+    respondent_options: ["The first wake-up of the night", "Repeated wake-ups late in the night", "When the usual routine hasn't stopped the crying", "Nights when I'm alone with the baby", "The first weeks with a new baby", "It wouldn't be useful to me", "Something else"]
+    expected:
+      status: PEOPLE_DISAGREE
+      drift: null
+      counts: "n=8 anchored · 4 inside (routine hasn't worked) · 2 late wake-ups, 1 alone, 1 wouldn't be useful"
+
+# ───────────────────────── COMMERCIAL (7) · Part 3 asks 6 ─────────────────────────
+
+- key: commercial.existing_sacrifice
+  vector: COMMERCIAL
+  order: 1
+  name: Existing sacrifice
+  meaning: "Resources already given up because of the problem: money, time, effort, inconvenience, risk, or foregone alternatives."
+  weight: DEAL_BREAKER
+  founder:
+    control: multi_choice
+    guidance: "What the problem already costs the decision-maker, as a set: money on substitutes, paid help, time, effort, risk. Always include a 'none of these' code."
+    normalized:
+      kind: set
+      codes: model_written
+      code_rule: "4–6 slug codes for this market (e.g. apps_subscriptions, gadgets, paid_help, work_sacrifice, medical_visits) plus the fixed code none ('None of these; they cope with what they have'); ordered as presented."
+    option_rule: "4–6 options, each one kind of sacrifice, each with a belief phrase; ticked phrases joined with 'and'."
+    belief_template: "Because of this, {actor_plural} already give up {value}."
+    unsure_allowed: true
+    _decided: 10
+  respondent:
+    asked_in_v1: true
+    part: 3
+    anchor: last_purchase
+    control: branch_pick_number
+    guidance: "Think of the last thing you paid for or gave up because of this. Pick what (founder's codes + 'Nothing'), then roughly how much, all together, in the last three months (money, market currency), then 'still using it?' yes/no. Never the founder's set."
+    option_rule: "Pick: founder's codes + 1 distractor + 'Nothing' + 'Something else'; number: currency amount; follow-up: Yes / No."
+    chips: ["I can't recall", "I'd rather not say", "That's a rough guess"]
+    b2b:
+      anchor: last_cycle
+      guidance: "What the last cycle of this problem actually cost the team: pick the kinds of cost, then roughly how much in money or hours. The decision-maker sees no context card and nothing of what the specialists said."
+      option_rule: "Founder's codes + 'Nothing' + 'Something else'; number in currency or hours."
+  answers:
+    shape: choice
+    compare_rule: set_overlap
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "you said {founder} · the {n} who described it mostly gave up {observed}"
+    floor: 5
+    _note: "Compared on the pick; the amount is shown as a median beside the row, not compared."
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "Which of these have parents of babies under six months already paid for or given up because of the night crying? Pick all that apply."
+    founder_options:
+      - {label: "Money on baby apps or subscriptions (tracking, white noise)", normalized: apps_subscriptions, belief_phrase: "money on baby apps"}
+      - {label: "Money on gadgets (sleep aids, swaddles, monitors)", normalized: gadgets, belief_phrase: "money on gadgets"}
+      - {label: "Paid help so they can sleep (night nurse, doula)", normalized: paid_help, belief_phrase: "money on paid help"}
+      - {label: "Time off or a worse day at work after a bad night", normalized: work_sacrifice, belief_phrase: "working days"}
+      - {label: "Extra visits to a doctor or health visitor about the crying", normalized: medical_visits, belief_phrase: "extra medical visits"}
+      - {label: "None of these; they cope with what they have", normalized: none, belief_phrase: "nothing yet"}
+    founder_answer: "apps_subscriptions, gadgets"
+    belief_sentence: "Because of this, parents of babies under six months already give up money on baby apps and money on gadgets."
+    respondent_question: "Think of the last thing you paid for because of the baby's nights. What was it, and roughly how much have you spent on things like it in the last three months?"
+    respondent_options: ["A baby app or subscription", "A gadget (sleep aid, swaddle, monitor)", "Paid help", "A book, course or sleep consultant", "A doctor or health-visitor visit", "Nothing", "Something else", "→ £ amount", "→ Still using it? Yes / No"]
+    expected:
+      status: HOLDING_UP
+      drift: null
+      counts: "n=11 anchored (Keiko guessed) · gadgets 7, apps 5 · paid help 0 · median £18 over three months"
+      _note: "n=11 is stale under the gate rule (a gate-No answers nothing more; at most 10 people, 8 anchored, reach part 3): to be reworked at n ≤ 10 in corpus r3 (decided 2026-10-07, reconciliation 14); no status is expected to change."
+
+- key: commercial.wtp_hypothesis
+  vector: COMMERCIAL
+  order: 2
+  name: Price
+  meaning: "A preliminary view of the price/value boundary at which the offer might be chosen; hypothetical WTP is weaker than real purchase behavior."
+  weight: SHAPES
+  founder:
+    control: price_range
+    guidance: "A range the founder believes reasonable, with a period; stored and shown as HYPOTHESIS in the market's currency."
+    normalized:
+      kind: price_range
+      currency: market
+      unit_options: ["per month", "per year", "one-off"]
+      default_unit: "per month"
+      axis_max: 30
+      axis_step: 1
+      extend_by: 20
+    option_rule: "No options: a two-handle range with a period picker. Belief value = 'CUR low to high per period'."
+    belief_template: "A fair price would feel like {value} (a hypothesis; interviews do not test it)."
+    unsure_allowed: true
+    _decided: 11
+  respondent:
+    asked_in_v1: true
+    part: 3
+    anchor: last_purchase
+    control: two_numbers_optional
+    guidance: "What the last comparable thing cost (number + period), and optionally a guess at a fair price for something that helps with this, labelled on screen as a guess. Never the founder's range."
+    option_rule: "Number 1 required: amount + period; number 2 optional, labelled 'just a guess'. No options."
+    chips: ["I can't recall", "I'd rather not say", "That's a rough guess"]
+    b2b:
+      anchor: last_purchase
+      guidance: "What the last comparable tool or service cost the team per year, and optionally a guess at a budget line for this, labelled as a guess."
+      option_rule: "Number 1 required: amount per year; number 2 optional, labelled 'just a guess'."
+  answers:
+    shape: interval
+    compare_rule: price_hypothesis
+    status_vocabulary: [NOT_TESTED_BY_DESIGN, LEFT_OUT]
+    drift_template: "not tested · by design · you said {founder} · the last comparable thing cost a middle {observed} · {n} told us"
+    floor: 5
+    _note: "No call is ever made; the floor only gates showing the median. Row tagged HYPOTHESIS on the answers page."
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "If a parent paid for the app, what range per month do you think they would consider reasonable?"
+    founder_numeric: {unit: "£ per month", axis: "0–30 by 1, extends by 20", picked: "5 to 12"}
+    founder_answer: "£5 to £12 per month"
+    belief_sentence: "A fair price would feel like £5 to £12 per month (a hypothesis; interviews do not test it)."
+    respondent_question: "What did that last thing cost? And, only if you want to guess, what would feel fair per month for something that helps at night?"
+    respondent_options: ["£ amount · per month | one-off", "£ per month (just a guess, optional)"]
+    expected:
+      status: NOT_TESTED_BY_DESIGN
+      drift: "not tested · by design · you said £5 to £12 per month · the last comparable thing cost a middle £5 per month · 11 told us"
+      counts: "n=11 · last purchase median £5 per month (apps) · 6 offered a guess, median £6"
+      _note: "n=11 is stale under the gate rule (a gate-No answers nothing more; at most 10 people, 8 anchored, reach part 3): to be reworked at n ≤ 10 in corpus r3 (decided 2026-10-07, reconciliation 14); no status is expected to change."
+
+- key: commercial.ability_to_pay
+  vector: COMMERCIAL
+  order: 3
+  name: Ability to pay
+  meaning: "Whether the buyer has accessible personal or organizational budget at the relevant price level."
+  weight: SHAPES
+  founder:
+    control: single_choice
+    guidance: "Whether the decision-maker could find the money: an ordered four-point scale on budget fit, independent of desire. No mixed options (recurring vs one-off belongs to Price)."
+    normalized:
+      kind: ordinal
+      codes: [easily, without_cutting_back, with_a_trade_off, barely]
+    option_rule: "Exactly 4 options in order onto the codes; each a one-line budget scenario; each with a belief phrase."
+    belief_template: "They could find the money for it {value}."
+    unsure_allowed: true
+    _decided: 7
+  respondent:
+    asked_in_v1: true
+    part: 3
+    anchor: last_purchase
+    control: single_choice
+    guidance: "When you last paid for something because of this, where did the money come from and did it mean skipping something else: the same four steps plus 'it was free or a gift'."
+    option_rule: "Founder's 4 codes in order + 'It was free or a gift' (escape, counts nothing). No 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+    b2b:
+      anchor: last_purchase
+      guidance: "Where the budget for the last comparable purchase came from: existing line, a new line that needed sign-off, squeezed from elsewhere, or there was none."
+      option_rule: "4 ordered options mirroring the codes (existing line · new line approved · squeezed from elsewhere · no budget found) + 'It was free'."
+  answers:
+    shape: choice
+    compare_rule: ordinal_band
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "{side} than you think · you said {founder} · most of the {n} said {observed}"
+    floor: 5
+    _note: "{side} = 'tighter' | 'easier'."
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "For a baby-related purchase that helps with nights, how easily could most parents find room in their budget?"
+    founder_options:
+      - {label: "Very easily; they would not think twice about a small monthly charge", normalized: easily, belief_phrase: "without a second thought"}
+      - {label: "Fairly easily; they could pay without cutting back elsewhere", normalized: without_cutting_back, belief_phrase: "fairly easily, without cutting back elsewhere"}
+      - {label: "With a trade-off; they would need to skip something else", normalized: with_a_trade_off, belief_phrase: "only by skipping something else"}
+      - {label: "Barely; spare money already goes on baby essentials", normalized: barely, belief_phrase: "barely, if at all"}
+    founder_answer: "Fairly easily; they could pay without cutting back elsewhere"
+    belief_sentence: "They could find the money for it fairly easily, without cutting back elsewhere."
+    respondent_question: "When you last paid for something because of the baby's nights, where did the money come from?"
+    respondent_options: ["Everyday spending; I didn't think twice", "I paid without cutting back on anything", "I had to skip something else", "I scraped it together; money is tight", "It was free or a gift"]
+    expected:
+      status: HOLDING_UP
+      drift: null
+      counts: "n=9 anchored (2 'free or a gift') · 7 inside (without cutting back or easier) · 2 tighter"
+
+- key: commercial.buyer_payer_alignment
+  vector: COMMERCIAL
+  order: 4
+  name: Buyer / payer alignment
+  meaning: "Whether the user, beneficiary, decision maker, approver, and payer are the same person or a workable chain."
+  weight: DEAL_BREAKER
+  founder:
+    control: single_choice
+    guidance: "Set by the who-decides step (D1); the calibration confirms the chain from user to payer as one of five role chains."
+    normalized:
+      kind: role_chain
+      codes: [same_person, user_decides_other_pays, joint_decision, someone_else_decides, institution_pays]
+    option_rule: "Exactly 5 options onto the codes, worded for this market's roles; each with a belief phrase that names the chain."
+    belief_template: "On buying: {value}."
+    unsure_allowed: true
+  respondent:
+    asked_in_v1: true
+    part: 3
+    anchor: last_purchase
+    control: single_choice
+    guidance: "Who paid for that last thing, and did anyone else have to agree: one pick on the same chains, plus 'it was free'."
+    option_rule: "Founder's 5 codes worded as 'me, no one else needed to agree' etc. + 'It was free' (escape). No 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+    b2b:
+      anchor: last_purchase
+      guidance: "For the last comparable purchase: who had to agree before it went through (you alone · you plus your manager · a committee · procurement or finance · someone else entirely)."
+      option_rule: "5 options mirroring the codes + 'It was free'."
+  answers:
+    shape: choice
+    compare_rule: role_chain_match
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "you said {founder} · most of the {n} said {observed}"
+    floor: 5
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "When a parent decides to try something new for the baby's nights, who actually pays for it?"
+    founder_options:
+      - {label: "The parent pays for it themselves, with no one else to agree", normalized: same_person, belief_phrase: "the same person uses it, decides and pays"}
+      - {label: "The parent decides, but a partner or shared account pays", normalized: user_decides_other_pays, belief_phrase: "the parent decides and someone else in the household pays"}
+      - {label: "The parent and their partner decide together", normalized: joint_decision, belief_phrase: "the parent and their partner decide together"}
+      - {label: "A relative or friend buys it as a gift", normalized: someone_else_decides, belief_phrase: "someone outside the household buys it"}
+      - {label: "An employer, insurer or health plan pays", normalized: institution_pays, belief_phrase: "an institution pays"}
+    founder_answer: "The parent pays for it themselves, with no one else to agree"
+    belief_sentence: "On buying: the same person uses it, decides and pays."
+    respondent_question: "Who paid for that last thing, and did anyone else need to agree?"
+    respondent_options: ["Me; no one else needed to agree", "Me, but my partner had to agree", "My partner", "A relative or friend, as a gift", "An employer or health plan", "It was free"]
+    expected:
+      status: HOLDING_UP
+      drift: null
+      counts: "n=11 anchored · 8 inside (me) · 2 my partner, 1 a grandparent"
+      _note: "n=11 is stale under the gate rule (a gate-No answers nothing more; at most 10 people, 8 anchored, reach part 3): to be reworked at n ≤ 10 in corpus r3 (decided 2026-10-07, reconciliation 14); no status is expected to change."
+
+- key: commercial.purchase_friction
+  vector: COMMERCIAL
+  order: 5
+  name: Purchase friction
+  meaning: "The approvals, procurement, account setup, switching, security, spouse/manager agreement, or other steps between interest and purchase."
+  weight: SHAPES
+  founder:
+    control: multi_choice
+    guidance: "What could slow or stop the decision-maker between interest and paying: approvals, proof, payment effort, cancellation worry, privacy, forgetting."
+    normalized:
+      kind: set
+      codes: model_written
+      code_rule: "4–6 slug codes for this market (e.g. partner_approval, social_proof, payment_effort, cancel_worry, privacy, forgetting); ordered as presented."
+    option_rule: "4–6 options, each one blocker, each with a belief phrase; ticked phrases joined with 'and'."
+    belief_template: "Between wanting it and paying, {value} could hold them back."
+    unsure_allowed: true
+  respondent:
+    asked_in_v1: true
+    part: 3
+    anchor: last_purchase
+    control: multi_choice
+    guidance: "The last time you nearly bought something for this and didn't, what got in the way; or, for that last purchase, what had to happen first. Tick all; include 'Nothing; it never came up'."
+    option_rule: "Founder's codes + 1–2 distractors + 'Nothing; it never came up' + 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+    b2b:
+      anchor: last_purchase
+      guidance: "For the last comparable purchase, what had to happen before it went through: security review, procurement, a pilot, budget sign-off, a champion, a contract. Tick all."
+      option_rule: "Founder's codes + 'Nothing; it went straight through' + 'Something else'."
+  answers:
+    shape: choice
+    compare_rule: set_overlap
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "you said {founder} · the {n} who described it were mostly held back by {observed}"
+    floor: 5
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "Which of these would most likely slow down or stop a parent between hearing about the app and actually paying for it? Pick all that apply."
+    founder_options:
+      - {label: "Needing a partner's agreement first", normalized: partner_approval, belief_phrase: "needing a partner's agreement"}
+      - {label: "Wanting reviews or a recommendation from other parents or a doctor", normalized: social_proof, belief_phrase: "wanting to see reviews first"}
+      - {label: "Entering card details when tired and half awake", normalized: payment_effort, belief_phrase: "the card-details step at night"}
+      - {label: "Worry about a subscription that is hard to cancel", normalized: cancel_worry, belief_phrase: "worry about cancelling"}
+      - {label: "Concern about privacy of recordings of the baby", normalized: privacy, belief_phrase: "worries about recording the baby"}
+      - {label: "Forgetting about it once the night is over", normalized: forgetting, belief_phrase: "forgetting by morning"}
+    founder_answer: "partner_approval, privacy"
+    belief_sentence: "Between wanting it and paying, needing a partner's agreement and worries about recording the baby could hold them back."
+    respondent_question: "The last time you nearly bought something for the baby and didn't, what got in the way? Tick all that apply."
+    respondent_options: ["I needed my partner to agree", "I wanted reviews or a recommendation first", "Entering card details when I was exhausted", "Worry it would be hard to cancel", "Privacy of recordings of the baby", "I forgot about it by morning", "Nothing; it never came up", "Something else"]
+    expected:
+      status: NOT_HOLDING_UP
+      drift: "you said a partner's agreement and privacy · the 11 who described it were mostly held back by wanting reviews first (6 of 11)"
+      counts: "n=11 anchored · partner 4, privacy 3 · reviews 6 (unpicked, over half) · never came up 2"
+      _note: "n=11 is stale under the gate rule (a gate-No answers nothing more; at most 10 people, 8 anchored, reach part 3): to be reworked at n ≤ 10 in corpus r3 (decided 2026-10-07, reconciliation 14); no status is expected to change."
+
+- key: commercial.commitment
+  vector: COMMERCIAL
+  order: 6
+  name: Commitment
+  meaning: "The meaningful actions the person is willing to take before purchase, such as time, installation, data access, referral, deposit, or trial participation."
+  weight: DEAL_BREAKER
+  founder:
+    control: multi_choice
+    guidance: "Which real next steps people would take now for a trial, from a fixed ladder for the market type; the founder's highest ticked rung is the belief."
+    normalized:
+      kind: ladder
+      codes: model_written
+      code_rule: "Exactly the 5 fixed rungs for the project's type, in order. B2C: setup, install, mic, next_episode, contact_me. B2B: call, read_only_trial, it_intro, data, paid_pilot. The model writes the labels for the mechanism; the respondent side adds the fixed code nothing_yet ('Nothing yet'), never offered to the founder."
+    option_rule: "Exactly 5 options, one per rung, in rung order; each with a belief phrase naming the action."
+    belief_template: "For a trial, right now, they would go as far as {value}."
+    unsure_allowed: true
+    _decided: 9
+  respondent:
+    asked_in_v1: true
+    part: 3
+    anchor: last_purchase
+    control: multi_choice_ladder
+    guidance: "Tick what you would actually do now, not what you might do: the 5 rungs for the market type plus 'Nothing yet'. Real next steps, offered after the done screen as far as the product can honour them."
+    option_rule: "The 5 B2C rungs (setup, install, mic, next_episode, contact_me) + 'Nothing yet'. No 'Something else'."
+    chips: ["I'd rather not say"]
+    b2b:
+      anchor: last_cycle
+      guidance: "Tick the real next steps you would take now: the B2B ladder plus 'Nothing yet'."
+      option_rule: "The 5 B2B rungs + 'Nothing yet'. No 'Something else'."
+      ladder_rungs: [call, read_only_trial, it_intro, data, paid_pilot]
+  answers:
+    shape: choice
+    compare_rule: ladder_rung
+    status_vocabulary: [HOLDING_UP, NOT_HOLDING_UP, PEOPLE_DISAGREE, TOO_FEW_TO_CALL, NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "fewer would go as far as you think · you said {founder} · {observed} of {n} would"
+    floor: 5
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "For a trial right now, which of these do you think most parents would actually do? Pick all that apply."
+    founder_options:
+      - {label: "Set it up on their phone before the next night", normalized: setup, belief_phrase: "setting it up before the next night"}
+      - {label: "Install the app", normalized: install, belief_phrase: "installing the app"}
+      - {label: "Allow it to use the microphone at night", normalized: mic, belief_phrase: "allowing the microphone"}
+      - {label: "Try it at the next night-time wake-up", normalized: next_episode, belief_phrase: "trying it at the next wake-up"}
+      - {label: "Have you contact them about the pilot", normalized: contact_me, belief_phrase: "asking to be contacted"}
+    founder_answer: "install, mic"
+    belief_sentence: "For a trial, right now, they would go as far as allowing the microphone."
+    respondent_question: "Which of these would you actually do now? Tick all that apply."
+    respondent_options: ["Set it up on my phone before tonight", "Install the app", "Allow it to use the microphone at night", "Try it at the next night-time wake-up", "Have the founder contact me", "Nothing yet"]
+    expected:
+      status: NOT_HOLDING_UP
+      drift: "fewer would go as far as you think · you said allowing the microphone · 4 of 11 would"
+      counts: "n=11 · install 6, mic 4, next wake-up 2, contact me 2 · nothing yet 3"
+      _note: "n=11 is stale under the gate rule (a gate-No answers nothing more; at most 10 people, 8 anchored, reach part 3): to be reworked at n ≤ 10 in corpus r3 (decided 2026-10-07, reconciliation 14); no status is expected to change."
+
+- key: commercial.retention_potential
+  vector: COMMERCIAL
+  order: 7
+  name: Retention potential
+  meaning: "Whether the underlying need recurs often enough for repeated value; actual product retention cannot yet be measured."
+  weight: SHAPES
+  founder:
+    control: single_choice
+    guidance: "How often people return to the tools or routines they use for this today (a proxy for recurring need). NOT how often the problem occurs; that is Frequency."
+    normalized:
+      kind: ordinal
+      codes: [daily, several_times_a_week, weekly, a_few_times_a_month, rarely]
+    option_rule: "Exactly 5 options in order onto the codes, about returning to current tools or routines; each with a belief phrase."
+    belief_template: "They return to what they use for this today {value}."
+    unsure_allowed: true
+  respondent:
+    asked_in_v1: false
+    part: null
+    anchor: last_purchase
+    control: single_choice
+    guidance: "NOT ASKED IN V1. When asked: for the last tool or routine you used for this, how often have you gone back to it in the last month; same bands."
+    option_rule: "Founder's 5 bands, no distractors, no 'Something else'."
+    chips: ["I can't recall", "I'd rather not say"]
+    b2b:
+      anchor: last_cycle
+      guidance: "NOT ASKED IN V1. When asked: how often the team returns to its current tool or workaround for this."
+      option_rule: "Founder's 5 bands."
+    _why: >-
+      Decided 2026-10-06 (HANDOFF §2, Part 3 = 6): the recurrence of the need is already read from
+      Frequency on the Problem side, and return-to-current-tools is a weak proxy for retention that the
+      pilot measures directly. Kept in the registry so the brief has a row and V2 can switch it on.
+  answers:
+    shape: choice
+    compare_rule: ordinal_band
+    status_vocabulary: [NOT_ASKED_YET, LEFT_OUT]
+    drift_template: "{side} than you think · you said {founder} · most of the {n} go back {observed}"
+    floor: 5
+    _note: "In V1 a founder belief here reads NOT_ASKED_YET · 'not asked in this round' (decision 3). {side} = 'less often' | 'more often' when switched on."
+    _decided: 3
+  left_out: {ask_respondent: false, status: LEFT_OUT, note: "You weren't sure, so this was left out of the study. The brief says it is untested."}
+  lullaby:
+    founder_question: "How often do you think parents go back to the tools or routines they already use for the baby's nights, such as a tracking or white-noise app?"
+    founder_options:
+      - {label: "Every night", normalized: daily, belief_phrase: "every night"}
+      - {label: "Several nights a week", normalized: several_times_a_week, belief_phrase: "several nights a week"}
+      - {label: "About once a week", normalized: weekly, belief_phrase: "about weekly"}
+      - {label: "A few times a month", normalized: a_few_times_a_month, belief_phrase: "a few times a month"}
+      - {label: "Rarely; they drift away from them", normalized: rarely, belief_phrase: "rarely"}
+    founder_answer: "I'm not sure"
+    belief_sentence: "Left out: you weren't sure."
+    respondent_question: null
+    respondent_options: []
+    expected:
+      status: LEFT_OUT
+      drift: null
+      counts: "not asked"
+
+# ───────────────────────── CHECKS (the seven invariants of registry-schema.draft.md, as achieved) ─────────────────────────
+checks:
+  1_keys: {total: 25, per_vector: {PROBLEM: 9, SOLUTION: 9, COMMERCIAL: 7}, order_contiguous: true}
+  2_deal_breakers:
+    PROBLEM: [problem.prevalence, problem.frequency, problem.duration]
+    SOLUTION: [solution.compatibility, solution.relative_advantage, solution.effectiveness_threshold]
+    COMMERCIAL: [commercial.existing_sacrifice, commercial.buyer_payer_alignment, commercial.commitment]
+    count: 9
+  3_asked_in_v1:
+    asked_in_v1_true: 23
+    asked_in_v1_false: [problem.urgency, commercial.retention_potential]
+    parts: {1: 8, 2: 9, 3: 6}
+  4_belief_templates: {entries: 25, with_value_exactly_once: 25}
+  5_codes:
+    closed_controls_with_fixed_codes: 12      # prevalence 5, severity 5, importance 5, current_solution 5, urgency 5, compatibility 5, relative_advantage 5, reliability 5, adoption 5, ability_to_pay 4, buyer_payer 5, retention 5 (commitment's two ladders are fixed per type but carried in code_rule, so it is counted under model_written)
+    model_written_sets: 9                     # consequence, workaround, trust_risk, trialability, observability, target_circumstance, existing_sacrifice, purchase_friction, commitment (labels)
+    numeric: 4                                # frequency, duration, effectiveness_threshold, wtp_hypothesis
+    code_counts_in_4_to_6: true
+    numeric_bins_contiguous: true             # frequency 0..7; effectiveness 0-5 / 5-10 / 10-20 / 20+; prevalence fifths
+  6_shape_iff_numeric_control:
+    interval: [problem.frequency, problem.duration, solution.effectiveness_threshold, commercial.wtp_hypothesis]
+    controls: [segmented_0_to_7, number_with_unit, single_choice_bands, two_numbers_optional]
+    choice_count: 21
+    holds: true
+  7_gate: {key: problem.prevalence, control: gate_yes_no, only_gate: true}
+  lullaby_statuses:
+    HOLDING_UP: 12                            # includes problem.prevalence, holding up from ABOVE the founder's 0.6–0.8 bin (decision 6); counts unchanged by that restoration
+    NOT_HOLDING_UP: 6
+    PEOPLE_DISAGREE: 3
+    BAR_SET: 1
+    NOT_TESTED_BY_DESIGN: 1
+    LEFT_OUT: 2
+    with_drift_clause_while_holding: [problem.prevalence]   # "more than you think"
+    vector_verdicts: {PROBLEM: "Not holding up · smaller than you think (Duration)", SOLUTION: "Not holding up · later than you think (Compatibility)", COMMERCIAL: "Not holding up (Commitment)"}
+    _note: "The marks-v9 §5 worked excerpt is re-expressed from these lullaby objects (same answers, codes, statuses, counts); the registry owns the example. The six commercial examples' n=11 is to be reworked at n ≤ 10 in corpus r3 (decided 2026-10-07, reconciliation 14)."

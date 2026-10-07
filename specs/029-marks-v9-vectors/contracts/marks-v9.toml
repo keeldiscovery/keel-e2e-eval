@@ -1,0 +1,106 @@
+# The marks a run is judged against (spec 009, contracts/metrics-contract.md).
+#
+# Override with `make instruction-eval MARKS=<file>`; whatever judged a run is written into its
+# verdict.json with the MARKS_VERSION that judged it. Changing a number here, a metric definition,
+# or an alignment rule bumps instructions/marks.py's MARKS_VERSION -- the same rule
+# evals/policy.py states for POLICY_VERSION, and a separate constant so the two can never be
+# confused.
+
+# MARKS_VERSION 9 (judgement calls 28-36, 2026-10-06; keel-cloud-docs
+# `canon/drafts/vector-redesign-2026-10-06/HANDOFF.md` §2, §5, §6 and `marks-v9.draft.md`; the
+# dimension registry `registry-schema.draft.md`). **Written before any prompt or corpus work, and
+# never moved to fit a model** (the ceiling is claude-sonnet-5-5 at medium; a mark only a bigger
+# model could meet is a wrong mark, and §2 of the .md says of each one why it is not). The rubric
+# moved every way it can at once -- the subjects, the metric definitions, the alignment rule, and
+# the corpus the rubric reads:
+#   - the three `*_ASSUMPTIONS` screens and `QUESTIONS` are gone; `INTERPRET` keeps its constant,
+#     narrowed to the gate story (design name "anchor read"; there is no ANCHOR_READ constant). The
+#     subjects are `CALIBRATION_QUESTIONS` (x3 vectors), `RESPONDENT_QUESTIONS` (x3 parts),
+#     `INTERPRET` (one call a respondent), `COMPARE` (code, no call) and `BRIEF`;
+#     `CONTEXT_INTERPRET`, `PROBLEM_INTERPRET` and `SOLUTION_MECHANISM` run, go to the aggregate
+#     (their leaks are rule refusals X1 / P1 / M1, counted by `rule_refusal_rate` only), and are
+#     rendered on `register.html` unscored (judgement call 10, three subjects wider).
+#   - `golden_belief_recall` is **RETIRED** (call 29). The founder's calibration answers are typed
+#     picks against a registry -- a dimension key, a normalized code or a number -- and the model
+#     writes the question, not the belief. There is nothing to align by structure any more: no
+#     type, no measure kind, no band, no option list to overlap, no tie for a judge to break. The
+#     golden a calibration question is scored against is the registry slice itself
+#     (`dimension_coverage`, `option_validity`), never a hand-written question. `align.py` and
+#     its eight `FIELDS` retire with it.
+#   - `anchoring_accuracy` keeps its number and loses its denominator: one judgement a respondent
+#     (the un-chipped gate story), not one an anchor. A chipped story is set GUESSED by code with
+#     no call and is OUTSIDE the denominator (the founder, 2026-10-07; call 33 amended).
+#     03-lullaby: 9 judgements at N=1 (12 people, 2 answer No at the gate, 1 chips), not 23
+#     person-anchor pairs.
+#   - the golden corpus moved to **revision 3** (the .md's §4): `context`, `founder_calibration`,
+#     `solution_mechanism`, golden `respondent_questions`, per-respondent `recency`/`story`/`chip`/
+#     `anchoring`, picks keyed by dimension, `expected.standings` keyed by dimension with a
+#     `Status` word, `expected.vector_verdicts`. `beliefs[]`, `questionnaire.anchors`, per-anchor
+#     `text`/`anchoring`, `expected.buckets` and `expected.stages` are gone.
+# **Scores before and after this bump are not comparable**, and a v8 bundle **cannot be re-scored**
+# to v9: `rescore.py` re-reads the corpus, and the corpus moved (revision 3) -- a v8 bundle holds
+# answers to screens v9 does not have, scored against beliefs r3 does not carry. `rescore.py`
+# refuses a bundle below 9 by name. That is why a run of record is spent (`WHY=marks:9`,
+# `instructions/why.py`), and it is the certificate the Phase 1 D track lands on.
+
+[marks]
+# MARKS_VERSION 9 (call 30): every registry dimension has exactly one calibration question (25 a
+# project), and every non-left-out dimension the registry asks in V1 has exactly one respondent
+# question (23 on 03-lullaby). Absolute, not a fraction: a dimension absent or doubled is a case
+# that failed. Code only.
+dimension_coverage = 1.00
+# MARKS_VERSION 9 (call 31): every question, both screens, meets every structural rule the registry
+# states -- 4-6 options mapped one-to-one and in order onto `founder.normalized.codes` (or, where
+# the registry says `codes: model_written`, 4-6 unique slug codes per its `code_rule`), a numeric
+# spec equal to the registry's, a per-option `belief_phrase` that is not the label, `{value}`
+# once, no "not sure" option (the chip is UI); respondent side: control = `respondent.control`,
+# founder's codes all present plus distractors, "Something else" last on a set, fixed scale on an
+# ordinal, founder-free bands on a numeric. 1.00 is reachable at the ceiling BECAUSE the registry
+# fixes the codes and the bins; a version that asked the model to invent contiguous bins would be
+# a wrong mark (the 2026-10-06 smoke produced `0.2-0.4, 0.5-0.6`). Code only.
+option_validity = 1.00
+# MARKS_VERSION 9 (call 32): no mechanism vocabulary in a PROBLEM calibration question or a Part 1
+# respondent question, and no founder value (chosen label, belief phrase, number) in any
+# respondent question. The list is derived by code from the corpus's golden `solution_mechanism`
+# (the SOLUTION_MECHANISM output shape, hand-written in r3), minus the problem's own words. A hit
+# on a word the problem's world also uses (context, problem statement, the stories) is a TIE and
+# goes to the judge; every other hit is a fault outright. `judged_fraction` is reported here now.
+no_leak = 1.00
+# Unchanged number (calls 5, 33): `agree / answered` over respondents who passed the gate AND did
+# not chip, with GUESSED precision and recall mandatory beside it. A respondent whose story carries
+# the "I can't recall one particular night" / "I'd rather not say" chip (or no story) is set
+# GUESSED by code, no INTERPRET call, and is OUTSIDE the denominator (call 33 amended by the
+# founder's decision of 2026-10-07; 03-lullaby: 9 judgements, 8 ANCHORED / 1 GUESSED, Jonas's
+# chipped story never read).
+anchoring_accuracy = 0.90
+# MARKS_VERSION 9 (call 34): keel-cloud's deterministic engine, shelled like the validator and
+# spending nothing, reproduces `expected.standings[<dimension>]`'s `status` and `drift` on every
+# dimension of every entry (25 x 7, LEFT_OUT and NOT_TESTED_BY_DESIGN included) and
+# `expected.vector_verdicts` (3 x 7). Counts and medians are compared and REPORTED, not marked
+# (call 3's rule: a finding first). Measured on `DRY=1` too; an engine the export does not carry
+# leaves the mark unmeasured, and unmeasured is not met (call 13).
+compare_correctness = 1.00
+# MARKS_VERSION 6 (judgement call 22, the founder, 2026-09-12): a rule refusal is the product
+# correcting the model -- one extra call, nothing a founder sees -- so the mark is a RATE over the
+# answers the aggregate judged, not an absolute zero. Shape refusals -- an envelope the runtime had
+# to repair -- stay at zero.
+# MARKS_VERSION 9 (call 36): the number does not move, the denominator does. v6's 63 answers at
+# N=3 made 0.02 read "at most one correction across the corpus"; v9 shows the aggregate every
+# model answer (about 170 at N=1, about 510 at N=3), so 0.02 reads "at most three at N=1, ten at
+# N=3". Recorded, not quietly tightened; the .md's decision 1 was CLOSED by the founder on
+# 2026-10-07: 0.02 kept, to be tightened only on evidence from the full run.
+rule_refusal_rate = 0.02
+shape_refusals = 0
+# MARKS_VERSION 4 (judgement calls 15-17), narrowed at 5 (20-21), edge moved at 7 (23): the BRIEF
+# subject. Every paragraph must meet all of `instructions/brief.py`'s per-case marks, so this is
+# 1.00 and not a fraction: a paragraph that invents a number has not half-worked.
+# MARKS_VERSION 9 (call 35): a FIFTH per-case mark, `no_claim_words` -- the sentence that names a
+# threshold dimension (status vocabulary reaches BAR_SET) or the Price row (NOT_TESTED_BY_DESIGN)
+# carries no claim word ("works", "effective", "proves", "will save", "confirmed"...). The
+# deciding line becomes the vector's worst deal-breaker. All five or nothing.
+brief_paragraphs = 1.00
+# RETIRED at MARKS_VERSION 9 (call 29) -- see the header. Kept here struck through in a comment,
+# never as a key, so a v9 verdict cannot carry a value for it:
+#   golden_belief_recall = 0.80   (v1-v8)
+# `judged_fraction` is reported on every run and marked on none (call 14, unchanged); at v9 it is
+# the share of `no_leak` hits the judge decided.

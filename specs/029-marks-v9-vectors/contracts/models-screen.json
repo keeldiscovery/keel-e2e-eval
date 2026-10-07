@@ -1,0 +1,19 @@
+{
+  "version": "029-screen-pin",
+  "_comment": "A screen's MODELS=<file> pin until keel-cloud 058 exports a table carrying context, calibration and respondent (spec 029 FR-023, A-4, A-9). The ceiling and nothing else: claude-sonnet-5-5 at medium on standard, Haiku 4.5 on light. Never the certificate: that is MODELS=exported.",
+  "hosts": {
+    "claude": {"light": "claude-haiku-4-5-20251001", "standard": "claude-sonnet-5-5"}
+  },
+  "efforts": {
+    "claude": {"standard": "medium"}
+  },
+  "_tiers": ["light", "standard", "frontier"],
+  "classes": {
+    "context": "light",
+    "frame": "standard",
+    "calibration": "standard",
+    "respondent": "standard",
+    "reading": "light",
+    "brief": "standard"
+  }
+}
