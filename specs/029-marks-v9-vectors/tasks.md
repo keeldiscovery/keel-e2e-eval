@@ -179,8 +179,8 @@ finalised; the gate text; 065 and 059–061 screened; the run of record spent on
 
 ## Phase 7: Polish & cross-cutting
 
-- [ ] T057 [P] `specs/029-marks-v9-vectors/{spec,plan,research,tasks}.md` and `contracts/screen-shapes.md` corrected to what the work found (T002's diffs, O-1's decision, O-2/O-3's keys as landed, O-4's count) — the same *Discovered* discipline as 025.
-- [ ] T058 [P] `tests/test_instruction_modules_import.py`: the report and the register render from a v9 scorecard carrying one unmeasured mark and say so in words; every module under `instructions/` imports.
+- [X] T057 [P] `specs/029-marks-v9-vectors/{spec,plan,research,tasks}.md` and `contracts/screen-shapes.md` corrected to what the work found (T002's diffs, O-1's decision, O-2/O-3's keys as landed, O-4's count) — the same *Discovered* discipline as 025.
+- [X] T058 [P] `tests/test_instruction_modules_import.py`: the report and the register render from a v9 scorecard carrying one unmeasured mark and say so in words; every module under `instructions/` imports.
 - [ ] T059 Quickstart S0, S1 and S2 run end to end from a clean `make venv` and their outputs pasted into Discovered; S3/S4 left to the founder's record in T038/T045/T049/T050/T055.
 
 ---
@@ -376,4 +376,14 @@ task it was found under. Nothing here is a change of mind about the design; it i
 - **D18 (T054, not run).** `make instruction-eval DRY=1` across the seven needs keel-cloud's exporter
   and 058's `compare`; it is the same checkpoint as T028 (D9). The dry path over a fixture export is
   held by `tests/test_instruction_dry_run.py`; `make unit` is green with T047.
+- **D19 (T057).** screen-shapes.md gains §8 -- what the implementation found, as requests to 058/063/
+  064 -- and plan.md and research.md record O-2/O-3 as landed and O-4 as counted. T002's diffs land
+  with T002, when 058 does.
+- **D20 (T059, S0 and S2 run; S1 not).** S0: `make unit VENV=<the main checkout's .venv>` (a fresh
+  `make venv` in the worktree installs Playwright's browsers, which this run did not need) --
+  **1486 passed, 75 skipped**. S2: `python -m instructions.rescore
+  runs/20261001T043420Z-instructions` against the real v8 record on the founder's disk -- exit 2,
+  *"20261001T043420Z-instructions was scored at marks_version 8: answered on screens v9 does not
+  have, against corpus r2. Not re-scored"*; `scorecard.json` and `manifest.json` byte-identical
+  after, nothing added. S1 waits on 058 (D9), so T059 stays open.
 

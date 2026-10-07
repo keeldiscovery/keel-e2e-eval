@@ -353,6 +353,13 @@ The eval's loader refuses revision ≠ 3 by name; a run never silently measures 
   `PROBLEM_INTERPRET` sentence downstream screens read.
 - **O-4 — the corpus-wide `INTERPRET` denominator and the ≈ 420 estimate** (research R13).
   *Counted when the six entries exist; written into the v9 header then* (US4.2).
+  **Counted (2026-10-07):** 65 reads at N=1 (106 people less 13 gate-No, 6 chips and 22 B2B
+  decision-makers who are never read), 138 model cases at N=1 and 414 at N=3, plus seven `COMPARE`
+  rows; in `instructions/marks.py`'s header (tasks.md D16).
+- **O-2 and O-3, as landed:** `founder_calibration[<key>].belief_sentence` on all 25 keys (unsure
+  ones read *"Left out: you weren't sure."*) and `interpretations.problem`, in all seven r3 entries
+  -- written by this branch under the cross-track arrangement, for `check_corpus.py` to confirm when
+  the files move (tasks.md D6, D15).
 
 ## Post-design Constitution Check
 

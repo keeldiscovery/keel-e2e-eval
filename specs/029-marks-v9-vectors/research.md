@@ -263,6 +263,11 @@ and the certificate's to state.
 **Rationale.** SC-003/SC-008/SC-010/SC-012 need these numbers to be checkable; the ones that are
 checkable today are checked today.
 
+**Counted at implementation (2026-10-07, T052):** with the six entries re-expressed, 65 reads at
+N=1 across the corpus (three entries carry B2B decision-makers, who answer Part 3 on their own link
+and are never read), 138 model cases at N=1, 414 at N=3, seven `COMPARE` rows. The estimate's
+"≈ 80 gate-yes un-chipped people" was 65.
+
 ## R14. The red window, and the harness readers the spec did not name
 
 **Decision.** Two things go red when keel-cloud's r3 commit lands, and the plan names both.

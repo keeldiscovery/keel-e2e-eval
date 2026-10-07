@@ -144,3 +144,24 @@ arrived into (025 D12/D18). A kind the validator does not take → `unmet_prereq
    reveal's title and body between parts 1 and 2.
 4. The brief paragraph beside the standings table: `dimension · status · drift · n ·
    median/counts`, with `vector_verdicts` as three header rows.
+
+## 8. What the implementation found (2026-10-07, T057; 058's actual shapes still to come with T002)
+
+Written as further requests to keel-cloud 058/063/064, and as what this branch builds until 058
+answers (tasks.md D8, D13, D15):
+
+- **§2 `CALIBRATION_QUESTIONS`**: a key the job's vector may not see is **omitted**, not sent `null`
+  -- the PROBLEM job carries `problem` and no `mechanism`, `persona` or solution key.
+- **§2 `RESPONDENT_QUESTIONS`**: `founder_options` is `{key: [codes]}`, the founder's option *set*
+  (registry codes, or the plan row less escapes and respondent-only codes), never which they picked.
+- **§2 `INTERPRET`**: r3 records no story prompt; `story.prompt` is written `null`.
+- **§2 `BRIEF`**: each dimension row also carries `option_counts` (the standing's `optionCounts`),
+  without which a set dimension's sentence cannot be written or its `N of M` checked (marks §2.6).
+- **§3 `RESPONDENT_QUESTIONS`**: an option may be `{label, code}`; with codes `option_validity` runs
+  every respondent check, with labels only it holds the count (D13). Asking 063 for codes.
+- **§5 `in.json`**: also carries `context` (the belief sentence's slots), each calibration's
+  `belief_phrase`, and per answer `link` and `chip`.
+- **r3, beyond marks §4**: `belief_sentence` on every calibration including unsure ones (O-2);
+  `interpretations.problem` (O-3); the gate itself in `respondent_questions`; `own_item` on
+  `problem.importance`; `link: COMMERCIAL_B2B` for a B2B decision-maker (no gate, Part 3 only).
+
