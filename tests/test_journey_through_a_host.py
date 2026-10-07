@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from harness import agent_host, claude_host, copilot_host
+from tests import r2_corpus
 
 REPO = Path(__file__).resolve().parent.parent
 SCENARIO = (REPO / "evals" / "test_s012_journey_through_a_host.py").read_text()
@@ -166,6 +167,7 @@ def test_the_scenario_reads_its_founder_through_the_scripted_scenarios_own_reade
         "the smoke's fixture stays the smoke's; S-012 no longer borrows it")
 
 
+@r2_corpus.requires_r2              # spec 029 T016 / O-1
 def test_the_founder_types_the_entrys_own_title_market_and_three_statements():
     """What `founder_inputs` hands back, checked against the entry the journey defaults to --
     through the real corpus, so a corpus edit that emptied a statement fails here."""
@@ -182,6 +184,7 @@ def test_the_founder_types_the_entrys_own_title_market_and_three_statements():
         assert founder.statement(stage) == entry.statements[stage.lower()].strip()
 
 
+@r2_corpus.requires_r2              # spec 029 T016 / O-1
 def test_the_one_person_is_the_entrys_first_and_brings_their_own_words():
     """**The reader moved and the assertion did not loosen** (spec 028 T022). This read
     `_story_texts(person)`, which has been deleted: it answered *this person's stories, in the
@@ -792,6 +795,7 @@ def _lullaby():
     return corpus_script.entry_for(keel_cloud, "03-lullaby")[1]
 
 
+@r2_corpus.requires_r2              # spec 029 T016 / O-1
 def test_the_first_five_people_are_taken_in_corpus_order():
     from harness import corpus_script
     entry = _lullaby()
@@ -804,6 +808,7 @@ def test_the_first_five_people_are_taken_in_corpus_order():
     assert [p.person for p in one] == [everyone[0].person]
 
 
+@r2_corpus.requires_r2              # spec 029 T016 / O-1
 def test_a_person_with_nothing_written_is_skipped_by_name():
     """A taps-only person cannot be typed for on a live page; they are named in the bundle's
     inputs rather than sent in with a blank page."""

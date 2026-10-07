@@ -336,6 +336,17 @@ The eval's loader refuses revision ≠ 3 by name; a run never silently measures 
   rewrites `harness/corpus_script.py`, `evals/corpus_scenario.py`, `evals/corpus_facts.py` and
   S-012's `ENTRY=` read against the vector product when keel-web's corridor lands. The alternative
   (an r2 reader kept beside the r3 one) is refused here for the reason stated.
+  **Taken as proposed, for now (2026-10-07, the implement phase):** the named skip is in
+  (`tests/r2_corpus.py`, 75 tests, one sentence; tasks.md D5) and the harness is not rewritten.
+  **The sibling, for the founder:** *`030-journey-vectors` — the journey and the three corpus
+  scenarios walk the vector product instead of today's three framed stages. It rewrites
+  `harness/corpus_script.py` (the script generator and the typed inputs), `harness/stranger_stories.py`
+  (one gate story a person, not four occasions), `evals/corpus_facts.py` (the facts a page is held
+  to, from `expected.standings` and `vector_verdicts`), `evals/corpus_scenario.py` and S-012's
+  `ENTRY=` read against corpus revision 3 -- after keel-web's corridor lands, because the pages they
+  drive are keel-web's -- and lifts the 75 named skips as it replaces each reader. Until then those
+  scenarios refuse at their preludes by name, which is the honest state of a journey whose product
+  is mid-replacement.* No spec file exists for it yet; this paragraph is the whole of it.
 - **O-2 — `founder_calibration[<key>].belief_sentence` in r3** (research R9). *Request to the r3
   writer (keel-cloud 058).* Recorded by `check_corpus.py`, never hand-written.
 - **O-3 — `interpretations.problem` in r3** (research R16). *Request to the r3 writer.* The golden

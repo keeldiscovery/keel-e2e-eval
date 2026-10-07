@@ -136,11 +136,17 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
     cell_label = (f"{remote.cell_name()} · corpus {slug} · "
                   f"{time.strftime('%Y-%m-%d', time.gmtime())}")
     founder_one = remote.identity_to_sign_in_as(stack, cell_label, fallback=founder_one)
+    # Spec 029 O-1: the corpus is at revision 3 and this walk reads the r2 shape. The refusal is
+    # named here, before a browser context or a project exists, never twenty steps in.
+    try:
+        corpus, entry = corpus_script.entry_for(stack.keel_cloud, entry_id)
+    except corpus_script.corpus_reader.CorpusError as refusal:
+        import pytest                                       # noqa: PLC0415
+        pytest.fail(f"{entry_id}: {refusal}", pytrace=False)
     started = time.monotonic()
     passed = False
     context = browser.new_context()
 
-    corpus, entry = corpus_script.entry_for(stack.keel_cloud, entry_id)
     hashes_before = dict(corpus.hashes)
     script = corpus_script.generate(entry)
     founder = corpus_script.founder_inputs(entry)

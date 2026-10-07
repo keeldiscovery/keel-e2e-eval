@@ -19,6 +19,7 @@ import pytest
 from evals import test_s004_stranger_who_gives_orders as s004
 from harness import canary, corpus_script
 from instructions import corpus as corpus_reader
+from tests import r2_corpus
 from stack.config import load_config
 
 ENTRY_ID = "01-countly"
@@ -53,6 +54,7 @@ CARRIED_BY_A_REAL_LINK = [
 
 @pytest.fixture(scope="module")
 def entry():
+    r2_corpus.skip_if_retired()        # spec 029 T016 / O-1
     config = load_config(validate=False)
     return corpus_reader.load(config.keel_cloud).by_id(ENTRY_ID)
 

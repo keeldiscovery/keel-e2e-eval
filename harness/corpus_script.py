@@ -180,8 +180,23 @@ class PersonInputs:
 
 # ------------------------------------------------------------------------------------- reading in
 
+#: Spec 029, Open item O-1. The corpus moved to revision 3 and this module reads revision 2's
+#: shape (`beliefs`, `questionnaire.anchors`, `expected.buckets`, `expected.stages`) to drive
+#: today's product. Its rewrite against the vector product is a sibling spec's, not 029's.
+R2_READERS_RETIRED = ("the corpus is at revision 3 (spec 029); the journey's readers of the r2 "
+                      "shape are spec 030-journey-vectors' -- Open item O-1")
+
+
+def _refuse_r3() -> None:
+    if getattr(corpus_reader, "REVISION", 2) == 3:
+        raise corpus_reader.CorpusError(R2_READERS_RETIRED)
+
+
 def load(keel_cloud) -> corpus_reader.Corpus:
-    """The corpus, through `instructions/corpus.py` and nothing else (research R6)."""
+    """The corpus, through `instructions/corpus.py` and nothing else (research R6) -- and a refusal
+    by name once that reader is the revision-3 one (spec 029 O-1), rather than a script that fails
+    twenty steps in on a key revision 3 no longer carries."""
+    _refuse_r3()
     return corpus_reader.load(keel_cloud)
 
 
@@ -196,6 +211,7 @@ def entry_from_file(path):
     """
     import yaml
 
+    _refuse_r3()
     path = Path(path)
     digest = corpus_reader._sha256(path)
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))

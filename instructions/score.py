@@ -1,276 +1,163 @@
-"""Every number a run reports (spec 009 FR-011/FR-013, contracts/metrics-contract.md).
+"""Every number a run reports (spec 009 FR-011/FR-013; spec 029 data-model §6, marks-v9 §2).
 
-Three rules run through all of it.
+Three rules run through all of it, unchanged since `MARKS_VERSION` 1.
 
 **Nothing is averaged before it is reported.** Each of the N runs is scored on its own and the
 report carries the spread; a case that passes twice and fails once is an unstable instruction, not
 a 67 %.
 
-**`GUESSED` precision and recall are never optional.** Most anchors in this corpus are anchored, so
-a reader that answered `ANCHORED` to everything scores high on accuracy and has recall zero on the
-one judgement the instrument exists to make. Accuracy alone would call that reader good.
+**`GUESSED` precision and recall are never optional** (call 5). Most stories in this corpus are
+anchored, so a reader that answered `ANCHORED` to everything scores high on accuracy and has recall
+zero on the one judgement the instrument exists to make.
 
-**Three ways of being wrong stay three lines.** A schema-invalid answer (keel-runtime's own
-validator refused it), a shape refusal (it fit no contract the aggregate could read) and a rule
-refusal (the aggregate read it and refused it, by id) call for three different instruction fixes,
-so they are never summed.
+**Three ways of being wrong stay three lines** (call 6): schema-invalid, shape refusal, rule
+refusal -- three different instruction fixes, never summed.
 
-One reading of the metrics contract worth stating: it defines `answered` as the anchors given for
-which the model returned a word and `anchoring_accuracy` as `agree / answered`, and separately says
-an omitted or invented anchor id is "counted against `answered`". This module uses the formula as
-written and reports `given`, `answered`, `missing_ids` and `extra_ids` beside it, so a model that
-quietly skipped the hard anchors is visible rather than flattered by a smaller denominator.
+At `MARKS_VERSION` 9 the subjects moved (call 28). `score_assumptions`, `score_reading` and the
+alignment they rode on retired with `align.py` (call 29). What scores now:
+
+- `score_compare` -- keel-cloud's engine against `expected` (call 34; `instructions/compare.py`);
+- `score_calibration` / `score_respondent` -- `dimension_coverage`, `option_validity` and `no_leak`
+  by code against the registry (calls 30-32; spec 029 US2/US3);
+- `score_interpret` -- one anchoring judgement a readable person (call 33; US3);
+- `brief.score_brief` -- five per-case marks, all or nothing (call 35).
+
+`totals` rolls each over **its own** denominator and never another's.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from . import align as align_mod
 from . import brief as brief_mod
 
-FIELDS = align_mod.FIELDS
 
-
-# ---------------------------------------------------------------------------------------- reading
+# ------------------------------------------------------------------------------------ compare
 
 @dataclass
-class ReadingScore:
+class CompareCaseScore:
     case_id: str
     entry_id: str
-    subject: str
-    run_index: int
-    given: int = 0
-    answered: int = 0
+    subject: str = "COMPARE"
+    checks: int = 0
     agreed: int = 0
-    confusion: dict = field(default_factory=lambda: {"aa": 0, "ag": 0, "ga": 0, "gg": 0})
-    per_anchor: list = field(default_factory=list)
-    missing_ids: list = field(default_factory=list)
-    extra_ids: list = field(default_factory=list)
-    failed: str | None = None       # a reason the case produced nothing at all
+    mismatches: list = field(default_factory=list)
+    reported_diffs: list = field(default_factory=list)
+    measured: bool = False
+    reason: str | None = None
 
     @property
-    def anchoring_accuracy(self):
-        return (self.agreed / self.answered) if self.answered else None
+    def compare_correctness(self):
+        return (self.agreed / self.checks) if (self.measured and self.checks) else None
 
 
-def score_reading(case, entry, person, result, *, failed: str | None = None) -> ReadingScore:
-    """One reading case: the model's word per anchor against the corpus's own.
-
-    Matched by **the bare `anchorId`** (`MARKS_VERSION` 8, judgement call 24; keel-cloud spec 049,
-    `one-occasion-once-design.md` §8.2). It was `(stage, anchorId)` from `MARKS_VERSION` 3, and the
-    reason is why the docstring is replaced here rather than deleted: measured-beliefs decision 18
-    (DRIFT #37) said an anchor id was unique only within one stage's own questionnaire, three
-    questionnaires each numbered their first occasion `A1`, and the pair was the only thing that
-    told two occasions apart. **Spec 049 supersedes decision 18.** There is one questionnaire a
-    project, `Q7` is project-wide, `AnchorRef` is a bare id, and a merged occasion serves more than
-    one stage's beliefs -- so a `stage` on an anchoring names nothing.
-
-    A produced anchoring that carries a `stage` anyway is **neither refused nor read for it**: the
-    key is the id, and an extra field a model wrote is not a wrong answer. An omitted or invented id
-    still refuses, exactly as before.
-    """
-    score = ReadingScore(case_id=case.case_id, entry_id=entry.id, subject=case.subject,
-                         run_index=case.run_index, failed=failed)
-    given = {anchor_id: answer.get("anchoring") for anchor_id, answer in person.written()}
-    score.given = len(given)
-    if failed or not isinstance(result, dict):
-        score.missing_ids = sorted(given)
-        return score
-
-    produced = {}
-    raw = result.get("anchorings")
-    if isinstance(raw, list):
-        for item in raw:
-            if isinstance(item, dict) and isinstance(item.get("anchorId"), str):
-                produced[item["anchorId"]] = item.get("anchoring")
-
-    for anchor_id, golden in given.items():
-        answer = produced.get(anchor_id)
-        if answer not in ("ANCHORED", "GUESSED"):
-            score.missing_ids.append(anchor_id)
-            score.per_anchor.append({"anchor_id": anchor_id, "golden": golden,
-                                     "produced": answer, "agree": False})
-            continue
-        score.answered += 1
-        agree = (answer == golden)
-        score.agreed += int(agree)
-        key = ("g" if golden == "GUESSED" else "a") + ("g" if answer == "GUESSED" else "a")
-        score.confusion[key] = score.confusion.get(key, 0) + 1
-        score.per_anchor.append({"anchor_id": anchor_id, "golden": golden,
-                                 "produced": answer, "agree": agree})
-
-    score.extra_ids = sorted(set(produced) - set(given))
-    return score
+def score_compare(case, entry, compare_score) -> CompareCaseScore:
+    """One entry's `COMPARE` row: the diff `compare.py` made, carried onto the case. An engine that
+    could not be asked is `measured: false` with its reason, and stays that way (call 13)."""
+    return CompareCaseScore(case_id=case.case_id, entry_id=entry.id,
+                            checks=compare_score.checks, agreed=compare_score.agreed,
+                            mismatches=list(compare_score.mismatches),
+                            reported_diffs=list(compare_score.reported_diffs),
+                            measured=compare_score.measured, reason=compare_score.reason)
 
 
-# ------------------------------------------------------------------------------------ assumptions
+# ------------------------------------------------------------------------------------- totals
 
-@dataclass
-class AssumptionScore:
-    case_id: str
-    entry_id: str
-    subject: str            # the stage
-    run_index: int
-    golden_total: int = 0
-    matched: int = 0
-    extra_beliefs: int = 0
-    judged: int = 0
-    judged_candidacy: int = 0
-    needs_input: bool = False
-    needs_input_questions: list = field(default_factory=list)
-    #: References this case's answer made that could not be given a referent's expectation -- an
-    #: ordinal out of range, a stage that is not an earlier one, a chain, or a belief carrying both
-    #: a `reads` and an expectation. Reported, never retried: production gives a derivation failure
-    #: one repair turn and this eval has never had one (`MARKS_VERSION` 8, judgement call 27).
-    unresolved_reads: int = 0
-    #: References that *were* resolved. Reported beside the failures so that a run in which the
-    #: model never reached for a reference at all reads as a zero rather than as a silence
-    #: (keel-cloud spec 049 risk 2).
-    resolved_reads: int = 0
-    failed: str | None = None
-    field_hits: dict = field(default_factory=dict)      # field -> [agreed, applicable]
-    phrase_band: dict = field(default_factory=lambda: {
-        "phrase_band": 0, "phrase_only": 0, "band_only": 0, "neither": 0})
-    alignment: object = None
-    existing_roles: list = field(default_factory=list)
-
-    @property
-    def golden_belief_recall(self):
-        return (self.matched / self.golden_total) if self.golden_total else None
-
-    def exact_match(self) -> dict:
-        return {name: (hits / total if total else None)
-                for name, (hits, total) in self.field_hits.items()}
+def _fraction(hit, of):
+    return (hit / of) if of else None
 
 
-def score_assumptions(case, entry, result, *, failed: str | None = None,
-                      needs_input_questions=None, judge=None) -> AssumptionScore:
-    """One assumption case, aligned and counted.
-
-    A `NEEDS_INPUT`, a schema-invalid answer and an executor failure all land here as a case that
-    found no goldens: an assumption screen's only legitimate ask is a missing statement (design
-    decision 14) and this harness always supplies one, so an ask is a failed case counted in the
-    recall denominator -- not excluded, and not softened.
-    """
-    goldens = entry.beliefs_for(case.subject)
-    score = AssumptionScore(case_id=case.case_id, entry_id=entry.id, subject=case.subject,
-                            run_index=case.run_index, golden_total=len(goldens), failed=failed,
-                            existing_roles=[r.get("label") for r in case.existing_roles])
-    score.field_hits = {name: [0, 0] for name in FIELDS}
-    if needs_input_questions is not None:
-        score.needs_input = True
-        score.needs_input_questions = needs_input_questions
-        return score
-    if failed or not isinstance(result, dict):
-        return score
-
-    produced = result.get("assumptions")
-    produced = produced if isinstance(produced, list) else []
-    # `MARKS_VERSION` 8, judgement call 27: a belief carrying `reads: {stage, line}` is given its
-    # referent's whole expectation **before** alignment, out of the `earlier_lines` this eval
-    # itself numbered and sent in this case's own context. Without it `produced_view` reads no
-    # expectation, `structural_candidate` refuses the pair on `type`, and recall falls by one line
-    # per reference -- see `align.py`'s module docstring for the five line references.
-    referencing = sum(1 for b in produced if isinstance(b, dict) and isinstance(b.get("reads"), dict))
-    produced, unresolved = align_mod.resolve_reads(
-        produced, (case.payload.get("context") or {}).get("earlier_lines") or [])
-    score.unresolved_reads = unresolved
-    score.resolved_reads = referencing - unresolved
-    alignment = align_mod.align(goldens, produced, judge)
-    score.alignment = alignment
-    score.matched = len(alignment.matched)
-    score.extra_beliefs = len(alignment.extra)
-    score.judged = alignment.judged
-    score.judged_candidacy = alignment.judged_candidacy
-
-    for pair in alignment.matched:
-        for name in FIELDS:
-            value = pair.fields.get(name)
-            if value is None:
-                continue                      # n/a: a Choice pair has no measure to compare
-            score.field_hits[name][1] += 1
-            score.field_hits[name][0] += int(bool(value))
-        phrase = bool(pair.fields.get("founder_phrase"))
-        band = bool(pair.fields.get("expected_or_band"))
-        key = ("phrase_band" if phrase and band else
-               "phrase_only" if phrase else
-               "band_only" if band else "neither")
-        score.phrase_band[key] += 1
-    return score
+def _sum(scores, name) -> int:
+    return sum(int(getattr(s, name, 0) or 0) for s in scores)
 
 
-# ----------------------------------------------------------------------------------------- totals
+def _question_screen(scores) -> dict:
+    """Coverage, validity and leak over one question screen's cases (calibration or respondent)."""
+    return {
+        "cases": len(scores),
+        "coverage": {"hit": _sum(scores, "coverage_hit"), "of": _sum(scores, "coverage_of")},
+        "validity": {"hit": _sum(scores, "validity_hit"), "of": _sum(scores, "validity_of")},
+        "leak": {"clean": _sum(scores, "leak_clean"), "of": _sum(scores, "leak_of")},
+    }
 
-def totals(reading_scores: list, assumption_scores: list, *, errored: int = 0,
-           refusals_by_rule: dict | None = None, shape_refusals: int = 0,
-           schema_invalid: int = 0, refusals_measured: bool = False,
-           refusals_shown: int = 0,
-           judge_calls: int = 0, brief_scores: list | None = None) -> dict:
-    """The run's own numbers, each summed over its own denominator and never over another's."""
-    given = sum(s.given for s in reading_scores)
-    answered = sum(s.answered for s in reading_scores)
-    agreed = sum(s.agreed for s in reading_scores)
+
+def totals(calibration_scores=(), respondent_scores=(), interpret_scores=(), compare_scores=(),
+           *, brief_scores=(), errored: int = 0, refusals_by_rule: dict | None = None,
+           shape_refusals: int = 0, schema_invalid: int = 0, refusals_measured: bool = False,
+           refusals_shown: int = 0, judge_calls: int = 0, leak_hits: int | None = None,
+           leak_judged: int | None = None, refusals_unmeasured_kinds=()) -> dict:
+    """The run's own numbers (data-model §6), each summed over its own denominator."""
+    calibration = _question_screen(calibration_scores)
+    respondent = _question_screen(respondent_scores)
+    both = list(calibration_scores) + list(respondent_scores)
+
+    coverage_of = calibration["coverage"]["of"] + respondent["coverage"]["of"]
+    validity_of = calibration["validity"]["of"] + respondent["validity"]["of"]
+    leak_of = calibration["leak"]["of"] + respondent["leak"]["of"]
+    hits = _sum(both, "leak_hits") if leak_hits is None else leak_hits
+    judged = _sum(both, "leak_judged") if leak_judged is None else leak_judged
+
+    # INTERPRET: one judgement a readable person (call 33). The chipped are outside every count.
+    answered = _sum(interpret_scores, "answered")
+    agreed = _sum(interpret_scores, "agreed")
     confusion = {"aa": 0, "ag": 0, "ga": 0, "gg": 0}
-    for s in reading_scores:
-        for key, value in s.confusion.items():
+    for s in interpret_scores:
+        for key, value in (getattr(s, "confusion", None) or {}).items():
             confusion[key] = confusion.get(key, 0) + value
-
     called_guessed = confusion["ag"] + confusion["gg"]
     was_guessed = confusion["ga"] + confusion["gg"]
+    interpret_shape = _sum(interpret_scores, "shape_fault")
 
-    golden_total = sum(s.golden_total for s in assumption_scores)
-    matched = sum(s.matched for s in assumption_scores)
+    compare_measured = bool(compare_scores) and all(s.measured for s in compare_scores)
+    checks = sum(s.checks for s in compare_scores if s.measured)
+    compare_agreed = sum(s.agreed for s in compare_scores if s.measured)
 
-    field_hits = {name: [0, 0] for name in FIELDS}
-    phrase_band = {"phrase_band": 0, "phrase_only": 0, "band_only": 0, "neither": 0}
-    for s in assumption_scores:
-        for name, (hits, total) in s.field_hits.items():
-            field_hits[name][0] += hits
-            field_hits[name][1] += total
-        for key, value in s.phrase_band.items():
-            phrase_band[key] += value
-
-    # MARKS_VERSION 4: the BRIEF subject's own numbers, folded in beside the other two and never
-    # summed with them -- three subjects, three denominators (`instructions/brief.py`).
-    brief = brief_mod.totals(brief_scores or [])
+    brief = brief_mod.totals(list(brief_scores or []))
 
     return {
         **brief,
-        "anchoring_accuracy": (agreed / answered) if answered else None,
-        "guessed_precision": (confusion["gg"] / called_guessed) if called_guessed else None,
-        "guessed_recall": (confusion["gg"] / was_guessed) if was_guessed else None,
-        "confusion": confusion,
-        "anchors_given": given,
-        "anchors_answered": answered,
-        "reading_missing_ids": sum(len(s.missing_ids) for s in reading_scores),
-        "reading_extra_ids": sum(len(s.extra_ids) for s in reading_scores),
-        "golden_belief_recall": (matched / golden_total) if golden_total else None,
-        "golden_beliefs": golden_total,
-        "matched_beliefs": matched,
-        "exact_match": {name: (hits / total if total else None)
-                        for name, (hits, total) in field_hits.items()},
-        "exact_match_counts": {name: {"agreed": hits, "applicable": total}
-                               for name, (hits, total) in field_hits.items()},
-        "phrase_band": phrase_band,
-        "extra_beliefs": sum(s.extra_beliefs for s in assumption_scores),
-        # keel-cloud spec 049 / `MARKS_VERSION` 8 judgement call 27. Both halves are reported: a
-        # run that provoked no reference at all is a finding about the instruction, and a zero that
-        # is visible is not the same thing as a silence.
-        "unresolved_reads": sum(s.unresolved_reads for s in assumption_scores),
-        "resolved_reads": sum(s.resolved_reads for s in assumption_scores),
-        "needs_input_cases": sum(1 for s in assumption_scores if s.needs_input),
-        "judged_fraction": (sum(s.judged for s in assumption_scores) / matched) if matched else 0.0,
-        "judged_pairs": sum(s.judged for s in assumption_scores),
-        "judged_candidacy_pairs": sum(s.judged_candidacy for s in assumption_scores),
-        "judged_any_fraction": ((sum(s.judged + s.judged_candidacy for s in assumption_scores)
-                                 / matched) if matched else 0.0),
+        "calibration_cases": calibration["cases"],
+        "calibration_coverage": calibration["coverage"],
+        "calibration_validity": calibration["validity"],
+        "calibration_leak": calibration["leak"],
+        "respondent_cases": respondent["cases"],
+        "respondent_coverage": respondent["coverage"],
+        "respondent_validity": respondent["validity"],
+        "respondent_leak": respondent["leak"],
+        "dimension_coverage": _fraction(calibration["coverage"]["hit"]
+                                        + respondent["coverage"]["hit"], coverage_of),
+        "option_validity": _fraction(calibration["validity"]["hit"]
+                                     + respondent["validity"]["hit"], validity_of),
+        "no_leak": _fraction(calibration["leak"]["clean"] + respondent["leak"]["clean"], leak_of),
+        "leak_hits": hits,
+        "leak_judged": judged,
+        "judged_fraction": (judged / hits) if hits else 0.0,
         "judge_calls": judge_calls,
+        "anchoring_accuracy": _fraction(agreed, answered),
+        "guessed_precision": _fraction(confusion["gg"], called_guessed),
+        "guessed_recall": _fraction(confusion["gg"], was_guessed),
+        "confusion": confusion,
+        "people_given": _sum(interpret_scores, "given"),
+        "people_answered": answered,
+        "reading_missing_ids": sum(len(getattr(s, "missing_ids", []) or [])
+                                   for s in interpret_scores),
+        "reading_extra_ids": sum(len(getattr(s, "extra_ids", []) or []) for s in interpret_scores),
+        "chipped_skipped": 0,
+        "compare_checks": checks,
+        "compare_agreed": compare_agreed,
+        "compare_correctness": _fraction(compare_agreed, checks) if compare_measured else None,
+        "compare_measured": compare_measured,
+        "compare_reported_diffs": sum(len(s.reported_diffs) for s in compare_scores),
+        "compare_unmeasured": [{"entry": s.entry_id, "reason": s.reason}
+                               for s in compare_scores if not s.measured],
         "refusals_by_rule": dict(refusals_by_rule or {}),
-        # v6: how many answers the aggregate judged (accepted + refused) -- the rate's denominator.
+        # v6 (call 22): how many answers the aggregate judged -- the rate's denominator.
         "refusals_shown": int(refusals_shown or 0),
         "refusals_measured": refusals_measured,
-        "shape_refusals": shape_refusals,
+        "refusals_unmeasured_kinds": list(refusals_unmeasured_kinds or ()),
+        # A produced reading whose `anchoring` is neither word is a shape refusal (spec 029 Edge
+        # Cases), counted against the absolute zero beside the aggregate's own.
+        "shape_refusals": int(shape_refusals or 0) + interpret_shape,
         "schema_invalid": schema_invalid,
         "errored": errored,
     }

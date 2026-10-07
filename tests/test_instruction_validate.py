@@ -1,199 +1,114 @@
-"""The batch this eval hands the aggregate (spec 025 US6, FR-018/FR-019, T017).
+"""`instructions/validate.py` at `MARKS_VERSION` 9: one batch kind per screen (spec 029 FR-024,
+contracts/screen-shapes.md §6, research R10; T032).
 
-`validate.py`'s whole argument is that the only honest way to ask what the aggregate refuses is to
-hand it to the aggregate. That argument only holds if the batch shows the aggregate the state the
-screen would really have arrived into — which is why `roles` has always travelled with a case, why
-`earlier_beliefs` now does too, and why a `QUESTIONS` case carries the **`measurements` the model
-was shown** rather than letting the validator seed a project of its own.
-
-**And if the aggregate cannot take a shape this batch needs, the run says so by name and reports
-the marks that depended on it unmeasured.** Never a warning, never scored as a refusal: an
-unmeasured mark is not a met mark (judgement call 13), and a green run that never showed the
-aggregate a questionnaire, or showed it a reference with nothing to resolve against, is the one way
-this rubric could flatter itself.
+The aggregate is asked, never restated. What is tested is what it is handed -- the state each
+screen's applier reads, and never a founder value in front of the model -- and what happens when
+keel-cloud's validator does not take a kind yet: that kind's two marks are **unmeasured, by name**,
+with keel-cloud 058 named, and the other kinds are still asked.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
+
 from instructions import prompts as prompts_mod
 from instructions import validate as validate_mod
-
-EARLIER = [
-    {"stage": "PROBLEM", "line": 1, "heading": "It costs them hours",
-     "statement": "It costs one to two hours.", "measure": {"kind": "DURATION", "unit": "hours"},
-     "band": {"lower": {"value": 1}, "upper": {"value": 2}}, "role": "Managers",
-     "risk": "LOAD_BEARING"},
-    {"stage": "PROBLEM", "line": 2, "heading": "They do it weekly",
-     "statement": "It happens most weeks.", "measure": None,
-     "band": {"options": ["yes", "no"], "expected": "yes"}, "role": "Managers",
-     "risk": "SUPPORTING"},
-]
+from tests import v9_fixtures as fx
 
 
-def _case(kind, subject, screen, *, context=None, roles=()):
-    payload = prompts_mod.payload_for("I", context or {}, {"allowed_outcomes": ["COMPLETED"]})
-    return prompts_mod.Case(case_id=f"e/{subject}/run1", kind=kind, entry_id="e", screen=screen,
-                            subject=subject, run_index=1, payload=payload,
-                            existing_roles=list(roles))
+@pytest.fixture()
+def cases(tmp_path):
+    return prompts_mod.build_cases(fx.entry(), fx.exported(tmp_path), fx.instructions(),
+                                   fx.FakeRuntime, n_runs=1)
 
 
-def _assumptions_case(**kw):
-    return _case("ASSUMPTIONS", "SOLUTION", "SOLUTION_ASSUMPTIONS",
-                 context={"solution_statement": "The solution.", "market": {"country": "GB"},
-                          "earlier_lines": EARLIER},
-                 roles=[{"label": "Managers", "roleType": "MANAGER", "about": "runs it"}], **kw)
+def _batch(cases):
+    return validate_mod.build_batch([(c, {"some": "result"}) for c in cases])
 
 
-MEASUREMENTS = [
-    {"index": 0, "stage": "PROBLEM", "heading": "It costs them hours",
-     "statement": "It costs one to two hours.", "risk": "LOAD_BEARING", "mark": "DIRECT",
-     "role": "Managers",
-     "expectation": {"type": "INTERVAL",
-                     "measure": {"kind": "DURATION", "unit": "hours", "per": None},
-                     "lower": {"value": 1, "inclusive": True, "exact": False},
-                     "upper": {"value": 2, "inclusive": True, "exact": False}}},
-    {"index": 1, "stage": "SOLUTION", "heading": "They would look in the tool",
-     "statement": "They would look into it in the tool itself.", "risk": "SUPPORTING",
-     "mark": "DIRECT", "role": "Managers",
-     "expectation": {"type": "CHOICE", "options": ["yes", "no"], "expected": "yes"}},
-]
+def _by_screen(batch, screen):
+    return [c for c in batch["cases"] if c["screen"] == screen]
 
 
-def _questions_case(measurements=()):
-    return _case("QUESTIONS", "QUESTIONS", "QUESTIONS",
-                 context={"project_name": "Entry", "market": {"country": "GB"},
-                          "measurements": list(measurements)})
+def test_a_calibration_case_carries_its_vector_and_the_slices_keys_and_no_founder_answer(cases):
+    batch = _batch(cases)
+    problem = next(c for c in _by_screen(batch, "CALIBRATION_QUESTIONS")
+                   if c["vector"] == "PROBLEM")
+    assert set(problem) == {"case_id", "screen", "market", "vector", "context", "registry_slice",
+                            "result"}
+    assert problem["registry_slice"][0] == "problem.prevalence"
+    assert len(problem["registry_slice"]) == 9
+    assert "throws the morning off" not in repr(problem)
 
 
-# ---------------------------------------------------------------------------- FR-018: the shapes
-
-def test_an_assumptions_case_carries_the_earlier_beliefs_in_the_order_earlier_lines_numbered_them():
-    batch = validate_mod.build_batch([(_assumptions_case(), {"assumptions": []})])
-
-    case = batch["cases"][0]
-    assert case["screen"] == "SOLUTION_ASSUMPTIONS"
-    assert [(b["stage"], b["line"]) for b in case["earlier_beliefs"]] == [("PROBLEM", 1),
-                                                                         ("PROBLEM", 2)]
-    assert case["earlier_beliefs"] == EARLIER, \
-        "the same objects the context carried -- one place decides the ordinal"
-    assert case["statement"] == "The solution."
-    assert case["roles"][0]["label"] == "Managers"
+def test_a_respondent_case_carries_the_plan_the_option_sets_and_the_founders_values(cases):
+    part1 = next(c for c in _by_screen(_batch(cases), "RESPONDENT_QUESTIONS") if c["part"] == 1)
+    assert set(part1) == {"case_id", "screen", "market", "part", "link", "plan",
+                          "founder_options", "founder_values", "result"}
+    assert part1["link"] == "PRIMARY" and len(part1["plan"]) == 8
+    assert part1["founder_values"]["problem.severity"] == {
+        "answer": "moderately", "belief_phrase": "throws the morning off"}, \
+        "R3 is checked against values the model was never shown (025 D12/D18)"
 
 
-def test_an_assumptions_case_with_no_earlier_stage_carries_an_empty_list_rather_than_no_key():
-    case = _case("ASSUMPTIONS", "PROBLEM", "PROBLEM_ASSUMPTIONS",
-                 context={"problem_statement": "The problem."})
-
-    batch = validate_mod.build_batch([(case, {"assumptions": []})])
-
-    assert batch["cases"][0]["earlier_beliefs"] == []
-
-
-def test_a_questions_case_is_emitted_as_its_own_kind_and_carries_no_earlier_beliefs():
-    """It names no stage and reads no earlier line: the whole project's settled measurements are
-    what it was handed, and they travel on their own key."""
-    batch = validate_mod.build_batch([(_questions_case(), {"introduction": "x", "anchors": []})])
-
-    case = batch["cases"][0]
-    assert case["screen"] == "QUESTIONS"
-    assert "earlier_beliefs" not in case
-    assert case["measurements"] == []
+def test_every_other_kind_carries_what_its_applier_reads(cases):
+    batch = _batch(cases)
+    read = _by_screen(batch, "INTERPRET")[0]
+    assert set(read) == {"case_id", "screen", "invitation_id", "story", "result"}
+    assert set(_by_screen(batch, "CONTEXT_INTERPRET")[0]) == {
+        "case_id", "screen", "market", "context_fields", "result"}
+    assert _by_screen(batch, "PROBLEM_INTERPRET")[0]["seed"] == fx.entry().statements["problem"]
+    mechanism = _by_screen(batch, "SOLUTION_MECHANISM")[0]
+    assert mechanism["problem_statement"] == fx.entry().interpretations["problem"]
+    brief = _by_screen(batch, "BRIEF")[0]
+    assert [v["vector"] for v in brief["standings"]] == ["PROBLEM", "SOLUTION", "COMMERCIAL"]
 
 
-def test_a_questions_case_carries_the_measurements_the_model_was_given_in_their_own_order():
-    """FR-018, Discovered D18. `reads` is a 0-based index into this array; an array the validator
-    seeded itself resolves the index to a belief the model never saw."""
-    batch = validate_mod.build_batch(
-        [(_questions_case(MEASUREMENTS), {"introduction": "x", "anchors": []})])
-
-    case = batch["cases"][0]
-    assert [m["index"] for m in case["measurements"]] == [0, 1]
-    assert case["measurements"] == MEASUREMENTS, \
-        "the same objects the context carried -- one place decides the index"
+def test_a_compare_row_is_never_batched(cases):
+    assert not _by_screen(_batch(cases), "COMPARE")
+    assert len(_batch(cases)["cases"]) == 19
 
 
-def test_a_questions_case_whose_context_carried_no_measurements_carries_an_empty_list():
-    batch = validate_mod.build_batch([(_questions_case(), {"anchors": []})])
-    assert batch["cases"][0]["measurements"] == []
+def _tool(tmp_path, *screens) -> Path:
+    tool = tmp_path / validate_mod._TOOL
+    tool.parent.mkdir(parents=True)
+    tool.write_text("class ScreenContractTool {\n" + "\n".join(
+        f"  case {validate_mod._SHAPE_MARKERS[s]} -> apply();" for s in screens) + "\n}\n")
+    return tmp_path
 
 
-def test_a_case_that_produced_nothing_is_not_in_the_batch():
-    batch = validate_mod.build_batch([(_assumptions_case(), None)])
-    assert batch["cases"] == []
+def test_shapes_taken_reads_one_marker_a_screen_off_the_validator(tmp_path):
+    keel_cloud = _tool(tmp_path, "INTERPRET", "BRIEF")
+    taken = validate_mod.shapes_taken(keel_cloud)
+    assert taken["INTERPRET"] and taken["BRIEF"]
+    assert not taken["CALIBRATION_QUESTIONS"]
+    assert not any(validate_mod.shapes_taken(tmp_path / "nowhere").values()), \
+        "an unreadable sibling is a prerequisite that has not landed"
 
 
-# ------------------------------------------------------------- FR-019: what the validator cannot do
-
-def test_a_batch_needs_only_the_shapes_it_actually_reaches_for():
-    """A run is never failed for a capability nothing in it used. A reference that was never
-    written needs no `earlier_beliefs`."""
-    plain = validate_mod.build_batch([(_assumptions_case(), {"assumptions": [{"heading": "h"}]})])
-    assert validate_mod.shapes_needed(plain) == set()
-
-    referencing = validate_mod.build_batch([(_assumptions_case(), {"assumptions": [
-        {"heading": "h", "reads": {"stage": "PROBLEM", "line": 1}}]})])
-    assert validate_mod.shapes_needed(referencing) == {"earlier_beliefs"}
-
-    questions = validate_mod.build_batch([(_questions_case(), {"anchors": []})])
-    assert validate_mod.shapes_needed(questions) == {"questions"}
-
-    seeded = validate_mod.build_batch([(_questions_case(MEASUREMENTS), {"anchors": []})])
-    assert validate_mod.shapes_needed(seeded) == {"questions", "measurements"}
+def test_a_kind_the_validator_does_not_take_is_unmeasured_by_name_for_that_kind_only(tmp_path,
+                                                                                      cases):
+    keel_cloud = _tool(tmp_path, "CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "SOLUTION_MECHANISM",
+                       "RESPONDENT_QUESTIONS", "INTERPRET", "BRIEF")
+    batch = _batch(cases)
+    unmet = validate_mod.unmet_by_screen(keel_cloud, batch)
+    assert list(unmet) == ["CALIBRATION_QUESTIONS"]
+    reason = unmet["CALIBRATION_QUESTIONS"]
+    assert "058" in reason and "UNMEASURED" in reason
+    assert "rule_refusal_rate" in reason and "shape_refusals" in reason
+    sent = validate_mod.without_screens(batch, unmet)
+    assert not _by_screen(sent, "CALIBRATION_QUESTIONS")
+    assert len(sent["cases"]) == 16, "every other kind is still asked"
 
 
-def test_an_unreadable_sibling_takes_no_shape_at_all(tmp_path):
-    """A prerequisite that has not landed is not a capability to assume."""
-    assert validate_mod.shapes_taken(tmp_path) == {"earlier_beliefs": False, "questions": False,
-                                                   "measurements": False}
-
-
-def test_a_shape_the_validator_does_not_take_is_named_with_its_prerequisite(tmp_path):
-    batch = validate_mod.build_batch([(_questions_case(), {"anchors": []})])
-
-    reasons = validate_mod.unmet_prerequisites(tmp_path, batch)
-
-    assert len(reasons) == 1
-    assert "QUESTIONS" in reasons[0]
-    assert "Prerequisite for keel-cloud" in reasons[0]
-    assert "spec 048 FR-015" in reasons[0]
-
-
-def test_a_questions_case_the_validator_cannot_seed_from_measurements_is_named_by_its_own_key(
-        tmp_path):
-    """FR-019 for the key D18 added: a canned project of three beliefs makes every index past the
-    third a shape refusal of the eval's own making, so the marks go unmeasured by name."""
-    batch = validate_mod.build_batch([(_questions_case(MEASUREMENTS), {"anchors": []})])
-
-    reasons = validate_mod.unmet_prerequisites(tmp_path, batch)
-
-    seeding = [r for r in reasons if "`measurements`" in r]
-    assert len(seeding) == 1
-    assert "canned project of three settled beliefs" in seeding[0]
-    assert "`rule_refusal_rate` and `shape_refusals` are UNMEASURED" in seeding[0]
-
-
-def test_a_reference_with_no_earlier_beliefs_support_names_the_marks_it_leaves_unmeasured(tmp_path):
-    batch = validate_mod.build_batch([(_assumptions_case(), {"assumptions": [
-        {"heading": "h", "reads": {"stage": "PROBLEM", "line": 1}}]})])
-
-    reasons = validate_mod.unmet_prerequisites(tmp_path, batch)
-
-    assert len(reasons) == 1
-    assert "rule_refusal_rate` and `shape_refusals` are UNMEASURED" in reasons[0]
-    assert "they are not zero, and they are not met" in reasons[0]
-
-
-def test_a_batch_that_reaches_for_nothing_has_no_unmet_prerequisite(tmp_path):
-    batch = validate_mod.build_batch([(_assumptions_case(), {"assumptions": [{"heading": "h"}]})])
-    assert validate_mod.unmet_prerequisites(tmp_path, batch) == []
-
-
-def test_the_shapes_are_read_off_keel_clouds_own_validator():
-    """Reading a sibling to learn a fact about it is what this package already does for the
-    contract, the instructions and the routing table; what it never does is keep a copy."""
-    from stack.config import load_config                                    # noqa: PLC0415
-
-    taken = validate_mod.shapes_taken(load_config(validate=False).keel_cloud)
-
-    assert set(taken) == {"earlier_beliefs", "questions", "measurements"}
-    assert all(isinstance(v, bool) for v in taken.values())
+def test_fold_in_counts_rule_refusals_by_id_and_keeps_shape_and_case_faults_apart():
+    folded = validate_mod.fold_in([
+        {"case_id": "a", "accepted": True},
+        {"case_id": "b", "accepted": False, "refusal": {"kind": "rule", "rule": "C3"}},
+        {"case_id": "c", "accepted": False, "refusal": {"kind": "shape", "path": "x"}},
+        {"case_id": "d", "accepted": False, "refusal": {"kind": "case"}},
+    ])
+    assert folded["accepted"] == 1 and folded["refusals_by_rule"] == {"C3": 1}
+    assert folded["shape_refusals"] == 1 and folded["case_faults"] == 1

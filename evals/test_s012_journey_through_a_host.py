@@ -1477,7 +1477,12 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
     # both. A corpus this run cannot reach raises with the directory it looked in -- never a
     # fallback to some other founder, because a bundle that quietly measured a different person is
     # worse than one that measured nobody.
-    corpus, entry = corpus_script.entry_for(stack.keel_cloud, ENTRY_ID)
+    # Spec 029 O-1: the corpus is at revision 3 and `ENTRY=` is read in the r2 shape -- refused by
+    # name here, at the prelude, rather than twenty steps in.
+    try:
+        corpus, entry = corpus_script.entry_for(stack.keel_cloud, ENTRY_ID)
+    except corpus_script.corpus_reader.CorpusError as refusal:
+        pytest.fail(f"ENTRY={ENTRY_ID}: {refusal}", pytrace=False)
     founder = corpus_script.founder_inputs(entry)
     # **The entry's beliefs, roles, anchors and taps are a *script's* data and are read nowhere
     # below.** On a live run the host's model writes all four. What this run takes from the entry

@@ -1,18 +1,23 @@
 """Re-score a finished run from its own bundle, under today's marks (spec 009, run-bundle
-contract's "re-reading" promise).
+contract's "re-reading" promise; spec 029 FR-004, research R11).
 
     python -m instructions.rescore runs/<id> [--no-judge]
 
 The bundle already holds everything a score is made of: the produced result in every
-`cases/**/envelope.json`, the corpus that judged it, and the contract it was judged against. So a
-rubric change does not mean spending the money again — `scorecard.json` is rewritten as
-`scorecard-v<MARKS_VERSION>.json` **beside** the original rather than over it, because two
-scorecards under two rubrics are the evidence that the rubric changed, and one of them overwritten
-is not.
+`cases/**/envelope.json`, the contract and the registry it was judged against (`contracts/`,
+including `dimension-registry.json`), and the engine's input (`compare/*.in.json`). So a rubric
+change within a version's subjects does not mean spending the money again --
+`scorecard-v<MARKS_VERSION>.json` is written **beside** the original, never over it.
 
-The one thing it cannot recover is a call that never happened: a run taken before
-`instructions/validate.py` existed has no aggregate verdict, and re-scoring says so rather than
-inventing a zero.
+**Across the v8 → v9 bump it means nothing, and it refuses** (judgement call 28; FR-004). A v8
+bundle holds answers to screens v9 does not have -- three assumption screens and a questionnaire --
+scored against a corpus revision 3 no longer carries. `marks_version` is read **first**, before the
+corpus is loaded, so such a bundle is refused in one line, by name, with the reason, and no file of
+it is touched.
+
+For a v9 bundle the cases are rebuilt with the same builders and the same exported key lists the
+run used, every envelope is scored again by the run's own `_score`, and `COMPARE` is re-run from
+the bundle's own engine input (it spends nothing).
 """
 
 from __future__ import annotations
@@ -20,25 +25,52 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import types
 from pathlib import Path
 
 from stack.config import load_config
 
-from . import brief as brief_mod
-from . import context as context_mod
+from . import compare as compare_mod
 from . import contract as contract_mod
 from . import corpus as corpus_mod
-from . import validate as validate_mod
 from . import judge as judge_mod
 from . import marks as marks_mod
 from . import prompts as prompts_mod
 from . import report as report_mod
+from . import run as run_mod
 from . import score as score_mod
+from . import validate as validate_mod
+
+#: The one sentence a pre-v9 bundle is refused with (FR-004, SC-004).
+CROSSED_THE_BUMP = "answered on screens v9 does not have, against corpus r2"
 
 
-def _cases(run_dir: Path):
-    for envelope_path in sorted(run_dir.glob("cases/*/*/*/envelope.json")):
-        yield json.loads(envelope_path.read_text(encoding="utf-8")), envelope_path.parent
+class _SilentRuntime:
+    """Enough of keel-runtime's executor to rebuild a case without rendering a prompt: the bundle
+    keeps every prompt it actually sent in `cases/**/prompt.txt`."""
+
+    @staticmethod
+    def InferenceRequest(**kw):                        # noqa: N802 - mirrors the real dataclass
+        return types.SimpleNamespace(**kw)
+
+    @staticmethod
+    def build_prompt(request):
+        return ""
+
+
+def _envelopes(run_dir: Path):
+    for path in sorted(run_dir.glob("cases/**/envelope.json")):
+        yield json.loads(path.read_text(encoding="utf-8")), path.parent
+
+
+def refusal(run_dir: Path, original: dict) -> str | None:
+    """The reason this bundle cannot be re-scored at `MARKS_VERSION`, or `None` when it can."""
+    version = original.get("marks_version")
+    if not isinstance(version, int) or version < 9:
+        return (f"{run_dir.name} was scored at marks_version {version}: {CROSSED_THE_BUMP}. "
+                "Not re-scored (spec 029 FR-004; judgement call 28) -- a v8 number is a "
+                "measurement of a product v9 does not judge, and the only v9 number is a v9 run.")
+    return None
 
 
 def main(argv=None) -> int:
@@ -49,74 +81,56 @@ def main(argv=None) -> int:
 
     run_dir = Path(args.run_dir)
     original = json.loads((run_dir / "scorecard.json").read_text(encoding="utf-8"))
-    # A re-scored bundle keeps the host that answered it (spec 014 FR-006). Reading it off the
-    # bundle rather than defaulting matters most here: a rescore is where a register page is
-    # rewritten months later, and a Copilot bundle whose new register said "Claude Code" would be
-    # the exact mistake the host title exists to prevent. A bundle from before spec 014 carries
-    # no host and is `claude`, which is what it was.
+    reason = refusal(run_dir, original)
+    if reason:
+        print(reason, file=sys.stderr)
+        return 2
+
     host = _host_of(run_dir, original)
     config = load_config()
-    corpus = corpus_mod.load(config.keel_cloud)
+    exported = contract_mod.read(run_dir / "contracts")
+    corpus = corpus_mod.load(config.keel_cloud).bind(exported.registry)
     judge = judge_mod.NoJudge() if args.no_judge else judge_mod.Judge()
 
-    people = {(e.id, p.person): p for e in corpus.entries for p in e.people()}
-    reading_scores, assumption_scores, brief_scores = [], [], []
-    # MARKS_VERSION 4: a BRIEF case is marked against the context it was sent, and the bundle
-    # keeps the prompt rather than the object. The context is a pure function of the frozen entry
-    # and the exported key list the bundle also keeps, so it is rebuilt from both -- the same way
-    # `score_assumptions` re-derives its goldens from the corpus rather than from the scorecard.
-    try:
-        brief_keys = contract_mod.read(run_dir / "contracts").keys_for(contract_mod.SCREEN_BRIEF)
-    except Exception:                             # noqa: BLE001 - a bundle taken before BRIEF
-        brief_keys = None                         # existed has no BRIEF case to score either
+    cases = {}
+    for entry in corpus.entries:
+        instructions = {screen: "" for screen in run_mod.SCREENS}
+        for case in prompts_mod.build_cases(entry, exported, instructions, _SilentRuntime,
+                                            n_runs=max(int(original.get("n_runs") or 1), 1)):
+            cases[case.case_id] = case
 
-    for envelope, directory in _cases(run_dir):
-        case_id = envelope["case_id"]
-        entry_id, subject, run_part = case_id.split("/")
-        entry = corpus.by_id(entry_id)
-        kind = ("BRIEF" if envelope["screen"] == contract_mod.SCREEN_BRIEF
-                else "ASSUMPTIONS" if envelope["screen"].endswith("ASSUMPTIONS") else "READING")
-        case = prompts_mod.Case(case_id=case_id, kind=kind, entry_id=entry_id,
-                                screen=envelope["screen"], subject=subject,
-                                run_index=int(run_part.replace("run", "")), payload={})
-        old = _old_case(original, case_id)
-        case.existing_roles = [{"label": label} for label in (old or {}).get("existing_roles", [])]
-        failed = envelope.get("error") or (
-            envelope.get("schema_error") if not envelope.get("schema_valid") else None)
+    state = run_mod._RunState()
+    for envelope, _directory in _envelopes(run_dir):
+        case = cases.get(envelope.get("case_id"))
+        if case is None:
+            continue
+        answer = types.SimpleNamespace(
+            outcome=envelope.get("outcome"), schema_valid=bool(envelope.get("schema_valid")),
+            schema_error=envelope.get("schema_error"), error=envelope.get("error"),
+            result=envelope.get("result"), questions=envelope.get("questions"),
+            errored=bool(envelope.get("error")))
+        failed = answer.error or (answer.schema_error if not answer.schema_valid else None)
+        if answer.errored and "never fit its shape" not in str(answer.error):
+            state.errored += 1
+        run_mod._score(case, corpus.by_id(case.entry_id), answer, failed, state, judge)
 
-        if kind == "BRIEF":
-            if brief_keys is None:
-                continue
-            case.payload = {"context": context_mod.build_brief(entry, brief_keys)}
-            questions = envelope.get("questions") if envelope.get("outcome") == "NEEDS_INPUT" \
-                else None
-            brief_scores.append(brief_mod.score_brief(
-                case, entry, envelope.get("result"), outcome=envelope.get("outcome"),
-                failed=failed, needs_input_questions=questions))
-        elif kind == "READING":
-            reading_scores.append(score_mod.score_reading(
-                case, entry, people[(entry_id, subject)], envelope.get("result"), failed=failed))
-        else:
-            questions = envelope.get("questions") if envelope.get("outcome") == "NEEDS_INPUT" \
-                else None
-            score = score_mod.score_assumptions(case, entry, envelope.get("result"), failed=failed,
-                                                needs_input_questions=questions, judge=judge)
-            assumption_scores.append(score)
-            (directory / f"diff-v{marks_mod.MARKS_VERSION}.json").write_text(
-                json.dumps({"case_id": case_id, "matched": [
-                    {"golden_id": p.golden_id, "produced_index": p.produced_index, "by": p.by,
-                     "fields": p.fields} for p in (score.alignment.matched if score.alignment
-                                                   else [])],
-                    "missing": score.alignment.missing if score.alignment else [],
-                    "extra": score.alignment.extra if score.alignment else []},
-                    indent=2), encoding="utf-8")
+    compare_scores = []
+    for in_path in sorted((run_dir / "compare").glob("*.in.json")):
+        entry_input = json.loads(in_path.read_text(encoding="utf-8"))
+        entry = corpus.by_id(entry_input.get("entry"))
+        if entry is None:
+            continue
+        case = cases.get(f"{entry.id}/COMPARE")
+        try:
+            produced = compare_mod.run(config.keel_cloud, entry_input, in_path,
+                                       in_path.with_name(f"{entry.id}.rescore.out.json"))
+            raw = compare_mod.diff(entry.expected, produced, entry=entry)
+        except compare_mod.EngineUnavailable as why:
+            raw = compare_mod.unmeasured(entry.id, str(why))
+        compare_scores.append(score_mod.score_compare(case, entry, raw))
 
-    errored = sum(1 for e, _d in _cases(run_dir) if e.get("error") and
-                  "never fit its shape" not in str(e.get("error")))
     validation = run_dir / "validation.json"
     measured = validation.is_file() and "unavailable" not in validation.read_text(encoding="utf-8")
-    # v6: the aggregate's own verdict is in the bundle, so a rescore carries the refusal counts
-    # and their denominator forward rather than reading a kept run as if nothing was refused.
     aggregate = {"accepted": 0, "refusals_by_rule": {}, "shape_refusals": 0}
     if measured:
         try:
@@ -124,68 +138,52 @@ def main(argv=None) -> int:
         except Exception as exc:                  # noqa: BLE001 - unmeasured, never mis-measured
             print(f"validation.json could not be folded in: {exc}", file=sys.stderr)
             measured = False
+    measured = measured and not original.get("unmet_prerequisites")
 
-    totals = score_mod.totals(reading_scores, assumption_scores, errored=errored,
+    totals = score_mod.totals(state.calibration, state.respondent, state.interpret,
+                              compare_scores, brief_scores=state.brief, errored=state.errored,
                               refusals_by_rule=aggregate["refusals_by_rule"],
                               shape_refusals=aggregate["shape_refusals"],
                               refusals_measured=measured,
                               refusals_shown=aggregate["accepted"]
                               + sum(aggregate["refusals_by_rule"].values()),
-                              judge_calls=judge.call_count,
-                              brief_scores=brief_scores)
+                              judge_calls=judge.call_count)
     marks = marks_mod.load()
     judged = marks_mod.judge(totals, marks)
-
     scorecard = {
         "marks_version": marks_mod.MARKS_VERSION,
         "rescored_from": original.get("marks_version"),
         "marks": marks,
         "model": original.get("model"),
         "n_runs": original.get("n_runs"),
+        "registry_version": exported.registry.version,
         "contract_manifest": original.get("contract_manifest"),
-        "reading": [_reading_json(s) for s in reading_scores],
-        "assumptions": [_assumption_json(s) for s in assumption_scores],
-        "brief": [_brief_json(s) for s in brief_scores],
+        "compare": [run_mod._compare_json(s) for s in compare_scores],
+        "calibration": [run_mod._question_json(s) for s in state.calibration],
+        "respondent": [run_mod._question_json(s) for s in state.respondent],
+        "interpret": [run_mod._interpret_json(s) for s in state.interpret],
+        "brief": [run_mod._brief_json(s) for s in state.brief],
         "totals": totals,
         "judge_calls": judge.calls,
-        "spread": {
-            "recall": score_mod.spread(assumption_scores, lambda s: s.golden_belief_recall),
-            "anchoring": score_mod.spread(reading_scores, lambda s: s.anchoring_accuracy),
-        },
+        "spread": run_mod._spreads(state),
         "prompts": original.get("prompts", []),
     }
     out = run_dir / f"scorecard-v{marks_mod.MARKS_VERSION}.json"
     out.write_text(json.dumps(scorecard, indent=2, default=str), encoding="utf-8")
-
-    # The register is the one page a rubric change can genuinely alter without a new call: what a
-    # newer rubric moved *out* of the marks has to be readable somewhere, and this is where it
-    # goes (judgement calls 17 and 20). Written beside the original, never over it, for the same
-    # reason the scorecard is.
-    if brief_scores:
+    if state.brief:
         report_mod.render_register(
             run_dir, entries_by_market={},
-            paragraphs=report_mod.paragraph_blocks(corpus, brief_scores),
-            host=host,
+            paragraphs=report_mod.paragraph_blocks(corpus, state.brief), host=host,
             cli_version=(original.get("model") or {}).get("cli_version"),
             model=(original.get("model") or {}).get("reported_model"),
             filename=f"register-v{marks_mod.MARKS_VERSION}.html")
 
-    print(f"re-scored {run_dir.name} ({host}) under MARKS_VERSION "
-          f"{marks_mod.MARKS_VERSION} (was {original.get('marks_version')})")
-    print(f"  recall     {_fmt(totals['golden_belief_recall'])}  "
-          f"(was {_fmt(original['totals']['golden_belief_recall'])})")
-    print(f"  anchoring  {_fmt(totals['anchoring_accuracy'])}  "
-          f"(was {_fmt(original['totals']['anchoring_accuracy'])})")
-    print(f"  brief      {_fmt(totals['brief_paragraphs'])}  "
-          f"(was {_fmt((original.get('totals') or {}).get('brief_paragraphs'))})")
-    print(f"  refusals   {'measured' if measured else 'NOT measured'}  "
-          f"-> mark met: {judged['refusals']['met']}")
-    print(f"  judge      {judge.call_count} calls, deciding "
-          f"{_fmt(totals['judged_fraction'])} of matched pairs")
+    print(f"re-scored {run_dir.name} ({host}) under MARKS_VERSION {marks_mod.MARKS_VERSION} "
+          f"(was {original.get('marks_version')})")
+    for name in marks_mod.ROWS:
+        print(f"  {name:<20} {run_mod._fmt_row(judged[name])}")
     print(f"  passed     {judged['passed']}")
     print(f"  written    {out}")
-    if brief_scores:
-        print(f"  register   {run_dir / f'register-v{marks_mod.MARKS_VERSION}.html'}")
     return 0
 
 
@@ -201,43 +199,6 @@ def _host_of(run_dir: Path, original: dict) -> str:
         if host:
             return host
     return (original.get("model") or {}).get("host") or "claude"
-
-
-def _fmt(value) -> str:
-    return "—" if value is None else f"{value * 100:.1f}%"
-
-
-def _old_case(original: dict, case_id: str):
-    for entry in original.get("assumptions", []):
-        if entry.get("case_id") == case_id:
-            return entry
-    return None
-
-
-def _reading_json(s) -> dict:
-    return {"case_id": s.case_id, "entry_id": s.entry_id, "subject": s.subject,
-            "run_index": s.run_index, "given": s.given, "answered": s.answered,
-            "agreed": s.agreed, "anchoring_accuracy": s.anchoring_accuracy,
-            "confusion": s.confusion, "per_anchor": s.per_anchor,
-            "missing_ids": s.missing_ids, "extra_ids": s.extra_ids, "failed": s.failed}
-
-
-def _brief_json(s) -> dict:
-    return {"case_id": s.case_id, "entry_id": s.entry_id, "run_index": s.run_index,
-            "paragraph": s.paragraph, "length": s.length, "marks": s.marks,
-            "findings": s.findings, "phrasing": s.phrasing, "met": s.met, "failed": s.failed,
-            "needs_input": s.needs_input}
-
-
-def _assumption_json(s) -> dict:
-    return {"case_id": s.case_id, "entry_id": s.entry_id, "subject": s.subject,
-            "run_index": s.run_index, "golden_total": s.golden_total, "matched": s.matched,
-            "golden_belief_recall": s.golden_belief_recall, "exact_match": s.exact_match(),
-            "extra_beliefs": s.extra_beliefs, "needs_input": s.needs_input,
-            "needs_input_questions": s.needs_input_questions, "phrase_band": s.phrase_band,
-            "judged": s.judged, "judged_candidacy": s.judged_candidacy,
-            "existing_roles": s.existing_roles, "failed": s.failed,
-            "missing": [] if s.alignment is None else s.alignment.missing}
 
 
 if __name__ == "__main__":

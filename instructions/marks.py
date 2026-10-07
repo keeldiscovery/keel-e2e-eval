@@ -6,6 +6,12 @@ separate constant: an instruction-eval rubric change must never look like a scen
 judgement call below** -- scores under different versions describe different rubrics and are not
 comparable.
 
+**`MARKS_VERSION` 9** (spec 029, 2026-10-07): the subjects are the eight screens of the vector
+redesign, `golden_belief_recall` and `align.py` are retired, four marks are born and every one is
+measured by code against the registry keel-cloud exports, and the corpus is read at revision 3.
+Calls 28-36 are `specs/029-marks-v9-vectors/contracts/marks-v9.md` §3's, verbatim; calls 1-27 are
+byte for byte what `master` `0165017` carried (`tests/fixtures/marks/calls-1-27.at-0165017.txt`).
+
 Judgement calls, append-only across every version, struck nowhere, because the rubric's history is
 part of what a number means:
 
@@ -143,6 +149,34 @@ part of what a number means:
     that cannot be resolved is counted as `unresolved_reads` and left to fail to match. 26 holds
     *because of* this call, not in spite of it: with it, `align.FIELDS` does not change and the
     recall denominator does not change.
+28. **v9**: **New subjects are a rubric change.** The five new screens of §1 replace `*_ASSUMPTIONS`
+    and `QUESTIONS`; `INTERPRET` keeps its constant and is narrowed to the gate story (one judgement
+    a respondent); the three interpretation screens are rendered and never scored — their leaks are
+    rule refusals (`X1` / `P1` / `M1`) feeding `rule_refusal_rate` only (call 10). Scores before and
+    after are not comparable.
+29. **v9**: **`golden_belief_recall` is retired, and `align.py` with it.** A calibration answer is a
+    typed pick against the registry; the model writes the question, the engine writes the belief.
+    There is no structure to align, no option list to overlap, no tie to break. The golden is the
+    registry slice, not text.
+30. **v9**: **`dimension_coverage` is absolute.** One question per dimension, both screens;
+    denominators per §2.1. A plan the eval built by code from `founder_calibration` is what the
+    respondent screen is handed, exactly as production's `EVIDENCE_PLAN` would.
+31. **v9**: **`option_validity` is code, and 1.00 is honest only because the registry fixes the
+    codes.** The mark checks the mapping, not the invention.
+32. **v9**: **`no_leak`'s list is derived from the corpus's golden mechanism, never from the live
+    `SOLUTION_MECHANISM` output** (the ruler must not move with the subject); ties are inflection
+    collisions with the problem's own words and go to the judge; every other hit is a fault.
+33. **v9**: **One anchoring judgement per respondent.** Gate-No respondents are outside every
+    denominator; **amended 2026-10-07 (decision 10):** a chipped story is set `GUESSED` by code with
+    no call and is OUTSIDE the denominator too — only un-chipped stories are read. Number unchanged.
+34. **v9**: **`compare_correctness` spends nothing and is measured on `DRY=1`.** Status + drift
+    marked; counts reported; an export without the engine leaves it unmeasured, which fails (call
+    13). This repo keeps no copy of the arithmetic (DRIFT #33/#36/#41/#44/#45).
+35. **v9**: **`brief_paragraphs` gains `no_claim_words`**, scoped to the sentence naming a `BAR_SET`
+    or `NOT_TESTED_BY_DESIGN` dimension; the deciding line is the worst deal-breaker; all five or
+    nothing.
+36. **v9**: **`rule_refusal_rate` keeps 0.02 while its denominator triples**; the new reading is
+    recorded in `marks.toml` and is the founder's decision 1, not a quiet tightening.
 """
 
 from __future__ import annotations
@@ -150,17 +184,26 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 8
+MARKS_VERSION = 9
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 
+#: The eight marks of `marks.toml` at v9, with its numbers. `golden_belief_recall` is retired (call
+#: 29) and is **not** a key: a v9 verdict cannot carry a value for it.
 DEFAULTS = {
+    "dimension_coverage": 1.00,
+    "option_validity": 1.00,
+    "no_leak": 1.00,
     "anchoring_accuracy": 0.90,
-    "golden_belief_recall": 0.80,
+    "compare_correctness": 1.00,
     "rule_refusal_rate": 0.02,
     "shape_refusals": 0,
     "brief_paragraphs": 1.00,
 }
+
+#: The rows `judge()` returns, in the order the report shows them.
+ROWS = ("dimension_coverage", "option_validity", "no_leak", "anchoring_accuracy",
+        "compare_correctness", "refusals", "shape_refusals", "brief_paragraphs")
 
 
 def load(path: Path | str | None = None) -> dict:
@@ -174,51 +217,56 @@ def load(path: Path | str | None = None) -> dict:
     return marks
 
 
-def judge(totals: dict, marks: dict) -> dict:
-    """Each mark against its number. A run passes only if all three are met.
+def _at_least(value, mark) -> bool:
+    return value is not None and value >= mark
 
-    **An unmeasured mark is not a met mark** (judgement call 13). A `None` fails, and so does a
-    refusal count that was never taken: the baseline of 2026-09-06 reported `refusals: 0, met:
-    true` while nothing had been shown to the aggregate at all, which is the one way this rubric
-    could flatter a run. `refusals_measured` says whether anybody asked.
+
+def judge(totals: dict, marks: dict) -> dict:
+    """Each of the eight marks against its number. A run passes only if all eight are met.
+
+    Every row is `{value, mark, measured, met}`, and **an unmeasured mark is not a met mark**
+    (judgement call 13): a `None` fails, a refusal count nobody asked for fails, a compare the
+    engine never ran fails. `refusals` carries its rate beside the count (call 22, call 36).
     """
+    def row(name, value, measured, met, **extra):
+        measured = bool(measured) and value is not None
+        return {"value": value, "mark": marks[name if name != "refusals" else
+                                              "rule_refusal_rate"],
+                "measured": measured, "met": bool(measured and met), **extra}
+
+    coverage = totals.get("dimension_coverage")
+    validity = totals.get("option_validity")
+    leak = totals.get("no_leak")
     accuracy = totals.get("anchoring_accuracy")
-    recall = totals.get("golden_belief_recall")
+    compare = totals.get("compare_correctness")
     brief = totals.get("brief_paragraphs")
-    brief_measured = bool(totals.get("brief_measured"))
     measured = bool(totals.get("refusals_measured"))
     refusals = sum((totals.get("refusals_by_rule") or {}).values())
-    # v6 (judgement call 22): the rule-refusal mark is a rate over the answers the aggregate
-    # judged -- `refusals_shown`, accepted plus refused -- never over case-runs that were never
-    # shown to it. A run that shows the aggregate nothing has no rate and is unmeasured.
+    # v6 (call 22), v9 (call 36): a rate over the answers the aggregate judged -- `refusals_shown`,
+    # accepted plus refused -- never over case-runs that were never shown to it.
     shown = int(totals.get("refusals_shown") or 0)
     rate = (refusals / shown) if (measured and shown) else None
     shape = totals.get("shape_refusals")
+
     results = {
-        "anchoring_accuracy": {
-            "value": accuracy, "mark": marks["anchoring_accuracy"],
-            "met": accuracy is not None and accuracy >= marks["anchoring_accuracy"]},
-        "golden_belief_recall": {
-            "value": recall, "mark": marks["golden_belief_recall"],
-            "met": recall is not None and recall >= marks["golden_belief_recall"]},
-        "refusals": {
-            "value": refusals if measured else None, "measured": measured,
-            "rate": rate, "shown": shown if measured else None,
-            "mark": marks["rule_refusal_rate"],
-            "met": measured and rate is not None and rate <= marks["rule_refusal_rate"]},
-        "shape_refusals": {
-            "value": shape if measured else None, "measured": measured,
-            "mark": marks["shape_refusals"],
-            "met": measured and shape is not None and shape <= marks["shape_refusals"]},
-        # v4 (judgement calls 15-17): every BRIEF paragraph meeting all four of its own marks.
-        # Unmeasured is not met here either -- a run filtered to one subject reports the other
-        # subjects' marks as unmeasured and fails, which is the same rule `refusals` has had
-        # since v2 and the reason a filtered run's verdict is never read as a pass.
-        "brief_paragraphs": {
-            "value": brief, "measured": brief_measured,
-            "mark": marks["brief_paragraphs"],
-            "met": brief_measured and brief is not None
-                    and brief >= marks["brief_paragraphs"]},
+        "dimension_coverage": row("dimension_coverage", coverage, coverage is not None,
+                                  _at_least(coverage, marks["dimension_coverage"])),
+        "option_validity": row("option_validity", validity, validity is not None,
+                               _at_least(validity, marks["option_validity"])),
+        "no_leak": row("no_leak", leak, leak is not None, _at_least(leak, marks["no_leak"])),
+        "anchoring_accuracy": row("anchoring_accuracy", accuracy, accuracy is not None,
+                                  _at_least(accuracy, marks["anchoring_accuracy"])),
+        "compare_correctness": row("compare_correctness", compare,
+                                   totals.get("compare_measured"),
+                                   _at_least(compare, marks["compare_correctness"])),
+        "refusals": row("refusals", rate, measured and shown,
+                        rate is not None and rate <= marks["rule_refusal_rate"],
+                        count=refusals if measured else None,
+                        shown=shown if measured else None),
+        "shape_refusals": row("shape_refusals", shape if measured else None, measured,
+                              shape is not None and shape <= marks["shape_refusals"]),
+        "brief_paragraphs": row("brief_paragraphs", brief, totals.get("brief_measured"),
+                                _at_least(brief, marks["brief_paragraphs"])),
     }
-    results["passed"] = all(r["met"] for r in results.values() if isinstance(r, dict))
+    results["passed"] = all(results[name]["met"] for name in ROWS)
     return results

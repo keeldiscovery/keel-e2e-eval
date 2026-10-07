@@ -154,9 +154,10 @@ def test_claude_code_the_alias_still_gets_the_claude_rendering():
         "CLAUDE-BODY")
 
 
-def test_every_case_a_copilot_run_builds_carries_the_copilot_prompt(monkeypatch):
-    """Not just the first: `build_cases` renders three kinds of case in three separate loops, and
-    a host threaded into two of them would leave a bundle two-thirds honest."""
+def test_every_case_a_copilot_run_builds_carries_the_copilot_prompt(monkeypatch, tmp_path):
+    """Not just the first: `build_cases` renders seven kinds of model case, and a host threaded
+    into some of them would leave a bundle partly honest. The `COMPARE` row is never rendered."""
+    from tests import v9_fixtures as fx                                     # noqa: PLC0415
     seen = []
 
     def _record(executor_module, payload, *, job_id="eval", host="claude"):
@@ -164,34 +165,15 @@ def test_every_case_a_copilot_run_builds_carries_the_copilot_prompt(monkeypatch)
         return f"prompt-for-{host}"
 
     monkeypatch.setattr(prompts_mod, "render", _record)
-    cases = _build_four_kinds(host="copilot")
+    cases = prompts_mod.build_cases(fx.entry(fx.ENTRY_B2B), fx.exported(tmp_path),
+                                    fx.instructions(), _FakeRuntime, n_runs=1, host="copilot")
+    model = [c for c in cases if c.kind != "COMPARE"]
 
-    assert {c.kind for c in cases} == {"ASSUMPTIONS", "QUESTIONS", "READING", "BRIEF"}, \
-        "all four loops must be exercised or this test proves nothing"
-    assert set(seen) == {"copilot"}
-    assert {c.prompt for c in cases} == {"prompt-for-copilot"}
-
-
-def _build_four_kinds(*, host):
-    """One entry with one stage's beliefs, one person who wrote something, a `QUESTIONS` call and a
-    BRIEF -- **all four** loops of `build_cases`, so this proves what it claims about a host."""
-    contract = {"allowed_outcomes": ["COMPLETED"]}
-    exported = types.SimpleNamespace(
-        keys_for=lambda screen: ["market"] if "ASSUMPTIONS" in screen else
-        (["invitation_id", "anchors"] if screen == "INTERPRET" else
-         (["project_name", "measurements"] if screen == "QUESTIONS" else ["project_name"])),
-        for_screen=lambda screen: contract)
-    person = types.SimpleNamespace(
-        person="p1", written=lambda: [("A1", {"text": "twice a week", "tap": None})])
-    entry = types.SimpleNamespace(
-        id="e1", title="Entry", market={"country": "GB"}, statements={"problem": "s"},
-        expected={"stages": {}}, people=lambda: [person],
-        beliefs_for=lambda stage: [], role=lambda rid: {}, anchor=lambda aid: {"id": aid})
-    instructions = {screen: "INSTRUCTION" for screen in
-                    ("PROBLEM_ASSUMPTIONS", "SOLUTION_ASSUMPTIONS", "COMMERCIAL_ASSUMPTIONS",
-                     "QUESTIONS", "INTERPRET", "BRIEF")}
-    return prompts_mod.build_cases(entry, exported, instructions, _FakeRuntime,
-                                   n_runs=1, host=host)
+    assert {c.kind for c in model} == {"CONTEXT", "FRAME", "CALIBRATION", "RESPONDENT",
+                                       "READING", "BRIEF"}, \
+        "every model loop must be exercised or this test proves nothing"
+    assert set(seen) == {"copilot"} and len(seen) == len(model)
+    assert {c.prompt for c in model} == {"prompt-for-copilot"}
 
 
 # ------------------------------------------------------- 2. the executor is keel-runtime's choice
@@ -408,8 +390,9 @@ class _Executor:
 
 
 def _minimal_case():
-    return prompts_mod.Case(case_id="e/PROBLEM/run1", kind="ASSUMPTIONS", entry_id="e",
-                            screen="PROBLEM_ASSUMPTIONS", subject="PROBLEM", run_index=1,
+    return prompts_mod.Case(case_id="e/CALIBRATION_PROBLEM/run1", kind="CALIBRATION",
+                            entry_id="e", screen="CALIBRATION_QUESTIONS", subject="PROBLEM",
+                            run_index=1,
                             payload={"response_contract": {"allowed_outcomes": ["COMPLETED"]}})
 
 
@@ -556,9 +539,11 @@ def test_the_rubric_did_not_move():
     # once**, which is what keeps this test's point: the hosts are still judged by one rubric, and
     # no host ever got its own. The version itself is pinned by `test_instruction_marks.py`; what
     # is asserted here is that the five numbers a host is judged against have never moved.
-    assert marks_mod.DEFAULTS == {"anchoring_accuracy": 0.90, "golden_belief_recall": 0.80,
-                                  "rule_refusal_rate": 0.02, "shape_refusals": 0,
-                                  "brief_paragraphs": 1.00}
+    # v9 (spec 029, calls 28-36) moved the subjects and the marks -- again for every host at once.
+    assert marks_mod.DEFAULTS == {"dimension_coverage": 1.00, "option_validity": 1.00,
+                                  "no_leak": 1.00, "anchoring_accuracy": 0.90,
+                                  "compare_correctness": 1.00, "rule_refusal_rate": 0.02,
+                                  "shape_refusals": 0, "brief_paragraphs": 1.00}
 
 
 def test_the_makefile_defaults_to_claude_and_threads_the_host_through():

@@ -19,6 +19,7 @@ import pytest
 
 from harness import corpus_script as cs
 from harness import stranger_stories as ss
+from tests import r2_corpus
 from stack.config import load_config
 
 #: The four anchors the host wrote in matrix run 36895521843 (transcript seq 88), in page order.
@@ -55,11 +56,13 @@ def keel_cloud():
 
 @pytest.fixture(scope="module")
 def lullaby(keel_cloud):
+    r2_corpus.skip_if_retired()        # spec 029 T016 / O-1
     return cs.entry_for(keel_cloud, "03-lullaby")[1]
 
 
 @pytest.fixture(scope="module")
 def every_entry(keel_cloud):
+    r2_corpus.skip_if_retired()        # spec 029 T016 / O-1
     return cs.load(keel_cloud).entries
 
 

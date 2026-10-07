@@ -49,7 +49,7 @@ founder_calibration:
     belief_sentence: In the moment, commuters who cycle try retracing their steps, the spare set, in that order.
   problem.current_solution_satisfaction: {answer: hit_and_miss, belief_phrase: is hit and miss, belief_sentence: The way commuters
       who cycle handle it today is hit and miss.}
-  problem.urgency: {unsure: true}
+  problem.urgency: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
   solution.compatibility: {answer: after_first_attempt_fails, belief_phrase: once the first look has failed, belief_sentence: It
       fits into the episode once the first look has failed.}
   solution.relative_advantage: {answer: shorter_time, belief_phrase: a shorter search, belief_sentence: 'To be worth switching
@@ -96,7 +96,7 @@ founder_calibration:
     answer: [call, read_only_trial]
     belief_phrase: a read-only trial
     belief_sentence: For a trial, right now, they would go as far as a read-only trial.
-  commercial.retention_potential: {unsure: true}
+  commercial.retention_potential: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
 respondent_questions:
   problem.prevalence:
     part: 1

@@ -1,0 +1,613 @@
+# Golden corpus entry 03 -- Lullaby, a cry-classifying app for new parents.
+#
+# REVISION 3, 2026-10-07 -- keel-e2e-eval spec 029 (marks v9, the vector redesign). The second recorded
+# revision since the freeze (README's rule: "a change before then is a recorded corpus revision, not a quiet
+# edit"). Re-expressed in marks-v9 §4's schema from the registry's `lullaby` objects
+# (keel-cloud-docs canon/drafts/vector-redesign-2026-10-06/dimension-registry.v1.draft.yaml), which own the
+# worked example; where marks-v9 §5's excerpt and the registry disagree, the registry wins (spec 029 A-6).
+#
+# Hand-worked, by person, under the compare rules the founder signed on 2026-10-07 (marks-v9 §2.5; spec 029
+# FR-018). Hugo Laurent ("about ten days ago") and Leo Martins (sleeps through) answer No at the 7-night gate
+# and answer nothing more (decisions 3, 14). Jonas Weber chips (cant_recall): GUESSED by code, never read
+# (decision 5). Finn Murphy's story is vague: GUESSED, no chip. Grace Okonkwo's forty minutes is a rough
+# guess: shown, not counted (Duration n = 7). The six commercial examples are re-worked at n <= 10 -- eight
+# anchored people reach part 3 (decision 14); no status changed. `founder_calibration[*].belief_sentence` and
+# `interpretations.problem` are recorded here as spec 029's plan O-2 / O-3 ask; `respondent_questions`
+# carries the gate itself and `problem.importance.own_item` (spec 029 tasks.md D3).
+#
+# RECORDED UNDER keel-e2e-eval tests/fixtures/corpus-r3/ AND TO BE MOVED VERBATIM into keel-cloud
+# canon/designs/measured-beliefs/corpus/ at integration (the orchestrator's cross-track arrangement of
+# 2026-10-07); `check_corpus.py` and `GoldenCorpusTest` confirm the counts there.
+
+id: 03-lullaby
+title: Lullaby — what the cry means
+revision: 3
+market: {country: GB, region: null, language: en-GB}
+statements: {problem: 'Parents of babies under six months are woken three or more times a night and can''t tell what the cry
+    means — they try feeding, changing and rocking in turn, taking about twenty minutes to settle the baby each time, because
+    nothing tells them which need it is; based on the founder''s own first year with twins.', solution: 'A phone app that
+    listens to the cry and says which need it most likely is — hunger, a nappy, wind, temperature — so the parent reaches
+    for the right thing first.', commercial: 'The parent pays £6 a month, as they already pay for baby-tracking and white-noise
+    apps, with nobody else to approve it.'}
+roles:
+- {id: parent, label: New parents, roleType: CONSUMER, about: the parent of a baby under six months who gets up in the night}
+context: {actor: parent, actor_plural: parents of babies under six months, job: work out what the baby needs and settle them,
+  circumstance: the baby cries in the night, segment: 'first-time parents in the UK, baby under six months', understood: 'Parents
+    of babies under six months, when the baby cries in the night and they must work out what it needs and settle them.'}
+interpretations: {problem: 'Parents of babies under six months, woken by crying in the night, cannot tell the reason for the
+    cry, so they end up guessing: the parent feeds, changes, rocks and holds the baby in turn until it settles.'}
+solution_mechanism:
+  actor: the parent
+  trigger: when the baby is crying at night and the reason is unclear
+  mechanism: holds the phone near the cot for about ten seconds while it listens
+  output: a short card naming what the baby most likely needs, and the next most likely
+  not_assumed: [stops the guessing, settles the baby faster]
+  mechanism_terms: [listen, phone, cot, card, most likely, suggestion]
+persona: {decision_maker: same_person}
+founder_calibration:
+  problem.prevalence: {answer: p_60_80, belief_phrase: Most, belief_sentence: Most of these parents of babies under six months
+      had this at least once in the last 7 nights.}
+  problem.frequency:
+    answer: {lower: 4, upper: 7, unit: nights out of 7}
+    belief_phrase: 4 to 7 nights out of 7
+    belief_sentence: Parents of babies under six months face this on 4 to 7 nights out of 7.
+  problem.severity: {answer: very, belief_phrase: costs a large part of the night's sleep, belief_sentence: 'For parents of
+      babies under six months, one episode costs a large part of the night''s sleep.'}
+  problem.duration:
+    answer: {lower: 15, upper: 25, unit: minutes}
+    belief_phrase: 15 to 25 minutes
+    belief_sentence: A typical episode takes 15 to 25 minutes from start to finish.
+  problem.importance: {answer: top_three, belief_phrase: one of the top three, belief_sentence: 'Among the difficulties that
+      come with the baby crying in the night, this is one of the top three.'}
+  problem.consequence:
+    answer: [lost_sleep, stress, next_day_fatigue]
+    belief_phrase: lost sleep and stress and a worse next day
+    belief_sentence: After an episode, parents of babies under six months are left with lost sleep and stress and a worse
+      next day.
+  problem.workaround_burden:
+    answer: [feed, change, rock_hold]
+    belief_phrase: feeding, a nappy change, rocking
+    belief_sentence: In the moment, parents of babies under six months try feeding, a nappy change, rocking, in that order.
+  problem.current_solution_satisfaction: {answer: works_poorly, belief_phrase: 'works poorly: they end up guessing', belief_sentence: 'The
+      way parents of babies under six months handle it today works poorly: they end up guessing.'}
+  problem.urgency: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+  solution.compatibility: {answer: before_any_attempt, belief_phrase: 'right at the start, before anything is tried', belief_sentence: 'It
+      fits into the episode right at the start, before anything is tried.'}
+  solution.relative_advantage: {answer: fewer_attempts, belief_phrase: fewer things tried before the baby settles, belief_sentence: 'To
+      be worth switching to, it must mainly deliver fewer things tried before the baby settles.'}
+  solution.effectiveness_threshold:
+    answer: {value: 5, unit: minutes}
+    belief_phrase: at least 5 minutes
+    belief_sentence: It is worth using only if it saves at least 5 minutes per episode.
+  solution.trust_risk:
+    answer: [labelled_suggestion, safe_actions_only]
+    belief_phrase: it is plainly labelled a suggestion and it only ever suggests safe things to try
+    belief_sentence: Parents of babies under six months would act on it only if it is plainly labelled a suggestion and it
+      only ever suggests safe things to try.
+  solution.reliability_tolerance: {answer: one_in_five, belief_phrase: about one time in five, belief_sentence: They keep
+      using it as long as it is wrong no more than about one time in five.}
+  solution.adoption_friction: {answer: a_few_taps, belief_phrase: a few taps, belief_sentence: The most extra effort they
+      would accept at the moment of use is a few taps.}
+  solution.trialability:
+    answer: [free_no_card, easy_exit]
+    belief_phrase: it is free with no card details and they can delete everything at any time
+    belief_sentence: They would try it for the first time if it is free with no card details and they can delete everything
+      at any time.
+  solution.observability:
+    answer: [settled_sooner, fewer_tries]
+    belief_phrase: the baby settled sooner than usual and they tried fewer things
+    belief_sentence: They would know it helped when the baby settled sooner than usual and they tried fewer things.
+  solution.target_circumstance: {answer: routine_failed, belief_phrase: when the usual routine has not stopped the crying,
+    belief_sentence: It matters most when the usual routine has not stopped the crying.}
+  commercial.existing_sacrifice:
+    answer: [apps_subscriptions, gadgets]
+    belief_phrase: money on baby apps and money on gadgets
+    belief_sentence: Because of this, parents of babies under six months already give up money on baby apps and money on gadgets.
+  commercial.wtp_hypothesis:
+    answer: {lower: 5, upper: 12, currency: GBP, per: month}
+    belief_phrase: £5 to £12 per month
+    belief_sentence: A fair price would feel like £5 to £12 per month (a hypothesis; interviews do not test it).
+  commercial.ability_to_pay: {answer: without_cutting_back, belief_phrase: 'fairly easily, without cutting back elsewhere',
+    belief_sentence: 'They could find the money for it fairly easily, without cutting back elsewhere.'}
+  commercial.buyer_payer_alignment: {answer: same_person, belief_phrase: 'the same person uses it, decides and pays', belief_sentence: 'On
+      buying: the same person uses it, decides and pays.'}
+  commercial.purchase_friction:
+    answer: [partner_approval, privacy]
+    belief_phrase: needing a partner's agreement and worries about recording the baby
+    belief_sentence: Between wanting it and paying, needing a partner's agreement and worries about recording the baby could
+      hold them back.
+  commercial.commitment:
+    answer: [install, mic]
+    belief_phrase: allowing the microphone
+    belief_sentence: For a trial, right now, they would go as far as allowing the microphone.
+  commercial.retention_potential: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+respondent_questions:
+  problem.prevalence:
+    part: 1
+    control: gate_yes_no
+    codes: ['yes', 'no']
+  problem.frequency: {part: 1, control: segmented_0_to_7}
+  problem.severity:
+    part: 1
+    control: single_choice_5
+    codes: [barely, a_little, moderately, very, extremely]
+  problem.duration: {part: 1, control: number_with_unit}
+  problem.importance:
+    part: 1
+    control: single_choice
+    own_item: knowing_what_the_cry_means
+    codes: [back_down_after_feed, knowing_what_the_cry_means, back_to_sleep_myself, sharing_the_night, early_morning_wakes,
+      something_else]
+  problem.consequence:
+    part: 1
+    control: multi_choice
+    codes: [lost_sleep, partner_woken, stress, next_day_fatigue, sought_help, looked_it_up, nothing_much, something_else]
+  problem.workaround_burden:
+    part: 1
+    control: multi_choice_ordered
+    codes: [feed, change, rock_hold, soothe_aids, check_comfort, look_up_or_ask, something_else]
+  problem.current_solution_satisfaction:
+    part: 1
+    control: single_choice_5
+    codes: [works_well, mostly_works, hit_and_miss, works_poorly, no_reliable_way]
+  solution.compatibility:
+    part: 2
+    control: single_choice
+    codes: [before_any_attempt, after_first_attempt_fails, after_several_attempts, only_when_nothing_works, would_not_fit,
+      something_else]
+  solution.relative_advantage:
+    part: 2
+    control: single_choice
+    codes: [fewer_attempts, shorter_time, less_worry, less_help_needed, easier_recovery, nothing_would_change, something_else]
+  solution.effectiveness_threshold:
+    part: 2
+    control: single_choice_bands
+    codes: [0-5, 5-10, 10-20, 20+, nothing_worth_it]
+  solution.trust_risk:
+    part: 2
+    control: multi_choice
+    codes: [labelled_suggestion, gives_reason, medical_escalation, audio_private, expert_backing, safe_actions_only, own_instinct,
+      something_else]
+  solution.reliability_tolerance:
+    part: 2
+    control: single_choice
+    codes: [never_wrong, one_in_ten, one_in_five, one_in_three, half_the_time]
+  solution.adoption_friction:
+    part: 2
+    control: single_choice
+    codes: [nothing_extra, one_tap, a_few_taps, setup_once, daytime_setup, would_not_reach]
+  solution.trialability:
+    part: 2
+    control: multi_choice
+    codes: [free_no_card, recommendation, daytime_practice, data_promise, easy_exit, something_else]
+  solution.observability:
+    part: 2
+    control: multi_choice
+    codes: [settled_sooner, fewer_tries, need_matched, felt_calmer, back_to_sleep, next_day_better, something_else]
+  solution.target_circumstance:
+    part: 2
+    control: single_choice
+    codes: [first_wake, late_repeated_wakes, routine_failed, alone, first_weeks, not_useful, something_else]
+  commercial.existing_sacrifice:
+    part: 3
+    control: branch_pick_number
+    codes: [apps_subscriptions, gadgets, paid_help, books_or_courses, medical_visits, nothing, something_else]
+  commercial.wtp_hypothesis: {part: 3, control: two_numbers_optional}
+  commercial.ability_to_pay:
+    part: 3
+    control: single_choice
+    codes: [easily, without_cutting_back, with_a_trade_off, barely, free_or_gift]
+  commercial.buyer_payer_alignment:
+    part: 3
+    control: single_choice
+    codes: [same_person, user_decides_other_pays, joint_decision, someone_else_decides, institution_pays, it_was_free]
+  commercial.purchase_friction:
+    part: 3
+    control: multi_choice
+    codes: [partner_approval, social_proof, payment_effort, cancel_worry, privacy, forgetting, never_came_up, something_else]
+  commercial.commitment:
+    part: 3
+    control: multi_choice_ladder
+    codes: [setup, install, mic, next_episode, contact_me, nothing_yet]
+answers:
+- person: Amira Saleh
+  recency: 'yes'
+  story: Last night. Up at one, half three and five. The one o'clock took ages, she wanted feeding but I tried the nappy first.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 5
+    problem.severity: very
+    problem.duration: {value: 25, unit: minutes, rough: false}
+    problem.importance: knowing_what_the_cry_means
+    problem.consequence: [lost_sleep, stress, next_day_fatigue]
+    problem.workaround_burden: [change, feed]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: fewer_attempts
+    solution.effectiveness_threshold: {band: 10-20, unit: minutes}
+    solution.trust_risk: [labelled_suggestion, audio_private]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [free_no_card, easy_exit]
+    solution.observability: [settled_sooner, fewer_tries]
+    solution.target_circumstance: routine_failed
+    commercial.existing_sacrifice:
+      bought: apps_subscriptions
+      cost: {value: 24, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 8, currency: GBP, per: month}
+      guess: {value: 6, currency: GBP, per: month}
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [partner_approval, social_proof]
+    commercial.commitment: [install, mic, next_episode]
+  pilot_opt_in: true
+- person: Ben Carter
+  recency: 'yes'
+  story: Last night, twice. Both times it was a feed and I knew it, five minutes each. Phone on charge next to me. Reached
+    for the bottle.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 5
+    problem.severity: a_little
+    problem.duration: {value: 5, unit: minutes, rough: false}
+    problem.importance: back_down_after_feed
+    problem.consequence: [lost_sleep]
+    problem.workaround_burden: [feed, check_comfort]
+    problem.current_solution_satisfaction: works_well
+    solution.compatibility: would_not_fit
+    solution.relative_advantage: nothing_would_change
+    solution.effectiveness_threshold: {band: 0-5, unit: minutes}
+    solution.trust_risk: [own_instinct]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: would_not_reach
+    solution.trialability: [free_no_card]
+    solution.observability: [need_matched]
+    solution.target_circumstance: not_useful
+    commercial.existing_sacrifice:
+      bought: gadgets
+      cost: {value: 35, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 3, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: joint_decision
+    commercial.purchase_friction: [never_came_up]
+    commercial.commitment: [nothing_yet]
+  pilot_opt_in: false
+- person: Chloe Bernard
+  recency: 'yes'
+  story: Night before last. Three times, and the middle one I never worked out what it was. Twenty minutes, near enough. Phone
+    was downstairs. I reached for him and walked the landing.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 7
+    problem.severity: very
+    problem.duration: {value: 20, unit: minutes, rough: false}
+    problem.importance: knowing_what_the_cry_means
+    problem.consequence: [lost_sleep, partner_woken, stress, next_day_fatigue]
+    problem.workaround_burden: [feed, rock_hold, change, look_up_or_ask]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: fewer_attempts
+    solution.effectiveness_threshold: {band: 10-20, unit: minutes}
+    solution.trust_risk: [labelled_suggestion, safe_actions_only, audio_private]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [free_no_card, easy_exit, daytime_practice]
+    solution.observability: [settled_sooner, fewer_tries, need_matched]
+    solution.target_circumstance: routine_failed
+    commercial.existing_sacrifice:
+      bought: apps_subscriptions
+      cost: {value: 12, currency: GBP, per: three_months}
+      still_using: 'no'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 4, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: with_a_trade_off
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [social_proof, privacy]
+    commercial.commitment: [install]
+  pilot_opt_in: false
+- person: Dev Patel
+  recency: 'yes'
+  story: Last night, once, about 4. Eight minutes or so, wind, I got it on the second try. Phone in my hand, I was already
+    awake scrolling, short on sleep anyway.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 4
+    problem.severity: barely
+    problem.duration: {value: 8, unit: minutes, rough: false}
+    problem.importance: back_to_sleep_myself
+    problem.consequence: [lost_sleep, next_day_fatigue, looked_it_up]
+    problem.workaround_burden: [feed, rock_hold, change]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: fewer_attempts
+    solution.effectiveness_threshold: {band: 5-10, unit: minutes}
+    solution.trust_risk: [labelled_suggestion, safe_actions_only, audio_private]
+    solution.reliability_tolerance: one_in_three
+    solution.adoption_friction: one_tap
+    solution.trialability: [free_no_card, easy_exit, data_promise]
+    solution.observability: [settled_sooner, fewer_tries, felt_calmer]
+    solution.target_circumstance: late_repeated_wakes
+    commercial.existing_sacrifice:
+      bought: apps_subscriptions
+      cost: {value: 30, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 5, currency: GBP, per: month}
+      guess: {value: 7, currency: GBP, per: month}
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [social_proof, payment_effort]
+    commercial.commitment: [setup, install, mic]
+  pilot_opt_in: true
+- person: Elena Rossi
+  recency: 'yes'
+  story: Wednesday. Twice. She was hot, I knew from the cry, took a while to get her down again though. Phone by the bed.
+    Reached for the thermometer.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 6
+    problem.severity: very
+    problem.duration: {value: 12, unit: minutes, rough: false}
+    problem.importance: knowing_what_the_cry_means
+    problem.consequence: [lost_sleep, stress, next_day_fatigue]
+    problem.workaround_burden: [check_comfort, feed, change, rock_hold]
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: fewer_attempts
+    solution.effectiveness_threshold: {band: 10-20, unit: minutes}
+    solution.trust_risk: [labelled_suggestion, safe_actions_only, medical_escalation]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: one_tap
+    solution.trialability: [free_no_card, recommendation, daytime_practice]
+    solution.observability: [settled_sooner, need_matched]
+    solution.target_circumstance: late_repeated_wakes
+    commercial.existing_sacrifice:
+      bought: gadgets
+      cost: {value: 60, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 6, currency: GBP, per: month}
+      guess: {value: 8, currency: GBP, per: month}
+    commercial.ability_to_pay: free_or_gift
+    commercial.buyer_payer_alignment: someone_else_decides
+    commercial.purchase_friction: [partner_approval, social_proof]
+    commercial.commitment: [setup, install]
+  pilot_opt_in: false
+- person: Finn Murphy
+  recency: 'yes'
+  story: Most nights it's a few times, I honestly lose count. Phone's usually around somewhere.
+  chip: null
+  anchoring: GUESSED
+  picks:
+    problem.frequency: 6
+    problem.severity: very
+    problem.duration: {value: 20, unit: minutes, rough: true}
+    problem.importance: knowing_what_the_cry_means
+    problem.consequence: [lost_sleep, stress]
+    problem.workaround_burden: [feed, change]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 5-10, unit: minutes}
+    solution.trust_risk: [labelled_suggestion]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: one_tap
+    solution.trialability: [free_no_card]
+    solution.observability: [settled_sooner]
+    solution.target_circumstance: first_weeks
+    commercial.existing_sacrifice:
+      bought: gadgets
+      cost: {value: 40, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 5, currency: GBP, per: month}
+      guess: {value: 5, currency: GBP, per: month}
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [cancel_worry]
+    commercial.commitment: [install, mic]
+  pilot_opt_in: false
+- person: Grace Okonkwo
+  recency: 'yes'
+  story: Last night. Five or six times, she has reflux. Forty minutes for the first one, maybe more, I lost track. Phone under
+    the pillow. I reached for the sling.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 5
+    problem.severity: extremely
+    problem.duration: {value: 40, unit: minutes, rough: true}
+    problem.importance: back_down_after_feed
+    problem.consequence: [lost_sleep, partner_woken, stress, next_day_fatigue, looked_it_up]
+    problem.workaround_burden: [feed, rock_hold, change, soothe_aids]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: fewer_attempts
+    solution.effectiveness_threshold: {band: 20+, unit: minutes}
+    solution.trust_risk: [labelled_suggestion, safe_actions_only, audio_private]
+    solution.reliability_tolerance: half_the_time
+    solution.adoption_friction: nothing_extra
+    solution.trialability: [free_no_card, easy_exit, data_promise]
+    solution.observability: [settled_sooner, fewer_tries, felt_calmer]
+    solution.target_circumstance: routine_failed
+    commercial.existing_sacrifice:
+      bought: gadgets
+      cost: {value: 15, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 5, currency: GBP, per: month}
+      guess: {value: 5, currency: GBP, per: month}
+    commercial.ability_to_pay: barely
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [privacy, cancel_worry]
+    commercial.commitment: [install]
+  pilot_opt_in: true
+- person: Hugo Laurent
+  recency: 'no'
+  story: null
+  chip: null
+  anchoring: null
+  picks: {}
+  pilot_opt_in: false
+- person: Isla Fraser
+  recency: 'yes'
+  story: Last night, three times. The middle one I fed, changed, rocked, nothing, then she just went after ten minutes. Phone
+    in the cot pocket. Reached for her.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 3
+    problem.severity: very
+    problem.duration: {value: 10, unit: minutes, rough: false}
+    problem.importance: early_morning_wakes
+    problem.consequence: [lost_sleep, stress, next_day_fatigue]
+    problem.workaround_burden: [feed, change, rock_hold]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: fewer_attempts
+    solution.effectiveness_threshold: {band: 10-20, unit: minutes}
+    solution.trust_risk: [labelled_suggestion, safe_actions_only, audio_private]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: setup_once
+    solution.trialability: [free_no_card, easy_exit, daytime_practice, data_promise]
+    solution.observability: [settled_sooner, fewer_tries, need_matched, felt_calmer]
+    solution.target_circumstance: routine_failed
+    commercial.existing_sacrifice:
+      bought: apps_subscriptions
+      cost: {value: 18, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 5, currency: GBP, per: month}
+      guess: {value: 6, currency: GBP, per: month}
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [social_proof, partner_approval]
+    commercial.commitment: [setup, install]
+  pilot_opt_in: true
+- person: Jonas Weber
+  recency: 'yes'
+  story: Couple of times a night usually. Can't say about last night, my partner did it.
+  chip: cant_recall
+  anchoring: GUESSED
+  picks:
+    problem.frequency: 2
+    problem.severity: moderately
+    problem.duration: {value: 10, unit: minutes, rough: true}
+    problem.importance: sharing_the_night
+    problem.consequence: [lost_sleep]
+    problem.workaround_burden: {chip: cant_recall}
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: less_worry
+    solution.effectiveness_threshold: {band: 5-10, unit: minutes}
+    solution.trust_risk: [own_instinct]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: one_tap
+    solution.trialability: [free_no_card]
+    solution.observability: [fewer_tries]
+    solution.target_circumstance: alone
+    commercial.existing_sacrifice:
+      bought: gadgets
+      cost: {value: 35, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 35, currency: GBP, per: one_off}
+      guess: null
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: joint_decision
+    commercial.purchase_friction: [partner_approval, privacy]
+    commercial.commitment: [nothing_yet]
+  pilot_opt_in: false
+- person: Keiko Tanaka
+  recency: 'yes'
+  story: Last night, twice, the second took ten minutes or so, he just wanted the dummy back. Phone charging by the bed. Reached
+    for the dummy.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.severity: a_little
+    problem.duration: {value: 11, unit: minutes, rough: false}
+    problem.importance: sharing_the_night
+    problem.consequence: [lost_sleep, partner_woken]
+    problem.workaround_burden: [soothe_aids, check_comfort, rock_hold, something_else]
+    problem.current_solution_satisfaction: works_well
+    solution.compatibility: after_several_attempts
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 5-10, unit: minutes}
+    solution.trust_risk: [own_instinct, gives_reason]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: nothing_extra
+    solution.trialability: [recommendation]
+    solution.observability: [back_to_sleep]
+    solution.target_circumstance: alone
+    commercial.existing_sacrifice:
+      bought: gadgets
+      cost: {value: 20, currency: GBP, per: three_months}
+      still_using: 'no'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 4, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [forgetting]
+    commercial.commitment: [nothing_yet]
+  pilot_opt_in: false
+- person: Leo Martins
+  recency: 'no'
+  story: null
+  chip: null
+  anchoring: null
+  picks: {}
+  pilot_opt_in: false
+expected:
+  standings:
+    problem.prevalence: {status: HOLDING_UP, drift: above, n: 12, 'yes': 10, proportion: 0.83}
+    problem.frequency: {status: HOLDING_UP, drift: none, n: 8, inside: 6, outside: 2, median: 5}
+    problem.severity: {status: PEOPLE_DISAGREE, drift: below, n: 8, inside: 5, outside: 3}
+    problem.duration: {status: NOT_HOLDING_UP, drift: below, n: 7, inside: 2, outside: 5, median: 11}
+    problem.importance: {status: HOLDING_UP, drift: none, n: 8, own_item_picks: 3, share: 0.38}
+    problem.consequence: {status: HOLDING_UP, drift: none, n: 8, optionCounts: 'lost_sleep=8, partner_woken=3, stress=5, next_day_fatigue=6,
+        sought_help=0, looked_it_up=2, nothing_much=0, something_else=0'}
+    problem.workaround_burden: {status: HOLDING_UP, drift: none, n: 8, first_action: feed, first_action_count: 5, optionCounts: 'feed=7,
+        change=6, rock_hold=6, soothe_aids=2, check_comfort=3, look_up_or_ask=1, something_else=1'}
+    problem.current_solution_satisfaction: {status: NOT_HOLDING_UP, drift: above, n: 8, inside: 2, outside: 6}
+    problem.urgency: {status: LEFT_OUT, drift: null}
+    solution.compatibility: {status: NOT_HOLDING_UP, drift: above, n: 8, inside: 2, outside: 6}
+    solution.relative_advantage: {status: HOLDING_UP, drift: none, n: 8, inside: 6, outside: 2}
+    solution.effectiveness_threshold: {status: BAR_SET, drift: above, n: 8, bar: 10-20, optionCounts: '0-5=1, 5-10=2, 10-20=4,
+        20+=1, nothing_worth_it=0'}
+    solution.trust_risk: {status: NOT_HOLDING_UP, drift: none, n: 8, optionCounts: 'labelled_suggestion=6, gives_reason=1,
+        medical_escalation=1, audio_private=5, expert_backing=0, safe_actions_only=5, own_instinct=2, something_else=0'}
+    solution.reliability_tolerance: {status: HOLDING_UP, drift: none, n: 8, inside: 6, outside: 2}
+    solution.adoption_friction: {status: PEOPLE_DISAGREE, drift: below, n: 8, inside: 5, outside: 3}
+    solution.trialability: {status: HOLDING_UP, drift: none, n: 8, optionCounts: 'free_no_card=7, recommendation=2, daytime_practice=3,
+        data_promise=3, easy_exit=5, something_else=0'}
+    solution.observability: {status: HOLDING_UP, drift: none, n: 8, optionCounts: 'settled_sooner=6, fewer_tries=5, need_matched=4,
+        felt_calmer=3, back_to_sleep=1, next_day_better=0, something_else=0'}
+    solution.target_circumstance: {status: PEOPLE_DISAGREE, drift: none, n: 8, inside: 4, outside: 4}
+    commercial.existing_sacrifice: {status: HOLDING_UP, drift: none, n: 8, median: 22, optionCounts: 'apps_subscriptions=4,
+        gadgets=4, paid_help=0, books_or_courses=0, medical_visits=0, nothing=0, something_else=0'}
+    commercial.wtp_hypothesis: {status: NOT_TESTED_BY_DESIGN, drift: none, n: 8, median: 5}
+    commercial.ability_to_pay: {status: HOLDING_UP, drift: none, n: 7, inside: 6, outside: 1}
+    commercial.buyer_payer_alignment: {status: HOLDING_UP, drift: none, n: 8, inside: 6, outside: 2}
+    commercial.purchase_friction: {status: NOT_HOLDING_UP, drift: none, n: 8, optionCounts: 'partner_approval=3, social_proof=5,
+        payment_effort=1, cancel_worry=1, privacy=2, forgetting=1, never_came_up=1, something_else=0'}
+    commercial.commitment: {status: NOT_HOLDING_UP, drift: none, n: 8, inside: 2, outside: 6, optionCounts: 'setup=3, install=6,
+        mic=2, next_episode=1, contact_me=0, nothing_yet=2'}
+    commercial.retention_potential: {status: LEFT_OUT, drift: null}
+  vector_verdicts:
+    PROBLEM: {verdict: NOT_HOLDING_UP, deciding: problem.duration}
+    SOLUTION: {verdict: NOT_HOLDING_UP, deciding: solution.compatibility}
+    COMMERCIAL: {verdict: NOT_HOLDING_UP, deciding: commercial.commitment}
