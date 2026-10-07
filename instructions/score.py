@@ -27,9 +27,12 @@ alignment they rode on retired with `align.py` (call 29). What scores now:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from . import brief as brief_mod
+from . import text as text_mod
+from .registry import NUMERIC_FOUNDER_CONTROLS
 
 
 # ------------------------------------------------------------------------------------ compare
@@ -59,6 +62,243 @@ def score_compare(case, entry, compare_score) -> CompareCaseScore:
                             mismatches=list(compare_score.mismatches),
                             reported_diffs=list(compare_score.reported_diffs),
                             measured=compare_score.measured, reason=compare_score.reason)
+
+
+# -------------------------------------------------------------------------------- no_leak (§2.3)
+
+def sweep_a(texts, entry, judge) -> dict:
+    """Sweep A (call 32): the golden mechanism's stems -- and its multi-word terms, as phrases -- in
+    a question's text and options. A vocabulary hit is a fault outright. A hit on an
+    **inflection-ledger** stem is a tie: the judge is asked once, cached, whether the question tells
+    a stranger what the solution is, and only `SAME` is a fault. Every other word is the problem's
+    own and is no hit at all.
+
+    Returns `{fault: bool, hits: [word...], judged: int, evidence: str}`."""
+    blob = " ".join(str(t) for t in texts if t)
+    vocabulary = entry.vocabulary()
+    ledger = entry.inflection_ledger()
+    hits, ties = [], []
+    for word in text_mod.content_words(blob):
+        stem = text_mod.stem(word)
+        if stem in vocabulary:
+            hits.append(word)
+        elif stem in ledger:
+            ties.append(word)
+    for phrase in entry.mechanism_phrases():
+        if text_mod.phrase_in(phrase, blob):
+            hits.append(" ".join(phrase))
+    judged = 0
+    tie_fault = False
+    if ties and not hits:
+        judged = 1
+        tie_fault = bool(judge is not None and judge.reveals_solution(
+            blob, entry.mechanism_one_liner(), context=",".join(sorted(set(ties)))))
+    fault = bool(hits) or tie_fault
+    if hits:
+        evidence = f"mechanism word(s) {sorted(set(hits))}"
+    elif ties:
+        evidence = (f"inflection tie(s) {sorted(set(ties))}, judged "
+                    f"{'SAME -- it reveals the solution' if tie_fault else 'DIFFERENT'}")
+    else:
+        evidence = ""
+    return {"fault": fault, "hits": len(hits) + len(ties), "judged": judged,
+            "evidence": evidence}
+
+
+# ------------------------------------------------------------- calibration (062; calls 30-32)
+
+_NOT_SURE_RE = re.compile(r"not sure|don't know|dont know|unsure", re.IGNORECASE)
+_SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+_SEVEN_NIGHTS_RE = re.compile(r"\b(7|seven)\s+nights?\b", re.IGNORECASE)
+_LADDER_RE = re.compile(r"(B2C|B2B):\s*([a-z_, ]+)\.")
+
+
+@dataclass
+class CalibrationScore:
+    case_id: str
+    entry_id: str
+    subject: str                 # the vector
+    run_index: int
+    coverage_of: int = 0
+    coverage_hit: int = 0
+    coverage_passed: bool = False
+    validity_of: int = 0
+    validity_hit: int = 0
+    leak_of: int = 0
+    leak_clean: int = 0
+    leak_hits: int = 0
+    leak_judged: int = 0
+    faults: list = field(default_factory=list)      # [{key, check, evidence}]
+    failed: str | None = None
+
+    @property
+    def coverage(self):
+        return _fraction(self.coverage_hit, self.coverage_of)
+
+    @property
+    def validity(self):
+        return _fraction(self.validity_hit, self.validity_of)
+
+    @property
+    def leak(self):
+        return _fraction(self.leak_clean, self.leak_of)
+
+
+def _coverage_faults(produced_keys: list, expected_keys: list) -> list:
+    """Call 30: exactly one question a dimension, in `order`. A doubled, a missing, a foreign or
+    an out-of-order key each fails the case."""
+    faults = []
+    missing = [k for k in expected_keys if k not in produced_keys]
+    doubled = sorted({k for k in produced_keys if produced_keys.count(k) > 1})
+    foreign = [k for k in produced_keys if k not in expected_keys]
+    if missing:
+        faults.append(f"missing {', '.join(missing)}")
+    if doubled:
+        faults.append(f"doubled {', '.join(doubled)}")
+    if foreign:
+        faults.append(f"outside the slice {', '.join(foreign)}")
+    if not faults and produced_keys != expected_keys:
+        faults.append(f"out of order: {', '.join(produced_keys)}")
+    return faults
+
+
+def _ladder_codes(dimension, b2b: bool) -> list | None:
+    if dimension.normalized.get("kind") != "ladder":
+        return None
+    if b2b and (dimension.respondent.get("b2b") or {}).get("ladder_rungs"):
+        return list(dimension.respondent["b2b"]["ladder_rungs"])
+    for side, codes in _LADDER_RE.findall(dimension.normalized.get("code_rule") or ""):
+        if (side == "B2B") == b2b:
+            return [c.strip() for c in codes.split(",") if c.strip()]
+    return None
+
+
+#: The fixed codes a `model_written` rule names and the founder's options must carry (marks §2.2).
+_REQUIRED_MODEL_WRITTEN = {"commercial.existing_sacrifice": ("none",)}
+
+
+def calibration_checks(question: dict, dimension, *, b2b: bool = False) -> list:
+    """Every structural rule of marks §2.2's calibration side, for one question; `[]` is valid."""
+    faults = []
+    options = question.get("options")
+    numeric = dimension.founder.get("control") in NUMERIC_FOUNDER_CONTROLS
+    if numeric:
+        if options:
+            faults.append(f"{len(options)} options on a numeric control "
+                          f"({dimension.founder.get('control')}) -- the registry owns its spec")
+        spec = question.get("normalized")
+        if isinstance(spec, dict):
+            for name in ("unit_options", "default_unit", "axis_max", "axis_step", "extend_by",
+                         "bins"):
+                if name in spec and spec[name] != dimension.normalized.get(name):
+                    faults.append(f"numeric spec {name} is {spec[name]!r}, the registry's is "
+                                  f"{dimension.normalized.get(name)!r}")
+        options = []
+    elif not isinstance(options, list) or not options:
+        return [f"no options on a closed control ({dimension.founder.get('control')})"]
+
+    codes = [o.get("normalized") if isinstance(o, dict) else None for o in options]
+    fixed = dimension.fixed_codes
+    if fixed is not None:
+        if len(options) != len(fixed):
+            faults.append(f"{len(options)} options; the registry fixes {len(fixed)} codes")
+        foreign = [c for c in codes if c not in fixed]
+        if foreign:
+            faults.append(f"code(s) {foreign} are not the registry's")
+        known = [c for c in codes if c in fixed]
+        if known != sorted(known, key=fixed.index):
+            faults.append(f"codes out of registry order: {known}")
+    elif not numeric:
+        if not 4 <= len(options) <= 6:
+            faults.append(f"{len(options)} options; the rule asks 4-6")
+        bad = [c for c in codes if not isinstance(c, str) or not _SLUG_RE.match(c)]
+        if bad:
+            faults.append(f"code(s) {bad} are not slugs")
+        ladder = _ladder_codes(dimension, b2b)
+        if ladder is not None and codes != ladder:
+            faults.append(f"the ladder is {ladder}, the options are {codes}")
+        missing = [c for c in _REQUIRED_MODEL_WRITTEN.get(dimension.key, ()) if c not in codes]
+        if missing:
+            faults.append(f"the code rule's fixed code(s) {missing} are missing")
+    repeated = sorted({c for c in codes if c is not None and codes.count(c) > 1})
+    if repeated:
+        faults.append(f"code(s) repeated: {repeated}")
+    for option in options:
+        if not isinstance(option, dict):
+            faults.append(f"option {option!r} is not an object")
+            continue
+        label, phrase = option.get("label"), option.get("belief_phrase")
+        if not (phrase or "").strip():
+            faults.append(f"option {label!r} carries no belief_phrase")
+        elif text_mod.normalise(phrase) == text_mod.normalise(label):
+            faults.append(f"option {label!r}: its belief_phrase is its label")
+        if _NOT_SURE_RE.search(str(label or "")):
+            faults.append(f"option {label!r} is a not-sure option -- the chip is UI")
+    template = question.get("belief_template")
+    if template is not None:
+        if str(template).count("{value}") != 1:
+            faults.append("the belief template does not carry {value} exactly once")
+        if template != dimension.founder.get("belief_template"):
+            faults.append("the belief template is not the registry's")
+    if dimension.key == "problem.prevalence" and not _SEVEN_NIGHTS_RE.search(
+            str(question.get("question") or "")):
+        faults.append("the gate's question does not carry the 7-night window")
+    return faults
+
+
+def _question_texts(question: dict) -> list:
+    texts = [question.get("question")]
+    for option in question.get("options") or []:
+        if isinstance(option, dict):
+            texts += [option.get("label"), option.get("belief_phrase")]
+        else:
+            texts.append(option)
+    return texts
+
+
+def score_calibration(case, entry, registry, result, *, judge=None,
+                      failed: str | None = None) -> CalibrationScore:
+    """One `CALIBRATION_QUESTIONS` case (062): coverage against the vector's slice (call 30),
+    validity against the registry (call 31), and -- on the PROBLEM vector -- sweep A over every
+    question and its options (call 32). Evidence per fault, so a miss is read, not only counted."""
+    vector = case.meta.get("vector") or case.subject
+    slice_keys = [d.key for d in registry.slice(vector)]
+    score = CalibrationScore(case_id=case.case_id, entry_id=entry.id, subject=vector,
+                             run_index=case.run_index, coverage_of=len(slice_keys), failed=failed)
+    questions = (result or {}).get("questions") if isinstance(result, dict) else None
+    if failed or not isinstance(questions, list):
+        score.failed = failed or "the result carried no questions list"
+        return score
+    questions = [q for q in questions if isinstance(q, dict)]
+    produced = [q.get("key") for q in questions]
+    coverage = _coverage_faults(produced, slice_keys)
+    score.coverage_passed = not coverage
+    score.coverage_hit = len(slice_keys) if score.coverage_passed else 0
+    for fault in coverage:
+        score.faults.append({"key": None, "check": "dimension_coverage", "evidence": fault})
+    b2b = entry.b2b()
+    for question in questions:
+        key = question.get("key")
+        if key not in slice_keys:
+            continue
+        score.validity_of += 1
+        checks = calibration_checks(question, registry.by_key(key), b2b=b2b)
+        if checks:
+            score.faults.append({"key": key, "check": "option_validity",
+                                 "evidence": "; ".join(checks)})
+        else:
+            score.validity_hit += 1
+        if vector == "PROBLEM":
+            score.leak_of += 1
+            swept = sweep_a(_question_texts(question), entry, judge)
+            score.leak_hits += swept["hits"]
+            score.leak_judged += swept["judged"]
+            if swept["fault"]:
+                score.faults.append({"key": key, "check": "no_leak",
+                                     "evidence": swept["evidence"]})
+            else:
+                score.leak_clean += 1
+    return score
 
 
 # ------------------------------------------------------------------------------------- totals

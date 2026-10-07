@@ -1,33 +1,27 @@
-"""The bounded tie-breaker (spec 009 FR-010, T025), and — since the founder's decision of
-2026-09-06 — the reader of option lists.
+"""The bounded tie-breaker (spec 009 FR-010), narrowed at `MARKS_VERSION` 9 to one question (spec
+029 FR-005/FR-015, research R8; judgement calls 29 and 32).
 
-**What the judge may do.** It sees two short pieces of text and answers one of a fixed set of
-words. It can never assert a pair the structure rejected on a *measurable* ground: an interval pair
-whose kinds differ or whose bands cannot overlap never reaches it, because that is arithmetic and
-arithmetic does not need an opinion. What does need one is meaning, and there are exactly three
-places it is asked for:
+**What the judge may do.** It sees one question a model wrote for a founder or a stranger, and the
+golden mechanism in one line, and answers one word: does this question tell a stranger what the
+proposed solution is -- `SAME` (it reveals it: the fault) or `DIFFERENT`. That is the only place
+`no_leak` needs a reading rather than a rule: a hit on a stem the problem's own world spells with
+another inflection (*listens* in the mechanism, *listened* in a story) might be the problem's word
+or the solution's, and only a reader can say (decision 17: inflection collisions only). Every other
+`no_leak` hit is a fault by code, and nothing else in the rubric asks a judge at all.
 
-1. **A tie** — two or more goldens at the top score for one produced belief. It answers *this one*,
-   *that one* or *no match*.
-2. **An option list** — whether two lists describe the same answer space (judgement call 11). The
-   corpus's option words are one reasonable phrasing; `Q2` requires a belief's list to equal *its
-   own selection's* list and never the corpus's, so *"a member of staff"* and *"Signed for it
-   without opening anything"* may be the same question asked in two registers, and only a reader
-   can say.
-3. **An expected option** — whether two expected options mean the same thing, which is what
-   exact-match on a Choice became once (2) was true.
+At v8 the judge read option lists, expected options and ties between beliefs. All three retired with
+`align.py` (call 29): a calibration answer is a typed pick against the registry, and there is
+nothing left to align by meaning.
 
-**Why it is bounded, and why the fraction is reported.** Every call is one small prompt with two
-strings in it, the answers are cached within a run so the same question is never paid for twice,
-and the number of calls cannot exceed the number of goldens plus the number of matched Choice
-pairs. Every call, its input and its answer are recorded, and `judged_fraction` goes in the
-scorecard and on the report — so a reader can discount a score by exactly the amount a model
-decided (judgement call 14). Buying recall with a judge costs determinism, and this is the price
-tag rather than a hidden subsidy.
+**Why it is bounded, and why the fraction is reported.** Every call is one small prompt, the answers
+are cached within a run so the same question is never paid for twice, and every call, its input and
+its answer are recorded. `judged_fraction` -- the share of `no_leak` hits the judge decided -- goes
+in the scorecard and on the report (call 14), so a reader can discount the mark by exactly the
+amount a model decided.
 
 **It is not the executor.** These calls are this repo's own, not production's: no nonce fence, no
-response contract, no `build_prompt`. Nothing the judge reads is a founder's or a stranger's text —
-it is corpus prose and model prose, both already in this bundle.
+response contract, no `build_prompt`. Nothing the judge reads is a founder's or a stranger's text --
+it is a model's question and the corpus's mechanism, both already in the bundle.
 """
 
 from __future__ import annotations
@@ -85,65 +79,24 @@ class Judge:
     def available(self) -> bool:
         return self.enabled and shutil.which("claude") is not None
 
-    # ------------------------------------------------------------------ the three questions
+    # ------------------------------------------------------------------------ the one question
 
-    def same_answer_space(self, golden_options, produced_options, *, context: str = "") -> bool:
-        """Do these two option lists offer the same answers, in different words?"""
-        # The question asked here is the founder's own (2026-09-06): do these two lists describe the
-        # same answer space? Not "are they the same list". An earlier wording asked whether every
-        # option corresponded, and answered DIFFERENT to 120 of 122 -- including pairs that were
-        # plainly one question in two registers, like ["monthly subscription", "one-off purchase",
-        # "free"] against ["a monthly subscription", "a yearly subscription", "one payment up
-        # front", "free"]. Different granularity is not a different question.
+    def reveals_solution(self, question_text: str, mechanism_one_liner: str, *,
+                         context: str = "") -> bool:
+        """Does this question tell a stranger what the proposed solution is? marks-v9 §2.3's
+        closed question, verbatim in substance: `SAME` means it reveals the solution, and that is
+        the fault; `DIFFERENT`, or no answer at all, is not."""
         return self._same(
-            "answer_space",
-            "Two authors independently wrote a multiple-choice question for the same interview.\n"
-            "Are these two lists asking a person about THE SAME THING?\n\n"
-            "Answer SAME if a person's real-world answer could sensibly be recorded in either "
-            "list -- even if the wording differs, even if one is longer or splits an option the "
-            "other keeps whole, even if one is a plain yes/no and the other names the cases.\n"
-            "Answer DIFFERENT only if they are about different subjects: one asks who did "
-            "something and the other asks how long it took, or one is about payment and the other "
-            "about a delivery.\n\n"
-            f"List A: {json.dumps(list(golden_options))}\n"
-            f"List B: {json.dumps(list(produced_options))}\n",
+            "reveals_solution",
+            "A question will be put to a stranger before they are told anything about a proposed "
+            "solution.\n"
+            "Does this question tell a stranger what the proposed solution is: "
+            f"{mechanism_one_liner}?\n\n"
+            "Answer SAME if a stranger reading the question would learn what the solution is or "
+            "how it works. Answer DIFFERENT if the question only asks about the problem as they "
+            "lived it, even where it shares a word with the solution.\n\n"
+            f"The question: {question_text}\n",
             context)
-
-    def same_expected_option(self, golden_expected, produced_expected, *,
-                             context: str = "") -> bool:
-        """Do these two expected options name the same answer?"""
-        return self._same(
-            "expected_option",
-            "Two authors each wrote the answer they expect a person to give to the same "
-            "interview question.\n"
-            "Do these two name the SAME answer, allowing for different wording and register?\n\n"
-            f"Answer A: {json.dumps(golden_expected)}\n"
-            f"Answer B: {json.dumps(produced_expected)}\n",
-            context)
-
-    def pick(self, produced_statement: str, candidates: list) -> int | None:
-        """Which of these goldens, if any, is the produced belief? Returns an index, or `None`.
-
-        The one place the judge decides a pair rather than a field. It is offered only goldens the
-        structure already accepted as candidates and that tied at the top score, so it is choosing
-        between equals, never overruling arithmetic.
-        """
-        if not self.available() or not candidates:
-            return None
-        listed = "\n".join(f"{i}. {c}" for i, c in enumerate(candidates))
-        answer = self._ask(
-            "pick",
-            "A model wrote a belief about a founder's business. Below it are numbered beliefs a "
-            "reference set holds. Which ONE of them is the same belief, if any?\n"
-            "Reply with the number alone, or NONE if the model's belief is not among them.\n\n"
-            f"The model's belief: {produced_statement}\n\nThe reference beliefs:\n{listed}\n",
-            context=produced_statement[:80])
-        if answer is None:
-            return None
-        for token in answer.replace(".", " ").split():
-            if token.isdigit() and int(token) < len(candidates):
-                return int(token)
-        return None
 
     # ------------------------------------------------------------------------------ plumbing
 
@@ -175,10 +128,11 @@ class Judge:
 
 
 class NoJudge(Judge):
-    """A judge that is never available — for unit tests, and for `--no-judge`.
+    """A judge that is never available -- for unit tests, and for `--no-judge`.
 
-    With it, Choice matching falls back to the structural rule alone, which is what every number
-    before MARKS_VERSION 2 was measured under.
+    With it an inflection tie is asked of nobody and answers no (`reveals_solution` is `False` on
+    no answer), so the run's `leak_judged` and `judge_calls` say exactly how many ties went
+    undecided.
     """
 
     def available(self) -> bool:

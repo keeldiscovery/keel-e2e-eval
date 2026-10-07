@@ -94,3 +94,60 @@ class FakeRuntime:
 
 def instructions() -> dict:
     return {screen: f"INSTRUCTION FOR {screen}" for screen in contract_mod.MODEL_SCREENS}
+
+
+# ------------------------------------------------------------ produced answers a scorer reads
+
+class FakeJudge:
+    """`judge.Judge`'s one question, answered from a table and recorded -- never a model."""
+
+    def __init__(self, answer=False):
+        self.answer = answer
+        self.calls = []
+        self._cache = {}
+
+    @property
+    def call_count(self):
+        return len(self.calls)
+
+    def reveals_solution(self, question_text, mechanism_one_liner, *, context=""):
+        key = question_text
+        if key not in self._cache:
+            self.calls.append({"question": question_text, "mechanism": mechanism_one_liner})
+            self._cache[key] = self.answer
+        return self._cache[key]
+
+
+def calibration_question(dimension, *, b2b=False) -> dict:
+    """A question that meets every §2.2 rule for `dimension` -- the green half every red half of
+    `tests/test_instruction_score.py` mutates by one thing."""
+    from instructions import score as score_mod                       # noqa: PLC0415
+    text = f"About {dimension.name.lower()}: what do you believe, for the people you mean?"
+    if dimension.key == "problem.prevalence":
+        text = "Out of 10, how many had this at least once in the last 7 nights?"
+    if dimension.founder_numeric:
+        return {"key": dimension.key, "question": text, "options": None,
+                "respondent_note": "asked as a number"}
+    codes = dimension.fixed_codes
+    if codes is None:
+        codes = score_mod._ladder_codes(dimension, b2b) or ["first_kind", "second_kind",
+                                                            "third_kind", "fourth_kind"]
+        if dimension.key == "commercial.existing_sacrifice":
+            codes = ["spares", "locksmiths", "taxis", "none"]
+    options = [{"label": f"Option {i} for this", "normalized": code,
+                "belief_phrase": f"the {code.replace('_', ' ')} answer"}
+               for i, code in enumerate(codes, start=1)]
+    return {"key": dimension.key, "question": text, "options": options,
+            "respondent_note": "asked of the stranger in their own words"}
+
+
+def calibration_result(registry, vector) -> dict:
+    return {"vector": vector, "questions": [calibration_question(d) for d in registry.slice(vector)]}
+
+
+def calibration_case(entry, vector, run_index=1):
+    from instructions import prompts as prompts_mod                   # noqa: PLC0415
+    return prompts_mod.Case(case_id=f"{entry.id}/CALIBRATION_{vector}/run{run_index}",
+                            kind="CALIBRATION", entry_id=entry.id,
+                            screen="CALIBRATION_QUESTIONS", subject=vector,
+                            run_index=run_index, payload={}, meta={"vector": vector})

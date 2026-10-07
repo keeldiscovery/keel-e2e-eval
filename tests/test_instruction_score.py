@@ -105,3 +105,130 @@ def test_the_spread_reports_each_run_and_averages_nothing():
 def test_the_retired_scorers_are_gone():
     for name in ("score_assumptions", "score_reading", "AssumptionScore", "FIELDS"):
         assert not hasattr(score_mod, name), name
+
+
+# ------------------------------------------- US2: calibration (062; calls 30-32, marks §2.1-§2.3)
+
+import copy                                                                  # noqa: E402
+
+
+@pytest.fixture()
+def registry():
+    return fx.registry()
+
+
+def _calibrate(entry, registry, vector="PROBLEM", mutate=None, judge=None):
+    result = fx.calibration_result(registry, vector)
+    if mutate:
+        mutate(result)
+    return score_mod.score_calibration(fx.calibration_case(entry, vector), entry, registry,
+                                       result, judge=judge)
+
+
+def _q(result, key):
+    return next(q for q in result["questions"] if q["key"] == key)
+
+
+@pytest.mark.parametrize("vector, count", [("PROBLEM", 9), ("SOLUTION", 9), ("COMMERCIAL", 7)])
+def test_a_good_answer_covers_its_slice_and_meets_every_rule(entry, registry, vector, count):
+    score = _calibrate(entry, registry, vector)
+    assert (score.coverage_hit, score.coverage_of, score.coverage_passed) == (count, count, True)
+    assert (score.validity_hit, score.validity_of) == (count, count), score.faults
+    assert score.faults == []
+    if vector == "PROBLEM":
+        assert (score.leak_clean, score.leak_of) == (9, 9)
+    else:
+        assert score.leak_of == 0, "sweep A runs on the PROBLEM vector only"
+
+
+@pytest.mark.parametrize("name, mutate, words", [
+    ("doubled", lambda r: r["questions"].append(copy.deepcopy(r["questions"][1])), "doubled"),
+    ("missing", lambda r: r["questions"].pop(2), "missing problem.severity"),
+    ("foreign", lambda r: r["questions"].append({"key": "problem.vibes", "question": "?"}),
+     "outside the slice problem.vibes"),
+    ("out of order", lambda r: r["questions"].insert(0, r["questions"].pop(3)), "out of order"),
+])
+def test_coverage_is_absolute_and_any_slip_fails_the_case(entry, registry, name, mutate, words):
+    score = _calibrate(entry, registry, mutate=mutate)
+    assert score.coverage_passed is False and score.coverage_hit == 0, name
+    assert any(words in f["evidence"] for f in score.faults if f["check"] == "dimension_coverage")
+
+
+def _severity_options(r):
+    return _q(r, "problem.severity")["options"]
+
+
+@pytest.mark.parametrize("name, mutate, words", [
+    ("count", lambda r: _severity_options(r).pop(), "4 options; the registry fixes 5"),
+    ("order", lambda r: _severity_options(r).insert(0, _severity_options(r).pop(2)),
+     "out of registry order"),
+    ("foreign code", lambda r: _severity_options(r)[0].__setitem__("normalized", "awful"),
+     "not the registry's"),
+    ("repeated", lambda r: _q(r, "problem.consequence")["options"].append(
+        copy.deepcopy(_q(r, "problem.consequence")["options"][0])), "repeated"),
+    ("too few written", lambda r: _q(r, "problem.consequence")["options"].__delitem__(
+        slice(1, 3)), "the rule asks 4-6"),
+    ("not a slug", lambda r: _q(r, "problem.consequence")["options"][0].__setitem__(
+        "normalized", "Lost Sleep"), "not slugs"),
+    ("empty phrase", lambda r: _severity_options(r)[1].__setitem__("belief_phrase", " "),
+     "no belief_phrase"),
+    ("phrase is label", lambda r: _severity_options(r)[1].__setitem__(
+        "belief_phrase", "OPTION 2 for this"), "its belief_phrase is its label"),
+    ("not sure", lambda r: _severity_options(r)[4].__setitem__("label", "I'm not sure"),
+     "not-sure option"),
+    ("template", lambda r: _q(r, "problem.severity").__setitem__("belief_template", "x"),
+     "{value} exactly once"),
+    ("options on numeric", lambda r: _q(r, "problem.frequency").__setitem__(
+        "options", [{"label": "1", "normalized": "one", "belief_phrase": "one"}]),
+     "options on a numeric control"),
+    ("numeric spec", lambda r: _q(r, "problem.duration").__setitem__(
+        "normalized", {"axis_max": 120}), "numeric spec axis_max"),
+    ("no seven nights", lambda r: _q(r, "problem.prevalence").__setitem__(
+        "question", "How many had this recently?"), "7-night window"),
+    ("fifths with a hole", lambda r: _q(r, "problem.prevalence")["options"][2].__setitem__(
+        "normalized", "p_50_60"), "not the registry's"),
+])
+def test_option_validity_fails_on_each_registry_rule_made_to_fail_once(entry, registry, name,
+                                                                       mutate, words):
+    score = _calibrate(entry, registry, mutate=mutate)
+    validity = [f for f in score.faults if f["check"] == "option_validity"]
+    assert len(validity) == 1, (name, score.faults)
+    assert words in validity[0]["evidence"], (name, validity[0]["evidence"])
+    assert score.validity_hit == score.validity_of - 1
+
+
+def test_the_fixed_codes_a_model_written_rule_names_must_be_there(registry):
+    dimension = registry.by_key("commercial.existing_sacrifice")
+    good = fx.calibration_question(dimension)
+    assert score_mod.calibration_checks(good, dimension) == []
+    good["options"] = [o for o in good["options"] if o["normalized"] != "none"]
+    assert any("['none']" in f for f in score_mod.calibration_checks(good, dimension))
+
+
+def test_the_commitment_ladder_is_the_rungs_for_the_projects_type(registry):
+    dimension = registry.by_key("commercial.commitment")
+    b2c = fx.calibration_question(dimension)
+    assert [o["normalized"] for o in b2c["options"]] == ["setup", "install", "mic",
+                                                          "next_episode", "contact_me"]
+    assert score_mod.calibration_checks(b2c, dimension) == []
+    assert any("the ladder is" in f for f in score_mod.calibration_checks(b2c, dimension,
+                                                                         b2b=True))
+
+
+def test_a_failed_case_covers_nothing_and_writes_nothing(entry, registry):
+    score = score_mod.score_calibration(fx.calibration_case(entry, "PROBLEM"), entry, registry,
+                                        None, failed="schema-invalid")
+    assert (score.coverage_hit, score.coverage_of, score.validity_of) == (0, 9, 0)
+    assert score.failed == "schema-invalid"
+
+
+def test_totals_roll_calibration_into_the_three_marks(entry, registry):
+    good = _calibrate(entry, registry)
+    bad = _calibrate(entry, registry, mutate=lambda r: r["questions"].pop(2))
+    totals = score_mod.totals([good, bad])
+    assert totals["calibration_cases"] == 2
+    assert totals["calibration_coverage"] == {"hit": 9, "of": 18}
+    assert totals["dimension_coverage"] == 0.5
+    assert totals["calibration_validity"] == {"hit": 17, "of": 17}
+    assert totals["option_validity"] == 1.0
+    assert totals["no_leak"] == 1.0

@@ -86,7 +86,8 @@ def main(argv=None) -> int:
                         help="a model-routing table pinning each job class through the job's "
                              "`model` key, or `exported` for keel-cloud's own")
     parser.add_argument("--no-judge", action="store_true",
-                        help="decide no_leak's inflection ties as faults, with no judge")
+                        help="ask no judge: a no_leak inflection tie goes undecided and is "
+                             "counted clean, and leak_judged says how many")
     args = parser.parse_args(argv)
     from . import why as why_mod  # noqa: PLC0415
     try:
@@ -547,6 +548,17 @@ def _score(case, entry, answer, failed, state, judge) -> dict:
             "outcome": answer.outcome, "result": answer.result}
     if answer.outcome == "NEEDS_INPUT":
         diff["needs_input"] = answer.questions
+        # No case kind at v9 may legitimately ask: every screen is handed the corpus's own
+        # inputs, so an ask is a failed case, counted, never softened (decision 14's reading).
+        failed = failed or "NEEDS_INPUT on a screen this eval always supplies"
+    if case.kind == "CALIBRATION":
+        score = score_mod.score_calibration(case, entry, entry.registry, result, judge=judge,
+                                            failed=failed)
+        state.calibration.append(score)
+        diff.update(faults=score.faults, coverage_passed=score.coverage_passed)
+        diff["line"] = (f"  coverage {score.coverage_hit}/{score.coverage_of} · validity "
+                        f"{score.validity_hit}/{score.validity_of} · leak {score.leak_clean}/"
+                        f"{score.leak_of} (judged {score.leak_judged})")
     return diff
 
 
