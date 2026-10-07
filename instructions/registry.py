@@ -71,6 +71,24 @@ RESPONDENT_ESCAPES = ("something_else", "nothing", "nothing_much", "never_came_u
 NUMERIC_FOUNDER_CONTROLS = ("numeric_interval", "numeric_threshold", "price_range")
 
 
+#: keel-cloud 058 (2026-10-07): the registry carries `{window}` / `{window_unit}` placeholders, the
+#: project's recall window, filled by code. Every project reads the default until the screen that
+#: chooses one exists (the founder's open decision 25), and so does every r3 entry.
+DEFAULT_WINDOW = ("7 nights", "nights out of 7")
+
+
+def fill_window(node, window=DEFAULT_WINDOW):
+    """`node` (a string, dict or list) with both placeholders filled -- what a job is handed."""
+    words, unit = window
+    if isinstance(node, str):
+        return node.replace("{window_unit}", unit).replace("{window}", words)
+    if isinstance(node, dict):
+        return {k: fill_window(v, window) for k, v in node.items()}
+    if isinstance(node, list):
+        return [fill_window(v, window) for v in node]
+    return node
+
+
 class RegistryUnavailable(RuntimeError):
     """The registry could not be read, or it fails an invariant -- a reason to stop, never a score."""
 

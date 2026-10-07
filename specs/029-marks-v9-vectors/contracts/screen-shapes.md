@@ -145,7 +145,7 @@ arrived into (025 D12/D18). A kind the validator does not take → `unmet_prereq
 4. The brief paragraph beside the standings table: `dimension · status · drift · n ·
    median/counts`, with `vector_verdicts` as three header rows.
 
-## 8. What the implementation found (2026-10-07, T057; 058's actual shapes still to come with T002)
+## 8. What the implementation found (2026-10-07, T057; 058's actual shapes are tasks.md D21)
 
 Written as further requests to keel-cloud 058/063/064, and as what this branch builds until 058
 answers (tasks.md D8, D13, D15):

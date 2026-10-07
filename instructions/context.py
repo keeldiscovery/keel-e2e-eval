@@ -25,6 +25,7 @@ measurements and the brief's claims. All three retired with the subjects they fe
 from __future__ import annotations
 
 from . import contract as contract_mod
+from .registry import DEFAULT_WINDOW, fill_window
 
 # data-model.md note 2 (spec 009): the corpus writes the tap the way a person reads it; the wire
 # wants the enum name. Kept for `harness/corpus_script.py` and `harness/stranger_stories.py`, which
@@ -51,14 +52,15 @@ def tap_enum(tap):
 
 VECTORS = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 
-#: `contracts/screen-shapes.md` §2's key order per screen -- used only when no export is handed in.
+#: The key order per screen when no export is handed in (the unit tests): keel-cloud 058's export at
+#: `14a1430` for the five new screens, and screen-shapes §2's narrowed keys for `INTERPRET` and
+#: `BRIEF`, which 058 still exports in their v8 shape until keel-cloud 064 / 065 (tasks.md T002).
 DEFAULT_KEYS = {
     contract_mod.SCREEN_CONTEXT_INTERPRET: ["context_fields", "market", "project_name"],
-    contract_mod.SCREEN_PROBLEM_INTERPRET: ["context", "market", "interaction_history"],
-    contract_mod.SCREEN_SOLUTION_MECHANISM: ["context", "problem", "market",
-                                             "interaction_history"],
-    contract_mod.SCREEN_CALIBRATION: ["vector", "context", "market", "problem", "mechanism",
-                                      "persona", "dimensions"],
+    contract_mod.SCREEN_PROBLEM_INTERPRET: ["context", "market"],
+    contract_mod.SCREEN_SOLUTION_MECHANISM: ["context", "problem_statement", "market"],
+    contract_mod.SCREEN_CALIBRATION: ["vector", "context", "market", "interpretation",
+                                      "dimensions"],
     contract_mod.SCREEN_RESPONDENT: ["part", "link", "context", "market", "founder_name",
                                      "items", "founder_options", "mechanism"],
     contract_mod.SCREEN_INTERPRET: ["invitation_id", "story"],
@@ -106,10 +108,22 @@ def market_of(entry) -> dict | None:
             "language": market.get("language")}
 
 
+def window_of(entry) -> tuple:
+    """The entry's recall window `(words, unit)` -- r3's `context.window` when it records one, else
+    keel-cloud's default (decision 25 is open, so every entry reads 7 nights today)."""
+    window = (entry.context or {}).get("window")
+    if isinstance(window, dict) and window.get("words"):
+        return (window["words"], window.get("unit") or DEFAULT_WINDOW[1])
+    return DEFAULT_WINDOW
+
+
 def context_of(entry) -> dict:
-    """r3's `context`, the five fields a screen reads, in their order."""
+    """r3's `context`: the five slots a screen reads, in their order, and the recall window's words
+    (keel-cloud 058's `slots`, T002)."""
     context = entry.context or {}
-    return {name: context.get(name) for name in CONTEXT_FIELDS}
+    out = {name: context.get(name) for name in CONTEXT_FIELDS}
+    out["window"] = window_of(entry)[0]
+    return out
 
 
 def problem_statement(entry) -> str | None:
@@ -118,11 +132,22 @@ def problem_statement(entry) -> str | None:
 
 
 def mechanism_of(entry) -> dict:
-    """The golden `SOLUTION_MECHANISM` answer r3 records -- `mechanism_terms` is no_leak's and is
-    not part of what the screen would have written, so it is not handed on."""
-    mechanism = dict(entry.solution_mechanism or {})
-    mechanism.pop("mechanism_terms", None)
-    return mechanism
+    """The golden `SOLUTION_MECHANISM` answer r3 records, as keel-cloud 058 hands it on: the four
+    fields and the terms (`mechanismForRespondents`), never `not_assumed` -- the claims it stripped."""
+    m = entry.solution_mechanism or {}
+    return {k: m.get(k) for k in ("actor", "trigger", "mechanism", "output", "mechanism_terms")}
+
+
+def interpretation_of(entry, vector: str):
+    """keel-cloud 058's calibration `interpretation` (T002): the problem statement alone on PROBLEM
+    -- no solution key exists in that job -- the mechanism card on SOLUTION, `null` on COMMERCIAL.
+    058 composes the card's `statement` from the four fields (`Mechanism.compose`); this eval keeps
+    no copy of that, so it hands the founder's solution seed instead and says so."""
+    if vector == "PROBLEM":
+        return {"statement": problem_statement(entry)}
+    if vector == "SOLUTION":
+        return {"statement": (entry.statements or {}).get("solution"), **mechanism_of(entry)}
+    return None
 
 
 def invitation_id(entry, person) -> str:
@@ -199,10 +224,12 @@ def build_calibration(entry, vector: str, registry=None, keys=None) -> dict:
         "vector": vector,
         "context": context_of(entry),
         "market": market_of(entry),
+        "interpretation": interpretation_of(entry, vector),
         "problem": {"statement": problem_statement(entry)},
         "mechanism": mechanism_of(entry),
         "persona": dict(entry.persona or {}),
-        "dimensions": [calibration_dimension(d) for d in registry.slice(vector)],
+        "dimensions": fill_window([calibration_dimension(d) for d in registry.slice(vector)],
+                                  window_of(entry)),
     }
     out = {}
     for key in keys:
@@ -257,14 +284,20 @@ def build_respondent(entry, part: int, plan: dict | None = None, registry=None, 
         # The corpus records a project and its people, never the founder's name: written and left
         # `null` rather than invented (v8's `build_questions` rule, one screen along).
         "founder_name": None,
-        "items": [respondent_item(registry.by_key(k), link=link) for k in item_keys],
-        "founder_options": {k: founder_option_codes(entry, registry, k) for k in item_keys},
+        "items": fill_window([respondent_item(registry.by_key(k), link=link) for k in item_keys],
+                             window_of(entry)),
+        # keel-cloud 058's `founderOptions`: the model-written sets only (the fixed codes are the
+        # registry's, and the model has them already). r3 records codes, not the calibration's
+        # labels, so the codes stand in for them.
+        "founder_options": {k: founder_option_codes(entry, registry, k) for k in item_keys
+                            if registry.by_key(k).fixed_codes is None
+                            and not registry.by_key(k).founder_numeric},
     }
-    if part in (2, 3):
+    if part in (2, 3) and link != LINK_B2B:
         values["mechanism"] = mechanism_of(entry)
     out = {}
     for key in keys:
-        if key == "mechanism" and part == 1:
+        if key == "mechanism" and (part == 1 or link == LINK_B2B):
             continue
         out[key] = values.get(key)
     return out
@@ -286,7 +319,11 @@ def build_interpret(entry, person, keys=None) -> dict:
     `GUESSED` by code (FR-017). r3 records no story prompt, so `prompt` is written and `null`."""
     keys = DEFAULT_KEYS[contract_mod.SCREEN_INTERPRET] if keys is None else keys
     return _fill(keys, {"invitation_id": invitation_id(entry, person),
-                        "story": {"prompt": None, "text": person.story, "chip": None}})
+                        "story": {"prompt": None, "text": person.story, "chip": None},
+                        # keel-cloud 058 still exports INTERPRET's v8 keys (`anchors`) until 064
+                        # narrows it: the one gate story is handed as the one anchor written under.
+                        "anchors": [{"anchor_id": "story", "prompt": None, "text": person.story,
+                                     "tap": None}]})
 
 
 # ------------------------------------------------------------------------------------ BRIEF (065)

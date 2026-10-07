@@ -111,3 +111,24 @@ def test_an_engine_that_writes_nothing_readable_is_unmeasured(tmp_path, entry):
     checkout = _fake_checkout(tmp_path, "exit 0\n")
     score = compare_mod.compare_entry(checkout, entry, entry.registry, tmp_path / "compare")
     assert score.measured is False and "not readable JSON" in score.reason
+
+
+def test_the_input_carries_the_plan_for_the_engines_own_item_rule(entry):
+    """keel-cloud 058's compare-command.md: `problem.importance` needs `own_item` or the run exits 1."""
+    built = compare_mod.build_input(entry, entry.registry)
+    assert built["respondent_questions"]["problem.importance"]["own_item"] == "finding_keys"
+
+
+def test_an_engine_none_drift_agrees_with_the_corpus_null_and_case_is_folded(entry):
+    produced = _load("agree")
+    for row in produced["standings"].values():
+        row["drift"] = (row.get("drift") or "NONE").upper()
+    score = compare_mod.diff(entry.expected, produced, entry=entry)
+    assert (score.agreed, score.checks) == (28, 28)
+
+
+def test_a_count_only_the_engine_states_is_not_a_disagreement(entry):
+    produced = _load("agree")
+    produced["standings"]["problem.severity"]["optionCounts"] = "barely=1"
+    produced["standings"]["problem.urgency"]["n"] = 0
+    assert compare_mod.diff(entry.expected, produced, entry=entry).reported_diffs == []

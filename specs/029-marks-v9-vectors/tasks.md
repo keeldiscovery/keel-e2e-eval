@@ -30,7 +30,7 @@ fixes. `DRY=1` (T028) spends nothing.
 **Purpose**: the inputs read once and the fixtures every later phase tests against.
 
 - [X] T001 Read, in full, before writing a line: `contracts/marks-v9.md` §1–§8, `contracts/marks-v9.toml`, `contracts/dimension-registry.yaml` (header, `common`, the `problem.*` entries, `checks`), `contracts/screen-shapes.md`, `phase0-reconciliation.md` §B (keel-cloud-docs drafts; decisions 5, 8, 9, 14, 15, 16, 17), `HANDOFF.md` §4; this repository's `instructions/*.py`, `tests/test_instruction_*.py`, `specs/025-one-occasion-marks/{plan,tasks}.md`; the frozen `03-lullaby.yaml` (r2, read only). Record the `make unit` baseline count at `a673a67` as Discovered D1 in `specs/029-marks-v9-vectors/tasks.md`.
-- [ ] T002 When keel-cloud 058 lands: re-read its actual `screenContracts compare` CLI, its `dimension-registry.json` export and its `ScreenContractTool` case kinds against `specs/029-marks-v9-vectors/contracts/screen-shapes.md` §2, §5, §6; correct **this feature's** contracts page and research R3/R4/R10, never the sibling; record the diff as Discovered.
+- [X] T002 When keel-cloud 058 lands: re-read its actual `screenContracts compare` CLI, its `dimension-registry.json` export and its `ScreenContractTool` case kinds against `specs/029-marks-v9-vectors/contracts/screen-shapes.md` §2, §5, §6; correct **this feature's** contracts page and research R3/R4/R10, never the sibling; record the diff as Discovered.
 - [X] T003 [P] Extract judgement calls 1–27 once from `master` (`git show 0165017:instructions/marks.py`, the module docstring from `1.` to the end of `27.`) into `tests/fixtures/marks/calls-1-27.at-0165017.txt`, byte for byte, for SC-001.
 - [X] T004 [P] Write `tests/fixtures/registry/slice.yaml`: a hand-sized 25-key registry in `contracts/dimension-registry.yaml`'s shape (Lullaby values; every `founder.normalized`, `respondent.*`, `answers.*`, `weight`, `order`), passing all seven invariants, and `tests/fixtures/registry/broken/` with one file per invariant that fails exactly it.
 - [X] T005 [P] Write `tests/fixtures/corpus/09-fixture-r3.yaml` (data-model §2: `revision: 3`, 12 people — 2 `recency: no`, 1 `chip: cant_recall`, 1 vague `GUESSED`, 8 `ANCHORED`; `founder_calibration` on 25 keys with two `unsure`; `respondent_questions` 8/9/6; `expected.standings` on 25; `vector_verdicts`) and `tests/fixtures/corpus/10-fixture-r3-b2b.yaml` (`persona.decision_maker: {role: buyer}`). Neither is a corpus entry; values are invented and small.
@@ -87,7 +87,7 @@ says so).
 - [X] T025 [US1] `instructions/score.py`: `score_compare(case, entry, compare_score)`; `totals(calibration_scores, respondent_scores, interpret_scores, compare_scores, *, brief_scores, errored, refusals_by_rule, shape_refusals, schema_invalid, refusals_measured, refusals_shown, judge_calls, leak_hits, leak_judged)` with data-model §6's keys; `spread` over the new per-case metrics; `score_assumptions`, `score_reading`, `AssumptionScore`, `FIELDS` deleted (`score_calibration`, `score_respondent`, `score_interpret` arrive in US2/US3 and `totals` takes empty lists until then).
 - [X] T026 [US1] `instructions/run.py`: `SCREENS` = the seven model screens; `_all_cases` with research R6's needles and the *no case matches* line; `COMPARE` run at build time for every selected `COMPARE` row (DRY and real) with both files kept in the bundle; `_dry_run` writes `scorecard.json`/`verdict.json` (compare measured, every model mark unmeasured, `passed: false`) and prints the eight screens' keys and one prompt per kind; the printed per-case line per kind; `manifest` gains `registry_version`. `instructions/report.py`: `copy_contracts` copies `dimension-registry.json`; `render_report`'s mark table = the eight v9 rows (`_mark_row` per row, `compare_correctness` as *agreed of checks*, `refusals` as a rate); `render_register` renders a `COMPARE`-only bundle without raising.
 - [X] T027 [US1] `instructions/rescore.py`: read `scorecard.json["marks_version"]` first, refuse `< 9` by name with the reason, exit 2; the v9 path re-scores every kind from `cases/**/envelope.json`, re-runs `compare.py` from the bundle's own `compare/*.in.json`, reads the registry from the bundle's `contracts/dimension-registry.json`, writes `scorecard-v9.json` beside. T021 green.
-- [ ] T028 [US1] **`make instruction-eval DRY=1 K=03-lullaby`** on keel-cloud 058's branch with Lullaby at r3 (quickstart S1): 19 cases + `COMPARE`, zero calls, `$0`, `compare_correctness` **28 of 28**, every refusal of S1 seen once by name; then `python -m instructions.rescore runs/20261001T043420Z-instructions` refused by name (S2). Record both in Discovered. Until W2/W3 land, record instead the DRY verdict naming the unmet prerequisite.
+- [X] T028 [US1] **`make instruction-eval DRY=1 K=03-lullaby`** on keel-cloud 058's branch with Lullaby at r3 (quickstart S1): 19 cases + `COMPARE`, zero calls, `$0`, `compare_correctness` **28 of 28**, every refusal of S1 seen once by name; then `python -m instructions.rescore runs/20261001T043420Z-instructions` refused by name (S2). Record both in Discovered. Until W2/W3 land, record instead the DRY verdict naming the unmet prerequisite.
 
 **Checkpoint**: US1 is the MVP — the rubric is v9, r3 loads, the engine is read for free, and a v8 bundle cannot be re-scored. `make unit` green.
 
@@ -169,7 +169,7 @@ finalised; the gate text; 065 and 059–061 screened; the run of record spent on
 - [X] T051 [US4] **The corpus revision for the other six entries — a keel-cloud commit on 058's branch, never a file here** (FR-008, FR-012, research R2): `01-countly` (leaves out `problem.severity`), `02-compliancelog`, `04-linerly`, `05-paidly` (B2B, `agency`), `06-repeatline`, `07-mulchrun`, each keeping `market`, `statements`, `roles` and its people, every verdict and drift hand-worked under FR-018's signed rules before `check_corpus.py` confirms counts, headers recording the revision, the date and this spec; `GoldenCorpusTest` green on 175 + 21 checks (SC-005). This task is ticked here when that commit's sha is recorded in Discovered; T047 goes green with it.
 - [X] T052 [US4] The v9 header finalised (US4.2): the seven r3 digests and the corpus-wide `anchoring_accuracy` denominator (106 people less every gate-No and every chipped story — counted, not estimated; O-4) written as one dated paragraph at the top of `instructions/marks.py`'s module docstring **above** the call list (never a call, never a line of `marks.toml`, which stays byte for byte the draft — T008 holds it); `tests/test_instruction_marks.py` asserts the paragraph names seven digests.
 - [X] T053 [US4] `README.md` and `AGENTS.md`: the v9 gate — eight marks, the new denominators (one judgement a person; every answer the aggregate judged; 28 compare checks an entry), the three unscored screens, the rescore refusal, `MODELS=exported` refusing until the table carries the three classes — and the Waits as they stand (FR-030). Before the run, so the run is read against the gate as written.
-- [ ] T054 [US4] Run `make instruction-eval DRY=1` (no `-k`) across all seven r3 entries: ≈ 140 cases at N=1 plus seven `COMPARE` rows, `compare_correctness` **196 of 196**, `$0`; then `make unit` green with T047. Record both in Discovered.
+- [X] T054 [US4] Run `make instruction-eval DRY=1` (no `-k`) across all seven r3 entries: ≈ 140 cases at N=1 plus seven `COMPARE` rows, `compare_correctness` **196 of 196**, `$0`; then `make unit` green with T047. Record both in Discovered.
 - [ ] T055 [US4] **The run of record — the founder's to type, once, after every Wait** (FR-029, SC-011, SC-012; quickstart S4): `make instruction-eval HOST=claude WHY=marks:9 MODELS=exported` with `CLAUDE_CODE_EFFORT_LEVEL` unset — ≈ 420–480 cases at N=3, ≈ 3 h, ≈ $15–20; `passed: true` on all eight marks at `MARKS_VERSION` 9, `shape_refusals` 0, rate ≤ 0.02 over ≈ 510 judged answers, `compare_correctness` 196 of 196, `judged_fraction` reported, `corpus.sha256` identical before and after. **A red mark is a finding, not a reason to run again.**
 - [ ] T056 [US4] Whatever T055 found → `README.md` (the run of record for spec 029: bundle, cases, time, price, the eight values, beside the v8 record's 414 / 3 h 11 m / $15.41), `runs/DRIFT.md` (anything that surprised), and this file's Discovered. The certificate's name is what keel-cloud's routing v9 spec reads; `model-routing.json` is not touched here.
 
@@ -181,7 +181,7 @@ finalised; the gate text; 065 and 059–061 screened; the run of record spent on
 
 - [X] T057 [P] `specs/029-marks-v9-vectors/{spec,plan,research,tasks}.md` and `contracts/screen-shapes.md` corrected to what the work found (T002's diffs, O-1's decision, O-2/O-3's keys as landed, O-4's count) — the same *Discovered* discipline as 025.
 - [X] T058 [P] `tests/test_instruction_modules_import.py`: the report and the register render from a v9 scorecard carrying one unmeasured mark and say so in words; every module under `instructions/` imports.
-- [ ] T059 Quickstart S0, S1 and S2 run end to end from a clean `make venv` and their outputs pasted into Discovered; S3/S4 left to the founder's record in T038/T045/T049/T050/T055.
+- [X] T059 Quickstart S0, S1 and S2 run end to end from a clean `make venv` and their outputs pasted into Discovered; S3/S4 left to the founder's record in T038/T045/T049/T050/T055.
 
 ---
 
@@ -386,4 +386,45 @@ task it was found under. Nothing here is a change of mind about the design; it i
   *"20261001T043420Z-instructions was scored at marks_version 8: answered on screens v9 does not
   have, against corpus r2. Not re-scored"*; `scorecard.json` and `manifest.json` byte-identical
   after, nothing added. S1 waits on 058 (D9), so T059 stays open.
+- **D21 (T002, keel-cloud 058 at `14a1430`, its worktree).** Read off the real export, the
+  `screenContracts compare` source and `contracts/compare-command.md`, and corrected here, never there:
+  (a) the registry file is named by the manifest (`dimension_registry`) and carries **no
+  `version`**, so the engine input omits `registry_version`; (b) the registry carries `{window}` /
+  `{window_unit}` placeholders, filled by code to the default *7 nights* (`registry.fill_window`;
+  every r3 entry reads the default until the founder's decision 25), and every job's `context` slots
+  carry `window`; (c) `CALIBRATION_QUESTIONS` takes **`interpretation`** -- the problem statement on
+  PROBLEM, the mechanism card on SOLUTION (058 composes its `statement`; this eval hands the solution
+  seed instead), `null` on COMMERCIAL -- in place of `problem` / `mechanism` / `persona`;
+  `SOLUTION_MECHANISM` takes `problem_statement`; `PROBLEM_INTERPRET` no `interaction_history`;
+  (d) `RESPONDENT_QUESTIONS`' `mechanism` carries `mechanism_terms` and is **absent on the B2B link**,
+  and `founder_options` covers the model-written sets only; (e) `INTERPRET` and `BRIEF` are still
+  exported in their **v8 shape** (`anchors` / `anchorings[]`, `claims`) until keel-cloud 064 / 065:
+  the gate story goes over as the one anchor, `score_interpret` reads a single `anchorings[]` entry,
+  and the brief's `claims` key is written `null` -- so `brief_paragraphs` cannot be measured on 058's
+  BRIEF screen until 065; (f) `compare`'s input needs `respondent_questions` (`own_item`, or exit 1)
+  and accepts `link` and `'yes'`/`'no'`; its output writes drift upper-case and `NONE` where the
+  corpus writes `null`, and writes counts the corpus does not record and no belief sentence -- so a
+  count is reported only where both sides state it. The export's model table (version 8) now carries
+  `context`, `calibration` and `respondent`, and `MODELS=exported` is accepted.
+- **D22 (T028, T054, T059's S1 -- run on 058's worktree, `stack.toml` pointed there and reverted, not
+  committed).** `make instruction-eval DRY=1 K=03-lullaby N=1`: 19 cases + 1 `COMPARE` row,
+  **`compare_correctness` 28 of 28**, 0 counts differ, every model mark unmeasured, `passed: false`,
+  nothing spent. The same with `MODELS=exported`: accepted -- context and reading on
+  `claude-haiku-4-5-20251001`, frame, calibration, respondent and brief on `claude-sonnet-5-5`.
+  `make instruction-eval DRY=1 N=1` over all seven: **138 cases + 7 `COMPARE` rows,
+  `compare_correctness` 196 of 196**, 0 counts differ. `make unit` green with T047. No `{window}` is
+  left unfilled in any printed prompt.
+- **D23 (058's open item 3 / its T049: the Lullaby examples break C4 and C6).** The registry's own
+  Lullaby options trip the literal rules: **C4** (phrase = label) on `problem.urgency`
+  `within_five_minutes`, `solution.relative_advantage` `fewer_attempts`, `solution.observability`
+  `settled_sooner`, `commercial.buyer_payer_alignment` `joint_decision`, and
+  `commercial.retention_potential` `daily` / `several_times_a_week` / `a_few_times_a_month`; **C6**
+  (claim word) on `solution.relative_advantage`'s question (*better*),
+  `solution.reliability_tolerance` `half_the_time`'s label (*helps*) and
+  `solution.observability` `back_to_sleep` (*faster*). Of these, r3 Lullaby records two chosen
+  phrases, now reworded -- `fewer tries before the baby settles`, `the baby was settled sooner than
+  usual and they tried fewer things` -- with their belief sentences; and the registry slice's
+  founder questions carry 058's own rewording (*better* -> *more useful*, *faster* -> *sooner*,
+  *helps* -> *is useful*). Lullaby's digest moved (`marks.py`'s header follows); 058's
+  `src/test/resources/keel/corpus-r3/03-lullaby.yaml` is the earlier copy and should be re-copied.
 

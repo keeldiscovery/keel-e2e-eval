@@ -13,7 +13,9 @@
 # guess: shown, not counted (Duration n = 7). The six commercial examples are re-worked at n <= 10 -- eight
 # anchored people reach part 3 (decision 14); no status changed. `founder_calibration[*].belief_sentence` and
 # `interpretations.problem` are recorded here as spec 029's plan O-2 / O-3 ask; `respondent_questions`
-# carries the gate itself and `problem.importance.own_item` (spec 029 tasks.md D3).
+# carries the gate itself and `problem.importance.own_item` (spec 029 tasks.md D3). Two belief phrases are
+# reworded from the registry's so they are not their options' labels (C4, keel-cloud 058 T049):
+# solution.relative_advantage and solution.observability (spec 029 tasks.md D21).
 #
 # RECORDED UNDER keel-e2e-eval tests/fixtures/corpus-r3/ AND TO BE MOVED VERBATIM into keel-cloud
 # canon/designs/measured-beliefs/corpus/ at integration (the orchestrator's cross-track arrangement of
@@ -73,8 +75,8 @@ founder_calibration:
   problem.urgency: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
   solution.compatibility: {answer: before_any_attempt, belief_phrase: 'right at the start, before anything is tried', belief_sentence: 'It
       fits into the episode right at the start, before anything is tried.'}
-  solution.relative_advantage: {answer: fewer_attempts, belief_phrase: fewer things tried before the baby settles, belief_sentence: 'To
-      be worth switching to, it must mainly deliver fewer things tried before the baby settles.'}
+  solution.relative_advantage: {answer: fewer_attempts, belief_phrase: fewer tries before the baby settles, belief_sentence: 'To
+      be worth switching to, it must mainly deliver fewer tries before the baby settles.'}
   solution.effectiveness_threshold:
     answer: {value: 5, unit: minutes}
     belief_phrase: at least 5 minutes
@@ -95,8 +97,8 @@ founder_calibration:
       at any time.
   solution.observability:
     answer: [settled_sooner, fewer_tries]
-    belief_phrase: the baby settled sooner than usual and they tried fewer things
-    belief_sentence: They would know it helped when the baby settled sooner than usual and they tried fewer things.
+    belief_phrase: the baby was settled sooner than usual and they tried fewer things
+    belief_sentence: They would know it helped when the baby was settled sooner than usual and they tried fewer things.
   solution.target_circumstance: {answer: routine_failed, belief_phrase: when the usual routine has not stopped the crying,
     belief_sentence: It matters most when the usual routine has not stopped the crying.}
   commercial.existing_sacrifice:

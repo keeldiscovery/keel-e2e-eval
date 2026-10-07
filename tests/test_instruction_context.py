@@ -42,14 +42,15 @@ def test_context_interpret_carries_the_four_slots_and_nothing_from_the_mechanism
 
 def test_problem_interpret_carries_the_context_and_no_solution_field(entry):
     built = context_mod.build_problem_interpret(entry)
-    assert set(built) == {"context", "market", "interaction_history"}
+    assert set(built) == {"context", "market"}
+    assert built["context"]["window"] == "7 nights", "058's slots carry the recall window"
     assert built["context"]["actor_plural"] == "commuters who cycle"
     assert context_mod.seed_of(entry, "PROBLEM_INTERPRET") == entry.statements["problem"]
 
 
 def test_solution_mechanism_reads_the_corpus_problem_sentence_never_a_live_answer(entry):
     built = context_mod.build_solution_mechanism(entry)
-    assert built["problem"] == {"statement": entry.interpretations["problem"]}
+    assert built["problem_statement"] == entry.interpretations["problem"]
     assert context_mod.seed_of(entry, "SOLUTION_MECHANISM") == entry.statements["solution"]
 
 
@@ -67,9 +68,12 @@ def test_the_problem_calibration_job_carries_the_slice_with_thirteen_fields_and_
         entry, registry):
     built = context_mod.build_calibration(entry, "PROBLEM", registry)
     assert built["vector"] == "PROBLEM"
-    assert built["problem"] == {"statement": entry.interpretations["problem"]}
-    assert "mechanism" not in built and "solution" not in built and "persona" not in built, \
-        "US2.1: the PROBLEM job carries no solution field at all, not even a null one"
+    assert built["interpretation"] == {"statement": entry.interpretations["problem"]}, \
+        "US2.1: the PROBLEM job's interpretation is the problem statement and no solution field"
+    assert "mechanism" not in built and "solution" not in built and "persona" not in built
+    prevalence = built["dimensions"][0]
+    assert "{window}" not in repr(prevalence) and "7 nights" in prevalence["founder"]["guidance"], \
+        "the registry's window placeholders are filled, as 058's RegistrySlices.filled does"
     dimensions = built["dimensions"]
     assert [d["key"] for d in dimensions] == [d.key for d in registry.slice("PROBLEM")]
     assert len(dimensions) == 9
@@ -82,11 +86,12 @@ def test_the_problem_calibration_job_carries_the_slice_with_thirteen_fields_and_
 
 def test_the_solution_and_commercial_jobs_see_the_mechanism_and_the_persona(entry, registry):
     solution = context_mod.build_calibration(entry, "SOLUTION", registry)
-    assert solution["mechanism"]["mechanism"] == entry.solution_mechanism["mechanism"]
-    assert "mechanism_terms" not in solution["mechanism"], "no_leak's list is not an input"
-    assert "persona" not in solution
+    card = solution["interpretation"]
+    assert card["mechanism"] == entry.solution_mechanism["mechanism"]
+    assert card["mechanism_terms"] == entry.solution_mechanism["mechanism_terms"]
+    assert "not_assumed" not in card, "the claims the card stripped are never handed on"
     commercial = context_mod.build_calibration(entry, "COMMERCIAL", registry)
-    assert commercial["persona"] == {"decision_maker": "same_person"}
+    assert commercial["interpretation"] is None, "058 sends no interpretation on COMMERCIAL"
     assert len(commercial["dimensions"]) == 7
 
 
@@ -100,16 +105,20 @@ def test_part_one_carries_no_mechanism_and_no_founder_answer_ever(entry, registr
     text = repr(built)
     for value in ("throws the morning off", "is hit and miss", "2 to 4 nights", "lateness"):
         assert value not in text, f"a founder answer reached the respondent screen: {value}"
-    assert built["founder_options"]["problem.severity"] == \
-        ["barely", "a_little", "moderately", "very", "extremely"], "the founder's option SET"
-    assert "something_else" not in built["founder_options"]["problem.consequence"]
+    assert "problem.severity" not in built["founder_options"], \
+        "058's founderOptions: the model-written sets only"
+    assert built["founder_options"]["problem.consequence"] == \
+        ["late", "stress", "missed_train"], "the founder's option SET, never their pick"
 
 
-def test_parts_two_and_three_carry_the_mechanism(entry, registry):
+def test_parts_two_and_three_carry_the_mechanism_and_the_b2b_link_does_not(entry, registry):
     for part in (2, 3):
         built = context_mod.build_respondent(entry, part, entry.plan(), registry)
         assert built["mechanism"]["output"] == entry.solution_mechanism["output"]
         assert built["link"] == "PRIMARY"
+    b2b = context_mod.build_respondent(entry, 3, entry.plan(), registry,
+                                       link=context_mod.LINK_B2B)
+    assert "mechanism" not in b2b, "058: the decision-maker's link carries no mechanism key"
 
 
 def test_the_b2b_link_carries_the_registrys_b2b_block():

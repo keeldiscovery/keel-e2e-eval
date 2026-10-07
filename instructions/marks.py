@@ -18,7 +18,7 @@ into keel-cloud's canon, so a run reads these bytes either way:
 
     01-countly         25bffafb2fa7524529888b827122df190ff28c4e644b07603eaf46039949005d
     02-compliancelog   930dbd8e4a42843298a0abcb031106e222aed93e7e7eda7fb086ed7fa458fd5d
-    03-lullaby         d256f09ec48d68c455e12a015251c0c719c159c6d4d828a060dcbc2d5e2e0ca7
+    03-lullaby         c6fc1a4a3108d3362a2b6e18180bee2977b5fe568be1bbab40c1ca40e5e0a7fc
     04-linerly         3598e8f0df553b4d1c85ea47b66e4e024ea0392e8305fc96a4474777c361a90e
     05-paidly          efbde113e7edce719985163c02c970861c7695ddf238e0c19c04fb33c15ac0bb
     06-repeatline      5fb3a693e31d7965d3d303b83f03735359268762d5f6ea12baed43fe7d053a8b

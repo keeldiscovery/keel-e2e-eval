@@ -109,7 +109,7 @@ def sweep_a(texts, entry, judge) -> dict:
 
 _NOT_SURE_RE = re.compile(r"not sure|don't know|dont know|unsure", re.IGNORECASE)
 _SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*$")
-_SEVEN_NIGHTS_RE = re.compile(r"\b(7|seven)\s+nights?\b", re.IGNORECASE)
+_SEVEN_NIGHTS_RE = re.compile(r"\b(7|seven)\s+nights?\b", re.IGNORECASE)   # the default window
 _LADDER_RE = re.compile(r"(B2C|B2B):\s*([a-z_, ]+)\.")
 
 
@@ -529,6 +529,12 @@ def score_interpret(case, entry, person, result, *, failed: str | None = None) -
         score.missing_ids = [person.person]
         return score
     answer = result.get("anchoring")
+    anchorings = result.get("anchorings")
+    if answer is None and isinstance(anchorings, list) and len(anchorings) == 1 \
+            and isinstance(anchorings[0], dict):
+        # keel-cloud's INTERPRET contract is still v8's (`anchorings[]`) until 064 narrows it: one
+        # story, one anchoring -- its `anchorId` neither read nor refused.
+        answer = anchorings[0].get("anchoring")
     score.produced = answer
     if answer not in ("ANCHORED", "GUESSED"):
         if answer is not None:

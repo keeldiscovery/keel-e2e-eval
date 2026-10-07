@@ -70,7 +70,7 @@ def build_input(entry, registry=None) -> dict:
         else:
             calibration[key] = {"answer": value.get("answer"),
                                 "belief_phrase": value.get("belief_phrase")}
-    return {
+    built = {
         "entry": entry.id,
         "market": dict(entry.market or {}),
         "registry_version": getattr(registry, "version", None),
@@ -81,7 +81,13 @@ def build_input(entry, registry=None) -> dict:
                      "recency": p.get("recency"), "anchoring": p.get("anchoring"),
                      "chip": p.get("chip"), "picks": dict(p.get("picks") or {})}
                     for p in entry.answers],
+        # keel-cloud 058's compare-command.md: the plan rows, for `problem.importance.own_item`
+        # (the run exits 1 without it) and the option orders behind the counts.
+        "respondent_questions": dict(entry.respondent_questions or {}),
     }
+    if built["registry_version"] is None:
+        built.pop("registry_version")         # 058's export carries none: the engine's own then
+    return built
 
 
 # --------------------------------------------------------------------------------- the engine
@@ -125,7 +131,9 @@ def run(keel_cloud: Path, entry_input: dict, in_path: Path, out_path: Path, *,
 # ----------------------------------------------------------------------------------- the diff
 
 def _drift(value):
-    return None if value in (None, "") else str(value).lower()
+    """Case folded (058 writes BELOW / ABOVE / BOTH / NONE), and the corpus's `null` drift -- a
+    LEFT_OUT or NOT_ASKED_YET row -- read as the engine's `NONE`: there is no null on the wire."""
+    return "none" if value in (None, "") else str(value).lower()
 
 
 def diff(expected: dict, produced: dict, *, entry=None, entry_id: str = "") -> CompareScore:
@@ -157,8 +165,14 @@ def diff(expected: dict, produced: dict, *, entry=None, entry_id: str = "") -> C
             if name == "belief_sentence" and want_value is None:
                 want_value = (calibration.get(key) or {}).get("belief_sentence")
             got_value = got.get(name)
-            if want_value is None and got_value is None:
+            # A count is a disagreement only where both sides state it: the corpus records the
+            # counts its hand-working needed, and keel-cloud 058's engine writes the rest (and no
+            # belief sentence -- that is the lock's, not compare's).
+            if want_value is None or name not in got:
                 continue
+            if isinstance(want_value, float) or isinstance(got_value, float):
+                if got_value is not None and abs(float(want_value) - float(got_value)) < 0.006:
+                    continue
             if want_value != got_value:
                 score.reported_diffs.append({"key": key, "field": name,
                                              "expected": want_value, "produced": got_value})

@@ -132,7 +132,8 @@ def read(directory: Path) -> ExportedContract:
         model_routing = json.loads(routing_path.read_text(encoding="utf-8"))
         if not isinstance(model_routing, dict):
             raise ContractUnavailable(f"{routing_path} is not a JSON object")
-    registry_path = directory / REGISTRY_NAME
+    # keel-cloud 058 names the file in the manifest (`dimension_registry`); the default is the same.
+    registry_path = directory / (manifest.get("dimension_registry") or REGISTRY_NAME)
     if not registry_path.is_file():
         raise ContractUnavailable(
             f"{directory} carries no {REGISTRY_NAME} -- keel-cloud 058's exporter writes it beside "

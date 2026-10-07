@@ -108,3 +108,17 @@ def test_an_export_with_the_registry_carries_it_checked(tmp_path):
     exported = contract_mod.read(tmp_path)
     assert exported.registry.by_key("problem.prevalence").respondent["control"] == "gate_yes_no"
     assert exported.registry.version == 1
+
+
+def test_the_manifest_names_the_registry_file_as_058_writes_it(tmp_path):
+    fx.write_export(tmp_path, with_registry=False)
+    (tmp_path / "registry-under-another-name.json").write_text(json.dumps(fx.registry_document()))
+    manifest = json.loads((tmp_path / "manifest.json").read_text())
+    manifest["dimension_registry"] = "registry-under-another-name.json"
+    (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+    assert len(contract_mod.read(tmp_path).registry.keys()) == 25
+
+
+def test_the_window_placeholders_are_filled_by_code():
+    assert registry_mod.fill_window({"g": ["the last {window}, in {window_unit}"]}) == \
+        {"g": ["the last 7 nights, in nights out of 7"]}

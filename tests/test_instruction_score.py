@@ -405,3 +405,10 @@ def test_another_persons_invitation_is_an_extra_id_and_this_person_missing(entry
                                         "anchoring": "ANCHORED"})
     assert score.extra_ids == ["09-fixture/Someone Else"] and score.missing_ids == ["Ann Abbott"]
     assert score.answered == 0
+
+
+def test_a_read_in_keel_clouds_v8_interpret_shape_is_read_until_064_narrows_it(entry):
+    score = _read(entry, "Ann Abbott", {"invitationId": "09-fixture/Ann Abbott",
+                                        "anchorings": [{"anchorId": "story",
+                                                        "anchoring": "ANCHORED"}]})
+    assert score.answered == 1 and score.agreed == 1
