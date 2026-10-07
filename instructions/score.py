@@ -197,32 +197,52 @@ def calibration_checks(question: dict, dimension, *, b2b: bool = False) -> list:
     elif not isinstance(options, list) or not options:
         return [f"no options on a closed control ({dimension.founder.get('control')})"]
 
-    codes = [o.get("normalized") if isinstance(o, dict) else None for o in options]
+    # keel-cloud 062 / instruction table §B #3, rule C2: the result carries **no code**. Option i
+    # *is* the registry's code i -- the server joins by position -- so the order is the registry's by
+    # construction and the count is the check. An explicit `normalized` a model writes anyway is a
+    # cross-check against the position, never the join.
+    stated = [o.get("normalized") if isinstance(o, dict) else None for o in options]
+    labels = [text_mod.normalise(o.get("label")) if isinstance(o, dict) else "" for o in options]
     fixed = dimension.fixed_codes
     if fixed is not None:
         if len(options) != len(fixed):
-            faults.append(f"{len(options)} options; the registry fixes {len(fixed)} codes")
-        foreign = [c for c in codes if c not in fixed]
-        if foreign:
-            faults.append(f"code(s) {foreign} are not the registry's")
-        known = [c for c in codes if c in fixed]
-        if known != sorted(known, key=fixed.index):
-            faults.append(f"codes out of registry order: {known}")
+            faults.append(f"{len(options)} options; the registry fixes {len(fixed)} codes, joined "
+                          "by position")
+        for index, code in enumerate(stated):
+            if code is None:
+                continue
+            if code not in fixed:
+                faults.append(f"option {index + 1} names {code!r}, which is not the registry's")
+            elif index < len(fixed) and code != fixed[index]:
+                faults.append(f"option {index + 1} names {code!r}; by position it is "
+                              f"{fixed[index]!r} -- codes out of registry order")
     elif not numeric:
-        if not 4 <= len(options) <= 6:
+        ladder = _ladder_codes(dimension, b2b)
+        if ladder is not None:
+            if len(options) != len(ladder):
+                faults.append(f"{len(options)} options; the ladder has {len(ladder)} rungs, "
+                              "joined by position")
+            elif any(c is not None and c != ladder[i] for i, c in enumerate(stated)):
+                faults.append(f"the ladder is {ladder}, the options name {stated}")
+        elif not 4 <= len(options) <= 6:
             faults.append(f"{len(options)} options; the rule asks 4-6")
-        bad = [c for c in codes if not isinstance(c, str) or not _SLUG_RE.match(c)]
+        # A model-written set's codes are slugged from the labels by code (058 T053); when a model
+        # states them anyway, they must at least be slugs and carry the fixed codes the rule names.
+        written = [c for c in stated if c is not None]
+        bad = [c for c in written if not isinstance(c, str) or not _SLUG_RE.match(c)]
         if bad:
             faults.append(f"code(s) {bad} are not slugs")
-        ladder = _ladder_codes(dimension, b2b)
-        if ladder is not None and codes != ladder:
-            faults.append(f"the ladder is {ladder}, the options are {codes}")
-        missing = [c for c in _REQUIRED_MODEL_WRITTEN.get(dimension.key, ()) if c not in codes]
-        if missing:
-            faults.append(f"the code rule's fixed code(s) {missing} are missing")
-    repeated = sorted({c for c in codes if c is not None and codes.count(c) > 1})
+        if written:
+            missing = [c for c in _REQUIRED_MODEL_WRITTEN.get(dimension.key, ())
+                       if c not in written]
+            if missing:
+                faults.append(f"the code rule's fixed code(s) {missing} are missing")
+    repeated = sorted({c for c in stated if c is not None and stated.count(c) > 1})
     if repeated:
         faults.append(f"code(s) repeated: {repeated}")
+    twice = sorted({label for label in labels if label and labels.count(label) > 1})
+    if twice:
+        faults.append(f"label(s) repeated: {twice}")
     for option in options:
         if not isinstance(option, dict):
             faults.append(f"option {option!r} is not an object")
@@ -382,6 +402,10 @@ def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None
                       + (" (the scale is fixed: nothing added)" if control == "single_choice_5"
                          else ""))
     codes = [_option_code(o) for o in options]
+    if not any(codes) and got == len(want) and not elsewhere:
+        # Labels only (screen-shapes §3): the server joins option i to the plan's code i, and
+        # appends or reads "Something else" last -- so the codes are the plan's, by position.
+        codes = list(want) + (["something_else"] if tail_is_else else [])
     if any(codes):
         coded = [c for c in codes if c and c != "something_else"]
         missing = [c for c in want if c not in coded]

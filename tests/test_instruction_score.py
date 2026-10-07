@@ -412,3 +412,61 @@ def test_a_read_in_keel_clouds_v8_interpret_shape_is_read_until_064_narrows_it(e
                                         "anchorings": [{"anchorId": "story",
                                                         "anchoring": "ANCHORED"}]})
     assert score.answered == 1 and score.agreed == 1
+
+
+# ------------------------------------- keel-cloud 062: options carry no code, joined by position
+
+import json as _json                                                         # noqa: E402
+
+from instructions import corpus as _corpus_mod                               # noqa: E402
+
+GOLDEN = fx.FIXTURES / "calibration"
+
+
+def _golden(vector):
+    return _json.loads((GOLDEN / f"03-lullaby.{vector}.result.json").read_text(encoding="utf-8"))
+
+
+@pytest.fixture()
+def lullaby():
+    return _corpus_mod.load_file(fx.CORPUS_R3 / "03-lullaby.yaml", registry=fx.registry())
+
+
+@pytest.mark.parametrize("vector, count", [("PROBLEM", 9), ("SOLUTION", 9), ("COMMERCIAL", 7)])
+def test_the_golden_062_accepts_scores_clean_with_no_code_on_any_option(lullaby, registry, vector,
+                                                                         count):
+    result = _golden(vector)
+    assert not any("normalized" in o for q in result["questions"] for o in q.get("options") or [])
+    score = score_mod.score_calibration(fx.calibration_case(lullaby, vector), lullaby, registry,
+                                        result, judge=fx.FakeJudge())
+    assert score.faults == [], score.faults
+    assert (score.coverage_hit, score.validity_hit, score.validity_of) == (count, count, count)
+    if vector == "PROBLEM":
+        assert (score.leak_clean, score.leak_of) == (9, 9)
+
+
+def test_a_fixed_code_question_one_option_short_fails_by_position(lullaby, registry):
+    result = _golden("PROBLEM")
+    next(q for q in result["questions"] if q["key"] == "problem.severity")["options"].pop()
+    score = score_mod.score_calibration(fx.calibration_case(lullaby, "PROBLEM"), lullaby,
+                                        registry, result, judge=fx.FakeJudge())
+    assert [f["key"] for f in score.faults] == ["problem.severity"]
+    assert "joined by position" in score.faults[0]["evidence"]
+
+
+def test_a_stated_code_is_only_a_cross_check_against_its_position(registry):
+    dimension = registry.by_key("problem.severity")
+    question = fx.calibration_question(dimension)
+    assert score_mod.calibration_checks(question, dimension) == []
+    question["options"][0]["normalized"] = "very"
+    assert any("by position it is 'barely'" in f
+               for f in score_mod.calibration_checks(question, dimension))
+
+
+def test_a_label_only_respondent_answer_takes_the_plans_codes_by_position(entry, registry):
+    score = _respond(entry, registry, 1, label_only=True)
+    assert score.validity_hit == score.validity_of == 8
+    short = _respond(entry, registry, 1, lambda r: _options(r, "problem.consequence").pop(0),
+                     label_only=True)
+    assert [f["key"] for f in short.faults if f["check"] == "option_validity"] == \
+        ["problem.consequence"]

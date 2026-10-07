@@ -1,0 +1,177 @@
+{
+  "_source": "keel-cloud 062 (ff316cc) VectorFixtures.calibrationResult(COMMERCIAL) -- the golden the `screenContracts validate` test accepts (ScreenContractToolTest 'calibration-good'), transcribed: the registry's Lullaby examples, words only, no codes (joined by position)",
+  "vector": "COMMERCIAL",
+  "questions": [
+    {
+      "key": "commercial.existing_sacrifice",
+      "question": "Which of these have parents of babies under six months already paid for or given up because of the night crying? Pick all that apply.",
+      "options": [
+        {
+          "label": "Money on baby apps or subscriptions (tracking, white noise)",
+          "belief_phrase": "money on baby apps"
+        },
+        {
+          "label": "Money on gadgets (sleep aids, swaddles, monitors)",
+          "belief_phrase": "money on gadgets"
+        },
+        {
+          "label": "Paid help so they can sleep (night nurse, doula)",
+          "belief_phrase": "money on paid help"
+        },
+        {
+          "label": "Time off or a worse day at work after a bad night",
+          "belief_phrase": "working days"
+        },
+        {
+          "label": "Extra visits to a doctor or health visitor about the crying",
+          "belief_phrase": "extra medical visits"
+        },
+        {
+          "label": "None of these; they cope with what they have",
+          "belief_phrase": "nothing yet"
+        }
+      ],
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    },
+    {
+      "key": "commercial.wtp_hypothesis",
+      "question": "If a parent paid for the app, what range per month do you think they would consider reasonable?",
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    },
+    {
+      "key": "commercial.ability_to_pay",
+      "question": "For a baby-related purchase that is useful with nights, how easily could most parents find room in their budget?",
+      "options": [
+        {
+          "label": "Very easily; they would not think twice about a small monthly charge",
+          "belief_phrase": "without a second thought"
+        },
+        {
+          "label": "Fairly easily; they could pay without cutting back elsewhere",
+          "belief_phrase": "fairly easily, without cutting back elsewhere"
+        },
+        {
+          "label": "With a trade-off; they would need to skip something else",
+          "belief_phrase": "only by skipping something else"
+        },
+        {
+          "label": "Barely; spare money already goes on baby essentials",
+          "belief_phrase": "barely, if at all"
+        }
+      ],
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    },
+    {
+      "key": "commercial.buyer_payer_alignment",
+      "question": "When a parent decides to try something new for the baby's nights, who actually pays for it?",
+      "options": [
+        {
+          "label": "The parent pays for it themselves, with no one else to agree",
+          "belief_phrase": "the same person uses it, decides and pays"
+        },
+        {
+          "label": "The parent decides, but a partner or shared account pays",
+          "belief_phrase": "the parent decides and someone else in the household pays"
+        },
+        {
+          "label": "The parent and their partner decide together",
+          "belief_phrase": "that the parent and their partner decide together"
+        },
+        {
+          "label": "A relative or friend buys it as a gift",
+          "belief_phrase": "someone outside the household buys it"
+        },
+        {
+          "label": "An employer, insurer or health plan pays",
+          "belief_phrase": "an institution pays"
+        }
+      ],
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    },
+    {
+      "key": "commercial.purchase_friction",
+      "question": "Which of these would most likely slow down or stop a parent between hearing about the app and actually paying for it? Pick all that apply.",
+      "options": [
+        {
+          "label": "Needing a partner's agreement first",
+          "belief_phrase": "needing a partner's agreement"
+        },
+        {
+          "label": "Wanting reviews or a recommendation from other parents or a doctor",
+          "belief_phrase": "wanting to see reviews first"
+        },
+        {
+          "label": "Entering card details when tired and half awake",
+          "belief_phrase": "the card-details step at night"
+        },
+        {
+          "label": "Worry about a subscription that is hard to cancel",
+          "belief_phrase": "worry about cancelling"
+        },
+        {
+          "label": "Concern about privacy of recordings of the baby",
+          "belief_phrase": "worries about recording the baby"
+        },
+        {
+          "label": "Forgetting about it once the night is over",
+          "belief_phrase": "forgetting by morning"
+        }
+      ],
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    },
+    {
+      "key": "commercial.commitment",
+      "question": "For a trial right now, which of these do you think most parents would actually do? Pick all that apply.",
+      "options": [
+        {
+          "label": "Set it up on their phone before the next night",
+          "belief_phrase": "setting it up before the next night"
+        },
+        {
+          "label": "Install the app",
+          "belief_phrase": "installing the app"
+        },
+        {
+          "label": "Allow it to use the microphone at night",
+          "belief_phrase": "allowing the microphone"
+        },
+        {
+          "label": "Try it at the next night-time wake-up",
+          "belief_phrase": "trying it at the next wake-up"
+        },
+        {
+          "label": "Have you contact them about the pilot",
+          "belief_phrase": "asking to be contacted"
+        }
+      ],
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    },
+    {
+      "key": "commercial.retention_potential",
+      "question": "How often do you think parents go back to the tools or routines they already use for the baby's nights, such as a tracking or white-noise app?",
+      "options": [
+        {
+          "label": "Every night",
+          "belief_phrase": "that every night"
+        },
+        {
+          "label": "Several nights a week",
+          "belief_phrase": "that several nights a week"
+        },
+        {
+          "label": "About once a week",
+          "belief_phrase": "about weekly"
+        },
+        {
+          "label": "A few times a month",
+          "belief_phrase": "that a few times a month"
+        },
+        {
+          "label": "Rarely; they drift away from them",
+          "belief_phrase": "rarely"
+        }
+      ],
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    }
+  ]
+}

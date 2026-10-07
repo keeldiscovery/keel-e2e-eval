@@ -427,4 +427,14 @@ task it was found under. Nothing here is a change of mind about the design; it i
   founder questions carry 058's own rewording (*better* -> *more useful*, *faster* -> *sooner*,
   *helps* -> *is useful*). Lullaby's digest moved (`marks.py`'s header follows); 058's
   `src/test/resources/keel/corpus-r3/03-lullaby.yaml` is the earlier copy and should be re-copied.
+- **D24 (keel-cloud 062 at `ff316cc`: no code on a calibration option).** The `CALIBRATION_QUESTIONS`
+  result carries **no `normalized`**: option *i* is the registry's code *i*, joined by position
+  (instruction table §B #3, rule C2). `calibration_checks` now holds the count against the registry's
+  codes (or the ladder's rungs) and treats a stated `normalized` as a cross-check against its
+  position only; a model-written set is held to 4-6 distinct labels, its slug codes being 058's to
+  derive. `score_respondent` likewise takes the plan's codes by position on a label-only item,
+  *Something else* last. `tests/fixtures/calibration/03-lullaby.{PROBLEM,SOLUTION,COMMERCIAL}.
+  result.json` transcribe 062's golden (`VectorFixtures.calibrationResult`, accepted by
+  `screenContracts validate`) and score clean: 9/9, 9/9, 7/7, `no_leak` 9 of 9. `make unit` 1498
+  passed, 75 skipped; `DRY=1 K=03-lullaby` on 062's worktree: 19 cases, `compare_correctness` 28 of 28.
 
