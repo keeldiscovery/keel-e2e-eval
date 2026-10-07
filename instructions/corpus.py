@@ -74,19 +74,26 @@ class CorpusError(RuntimeError):
     """The corpus could not be read, or moved while a run was in flight."""
 
 
+#: The two links a person answers on (FR-010): the primary interview, and -- on a B2B entry -- the
+#: decision-maker's Part 3 (`COMMERCIAL_B2B`: no gate, no context card, no reveal).
+LINK_PRIMARY = "PRIMARY"
+LINK_B2B = "COMMERCIAL_B2B"
+
+
 @dataclass(frozen=True)
 class Person:
     person: str
-    recency: str               # "yes" | "no" -- the gate (problem.prevalence)
+    recency: str | None        # "yes" | "no" -- the gate (problem.prevalence); None on the B2B link
     story: str | None
     chip: str | None
     anchoring: str | None      # golden; None when recency == "no"
     picks: dict
     pilot_opt_in: bool = False
+    link: str = LINK_PRIMARY
 
     @property
     def gate_yes(self) -> bool:
-        return self.recency == "yes"
+        return self.link == LINK_PRIMARY and self.recency == "yes"
 
     @property
     def readable(self) -> bool:
@@ -121,6 +128,10 @@ class Entry:
 
     def gate_yes(self) -> list[Person]:
         return [p for p in self.people() if p.gate_yes]
+
+    def deciders(self) -> list[Person]:
+        """The B2B entry's decision-makers, who answer Part 3 on their own link (FR-010)."""
+        return [p for p in self.people() if p.link == LINK_B2B]
 
     def readable(self) -> list[Person]:
         return [p for p in self.people() if p.readable]
@@ -170,7 +181,9 @@ class Entry:
         texts = [str(v) for v in (self.context or {}).values() if v]
         texts.append(str((self.statements or {}).get("problem") or ""))
         texts.append(str((self.interpretations or {}).get("problem") or ""))
-        texts += [p.story for p in self.people() if p.story]
+        # The gate stories only: a decision-maker's story on the B2B link is about a past purchase
+        # -- platform fees, a tool they bought -- which is the commercial world, not the problem's.
+        texts += [p.story for p in self.people() if p.story and p.link == LINK_PRIMARY]
         return texts
 
     def _problem_words(self) -> dict:
@@ -351,9 +364,27 @@ def _check_shape(raw: dict, path: Path) -> None:
         if not isinstance(value, dict) or not ("answer" in value or value.get("unsure") is True):
             raise _refuse(entry_id, f"founder_calibration[{key}] carries neither `answer` nor "
                                     "`unsure: true`", path)
+    b2b = isinstance((raw.get("persona") or {}).get("decision_maker"), dict)
     for person in raw.get("answers") or []:
         name = person.get("person")
         recency = person.get("recency")
+        link = person.get("link", LINK_PRIMARY)
+        if link not in (LINK_PRIMARY, LINK_B2B):
+            raise _refuse(entry_id, f"{name}'s link is {link!r}", path)
+        if link == LINK_B2B:
+            if not b2b:
+                raise _refuse(entry_id, f"{name} answers on the B2B link of an entry whose "
+                                        "decision-maker is the same person", path)
+            if recency is not None:
+                raise _refuse(entry_id, f"{name} answers on the B2B link and carries a gate "
+                                        "answer; the decision-maker is never asked the gate", path)
+            if person.get("anchoring") not in ANCHORINGS:
+                raise _refuse(entry_id, f"{name}'s anchoring is {person.get('anchoring')!r}", path)
+            foreign = [k for k in person.get("picks") or {} if not str(k).startswith("commercial.")]
+            if foreign:
+                raise _refuse(entry_id, f"{name} answers on the B2B link and picks {foreign[0]}; "
+                                        "the link is Part 3 only", path)
+            continue
         if recency not in ("yes", "no"):
             raise _refuse(entry_id, f"{name}'s recency is {recency!r}; the gate is yes or no", path)
         if recency == "no":
@@ -443,7 +474,8 @@ def _person(raw: dict) -> Person:
     return Person(person=raw.get("person"), recency=raw.get("recency"),
                   story=raw.get("story") or None, chip=raw.get("chip"),
                   anchoring=raw.get("anchoring"), picks=dict(raw.get("picks") or {}),
-                  pilot_opt_in=bool(raw.get("pilot_opt_in")))
+                  pilot_opt_in=bool(raw.get("pilot_opt_in")),
+                  link=raw.get("link", LINK_PRIMARY))
 
 
 def _entry(raw: dict, path: Path, digest: str) -> Entry:

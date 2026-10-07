@@ -1,0 +1,614 @@
+# Golden corpus entry 07 -- Mulch Run, mulch at the curb before the crew arrives.
+#
+# REVISION 3, 2026-10-07 -- keel-e2e-eval spec 029 (marks v9, the vector redesign). Re-expressed in
+# marks-v9 §4's schema from the revision-2 file of the same name: the market, the statements, the roles
+# and the people are kept; each person's first occasion becomes their gate story, and their picks are
+# re-chosen by hand against the registry's dimensions. Standings tallied from the picks under the
+# compare rules the founder signed on 2026-10-07 (marks-v9 §2.5, spec 029 FR-018).
+# B2B: the decision-maker is the `owner` role. The seven crew owners answer Part 3 on their own link
+# (`link: COMMERCIAL_B2B`) and the commercial vector is counted over them (six anchored); the crew leads
+# answer Parts 1 and 2. The commitment ladder is the B2B one. Money is in USD.
+# The gate reads this entry's own window -- a yard run in the last two weeks. Hector Ramirez (three weeks
+# ago), Rosa Delgado (six weeks ago) and Cody Brandt (wrote nothing) answer No: 9 of 12, below the
+# founder's *nearly all*. Tanner Ellis chips (cant_recall); Brittany Hale's and Hank Odom's are vague.
+# problem.urgency carries a belief: NOT_ASKED_YET.
+#
+# RECORDED UNDER keel-e2e-eval tests/fixtures/corpus-r3/ AND TO BE MOVED VERBATIM into keel-cloud
+# canon/designs/measured-beliefs/corpus/ at integration; `check_corpus.py` and `GoldenCorpusTest`
+# confirm the counts there.
+
+id: 07-mulchrun
+title: Mulch Run — mulch at the curb before the crew arrives
+revision: 3
+market: {country: US, region: TX, language: en-US}
+statements: {problem: 'Landscaping crew leads in the Dallas suburbs lose about 45 minutes per job waiting at the supply yard
+    for mulch, drive 25 to 40 miles a day between the yard and their jobs, and carry three to five cubic yards of mulch 100
+    to 200 feet from the truck to the beds by wheelbarrow — every working day through the spring; based on the founder''s
+    six years running a crew.', solution: 'The crew lead orders mulch by the cubic yard on a phone the night before; a supplier
+    drops it at the curb of the job site at a scheduled hour, so the crew drives straight to the job and skips the yard.',
+  commercial: 'The crew owner pays $3.50 per cubic yard delivered, about what they already pay per yard in delivery fees or
+    in fuel and time, and sets it up without anyone else''s say-so.'}
+roles:
+- {id: lead, label: Crew leads, roleType: PRACTITIONER, about: the lead of a landscaping crew who runs the day's jobs}
+- {id: owner, label: Crew owners, roleType: BUYER, about: the owner of a landscaping company who pays for materials and deliveries}
+context: {actor: crew lead, actor_plural: landscaping crew leads in the Dallas suburbs, job: get the mulch onto the beds and
+    the crew onto the next job, circumstance: a job needs mulch and the crew has to fetch it from the supply yard, segment: 'landscaping
+    crew leads in the Dallas-Fort Worth suburbs, spring season', understood: 'Landscaping crew leads in the Dallas suburbs,
+    when a job needs mulch and the crew has to fetch it from the supply yard, trying to get it onto the beds and move on to
+    the next job.'}
+interpretations: {problem: 'Landscaping crew leads in the Dallas suburbs lose most of an hour per job waiting at the supply
+    yard for mulch and driving between the yard and their jobs, every working day through the spring.'}
+solution_mechanism:
+  actor: the crew lead
+  trigger: the night before a job
+  mechanism: orders the mulch by the cubic yard on a phone
+  output: a curbside drop at the job at a scheduled hour
+  not_assumed: [every drop arrives on schedule, the wheelbarrow carry shrinks]
+  mechanism_terms: [order, curbside, drop, scheduled hour]
+persona:
+  decision_maker: {role: owner}
+founder_calibration:
+  problem.prevalence: {answer: p_80_100, belief_phrase: Nearly all, belief_sentence: Nearly all of these landscaping crew
+      leads in the Dallas suburbs had this at least once in the last 7 nights.}
+  problem.frequency:
+    answer: {lower: 4, upper: 6, unit: working days out of 7}
+    belief_phrase: 4 to 6 working days out of 7
+    belief_sentence: Landscaping crew leads in the Dallas suburbs face this on 4 to 6 working days out of 7.
+  problem.severity: {answer: moderately, belief_phrase: eats the morning, belief_sentence: 'For landscaping crew leads in
+      the Dallas suburbs, one episode eats the morning.'}
+  problem.duration:
+    answer: {lower: 30, upper: 60, unit: minutes}
+    belief_phrase: 30 to 60 minutes
+    belief_sentence: A typical episode takes 30 to 60 minutes from start to finish.
+  problem.importance: {answer: top_three, belief_phrase: one of the top three, belief_sentence: 'Among the difficulties that
+      come with a job needs mulch and the crew has to fetch it from the supply yard, this is one of the top three.'}
+  problem.consequence:
+    answer: [late_to_jobs, fuel_cost, crew_idle]
+    belief_phrase: being late to jobs and fuel and a crew standing idle
+    belief_sentence: After an episode, landscaping crew leads in the Dallas suburbs are left with being late to jobs and fuel
+      and a crew standing idle.
+  problem.workaround_burden:
+    answer: [early_start, big_load, home_depot_bags]
+    belief_phrase: an early start, one big load, bags from Home Depot
+    belief_sentence: In the moment, landscaping crew leads in the Dallas suburbs try an early start, one big load, bags from
+      Home Depot, in that order.
+  problem.current_solution_satisfaction: {answer: hit_and_miss, belief_phrase: is hit and miss, belief_sentence: The way landscaping
+      crew leads in the Dallas suburbs handle it today is hit and miss.}
+  problem.urgency: {answer: within_five_minutes, belief_phrase: within a few minutes, belief_sentence: 'When it starts, landscaping
+      crew leads in the Dallas suburbs feel they must act within a few minutes.'}
+  solution.compatibility: {answer: before_any_attempt, belief_phrase: 'ordered the night before, before any yard run', belief_sentence: 'It
+      fits into the episode ordered the night before, before any yard run.'}
+  solution.relative_advantage: {answer: shorter_time, belief_phrase: a shorter day, belief_sentence: 'To be worth switching
+      to, it must mainly deliver a shorter day.'}
+  solution.effectiveness_threshold:
+    answer: {value: 30, unit: minutes}
+    belief_phrase: at least 30 minutes
+    belief_sentence: It is worth using only if it saves at least at least 30 minutes per episode.
+  solution.trust_risk:
+    answer: [on_time_drop, right_amount]
+    belief_phrase: it is dropped on time and it is the right amount
+    belief_sentence: Landscaping crew leads in the Dallas suburbs would act on it only if it is dropped on time and it is
+      the right amount.
+  solution.reliability_tolerance: {answer: one_in_ten, belief_phrase: about one time in ten, belief_sentence: They keep using
+      it as long as it is wrong no more than about one time in ten.}
+  solution.adoption_friction: {answer: a_few_taps, belief_phrase: a few taps the night before, belief_sentence: The most extra
+      effort they would accept at the moment of use is a few taps the night before.}
+  solution.trialability:
+    answer: [first_drop_free, no_minimum]
+    belief_phrase: the first drop is free and there is no minimum order
+    belief_sentence: They would try it for the first time if the first drop is free and there is no minimum order.
+  solution.observability:
+    answer: [no_yard_line, more_jobs]
+    belief_phrase: no line at the yard and more jobs in a day
+    belief_sentence: They would know it helped when no line at the yard and more jobs in a day.
+  solution.target_circumstance: {answer: big_installs, belief_phrase: on the big installs, belief_sentence: It matters most
+      on the big installs.}
+  commercial.existing_sacrifice:
+    answer: [delivery_fees, fuel_and_time]
+    belief_phrase: delivery fees and fuel and the lead's time
+    belief_sentence: Because of this, landscaping crew leads in the Dallas suburbs already give up delivery fees and fuel
+      and the lead's time.
+  commercial.wtp_hypothesis:
+    answer: {lower: 3, upper: 4, currency: USD, per: cubic yard}
+    belief_phrase: $3 to $4 per cubic yard
+    belief_sentence: A fair price would feel like $3 to $4 per cubic yard (a hypothesis; interviews do not test it).
+  commercial.ability_to_pay: {answer: easily, belief_phrase: without a second thought, belief_sentence: They could find the
+      money for it without a second thought.}
+  commercial.buyer_payer_alignment: {answer: same_person, belief_phrase: the owner decides and pays, belief_sentence: 'On
+      buying: the owner decides and pays.'}
+  commercial.purchase_friction:
+    answer: [supplier_switch, scheduling]
+    belief_phrase: switching supplier and fitting the schedule
+    belief_sentence: Between wanting it and paying, switching supplier and fitting the schedule could hold them back.
+  commercial.commitment:
+    answer: [call, read_only_trial, it_intro, data]
+    belief_phrase: sharing their job schedule
+    belief_sentence: For a trial, right now, they would go as far as sharing their job schedule.
+  commercial.retention_potential: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+respondent_questions:
+  problem.prevalence:
+    part: 1
+    control: gate_yes_no
+    codes: ['yes', 'no']
+  problem.frequency: {part: 1, control: segmented_0_to_7}
+  problem.severity:
+    part: 1
+    control: single_choice_5
+    codes: [barely, a_little, moderately, very, extremely]
+  problem.duration: {part: 1, control: number_with_unit}
+  problem.importance:
+    part: 1
+    control: single_choice
+    own_item: yard_runs
+    codes: [finding_crew, yard_runs, equipment_repairs, weather_delays, client_changes, something_else]
+  problem.consequence:
+    part: 1
+    control: multi_choice
+    codes: [late_to_jobs, fuel_cost, crew_idle, fewer_jobs, nothing_much, something_else]
+  problem.workaround_burden:
+    part: 1
+    control: multi_choice_ordered
+    codes: [early_start, big_load, home_depot_bags, pay_for_delivery, something_else]
+  problem.current_solution_satisfaction:
+    part: 1
+    control: single_choice_5
+    codes: [works_well, mostly_works, hit_and_miss, works_poorly, no_reliable_way]
+  solution.compatibility:
+    part: 2
+    control: single_choice
+    codes: [before_any_attempt, after_first_attempt_fails, after_several_attempts, only_when_nothing_works, would_not_fit,
+      something_else]
+  solution.relative_advantage:
+    part: 2
+    control: single_choice
+    codes: [fewer_attempts, shorter_time, less_worry, less_help_needed, easier_recovery, nothing_would_change, something_else]
+  solution.effectiveness_threshold:
+    part: 2
+    control: single_choice_bands
+    codes: [0-5, 5-10, 10-20, 20+, nothing_worth_it]
+  solution.trust_risk:
+    part: 2
+    control: multi_choice
+    codes: [on_time_drop, right_amount, right_spot, own_instinct, something_else]
+  solution.reliability_tolerance:
+    part: 2
+    control: single_choice
+    codes: [never_wrong, one_in_ten, one_in_five, one_in_three, half_the_time]
+  solution.adoption_friction:
+    part: 2
+    control: single_choice
+    codes: [nothing_extra, one_tap, a_few_taps, setup_once, daytime_setup, would_not_reach]
+  solution.trialability:
+    part: 2
+    control: multi_choice
+    codes: [first_drop_free, no_minimum, yard_vouches, something_else]
+  solution.observability:
+    part: 2
+    control: multi_choice
+    codes: [no_yard_line, more_jobs, less_fuel, something_else]
+  solution.target_circumstance:
+    part: 2
+    control: single_choice
+    codes: [big_installs, far_jobs, spring_rush, not_useful, something_else]
+  commercial.existing_sacrifice:
+    part: 3
+    control: branch_pick_number
+    codes: [delivery_fees, fuel_and_time, extra_hands, nothing, something_else]
+  commercial.wtp_hypothesis: {part: 3, control: two_numbers_optional}
+  commercial.ability_to_pay:
+    part: 3
+    control: single_choice
+    codes: [easily, without_cutting_back, with_a_trade_off, barely, free_or_gift]
+  commercial.buyer_payer_alignment:
+    part: 3
+    control: single_choice
+    codes: [same_person, user_decides_other_pays, joint_decision, someone_else_decides, institution_pays, it_was_free]
+  commercial.purchase_friction:
+    part: 3
+    control: multi_choice
+    codes: [supplier_switch, scheduling, minimum_order, never_came_up, something_else]
+  commercial.commitment:
+    part: 3
+    control: multi_choice_ladder
+    codes: [call, read_only_trial, it_intro, data, paid_pilot, nothing_yet]
+answers:
+- person: Travis Buckley
+  recency: 'yes'
+  story: Yesterday. Left the shop at 6:30, got to Living Earth in Plano by 7, sat in the line forty minutes, four yards of
+    hardwood, out to Frisco.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 5
+    problem.severity: moderately
+    problem.duration: {value: 40, unit: minutes, rough: false}
+    problem.importance: yard_runs
+    problem.consequence: [late_to_jobs, crew_idle]
+    problem.workaround_burden: [early_start, big_load]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: minutes}
+    solution.trust_risk: [on_time_drop, right_amount]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [first_drop_free, no_minimum]
+    solution.observability: [no_yard_line, more_jobs]
+    solution.target_circumstance: big_installs
+  pilot_opt_in: true
+- person: Marisol Ortega
+  recency: 'yes'
+  story: Thursday. Quick one, twenty minutes at the yard, four yards, but the day was long, we had jobs in Allen and McKinney.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 4
+    problem.severity: a_little
+    problem.duration: {value: 20, unit: minutes, rough: false}
+    problem.importance: finding_crew
+    problem.consequence: [late_to_jobs, fuel_cost]
+    problem.workaround_burden: [early_start]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 10-20, unit: minutes}
+    solution.trust_risk: [on_time_drop]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: one_tap
+    solution.trialability: [first_drop_free]
+    solution.observability: [more_jobs]
+    solution.target_circumstance: far_jobs
+  pilot_opt_in: false
+- person: DeShawn Carter
+  recency: 'yes'
+  story: This morning, but we had it dropped. Six yards to a big lot in Prosper. Still had to barrow it around the side.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.severity: barely
+    problem.duration: {value: 5, unit: minutes, rough: false}
+    problem.importance: client_changes
+    problem.consequence: [nothing_much]
+    problem.workaround_burden: [pay_for_delivery]
+    problem.current_solution_satisfaction: works_well
+    solution.compatibility: would_not_fit
+    solution.relative_advantage: nothing_would_change
+    solution.effectiveness_threshold: {band: 0-5, unit: minutes}
+    solution.trust_risk: [right_spot]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: setup_once
+    solution.trialability: [yard_vouches]
+    solution.observability: [less_fuel]
+    solution.target_circumstance: not_useful
+  pilot_opt_in: false
+- person: Kaylee Nguyen
+  recency: 'yes'
+  story: Ten days back. Yard was slow, forty-five minutes. Two and a half yards for a small front bed in Richardson.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 5
+    problem.severity: very
+    problem.duration: {value: 45, unit: minutes, rough: false}
+    problem.importance: yard_runs
+    problem.consequence: [crew_idle, late_to_jobs]
+    problem.workaround_burden: [early_start, big_load]
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: minutes}
+    solution.trust_risk: [on_time_drop, right_amount]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [first_drop_free, no_minimum]
+    solution.observability: [no_yard_line, more_jobs]
+    solution.target_circumstance: big_installs
+  pilot_opt_in: false
+- person: Hector Ramirez
+  recency: 'no'
+  story: null
+  chip: null
+  anchoring: null
+  picks: {}
+  pilot_opt_in: false
+- person: Brittany Hale
+  recency: 'yes'
+  story: We're at the yard all the time, it's always a wait. Can't say about one trip.
+  chip: null
+  anchoring: GUESSED
+  picks:
+    problem.frequency: 6
+    problem.severity: moderately
+    problem.duration: {value: 60, unit: minutes, rough: true}
+    problem.importance: yard_runs
+    problem.consequence: [late_to_jobs]
+    problem.workaround_burden: [early_start]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: minutes}
+    solution.trust_risk: [on_time_drop]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [first_drop_free]
+    solution.observability: [no_yard_line]
+    solution.target_circumstance: spring_rush
+  pilot_opt_in: false
+- person: Jamal Washington
+  recency: 'yes'
+  story: Today. In and out in twenty-five, they know me. Four yards, but the job was in Rockwall, sixty miles round trip with
+    the yard.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 6
+    problem.severity: a_little
+    problem.duration: {value: 25, unit: minutes, rough: false}
+    problem.importance: weather_delays
+    problem.consequence: [fuel_cost, late_to_jobs]
+    problem.workaround_burden: [big_load, early_start]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: minutes}
+    solution.trust_risk: [on_time_drop, right_amount, right_spot]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [no_minimum, first_drop_free]
+    solution.observability: [more_jobs, less_fuel]
+    solution.target_circumstance: far_jobs
+  pilot_opt_in: true
+- person: Luis Herrera
+  recency: 'yes'
+  story: Last week. We grabbed bags from Home Depot that day, forty bags, about three yards. Fifty minutes in the store.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 3
+    problem.severity: moderately
+    problem.duration: {value: 50, unit: minutes, rough: false}
+    problem.importance: finding_crew
+    problem.consequence: [crew_idle, fuel_cost]
+    problem.workaround_burden: [home_depot_bags]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: less_help_needed
+    solution.effectiveness_threshold: {band: 20+, unit: minutes}
+    solution.trust_risk: [right_amount, on_time_drop]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: nothing_extra
+    solution.trialability: [first_drop_free, yard_vouches]
+    solution.observability: [no_yard_line, more_jobs]
+    solution.target_circumstance: big_installs
+  pilot_opt_in: false
+- person: Tanner Ellis
+  recency: 'yes'
+  story: Every day pretty much. Long lines in spring.
+  chip: cant_recall
+  anchoring: GUESSED
+  picks:
+    problem.frequency: 6
+    problem.severity: very
+    problem.importance: yard_runs
+    problem.consequence: [late_to_jobs]
+    problem.workaround_burden: {chip: cant_recall}
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 10-20, unit: minutes}
+    solution.trust_risk: [own_instinct]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: one_tap
+    solution.trialability: [first_drop_free]
+    solution.observability: [no_yard_line]
+    solution.target_circumstance: spring_rush
+  pilot_opt_in: false
+- person: Rosa Delgado
+  recency: 'no'
+  story: null
+  chip: null
+  anchoring: null
+  picks: {}
+  pilot_opt_in: false
+- person: Cody Brandt
+  recency: 'no'
+  story: null
+  chip: null
+  anchoring: null
+  picks: {}
+  pilot_opt_in: false
+- person: Mei-Lin Chao
+  recency: 'yes'
+  story: This morning. Forty minutes at the yard, five yards, Carrollton, about thirty miles for the day.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 5
+    problem.severity: moderately
+    problem.duration: {value: 40, unit: minutes, rough: false}
+    problem.importance: yard_runs
+    problem.consequence: [late_to_jobs, crew_idle, fuel_cost]
+    problem.workaround_burden: [early_start, big_load, home_depot_bags]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: after_several_attempts
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: minutes}
+    solution.trust_risk: [on_time_drop, right_amount]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: setup_once
+    solution.trialability: [first_drop_free, no_minimum]
+    solution.observability: [no_yard_line, more_jobs]
+    solution.target_circumstance: big_installs
+  pilot_opt_in: false
+- person: Bobby Sutton
+  link: COMMERCIAL_B2B
+  recency: null
+  story: Last month, ten yards of hardwood to a job in Frisco, thirty-five bucks a yard delivered. I called it in.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: delivery_fees
+      cost: {value: 350, currency: USD, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 3.5, currency: USD, per: cubic yard}
+      guess: {value: 3.5, currency: USD, per: cubic yard}
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [scheduling]
+    commercial.commitment: [call, read_only_trial, it_intro, data]
+  pilot_opt_in: false
+- person: Consuelo Vega
+  link: COMMERCIAL_B2B
+  recency: null
+  story: Two weeks ago, a flat seventy-five dollar drop fee for eight yards. I set it up.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: delivery_fees
+      cost: {value: 225, currency: USD, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 9.4, currency: USD, per: cubic yard}
+      guess: null
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [supplier_switch]
+    commercial.commitment: [call, data]
+  pilot_opt_in: false
+- person: Dwayne Pruitt
+  link: COMMERCIAL_B2B
+  recency: null
+  story: Our office manager schedules deliveries. The last one was in March, per-yard pricing, about three dollars a yard.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: delivery_fees
+      cost: {value: 300, currency: USD, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 3, currency: USD, per: cubic yard}
+      guess: {value: 3, currency: USD, per: cubic yard}
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: user_decides_other_pays
+    commercial.purchase_friction: [supplier_switch, scheduling]
+    commercial.commitment: [call]
+  pilot_opt_in: false
+- person: Earlene Mays
+  link: COMMERCIAL_B2B
+  recency: null
+  story: We haul our own. Last time I priced it, the fuel and the lead's time came to maybe two-and-a-quarter a yard.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: fuel_and_time
+      cost: {value: 400, currency: USD, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 2.25, currency: USD, per: cubic yard}
+      guess: null
+    commercial.ability_to_pay: with_a_trade_off
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [minimum_order, supplier_switch]
+    commercial.commitment: [read_only_trial]
+  pilot_opt_in: false
+- person: Frank Kowalski
+  link: COMMERCIAL_B2B
+  recency: null
+  story: Last week, twelve yards, three-seventy-five a yard delivered. My call.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: delivery_fees
+      cost: {value: 450, currency: USD, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 3.75, currency: USD, per: cubic yard}
+      guess: {value: 4, currency: USD, per: cubic yard}
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [never_came_up]
+    commercial.commitment: [call, read_only_trial, data, paid_pilot]
+  pilot_opt_in: false
+- person: Gloria Henshaw
+  link: COMMERCIAL_B2B
+  recency: null
+  story: My partner handles suppliers. Last drop was a flat fee, worked out to eight or nine dollars a yard for a small load.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: fuel_and_time
+      cost: {value: 180, currency: USD, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 8.5, currency: USD, per: cubic yard}
+      guess: null
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: joint_decision
+    commercial.purchase_friction: [supplier_switch, scheduling]
+    commercial.commitment: [data]
+  pilot_opt_in: false
+- person: Hank Odom
+  link: COMMERCIAL_B2B
+  recency: null
+  story: We get stuff delivered now and then. Probably me who sets it up.
+  chip: null
+  anchoring: GUESSED
+  picks:
+    commercial.existing_sacrifice:
+      bought: extra_hands
+      cost: {value: 600, currency: USD, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis: {last_paid: null, guess: null}
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [scheduling]
+    commercial.commitment: [call]
+  pilot_opt_in: false
+expected:
+  standings:
+    problem.prevalence: {status: NOT_HOLDING_UP, drift: below, n: 12, 'yes': 9, proportion: 0.75}
+    problem.frequency: {status: HOLDING_UP, drift: none, n: 7, inside: 5, outside: 2, median: 5}
+    problem.severity: {status: HOLDING_UP, drift: none, n: 7, inside: 6, outside: 1}
+    problem.duration: {status: PEOPLE_DISAGREE, drift: below, n: 7, inside: 4, outside: 3, median: 40}
+    problem.importance: {status: HOLDING_UP, drift: none, n: 7, own_item_picks: 3, share: 0.43}
+    problem.consequence: {status: HOLDING_UP, drift: none, n: 7, optionCounts: 'late_to_jobs=5, fuel_cost=4, crew_idle=4,
+        fewer_jobs=0, nothing_much=1, something_else=0'}
+    problem.workaround_burden: {status: NOT_HOLDING_UP, drift: none, n: 7, first_action: early_start, first_action_count: 4,
+      optionCounts: 'early_start=5, big_load=4, home_depot_bags=2, pay_for_delivery=1, something_else=0'}
+    problem.current_solution_satisfaction: {status: HOLDING_UP, drift: none, n: 7, inside: 6, outside: 1}
+    problem.urgency: {status: NOT_ASKED_YET, drift: null}
+    solution.compatibility: {status: PEOPLE_DISAGREE, drift: above, n: 7, inside: 3, outside: 4}
+    solution.relative_advantage: {status: HOLDING_UP, drift: none, n: 7, inside: 5, outside: 2}
+    solution.effectiveness_threshold: {status: BAR_SET, drift: none, n: 7, bar: 20+, optionCounts: '0-5=1, 5-10=0, 10-20=1,
+        20+=5, nothing_worth_it=0'}
+    solution.trust_risk: {status: HOLDING_UP, drift: none, n: 7, optionCounts: 'on_time_drop=6, right_amount=5, right_spot=2,
+        own_instinct=0, something_else=0'}
+    solution.reliability_tolerance: {status: HOLDING_UP, drift: none, n: 7, inside: 7, outside: 0}
+    solution.adoption_friction: {status: HOLDING_UP, drift: none, n: 7, inside: 6, outside: 1}
+    solution.trialability: {status: HOLDING_UP, drift: none, n: 7, optionCounts: 'first_drop_free=6, no_minimum=4, yard_vouches=2,
+        something_else=0'}
+    solution.observability: {status: HOLDING_UP, drift: none, n: 7, optionCounts: 'no_yard_line=4, more_jobs=6, less_fuel=2,
+        something_else=0'}
+    solution.target_circumstance: {status: PEOPLE_DISAGREE, drift: none, n: 7, inside: 4, outside: 3}
+    commercial.existing_sacrifice: {status: PEOPLE_DISAGREE, drift: none, n: 6, median: 325, optionCounts: 'delivery_fees=4,
+        fuel_and_time=2, extra_hands=0, nothing=0, something_else=0'}
+    commercial.wtp_hypothesis: {status: NOT_TESTED_BY_DESIGN, drift: none, n: 6, median: 3.625}
+    commercial.ability_to_pay: {status: HOLDING_UP, drift: none, n: 6, inside: 5, outside: 1}
+    commercial.buyer_payer_alignment: {status: HOLDING_UP, drift: none, n: 6, inside: 4, outside: 2}
+    commercial.purchase_friction: {status: HOLDING_UP, drift: none, n: 6, optionCounts: 'supplier_switch=4, scheduling=3,
+        minimum_order=1, never_came_up=1, something_else=0'}
+    commercial.commitment: {status: HOLDING_UP, drift: none, n: 6, inside: 4, outside: 2, optionCounts: 'call=4, read_only_trial=3,
+        it_intro=1, data=4, paid_pilot=1, nothing_yet=0'}
+    commercial.retention_potential: {status: LEFT_OUT, drift: null}
+  vector_verdicts:
+    PROBLEM: {verdict: NOT_HOLDING_UP, deciding: problem.prevalence}
+    SOLUTION: {verdict: PEOPLE_DISAGREE, deciding: solution.compatibility}
+    COMMERCIAL: {verdict: PEOPLE_DISAGREE, deciding: commercial.existing_sacrifice}

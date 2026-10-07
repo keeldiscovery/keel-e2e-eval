@@ -166,3 +166,33 @@ def test_the_loader_reads_the_recorded_revision_while_keel_cloud_holds_none(tmp_
     assert corpus_mod.source_dir(keel_cloud) == directory
     with pytest.raises(corpus_mod.CorpusError, match="revision is 2"):
         corpus_mod.load(keel_cloud)
+
+
+# ---------------------------------------------- FR-010: the decision-maker's link on a B2B entry
+
+def _decider(**over):
+    return {"person": "Bea Buyer", "link": "COMMERCIAL_B2B", "recency": None,
+            "story": "Last month we bought a fleet tag.", "chip": None, "anchoring": "ANCHORED",
+            "picks": {"commercial.ability_to_pay": "easily"}, **over}
+
+
+def test_a_decision_maker_answers_part_three_on_their_own_link(tmp_path):
+    raw = fx.raw_entry(fx.ENTRY_B2B)
+    raw["answers"].append(_decider())
+    entry = corpus_mod.load_file(fx.write_entry(tmp_path, raw), registry=fx.registry())
+    assert [p.person for p in entry.deciders()] == ["Bea Buyer"]
+    assert "Bea Buyer" not in [p.person for p in entry.readable()], "a decider is never read"
+    assert len(entry.gate_yes()) == 10, "and is never asked the gate"
+
+
+@pytest.mark.parametrize("path, raw_entry, mutation, words", [
+    ("b2b", fx.ENTRY_B2B, {"recency": "yes"}, "is never asked the gate"),
+    ("b2b", fx.ENTRY_B2B, {"picks": {"problem.frequency": 2}}, "the link is Part 3 only"),
+    ("primary", fx.ENTRY, {}, "decision-maker is the same person"),
+])
+def test_a_decision_maker_out_of_place_is_refused(tmp_path, path, raw_entry, mutation, words):
+    raw = fx.raw_entry(raw_entry)
+    raw["answers"].append(_decider(**mutation))
+    with pytest.raises(corpus_mod.CorpusError) as refusal:
+        corpus_mod.load_file(fx.write_entry(tmp_path, raw))
+    assert words in str(refusal.value)

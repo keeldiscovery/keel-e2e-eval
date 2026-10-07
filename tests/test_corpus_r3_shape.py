@@ -1,0 +1,137 @@
+"""Corpus revision 3, the real seven files, through the one reader (spec 029 FR-006 to FR-012,
+SC-005; T047).
+
+**One reader, one hash** (spec 010's rule): the files are read through `instructions.corpus.load`
+exactly as a run reads them -- keel-cloud's corpus once it carries revision 3, and this branch's
+recorded revision (`tests/fixtures/corpus-r3/`) while it does not (the loader's docstring). Nothing
+here is a copy of either. What is held is the shape every entry must have, and the facts the spec
+names entry by entry: Lullaby's statuses, drifts, totals and verdicts (FR-007); Hugo and Leo at the
+gate and Jonas's chip (FR-011, FR-017); Countly's asked dimension left out (FR-009); the B2B entry
+(FR-010); and seven digests that are not revision 2's.
+"""
+
+from __future__ import annotations
+
+import hashlib
+from pathlib import Path
+
+import pytest
+
+from instructions import corpus as corpus_mod
+from stack.config import load_config
+from tests import v9_fixtures as fx
+
+ENTRIES = ("01-countly", "02-compliancelog", "03-lullaby", "04-linerly", "05-paidly",
+           "06-repeatline", "07-mulchrun")
+
+
+@pytest.fixture(scope="module")
+def corpus():
+    return corpus_mod.load(load_config(validate=False).keel_cloud, registry=fx.registry())
+
+
+def test_the_seven_entries_are_all_at_revision_three(corpus):
+    assert [e.id for e in corpus.entries] == list(ENTRIES)
+    for entry in corpus.entries:
+        assert entry.revision == 3, entry.id
+
+
+@pytest.mark.parametrize("entry_id", ENTRIES)
+def test_every_entry_has_the_r3_shape_and_the_plans_asks(corpus, entry_id):
+    entry = corpus.by_id(entry_id)
+    registry = fx.registry()
+    assert set(entry.founder_calibration) == set(registry.keys())
+    assert sum(len(keys) for keys in entry.plan().values()) <= 23
+    assert set(entry.expected["standings"]) == set(registry.keys())
+    assert set(entry.expected["vector_verdicts"]) == {"PROBLEM", "SOLUTION", "COMMERCIAL"}
+    for key, row in entry.founder_calibration.items():
+        assert row.get("belief_sentence"), f"{entry_id} {key}: O-2's belief sentence"
+    assert entry.interpretations.get("problem"), f"{entry_id}: O-3's problem sentence"
+    assert entry.respondent_questions["problem.importance"].get("own_item"), "D3's own item"
+    assert entry.vocabulary(), "no_leak needs a list to sweep with"
+
+
+def test_lullaby_reproduces_the_registrys_worked_example(corpus):
+    """FR-007, A-6: the registry's `lullaby` objects, under the signed rules."""
+    lullaby = corpus.by_id("03-lullaby")
+    standings = lullaby.expected["standings"]
+    expected = {
+        "problem.prevalence": ("HOLDING_UP", "above"), "problem.duration": ("NOT_HOLDING_UP", "below"),
+        "problem.severity": ("PEOPLE_DISAGREE", "below"),
+        "problem.current_solution_satisfaction": ("NOT_HOLDING_UP", "above"),
+        "problem.importance": ("HOLDING_UP", "none"), "problem.urgency": ("LEFT_OUT", None),
+        "commercial.retention_potential": ("LEFT_OUT", None),
+        "solution.effectiveness_threshold": ("BAR_SET", "above"),
+        "commercial.wtp_hypothesis": ("NOT_TESTED_BY_DESIGN", "none"),
+    }
+    for key, (status, drift) in expected.items():
+        assert (standings[key]["status"], standings[key].get("drift")) == (status, drift), key
+    assert (standings["problem.prevalence"]["yes"], standings["problem.prevalence"]["n"]) == (10, 12)
+    assert (standings["problem.duration"]["median"], standings["problem.duration"]["n"]) == (11, 7)
+    assert standings["problem.importance"]["share"] == 0.38
+    totals = {}
+    for row in standings.values():
+        totals[row["status"]] = totals.get(row["status"], 0) + 1
+    assert totals == {"HOLDING_UP": 12, "NOT_HOLDING_UP": 6, "PEOPLE_DISAGREE": 3, "BAR_SET": 1,
+                      "NOT_TESTED_BY_DESIGN": 1, "LEFT_OUT": 2}
+    assert lullaby.expected["vector_verdicts"] == {
+        "PROBLEM": {"verdict": "NOT_HOLDING_UP", "deciding": "problem.duration"},
+        "SOLUTION": {"verdict": "NOT_HOLDING_UP", "deciding": "solution.compatibility"},
+        "COMMERCIAL": {"verdict": "NOT_HOLDING_UP", "deciding": "commercial.commitment"}}
+    assert all(row.get("n", 0) <= 10 for key, row in standings.items()
+               if key.startswith("commercial.")), "decision 14: n <= 10 on part 3"
+
+
+def test_lullabys_twelve_people_two_at_the_gate_and_one_chip(corpus):
+    lullaby = corpus.by_id("03-lullaby")
+    assert len(lullaby.people()) == 12 and len(lullaby.readable()) == 9
+    for name in ("Hugo Laurent", "Leo Martins"):
+        person = lullaby.person(name)
+        assert (person.recency, person.story, person.picks) == ("no", None, {}), name
+    jonas = lullaby.person("Jonas Weber")
+    assert (jonas.chip, jonas.anchoring) == ("cant_recall", "GUESSED")
+    assert "Jonas Weber" not in [p.person for p in lullaby.readable()]
+
+
+def test_countly_leaves_out_an_asked_dimension(corpus):
+    """FR-009, decision 16: `dimension_coverage`'s `unsure` subtraction is exercised, not only
+    `asked_in_v1`'s."""
+    countly = corpus.by_id("01-countly")
+    assert countly.unsure("problem.severity")
+    assert countly.expected["standings"]["problem.severity"]["status"] == "LEFT_OUT"
+    assert len(countly.plan()[1]) == 7
+
+
+def test_paidly_is_b2b_with_its_decision_makers_on_their_own_link(corpus):
+    """FR-010, A-5: the agency decides; its people answer Part 3 on the COMMERCIAL_B2B link."""
+    paidly = corpus.by_id("05-paidly")
+    assert paidly.persona["decision_maker"] == {"role": "agency"}
+    assert paidly.role("agency")["roleType"] == "BUYER"
+    deciders = paidly.deciders()
+    assert len(deciders) == 8
+    assert all(p.recency is None and all(k.startswith("commercial.") for k in p.picks)
+               for p in deciders)
+    assert len(paidly.plan()[3]) == 6, "the B2B link is Part 3's plan"
+
+
+def test_the_corpus_wide_interpret_denominator_is_counted_not_estimated(corpus):
+    """O-4: 106 people, less every gate-No, every chipped story and every decision-maker (who is
+    never read) -- the number marks.py's v9 header records."""
+    assert sum(len(e.people()) for e in corpus.entries) == 106
+    assert sum(len(e.readable()) for e in corpus.entries) == 65
+
+
+def test_the_seven_digests_are_not_revision_twos(corpus):
+    """A v8 bundle's `corpus.sha256` hashed revision 2: no r3 file may share a digest with it."""
+    r2 = corpus_mod.corpus_dir(load_config(validate=False).keel_cloud)
+    if not r2.is_dir():
+        pytest.skip(f"no keel-cloud corpus at {r2} to compare against")
+    old = {hashlib.sha256(p.read_bytes()).hexdigest() for p in r2.glob("*.yaml")}
+    new = set(corpus.hashes.values())
+    assert len(new) == 7 and not (new & old)
+
+
+def test_the_recorded_revision_carries_its_move_instruction():
+    readme = (Path(corpus_mod.FIXTURE_DIR) / "README.md").read_text(encoding="utf-8")
+    assert "moved, byte for byte" in readme
+    assert "canon/designs/measured-beliefs/corpus/" in readme

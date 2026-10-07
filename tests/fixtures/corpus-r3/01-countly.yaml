@@ -1,0 +1,587 @@
+# Golden corpus entry 01 -- Countly, restaurant inventory mismatches.
+#
+# REVISION 3, 2026-10-07 -- keel-e2e-eval spec 029 (marks v9, the vector redesign). Re-expressed in
+# marks-v9 §4's schema from the revision-2 file of the same name: the market, the statements, the roles
+# and the people are kept; each person's first occasion becomes their gate story, and their picks are
+# re-chosen by hand against the registry's dimensions. Standings tallied from the picks under the
+# compare rules the founder signed on 2026-10-07 (marks-v9 §2.5, spec 029 FR-018).
+# The gate reads this entry's own window -- a mismatched delivery in the last month (README: the registry's
+# fixed `7 nights` is Lullaby's). Oliver Grant (wrote nothing) and Sam Whitfield (six weeks ago) answer No.
+# Marcus Lindqvist and Tom Okafor tell no particular delivery: GUESSED, read and counted nowhere.
+# LEAVES OUT AN ASKED DIMENSION (spec 029 FR-009, decision 16): problem.severity is unsure, so the plan's
+# Part 1 is 7 and dimension_coverage's `unsure` subtraction is exercised. problem.urgency carries a belief
+# and reads NOT_ASKED_YET (registry decision 3).
+#
+# RECORDED UNDER keel-e2e-eval tests/fixtures/corpus-r3/ AND TO BE MOVED VERBATIM into keel-cloud
+# canon/designs/measured-beliefs/corpus/ at integration; `check_corpus.py` and `GoldenCorpusTest`
+# confirm the counts there.
+
+id: 01-countly
+title: Countly — restaurant inventory mismatches
+revision: 3
+market: {country: GB, region: null, language: en-GB}
+statements: {problem: 'Independent restaurant managers lose one to two hours most weeks reconciling physical against recorded
+    inventory whenever a shipment doesn''t match the invoice — right now they recount by hand and adjust the spreadsheet manually,
+    though it''s not yet clear how much of that time is pure friction versus unavoidable — based on the founder''s own five
+    years running a restaurant kitchen.', solution: A phone app. A member of staff scans each delivery on arrival; the app
+    compares what arrived to the invoice and flags a mismatch the same day; the manager confirms it on the phone instead of
+    recounting the walk-in., commercial: 'The owner-manager pays £40 a month per site, as they already pay for their POS and
+    rota tools, with nobody else to approve it.'}
+roles:
+- {id: manager, label: Restaurant managers, roleType: PRACTITIONER, about: the manager of an independent restaurant who takes
+    deliveries and keeps the stock records}
+context: {actor: restaurant manager, actor_plural: independent restaurant managers, job: keep the stock records matching what
+    is on the shelves, circumstance: a delivery does not match its invoice, segment: 'independent restaurant managers in the
+    UK, one or two sites', understood: 'Independent restaurant managers, when a delivery does not match its invoice, trying
+    to keep the stock records matching what is on the shelves.'}
+interpretations: {problem: 'Independent restaurant managers lose time whenever a delivery does not match its invoice: a member
+    of staff takes it in, the mismatch surfaces later, and the manager recounts the stock by hand and fixes the spreadsheet.'}
+solution_mechanism:
+  actor: a member of staff
+  trigger: when a delivery arrives
+  mechanism: scans each delivery on arrival and the app compares it with the invoice
+  output: a flag on the manager's phone the same day naming what is short or over
+  not_assumed: [stops every mismatch, saves the manager two hours]
+  mechanism_terms: [scan, app, flag]
+persona: {decision_maker: same_person}
+founder_calibration:
+  problem.prevalence: {answer: p_80_100, belief_phrase: Nearly all, belief_sentence: Nearly all of these independent restaurant
+      managers had this at least once in the last 7 nights.}
+  problem.frequency:
+    answer: {lower: 1, upper: 3, unit: days out of 7}
+    belief_phrase: 1 to 3 days out of 7
+    belief_sentence: Independent restaurant managers face this on 1 to 3 days out of 7.
+  problem.severity: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+  problem.duration:
+    answer: {lower: 60, upper: 120, unit: minutes}
+    belief_phrase: 60 to 120 minutes
+    belief_sentence: A typical episode takes 60 to 120 minutes from start to finish.
+  problem.importance: {answer: top_three, belief_phrase: one of the top three, belief_sentence: 'Among the difficulties that
+      come with a delivery does not match its invoice, this is one of the top three.'}
+  problem.consequence:
+    answer: [lost_time, stock_errors, waste]
+    belief_phrase: lost time and stock errors and waste
+    belief_sentence: After an episode, independent restaurant managers are left with lost time and stock errors and waste.
+  problem.workaround_burden:
+    answer: [recount, fix_sheet, call_supplier]
+    belief_phrase: a recount, fixing the spreadsheet, a call to the supplier
+    belief_sentence: In the moment, independent restaurant managers try a recount, fixing the spreadsheet, a call to the supplier,
+      in that order.
+  problem.current_solution_satisfaction: {answer: hit_and_miss, belief_phrase: is hit and miss, belief_sentence: The way independent
+      restaurant managers handle it today is hit and miss.}
+  problem.urgency: {answer: within_five_minutes, belief_phrase: within a few minutes, belief_sentence: 'When it starts, independent
+      restaurant managers feel they must act within a few minutes.'}
+  solution.compatibility: {answer: before_any_attempt, belief_phrase: 'as the delivery comes in, before anything is checked',
+    belief_sentence: 'It fits into the episode as the delivery comes in, before anything is checked.'}
+  solution.relative_advantage: {answer: shorter_time, belief_phrase: a shorter reconciliation, belief_sentence: 'To be worth
+      switching to, it must mainly deliver a shorter reconciliation.'}
+  solution.effectiveness_threshold:
+    answer: {value: 30, unit: minutes}
+    belief_phrase: at least 30 minutes
+    belief_sentence: It is worth using only if it saves at least at least 30 minutes per episode.
+  solution.trust_risk:
+    answer: [shows_the_line, manager_confirms]
+    belief_phrase: it shows the line that differs and the manager confirms it
+    belief_sentence: Independent restaurant managers would act on it only if it shows the line that differs and the manager
+      confirms it.
+  solution.reliability_tolerance: {answer: one_in_ten, belief_phrase: about one time in ten, belief_sentence: They keep using
+      it as long as it is wrong no more than about one time in ten.}
+  solution.adoption_friction: {answer: one_tap, belief_phrase: a single scan, belief_sentence: The most extra effort they
+      would accept at the moment of use is a single scan.}
+  solution.trialability:
+    answer: [free_month, no_install_cost]
+    belief_phrase: it is free for a month and costs nothing to install
+    belief_sentence: They would try it for the first time if it is free for a month and costs nothing to install.
+  solution.observability:
+    answer: [fewer_recounts, sheet_matches]
+    belief_phrase: they recount less and the sheet matches the shelves
+    belief_sentence: They would know it helped when they recount less and the sheet matches the shelves.
+  solution.target_circumstance: {answer: busy_morning, belief_phrase: on a busy delivery morning, belief_sentence: It matters
+      most on a busy delivery morning.}
+  commercial.existing_sacrifice:
+    answer: [staff_hours, write_offs]
+    belief_phrase: staff hours and written-off stock
+    belief_sentence: Because of this, independent restaurant managers already give up staff hours and written-off stock.
+  commercial.wtp_hypothesis:
+    answer: {lower: 30, upper: 50, currency: GBP, per: month}
+    belief_phrase: £30 to £50 per month
+    belief_sentence: A fair price would feel like £30 to £50 per month (a hypothesis; interviews do not test it).
+  commercial.ability_to_pay: {answer: without_cutting_back, belief_phrase: 'fairly easily, without cutting back elsewhere',
+    belief_sentence: 'They could find the money for it fairly easily, without cutting back elsewhere.'}
+  commercial.buyer_payer_alignment: {answer: same_person, belief_phrase: 'the same person uses it, decides and pays', belief_sentence: 'On
+      buying: the same person uses it, decides and pays.'}
+  commercial.purchase_friction:
+    answer: [setup_time, staff_training]
+    belief_phrase: the time to set it up and training the staff
+    belief_sentence: Between wanting it and paying, the time to set it up and training the staff could hold them back.
+  commercial.commitment:
+    answer: [setup, install]
+    belief_phrase: installing the app
+    belief_sentence: For a trial, right now, they would go as far as installing the app.
+  commercial.retention_potential: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+respondent_questions:
+  problem.prevalence:
+    part: 1
+    control: gate_yes_no
+    codes: ['yes', 'no']
+  problem.frequency: {part: 1, control: segmented_0_to_7}
+  problem.duration: {part: 1, control: number_with_unit}
+  problem.importance:
+    part: 1
+    control: single_choice
+    own_item: matching_deliveries
+    codes: [rota_gaps, matching_deliveries, food_costs, staff_turnover, equipment_breakdowns, something_else]
+  problem.consequence:
+    part: 1
+    control: multi_choice
+    codes: [lost_time, stock_errors, waste, late_service, nothing_much, something_else]
+  problem.workaround_burden:
+    part: 1
+    control: multi_choice_ordered
+    codes: [recount, fix_sheet, call_supplier, ignore_it, something_else]
+  problem.current_solution_satisfaction:
+    part: 1
+    control: single_choice_5
+    codes: [works_well, mostly_works, hit_and_miss, works_poorly, no_reliable_way]
+  solution.compatibility:
+    part: 2
+    control: single_choice
+    codes: [before_any_attempt, after_first_attempt_fails, after_several_attempts, only_when_nothing_works, would_not_fit,
+      something_else]
+  solution.relative_advantage:
+    part: 2
+    control: single_choice
+    codes: [fewer_attempts, shorter_time, less_worry, less_help_needed, easier_recovery, nothing_would_change, something_else]
+  solution.effectiveness_threshold:
+    part: 2
+    control: single_choice_bands
+    codes: [0-5, 5-10, 10-20, 20+, nothing_worth_it]
+  solution.trust_risk:
+    part: 2
+    control: multi_choice
+    codes: [shows_the_line, manager_confirms, supplier_sees, photo_proof, own_instinct, something_else]
+  solution.reliability_tolerance:
+    part: 2
+    control: single_choice
+    codes: [never_wrong, one_in_ten, one_in_five, one_in_three, half_the_time]
+  solution.adoption_friction:
+    part: 2
+    control: single_choice
+    codes: [nothing_extra, one_tap, a_few_taps, setup_once, daytime_setup, would_not_reach]
+  solution.trialability:
+    part: 2
+    control: multi_choice
+    codes: [free_month, no_install_cost, supplier_onboard, something_else]
+  solution.observability:
+    part: 2
+    control: multi_choice
+    codes: [fewer_recounts, sheet_matches, supplier_credits, something_else]
+  solution.target_circumstance:
+    part: 2
+    control: single_choice
+    codes: [busy_morning, new_supplier, stocktake_week, not_useful, something_else]
+  commercial.existing_sacrifice:
+    part: 3
+    control: branch_pick_number
+    codes: [staff_hours, write_offs, software, nothing, something_else]
+  commercial.wtp_hypothesis: {part: 3, control: two_numbers_optional}
+  commercial.ability_to_pay:
+    part: 3
+    control: single_choice
+    codes: [easily, without_cutting_back, with_a_trade_off, barely, free_or_gift]
+  commercial.buyer_payer_alignment:
+    part: 3
+    control: single_choice
+    codes: [same_person, user_decides_other_pays, joint_decision, someone_else_decides, institution_pays, it_was_free]
+  commercial.purchase_friction:
+    part: 3
+    control: multi_choice
+    codes: [setup_time, staff_training, contract_length, never_came_up, something_else]
+  commercial.commitment:
+    part: 3
+    control: multi_choice_ladder
+    codes: [setup, install, mic, next_episode, contact_me, nothing_yet]
+answers:
+- person: Priya Natarajan
+  recency: 'yes'
+  story: Tuesday two weeks ago, the veg order. Invoice said 12 cases of tomatoes, 9 arrived. I recounted the walk-in that
+    afternoon and fixed the sheet.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.duration: {value: 90, unit: minutes, rough: false}
+    problem.importance: matching_deliveries
+    problem.consequence: [lost_time, stock_errors]
+    problem.workaround_burden: [recount, fix_sheet]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: minutes}
+    solution.trust_risk: [shows_the_line, manager_confirms]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: one_tap
+    solution.trialability: [free_month, no_install_cost]
+    solution.observability: [fewer_recounts, sheet_matches]
+    solution.target_circumstance: busy_morning
+    commercial.existing_sacrifice:
+      bought: staff_hours
+      cost: {value: 200, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 25, currency: GBP, per: month}
+      guess: {value: 35, currency: GBP, per: month}
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [setup_time, staff_training]
+    commercial.commitment: [setup, install]
+  pilot_opt_in: true
+- person: Marcus Lindqvist
+  recency: 'yes'
+  story: It happens a fair bit, usually the dry goods. Can't pin one down for you.
+  chip: null
+  anchoring: GUESSED
+  picks:
+    problem.frequency: 4
+    problem.duration: {value: 60, unit: minutes, rough: true}
+    problem.importance: food_costs
+    problem.consequence: [lost_time]
+    problem.workaround_burden: [recount]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 10-20, unit: minutes}
+    solution.trust_risk: [shows_the_line]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: one_tap
+    solution.trialability: [free_month]
+    solution.observability: [fewer_recounts]
+    solution.target_circumstance: busy_morning
+    commercial.existing_sacrifice:
+      bought: staff_hours
+      cost: {value: 150, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 30, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [setup_time]
+    commercial.commitment: [install]
+  pilot_opt_in: false
+- person: Hana Yoshida
+  recency: 'yes'
+  story: Last Friday. Fish delivery short by two boxes, we noticed at prep. The sous chef signed for it about half seven.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 1
+    problem.duration: {value: 75, unit: minutes, rough: false}
+    problem.importance: rota_gaps
+    problem.consequence: [lost_time, waste]
+    problem.workaround_burden: [recount, call_supplier]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 10-20, unit: minutes}
+    solution.trust_risk: [shows_the_line, photo_proof]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [free_month]
+    solution.observability: [fewer_recounts]
+    solution.target_circumstance: new_supplier
+    commercial.existing_sacrifice:
+      bought: write_offs
+      cost: {value: 150, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 40, currency: GBP, per: month}
+      guess: {value: 40, currency: GBP, per: month}
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [setup_time]
+    commercial.commitment: [install, mic]
+  pilot_opt_in: false
+- person: Daniel Achebe
+  recency: 'yes'
+  story: About a month ago, dairy. The invoice had the wrong quantity of cream, we'd been sent less. One of the front-of-house
+    lads took it.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 3
+    problem.duration: {value: 120, unit: minutes, rough: false}
+    problem.importance: matching_deliveries
+    problem.consequence: [stock_errors, waste, lost_time]
+    problem.workaround_burden: [call_supplier, recount, fix_sheet]
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: minutes}
+    solution.trust_risk: [shows_the_line, manager_confirms]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: one_tap
+    solution.trialability: [free_month, no_install_cost, supplier_onboard]
+    solution.observability: [fewer_recounts, supplier_credits]
+    solution.target_circumstance: busy_morning
+    commercial.existing_sacrifice:
+      bought: staff_hours
+      cost: {value: 300, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 35, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [setup_time, staff_training, contract_length]
+    commercial.commitment: [setup]
+  pilot_opt_in: false
+- person: Sofia Reyes
+  recency: 'yes'
+  story: Two days ago actually. Beer kegs, one missing off the dray. I count them in myself.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.duration: {value: 45, unit: minutes, rough: false}
+    problem.importance: food_costs
+    problem.consequence: [lost_time]
+    problem.workaround_burden: [recount]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: fewer_attempts
+    solution.effectiveness_threshold: {band: 5-10, unit: minutes}
+    solution.trust_risk: [manager_confirms]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: nothing_extra
+    solution.trialability: [free_month]
+    solution.observability: [sheet_matches]
+    solution.target_circumstance: stocktake_week
+    commercial.existing_sacrifice:
+      bought: write_offs
+      cost: {value: 80, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 30, currency: GBP, per: month}
+      guess: {value: 30, currency: GBP, per: month}
+    commercial.ability_to_pay: with_a_trade_off
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [never_came_up]
+    commercial.commitment: [install]
+  pilot_opt_in: true
+- person: Tom Okafor
+  recency: 'yes'
+  story: Honestly they're all a bit off. I don't keep track. Depends who's in.
+  chip: null
+  anchoring: GUESSED
+  picks:
+    problem.frequency: 5
+    problem.importance: rota_gaps
+    problem.consequence: [nothing_much]
+    problem.workaround_burden: [ignore_it]
+    problem.current_solution_satisfaction: works_well
+    solution.compatibility: would_not_fit
+    solution.relative_advantage: nothing_would_change
+    solution.effectiveness_threshold: {band: 0-5, unit: minutes}
+    solution.trust_risk: [own_instinct]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: would_not_reach
+    solution.trialability: [supplier_onboard]
+    solution.observability: [supplier_credits]
+    solution.target_circumstance: not_useful
+    commercial.existing_sacrifice:
+      bought: nothing
+      cost: {value: 0, currency: GBP, per: three_months}
+      still_using: 'no'
+    commercial.wtp_hypothesis: {last_paid: null, guess: null}
+    commercial.ability_to_pay: barely
+    commercial.buyer_payer_alignment: joint_decision
+    commercial.purchase_friction: [contract_length]
+    commercial.commitment: [nothing_yet]
+  pilot_opt_in: false
+- person: Aisha Rahman
+  recency: 'yes'
+  story: Beginning of the month, the meat supplier double-counted a box on the invoice. I'm the only one in before eleven.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 3
+    problem.duration: {value: 60, unit: minutes, rough: false}
+    problem.importance: matching_deliveries
+    problem.consequence: [stock_errors, late_service]
+    problem.workaround_burden: [recount, fix_sheet, call_supplier]
+    problem.current_solution_satisfaction: works_well
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 10-20, unit: minutes}
+    solution.trust_risk: [shows_the_line, manager_confirms, photo_proof]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: setup_once
+    solution.trialability: [free_month, no_install_cost]
+    solution.observability: [fewer_recounts, sheet_matches]
+    solution.target_circumstance: busy_morning
+    commercial.existing_sacrifice:
+      bought: staff_hours
+      cost: {value: 250, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 45, currency: GBP, per: month}
+      guess: {value: 45, currency: GBP, per: month}
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [setup_time, staff_training]
+    commercial.commitment: [nothing_yet]
+  pilot_opt_in: false
+- person: Ben Carter
+  recency: 'yes'
+  story: Last week, paper goods. Counted 40 rolls against 48 on the paper. The barman took it and ticked it off on the clipboard.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.duration: {value: 100, unit: minutes, rough: false}
+    problem.importance: staff_turnover
+    problem.consequence: [lost_time, waste]
+    problem.workaround_burden: [fix_sheet, recount]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: would_not_fit
+    solution.relative_advantage: nothing_would_change
+    solution.effectiveness_threshold: {band: 5-10, unit: minutes}
+    solution.trust_risk: [own_instinct]
+    solution.reliability_tolerance: one_in_three
+    solution.adoption_friction: would_not_reach
+    solution.trialability: [supplier_onboard]
+    solution.observability: [supplier_credits]
+    solution.target_circumstance: not_useful
+    commercial.existing_sacrifice:
+      bought: write_offs
+      cost: {value: 120, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 20, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: barely
+    commercial.buyer_payer_alignment: joint_decision
+    commercial.purchase_friction: [contract_length]
+    commercial.commitment: [setup, install, next_episode]
+  pilot_opt_in: false
+- person: Lena Fischer
+  recency: 'yes'
+  story: Three weeks back, produce. Short on lemons and limes, which we only found on the Saturday.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 1
+    problem.duration: {value: 80, unit: minutes, rough: false}
+    problem.importance: food_costs
+    problem.consequence: [waste, stock_errors]
+    problem.workaround_burden: [recount, call_supplier, fix_sheet]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: minutes}
+    solution.trust_risk: [shows_the_line, manager_confirms]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: one_tap
+    solution.trialability: [free_month, no_install_cost]
+    solution.observability: [fewer_recounts]
+    solution.target_circumstance: new_supplier
+    commercial.existing_sacrifice:
+      bought: staff_hours
+      cost: {value: 180, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 40, currency: GBP, per: month}
+      guess: {value: 50, currency: GBP, per: month}
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [setup_time, staff_training]
+    commercial.commitment: [install]
+  pilot_opt_in: false
+- person: Oliver Grant
+  recency: 'no'
+  story: null
+  chip: null
+  anchoring: null
+  picks: {}
+  pilot_opt_in: false
+- person: Mei Chen
+  recency: 'yes'
+  story: Yesterday. Oil delivery, five tins not four; we got extra for once. I found the extra tin doing the count.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.duration: {value: 95, unit: minutes, rough: false}
+    problem.importance: equipment_breakdowns
+    problem.consequence: [lost_time, stock_errors]
+    problem.workaround_burden: [ignore_it]
+    problem.current_solution_satisfaction: no_reliable_way
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 10-20, unit: minutes}
+    solution.trust_risk: [shows_the_line, photo_proof]
+    solution.reliability_tolerance: half_the_time
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [free_month]
+    solution.observability: [something_else]
+    solution.target_circumstance: stocktake_week
+    commercial.existing_sacrifice:
+      bought: write_offs
+      cost: {value: 90, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 30, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [something_else]
+    commercial.commitment: [install]
+  pilot_opt_in: false
+- person: Sam Whitfield
+  recency: 'no'
+  story: null
+  chip: null
+  anchoring: null
+  picks: {}
+  pilot_opt_in: false
+expected:
+  standings:
+    problem.prevalence: {status: HOLDING_UP, drift: none, n: 12, 'yes': 10, proportion: 0.83}
+    problem.frequency: {status: HOLDING_UP, drift: none, n: 8, inside: 8, outside: 0, median: 2}
+    problem.severity: {status: LEFT_OUT, drift: null}
+    problem.duration: {status: HOLDING_UP, drift: none, n: 8, inside: 7, outside: 1, median: 85}
+    problem.importance: {status: HOLDING_UP, drift: none, n: 8, own_item_picks: 3, share: 0.38}
+    problem.consequence: {status: HOLDING_UP, drift: none, n: 8, optionCounts: 'lost_time=6, stock_errors=5, waste=4, late_service=1,
+        nothing_much=0, something_else=0'}
+    problem.workaround_burden: {status: HOLDING_UP, drift: none, n: 8, first_action: recount, first_action_count: 5, optionCounts: 'recount=7,
+        fix_sheet=5, call_supplier=4, ignore_it=1, something_else=0'}
+    problem.current_solution_satisfaction: {status: HOLDING_UP, drift: none, n: 8, inside: 6, outside: 2}
+    problem.urgency: {status: NOT_ASKED_YET, drift: null}
+    solution.compatibility: {status: PEOPLE_DISAGREE, drift: above, n: 8, inside: 4, outside: 4}
+    solution.relative_advantage: {status: HOLDING_UP, drift: none, n: 8, inside: 6, outside: 2}
+    solution.effectiveness_threshold: {status: BAR_SET, drift: below, n: 8, bar: 10-20, optionCounts: '0-5=0, 5-10=2, 10-20=3,
+        20+=3, nothing_worth_it=0'}
+    solution.trust_risk: {status: HOLDING_UP, drift: none, n: 8, optionCounts: 'shows_the_line=6, manager_confirms=5, supplier_sees=0,
+        photo_proof=3, own_instinct=1, something_else=0'}
+    solution.reliability_tolerance: {status: HOLDING_UP, drift: none, n: 8, inside: 8, outside: 0}
+    solution.adoption_friction: {status: HOLDING_UP, drift: none, n: 8, inside: 7, outside: 1}
+    solution.trialability: {status: HOLDING_UP, drift: none, n: 8, optionCounts: 'free_month=7, no_install_cost=4, supplier_onboard=2,
+        something_else=0'}
+    solution.observability: {status: PEOPLE_DISAGREE, drift: none, n: 8, optionCounts: 'fewer_recounts=5, sheet_matches=3,
+        supplier_credits=2, something_else=1'}
+    solution.target_circumstance: {status: PEOPLE_DISAGREE, drift: none, n: 8, inside: 3, outside: 5}
+    commercial.existing_sacrifice: {status: HOLDING_UP, drift: none, n: 8, median: 165, optionCounts: 'staff_hours=4, write_offs=4,
+        software=0, nothing=0, something_else=0'}
+    commercial.wtp_hypothesis: {status: NOT_TESTED_BY_DESIGN, drift: none, n: 8, median: 32.5}
+    commercial.ability_to_pay: {status: HOLDING_UP, drift: none, n: 8, inside: 7, outside: 1}
+    commercial.buyer_payer_alignment: {status: HOLDING_UP, drift: none, n: 8, inside: 7, outside: 1}
+    commercial.purchase_friction: {status: HOLDING_UP, drift: none, n: 8, optionCounts: 'setup_time=5, staff_training=4, contract_length=2,
+        never_came_up=1, something_else=1'}
+    commercial.commitment: {status: HOLDING_UP, drift: none, n: 8, inside: 6, outside: 2, optionCounts: 'setup=3, install=6,
+        mic=1, next_episode=1, contact_me=0, nothing_yet=1'}
+    commercial.retention_potential: {status: LEFT_OUT, drift: null}
+  vector_verdicts:
+    PROBLEM: {verdict: HOLDING_UP, deciding: problem.prevalence}
+    SOLUTION: {verdict: PEOPLE_DISAGREE, deciding: solution.compatibility}
+    COMMERCIAL: {verdict: HOLDING_UP, deciding: commercial.existing_sacrifice}

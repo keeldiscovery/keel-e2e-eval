@@ -38,6 +38,7 @@ from pathlib import Path
 
 from stack.config import REPO_ROOT, load_config
 
+from . import brief as brief_mod
 from . import compare as compare_mod
 from . import contract as contract_mod
 from . import corpus as corpus_mod
@@ -574,6 +575,20 @@ def _score(case, entry, answer, failed, state, judge) -> dict:
         diff.update(golden=score.golden, produced=score.produced,
                     missing_ids=score.missing_ids, extra_ids=score.extra_ids)
         diff["line"] = (f"  {score.produced or 'no word'} (corpus {score.golden})")
+    elif case.kind == "BRIEF":
+        questions = answer.questions if answer.outcome == "NEEDS_INPUT" else None
+        score = brief_mod.score_brief(case, entry, answer.result, outcome=answer.outcome,
+                                      failed=None if questions is not None else failed,
+                                      needs_input_questions=questions,
+                                      registry=entry.registry)
+        state.brief.append(score)
+        diff.update(paragraph=score.paragraph, length=score.length, marks=score.marks,
+                    findings=score.findings,
+                    deciding_lines={v.get("vector"): (brief_mod.deciding_line(v) or {}).get("key")
+                                    for v in (case.payload.get("context") or {}).get("vectors")
+                                    or []})
+        diff["line"] = "  " + " · ".join(f"{name} {'yes' if score.marks.get(name) else 'no'}"
+                                         for name in brief_mod.MARK_NAMES)
     return diff
 
 

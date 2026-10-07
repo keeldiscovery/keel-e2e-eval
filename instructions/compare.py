@@ -77,9 +77,9 @@ def build_input(entry, registry=None) -> dict:
         "context": dict(entry.context or {}),
         "persona": dict(entry.persona or {}),
         "founder_calibration": calibration,
-        "answers": [{"person": p.get("person"), "recency": p.get("recency"),
-                     "anchoring": p.get("anchoring"), "chip": p.get("chip"),
-                     "picks": dict(p.get("picks") or {})}
+        "answers": [{"person": p.get("person"), "link": p.get("link", "PRIMARY"),
+                     "recency": p.get("recency"), "anchoring": p.get("anchoring"),
+                     "chip": p.get("chip"), "picks": dict(p.get("picks") or {})}
                     for p in entry.answers],
     }
 

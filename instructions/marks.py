@@ -12,6 +12,23 @@ measured by code against the registry keel-cloud exports, and the corpus is read
 Calls 28-36 are `specs/029-marks-v9-vectors/contracts/marks-v9.md` §3's, verbatim; calls 1-27 are
 byte for byte what `master` `0165017` carried (`tests/fixtures/marks/calls-1-27.at-0165017.txt`).
 
+**The corpus v9 judges, recorded 2026-10-07** (spec 029 US4.2, plan O-4). Revision 3's seven
+entries, by sha256 -- the recorded revision under `tests/fixtures/corpus-r3/`, to be moved verbatim
+into keel-cloud's canon, so a run reads these bytes either way:
+
+    01-countly         25bffafb2fa7524529888b827122df190ff28c4e644b07603eaf46039949005d
+    02-compliancelog   930dbd8e4a42843298a0abcb031106e222aed93e7e7eda7fb086ed7fa458fd5d
+    03-lullaby         d256f09ec48d68c455e12a015251c0c719c159c6d4d828a060dcbc2d5e2e0ca7
+    04-linerly         3598e8f0df553b4d1c85ea47b66e4e024ea0392e8305fc96a4474777c361a90e
+    05-paidly          efbde113e7edce719985163c02c970861c7695ddf238e0c19c04fb33c15ac0bb
+    06-repeatline      5fb3a693e31d7965d3d303b83f03735359268762d5f6ea12baed43fe7d053a8b
+    07-mulchrun        10e84bb1c0861e499dd5519d5ecba3880d28f4b36a49fd4221b3af1a01454001
+
+The corpus-wide `anchoring_accuracy` denominator, **counted, not estimated**: 106 people, less 13 who
+answer No at the gate, 6 whose story carries a chip and 22 decision-makers on a B2B link (who are
+never read) -- **65 reads at N=1, 195 at N=3**. A full run builds 138 model cases at N=1 (414 at N=3)
+and 7 `COMPARE` rows; `compare_correctness` is 196 checks.
+
 Judgement calls, append-only across every version, struck nowhere, because the rubric's history is
 part of what a number means:
 

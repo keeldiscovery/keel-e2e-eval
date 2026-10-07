@@ -115,3 +115,18 @@ def test_the_refusal_mark_is_a_rate_over_the_answers_judged():
     assert row["value"] == 0.02 and row["count"] == 1 and row["met"] is True
     totals["refusals_by_rule"] = {"C3": 2}
     assert marks_mod.judge(totals, marks_mod.load())["refusals"]["met"] is False
+
+
+def test_the_v9_header_names_the_seven_r3_digests_and_the_counted_denominator():
+    """US4.2, O-4: one dated paragraph above the call list -- never a call, never a line of
+    `marks.toml`. The digests are the recorded revision's own bytes."""
+    import hashlib                                                          # noqa: PLC0415
+    from instructions import corpus as corpus_mod                           # noqa: PLC0415
+    doc = marks_mod.__doc__
+    header = doc[:doc.index("1.  **v1**")]
+    files = sorted(Path(corpus_mod.FIXTURE_DIR).glob("*.yaml"))
+    assert len(files) == 7
+    for path in files:
+        assert hashlib.sha256(path.read_bytes()).hexdigest() in header, path.name
+    assert "65 reads at N=1" in header
+    assert "recorded 2026-10-07" in header

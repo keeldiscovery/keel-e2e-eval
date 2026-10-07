@@ -1,0 +1,598 @@
+# Golden corpus entry 02 -- ComplianceLog, training-compliance reports.
+#
+# REVISION 3, 2026-10-07 -- keel-e2e-eval spec 029 (marks v9, the vector redesign). Re-expressed in
+# marks-v9 §4's schema from the revision-2 file of the same name: the market, the statements, the roles
+# and the people are kept; each person's first occasion becomes their gate story, and their picks are
+# re-chosen by hand against the registry's dimensions. Standings tallied from the picks under the
+# compare rules the founder signed on 2026-10-07 (marks-v9 §2.5, spec 029 FR-018).
+# The gate reads this entry's own window -- a report compiled in the last quarter. Georgia Papadopoulos
+# (hasn't happened) and Priya Natarajan (over a year ago) answer No. Noor Haddad chips (cant_recall):
+# GUESSED by code, never read. Effectiveness threshold's bands are read in the founder's own unit (hours).
+#
+# RECORDED UNDER keel-e2e-eval tests/fixtures/corpus-r3/ AND TO BE MOVED VERBATIM into keel-cloud
+# canon/designs/measured-beliefs/corpus/ at integration; `check_corpus.py` and `GoldenCorpusTest`
+# confirm the counts there.
+
+id: 02-compliancelog
+title: ComplianceLog — training-compliance reports
+revision: 3
+market: {country: GB, region: null, language: en-GB}
+statements: {problem: 'HR managers at firms of 200 to 500 people spend about two working days every quarter compiling the
+    training-compliance report — pulling completions out of the learning system into a spreadsheet by hand whenever the quarter
+    closes, and again whenever an auditor asks — with the risk that a missed completion surfaces in an audit; based on the
+    founder''s six years in HR operations.', solution: 'A connector that reads completions from the learning system and produces
+    the quarterly report as a draft the HR manager reviews and signs, instead of building it from a spreadsheet.', commercial: 'The
+    HR director pays £300 a month, out of the HR tools budget they already hold, with finance signing off anything over £250.'}
+roles:
+- {id: hr, label: HR managers, roleType: MANAGER, about: the HR manager who compiles the quarterly training-compliance report}
+context: {actor: HR manager, actor_plural: HR managers at firms of 200 to 500 people, job: get the training-compliance report
+    out complete and on time, circumstance: the quarter closes and the training-compliance report is due, segment: HR managers
+    at UK firms of 200 to 500 people, understood: 'HR managers at firms of 200 to 500 people, when the quarter closes and
+    the training-compliance report is due, trying to get it out complete and on time.'}
+interpretations: {problem: 'HR managers at firms of 200 to 500 people lose about two working days each quarter pulling completions
+    out of the learning system into a spreadsheet by hand, and still risk a missed completion surfacing in an audit.'}
+solution_mechanism:
+  actor: the HR manager
+  trigger: when the quarter closes or an auditor asks
+  mechanism: connects the connector once and it reads every completion from the learning system
+  output: a draft report to review and sign
+  not_assumed: [the audit always passes, every edge case is caught]
+  mechanism_terms: [connector, draft, sign off, reads completions]
+persona: {decision_maker: same_person}
+founder_calibration:
+  problem.prevalence: {answer: p_60_80, belief_phrase: Most, belief_sentence: Most of these HR managers at firms of 200 to
+      500 people had this at least once in the last 7 nights.}
+  problem.frequency:
+    answer: {lower: 2, upper: 3, unit: days out of 7}
+    belief_phrase: 2 to 3 days out of 7
+    belief_sentence: HR managers at firms of 200 to 500 people face this on 2 to 3 days out of 7.
+  problem.severity: {answer: very, belief_phrase: takes over the week, belief_sentence: 'For HR managers at firms of 200 to
+      500 people, one episode takes over the week.'}
+  problem.duration:
+    answer: {lower: 12, upper: 20, unit: hours}
+    belief_phrase: 12 to 20 hours
+    belief_sentence: A typical episode takes 12 to 20 hours from start to finish.
+  problem.importance: {answer: biggest, belief_phrase: the biggest headache of the quarter, belief_sentence: 'Among the difficulties
+      that come with the quarter closes and the training-compliance report is due, this is the biggest headache of the quarter.'}
+  problem.consequence:
+    answer: [late_nights, audit_risk, chasing_managers]
+    belief_phrase: late nights and audit risk and chasing managers
+    belief_sentence: After an episode, HR managers at firms of 200 to 500 people are left with late nights and audit risk
+      and chasing managers.
+  problem.workaround_burden:
+    answer: [export, reconcile, chase]
+    belief_phrase: an export, a reconciliation by hand, chasing the managers
+    belief_sentence: In the moment, HR managers at firms of 200 to 500 people try an export, a reconciliation by hand, chasing
+      the managers, in that order.
+  problem.current_solution_satisfaction: {answer: works_poorly, belief_phrase: 'works poorly: it never quite reconciles',
+    belief_sentence: 'The way HR managers at firms of 200 to 500 people handle it today works poorly: it never quite reconciles.'}
+  problem.urgency: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+  solution.compatibility: {answer: before_any_attempt, belief_phrase: before the spreadsheet is even opened, belief_sentence: It
+      fits into the episode before the spreadsheet is even opened.}
+  solution.relative_advantage: {answer: shorter_time, belief_phrase: 'a report out in hours, not days', belief_sentence: 'To
+      be worth switching to, it must mainly deliver a report out in hours, not days.'}
+  solution.effectiveness_threshold:
+    answer: {value: 8, unit: hours}
+    belief_phrase: at least 8 hours
+    belief_sentence: It is worth using only if it saves at least at least 8 hours per episode.
+  solution.trust_risk:
+    answer: [shows_sources, hr_signs_off]
+    belief_phrase: it shows where every figure came from and HR signs it off
+    belief_sentence: HR managers at firms of 200 to 500 people would act on it only if it shows where every figure came from
+      and HR signs it off.
+  solution.reliability_tolerance: {answer: one_in_five, belief_phrase: about one time in five, belief_sentence: They keep
+      using it as long as it is wrong no more than about one time in five.}
+  solution.adoption_friction: {answer: setup_once, belief_phrase: 'a one-time connection, then a click', belief_sentence: 'The
+      most extra effort they would accept at the moment of use is a one-time connection, then a click.'}
+  solution.trialability:
+    answer: [sandbox, read_only]
+    belief_phrase: it runs on a sandbox first and only ever reads
+    belief_sentence: They would try it for the first time if it runs on a sandbox first and only ever reads.
+  solution.observability:
+    answer: [time_saved, audit_clean]
+    belief_phrase: the report took hours not days and the audit found nothing
+    belief_sentence: They would know it helped when the report took hours not days and the audit found nothing.
+  solution.target_circumstance: {answer: quarter_end, belief_phrase: at quarter end, belief_sentence: It matters most at quarter
+      end.}
+  commercial.existing_sacrifice:
+    answer: [analyst_time, overtime]
+    belief_phrase: analyst time and overtime
+    belief_sentence: Because of this, HR managers at firms of 200 to 500 people already give up analyst time and overtime.
+  commercial.wtp_hypothesis:
+    answer: {lower: 250, upper: 350, currency: GBP, per: month}
+    belief_phrase: £250 to £350 per month
+    belief_sentence: A fair price would feel like £250 to £350 per month (a hypothesis; interviews do not test it).
+  commercial.ability_to_pay: {answer: with_a_trade_off, belief_phrase: only by moving money from another tool, belief_sentence: They
+      could find the money for it only by moving money from another tool.}
+  commercial.buyer_payer_alignment: {answer: someone_else_decides, belief_phrase: the HR director decides and finance pays,
+    belief_sentence: 'On buying: the HR director decides and finance pays.'}
+  commercial.purchase_friction:
+    answer: [finance_approval, it_security]
+    belief_phrase: finance's approval and an IT security review
+    belief_sentence: Between wanting it and paying, finance's approval and an IT security review could hold them back.
+  commercial.commitment:
+    answer: [setup, install]
+    belief_phrase: connecting it to the learning system
+    belief_sentence: For a trial, right now, they would go as far as connecting it to the learning system.
+  commercial.retention_potential: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+respondent_questions:
+  problem.prevalence:
+    part: 1
+    control: gate_yes_no
+    codes: ['yes', 'no']
+  problem.frequency: {part: 1, control: segmented_0_to_7}
+  problem.severity:
+    part: 1
+    control: single_choice_5
+    codes: [barely, a_little, moderately, very, extremely]
+  problem.duration: {part: 1, control: number_with_unit}
+  problem.importance:
+    part: 1
+    control: single_choice
+    own_item: compliance_report
+    codes: [recruitment, compliance_report, payroll_queries, policy_updates, absence_cases, something_else]
+  problem.consequence:
+    part: 1
+    control: multi_choice
+    codes: [late_nights, audit_risk, chasing_managers, other_work_slips, nothing_much, something_else]
+  problem.workaround_burden:
+    part: 1
+    control: multi_choice_ordered
+    codes: [export, reconcile, chase, ask_analyst, something_else]
+  problem.current_solution_satisfaction:
+    part: 1
+    control: single_choice_5
+    codes: [works_well, mostly_works, hit_and_miss, works_poorly, no_reliable_way]
+  solution.compatibility:
+    part: 2
+    control: single_choice
+    codes: [before_any_attempt, after_first_attempt_fails, after_several_attempts, only_when_nothing_works, would_not_fit,
+      something_else]
+  solution.relative_advantage:
+    part: 2
+    control: single_choice
+    codes: [fewer_attempts, shorter_time, less_worry, less_help_needed, easier_recovery, nothing_would_change, something_else]
+  solution.effectiveness_threshold:
+    part: 2
+    control: single_choice_bands
+    codes: [0-5, 5-10, 10-20, 20+, nothing_worth_it]
+  solution.trust_risk:
+    part: 2
+    control: multi_choice
+    codes: [shows_sources, hr_signs_off, auditor_accepts, data_stays_put, own_instinct, something_else]
+  solution.reliability_tolerance:
+    part: 2
+    control: single_choice
+    codes: [never_wrong, one_in_ten, one_in_five, one_in_three, half_the_time]
+  solution.adoption_friction:
+    part: 2
+    control: single_choice
+    codes: [nothing_extra, one_tap, a_few_taps, setup_once, daytime_setup, would_not_reach]
+  solution.trialability:
+    part: 2
+    control: multi_choice
+    codes: [sandbox, read_only, free_quarter, something_else]
+  solution.observability:
+    part: 2
+    control: multi_choice
+    codes: [time_saved, audit_clean, fewer_chasers, something_else]
+  solution.target_circumstance:
+    part: 2
+    control: single_choice
+    codes: [quarter_end, audit_request, new_starters, not_useful, something_else]
+  commercial.existing_sacrifice:
+    part: 3
+    control: branch_pick_number
+    codes: [analyst_time, overtime, consultant_fees, nothing, something_else]
+  commercial.wtp_hypothesis: {part: 3, control: two_numbers_optional}
+  commercial.ability_to_pay:
+    part: 3
+    control: single_choice
+    codes: [easily, without_cutting_back, with_a_trade_off, barely, free_or_gift]
+  commercial.buyer_payer_alignment:
+    part: 3
+    control: single_choice
+    codes: [same_person, user_decides_other_pays, joint_decision, someone_else_decides, institution_pays, it_was_free]
+  commercial.purchase_friction:
+    part: 3
+    control: multi_choice
+    codes: [finance_approval, it_security, procurement, never_came_up, something_else]
+  commercial.commitment:
+    part: 3
+    control: multi_choice_ladder
+    codes: [setup, install, mic, next_episode, contact_me, nothing_yet]
+answers:
+- person: Ruth Adeyemi
+  recency: 'yes'
+  story: End of June. Exported three CSVs from Cornerstone, matched them to the headcount list, chased four managers for missing
+    ones. Two long days and a bit.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.severity: very
+    problem.duration: {value: 18, unit: hours, rough: false}
+    problem.importance: compliance_report
+    problem.consequence: [late_nights, chasing_managers]
+    problem.workaround_burden: [export, reconcile, chase]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 5-10, unit: hours}
+    solution.trust_risk: [shows_sources, hr_signs_off]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: setup_once
+    solution.trialability: [sandbox, read_only]
+    solution.observability: [time_saved, audit_clean]
+    solution.target_circumstance: quarter_end
+    commercial.existing_sacrifice:
+      bought: analyst_time
+      cost: {value: 1200, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 320, currency: GBP, per: month}
+      guess: {value: 300, currency: GBP, per: month}
+    commercial.ability_to_pay: with_a_trade_off
+    commercial.buyer_payer_alignment: someone_else_decides
+    commercial.purchase_friction: [finance_approval, it_security]
+    commercial.commitment: [setup, install]
+  pilot_opt_in: true
+- person: James Holloway
+  recency: 'yes'
+  story: Q2, so early July. About two days, most of it reconciling leavers.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.severity: very
+    problem.duration: {value: 16, unit: hours, rough: false}
+    problem.importance: recruitment
+    problem.consequence: [late_nights]
+    problem.workaround_burden: [export, reconcile]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: fewer_attempts
+    solution.effectiveness_threshold: {band: 10-20, unit: hours}
+    solution.trust_risk: [shows_sources]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: setup_once
+    solution.trialability: [sandbox]
+    solution.observability: [time_saved]
+    solution.target_circumstance: quarter_end
+    commercial.existing_sacrifice:
+      bought: overtime
+      cost: {value: 600, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 250, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: someone_else_decides
+    commercial.purchase_friction: [finance_approval]
+    commercial.commitment: [setup]
+  pilot_opt_in: false
+- person: Fatima Khan
+  recency: 'yes'
+  story: We do it monthly here, so last month. Half a day, it's mostly automated in the HRIS now.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 1
+    problem.severity: a_little
+    problem.duration: {value: 4, unit: hours, rough: false}
+    problem.importance: payroll_queries
+    problem.consequence: [other_work_slips]
+    problem.workaround_burden: [export]
+    problem.current_solution_satisfaction: works_well
+    solution.compatibility: would_not_fit
+    solution.relative_advantage: less_worry
+    solution.effectiveness_threshold: {band: 0-5, unit: hours}
+    solution.trust_risk: [own_instinct]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: one_tap
+    solution.trialability: [free_quarter]
+    solution.observability: [fewer_chasers]
+    solution.target_circumstance: new_starters
+    commercial.existing_sacrifice:
+      bought: nothing
+      cost: {value: 0, currency: GBP, per: three_months}
+      still_using: 'no'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 150, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [never_came_up]
+    commercial.commitment: [nothing_yet]
+  pilot_opt_in: false
+- person: Georgia Papadopoulos
+  recency: 'no'
+  story: null
+  chip: null
+  anchoring: null
+  picks: {}
+  pilot_opt_in: false
+- person: Liam O'Neill
+  recency: 'yes'
+  story: Spring. Took me the best part of three days because two systems disagreed with each other.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 3
+    problem.severity: extremely
+    problem.duration: {value: 24, unit: hours, rough: false}
+    problem.importance: compliance_report
+    problem.consequence: [late_nights, audit_risk, chasing_managers]
+    problem.workaround_burden: [export, reconcile, chase]
+    problem.current_solution_satisfaction: no_reliable_way
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 10-20, unit: hours}
+    solution.trust_risk: [shows_sources, hr_signs_off, auditor_accepts]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: daytime_setup
+    solution.trialability: [sandbox, read_only]
+    solution.observability: [time_saved, audit_clean]
+    solution.target_circumstance: audit_request
+    commercial.existing_sacrifice:
+      bought: overtime
+      cost: {value: 900, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 400, currency: GBP, per: month}
+      guess: {value: 350, currency: GBP, per: month}
+    commercial.ability_to_pay: barely
+    commercial.buyer_payer_alignment: someone_else_decides
+    commercial.purchase_friction: [finance_approval, it_security, procurement]
+    commercial.commitment: [setup, install, mic]
+  pilot_opt_in: false
+- person: Noor Haddad
+  recency: 'yes'
+  story: Usually takes a while. A couple of days, give or take.
+  chip: cant_recall
+  anchoring: GUESSED
+  picks:
+    problem.frequency: 2
+    problem.severity: very
+    problem.duration: {value: 16, unit: hours, rough: true}
+    problem.importance: compliance_report
+    problem.consequence: [late_nights]
+    problem.workaround_burden: {chip: cant_recall}
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 5-10, unit: hours}
+    solution.trust_risk: [shows_sources]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: setup_once
+    solution.trialability: [read_only]
+    solution.observability: [time_saved]
+    solution.target_circumstance: quarter_end
+    commercial.existing_sacrifice:
+      bought: analyst_time
+      cost: {value: 800, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis: {last_paid: null, guess: null}
+    commercial.ability_to_pay: with_a_trade_off
+    commercial.buyer_payer_alignment: someone_else_decides
+    commercial.purchase_friction: [finance_approval]
+    commercial.commitment: [contact_me]
+  pilot_opt_in: false
+- person: Ewan MacLeod
+  recency: 'yes'
+  story: June quarter-end. Two solid days, and I had our HR analyst on it for another day.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 3
+    problem.severity: very
+    problem.duration: {value: 24, unit: hours, rough: false}
+    problem.importance: compliance_report
+    problem.consequence: [late_nights, chasing_managers]
+    problem.workaround_burden: [export, chase, ask_analyst]
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: hours}
+    solution.trust_risk: [shows_sources, hr_signs_off]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: setup_once
+    solution.trialability: [sandbox, read_only, free_quarter]
+    solution.observability: [time_saved, audit_clean, fewer_chasers]
+    solution.target_circumstance: quarter_end
+    commercial.existing_sacrifice:
+      bought: analyst_time
+      cost: {value: 1500, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 300, currency: GBP, per: month}
+      guess: {value: 300, currency: GBP, per: month}
+    commercial.ability_to_pay: with_a_trade_off
+    commercial.buyer_payer_alignment: joint_decision
+    commercial.purchase_friction: [finance_approval, it_security]
+    commercial.commitment: [contact_me]
+  pilot_opt_in: true
+- person: Chloe Bernard
+  recency: 'yes'
+  story: Last quarter. About a day; our LMS report is nearly right and I fix the edge cases.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.severity: moderately
+    problem.duration: {value: 8, unit: hours, rough: false}
+    problem.importance: absence_cases
+    problem.consequence: [other_work_slips]
+    problem.workaround_burden: [export, reconcile]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: fewer_attempts
+    solution.effectiveness_threshold: {band: 5-10, unit: hours}
+    solution.trust_risk: [hr_signs_off]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: one_tap
+    solution.trialability: [read_only]
+    solution.observability: [audit_clean]
+    solution.target_circumstance: quarter_end
+    commercial.existing_sacrifice:
+      bought: overtime
+      cost: {value: 400, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 200, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [it_security]
+    commercial.commitment: [nothing_yet]
+  pilot_opt_in: false
+- person: Priya Natarajan
+  recency: 'no'
+  story: null
+  chip: null
+  anchoring: null
+  picks: {}
+  pilot_opt_in: false
+- person: Marcus Lindqvist
+  recency: 'yes'
+  story: September. Two days, one of them just waiting for the LMS export to run.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.severity: very
+    problem.duration: {value: 16, unit: hours, rough: false}
+    problem.importance: recruitment
+    problem.consequence: [late_nights, chasing_managers]
+    problem.workaround_burden: [export, reconcile]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: fewer_attempts
+    solution.effectiveness_threshold: {band: 5-10, unit: hours}
+    solution.trust_risk: [shows_sources, auditor_accepts]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [sandbox, read_only]
+    solution.observability: [time_saved, audit_clean]
+    solution.target_circumstance: quarter_end
+    commercial.existing_sacrifice:
+      bought: analyst_time
+      cost: {value: 1000, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 280, currency: GBP, per: month}
+      guess: {value: 250, currency: GBP, per: month}
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: someone_else_decides
+    commercial.purchase_friction: [finance_approval, procurement]
+    commercial.commitment: [setup]
+  pilot_opt_in: false
+- person: Hana Yoshida
+  recency: 'yes'
+  story: End of Q2. About two days across the week. The LMS and then Excel.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.severity: moderately
+    problem.duration: {value: 16, unit: hours, rough: false}
+    problem.importance: compliance_report
+    problem.consequence: [chasing_managers, late_nights]
+    problem.workaround_burden: [reconcile, export]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 10-20, unit: hours}
+    solution.trust_risk: [shows_sources, hr_signs_off]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: daytime_setup
+    solution.trialability: [sandbox]
+    solution.observability: [time_saved]
+    solution.target_circumstance: quarter_end
+    commercial.existing_sacrifice:
+      bought: overtime
+      cost: {value: 700, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 260, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: with_a_trade_off
+    commercial.buyer_payer_alignment: joint_decision
+    commercial.purchase_friction: [finance_approval, it_security]
+    commercial.commitment: [install]
+  pilot_opt_in: false
+- person: Daniel Achebe
+  recency: 'yes'
+  story: Last month, for a client audit. Their report was wrong by about thirty people and it took me the best part of three
+    days to fix.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.severity: very
+    problem.duration: {value: 20, unit: hours, rough: false}
+    problem.importance: policy_updates
+    problem.consequence: [audit_risk, chasing_managers]
+    problem.workaround_burden: [export, reconcile, chase]
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: after_several_attempts
+    solution.relative_advantage: less_worry
+    solution.effectiveness_threshold: {band: 5-10, unit: hours}
+    solution.trust_risk: [hr_signs_off, data_stays_put]
+    solution.reliability_tolerance: one_in_three
+    solution.adoption_friction: setup_once
+    solution.trialability: [sandbox, read_only]
+    solution.observability: [audit_clean, time_saved]
+    solution.target_circumstance: audit_request
+    commercial.existing_sacrifice:
+      bought: consultant_fees
+      cost: {value: 2500, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 450, currency: GBP, per: month}
+      guess: {value: 400, currency: GBP, per: month}
+    commercial.ability_to_pay: barely
+    commercial.buyer_payer_alignment: someone_else_decides
+    commercial.purchase_friction: [finance_approval, it_security, procurement]
+    commercial.commitment: [setup]
+  pilot_opt_in: false
+expected:
+  standings:
+    problem.prevalence: {status: HOLDING_UP, drift: above, n: 12, 'yes': 10, proportion: 0.83}
+    problem.frequency: {status: HOLDING_UP, drift: none, n: 9, inside: 8, outside: 1, median: 2}
+    problem.severity: {status: HOLDING_UP, drift: none, n: 9, inside: 8, outside: 1}
+    problem.duration: {status: PEOPLE_DISAGREE, drift: both, n: 9, inside: 5, outside: 4, median: 16}
+    problem.importance: {status: NOT_HOLDING_UP, drift: below, n: 9, own_item_picks: 4, share: 0.44}
+    problem.consequence: {status: NOT_HOLDING_UP, drift: none, n: 9, optionCounts: 'late_nights=6, audit_risk=2, chasing_managers=6,
+        other_work_slips=2, nothing_much=0, something_else=0'}
+    problem.workaround_burden: {status: PEOPLE_DISAGREE, drift: none, n: 9, first_action: export, first_action_count: 8, optionCounts: 'export=9,
+        reconcile=7, chase=4, ask_analyst=1, something_else=0'}
+    problem.current_solution_satisfaction: {status: HOLDING_UP, drift: none, n: 9, inside: 6, outside: 3}
+    problem.urgency: {status: LEFT_OUT, drift: null}
+    solution.compatibility: {status: HOLDING_UP, drift: none, n: 9, inside: 6, outside: 3}
+    solution.relative_advantage: {status: PEOPLE_DISAGREE, drift: none, n: 9, inside: 4, outside: 5}
+    solution.effectiveness_threshold: {status: BAR_SET, drift: none, n: 9, bar: 5-10, optionCounts: '0-5=1, 5-10=4, 10-20=3,
+        20+=1, nothing_worth_it=0'}
+    solution.trust_risk: {status: HOLDING_UP, drift: none, n: 9, optionCounts: 'shows_sources=6, hr_signs_off=6, auditor_accepts=2,
+        data_stays_put=1, own_instinct=1, something_else=0'}
+    solution.reliability_tolerance: {status: PEOPLE_DISAGREE, drift: below, n: 9, inside: 5, outside: 4}
+    solution.adoption_friction: {status: HOLDING_UP, drift: none, n: 9, inside: 7, outside: 2}
+    solution.trialability: {status: HOLDING_UP, drift: none, n: 9, optionCounts: 'sandbox=7, read_only=6, free_quarter=2,
+        something_else=0'}
+    solution.observability: {status: HOLDING_UP, drift: none, n: 9, optionCounts: 'time_saved=7, audit_clean=6, fewer_chasers=2,
+        something_else=0'}
+    solution.target_circumstance: {status: HOLDING_UP, drift: none, n: 9, inside: 6, outside: 3}
+    commercial.existing_sacrifice: {status: PEOPLE_DISAGREE, drift: none, n: 9, median: 900, optionCounts: 'analyst_time=3,
+        overtime=4, consultant_fees=1, nothing=1, something_else=0'}
+    commercial.wtp_hypothesis: {status: NOT_TESTED_BY_DESIGN, drift: none, n: 9, median: 280}
+    commercial.ability_to_pay: {status: HOLDING_UP, drift: none, n: 9, inside: 8, outside: 1}
+    commercial.buyer_payer_alignment: {status: PEOPLE_DISAGREE, drift: none, n: 9, inside: 5, outside: 4}
+    commercial.purchase_friction: {status: HOLDING_UP, drift: none, n: 9, optionCounts: 'finance_approval=7, it_security=6,
+        procurement=3, never_came_up=1, something_else=0'}
+    commercial.commitment: {status: PEOPLE_DISAGREE, drift: none, n: 9, inside: 4, outside: 5, optionCounts: 'setup=5, install=3,
+        mic=1, next_episode=0, contact_me=1, nothing_yet=2'}
+    commercial.retention_potential: {status: LEFT_OUT, drift: null}
+  vector_verdicts:
+    PROBLEM: {verdict: PEOPLE_DISAGREE, deciding: problem.duration}
+    SOLUTION: {verdict: PEOPLE_DISAGREE, deciding: solution.relative_advantage}
+    COMMERCIAL: {verdict: PEOPLE_DISAGREE, deciding: commercial.existing_sacrifice}

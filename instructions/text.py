@@ -69,6 +69,7 @@ was way we well were what when where whether which while who whom whose why will
 without would
 yes yet you your yours
 zero two three four five six seven eight nine ten eleven twelve twenty hundred
+cannot exactly between saying use used uses using
 first second third last
 second seconds minute minutes hour hours day days week weeks month months year years night nights
 time times
@@ -83,8 +84,9 @@ def words(text) -> list[str]:
 
 
 def content_words(text) -> list[str]:
-    """`words(text)` less the `STOPLIST`, in order."""
-    return [w for w in words(text) if w not in STOPLIST]
+    """`words(text)` less the `STOPLIST` and anything under three letters (*700c* leaves a *c*),
+    in order."""
+    return [w for w in words(text) if len(w) >= 3 and w not in STOPLIST]
 
 
 def stem(word: str) -> str:

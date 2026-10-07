@@ -1,0 +1,659 @@
+# Golden corpus entry 05 -- Paidly, paid in seven days.
+#
+# REVISION 3, 2026-10-07 -- keel-e2e-eval spec 029 (marks v9, the vector redesign). Re-expressed in
+# marks-v9 §4's schema from the revision-2 file of the same name: the market, the statements, the roles
+# and the people are kept; each person's first occasion becomes their gate story, and their picks are
+# re-chosen by hand against the registry's dimensions. Standings tallied from the picks under the
+# compare rules the founder signed on 2026-10-07 (marks-v9 §2.5, spec 029 FR-018).
+# THE B2B ENTRY (spec 029 FR-010, A-5): the decision-maker is the `agency` role. The eight agency project
+# managers answer Part 3 on their own link (`link: COMMERCIAL_B2B`: no gate, no context card, no reveal),
+# and the commercial vector is counted over them; the translators answer Parts 1 and 2. The commitment
+# ladder is the B2B one (call, read_only_trial, it_intro, data, paid_pilot).
+# The gate reads this entry's own window -- an agency invoice paid in the last three months. Yara Haddad
+# (wrote nothing) answers No. Xavier Dubois chips (rather_not_say); Sven Larsen's story is vague; Yusuf
+# Hazel's last purchase is vague: GUESSED, counted nowhere. Duration is counted in days.
+#
+# RECORDED UNDER keel-e2e-eval tests/fixtures/corpus-r3/ AND TO BE MOVED VERBATIM into keel-cloud
+# canon/designs/measured-beliefs/corpus/ at integration; `check_corpus.py` and `GoldenCorpusTest`
+# confirm the counts there.
+
+id: 05-paidly
+title: Paidly — paid in seven days
+revision: 3
+market: {country: GB, region: null, language: en-GB}
+statements: {problem: 'Freelance translators wait about forty-five days to be paid by agencies — most of their last few invoices
+    went past the agreed terms, they chase by email, and they cover the gap from savings or an overdraft; based on the founder''s
+    own five years translating for agencies.', solution: 'A platform that pays the translator within seven days of the agency
+    approving the invoice, for a fee the agency pays, in place of the PDF invoice sent by email today.', commercial: 'The
+    agency''s project manager signs up and pays a fee of about £80 a month, as they already pay platform and payment fees,
+    without needing the owner''s approval.'}
+roles:
+- {id: translator, label: Freelance translators, roleType: PRACTITIONER, about: a freelance translator who invoices agencies}
+- {id: agency, label: Agency project managers, roleType: BUYER, about: the project manager at a translation agency who chooses
+    and pays for its tools}
+context: {actor: freelance translator, actor_plural: freelance translators working for agencies, job: get paid for finished
+    work in time to cover the month, circumstance: an agency has approved the invoice and the money has not arrived, segment: freelance
+    translators in the UK who work mostly for agencies, understood: 'Freelance translators working for agencies, when an agency
+    has approved the invoice and the money has not arrived, trying to get paid in time to cover the month.'}
+interpretations: {problem: 'Freelance translators wait weeks past the agreed terms after an agency approves an invoice until
+    it pays, chasing by email and covering the gap from savings or an overdraft.'}
+solution_mechanism:
+  actor: the agency
+  trigger: when it approves a translator's invoice
+  mechanism: approves it on the platform, which pays the translator for a fee
+  output: the money paid to the translator within seven days
+  not_assumed: [the agency accepts the fee]
+  mechanism_terms: [platform, fee]
+persona:
+  decision_maker: {role: agency}
+founder_calibration:
+  problem.prevalence: {answer: p_80_100, belief_phrase: Nearly all, belief_sentence: Nearly all of these freelance translators
+      working for agencies had this at least once in the last 7 nights.}
+  problem.frequency:
+    answer: {lower: 4, upper: 7, unit: invoices out of 7}
+    belief_phrase: 4 to 7 invoices out of 7
+    belief_sentence: Freelance translators working for agencies face this on 4 to 7 invoices out of 7.
+  problem.severity: {answer: moderately, belief_phrase: squeezes the month, belief_sentence: 'For freelance translators working
+      for agencies, one episode squeezes the month.'}
+  problem.duration:
+    answer: {lower: 40, upper: 60, unit: days}
+    belief_phrase: 40 to 60 days
+    belief_sentence: A typical episode takes 40 to 60 days from start to finish.
+  problem.importance: {answer: biggest, belief_phrase: the biggest worry of the job, belief_sentence: 'Among the difficulties
+      that come with an agency has approved the invoice and the money has not arrived, this is the biggest worry of the job.'}
+  problem.consequence:
+    answer: [overdraft, chasing_time, stress]
+    belief_phrase: an overdraft and time chasing and stress
+    belief_sentence: After an episode, freelance translators working for agencies are left with an overdraft and time chasing
+      and stress.
+  problem.workaround_burden:
+    answer: [chase_email, use_savings, overdraft]
+    belief_phrase: chasing by email, dipping into savings, the overdraft
+    belief_sentence: In the moment, freelance translators working for agencies try chasing by email, dipping into savings,
+      the overdraft, in that order.
+  problem.current_solution_satisfaction: {answer: works_poorly, belief_phrase: 'works poorly: they wait and chase', belief_sentence: 'The
+      way freelance translators working for agencies handle it today works poorly: they wait and chase.'}
+  problem.urgency: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+  solution.compatibility: {answer: before_any_attempt, belief_phrase: 'as soon as the agency approves, before any chasing',
+    belief_sentence: 'It fits into the episode as soon as the agency approves, before any chasing.'}
+  solution.relative_advantage: {answer: shorter_time, belief_phrase: 'money in days, not weeks', belief_sentence: 'To be worth
+      switching to, it must mainly deliver money in days, not weeks.'}
+  solution.effectiveness_threshold:
+    answer: {value: 20, unit: days}
+    belief_phrase: at least 20 days
+    belief_sentence: It is worth using only if it saves at least at least 20 days per episode.
+  solution.trust_risk:
+    answer: [clear_fee, agency_trusts_it]
+    belief_phrase: the fee is plain and the agency already trusts it
+    belief_sentence: Freelance translators working for agencies would act on it only if the fee is plain and the agency already
+      trusts it.
+  solution.reliability_tolerance: {answer: never_wrong, belief_phrase: never, belief_sentence: They keep using it as long
+      as it is wrong no more than never.}
+  solution.adoption_friction: {answer: a_few_taps, belief_phrase: a few clicks per invoice, belief_sentence: The most extra
+      effort they would accept at the moment of use is a few clicks per invoice.}
+  solution.trialability:
+    answer: [first_invoice_free, no_contract]
+    belief_phrase: the first invoice costs nothing and there is no contract
+    belief_sentence: They would try it for the first time if the first invoice costs nothing and there is no contract.
+  solution.observability:
+    answer: [paid_in_a_week, no_chasing]
+    belief_phrase: paid within a week and no more chasing
+    belief_sentence: They would know it helped when paid within a week and no more chasing.
+  solution.target_circumstance: {answer: new_agency, belief_phrase: with an agency they have not worked for before, belief_sentence: It
+      matters most with an agency they have not worked for before.}
+  commercial.existing_sacrifice:
+    answer: [platform_fees, payment_fees]
+    belief_phrase: platform fees and payment fees
+    belief_sentence: Because of this, freelance translators working for agencies already give up platform fees and payment
+      fees.
+  commercial.wtp_hypothesis:
+    answer: {lower: 60, upper: 100, currency: GBP, per: month}
+    belief_phrase: £60 to £100 per month
+    belief_sentence: A fair price would feel like £60 to £100 per month (a hypothesis; interviews do not test it).
+  commercial.ability_to_pay: {answer: without_cutting_back, belief_phrase: out of the existing tools budget, belief_sentence: They
+      could find the money for it out of the existing tools budget.}
+  commercial.buyer_payer_alignment: {answer: same_person, belief_phrase: the project manager decides and pays, belief_sentence: 'On
+      buying: the project manager decides and pays.'}
+  commercial.purchase_friction:
+    answer: [owner_approval, finance_setup]
+    belief_phrase: the owner's approval and setting it up with finance
+    belief_sentence: Between wanting it and paying, the owner's approval and setting it up with finance could hold them back.
+  commercial.commitment:
+    answer: [call, read_only_trial]
+    belief_phrase: a read-only trial
+    belief_sentence: For a trial, right now, they would go as far as a read-only trial.
+  commercial.retention_potential: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+respondent_questions:
+  problem.prevalence:
+    part: 1
+    control: gate_yes_no
+    codes: ['yes', 'no']
+  problem.frequency: {part: 1, control: segmented_0_to_7}
+  problem.severity:
+    part: 1
+    control: single_choice_5
+    codes: [barely, a_little, moderately, very, extremely]
+  problem.duration: {part: 1, control: number_with_unit}
+  problem.importance:
+    part: 1
+    control: single_choice
+    own_item: late_payment
+    codes: [finding_work, late_payment, rates, tight_deadlines, tax_admin, something_else]
+  problem.consequence:
+    part: 1
+    control: multi_choice
+    codes: [overdraft, chasing_time, stress, turned_down_work, nothing_much, something_else]
+  problem.workaround_burden:
+    part: 1
+    control: multi_choice_ordered
+    codes: [chase_email, use_savings, overdraft, invoice_factoring, something_else]
+  problem.current_solution_satisfaction:
+    part: 1
+    control: single_choice_5
+    codes: [works_well, mostly_works, hit_and_miss, works_poorly, no_reliable_way]
+  solution.compatibility:
+    part: 2
+    control: single_choice
+    codes: [before_any_attempt, after_first_attempt_fails, after_several_attempts, only_when_nothing_works, would_not_fit,
+      something_else]
+  solution.relative_advantage:
+    part: 2
+    control: single_choice
+    codes: [fewer_attempts, shorter_time, less_worry, less_help_needed, easier_recovery, nothing_would_change, something_else]
+  solution.effectiveness_threshold:
+    part: 2
+    control: single_choice_bands
+    codes: [0-5, 5-10, 10-20, 20+, nothing_worth_it]
+  solution.trust_risk:
+    part: 2
+    control: multi_choice
+    codes: [clear_fee, agency_trusts_it, regulated, own_instinct, something_else]
+  solution.reliability_tolerance:
+    part: 2
+    control: single_choice
+    codes: [never_wrong, one_in_ten, one_in_five, one_in_three, half_the_time]
+  solution.adoption_friction:
+    part: 2
+    control: single_choice
+    codes: [nothing_extra, one_tap, a_few_taps, setup_once, daytime_setup, would_not_reach]
+  solution.trialability:
+    part: 2
+    control: multi_choice
+    codes: [first_invoice_free, no_contract, agency_invites_me, something_else]
+  solution.observability:
+    part: 2
+    control: multi_choice
+    codes: [paid_in_a_week, no_chasing, steadier_month, something_else]
+  solution.target_circumstance:
+    part: 2
+    control: single_choice
+    codes: [new_agency, big_invoice, slow_payer, not_useful, something_else]
+  commercial.existing_sacrifice:
+    part: 3
+    control: branch_pick_number
+    codes: [platform_fees, payment_fees, admin_time, nothing, something_else]
+  commercial.wtp_hypothesis: {part: 3, control: two_numbers_optional}
+  commercial.ability_to_pay:
+    part: 3
+    control: single_choice
+    codes: [easily, without_cutting_back, with_a_trade_off, barely, free_or_gift]
+  commercial.buyer_payer_alignment:
+    part: 3
+    control: single_choice
+    codes: [same_person, user_decides_other_pays, joint_decision, someone_else_decides, institution_pays, it_was_free]
+  commercial.purchase_friction:
+    part: 3
+    control: multi_choice
+    codes: [owner_approval, finance_setup, security_review, never_came_up, something_else]
+  commercial.commitment:
+    part: 3
+    control: multi_choice_ladder
+    codes: [call, read_only_trial, it_intro, data, paid_pilot, nothing_yet]
+answers:
+- person: Nadia Petrova
+  recency: 'yes'
+  story: Sent on the 2nd, paid on the 17th of the next month. Chased twice. Overdraft for the last week of it.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 5
+    problem.severity: moderately
+    problem.duration: {value: 45, unit: days, rough: false}
+    problem.importance: late_payment
+    problem.consequence: [overdraft, chasing_time, stress]
+    problem.workaround_burden: [chase_email, overdraft]
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: days}
+    solution.trust_risk: [clear_fee, agency_trusts_it]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [first_invoice_free, no_contract]
+    solution.observability: [paid_in_a_week, no_chasing]
+    solution.target_circumstance: slow_payer
+  pilot_opt_in: true
+- person: Omar Farouk
+  recency: 'yes'
+  story: The agency portal invoice, paid seventy days later after three chasers. Savings.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 6
+    problem.severity: very
+    problem.duration: {value: 70, unit: days, rough: false}
+    problem.importance: late_payment
+    problem.consequence: [chasing_time, stress]
+    problem.workaround_burden: [chase_email, use_savings]
+    problem.current_solution_satisfaction: no_reliable_way
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: days}
+    solution.trust_risk: [clear_fee, regulated]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: setup_once
+    solution.trialability: [first_invoice_free]
+    solution.observability: [paid_in_a_week, no_chasing]
+    solution.target_circumstance: slow_payer
+  pilot_opt_in: false
+- person: Petra Novak
+  recency: 'yes'
+  story: Paid in three weeks, that one. No chasing.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 1
+    problem.severity: a_little
+    problem.duration: {value: 21, unit: days, rough: false}
+    problem.importance: finding_work
+    problem.consequence: [nothing_much]
+    problem.workaround_burden: [something_else]
+    problem.current_solution_satisfaction: works_well
+    solution.compatibility: would_not_fit
+    solution.relative_advantage: nothing_would_change
+    solution.effectiveness_threshold: {band: 0-5, unit: days}
+    solution.trust_risk: [own_instinct]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: would_not_reach
+    solution.trialability: [agency_invites_me]
+    solution.observability: [steadier_month]
+    solution.target_circumstance: not_useful
+  pilot_opt_in: false
+- person: Quentin Roux
+  recency: 'yes'
+  story: About six weeks, one polite reminder, no real cash trouble.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 4
+    problem.severity: moderately
+    problem.duration: {value: 42, unit: days, rough: false}
+    problem.importance: rates
+    problem.consequence: [chasing_time]
+    problem.workaround_burden: [chase_email]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: days}
+    solution.trust_risk: [clear_fee, agency_trusts_it]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [first_invoice_free, no_contract]
+    solution.observability: [paid_in_a_week]
+    solution.target_circumstance: new_agency
+  pilot_opt_in: false
+- person: Rosa Alvarez
+  recency: 'yes'
+  story: Fifty days. Two chasers. I used the overdraft for rent.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 5
+    problem.severity: very
+    problem.duration: {value: 50, unit: days, rough: false}
+    problem.importance: late_payment
+    problem.consequence: [overdraft, stress]
+    problem.workaround_burden: [chase_email, overdraft]
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: days}
+    solution.trust_risk: [clear_fee, agency_trusts_it]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: one_tap
+    solution.trialability: [first_invoice_free, no_contract]
+    solution.observability: [paid_in_a_week, no_chasing, steadier_month]
+    solution.target_circumstance: slow_payer
+  pilot_opt_in: true
+- person: Sven Larsen
+  recency: 'yes'
+  story: Normally a month or two. Can't remember the last one specifically.
+  chip: null
+  anchoring: GUESSED
+  picks:
+    problem.frequency: 5
+    problem.severity: moderately
+    problem.duration: {value: 45, unit: days, rough: true}
+    problem.importance: late_payment
+    problem.consequence: [stress]
+    problem.workaround_burden: [chase_email]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 10-20, unit: days}
+    solution.trust_risk: [clear_fee]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [first_invoice_free]
+    solution.observability: [paid_in_a_week]
+    solution.target_circumstance: new_agency
+  pilot_opt_in: false
+- person: Talia Ben-David
+  recency: 'yes'
+  story: Thirty-two days, right on their terms. No chasing.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 0
+    problem.severity: a_little
+    problem.duration: {value: 32, unit: days, rough: false}
+    problem.importance: tight_deadlines
+    problem.consequence: [nothing_much]
+    problem.workaround_burden: [something_else]
+    problem.current_solution_satisfaction: works_well
+    solution.compatibility: would_not_fit
+    solution.relative_advantage: nothing_would_change
+    solution.effectiveness_threshold: {band: 0-5, unit: days}
+    solution.trust_risk: [own_instinct]
+    solution.reliability_tolerance: one_in_three
+    solution.adoption_friction: would_not_reach
+    solution.trialability: [agency_invites_me]
+    solution.observability: [steadier_month]
+    solution.target_circumstance: not_useful
+  pilot_opt_in: false
+- person: Umar Siddiqui
+  recency: 'yes'
+  story: Forty-five days on the nose, after one chaser. Overdraft, briefly.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 4
+    problem.severity: moderately
+    problem.duration: {value: 45, unit: days, rough: false}
+    problem.importance: late_payment
+    problem.consequence: [overdraft, chasing_time]
+    problem.workaround_burden: [chase_email, overdraft]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 10-20, unit: days}
+    solution.trust_risk: [clear_fee, agency_trusts_it, regulated]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [first_invoice_free, no_contract]
+    solution.observability: [paid_in_a_week, no_chasing]
+    solution.target_circumstance: big_invoice
+  pilot_opt_in: false
+- person: Vera Kowalski
+  recency: 'yes'
+  story: Four months. Chased five times. Savings gone.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 7
+    problem.severity: extremely
+    problem.duration: {value: 120, unit: days, rough: false}
+    problem.importance: late_payment
+    problem.consequence: [overdraft, chasing_time, stress, turned_down_work]
+    problem.workaround_burden: [chase_email, use_savings, overdraft]
+    problem.current_solution_satisfaction: no_reliable_way
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: days}
+    solution.trust_risk: [agency_trusts_it, clear_fee]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: daytime_setup
+    solution.trialability: [first_invoice_free, no_contract, agency_invites_me]
+    solution.observability: [no_chasing, paid_in_a_week]
+    solution.target_circumstance: slow_payer
+  pilot_opt_in: false
+- person: Wen Zhang
+  recency: 'yes'
+  story: About seven weeks, one chaser, I had a buffer so no overdraft.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 5
+    problem.severity: moderately
+    problem.duration: {value: 49, unit: days, rough: false}
+    problem.importance: finding_work
+    problem.consequence: [chasing_time, stress]
+    problem.workaround_burden: [chase_email, use_savings]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: less_worry
+    solution.effectiveness_threshold: {band: 20+, unit: days}
+    solution.trust_risk: [clear_fee, agency_trusts_it]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [first_invoice_free, no_contract]
+    solution.observability: [paid_in_a_week, no_chasing]
+    solution.target_circumstance: new_agency
+  pilot_opt_in: false
+- person: Xavier Dubois
+  recency: 'yes'
+  story: It's always slow with agencies. Weeks and weeks.
+  chip: rather_not_say
+  anchoring: GUESSED
+  picks:
+    problem.frequency: 6
+    problem.severity: very
+    problem.importance: late_payment
+    problem.consequence: [stress]
+    problem.workaround_burden: [chase_email]
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: days}
+    solution.trust_risk: [clear_fee]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: one_tap
+    solution.trialability: [first_invoice_free]
+    solution.observability: [no_chasing]
+    solution.target_circumstance: slow_payer
+  pilot_opt_in: false
+- person: Yara Haddad
+  recency: 'no'
+  story: null
+  chip: null
+  anchoring: null
+  picks: {}
+  pilot_opt_in: false
+- person: Kate Alder
+  link: COMMERCIAL_B2B
+  recency: null
+  story: Proz job-posting fees, renewed in March.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: platform_fees
+      cost: {value: 300, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 100, currency: GBP, per: month}
+      guess: {value: 80, currency: GBP, per: month}
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [owner_approval]
+    commercial.commitment: [call, read_only_trial]
+  pilot_opt_in: false
+- person: Mo Birch
+  link: COMMERCIAL_B2B
+  recency: null
+  story: Stripe fees on client card payments, monthly.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: payment_fees
+      cost: {value: 120, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 40, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: joint_decision
+    commercial.purchase_friction: [finance_setup, security_review]
+    commercial.commitment: [call]
+  pilot_opt_in: false
+- person: Sara Cedar
+  link: COMMERCIAL_B2B
+  recency: null
+  story: We don't pay platform fees, we bank-transfer everything.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: nothing
+      cost: {value: 0, currency: GBP, per: three_months}
+      still_using: 'no'
+    commercial.wtp_hypothesis: {last_paid: null, guess: null}
+    commercial.ability_to_pay: with_a_trade_off
+    commercial.buyer_payer_alignment: someone_else_decides
+    commercial.purchase_friction: [owner_approval, finance_setup]
+    commercial.commitment: [nothing_yet]
+  pilot_opt_in: false
+- person: Tariq Dune
+  link: COMMERCIAL_B2B
+  recency: null
+  story: Payoneer fees, every month.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: payment_fees
+      cost: {value: 150, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 50, currency: GBP, per: month}
+      guess: {value: 60, currency: GBP, per: month}
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [never_came_up]
+    commercial.commitment: [read_only_trial, it_intro]
+  pilot_opt_in: false
+- person: Uma Elm
+  link: COMMERCIAL_B2B
+  recency: null
+  story: A SaaS fee for the TMS, that's the closest.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: platform_fees
+      cost: {value: 450, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 150, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [owner_approval, security_review]
+    commercial.commitment: [call]
+  pilot_opt_in: false
+- person: Viktor Fern
+  link: COMMERCIAL_B2B
+  recency: null
+  story: Platform fees on Smartcat, monthly.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: platform_fees
+      cost: {value: 240, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 80, currency: GBP, per: month}
+      guess: {value: 70, currency: GBP, per: month}
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: joint_decision
+    commercial.purchase_friction: [finance_setup]
+    commercial.commitment: [read_only_trial]
+  pilot_opt_in: false
+- person: Wanda Gorse
+  link: COMMERCIAL_B2B
+  recency: null
+  story: Nothing I'd call a platform fee.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: nothing
+      cost: {value: 0, currency: GBP, per: three_months}
+      still_using: 'no'
+    commercial.wtp_hypothesis: {last_paid: null, guess: null}
+    commercial.ability_to_pay: barely
+    commercial.buyer_payer_alignment: someone_else_decides
+    commercial.purchase_friction: [owner_approval, finance_setup]
+    commercial.commitment: [nothing_yet]
+  pilot_opt_in: false
+- person: Yusuf Hazel
+  link: COMMERCIAL_B2B
+  recency: null
+  story: We pay various fees, I'd have to check.
+  chip: null
+  anchoring: GUESSED
+  picks:
+    commercial.existing_sacrifice:
+      bought: admin_time
+      cost: {value: 200, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 60, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [owner_approval]
+    commercial.commitment: [call]
+  pilot_opt_in: false
+expected:
+  standings:
+    problem.prevalence: {status: HOLDING_UP, drift: none, n: 12, 'yes': 11, proportion: 0.92}
+    problem.frequency: {status: HOLDING_UP, drift: none, n: 9, inside: 7, outside: 2, median: 5}
+    problem.severity: {status: HOLDING_UP, drift: none, n: 9, inside: 8, outside: 1}
+    problem.duration: {status: PEOPLE_DISAGREE, drift: both, n: 9, inside: 5, outside: 4, median: 45}
+    problem.importance: {status: HOLDING_UP, drift: none, n: 9, own_item_picks: 5, share: 0.56}
+    problem.consequence: {status: PEOPLE_DISAGREE, drift: none, n: 9, optionCounts: 'overdraft=4, chasing_time=6, stress=5,
+        turned_down_work=1, nothing_much=2, something_else=0'}
+    problem.workaround_burden: {status: PEOPLE_DISAGREE, drift: none, n: 9, first_action: chase_email, first_action_count: 7,
+      optionCounts: 'chase_email=7, use_savings=3, overdraft=4, invoice_factoring=0, something_else=2'}
+    problem.current_solution_satisfaction: {status: HOLDING_UP, drift: none, n: 9, inside: 7, outside: 2}
+    problem.urgency: {status: LEFT_OUT, drift: null}
+    solution.compatibility: {status: HOLDING_UP, drift: none, n: 9, inside: 7, outside: 2}
+    solution.relative_advantage: {status: HOLDING_UP, drift: none, n: 9, inside: 6, outside: 3}
+    solution.effectiveness_threshold: {status: BAR_SET, drift: none, n: 9, bar: 20+, optionCounts: '0-5=2, 5-10=0, 10-20=1,
+        20+=6, nothing_worth_it=0'}
+    solution.trust_risk: {status: HOLDING_UP, drift: none, n: 9, optionCounts: 'clear_fee=7, agency_trusts_it=6, regulated=2,
+        own_instinct=2, something_else=0'}
+    solution.reliability_tolerance: {status: HOLDING_UP, drift: none, n: 9, inside: 9, outside: 0}
+    solution.adoption_friction: {status: HOLDING_UP, drift: none, n: 9, inside: 7, outside: 2}
+    solution.trialability: {status: HOLDING_UP, drift: none, n: 9, optionCounts: 'first_invoice_free=7, no_contract=6, agency_invites_me=3,
+        something_else=0'}
+    solution.observability: {status: HOLDING_UP, drift: none, n: 9, optionCounts: 'paid_in_a_week=7, no_chasing=6, steadier_month=3,
+        something_else=0'}
+    solution.target_circumstance: {status: NOT_HOLDING_UP, drift: none, n: 9, inside: 2, outside: 7}
+    commercial.existing_sacrifice: {status: NOT_HOLDING_UP, drift: none, n: 7, median: 150, optionCounts: 'platform_fees=3,
+        payment_fees=2, admin_time=0, nothing=2, something_else=0'}
+    commercial.wtp_hypothesis: {status: NOT_TESTED_BY_DESIGN, drift: none, n: 5, median: 80}
+    commercial.ability_to_pay: {status: HOLDING_UP, drift: none, n: 7, inside: 6, outside: 1}
+    commercial.buyer_payer_alignment: {status: PEOPLE_DISAGREE, drift: none, n: 7, inside: 3, outside: 4}
+    commercial.purchase_friction: {status: HOLDING_UP, drift: none, n: 7, optionCounts: 'owner_approval=4, finance_setup=4,
+        security_review=2, never_came_up=1, something_else=0'}
+    commercial.commitment: {status: PEOPLE_DISAGREE, drift: none, n: 7, inside: 3, outside: 4, optionCounts: 'call=3, read_only_trial=3,
+        it_intro=1, data=0, paid_pilot=0, nothing_yet=2'}
+    commercial.retention_potential: {status: LEFT_OUT, drift: null}
+  vector_verdicts:
+    PROBLEM: {verdict: PEOPLE_DISAGREE, deciding: problem.duration}
+    SOLUTION: {verdict: BAR_SET, deciding: solution.effectiveness_threshold}
+    COMMERCIAL: {verdict: NOT_HOLDING_UP, deciding: commercial.existing_sacrifice}

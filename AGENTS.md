@@ -26,6 +26,14 @@ added to this line rather than quietly written — which is exactly how the thir
   reads *green at the current `MARKS_VERSION`*, so a rubric that moved has no run of record at all
   until one is spent, and a screen is one entry and cannot be one. The policy widened by one named
   event, in the open, which is the amendment shape this document asks for — it did not loosen.
+  **`MARKS_VERSION` 9** (spec `029-marks-v9-vectors`, 2026-10-07) is the gate as written until its
+  run of record is spent: eight subjects (three interpretation screens rendered and never scored,
+  calibration and respondent questions scored by code against keel-cloud's exported dimension
+  registry, one read a gate story, `COMPARE` shelled to keel-cloud's engine at zero spend, one brief
+  a project), eight marks (`marks.toml`; `golden_belief_recall` retired with `align.py`), the
+  corpus at revision 3, `rescore.py` refusing every v8 bundle by name, and `MODELS=exported`
+  refusing until the exported table carries `context`, `calibration` and `respondent`. `WHY=marks:9`
+  is the run of record's event; nothing here changed `why.py`.
 - **S-012**, *the journey through a host* (`evals/test_s012_journey_through_a_host.py`, specs
   `016-copilot-e2e`, `019-journey-through-a-host` and `021-short-journey`) — the third, and here
   is the argument for it. keel-cloud `canon/designs/keel-skill-design.md` §5.5 makes a host "supported" only when four
