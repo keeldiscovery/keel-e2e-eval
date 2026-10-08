@@ -1,0 +1,7 @@
+# slice.yaml with one value changed, failing exactly invariant 7 (spec 029 T004):
+# problem.prevalence is asked as a single_choice, so there is no gate.
+base: ../slice.yaml
+invariant: 7
+key: problem.prevalence
+path: [respondent, control]
+value: single_choice

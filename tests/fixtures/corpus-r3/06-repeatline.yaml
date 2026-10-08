@@ -1,0 +1,645 @@
+# Golden corpus entry 06 -- Repeatline, repeat prescriptions without the queue.
+#
+# REVISION 3, 2026-10-07 -- keel-e2e-eval spec 029 (marks v9, the vector redesign). Re-expressed in
+# marks-v9 §4's schema from the revision-2 file of the same name: the market, the statements, the roles
+# and the people are kept; each person's first occasion becomes their gate story, and their picks are
+# re-chosen by hand against the registry's dimensions. Standings tallied from the picks under the
+# compare rules the founder signed on 2026-10-07 (marks-v9 §2.5, spec 029 FR-018).
+# B2B: the decision-maker is the `manager` role. The seven practice managers answer Part 3 on their own
+# link (`link: COMMERCIAL_B2B`), and the commercial vector is counted over them (six anchored, the floor
+# met); the receptionists answer Parts 1 and 2. The commitment ladder is the B2B one.
+# The gate reads this entry's own window -- the last shift on the phones. Lou Pereira (wrote nothing)
+# answers No. Jo Harding chips (cant_recall); Fay Morrison's and Theo Nakamura's stories are vague.
+#
+# RECORDED UNDER keel-e2e-eval tests/fixtures/corpus-r3/ AND TO BE MOVED VERBATIM into keel-cloud
+# canon/designs/measured-beliefs/corpus/ at integration; `check_corpus.py` and `GoldenCorpusTest`
+# confirm the counts there.
+
+id: 06-repeatline
+title: Repeatline — repeat prescriptions without the queue
+revision: 3
+market: {country: GB, region: null, language: en-GB}
+statements: {problem: 'GP receptionists take forty repeat-prescription calls a day, two to four minutes each, about half of
+    all the calls they answer, typing each request into the clinical system by hand, and a request goes missing or gets delayed
+    often enough that patients ring back; based on the founder''s three years as a practice manager.', solution: 'A self-service
+    phone line, added to the practice''s existing phone menu, that takes the repeat request and files it into the clinical
+    system, so the receptionist handles only the exceptions.', commercial: 'The practice manager pays £150 a month, as the
+    practice already pays for its phone and online tools, and signs it off without going to the partners.'}
+roles:
+- {id: receptionist, label: GP receptionists, roleType: PRACTITIONER, about: a receptionist who answers the practice's phones}
+- {id: manager, label: Practice managers, roleType: BUYER, about: the practice manager who buys the practice's phone and online
+    tools}
+context: {actor: GP receptionist, actor_plural: GP receptionists, job: get every repeat-prescription request to the right
+    clinician without losing one, circumstance: a patient rings for a repeat prescription, segment: receptionists at GP practices
+    in England, understood: 'GP receptionists, when a patient rings for a repeat prescription, trying to get every request
+    to the right clinician without losing one.',
+  recall_window: {count: 1, unit: SHIFTS}}
+interpretations: {problem: 'GP receptionists spend about half their phone time on repeat-prescription calls, typing each request
+    into the clinical system by hand, and a request that goes missing brings the patient ringing back.'}
+solution_mechanism:
+  actor: the patient
+  trigger: when they ring for a repeat
+  mechanism: chooses the self-service option in the phone menu and gives the request to it
+  output: the request filed into the clinical system, with only the exceptions passed to a receptionist
+  not_assumed: [every patient will use the option, no request ever goes astray]
+  mechanism_terms: [self-service, menu option, exceptions]
+persona:
+  decision_maker: {role: manager}
+founder_calibration:
+  problem.prevalence: {answer: p_60_80, belief_phrase: Most, belief_sentence: Most of these GP receptionists had this at least
+      once in the last shift.}
+  problem.frequency:
+    answer: {lower: 4, upper: 5, unit: shifts out of 7}
+    belief_phrase: 4 to 5 shifts out of 7
+    belief_sentence: GP receptionists face this on 4 to 5 shifts out of 7.
+  problem.severity: {answer: moderately, belief_phrase: clogs the morning, belief_sentence: 'For GP receptionists, one episode
+      clogs the morning.'}
+  problem.duration:
+    answer: {lower: 2, upper: 4, unit: minutes}
+    belief_phrase: 2 to 4 minutes
+    belief_sentence: A typical episode takes 2 to 4 minutes from start to finish.
+  problem.importance: {answer: biggest, belief_phrase: the biggest drain on the phones, belief_sentence: 'Among the difficulties
+      that come up when a patient rings for a repeat prescription, this is the biggest drain on the phones.'}
+  problem.consequence:
+    labels: ["Requests that get missed", "Patients calling back", "The queue building up", "Complaints"]
+    answer: [missed_requests, callbacks, queue_builds]
+    belief_phrase: missed requests and callbacks and a queue that builds
+    belief_sentence: After an episode, GP receptionists are left with missed requests and callbacks and a queue that builds.
+  problem.workaround_burden:
+    labels: ["Type it into the system", "Write it on a paper slip", "Ask the pharmacy", "Point the patient to ordering online"]
+    answer: [type_into_system, paper_slip, ask_pharmacy]
+    belief_phrase: typing it in, a paper slip, asking the pharmacy
+    belief_sentence: In the moment, GP receptionists try typing it in, a paper slip, asking the pharmacy, in that order.
+  problem.current_solution_satisfaction: {answer: works_poorly, belief_phrase: 'works poorly: requests still go missing',
+    belief_sentence: 'The way GP receptionists handle it today works poorly: requests still go missing.'}
+  problem.urgency: {unsure: true, belief_sentence: 'You weren''t sure, so this was left out of the study. The brief says it is untested.'}
+  solution.compatibility: {answer: before_any_attempt, belief_phrase: before the caller reaches a receptionist, belief_sentence: It
+      fits into the episode before the caller reaches a receptionist.}
+  solution.relative_advantage: {answer: shorter_time, belief_phrase: a shorter queue on the phones, belief_sentence: 'To be
+      worth switching to, it must mainly deliver a shorter queue on the phones.'}
+  solution.effectiveness_threshold:
+    answer: {value: 2, unit: minutes}
+    belief_phrase: at least 2 minutes
+    belief_sentence: It is worth using only if it saves at least 2 minutes per episode.
+  solution.trust_risk:
+    labels: ["It files requests correctly", "It flags anything unusual", "Patients can actually use it"]
+    answer: [files_correctly, flags_exceptions]
+    belief_phrase: it files into the clinical system correctly and flags the exceptions
+    belief_sentence: GP receptionists would act on it only if it files into the clinical system correctly and flags the exceptions.
+  solution.reliability_tolerance: {answer: one_in_ten, belief_phrase: about one time in ten, belief_sentence: They keep using
+      it as long as it is wrong no more than about one time in ten.}
+  solution.adoption_friction: {answer: nothing_extra, belief_phrase: nothing at all, belief_sentence: The most extra effort
+      they would accept at the moment of use is nothing at all.}
+  solution.trialability:
+    labels: ["A trial month", "Switch it off at any time", "Another practice already uses it"]
+    answer: [trial_month, switch_off_anytime]
+    belief_phrase: a trial month and they can switch it off at any time
+    belief_sentence: They would try it for the first time if a trial month and they can switch it off at any time.
+  solution.observability:
+    labels: ["A shorter queue", "Fewer callbacks", "Fewer complaints"]
+    answer: [shorter_queue, fewer_callbacks]
+    belief_phrase: a shorter queue and fewer callbacks
+    belief_sentence: They would know it helped when a shorter queue and fewer callbacks.
+  solution.target_circumstance: {labels: ["Monday mornings", "After a bank holiday", "When the app is down"], answer: monday_mornings, belief_phrase: on Monday mornings, belief_sentence: It matters most
+      on Monday mornings.}
+  commercial.existing_sacrifice:
+    labels: ["Phone system upgrades", "Extra staff", "Online tools", "None of these"]
+    answer: [phone_upgrades, extra_staff]
+    belief_phrase: phone upgrades and extra staff on the phones
+    belief_sentence: Because of this, GP receptionists already give up phone upgrades and extra staff on the phones.
+  commercial.wtp_hypothesis:
+    answer: {lower: 100, upper: 200, currency: GBP, per: month}
+    belief_phrase: £100 to £200 per month
+    belief_sentence: A fair price would feel like £100 to £200 per month (a hypothesis; interviews do not test it).
+  commercial.ability_to_pay: {answer: without_cutting_back, belief_phrase: out of the existing practice budget, belief_sentence: They
+      could find the money for it out of the existing practice budget.}
+  commercial.buyer_payer_alignment: {answer: same_person, belief_phrase: the practice manager decides and pays, belief_sentence: 'On
+      buying: the practice manager decides and pays.'}
+  commercial.purchase_friction:
+    labels: ["The partners' sign-off", "A clinical safety review", "The contract terms"]
+    answer: [partner_sign_off, clinical_safety]
+    belief_phrase: the partners' sign-off and a clinical safety check
+    belief_sentence: Between wanting it and paying, the partners' sign-off and a clinical safety check could hold them back.
+  commercial.commitment:
+    labels: ["Book a call", "Start a read-only trial", "Introduce you to whoever runs IT", "Share some real data", "Start a paid pilot"]
+    answer: [call, read_only_trial, it_intro]
+    belief_phrase: an introduction to their IT supplier
+    belief_sentence: For a trial, right now, they would go as far as an introduction to their IT supplier.
+  commercial.retention_potential: {unsure: true, belief_sentence: 'You weren''t sure, so this was left out of the study. The brief says it is untested.'}
+respondent_questions:
+  problem.prevalence:
+    part: 1
+    control: gate_yes_no
+    codes: ['yes', 'no']
+  problem.frequency: {part: 1, control: segmented_0_to_7}
+  problem.severity:
+    part: 1
+    control: single_choice_5
+    codes: [barely, a_little, moderately, very, extremely]
+  problem.duration: {part: 1, control: number_with_unit}
+  problem.importance:
+    part: 1
+    control: single_choice
+    own_item: repeat_calls
+    codes: [appointment_calls, repeat_calls, results_queries, angry_callers, registrations, something_else]
+  problem.consequence:
+    part: 1
+    control: multi_choice
+    codes: [missed_requests, callbacks, queue_builds, complaints, nothing_much, something_else]
+  problem.workaround_burden:
+    part: 1
+    control: multi_choice_ordered
+    codes: [type_into_system, paper_slip, ask_pharmacy, point_to_online, something_else]
+  problem.current_solution_satisfaction:
+    part: 1
+    control: single_choice_5
+    codes: [works_well, mostly_works, hit_and_miss, works_poorly, no_reliable_way]
+  solution.compatibility:
+    part: 2
+    control: single_choice
+    codes: [before_any_attempt, after_first_attempt_fails, after_several_attempts, only_when_nothing_works, would_not_fit,
+      something_else]
+  solution.relative_advantage:
+    part: 2
+    control: single_choice
+    codes: [fewer_attempts, shorter_time, less_worry, less_help_needed, easier_recovery, nothing_would_change, something_else]
+  solution.effectiveness_threshold:
+    part: 2
+    control: single_choice_bands
+    codes: [0-5, 5-10, 10-20, 20+, nothing_worth_it]
+  solution.trust_risk:
+    part: 2
+    control: multi_choice
+    codes: [files_correctly, flags_exceptions, patients_can_use_it, own_instinct, something_else]
+  solution.reliability_tolerance:
+    part: 2
+    control: single_choice
+    codes: [never_wrong, one_in_ten, one_in_five, one_in_three, half_the_time]
+  solution.adoption_friction:
+    part: 2
+    control: single_choice
+    codes: [nothing_extra, one_tap, a_few_taps, setup_once, daytime_setup, would_not_reach]
+  solution.trialability:
+    part: 2
+    control: multi_choice
+    codes: [trial_month, switch_off_anytime, another_practice_uses_it, something_else]
+  solution.observability:
+    part: 2
+    control: multi_choice
+    codes: [shorter_queue, fewer_callbacks, fewer_complaints, something_else]
+  solution.target_circumstance:
+    part: 2
+    control: single_choice
+    codes: [monday_mornings, after_bank_holidays, app_outages, not_useful, something_else]
+  commercial.existing_sacrifice:
+    part: 3
+    control: branch_pick_number
+    codes: [phone_upgrades, extra_staff, online_tools, nothing, something_else]
+  commercial.wtp_hypothesis: {part: 3, control: two_numbers_optional}
+  commercial.ability_to_pay:
+    part: 3
+    control: single_choice
+    codes: [easily, without_cutting_back, with_a_trade_off, barely, free_or_gift]
+  commercial.buyer_payer_alignment:
+    part: 3
+    control: single_choice
+    codes: [same_person, user_decides_other_pays, joint_decision, someone_else_decides, institution_pays, it_was_free]
+  commercial.purchase_friction:
+    part: 3
+    control: multi_choice
+    codes: [partner_sign_off, clinical_safety, contract_terms, never_came_up, something_else]
+  commercial.commitment:
+    part: 3
+    control: multi_choice_ladder
+    codes: [call, read_only_trial, it_intro, data, paid_pilot, nothing_yet]
+answers:
+- person: Anne Whitaker
+  recency: 'yes'
+  story: Tuesday. Forty-odd repeats, mostly before ten. One lady rang back about a missing one from Friday.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 5
+    problem.severity: moderately
+    problem.duration: {value: 3, unit: minutes, rough: false}
+    problem.importance: repeat_calls
+    problem.consequence: [callbacks, queue_builds]
+    problem.workaround_burden: [type_into_system]
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 0-5, unit: minutes}
+    solution.trust_risk: [files_correctly, flags_exceptions]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: nothing_extra
+    solution.trialability: [trial_month, switch_off_anytime]
+    solution.observability: [shorter_queue, fewer_callbacks]
+    solution.target_circumstance: monday_mornings
+  pilot_opt_in: true
+- person: Bea Sinclair
+  recency: 'yes'
+  story: Monday, the worst day. Nearer fifty repeats, six minutes each because half of them argue.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 5
+    problem.severity: very
+    problem.duration: {value: 6, unit: minutes, rough: false}
+    problem.importance: angry_callers
+    problem.consequence: [queue_builds, complaints]
+    problem.workaround_burden: [type_into_system]
+    problem.current_solution_satisfaction: no_reliable_way
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: less_help_needed
+    solution.effectiveness_threshold: {band: 5-10, unit: minutes}
+    solution.trust_risk: [files_correctly]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: nothing_extra
+    solution.trialability: [trial_month]
+    solution.observability: [shorter_queue]
+    solution.target_circumstance: monday_mornings
+  pilot_opt_in: false
+- person: Cal Brennan
+  recency: 'yes'
+  story: Thursday. Maybe twenty-five repeats, we're a small practice. A couple I put on slips for the doctor.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 3
+    problem.severity: a_little
+    problem.duration: {value: 2, unit: minutes, rough: false}
+    problem.importance: appointment_calls
+    problem.consequence: [nothing_much]
+    problem.workaround_burden: [paper_slip, type_into_system]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: fewer_attempts
+    solution.effectiveness_threshold: {band: 0-5, unit: minutes}
+    solution.trust_risk: [flags_exceptions, patients_can_use_it]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: one_tap
+    solution.trialability: [another_practice_uses_it]
+    solution.observability: [fewer_complaints]
+    solution.target_circumstance: after_bank_holidays
+  pilot_opt_in: false
+- person: Dara Quinn
+  recency: 'yes'
+  story: Friday. About forty. Quick ones, under two minutes mostly.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 4
+    problem.severity: moderately
+    problem.duration: {value: 2, unit: minutes, rough: false}
+    problem.importance: repeat_calls
+    problem.consequence: [queue_builds]
+    problem.workaround_burden: [type_into_system]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 0-5, unit: minutes}
+    solution.trust_risk: [files_correctly, flags_exceptions]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: nothing_extra
+    solution.trialability: [trial_month, switch_off_anytime]
+    solution.observability: [shorter_queue, fewer_callbacks]
+    solution.target_circumstance: monday_mornings
+  pilot_opt_in: false
+- person: Eve Lindqvist
+  recency: 'yes'
+  story: Wednesday, sixty repeats at least, the app was down so everyone rang.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 5
+    problem.severity: extremely
+    problem.duration: {value: 3, unit: minutes, rough: false}
+    problem.importance: repeat_calls
+    problem.consequence: [queue_builds, callbacks, complaints]
+    problem.workaround_burden: [point_to_online, type_into_system]
+    problem.current_solution_satisfaction: no_reliable_way
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: less_help_needed
+    solution.effectiveness_threshold: {band: 5-10, unit: minutes}
+    solution.trust_risk: [files_correctly, flags_exceptions]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: nothing_extra
+    solution.trialability: [trial_month, switch_off_anytime]
+    solution.observability: [shorter_queue, fewer_callbacks]
+    solution.target_circumstance: app_outages
+  pilot_opt_in: true
+- person: Fay Morrison
+  recency: 'yes'
+  story: It's always busy, loads of repeats, can't put a number on it.
+  chip: null
+  anchoring: GUESSED
+  picks:
+    problem.frequency: 5
+    problem.severity: very
+    problem.duration: {value: 4, unit: minutes, rough: true}
+    problem.importance: repeat_calls
+    problem.consequence: [queue_builds]
+    problem.workaround_burden: [type_into_system]
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 0-5, unit: minutes}
+    solution.trust_risk: [files_correctly]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: nothing_extra
+    solution.trialability: [trial_month]
+    solution.observability: [shorter_queue]
+    solution.target_circumstance: monday_mornings
+  pilot_opt_in: false
+- person: Gus Ferreira
+  recency: 'yes'
+  story: Tuesday. About forty repeats, three minutes each. One went astray and the patient rang at four.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 5
+    problem.severity: moderately
+    problem.duration: {value: 3, unit: minutes, rough: false}
+    problem.importance: appointment_calls
+    problem.consequence: [missed_requests, callbacks, queue_builds]
+    problem.workaround_burden: [type_into_system, ask_pharmacy]
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: less_worry
+    solution.effectiveness_threshold: {band: 0-5, unit: minutes}
+    solution.trust_risk: [files_correctly, flags_exceptions]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: one_tap
+    solution.trialability: [trial_month, another_practice_uses_it]
+    solution.observability: [fewer_callbacks, shorter_queue]
+    solution.target_circumstance: monday_mornings
+  pilot_opt_in: false
+- person: Hal Okafor
+  recency: 'yes'
+  story: Monday. Thirty-ish. We've a basic line so they all queue. One rang back.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 4
+    problem.severity: moderately
+    problem.duration: {value: 4, unit: minutes, rough: false}
+    problem.importance: results_queries
+    problem.consequence: [callbacks, queue_builds]
+    problem.workaround_burden: [type_into_system]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 0-5, unit: minutes}
+    solution.trust_risk: [files_correctly, patients_can_use_it]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: nothing_extra
+    solution.trialability: [switch_off_anytime, trial_month]
+    solution.observability: [shorter_queue]
+    solution.target_circumstance: monday_mornings
+  pilot_opt_in: false
+- person: Ivy Chen
+  recency: 'yes'
+  story: Thursday. Forty-two, I counted for the manager. Five minutes each because of ID checks.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 5
+    problem.severity: very
+    problem.duration: {value: 5, unit: minutes, rough: false}
+    problem.importance: appointment_calls
+    problem.consequence: [queue_builds, complaints]
+    problem.workaround_burden: [paper_slip, ask_pharmacy]
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: less_help_needed
+    solution.effectiveness_threshold: {band: 5-10, unit: minutes}
+    solution.trust_risk: [flags_exceptions, files_correctly]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [trial_month, switch_off_anytime]
+    solution.observability: [shorter_queue, fewer_complaints]
+    solution.target_circumstance: after_bank_holidays
+  pilot_opt_in: false
+- person: Jo Harding
+  recency: 'yes'
+  story: Varies a lot. Some days none, some days it's all repeats.
+  chip: cant_recall
+  anchoring: GUESSED
+  picks:
+    problem.frequency: 3
+    problem.severity: moderately
+    problem.importance: registrations
+    problem.consequence: [queue_builds]
+    problem.workaround_burden: {chip: cant_recall}
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: less_worry
+    solution.effectiveness_threshold: {band: 0-5, unit: minutes}
+    solution.trust_risk: [own_instinct]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: nothing_extra
+    solution.trialability: [trial_month]
+    solution.observability: [shorter_queue]
+    solution.target_circumstance: monday_mornings
+  pilot_opt_in: false
+- person: Kit Ambrose
+  recency: 'yes'
+  story: Wednesday. Forty, give or take, fast ones. Nobody rang back that I know of.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.severity: barely
+    problem.duration: {value: 1, unit: minutes, rough: false}
+    problem.importance: appointment_calls
+    problem.consequence: [nothing_much]
+    problem.workaround_burden: [type_into_system, paper_slip]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: would_not_fit
+    solution.relative_advantage: nothing_would_change
+    solution.effectiveness_threshold: {band: nothing_worth_it, unit: minutes}
+    solution.trust_risk: [files_correctly, flags_exceptions]
+    solution.reliability_tolerance: one_in_three
+    solution.adoption_friction: would_not_reach
+    solution.trialability: [another_practice_uses_it]
+    solution.observability: [fewer_callbacks]
+    solution.target_circumstance: not_useful
+  pilot_opt_in: false
+- person: Lou Pereira
+  recency: 'no'
+  story: null
+  chip: null
+  anchoring: null
+  picks: {}
+  pilot_opt_in: false
+- person: Maria Santos
+  link: COMMERCIAL_B2B
+  recency: null
+  story: A cloud phone system in the spring. I signed it, the partners heard about it at the next meeting.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: phone_upgrades
+      cost: {value: 3000, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 250, currency: GBP, per: month}
+      guess: {value: 150, currency: GBP, per: month}
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [partner_sign_off]
+    commercial.commitment: [call, it_intro]
+  pilot_opt_in: false
+- person: Nick Adeyemi
+  link: COMMERCIAL_B2B
+  recency: null
+  story: Accurx, last year. The partners approved it, they approve anything over a thousand a year.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: online_tools
+      cost: {value: 1200, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 120, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: with_a_trade_off
+    commercial.buyer_payer_alignment: someone_else_decides
+    commercial.purchase_friction: [partner_sign_off, clinical_safety]
+    commercial.commitment: [call]
+  pilot_opt_in: false
+- person: Olu Bankole
+  link: COMMERCIAL_B2B
+  recency: null
+  story: A website refresh, two years ago. My decision.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: extra_staff
+      cost: {value: 4500, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 60, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [never_came_up]
+    commercial.commitment: [read_only_trial]
+  pilot_opt_in: false
+- person: Pam Kowalczyk
+  link: COMMERCIAL_B2B
+  recency: null
+  story: An online triage tool, this January. Mine to sign.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: extra_staff
+      cost: {value: 3800, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 180, currency: GBP, per: month}
+      guess: {value: 150, currency: GBP, per: month}
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [clinical_safety, contract_terms]
+    commercial.commitment: [it_intro, data]
+  pilot_opt_in: false
+- person: Raj Mehta
+  link: COMMERCIAL_B2B
+  recency: null
+  story: Phone system replacement, autumn. Partners signed, it was a big number.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: phone_upgrades
+      cost: {value: 5200, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 400, currency: GBP, per: month}
+      guess: null
+    commercial.ability_to_pay: barely
+    commercial.buyer_payer_alignment: someone_else_decides
+    commercial.purchase_friction: [partner_sign_off, clinical_safety]
+    commercial.commitment: [nothing_yet]
+  pilot_opt_in: false
+- person: Sue Gallagher
+  link: COMMERCIAL_B2B
+  recency: null
+  story: Accurx add-on, summer. I signed it.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      bought: extra_staff
+      cost: {value: 2900, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 90, currency: GBP, per: month}
+      guess: {value: 100, currency: GBP, per: month}
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [clinical_safety]
+    commercial.commitment: [call, read_only_trial]
+  pilot_opt_in: false
+- person: Theo Nakamura
+  link: COMMERCIAL_B2B
+  recency: null
+  story: We buy bits and pieces. I'd normally sign.
+  chip: null
+  anchoring: GUESSED
+  picks:
+    commercial.existing_sacrifice:
+      bought: phone_upgrades
+      cost: {value: 1500, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis: {last_paid: null, guess: null}
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [contract_terms]
+    commercial.commitment: [call]
+  pilot_opt_in: false
+expected:
+  standings:
+    problem.prevalence: {status: HOLDING_UP, drift: above, n: 12, 'yes': 11, proportion: 0.92}
+    problem.frequency: {status: HOLDING_UP, drift: none, n: 9, inside: 7, outside: 2, median: 5}
+    problem.severity: {status: HOLDING_UP, drift: none, n: 9, inside: 7, outside: 2}
+    problem.duration: {status: HOLDING_UP, drift: none, n: 9, inside: 6, outside: 3, median: 3}
+    problem.importance: {status: NOT_HOLDING_UP, drift: below, n: 9, own_item_picks: 3, share: 0.33}
+    problem.consequence: {status: NOT_HOLDING_UP, drift: none, n: 9, optionCounts: 'missed_requests=1, callbacks=4, queue_builds=7,
+        complaints=3, nothing_much=2, something_else=0'}
+    problem.workaround_burden: {status: NOT_HOLDING_UP, drift: none, n: 9, first_action: type_into_system, first_action_count: 6,
+      optionCounts: 'type_into_system=8, paper_slip=3, ask_pharmacy=2, point_to_online=1, something_else=0'}
+    problem.current_solution_satisfaction: {status: HOLDING_UP, drift: none, n: 9, inside: 7, outside: 2}
+    problem.urgency: {status: LEFT_OUT, drift: null}
+    solution.compatibility: {status: HOLDING_UP, drift: none, n: 9, inside: 6, outside: 3}
+    solution.relative_advantage: {status: NOT_HOLDING_UP, drift: none, n: 9, inside: 3, outside: 6}
+    solution.effectiveness_threshold: {status: BAR_SET, drift: none, n: 9, bar: 0-5, optionCounts: '0-5=5, 5-10=3, 10-20=0,
+        20+=0, nothing_worth_it=1'}
+    solution.trust_risk: {status: HOLDING_UP, drift: none, n: 9, optionCounts: 'files_correctly=8, flags_exceptions=7, patients_can_use_it=2,
+        own_instinct=0, something_else=0'}
+    solution.reliability_tolerance: {status: HOLDING_UP, drift: none, n: 9, inside: 9, outside: 0}
+    solution.adoption_friction: {status: HOLDING_UP, drift: none, n: 9, inside: 8, outside: 1}
+    solution.trialability: {status: HOLDING_UP, drift: none, n: 9, optionCounts: 'trial_month=7, switch_off_anytime=5, another_practice_uses_it=3,
+        something_else=0'}
+    solution.observability: {status: HOLDING_UP, drift: none, n: 9, optionCounts: 'shorter_queue=7, fewer_callbacks=5, fewer_complaints=2,
+        something_else=0'}
+    solution.target_circumstance: {status: PEOPLE_DISAGREE, drift: none, n: 9, inside: 5, outside: 4}
+    commercial.existing_sacrifice: {status: PEOPLE_DISAGREE, drift: none, n: 6, median: 3400, optionCounts: 'phone_upgrades=2,
+        extra_staff=3, online_tools=1, nothing=0, something_else=0'}
+    commercial.wtp_hypothesis: {status: NOT_TESTED_BY_DESIGN, drift: none, n: 6, median: 150}
+    commercial.ability_to_pay: {status: HOLDING_UP, drift: none, n: 6, inside: 5, outside: 1}
+    commercial.buyer_payer_alignment: {status: HOLDING_UP, drift: none, n: 6, inside: 4, outside: 2}
+    commercial.purchase_friction: {status: HOLDING_UP, drift: none, n: 6, optionCounts: 'partner_sign_off=3, clinical_safety=4,
+        contract_terms=1, never_came_up=1, something_else=0'}
+    commercial.commitment: {status: NOT_HOLDING_UP, drift: none, n: 6, inside: 2, outside: 4, optionCounts: 'call=3, read_only_trial=2,
+        it_intro=2, data=1, paid_pilot=0, nothing_yet=1'}
+    commercial.retention_potential: {status: LEFT_OUT, drift: null}
+  vector_verdicts:
+    PROBLEM: {verdict: HOLDING_UP, deciding: problem.prevalence}
+    SOLUTION: {verdict: NOT_HOLDING_UP, deciding: solution.relative_advantage}
+    COMMERCIAL: {verdict: NOT_HOLDING_UP, deciding: commercial.commitment}

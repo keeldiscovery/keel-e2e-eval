@@ -18,6 +18,19 @@ import yaml
 from harness import corpus_script as cs
 from instructions import corpus as corpus_reader
 from stack.config import load_config
+from tests import r2_corpus
+
+#: The tests below that read no corpus at all: they keep running at revision 3.
+_R2_FREE = {"test_drift_equal", "test_a_refusal_is_never_a_warning",
+            "test_brief_is_the_screen_name_keel_clouds_own_context_keys_export_uses"}
+
+
+@pytest.fixture(autouse=True)
+def _r2_shape_retired(request):
+    """Spec 029 T016 / O-1: the r2 shape assertions -- on the real seven files and on `CANNED` --
+    skip by name once `instructions.corpus` reads revision 3."""
+    if request.node.originalname not in _R2_FREE:
+        r2_corpus.skip_if_retired()
 
 CHOSEN = ("01-countly", "05-paidly", "07-mulchrun")
 

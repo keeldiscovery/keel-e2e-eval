@@ -1,0 +1,213 @@
+{
+  "_source": "keel-cloud 062 (ff316cc) VectorFixtures.calibrationResult(PROBLEM) -- the golden the `screenContracts validate` test accepts (ScreenContractToolTest 'calibration-good'), transcribed: the registry's Lullaby examples, words only, no codes (joined by position)",
+  "vector": "PROBLEM",
+  "questions": [
+    {
+      "key": "problem.prevalence",
+      "question": "Out of 10 parents of babies under six months, how many do you think had a night in the last 7 nights when the baby cried and they had to decide what to try?",
+      "options": [
+        {
+          "label": "Fewer than 2 in 10",
+          "belief_phrase": "Only a few"
+        },
+        {
+          "label": "2 to 4 in 10",
+          "belief_phrase": "A minority"
+        },
+        {
+          "label": "4 to 6 in 10",
+          "belief_phrase": "Around half"
+        },
+        {
+          "label": "6 to 8 in 10",
+          "belief_phrase": "Most"
+        },
+        {
+          "label": "8 to 10 in 10",
+          "belief_phrase": "Nearly all"
+        }
+      ],
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    },
+    {
+      "key": "problem.frequency",
+      "question": "In a typical week, on how many nights out of 7 do you think a parent is woken by a cry and has to work out what the baby needs?",
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    },
+    {
+      "key": "problem.severity",
+      "question": "When it happens, how disruptive do you think one of these episodes is for the parent?",
+      "options": [
+        {
+          "label": "A minor interruption; they are back asleep in no time",
+          "belief_phrase": "barely dents the night"
+        },
+        {
+          "label": "Annoying, but the night is mostly intact",
+          "belief_phrase": "takes a little off the night"
+        },
+        {
+          "label": "They are fully awake and the rest of the night is lighter",
+          "belief_phrase": "leaves the rest of the night broken"
+        },
+        {
+          "label": "They lose a large part of the night's sleep",
+          "belief_phrase": "costs a large part of the night's sleep"
+        },
+        {
+          "label": "They feel overwhelmed and the night is effectively lost",
+          "belief_phrase": "writes the night off"
+        }
+      ],
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    },
+    {
+      "key": "problem.duration",
+      "question": "From the moment the baby starts crying, how long do you think it takes a parent to work out what the baby needs and get them settled?",
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    },
+    {
+      "key": "problem.importance",
+      "question": "Compared with the other things that make nights hard with a baby under six months, where do you think working out what the cry means ranks for the parent?",
+      "options": [
+        {
+          "label": "Their biggest night-time difficulty",
+          "belief_phrase": "the biggest difficulty"
+        },
+        {
+          "label": "One of their top three",
+          "belief_phrase": "one of the top three"
+        },
+        {
+          "label": "Somewhere in the middle",
+          "belief_phrase": "a middling one"
+        },
+        {
+          "label": "A minor one compared with the others",
+          "belief_phrase": "a minor one"
+        },
+        {
+          "label": "It barely registers against the others",
+          "belief_phrase": "barely on the list"
+        }
+      ],
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    },
+    {
+      "key": "problem.consequence",
+      "question": "Which of these do you think usually follow from a night with one of these episodes? Pick all that apply.",
+      "options": [
+        {
+          "label": "The parent loses sleep",
+          "belief_phrase": "lost sleep"
+        },
+        {
+          "label": "The other parent or partner is woken too",
+          "belief_phrase": "a partner woken too"
+        },
+        {
+          "label": "The parent feels stressed, anxious or guilty",
+          "belief_phrase": "stress"
+        },
+        {
+          "label": "The parent is tired and less effective the next day",
+          "belief_phrase": "a worse next day"
+        },
+        {
+          "label": "The parent turns to a doctor, nurse or helpline",
+          "belief_phrase": "a call to a professional"
+        },
+        {
+          "label": "The parent searches online or asks family or friends",
+          "belief_phrase": "a search for answers"
+        }
+      ],
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    },
+    {
+      "key": "problem.workaround_burden",
+      "question": "What do you think parents actually do, in the moment, to work out what the baby needs? Pick all that apply, in the order they try them.",
+      "options": [
+        {
+          "label": "Try feeding the baby",
+          "belief_phrase": "feeding"
+        },
+        {
+          "label": "Check and change the nappy",
+          "belief_phrase": "a nappy change"
+        },
+        {
+          "label": "Rock, hold or walk with the baby",
+          "belief_phrase": "rocking"
+        },
+        {
+          "label": "Use a dummy, white noise or a swaddle",
+          "belief_phrase": "a dummy or white noise"
+        },
+        {
+          "label": "Check the temperature, clothing or room",
+          "belief_phrase": "a comfort check"
+        },
+        {
+          "label": "Look up advice or ask someone",
+          "belief_phrase": "looking it up"
+        }
+      ],
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    },
+    {
+      "key": "problem.current_solution_satisfaction",
+      "question": "Thinking about how parents work out what the baby needs today, how well do you think that way of doing it serves them?",
+      "options": [
+        {
+          "label": "Very well; they rarely feel stuck",
+          "belief_phrase": "works reliably"
+        },
+        {
+          "label": "Fairly well; it works most nights",
+          "belief_phrase": "works most of the time"
+        },
+        {
+          "label": "Mixed; it works about half the time",
+          "belief_phrase": "is hit and miss"
+        },
+        {
+          "label": "Poorly; they often end up guessing",
+          "belief_phrase": "works poorly: they end up guessing"
+        },
+        {
+          "label": "Very poorly; they have no reliable way at all",
+          "belief_phrase": "gives them no reliable way at all"
+        }
+      ],
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    },
+    {
+      "key": "problem.urgency",
+      "question": "When the baby cries at night and the cause is not clear, how soon do you think a parent feels they must act?",
+      "options": [
+        {
+          "label": "Right away, within the first minute",
+          "belief_phrase": "within the first minute"
+        },
+        {
+          "label": "Within a few minutes",
+          "belief_phrase": "that within a few minutes"
+        },
+        {
+          "label": "After the crying has gone on for 5 to 10 minutes",
+          "belief_phrase": "after five to ten minutes of crying"
+        },
+        {
+          "label": "Only once it has gone on longer than 10 minutes, or gets louder",
+          "belief_phrase": "only after ten minutes or more"
+        },
+        {
+          "label": "They wait to see whether the baby settles alone",
+          "belief_phrase": "only if the baby does not settle alone"
+        }
+      ],
+      "respondent_note": "Respondents will be asked about their own last episode, never this."
+    }
+  ]
+}

@@ -13,6 +13,7 @@ from evals import policy
 from evals.facts import Fact
 from harness import scoring
 from harness.steps import Recorder
+from tests import r2_corpus
 
 
 def _checks_for(scorecard: dict, check_id: str) -> list[dict]:
@@ -273,6 +274,7 @@ def test_absence_matching_is_the_same_matching_as_presence(tmp_path):
 
 # ------------------------------------------------- the one absence that cannot honestly be claimed
 
+@r2_corpus.requires_r2              # spec 029 T016 / O-1
 def test_a_founder_phrase_that_is_its_own_option_word_is_not_declared_absent():
     """`01-countly`'s `C17`: the founder said *per site*, and `S17` asks "How is that tool priced?"
     with `per site` among the four answers. Rule `Q5` forbids a **line** that names the founder's

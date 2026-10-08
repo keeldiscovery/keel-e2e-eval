@@ -214,6 +214,8 @@ acceptance: venv
 #       -- the 2026-09-30 certificate's own shape: claude-sonnet-5-5 at medium, from the table
 #   make instruction-eval HOST=claude WHY=marks:8 MODELS=exported
 #       -- MARKS_VERSION 8's own run of record (spec 025 T030), ~2.5 h and ~$15
+#   make instruction-eval HOST=claude WHY=marks:9 MODELS=exported
+#       -- MARKS_VERSION 9's own run of record, runs/20261008T194906Z-instructions (spec 029), ~$20
 instruction-screen: venv
 	$(PY) -m instructions.run --host $(if $(HOST),$(HOST),claude) \
 		$(if $(DRY),--dry-run,) -k "$(if $(K),$(K),01-countly)" -n $(if $(N),$(N),3) \

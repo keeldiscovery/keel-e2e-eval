@@ -287,10 +287,48 @@ class Answer:
     duration_s: float = 0.0
     error: str | None = None          # ExecutorUnavailable/Timeout: not a score
     never_fit: bool = False           # the model failed the contract, which IS a score
+    # Judgement call 41: the aggregate's verdict on this answer and, after a rule refusal, on its
+    # one redraw -- `verdicts[0]` the first draft's, `verdicts[1]` the redraw's. Empty when the
+    # verdict was not asked during the run (a screen the cloud never redraws, or a validator that
+    # does not take the screen): then the end-of-run batch judges it, as before call 41.
+    verdicts: list = field(default_factory=list)
+    redraw: "Answer | None" = None    # the one repair turn's answer, when there was one
+    redraw_payload: dict | None = None
+    redraw_prompt: str = ""
 
     @property
     def errored(self) -> bool:
         return self.error is not None and not self.never_fit
+
+    @property
+    def refusals(self) -> list:
+        """Every refusal the aggregate wrote on this case, first draft then redraw, each tagged
+        with the draft it refused (`1` or `2`)."""
+        return [{**(v.get("refusal") or {}), "draft": i + 1}
+                for i, v in enumerate(self.verdicts) if v is not None and not v.get("accepted")]
+
+    @property
+    def accepted(self) -> "Answer | None":
+        """The answer a founder would see: the first draft if the aggregate took it, the redraw if
+        it took that, and `None` when it refused both (or the redraw never came back)."""
+        if self.verdicts and self.verdicts[0] is not None and self.verdicts[0].get("accepted"):
+            return self
+        if self.redraw is not None and len(self.verdicts) > 1 and self.verdicts[1] is not None \
+                and self.verdicts[1].get("accepted"):
+            return self.redraw
+        return None
+
+    @property
+    def scored(self) -> "Answer":
+        """What the structural marks read (call 41): the accepted answer, else the raw one --
+        a second refusal leaves the answer refused, and it scores as faults on the raw marks."""
+        return self.accepted or self
+
+    def view(self) -> dict:
+        """The bundle's record of one draft: `answer.raw` / `answer.accepted`."""
+        return {"outcome": self.outcome, "schema_valid": self.schema_valid,
+                "schema_error": self.schema_error, "error": self.error,
+                "result": self.result, "questions": self.questions}
 
 
 def _model_kwarg(executor_module, executor, request_payload: dict) -> dict:
@@ -324,11 +362,17 @@ def _model_kwarg(executor_module, executor, request_payload: dict) -> dict:
     return kwargs
 
 
-def ask(executor_module, validator_module, executor, case) -> Answer:
-    """One case, one call. An executor failure is recorded as an error, never as a bad answer."""
+def ask(executor_module, validator_module, executor, case, *, payload: dict | None = None,
+        turn_number: int = 1) -> Answer:
+    """One case, one call. An executor failure is recorded as an error, never as a bad answer.
+
+    `payload` and `turn_number` are the redraw's (call 41): the repair turn is the same case, the
+    same interaction and the next turn, exactly as keel-cloud queues it."""
+    payload = case.payload if payload is None else payload
     request = executor_module.InferenceRequest(
-        job_id=_job_id(case), interaction_id=_job_id(case), turn_number=1,
-        request_payload=case.payload, **_model_kwarg(executor_module, executor, case.payload))
+        job_id=_job_id(case) + ("" if turn_number == 1 else f"-turn{turn_number}"),
+        interaction_id=_job_id(case), turn_number=turn_number,
+        request_payload=payload, **_model_kwarg(executor_module, executor, payload))
     started = time.monotonic()
     answer = Answer(case_id=case.case_id)
     # `ClaudeCodeExecutor` sets `last_envelope` only after a call that got that far, so a timeout
@@ -376,7 +420,7 @@ def ask(executor_module, validator_module, executor, case) -> Answer:
     answer.tokens = answer.envelope.get("tokens")
     answer.reported_model = reported_model(answer.envelope, executor)
 
-    contract = case.payload.get("response_contract") or {}
+    contract = payload.get("response_contract") or {}
     try:
         validator_module.validate_response(response, contract)
         answer.schema_valid = True
@@ -388,6 +432,121 @@ def ask(executor_module, validator_module, executor, case) -> Answer:
         answer.result = response.get("result")
         answer.questions = response.get("questions")
     return answer
+
+
+# ------------------------------------------------------------------- the redraw (call 41)
+
+#: The screens keel-cloud's `InferenceOrchestrator` gives **one repair turn** after the aggregate
+#: refuses an answer, read off keel-cloud 058 (`InferenceOrchestrator.repairUnattended` -- QUESTIONS
+#: and the two vector question screens, spec 058 T057 -- and `refuseOrRepairDraft` -- the three
+#: draft vector screens). **Decision 46 (2026-10-08):** `BRIEF` too, through the same
+#: `repairUnattended` -> `queueAnotherQuestionsTurn` path as the question screens (turn one's
+#: context plus `repair`, no history, empty input; priced as a TURN in the cloud). `INTERPRET`
+#: keeps its own refusal, unchanged: no redraw.
+QUESTION_SCREENS = ("CALIBRATION_QUESTIONS", "RESPONDENT_QUESTIONS")
+DRAFT_SCREENS = ("CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "SOLUTION_MECHANISM")
+UNATTENDED_SCREENS = QUESTION_SCREENS + ("BRIEF",)
+REDRAW_SCREENS = UNATTENDED_SCREENS + DRAFT_SCREENS
+
+#: The cloud's own sentences, byte for byte. `ANSWER_AGAIN` closes both `REFUSED by rule ...`
+#: repairs (`InferenceOrchestrator.applyCompleted`'s DomainException branch and
+#: `refuseOrRepairDraft`); `NOT_DERIVED` is `RecoverySection.DERIVATION_TEMPLATE`, which a question
+#: screen's `InvalidResult` -- every vector rule id (`C1`..`C7`, `R1`..`R8`) arrives as one -- is
+#: repaired with.
+ANSWER_AGAIN = "Answer again with everything you already had; change only that."
+NOT_DERIVED = ("NOT DERIVED -- your previous answer was accepted as a shape and then could not be "
+               "resolved: {detail}. Answer again with everything you already had; fix only that; "
+               "change nothing else.")
+_FIX = " \u2014 Fix: "            # DomainException's own `rule + ": " + problem + " — Fix: " + remedy`
+
+
+def should_redraw(case, verdict) -> bool:
+    """A **rule** refusal on a screen the cloud redraws. A shape refusal is not redrawn here
+    (call 41: shape refusals stay an absolute zero on the raw answer), nor is a `case` fault, which
+    is the eval's own."""
+    return (case.screen in REDRAW_SCREENS and verdict is not None
+            and not verdict.get("accepted")
+            and (verdict.get("refusal") or {}).get("kind") == "rule")
+
+
+def repair_text(screen: str, refusal: dict) -> str:
+    """The `repair` sentence keel-cloud puts in turn one's context, for this screen and refusal.
+
+    The validator's report says which exception the applier threw: an `InvalidResult` carries a
+    `path`, a `DomainException` does not and its `message` is `rule: problem — Fix: remedy`.
+    """
+    rule = refusal.get("rule") or ""
+    path = refusal.get("path")
+    message = refusal.get("message") or ""
+    if screen in DRAFT_SCREENS:
+        # refuseOrRepairDraft: "REFUSED by rule " + e.path + ": " + e.why + ". " + ANSWER_AGAIN
+        why = f"{path}: {message}" if path is not None else message
+        return f"REFUSED by rule {why}. {ANSWER_AGAIN}"
+    if path is not None:
+        # repairUnattended(row, RecoverySection.derivationRepairText(e.path + ": " + e.why), ...)
+        return NOT_DERIVED.replace("{detail}", f"{path}: {message}", 1)
+    # repairUnattended(row, "REFUSED by rule " + rule + " -- " + problem + ". " + remedy + " " ...)
+    body = message[len(rule) + 2:] if rule and message.startswith(f"{rule}: ") else message
+    problem, _, remedy = body.partition(_FIX)
+    return f"REFUSED by rule {rule} -- {problem}. {remedy} {ANSWER_AGAIN}"
+
+
+def redraw_payload(case, refusal: dict, first: Answer) -> dict:
+    """The repair turn's `request_payload`, mirroring keel-cloud 058's orchestrator.
+
+    Turn one's context **plus one key, `repair`**; the screen's own instruction, response contract,
+    model and effort unchanged; `input.content` empty. The previous answer is **not** sent back:
+    on a question screen and on `BRIEF` (`queueAnotherQuestionsTurn`) the history is empty, and on a draft screen
+    (`refuseOrRepairDraft` -> `buildHistory`) it is turn one's `{turn_number, input, outcome,
+    questions}` -- which carries no `result`. What the model gets is the refusal, in words.
+    """
+    payload = dict(case.payload)
+    context = dict(case.payload.get("context") or {})
+    context["repair"] = repair_text(case.screen, refusal)
+    payload["context"] = context
+    payload["interaction_history"] = ([] if case.screen in UNATTENDED_SCREENS else [{
+        "turn_number": 1, "input": case.payload.get("input"), "outcome": first.outcome,
+        "questions": first.questions}])
+    payload["input"] = {"content": ""}
+    return payload
+
+
+def _gradeable(answer: Answer) -> bool:
+    return answer.schema_valid and answer.outcome == "COMPLETED" and answer.result is not None
+
+
+def ask_with_redraw(executor_module, validator_module, executor, case, verdict,
+                    *, render=None) -> Answer:
+    """One case, and -- after a rule refusal -- the one repair turn keel-cloud would queue
+    (judgement call 41).
+
+    `verdict(case, result, redraw=False)` is the aggregate's report entry for one answer, or `None`
+    when it cannot be asked (the run then judges the answer at the end, as before call 41, and
+    nothing is redrawn). A second refusal is terminal, as it is in the cloud: the answer stays
+    refused and `scored` is the raw one. Every refusal is on `answer.refusals`.
+    """
+    first = ask(executor_module, validator_module, executor, case)
+    if case.screen not in REDRAW_SCREENS or not _gradeable(first):
+        return first
+    v1 = verdict(case, first.result, redraw=False)
+    if v1 is None:
+        return first
+    first.verdicts.append(v1)
+    if not should_redraw(case, v1):
+        return first
+    payload = redraw_payload(case, v1.get("refusal") or {}, first)
+    first.redraw_payload = payload
+    if render is not None:
+        first.redraw_prompt = render(payload)
+    second = ask(executor_module, validator_module, executor, case, payload=payload,
+                 turn_number=2)
+    first.redraw = second
+    first.verdicts.append(verdict(case, second.result, redraw=True) if _gradeable(second)
+                          else {"accepted": False,
+                                "refusal": {"kind": "redraw_failed", "rule": None, "path": None,
+                                            "message": second.error or second.schema_error
+                                            or f"outcome {second.outcome}"}})
+    return first
 
 
 def _job_id(case) -> str:

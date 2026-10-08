@@ -1,0 +1,7 @@
+# slice.yaml with one value changed, failing exactly invariant 5 (spec 029 T004):
+# problem.severity repeats a_little.
+base: ../slice.yaml
+invariant: 5
+key: problem.severity
+path: [founder, normalized, codes]
+value: [barely, a_little, a_little, very, extremely]

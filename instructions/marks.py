@@ -6,6 +6,36 @@ separate constant: an instruction-eval rubric change must never look like a scen
 judgement call below** -- scores under different versions describe different rubrics and are not
 comparable.
 
+**`MARKS_VERSION` 9** (spec 029, 2026-10-07): the subjects are the eight screens of the vector
+redesign, `golden_belief_recall` and `align.py` are retired, four marks are born and every one is
+measured by code against the registry keel-cloud exports, and the corpus is read at revision 3.
+Calls 28-36 are `specs/029-marks-v9-vectors/contracts/marks-v9.md` §3's, verbatim; calls 1-27 are
+byte for byte what `master` `0165017` carried (`tests/fixtures/marks/calls-1-27.at-0165017.txt`).
+
+**The corpus v9 judges, recorded 2026-10-07** (spec 029 US4.2, plan O-4). Revision 3's seven
+entries, by sha256 -- the recorded revision under `tests/fixtures/corpus-r3/`, to be moved verbatim
+into keel-cloud's canon, so a run reads these bytes either way:
+
+    01-countly         e8b72c47d57085133032d267682f720eecb603b4aab921f2b5a85ccc96815320
+    02-compliancelog   5b8d01a9048dc7263f6e8de82da2221f91ffc413b2229dba5e452d59821fda27
+    03-lullaby         229f794d6374c315dd6c8edac4d21051d411888f63005b84e72cb28ccab50ed8
+    04-linerly         0aa0b13f4f649de942a54baff934e4e6a464098f0e40f4cc2d82b41cf4498fc9
+    05-paidly          00f0d030e32457a00c35e9118865591168c9dd4caa661992303b4ed4251b3716
+    06-repeatline      991bd046984a64675e07c59ed5dc57f905a63ee87100c1e241dd49006ff43f61
+    07-mulchrun        a4e76486a16c07a0f2be1d54d2d2b8f17a0417292e3999dbc81d5b4a2cd7e682
+
+Amended 2026-10-08: Lullaby's `mechanism_terms` drops `cot` (call 39), and every entry's model-written
+sets gain `founder_calibration[d].labels`, the labels production sends as `founder_options`.
+Amended 2026-10-08 again, synced to keel-cloud 058 `5fc7220`'s canon byte for byte: 13 belief
+sentences are the engine's again (`problem.prevalence` in 01/02/04/05/06/07, `problem.importance`
+in all seven), every entry records `context.recall_window: {count, unit}` (founder decision 42),
+and Lullaby's circumstance reads *the baby cries in the night* (the GRAMMAR decision).
+
+The corpus-wide `anchoring_accuracy` denominator, **counted, not estimated**: 106 people, less 13 who
+answer No at the gate, 6 whose story carries a chip and 22 decision-makers on a B2B link (who are
+never read) -- **65 reads at N=1, 195 at N=3**. A full run builds 138 model cases at N=1 (414 at N=3)
+and 7 `COMPARE` rows; `compare_correctness` is 196 checks.
+
 Judgement calls, append-only across every version, struck nowhere, because the rubric's history is
 part of what a number means:
 
@@ -143,6 +173,133 @@ part of what a number means:
     that cannot be resolved is counted as `unresolved_reads` and left to fail to match. 26 holds
     *because of* this call, not in spite of it: with it, `align.FIELDS` does not change and the
     recall denominator does not change.
+28. **v9**: **New subjects are a rubric change.** The five new screens of §1 replace `*_ASSUMPTIONS`
+    and `QUESTIONS`; `INTERPRET` keeps its constant and is narrowed to the gate story (one judgement
+    a respondent); the three interpretation screens are rendered and never scored — their leaks are
+    rule refusals (`X1` / `P1` / `M1`) feeding `rule_refusal_rate` only (call 10). Scores before and
+    after are not comparable.
+29. **v9**: **`golden_belief_recall` is retired, and `align.py` with it.** A calibration answer is a
+    typed pick against the registry; the model writes the question, the engine writes the belief.
+    There is no structure to align, no option list to overlap, no tie to break. The golden is the
+    registry slice, not text.
+30. **v9**: **`dimension_coverage` is absolute.** One question per dimension, both screens;
+    denominators per §2.1. A plan the eval built by code from `founder_calibration` is what the
+    respondent screen is handed, exactly as production's `EVIDENCE_PLAN` would.
+31. **v9**: **`option_validity` is code, and 1.00 is honest only because the registry fixes the
+    codes.** The mark checks the mapping, not the invention.
+32. **v9**: **`no_leak`'s list is derived from the corpus's golden mechanism, never from the live
+    `SOLUTION_MECHANISM` output** (the ruler must not move with the subject); ties are inflection
+    collisions with the problem's own words and go to the judge; every other hit is a fault.
+33. **v9**: **One anchoring judgement per respondent.** Gate-No respondents are outside every
+    denominator; **amended 2026-10-07 (decision 10):** a chipped story is set `GUESSED` by code with
+    no call and is OUTSIDE the denominator too — only un-chipped stories are read. Number unchanged.
+34. **v9**: **`compare_correctness` spends nothing and is measured on `DRY=1`.** Status + drift
+    marked; counts reported; an export without the engine leaves it unmeasured, which fails (call
+    13). This repo keeps no copy of the arithmetic (DRIFT #33/#36/#41/#44/#45).
+35. **v9**: **`brief_paragraphs` gains `no_claim_words`**, scoped to the sentence naming a `BAR_SET`
+    or `NOT_TESTED_BY_DESIGN` dimension; the deciding line is the worst deal-breaker; all five or
+    nothing.
+36. **v9**: **`rule_refusal_rate` keeps 0.02 while its denominator triples**; the new reading is
+    recorded in `marks.toml` and is the founder's decision 1, not a quiet tightening.
+37. **v9, amended before any run of record** *(the founder's decision 32, 2026-10-08; screen
+    `runs/20261008T001657Z-instructions`)*: **a belief phrase may equal its label.** C4 in
+    `option_validity` no longer faults a phrase that is its label after `normalise` -- keel-cloud
+    062 accepts it, and a mark that refuses what the product accepts measures the eval, not the
+    instruction. C4 still faults an empty phrase, one over 120 characters, and one carrying a
+    not-sure word. `MARKS_VERSION` stays 9: no v9 run of record had been spent.
+38. **v9, amended before any run of record** *(the orchestrator, 2026-10-08; bundle
+    `runs/20261008T013837Z-instructions`)*: **code appends, never the model** -- *Something else*,
+    every respondent-only code the registry names and every band, scale-axis and gate option -- so
+    a fixed-code control or the ladder owes exactly one label per remaining plan code, a set every
+    founder label (normalised) plus 2-3 distractors, Importance 4-6 difficulties, and a band,
+    numeric or gate control `options` null. `MARKS_VERSION` stays 9.
+39. **v9, amended before any run of record** *(the orchestrator, 2026-10-08; same bundle)*:
+    **`no_leak`'s vocabulary is stemmed from the golden mechanism's `mechanism`, `output`,
+    `not_assumed` and `mechanism_terms` only**, never `trigger` (it describes the problem moment)
+    or `actor`, less the problem's own stems as before. `MARKS_VERSION` stays 9.
+40. **v9, amended before any run of record** *(the orchestrator, 2026-10-08; bundle
+    `runs/20261008T024419Z-instructions`)*: **sweep B reads the stem, not the options.** The
+    founder's label, `belief_phrase` or number for dimension *d* is swept in respondent item *d*'s
+    question and the part's reveal only: a fixed-code control shows every rung, the founder's among
+    them (Lullaby's *A few taps* on Adoption friction), and a set shows the founder's labels
+    verbatim by R2, so a founder label in an option is the rule, not a leak. `MARKS_VERSION`
+    stays 9.
+41. **v9, amended before any run of record** *(the founder's decision 35, 2026-10-08)*: **the
+    structural marks read the accepted answer.** `option_validity`, `dimension_coverage` and
+    `no_leak` on the two question screens are scored on the answer after the runtime's rule
+    refusal and ONE redraw -- what a founder sees -- because a rule refusal is the product
+    correcting the model, one extra call (call 22). The runner redraws as keel-cloud 058's
+    orchestrator does, on the five screens it repairs (`CALIBRATION_QUESTIONS`,
+    `RESPONDENT_QUESTIONS` -- `repairUnattended`; the three draft vector screens --
+    `refuseOrRepairDraft`; never `INTERPRET` or `BRIEF`): turn one's context plus a `repair`
+    sentence in the cloud's own words, the same instruction, contract, model and effort, empty
+    input, and no previous answer. The raw slip stays measured: `rule_refusal_rate` counts every
+    refusal, first draft and redraw, over the first-draft answers (the v6 denominator). A second
+    refusal is terminal: the answer stays refused, scores as faults on the raw answer, and counts
+    twice. Shape refusals are not redrawn and stay an absolute zero on the raw answer. A v9
+    bundle taken before this call has no redraw and is re-scored on the raw answer, saying so.
+    `MARKS_VERSION` stays 9.
+42. **v9, amended before any run of record** *(the orchestrator, 2026-10-08; bundle
+    `runs/20261008T115552Z-instructions`)*: **coverage's observed figure for money sets.** A set
+    dimension's money median (Existing sacrifice) was handed to `BRIEF` as a bare *165* and the
+    check then asked for *165*. It is written in the founder's unit, *£165 per three months* --
+    the currency's symbol and the period from the standing, else the one every answer's `cost`
+    agrees on, the currency else the market's (the price likewise, as keel-cloud's
+    `observedFigure` writes it) -- and a set whose money cannot be written so carries no figure and
+    is asked instead for one of its own option counts as `N of M`. The founder's phrase is asked
+    for exactly as strictly as brief.md asks: on a bet whose verdict is `NOT_HOLDING_UP` ("The
+    four things the paragraph says", 2: `founder_phrase` against `observed`), verbatim -- brief.md
+    licenses no paraphrase -- and on no other bet. `MARKS_VERSION` stays 9.
+43. **v9, amended before any run of record** *(the orchestrator, 2026-10-08; same bundle)*:
+    **a mechanism stem in an option label is a tie.** Sweep A's direct hit inside an OPTION LABEL
+    of a PROBLEM calibration question or a Part 1 respondent item (*phone*, *wheel*, *caught* --
+    generic nouns of the problem's own world, offered as answers) goes to the judge with the one
+    existing question, as an inflection tie does -- a multi-word term too (*signed off*); a hit in
+    the question stem stays a fault outright. `MARKS_VERSION` stays 9.
+44. **v9, amended before any run of record** *(the orchestrator, 2026-10-08; bundle
+    `runs/20261008T115552Z-instructions`)*: **three narrowings of what is the model's.**
+    (i) `option_validity`'s not-sure OPTION is one whose whole normalised label is *I'm not sure*,
+    *Not sure*, *Don't know*, *I don't know*, *Unsure* or *Prefer not to say* -- never a label
+    that contains the words (*Not sure it would fit* is a reason; keel-cloud 058's C3 likewise);
+    and a code-appended escape row is told by its label as 058 appends it (*None of these*,
+    *Nothing*, *Nothing yet*...), never by a fixed slug -- production slugs the founder's escape
+    `none_of_these_<...>`. The same whole-label test finds an escape row the MODEL wrote (a
+    fault, code appends it): *Something else*, *None of these*, *Nothing yet*, *Nothing* and the
+    registry's escape labels, normalised for case and punctuation -- never a prefix (*Something
+    else was cut or given up to cover it* is Ability to pay's scale step, code `barely`; the
+    prefix match faulted certificate run 3, `runs/20261008T194906Z-instructions`). **(44a)** `no_leak`'s vocabulary, per question, subtracts every stem of
+    the registry's own wording for the dimension being asked -- its `respondent` block (guidance,
+    option_rule, chips), its founder `option_rule` and `code_rule` (the fixed escape labels) and
+    the registry's `common` block; never its `lullaby` example. *In the order you tried them* is
+    registry wording and can never be a leak. **(44b)** Sweep B (the founder's label, phrase or
+    number) reads question STEMS only, never the part's reveal: the reveal is governed by R6's
+    claim-word rule and legitimately names the mechanism's moment (*at quarter end*).
+    `MARKS_VERSION` stays 9.
+45. **v9, amended before any run of record** *(the founder's decisions 46 and 47, 2026-10-08;
+    bundle `runs/20261008T155720Z-instructions`)*: **what each step can apply.** **(Decision
+    47)** `no_leak`'s sweep A on a PROBLEM calibration question uses keel-cloud 058's product-word
+    list (`Vocabulary.PRODUCT_WORDS`, whole-word) and the golden mechanism's `mechanism_terms`
+    only (single words by stem, less the registry's wording for the dimension, call 44a;
+    multi-word terms as phrases), in the question, its options and their belief phrases -- what
+    the runtime can refuse at that step -- and a hit is a fault, never judged. Part 1 respondent
+    items keep the full derived vocabulary and the judge (calls 32, 39, 43, 44a).
+    `judged_fraction` is items judged over items with any hit -- one unit, reported, never marked
+    (it read 0.72 as items over word hits). **(Decision 46, call 41 extended)** `BRIEF` is redrawn
+    once on a rule refusal, as the cloud now does (`repairUnattended` ->
+    `queueAnotherQuestionsTurn`: turn one's context plus `repair`, no history, empty input), and
+    the accepted paragraph is scored; a brief refused twice is scored on its raw paragraph as a
+    fault, every mark missed -- the founder is shown no paragraph. `MARKS_VERSION` stays 9.
+
+**The v9 run of record, recorded 2026-10-08** (the founder's decision 48; not a judgement call):
+`runs/20261008T194906Z-instructions` -- `WHY=marks:9`, host claude, `MODELS=exported`
+(claude-sonnet-5-5 at medium, Haiku 4.5), 414 cases, $19.75 -- **re-scored** under call 44's
+whole-label escape fix. The run's one fault was a legitimate scale step (Ability to pay's
+*Something else was cut or given up to cover it*); the answers are untouched, and the run's own
+11 judge answers were all DIFFERENT. Every mark met: `dimension_coverage` 1.00, `option_validity`
+1.00, `no_leak` 1.00, `anchoring_accuracy` 0.9949, `compare_correctness` 1.00, refusals 0.0072,
+`shape_refusals` 0, `brief_paragraphs` 1.00. The founder accepted the re-score as the certificate.
+`runs/` is gitignored, so the bundle lives on this machine only; its `scorecard-v9.json` is
+sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`.
 """
 
 from __future__ import annotations
@@ -150,17 +307,26 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 8
+MARKS_VERSION = 9
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 
+#: The eight marks of `marks.toml` at v9, with its numbers. `golden_belief_recall` is retired (call
+#: 29) and is **not** a key: a v9 verdict cannot carry a value for it.
 DEFAULTS = {
+    "dimension_coverage": 1.00,
+    "option_validity": 1.00,
+    "no_leak": 1.00,
     "anchoring_accuracy": 0.90,
-    "golden_belief_recall": 0.80,
+    "compare_correctness": 1.00,
     "rule_refusal_rate": 0.02,
     "shape_refusals": 0,
     "brief_paragraphs": 1.00,
 }
+
+#: The rows `judge()` returns, in the order the report shows them.
+ROWS = ("dimension_coverage", "option_validity", "no_leak", "anchoring_accuracy",
+        "compare_correctness", "refusals", "shape_refusals", "brief_paragraphs")
 
 
 def load(path: Path | str | None = None) -> dict:
@@ -174,51 +340,56 @@ def load(path: Path | str | None = None) -> dict:
     return marks
 
 
-def judge(totals: dict, marks: dict) -> dict:
-    """Each mark against its number. A run passes only if all three are met.
+def _at_least(value, mark) -> bool:
+    return value is not None and value >= mark
 
-    **An unmeasured mark is not a met mark** (judgement call 13). A `None` fails, and so does a
-    refusal count that was never taken: the baseline of 2026-09-06 reported `refusals: 0, met:
-    true` while nothing had been shown to the aggregate at all, which is the one way this rubric
-    could flatter a run. `refusals_measured` says whether anybody asked.
+
+def judge(totals: dict, marks: dict) -> dict:
+    """Each of the eight marks against its number. A run passes only if all eight are met.
+
+    Every row is `{value, mark, measured, met}`, and **an unmeasured mark is not a met mark**
+    (judgement call 13): a `None` fails, a refusal count nobody asked for fails, a compare the
+    engine never ran fails. `refusals` carries its rate beside the count (call 22, call 36).
     """
+    def row(name, value, measured, met, **extra):
+        measured = bool(measured) and value is not None
+        return {"value": value, "mark": marks[name if name != "refusals" else
+                                              "rule_refusal_rate"],
+                "measured": measured, "met": bool(measured and met), **extra}
+
+    coverage = totals.get("dimension_coverage")
+    validity = totals.get("option_validity")
+    leak = totals.get("no_leak")
     accuracy = totals.get("anchoring_accuracy")
-    recall = totals.get("golden_belief_recall")
+    compare = totals.get("compare_correctness")
     brief = totals.get("brief_paragraphs")
-    brief_measured = bool(totals.get("brief_measured"))
     measured = bool(totals.get("refusals_measured"))
     refusals = sum((totals.get("refusals_by_rule") or {}).values())
-    # v6 (judgement call 22): the rule-refusal mark is a rate over the answers the aggregate
-    # judged -- `refusals_shown`, accepted plus refused -- never over case-runs that were never
-    # shown to it. A run that shows the aggregate nothing has no rate and is unmeasured.
+    # v6 (call 22), v9 (call 36): a rate over the answers the aggregate judged -- `refusals_shown`,
+    # accepted plus refused -- never over case-runs that were never shown to it.
     shown = int(totals.get("refusals_shown") or 0)
     rate = (refusals / shown) if (measured and shown) else None
     shape = totals.get("shape_refusals")
+
     results = {
-        "anchoring_accuracy": {
-            "value": accuracy, "mark": marks["anchoring_accuracy"],
-            "met": accuracy is not None and accuracy >= marks["anchoring_accuracy"]},
-        "golden_belief_recall": {
-            "value": recall, "mark": marks["golden_belief_recall"],
-            "met": recall is not None and recall >= marks["golden_belief_recall"]},
-        "refusals": {
-            "value": refusals if measured else None, "measured": measured,
-            "rate": rate, "shown": shown if measured else None,
-            "mark": marks["rule_refusal_rate"],
-            "met": measured and rate is not None and rate <= marks["rule_refusal_rate"]},
-        "shape_refusals": {
-            "value": shape if measured else None, "measured": measured,
-            "mark": marks["shape_refusals"],
-            "met": measured and shape is not None and shape <= marks["shape_refusals"]},
-        # v4 (judgement calls 15-17): every BRIEF paragraph meeting all four of its own marks.
-        # Unmeasured is not met here either -- a run filtered to one subject reports the other
-        # subjects' marks as unmeasured and fails, which is the same rule `refusals` has had
-        # since v2 and the reason a filtered run's verdict is never read as a pass.
-        "brief_paragraphs": {
-            "value": brief, "measured": brief_measured,
-            "mark": marks["brief_paragraphs"],
-            "met": brief_measured and brief is not None
-                    and brief >= marks["brief_paragraphs"]},
+        "dimension_coverage": row("dimension_coverage", coverage, coverage is not None,
+                                  _at_least(coverage, marks["dimension_coverage"])),
+        "option_validity": row("option_validity", validity, validity is not None,
+                               _at_least(validity, marks["option_validity"])),
+        "no_leak": row("no_leak", leak, leak is not None, _at_least(leak, marks["no_leak"])),
+        "anchoring_accuracy": row("anchoring_accuracy", accuracy, accuracy is not None,
+                                  _at_least(accuracy, marks["anchoring_accuracy"])),
+        "compare_correctness": row("compare_correctness", compare,
+                                   totals.get("compare_measured"),
+                                   _at_least(compare, marks["compare_correctness"])),
+        "refusals": row("refusals", rate, measured and shown,
+                        rate is not None and rate <= marks["rule_refusal_rate"],
+                        count=refusals if measured else None,
+                        shown=shown if measured else None),
+        "shape_refusals": row("shape_refusals", shape if measured else None, measured,
+                              shape is not None and shape <= marks["shape_refusals"]),
+        "brief_paragraphs": row("brief_paragraphs", brief, totals.get("brief_measured"),
+                                _at_least(brief, marks["brief_paragraphs"])),
     }
-    results["passed"] = all(r["met"] for r in results.values() if isinstance(r, dict))
+    results["passed"] = all(results[name]["met"] for name in ROWS)
     return results

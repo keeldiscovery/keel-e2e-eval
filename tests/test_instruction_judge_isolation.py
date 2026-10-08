@@ -44,7 +44,8 @@ def test_every_judge_call_is_given_an_explicit_environment(monkeypatch):
     monkeypatch.setattr(judge_mod.shutil, "which", lambda _name: "/usr/local/bin/claude")
     monkeypatch.setenv("CLAUDE_CODE_EFFORT_LEVEL", "medium")
 
-    assert judge_mod.Judge().same_expected_option("about an hour", "roughly 60 minutes") is True
+    assert judge_mod.Judge().reveals_solution("Did you hold the phone near the cot?",
+                                              "the parent holds the phone near the cot") is True
     assert "env" in seen["kwargs"], "a judge call with no env= inherits the subject's effort"
     assert "CLAUDE_CODE_EFFORT_LEVEL" not in seen["kwargs"]["env"]
     assert seen["kwargs"]["env"].get("PATH"), "the CLI still has to be findable"

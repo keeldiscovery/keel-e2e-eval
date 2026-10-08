@@ -55,15 +55,19 @@ def load_runtime(keel_runtime: Path):
     return executor, validator
 
 
+#: `Case.kind` at `MARKS_VERSION` 9 (data-model §4). `FRAME` is the two typed-seed interpretations.
+KINDS = ("CONTEXT", "FRAME", "CALIBRATION", "RESPONDENT", "READING", "COMPARE", "BRIEF")
+
+
 @dataclass
 class Case:
     """One prompt this run would send, and everything needed to explain it afterwards."""
 
     case_id: str
-    kind: str                 # ASSUMPTIONS | QUESTIONS | READING | BRIEF
+    kind: str                 # one of KINDS
     entry_id: str
     screen: str
-    subject: str              # the stage, or the person
+    subject: str              # the screen, the vector, the part, the person, COMPARE or BRIEF
     run_index: int
     payload: dict
     prompt: str = ""
@@ -72,27 +76,40 @@ class Case:
     #: for the CLI's default. Stamped after the prompt is rendered; never in the prompt.
     model: str | None = None
     #: The effort the wire's `effort` key pins for this case (keel-cloud table v6, spec 047), or
-    #: `None` for the CLI's own default -- which on Claude Code is `xhigh`. `None` on every reading
-    #: by construction: `reading` routes to the `light` tier, whose row carries no effort, because
-    #: `effort` errors on Haiku 4.5. Stamped with the model; never in the prompt.
+    #: `None` for the CLI's own default. `None` on every `light`-tier case by construction (`effort`
+    #: errors on Haiku 4.5). Stamped with the model; never in the prompt.
     effort: str | None = None
+    #: What a scorer and the validator's batch need beside the payload: the vector, the part and
+    #: plan, the person, the founder's values for `R3` -- never sent to the model.
+    meta: dict = field(default_factory=dict)
+    #: The `COMPARE` row's engine input (`compare.build_input`); `None` on every model case.
+    compare_input: dict | None = None
 
     @property
     def bundle_path(self) -> str:
-        return f"{self.entry_id}/{_slug(self.subject)}/run{self.run_index}"
+        """`<entry>/<screen-or-subject>[/<person>]/run<N>` -- the case id, one slug a segment."""
+        parts = self.case_id.split("/")
+        if self.kind == "COMPARE":
+            return "/".join(_slug(p) for p in parts)
+        if not parts[-1].startswith("run"):
+            parts.append(f"run{self.run_index}")
+        return "/".join(_slug(p) for p in parts)
 
 
 def _slug(text: str) -> str:
     return "".join(c if c.isalnum() or c in "-_" else "-" for c in text).strip("-")
 
 
-def payload_for(instruction: str, context: dict, response_contract: dict) -> dict:
-    """`InferenceJobService.buildRequestPayload`'s four keys, in its order."""
+def payload_for(instruction: str, context: dict, response_contract: dict,
+                content: str = "") -> dict:
+    """`InferenceJobService.buildRequestPayload`'s keys, in its order. `content` is what the founder
+    typed in chat -- the seed, on the two interpretation screens that read one -- and the empty
+    string on every screen started by itself."""
     return {
         "instruction": instruction,
         "context": context,
         "interaction_history": [],
-        "input": {"content": ""},
+        "input": {"content": content},
         "response_contract": response_contract,
     }
 
@@ -139,83 +156,84 @@ def canonical_host(executor_module, host: str) -> str:
 
 
 def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_runs: int = 3,
-                host: str = "claude",
-                stages=("PROBLEM", "SOLUTION", "COMMERCIAL")) -> list:
-    """Every case one corpus entry produces: three assumption screens, **one `QUESTIONS` call**, one
-    reading per person, and one brief.
+                host: str = "claude") -> list:
+    """Every case one corpus entry produces at `MARKS_VERSION` 9, in FR-016's order and ids:
 
-    `n_runs` repeats each case, because a case that passes twice and fails once is an unstable
-    instruction rather than a two-thirds one -- `score.py` reports the spread and averages nothing
-    before it reports it.
+        <entry>/CONTEXT_INTERPRET/run<N>  <entry>/PROBLEM_INTERPRET/run<N>
+        <entry>/SOLUTION_MECHANISM/run<N> <entry>/CALIBRATION_<VECTOR>/run<N> x3
+        <entry>/RESPONDENT_PART<P>/run<N> x3 (+ <entry>/RESPONDENT_B2B/run<N> on a B2B entry)
+        <entry>/INTERPRET/<person>/run<N> per readable person    <entry>/COMPARE    <entry>/BRIEF/run<N>
+
+    The registry is the export's (`exported.registry`); the plan is derived from it by code (call
+    30). **No `INTERPRET` case is built for a gate-No, a chipped or an empty story** -- the chip is
+    `GUESSED` by code (FR-017) -- and the `COMPARE` row is a row, not a call: no index, no prompt,
+    its payload empty and its engine input on `compare_input`.
+
+    `n_runs` repeats each model case, because a case that passes twice and fails once is an
+    unstable instruction rather than a two-thirds one -- `score.py` reports the spread.
     """
-    from . import context as context_mod          # noqa: PLC0415 - avoids a circular import
-    from .contract import (SCREEN_BRIEF, SCREEN_QUESTIONS,      # noqa: PLC0415
-                            SCREEN_READING, SCREENS_ASSUMPTIONS)
+    from . import compare as compare_mod             # noqa: PLC0415 - avoids a circular import
+    from . import context as context_mod              # noqa: PLC0415
+    from . import contract as c                        # noqa: PLC0415
 
+    registry = getattr(exported, "registry", None) or entry.registry
     cases = []
-    for stage in stages:
-        screen = SCREENS_ASSUMPTIONS[stage]
-        keys = exported.keys_for(screen)
-        contract = exported.for_screen(screen)
-        roles = context_mod.roles_for(entry, stage)
-        context = context_mod.build_assumptions(entry, stage, keys)
-        payload = payload_for(instructions_by_screen[screen], context, contract)
+
+    def add(case_id_stem, kind, screen, subject, context, *, content="", meta=None):
+        payload = payload_for(instructions_by_screen[screen], context,
+                              exported.for_screen(screen), content=content)
         for run_index in range(1, n_runs + 1):
-            case = Case(
-                case_id=f"{entry.id}/{stage}/run{run_index}",
-                kind="ASSUMPTIONS", entry_id=entry.id, screen=screen, subject=stage,
-                run_index=run_index, payload=payload, existing_roles=roles)
-            case.prompt = render(executor_module, payload, job_id=_slug(case.case_id),
-                             host=host)
+            case = Case(case_id=f"{case_id_stem}/run{run_index}", kind=kind, entry_id=entry.id,
+                        screen=screen, subject=subject, run_index=run_index, payload=payload,
+                        meta=dict(meta or {}))
+            case.prompt = render(executor_module, payload, job_id=_slug(case.case_id), host=host)
             cases.append(case)
 
-    # The `QUESTIONS` screen (keel-cloud spec 048): one call an entry, **after** the three
-    # assumptions cases and before the readings, because that is the order production runs them in
-    # -- the job fires on the approval that makes every framed stage approved (048 FR-022), and the
-    # case id is what `-k` filters on. It has no stage and no existing roles: it is handed the
-    # settled measurements and writes one questionnaire for the whole project.
-    keys = exported.keys_for(SCREEN_QUESTIONS)
-    contract = exported.for_screen(SCREEN_QUESTIONS)
-    context = context_mod.build_questions(entry, keys)
-    payload = payload_for(instructions_by_screen[SCREEN_QUESTIONS], context, contract)
-    for run_index in range(1, n_runs + 1):
-        case = Case(
-            case_id=f"{entry.id}/QUESTIONS/run{run_index}",
-            kind="QUESTIONS", entry_id=entry.id, screen=SCREEN_QUESTIONS, subject="QUESTIONS",
-            run_index=run_index, payload=payload)
-        case.prompt = render(executor_module, payload, job_id=_slug(case.case_id), host=host)
-        cases.append(case)
+    # The three interpretation screens: rendered, validated, never scored (A-2, call 28).
+    add(f"{entry.id}/CONTEXT_INTERPRET", "CONTEXT", c.SCREEN_CONTEXT_INTERPRET,
+        c.SCREEN_CONTEXT_INTERPRET,
+        context_mod.build_context_interpret(entry, exported.keys_for(c.SCREEN_CONTEXT_INTERPRET)))
+    for screen, builder in ((c.SCREEN_PROBLEM_INTERPRET, context_mod.build_problem_interpret),
+                            (c.SCREEN_SOLUTION_MECHANISM, context_mod.build_solution_mechanism)):
+        add(f"{entry.id}/{screen}", "FRAME", screen, screen,
+            builder(entry, exported.keys_for(screen)),
+            content=context_mod.seed_of(entry, screen))
 
-    keys = exported.keys_for(SCREEN_READING)
-    contract = exported.for_screen(SCREEN_READING)
-    for person in entry.people():
-        context = context_mod.build_reading(entry, person, keys)
-        if not context.get("anchors"):
-            # Nobody wrote anything: production would never have started a reading at all.
-            continue
-        payload = payload_for(instructions_by_screen[SCREEN_READING], context, contract)
-        for run_index in range(1, n_runs + 1):
-            case = Case(
-                case_id=f"{entry.id}/{person.person}/run{run_index}",
-                kind="READING", entry_id=entry.id, screen=SCREEN_READING,
-                subject=person.person, run_index=run_index, payload=payload)
-            case.prompt = render(executor_module, payload, job_id=_slug(case.case_id),
-                             host=host)
-            cases.append(case)
+    # Calibration: one constant, three jobs, one a vector (A-3).
+    keys = exported.keys_for(c.SCREEN_CALIBRATION)
+    for vector in context_mod.VECTORS:
+        add(f"{entry.id}/CALIBRATION_{vector}", "CALIBRATION", c.SCREEN_CALIBRATION, vector,
+            context_mod.build_calibration(entry, vector, registry, keys),
+            meta={"vector": vector, "registry_slice": [d.key for d in registry.slice(vector)],
+                  "validation_problem_statement": context_mod.problem_statement(entry)})
 
-    # The BRIEF screen: one case an entry, because there is one paragraph a project. It is built
-    # last for the same reason production writes it last -- it is what a founder reads once every
-    # stage has been approved and every answer read.
-    keys = exported.keys_for(SCREEN_BRIEF)
-    contract = exported.for_screen(SCREEN_BRIEF)
-    context = context_mod.build_brief(entry, keys)
-    payload = payload_for(instructions_by_screen[SCREEN_BRIEF], context, contract)
-    for run_index in range(1, n_runs + 1):
-        case = Case(
-            case_id=f"{entry.id}/BRIEF/run{run_index}",
-            kind="BRIEF", entry_id=entry.id, screen=SCREEN_BRIEF, subject="BRIEF",
-            run_index=run_index, payload=payload)
-        case.prompt = render(executor_module, payload, job_id=_slug(case.case_id),
-                             host=host)
-        cases.append(case)
+    # Respondent: one job a part, handed the plan the eval derived (call 30); + the B2B link.
+    plan = entry.plan(registry)
+    keys = exported.keys_for(c.SCREEN_RESPONDENT)
+    links = [(part, context_mod.LINK_PRIMARY, f"PART{part}") for part in (1, 2, 3)]
+    if entry.b2b():
+        links.append((3, context_mod.LINK_B2B, "B2B"))
+    for part, link, label in links:
+        add(f"{entry.id}/RESPONDENT_{label}", "RESPONDENT", c.SCREEN_RESPONDENT, label,
+            context_mod.build_respondent(entry, part, plan, registry, keys, link=link),
+            meta={"part": part, "link": link, "plan": list(plan[part]),
+                  "founder_values": context_mod.founder_values(entry, plan[part]),
+                  "validation_mechanism": context_mod.validation_mechanism(entry),
+                  "validation_problem_statement": context_mod.problem_statement(entry)})
+
+    # INTERPRET: one call a readable person -- never a gate-No, a chip or an empty story.
+    keys = exported.keys_for(c.SCREEN_INTERPRET)
+    for person in entry.readable():
+        add(f"{entry.id}/INTERPRET/{person.person}", "READING", c.SCREEN_INTERPRET,
+            person.person, context_mod.build_interpret(entry, person, keys),
+            meta={"person": person.person})
+
+    # COMPARE: keel-cloud's engine, at build time, for DRY and real runs alike (research R7).
+    cases.append(Case(case_id=f"{entry.id}/COMPARE", kind="COMPARE", entry_id=entry.id,
+                      screen=c.SCREEN_COMPARE, subject="COMPARE", run_index=0, payload={},
+                      compare_input=compare_mod.build_input(entry, registry)))
+
+    # BRIEF: one paragraph a project, last -- what a founder reads once every answer is read.
+    add(f"{entry.id}/BRIEF", "BRIEF", c.SCREEN_BRIEF, "BRIEF",
+        context_mod.build_brief(entry, exported.keys_for(c.SCREEN_BRIEF), registry))
     return cases

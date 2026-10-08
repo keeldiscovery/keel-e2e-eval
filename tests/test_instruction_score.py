@@ -1,351 +1,685 @@
-"""`instructions/score.py`: the arithmetic, on fixtures a person can check by hand (FR-018).
+"""`instructions/score.py` at `MARKS_VERSION` 9 (spec 029 data-model §6; T025, T029, T035, T039,
+T040, T042, T043).
 
-The test that matters most here is the one about a reader that answers `ANCHORED` to everything.
-In this corpus most anchors are anchored, so such a reader scores high on accuracy and has recall
-zero on the one judgement the instrument exists to make — which is the whole reason precision and
-recall are mandatory beside accuracy rather than optional (judgement call 5).
+Fixtures a person can check by hand: the hand-sized registry slice and `09-fixture-r3.yaml`. Every
+mark has its green half and its red half here, and every total is summed over its own
+denominator and never another's.
 """
 
 from __future__ import annotations
 
+import json
+
+import pytest
+
+from instructions import compare as compare_mod
+from instructions import marks as marks_mod
+from instructions import prompts as prompts_mod
 from instructions import score as score_mod
-from instructions.corpus import Entry, GoldenBelief, Person
-from instructions.prompts import Case
+from tests import v9_fixtures as fx
 
 
-READING_ANCHOR_IDS = ("A1", "A2", "A3", "A4", "A9")
+@pytest.fixture()
+def entry():
+    return fx.entry()
 
 
-def _entry(beliefs=(), *, anchor_ids=READING_ANCHOR_IDS):
-    # Every anchor this file's reading fixtures write under. `A1` is a **merged occasion** --
-    # `stages: [PROBLEM, SOLUTION]`, the shape every corpus entry's first anchor has carried since
-    # the 2026-09-30 revision -- because the whole point of judgement call 24 is that one anchor
-    # answering to two stages is one judgement and not two.
-    anchors = [{"id": a, "stages": ["PROBLEM", "SOLUTION"] if a == "A1" else ["PROBLEM"]}
-               for a in anchor_ids]
-    return Entry(id="09-fixture", title="t", market={}, statements={}, roles=[],
-                 beliefs=list(beliefs), questionnaire={"anchors": anchors}, answers=[],
-                 expected={}, path=None, sha256="0" * 64)
+def _compare_case(entry):
+    return prompts_mod.Case(case_id=f"{entry.id}/COMPARE", kind="COMPARE", entry_id=entry.id,
+                            screen="COMPARE", subject="COMPARE", run_index=0, payload={})
 
 
-def _case(kind, subject, run_index=1, earlier_lines=None):
-    payload = {"context": {"earlier_lines": earlier_lines}} if earlier_lines else {}
-    return Case(case_id=f"09-fixture/{subject}/run{run_index}", kind=kind, entry_id="09-fixture",
-                screen="INTERPRET" if kind == "READING" else "PROBLEM_ASSUMPTIONS",
-                subject=subject, run_index=run_index, payload=payload)
+def _compare(entry, name="agree"):
+    produced = json.loads((fx.COMPARE / f"09-fixture.{name}.out.json").read_text())
+    return score_mod.score_compare(_compare_case(entry), entry,
+                                   compare_mod.diff(entry.expected, produced, entry=entry))
 
 
-def _person(**anchors):
-    return Person(person="Priya", picks={},
-                  anchors={k: {"text": "something", "anchoring": v} for k, v in anchors.items()})
+# ------------------------------------------------------------------------------------ compare
+
+def test_score_compare_carries_the_diff_onto_the_case(entry):
+    score = _compare(entry)
+    assert (score.agreed, score.checks, score.measured) == (28, 28, True)
+    assert score.compare_correctness == 1.0
 
 
-def _belief(bid, expected="yes"):
-    return GoldenBelief(id=bid, stage="PROBLEM", heading=bid, statement=f"{bid}.",
-                        founder_phrase=None, risk="LOAD_BEARING", asked_of="manager",
-                        mark="DIRECT",
-                        expectation={"type": "CHOICE", "options": ["yes", "no"],
-                                     "expected": expected},
-                        selection=f"S-{bid}", group=None)
+def test_compare_correctness_is_measured_only_when_every_row_was(entry):
+    good = _compare(entry)
+    bad = score_mod.score_compare(_compare_case(entry), entry,
+                                  compare_mod.unmeasured(entry.id, "no engine (keel-cloud 058)"))
+    totals = score_mod.totals(compare_scores=[good])
+    assert totals["compare_measured"] and totals["compare_correctness"] == 1.0
+    assert totals["compare_checks"] == 28
+    mixed = score_mod.totals(compare_scores=[good, bad])
+    assert mixed["compare_measured"] is False and mixed["compare_correctness"] is None
+    assert mixed["compare_unmeasured"] == [{"entry": "09-fixture",
+                                           "reason": "no engine (keel-cloud 058)"}]
+    judged = marks_mod.judge(mixed, marks_mod.load())
+    assert judged["compare_correctness"]["measured"] is False
 
 
-# --------------------------------------------------------------------------------------- reading
-
-def test_a_reader_that_says_anchored_to_everything_scores_high_and_recalls_nothing():
-    person = _person(A1="ANCHORED", A2="ANCHORED", A3="ANCHORED", A4="GUESSED")
-    result = {"anchorings": [{"stage": "PROBLEM", "anchorId": a, "anchoring": "ANCHORED"}
-                             for a in ("A1", "A2", "A3", "A4")]}
-
-    score = score_mod.score_reading(_case("READING", "Priya"), _entry(), person, result)
-    totals = score_mod.totals([score], [])
-
-    assert score.anchoring_accuracy == 0.75, "three of four right looks respectable"
-    assert totals["guessed_recall"] == 0.0, "and it never once spotted a guess"
-    assert totals["guessed_precision"] is None, "it called nothing GUESSED, so precision has no "\
-        "denominator -- reported as absent, never as 1.0"
-    assert totals["confusion"] == {"aa": 3, "ag": 0, "ga": 1, "gg": 0}
+def test_a_disagreeing_engine_is_measured_and_not_met(entry):
+    totals = score_mod.totals(compare_scores=[_compare(entry, "disagree")])
+    assert totals["compare_agreed"] == 26 and totals["compare_reported_diffs"] == 1
+    assert marks_mod.judge(totals, marks_mod.load())["compare_correctness"]["met"] is False
 
 
-def test_a_reader_that_spots_the_guess_has_precision_and_recall_of_one():
-    person = _person(A1="ANCHORED", A2="GUESSED")
-    result = {"anchorings": [{"stage": "PROBLEM", "anchorId": "A1", "anchoring": "ANCHORED"},
-                             {"stage": "PROBLEM", "anchorId": "A2", "anchoring": "GUESSED"}]}
+def test_a_run_with_no_compare_row_has_compare_unmeasured():
+    assert score_mod.totals()["compare_measured"] is False
 
-    totals = score_mod.totals(
-        [score_mod.score_reading(_case("READING", "Priya"), _entry(), person, result)], [])
 
+# ------------------------------------------------------------------------------------- totals
+
+def test_totals_carries_every_v9_key_and_nothing_retired():
+    totals = score_mod.totals()
+    for key in ("calibration_cases", "calibration_coverage", "calibration_validity",
+                "calibration_leak", "respondent_cases", "respondent_coverage",
+                "respondent_validity", "respondent_leak", "dimension_coverage", "option_validity",
+                "no_leak", "leak_hits", "leak_judged", "judged_fraction", "judge_calls",
+                "anchoring_accuracy", "guessed_precision", "guessed_recall", "confusion",
+                "people_given", "people_answered", "reading_missing_ids", "reading_extra_ids",
+                "chipped_skipped", "compare_checks", "compare_agreed", "compare_correctness",
+                "compare_measured", "compare_reported_diffs", "refusals_by_rule",
+                "refusals_measured", "refusals_shown", "shape_refusals", "schema_invalid",
+                "errored", "brief_cases", "brief_paragraphs", "brief_measured", "brief_by_mark"):
+        assert key in totals, key
+    for retired in ("golden_belief_recall", "exact_match", "phrase_band", "anchors_given",
+                    "unresolved_reads"):
+        assert retired not in totals, retired
+
+
+def test_an_empty_run_measures_nothing_and_says_none_rather_than_zero():
+    totals = score_mod.totals()
+    for name in ("dimension_coverage", "option_validity", "no_leak", "anchoring_accuracy",
+                 "compare_correctness", "brief_paragraphs"):
+        assert totals[name] is None, name
+
+
+def test_the_spread_reports_each_run_and_averages_nothing():
+    from types import SimpleNamespace
+    scores = [SimpleNamespace(entry_id="e", subject="PROBLEM", value=v) for v in (1.0, 0.0, 1.0)]
+    spread = score_mod.spread(scores, lambda s: s.value)
+    assert spread == {"e/PROBLEM": {"runs": [1.0, 0.0, 1.0], "min": 0.0, "max": 1.0}}
+
+
+def test_the_retired_scorers_are_gone():
+    for name in ("score_assumptions", "score_reading", "AssumptionScore", "FIELDS"):
+        assert not hasattr(score_mod, name), name
+
+
+# ------------------------------------------- US2: calibration (062; calls 30-32, marks §2.1-§2.3)
+
+import copy                                                                  # noqa: E402
+
+
+@pytest.fixture()
+def registry():
+    return fx.registry()
+
+
+def _calibrate(entry, registry, vector="PROBLEM", mutate=None, judge=None):
+    result = fx.calibration_result(registry, vector)
+    if mutate:
+        mutate(result)
+    return score_mod.score_calibration(fx.calibration_case(entry, vector), entry, registry,
+                                       result, judge=judge)
+
+
+def _q(result, key):
+    return next(q for q in result["questions"] if q["key"] == key)
+
+
+@pytest.mark.parametrize("vector, count", [("PROBLEM", 9), ("SOLUTION", 9), ("COMMERCIAL", 7)])
+def test_a_good_answer_covers_its_slice_and_meets_every_rule(entry, registry, vector, count):
+    score = _calibrate(entry, registry, vector)
+    assert (score.coverage_hit, score.coverage_of, score.coverage_passed) == (count, count, True)
+    assert (score.validity_hit, score.validity_of) == (count, count), score.faults
+    assert score.faults == []
+    if vector == "PROBLEM":
+        assert (score.leak_clean, score.leak_of) == (9, 9)
+    else:
+        assert score.leak_of == 0, "sweep A runs on the PROBLEM vector only"
+
+
+@pytest.mark.parametrize("name, mutate, words", [
+    ("doubled", lambda r: r["questions"].append(copy.deepcopy(r["questions"][1])), "doubled"),
+    ("missing", lambda r: r["questions"].pop(2), "missing problem.severity"),
+    ("foreign", lambda r: r["questions"].append({"key": "problem.vibes", "question": "?"}),
+     "outside the slice problem.vibes"),
+    ("out of order", lambda r: r["questions"].insert(0, r["questions"].pop(3)), "out of order"),
+])
+def test_coverage_is_absolute_and_any_slip_fails_the_case(entry, registry, name, mutate, words):
+    score = _calibrate(entry, registry, mutate=mutate)
+    assert score.coverage_passed is False and score.coverage_hit == 0, name
+    assert any(words in f["evidence"] for f in score.faults if f["check"] == "dimension_coverage")
+
+
+def _severity_options(r):
+    return _q(r, "problem.severity")["options"]
+
+
+@pytest.mark.parametrize("name, mutate, words", [
+    ("count", lambda r: _severity_options(r).pop(), "4 options; the registry fixes 5"),
+    ("order", lambda r: _severity_options(r).insert(0, _severity_options(r).pop(2)),
+     "out of registry order"),
+    ("foreign code", lambda r: _severity_options(r)[0].__setitem__("normalized", "awful"),
+     "not the registry's"),
+    ("repeated", lambda r: _q(r, "problem.consequence")["options"].append(
+        copy.deepcopy(_q(r, "problem.consequence")["options"][0])), "repeated"),
+    ("too few written", lambda r: _q(r, "problem.consequence")["options"].__delitem__(
+        slice(1, 3)), "the rule asks 4-6"),
+    ("not a slug", lambda r: _q(r, "problem.consequence")["options"][0].__setitem__(
+        "normalized", "Lost Sleep"), "not slugs"),
+    ("empty phrase", lambda r: _severity_options(r)[1].__setitem__("belief_phrase", " "),
+     "no belief_phrase"),
+    ("phrase too long", lambda r: _severity_options(r)[1].__setitem__(
+        "belief_phrase", "x" * 121), "121 characters, longer than 120"),
+    ("phrase not sure", lambda r: _severity_options(r)[1].__setitem__(
+        "belief_phrase", "not sure how bad it is"), "belief_phrase carries a not-sure word"),
+    ("not sure", lambda r: _severity_options(r)[4].__setitem__("label", "I'm not sure"),
+     "not-sure option"),
+    ("template", lambda r: _q(r, "problem.severity").__setitem__("belief_template", "x"),
+     "{value} exactly once"),
+    ("options on numeric", lambda r: _q(r, "problem.frequency").__setitem__(
+        "options", [{"label": "1", "normalized": "one", "belief_phrase": "one"}]),
+     "options on a numeric control"),
+    ("numeric spec", lambda r: _q(r, "problem.duration").__setitem__(
+        "normalized", {"axis_max": 120}), "numeric spec axis_max"),
+    ("no seven nights", lambda r: _q(r, "problem.prevalence").__setitem__(
+        "question", "How many had this recently?"), "the project's window"),
+    ("fifths with a hole", lambda r: _q(r, "problem.prevalence")["options"][2].__setitem__(
+        "normalized", "p_50_60"), "not the registry's"),
+])
+def test_option_validity_fails_on_each_registry_rule_made_to_fail_once(entry, registry, name,
+                                                                       mutate, words):
+    score = _calibrate(entry, registry, mutate=mutate)
+    validity = [f for f in score.faults if f["check"] == "option_validity"]
+    assert len(validity) == 1, (name, score.faults)
+    assert words in validity[0]["evidence"], (name, validity[0]["evidence"])
+    assert score.validity_hit == score.validity_of - 1
+
+
+
+def test_a_belief_phrase_equal_to_its_label_is_accepted(entry, registry):
+    # Call 37 (founder decision 32, 2026-10-08): C4 no longer refuses a phrase that repeats its
+    # label, case-folded -- keel-cloud 062 accepts it, so the eval does too.
+    def same(r):
+        for option in _severity_options(r):
+            option["belief_phrase"] = str(option["label"]).upper()
+    score = _calibrate(entry, registry, mutate=same)
+    assert not [f for f in score.faults if f["check"] == "option_validity"], score.faults
+    assert score.validity_hit == score.validity_of
+
+def test_the_fixed_codes_a_model_written_rule_names_must_be_there(registry):
+    dimension = registry.by_key("commercial.existing_sacrifice")
+    good = fx.calibration_question(dimension)
+    assert score_mod.calibration_checks(good, dimension) == []
+    good["options"] = [o for o in good["options"] if o["normalized"] != "none"]
+    assert any("['none']" in f for f in score_mod.calibration_checks(good, dimension))
+
+
+def test_the_commitment_ladder_is_the_rungs_for_the_projects_type(registry):
+    dimension = registry.by_key("commercial.commitment")
+    b2c = fx.calibration_question(dimension)
+    assert [o["normalized"] for o in b2c["options"]] == ["setup", "install", "mic",
+                                                          "next_episode", "contact_me"]
+    assert score_mod.calibration_checks(b2c, dimension) == []
+    assert any("the ladder is" in f for f in score_mod.calibration_checks(b2c, dimension,
+                                                                         b2b=True))
+
+
+def test_a_failed_case_covers_nothing_and_writes_nothing(entry, registry):
+    score = score_mod.score_calibration(fx.calibration_case(entry, "PROBLEM"), entry, registry,
+                                        None, failed="schema-invalid")
+    assert (score.coverage_hit, score.coverage_of, score.validity_of) == (0, 9, 0)
+    assert score.failed == "schema-invalid"
+
+
+def test_totals_roll_calibration_into_the_three_marks(entry, registry):
+    good = _calibrate(entry, registry)
+    bad = _calibrate(entry, registry, mutate=lambda r: r["questions"].pop(2))
+    totals = score_mod.totals([good, bad])
+    assert totals["calibration_cases"] == 2
+    assert totals["calibration_coverage"] == {"hit": 9, "of": 18}
+    assert totals["dimension_coverage"] == 0.5
+    assert totals["calibration_validity"] == {"hit": 17, "of": 17}
+    assert totals["option_validity"] == 1.0
+    assert totals["no_leak"] == 1.0
+
+
+# --------------------------------------------- US3: respondent (063; calls 30-32, marks §2.2-§2.3)
+
+def _respond(entry, registry, part, mutate=None, *, link="PRIMARY", judge=None, label_only=False):
+    result = fx.respondent_result(entry, part, link=link, label_only=label_only)
+    if mutate:
+        mutate(result)
+    return score_mod.score_respondent(fx.respondent_case(entry, part, link=link), entry,
+                                      registry, entry.plan(), result, judge=judge)
+
+
+def _item(result, key):
+    return next(i for i in result["items"] if i["key"] == key)
+
+
+@pytest.mark.parametrize("part, count, sweeps", [(1, 8, 16), (2, 9, 9), (3, 6, 6)])
+def test_coverage_per_part_is_the_plan_exactly_once_each(entry, registry, part, count, sweeps):
+    score = _respond(entry, registry, part)
+    assert (score.coverage_hit, score.coverage_of) == (count, count)
+    assert (score.validity_hit, score.validity_of) == (count, count), score.faults
+    assert (score.leak_clean, score.leak_of) == (sweeps, sweeps), \
+        "sweep A on Part 1's items, sweep B on every item"
+
+
+def test_a_label_only_answer_is_held_to_the_count(entry, registry):
+    score = _respond(entry, registry, 1, label_only=True)
+    assert score.validity_hit == score.validity_of == 8, score.faults
+
+
+def _options(result, key):
+    return _item(result, key)["options"]
+
+
+@pytest.mark.parametrize("name, mutate, words", [
+    ("control", lambda r: _item(r, "problem.severity").__setitem__("control", "single_choice"),
+     "control 'single_choice'"),
+    ("founder label missing", lambda r: _options(r, "problem.consequence").pop(0),
+     "missing founder label(s) ['late']"),
+    ("one distractor", lambda r: _options(r, "problem.consequence").pop(),
+     "1 distractor(s); a set takes 2 to 3"),
+    ("something else written", lambda r: _options(r, "problem.consequence").append(
+        "Something else"), "code appends it"),
+    ("fixed scale grew", lambda r: _options(r, "problem.severity").append(
+        {"label": "Off the scale", "code": "off_scale"}), "nothing added"),
+    ("chips", lambda r: _item(r, "problem.severity").__setitem__("chips", []), "chips []"),
+    ("anchor", lambda r: _item(r, "problem.severity").__setitem__("anchor", "last_purchase"),
+     "anchor 'last_purchase'"),
+    ("importance too short", lambda r: _item(r, "problem.importance").__setitem__(
+        "options", ["One", "Two", "Three"]), "3 difficulties; Importance takes 4 to 6"),
+    ("not sure", lambda r: _options(r, "problem.severity")[0].__setitem__(
+        "label", "Not sure."), "not-sure option"),
+    ("options on a number", lambda r: _item(r, "problem.duration").__setitem__(
+        "options", ["5", "10"]), "options on a number_with_unit control"),
+    ("options on the gate", lambda r: _item(r, "problem.prevalence").__setitem__(
+        "options", ["Yes", "No"]), "options on a gate_yes_no control"),
+])
+def test_validity_fails_on_each_respondent_rule_made_to_fail_once(entry, registry, name, mutate,
+                                                                  words):
+    score = _respond(entry, registry, 1, mutate)
+    validity = [f for f in score.faults if f["check"] == "option_validity"]
+    assert len(validity) == 1, (name, score.faults)
+    assert words in validity[0]["evidence"], (name, validity[0]["evidence"])
+
+
+# Call 38: code appends, never the model -- the scorer judges the plan's codes less the appended.
+
+def _row(entry, key):
+    return entry.respondent_questions[key]
+
+
+def test_a_fixed_code_control_owes_exactly_one_label_per_founder_code(entry, registry):
+    dimension = registry.by_key("solution.relative_advantage")
+    row = _row(entry, dimension.key)
+    want = [c for c in row["codes"] if c not in ("nothing_would_change", "something_else")]
+    item = {"key": dimension.key, "question": "That night?",
+            "options": [f"Label {i}" for i in range(len(want))]}
+    assert score_mod.respondent_checks(item, dimension, row) == []
+    plus_escape = dict(item, options=item["options"] + ["Nothing would have changed"])
+    assert any(f"{len(want) + 1} options; the plan has {len(want)}" in f
+               for f in score_mod.respondent_checks(plus_escape, dimension, row))
+    short = dict(item, options=item["options"][:-1])
+    assert score_mod.respondent_checks(short, dimension, row)
+
+
+@pytest.mark.parametrize("distractors, ok", [(1, False), (2, True), (3, True), (4, False)])
+def test_a_set_takes_every_founder_label_and_two_to_three_distractors(entry, registry,
+                                                                      distractors, ok):
+    dimension = registry.by_key("problem.consequence")
+    row = _row(entry, dimension.key)
+    founder = [c for c in row["codes"] if c not in ("nothing_much", "something_else")]
+    labels = [c.upper() for c in founder] + [f"Distractor {i}" for i in range(distractors)]
+    faults = score_mod.respondent_checks({"key": dimension.key, "question": "After?",
+                                          "options": labels}, dimension, row)
+    assert (faults == []) is ok, faults
+    if not ok:
+        assert f"{distractors} distractor(s)" in faults[0]
+
+
+def test_a_set_missing_a_founder_label_fails(entry, registry):
+    dimension = registry.by_key("problem.consequence")
+    row = _row(entry, dimension.key)
+    founder = [c for c in row["codes"] if c not in ("nothing_much", "something_else")]
+    labels = founder[1:] + ["Distractor a", "Distractor b"]
+    faults = score_mod.respondent_checks({"key": dimension.key, "question": "After?",
+                                          "options": labels}, dimension, row)
+    assert any(f"missing founder label(s) [{founder[0]!r}]" in f for f in faults), faults
+
+
+def _lullaby():
+    from instructions import corpus as corpus_mod                       # noqa: PLC0415
+    return corpus_mod.load_file(corpus_mod.FIXTURE_DIR / "03-lullaby.yaml", registry=fx.registry())
+
+
+def test_a_set_is_judged_against_the_founders_labels_not_the_codes(registry):
+    lullaby = _lullaby()
+    key = "commercial.existing_sacrifice"
+    dimension, row = registry.by_key(key), lullaby.respondent_questions[key]
+    labels = lullaby.founder_labels(key)
+    shown = [label for code, label in labels.items() if code != "nothing"]
+    good = {"key": key, "question": "That last thing?",
+            "options": [s.upper() + "!" for s in shown] + ["Distractor a", "Distractor b"]}
+    assert score_mod.respondent_checks(good, dimension, row, founder_labels=labels) == [], \
+        "058's R2 comparison, and the founder's own 'None of these' left to code"
+    codes = dict(good, options=[c for c in labels if c != "nothing"] + ["Distractor a"])
+    faults = score_mod.respondent_checks(codes, dimension, row, founder_labels=labels)
+    assert any("missing founder label(s)" in f for f in faults), faults
+
+
+def test_the_founders_escape_is_told_by_its_label_whatever_production_slugged_it(registry):
+    """Production slugs *None of these* as `none_of_these_<...>`, never the bare `none`: the
+    escape row 058 appends is recognised by its LABEL, not a fixed slug."""
+    lullaby = _lullaby()
+    key = "commercial.existing_sacrifice"
+    dimension, row = registry.by_key(key), lullaby.respondent_questions[key]
+    labels = {("none_of_these_they_cope" if code == "nothing" else code): label
+              for code, label in lullaby.founder_labels(key).items()}
+    assert any(score_mod.is_escape_label(label) for label in labels.values())
+    shown = [label for label in labels.values() if not score_mod.is_escape_label(label)]
+    item = {"key": key, "question": "That last thing?",
+            "options": shown[1:] + shown[:1] + ["Distractor a", "Distractor b"]}
+    faults = score_mod.respondent_checks(item, dimension, row, founder_labels=labels)
+    assert not [f for f in faults if "missing founder label" in f], faults
+
+
+@pytest.mark.parametrize("label", ["None of these", "None of these; they cope with what they have",
+                                   "Nothing", "Nothing yet", "I'd go with my own instinct either way",
+                                   "Something else"])
+def test_every_escape_058_appends_is_known_by_its_label(label):
+    assert score_mod.is_escape_label(label)
+    assert not score_mod.is_escape_label("Nothing on the shelf matched")
+
+
+def test_a_scale_step_that_begins_with_something_else_is_not_an_escape(registry):
+    """Call 44: an escape row the model wrote is told by its WHOLE normalised label, never a
+    prefix -- certificate run 3 (`runs/20261008T194906Z-instructions`, 06-repeatline Part 3)
+    was faulted on Ability to pay's own scale step, code `barely`."""
+    key = "commercial.ability_to_pay"
+    dimension, row = registry.by_key(key), _lullaby().respondent_questions[key]
+    labels = ["Easily, out of what was already there", "Without cutting back on anything",
+              "Only by trading something off", "Something else was cut or given up to cover it"]
+    item = {"key": key, "question": "Where did the money come from?",
+            "options": [{"label": label, "code": code} for label, code in
+                        zip(labels, ["easily", "without_cutting_back", "with_a_trade_off",
+                                     "barely"])]}
+    assert not score_mod.is_escape_label(labels[-1])
+    assert score_mod.respondent_checks(item, dimension, row) == []
+
+
+@pytest.mark.parametrize("label", ["Something else", "something else.", "None of these",
+                                   "Nothing yet", "Nothing"])
+def test_a_bare_escape_written_on_a_set_is_still_a_fault(entry, registry, label):
+    score = _respond(entry, registry, 1,
+                     mutate=lambda r: _options(r, "problem.consequence").append(label))
+    assert any("written by the model; code appends it" in f["evidence"] for f in score.faults), \
+        score.faults
+
+
+def test_a_categorical_pick_takes_the_founders_labels_and_no_distractor(registry):
+    lullaby = _lullaby()
+    key = "solution.target_circumstance"
+    dimension, row = registry.by_key(key), lullaby.respondent_questions[key]
+    labels = lullaby.founder_labels(key)
+    item = {"key": key, "question": "When?", "options": list(labels.values())}
+    assert score_mod.respondent_checks(item, dimension, row, founder_labels=labels) == []
+    plus = dict(item, options=item["options"] + ["During a feed"])
+    assert any("takes none" in f for f in score_mod.respondent_checks(
+        plus, dimension, row, founder_labels=labels))
+
+
+def test_a_band_control_takes_no_options_from_the_model(entry, registry):
+    dimension = registry.by_key("solution.effectiveness_threshold")
+    row = _row(entry, dimension.key)
+    item = {"key": dimension.key, "question": "How much sooner?"}
+    assert score_mod.respondent_checks(item, dimension, row, {"value": 7}) == []
+    assert score_mod.respondent_checks(dict(item, options=None), dimension, row) == []
+    banded = dict(item, options=["Under 5", "5 to 10", "10 to 20", "20 or more"])
+    assert any("4 options on a single_choice_bands control" in f
+               for f in score_mod.respondent_checks(banded, dimension, row))
+
+
+def test_sweep_a_runs_on_part_one_and_sweep_b_on_every_part(entry, registry):
+    leak_a = _respond(entry, registry, 1, lambda r: _item(r, "problem.severity").__setitem__(
+        "question", "How bad was it before the beep?"))
+    assert [f["sweep"] for f in leak_a.faults if f["check"] == "no_leak"] == ["A"]
+    part2 = _respond(entry, registry, 2, lambda r: _item(r, "solution.compatibility").__setitem__(
+        "question", "When would the beep have helped?"))
+    assert not [f for f in part2.faults if f["check"] == "no_leak"], \
+        "after the reveal the mechanism may be named"
+    leak_b = _respond(entry, registry, 2, lambda r: _item(r, "solution.relative_advantage")
+                      .__setitem__("question", "Would a shorter search have mattered?"))
+    faults = [f for f in leak_b.faults if f["check"] == "no_leak"]
+    assert [f["sweep"] for f in faults] == ["B"] and "a shorter search" in faults[0]["evidence"]
+
+
+def test_a_part_one_mechanism_stem_only_in_an_option_label_is_judged_not_faulted(entry, registry):
+    """Call 43: *phone*, *wheel*, *caught* -- a stem offered as an answer goes to the judge."""
+    def mutate(r):
+        item = next(i for i in r["items"] if i.get("options"))
+        _set_option(r, item["key"], 0, "The beep went off")
+    judge = fx.FakeJudge(answer=False)
+    score = _respond(entry, registry, 1, mutate, judge=judge)
+    assert len(judge.calls) == 1
+    assert not [f for f in score.faults if f.get("sweep") == "A"]
+
+
+def test_sweep_b_catches_a_founder_number_the_registry_did_not_fix(entry, registry):
+    score = _respond(entry, registry, 1, lambda r: _item(r, "problem.duration").__setitem__(
+        "question", "Was it more like 15 minutes?"))
+    assert any("15" in f["evidence"] for f in score.faults if f.get("sweep") == "B")
+    window = _respond(entry, registry, 1, lambda r: _item(r, "problem.frequency").__setitem__(
+        "question", "On how many of the last 7 nights?"))
+    assert not [f for f in window.faults if f["check"] == "no_leak"], \
+        "the founder said up to 4 of 7; the 7 is the registry's window"
+
+
+def _set_option(result, key, index, label):
+    option = _item(result, key)["options"][index]
+    if isinstance(option, dict):
+        option["label"] = label
+    else:
+        _item(result, key)["options"][index] = label
+
+
+def test_sweep_b_passes_the_founders_label_in_an_option(entry, registry):
+    """Call 40: a fixed-code control shows every rung, the founder's own among them."""
+    score = _respond(entry, registry, 2, lambda r: _set_option(
+        r, "solution.adoption_friction", 1, "A single whistle"))
+    assert not [f for f in score.faults if f["check"] == "no_leak"]
+
+
+def test_sweep_b_faults_the_founders_label_in_the_stem(entry, registry):
+    score = _respond(entry, registry, 2, lambda r: _item(r, "solution.adoption_friction")
+                     .__setitem__("question", "Would a single whistle have been too much?"))
+    faults = [f for f in score.faults if f["check"] == "no_leak"]
+    assert [f["sweep"] for f in faults] == ["B"] and "a single whistle" in faults[0]["evidence"]
+
+
+def test_sweep_b_faults_the_founders_number_in_the_stem(entry, registry):
+    stem = _respond(entry, registry, 1, lambda r: _item(r, "problem.duration").__setitem__(
+        "question", "Did it last about 15 minutes?"))
+    assert any("15" in f["evidence"] for f in stem.faults if f.get("sweep") == "B")
+
+
+def test_sweep_b_never_reads_the_reveal(entry, registry):
+    """Call 44b: the reveal is R6's (claim words) and names the mechanism's moment."""
+    score = _respond(entry, registry, 2, lambda r: r["reveal"].__setitem__(
+        "body", "One idea: a single whistle starts it."))
+    assert not [f for f in score.faults if f.get("sweep") == "B"]
+
+
+def test_a_mechanism_stem_the_registry_itself_words_for_the_dimension_is_no_leak(entry, registry):
+    """Call 44a: wording the registry gives the dimension can never be a leak."""
+    dimension = registry.by_key("problem.severity")
+    assert score_mod.text_mod.stem("beep") not in score_mod.registry_stems(registry, dimension)
+    faulted = _respond(entry, registry, 1, lambda r: _item(r, "problem.severity").__setitem__(
+        "question", "How bad was it before the beep?"))
+    assert [f for f in faulted.faults if f.get("sweep") == "A"]
+    dimension.respondent["guidance"] = dimension.respondent.get("guidance", "") + " Until the beep."
+    assert score_mod.text_mod.stem("beep") in score_mod.registry_stems(registry, dimension)
+    clean = _respond(entry, registry, 1, lambda r: _item(r, "problem.severity").__setitem__(
+        "question", "How bad was it before the beep?"))
+    assert not [f for f in clean.faults if f.get("sweep") == "A"], clean.faults
+
+
+def test_the_registrys_lullaby_example_is_not_registry_wording(registry):
+    dimension = registry.by_key("problem.severity")
+    dimension.lullaby["founder_question"] = "Does the whistle help?"
+    assert score_mod.text_mod.stem("whistle") not in score_mod.registry_stems(registry, dimension)
+
+
+@pytest.mark.parametrize("label, faulted", [
+    ("I'm not sure", True), ("Not sure", True), ("Don't know", True), ("I don't know", True),
+    ("Unsure", True), ("Prefer not to say", True), ("Not sure it would fit", False),
+    ("When working for a new agency they do not know yet", False)])
+def test_a_not_sure_option_is_the_whole_label_never_a_substring(entry, registry, label, faulted):
+    """Call 44: the whole normalised label against the list (keel-cloud 058's C3 likewise)."""
+    score = _respond(entry, registry, 1, lambda r: _options(r, "problem.severity")[0]
+                     .__setitem__("label", label))
+    hits = [f for f in score.faults if "not-sure option" in f.get("evidence", "")]
+    assert bool(hits) is faulted
+
+
+def test_the_b2b_link_scores_the_six_part_three_items(registry):
+    b2b = fx.entry(fx.ENTRY_B2B)
+    score = _respond(b2b, registry, 3, link="COMMERCIAL_B2B")
+    assert (score.coverage_hit, score.coverage_of) == (6, 6)
+    assert score.validity_hit == 6, score.faults
+    assert score.link == "COMMERCIAL_B2B" and score.subject == "B2B"
+
+
+def test_totals_roll_both_question_screens_into_the_same_three_marks(entry, registry):
+    totals = score_mod.totals([_calibrate(entry, registry)], [_respond(entry, registry, 1),
+                                                              _respond(entry, registry, 2)])
+    assert totals["respondent_coverage"] == {"hit": 17, "of": 17}
+    assert totals["dimension_coverage"] == 1.0
+    assert totals["calibration_leak"]["of"] + totals["respondent_leak"]["of"] == 9 + 16 + 9
+
+
+# -------------------------------------------------------------- US3: INTERPRET (064; call 33)
+
+def _read(entry, name, result):
+    person = entry.person(name)
+    return score_mod.score_interpret(fx.interpret_case(entry, name), entry, person, result)
+
+
+def _answer(entry, name, word, **extra):
+    return {"invitationId": f"{entry.id}/{name}", "anchoring": word, **extra}
+
+
+def test_one_judgement_a_readable_person_keyed_on_the_person(entry):
+    readable = [p.person for p in entry.readable()]
+    scores = [_read(entry, n, _answer(entry, n, entry.person(n).anchoring)) for n in readable]
+    totals = score_mod.totals(interpret_scores=scores)
+    assert totals["people_given"] == 9 and totals["people_answered"] == 9
     assert totals["anchoring_accuracy"] == 1.0
-    assert totals["guessed_precision"] == 1.0
-    assert totals["guessed_recall"] == 1.0
+    assert totals["confusion"] == {"aa": 8, "ag": 0, "ga": 0, "gg": 1}
+    assert totals["guessed_precision"] == 1.0 and totals["guessed_recall"] == 1.0
 
 
-def test_an_omitted_anchor_is_recorded_and_never_quietly_matched_by_position():
-    person = _person(A1="ANCHORED", A2="GUESSED")
-    result = {"anchorings": [{"stage": "PROBLEM", "anchorId": "A9", "anchoring": "ANCHORED"}]}
+def test_a_reader_that_answers_anchored_to_everyone_has_guessed_recall_zero(entry):
+    scores = [_read(entry, p.person, _answer(entry, p.person, "ANCHORED"))
+              for p in entry.readable()]
+    totals = score_mod.totals(interpret_scores=scores)
+    assert totals["anchoring_accuracy"] == 8 / 9
+    assert totals["guessed_recall"] == 0.0 and totals["guessed_precision"] is None
 
-    score = score_mod.score_reading(_case("READING", "Priya"), _entry(), person, result)
 
-    assert score.given == 2
-    assert score.answered == 0, "neither anchor it was given came back"
-    assert score.missing_ids == ["A1", "A2"]
-    assert score.extra_ids == ["A9"], "an invented id is a finding of its own"
-    assert score.anchoring_accuracy is None
+def test_the_chipped_person_is_never_in_any_count(entry):
+    assert "Jo Judd" not in [p.person for p in entry.readable()]
+    scores = [_read(entry, p.person, _answer(entry, p.person, p.anchoring))
+              for p in entry.readable()]
+    assert all(s.subject != "Jo Judd" for s in scores)
 
 
-def test_a_failed_reading_case_answers_no_anchor_at_all():
-    person = _person(A1="ANCHORED")
+def test_a_stage_or_anchor_id_is_neither_read_nor_refused(entry):
+    score = _read(entry, "Ann Abbott", _answer(entry, "Ann Abbott", "ANCHORED",
+                                                stage="PROBLEM", anchorId="A1"))
+    assert score.answered == 1 and score.agreed == 1 and score.shape_fault == 0
 
-    score = score_mod.score_reading(_case("READING", "Priya"), _entry(), person, None,
-                                    failed="outcome 'X' is not in allowed_outcomes")
 
-    assert score.answered == 0 and score.missing_ids == ["A1"]
-    assert score.failed.startswith("outcome")
+def test_a_word_outside_the_two_is_a_shape_refusal_counted_against_the_zero(entry):
+    score = _read(entry, "Ann Abbott", _answer(entry, "Ann Abbott", "PROBABLY"))
+    assert score.shape_fault == 1 and score.answered == 0
+    assert score.missing_ids == ["Ann Abbott"]
+    assert score_mod.totals(interpret_scores=[score], shape_refusals=0)["shape_refusals"] == 1
 
 
-def test_an_anchoring_with_no_stage_scores_a_full_sheet_against_a_merged_anchor():
-    """`MARKS_VERSION` 8, judgement call 24 (spec 025 SC-004): the match key is the bare `anchorId`.
+def test_another_persons_invitation_is_an_extra_id_and_this_person_missing(entry):
+    score = _read(entry, "Ann Abbott", {"invitationId": "09-fixture/Someone Else",
+                                        "anchoring": "ANCHORED"})
+    assert score.extra_ids == ["09-fixture/Someone Else"] and score.missing_ids == ["Ann Abbott"]
+    assert score.answered == 0
 
-    `AnchorRef` is a bare id since keel-cloud spec 049, so this is the shape the wire now carries,
-    and `A1` here is a merged occasion serving PROBLEM and SOLUTION. Under v3's `(stage, anchorId)`
-    this scored 0 of 1 with `A1` missing; it is one judgement and it agrees.
-    """
-    person = _person(A1="ANCHORED")
-    result = {"anchorings": [{"anchorId": "A1", "anchoring": "ANCHORED"}]}   # no "stage", by design
 
-    score = score_mod.score_reading(_case("READING", "Priya"), _entry(), person, result)
+def test_a_read_in_keel_clouds_v8_interpret_shape_is_read_until_064_narrows_it(entry):
+    score = _read(entry, "Ann Abbott", {"invitationId": "09-fixture/Ann Abbott",
+                                        "anchorings": [{"anchorId": "story",
+                                                        "anchoring": "ANCHORED"}]})
+    assert score.answered == 1 and score.agreed == 1
 
-    assert score.answered == 1
-    assert score.missing_ids == []
-    assert score.extra_ids == []
-    assert score.anchoring_accuracy == 1.0
 
+# ------------------------------------- keel-cloud 062: options carry no code, joined by position
 
-def test_a_stage_a_model_wrote_anyway_is_neither_refused_nor_read_for():
-    """The key is the id. A `stage` a model wrote is an extra field, not a wrong answer -- and
-    naming the *other* stage the merged occasion serves is not a disagreement about anything, which
-    is exactly why the pair stopped being the key."""
-    person = _person(A1="ANCHORED")
-    result = {"anchorings": [{"stage": "SOLUTION", "anchorId": "A1", "anchoring": "ANCHORED"}]}
+import json as _json                                                         # noqa: E402
 
-    score = score_mod.score_reading(_case("READING", "Priya"), _entry(), person, result)
+from instructions import corpus as _corpus_mod                               # noqa: E402
 
-    assert score.answered == 1
-    assert score.agreed == 1
-    assert score.missing_ids == []
-    assert score.extra_ids == []
+GOLDEN = fx.FIXTURES / "calibration"
 
 
-def test_missing_and_extra_ids_are_bare_ids():
-    """Spec 025 acceptance 3.3: the set arithmetic is over bare ids, both ways."""
-    person = _person(A1="ANCHORED", A2="GUESSED")
-    result = {"anchorings": [{"anchorId": "A1", "anchoring": "ANCHORED"},
-                             {"anchorId": "A9", "anchoring": "GUESSED"}]}
+def _golden(vector):
+    return _json.loads((GOLDEN / f"03-lullaby.{vector}.result.json").read_text(encoding="utf-8"))
 
-    score = score_mod.score_reading(_case("READING", "Priya"), _entry(), person, result)
 
-    assert score.missing_ids == ["A2"]
-    assert score.extra_ids == ["A9"]
+@pytest.fixture()
+def lullaby():
+    return _corpus_mod.load_file(fx.CORPUS_R3 / "03-lullaby.yaml", registry=fx.registry())
 
 
-# ----------------------------------------------------------------------------------- assumptions
+@pytest.mark.parametrize("vector, count", [("PROBLEM", 9), ("SOLUTION", 9), ("COMMERCIAL", 7)])
+def test_the_golden_062_accepts_scores_clean_with_no_code_on_any_option(lullaby, registry, vector,
+                                                                         count):
+    result = _golden(vector)
+    assert not any("normalized" in o for q in result["questions"] for o in q.get("options") or [])
+    score = score_mod.score_calibration(fx.calibration_case(lullaby, vector), lullaby, registry,
+                                        result, judge=fx.FakeJudge())
+    assert score.faults == [], score.faults
+    assert (score.coverage_hit, score.validity_hit, score.validity_of) == (count, count, count)
+    if vector == "PROBLEM":
+        assert (score.leak_clean, score.leak_of) == (9, 9)
 
-def test_recall_is_matched_over_the_stages_goldens_and_extras_are_counted_not_marked():
-    entry = _entry([_belief("P1", "yes"), _belief("P2", "no")])
-    result = {"assumptions": [
-        {"heading": "P1", "statement": "P1.", "risk": "LOAD_BEARING", "mark": "DIRECT",
-         "expectation": {"type": "CHOICE", "options": ["yes", "no"], "expected": "yes"}},
-        {"heading": "invented", "statement": "Something else.", "risk": "SUPPORTING",
-         "mark": "DIRECT",
-         "expectation": {"type": "INTERVAL", "measure": {"kind": "COUNT", "unit": "things"},
-                         "lower": {"value": 1}}}]}
 
-    score = score_mod.score_assumptions(_case("ASSUMPTIONS", "PROBLEM"), entry, result)
+def test_a_fixed_code_question_one_option_short_fails_by_position(lullaby, registry):
+    result = _golden("PROBLEM")
+    next(q for q in result["questions"] if q["key"] == "problem.severity")["options"].pop()
+    score = score_mod.score_calibration(fx.calibration_case(lullaby, "PROBLEM"), lullaby,
+                                        registry, result, judge=fx.FakeJudge())
+    assert [f["key"] for f in score.faults] == ["problem.severity"]
+    assert "joined by position" in score.faults[0]["evidence"]
 
-    assert score.matched == 1 and score.golden_total == 2
-    assert score.golden_belief_recall == 0.5
-    assert score.extra_beliefs == 1, "an extra is a count, never a mark"
 
+def test_a_stated_code_is_only_a_cross_check_against_its_position(registry):
+    dimension = registry.by_key("problem.severity")
+    question = fx.calibration_question(dimension)
+    assert score_mod.calibration_checks(question, dimension) == []
+    question["options"][0]["normalized"] = "very"
+    assert any("by position it is 'barely'" in f
+               for f in score_mod.calibration_checks(question, dimension))
 
-def test_needs_input_is_a_failed_case_counted_in_the_recall_denominator():
-    # Design decision 14: an assumption screen's only legitimate ask is a missing statement, and
-    # this harness always supplies one. So an ask is a failure, not an excusable abstention.
-    entry = _entry([_belief("P1"), _belief("P2")])
 
-    score = score_mod.score_assumptions(
-        _case("ASSUMPTIONS", "PROBLEM"), entry, None,
-        needs_input_questions=[{"id": "q1", "question": "What is the statement?"}])
-
-    assert score.needs_input is True
-    assert score.matched == 0
-    assert score.golden_total == 2, "still in the denominator"
-    assert score.golden_belief_recall == 0.0
-    totals = score_mod.totals([], [score])
-    assert totals["needs_input_cases"] == 1
-    assert totals["golden_belief_recall"] == 0.0
-
-
-def test_exact_match_is_over_matched_pairs_only_and_per_field():
-    # Judgement call 1: an unmatched golden is already counted by recall, and counting it here too
-    # would double-penalise the same failure.
-    entry = _entry([_belief("P1", "yes"), _belief("P2", "no")])
-    result = {"assumptions": [
-        {"heading": "P1", "statement": "P1.", "risk": "SUPPORTING", "mark": "DIRECT",
-         "expectation": {"type": "CHOICE", "options": ["yes", "no"], "expected": "yes"}}]}
-
-    score = score_mod.score_assumptions(_case("ASSUMPTIONS", "PROBLEM"), entry, result)
-    rates = score.exact_match()
-
-    assert rates["risk"] == 0.0, "the one matched pair got risk wrong"
-    assert rates["mark"] == 1.0
-    assert rates["kind"] is None and rates["unit"] is None, "a Choice pair is n/a, not agreeing"
-    assert score.golden_belief_recall == 0.5
-
-
-def test_the_phrase_and_the_band_are_read_together_in_four_combinations():
-    golden = GoldenBelief(id="P1", stage="PROBLEM", heading="How long", statement="It took a week.",
-                          founder_phrase="about a week", risk="LOAD_BEARING", asked_of="m",
-                          mark="DIRECT",
-                          expectation={"type": "INTERVAL",
-                                       "measure": {"kind": "DURATION", "unit": "days"},
-                                       "lower": {"value": 5}, "upper": {"value": 9}},
-                          selection="S1", group=None)
-    entry = _entry([golden])
-    right_band_wrong_phrase = {
-        "heading": "How long", "statement": "It took a week.", "risk": "LOAD_BEARING",
-        "mark": "DIRECT", "founderPhrase": "five to nine days",
-        "expectation": {"type": "INTERVAL", "measure": {"kind": "DURATION", "unit": "days"},
-                        "lower": {"value": 5}, "upper": {"value": 9}}}
-
-    score = score_mod.score_assumptions(_case("ASSUMPTIONS", "PROBLEM"), entry,
-                                        {"assumptions": [right_band_wrong_phrase]})
-
-    assert score.phrase_band["band_only"] == 1, \
-        "a right band from a phrase the founder never used is right for the wrong reason"
-    assert score.phrase_band["phrase_band"] == 0
-
-
-def test_the_spread_reports_every_run_and_averages_nothing():
-    entry = _entry([_belief("P1")])
-    hit = {"assumptions": [{"heading": "P1", "statement": "P1.", "risk": "LOAD_BEARING",
-                            "mark": "DIRECT",
-                            "expectation": {"type": "CHOICE", "options": ["yes", "no"],
-                                            "expected": "yes"}}]}
-    scores = [score_mod.score_assumptions(_case("ASSUMPTIONS", "PROBLEM", 1), entry, hit),
-              score_mod.score_assumptions(_case("ASSUMPTIONS", "PROBLEM", 2), entry, hit),
-              score_mod.score_assumptions(_case("ASSUMPTIONS", "PROBLEM", 3), entry,
-                                          {"assumptions": []})]
-
-    spread = score_mod.spread(scores, lambda s: s.golden_belief_recall)
-
-    assert spread["09-fixture/PROBLEM"]["runs"] == [1.0, 1.0, 0.0]
-    assert spread["09-fixture/PROBLEM"]["min"] == 0.0
-    assert spread["09-fixture/PROBLEM"]["max"] == 1.0
-
-
-def test_three_ways_of_being_wrong_stay_three_numbers():
-    totals = score_mod.totals([], [], refusals_by_rule={"E4": 2, "Q5": 1}, shape_refusals=3,
-                              schema_invalid=7, errored=1, refusals_measured=True)
-
-    assert totals["refusals_by_rule"] == {"E4": 2, "Q5": 1}
-    assert totals["shape_refusals"] == 3
-    assert totals["schema_invalid"] == 7
-    assert totals["errored"] == 1
-
-
-def test_an_unmeasured_refusal_count_fails_its_mark_rather_than_meeting_it():
-    """Judgement call 13, and the reason for it: the baseline of 2026-09-06 reported
-    `refusals: 0, met: true` while nothing had ever been shown to the aggregate."""
-    from instructions import marks as marks_mod
-    marks = marks_mod.load()
-
-    unmeasured = score_mod.totals([], [], refusals_measured=False)
-    unmeasured["anchoring_accuracy"] = 0.99
-    unmeasured["golden_belief_recall"] = 0.99
-    judged = marks_mod.judge(unmeasured, marks)
-
-    assert judged["refusals"]["measured"] is False
-    assert judged["refusals"]["value"] is None
-    assert judged["refusals"]["met"] is False
-    assert judged["passed"] is False, "two green marks and one unasked question is not a pass"
-
-    measured = score_mod.totals([], [], refusals_measured=True, refusals_shown=63)
-    measured["anchoring_accuracy"] = 0.99
-    measured["golden_belief_recall"] = 0.99
-    # MARKS_VERSION 4 added a fourth subject, and its mark answers to the same rule: an unmeasured
-    # BRIEF is not a met BRIEF, so this run is a pass only once all four have been asked.
-    assert marks_mod.judge(measured, marks)["passed"] is False
-    measured["brief_paragraphs"], measured["brief_measured"] = 1.0, True
-    assert marks_mod.judge(measured, marks)["passed"] is True
-
-
-
-def test_v6_the_rule_refusal_mark_is_a_rate_over_the_answers_the_aggregate_judged():
-    """Judgement call 22 (the founder, 2026-09-12): one invented unit in a full run is one
-    correction, not a failed host. The denominator is what the aggregate judged, never the
-    case-runs it never saw; shape refusals keep their absolute zero."""
-    from instructions import marks as marks_mod
-    marks = marks_mod.load()
-    # The rate and its denominator are v6's and have survived v7 and v8 untouched; the version
-    # itself is `tests/test_instruction_marks.py`'s to pin.
-    assert marks_mod.MARKS_VERSION >= 6
-    green = {"anchoring_accuracy": 0.99, "golden_belief_recall": 0.99,
-             "brief_paragraphs": 1.0, "brief_measured": True}
-
-    one_in_63 = score_mod.totals([], [], refusals_by_rule={"measure": 1}, refusals_measured=True,
-                                 refusals_shown=63)
-    one_in_63.update(green)
-    judged = marks_mod.judge(one_in_63, marks)
-    assert judged["refusals"]["value"] == 1
-    assert abs(judged["refusals"]["rate"] - 1 / 63) < 1e-9
-    assert judged["refusals"]["met"] is True and judged["passed"] is True
-
-    two_in_63 = score_mod.totals([], [], refusals_by_rule={"measure": 2}, refusals_measured=True,
-                                 refusals_shown=63)
-    two_in_63.update(green)
-    assert marks_mod.judge(two_in_63, marks)["refusals"]["met"] is False
-
-    shape = score_mod.totals([], [], shape_refusals=1, refusals_measured=True, refusals_shown=63)
-    shape.update(green)
-    judged = marks_mod.judge(shape, marks)
-    assert judged["shape_refusals"]["met"] is False and judged["passed"] is False
-
-    nothing_shown = score_mod.totals([], [], refusals_measured=True, refusals_shown=0)
-    nothing_shown.update(green)
-    assert marks_mod.judge(nothing_shown, marks)["refusals"]["met"] is False, \
-        "a run that showed the aggregate nothing has no rate"
-
-
-# ------------------------------- spec 025 FR-011: the reference is resolved before it is aligned
-
-def test_score_assumptions_resolves_a_reference_before_it_aligns_and_reports_both_counts():
-    """`MARKS_VERSION` 8, judgement call 27. The case's own `earlier_lines` -- the list this eval
-    numbered and sent in that very prompt -- is what the ordinal is resolved against."""
-    entry = _entry([_belief("P1", "yes")])
-    lines = [{"stage": "PROBLEM", "line": 1, "heading": "h", "statement": "s", "measure": None,
-              "band": {"options": ["yes", "no"], "expected": "yes"},
-              "role": "Someone", "risk": "LOAD_BEARING"}]
-    result = {"assumptions": [
-        {"heading": "P1", "statement": "P1.", "risk": "LOAD_BEARING", "mark": "DIRECT",
-         "reads": {"stage": "PROBLEM", "line": 1}}]}
-
-    score = score_mod.score_assumptions(
-        _case("ASSUMPTIONS", "PROBLEM", earlier_lines=lines), entry, result)
-
-    assert score.matched == 1, "without resolve_reads this is 0 and recall falls by one line"
-    assert score.golden_belief_recall == 1.0
-    assert (score.resolved_reads, score.unresolved_reads) == (1, 0)
-
-
-def test_an_unresolvable_reference_is_counted_and_left_to_fail_to_match():
-    entry = _entry([_belief("P1", "yes")])
-    result = {"assumptions": [
-        {"heading": "P1", "statement": "P1.", "risk": "LOAD_BEARING", "mark": "DIRECT",
-         "reads": {"stage": "PROBLEM", "line": 9}}]}
-
-    score = score_mod.score_assumptions(_case("ASSUMPTIONS", "PROBLEM"), entry, result)
-
-    assert score.matched == 0
-    assert (score.resolved_reads, score.unresolved_reads) == (0, 1)
-    totals = score_mod.totals([], [score])
-    assert totals["unresolved_reads"] == 1
-    assert totals["resolved_reads"] == 0
+def test_a_label_only_respondent_answer_takes_the_plans_codes_by_position(entry, registry):
+    score = _respond(entry, registry, 1, label_only=True)
+    assert score.validity_hit == score.validity_of == 8
+    short = _respond(entry, registry, 1, lambda r: _options(r, "problem.consequence").pop(0),
+                     label_only=True)
+    assert [f["key"] for f in short.faults if f["check"] == "option_validity"] == \
+        ["problem.consequence"]

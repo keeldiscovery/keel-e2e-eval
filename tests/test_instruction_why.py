@@ -27,6 +27,14 @@ def test_marks_earns_the_full_run_and_records_the_version_it_certifies():
     assert why.check("marks:8", screen=False, dry_run=False) == {"event": "marks", "version": 8}
 
 
+def test_marks_nine_earns_the_run_of_record_and_why_py_did_not_move():
+    """Spec 029 FR-029, research R12: `why.py` is untouched, and `marks:9` is already the full run's
+    event -- the certificate routing v9 lands on -- and refused on a screen."""
+    assert why.check("marks:9", screen=False, dry_run=False) == {"event": "marks", "version": 9}
+    with pytest.raises(why.NoReason):
+        why.check("marks:9", screen=True, dry_run=False)
+
+
 def test_marks_does_not_earn_a_screen():
     """A screen is one entry, and a rubric that moved has no green run *at all* until one is spent
     -- so `marks:` is full-run only, deliberately, and not merely permitted there."""

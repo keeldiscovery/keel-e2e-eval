@@ -1,0 +1,205 @@
+{
+  "standings": {
+    "problem.prevalence": {
+      "status": "HOLDING_UP",
+      "drift": "above",
+      "n": 12,
+      "yes": 10,
+      "proportion": 0.83,
+      "belief_sentence": "Most of these commuters who cycle had this at least once in the last 7 nights."
+    },
+    "problem.frequency": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "inside": 7,
+      "outside": 1,
+      "median": 3,
+      "belief_sentence": "Commuters who cycle face this on 2 to 4 nights out of 7."
+    },
+    "problem.severity": {
+      "status": "HOLDING_UP",
+      "drift": "below",
+      "n": 8,
+      "inside": 4,
+      "outside": 4,
+      "belief_sentence": "For commuters who cycle, one episode throws the morning off."
+    },
+    "problem.duration": {
+      "status": "NOT_HOLDING_UP",
+      "drift": "both",
+      "n": 7,
+      "inside": 2,
+      "outside": 5,
+      "median": 8,
+      "belief_sentence": "A typical episode takes 5 to 15 minutes from start to finish."
+    },
+    "problem.importance": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "inside": 3,
+      "outside": 5,
+      "belief_sentence": "Among the difficulties that come with the morning they cannot find their keys, this is one of the top three."
+    },
+    "problem.consequence": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "optionCounts": "late=6, stress=5, missed_train=2, nothing_much=1, something_else=0",
+      "belief_sentence": "After an episode, commuters who cycle are left with lateness and stress."
+    },
+    "problem.workaround_burden": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "optionCounts": "retrace=7, spare=4, ask_housemate=3, something_else=0",
+      "belief_sentence": "In the moment, commuters who cycle try retracing their steps, the spare set, in that order."
+    },
+    "problem.current_solution_satisfaction": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "inside": 6,
+      "outside": 2,
+      "belief_sentence": "The way commuters who cycle handle it today is hit and miss."
+    },
+    "problem.urgency": {
+      "status": "LEFT_OUT",
+      "drift": null,
+      "belief_sentence": "Left out: you weren't sure."
+    },
+    "solution.compatibility": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "inside": 6,
+      "outside": 2,
+      "belief_sentence": "It fits into the episode once the first look has failed."
+    },
+    "solution.relative_advantage": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "inside": 6,
+      "outside": 2,
+      "belief_sentence": "To be worth switching to, it must mainly deliver a shorter search."
+    },
+    "solution.effectiveness_threshold": {
+      "status": "BAR_SET",
+      "drift": "above",
+      "n": 8,
+      "bar": "5-10",
+      "belief_sentence": "It is worth using only if it saves at least 5 minutes per episode."
+    },
+    "solution.trust_risk": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "optionCounts": "loud_enough=6, battery_lasts=3, own_instinct=1, something_else=0",
+      "belief_sentence": "Commuters who cycle would act on it only if it is loud enough."
+    },
+    "solution.reliability_tolerance": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "inside": 7,
+      "outside": 1,
+      "belief_sentence": "They keep using it as long as it is wrong no more than about one time in ten."
+    },
+    "solution.adoption_friction": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "inside": 6,
+      "outside": 2,
+      "belief_sentence": "The most extra effort they would accept at the moment of use is a single whistle."
+    },
+    "solution.trialability": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "optionCounts": "free_trial=7, easy_return=2, something_else=0",
+      "belief_sentence": "They would try it for the first time if it is free to try."
+    },
+    "solution.observability": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "optionCounts": "found_sooner=8, less_stress=3, something_else=0",
+      "belief_sentence": "They would know it helped when they found the keys sooner."
+    },
+    "solution.target_circumstance": {
+      "status": "PEOPLE_DISAGREE",
+      "drift": "none",
+      "n": 8,
+      "inside": 4,
+      "outside": 4,
+      "belief_sentence": "It matters most when they are already running late."
+    },
+    "commercial.existing_sacrifice": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "optionCounts": "spare_keys=6, locksmith=1, none=1, nothing=0, something_else=0",
+      "belief_sentence": "Because of this, commuters who cycle already give up money on spare keys."
+    },
+    "commercial.wtp_hypothesis": {
+      "status": "NOT_TESTED_BY_DESIGN",
+      "drift": "none",
+      "n": 7,
+      "median": 3,
+      "belief_sentence": "A fair price would feel like £2 to £4 per month (a hypothesis; interviews do not test it)."
+    },
+    "commercial.ability_to_pay": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "inside": 7,
+      "outside": 1,
+      "belief_sentence": "They could find the money for it without a second thought."
+    },
+    "commercial.buyer_payer_alignment": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "inside": 8,
+      "outside": 0,
+      "belief_sentence": "On buying: the same person uses it, decides and pays."
+    },
+    "commercial.purchase_friction": {
+      "status": "NOT_HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "optionCounts": "forgetting=2, cancel_worry=5, never_came_up=1, something_else=0",
+      "belief_sentence": "Between wanting it and paying, forgetting by evening could hold them back."
+    },
+    "commercial.commitment": {
+      "status": "NOT_HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "inside": 2,
+      "outside": 6,
+      "belief_sentence": "For a trial, right now, they would go as far as installing the app."
+    },
+    "commercial.retention_potential": {
+      "status": "LEFT_OUT",
+      "drift": null,
+      "belief_sentence": "Left out: you weren't sure."
+    }
+  },
+  "vector_verdicts": {
+    "PROBLEM": {
+      "verdict": "NOT_HOLDING_UP",
+      "deciding": "problem.duration"
+    },
+    "SOLUTION": {
+      "verdict": "BAR_SET",
+      "deciding": "solution.effectiveness_threshold"
+    },
+    "COMMERCIAL": {
+      "verdict": "NOT_HOLDING_UP",
+      "deciding": "commercial.existing_sacrifice"
+    }
+  }
+}

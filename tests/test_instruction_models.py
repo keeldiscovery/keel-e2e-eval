@@ -28,18 +28,18 @@ TABLE = {
         "codex": {"standard": "gpt-5.6-terra", "light": "gpt-5.5-mini"},
     },
     "_tiers": ["light", "standard", "frontier"],
-    # `questions` joined the cloud's table at keel-cloud spec 048 FR-009, on the `light` tier --
-    # and **this eval cannot start without it**: `parse` refuses a class it does not know and
-    # refuses a table that says nothing about a class this eval measures, so the row is not
-    # optional here (spec 025 FR-012).
-    "classes": {"frame": "standard", "assumptions": "standard", "reframe": "standard",
-                "reading": "light", "brief": "standard", "questions": "light"},
+    # MARKS_VERSION 9 (spec 029 FR-023): the six classes the seven model screens route through.
+    # **This eval cannot start without all six**: `parse` refuses a table that says nothing about
+    # a class this eval measures, so none of these rows is optional here.
+    "classes": {"context": "light", "frame": "standard", "calibration": "standard",
+                "respondent": "standard", "reading": "light", "brief": "standard"},
 }
 
 
-def _case(kind, case_id="e/PROBLEM/run1"):
-    screen = {"ASSUMPTIONS": "PROBLEM_ASSUMPTIONS", "READING": "INTERPRET", "BRIEF": "BRIEF",
-              "QUESTIONS": "QUESTIONS"}[kind]
+def _case(kind, case_id="e/CALIBRATION_PROBLEM/run1"):
+    screen = {"CALIBRATION": "CALIBRATION_QUESTIONS", "READING": "INTERPRET", "BRIEF": "BRIEF",
+              "CONTEXT": "CONTEXT_INTERPRET", "RESPONDENT": "RESPONDENT_QUESTIONS",
+              "FRAME": "PROBLEM_INTERPRET", "COMPARE": "COMPARE"}[kind]
     return prompts_mod.Case(case_id=case_id, kind=kind, entry_id="e", screen=screen,
                             subject="PROBLEM", run_index=1,
                             payload=prompts_mod.payload_for("I", {"k": None}, {"allowed_outcomes": ["COMPLETED"]}))
@@ -50,35 +50,35 @@ def _case(kind, case_id="e/PROBLEM/run1"):
 
 def test_the_resolver_walks_class_to_tier_to_the_hosts_row():
     table = models_mod.parse(TABLE)
-    assert table.resolve("codex", "assumptions") == "gpt-5.6-terra"
+    assert table.resolve("codex", "calibration") == "gpt-5.6-terra"
     assert table.resolve("codex", "reading") == "gpt-5.5-mini"
     assert table.resolve("codex", "brief") == "gpt-5.6-terra"
     assert table.resolve_kind("claude", "READING") == "haiku"
-    assert table.resolve_screen("claude", "SOLUTION_REFRAME") == "sonnet"
+    assert table.resolve_screen("claude", "SOLUTION_MECHANISM") == "sonnet"
+    assert table.resolve_kind("claude", "COMPARE") is None, "COMPARE is never a model call"
 
 
 def test_a_missing_host_is_no_pin_never_a_failure():
     table = models_mod.parse(TABLE)
-    assert table.resolve("gemini", "assumptions") is None
-    assert table.job_map("gemini", "ASSUMPTIONS") is None
-    assert table.models_used("gemini") == {"assumptions": None, "questions": None,
-                                          "reading": None, "brief": None}
+    assert table.resolve("gemini", "calibration") is None
+    assert table.job_map("gemini", "CALIBRATION") is None
+    assert table.models_used("gemini") == {"context": None, "frame": None, "calibration": None, "respondent": None, "reading": None, "brief": None}
 
 
 def test_a_missing_tier_on_a_hosts_row_is_the_clis_default_for_that_class():
     """Copilot's row names `standard` only, so its readings run unpinned and the record says so."""
     table = models_mod.parse(TABLE)
     assert table.resolve("copilot", "reading") is None
-    assert table.models_used("copilot") == {"assumptions": "gpt-5.6-luna", "questions": None,
-                                           "reading": None,
+    assert table.models_used("copilot") == {"context": None, "frame": "gpt-5.6-luna",
+                                            "calibration": "gpt-5.6-luna",
+                                            "respondent": "gpt-5.6-luna", "reading": None,
                                             "brief": "gpt-5.6-luna"}
 
 
 def test_the_empty_table_the_cloud_ships_first_pins_nothing_anywhere():
     table = models_mod.parse({"version": 1, "hosts": {}, "classes": TABLE["classes"]})
     for host in ("claude", "copilot", "codex"):
-        assert table.models_used(host) == {"assumptions": None, "questions": None,
-                                           "reading": None, "brief": None}
+        assert table.models_used(host) == {"context": None, "frame": None, "calibration": None, "respondent": None, "reading": None, "brief": None}
 
 
 # ------------------------------------------------------------------------ 2. the file's edges
@@ -102,9 +102,9 @@ def test_an_unknown_tier_class_or_shape_is_a_refusal_that_names_it(bad, words):
 def test_the_three_tiers_are_all_accepted_and_the_informational_list_is_tolerated():
     document = {"version": 2, "_tiers": ["light", "standard", "frontier"],
                 "hosts": {"codex": {"light": "a", "standard": "b", "frontier": "c"}},
-                "classes": {**TABLE["classes"], "assumptions": "frontier"}}
+                "classes": {**TABLE["classes"], "calibration": "frontier"}}
     table = models_mod.parse(document)
-    assert table.resolve("codex", "assumptions") == "c"
+    assert table.resolve("codex", "calibration") == "c"
     assert table.version == 2
 
 
@@ -167,7 +167,7 @@ def test_run_py_refuses_a_bad_table_before_the_preflight_and_the_lock(monkeypatc
 def test_the_pin_is_the_sixth_key_of_the_payload_and_never_the_environment(monkeypatch):
     monkeypatch.delenv("KEEL_CODEX_MODEL", raising=False)
     table = models_mod.parse(TABLE)
-    cases = [_case("ASSUMPTIONS"), _case("READING", "e/Tom/run1"), _case("BRIEF", "e/BRIEF/run1")]
+    cases = [_case("CALIBRATION"), _case("READING", "e/Tom/run1"), _case("BRIEF", "e/BRIEF/run1")]
     models_mod.stamp(cases, table, "codex")
 
     assert list(cases[0].payload) == ["instruction", "context", "interaction_history", "input",
@@ -185,15 +185,15 @@ def test_a_class_the_table_leaves_unpinned_gets_no_key_at_all():
     reading = _case("READING")
     models_mod.stamp([reading], table, "copilot")
     assert "model" not in reading.payload and reading.model is None
-    assumptions = _case("ASSUMPTIONS")
-    models_mod.stamp([assumptions], None, "copilot")
-    assert "model" not in assumptions.payload, "no table: the payload is exactly what it was"
+    calibration = _case("CALIBRATION")
+    models_mod.stamp([calibration], None, "copilot")
+    assert "model" not in calibration.payload, "no table: the payload is exactly what it was"
 
 
 def test_stamping_after_the_prompt_leaves_the_prompt_untouched():
     """Design §5: `model` is the cloud's choice, not the model's, and is not visible in the
     prompt. The prompt is rendered from the payload *before* the key lands."""
-    case = _case("ASSUMPTIONS")
+    case = _case("CALIBRATION")
     case.prompt = json.dumps(case.payload)
     models_mod.stamp([case], models_mod.parse(TABLE), "codex")
     assert "gpt-5.6-terra" not in case.prompt
@@ -218,12 +218,12 @@ def test_on_a_runtime_older_than_0_5_0_the_per_case_pin_lands_on_the_executor_in
     left alone: the key is the only source of truth."""
     table = models_mod.parse(TABLE)
     executor = types.SimpleNamespace(model="left-alone")
-    reading, assumptions = _case("READING"), _case("ASSUMPTIONS")
-    models_mod.stamp([reading, assumptions], table, "codex")
+    reading, calibration = _case("READING"), _case("CALIBRATION")
+    models_mod.stamp([reading, calibration], table, "codex")
 
     models_mod.apply_fallback(executor, reading, table, routing_runtime=False)
     assert executor.model == "gpt-5.5-mini"
-    models_mod.apply_fallback(executor, assumptions, table, routing_runtime=False)
+    models_mod.apply_fallback(executor, calibration, table, routing_runtime=False)
     assert executor.model == "gpt-5.6-terra"
 
     executor.model = "left-alone"
@@ -251,8 +251,9 @@ def test_the_model_block_and_the_manifest_carry_the_per_class_pins_and_their_sou
     facts = {"cli": "codex", "cli_version": "codex-cli 0.154.0"}
     block = run_mod._model_block(_args(), facts, _Codexish(), None, None, table=table)
     assert block["pinned_model"] is None
-    assert block["models_used"] == {"assumptions": "gpt-5.6-terra",
-                                   "questions": "gpt-5.5-mini", "reading": "gpt-5.5-mini",
+    assert block["models_used"] == {"context": "gpt-5.5-mini", "frame": "gpt-5.6-terra",
+                                    "calibration": "gpt-5.6-terra",
+                                    "respondent": "gpt-5.6-terra", "reading": "gpt-5.5-mini",
                                     "brief": "gpt-5.6-terra"}
     assert block["models_source"] == ""
     manifest = run_mod._manifest(_args(), facts, _Codexish(), None, None, "2026-09-13T00:00:00Z",
@@ -276,7 +277,7 @@ def test_the_report_names_the_per_class_pins_where_it_used_to_name_one_or_none(t
     scorecard["model"].update({"host": "codex", "cli": "codex", "cli_version": "codex-cli 0.154.0",
                                "pinned_model": None, "job_max_turns": None,
                                "job_budget_usd": None,
-                               "models_used": {"assumptions": "gpt-5.6-terra",
+                               "models_used": {"calibration": "gpt-5.6-terra",
                                                "reading": None, "brief": "gpt-5.6-terra"},
                                "models_source": "exported:/x"})
     verdict = {"scenario": "instructions", "baseline": False, "host": "codex", "n_runs": 3,
@@ -288,7 +289,7 @@ def test_the_report_names_the_per_class_pins_where_it_used_to_name_one_or_none(t
                                     versions={}, host="codex")
     html = path.read_text()
     assert "pinned per job class" in html
-    assert "assumptions <code>gpt-5.6-terra</code>" in html
+    assert "calibration <code>gpt-5.6-terra</code>" in html
     assert "reading <b>the CLI's default</b>" in html
     assert "exported:/x" in html
     assert "nothing pinned" not in html
@@ -310,19 +311,16 @@ def test_each_cases_envelope_records_the_model_the_wire_asked_for(tmp_path):
 
 
 def _export(directory, *, with_table):
-    (directory / "contracts").mkdir(parents=True)
-    (directory / "manifest.json").write_text(json.dumps({"screens": ["INTERPRET"]}))
-    (directory / "context-keys.json").write_text(json.dumps({"INTERPRET": ["anchors"]}))
-    (directory / "contracts" / "INTERPRET.json").write_text(json.dumps(
-        {"allowed_outcomes": ["COMPLETED"], "completed_result_schema": {}}))
-    if with_table:
-        (directory / "model-routing.json").write_text(json.dumps(TABLE))
+    # Spec 029 FR-021: an export without `dimension-registry.json` is refused before any case is
+    # built, so the export these two tests read carries the hand-sized registry slice.
+    from tests import v9_fixtures as fx                                      # noqa: PLC0415
+    fx.write_export(directory, routing=TABLE if with_table else None)
 
 
 def test_an_export_without_the_fourth_file_reads_as_before_and_says_it_has_no_table(tmp_path):
     _export(tmp_path, with_table=False)
     exported = contract_mod.read(tmp_path)
-    assert exported.for_screen("INTERPRET")["allowed_outcomes"] == ["COMPLETED"]
+    assert "COMPLETED" in exported.for_screen("INTERPRET")["allowed_outcomes"]
     assert exported.model_routing is None
 
 
@@ -441,34 +439,34 @@ V6 = {
     },
     "efforts": {"claude": {"standard": "medium"}},
     "_tiers": ["light", "standard", "frontier"],
-    "classes": {"frame": "standard", "assumptions": "standard", "reframe": "standard",
-                "reading": "light", "brief": "standard", "questions": "light"},
+    "classes": {"context": "light", "frame": "standard", "calibration": "standard",
+                "respondent": "standard", "reading": "light", "brief": "standard"},
 }
 
 
 def test_v6_resolves_the_effort_at_the_classes_own_tier():
     table = models_mod.parse(V6, source="v6")
 
-    assert table.resolve_effort("claude", "assumptions") == "medium"
+    assert table.resolve_effort("claude", "calibration") == "medium"
     assert table.resolve_effort("claude", "brief") == "medium"
     assert table.resolve_effort("claude", "frame") == "medium"
     # The reading is the one that matters: it routes to `light`, whose row carries no effort,
     # because `effort` ERRORS on Haiku 4.5. Nothing has to say so -- the shape says it.
     assert table.resolve_effort("claude", "reading") is None
     # And the other two hosts have no `efforts` row at all, because neither CLI has an effort flag.
-    assert table.resolve_effort("codex", "assumptions") is None
+    assert table.resolve_effort("codex", "calibration") is None
     assert table.resolve_effort("copilot", "brief") is None
 
 
 def test_v6_efforts_used_is_the_per_class_record_a_verdict_carries():
     table = models_mod.parse(V6, source="v6")
 
-    # Four classes since spec 025 FR-012: `questions` routes to `light`, whose row carries no
-    # effort, for the same reason a reading's does not -- `effort` errors on Haiku 4.5.
+    # Six classes at v9 (spec 029 FR-023): `context` and `reading` route to `light`, whose row
+    # carries no effort -- `effort` errors on Haiku 4.5.
     assert table.efforts_used("claude") == {
-        "assumptions": "medium", "questions": None, "reading": None, "brief": "medium"}
-    assert table.efforts_used("codex") == {
-        "assumptions": None, "questions": None, "reading": None, "brief": None}
+        "context": None, "frame": "medium", "calibration": "medium", "respondent": "medium",
+        "reading": None, "brief": "medium"}
+    assert table.efforts_used("codex") == {"context": None, "frame": None, "calibration": None, "respondent": None, "reading": None, "brief": None}
 
 
 def test_a_table_older_than_v6_pins_no_effort_anywhere():
@@ -479,32 +477,31 @@ def test_a_table_older_than_v6_pins_no_effort_anywhere():
     table = models_mod.parse(without, source="v5")
 
     assert table.efforts == {}
-    assert table.resolve_effort("claude", "assumptions") is None
-    assert table.efforts_used("claude") == {
-        "assumptions": None, "questions": None, "reading": None, "brief": None}
+    assert table.resolve_effort("claude", "calibration") is None
+    assert table.efforts_used("claude") == {"context": None, "frame": None, "calibration": None, "respondent": None, "reading": None, "brief": None}
 
 
 def test_stamp_writes_the_seventh_key_and_leaves_a_reading_untouched():
     table = models_mod.parse(V6, source="v6")
-    cases = [_case("ASSUMPTIONS"), _case("READING"), _case("BRIEF")]
+    cases = [_case("CALIBRATION"), _case("READING"), _case("BRIEF")]
     models_mod.stamp(cases, table, "claude")
 
-    assumptions, reading, brief = cases
-    assert assumptions.payload["model"] == {"claude": "claude-sonnet-5-5"}
-    assert assumptions.payload["effort"] == {"claude": "medium"}
-    assert assumptions.effort == "medium"
+    calibration, reading, brief = cases
+    assert calibration.payload["model"] == {"claude": "claude-sonnet-5-5"}
+    assert calibration.payload["effort"] == {"claude": "medium"}
+    assert calibration.effort == "medium"
     assert brief.payload["effort"] == {"claude": "medium"}
     # The reading: a model, and no `effort` key at all.
     assert reading.payload["model"] == {"claude": "claude-haiku-4-5-20251001"}
     assert "effort" not in reading.payload
     assert reading.effort is None
     # The key order the cloud writes: the five, then model, then effort.
-    assert list(assumptions.payload)[-2:] == ["model", "effort"]
+    assert list(calibration.payload)[-2:] == ["model", "effort"]
 
 
 def test_stamp_on_a_host_with_no_efforts_row_writes_no_seventh_key():
     table = models_mod.parse(V6, source="v6")
-    cases = [_case("ASSUMPTIONS")]
+    cases = [_case("CALIBRATION")]
     models_mod.stamp(cases, table, "codex")
 
     assert cases[0].payload["model"] == {"codex": "gpt-6-astra"}
@@ -514,7 +511,7 @@ def test_stamp_on_a_host_with_no_efforts_row_writes_no_seventh_key():
 
 def test_stamp_clears_a_stale_effort_the_way_it_clears_a_stale_model():
     table = models_mod.parse({k: v for k, v in V6.items() if k != "efforts"}, source="v5")
-    case = _case("ASSUMPTIONS")
+    case = _case("CALIBRATION")
     case.payload["effort"] = {"claude": "xhigh"}
     case.effort = "xhigh"
     models_mod.stamp([case], table, "claude")
@@ -554,30 +551,49 @@ def test_an_efforts_block_that_is_not_an_object_refuses_to_start():
             models_mod.parse(dict(V6, efforts=value), source="bad")
 
 
-# ---------------------------------------------------------- spec 025 FR-012: the fourth class
+# ------------------------------------------------- spec 029 FR-023: the six classes of MARKS_VERSION 9
 
-def test_a_table_naming_the_questions_class_parses_and_routes_it_to_the_light_tier():
-    """**Without this the eval cannot start at all against keel-cloud 048's table**: `parse` raises
-    `ModelsUnavailable` on a class name it does not know, and 048 FR-009 adds `questions` to the
-    table the cloud's exporter writes. Found by reading `parse`, not by a failed run."""
+#: keel-cloud's own `model-routing.json` at v8 (`3e91cfc`), the table the export carries today.
+V8_TABLE = {
+    "version": 8,
+    "hosts": {"claude": {"light": "claude-haiku-4-5-20251001", "standard": "claude-sonnet-5-5"}},
+    "efforts": {"claude": {"standard": "medium"}},
+    "_tiers": ["light", "standard", "frontier"],
+    "classes": {"frame": "standard", "assumptions": "standard", "reframe": "standard",
+                "reading": "light", "brief": "standard", "questions": "light"},
+}
+
+
+def test_a_table_naming_the_six_classes_parses():
     table = models_mod.parse(TABLE)
+    assert models_mod.MEASURED_CLASSES == ("context", "frame", "calibration", "respondent",
+                                           "reading", "brief")
+    assert table.resolve_kind("claude", "CONTEXT") == "haiku"
+    assert table.resolve_kind("claude", "RESPONDENT") == "sonnet"
+    assert table.resolve_screen("claude", "CALIBRATION_QUESTIONS") == "sonnet"
 
-    assert "questions" in models_mod.CLASSES
-    assert table.tier_for("questions") == "light"
-    assert table.resolve("claude", "questions") == "haiku"
-    assert table.resolve_kind("claude", "QUESTIONS") == "haiku"
-    assert table.resolve_screen("claude", "QUESTIONS") == "haiku"
 
-
-def test_a_table_that_says_nothing_about_questions_refuses_to_start_by_name():
-    """The same refusal `reading` and `brief` already had: every class this eval measures must name
-    its tier, so that a missing one is never a silent default."""
-    silent = dict(TABLE, classes={k: v for k, v in TABLE["classes"].items() if k != "questions"})
-
+def test_keel_clouds_v8_table_refuses_naming_the_three_new_classes_and_its_version():
+    """Research R5: the three dormant names parse, so the refusal is the *right* one -- the table
+    says nothing about `context`, `calibration` or `respondent` -- and it names table version 8.
+    Found by reading `parse` and keel-cloud's table, not by a failed run (025 D13 the other way)."""
     with pytest.raises(models_mod.ModelsUnavailable) as refusal:
-        models_mod.parse(silent, source="silent")
+        models_mod.parse(V8_TABLE, source="exported")
+    words = str(refusal.value)
+    for name in ("context", "calibration", "respondent", "version 8"):
+        assert name in words, name
+    assert "assumptions" not in words.split("--")[0], "the dormant names are tolerated"
 
-    assert "questions" in str(refusal.value)
+
+def test_the_screen_pin_file_parses_at_the_ceiling():
+    from pathlib import Path                                                 # noqa: PLC0415
+    path = (Path(__file__).resolve().parent.parent / "specs" / "029-marks-v9-vectors"
+            / "contracts" / "models-screen.json")
+    table = models_mod.load(path)
+    assert (table.resolve("claude", "calibration"),
+            table.resolve_effort("claude", "calibration")) == ("claude-sonnet-5-5", "medium")
+    assert (table.resolve("claude", "reading"),
+            table.resolve_effort("claude", "reading")) == ("claude-haiku-4-5-20251001", None)
 
 
 def test_a_table_naming_an_unknown_class_still_refuses_by_name():
@@ -587,21 +603,24 @@ def test_a_table_naming_an_unknown_class_still_refuses_by_name():
     assert "questionnaire" in str(refusal.value) and "classes are exactly" in str(refusal.value)
 
 
-def test_models_used_and_efforts_used_report_four_classes_so_the_verdict_names_the_fourth():
-    """A verdict that named three would be claiming three-quarters of what it measured -- it would
-    not say which model wrote the questionnaires."""
+def test_models_used_and_efforts_used_report_exactly_the_six():
     table = models_mod.parse(TABLE)
+    six = ["context", "frame", "calibration", "respondent", "reading", "brief"]
+    assert list(table.models_used("claude")) == six
+    assert list(table.efforts_used("claude")) == six
 
-    assert list(table.models_used("claude")) == ["assumptions", "questions", "reading", "brief"]
-    assert list(table.efforts_used("claude")) == ["assumptions", "questions", "reading", "brief"]
 
-
-def test_the_wire_pins_a_questions_case_on_the_light_row_and_writes_it_no_effort():
+def test_the_wire_pins_a_context_case_on_the_light_row_and_writes_it_no_effort():
     table = models_mod.parse(V6, source="v6")
-    case = _case("QUESTIONS", case_id="e/QUESTIONS/run1")
-
+    case = _case("CONTEXT", case_id="e/CONTEXT_INTERPRET/run1")
     models_mod.stamp([case], table, "claude")
-
     assert case.payload[models_mod.MODEL_KEY] == {"claude": "claude-haiku-4-5-20251001"}
     assert models_mod.EFFORT_KEY not in case.payload
     assert case.effort is None
+
+
+def test_a_compare_row_is_never_stamped():
+    table = models_mod.parse(V6, source="v6")
+    case = _case("COMPARE", case_id="e/COMPARE")
+    models_mod.stamp([case], table, "claude")
+    assert models_mod.MODEL_KEY not in case.payload and case.model is None

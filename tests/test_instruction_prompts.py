@@ -72,3 +72,105 @@ def _nonce(prompt: str) -> str:
     marker = "<<<KEEL-DATA "
     start = prompt.index(marker) + len(marker)
     return prompt[start:prompt.index(">>>", start)]
+
+
+# ------------------------------------------------- spec 029 FR-016: the eight subjects, in order
+
+
+from instructions import run as run_mod                                        # noqa: E402
+from tests import v9_fixtures as fx                                            # noqa: E402
+
+
+@pytest.fixture()
+def cases(tmp_path):
+    return prompts_mod.build_cases(fx.entry(), fx.exported(tmp_path), fx.instructions(),
+                                   fx.FakeRuntime, n_runs=1)
+
+
+def test_the_seeded_screens_carry_the_seed_as_input_content():
+    payload = prompts_mod.payload_for("i", {}, CONTRACT, content="the founder typed this")
+    assert payload["input"] == {"content": "the founder typed this"}
+
+
+def test_build_cases_emits_nineteen_model_cases_and_one_compare_row_in_fr_016s_order(cases):
+    ids = [c.case_id for c in cases]
+    assert ids[:9] == [
+        "09-fixture/CONTEXT_INTERPRET/run1", "09-fixture/PROBLEM_INTERPRET/run1",
+        "09-fixture/SOLUTION_MECHANISM/run1", "09-fixture/CALIBRATION_PROBLEM/run1",
+        "09-fixture/CALIBRATION_SOLUTION/run1", "09-fixture/CALIBRATION_COMMERCIAL/run1",
+        "09-fixture/RESPONDENT_PART1/run1", "09-fixture/RESPONDENT_PART2/run1",
+        "09-fixture/RESPONDENT_PART3/run1"]
+    reads = [c for c in cases if c.kind == "READING"]
+    assert len(reads) == 9 and ids[9:18] == [c.case_id for c in reads]
+    assert {c.subject for c in reads}.isdisjoint({"Jo Judd", "Kit Kerr", "Lu Lam"}), \
+        "no read for a gate-No or a chipped story (FR-017)"
+    assert ids[18:] == ["09-fixture/COMPARE", "09-fixture/BRIEF/run1"]
+    model = [c for c in cases if c.kind != "COMPARE"]
+    assert len(model) == 19, "SC-003: 3 + 3 + 3 + 9 + 1"
+    assert [c.kind for c in cases[:9]] == ["CONTEXT", "FRAME", "FRAME"] + ["CALIBRATION"] * 3 \
+        + ["RESPONDENT"] * 3
+
+
+def test_the_compare_row_is_a_row_and_never_a_call(cases):
+    row = next(c for c in cases if c.kind == "COMPARE")
+    assert row.payload == {} and row.prompt == "" and row.run_index == 0
+    assert row.compare_input["entry"] == "09-fixture"
+    assert len(row.compare_input["founder_calibration"]) == 25
+
+
+def test_the_b2b_entry_adds_its_own_respondent_link(tmp_path):
+    cases = prompts_mod.build_cases(fx.entry(fx.ENTRY_B2B), fx.exported(tmp_path),
+                                    fx.instructions(), fx.FakeRuntime, n_runs=1)
+    b2b = [c for c in cases if c.case_id.endswith("RESPONDENT_B2B/run1")]
+    assert len(b2b) == 1 and b2b[0].meta["link"] == "COMMERCIAL_B2B"
+    assert b2b[0].meta["part"] == 3
+    assert len([c for c in cases if c.kind == "RESPONDENT"]) == 4
+
+
+def test_n_runs_repeats_each_model_case_and_never_the_compare_row(tmp_path):
+    cases = prompts_mod.build_cases(fx.entry(), fx.exported(tmp_path), fx.instructions(),
+                                    fx.FakeRuntime, n_runs=3)
+    assert len([c for c in cases if c.kind != "COMPARE"]) == 57, "SC-010"
+    assert len([c for c in cases if c.kind == "COMPARE"]) == 1
+
+
+def test_every_payload_carries_its_screens_instruction_and_its_contract(cases):
+    for case in cases:
+        if case.kind == "COMPARE":
+            continue
+        assert case.payload["instruction"] == f"INSTRUCTION FOR {case.screen}"
+        assert "COMPLETED" in case.payload["response_contract"]["allowed_outcomes"]
+        assert case.prompt.startswith(f"INSTRUCTION FOR {case.screen}")
+
+
+def test_the_respondent_case_keeps_the_founder_values_for_the_batch_and_out_of_the_prompt(cases):
+    part1 = next(c for c in cases if c.case_id == "09-fixture/RESPONDENT_PART1/run1")
+    assert part1.meta["founder_values"]["problem.severity"]["answer"] == "moderately"
+    assert "throws the morning off" not in part1.prompt
+
+
+def _select(cases, needle):
+    return run_mod.select(cases, needle)
+
+
+def test_a_slash_needle_selects_the_reads_and_no_interpretation(cases):
+    selected = _select(cases, "09-fixture/INTERPRET")
+    assert len(selected) == 9 and {c.kind for c in selected} == {"READING"}
+
+
+@pytest.mark.parametrize("word, kind, count", [
+    ("context", "CONTEXT", 1), ("frame", "FRAME", 2), ("calibration", "CALIBRATION", 3),
+    ("respondent", "RESPONDENT", 3), ("reading", "READING", 9), ("compare", "COMPARE", 1),
+    ("brief", "BRIEF", 1)])
+def test_each_kind_word_selects_its_kind(cases, word, kind, count):
+    selected = _select(cases, word)
+    assert len(selected) == count and {c.kind for c in selected} == {kind}
+
+
+def test_an_entry_needle_selects_the_compare_row_and_a_screen_needle_does_not(cases):
+    assert any(c.kind == "COMPARE" for c in _select(cases, "09-fixture"))
+    assert not any(c.kind == "COMPARE" for c in _select(cases, "09-fixture/CALIBRATION"))
+
+
+def test_a_needle_matching_nothing_builds_no_case(cases):
+    assert _select(cases, "nothing-like-this") == []

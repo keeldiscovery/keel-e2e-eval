@@ -1,0 +1,17 @@
+{
+  "marks_version": 8,
+  "n_runs": 3,
+  "model": {
+    "host": "claude",
+    "cli_version": "2.1.284"
+  },
+  "totals": {
+    "anchoring_accuracy": 0.95,
+    "golden_belief_recall": 0.86,
+    "brief_paragraphs": 1.0,
+    "refusals_by_rule": {},
+    "refusals_shown": 63,
+    "refusals_measured": true,
+    "shape_refusals": 0
+  }
+}

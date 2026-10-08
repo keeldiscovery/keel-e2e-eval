@@ -1,0 +1,607 @@
+# Golden corpus entry 04 -- Linerly, no more punctures.
+#
+# REVISION 3, 2026-10-07 -- keel-e2e-eval spec 029 (marks v9, the vector redesign). Re-expressed in
+# marks-v9 §4's schema from the revision-2 file of the same name: the market, the statements, the roles
+# and the people are kept; each person's first occasion becomes their gate story, and their picks are
+# re-chosen by hand against the registry's dimensions. Standings tallied from the picks under the
+# compare rules the founder signed on 2026-10-07 (marks-v9 §2.5, spec 029 FR-018).
+# The gate reads this entry's own window -- a puncture in the last year. Hamid Rezaei (well over a year ago)
+# and Lotte de Vries (hasn't happened) answer No. Jack Doyle chips (cant_recall): GUESSED by code, never
+# read. Farid Haddad tells no particular puncture: GUESSED. problem.urgency carries a belief: NOT_ASKED_YET.
+# Frequency is counted in rides out of 7 -- the registry's 0-7 axis, read for this entry's own circumstance.
+#
+# RECORDED UNDER keel-e2e-eval tests/fixtures/corpus-r3/ AND TO BE MOVED VERBATIM into keel-cloud
+# canon/designs/measured-beliefs/corpus/ at integration; `check_corpus.py` and `GoldenCorpusTest`
+# confirm the counts there.
+
+id: 04-linerly
+title: Linerly — no more punctures
+revision: 3
+market: {country: GB, region: London, language: en-GB}
+statements: {problem: London commuter cyclists riding fifty kilometres a week or more get a puncture about twice a year —
+    usually glass or flint through the tread on a wet road — and lose thirty to sixty minutes each time fixing it at the roadside
+    or walking the bike to a shop; based on the founder's own eight years of commuting across the city., solution: A tyre
+    liner fitted between tube and tyre on standard 700c wheels that stops glass and flint reaching the tube., commercial: 'The
+    rider pays £40 a pair, roughly what they already spend on tubes and tyres in a year, and buys it themselves.'}
+roles:
+- {id: rider, label: Commuter cyclists, roleType: CONSUMER, about: someone who rides to work in London most days}
+context: {actor: commuter cyclist, actor_plural: London commuter cyclists riding fifty kilometres a week or more, job: get
+    to work on time with the bike in one piece, circumstance: a tyre punctures on the way to or from work, segment: 'commuter
+    cyclists in London, fifty kilometres a week or more', understood: 'London commuter cyclists riding fifty kilometres a
+    week or more, when a tyre punctures on the way to or from work, trying to get to work on time with the bike in one piece.',
+  recall_window: {count: 12, unit: MONTHS}}
+interpretations: {problem: 'London commuter cyclists lose thirty to sixty minutes whenever glass or flint punctures a tyre
+    on the way to or from work, fixing it at the roadside or walking the bike to a shop.'}
+solution_mechanism:
+  actor: the cyclist
+  trigger: once, before the next ride
+  mechanism: fits a liner between the tube and the tyre on each wheel
+  output: a tyre that glass and flint cannot get through to the tube
+  not_assumed: [no puncture ever again, the bike rides exactly as before]
+  mechanism_terms: [liner, fitted, 700c, between tube and tyre]
+persona: {decision_maker: same_person}
+founder_calibration:
+  problem.prevalence: {answer: p_40_60, belief_phrase: Around half, belief_sentence: Around half of these London commuter
+      cyclists riding fifty kilometres a week or more had this at least once in the last 12 months.}
+  problem.frequency:
+    answer: {lower: 0, upper: 1, unit: rides out of 7}
+    belief_phrase: 0 to 1 rides out of 7
+    belief_sentence: London commuter cyclists riding fifty kilometres a week or more face this on 0 to 1 rides out of 7.
+  problem.severity: {answer: very, belief_phrase: wrecks the journey, belief_sentence: 'For London commuter cyclists riding
+      fifty kilometres a week or more, one episode wrecks the journey.'}
+  problem.duration:
+    answer: {lower: 30, upper: 60, unit: minutes}
+    belief_phrase: 30 to 60 minutes
+    belief_sentence: A typical episode takes 30 to 60 minutes from start to finish.
+  problem.importance: {answer: middle, belief_phrase: a middling one, belief_sentence: 'Among the difficulties that come up when
+      a tyre punctures on the way to or from work, this is a middling one.'}
+  problem.consequence:
+    labels: ["Late for work", "Cold and wet at the roadside", "The cost of new tubes", "A missed meeting"]
+    answer: [late_for_work, cold_and_wet, cost_of_tubes]
+    belief_phrase: being late and cold and wet and the cost of tubes
+    belief_sentence: After an episode, London commuter cyclists riding fifty kilometres a week or more are left with being
+      late and cold and wet and the cost of tubes.
+  problem.workaround_burden:
+    labels: ["Fix it at the roadside", "Walk to a bike shop", "Take the train home", "Call someone for a lift"]
+    answer: [fix_roadside, walk_to_shop, train_home]
+    belief_phrase: a roadside fix, walking it to a shop, the train home
+    belief_sentence: In the moment, London commuter cyclists riding fifty kilometres a week or more try a roadside fix, walking
+      it to a shop, the train home, in that order.
+  problem.current_solution_satisfaction: {answer: mostly_works, belief_phrase: works most of the time, belief_sentence: The
+      way London commuter cyclists riding fifty kilometres a week or more handle it today works most of the time.}
+  problem.urgency: {answer: within_a_minute, belief_phrase: within the first minute, belief_sentence: 'When it starts, London
+      commuter cyclists riding fifty kilometres a week or more feel they must act within the first minute.'}
+  solution.compatibility: {answer: before_any_attempt, belief_phrase: 'fitted once, before the next ride', belief_sentence: 'It
+      fits into the episode fitted once, before the next ride.'}
+  solution.relative_advantage: {answer: less_worry, belief_phrase: no more worrying about glass, belief_sentence: 'To be worth
+      switching to, it must mainly deliver no more worrying about glass.'}
+  solution.effectiveness_threshold:
+    answer: {value: 20, unit: minutes}
+    belief_phrase: at least 20 minutes
+    belief_sentence: It is worth using only if it saves at least 20 minutes per episode.
+  solution.trust_risk:
+    labels: ["The bike rides as it normally does", "It fits my tyre", "It adds no noticeable weight", "Good reviews from other riders"]
+    answer: [rolls_normally, fits_my_tyre]
+    belief_phrase: it rolls like a normal tyre and fits the tyre they ride
+    belief_sentence: London commuter cyclists riding fifty kilometres a week or more would act on it only if it rolls like
+      a normal tyre and fits the tyre they ride.
+  solution.reliability_tolerance: {answer: one_in_ten, belief_phrase: about one time in ten, belief_sentence: They keep using
+      it as long as it is wrong no more than about one time in ten.}
+  solution.adoption_friction: {answer: setup_once, belief_phrase: fitting it once at home, belief_sentence: The most extra
+      effort they would accept at the moment of use is fitting it once at home.}
+  solution.trialability:
+    labels: ["Money back if it doesn't work", "A guarantee that it fits", "A shop fits it for me"]
+    answer: [money_back, fit_guarantee]
+    belief_phrase: the money comes back if it doesn't suit and it is guaranteed to fit
+    belief_sentence: They would try it for the first time if the money comes back if it doesn't suit and it is guaranteed
+      to fit.
+  solution.observability:
+    labels: ["No more punctures", "The same speed as before", "Fewer late days"]
+    answer: [no_punctures, same_speed]
+    belief_phrase: no punctures for months and no loss of speed
+    belief_sentence: They would know it helped when no punctures for months and no loss of speed.
+  solution.target_circumstance: {labels: ["Wet roads", "Winter", "Long rides"], answer: wet_roads, belief_phrase: on wet roads after rain, belief_sentence: It matters most
+      on wet roads after rain.}
+  commercial.existing_sacrifice:
+    labels: ["Tubes and tyres", "Repairs at the bike shop", "Train fares home", "None of these"]
+    answer: [tubes_tyres, shop_repairs]
+    belief_phrase: money on tubes and tyres and on shop repairs
+    belief_sentence: Because of this, London commuter cyclists riding fifty kilometres a week or more already give up money
+      on tubes and tyres and on shop repairs.
+  commercial.wtp_hypothesis:
+    answer: {lower: 30, upper: 50, currency: GBP, per: one-off}
+    belief_phrase: £30 to £50 one-off
+    belief_sentence: A fair price would feel like £30 to £50 one-off (a hypothesis; interviews do not test it).
+  commercial.ability_to_pay: {answer: easily, belief_phrase: without a second thought, belief_sentence: They could find the
+      money for it without a second thought.}
+  commercial.buyer_payer_alignment: {answer: same_person, belief_phrase: 'the same person uses it, decides and pays', belief_sentence: 'On
+      buying: the same person uses it, decides and pays.'}
+  commercial.purchase_friction:
+    labels: ["Not sure it would fit", "The price", "The effort of fitting it"]
+    answer: [unsure_fit, price]
+    belief_phrase: not knowing if it fits and the price
+    belief_sentence: Between wanting it and paying, not knowing if it fits and the price could hold them back.
+  commercial.commitment:
+    labels: ["Set it up before the next time", "Install the app", "Allow the access it needs", "Try it the next time it happens", "Have you contact them about the pilot"]
+    answer: [install, next_episode]
+    belief_phrase: riding on it the next week
+    belief_sentence: For a trial, right now, they would go as far as riding on it the next week.
+  commercial.retention_potential: {unsure: true, belief_sentence: 'You weren''t sure, so this was left out of the study. The brief says it is untested.'}
+respondent_questions:
+  problem.prevalence:
+    part: 1
+    control: gate_yes_no
+    codes: ['yes', 'no']
+  problem.frequency: {part: 1, control: segmented_0_to_7}
+  problem.severity:
+    part: 1
+    control: single_choice_5
+    codes: [barely, a_little, moderately, very, extremely]
+  problem.duration: {part: 1, control: number_with_unit}
+  problem.importance:
+    part: 1
+    control: single_choice
+    own_item: punctures
+    codes: [traffic, punctures, theft, weather, showers_at_work, something_else]
+  problem.consequence:
+    part: 1
+    control: multi_choice
+    codes: [late_for_work, cold_and_wet, cost_of_tubes, missed_meeting, nothing_much, something_else]
+  problem.workaround_burden:
+    part: 1
+    control: multi_choice_ordered
+    codes: [fix_roadside, walk_to_shop, train_home, call_someone, something_else]
+  problem.current_solution_satisfaction:
+    part: 1
+    control: single_choice_5
+    codes: [works_well, mostly_works, hit_and_miss, works_poorly, no_reliable_way]
+  solution.compatibility:
+    part: 2
+    control: single_choice
+    codes: [before_any_attempt, after_first_attempt_fails, after_several_attempts, only_when_nothing_works, would_not_fit,
+      something_else]
+  solution.relative_advantage:
+    part: 2
+    control: single_choice
+    codes: [fewer_attempts, shorter_time, less_worry, less_help_needed, easier_recovery, nothing_would_change, something_else]
+  solution.effectiveness_threshold:
+    part: 2
+    control: single_choice_bands
+    codes: [0-5, 5-10, 10-20, 20+, nothing_worth_it]
+  solution.trust_risk:
+    part: 2
+    control: multi_choice
+    codes: [rolls_normally, fits_my_tyre, no_extra_weight, reviews, own_instinct, something_else]
+  solution.reliability_tolerance:
+    part: 2
+    control: single_choice
+    codes: [never_wrong, one_in_ten, one_in_five, one_in_three, half_the_time]
+  solution.adoption_friction:
+    part: 2
+    control: single_choice
+    codes: [nothing_extra, one_tap, a_few_taps, setup_once, daytime_setup, would_not_reach]
+  solution.trialability:
+    part: 2
+    control: multi_choice
+    codes: [money_back, fit_guarantee, shop_fits_it, something_else]
+  solution.observability:
+    part: 2
+    control: multi_choice
+    codes: [no_punctures, same_speed, fewer_late_days, something_else]
+  solution.target_circumstance:
+    part: 2
+    control: single_choice
+    codes: [wet_roads, winter, long_rides, not_useful, something_else]
+  commercial.existing_sacrifice:
+    part: 3
+    control: branch_pick_number
+    codes: [tubes_tyres, shop_repairs, train_fares, nothing, something_else]
+  commercial.wtp_hypothesis: {part: 3, control: two_numbers_optional}
+  commercial.ability_to_pay:
+    part: 3
+    control: single_choice
+    codes: [easily, without_cutting_back, with_a_trade_off, barely, free_or_gift]
+  commercial.buyer_payer_alignment:
+    part: 3
+    control: single_choice
+    codes: [same_person, user_decides_other_pays, joint_decision, someone_else_decides, institution_pays, it_was_free]
+  commercial.purchase_friction:
+    part: 3
+    control: multi_choice
+    codes: [unsure_fit, price, fitting_effort, never_came_up, something_else]
+  commercial.commitment:
+    part: 3
+    control: multi_choice_ladder
+    codes: [setup, install, mic, next_episode, contact_me, nothing_yet]
+answers:
+- person: Ada Nkemelu
+  recency: 'yes'
+  story: Three weeks ago on the Embankment, glass after the rain. Fixed it under a lamp post, twenty-five minutes.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 1
+    problem.severity: very
+    problem.duration: {value: 25, unit: minutes, rough: false}
+    problem.importance: traffic
+    problem.consequence: [late_for_work, cold_and_wet]
+    problem.workaround_burden: [fix_roadside]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: minutes}
+    solution.trust_risk: [rolls_normally, fits_my_tyre]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: setup_once
+    solution.trialability: [money_back, fit_guarantee]
+    solution.observability: [no_punctures, same_speed]
+    solution.target_circumstance: wet_roads
+    commercial.existing_sacrifice:
+      bought: tubes_tyres
+      cost: {value: 25, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 45, currency: GBP, per: one-off}
+      guess: {value: 40, currency: GBP, per: one-off}
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [unsure_fit]
+    commercial.commitment: [install, next_episode]
+  pilot_opt_in: true
+- person: Bruno Costa
+  recency: 'yes'
+  story: February, on the way in. Walked it to the station and got the train, the morning was gone.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 0
+    problem.severity: extremely
+    problem.duration: {value: 90, unit: minutes, rough: false}
+    problem.importance: punctures
+    problem.consequence: [late_for_work, missed_meeting]
+    problem.workaround_burden: [walk_to_shop, train_home]
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: less_worry
+    solution.effectiveness_threshold: {band: 20+, unit: minutes}
+    solution.trust_risk: [fits_my_tyre]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: daytime_setup
+    solution.trialability: [shop_fits_it]
+    solution.observability: [no_punctures, fewer_late_days]
+    solution.target_circumstance: winter
+    commercial.existing_sacrifice:
+      bought: shop_repairs
+      cost: {value: 40, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 60, currency: GBP, per: one-off}
+      guess: null
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [price, fitting_effort]
+    commercial.commitment: [contact_me]
+  pilot_opt_in: false
+- person: Carys Evans
+  recency: 'yes'
+  story: May, near Clapham. Pinch flat off a kerb. Fixed it in fifteen minutes.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 1
+    problem.severity: a_little
+    problem.duration: {value: 15, unit: minutes, rough: false}
+    problem.importance: theft
+    problem.consequence: [cold_and_wet]
+    problem.workaround_burden: [fix_roadside]
+    problem.current_solution_satisfaction: works_well
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: fewer_attempts
+    solution.effectiveness_threshold: {band: 10-20, unit: minutes}
+    solution.trust_risk: [rolls_normally, no_extra_weight]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: setup_once
+    solution.trialability: [money_back, fit_guarantee]
+    solution.observability: [no_punctures]
+    solution.target_circumstance: wet_roads
+    commercial.existing_sacrifice:
+      bought: tubes_tyres
+      cost: {value: 18, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 35, currency: GBP, per: one-off}
+      guess: {value: 30, currency: GBP, per: one-off}
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [unsure_fit, price]
+    commercial.commitment: [install, next_episode]
+  pilot_opt_in: false
+- person: Dmitri Volkov
+  recency: 'yes'
+  story: Last autumn, Old Street roundabout. Glass. Swapped the tube on the pavement.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 0
+    problem.severity: very
+    problem.duration: {value: 20, unit: minutes, rough: false}
+    problem.importance: traffic
+    problem.consequence: [late_for_work, cost_of_tubes]
+    problem.workaround_burden: [fix_roadside]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: minutes}
+    solution.trust_risk: [rolls_normally, fits_my_tyre]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: a_few_taps
+    solution.trialability: [money_back]
+    solution.observability: [no_punctures, same_speed]
+    solution.target_circumstance: wet_roads
+    commercial.existing_sacrifice:
+      bought: tubes_tyres
+      cost: {value: 30, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 40, currency: GBP, per: one-off}
+      guess: null
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: joint_decision
+    commercial.purchase_friction: [unsure_fit]
+    commercial.commitment: [setup, install]
+  pilot_opt_in: false
+- person: Esme Clarke
+  recency: 'yes'
+  story: Two weeks ago. Took it to Evans, I can't change a tube. Cost me most of a morning.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.severity: extremely
+    problem.duration: {value: 180, unit: minutes, rough: false}
+    problem.importance: punctures
+    problem.consequence: [late_for_work, cost_of_tubes, missed_meeting]
+    problem.workaround_burden: [walk_to_shop]
+    problem.current_solution_satisfaction: no_reliable_way
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: less_worry
+    solution.effectiveness_threshold: {band: 20+, unit: minutes}
+    solution.trust_risk: [fits_my_tyre, reviews]
+    solution.reliability_tolerance: never_wrong
+    solution.adoption_friction: would_not_reach
+    solution.trialability: [shop_fits_it, fit_guarantee]
+    solution.observability: [fewer_late_days]
+    solution.target_circumstance: long_rides
+    commercial.existing_sacrifice:
+      bought: shop_repairs
+      cost: {value: 60, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 80, currency: GBP, per: one-off}
+      guess: {value: 50, currency: GBP, per: one-off}
+    commercial.ability_to_pay: without_cutting_back
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [fitting_effort]
+    commercial.commitment: [next_episode]
+  pilot_opt_in: true
+- person: Farid Haddad
+  recency: 'yes'
+  story: They happen every so often. Glass mostly. I fix them.
+  chip: null
+  anchoring: GUESSED
+  picks:
+    problem.frequency: 1
+    problem.severity: very
+    problem.duration: {value: 30, unit: minutes, rough: true}
+    problem.importance: punctures
+    problem.consequence: [late_for_work]
+    problem.workaround_burden: [fix_roadside]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: less_worry
+    solution.effectiveness_threshold: {band: 10-20, unit: minutes}
+    solution.trust_risk: [rolls_normally]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: setup_once
+    solution.trialability: [money_back]
+    solution.observability: [no_punctures]
+    solution.target_circumstance: wet_roads
+    commercial.existing_sacrifice:
+      bought: tubes_tyres
+      cost: {value: 20, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 30, currency: GBP, per: one-off}
+      guess: null
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [price]
+    commercial.commitment: [install]
+  pilot_opt_in: false
+- person: Gwen Price
+  recency: 'yes'
+  story: January, Kennington. Glass. Fixed it, twenty minutes, hands frozen.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 0
+    problem.severity: moderately
+    problem.duration: {value: 20, unit: minutes, rough: false}
+    problem.importance: weather
+    problem.consequence: [cold_and_wet, late_for_work]
+    problem.workaround_burden: [fix_roadside]
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: easier_recovery
+    solution.effectiveness_threshold: {band: 10-20, unit: minutes}
+    solution.trust_risk: [rolls_normally, fits_my_tyre]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: setup_once
+    solution.trialability: [money_back, fit_guarantee]
+    solution.observability: [no_punctures, same_speed]
+    solution.target_circumstance: winter
+    commercial.existing_sacrifice:
+      bought: tubes_tyres
+      cost: {value: 22, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 42, currency: GBP, per: one-off}
+      guess: {value: 40, currency: GBP, per: one-off}
+    commercial.ability_to_pay: with_a_trade_off
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [unsure_fit, price]
+    commercial.commitment: [install, next_episode, contact_me]
+  pilot_opt_in: false
+- person: Hamid Rezaei
+  recency: 'no'
+  story: null
+  chip: null
+  anchoring: null
+  picks: {}
+  pilot_opt_in: false
+- person: Ines Moreau
+  recency: 'yes'
+  story: Last week, Tower Bridge. Flint. Fixed it, half an hour.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 1
+    problem.severity: very
+    problem.duration: {value: 30, unit: minutes, rough: false}
+    problem.importance: traffic
+    problem.consequence: [late_for_work, cold_and_wet, cost_of_tubes]
+    problem.workaround_burden: [fix_roadside, walk_to_shop]
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: before_any_attempt
+    solution.relative_advantage: shorter_time
+    solution.effectiveness_threshold: {band: 20+, unit: minutes}
+    solution.trust_risk: [rolls_normally, fits_my_tyre, no_extra_weight]
+    solution.reliability_tolerance: one_in_five
+    solution.adoption_friction: daytime_setup
+    solution.trialability: [fit_guarantee, money_back]
+    solution.observability: [no_punctures, same_speed]
+    solution.target_circumstance: wet_roads
+    commercial.existing_sacrifice:
+      bought: shop_repairs
+      cost: {value: 35, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 50, currency: GBP, per: one-off}
+      guess: null
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [unsure_fit, fitting_effort]
+    commercial.commitment: [next_episode]
+  pilot_opt_in: false
+- person: Jack Doyle
+  recency: 'yes'
+  story: Can't remember the last one specifically. A few a year.
+  chip: cant_recall
+  anchoring: GUESSED
+  picks:
+    problem.frequency: 2
+    problem.severity: moderately
+    problem.importance: theft
+    problem.consequence: [nothing_much]
+    problem.workaround_burden: {chip: cant_recall}
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: would_not_fit
+    solution.relative_advantage: fewer_attempts
+    solution.effectiveness_threshold: {band: 5-10, unit: minutes}
+    solution.trust_risk: [own_instinct]
+    solution.reliability_tolerance: one_in_three
+    solution.adoption_friction: nothing_extra
+    solution.trialability: [something_else]
+    solution.observability: [no_punctures]
+    solution.target_circumstance: not_useful
+    commercial.existing_sacrifice:
+      bought: nothing
+      cost: {value: 0, currency: GBP, per: three_months}
+      still_using: 'no'
+    commercial.wtp_hypothesis: {last_paid: null, guess: null}
+    commercial.ability_to_pay: barely
+    commercial.buyer_payer_alignment: same_person
+    commercial.purchase_friction: [never_came_up]
+    commercial.commitment: [nothing_yet]
+  pilot_opt_in: false
+- person: Kwame Mensah
+  recency: 'yes'
+  story: March, the A10. Glass. Fixed it, quick, ten minutes.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 1
+    problem.severity: a_little
+    problem.duration: {value: 10, unit: minutes, rough: false}
+    problem.importance: showers_at_work
+    problem.consequence: [cost_of_tubes, cold_and_wet]
+    problem.workaround_burden: [fix_roadside]
+    problem.current_solution_satisfaction: works_well
+    solution.compatibility: after_first_attempt_fails
+    solution.relative_advantage: nothing_would_change
+    solution.effectiveness_threshold: {band: 10-20, unit: minutes}
+    solution.trust_risk: [rolls_normally, fits_my_tyre]
+    solution.reliability_tolerance: one_in_ten
+    solution.adoption_friction: setup_once
+    solution.trialability: [money_back, fit_guarantee]
+    solution.observability: [same_speed, no_punctures]
+    solution.target_circumstance: wet_roads
+    commercial.existing_sacrifice:
+      bought: train_fares
+      cost: {value: 15, currency: GBP, per: three_months}
+      still_using: 'yes'
+    commercial.wtp_hypothesis:
+      last_paid: {value: 38, currency: GBP, per: one-off}
+      guess: {value: 35, currency: GBP, per: one-off}
+    commercial.ability_to_pay: easily
+    commercial.buyer_payer_alignment: someone_else_decides
+    commercial.purchase_friction: [price, unsure_fit]
+    commercial.commitment: [install, next_episode]
+  pilot_opt_in: false
+- person: Lotte de Vries
+  recency: 'no'
+  story: null
+  chip: null
+  anchoring: null
+  picks: {}
+  pilot_opt_in: false
+expected:
+  standings:
+    problem.prevalence: {status: HOLDING_UP, drift: above, n: 12, 'yes': 10, proportion: 0.83}
+    problem.frequency: {status: HOLDING_UP, drift: none, n: 8, inside: 7, outside: 1, median: 1}
+    problem.severity: {status: HOLDING_UP, drift: none, n: 8, inside: 6, outside: 2}
+    problem.duration: {status: NOT_HOLDING_UP, drift: below, n: 8, inside: 1, outside: 7, median: 22.5}
+    problem.importance: {status: NOT_HOLDING_UP, drift: above, n: 8, own_item_picks: 2, share: 0.25}
+    problem.consequence: {status: HOLDING_UP, drift: none, n: 8, optionCounts: 'late_for_work=6, cold_and_wet=5, cost_of_tubes=4,
+        missed_meeting=2, nothing_much=0, something_else=0'}
+    problem.workaround_burden: {status: NOT_HOLDING_UP, drift: none, n: 8, first_action: fix_roadside, first_action_count: 6,
+      optionCounts: 'fix_roadside=6, walk_to_shop=3, train_home=1, call_someone=0, something_else=0'}
+    problem.current_solution_satisfaction: {status: HOLDING_UP, drift: none, n: 8, inside: 6, outside: 2}
+    problem.urgency: {status: NOT_ASKED_YET, drift: null}
+    solution.compatibility: {status: HOLDING_UP, drift: none, n: 8, inside: 6, outside: 2}
+    solution.relative_advantage: {status: NOT_HOLDING_UP, drift: none, n: 8, inside: 2, outside: 6}
+    solution.effectiveness_threshold: {status: BAR_SET, drift: none, n: 8, bar: 20+, optionCounts: '0-5=0, 5-10=0, 10-20=3,
+        20+=5, nothing_worth_it=0'}
+    solution.trust_risk: {status: HOLDING_UP, drift: none, n: 8, optionCounts: 'rolls_normally=6, fits_my_tyre=7, no_extra_weight=2,
+        reviews=1, own_instinct=0, something_else=0'}
+    solution.reliability_tolerance: {status: HOLDING_UP, drift: none, n: 8, inside: 8, outside: 0}
+    solution.adoption_friction: {status: HOLDING_UP, drift: none, n: 8, inside: 7, outside: 1}
+    solution.trialability: {status: HOLDING_UP, drift: none, n: 8, optionCounts: 'money_back=6, fit_guarantee=6, shop_fits_it=2,
+        something_else=0'}
+    solution.observability: {status: HOLDING_UP, drift: none, n: 8, optionCounts: 'no_punctures=7, same_speed=5, fewer_late_days=2,
+        something_else=0'}
+    solution.target_circumstance: {status: PEOPLE_DISAGREE, drift: none, n: 8, inside: 5, outside: 3}
+    commercial.existing_sacrifice: {status: PEOPLE_DISAGREE, drift: none, n: 8, median: 27.5, optionCounts: 'tubes_tyres=4,
+        shop_repairs=3, train_fares=1, nothing=0, something_else=0'}
+    commercial.wtp_hypothesis: {status: NOT_TESTED_BY_DESIGN, drift: none, n: 8, median: 43.5}
+    commercial.ability_to_pay: {status: HOLDING_UP, drift: none, n: 8, inside: 7, outside: 1}
+    commercial.buyer_payer_alignment: {status: HOLDING_UP, drift: none, n: 8, inside: 6, outside: 2}
+    commercial.purchase_friction: {status: HOLDING_UP, drift: none, n: 8, optionCounts: 'unsure_fit=6, price=4, fitting_effort=3,
+        never_came_up=0, something_else=0'}
+    commercial.commitment: {status: HOLDING_UP, drift: none, n: 8, inside: 7, outside: 1, optionCounts: 'setup=1, install=5,
+        mic=0, next_episode=6, contact_me=2, nothing_yet=0'}
+    commercial.retention_potential: {status: LEFT_OUT, drift: null}
+  vector_verdicts:
+    PROBLEM: {verdict: NOT_HOLDING_UP, deciding: problem.duration}
+    SOLUTION: {verdict: NOT_HOLDING_UP, deciding: solution.relative_advantage}
+    COMMERCIAL: {verdict: PEOPLE_DISAGREE, deciding: commercial.existing_sacrifice}

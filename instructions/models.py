@@ -61,29 +61,45 @@ EFFORTS = ("low", "medium", "high", "xhigh", "max")
 #: The ladder (design §3): light → standard → frontier. Exactly these three, in this order.
 TIERS = ("light", "standard", "frontier")
 
-#: The **six** job classes the cloud's `InferenceScreen.jobClass()` names (design §3). `questions`
-#: joined at keel-cloud spec 048 FR-009, on the `light` tier, and **this list is why it had to**:
-#: `parse` below raises `ModelsUnavailable` on a class name it does not know, so `MODELS=exported`
-#: would have refused to start against the cloud's own table the moment it named one (spec 025
-#: FR-012). Found by reading the table, not by a failed run.
-CLASSES = ("frame", "assumptions", "reframe", "reading", "brief", "questions")
+#: The job classes at `MARKS_VERSION` 9 (spec 029 FR-023, A-8): the **six** the vector redesign's
+#: seven model screens route through, lower-cased `JobClass` names -- `context`
+#: (CONTEXT_INTERPRET), `frame` (PROBLEM_INTERPRET, SOLUTION_MECHANISM), `calibration`,
+#: `respondent`, `reading` (INTERPRET) and `brief`.
+MEASURED_CLASSES = ("context", "frame", "calibration", "respondent", "reading", "brief")
 
-#: The **four** this eval measures, by the `Case.kind` it already sorts the corpus into.
-KIND_TO_CLASS = {"ASSUMPTIONS": "assumptions", "READING": "reading", "BRIEF": "brief",
-                 "QUESTIONS": "questions"}
+#: The three names a v8-era table still carries and no v9 case runs (research R5). **Tolerated by
+#: `parse` and reported by nobody**: `parse` refuses an unknown class name, so dropping them would
+#: make keel-cloud's own v8 table -- the one the export carries today -- refuse for the wrong reason
+#: (*"classes names 'assumptions'"*) instead of the right one (*"says nothing about context,
+#: calibration, respondent"*). A-9: existing rows do not move, and tolerating their names is what
+#: that costs.
+DORMANT_CLASSES = ("assumptions", "reframe", "questions")
 
-#: Every screen's class, for a journey (S-012) that sees screens rather than kinds.
+CLASSES = MEASURED_CLASSES + DORMANT_CLASSES
+
+#: The six this eval measures, by the `Case.kind` it sorts the corpus into. `COMPARE` has no class:
+#: it is keel-cloud's engine, shelled, and never a model call.
+KIND_TO_CLASS = {"CONTEXT": "context", "FRAME": "frame", "CALIBRATION": "calibration",
+                 "RESPONDENT": "respondent", "READING": "reading", "BRIEF": "brief"}
+
+#: Every screen's class (FR-023), for a journey (S-012) that sees screens rather than kinds. The
+#: v8 screens stay mapped to the classes they always had: today's product still ships them, and the
+#: journey that drives it is spec 030's to move (plan O-1).
 SCREEN_TO_CLASS = {
+    "CONTEXT_INTERPRET": "context",
+    "PROBLEM_INTERPRET": "frame", "SOLUTION_MECHANISM": "frame",
+    "CALIBRATION_QUESTIONS": "calibration", "RESPONDENT_QUESTIONS": "respondent",
+    "INTERPRET": "reading", "BRIEF": "brief",
     "PROBLEM_FRAME": "frame", "SOLUTION_FRAME": "frame", "COMMERCIAL_FRAME": "frame",
     "PROBLEM_ASSUMPTIONS": "assumptions", "SOLUTION_ASSUMPTIONS": "assumptions",
     "COMMERCIAL_ASSUMPTIONS": "assumptions",
     "SOLUTION_REFRAME": "reframe", "COMMERCIAL_REFRAME": "reframe",
-    "INTERPRET": "reading", "BRIEF": "brief", "QUESTIONS": "questions",
+    "QUESTIONS": "questions",
 }
 
-#: The classes a verdict reports, in the order a run runs them. `questions` joins here too, so the
-#: verdict says which model wrote the questionnaires rather than leaving a fourth subject unnamed.
-REPORTED_CLASSES = ("assumptions", "questions", "reading", "brief")
+#: The classes a verdict reports, in the order a run builds them -- the six, and never a dormant
+#: one: a verdict that named a model for `assumptions` would be naming a model that wrote nothing.
+REPORTED_CLASSES = MEASURED_CLASSES
 
 #: keel-runtime 0.4.0's per-host pin variables (design §2). Refused beside `--models`: a run that
 #: pinned two ways would not know which one answered. Gone from the runtime at 0.5.0.
@@ -130,7 +146,8 @@ class ModelTable:
         return (self.hosts.get(host) or {}).get(tier)
 
     def resolve_kind(self, host: str, kind: str) -> str | None:
-        return self.resolve(host, KIND_TO_CLASS[kind])
+        job_class = KIND_TO_CLASS.get(kind)
+        return None if job_class is None else self.resolve(host, job_class)
 
     def resolve_screen(self, host: str, screen: str) -> str | None:
         job_class = SCREEN_TO_CLASS.get(screen)
@@ -154,7 +171,8 @@ class ModelTable:
         return (self.efforts.get(host) or {}).get(tier)
 
     def resolve_effort_kind(self, host: str, kind: str) -> str | None:
-        return self.resolve_effort(host, KIND_TO_CLASS[kind])
+        job_class = KIND_TO_CLASS.get(kind)
+        return None if job_class is None else self.resolve_effort(host, job_class)
 
     def resolve_effort_screen(self, host: str, screen: str) -> str | None:
         job_class = SCREEN_TO_CLASS.get(screen)
@@ -167,14 +185,14 @@ class ModelTable:
 
     def efforts_used(self, host: str) -> dict:
         """The per-class record a verdict carries beside `models_used`, `None` where this host runs
-        the class at its CLI's own default. `questions` routes to `light`, whose row carries no
-        effort -- for the same reason a reading's does not."""
+        the class at its CLI's own default. `context` and `reading` route to `light`, whose row
+        carries no effort, because `effort` errors on Haiku 4.5."""
         return {job_class: self.resolve_effort(host, job_class)
                 for job_class in REPORTED_CLASSES}
 
     def models_used(self, host: str) -> dict:
-        """The per-class record a verdict carries: `{assumptions, questions, reading, brief}`,
-        `None` where this host runs the class on its CLI's default."""
+        """The per-class record a verdict carries -- the six of `REPORTED_CLASSES` -- `None` where
+        this host runs the class on its CLI's default."""
         return {job_class: self.resolve(host, job_class)
                 for job_class in REPORTED_CLASSES}
 
@@ -211,11 +229,15 @@ def parse(document: object, *, source: str = "") -> ModelTable:
             raise ModelsUnavailable(
                 f"classes.{job_class} names tier {tier!r}; the ladder is exactly "
                 f"{', '.join(TIERS)}")
-    missing = [c for c in KIND_TO_CLASS.values() if c not in classes]
+    missing = [c for c in MEASURED_CLASSES if c not in classes]
     if missing:
+        version = document.get("version")
         raise ModelsUnavailable(
-            f"classes says nothing about {', '.join(missing)} -- every class this eval measures "
-            "must name its tier, so that a missing one is never a silent default")
+            f"classes says nothing about {', '.join(missing)} (table version {version}) -- every "
+            "class this eval measures must name its tier, so that a missing one is never a silent "
+            "default. MARKS_VERSION 9 measures context, frame, calibration, respondent, reading "
+            "and brief; until keel-cloud 058 exports a table carrying the three new classes, pin "
+            "a screen with MODELS=<file> (spec 029 FR-023, A-9)")
     efforts = document.get("efforts")
     if efforts is None:
         efforts = {}

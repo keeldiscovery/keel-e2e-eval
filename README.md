@@ -78,6 +78,69 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
+### The run of record for spec 029 — **`MARKS_VERSION` 9, Claude** (2026-10-08)
+
+`make instruction-eval HOST=claude WHY=marks:9 MODELS=exported`, on the founder's Max plan. Run of
+record: **`runs/20261008T194906Z-instructions`** — **414 cases** at N=3, **$19.75**, Claude Code CLI
+**2.1.292**, `claude-sonnet-5-5` at **medium** (frame, calibration, respondent, brief) and **Haiku
+4.5** (context, reading), from keel-cloud's exported table (058 `bf5c75e`). **Re-scored** under
+judgement call 44's whole-label escape fix: the run's one fault was a legitimate scale step
+(*Something else was cut or given up to cover it*, Ability to pay, 06-repeatline Part 3), the
+answers are untouched, and the run's own 11 judge answers were all DIFFERENT. The founder accepted
+the re-score as the certificate (decision 48, 2026-10-08). **Every mark met:**
+
+| Mark | Value | Gate |
+|---|---|---|
+| `dimension_coverage` | 1.00 | 1.00 |
+| `option_validity` | 1.00 | 1.00 |
+| `no_leak` | 1.00 | 1.00 |
+| `anchoring_accuracy` | 0.9949 | ≥ 0.90 |
+| `compare_correctness` | 1.00 | 1.00 |
+| rule refusals (rate) | 0.0072 (3 of 414) | ≤ 0.02 |
+| `shape_refusals` | 0 | 0 |
+| `brief_paragraphs` | 1.00 | 1.00 |
+
+`runs/` is gitignored, so the bundle lives on the founder's machine only; its `scorecard-v9.json`
+is sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. The standing gate is **met for Claude at v9**.
+
+### `MARKS_VERSION` 9 — the gate as written, before its run of record (spec `029-marks-v9-vectors`, 2026-10-07)
+
+**Written here *before* the run** (kept as written), so the
+run is read against the gate as written (spec 029 FR-030, T053):
+
+- **Eight subjects.** `CONTEXT_INTERPRET`, `PROBLEM_INTERPRET`, `SOLUTION_MECHANISM` (rendered on
+  `register.html`, **never scored** — they feed only the aggregate's two marks), `CALIBRATION_QUESTIONS`
+  (×3 vectors), `RESPONDENT_QUESTIONS` (×3 parts, + the `COMMERCIAL_B2B` link on a B2B entry),
+  `INTERPRET` (one gate story a person), `COMPARE` (keel-cloud's engine, shelled, **no call**) and
+  `BRIEF` (one paragraph a project). `*_ASSUMPTIONS` and `QUESTIONS` are gone (judgement call 28).
+- **Eight marks** (`instructions/marks.toml`): `dimension_coverage` 1.00 · `option_validity` 1.00 ·
+  `no_leak` 1.00 · `anchoring_accuracy` ≥ 0.90 · `compare_correctness` 1.00 · rule refusals a
+  **rate** ≤ 0.02 · `shape_refusals` 0 · `brief_paragraphs` 1.00 (all **five** per-case marks, the
+  fifth `no_claim_words`). `golden_belief_recall` is **retired**, and `align.py` with it (call 29).
+  An unmeasured mark is not met, on every row.
+- **The new denominators.** Coverage is absolute: one question a dimension, the vector's slice on
+  calibration, the plan the eval derives from `founder_calibration` on the respondent side (call 30).
+  `anchoring_accuracy` is **one judgement a readable person** — gate-No people, chipped stories and
+  B2B decision-makers are read by nobody: **65 reads at N=1** across the seven entries (call 33).
+  `compare_correctness` is **28 checks an entry** (status + drift on 25 dimensions, verdict +
+  deciding on 3 vectors), 196 on seven, **measured on `DRY=1` too** (call 34). The refusal rate is
+  over every answer the aggregate judged (call 36).
+- **The corpus is revision 3**, recorded under `tests/fixtures/corpus-r3/` to be moved verbatim into
+  keel-cloud's canon; `instructions/corpus.py` reads keel-cloud's corpus once it carries revision 3
+  and this directory until then, and refuses anything else by entry and key.
+- **`rescore.py` refuses every v8 bundle by name** — *answered on screens v9 does not have, against
+  corpus r2* — and re-reads a v9 bundle for free, beside and never over.
+- **`MODELS=exported` refuses until keel-cloud's table carries `context`, `calibration` and
+  `respondent`** (it names them and the table's version, 8 today). A screen pins them meanwhile with
+  `MODELS=specs/029-marks-v9-vectors/contracts/models-screen.json` — the ceiling, `claude-sonnet-5-5`
+  at `medium` and Haiku 4.5 — and the certificate must be `MODELS=exported`. **Routing stays v8.**
+- **The Waits, as they stand on 2026-10-07**: keel-cloud 058 (the registry export, the five screen
+  constants and three job classes, `screenContracts compare`, the validator's new kinds) is in
+  progress on its own branch; the seven templates (keel-cloud 059–065) are not written; the screens
+  (062, then 063 + 064, then 065, then 059–061) and the one run of record
+  (`make instruction-eval HOST=claude WHY=marks:9 MODELS=exported`) are the founder's to spend, in
+  that order, after every Wait. Until then the standing gate is **unmet for both hosts at v9**.
+
 ### The run of record for spec 025 — **`MARKS_VERSION` 8, Claude** (2026-10-01)
 
 `make instruction-eval HOST=claude WHY=marks:8 MODELS=exported`, on the founder's Max plan. Run of
@@ -1159,14 +1222,18 @@ KEEL_COPILOT_MODEL=gpt-5.6-luna \
   its own bundle without spending again: `python -m instructions.rescore runs/<id>`, which writes
   `scorecard-v<N>.json` beside the original rather than over it.
 
-  **`MARKS_VERSION` is 8** since 2026-09-30 (spec `025-one-occasion-marks`, judgement calls 23–27),
+  **`MARKS_VERSION` is 9** since 2026-10-07 (spec `029-marks-v9-vectors`, judgement calls 28–36; the
+  gate as written is the section *`MARKS_VERSION` 9* near the top of this file). What follows is v8's
+  account, kept: **`MARKS_VERSION` was 8** from 2026-09-30 (spec `025-one-occasion-marks`, judgement calls 23–27),
   and **a v7 bundle cannot be re-scored to v8**. Every earlier bump was a pure rubric change and
   was re-scored for free; this one moved the **corpus** as well — keel-cloud's golden set went
   23 anchors to 16 when `A1` and `A2` merged in every entry — and `rescore.py` re-reads the corpus
   and re-derives the goldens from it, so a v7 bundle re-scored after the revision would align
   answers given to one questionnaire against a different one. That is the second independent reason
   a run of record must be spent; the first is the standing gate below. `rescore.py` is unchanged and
-  is simply not used across this bump. **The v8 run of record was spent on
+  is simply not used across this bump. **The v9 run of record is `runs/20261008T194906Z-instructions`**
+(2026-10-08, Claude, every mark met on its call-44 re-score; the section at the top of this file).
+**The v8 run of record was spent on
   2026-10-01** — `runs/20261001T043420Z-instructions`, Claude, all five marks met —
   and it took two runs to get there: see the section at the top of this file and
   `runs/DRIFT.md` #70.
