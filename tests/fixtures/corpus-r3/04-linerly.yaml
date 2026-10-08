@@ -55,11 +55,13 @@ founder_calibration:
   problem.importance: {answer: middle, belief_phrase: a middling one, belief_sentence: 'Among the difficulties that come with
       a tyre punctures on the way to or from work, this is a middling one.'}
   problem.consequence:
+    labels: ["Late for work", "Cold and wet at the roadside", "The cost of new tubes", "A missed meeting"]
     answer: [late_for_work, cold_and_wet, cost_of_tubes]
     belief_phrase: being late and cold and wet and the cost of tubes
     belief_sentence: After an episode, London commuter cyclists riding fifty kilometres a week or more are left with being
       late and cold and wet and the cost of tubes.
   problem.workaround_burden:
+    labels: ["Fix it at the roadside", "Walk to a bike shop", "Take the train home", "Call someone for a lift"]
     answer: [fix_roadside, walk_to_shop, train_home]
     belief_phrase: a roadside fix, walking it to a shop, the train home
     belief_sentence: In the moment, London commuter cyclists riding fifty kilometres a week or more try a roadside fix, walking
@@ -77,6 +79,7 @@ founder_calibration:
     belief_phrase: at least 20 minutes
     belief_sentence: It is worth using only if it saves at least at least 20 minutes per episode.
   solution.trust_risk:
+    labels: ["The bike rides as it normally does", "It fits my tyre", "It adds no noticeable weight", "Good reviews from other riders"]
     answer: [rolls_normally, fits_my_tyre]
     belief_phrase: it rolls like a normal tyre and fits the tyre they ride
     belief_sentence: London commuter cyclists riding fifty kilometres a week or more would act on it only if it rolls like
@@ -86,17 +89,20 @@ founder_calibration:
   solution.adoption_friction: {answer: setup_once, belief_phrase: fitting it once at home, belief_sentence: The most extra
       effort they would accept at the moment of use is fitting it once at home.}
   solution.trialability:
+    labels: ["Money back if it doesn't work", "A guarantee that it fits", "A shop fits it for me"]
     answer: [money_back, fit_guarantee]
     belief_phrase: the money comes back if it doesn't suit and it is guaranteed to fit
     belief_sentence: They would try it for the first time if the money comes back if it doesn't suit and it is guaranteed
       to fit.
   solution.observability:
+    labels: ["No more punctures", "The same speed as before", "Fewer late days"]
     answer: [no_punctures, same_speed]
     belief_phrase: no punctures for months and no loss of speed
     belief_sentence: They would know it helped when no punctures for months and no loss of speed.
-  solution.target_circumstance: {answer: wet_roads, belief_phrase: on wet roads after rain, belief_sentence: It matters most
+  solution.target_circumstance: {labels: ["Wet roads", "Winter", "Long rides"], answer: wet_roads, belief_phrase: on wet roads after rain, belief_sentence: It matters most
       on wet roads after rain.}
   commercial.existing_sacrifice:
+    labels: ["Tubes and tyres", "Repairs at the bike shop", "Train fares home", "None of these"]
     answer: [tubes_tyres, shop_repairs]
     belief_phrase: money on tubes and tyres and on shop repairs
     belief_sentence: Because of this, London commuter cyclists riding fifty kilometres a week or more already give up money
@@ -110,10 +116,12 @@ founder_calibration:
   commercial.buyer_payer_alignment: {answer: same_person, belief_phrase: 'the same person uses it, decides and pays', belief_sentence: 'On
       buying: the same person uses it, decides and pays.'}
   commercial.purchase_friction:
+    labels: ["Not sure it would fit", "The price", "The effort of fitting it"]
     answer: [unsure_fit, price]
     belief_phrase: not knowing if it fits and the price
     belief_sentence: Between wanting it and paying, not knowing if it fits and the price could hold them back.
   commercial.commitment:
+    labels: ["Set it up before the next time", "Install the app", "Allow the access it needs", "Try it the next time it happens", "Have you contact them about the pilot"]
     answer: [install, next_episode]
     belief_phrase: riding on it the next week
     belief_sentence: For a trial, right now, they would go as far as riding on it the next week.

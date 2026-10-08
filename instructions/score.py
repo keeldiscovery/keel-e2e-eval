@@ -370,14 +370,17 @@ def _founder_numbers(answer) -> set:
             if k in ("lower", "upper", "value") and isinstance(v, (int, float))}
 
 
-def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None) -> list:
+def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None, *,
+                      founder_labels: dict | None = None) -> list:
     """Every structural rule of marks §2.2's respondent side, for one item; `[]` is valid.
 
     Call 38: **code appends, never the model** -- *Something else*, every respondent-only code the
     registry names (`registry.RESPONDENT_ESCAPES`) and every band, scale-axis and gate option -- so
     the golden plan row's `codes` (the engine's truth) are judged less those. What the model owes:
     a fixed-code control (and the ladder) one label per remaining code, the count exact; a set
-    every founder label (normalised match, or its code) plus 2-3 distractors; Importance 4-6
+    every founder label (058's R2 comparison, or its code; `founder_labels` is `{code: label}`
+    from the corpus, the codes standing in where it records none) plus 2-3 distractors, a
+    categorical pick (Target circumstance) the founder's labels and no distractor; Importance 4-6
     difficulties (keel-cloud's instruction; the server moves the problem's own off the top); a
     band, numeric or gate control the question only, `options` null. `founder_answer` is unused
     here since the bands are code's (sweep B still reads it)."""
@@ -431,20 +434,33 @@ def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None
             if foreign:
                 faults.append(f"code(s) {foreign} are not the plan's")
         return faults
-    founder = {text_mod.normalise(c): c for c in want}
+    from .corpus import FOUNDER_NONE                          # noqa: PLC0415
+    shown = founder_labels or {c: c for c in want}
+    founder = {_label_form(label): code for code, label in shown.items()}
+    required = [c for c in shown if c not in RESPONDENT_ESCAPES and c not in FOUNDER_NONE]
     matched, distractors = set(), 0
     for label, code in zip(labels, codes):
-        hit = code if code in want else founder.get(text_mod.normalise(label))
+        hit = code if code in shown else founder.get(_label_form(label))
         if hit:
             matched.add(hit)
         else:
             distractors += 1
-    missing = [c for c in want if c not in matched]
+    missing = [shown[c] for c in required if c not in matched]
     if missing:
         faults.append(f"missing founder label(s) {missing}")
-    if not 2 <= distractors <= 3:
+    if dimension.normalized.get("kind") == "categorical":
+        if distractors:
+            faults.append(f"{distractors} distractor(s); a categorical pick on the founder's "
+                          "labels takes none")
+    elif not 2 <= distractors <= 3:
         faults.append(f"{distractors} distractor(s); a set takes 2 to 3")
     return faults
+
+
+def _label_form(label) -> str:
+    """keel-cloud 058's R2 comparison: case, apostrophes, whitespace and punctuation ignored."""
+    text = re.sub(r"['\u2018\u2019]", "", str(label or "").lower())
+    return re.sub(r"[\W_]+", " ", text).strip()
 
 
 def sweep_b(texts, dimension, founder: dict) -> dict:
@@ -500,7 +516,8 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
         plan_row = (entry.respondent_questions or {}).get(key) or {}
         founder = entry.founder_calibration.get(key) or {}
         score.validity_of += 1
-        checks = respondent_checks(item, dimension, plan_row, founder.get("answer"))
+        checks = respondent_checks(item, dimension, plan_row, founder.get("answer"),
+                                   founder_labels=entry.founder_labels(key))
         if checks:
             score.faults.append({"key": key, "check": "option_validity",
                                  "evidence": "; ".join(checks)})

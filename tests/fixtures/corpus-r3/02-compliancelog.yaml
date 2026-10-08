@@ -55,11 +55,13 @@ founder_calibration:
   problem.importance: {answer: biggest, belief_phrase: the biggest headache of the quarter, belief_sentence: 'Among the difficulties
       that come with the quarter closes and the training-compliance report is due, this is the biggest headache of the quarter.'}
   problem.consequence:
+    labels: ["Late nights before the deadline", "Risk of failing the audit", "Chasing managers for records", "Other work slipping"]
     answer: [late_nights, audit_risk, chasing_managers]
     belief_phrase: late nights and audit risk and chasing managers
     belief_sentence: After an episode, HR managers at firms of 200 to 500 people are left with late nights and audit risk
       and chasing managers.
   problem.workaround_burden:
+    labels: ["Export the records to a spreadsheet", "Reconcile the lists by hand", "Chase the managers", "Ask an analyst for help"]
     answer: [export, reconcile, chase]
     belief_phrase: an export, a reconciliation by hand, chasing the managers
     belief_sentence: In the moment, HR managers at firms of 200 to 500 people try an export, a reconciliation by hand, chasing
@@ -76,6 +78,7 @@ founder_calibration:
     belief_phrase: at least 8 hours
     belief_sentence: It is worth using only if it saves at least at least 8 hours per episode.
   solution.trust_risk:
+    labels: ["It shows where every figure came from", "HR signs off before it goes out", "The auditor accepts the report", "The data stays where it is"]
     answer: [shows_sources, hr_signs_off]
     belief_phrase: it shows where every figure came from and HR signs it off
     belief_sentence: HR managers at firms of 200 to 500 people would act on it only if it shows where every figure came from
@@ -85,16 +88,19 @@ founder_calibration:
   solution.adoption_friction: {answer: setup_once, belief_phrase: 'a one-time connection, then a click', belief_sentence: 'The
       most extra effort they would accept at the moment of use is a one-time connection, then a click.'}
   solution.trialability:
+    labels: ["A sandbox to try it in", "Read-only access to start", "A free first quarter"]
     answer: [sandbox, read_only]
     belief_phrase: it runs on a sandbox first and only ever reads
     belief_sentence: They would try it for the first time if it runs on a sandbox first and only ever reads.
   solution.observability:
+    labels: ["Time saved on the report", "A clean audit", "Fewer chasers sent"]
     answer: [time_saved, audit_clean]
     belief_phrase: the report took hours not days and the audit found nothing
     belief_sentence: They would know it helped when the report took hours not days and the audit found nothing.
-  solution.target_circumstance: {answer: quarter_end, belief_phrase: at quarter end, belief_sentence: It matters most at quarter
+  solution.target_circumstance: {labels: ["Quarter end", "An audit request", "A wave of new starters"], answer: quarter_end, belief_phrase: at quarter end, belief_sentence: It matters most at quarter
       end.}
   commercial.existing_sacrifice:
+    labels: ["Analyst time", "Overtime", "Consultant fees", "None of these"]
     answer: [analyst_time, overtime]
     belief_phrase: analyst time and overtime
     belief_sentence: Because of this, HR managers at firms of 200 to 500 people already give up analyst time and overtime.
@@ -107,10 +113,12 @@ founder_calibration:
   commercial.buyer_payer_alignment: {answer: someone_else_decides, belief_phrase: the HR director decides and finance pays,
     belief_sentence: 'On buying: the HR director decides and finance pays.'}
   commercial.purchase_friction:
+    labels: ["Finance approval", "An IT security review", "Procurement"]
     answer: [finance_approval, it_security]
     belief_phrase: finance's approval and an IT security review
     belief_sentence: Between wanting it and paying, finance's approval and an IT security review could hold them back.
   commercial.commitment:
+    labels: ["Set it up before the next time", "Install the app", "Allow the access it needs", "Try it the next time it happens", "Have you contact them about the pilot"]
     answer: [setup, install]
     belief_phrase: connecting it to the learning system
     belief_sentence: For a trial, right now, they would go as far as connecting it to the learning system.

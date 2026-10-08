@@ -62,11 +62,13 @@ founder_calibration:
   problem.importance: {answer: top_three, belief_phrase: one of the top three, belief_sentence: 'Among the difficulties that
       come with the baby crying in the night, this is one of the top three.'}
   problem.consequence:
+    labels: ["The parent loses sleep", "The other parent or partner is woken too", "The parent feels stressed, anxious or guilty", "The parent is tired and less effective the next day", "The parent turns to a doctor, nurse or helpline", "The parent searches online or asks family or friends"]
     answer: [lost_sleep, stress, next_day_fatigue]
     belief_phrase: lost sleep and stress and a worse next day
     belief_sentence: After an episode, parents of babies under six months are left with lost sleep and stress and a worse
       next day.
   problem.workaround_burden:
+    labels: ["Try feeding the baby", "Check and change the nappy", "Rock, hold or walk with the baby", "Use a dummy, white noise or a swaddle", "Check the temperature, clothing or room", "Look up advice or ask someone"]
     answer: [feed, change, rock_hold]
     belief_phrase: feeding, a nappy change, rocking
     belief_sentence: In the moment, parents of babies under six months try feeding, a nappy change, rocking, in that order.
@@ -82,6 +84,7 @@ founder_calibration:
     belief_phrase: at least 5 minutes
     belief_sentence: It is worth using only if it saves at least 5 minutes per episode.
   solution.trust_risk:
+    labels: ["It says plainly that it is a suggestion, not a diagnosis", "It explains why it is suggesting that need", "It points to a doctor when the cry could signal something serious", "Audio of the baby is not stored or shared", "A paediatrician or other expert stands behind it", "It suggests only safe actions, never medicine or anything risky"]
     answer: [labelled_suggestion, safe_actions_only]
     belief_phrase: it is plainly labelled a suggestion and it only ever suggests safe things to try
     belief_sentence: Parents of babies under six months would act on it only if it is plainly labelled a suggestion and it
@@ -91,17 +94,20 @@ founder_calibration:
   solution.adoption_friction: {answer: a_few_taps, belief_phrase: a few taps, belief_sentence: The most extra effort they
       would accept at the moment of use is a few taps.}
   solution.trialability:
+    labels: ["Free to try, with no card details", "A recommendation from another parent or a health professional", "Trying it in the daytime first, not in the middle of a night", "A clear promise about what happens to the recordings", "Being able to stop and delete everything at any time"]
     answer: [free_no_card, easy_exit]
     belief_phrase: it is free with no card details and they can delete everything at any time
     belief_sentence: They would try it for the first time if it is free with no card details and they can delete everything
       at any time.
   solution.observability:
+    labels: ["The baby settled sooner than usual", "They tried fewer things before it worked", "The suggested need turned out to be the right one", "They felt calmer and more in control", "Everyone got back to sleep sooner", "The next day felt less exhausting"]
     answer: [settled_sooner, fewer_tries]
     belief_phrase: the baby was settled sooner than usual and they tried fewer things
     belief_sentence: They would know it helped when the baby was settled sooner than usual and they tried fewer things.
-  solution.target_circumstance: {answer: routine_failed, belief_phrase: when the usual routine has not stopped the crying,
+  solution.target_circumstance: {labels: ["The first wake-up of the night, when they are still fairly alert", "Repeated wake-ups late in the night, when they are exhausted", "A cry that has not stopped after the usual routine", "Nights when they are alone with the baby", "The first weeks with a new baby"], answer: routine_failed, belief_phrase: when the usual routine has not stopped the crying,
     belief_sentence: It matters most when the usual routine has not stopped the crying.}
   commercial.existing_sacrifice:
+    labels: ["Money on baby apps or subscriptions (tracking, white noise)", "Money on gadgets (sleep aids, swaddles, monitors)", "Paid help so they can sleep (night nurse, doula)", "Time off or a worse day at work after a bad night", "Extra visits to a doctor or health visitor about the crying", "None of these; they cope with what they have"]
     answer: [apps_subscriptions, gadgets]
     belief_phrase: money on baby apps and money on gadgets
     belief_sentence: Because of this, parents of babies under six months already give up money on baby apps and money on gadgets.
@@ -114,11 +120,13 @@ founder_calibration:
   commercial.buyer_payer_alignment: {answer: same_person, belief_phrase: 'the same person uses it, decides and pays', belief_sentence: 'On
       buying: the same person uses it, decides and pays.'}
   commercial.purchase_friction:
+    labels: ["Needing a partner's agreement first", "Wanting reviews or a recommendation from other parents or a doctor", "Entering card details when tired and half awake", "Worry about a subscription that is hard to cancel", "Concern about privacy of recordings of the baby", "Forgetting about it once the night is over"]
     answer: [partner_approval, privacy]
     belief_phrase: needing a partner's agreement and worries about recording the baby
     belief_sentence: Between wanting it and paying, needing a partner's agreement and worries about recording the baby could
       hold them back.
   commercial.commitment:
+    labels: ["Set it up on their phone before the next night", "Install the app", "Allow it to use the microphone at night", "Try it at the next night-time wake-up", "Have you contact them about the pilot"]
     answer: [install, mic]
     belief_phrase: allowing the microphone
     belief_sentence: For a trial, right now, they would go as far as allowing the microphone.

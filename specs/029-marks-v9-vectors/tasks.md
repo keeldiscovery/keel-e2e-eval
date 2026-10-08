@@ -455,3 +455,16 @@ task it was found under. Nothing here is a change of mind about the design; it i
   distractor on `target_circumstance`, `existing_sacrifice`, `purchase_friction`), calibration
   `no_leak` 26/27 -> 27/27, refusals R2 8 + R4 1 -> 0 (058's applier, re-read at rescore).
   `MARKS_VERSION` stays 9.
+- **D27 (keel-cloud 058 `afe36fd`: `founder_options` are labels).** `context.build_respondent` sent
+  r3's codes (*stress*, *lost_sleep*) as `founder_options`; production sends the founder's labels,
+  and 058's `ScreenContractTool` now refuses a batch whose `founder_options` differ from the
+  project's (`kind: case`). Every r3 model-written set and the ladder gains
+  `founder_calibration[d].labels` (one per founder option code, plan order; a founder-side `none`
+  kept, the code-appended rows of call 38 not); Lullaby's are the registry's with 058's C6 rewording
+  (*faster* -> *sooner*), the other six authored. `build_respondent` sends them;
+  `respondent_checks` matches a set against them as 058's R2 does (case, whitespace, punctuation
+  ignored; the founder's *none* left to code), and a categorical pick (Target circumstance) takes
+  the founder's labels and no distractor, as 058's R2 does. All seven digests moved. Re-scored
+  offline against 058: respondent validity 45/69, `no_leak` 1.00 (120/120), refusals R2 x9 and no
+  `case` fault -- the bundle's model was shown codes and wrote codes, so its sets now miss the
+  labels; a fresh screen is the measure.

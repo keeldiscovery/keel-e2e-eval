@@ -59,10 +59,12 @@ founder_calibration:
   problem.importance: {answer: top_three, belief_phrase: one of the top three, belief_sentence: 'Among the difficulties that
       come with a delivery does not match its invoice, this is one of the top three.'}
   problem.consequence:
+    labels: ["Hours lost reconciling the counts", "Stock figures that are wrong", "Food thrown away", "Service starting late"]
     answer: [lost_time, stock_errors, waste]
     belief_phrase: lost time and stock errors and waste
     belief_sentence: After an episode, independent restaurant managers are left with lost time and stock errors and waste.
   problem.workaround_burden:
+    labels: ["Recount the stock by hand", "Correct the stock sheet", "Call the supplier", "Leave it and move on"]
     answer: [recount, fix_sheet, call_supplier]
     belief_phrase: a recount, fixing the spreadsheet, a call to the supplier
     belief_sentence: In the moment, independent restaurant managers try a recount, fixing the spreadsheet, a call to the supplier,
@@ -80,6 +82,7 @@ founder_calibration:
     belief_phrase: at least 30 minutes
     belief_sentence: It is worth using only if it saves at least at least 30 minutes per episode.
   solution.trust_risk:
+    labels: ["It shows exactly which line is wrong", "A manager confirms before anything changes", "The supplier sees the same record", "A photo backs up each delivery"]
     answer: [shows_the_line, manager_confirms]
     belief_phrase: it shows the line that differs and the manager confirms it
     belief_sentence: Independent restaurant managers would act on it only if it shows the line that differs and the manager
@@ -89,16 +92,19 @@ founder_calibration:
   solution.adoption_friction: {answer: one_tap, belief_phrase: a single scan, belief_sentence: The most extra effort they
       would accept at the moment of use is a single scan.}
   solution.trialability:
+    labels: ["A free first month", "Nothing to pay to install", "The supplier helps get it set up"]
     answer: [free_month, no_install_cost]
     belief_phrase: it is free for a month and costs nothing to install
     belief_sentence: They would try it for the first time if it is free for a month and costs nothing to install.
   solution.observability:
+    labels: ["Fewer recounts", "The stock sheet matches the shelves", "Credits back from the supplier"]
     answer: [fewer_recounts, sheet_matches]
     belief_phrase: they recount less and the sheet matches the shelves
     belief_sentence: They would know it helped when they recount less and the sheet matches the shelves.
-  solution.target_circumstance: {answer: busy_morning, belief_phrase: on a busy delivery morning, belief_sentence: It matters
+  solution.target_circumstance: {labels: ["A busy delivery morning", "A new supplier", "Stocktake week"], answer: busy_morning, belief_phrase: on a busy delivery morning, belief_sentence: It matters
       most on a busy delivery morning.}
   commercial.existing_sacrifice:
+    labels: ["Staff hours spent counting", "Stock written off", "Software for stock or invoices", "None of these"]
     answer: [staff_hours, write_offs]
     belief_phrase: staff hours and written-off stock
     belief_sentence: Because of this, independent restaurant managers already give up staff hours and written-off stock.
@@ -111,10 +117,12 @@ founder_calibration:
   commercial.buyer_payer_alignment: {answer: same_person, belief_phrase: 'the same person uses it, decides and pays', belief_sentence: 'On
       buying: the same person uses it, decides and pays.'}
   commercial.purchase_friction:
+    labels: ["Time to set it up", "Training the staff", "A long contract"]
     answer: [setup_time, staff_training]
     belief_phrase: the time to set it up and training the staff
     belief_sentence: Between wanting it and paying, the time to set it up and training the staff could hold them back.
   commercial.commitment:
+    labels: ["Set it up before the next time", "Install the app", "Allow the access it needs", "Try it the next time it happens", "Have you contact them about the pilot"]
     answer: [setup, install]
     belief_phrase: installing the app
     belief_sentence: For a trial, right now, they would go as far as installing the app.

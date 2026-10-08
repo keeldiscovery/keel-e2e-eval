@@ -135,3 +135,35 @@ def test_the_recorded_revision_carries_its_move_instruction():
     readme = (Path(corpus_mod.FIXTURE_DIR) / "README.md").read_text(encoding="utf-8")
     assert "moved, byte for byte" in readme
     assert "canon/designs/measured-beliefs/corpus/" in readme
+
+
+def test_every_model_written_set_carries_the_labels_the_founder_saw(corpus):
+    """keel-cloud 058 (afe36fd): production sends the founder's LABELS as `founder_options`, and
+    its contract tool refuses a batch that sends codes. One label per founder option, in order."""
+    registry = fx.registry()
+    for entry in corpus.entries:
+        for part in (1, 2, 3):
+            for key in entry.plan(registry)[part]:
+                dimension = registry.by_key(key)
+                if dimension.fixed_codes is not None or dimension.founder_numeric:
+                    continue
+                labels = entry.founder_labels(key)
+                assert labels and list(labels) == entry.founder_option_codes(key), (entry.id, key)
+
+
+def test_lullabys_labels_are_the_registrys_worked_example_verbatim(corpus):
+    """`lullaby.founder_options[*].label` of the verbatim registry draft (`contracts/`), which
+    keel-cloud 058's `dimension-registry.json` carries unchanged -- with 058's own C6 rewording
+    (`VectorFixtures.patchedOptions`: *better* -> *more*, *faster* -> *sooner*, *helps* -> *is
+    useful*), because those are the labels 058's Lullaby project holds and its contract tool
+    compares a batch's `founder_options` against."""
+    import yaml                                                             # noqa: PLC0415
+    draft = Path(__file__).resolve().parent.parent / "specs" / "029-marks-v9-vectors" / \
+        "contracts" / "dimension-registry.yaml"
+    lullaby = corpus.by_id("03-lullaby")
+    for dimension in yaml.safe_load(draft.read_text(encoding="utf-8"))["dimensions"]:
+        if (dimension["founder"].get("normalized") or {}).get("codes") != "model_written":
+            continue
+        want = [o["label"].replace("better", "more").replace("faster", "sooner")
+                .replace("helps", "is useful") for o in dimension["lullaby"]["founder_options"]]
+        assert list(lullaby.founder_labels(dimension["key"]).values()) == want, dimension["key"]

@@ -63,11 +63,13 @@ founder_calibration:
   problem.importance: {answer: top_three, belief_phrase: one of the top three, belief_sentence: 'Among the difficulties that
       come with a job needs mulch and the crew has to fetch it from the supply yard, this is one of the top three.'}
   problem.consequence:
+    labels: ["Late to jobs", "Fuel cost", "The crew standing idle", "Fewer jobs in a day"]
     answer: [late_to_jobs, fuel_cost, crew_idle]
     belief_phrase: being late to jobs and fuel and a crew standing idle
     belief_sentence: After an episode, landscaping crew leads in the Dallas suburbs are left with being late to jobs and fuel
       and a crew standing idle.
   problem.workaround_burden:
+    labels: ["Start earlier", "Haul a bigger load", "Buy bagged mulch at Home Depot", "Pay the yard to deliver"]
     answer: [early_start, big_load, home_depot_bags]
     belief_phrase: an early start, one big load, bags from Home Depot
     belief_sentence: In the moment, landscaping crew leads in the Dallas suburbs try an early start, one big load, bags from
@@ -85,6 +87,7 @@ founder_calibration:
     belief_phrase: at least 30 minutes
     belief_sentence: It is worth using only if it saves at least at least 30 minutes per episode.
   solution.trust_risk:
+    labels: ["The drop arrives on time", "The right amount is delivered", "It is dropped in the right spot"]
     answer: [on_time_drop, right_amount]
     belief_phrase: it is dropped on time and it is the right amount
     belief_sentence: Landscaping crew leads in the Dallas suburbs would act on it only if it is dropped on time and it is
@@ -94,16 +97,19 @@ founder_calibration:
   solution.adoption_friction: {answer: a_few_taps, belief_phrase: a few taps the night before, belief_sentence: The most extra
       effort they would accept at the moment of use is a few taps the night before.}
   solution.trialability:
+    labels: ["The first drop free", "No minimum order", "The yard vouches for it"]
     answer: [first_drop_free, no_minimum]
     belief_phrase: the first drop is free and there is no minimum order
     belief_sentence: They would try it for the first time if the first drop is free and there is no minimum order.
   solution.observability:
+    labels: ["No line at the yard", "More jobs in a day", "Less fuel"]
     answer: [no_yard_line, more_jobs]
     belief_phrase: no line at the yard and more jobs in a day
     belief_sentence: They would know it helped when no line at the yard and more jobs in a day.
-  solution.target_circumstance: {answer: big_installs, belief_phrase: on the big installs, belief_sentence: It matters most
+  solution.target_circumstance: {labels: ["Big installs", "Jobs far from the yard", "The spring rush"], answer: big_installs, belief_phrase: on the big installs, belief_sentence: It matters most
       on the big installs.}
   commercial.existing_sacrifice:
+    labels: ["Delivery fees", "Fuel and time", "Extra hands", "None of these"]
     answer: [delivery_fees, fuel_and_time]
     belief_phrase: delivery fees and fuel and the lead's time
     belief_sentence: Because of this, landscaping crew leads in the Dallas suburbs already give up delivery fees and fuel
@@ -117,10 +123,12 @@ founder_calibration:
   commercial.buyer_payer_alignment: {answer: same_person, belief_phrase: the owner decides and pays, belief_sentence: 'On
       buying: the owner decides and pays.'}
   commercial.purchase_friction:
+    labels: ["Switching suppliers", "Scheduling the drops", "A minimum order"]
     answer: [supplier_switch, scheduling]
     belief_phrase: switching supplier and fitting the schedule
     belief_sentence: Between wanting it and paying, switching supplier and fitting the schedule could hold them back.
   commercial.commitment:
+    labels: ["Book a call", "Start a read-only trial", "Introduce you to whoever runs IT", "Share some real data", "Start a paid pilot"]
     answer: [call, read_only_trial, it_intro, data]
     belief_phrase: sharing their job schedule
     belief_sentence: For a trial, right now, they would go as far as sharing their job schedule.

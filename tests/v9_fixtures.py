@@ -156,7 +156,8 @@ def calibration_case(entry, vector, run_index=1):
 def respondent_item(entry, key, *, label_only=False) -> dict:
     """An item meeting every §2.2 respondent rule (call 38), written from the golden plan row: the
     code-appended codes (`RESPONDENT_ESCAPES`, *Something else*) left to code; a set carries the
-    founder's labels (r3's labels are its codes) plus two distractors; a band, numeric or gate
+    founder's labels (the fixture records none, so its codes stand in) plus two distractors (a
+    categorical pick none); a band, numeric or gate
     control carries `options: None`."""
     from instructions.registry import RESPONDENT_ESCAPES             # noqa: PLC0415
     row = entry.respondent_questions[key]
@@ -172,7 +173,7 @@ def respondent_item(entry, key, *, label_only=False) -> dict:
     for i, code in enumerate(c for c in row.get("codes") or [] if c not in RESPONDENT_ESCAPES):
         label = code if is_set else f"Choice {i + 1}"
         options.append(label if label_only else {"label": label, "code": code})
-    if is_set:
+    if is_set and dimension.normalized.get("kind") != "categorical":
         for n in ("one", "two"):
             label = f"A distractor {n}"
             options.append(label if label_only else {"label": label, "code": f"distractor_{n}"})

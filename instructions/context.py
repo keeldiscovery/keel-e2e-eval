@@ -248,12 +248,18 @@ def founder_option_codes(entry, registry, key: str) -> list:
     """The founder's option set for one dimension, as codes: the registry's fixed codes, or -- for
     a `model_written` set -- the golden plan row's codes less the escapes and respondent-only codes
     (`registry.RESPONDENT_ESCAPES`). Never which of them the founder picked."""
-    from .registry import RESPONDENT_ESCAPES                  # noqa: PLC0415
     dimension = registry.by_key(key)
     if dimension.fixed_codes is not None:
         return list(dimension.fixed_codes)
-    row = (entry.respondent_questions or {}).get(key) or {}
-    return [c for c in row.get("codes") or [] if c not in RESPONDENT_ESCAPES]
+    return entry.founder_option_codes(key)
+
+
+def founder_option_labels(entry, registry, key: str) -> list:
+    """keel-cloud 058's `founderOptions` for one model-written set: the LABELS the founder's
+    calibration showed (`founder_calibration[key].labels`), in order -- never which were picked.
+    An entry recording no labels falls back to the codes."""
+    labels = entry.founder_labels(key)
+    return list(labels.values()) if labels else founder_option_codes(entry, registry, key)
 
 
 def respondent_item(dimension, *, link: str = LINK_PRIMARY) -> dict:
@@ -287,9 +293,9 @@ def build_respondent(entry, part: int, plan: dict | None = None, registry=None, 
         "items": fill_window([respondent_item(registry.by_key(k), link=link) for k in item_keys],
                              window_of(entry)),
         # keel-cloud 058's `founderOptions`: the model-written sets only (the fixed codes are the
-        # registry's, and the model has them already). r3 records codes, not the calibration's
-        # labels, so the codes stand in for them.
-        "founder_options": {k: founder_option_codes(entry, registry, k) for k in item_keys
+        # registry's, and the model has them already) -- the founder's LABELS, as production
+        # sends them (`founder_calibration[key].labels`, r3).
+        "founder_options": {k: founder_option_labels(entry, registry, k) for k in item_keys
                             if registry.by_key(k).fixed_codes is None
                             and not registry.by_key(k).founder_numeric},
     }

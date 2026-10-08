@@ -111,6 +111,17 @@ def test_part_one_carries_no_mechanism_and_no_founder_answer_ever(entry, registr
         ["late", "stress", "missed_train"], "the founder's option SET, never their pick"
 
 
+def test_the_respondent_screen_is_shown_the_founders_labels_where_the_entry_records_them(registry):
+    from instructions import corpus as corpus_mod                       # noqa: PLC0415
+    lullaby = corpus_mod.load_file(corpus_mod.FIXTURE_DIR / "03-lullaby.yaml", registry=registry)
+    built = context_mod.build_respondent(lullaby, 1, lullaby.plan(), registry)
+    assert built["founder_options"]["problem.consequence"][0] == "The parent loses sleep", \
+        "058 (afe36fd): production sends the calibration's LABELS, never the codes"
+    part3 = context_mod.build_respondent(lullaby, 3, lullaby.plan(), registry)
+    assert part3["founder_options"]["commercial.existing_sacrifice"][-1] == \
+        "None of these; they cope with what they have"
+
+
 def test_parts_two_and_three_carry_the_mechanism_and_the_b2b_link_does_not(entry, registry):
     for part in (2, 3):
         built = context_mod.build_respondent(entry, part, entry.plan(), registry)

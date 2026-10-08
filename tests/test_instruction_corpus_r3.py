@@ -92,6 +92,9 @@ MUTATIONS = {
     "buckets": (lambda r: r["expected"].__setitem__("buckets", {}), "`expected.buckets`"),
     "stages": (lambda r: r["expected"].__setitem__("stages", {}), "`expected.stages`"),
     "anchors": (lambda r: _person(r, "Ann Abbott").__setitem__("anchors", {}), "`anchors`"),
+    "labels one short": (
+        lambda r: r["founder_calibration"]["problem.consequence"].__setitem__("labels", ["Late"]),
+        "founder_calibration[problem.consequence].labels must be one label per founder option"),
     "neither answer nor unsure": (
         lambda r: r["founder_calibration"].__setitem__("problem.severity", {"belief_phrase": "x"}),
         "founder_calibration[problem.severity]"),

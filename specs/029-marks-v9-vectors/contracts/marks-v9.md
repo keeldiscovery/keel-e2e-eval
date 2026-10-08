@@ -107,6 +107,9 @@ founder_calibration:                # NEW — one entry per registry key (25); t
   <dimension>: {answer: <code> | {lower, upper, unit} | {value, unit} | [codes] | {lower, upper, per},
                 belief_phrase: "…"}       # phrase = the chosen option's, the model's words in the product; hand-written here
   <dimension>: {unsure: true}             # LEFT OUT
+  # model-written sets (and the ladder) also carry `labels: ["…"]` -- the labels the founder saw, one per founder option
+  # code in the plan row's order (code-appended rows excepted, a founder-side none kept); what production sends the
+  # respondent screen as `founder_options` (keel-cloud 058 afe36fd; Lullaby's = the registry's lullaby labels, 058's C6 rewording)
   # belief_sentence per dimension is the engine's output, recorded by the checker like buckets were — never hand-written
 respondent_questions:               # NEW — golden PLAN (the eval builds it by code and checks the model's answer against it); no text
   <dimension>: {part: 1|2|3, control: <RespondentControl>, codes: [ … ]}   # codes = founder's + distractors + something_else

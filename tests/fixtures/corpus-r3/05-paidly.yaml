@@ -62,11 +62,13 @@ founder_calibration:
   problem.importance: {answer: biggest, belief_phrase: the biggest worry of the job, belief_sentence: 'Among the difficulties
       that come with an agency has approved the invoice and the money has not arrived, this is the biggest worry of the job.'}
   problem.consequence:
+    labels: ["Going into the overdraft", "Time spent chasing payment", "Stress", "Turning work down"]
     answer: [overdraft, chasing_time, stress]
     belief_phrase: an overdraft and time chasing and stress
     belief_sentence: After an episode, freelance translators working for agencies are left with an overdraft and time chasing
       and stress.
   problem.workaround_burden:
+    labels: ["Send a chasing email", "Dip into savings", "Use the overdraft", "Sell the invoice to a factoring firm"]
     answer: [chase_email, use_savings, overdraft]
     belief_phrase: chasing by email, dipping into savings, the overdraft
     belief_sentence: In the moment, freelance translators working for agencies try chasing by email, dipping into savings,
@@ -83,6 +85,7 @@ founder_calibration:
     belief_phrase: at least 20 days
     belief_sentence: It is worth using only if it saves at least at least 20 days per episode.
   solution.trust_risk:
+    labels: ["A clear fee up front", "The agency trusts it", "It is regulated"]
     answer: [clear_fee, agency_trusts_it]
     belief_phrase: the fee is plain and the agency already trusts it
     belief_sentence: Freelance translators working for agencies would act on it only if the fee is plain and the agency already
@@ -92,16 +95,19 @@ founder_calibration:
   solution.adoption_friction: {answer: a_few_taps, belief_phrase: a few clicks per invoice, belief_sentence: The most extra
       effort they would accept at the moment of use is a few clicks per invoice.}
   solution.trialability:
+    labels: ["The first invoice free", "No contract", "The agency invites me to use it"]
     answer: [first_invoice_free, no_contract]
     belief_phrase: the first invoice costs nothing and there is no contract
     belief_sentence: They would try it for the first time if the first invoice costs nothing and there is no contract.
   solution.observability:
+    labels: ["Paid within a week", "No more chasing", "A steadier month"]
     answer: [paid_in_a_week, no_chasing]
     belief_phrase: paid within a week and no more chasing
     belief_sentence: They would know it helped when paid within a week and no more chasing.
-  solution.target_circumstance: {answer: new_agency, belief_phrase: with an agency they have not worked for before, belief_sentence: It
+  solution.target_circumstance: {labels: ["A new agency", "A big invoice", "A slow-paying agency"], answer: new_agency, belief_phrase: with an agency they have not worked for before, belief_sentence: It
       matters most with an agency they have not worked for before.}
   commercial.existing_sacrifice:
+    labels: ["Platform fees", "Payment fees", "Admin time", "None of these"]
     answer: [platform_fees, payment_fees]
     belief_phrase: platform fees and payment fees
     belief_sentence: Because of this, freelance translators working for agencies already give up platform fees and payment
@@ -115,10 +121,12 @@ founder_calibration:
   commercial.buyer_payer_alignment: {answer: same_person, belief_phrase: the project manager decides and pays, belief_sentence: 'On
       buying: the project manager decides and pays.'}
   commercial.purchase_friction:
+    labels: ["The agency owner's approval", "Setting it up with finance", "A security review"]
     answer: [owner_approval, finance_setup]
     belief_phrase: the owner's approval and setting it up with finance
     belief_sentence: Between wanting it and paying, the owner's approval and setting it up with finance could hold them back.
   commercial.commitment:
+    labels: ["Book a call", "Start a read-only trial", "Introduce you to whoever runs IT", "Share some real data", "Start a paid pilot"]
     answer: [call, read_only_trial]
     belief_phrase: a read-only trial
     belief_sentence: For a trial, right now, they would go as far as a read-only trial.

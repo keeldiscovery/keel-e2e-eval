@@ -80,6 +80,14 @@ file's own `expected` rows, so `compare_correctness` will say so if they differ)
 - **Escapes**: *it was free or a gift* counts nothing (Ability to pay's `n` drops by one);
   *I wouldn't have reached for the phone* is outside with no direction.
 
+- **Labels** (2026-10-08, keel-cloud 058 `afe36fd`): every model-written set and the ladder carries
+  `founder_calibration[d].labels`, one label per founder option code in the plan row's order --
+  what production sends the respondent screen as `founder_options`. Lullaby's are the registry's
+  `lullaby.founder_options[*].label` with 058's C6 rewording (*faster* -> *sooner*); the other six
+  are authored in each entry's register from its codes. (Lullaby's fourth Existing-sacrifice code
+  is `books_or_courses` where the registry's label is *Time off or a worse day at work*; the
+  answers count it under the r3 code, unchanged.)
+
 | File | People | Read (N=1) | Verdicts (PROBLEM · SOLUTION · COMMERCIAL) | Notes |
 |---|---|---|---|---|
 | `01-countly.yaml` | 12 | 10 | holding up · people disagree · holding up | **Leaves out an asked dimension** (`problem.severity`, FR-009): Part 1 is 7. Urgency carries a belief: `NOT_ASKED_YET`. |

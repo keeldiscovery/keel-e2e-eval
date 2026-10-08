@@ -169,6 +169,23 @@ class Entry:
                 out[part].append(key)
         return out
 
+    # ----------------------------------------------------------- the founder's labels
+
+    def founder_option_codes(self, key: str) -> list:
+        """The codes of the options the founder's calibration showed for a model-written set: the
+        golden plan row's codes less the respondent-only rows code appends (call 38), keeping a
+        founder-side `none` / `nothing` -- the founder saw it; code appends the respondent's."""
+        return founder_codes_of((self.respondent_questions or {}).get(key) or {})
+
+    def founder_labels(self, key: str) -> dict | None:
+        """`{code: label}` -- the labels the founder saw (`founder_calibration[key].labels`, one per
+        `founder_option_codes`, in order), what production's `founderOptions` carries; `None` where
+        the entry records none."""
+        labels = (self.founder_calibration.get(key) or {}).get("labels")
+        if not labels:
+            return None
+        return dict(zip(self.founder_option_codes(key), labels))
+
     # ------------------------------------------------------------- the mechanism's words
 
     def _mechanism_texts(self) -> list[str]:
@@ -361,12 +378,32 @@ def _check_revision(raw: dict, path: Path) -> None:
                                     "person answers one gate story", path)
 
 
+def founder_codes_of(row: dict) -> list:
+    """`Entry.founder_option_codes` on a plan row."""
+    from .registry import RESPONDENT_ESCAPES                  # noqa: PLC0415
+    return [c for c in (row or {}).get("codes") or []
+            if c not in RESPONDENT_ESCAPES or c in FOUNDER_NONE]
+
+
+#: The founder's own *none of these* option (Existing sacrifice's `none`; r3 spells it `nothing`):
+#: shown to the founder, so it has a label; on the respondent screen code appends it.
+FOUNDER_NONE = ("none", "nothing")
+
+
 def _check_shape(raw: dict, path: Path) -> None:
     entry_id = raw.get("id") or path.name
     for key, value in (raw.get("founder_calibration") or {}).items():
         if not isinstance(value, dict) or not ("answer" in value or value.get("unsure") is True):
             raise _refuse(entry_id, f"founder_calibration[{key}] carries neither `answer` nor "
                                     "`unsure: true`", path)
+        labels = value.get("labels")
+        if labels is not None:
+            codes = founder_codes_of((raw.get("respondent_questions") or {}).get(key) or {})
+            if (not isinstance(labels, list) or not all(isinstance(x, str) and x.strip()
+                                                         for x in labels)
+                    or len(labels) != len(codes)):
+                raise _refuse(entry_id, f"founder_calibration[{key}].labels must be one label per "
+                                        f"founder option {codes}", path)
     b2b = isinstance((raw.get("persona") or {}).get("decision_maker"), dict)
     for person in raw.get("answers") or []:
         name = person.get("person")

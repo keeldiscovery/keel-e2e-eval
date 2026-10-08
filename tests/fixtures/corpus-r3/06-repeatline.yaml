@@ -60,10 +60,12 @@ founder_calibration:
   problem.importance: {answer: biggest, belief_phrase: the biggest drain on the phones, belief_sentence: 'Among the difficulties
       that come with a patient rings for a repeat prescription, this is the biggest drain on the phones.'}
   problem.consequence:
+    labels: ["Requests that get missed", "Patients calling back", "The queue building up", "Complaints"]
     answer: [missed_requests, callbacks, queue_builds]
     belief_phrase: missed requests and callbacks and a queue that builds
     belief_sentence: After an episode, GP receptionists are left with missed requests and callbacks and a queue that builds.
   problem.workaround_burden:
+    labels: ["Type it into the system", "Write it on a paper slip", "Ask the pharmacy", "Point the patient to the app"]
     answer: [type_into_system, paper_slip, ask_pharmacy]
     belief_phrase: typing it in, a paper slip, asking the pharmacy
     belief_sentence: In the moment, GP receptionists try typing it in, a paper slip, asking the pharmacy, in that order.
@@ -79,6 +81,7 @@ founder_calibration:
     belief_phrase: at least 2 minutes
     belief_sentence: It is worth using only if it saves at least at least 2 minutes per episode.
   solution.trust_risk:
+    labels: ["It files requests correctly", "It flags anything unusual", "Patients can actually use it"]
     answer: [files_correctly, flags_exceptions]
     belief_phrase: it files into the clinical system correctly and flags the exceptions
     belief_sentence: GP receptionists would act on it only if it files into the clinical system correctly and flags the exceptions.
@@ -87,16 +90,19 @@ founder_calibration:
   solution.adoption_friction: {answer: nothing_extra, belief_phrase: nothing at all, belief_sentence: The most extra effort
       they would accept at the moment of use is nothing at all.}
   solution.trialability:
+    labels: ["A trial month", "Switch it off at any time", "Another practice already uses it"]
     answer: [trial_month, switch_off_anytime]
     belief_phrase: a trial month and they can switch it off at any time
     belief_sentence: They would try it for the first time if a trial month and they can switch it off at any time.
   solution.observability:
+    labels: ["A shorter queue", "Fewer callbacks", "Fewer complaints"]
     answer: [shorter_queue, fewer_callbacks]
     belief_phrase: a shorter queue and fewer callbacks
     belief_sentence: They would know it helped when a shorter queue and fewer callbacks.
-  solution.target_circumstance: {answer: monday_mornings, belief_phrase: on Monday mornings, belief_sentence: It matters most
+  solution.target_circumstance: {labels: ["Monday mornings", "After a bank holiday", "When the app is down"], answer: monday_mornings, belief_phrase: on Monday mornings, belief_sentence: It matters most
       on Monday mornings.}
   commercial.existing_sacrifice:
+    labels: ["Phone system upgrades", "Extra staff", "Online tools", "None of these"]
     answer: [phone_upgrades, extra_staff]
     belief_phrase: phone upgrades and extra staff on the phones
     belief_sentence: Because of this, GP receptionists already give up phone upgrades and extra staff on the phones.
@@ -109,10 +115,12 @@ founder_calibration:
   commercial.buyer_payer_alignment: {answer: same_person, belief_phrase: the practice manager decides and pays, belief_sentence: 'On
       buying: the practice manager decides and pays.'}
   commercial.purchase_friction:
+    labels: ["The partners' sign-off", "A clinical safety review", "The contract terms"]
     answer: [partner_sign_off, clinical_safety]
     belief_phrase: the partners' sign-off and a clinical safety check
     belief_sentence: Between wanting it and paying, the partners' sign-off and a clinical safety check could hold them back.
   commercial.commitment:
+    labels: ["Book a call", "Start a read-only trial", "Introduce you to whoever runs IT", "Share some real data", "Start a paid pilot"]
     answer: [call, read_only_trial, it_intro]
     belief_phrase: an introduction to their IT supplier
     belief_sentence: For a trial, right now, they would go as far as an introduction to their IT supplier.

@@ -16,14 +16,16 @@ byte for byte what `master` `0165017` carried (`tests/fixtures/marks/calls-1-27.
 entries, by sha256 -- the recorded revision under `tests/fixtures/corpus-r3/`, to be moved verbatim
 into keel-cloud's canon, so a run reads these bytes either way:
 
-    01-countly         25bffafb2fa7524529888b827122df190ff28c4e644b07603eaf46039949005d
-    02-compliancelog   930dbd8e4a42843298a0abcb031106e222aed93e7e7eda7fb086ed7fa458fd5d
-    03-lullaby         d1f8c17f34f5f02f1376d6f2c8753a4d304013437fb495c6748d2b142b7427a9
-                       (2026-10-08, call 39: `mechanism_terms` drops `cot`; was c6fc1a4a3108...)
-    04-linerly         3598e8f0df553b4d1c85ea47b66e4e024ea0392e8305fc96a4474777c361a90e
-    05-paidly          efbde113e7edce719985163c02c970861c7695ddf238e0c19c04fb33c15ac0bb
-    06-repeatline      5fb3a693e31d7965d3d303b83f03735359268762d5f6ea12baed43fe7d053a8b
-    07-mulchrun        10e84bb1c0861e499dd5519d5ecba3880d28f4b36a49fd4221b3af1a01454001
+    01-countly         6ed04bd84b464e8c48bbb1dff3922e71bcb3fc9f45b9f542ac933e85f67aa426
+    02-compliancelog   177c787d5323d457b952b9ec2a3583b11c59f536982bf961288486291298c82a
+    03-lullaby         347e44bce512e64b949aaa8a27cd8b6ba23e9024e9646b43b2bbf0215a9506bc
+    04-linerly         3a557919fd01a974cf7d8f4e2226eaedaafb74498e95f1c32c4749bd71d052a2
+    05-paidly          cbe618439d14f7725c22c0a8685e6e16a521a30bdd6708207b5a0b073040e12c
+    06-repeatline      b0ecb45ee5d824e455e397ae52ecbd55420689b42b78b5ad9aa2e3715c244a75
+    07-mulchrun        409b88d88aac05954609f322e1d349c18600cf02dedafa86d8106094c8ac38a0
+
+Amended 2026-10-08: Lullaby's `mechanism_terms` drops `cot` (call 39), and every entry's model-written
+sets gain `founder_calibration[d].labels`, the labels production sends as `founder_options`.
 
 The corpus-wide `anchoring_accuracy` denominator, **counted, not estimated**: 106 people, less 13 who
 answer No at the gate, 6 whose story carries a chip and 22 decision-makers on a B2B link (who are

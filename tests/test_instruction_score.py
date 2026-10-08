@@ -354,6 +354,38 @@ def test_a_set_missing_a_founder_label_fails(entry, registry):
     assert any(f"missing founder label(s) [{founder[0]!r}]" in f for f in faults), faults
 
 
+def _lullaby():
+    from instructions import corpus as corpus_mod                       # noqa: PLC0415
+    return corpus_mod.load_file(corpus_mod.FIXTURE_DIR / "03-lullaby.yaml", registry=fx.registry())
+
+
+def test_a_set_is_judged_against_the_founders_labels_not_the_codes(registry):
+    lullaby = _lullaby()
+    key = "commercial.existing_sacrifice"
+    dimension, row = registry.by_key(key), lullaby.respondent_questions[key]
+    labels = lullaby.founder_labels(key)
+    shown = [label for code, label in labels.items() if code != "nothing"]
+    good = {"key": key, "question": "That last thing?",
+            "options": [s.upper() + "!" for s in shown] + ["Distractor a", "Distractor b"]}
+    assert score_mod.respondent_checks(good, dimension, row, founder_labels=labels) == [], \
+        "058's R2 comparison, and the founder's own 'None of these' left to code"
+    codes = dict(good, options=[c for c in labels if c != "nothing"] + ["Distractor a"])
+    faults = score_mod.respondent_checks(codes, dimension, row, founder_labels=labels)
+    assert any("missing founder label(s)" in f for f in faults), faults
+
+
+def test_a_categorical_pick_takes_the_founders_labels_and_no_distractor(registry):
+    lullaby = _lullaby()
+    key = "solution.target_circumstance"
+    dimension, row = registry.by_key(key), lullaby.respondent_questions[key]
+    labels = lullaby.founder_labels(key)
+    item = {"key": key, "question": "When?", "options": list(labels.values())}
+    assert score_mod.respondent_checks(item, dimension, row, founder_labels=labels) == []
+    plus = dict(item, options=item["options"] + ["During a feed"])
+    assert any("takes none" in f for f in score_mod.respondent_checks(
+        plus, dimension, row, founder_labels=labels))
+
+
 def test_a_band_control_takes_no_options_from_the_model(entry, registry):
     dimension = registry.by_key("solution.effectiveness_threshold")
     row = _row(entry, dimension.key)
