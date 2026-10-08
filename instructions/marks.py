@@ -256,6 +256,21 @@ part of what a number means:
     generic nouns of the problem's own world, offered as answers) goes to the judge with the one
     existing question, as an inflection tie does -- a multi-word term too (*signed off*); a hit in
     the question stem stays a fault outright. `MARKS_VERSION` stays 9.
+44. **v9, amended before any run of record** *(the orchestrator, 2026-10-08; bundle
+    `runs/20261008T115552Z-instructions`)*: **three narrowings of what is the model's.**
+    (i) `option_validity`'s not-sure OPTION is one whose whole normalised label is *I'm not sure*,
+    *Not sure*, *Don't know*, *I don't know*, *Unsure* or *Prefer not to say* -- never a label
+    that contains the words (*Not sure it would fit* is a reason; keel-cloud 058's C3 likewise);
+    and a code-appended escape row is told by its label as 058 appends it (*None of these*,
+    *Nothing*, *Nothing yet*...), never by a fixed slug -- production slugs the founder's escape
+    `none_of_these_<...>`. **(44a)** `no_leak`'s vocabulary, per question, subtracts every stem of
+    the registry's own wording for the dimension being asked -- its `respondent` block (guidance,
+    option_rule, chips), its founder `option_rule` and `code_rule` (the fixed escape labels) and
+    the registry's `common` block; never its `lullaby` example. *In the order you tried them* is
+    registry wording and can never be a leak. **(44b)** Sweep B (the founder's label, phrase or
+    number) reads question STEMS only, never the part's reveal: the reveal is governed by R6's
+    claim-word rule and legitimately names the mechanism's moment (*at quarter end*).
+    `MARKS_VERSION` stays 9.
 """
 
 from __future__ import annotations

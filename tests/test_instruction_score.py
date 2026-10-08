@@ -296,7 +296,7 @@ def _options(result, key):
     ("importance too short", lambda r: _item(r, "problem.importance").__setitem__(
         "options", ["One", "Two", "Three"]), "3 difficulties; Importance takes 4 to 6"),
     ("not sure", lambda r: _options(r, "problem.severity")[0].__setitem__(
-        "label", "Not sure, really"), "not-sure option"),
+        "label", "Not sure."), "not-sure option"),
     ("options on a number", lambda r: _item(r, "problem.duration").__setitem__(
         "options", ["5", "10"]), "options on a number_with_unit control"),
     ("options on the gate", lambda r: _item(r, "problem.prevalence").__setitem__(
@@ -372,6 +372,30 @@ def test_a_set_is_judged_against_the_founders_labels_not_the_codes(registry):
     codes = dict(good, options=[c for c in labels if c != "nothing"] + ["Distractor a"])
     faults = score_mod.respondent_checks(codes, dimension, row, founder_labels=labels)
     assert any("missing founder label(s)" in f for f in faults), faults
+
+
+def test_the_founders_escape_is_told_by_its_label_whatever_production_slugged_it(registry):
+    """Production slugs *None of these* as `none_of_these_<...>`, never the bare `none`: the
+    escape row 058 appends is recognised by its LABEL, not a fixed slug."""
+    lullaby = _lullaby()
+    key = "commercial.existing_sacrifice"
+    dimension, row = registry.by_key(key), lullaby.respondent_questions[key]
+    labels = {("none_of_these_they_cope" if code == "nothing" else code): label
+              for code, label in lullaby.founder_labels(key).items()}
+    assert any(score_mod.is_escape_label(label) for label in labels.values())
+    shown = [label for label in labels.values() if not score_mod.is_escape_label(label)]
+    item = {"key": key, "question": "That last thing?",
+            "options": shown[1:] + shown[:1] + ["Distractor a", "Distractor b"]}
+    faults = score_mod.respondent_checks(item, dimension, row, founder_labels=labels)
+    assert not [f for f in faults if "missing founder label" in f], faults
+
+
+@pytest.mark.parametrize("label", ["None of these", "None of these; they cope with what they have",
+                                   "Nothing", "Nothing yet", "I'd go with my own instinct either way",
+                                   "Something else"])
+def test_every_escape_058_appends_is_known_by_its_label(label):
+    assert score_mod.is_escape_label(label)
+    assert not score_mod.is_escape_label("Nothing on the shelf matched")
 
 
 def test_a_categorical_pick_takes_the_founders_labels_and_no_distractor(registry):
@@ -460,11 +484,43 @@ def test_sweep_b_faults_the_founders_number_in_the_stem(entry, registry):
     assert any("15" in f["evidence"] for f in stem.faults if f.get("sweep") == "B")
 
 
-def test_sweep_b_reads_the_reveal_too(entry, registry):
+def test_sweep_b_never_reads_the_reveal(entry, registry):
+    """Call 44b: the reveal is R6's (claim words) and names the mechanism's moment."""
     score = _respond(entry, registry, 2, lambda r: r["reveal"].__setitem__(
         "body", "One idea: a single whistle starts it."))
-    assert any(f["key"] == "solution.adoption_friction" for f in score.faults
-               if f.get("sweep") == "B")
+    assert not [f for f in score.faults if f.get("sweep") == "B"]
+
+
+def test_a_mechanism_stem_the_registry_itself_words_for_the_dimension_is_no_leak(entry, registry):
+    """Call 44a: wording the registry gives the dimension can never be a leak."""
+    dimension = registry.by_key("problem.severity")
+    assert score_mod.text_mod.stem("beep") not in score_mod.registry_stems(registry, dimension)
+    faulted = _respond(entry, registry, 1, lambda r: _item(r, "problem.severity").__setitem__(
+        "question", "How bad was it before the beep?"))
+    assert [f for f in faulted.faults if f.get("sweep") == "A"]
+    dimension.respondent["guidance"] = dimension.respondent.get("guidance", "") + " Until the beep."
+    assert score_mod.text_mod.stem("beep") in score_mod.registry_stems(registry, dimension)
+    clean = _respond(entry, registry, 1, lambda r: _item(r, "problem.severity").__setitem__(
+        "question", "How bad was it before the beep?"))
+    assert not [f for f in clean.faults if f.get("sweep") == "A"], clean.faults
+
+
+def test_the_registrys_lullaby_example_is_not_registry_wording(registry):
+    dimension = registry.by_key("problem.severity")
+    dimension.lullaby["founder_question"] = "Does the whistle help?"
+    assert score_mod.text_mod.stem("whistle") not in score_mod.registry_stems(registry, dimension)
+
+
+@pytest.mark.parametrize("label, faulted", [
+    ("I'm not sure", True), ("Not sure", True), ("Don't know", True), ("I don't know", True),
+    ("Unsure", True), ("Prefer not to say", True), ("Not sure it would fit", False),
+    ("When working for a new agency they do not know yet", False)])
+def test_a_not_sure_option_is_the_whole_label_never_a_substring(entry, registry, label, faulted):
+    """Call 44: the whole normalised label against the list (keel-cloud 058's C3 likewise)."""
+    score = _respond(entry, registry, 1, lambda r: _options(r, "problem.severity")[0]
+                     .__setitem__("label", label))
+    hits = [f for f in score.faults if "not-sure option" in f.get("evidence", "")]
+    assert bool(hits) is faulted
 
 
 def test_the_b2b_link_scores_the_six_part_three_items(registry):

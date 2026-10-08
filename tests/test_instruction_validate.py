@@ -36,8 +36,9 @@ def test_a_calibration_case_carries_its_vector_and_the_slices_keys_and_no_founde
     batch = _batch(cases)
     problem = next(c for c in _by_screen(batch, "CALIBRATION_QUESTIONS")
                    if c["vector"] == "PROBLEM")
-    assert set(problem) == {"case_id", "screen", "market", "vector", "context", "registry_slice",
+    assert set(problem) >= {"case_id", "screen", "market", "vector", "context", "registry_slice",
                             "result"}
+    assert problem["context"]["window"], "the job's own context, window and all (058 4ea3062)"
     assert problem["registry_slice"][0] == "problem.prevalence"
     assert len(problem["registry_slice"]) == 9
     assert "throws the morning off" not in repr(problem)
@@ -45,12 +46,28 @@ def test_a_calibration_case_carries_its_vector_and_the_slices_keys_and_no_founde
 
 def test_a_respondent_case_carries_the_plan_the_option_sets_and_the_founders_values(cases):
     part1 = next(c for c in _by_screen(_batch(cases), "RESPONDENT_QUESTIONS") if c["part"] == 1)
-    assert set(part1) == {"case_id", "screen", "market", "part", "link", "plan",
-                          "founder_options", "founder_values", "result"}
+    assert set(part1) >= {"case_id", "screen", "market", "part", "link", "plan",
+                          "founder_options", "founder_values", "result", "context", "items"}
     assert part1["link"] == "PRIMARY" and len(part1["plan"]) == 8
     assert part1["founder_values"]["problem.severity"] == {
         "answer": "moderately", "belief_phrase": "throws the morning off"}, \
         "R3 is checked against values the model was never shown (025 D12/D18)"
+
+
+def test_a_respondent_batch_entry_carries_the_jobs_context_window_and_mechanism(cases):
+    """keel-cloud 058 (4ea3062) reads R8's window off the entry's own `context`: without it the
+    validator fell back to Lullaby's 7 nights (18 R8 refusals in 20261008T115552Z, the eval's)."""
+    respondent = [(c, e) for c in cases if c.kind == "RESPONDENT"
+                  for e in _by_screen(_batch([c]), "RESPONDENT_QUESTIONS")]
+    assert respondent
+    for case, entry in respondent:
+        sent = case.payload["context"]
+        assert entry["context"] == sent["context"] and entry["context"]["window"]
+        assert entry["items"] == sent["items"]
+        assert entry.get("mechanism") == sent.get("mechanism")
+        assert entry["case_id"] == case.case_id and entry["screen"] == "RESPONDENT_QUESTIONS"
+    assert any(e.get("mechanism") for c, e in respondent if c.meta.get("part") in (2, 3)
+               and c.meta.get("link") == "PRIMARY")
 
 
 def test_every_other_kind_carries_what_its_applier_reads(cases):

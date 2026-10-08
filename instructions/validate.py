@@ -150,10 +150,18 @@ def build_batch(cases_and_results) -> dict:
                     or context.get("problem_statement")
             entry["seed"] = seed
         elif case.kind == "CALIBRATION":
+            # Every key the job's prompt context carried (context with its window, market, the
+            # dimensions...), the same dict the runner built -- keel-cloud 058 (4ea3062) rebuilds
+            # the case from the entry's own corridor and falls back to Lullaby's for what it lacks.
+            entry.update(dict(context))
             entry.update(market=context.get("market"), vector=case.meta.get("vector"),
                          context=context.get("context"),
                          registry_slice=list(case.meta.get("registry_slice") or []))
         elif case.kind == "RESPONDENT":
+            # The same: context (and so the recall window R8 reads), market, items, founder_options
+            # and -- on parts 2 and 3 of the primary link -- the mechanism, as the job was handed
+            # them; then the validator-only state the model was never shown.
+            entry.update(dict(context))
             entry.update(market=context.get("market"), part=case.meta.get("part"),
                          link=case.meta.get("link"), plan=list(case.meta.get("plan") or []),
                          founder_options=context.get("founder_options"),
@@ -162,6 +170,7 @@ def build_batch(cases_and_results) -> dict:
             entry.update(invitation_id=context.get("invitation_id"), story=context.get("story"))
         elif case.kind == "BRIEF":
             entry.update(market=context.get("market"), standings=context.get("vectors"))
+        entry.update(case_id=case_id, screen=case.screen)     # never a context key's
         entry["result"] = result
         cases.append(entry)
     return {"cases": cases}

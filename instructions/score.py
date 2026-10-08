@@ -67,7 +67,35 @@ def score_compare(case, entry, compare_score) -> CompareCaseScore:
 
 # -------------------------------------------------------------------------------- no_leak (§2.3)
 
-def sweep_a(texts, entry, judge, options=()) -> dict:
+def _strings(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for v in value.values():
+            yield from _strings(v)
+    elif isinstance(value, (list, tuple)):
+        for v in value:
+            yield from _strings(v)
+
+
+def registry_stems(registry, dimension) -> set:
+    """Call 44a: the stems of the registry's own wording for the dimension being asked -- its
+    `respondent` block (guidance, option_rule, chips, the B2B variant), its founder `option_rule`
+    and `code_rule` (where the fixed escape labels are written: *None of these*), and the
+    registry's `common` block (chips, *Something else*, placeholders). Wording the registry tells
+    the model to use is never a leak. Its `lullaby` worked example is not read: it names
+    Lullaby's mechanism."""
+    if dimension is None:
+        return set()
+    founder = dimension.founder or {}
+    texts = list(_strings(dimension.respondent or {}))
+    texts += list(_strings([founder.get("option_rule"),
+                            (founder.get("normalized") or {}).get("code_rule")]))
+    texts += list(_strings(getattr(registry, "common", None) or {}))
+    return {text_mod.stem(w) for t in texts for w in text_mod.content_words(t)}
+
+
+def sweep_a(texts, entry, judge, options=(), exclude=frozenset()) -> dict:
     """Sweep A (call 32): the golden mechanism's stems -- and its multi-word terms, as phrases -- in
     a question's stem (*texts*) and its option labels (*options*). A vocabulary hit **in the stem**
     is a fault outright. A hit on an **inflection-ledger** stem anywhere, or a vocabulary hit
@@ -85,6 +113,8 @@ def sweep_a(texts, entry, judge, options=()) -> dict:
         direct, ties = [], []
         for word in text_mod.content_words(blob):
             stem = text_mod.stem(word)
+            if stem in exclude:                                    # call 44a
+                continue
             if stem in vocabulary:
                 direct.append(word)
             elif stem in ledger:
@@ -127,6 +157,15 @@ def sweep_a(texts, entry, judge, options=()) -> dict:
 # ------------------------------------------------------------- calibration (062; calls 30-32)
 
 _NOT_SURE_RE = re.compile(r"not sure|don't know|dont know|unsure", re.IGNORECASE)
+#: Call 44: a not-sure OPTION is one whose whole label, normalised, is one of these -- never a
+#: label that merely contains the words (*Not sure it would fit* is a reason, not a chip);
+#: keel-cloud 058's C3 makes the same change.
+_NOT_SURE_LABELS = frozenset({"im not sure", "not sure", "dont know", "i dont know", "unsure",
+                              "prefer not to say"})
+
+
+def _is_not_sure_label(label) -> bool:
+    return _label_form(label) in _NOT_SURE_LABELS
 #: C4's ceiling on a belief phrase, in characters (keel-cloud 062, founder decision 32).
 _BELIEF_PHRASE_MAX = 120
 _SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -279,7 +318,7 @@ def calibration_checks(question: dict, dimension, *, b2b: bool = False,
                           f"longer than {_BELIEF_PHRASE_MAX}")
         elif _NOT_SURE_RE.search(stripped):
             faults.append(f"option {label!r}: its belief_phrase carries a not-sure word")
-        if _NOT_SURE_RE.search(str(label or "")):
+        if _is_not_sure_label(label):
             faults.append(f"option {label!r} is a not-sure option -- the chip is UI")
     template = question.get("belief_template")
     if template is not None:
@@ -346,7 +385,8 @@ def score_calibration(case, entry, registry, result, *, judge=None,
         if vector == "PROBLEM":
             score.leak_of += 1
             swept = sweep_a(_question_texts(question), entry, judge,
-                            options=_option_texts(question))
+                            options=_option_texts(question),
+                            exclude=registry_stems(registry, registry.by_key(key)))
             score.leak_hits += swept["hits"]
             score.leak_judged += swept["judged"]
             if swept["fault"]:
@@ -438,7 +478,7 @@ def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None
     if any(_SOMETHING_ELSE_RE.match(label) for label in labels):
         faults.append("'Something else' written by the model; code appends it")
     for label in labels:
-        if _NOT_SURE_RE.search(label):
+        if _is_not_sure_label(label):
             faults.append(f"option {label!r} is a not-sure option -- the chip is UI")
     coded = [c for c in codes if c]
     repeated = sorted({c for c in coded if coded.count(c) > 1})
@@ -466,7 +506,8 @@ def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None
     from .corpus import FOUNDER_NONE                          # noqa: PLC0415
     shown = founder_labels or {c: c for c in want}
     founder = {_label_form(label): code for code, label in shown.items()}
-    required = [c for c in shown if c not in RESPONDENT_ESCAPES and c not in FOUNDER_NONE]
+    required = [c for c in shown if c not in RESPONDENT_ESCAPES and c not in FOUNDER_NONE
+                and not is_escape_label(shown[c])]
     matched, distractors = set(), 0
     for label, code in zip(labels, codes):
         hit = code if code in shown else founder.get(_label_form(label))
@@ -486,6 +527,24 @@ def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None
     return faults
 
 
+#: The escape rows keel-cloud 058 appends by code (`RespondentQuestionsRules.ESCAPES`, 4ea3062),
+#: by their LABEL: production slugs the founder's escape (*None of these*) as
+#: `none_of_these_<...>`, never the bare `none`, so a fixed slug cannot find it.
+ESCAPE_LABELS = frozenset({
+    "nothing much", "at no point that time", "nothing would have changed",
+    "nothing would have made it worth it", "id go with my own instinct either way",
+    "i wouldnt have reached for it at all", "it wouldnt be useful to me", "nothing",
+    "it was free or a gift", "it was free", "nothing it never came up", "nothing yet",
+    "something else", "none of these"})
+
+
+def is_escape_label(label) -> bool:
+    """A code-appended escape row, told by its label (*None of these; they cope with what they
+    have* included: the founder's own escape, which the respondent screen's code appends)."""
+    form = _label_form(label)
+    return form in ESCAPE_LABELS or form.startswith("none of these")
+
+
 def _label_form(label) -> str:
     """keel-cloud 058's R2 comparison: case, apostrophes, whitespace and punctuation ignored."""
     text = re.sub(r"['\u2018\u2019]", "", str(label or "").lower())
@@ -495,9 +554,11 @@ def _label_form(label) -> str:
 def sweep_b(texts, dimension, founder: dict, window=DEFAULT_WINDOW) -> dict:
     """Sweep B (call 32): the founder's own value for dimension *d* -- the chosen phrase, or a
     number they gave that the registry did not fix -- in respondent item *d*. A hit is a fault: the
-    stranger is being told the answer the founder hopes for. *texts* are the item's stem and the
-    part's reveal only, never its option labels (call 40): a fixed-code control shows every rung,
-    the founder's among them, and a set shows the founder's labels verbatim by R2."""
+    stranger is being told the answer the founder hopes for. *texts* are the item's question
+    stem only -- never its option labels (call 40: a fixed-code control shows every rung, the
+    founder's among them, and a set shows the founder's labels verbatim by R2), and never the
+    part's reveal (call 44b: R6's claim-word rule governs it, and it names the mechanism's
+    moment)."""
     blob = " ".join(str(t) for t in texts if t)
     hits = []
     phrase = text_mod.normalise((founder or {}).get("belief_phrase"))
@@ -520,7 +581,7 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
                      failed: str | None = None) -> RespondentScore:
     """One `RESPONDENT_QUESTIONS` case (063): coverage against the plan's part (call 30), validity
     on the respondent side of §2.2, sweep A on Part 1's items (the stranger has not been told the
-    idea yet) and sweep B on every item's stem and the part's reveal (the founder's own values, never
+    idea yet) and sweep B on every item's stem, never the reveal (call 44b; the founder's own values, never
     shown to a stranger; call 40: not its option labels)."""
     part = case.meta.get("part")
     link = case.meta.get("link") or "PRIMARY"
@@ -534,8 +595,6 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
         score.failed = failed or "the result carried no items list"
         return score
     items = [i for i in items if isinstance(i, dict)]
-    revealed = result.get("reveal") if isinstance(result.get("reveal"), dict) else {}
-    reveal = [revealed.get("title"), revealed.get("body")]
     produced = [i.get("key") for i in items]
     coverage = _coverage_faults(produced, keys)
     score.coverage_passed = not coverage
@@ -560,7 +619,8 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
         if part == 1 and link == "PRIMARY":
             score.leak_of += 1
             swept = sweep_a([item.get("question")], entry, judge,          # call 43
-                            options=[_option_label(o) for o in item.get("options") or []])
+                            options=[_option_label(o) for o in item.get("options") or []],
+                            exclude=registry_stems(registry, dimension))
             score.leak_hits += swept["hits"]
             score.leak_judged += swept["judged"]
             if swept["fault"]:
@@ -569,7 +629,7 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
             else:
                 score.leak_clean += 1
         score.leak_of += 1
-        swept = sweep_b([item.get("question")] + reveal, dimension, founder,   # call 40
+        swept = sweep_b([item.get("question")], dimension, founder,   # calls 40, 44b
                         context_mod.window_of(entry))
         score.leak_hits += swept["hits"]
         if swept["fault"]:
