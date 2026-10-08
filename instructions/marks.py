@@ -239,6 +239,23 @@ part of what a number means:
     twice. Shape refusals are not redrawn and stay an absolute zero on the raw answer. A v9
     bundle taken before this call has no redraw and is re-scored on the raw answer, saying so.
     `MARKS_VERSION` stays 9.
+42. **v9, amended before any run of record** *(the orchestrator, 2026-10-08; bundle
+    `runs/20261008T115552Z-instructions`)*: **coverage's observed figure for money sets.** A set
+    dimension's money median (Existing sacrifice) was handed to `BRIEF` as a bare *165* and the
+    check then asked for *165*. It is written in the founder's unit, *£165 per three months* --
+    the currency's symbol and the period from the standing, else the one every answer's `cost`
+    agrees on, the currency else the market's (the price likewise, as keel-cloud's
+    `observedFigure` writes it) -- and a set whose money cannot be written so carries no figure and
+    is asked instead for one of its own option counts as `N of M`. The founder's phrase is asked
+    for exactly as strictly as brief.md asks: on a bet whose verdict is `NOT_HOLDING_UP` ("The
+    four things the paragraph says", 2: `founder_phrase` against `observed`), verbatim -- brief.md
+    licenses no paraphrase -- and on no other bet. `MARKS_VERSION` stays 9.
+43. **v9, amended before any run of record** *(the orchestrator, 2026-10-08; same bundle)*:
+    **a mechanism stem in an option label is a tie.** Sweep A's direct hit inside an OPTION LABEL
+    of a PROBLEM calibration question or a Part 1 respondent item (*phone*, *wheel*, *caught* --
+    generic nouns of the problem's own world, offered as answers) goes to the judge with the one
+    existing question, as an inflection tie does -- a multi-word term too (*signed off*); a hit in
+    the question stem stays a fault outright. `MARKS_VERSION` stays 9.
 """
 
 from __future__ import annotations

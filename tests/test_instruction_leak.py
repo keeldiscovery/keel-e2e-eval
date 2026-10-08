@@ -47,11 +47,22 @@ def test_a_mechanism_stem_in_a_problem_question_is_a_fault_naming_the_word(entry
     assert judge.calls == [], "a plain hit is code's to decide, never the judge's"
 
 
-def test_a_mechanism_phrase_in_an_option_is_a_fault_too(entry, registry):
+def test_a_mechanism_phrase_in_an_option_goes_to_the_judge_and_same_is_a_fault(entry, registry):
+    """Call 43: an option label's hit, phrase or stem, is the judge's -- `SAME` faults it."""
     result = fx.calibration_result(registry, "PROBLEM")
     severity = next(q for q in result["questions"] if q["key"] == "problem.severity")
     severity["options"][0]["label"] = "Barely, the key ring helps"
-    score = _score(entry, registry, result, fx.FakeJudge())
+    judge = fx.FakeJudge(answer=True)
+    score = _score(entry, registry, result, judge)
+    assert len(judge.calls) == 1
+    assert any("key ring" in f["evidence"] for f in score.faults if f["check"] == "no_leak")
+
+
+def test_a_mechanism_phrase_in_the_stem_is_a_fault_outright(entry, registry):
+    judge = fx.FakeJudge(answer=False)
+    result = _with_question(registry, "problem.severity", "Would a key ring have helped?")
+    score = _score(entry, registry, result, judge)
+    assert judge.calls == []
     assert any("key ring" in f["evidence"] for f in score.faults if f["check"] == "no_leak")
 
 
@@ -99,3 +110,31 @@ def test_judged_fraction_is_the_judged_hits_over_all_hits(entry, registry):
     assert totals["leak_hits"] == 2 and totals["leak_judged"] == 1
     assert totals["judged_fraction"] == 0.5
     assert totals["no_leak"] == 17 / 18
+
+
+# --------------------------------------------------- call 43: a stem in an option label is a tie
+
+@pytest.mark.parametrize("answer, faulted", [(True, True), (False, False)])
+def test_a_mechanism_stem_only_in_an_option_label_goes_to_the_judge(entry, registry, answer,
+                                                                    faulted):
+    judge = fx.FakeJudge(answer=answer)
+    result = fx.calibration_result(registry, "PROBLEM")
+    severity = next(q for q in result["questions"] if q["key"] == "problem.severity")
+    severity["options"][0]["label"] = "Barely, a beep would do"
+    score = _score(entry, registry, result, judge)
+    assert len(judge.calls) == 1 and score.leak_judged == 1
+    leak = [f for f in score.faults if f["check"] == "no_leak"]
+    assert bool(leak) is faulted
+    if leak:
+        assert "option label" in leak[0]["evidence"] and "beep" in leak[0]["evidence"]
+
+
+def test_a_mechanism_stem_in_the_stem_stays_a_direct_fault_with_option_hits_beside_it(entry,
+                                                                                    registry):
+    judge = fx.FakeJudge(answer=False)
+    result = _with_question(registry, "problem.severity", "How bad is it before the beep?")
+    severity = next(q for q in result["questions"] if q["key"] == "problem.severity")
+    severity["options"][0]["label"] = "Barely, a beep would do"
+    score = _score(entry, registry, result, judge)
+    assert judge.calls == [], "a stem hit is code's to decide"
+    assert any("beep" in f["evidence"] for f in score.faults if f["check"] == "no_leak")

@@ -341,6 +341,24 @@ def _allowed_counts(vectors: list) -> set:
     return allowed
 
 
+def _option_pairs(dimension: dict) -> set:
+    """A set dimension's own `N of M`s: every `optionCounts` row of `n`."""
+    counts, n = dimension.get("option_counts"), dimension.get("n_anchored")
+    pairs = set()
+    if isinstance(counts, str) and n is not None:
+        for part in counts.split(","):
+            if "=" in part:
+                try:
+                    pairs.add((int(part.split("=")[1].strip()), n))
+                except ValueError:
+                    pass
+    return pairs
+
+
+def _counts_in(paragraph: str) -> set:
+    return {(_number(m.group(1)), _number(m.group(2))) for m in _COUNT_RE.finditer(paragraph)}
+
+
 def _coverage(paragraph: str, vectors: list) -> tuple[bool, str]:
     lowered = paragraph.casefold()
     faults, notes = [], []
@@ -354,8 +372,19 @@ def _coverage(paragraph: str, vectors: list) -> tuple[bool, str]:
         if observed and observed not in paragraph:
             faults.append(f"{name}'s deciding line ({line.get('key')}) reads {observed!r} and the "
                           "paragraph does not quote it")
+        # Call 42: a set's line with no money figure (and no band counts) is said in its option counts -- one of them,
+        # as `N of M`, is what the check asks for.
+        own = _option_pairs(line) if line.get("inside") is None else set()
+        if not observed and own and not (_counts_in(paragraph) & own):
+            faults.append(f"{name}'s deciding line ({line.get('key')}) is a set and the paragraph "
+                          "quotes none of its option counts as N of M")
+        # brief.md, "The four things the paragraph says", 2: `founder_phrase` against `observed`
+        # on every bet whose verdict is `NOT_HOLDING_UP` -- and on no other (a holding bet is said
+        # "with the count that settled it", a split "by the answers they actually gave"). The
+        # phrase is "what the founder said ... and nothing else": no paraphrase is licensed.
         phrase = line.get("founder_phrase")
-        if observed and phrase and phrase.casefold() not in lowered:
+        if (vector.get("verdict") == "NOT_HOLDING_UP" and observed and phrase
+                and phrase.casefold() not in lowered):
             faults.append(f"{name}'s deciding line was said by the founder as {phrase!r} and the "
                           "paragraph does not carry it")
         notes.append(f"{name}: deciding line {line.get('key')} checked")

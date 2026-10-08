@@ -334,17 +334,74 @@ def build_interpret(entry, person, keys=None) -> dict:
 
 # ------------------------------------------------------------------------------------ BRIEF (065)
 
+#: Call 42: a money figure carries its currency's symbol, as keel-cloud's `Market.symbolFor` does
+#: (an unlisted currency is its code and a space); a currency the standing and the answers do not
+#: name is the market's own.
+CURRENCY_SYMBOL = {"GBP": "£", "USD": "$", "EUR": "€", "JPY": "¥"}
+MARKET_CURRENCY = {"GB": "GBP", "US": "USD", "IE": "EUR", "DE": "EUR", "FR": "EUR", "JP": "JPY"}
+
+
+def _number_words(value) -> str:
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return str(value)
+
+
+def _per_words(per) -> str:
+    """keel-cloud's `perWords`: *per month*, *one-off* as it is; `three_months` read as words."""
+    words = str(per).replace("_", " ").strip()
+    return words if words.startswith("per ") or words == "one-off" else f"per {words}"
+
+
+def is_set(entry, key: str, standing: dict) -> bool:
+    """A set dimension: the founder picked several codes, or the standing is option counts."""
+    answer = (entry.founder_calibration.get(key) or {}).get("answer")
+    return isinstance(answer, list) or bool(standing.get("optionCounts"))
+
+
+def _money_of(entry, key: str, standing: dict) -> tuple[str | None, str | None]:
+    """The currency and the period a set's money median is in: the standing's own, else the one
+    every answer's `cost` agrees on (the median is taken over them), the currency else the
+    market's. `(None, None)` where the answers carry no money at all."""
+    costs = [(p.picks.get(key) or {}).get("cost") for p in entry.people()
+             if isinstance(p.picks.get(key), dict)]
+    costs = [c for c in costs if isinstance(c, dict)]
+    if not costs and not (standing.get("currency") or standing.get("per")):
+        return None, None
+    currencies = {c.get("currency") for c in costs if c.get("currency")}
+    periods = {c.get("per") for c in costs if c.get("per")}
+    currency = standing.get("currency") or (currencies.pop() if len(currencies) == 1 else None)
+    currency = currency or MARKET_CURRENCY.get((entry.market or {}).get("country"))
+    per = standing.get("per") or (periods.pop() if len(periods) == 1 else None)
+    return currency, per
+
+
 def observed_of(entry, key: str, standing: dict) -> str | None:
     """The deciding line's number, **in the founder's own unit and not keel-cloud's phrase** --
     the median with the unit the founder's answer carried (judgement call 19's rule, at v9: this
     repo does not own `Measure.say` and keeps no copy of it). `None` where the standing carries no
-    median."""
+    median.
+
+    **Call 42**: a set dimension's median is money (Existing sacrifice: what they already pay), and
+    a bare *165* is a number nobody can quote. It is written in the founder's unit -- *£165 per
+    three months*, the currency's symbol and the period from the standing, else from the answers
+    the median was taken over -- and a set whose money cannot be written so is `None`: the check
+    then asks for its option counts (`N of M`), which is what such a paragraph can say."""
     median = standing.get("median")
     if median is None:
         return None
-    if isinstance(median, float) and median.is_integer():
-        median = int(median)
+    if is_set(entry, key, standing):
+        currency, per = _money_of(entry, key, standing)
+        if not (currency and per):
+            return None
+        symbol = CURRENCY_SYMBOL.get(currency, f"{currency} ")
+        return f"{symbol}{_number_words(median)} {_per_words(per)}"
+    median = _number_words(median)
     answer = (entry.founder_calibration.get(key) or {}).get("answer")
+    if isinstance(answer, dict) and answer.get("currency"):
+        # The price, as keel-cloud's `observedFigure` writes it: symbol, number, `per` words.
+        return f"{CURRENCY_SYMBOL.get(answer['currency'], answer['currency'] + ' ')}{median}" \
+            + (f" {_per_words(answer.get('per'))}" if answer.get("per") else "")
     unit = answer.get("unit") if isinstance(answer, dict) else None
     return f"{median} {unit}" if unit else str(median)
 

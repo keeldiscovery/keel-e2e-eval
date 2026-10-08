@@ -67,42 +67,60 @@ def score_compare(case, entry, compare_score) -> CompareCaseScore:
 
 # -------------------------------------------------------------------------------- no_leak (§2.3)
 
-def sweep_a(texts, entry, judge) -> dict:
+def sweep_a(texts, entry, judge, options=()) -> dict:
     """Sweep A (call 32): the golden mechanism's stems -- and its multi-word terms, as phrases -- in
-    a question's text and options. A vocabulary hit is a fault outright. A hit on an
-    **inflection-ledger** stem is a tie: the judge is asked once, cached, whether the question tells
-    a stranger what the solution is, and only `SAME` is a fault. Every other word is the problem's
-    own and is no hit at all.
+    a question's stem (*texts*) and its option labels (*options*). A vocabulary hit **in the stem**
+    is a fault outright. A hit on an **inflection-ledger** stem anywhere, or a vocabulary hit
+    **only in an option label** (call 43: *phone*, *wheel*, *caught* -- generic nouns of the
+    problem's own world, offered as answers rather than asked about; a multi-word term likewise,
+    *signed off*), is a tie: the judge is asked
+    once, cached, whether the question tells a stranger what the solution is, and only `SAME` is a
+    fault. Every other word is the problem's own and is no hit at all.
 
-    Returns `{fault: bool, hits: [word...], judged: int, evidence: str}`."""
-    blob = " ".join(str(t) for t in texts if t)
+    Returns `{fault: bool, hits: int, judged: int, evidence: str}`."""
     vocabulary = entry.vocabulary()
     ledger = entry.inflection_ledger()
-    hits, ties = [], []
-    for word in text_mod.content_words(blob):
-        stem = text_mod.stem(word)
-        if stem in vocabulary:
-            hits.append(word)
-        elif stem in ledger:
-            ties.append(word)
-    for phrase in entry.mechanism_phrases():
-        if text_mod.phrase_in(phrase, blob):
-            hits.append(" ".join(phrase))
+
+    def swept(blob):
+        direct, ties = [], []
+        for word in text_mod.content_words(blob):
+            stem = text_mod.stem(word)
+            if stem in vocabulary:
+                direct.append(word)
+            elif stem in ledger:
+                ties.append(word)
+        for phrase in entry.mechanism_phrases():
+            if text_mod.phrase_in(phrase, blob):
+                direct.append(" ".join(phrase))
+        return direct, ties
+
+    stem_blob = " ".join(str(t) for t in texts if t)
+    option_blob = " ".join(str(t) for t in options if t)
+    blob = " ".join(b for b in (stem_blob, option_blob) if b)
+    hits, stem_ties = swept(stem_blob)
+    option_hits, option_ties = swept(option_blob)
+    ties = stem_ties + option_ties
     judged = 0
     tie_fault = False
-    if ties and not hits:
+    if (ties or option_hits) and not hits:
         judged = 1
         tie_fault = bool(judge is not None and judge.reveals_solution(
-            blob, entry.mechanism_one_liner(), context=",".join(sorted(set(ties)))))
+            blob, entry.mechanism_one_liner(),
+            context=",".join(sorted(set(ties + option_hits)))))
     fault = bool(hits) or tie_fault
     if hits:
         evidence = f"mechanism word(s) {sorted(set(hits))}"
-    elif ties:
-        evidence = (f"inflection tie(s) {sorted(set(ties))}, judged "
+    elif ties or option_hits:
+        parts = []
+        if option_hits:
+            parts.append(f"mechanism word(s) in an option label {sorted(set(option_hits))}")
+        if ties:
+            parts.append(f"inflection tie(s) {sorted(set(ties))}")
+        evidence = (f"{', '.join(parts)}, judged "
                     f"{'SAME -- it reveals the solution' if tie_fault else 'DIFFERENT'}")
     else:
         evidence = ""
-    return {"fault": fault, "hits": len(hits) + len(ties), "judged": judged,
+    return {"fault": fault, "hits": len(hits) + len(option_hits) + len(ties), "judged": judged,
             "evidence": evidence}
 
 
@@ -278,7 +296,12 @@ def calibration_checks(question: dict, dimension, *, b2b: bool = False,
 
 
 def _question_texts(question: dict) -> list:
-    texts = [question.get("question")]
+    """The question's stem, alone (call 43: its options are swept apart)."""
+    return [question.get("question")]
+
+
+def _option_texts(question: dict) -> list:
+    texts = []
     for option in question.get("options") or []:
         if isinstance(option, dict):
             texts += [option.get("label"), option.get("belief_phrase")]
@@ -322,7 +345,8 @@ def score_calibration(case, entry, registry, result, *, judge=None,
             score.validity_hit += 1
         if vector == "PROBLEM":
             score.leak_of += 1
-            swept = sweep_a(_question_texts(question), entry, judge)
+            swept = sweep_a(_question_texts(question), entry, judge,
+                            options=_option_texts(question))
             score.leak_hits += swept["hits"]
             score.leak_judged += swept["judged"]
             if swept["fault"]:
@@ -533,10 +557,10 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
                                  "evidence": "; ".join(checks)})
         else:
             score.validity_hit += 1
-        texts = [item.get("question")] + [_option_label(o) for o in item.get("options") or []]
         if part == 1 and link == "PRIMARY":
             score.leak_of += 1
-            swept = sweep_a(texts, entry, judge)
+            swept = sweep_a([item.get("question")], entry, judge,          # call 43
+                            options=[_option_label(o) for o in item.get("options") or []])
             score.leak_hits += swept["hits"]
             score.leak_judged += swept["judged"]
             if swept["fault"]:

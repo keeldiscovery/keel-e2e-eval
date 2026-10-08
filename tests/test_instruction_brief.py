@@ -232,3 +232,83 @@ def test_one_brief_case_an_entry_never_one_a_vector(tmp_path, entry):
     cases = prompts_mod.build_cases(entry, fx.exported(tmp_path), fx.instructions(),
                                     fx.FakeRuntime, n_runs=1)
     assert [c.case_id for c in cases if c.kind == "BRIEF"] == ["09-fixture/BRIEF/run1"]
+
+
+# ------------------------------------------- call 42: a money set's observed figure, and its counts
+
+class _Person:
+    def __init__(self, picks):
+        self.picks = picks
+
+
+class _Entry:
+    def __init__(self, costs, market="GB", answer=("staff_hours", "write_offs")):
+        self.market = {"country": market}
+        self.founder_calibration = {"commercial.existing_sacrifice": {"answer": list(answer)}}
+        self._people = [_Person({"commercial.existing_sacrifice": {"bought": "staff_hours",
+                                                                   "cost": c}}) for c in costs]
+
+    def people(self):
+        return self._people
+
+
+_SET_STANDING = {"status": "NOT_HOLDING_UP", "n": 8, "median": 165,
+                 "optionCounts": "staff_hours=4, write_offs=4, nothing=0"}
+
+
+def test_a_money_sets_median_is_written_in_the_founders_unit():
+    entry = _Entry([{"value": 150, "currency": "GBP", "per": "three_months"}] * 3)
+    assert context_mod.observed_of(entry, "commercial.existing_sacrifice", _SET_STANDING) \
+        == "£165 per three months"
+    dollars = _Entry([{"value": 300, "currency": "USD", "per": "three_months"}], market="US")
+    assert context_mod.observed_of(dollars, "commercial.existing_sacrifice",
+                                   dict(_SET_STANDING, median=27.5)) == "$27.5 per three months"
+
+
+def test_the_standings_own_currency_and_period_come_first_and_the_market_fills_a_gap():
+    entry = _Entry([{"value": 150, "per": "three_months"}])
+    assert context_mod.observed_of(entry, "commercial.existing_sacrifice", _SET_STANDING) \
+        == "£165 per three months", "no currency on the answers: the market's"
+    standing = dict(_SET_STANDING, currency="EUR", per="month")
+    assert context_mod.observed_of(entry, "commercial.existing_sacrifice", standing) \
+        == "€165 per month"
+
+
+def test_a_set_whose_money_cannot_be_written_has_no_figure():
+    mixed = _Entry([{"value": 1, "currency": "GBP", "per": "month"},
+                    {"value": 2, "currency": "GBP", "per": "year"}])
+    assert context_mod.observed_of(mixed, "commercial.existing_sacrifice", _SET_STANDING) is None
+
+
+def _set_vector(observed, verdict="NOT_HOLDING_UP"):
+    return [{"vector": "COMMERCIAL", "verdict": verdict, "deciding": "commercial.existing_sacrifice",
+             "dimensions": [{"key": "commercial.existing_sacrifice", "name": "Existing sacrifice",
+                             "founder_phrase": "staff hours and written-off stock",
+                             "observed": observed, "inside": None, "outside": None,
+                             "n_anchored": 8,
+                             "option_counts": "staff_hours=4, write_offs=4, nothing=0"}]}]
+
+
+def test_coverage_asks_a_money_set_for_its_figure_in_the_founders_unit():
+    vectors = _set_vector("£165 per three months")
+    said = ("You said staff hours and written-off stock; the middle of what they already give up "
+            "is £165 per three months.")
+    assert brief_mod._coverage(said, vectors)[0] is True
+    met, finding = brief_mod._coverage(said.replace("£165 per three months", "165"), vectors)
+    assert met is False and "£165 per three months" in finding
+
+
+def test_coverage_asks_a_set_with_no_figure_for_one_of_its_option_counts():
+    vectors = _set_vector(None, verdict="PEOPLE_DISAGREE")
+    assert brief_mod._coverage("People disagree: 4 of 8 give up staff hours.", vectors)[0] is True
+    met, finding = brief_mod._coverage("People disagree on what they give up.", vectors)
+    assert met is False and "option counts" in finding
+
+
+def test_the_founders_phrase_is_asked_for_only_on_a_bet_that_is_not_holding_up():
+    """brief.md, "The four things", 2: `founder_phrase` against `observed` on a NOT_HOLDING_UP bet."""
+    paragraph = "They already give up £165 per three months, split 4 of 8 and 4 of 8."
+    assert brief_mod._coverage(paragraph, _set_vector("£165 per three months",
+                                                      verdict="HOLDING_UP"))[0] is True
+    met, finding = brief_mod._coverage(paragraph, _set_vector("£165 per three months"))
+    assert met is False and "staff hours and written-off stock" in finding

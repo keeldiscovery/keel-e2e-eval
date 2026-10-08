@@ -411,6 +411,17 @@ def test_sweep_a_runs_on_part_one_and_sweep_b_on_every_part(entry, registry):
     assert [f["sweep"] for f in faults] == ["B"] and "a shorter search" in faults[0]["evidence"]
 
 
+def test_a_part_one_mechanism_stem_only_in_an_option_label_is_judged_not_faulted(entry, registry):
+    """Call 43: *phone*, *wheel*, *caught* -- a stem offered as an answer goes to the judge."""
+    def mutate(r):
+        item = next(i for i in r["items"] if i.get("options"))
+        _set_option(r, item["key"], 0, "The beep went off")
+    judge = fx.FakeJudge(answer=False)
+    score = _respond(entry, registry, 1, mutate, judge=judge)
+    assert len(judge.calls) == 1
+    assert not [f for f in score.faults if f.get("sweep") == "A"]
+
+
 def test_sweep_b_catches_a_founder_number_the_registry_did_not_fix(entry, registry):
     score = _respond(entry, registry, 1, lambda r: _item(r, "problem.duration").__setitem__(
         "question", "Was it more like 15 minutes?"))
