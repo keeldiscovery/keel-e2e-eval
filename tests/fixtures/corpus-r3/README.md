@@ -113,3 +113,10 @@ The seven entries are canon's bytes again (`canon/designs/measured-beliefs/corpu
 as `registry.RecallWindow` (a mirror of 058's record): `{window}` = *the last 7 nights* / *the last
 shift*, `{window_unit}` = *nights out of 7*, `C7`'s accepted namings for the gate. The digests in
 `instructions/marks.py` are these files'.
+
+## Erratum 2026-10-08 — keel-cloud 058 `ed45b87`
+
+`06-repeatline.yaml` is canon's corrected bytes (sha256 `991bd046…ff43f61`): `problem.workaround_burden`'s
+founder label *Point the patient to the app* is *Point the patient to ordering online*, code
+`push_to_app` → `point_to_online` — "app" named the product in a Part 1 option (R4). An r3 erratum,
+not a revision.

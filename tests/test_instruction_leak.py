@@ -47,14 +47,15 @@ def test_a_mechanism_stem_in_a_problem_question_is_a_fault_naming_the_word(entry
     assert judge.calls == [], "a plain hit is code's to decide, never the judge's"
 
 
-def test_a_mechanism_phrase_in_an_option_goes_to_the_judge_and_same_is_a_fault(entry, registry):
-    """Call 43: an option label's hit, phrase or stem, is the judge's -- `SAME` faults it."""
+def test_a_mechanism_phrase_in_a_calibration_option_is_a_fault_outright(entry, registry):
+    """Call 45: a PROBLEM calibration question is swept for the product words and the golden
+    `mechanism_terms` only, stem, options and phrases alike, and nothing goes to the judge."""
     result = fx.calibration_result(registry, "PROBLEM")
     severity = next(q for q in result["questions"] if q["key"] == "problem.severity")
     severity["options"][0]["label"] = "Barely, the key ring helps"
-    judge = fx.FakeJudge(answer=True)
+    judge = fx.FakeJudge(answer=False)
     score = _score(entry, registry, result, judge)
-    assert len(judge.calls) == 1
+    assert judge.calls == []
     assert any("key ring" in f["evidence"] for f in score.faults if f["check"] == "no_leak")
 
 
@@ -73,24 +74,20 @@ def test_a_problem_word_is_no_hit_at_all(entry, registry):
     assert score.leak_hits == 0 and score.leak_clean == 9
 
 
-@pytest.mark.parametrize("answer, faulted", [(True, True), (False, False)])
-def test_an_inflection_tie_goes_to_the_judge_once_and_its_answer_decides(entry, registry,
-                                                                         answer, faulted):
-    judge = fx.FakeJudge(answer=answer)
-    result = _with_question(registry, "problem.severity", "How long were you listening for them?")
-    score = _score(entry, registry, result, judge)
-    assert len(judge.calls) == 1
-    assert "the commuter" in judge.calls[0]["mechanism"], "the golden one-liner, not a live one"
-    assert score.leak_judged == 1 and score.leak_hits == 1
-    assert any(f["check"] == "no_leak" for f in score.faults) is faulted
-
-
-def test_the_judge_is_cached_so_a_repeated_question_is_asked_once(entry, registry):
-    judge = fx.FakeJudge(answer=False)
-    result = _with_question(registry, "problem.severity", "How long were you listening for them?")
-    _score(entry, registry, result, judge)
-    _score(entry, registry, result, judge)
-    assert len(judge.calls) == 1
+@pytest.mark.parametrize("text, hit", [
+    ("Did you open an app to look?", "app"), ("Was there a website for it?", "website"),
+    ("How long were you listening for them?", None), ("Did the tag go off?", "tag")])
+def test_calibration_sweeps_the_product_words_and_the_terms_and_nothing_derived(entry, registry,
+                                                                               text, hit):
+    """Call 45: *listening* is in the derived vocabulary's ledger, not a term -- the runtime
+    cannot refuse it at the PROBLEM calibration step, so neither does the mark."""
+    judge = fx.FakeJudge(answer=True)
+    score = _score(entry, registry, _with_question(registry, "problem.severity", text), judge)
+    leak = [f for f in score.faults if f["check"] == "no_leak"]
+    assert judge.calls == [] and score.leak_judged == 0
+    assert bool(leak) is bool(hit)
+    if hit:
+        assert hit in leak[0]["evidence"]
 
 
 def test_a_solution_calibration_question_is_not_swept(entry, registry):
@@ -100,41 +97,70 @@ def test_a_solution_calibration_question_is_not_swept(entry, registry):
     assert score.leak_of == 0 and not [f for f in score.faults if f["check"] == "no_leak"]
 
 
-def test_judged_fraction_is_the_judged_hits_over_all_hits(entry, registry):
-    judge = fx.FakeJudge(answer=False)
-    plain = _score(entry, registry,
-                   _with_question(registry, "problem.severity", "Before the beep?"), judge)
-    tie = _score(entry, registry,
-                 _with_question(registry, "problem.duration", "Listening how long?"), judge)
-    totals = score_mod.totals([plain, tie], judge_calls=judge.call_count)
-    assert totals["leak_hits"] == 2 and totals["leak_judged"] == 1
-    assert totals["judged_fraction"] == 0.5
-    assert totals["no_leak"] == 17 / 18
+# ------------------------------- Part 1 respondent items keep the full vocabulary and the judge
 
+def _part1(entry, registry, key, judge, *, question=None, option=None):
+    result = fx.respondent_result(entry, 1)
+    item = next(i for i in result["items"] if i["key"] == key)
+    if question is not None:
+        item["question"] = question
+    if option is not None:
+        first = item["options"][0]
+        if isinstance(first, dict):
+            first["label"] = option
+        else:
+            item["options"][0] = option
+    return score_mod.score_respondent(fx.respondent_case(entry, 1), entry, registry,
+                                      entry.plan(), result, judge=judge)
 
-# --------------------------------------------------- call 43: a stem in an option label is a tie
 
 @pytest.mark.parametrize("answer, faulted", [(True, True), (False, False)])
-def test_a_mechanism_stem_only_in_an_option_label_goes_to_the_judge(entry, registry, answer,
-                                                                    faulted):
+def test_an_inflection_tie_goes_to_the_judge_once_and_its_answer_decides(entry, registry,
+                                                                         answer, faulted):
     judge = fx.FakeJudge(answer=answer)
-    result = fx.calibration_result(registry, "PROBLEM")
-    severity = next(q for q in result["questions"] if q["key"] == "problem.severity")
-    severity["options"][0]["label"] = "Barely, a beep would do"
-    score = _score(entry, registry, result, judge)
+    score = _part1(entry, registry, "problem.severity", judge,
+                   question="How long were you listening for them?")
+    assert len(judge.calls) == 1
+    assert "the commuter" in judge.calls[0]["mechanism"], "the golden one-liner, not a live one"
+    assert score.leak_judged == 1
+    assert any(f.get("sweep") == "A" for f in score.faults) is faulted
+
+
+def test_the_judge_is_cached_so_a_repeated_question_is_asked_once(entry, registry):
+    judge = fx.FakeJudge(answer=False)
+    _part1(entry, registry, "problem.severity", judge, question="How long were you listening?")
+    _part1(entry, registry, "problem.severity", judge, question="How long were you listening?")
+    assert len(judge.calls) == 1
+
+
+def test_judged_fraction_is_items_judged_over_items_with_any_hit(entry, registry):
+    """Call 45 / decision 47's companion: one unit, items over items -- never items over words."""
+    judge = fx.FakeJudge(answer=False)
+    plain = _part1(entry, registry, "problem.severity", judge,
+                   question="Before the beep, and the whistle, and the tag?")
+    tie = _part1(entry, registry, "problem.duration", judge, question="Listening how long?")
+    totals = score_mod.totals(respondent_scores=[plain, tie], judge_calls=judge.call_count)
+    assert totals["leak_hits"] == 4, "three words on one item, one on the other"
+    assert totals["leak_hit_items"] == 2 and totals["leak_judged"] == 1
+    assert totals["judged_fraction"] == 0.5
+
+
+@pytest.mark.parametrize("answer, faulted", [(True, True), (False, False)])
+def test_a_mechanism_stem_only_in_a_part_one_option_label_goes_to_the_judge(entry, registry,
+                                                                           answer, faulted):
+    judge = fx.FakeJudge(answer=answer)
+    key = next(i["key"] for i in fx.respondent_result(entry, 1)["items"] if i.get("options"))
+    score = _part1(entry, registry, key, judge, option="Barely, a beep would do")
     assert len(judge.calls) == 1 and score.leak_judged == 1
-    leak = [f for f in score.faults if f["check"] == "no_leak"]
+    leak = [f for f in score.faults if f.get("sweep") == "A"]
     assert bool(leak) is faulted
     if leak:
         assert "option label" in leak[0]["evidence"] and "beep" in leak[0]["evidence"]
 
 
-def test_a_mechanism_stem_in_the_stem_stays_a_direct_fault_with_option_hits_beside_it(entry,
-                                                                                    registry):
+def test_a_part_one_stem_hit_stays_a_direct_fault(entry, registry):
     judge = fx.FakeJudge(answer=False)
-    result = _with_question(registry, "problem.severity", "How bad is it before the beep?")
-    severity = next(q for q in result["questions"] if q["key"] == "problem.severity")
-    severity["options"][0]["label"] = "Barely, a beep would do"
-    score = _score(entry, registry, result, judge)
-    assert judge.calls == [], "a stem hit is code's to decide"
-    assert any("beep" in f["evidence"] for f in score.faults if f["check"] == "no_leak")
+    score = _part1(entry, registry, "problem.severity", judge,
+                   question="How bad was it before the beep?")
+    assert judge.calls == []
+    assert any("beep" in f["evidence"] for f in score.faults if f.get("sweep") == "A")

@@ -95,6 +95,39 @@ def registry_stems(registry, dimension) -> set:
     return {text_mod.stem(w) for t in texts for w in text_mod.content_words(t)}
 
 
+#: Call 45 (decision 47): keel-cloud 058's `Vocabulary.PRODUCT_WORDS`, whole-word and
+#: case-insensitive -- what the runtime can refuse in a PROBLEM calibration question before any
+#: mechanism is confirmed.
+PRODUCT_WORDS = (
+    "app", "apps", "platform", "dashboard", "portal", "plugin", "api", "saas", "website",
+    "algorithm", "device",
+    "automate", "automates", "automated", "automating", "automation",
+    "integrate", "integrates", "integrated", "integration", "integrations",
+    "sync", "syncs", "synced", "syncing")
+_PRODUCT_RE = re.compile(r"(?<![^\W_])(" + "|".join(PRODUCT_WORDS) + r")(?![^\W_])", re.IGNORECASE)
+
+
+def sweep_a_calibration(texts, entry, exclude=frozenset()) -> dict:
+    """Sweep A on a PROBLEM calibration question (call 45, decision 47): only what the runtime
+    can apply at that step -- the product-word list, and the golden mechanism's own
+    `mechanism_terms` (single words by stem, less the registry's wording for the dimension,
+    call 44a; multi-word terms as phrases) -- in the question, its options and their belief
+    phrases. A hit is a fault; nothing here goes to the judge."""
+    blob = " ".join(str(t) for t in texts if t)
+    hits = [m.group(1).lower() for m in _PRODUCT_RE.finditer(blob)]
+    terms = [t for t in (entry.solution_mechanism or {}).get("mechanism_terms") or []]
+    single = {text_mod.stem(t.lower()) for t in terms if len(text_mod.words(t)) == 1}
+    single -= set(exclude)
+    for word in text_mod.content_words(blob):
+        if text_mod.stem(word) in single:
+            hits.append(word)
+    for phrase in entry.mechanism_phrases():
+        if text_mod.phrase_in(phrase, blob):
+            hits.append(" ".join(phrase))
+    evidence = f"product or mechanism-term word(s) {sorted(set(hits))}" if hits else ""
+    return {"fault": bool(hits), "hits": len(hits), "judged": 0, "evidence": evidence}
+
+
 def sweep_a(texts, entry, judge, options=(), exclude=frozenset()) -> dict:
     """Sweep A (call 32): the golden mechanism's stems -- and its multi-word terms, as phrases -- in
     a question's stem (*texts*) and its option labels (*options*). A vocabulary hit **in the stem**
@@ -187,6 +220,7 @@ class CalibrationScore:
     leak_clean: int = 0
     leak_hits: int = 0
     leak_judged: int = 0
+    leak_hit_items: int = 0      # questions/items with any no_leak hit (judged_fraction's base)
     faults: list = field(default_factory=list)      # [{key, check, evidence}]
     failed: str | None = None
 
@@ -384,11 +418,12 @@ def score_calibration(case, entry, registry, result, *, judge=None,
             score.validity_hit += 1
         if vector == "PROBLEM":
             score.leak_of += 1
-            swept = sweep_a(_question_texts(question), entry, judge,
-                            options=_option_texts(question),
-                            exclude=registry_stems(registry, registry.by_key(key)))
+            swept = sweep_a_calibration(                                   # call 45
+                _question_texts(question) + _option_texts(question), entry,
+                exclude=registry_stems(registry, registry.by_key(key)))
             score.leak_hits += swept["hits"]
             score.leak_judged += swept["judged"]
+            score.leak_hit_items += 1 if swept["hits"] else 0
             if swept["fault"]:
                 score.faults.append({"key": key, "check": "no_leak",
                                      "evidence": swept["evidence"]})
@@ -616,6 +651,7 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
                                  "evidence": "; ".join(checks)})
         else:
             score.validity_hit += 1
+        item_hit = False
         if part == 1 and link == "PRIMARY":
             score.leak_of += 1
             swept = sweep_a([item.get("question")], entry, judge,          # call 43
@@ -623,6 +659,7 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
                             exclude=registry_stems(registry, dimension))
             score.leak_hits += swept["hits"]
             score.leak_judged += swept["judged"]
+            item_hit = bool(swept["hits"])
             if swept["fault"]:
                 score.faults.append({"key": key, "check": "no_leak", "sweep": "A",
                                      "evidence": swept["evidence"]})
@@ -632,6 +669,7 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
         swept = sweep_b([item.get("question")], dimension, founder,   # calls 40, 44b
                         context_mod.window_of(entry))
         score.leak_hits += swept["hits"]
+        score.leak_hit_items += 1 if (item_hit or swept["hits"]) else 0
         if swept["fault"]:
             score.faults.append({"key": key, "check": "no_leak", "sweep": "B",
                                  "evidence": swept["evidence"]})
@@ -735,6 +773,7 @@ def totals(calibration_scores=(), respondent_scores=(), interpret_scores=(), com
     leak_of = calibration["leak"]["of"] + respondent["leak"]["of"]
     hits = _sum(both, "leak_hits") if leak_hits is None else leak_hits
     judged = _sum(both, "leak_judged") if leak_judged is None else leak_judged
+    hit_items = _sum(both, "leak_hit_items")
 
     # INTERPRET: one judgement a readable person (call 33). The chipped are outside every count.
     answered = _sum(interpret_scores, "answered")
@@ -770,7 +809,10 @@ def totals(calibration_scores=(), respondent_scores=(), interpret_scores=(), com
         "no_leak": _fraction(calibration["leak"]["clean"] + respondent["leak"]["clean"], leak_of),
         "leak_hits": hits,
         "leak_judged": judged,
-        "judged_fraction": (judged / hits) if hits else 0.0,
+        "leak_hit_items": hit_items,
+        # Items the judge decided over items with any hit -- one unit, reported, never marked
+        # (a word count beside an item count read 0.72 on run 20261008T155720Z).
+        "judged_fraction": (judged / hit_items) if hit_items else 0.0,
         "judge_calls": judge_calls,
         "anchoring_accuracy": _fraction(agreed, answered),
         "guessed_precision": _fraction(confusion["gg"], called_guessed),

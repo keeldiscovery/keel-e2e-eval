@@ -165,14 +165,14 @@ def test_a_draft_screen_is_repaired_with_turn_ones_history_and_still_no_answer(c
     assert answer.scored.result == {"understands": "commuters"}
 
 
-def test_shape_refusals_and_the_two_screens_the_cloud_never_redraws_get_no_second_call(cases):
+def test_shape_refusals_and_interpret_which_the_cloud_never_redraws_get_no_second_call(cases):
     shape = {"kind": "shape", "rule": None, "path": "items", "message": "missing"}
     host = _Host({"bad": True})
     answer = _ask(cases[RESPONDENT], host, _Aggregate(shape))
     assert len(host.requests) == 1 and answer.redraw is None
     assert answer.scored is answer, "a shape refusal stays on the raw answer"
 
-    for case_id in ("09-fixture/INTERPRET/Ann Abbott/run1", "09-fixture/BRIEF/run1"):
+    for case_id in ("09-fixture/INTERPRET/Ann Abbott/run1",):
         host, aggregate = _Host({"bad": True}), _Aggregate()
         answer = _ask(cases[case_id], host, aggregate)
         assert len(host.requests) == 1 and aggregate.calls == [], \
@@ -312,3 +312,45 @@ def test_a_v9_bundle_from_before_call_41_scores_raw_and_says_so(
     assert "predates judgement call 41" in capsys.readouterr().out
     page = (bundle / "report-v9.html").read_text()
     assert "Scored on the raw answer" in page and "predates judgement call 41" in page
+
+
+# ------------------------------------------- decision 46: BRIEF is redrawn once, like the questions
+
+BRIEF = "09-fixture/BRIEF/run1"
+B5 = {"kind": "rule", "rule": "B5", "path": "result.whatThisSays",
+      "message": "B5: 'works' in the sentence that names the bar"}
+
+
+def test_a_refused_brief_is_redrawn_once_with_the_question_screens_repair(cases):
+    case = cases[BRIEF]
+    raw = {"bad": True, "whatThisSays": "The bar works."}
+    redrawn = {"whatThisSays": "They set the bar higher than yours."}
+    host, aggregate = _Host(raw, redrawn), _Aggregate(B5)
+    answer = _ask(case, host, aggregate)
+    assert len(host.requests) == 2 and aggregate.calls == [(BRIEF, False), (BRIEF, True)]
+    sent = host.requests[1].request_payload
+    # repairUnattended -> queueAnotherQuestionsTurn, as 058 does for BRIEF (decision 46).
+    assert sent["context"] == {**case.payload["context"], "repair": (
+        "NOT DERIVED -- your previous answer was accepted as a shape and then could not be "
+        "resolved: result.whatThisSays: B5: 'works' in the sentence that names the bar. Answer "
+        "again with everything you already had; fix only that; change nothing else.")}
+    assert sent["interaction_history"] == [] and sent["input"] == {"content": ""}
+    assert "The bar works." not in json.dumps(sent)
+    assert answer.scored.result is redrawn
+    assert run_mod.refused_twice(case, True, True, answer.refusals) is None
+
+
+def test_a_brief_refused_twice_scores_its_raw_paragraph_as_a_fault(cases):
+    case = cases[BRIEF]
+    raw = {"bad": True, "whatThisSays": "The bar works."}
+    host = _Host(raw, {"bad": True, "whatThisSays": "The bar still works."})
+    answer = _ask(case, host, _Aggregate(B5))
+    assert len(host.requests) == 2 and answer.accepted is None and answer.scored.result is raw
+    failed = run_mod.refused_twice(case, answer.redraw is not None, answer.accepted is not None,
+                                   answer.refusals)
+    assert failed and "B5 then B5" in failed
+    state = run_mod._RunState()
+    run_mod._score(case, fx.entry(), answer.scored, failed, state, None)
+    assert state.brief[0].met is False and all(v is False for v in state.brief[0].marks.values())
+    assert run_mod.refused_twice(cases[RESPONDENT], True, False, answer.refusals) is None, \
+        "the question screens keep their raw faults"

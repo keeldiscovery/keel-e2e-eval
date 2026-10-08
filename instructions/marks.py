@@ -21,7 +21,7 @@ into keel-cloud's canon, so a run reads these bytes either way:
     03-lullaby         229f794d6374c315dd6c8edac4d21051d411888f63005b84e72cb28ccab50ed8
     04-linerly         0aa0b13f4f649de942a54baff934e4e6a464098f0e40f4cc2d82b41cf4498fc9
     05-paidly          00f0d030e32457a00c35e9118865591168c9dd4caa661992303b4ed4251b3716
-    06-repeatline      663e08f56f9d53748589b857d9be0dde41900570b37e2e40a99c41dbc169e7eb
+    06-repeatline      991bd046984a64675e07c59ed5dc57f905a63ee87100c1e241dd49006ff43f61
     07-mulchrun        a4e76486a16c07a0f2be1d54d2d2b8f17a0417292e3999dbc81d5b4a2cd7e682
 
 Amended 2026-10-08: Lullaby's `mechanism_terms` drops `cot` (call 39), and every entry's model-written
@@ -271,6 +271,20 @@ part of what a number means:
     number) reads question STEMS only, never the part's reveal: the reveal is governed by R6's
     claim-word rule and legitimately names the mechanism's moment (*at quarter end*).
     `MARKS_VERSION` stays 9.
+45. **v9, amended before any run of record** *(the founder's decisions 46 and 47, 2026-10-08;
+    bundle `runs/20261008T155720Z-instructions`)*: **what each step can apply.** **(Decision
+    47)** `no_leak`'s sweep A on a PROBLEM calibration question uses keel-cloud 058's product-word
+    list (`Vocabulary.PRODUCT_WORDS`, whole-word) and the golden mechanism's `mechanism_terms`
+    only (single words by stem, less the registry's wording for the dimension, call 44a;
+    multi-word terms as phrases), in the question, its options and their belief phrases -- what
+    the runtime can refuse at that step -- and a hit is a fault, never judged. Part 1 respondent
+    items keep the full derived vocabulary and the judge (calls 32, 39, 43, 44a).
+    `judged_fraction` is items judged over items with any hit -- one unit, reported, never marked
+    (it read 0.72 as items over word hits). **(Decision 46, call 41 extended)** `BRIEF` is redrawn
+    once on a rule refusal, as the cloud now does (`repairUnattended` ->
+    `queueAnotherQuestionsTurn`: turn one's context plus `repair`, no history, empty input), and
+    the accepted paragraph is scored; a brief refused twice is scored on its raw paragraph as a
+    fault, every mark missed -- the founder is shown no paragraph. `MARKS_VERSION` stays 9.
 """
 
 from __future__ import annotations

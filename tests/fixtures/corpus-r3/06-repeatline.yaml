@@ -66,7 +66,7 @@ founder_calibration:
     belief_phrase: missed requests and callbacks and a queue that builds
     belief_sentence: After an episode, GP receptionists are left with missed requests and callbacks and a queue that builds.
   problem.workaround_burden:
-    labels: ["Type it into the system", "Write it on a paper slip", "Ask the pharmacy", "Point the patient to the app"]
+    labels: ["Type it into the system", "Write it on a paper slip", "Ask the pharmacy", "Point the patient to ordering online"]
     answer: [type_into_system, paper_slip, ask_pharmacy]
     belief_phrase: typing it in, a paper slip, asking the pharmacy
     belief_sentence: In the moment, GP receptionists try typing it in, a paper slip, asking the pharmacy, in that order.
@@ -149,7 +149,7 @@ respondent_questions:
   problem.workaround_burden:
     part: 1
     control: multi_choice_ordered
-    codes: [type_into_system, paper_slip, ask_pharmacy, push_to_app, something_else]
+    codes: [type_into_system, paper_slip, ask_pharmacy, point_to_online, something_else]
   problem.current_solution_satisfaction:
     part: 1
     control: single_choice_5
@@ -316,7 +316,7 @@ answers:
     problem.duration: {value: 3, unit: minutes, rough: false}
     problem.importance: repeat_calls
     problem.consequence: [queue_builds, callbacks, complaints]
-    problem.workaround_burden: [push_to_app, type_into_system]
+    problem.workaround_burden: [point_to_online, type_into_system]
     problem.current_solution_satisfaction: no_reliable_way
     solution.compatibility: before_any_attempt
     solution.relative_advantage: less_help_needed
@@ -613,7 +613,7 @@ expected:
     problem.consequence: {status: NOT_HOLDING_UP, drift: none, n: 9, optionCounts: 'missed_requests=1, callbacks=4, queue_builds=7,
         complaints=3, nothing_much=2, something_else=0'}
     problem.workaround_burden: {status: NOT_HOLDING_UP, drift: none, n: 9, first_action: type_into_system, first_action_count: 6,
-      optionCounts: 'type_into_system=8, paper_slip=3, ask_pharmacy=2, push_to_app=1, something_else=0'}
+      optionCounts: 'type_into_system=8, paper_slip=3, ask_pharmacy=2, point_to_online=1, something_else=0'}
     problem.current_solution_satisfaction: {status: HOLDING_UP, drift: none, n: 9, inside: 7, outside: 2}
     problem.urgency: {status: LEFT_OUT, drift: null}
     solution.compatibility: {status: HOLDING_UP, drift: none, n: 9, inside: 6, outside: 3}

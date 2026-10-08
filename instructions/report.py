@@ -328,9 +328,10 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
                  f"wall clock <b>{_esc(model.get('job_timeout_seconds'))}s</b> · "
                  f"{caps}. Judge: <b>{_esc(model.get('judge') or 'on')}</b>, "
                  f"{_esc(t.get('judge_calls', 0))} calls; it decided "
-                 f"{_esc(t.get('leak_judged', 0))} of {_esc(t.get('leak_hits', 0))} "
-                 f"<code>no_leak</code> hits — <b>{_pct(t.get('judged_fraction'))}</b>. Every "
-                 "other hit was decided by code.</p>")
+                 f"{_esc(t.get('leak_judged', 0))} of the {_esc(t.get('leak_hit_items', 0))} "
+                 f"items with a <code>no_leak</code> hit ({_esc(t.get('leak_hits', 0))} word hits) "
+                 f"— <b>{_pct(t.get('judged_fraction'))}</b>. Every other item was decided by "
+                 "code.</p>")
 
     parts.append("<h2>Sibling commits</h2><table><tr><th>Repo</th><th>Commit</th><th>Dirty</th></tr>")
     for name, info in versions.items():

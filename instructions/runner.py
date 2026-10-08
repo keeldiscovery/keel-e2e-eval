@@ -439,10 +439,14 @@ def ask(executor_module, validator_module, executor, case, *, payload: dict | No
 #: The screens keel-cloud's `InferenceOrchestrator` gives **one repair turn** after the aggregate
 #: refuses an answer, read off keel-cloud 058 (`InferenceOrchestrator.repairUnattended` -- QUESTIONS
 #: and the two vector question screens, spec 058 T057 -- and `refuseOrRepairDraft` -- the three
-#: draft vector screens). `INTERPRET` and `BRIEF` keep their own refusal, unchanged: no redraw.
+#: draft vector screens). **Decision 46 (2026-10-08):** `BRIEF` too, through the same
+#: `repairUnattended` -> `queueAnotherQuestionsTurn` path as the question screens (turn one's
+#: context plus `repair`, no history, empty input; priced as a TURN in the cloud). `INTERPRET`
+#: keeps its own refusal, unchanged: no redraw.
 QUESTION_SCREENS = ("CALIBRATION_QUESTIONS", "RESPONDENT_QUESTIONS")
 DRAFT_SCREENS = ("CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "SOLUTION_MECHANISM")
-REDRAW_SCREENS = QUESTION_SCREENS + DRAFT_SCREENS
+UNATTENDED_SCREENS = QUESTION_SCREENS + ("BRIEF",)
+REDRAW_SCREENS = UNATTENDED_SCREENS + DRAFT_SCREENS
 
 #: The cloud's own sentences, byte for byte. `ANSWER_AGAIN` closes both `REFUSED by rule ...`
 #: repairs (`InferenceOrchestrator.applyCompleted`'s DomainException branch and
@@ -492,7 +496,7 @@ def redraw_payload(case, refusal: dict, first: Answer) -> dict:
 
     Turn one's context **plus one key, `repair`**; the screen's own instruction, response contract,
     model and effort unchanged; `input.content` empty. The previous answer is **not** sent back:
-    on a question screen (`queueAnotherQuestionsTurn`) the history is empty, and on a draft screen
+    on a question screen and on `BRIEF` (`queueAnotherQuestionsTurn`) the history is empty, and on a draft screen
     (`refuseOrRepairDraft` -> `buildHistory`) it is turn one's `{turn_number, input, outcome,
     questions}` -- which carries no `result`. What the model gets is the refusal, in words.
     """
@@ -500,7 +504,7 @@ def redraw_payload(case, refusal: dict, first: Answer) -> dict:
     context = dict(case.payload.get("context") or {})
     context["repair"] = repair_text(case.screen, refusal)
     payload["context"] = context
-    payload["interaction_history"] = ([] if case.screen in QUESTION_SCREENS else [{
+    payload["interaction_history"] = ([] if case.screen in UNATTENDED_SCREENS else [{
         "turn_number": 1, "input": case.payload.get("input"), "outcome": first.outcome,
         "questions": first.questions}])
     payload["input"] = {"content": ""}

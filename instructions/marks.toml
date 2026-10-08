@@ -74,6 +74,7 @@ option_validity = 1.00
 # call 43, orchestrator 2026-10-08, bundle 20261008T115552Z: sweep A's stem hit INSIDE AN OPTION LABEL of a PROBLEM calibration question or a Part 1 respondent item (`phone`, `wheel`, `caught` -- generic nouns of the problem's own world, offered as answers; a multi-word term too, `signed off`) is a tie and goes to the judge with the one existing question; a hit in the question stem stays a fault outright; v9 amended before any run of record
 # call 44a, orchestrator 2026-10-08, bundle 20261008T115552Z: the vocabulary, per question, subtracts every stem of the registry's own wording for the dimension being asked -- its respondent block (guidance, option_rule, chips), its founder option_rule and code_rule (the fixed escape labels) and the common block, never its lullaby example -- so 'in the order you tried them' is registry wording and never a leak; v9 amended before any run of record
 # call 44b, orchestrator 2026-10-08, same bundle: sweep B reads respondent item d's question STEM only, never the part's reveal -- the reveal is governed by R6's claim-word rule and legitimately names the mechanism's moment ('at quarter end'); v9 amended before any run of record
+# call 45, founder decision 47, 2026-10-08, bundle 20261008T155720Z: sweep A on a PROBLEM calibration question uses keel-cloud 058's product-word list (whole-word) and the golden mechanism_terms only (single words by stem, less the registry's wording for the dimension; multi-word terms as phrases), in the question, its options and their belief phrases -- what the runtime can apply at that step -- and a hit is a fault, never judged; Part 1 respondent items keep the full derived vocabulary with the judge; judged_fraction = items judged / items with any hit, reported, never marked; v9 amended before any run of record
 no_leak = 1.00
 # Unchanged number (calls 5, 33): `agree / answered` over respondents who passed the gate AND did
 # not chip, with GUESSED precision and recall mandatory beside it. A respondent whose story carries
@@ -99,6 +100,7 @@ compare_correctness = 1.00
 # N=3". Recorded, not quietly tightened; the .md's decision 1 was CLOSED by the founder on
 # 2026-10-07: 0.02 kept, to be tightened only on evidence from the full run.
 # call 41, founder decision 35, 2026-10-08: the raw slip stays measured here -- EVERY rule refusal counts, the first draft's and the redraw's, over the first-draft answers judged (v6's denominator); a refusal costs one more host call. Shape refusals are never redrawn and stay an absolute zero on the raw answer; v9 amended before any run of record
+# call 41 extended by founder decision 46, 2026-10-08: BRIEF is redrawn once on a rule refusal (repairUnattended -> queueAnotherQuestionsTurn: turn one's context plus `repair`, no history, empty input), the accepted paragraph is scored, and a brief refused twice is scored on its raw paragraph as a fault, every mark missed; v9 amended before any run of record
 rule_refusal_rate = 0.02
 shape_refusals = 0
 # MARKS_VERSION 4 (judgement calls 15-17), narrowed at 5 (20-21), edge moved at 7 (23): the BRIEF
@@ -109,6 +111,7 @@ shape_refusals = 0
 # carries no claim word ("works", "effective", "proves", "will save", "confirmed"...). The
 # deciding line becomes the vector's worst deal-breaker. All five or nothing.
 # call 42, orchestrator 2026-10-08, bundle 20261008T115552Z: coverage's observed figure for a money set -- a set dimension's money median (Existing sacrifice) is written in the founder's unit, `£165 per three months` (the currency's symbol and the period from the standing, else the one the answers' costs agree on, the currency else the market's; the price likewise as keel-cloud's `observedFigure` writes it), and a set whose money cannot be written so carries no figure and is asked for one of its own option counts as `N of M`; the founder's phrase is asked for only on a bet whose verdict is NOT_HOLDING_UP (brief.md, 'The four things the paragraph says', 2), verbatim (brief.md licenses no paraphrase); v9 amended before any run of record
+# call 41 extended by founder decision 46, 2026-10-08: BRIEF is redrawn once on a rule refusal (repairUnattended -> queueAnotherQuestionsTurn: turn one's context plus `repair`, no history, empty input), the accepted paragraph is scored, and a brief refused twice is scored on its raw paragraph as a fault, every mark missed; v9 amended before any run of record
 brief_paragraphs = 1.00
 # RETIRED at MARKS_VERSION 9 (call 29) -- see the header. Kept here struck through in a comment,
 # never as a key, so a v9 verdict cannot carry a value for it:

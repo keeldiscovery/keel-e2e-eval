@@ -379,6 +379,8 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
                 _count_draft(state, draft)
         scored = answer.scored
         failed = scored.error or (scored.schema_error if not scored.schema_valid else None)
+        failed = failed or refused_twice(case, answer.redraw is not None,
+                                         answer.accepted is not None, answer.refusals)
         diff = _score(case, entry, scored, failed, state, judge)
         state.record_verdicts(case, answer)
         report_mod.write_case(run_dir, case, answer, diff, host=args.host)
@@ -525,6 +527,17 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
 SCORED_ON_ACCEPTED = "accepted"
 SCORED_ON_RAW = ("raw -- this bundle records no redraw (it predates judgement call 41), so every "
                  "structural mark is scored on the first draft")
+
+
+def refused_twice(case, redrawn: bool, accepted: bool, refusals) -> str | None:
+    """Decision 46: a `BRIEF` the aggregate refused, redrew and refused again shows the founder no
+    paragraph -- the raw one is scored, and as a fault (every mark missed), never as a paragraph.
+    `None` on every other screen (their structural marks read the raw answer's own faults) and on
+    a brief that was accepted or never redrawn."""
+    if case.screen != "BRIEF" or not redrawn or accepted:
+        return None
+    rules = [r.get("rule") or r.get("kind") for r in refusals or []]
+    return f"refused twice by the aggregate ({' then '.join(str(r) for r in rules)}); no paragraph"
 
 
 def redraw_totals(aggregate: dict, *, scored_on: str) -> dict:

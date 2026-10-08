@@ -119,6 +119,10 @@ def main(argv=None) -> int:
         view = ((drafts or {}).get("accepted") or raw) if drafts else envelope
         answer = _answer(view)
         failed = answer.error or (answer.schema_error if not answer.schema_valid else None)
+        if drafts:                                                      # decision 46
+            failed = failed or run_mod.refused_twice(
+                case, isinstance(envelope.get("redraw"), dict), drafts.get("accepted") is not None,
+                envelope.get("refusals"))
         if answer.errored and "never fit its shape" not in str(answer.error):
             state.errored += 1
         run_mod._score(case, corpus.by_id(case.entry_id), answer, failed, state, judge)
