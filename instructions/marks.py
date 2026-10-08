@@ -194,6 +194,12 @@ part of what a number means:
     nothing.
 36. **v9**: **`rule_refusal_rate` keeps 0.02 while its denominator triples**; the new reading is
     recorded in `marks.toml` and is the founder's decision 1, not a quiet tightening.
+37. **v9, amended before any run of record** *(the founder's decision 32, 2026-10-08; screen
+    `runs/20261008T001657Z-instructions`)*: **a belief phrase may equal its label.** C4 in
+    `option_validity` no longer faults a phrase that is its label after `normalise` -- keel-cloud
+    062 accepts it, and a mark that refuses what the product accepts measures the eval, not the
+    instruction. C4 still faults an empty phrase, one over 120 characters, and one carrying a
+    not-sure word. `MARKS_VERSION` stays 9: no v9 run of record had been spent.
 """
 
 from __future__ import annotations

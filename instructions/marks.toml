@@ -52,12 +52,13 @@ dimension_coverage = 1.00
 # MARKS_VERSION 9 (call 31): every question, both screens, meets every structural rule the registry
 # states -- 4-6 options mapped one-to-one and in order onto `founder.normalized.codes` (or, where
 # the registry says `codes: model_written`, 4-6 unique slug codes per its `code_rule`), a numeric
-# spec equal to the registry's, a per-option `belief_phrase` that is not the label, `{value}`
+# spec equal to the registry's, a per-option `belief_phrase` non-empty, <= 120 chars, no not-sure word, `{value}`
 # once, no "not sure" option (the chip is UI); respondent side: control = `respondent.control`,
 # founder's codes all present plus distractors, "Something else" last on a set, fixed scale on an
 # ordinal, founder-free bands on a numeric. 1.00 is reachable at the ceiling BECAUSE the registry
 # fixes the codes and the bins; a version that asked the model to invent contiguous bins would be
 # a wrong mark (the 2026-10-06 smoke produced `0.2-0.4, 0.5-0.6`). Code only.
+# call 37, founder 2026-10-08, screen 20261008T001657Z: a phrase may equal its label; v9 amended before any run of record
 option_validity = 1.00
 # MARKS_VERSION 9 (call 32): no mechanism vocabulary in a PROBLEM calibration question or a Part 1
 # respondent question, and no founder value (chosen label, belief phrase, number) in any

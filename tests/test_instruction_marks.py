@@ -37,9 +37,9 @@ def test_marks_version_is_nine():
     assert marks_mod.MARKS_VERSION == 9
 
 
-def test_the_judgement_calls_are_one_to_thirty_six_with_none_missing_and_none_twice():
+def test_the_judgement_calls_are_one_to_thirty_seven_with_none_missing_and_none_twice():
     numbers = judgement_calls()
-    assert sorted(numbers) == list(range(1, 37)), "append-only: 1-36, none struck or renumbered"
+    assert sorted(numbers) == list(range(1, 38)), "append-only: 1-37, none struck or renumbered"
     assert len(numbers) == len(set(numbers)), "no judgement call is written twice"
 
 

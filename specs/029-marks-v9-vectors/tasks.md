@@ -437,4 +437,8 @@ task it was found under. Nothing here is a change of mind about the design; it i
   result.json` transcribe 062's golden (`VectorFixtures.calibrationResult`, accepted by
   `screenContracts validate`) and score clean: 9/9, 9/9, 7/7, `no_leak` 9 of 9. `make unit` 1498
   passed, 75 skipped; `DRY=1 K=03-lullaby` on 062's worktree: 19 cases, `compare_correctness` 28 of 28.
-
+- **D25 (call 37, founder decision 32, 2026-10-08; screen `runs/20261008T001657Z-instructions`).**
+  call 37, founder 2026-10-08, screen 20261008T001657Z: a phrase may equal its label; v9 amended
+  before any run of record. keel-cloud 062 narrowed C4 to empty / over 120 characters / a not-sure
+  word, and the screen's nine calibration answers were faulted only for phrases equal to their
+  labels; `score.calibration_checks` now reads C4 the same way. `MARKS_VERSION` stays 9.

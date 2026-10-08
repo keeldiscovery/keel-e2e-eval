@@ -172,8 +172,10 @@ def _severity_options(r):
         "normalized", "Lost Sleep"), "not slugs"),
     ("empty phrase", lambda r: _severity_options(r)[1].__setitem__("belief_phrase", " "),
      "no belief_phrase"),
-    ("phrase is label", lambda r: _severity_options(r)[1].__setitem__(
-        "belief_phrase", "OPTION 2 for this"), "its belief_phrase is its label"),
+    ("phrase too long", lambda r: _severity_options(r)[1].__setitem__(
+        "belief_phrase", "x" * 121), "121 characters, longer than 120"),
+    ("phrase not sure", lambda r: _severity_options(r)[1].__setitem__(
+        "belief_phrase", "not sure how bad it is"), "belief_phrase carries a not-sure word"),
     ("not sure", lambda r: _severity_options(r)[4].__setitem__("label", "I'm not sure"),
      "not-sure option"),
     ("template", lambda r: _q(r, "problem.severity").__setitem__("belief_template", "x"),
@@ -196,6 +198,17 @@ def test_option_validity_fails_on_each_registry_rule_made_to_fail_once(entry, re
     assert words in validity[0]["evidence"], (name, validity[0]["evidence"])
     assert score.validity_hit == score.validity_of - 1
 
+
+
+def test_a_belief_phrase_equal_to_its_label_is_accepted(entry, registry):
+    # Call 37 (founder decision 32, 2026-10-08): C4 no longer refuses a phrase that repeats its
+    # label, case-folded -- keel-cloud 062 accepts it, so the eval does too.
+    def same(r):
+        for option in _severity_options(r):
+            option["belief_phrase"] = str(option["label"]).upper()
+    score = _calibrate(entry, registry, mutate=same)
+    assert not [f for f in score.faults if f["check"] == "option_validity"], score.faults
+    assert score.validity_hit == score.validity_of
 
 def test_the_fixed_codes_a_model_written_rule_names_must_be_there(registry):
     dimension = registry.by_key("commercial.existing_sacrifice")

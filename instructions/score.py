@@ -108,6 +108,8 @@ def sweep_a(texts, entry, judge) -> dict:
 # ------------------------------------------------------------- calibration (062; calls 30-32)
 
 _NOT_SURE_RE = re.compile(r"not sure|don't know|dont know|unsure", re.IGNORECASE)
+#: C4's ceiling on a belief phrase, in characters (keel-cloud 062, founder decision 32).
+_BELIEF_PHRASE_MAX = 120
 _SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 _SEVEN_NIGHTS_RE = re.compile(r"\b(7|seven)\s+nights?\b", re.IGNORECASE)   # the default window
 _LADDER_RE = re.compile(r"(B2C|B2B):\s*([a-z_, ]+)\.")
@@ -248,10 +250,16 @@ def calibration_checks(question: dict, dimension, *, b2b: bool = False) -> list:
             faults.append(f"option {option!r} is not an object")
             continue
         label, phrase = option.get("label"), option.get("belief_phrase")
-        if not (phrase or "").strip():
+        # C4 as keel-cloud 062 reads it (call 37): a phrase EQUAL to its label is accepted; an
+        # empty one, one over 120 characters, or one carrying a not-sure word is a fault.
+        stripped = (phrase or "").strip()
+        if not stripped:
             faults.append(f"option {label!r} carries no belief_phrase")
-        elif text_mod.normalise(phrase) == text_mod.normalise(label):
-            faults.append(f"option {label!r}: its belief_phrase is its label")
+        elif len(stripped) > _BELIEF_PHRASE_MAX:
+            faults.append(f"option {label!r}: its belief_phrase is {len(stripped)} characters, "
+                          f"longer than {_BELIEF_PHRASE_MAX}")
+        elif _NOT_SURE_RE.search(stripped):
+            faults.append(f"option {label!r}: its belief_phrase carries a not-sure word")
         if _NOT_SURE_RE.search(str(label or "")):
             faults.append(f"option {label!r} is a not-sure option -- the chip is UI")
     template = question.get("belief_template")
