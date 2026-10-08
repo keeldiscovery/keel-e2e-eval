@@ -16,16 +16,20 @@ byte for byte what `master` `0165017` carried (`tests/fixtures/marks/calls-1-27.
 entries, by sha256 -- the recorded revision under `tests/fixtures/corpus-r3/`, to be moved verbatim
 into keel-cloud's canon, so a run reads these bytes either way:
 
-    01-countly         6ed04bd84b464e8c48bbb1dff3922e71bcb3fc9f45b9f542ac933e85f67aa426
-    02-compliancelog   177c787d5323d457b952b9ec2a3583b11c59f536982bf961288486291298c82a
-    03-lullaby         347e44bce512e64b949aaa8a27cd8b6ba23e9024e9646b43b2bbf0215a9506bc
-    04-linerly         3a557919fd01a974cf7d8f4e2226eaedaafb74498e95f1c32c4749bd71d052a2
-    05-paidly          cbe618439d14f7725c22c0a8685e6e16a521a30bdd6708207b5a0b073040e12c
-    06-repeatline      b0ecb45ee5d824e455e397ae52ecbd55420689b42b78b5ad9aa2e3715c244a75
-    07-mulchrun        409b88d88aac05954609f322e1d349c18600cf02dedafa86d8106094c8ac38a0
+    01-countly         e8b72c47d57085133032d267682f720eecb603b4aab921f2b5a85ccc96815320
+    02-compliancelog   5b8d01a9048dc7263f6e8de82da2221f91ffc413b2229dba5e452d59821fda27
+    03-lullaby         229f794d6374c315dd6c8edac4d21051d411888f63005b84e72cb28ccab50ed8
+    04-linerly         0aa0b13f4f649de942a54baff934e4e6a464098f0e40f4cc2d82b41cf4498fc9
+    05-paidly          00f0d030e32457a00c35e9118865591168c9dd4caa661992303b4ed4251b3716
+    06-repeatline      663e08f56f9d53748589b857d9be0dde41900570b37e2e40a99c41dbc169e7eb
+    07-mulchrun        a4e76486a16c07a0f2be1d54d2d2b8f17a0417292e3999dbc81d5b4a2cd7e682
 
 Amended 2026-10-08: Lullaby's `mechanism_terms` drops `cot` (call 39), and every entry's model-written
 sets gain `founder_calibration[d].labels`, the labels production sends as `founder_options`.
+Amended 2026-10-08 again, synced to keel-cloud 058 `5fc7220`'s canon byte for byte: 13 belief
+sentences are the engine's again (`problem.prevalence` in 01/02/04/05/06/07, `problem.importance`
+in all seven), every entry records `context.recall_window: {count, unit}` (founder decision 42),
+and Lullaby's circumstance reads *the baby cries in the night* (the GRAMMAR decision).
 
 The corpus-wide `anchoring_accuracy` denominator, **counted, not estimated**: 106 people, less 13 who
 answer No at the gate, 6 whose story carries a chip and 22 decision-makers on a B2B link (who are

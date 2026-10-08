@@ -99,6 +99,15 @@ statements: {problem, solution, commercial}   # kept: the seeds typed in chat, v
 roles: [{id, label, roleType, about}]         # kept; a B2B entry adds the decision-maker role
 context:                            # NEW — the four fields + the sentence CONTEXT_INTERPRET would write
   actor: …  actor_plural: …  job: …  circumstance: …  segment: …  understood: "Keel understands …"
+  recall_window: {count: 7, unit: NIGHTS}   # NEW 2026-10-08 (founder decision 42; keel-cloud 058 cb0422a):
+                                    # the period the gate asks about and Frequency counts in, COUNT + UNIT
+                                    # (unit one of NIGHTS DAYS WORKING_DAYS WEEKS MONTHS CYCLES SHIFTS);
+                                    # optional, absent reads {7, NIGHTS}. Sent on CONTEXT_INTERPRET as
+                                    # context_fields.recall_window {count, unit}; fills the registry's
+                                    # {window} ("the last 7 nights", "the last 3 months", "the last shift"
+                                    # for a count of 1) and {window_unit} ("nights out of 7") by code;
+                                    # the slots carry window = its words. circumstance is a clause without
+                                    # "when" (GRAMMAR): Lullaby's is "the baby cries in the night".
 solution_mechanism:                 # NEW — golden SOLUTION_MECHANISM output; no_leak's source
   actor: …  trigger: …  mechanism: …  output: …  not_assumed: [ … ]
 persona:                            # NEW — PERSONA_MODEL's input, from step 4

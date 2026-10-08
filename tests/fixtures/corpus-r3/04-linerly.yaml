@@ -28,7 +28,8 @@ roles:
 context: {actor: commuter cyclist, actor_plural: London commuter cyclists riding fifty kilometres a week or more, job: get
     to work on time with the bike in one piece, circumstance: a tyre punctures on the way to or from work, segment: 'commuter
     cyclists in London, fifty kilometres a week or more', understood: 'London commuter cyclists riding fifty kilometres a
-    week or more, when a tyre punctures on the way to or from work, trying to get to work on time with the bike in one piece.'}
+    week or more, when a tyre punctures on the way to or from work, trying to get to work on time with the bike in one piece.',
+  recall_window: {count: 12, unit: MONTHS}}
 interpretations: {problem: 'London commuter cyclists lose thirty to sixty minutes whenever glass or flint punctures a tyre
     on the way to or from work, fixing it at the roadside or walking the bike to a shop.'}
 solution_mechanism:
@@ -41,7 +42,7 @@ solution_mechanism:
 persona: {decision_maker: same_person}
 founder_calibration:
   problem.prevalence: {answer: p_40_60, belief_phrase: Around half, belief_sentence: Around half of these London commuter
-      cyclists riding fifty kilometres a week or more had this at least once in the last 7 nights.}
+      cyclists riding fifty kilometres a week or more had this at least once in the last 12 months.}
   problem.frequency:
     answer: {lower: 0, upper: 1, unit: rides out of 7}
     belief_phrase: 0 to 1 rides out of 7
@@ -52,7 +53,7 @@ founder_calibration:
     answer: {lower: 30, upper: 60, unit: minutes}
     belief_phrase: 30 to 60 minutes
     belief_sentence: A typical episode takes 30 to 60 minutes from start to finish.
-  problem.importance: {answer: middle, belief_phrase: a middling one, belief_sentence: 'Among the difficulties that come with
+  problem.importance: {answer: middle, belief_phrase: a middling one, belief_sentence: 'Among the difficulties that come up when
       a tyre punctures on the way to or from work, this is a middling one.'}
   problem.consequence:
     labels: ["Late for work", "Cold and wet at the roadside", "The cost of new tubes", "A missed meeting"]
@@ -77,7 +78,7 @@ founder_calibration:
   solution.effectiveness_threshold:
     answer: {value: 20, unit: minutes}
     belief_phrase: at least 20 minutes
-    belief_sentence: It is worth using only if it saves at least at least 20 minutes per episode.
+    belief_sentence: It is worth using only if it saves at least 20 minutes per episode.
   solution.trust_risk:
     labels: ["The bike rides as it normally does", "It fits my tyre", "It adds no noticeable weight", "Good reviews from other riders"]
     answer: [rolls_normally, fits_my_tyre]
@@ -125,7 +126,7 @@ founder_calibration:
     answer: [install, next_episode]
     belief_phrase: riding on it the next week
     belief_sentence: For a trial, right now, they would go as far as riding on it the next week.
-  commercial.retention_potential: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+  commercial.retention_potential: {unsure: true, belief_sentence: 'You weren''t sure, so this was left out of the study. The brief says it is untested.'}
 respondent_questions:
   problem.prevalence:
     part: 1

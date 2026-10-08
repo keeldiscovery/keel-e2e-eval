@@ -69,7 +69,8 @@ def test_the_calibration_block_is_the_registry_in_order_beside_the_founder(tmp_p
     assert prevalence["belief_sentence"].startswith("Most of these parents")
     urgency = next(r for r in rows if r["key"] == "problem.urgency")
     assert urgency["belief_phrase"] is None
-    assert urgency["belief_sentence"] == "Left out: you weren't sure."
+    assert urgency["belief_sentence"] == ("You weren't sure, so this was left out of the study. "
+                                          "The brief says it is untested.")
 
 
 def test_the_three_interpretations_are_marked_only_accepted_or_refused_by_rule(tmp_path, corpus):

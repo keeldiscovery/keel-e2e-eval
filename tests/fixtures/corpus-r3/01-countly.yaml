@@ -33,7 +33,8 @@ roles:
 context: {actor: restaurant manager, actor_plural: independent restaurant managers, job: keep the stock records matching what
     is on the shelves, circumstance: a delivery does not match its invoice, segment: 'independent restaurant managers in the
     UK, one or two sites', understood: 'Independent restaurant managers, when a delivery does not match its invoice, trying
-    to keep the stock records matching what is on the shelves.'}
+    to keep the stock records matching what is on the shelves.',
+  recall_window: {count: 1, unit: MONTHS}}
 interpretations: {problem: 'Independent restaurant managers lose time whenever a delivery does not match its invoice: a member
     of staff takes it in, the mismatch surfaces later, and the manager recounts the stock by hand and fixes the spreadsheet.'}
 solution_mechanism:
@@ -46,18 +47,18 @@ solution_mechanism:
 persona: {decision_maker: same_person}
 founder_calibration:
   problem.prevalence: {answer: p_80_100, belief_phrase: Nearly all, belief_sentence: Nearly all of these independent restaurant
-      managers had this at least once in the last 7 nights.}
+      managers had this at least once in the last month.}
   problem.frequency:
     answer: {lower: 1, upper: 3, unit: days out of 7}
     belief_phrase: 1 to 3 days out of 7
     belief_sentence: Independent restaurant managers face this on 1 to 3 days out of 7.
-  problem.severity: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+  problem.severity: {unsure: true, belief_sentence: 'You weren''t sure, so this was left out of the study. The brief says it is untested.'}
   problem.duration:
     answer: {lower: 60, upper: 120, unit: minutes}
     belief_phrase: 60 to 120 minutes
     belief_sentence: A typical episode takes 60 to 120 minutes from start to finish.
   problem.importance: {answer: top_three, belief_phrase: one of the top three, belief_sentence: 'Among the difficulties that
-      come with a delivery does not match its invoice, this is one of the top three.'}
+      come up when a delivery does not match its invoice, this is one of the top three.'}
   problem.consequence:
     labels: ["Hours lost reconciling the counts", "Stock figures that are wrong", "Food thrown away", "Service starting late"]
     answer: [lost_time, stock_errors, waste]
@@ -80,7 +81,7 @@ founder_calibration:
   solution.effectiveness_threshold:
     answer: {value: 30, unit: minutes}
     belief_phrase: at least 30 minutes
-    belief_sentence: It is worth using only if it saves at least at least 30 minutes per episode.
+    belief_sentence: It is worth using only if it saves at least 30 minutes per episode.
   solution.trust_risk:
     labels: ["It shows exactly which line is wrong", "A manager confirms before anything changes", "The supplier sees the same record", "A photo backs up each delivery"]
     answer: [shows_the_line, manager_confirms]
@@ -126,7 +127,7 @@ founder_calibration:
     answer: [setup, install]
     belief_phrase: installing the app
     belief_sentence: For a trial, right now, they would go as far as installing the app.
-  commercial.retention_potential: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+  commercial.retention_potential: {unsure: true, belief_sentence: 'You weren''t sure, so this was left out of the study. The brief says it is untested.'}
 respondent_questions:
   problem.prevalence:
     part: 1

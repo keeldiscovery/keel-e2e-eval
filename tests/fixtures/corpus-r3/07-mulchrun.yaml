@@ -35,7 +35,8 @@ context: {actor: crew lead, actor_plural: landscaping crew leads in the Dallas s
     the crew onto the next job, circumstance: a job needs mulch and the crew has to fetch it from the supply yard, segment: 'landscaping
     crew leads in the Dallas-Fort Worth suburbs, spring season', understood: 'Landscaping crew leads in the Dallas suburbs,
     when a job needs mulch and the crew has to fetch it from the supply yard, trying to get it onto the beds and move on to
-    the next job.'}
+    the next job.',
+  recall_window: {count: 2, unit: WEEKS}}
 interpretations: {problem: 'Landscaping crew leads in the Dallas suburbs lose most of an hour per job waiting at the supply
     yard for mulch and driving between the yard and their jobs, every working day through the spring.'}
 solution_mechanism:
@@ -49,7 +50,7 @@ persona:
   decision_maker: {role: owner}
 founder_calibration:
   problem.prevalence: {answer: p_80_100, belief_phrase: Nearly all, belief_sentence: Nearly all of these landscaping crew
-      leads in the Dallas suburbs had this at least once in the last 7 nights.}
+      leads in the Dallas suburbs had this at least once in the last 2 weeks.}
   problem.frequency:
     answer: {lower: 4, upper: 6, unit: working days out of 7}
     belief_phrase: 4 to 6 working days out of 7
@@ -61,7 +62,7 @@ founder_calibration:
     belief_phrase: 30 to 60 minutes
     belief_sentence: A typical episode takes 30 to 60 minutes from start to finish.
   problem.importance: {answer: top_three, belief_phrase: one of the top three, belief_sentence: 'Among the difficulties that
-      come with a job needs mulch and the crew has to fetch it from the supply yard, this is one of the top three.'}
+      come up when a job needs mulch and the crew has to fetch it from the supply yard, this is one of the top three.'}
   problem.consequence:
     labels: ["Late to jobs", "Fuel cost", "The crew standing idle", "Fewer jobs in a day"]
     answer: [late_to_jobs, fuel_cost, crew_idle]
@@ -85,7 +86,7 @@ founder_calibration:
   solution.effectiveness_threshold:
     answer: {value: 30, unit: minutes}
     belief_phrase: at least 30 minutes
-    belief_sentence: It is worth using only if it saves at least at least 30 minutes per episode.
+    belief_sentence: It is worth using only if it saves at least 30 minutes per episode.
   solution.trust_risk:
     labels: ["The drop arrives on time", "The right amount is delivered", "It is dropped in the right spot"]
     answer: [on_time_drop, right_amount]
@@ -132,7 +133,7 @@ founder_calibration:
     answer: [call, read_only_trial, it_intro, data]
     belief_phrase: sharing their job schedule
     belief_sentence: For a trial, right now, they would go as far as sharing their job schedule.
-  commercial.retention_potential: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+  commercial.retention_potential: {unsure: true, belief_sentence: 'You weren''t sure, so this was left out of the study. The brief says it is untested.'}
 respondent_questions:
   problem.prevalence:
     part: 1

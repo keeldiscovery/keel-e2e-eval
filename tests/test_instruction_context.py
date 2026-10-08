@@ -8,6 +8,8 @@ no `stage` and no `anchors[]` on a read, no `claims` on the brief.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from instructions import context as context_mod
@@ -35,7 +37,9 @@ def test_context_interpret_carries_the_four_slots_and_nothing_from_the_mechanism
     built = context_mod.build_context_interpret(entry)
     assert built["context_fields"] == {"who": "commuter", "what": "get out of the door on time",
                                        "when": "the morning they cannot find their keys",
-                                       "which_people": "commuters in Leeds who cycle to work"}
+                                       "which_people": "commuters in Leeds who cycle to work",
+                                       "recall_window": {"count": 7, "unit": "NIGHTS"}}, \
+        "an entry with no window sends the default, as proposeContext sends the founder's"
     assert built["project_name"] == entry.title
     assert "whistle" not in repr(built) and "tag" not in repr(built)
 
@@ -43,7 +47,8 @@ def test_context_interpret_carries_the_four_slots_and_nothing_from_the_mechanism
 def test_problem_interpret_carries_the_context_and_no_solution_field(entry):
     built = context_mod.build_problem_interpret(entry)
     assert set(built) == {"context", "market"}
-    assert built["context"]["window"] == "7 nights", "058's slots carry the recall window"
+    assert built["context"]["window"] == "the last 7 nights", \
+        "058's slots carry the recall window's words"
     assert built["context"]["actor_plural"] == "commuters who cycle"
     assert context_mod.seed_of(entry, "PROBLEM_INTERPRET") == entry.statements["problem"]
 
@@ -169,3 +174,21 @@ def test_the_stage_shaped_builders_are_gone():
     for name in ("earlier_lines", "build_questions", "anchors_for", "roles_for",
                  "measurements_for", "claims_for", "build_assumptions", "build_reading"):
         assert not hasattr(context_mod, name), name
+
+
+@pytest.mark.parametrize("name, window, words", [
+    ("01-countly.yaml", {"count": 1, "unit": "MONTHS"}, "the last month"),
+    ("02-compliancelog.yaml", {"count": 3, "unit": "MONTHS"}, "the last 3 months"),
+    ("03-lullaby.yaml", {"count": 7, "unit": "NIGHTS"}, "the last 7 nights"),
+    ("06-repeatline.yaml", {"count": 1, "unit": "SHIFTS"}, "the last shift"),
+])
+def test_an_r3_entrys_own_window_reaches_every_screen_that_reads_it(name, window, words):
+    """keel-cloud 058 `5fc7220`: `context.recall_window` is sent as `{count, unit}` on
+    CONTEXT_INTERPRET (`proposeContext`) and as its words in the slots (`ScreenContextBuilder`),
+    and fills the registry's `{window}` in every calibration slice."""
+    from instructions import corpus as corpus_mod                       # noqa: PLC0415
+    entry = corpus_mod.load_file(Path(corpus_mod.FIXTURE_DIR) / name, registry=fx.registry())
+    assert context_mod.build_context_interpret(entry)["context_fields"]["recall_window"] == window
+    assert context_mod.build_problem_interpret(entry)["context"]["window"] == words
+    slice_ = context_mod.build_calibration(entry, "PROBLEM", fx.registry())["dimensions"]
+    assert words in repr(slice_) and "{window}" not in repr(slice_)

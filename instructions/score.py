@@ -32,7 +32,8 @@ from dataclasses import dataclass, field
 
 from . import brief as brief_mod
 from . import text as text_mod
-from .registry import NUMERIC_FOUNDER_CONTROLS
+from . import context as context_mod
+from .registry import DEFAULT_WINDOW, NUMERIC_FOUNDER_CONTROLS
 
 
 # ------------------------------------------------------------------------------------ compare
@@ -111,7 +112,6 @@ _NOT_SURE_RE = re.compile(r"not sure|don't know|dont know|unsure", re.IGNORECASE
 #: C4's ceiling on a belief phrase, in characters (keel-cloud 062, founder decision 32).
 _BELIEF_PHRASE_MAX = 120
 _SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*$")
-_SEVEN_NIGHTS_RE = re.compile(r"\b(7|seven)\s+nights?\b", re.IGNORECASE)   # the default window
 _LADDER_RE = re.compile(r"(B2C|B2B):\s*([a-z_, ]+)\.")
 
 
@@ -179,7 +179,8 @@ def _ladder_codes(dimension, b2b: bool) -> list | None:
 _REQUIRED_MODEL_WRITTEN = {"commercial.existing_sacrifice": ("none",)}
 
 
-def calibration_checks(question: dict, dimension, *, b2b: bool = False) -> list:
+def calibration_checks(question: dict, dimension, *, b2b: bool = False,
+                       window=DEFAULT_WINDOW) -> list:
     """Every structural rule of marks §2.2's calibration side, for one question; `[]` is valid."""
     faults = []
     options = question.get("options")
@@ -268,9 +269,11 @@ def calibration_checks(question: dict, dimension, *, b2b: bool = False) -> list:
             faults.append("the belief template does not carry {value} exactly once")
         if template != dimension.founder.get("belief_template"):
             faults.append("the belief template is not the registry's")
-    if dimension.key == "problem.prevalence" and not _SEVEN_NIGHTS_RE.search(
+    # C7: Prevalence asks about the project's window (`RecallWindow.isNamedIn`, keel-cloud 058).
+    if dimension.key == "problem.prevalence" and not window.is_named_in(
             str(question.get("question") or "")):
-        faults.append("the gate's question does not carry the 7-night window")
+        faults.append(f"the gate's question does not name the project's window "
+                      f"({window.words()})")
     return faults
 
 
@@ -310,7 +313,8 @@ def score_calibration(case, entry, registry, result, *, judge=None,
         if key not in slice_keys:
             continue
         score.validity_of += 1
-        checks = calibration_checks(question, registry.by_key(key), b2b=b2b)
+        checks = calibration_checks(question, registry.by_key(key), b2b=b2b,
+                                    window=context_mod.window_of(entry))
         if checks:
             score.faults.append({"key": key, "check": "option_validity",
                                  "evidence": "; ".join(checks)})
@@ -347,9 +351,9 @@ def _option_code(option):
     return option.get("code") if isinstance(option, dict) else None
 
 
-def _registry_numbers(dimension) -> set:
+def _registry_numbers(dimension, window=DEFAULT_WINDOW) -> set:
     """The numbers a respondent item may carry because the registry puts them there -- band edges,
-    the axis, the 7-night window -- and never because the founder said them."""
+    the axis, the project's recall window -- and never because the founder said them."""
     numbers = set()
     normalized = dimension.normalized
     for edge in normalized.get("bins") or []:
@@ -357,9 +361,10 @@ def _registry_numbers(dimension) -> set:
     for name in ("axis_max", "axis_step"):
         if isinstance(normalized.get(name), (int, float)):
             numbers.add(float(normalized[name]))
-    if "7 nights" in (dimension.founder.get("guidance") or "") or \
-            "7 nights" in (dimension.respondent.get("guidance") or ""):
-        numbers.add(7.0)
+    if any(marker in (side.get("guidance") or "") for side in (dimension.founder,
+                                                                  dimension.respondent)
+           for marker in ("{window}", "{window_unit}", window.words(), window.unit_words())):
+        numbers.add(float(window.count))
     return numbers
 
 
@@ -463,7 +468,7 @@ def _label_form(label) -> str:
     return re.sub(r"[\W_]+", " ", text).strip()
 
 
-def sweep_b(texts, dimension, founder: dict) -> dict:
+def sweep_b(texts, dimension, founder: dict, window=DEFAULT_WINDOW) -> dict:
     """Sweep B (call 32): the founder's own value for dimension *d* -- the chosen phrase, or a
     number they gave that the registry did not fix -- in respondent item *d*. A hit is a fault: the
     stranger is being told the answer the founder hopes for. *texts* are the item's stem and the
@@ -474,7 +479,7 @@ def sweep_b(texts, dimension, founder: dict) -> dict:
     phrase = text_mod.normalise((founder or {}).get("belief_phrase"))
     if phrase and phrase in text_mod.normalise(blob):
         hits.append(f"the founder's phrase {phrase!r}")
-    said = _founder_numbers((founder or {}).get("answer")) - _registry_numbers(dimension)
+    said = _founder_numbers((founder or {}).get("answer")) - _registry_numbers(dimension, window)
     shown = {float(n) for n in _NUMBER_RE.findall(blob)}
     for number in sorted(said & shown):
         hits.append(f"the founder's number {number:g}")
@@ -540,7 +545,8 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
             else:
                 score.leak_clean += 1
         score.leak_of += 1
-        swept = sweep_b([item.get("question")] + reveal, dimension, founder)   # call 40
+        swept = sweep_b([item.get("question")] + reveal, dimension, founder,   # call 40
+                        context_mod.window_of(entry))
         score.leak_hits += swept["hits"]
         if swept["fault"]:
             score.faults.append({"key": key, "check": "no_leak", "sweep": "B",

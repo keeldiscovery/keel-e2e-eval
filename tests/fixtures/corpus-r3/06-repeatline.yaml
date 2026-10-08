@@ -32,7 +32,8 @@ roles:
 context: {actor: GP receptionist, actor_plural: GP receptionists, job: get every repeat-prescription request to the right
     clinician without losing one, circumstance: a patient rings for a repeat prescription, segment: receptionists at GP practices
     in England, understood: 'GP receptionists, when a patient rings for a repeat prescription, trying to get every request
-    to the right clinician without losing one.'}
+    to the right clinician without losing one.',
+  recall_window: {count: 1, unit: SHIFTS}}
 interpretations: {problem: 'GP receptionists spend about half their phone time on repeat-prescription calls, typing each request
     into the clinical system by hand, and a request that goes missing brings the patient ringing back.'}
 solution_mechanism:
@@ -46,7 +47,7 @@ persona:
   decision_maker: {role: manager}
 founder_calibration:
   problem.prevalence: {answer: p_60_80, belief_phrase: Most, belief_sentence: Most of these GP receptionists had this at least
-      once in the last 7 nights.}
+      once in the last shift.}
   problem.frequency:
     answer: {lower: 4, upper: 5, unit: shifts out of 7}
     belief_phrase: 4 to 5 shifts out of 7
@@ -58,7 +59,7 @@ founder_calibration:
     belief_phrase: 2 to 4 minutes
     belief_sentence: A typical episode takes 2 to 4 minutes from start to finish.
   problem.importance: {answer: biggest, belief_phrase: the biggest drain on the phones, belief_sentence: 'Among the difficulties
-      that come with a patient rings for a repeat prescription, this is the biggest drain on the phones.'}
+      that come up when a patient rings for a repeat prescription, this is the biggest drain on the phones.'}
   problem.consequence:
     labels: ["Requests that get missed", "Patients calling back", "The queue building up", "Complaints"]
     answer: [missed_requests, callbacks, queue_builds]
@@ -71,7 +72,7 @@ founder_calibration:
     belief_sentence: In the moment, GP receptionists try typing it in, a paper slip, asking the pharmacy, in that order.
   problem.current_solution_satisfaction: {answer: works_poorly, belief_phrase: 'works poorly: requests still go missing',
     belief_sentence: 'The way GP receptionists handle it today works poorly: requests still go missing.'}
-  problem.urgency: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+  problem.urgency: {unsure: true, belief_sentence: 'You weren''t sure, so this was left out of the study. The brief says it is untested.'}
   solution.compatibility: {answer: before_any_attempt, belief_phrase: before the caller reaches a receptionist, belief_sentence: It
       fits into the episode before the caller reaches a receptionist.}
   solution.relative_advantage: {answer: shorter_time, belief_phrase: a shorter queue on the phones, belief_sentence: 'To be
@@ -79,7 +80,7 @@ founder_calibration:
   solution.effectiveness_threshold:
     answer: {value: 2, unit: minutes}
     belief_phrase: at least 2 minutes
-    belief_sentence: It is worth using only if it saves at least at least 2 minutes per episode.
+    belief_sentence: It is worth using only if it saves at least 2 minutes per episode.
   solution.trust_risk:
     labels: ["It files requests correctly", "It flags anything unusual", "Patients can actually use it"]
     answer: [files_correctly, flags_exceptions]
@@ -124,7 +125,7 @@ founder_calibration:
     answer: [call, read_only_trial, it_intro]
     belief_phrase: an introduction to their IT supplier
     belief_sentence: For a trial, right now, they would go as far as an introduction to their IT supplier.
-  commercial.retention_potential: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+  commercial.retention_potential: {unsure: true, belief_sentence: 'You weren''t sure, so this was left out of the study. The brief says it is untested.'}
 respondent_questions:
   problem.prevalence:
     part: 1

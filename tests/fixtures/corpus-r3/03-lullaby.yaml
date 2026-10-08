@@ -35,7 +35,8 @@ roles:
 - {id: parent, label: New parents, roleType: CONSUMER, about: the parent of a baby under six months who gets up in the night}
 context: {actor: parent, actor_plural: parents of babies under six months, job: work out what the baby needs and settle them,
   circumstance: the baby cries in the night, segment: 'first-time parents in the UK, baby under six months', understood: 'Parents
-    of babies under six months, when the baby cries in the night and they must work out what it needs and settle them.'}
+    of babies under six months, when the baby cries in the night and they must work out what it needs and settle them.',
+  recall_window: {count: 7, unit: NIGHTS}}
 interpretations: {problem: 'Parents of babies under six months, woken by crying in the night, cannot tell the reason for the
     cry, so they end up guessing: the parent feeds, changes, rocks and holds the baby in turn until it settles.'}
 solution_mechanism:
@@ -60,7 +61,7 @@ founder_calibration:
     belief_phrase: 15 to 25 minutes
     belief_sentence: A typical episode takes 15 to 25 minutes from start to finish.
   problem.importance: {answer: top_three, belief_phrase: one of the top three, belief_sentence: 'Among the difficulties that
-      come with the baby crying in the night, this is one of the top three.'}
+      come up when the baby cries in the night, this is one of the top three.'}
   problem.consequence:
     labels: ["The parent loses sleep", "The other parent or partner is woken too", "The parent feels stressed, anxious or guilty", "The parent is tired and less effective the next day", "The parent turns to a doctor, nurse or helpline", "The parent searches online or asks family or friends"]
     answer: [lost_sleep, stress, next_day_fatigue]
@@ -74,7 +75,7 @@ founder_calibration:
     belief_sentence: In the moment, parents of babies under six months try feeding, a nappy change, rocking, in that order.
   problem.current_solution_satisfaction: {answer: works_poorly, belief_phrase: 'works poorly: they end up guessing', belief_sentence: 'The
       way parents of babies under six months handle it today works poorly: they end up guessing.'}
-  problem.urgency: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+  problem.urgency: {unsure: true, belief_sentence: 'You weren''t sure, so this was left out of the study. The brief says it is untested.'}
   solution.compatibility: {answer: before_any_attempt, belief_phrase: 'right at the start, before anything is tried', belief_sentence: 'It
       fits into the episode right at the start, before anything is tried.'}
   solution.relative_advantage: {answer: fewer_attempts, belief_phrase: fewer tries before the baby settles, belief_sentence: 'To
@@ -130,7 +131,7 @@ founder_calibration:
     answer: [install, mic]
     belief_phrase: allowing the microphone
     belief_sentence: For a trial, right now, they would go as far as allowing the microphone.
-  commercial.retention_potential: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+  commercial.retention_potential: {unsure: true, belief_sentence: 'You weren''t sure, so this was left out of the study. The brief says it is untested.'}
 respondent_questions:
   problem.prevalence:
     part: 1

@@ -25,7 +25,7 @@ measurements and the brief's claims. All three retired with the subjects they fe
 from __future__ import annotations
 
 from . import contract as contract_mod
-from .registry import DEFAULT_WINDOW, fill_window
+from .registry import DEFAULT_WINDOW, RecallWindow, fill_window
 
 # data-model.md note 2 (spec 009): the corpus writes the tap the way a person reads it; the wire
 # wants the enum name. Kept for `harness/corpus_script.py` and `harness/stranger_stories.py`, which
@@ -108,13 +108,11 @@ def market_of(entry) -> dict | None:
             "language": market.get("language")}
 
 
-def window_of(entry) -> tuple:
-    """The entry's recall window `(words, unit)` -- r3's `context.window` when it records one, else
-    keel-cloud's default (decision 25 is open, so every entry reads 7 nights today)."""
-    window = (entry.context or {}).get("window")
-    if isinstance(window, dict) and window.get("words"):
-        return (window["words"], window.get("unit") or DEFAULT_WINDOW[1])
-    return DEFAULT_WINDOW
+def window_of(entry) -> RecallWindow:
+    """The entry's recall window -- r3's `context.recall_window: {count, unit}` (founder decision
+    42, keel-cloud 058 `5fc7220`), read as `RecallWindow.read` reads it, else keel-cloud's default
+    (7 nights), as `ScreenContextBuilder.window` reads a project with no confirmed context."""
+    return RecallWindow.read((entry.context or {}).get("recall_window")) or DEFAULT_WINDOW
 
 
 def context_of(entry) -> dict:
@@ -122,7 +120,7 @@ def context_of(entry) -> dict:
     (keel-cloud 058's `slots`, T002)."""
     context = entry.context or {}
     out = {name: context.get(name) for name in CONTEXT_FIELDS}
-    out["window"] = window_of(entry)[0]
+    out["window"] = window_of(entry).words()
     return out
 
 
@@ -163,9 +161,11 @@ def build_context_interpret(entry, keys=None) -> dict:
     keys = DEFAULT_KEYS[contract_mod.SCREEN_CONTEXT_INTERPRET] if keys is None else keys
     context = entry.context or {}
     return _fill(keys, {
+        # VectorCorridorService.proposeContext's order: the four fields, then the window.
         "context_fields": {"who": context.get("actor"), "what": context.get("job"),
                            "when": context.get("circumstance"),
-                           "which_people": context.get("segment")},
+                           "which_people": context.get("segment"),
+                           "recall_window": window_of(entry).to_map()},
         "market": market_of(entry),
         "project_name": entry.title,
     })

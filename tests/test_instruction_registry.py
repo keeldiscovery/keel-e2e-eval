@@ -120,5 +120,35 @@ def test_the_manifest_names_the_registry_file_as_058_writes_it(tmp_path):
 
 
 def test_the_window_placeholders_are_filled_by_code():
-    assert registry_mod.fill_window({"g": ["the last {window}, in {window_unit}"]}) == \
-        {"g": ["the last 7 nights, in nights out of 7"]}
+    assert registry_mod.fill_window({"g": ["in {window}, in {window_unit}"]}) == \
+        {"g": ["in the last 7 nights, in nights out of 7"]}
+    months = registry_mod.RecallWindow(3, "MONTHS")
+    assert registry_mod.fill_window("in {window}", months) == "in the last 3 months"
+
+
+@pytest.mark.parametrize("raw, words, unit", [
+    ({"count": 7, "unit": "NIGHTS"}, "the last 7 nights", "nights out of 7"),
+    ({"count": 3, "unit": "MONTHS"}, "the last 3 months", "months out of 3"),
+    ({"count": 1, "unit": "SHIFTS"}, "the last shift", "shifts out of 1"),
+    ({"count": 5, "unit": "WORKING_DAYS"}, "the last 5 working days", "working days out of 5"),
+    ("LAST_CYCLE", "the last cycle", "cycles out of 1"),
+])
+def test_a_recall_window_renders_as_keel_cloud_058s_record_does(raw, words, unit):
+    """`RecallWindow.words()` / `unit()` (058 `cb0422a`): a count of 1 drops the number, and
+    `{window_unit}` is the plural out of the count; a legacy enum name is upcast."""
+    window = registry_mod.RecallWindow.read(raw)
+    assert (window.words(), window.unit_words()) == (words, unit)
+
+
+def test_a_recall_window_is_named_the_ways_c7_accepts_and_refused_when_unreadable():
+    seven = registry_mod.RecallWindow(7, "NIGHTS")
+    assert seven.is_named_in("In the last SEVEN NIGHTS, did it happen?")
+    assert seven.is_named_in("in the past week") and not seven.is_named_in("recently")
+    shift = registry_mod.RecallWindow(1, "SHIFTS")
+    assert shift.is_named_in("On your most recent shift") and not shift.is_named_in("1 shifts")
+    assert registry_mod.RecallWindow(3, "MONTHS").is_named_in("in the last quarter")
+    assert registry_mod.RecallWindow.read(None) is None
+    for bad in ({"count": 0, "unit": "NIGHTS"}, {"count": 2, "unit": "YEARS"},
+                {"count": 1.5, "unit": "DAYS"}, "FORTNIGHT"):
+        with pytest.raises(ValueError):
+            registry_mod.RecallWindow.read(bad)

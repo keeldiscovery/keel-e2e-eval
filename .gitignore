@@ -8,3 +8,5 @@ node_modules/
 .pytest_cache/
 .specify/feature.json
 .idea/
+# founder decision 41: agent worktrees are never part of this repository.
+.claude/worktrees/

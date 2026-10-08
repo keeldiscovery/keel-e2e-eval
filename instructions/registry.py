@@ -72,16 +72,119 @@ NUMERIC_FOUNDER_CONTROLS = ("numeric_interval", "numeric_threshold", "price_rang
 
 
 #: keel-cloud 058 (2026-10-07): the registry carries `{window}` / `{window_unit}` placeholders, the
-#: project's recall window, filled by code. Every project reads the default until the screen that
-#: chooses one exists (the founder's open decision 25), and so does every r3 entry.
-DEFAULT_WINDOW = ("7 nights", "nights out of 7")
+#: project's recall window, filled by code. Founder decision 42 (2026-10-08) made the window COUNT +
+#: UNIT, chosen at the Context step; every r3 entry records its own as `context.recall_window`.
+_WINDOW_UNITS = {
+    # Appended only, never reordered -- `RecallWindow.Unit`'s order and words.
+    "NIGHTS": ("night", "nights"), "DAYS": ("day", "days"),
+    "WORKING_DAYS": ("working day", "working days"), "WEEKS": ("week", "weeks"),
+    "MONTHS": ("month", "months"), "CYCLES": ("cycle", "cycles"), "SHIFTS": ("shift", "shifts"),
+}
+_NUMBER_WORDS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+                 "ten", "eleven", "twelve")
+_LEGACY_WINDOWS = {"SEVEN_NIGHTS": (7, "NIGHTS"), "SEVEN_DAYS": (7, "DAYS"),
+                   "FIVE_WORKING_DAYS": (5, "WORKING_DAYS"), "THIRTY_DAYS": (30, "DAYS"),
+                   "LAST_CYCLE": (1, "CYCLES")}
+
+
+@dataclass(frozen=True)
+class RecallWindow:
+    """keel-cloud 058's `domain.vectors.RecallWindow` (5fc7220), mirrored line for line: the words
+    `{window}` and `{window_unit}` are filled with, and the ways `C7` / `R8` accept a question
+    naming it. Code fills both; a model never does."""
+
+    count: int
+    unit: str
+
+    def __post_init__(self):
+        if self.unit not in _WINDOW_UNITS:
+            raise ValueError(f"{self.unit!r} is not a recall-window unit; use one of "
+                                f"{list(_WINDOW_UNITS)}")
+        if not isinstance(self.count, int) or isinstance(self.count, bool) or self.count < 1:
+            raise ValueError(f"a recall window counts at least one "
+                                f"{_WINDOW_UNITS[self.unit][0]}, and this was {self.count!r}")
+
+    @property
+    def singular(self) -> str:
+        return _WINDOW_UNITS[self.unit][0]
+
+    @property
+    def plural(self) -> str:
+        return _WINDOW_UNITS[self.unit][1]
+
+    def words(self) -> str:
+        """`{window}`: "the last 7 nights", or "the last shift" for a count of 1."""
+        return f"the last {self.singular}" if self.count == 1 else \
+            f"the last {self.count} {self.plural}"
+
+    def unit_words(self) -> str:
+        """`{window_unit}` -- Java's `unit()`: Frequency's unit, "nights out of 7"."""
+        return f"{self.plural} out of {self.count}"
+
+    def fill(self, text):
+        return None if text is None else \
+            text.replace("{window_unit}", self.unit_words()).replace("{window}", self.words())
+
+    def said(self) -> list:
+        """The ways a question may name this window: "7 nights", "seven nights", "last shift"..."""
+        said = []
+        if self.count == 1:
+            said += [f"{lead}{self.singular}" for lead in ("last ", "past ", "previous ",
+                                                           "most recent ")]
+        else:
+            said.append(f"{self.count} {self.plural}")
+            if self.count < len(_NUMBER_WORDS):
+                said.append(f"{_NUMBER_WORDS[self.count]} {self.plural}")
+        also = None
+        if self.unit in ("DAYS", "NIGHTS"):
+            also = "week" if self.count == 7 else "month" if self.count in (30, 31) else None
+        elif self.unit == "WEEKS":
+            also = "fortnight" if self.count == 2 else "month" if self.count == 4 else None
+        elif self.unit == "MONTHS":
+            also = "quarter" if self.count == 3 else "year" if self.count == 12 else None
+        if also is not None:
+            said += [f"last {also}", f"past {also}"]
+        return said
+
+    def is_named_in(self, text) -> bool:
+        """Whether `text` names this window, as `C7` / `R8` read it."""
+        if text is None:
+            return False
+        lower = str(text).lower()
+        return any(s in lower for s in self.said())
+
+    def to_map(self) -> dict:
+        """`{count, unit}`, as the wire and the job carry it."""
+        return {"count": self.count, "unit": self.unit}
+
+    @classmethod
+    def read(cls, raw):
+        """`RecallWindow.read`: a `{count, unit}` map, or a legacy five-value name (upcast);
+        `None` reads `None`, anything else is refused."""
+        if raw is None or isinstance(raw, cls):
+            return raw
+        if isinstance(raw, dict):
+            count, unit = raw.get("count"), raw.get("unit")
+            if not isinstance(count, (int, float)) or isinstance(count, bool) \
+                    or float(count) != int(count) or unit is None:
+                raise ValueError(f"a recall window is {{count, unit}}, and this was {raw!r}")
+            return cls(int(count), str(unit))
+        legacy = _LEGACY_WINDOWS.get(str(raw))
+        if legacy is None:
+            raise ValueError(f"{raw!r} is not a recall window")
+        return cls(*legacy)
+
+
+#: `RecallWindow.DEFAULT`: what a project reads when nothing was chosen.
+DEFAULT_WINDOW = RecallWindow(7, "NIGHTS")
 
 
 def fill_window(node, window=DEFAULT_WINDOW):
-    """`node` (a string, dict or list) with both placeholders filled -- what a job is handed."""
-    words, unit = window
+    """`node` (a string, dict or list) with both placeholders filled -- what a job is handed
+    (`ScreenContextBuilder.RegistrySlices.filled`)."""
+    window = window or DEFAULT_WINDOW
     if isinstance(node, str):
-        return node.replace("{window_unit}", unit).replace("{window}", words)
+        return window.fill(node)
     if isinstance(node, dict):
         return {k: fill_window(v, window) for k, v in node.items()}
     if isinstance(node, list):

@@ -46,7 +46,7 @@ from pathlib import Path
 import yaml
 
 from . import text as text_mod
-from .registry import DEAL_BREAKERS, VECTORS
+from .registry import DEAL_BREAKERS, VECTORS, RecallWindow
 
 REVISION = 3
 
@@ -392,6 +392,12 @@ FOUNDER_NONE = ("none", "nothing")
 
 def _check_shape(raw: dict, path: Path) -> None:
     entry_id = raw.get("id") or path.name
+    # `context.recall_window: {count, unit}` (founder decision 42; keel-cloud 058 `cb0422a`):
+    # optional -- an entry without one reads the default, 7 nights -- and refused when unreadable.
+    try:
+        RecallWindow.read((raw.get("context") or {}).get("recall_window"))
+    except ValueError as why:
+        raise _refuse(entry_id, f"context.recall_window: {why}", path) from None
     for key, value in (raw.get("founder_calibration") or {}).items():
         if not isinstance(value, dict) or not ("answer" in value or value.get("unsure") is True):
             raise _refuse(entry_id, f"founder_calibration[{key}] carries neither `answer` nor "

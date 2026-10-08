@@ -22,7 +22,7 @@ dimensions:
   weight: DEAL_BREAKER
   founder:
     control: single_choice
-    guidance: Out of 10 people in the segment, how many had this at least once in the last {window}. The window is the project's recall window (the gate's window);
+    guidance: Out of 10 people in the segment, how many had this at least once in {window}. The window is the project's recall window (the gate's window);
       the bins are contiguous fifths of the segment.
     normalized:
       kind: proportion_bin
@@ -30,14 +30,14 @@ dimensions:
       codes: [p_0_20, p_20_40, p_40_60, p_60_80, p_80_100]
     option_rule: 'Exactly 5 options, contiguous: fewer than 2 in 10 · 2 to 4 · 4 to 6 · 6 to 8 · 8 to 10. No gaps (the smoke test''s 5-6 / 7-8 / 9-10 had holes).
       Each option carries its own belief phrase (only a few · a minority · around half · most · nearly all); never the label.'
-    belief_template: '{value} of these {actor_plural} had this at least once in the last {window}.'
+    belief_template: '{value} of these {actor_plural} had this at least once in {window}.'
     unsure_allowed: false
   respondent:
     asked_in_v1: true
     part: 1
     anchor: that_night
     control: gate_yes_no
-    guidance: 'This item IS the gate: "In the last {window}, did [the circumstance] happen to you?" Yes / No. Explicit, never inferred from the story. No → graceful
+    guidance: 'This item IS the gate: "In {window}, did [the circumstance] happen to you?" Yes / No. Explicit, never inferred from the story. No → graceful
       exit; the person still counts in the denominator. Yes → the story prompt (the anchor test), then the rest of Part 1. Never names the idea, the app or the mechanism.'
     option_rule: 'Yes · No. No distractors, no ''Something else''. Chips: none (a gate must be answered).'
     chips: []
@@ -73,7 +73,7 @@ dimensions:
     part: 1
     anchor: that_night
     control: segmented_0_to_7
-    guidance: Count how many of the last {window} it happened on, not how many times it happened. Never shows the founder's range.
+    guidance: Count how many of {window} it happened on, not how many times it happened. Never shows the founder's range.
     option_rule: Fixed segmented control 0–7, one tap. No 'Something else'.
     chips: [I can't recall, I'd rather not say, That's a rough guess]
   answers:

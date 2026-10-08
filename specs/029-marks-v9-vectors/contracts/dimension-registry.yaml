@@ -1,3 +1,11 @@
+# Signed 2026-10-07 by the founder with spec 058 (specs/058-vector-corridor); the YAML of record. keel/dimension-registry.json is derived from it.
+# Copied from specs/058-vector-corridor/contracts/dimension-registry.yaml below this header, then edited here (the draft sha no longer
+# holds): 2026-10-07, the recall window became a per-project parameter -- {window} / {window_unit} replace the "7 nights" literals in
+# every schema field (track D finding, keel-e2e-eval 029); the lullaby blocks keep Lullaby's own words. Edit here, then regenerate.
+# 2026-10-08, founder decision 42: the window is COUNT + UNIT ({7, NIGHTS} by default) and {window} renders whole -- "the last 7
+# nights", "the last 3 months", "the last shift" for a count of 1 -- so the templates read "in {window}", never "in the last {window}".
+# 2026-10-08, the GRAMMAR decision: {circumstance} is a clause without the word "when" ("the baby cries in the night"), so Importance's
+# template reads "... come up when {circumstance}" (it read "come with {circumstance}", which wanted a noun phrase).
 # Dimension registry v1 — Phase 0.2 of the vector redesign
 # Date: 2026-10-06
 # Status: DRAFT for the founder's review. Nothing here is built or committed.
@@ -86,6 +94,8 @@ common:
     "{actor_plural}": "Context WHO, plural, as the founder wrote it (Lullaby: 'parents of babies under six months')."
     "{job}": "Context WHAT: the outcome the actor is trying to reach, described without the product (Lullaby: 'work out what the baby needs and settle them')."
     "{circumstance}": "Context WHEN: the trigger and situation (Lullaby: 'the baby cries in the night')."
+    "{window}": "The project's recall window in words, a count and a unit chosen at the Context step: 'the last 7 nights' (the default; Lullaby), 'the last 5 working days', 'the last 3 months'; a count of 1 reads 'the last cycle' / 'the last shift' / 'the last month'. Filled by code."
+    "{window_unit}": "Frequency's unit: the window's unit, plural, out of its count (Lullaby: 'nights out of 7'; 'shifts out of 1'). Filled by code."
     _note: >-
       Filled by code from the Context step, never by a model. Belief sentences are deterministic
       (HANDOFF §5 row 4). Templates below also use {value}, exactly once each.
@@ -120,17 +130,17 @@ dimensions:
   founder:
     control: single_choice
     guidance: >-
-      Out of 10 people in the segment, how many had this at least once in the last 7 nights. The window
-      is fixed at 7 nights (the gate's window); the bins are contiguous fifths of the segment.
+      Out of 10 people in the segment, how many had this at least once in {window}. The window
+      is the project's recall window (the gate's window); the bins are contiguous fifths of the segment.
     normalized:
       kind: proportion_bin
-      window: "7 nights"
+      window: "{window}"
       codes: [p_0_20, p_20_40, p_40_60, p_60_80, p_80_100]
     option_rule: >-
       Exactly 5 options, contiguous: fewer than 2 in 10 · 2 to 4 · 4 to 6 · 6 to 8 · 8 to 10. No gaps
       (the smoke test's 5-6 / 7-8 / 9-10 had holes). Each option carries its own belief phrase
       (only a few · a minority · around half · most · nearly all); never the label.
-    belief_template: "{value} of these {actor_plural} had this at least once in the last 7 nights."
+    belief_template: "{value} of these {actor_plural} had this at least once in {window}."
     unsure_allowed: false
     _decided: 1
   respondent:
@@ -139,11 +149,11 @@ dimensions:
     anchor: that_night
     control: gate_yes_no
     guidance: >-
-      This item IS the gate: "In the last 7 nights, did [the circumstance] happen to you?" Yes / No.
+      This item IS the gate: "In {window}, did [the circumstance] happen to you?" Yes / No.
       Explicit, never inferred from the story. No → graceful exit; the person still counts in the
       denominator. Yes → the story prompt (the anchor test), then the rest of Part 1. Never names the
       idea, the app or the mechanism.
-    option_rule: "Yes · No. No distractors, no 'Something else'. Chips: none (a gate must be answered)."
+    option_rule: "Yes · No. No distractors, no 'Something else'. Chips: none (a gate must be answered). Code renders the options; the model writes the question only."
     chips: []
   answers:
     shape: choice
@@ -173,6 +183,10 @@ dimensions:
       drift: "more than you think · you said Most · 10 of 12 said yes"
       counts: "12 answered the gate · 10 yes, 2 no (Leo: hasn't happened; Hugo: ten days ago) · 0.83, ABOVE the 0.6–0.8 bin: holding up with the drift clause (decision 6, the worked above-the-band case on a deal-breaker)"
 
+# Frequency in the project's recall window (decision 42): {window_unit} is the window's unit out of its count. The respondent's
+# control is segmented_0_to_N with N = the count when the count is at most 7 (a count of 1 is none-or-the-one, yes / no in all but
+# name); a longer window (30 days, 12 months) is served as number_with_unit in {window_unit}, from 0 to the count. axis_max below is
+# the default window's; code reads the project's count. RecallWindow and InterviewComposer state the same rule.
 - key: problem.frequency
   vector: PROBLEM
   order: 2
@@ -181,16 +195,16 @@ dimensions:
   weight: DEAL_BREAKER
   founder:
     control: numeric_interval
-    guidance: "On how many nights out of 7 an affected person faces it: a range on a 0–7 axis, whole nights."
+    guidance: "On how many {window_unit} an affected person faces it: a range on an axis from 0 to the window's length, whole units."
     normalized:
       kind: interval
-      unit_options: ["nights out of 7"]
-      default_unit: "nights out of 7"
+      unit_options: ["{window_unit}"]
+      default_unit: "{window_unit}"
       axis_max: 7
       axis_step: 1
       extend_by: 0
       bins: [0, 1, 2, 3, 4, 5, 6, 7]
-    option_rule: "No options: a two-handle range on 0–7. Belief value = the range with its unit ('4 to 7 nights out of 7')."
+    option_rule: "No options: a two-handle range from 0 to the window's length. Belief value = the range with its unit ('4 to 7 {window_unit}')."
     belief_template: "{actor_plural} face this on {value}."
     unsure_allowed: true
   respondent:
@@ -198,8 +212,8 @@ dimensions:
     part: 1
     anchor: that_night
     control: segmented_0_to_7
-    guidance: "Count the nights in the last 7 nights on which it happened, not the wakings. Never shows the founder's range."
-    option_rule: "Fixed segmented control 0–7, one tap. No 'Something else'."
+    guidance: "Count how many {window_unit} it happened on, not how many times it happened. Never shows the founder's range."
+    option_rule: "A segmented control from 0 to the window's count, one tap, when the count is at most 7; a number in {window_unit} for a longer window. No 'Something else'. Code renders the options; the model writes the question only."
     chips: ["I can't recall", "I'd rather not say", "That's a rough guess"]
   answers:
     shape: interval
@@ -327,7 +341,7 @@ dimensions:
       kind: rank_band
       codes: [biggest, top_three, middle, minor, negligible]
     option_rule: "Exactly 5 options in rank order mapped onto the codes; each with a belief phrase ('the biggest difficulty', 'one of the top three', ...)."
-    belief_template: "Among the difficulties that come with {circumstance}, this is {value}."
+    belief_template: "Among the difficulties that come up when {circumstance}, this is {value}."
     unsure_allowed: true
     _decided: 8
   respondent:
@@ -355,7 +369,7 @@ dimensions:
       - {label: "A minor one compared with the others", normalized: minor, belief_phrase: "a minor one"}
       - {label: "It barely registers against the others", normalized: negligible, belief_phrase: "barely on the list"}
     founder_answer: "One of their top three"
-    belief_sentence: "Among the difficulties that come with the baby crying in the night, this is one of the top three."
+    belief_sentence: "Among the difficulties that come up when the baby cries in the night, this is one of the top three."
     respondent_question: "If you could make one part of nights with your baby easier, which would it be?"
     respondent_options: ["Getting the baby back down after a feed", "Working out what the cry means", "Getting myself back to sleep afterwards", "Sharing the night with my partner more evenly", "The early-morning wake-ups", "Something else"]
     expected:
@@ -385,7 +399,7 @@ dimensions:
     anchor: that_night
     control: multi_choice
     guidance: "What actually happened after that night, tick all that apply; include effects the founder did not name so the respondent is not led; include 'Nothing much'."
-    option_rule: "Founder's codes + 1–2 distractors + 'Nothing much' + 'Something else'. Order shuffled, founder's codes not grouped."
+    option_rule: "Founder's labels verbatim + 2–3 distractors + 'Nothing much' + 'Something else' (both code-appended). Order shuffled, founder's codes not grouped."
     chips: ["I can't recall", "I'd rather not say"]
   answers:
     shape: choice
@@ -434,7 +448,7 @@ dimensions:
     anchor: that_night
     control: multi_choice_ordered
     guidance: "That night: tick what you tried, in the order you tried it. Reconstructs the actual sequence of attempts; never names the idea."
-    option_rule: "Founder's codes + 1–2 distractors + 'Something else'; ticks are numbered in tap order."
+    option_rule: "Founder's labels verbatim + 2–3 distractors + 'Something else' (code-appended); ticks are numbered in tap order."
     chips: ["I can't recall", "I'd rather not say"]
   answers:
     shape: choice
@@ -686,7 +700,7 @@ dimensions:
     anchor: the_reveal
     control: single_choice_bands
     guidance: "How much sooner that night would have needed to end for a suggestion to have been worth it: contiguous bands plus 'nothing would have made it worth it'. Never the founder's number."
-    option_rule: "Fixed bands from normalized.bins in the founder's unit, plus 'Nothing would have made it worth it'. No 'Something else'."
+    option_rule: "Fixed bands from normalized.bins in the founder's unit, plus 'Nothing would have made it worth it'. No 'Something else'. Code renders the options; the model writes the question only."
     chips: ["I can't recall", "I'd rather not say", "That's a rough guess"]
   answers:
     shape: interval
@@ -731,7 +745,7 @@ dimensions:
     anchor: the_reveal
     control: multi_choice
     guidance: "What would need to be true before you acted on a suggestion like that, that night: tick all; include 'I'd go with my own instinct either way'."
-    option_rule: "Founder's codes + 1–2 distractors + 'I'd go with my own instinct either way' + 'Something else'."
+    option_rule: "Founder's labels verbatim + 2–3 distractors + 'I'd go with my own instinct either way' + 'Something else' (both code-appended)."
     chips: ["I can't recall", "I'd rather not say"]
   answers:
     shape: choice
@@ -877,7 +891,7 @@ dimensions:
     anchor: the_reveal
     control: multi_choice
     guidance: "What would have made trying something like this easy enough to consider, tick all; anchored to the last thing they started using for the baby where the story allows."
-    option_rule: "Founder's codes + 1–2 distractors + 'Something else'."
+    option_rule: "Founder's labels verbatim + 2–3 distractors + 'Something else' (code-appended)."
     chips: ["I can't recall", "I'd rather not say"]
   answers:
     shape: choice
@@ -925,7 +939,7 @@ dimensions:
     anchor: the_reveal
     control: multi_choice
     guidance: "How would you personally have decided whether it helped that night: tick all."
-    option_rule: "Founder's codes + 1–2 distractors + 'Something else'."
+    option_rule: "Founder's labels verbatim + 2–3 distractors + 'Something else' (code-appended)."
     chips: ["I can't recall", "I'd rather not say"]
   answers:
     shape: choice
@@ -975,7 +989,7 @@ dimensions:
     anchor: the_reveal
     control: single_choice
     guidance: "When would something like this be most useful to you, with that night in mind: one pick, including 'It wouldn't be useful to me'."
-    option_rule: "Founder's codes + 'It wouldn't be useful to me' + 'Something else'."
+    option_rule: "Founder's labels verbatim, no distractors + 'It wouldn't be useful to me' + 'Something else' (both code-appended)."
     chips: ["I can't recall", "I'd rather not say"]
   answers:
     shape: choice
@@ -1026,7 +1040,7 @@ dimensions:
     anchor: last_purchase
     control: branch_pick_number
     guidance: "Think of the last thing you paid for or gave up because of this. Pick what (founder's codes + 'Nothing'), then roughly how much, all together, in the last three months (money, market currency), then 'still using it?' yes/no. Never the founder's set."
-    option_rule: "Pick: founder's codes + 1 distractor + 'Nothing' + 'Something else'; number: currency amount; follow-up: Yes / No."
+    option_rule: "Pick: founder's labels verbatim + 2–3 distractors + 'Nothing' + 'Something else' (both code-appended); number: currency amount; follow-up: Yes / No."
     chips: ["I can't recall", "I'd rather not say", "That's a rough guess"]
     b2b:
       anchor: last_cycle
@@ -1239,7 +1253,7 @@ dimensions:
     anchor: last_purchase
     control: multi_choice
     guidance: "The last time you nearly bought something for this and didn't, what got in the way; or, for that last purchase, what had to happen first. Tick all; include 'Nothing; it never came up'."
-    option_rule: "Founder's codes + 1–2 distractors + 'Nothing; it never came up' + 'Something else'."
+    option_rule: "Founder's labels verbatim + 2–3 distractors + 'Nothing; it never came up' + 'Something else' (both code-appended)."
     chips: ["I can't recall", "I'd rather not say"]
     b2b:
       anchor: last_purchase

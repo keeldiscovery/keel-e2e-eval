@@ -186,7 +186,7 @@ def _severity_options(r):
     ("numeric spec", lambda r: _q(r, "problem.duration").__setitem__(
         "normalized", {"axis_max": 120}), "numeric spec axis_max"),
     ("no seven nights", lambda r: _q(r, "problem.prevalence").__setitem__(
-        "question", "How many had this recently?"), "7-night window"),
+        "question", "How many had this recently?"), "the project's window"),
     ("fifths with a hole", lambda r: _q(r, "problem.prevalence")["options"][2].__setitem__(
         "normalized", "p_50_60"), "not the registry's"),
 ])

@@ -28,7 +28,8 @@ roles:
 context: {actor: HR manager, actor_plural: HR managers at firms of 200 to 500 people, job: get the training-compliance report
     out complete and on time, circumstance: the quarter closes and the training-compliance report is due, segment: HR managers
     at UK firms of 200 to 500 people, understood: 'HR managers at firms of 200 to 500 people, when the quarter closes and
-    the training-compliance report is due, trying to get it out complete and on time.'}
+    the training-compliance report is due, trying to get it out complete and on time.',
+  recall_window: {count: 3, unit: MONTHS}}
 interpretations: {problem: 'HR managers at firms of 200 to 500 people lose about two working days each quarter pulling completions
     out of the learning system into a spreadsheet by hand, and still risk a missed completion surfacing in an audit.'}
 solution_mechanism:
@@ -41,7 +42,7 @@ solution_mechanism:
 persona: {decision_maker: same_person}
 founder_calibration:
   problem.prevalence: {answer: p_60_80, belief_phrase: Most, belief_sentence: Most of these HR managers at firms of 200 to
-      500 people had this at least once in the last 7 nights.}
+      500 people had this at least once in the last 3 months.}
   problem.frequency:
     answer: {lower: 2, upper: 3, unit: days out of 7}
     belief_phrase: 2 to 3 days out of 7
@@ -53,7 +54,7 @@ founder_calibration:
     belief_phrase: 12 to 20 hours
     belief_sentence: A typical episode takes 12 to 20 hours from start to finish.
   problem.importance: {answer: biggest, belief_phrase: the biggest headache of the quarter, belief_sentence: 'Among the difficulties
-      that come with the quarter closes and the training-compliance report is due, this is the biggest headache of the quarter.'}
+      that come up when the quarter closes and the training-compliance report is due, this is the biggest headache of the quarter.'}
   problem.consequence:
     labels: ["Late nights before the deadline", "Risk of failing the audit", "Chasing managers for records", "Other work slipping"]
     answer: [late_nights, audit_risk, chasing_managers]
@@ -68,7 +69,7 @@ founder_calibration:
       the managers, in that order.
   problem.current_solution_satisfaction: {answer: works_poorly, belief_phrase: 'works poorly: it never quite reconciles',
     belief_sentence: 'The way HR managers at firms of 200 to 500 people handle it today works poorly: it never quite reconciles.'}
-  problem.urgency: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+  problem.urgency: {unsure: true, belief_sentence: 'You weren''t sure, so this was left out of the study. The brief says it is untested.'}
   solution.compatibility: {answer: before_any_attempt, belief_phrase: before the spreadsheet is even opened, belief_sentence: It
       fits into the episode before the spreadsheet is even opened.}
   solution.relative_advantage: {answer: shorter_time, belief_phrase: 'a report out in hours, not days', belief_sentence: 'To
@@ -76,7 +77,7 @@ founder_calibration:
   solution.effectiveness_threshold:
     answer: {value: 8, unit: hours}
     belief_phrase: at least 8 hours
-    belief_sentence: It is worth using only if it saves at least at least 8 hours per episode.
+    belief_sentence: It is worth using only if it saves at least 8 hours per episode.
   solution.trust_risk:
     labels: ["It shows where every figure came from", "HR signs off before it goes out", "The auditor accepts the report", "The data stays where it is"]
     answer: [shows_sources, hr_signs_off]
@@ -122,7 +123,7 @@ founder_calibration:
     answer: [setup, install]
     belief_phrase: connecting it to the learning system
     belief_sentence: For a trial, right now, they would go as far as connecting it to the learning system.
-  commercial.retention_potential: {unsure: true, belief_sentence: 'Left out: you weren''t sure.'}
+  commercial.retention_potential: {unsure: true, belief_sentence: 'You weren''t sure, so this was left out of the study. The brief says it is untested.'}
 respondent_questions:
   problem.prevalence:
     part: 1
