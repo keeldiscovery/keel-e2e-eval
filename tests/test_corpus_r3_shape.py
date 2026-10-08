@@ -7,7 +7,8 @@ recorded revision (`tests/fixtures/corpus-r3/`) while it does not (the loader's 
 here is a copy of either. What is held is the shape every entry must have, and the facts the spec
 names entry by entry: Lullaby's statuses, drifts, totals and verdicts (FR-007); Hugo and Leo at the
 gate and Jonas's chip (FR-011, FR-017); Countly's asked dimension left out (FR-009); the B2B entry
-(FR-010); and seven digests that are not revision 2's.
+(FR-010); and the seven digests: canon's once it holds r3, the fixtures' while it holds r2,
+byte-identical either way.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import hashlib
 from pathlib import Path
 
 import pytest
+import yaml
 
 from instructions import corpus as corpus_mod
 from stack.config import load_config
@@ -121,14 +123,58 @@ def test_the_corpus_wide_interpret_denominator_is_counted_not_estimated(corpus):
     assert sum(len(e.readable()) for e in corpus.entries) == 65
 
 
-def test_the_seven_digests_are_not_revision_twos(corpus):
-    """A v8 bundle's `corpus.sha256` hashed revision 2: no r3 file may share a digest with it."""
-    r2 = corpus_mod.corpus_dir(load_config(validate=False).keel_cloud)
-    if not r2.is_dir():
-        pytest.skip(f"no keel-cloud corpus at {r2} to compare against")
-    old = {hashlib.sha256(p.read_bytes()).hexdigest() for p in r2.glob("*.yaml")}
-    new = set(corpus.hashes.values())
-    assert len(new) == 7 and not (new & old)
+def _fixture_digests() -> dict:
+    return {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in sorted(Path(corpus_mod.FIXTURE_DIR).glob("*.yaml"))}
+
+
+def _digests(corpus) -> dict:
+    return {Path(path).name: digest for path, digest in corpus.hashes.items()}
+
+
+def test_a_revision_three_canon_is_read_and_its_digests_are_the_fixtures(tmp_path):
+    """keel-cloud's corpus at r3 (the files moved byte for byte): the loader reads canon, and the
+    seven digests are the recorded revision's."""
+    keel_cloud = tmp_path / "keel-cloud"
+    canon = corpus_mod.corpus_dir(keel_cloud)
+    canon.mkdir(parents=True)
+    for path in Path(corpus_mod.FIXTURE_DIR).glob("*.yaml"):
+        (canon / path.name).write_bytes(path.read_bytes())
+    assert corpus_mod.source_dir(keel_cloud) == canon
+    loaded = corpus_mod.load(keel_cloud, registry=fx.registry())
+    assert loaded.directory == canon
+    assert _digests(loaded) == _fixture_digests() and len(loaded.hashes) == 7
+
+
+def test_a_revision_two_canon_falls_back_to_the_fixtures(tmp_path):
+    """keel-cloud's corpus still at r2: the loader reads `tests/fixtures/corpus-r3/`, and no
+    digest it reports is one of the r2 files'."""
+    keel_cloud = tmp_path / "keel-cloud"
+    canon = corpus_mod.corpus_dir(keel_cloud)
+    canon.mkdir(parents=True)
+    for path in Path(corpus_mod.FIXTURE_DIR).glob("*.yaml"):
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+        fx.write_entry(canon, dict(raw, revision=2), path.name)
+    assert corpus_mod.source_dir(keel_cloud) == corpus_mod.FIXTURE_DIR
+    loaded = corpus_mod.load(keel_cloud, registry=fx.registry())
+    assert Path(loaded.directory) == Path(corpus_mod.FIXTURE_DIR)
+    assert _digests(loaded) == _fixture_digests()
+    old = {hashlib.sha256(p.read_bytes()).hexdigest() for p in canon.glob("*.yaml")}
+    assert not set(loaded.hashes.values()) & old
+
+
+#: keel-cloud 058's worktree, whose canon took revision 3 in 44dab90.
+KEEL_CLOUD_058 = Path("/Users/athulrajeev/Documents/projects/keel-cloud/.claude/worktrees/"
+                      "058-vector-corridor")
+
+
+def test_keel_cloud_058s_canon_is_the_recorded_revision_byte_for_byte():
+    canon = corpus_mod.corpus_dir(KEEL_CLOUD_058)
+    if not canon.is_dir():
+        pytest.skip(f"keel-cloud 058's worktree corpus is absent at {canon}")
+    theirs = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+              for p in sorted(canon.glob("*.yaml"))}
+    assert theirs == _fixture_digests(), "canon r3 and tests/fixtures/corpus-r3 must not drift"
 
 
 def test_the_recorded_revision_carries_its_move_instruction():
