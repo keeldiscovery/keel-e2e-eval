@@ -9,6 +9,7 @@ with keel-cloud 058 named, and the other kinds are still asked.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -64,10 +65,29 @@ def test_a_respondent_batch_entry_carries_the_jobs_context_window_and_mechanism(
         sent = case.payload["context"]
         assert entry["context"] == sent["context"] and entry["context"]["window"]
         assert entry["items"] == sent["items"]
-        assert entry.get("mechanism") == sent.get("mechanism")
+        assert entry.get("mechanism") == (sent.get("mechanism")
+                                          or case.meta["validation_mechanism"])
         assert entry["case_id"] == case.case_id and entry["screen"] == "RESPONDENT_QUESTIONS"
     assert any(e.get("mechanism") for c, e in respondent if c.meta.get("part") in (2, 3)
                and c.meta.get("link") == "PRIMARY")
+
+
+def test_a_part_one_batch_entry_carries_the_golden_mechanism_its_prompt_never_had(cases):
+    """R4 at 058 bf5c75e reads the project's own vocabulary: the Part 1 entry carries the golden
+    mechanism (terms and `not_assumed` too) as validation state, and the prompt still has none."""
+    part1 = next(c for c in cases if c.kind == "RESPONDENT" and c.meta.get("part") == 1)
+    assert "mechanism" not in part1.payload["context"], "the model is never told the idea on Part 1"
+    assert "the commuter" not in json.dumps(part1.payload["context"])
+    entry = _by_screen(_batch([part1]), "RESPONDENT_QUESTIONS")[0]
+    golden = fx.entry().solution_mechanism
+    assert entry["mechanism"]["mechanism"] == golden["mechanism"]
+    assert entry["mechanism"]["mechanism_terms"] == golden["mechanism_terms"]
+    assert entry["mechanism"]["not_assumed"] == golden["not_assumed"]
+    assert entry["problem_statement"] == fx.entry().interpretations["problem"]
+    assert "problem_statement" not in part1.payload["context"]
+    part2 = next(c for c in cases if c.kind == "RESPONDENT" and c.meta.get("part") == 2)
+    assert _by_screen(_batch([part2]), "RESPONDENT_QUESTIONS")[0]["mechanism"] \
+        == part2.payload["context"]["mechanism"], "a part 2 entry keeps what its job was handed"
 
 
 def test_every_other_kind_carries_what_its_applier_reads(cases):

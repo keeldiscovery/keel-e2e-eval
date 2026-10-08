@@ -166,10 +166,21 @@ def build_batch(cases_and_results) -> dict:
                          link=case.meta.get("link"), plan=list(case.meta.get("plan") or []),
                          founder_options=context.get("founder_options"),
                          founder_values=case.meta.get("founder_values"))
+            # The golden mechanism, as validation state only, wherever the job was handed none
+            # (Part 1, B2B): 058 applies R4 with the project's own vocabulary, never its stand-in
+            # (whose "a result" refused "as a result" eight times on run 2).
+            if not entry.get("mechanism") and case.meta.get("validation_mechanism"):
+                entry["mechanism"] = case.meta["validation_mechanism"]
         elif case.kind == "READING":
             entry.update(invitation_id=context.get("invitation_id"), story=context.get("story"))
         elif case.kind == "BRIEF":
             entry.update(market=context.get("market"), standings=context.get("vectors"))
+        # The confirmed problem card, as validation state only, on the two question screens: 058
+        # confirms it from `problem_statement` (Lullaby's otherwise) and subtracts its words from
+        # R4's and C5's vocabulary -- run 2's Countly "mismatch" was refused for lack of it.
+        if case.kind in ("CALIBRATION", "RESPONDENT") and not entry.get("problem_statement") \
+                and case.meta.get("validation_problem_statement"):
+            entry["problem_statement"] = case.meta["validation_problem_statement"]
         entry.update(case_id=case_id, screen=case.screen)     # never a context key's
         entry["result"] = result
         cases.append(entry)

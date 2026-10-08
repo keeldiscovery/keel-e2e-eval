@@ -136,6 +136,15 @@ def mechanism_of(entry) -> dict:
     return {k: m.get(k) for k in ("actor", "trigger", "mechanism", "output", "mechanism_terms")}
 
 
+def validation_mechanism(entry) -> dict:
+    """The golden mechanism as the VALIDATOR's state only -- the four fields, `not_assumed` and
+    the terms, so keel-cloud 058 applies R4 with the project's real vocabulary on a Part 1 (or
+    B2B) entry, whose job is handed no mechanism. Never in a prompt context."""
+    m = entry.solution_mechanism or {}
+    return {k: m.get(k) for k in ("actor", "trigger", "mechanism", "output", "not_assumed",
+                                  "mechanism_terms")}
+
+
 def interpretation_of(entry, vector: str):
     """keel-cloud 058's calibration `interpretation` (T002): the problem statement alone on PROBLEM
     -- no solution key exists in that job -- the mechanism card on SOLUTION, `null` on COMMERCIAL.

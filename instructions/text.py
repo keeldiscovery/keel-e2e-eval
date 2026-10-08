@@ -75,6 +75,15 @@ second seconds minute minutes hour hours day days week weeks month months year y
 time times
 """.split())
 
+#: The SHARED discourse stoplist (2026-10-08; run 2's re-validation refused "as a result" eight
+#: times): words of ordinary connective prose no question can leak a mechanism through. keel-cloud
+#: 058's `LeakStems.DISCOURSE_STOPLIST` (bf5c75e) carries the same list, word for word and in this
+#: order (`tests/test_text_discourse_stoplist.py` holds the two equal); applied after `STOPLIST`.
+DISCOURSE_STOPLIST = ("result", "results", "way", "ways", "thing", "things", "time", "times",
+                      "part", "parts", "point", "points", "one", "ones", "end", "start", "kind",
+                      "bit", "lot")
+_DISCOURSE = frozenset(DISCOURSE_STOPLIST)
+
 _WORD_RE = re.compile(r"[a-z]+")
 
 
@@ -84,9 +93,9 @@ def words(text) -> list[str]:
 
 
 def content_words(text) -> list[str]:
-    """`words(text)` less the `STOPLIST` and anything under three letters (*700c* leaves a *c*),
+    """`words(text)` less the `STOPLIST`, the `DISCOURSE_STOPLIST` and anything under three letters (*700c* leaves a *c*),
     in order."""
-    return [w for w in words(text) if len(w) >= 3 and w not in STOPLIST]
+    return [w for w in words(text) if len(w) >= 3 and w not in STOPLIST and w not in _DISCOURSE]
 
 
 def stem(word: str) -> str:

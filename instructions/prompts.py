@@ -204,7 +204,8 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
     for vector in context_mod.VECTORS:
         add(f"{entry.id}/CALIBRATION_{vector}", "CALIBRATION", c.SCREEN_CALIBRATION, vector,
             context_mod.build_calibration(entry, vector, registry, keys),
-            meta={"vector": vector, "registry_slice": [d.key for d in registry.slice(vector)]})
+            meta={"vector": vector, "registry_slice": [d.key for d in registry.slice(vector)],
+                  "validation_problem_statement": context_mod.problem_statement(entry)})
 
     # Respondent: one job a part, handed the plan the eval derived (call 30); + the B2B link.
     plan = entry.plan(registry)
@@ -216,7 +217,9 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
         add(f"{entry.id}/RESPONDENT_{label}", "RESPONDENT", c.SCREEN_RESPONDENT, label,
             context_mod.build_respondent(entry, part, plan, registry, keys, link=link),
             meta={"part": part, "link": link, "plan": list(plan[part]),
-                  "founder_values": context_mod.founder_values(entry, plan[part])})
+                  "founder_values": context_mod.founder_values(entry, plan[part]),
+                  "validation_mechanism": context_mod.validation_mechanism(entry),
+                  "validation_problem_statement": context_mod.problem_statement(entry)})
 
     # INTERPRET: one call a readable person -- never a gate-No, a chip or an empty story.
     keys = exported.keys_for(c.SCREEN_INTERPRET)
