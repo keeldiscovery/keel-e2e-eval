@@ -78,6 +78,9 @@ def write_case(run_dir: Path, case, answer, diff: dict, *, host: str = "claude")
     """
     directory = case_dir(run_dir, case)
     (directory / "prompt.txt").write_text(case.prompt, encoding="utf-8")
+    redraw = getattr(answer, "redraw", None)
+    if redraw is not None and getattr(answer, "redraw_prompt", ""):
+        (directory / "prompt-redraw.txt").write_text(answer.redraw_prompt, encoding="utf-8")
     (directory / "envelope.json").write_text(json.dumps({
         "case_id": case.case_id,
         "host": host,
@@ -100,9 +103,36 @@ def write_case(run_dir: Path, case, answer, diff: dict, *, host: str = "claude")
         "result": answer.result,
         "questions": answer.questions,
         "envelope": answer.envelope,
+        # Judgement call 41: the first draft, the answer a founder would see (`null` when the
+        # aggregate refused both drafts, or judged this one only at the end of the run), which
+        # of them the structural marks read, every refusal, and the repair turn itself.
+        **_drafts(answer),
     }, indent=2, default=str), encoding="utf-8")
     (directory / "diff.json").write_text(json.dumps(diff, indent=2, default=str),
                                          encoding="utf-8")
+
+
+def _drafts(answer) -> dict:
+    view = getattr(answer, "view", None)
+    if view is None:
+        return {}
+    accepted = answer.accepted
+    redraw = answer.redraw
+    return {
+        "answer": {"raw": answer.view(), "accepted": accepted.view() if accepted else None,
+                   "scored": "accepted" if accepted is not None else "raw"},
+        "refusals": answer.refusals,
+        "redraw": None if redraw is None else {
+            "repair": ((answer.redraw_payload or {}).get("context") or {}).get("repair"),
+            "request_payload": answer.redraw_payload,
+            "outcome": redraw.outcome, "result": redraw.result, "questions": redraw.questions,
+            "schema_valid": redraw.schema_valid,
+            "schema_error": redraw.schema_error, "error": redraw.error,
+            "num_turns": redraw.num_turns, "total_cost_usd": redraw.total_cost_usd,
+            "premium_requests": redraw.premium_requests, "tokens": redraw.tokens,
+            "reported_model": redraw.reported_model, "duration_s": round(redraw.duration_s, 3),
+            "envelope": redraw.envelope},
+    }
 
 
 def write_scorecard(run_dir: Path, scorecard: dict) -> None:
@@ -208,7 +238,7 @@ MARK_ROWS = (
 
 
 def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: dict,
-                  host: str = "claude") -> Path:
+                  host: str = "claude", filename: str = "report.html") -> Path:
     t = scorecard["totals"]
     judged = verdict["marks"]
     baseline = verdict.get("baseline")
@@ -391,6 +421,7 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
                  f"{sum(t['refusals_by_rule'].values()) if t.get('refusals_measured') else 'not measured'}</td>"
                  f"<td>the aggregate read it and refused it: "
                  f"{_esc(json.dumps(t['refusals_by_rule']))}</td></tr></table>")
+    parts.append(_redraws_html(t, scorecard.get("redraws") or []))
 
     # ---------------------------------------------------------------------------------- brief
     if t.get("brief_measured"):
@@ -448,7 +479,7 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
                  "tick and no cross</b>. <b>Nothing on that page contributes to the verdict "
                  "above.</b></p>")
     parts.append("</main>")
-    path = run_dir / "report.html"
+    path = run_dir / filename
     path.write_text("".join(parts), encoding="utf-8")
     return path
 
@@ -462,6 +493,36 @@ _REGISTER_CSS = """
 .side{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#8a8378;margin-bottom:4px}
 ul{margin:4px 0 0 18px;padding:0}
 """
+
+
+def _redraws_html(t: dict, redraws: list) -> str:
+    """Judgement call 41, on the page: what the structural marks were scored on, and every redraw
+    as raw -> accepted, beside the rule that refused the first draft."""
+    scored_on = t.get("scored_on") or "accepted"
+    out = ["<h3>Raw &rarr; accepted (judgement call 41)</h3>"]
+    if scored_on != "accepted":
+        out.append(f"<div class='banner note'><b>Scored on the raw answer.</b> {_esc(scored_on)}."
+                   " <code>option_validity</code>, <code>dimension_coverage</code> and "
+                   "<code>no_leak</code> read each first draft as it came back.</div>")
+        return "".join(out)
+    out.append(f"<p>The structural marks read the <b>accepted</b> answer -- the one a founder "
+               f"sees after the runtime's rule refusal and one redraw; "
+               f"<code>rule_refusal_rate</code> counts every refusal. "
+               f"{t.get('redraws', 0)} redrawn · {t.get('redraws_accepted', 0)} accepted on the "
+               f"redraw · {t.get('second_refusals', 0)} refused again (scored on the raw).</p>")
+    if not redraws:
+        return "".join(out)
+    out.append("<table><tr><th>Case</th><th>First draft</th><th>Redraw</th></tr>")
+    for row in redraws:
+        first = row.get("first_refusal") or {}
+        second = row.get("second_refusal") or {}
+        after = ("accepted" if row.get("accepted") else
+                 f"refused again ({second.get('rule') or second.get('kind') or 'no answer'})")
+        out.append(f"<tr><td>{_esc(row.get('case_id'))}</td>"
+                   f"<td>refused {_esc(first.get('rule'))}: {_esc(first.get('message'))}</td>"
+                   f"<td>{_esc(after)}</td></tr>")
+    out.append("</table>")
+    return "".join(out)
 
 
 def render_register(run_dir: Path, *, entries_by_market: dict,
@@ -502,6 +563,7 @@ def render_register(run_dir: Path, *, entries_by_market: dict,
         for entry_id, block in entries.items():
             parts.append(f"<h2>{_esc(entry_id)}</h2><p class='small'>{_esc(block.get('title'))}"
                          "</p>")
+            parts.append(_redrawn_html(block.get("redraws") or []))
             parts.append(_interpretations_html(block.get("interpretations") or []))
             parts.append(_calibration_html(block.get("calibration") or []))
             parts.append(_respondent_html(block.get("respondent") or [], block.get("reveal"),
@@ -526,6 +588,26 @@ def render_register(run_dir: Path, *, entries_by_market: dict,
     path = run_dir / filename
     path.write_text("".join(parts), encoding="utf-8")
     return path
+
+
+def _redrawn_html(rows: list) -> str:
+    """Raw -> accepted (call 41): the first draft the aggregate refused, the rule's own words, and
+    whether the redraw below it was taken. Words only, no score."""
+    if not rows:
+        return ""
+    out = ["<h3>Redrawn after a rule refusal</h3>"]
+    for row in rows:
+        first = row.get("first_refusal") or {}
+        after = ("the redraw was accepted, and it is what this page shows" if row.get("accepted")
+                 else "the redraw was refused too, so this page shows the first draft")
+        out.append(f"<p><b>{_esc(row.get('case_id'))}</b> — refused "
+                   f"{_esc(first.get('rule'))}: {_esc(first.get('message'))}; {_esc(after)}.</p>"
+                   "<div class='pair'><div><div class='side'>raw (the first draft)</div><pre>"
+                   f"{_esc(json.dumps(row.get('raw'), indent=2, ensure_ascii=False))}</pre></div>"
+                   "<div><div class='side'>redrawn</div><pre>"
+                   f"{_esc(json.dumps(row.get('redrawn'), indent=2, ensure_ascii=False))}</pre>"
+                   "</div></div>")
+    return "".join(out)
 
 
 def _interpretations_html(rows: list) -> str:
@@ -635,7 +717,8 @@ def paragraph_blocks(corpus, brief_scores: list) -> dict:
     return grouped
 
 
-def register_blocks(corpus, produced: dict, registry=None, aggregate: dict | None = None) -> dict:
+def register_blocks(corpus, produced: dict, registry=None, aggregate: dict | None = None,
+                    *, redraws=()) -> dict:
     """Groups every produced answer by market and entry, beside what the corpus and the registry
     say (screen-shapes §7). `produced` is `{entry_id: {case kind and subject: result}}` -- the
     first run of each case -- as `run.py` collects it; `aggregate` is `fold_in`'s `by_case`, so an
@@ -650,8 +733,10 @@ def register_blocks(corpus, produced: dict, registry=None, aggregate: dict | Non
         if not mine:
             continue
         reg = registry if registry is not None else entry.registry
+        shown_ids = {case_id for case_id, _result in mine.values()}
         block = {"title": entry.title, "interpretations": [], "calibration": [],
-                 "respondent": [], "reveal": None, "b2b": []}
+                 "respondent": [], "reveal": None, "b2b": [],
+                 "redraws": [r for r in redraws or () if r.get("case_id") in shown_ids]}
         for screen in ("CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "SOLUTION_MECHANISM"):
             if screen not in mine:
                 continue
@@ -664,6 +749,11 @@ def register_blocks(corpus, produced: dict, registry=None, aggregate: dict | Non
             else:
                 refusal = verdict.get("refusal") or {}
                 said = f"refused ({refusal.get('rule') or refusal.get('kind')})"
+                again = aggregate.get(f"{case_id}#redraw")
+                if again is not None:
+                    second = again.get("refusal") or {}
+                    said += (", redrawn: accepted" if again.get("accepted") else
+                             f", redrawn: refused ({second.get('rule') or second.get('kind')})")
             block["interpretations"].append({"screen": screen, "result": result,
                                              "aggregate": said})
         produced_questions = {}

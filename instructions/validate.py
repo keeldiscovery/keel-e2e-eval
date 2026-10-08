@@ -131,12 +131,16 @@ def build_batch(cases_and_results) -> dict:
     standings on `BRIEF`. A `COMPARE` row is never batched.
     """
     cases = []
-    for case, result in cases_and_results:
+    for item in cases_and_results:
+        case, result = item[0], item[1]
         if result is None or case.kind == "COMPARE":
             continue
         context = case.payload.get("context") or {}
         seed = (case.payload.get("input") or {}).get("content") or None
-        entry = {"case_id": case.case_id, "screen": case.screen}
+        # A redraw (call 41) is judged against the state its case's first draft arrived into, and
+        # is told apart by its id: `<case_id>#redraw`.
+        case_id = item[2] if len(item) > 2 and item[2] else case.case_id
+        entry = {"case_id": case_id, "screen": case.screen}
         if case.kind == "CONTEXT":
             entry.update(market=context.get("market"), context_fields=context.get("context_fields"))
         elif case.kind == "FRAME":
@@ -188,28 +192,75 @@ def run(keel_cloud: Path, batch: dict, batch_path: Path, report_path: Path,
     return json.loads(report_path.read_text(encoding="utf-8"))
 
 
+#: The id suffix a redraw's verdict carries in a batch and its report (judgement call 41).
+REDRAW_SUFFIX = "#redraw"
+
+
+def redraw_id(case_id: str) -> str:
+    return f"{case_id}{REDRAW_SUFFIX}"
+
+
+def is_redraw(case_id) -> bool:
+    return str(case_id or "").endswith(REDRAW_SUFFIX)
+
+
+def verdict(keel_cloud: Path, case, result, directory: Path, *, redraw: bool = False,
+            timeout_s: float = 900.0) -> dict:
+    """The aggregate's report entry for **one** answer, asked during the run (call 41) so that a
+    rule refusal can be redrawn the way the cloud redraws it. One JVM start an answer, and the
+    batch and report kept under `directory` as evidence. Raises `ContractUnavailable` as `run`
+    does."""
+    case_id = redraw_id(case.case_id) if redraw else case.case_id
+    slug = "".join(c if c.isalnum() or c in "-_" else "-" for c in case_id).strip("-")
+    batch = build_batch([(case, result, case_id)])
+    report = run(keel_cloud, batch, Path(directory) / f"{slug}.batch.json",
+                 Path(directory) / f"{slug}.report.json", timeout_s=timeout_s)
+    for entry in report:
+        if entry.get("case_id") == case_id:
+            return entry
+    raise ContractUnavailable(f"keel-cloud's validator returned no verdict for {case_id}")
+
+
 def fold_in(report: list) -> dict:
     """The report, counted the way the marks read it.
 
     `refusals_by_rule` counts **rule refusals only** — a shape refusal never reached the aggregate,
     and a case refusal is the eval's own. `by_case` lets the report quote the aggregate's own words
     beside the diff that produced them.
+
+    **Call 41.** An entry whose id ends `#redraw` is a redraw's verdict: a refusal of it is
+    *counted* (a second rule refusal in `refusals_by_rule`, a shape refusal in `shape_refusals`)
+    but it never joins the denominator -- `shown`, the first drafts the aggregate judged (accepted
+    plus rule-refused, as since v6) -- and an accepted redraw is not a second acceptance.
     """
     by_case, rules = {}, {}
-    accepted = shape = case_fault = 0
+    accepted = shape = case_fault = shown_refused = 0
+    redraws = redraws_accepted = second_refusals = 0
     for entry in report:
         by_case[entry.get("case_id")] = entry
+        second = is_redraw(entry.get("case_id"))
+        if second:
+            redraws += 1
         if entry.get("accepted"):
-            accepted += 1
+            if second:
+                redraws_accepted += 1
+            else:
+                accepted += 1
             continue
         refusal = entry.get("refusal") or {}
         kind = refusal.get("kind")
+        if second and kind in ("rule", "shape"):
+            second_refusals += 1
         if kind == "rule":
             rule = refusal.get("rule") or "unnamed"
             rules[rule] = rules.get(rule, 0) + 1
+            if not second:
+                shown_refused += 1
         elif kind == "shape":
             shape += 1
         else:
             case_fault += 1
     return {"accepted": accepted, "refusals_by_rule": rules, "shape_refusals": shape,
-            "case_faults": case_fault, "by_case": by_case}
+            "case_faults": case_fault, "shown": accepted + shown_refused,
+            "redraws": redraws, "redraws_accepted": redraws_accepted,
+            "second_refusals": second_refusals, "by_case": by_case}

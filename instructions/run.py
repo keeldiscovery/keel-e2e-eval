@@ -362,24 +362,35 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     compare_scores = _compare(config, corpus, cases, run_dir)
 
     state = _RunState()
+    # Judgement call 41: the five screens keel-cloud redraws are judged as they are answered, so a
+    # rule refusal gets the one repair turn the cloud would queue; the rest wait for the batch.
+    verdicts = _Verdicts(config.keel_cloud, run_dir / "verdicts",
+                         validate_mod.shapes_taken(config.keel_cloud))
     for index, case in enumerate(model_cases, start=1):
         models_mod.apply_fallback(executor, case, table, routing_runtime=routing_runtime)
-        answer = runner_mod.ask(executor_module, validator_module, executor, case)
-        state.spend(answer)
+        answer = runner_mod.ask_with_redraw(
+            executor_module, validator_module, executor, case, verdicts,
+            render=lambda payload, case=case: prompts_mod.render(
+                executor_module, payload, job_id=prompts_mod._slug(case.case_id) + "-turn2",
+                host=args.host))
         entry = corpus.by_id(case.entry_id)
-        if answer.errored:
-            state.errored += 1
-        if answer.never_fit or (answer.outcome is not None and not answer.schema_valid) \
-                or (answer.outcome is None and answer.schema_error and not answer.errored):
-            state.schema_invalid += 1
-        failed = answer.error or (answer.schema_error if not answer.schema_valid else None)
-        diff = _score(case, entry, answer, failed, state, judge)
+        for draft in (answer, answer.redraw):
+            if draft is not None:
+                _count_draft(state, draft)
+        scored = answer.scored
+        failed = scored.error or (scored.schema_error if not scored.schema_valid else None)
+        diff = _score(case, entry, scored, failed, state, judge)
+        state.record_verdicts(case, answer)
         report_mod.write_case(run_dir, case, answer, diff, host=args.host)
         state.prompts.append({"case_id": case.case_id, "screen": case.screen,
                               "prompt": case.prompt})
         status = ("ERROR" if answer.errored else
                   "never fit its shape" if answer.never_fit else
                   answer.outcome or "no-outcome") + ("" if answer.schema_valid else " (invalid)")
+        if answer.redraw is not None:
+            first_rule = (answer.refusals[0] if answer.refusals else {}).get("rule")
+            status += (f" -> refused {first_rule}, redrawn: "
+                       + ("accepted" if answer.accepted is answer.redraw else "refused again"))
         print(f"[{index}/{len(model_cases)}] {case.case_id:<44} {status}{diff.get('line', '')}")
 
     corpus.verify_unchanged()
@@ -392,7 +403,9 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     refusals_measured = False
     unmet, unmeasured_kinds = [], []
     if state.shown_to_aggregate:
-        batch = validate_mod.build_batch(state.shown_to_aggregate)
+        # The answers already judged during the run (call 41) are not asked twice.
+        batch = validate_mod.build_batch([(c, r) for c, r in state.shown_to_aggregate
+                                          if c.case_id not in state.judged])
         unmet_by_screen = validate_mod.unmet_by_screen(config.keel_cloud, batch)
         unmet = list(unmet_by_screen.values())
         unmeasured_kinds = sorted(unmet_by_screen)
@@ -400,12 +413,18 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         try:
             report = validate_mod.run(config.keel_cloud, batch,
                                       run_dir / "batch.json", run_dir / "validation.json")
-            aggregate = validate_mod.fold_in(report)
-            refusals_measured = not unmet
+            combined = state.verdict_entries + list(report)
+            (run_dir / "validation.json").write_text(json.dumps(combined, indent=2),
+                                                     encoding="utf-8")
+            aggregate = validate_mod.fold_in(combined)
+            refusals_measured = not unmet and verdicts.down is None
         except Exception as exc:                  # noqa: BLE001 - unmeasured, never mis-measured
             print(f"the aggregate could not be asked: {exc}", file=sys.stderr)
             (run_dir / "validation.json").write_text(
                 json.dumps({"unavailable": str(exc)}, indent=2), encoding="utf-8")
+        if verdicts.down is not None:
+            print(f"the aggregate could not be asked during the run, so nothing after that was "
+                  f"redrawn and the rate is unmeasured: {verdicts.down}", file=sys.stderr)
         for reason in unmet:
             print(f"the aggregate was asked a shape it does not take: {reason}", file=sys.stderr)
 
@@ -415,10 +434,10 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
                               refusals_by_rule=aggregate["refusals_by_rule"],
                               shape_refusals=aggregate["shape_refusals"],
                               refusals_measured=refusals_measured,
-                              refusals_shown=aggregate["accepted"]
-                              + sum(aggregate["refusals_by_rule"].values()),
+                              refusals_shown=aggregate.get("shown", 0),
                               judge_calls=judge.call_count,
                               refusals_unmeasured_kinds=unmeasured_kinds)
+    totals.update(redraw_totals(aggregate, scored_on="accepted"))
     totals["chipped_skipped"] = _chipped(corpus, cases)
     unmet += [u["reason"] for u in totals["compare_unmeasured"]]
     scorecard = {
@@ -438,6 +457,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         "interpret": [_interpret_json(s) for s in state.interpret],
         "brief": [_brief_json(s) for s in state.brief],
         "totals": totals,
+        "redraws": state.redraws,
         "spread": _spreads(state),
         "prompts": state.prompts,
     }
@@ -478,7 +498,8 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     register = report_mod.render_register(
         run_dir,
         entries_by_market=report_mod.register_blocks(corpus, state.produced,
-                                                     exported.registry, aggregate["by_case"]),
+                                                     exported.registry, aggregate["by_case"],
+                                                     redraws=state.redraws),
         paragraphs=report_mod.paragraph_blocks(corpus, state.brief),
         host=args.host, cli_version=facts.get("cli_version"), model=state.reported_model)
 
@@ -500,12 +521,61 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     return 0 if verdict["passed"] else 1
 
 
+#: What `totals` says about the redraws (call 41), and what the structural marks were scored on.
+SCORED_ON_ACCEPTED = "accepted"
+SCORED_ON_RAW = ("raw -- this bundle records no redraw (it predates judgement call 41), so every "
+                 "structural mark is scored on the first draft")
+
+
+def redraw_totals(aggregate: dict, *, scored_on: str) -> dict:
+    return {"redraws": int(aggregate.get("redraws") or 0),
+            "redraws_accepted": int(aggregate.get("redraws_accepted") or 0),
+            "second_refusals": int(aggregate.get("second_refusals") or 0),
+            "scored_on": scored_on}
+
+
+class _Verdicts:
+    """The aggregate asked one answer at a time, during the run (call 41). `None` -- judge it at
+    the end, redraw nothing -- for a screen the validator does not take, and for every answer
+    after the validator could not be asked once (`down` says why, and the rate goes unmeasured)."""
+
+    def __init__(self, keel_cloud, directory, taken: dict):
+        self.keel_cloud, self.directory, self.taken = keel_cloud, directory, taken
+        self.down = None
+
+    def __call__(self, case, result, *, redraw: bool = False):
+        if self.down is not None or not self.taken.get(case.screen):
+            return None
+        try:
+            return validate_mod.verdict(self.keel_cloud, case, result, self.directory,
+                                        redraw=redraw)
+        except Exception as exc:                  # noqa: BLE001 - unmeasured, never mis-measured
+            self.down = str(exc)
+            return None
+
+
+def _count_draft(state, answer) -> None:
+    """One host call's spend and its two failure lines -- the first draft's and, since call 41,
+    the redraw's too: a repair turn that errors or misses the envelope is counted like any call."""
+    state.spend(answer)
+    if answer.errored:
+        state.errored += 1
+    if answer.never_fit or (answer.outcome is not None and not answer.schema_valid) \
+            or (answer.outcome is None and answer.schema_error and not answer.errored):
+        state.schema_invalid += 1
+
+
 class _RunState:
     """Everything one run accumulates, in one place."""
 
     def __init__(self):
         self.calibration, self.respondent, self.interpret, self.brief = [], [], [], []
         self.shown_to_aggregate = []
+        # Call 41: the answers judged during the run, their report entries (the first draft's
+        # under its case id, a redraw's under `<case_id>#redraw`), and one row a redraw.
+        self.judged = set()
+        self.verdict_entries = []
+        self.redraws = []
         self.produced = {}               # entry -> {screen-or-subject: (case_id, result)}
         self.prompts = []
         self.errored = self.schema_invalid = 0
@@ -513,6 +583,15 @@ class _RunState:
         self.premium_seen = self.tokens_seen = False
         self.total_tokens = {"input_tokens": 0, "output_tokens": 0}
         self.reported_model = None
+
+    def record_verdicts(self, case, answer) -> None:
+        real = [v for v in answer.verdicts if isinstance(v, dict) and v.get("case_id")]
+        if not real:
+            return
+        self.judged.add(case.case_id)
+        self.verdict_entries.extend(real)
+        if answer.redraw is not None:
+            self.redraws.append(redraw_row(case, answer))
 
     def spend(self, answer) -> None:
         self.total_cost += answer.total_cost_usd or 0.0
@@ -524,6 +603,18 @@ class _RunState:
             for key in self.total_tokens:
                 self.total_tokens[key] += int(answer.tokens.get(key) or 0)
         self.reported_model = self.reported_model or answer.reported_model
+
+
+def redraw_row(case, answer) -> dict:
+    """One redraw, as the scorecard, the report and the register show it: raw -> accepted."""
+    refusals = answer.refusals
+    first = next((r for r in refusals if r.get("draft") == 1), {})
+    second = next((r for r in refusals if r.get("draft") == 2), None)
+    return {"case_id": case.case_id, "screen": case.screen, "run_index": case.run_index,
+            "first_refusal": first, "repair": ((answer.redraw_payload or {}).get("context")
+                                               or {}).get("repair"),
+            "accepted": answer.accepted is answer.redraw, "second_refusal": second,
+            "raw": answer.result, "redrawn": answer.redraw.result if answer.redraw else None}
 
 
 def _produced_key(case) -> str:

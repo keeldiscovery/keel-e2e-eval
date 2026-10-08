@@ -18,6 +18,14 @@ it is touched.
 For a v9 bundle the cases are rebuilt with the same builders and the same exported key lists the
 run used, every envelope is scored again by the run's own `_score`, and `COMPARE` is re-run from
 the bundle's own engine input (it spends nothing).
+
+**Judgement call 41.** A bundle taken since call 41 records both drafts (`answer.raw`,
+`answer.accepted`, `refusals[]`, `redraw`): the structural marks read `answer.accepted` -- the raw
+one where the aggregate refused both -- and the aggregate is asked again about the raw answer and
+the redraw both, so `rule_refusal_rate` counts every refusal over the first drafts. A v9 bundle
+taken before call 41 has no `answer` block and no redraw: it is scored on the raw answer, and the
+scorecard, the console and `report-v9.html` say so. Nothing is redrawn on a re-score -- that would
+be a model call.
 """
 
 from __future__ import annotations
@@ -100,19 +108,30 @@ def main(argv=None) -> int:
             cases[case.case_id] = case
 
     state = run_mod._RunState()
+    to_validate, call_41 = [], False
     for envelope, _directory in _envelopes(run_dir):
         case = cases.get(envelope.get("case_id"))
         if case is None:
             continue
-        answer = types.SimpleNamespace(
-            outcome=envelope.get("outcome"), schema_valid=bool(envelope.get("schema_valid")),
-            schema_error=envelope.get("schema_error"), error=envelope.get("error"),
-            result=envelope.get("result"), questions=envelope.get("questions"),
-            errored=bool(envelope.get("error")))
+        drafts = envelope.get("answer")
+        call_41 = call_41 or isinstance(drafts, dict)
+        raw = (drafts or {}).get("raw") or envelope
+        view = ((drafts or {}).get("accepted") or raw) if drafts else envelope
+        answer = _answer(view)
         failed = answer.error or (answer.schema_error if not answer.schema_valid else None)
         if answer.errored and "never fit its shape" not in str(answer.error):
             state.errored += 1
         run_mod._score(case, corpus.by_id(case.entry_id), answer, failed, state, judge)
+        # The aggregate is asked about what the run showed it: the raw answer, and the redraw.
+        if _gradeable(raw):
+            to_validate.append((case, raw.get("result")))
+        redraw = envelope.get("redraw") if drafts else None
+        if isinstance(redraw, dict) and _gradeable(redraw):
+            to_validate.append((case, redraw.get("result"),
+                                validate_mod.redraw_id(case.case_id)))
+        if isinstance(redraw, dict):
+            state.redraws.append(_redraw_row(case, envelope, redraw))
+    scored_on = run_mod.SCORED_ON_ACCEPTED if call_41 else run_mod.SCORED_ON_RAW
 
     compare_scores = []
     for in_path in sorted((run_dir / "compare").glob("*.in.json")):
@@ -129,17 +148,20 @@ def main(argv=None) -> int:
             raw = compare_mod.unmeasured(entry.id, str(why))
         compare_scores.append(score_mod.score_compare(case, entry, raw))
 
-    aggregate, measured, unmeasured_kinds = _ask_aggregate(run_dir, config, state, original)
+    aggregate, measured, unmeasured_kinds = _ask_aggregate(run_dir, config, to_validate,
+                                                           original)
 
     totals = score_mod.totals(state.calibration, state.respondent, state.interpret,
                               compare_scores, brief_scores=state.brief, errored=state.errored,
                               refusals_by_rule=aggregate["refusals_by_rule"],
                               shape_refusals=aggregate["shape_refusals"],
                               refusals_measured=measured,
-                              refusals_shown=aggregate["accepted"]
-                              + sum(aggregate["refusals_by_rule"].values()),
+                              refusals_shown=aggregate.get(
+                                  "shown", aggregate["accepted"]
+                                  + sum(aggregate["refusals_by_rule"].values())),
                               judge_calls=judge.call_count,
                               refusals_unmeasured_kinds=unmeasured_kinds)
+    totals.update(run_mod.redraw_totals(aggregate, scored_on=scored_on))
     marks = marks_mod.load()
     judged = marks_mod.judge(totals, marks)
     scorecard = {
@@ -156,6 +178,7 @@ def main(argv=None) -> int:
         "interpret": [run_mod._interpret_json(s) for s in state.interpret],
         "brief": [run_mod._brief_json(s) for s in state.brief],
         "totals": totals,
+        "redraws": state.redraws,
         "judge_calls": judge.calls,
         "spread": run_mod._spreads(state),
         "prompts": original.get("prompts", []),
@@ -170,17 +193,63 @@ def main(argv=None) -> int:
             model=(original.get("model") or {}).get("reported_model"),
             filename=f"register-v{marks_mod.MARKS_VERSION}.html")
 
+    report_path = _render_report(run_dir, judged, scorecard, host)
+
     print(f"re-scored {run_dir.name} ({host}) under MARKS_VERSION {marks_mod.MARKS_VERSION} "
           f"(was {original.get('marks_version')})")
+    print(f"  scored on  {scored_on}")
     for name in marks_mod.ROWS:
         print(f"  {name:<20} {run_mod._fmt_row(judged[name])}")
     print(f"  passed     {judged['passed']}")
     print(f"  written    {out}")
+    if report_path is not None:
+        print(f"  report     {report_path}")
     return 0
 
 
+def _answer(view: dict):
+    return types.SimpleNamespace(
+        outcome=view.get("outcome"), schema_valid=bool(view.get("schema_valid")),
+        schema_error=view.get("schema_error"), error=view.get("error"),
+        result=view.get("result"), questions=view.get("questions"),
+        errored=bool(view.get("error")))
 
-def _ask_aggregate(run_dir: Path, config, state, original: dict):
+
+def _gradeable(view: dict) -> bool:
+    return (bool(view.get("schema_valid")) and view.get("outcome") == "COMPLETED"
+            and view.get("result") is not None)
+
+
+def _redraw_row(case, envelope: dict, redraw: dict) -> dict:
+    refusals = envelope.get("refusals") or []
+    return {"case_id": case.case_id, "screen": case.screen, "run_index": case.run_index,
+            "first_refusal": next((r for r in refusals if r.get("draft") == 1), {}),
+            "repair": redraw.get("repair"),
+            # A redraw happens only after the first draft was refused, so an accepted answer on
+            # record is the redraw's.
+            "accepted": (envelope.get("answer") or {}).get("accepted") is not None,
+            "second_refusal": next((r for r in refusals if r.get("draft") == 2), None),
+            "raw": ((envelope.get("answer") or {}).get("raw") or {}).get("result"),
+            "redrawn": redraw.get("result")}
+
+
+def _render_report(run_dir: Path, judged: dict, scorecard: dict, host: str):
+    """`report-v<N>.html` beside the bundle's own, so the page says what the re-score read (call
+    41's raw-or-accepted line among it). Never over `report.html`."""
+    try:
+        verdict = json.loads((run_dir / "verdict.json").read_text(encoding="utf-8"))
+        versions = json.loads((run_dir / "versions.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    verdict = {**verdict, "marks": judged, "marks_version": marks_mod.MARKS_VERSION,
+               "passed": bool(judged["passed"]) and not verdict.get("errored")}
+    return report_mod.render_report(run_dir, verdict=verdict, scorecard=scorecard,
+                                    versions=versions, host=host,
+                                    filename=f"report-v{marks_mod.MARKS_VERSION}.html")
+
+
+
+def _ask_aggregate(run_dir: Path, config, to_validate: list, original: dict):
     """The aggregate's verdict on the bundle's answers, asked again of today's validator.
 
     It spends nothing (one JVM start, no model), so a kind the validator took only after the run
@@ -190,8 +259,8 @@ def _ask_aggregate(run_dir: Path, config, state, original: dict):
     `validation.json` is read the way it was written, unmeasured wherever the run said so.
     """
     empty = {"accepted": 0, "refusals_by_rule": {}, "shape_refusals": 0}
-    if state.shown_to_aggregate:
-        batch = validate_mod.build_batch(state.shown_to_aggregate)
+    if to_validate:
+        batch = validate_mod.build_batch(to_validate)
         unmet = validate_mod.unmet_by_screen(config.keel_cloud, batch)
         suffix = f"-v{marks_mod.MARKS_VERSION}.json"
         try:

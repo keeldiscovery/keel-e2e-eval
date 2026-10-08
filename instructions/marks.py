@@ -220,6 +220,21 @@ part of what a number means:
     them (Lullaby's *A few taps* on Adoption friction), and a set shows the founder's labels
     verbatim by R2, so a founder label in an option is the rule, not a leak. `MARKS_VERSION`
     stays 9.
+41. **v9, amended before any run of record** *(the founder's decision 35, 2026-10-08)*: **the
+    structural marks read the accepted answer.** `option_validity`, `dimension_coverage` and
+    `no_leak` on the two question screens are scored on the answer after the runtime's rule
+    refusal and ONE redraw -- what a founder sees -- because a rule refusal is the product
+    correcting the model, one extra call (call 22). The runner redraws as keel-cloud 058's
+    orchestrator does, on the five screens it repairs (`CALIBRATION_QUESTIONS`,
+    `RESPONDENT_QUESTIONS` -- `repairUnattended`; the three draft vector screens --
+    `refuseOrRepairDraft`; never `INTERPRET` or `BRIEF`): turn one's context plus a `repair`
+    sentence in the cloud's own words, the same instruction, contract, model and effort, empty
+    input, and no previous answer. The raw slip stays measured: `rule_refusal_rate` counts every
+    refusal, first draft and redraw, over the first-draft answers (the v6 denominator). A second
+    refusal is terminal: the answer stays refused, scores as faults on the raw answer, and counts
+    twice. Shape refusals are not redrawn and stay an absolute zero on the raw answer. A v9
+    bundle taken before this call has no redraw and is re-scored on the raw answer, saying so.
+    `MARKS_VERSION` stays 9.
 """
 
 from __future__ import annotations
