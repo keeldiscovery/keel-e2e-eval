@@ -88,6 +88,22 @@ def test_shapes_taken_reads_one_marker_a_screen_off_the_validator(tmp_path):
         "an unreadable sibling is a prerequisite that has not landed"
 
 
+
+def test_an_enum_switch_label_is_a_screen_taken_and_prose_is_not(tmp_path):
+    # 058's validator dispatches vector screens as `case CONTEXT_INTERPRET -> ...` inside
+    # `switch (screen)`, where the qualified name is illegal (run 20261008T001657Z).
+    tool = tmp_path / validate_mod._TOOL
+    tool.parent.mkdir(parents=True)
+    tool.write_text("switch (screen) {\n"
+                    "  case CONTEXT_INTERPRET -> a();\n"
+                    "  case CALIBRATION_QUESTIONS, RESPONDENT_QUESTIONS -> b();\n"
+                    "}\n/** INTERPRET and BRIEF are described here, in prose only. */\n")
+    taken = validate_mod.shapes_taken(tmp_path)
+    assert taken["CONTEXT_INTERPRET"] and taken["CALIBRATION_QUESTIONS"]
+    assert taken["RESPONDENT_QUESTIONS"]
+    assert not taken["INTERPRET"], "`case CONTEXT_INTERPRET` is not a label for INTERPRET"
+    assert not taken["BRIEF"]
+
 def test_a_kind_the_validator_does_not_take_is_unmeasured_by_name_for_that_kind_only(tmp_path,
                                                                                       cases):
     keel_cloud = _tool(tmp_path, "CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "SOLUTION_MECHANISM",

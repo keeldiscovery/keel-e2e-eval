@@ -24,6 +24,7 @@ illegal before the result was even applied — and is never counted against a mo
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -76,7 +77,17 @@ def shapes_taken(keel_cloud: Path) -> dict:
         source = (Path(keel_cloud) / _TOOL).read_text(encoding="utf-8")
     except OSError:
         return {screen: False for screen in _SHAPE_MARKERS}
-    return {screen: marker in source for screen, marker in _SHAPE_MARKERS.items()}
+    return {screen: bool(_taken_by(screen).search(source)) for screen in _SHAPE_MARKERS}
+
+
+def _taken_by(screen: str):
+    """The constant reference **or** an enum `switch` label naming `screen` -- 058's validator
+    dispatches the vector screens as `case CONTEXT_INTERPRET -> ...` inside `switch (screen)`,
+    where Java forbids the qualified name, so reading only `InferenceScreen.X` left three screens
+    it does take unmeasured (run 20261008T001657Z). Prose still never counts: a label needs
+    `case` before it and `->`/`:`/`,` after it."""
+    name = re.escape(screen)
+    return re.compile(rf"InferenceScreen\.{name}\b|\bcase\s+(?:[A-Z_]+\s*,\s*)*{name}\s*(?:->|:|,)")
 
 
 def shapes_needed(batch: dict) -> set:

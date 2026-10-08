@@ -129,16 +129,7 @@ def main(argv=None) -> int:
             raw = compare_mod.unmeasured(entry.id, str(why))
         compare_scores.append(score_mod.score_compare(case, entry, raw))
 
-    validation = run_dir / "validation.json"
-    measured = validation.is_file() and "unavailable" not in validation.read_text(encoding="utf-8")
-    aggregate = {"accepted": 0, "refusals_by_rule": {}, "shape_refusals": 0}
-    if measured:
-        try:
-            aggregate = validate_mod.fold_in(json.loads(validation.read_text(encoding="utf-8")))
-        except Exception as exc:                  # noqa: BLE001 - unmeasured, never mis-measured
-            print(f"validation.json could not be folded in: {exc}", file=sys.stderr)
-            measured = False
-    measured = measured and not original.get("unmet_prerequisites")
+    aggregate, measured, unmeasured_kinds = _ask_aggregate(run_dir, config, state, original)
 
     totals = score_mod.totals(state.calibration, state.respondent, state.interpret,
                               compare_scores, brief_scores=state.brief, errored=state.errored,
@@ -147,7 +138,8 @@ def main(argv=None) -> int:
                               refusals_measured=measured,
                               refusals_shown=aggregate["accepted"]
                               + sum(aggregate["refusals_by_rule"].values()),
-                              judge_calls=judge.call_count)
+                              judge_calls=judge.call_count,
+                              refusals_unmeasured_kinds=unmeasured_kinds)
     marks = marks_mod.load()
     judged = marks_mod.judge(totals, marks)
     scorecard = {
@@ -186,6 +178,40 @@ def main(argv=None) -> int:
     print(f"  written    {out}")
     return 0
 
+
+
+def _ask_aggregate(run_dir: Path, config, state, original: dict):
+    """The aggregate's verdict on the bundle's answers, asked again of today's validator.
+
+    It spends nothing (one JVM start, no model), so a kind the validator took only after the run
+    -- or one the run failed to see it took -- is measured on re-read, the way `COMPARE` is re-run.
+    The batch and the report land **beside** the bundle's (`batch-v<N>.json`,
+    `validation-v<N>.json`), never over them. If the validator cannot be asked, the bundle's own
+    `validation.json` is read the way it was written, unmeasured wherever the run said so.
+    """
+    empty = {"accepted": 0, "refusals_by_rule": {}, "shape_refusals": 0}
+    if state.shown_to_aggregate:
+        batch = validate_mod.build_batch(state.shown_to_aggregate)
+        unmet = validate_mod.unmet_by_screen(config.keel_cloud, batch)
+        suffix = f"-v{marks_mod.MARKS_VERSION}.json"
+        try:
+            report = validate_mod.run(config.keel_cloud, validate_mod.without_screens(batch, unmet),
+                                      run_dir / f"batch{suffix}", run_dir / f"validation{suffix}")
+            return validate_mod.fold_in(report), not unmet, sorted(unmet)
+        except Exception as exc:                  # noqa: BLE001 - fall back, never mis-measure
+            print(f"the aggregate could not be asked again: {exc}", file=sys.stderr)
+
+    validation = run_dir / "validation.json"
+    measured = validation.is_file() and "unavailable" not in validation.read_text(encoding="utf-8")
+    aggregate = empty
+    if measured:
+        try:
+            aggregate = validate_mod.fold_in(json.loads(validation.read_text(encoding="utf-8")))
+        except Exception as exc:                  # noqa: BLE001 - unmeasured, never mis-measured
+            print(f"validation.json could not be folded in: {exc}", file=sys.stderr)
+            measured = False
+    kinds = list((original.get("totals") or {}).get("refusals_unmeasured_kinds") or [])
+    return aggregate, measured and not original.get("unmet_prerequisites"), kinds
 
 def _host_of(run_dir: Path, original: dict) -> str:
     """The host this bundle was answered by: its `manifest.json`, else its scorecard's model
