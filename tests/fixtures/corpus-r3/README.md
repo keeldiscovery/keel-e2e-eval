@@ -84,7 +84,7 @@ file's own `expected` rows, so `compare_correctness` will say so if they differ)
 |---|---|---|---|---|
 | `01-countly.yaml` | 12 | 10 | holding up · people disagree · holding up | **Leaves out an asked dimension** (`problem.severity`, FR-009): Part 1 is 7. Urgency carries a belief: `NOT_ASKED_YET`. |
 | `02-compliancelog.yaml` | 12 | 9 | people disagree · people disagree · people disagree | One chip. Hours. |
-| `03-lullaby.yaml` | 12 | 9 | not holding up · not holding up · not holding up | First and complete: the registry's `lullaby` objects (A-6); Hugo and Leo answer No; Jonas chips; the six commercial examples re-worked at n = 8, no status changed (decision 14). Totals 12 / 6 / 3 / 1 / 1 / 2. |
+| `03-lullaby.yaml` | 12 | 9 | not holding up · not holding up · not holding up | First and complete: the registry's `lullaby` objects (A-6); Hugo and Leo answer No; Jonas chips; the six commercial examples re-worked at n = 8, no status changed (decision 14). Totals 12 / 6 / 3 / 1 / 1 / 2. `mechanism_terms` is `[listen, phone, card, most likely, suggestion]` -- `cot` dropped 2026-10-08 (call 39): the cot is the problem's furniture, not the idea's. |
 | `04-linerly.yaml` | 12 | 9 | not holding up · not holding up · people disagree | One chip. Urgency: `NOT_ASKED_YET`. |
 | `05-paidly.yaml` | 20 | 10 | people disagree · bar set · not holding up | **The B2B entry** (A-5, FR-010): eight agency project managers on the `COMMERCIAL_B2B` link; the B2B ladder. |
 | `06-repeatline.yaml` | 19 | 10 | holding up · not holding up · not holding up | B2B: seven practice managers on their own link. |

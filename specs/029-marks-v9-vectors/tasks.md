@@ -442,3 +442,16 @@ task it was found under. Nothing here is a change of mind about the design; it i
   before any run of record. keel-cloud 062 narrowed C4 to empty / over 120 characters / a not-sure
   word, and the screen's nine calibration answers were faulted only for phrases equal to their
   labels; `score.calibration_checks` now reads C4 the same way. `MARKS_VERSION` stays 9.
+- **D26 (calls 38 and 39, orchestrator 2026-10-08; bundle `runs/20261008T013837Z-instructions`).**
+  call 38: code appends, never the model -- 'Something else', every respondent-only code the
+  registry names and every band, scale-axis and gate option -- so a fixed-code control or the
+  ladder owes exactly one label per remaining plan code, a set every founder label (normalised)
+  plus 2-3 distractors, Importance 4-6 difficulties, and a band, numeric or gate control options
+  null; v9 amended before any run of record. call 39: the vocabulary is stemmed from the golden
+  mechanism's `mechanism`, `output`, `not_assumed` and `mechanism_terms` only, never `trigger` (it
+  describes the problem moment) or `actor`, less the problem's own stems as before; v9 amended
+  before any run of record. r3 Lullaby's `mechanism_terms` drops `cot` (digest moved). Re-scored
+  offline (`--no-judge`, zero spend): respondent validity 29/69 -> 62/69 (the 7 left: one
+  distractor on `target_circumstance`, `existing_sacrifice`, `purchase_friction`), calibration
+  `no_leak` 26/27 -> 27/27, refusals R2 8 + R4 1 -> 0 (058's applier, re-read at rescore).
+  `MARKS_VERSION` stays 9.

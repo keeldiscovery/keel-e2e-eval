@@ -154,17 +154,28 @@ def calibration_case(entry, vector, run_index=1):
 
 
 def respondent_item(entry, key, *, label_only=False) -> dict:
-    """An item meeting every §2.2 respondent rule, written from the golden plan row."""
+    """An item meeting every §2.2 respondent rule (call 38), written from the golden plan row: the
+    code-appended codes (`RESPONDENT_ESCAPES`, *Something else*) left to code; a set carries the
+    founder's labels (r3's labels are its codes) plus two distractors; a band, numeric or gate
+    control carries `options: None`."""
+    from instructions.registry import RESPONDENT_ESCAPES             # noqa: PLC0415
     row = entry.respondent_questions[key]
     item = {"key": key, "question": f"Thinking about that time: {key.split('.')[1].replace('_', ' ')}?"}
     if row["control"] in ("segmented_0_to_7", "number_with_unit", "two_numbers_optional",
-                          "gate_yes_no"):
+                          "gate_yes_no", "single_choice_bands"):
         item["options"] = None
         return item
+    dimension = entry.registry.by_key(key)
+    is_set = (dimension.fixed_codes is None and not dimension.founder_numeric
+              and row["control"] != "multi_choice_ladder")
     options = []
-    for i, code in enumerate(row.get("codes") or [], start=1):
-        label = "Something else" if code == "something_else" else f"Choice {i}"
+    for i, code in enumerate(c for c in row.get("codes") or [] if c not in RESPONDENT_ESCAPES):
+        label = code if is_set else f"Choice {i + 1}"
         options.append(label if label_only else {"label": label, "code": code})
+    if is_set:
+        for n in ("one", "two"):
+            label = f"A distractor {n}"
+            options.append(label if label_only else {"label": label, "code": f"distractor_{n}"})
     item["options"] = options
     return item
 

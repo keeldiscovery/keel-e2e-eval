@@ -44,7 +44,7 @@ solution_mechanism:
   mechanism: holds the phone near the cot for about ten seconds while it listens
   output: a short card naming what the baby most likely needs, and the next most likely
   not_assumed: [stops the guessing, settles the baby faster]
-  mechanism_terms: [listen, phone, cot, card, most likely, suggestion]
+  mechanism_terms: [listen, phone, card, most likely, suggestion]
 persona: {decision_maker: same_person}
 founder_calibration:
   problem.prevalence: {answer: p_60_80, belief_phrase: Most, belief_sentence: Most of these parents of babies under six months

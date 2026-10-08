@@ -333,6 +333,8 @@ def score_calibration(case, entry, registry, result, *, judge=None,
 
 #: Respondent controls whose answer is typed or tapped, never picked from a list.
 _FREE_CONTROLS = ("segmented_0_to_7", "number_with_unit", "two_numbers_optional")
+#: Call 38: controls whose options code writes (bins, the axis, Yes/No); the model writes `null`.
+_NULL_CONTROLS = _FREE_CONTROLS + ("single_choice_bands", "gate_yes_no")
 _SOMETHING_ELSE_RE = re.compile(r"^\s*something else\b", re.IGNORECASE)
 _NUMBER_RE = re.compile(r"(?<![\d.])(\d+(?:\.\d+)?)(?![\d.])")
 
@@ -371,10 +373,15 @@ def _founder_numbers(answer) -> set:
 def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None) -> list:
     """Every structural rule of marks §2.2's respondent side, for one item; `[]` is valid.
 
-    The result's items carry labels (screen-shapes §3). Where an option also carries its `code`
-    the code checks run in full -- every code of the golden plan present, none foreign, none
-    repeated, `Something else` last, the problem's own item never first on Importance; on a
-    label-only item the count stands in for them."""
+    Call 38: **code appends, never the model** -- *Something else*, every respondent-only code the
+    registry names (`registry.RESPONDENT_ESCAPES`) and every band, scale-axis and gate option -- so
+    the golden plan row's `codes` (the engine's truth) are judged less those. What the model owes:
+    a fixed-code control (and the ladder) one label per remaining code, the count exact; a set
+    every founder label (normalised match, or its code) plus 2-3 distractors; Importance 4-6
+    difficulties (keel-cloud's instruction; the server moves the problem's own off the top); a
+    band, numeric or gate control the question only, `options` null. `founder_answer` is unused
+    here since the bands are code's (sweep B still reads it)."""
+    from .registry import RESPONDENT_ESCAPES                  # noqa: PLC0415
     faults = []
     control = dimension.respondent.get("control")
     if plan_row.get("control") not in (None, control):
@@ -387,55 +394,56 @@ def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None
             faults.append(f"{name} {item[name]!r}; the registry's is "
                           f"{dimension.respondent.get(name)!r}")
     options = item.get("options")
-    if control in _FREE_CONTROLS:
+    if control in _NULL_CONTROLS:
         if options:
-            faults.append(f"{len(options)} options on a {control} control")
-        return faults
-    if control == "gate_yes_no":
-        if options and len(options) != 2:
-            faults.append(f"{len(options)} options on the gate; it is Yes or No")
+            faults.append(f"{len(options)} options on a {control} control; code writes them")
         return faults
     if not isinstance(options, list) or not options:
         return faults + [f"no options on a closed {control} control"]
-    golden = [c for c in plan_row.get("codes") or []]
+    want = [c for c in plan_row.get("codes") or [] if c not in RESPONDENT_ESCAPES]
     labels = [str(_option_label(o) or "") for o in options]
-    tail_is_else = bool(labels) and bool(_SOMETHING_ELSE_RE.match(labels[-1]))
-    elsewhere = [i for i, label in enumerate(labels[:-1]) if _SOMETHING_ELSE_RE.match(label)]
-    if elsewhere:
-        faults.append("'Something else' is not last")
-    want = [c for c in golden if c != "something_else"]
-    got = len(options) - (1 if tail_is_else else 0) - len(elsewhere)
-    if golden and got != len(want):
-        faults.append(f"{got} options; the plan has {len(want)}"
-                      + (" (the scale is fixed: nothing added)" if control == "single_choice_5"
-                         else ""))
     codes = [_option_code(o) for o in options]
-    if not any(codes) and got == len(want) and not elsewhere:
-        # Labels only (screen-shapes §3): the server joins option i to the plan's code i, and
-        # appends or reads "Something else" last -- so the codes are the plan's, by position.
-        codes = list(want) + (["something_else"] if tail_is_else else [])
-    if any(codes):
-        coded = [c for c in codes if c and c != "something_else"]
-        missing = [c for c in want if c not in coded]
-        foreign = [c for c in coded if c not in want]
-        repeated = sorted({c for c in coded if coded.count(c) > 1})
-        if missing:
-            faults.append(f"missing code(s) {missing}")
-        if foreign:
-            faults.append(f"code(s) {foreign} are not the plan's")
-        if repeated:
-            faults.append(f"code(s) repeated: {repeated}")
-        own = plan_row.get("own_item")
-        if own and codes and codes[0] == own:
-            faults.append(f"the problem's own item ({own}) is first")
+    if any(_SOMETHING_ELSE_RE.match(label) for label in labels):
+        faults.append("'Something else' written by the model; code appends it")
     for label in labels:
         if _NOT_SURE_RE.search(label):
             faults.append(f"option {label!r} is a not-sure option -- the chip is UI")
-    if control == "single_choice_bands":
-        said = _founder_numbers(founder_answer) - _registry_numbers(dimension)
-        edges = {float(n) for label in labels for n in _NUMBER_RE.findall(label)}
-        if said & edges:
-            faults.append(f"a founder number {sorted(said & edges)} is a band edge")
+    coded = [c for c in codes if c]
+    repeated = sorted({c for c in coded if coded.count(c) > 1})
+    if repeated:
+        faults.append(f"code(s) repeated: {repeated}")
+    if plan_row.get("own_item"):                                   # Importance
+        if not 4 <= len(options) <= 6:
+            faults.append(f"{len(options)} difficulties; Importance takes 4 to 6")
+        return faults
+    is_set = (dimension.fixed_codes is None and not dimension.founder_numeric
+              and control != "multi_choice_ladder")
+    if not is_set:
+        if want and len(options) != len(want):
+            faults.append(f"{len(options)} options; the plan has {len(want)}"
+                          + (" (the scale is fixed: nothing added)"
+                             if control == "single_choice_5" else ""))
+        if coded:
+            missing = [c for c in want if c not in coded]
+            foreign = [c for c in coded if c not in want]
+            if missing:
+                faults.append(f"missing code(s) {missing}")
+            if foreign:
+                faults.append(f"code(s) {foreign} are not the plan's")
+        return faults
+    founder = {text_mod.normalise(c): c for c in want}
+    matched, distractors = set(), 0
+    for label, code in zip(labels, codes):
+        hit = code if code in want else founder.get(text_mod.normalise(label))
+        if hit:
+            matched.add(hit)
+        else:
+            distractors += 1
+    missing = [c for c in want if c not in matched]
+    if missing:
+        faults.append(f"missing founder label(s) {missing}")
+    if not 2 <= distractors <= 3:
+        faults.append(f"{distractors} distractor(s); a set takes 2 to 3")
     return faults
 
 

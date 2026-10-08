@@ -282,23 +282,25 @@ def _options(result, key):
 @pytest.mark.parametrize("name, mutate, words", [
     ("control", lambda r: _item(r, "problem.severity").__setitem__("control", "single_choice"),
      "control 'single_choice'"),
-    ("founder code missing", lambda r: _options(r, "problem.consequence").pop(0),
-     "missing code(s) ['late']"),
-    ("a distractor missing", lambda r: _options(r, "problem.consequence").pop(2),
-     "missing code(s) ['missed_train']"),
-    ("something else not last", lambda r: _options(r, "problem.consequence").insert(
-        0, _options(r, "problem.consequence").pop()), "not last"),
+    ("founder label missing", lambda r: _options(r, "problem.consequence").pop(0),
+     "missing founder label(s) ['late']"),
+    ("one distractor", lambda r: _options(r, "problem.consequence").pop(),
+     "1 distractor(s); a set takes 2 to 3"),
+    ("something else written", lambda r: _options(r, "problem.consequence").append(
+        "Something else"), "code appends it"),
     ("fixed scale grew", lambda r: _options(r, "problem.severity").append(
         {"label": "Off the scale", "code": "off_scale"}), "nothing added"),
     ("chips", lambda r: _item(r, "problem.severity").__setitem__("chips", []), "chips []"),
     ("anchor", lambda r: _item(r, "problem.severity").__setitem__("anchor", "last_purchase"),
      "anchor 'last_purchase'"),
-    ("own item first", lambda r: _options(r, "problem.importance").insert(
-        0, _options(r, "problem.importance").pop(1)), "own item (finding_keys) is first"),
+    ("importance too short", lambda r: _item(r, "problem.importance").__setitem__(
+        "options", ["One", "Two", "Three"]), "3 difficulties; Importance takes 4 to 6"),
     ("not sure", lambda r: _options(r, "problem.severity")[0].__setitem__(
         "label", "Not sure, really"), "not-sure option"),
     ("options on a number", lambda r: _item(r, "problem.duration").__setitem__(
         "options", ["5", "10"]), "options on a number_with_unit control"),
+    ("options on the gate", lambda r: _item(r, "problem.prevalence").__setitem__(
+        "options", ["Yes", "No"]), "options on a gate_yes_no control"),
 ])
 def test_validity_fails_on_each_respondent_rule_made_to_fail_once(entry, registry, name, mutate,
                                                                   words):
@@ -308,20 +310,59 @@ def test_validity_fails_on_each_respondent_rule_made_to_fail_once(entry, registr
     assert words in validity[0]["evidence"], (name, validity[0]["evidence"])
 
 
-def test_a_founder_number_among_band_edges_is_a_fault_and_a_registry_edge_is_not(entry, registry):
-    good = _respond(entry, registry, 2)
-    assert not [f for f in good.faults if f["key"] == "solution.effectiveness_threshold"]
-    founder = {"value": 7, "unit": "minutes"}
+# Call 38: code appends, never the model -- the scorer judges the plan's codes less the appended.
+
+def _row(entry, key):
+    return entry.respondent_questions[key]
+
+
+def test_a_fixed_code_control_owes_exactly_one_label_per_founder_code(entry, registry):
+    dimension = registry.by_key("solution.relative_advantage")
+    row = _row(entry, dimension.key)
+    want = [c for c in row["codes"] if c not in ("nothing_would_change", "something_else")]
+    item = {"key": dimension.key, "question": "That night?",
+            "options": [f"Label {i}" for i in range(len(want))]}
+    assert score_mod.respondent_checks(item, dimension, row) == []
+    plus_escape = dict(item, options=item["options"] + ["Nothing would have changed"])
+    assert any(f"{len(want) + 1} options; the plan has {len(want)}" in f
+               for f in score_mod.respondent_checks(plus_escape, dimension, row))
+    short = dict(item, options=item["options"][:-1])
+    assert score_mod.respondent_checks(short, dimension, row)
+
+
+@pytest.mark.parametrize("distractors, ok", [(1, False), (2, True), (3, True), (4, False)])
+def test_a_set_takes_every_founder_label_and_two_to_three_distractors(entry, registry,
+                                                                      distractors, ok):
+    dimension = registry.by_key("problem.consequence")
+    row = _row(entry, dimension.key)
+    founder = [c for c in row["codes"] if c not in ("nothing_much", "something_else")]
+    labels = [c.upper() for c in founder] + [f"Distractor {i}" for i in range(distractors)]
+    faults = score_mod.respondent_checks({"key": dimension.key, "question": "After?",
+                                          "options": labels}, dimension, row)
+    assert (faults == []) is ok, faults
+    if not ok:
+        assert f"{distractors} distractor(s)" in faults[0]
+
+
+def test_a_set_missing_a_founder_label_fails(entry, registry):
+    dimension = registry.by_key("problem.consequence")
+    row = _row(entry, dimension.key)
+    founder = [c for c in row["codes"] if c not in ("nothing_much", "something_else")]
+    labels = founder[1:] + ["Distractor a", "Distractor b"]
+    faults = score_mod.respondent_checks({"key": dimension.key, "question": "After?",
+                                          "options": labels}, dimension, row)
+    assert any(f"missing founder label(s) [{founder[0]!r}]" in f for f in faults), faults
+
+
+def test_a_band_control_takes_no_options_from_the_model(entry, registry):
     dimension = registry.by_key("solution.effectiveness_threshold")
-    row = entry.respondent_questions["solution.effectiveness_threshold"]
-    item = {"key": dimension.key, "question": "How much sooner?",
-            "options": ["Under 7", "7 to 10", "10 to 20", "20 or more", "Nothing would"]}
-    assert any("band edge" in f for f in score_mod.respondent_checks(item, dimension, row, founder))
-    founder["value"] = 5
-    assert score_mod.respondent_checks(dict(item, options=["Under 5", "5 to 10", "10 to 20",
-                                                           "20 or more", "Nothing would"]),
-                                       dimension, row, founder) == [], \
-        "5 is the registry's own edge, never the founder's to have leaked"
+    row = _row(entry, dimension.key)
+    item = {"key": dimension.key, "question": "How much sooner?"}
+    assert score_mod.respondent_checks(item, dimension, row, {"value": 7}) == []
+    assert score_mod.respondent_checks(dict(item, options=None), dimension, row) == []
+    banded = dict(item, options=["Under 5", "5 to 10", "10 to 20", "20 or more"])
+    assert any("4 options on a single_choice_bands control" in f
+               for f in score_mod.respondent_checks(banded, dimension, row))
 
 
 def test_sweep_a_runs_on_part_one_and_sweep_b_on_every_part(entry, registry):

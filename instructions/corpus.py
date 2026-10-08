@@ -173,7 +173,9 @@ class Entry:
 
     def _mechanism_texts(self) -> list[str]:
         mechanism = self.solution_mechanism or {}
-        texts = [str(mechanism.get(k) or "") for k in ("actor", "trigger", "mechanism", "output")]
+        # Call 39: `mechanism`, `output`, `not_assumed` (and `mechanism_terms`, below) only --
+        # never `trigger` (it describes the problem moment) nor `actor`.
+        texts = [str(mechanism.get(k) or "") for k in ("mechanism", "output")]
         texts += [str(t) for t in mechanism.get("not_assumed") or []]
         return texts
 
@@ -206,8 +208,9 @@ class Entry:
         return out
 
     def vocabulary(self) -> set[str]:
-        """The stems `no_leak`'s sweep A looks for (call 32): the golden mechanism's content words
-        and single-word `mechanism_terms`, stemmed, less the stoplist and every stem of the
+        """The stems `no_leak`'s sweep A looks for (calls 32, 39): the content words of the golden
+        mechanism's `mechanism`, `output` and `not_assumed` (never `trigger` or `actor`) and its
+        single-word `mechanism_terms`, stemmed, less the stoplist and every stem of the
         problem's own words (`context`, `statements.problem`, `interpretations.problem`, every
         story). Multi-word terms are `mechanism_phrases()`."""
         problem = self._problem_words()

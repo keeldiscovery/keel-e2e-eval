@@ -18,7 +18,8 @@ into keel-cloud's canon, so a run reads these bytes either way:
 
     01-countly         25bffafb2fa7524529888b827122df190ff28c4e644b07603eaf46039949005d
     02-compliancelog   930dbd8e4a42843298a0abcb031106e222aed93e7e7eda7fb086ed7fa458fd5d
-    03-lullaby         c6fc1a4a3108d3362a2b6e18180bee2977b5fe568be1bbab40c1ca40e5e0a7fc
+    03-lullaby         d1f8c17f34f5f02f1376d6f2c8753a4d304013437fb495c6748d2b142b7427a9
+                       (2026-10-08, call 39: `mechanism_terms` drops `cot`; was c6fc1a4a3108...)
     04-linerly         3598e8f0df553b4d1c85ea47b66e4e024ea0392e8305fc96a4474777c361a90e
     05-paidly          efbde113e7edce719985163c02c970861c7695ddf238e0c19c04fb33c15ac0bb
     06-repeatline      5fb3a693e31d7965d3d303b83f03735359268762d5f6ea12baed43fe7d053a8b
@@ -200,6 +201,16 @@ part of what a number means:
     062 accepts it, and a mark that refuses what the product accepts measures the eval, not the
     instruction. C4 still faults an empty phrase, one over 120 characters, and one carrying a
     not-sure word. `MARKS_VERSION` stays 9: no v9 run of record had been spent.
+38. **v9, amended before any run of record** *(the orchestrator, 2026-10-08; bundle
+    `runs/20261008T013837Z-instructions`)*: **code appends, never the model** -- *Something else*,
+    every respondent-only code the registry names and every band, scale-axis and gate option -- so
+    a fixed-code control or the ladder owes exactly one label per remaining plan code, a set every
+    founder label (normalised) plus 2-3 distractors, Importance 4-6 difficulties, and a band,
+    numeric or gate control `options` null. `MARKS_VERSION` stays 9.
+39. **v9, amended before any run of record** *(the orchestrator, 2026-10-08; same bundle)*:
+    **`no_leak`'s vocabulary is stemmed from the golden mechanism's `mechanism`, `output`,
+    `not_assumed` and `mechanism_terms` only**, never `trigger` (it describes the problem moment)
+    or `actor`, less the problem's own stems as before. `MARKS_VERSION` stays 9.
 """
 
 from __future__ import annotations
