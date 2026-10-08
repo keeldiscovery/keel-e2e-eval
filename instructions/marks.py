@@ -263,7 +263,11 @@ part of what a number means:
     that contains the words (*Not sure it would fit* is a reason; keel-cloud 058's C3 likewise);
     and a code-appended escape row is told by its label as 058 appends it (*None of these*,
     *Nothing*, *Nothing yet*...), never by a fixed slug -- production slugs the founder's escape
-    `none_of_these_<...>`. **(44a)** `no_leak`'s vocabulary, per question, subtracts every stem of
+    `none_of_these_<...>`. The same whole-label test finds an escape row the MODEL wrote (a
+    fault, code appends it): *Something else*, *None of these*, *Nothing yet*, *Nothing* and the
+    registry's escape labels, normalised for case and punctuation -- never a prefix (*Something
+    else was cut or given up to cover it* is Ability to pay's scale step, code `barely`; the
+    prefix match faulted certificate run 3, `runs/20261008T194906Z-instructions`). **(44a)** `no_leak`'s vocabulary, per question, subtracts every stem of
     the registry's own wording for the dimension being asked -- its `respondent` block (guidance,
     option_rule, chips), its founder `option_rule` and `code_rule` (the fixed escape labels) and
     the registry's `common` block; never its `lullaby` example. *In the order you tried them* is

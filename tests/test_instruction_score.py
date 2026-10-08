@@ -398,6 +398,31 @@ def test_every_escape_058_appends_is_known_by_its_label(label):
     assert not score_mod.is_escape_label("Nothing on the shelf matched")
 
 
+def test_a_scale_step_that_begins_with_something_else_is_not_an_escape(registry):
+    """Call 44: an escape row the model wrote is told by its WHOLE normalised label, never a
+    prefix -- certificate run 3 (`runs/20261008T194906Z-instructions`, 06-repeatline Part 3)
+    was faulted on Ability to pay's own scale step, code `barely`."""
+    key = "commercial.ability_to_pay"
+    dimension, row = registry.by_key(key), _lullaby().respondent_questions[key]
+    labels = ["Easily, out of what was already there", "Without cutting back on anything",
+              "Only by trading something off", "Something else was cut or given up to cover it"]
+    item = {"key": key, "question": "Where did the money come from?",
+            "options": [{"label": label, "code": code} for label, code in
+                        zip(labels, ["easily", "without_cutting_back", "with_a_trade_off",
+                                     "barely"])]}
+    assert not score_mod.is_escape_label(labels[-1])
+    assert score_mod.respondent_checks(item, dimension, row) == []
+
+
+@pytest.mark.parametrize("label", ["Something else", "something else.", "None of these",
+                                   "Nothing yet", "Nothing"])
+def test_a_bare_escape_written_on_a_set_is_still_a_fault(entry, registry, label):
+    score = _respond(entry, registry, 1,
+                     mutate=lambda r: _options(r, "problem.consequence").append(label))
+    assert any("written by the model; code appends it" in f["evidence"] for f in score.faults), \
+        score.faults
+
+
 def test_a_categorical_pick_takes_the_founders_labels_and_no_distractor(registry):
     lullaby = _lullaby()
     key = "solution.target_circumstance"

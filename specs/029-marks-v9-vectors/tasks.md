@@ -523,3 +523,16 @@ task it was found under. Nothing here is a change of mind about the design; it i
   registry numbers take the window's count. `contracts/dimension-registry.yaml` is 058's canon YAML
   of record; the slice fixture reads *in {window}*. D29's one failing digest test is green:
   `make unit` 1541 passed. `DRY=1`: `compare_correctness` 196 of 196.
+- **D31 (call 44, the escape test by WHOLE label; certificate run 3,
+  `runs/20261008T194906Z-instructions`).** `respondent_checks` found a model-written *Something
+  else* by the prefix `^\s*something else\b`, so it faulted 06-repeatline Part 3's Ability to pay
+  on its own scale step *Something else was cut or given up to cover it* (code `barely`) -- the
+  run's one `option_validity` miss (0.99906, unmet). The test is now `is_escape_label`, the same
+  whole normalised label call 44 tells a code-appended row by (*Something else*, *None of these*,
+  *Nothing yet*, *Nothing* and the registry's escape labels); a bare escape written on a set is
+  still a fault. Re-scored with `rescore.py` against 058 at `bf5c75e` (a detached worktree; the
+  058 checkout is dirty): `--no-judge`, since `rescore` keeps no judge cache across runs and
+  cannot reuse the run's 11 recorded answers, so `no_leak`'s 11 ties read "no reveal", as the
+  run's own 11 were DIFFERENT. All eight marks met, `passed: true` (was false); written
+  `scorecard-v9.json`, `report-v9.html`, `register-v9.html`, `batch-v9.json`,
+  `validation-v9.json` beside the bundle.

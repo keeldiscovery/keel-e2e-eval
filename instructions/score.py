@@ -438,7 +438,6 @@ def score_calibration(case, entry, registry, result, *, judge=None,
 _FREE_CONTROLS = ("segmented_0_to_7", "number_with_unit", "two_numbers_optional")
 #: Call 38: controls whose options code writes (bins, the axis, Yes/No); the model writes `null`.
 _NULL_CONTROLS = _FREE_CONTROLS + ("single_choice_bands", "gate_yes_no")
-_SOMETHING_ELSE_RE = re.compile(r"^\s*something else\b", re.IGNORECASE)
 _NUMBER_RE = re.compile(r"(?<![\d.])(\d+(?:\.\d+)?)(?![\d.])")
 
 
@@ -510,8 +509,9 @@ def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None
     want = [c for c in plan_row.get("codes") or [] if c not in RESPONDENT_ESCAPES]
     labels = [str(_option_label(o) or "") for o in options]
     codes = [_option_code(o) for o in options]
-    if any(_SOMETHING_ELSE_RE.match(label) for label in labels):
-        faults.append("'Something else' written by the model; code appends it")
+    for label in labels:                    # call 44: the WHOLE normalised label, never a prefix
+        if is_escape_label(label):
+            faults.append(f"escape row {label!r} written by the model; code appends it")
     for label in labels:
         if _is_not_sure_label(label):
             faults.append(f"option {label!r} is a not-sure option -- the chip is UI")
