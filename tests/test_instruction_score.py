@@ -421,6 +421,41 @@ def test_sweep_b_catches_a_founder_number_the_registry_did_not_fix(entry, regist
         "the founder said up to 4 of 7; the 7 is the registry's window"
 
 
+def _set_option(result, key, index, label):
+    option = _item(result, key)["options"][index]
+    if isinstance(option, dict):
+        option["label"] = label
+    else:
+        _item(result, key)["options"][index] = label
+
+
+def test_sweep_b_passes_the_founders_label_in_an_option(entry, registry):
+    """Call 40: a fixed-code control shows every rung, the founder's own among them."""
+    score = _respond(entry, registry, 2, lambda r: _set_option(
+        r, "solution.adoption_friction", 1, "A single whistle"))
+    assert not [f for f in score.faults if f["check"] == "no_leak"]
+
+
+def test_sweep_b_faults_the_founders_label_in_the_stem(entry, registry):
+    score = _respond(entry, registry, 2, lambda r: _item(r, "solution.adoption_friction")
+                     .__setitem__("question", "Would a single whistle have been too much?"))
+    faults = [f for f in score.faults if f["check"] == "no_leak"]
+    assert [f["sweep"] for f in faults] == ["B"] and "a single whistle" in faults[0]["evidence"]
+
+
+def test_sweep_b_faults_the_founders_number_in_the_stem(entry, registry):
+    stem = _respond(entry, registry, 1, lambda r: _item(r, "problem.duration").__setitem__(
+        "question", "Did it last about 15 minutes?"))
+    assert any("15" in f["evidence"] for f in stem.faults if f.get("sweep") == "B")
+
+
+def test_sweep_b_reads_the_reveal_too(entry, registry):
+    score = _respond(entry, registry, 2, lambda r: r["reveal"].__setitem__(
+        "body", "One idea: a single whistle starts it."))
+    assert any(f["key"] == "solution.adoption_friction" for f in score.faults
+               if f.get("sweep") == "B")
+
+
 def test_the_b2b_link_scores_the_six_part_three_items(registry):
     b2b = fx.entry(fx.ENTRY_B2B)
     score = _respond(b2b, registry, 3, link="COMMERCIAL_B2B")

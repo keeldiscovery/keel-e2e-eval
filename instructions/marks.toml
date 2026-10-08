@@ -68,6 +68,7 @@ option_validity = 1.00
 # on a word the problem's world also uses (context, problem statement, the stories) is a TIE and
 # goes to the judge; every other hit is a fault outright. `judged_fraction` is reported here now.
 # call 39, orchestrator 2026-10-08, bundle 20261008T013837Z: the vocabulary is stemmed from the golden mechanism's `mechanism`, `output`, `not_assumed` and `mechanism_terms` only, never `trigger` (it describes the problem moment) or `actor`, less the problem's own stems as before; v9 amended before any run of record
+# call 40, orchestrator 2026-10-08, bundle 20261008T024419Z: sweep B reads respondent item d's question stem and the part's reveal only, never its option labels -- a fixed-code control shows every rung, the founder's among them, and a set shows the founder's labels verbatim by R2, so a founder label in an option is the rule, not a leak; v9 amended before any run of record
 no_leak = 1.00
 # Unchanged number (calls 5, 33): `agree / answered` over respondents who passed the gate AND did
 # not chip, with GUESSED precision and recall mandatory beside it. A respondent whose story carries

@@ -466,7 +466,9 @@ def _label_form(label) -> str:
 def sweep_b(texts, dimension, founder: dict) -> dict:
     """Sweep B (call 32): the founder's own value for dimension *d* -- the chosen phrase, or a
     number they gave that the registry did not fix -- in respondent item *d*. A hit is a fault: the
-    stranger is being told the answer the founder hopes for."""
+    stranger is being told the answer the founder hopes for. *texts* are the item's stem and the
+    part's reveal only, never its option labels (call 40): a fixed-code control shows every rung,
+    the founder's among them, and a set shows the founder's labels verbatim by R2."""
     blob = " ".join(str(t) for t in texts if t)
     hits = []
     phrase = text_mod.normalise((founder or {}).get("belief_phrase"))
@@ -489,7 +491,8 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
                      failed: str | None = None) -> RespondentScore:
     """One `RESPONDENT_QUESTIONS` case (063): coverage against the plan's part (call 30), validity
     on the respondent side of §2.2, sweep A on Part 1's items (the stranger has not been told the
-    idea yet) and sweep B on every item (the founder's own values, never shown to a stranger)."""
+    idea yet) and sweep B on every item's stem and the part's reveal (the founder's own values, never
+    shown to a stranger; call 40: not its option labels)."""
     part = case.meta.get("part")
     link = case.meta.get("link") or "PRIMARY"
     plan = plan if plan is not None else entry.plan(registry)
@@ -502,6 +505,8 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
         score.failed = failed or "the result carried no items list"
         return score
     items = [i for i in items if isinstance(i, dict)]
+    revealed = result.get("reveal") if isinstance(result.get("reveal"), dict) else {}
+    reveal = [revealed.get("title"), revealed.get("body")]
     produced = [i.get("key") for i in items]
     coverage = _coverage_faults(produced, keys)
     score.coverage_passed = not coverage
@@ -535,7 +540,7 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
             else:
                 score.leak_clean += 1
         score.leak_of += 1
-        swept = sweep_b(texts, dimension, founder)
+        swept = sweep_b([item.get("question")] + reveal, dimension, founder)   # call 40
         score.leak_hits += swept["hits"]
         if swept["fault"]:
             score.faults.append({"key": key, "check": "no_leak", "sweep": "B",

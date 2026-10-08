@@ -468,3 +468,15 @@ task it was found under. Nothing here is a change of mind about the design; it i
   offline against 058: respondent validity 45/69, `no_leak` 1.00 (120/120), refusals R2 x9 and no
   `case` fault -- the bundle's model was shown codes and wrote codes, so its sets now miss the
   labels; a fresh screen is the measure.
+- **D28 (call 40, orchestrator 2026-10-08; bundle `runs/20261008T024419Z-instructions`).** The
+  bundle's one `no_leak` fault (03-lullaby PART2 run2, `solution.adoption_friction`, sweep B, *the
+  founder's phrase 'a few taps'*) was option 3 of five on the fixed-code effort ladder -- "A few
+  taps" is the founder's rung, which the respondent must see among the others; the stem ("That
+  night, with your phone where it was and your hands as they were, how much effort could you have
+  managed before giving up on holding it near the cot?") carries no founder value. Sweep B as
+  written contradicted call 38 (one label per plan code) and R2 (a set shows the founder's labels
+  verbatim). Narrowed to the item's question and the part's reveal; four scorer tests. Re-scored
+  offline (`--no-judge`): `no_leak` 0.992 -> 1.00 (120/120); `option_validity` 0.993 unchanged
+  (the one fault: `commercial.purchase_friction` run3 wrote all six founder labels plus one
+  distractor, *Having to set up an account before I could use it*; a set takes 2-3); verdict still
+  FAIL on that fault alone.

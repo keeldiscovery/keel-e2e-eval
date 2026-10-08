@@ -213,6 +213,13 @@ part of what a number means:
     **`no_leak`'s vocabulary is stemmed from the golden mechanism's `mechanism`, `output`,
     `not_assumed` and `mechanism_terms` only**, never `trigger` (it describes the problem moment)
     or `actor`, less the problem's own stems as before. `MARKS_VERSION` stays 9.
+40. **v9, amended before any run of record** *(the orchestrator, 2026-10-08; bundle
+    `runs/20261008T024419Z-instructions`)*: **sweep B reads the stem, not the options.** The
+    founder's label, `belief_phrase` or number for dimension *d* is swept in respondent item *d*'s
+    question and the part's reveal only: a fixed-code control shows every rung, the founder's among
+    them (Lullaby's *A few taps* on Adoption friction), and a set shows the founder's labels
+    verbatim by R2, so a founder label in an option is the rule, not a leak. `MARKS_VERSION`
+    stays 9.
 """
 
 from __future__ import annotations
