@@ -289,6 +289,17 @@ part of what a number means:
     `queueAnotherQuestionsTurn`: turn one's context plus `repair`, no history, empty input), and
     the accepted paragraph is scored; a brief refused twice is scored on its raw paragraph as a
     fault, every mark missed -- the founder is shown no paragraph. `MARKS_VERSION` stays 9.
+
+**The v9 run of record, recorded 2026-10-08** (the founder's decision 48; not a judgement call):
+`runs/20261008T194906Z-instructions` -- `WHY=marks:9`, host claude, `MODELS=exported`
+(claude-sonnet-5-5 at medium, Haiku 4.5), 414 cases, $19.75 -- **re-scored** under call 44's
+whole-label escape fix. The run's one fault was a legitimate scale step (Ability to pay's
+*Something else was cut or given up to cover it*); the answers are untouched, and the run's own
+11 judge answers were all DIFFERENT. Every mark met: `dimension_coverage` 1.00, `option_validity`
+1.00, `no_leak` 1.00, `anchoring_accuracy` 0.9949, `compare_correctness` 1.00, refusals 0.0072,
+`shape_refusals` 0, `brief_paragraphs` 1.00. The founder accepted the re-score as the certificate.
+`runs/` is gitignored, so the bundle lives on this machine only; its `scorecard-v9.json` is
+sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`.
 """
 
 from __future__ import annotations

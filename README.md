@@ -78,9 +78,34 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
+### The run of record for spec 029 — **`MARKS_VERSION` 9, Claude** (2026-10-08)
+
+`make instruction-eval HOST=claude WHY=marks:9 MODELS=exported`, on the founder's Max plan. Run of
+record: **`runs/20261008T194906Z-instructions`** — **414 cases** at N=3, **$19.75**, Claude Code CLI
+**2.1.292**, `claude-sonnet-5-5` at **medium** (frame, calibration, respondent, brief) and **Haiku
+4.5** (context, reading), from keel-cloud's exported table (058 `bf5c75e`). **Re-scored** under
+judgement call 44's whole-label escape fix: the run's one fault was a legitimate scale step
+(*Something else was cut or given up to cover it*, Ability to pay, 06-repeatline Part 3), the
+answers are untouched, and the run's own 11 judge answers were all DIFFERENT. The founder accepted
+the re-score as the certificate (decision 48, 2026-10-08). **Every mark met:**
+
+| Mark | Value | Gate |
+|---|---|---|
+| `dimension_coverage` | 1.00 | 1.00 |
+| `option_validity` | 1.00 | 1.00 |
+| `no_leak` | 1.00 | 1.00 |
+| `anchoring_accuracy` | 0.9949 | ≥ 0.90 |
+| `compare_correctness` | 1.00 | 1.00 |
+| rule refusals (rate) | 0.0072 (3 of 414) | ≤ 0.02 |
+| `shape_refusals` | 0 | 0 |
+| `brief_paragraphs` | 1.00 | 1.00 |
+
+`runs/` is gitignored, so the bundle lives on the founder's machine only; its `scorecard-v9.json`
+is sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. The standing gate is **met for Claude at v9**.
+
 ### `MARKS_VERSION` 9 — the gate as written, before its run of record (spec `029-marks-v9-vectors`, 2026-10-07)
 
-**The rubric moved, and no run of record exists at v9 yet.** Written here *before* the run, so the
+**Written here *before* the run** (kept as written), so the
 run is read against the gate as written (spec 029 FR-030, T053):
 
 - **Eight subjects.** `CONTEXT_INTERPRET`, `PROBLEM_INTERPRET`, `SOLUTION_MECHANISM` (rendered on
@@ -1206,7 +1231,9 @@ KEEL_COPILOT_MODEL=gpt-5.6-luna \
   and re-derives the goldens from it, so a v7 bundle re-scored after the revision would align
   answers given to one questionnaire against a different one. That is the second independent reason
   a run of record must be spent; the first is the standing gate below. `rescore.py` is unchanged and
-  is simply not used across this bump. **The v8 run of record was spent on
+  is simply not used across this bump. **The v9 run of record is `runs/20261008T194906Z-instructions`**
+(2026-10-08, Claude, every mark met on its call-44 re-score; the section at the top of this file).
+**The v8 run of record was spent on
   2026-10-01** — `runs/20261001T043420Z-instructions`, Claude, all five marks met —
   and it took two runs to get there: see the section at the top of this file and
   `runs/DRIFT.md` #70.

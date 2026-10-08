@@ -33,7 +33,11 @@ added to this line rather than quietly written — which is exactly how the thir
   a project), eight marks (`marks.toml`; `golden_belief_recall` retired with `align.py`), the
   corpus at revision 3, `rescore.py` refusing every v8 bundle by name, and `MODELS=exported`
   refusing until the exported table carries `context`, `calibration` and `respondent`. `WHY=marks:9`
-  is the run of record's event; nothing here changed `why.py`.
+  is the run of record's event; nothing here changed `why.py`. **The v9 run of record is
+  `runs/20261008T194906Z-instructions`** (2026-10-08, Claude, Sonnet 5.5 medium + Haiku 4.5, 414
+  cases, $19.75), re-scored under judgement call 44 and accepted by the founder as the certificate
+  (decision 48); every mark met. `runs/` is gitignored: its `scorecard-v9.json` is sha256
+  `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`.
 - **S-012**, *the journey through a host* (`evals/test_s012_journey_through_a_host.py`, specs
   `016-copilot-e2e`, `019-journey-through-a-host` and `021-short-journey`) — the third, and here
   is the argument for it. keel-cloud `canon/designs/keel-skill-design.md` §5.5 makes a host "supported" only when four
