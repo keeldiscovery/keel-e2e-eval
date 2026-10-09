@@ -18,7 +18,7 @@ import pytest
 from harness.corpus_script import R2_READERS_RETIRED
 from instructions import corpus as corpus_reader
 
-RETIRED = getattr(corpus_reader, "REVISION", 2) == 3
+RETIRED = getattr(corpus_reader, "REVISION", 2) >= 3
 
 requires_r2 = pytest.mark.skipif(RETIRED, reason=R2_READERS_RETIRED)
 

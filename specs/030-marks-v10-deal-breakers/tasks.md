@@ -11,8 +11,8 @@
 - [x] T004 `tests/test_instruction_registry.py`.
 
 ## Phase 3 — The corpus at revision 4 (FR-002)
-- [ ] T005 `instructions/corpus.py`: `REVISION = 4`, six statuses, no fallback, calibrated set per persona, plan per link, r3 refused by name.
-- [ ] T006 `tests/fixtures/corpus-r3/` deleted; `tests/test_corpus_r4_shape.py`.
+- [x] T005 `instructions/corpus.py`: `REVISION = 4`, six statuses, no fallback, calibrated set per persona, plan per link, r3 refused by name.
+- [x] T006 `tests/fixtures/corpus-r3/` deleted; `tests/test_corpus_r4_shape.py`.
 
 ## Phase 4 — The marks (FR-003, FR-004, FR-005)
 - [ ] T007 `brief.py` four marks; `report.py`; `marks.py` calls 46–49, `MARKS_VERSION = 10`; `marks.toml`.
