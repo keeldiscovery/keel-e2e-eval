@@ -41,17 +41,17 @@ def test_a_calibration_case_carries_its_vector_and_the_slices_keys_and_no_founde
                             "result"}
     assert problem["context"]["window"], "the job's own context, window and all (058 4ea3062)"
     assert problem["registry_slice"][0] == "problem.prevalence"
-    assert len(problem["registry_slice"]) == 9
-    assert "throws the morning off" not in repr(problem)
+    assert len(problem["registry_slice"]) == 4
+    assert "is hit and miss" not in repr(problem)
 
 
 def test_a_respondent_case_carries_the_plan_the_option_sets_and_the_founders_values(cases):
     part1 = next(c for c in _by_screen(_batch(cases), "RESPONDENT_QUESTIONS") if c["part"] == 1)
     assert set(part1) >= {"case_id", "screen", "market", "part", "link", "plan",
                           "founder_options", "founder_values", "result", "context", "items"}
-    assert part1["link"] == "PRIMARY" and len(part1["plan"]) == 8
-    assert part1["founder_values"]["problem.severity"] == {
-        "answer": "moderately", "belief_phrase": "throws the morning off"}, \
+    assert part1["link"] == "PRIMARY" and len(part1["plan"]) == 4
+    assert part1["founder_values"]["problem.current_solution_satisfaction"] == {
+        "answer": "hit_and_miss", "belief_phrase": "is hit and miss"}, \
         "R3 is checked against values the model was never shown (025 D12/D18)"
 
 

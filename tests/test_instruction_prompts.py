@@ -115,16 +115,21 @@ def test_the_compare_row_is_a_row_and_never_a_call(cases):
     row = next(c for c in cases if c.kind == "COMPARE")
     assert row.payload == {} and row.prompt == "" and row.run_index == 0
     assert row.compare_input["entry"] == "09-fixture"
-    assert len(row.compare_input["founder_calibration"]) == 25
+    assert len(row.compare_input["founder_calibration"]) == len(fx.entry().calibrated_keys()) \
+        == 10, "call 47: the entry's calibrated set, read"
 
 
-def test_the_b2b_entry_adds_its_own_respondent_link(tmp_path):
+def test_the_b2b_entry_asks_part_three_on_its_own_link_and_nowhere_else(tmp_path):
+    """Call 47 (keel-cloud `EvidencePlan`, decision 26): part 3 of a B2B study is the
+    decision-maker's COMMERCIAL_B2B job -- three respondent jobs on either persona, never four."""
     cases = prompts_mod.build_cases(fx.entry(fx.ENTRY_B2B), fx.exported(tmp_path),
                                     fx.instructions(), fx.FakeRuntime, n_runs=1)
     b2b = [c for c in cases if c.case_id.endswith("RESPONDENT_B2B/run1")]
     assert len(b2b) == 1 and b2b[0].meta["link"] == "COMMERCIAL_B2B"
     assert b2b[0].meta["part"] == 3
-    assert len([c for c in cases if c.kind == "RESPONDENT"]) == 4
+    assert "commercial.ability_to_pay" in b2b[0].meta["plan"]
+    respondent = [c.subject for c in cases if c.kind == "RESPONDENT"]
+    assert respondent == ["PART1", "PART2", "B2B"]
 
 
 def test_n_runs_repeats_each_model_case_and_never_the_compare_row(tmp_path):
@@ -145,8 +150,9 @@ def test_every_payload_carries_its_screens_instruction_and_its_contract(cases):
 
 def test_the_respondent_case_keeps_the_founder_values_for_the_batch_and_out_of_the_prompt(cases):
     part1 = next(c for c in cases if c.case_id == "09-fixture/RESPONDENT_PART1/run1")
-    assert part1.meta["founder_values"]["problem.severity"]["answer"] == "moderately"
-    assert "throws the morning off" not in part1.prompt
+    scale = part1.meta["founder_values"]["problem.current_solution_satisfaction"]
+    assert scale["answer"] == "hit_and_miss"
+    assert "is hit and miss" not in part1.prompt
 
 
 def _select(cases, needle):

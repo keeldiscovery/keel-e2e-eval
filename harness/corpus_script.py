@@ -183,12 +183,13 @@ class PersonInputs:
 #: Spec 029, Open item O-1. The corpus moved to revision 3 and this module reads revision 2's
 #: shape (`beliefs`, `questionnaire.anchors`, `expected.buckets`, `expected.stages`) to drive
 #: today's product. Its rewrite against the vector product is a sibling spec's, not 029's.
-R2_READERS_RETIRED = ("the corpus is at revision 3 (spec 029); the journey's readers of the r2 "
-                      "shape are spec 030-journey-vectors' -- Open item O-1")
+R2_READERS_RETIRED = ("the corpus is past revision 2 (revision 3 since spec 029, 4 since spec 030); "
+                      "the journey's readers of the r2 shape are a sibling journey spec's -- Open "
+                      "item O-1")
 
 
 def _refuse_r3() -> None:
-    if getattr(corpus_reader, "REVISION", 2) == 3:
+    if getattr(corpus_reader, "REVISION", 2) >= 3:
         raise corpus_reader.CorpusError(R2_READERS_RETIRED)
 
 

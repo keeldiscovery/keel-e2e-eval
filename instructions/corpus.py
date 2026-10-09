@@ -1,33 +1,33 @@
-"""The golden corpus at revision 3, read and never written (spec 029 FR-006/FR-012, data-model §2).
+"""The golden corpus at revision 4, read and never written (spec 029 FR-006/FR-012, data-model §2;
+spec 030 FR-002, judgement call 49).
 
 `canon/designs/measured-beliefs/corpus/*.yaml` in the keel-cloud checkout is the corpus. This
 module opens those files, hashes them on the way in, and offers `verify_unchanged()` so the end of
 a run can prove nothing here moved while it ran. **If an instruction cannot reach a golden, the
 instruction is wrong** -- or the design is, and it goes back to step 1. Never the corpus.
 
-**Revision 3 only.** `MARKS_VERSION` 9 reads the vector redesign's schema (marks-v9 §4): `context`,
-`interpretations.problem`, `solution_mechanism`, `persona`, `founder_calibration` keyed by the
-registry's 25 dimensions, the golden plan `respondent_questions`, people with a gate answer, a
-story, a chip, a golden anchoring and picks by dimension, and `expected.standings` +
-`expected.vector_verdicts`. A file at any other revision, or still carrying `beliefs`,
-`questionnaire`, `expected.buckets`, `expected.stages` or a per-anchor answer, is a **refusal to
-start** by entry and by key -- never a fallback, the same shape v8's scalar-`stage` refusal had.
+**Revision 4 only** (call 49). `MARKS_VERSION` 10 reads keel-cloud 071's schema: revision 3's
+shape (`context`, `interpretations.problem`, `solution_mechanism`, `persona`, the golden plan
+`respondent_questions`, people with a gate answer, a story, a chip, a golden anchoring and picks by
+dimension, `expected.standings` + `expected.vector_verdicts`) on the registry of twelve, with
+`founder_calibration` keyed by the entry's **calibrated set** -- ten keys on a B2C persona, twelve
+on a B2B one (call 47) -- and the six `Status` words. A file at any other revision (a revision-3
+file is named as v9's), or still carrying `beliefs`, `questionnaire`, `expected.buckets`,
+`expected.stages` or a per-anchor answer, is a **refusal to start** by entry and by key -- never a
+fallback, the same shape v8's scalar-`stage` refusal had.
 
-**Where revision 3 is read from, until keel-cloud carries it** (the orchestrator's cross-track
-arrangement of 2026-10-07). The seven r3 entries are this branch's to write, and they live in
-keel-cloud's canon, which this branch may not touch. So they are recorded under
-`tests/fixtures/corpus-r3/` with a README saying they are to be moved verbatim into keel-cloud's
-canon at integration, and **`load()` reads that directory when the configured corpus directory
-holds no revision-3 entry at all**. The moment keel-cloud's corpus carries one r3 file, the
-configured directory is read and every r2 file left in it refuses by name. Nothing else about the
-reader changes with the source: the same refusals, the same hash, the same `verify_unchanged()`.
+**Read from keel-cloud's canon and nowhere else** (call 49). The fixture fallback of 2026-10-07
+(`tests/fixtures/corpus-r3/`, read while keel-cloud's corpus held no revision-3 entry) is deleted
+with its directory: keel-cloud's canon has carried the corpus since 2026-10-08, so a corpus
+directory that is missing, empty, or holds one file at another revision is a refusal by name.
 
-Three things the r3 corpus says that the code has to carry:
+Three things the r4 corpus says that the code has to carry:
 
-1. **The plan is derived, and the file's own plan is a check on it** (call 30). `plan()` is the
-   registry's keys asked in V1, by part, that the founder did not leave out; the file's
-   `respondent_questions` must hold exactly those keys per part, or the file disagrees with the
-   registry it is keyed by -- a refusal.
+1. **The plan is derived, and the file's own plan is a check on it** (calls 30, 47). `plan()` is
+   the registry's keys asked on each part's link (`Registry.link_of`: part 3 of a B2B study is the
+   decision-maker's `COMMERCIAL_B2B` link, and asks the `b2b_only` pair too), by part, that the
+   founder did not leave out; the file's `respondent_questions` must hold exactly those keys per
+   part, or the file disagrees with the registry it is keyed by -- a refusal.
 2. **The chipped story is a corpus fact, not a judgement** (call 33 amended, FR-017). `readable()` is
    the people who passed the gate, carry no chip and wrote a story; nobody else is ever shown to the
    reader, and a chip-carrying person's golden `GUESSED` is checked by `compare_correctness`.
@@ -46,15 +46,15 @@ from pathlib import Path
 import yaml
 
 from . import text as text_mod
-from .registry import DEAL_BREAKERS, VECTORS, RecallWindow
+from .registry import DEAL_BREAKERS, LINK_B2B, LINK_PRIMARY, VECTORS, RecallWindow
 
-REVISION = 3
+REVISION = 4
 
 STAGES = VECTORS
 
-#: The eight `Status` words (registry-schema; marks §2.5).
-STATUSES = ("HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE", "TOO_FEW_TO_CALL", "BAR_SET",
-            "NOT_TESTED_BY_DESIGN", "NOT_ASKED_YET", "LEFT_OUT")
+#: The six `Status` words (keel-cloud 071; registry-schema; marks §2.5).
+STATUSES = ("HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE", "TOO_FEW_TO_CALL", "NOT_ASKED_YET",
+            "LEFT_OUT")
 
 #: The drift words `expected.standings[*].drift` may carry (`null` beside them).
 DRIFTS = ("above", "below", "both", "none")
@@ -66,18 +66,15 @@ ANCHORINGS = ("ANCHORED", "GUESSED")
 R2_KEYS = ("beliefs", "questionnaire", "normalization_rationale")
 R2_EXPECTED_KEYS = ("buckets", "stages")
 
-#: The fixture directory read when keel-cloud's corpus holds no revision-3 entry (module docstring).
-FIXTURE_DIR = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "corpus-r3"
-
 
 class CorpusError(RuntimeError):
     """The corpus could not be read, or moved while a run was in flight."""
 
 
 #: The two links a person answers on (FR-010): the primary interview, and -- on a B2B entry -- the
-#: decision-maker's Part 3 (`COMMERCIAL_B2B`: no gate, no context card, no reveal).
-LINK_PRIMARY = "PRIMARY"
-LINK_B2B = "COMMERCIAL_B2B"
+#: decision-maker's Part 3 (`COMMERCIAL_B2B`: no gate, no context card, no reveal). The registry's
+#: words, re-exported.
+assert (LINK_PRIMARY, LINK_B2B) == ("PRIMARY", "COMMERCIAL_B2B")
 
 
 @dataclass(frozen=True)
@@ -155,13 +152,27 @@ class Entry:
     def unsure(self, key: str) -> bool:
         return bool((self.founder_calibration.get(key) or {}).get("unsure"))
 
-    def plan(self, registry=None) -> dict:
-        """`{1: [key], 2: [key], 3: [key]}` (call 30): the registry's keys asked in V1, by part, the
-        founder did not leave out, in order. Without a registry bound, the file's own golden plan
-        (`respondent_questions`) by part, in file order -- the two are checked equal on load."""
+    def link_of(self, part: int) -> str:
+        """The link a part is asked on: part 3 of a B2B study is the decision-maker's (decision 26)."""
+        return LINK_B2B if (self.b2b() and part == 3) else LINK_PRIMARY
+
+    def calibrated_keys(self, registry=None) -> list:
+        """The keys this entry calibrates (call 47): the registry's twelve less the `b2b_only` pair
+        on a B2C persona; without a registry bound, `founder_calibration`'s own keys."""
         registry = registry if registry is not None else self.registry
         if registry is not None:
-            return {part: registry.plan_keys(part, self.founder_calibration) for part in (1, 2, 3)}
+            return registry.calibrated_keys(self.b2b())
+        return list(self.founder_calibration)
+
+    def plan(self, registry=None) -> dict:
+        """`{1: [key], 2: [key], 3: [key]}` (calls 30, 47): the registry's keys asked on each
+        part's own link (`link_of`), by part, the founder did not leave out, in order. Without a
+        registry bound, the file's own golden plan (`respondent_questions`) by part, in file order
+        -- the two are checked equal on load."""
+        registry = registry if registry is not None else self.registry
+        if registry is not None:
+            return {part: registry.plan_keys(part, self.founder_calibration, self.link_of(part),
+                                             self.b2b()) for part in (1, 2, 3)}
         out = {1: [], 2: [], 3: []}
         for key, row in (self.respondent_questions or {}).items():
             part = (row or {}).get("part")
@@ -306,26 +317,14 @@ def corpus_dir(keel_cloud: Path) -> Path:
     return Path(keel_cloud) / "canon" / "designs" / "measured-beliefs" / "corpus"
 
 
-def _revision_of(path: Path):
-    try:
-        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError):
-        return None
-    return raw.get("revision") if isinstance(raw, dict) else None
-
-
 def source_dir(keel_cloud: Path) -> Path:
-    """The directory `load()` reads: keel-cloud's corpus once it holds a revision-3 entry, else
-    this branch's recorded revision 3 under `tests/fixtures/corpus-r3/` (module docstring)."""
-    directory = corpus_dir(keel_cloud)
-    if directory.is_dir() and any(_revision_of(p) == REVISION
-                                  for p in sorted(directory.glob("*.yaml"))):
-        return directory
-    return FIXTURE_DIR
+    """The directory `load()` reads: keel-cloud's canon, and nowhere else (call 49)."""
+    return corpus_dir(keel_cloud)
 
 
 def load(keel_cloud: Path, *, registry=None) -> Corpus:
-    """Every `NN-name.yaml` in the corpus directory, in filename order, each at revision 3."""
+    """Every `NN-name.yaml` in keel-cloud's corpus directory, in filename order, each at revision
+    4 -- one file at another revision refuses the whole corpus, by entry and by key (call 49)."""
     directory = source_dir(keel_cloud)
     if not directory.is_dir():
         raise CorpusError(
@@ -357,15 +356,17 @@ def load_file(path, *, registry=None) -> Entry:
 # ------------------------------------------------------------------------------- the refusals
 
 def _refuse(entry_id, message, path) -> CorpusError:
-    return CorpusError(f"{entry_id}: {message} (spec 029 FR-006; marks-v9 §4). {path}")
+    return CorpusError(f"{entry_id}: {message} (spec 030 FR-002; judgement call 49). {path}")
 
 
 def _check_revision(raw: dict, path: Path) -> None:
     entry_id = raw.get("id") or path.name
     revision = raw.get("revision")
     if revision != REVISION:
+        was = (" -- revision 3 is MARKS_VERSION 9's corpus, on the registry of twenty-five"
+               if revision == 3 else "")
         raise _refuse(entry_id, f"revision is {revision if revision is not None else 'absent'}; "
-                                f"this eval reads revision {REVISION} only", path)
+                                f"this eval reads revision {REVISION} only{was}", path)
     for key in R2_KEYS:
         if key in raw:
             raise _refuse(entry_id, f"carries `{key}`, which revision 3 dropped", path)
@@ -483,30 +484,42 @@ def _check_shape(raw: dict, path: Path) -> None:
 
 
 def _check_keys(entry: Entry, registry) -> None:
-    """The refusals that need the registry: every dimension-keyed map keyed by it, and the file's
-    own plan equal to the one the registry derives (data-model §2-§3)."""
-    keys = set(registry.keys())
+    """The refusals that need the registry: every dimension-keyed map keyed by the entry's
+    calibrated set (call 47: the registry's twelve less the `b2b_only` pair on a B2C persona), and
+    the file's own plan equal to the one the registry derives per link (data-model §2-§3)."""
+    registry_keys = set(registry.keys())
+    keys = set(registry.calibrated_keys(entry.b2b()))
+    persona = "B2B" if entry.b2b() else "B2C"
+
+    def outside(key) -> str:
+        if key not in registry_keys:
+            return "which is not a registry key"
+        return (f"which a {persona} entry does not calibrate (b2b_only; judgement call 47)")
+
     calibrated = set(entry.founder_calibration)
+    for key in sorted(calibrated - keys):
+        raise _refuse(entry.id, f"founder_calibration names {key}, {outside(key)}", entry.path)
     if calibrated != keys:
-        missing, foreign = sorted(keys - calibrated), sorted(calibrated - keys)
-        raise _refuse(entry.id, "founder_calibration is not exactly the registry's 25 keys"
-                      + (f"; missing {', '.join(missing)}" if missing else "")
-                      + (f"; outside the registry {', '.join(foreign)}" if foreign else ""),
+        missing = sorted(keys - calibrated)
+        raise _refuse(entry.id, f"founder_calibration is not exactly the {len(keys)} keys a "
+                                f"{persona} entry calibrates; missing {', '.join(missing)}",
                       entry.path)
     for person in entry.answers:
         for key in (person.get("picks") or {}):
             if key not in keys:
-                raise _refuse(entry.id, f"{person.get('person')} picks {key}, which is not a "
-                                        "registry key", entry.path)
+                raise _refuse(entry.id, f"{person.get('person')} picks {key}, {outside(key)}",
+                              entry.path)
     for key in entry.respondent_questions or {}:
         if key not in keys:
-            raise _refuse(entry.id, f"respondent_questions carries {key}, which is not a registry "
-                                    "key", entry.path)
-    for key in (entry.expected.get("standings") or {}):
-        if key not in keys:
-            raise _refuse(entry.id, f"expected.standings carries {key}, which is not a registry "
-                                    "key", entry.path)
-    derived = {part: registry.plan_keys(part, entry.founder_calibration) for part in (1, 2, 3)}
+            raise _refuse(entry.id, f"respondent_questions carries {key}, {outside(key)}",
+                          entry.path)
+    standings = set(entry.expected.get("standings") or {})
+    for key in sorted(standings - keys):
+        raise _refuse(entry.id, f"expected.standings carries {key}, {outside(key)}", entry.path)
+    if standings and standings != keys:
+        raise _refuse(entry.id, f"expected.standings is not exactly the {len(keys)} calibrated "
+                                f"keys; missing {', '.join(sorted(keys - standings))}", entry.path)
+    derived = entry.plan(registry)
     for part, plan_keys in derived.items():
         recorded = [k for k, row in (entry.respondent_questions or {}).items()
                     if (row or {}).get("part") == part]

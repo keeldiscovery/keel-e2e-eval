@@ -122,10 +122,10 @@ def test_the_register_carries_every_brief_paragraph_whole_beside_the_standings(t
         "title": "Lullaby", "paragraph": "Your problem is not holding up on how long it takes.",
         "verdicts": {"PROBLEM": "NOT_HOLDING_UP"},
         "vector_verdicts": {"PROBLEM": {"verdict": "NOT_HOLDING_UP",
-                                        "deciding": "problem.duration"}},
-        "standings": {"problem.duration": {"status": "NOT_HOLDING_UP", "drift": "below",
+                                        "deciding": "problem.importance"}},
+        "standings": {"problem.importance": {"status": "NOT_HOLDING_UP", "drift": "below",
                                            "n": 7, "median": 11}}}}}
     html = report_mod.render_register(tmp_path, entries_by_market={},
                                       paragraphs=paragraphs).read_text(encoding="utf-8")
     assert "Your problem is not holding up on how long it takes." in html
-    assert "problem.duration" in html and "NOT_HOLDING_UP" in html
+    assert "problem.importance" in html and "NOT_HOLDING_UP" in html

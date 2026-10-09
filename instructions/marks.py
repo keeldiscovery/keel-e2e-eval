@@ -12,9 +12,35 @@ measured by code against the registry keel-cloud exports, and the corpus is read
 Calls 28-36 are `specs/029-marks-v9-vectors/contracts/marks-v9.md` §3's, verbatim; calls 1-27 are
 byte for byte what `master` `0165017` carried (`tests/fixtures/marks/calls-1-27.at-0165017.txt`).
 
-**The corpus v9 judges, recorded 2026-10-07** (spec 029 US4.2, plan O-4). Revision 3's seven
-entries, by sha256 -- the recorded revision under `tests/fixtures/corpus-r3/`, to be moved verbatim
-into keel-cloud's canon, so a run reads these bytes either way:
+**`MARKS_VERSION` 10** (spec 030, 2026-10-09): the ruler follows keel-cloud 071's registry to
+twelve dimensions (4 / 3 / 5, nine deal-breakers, the `b2b_only` pair) and its corpus to revision 4.
+Calls 46-49 below. Every denominator a scorer reports is read off the registry and the entry's
+persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY_DESIGN`; the corpus
+is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
+by name. **There is no v10 run of record until `WHY=marks:10` is spent**; v9's, below, is history.
+
+**The corpus v10 judges, recorded 2026-10-09** (spec 030 US2). Revision 4's seven entries in
+keel-cloud 071's canon (`f38ac42`), by sha256:
+
+    01-countly         81d5d00665fab6b284f5238f2c2d8512226105d7566e88ad2c1f47a73ba7f391
+    02-compliancelog   0585d989e1f4b890bd4648826921dc36a58d3efaf5dbc6a144df66d4a0487e1a
+    03-lullaby         fe1f3babc2af3c487f4edc9fa1fa2b84ae0875c596e3e8b17f0d0df3d40d1573
+    04-linerly         c781766e3080c495586dacaceb02e388775fe8700956c85a86e957347fb5800a
+    05-paidly          0a98e4db5e4640399bcd87559593dc91595c5e80cde094e3ae52276defbf6f6a
+    06-repeatline      0754e19cb43e1a463acb081dc4dec96caab0bb1831c2b89a883d0b30071233a2
+    07-mulchrun        86deab848963eee58255e8c09abf4579f964ecd27ea6bad276eaae46e4d94e4f
+
+The v10 denominators, **counted, not estimated**: calibration 10 keys on 01-04 (B2C) and 12 on
+05-07 (B2B), 76 an N; respondent 10 on a B2C entry (4 / 3 / 3 on `PRIMARY`) and 12 on a B2B one (4
+/ 3 on `PRIMARY`, 5 on `COMMERCIAL_B2B`), 76 an N; `compare_correctness` 10 + 3 or 12 + 3 checks an
+entry, **97** on seven. `anchoring_accuracy` is still 65 reads at N=1 (106 people less 13 gate-No,
+6 chipped stories and 22 decision-makers). A full run builds **135 model cases at N=1** (405 at
+N=3): three interpretation screens, three calibration jobs and three respondent jobs an entry
+(part 3 of a B2B study is the decision-maker's link, never a fourth job), 65 reads and seven briefs.
+
+**The corpus v9 judged, recorded 2026-10-07** (spec 029 US4.2, plan O-4; history). Revision 3's
+seven entries, by sha256 -- the recorded revision under `tests/fixtures/corpus-r3/` (deleted at v10,
+call 49), moved verbatim into keel-cloud's canon:
 
     01-countly         e8b72c47d57085133032d267682f720eecb603b4aab921f2b5a85ccc96815320
     02-compliancelog   5b8d01a9048dc7263f6e8de82da2221f91ffc413b2229dba5e452d59821fda27
@@ -299,7 +325,38 @@ whole-label escape fix. The run's one fault was a legitimate scale step (Ability
 1.00, `no_leak` 1.00, `anchoring_accuracy` 0.9949, `compare_correctness` 1.00, refusals 0.0072,
 `shape_refusals` 0, `brief_paragraphs` 1.00. The founder accepted the re-score as the certificate.
 `runs/` is gitignored, so the bundle lives on this machine only; its `scorecard-v9.json` is
-sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`.
+sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. It is history from
+2026-10-09: `MARKS_VERSION` 10 refuses to re-score it (call 49, `rescore.py`).
+
+46. **v10** *(spec 030, 2026-10-09; keel-cloud 071, registry decision 14)*: **the registry is
+    twelve, calibrated and asked alike.** Invariants 1, 2, 3 and 8 are rewritten: twelve keys,
+    4 / 3 / 5; the nine deal-breakers are Prevalence, Importance and Current-solution satisfaction;
+    Compatibility, Relative advantage and Adoption friction; Existing sacrifice, Buyer/payer
+    alignment and Commitment; `b2b_only` sits on exactly `commercial.ability_to_pay` and
+    `commercial.purchase_friction`, and every entry is asked in its own vector's part (4 / 3 / 5;
+    `PRIMARY` asks 3 / 3 / 3 after the gate, `COMMERCIAL_B2B` 5); and every deal-breaker's status
+    vocabulary reaches `NOT_HOLDING_UP` (invariant 8). `asked_in_v1` is not read; a registry
+    carrying it is refused as unknown-shaped, not ignored. Invariant 6's numeric controls are the
+    ones keel-cloud's `RespondentControl.yieldsNumber` names (`segmented_0_to_7`, and
+    `number_with_unit` on a recall window longer than 7).
+47. **v10**: **the plan is per link and per persona.** `dimension_coverage`'s respondent
+    denominator is `plan_keys(part, founder_calibration, link, b2b)` -- on `PRIMARY` the registry
+    less the `b2b_only` pair, on `COMMERCIAL_B2B` the commercial part whole -- and part 3 of a B2B
+    study is asked on the decision-maker's link only (keel-cloud `EvidencePlan`, decision 26), so a
+    B2B entry has three respondent jobs, not four. The calibration denominator is the entry's
+    calibrated set, `calibrated(b2b)`: on a B2C entry the two `b2b_only` keys are not calibrated,
+    and a `founder_calibration` (or a pick, a plan row or a standing) naming them is a refusal
+    naming the key.
+48. **v10**: **`no_claim_words` retires** with `BAR_SET` and `NOT_TESTED_BY_DESIGN` (keel-cloud
+    071 removed both statuses and the two rows they scored); `brief_paragraphs` is all four or
+    nothing. Struck through in `marks.toml`'s comment as `golden_belief_recall` is; call 35 stands
+    as history.
+49. **v10**: **corpus revision 4, read from keel-cloud's canon only.** The fixture fallback of
+    2026-10-07 (`tests/fixtures/corpus-r3/`) is deleted with its directory; `load()` refuses a
+    directory holding any file at a revision other than 4, by entry and by key, naming a
+    revision-3 file as v9's. `rescore.py` refuses a v8 **or v9** bundle by name: corpus r4 carries
+    no standing for thirteen of the dimensions a v9 bundle scored, so a v10 number for it would be
+    fiction.
 """
 
 from __future__ import annotations
@@ -307,12 +364,14 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 9
+MARKS_VERSION = 10
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 
-#: The eight marks of `marks.toml` at v9, with its numbers. `golden_belief_recall` is retired (call
-#: 29) and is **not** a key: a v9 verdict cannot carry a value for it.
+#: The eight marks of `marks.toml` at v10 (v9's eight, unchanged in number), with its numbers.
+#: `golden_belief_recall` is retired (call 29) and is **not** a key: a verdict cannot carry a value
+#: for it. `no_claim_words` (call 48) was never a mark of its own -- one of `brief_paragraphs`' per-case
+#: marks -- so its retirement moves no row here.
 DEFAULTS = {
     "dimension_coverage": 1.00,
     "option_validity": 1.00,

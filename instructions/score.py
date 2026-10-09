@@ -20,7 +20,10 @@ alignment they rode on retired with `align.py` (call 29). What scores now:
 - `score_calibration` / `score_respondent` -- `dimension_coverage`, `option_validity` and `no_leak`
   by code against the registry (calls 30-32; spec 029 US2/US3);
 - `score_interpret` -- one anchoring judgement a readable person (call 33; US3);
-- `brief.score_brief` -- five per-case marks, all or nothing (call 35).
+- `brief.score_brief` -- four per-case marks, all or nothing (calls 35, 48).
+
+At `MARKS_VERSION` 10 no count is typed here (call 47): every denominator is the registry's and the
+entry's -- the calibrated slice per persona, the plan per part and link.
 
 `totals` rolls each over **its own** denominator and never another's.
 """
@@ -33,7 +36,8 @@ from dataclasses import dataclass, field
 from . import brief as brief_mod
 from . import text as text_mod
 from . import context as context_mod
-from .registry import DEFAULT_WINDOW, NUMERIC_FOUNDER_CONTROLS
+from .registry import (DEFAULT_WINDOW, GATE_CONTROL, NUMERIC_FOUNDER_CONTROLS,
+                       NUMERIC_RESPONDENT_CONTROLS)
 
 
 # ------------------------------------------------------------------------------------ compare
@@ -389,7 +393,7 @@ def score_calibration(case, entry, registry, result, *, judge=None,
     validity against the registry (call 31), and -- on the PROBLEM vector -- sweep A over every
     question and its options (call 32). Evidence per fault, so a miss is read, not only counted."""
     vector = case.meta.get("vector") or case.subject
-    slice_keys = [d.key for d in registry.slice(vector)]
+    slice_keys = [d.key for d in registry.calibrated_slice(vector, entry.b2b())]       # call 47
     score = CalibrationScore(case_id=case.case_id, entry_id=entry.id, subject=vector,
                              run_index=case.run_index, coverage_of=len(slice_keys), failed=failed)
     questions = (result or {}).get("questions") if isinstance(result, dict) else None
@@ -434,10 +438,11 @@ def score_calibration(case, entry, registry, result, *, judge=None,
 
 # -------------------------------------------------------------- respondent (063; calls 30-32)
 
-#: Respondent controls whose answer is typed or tapped, never picked from a list.
-_FREE_CONTROLS = ("segmented_0_to_7", "number_with_unit", "two_numbers_optional")
-#: Call 38: controls whose options code writes (bins, the axis, Yes/No); the model writes `null`.
-_NULL_CONTROLS = _FREE_CONTROLS + ("single_choice_bands", "gate_yes_no")
+#: Respondent controls whose answer is typed or tapped, never picked from a list -- the registry's
+#: numeric controls (invariant 6), read, never restated.
+_FREE_CONTROLS = NUMERIC_RESPONDENT_CONTROLS
+#: Call 38: controls whose options code writes (the axis, Yes/No); the model writes `null`.
+_NULL_CONTROLS = _FREE_CONTROLS + (GATE_CONTROL,)
 _NUMBER_RE = re.compile(r"(?<![\d.])(\d+(?:\.\d+)?)(?![\d.])")
 
 
@@ -566,10 +571,8 @@ def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None
 #: by their LABEL: production slugs the founder's escape (*None of these*) as
 #: `none_of_these_<...>`, never the bare `none`, so a fixed slug cannot find it.
 ESCAPE_LABELS = frozenset({
-    "nothing much", "at no point that time", "nothing would have changed",
-    "nothing would have made it worth it", "id go with my own instinct either way",
-    "i wouldnt have reached for it at all", "it wouldnt be useful to me", "nothing",
-    "it was free or a gift", "it was free", "nothing it never came up", "nothing yet",
+    "at no point that time", "nothing would have changed", "i wouldnt have reached for it at all",
+    "nothing", "it was free or a gift", "it was free", "nothing it never came up", "nothing yet",
     "something else", "none of these"})
 
 

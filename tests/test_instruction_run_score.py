@@ -45,9 +45,10 @@ def test_each_kind_reaches_its_own_scorer(cases):
         diff = run_mod._score(cases[case_id], entry, _answer(result), None, state, fx.FakeJudge())
         assert diff["case_id"] == case_id
     assert len(state.calibration) == 1 and state.calibration[0].coverage_passed
-    assert len(state.respondent) == 1 and state.respondent[0].validity_hit == 8
+    assert len(state.respondent) == 1 and state.respondent[0].validity_hit == len(entry.plan()[1])
     assert len(state.interpret) == 1 and state.interpret[0].agreed == 1
-    assert len(state.brief) == 1 and set(state.brief[0].marks) >= {"no_claim_words"}
+    assert len(state.brief) == 1 and set(state.brief[0].marks) == {"shape", "coverage",
+                                                                    "register", "source_material"}
     assert len(state.shown_to_aggregate) == 5, "every answer goes to the aggregate"
     assert "CONTEXT_INTERPRET" in state.produced["09-fixture"], \
         "the interpretation is kept for the register and scored by nothing"

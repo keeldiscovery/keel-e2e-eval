@@ -1,11 +1,11 @@
-"""The `BRIEF` subject at `MARKS_VERSION` 9: its context, and its five marks (spec 029 FR-019,
-marks-v9 §2.6, judgement call 35; T046).
+"""The `BRIEF` subject at `MARKS_VERSION` 10: its context, and its four marks (spec 029 FR-019,
+marks-v9 §2.6; T046; spec 030 T010 -- `no_claim_words` retired, judgement call 48).
 
 Stackless and modelless. The context is three vectors with every dimension's standing under them,
 one case a project (FR-019). **Each mark fails for its own reason and passes for its own reason**:
-every one of the five has a companion case, because a mark that only ever showed its green half is
+every one of the four has a companion case, because a mark that only ever showed its green half is
 indistinguishable from a mark that is always green. The entry is the hand-sized
-`tests/fixtures/corpus/09-fixture-r3.yaml`, whose standings a person can read off the file.
+`tests/fixtures/corpus/09-fixture-r4.yaml`, whose standings a person can read off the file.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ import pytest
 
 from instructions import brief as brief_mod
 from instructions import context as context_mod
+from instructions import corpus as corpus_mod
 from instructions import marks as marks_mod
 from instructions import prompts as prompts_mod
 from instructions import score as score_mod
@@ -48,9 +49,10 @@ def case(context):
 
 def test_the_deciding_line_is_the_vectors_worst_deal_breaker_from_vector_verdicts(context):
     lines = {v["vector"]: brief_mod.deciding_line(v) for v in context["vectors"]}
-    assert lines["PROBLEM"]["key"] == "problem.duration"
-    assert lines["SOLUTION"]["key"] == "solution.effectiveness_threshold"
-    assert lines["COMMERCIAL"]["key"] == "commercial.commitment"
+    assert lines["PROBLEM"]["key"] == "problem.importance"
+    assert lines["SOLUTION"]["key"] == "solution.compatibility"
+    assert lines["COMMERCIAL"]["key"] == "commercial.existing_sacrifice"
+    assert lines["COMMERCIAL"]["observed"] == "£12 per month"
 
 
 def test_a_vector_naming_no_deciding_dimension_has_no_deciding_line():
@@ -59,11 +61,11 @@ def test_a_vector_naming_no_deciding_dimension_has_no_deciding_line():
 
 # ------------------------------------------------------------------------------------- the marks
 
-_GOOD = ("Your problem is not holding up on how long it takes: you said 5 to 15 minutes, the "
-         "middle answer was 8 minutes, and 5 of 7 came in under your range. On your solution "
-         "the bar is set higher than yours, so it has to save more than you thought before it is "
-         "worth the trouble. On price the people you asked are not ready: only 2 of 8 would go "
-         "as far as you hoped.")
+_GOOD = ("Your problem is not holding up on how much it matters: 6 of 8 put it lower than you "
+         "did. On your solution, 6 of 8 would reach for it once the first look has failed, as you "
+         "said. On price the people you asked are not giving up what you hoped: you said money "
+         "on spare keys, and the middle of what they already spend is £12 per month, with only 2 "
+         "of 8 buying spare keys.")
 
 
 def _score(case, entry, paragraph, **kw):
@@ -71,10 +73,10 @@ def _score(case, entry, paragraph, **kw):
                                  **kw)
 
 
-def test_a_good_paragraph_meets_all_five_marks(case, entry):
+def test_a_good_paragraph_meets_all_four_marks(case, entry):
     score = _score(case, entry, _GOOD)
     assert score.marks == {"shape": True, "coverage": True, "register": True,
-                           "source_material": True, "no_claim_words": True}, score.findings
+                           "source_material": True}, score.findings
     assert score.met is True
 
 
@@ -107,15 +109,15 @@ def test_not_holding_up_is_never_observed_as_holding_up(case, entry):
 
 
 def test_a_converted_median_misses_coverage(case, entry):
-    score = _score(case, entry, _GOOD.replace("8 minutes", "eight minutes"))
+    score = _score(case, entry, _GOOD.replace("£12 per month", "twelve pounds a month"))
     assert score.marks["coverage"] is False
-    assert "8 minutes" in score.findings["coverage"]
+    assert "£12 per month" in score.findings["coverage"]
 
 
 def test_a_deciding_line_whose_founder_phrase_is_missing_misses_coverage(case, entry):
-    score = _score(case, entry, _GOOD.replace("you said 5 to 15 minutes, ", ""))
+    score = _score(case, entry, _GOOD.replace("you said money on spare keys, and ", ""))
     assert score.marks["coverage"] is False
-    assert "5 to 15 minutes" in score.findings["coverage"]
+    assert "money on spare keys" in score.findings["coverage"]
 
 
 def test_an_invented_count_misses_coverage(case, entry):
@@ -129,19 +131,19 @@ def test_a_count_written_in_words_is_read_as_the_same_count(case, entry):
 
 
 def test_a_split_may_be_counted_from_either_side(case, entry):
-    assert _score(case, entry, _GOOD.replace("5 of 7 came in under",
-                                             "2 of 7 came in inside")).marks["coverage"] is True
+    assert _score(case, entry, _GOOD.replace("6 of 8 put it lower than you did",
+                                             "2 of 8 put it where you did")).marks["coverage"] is True
 
 
 def test_an_option_count_row_is_a_count_the_standings_carry(case, entry):
     """marks §2.6: every `optionCounts` row of `n` -- a set dimension's standing *is* its counts."""
-    score = _score(case, entry, _GOOD + " Cancelling worried 5 of 8 of you.")
+    score = _score(case, entry, _GOOD + " And 5 of 8 of you gave up none of these.")
     assert score.marks["coverage"] is True, score.findings["coverage"]
 
 
 def test_a_paragraph_with_no_second_person_misses_register(case, entry):
-    paragraph = ("The problem is not holding up: the founder said 5 to 15 minutes and the middle "
-                 "answer was 8 minutes.")
+    paragraph = ("The problem is not holding up: the founder said money on spare keys and the "
+                 "middle was £12 per month.")
     assert _score(case, entry, paragraph).marks["register"] is False
 
 
@@ -157,10 +159,10 @@ def test_the_markets_own_money_is_fine(case, entry):
 
 
 @pytest.mark.parametrize("tail,fragment", [
-    (" The problem.duration line is the one to watch.", "dimension key"),
+    (" The problem.frequency line is the one to watch.", "dimension key"),
     (" Its belief_sentence settles it.", "context field name"),
     (" That line is NOT_HOLDING_UP.", "enum name"),
-    (" Duration is a DEAL_BREAKER.", "enum name"),
+    (" Importance is a DEAL_BREAKER.", "enum name"),
     (" It is a proxy for the real thing.", "the word 'proxy'"),
 ])
 def test_reproducing_the_source_material_misses_that_mark(case, entry, tail, fragment):
@@ -175,21 +177,22 @@ def test_the_ordinary_english_words_are_exempt(case, entry, word):
     assert score.marks["source_material"] is True, score.findings["source_material"]
 
 
-# ------------------------------------------------------------- call 35: the fifth per-case mark
+# ------------------------------------------------------- call 48: no_claim_words retired at v10
 
-@pytest.mark.parametrize("sentence", [
-    "Your effectiveness threshold works.", "On price, £3 a month is proven.",
-    "The effectiveness threshold will save you time.", "Price is confirmed by what they paid.",
-])
-def test_a_claim_word_beside_a_threshold_or_the_price_misses_no_claim_words(case, entry, sentence):
-    score = _score(case, entry, _GOOD + " " + sentence)
-    assert score.marks["no_claim_words"] is False
-    assert score.findings["no_claim_words"].startswith("the sentence naming")
+def test_the_marks_are_four_and_no_claim_words_is_gone_with_its_two_statuses():
+    """Call 48: BAR_SET and NOT_TESTED_BY_DESIGN left the registry (keel-cloud 071), and the mark
+    that scored the sentences naming them went with them."""
+    assert brief_mod.MARK_NAMES == ("shape", "coverage", "register", "source_material")
+    for retired in ("no_claim_words", "claim_scoped_names", "CLAIM_SCOPED_STATUSES"):
+        assert not hasattr(brief_mod, retired), retired
+    assert not {"BAR_SET", "NOT_TESTED_BY_DESIGN"} & set(brief_mod.ENUM_NAMES)
+    assert not {"BAR_SET", "NOT_TESTED_BY_DESIGN"} & set(brief_mod.VERDICT_MARKERS)
+    assert set(brief_mod.VERDICT_MARKERS) == set(corpus_mod.STATUSES)
 
 
-def test_the_same_word_beside_another_dimension_is_that_sentences_business(case, entry):
-    score = _score(case, entry, _GOOD + " Your frequency works out much as you said.")
-    assert score.marks["no_claim_words"] is True, score.findings["no_claim_words"]
+def test_a_claim_word_is_no_mark_of_its_own_any_more(case, entry):
+    score = _score(case, entry, _GOOD + " Your solution works.")
+    assert set(score.marks) == set(brief_mod.MARK_NAMES) and score.met is True, score.findings
 
 
 def test_a_needs_input_is_a_failed_case_and_never_an_ask(case, entry):
@@ -219,13 +222,14 @@ def test_an_unmeasured_brief_mark_is_not_a_met_mark():
     assert judged["brief_paragraphs"]["met"] is False and judged["passed"] is False
 
 
-def test_the_brief_totals_are_all_five_marks_or_nothing(case, entry):
+def test_the_brief_totals_are_all_four_marks_or_nothing(case, entry):
     good = _score(case, entry, _GOOD)
-    claim = _score(case, entry, _GOOD + " Your effectiveness threshold works.")
-    totals = score_mod.totals(brief_scores=[good, claim])
+    keyed = _score(case, entry, _GOOD + " The problem.importance line decides it.")
+    totals = score_mod.totals(brief_scores=[good, keyed])
     assert totals["brief_cases"] == 2 and totals["brief_paragraphs"] == 0.5
     assert totals["brief_by_mark"]["shape"] == {"met": 2, "of": 2}
-    assert totals["brief_by_mark"]["no_claim_words"] == {"met": 1, "of": 2}
+    assert totals["brief_by_mark"]["source_material"] == {"met": 1, "of": 2}
+    assert set(totals["brief_by_mark"]) == set(brief_mod.MARK_NAMES)
 
 
 def test_one_brief_case_an_entry_never_one_a_vector(tmp_path, entry):

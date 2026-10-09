@@ -25,7 +25,7 @@ measurements and the brief's claims. All three retired with the subjects they fe
 from __future__ import annotations
 
 from . import contract as contract_mod
-from .registry import DEFAULT_WINDOW, RecallWindow, fill_window
+from .registry import LINK_B2B, LINK_PRIMARY, DEFAULT_WINDOW, RecallWindow, fill_window
 
 # data-model.md note 2 (spec 009): the corpus writes the tap the way a person reads it; the wire
 # wants the enum name. Kept for `harness/corpus_script.py` and `harness/stranger_stories.py`, which
@@ -89,10 +89,6 @@ CALIBRATION_FIELDS = (
 
 #: The registry fields a respondent item carries (screen-shapes §2).
 RESPONDENT_FIELDS = ("anchor", "control", "guidance", "option_rule", "chips")
-
-LINK_PRIMARY = "PRIMARY"
-LINK_B2B = "COMMERCIAL_B2B"
-
 
 def _fill(keys, values: dict) -> dict:
     """Every key in the exporter's order, `None` where this builder has no value."""
@@ -237,7 +233,9 @@ def build_calibration(entry, vector: str, registry=None, keys=None) -> dict:
         "problem": {"statement": problem_statement(entry)},
         "mechanism": mechanism_of(entry),
         "persona": dict(entry.persona or {}),
-        "dimensions": fill_window([calibration_dimension(d) for d in registry.slice(vector)],
+        # Call 47: the vector's CALIBRATED slice -- the b2b_only pair only on a B2B persona.
+        "dimensions": fill_window([calibration_dimension(d)
+                                   for d in registry.calibrated_slice(vector, entry.b2b())],
                                   window_of(entry)),
     }
     out = {}
@@ -457,7 +455,7 @@ def vectors_for(entry, registry) -> list:
             "verdict": verdict.get("verdict"),
             "deciding": verdict.get("deciding"),
             "dimensions": [brief_dimension(entry, d, standings.get(d.key) or {})
-                           for d in registry.slice(vector)],
+                           for d in registry.calibrated_slice(vector, entry.b2b())],
         })
     return out
 

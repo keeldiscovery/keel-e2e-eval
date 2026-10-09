@@ -1,9 +1,10 @@
-"""`register.html` at `MARKS_VERSION` 9 (spec 029 FR-022, contracts/screen-shapes.md §7; T033, T041).
+"""`register.html` at `MARKS_VERSION` 10 (spec 029 FR-022, contracts/screen-shapes.md §7; T033, T041;
+spec 030 call 47: the calibrated set and the plan per link).
 
 The one page with no number on it. Per entry: the three interpretations, verbatim, marked only
-*accepted* or *refused (rule id)* by the aggregate; the 25 calibration questions in registry order
-beside the registry's own founder question, the founder's chosen phrase and the belief sentence r3
-records; the respondent items beside the plan row, the reveal between parts 1 and 2, the B2B link on
+*accepted* or *refused (rule id)* by the aggregate; the calibration questions of the entry's
+calibrated set in registry order beside the registry's own founder question, the founder's chosen
+phrase and the belief sentence the corpus records; the respondent items beside the plan row, the reveal between parts 1 and 2, the B2B link on
 its own. **No score, no tick, no cross, no `met`, no `mark`** -- judgement call 10.
 """
 
@@ -17,13 +18,11 @@ from instructions import corpus as corpus_mod
 from instructions import report as report_mod
 from tests import v9_fixtures as fx
 
-LULLABY = fx.CORPUS_R3 / "03-lullaby.yaml"
-
-
 @pytest.fixture()
 def corpus():
-    entry = corpus_mod.load_file(LULLABY, registry=fx.registry())
-    return corpus_mod.Corpus(entries=[entry], directory=LULLABY.parent)
+    lullaby = fx.canon_entry("03-lullaby.yaml")
+    entry = corpus_mod.load_file(lullaby, registry=fx.registry())
+    return corpus_mod.Corpus(entries=[entry], directory=lullaby.parent)
 
 
 def _produced(registry):
@@ -62,15 +61,12 @@ def test_the_calibration_block_is_the_registry_in_order_beside_the_founder(tmp_p
     blocks = report_mod.register_blocks(corpus, _produced(registry), registry, _AGGREGATE)
     block = blocks["GB · en-GB"]["03-lullaby"]
     rows = block["calibration"]
-    assert [r["key"] for r in rows] == registry.keys()
+    assert [r["key"] for r in rows] == registry.calibrated_keys(False), "B2C: the ten"
+    assert "commercial.ability_to_pay" not in [r["key"] for r in rows]
     prevalence = rows[0]
     assert prevalence["founder_question"].startswith("Out of 10 parents of babies")
     assert prevalence["belief_phrase"] == "Most"
     assert prevalence["belief_sentence"].startswith("Most of these parents")
-    urgency = next(r for r in rows if r["key"] == "problem.urgency")
-    assert urgency["belief_phrase"] is None
-    assert urgency["belief_sentence"] == ("You weren't sure, so this was left out of the study. "
-                                          "The brief says it is untested.")
 
 
 def test_the_three_interpretations_are_marked_only_accepted_or_refused_by_rule(tmp_path, corpus):
@@ -98,12 +94,12 @@ def test_the_respondent_block_sits_beside_the_plan_with_the_reveal_between_parts
         "03-lullaby/RESPONDENT_B2B/run1", fx.respondent_result(entry, 3, link="COMMERCIAL_B2B"))
     blocks = report_mod.register_blocks(corpus, produced, fx.registry(), _AGGREGATE)
     block = blocks["GB · en-GB"]["03-lullaby"]
-    assert len(block["respondent"]) == 23
+    assert len(block["respondent"]) == sum(len(keys) for keys in entry.plan().values()) == 10
     gate = block["respondent"][0]
     assert (gate["key"], gate["part"], gate["control"], gate["codes"]) == (
         "problem.prevalence", 1, "gate_yes_no", ["yes", "no"])
     assert block["reveal"]["title"] == "What we are testing"
-    assert len(block["b2b"]) == 6
+    assert len(block["b2b"]) == 3
 
     html = _visible(report_mod.render_register(tmp_path, entries_by_market=blocks,
                                                paragraphs={}).read_text(encoding="utf-8"))

@@ -59,7 +59,9 @@ def test_a_dry_run_measures_compare_and_nothing_else_and_never_passes(dry, capsy
     scorecard = json.loads((bundle / "scorecard.json").read_text())
     verdict = json.loads((bundle / "verdict.json").read_text())
     assert scorecard["totals"]["compare_correctness"] == 1.0
-    assert scorecard["totals"]["compare_checks"] == 28
+    entry = corpus_mod.load_file(fx.ENTRY)
+    assert scorecard["totals"]["compare_checks"] == \
+        len(entry.calibrated_keys()) + len(entry.expected["vector_verdicts"])
     assert verdict["passed"] is False and verdict["dry_run"] is True
     marks = verdict["marks"]
     assert marks["compare_correctness"]["measured"] and marks["compare_correctness"]["met"]
@@ -108,3 +110,23 @@ def test_a_selected_screen_without_its_template_is_refused_by_name(dry, capsys):
     assert code == 2
     err = capsys.readouterr().err
     assert "CALIBRATION_QUESTIONS" in err and "calibration-questions.md" in err
+
+
+def test_a_dry_run_prints_every_structural_marks_denominator_read_off_the_registry(dry, capsys):
+    """Spec 030 US3, call 47: no answer exists to score, so the three structural marks stay
+    unmeasured (call 13) -- but the denominator each would be counted over is read off the
+    registry and the entry and written down: calibration 4 / 3 / 3 (B2C), respondent 4 / 3 / 2
+    (the founder left one out), sweep A on the 4 PROBLEM questions and the 4 Part 1 items."""
+    code, bundle = dry()
+    assert code == 0
+    scorecard = json.loads((bundle / "scorecard.json").read_text())
+    entry = corpus_mod.load_file(fx.ENTRY, registry=fx.registry())
+    plan = entry.plan()
+    assert scorecard["denominators"] == {"09-fixture": {
+        "calibration": len(entry.calibrated_keys()),
+        "respondent": {"PRIMARY": sum(len(keys) for keys in plan.values())},
+        "sweep_a": len(fx.registry().calibrated_slice("PROBLEM", False)) + len(plan[1]),
+        "sweep_b": sum(len(keys) for keys in plan.values())}}
+    out = capsys.readouterr().out
+    assert "denominators read off the registry, per N: dimension_coverage 10 calibration + 9 " \
+           "respondent" in out

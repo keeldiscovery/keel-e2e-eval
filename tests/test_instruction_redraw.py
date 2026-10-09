@@ -206,9 +206,10 @@ def test_the_scorer_reads_the_accepted_answer_and_the_raw_one_after_a_second_ref
 
     accepted = scored(bad, good)
     raw = scored(bad, {**good, "bad": True})
-    assert accepted.validity_hit == accepted.validity_of == 8
+    asked = len(entry.plan()[1])
+    assert accepted.validity_hit == accepted.validity_of == asked
     assert accepted.coverage_passed
-    assert raw.validity_hit < 8, "refused twice: the raw answer's faults are the score"
+    assert raw.validity_hit < asked, "refused twice: the raw answer's faults are the score"
 
 
 def test_the_rate_counts_every_refusal_over_the_first_drafts():
@@ -252,8 +253,10 @@ def _bundle(tmp_path, monkeypatch):
     bundle.mkdir()
     fx.write_export(bundle / "contracts")
     (bundle / "scorecard.json").write_text(json.dumps(
-        {"marks_version": 9, "n_runs": 1, "model": {"host": "claude"}, "totals": {}}))
-    (bundle / "manifest.json").write_text(json.dumps({"host": "claude", "marks_version": 9}))
+        {"marks_version": marks_mod.MARKS_VERSION, "n_runs": 1, "model": {"host": "claude"},
+         "totals": {}}))
+    (bundle / "manifest.json").write_text(json.dumps({"host": "claude",
+                                                      "marks_version": marks_mod.MARKS_VERSION}))
     monkeypatch.setattr(rescore_mod, "load_config",
                         lambda: SimpleNamespace(keel_cloud=tmp_path / "no-keel-cloud"))
     monkeypatch.setattr(rescore_mod.corpus_mod, "load",
@@ -284,14 +287,14 @@ def test_the_bundle_records_both_drafts_and_a_rescore_reads_the_accepted_one(
         "REDRAW PROMPT"
 
     assert rescore_mod.main([str(bundle), "--no-judge"]) == 0
-    written = json.loads((bundle / "scorecard-v9.json").read_text())
+    written = json.loads((bundle / f"scorecard-v{marks_mod.MARKS_VERSION}.json").read_text())
     assert written["totals"]["scored_on"] == run_mod.SCORED_ON_ACCEPTED
-    assert written["totals"]["respondent_validity"]["hit"] == 8
+    assert written["totals"]["respondent_validity"]["hit"] == len(entry.plan()[1])
     assert written["redraws"][0]["accepted"] is True
     assert "scored on  accepted" in capsys.readouterr().out
 
 
-def test_a_v9_bundle_from_before_call_41_scores_raw_and_says_so(
+def test_a_bundle_without_the_answer_block_scores_raw_and_says_so(
         tmp_path, monkeypatch, cases, capsys):
     bundle = _bundle(tmp_path, monkeypatch)
     entry = fx.entry()
@@ -306,11 +309,11 @@ def test_a_v9_bundle_from_before_call_41_scores_raw_and_says_so(
     (bundle / "versions.json").write_text("{}")
 
     assert rescore_mod.main([str(bundle), "--no-judge"]) == 0
-    written = json.loads((bundle / "scorecard-v9.json").read_text())
+    written = json.loads((bundle / f"scorecard-v{marks_mod.MARKS_VERSION}.json").read_text())
     assert written["totals"]["scored_on"] == run_mod.SCORED_ON_RAW
-    assert written["totals"]["respondent_validity"]["hit"] < 8
+    assert written["totals"]["respondent_validity"]["hit"] < len(entry.plan()[1])
     assert "predates judgement call 41" in capsys.readouterr().out
-    page = (bundle / "report-v9.html").read_text()
+    page = (bundle / f"report-v{marks_mod.MARKS_VERSION}.html").read_text()
     assert "Scored on the raw answer" in page and "predates judgement call 41" in page
 
 

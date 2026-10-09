@@ -78,7 +78,40 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
-### The run of record for spec 029 — **`MARKS_VERSION` 9, Claude** (2026-10-08)
+### `MARKS_VERSION` 10 — the gate as written, **no run of record yet** (spec `030-marks-v10-deal-breakers`, 2026-10-09)
+
+**Written here before the run, so the run is read against the gate as written.** keel-cloud 071
+cut the dimension registry from twenty-five to **twelve** (4 / 3 / 5) and the corpus to
+**revision 4**; the ruler follows (judgement calls 46–49). **There is no v10 run of record until
+`WHY=marks:10` is spent** — `make instruction-eval HOST=claude WHY=marks:10 MODELS=exported`, the
+founder's event and the founder's money. Until then the standing gate is **unmet for both hosts at
+v10**; the v9 run of record below is history.
+
+- **The same eight subjects and the same eight marks, unchanged in number** (`instructions/marks.toml`).
+  `brief_paragraphs` is all **four** per-case marks: `no_claim_words` **retired** with `BAR_SET` and
+  `NOT_TESTED_BY_DESIGN`, the two statuses it scored (call 48), struck through in `marks.toml`
+  beside `golden_belief_recall`.
+- **The registry reader checks eight invariants** (call 46): twelve keys, 4 / 3 / 5; the nine
+  deal-breakers (Prevalence, Importance, Current-solution satisfaction; Compatibility, Relative
+  advantage, Adoption friction; Existing sacrifice, Buyer/payer alignment, Commitment), each of
+  which can read `NOT_HOLDING_UP` (invariant 8); `b2b_only` on exactly Ability to pay and Purchase
+  friction. A registry still carrying `asked_in_v1` is refused as unknown-shaped.
+- **Every denominator is read off the registry and the entry, never typed** (call 47). Calibration
+  is the entry's calibrated set — **10** keys on a B2C entry (01–04), **12** on a B2B one (05–07);
+  the respondent plan is per part and link — 4 / 3 / 3 on `PRIMARY` for B2C, 4 / 3 on `PRIMARY` +
+  **5** on `COMMERCIAL_B2B` for B2B (part 3 of a B2B study is the decision-maker's, never a fourth
+  job): **76 + 76** an N. `compare_correctness` is 10 + 3 or 12 + 3 checks an entry, **97** on
+  seven. `anchoring_accuracy` is still **65 reads at N=1**. A full run is **135 model cases at N=1**
+  (405 at N=3). `DRY=1` prints every one of these per entry.
+- **The corpus is revision 4, read from keel-cloud's canon and nowhere else** (call 49): the
+  fixture fallback `tests/fixtures/corpus-r3/` is deleted, and a file at any other revision refuses
+  the load by entry and key.
+- **`rescore.py` refuses every v8 and v9 bundle by name** — the v9 run of record included: corpus r4
+  does not carry what it measured.
+- **`DRY=1` against keel-cloud 071 (`f38ac42`), 2026-10-09**: `compare_correctness` **97 of 97**,
+  every other mark unmeasured (no model is called), denominators as above, nothing spent.
+
+### The run of record for spec 029 — **`MARKS_VERSION` 9, Claude** (2026-10-08; history since v10)
 
 `make instruction-eval HOST=claude WHY=marks:9 MODELS=exported`, on the founder's Max plan. Run of
 record: **`runs/20261008T194906Z-instructions`** — **414 cases** at N=3, **$19.75**, Claude Code CLI
@@ -101,7 +134,8 @@ the re-score as the certificate (decision 48, 2026-10-08). **Every mark met:**
 | `brief_paragraphs` | 1.00 | 1.00 |
 
 `runs/` is gitignored, so the bundle lives on the founder's machine only; its `scorecard-v9.json`
-is sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. The standing gate is **met for Claude at v9**.
+is sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. The standing gate was
+**met for Claude at v9**; since 2026-10-09 it is v10's, and v10 has no run of record yet.
 
 ### `MARKS_VERSION` 9 — the gate as written, before its run of record (spec `029-marks-v9-vectors`, 2026-10-07)
 
@@ -1222,8 +1256,11 @@ KEEL_COPILOT_MODEL=gpt-5.6-luna \
   its own bundle without spending again: `python -m instructions.rescore runs/<id>`, which writes
   `scorecard-v<N>.json` beside the original rather than over it.
 
-  **`MARKS_VERSION` is 9** since 2026-10-07 (spec `029-marks-v9-vectors`, judgement calls 28–36; the
-  gate as written is the section *`MARKS_VERSION` 9* near the top of this file). What follows is v8's
+  **`MARKS_VERSION` is 10** since 2026-10-09 (spec `030-marks-v10-deal-breakers`, judgement calls
+  46–49; the gate as written is the section *`MARKS_VERSION` 10* near the top of this file) and has
+  **no run of record until `WHY=marks:10` is spent**; `rescore.py` refuses every v9 bundle by name.
+  **`MARKS_VERSION` was 9** from 2026-10-07 (spec `029-marks-v9-vectors`, judgement calls 28–36; the
+  section *`MARKS_VERSION` 9* near the top of this file, history). What follows is v8's
   account, kept: **`MARKS_VERSION` was 8** from 2026-09-30 (spec `025-one-occasion-marks`, judgement calls 23–27),
   and **a v7 bundle cannot be re-scored to v8**. Every earlier bump was a pure rubric change and
   was re-scored for free; this one moved the **corpus** as well — keel-cloud's golden set went
@@ -1231,8 +1268,8 @@ KEEL_COPILOT_MODEL=gpt-5.6-luna \
   and re-derives the goldens from it, so a v7 bundle re-scored after the revision would align
   answers given to one questionnaire against a different one. That is the second independent reason
   a run of record must be spent; the first is the standing gate below. `rescore.py` is unchanged and
-  is simply not used across this bump. **The v9 run of record is `runs/20261008T194906Z-instructions`**
-(2026-10-08, Claude, every mark met on its call-44 re-score; the section at the top of this file).
+  is simply not used across this bump. **The v9 run of record was `runs/20261008T194906Z-instructions`**
+(2026-10-08, Claude, every mark met on its call-44 re-score; history since v10).
 **The v8 run of record was spent on
   2026-10-01** — `runs/20261001T043420Z-instructions`, Claude, all five marks met —
   and it took two runs to get there: see the section at the top of this file and

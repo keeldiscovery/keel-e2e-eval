@@ -1,4 +1,5 @@
-"""Shared, hand-checkable fixtures for the `MARKS_VERSION` 9 tests (spec 029 T004-T006).
+"""Shared, hand-checkable fixtures for the `MARKS_VERSION` 9 tests (spec 029 T004-T006), at 10 since
+spec 030 (the registry of twelve, corpus revision 4).
 
 Nothing here is a corpus entry or a copy of the cloud: the registry is a hand-sized slice of the
 design-time draft, the two entries are invented and small, and the export is written by the test
@@ -22,11 +23,35 @@ from instructions import registry as registry_mod
 FIXTURES = Path(__file__).parent / "fixtures"
 SLICE = FIXTURES / "registry" / "slice.yaml"
 BROKEN = FIXTURES / "registry" / "broken"
-ENTRY = FIXTURES / "corpus" / "09-fixture-r3.yaml"
-ENTRY_B2B = FIXTURES / "corpus" / "10-fixture-r3-b2b.yaml"
+ENTRY = FIXTURES / "corpus" / "09-fixture-r4.yaml"
+ENTRY_B2B = FIXTURES / "corpus" / "10-fixture-r4-b2b.yaml"
 COMPARE = FIXTURES / "compare"
 V8_BUNDLE = FIXTURES / "runs" / "v8-bundle"
-CORPUS_R3 = FIXTURES / "corpus-r3"
+
+#: Why a test reading keel-cloud's canon corpus skips: the canon is not at revision 4 yet (call 49 --
+#: there is no fixture fallback any more; keel-cloud 071 carries revision 4).
+CANON_NOT_R4 = ("keel-cloud's canon corpus is not at revision 4 (keel-cloud 071) -- spec 030 reads "
+                "the corpus from keel-cloud's canon and nowhere else (judgement call 49)")
+
+
+def canon_dir() -> Path:
+    """keel-cloud's corpus directory, as `stack.toml` names the checkout."""
+    from stack.config import load_config                              # noqa: PLC0415
+    return corpus_mod.corpus_dir(load_config(validate=False).keel_cloud)
+
+
+def canon_entry(name: str) -> Path:
+    """One of keel-cloud's revision-4 entries (`03-lullaby.yaml`...), or a skip naming why."""
+    import pytest                                                     # noqa: PLC0415
+    path = canon_dir() / name
+    try:
+        revision = yaml.safe_load(path.read_text(encoding="utf-8")).get("revision")
+    except (OSError, AttributeError, yaml.YAMLError):
+        revision = None
+    if revision != corpus_mod.REVISION:
+        pytest.skip(CANON_NOT_R4)
+    return path
+
 
 
 def registry():
@@ -45,7 +70,7 @@ def raw_entry(path=ENTRY) -> dict:
     return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
 
 
-def write_entry(tmp_path, raw: dict, name="09-fixture-r3.yaml") -> Path:
+def write_entry(tmp_path, raw: dict, name="09-fixture-r4.yaml") -> Path:
     path = Path(tmp_path) / name
     path.write_text(yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     return path
@@ -141,8 +166,10 @@ def calibration_question(dimension, *, b2b=False) -> dict:
             "respondent_note": "asked of the stranger in their own words"}
 
 
-def calibration_result(registry, vector) -> dict:
-    return {"vector": vector, "questions": [calibration_question(d) for d in registry.slice(vector)]}
+def calibration_result(registry, vector, *, b2b=False) -> dict:
+    """A good answer for the vector's calibrated slice (call 47: the b2b_only pair on B2B only)."""
+    return {"vector": vector, "questions": [calibration_question(d, b2b=b2b)
+                                            for d in registry.calibrated_slice(vector, b2b)]}
 
 
 def calibration_case(entry, vector, run_index=1):
@@ -162,8 +189,8 @@ def respondent_item(entry, key, *, label_only=False) -> dict:
     from instructions.registry import RESPONDENT_ESCAPES             # noqa: PLC0415
     row = entry.respondent_questions[key]
     item = {"key": key, "question": f"Thinking about that time: {key.split('.')[1].replace('_', ' ')}?"}
-    if row["control"] in ("segmented_0_to_7", "number_with_unit", "two_numbers_optional",
-                          "gate_yes_no", "single_choice_bands"):
+    from instructions.registry import GATE_CONTROL, NUMERIC_RESPONDENT_CONTROLS  # noqa: PLC0415
+    if row["control"] in NUMERIC_RESPONDENT_CONTROLS + (GATE_CONTROL,):
         item["options"] = None
         return item
     dimension = entry.registry.by_key(key)

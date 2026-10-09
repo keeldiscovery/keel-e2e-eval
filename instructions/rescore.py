@@ -1,5 +1,5 @@
 """Re-score a finished run from its own bundle, under today's marks (spec 009, run-bundle
-contract's "re-reading" promise; spec 029 FR-004, research R11).
+contract's "re-reading" promise; spec 029 FR-004, research R11; spec 030 FR-004).
 
     python -m instructions.rescore runs/<id> [--no-judge]
 
@@ -15,7 +15,12 @@ scored against a corpus revision 3 no longer carries. `marks_version` is read **
 corpus is loaded, so such a bundle is refused in one line, by name, with the reason, and no file of
 it is touched.
 
-For a v9 bundle the cases are rebuilt with the same builders and the same exported key lists the
+**And across the v9 → v10 bump too** (spec 030 FR-004; judgement call 49). A v9 bundle answered
+the registry of twenty-five, and corpus revision 4 carries no standing for thirteen of the
+dimensions it scored and no `BAR_SET` or `NOT_TESTED_BY_DESIGN` row -- so a v10 number for it would
+be fiction. It is refused the same way, in one line, by name, with the reason.
+
+For a bundle at the current version the cases are rebuilt with the same builders and the same exported key lists the
 run used, every envelope is scored again by the run's own `_score`, and `COMPARE` is re-run from
 the bundle's own engine input (it spends nothing).
 
@@ -49,8 +54,16 @@ from . import run as run_mod
 from . import score as score_mod
 from . import validate as validate_mod
 
-#: The one sentence a pre-v9 bundle is refused with (FR-004, SC-004).
+#: The one sentence a pre-v9 bundle is refused with (spec 029 FR-004, SC-004).
 CROSSED_THE_BUMP = "answered on screens v9 does not have, against corpus r2"
+
+#: The one sentence a v9 bundle is refused with (spec 030 FR-004, SC-002; judgement call 49).
+CROSSED_THE_V10_BUMP = ("answered the registry of twenty-five, and corpus r4 does not carry what it "
+                        "measured -- no standing for thirteen of its dimensions, no BAR_SET or "
+                        "NOT_TESTED_BY_DESIGN row")
+
+#: The oldest bundle this version re-scores.
+OLDEST = 10
 
 
 class _SilentRuntime:
@@ -78,6 +91,11 @@ def refusal(run_dir: Path, original: dict) -> str | None:
         return (f"{run_dir.name} was scored at marks_version {version}: {CROSSED_THE_BUMP}. "
                 "Not re-scored (spec 029 FR-004; judgement call 28) -- a v8 number is a "
                 "measurement of a product v9 does not judge, and the only v9 number is a v9 run.")
+    if version < OLDEST:
+        return (f"{run_dir.name} was scored at marks_version {version}: a v9 scorecard cannot be "
+                f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V10_BUMP}. Not "
+                "re-scored (spec 030 FR-004; judgement call 49) -- the only v10 number is a v10 "
+                "run (WHY=marks:10).")
     return None
 
 

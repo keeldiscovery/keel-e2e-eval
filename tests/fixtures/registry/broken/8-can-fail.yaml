@@ -1,0 +1,7 @@
+# slice.yaml with one value changed, failing exactly invariant 8 (spec 030 T003):
+# problem.prevalence's status vocabulary lacks NOT_HOLDING_UP, so a deal-breaker can never fail.
+base: ../slice.yaml
+invariant: 8
+key: problem.prevalence
+path: [answers, status_vocabulary]
+value: [HOLDING_UP, TOO_FEW_TO_CALL, NOT_ASKED_YET]

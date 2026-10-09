@@ -26,16 +26,27 @@ added to this line rather than quietly written — which is exactly how the thir
   reads *green at the current `MARKS_VERSION`*, so a rubric that moved has no run of record at all
   until one is spent, and a screen is one entry and cannot be one. The policy widened by one named
   event, in the open, which is the amendment shape this document asks for — it did not loosen.
-  **`MARKS_VERSION` 9** (spec `029-marks-v9-vectors`, 2026-10-07) is the gate as written until its
-  run of record is spent: eight subjects (three interpretation screens rendered and never scored,
+  **`MARKS_VERSION` 10** (spec `030-marks-v10-deal-breakers`, 2026-10-09) is the gate as written,
+  and **there is no run of record until `WHY=marks:10` is spent**. keel-cloud 071 cut the registry
+  to twelve dimensions (4 / 3 / 5, nine deal-breakers that can each fail, the `b2b_only` pair) and
+  the corpus to revision 4; the ruler follows (judgement calls 46-49): eight invariants, every
+  denominator read off the registry and the entry's persona (calibration 10 on B2C, 12 on B2B;
+  part 3 of a B2B study is the decision-maker's link only), `no_claim_words` retired with
+  `BAR_SET` and `NOT_TESTED_BY_DESIGN` (`brief_paragraphs` is all four), the corpus read from
+  keel-cloud's canon and nowhere else (`tests/fixtures/corpus-r3/` deleted), and `rescore.py`
+  refusing every v8 and v9 bundle by name. `DRY=1` against keel-cloud 071 measures
+  `compare_correctness` 97 of 97 and prints every other mark's denominator. What follows is v9's
+  account, history since 2026-10-09.
+  **`MARKS_VERSION` 9** (spec `029-marks-v9-vectors`, 2026-10-07) was the gate as written until its
+  run of record was spent: eight subjects (three interpretation screens rendered and never scored,
   calibration and respondent questions scored by code against keel-cloud's exported dimension
   registry, one read a gate story, `COMPARE` shelled to keel-cloud's engine at zero spend, one brief
   a project), eight marks (`marks.toml`; `golden_belief_recall` retired with `align.py`), the
   corpus at revision 3, `rescore.py` refusing every v8 bundle by name, and `MODELS=exported`
   refusing until the exported table carries `context`, `calibration` and `respondent`. `WHY=marks:9`
-  is the run of record's event; nothing here changed `why.py`. **The v9 run of record is
+  is the run of record's event; nothing here changed `why.py`. **The v9 run of record was
   `runs/20261008T194906Z-instructions`** (2026-10-08, Claude, Sonnet 5.5 medium + Haiku 4.5, 414
-  cases, $19.75), re-scored under judgement call 44 and accepted by the founder as the certificate
+  cases, $19.75; history -- v10 refuses to re-score it), re-scored under judgement call 44 and accepted by the founder as the certificate
   (decision 48); every mark met. `runs/` is gitignored: its `scorecard-v9.json` is sha256
   `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`.
 - **S-012**, *the journey through a host* (`evals/test_s012_journey_through_a_host.py`, specs

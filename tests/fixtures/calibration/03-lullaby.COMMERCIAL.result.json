@@ -34,34 +34,6 @@
       "respondent_note": "Respondents will be asked about their own last episode, never this."
     },
     {
-      "key": "commercial.wtp_hypothesis",
-      "question": "If a parent paid for the app, what range per month do you think they would consider reasonable?",
-      "respondent_note": "Respondents will be asked about their own last episode, never this."
-    },
-    {
-      "key": "commercial.ability_to_pay",
-      "question": "For a baby-related purchase that is useful with nights, how easily could most parents find room in their budget?",
-      "options": [
-        {
-          "label": "Very easily; they would not think twice about a small monthly charge",
-          "belief_phrase": "without a second thought"
-        },
-        {
-          "label": "Fairly easily; they could pay without cutting back elsewhere",
-          "belief_phrase": "fairly easily, without cutting back elsewhere"
-        },
-        {
-          "label": "With a trade-off; they would need to skip something else",
-          "belief_phrase": "only by skipping something else"
-        },
-        {
-          "label": "Barely; spare money already goes on baby essentials",
-          "belief_phrase": "barely, if at all"
-        }
-      ],
-      "respondent_note": "Respondents will be asked about their own last episode, never this."
-    },
-    {
       "key": "commercial.buyer_payer_alignment",
       "question": "When a parent decides to try something new for the baby's nights, who actually pays for it?",
       "options": [
@@ -89,37 +61,6 @@
       "respondent_note": "Respondents will be asked about their own last episode, never this."
     },
     {
-      "key": "commercial.purchase_friction",
-      "question": "Which of these would most likely slow down or stop a parent between hearing about the app and actually paying for it? Pick all that apply.",
-      "options": [
-        {
-          "label": "Needing a partner's agreement first",
-          "belief_phrase": "needing a partner's agreement"
-        },
-        {
-          "label": "Wanting reviews or a recommendation from other parents or a doctor",
-          "belief_phrase": "wanting to see reviews first"
-        },
-        {
-          "label": "Entering card details when tired and half awake",
-          "belief_phrase": "the card-details step at night"
-        },
-        {
-          "label": "Worry about a subscription that is hard to cancel",
-          "belief_phrase": "worry about cancelling"
-        },
-        {
-          "label": "Concern about privacy of recordings of the baby",
-          "belief_phrase": "worries about recording the baby"
-        },
-        {
-          "label": "Forgetting about it once the night is over",
-          "belief_phrase": "forgetting by morning"
-        }
-      ],
-      "respondent_note": "Respondents will be asked about their own last episode, never this."
-    },
-    {
       "key": "commercial.commitment",
       "question": "For a trial right now, which of these do you think most parents would actually do? Pick all that apply.",
       "options": [
@@ -142,33 +83,6 @@
         {
           "label": "Have you contact them about the pilot",
           "belief_phrase": "asking to be contacted"
-        }
-      ],
-      "respondent_note": "Respondents will be asked about their own last episode, never this."
-    },
-    {
-      "key": "commercial.retention_potential",
-      "question": "How often do you think parents go back to the tools or routines they already use for the baby's nights, such as a tracking or white-noise app?",
-      "options": [
-        {
-          "label": "Every night",
-          "belief_phrase": "that every night"
-        },
-        {
-          "label": "Several nights a week",
-          "belief_phrase": "that several nights a week"
-        },
-        {
-          "label": "About once a week",
-          "belief_phrase": "about weekly"
-        },
-        {
-          "label": "A few times a month",
-          "belief_phrase": "that a few times a month"
-        },
-        {
-          "label": "Rarely; they drift away from them",
-          "belief_phrase": "rarely"
         }
       ],
       "respondent_note": "Respondents will be asked about their own last episode, never this."

@@ -211,6 +211,43 @@ def _counts(cases) -> dict:
     return out
 
 
+def denominators(cases) -> dict:
+    """Spec 030 US3, call 47: what each structural mark is counted over, per entry and per N --
+    read off the cases the registry and the entries built (`registry_slice`, `plan`), never typed.
+    A dry run has no answer to score, so `dimension_coverage`, `option_validity` and `no_leak` stay
+    unmeasured there (call 13); what it can show, and does, is the denominator each would have.
+    Calibration and respondent count one a dimension (coverage and validity alike); `sweep_a` is
+    the PROBLEM calibration questions and the PRIMARY Part 1 items, `sweep_b` every respondent
+    item."""
+    out = {}
+    for case in cases:
+        if case.run_index != 1 or case.kind not in ("CALIBRATION", "RESPONDENT"):
+            continue
+        row = out.setdefault(case.entry_id, {"calibration": 0, "respondent": {}, "sweep_a": 0,
+                                             "sweep_b": 0})
+        if case.kind == "CALIBRATION":
+            count = len(case.meta.get("registry_slice") or [])
+            row["calibration"] += count
+            if case.meta.get("vector") == "PROBLEM":
+                row["sweep_a"] += count
+            continue
+        count = len(case.meta.get("plan") or [])
+        link = case.meta.get("link") or corpus_mod.LINK_PRIMARY
+        row["respondent"][link] = row["respondent"].get(link, 0) + count
+        row["sweep_b"] += count
+        if case.meta.get("part") == 1 and link == corpus_mod.LINK_PRIMARY:
+            row["sweep_a"] += count
+    return out
+
+
+def _denominator_line(rows: dict) -> str:
+    calibration = sum(r["calibration"] for r in rows.values())
+    respondent = sum(sum(r["respondent"].values()) for r in rows.values())
+    sweeps = sum(r["sweep_a"] + r["sweep_b"] for r in rows.values())
+    return (f"denominators read off the registry, per N: dimension_coverage {calibration} "
+            f"calibration + {respondent} respondent · no_leak {sweeps} sweeps")
+
+
 def _dry_run(config, corpus, executor_module, facts, args) -> int:
     """Everything a real run does, up to the point where it would cost money -- and `COMPARE`,
     which costs nothing, done for real."""
@@ -273,6 +310,7 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
         "contract_manifest": exported.manifest,
         "compare": [_compare_json(s) for s in compare_scores],
         "totals": totals, "spread": {}, "prompts": [],
+        "denominators": denominators(cases),
     }
     report_mod.write_scorecard(run_dir, scorecard)
     judged = marks_mod.judge(totals, marks)
@@ -294,6 +332,11 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
     compare_line = (f"{totals['compare_agreed']} of {totals['compare_checks']}"
                     if totals["compare_measured"] else "NOT measured")
     print(f"compare_correctness: {compare_line} · every model mark unmeasured · passed: false")
+    for entry_id, row in scorecard["denominators"].items():
+        links = " + ".join(f"{n} {link}" for link, n in row["respondent"].items())
+        print(f"  {entry_id:<20} calibration {row['calibration']} · respondent {links} · "
+              f"no_leak sweep A {row['sweep_a']} + sweep B {row['sweep_b']}")
+    print(_denominator_line(scorecard["denominators"]))
     print(f"rough estimate at ${COST_PER_CASE_ESTIMATE_USD:.2f} a case: "
           f"${len(model_cases) * COST_PER_CASE_ESTIMATE_USD:.2f} of the founder's own money")
     print(f"bundle: {run_dir}")
