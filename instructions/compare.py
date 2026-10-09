@@ -1,7 +1,7 @@
 """`COMPARE`: keel-cloud's deterministic engine, shelled at zero spend (spec 029 FR-018, research
 R3, `contracts/screen-shapes.md` §5; `MARKS_VERSION` 9 judgement call 34).
 
-**An engine shim, not an engine.** The eval builds the engine's input from corpus revision 3 and
+**An engine shim, not an engine.** The eval builds the engine's input from corpus revision 4 and
 nothing else, hands it to keel-cloud's own `screenContracts compare <in> <out>` -- the exporter's
 and the validator's sibling, same Gradle task, same `cwd`, same refusal discipline as
 `contract.export` and `validate.run` -- keeps both files in the bundle, and **diffs** the output
@@ -9,8 +9,10 @@ against `expected`. This repository keeps no copy of the compare arithmetic (`ru
 #33/#36/#41/#44/#45), for `DRY=1` or for anything: a Python port would be the ruler certifying
 itself.
 
-**Marked** (call 34): per dimension, `status` and `drift` together (25 checks); per vector,
-`verdict` and `deciding` together (3 checks) -- 28 an entry, 196 on seven. **Reported, never
+**Marked** (call 34): per calibrated dimension, `status` and `drift` together; per vector,
+`verdict` and `deciding` together (3 checks). The count is the entry's, read from its
+`expected.standings` -- the calibrated set (call 47): 10 + 3 on a B2C entry, 12 + 3 on a B2B one, 97
+on keel-cloud 071's seven. Nothing here types it. **Reported, never
 marked** (call 3): `n`, `inside`, `outside`, `median`, `proportion`, `optionCounts`, `bar` and the
 belief sentence -- a finding first.
 
@@ -57,7 +59,8 @@ class CompareScore:
 # --------------------------------------------------------------------------------- the input
 
 def build_input(entry, registry=None) -> dict:
-    """screen-shapes §5's `in.json`, **from r3 only**: the founder's 25 calibrations (the answer,
+    """screen-shapes §5's `in.json`, **from the corpus only**: the founder's calibrations -- the
+    entry's calibrated set, 10 on B2C and 12 on B2B (call 47) -- (the answer,
     or `unsure`, and the chosen phrase the belief sentence is made of), the persona, the context
     slots the sentence fills, and every person's gate answer, golden anchoring and picks -- `rough`
     and `chip` preserved as written. Nothing from `expected`: that is what the output is diffed
@@ -137,7 +140,8 @@ def _drift(value):
 
 
 def diff(expected: dict, produced: dict, *, entry=None, entry_id: str = "") -> CompareScore:
-    """The engine's output against r3's `expected`: 25 + 3 marked checks, the rest reported.
+    """The engine's output against the entry's `expected`: one marked check a standing the corpus
+    records (its calibrated set) and one a vector, the rest reported.
 
     A dimension is one check: `status` and `drift` both equal (a missing drift on either side is
     `null`). A vector is one check: `verdict` and `deciding` both equal. A dimension or vector the

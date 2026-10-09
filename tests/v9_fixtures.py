@@ -166,8 +166,10 @@ def calibration_question(dimension, *, b2b=False) -> dict:
             "respondent_note": "asked of the stranger in their own words"}
 
 
-def calibration_result(registry, vector) -> dict:
-    return {"vector": vector, "questions": [calibration_question(d) for d in registry.slice(vector)]}
+def calibration_result(registry, vector, *, b2b=False) -> dict:
+    """A good answer for the vector's calibrated slice (call 47: the b2b_only pair on B2B only)."""
+    return {"vector": vector, "questions": [calibration_question(d, b2b=b2b)
+                                            for d in registry.calibrated_slice(vector, b2b)]}
 
 
 def calibration_case(entry, vector, run_index=1):
@@ -187,8 +189,8 @@ def respondent_item(entry, key, *, label_only=False) -> dict:
     from instructions.registry import RESPONDENT_ESCAPES             # noqa: PLC0415
     row = entry.respondent_questions[key]
     item = {"key": key, "question": f"Thinking about that time: {key.split('.')[1].replace('_', ' ')}?"}
-    if row["control"] in ("segmented_0_to_7", "number_with_unit", "two_numbers_optional",
-                          "gate_yes_no", "single_choice_bands"):
+    from instructions.registry import GATE_CONTROL, NUMERIC_RESPONDENT_CONTROLS  # noqa: PLC0415
+    if row["control"] in NUMERIC_RESPONDENT_CONTROLS + (GATE_CONTROL,):
         item["options"] = None
         return item
     dimension = entry.registry.by_key(key)

@@ -1,14 +1,13 @@
-"""The seven context builders at `MARKS_VERSION` 9 (spec 029 contracts/screen-shapes.md §2; T018).
+"""The seven context builders at `MARKS_VERSION` 10 (spec 029 contracts/screen-shapes.md §2; T018;
+spec 030: the calibrated slice per persona, call 47).
 
-Every key the exporter names, in the exporter's order, filled from corpus revision 3 and the
+Every key the exporter names, in the exporter's order, filled from the corpus entry and the
 registry and nothing else -- and, as much to the point, what each one must **not** carry: no
 solution field on the PROBLEM calibration job (US2.1), no mechanism and no founder answer on Part 1,
 no `stage` and no `anchors[]` on a read, no `claims` on the brief.
 """
 
 from __future__ import annotations
-
-from pathlib import Path
 
 import pytest
 
@@ -80,8 +79,9 @@ def test_the_problem_calibration_job_carries_the_slice_with_thirteen_fields_and_
     assert "{window}" not in repr(prevalence) and "7 nights" in prevalence["founder"]["guidance"], \
         "the registry's window placeholders are filled, as 058's RegistrySlices.filled does"
     dimensions = built["dimensions"]
-    assert [d["key"] for d in dimensions] == [d.key for d in registry.slice("PROBLEM")]
-    assert len(dimensions) == 9
+    assert [d["key"] for d in dimensions] == \
+        [d.key for d in registry.calibrated_slice("PROBLEM", entry.b2b())]
+    assert len(dimensions) == 4
     expected = {"key", "order", "name", "meaning", "weight", "founder.control", "founder.guidance",
                 "founder.normalized", "founder.option_rule", "founder.belief_template",
                 "founder.unsure_allowed", "respondent.anchor", "respondent.guidance"}
@@ -97,7 +97,11 @@ def test_the_solution_and_commercial_jobs_see_the_mechanism_and_the_persona(entr
     assert "not_assumed" not in card, "the claims the card stripped are never handed on"
     commercial = context_mod.build_calibration(entry, "COMMERCIAL", registry)
     assert commercial["interpretation"] is None, "058 sends no interpretation on COMMERCIAL"
-    assert len(commercial["dimensions"]) == 7
+    keys = [d["key"] for d in commercial["dimensions"]]
+    assert keys == ["commercial.existing_sacrifice", "commercial.buyer_payer_alignment",
+                    "commercial.commitment"], "call 47: a B2C job is never shown the b2b_only pair"
+    b2b = fx.entry(fx.ENTRY_B2B)
+    assert len(context_mod.build_calibration(b2b, "COMMERCIAL", registry)["dimensions"]) == 5
 
 
 def test_part_one_carries_no_mechanism_and_no_founder_answer_ever(entry, registry):
@@ -108,21 +112,21 @@ def test_part_one_carries_no_mechanism_and_no_founder_answer_ever(entry, registr
     assert set(built["items"][0]["respondent"]) == {"anchor", "control", "guidance",
                                                      "option_rule", "chips"}
     text = repr(built)
-    for value in ("throws the morning off", "is hit and miss", "2 to 4 nights", "lateness"):
+    for value in ("one of the top three", "is hit and miss", "2 to 4 nights", "hit_and_miss"):
         assert value not in text, f"a founder answer reached the respondent screen: {value}"
-    assert "problem.severity" not in built["founder_options"], \
-        "058's founderOptions: the model-written sets only"
-    assert built["founder_options"]["problem.consequence"] == \
-        ["late", "stress", "missed_train"], "the founder's option SET, never their pick"
+    assert built["founder_options"] == {}, \
+        "058's founderOptions: the model-written sets only, and Part 1 has none at v10"
+    part3 = context_mod.build_respondent(entry, 3, plan, registry)
+    assert part3["founder_options"]["commercial.existing_sacrifice"] == \
+        ["spare_keys", "locksmith", "none", "nothing"], "the founder's option SET, never their pick"
 
 
 def test_the_respondent_screen_is_shown_the_founders_labels_where_the_entry_records_them(registry):
     from instructions import corpus as corpus_mod                       # noqa: PLC0415
-    lullaby = corpus_mod.load_file(corpus_mod.FIXTURE_DIR / "03-lullaby.yaml", registry=registry)
-    built = context_mod.build_respondent(lullaby, 1, lullaby.plan(), registry)
-    assert built["founder_options"]["problem.consequence"][0] == "The parent loses sleep", \
-        "058 (afe36fd): production sends the calibration's LABELS, never the codes"
+    lullaby = corpus_mod.load_file(fx.canon_entry("03-lullaby.yaml"), registry=registry)
     part3 = context_mod.build_respondent(lullaby, 3, lullaby.plan(), registry)
+    assert part3["founder_options"]["commercial.commitment"][1] == "Install the app", \
+        "058 (afe36fd): production sends the calibration's LABELS, never the codes"
     assert part3["founder_options"]["commercial.existing_sacrifice"][-1] == \
         "None of these; they cope with what they have"
 
@@ -161,13 +165,20 @@ def test_the_brief_carries_three_vectors_with_their_verdicts_and_belief_sentence
     vectors = built["vectors"]
     assert [v["vector"] for v in vectors] == ["PROBLEM", "SOLUTION", "COMMERCIAL"]
     problem = vectors[0]
-    assert (problem["verdict"], problem["deciding"]) == ("NOT_HOLDING_UP", "problem.duration")
-    duration = next(d for d in problem["dimensions"] if d["key"] == "problem.duration")
-    assert duration["belief_sentence"] == \
-        entry.founder_calibration["problem.duration"]["belief_sentence"]
-    assert duration["founder_phrase"] == "5 to 15 minutes"
-    assert duration["observed"] == "8 minutes", "the median in the founder's own unit (call 19)"
-    assert duration["below"] is None and duration["above"] is None
+    assert (problem["verdict"], problem["deciding"]) == ("NOT_HOLDING_UP", "problem.importance")
+    assert [d["key"] for d in problem["dimensions"]] == \
+        [d.key for d in registry.calibrated_slice("PROBLEM", entry.b2b())]
+    frequency = next(d for d in problem["dimensions"] if d["key"] == "problem.frequency")
+    assert frequency["belief_sentence"] == \
+        entry.founder_calibration["problem.frequency"]["belief_sentence"]
+    assert frequency["founder_phrase"] == "2 to 4 nights out of 7"
+    assert frequency["observed"] == "2.5 nights out of 7", \
+        "the median in the founder's own unit (call 19)"
+    assert frequency["below"] is None and frequency["above"] is None
+    commercial = vectors[2]
+    assert [d["key"] for d in commercial["dimensions"]] == [
+        "commercial.existing_sacrifice", "commercial.buyer_payer_alignment",
+        "commercial.commitment"], "call 47: a B2C brief carries no b2b_only row"
 
 
 def test_the_stage_shaped_builders_are_gone():
@@ -182,12 +193,12 @@ def test_the_stage_shaped_builders_are_gone():
     ("03-lullaby.yaml", {"count": 7, "unit": "NIGHTS"}, "the last 7 nights"),
     ("06-repeatline.yaml", {"count": 1, "unit": "SHIFTS"}, "the last shift"),
 ])
-def test_an_r3_entrys_own_window_reaches_every_screen_that_reads_it(name, window, words):
+def test_an_r4_entrys_own_window_reaches_every_screen_that_reads_it(name, window, words):
     """keel-cloud 058 `5fc7220`: `context.recall_window` is sent as `{count, unit}` on
     CONTEXT_INTERPRET (`proposeContext`) and as its words in the slots (`ScreenContextBuilder`),
     and fills the registry's `{window}` in every calibration slice."""
     from instructions import corpus as corpus_mod                       # noqa: PLC0415
-    entry = corpus_mod.load_file(Path(corpus_mod.FIXTURE_DIR) / name, registry=fx.registry())
+    entry = corpus_mod.load_file(fx.canon_entry(name), registry=fx.registry())
     assert context_mod.build_context_interpret(entry)["context_fields"]["recall_window"] == window
     assert context_mod.build_problem_interpret(entry)["context"]["window"] == words
     slice_ = context_mod.build_calibration(entry, "PROBLEM", fx.registry())["dimensions"]

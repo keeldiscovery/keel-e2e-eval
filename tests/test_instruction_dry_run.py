@@ -59,7 +59,9 @@ def test_a_dry_run_measures_compare_and_nothing_else_and_never_passes(dry, capsy
     scorecard = json.loads((bundle / "scorecard.json").read_text())
     verdict = json.loads((bundle / "verdict.json").read_text())
     assert scorecard["totals"]["compare_correctness"] == 1.0
-    assert scorecard["totals"]["compare_checks"] == 28
+    entry = corpus_mod.load_file(fx.ENTRY)
+    assert scorecard["totals"]["compare_checks"] == \
+        len(entry.calibrated_keys()) + len(entry.expected["vector_verdicts"])
     assert verdict["passed"] is False and verdict["dry_run"] is True
     marks = verdict["marks"]
     assert marks["compare_correctness"]["measured"] and marks["compare_correctness"]["met"]

@@ -15,10 +15,10 @@
 - [x] T006 `tests/fixtures/corpus-r3/` deleted; `tests/test_corpus_r4_shape.py`.
 
 ## Phase 4 — The marks (FR-003, FR-004, FR-005)
-- [ ] T007 `brief.py` four marks; `report.py`; `marks.py` calls 46–49, `MARKS_VERSION = 10`; `marks.toml`.
-- [ ] T008 `rescore.py` refuses < 10.
-- [ ] T009 Every scorer's literal count replaced by a registry/entry read.
-- [ ] T010 `tests/test_instruction_compare.py`, `test_instruction_brief.py`, `test_instruction_marks.py`.
+- [x] T007 `brief.py` four marks; `report.py`; `marks.py` calls 46–49, `MARKS_VERSION = 10`; `marks.toml`.
+- [x] T008 `rescore.py` refuses < 10.
+- [x] T009 Every scorer's literal count replaced by a registry/entry read.
+- [x] T010 `tests/test_instruction_compare.py`, `test_instruction_brief.py`, `test_instruction_marks.py`.
 
 ## Phase 5 — Gate and canon (FR-007, FR-008, SC-001)
 - [ ] T011 `make unit` green (count here).

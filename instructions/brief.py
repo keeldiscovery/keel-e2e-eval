@@ -33,13 +33,12 @@ words and a structure can carry:
    data has -- and a paragraph that read it as *an instruction to obey* answers `NEEDS_INPUT` on
    a screen with nobody to ask. Both are counted here.
 
-5. `no_claim_words` (`MARKS_VERSION` 9, judgement call 35) -- the sentence that names a threshold
-   dimension (status vocabulary reaches `BAR_SET`) or the Price row (`NOT_TESTED_BY_DESIGN`)
-   carries no claim word: *works*, *effective*, *proves*, *will save*, *confirmed*... A bar is set,
-   never cleared, and a hypothesis is not tested, so a sentence that says otherwise about either is
-   the one claim the interviews cannot support.
+`no_claim_words` was a fifth at `MARKS_VERSION` 9 only (judgement call 35): the sentence naming
+a threshold dimension (`BAR_SET`) or the Price row (`NOT_TESTED_BY_DESIGN`) carried no claim word.
+**It retired at v10 with the two statuses it scored** (judgement call 48; keel-cloud 071 removed
+both rows and both words), so `brief_paragraphs` is all four or nothing.
 
-**At v9 the context is the vectors** (spec 029 FR-019): three vectors, each with its verdict, its
+**Since v9 the context is the vectors** (spec 029 FR-019): three vectors, each with its verdict, its
 deciding deal-breaker (`expected.vector_verdicts[v].deciding`, the worst one) and every
 dimension's standing under it -- one paragraph a project at the 2 000 edge, one case an entry.
 
@@ -67,8 +66,6 @@ VERDICT_MARKERS = {
                        "did not hold up"),
     "PEOPLE_DISAGREE": ("disagree", "disagrees", "disagreed", "disagreement"),
     "TOO_FEW_TO_CALL": ("too few",),
-    "BAR_SET": ("bar is set", "bar set", "sets the bar", "set the bar"),
-    "NOT_TESTED_BY_DESIGN": ("not tested", "untested"),
     "NOT_ASKED_YET": ("not asked",),
     "LEFT_OUT": ("left out",),
 }
@@ -77,15 +74,6 @@ VERDICT_MARKERS = {
 # paragraph first and `HOLDING_UP` is looked for in what is left. Getting this the other way round
 # would call every vector that is not holding up one that is.
 _NEGATED_FIRST = "NOT_HOLDING_UP"
-
-#: The statuses whose sentences may carry no claim word (call 35): a bar is set, never met; a
-#: price is a hypothesis, never tested.
-CLAIM_SCOPED_STATUSES = ("BAR_SET", "NOT_TESTED_BY_DESIGN")
-CLAIM_WORDS = ("works", "worked", "effective", "proves", "proven", "confirmed", "will save",
-               "saves", "validated", "delivers")
-_CLAIM_RE = re.compile(r"\b(" + "|".join(re.escape(w) for w in CLAIM_WORDS) + r")\b",
-                       re.IGNORECASE)
-_SENTENCE_RE = re.compile(r"(?<=[.!?;])\s+")
 
 # `brief.md`: "No bullet, no numbered list, no heading, no line break: one paragraph."
 _BULLET_GLYPHS = ("•", "‣", "◦", "⁃")
@@ -120,13 +108,14 @@ CONTEXT_FIELD_NAMES = (
     "belief_sentence", "belief_phrase", "n_anchored", "n_guessed", "vector_verdicts",
     "optionCounts", "founder_calibration", "status_vocabulary", "actor_plural",
 )
-#: The eight `Status` words, the two weights, the drift words and the outcomes (marks §2.6). The
-#: vector names are swept by `shape` as labels and here as names, both whole-word upper-case.
-ENUM_NAMES = ("HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE", "TOO_FEW_TO_CALL", "BAR_SET",
-              "NOT_TESTED_BY_DESIGN", "NOT_ASKED_YET", "LEFT_OUT", "DEAL_BREAKER", "SHAPES",
+#: The six `Status` words (keel-cloud 071), the two weights, the drift words and the outcomes
+#: (marks §2.6). The vector names are swept by `shape` as labels and here as names, both whole-word
+#: upper-case.
+ENUM_NAMES = ("HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE", "TOO_FEW_TO_CALL",
+              "NOT_ASKED_YET", "LEFT_OUT", "DEAL_BREAKER", "SHAPES",
               "PROBLEM", "SOLUTION", "COMMERCIAL",
               "BELOW", "ABOVE", "BOTH", "NONE", "COMPLETED", "NEEDS_INPUT")
-#: Every dotted dimension key -- `problem.duration` is the data's name, never a founder's word.
+#: Every dotted dimension key -- `problem.frequency` is the data's name, never a founder's word.
 _DOTTED_KEY_RE = re.compile(r"\b(?:problem|solution|commercial)\.[a-z_]+\b")
 
 SECOND_PERSON = ("you", "your", "yours", "you're", "youre")
@@ -173,7 +162,8 @@ def deciding_line(vector_standing: dict) -> dict | None:
 
 # ------------------------------------------------------------------------------------- the marks
 
-MARK_NAMES = ("shape", "coverage", "register", "source_material", "no_claim_words")
+#: The four per-case marks (`no_claim_words` retired at v10, judgement call 48).
+MARK_NAMES = ("shape", "coverage", "register", "source_material")
 
 
 @dataclass
@@ -193,7 +183,7 @@ class BriefScore:
 
     @property
     def met(self) -> bool:
-        """All five, and an unmeasured mark is not a met mark (marks.py judgement call 13)."""
+        """All four, and an unmeasured mark is not a met mark (marks.py judgement call 13)."""
         return all(self.marks.get(name) is True for name in MARK_NAMES)
 
 
@@ -201,29 +191,13 @@ def _vectors(case) -> list:
     return (case.payload.get("context") or {}).get("vectors") or []
 
 
-def claim_scoped_names(vectors: list, registry=None) -> list:
-    """The dimension names whose sentences carry no claim word: every dimension whose
-    `answers.status_vocabulary` reaches `BAR_SET` or `NOT_TESTED_BY_DESIGN` (the registry), or --
-    without one -- whose standing in the context is one of the two."""
-    names = []
-    for vector in vectors:
-        for d in vector.get("dimensions") or []:
-            scoped = d.get("status") in CLAIM_SCOPED_STATUSES
-            if registry is not None and registry.has(d.get("key")):
-                vocabulary = registry.by_key(d["key"]).status_vocabulary
-                scoped = scoped or any(s in vocabulary for s in CLAIM_SCOPED_STATUSES)
-            if scoped and d.get("name"):
-                names.append(d["name"])
-    return names
-
-
 def score_brief(case, entry, result, *, outcome: str | None = None, failed: str | None = None,
                 needs_input_questions=None, registry=None) -> BriefScore:
-    """One BRIEF case, marked five ways against the context it was actually sent."""
+    """One BRIEF case, marked four ways against the context it was actually sent."""
     score = BriefScore(case_id=case.case_id, entry_id=entry.id, run_index=case.run_index,
                        failed=failed)
     vectors = _vectors(case)
-    registry = registry if registry is not None else getattr(entry, "registry", None)
+    del registry      # kept in the signature for the callers; v10's four marks read no registry
 
     if needs_input_questions is not None:
         score.needs_input = True
@@ -247,30 +221,10 @@ def score_brief(case, entry, result, *, outcome: str | None = None, failed: str 
         "coverage": _coverage(paragraph, vectors),
         "register": _register(paragraph, case),
         "source_material": _source_material(paragraph, entry, outcome),
-        "no_claim_words": no_claim_words(paragraph, claim_scoped_names(vectors, registry)),
     }.items():
         score.marks[name] = met
         score.findings[name] = finding
     return score
-
-
-def no_claim_words(paragraph: str, names: list) -> tuple[bool, str]:
-    """Call 35: a sentence naming a `BAR_SET` or `NOT_TESTED_BY_DESIGN` dimension (by `name`,
-    case-folded) carries none of `CLAIM_WORDS`. The same word in a sentence about another
-    dimension is that sentence's business, not this mark's."""
-    faults = []
-    lowered_names = [n.casefold() for n in names]
-    for sentence in _SENTENCE_RE.split(paragraph):
-        folded = sentence.casefold()
-        named = [n for n in lowered_names if n in folded]
-        if not named:
-            continue
-        claims = sorted({m.group(1).lower() for m in _CLAIM_RE.finditer(sentence)})
-        if claims:
-            faults.append(f"the sentence naming {', '.join(named)} carries {', '.join(claims)}: "
-                          f"{sentence.strip()!r}")
-    return (not faults), ("; ".join(faults) if faults else
-                          f"no claim word beside {', '.join(names) or 'no threshold dimension'}")
 
 
 def _shape(paragraph: str) -> tuple[bool, str]:

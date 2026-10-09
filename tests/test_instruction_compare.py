@@ -1,9 +1,11 @@
 """`instructions/compare.py`: keel-cloud's engine, shelled at zero spend (spec 029 FR-018,
-contracts/screen-shapes.md §5, judgement call 34; T020).
+contracts/screen-shapes.md §5, judgement call 34; T020; spec 030 T010, call 47).
 
 The engine is never imitated here. What is tested is the shim around it: the input is built from
-corpus revision 3 and nothing in `expected`; the command is the exporter's sibling, run in the
-keel-cloud checkout; the output is diffed 25 + 3 checks marked, everything else reported; and an
+the corpus entry and nothing in `expected`; the command is the exporter's sibling, run in the
+keel-cloud checkout; the output is diffed -- one marked check a calibrated standing (10 on a B2C
+entry, 12 on a B2B one) and one a vector, everything else reported, the count read off the entry
+and never typed; and an
 engine that cannot be asked leaves the mark **unmeasured, by name** -- with a fake `gradlew` that
 fails the way a checkout without 058 would.
 """
@@ -25,17 +27,22 @@ def entry():
     return fx.entry()
 
 
-def test_the_input_is_built_from_r3_only(entry):
+def test_the_input_is_built_from_the_corpus_only(entry):
     built = compare_mod.build_input(entry, entry.registry)
     assert built["entry"] == "09-fixture" and built["registry_version"] == 1
-    assert len(built["founder_calibration"]) == 25
-    assert built["founder_calibration"]["problem.urgency"] == {"unsure": True}
+    assert list(built["founder_calibration"]) == entry.calibrated_keys()
+    assert len(built["founder_calibration"]) == len(entry.registry.calibrated_keys(False)) == 10
+    assert built["founder_calibration"]["commercial.buyer_payer_alignment"] == {"unsure": True}
     assert len(built["answers"]) == 12
-    ed = next(a for a in built["answers"] if a["person"] == "Ed Eze")
-    assert ed["picks"]["problem.duration"]["rough"] is True, "rough is preserved"
     jo = next(a for a in built["answers"] if a["person"] == "Jo Judd")
     assert jo["chip"] == "cant_recall"
-    assert jo["picks"]["problem.workaround_burden"] == {"chip": "cant_recall"}
+    assert jo["picks"] == {"problem.frequency": 3}
+
+
+def test_a_b2b_entrys_input_carries_its_twelve(tmp_path):
+    b2b = fx.entry(fx.ENTRY_B2B)
+    built = compare_mod.build_input(b2b, b2b.registry)
+    assert len(built["founder_calibration"]) == len(b2b.registry.calibrated_keys(True)) == 12
     text = json.dumps(built)
     assert "standings" not in text and "vector_verdicts" not in text, \
         "nothing from expected: that is what the output is diffed against"
@@ -45,17 +52,22 @@ def _load(name):
     return json.loads((fx.COMPARE / f"09-fixture.{name}.out.json").read_text(encoding="utf-8"))
 
 
-def test_an_agreeing_engine_scores_twenty_eight_of_twenty_eight(entry):
+def _checks(entry) -> int:
+    """The entry's own count -- its calibrated set plus three vectors -- never a literal."""
+    return len(entry.calibrated_keys()) + len(entry.expected["vector_verdicts"])
+
+
+def test_an_agreeing_engine_agrees_on_every_calibrated_standing_and_vector(entry):
     score = compare_mod.diff(entry.expected, _load("agree"), entry=entry)
-    assert (score.agreed, score.checks) == (28, 28)
+    assert (score.agreed, score.checks) == (_checks(entry), _checks(entry)) == (13, 13)
     assert score.mismatches == [] and score.reported_diffs == []
     assert score.compare_correctness == 1.0 and score.measured
 
 
-def test_a_disagreeing_engine_scores_twenty_six_naming_the_two(entry):
+def test_a_disagreeing_engine_misses_two_naming_them(entry):
     score = compare_mod.diff(entry.expected, _load("disagree"), entry=entry)
-    assert (score.agreed, score.checks) == (26, 28)
-    assert sorted(m["key"] for m in score.mismatches) == ["COMMERCIAL", "problem.severity"]
+    assert (score.agreed, score.checks) == (_checks(entry) - 2, _checks(entry))
+    assert sorted(m["key"] for m in score.mismatches) == ["COMMERCIAL", "problem.importance"]
     assert score.reported_diffs == [{"key": "problem.frequency", "field": "median",
                                      "expected": 2.5, "produced": 3}], \
         "a count is reported, never marked (call 3)"
@@ -63,9 +75,9 @@ def test_a_disagreeing_engine_scores_twenty_six_naming_the_two(entry):
 
 def test_a_dimension_the_engine_left_out_is_a_mismatch_not_a_skip(entry):
     produced = _load("agree")
-    del produced["standings"]["problem.duration"]
+    del produced["standings"]["problem.frequency"]
     score = compare_mod.diff(entry.expected, produced, entry=entry)
-    assert (score.agreed, score.checks) == (27, 28)
+    assert (score.agreed, score.checks) == (_checks(entry) - 1, _checks(entry))
 
 
 def _fake_checkout(tmp_path, script: str) -> Path:
@@ -86,7 +98,7 @@ cp "{agree}" "$out"
 """)
     bundle = tmp_path / "bundle" / "compare"
     score = compare_mod.compare_entry(checkout, entry, entry.registry, bundle)
-    assert (score.agreed, score.checks, score.measured) == (28, 28, True)
+    assert (score.agreed, score.checks, score.measured) == (_checks(entry), _checks(entry), True)
     assert (bundle / "09-fixture.in.json").is_file() and (bundle / "09-fixture.out.json").is_file()
     argv = (checkout / "argv.txt").read_text()
     assert argv.startswith("-q screenContracts --args=compare ")
@@ -124,11 +136,11 @@ def test_an_engine_none_drift_agrees_with_the_corpus_null_and_case_is_folded(ent
     for row in produced["standings"].values():
         row["drift"] = (row.get("drift") or "NONE").upper()
     score = compare_mod.diff(entry.expected, produced, entry=entry)
-    assert (score.agreed, score.checks) == (28, 28)
+    assert (score.agreed, score.checks) == (_checks(entry), _checks(entry))
 
 
 def test_a_count_only_the_engine_states_is_not_a_disagreement(entry):
     produced = _load("agree")
-    produced["standings"]["problem.severity"]["optionCounts"] = "barely=1"
-    produced["standings"]["problem.urgency"]["n"] = 0
+    produced["standings"]["problem.current_solution_satisfaction"]["optionCounts"] = "works_well=1"
+    produced["standings"]["commercial.buyer_payer_alignment"]["n"] = 0
     assert compare_mod.diff(entry.expected, produced, entry=entry).reported_diffs == []

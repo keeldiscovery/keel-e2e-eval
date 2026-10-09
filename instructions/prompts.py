@@ -204,15 +204,18 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
     for vector in context_mod.VECTORS:
         add(f"{entry.id}/CALIBRATION_{vector}", "CALIBRATION", c.SCREEN_CALIBRATION, vector,
             context_mod.build_calibration(entry, vector, registry, keys),
-            meta={"vector": vector, "registry_slice": [d.key for d in registry.slice(vector)],
+            meta={"vector": vector,
+                  "registry_slice": [d.key for d in registry.calibrated_slice(vector,
+                                                                              entry.b2b())],
                   "validation_problem_statement": context_mod.problem_statement(entry)})
 
-    # Respondent: one job a part, handed the plan the eval derived (call 30); + the B2B link.
+    # Respondent: one job a part on its own link, handed the plan the eval derived (calls 30, 47) --
+    # part 3 of a B2B study is the decision-maker's COMMERCIAL_B2B job, never a fourth one.
     plan = entry.plan(registry)
     keys = exported.keys_for(c.SCREEN_RESPONDENT)
-    links = [(part, context_mod.LINK_PRIMARY, f"PART{part}") for part in (1, 2, 3)]
-    if entry.b2b():
-        links.append((3, context_mod.LINK_B2B, "B2B"))
+    links = [(part, entry.link_of(part),
+              "B2B" if entry.link_of(part) == context_mod.LINK_B2B else f"PART{part}")
+             for part in (1, 2, 3)]
     for part, link, label in links:
         add(f"{entry.id}/RESPONDENT_{label}", "RESPONDENT", c.SCREEN_RESPONDENT, label,
             context_mod.build_respondent(entry, part, plan, registry, keys, link=link),

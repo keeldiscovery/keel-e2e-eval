@@ -21,6 +21,7 @@ from pathlib import Path
 
 from harness.evidence import new_run_dir, write_versions
 
+from . import brief as brief_mod
 from . import marks as marks_mod
 
 
@@ -224,7 +225,7 @@ def _count(value) -> str:
     return "—" if value is None else str(value)
 
 
-#: The eight rows of the v9 mark table, in `marks.ROWS` order: (row, label, formatter).
+#: The eight rows of the v10 mark table, in `marks.ROWS` order: (row, label, formatter).
 MARK_ROWS = (
     ("dimension_coverage", "dimension coverage (one question a dimension, both screens)", _pct),
     ("option_validity", "option validity (every registry rule, every question)", _pct),
@@ -233,7 +234,7 @@ MARK_ROWS = (
     ("compare_correctness", "compare correctness (keel-cloud's engine, status + drift)", _pct),
     ("refusals", "rule refusals, as a rate of answers judged", _pct),
     ("shape_refusals", "shape refusals", _count),
-    ("brief_paragraphs", "BRIEF paragraphs (all five marks)", _pct),
+    ("brief_paragraphs", "BRIEF paragraphs (all four marks)", _pct),
 )
 
 
@@ -359,7 +360,8 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
     parts.append("<h2>COMPARE — keel-cloud's engine against the corpus</h2>")
     if t.get("compare_measured"):
         parts.append(f"<p><b>{_esc(t['compare_agreed'])} of {_esc(t['compare_checks'])}</b> "
-                     "status + drift checks agreed (25 dimensions and 3 vectors an entry) · "
+                     "status + drift checks agreed (every calibrated dimension -- 10 on a B2C entry, 12 on "
+                     "a B2B one -- and 3 vectors an entry) · "
                      f"{_esc(t.get('compare_reported_diffs', 0))} counts differ (reported, never "
                      "marked — call 3).</p>")
     else:
@@ -428,7 +430,8 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
     if t.get("brief_measured"):
         parts.append("<h2>What this says (the BRIEF screen)</h2>")
         parts.append(f"<p><b>{_pct(t['brief_paragraphs'])}</b> of {t['brief_cases']} paragraphs "
-                     f"met all five marks · {t['brief_needs_input']} asked a question on a screen "
+                     f"met all {len(brief_mod.MARK_NAMES)} marks · "
+                     f"{t['brief_needs_input']} asked a question on a screen "
                      "with nobody to ask.</p>")
         parts.append("<div class='banner note'><b>The context this subject sends is not, in one "
                      "field, the context production sends.</b> keel-cloud renders the deciding "
@@ -438,7 +441,7 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
                      "<a href='register.html'>register.html</a>, unscored.</div>")
         by_mark = t.get("brief_by_mark") or {}
         parts.append("<table><tr><th>Mark</th><th>Met</th></tr>")
-        for name in ("shape", "coverage", "register", "source_material", "no_claim_words"):
+        for name in brief_mod.MARK_NAMES:
             row = by_mark.get(name) or {}
             parts.append(f"<tr><td><code>{_esc(name)}</code></td>"
                          f"<td>{row.get('met', 0)} / {row.get('of', 0)}</td></tr>")
@@ -536,7 +539,7 @@ def render_register(run_dir: Path, *, entries_by_market: dict,
     Per entry, grouped by market (screen-shapes §7): the three interpretations, verbatim, each
     marked *accepted* or *refused (rule id)* by the aggregate -- the only words this page adds; the
     calibration questions in registry order beside the registry's own founder question where it
-    has one, the founder's chosen phrase and the belief sentence r3 records; the respondent items
+    has one, the founder's chosen phrase and the belief sentence the corpus records; the respondent items
     beside the plan row, the reveal between parts 1 and 2, the B2B link on its own; and the brief
     paragraph beside the standings table. A judgement here would look like evidence and would be
     similarity to one hand-written example (judgement call 10); the person who knows the market
@@ -764,7 +767,7 @@ def register_blocks(corpus, produced: dict, registry=None, aggregate: dict | Non
                 if isinstance(q, dict) and q.get("key"):
                     produced_questions.setdefault(q["key"], q)
         if reg is not None and any(k.startswith("CALIBRATION_") for k in mine):
-            for d in reg.dimensions:
+            for d in reg.calibrated(entry.b2b()):                    # call 47
                 q = produced_questions.get(d.key) or {}
                 calibration = entry.founder_calibration.get(d.key) or {}
                 block["calibration"].append({

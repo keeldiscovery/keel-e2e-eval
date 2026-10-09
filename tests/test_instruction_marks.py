@@ -1,4 +1,5 @@
-"""The rubric's own constants at `MARKS_VERSION` 9 (spec 029 FR-001 to FR-003, SC-001; T008).
+"""The rubric's own constants at `MARKS_VERSION` 10 (spec 029 FR-001 to FR-003, SC-001; T008; spec 030
+FR-003, T010: judgement calls 46-49).
 
 Three things this holds, and none needs a model, a stack or a corpus:
 
@@ -6,9 +7,11 @@ Three things this holds, and none needs a model, a stack or a corpus:
 Calls 1-27 are byte for byte what `master` `0165017` carried (`tests/fixtures/marks/
 calls-1-27.at-0165017.txt`, extracted once), and 28-36 are marks-v9 §3's, each marked `**v9**`. The
 list is a set, not a sorted run: call 22 sits between 16 and 17, where it was written (025 D7).
+46-49 are spec 030's, each marked `**v10**`.
 
-**`marks.toml` is the draft, byte for byte,** and `DEFAULTS` follows it: eight keys and no
-`golden_belief_recall` -- a v9 verdict cannot carry a value for a retired mark.
+**`marks.toml` carries the v10 header** and `DEFAULTS` follows it: eight keys, no
+`golden_belief_recall` and no `no_claim_words` -- a verdict cannot carry a value for a retired mark,
+and both are struck through in a comment.
 
 **An unmeasured mark is not a met mark** (call 13), on every one of the eight rows.
 """
@@ -22,7 +25,6 @@ from instructions import marks as marks_mod
 
 ROOT = Path(__file__).resolve().parent.parent
 CALLS_1_27 = Path(__file__).parent / "fixtures" / "marks" / "calls-1-27.at-0165017.txt"
-DRAFT_TOML = ROOT / "specs" / "029-marks-v9-vectors" / "contracts" / "marks-v9.toml"
 
 V9_MARKS = {"dimension_coverage": 1.00, "option_validity": 1.00, "no_leak": 1.00,
             "anchoring_accuracy": 0.90, "compare_correctness": 1.00, "rule_refusal_rate": 0.02,
@@ -33,13 +35,13 @@ def judgement_calls() -> list:
     return [int(n) for n in re.findall(r"^(\d+)\.\s", marks_mod.__doc__, re.M)]
 
 
-def test_marks_version_is_nine():
-    assert marks_mod.MARKS_VERSION == 9
+def test_marks_version_is_ten():
+    assert marks_mod.MARKS_VERSION == 10
 
 
-def test_the_judgement_calls_are_one_to_forty_five_with_none_missing_and_none_twice():
+def test_the_judgement_calls_are_one_to_forty_nine_with_none_missing_and_none_twice():
     numbers = judgement_calls()
-    assert sorted(numbers) == list(range(1, 46)), "append-only: 1-45, none struck or renumbered"
+    assert sorted(numbers) == list(range(1, 50)), "append-only: 1-49, none struck or renumbered"
     assert len(numbers) == len(set(numbers)), "no judgement call is written twice"
 
 
@@ -64,8 +66,27 @@ def test_the_nine_v9_calls_are_marked_and_say_what_they_are():
     assert "amended 2026-10-07" in re.search(r"^33\. .*?(?=^34\. )", body, re.M | re.S).group(0)
 
 
-def test_the_marks_file_is_the_draft_byte_for_byte():
-    assert marks_mod.DEFAULT_MARKS_PATH.read_bytes() == DRAFT_TOML.read_bytes(), "FR-002"
+def test_the_four_v10_calls_are_marked_and_say_what_they_are():
+    body = marks_mod.__doc__
+    phrases = {46: "twelve, calibrated and asked alike", 47: "per link and per persona",
+               48: "`no_claim_words` retires", 49: "corpus revision 4"}
+    for number, phrase in phrases.items():
+        match = re.search(rf"^{number}\. \*\*v10\*\*(.*?)(?=^\d+\. |\Z)", body, re.M | re.S)
+        assert match, f"{number} is not marked v10"
+        said = " ".join(match.group(1).split())
+        assert phrase in said, f"{number} does not carry {phrase!r}"
+
+
+def test_the_marks_file_carries_the_v10_header_and_no_run_of_record_yet():
+    """FR-003: the v10 header, the denominators' comments, `no_claim_words` struck through as
+    `golden_belief_recall` is, and *run of record: none yet*."""
+    text = marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")
+    assert text.index("MARKS_VERSION 10") < text.index("MARKS_VERSION 9")
+    assert "Run of record: none yet" in text and "WHY=marks:10" in text
+    assert re.search(r"^#\s+golden_belief_recall = 0\.80", text, re.M)
+    assert re.search(r"^#\s+no_claim_words\b", text, re.M)
+    assert not re.search(r"^no_claim_words\s*=", text, re.M)
+    assert "10 on a B2C entry, 12 on a B2B one" in text
 
 
 def test_the_eight_marks_and_no_golden_belief_recall():
@@ -76,7 +97,7 @@ def test_the_eight_marks_and_no_golden_belief_recall():
 
 def test_the_marks_file_says_the_scores_are_not_comparable_across_the_bump():
     text = marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")
-    assert "MARKS_VERSION 9" in text
+    assert "MARKS_VERSION 10" in text
     assert "not comparable" in text
     assert "cannot be re-scored" in text
 
@@ -117,16 +138,20 @@ def test_the_refusal_mark_is_a_rate_over_the_answers_judged():
     assert marks_mod.judge(totals, marks_mod.load())["refusals"]["met"] is False
 
 
-def test_the_v9_header_names_the_seven_r3_digests_and_the_counted_denominator():
-    """US4.2, O-4: one dated paragraph above the call list -- never a call, never a line of
-    `marks.toml`. The digests are the recorded revision's own bytes."""
+def test_the_v10_header_names_the_seven_r4_digests_and_the_counted_denominators():
+    """Spec 030 US2: one dated paragraph above the call list -- never a call, never a line of
+    `marks.toml`. The digests are keel-cloud's canon's own bytes (skipped by name when the
+    configured keel-cloud is not at revision 4)."""
     import hashlib                                                          # noqa: PLC0415
-    from instructions import corpus as corpus_mod                           # noqa: PLC0415
+    from tests import v9_fixtures as fx                                     # noqa: PLC0415
     doc = marks_mod.__doc__
     header = doc[:doc.index("1.  **v1**")]
-    files = sorted(Path(corpus_mod.FIXTURE_DIR).glob("*.yaml"))
-    assert len(files) == 7
-    for path in files:
-        assert hashlib.sha256(path.read_bytes()).hexdigest() in header, path.name
+    names = ("01-countly", "02-compliancelog", "03-lullaby", "04-linerly", "05-paidly",
+             "06-repeatline", "07-mulchrun")
+    for name in names:
+        path = fx.canon_entry(f"{name}.yaml")
+        assert hashlib.sha256(path.read_bytes()).hexdigest() in header, name
     assert "65 reads at N=1" in header
-    assert "recorded 2026-10-07" in header
+    assert "135 model cases at N=1" in header and "**97**" in header
+    assert "recorded 2026-10-09" in header
+    assert "no v10 run of record until `WHY=marks:10` is spent" in header

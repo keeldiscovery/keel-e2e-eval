@@ -79,8 +79,9 @@ FIXED_RESPONDENT_CODES = {
 #: fixed codes above. What is left of a golden plan row's codes once these go is the founder's own
 #: option set -- `founder_options` on the respondent screen, and what `option_validity` requires
 #: present.
-RESPONDENT_ESCAPES = ("something_else", "nothing", "nothing_much", "never_came_up",
-                      "would_not_fit", "free_or_gift", "it_was_free", "nothing_yet")
+RESPONDENT_ESCAPES = ("something_else", "nothing", "never_came_up", "would_not_fit",
+                      "nothing_would_change", "free_or_gift", "it_was_free", "would_not_reach",
+                      "nothing_yet")
 
 #: The founder-side numeric control: no options, a spec the registry owns.
 NUMERIC_FOUNDER_CONTROLS = ("numeric_interval",)
