@@ -124,7 +124,7 @@ def test_the_v9_registry_of_twenty_five_is_refused_naming_invariant_1():
     """A 25-key registry (v9's shape) fails invariant 1 before anything is built against it."""
     document = copy.deepcopy(fx.registry_document())
     extra = copy.deepcopy(document["dimensions"][1])
-    extra.update(key="problem.duration", order=5)
+    extra.update(key="problem.one_too_many", order=5)
     document["dimensions"].insert(4, extra)
     faults = registry_mod.check_invariants(registry_mod.from_document(document, check=False))
     assert any(f.startswith("invariant 1 ") for f in faults), faults

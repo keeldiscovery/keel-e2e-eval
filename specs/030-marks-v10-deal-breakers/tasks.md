@@ -21,6 +21,6 @@
 - [x] T010 `tests/test_instruction_compare.py`, `test_instruction_brief.py`, `test_instruction_marks.py`.
 
 ## Phase 5 — Gate and canon (FR-007, FR-008, SC-001)
-- [ ] T011 `make unit` green (count here).
-- [ ] T012 `make instruction-eval DRY=1 MODELS=exported` against the 071 worktree (stack.toml pointed and reverted); result here.
-- [ ] T013 `AGENTS.md`, `README.md` gate text at v10.
+- [x] T011 `make unit` green: **1597 passed, 75 skipped** (2026-10-09; `stack.toml` pointed at the 071 worktree; the skips are the suite's existing named skips -- none is the canon-not-at-r4 skip).
+- [x] T012 `make instruction-eval DRY=1 MODELS=exported` against the 071 worktree (`f38ac42`; stack.toml pointed and reverted), 2026-10-09, bundle `runs/20261009T192348Z-instructions`: contract exported, `MODELS=exported` accepted (Sonnet 5.5 / Haiku 4.5), **405 cases at N=3** (135 at N=1: 21 interpretation, 21 calibration, 21 respondent, 65 interpret, 7 brief) + 7 COMPARE rows; **`compare_correctness` 97 of 97 = 1.00** (13 on each B2C entry, 15 on each B2B one). The three structural marks and the rest are unmeasured on a dry run by design (no model answer exists; call 13), so the dry run now prints the denominator each would be counted over, read off the registry: calibration 10 (B2C) / 12 (B2B); respondent 10 PRIMARY (B2C) / 7 PRIMARY + 5 COMMERCIAL_B2B (B2B); no_leak sweep A 8 (4 PROBLEM questions + 4 Part 1 items) + sweep B 10 / 12 -- 76 + 76 an N, 132 sweeps. Nothing called, nothing spent.
+- [x] T013 `AGENTS.md`, `README.md` gate text at v10 (no run of record until `WHY=marks:10` is spent; v9's named as history); the Makefile's example list gains `WHY=marks:10`.
