@@ -1,4 +1,4 @@
-# slice.yaml with one value changed, failing exactly invariant 4 (spec 029 T004):
+# slice.yaml with one value changed, failing exactly invariant 4 (spec 030 T003; first cut spec 029 T004):
 # problem.frequency's template carries {value} twice.
 base: ../slice.yaml
 invariant: 4

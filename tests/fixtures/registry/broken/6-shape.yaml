@@ -1,7 +1,7 @@
-# slice.yaml with one value changed, failing exactly invariant 6 (spec 029 T004):
-# problem.duration answers as a choice on a numeric control.
+# slice.yaml with one value changed, failing exactly invariant 6 (spec 030 T003; first cut spec 029 T004):
+# problem.frequency answers as a choice on a numeric control.
 base: ../slice.yaml
 invariant: 6
-key: problem.duration
+key: problem.frequency
 path: [answers, shape]
 value: choice

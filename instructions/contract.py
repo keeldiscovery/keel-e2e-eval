@@ -57,8 +57,8 @@ class ExportedContract:
     #: record can say it measured the cloud's table and not a file of its own. `None` on an
     #: export older than that design; `instructions.models.select("exported", ...)` refuses then.
     model_routing: dict | None = None
-    #: `dimension-registry.json` -- keel-cloud 058's export of the 25-dimension registry, checked
-    #: against its seven invariants on the way in (`instructions/registry.py`). `read` refuses an
+    #: `dimension-registry.json` -- keel-cloud 058's export of the registry (twelve keys since 071), checked
+    #: against its eight invariants on the way in (`instructions/registry.py`). `read` refuses an
     #: export without it, so on any contract a case is built from this is never `None`.
     registry: object = None
 
@@ -107,7 +107,7 @@ def read(directory: Path) -> ExportedContract:
 
     **`dimension-registry.json` is required** (spec 029 FR-021): the registry is the golden every
     v9 scorer checks a question against, so an export without it is a refusal to start naming the
-    file and keel-cloud 058 -- before any case is built -- and a registry failing one of its seven
+    file and keel-cloud 058 -- before any case is built -- and a registry failing one of its eight
     invariants is a refusal naming the invariant and the key.
     """
     directory = Path(directory)

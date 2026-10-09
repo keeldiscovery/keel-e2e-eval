@@ -6,9 +6,9 @@
 - [x] T001 `spec.md`, `plan.md`, this file.
 
 ## Phase 2 — The registry reader (FR-001, FR-006)
-- [ ] T002 `instructions/registry.py`: constants, `Dimension.b2b_only`, invariants 1 / 2 / 3 / 6 / 8, `calibrated`, `plan_keys` per link, docstring.
-- [ ] T003 `tests/fixtures/registry/slice.yaml` regenerated from 071's `dimension-registry.json`; `broken/` re-cut, `3-b2b-only.yaml`, `8-can-fail.yaml`.
-- [ ] T004 `tests/test_instruction_registry.py`.
+- [x] T002 `instructions/registry.py`: constants, `Dimension.b2b_only`, invariants 1 / 2 / 3 / 6 / 8, `calibrated`, `plan_keys` per link, docstring.
+- [x] T003 `tests/fixtures/registry/slice.yaml` regenerated from 071's `dimension-registry.json`; `broken/` re-cut, `3-b2b-only.yaml`, `8-can-fail.yaml`.
+- [x] T004 `tests/test_instruction_registry.py`.
 
 ## Phase 3 — The corpus at revision 4 (FR-002)
 - [ ] T005 `instructions/corpus.py`: `REVISION = 4`, six statuses, no fallback, calibrated set per persona, plan per link, r3 refused by name.

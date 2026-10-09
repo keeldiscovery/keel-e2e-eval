@@ -1,7 +1,7 @@
-# slice.yaml with one value changed, failing exactly invariant 1 (spec 029 T004):
-# solution.trialability's order is 10, so SOLUTION's order is not contiguous.
+# slice.yaml with one value changed, failing exactly invariant 1 (spec 030 T003; first cut spec 029 T004):
+# solution.adoption_friction's order is 4, so SOLUTION's order is not contiguous.
 base: ../slice.yaml
 invariant: 1
-key: solution.trialability
+key: solution.adoption_friction
 path: [order]
-value: 10
+value: 4

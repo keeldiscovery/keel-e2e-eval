@@ -1,7 +1,7 @@
-"""`instructions/registry.py`: the registry the export carries, and its seven invariants (spec 029
-FR-021, data-model §1, research R4; T011).
+"""`instructions/registry.py`: the registry the export carries, and its eight invariants (spec 029
+FR-021, data-model §1, research R4; T011; at twelve keys by spec 030 T004, judgement calls 46-47).
 
-The golden every v9 scorer checks a question against is only honest if it is itself well formed,
+The golden every v10 scorer checks a question against is only honest if it is itself well formed,
 so each invariant is made to fail once, on its own, by a one-value patch of the hand-sized slice
 (`tests/fixtures/registry/broken/`), and the refusal must name the invariant and the key.
 """
@@ -19,35 +19,65 @@ from instructions import registry as registry_mod
 from tests import v9_fixtures as fx
 
 
-def test_the_slice_loads_and_passes_all_seven_invariants():
+def test_the_slice_loads_and_passes_all_eight_invariants():
     registry = fx.registry()
-    assert len(registry.keys()) == 25
+    assert len(registry.keys()) == sum(registry_mod.PER_VECTOR.values()) == 12
     assert registry_mod.check_invariants(registry) == []
 
 
 def test_a_vector_slice_is_its_dimensions_in_order():
     registry = fx.registry()
     problem = registry.slice("PROBLEM")
-    assert [d.order for d in problem] == list(range(1, 10))
-    assert problem[0].key == "problem.prevalence" and problem[-1].key == "problem.urgency"
-    assert len(registry.slice("SOLUTION")) == 9 and len(registry.slice("COMMERCIAL")) == 7
+    assert [d.order for d in problem] == [1, 2, 3, 4]
+    assert problem[0].key == "problem.prevalence"
+    assert problem[-1].key == "problem.current_solution_satisfaction"
+    assert len(registry.slice("SOLUTION")) == 3 and len(registry.slice("COMMERCIAL")) == 5
 
 
-def test_plan_keys_are_asked_in_v1_by_part_less_what_the_founder_left_out():
+def test_the_nine_deal_breakers_are_the_registrys_and_every_one_can_fail():
     registry = fx.registry()
+    for vector in registry_mod.VECTORS:
+        assert registry.deal_breakers(vector) == list(registry_mod.DEAL_BREAKERS[vector])
+        for key in registry.deal_breakers(vector):
+            assert "NOT_HOLDING_UP" in registry.by_key(key).status_vocabulary
+
+
+def test_the_calibrated_set_is_ten_on_b2c_and_twelve_on_b2b():
+    """Call 47 (keel-cloud 071 `calibrated(b2b)`): the b2b_only pair only on a B2B persona."""
+    registry = fx.registry()
+    assert registry.b2b_only() == list(registry_mod.B2B_ONLY)
+    b2c, b2b = registry.calibrated_keys(False), registry.calibrated_keys(True)
+    assert (len(b2c), len(b2b)) == (10, 12)
+    assert set(b2b) - set(b2c) == set(registry_mod.B2B_ONLY)
+    assert [d.key for d in registry.calibrated_slice("COMMERCIAL", False)] == [
+        "commercial.existing_sacrifice", "commercial.buyer_payer_alignment",
+        "commercial.commitment"]
+    assert len(registry.calibrated_slice("COMMERCIAL", True)) == 5
+
+
+def test_plan_keys_are_per_part_and_link_less_what_the_founder_left_out():
+    """Calls 30 and 47: PRIMARY asks 4 / 3 / 3 (3 / 3 / 3 after the gate), never the b2b_only
+    pair; COMMERCIAL_B2B asks the commercial part whole, and only on a B2B persona."""
+    registry = fx.registry()
+    primary, b2b = registry_mod.LINK_PRIMARY, registry_mod.LINK_B2B
     calibration = {k: {"answer": "x"} for k in registry.keys()}
-    assert [len(registry.plan_keys(p, calibration)) for p in (1, 2, 3)] == [8, 9, 6]
-    calibration["problem.severity"] = {"unsure": True}
-    calibration["solution.trialability"] = {"unsure": True}
+    for persona in (False, True):
+        assert [len(registry.plan_keys(p, calibration, primary, persona))
+                for p in (1, 2, 3)] == [4, 3, 3]
+    assert registry.plan_keys(3, calibration, b2b, True) == registry.calibrated_keys(True)[-5:]
+    assert registry.plan_keys(3, calibration, b2b, False) == []
+    assert registry.plan_keys(1, calibration, b2b, True) == []
+    calibration["problem.frequency"] = {"unsure": True}
+    calibration["commercial.ability_to_pay"] = {"unsure": True}
     plan1 = registry.plan_keys(1, calibration)
-    assert "problem.severity" not in plan1 and len(plan1) == 7
-    assert len(registry.plan_keys(2, calibration)) == 8
-    assert "problem.urgency" not in plan1, "not asked in V1, whatever the founder said"
+    assert "problem.frequency" not in plan1 and len(plan1) == 3
+    assert "commercial.ability_to_pay" not in registry.plan_keys(3, calibration, b2b, True)
+    assert registry.link_of(3, True) == b2b and registry.link_of(3, False) == primary
+    assert registry.link_of(1, True) == primary
 
 
-def test_the_fixed_respondent_codes_are_the_registrys_three():
+def test_the_fixed_respondent_codes_are_the_registrys_one():
     registry = fx.registry()
-    assert registry.fixed_respondent_codes("solution.trust_risk") == ["own_instinct"]
     assert registry.fixed_respondent_codes("commercial.commitment") == ["nothing_yet"]
     assert registry.fixed_respondent_codes("problem.frequency") == []
 
@@ -77,7 +107,27 @@ def test_each_broken_registry_fails_exactly_its_own_invariant_naming_the_key(nam
 
 def test_there_is_one_broken_fixture_per_invariant():
     invariants = sorted(yaml.safe_load(p.read_text())["invariant"] for p in fx.BROKEN.glob("*.yaml"))
-    assert invariants == [1, 2, 3, 4, 5, 6, 7]
+    assert invariants == [1, 2, 3, 4, 5, 6, 7, 8]
+
+
+def test_a_registry_still_carrying_asked_in_v1_is_refused_as_unknown_shaped():
+    """Call 46: `asked_in_v1` is not read, and a registry carrying it is refused, not ignored."""
+    document = copy.deepcopy(fx.registry_document())
+    document["dimensions"][1]["respondent"]["asked_in_v1"] = True
+    with pytest.raises(registry_mod.RegistryUnavailable) as refusal:
+        registry_mod.from_document(document, source="v9.json")
+    assert "asked_in_v1" in str(refusal.value)
+    assert "problem.frequency" in str(refusal.value)
+
+
+def test_the_v9_registry_of_twenty_five_is_refused_naming_invariant_1():
+    """A 25-key registry (v9's shape) fails invariant 1 before anything is built against it."""
+    document = copy.deepcopy(fx.registry_document())
+    extra = copy.deepcopy(document["dimensions"][1])
+    extra.update(key="problem.duration", order=5)
+    document["dimensions"].insert(4, extra)
+    faults = registry_mod.check_invariants(registry_mod.from_document(document, check=False))
+    assert any(f.startswith("invariant 1 ") for f in faults), faults
 
 
 def test_a_document_that_is_not_a_registry_is_refused_by_name():
@@ -116,7 +166,7 @@ def test_the_manifest_names_the_registry_file_as_058_writes_it(tmp_path):
     manifest = json.loads((tmp_path / "manifest.json").read_text())
     manifest["dimension_registry"] = "registry-under-another-name.json"
     (tmp_path / "manifest.json").write_text(json.dumps(manifest))
-    assert len(contract_mod.read(tmp_path).registry.keys()) == 25
+    assert len(contract_mod.read(tmp_path).registry.keys()) == 12
 
 
 def test_the_window_placeholders_are_filled_by_code():

@@ -1,19 +1,28 @@
 """keel-cloud's dimension registry, read from the export and checked before a case is built
-(spec 029 FR-021, data-model §1, research R4).
+(spec 029 FR-021, data-model §1, research R4; cut to twelve by keel-cloud 071 and spec 030).
 
 The registry is the **golden** for `dimension_coverage` and `option_validity` (judgement calls 30
 and 31): every control, code, bin, belief template and plan part a scorer checks a question
 against. keel-cloud 058 exports it as `dimension-registry.json` beside `model-routing.json`;
 `instructions/contract.read` loads it through `from_document` here. Nothing in this module is a
 copy of the cloud's registry -- the design-time draft under
-`specs/029-marks-v9-vectors/contracts/dimension-registry.yaml` is read by no code at run time, and
-the fixture under `tests/fixtures/registry/` is a hand-sized slice of it.
+`specs/029-marks-v9-vectors/contracts/dimension-registry.yaml` is read by no code at run time (it
+is v9's history), and the fixture under `tests/fixtures/registry/` is a hand-sized slice of keel-cloud
+071's export.
 
-**The seven invariants are this repository's to check** (`registry-schema.draft.md` §Invariants,
-restated in data-model §1), because a mark of 1.00 is honest only against a registry that is itself
-well formed -- marks §2.2: *"1.00 is honest only because the registry fixes the codes"*. A registry
-that fails one is a **refusal to start** naming the invariant and the key, never a warning and
-never a score.
+**The eight invariants are this repository's to check** (keel-cloud `registry-schema.md`
+§Invariants; spec 030 judgement call 46), because a mark of 1.00 is honest only against a registry
+that is itself well formed -- marks §2.2: *"1.00 is honest only because the registry fixes the
+codes"*. A registry that fails one is a **refusal to start** naming the invariant and the key,
+never a warning and never a score. At `MARKS_VERSION` 10 the registry is **twelve keys, 4 / 3 / 5**,
+nine of them deal-breakers that can each read `NOT_HOLDING_UP`; `asked_in_v1` is gone (a registry
+still carrying it is refused as unknown-shaped, not ignored) and an entry-level `b2b_only` sits on
+exactly `commercial.ability_to_pay` and `commercial.purchase_friction`.
+
+**What a project calibrates and asks is read here, never typed by a scorer** (calls 46, 47):
+`calibrated(b2b)` is every entry less the `b2b_only` two when the persona is not B2B (ten on B2C,
+twelve on B2B), and `plan_keys(part, founder_calibration, link, b2b)` is what one link asks in one
+part -- keel-cloud 071's `DimensionRegistry.calibrated` / `asked` and `EvidencePlan`, mirrored.
 """
 
 from __future__ import annotations
@@ -25,27 +34,36 @@ from pathlib import Path
 
 VECTORS = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 
-#: Invariant 1: 25 keys, 9 / 9 / 7.
-PER_VECTOR = {"PROBLEM": 9, "SOLUTION": 9, "COMMERCIAL": 7}
+#: Invariant 1: 12 keys, 4 / 3 / 5.
+PER_VECTOR = {"PROBLEM": 4, "SOLUTION": 3, "COMMERCIAL": 5}
 
 #: Invariant 2: the nine deal-breakers, exactly (`registry-schema.draft.md` §Invariants 2). Fixed
 #: by the schema rather than read off the file, because the point of the invariant is that the file
 #: cannot quietly promote or demote one.
 DEAL_BREAKERS = {
-    "PROBLEM": ("problem.prevalence", "problem.frequency", "problem.duration"),
+    "PROBLEM": ("problem.prevalence", "problem.importance",
+                "problem.current_solution_satisfaction"),
     "SOLUTION": ("solution.compatibility", "solution.relative_advantage",
-                 "solution.effectiveness_threshold"),
+                 "solution.adoption_friction"),
     "COMMERCIAL": ("commercial.existing_sacrifice", "commercial.buyer_payer_alignment",
                    "commercial.commitment"),
 }
 
-#: Invariant 3: 23 asked in V1, parts 1 / 2 / 3 = 8 / 9 / 6.
-ASKED_IN_V1 = 23
-PER_PART = {1: 8, 2: 9, 3: 6}
+#: Invariant 3: `b2b_only` on exactly these two (calibrated and asked only on a B2B persona), and
+#: every entry asked in the part of its own vector -- 4 / 3 / 5 entries a part. On `PRIMARY` that
+#: is 3 / 3 / 3 after the gate; on `COMMERCIAL_B2B` the commercial part whole, 5.
+B2B_ONLY = ("commercial.ability_to_pay", "commercial.purchase_friction")
+PER_PART = {1: 4, 2: 3, 3: 5}
+PART_VECTOR = {1: "PROBLEM", 2: "SOLUTION", 3: "COMMERCIAL"}
 
-#: Invariant 6: the respondent controls whose answer is a number (`answers.shape == interval`).
-NUMERIC_RESPONDENT_CONTROLS = ("segmented_0_to_7", "number_with_unit", "single_choice_bands",
-                               "two_numbers_optional")
+#: The two links a person answers on (keel-cloud `RespondentLink`).
+LINK_PRIMARY = "PRIMARY"
+LINK_B2B = "COMMERCIAL_B2B"
+
+#: Invariant 6: the respondent controls whose answer is a number (`answers.shape == interval`) --
+#: keel-cloud 071's `RespondentControl.yieldsNumber`: Frequency's 0-to-7 control, and the number it
+#: becomes on a recall window longer than 7.
+NUMERIC_RESPONDENT_CONTROLS = ("segmented_0_to_7", "number_with_unit")
 
 #: Invariant 7: the one gate.
 GATE_KEY = "problem.prevalence"
@@ -54,8 +72,6 @@ GATE_CONTROL = "gate_yes_no"
 #: Respondent-only codes the registry adds on the respondent side and never offers the founder
 #: (registry decision 12).
 FIXED_RESPONDENT_CODES = {
-    "solution.trust_risk": ("own_instinct",),
-    "solution.target_circumstance": ("not_useful",),
     "commercial.commitment": ("nothing_yet",),
 }
 
@@ -64,11 +80,10 @@ FIXED_RESPONDENT_CODES = {
 #: option set -- `founder_options` on the respondent screen, and what `option_validity` requires
 #: present.
 RESPONDENT_ESCAPES = ("something_else", "nothing", "nothing_much", "never_came_up",
-                      "would_not_fit", "nothing_would_change", "nothing_worth_it", "free_or_gift",
-                      "it_was_free", "would_not_reach", "own_instinct", "not_useful", "nothing_yet")
+                      "would_not_fit", "free_or_gift", "it_was_free", "nothing_yet")
 
-#: The founder-side numeric controls: no options, a spec the registry owns.
-NUMERIC_FOUNDER_CONTROLS = ("numeric_interval", "numeric_threshold", "price_range")
+#: The founder-side numeric control: no options, a spec the registry owns.
+NUMERIC_FOUNDER_CONTROLS = ("numeric_interval",)
 
 
 #: keel-cloud 058 (2026-10-07): the registry carries `{window}` / `{window_unit}` placeholders, the
@@ -209,6 +224,8 @@ class Dimension:
     answers: dict
     left_out: dict = field(default_factory=dict)
     lullaby: dict = field(default_factory=dict)
+    #: keel-cloud 071: calibrated and asked only when the persona is B2B.
+    b2b_only: bool = False
 
     @property
     def normalized(self) -> dict:
@@ -223,10 +240,6 @@ class Dimension:
     def fixed_codes(self) -> list | None:
         codes = self.codes
         return list(codes) if isinstance(codes, list) else None
-
-    @property
-    def asked_in_v1(self) -> bool:
-        return bool(self.respondent.get("asked_in_v1"))
 
     @property
     def part(self):
@@ -268,9 +281,6 @@ class Registry:
         """The calibration job's input for one vector: its dimensions, in `order`."""
         return sorted((d for d in self.dimensions if d.vector == vector), key=lambda d: d.order)
 
-    def asked_in_v1(self, key: str) -> bool:
-        return self.by_key(key).asked_in_v1
-
     def part_of(self, key: str):
         return self.by_key(key).part
 
@@ -283,19 +293,50 @@ class Registry:
     def deal_breakers(self, vector: str) -> list[str]:
         return [d.key for d in self.slice(vector) if d.weight == "DEAL_BREAKER"]
 
-    def plan_keys(self, part: int, founder_calibration: dict) -> list[str]:
-        """The respondent items of one part (call 30): asked in V1, in this part, and not left out
-        by the founder -- in vector order, then `order`. What production's `EVIDENCE_PLAN` hands
-        the job, and the respondent denominator of `dimension_coverage`."""
+    def b2b_only(self) -> list[str]:
+        return [d.key for d in self.dimensions if d.b2b_only]
+
+    def calibrated(self, b2b: bool) -> list[Dimension]:
+        """The entries a project calibrates (call 47; keel-cloud 071 `calibrated(b2b)`): every
+        entry, less the `b2b_only` two when the persona is not B2B -- in vector order, then
+        `order`."""
+        return [d for vector in VECTORS for d in self.slice(vector) if b2b or not d.b2b_only]
+
+    def calibrated_keys(self, b2b: bool) -> list[str]:
+        return [d.key for d in self.calibrated(b2b)]
+
+    def calibrated_slice(self, vector: str, b2b: bool) -> list[Dimension]:
+        """One vector's calibrated entries: the calibration job's input, and its coverage
+        denominator."""
+        return [d for d in self.slice(vector) if b2b or not d.b2b_only]
+
+    def asked(self, link: str, b2b: bool) -> list[Dimension]:
+        """The entries one link asks (keel-cloud 071 `asked(link, b2b)`): on `PRIMARY` every entry
+        less the `b2b_only` two; on `COMMERCIAL_B2B` the commercial slice whole, and only on a B2B
+        persona."""
+        if link == LINK_B2B:
+            return self.slice("COMMERCIAL") if b2b else []
+        return [d for vector in VECTORS for d in self.slice(vector) if not d.b2b_only]
+
+    @staticmethod
+    def link_of(part: int, b2b: bool) -> str:
+        """The link a part is asked on (keel-cloud `EvidencePlan`, decision 26): part 3 of a B2B
+        study is the decision-maker's, never the primary link's."""
+        return LINK_B2B if (b2b and part == 3) else LINK_PRIMARY
+
+    def plan_keys(self, part: int, founder_calibration: dict, link: str = LINK_PRIMARY,
+                  b2b: bool = False) -> list[str]:
+        """The respondent items of one part on one link (calls 30, 47): asked on that link, in this
+        part, and not left out by the founder -- in vector order, then `order`. What production's
+        `EVIDENCE_PLAN` hands the job, and the respondent denominator of `dimension_coverage`."""
         out = []
-        for vector in VECTORS:
-            for d in self.slice(vector):
-                if not d.asked_in_v1 or d.part != part:
-                    continue
-                answer = (founder_calibration or {}).get(d.key) or {}
-                if answer.get("unsure"):
-                    continue
-                out.append(d.key)
+        for d in self.asked(link, b2b):
+            if d.part != part:
+                continue
+            answer = (founder_calibration or {}).get(d.key) or {}
+            if answer.get("unsure"):
+                continue
+            out.append(d.key)
         return out
 
 
@@ -307,12 +348,13 @@ def _dimension(raw: dict) -> Dimension:
         name=raw.get("name") or "", meaning=raw.get("meaning") or "",
         weight=raw.get("weight"), founder=dict(raw.get("founder") or {}),
         respondent=dict(raw.get("respondent") or {}), answers=dict(raw.get("answers") or {}),
-        left_out=dict(raw.get("left_out") or {}), lullaby=dict(raw.get("lullaby") or {}))
+        left_out=dict(raw.get("left_out") or {}), lullaby=dict(raw.get("lullaby") or {}),
+        b2b_only=raw.get("b2b_only") is True)
 
 
 def from_document(document, *, source: str = "", check: bool = True) -> Registry:
     """A registry from its exported shape -- `{version?, common, dimensions: [...]}` -- checked
-    against the seven invariants unless `check` is false (the invariant tests ask for the
+    against the eight invariants unless `check` is false (the invariant tests ask for the
     unchecked object to show each refusal on its own)."""
     if not isinstance(document, dict) or not isinstance(document.get("dimensions"), list):
         raise RegistryUnavailable(
@@ -395,15 +437,26 @@ def check_invariants(registry: Registry) -> list[str]:
     dims = list(registry.dimensions)
     keys = [d.key for d in dims]
 
-    # 1. 25 keys, 9 / 9 / 7, `order` contiguous from 1 within each vector.
-    if len(keys) != sum(PER_VECTOR.values()) or len(set(keys)) != len(keys):
-        faults.append(f"invariant 1 (25 unique keys): the registry has {len(set(keys))} unique of "
-                      f"{len(keys)}")
+    total = sum(PER_VECTOR.values())
+    split = " / ".join(str(n) for n in PER_VECTOR.values())
+
+    # 0. The shape v10 reads: `asked_in_v1` is gone (call 46) -- refused as unknown-shaped, never
+    #    ignored, because a registry still carrying it is not the one this rubric was written for.
+    for d in dims:
+        if "asked_in_v1" in d.respondent:
+            faults.append(f"unknown shape: {d.key} carries respondent.asked_in_v1, which keel-cloud "
+                          "071 removed (every entry is asked; b2b_only marks the B2B pair) -- "
+                          "judgement call 46")
+
+    # 1. 12 keys, 4 / 3 / 5, `order` contiguous from 1 within each vector.
+    if len(keys) != total or len(set(keys)) != len(keys):
+        faults.append(f"invariant 1 ({total} unique keys): the registry has {len(set(keys))} "
+                      f"unique of {len(keys)}")
     for vector, count in PER_VECTOR.items():
         in_vector = [d for d in dims if d.vector == vector]
         orders = sorted(d.order for d in in_vector if isinstance(d.order, int))
         if len(in_vector) != count:
-            faults.append(f"invariant 1 (9 / 9 / 7): {vector} has {len(in_vector)} dimensions")
+            faults.append(f"invariant 1 ({split}): {vector} has {len(in_vector)} dimensions")
         if orders != list(range(1, len(in_vector) + 1)):
             bad = [d.key for d in in_vector
                    if not isinstance(d.order, int) or not 1 <= d.order <= len(in_vector)]
@@ -425,19 +478,26 @@ def check_invariants(registry: Registry) -> list[str]:
         if d.weight not in ("DEAL_BREAKER", "SHAPES"):
             faults.append(f"invariant 2 (weights): {d.key} weighs {d.weight!r}")
 
-    # 3. 23 asked in V1; parts 8 / 9 / 6.
-    asked = [d for d in dims if d.asked_in_v1]
-    if len(asked) != ASKED_IN_V1:
-        extra = ", ".join(d.key for d in asked)
-        faults.append(f"invariant 3 (23 asked in V1): {len(asked)} are asked"
-                      + ("" if len(asked) < ASKED_IN_V1 else f" ({extra})"))
+    # 3. `b2b_only` on exactly the two; every entry asked in its own vector's part, 4 / 3 / 5.
+    flagged = {d.key for d in dims if d.b2b_only}
+    for key in sorted(flagged - set(B2B_ONLY)):
+        faults.append(f"invariant 3 (b2b_only on exactly {', '.join(B2B_ONLY)}): {key} is "
+                      "b2b_only and the schema does not make it so")
+    for key in sorted(set(B2B_ONLY) - flagged):
+        faults.append(f"invariant 3 (b2b_only on exactly {', '.join(B2B_ONLY)}): {key} is not "
+                      "b2b_only")
+    parts = " / ".join(str(n) for n in PER_PART.values())
     for part, count in PER_PART.items():
-        in_part = [d.key for d in asked if d.part == part]
+        in_part = [d.key for d in dims if d.part == part]
         if len(in_part) != count:
-            faults.append(f"invariant 3 (parts 8 / 9 / 6): part {part} has {len(in_part)}")
-    for d in asked:
+            faults.append(f"invariant 3 (parts {parts}): part {part} has {len(in_part)}")
+    for d in dims:
         if d.part not in PER_PART:
-            faults.append(f"invariant 3 (parts): {d.key} is asked in V1 with part {d.part!r}")
+            faults.append(f"invariant 3 (parts): {d.key} is asked with part {d.part!r}; every "
+                          "entry is asked")
+        elif PART_VECTOR[d.part] != d.vector:
+            faults.append(f"invariant 3 (parts): {d.key} is asked in part {d.part}, which asks "
+                          f"{PART_VECTOR[d.part]}")
 
     # 4. `{value}` exactly once in every belief template.
     for d in dims:
@@ -479,4 +539,10 @@ def check_invariants(registry: Registry) -> list[str]:
     if gates != [GATE_KEY]:
         faults.append(f"invariant 7 (the one gate): gate_yes_no is on "
                       f"{', '.join(gates) or 'no dimension'}, and must be on {GATE_KEY} alone")
+
+    # 8. Every deal-breaker can fail: its status vocabulary reaches NOT_HOLDING_UP (keel-cloud 071).
+    for d in dims:
+        if d.weight == "DEAL_BREAKER" and "NOT_HOLDING_UP" not in d.status_vocabulary:
+            faults.append(f"invariant 8 (a deal-breaker can fail): {d.key} is a DEAL_BREAKER whose "
+                          "status vocabulary never reaches NOT_HOLDING_UP")
     return faults

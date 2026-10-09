@@ -1,7 +1,7 @@
-# slice.yaml with one value changed, failing exactly invariant 2 (spec 029 T004):
-# problem.severity is a DEAL_BREAKER, which the schema does not make it.
+# slice.yaml with one value changed, failing exactly invariant 2 (spec 030 T003; first cut spec 029 T004):
+# problem.importance SHAPES, which the schema makes a DEAL_BREAKER.
 base: ../slice.yaml
 invariant: 2
-key: problem.severity
+key: problem.importance
 path: [weight]
-value: DEAL_BREAKER
+value: SHAPES
