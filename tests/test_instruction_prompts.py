@@ -116,7 +116,7 @@ def test_the_compare_row_is_a_row_and_never_a_call(cases):
     assert row.payload == {} and row.prompt == "" and row.run_index == 0
     assert row.compare_input["entry"] == "09-fixture"
     assert len(row.compare_input["founder_calibration"]) == len(fx.entry().calibrated_keys()) \
-        == 10, "call 47: the entry's calibrated set, read"
+        == 11, "calls 47, 50: the entry's calibrated set, read"
 
 
 def test_the_b2b_entry_asks_part_three_on_its_own_link_and_nowhere_else(tmp_path):

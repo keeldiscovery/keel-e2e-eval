@@ -1,0 +1,7 @@
+# slice.yaml with one value changed, failing exactly invariant 5 (spec 031 T003; keel-cloud 073's
+# DimensionRegistry.invariant5Codes): commercial.price's periods lack one_off, so they are not PriceLadder.PERIODS.
+base: ../slice.yaml
+invariant: 5
+key: commercial.price
+path: [founder, normalized, periods]
+value: [month, year]

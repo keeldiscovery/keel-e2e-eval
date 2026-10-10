@@ -6,7 +6,27 @@
 # evals/policy.py states for POLICY_VERSION, and a separate constant so the two can never be
 # confused.
 
-# MARKS_VERSION 10 (judgement calls 46-49, 2026-10-09; spec 030-marks-v10-deal-breakers, the
+# MARKS_VERSION 11 (judgement calls 50-58, 2026-10-09; spec 031-window-frame-and-price, the sibling of
+# keel-cloud 072-window-frame + 073-price, branch 073-price at 0925484). The subjects' words moved and
+# the ruler follows: the registry is THIRTEEN (4 / 3 / 6; commercial.price back as SHAPES, asked of
+# whoever pays, price_range over month / year / one_off) and the corpus REVISION 5 (a founder price
+# per entry, Mulch Run's left out; Existing sacrifice in amounts by unit; Ability to pay's renamed
+# rungs). No number below moved. What moved:
+#   - Prevalence and the gate are read as their `event` clause, held to E1-E3 (WindowFrame.fault);
+#     Frequency over a framed window and Price owe no text; C7 and R8 are retired (calls 52, 53);
+#   - W7, W9 and U1 are option_validity faults, and W3 / W8 where the corpus records the names --
+#     every r5 entry records both since keel-cloud 073 ed581f8, so both are held on all seven (calls 54, 55);
+#   - S1 / W1 / W2 / W5 / W6 are REPORTED per question in totals.wording and never marked (call 56);
+#   - the brief's Existing sacrifice and Price figures are keel-cloud's Figures (call 57);
+#   - denominators, read: calibration 11 (B2C) / 13 (B2B), 83 an N; respondent 4 / 3 / 4 on PRIMARY
+#     (B2C), 4 / 3 on PRIMARY + 6 on COMMERCIAL_B2B (B2B; 5 on Mulch Run), 82 an N; no_leak never
+#     sweeps Price or a framed Frequency (46 + 71 an N); compare 11 + 3 or 13 + 3 an entry, 104.
+# **Scores before and after this bump are not comparable**, and a v10 bundle **cannot be re-scored**
+# to v11 (call 58). **Run of record: none yet** -- there is no v11 run of record until
+# `WHY=marks:11` is spent, and that run is ON HOLD by the founder. v10's header below is history (v10
+# never had a run of record).
+#
+# MARKS_VERSION 10 (history; judgement calls 46-49, 2026-10-09; spec 030-marks-v10-deal-breakers, the
 # sibling of keel-cloud 071-deal-breakers-only). The ruler follows the registry to TWELVE
 # dimensions (4 / 3 / 5; nine deal-breakers, each of which can read NOT_HOLDING_UP; the b2b_only
 # pair commercial.ability_to_pay + commercial.purchase_friction, calibrated and asked only on a B2B
@@ -20,8 +40,7 @@
 #   - `rescore.py` refuses every v8 AND v9 bundle by name (call 49): corpus r4 carries no standing
 #     for thirteen of the dimensions a v9 bundle scored.
 # **Scores before and after this bump are not comparable**, and a v9 bundle **cannot be re-scored**
-# to v10. **Run of record: none yet** -- there is no v10 run of record until `WHY=marks:10` is
-# spent (the founder's event; `instructions/why.py`). The v9 run of record below is history.
+# to v10. v10 had no run of record; the v9 run of record below is history.
 #
 # MARKS_VERSION 9 (history; judgement calls 28-36, 2026-10-06; keel-cloud-docs
 # `canon/drafts/vector-redesign-2026-10-06/HANDOFF.md` §2, §5, §6 and `marks-v9.draft.md`; the
@@ -76,6 +95,8 @@
 # entry's calibrated set (`Registry.calibrated(b2b)`: 10 on a B2C entry, 12 on a B2B one); the
 # respondent side is `plan_keys(part, founder_calibration, link, b2b)` per job (03-lullaby: 4 / 3 / 3
 # on PRIMARY = 10; a B2B entry: 4 / 3 on PRIMARY + 5 on COMMERCIAL_B2B = 12). 76 + 76 an N on seven.
+# MARKS_VERSION 11 (calls 50, 53): 11 / 13 calibration keys, Price counted (its key is all it owes);
+# respondent 4 / 3 / 4 on PRIMARY, 6 on COMMERCIAL_B2B. 83 + 82 an N on seven.
 dimension_coverage = 1.00
 # MARKS_VERSION 9 (call 31): every question, both screens, meets every structural rule the registry
 # states -- 4-6 options mapped one-to-one and in order onto `founder.normalized.codes` (or, where
@@ -90,6 +111,7 @@ dimension_coverage = 1.00
 # call 38, orchestrator 2026-10-08, bundle 20261008T013837Z: code appends, never the model -- 'Something else', every respondent-only code the registry names and every band, scale-axis and gate option -- so a fixed-code control or the ladder owes exactly one label per remaining plan code, a set every founder label (normalised) plus 2-3 distractors, Importance 4-6 difficulties, and a band, numeric or gate control options null; v9 amended before any run of record
 # call 41, founder decision 35, 2026-10-08: scored on the ACCEPTED answer -- after the runtime's rule refusal and ONE redraw (keel-cloud 058's repair turn, mirrored), what a founder sees -- and so are dimension_coverage and no_leak on both question screens; a second refusal leaves it refused and it scores as faults on the raw answer; v9 amended before any run of record
 # call 44, orchestrator 2026-10-08, same bundle: a not-sure option is one whose WHOLE normalised label is I'm not sure / Not sure / Don't know / I don't know / Unsure / Prefer not to say, never a substring ('Not sure it would fit' is a reason; keel-cloud 058's C3 likewise); a code-appended escape row is told by its LABEL as 058 appends it, never a fixed slug (production slugs 'None of these' as none_of_these_<...>); the same WHOLE-label test finds an escape row the model wrote (Something else / None of these / Nothing yet / Nothing / the registry's escape labels, normalised), never a prefix -- 'Something else was cut or given up to cover it' is Ability to pay's scale step (barely), faulted by the prefix match in bundle 20261008T194906Z; v9 amended before any run of record
+# MARKS_VERSION 11 (calls 52-55): C7 and R8 retired; Prevalence and the gate owe an `event` clause held to E1-E3 (WindowFrame.fault, mirrored in instructions/wording.py); Frequency over a framed window owes no text (ignored if written); Price owes its key alone (options are C2); W7 (tick-all in a question), W9 (money in anything written), U1 (a kind of cost without its unit) on both screens; W3 / W8 verbatim where the corpus records short_name / offer_name (revision 5 records neither: held to none)
 option_validity = 1.00
 # MARKS_VERSION 9 (call 32): no mechanism vocabulary in a PROBLEM calibration question or a Part 1
 # respondent question, and no founder value (chosen label, belief phrase, number) in any
@@ -105,6 +127,7 @@ option_validity = 1.00
 # MARKS_VERSION 10 (call 47): read off the registry -- 03-lullaby's no_leak is 4 PROBLEM calibration questions
 # (sweep A) and 4 Part 1 respondent items swept twice (A and B), plus sweep B on its other 6 items.
 # call 45, founder decision 47, 2026-10-08, bundle 20261008T155720Z: sweep A on a PROBLEM calibration question uses keel-cloud 058's product-word list (whole-word) and the golden mechanism_terms only (single words by stem, less the registry's wording for the dimension; multi-word terms as phrases), in the question, its options and their belief phrases -- what the runtime can apply at that step -- and a hit is a fault, never judged; Part 1 respondent items keep the full derived vocabulary with the judge; judged_fraction = items judged / items with any hit, reported, never marked; v9 amended before any run of record
+# MARKS_VERSION 11 (calls 52, 53): the `event` clause is swept where the question was; Price and Frequency over a framed window are never swept (no model text a reader is shown) -- 46 sweep-A + 71 sweep-B items an N on seven, read off the registry and each entry's window
 no_leak = 1.00
 # Unchanged number (calls 5, 33): `agree / answered` over respondents who passed the gate AND did
 # not chip, with GUESSED precision and recall mandatory beside it. A respondent whose story carries
@@ -120,6 +143,7 @@ anchoring_accuracy = 0.90
 # on a B2C entry, 12 + 3 on a B2B one, 97 on seven -- read off the registry, never typed. Counts and medians are compared and REPORTED, not marked
 # (call 3's rule: a finding first). Measured on `DRY=1` too; an engine the export does not carry
 # leaves the mark unmeasured, and unmeasured is not met (call 13).
+# MARKS_VERSION 11 (calls 50, 51): Price's standing joins (ordinal_band, tolerance side; Mulch Run's LEFT_OUT) -- 11 + 3 on a B2C entry, 13 + 3 on a B2B one, 104 on seven.
 compare_correctness = 1.00
 # MARKS_VERSION 6 (judgement call 22, the founder, 2026-09-12): a rule refusal is the product
 # correcting the model -- one extra call, nothing a founder sees -- so the mark is a RATE over the
@@ -144,6 +168,7 @@ shape_refusals = 0
 # source_material -- or nothing.
 # call 42, orchestrator 2026-10-08, bundle 20261008T115552Z: coverage's observed figure for a money set -- a set dimension's money median (Existing sacrifice) is written in the founder's unit, `£165 per three months` (the currency's symbol and the period from the standing, else the one the answers' costs agree on, the currency else the market's; the price likewise as keel-cloud's `observedFigure` writes it), and a set whose money cannot be written so carries no figure and is asked for one of its own option counts as `N of M`; the founder's phrase is asked for only on a bet whose verdict is NOT_HOLDING_UP (brief.md, 'The four things the paragraph says', 2), verbatim (brief.md licenses no paraphrase); v9 amended before any run of record
 # call 41 extended by founder decision 46, 2026-10-08: BRIEF is redrawn once on a rule refusal (repairUnattended -> queueAnotherQuestionsTurn: turn one's context plus `repair`, no history, empty input), the accepted paragraph is scored, and a brief refused twice is scored on its raw paragraph as a fault, every mark missed; v9 amended before any run of record
+# MARKS_VERSION 11 (call 57): Existing sacrifice's observed figure is keel-cloud's Figures.cost ('a median £22 over three months', hours apart, never priced: the corpus records no hourly rate) and Price's is Figures.price ('5 of 8 said it would be worth £5 a month or more'); still four per-case marks -- B6 ('will pay' / 'will buy') is the aggregate's rule (rule_refusal_rate; refused twice, every mark missed, call 41)
 brief_paragraphs = 1.00
 # RETIRED at MARKS_VERSION 9 (call 29) -- see the header. Kept here struck through in a comment,
 # never as a key, so a verdict cannot carry a value for it:
@@ -153,3 +178,6 @@ brief_paragraphs = 1.00
 #   no_claim_words                (v9)
 # `judged_fraction` is reported on every run and marked on none (call 14, unchanged); at v9 it is
 # the share of `no_leak` hits the judge decided.
+# `wording` (call 56, v11) is reported on every run and marked on none: per screen, the questions with
+# model text, their words, and how many run over W1's 20 (25 with a scene), carry W2's "do you think",
+# W6's "you" on the founder's side, miss S1's scene-then-question, and how many options run over W5's 8.

@@ -1,7 +1,8 @@
 """The aggregate's own verdict on every model answer (spec 009 FR-012; spec 029 FR-024).
 
 **The rules are never re-implemented here.** The v9 templates' rule ids (`X1`..`X3`, `P1`..`P3`,
-`M1`..`M3`, `C1`..`C7`, `R1`..`R8`, `I1`, `B1`..`B5` -- screen-shapes §4) live in keel-cloud, and
+`M1`..`M3`, `C1`..`C6`, `R1`..`R7`, `I1`, `B1`..`B6`, and since keel-cloud 072 / 073 `E1`..`E3`,
+`W3`, `W7`..`W9`, `U1` -- screen-shapes §4; C7 and R8 retired) live in keel-cloud, and
 the only honest way to ask whether the aggregate would have taken a result is to hand it to the
 aggregate. So this module collects a whole run's answers into one batch and shells
 `./gradlew -q screenContracts --args="validate <batch> <report>"` **once** — one JVM start for the
@@ -157,8 +158,14 @@ def build_batch(cases_and_results) -> dict:
             entry.update(market=context.get("market"), vector=case.meta.get("vector"),
                          context=context.get("context"),
                          registry_slice=list(case.meta.get("registry_slice") or []))
+            # Call 55: the mechanism (with the short name the job was handed, else none) and the
+            # offer's name, so keel-cloud holds W3 / W8 to what the model was shown -- its Lullaby
+            # fixture carries names the corpus does not.
+            if case.meta.get("validation_mechanism") and case.meta.get("vector") != "PROBLEM":
+                entry["mechanism"] = case.meta["validation_mechanism"]
+            entry["offer_name"] = case.meta.get("offer_name")
         elif case.kind == "RESPONDENT":
-            # The same: context (and so the recall window R8 reads), market, items, founder_options
+            # The same: context (and so the recall window E1 reads), market, items, founder_options
             # and -- on parts 2 and 3 of the primary link -- the mechanism, as the job was handed
             # them; then the validator-only state the model was never shown.
             entry.update(dict(context))
@@ -171,6 +178,7 @@ def build_batch(cases_and_results) -> dict:
             # (whose "a result" refused "as a result" eight times on run 2).
             if not entry.get("mechanism") and case.meta.get("validation_mechanism"):
                 entry["mechanism"] = case.meta["validation_mechanism"]
+            entry["offer_name"] = case.meta.get("offer_name")
         elif case.kind == "READING":
             entry.update(invitation_id=context.get("invitation_id"), story=context.get("story"))
         elif case.kind == "BRIEF":

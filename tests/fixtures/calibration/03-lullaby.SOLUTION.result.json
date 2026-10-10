@@ -1,10 +1,10 @@
 {
-  "_source": "keel-cloud 062 (ff316cc) VectorFixtures.calibrationResult(SOLUTION) -- the golden the `screenContracts validate` test accepts (ScreenContractToolTest 'calibration-good'), transcribed: the registry's Lullaby examples, words only, no codes (joined by position)",
+  "_source": "keel-cloud 073 (0925484) VectorFixtures.calibrationResult(SOLUTION) -- the golden the `screenContracts validate` test accepts, transcribed (spec 031): the registry's Lullaby examples where they still pass, FOUNDER_QUESTIONS where they do not, Prevalence's `event` and no text on Frequency or Price (code frames them), Existing sacrifice's units; words only, no codes (joined by position)",
   "vector": "SOLUTION",
   "questions": [
     {
       "key": "solution.compatibility",
-      "question": "During a night-time crying episode, at what point would a parent most naturally hold the phone near the cot and let it listen?",
+      "question": "A baby is crying at night and the parent can't tell why. When would a parent look at a suggested reason for crying?",
       "options": [
         {
           "label": "Straight away, before trying anything",
@@ -31,11 +31,11 @@
     },
     {
       "key": "solution.relative_advantage",
-      "question": "Compared with how a parent copes today, what would have to be clearly more for them to prefer a suggestion from the app?",
+      "question": "What must a suggested reason for crying do better than guessing for a parent to switch?",
       "options": [
         {
           "label": "Fewer things tried before the baby settles",
-          "belief_phrase": "that fewer things tried before the baby settles"
+          "belief_phrase": "fewer things tried before the baby settles"
         },
         {
           "label": "A shorter time until the baby settles",
@@ -58,7 +58,7 @@
     },
     {
       "key": "solution.adoption_friction",
-      "question": "At 3 a.m., how much extra effort would a parent put into getting the app listening before giving up on it?",
+      "question": "In the small hours, how much extra effort would a parent accept to get a suggested reason for crying?",
       "options": [
         {
           "label": "None; it must work with the phone already in hand",

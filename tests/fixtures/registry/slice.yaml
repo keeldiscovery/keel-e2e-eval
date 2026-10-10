@@ -1,8 +1,8 @@
-# A hand-sized registry fixture (spec 030 T003; first cut spec 029 T004): the 12 keys of keel-cloud 071's
-# exported dimension-registry.json (f38ac42; {window}/{window_unit} placeholders kept) with the Lullaby values,
-# every founder.normalized, respondent.*, answers.* (less the drift templates), weight, order and the entry-level
-# b2b_only; prose notes, decisions and the worked lullaby objects dropped except the founder
-# question the register shows. Passes all eight invariants. Not a corpus entry.
+# A hand-sized registry fixture (spec 031 T003; cut at twelve by spec 030, first cut spec 029 T004): the 13 keys
+# of keel-cloud 073's exported dimension-registry.json (0925484; {window}/{window_unit} placeholders kept) with the
+# Lullaby values, every founder.normalized, respondent.*, answers.* (less the drift templates), weight, order and the
+# entry-level b2b_only; prose notes, decisions and the worked lullaby objects dropped except the founder question
+# the register shows (Price has none: its question is code's). Passes all eight invariants. Not a corpus entry.
 version: 1
 common:
   left_out:
@@ -15,7 +15,7 @@ common:
     - I'd rather not say
     numeric_extra: That's a rough guess
   something_else:
-    rule: Every closed respondent item whose belief is a SET (multi_choice, multi_choice_ladder, branch_pick_number's pick) and every single_choice built from a market-specific
+    rule: Every closed respondent item whose belief is a SET (multi_choice, multi_choice_ladder, branch_pick_amounts' pick) and every single_choice built from a market-specific
       option set ends with "Something else". Fixed scales (single_choice_5, bands, 0-to-7, yes/no) do not. "Something else" is an observation placed OUTSIDE, kept
       verbatim, never a row of its own on the answers page (spec 050).
   floor:
@@ -346,33 +346,36 @@ dimensions:
   weight: DEAL_BREAKER
   founder:
     control: multi_choice
-    guidance: 'What the problem already costs the decision-maker, as a set: money on substitutes, paid help, time, effort, risk. Always include a ''none of these''
-      code.'
+    guidance: 'What the problem already costs the decision-maker, as a set of kinds of cost: money on substitutes, paid help, staff or own time, incidents. Each kind
+      carries the unit it is counted in -- money, hours or count. Always include a ''none of these'' code.'
     normalized:
       kind: set
       codes: model_written
-      code_rule: 4–6 slug codes for this market (e.g. apps_subscriptions, gadgets, paid_help, work_sacrifice, medical_visits) plus the fixed code none ('None of these;
-        they cope with what they have'); ordered as presented.
-    option_rule: 4–6 options, each one kind of sacrifice, each with a belief phrase; ticked phrases joined with 'and'.
+      code_rule: 4–6 slug codes for this market (e.g. apps_subscriptions, gadgets, paid_help, staff_hours, medical_visits), each option with a unit -- money (paid
+        in the market's currency), hours (time spent) or count (incidents, times it happened) -- plus the fixed code none ('None of these; they cope with what they
+        have'), which has no unit; ordered as presented.
+    option_rule: '4–6 options, each one kind of sacrifice with its unit (money | hours | count), each with a belief phrase; ticked phrases joined with ''and''. No
+      amount and no currency in any label: code renders every amount.'
     belief_template: Because of this, {actor_plural} already give up {value}.
     unsure_allowed: true
   respondent:
     part: 3
     anchor: last_purchase
-    control: branch_pick_number
-    guidance: Think of the last thing you paid for or gave up because of this. Pick what (founder's codes + 'Nothing'), then roughly how much, all together, in the
-      last three months (money, market currency), then 'still using it?' yes/no. Never the founder's set.
-    option_rule: 'Pick: founder''s labels verbatim + 2–3 distractors + ''Nothing'' + ''Something else'' (both code-appended); number: currency amount; follow-up:
-      Yes / No.'
+    control: branch_pick_amounts
+    guidance: 'Step 1: in the last three months, what did this cost you -- tick every kind (founder''s kinds + 2–3 distractors, each with its unit; ''Nothing'' and
+      ''Something else'' code-appended). Step 2: one field per kind ticked, in that kind''s unit -- money in the market currency, hours, or a count -- rendered by
+      code. Never the founder''s set; the model writes no amount.'
+    option_rule: 'Pick: founder''s labels verbatim + 2–3 distractors, each distractor with its unit (money | hours | count) + ''Nothing'' + ''Something else'' (both
+      code-appended); amounts: one per ticked kind, in its unit, code-rendered.'
     chips:
     - I can't recall
     - I'd rather not say
     - That's a rough guess
     b2b:
       anchor: last_cycle
-      guidance: 'What the last cycle of this problem actually cost the team: pick the kinds of cost, then roughly how much in money or hours. The decision-maker sees
-        no context card and nothing of what the specialists said.'
-      option_rule: Founder's codes + 'Nothing' + 'Something else'; number in currency or hours.
+      guidance: 'What the last three months of this problem actually cost the team: tick the kinds of cost, then one amount per kind in its unit (money, hours or
+        a count). The decision-maker sees no context card and nothing of what the specialists said.'
+      option_rule: Founder's codes + 2–3 distractors (each with its unit) + 'Nothing' + 'Something else'; one amount per ticked kind, in its unit.
   answers:
     shape: choice
     compare_rule: set_overlap
@@ -385,42 +388,92 @@ dimensions:
     - LEFT_OUT
     floor: 5
   lullaby:
-    founder_question: Which of these have parents of babies under six months already paid for or given up because of the night crying? Pick all that apply.
-- key: commercial.ability_to_pay
+    founder_question: What have parents of babies under six months already paid for or given up because of the night crying?
+- key: commercial.price
   vector: COMMERCIAL
   order: 2
+  name: Price
+  meaning: What the payer would give for the offer, read against what the problem already costs them.
+  weight: SHAPES
+  founder:
+    control: price_range
+    guidance: 'The price the founder has in mind, as a range in the market''s currency and a period (a month, a year, a one-off), entered on the commercial step and
+      rendered by code. The model writes no question text and no money for this entry: code asks it from the offer''s name.'
+    normalized:
+      kind: price_range
+      periods:
+      - month
+      - year
+      - one_off
+    option_rule: 'No options: two numbers in the market''s currency (low at least 1, under 10,000) and a period. ''No price yet'' is the not-sure chip: Price is left
+      out.'
+    belief_template: The payer would think it worth {value}.
+    unsure_allowed: true
+  respondent:
+    part: 3
+    anchor: last_purchase
+    control: price_ladder
+    guidance: 'Asked of whoever pays. Code writes the question -- ''What would {offer_name} be worth to you {period}?'' -- the anchor line from the respondent''s
+      own Existing sacrifice amounts (money, plus hours on a B2B study; never counts; left out when there is none), and the options: five consecutive bands of the
+      currency''s fixed 1-2-5 ladder that put the founder''s band in the middle three, plus ''I wouldn''t pay for this''. The model writes nothing for this item and
+      never shows the founder''s range.'
+    option_rule: 'Code''s: five bands of the ladder 1 · 2 · 5 · 10 · 20 · 50 · 100 · 250 · 500 · 1,000 · 2,500 · 5,000 · 10,000 in the market''s currency, the founder''s
+      band in the middle three, + ''I wouldn''t pay for this'' (outside, lower). No ''Something else''.'
+    chips:
+    - I can't say
+    - I'd rather not say
+    b2b:
+      anchor: last_purchase
+      guidance: 'The same item on the decision-maker''s link: the anchor line names money and hours (hours are the team''s time); the question and the bands are code''s.'
+      option_rule: 'Code''s: the five bands + ''I wouldn''t pay for this''.'
+  answers:
+    shape: choice
+    compare_rule: ordinal_band
+    status_vocabulary:
+    - HOLDING_UP
+    - NOT_HOLDING_UP
+    - PEOPLE_DISAGREE
+    - TOO_FEW_TO_CALL
+    - NOT_ASKED_YET
+    - LEFT_OUT
+    floor: 5
+  lullaby: {}
+- key: commercial.ability_to_pay
+  vector: COMMERCIAL
+  order: 3
   name: Ability to pay
   meaning: Whether the buyer has accessible personal or organizational budget at the relevant price level.
   weight: SHAPES
   b2b_only: true
   founder:
     control: single_choice
-    guidance: 'Whether the decision-maker could find the money: an ordered four-point scale on budget fit, independent of desire. No mixed options.'
+    guidance: 'Re-anchored to the last comparable purchase (price-design.md §8.2): when a company like this last paid for something for this problem, where did the
+      money come from -- an ordered four-point scale from an existing budget line to no budget at all. No mixed options.'
     normalized:
       kind: ordinal
       codes:
-      - easily
-      - without_cutting_back
-      - with_a_trade_off
-      - barely
-    option_rule: Exactly 4 options in order onto the codes; each a one-line budget scenario; each with a belief phrase.
-    belief_template: They could find the money for it {value}.
+      - existing_line
+      - new_line_signed_off
+      - taken_from_other_spend
+      - no_budget
+    option_rule: Exactly 4 options in order onto the codes, easiest to hardest; each a one-line account of where the money came from; each with a belief phrase.
+    belief_template: The money for it would come {value}.
     unsure_allowed: true
   respondent:
     part: 3
     anchor: last_purchase
     control: single_choice
-    guidance: 'When you last paid for something because of this, where did the money come from and did it mean skipping something else: the same four steps plus ''it
-      was free or a gift''.'
+    guidance: 'When you last paid for something for this problem, where did the money come from: the same four steps, easiest to hardest, plus ''it was free or a
+      gift''.'
     option_rule: Founder's 4 codes in order + 'It was free or a gift' (escape, counts nothing). No 'Something else'.
     chips:
     - I can't recall
     - I'd rather not say
     b2b:
       anchor: last_purchase
-      guidance: 'Where the budget for the last comparable purchase came from: existing line, a new line that needed sign-off, squeezed from elsewhere, or there was
-        none.'
-      option_rule: 4 ordered options mirroring the codes (existing line · new line approved · squeezed from elsewhere · no budget found) + 'It was free'.
+      guidance: 'Where the budget for the last comparable purchase came from: an existing line, a new line that needed sign-off, taken from other spend, or there
+        was none.'
+      option_rule: 4 ordered options mirroring the codes (existing line · new line signed off · taken from other spend · no budget) + 'It was free'.
   answers:
     shape: choice
     compare_rule: ordinal_band
@@ -433,10 +486,10 @@ dimensions:
     - LEFT_OUT
     floor: 5
   lullaby:
-    founder_question: For a baby-related purchase that helps with nights, how easily could most parents find room in their budget?
+    founder_question: When a family last paid for something that helps at night, where did the money come from?
 - key: commercial.buyer_payer_alignment
   vector: COMMERCIAL
-  order: 3
+  order: 4
   name: Buyer / payer alignment
   meaning: Whether the user, beneficiary, decision maker, approver, and payer are the same person or a workable chain.
   weight: DEAL_BREAKER
@@ -483,7 +536,7 @@ dimensions:
     founder_question: When a parent decides to try something new for the baby's nights, who actually pays for it?
 - key: commercial.purchase_friction
   vector: COMMERCIAL
-  order: 4
+  order: 5
   name: Purchase friction
   meaning: The approvals, procurement, account setup, switching, security, spouse/manager agreement, or other steps between interest and purchase.
   weight: SHAPES
@@ -528,7 +581,7 @@ dimensions:
     founder_question: Which of these would most likely slow down or stop a parent between hearing about the app and actually paying for it? Pick all that apply.
 - key: commercial.commitment
   vector: COMMERCIAL
-  order: 5
+  order: 6
   name: Commitment
   meaning: The meaningful actions the person is willing to take before purchase, such as time, installation, data access, referral, deposit, or trial participation.
   weight: DEAL_BREAKER

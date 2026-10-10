@@ -26,8 +26,21 @@ added to this line rather than quietly written — which is exactly how the thir
   reads *green at the current `MARKS_VERSION`*, so a rubric that moved has no run of record at all
   until one is spent, and a screen is one entry and cannot be one. The policy widened by one named
   event, in the open, which is the amendment shape this document asks for — it did not loosen.
-  **`MARKS_VERSION` 10** (spec `030-marks-v10-deal-breakers`, 2026-10-09) is the gate as written,
-  and **there is no run of record until `WHY=marks:10` is spent**. keel-cloud 071 cut the registry
+  **`MARKS_VERSION` 11** (spec `031-window-frame-and-price`, 2026-10-09) is the gate as written,
+  and **there is no run of record until `WHY=marks:11` is spent — that run is on hold by the
+  founder; never run or propose it**. keel-cloud 072 (the window frame) and 073 (Price), on the
+  stacked branch `073-price`, moved the subjects' words; the ruler follows (judgement calls 50-58):
+  the registry at thirteen (4 / 3 / 6, Price back as SHAPES over `month · year · one_off`), corpus
+  revision 5 (a founder price per entry, amounts by unit; an r4 file refused as v10's), Prevalence
+  and the gate read as an `event` clause held to E1-E3 with C7 / R8 retired, Price code's on both
+  sides and never swept, W7 / W9 / U1 structural and W3 / W8 held only to a name the corpus records
+  (every r5 entry records both since 073 `ed581f8`), S1 / W1 / W2 / W5 / W6 reported and never marked (`instructions/wording.py`
+  mirrors keel-cloud's `WindowFrame` and `Wording`), the brief's two commercial figures keel-cloud's
+  own, and `rescore.py` refusing every bundle below 11. `DRY=1` against keel-cloud 073 measures
+  `compare_correctness` 104 of 104 and prints every other mark's denominator. What follows is v10's
+  account, history since 2026-10-09 (never run).
+  **`MARKS_VERSION` 10** (spec `030-marks-v10-deal-breakers`, 2026-10-09) was the gate as written,
+  and had no run of record before v11 superseded it. keel-cloud 071 cut the registry
   to twelve dimensions (4 / 3 / 5, nine deal-breakers that can each fail, the `b2b_only` pair) and
   the corpus to revision 4; the ruler follows (judgement calls 46-49): eight invariants, every
   denominator read off the registry and the entry's persona (calibration 10 on B2C, 12 on B2B;

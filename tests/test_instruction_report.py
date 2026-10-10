@@ -1,4 +1,4 @@
-"""`register.html` at `MARKS_VERSION` 10 (spec 029 FR-022, contracts/screen-shapes.md §7; T033, T041;
+"""`register.html` at `MARKS_VERSION` 11 (spec 029 FR-022, contracts/screen-shapes.md §7; T033, T041;
 spec 030 call 47: the calibrated set and the plan per link).
 
 The one page with no number on it. Per entry: the three interpretations, verbatim, marked only
@@ -94,12 +94,12 @@ def test_the_respondent_block_sits_beside_the_plan_with_the_reveal_between_parts
         "03-lullaby/RESPONDENT_B2B/run1", fx.respondent_result(entry, 3, link="COMMERCIAL_B2B"))
     blocks = report_mod.register_blocks(corpus, produced, fx.registry(), _AGGREGATE)
     block = blocks["GB · en-GB"]["03-lullaby"]
-    assert len(block["respondent"]) == sum(len(keys) for keys in entry.plan().values()) == 10
+    assert len(block["respondent"]) == sum(len(keys) for keys in entry.plan().values()) == 11
     gate = block["respondent"][0]
     assert (gate["key"], gate["part"], gate["control"], gate["codes"]) == (
         "problem.prevalence", 1, "gate_yes_no", ["yes", "no"])
     assert block["reveal"]["title"] == "What we are testing"
-    assert len(block["b2b"]) == 3
+    assert len(block["b2b"]) == 4
 
     html = _visible(report_mod.render_register(tmp_path, entries_by_market=blocks,
                                                paragraphs={}).read_text(encoding="utf-8"))

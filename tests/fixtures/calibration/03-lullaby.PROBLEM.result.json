@@ -1,10 +1,10 @@
 {
-  "_source": "keel-cloud 062 (ff316cc) VectorFixtures.calibrationResult(PROBLEM) -- the golden the `screenContracts validate` test accepts (ScreenContractToolTest 'calibration-good'), transcribed: the registry's Lullaby examples, words only, no codes (joined by position)",
+  "_source": "keel-cloud 073 (0925484) VectorFixtures.calibrationResult(PROBLEM) -- the golden the `screenContracts validate` test accepts, transcribed (spec 031): the registry's Lullaby examples where they still pass, FOUNDER_QUESTIONS where they do not, Prevalence's `event` and no text on Frequency or Price (code frames them), Existing sacrifice's units; words only, no codes (joined by position)",
   "vector": "PROBLEM",
   "questions": [
     {
       "key": "problem.prevalence",
-      "question": "Out of 10 parents of babies under six months, how many do you think had a night in the last 7 nights when the baby cried and they had to decide what to try?",
+      "event": "had to work out why their baby was crying",
       "options": [
         {
           "label": "Fewer than 2 in 10",
@@ -31,7 +31,6 @@
     },
     {
       "key": "problem.frequency",
-      "question": "In a typical week, on how many nights out of 7 do you think a parent is woken by a cry and has to work out what the baby needs?",
       "respondent_note": "Respondents will be asked about their own last episode, never this."
     },
     {

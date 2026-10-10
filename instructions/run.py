@@ -216,27 +216,32 @@ def denominators(cases) -> dict:
     read off the cases the registry and the entries built (`registry_slice`, `plan`), never typed.
     A dry run has no answer to score, so `dimension_coverage`, `option_validity` and `no_leak` stay
     unmeasured there (call 13); what it can show, and does, is the denominator each would have.
-    Calibration and respondent count one a dimension (coverage and validity alike); `sweep_a` is
-    the PROBLEM calibration questions and the PRIMARY Part 1 items, `sweep_b` every respondent
-    item."""
+    Calibration and respondent count one a dimension (coverage and validity alike, Price
+    included); `sweep_a` is the PROBLEM calibration questions and the PRIMARY Part 1 items,
+    `sweep_b` every respondent item -- each only where the model wrote text a reader is shown
+    (calls 52, 53: never Price, never Frequency over a framed window; the case's `swept`). And the
+    names W3 / W8 are held to (call 55): the corpus's, else none."""
     out = {}
     for case in cases:
         if case.run_index != 1 or case.kind not in ("CALIBRATION", "RESPONDENT"):
             continue
         row = out.setdefault(case.entry_id, {"calibration": 0, "respondent": {}, "sweep_a": 0,
-                                             "sweep_b": 0})
+                                             "sweep_b": 0, "short_name": None,
+                                             "offer_name": None})
+        row["short_name"] = case.meta.get("short_name")
+        row["offer_name"] = case.meta.get("offer_name")
+        swept = len(case.meta.get("swept") or [])
         if case.kind == "CALIBRATION":
-            count = len(case.meta.get("registry_slice") or [])
-            row["calibration"] += count
+            row["calibration"] += len(case.meta.get("registry_slice") or [])
             if case.meta.get("vector") == "PROBLEM":
-                row["sweep_a"] += count
+                row["sweep_a"] += swept
             continue
         count = len(case.meta.get("plan") or [])
         link = case.meta.get("link") or corpus_mod.LINK_PRIMARY
         row["respondent"][link] = row["respondent"].get(link, 0) + count
-        row["sweep_b"] += count
+        row["sweep_b"] += swept
         if case.meta.get("part") == 1 and link == corpus_mod.LINK_PRIMARY:
-            row["sweep_a"] += count
+            row["sweep_a"] += swept
     return out
 
 
@@ -334,8 +339,12 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
     print(f"compare_correctness: {compare_line} · every model mark unmeasured · passed: false")
     for entry_id, row in scorecard["denominators"].items():
         links = " + ".join(f"{n} {link}" for link, n in row["respondent"].items())
+        names = (f"W3 held to {row.get('short_name')!r}" if row.get("short_name")
+                 else "W3 held to no name") + " · " + (
+            f"W8 held to {row.get('offer_name')!r}" if row.get("offer_name")
+            else "W8 held to no name")
         print(f"  {entry_id:<20} calibration {row['calibration']} · respondent {links} · "
-              f"no_leak sweep A {row['sweep_a']} + sweep B {row['sweep_b']}")
+              f"no_leak sweep A {row['sweep_a']} + sweep B {row['sweep_b']} · {names}")
     print(_denominator_line(scorecard["denominators"]))
     print(f"rough estimate at ${COST_PER_CASE_ESTIMATE_USD:.2f} a case: "
           f"${len(model_cases) * COST_PER_CASE_ESTIMATE_USD:.2f} of the founder's own money")

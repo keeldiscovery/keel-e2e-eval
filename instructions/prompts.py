@@ -175,6 +175,7 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
     from . import compare as compare_mod             # noqa: PLC0415 - avoids a circular import
     from . import context as context_mod              # noqa: PLC0415
     from . import contract as c                        # noqa: PLC0415
+    from . import score as score_mod                   # noqa: PLC0415
 
     registry = getattr(exported, "registry", None) or entry.registry
     cases = []
@@ -207,6 +208,15 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
             meta={"vector": vector,
                   "registry_slice": [d.key for d in registry.calibrated_slice(vector,
                                                                               entry.b2b())],
+                  # Calls 52, 53: the keys whose model text a reader is shown, so `no_leak`'s
+                  # denominator is read, never typed, on a dry run too.
+                  "swept": [d.key for d in registry.calibrated_slice(vector, entry.b2b())
+                            if score_mod.is_swept(d, context_mod.window_of(entry))],
+                  # Call 55: the names W3 / W8 hold to -- the corpus's, else none -- and the
+                  # mechanism the validator holds them with (never its Lullaby fixture's).
+                  "short_name": context_mod.short_name_of(entry),
+                  "offer_name": context_mod.offer_name_of(entry),
+                  "validation_mechanism": context_mod.validation_mechanism(entry),
                   "validation_problem_statement": context_mod.problem_statement(entry)})
 
     # Respondent: one job a part on its own link, handed the plan the eval derived (calls 30, 47) --
@@ -220,6 +230,10 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
         add(f"{entry.id}/RESPONDENT_{label}", "RESPONDENT", c.SCREEN_RESPONDENT, label,
             context_mod.build_respondent(entry, part, plan, registry, keys, link=link),
             meta={"part": part, "link": link, "plan": list(plan[part]),
+                  "swept": [k for k in plan[part]
+                            if score_mod.is_swept(registry.by_key(k), context_mod.window_of(entry))],
+                  "short_name": context_mod.short_name_of(entry),
+                  "offer_name": context_mod.offer_name_of(entry),
                   "founder_values": context_mod.founder_values(entry, plan[part]),
                   "validation_mechanism": context_mod.validation_mechanism(entry),
                   "validation_problem_statement": context_mod.problem_statement(entry)})

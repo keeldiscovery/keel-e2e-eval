@@ -125,32 +125,56 @@ def problem_statement(entry) -> str | None:
     return (entry.interpretations or {}).get("problem")
 
 
+def short_name_of(entry) -> str | None:
+    """The idea's one short name (W3, call 55): the corpus's `solution_mechanism.short_name`, or
+    `None` where an entry records none; the eval never takes it from a live screen's answer."""
+    name = (entry.solution_mechanism or {}).get("short_name")
+    return name if isinstance(name, str) and name.strip() else None
+
+
+def offer_name_of(entry) -> str | None:
+    """The offer's one problem-side name (W8, call 55): the corpus's `interpretations.offer_name`,
+    or `None` where an entry records none."""
+    name = (entry.interpretations or {}).get("offer_name")
+    return name if isinstance(name, str) and name.strip() else None
+
+
 def mechanism_of(entry) -> dict:
-    """The golden `SOLUTION_MECHANISM` answer r3 records, as keel-cloud 058 hands it on: the four
-    fields and the terms (`mechanismForRespondents`), never `not_assumed` -- the claims it stripped."""
+    """The golden `SOLUTION_MECHANISM` answer r3 records, as keel-cloud hands it on: the four
+    fields, the terms (`mechanismForRespondents`) and since 072 the `short_name` (the corpus's, else
+    `null`, call 55), never `not_assumed` -- the claims it stripped."""
     m = entry.solution_mechanism or {}
-    return {k: m.get(k) for k in ("actor", "trigger", "mechanism", "output", "mechanism_terms")}
+    out = {k: m.get(k) for k in ("actor", "trigger", "mechanism", "output", "mechanism_terms")}
+    out["short_name"] = short_name_of(entry)
+    return out
 
 
 def validation_mechanism(entry) -> dict:
-    """The golden mechanism as the VALIDATOR's state only -- the four fields, `not_assumed` and
-    the terms, so keel-cloud 058 applies R4 with the project's real vocabulary on a Part 1 (or
-    B2B) entry, whose job is handed no mechanism. Never in a prompt context."""
+    """The golden mechanism as the VALIDATOR's state only -- the four fields, `not_assumed`, the
+    terms and the short name the job was handed, so keel-cloud applies R4 with the project's real
+    vocabulary on a Part 1 (or B2B) entry, whose job is handed no mechanism, and W3 to no name the
+    job was not given (its Lullaby fixture carries one). Never in a prompt context."""
     m = entry.solution_mechanism or {}
-    return {k: m.get(k) for k in ("actor", "trigger", "mechanism", "output", "not_assumed",
-                                  "mechanism_terms")}
+    out = {k: m.get(k) for k in ("actor", "trigger", "mechanism", "output", "not_assumed",
+                                 "mechanism_terms")}
+    out["short_name"] = short_name_of(entry)
+    return out
 
 
 def interpretation_of(entry, vector: str):
-    """keel-cloud 058's calibration `interpretation` (T002): the problem statement alone on PROBLEM
-    -- no solution key exists in that job -- the mechanism card on SOLUTION, `null` on COMMERCIAL.
-    058 composes the card's `statement` from the four fields (`Mechanism.compose`); this eval keeps
-    no copy of that, so it hands the founder's solution seed instead and says so."""
+    """keel-cloud's calibration `interpretation` (058 T002; 071; 072): the problem statement alone on
+    PROBLEM -- no solution key exists in that job -- the mechanism card on SOLUTION (with its
+    `short_name`), and on COMMERCIAL the persona map `{summary, decider_role, b2b, offer_name}`
+    (call 55). 058 composes the card's `statement` from the four fields (`Mechanism.compose`); this
+    eval keeps no copy of that, so it hands the founder's solution seed instead and says so. The
+    corpus records no persona summary, so it is `null`; the decider is the role's label."""
     if vector == "PROBLEM":
         return {"statement": problem_statement(entry)}
     if vector == "SOLUTION":
         return {"statement": (entry.statements or {}).get("solution"), **mechanism_of(entry)}
-    return None
+    role = entry.role(entry.decision_maker_role()) if entry.b2b() else None
+    return {"summary": None, "decider_role": (role or {}).get("label"), "b2b": entry.b2b(),
+            "offer_name": offer_name_of(entry)}
 
 
 def invitation_id(entry, person) -> str:
@@ -308,9 +332,15 @@ def build_respondent(entry, part: int, plan: dict | None = None, registry=None, 
     }
     if part in (2, 3) and link != LINK_B2B:
         values["mechanism"] = mechanism_of(entry)
+    if part == 3:
+        # keel-cloud 072 (W8): part 3 on either link names the offer by its own key -- written only
+        # where the export's key list carries `offer_name` (the exporter decides the keys).
+        values["offer_name"] = offer_name_of(entry)
     out = {}
     for key in keys:
         if key == "mechanism" and (part == 1 or link == LINK_B2B):
+            continue
+        if key == "offer_name" and part != 3:           # 072: part 3 only, on either link
             continue
         out[key] = values.get(key)
     return out
@@ -366,6 +396,53 @@ def is_set(entry, key: str, standing: dict) -> bool:
     return isinstance(answer, list) or bool(standing.get("optionCounts"))
 
 
+def _money(value) -> str:
+    """`PriceLadder.money` after `Figures.round` (HALF_UP to a whole unit): 2500 -> "2,500"."""
+    from decimal import ROUND_HALF_UP, Decimal                        # noqa: PLC0415
+    whole = int(Decimal(str(value)).quantize(Decimal(1), rounding=ROUND_HALF_UP))
+    return f"{whole:,}"
+
+
+def _hours(value) -> str:
+    """`Figures.number`: one decimal at most, a whole number bare."""
+    from decimal import ROUND_HALF_UP, Decimal                        # noqa: PLC0415
+    one = Decimal(str(value)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+    return str(int(one)) if one == one.to_integral() else str(one)
+
+
+def currency_of(entry) -> str | None:
+    """The project's currency: the market's (keel-cloud 073 `Market.currency`), never guessed."""
+    return MARKET_CURRENCY.get((entry.market or {}).get("country"))
+
+
+def cost_figure(entry, standing: dict) -> str | None:
+    """Call 57: `Figures.cost`'s shape with no hourly rate (the corpus records none, so hours are
+    never priced): *a median £22 over three months*, the hours median apart (*; 11 hours*, or *a
+    median 11 hours* with no money). `None` where the standing carries neither."""
+    money, hours = standing.get("median"), standing.get("hours_median")
+    symbol = CURRENCY_SYMBOL.get(currency_of(entry) or "", f"{currency_of(entry)} ")
+    parts = []
+    if money is not None:
+        parts.append(f"a median {symbol}{_money(money)} over three months")
+    if hours is not None:
+        parts.append(("" if parts else "a median ") + f"{_hours(hours)} hours")
+    return "; ".join(parts) or None
+
+
+def price_figure(entry, standing: dict) -> str | None:
+    """Call 57: `Figures.price` -- *{inside} of {n} said it would be worth {floor} {period} or
+    more*; `None` before anyone is counted or where the founder left Price out."""
+    from .corpus import price_floor                                   # noqa: PLC0415
+    answer = (entry.founder_calibration.get("commercial.price") or {}).get("answer")
+    if not isinstance(answer, dict) or not standing.get("n") or standing.get("inside") is None:
+        return None
+    symbol = CURRENCY_SYMBOL.get(answer.get("currency"), f"{answer.get('currency')} ")
+    period = {"month": "a month", "year": "a year", "one_off": "as a one-off"}.get(
+        answer.get("period"), "")
+    return (f"{standing['inside']} of {standing['n']} said it would be worth {symbol}"
+            f"{_money(price_floor(answer['low']))}" + (f" {period}" if period else "") + " or more")
+
+
 def _money_of(entry, key: str, standing: dict) -> tuple[str | None, str | None]:
     """The currency and the period a set's money median is in: the standing's own, else the one
     every answer's `cost` agrees on (the median is taken over them), the currency else the
@@ -393,7 +470,15 @@ def observed_of(entry, key: str, standing: dict) -> str | None:
     a bare *165* is a number nobody can quote. It is written in the founder's unit -- *£165 per
     three months*, the currency's symbol and the period from the standing, else from the answers
     the median was taken over -- and a set whose money cannot be written so is `None`: the check
-    then asks for its option counts (`N of M`), which is what such a paragraph can say."""
+    then asks for its option counts (`N of M`), which is what such a paragraph can say.
+
+    **Call 57 (v11)** supersedes call 42 on the two commercial figures keel-cloud 073 writes itself:
+    Existing sacrifice's is `cost_figure` (*a median £22 over three months*) and Price's
+    `price_figure` (*5 of 8 said it would be worth £5 a month or more*)."""
+    if key == "commercial.existing_sacrifice":
+        return cost_figure(entry, standing)                          # call 57
+    if key == "commercial.price":
+        return price_figure(entry, standing)                         # call 57
     median = standing.get("median")
     if median is None:
         return None

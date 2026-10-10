@@ -1,5 +1,5 @@
 """`instructions/rescore.py` across the bumps (spec 029 FR-004, SC-004, research R11; T021; spec 030
-FR-004, SC-002, judgement call 49).
+FR-004, SC-002, judgement call 49; spec 031 SC-002, judgement call 58).
 
 A v8 bundle holds answers to screens v9 does not have, scored against a corpus revision 3 no longer
 carries; a v9 bundle answered the registry of twenty-five, and corpus revision 4 does not carry
@@ -65,8 +65,23 @@ def test_a_v9_bundle_is_refused_by_name_and_left_untouched(tmp_path, capsys, mon
     assert rescore_mod.main([str(bundle)]) == 2
     said = capsys.readouterr().err
     assert "20261008T000000Z-instructions was scored at marks_version 9" in said
-    assert "a v9 scorecard cannot be re-scored at v10" in said
+    assert "a v9 scorecard cannot be re-scored at v11" in said
     assert "corpus r4 does not carry what it measured" in said
+    assert _digests(bundle) == before, "nothing in a refused bundle is touched"
+
+
+def test_a_v10_bundle_is_refused_by_name_and_left_untouched(tmp_path, capsys, monkeypatch):
+    """Spec 031 SC-002, call 58: a v10 bundle answered with no Price, no units and the window in
+    the model's own words -- one line, by name, before the corpus is reached."""
+    bundle = _bundle(tmp_path, version=10)
+    before = _digests(bundle)
+    monkeypatch.setattr(rescore_mod, "load_config",
+                        lambda: (_ for _ in ()).throw(AssertionError("the corpus was reached")))
+    assert rescore_mod.main([str(bundle)]) == 2
+    said = capsys.readouterr().err
+    assert "20261008T000000Z-instructions was scored at marks_version 10" in said
+    assert "a v10 scorecard cannot be re-scored at v11" in said
+    assert "no Price, no units and the window in the model's own words" in said
     assert _digests(bundle) == before, "nothing in a refused bundle is touched"
 
 
@@ -85,7 +100,7 @@ def test_a_current_bundle_is_rescored_beside_and_never_over(tmp_path, monkeypatc
     assert rescore_mod.main([str(bundle), "--no-judge"]) == 0
     assert (bundle / "scorecard.json").read_bytes() == original, "never over"
     written = json.loads((bundle / f"scorecard-v{marks_mod.MARKS_VERSION}.json").read_text())
-    assert written["marks_version"] == written["rescored_from"] == marks_mod.MARKS_VERSION == 10
+    assert written["marks_version"] == written["rescored_from"] == marks_mod.MARKS_VERSION == 11
     assert written["totals"]["compare_measured"] is False, \
         "a bundle with no engine input re-measures no compare"
     assert "re-scored" in capsys.readouterr().out

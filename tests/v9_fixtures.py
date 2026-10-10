@@ -23,14 +23,14 @@ from instructions import registry as registry_mod
 FIXTURES = Path(__file__).parent / "fixtures"
 SLICE = FIXTURES / "registry" / "slice.yaml"
 BROKEN = FIXTURES / "registry" / "broken"
-ENTRY = FIXTURES / "corpus" / "09-fixture-r4.yaml"
-ENTRY_B2B = FIXTURES / "corpus" / "10-fixture-r4-b2b.yaml"
+ENTRY = FIXTURES / "corpus" / "09-fixture-r5.yaml"
+ENTRY_B2B = FIXTURES / "corpus" / "10-fixture-r5-b2b.yaml"
 COMPARE = FIXTURES / "compare"
 V8_BUNDLE = FIXTURES / "runs" / "v8-bundle"
 
-#: Why a test reading keel-cloud's canon corpus skips: the canon is not at revision 4 yet (call 49 --
-#: there is no fixture fallback any more; keel-cloud 071 carries revision 4).
-CANON_NOT_R4 = ("keel-cloud's canon corpus is not at revision 4 (keel-cloud 071) -- spec 030 reads "
+#: Why a test reading keel-cloud's canon corpus skips: the canon is not at revision 5 yet (calls 49, 51 --
+#: there is no fixture fallback any more; keel-cloud 073 carries revision 5).
+CANON_NOT_R5 = ("keel-cloud's canon corpus is not at revision 5 (keel-cloud 073) -- spec 031 reads "
                 "the corpus from keel-cloud's canon and nowhere else (judgement call 49)")
 
 
@@ -41,7 +41,7 @@ def canon_dir() -> Path:
 
 
 def canon_entry(name: str) -> Path:
-    """One of keel-cloud's revision-4 entries (`03-lullaby.yaml`...), or a skip naming why."""
+    """One of keel-cloud's revision-5 entries (`03-lullaby.yaml`...), or a skip naming why."""
     import pytest                                                     # noqa: PLC0415
     path = canon_dir() / name
     try:
@@ -49,7 +49,7 @@ def canon_entry(name: str) -> Path:
     except (OSError, AttributeError, yaml.YAMLError):
         revision = None
     if revision != corpus_mod.REVISION:
-        pytest.skip(CANON_NOT_R4)
+        pytest.skip(CANON_NOT_R5)
     return path
 
 
@@ -70,7 +70,7 @@ def raw_entry(path=ENTRY) -> dict:
     return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
 
 
-def write_entry(tmp_path, raw: dict, name="09-fixture-r4.yaml") -> Path:
+def write_entry(tmp_path, raw: dict, name="09-fixture-r5.yaml") -> Path:
     path = Path(tmp_path) / name
     path.write_text(yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     return path
@@ -147,12 +147,14 @@ def calibration_question(dimension, *, b2b=False) -> dict:
     """A question that meets every §2.2 rule for `dimension` -- the green half every red half of
     `tests/test_instruction_score.py` mutates by one thing."""
     from instructions import score as score_mod                       # noqa: PLC0415
-    text = f"About {dimension.name.lower()}: what do you believe, for the people you mean?"
-    if dimension.key == "problem.prevalence":
-        text = "Out of 10, how many had this at least once in the last 7 nights?"
-    if dimension.founder_numeric:
-        return {"key": dimension.key, "question": text, "options": None,
-                "respondent_note": "asked as a number"}
+    text = f"About {dimension.name.lower()}: what is true for the people meant?"
+    if dimension.founder_price:                         # call 53: the key and the note, no more
+        return {"key": dimension.key, "respondent_note": "asked of whoever pays"}
+    if dimension.founder_numeric:                       # call 52: framed on 7 nights, no text
+        return {"key": dimension.key, "options": None, "respondent_note": "asked as a number"}
+    head = {"key": dimension.key, "question": text}
+    if dimension.key == "problem.prevalence":           # call 52: the event clause, no question
+        head = {"key": dimension.key, "event": "could not find their keys on the way out"}
     codes = dimension.fixed_codes
     if codes is None:
         codes = score_mod._ladder_codes(dimension, b2b) or ["first_kind", "second_kind",
@@ -162,8 +164,11 @@ def calibration_question(dimension, *, b2b=False) -> dict:
     options = [{"label": f"Option {i} for this", "normalized": code,
                 "belief_phrase": f"the {code.replace('_', ' ')} answer"}
                for i, code in enumerate(codes, start=1)]
-    return {"key": dimension.key, "question": text, "options": options,
-            "respondent_note": "asked of the stranger in their own words"}
+    if dimension.key == "commercial.existing_sacrifice":              # call 54: U1
+        for option in options:
+            if option["normalized"] != "none":
+                option["unit"] = "money"
+    return {**head, "options": options, "respondent_note": "asked of the stranger in their own words"}
 
 
 def calibration_result(registry, vector, *, b2b=False) -> dict:
@@ -190,9 +195,12 @@ def respondent_item(entry, key, *, label_only=False) -> dict:
     row = entry.respondent_questions[key]
     item = {"key": key, "question": f"Thinking about that time: {key.split('.')[1].replace('_', ' ')}?"}
     from instructions.registry import GATE_CONTROL, NUMERIC_RESPONDENT_CONTROLS  # noqa: PLC0415
-    if row["control"] in NUMERIC_RESPONDENT_CONTROLS + (GATE_CONTROL,):
-        item["options"] = None
-        return item
+    if row["control"] == "price_ladder":                # call 53: code's whole item
+        return {"key": key}
+    if row["control"] == GATE_CONTROL:                  # call 52: the event clause
+        return {"key": key, "event": "lose your keys on the way out", "options": None}
+    if row["control"] in NUMERIC_RESPONDENT_CONTROLS:   # call 52: framed on 7 nights, no text
+        return {"key": key, "options": None}
     dimension = entry.registry.by_key(key)
     is_set = (dimension.fixed_codes is None and not dimension.founder_numeric
               and row["control"] != "multi_choice_ladder")
@@ -205,6 +213,8 @@ def respondent_item(entry, key, *, label_only=False) -> dict:
             label = f"A distractor {n}"
             options.append(label if label_only else {"label": label, "code": f"distractor_{n}"})
     item["options"] = options
+    if key == "commercial.existing_sacrifice":          # call 54: U1, one unit per option
+        item["units"] = ["money"] * len(options)
     return item
 
 

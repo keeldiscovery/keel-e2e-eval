@@ -225,7 +225,7 @@ def _count(value) -> str:
     return "—" if value is None else str(value)
 
 
-#: The eight rows of the v10 mark table, in `marks.ROWS` order: (row, label, formatter).
+#: The eight rows of the v11 mark table, in `marks.ROWS` order: (row, label, formatter).
 MARK_ROWS = (
     ("dimension_coverage", "dimension coverage (one question a dimension, both screens)", _pct),
     ("option_validity", "option validity (every registry rule, every question)", _pct),
@@ -333,6 +333,7 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
                  f"items with a <code>no_leak</code> hit ({_esc(t.get('leak_hits', 0))} word hits) "
                  f"— <b>{_pct(t.get('judged_fraction'))}</b>. Every other item was decided by "
                  "code.</p>")
+    parts.append(wording_html(t.get("wording")))
 
     parts.append("<h2>Sibling commits</h2><table><tr><th>Repo</th><th>Commit</th><th>Dirty</th></tr>")
     for name, info in versions.items():
@@ -499,6 +500,28 @@ ul{margin:4px 0 0 18px;padding:0}
 """
 
 
+def wording_html(wording) -> str:
+    """Call 56: the wording rules the subject only instructs, counted per screen -- reported, never
+    a mark, and said so on the page."""
+    if not wording:
+        return ""
+    rows = []
+    for screen in ("calibration", "respondent"):
+        w = wording.get(screen) or {}
+        if not w.get("questions"):
+            continue
+        founder = (f" · W2 <i>do you think</i> {_esc(w.get('w2', 0))} · W6 second person "
+                   f"{_esc(w.get('w6', 0))}" if screen == "calibration" else "")
+        rows.append(f"{_esc(screen)}: {_esc(w.get('questions'))} questions with model text, "
+                    f"{_esc(w.get('words'))} words · W1 over length {_esc(w.get('w1', 0))} · "
+                    f"S1 clause first {_esc(w.get('s1', 0))}{founder} · W5 options over 8 words "
+                    f"{_esc(w.get('w5', 0))} of {_esc(w.get('options', 0))}")
+    if not rows:
+        return ""
+    return ("<p class='small'>Wording, <b>reported and never marked</b> (judgement call 56; "
+            "<code>window-frame-design.md</code> §3.6-§3.8): " + "; ".join(rows) + ".</p>")
+
+
 def _redraws_html(t: dict, redraws: list) -> str:
     """Judgement call 41, on the page: what the structural marks were scored on, and every redraw
     as raw -> accepted, beside the rule that refused the first draft."""
@@ -634,6 +657,8 @@ def _calibration_html(rows: list) -> str:
         out.append("<div class='pair'><div><div class='side'>written by the model · "
                    f"{_esc(row.get('key'))}</div><p>{_esc(row.get('question') or '— not written')}"
                    "</p>")
+        if row.get("event"):
+            out.append(f"<p class='small'>event (code frames it): {_esc(row.get('event'))}</p>")
         options = row.get("options") or []
         if options:
             out.append("<ul>" + "".join(
@@ -771,7 +796,8 @@ def register_blocks(corpus, produced: dict, registry=None, aggregate: dict | Non
                 q = produced_questions.get(d.key) or {}
                 calibration = entry.founder_calibration.get(d.key) or {}
                 block["calibration"].append({
-                    "key": d.key, "question": q.get("question"), "options": q.get("options"),
+                    "key": d.key, "question": q.get("question"), "event": q.get("event"),
+                    "options": q.get("options"),
                     "founder_question": (d.lullaby or {}).get("founder_question")
                     if entry.id == "03-lullaby" else None,
                     "belief_phrase": calibration.get("belief_phrase"),
@@ -788,7 +814,10 @@ def register_blocks(corpus, produced: dict, registry=None, aggregate: dict | Non
                 plan_row = (entry.respondent_questions or {}).get(item.get("key")) or {}
                 rows.append({"key": item.get("key"), "part": part,
                              "control": plan_row.get("control"), "codes": plan_row.get("codes"),
-                             "question": item.get("question"), "options": item.get("options")})
+                             "question": item.get("question") or (
+                                 f"(code frames the event) {item['event']}"
+                                 if item.get("event") else None),
+                             "options": item.get("options")})
             if label == "B2B":
                 block["b2b"] = rows
             else:

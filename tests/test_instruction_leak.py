@@ -1,7 +1,7 @@
 """`no_leak`'s sweep A on calibration questions (spec 029 FR-015, marks-v9 §2.3, judgement call 32;
 T030; at the twelve by spec 030).
 
-The list is the corpus's own -- `09-fixture-r4.yaml`'s golden mechanism, stemmed, less every word of
+The list is the corpus's own -- `09-fixture-r5.yaml`'s golden mechanism, stemmed, less every word of
 the problem's own world -- never the live `SOLUTION_MECHANISM` answer. A hit on it is a fault, with
 the word named. A hit on the one stem the fixture plants in the inflection ledger (*listens* in the
 mechanism, *listened* in Bo's story) is a tie, and only a tie reaches the judge: once, cached, and
@@ -46,7 +46,8 @@ def test_a_mechanism_stem_in_a_problem_question_is_a_fault_naming_the_word(entry
     score = _score(entry, registry, result, judge)
     leak = [f for f in score.faults if f["check"] == "no_leak"]
     assert len(leak) == 1 and "beep" in leak[0]["evidence"]
-    count = len(registry.calibrated_slice("PROBLEM", entry.b2b()))
+    # Calls 52, 53: Frequency over the framed 7 nights has no model text, and is not swept.
+    count = len(registry.calibrated_slice("PROBLEM", entry.b2b())) - 1
     assert (score.leak_clean, score.leak_of) == (count - 1, count)
     assert judge.calls == [], "a plain hit is code's to decide, never the judge's"
 
@@ -76,7 +77,7 @@ def test_a_problem_word_is_no_hit_at_all(entry, registry):
                             "When you cannot find your keys in the morning, how bad is it?")
     score = _score(entry, registry, result, fx.FakeJudge())
     assert score.leak_hits == 0
-    assert score.leak_clean == len(registry.calibrated_slice("PROBLEM", entry.b2b()))
+    assert score.leak_clean == len(registry.calibrated_slice("PROBLEM", entry.b2b())) - 1
 
 
 @pytest.mark.parametrize("text, hit", [
@@ -143,7 +144,8 @@ def test_judged_fraction_is_items_judged_over_items_with_any_hit(entry, registry
     judge = fx.FakeJudge(answer=False)
     plain = _part1(entry, registry, SCALE, judge,
                    question="Before the beep, and the whistle, and the tag?")
-    tie = _part1(entry, registry, "problem.frequency", judge, question="Listening how often?")
+    # Frequency over a framed window is code's sentence (call 52): the tie is on Importance.
+    tie = _part1(entry, registry, "problem.importance", judge, question="Listening how often?")
     totals = score_mod.totals(respondent_scores=[plain, tie], judge_calls=judge.call_count)
     assert totals["leak_hits"] == 4, "three words on one item, one on the other"
     assert totals["leak_hit_items"] == 2 and totals["leak_judged"] == 1

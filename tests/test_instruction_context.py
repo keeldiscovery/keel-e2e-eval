@@ -1,5 +1,5 @@
-"""The seven context builders at `MARKS_VERSION` 10 (spec 029 contracts/screen-shapes.md §2; T018;
-spec 030: the calibrated slice per persona, call 47).
+"""The seven context builders at `MARKS_VERSION` 11 (spec 029 contracts/screen-shapes.md §2; T018;
+spec 030: the calibrated slice per persona, call 47; spec 031: the names and figures, calls 55, 57).
 
 Every key the exporter names, in the exporter's order, filled from the corpus entry and the
 registry and nothing else -- and, as much to the point, what each one must **not** carry: no
@@ -95,13 +95,41 @@ def test_the_solution_and_commercial_jobs_see_the_mechanism_and_the_persona(entr
     assert card["mechanism"] == entry.solution_mechanism["mechanism"]
     assert card["mechanism_terms"] == entry.solution_mechanism["mechanism_terms"]
     assert "not_assumed" not in card, "the claims the card stripped are never handed on"
+    assert card["short_name"] is None, "call 55: the corpus records no short name at r5"
     commercial = context_mod.build_calibration(entry, "COMMERCIAL", registry)
-    assert commercial["interpretation"] is None, "058 sends no interpretation on COMMERCIAL"
+    assert commercial["interpretation"] == {"summary": None, "decider_role": None, "b2b": False,
+                                            "offer_name": None}, \
+        "072: the persona map with the offer's name (none recorded at r5, call 55)"
     keys = [d["key"] for d in commercial["dimensions"]]
-    assert keys == ["commercial.existing_sacrifice", "commercial.buyer_payer_alignment",
-                    "commercial.commitment"], "call 47: a B2C job is never shown the b2b_only pair"
+    assert keys == ["commercial.existing_sacrifice", "commercial.price",
+                    "commercial.buyer_payer_alignment", "commercial.commitment"], \
+        "call 47: a B2C job is never shown the b2b_only pair; Price is asked of whoever pays"
     b2b = fx.entry(fx.ENTRY_B2B)
-    assert len(context_mod.build_calibration(b2b, "COMMERCIAL", registry)["dimensions"]) == 5
+    built = context_mod.build_calibration(b2b, "COMMERCIAL", registry)
+    assert len(built["dimensions"]) == 6 and built["interpretation"]["b2b"] is True
+
+
+def test_a_name_the_corpus_records_reaches_the_job_and_the_validator(entry, registry):
+    """Call 55: a short name / offer name the corpus records is handed on as keel-cloud hands it --
+    on the SOLUTION card and the respondents' mechanism, on the COMMERCIAL persona map and part 3."""
+    import dataclasses                                                      # noqa: PLC0415
+    named = dataclasses.replace(
+        entry, solution_mechanism=dict(entry.solution_mechanism, short_name="a beeping tag"),
+        interpretations=dict(entry.interpretations, offer_name="a way to find the keys"))
+    assert context_mod.build_calibration(named, "SOLUTION", registry)["interpretation"][
+        "short_name"] == "a beeping tag"
+    assert context_mod.build_calibration(named, "COMMERCIAL", registry)["interpretation"][
+        "offer_name"] == "a way to find the keys"
+    keys = context_mod.DEFAULT_KEYS["RESPONDENT_QUESTIONS"] + ["offer_name"]
+    part3 = context_mod.build_respondent(named, 3, named.plan(registry), registry, keys)
+    assert part3["offer_name"] == "a way to find the keys"
+    assert part3["mechanism"]["short_name"] == "a beeping tag"
+    assert "offer_name" not in context_mod.build_respondent(named, 1, named.plan(registry),
+                                                            registry, keys), "part 3 only"
+    assert context_mod.validation_mechanism(named)["short_name"] == "a beeping tag"
+    assert "offer_name" not in context_mod.build_respondent(named, 3, named.plan(registry),
+                                                            registry), \
+        "the export decides the keys: 073's context-keys.json names no offer_name"
 
 
 def test_part_one_carries_no_mechanism_and_no_founder_answer_ever(entry, registry):
@@ -177,8 +205,11 @@ def test_the_brief_carries_three_vectors_with_their_verdicts_and_belief_sentence
     assert frequency["below"] is None and frequency["above"] is None
     commercial = vectors[2]
     assert [d["key"] for d in commercial["dimensions"]] == [
-        "commercial.existing_sacrifice", "commercial.buyer_payer_alignment",
+        "commercial.existing_sacrifice", "commercial.price", "commercial.buyer_payer_alignment",
         "commercial.commitment"], "call 47: a B2C brief carries no b2b_only row"
+    price = commercial["dimensions"][1]
+    assert price["observed"] == "4 of 8 said it would be worth £2 a month or more", "call 57"
+    assert commercial["dimensions"][0]["observed"] == "a median £12 over three months"
 
 
 def test_the_stage_shaped_builders_are_gone():
