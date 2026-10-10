@@ -2,7 +2,7 @@
 
 **The rules are never re-implemented here.** The v9 templates' rule ids (`X1`..`X3`, `P1`..`P3`,
 `M1`..`M3`, `C1`..`C6`, `R1`..`R7`, `I1`, `B1`..`B6`, and since keel-cloud 072 / 073 `E1`..`E3`,
-`W3`, `W7`..`W9`, `U1` -- screen-shapes §4; C7 and R8 retired) live in keel-cloud, and
+`W3`, `W7`..`W9` (`U1` and `W10` retired at v13) -- screen-shapes §4; C7 and R8 retired) live in keel-cloud, and
 the only honest way to ask whether the aggregate would have taken a result is to hand it to the
 aggregate. So this module collects a whole run's answers into one batch and shells
 `./gradlew -q screenContracts --args="validate <batch> <report>"` **once** — one JVM start for the

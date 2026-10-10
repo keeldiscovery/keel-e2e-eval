@@ -1,5 +1,5 @@
-# A hand-sized registry fixture (spec 032 T003; thirteen by spec 031, cut at twelve by spec 030, first cut spec 029 T004): the 13 keys
-# of keel-cloud 074's exported dimension-registry.json (5311217; {window}/{window_unit}/{cost_period} placeholders kept) with the
+# A hand-sized registry fixture (spec 033 T002, at keel-cloud 077's dc13341; spec 032 T003; thirteen by spec 031, cut at twelve by spec 030, first cut spec 029 T004): the 13 keys
+# of keel-cloud 077's exported dimension-registry.json (dc13341; {window}/{window_unit}/{cost_period} placeholders kept) with the
 # Lullaby founder questions the register shows (Price, Existing sacrifice and Ability to pay have none: their questions are
 # code's or absent), every founder.normalized, respondent.*, answers.* (less the drift templates), weight, order, the
 # entry-level b2b_only (Purchase friction) and respondent.b2b_link_only (Ability to pay); prose notes, decisions and the worked
@@ -16,7 +16,7 @@ common:
     - I'd rather not say
     numeric_extra: That's a rough guess
   something_else:
-    rule: Every closed respondent item whose belief is a SET (multi_choice, multi_choice_ladder, branch_pick_amounts' pick) and every single_choice built from a market-specific
+    rule: Every closed respondent item whose belief is a SET (multi_choice, multi_choice_ladder) and every single_choice built from a market-specific
       option set ends with "Something else". Fixed scales (single_choice_5, bands, 0-to-7, yes/no) do not. "Something else" is an observation placed OUTSIDE, kept
       verbatim, never a row of its own on the answers page (spec 050).
   floor:
@@ -349,8 +349,8 @@ dimensions:
     control: cost_estimate
     guidance: 'What the founder believes the problem costs the payer today, entered on the commercial step and rendered by code: on a B2B study a fixed amount or
       hours at the project''s one hourly rate, on B2C an amount only (a person''s own time is never priced), over a period the founder picks (a day, a week, a month,
-      a quarter, a year). Code writes the question and the belief sentence. The model writes no question text and no money here: only the kinds of cost the respondent
-      will tick, each with its unit, and the respondent note.'
+      a quarter, a year). Code writes the question and the belief sentence. The model writes no question text, no options and no money here: the respondent note at
+      most (spec 077: there are no kinds of cost anywhere).'
     normalized:
       kind: cost
       modes:
@@ -362,32 +362,26 @@ dimensions:
       - month
       - quarter
       - year
-      code_rule: 4–6 slug codes for the kinds of cost a respondent will tick in this market (e.g. apps_subscriptions, gadgets, paid_help, staff_hours, medical_visits),
-        each option with a unit -- money (paid in the market's currency), hours (time spent) or count (incidents, times it happened) -- plus the fixed code none ('None
-        of these; they cope with what they have'), which has no unit; ordered as presented. The kinds are the respondent's, never a founder belief.
-    option_rule: 'No founder options: a range in the market''s currency (low above 0), or on a B2B study a range of hours and the hourly rate, and a period. The kinds
-      of cost the model writes (4–6, each with its unit, no amount and no currency in any label) are what the respondent ticks; the founder does not tick them. ''I''m
-      not sure'' leaves it out.'
+    option_rule: 'No options: a range in the market''s currency (low above 0), or on a B2B study a range of hours and the hourly rate, and a period. ''I''m not sure''
+      leaves it out.'
     belief_template: The problem already costs the payer {value}.
     unsure_allowed: true
   respondent:
     part: 3
     anchor: last_purchase
-    control: branch_pick_amounts
-    guidance: 'Step 1: in {cost_period}, what did this cost you -- tick every kind (the calibration''s kinds + 2–3 distractors, each with its unit; ''Nothing'' and
-      ''Something else'' code-appended). Step 2: one field per kind ticked, in that kind''s unit -- money in the market currency, hours, or a count -- rendered by
-      code. The question names {cost_period} word for word; the model writes no amount.'
-    option_rule: 'Pick: the calibration''s kinds verbatim + 2–3 distractors, each distractor with its unit (money | hours | count) + ''Nothing'' + ''Something else''
-      (both code-appended); amounts: one per ticked kind, in its unit, code-rendered.'
+    control: cost_total
+    guidance: 'One total, all code''s: what it cost them over {cost_period} when {circumstance} -- an amount in the market currency or a number of hours (AMOUNT |
+      HOURS), one number. The respondent never sees or enters a rate. The model writes nothing for this item: its key alone.'
+    option_rule: 'No options. Chips: ''It cost us nothing'' (an answer: 0, counted), ''I can''t recall'' (no answer), ''That''s a rough guess'' (a flag on the number).'
     chips:
+    - It cost us nothing
     - I can't recall
-    - I'd rather not say
     - That's a rough guess
     b2b:
       anchor: last_cycle
-      guidance: 'What {cost_period} of this problem actually cost the team: tick the kinds of cost, then one amount per kind in its unit (money, hours or a count).
-        The question names {cost_period} word for word. The decision-maker sees no context card and nothing of what the specialists said.'
-      option_rule: The calibration's kinds + 2–3 distractors (each with its unit) + 'Nothing' + 'Something else'; one amount per ticked kind, in its unit.
+      guidance: 'One total, all code''s: what it cost the team over {cost_period} when {circumstance} -- an amount or a number of the team''s hours (priced at the
+        project''s rate by code, never shown). The decision-maker sees no context card and nothing of what the specialists said.'
+      option_rule: No options; the same three chips.
   answers:
     shape: interval
     compare_rule: interval_contains_median

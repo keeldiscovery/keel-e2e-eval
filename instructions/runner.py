@@ -452,7 +452,7 @@ REDRAW_SCREENS = UNATTENDED_SCREENS + DRAFT_SCREENS
 #: repairs (`InferenceOrchestrator.applyCompleted`'s DomainException branch and
 #: `refuseOrRepairDraft`); `NOT_DERIVED` is `RecoverySection.DERIVATION_TEMPLATE`, which a question
 #: screen's `InvalidResult` -- every vector rule id (`C1`..`C6`, `R1`..`R7`, and since keel-cloud
-#: 072 / 073 `E1`..`E3`, `W3`, `W7`..`W9`, `U1`) arrives as one -- is repaired with.
+#: 072 / 073 `E1`..`E3`, `W3`, `W7`..`W9`) arrives as one -- is repaired with.
 ANSWER_AGAIN = "Answer again with everything you already had; change only that."
 NOT_DERIVED = ("NOT DERIVED -- your previous answer was accepted as a shape and then could not be "
                "resolved: {detail}. Answer again with everything you already had; fix only that; "

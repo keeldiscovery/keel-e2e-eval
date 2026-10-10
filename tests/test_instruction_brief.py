@@ -7,7 +7,7 @@ Stackless and modelless. The context is three vectors with every dimension's sta
 one case a project (FR-019). **Each mark fails for its own reason and passes for its own reason**:
 every one of the four has a companion case, because a mark that only ever showed its green half is
 indistinguishable from a mark that is always green. The entry is the hand-sized
-`tests/fixtures/corpus/09-fixture-r6.yaml`, whose standings a person can read off the file.
+`tests/fixtures/corpus/09-fixture-r7.yaml`, whose standings a person can read off the file.
 """
 
 from __future__ import annotations
@@ -140,7 +140,7 @@ def test_a_split_may_be_counted_from_either_side(case, entry):
 
 def test_an_option_count_row_is_a_count_the_standings_carry(case, entry):
     """marks §2.6: every `optionCounts` row of `n` -- a set dimension's standing *is* its counts."""
-    score = _score(case, entry, _GOOD + " And 5 of 8 of you gave up none of these.")
+    score = _score(case, entry, _GOOD + " And 3 of 8 of you would not pay for it.")
     assert score.marks["coverage"] is True, score.findings["coverage"]
 
 
@@ -271,13 +271,13 @@ _SET_STANDING = {"status": "NOT_HOLDING_UP", "n": 8, "median": 165,
 _MONTH = {"mode": "AMOUNT", "low": 10, "high": 30, "period": "month", "currency": "GBP"}
 
 
-def _person(price, hours=None, money=None, period="quarter", anchoring="ANCHORED"):
-    amounts = ([{"kind": "time", "value": hours, "unit": "hours"}] if hours is not None else []) + \
-        ([{"kind": "spend", "value": money, "unit": "money"}] if money is not None else [])
+def _person(price, hours=None, money=None, period="quarter", anchoring="ANCHORED", nothing=False):
+    """Spec 077: a person's cost is one total -- HOURS, AMOUNT, or Nothing."""
+    total = ({"nothing": True} if nothing else {"mode": "HOURS", "value": hours} if hours is not None
+             else {"mode": "AMOUNT", "value": money})
     return corpus_mod.Person(person="p", recency="yes", story="s", chip=None, anchoring=anchoring,
-                             picks={"commercial.existing_sacrifice": {"currency": "GBP",
-                                                                      "period": period,
-                                                                      "amounts": amounts},
+                             picks={"commercial.existing_sacrifice": {**total, "currency": "GBP",
+                                                                      "period": period},
                                     "commercial.price": price})
 
 
@@ -308,9 +308,9 @@ def test_the_people_who_gave_only_time_are_reported_apart_with_what_an_hour_is_w
     guessed = _Entry(cost=_MONTH, people=[_person("band_20_50", hours=30, anchoring="GUESSED")])
     assert context_mod.observed_of(guessed, "commercial.existing_sacrifice", _SET_STANDING) == \
         "a median £165 a month", "an unanchored person is never counted apart"
-    spender = _Entry(cost=_MONTH, people=[_person("band_20_50", hours=30, money=40)])
+    spender = _Entry(cost=_MONTH, people=[_person("band_20_50", money=40), _person("band_20_50", nothing=True)])
     assert context_mod.observed_of(spender, "commercial.existing_sacrifice", _SET_STANDING) == \
-        "a median £165 a month", "someone who gave money and time is counted on the money"
+        "a median £165 a month", "an amount, and Nothing (0, counted), are never apart"
     b2b = _Entry(cost=_MONTH, people=people, b2b=True)
     assert context_mod.observed_of(b2b, "commercial.existing_sacrifice", _SET_STANDING) == \
         "a median £165 a month", "B2B prices hours at the rate: nobody is apart"

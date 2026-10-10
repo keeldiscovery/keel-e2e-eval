@@ -13,14 +13,14 @@ of keel-cloud 074's export.
 §Invariants; spec 030 judgement call 46), because a mark of 1.00 is honest only against a registry
 that is itself well formed -- marks §2.2: *"1.00 is honest only because the registry fixes the
 codes"*. A registry that fails one is a **refusal to start** naming the invariant and the key,
-never a warning and never a score. At `MARKS_VERSION` 12 the registry is **thirteen keys, 4 / 3 / 6**
+never a warning and never a score. At `MARKS_VERSION` 12 and 13 the registry is **thirteen keys, 4 / 3 / 6**
 (judgement call 59; keel-cloud 074's `DimensionRegistry`, mirrored): nine of them deal-breakers that
 can each read `NOT_HOLDING_UP`; `asked_in_v1` is gone (a registry still carrying it is refused as
 unknown-shaped, not ignored); the entry-level `b2b_only` sits on **Purchase friction alone** and
 Ability to pay is `b2b_link_only` on the respondent side (calibrated on every persona, asked on the
 decision-maker's link only); Existing sacrifice's founder control is `cost_estimate` over the five
-periods and the modes `AMOUNT · HOURS`, its respondent control `branch_pick_amounts` yields a number
-(so it is drawn as an interval, invariant 6); Price is back as SHAPES over the same five periods
+periods and the modes `AMOUNT · HOURS` (and, since v13, no `code_rule`: there are no kinds of cost),
+its respondent control `cost_total` yields a number (so it is drawn as an interval, invariant 6); Price is back as SHAPES over the same five periods
 (`day · week · month · quarter · year`, fixed to the cost's); Ability to pay's founder control is
 `derived` -- a `price_cost_ratio` from the registry's own keys, read by `cost_covers_price`.
 
@@ -74,9 +74,10 @@ LINK_B2B = "COMMERCIAL_B2B"
 #: Frequency's 0-to-7 control, and the number it becomes on a recall window longer than 7.
 NUMERIC_RESPONDENT_CONTROLS = ("segmented_0_to_7", "number_with_unit")
 #: Invariant 6: the respondent controls whose answer is a number (`answers.shape == interval`) --
-#: keel-cloud 074's `RespondentControl.yieldsNumber`. `branch_pick_amounts` joins the two above
-#: (Existing sacrifice is drawn as an interval, D-6) but still owes its kinds as options (call 63).
-NUMBER_YIELDING_CONTROLS = NUMERIC_RESPONDENT_CONTROLS + ("branch_pick_amounts",)
+#: keel-cloud 077's `RespondentControl.yieldsNumber`. `cost_total` joins the two above (Existing sacrifice
+#: is drawn as an interval, D-6) and, unlike v12's `branch_pick_amounts`, owes no options at all (call 67).
+COST_TOTAL_CONTROL = "cost_total"
+NUMBER_YIELDING_CONTROLS = NUMERIC_RESPONDENT_CONTROLS + (COST_TOTAL_CONTROL,)
 
 #: Invariant 7: the one gate.
 GATE_KEY = "problem.prevalence"
@@ -116,15 +117,14 @@ DERIVED_FOUNDER_CONTROL = "derived"
 DERIVED_COMPARE_RULE = "cost_covers_price"
 #: `AbilityToPay`'s four bands (with decision 2, 2026-10-10).
 ABILITY_BANDS = ("small_share", "mostly_from_spend", "some_from_spend", "new_money")
-#: The respondent controls whose question and options are wholly code's (call 53): the model owes
-#: the item's key and nothing else, and nothing it writes there is read.
-CODE_WRITTEN_RESPONDENT_CONTROLS = ("price_ladder",)
-#: Existing sacrifice's respondent control since 073: the kinds ticked, then one amount per kind in
-#: its unit, over the recall period of the founder's cost (074; `branch_pick_number` before 073).
-AMOUNTS_CONTROL = "branch_pick_amounts"
-#: The units a kind of cost is counted in (`CalibrationOption.UNITS`, U1).
-UNITS = ("money", "hours", "count")
-#: Existing sacrifice: its kinds carry units, and its question names no offer (keel-cloud 072 D-2).
+#: The respondent controls whose question and options are wholly code's (calls 53, 67): the model owes
+#: the item's key and nothing else, and nothing it writes there is read. Since keel-cloud 077 that is
+#: Price's ladder and Existing sacrifice's one total (no kinds, so no options and no units).
+CODE_WRITTEN_RESPONDENT_CONTROLS = ("price_ladder", COST_TOTAL_CONTROL)
+#: Existing sacrifice's respondent control since 077: one total (`AMOUNT | HOURS`, one number) over the
+#: founder's recall period. `branch_pick_amounts` (073-076) is gone, and is refused by name.
+GONE_AMOUNTS_CONTROL = "branch_pick_amounts"
+#: Existing sacrifice: its question names no offer (keel-cloud 072 D-2).
 SACRIFICE_KEY = "commercial.existing_sacrifice"
 
 
@@ -306,8 +306,8 @@ class Dimension:
 
     @property
     def founder_code_framed(self) -> bool:
-        """Questions code composes whole (calls 53, 61): Price and Existing sacrifice (and Ability to pay,
-        which is asked of no one). The model owes these no question text."""
+        """Questions code composes whole (calls 53, 61, 67): Price and Existing sacrifice (and Ability to pay,
+        which is asked of no one). The model owes these no question text, and no options."""
         return self.founder_price or self.founder_cost or self.derived
 
     @property
@@ -615,6 +615,12 @@ def check_invariants(registry: Registry) -> list[str]:
             if list(modes or []) != list(COST_MODES):
                 faults.append(f"invariant 5 (cost modes): {d.key}'s modes are {modes!r}, not "
                               f"{list(COST_MODES)}")
+            if "code_rule" in d.normalized:        # keel-cloud 077: no kinds of cost anywhere
+                faults.append(f"invariant 5 (a cost has no kinds): {d.key} carries a code_rule; "
+                              "keel-cloud 077 removed the respondent's kinds")
+            if d.respondent.get("control") != COST_TOTAL_CONTROL:
+                faults.append(f"invariant 5 (one total): {d.key}'s respondent control is "
+                              f"{d.respondent.get('control')!r}, not {COST_TOTAL_CONTROL!r}")
         derived_kind = d.normalized.get("kind") == "price_cost_ratio"
         if derived_kind != d.derived:
             faults.append(f"invariant 5 (derived on both sides): {d.key} is derived on one side only: "
@@ -634,7 +640,7 @@ def check_invariants(registry: Registry) -> list[str]:
                           "contiguous and ordered")
 
     # 6. `answers.shape == interval` iff the respondent control yields a number (074: Existing
-    #    sacrifice's `branch_pick_amounts` too).
+    #    sacrifice's `cost_total` since 077; `branch_pick_amounts` before).
     for d in dims:
         numeric = d.respondent.get("control") in NUMBER_YIELDING_CONTROLS
         shape = d.answers.get("shape")

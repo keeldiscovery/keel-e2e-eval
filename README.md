@@ -78,7 +78,34 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
-### `MARKS_VERSION` 12 — the gate as written, **no run of record yet, and its run on hold** (spec `032-cost-first-price`, 2026-10-10)
+### `MARKS_VERSION` 13 — the gate as written, **no run of record yet** (spec `033-buyer-cost-total`, 2026-10-10)
+
+**Written here before the run, so the run is read against the gate as written.** keel-cloud 077
+(*the buyer's cost is one total*; branch `077-buyer-cost-total` at `dc13341`; inference
+`CONTRACT_VERSION` 8) removed the kinds of cost: the respondent answers Existing sacrifice with one
+number, an amount or a number of hours, over the founder's recall period (registry respondent
+control `cost_total`). The ruler follows (judgement calls 67–70). **There is no v13 run of record
+until `WHY=marks:13` is spent** — `make instruction-eval HOST=claude WHY=marks:13 MODELS=exported`
+is ready and is neither run nor proposed here, and v12's run (still on hold by the founder) is
+superseded. Until then the standing gate is **unmet for both hosts at v13**.
+
+- **The same eight subjects and the same eight marks, unchanged in number** (`marks.toml`).
+- **Existing sacrifice owes the model nothing on either screen** (call 67), as Price does: the
+  calibration entry is its key and note (options are `C2`), the respondent item its key alone.
+  **`W10` and `U1` retire** — there is no model text and there are no kinds to hold them to.
+- **The registry reader** (call 69): `cost_total` yields a number (invariant 6); a cost carrying a
+  `code_rule`, or any other respondent control, fails invariant 5.
+- **The corpus is revision 7** (call 68), keel-cloud's canon only: picks are
+  `{mode, value, currency, period}`, `{nothing: true, …}` or a chip, no option counts on Existing
+  sacrifice. An r6 file refuses the load by name as v12's. No standing or verdict moved.
+- **Every denominator is read, never typed**: calibration 80 an N and respondent 81 an N (both
+  unchanged); `no_leak` 46 sweep-A + **63** sweep-B items an N = **109** (the buyer's Existing
+  sacrifice is code's, so never swept); `compare_correctness` **108** on seven.
+- **`rescore.py` refuses every bundle below 13 by name** (call 70).
+- **`DRY=1` against keel-cloud 077 (`dc13341`), 2026-10-10**: `compare_correctness` **108 of 108**,
+  every other mark unmeasured (no model is called), denominators as above, nothing spent.
+
+### `MARKS_VERSION` 12 — the gate as written, **no run of record, and its run on hold** (spec `032-cost-first-price`, 2026-10-10; history since v13, never run)
 
 **Written here before the run, so the run is read against the gate as written.** keel-cloud 074
 (*cost first*; branch `074-cost-first-price` at `5311217`, merging 075) moved the subjects' words:
@@ -204,7 +231,7 @@ the re-score as the certificate (decision 48, 2026-10-08). **Every mark met:**
 
 `runs/` is gitignored, so the bundle lives on the founder's machine only; its `scorecard-v9.json`
 is sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. The standing gate was
-**met for Claude at v9**; since 2026-10-09 it is v10's, v11's and then v12's, and none has a run of
+**met for Claude at v9**; since 2026-10-09 it is v10's, v11's, v12's and then v13's, and none has a run of
 record yet.
 
 ### `MARKS_VERSION` 9 — the gate as written, before its run of record (spec `029-marks-v9-vectors`, 2026-10-07)

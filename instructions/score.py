@@ -31,10 +31,13 @@ clause, held to E1-E3; Frequency on a framed window and Price owe no text; W7, W
 structural; W3 / W8 hold to the names the corpus records; and the wording rules the subject only
 instructs (S1, W1, W2, W5, W6) are counted per question into `wording`, reported, never marked.
 
-At `MARKS_VERSION` 12 the two money questions are code's (calls 59-63; keel-cloud 074): Existing sacrifice
-owes its kinds (4-6 options, each with its unit, no phrase read) and no question text, Price its key,
-and Ability to pay -- derived -- is not in the calibration job at all, so its denominator is the
-*answered* set; the part-3 Existing sacrifice question carries the recall words verbatim (W10).
+At `MARKS_VERSION` 12 the two money questions are code's (calls 59-63; keel-cloud 074) and Ability to pay
+-- derived -- is not in the calibration job at all, so its denominator is the *answered* set.
+
+At `MARKS_VERSION` 13 the buyer's cost is one total (call 67; keel-cloud 077): Existing sacrifice owes
+**nothing** on either screen, as Price does -- the calibration job's entry is its key (and note), options
+refused with C2; the respondent job's item is its key alone, code composing the question over the recall
+period. `W10` and `U1` retire (there is no model text and there are no kinds to hold them to).
 
 `totals` rolls each over **its own** denominator and never another's.
 """
@@ -49,7 +52,7 @@ from . import text as text_mod
 from . import context as context_mod
 from . import wording as wording_mod
 from .registry import (DEFAULT_WINDOW, GATE_CONTROL, GATE_KEY, NUMERIC_FOUNDER_CONTROLS,
-                       NUMERIC_RESPONDENT_CONTROLS, SACRIFICE_KEY, UNITS, names_the_offer)
+                       NUMERIC_RESPONDENT_CONTROLS, names_the_offer)
 
 
 # ------------------------------------------------------------------------------------ compare
@@ -285,26 +288,15 @@ def _ladder_codes(dimension, b2b: bool) -> list | None:
 
 
 #: The fixed codes a `model_written` rule names and the founder's options must carry (marks §2.2).
-_REQUIRED_MODEL_WRITTEN = {"commercial.existing_sacrifice": ("none",)}
-
-
-def _is_none_option(option) -> bool:
-    """Existing sacrifice's fixed *none of these* (`RespondentQuestionsRules.FIXED_NONE`): its code
-    stated, or its label -- the one founder option with no unit (call 54)."""
-    if not isinstance(option, dict):
-        return False
-    if option.get("normalized") == "none":
-        return True
-    form = _label_form(option.get("label"))
-    return form == "none" or form.startswith("none of these")
+_REQUIRED_MODEL_WRITTEN: dict = {}              # v13: Existing sacrifice has no kinds, so no fixed `none`
 
 
 def model_text(question: dict, dimension, window=DEFAULT_WINDOW, *, founder: bool = False) -> str | None:
     """The question text the model wrote **and a reader is shown** (calls 52, 61): `None` on Prevalence
     and the gate (the frame is code's around the `event`), on Frequency over a framed window, on
-    Price (code's sentence) and -- on the founder's side only -- on Existing sacrifice (code asks *What
-    does it cost ... today?*; any question the model writes is not read). The one-unit window keeps its
-    question, and so does the respondent's Existing sacrifice (W10 reads it)."""
+    Price (code's sentence) and on Existing sacrifice (code asks *What does it cost ... today?* of the founder
+    and *{Last month}, what did it cost ... ?* of the buyer; any question the model writes is not read, v13).
+    The one-unit window keeps its question."""
     if dimension.key == GATE_KEY or dimension.founder_price or dimension.respondent_code_written:
         return None
     if founder and dimension.founder_cost:
@@ -333,11 +325,11 @@ def calibration_checks(question: dict, dimension, *, b2b: bool = False,
     v11 (calls 52-55): Prevalence owes its `event` clause (E1-E3); Frequency on a framed window owes
     no text and a text written anyway is ignored; Price owes its key alone (options are C2); every
     other entry owes its question. W7 on a question, W9 on everything written, U1 on every Existing
-    sacrifice kind but `none`, W3 / W8 where the corpus records the name.
+    sacrifice kind but `none` (retired at v13), W3 / W8 where the corpus records the name.
 
-    v12 (call 61): Existing sacrifice owes its options alone -- 4 to 6 kinds of cost, each with its
-    unit, a not-sure label a fault, no belief phrase required or read -- and any question text the
-    model wrote is ignored (never a fault, never held to W7 / W9 / W8)."""
+    v13 (call 67): Existing sacrifice owes its key (and note) alone, as Price does -- options are C2
+    (there are no kinds of cost), any question text the model wrote is ignored (never a fault, never
+    held to W7 / W9 / W8); W9 still reads its `event`."""
     faults = []
     key = dimension.key
     event = question.get("event")
@@ -349,10 +341,11 @@ def calibration_checks(question: dict, dimension, *, b2b: bool = False,
     written = " \n ".join(str(t) for t in [asked, event] + [
         v for o in question.get("options") or [] if isinstance(o, dict)
         for v in (o.get("label"), o.get("belief_phrase"))] if t)
-    if dimension.founder_price:
+    if dimension.founder_price or dimension.founder_cost:       # calls 53, 67: code's whole
         if question.get("options"):
-            faults.append(f"C2: {len(question['options'])} options on Price; its range and period "
-                          "are code's input")
+            faults.append(f"C2: {len(question['options'])} options on "
+                          f"{'Price' if dimension.founder_price else 'Existing sacrifice'}; its "
+                          "range and period are code's input")
         hit = wording_mod.money(event)
         if hit:
             faults.append(f"W9: {hit!r} is money; code renders every amount")
@@ -367,8 +360,6 @@ def calibration_checks(question: dict, dimension, *, b2b: bool = False,
                 faults.append(fault)
     elif key == "problem.frequency" and window.frames_frequency:
         pass                                              # call 52: code's sentence, text ignored
-    elif dimension.founder_cost:
-        pass                                              # call 61: code's question, text not read
     elif not str(question.get("question") or "").strip():
         faults.append("no question written")
     if asked:
@@ -452,9 +443,7 @@ def calibration_checks(question: dict, dimension, *, b2b: bool = False,
         # C4 as keel-cloud 062 reads it (call 37): a phrase EQUAL to its label is accepted; an
         # empty one, one over 120 characters, or one carrying a not-sure word is a fault.
         stripped = (phrase or "").strip()
-        if dimension.founder_cost:
-            pass                                      # call 61: kinds of cost, no phrase required or read
-        elif not stripped:
+        if not stripped:
             faults.append(f"option {label!r} carries no belief_phrase")
         elif len(stripped) > _BELIEF_PHRASE_MAX:
             faults.append(f"option {label!r}: its belief_phrase is {len(stripped)} characters, "
@@ -463,10 +452,6 @@ def calibration_checks(question: dict, dimension, *, b2b: bool = False,
             faults.append(f"option {label!r}: its belief_phrase carries a not-sure word")
         if _is_not_sure_label(label):
             faults.append(f"option {label!r} is a not-sure option -- the chip is UI")
-        if key == SACRIFICE_KEY and not _is_none_option(option) \
-                and str(option.get("unit") or "").strip().lower() not in UNITS:
-            faults.append(f"U1: {label!r} is a kind of cost and needs its unit -- money, hours or "
-                          f"count -- and has {option.get('unit')!r}")
     template = question.get("belief_template")
     if template is not None:
         if str(template).count("{value}") != 1:
@@ -628,8 +613,7 @@ def _founder_numbers(answer) -> set:
 
 def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None, *,
                       founder_labels: dict | None = None, window=DEFAULT_WINDOW,
-                      part: int | None = None, short_name=None, offer_name=None,
-                      cost_period=None) -> list:
+                      part: int | None = None, short_name=None, offer_name=None) -> list:
     """Every structural rule of marks §2.2's respondent side, for one item; `[]` is valid.
 
     Call 38: **code appends, never the model** -- *Something else*, every respondent-only code the
@@ -645,18 +629,16 @@ def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None
 
     v11 (calls 52-55): Price is code's whole and owes nothing (what a model writes there is not
     read); the gate owes its `event` clause (E1-E3); Frequency over a framed window owes no text;
-    every other item owes its question; W7 on a question, W9 on everything written, U1 on every
-    Existing sacrifice distractor (`units[i]`), W3 on part 2 and W8 on part 3 where the corpus
-    records the name.
+    every other item owes its question; W7 on a question, W9 on everything written, W3 on part 2 and W8
+    on part 3 where the corpus records the name.
 
-    v12 (calls 62, 63): W10 -- the part-3 Existing sacrifice question carries the recall words of the
-    founder's cost period (`cost_period`, `None` for no estimate) verbatim. Existing sacrifice stays a
-    set (its kinds are options) though its control yields a number; Ability to pay's four rungs are
-    the respondent's fixed codes, so it is not a set."""
+    v13 (call 67): Existing sacrifice (`cost_total`) is code's whole, as Price is -- the item is its key
+    alone, nothing a model writes there is read, and W10 / U1 are retired. Ability to pay's four rungs
+    are the respondent's fixed codes, so it is not a set."""
     from .registry import RESPONDENT_ESCAPES                  # noqa: PLC0415
     faults = []
     control = dimension.respondent.get("control")
-    if dimension.respondent_code_written:                           # call 53: Price
+    if dimension.respondent_code_written:                           # calls 53, 67: Price, the total
         return faults
     event = item.get("event")
     if dimension.key == GATE_KEY:
@@ -672,10 +654,6 @@ def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None
     elif not str(item.get("question") or "").strip():
         faults.append("no question written")
     text = model_text(item, dimension, window)
-    if text and dimension.key == SACRIFICE_KEY and part in (None, 3):
-        fault = wording_mod.recall_fault(text, cost_period)                     # call 62: W10
-        if fault:
-            faults.append(fault)
     if text:
         hint = wording_mod.tick_all(text)
         if hint:
@@ -742,17 +720,12 @@ def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None
     required = [c for c in shown if c not in RESPONDENT_ESCAPES and c not in FOUNDER_NONE
                 and not is_escape_label(shown[c])]
     matched, distractors = set(), 0
-    units = item.get("units") or []
-    for index, (label, code) in enumerate(zip(labels, codes)):
+    for label, code in zip(labels, codes):
         hit = code if code in shown else founder.get(_label_form(label))
         if hit:
             matched.add(hit)
         else:
             distractors += 1
-            unit = units[index] if index < len(units) else None
-            if dimension.key == SACRIFICE_KEY and str(unit or "").strip().lower() not in UNITS:
-                faults.append(f"U1: {label!r} is a kind of cost and needs its unit in "
-                              f"units[{index}] -- money, hours or count -- and has {unit!r}")
     missing = [shown[c] for c in required if c not in matched]
     if missing:
         faults.append(f"missing founder label(s) {missing}")
@@ -857,8 +830,7 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
         checks = respondent_checks(item, dimension, plan_row, founder.get("answer"),
                                    founder_labels=entry.founder_labels(key), window=window,
                                    part=part, short_name=short_name,
-                                   offer_name=context_mod.offer_name_of(entry),
-                                   cost_period=context_mod.cost_period_of(entry))
+                                   offer_name=context_mod.offer_name_of(entry))
         if checks:
             score.faults.append({"key": key, "check": "option_validity",
                                  "evidence": "; ".join(checks)})

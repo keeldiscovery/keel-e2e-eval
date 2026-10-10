@@ -19,7 +19,40 @@ persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
 by name. v10 has no run of record; it is history from v11.
 
-**`MARKS_VERSION` 12** (spec 032, 2026-10-10): cost first. The ruler follows keel-cloud 074 (branch
+**`MARKS_VERSION` 13** (spec 033, 2026-10-10): the buyer's cost is one total. The ruler follows keel-cloud
+077 (branch `077-buyer-cost-total`, `dc13341`, off `911f08c`; inference `CONTRACT_VERSION` 8): the
+respondent answers Existing sacrifice with one number -- an amount or a number of hours -- over the
+founder's recall period (registry respondent control `cost_total`, chips *It cost us nothing* / *I can't
+recall* / *That's a rough guess*), so there are no kinds of cost anywhere. Existing sacrifice owes the
+model **nothing** on either screen, as Price already did: the calibration entry is its key and
+`respondent_note` (options are `C2`), the respondent item its key alone (code composes the question);
+`W10` and `U1` retire; the registry carries no cost `code_rule`; the corpus is **revision 7** (an r6 file
+refused by name; Existing sacrifice picks are `{mode, value, currency, period}`, `{nothing: true, ...}` or
+a chip, with no option counts; **no standing or verdict moved vs r6**); the brief's time-only figure is
+the B2C `HOURS` totals; `rescore.py` refuses every bundle below 13. Calls 67-70 below. **There is no v13
+run of record until `WHY=marks:13` is spent** (v12's is still on hold by the founder, and this spec never
+runs or proposes either); v12's paragraph below is history (v12 never had one).
+
+**The corpus v13 judges, recorded 2026-10-10** (spec 033 US2). Revision 7's seven entries in keel-cloud 077's
+canon (`dc13341`), by sha256:
+
+    01-countly         90292cbba8d19af9511caa7feeba425ff339989af84674472257df24191404b4
+    02-compliancelog   92ef9d968db83259c61d4c430c069708fec14758d520e879a59c38b9e812feae
+    03-lullaby         eb950920e4ca6263fd84e3ded3e7066a6b74dc52f1b915e64f2c195681ef6a46
+    04-linerly         15e69221f2ce82dfe585197f02c39dc6ba7ccfd44a6ad6d10936e2c180be4a35
+    05-paidly          5842ce136b867d6b26ae2da71db02ef4ea570afce684ceb598d41e6042eec93b
+    06-repeatline      39796410abcc2b076475e48846a00b4eb6f19f578e8d6e51896d5334ae498219
+    07-mulchrun        97300a40a2b559fee1e628e923daabad729978b9dd42ece5d3c0b978010ef599
+
+The v13 denominators, **counted, not estimated** (`DRY=1 MODELS=exported` against 077): calibration the
+*answered* set -- 11 keys on 01-04 (B2C) and 12 on 05-07 (B2B), **80** an N (unchanged: Existing sacrifice is
+still a question in the job, owing its key); respondent 11 on a B2C entry and 13 on a B2B one (**4 on Mulch
+Run**), **81** an N (unchanged); `no_leak` **46** sweep-A and **63** sweep-B items an N -- **109**, seven fewer than
+v12's 116, because the buyer's Existing sacrifice, which carried model text, is code's now and is never swept;
+`compare_correctness` 12 + 3 or 13 + 3 checks an entry, **108** on seven, 1.00 on the 077 engine.
+`anchoring_accuracy` is still 65 reads at N=1; a full run still builds 135 model cases at N=1 (405 at N=3).
+
+**`MARKS_VERSION` 12** (history since v13, never run; spec 032, 2026-10-10): cost first. The ruler follows keel-cloud 074 (branch
 `074-cost-first-price`, `5311217`, which merges 075): the founder first estimates what the problem
 costs (Existing sacrifice is a `cost_estimate` -- an amount, or hours at the project's rate, over a
 period of a day to a year -- read by `interval_contains_median`), then prices it for that same period
@@ -34,7 +67,7 @@ B2C people who gave only time are reported apart; `rescore.py` refuses every bun
 59-66 below. **There is no v12 run of record until `WHY=marks:12` is spent, and it is on hold by the
 founder**; v11's paragraph below is history (v11 never had one).
 
-**The corpus v12 judges, recorded 2026-10-10** (spec 032 US2). Revision 6's seven entries in
+**The corpus v12 judged, recorded 2026-10-10** (spec 032 US2; history). Revision 6's seven entries in
 keel-cloud 074's canon (`5311217`: r6 after the 075 merge and founder decisions 1 and 2), by sha256:
 
     01-countly         0d28f78f8624f923cd186ad05a3a94752d78dff82f06e6db10d1c0aedbfc7c2c
@@ -45,7 +78,7 @@ keel-cloud 074's canon (`5311217`: r6 after the 075 merge and founder decisions 
     06-repeatline      601a68b69097cc10c2475f8d7eb23c28f66eeaa691c9b24065acb3f4c2858185
     07-mulchrun        6e8d796ec582e48f0aa586a6387a26fde3e58fd8b2619eb9fe075986216effcc
 
-The v12 denominators, **counted, not estimated** (`DRY=1 MODELS=exported` against 074): calibration
+The v12 denominators (history), **counted, not estimated** (`DRY=1 MODELS=exported` against 074): calibration
 the *answered* set -- 11 keys on 01-04 (B2C) and 12 on 05-07 (B2B), **80** an N; respondent 11 on a
 B2C entry (4 / 3 / 4 on `PRIMARY`) and 13 on a B2B one (4 / 3 on `PRIMARY`, 6 on `COMMERCIAL_B2B`;
 **4 on Mulch Run**, whose founder left Price out and so Ability to pay), **81** an N; `no_leak` **46**
@@ -555,6 +588,36 @@ sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. It is
     founder Existing sacrifice tick list, a Price over `month · year · one_off`, Ability to pay as a
     model-written question and the recall period unnamed in the amounts question, so a v12 number
     for it would be fiction. The only v12 number is a v12 run (`WHY=marks:12`, on hold by the founder).
+67. **v13**: **Existing sacrifice is code's whole on both screens.** keel-cloud 077 removes the kinds of cost
+    (inference contract 8: the calibration option's `unit` and the respondent item's `units` are gone). The
+    calibration job's Existing sacrifice entry is `key` + `respondent_note` -- options are refused with `C2`,
+    as Price's are, and a question written anyway is not read; the respondent job's item is the `key`
+    alone (`cost_total` is code-written, `registry.CODE_WRITTEN_RESPONDENT_CONTROLS`), so nothing a model
+    writes there is read and the buyer's question -- not the model's -- is what `no_leak` never sweeps.
+    **`W10` retires** (code writes the question in the recall words; `wording.recall_fault` is deleted,
+    `recall_words` stays: the registry's `{cost_period}` is still filled with it) and **`U1` retires** (no
+    unit to hold). The job's denominators are unchanged: Existing sacrifice is still one answered
+    dimension and one asked item; only the sweeps lose it (call 63's `units[i]` rule goes with it).
+68. **v13**: **corpus revision 7, read from keel-cloud's canon only.** `load()` refuses a directory holding
+    any file at a revision other than 7, naming an r6 file as v12's. Existing sacrifice has no kinds: its plan
+    row is `control: cost_total` with no `codes` and no `units`; the founder entry carries no `labels` or
+    `units`; every pick is `{mode: AMOUNT | HOURS, value >= 0, currency, period}`, `{nothing: true, currency,
+    period}` or `{chip}` (the r6 amounts collapsed by keel-cloud's 14 -> 15 upcaster: money summed; else
+    hours summed; else *Nothing*; else *can't recall*) with the recall `period` of r6 kept; its standing
+    records no `optionCounts`. Every other r6 check stands (the cost estimate, Price on the cost's period,
+    Ability to pay recomputed, `hourly_rate`). No standing or verdict moved against r6, so
+    `compare_correctness` is 108 of 108 on the 077 engine with the engine's input carrying the new picks.
+69. **v13**: **the registry reader at `cost_total`.** Invariant 6's number-yielding respondent controls are
+    `segmented_0_to_7`, `number_with_unit` and `cost_total` (`branch_pick_amounts` is gone and is refused: it
+    is not number-yielding, and a cost whose respondent control is anything else fails invariant 5 "one
+    total"); invariant 5 adds that a `cost` shape carries no `code_rule` (there are no kinds). The
+    registry's `something_else` rule no longer names an amounts pick.
+70. **v13**: **`rescore.py` refuses every bundle below 13** by name: a v12 bundle answered an Existing
+    sacrifice of kinds with a unit each, a respondent tick list with `units[i]` and a part-3 question held to
+    the recall words (W10) -- what corpus revision 7 and keel-cloud 077 read as one code-written total -- so
+    a v13 number for it would be fiction. The only v13 number is a v13 run (`WHY=marks:13`). The brief's
+    time-only figure (call 65, unchanged in kind) now reads the B2C `HOURS` totals: the median hours per
+    the founder's period, valued by the median person's Price band.
 """
 
 from __future__ import annotations
@@ -562,7 +625,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 12
+MARKS_VERSION = 13
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 

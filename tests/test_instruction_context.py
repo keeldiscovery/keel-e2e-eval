@@ -146,8 +146,8 @@ def test_part_one_carries_no_mechanism_and_no_founder_answer_ever(entry, registr
     assert built["founder_options"] == {}, \
         "058's founderOptions: the model-written sets only, and Part 1 has none at v10"
     part3 = context_mod.build_respondent(entry, 3, plan, registry)
-    assert part3["founder_options"]["commercial.existing_sacrifice"] == \
-        ["spare_keys", "locksmith", "none", "nothing"], "the founder's option SET, never their pick"
+    assert "commercial.existing_sacrifice" not in part3["founder_options"], \
+        "spec 077: Existing sacrifice has no kinds, so no founder option set"
 
 
 def test_the_respondent_screen_is_shown_the_founders_labels_where_the_entry_records_them(registry):
@@ -156,8 +156,7 @@ def test_the_respondent_screen_is_shown_the_founders_labels_where_the_entry_reco
     part3 = context_mod.build_respondent(lullaby, 3, lullaby.plan(), registry)
     assert part3["founder_options"]["commercial.commitment"][1] == "Install the app", \
         "058 (afe36fd): production sends the calibration's LABELS, never the codes"
-    assert part3["founder_options"]["commercial.existing_sacrifice"][-1] == \
-        "None of these; they cope with what they have"
+    assert "commercial.existing_sacrifice" not in part3["founder_options"], "no kinds since keel-cloud 077"
 
 
 def test_parts_two_and_three_carry_the_mechanism_and_the_b2b_link_does_not(entry, registry):

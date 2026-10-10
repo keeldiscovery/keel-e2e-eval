@@ -6,7 +6,24 @@
 # evals/policy.py states for POLICY_VERSION, and a separate constant so the two can never be
 # confused.
 
-# MARKS_VERSION 12 (judgement calls 59-66, 2026-10-10; spec 032-cost-first-price, the sibling of
+# MARKS_VERSION 13 (judgement calls 67-70, 2026-10-10; spec 033-buyer-cost-total, the sibling of
+# keel-cloud 077-buyer-cost-total, branch 077-buyer-cost-total at dc13341; inference CONTRACT_VERSION 8).
+# The buyer's cost is one total: the respondent answers Existing sacrifice with one number (an amount or
+# hours, over the founder's recall period; respondent control cost_total), so there are no kinds of cost.
+# No number below moved. What moved:
+#   - Existing sacrifice owes the model nothing on either screen, as Price does: the calibration entry is
+#     its key + respondent_note (options are C2), the respondent item its key alone (call 67);
+#   - W10 and U1 are RETIRED (no model text, no kinds, no units) (call 67);
+#   - the registry's cost carries no code_rule and its respondent control is cost_total (call 69);
+#   - the corpus is REVISION 7; an r6 file is refused by name as v12's; no standing or verdict moved (call 68);
+#   - denominators, read: calibration 80 an N and respondent 81 an N (unchanged), no_leak 46 + 63 = 109 an N
+#     (seven fewer: the buyer's Existing sacrifice is code's and never swept), compare 108;
+#   - the brief's time-only figure reads the B2C HOURS totals (call 70).
+# **Scores before and after this bump are not comparable**, and a v12 bundle **cannot be re-scored** to
+# v13 (call 70). **Run of record: none yet** -- there is no v13 run of record until `WHY=marks:13` is
+# spent. v12's header below is history (v12 never had a run of record; its run was on hold by the founder).
+#
+# MARKS_VERSION 12 (history; judgement calls 59-66, 2026-10-10; spec 032-cost-first-price, the sibling of
 # keel-cloud 074-cost-first-price, branch 074-cost-first-price at 5311217, which merges 075). Cost first:
 # Existing sacrifice is the founder's cost estimate (an amount, or hours at the project's rate, over a
 # period; interval_contains_median), Price is fixed to that period, Ability to pay is DERIVED (never asked;

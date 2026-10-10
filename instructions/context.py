@@ -149,7 +149,8 @@ def cost_period_of(entry) -> str | None:
 
 def cost_recall_of(entry) -> str:
     """`ScreenContextBuilder.costRecall` (call 62): the recall words of the founder's cost period -- the
-    words `{cost_period}` is filled with and `W10` holds the part-3 Existing sacrifice question to."""
+    words `{cost_period}` is filled with in the registry's guidance (W10, which held the model's question to
+    them, retired at v13: code writes the question)."""
     return wording_mod.recall_words(cost_period_of(entry))
 
 
@@ -357,7 +358,8 @@ def build_respondent(entry, part: int, plan: dict | None = None, registry=None, 
         "founder_options": {k: founder_option_labels(entry, registry, k) for k in item_keys
                             if registry.by_key(k).fixed_codes is None
                             and not registry.by_key(k).founder_numeric
-                            and not registry.by_key(k).derived},
+                            and not registry.by_key(k).derived
+                            and not registry.by_key(k).founder_cost},   # call 67: no kinds any more
     }
     if part in (2, 3) and link != LINK_B2B:
         values["mechanism"] = mechanism_of(entry)
@@ -468,9 +470,9 @@ def _period_days(period):
 
 
 def time_only_people(entry) -> list:
-    """`Compare.timeOnly` (call 65; keel-cloud 074 D-12): the anchored, un-chipped B2C people who gave hours or
-    a count and no money, no *Nothing* -- reported apart from Existing sacrifice. B2B has none (hours are
-    priced at the rate)."""
+    """`Compare.timeOnly` (call 65; keel-cloud 074 D-12, 077): the anchored, un-chipped B2C people whose one
+    total is hours -- reported apart from Existing sacrifice, never £0. A *Nothing* is 0 and counted; B2B has
+    none (hours are priced at the rate)."""
     if entry.b2b():
         return []
     out = []
@@ -478,12 +480,9 @@ def time_only_people(entry) -> list:
         if person.anchoring != "ANCHORED" or person.chip:
             continue
         pick = person.picks.get(SACRIFICE_KEY)
-        if not isinstance(pick, dict) or "chip" in pick:
+        if not isinstance(pick, dict) or "chip" in pick or pick.get("nothing"):
             continue
-        amounts = pick.get("amounts") or []
-        if any(a.get("unit") in (None, "money") or a.get("kind") == "nothing" for a in amounts):
-            continue
-        if any(a.get("unit") in ("hours", "count") for a in amounts):
+        if pick.get("mode") == "HOURS" and isinstance(pick.get("value"), (int, float)):
             out.append((person, pick))
     return out
 
@@ -501,10 +500,7 @@ def _time_only_figure(entry, period_words: str, currency) -> str | None:
     who = f"{len(apart)} lose only time" if len(apart) != 1 else "1 loses only time"
     hours = []
     for _person, pick in apart:
-        total = sum(a["value"] for a in pick["amounts"]
-                    if a.get("unit") == "hours" and a.get("value") is not None)
-        if total or any(a.get("unit") == "hours" for a in pick["amounts"]):
-            hours.append(total * _period_days(founder) / _period_days(pick.get("period")))
+        hours.append(pick["value"] * _period_days(founder) / _period_days(pick.get("period")))
     if not hours:
         return who
     with localcontext() as ctx:
