@@ -1,17 +1,17 @@
-"""Corpus revision 6, the real seven files, through the one reader (spec 032 FR-002, US2; T005;
+"""Corpus revision 7, the real seven files, through the one reader (spec 033 FR-002, T004; revision 6's by spec 032;
 revision 5's by spec 031, revision 4's by spec 030, first written for revision 3 by spec 029 T047).
 
 **One reader, one hash, one place** (spec 010's rule; judgement call 49): the files are read
 through `instructions.corpus.load` exactly as a run reads them -- keel-cloud's canon, and nowhere
 else; the fixture fallback of 2026-10-07 is gone with its directory. Nothing here is a copy of the
-corpus. What is held is the shape every entry must have and the facts keel-cloud 074 pins
-(`GoldenCorpusTest` on r6): the calibrated set per persona (twelve keys on 01-04, thirteen on
+corpus. What is held is the shape every entry must have and the facts keel-cloud 077 pins
+(`GoldenCorpusTest` on r7): the calibrated set per persona (twelve keys on 01-04, thirteen on
 05-07), the plan per link, the status totals across the seven, every founder cost on the five
 periods with the price on the cost's, Ability to pay recomputed, every Existing sacrifice pick with
 its recall period, Lullaby's standings and verdicts, the gate-No and chipped people, and the B2B
 entries' decision-makers story-less, ANCHORED and on `commercial.*` only.
 
-When `stack.toml`'s keel-cloud is not at revision 6 every test here skips **by name**, with the
+When `stack.toml`'s keel-cloud is not at revision 7 every test here skips **by name**, with the
 reason -- never a fixture copy, which would be a second frozen corpus in all but name.
 """
 
@@ -36,14 +36,14 @@ B2B = ("05-paidly", "06-repeatline", "07-mulchrun")
 def corpus():
     keel_cloud = load_config(validate=False).keel_cloud
     for name in ENTRIES:
-        fx.canon_entry(f"{name}.yaml")                 # skips, by name, when canon is not r5
+        fx.canon_entry(f"{name}.yaml")                 # skips, by name, when canon is not r7
     return corpus_mod.load(keel_cloud, registry=fx.registry())
 
 
-def test_the_seven_entries_are_all_at_revision_six(corpus):
+def test_the_seven_entries_are_all_at_revision_seven(corpus):
     assert [e.id for e in corpus.entries] == list(ENTRIES)
     for entry in corpus.entries:
-        assert entry.revision == 6, entry.id
+        assert entry.revision == 7, entry.id
     assert Path(corpus.directory) == fx.canon_dir()
 
 
@@ -113,21 +113,24 @@ def test_every_founder_price_is_on_the_ladder_and_its_row_is_the_ladders(corpus,
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)
-def test_existing_sacrifice_is_asked_in_amounts_by_unit_over_a_recall_period(corpus, entry_id):
-    """Calls 51, 60: every kind carries money, hours or count; every pick is amounts on the row, with
-    the recall period it was asked over."""
+def test_existing_sacrifice_is_one_total_over_a_recall_period(corpus, entry_id):
+    """Calls 51, 60, 68: the plan row is `cost_total` with no codes and no units, the founder entry no kinds,
+    every pick one total -- `{mode, value, currency, period}`, `{nothing: true, ...}` or a chip -- with the
+    recall period it was asked over, and the standing no option counts."""
     entry = corpus.by_id(entry_id)
     row = entry.respondent_questions["commercial.existing_sacrifice"]
-    assert row["control"] == registry_mod.AMOUNTS_CONTROL
-    assert set(entry.units().values()) <= set(registry_mod.UNITS)
+    assert row["control"] == registry_mod.COST_TOTAL_CONTROL
+    assert "codes" not in row and "units" not in row
+    founder = entry.founder_calibration["commercial.existing_sacrifice"]
+    assert "labels" not in founder and "units" not in founder
+    assert "optionCounts" not in entry.expected["standings"]["commercial.existing_sacrifice"]
     for person in entry.people():
         pick = person.picks.get("commercial.existing_sacrifice")
         if pick is None:
             continue
-        assert set(pick) <= {"currency", "period", "amounts", "rough"}, (entry_id, person.person)
+        assert set(pick) <= {"mode", "value", "nothing", "currency", "period", "rough"}, (entry_id, person.person)
+        assert pick.get("nothing") is True or pick["mode"] in ("AMOUNT", "HOURS"), (entry_id, person.person)
         assert pick["period"] in corpus_mod.RECALL_PERIODS, (entry_id, person.person)
-        for amount in pick["amounts"]:
-            assert amount["kind"] in row["codes"]
 
 
 COSTS = {"01-countly": ("AMOUNT", 20, 60, "month"), "02-compliancelog": ("AMOUNT", 300, 900, "month"),
@@ -257,16 +260,16 @@ def test_the_fixture_fallback_is_gone():
     assert not hasattr(corpus_mod, "FIXTURE_DIR")
 
 
-@pytest.mark.parametrize("revision, rubric", [(5, "MARKS_VERSION 11"), (4, "MARKS_VERSION 10"),
-                                              (3, "MARKS_VERSION 9")])
+@pytest.mark.parametrize("revision, rubric", [(6, "MARKS_VERSION 12"), (5, "MARKS_VERSION 11"),
+                                              (4, "MARKS_VERSION 10"), (3, "MARKS_VERSION 9")])
 def test_a_corpus_directory_holding_an_older_file_refuses_by_name(tmp_path, revision, rubric):
-    """Calls 49, 51, 60: one r5 (or r4, r3) file in keel-cloud's corpus refuses the whole load, naming the
+    """Calls 49, 51, 60, 68: one r6 (or r5, r4, r3) file in keel-cloud's corpus refuses the whole load, naming the
     entry and the rubric that read its revision -- never a fallback."""
     keel_cloud = tmp_path / "keel-cloud"
     canon = corpus_mod.corpus_dir(keel_cloud)
     canon.mkdir(parents=True)
     raw = fx.raw_entry()
-    fx.write_entry(canon, raw, "09-fixture-r6.yaml")
+    fx.write_entry(canon, raw, "09-fixture-r7.yaml")
     fx.write_entry(canon, dict(raw, id="08-old", revision=revision), "08-old.yaml")
     with pytest.raises(corpus_mod.CorpusError) as refusal:
         corpus_mod.load(keel_cloud, registry=fx.registry())
@@ -289,7 +292,8 @@ def test_every_model_written_set_carries_the_labels_the_founder_saw(corpus):
             for key in entry.plan(registry)[part]:
                 dimension = registry.by_key(key)
                 if dimension.fixed_codes is not None or dimension.founder_numeric \
-                        or dimension.founder_price or dimension.derived:   # Ability to pay: fixed rungs
+                        or dimension.founder_price or dimension.founder_cost \
+                        or dimension.derived:   # Ability to pay: fixed rungs; call 67: no kinds of cost
                     continue
                 labels = entry.founder_labels(key)
                 assert labels and list(labels) == entry.founder_option_codes(key), (entry.id, key)
@@ -304,7 +308,7 @@ def test_the_corpus_reads_the_same_through_the_exported_registry(corpus):
     exported = registry_mod.load(path)
     for entry in corpus.entries:
         corpus_mod.load_file(entry.path, registry=exported)
-    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 6
+    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 7
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)

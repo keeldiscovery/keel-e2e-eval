@@ -1,11 +1,11 @@
-# The B2B twin of 09-fixture-r6.yaml (spec 032 T005; r5 by spec 031, r4 by spec 030, first cut spec 029 T005):
+# The B2B twin of 09-fixture-r7.yaml (spec 033 T004, one cost total; spec 032 T005; r5 by spec 031, r4 by spec 030, first cut spec 029 T005):
 # persona.decision_maker is the `buyer` role, so the entry calibrates all thirteen keys and part 3 is the
 # COMMERCIAL_B2B link's (5 asked: the commercial six less the unsure buyer_payer_alignment). The cost is
 # HOURS (1 to 3 at the entry's `hourly_rate` of £20, about £20 to £60 a month); Ability to pay is derived. Not a
 # corpus entry; values invented.
 id: 10-fixture-b2b
 title: Fixture — the keys you cannot find, bought by the office
-revision: 6
+revision: 7
 market: {country: GB, region: null, language: en-GB}
 statements: {problem: Commuters who cycle lose ten minutes most mornings looking for their keys., solution: 'A tag on the
     key ring that listens for a whistle and beeps back, so the owner can follow the sound.', commercial: '£3 a month, paid
@@ -49,7 +49,6 @@ founder_calibration:
     answer: {mode: HOURS, low: 1, high: 3, rate: 20, period: month, currency: GBP}
     belief_phrase: 1 to 3 hours a month, about £20 to £60
     belief_sentence: The problem already costs the payer 1 to 3 hours a month, about £20 to £60.
-    units: {spare_keys: money, locksmith: money}
   commercial.price:
     answer: {low: 3, high: 5, period: month, currency: GBP}
     belief_phrase: £3 to £5 a month
@@ -97,9 +96,7 @@ respondent_questions:
     codes: [nothing_extra, one_tap, a_few_taps, setup_once, daytime_setup, would_not_reach]
   commercial.existing_sacrifice:
     part: 3
-    control: branch_pick_amounts
-    codes: [spare_keys, locksmith, none, nothing, something_else]
-    units: {spare_keys: money, locksmith: money}
+    control: cost_total
   commercial.price:
     part: 3
     control: price_ladder
@@ -122,7 +119,7 @@ answers:
   story: Tuesday. They were in my coat from the night before. Ten minutes, late for the train.
   chip: null
   anchoring: ANCHORED
-  picks: {problem.frequency: 3}
+  picks: {problem.frequency: 3, commercial.existing_sacrifice: {mode: HOURS, value: 2, currency: GBP, period: month}}
   pilot_opt_in: true
 - person: Bo Brand
   recency: 'yes'
@@ -210,8 +207,7 @@ expected:
     solution.compatibility: {status: HOLDING_UP, drift: none, n: 8, inside: 6, outside: 2}
     solution.relative_advantage: {status: HOLDING_UP, drift: none, n: 8, inside: 6, outside: 2}
     solution.adoption_friction: {status: HOLDING_UP, drift: none, n: 8, inside: 6, outside: 2}
-    commercial.existing_sacrifice: {status: NOT_HOLDING_UP, drift: below, n: 8, inside: 1, below: 7, above: 0, outside: 7, median: 12,
-        optionCounts: 'spare_keys=2, locksmith=1, none=5, nothing=0, something_else=0'}
+    commercial.existing_sacrifice: {status: NOT_HOLDING_UP, drift: below, n: 8, inside: 1, below: 7, above: 0, outside: 7, median: 12}
     commercial.price: {status: PEOPLE_DISAGREE, drift: below, n: 8, inside: 4, outside: 4, optionCounts: 'under_1=0,
         band_1_2=1, band_2_5=4, band_5_10=0, over_10=0, would_not_pay=3'}
     commercial.ability_to_pay: {status: HOLDING_UP, drift: none, n: 8, inside: 7, outside: 1}

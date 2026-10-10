@@ -49,15 +49,17 @@ def test_price_is_shapes_asked_of_whoever_pays_over_the_costs_five_periods():
 
 
 def test_existing_sacrifice_is_a_cost_estimate_read_as_an_interval():
-    """Call 59: `cost_estimate` over the five periods and the modes AMOUNT / HOURS, `branch_pick_amounts`
-    yields a number so it is drawn as an interval, read by `interval_contains_median`."""
+    """Call 59: `cost_estimate` over the five periods and the modes AMOUNT / HOURS, `cost_total` (call 67)
+    yields a number so it is drawn as an interval, read by `interval_contains_median`; no kinds anywhere."""
     sacrifice = fx.registry().by_key(registry_mod.SACRIFICE_KEY)
     assert sacrifice.founder_cost and sacrifice.founder_code_framed and not sacrifice.derived
     assert tuple(sacrifice.normalized["periods"]) == registry_mod.PERIODS
     assert tuple(sacrifice.normalized["modes"]) == registry_mod.COST_MODES
-    assert sacrifice.respondent["control"] == registry_mod.AMOUNTS_CONTROL
-    assert registry_mod.AMOUNTS_CONTROL in registry_mod.NUMBER_YIELDING_CONTROLS
-    assert registry_mod.AMOUNTS_CONTROL not in registry_mod.NUMERIC_RESPONDENT_CONTROLS
+    assert sacrifice.respondent["control"] == registry_mod.COST_TOTAL_CONTROL == "cost_total"
+    assert registry_mod.COST_TOTAL_CONTROL in registry_mod.NUMBER_YIELDING_CONTROLS
+    assert registry_mod.COST_TOTAL_CONTROL not in registry_mod.NUMERIC_RESPONDENT_CONTROLS
+    assert "code_rule" not in sacrifice.normalized and sacrifice.respondent_code_written
+    assert sacrifice.respondent["chips"] == ["It cost us nothing", "I can't recall", "That's a rough guess"]
     assert sacrifice.answers["shape"] == "interval"
     assert sacrifice.answers["compare_rule"] == "interval_contains_median"
 
@@ -157,8 +159,9 @@ def test_each_broken_registry_fails_exactly_its_own_invariant_naming_the_key(nam
 
 def test_there_is_a_broken_fixture_per_invariant_and_the_cost_first_extras():
     invariants = sorted(yaml.safe_load(p.read_text())["invariant"] for p in fx.BROKEN.glob("*.yaml"))
-    assert invariants == [1, 2, 3, 3, 4, 5, 5, 5, 5, 6, 6, 7, 8]
-    for name in ("5-price-periods", "5-cost-modes", "5-derived-sides", "3-b2b-link-only", "6-shape-amounts"):
+    assert invariants == [1, 2, 3, 3, 4, 5, 5, 5, 5, 5, 6, 6, 7, 8]
+    for name in ("5-price-periods", "5-cost-modes", "5-derived-sides", "3-b2b-link-only", "6-shape-amounts",
+                 "5-cost-kinds"):
         assert (fx.BROKEN / f"{name}.yaml").is_file()
 
 
@@ -280,3 +283,15 @@ def test_a_window_frames_frequency_above_one_unit_and_is_refused_when_unreadable
                 {"count": 1.5, "unit": "DAYS"}, "FORTNIGHT"):
         with pytest.raises(ValueError):
             registry_mod.RecallWindow.read(bad)
+
+
+def test_the_v12_registry_is_refused_for_its_kinds_and_its_amounts_control():
+    """Call 67: v12's Existing sacrifice (a `code_rule` of kinds, `branch_pick_amounts`) fails invariants 5 and 6."""
+    document = copy.deepcopy(fx.registry_document())
+    sacrifice = next(d for d in document["dimensions"] if d["key"] == registry_mod.SACRIFICE_KEY)
+    sacrifice["founder"]["normalized"]["code_rule"] = "4-6 slug codes for the kinds of cost"
+    sacrifice["respondent"]["control"] = registry_mod.GONE_AMOUNTS_CONTROL
+    faults = registry_mod.check_invariants(registry_mod.from_document(document, check=False))
+    assert any("a cost has no kinds" in f for f in faults), faults
+    assert any(f.startswith("invariant 5 (one total)") for f in faults), faults
+    assert any(f.startswith("invariant 6 ") for f in faults), faults

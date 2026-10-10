@@ -1,0 +1,7 @@
+# slice.yaml with one value changed, failing exactly invariant 5 (spec 033 T002; keel-cloud 077: no kinds of cost
+# anywhere): commercial.existing_sacrifice's cost carries a code_rule again, the respondent's tick list v12 read.
+base: ../slice.yaml
+invariant: 5
+key: commercial.existing_sacrifice
+path: [founder, normalized, code_rule]
+value: 4-6 slug codes for the kinds of cost a respondent will tick in this market

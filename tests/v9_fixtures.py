@@ -23,14 +23,14 @@ from instructions import registry as registry_mod
 FIXTURES = Path(__file__).parent / "fixtures"
 SLICE = FIXTURES / "registry" / "slice.yaml"
 BROKEN = FIXTURES / "registry" / "broken"
-ENTRY = FIXTURES / "corpus" / "09-fixture-r6.yaml"
-ENTRY_B2B = FIXTURES / "corpus" / "10-fixture-r6-b2b.yaml"
+ENTRY = FIXTURES / "corpus" / "09-fixture-r7.yaml"
+ENTRY_B2B = FIXTURES / "corpus" / "10-fixture-r7-b2b.yaml"
 COMPARE = FIXTURES / "compare"
 V8_BUNDLE = FIXTURES / "runs" / "v8-bundle"
 
-#: Why a test reading keel-cloud's canon corpus skips: the canon is not at revision 5 yet (calls 49, 51, 60 --
-#: there is no fixture fallback any more; keel-cloud 074 carries revision 6).
-CANON_NOT_R6 = ("keel-cloud's canon corpus is not at revision 6 (keel-cloud 074) -- spec 031 reads "
+#: Why a test reading keel-cloud's canon corpus skips: the canon is not at revision 7 yet (calls 49, 51, 60, 68 --
+#: there is no fixture fallback any more; keel-cloud 077 carries revision 7).
+CANON_NOT_R7 = ("keel-cloud's canon corpus is not at revision 7 (keel-cloud 077) -- spec 031 reads "
                 "the corpus from keel-cloud's canon and nowhere else (judgement call 49)")
 
 
@@ -41,7 +41,7 @@ def canon_dir() -> Path:
 
 
 def canon_entry(name: str) -> Path:
-    """One of keel-cloud's revision-6 entries (`03-lullaby.yaml`...), or a skip naming why."""
+    """One of keel-cloud's revision-7 entries (`03-lullaby.yaml`...), or a skip naming why."""
     import pytest                                                     # noqa: PLC0415
     path = canon_dir() / name
     try:
@@ -49,7 +49,7 @@ def canon_entry(name: str) -> Path:
     except (OSError, AttributeError, yaml.YAMLError):
         revision = None
     if revision != corpus_mod.REVISION:
-        pytest.skip(CANON_NOT_R6)
+        pytest.skip(CANON_NOT_R7)
     return path
 
 
@@ -70,7 +70,7 @@ def raw_entry(path=ENTRY) -> dict:
     return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
 
 
-def write_entry(tmp_path, raw: dict, name="09-fixture-r6.yaml") -> Path:
+def write_entry(tmp_path, raw: dict, name="09-fixture-r7.yaml") -> Path:
     path = Path(tmp_path) / name
     path.write_text(yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     return path
@@ -148,18 +148,10 @@ def calibration_question(dimension, *, b2b=False) -> dict:
     `tests/test_instruction_score.py` mutates by one thing."""
     from instructions import score as score_mod                       # noqa: PLC0415
     text = f"About {dimension.name.lower()}: what is true for the people meant?"
-    if dimension.founder_price:                         # call 53: the key and the note, no more
+    if dimension.founder_price or dimension.founder_cost:   # calls 53, 67: the key and the note, no more
         return {"key": dimension.key, "respondent_note": "asked of whoever pays"}
     if dimension.founder_numeric:                       # call 52: framed on 7 nights, no text
         return {"key": dimension.key, "options": None, "respondent_note": "asked as a number"}
-    if dimension.founder_cost:                          # call 61: the kinds and their units, no question, no phrase
-        kinds = [{"label": label, "normalized": code, "unit": unit}
-                 for label, code, unit in (("Spare keys", "spares", "money"),
-                                           ("Locksmith call-outs", "locksmiths", "money"),
-                                           ("Time spent searching", "searching", "hours"),
-                                           ("None of these; they cope", "none", None))]
-        kinds = [{k: v for k, v in kind.items() if v is not None} for kind in kinds]
-        return {"key": dimension.key, "options": kinds, "respondent_note": "asked of the stranger"}
     head = {"key": dimension.key, "question": text}
     if dimension.key == "problem.prevalence":           # call 52: the event clause, no question
         head = {"key": dimension.key, "event": "could not find their keys on the way out"}
@@ -167,15 +159,9 @@ def calibration_question(dimension, *, b2b=False) -> dict:
     if codes is None:
         codes = score_mod._ladder_codes(dimension, b2b) or ["first_kind", "second_kind",
                                                             "third_kind", "fourth_kind"]
-        if dimension.key == "commercial.existing_sacrifice":
-            codes = ["spares", "locksmiths", "taxis", "none"]
     options = [{"label": f"Option {i} for this", "normalized": code,
                 "belief_phrase": f"the {code.replace('_', ' ')} answer"}
                for i, code in enumerate(codes, start=1)]
-    if dimension.key == "commercial.existing_sacrifice":              # call 54: U1
-        for option in options:
-            if option["normalized"] != "none":
-                option["unit"] = "money"
     return {**head, "options": options, "respondent_note": "asked of the stranger in their own words"}
 
 
@@ -204,7 +190,7 @@ def respondent_item(entry, key, *, label_only=False) -> dict:
     row = entry.respondent_questions[key]
     item = {"key": key, "question": f"Thinking about that time: {key.split('.')[1].replace('_', ' ')}?"}
     from instructions.registry import GATE_CONTROL, NUMERIC_RESPONDENT_CONTROLS  # noqa: PLC0415
-    if row["control"] == "price_ladder":                # call 53: code's whole item
+    if row["control"] in ("price_ladder", "cost_total"):   # calls 53, 67: code's whole item
         return {"key": key}
     if row["control"] == GATE_CONTROL:                  # call 52: the event clause
         return {"key": key, "event": "lose your keys on the way out", "options": None}
@@ -222,10 +208,6 @@ def respondent_item(entry, key, *, label_only=False) -> dict:
             label = f"A distractor {n}"
             options.append(label if label_only else {"label": label, "code": f"distractor_{n}"})
     item["options"] = options
-    if key == "commercial.existing_sacrifice":          # call 62: W10, the founder's recall words
-        item["question"] = f"Thinking about {context_mod.cost_recall_of(entry)}: what did this cost you?"
-    if key == "commercial.existing_sacrifice":          # call 54: U1, one unit per option
-        item["units"] = ["money"] * len(options)
     return item
 
 

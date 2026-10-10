@@ -221,7 +221,9 @@ acceptance: venv
 #   make instruction-eval HOST=claude WHY=marks:11 MODELS=exported
 #       -- MARKS_VERSION 11's own run of record (spec 031), never spent: v12 superseded it
 #   make instruction-eval HOST=claude WHY=marks:12 MODELS=exported
-#       -- MARKS_VERSION 12's own run of record (spec 032), ON HOLD by the founder: never run or proposed
+#       -- MARKS_VERSION 12's own run of record (spec 032), ON HOLD by the founder, never spent: v13 superseded it
+#   make instruction-eval HOST=claude WHY=marks:13 MODELS=exported
+#       -- MARKS_VERSION 13's own run of record (spec 033): none yet; never run or proposed here
 instruction-screen: venv
 	$(PY) -m instructions.run --host $(if $(HOST),$(HOST),claude) \
 		$(if $(DRY),--dry-run,) -k "$(if $(K),$(K),01-countly)" -n $(if $(N),$(N),3) \

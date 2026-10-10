@@ -144,27 +144,16 @@ def test_the_gate_owes_its_event_and_is_held_to_e1_to_e3(registry):
         {"key": gate.key, "event": "lose a £5 key"}, gate, row))
 
 
-def test_u1_holds_every_kind_of_cost_to_its_unit_on_both_screens(registry):
+def test_u1_is_retired_there_is_no_unit_to_hold_on_either_screen(registry):
+    """Call 67 (keel-cloud 077, contract 8): `unit` and `units` are gone with the kinds of cost, so what a model
+    writes under them is not read -- the calibration refuses options (C2), the respondent item is the key."""
     sacrifice = registry.by_key("commercial.existing_sacrifice")
-    question = fx.calibration_question(sacrifice)
-    assert score_mod.calibration_checks(question, sacrifice) == []
-    none = next(o for o in question["options"] if o["normalized"] == "none")
-    assert "unit" not in none, "the fixed none has none"
-    question["options"][1]["unit"] = "days"
-    assert score_mod.calibration_checks(question, sacrifice) == [
-        "U1: 'Locksmith call-outs' is a kind of cost and needs its unit -- money, hours or count -- "
-        "and has 'days'"]
+    question = dict(fx.calibration_question(sacrifice), options=[{"label": "Taxis", "unit": "days"}])
+    assert [f[:3] for f in score_mod.calibration_checks(question, sacrifice)] == ["C2:"]
     entry = fx.entry()
     row = entry.respondent_questions[sacrifice.key]
-    item = {"key": sacrifice.key, "question": "What did it cost you in the last three months?",
-            "options": ["spare_keys", "locksmith", "Taxis", "Bus fares"],
-            "units": [None, None, "money", "hours"]}
-    assert score_mod.respondent_checks(item, sacrifice, row) == [], \
-        "founder kinds keep the calibration's unit; only distractors owe one"
-    item["units"] = [None, None, "money"]
-    assert score_mod.respondent_checks(item, sacrifice, row) == [
-        "U1: 'Bus fares' is a kind of cost and needs its unit in units[3] -- money, hours or "
-        "count -- and has None"]
+    item = {"key": sacrifice.key, "options": ["Taxis", "Bus fares"], "units": [None, "days"]}
+    assert score_mod.respondent_checks(item, sacrifice, row) == []
 
 
 def test_w3_and_w8_hold_only_to_a_name_the_corpus_records(registry):

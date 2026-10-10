@@ -1,12 +1,14 @@
-"""The golden corpus at revision 6, read and never written (spec 029 FR-006/FR-012, data-model §2;
-spec 030 FR-002, judgement call 49; spec 031 FR-002, judgement call 51; spec 032 FR-002, call 60).
+"""The golden corpus at revision 7, read and never written (spec 029 FR-006/FR-012, data-model §2;
+spec 030 FR-002, judgement call 49; spec 031 FR-002, judgement call 51; spec 032 FR-002, call 60;
+spec 033 FR-002, call 68).
 
 `canon/designs/measured-beliefs/corpus/*.yaml` in the keel-cloud checkout is the corpus. This
 module opens those files, hashes them on the way in, and offers `verify_unchanged()` so the end of
 a run can prove nothing here moved while it ran. **If an instruction cannot reach a golden, the
 instruction is wrong** -- or the design is, and it goes back to step 1. Never the corpus.
 
-**Revision 6 only** (call 60). `MARKS_VERSION` 12 reads keel-cloud 074's schema: revision 3's
+**Revision 7 only** (call 68). `MARKS_VERSION` 13 reads keel-cloud 077's schema, revision 6's but for
+Existing sacrifice, which is **one total** (below); revision 6, read at v12, was keel-cloud 074's: revision 3's
 shape (`context`, `interpretations.problem`, `solution_mechanism`, `persona`, the golden plan
 `respondent_questions`, people with a gate answer, a story, a chip, a golden anchoring and picks by
 dimension, `expected.standings` + `expected.vector_verdicts`) on the registry of **thirteen**, with
@@ -20,8 +22,11 @@ the cost and the price (`derive_ability`, keel-cloud's `AbilityToPay.derive` mir
 exactly when the cost or the price is; every Existing sacrifice pick records its recall `period`; a
 B2B entry records a top-level `hourly_rate`; a decision-maker on the `COMMERCIAL_B2B` link has no
 story and no chip and is `ANCHORED` by rule (keel-cloud 075); a B2C Existing sacrifice standing
-may record `time_only` / `time_only_hours` (people who gave only time, reported apart). A file at
-any other revision (a revision-5 file is named as v11's, a revision-4 one as v10's, a revision-3
+may record `time_only` / `time_only_hours` (people who gave only time, reported apart). Revision 7 (keel-cloud
+`sim/check_corpus_r7.py`'s O): Existing sacrifice has no kinds -- its plan row is `control: cost_total` with
+no codes and no units, the founder entry carries no `labels` / `units`, every pick is `{mode: AMOUNT | HOURS,
+value >= 0, currency, period}`, `{nothing: true, currency, period}` or `{chip}`, and its standing records no
+`optionCounts`. A file at any other revision (a revision-6 file is named as v12's, a revision-5 file as v11's, a revision-4 one as v10's, a revision-3
 one as v9's), or still carrying `beliefs`, `questionnaire`, `expected.buckets`, `expected.stages`
 or a per-anchor answer, is a **refusal to start** by entry and by key -- never a fallback, the same
 shape v8's scalar-`stage` refusal had.
@@ -51,17 +56,19 @@ from pathlib import Path
 import yaml
 
 from . import text as text_mod
-from .registry import (ABILITY_BANDS, ABILITY_KEY, AMOUNTS_CONTROL, COST_MODES, DEAL_BREAKERS,
+from .registry import (ABILITY_BANDS, ABILITY_KEY, COST_MODES, COST_TOTAL_CONTROL, DEAL_BREAKERS,
                        LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY, PRICE_PERIODS, SACRIFICE_KEY,
-                       UNITS, VECTORS, RecallWindow)
+                       VECTORS, RecallWindow)
 
-REVISION = 6
+REVISION = 7
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 4: "MARKS_VERSION 10's corpus, on the registry of twelve (no Price, no units)",
                 5: "MARKS_VERSION 11's corpus, before cost first (a tick list for Existing sacrifice, "
-                   "Price over month / year / one-off, Ability to pay asked of the founder)"}
+                   "Price over month / year / one-off, Ability to pay asked of the founder)",
+                6: "MARKS_VERSION 12's corpus, before the buyer's one total (Existing sacrifice a kinds "
+                   "tick list with an amount per kind, `branch_pick_amounts`, option counts)"}
 
 #: `sim/check_corpus_r5.py`'s `CURRENCY` (keel-cloud `Market.currency`'s table, the corpus's markets):
 #: a founder price is in its market's currency, never another.
@@ -301,13 +308,6 @@ class Entry:
         value = (self.raw_rate or {}).get("value") if isinstance(self.raw_rate, dict) else None
         return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
 
-    def units(self, key: str = SACRIFICE_KEY) -> dict:
-        """`{kind: unit}` for a kind of cost: the plan row's (founder kinds and distractors), the
-        founder's own over it (call 51)."""
-        row = dict(((self.respondent_questions or {}).get(key) or {}).get("units") or {})
-        row.update((self.founder_calibration.get(key) or {}).get("units") or {})
-        return row
-
     def link_of(self, part: int) -> str:
         """The link a part is asked on: part 3 of a B2B study is the decision-maker's (decision 26)."""
         return LINK_B2B if (self.b2b() and part == 3) else LINK_PRIMARY
@@ -512,7 +512,7 @@ def load_file(path, *, registry=None) -> Entry:
 # ------------------------------------------------------------------------------- the refusals
 
 def _refuse(entry_id, message, path) -> CorpusError:
-    return CorpusError(f"{entry_id}: {message} (spec 032 FR-002; judgement calls 49, 51, 60). {path}")
+    return CorpusError(f"{entry_id}: {message} (spec 033 FR-002; judgement calls 49, 51, 60, 68). {path}")
 
 
 def _check_revision(raw: dict, path: Path) -> None:
@@ -559,6 +559,11 @@ def _check_shape(raw: dict, path: Path) -> None:
         if not isinstance(value, dict) or not ("answer" in value or value.get("unsure") is True):
             raise _refuse(entry_id, f"founder_calibration[{key}] carries neither `answer` nor "
                                     "`unsure: true`", path)
+        if key == SACRIFICE_KEY:
+            for name in ("labels", "units"):
+                if name in value:
+                    raise _refuse(entry_id, f"founder_calibration[{key}] carries `{name}`; revision 7 "
+                                            "has no kinds of cost (the buyer answers one total)", path)
         labels = value.get("labels")
         if labels is not None:
             codes = founder_codes_of((raw.get("respondent_questions") or {}).get(key) or {})
@@ -615,7 +620,7 @@ def _check_shape(raw: dict, path: Path) -> None:
         if chip is not None and anchoring != "GUESSED":
             raise _refuse(entry_id, f"{name} carries the chip {chip} and is {anchoring}; a chipped "
                                     "story is GUESSED by code (call 33 amended)", path)
-    _check_price_and_units(raw, entry_id, path)
+    _check_price_and_total(raw, entry_id, path)
     maker = (raw.get("persona") or {}).get("decision_maker")
     if isinstance(maker, dict):
         role_ids = {r.get("id") for r in raw.get("roles") or []}
@@ -648,11 +653,10 @@ def _check_shape(raw: dict, path: Path) -> None:
                                     f"not a DEAL_BREAKER of {vector}", path)
 
 
-def _check_price_and_units(raw: dict, entry_id, path: Path) -> None:
-    """Revision 5's own checks (call 51; `check_corpus_r5.py`'s P and U): the founder's Price on the
-    ladder in the market's currency, its plan row the ladder's codes, every price pick a row code;
-    Existing sacrifice's units money · hours · count, its plan row `branch_pick_amounts`, and every
-    pick `{currency, amounts: [{kind, value?, unit?}]}` with each kind on the row in the row's unit."""
+def _check_price_and_total(raw: dict, entry_id, path: Path) -> None:
+    """Revision 5's Price checks (call 51; `check_corpus_r5.py`'s P): the founder's Price on the ladder
+    in the market's currency, its plan row the ladder's codes, every price pick a row code; and revision
+    7's Existing sacrifice (call 68; `check_corpus_r7.py`'s O): no kinds, `cost_total`, one total a pick."""
     calibration = raw.get("founder_calibration") or {}
     plan = raw.get("respondent_questions") or {}
     country = (raw.get("market") or {}).get("country")
@@ -679,35 +683,26 @@ def _check_price_and_units(raw: dict, entry_id, path: Path) -> None:
             raise _refuse(entry_id, f"respondent_questions[{PRICE_KEY}].codes are {codes}; the "
                                     f"ladder around a low of {low:g} is {price_ladder_codes(low)}",
                           path)
-    for where, units in (("founder_calibration", (calibration.get(SACRIFICE_KEY) or {}).get("units")),
-                         ("respondent_questions", (plan.get(SACRIFICE_KEY) or {}).get("units"))):
-        for kind, unit in (units or {}).items():
-            if unit not in UNITS:
-                raise _refuse(entry_id, f"{where}[{SACRIFICE_KEY}].units[{kind}] is {unit!r}, not "
-                                        f"one of {UNITS}", path)
     row = plan.get(SACRIFICE_KEY)
-    if row is not None and row.get("control") != AMOUNTS_CONTROL:
-        raise _refuse(entry_id, f"respondent_questions[{SACRIFICE_KEY}].control is "
-                                f"{row.get('control')!r}; revision 6 asks {AMOUNTS_CONTROL}", path)
-    row_codes = [str(c) for c in (row or {}).get("codes") or []]
-    row_units = (row or {}).get("units") or {}
+    if row is not None and (row.get("control") != COST_TOTAL_CONTROL or row.get("codes")
+                            or row.get("units")):
+        raise _refuse(entry_id, f"respondent_questions[{SACRIFICE_KEY}] is {row.get('control')!r} with "
+                                f"codes {row.get('codes')!r}; revision 7 asks {COST_TOTAL_CONTROL}, "
+                                "with no codes and no units", path)
     price_codes = [str(c) for c in (plan.get(PRICE_KEY) or {}).get("codes") or []]
     for person in raw.get("answers") or []:
         picks = person.get("picks") or {}
         name = person.get("person")
         pick = picks.get(SACRIFICE_KEY)
         if pick is not None and not (isinstance(pick, dict) and "chip" in pick):
-            if not isinstance(pick, dict) or not isinstance(pick.get("amounts"), list):
-                raise _refuse(entry_id, f"{name}'s {SACRIFICE_KEY} pick is {pick!r}; revision 6 "
-                                        "answers {currency, period, amounts: [{kind, value?, unit?}]}", path)
-            for amount in pick["amounts"]:
-                kind, unit = (amount or {}).get("kind"), (amount or {}).get("unit")
-                if row_codes and str(kind) not in row_codes:
-                    raise _refuse(entry_id, f"{name}'s {SACRIFICE_KEY} kind {kind!r} is not on the "
-                                            "plan row", path)
-                if unit is not None and unit != row_units.get(kind):
-                    raise _refuse(entry_id, f"{name}'s {SACRIFICE_KEY} kind {kind!r} is in {unit!r}; "
-                                            f"the row counts it in {row_units.get(kind)!r}", path)
+            value = pick.get("value") if isinstance(pick, dict) else None
+            if not isinstance(pick, dict) or "amounts" in pick or not (
+                    pick.get("nothing") is True or (
+                        pick.get("mode") in COST_MODES and isinstance(value, (int, float))
+                        and not isinstance(value, bool) and value >= 0)):
+                raise _refuse(entry_id, f"{name}'s {SACRIFICE_KEY} pick is {pick!r}; revision 7 answers "
+                                        "{mode: AMOUNT | HOURS, value, currency, period}, "
+                                        "{nothing: true, currency, period} or {chip}", path)
         band = picks.get(PRICE_KEY)
         if band is not None and not isinstance(band, dict) and price_codes \
                 and str(band) not in price_codes:
@@ -729,7 +724,7 @@ def _check_cost_first(raw: dict, entry_id, path: Path) -> None:
         value = rate.get("value") if isinstance(rate, dict) else None
         if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
             raise _refuse(entry_id, "a B2B entry records `hourly_rate` {value above 0, currency} "
-                                    "(revision 6)", path)
+                                    "(since revision 6)", path)
     cost = None
     if not sacrifice.get("unsure"):
         cost = sacrifice.get("answer")
@@ -761,11 +756,11 @@ def _check_cost_first(raw: dict, entry_id, path: Path) -> None:
     price = None if price_cal.get("unsure") else price_cal.get("answer")
     if cost is not None and isinstance(price, dict) and price.get("period") != cost.get("period"):
         raise _refuse(entry_id, f"founder_calibration[{PRICE_KEY}].period is {price.get('period')!r}; "
-                                f"it is the cost estimate's, {cost.get('period')!r} (revision 6)", path)
+                                f"it is the cost estimate's, {cost.get('period')!r} (since revision 6)", path)
     ability = calibration.get(ABILITY_KEY)
     if ability is None:
         raise _refuse(entry_id, f"founder_calibration lacks {ABILITY_KEY}; it is derived and "
-                                "calibrated on every entry (revision 6)", path)
+                                "calibrated on every entry (since revision 6)", path)
     if cost is None or not isinstance(price, dict):
         if not ability.get("unsure"):
             raise _refuse(entry_id, f"founder_calibration[{ABILITY_KEY}] is answered; the cost or the "
@@ -783,11 +778,14 @@ def _check_cost_first(raw: dict, entry_id, path: Path) -> None:
             raise _refuse(entry_id, f"founder_calibration[{ABILITY_KEY}].belief_sentence is "
                                     f"{ability.get('belief_sentence')!r}; the engine's is {sentence!r}",
                           path)
+    if "optionCounts" in ((raw.get("expected") or {}).get("standings") or {}).get(SACRIFICE_KEY, {}):
+        raise _refuse(entry_id, f"expected.standings[{SACRIFICE_KEY}] records optionCounts; revision 7 "
+                                "has no kinds to count", path)
     for person in raw.get("answers") or []:
         pick = (person.get("picks") or {}).get(SACRIFICE_KEY)
         if isinstance(pick, dict) and "chip" not in pick and pick.get("period") not in RECALL_PERIODS:
             raise _refuse(entry_id, f"{person.get('person')}'s {SACRIFICE_KEY} pick records period "
-                                    f"{pick.get('period')!r}; revision 6 records the recall period it "
+                                    f"{pick.get('period')!r}; revision 7 records the recall period it "
                                     f"was asked over, one of {RECALL_PERIODS}", path)
 
 

@@ -1,41 +1,9 @@
 {
-  "_source": "keel-cloud 073 (0925484) VectorFixtures.calibrationResult(COMMERCIAL) -- the golden the `screenContracts validate` test accepts, transcribed (spec 031): the registry's Lullaby examples where they still pass, FOUNDER_QUESTIONS where they do not, Prevalence's `event` and no text on Frequency or Price (code frames them), Existing sacrifice's units; words only, no codes (joined by position)",
+  "_source": "keel-cloud 077 (dc13341) VectorFixtures.calibrationResult(COMMERCIAL) -- the golden the `screenContracts validate` test accepts, transcribed (spec 033): the registry's Lullaby examples where they still pass, FOUNDER_QUESTIONS where they do not, Prevalence's `event` and no text on Frequency or Price (code frames them), Existing sacrifice's key and note alone (no kinds, no units: the buyer's cost is one total); words only, no codes (joined by position)",
   "vector": "COMMERCIAL",
   "questions": [
     {
       "key": "commercial.existing_sacrifice",
-      "question": "What have parents of babies under six months already paid for or given up because of the night crying?",
-      "options": [
-        {
-          "label": "Money on baby apps or subscriptions (tracking, white noise)",
-          "belief_phrase": "money on baby apps",
-          "unit": "money"
-        },
-        {
-          "label": "Money on gadgets (sleep aids, swaddles, monitors)",
-          "belief_phrase": "money on gadgets",
-          "unit": "money"
-        },
-        {
-          "label": "Paid help so they can sleep (night nurse, doula)",
-          "belief_phrase": "money on paid help",
-          "unit": "money"
-        },
-        {
-          "label": "Time off or a worse day at work after a bad night",
-          "belief_phrase": "working days",
-          "unit": "hours"
-        },
-        {
-          "label": "Extra visits to a doctor or health visitor about the crying",
-          "belief_phrase": "extra medical visits",
-          "unit": "count"
-        },
-        {
-          "label": "None of these; they cope with what they have",
-          "belief_phrase": "nothing yet"
-        }
-      ],
       "respondent_note": "Respondents will be asked about their own last episode, never this."
     },
     {

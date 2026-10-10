@@ -26,7 +26,21 @@ added to this line rather than quietly written — which is exactly how the thir
   reads *green at the current `MARKS_VERSION`*, so a rubric that moved has no run of record at all
   until one is spent, and a screen is one entry and cannot be one. The policy widened by one named
   event, in the open, which is the amendment shape this document asks for — it did not loosen.
-  **`MARKS_VERSION` 12** (spec `032-cost-first-price`, 2026-10-10) is the gate as written, and
+  **`MARKS_VERSION` 13** (spec `033-buyer-cost-total`, 2026-10-10) is the gate as written, and
+  **there is no run of record until `WHY=marks:13` is spent; never run or propose it** (v12's is
+  still on hold by the founder). keel-cloud 077 (the buyer's cost is one total; branch
+  `077-buyer-cost-total` at `dc13341`; inference `CONTRACT_VERSION` 8) removed the kinds of cost:
+  the respondent answers Existing sacrifice with one number, an amount or hours, over the founder's
+  recall period (`cost_total`). The ruler follows (judgement calls 67-70): Existing sacrifice owes
+  the model nothing on either screen, as Price does (the calibration entry is its key and note,
+  options are `C2`; the respondent item is its key alone), `W10` and `U1` retired, the registry's
+  cost carries no `code_rule`, corpus revision 7 (an r6 file refused by name as v12's; no standing
+  or verdict moved), the brief's time-only figure reads the B2C `HOURS` totals, and `rescore.py`
+  refuses every bundle below 13. `DRY=1` against keel-cloud 077 measures `compare_correctness` 108
+  of 108 and prints every other mark's denominator (calibration 80, respondent 81, `no_leak` 109 an
+  N: the buyer's Existing sacrifice is no longer swept). What follows is v12's account, history
+  since 2026-10-10 (never run).
+  **`MARKS_VERSION` 12** (spec `032-cost-first-price`, 2026-10-10) was the gate as written, and
   **there is no run of record until `WHY=marks:12` is spent -- that run is on hold by the
   founder; never run or propose it**. keel-cloud 074 (cost first; branch `074-cost-first-price`,
   merging 075) moved the subjects' words: the founder estimates what the problem costs (Existing

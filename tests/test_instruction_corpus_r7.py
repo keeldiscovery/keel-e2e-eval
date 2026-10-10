@@ -1,9 +1,9 @@
-"""`instructions/corpus.py` at revision 6: the loader on a hand-sized entry (spec 029 FR-006, data-model
+"""`instructions/corpus.py` at revision 7: the loader on a hand-sized entry (spec 029 FR-006, data-model
 §2-§3; T012; at revision 4 by spec 030 T006, judgement calls 47 and 49; at revision 5 by spec 031
-T006, judgement calls 50 and 51; at revision 6 by spec 032 T005, judgement calls 59 and 60).
+T006, judgement calls 50 and 51; at revision 6 by spec 032 T005, judgement calls 59 and 60; at revision 7 by spec 033 T004, call 68).
 
 Everything the scorers read off an entry -- the plan, the vocabulary and its inflection ledger, who
-is readable -- is checked here on `tests/fixtures/corpus/09-fixture-r6.yaml`, a person can count it
+is readable -- is checked here on `tests/fixtures/corpus/09-fixture-r7.yaml`, a person can count it
 by hand: 12 people, Kit and Lu answer No at the gate, Jo chips, Ivy's story is vague, eight are
 anchored; one founder answer is unsure. And every refusal of data-model §2 is made to happen once,
 from a one-line change to that file, naming the entry and the key.
@@ -48,10 +48,10 @@ def test_a_b2b_entry_calibrates_thirteen_and_routes_part_three_to_the_decision_m
 
 
 def test_the_price_the_units_and_the_ladder_are_read(entry):
-    """Call 51: the founder's range, its period and currency; the kinds' units; the row the
+    """Call 51: the founder's range, its period and currency; the row the
     ladder's five bands around a low of 3 (the 2-5 band in the middle) plus would_not_pay."""
     assert entry.price() == {"low": 3, "high": 5, "period": "month", "currency": "GBP"}
-    assert entry.units() == {"spare_keys": "money", "locksmith": "money"}
+    assert not hasattr(entry, "units"), "call 68: there are no kinds of cost to count in a unit"
     assert corpus_mod.price_ladder_codes(3) == entry.respondent_questions["commercial.price"]["codes"]
     assert corpus_mod.price_ladder_codes(500) == [
         "under_250", "band_250_500", "band_500_1000", "band_1000_2500", "over_2500", "would_not_pay"]
@@ -122,20 +122,22 @@ MUTATIONS = {
     "stages": (lambda r: r["expected"].__setitem__("stages", {}), "`expected.stages`"),
     "anchors": (lambda r: _person(r, "Ann Abbott").__setitem__("anchors", {}), "`anchors`"),
     "revision 3": (lambda r: r.__setitem__("revision", 3), "revision is 3; this eval reads "
-                   "revision 6 only -- revision 3 is MARKS_VERSION 9's corpus"),
+                   "revision 7 only -- revision 3 is MARKS_VERSION 9's corpus"),
     "revision 4": (lambda r: r.__setitem__("revision", 4), "revision is 4; this eval reads "
-                   "revision 6 only -- revision 4 is MARKS_VERSION 10's corpus"),
+                   "revision 7 only -- revision 4 is MARKS_VERSION 10's corpus"),
     "revision 5": (lambda r: r.__setitem__("revision", 5), "revision is 5; this eval reads "
-                   "revision 6 only -- revision 5 is MARKS_VERSION 11's corpus"),
+                   "revision 7 only -- revision 5 is MARKS_VERSION 11's corpus"),
     "a price off the ladder": (
         lambda r: r["founder_calibration"]["commercial.price"]["answer"].__setitem__("low", 10000),
         "founder_calibration[commercial.price] is 10000 to 5: off the ladder"),
+    "revision 6": (lambda r: r.__setitem__("revision", 6), "revision is 6; this eval reads "
+                   "revision 7 only -- revision 6 is MARKS_VERSION 12's corpus"),
     "a price on a period outside the five": (
         lambda r: r["founder_calibration"]["commercial.price"]["answer"].__setitem__(
             "period", "one_off"), "founder_calibration[commercial.price].period is 'one_off'"),
     "a price on another period than the cost's": (
         lambda r: r["founder_calibration"]["commercial.price"]["answer"].__setitem__(
-            "period", "week"), "it is the cost estimate's, 'month' (revision 6)"),
+            "period", "week"), "it is the cost estimate's, 'month' (since revision 6)"),
     "a cost that is a tick list": (
         lambda r: r["founder_calibration"]["commercial.existing_sacrifice"].__setitem__(
             "answer", ["spare_keys"]), "a cost estimate is {mode: AMOUNT | HOURS"),
@@ -166,8 +168,8 @@ MUTATIONS = {
     "a pick with no recall period": (
         lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
             "commercial.existing_sacrifice",
-            {"currency": "GBP", "amounts": [{"kind": "spare_keys", "value": 3, "unit": "money"}]}),
-        "records period None; revision 6 records the recall period"),
+            {"mode": "AMOUNT", "value": 3, "currency": "GBP"}),
+        "records period None; revision 7 records the recall period"),
     "a price in another currency": (
         lambda r: r["founder_calibration"]["commercial.price"]["answer"].__setitem__(
             "currency", "USD"), "the market (GB) prices in GBP, never another"),
@@ -176,30 +178,39 @@ MUTATIONS = {
             "codes", ["under_5", "band_5_10", "band_10_20", "band_20_50", "over_50",
                       "would_not_pay"]),
         "respondent_questions[commercial.price].codes are"),
-    "a unit outside the three": (
-        lambda r: r["founder_calibration"]["commercial.existing_sacrifice"]["units"].__setitem__(
-            "locksmith", "days"), "units[locksmith] is 'days'"),
+    "a kinds list on the founder's entry": (
+        lambda r: r["founder_calibration"]["commercial.existing_sacrifice"].__setitem__(
+            "labels", ["Spares"]), "carries `labels`; revision 7 has no kinds of cost"),
+    "units on the founder's entry": (
+        lambda r: r["founder_calibration"]["commercial.existing_sacrifice"].__setitem__(
+            "units", {"spare_keys": "money"}), "carries `units`; revision 7 has no kinds of cost"),
     "the old control": (
         lambda r: r["respondent_questions"]["commercial.existing_sacrifice"].__setitem__(
-            "control", "branch_pick_number"), "revision 6 asks branch_pick_amounts"),
-    "an r4 pick": (
-        lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
-            "commercial.existing_sacrifice", {"bought": "spare_keys", "cost": {"value": 4}}),
-        "revision 6 answers {currency, period, amounts"),
-    "an amount in the wrong unit": (
+            "control", "branch_pick_amounts"), "revision 7 asks cost_total, with no codes and no units"),
+    "codes on the plan row": (
+        lambda r: r["respondent_questions"]["commercial.existing_sacrifice"].__setitem__(
+            "codes", ["spare_keys", "none"]), "revision 7 asks cost_total, with no codes and no units"),
+    "an r6 pick": (
         lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
             "commercial.existing_sacrifice",
             {"currency": "GBP", "period": "quarter",
-             "amounts": [{"kind": "spare_keys", "value": 3, "unit": "hours"}]}),
-        "kind 'spare_keys' is in 'hours'; the row counts it in 'money'"),
+             "amounts": [{"kind": "spare_keys", "value": 3, "unit": "money"}]}),
+        "revision 7 answers {mode: AMOUNT | HOURS, value, currency, period}"),
+    "an r4 pick": (
+        lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
+            "commercial.existing_sacrifice", {"bought": "spare_keys", "cost": {"value": 4}}),
+        "revision 7 answers {mode: AMOUNT | HOURS, value, currency, period}"),
+    "a negative total": (
+        lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
+            "commercial.existing_sacrifice",
+            {"mode": "HOURS", "value": -2, "currency": "GBP", "period": "month"}),
+        "revision 7 answers {mode: AMOUNT | HOURS, value, currency, period}"),
+    "option counts on the standing": (
+        lambda r: r["expected"]["standings"]["commercial.existing_sacrifice"].__setitem__(
+            "optionCounts", "spare_keys=2"), "records optionCounts; revision 7 has no kinds to count"),
     "a price pick off the row": (
         lambda r: _person(r, "Ann Abbott")["picks"].__setitem__("commercial.price", "band_20_50"),
         "Ann Abbott's commercial.price pick 'band_20_50' is not one of the ladder's"),
-    "labels one short": (
-        lambda r: r["founder_calibration"]["commercial.existing_sacrifice"].__setitem__(
-            "labels", ["Spares"]),
-        "founder_calibration[commercial.existing_sacrifice].labels must be one label per founder "
-        "option"),
     "neither answer nor unsure": (
         lambda r: r["founder_calibration"].__setitem__("problem.importance",
                                                        {"belief_phrase": "x"}),

@@ -1,8 +1,8 @@
-"""`instructions/score.py` at `MARKS_VERSION` 11 (spec 029 data-model §6; T025, T029, T035, T039,
+"""`instructions/score.py` at `MARKS_VERSION` 13 (spec 029 data-model §6; T025, T029, T035, T039,
 T040, T042, T043; spec 030 T009-T010, calls 46-47; spec 031 T010, calls 52-55).
 
 Fixtures a person can check by hand: the hand-sized registry slice of twelve and
-`09-fixture-r6.yaml` (B2C: eleven calibrated keys, one left out). Every mark has its green half and its
+`09-fixture-r7.yaml` (B2C: eleven calibrated keys, one left out). Every mark has its green half and its
 red half here, and every total is summed over its own denominator and never another's -- each
 denominator read off the registry and the entry (`_slice`, `_plan`), never typed.
 """
@@ -23,6 +23,13 @@ from tests import v9_fixtures as fx
 @pytest.fixture()
 def entry():
     return fx.entry()
+
+
+@pytest.fixture()
+def b2b_entry():
+    """The B2B twin: since v13 Existing sacrifice is code's whole, so the one model-written set a
+    persona calibrates and asks is Purchase friction's, which only a B2B entry carries."""
+    return fx.entry(fx.ENTRY_B2B)
 
 
 def _compare_case(entry):
@@ -124,7 +131,7 @@ def registry():
 
 
 def _calibrate(entry, registry, vector="PROBLEM", mutate=None, judge=None):
-    result = fx.calibration_result(registry, vector)
+    result = fx.calibration_result(registry, vector, b2b=entry.b2b())
     if mutate:
         mutate(result)
     return score_mod.score_calibration(fx.calibration_case(entry, vector), entry, registry,
@@ -169,8 +176,9 @@ def test_coverage_is_absolute_and_any_slip_fails_the_case(entry, registry, name,
 
 #: The fixed five-point scale of v10's PROBLEM vector (it was Severity's at v9).
 SCALE = "problem.current_solution_satisfaction"
-#: The one model-written set a B2C entry calibrates (it was Consequence's, on PROBLEM, at v9).
-SET = "commercial.existing_sacrifice"
+#: The one model-written set there is to calibrate or ask, on a B2B entry (it was Existing sacrifice's kinds at
+#: v12 and Consequence's at v9; call 67).
+SET = "commercial.purchase_friction"
 
 
 def _scale_options(r):
@@ -218,13 +226,15 @@ def _set_options(r):
         "question", "Would they pay £3 to try it?"), "W9: '£'"),
     ("options on Price", "COMMERCIAL", lambda r: _q(r, "commercial.price").__setitem__(
         "options", [{"label": "Under £2", "belief_phrase": "under two"}]), "C2:"),
-    ("a kind with no unit", "COMMERCIAL", lambda r: _set_options(r)[0].pop("unit"),
-     "U1: 'Spare keys' is a kind of cost"),
+    ("options on Existing sacrifice", "COMMERCIAL", lambda r: _q(r, "commercial.existing_sacrifice")
+     .__setitem__("options", [{"label": "Spare keys", "belief_phrase": "spare keys"}]),
+     "C2: 1 options on Existing sacrifice"),
     ("fifths with a hole", "PROBLEM", lambda r: _q(r, "problem.prevalence")["options"][2]
      .__setitem__("normalized", "p_50_60"), "not the registry's"),
 ])
-def test_option_validity_fails_on_each_registry_rule_made_to_fail_once(entry, registry, name,
+def test_option_validity_fails_on_each_registry_rule_made_to_fail_once(entry, b2b_entry, registry, name,
                                                                        vector, mutate, words):
+    entry = b2b_entry if vector == "COMMERCIAL" else entry
     score = _calibrate(entry, registry, vector, mutate=mutate)
     validity = [f for f in score.faults if f["check"] == "option_validity"]
     assert len(validity) == 1, (name, score.faults)
@@ -243,12 +253,16 @@ def test_a_belief_phrase_equal_to_its_label_is_accepted(entry, registry):
     assert not [f for f in score.faults if f["check"] == "option_validity"], score.faults
     assert score.validity_hit == score.validity_of
 
-def test_the_fixed_codes_a_model_written_rule_names_must_be_there(registry):
+def test_existing_sacrifice_owes_its_key_and_nothing_else_on_the_calibration_screen(registry):
+    """Call 67 (keel-cloud 077): no kinds of cost, so no options, no unit and no fixed `none` -- the entry is
+    its key (and note), options are `C2`, a question the model wrote anyway is not read."""
     dimension = registry.by_key("commercial.existing_sacrifice")
     good = fx.calibration_question(dimension)
+    assert good == {"key": dimension.key, "respondent_note": "asked of whoever pays"}
     assert score_mod.calibration_checks(good, dimension) == []
-    good["options"] = [o for o in good["options"] if o["normalized"] != "none"]
-    assert any("['none']" in f for f in score_mod.calibration_checks(good, dimension))
+    assert score_mod.calibration_checks(dict(good, question="What did it cost last month?"), dimension) == []
+    tick_list = dict(good, options=[{"label": "Spare keys", "unit": "money"}])
+    assert [f[:3] for f in score_mod.calibration_checks(tick_list, dimension)] == ["C2:"]
 
 
 def test_the_commitment_ladder_is_the_rungs_for_the_projects_type(registry):
@@ -296,10 +310,10 @@ def _item(result, key):
     return next(i for i in result["items"] if i["key"] == key)
 
 
-@pytest.mark.parametrize("part, count, sweeps", [(1, 4, 6), (2, 3, 3), (3, 3, 2)])
+@pytest.mark.parametrize("part, count, sweeps", [(1, 4, 6), (2, 3, 3), (3, 3, 1)])
 def test_coverage_per_part_is_the_plan_exactly_once_each(entry, registry, part, count, sweeps):
-    """Calls 52, 53: Frequency over the framed 7 nights and Price owe no text, so neither is
-    swept -- part 1 sweeps three items twice, part 3 two of its three once."""
+    """Calls 52, 53, 67: Frequency over the framed 7 nights, Price and Existing sacrifice owe no text, so
+    none is swept -- part 1 sweeps three items twice, part 3 one of its three once."""
     assert len(entry.plan()[part]) == count, "the plan, read: 4 / 3 / 4 less the one left out"
     score = _respond(entry, registry, part)
     assert (score.coverage_hit, score.coverage_of) == (count, count)
@@ -321,7 +335,7 @@ def _options(result, key):
     ("control", 1, lambda r: _item(r, SCALE).__setitem__("control", "single_choice"),
      "control 'single_choice'"),
     ("founder label missing", 3, lambda r: _options(r, SET).pop(0),
-     "missing founder label(s) ['spare_keys']"),
+     "missing founder label(s) ['forgetting']"),
     ("one distractor", 3, lambda r: _options(r, SET).pop(),
      "1 distractor(s); a set takes 2 to 3"),
     ("something else written", 3, lambda r: _options(r, SET).append("Something else"),
@@ -340,9 +354,12 @@ def _options(result, key):
     ("options on the gate", 1, lambda r: _item(r, "problem.prevalence").__setitem__(
         "options", ["Yes", "No"]), "options on a gate_yes_no control"),
 ])
-def test_validity_fails_on_each_respondent_rule_made_to_fail_once(entry, registry, name, part,
+def test_validity_fails_on_each_respondent_rule_made_to_fail_once(entry, b2b_entry, registry, name, part,
                                                                   mutate, words):
-    score = _respond(entry, registry, part, mutate)
+    if part == 3:                         # the set is Purchase friction's, on the decision-maker's link
+        score = _respond(b2b_entry, registry, 3, mutate, link="COMMERCIAL_B2B")
+    else:
+        score = _respond(entry, registry, part, mutate)
     validity = [f for f in score.faults if f["check"] == "option_validity"]
     assert len(validity) == 1, (name, score.faults)
     assert words in validity[0]["evidence"], (name, validity[0]["evidence"])
@@ -369,22 +386,24 @@ def test_a_fixed_code_control_owes_exactly_one_label_per_founder_code(entry, reg
 
 
 @pytest.mark.parametrize("distractors, ok", [(1, False), (2, True), (3, True), (4, False)])
-def test_a_set_takes_every_founder_label_and_two_to_three_distractors(entry, registry,
+def test_a_set_takes_every_founder_label_and_two_to_three_distractors(b2b_entry, registry,
                                                                       distractors, ok):
+    entry = b2b_entry
     from instructions.registry import RESPONDENT_ESCAPES                     # noqa: PLC0415
     dimension = registry.by_key(SET)
     row = _row(entry, dimension.key)
     founder = [c for c in row["codes"] if c not in RESPONDENT_ESCAPES]
     labels = [c.upper() for c in founder] + [f"Distractor {i}" for i in range(distractors)]
     faults = score_mod.respondent_checks({"key": dimension.key, "question": "Over the last three months?",
-                                          "options": labels, "units": ["money"] * len(labels)},
+                                          "options": labels},
                                          dimension, row)
     assert (faults == []) is ok, faults
     if not ok:
         assert f"{distractors} distractor(s)" in faults[0]
 
 
-def test_a_set_missing_a_founder_label_fails(entry, registry):
+def test_a_set_missing_a_founder_label_fails(b2b_entry, registry):
+    entry = b2b_entry
     from instructions.registry import RESPONDENT_ESCAPES                     # noqa: PLC0415
     dimension = registry.by_key(SET)
     row = _row(entry, dimension.key)
@@ -396,45 +415,38 @@ def test_a_set_missing_a_founder_label_fails(entry, registry):
 
 
 def _canon(name="03-lullaby.yaml"):
-    """One of keel-cloud's r4 entries (skipped by name when the canon is not at r4)."""
+    """One of keel-cloud's r7 entries (skipped by name when the canon is not at r7)."""
     from instructions import corpus as corpus_mod                       # noqa: PLC0415
     return corpus_mod.load_file(fx.canon_entry(name), registry=fx.registry())
 
 
-def _lullaby():
-    return _canon()
-
-
 def test_a_set_is_judged_against_the_founders_labels_not_the_codes(registry):
-    lullaby = _lullaby()
-    key = "commercial.existing_sacrifice"
-    dimension, row = registry.by_key(key), lullaby.respondent_questions[key]
-    labels = lullaby.founder_labels(key)
-    shown = [label for code, label in labels.items() if code != "nothing"]
-    good = {"key": key, "question": "What did it cost the last three months?",
-            "options": [s.upper() + "!" for s in shown] + ["Distractor a", "Distractor b"],
-            "units": ["money"] * (len(shown) + 2)}
-    assert score_mod.respondent_checks(good, dimension, row, founder_labels=labels) == [], \
-        "058's R2 comparison, and the founder's own 'None of these' left to code"
-    codes = dict(good, options=[c for c in labels if c != "nothing"] + ["Distractor a"])
-    faults = score_mod.respondent_checks(codes, dimension, row, founder_labels=labels)
+    paidly = _canon("05-paidly.yaml")
+    key = "commercial.purchase_friction"
+    dimension, row = registry.by_key(key), paidly.respondent_questions[key]
+    labels = paidly.founder_labels(key)
+    shown = list(labels.values())
+    good = {"key": key, "question": "What could have held you back?",
+            "options": [s.upper() + "!" for s in shown] + ["Distractor a", "Distractor b"]}
+    assert score_mod.respondent_checks(good, dimension, row, founder_labels=labels, part=3) == [], \
+        "058's R2 comparison, the escapes left to code"
+    codes = dict(good, options=list(labels) + ["Distractor a"])
+    faults = score_mod.respondent_checks(codes, dimension, row, founder_labels=labels, part=3)
     assert any("missing founder label(s)" in f for f in faults), faults
 
 
-def test_the_founders_escape_is_told_by_its_label_whatever_production_slugged_it(registry):
-    """Production slugs *None of these* as `none_of_these_<...>`, never the bare `none`: the
-    escape row 058 appends is recognised by its LABEL, not a fixed slug."""
-    lullaby = _lullaby()
+def test_existing_sacrifice_owes_its_key_alone_on_the_respondent_screen(registry):
+    """Call 67 (keel-cloud 077): `cost_total` is code's whole -- the item is its key, nothing the model writes
+    is read (no W10 on a question, no U1 on a unit, no options), as Price's ladder is."""
+    lullaby = _canon()
     key = "commercial.existing_sacrifice"
     dimension, row = registry.by_key(key), lullaby.respondent_questions[key]
-    labels = {("none_of_these_they_cope" if code == "nothing" else code): label
-              for code, label in lullaby.founder_labels(key).items()}
-    assert any(score_mod.is_escape_label(label) for label in labels.values())
-    shown = [label for label in labels.values() if not score_mod.is_escape_label(label)]
-    item = {"key": key, "question": "That last thing?",
-            "options": shown[1:] + shown[:1] + ["Distractor a", "Distractor b"]}
-    faults = score_mod.respondent_checks(item, dimension, row, founder_labels=labels)
-    assert not [f for f in faults if "missing founder label" in f], faults
+    assert dimension.respondent_code_written and row["control"] == "cost_total" and "codes" not in row
+    assert score_mod.respondent_checks({"key": key}, dimension, row, part=3) == []
+    written = {"key": key, "question": "What did it cost?", "options": ["Spare keys", "Taxis"],
+               "units": ["money", "money"]}
+    assert score_mod.respondent_checks(written, dimension, row, part=3) == []
+    assert score_mod.model_text(written, dimension) is None
 
 
 @pytest.mark.parametrize("label", ["None of these", "None of these; they cope with what they have",
@@ -464,8 +476,9 @@ def test_a_scale_step_that_begins_with_something_else_is_not_an_escape(registry)
 
 @pytest.mark.parametrize("label", ["Something else", "something else.", "None of these",
                                    "Nothing yet", "Nothing"])
-def test_a_bare_escape_written_on_a_set_is_still_a_fault(entry, registry, label):
-    score = _respond(entry, registry, 3, mutate=lambda r: _options(r, SET).append(label))
+def test_a_bare_escape_written_on_a_set_is_still_a_fault(b2b_entry, registry, label):
+    score = _respond(b2b_entry, registry, 3, mutate=lambda r: _options(r, SET).append(label),
+                     link="COMMERCIAL_B2B")
     assert any("written by the model; code appends it" in f["evidence"] for f in score.faults), \
         score.faults
 
@@ -717,8 +730,9 @@ def test_a_stated_code_is_only_a_cross_check_against_its_position(registry):
                for f in score_mod.calibration_checks(question, dimension))
 
 
-def test_a_label_only_respondent_answer_takes_the_plans_codes_by_position(entry, registry):
+def test_a_label_only_respondent_answer_takes_the_plans_codes_by_position(entry, b2b_entry, registry):
     score = _respond(entry, registry, 1, label_only=True)
     assert score.validity_hit == score.validity_of == len(entry.plan()[1])
-    short = _respond(entry, registry, 3, lambda r: _options(r, SET).pop(0), label_only=True)
+    short = _respond(b2b_entry, registry, 3, lambda r: _options(r, SET).pop(0), label_only=True,
+                     link="COMMERCIAL_B2B")
     assert [f["key"] for f in short.faults if f["check"] == "option_validity"] == [SET]
