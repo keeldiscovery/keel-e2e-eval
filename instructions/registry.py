@@ -1,5 +1,6 @@
 """keel-cloud's dimension registry, read from the export and checked before a case is built
-(spec 029 FR-021, data-model §1, research R4; cut to twelve by keel-cloud 071 and spec 030).
+(spec 029 FR-021, data-model §1, research R4; cut to twelve by keel-cloud 071 and spec 030; thirteen
+again since keel-cloud 073 and spec 031, Price back).
 
 The registry is the **golden** for `dimension_coverage` and `option_validity` (judgement calls 30
 and 31): every control, code, bin, belief template and plan part a scorer checks a question
@@ -8,21 +9,23 @@ against. keel-cloud 058 exports it as `dimension-registry.json` beside `model-ro
 copy of the cloud's registry -- the design-time draft under
 `specs/029-marks-v9-vectors/contracts/dimension-registry.yaml` is read by no code at run time (it
 is v9's history), and the fixture under `tests/fixtures/registry/` is a hand-sized slice of keel-cloud
-071's export.
+073's export.
 
 **The eight invariants are this repository's to check** (keel-cloud `registry-schema.md`
 §Invariants; spec 030 judgement call 46), because a mark of 1.00 is honest only against a registry
 that is itself well formed -- marks §2.2: *"1.00 is honest only because the registry fixes the
 codes"*. A registry that fails one is a **refusal to start** naming the invariant and the key,
-never a warning and never a score. At `MARKS_VERSION` 10 the registry is **twelve keys, 4 / 3 / 5**,
-nine of them deal-breakers that can each read `NOT_HOLDING_UP`; `asked_in_v1` is gone (a registry
-still carrying it is refused as unknown-shaped, not ignored) and an entry-level `b2b_only` sits on
-exactly `commercial.ability_to_pay` and `commercial.purchase_friction`.
+never a warning and never a score. At `MARKS_VERSION` 11 the registry is **thirteen keys, 4 / 3 / 6**
+(judgement call 50; keel-cloud 073's `DimensionRegistry`, mirrored): nine of them deal-breakers that
+can each read `NOT_HOLDING_UP`; `asked_in_v1` is gone (a registry still carrying it is refused as
+unknown-shaped, not ignored); an entry-level `b2b_only` sits on exactly `commercial.ability_to_pay` and
+`commercial.purchase_friction`; and `commercial.price` is back as SHAPES, asked of whoever pays, its
+founder control `price_range` over exactly the three periods `month · year · one_off` (invariant 5).
 
 **What a project calibrates and asks is read here, never typed by a scorer** (calls 46, 47):
-`calibrated(b2b)` is every entry less the `b2b_only` two when the persona is not B2B (ten on B2C,
-twelve on B2B), and `plan_keys(part, founder_calibration, link, b2b)` is what one link asks in one
-part -- keel-cloud 071's `DimensionRegistry.calibrated` / `asked` and `EvidencePlan`, mirrored.
+`calibrated(b2b)` is every entry less the `b2b_only` two when the persona is not B2B (eleven on B2C,
+thirteen on B2B), and `plan_keys(part, founder_calibration, link, b2b)` is what one link asks in one
+part -- keel-cloud 073's `DimensionRegistry.calibrated` / `asked` and `EvidencePlan`, mirrored.
 """
 
 from __future__ import annotations
@@ -34,8 +37,8 @@ from pathlib import Path
 
 VECTORS = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 
-#: Invariant 1: 12 keys, 4 / 3 / 5.
-PER_VECTOR = {"PROBLEM": 4, "SOLUTION": 3, "COMMERCIAL": 5}
+#: Invariant 1: 13 keys, 4 / 3 / 6 (keel-cloud 073: `commercial.price` back at commercial order 2).
+PER_VECTOR = {"PROBLEM": 4, "SOLUTION": 3, "COMMERCIAL": 6}
 
 #: Invariant 2: the nine deal-breakers, exactly (`registry-schema.draft.md` §Invariants 2). Fixed
 #: by the schema rather than read off the file, because the point of the invariant is that the file
@@ -50,10 +53,10 @@ DEAL_BREAKERS = {
 }
 
 #: Invariant 3: `b2b_only` on exactly these two (calibrated and asked only on a B2B persona), and
-#: every entry asked in the part of its own vector -- 4 / 3 / 5 entries a part. On `PRIMARY` that
-#: is 3 / 3 / 3 after the gate; on `COMMERCIAL_B2B` the commercial part whole, 5.
+#: every entry asked in the part of its own vector -- 4 / 3 / 6 entries a part. On `PRIMARY` that
+#: is 3 / 3 / 4 after the gate; on `COMMERCIAL_B2B` the commercial part whole, 6.
 B2B_ONLY = ("commercial.ability_to_pay", "commercial.purchase_friction")
-PER_PART = {1: 4, 2: 3, 3: 5}
+PER_PART = {1: 4, 2: 3, 3: 6}
 PART_VECTOR = {1: "PROBLEM", 2: "SOLUTION", 3: "COMMERCIAL"}
 
 #: The two links a person answers on (keel-cloud `RespondentLink`).
@@ -61,7 +64,7 @@ LINK_PRIMARY = "PRIMARY"
 LINK_B2B = "COMMERCIAL_B2B"
 
 #: Invariant 6: the respondent controls whose answer is a number (`answers.shape == interval`) --
-#: keel-cloud 071's `RespondentControl.yieldsNumber`: Frequency's 0-to-7 control, and the number it
+#: keel-cloud 071 / 073's `RespondentControl.yieldsNumber`: Frequency's 0-to-7 control, and the number it
 #: becomes on a recall window longer than 7.
 NUMERIC_RESPONDENT_CONTROLS = ("segmented_0_to_7", "number_with_unit")
 
@@ -81,10 +84,25 @@ FIXED_RESPONDENT_CODES = {
 #: present.
 RESPONDENT_ESCAPES = ("something_else", "nothing", "never_came_up", "would_not_fit",
                       "nothing_would_change", "free_or_gift", "it_was_free", "would_not_reach",
-                      "nothing_yet")
+                      "nothing_yet", "would_not_pay")
 
 #: The founder-side numeric control: no options, a spec the registry owns.
 NUMERIC_FOUNDER_CONTROLS = ("numeric_interval",)
+
+#: Price (keel-cloud 073, judgement call 50): the founder states a range and a period, rendered by
+#: code -- no options, and no question text the model writes (call 53).
+PRICE_KEY = "commercial.price"
+PRICE_FOUNDER_CONTROL = "price_range"
+#: Invariant 5 (073): a `price_range` entry's periods are exactly `PriceLadder.PERIODS`.
+PRICE_PERIODS = ("month", "year", "one_off")
+#: The respondent controls whose question and options are wholly code's (call 53): the model owes
+#: the item's key and nothing else, and nothing it writes there is read.
+CODE_WRITTEN_RESPONDENT_CONTROLS = ("price_ladder",)
+#: Existing sacrifice's respondent control since 073: the kinds ticked, then one amount per kind in
+#: its unit (`branch_pick_number` before it).
+AMOUNTS_CONTROL = "branch_pick_amounts"
+#: The units a kind of cost is counted in (`CalibrationOption.UNITS`, U1).
+UNITS = ("money", "hours", "count")
 
 
 #: keel-cloud 058 (2026-10-07): the registry carries `{window}` / `{window_unit}` placeholders, the
@@ -96,8 +114,6 @@ _WINDOW_UNITS = {
     "WORKING_DAYS": ("working day", "working days"), "WEEKS": ("week", "weeks"),
     "MONTHS": ("month", "months"), "CYCLES": ("cycle", "cycles"), "SHIFTS": ("shift", "shifts"),
 }
-_NUMBER_WORDS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-                 "ten", "eleven", "twelve")
 _LEGACY_WINDOWS = {"SEVEN_NIGHTS": (7, "NIGHTS"), "SEVEN_DAYS": (7, "DAYS"),
                    "FIVE_WORKING_DAYS": (5, "WORKING_DAYS"), "THIRTY_DAYS": (30, "DAYS"),
                    "LAST_CYCLE": (1, "CYCLES")}
@@ -105,9 +121,10 @@ _LEGACY_WINDOWS = {"SEVEN_NIGHTS": (7, "NIGHTS"), "SEVEN_DAYS": (7, "DAYS"),
 
 @dataclass(frozen=True)
 class RecallWindow:
-    """keel-cloud 058's `domain.vectors.RecallWindow` (5fc7220), mirrored line for line: the words
-    `{window}` and `{window_unit}` are filled with, and the ways `C7` / `R8` accept a question
-    naming it. Code fills both; a model never does."""
+    """keel-cloud 058's `domain.vectors.RecallWindow` (5fc7220), mirrored: the words `{window}` and
+    `{window_unit}` are filled with. Code fills both; a model never does -- and since keel-cloud 072
+    code writes the windowed questions too, so the ways `C7` / `R8` accepted a question naming the
+    window (`said`, `is_named_in`) retired with those rules (judgement call 52)."""
 
     count: int
     unit: str
@@ -141,33 +158,11 @@ class RecallWindow:
         return None if text is None else \
             text.replace("{window_unit}", self.unit_words()).replace("{window}", self.words())
 
-    def said(self) -> list:
-        """The ways a question may name this window: "7 nights", "seven nights", "last shift"..."""
-        said = []
-        if self.count == 1:
-            said += [f"{lead}{self.singular}" for lead in ("last ", "past ", "previous ",
-                                                           "most recent ")]
-        else:
-            said.append(f"{self.count} {self.plural}")
-            if self.count < len(_NUMBER_WORDS):
-                said.append(f"{_NUMBER_WORDS[self.count]} {self.plural}")
-        also = None
-        if self.unit in ("DAYS", "NIGHTS"):
-            also = "week" if self.count == 7 else "month" if self.count in (30, 31) else None
-        elif self.unit == "WEEKS":
-            also = "fortnight" if self.count == 2 else "month" if self.count == 4 else None
-        elif self.unit == "MONTHS":
-            also = "quarter" if self.count == 3 else "year" if self.count == 12 else None
-        if also is not None:
-            said += [f"last {also}", f"past {also}"]
-        return said
-
-    def is_named_in(self, text) -> bool:
-        """Whether `text` names this window, as `C7` / `R8` read it."""
-        if text is None:
-            return False
-        lower = str(text).lower()
-        return any(s in lower for s in self.said())
+    @property
+    def frames_frequency(self) -> bool:
+        """`WindowFrame.framesFrequency`: Frequency is code's sentence on a window of more than one
+        unit ("those 7 nights"); a one-unit window keeps a model-written question (call 52)."""
+        return self.count > 1
 
     def to_map(self) -> dict:
         """`{count, unit}`, as the wire and the job carry it."""
@@ -251,6 +246,16 @@ class Dimension:
         return self.founder.get("control") in NUMERIC_FOUNDER_CONTROLS
 
     @property
+    def founder_price(self) -> bool:
+        """Price's founder side (call 53): a range and a period, code's input and code's question."""
+        return self.founder.get("control") == PRICE_FOUNDER_CONTROL
+
+    @property
+    def respondent_code_written(self) -> bool:
+        """An item whose question and options are wholly code's (call 53: the Price ladder)."""
+        return self.respondent.get("control") in CODE_WRITTEN_RESPONDENT_CONTROLS
+
+    @property
     def respondent_numeric(self) -> bool:
         return self.respondent.get("control") in NUMERIC_RESPONDENT_CONTROLS + (GATE_CONTROL,)
 
@@ -298,7 +303,7 @@ class Registry:
         return [d.key for d in self.dimensions if d.b2b_only]
 
     def calibrated(self, b2b: bool) -> list[Dimension]:
-        """The entries a project calibrates (call 47; keel-cloud 071 `calibrated(b2b)`): every
+        """The entries a project calibrates (calls 47, 50; keel-cloud 073 `calibrated(b2b)`): every
         entry, less the `b2b_only` two when the persona is not B2B -- in vector order, then
         `order`."""
         return [d for vector in VECTORS for d in self.slice(vector) if b2b or not d.b2b_only]
@@ -312,7 +317,7 @@ class Registry:
         return [d for d in self.slice(vector) if b2b or not d.b2b_only]
 
     def asked(self, link: str, b2b: bool) -> list[Dimension]:
-        """The entries one link asks (keel-cloud 071 `asked(link, b2b)`): on `PRIMARY` every entry
+        """The entries one link asks (keel-cloud 071 / 073 `asked(link, b2b)`): on `PRIMARY` every entry
         less the `b2b_only` two; on `COMMERCIAL_B2B` the commercial slice whole, and only on a B2B
         persona."""
         if link == LINK_B2B:
@@ -449,7 +454,7 @@ def check_invariants(registry: Registry) -> list[str]:
                           "071 removed (every entry is asked; b2b_only marks the B2B pair) -- "
                           "judgement call 46")
 
-    # 1. 12 keys, 4 / 3 / 5, `order` contiguous from 1 within each vector.
+    # 1. 13 keys, 4 / 3 / 6, `order` contiguous from 1 within each vector (call 50).
     if len(keys) != total or len(set(keys)) != len(keys):
         faults.append(f"invariant 1 ({total} unique keys): the registry has {len(set(keys))} "
                       f"unique of {len(keys)}")
@@ -479,7 +484,7 @@ def check_invariants(registry: Registry) -> list[str]:
         if d.weight not in ("DEAL_BREAKER", "SHAPES"):
             faults.append(f"invariant 2 (weights): {d.key} weighs {d.weight!r}")
 
-    # 3. `b2b_only` on exactly the two; every entry asked in its own vector's part, 4 / 3 / 5.
+    # 3. `b2b_only` on exactly the two; every entry asked in its own vector's part, 4 / 3 / 6.
     flagged = {d.key for d in dims if d.b2b_only}
     for key in sorted(flagged - set(B2B_ONLY)):
         faults.append(f"invariant 3 (b2b_only on exactly {', '.join(B2B_ONLY)}): {key} is "
@@ -507,7 +512,8 @@ def check_invariants(registry: Registry) -> list[str]:
             faults.append(f"invariant 4 ({{value}} exactly once): {d.key}'s belief template "
                           f"carries it {template.count('{value}')} times")
 
-    # 5. Fixed codes 4-6, none repeated; numeric bins contiguous and ordered.
+    # 5. Fixed codes 4-6, none repeated; numeric bins contiguous and ordered; a `price_range`
+    #    entry's periods exactly `month · year · one_off` (keel-cloud 073, `PriceLadder.PERIODS`).
     for d in dims:
         codes = d.fixed_codes
         if codes is not None:
@@ -522,6 +528,11 @@ def check_invariants(registry: Registry) -> list[str]:
                               "gap")
         elif d.codes is not None and d.codes != "model_written":
             faults.append(f"invariant 5 (codes): {d.key}'s codes are {d.codes!r}")
+        if d.normalized.get("kind") == PRICE_FOUNDER_CONTROL or d.founder_price:
+            periods = d.normalized.get("periods")
+            if list(periods or []) != list(PRICE_PERIODS):
+                faults.append(f"invariant 5 (price periods): {d.key}'s periods are {periods!r}, not "
+                              f"{list(PRICE_PERIODS)}")
         bins = d.normalized.get("bins")
         if bins is not None and not _bins_contiguous(bins):
             faults.append(f"invariant 5 (contiguous bins): {d.key}'s bins {bins} are not "

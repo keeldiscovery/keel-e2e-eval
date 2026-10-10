@@ -1,4 +1,4 @@
-# slice.yaml with one value changed, failing exactly invariant 7 (spec 030 T003; first cut spec 029 T004):
+# slice.yaml with one value changed, failing exactly invariant 7 (spec 031 T003 at thirteen; spec 030 T003; first cut spec 029 T004):
 # problem.prevalence is asked as a single_choice, so there is no gate.
 base: ../slice.yaml
 invariant: 7

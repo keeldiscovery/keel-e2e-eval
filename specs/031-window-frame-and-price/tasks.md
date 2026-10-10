@@ -6,9 +6,9 @@
 - [x] T001 `spec.md`, `plan.md`, this file.
 
 ## Phase 2 — The registry reader (FR-001)
-- [ ] T002 `instructions/registry.py`: 4 / 3 / 6, invariant 5's periods, the Price and amounts controls, `would_not_pay`, `said` / `is_named_in` deleted, docstring.
-- [ ] T003 `tests/fixtures/registry/slice.yaml` regenerated from 073's `dimension-registry.json`; `broken/` re-cut, `5-price-periods.yaml` added.
-- [ ] T004 `tests/test_instruction_registry.py`.
+- [x] T002 `instructions/registry.py`: 4 / 3 / 6, invariant 5's periods, the Price and amounts controls, `would_not_pay`, `said` / `is_named_in` deleted, docstring.
+- [x] T003 `tests/fixtures/registry/slice.yaml` regenerated from 073's `dimension-registry.json`; `broken/` re-cut, `5-price-periods.yaml` added.
+- [x] T004 `tests/test_instruction_registry.py`.
 
 ## Phase 3 — The corpus at revision 5 (FR-002)
 - [ ] T005 `instructions/corpus.py`: `REVISION = 5`, r4 refused by name, Price / units / amounts checks, the ladder mirrored.

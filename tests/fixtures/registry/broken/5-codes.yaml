@@ -1,4 +1,4 @@
-# slice.yaml with one value changed, failing exactly invariant 5 (spec 030 T003; first cut spec 029 T004):
+# slice.yaml with one value changed, failing exactly invariant 5 (spec 031 T003 at thirteen; spec 030 T003; first cut spec 029 T004):
 # problem.importance repeats top_three.
 base: ../slice.yaml
 invariant: 5

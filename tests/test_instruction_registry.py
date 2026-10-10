@@ -1,7 +1,8 @@
 """`instructions/registry.py`: the registry the export carries, and its eight invariants (spec 029
-FR-021, data-model §1, research R4; T011; at twelve keys by spec 030 T004, judgement calls 46-47).
+FR-021, data-model §1, research R4; T011; at twelve keys by spec 030 T004, judgement calls 46-47;
+at thirteen by spec 031 T004, judgement call 50).
 
-The golden every v10 scorer checks a question against is only honest if it is itself well formed,
+The golden every v11 scorer checks a question against is only honest if it is itself well formed,
 so each invariant is made to fail once, on its own, by a one-value patch of the hand-sized slice
 (`tests/fixtures/registry/broken/`), and the refusal must name the invariant and the key.
 """
@@ -21,7 +22,7 @@ from tests import v9_fixtures as fx
 
 def test_the_slice_loads_and_passes_all_eight_invariants():
     registry = fx.registry()
-    assert len(registry.keys()) == sum(registry_mod.PER_VECTOR.values()) == 12
+    assert len(registry.keys()) == sum(registry_mod.PER_VECTOR.values()) == 13
     assert registry_mod.check_invariants(registry) == []
 
 
@@ -31,7 +32,24 @@ def test_a_vector_slice_is_its_dimensions_in_order():
     assert [d.order for d in problem] == [1, 2, 3, 4]
     assert problem[0].key == "problem.prevalence"
     assert problem[-1].key == "problem.current_solution_satisfaction"
-    assert len(registry.slice("SOLUTION")) == 3 and len(registry.slice("COMMERCIAL")) == 5
+    assert len(registry.slice("SOLUTION")) == 3 and len(registry.slice("COMMERCIAL")) == 6
+    assert registry.slice("COMMERCIAL")[1].key == registry_mod.PRICE_KEY
+
+
+def test_price_is_back_as_shapes_asked_of_whoever_pays():
+    """Call 50 (keel-cloud 073, registry decision 15): order 2, SHAPES, not b2b_only, a price_range
+    over the three periods, a price_ladder item, ordinal_band; Ability to pay's renamed rungs."""
+    registry = fx.registry()
+    price = registry.by_key(registry_mod.PRICE_KEY)
+    assert (price.order, price.weight, price.b2b_only) == (2, "SHAPES", False)
+    assert price.founder_price and price.respondent_code_written and not price.founder_numeric
+    assert tuple(price.normalized["periods"]) == registry_mod.PRICE_PERIODS
+    assert price.answers["compare_rule"] == "ordinal_band" and price.part == 3
+    assert registry.by_key("commercial.existing_sacrifice").respondent["control"] == \
+        registry_mod.AMOUNTS_CONTROL
+    assert registry.by_key("commercial.ability_to_pay").fixed_codes == [
+        "existing_line", "new_line_signed_off", "taken_from_other_spend", "no_budget"]
+    assert "would_not_pay" in registry_mod.RESPONDENT_ESCAPES
 
 
 def test_the_nine_deal_breakers_are_the_registrys_and_every_one_can_fail():
@@ -42,29 +60,29 @@ def test_the_nine_deal_breakers_are_the_registrys_and_every_one_can_fail():
             assert "NOT_HOLDING_UP" in registry.by_key(key).status_vocabulary
 
 
-def test_the_calibrated_set_is_ten_on_b2c_and_twelve_on_b2b():
-    """Call 47 (keel-cloud 071 `calibrated(b2b)`): the b2b_only pair only on a B2B persona."""
+def test_the_calibrated_set_is_eleven_on_b2c_and_thirteen_on_b2b():
+    """Calls 47, 50 (keel-cloud 073 `calibrated(b2b)`): the b2b_only pair only on a B2B persona."""
     registry = fx.registry()
     assert registry.b2b_only() == list(registry_mod.B2B_ONLY)
     b2c, b2b = registry.calibrated_keys(False), registry.calibrated_keys(True)
-    assert (len(b2c), len(b2b)) == (10, 12)
+    assert (len(b2c), len(b2b)) == (11, 13)
     assert set(b2b) - set(b2c) == set(registry_mod.B2B_ONLY)
     assert [d.key for d in registry.calibrated_slice("COMMERCIAL", False)] == [
-        "commercial.existing_sacrifice", "commercial.buyer_payer_alignment",
+        "commercial.existing_sacrifice", "commercial.price", "commercial.buyer_payer_alignment",
         "commercial.commitment"]
-    assert len(registry.calibrated_slice("COMMERCIAL", True)) == 5
+    assert len(registry.calibrated_slice("COMMERCIAL", True)) == 6
 
 
 def test_plan_keys_are_per_part_and_link_less_what_the_founder_left_out():
-    """Calls 30 and 47: PRIMARY asks 4 / 3 / 3 (3 / 3 / 3 after the gate), never the b2b_only
-    pair; COMMERCIAL_B2B asks the commercial part whole, and only on a B2B persona."""
+    """Calls 30, 47, 50: PRIMARY asks 4 / 3 / 4 (3 / 3 / 4 after the gate), never the b2b_only
+    pair; COMMERCIAL_B2B asks the commercial part whole (6), and only on a B2B persona."""
     registry = fx.registry()
     primary, b2b = registry_mod.LINK_PRIMARY, registry_mod.LINK_B2B
     calibration = {k: {"answer": "x"} for k in registry.keys()}
     for persona in (False, True):
         assert [len(registry.plan_keys(p, calibration, primary, persona))
-                for p in (1, 2, 3)] == [4, 3, 3]
-    assert registry.plan_keys(3, calibration, b2b, True) == registry.calibrated_keys(True)[-5:]
+                for p in (1, 2, 3)] == [4, 3, 4]
+    assert registry.plan_keys(3, calibration, b2b, True) == registry.calibrated_keys(True)[-6:]
     assert registry.plan_keys(3, calibration, b2b, False) == []
     assert registry.plan_keys(1, calibration, b2b, True) == []
     calibration["problem.frequency"] = {"unsure": True}
@@ -105,9 +123,10 @@ def test_each_broken_registry_fails_exactly_its_own_invariant_naming_the_key(nam
     assert f"invariant {patch['invariant']}" in str(refusal.value)
 
 
-def test_there_is_one_broken_fixture_per_invariant():
+def test_there_is_a_broken_fixture_per_invariant_and_one_for_the_price_periods():
     invariants = sorted(yaml.safe_load(p.read_text())["invariant"] for p in fx.BROKEN.glob("*.yaml"))
-    assert invariants == [1, 2, 3, 4, 5, 6, 7, 8]
+    assert invariants == [1, 2, 3, 4, 5, 5, 6, 7, 8]
+    assert (fx.BROKEN / "5-price-periods.yaml").is_file()
 
 
 def test_a_registry_still_carrying_asked_in_v1_is_refused_as_unknown_shaped():
@@ -118,6 +137,18 @@ def test_a_registry_still_carrying_asked_in_v1_is_refused_as_unknown_shaped():
         registry_mod.from_document(document, source="v9.json")
     assert "asked_in_v1" in str(refusal.value)
     assert "problem.frequency" in str(refusal.value)
+
+
+def test_the_v10_registry_of_twelve_is_refused_naming_invariant_1():
+    """A twelve-key registry (v10's: no Price) fails invariant 1 before anything is built against it
+    (call 50)."""
+    document = copy.deepcopy(fx.registry_document())
+    document["dimensions"] = [d for d in document["dimensions"] if d["key"] != "commercial.price"]
+    for d in document["dimensions"]:
+        if d["vector"] == "COMMERCIAL" and d["order"] > 2:
+            d["order"] -= 1
+    faults = registry_mod.check_invariants(registry_mod.from_document(document, check=False))
+    assert any(f.startswith("invariant 1 ") and "COMMERCIAL has 5" in f for f in faults), faults
 
 
 def test_the_v9_registry_of_twenty_five_is_refused_naming_invariant_1():
@@ -166,7 +197,7 @@ def test_the_manifest_names_the_registry_file_as_058_writes_it(tmp_path):
     manifest = json.loads((tmp_path / "manifest.json").read_text())
     manifest["dimension_registry"] = "registry-under-another-name.json"
     (tmp_path / "manifest.json").write_text(json.dumps(manifest))
-    assert len(contract_mod.read(tmp_path).registry.keys()) == 12
+    assert len(contract_mod.read(tmp_path).registry.keys()) == 13
 
 
 def test_the_window_placeholders_are_filled_by_code():
@@ -190,13 +221,12 @@ def test_a_recall_window_renders_as_keel_cloud_058s_record_does(raw, words, unit
     assert (window.words(), window.unit_words()) == (words, unit)
 
 
-def test_a_recall_window_is_named_the_ways_c7_accepts_and_refused_when_unreadable():
-    seven = registry_mod.RecallWindow(7, "NIGHTS")
-    assert seven.is_named_in("In the last SEVEN NIGHTS, did it happen?")
-    assert seven.is_named_in("in the past week") and not seven.is_named_in("recently")
-    shift = registry_mod.RecallWindow(1, "SHIFTS")
-    assert shift.is_named_in("On your most recent shift") and not shift.is_named_in("1 shifts")
-    assert registry_mod.RecallWindow(3, "MONTHS").is_named_in("in the last quarter")
+def test_a_window_frames_frequency_above_one_unit_and_is_refused_when_unreadable():
+    """Call 52 (`WindowFrame.framesFrequency`): C7 and R8 are retired with the ways they read a
+    window; what is left is whether code frames Frequency -- a count above one."""
+    assert registry_mod.RecallWindow(7, "NIGHTS").frames_frequency
+    assert not registry_mod.RecallWindow(1, "SHIFTS").frames_frequency
+    assert not hasattr(registry_mod.RecallWindow, "is_named_in")
     assert registry_mod.RecallWindow.read(None) is None
     for bad in ({"count": 0, "unit": "NIGHTS"}, {"count": 2, "unit": "YEARS"},
                 {"count": 1.5, "unit": "DAYS"}, "FORTNIGHT"):
