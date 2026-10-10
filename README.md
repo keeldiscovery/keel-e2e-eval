@@ -101,8 +101,8 @@ neither run nor proposed here. Until then the standing gate is **unmet for both 
   framed window owes no text; C7 and R8 are retired.
 - **Price is code's on both sides** (call 53) and never swept by `no_leak`; nor is a framed Frequency.
 - **W7, W9 and U1 are `option_validity` faults** (call 54); **W3 and W8 hold only to a name the
-  corpus records** (call 55) — revision 5 records neither, so both are held to none, and the dry run
-  says so per entry.
+  corpus records** (call 55) — since keel-cloud 073 `ed581f8` every r5 entry records both, so both
+  are held on all seven, and the dry run prints each entry's names.
 - **S1, W1, W2, W5 and W6 are reported per question, never marked** (call 56): the subject only
   instructs them, so a mark would be the ruler inventing a rule.
 - **The brief's two commercial figures are keel-cloud's own** (call 57): *a median £22 over three

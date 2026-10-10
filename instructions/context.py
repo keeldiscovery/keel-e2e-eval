@@ -127,14 +127,14 @@ def problem_statement(entry) -> str | None:
 
 def short_name_of(entry) -> str | None:
     """The idea's one short name (W3, call 55): the corpus's `solution_mechanism.short_name`, or
-    `None` -- revision 5 records none, and the eval never takes it from a live screen's answer."""
+    `None` where an entry records none; the eval never takes it from a live screen's answer."""
     name = (entry.solution_mechanism or {}).get("short_name")
     return name if isinstance(name, str) and name.strip() else None
 
 
 def offer_name_of(entry) -> str | None:
     """The offer's one problem-side name (W8, call 55): the corpus's `interpretations.offer_name`,
-    or `None` (revision 5 records none)."""
+    or `None` where an entry records none."""
     name = (entry.interpretations or {}).get("offer_name")
     return name if isinstance(name, str) and name.strip() else None
 
@@ -339,6 +339,8 @@ def build_respondent(entry, part: int, plan: dict | None = None, registry=None, 
     out = {}
     for key in keys:
         if key == "mechanism" and (part == 1 or link == LINK_B2B):
+            continue
+        if key == "offer_name" and part != 3:           # 072: part 3 only, on either link
             continue
         out[key] = values.get(key)
     return out

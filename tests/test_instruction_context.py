@@ -124,6 +124,8 @@ def test_a_name_the_corpus_records_reaches_the_job_and_the_validator(entry, regi
     part3 = context_mod.build_respondent(named, 3, named.plan(registry), registry, keys)
     assert part3["offer_name"] == "a way to find the keys"
     assert part3["mechanism"]["short_name"] == "a beeping tag"
+    assert "offer_name" not in context_mod.build_respondent(named, 1, named.plan(registry),
+                                                            registry, keys), "part 3 only"
     assert context_mod.validation_mechanism(named)["short_name"] == "a beeping tag"
     assert "offer_name" not in context_mod.build_respondent(named, 3, named.plan(registry),
                                                             registry), \

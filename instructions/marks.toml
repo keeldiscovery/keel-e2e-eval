@@ -15,7 +15,7 @@
 #   - Prevalence and the gate are read as their `event` clause, held to E1-E3 (WindowFrame.fault);
 #     Frequency over a framed window and Price owe no text; C7 and R8 are retired (calls 52, 53);
 #   - W7, W9 and U1 are option_validity faults, and W3 / W8 where the corpus records the names --
-#     revision 5 records neither, so both are held to none (calls 54, 55);
+#     every r5 entry records both since keel-cloud 073 ed581f8, so both are held on all seven (calls 54, 55);
 #   - S1 / W1 / W2 / W5 / W6 are REPORTED per question in totals.wording and never marked (call 56);
 #   - the brief's Existing sacrifice and Price figures are keel-cloud's Figures (call 57);
 #   - denominators, read: calibration 11 (B2C) / 13 (B2B), 83 an N; respondent 4 / 3 / 4 on PRIMARY

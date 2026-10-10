@@ -254,3 +254,16 @@ def test_the_corpus_reads_the_same_through_the_exported_registry(corpus):
     for entry in corpus.entries:
         corpus_mod.load_file(entry.path, registry=exported)
     assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 5
+
+
+@pytest.mark.parametrize("entry_id", ENTRIES)
+def test_every_entry_records_the_two_golden_names(corpus, entry_id):
+    """Call 55, amended (keel-cloud 073 `ed581f8`): W3 / W8 hold to the corpus's own names -- the
+    idea's in at most five plain words, the offer's in at most six -- on every entry."""
+    from instructions import context as context_mod                         # noqa: PLC0415
+    entry = corpus.by_id(entry_id)
+    short, offer = context_mod.short_name_of(entry), context_mod.offer_name_of(entry)
+    assert short and len(short.split()) <= 5, (entry_id, short)
+    assert offer and len(offer.split()) <= 6, (entry_id, offer)
+    if entry_id == "03-lullaby":
+        assert (short, offer) == ("a suggested reason for crying", "something that helps at night")

@@ -100,7 +100,8 @@ Judgement calls (appended to `marks.py`, numbered on from 49):
   `solution_mechanism.short_name` verbatim; W8: every COMMERCIAL calibration question and every part-3 /
   decision-maker item (Existing sacrifice and Price aside) carry `interpretations.offer_name` verbatim —
   `Wording.carries`, mirrored (case, accents, apostrophes, punctuation and a leading article free).
-  **Revision 5 records neither name**, so on r5 both are held to none, exactly as keel-cloud holds a card
+  **Revision 5 as first cut recorded neither name** (amended: keel-cloud 073 `ed581f8` added both to all
+  seven entries, so W3 / W8 are held on every entry); a missing name is held to none, as keel-cloud holds a card
   confirmed before 072 to none, and the case meta says so; the job is handed `null` and the validator
   the same. A name the corpus gains later is read without a code change.
 - **56. v11: the wording rules are reported, never marked.** Per question and item: its words; W1

@@ -30,15 +30,15 @@ run of record until `WHY=marks:11` is spent, and it is on hold by the founder**;
 below is history (v10 never had one).
 
 **The corpus v11 judges, recorded 2026-10-09** (spec 031 US2). Revision 5's seven entries in
-keel-cloud 073's canon (`0925484`), by sha256:
+keel-cloud 073's canon (`78e1118`: r5 with the two golden names of `ed581f8`, additive), by sha256:
 
-    01-countly         12dae6d50f493955b757788ad73b6d1908f28662f72978ea918778baaea300d7
-    02-compliancelog   3684eaf51872cf812e78285962e9ebad16a934f9b3ea5f1f99670cf2bb99eebb
-    03-lullaby         4e260008aa94c8ff4bff8ec5a305c86bf550d142de2847a92d7e7e948c63920d
-    04-linerly         6ed61c32232367b768d4c86b8fa42c2480b4225821650ca197e11a3d43cba887
-    05-paidly          26e177319115bd659aa8cf788099ae252e2a579106316b9355c0094998d08cd2
-    06-repeatline      926624e183abc77893cd5ba02df82108f3753e543f5aa3fcac1e03ac36d3e699
-    07-mulchrun        3c02a4b28822eb6ec2444c56284a3415bafa9f9089fdabb4c5766fb452a0527e
+    01-countly         d354a69e63755a42226fd7e72d58b39f07b0913df0839c3582288460dbccecd7
+    02-compliancelog   448a44fa4920a7688a8dd6c6c2dd69278bb316c81617756aeabe38e791cd6a24
+    03-lullaby         54c127906709dee251bd11a8dbf3589e75450424a75c15a5b6d4ef0ad9740e22
+    04-linerly         effd50dd0d1e7716308a3efc9492e99684b1e3f711aaf88666300bfadca9a9f7
+    05-paidly          e7c39b4b255b02b7c2263a9388df6ea7fe01ebb24d018ff531ec4d77f6441ba0
+    06-repeatline      70b889dadc1bb7164b9497dccea0e461e1ef8d99563a2862433bf6961d4242a1
+    07-mulchrun        0a06b4ee3712663031f6f3b73adc1623bcf247f9a6de9a9c346a233183d453c3
 
 The v11 denominators, **counted, not estimated**: calibration 11 keys on 01-04 (B2C) and 13 on
 05-07 (B2B), 83 an N; respondent 11 on a B2C entry (4 / 3 / 4 on `PRIMARY`) and 13 on a B2B one (4
@@ -434,7 +434,12 @@ sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. It is
     answer (marks-v9 §1), and **revision 5 records neither**, so on r5 both are held to none --
     as keel-cloud holds a card confirmed before 072 -- the job is handed `null`, the validator the
     same mechanism and offer (never its Lullaby fixture's names), and the dry run prints *held to no
-    name*. A name a later revision records is read with no code change.
+    name*. A name a later revision records is read with no code change. **Amended 2026-10-09,
+    before any run of record** (keel-cloud 073 `ed581f8`, additive within revision 5): every r5
+    entry now records both names (Lullaby's *a suggested reason for crying* / *something that helps
+    at night*), so W3 and W8 hold to them on all seven; the job is handed them -- on the SOLUTION
+    card, the respondents' mechanism, the COMMERCIAL persona map and, since the export names it,
+    `offer_name` on every part-3 job -- and so is the validator.
 56. **v11**: **the wording rules are reported, never marked.** `window-frame-design.md` §3.6-§3.8
     make S1, S2, W1, W2, W4, W5 and W6 instruction rules the eval counts and the applier never
     refuses; a mark the product does not enforce would be the ruler inventing a rule. Per question

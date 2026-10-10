@@ -34,7 +34,7 @@ added to this line rather than quietly written — which is exactly how the thir
   revision 5 (a founder price per entry, amounts by unit; an r4 file refused as v10's), Prevalence
   and the gate read as an `event` clause held to E1-E3 with C7 / R8 retired, Price code's on both
   sides and never swept, W7 / W9 / U1 structural and W3 / W8 held only to a name the corpus records
-  (r5 records none), S1 / W1 / W2 / W5 / W6 reported and never marked (`instructions/wording.py`
+  (every r5 entry records both since 073 `ed581f8`), S1 / W1 / W2 / W5 / W6 reported and never marked (`instructions/wording.py`
   mirrors keel-cloud's `WindowFrame` and `Wording`), the brief's two commercial figures keel-cloud's
   own, and `rescore.py` refusing every bundle below 11. `DRY=1` against keel-cloud 073 measures
   `compare_correctness` 104 of 104 and prints every other mark's denominator. What follows is v10's
