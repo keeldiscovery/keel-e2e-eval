@@ -1,8 +1,9 @@
-"""`instructions/corpus.py` at revision 4: the loader on a hand-sized entry (spec 029 FR-006, data-model
-§2-§3; T012; at revision 4 by spec 030 T006, judgement calls 47 and 49).
+"""`instructions/corpus.py` at revision 5: the loader on a hand-sized entry (spec 029 FR-006, data-model
+§2-§3; T012; at revision 4 by spec 030 T006, judgement calls 47 and 49; at revision 5 by spec 031
+T006, judgement calls 50 and 51).
 
 Everything the scorers read off an entry -- the plan, the vocabulary and its inflection ledger, who
-is readable -- is checked here on `tests/fixtures/corpus/09-fixture-r4.yaml`, a person can count it
+is readable -- is checked here on `tests/fixtures/corpus/09-fixture-r5.yaml`, a person can count it
 by hand: 12 people, Kit and Lu answer No at the gate, Jo chips, Ivy's story is vague, eight are
 anchored; one founder answer is unsure. And every refusal of data-model §2 is made to happen once,
 from a one-line change to that file, naming the entry and the key.
@@ -21,9 +22,10 @@ def entry():
     return fx.entry()
 
 
-def test_the_plan_is_four_three_two(entry):
+def test_the_plan_is_four_three_three(entry):
     plan = entry.plan()
-    assert {part: len(keys) for part, keys in plan.items()} == {1: 4, 2: 3, 3: 2}
+    assert {part: len(keys) for part, keys in plan.items()} == {1: 4, 2: 3, 3: 3}
+    assert plan[3] == ["commercial.existing_sacrifice", "commercial.price", "commercial.commitment"]
     assert plan[1][0] == "problem.prevalence", "the gate is Part 1's first item"
     assert "commercial.buyer_payer_alignment" not in plan[3], "left out by the founder"
     assert "commercial.ability_to_pay" not in plan[3], "b2b_only, and this entry is B2C"
@@ -31,16 +33,33 @@ def test_the_plan_is_four_three_two(entry):
 
 def test_the_plan_without_a_registry_is_the_files_own_golden_plan():
     unbound = corpus_mod.load_file(fx.ENTRY)
-    assert {p: len(k) for p, k in unbound.plan().items()} == {1: 4, 2: 3, 3: 2}
+    assert {p: len(k) for p, k in unbound.plan().items()} == {1: 4, 2: 3, 3: 3}
 
 
-def test_a_b2b_entry_calibrates_twelve_and_routes_part_three_to_the_decision_maker():
-    """Call 47 and decision 26: the b2b_only pair calibrated and asked, on COMMERCIAL_B2B."""
+def test_a_b2b_entry_calibrates_thirteen_and_routes_part_three_to_the_decision_maker():
+    """Calls 47, 50 and decision 26: the b2b_only pair calibrated and asked, on COMMERCIAL_B2B --
+    Price too, asked of whoever pays."""
     b2b = fx.entry(fx.ENTRY_B2B)
-    assert len(b2b.calibrated_keys()) == 12 and len(fx.entry().calibrated_keys()) == 10
+    assert len(b2b.calibrated_keys()) == 13 and len(fx.entry().calibrated_keys()) == 11
     assert b2b.link_of(3) == "COMMERCIAL_B2B" and b2b.link_of(1) == "PRIMARY"
-    assert b2b.plan()[3] == ["commercial.existing_sacrifice", "commercial.ability_to_pay",
-                             "commercial.purchase_friction", "commercial.commitment"]
+    assert b2b.plan()[3] == ["commercial.existing_sacrifice", "commercial.price",
+                             "commercial.ability_to_pay", "commercial.purchase_friction",
+                             "commercial.commitment"]
+
+
+def test_the_price_the_units_and_the_ladder_are_read(entry):
+    """Call 51: the founder's range, its period and currency; the kinds' units; the row the
+    ladder's five bands around a low of 3 (the 2-5 band in the middle) plus would_not_pay."""
+    assert entry.price() == {"low": 3, "high": 5, "period": "month", "currency": "GBP"}
+    assert entry.units() == {"spare_keys": "money", "locksmith": "money"}
+    assert corpus_mod.price_ladder_codes(3) == entry.respondent_questions["commercial.price"]["codes"]
+    assert corpus_mod.price_ladder_codes(500) == [
+        "under_250", "band_250_500", "band_500_1000", "band_1000_2500", "over_2500", "would_not_pay"]
+    assert corpus_mod.price_ladder_codes(1)[:2] == ["under_1", "band_1_2"], "clamped at the foot"
+    assert corpus_mod.price_ladder_codes(9999)[-2:] == ["over_10000", "would_not_pay"], \
+        "clamped at the head"
+    with pytest.raises(ValueError):
+        corpus_mod.price_ladder_codes(10000)
 
 
 def test_the_vocabulary_is_the_mechanisms_stems_and_none_of_the_problems(entry):
@@ -103,7 +122,41 @@ MUTATIONS = {
     "stages": (lambda r: r["expected"].__setitem__("stages", {}), "`expected.stages`"),
     "anchors": (lambda r: _person(r, "Ann Abbott").__setitem__("anchors", {}), "`anchors`"),
     "revision 3": (lambda r: r.__setitem__("revision", 3), "revision is 3; this eval reads "
-                   "revision 4 only -- revision 3 is MARKS_VERSION 9's corpus"),
+                   "revision 5 only -- revision 3 is MARKS_VERSION 9's corpus"),
+    "revision 4": (lambda r: r.__setitem__("revision", 4), "revision is 4; this eval reads "
+                   "revision 5 only -- revision 4 is MARKS_VERSION 10's corpus"),
+    "a price off the ladder": (
+        lambda r: r["founder_calibration"]["commercial.price"]["answer"].__setitem__("low", 10000),
+        "founder_calibration[commercial.price] is 10000 to 5: off the ladder"),
+    "a price on another period": (
+        lambda r: r["founder_calibration"]["commercial.price"]["answer"].__setitem__(
+            "period", "week"), "founder_calibration[commercial.price].period is 'week'"),
+    "a price in another currency": (
+        lambda r: r["founder_calibration"]["commercial.price"]["answer"].__setitem__(
+            "currency", "USD"), "the market (GB) prices in GBP, never another"),
+    "a price row that is not the ladder": (
+        lambda r: r["respondent_questions"]["commercial.price"].__setitem__(
+            "codes", ["under_5", "band_5_10", "band_10_20", "band_20_50", "over_50",
+                      "would_not_pay"]),
+        "respondent_questions[commercial.price].codes are"),
+    "a unit outside the three": (
+        lambda r: r["founder_calibration"]["commercial.existing_sacrifice"]["units"].__setitem__(
+            "locksmith", "days"), "units[locksmith] is 'days'"),
+    "the old control": (
+        lambda r: r["respondent_questions"]["commercial.existing_sacrifice"].__setitem__(
+            "control", "branch_pick_number"), "revision 5 asks branch_pick_amounts"),
+    "an r4 pick": (
+        lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
+            "commercial.existing_sacrifice", {"bought": "spare_keys", "cost": {"value": 4}}),
+        "revision 5 answers {currency, amounts"),
+    "an amount in the wrong unit": (
+        lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
+            "commercial.existing_sacrifice",
+            {"currency": "GBP", "amounts": [{"kind": "spare_keys", "value": 3, "unit": "hours"}]}),
+        "kind 'spare_keys' is in 'hours'; the row counts it in 'money'"),
+    "a price pick off the row": (
+        lambda r: _person(r, "Ann Abbott")["picks"].__setitem__("commercial.price", "band_20_50"),
+        "Ann Abbott's commercial.price pick 'band_20_50' is not one of the ladder's"),
     "labels one short": (
         lambda r: r["founder_calibration"]["commercial.existing_sacrifice"].__setitem__(
             "labels", ["Spares"]),
@@ -140,14 +193,16 @@ KEY_MUTATIONS = {
     "a founder key foreign": (lambda r: r["founder_calibration"].__setitem__(
         "problem.vibes", {"unsure": True}), "names problem.vibes, which is not a registry key"),
     "a b2b_only key on a B2C entry": (lambda r: r["founder_calibration"].__setitem__(
-        "commercial.ability_to_pay", {"answer": "easily", "belief_sentence": "x"}),
+        "commercial.ability_to_pay", {"answer": "existing_line", "belief_sentence": "x"}),
         "names commercial.ability_to_pay, which a B2C entry does not calibrate (b2b_only; "
         "judgement call 47)"),
     "a b2b_only pick on a B2C entry": (lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
         "commercial.purchase_friction", ["forgetting"]),
         "Ann Abbott picks commercial.purchase_friction, which a B2C entry does not calibrate"),
     "a standing short": (lambda r: r["expected"]["standings"].pop("problem.importance"),
-                         "expected.standings is not exactly the 10 calibrated keys"),
+                         "expected.standings is not exactly the 11 calibrated keys"),
+    "a founder code not the registry's": (lambda r: r["founder_calibration"]["problem.importance"].__setitem__(
+        "answer", "the_top"), "answers 'the_top', which is not one of the registry's codes"),
     "a pick foreign": (lambda r: _person(r, "Ann Abbott")["picks"].__setitem__("problem.vibes", 1),
                        "Ann Abbott picks problem.vibes"),
     "a plan key foreign": (lambda r: r["respondent_questions"].__setitem__(
@@ -203,7 +258,7 @@ def test_the_loader_reads_keel_clouds_canon_and_nowhere_else(tmp_path):
 def _decider(**over):
     return {"person": "Bea Buyer", "link": "COMMERCIAL_B2B", "recency": None,
             "story": "Last month we bought a fleet tag.", "chip": None, "anchoring": "ANCHORED",
-            "picks": {"commercial.ability_to_pay": "easily"}, **over}
+            "picks": {"commercial.ability_to_pay": "existing_line"}, **over}
 
 
 def test_a_decision_maker_answers_part_three_on_their_own_link(tmp_path):

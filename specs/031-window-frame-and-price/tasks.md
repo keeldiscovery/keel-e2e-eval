@@ -11,8 +11,8 @@
 - [x] T004 `tests/test_instruction_registry.py`.
 
 ## Phase 3 — The corpus at revision 5 (FR-002)
-- [ ] T005 `instructions/corpus.py`: `REVISION = 5`, r4 refused by name, Price / units / amounts checks, the ladder mirrored.
-- [ ] T006 fixtures `09-fixture-r5.yaml`, `10-fixture-r5-b2b.yaml`; `tests/test_corpus_r5_shape.py`, `tests/test_instruction_corpus_r5.py`.
+- [x] T005 `instructions/corpus.py`: `REVISION = 5`, r4 refused by name, Price / units / amounts checks, the ladder mirrored.
+- [x] T006 fixtures `09-fixture-r5.yaml`, `10-fixture-r5-b2b.yaml`; `tests/test_corpus_r5_shape.py`, `tests/test_instruction_corpus_r5.py`.
 
 ## Phase 4 — The marks (FR-003 … FR-006)
 - [ ] T007 `instructions/wording.py` (E1–E3, W3/W8 verbatim, W7, W9, the reported counts).

@@ -1,27 +1,33 @@
-"""The golden corpus at revision 4, read and never written (spec 029 FR-006/FR-012, data-model §2;
-spec 030 FR-002, judgement call 49).
+"""The golden corpus at revision 5, read and never written (spec 029 FR-006/FR-012, data-model §2;
+spec 030 FR-002, judgement call 49; spec 031 FR-002, judgement call 51).
 
 `canon/designs/measured-beliefs/corpus/*.yaml` in the keel-cloud checkout is the corpus. This
 module opens those files, hashes them on the way in, and offers `verify_unchanged()` so the end of
 a run can prove nothing here moved while it ran. **If an instruction cannot reach a golden, the
 instruction is wrong** -- or the design is, and it goes back to step 1. Never the corpus.
 
-**Revision 4 only** (call 49). `MARKS_VERSION` 10 reads keel-cloud 071's schema: revision 3's
+**Revision 5 only** (call 51). `MARKS_VERSION` 11 reads keel-cloud 073's schema: revision 3's
 shape (`context`, `interpretations.problem`, `solution_mechanism`, `persona`, the golden plan
 `respondent_questions`, people with a gate answer, a story, a chip, a golden anchoring and picks by
-dimension, `expected.standings` + `expected.vector_verdicts`) on the registry of twelve, with
-`founder_calibration` keyed by the entry's **calibrated set** -- ten keys on a B2C persona, twelve
-on a B2B one (call 47) -- and the six `Status` words. A file at any other revision (a revision-3
-file is named as v9's), or still carrying `beliefs`, `questionnaire`, `expected.buckets`,
-`expected.stages` or a per-anchor answer, is a **refusal to start** by entry and by key -- never a
-fallback, the same shape v8's scalar-`stage` refusal had.
+dimension, `expected.standings` + `expected.vector_verdicts`) on the registry of **thirteen**, with
+`founder_calibration` keyed by the entry's **calibrated set** -- eleven keys on a B2C persona,
+thirteen on a B2B one (calls 47, 50) -- and the six `Status` words. Revision 5 adds three things
+this module checks (keel-cloud `sim/check_corpus_r5.py`'s P, U and B): the founder's **Price**
+(`{low, high, period, currency}` on the ladder in the market's currency, or `unsure`) and a Price
+plan row that is exactly the ladder's five bands around that low plus `would_not_pay`
+(`price_ladder_codes`, keel-cloud's `PriceLadder.bands` mirrored); Existing sacrifice's kinds in
+**units** (money · hours · count) and its picks as **amounts** by unit; and Ability to pay's
+renamed rungs (the founder's code is the registry's). A file at any other revision (a revision-4
+file is named as v10's, a revision-3 one as v9's), or still carrying `beliefs`, `questionnaire`,
+`expected.buckets`, `expected.stages` or a per-anchor answer, is a **refusal to start** by entry and
+by key -- never a fallback, the same shape v8's scalar-`stage` refusal had.
 
 **Read from keel-cloud's canon and nowhere else** (call 49). The fixture fallback of 2026-10-07
 (`tests/fixtures/corpus-r3/`, read while keel-cloud's corpus held no revision-3 entry) is deleted
 with its directory: keel-cloud's canon has carried the corpus since 2026-10-08, so a corpus
 directory that is missing, empty, or holds one file at another revision is a refusal by name.
 
-Three things the r4 corpus says that the code has to carry:
+Three things the corpus says (since r3) that the code has to carry:
 
 1. **The plan is derived, and the file's own plan is a check on it** (calls 30, 47). `plan()` is
    the registry's keys asked on each part's link (`Registry.link_of`: part 3 of a B2B study is the
@@ -46,9 +52,53 @@ from pathlib import Path
 import yaml
 
 from . import text as text_mod
-from .registry import DEAL_BREAKERS, LINK_B2B, LINK_PRIMARY, VECTORS, RecallWindow
+from .registry import (AMOUNTS_CONTROL, DEAL_BREAKERS, LINK_B2B, LINK_PRIMARY, PRICE_KEY,
+                       PRICE_PERIODS, UNITS, VECTORS, RecallWindow)
 
-REVISION = 4
+REVISION = 5
+
+#: The revisions a refusal names by the rubric that read them (calls 49, 51).
+_REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
+                4: "MARKS_VERSION 10's corpus, on the registry of twelve (no Price, no units)"}
+
+#: Existing sacrifice's key, whose kinds carry units and whose picks are amounts (call 51).
+SACRIFICE_KEY = "commercial.existing_sacrifice"
+
+#: `sim/check_corpus_r5.py`'s `CURRENCY` (keel-cloud `Market.currency`'s table, the corpus's markets):
+#: a founder price is in its market's currency, never another.
+MARKET_CURRENCY = {"GB": "GBP", "US": "USD", "IE": "EUR", "FR": "EUR", "DE": "EUR", "IN": "INR",
+                   "CA": "CAD", "AU": "AUD"}
+
+#: keel-cloud 073's `PriceLadder.POINTS`: the one ladder, the same numbers in every currency.
+LADDER_POINTS = (1, 2, 5, 10, 20, 50, 100, 250, 500, 1000, 2500, 5000, 10000)
+WOULD_NOT_PAY = "would_not_pay"
+
+
+def price_placeable(low) -> bool:
+    """`PriceLadder.placeable`: a founder's low of at least 1 and under 10,000."""
+    return isinstance(low, (int, float)) and not isinstance(low, bool) \
+        and LADDER_POINTS[0] <= low < LADDER_POINTS[-1]
+
+
+def price_floor(low):
+    """`PriceLadder.founderFloor`: the ladder point at or below the founder's low."""
+    return next(p for p in reversed(LADDER_POINTS[:-1]) if low >= p) if low >= 1 else LADDER_POINTS[0]
+
+
+def price_ladder_codes(low) -> list:
+    """`PriceLadder.bands`' codes: five consecutive bands with the founder's in the middle three
+    (clamped at the ladder's ends), then `would_not_pay` -- what a Price plan row must hold."""
+    if not price_placeable(low):
+        raise ValueError(f"a founder's low of {low!r} is off the ladder (1 to under 10,000)")
+    f = LADDER_POINTS.index(price_floor(low))
+    k = max(0, min(f - 1, len(LADDER_POINTS) - 4))
+
+    def plain(n):
+        return str(int(n)) if float(n).is_integer() else str(n)
+    return ([f"under_{plain(LADDER_POINTS[k])}"]
+            + [f"band_{plain(LADDER_POINTS[i])}_{plain(LADDER_POINTS[i + 1])}"
+               for i in range(k, k + 3)]
+            + [f"over_{plain(LADDER_POINTS[k + 3])}", WOULD_NOT_PAY])
 
 STAGES = VECTORS
 
@@ -152,12 +202,25 @@ class Entry:
     def unsure(self, key: str) -> bool:
         return bool((self.founder_calibration.get(key) or {}).get("unsure"))
 
+    def price(self) -> dict | None:
+        """The founder's Price, `{low, high, period, currency}`, or `None` when they left it out
+        (call 51; Mulch Run's per-yard price is on no period of the ladder)."""
+        answer = (self.founder_calibration.get(PRICE_KEY) or {}).get("answer")
+        return answer if isinstance(answer, dict) else None
+
+    def units(self, key: str = SACRIFICE_KEY) -> dict:
+        """`{kind: unit}` for a kind of cost: the plan row's (founder kinds and distractors), the
+        founder's own over it (call 51)."""
+        row = dict(((self.respondent_questions or {}).get(key) or {}).get("units") or {})
+        row.update((self.founder_calibration.get(key) or {}).get("units") or {})
+        return row
+
     def link_of(self, part: int) -> str:
         """The link a part is asked on: part 3 of a B2B study is the decision-maker's (decision 26)."""
         return LINK_B2B if (self.b2b() and part == 3) else LINK_PRIMARY
 
     def calibrated_keys(self, registry=None) -> list:
-        """The keys this entry calibrates (call 47): the registry's twelve less the `b2b_only` pair
+        """The keys this entry calibrates (calls 47, 50): the registry's thirteen less the `b2b_only` pair
         on a B2C persona; without a registry bound, `founder_calibration`'s own keys."""
         registry = registry if registry is not None else self.registry
         if registry is not None:
@@ -324,7 +387,7 @@ def source_dir(keel_cloud: Path) -> Path:
 
 def load(keel_cloud: Path, *, registry=None) -> Corpus:
     """Every `NN-name.yaml` in keel-cloud's corpus directory, in filename order, each at revision
-    4 -- one file at another revision refuses the whole corpus, by entry and by key (call 49)."""
+    5 -- one file at another revision refuses the whole corpus, by entry and by key (calls 49, 51)."""
     directory = source_dir(keel_cloud)
     if not directory.is_dir():
         raise CorpusError(
@@ -342,7 +405,7 @@ def load(keel_cloud: Path, *, registry=None) -> Corpus:
 
 
 def load_file(path, *, registry=None) -> Entry:
-    """One revision-3 file, checked; bound to `registry` (and checked against it) when given."""
+    """One revision-5 file, checked; bound to `registry` (and checked against it) when given."""
     path = Path(path)
     digest = _sha256(path)
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -356,15 +419,15 @@ def load_file(path, *, registry=None) -> Entry:
 # ------------------------------------------------------------------------------- the refusals
 
 def _refuse(entry_id, message, path) -> CorpusError:
-    return CorpusError(f"{entry_id}: {message} (spec 030 FR-002; judgement call 49). {path}")
+    return CorpusError(f"{entry_id}: {message} (spec 031 FR-002; judgement calls 49, 51). {path}")
 
 
 def _check_revision(raw: dict, path: Path) -> None:
     entry_id = raw.get("id") or path.name
     revision = raw.get("revision")
     if revision != REVISION:
-        was = (" -- revision 3 is MARKS_VERSION 9's corpus, on the registry of twenty-five"
-               if revision == 3 else "")
+        was = (f" -- revision {revision} is {_REVISION_OF[revision]}"
+               if revision in _REVISION_OF else "")
         raise _refuse(entry_id, f"revision is {revision if revision is not None else 'absent'}; "
                                 f"this eval reads revision {REVISION} only{was}", path)
     for key in R2_KEYS:
@@ -452,6 +515,7 @@ def _check_shape(raw: dict, path: Path) -> None:
         if chip is not None and anchoring != "GUESSED":
             raise _refuse(entry_id, f"{name} carries the chip {chip} and is {anchoring}; a chipped "
                                     "story is GUESSED by code (call 33 amended)", path)
+    _check_price_and_units(raw, entry_id, path)
     maker = (raw.get("persona") or {}).get("decision_maker")
     if isinstance(maker, dict):
         role_ids = {r.get("id") for r in raw.get("roles") or []}
@@ -483,9 +547,77 @@ def _check_shape(raw: dict, path: Path) -> None:
                                     f"not a DEAL_BREAKER of {vector}", path)
 
 
+def _check_price_and_units(raw: dict, entry_id, path: Path) -> None:
+    """Revision 5's own checks (call 51; `check_corpus_r5.py`'s P and U): the founder's Price on the
+    ladder in the market's currency, its plan row the ladder's codes, every price pick a row code;
+    Existing sacrifice's units money · hours · count, its plan row `branch_pick_amounts`, and every
+    pick `{currency, amounts: [{kind, value?, unit?}]}` with each kind on the row in the row's unit."""
+    calibration = raw.get("founder_calibration") or {}
+    plan = raw.get("respondent_questions") or {}
+    country = (raw.get("market") or {}).get("country")
+    price = calibration.get(PRICE_KEY)
+    if isinstance(price, dict) and not price.get("unsure"):
+        answer = price.get("answer")
+        if not isinstance(answer, dict):
+            raise _refuse(entry_id, f"founder_calibration[{PRICE_KEY}].answer is {answer!r}; a "
+                                    "price is {low, high, period, currency}", path)
+        low, high = answer.get("low"), answer.get("high")
+        if not price_placeable(low) or not isinstance(high, (int, float)) or high < low:
+            raise _refuse(entry_id, f"founder_calibration[{PRICE_KEY}] is {low!r} to {high!r}: off "
+                                    "the ladder (a low of 1 to under 10,000, the high not below it)",
+                          path)
+        if answer.get("period") not in PRICE_PERIODS:
+            raise _refuse(entry_id, f"founder_calibration[{PRICE_KEY}].period is "
+                                    f"{answer.get('period')!r}, not one of {PRICE_PERIODS}", path)
+        if country in MARKET_CURRENCY and answer.get("currency") != MARKET_CURRENCY[country]:
+            raise _refuse(entry_id, f"founder_calibration[{PRICE_KEY}].currency is "
+                                    f"{answer.get('currency')!r}; the market ({country}) prices in "
+                                    f"{MARKET_CURRENCY[country]}, never another", path)
+        codes = (plan.get(PRICE_KEY) or {}).get("codes")
+        if PRICE_KEY in plan and codes != price_ladder_codes(low):
+            raise _refuse(entry_id, f"respondent_questions[{PRICE_KEY}].codes are {codes}; the "
+                                    f"ladder around a low of {low:g} is {price_ladder_codes(low)}",
+                          path)
+    for where, units in (("founder_calibration", (calibration.get(SACRIFICE_KEY) or {}).get("units")),
+                         ("respondent_questions", (plan.get(SACRIFICE_KEY) or {}).get("units"))):
+        for kind, unit in (units or {}).items():
+            if unit not in UNITS:
+                raise _refuse(entry_id, f"{where}[{SACRIFICE_KEY}].units[{kind}] is {unit!r}, not "
+                                        f"one of {UNITS}", path)
+    row = plan.get(SACRIFICE_KEY)
+    if row is not None and row.get("control") != AMOUNTS_CONTROL:
+        raise _refuse(entry_id, f"respondent_questions[{SACRIFICE_KEY}].control is "
+                                f"{row.get('control')!r}; revision 5 asks {AMOUNTS_CONTROL}", path)
+    row_codes = [str(c) for c in (row or {}).get("codes") or []]
+    row_units = (row or {}).get("units") or {}
+    price_codes = [str(c) for c in (plan.get(PRICE_KEY) or {}).get("codes") or []]
+    for person in raw.get("answers") or []:
+        picks = person.get("picks") or {}
+        name = person.get("person")
+        pick = picks.get(SACRIFICE_KEY)
+        if pick is not None and not (isinstance(pick, dict) and "chip" in pick):
+            if not isinstance(pick, dict) or not isinstance(pick.get("amounts"), list):
+                raise _refuse(entry_id, f"{name}'s {SACRIFICE_KEY} pick is {pick!r}; revision 5 "
+                                        "answers {currency, amounts: [{kind, value?, unit?}]}", path)
+            for amount in pick["amounts"]:
+                kind, unit = (amount or {}).get("kind"), (amount or {}).get("unit")
+                if row_codes and str(kind) not in row_codes:
+                    raise _refuse(entry_id, f"{name}'s {SACRIFICE_KEY} kind {kind!r} is not on the "
+                                            "plan row", path)
+                if unit is not None and unit != row_units.get(kind):
+                    raise _refuse(entry_id, f"{name}'s {SACRIFICE_KEY} kind {kind!r} is in {unit!r}; "
+                                            f"the row counts it in {row_units.get(kind)!r}", path)
+        band = picks.get(PRICE_KEY)
+        if band is not None and not isinstance(band, dict) and price_codes \
+                and str(band) not in price_codes:
+            raise _refuse(entry_id, f"{name}'s {PRICE_KEY} pick {band!r} is not one of the "
+                                    f"ladder's {price_codes}", path)
+
+
 def _check_keys(entry: Entry, registry) -> None:
     """The refusals that need the registry: every dimension-keyed map keyed by the entry's
-    calibrated set (call 47: the registry's twelve less the `b2b_only` pair on a B2C persona), and
+    calibrated set (calls 47, 50: the registry's thirteen less the `b2b_only` pair on a B2C persona),
+    every fixed-code founder answer one of the registry's codes (call 51), and
     the file's own plan equal to the one the registry derives per link (data-model §2-§3)."""
     registry_keys = set(registry.keys())
     keys = set(registry.calibrated_keys(entry.b2b()))
@@ -496,6 +628,17 @@ def _check_keys(entry: Entry, registry) -> None:
             return "which is not a registry key"
         return (f"which a {persona} entry does not calibrate (b2b_only; judgement call 47)")
 
+    for key, value in entry.founder_calibration.items():
+        if key not in registry_keys or (value or {}).get("unsure"):
+            continue
+        fixed = registry.by_key(key).fixed_codes
+        answer = (value or {}).get("answer")
+        picked = answer if isinstance(answer, list) else [answer] if isinstance(answer, str) else []
+        foreign = [c for c in picked if fixed is not None and c not in fixed]
+        if foreign:
+            raise _refuse(entry.id, f"founder_calibration[{key}] answers {foreign[0]!r}, which is not "
+                                    f"one of the registry's codes {fixed} (call 51: Ability to pay's "
+                                    "rungs were renamed)", entry.path)
     calibrated = set(entry.founder_calibration)
     for key in sorted(calibrated - keys):
         raise _refuse(entry.id, f"founder_calibration names {key}, {outside(key)}", entry.path)

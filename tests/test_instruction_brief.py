@@ -5,7 +5,7 @@ Stackless and modelless. The context is three vectors with every dimension's sta
 one case a project (FR-019). **Each mark fails for its own reason and passes for its own reason**:
 every one of the four has a companion case, because a mark that only ever showed its green half is
 indistinguishable from a mark that is always green. The entry is the hand-sized
-`tests/fixtures/corpus/09-fixture-r4.yaml`, whose standings a person can read off the file.
+`tests/fixtures/corpus/09-fixture-r5.yaml`, whose standings a person can read off the file.
 """
 
 from __future__ import annotations
