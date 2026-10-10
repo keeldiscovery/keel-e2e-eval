@@ -59,13 +59,14 @@
     },
     "commercial.existing_sacrifice": {
       "status": "NOT_HOLDING_UP",
-      "drift": "none",
+      "drift": "below",
       "n": 8,
+      "inside": 1,
+      "below": 7,
+      "above": 0,
+      "outside": 7,
       "median": 12,
-      "currency": "GBP",
-      "per": "month",
-      "optionCounts": "spare_keys=2, locksmith=1, none=5, nothing=0, something_else=0",
-      "belief_sentence": "Because of this, commuters who cycle already give up money on spare keys."
+      "belief_sentence": "The problem already costs the payer about £20 to £60 a month."
     },
     "commercial.price": {
       "status": "PEOPLE_DISAGREE",
@@ -75,6 +76,14 @@
       "outside": 4,
       "below": 4,
       "above": 0
+    },
+    "commercial.ability_to_pay": {
+      "status": "HOLDING_UP",
+      "drift": "none",
+      "n": 8,
+      "inside": 7,
+      "outside": 1,
+      "belief_sentence": "Your price is 5% to 25% of what the problem costs them today: a small share of what the problem costs them."
     },
     "commercial.buyer_payer_alignment": {
       "status": "LEFT_OUT",

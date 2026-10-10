@@ -103,10 +103,11 @@ def test_the_solution_and_commercial_jobs_see_the_mechanism_and_the_persona(entr
     keys = [d["key"] for d in commercial["dimensions"]]
     assert keys == ["commercial.existing_sacrifice", "commercial.price",
                     "commercial.buyer_payer_alignment", "commercial.commitment"], \
-        "call 47: a B2C job is never shown the b2b_only pair; Price is asked of whoever pays"
+        "calls 47, 61: a B2C job is never shown Purchase friction, nor the derived Ability to pay"
     b2b = fx.entry(fx.ENTRY_B2B)
     built = context_mod.build_calibration(b2b, "COMMERCIAL", registry)
-    assert len(built["dimensions"]) == 6 and built["interpretation"]["b2b"] is True
+    assert len(built["dimensions"]) == 5 and built["interpretation"]["b2b"] is True
+    assert "commercial.ability_to_pay" not in [d["key"] for d in built["dimensions"]]
 
 
 def test_a_name_the_corpus_records_reaches_the_job_and_the_validator(entry, registry):
@@ -205,11 +206,13 @@ def test_the_brief_carries_three_vectors_with_their_verdicts_and_belief_sentence
     assert frequency["below"] is None and frequency["above"] is None
     commercial = vectors[2]
     assert [d["key"] for d in commercial["dimensions"]] == [
-        "commercial.existing_sacrifice", "commercial.price", "commercial.buyer_payer_alignment",
-        "commercial.commitment"], "call 47: a B2C brief carries no b2b_only row"
+        "commercial.existing_sacrifice", "commercial.price", "commercial.ability_to_pay",
+        "commercial.buyer_payer_alignment", "commercial.commitment"], \
+        "calls 47, 59: a B2C brief carries Ability to pay (derived, calibrated) and no Purchase friction"
     price = commercial["dimensions"][1]
     assert price["observed"] == "4 of 8 said it would be worth £2 a month or more", "call 57"
-    assert commercial["dimensions"][0]["observed"] == "a median £12 over three months"
+    assert commercial["dimensions"][2]["observed"] == "7 of 8 already spend £3 a month or more", "call 64"
+    assert commercial["dimensions"][0]["observed"] == "a median £12 a month"
 
 
 def test_the_stage_shaped_builders_are_gone():

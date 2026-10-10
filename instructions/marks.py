@@ -19,7 +19,42 @@ persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
 by name. v10 has no run of record; it is history from v11.
 
-**`MARKS_VERSION` 11** (spec 031, 2026-10-09): the subjects' words moved and the ruler follows
+**`MARKS_VERSION` 12** (spec 032, 2026-10-10): cost first. The ruler follows keel-cloud 074 (branch
+`074-cost-first-price`, `5311217`, which merges 075): the founder first estimates what the problem
+costs (Existing sacrifice is a `cost_estimate` -- an amount, or hours at the project's rate, over a
+period of a day to a year -- read by `interval_contains_median`), then prices it for that same period
+(Price fixed to the cost's, five periods), and Ability to pay is **derived** from the two and never
+asked (`derived`, read by `cost_covers_price`, `b2b_link_only`: calibrated on every persona, asked on
+the decision-maker's link alone). The registry stays **thirteen** (4 / 3 / 6) in its cost-first shape,
+the corpus is **revision 6** (an r5 file refused by name), the two money questions are code's so
+Existing sacrifice owes its kinds with units and no question text, Price its key, and Ability to pay is
+not in the calibration job (the denominator is the *answered* set); `W10` holds the part-3 Existing
+sacrifice question to the recall words; the brief's cost and ability figures are keel-cloud's own,
+B2C people who gave only time are reported apart; `rescore.py` refuses every bundle below 12. Calls
+59-66 below. **There is no v12 run of record until `WHY=marks:12` is spent, and it is on hold by the
+founder**; v11's paragraph below is history (v11 never had one).
+
+**The corpus v12 judges, recorded 2026-10-10** (spec 032 US2). Revision 6's seven entries in
+keel-cloud 074's canon (`5311217`: r6 after the 075 merge and founder decisions 1 and 2), by sha256:
+
+    01-countly         0d28f78f8624f923cd186ad05a3a94752d78dff82f06e6db10d1c0aedbfc7c2c
+    02-compliancelog   e830469c45539344d8456ec709c2688d76238956c9856ce4dc73cce827ce0324
+    03-lullaby         1845d53847dc0058385b03d09280ca304eea9c03770c1221595d61fbe14333ce
+    04-linerly         f3cc8630ddeb38320644c250eb79dbc5dd3e81020a8b8402db8ef20276d4c05e
+    05-paidly          49240210c39c0eb9c67c6f82b6ab372423a2da92166181b3f0f6edbc74793dcc
+    06-repeatline      601a68b69097cc10c2475f8d7eb23c28f66eeaa691c9b24065acb3f4c2858185
+    07-mulchrun        6e8d796ec582e48f0aa586a6387a26fde3e58fd8b2619eb9fe075986216effcc
+
+The v12 denominators, **counted, not estimated** (`DRY=1 MODELS=exported` against 074): calibration
+the *answered* set -- 11 keys on 01-04 (B2C) and 12 on 05-07 (B2B), **80** an N; respondent 11 on a
+B2C entry (4 / 3 / 4 on `PRIMARY`) and 13 on a B2B one (4 / 3 on `PRIMARY`, 6 on `COMMERCIAL_B2B`;
+**4 on Mulch Run**, whose founder left Price out and so Ability to pay), **81** an N; `no_leak` **46**
+sweep-A and **70** sweep-B items an N (never Price, never Frequency over a framed window, never the
+founder's Existing sacrifice -- 116); `compare_correctness` 12 + 3 or 13 + 3 checks an entry,
+**108** on seven. `anchoring_accuracy` is still 65 reads at N=1; a full run still builds 135 model
+cases at N=1 (405 at N=3).
+
+**`MARKS_VERSION` 11** (history since v12, never run; spec 031, 2026-10-09): the subjects' words moved and the ruler follows
 keel-cloud 072 + 073 (branch `073-price`, `0925484`). The registry is **thirteen** (4 / 3 / 6, Price
 back as SHAPES), the corpus **revision 5**; Prevalence and the gate are read as an `event` clause
 held to E1-E3 and C7 / R8 retire; Price is code's on both sides; W7, W9 and U1 (and W3 / W8, where
@@ -29,7 +64,7 @@ keel-cloud's own; `rescore.py` refuses every bundle below 11. Calls 50-58 below.
 run of record until `WHY=marks:11` is spent, and it is on hold by the founder**; v10's paragraph
 below is history (v10 never had one).
 
-**The corpus v11 judges, recorded 2026-10-09** (spec 031 US2). Revision 5's seven entries in
+**The corpus v11 judged, recorded 2026-10-09** (spec 031 US2; history). Revision 5's seven entries in
 keel-cloud 073's canon (`78e1118`: r5 with the two golden names of `ed581f8`, additive), by sha256:
 
     01-countly         d354a69e63755a42226fd7e72d58b39f07b0913df0839c3582288460dbccecd7
@@ -458,6 +493,68 @@ sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. It is
 58. **v11**: **`rescore.py` refuses every bundle below 11** by name: a v10 bundle answered without
     Price, without units and with the window in the model's own words, so a v11 number for it
     would be fiction. The only v11 number is a v11 run (`WHY=marks:11`, on hold by the founder).
+59. **v12**: **the registry is thirteen, cost first.** Invariants 3, 5 and 6 restated (keel-cloud 074's
+    `DimensionRegistry`, mirrored): `b2b_only` on **Purchase friction alone**; `b2b_link_only`
+    (respondent side) on **exactly Ability to pay**; a `price_range` entry's periods are the five of
+    `Period.wires` (`day · week · month · quarter · year`, fixed to the cost's); a `cost` entry names
+    those five and the modes `AMOUNT · HOURS`; an entry is `derived` on both sides or neither, read by
+    `cost_covers_price` and derived from registry keys; `branch_pick_amounts` yields a number, so
+    Existing sacrifice is drawn as an `interval` (invariant 6). Three sets are read, never typed:
+    *calibrated* (every entry less Purchase friction off B2B: 12 / 13), *answered* (calibrated less the
+    derived one: 11 / 12 -- what the calibration job writes and its denominators) and *asked* (per link:
+    `PRIMARY` less `b2b_only` and `b2b_link_only` ones, 3 / 3 / 4 after the gate; `COMMERCIAL_B2B` the
+    commercial six). (keel-cloud 074, registry decision 16.)
+60. **v12**: **corpus revision 6, read from keel-cloud's canon only.** `load()` refuses a directory
+    holding any file at a revision other than 6, naming an r5 file as v11's. The founder's cost is
+    `{mode, low, high, rate?, period, currency}` -- `AMOUNT`, or `HOURS` with a rate above 0 on a B2B
+    entry only; low above 0, high not below it; one of the five periods; the market's currency -- or
+    `unsure`, with the engine's belief sentence; Price's period is the cost's while both are stated;
+    Ability to pay is recomputed (`price low / cost high` to `price high / cost low`, whole percent;
+    `some_from_spend` when the range crosses 100%, else by the high end: under 50 `small_share`, up to
+    100 `mostly_from_spend`, over `new_money`) and a file that disagrees is refused naming both;
+    `unsure` exactly when the cost or the price is; every Existing sacrifice pick records its recall
+    `period` (`week · month · quarter`); a B2B entry records `hourly_rate`, which the engine's input
+    carries; a decision-maker on the `COMMERCIAL_B2B` link has no story and no chip and is ANCHORED by
+    rule (keel-cloud 075).
+61. **v12**: **the code-framed questions owe no model text.** keel-cloud composes Existing
+    sacrifice's question and Price's and renders both inputs. On the calibration side Existing
+    sacrifice owes its **options**: 4 to 6 kinds of cost, each with its `unit` money · hours · count
+    (U1, the fixed *none* aside), a not-sure label refused (C3), **no belief phrase required or
+    read**; any question text the model wrote is not read -- never a fault, never swept, never held to
+    W7 / W9 / W8 (labels and phrases still carry W9). Price owes its key (call 53). Ability to pay is
+    derived and **not in the job**: a result that includes it is a coverage fault (outside the slice),
+    and the job's denominators are the answered set.
+62. **v12**: **`W10`.** The part-3 Existing sacrifice question -- on either link -- carries the recall
+    words of the founder's cost period verbatim (`Wording.carries`): a day or a week -> *last week*;
+    a month -> *last month*; a quarter, a year or no cost estimate -> *the last three months*, because
+    the amounts are normalised from them. The registry's respondent guidance names them through a
+    `{cost_period}` placeholder the job is handed filled (respondent items only, as keel-cloud fills
+    them; the calibration job's copy of the same guidance keeps the placeholder). A fault of
+    `option_validity` on that item; measured by code, so it is in the denominator already counted.
+63. **v12**: **the commercial slice is read as cost first.** The respondent plan is derived from the
+    registry (`b2b_link_only` keeps Ability to pay off `PRIMARY`; a left-out derived answer drops its
+    row on the B2B link too, as Mulch Run's does). Existing sacrifice's respondent control yields a
+    number yet still owes **options** (the founder's labels plus 2-3 distractors, each with
+    `units[i]`) -- never the null options of the scale, the number and the gate; Ability to pay's four
+    rungs are the respondent's fixed codes, one label each. Sweep B reads a cost estimate's low and high
+    (`RespondentQuestionsRules.numbers`).
+64. **v12**: **the cost figures are keel-cloud's.** Existing sacrifice's `observed` is `Figures.cost`'s
+    shape per the founder's period: *a median £35 a month*, and on B2C the people who gave only time
+    apart (*; 4 lose only time: median 3.7 hours a month, valued getting them back at £20 to £50 a
+    month, about £5.45 to £13.64 an hour*); the corpus records the total median only, so a B2B figure
+    is the total alone, without keel-cloud's money-and-hours split (a deviation: a shorter figure is
+    quoted inside the longer). Ability to pay's is `Figures.ability`, *{inside} of {n} already spend
+    {price low} {period} or more*; Price's is call 57's in the founder's period. Call 57's *over three
+    months* stands only where the cost was left out.
+65. **v12**: **the time-only are reported, not marked.** A B2C respondent who gave only time (hours or
+    a count, no money, no *Nothing*, no *Something else*) is not counted as £0: the corpus's standing
+    records `time_only` and `time_only_hours`, `compare_correctness` marks `status` and `drift` as
+    before, and the new fields are reported and diffed where the engine states them. Their Ability to
+    pay reads from their Price band -- the engine's, never a copy here.
+66. **v12**: **`rescore.py` refuses every bundle below 12** by name: a v11 bundle was answered with a
+    founder Existing sacrifice tick list, a Price over `month · year · one_off`, Ability to pay as a
+    model-written question and the recall period unnamed in the amounts question, so a v12 number
+    for it would be fiction. The only v12 number is a v12 run (`WHY=marks:12`, on hold by the founder).
 """
 
 from __future__ import annotations
@@ -465,11 +562,11 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 11
+MARKS_VERSION = 12
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 
-#: The eight marks of `marks.toml` at v11 (v9's eight, unchanged in number), with its numbers. The
+#: The eight marks of `marks.toml` at v12 (v9's eight, unchanged in number), with its numbers. The
 #: wording counts of call 56 are reported and are never a key here.
 #: `golden_belief_recall` is retired (call 29) and is **not** a key: a verdict cannot carry a value
 #: for it. `no_claim_words` (call 48) was never a mark of its own -- one of `brief_paragraphs`' per-case

@@ -14,9 +14,9 @@
 - [x] T005 fixtures `09-fixture-r6.yaml`, `10-fixture-r6-b2b.yaml`; `tests/test_corpus_r6_shape.py`, `tests/test_instruction_corpus_r6.py`.
 
 ## Phase 4 — The marks (FR-003 … FR-005)
-- [ ] T006 `score.py` (calls 61–63), `wording.py` (W10), `context.py` (`{cost_period}`, figures), denominators in `run.py` / `report.py`.
-- [ ] T007 `marks.py` calls 59–66, `MARKS_VERSION = 12`; `marks.toml`; `rescore.py` < 12.
-- [ ] T008 Tests: `test_instruction_cost_first.py` (new), score, brief, marks, rescore, leak.
+- [x] T006 `score.py` (calls 61–63), `wording.py` (W10), `context.py` (`{cost_period}`, figures), denominators in `run.py` / `report.py`.
+- [x] T007 `marks.py` calls 59–66, `MARKS_VERSION = 12`; `marks.toml`; `rescore.py` < 12.
+- [x] T008 Tests: `test_instruction_cost_first.py` (new), score, brief, marks, rescore, leak.
 
 ## Phase 5 — Gate and canon (FR-006, FR-007)
 - [ ] T009 `make unit` green.

@@ -585,7 +585,7 @@ def check_invariants(registry: Registry) -> list[str]:
                           f"carries it {template.count('{value}')} times")
 
     # 5. Fixed codes 4-6, none repeated; numeric bins contiguous and ordered; a `price_range`
-    #    entry's periods exactly `month · year · one_off` (keel-cloud 073, `PriceLadder.PERIODS`).
+    #    entry's periods exactly the five of `Period.wires` (keel-cloud 074, `PriceLadder.PERIODS`; `one_off` was 073's).
     for d in dims:
         codes = d.fixed_codes
         if codes is not None:

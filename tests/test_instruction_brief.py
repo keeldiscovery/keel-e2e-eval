@@ -1,6 +1,7 @@
-"""The `BRIEF` subject at `MARKS_VERSION` 11: its context, and its four marks (spec 029 FR-019,
+"""The `BRIEF` subject at `MARKS_VERSION` 12: its context, and its four marks (spec 029 FR-019,
 marks-v9 §2.6; T046; spec 030 T010 -- `no_claim_words` retired, judgement call 48; spec 031 T010 --
-the two commercial figures keel-cloud's own, judgement call 57).
+the two commercial figures keel-cloud's own, judgement call 57; spec 032 T008 -- per the founder's period,
+the time-only apart and Ability to pay's figure, judgement call 64).
 
 Stackless and modelless. The context is three vectors with every dimension's standing under them,
 one case a project (FR-019). **Each mark fails for its own reason and passes for its own reason**:
@@ -53,7 +54,7 @@ def test_the_deciding_line_is_the_vectors_worst_deal_breaker_from_vector_verdict
     assert lines["PROBLEM"]["key"] == "problem.importance"
     assert lines["SOLUTION"]["key"] == "solution.compatibility"
     assert lines["COMMERCIAL"]["key"] == "commercial.existing_sacrifice"
-    assert lines["COMMERCIAL"]["observed"] == "a median £12 over three months"     # call 57
+    assert lines["COMMERCIAL"]["observed"] == "a median £12 a month"     # calls 57, 64
 
 
 def test_a_vector_naming_no_deciding_dimension_has_no_deciding_line():
@@ -64,8 +65,8 @@ def test_a_vector_naming_no_deciding_dimension_has_no_deciding_line():
 
 _GOOD = ("Your problem is not holding up on how much it matters: 6 of 8 put it lower than you "
          "did. On your solution, 6 of 8 would reach for it once the first look has failed, as you "
-         "said. On price the people you asked are not giving up what you hoped: you said money "
-         "on spare keys, and they already spend a median £12 over three months, with only 2 "
+         "said. On price the people you asked are not giving up what you hoped: you said about "
+         "£20 to £60 a month, and they already spend a median £12 a month, with only 2 "
          "of 8 buying spare keys.")
 
 
@@ -110,16 +111,16 @@ def test_not_holding_up_is_never_observed_as_holding_up(case, entry):
 
 
 def test_a_converted_median_misses_coverage(case, entry):
-    score = _score(case, entry, _GOOD.replace("a median £12 over three months",
+    score = _score(case, entry, _GOOD.replace("a median £12 a month",
                                               "twelve pounds a quarter"))
     assert score.marks["coverage"] is False
-    assert "a median £12 over three months" in score.findings["coverage"]
+    assert "a median £12 a month" in score.findings["coverage"]
 
 
 def test_a_deciding_line_whose_founder_phrase_is_missing_misses_coverage(case, entry):
-    score = _score(case, entry, _GOOD.replace("you said money on spare keys, and ", ""))
+    score = _score(case, entry, _GOOD.replace("you said about £20 to £60 a month, and ", ""))
     assert score.marks["coverage"] is False
-    assert "money on spare keys" in score.findings["coverage"]
+    assert "about £20 to £60 a month" in score.findings["coverage"]
 
 
 def test_an_invented_count_misses_coverage(case, entry):
@@ -144,8 +145,8 @@ def test_an_option_count_row_is_a_count_the_standings_carry(case, entry):
 
 
 def test_a_paragraph_with_no_second_person_misses_register(case, entry):
-    paragraph = ("The problem is not holding up: the founder said money on spare keys and the "
-                 "median was a median £12 over three months.")
+    paragraph = ("The problem is not holding up: the founder said about £20 to £60 a month and the "
+                 "median was a median £12 a month.")
     assert _score(case, entry, paragraph).marks["register"] is False
 
 
@@ -243,33 +244,79 @@ def test_one_brief_case_an_entry_never_one_a_vector(tmp_path, entry):
 # ---------------------------- call 57 (call 42 superseded): the two commercial figures, keel-cloud's
 
 class _Entry:
-    """What `cost_figure` / `price_figure` read: the market, and the founder's price."""
+    """What `cost_figure` / `price_figure` / `ability_figure` read: the market, the founder's cost and price,
+    and the people (none here unless given)."""
 
-    def __init__(self, market="GB", price=None):
+    def __init__(self, market="GB", price=None, cost=None, people=(), b2b=False):
         self.market = {"country": market}
-        self.founder_calibration = {"commercial.price": {"answer": price}} if price else {}
+        self.founder_calibration = {}
+        if price:
+            self.founder_calibration["commercial.price"] = {"answer": price}
+        self._cost = cost
+        self._people = list(people)
+        self._b2b = b2b
+
+    def cost(self):
+        return self._cost
+
+    def b2b(self):
+        return self._b2b
+
+    def gate_yes(self):
+        return self._people
 
 
 _SET_STANDING = {"status": "NOT_HOLDING_UP", "n": 8, "median": 165,
                  "optionCounts": "staff_hours=4, write_offs=4, nothing=0"}
+_MONTH = {"mode": "AMOUNT", "low": 10, "high": 30, "period": "month", "currency": "GBP"}
 
 
-def test_existing_sacrifices_figure_is_figures_cost_with_no_hourly_rate():
-    """`Figures.cost`, the corpus carrying no rate: money over three months, in the market's
-    currency, rounded half up; hours apart and never priced."""
+def _person(price, hours=None, money=None, period="quarter", anchoring="ANCHORED"):
+    amounts = ([{"kind": "time", "value": hours, "unit": "hours"}] if hours is not None else []) + \
+        ([{"kind": "spend", "value": money, "unit": "money"}] if money is not None else [])
+    return corpus_mod.Person(person="p", recency="yes", story="s", chip=None, anchoring=anchoring,
+                             picks={"commercial.existing_sacrifice": {"currency": "GBP",
+                                                                      "period": period,
+                                                                      "amounts": amounts},
+                                    "commercial.price": price})
+
+
+def test_existing_sacrifices_figure_is_figures_cost_per_the_founders_period():
+    """`Figures.cost` (keel-cloud 074): a median in the market's currency, rounded half up, over the
+    founder's period; over three months where the cost was left out."""
     key = "commercial.existing_sacrifice"
-    assert context_mod.observed_of(_Entry(), key, _SET_STANDING) == \
-        "a median £165 over three months"
-    assert context_mod.observed_of(_Entry("US"), key, dict(_SET_STANDING, median=27.5)) == \
-        "a median $28 over three months"
-    assert context_mod.observed_of(_Entry(), key, dict(_SET_STANDING, median=105,
-                                                       hours_median=11)) == \
-        "a median £105 over three months; 11 hours"
-    assert context_mod.observed_of(_Entry(), key, dict(_SET_STANDING, median=None,
-                                                       hours_median=45)) == "a median 45 hours"
+    assert context_mod.observed_of(_Entry(cost=_MONTH), key, _SET_STANDING) == "a median £165 a month"
+    assert context_mod.observed_of(_Entry(), key, _SET_STANDING) == "a median £165 over three months"
+    assert context_mod.observed_of(_Entry("US", cost=dict(_MONTH, period="year", currency="USD")), key,
+                                   dict(_SET_STANDING, median=27.5)) == "a median $27.50 a year"
+    assert context_mod.observed_of(_Entry(), key, dict(_SET_STANDING, median=None)) is None
 
 
-def test_a_sacrifice_with_neither_money_nor_hours_has_no_figure():
+def test_the_people_who_gave_only_time_are_reported_apart_with_what_an_hour_is_worth():
+    """Founder decision 1 (keel-cloud 074 D-12), `Figures.timeOnly`: three managers who lose 30, 45 and 60 hours
+    a quarter (10, 15, 20 a month: median 15), bands £20 to £50 / £20 to £50 / £50 to £100 -- the lower
+    middle, £20 to £50 over 15 hours is £1.33 to £3.33 an hour."""
+    people = [_person("band_20_50", hours=30), _person("band_20_50", hours=45),
+              _person("band_50_100", hours=60)]
+    figure = context_mod.observed_of(_Entry(cost=_MONTH, people=people),
+                                     "commercial.existing_sacrifice", _SET_STANDING)
+    assert figure == ("a median £165 a month; 3 lose only time: median 15 hours a month, valued getting "
+                      "them back at £20 to £50 a month, about £1.33 to £3.33 an hour")
+    one = context_mod.observed_of(_Entry(cost=_MONTH, people=[_person("would_not_pay", hours=30)]),
+                                  "commercial.existing_sacrifice", dict(_SET_STANDING, median=None))
+    assert one == "1 loses only time: median 10 hours a month, and would not pay to get them back"
+    guessed = _Entry(cost=_MONTH, people=[_person("band_20_50", hours=30, anchoring="GUESSED")])
+    assert context_mod.observed_of(guessed, "commercial.existing_sacrifice", _SET_STANDING) == \
+        "a median £165 a month", "an unanchored person is never counted apart"
+    spender = _Entry(cost=_MONTH, people=[_person("band_20_50", hours=30, money=40)])
+    assert context_mod.observed_of(spender, "commercial.existing_sacrifice", _SET_STANDING) == \
+        "a median £165 a month", "someone who gave money and time is counted on the money"
+    b2b = _Entry(cost=_MONTH, people=people, b2b=True)
+    assert context_mod.observed_of(b2b, "commercial.existing_sacrifice", _SET_STANDING) == \
+        "a median £165 a month", "B2B prices hours at the rate: nobody is apart"
+
+
+def test_a_sacrifice_with_no_median_and_nobody_apart_has_no_figure():
     assert context_mod.observed_of(_Entry(), "commercial.existing_sacrifice",
                                    dict(_SET_STANDING, median=None)) is None
 
@@ -281,10 +328,21 @@ def test_prices_figure_is_figures_price_at_the_founders_floor():
     lullaby = _Entry(price={"low": 5, "high": 12, "period": "month", "currency": "GBP"})
     assert context_mod.observed_of(lullaby, "commercial.price", standing) == \
         "5 of 8 said it would be worth £5 a month or more"
-    linerly = _Entry(price={"low": 30, "high": 45, "period": "one_off", "currency": "GBP"})
+    linerly = _Entry(price={"low": 30, "high": 45, "period": "year", "currency": "GBP"})
     assert context_mod.observed_of(linerly, "commercial.price", standing) == \
-        "5 of 8 said it would be worth £20 as a one-off or more"
+        "5 of 8 said it would be worth £20 a year or more"
     assert context_mod.observed_of(_Entry(), "commercial.price", standing) is None
+
+
+def test_ability_to_pays_figure_is_figures_ability_at_the_founders_price_low():
+    """`Figures.ability` (keel-cloud 074): *{inside} of {n} already spend {price low} {period} or more*."""
+    standing = {"status": "HOLDING_UP", "n": 8, "inside": 7, "outside": 1}
+    entry = _Entry(price={"low": 5, "high": 12, "period": "month", "currency": "GBP"})
+    assert context_mod.observed_of(entry, "commercial.ability_to_pay", standing) == \
+        "7 of 8 already spend £5 a month or more"
+    assert context_mod.observed_of(_Entry(), "commercial.ability_to_pay", standing) is None
+    assert context_mod.observed_of(entry, "commercial.ability_to_pay",
+                                   {"status": "LEFT_OUT"}) is None
 
 
 def _set_vector(observed, verdict="NOT_HOLDING_UP"):

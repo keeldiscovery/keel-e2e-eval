@@ -84,6 +84,17 @@ def price_floor(low):
     return next(p for p in reversed(LADDER_POINTS[:-1]) if low >= p) if low >= 1 else LADDER_POINTS[0]
 
 
+def band_floor(code):
+    """`PriceLadder.floorOf`: a band's lower bound read back from its code -- 0 for `under`, the low for a
+    `band` or `over`, `None` for `would_not_pay`."""
+    parts = str(code).split("_")
+    if parts[0] == "under":
+        return 0
+    if parts[0] in ("band", "over") and len(parts) > 1:
+        return float(parts[1])
+    return None
+
+
 def price_ladder_codes(low) -> list:
     """`PriceLadder.bands`' codes: five consecutive bands with the founder's in the middle three
     (clamped at the ladder's ends), then `would_not_pay` -- what a Price plan row must hold."""

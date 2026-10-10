@@ -54,7 +54,7 @@ def test_compare_correctness_is_measured_only_when_every_row_was(entry):
                                   compare_mod.unmeasured(entry.id, "no engine (keel-cloud 058)"))
     totals = score_mod.totals(compare_scores=[good])
     assert totals["compare_measured"] and totals["compare_correctness"] == 1.0
-    assert totals["compare_checks"] == _checks(entry) == 14
+    assert totals["compare_checks"] == _checks(entry) == 15
     mixed = score_mod.totals(compare_scores=[good, bad])
     assert mixed["compare_measured"] is False and mixed["compare_correctness"] is None
     assert mixed["compare_unmeasured"] == [{"entry": "09-fixture",
@@ -136,13 +136,13 @@ def _q(result, key):
 
 
 def _slice(entry, registry, vector) -> int:
-    """Call 47: the vector's calibrated slice for the entry's persona -- read, never typed."""
-    return len(registry.calibrated_slice(vector, entry.b2b()))
+    """Calls 47, 61: the vector's answered slice for the entry's persona -- read, never typed."""
+    return len(registry.answered_slice(vector, entry.b2b()))
 
 
 @pytest.mark.parametrize("vector, count", [("PROBLEM", 4), ("SOLUTION", 3), ("COMMERCIAL", 4)])
 def test_a_good_answer_covers_its_slice_and_meets_every_rule(entry, registry, vector, count):
-    assert _slice(entry, registry, vector) == count, "B2C: the b2b_only pair is not calibrated"
+    assert _slice(entry, registry, vector) == count, "B2C: Purchase friction is not calibrated, Ability to pay is derived"
     score = _calibrate(entry, registry, vector)
     assert (score.coverage_hit, score.coverage_of, score.coverage_passed) == (count, count, True)
     assert (score.validity_hit, score.validity_of) == (count, count), score.faults
@@ -219,7 +219,7 @@ def _set_options(r):
     ("options on Price", "COMMERCIAL", lambda r: _q(r, "commercial.price").__setitem__(
         "options", [{"label": "Under £2", "belief_phrase": "under two"}]), "C2:"),
     ("a kind with no unit", "COMMERCIAL", lambda r: _set_options(r)[0].pop("unit"),
-     "U1: 'Option 1 for this' is a kind of cost"),
+     "U1: 'Spare keys' is a kind of cost"),
     ("fifths with a hole", "PROBLEM", lambda r: _q(r, "problem.prevalence")["options"][2]
      .__setitem__("normalized", "p_50_60"), "not the registry's"),
 ])
@@ -376,7 +376,7 @@ def test_a_set_takes_every_founder_label_and_two_to_three_distractors(entry, reg
     row = _row(entry, dimension.key)
     founder = [c for c in row["codes"] if c not in RESPONDENT_ESCAPES]
     labels = [c.upper() for c in founder] + [f"Distractor {i}" for i in range(distractors)]
-    faults = score_mod.respondent_checks({"key": dimension.key, "question": "After?",
+    faults = score_mod.respondent_checks({"key": dimension.key, "question": "Over the last three months?",
                                           "options": labels, "units": ["money"] * len(labels)},
                                          dimension, row)
     assert (faults == []) is ok, faults
@@ -390,7 +390,7 @@ def test_a_set_missing_a_founder_label_fails(entry, registry):
     row = _row(entry, dimension.key)
     founder = [c for c in row["codes"] if c not in RESPONDENT_ESCAPES]
     labels = founder[1:] + ["Distractor a", "Distractor b"]
-    faults = score_mod.respondent_checks({"key": dimension.key, "question": "After?",
+    faults = score_mod.respondent_checks({"key": dimension.key, "question": "Over the last three months?",
                                           "options": labels}, dimension, row)
     assert any(f"missing founder label(s) [{founder[0]!r}]" in f for f in faults), faults
 
@@ -411,7 +411,7 @@ def test_a_set_is_judged_against_the_founders_labels_not_the_codes(registry):
     dimension, row = registry.by_key(key), lullaby.respondent_questions[key]
     labels = lullaby.founder_labels(key)
     shown = [label for code, label in labels.items() if code != "nothing"]
-    good = {"key": key, "question": "That last thing?",
+    good = {"key": key, "question": "What did it cost the last three months?",
             "options": [s.upper() + "!" for s in shown] + ["Distractor a", "Distractor b"],
             "units": ["money"] * (len(shown) + 2)}
     assert score_mod.respondent_checks(good, dimension, row, founder_labels=labels) == [], \

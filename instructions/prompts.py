@@ -206,12 +206,13 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
         add(f"{entry.id}/CALIBRATION_{vector}", "CALIBRATION", c.SCREEN_CALIBRATION, vector,
             context_mod.build_calibration(entry, vector, registry, keys),
             meta={"vector": vector,
-                  "registry_slice": [d.key for d in registry.calibrated_slice(vector,
-                                                                              entry.b2b())],
+                  # Calls 47, 61: the ANSWERED slice -- the derived Ability to pay is not in the job.
+                  "registry_slice": [d.key for d in registry.answered_slice(vector,
+                                                                            entry.b2b())],
                   # Calls 52, 53: the keys whose model text a reader is shown, so `no_leak`'s
                   # denominator is read, never typed, on a dry run too.
-                  "swept": [d.key for d in registry.calibrated_slice(vector, entry.b2b())
-                            if score_mod.is_swept(d, context_mod.window_of(entry))],
+                  "swept": [d.key for d in registry.answered_slice(vector, entry.b2b())
+                            if score_mod.is_swept(d, context_mod.window_of(entry), founder=True)],
                   # Call 55: the names W3 / W8 hold to -- the corpus's, else none -- and the
                   # mechanism the validator holds them with (never its Lullaby fixture's).
                   "short_name": context_mod.short_name_of(entry),

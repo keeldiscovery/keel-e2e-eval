@@ -152,6 +152,14 @@ def calibration_question(dimension, *, b2b=False) -> dict:
         return {"key": dimension.key, "respondent_note": "asked of whoever pays"}
     if dimension.founder_numeric:                       # call 52: framed on 7 nights, no text
         return {"key": dimension.key, "options": None, "respondent_note": "asked as a number"}
+    if dimension.founder_cost:                          # call 61: the kinds and their units, no question, no phrase
+        kinds = [{"label": label, "normalized": code, "unit": unit}
+                 for label, code, unit in (("Spare keys", "spares", "money"),
+                                           ("Locksmith call-outs", "locksmiths", "money"),
+                                           ("Time spent searching", "searching", "hours"),
+                                           ("None of these; they cope", "none", None))]
+        kinds = [{k: v for k, v in kind.items() if v is not None} for kind in kinds]
+        return {"key": dimension.key, "options": kinds, "respondent_note": "asked of the stranger"}
     head = {"key": dimension.key, "question": text}
     if dimension.key == "problem.prevalence":           # call 52: the event clause, no question
         head = {"key": dimension.key, "event": "could not find their keys on the way out"}
@@ -172,9 +180,10 @@ def calibration_question(dimension, *, b2b=False) -> dict:
 
 
 def calibration_result(registry, vector, *, b2b=False) -> dict:
-    """A good answer for the vector's calibrated slice (call 47: the b2b_only pair on B2B only)."""
+    """A good answer for the vector's answered slice (calls 47, 61: Purchase friction on B2B only, never the
+    derived Ability to pay)."""
     return {"vector": vector, "questions": [calibration_question(d, b2b=b2b)
-                                            for d in registry.calibrated_slice(vector, b2b)]}
+                                            for d in registry.answered_slice(vector, b2b)]}
 
 
 def calibration_case(entry, vector, run_index=1):
@@ -203,7 +212,7 @@ def respondent_item(entry, key, *, label_only=False) -> dict:
         return {"key": key, "options": None}
     dimension = entry.registry.by_key(key)
     is_set = (dimension.fixed_codes is None and not dimension.founder_numeric
-              and row["control"] != "multi_choice_ladder")
+              and not dimension.derived and row["control"] != "multi_choice_ladder")
     options = []
     for i, code in enumerate(c for c in row.get("codes") or [] if c not in RESPONDENT_ESCAPES):
         label = code if is_set else f"Choice {i + 1}"
@@ -213,6 +222,8 @@ def respondent_item(entry, key, *, label_only=False) -> dict:
             label = f"A distractor {n}"
             options.append(label if label_only else {"label": label, "code": f"distractor_{n}"})
     item["options"] = options
+    if key == "commercial.existing_sacrifice":          # call 62: W10, the founder's recall words
+        item["question"] = f"Thinking about {context_mod.cost_recall_of(entry)}: what did this cost you?"
     if key == "commercial.existing_sacrifice":          # call 54: U1, one unit per option
         item["units"] = ["money"] * len(options)
     return item
