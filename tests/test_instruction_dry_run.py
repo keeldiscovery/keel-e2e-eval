@@ -113,7 +113,7 @@ def test_a_selected_screen_without_its_template_is_refused_by_name(dry, capsys):
 
 
 def test_a_dry_run_prints_every_structural_marks_denominator_read_off_the_registry(dry, capsys):
-    """Spec 030 US3, call 47; spec 031 calls 52-55: no answer exists to score, so the three
+    """Spec 030 US3, call 47; spec 031 calls 52-55; spec 032 call 61: no answer exists to score, so the three
     structural marks stay unmeasured (call 13) -- but the denominator each would be counted over
     is read off the registry and the entry and written down: calibration 4 / 3 / 4 (B2C),
     respondent 4 / 3 / 3 (the founder left one out), sweep A on the 3 PROBLEM questions and the 3
@@ -125,7 +125,7 @@ def test_a_dry_run_prints_every_structural_marks_denominator_read_off_the_regist
     entry = corpus_mod.load_file(fx.ENTRY, registry=fx.registry())
     plan = entry.plan()
     assert scorecard["denominators"] == {"09-fixture": {
-        "calibration": len(entry.calibrated_keys()),
+        "calibration": len(fx.registry().answered(False)),      # call 61: less the derived one
         "respondent": {"PRIMARY": sum(len(keys) for keys in plan.values())},
         "sweep_a": (len(fx.registry().calibrated_slice("PROBLEM", False)) - 1)
         + (len(plan[1]) - 1),

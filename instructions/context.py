@@ -25,7 +25,10 @@ measurements and the brief's claims. All three retired with the subjects they fe
 from __future__ import annotations
 
 from . import contract as contract_mod
-from .registry import LINK_B2B, LINK_PRIMARY, DEFAULT_WINDOW, RecallWindow, fill_window
+from . import corpus as corpus_mod
+from . import wording as wording_mod
+from .registry import (LINK_B2B, LINK_PRIMARY, DEFAULT_WINDOW, SACRIFICE_KEY, RecallWindow,
+                       fill_window)
 
 # data-model.md note 2 (spec 009): the corpus writes the tap the way a person reads it; the wire
 # wants the enum name. Kept for `harness/corpus_script.py` and `harness/stranger_stories.py`, which
@@ -137,6 +140,29 @@ def offer_name_of(entry) -> str | None:
     or `None` where an entry records none."""
     name = (entry.interpretations or {}).get("offer_name")
     return name if isinstance(name, str) and name.strip() else None
+
+
+def cost_period_of(entry) -> str | None:
+    """The founder's cost period (call 62), `None` where they left the cost out."""
+    return (entry.cost() or {}).get("period") if hasattr(entry, "cost") else None
+
+
+def cost_recall_of(entry) -> str:
+    """`ScreenContextBuilder.costRecall` (call 62): the recall words of the founder's cost period -- the
+    words `{cost_period}` is filled with and `W10` holds the part-3 Existing sacrifice question to."""
+    return wording_mod.recall_words(cost_period_of(entry))
+
+
+def fill_cost(node, recall: str):
+    """`RegistrySlices.filledCost`: the registry's `{cost_period}` placeholder filled with the recall words,
+    everywhere in a respondent item (keel-cloud 074 fills it on respondent items only)."""
+    if isinstance(node, str):
+        return node.replace("{cost_period}", recall)
+    if isinstance(node, dict):
+        return {k: fill_cost(v, recall) for k, v in node.items()}
+    if isinstance(node, list):
+        return [fill_cost(v, recall) for v in node]
+    return node
 
 
 def mechanism_of(entry) -> dict:
@@ -257,9 +283,10 @@ def build_calibration(entry, vector: str, registry=None, keys=None) -> dict:
         "problem": {"statement": problem_statement(entry)},
         "mechanism": mechanism_of(entry),
         "persona": dict(entry.persona or {}),
-        # Call 47: the vector's CALIBRATED slice -- the b2b_only pair only on a B2B persona.
+        # Calls 47, 59, 61: the vector's ANSWERED slice -- Purchase friction only on a B2B persona, and
+        # never the derived one (Ability to pay is written by code; the job is not asked for it).
         "dimensions": fill_window([calibration_dimension(d)
-                                   for d in registry.calibrated_slice(vector, entry.b2b())],
+                                   for d in registry.answered_slice(vector, entry.b2b())],
                                   window_of(entry)),
     }
     out = {}
@@ -321,14 +348,16 @@ def build_respondent(entry, part: int, plan: dict | None = None, registry=None, 
         # The corpus records a project and its people, never the founder's name: written and left
         # `null` rather than invented (v8's `build_questions` rule, one screen along).
         "founder_name": None,
-        "items": fill_window([respondent_item(registry.by_key(k), link=link) for k in item_keys],
-                             window_of(entry)),
+        "items": fill_cost(fill_window([respondent_item(registry.by_key(k), link=link)
+                                        for k in item_keys], window_of(entry)),
+                           cost_recall_of(entry)),             # call 62: `{cost_period}` filled
         # keel-cloud 058's `founderOptions`: the model-written sets only (the fixed codes are the
         # registry's, and the model has them already) -- the founder's LABELS, as production
         # sends them (`founder_calibration[key].labels`, r3).
         "founder_options": {k: founder_option_labels(entry, registry, k) for k in item_keys
                             if registry.by_key(k).fixed_codes is None
-                            and not registry.by_key(k).founder_numeric},
+                            and not registry.by_key(k).founder_numeric
+                            and not registry.by_key(k).derived},
     }
     if part in (2, 3) and link != LINK_B2B:
         values["mechanism"] = mechanism_of(entry)
@@ -415,30 +444,136 @@ def currency_of(entry) -> str | None:
     return MARKET_CURRENCY.get((entry.market or {}).get("country"))
 
 
+def _amount(value, currency) -> str:
+    """`CostEstimate.amount`: `rounded` (two places, half up, only where there are pennies) after the
+    currency's prefix -- not Python's float `round`, which is banker's."""
+    from decimal import ROUND_HALF_UP, Decimal                        # noqa: PLC0415
+    stripped = Decimal(str(value)).normalize()
+    if stripped.as_tuple().exponent > 0:
+        stripped = stripped.quantize(Decimal(1))
+    if stripped.as_tuple().exponent < 0:
+        stripped = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    text = f"{int(stripped):,}" if stripped == stripped.to_integral() else f"{stripped:,.2f}"
+    symbol = CURRENCY_SYMBOL.get(currency or "", f"{currency} ")
+    return f"{symbol}{text}"
+
+
+#: `Period.days`: a day 1, a week 7, a month 365.25 / 12, a quarter 365.25 / 4, a year 365.25 -- exact.
+_DAYS = {"day": 1, "week": 7, "month": "30.4375", "quarter": "91.3125", "year": "365.25"}
+
+
+def _period_days(period):
+    from fractions import Fraction                                    # noqa: PLC0415
+    return Fraction(_DAYS.get(period) or _DAYS["quarter"])
+
+
+def time_only_people(entry) -> list:
+    """`Compare.timeOnly` (call 65; keel-cloud 074 D-12): the anchored, un-chipped B2C people who gave hours or
+    a count and no money, no *Nothing* -- reported apart from Existing sacrifice. B2B has none (hours are
+    priced at the rate)."""
+    if entry.b2b():
+        return []
+    out = []
+    for person in entry.gate_yes():
+        if person.anchoring != "ANCHORED" or person.chip:
+            continue
+        pick = person.picks.get(SACRIFICE_KEY)
+        if not isinstance(pick, dict) or "chip" in pick:
+            continue
+        amounts = pick.get("amounts") or []
+        if any(a.get("unit") in (None, "money") or a.get("kind") == "nothing" for a in amounts):
+            continue
+        if any(a.get("unit") in ("hours", "count") for a in amounts):
+            out.append((person, pick))
+    return out
+
+
+def _time_only_figure(entry, period_words: str, currency) -> str | None:
+    """`Figures.timeOnly`: *3 lose only time: median 6 hours a month, valued getting them back at £5 to £10 a
+    month, about £0.83 to £1.67 an hour* -- the median person's Price band (the lower middle, by the band's
+    floor) over the median hours, per the founder's period."""
+    from decimal import ROUND_HALF_UP, Decimal, localcontext         # noqa: PLC0415
+    import statistics                                                 # noqa: PLC0415
+    apart = time_only_people(entry)
+    if not apart:
+        return None
+    founder = (entry.cost() or {}).get("period")
+    who = f"{len(apart)} lose only time" if len(apart) != 1 else "1 loses only time"
+    hours = []
+    for _person, pick in apart:
+        total = sum(a["value"] for a in pick["amounts"]
+                    if a.get("unit") == "hours" and a.get("value") is not None)
+        if total or any(a.get("unit") == "hours" for a in pick["amounts"]):
+            hours.append(total * _period_days(founder) / _period_days(pick.get("period")))
+    if not hours:
+        return who
+    with localcontext() as ctx:
+        ctx.prec = 16                                                  # MathContext.DECIMAL64
+        median = statistics.median(hours)
+        median = Decimal(median.numerator) / Decimal(median.denominator)
+        line = f"{who}: median {_hours(median)} hours {period_words}"
+        bands = [p.picks.get("commercial.price") for p, _pick in apart]
+        bands = sorted((b for b in bands if isinstance(b, str)),
+                       key=lambda c: corpus_mod.band_floor(c) if corpus_mod.band_floor(c) is not None
+                       else -1)
+        if not bands or median <= 0:
+            return line
+        pick = bands[(len(bands) - 1) // 2]
+        if pick == corpus_mod.WOULD_NOT_PAY or corpus_mod.band_floor(pick) is None:
+            return line + ", and would not pay to get them back"
+        kind, *edges = pick.split("_")
+        low = None if kind == "under" else Decimal(edges[0])
+        high = None if kind == "over" else Decimal(edges[0 if kind == "under" else 1])
+        symbol = CURRENCY_SYMBOL.get(currency or "", f"{currency} ")
+        if low is None:
+            label, per_hour = f"Under {symbol}{_money(high)}", f"under {_amount(high / median, currency)} an hour"
+        elif high is None:
+            label, per_hour = f"Over {symbol}{_money(low)}", f"over {_amount(low / median, currency)} an hour"
+        else:
+            label = f"{symbol}{_money(low)} to {symbol}{_money(high)}"
+            per_hour = f"{_amount(low / median, currency)} to {_amount(high / median, currency)} an hour"
+        return f"{line}, valued getting them back at {label} {period_words}, about {per_hour}"
+
+
 def cost_figure(entry, standing: dict) -> str | None:
-    """Call 57: `Figures.cost`'s shape with no hourly rate (the corpus records none, so hours are
-    never priced): *a median £22 over three months*, the hours median apart (*; 11 hours*, or *a
-    median 11 hours* with no money). `None` where the standing carries neither."""
-    money, hours = standing.get("median"), standing.get("hours_median")
-    symbol = CURRENCY_SYMBOL.get(currency_of(entry) or "", f"{currency_of(entry)} ")
+    """Call 64: `Figures.cost`'s shape per the founder's period (keel-cloud 074) -- *a median £35 a month*, and
+    on B2C the people who gave only time apart (*; 4 lose only time: median 3.7 hours a month, valued getting
+    them back at £20 to £50 a month, about £5.45 to £13.64 an hour*). On B2B the corpus records the total
+    median only, not its money / hours split, so the figure is the total alone (a deviation, recorded in
+    call 64). `None` where the standing carries neither a median nor anyone apart."""
+    currency = currency_of(entry)
+    cost = entry.cost() if hasattr(entry, "cost") else None
+    period_words = corpus_mod._PERIOD_WORDS.get((cost or {}).get("period"), "over three months")
     parts = []
-    if money is not None:
-        parts.append(f"a median {symbol}{_money(money)} over three months")
-    if hours is not None:
-        parts.append(("" if parts else "a median ") + f"{_hours(hours)} hours")
+    if standing.get("median") is not None:
+        parts.append(f"a median {_amount(standing['median'], currency)} {period_words}")
+    apart = _time_only_figure(entry, period_words, currency)
+    if apart:
+        parts.append(apart)
     return "; ".join(parts) or None
 
 
+def ability_figure(entry, standing: dict) -> str | None:
+    """Call 64: `Figures.ability` -- *{inside} of {n} already spend {price low} {period} or more*; `None`
+    before anyone is counted or without a price."""
+    answer = (entry.founder_calibration.get("commercial.price") or {}).get("answer")
+    if not isinstance(answer, dict) or not standing.get("n") or standing.get("inside") is None:
+        return None
+    period = corpus_mod._PERIOD_WORDS.get(answer.get("period"), "")
+    return (f"{standing['inside']} of {standing['n']} already spend "
+            f"{_amount(answer['low'], answer.get('currency'))}" + (f" {period}" if period else "")
+            + " or more")
+
+
 def price_figure(entry, standing: dict) -> str | None:
-    """Call 57: `Figures.price` -- *{inside} of {n} said it would be worth {floor} {period} or
-    more*; `None` before anyone is counted or where the founder left Price out."""
+    """Call 57, 64: `Figures.price` -- *{inside} of {n} said it would be worth {floor} {period} or
+    more*, in the cost's period; `None` before anyone is counted or where the founder left Price out."""
     from .corpus import price_floor                                   # noqa: PLC0415
     answer = (entry.founder_calibration.get("commercial.price") or {}).get("answer")
     if not isinstance(answer, dict) or not standing.get("n") or standing.get("inside") is None:
         return None
     symbol = CURRENCY_SYMBOL.get(answer.get("currency"), f"{answer.get('currency')} ")
-    period = {"month": "a month", "year": "a year", "one_off": "as a one-off"}.get(
-        answer.get("period"), "")
+    period = corpus_mod._PERIOD_WORDS.get(answer.get("period"), "")
     return (f"{standing['inside']} of {standing['n']} said it would be worth {symbol}"
             f"{_money(price_floor(answer['low']))}" + (f" {period}" if period else "") + " or more")
 
@@ -476,9 +611,11 @@ def observed_of(entry, key: str, standing: dict) -> str | None:
     Existing sacrifice's is `cost_figure` (*a median £22 over three months*) and Price's
     `price_figure` (*5 of 8 said it would be worth £5 a month or more*)."""
     if key == "commercial.existing_sacrifice":
-        return cost_figure(entry, standing)                          # call 57
+        return cost_figure(entry, standing)                          # calls 57, 64
     if key == "commercial.price":
-        return price_figure(entry, standing)                         # call 57
+        return price_figure(entry, standing)                         # calls 57, 64
+    if key == "commercial.ability_to_pay":
+        return ability_figure(entry, standing)                       # call 64
     median = standing.get("median")
     if median is None:
         return None

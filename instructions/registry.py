@@ -1,31 +1,35 @@
 """keel-cloud's dimension registry, read from the export and checked before a case is built
 (spec 029 FR-021, data-model §1, research R4; cut to twelve by keel-cloud 071 and spec 030; thirteen
-again since keel-cloud 073 and spec 031, Price back).
+again since keel-cloud 073 and spec 031, Price back; cost first since keel-cloud 074 and spec 032).
 
 The registry is the **golden** for `dimension_coverage` and `option_validity` (judgement calls 30
 and 31): every control, code, bin, belief template and plan part a scorer checks a question
 against. keel-cloud 058 exports it as `dimension-registry.json` beside `model-routing.json`;
 `instructions/contract.read` loads it through `from_document` here. Nothing in this module is a
-copy of the cloud's registry -- the design-time draft under
-`specs/029-marks-v9-vectors/contracts/dimension-registry.yaml` is read by no code at run time (it
-is v9's history), and the fixture under `tests/fixtures/registry/` is a hand-sized slice of keel-cloud
-073's export.
+copy of the cloud's registry -- the fixture under `tests/fixtures/registry/` is a hand-sized slice
+of keel-cloud 074's export.
 
 **The eight invariants are this repository's to check** (keel-cloud `registry-schema.md`
 §Invariants; spec 030 judgement call 46), because a mark of 1.00 is honest only against a registry
 that is itself well formed -- marks §2.2: *"1.00 is honest only because the registry fixes the
 codes"*. A registry that fails one is a **refusal to start** naming the invariant and the key,
-never a warning and never a score. At `MARKS_VERSION` 11 the registry is **thirteen keys, 4 / 3 / 6**
-(judgement call 50; keel-cloud 073's `DimensionRegistry`, mirrored): nine of them deal-breakers that
+never a warning and never a score. At `MARKS_VERSION` 12 the registry is **thirteen keys, 4 / 3 / 6**
+(judgement call 59; keel-cloud 074's `DimensionRegistry`, mirrored): nine of them deal-breakers that
 can each read `NOT_HOLDING_UP`; `asked_in_v1` is gone (a registry still carrying it is refused as
-unknown-shaped, not ignored); an entry-level `b2b_only` sits on exactly `commercial.ability_to_pay` and
-`commercial.purchase_friction`; and `commercial.price` is back as SHAPES, asked of whoever pays, its
-founder control `price_range` over exactly the three periods `month · year · one_off` (invariant 5).
+unknown-shaped, not ignored); the entry-level `b2b_only` sits on **Purchase friction alone** and
+Ability to pay is `b2b_link_only` on the respondent side (calibrated on every persona, asked on the
+decision-maker's link only); Existing sacrifice's founder control is `cost_estimate` over the five
+periods and the modes `AMOUNT · HOURS`, its respondent control `branch_pick_amounts` yields a number
+(so it is drawn as an interval, invariant 6); Price is back as SHAPES over the same five periods
+(`day · week · month · quarter · year`, fixed to the cost's); Ability to pay's founder control is
+`derived` -- a `price_cost_ratio` from the registry's own keys, read by `cost_covers_price`.
 
-**What a project calibrates and asks is read here, never typed by a scorer** (calls 46, 47):
-`calibrated(b2b)` is every entry less the `b2b_only` two when the persona is not B2B (eleven on B2C,
-thirteen on B2B), and `plan_keys(part, founder_calibration, link, b2b)` is what one link asks in one
-part -- keel-cloud 073's `DimensionRegistry.calibrated` / `asked` and `EvidencePlan`, mirrored.
+**What a project calibrates, answers and asks is read here, never typed by a scorer** (calls 46,
+47, 59): `calibrated(b2b)` is every entry less the `b2b_only` one when the persona is not B2B (twelve
+on B2C, thirteen on B2B); `answered(b2b)` is that less the `derived` one, which code writes -- what
+the calibration job writes questions for (eleven / twelve); and `plan_keys(part, founder_calibration,
+link, b2b)` is what one link asks in one part -- keel-cloud 074's `DimensionRegistry.calibrated` /
+`answered` / `asked` and `EvidencePlan`, mirrored.
 """
 
 from __future__ import annotations
@@ -52,10 +56,13 @@ DEAL_BREAKERS = {
                    "commercial.commitment"),
 }
 
-#: Invariant 3: `b2b_only` on exactly these two (calibrated and asked only on a B2B persona), and
-#: every entry asked in the part of its own vector -- 4 / 3 / 6 entries a part. On `PRIMARY` that
-#: is 3 / 3 / 4 after the gate; on `COMMERCIAL_B2B` the commercial part whole, 6.
-B2B_ONLY = ("commercial.ability_to_pay", "commercial.purchase_friction")
+#: Invariant 3: `b2b_only` on exactly Purchase friction (calibrated and asked only on a B2B persona),
+#: `b2b_link_only` on exactly Ability to pay (calibrated on every persona, asked on the
+#: decision-maker's link only; keel-cloud 074), and every entry asked in the part of its own vector
+#: -- 4 / 3 / 6 entries a part. On `PRIMARY` that is 3 / 3 / 4 after the gate; on `COMMERCIAL_B2B`
+#: the commercial part whole, 6.
+B2B_ONLY = ("commercial.purchase_friction",)
+B2B_LINK_ONLY = ("commercial.ability_to_pay",)
 PER_PART = {1: 4, 2: 3, 3: 6}
 PART_VECTOR = {1: "PROBLEM", 2: "SOLUTION", 3: "COMMERCIAL"}
 
@@ -63,10 +70,13 @@ PART_VECTOR = {1: "PROBLEM", 2: "SOLUTION", 3: "COMMERCIAL"}
 LINK_PRIMARY = "PRIMARY"
 LINK_B2B = "COMMERCIAL_B2B"
 
-#: Invariant 6: the respondent controls whose answer is a number (`answers.shape == interval`) --
-#: keel-cloud 071 / 073's `RespondentControl.yieldsNumber`: Frequency's 0-to-7 control, and the number it
-#: becomes on a recall window longer than 7.
+#: The respondent controls a person taps or types and that owe no options (the model writes `null`):
+#: Frequency's 0-to-7 control, and the number it becomes on a recall window longer than 7.
 NUMERIC_RESPONDENT_CONTROLS = ("segmented_0_to_7", "number_with_unit")
+#: Invariant 6: the respondent controls whose answer is a number (`answers.shape == interval`) --
+#: keel-cloud 074's `RespondentControl.yieldsNumber`. `branch_pick_amounts` joins the two above
+#: (Existing sacrifice is drawn as an interval, D-6) but still owes its kinds as options (call 63).
+NUMBER_YIELDING_CONTROLS = NUMERIC_RESPONDENT_CONTROLS + ("branch_pick_amounts",)
 
 #: Invariant 7: the one gate.
 GATE_KEY = "problem.prevalence"
@@ -89,17 +99,28 @@ RESPONDENT_ESCAPES = ("something_else", "nothing", "never_came_up", "would_not_f
 #: The founder-side numeric control: no options, a spec the registry owns.
 NUMERIC_FOUNDER_CONTROLS = ("numeric_interval",)
 
-#: Price (keel-cloud 073, judgement call 50): the founder states a range and a period, rendered by
-#: code -- no options, and no question text the model writes (call 53).
+#: Price (keel-cloud 073, judgement call 50; 074): the founder states a range, rendered by code over the
+#: cost's period -- no options, and no question text the model writes (call 53).
 PRICE_KEY = "commercial.price"
 PRICE_FOUNDER_CONTROL = "price_range"
-#: Invariant 5 (073): a `price_range` entry's periods are exactly `PriceLadder.PERIODS`.
-PRICE_PERIODS = ("month", "year", "one_off")
+#: keel-cloud 074's `Period.wires()`: the five periods a cost is stated over, and a price is fixed to.
+PERIODS = ("day", "week", "month", "quarter", "year")
+#: Invariant 5 (074): a `price_range` entry's periods are exactly `PriceLadder.PERIODS` = `Period.wires()`.
+PRICE_PERIODS = PERIODS
+#: The cost estimate (074): the founder's control on Existing sacrifice, its modes (`CalibrationAnswer.Cost.MODES`).
+COST_FOUNDER_CONTROL = "cost_estimate"
+COST_MODES = ("AMOUNT", "HOURS")
+#: Ability to pay (074): derived by code from the cost and the price, read by `cost_covers_price`.
+ABILITY_KEY = "commercial.ability_to_pay"
+DERIVED_FOUNDER_CONTROL = "derived"
+DERIVED_COMPARE_RULE = "cost_covers_price"
+#: `AbilityToPay`'s four bands (with decision 2, 2026-10-10).
+ABILITY_BANDS = ("small_share", "mostly_from_spend", "some_from_spend", "new_money")
 #: The respondent controls whose question and options are wholly code's (call 53): the model owes
 #: the item's key and nothing else, and nothing it writes there is read.
 CODE_WRITTEN_RESPONDENT_CONTROLS = ("price_ladder",)
 #: Existing sacrifice's respondent control since 073: the kinds ticked, then one amount per kind in
-#: its unit (`branch_pick_number` before it).
+#: its unit, over the recall period of the founder's cost (074; `branch_pick_number` before 073).
 AMOUNTS_CONTROL = "branch_pick_amounts"
 #: The units a kind of cost is counted in (`CalibrationOption.UNITS`, U1).
 UNITS = ("money", "hours", "count")
@@ -229,7 +250,7 @@ class Dimension:
     answers: dict
     left_out: dict = field(default_factory=dict)
     lullaby: dict = field(default_factory=dict)
-    #: keel-cloud 071: calibrated and asked only when the persona is B2B.
+    #: keel-cloud 071: calibrated and asked only when the persona is B2B (074: Purchase friction alone).
     b2b_only: bool = False
 
     @property
@@ -260,6 +281,21 @@ class Dimension:
         return self.founder.get("control") == PRICE_FOUNDER_CONTROL
 
     @property
+    def founder_cost(self) -> bool:
+        """Existing sacrifice's founder side (074): a cost estimate rendered and framed by code."""
+        return self.founder.get("control") == COST_FOUNDER_CONTROL
+
+    @property
+    def derived(self) -> bool:
+        """Ability to pay's founder side (074): written by code, asked of no one, in no model job."""
+        return self.founder.get("control") == DERIVED_FOUNDER_CONTROL
+
+    @property
+    def b2b_link_only(self) -> bool:
+        """Calibrated on every persona, asked on the decision-maker's link only (074)."""
+        return self.respondent.get("b2b_link_only") is True
+
+    @property
     def respondent_code_written(self) -> bool:
         """An item whose question and options are wholly code's (call 53: the Price ladder)."""
         return self.respondent.get("control") in CODE_WRITTEN_RESPONDENT_CONTROLS
@@ -267,6 +303,12 @@ class Dimension:
     @property
     def respondent_numeric(self) -> bool:
         return self.respondent.get("control") in NUMERIC_RESPONDENT_CONTROLS + (GATE_CONTROL,)
+
+    @property
+    def founder_code_framed(self) -> bool:
+        """Questions code composes whole (calls 53, 61): Price and Existing sacrifice (and Ability to pay,
+        which is asked of no one). The model owes these no question text."""
+        return self.founder_price or self.founder_cost or self.derived
 
     @property
     def status_vocabulary(self) -> list:
@@ -311,27 +353,40 @@ class Registry:
     def b2b_only(self) -> list[str]:
         return [d.key for d in self.dimensions if d.b2b_only]
 
+    def b2b_link_only(self) -> list[str]:
+        return [d.key for d in self.dimensions if d.b2b_link_only]
+
     def calibrated(self, b2b: bool) -> list[Dimension]:
-        """The entries a project calibrates (calls 47, 50; keel-cloud 073 `calibrated(b2b)`): every
-        entry, less the `b2b_only` two when the persona is not B2B -- in vector order, then
-        `order`."""
+        """The entries a project calibrates (calls 47, 59; keel-cloud 074 `calibrated(b2b)`): every
+        entry, less the `b2b_only` one when the persona is not B2B -- in vector order, then
+        `order`. Twelve on B2C, thirteen on B2B."""
         return [d for vector in VECTORS for d in self.slice(vector) if b2b or not d.b2b_only]
 
     def calibrated_keys(self, b2b: bool) -> list[str]:
         return [d.key for d in self.calibrated(b2b)]
 
     def calibrated_slice(self, vector: str, b2b: bool) -> list[Dimension]:
-        """One vector's calibrated entries: the calibration job's input, and its coverage
-        denominator."""
+        """One vector's calibrated entries: the standings' and the verdicts' set."""
         return [d for d in self.slice(vector) if b2b or not d.b2b_only]
 
+    def answered(self, b2b: bool) -> list[Dimension]:
+        """keel-cloud 074 `answered(vector, b2b)`: the calibrated entries less the `derived` one, which
+        code writes (call 59). Eleven on B2C, twelve on B2B."""
+        return [d for d in self.calibrated(b2b) if not d.derived]
+
+    def answered_slice(self, vector: str, b2b: bool) -> list[Dimension]:
+        """One vector's answered entries: the calibration job's input, and its coverage and validity
+        denominator (call 61)."""
+        return [d for d in self.calibrated_slice(vector, b2b) if not d.derived]
+
     def asked(self, link: str, b2b: bool) -> list[Dimension]:
-        """The entries one link asks (keel-cloud 071 / 073 `asked(link, b2b)`): on `PRIMARY` every entry
-        less the `b2b_only` two; on `COMMERCIAL_B2B` the commercial slice whole, and only on a B2B
-        persona."""
+        """The entries one link asks (keel-cloud 074 `asked(link, b2b)`): on `PRIMARY` every entry
+        less the `b2b_only` and `b2b_link_only` ones; on `COMMERCIAL_B2B` the commercial slice whole,
+        and only on a B2B persona."""
         if link == LINK_B2B:
             return self.slice("COMMERCIAL") if b2b else []
-        return [d for vector in VECTORS for d in self.slice(vector) if not d.b2b_only]
+        return [d for vector in VECTORS for d in self.slice(vector)
+                if not d.b2b_only and not d.b2b_link_only]
 
     @staticmethod
     def link_of(part: int, b2b: bool) -> str:
@@ -493,7 +548,8 @@ def check_invariants(registry: Registry) -> list[str]:
         if d.weight not in ("DEAL_BREAKER", "SHAPES"):
             faults.append(f"invariant 2 (weights): {d.key} weighs {d.weight!r}")
 
-    # 3. `b2b_only` on exactly the two; every entry asked in its own vector's part, 4 / 3 / 6.
+    # 3. `b2b_only` on exactly Purchase friction, `b2b_link_only` on exactly Ability to pay (074);
+    #    every entry asked in its own vector's part, 4 / 3 / 6.
     flagged = {d.key for d in dims if d.b2b_only}
     for key in sorted(flagged - set(B2B_ONLY)):
         faults.append(f"invariant 3 (b2b_only on exactly {', '.join(B2B_ONLY)}): {key} is "
@@ -501,6 +557,13 @@ def check_invariants(registry: Registry) -> list[str]:
     for key in sorted(set(B2B_ONLY) - flagged):
         faults.append(f"invariant 3 (b2b_only on exactly {', '.join(B2B_ONLY)}): {key} is not "
                       "b2b_only")
+    link_flagged = {d.key for d in dims if d.b2b_link_only}
+    for key in sorted(link_flagged - set(B2B_LINK_ONLY)):
+        faults.append(f"invariant 3 (b2b_link_only on exactly {', '.join(B2B_LINK_ONLY)}): {key} is "
+                      "b2b_link_only and the schema does not make it so")
+    for key in sorted(set(B2B_LINK_ONLY) - link_flagged):
+        faults.append(f"invariant 3 (b2b_link_only on exactly {', '.join(B2B_LINK_ONLY)}): {key} is "
+                      "not b2b_link_only")
     parts = " / ".join(str(n) for n in PER_PART.values())
     for part, count in PER_PART.items():
         in_part = [d.key for d in dims if d.part == part]
@@ -522,7 +585,7 @@ def check_invariants(registry: Registry) -> list[str]:
                           f"carries it {template.count('{value}')} times")
 
     # 5. Fixed codes 4-6, none repeated; numeric bins contiguous and ordered; a `price_range`
-    #    entry's periods exactly `month · year · one_off` (keel-cloud 073, `PriceLadder.PERIODS`).
+    #    entry's periods exactly the five of `Period.wires` (keel-cloud 074, `PriceLadder.PERIODS`; `one_off` was 073's).
     for d in dims:
         codes = d.fixed_codes
         if codes is not None:
@@ -542,14 +605,38 @@ def check_invariants(registry: Registry) -> list[str]:
             if list(periods or []) != list(PRICE_PERIODS):
                 faults.append(f"invariant 5 (price periods): {d.key}'s periods are {periods!r}, not "
                               f"{list(PRICE_PERIODS)}")
+        # keel-cloud 074: a cost names the five periods and the two modes; an entry is derived on both
+        # sides or neither, is read by cost_covers_price, and is derived from registry keys.
+        if d.normalized.get("kind") == "cost" or d.founder_cost:
+            periods, modes = d.normalized.get("periods"), d.normalized.get("modes")
+            if list(periods or []) != list(PERIODS):
+                faults.append(f"invariant 5 (cost periods): {d.key}'s periods are {periods!r}, not "
+                              f"{list(PERIODS)}")
+            if list(modes or []) != list(COST_MODES):
+                faults.append(f"invariant 5 (cost modes): {d.key}'s modes are {modes!r}, not "
+                              f"{list(COST_MODES)}")
+        derived_kind = d.normalized.get("kind") == "price_cost_ratio"
+        if derived_kind != d.derived:
+            faults.append(f"invariant 5 (derived on both sides): {d.key} is derived on one side only: "
+                          f"control {d.founder.get('control')!r}, normalized "
+                          f"{d.normalized.get('kind')!r}")
+        if derived_kind:
+            sources = list(d.normalized.get("from") or [])
+            if not sources or not all(k in keys for k in sources):
+                faults.append(f"invariant 5 (derived from keys): {d.key} is derived from {sources!r}, "
+                              "which are not all registry keys")
+            if d.answers.get("compare_rule") != DERIVED_COMPARE_RULE:
+                faults.append(f"invariant 5 (derived is cost_covers_price): {d.key} is derived and "
+                              f"read by {d.answers.get('compare_rule')!r}")
         bins = d.normalized.get("bins")
         if bins is not None and not _bins_contiguous(bins):
             faults.append(f"invariant 5 (contiguous bins): {d.key}'s bins {bins} are not "
                           "contiguous and ordered")
 
-    # 6. `answers.shape == interval` iff the respondent control is numeric.
+    # 6. `answers.shape == interval` iff the respondent control yields a number (074: Existing
+    #    sacrifice's `branch_pick_amounts` too).
     for d in dims:
-        numeric = d.respondent.get("control") in NUMERIC_RESPONDENT_CONTROLS
+        numeric = d.respondent.get("control") in NUMBER_YIELDING_CONTROLS
         shape = d.answers.get("shape")
         if numeric != (shape == "interval"):
             faults.append(f"invariant 6 (interval iff numeric control): {d.key} answers as "

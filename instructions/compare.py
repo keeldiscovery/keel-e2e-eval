@@ -1,7 +1,7 @@
 """`COMPARE`: keel-cloud's deterministic engine, shelled at zero spend (spec 029 FR-018, research
 R3, `contracts/screen-shapes.md` §5; `MARKS_VERSION` 9 judgement call 34).
 
-**An engine shim, not an engine.** The eval builds the engine's input from corpus revision 4 and
+**An engine shim, not an engine.** The eval builds the engine's input from the corpus at revision 6 and
 nothing else, hands it to keel-cloud's own `screenContracts compare <in> <out>` -- the exporter's
 and the validator's sibling, same Gradle task, same `cwd`, same refusal discipline as
 `contract.export` and `validate.run` -- keeps both files in the bundle, and **diffs** the output
@@ -11,8 +11,8 @@ itself.
 
 **Marked** (call 34): per calibrated dimension, `status` and `drift` together; per vector,
 `verdict` and `deciding` together (3 checks). The count is the entry's, read from its
-`expected.standings` -- the calibrated set (call 47): 10 + 3 on a B2C entry, 12 + 3 on a B2B one, 97
-on keel-cloud 071's seven. Nothing here types it. **Reported, never
+`expected.standings` -- the calibrated set (calls 47, 59): 12 + 3 on a B2C entry, 13 + 3 on a B2B one, 108
+on keel-cloud 074's seven. Nothing here types it. **Reported, never
 marked** (call 3): `n`, `inside`, `outside`, `median`, `proportion`, `optionCounts`, `bar` and the
 belief sentence -- a finding first.
 
@@ -88,6 +88,10 @@ def build_input(entry, registry=None) -> dict:
         # (the run exits 1 without it) and the option orders behind the counts.
         "respondent_questions": dict(entry.respondent_questions or {}),
     }
+    # keel-cloud 074 (r6): a B2B entry records the hourly rate its decision-makers' hours are priced at --
+    # the engine reads it from the input's top level (`VectorCorpusFixture.toInput`); B2C records none.
+    if getattr(entry, "raw_rate", None):
+        built["hourly_rate"] = dict(entry.raw_rate)
     if built["registry_version"] is None:
         built.pop("registry_version")         # 058's export carries none: the engine's own then
     return built

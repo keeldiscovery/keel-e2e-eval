@@ -6,7 +6,26 @@
 # evals/policy.py states for POLICY_VERSION, and a separate constant so the two can never be
 # confused.
 
-# MARKS_VERSION 11 (judgement calls 50-58, 2026-10-09; spec 031-window-frame-and-price, the sibling of
+# MARKS_VERSION 12 (judgement calls 59-66, 2026-10-10; spec 032-cost-first-price, the sibling of
+# keel-cloud 074-cost-first-price, branch 074-cost-first-price at 5311217, which merges 075). Cost first:
+# Existing sacrifice is the founder's cost estimate (an amount, or hours at the project's rate, over a
+# period; interval_contains_median), Price is fixed to that period, Ability to pay is DERIVED (never asked;
+# cost_covers_price; b2b_link_only) and the corpus is REVISION 6. No number below moved. What moved:
+#   - the registry is read cost first (invariants 3, 5, 6); calibrated 12 (B2C) / 13 (B2B), ANSWERED
+#     (the calibration job's set) 11 / 12 (call 59);
+#   - Existing sacrifice owes its kinds with units and no question text, Price its key, and Ability to pay
+#     is not in the calibration job at all (call 61); W10 holds the part-3 Existing sacrifice question to
+#     the recall words (call 62);
+#   - denominators, read: calibration 11 (B2C) / 12 (B2B), 80 an N; respondent 4 / 3 / 4 on PRIMARY (B2C),
+#     4 / 3 on PRIMARY + 6 on COMMERCIAL_B2B (B2B; 4 on Mulch Run), 81 an N; no_leak 46 + 70 an N; compare
+#     12 + 3 or 13 + 3 an entry, 108;
+#   - the brief's cost figure is per the founder's period, B2C time-only people apart, and Ability to pay
+#     has a figure (call 64); the time-only are reported, not marked (call 65).
+# **Scores before and after this bump are not comparable**, and a v11 bundle **cannot be re-scored** to
+# v12 (call 66). **Run of record: none yet** -- there is no v12 run of record until `WHY=marks:12` is
+# spent, and that run is ON HOLD by the founder. v11's header below is history (v11 never had a run of record).
+#
+# MARKS_VERSION 11 (history; judgement calls 50-58, 2026-10-09; spec 031-window-frame-and-price, the sibling of
 # keel-cloud 072-window-frame + 073-price, branch 073-price at 0925484). The subjects' words moved and
 # the ruler follows: the registry is THIRTEEN (4 / 3 / 6; commercial.price back as SHAPES, asked of
 # whoever pays, price_range over month / year / one_off) and the corpus REVISION 5 (a founder price

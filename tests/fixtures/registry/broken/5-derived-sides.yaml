@@ -1,0 +1,8 @@
+# slice.yaml with one value changed, failing exactly invariant 5 (spec 032 T003; keel-cloud 074's
+# DimensionRegistry.invariant5Codes): commercial.ability_to_pay is derived on its normalized side only -- the founder
+# control says price_range, so it is derived on one side only.
+base: ../slice.yaml
+invariant: 5
+key: commercial.ability_to_pay
+path: [founder, control]
+value: price_range

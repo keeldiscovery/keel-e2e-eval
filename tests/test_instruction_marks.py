@@ -1,5 +1,6 @@
-"""The rubric's own constants at `MARKS_VERSION` 11 (spec 029 FR-001 to FR-003, SC-001; T008; spec 030
-FR-003, T010: judgement calls 46-49; spec 031 FR-005, T010: judgement calls 50-58).
+"""The rubric's own constants at `MARKS_VERSION` 12 (spec 029 FR-001 to FR-003, SC-001; T008; spec 030
+FR-003, T010: judgement calls 46-49; spec 031 FR-005, T010: judgement calls 50-58; spec 032 FR-005,
+T007: judgement calls 59-66).
 
 Three things this holds, and none needs a model, a stack or a corpus:
 
@@ -7,9 +8,10 @@ Three things this holds, and none needs a model, a stack or a corpus:
 Calls 1-27 are byte for byte what `master` `0165017` carried (`tests/fixtures/marks/
 calls-1-27.at-0165017.txt`, extracted once), and 28-36 are marks-v9 §3's, each marked `**v9**`. The
 list is a set, not a sorted run: call 22 sits between 16 and 17, where it was written (025 D7).
-46-49 are spec 030's, each marked `**v10**`; 50-58 spec 031's, each marked `**v11**`.
+46-49 are spec 030's, each marked `**v10**`; 50-58 spec 031's, each marked `**v11**`; 59-66 spec
+032's, each marked `**v12**`.
 
-**`marks.toml` carries the v11 header** and `DEFAULTS` follows it: eight keys, no
+**`marks.toml` carries the v12 header** and `DEFAULTS` follows it: eight keys, no
 `golden_belief_recall` and no `no_claim_words` -- a verdict cannot carry a value for a retired mark,
 and both are struck through in a comment.
 
@@ -35,13 +37,13 @@ def judgement_calls() -> list:
     return [int(n) for n in re.findall(r"^(\d+)\.\s", marks_mod.__doc__, re.M)]
 
 
-def test_marks_version_is_eleven():
-    assert marks_mod.MARKS_VERSION == 11
+def test_marks_version_is_twelve():
+    assert marks_mod.MARKS_VERSION == 12
 
 
-def test_the_judgement_calls_are_one_to_fifty_eight_with_none_missing_and_none_twice():
+def test_the_judgement_calls_are_one_to_sixty_six_with_none_missing_and_none_twice():
     numbers = judgement_calls()
-    assert sorted(numbers) == list(range(1, 59)), "append-only: 1-58, none struck or renumbered"
+    assert sorted(numbers) == list(range(1, 67)), "append-only: 1-66, none struck or renumbered"
     assert len(numbers) == len(set(numbers)), "no judgement call is written twice"
 
 
@@ -91,15 +93,29 @@ def test_the_nine_v11_calls_are_marked_and_say_what_they_are():
         assert phrase in said, f"{number} does not carry {phrase!r}"
 
 
-def test_the_marks_file_carries_the_v11_header_and_no_run_of_record_yet():
-    """Spec 031 FR-005: the v11 header above v10's, the denominators' comments, and *run of record:
+def test_the_eight_v12_calls_are_marked_and_say_what_they_are():
+    body = marks_mod.__doc__
+    phrases = {59: "the registry is thirteen, cost first", 60: "corpus revision 6",
+               61: "the code-framed questions owe no model text", 62: "`W10`",
+               63: "the commercial slice is read as cost first",
+               64: "the cost figures are keel-cloud's", 65: "the time-only are reported, not marked",
+               66: "refuses every bundle below 12"}
+    for number, phrase in phrases.items():
+        match = re.search(rf"^{number}\. \*\*v12\*\*(.*?)(?=^\d+\. |\Z)", body, re.M | re.S)
+        assert match, f"{number} is not marked v12"
+        said = " ".join(match.group(1).split())
+        assert phrase in said, f"{number} does not carry {phrase!r}"
+
+
+def test_the_marks_file_carries_the_v12_header_and_no_run_of_record_yet():
+    """Spec 032 FR-005: the v12 header above v11's, the denominators' comments, and *run of record:
     none yet* -- the run on hold by the founder."""
     text = marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")
-    assert text.index("MARKS_VERSION 11") < text.index("MARKS_VERSION 10") < \
-        text.index("MARKS_VERSION 9")
-    assert "Run of record: none yet" in text and "WHY=marks:11" in text
+    assert text.index("MARKS_VERSION 12") < text.index("MARKS_VERSION 11") < \
+        text.index("MARKS_VERSION 10") < text.index("MARKS_VERSION 9")
+    assert "Run of record: none yet" in text and "WHY=marks:12" in text
     assert "ON HOLD by the founder" in text
-    assert "11 (B2C) / 13 (B2B)" in text and "104" in text
+    assert "11 (B2C) / 12 (B2B)" in text and "108" in text
 
 
 def test_the_v10_header_stays_as_history():
@@ -120,7 +136,7 @@ def test_the_eight_marks_and_no_golden_belief_recall():
 
 def test_the_marks_file_says_the_scores_are_not_comparable_across_the_bump():
     text = marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")
-    assert "MARKS_VERSION 11" in text
+    assert "MARKS_VERSION 12" in text
     assert "not comparable" in text
     assert "cannot be re-scored" in text
 
@@ -161,10 +177,10 @@ def test_the_refusal_mark_is_a_rate_over_the_answers_judged():
     assert marks_mod.judge(totals, marks_mod.load())["refusals"]["met"] is False
 
 
-def test_the_v11_header_names_the_seven_r5_digests_and_the_counted_denominators():
-    """Spec 031 US2: one dated paragraph above the call list -- never a call, never a line of
+def test_the_v12_header_names_the_seven_r6_digests_and_the_counted_denominators():
+    """Spec 032 US2: one dated paragraph above the call list -- never a call, never a line of
     `marks.toml`. The digests are keel-cloud's canon's own bytes (skipped by name when the
-    configured keel-cloud is not at revision 5); v10's paragraph stays below it as history."""
+    configured keel-cloud is not at revision 6); v11's paragraph stays below it as history."""
     import hashlib                                                          # noqa: PLC0415
     from tests import v9_fixtures as fx                                     # noqa: PLC0415
     doc = marks_mod.__doc__
@@ -175,7 +191,8 @@ def test_the_v11_header_names_the_seven_r5_digests_and_the_counted_denominators(
         path = fx.canon_entry(f"{name}.yaml")
         assert hashlib.sha256(path.read_bytes()).hexdigest() in header, name
     assert "65 reads at N=1" in header
-    assert "135 model cases at N=1" in header and "**104**" in header and "**97**" in header
-    assert "The corpus v11 judges, recorded 2026-10-09" in header
-    assert "no v11\nrun of record until `WHY=marks:11` is spent" in header
-    assert "46 sweep-A and 71 sweep-B" in header
+    assert "135 model cases at N=1" in header and "**108**" in header and "**80**" in header
+    assert "The corpus v12 judges, recorded 2026-10-10" in header
+    assert "no v12 run of record until `WHY=marks:12` is spent" in " ".join(header.split())
+    assert "**46**\nsweep-A and **70** sweep-B" in header
+    assert "**81** an N" in header

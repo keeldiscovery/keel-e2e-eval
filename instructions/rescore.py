@@ -1,5 +1,5 @@
 """Re-score a finished run from its own bundle, under today's marks (spec 009, run-bundle
-contract's "re-reading" promise; spec 029 FR-004, research R11; spec 030 FR-004; spec 031 FR-005).
+contract's "re-reading" promise; spec 029 FR-004, research R11; spec 030 FR-004; spec 031 FR-005; spec 032 FR-005).
 
     python -m instructions.rescore runs/<id> [--no-judge]
 
@@ -24,6 +24,12 @@ be fiction. It is refused the same way, in one line, by name, with the reason.
 of twelve, with no Price, no units and the recall window written into the model's own questions --
 what corpus revision 5 and keel-cloud 072 / 073 now read as code's -- so a v11 number for it would be
 fiction. Refused the same way, in one line, by name, with the reason.
+
+**And across the v11 → v12 bump** (spec 032; judgement call 66). A v11 bundle answered a founder
+Existing sacrifice tick list, a Price over month / year / one-off, a model-written Ability to pay and an
+amounts question that names no recall period -- what corpus revision 6 and keel-cloud 074 now read as
+code's -- so a v12 number for it would be fiction. Refused the same way, in one line, by name, with the
+reason.
 
 For a bundle at the current version the cases are rebuilt with the same builders and the same exported key lists the
 run used, every envelope is scored again by the run's own `_score`, and `COMPARE` is re-run from
@@ -72,8 +78,13 @@ CROSSED_THE_V11_BUMP = ("answered the registry of twelve with no Price, no units
                         "model's own words; corpus r5 and keel-cloud 072 / 073 read all three as "
                         "code's")
 
+#: The one sentence a v11 bundle is refused with (spec 032, judgement call 66).
+CROSSED_THE_V12_BUMP = ("answered a founder Existing sacrifice tick list, a Price over month / year / "
+                        "one-off, a model-written Ability to pay and an amounts question that names no "
+                        "recall period; corpus r6 and keel-cloud 074 read all four as code's")
+
 #: The oldest bundle this version re-scores.
-OLDEST = 11
+OLDEST = 12
 
 
 class _SilentRuntime:
@@ -101,6 +112,11 @@ def refusal(run_dir: Path, original: dict) -> str | None:
         return (f"{run_dir.name} was scored at marks_version {version}: {CROSSED_THE_BUMP}. "
                 "Not re-scored (spec 029 FR-004; judgement call 28) -- a v8 number is a "
                 "measurement of a product v9 does not judge, and the only v9 number is a v9 run.")
+    if version == 11:
+        return (f"{run_dir.name} was scored at marks_version {version}: a v11 scorecard cannot be "
+                f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V12_BUMP}. Not "
+                "re-scored (spec 032; judgement call 66) -- the only v12 number is a v12 run "
+                "(WHY=marks:12).")
     if version == 10:
         return (f"{run_dir.name} was scored at marks_version {version}: a v10 scorecard cannot be "
                 f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V11_BUMP}. Not "

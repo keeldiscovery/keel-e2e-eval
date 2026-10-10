@@ -31,6 +31,11 @@ clause, held to E1-E3; Frequency on a framed window and Price owe no text; W7, W
 structural; W3 / W8 hold to the names the corpus records; and the wording rules the subject only
 instructs (S1, W1, W2, W5, W6) are counted per question into `wording`, reported, never marked.
 
+At `MARKS_VERSION` 12 the two money questions are code's (calls 59-63; keel-cloud 074): Existing sacrifice
+owes its kinds (4-6 options, each with its unit, no phrase read) and no question text, Price its key,
+and Ability to pay -- derived -- is not in the calibration job at all, so its denominator is the
+*answered* set; the part-3 Existing sacrifice question carries the recall words verbatim (W10).
+
 `totals` rolls each over **its own** denominator and never another's.
 """
 
@@ -294,11 +299,15 @@ def _is_none_option(option) -> bool:
     return form == "none" or form.startswith("none of these")
 
 
-def model_text(question: dict, dimension, window=DEFAULT_WINDOW) -> str | None:
-    """The question text the model wrote **and a reader is shown** (call 52): `None` on Prevalence
-    and the gate (the frame is code's around the `event`), on Frequency over a framed window and on
-    Price (code's sentence) -- the one-unit window keeps its question."""
+def model_text(question: dict, dimension, window=DEFAULT_WINDOW, *, founder: bool = False) -> str | None:
+    """The question text the model wrote **and a reader is shown** (calls 52, 61): `None` on Prevalence
+    and the gate (the frame is code's around the `event`), on Frequency over a framed window, on
+    Price (code's sentence) and -- on the founder's side only -- on Existing sacrifice (code asks *What
+    does it cost ... today?*; any question the model writes is not read). The one-unit window keeps its
+    question, and so does the respondent's Existing sacrifice (W10 reads it)."""
     if dimension.key == GATE_KEY or dimension.founder_price or dimension.respondent_code_written:
+        return None
+    if founder and dimension.founder_cost:
         return None
     if dimension.key == "problem.frequency" and window.frames_frequency:
         return None
@@ -324,14 +333,18 @@ def calibration_checks(question: dict, dimension, *, b2b: bool = False,
     v11 (calls 52-55): Prevalence owes its `event` clause (E1-E3); Frequency on a framed window owes
     no text and a text written anyway is ignored; Price owes its key alone (options are C2); every
     other entry owes its question. W7 on a question, W9 on everything written, U1 on every Existing
-    sacrifice kind but `none`, W3 / W8 where the corpus records the name."""
+    sacrifice kind but `none`, W3 / W8 where the corpus records the name.
+
+    v12 (call 61): Existing sacrifice owes its options alone -- 4 to 6 kinds of cost, each with its
+    unit, a not-sure label a fault, no belief phrase required or read -- and any question text the
+    model wrote is ignored (never a fault, never held to W7 / W9 / W8)."""
     faults = []
     key = dimension.key
     event = question.get("event")
     # The text the applier reads: a framed Frequency's and Price's question is set aside before W7
     # and W9 are asked (`ScreenResultApplier`: `withQuestion(null)`), Prevalence's is not.
-    asked = None if (dimension.founder_price or (key == "problem.frequency"
-                                                 and window.frames_frequency)) \
+    asked = None if (dimension.founder_price or dimension.founder_cost
+                     or (key == "problem.frequency" and window.frames_frequency)) \
         else question.get("question")
     written = " \n ".join(str(t) for t in [asked, event] + [
         v for o in question.get("options") or [] if isinstance(o, dict)
@@ -354,6 +367,8 @@ def calibration_checks(question: dict, dimension, *, b2b: bool = False,
                 faults.append(fault)
     elif key == "problem.frequency" and window.frames_frequency:
         pass                                              # call 52: code's sentence, text ignored
+    elif dimension.founder_cost:
+        pass                                              # call 61: code's question, text not read
     elif not str(question.get("question") or "").strip():
         faults.append("no question written")
     if asked:
@@ -363,7 +378,7 @@ def calibration_checks(question: dict, dimension, *, b2b: bool = False,
     hit = wording_mod.money(written)
     if hit:
         faults.append(f"W9: {hit!r} is money; code renders every amount in the project's currency")
-    text = model_text(question, dimension, window)
+    text = model_text(question, dimension, window, founder=True)
     if text:
         faults += _named_faults(text, dimension, short_name=short_name, offer_name=offer_name)
     options = question.get("options")
@@ -437,7 +452,9 @@ def calibration_checks(question: dict, dimension, *, b2b: bool = False,
         # C4 as keel-cloud 062 reads it (call 37): a phrase EQUAL to its label is accepted; an
         # empty one, one over 120 characters, or one carrying a not-sure word is a fault.
         stripped = (phrase or "").strip()
-        if not stripped:
+        if dimension.founder_cost:
+            pass                                      # call 61: kinds of cost, no phrase required or read
+        elif not stripped:
             faults.append(f"option {label!r} carries no belief_phrase")
         elif len(stripped) > _BELIEF_PHRASE_MAX:
             faults.append(f"option {label!r}: its belief_phrase is {len(stripped)} characters, "
@@ -460,21 +477,24 @@ def calibration_checks(question: dict, dimension, *, b2b: bool = False,
     return faults
 
 
-def _question_texts(question: dict, dimension=None, window=DEFAULT_WINDOW) -> list:
+def _question_texts(question: dict, dimension=None, window=DEFAULT_WINDOW, *, founder: bool = False) -> list:
     """The question's stem, alone (call 43: its options are swept apart) -- since v11 what the model
     wrote and a reader is shown (call 52): the `event` clause on Prevalence and the gate, no text on
     a code-written sentence."""
     if dimension is None:
         return [question.get("question")]
-    return [model_text(question, dimension, window), question.get("event")
+    return [model_text(question, dimension, window, founder=founder), question.get("event")
             if dimension.key == GATE_KEY else None]
 
 
-def is_swept(dimension, window=DEFAULT_WINDOW) -> bool:
-    """Whether `no_leak` sweeps an item at all (calls 52, 53): never Price, and never Frequency
-    over a framed window -- code writes every word of both, so there is no model text to sweep.
-    Read off the registry and the entry's window, so a dry run counts the same denominator."""
+def is_swept(dimension, window=DEFAULT_WINDOW, *, founder: bool = False) -> bool:
+    """Whether `no_leak` sweeps an item at all (calls 52, 53, 61): never Price, never Frequency
+    over a framed window, and -- on the founder's side -- never Existing sacrifice: code writes every
+    word of those, so there is no model text to sweep. Read off the registry and the entry's window,
+    so a dry run counts the same denominator."""
     if dimension.founder_price or dimension.respondent_code_written:
+        return False
+    if founder and dimension.founder_cost:
         return False
     return not (dimension.key == "problem.frequency" and window.frames_frequency)
 
@@ -513,7 +533,7 @@ def score_calibration(case, entry, registry, result, *, judge=None,
     validity against the registry (call 31), and -- on the PROBLEM vector -- sweep A over every
     question and its options (call 32). Evidence per fault, so a miss is read, not only counted."""
     vector = case.meta.get("vector") or case.subject
-    slice_keys = [d.key for d in registry.calibrated_slice(vector, entry.b2b())]       # call 47
+    slice_keys = [d.key for d in registry.answered_slice(vector, entry.b2b())]         # calls 47, 61
     score = CalibrationScore(case_id=case.case_id, entry_id=entry.id, subject=vector,
                              run_index=case.run_index, coverage_of=len(slice_keys), failed=failed)
     questions = (result or {}).get("questions") if isinstance(result, dict) else None
@@ -543,13 +563,13 @@ def score_calibration(case, entry, registry, result, *, judge=None,
                                  "evidence": "; ".join(checks)})
         else:
             score.validity_hit += 1
-        _wording(score, model_text(question, dimension, window),
+        _wording(score, model_text(question, dimension, window, founder=True),
                  [o.get("label") for o in question.get("options") or [] if isinstance(o, dict)],
                  founder=True)
-        if vector == "PROBLEM" and is_swept(dimension, window):
+        if vector == "PROBLEM" and is_swept(dimension, window, founder=True):
             score.leak_of += 1
             swept = sweep_a_calibration(                                   # call 45
-                _question_texts(question, dimension, window) + _option_texts(question), entry,
+                _question_texts(question, dimension, window, founder=True) + _option_texts(question), entry,
                 exclude=registry_stems(registry, registry.by_key(key)))
             score.leak_hits += swept["hits"]
             score.leak_judged += swept["judged"]
@@ -600,13 +620,16 @@ def _registry_numbers(dimension, window=DEFAULT_WINDOW) -> set:
 def _founder_numbers(answer) -> set:
     if not isinstance(answer, dict):
         return set()
+    # `RespondentQuestionsRules.numbers`: an interval's bounds and (074) a cost estimate's low and high
     return {float(v) for k, v in answer.items()
-            if k in ("lower", "upper", "value") and isinstance(v, (int, float))}
+            if k in ("lower", "upper", "value", "low", "high") and isinstance(v, (int, float))
+            and not isinstance(v, bool)}
 
 
 def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None, *,
                       founder_labels: dict | None = None, window=DEFAULT_WINDOW,
-                      part: int | None = None, short_name=None, offer_name=None) -> list:
+                      part: int | None = None, short_name=None, offer_name=None,
+                      cost_period=None) -> list:
     """Every structural rule of marks §2.2's respondent side, for one item; `[]` is valid.
 
     Call 38: **code appends, never the model** -- *Something else*, every respondent-only code the
@@ -624,7 +647,12 @@ def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None
     read); the gate owes its `event` clause (E1-E3); Frequency over a framed window owes no text;
     every other item owes its question; W7 on a question, W9 on everything written, U1 on every
     Existing sacrifice distractor (`units[i]`), W3 on part 2 and W8 on part 3 where the corpus
-    records the name."""
+    records the name.
+
+    v12 (calls 62, 63): W10 -- the part-3 Existing sacrifice question carries the recall words of the
+    founder's cost period (`cost_period`, `None` for no estimate) verbatim. Existing sacrifice stays a
+    set (its kinds are options) though its control yields a number; Ability to pay's four rungs are
+    the respondent's fixed codes, so it is not a set."""
     from .registry import RESPONDENT_ESCAPES                  # noqa: PLC0415
     faults = []
     control = dimension.respondent.get("control")
@@ -644,6 +672,10 @@ def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None
     elif not str(item.get("question") or "").strip():
         faults.append("no question written")
     text = model_text(item, dimension, window)
+    if text and dimension.key == SACRIFICE_KEY and part in (None, 3):
+        fault = wording_mod.recall_fault(text, cost_period)                     # call 62: W10
+        if fault:
+            faults.append(fault)
     if text:
         hint = wording_mod.tick_all(text)
         if hint:
@@ -690,7 +722,7 @@ def respondent_checks(item: dict, dimension, plan_row: dict, founder_answer=None
             faults.append(f"{len(options)} difficulties; Importance takes 4 to 6")
         return faults
     is_set = (dimension.fixed_codes is None and not dimension.founder_numeric
-              and control != "multi_choice_ladder")
+              and not dimension.derived and control != "multi_choice_ladder")
     if not is_set:
         if want and len(options) != len(want):
             faults.append(f"{len(options)} options; the plan has {len(want)}"
@@ -825,7 +857,8 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
         checks = respondent_checks(item, dimension, plan_row, founder.get("answer"),
                                    founder_labels=entry.founder_labels(key), window=window,
                                    part=part, short_name=short_name,
-                                   offer_name=context_mod.offer_name_of(entry))
+                                   offer_name=context_mod.offer_name_of(entry),
+                                   cost_period=context_mod.cost_period_of(entry))
         if checks:
             score.faults.append({"key": key, "check": "option_validity",
                                  "evidence": "; ".join(checks)})

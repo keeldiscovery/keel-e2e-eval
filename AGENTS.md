@@ -26,7 +26,22 @@ added to this line rather than quietly written — which is exactly how the thir
   reads *green at the current `MARKS_VERSION`*, so a rubric that moved has no run of record at all
   until one is spent, and a screen is one entry and cannot be one. The policy widened by one named
   event, in the open, which is the amendment shape this document asks for — it did not loosen.
-  **`MARKS_VERSION` 11** (spec `031-window-frame-and-price`, 2026-10-09) is the gate as written,
+  **`MARKS_VERSION` 12** (spec `032-cost-first-price`, 2026-10-10) is the gate as written, and
+  **there is no run of record until `WHY=marks:12` is spent -- that run is on hold by the
+  founder; never run or propose it**. keel-cloud 074 (cost first; branch `074-cost-first-price`,
+  merging 075) moved the subjects' words: the founder estimates what the problem costs (Existing
+  sacrifice is a `cost_estimate`, read by `interval_contains_median`), prices it for that same period,
+  and Ability to pay is **derived** from the two and never asked (`cost_covers_price`,
+  `b2b_link_only`). The ruler follows (judgement calls 59-66): the registry at thirteen in its
+  cost-first shape (invariants 3, 5, 6), corpus revision 6 (an r5 file refused by name as v11's),
+  Existing sacrifice owing its kinds with units and no text, Price its key, Ability to pay out of the
+  calibration job (the denominator is the *answered* set), `W10` holding the part-3 Existing sacrifice
+  question to the recall words, the brief's cost and ability figures keel-cloud's own with the B2C
+  time-only people reported apart, and `rescore.py` refusing every bundle below 12. `DRY=1` against
+  keel-cloud 074 measures `compare_correctness` 108 of 108 and prints every other mark's denominator
+  (calibration 80, respondent 81, `no_leak` 116 an N). What follows is v11's account, history since
+  2026-10-10 (never run).
+  **`MARKS_VERSION` 11** (spec `031-window-frame-and-price`, 2026-10-09) was the gate as written,
   and **there is no run of record until `WHY=marks:11` is spent — that run is on hold by the
   founder; never run or propose it**. keel-cloud 072 (the window frame) and 073 (Price), on the
   stacked branch `073-price`, moved the subjects' words; the ruler follows (judgement calls 50-58):

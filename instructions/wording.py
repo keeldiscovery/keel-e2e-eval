@@ -1,5 +1,5 @@
 """The window frame's and the wording rules' code half, mirrored (spec 031 FR-003; judgement calls 52,
-54, 55 and 56; keel-cloud 072 / 073).
+54, 55 and 56; keel-cloud 072 / 073; W10, call 62, keel-cloud 074).
 
 **Mirrors, never re-derivations.** keel-cloud decides what it refuses (`validate.py` shells its
 aggregate for every answer); `option_validity` scores the accepted answer the way the product reads
@@ -9,7 +9,8 @@ from -- the same arrangement the v9 checks have with C2-C4:
 - `event_fault` is `WindowFrame.fault` (E1-E3) with `WindowFrame.clause`;
 - `money` is `Wording.money` (W9), `tick_all` is `Wording.tickAll` (W7), `carries` is
   `Wording.carries` (W3 / W8's *verbatim*);
-- `NUMBER_WORDS` is `Vocabulary.NUMBER_WORDS`, `first_word` is `Vocabulary.firstWord`.
+- `NUMBER_WORDS` is `Vocabulary.NUMBER_WORDS`, `first_word` is `Vocabulary.firstWord`;
+- `recall_words` / `recall_fault` are `Period.recallWords` and `RespondentQuestionsRules.checkRecall` (W10).
 
 **And the rules the subject only instructs are counted here, never marked** (call 56;
 `window-frame-design.md` §3.6-§3.8: *"checked by the eval's judge-free length counts ... reported,
@@ -173,6 +174,30 @@ def carries(text, name) -> bool:
         return True
     needle = _without_article(normal(name))
     return not needle or f" {needle} " in f" {normal(text)} "
+
+
+# ------------------------------------------------------------------- W10 (call 62; keel-cloud 074)
+
+#: `Period.recallWords` (keel-cloud 074): the words a respondent recalls what the problem cost over, by the
+#: founder's cost period -- a day is asked over last week (and scaled), a year over the last three months.
+RECALL_WORDS = {"day": "last week", "week": "last week", "month": "last month",
+                "quarter": "the last three months", "year": "the last three months"}
+
+
+def recall_words(period) -> str:
+    """`ScreenContextBuilder.costRecall`: the recall words of the founder's cost period, *the last three
+    months* where there is no cost estimate (spec 073's one period)."""
+    return RECALL_WORDS.get(period, RECALL_WORDS["quarter"])
+
+
+def recall_fault(text, period) -> str | None:
+    """`RespondentQuestionsRules.checkRecall` (W10): the part-3 Existing sacrifice question carries the recall
+    words verbatim (`carries`), because the amounts are normalised from them; `None` when it does."""
+    words = recall_words(period)
+    if carries(text, words):
+        return None
+    return (f"W10: the Existing sacrifice question asks over {words!r}, the period the amounts are "
+            "read over, word for word; this one does not")
 
 
 # --------------------------------------------------------------- the reported rules (call 56)

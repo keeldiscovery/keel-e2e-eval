@@ -31,7 +31,7 @@ def test_the_input_is_built_from_the_corpus_only(entry):
     built = compare_mod.build_input(entry, entry.registry)
     assert built["entry"] == "09-fixture" and built["registry_version"] == 1
     assert list(built["founder_calibration"]) == entry.calibrated_keys()
-    assert len(built["founder_calibration"]) == len(entry.registry.calibrated_keys(False)) == 11
+    assert len(built["founder_calibration"]) == len(entry.registry.calibrated_keys(False)) == 12
     assert built["founder_calibration"]["commercial.buyer_payer_alignment"] == {"unsure": True}
     assert len(built["answers"]) == 12
     jo = next(a for a in built["answers"] if a["person"] == "Jo Judd")
@@ -39,12 +39,15 @@ def test_the_input_is_built_from_the_corpus_only(entry):
     assert jo["picks"] == {"problem.frequency": 3}
 
 
-def test_a_b2b_entrys_input_carries_its_thirteen(tmp_path):
+def test_a_b2b_entrys_input_carries_its_thirteen_and_the_hourly_rate(tmp_path):
     b2b = fx.entry(fx.ENTRY_B2B)
     built = compare_mod.build_input(b2b, b2b.registry)
     assert len(built["founder_calibration"]) == len(b2b.registry.calibrated_keys(True)) == 13
     assert built["founder_calibration"]["commercial.price"]["answer"] == {
         "low": 3, "high": 5, "period": "month", "currency": "GBP"}, "Price's answer, as the engine reads it"
+    assert built["hourly_rate"] == {"value": 20, "currency": "GBP"}, "the engine prices B2B hours at it"
+    assert built["founder_calibration"]["commercial.existing_sacrifice"]["answer"]["mode"] == "HOURS"
+    assert "hourly_rate" not in compare_mod.build_input(fx.entry(), fx.registry()), "B2C records none"
     text = json.dumps(built)
     assert "standings" not in text and "vector_verdicts" not in text, \
         "nothing from expected: that is what the output is diffed against"
@@ -61,7 +64,7 @@ def _checks(entry) -> int:
 
 def test_an_agreeing_engine_agrees_on_every_calibrated_standing_and_vector(entry):
     score = compare_mod.diff(entry.expected, _load("agree"), entry=entry)
-    assert (score.agreed, score.checks) == (_checks(entry), _checks(entry)) == (14, 14)
+    assert (score.agreed, score.checks) == (_checks(entry), _checks(entry)) == (15, 15)
     assert score.mismatches == [] and score.reported_diffs == []
     assert score.compare_correctness == 1.0 and score.measured
 

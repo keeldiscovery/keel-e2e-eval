@@ -1,7 +1,7 @@
 """`no_leak`'s sweep A on calibration questions (spec 029 FR-015, marks-v9 §2.3, judgement call 32;
 T030; at the twelve by spec 030).
 
-The list is the corpus's own -- `09-fixture-r5.yaml`'s golden mechanism, stemmed, less every word of
+The list is the corpus's own -- `09-fixture-r6.yaml`'s golden mechanism, stemmed, less every word of
 the problem's own world -- never the live `SOLUTION_MECHANISM` answer. A hit on it is a fault, with
 the word named. A hit on the one stem the fixture plants in the inflection ledger (*listens* in the
 mechanism, *listened* in Bo's story) is a tie, and only a tie reaches the judge: once, cached, and

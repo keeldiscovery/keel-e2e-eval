@@ -152,11 +152,11 @@ def test_u1_holds_every_kind_of_cost_to_its_unit_on_both_screens(registry):
     assert "unit" not in none, "the fixed none has none"
     question["options"][1]["unit"] = "days"
     assert score_mod.calibration_checks(question, sacrifice) == [
-        "U1: 'Option 2 for this' is a kind of cost and needs its unit -- money, hours or count -- "
+        "U1: 'Locksmith call-outs' is a kind of cost and needs its unit -- money, hours or count -- "
         "and has 'days'"]
     entry = fx.entry()
     row = entry.respondent_questions[sacrifice.key]
-    item = {"key": sacrifice.key, "question": "What did it cost you?",
+    item = {"key": sacrifice.key, "question": "What did it cost you in the last three months?",
             "options": ["spare_keys", "locksmith", "Taxis", "Bus fares"],
             "units": [None, None, "money", "hours"]}
     assert score_mod.respondent_checks(item, sacrifice, row) == [], \

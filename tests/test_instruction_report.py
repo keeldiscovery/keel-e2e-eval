@@ -61,8 +61,9 @@ def test_the_calibration_block_is_the_registry_in_order_beside_the_founder(tmp_p
     blocks = report_mod.register_blocks(corpus, _produced(registry), registry, _AGGREGATE)
     block = blocks["GB · en-GB"]["03-lullaby"]
     rows = block["calibration"]
-    assert [r["key"] for r in rows] == registry.calibrated_keys(False), "B2C: the ten"
-    assert "commercial.ability_to_pay" not in [r["key"] for r in rows]
+    assert [r["key"] for r in rows] == registry.calibrated_keys(False), "B2C: the twelve"
+    assert "commercial.ability_to_pay" in [r["key"] for r in rows], "derived, shown beside the founder"
+    assert "commercial.purchase_friction" not in [r["key"] for r in rows]
     prevalence = rows[0]
     assert prevalence["founder_question"].startswith("Out of 10 parents of babies")
     assert prevalence["belief_phrase"] == "Most"
