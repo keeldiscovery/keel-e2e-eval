@@ -1,0 +1,8 @@
+# slice.yaml with one value changed, failing exactly invariant 5 (spec 032 T003; keel-cloud 074's
+# DimensionRegistry.invariant5Codes): commercial.existing_sacrifice's cost modes lack HOURS, so they are not
+# CalibrationAnswer.Cost.MODES.
+base: ../slice.yaml
+invariant: 5
+key: commercial.existing_sacrifice
+path: [founder, normalized, modes]
+value: [AMOUNT]

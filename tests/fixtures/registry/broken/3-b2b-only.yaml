@@ -1,5 +1,5 @@
-# slice.yaml with one value changed, failing exactly invariant 3 (spec 031 T003 at thirteen; spec 030 T003):
-# commercial.existing_sacrifice is b2b_only, so b2b_only sits on three entries, not the two.
+# slice.yaml with one value changed, failing exactly invariant 3 (spec 032 T003 at cost first; spec 031 T003):
+# commercial.existing_sacrifice is b2b_only, so b2b_only sits on two entries, not exactly commercial.purchase_friction.
 base: ../slice.yaml
 invariant: 3
 key: commercial.existing_sacrifice

@@ -1,0 +1,7 @@
+# slice.yaml with one value changed, failing exactly invariant 6 (spec 032 T003; keel-cloud 074: branch_pick_amounts
+# yields a number): commercial.existing_sacrifice answers as a choice on a number-yielding control.
+base: ../slice.yaml
+invariant: 6
+key: commercial.existing_sacrifice
+path: [answers, shape]
+value: choice

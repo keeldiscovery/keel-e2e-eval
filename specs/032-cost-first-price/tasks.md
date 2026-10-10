@@ -6,8 +6,8 @@
 - [x] T001 `spec.md`, `plan.md`, this file.
 
 ## Phase 2 — The registry reader (FR-001)
-- [ ] T002 `instructions/registry.py`: cost-first invariants 3 / 5 / 6, answered / calibrated / asked, the controls, docstring.
-- [ ] T003 `tests/fixtures/registry/slice.yaml` regenerated from 074's `dimension-registry.json`; `broken/` re-cut; `tests/test_instruction_registry.py`.
+- [x] T002 `instructions/registry.py`: cost-first invariants 3 / 5 / 6, answered / calibrated / asked, the controls, docstring.
+- [x] T003 `tests/fixtures/registry/slice.yaml` regenerated from 074's `dimension-registry.json`; `broken/` re-cut; `tests/test_instruction_registry.py`.
 
 ## Phase 3 — The corpus at revision 6 (FR-002)
 - [ ] T004 `instructions/corpus.py`: `REVISION = 6`, r5 refused by name, cost / derived / period / rate / anchored checks; `compare.py` carries `hourly_rate`.

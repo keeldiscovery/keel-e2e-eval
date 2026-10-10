@@ -1,0 +1,8 @@
+# slice.yaml with one value changed, failing exactly invariant 3 (spec 032 T003; keel-cloud 074's
+# DimensionRegistry.invariant3B2bOnly): commercial.commitment is b2b_link_only, so b2b_link_only sits on two
+# entries, not on exactly commercial.ability_to_pay.
+base: ../slice.yaml
+invariant: 3
+key: commercial.commitment
+path: [respondent, b2b_link_only]
+value: true

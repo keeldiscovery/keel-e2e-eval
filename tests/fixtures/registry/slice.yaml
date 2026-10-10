@@ -1,8 +1,9 @@
-# A hand-sized registry fixture (spec 031 T003; cut at twelve by spec 030, first cut spec 029 T004): the 13 keys
-# of keel-cloud 073's exported dimension-registry.json (0925484; {window}/{window_unit} placeholders kept) with the
-# Lullaby values, every founder.normalized, respondent.*, answers.* (less the drift templates), weight, order and the
-# entry-level b2b_only; prose notes, decisions and the worked lullaby objects dropped except the founder question
-# the register shows (Price has none: its question is code's). Passes all eight invariants. Not a corpus entry.
+# A hand-sized registry fixture (spec 032 T003; thirteen by spec 031, cut at twelve by spec 030, first cut spec 029 T004): the 13 keys
+# of keel-cloud 074's exported dimension-registry.json (5311217; {window}/{window_unit}/{cost_period} placeholders kept) with the
+# Lullaby founder questions the register shows (Price, Existing sacrifice and Ability to pay have none: their questions are
+# code's or absent), every founder.normalized, respondent.*, answers.* (less the drift templates), weight, order, the
+# entry-level b2b_only (Purchase friction) and respondent.b2b_link_only (Ability to pay); prose notes, decisions and the worked
+# lullaby objects dropped. Passes all eight invariants. Not a corpus entry.
 version: 1
 common:
   left_out:
@@ -345,40 +346,51 @@ dimensions:
   meaning: 'Resources already given up because of the problem: money, time, effort, inconvenience, risk, or foregone alternatives.'
   weight: DEAL_BREAKER
   founder:
-    control: multi_choice
-    guidance: 'What the problem already costs the decision-maker, as a set of kinds of cost: money on substitutes, paid help, staff or own time, incidents. Each kind
-      carries the unit it is counted in -- money, hours or count. Always include a ''none of these'' code.'
+    control: cost_estimate
+    guidance: 'What the founder believes the problem costs the payer today, entered on the commercial step and rendered by code: on a B2B study a fixed amount or
+      hours at the project''s one hourly rate, on B2C an amount only (a person''s own time is never priced), over a period the founder picks (a day, a week, a month,
+      a quarter, a year). Code writes the question and the belief sentence. The model writes no question text and no money here: only the kinds of cost the respondent
+      will tick, each with its unit, and the respondent note.'
     normalized:
-      kind: set
-      codes: model_written
-      code_rule: 4–6 slug codes for this market (e.g. apps_subscriptions, gadgets, paid_help, staff_hours, medical_visits), each option with a unit -- money (paid
-        in the market's currency), hours (time spent) or count (incidents, times it happened) -- plus the fixed code none ('None of these; they cope with what they
-        have'), which has no unit; ordered as presented.
-    option_rule: '4–6 options, each one kind of sacrifice with its unit (money | hours | count), each with a belief phrase; ticked phrases joined with ''and''. No
-      amount and no currency in any label: code renders every amount.'
-    belief_template: Because of this, {actor_plural} already give up {value}.
+      kind: cost
+      modes:
+      - AMOUNT
+      - HOURS
+      periods:
+      - day
+      - week
+      - month
+      - quarter
+      - year
+      code_rule: 4–6 slug codes for the kinds of cost a respondent will tick in this market (e.g. apps_subscriptions, gadgets, paid_help, staff_hours, medical_visits),
+        each option with a unit -- money (paid in the market's currency), hours (time spent) or count (incidents, times it happened) -- plus the fixed code none ('None
+        of these; they cope with what they have'), which has no unit; ordered as presented. The kinds are the respondent's, never a founder belief.
+    option_rule: 'No founder options: a range in the market''s currency (low above 0), or on a B2B study a range of hours and the hourly rate, and a period. The kinds
+      of cost the model writes (4–6, each with its unit, no amount and no currency in any label) are what the respondent ticks; the founder does not tick them. ''I''m
+      not sure'' leaves it out.'
+    belief_template: The problem already costs the payer {value}.
     unsure_allowed: true
   respondent:
     part: 3
     anchor: last_purchase
     control: branch_pick_amounts
-    guidance: 'Step 1: in the last three months, what did this cost you -- tick every kind (founder''s kinds + 2–3 distractors, each with its unit; ''Nothing'' and
+    guidance: 'Step 1: in {cost_period}, what did this cost you -- tick every kind (the calibration''s kinds + 2–3 distractors, each with its unit; ''Nothing'' and
       ''Something else'' code-appended). Step 2: one field per kind ticked, in that kind''s unit -- money in the market currency, hours, or a count -- rendered by
-      code. Never the founder''s set; the model writes no amount.'
-    option_rule: 'Pick: founder''s labels verbatim + 2–3 distractors, each distractor with its unit (money | hours | count) + ''Nothing'' + ''Something else'' (both
-      code-appended); amounts: one per ticked kind, in its unit, code-rendered.'
+      code. The question names {cost_period} word for word; the model writes no amount.'
+    option_rule: 'Pick: the calibration''s kinds verbatim + 2–3 distractors, each distractor with its unit (money | hours | count) + ''Nothing'' + ''Something else''
+      (both code-appended); amounts: one per ticked kind, in its unit, code-rendered.'
     chips:
     - I can't recall
     - I'd rather not say
     - That's a rough guess
     b2b:
       anchor: last_cycle
-      guidance: 'What the last three months of this problem actually cost the team: tick the kinds of cost, then one amount per kind in its unit (money, hours or
-        a count). The decision-maker sees no context card and nothing of what the specialists said.'
-      option_rule: Founder's codes + 2–3 distractors (each with its unit) + 'Nothing' + 'Something else'; one amount per ticked kind, in its unit.
+      guidance: 'What {cost_period} of this problem actually cost the team: tick the kinds of cost, then one amount per kind in its unit (money, hours or a count).
+        The question names {cost_period} word for word. The decision-maker sees no context card and nothing of what the specialists said.'
+      option_rule: The calibration's kinds + 2–3 distractors (each with its unit) + 'Nothing' + 'Something else'; one amount per ticked kind, in its unit.
   answers:
-    shape: choice
-    compare_rule: set_overlap
+    shape: interval
+    compare_rule: interval_contains_median
     status_vocabulary:
     - HOLDING_UP
     - NOT_HOLDING_UP
@@ -388,7 +400,7 @@ dimensions:
     - LEFT_OUT
     floor: 5
   lullaby:
-    founder_question: What have parents of babies under six months already paid for or given up because of the night crying?
+    founder_question: What does it cost parents of babies under six months today when the baby cries in the night?
 - key: commercial.price
   vector: COMMERCIAL
   order: 2
@@ -397,26 +409,29 @@ dimensions:
   weight: SHAPES
   founder:
     control: price_range
-    guidance: 'The price the founder has in mind, as a range in the market''s currency and a period (a month, a year, a one-off), entered on the commercial step and
-      rendered by code. The model writes no question text and no money for this entry: code asks it from the offer''s name.'
+    guidance: 'The price the founder has in mind, as a range in the market''s currency over the cost estimate''s own period (fixed; a one-off is priced against a
+      year), entered on the commercial step and rendered by code beside the founder''s cost estimate. The model writes no question text and no money for this entry:
+      code asks ''What price do you have in mind for {offer_name}?''.'
     normalized:
       kind: price_range
       periods:
+      - day
+      - week
       - month
+      - quarter
       - year
-      - one_off
-    option_rule: 'No options: two numbers in the market''s currency (low at least 1, under 10,000) and a period. ''No price yet'' is the not-sure chip: Price is left
-      out.'
+    option_rule: 'No options: two numbers in the market''s currency (low at least 1, under 10,000) over the cost estimate''s period. ''No price yet'' is the not-sure
+      chip: Price is left out.'
     belief_template: The payer would think it worth {value}.
     unsure_allowed: true
   respondent:
     part: 3
     anchor: last_purchase
     control: price_ladder
-    guidance: 'Asked of whoever pays. Code writes the question -- ''What would {offer_name} be worth to you {period}?'' -- the anchor line from the respondent''s
-      own Existing sacrifice amounts (money, plus hours on a B2B study; never counts; left out when there is none), and the options: five consecutive bands of the
-      currency''s fixed 1-2-5 ladder that put the founder''s band in the middle three, plus ''I wouldn''t pay for this''. The model writes nothing for this item and
-      never shows the founder''s range.'
+    guidance: 'Asked of whoever pays. Code writes the question -- ''What would {offer_name} be worth to you {period}?'', the founder''s period -- the anchor line
+      from the respondent''s own Existing sacrifice amounts (money, plus hours on a B2B study; never counts; left out when there is none), and the options: five consecutive
+      bands of the currency''s fixed 1-2-5 ladder that put the founder''s band in the middle three, plus ''I wouldn''t pay for this''. The model writes nothing for
+      this item and never shows the founder''s range.'
     option_rule: 'Code''s: five bands of the ladder 1 · 2 · 5 · 10 · 20 · 50 · 100 · 250 · 500 · 1,000 · 2,500 · 5,000 · 10,000 in the market''s currency, the founder''s
       band in the middle three, + ''I wouldn''t pay for this'' (outside, lower). No ''Something else''.'
     chips:
@@ -437,35 +452,42 @@ dimensions:
     - NOT_ASKED_YET
     - LEFT_OUT
     floor: 5
-  lullaby: {}
+  lullaby:
+    founder_question: What price do you have in mind for something that helps at night?
 - key: commercial.ability_to_pay
   vector: COMMERCIAL
   order: 3
   name: Ability to pay
   meaning: Whether the buyer has accessible personal or organizational budget at the relevant price level.
   weight: SHAPES
-  b2b_only: true
   founder:
-    control: single_choice
-    guidance: 'Re-anchored to the last comparable purchase (price-design.md §8.2): when a company like this last paid for something for this problem, where did the
-      money come from -- an ordered four-point scale from an existing budget line to no budget at all. No mixed options.'
+    control: derived
+    guidance: 'Never asked of the founder: derived by code from the founder''s cost estimate and price, over the same period -- the price as a share of the cost (price
+      low / cost high to price high / cost low, whole percent) and one sentence by band. No question from code or model.'
     normalized:
-      kind: ordinal
-      codes:
-      - existing_line
-      - new_line_signed_off
-      - taken_from_other_spend
-      - no_budget
-    option_rule: Exactly 4 options in order onto the codes, easiest to hardest; each a one-line account of where the money came from; each with a belief phrase.
-    belief_template: The money for it would come {value}.
+      kind: price_cost_ratio
+      from:
+      - commercial.existing_sacrifice
+      - commercial.price
+      bands:
+      - 50
+      - 100
+    option_rule: 'No options and no answer: written by code whenever the cost estimate and the price are both stated; left out when either is.'
+    belief_template: Your price is {value}.
     unsure_allowed: true
   respondent:
     part: 3
     anchor: last_purchase
     control: single_choice
-    guidance: 'When you last paid for something for this problem, where did the money come from: the same four steps, easiest to hardest, plus ''it was free or a
-      gift''.'
-    option_rule: Founder's 4 codes in order + 'It was free or a gift' (escape, counts nothing). No 'Something else'.
+    b2b_link_only: true
+    codes:
+    - existing_line
+    - new_line_signed_off
+    - taken_from_other_spend
+    - no_budget
+    guidance: 'Asked on the decision-maker''s link only, as supporting context: when you last paid for something for this problem, where did the money come from --
+      four steps, easiest to hardest, plus ''it was free or a gift''.'
+    option_rule: The 4 codes in order + 'It was free or a gift' (escape, counts nothing). No 'Something else'.
     chips:
     - I can't recall
     - I'd rather not say
@@ -476,7 +498,7 @@ dimensions:
       option_rule: 4 ordered options mirroring the codes (existing line · new line signed off · taken from other spend · no budget) + 'It was free'.
   answers:
     shape: choice
-    compare_rule: ordinal_band
+    compare_rule: cost_covers_price
     status_vocabulary:
     - HOLDING_UP
     - NOT_HOLDING_UP
@@ -485,8 +507,6 @@ dimensions:
     - NOT_ASKED_YET
     - LEFT_OUT
     floor: 5
-  lullaby:
-    founder_question: When a family last paid for something that helps at night, where did the money come from?
 - key: commercial.buyer_payer_alignment
   vector: COMMERCIAL
   order: 4
