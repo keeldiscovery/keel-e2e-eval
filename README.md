@@ -78,7 +78,39 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
-### `MARKS_VERSION` 11 — the gate as written, **no run of record yet, and its run on hold** (spec `031-window-frame-and-price`, 2026-10-09)
+### `MARKS_VERSION` 12 — the gate as written, **no run of record yet, and its run on hold** (spec `032-cost-first-price`, 2026-10-10)
+
+**Written here before the run, so the run is read against the gate as written.** keel-cloud 074
+(*cost first*; branch `074-cost-first-price` at `5311217`, merging 075) moved the subjects' words:
+the founder first estimates what the problem costs (an amount, or hours at the project's rate, over
+a period of a day to a year), then prices it for that same period, and Ability to pay is derived
+from the two instead of asked. The ruler follows (judgement calls 59–66). **There is no v12 run of
+record until `WHY=marks:12` is spent, and that run is on hold by the founder** —
+`make instruction-eval HOST=claude WHY=marks:12 MODELS=exported` is ready and is neither run nor
+proposed here. Until then the standing gate is **unmet for both hosts at v12**.
+
+- **The same eight subjects and the same eight marks, unchanged in number** (`marks.toml`).
+- **The registry is thirteen, cost first** (call 59): Existing sacrifice a `cost_estimate` read by
+  `interval_contains_median` and drawn as an interval; Price over the five periods, fixed to the
+  cost's; Ability to pay `derived` (`cost_covers_price`) and `b2b_link_only`; `b2b_only` on Purchase
+  friction alone. Calibrated **12** (B2C) / **13** (B2B), *answered* (the calibration job's) **11 / 12**.
+- **The corpus is revision 6** (call 60), keel-cloud's canon only: a founder cost estimate, Price on
+  its period, Ability to pay recomputed from the two, a recall period on every pick, `hourly_rate`
+  on B2B, decision-makers story-less and ANCHORED. An r5 file refuses the load by name as v11's.
+- **The two money questions are code's** (call 61): Existing sacrifice owes its kinds with units and
+  no text; Price its key; Ability to pay is not in the calibration job.
+- **`W10`** (call 62): the part-3 Existing sacrifice question carries the recall words verbatim.
+- **The brief's cost and ability figures are keel-cloud's own** (call 64), the B2C people who gave
+  only time reported apart and not marked (call 65).
+- **Every denominator is read, never typed**: calibration **11** (B2C) / **12** (B2B), 80 an N;
+  respondent 4 / 3 / 4 on `PRIMARY` (B2C), 4 / 3 + **6** on `COMMERCIAL_B2B` (B2B; 4 on Mulch Run),
+  81 an N; `no_leak` 46 sweep-A + 70 sweep-B items an N; `compare_correctness` **108** on seven.
+  `anchoring_accuracy` is still 65 reads at N=1; a full run is still 135 model cases at N=1.
+- **`rescore.py` refuses every bundle below 12 by name** (call 66).
+- **`DRY=1` against keel-cloud 074 (`5311217`), 2026-10-10**: `compare_correctness` **108 of 108**,
+  every other mark unmeasured (no model is called), denominators as above, nothing spent.
+
+### `MARKS_VERSION` 11 — the gate as written (spec `031-window-frame-and-price`, 2026-10-09; history since v12, never run)
 
 **Written here before the run, so the run is read against the gate as written.** keel-cloud 072
 (*the window frame*) and 073 (*Price*), on the stacked branch `073-price` (`0925484`), moved the
@@ -172,7 +204,7 @@ the re-score as the certificate (decision 48, 2026-10-08). **Every mark met:**
 
 `runs/` is gitignored, so the bundle lives on the founder's machine only; its `scorecard-v9.json`
 is sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. The standing gate was
-**met for Claude at v9**; since 2026-10-09 it is v10's and then v11's, and neither has a run of
+**met for Claude at v9**; since 2026-10-09 it is v10's, v11's and then v12's, and none has a run of
 record yet.
 
 ### `MARKS_VERSION` 9 — the gate as written, before its run of record (spec `029-marks-v9-vectors`, 2026-10-07)
