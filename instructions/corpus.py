@@ -1,37 +1,36 @@
-"""The golden corpus at revision 5, read and never written (spec 029 FR-006/FR-012, data-model §2;
-spec 030 FR-002, judgement call 49; spec 031 FR-002, judgement call 51).
+"""The golden corpus at revision 6, read and never written (spec 029 FR-006/FR-012, data-model §2;
+spec 030 FR-002, judgement call 49; spec 031 FR-002, judgement call 51; spec 032 FR-002, call 60).
 
 `canon/designs/measured-beliefs/corpus/*.yaml` in the keel-cloud checkout is the corpus. This
 module opens those files, hashes them on the way in, and offers `verify_unchanged()` so the end of
 a run can prove nothing here moved while it ran. **If an instruction cannot reach a golden, the
 instruction is wrong** -- or the design is, and it goes back to step 1. Never the corpus.
 
-**Revision 5 only** (call 51). `MARKS_VERSION` 11 reads keel-cloud 073's schema: revision 3's
+**Revision 6 only** (call 60). `MARKS_VERSION` 12 reads keel-cloud 074's schema: revision 3's
 shape (`context`, `interpretations.problem`, `solution_mechanism`, `persona`, the golden plan
 `respondent_questions`, people with a gate answer, a story, a chip, a golden anchoring and picks by
 dimension, `expected.standings` + `expected.vector_verdicts`) on the registry of **thirteen**, with
-`founder_calibration` keyed by the entry's **calibrated set** -- eleven keys on a B2C persona,
-thirteen on a B2B one (calls 47, 50) -- and the six `Status` words. Revision 5 adds three things
-this module checks (keel-cloud `sim/check_corpus_r5.py`'s P, U and B): the founder's **Price**
-(`{low, high, period, currency}` on the ladder in the market's currency, or `unsure`) and a Price
-plan row that is exactly the ladder's five bands around that low plus `would_not_pay`
-(`price_ladder_codes`, keel-cloud's `PriceLadder.bands` mirrored); Existing sacrifice's kinds in
-**units** (money · hours · count) and its picks as **amounts** by unit; and Ability to pay's
-renamed rungs (the founder's code is the registry's). A file at any other revision (a revision-4
-file is named as v10's, a revision-3 one as v9's), or still carrying `beliefs`, `questionnaire`,
-`expected.buckets`, `expected.stages` or a per-anchor answer, is a **refusal to start** by entry and
-by key -- never a fallback, the same shape v8's scalar-`stage` refusal had.
-
-**Read from keel-cloud's canon and nowhere else** (call 49). The fixture fallback of 2026-10-07
-(`tests/fixtures/corpus-r3/`, read while keel-cloud's corpus held no revision-3 entry) is deleted
-with its directory: keel-cloud's canon has carried the corpus since 2026-10-08, so a corpus
-directory that is missing, empty, or holds one file at another revision is a refusal by name.
+`founder_calibration` keyed by the entry's **calibrated set** -- twelve keys on a B2C persona,
+thirteen on a B2B one (calls 47, 59) -- and the six `Status` words. Revision 6 adds, to revision 5's
+Price and units (keel-cloud `sim/check_corpus_r6.py`'s K, D, U and T), what this module checks:
+Existing sacrifice's founder answer is a **cost estimate** `{mode, low, high, rate?, period,
+currency}` (or `unsure`) and its belief the engine's sentence; Price takes the cost's **period**;
+Ability to pay is **derived** on every entry -- `{ratio_low, ratio_high, band}` recomputed here from
+the cost and the price (`derive_ability`, keel-cloud's `AbilityToPay.derive` mirrored), `unsure`
+exactly when the cost or the price is; every Existing sacrifice pick records its recall `period`; a
+B2B entry records a top-level `hourly_rate`; a decision-maker on the `COMMERCIAL_B2B` link has no
+story and no chip and is `ANCHORED` by rule (keel-cloud 075); a B2C Existing sacrifice standing
+may record `time_only` / `time_only_hours` (people who gave only time, reported apart). A file at
+any other revision (a revision-5 file is named as v11's, a revision-4 one as v10's, a revision-3
+one as v9's), or still carrying `beliefs`, `questionnaire`, `expected.buckets`, `expected.stages`
+or a per-anchor answer, is a **refusal to start** by entry and by key -- never a fallback, the same
+shape v8's scalar-`stage` refusal had.
 
 Three things the corpus says (since r3) that the code has to carry:
 
 1. **The plan is derived, and the file's own plan is a check on it** (calls 30, 47). `plan()` is
    the registry's keys asked on each part's link (`Registry.link_of`: part 3 of a B2B study is the
-   decision-maker's `COMMERCIAL_B2B` link, and asks the `b2b_only` pair too), by part, that the
+   decision-maker's `COMMERCIAL_B2B` link, and asks Ability to pay and Purchase friction too), by part, that the
    founder did not leave out; the file's `respondent_questions` must hold exactly those keys per
    part, or the file disagrees with the registry it is keyed by -- a refusal.
 2. **The chipped story is a corpus fact, not a judgement** (call 33 amended, FR-017). `readable()` is
@@ -52,14 +51,17 @@ from pathlib import Path
 import yaml
 
 from . import text as text_mod
-from .registry import (AMOUNTS_CONTROL, DEAL_BREAKERS, LINK_B2B, LINK_PRIMARY, PRICE_KEY,
-                       PRICE_PERIODS, SACRIFICE_KEY, UNITS, VECTORS, RecallWindow)
+from .registry import (ABILITY_BANDS, ABILITY_KEY, AMOUNTS_CONTROL, COST_MODES, DEAL_BREAKERS,
+                       LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY, PRICE_PERIODS, SACRIFICE_KEY,
+                       UNITS, VECTORS, RecallWindow)
 
-REVISION = 5
+REVISION = 6
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
-                4: "MARKS_VERSION 10's corpus, on the registry of twelve (no Price, no units)"}
+                4: "MARKS_VERSION 10's corpus, on the registry of twelve (no Price, no units)",
+                5: "MARKS_VERSION 11's corpus, before cost first (a tick list for Existing sacrifice, "
+                   "Price over month / year / one-off, Ability to pay asked of the founder)"}
 
 #: `sim/check_corpus_r5.py`'s `CURRENCY` (keel-cloud `Market.currency`'s table, the corpus's markets):
 #: a founder price is in its market's currency, never another.
@@ -98,6 +100,76 @@ def price_ladder_codes(low) -> list:
             + [f"over_{plain(LADDER_POINTS[k + 3])}", WOULD_NOT_PAY])
 
 STAGES = VECTORS
+
+#: The recall periods an Existing sacrifice pick is asked over (`Period.recall`: a day is asked over a
+#: week, a year over the last three months).
+RECALL_PERIODS = ("week", "month", "quarter")
+
+#: `sim/check_corpus_r6.py`'s `SYMBOL` / `WORDS`: the engine's sentences, mirrored for the belief checks.
+_SYMBOL = {"GBP": "\u00a3", "USD": "$", "EUR": "\u20ac"}
+_PERIOD_WORDS = {"day": "a day", "week": "a week", "month": "a month", "quarter": "a quarter",
+                 "year": "a year"}
+_BAND_WORDS = {"small_share": "a small share of what the problem costs them",
+               "mostly_from_spend": "it could mostly be paid from what they already spend",
+               "new_money": "more than the problem costs them today; they would need to find new money",
+               "some_from_spend": "some could pay it from what they already spend; others would need "
+                                  "to spend more"}
+
+
+def _half_up(x) -> int:
+    from decimal import ROUND_HALF_UP, Decimal                       # noqa: PLC0415
+    return int(Decimal(repr(x)).quantize(Decimal(1), rounding=ROUND_HALF_UP))
+
+
+def money_text(value, currency) -> str:
+    """`CostEstimate.amount`: the symbol, thousands with commas, pennies only where there are some."""
+    v = round(float(value), 2)
+    text = f"{int(v):,}" if v == int(v) else f"{v:,.2f}"
+    return _SYMBOL.get(currency, (currency or "") + " ") + text
+
+
+def _number_text(value) -> str:
+    v = float(value)
+    return str(int(v)) if v == int(v) else str(v)
+
+
+def cost_money(cost: dict) -> tuple:
+    """`CalibrationAnswer.Cost.moneyLow / moneyHigh`: hours at the rate on `HOURS`."""
+    if cost["mode"] == "HOURS":
+        return cost["low"] * cost["rate"], cost["high"] * cost["rate"]
+    return cost["low"], cost["high"]
+
+
+def cost_said(cost: dict) -> str:
+    """`CostEstimate.said`: *about £10 to £30 a month*, or *30 to 60 hours a quarter, about $2,400 to $4,800*."""
+    period = _PERIOD_WORDS[cost["period"]]
+    low, high = cost_money(cost)
+    spread = money_text(low, cost["currency"]) if low == high else \
+        f"{money_text(low, cost['currency'])} to {money_text(high, cost['currency'])}"
+    if cost["mode"] == "HOURS":
+        hours = _number_text(cost["low"]) if cost["low"] == cost["high"] else \
+            f"{_number_text(cost['low'])} to {_number_text(cost['high'])}"
+        return f"{hours} hours {period}, about {spread}"
+    return f"about {spread} {period}"
+
+
+def derive_ability(cost: dict, price: dict) -> dict:
+    """`AbilityToPay.derive` (founder decision 2, 2026-10-10): whole percent, `price low / cost high`
+    to `price high / cost low`; `some_from_spend` when the range crosses 100%, else by the high end --
+    under 50 `small_share`, up to 100 `mostly_from_spend`, over `new_money`."""
+    low, high = cost_money(cost)
+    ratio_low = _half_up(price["low"] * 100 / high)
+    ratio_high = _half_up(price["high"] * 100 / low)
+    band = ("some_from_spend" if ratio_low < 100 < ratio_high else "small_share" if ratio_high < 50
+            else "mostly_from_spend" if ratio_high <= 100 else "new_money")
+    return {"ratio_low": ratio_low, "ratio_high": ratio_high, "band": band}
+
+
+def ability_value(derived: dict) -> str:
+    """`AbilityToPay.value`: *31% to 125% of what the problem costs them today: ...*."""
+    ratio = f"{derived['ratio_low']}%" if derived["ratio_low"] == derived["ratio_high"] else \
+        f"{derived['ratio_low']}% to {derived['ratio_high']}%"
+    return f"{ratio} of what the problem costs them today: {_BAND_WORDS[derived['band']]}"
 
 #: The six `Status` words (keel-cloud 071; registry-schema; marks §2.5).
 STATUSES = ("HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE", "TOO_FEW_TO_CALL", "NOT_ASKED_YET",
@@ -164,6 +236,8 @@ class Entry:
     path: Path
     sha256: str
     registry: object = None
+    #: The entry's top-level `hourly_rate` (`{value, currency}`) on a B2B entry; `None` on B2C (call 60).
+    raw_rate: object = None
 
     # ------------------------------------------------------------------ the people
 
@@ -205,6 +279,17 @@ class Entry:
         answer = (self.founder_calibration.get(PRICE_KEY) or {}).get("answer")
         return answer if isinstance(answer, dict) else None
 
+    def cost(self) -> dict | None:
+        """The founder's cost estimate, `{mode, low, high, rate?, period, currency}`, or `None` when
+        they left it out (call 60)."""
+        answer = (self.founder_calibration.get(SACRIFICE_KEY) or {}).get("answer")
+        return answer if isinstance(answer, dict) else None
+
+    def hourly_rate(self) -> float | None:
+        """The B2B entry's top-level `hourly_rate.value` (call 60), else `None`."""
+        value = (self.raw_rate or {}).get("value") if isinstance(self.raw_rate, dict) else None
+        return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
     def units(self, key: str = SACRIFICE_KEY) -> dict:
         """`{kind: unit}` for a kind of cost: the plan row's (founder kinds and distractors), the
         founder's own over it (call 51)."""
@@ -217,8 +302,8 @@ class Entry:
         return LINK_B2B if (self.b2b() and part == 3) else LINK_PRIMARY
 
     def calibrated_keys(self, registry=None) -> list:
-        """The keys this entry calibrates (calls 47, 50): the registry's thirteen less the `b2b_only` pair
-        on a B2C persona; without a registry bound, `founder_calibration`'s own keys."""
+        """The keys this entry calibrates (calls 47, 59): the registry's thirteen less Purchase friction
+        on a B2C persona (twelve); without a registry bound, `founder_calibration`'s own keys."""
         registry = registry if registry is not None else self.registry
         if registry is not None:
             return registry.calibrated_keys(self.b2b())
@@ -416,7 +501,7 @@ def load_file(path, *, registry=None) -> Entry:
 # ------------------------------------------------------------------------------- the refusals
 
 def _refuse(entry_id, message, path) -> CorpusError:
-    return CorpusError(f"{entry_id}: {message} (spec 031 FR-002; judgement calls 49, 51). {path}")
+    return CorpusError(f"{entry_id}: {message} (spec 032 FR-002; judgement calls 49, 51, 60). {path}")
 
 
 def _check_revision(raw: dict, path: Path) -> None:
@@ -485,8 +570,15 @@ def _check_shape(raw: dict, path: Path) -> None:
             if recency is not None:
                 raise _refuse(entry_id, f"{name} answers on the B2B link and carries a gate "
                                         "answer; the decision-maker is never asked the gate", path)
-            if person.get("anchoring") not in ANCHORINGS:
-                raise _refuse(entry_id, f"{name}'s anchoring is {person.get('anchoring')!r}", path)
+            if person.get("anchoring") != "ANCHORED":
+                raise _refuse(entry_id, f"{name} answers on the B2B link and is "
+                                        f"{person.get('anchoring')!r}; a decision-maker is ANCHORED by "
+                                        "rule (keel-cloud 075)", path)
+            for field_ in ("story", "chip"):
+                if person.get(field_) not in (None, ""):
+                    raise _refuse(entry_id, f"{name} answers on the B2B link and carries `{field_}`; "
+                                            "the decision-maker's link has no story screen "
+                                            "(keel-cloud 075)", path)
             foreign = [k for k in person.get("picks") or {} if not str(k).startswith("commercial.")]
             if foreign:
                 raise _refuse(entry_id, f"{name} answers on the B2B link and picks {foreign[0]}; "
@@ -523,6 +615,7 @@ def _check_shape(raw: dict, path: Path) -> None:
     elif maker != "same_person":
         raise _refuse(entry_id, f"persona.decision_maker is {maker!r}; it is same_person or "
                                 "{role: <id>}", path)
+    _check_cost_first(raw, entry_id, path)
     expected = raw.get("expected") or {}
     for key, standing in (expected.get("standings") or {}).items():
         status = (standing or {}).get("status")
@@ -584,7 +677,7 @@ def _check_price_and_units(raw: dict, entry_id, path: Path) -> None:
     row = plan.get(SACRIFICE_KEY)
     if row is not None and row.get("control") != AMOUNTS_CONTROL:
         raise _refuse(entry_id, f"respondent_questions[{SACRIFICE_KEY}].control is "
-                                f"{row.get('control')!r}; revision 5 asks {AMOUNTS_CONTROL}", path)
+                                f"{row.get('control')!r}; revision 6 asks {AMOUNTS_CONTROL}", path)
     row_codes = [str(c) for c in (row or {}).get("codes") or []]
     row_units = (row or {}).get("units") or {}
     price_codes = [str(c) for c in (plan.get(PRICE_KEY) or {}).get("codes") or []]
@@ -594,8 +687,8 @@ def _check_price_and_units(raw: dict, entry_id, path: Path) -> None:
         pick = picks.get(SACRIFICE_KEY)
         if pick is not None and not (isinstance(pick, dict) and "chip" in pick):
             if not isinstance(pick, dict) or not isinstance(pick.get("amounts"), list):
-                raise _refuse(entry_id, f"{name}'s {SACRIFICE_KEY} pick is {pick!r}; revision 5 "
-                                        "answers {currency, amounts: [{kind, value?, unit?}]}", path)
+                raise _refuse(entry_id, f"{name}'s {SACRIFICE_KEY} pick is {pick!r}; revision 6 "
+                                        "answers {currency, period, amounts: [{kind, value?, unit?}]}", path)
             for amount in pick["amounts"]:
                 kind, unit = (amount or {}).get("kind"), (amount or {}).get("unit")
                 if row_codes and str(kind) not in row_codes:
@@ -611,9 +704,85 @@ def _check_price_and_units(raw: dict, entry_id, path: Path) -> None:
                                     f"ladder's {price_codes}", path)
 
 
+def _check_cost_first(raw: dict, entry_id, path: Path) -> None:
+    """Revision 6's own checks (call 60; `check_corpus_r6.py`'s K, D and U): the founder's cost estimate
+    and its sentence, Price on the cost's period, Ability to pay recomputed, every Existing sacrifice
+    pick with its recall period, the B2B entry's hourly rate."""
+    calibration = raw.get("founder_calibration") or {}
+    country = (raw.get("market") or {}).get("country")
+    b2b = isinstance((raw.get("persona") or {}).get("decision_maker"), dict)
+    sacrifice = calibration.get(SACRIFICE_KEY) or {}
+    price_cal = calibration.get(PRICE_KEY) or {}
+    rate = raw.get("hourly_rate")
+    if b2b:
+        value = rate.get("value") if isinstance(rate, dict) else None
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
+            raise _refuse(entry_id, "a B2B entry records `hourly_rate` {value above 0, currency} "
+                                    "(revision 6)", path)
+    cost = None
+    if not sacrifice.get("unsure"):
+        cost = sacrifice.get("answer")
+        if not isinstance(cost, dict) or cost.get("mode") not in COST_MODES:
+            raise _refuse(entry_id, f"founder_calibration[{SACRIFICE_KEY}].answer is {cost!r}; a cost "
+                                    "estimate is {mode: AMOUNT | HOURS, low, high, rate?, period, "
+                                    "currency}", path)
+        if cost["mode"] == "HOURS" and (not b2b or not isinstance(cost.get("rate"), (int, float))
+                                        or cost["rate"] <= 0):
+            raise _refuse(entry_id, f"founder_calibration[{SACRIFICE_KEY}] is HOURS on a B2C entry, or "
+                                    "with no rate above 0 (a person's own time is never priced)", path)
+        low, high = cost.get("low"), cost.get("high")
+        if not isinstance(low, (int, float)) or isinstance(low, bool) or low <= 0 \
+                or not isinstance(high, (int, float)) or high < low:
+            raise _refuse(entry_id, f"founder_calibration[{SACRIFICE_KEY}] is {low!r} to {high!r}: a "
+                                    "cost low is above 0 and the high not below it", path)
+        if cost.get("period") not in PERIODS:
+            raise _refuse(entry_id, f"founder_calibration[{SACRIFICE_KEY}].period is "
+                                    f"{cost.get('period')!r}, not one of {PERIODS}", path)
+        if country in MARKET_CURRENCY and cost.get("currency") != MARKET_CURRENCY[country]:
+            raise _refuse(entry_id, f"founder_calibration[{SACRIFICE_KEY}].currency is "
+                                    f"{cost.get('currency')!r}; the market ({country}) is "
+                                    f"{MARKET_CURRENCY[country]}", path)
+        want = f"The problem already costs the payer {cost_said(cost)}."
+        if sacrifice.get("belief_sentence") != want:
+            raise _refuse(entry_id, f"founder_calibration[{SACRIFICE_KEY}].belief_sentence is "
+                                    f"{sacrifice.get('belief_sentence')!r}; the engine's is {want!r}",
+                          path)
+    price = None if price_cal.get("unsure") else price_cal.get("answer")
+    if cost is not None and isinstance(price, dict) and price.get("period") != cost.get("period"):
+        raise _refuse(entry_id, f"founder_calibration[{PRICE_KEY}].period is {price.get('period')!r}; "
+                                f"it is the cost estimate's, {cost.get('period')!r} (revision 6)", path)
+    ability = calibration.get(ABILITY_KEY)
+    if ability is None:
+        raise _refuse(entry_id, f"founder_calibration lacks {ABILITY_KEY}; it is derived and "
+                                "calibrated on every entry (revision 6)", path)
+    if cost is None or not isinstance(price, dict):
+        if not ability.get("unsure"):
+            raise _refuse(entry_id, f"founder_calibration[{ABILITY_KEY}] is answered; the cost or the "
+                                    "price is left out, so it is too", path)
+    else:
+        derived = derive_ability(cost, price)
+        if ability.get("answer") != derived:
+            raise _refuse(entry_id, f"founder_calibration[{ABILITY_KEY}].answer is "
+                                    f"{ability.get('answer')!r}; derived from the cost and the price it "
+                                    f"is {derived!r}", path)
+        if derived["band"] not in ABILITY_BANDS:
+            raise _refuse(entry_id, f"{ABILITY_KEY}'s band {derived['band']!r}", path)
+        sentence = f"Your price is {ability_value(derived)}."
+        if ability.get("belief_sentence") != sentence:
+            raise _refuse(entry_id, f"founder_calibration[{ABILITY_KEY}].belief_sentence is "
+                                    f"{ability.get('belief_sentence')!r}; the engine's is {sentence!r}",
+                          path)
+    for person in raw.get("answers") or []:
+        pick = (person.get("picks") or {}).get(SACRIFICE_KEY)
+        if isinstance(pick, dict) and "chip" not in pick and pick.get("period") not in RECALL_PERIODS:
+            raise _refuse(entry_id, f"{person.get('person')}'s {SACRIFICE_KEY} pick records period "
+                                    f"{pick.get('period')!r}; revision 6 records the recall period it "
+                                    f"was asked over, one of {RECALL_PERIODS}", path)
+
+
 def _check_keys(entry: Entry, registry) -> None:
     """The refusals that need the registry: every dimension-keyed map keyed by the entry's
-    calibrated set (calls 47, 50: the registry's thirteen less the `b2b_only` pair on a B2C persona),
+    calibrated set (calls 47, 59: the registry's thirteen less Purchase friction on a B2C persona),
     every fixed-code founder answer one of the registry's codes (call 51), and
     the file's own plan equal to the one the registry derives per link (data-model §2-§3)."""
     registry_keys = set(registry.keys())
@@ -699,4 +868,5 @@ def _entry(raw: dict, path: Path, digest: str) -> Entry:
         expected=raw.get("expected") or {},
         path=path,
         sha256=digest,
+        raw_rate=raw.get("hourly_rate"),
     )

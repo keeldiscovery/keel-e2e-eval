@@ -1,9 +1,9 @@
-"""`instructions/corpus.py` at revision 5: the loader on a hand-sized entry (spec 029 FR-006, data-model
+"""`instructions/corpus.py` at revision 6: the loader on a hand-sized entry (spec 029 FR-006, data-model
 §2-§3; T012; at revision 4 by spec 030 T006, judgement calls 47 and 49; at revision 5 by spec 031
-T006, judgement calls 50 and 51).
+T006, judgement calls 50 and 51; at revision 6 by spec 032 T005, judgement calls 59 and 60).
 
 Everything the scorers read off an entry -- the plan, the vocabulary and its inflection ledger, who
-is readable -- is checked here on `tests/fixtures/corpus/09-fixture-r5.yaml`, a person can count it
+is readable -- is checked here on `tests/fixtures/corpus/09-fixture-r6.yaml`, a person can count it
 by hand: 12 people, Kit and Lu answer No at the gate, Jo chips, Ivy's story is vague, eight are
 anchored; one founder answer is unsure. And every refusal of data-model §2 is made to happen once,
 from a one-line change to that file, naming the entry and the key.
@@ -28,7 +28,7 @@ def test_the_plan_is_four_three_three(entry):
     assert plan[3] == ["commercial.existing_sacrifice", "commercial.price", "commercial.commitment"]
     assert plan[1][0] == "problem.prevalence", "the gate is Part 1's first item"
     assert "commercial.buyer_payer_alignment" not in plan[3], "left out by the founder"
-    assert "commercial.ability_to_pay" not in plan[3], "b2b_only, and this entry is B2C"
+    assert "commercial.ability_to_pay" not in plan[3], "b2b_link_only, and this entry is B2C"
 
 
 def test_the_plan_without_a_registry_is_the_files_own_golden_plan():
@@ -37,10 +37,10 @@ def test_the_plan_without_a_registry_is_the_files_own_golden_plan():
 
 
 def test_a_b2b_entry_calibrates_thirteen_and_routes_part_three_to_the_decision_maker():
-    """Calls 47, 50 and decision 26: the b2b_only pair calibrated and asked, on COMMERCIAL_B2B --
-    Price too, asked of whoever pays."""
+    """Calls 47, 59 and decision 26: Purchase friction calibrated and asked, and Ability to pay asked,
+    on COMMERCIAL_B2B -- Price too, asked of whoever pays; a B2C entry calibrates twelve."""
     b2b = fx.entry(fx.ENTRY_B2B)
-    assert len(b2b.calibrated_keys()) == 13 and len(fx.entry().calibrated_keys()) == 11
+    assert len(b2b.calibrated_keys()) == 13 and len(fx.entry().calibrated_keys()) == 12
     assert b2b.link_of(3) == "COMMERCIAL_B2B" and b2b.link_of(1) == "PRIMARY"
     assert b2b.plan()[3] == ["commercial.existing_sacrifice", "commercial.price",
                              "commercial.ability_to_pay", "commercial.purchase_friction",
@@ -122,15 +122,52 @@ MUTATIONS = {
     "stages": (lambda r: r["expected"].__setitem__("stages", {}), "`expected.stages`"),
     "anchors": (lambda r: _person(r, "Ann Abbott").__setitem__("anchors", {}), "`anchors`"),
     "revision 3": (lambda r: r.__setitem__("revision", 3), "revision is 3; this eval reads "
-                   "revision 5 only -- revision 3 is MARKS_VERSION 9's corpus"),
+                   "revision 6 only -- revision 3 is MARKS_VERSION 9's corpus"),
     "revision 4": (lambda r: r.__setitem__("revision", 4), "revision is 4; this eval reads "
-                   "revision 5 only -- revision 4 is MARKS_VERSION 10's corpus"),
+                   "revision 6 only -- revision 4 is MARKS_VERSION 10's corpus"),
+    "revision 5": (lambda r: r.__setitem__("revision", 5), "revision is 5; this eval reads "
+                   "revision 6 only -- revision 5 is MARKS_VERSION 11's corpus"),
     "a price off the ladder": (
         lambda r: r["founder_calibration"]["commercial.price"]["answer"].__setitem__("low", 10000),
         "founder_calibration[commercial.price] is 10000 to 5: off the ladder"),
-    "a price on another period": (
+    "a price on a period outside the five": (
         lambda r: r["founder_calibration"]["commercial.price"]["answer"].__setitem__(
-            "period", "week"), "founder_calibration[commercial.price].period is 'week'"),
+            "period", "one_off"), "founder_calibration[commercial.price].period is 'one_off'"),
+    "a price on another period than the cost's": (
+        lambda r: r["founder_calibration"]["commercial.price"]["answer"].__setitem__(
+            "period", "week"), "it is the cost estimate's, 'month' (revision 6)"),
+    "a cost that is a tick list": (
+        lambda r: r["founder_calibration"]["commercial.existing_sacrifice"].__setitem__(
+            "answer", ["spare_keys"]), "a cost estimate is {mode: AMOUNT | HOURS"),
+    "hours on a B2C entry": (
+        lambda r: r["founder_calibration"]["commercial.existing_sacrifice"]["answer"].update(
+            mode="HOURS", rate=20), "is HOURS on a B2C entry"),
+    "a cost low of nothing": (
+        lambda r: r["founder_calibration"]["commercial.existing_sacrifice"]["answer"].__setitem__(
+            "low", 0), "a cost low is above 0"),
+    "a cost on a period outside the five": (
+        lambda r: r["founder_calibration"]["commercial.existing_sacrifice"]["answer"].__setitem__(
+            "period", "one_off"), "founder_calibration[commercial.existing_sacrifice].period is 'one_off'"),
+    "a cost in another currency": (
+        lambda r: r["founder_calibration"]["commercial.existing_sacrifice"]["answer"].__setitem__(
+            "currency", "USD"), "founder_calibration[commercial.existing_sacrifice].currency is 'USD'"),
+    "a cost sentence that is not the engine's": (
+        lambda r: r["founder_calibration"]["commercial.existing_sacrifice"].__setitem__(
+            "belief_sentence", "They spend a lot."), "the engine's is 'The problem already costs the payer about"),
+    "an ability that is not derived": (
+        lambda r: r["founder_calibration"]["commercial.ability_to_pay"]["answer"].__setitem__(
+            "band", "new_money"), "derived from the cost and the price it is"),
+    "an ability answered over a cost left out": (
+        lambda r: r["founder_calibration"]["commercial.existing_sacrifice"].update(
+            {"unsure": True}) or r["founder_calibration"]["commercial.existing_sacrifice"].pop("answer"),
+        "the cost or the price is left out, so it is too"),
+    "ability to pay missing": (lambda r: r["founder_calibration"].pop("commercial.ability_to_pay"),
+                               "founder_calibration lacks commercial.ability_to_pay"),
+    "a pick with no recall period": (
+        lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
+            "commercial.existing_sacrifice",
+            {"currency": "GBP", "amounts": [{"kind": "spare_keys", "value": 3, "unit": "money"}]}),
+        "records period None; revision 6 records the recall period"),
     "a price in another currency": (
         lambda r: r["founder_calibration"]["commercial.price"]["answer"].__setitem__(
             "currency", "USD"), "the market (GB) prices in GBP, never another"),
@@ -144,15 +181,16 @@ MUTATIONS = {
             "locksmith", "days"), "units[locksmith] is 'days'"),
     "the old control": (
         lambda r: r["respondent_questions"]["commercial.existing_sacrifice"].__setitem__(
-            "control", "branch_pick_number"), "revision 5 asks branch_pick_amounts"),
+            "control", "branch_pick_number"), "revision 6 asks branch_pick_amounts"),
     "an r4 pick": (
         lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
             "commercial.existing_sacrifice", {"bought": "spare_keys", "cost": {"value": 4}}),
-        "revision 5 answers {currency, amounts"),
+        "revision 6 answers {currency, period, amounts"),
     "an amount in the wrong unit": (
         lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
             "commercial.existing_sacrifice",
-            {"currency": "GBP", "amounts": [{"kind": "spare_keys", "value": 3, "unit": "hours"}]}),
+            {"currency": "GBP", "period": "quarter",
+             "amounts": [{"kind": "spare_keys", "value": 3, "unit": "hours"}]}),
         "kind 'spare_keys' is in 'hours'; the row counts it in 'money'"),
     "a price pick off the row": (
         lambda r: _person(r, "Ann Abbott")["picks"].__setitem__("commercial.price", "band_20_50"),
@@ -193,14 +231,14 @@ KEY_MUTATIONS = {
     "a founder key foreign": (lambda r: r["founder_calibration"].__setitem__(
         "problem.vibes", {"unsure": True}), "names problem.vibes, which is not a registry key"),
     "a b2b_only key on a B2C entry": (lambda r: r["founder_calibration"].__setitem__(
-        "commercial.ability_to_pay", {"answer": "existing_line", "belief_sentence": "x"}),
-        "names commercial.ability_to_pay, which a B2C entry does not calibrate (b2b_only; "
+        "commercial.purchase_friction", {"answer": ["forgetting"], "belief_sentence": "x"}),
+        "names commercial.purchase_friction, which a B2C entry does not calibrate (b2b_only; "
         "judgement call 47)"),
     "a b2b_only pick on a B2C entry": (lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
         "commercial.purchase_friction", ["forgetting"]),
         "Ann Abbott picks commercial.purchase_friction, which a B2C entry does not calibrate"),
     "a standing short": (lambda r: r["expected"]["standings"].pop("problem.importance"),
-                         "expected.standings is not exactly the 11 calibrated keys"),
+                         "expected.standings is not exactly the 12 calibrated keys"),
     "a founder code not the registry's": (lambda r: r["founder_calibration"]["problem.importance"].__setitem__(
         "answer", "the_top"), "answers 'the_top', which is not one of the registry's codes"),
     "a pick foreign": (lambda r: _person(r, "Ann Abbott")["picks"].__setitem__("problem.vibes", 1),
@@ -257,7 +295,7 @@ def test_the_loader_reads_keel_clouds_canon_and_nowhere_else(tmp_path):
 
 def _decider(**over):
     return {"person": "Bea Buyer", "link": "COMMERCIAL_B2B", "recency": None,
-            "story": "Last month we bought a fleet tag.", "chip": None, "anchoring": "ANCHORED",
+            "story": None, "chip": None, "anchoring": "ANCHORED",
             "picks": {"commercial.ability_to_pay": "existing_line"}, **over}
 
 
@@ -273,6 +311,8 @@ def test_a_decision_maker_answers_part_three_on_their_own_link(tmp_path):
 @pytest.mark.parametrize("path, raw_entry, mutation, words", [
     ("b2b", fx.ENTRY_B2B, {"recency": "yes"}, "is never asked the gate"),
     ("b2b", fx.ENTRY_B2B, {"picks": {"problem.frequency": 2}}, "the link is Part 3 only"),
+    ("b2b", fx.ENTRY_B2B, {"story": "Last month we bought a fleet tag."}, "no story screen"),
+    ("b2b", fx.ENTRY_B2B, {"anchoring": "GUESSED"}, "ANCHORED by rule"),
     ("primary", fx.ENTRY, {}, "decision-maker is the same person"),
 ])
 def test_a_decision_maker_out_of_place_is_refused(tmp_path, path, raw_entry, mutation, words):

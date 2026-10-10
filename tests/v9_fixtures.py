@@ -23,14 +23,14 @@ from instructions import registry as registry_mod
 FIXTURES = Path(__file__).parent / "fixtures"
 SLICE = FIXTURES / "registry" / "slice.yaml"
 BROKEN = FIXTURES / "registry" / "broken"
-ENTRY = FIXTURES / "corpus" / "09-fixture-r5.yaml"
-ENTRY_B2B = FIXTURES / "corpus" / "10-fixture-r5-b2b.yaml"
+ENTRY = FIXTURES / "corpus" / "09-fixture-r6.yaml"
+ENTRY_B2B = FIXTURES / "corpus" / "10-fixture-r6-b2b.yaml"
 COMPARE = FIXTURES / "compare"
 V8_BUNDLE = FIXTURES / "runs" / "v8-bundle"
 
-#: Why a test reading keel-cloud's canon corpus skips: the canon is not at revision 5 yet (calls 49, 51 --
-#: there is no fixture fallback any more; keel-cloud 073 carries revision 5).
-CANON_NOT_R5 = ("keel-cloud's canon corpus is not at revision 5 (keel-cloud 073) -- spec 031 reads "
+#: Why a test reading keel-cloud's canon corpus skips: the canon is not at revision 5 yet (calls 49, 51, 60 --
+#: there is no fixture fallback any more; keel-cloud 074 carries revision 6).
+CANON_NOT_R6 = ("keel-cloud's canon corpus is not at revision 6 (keel-cloud 074) -- spec 031 reads "
                 "the corpus from keel-cloud's canon and nowhere else (judgement call 49)")
 
 
@@ -41,7 +41,7 @@ def canon_dir() -> Path:
 
 
 def canon_entry(name: str) -> Path:
-    """One of keel-cloud's revision-5 entries (`03-lullaby.yaml`...), or a skip naming why."""
+    """One of keel-cloud's revision-6 entries (`03-lullaby.yaml`...), or a skip naming why."""
     import pytest                                                     # noqa: PLC0415
     path = canon_dir() / name
     try:
@@ -49,7 +49,7 @@ def canon_entry(name: str) -> Path:
     except (OSError, AttributeError, yaml.YAMLError):
         revision = None
     if revision != corpus_mod.REVISION:
-        pytest.skip(CANON_NOT_R5)
+        pytest.skip(CANON_NOT_R6)
     return path
 
 
@@ -70,7 +70,7 @@ def raw_entry(path=ENTRY) -> dict:
     return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
 
 
-def write_entry(tmp_path, raw: dict, name="09-fixture-r5.yaml") -> Path:
+def write_entry(tmp_path, raw: dict, name="09-fixture-r6.yaml") -> Path:
     path = Path(tmp_path) / name
     path.write_text(yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     return path

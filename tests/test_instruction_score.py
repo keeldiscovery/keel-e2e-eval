@@ -2,7 +2,7 @@
 T040, T042, T043; spec 030 T009-T010, calls 46-47; spec 031 T010, calls 52-55).
 
 Fixtures a person can check by hand: the hand-sized registry slice of twelve and
-`09-fixture-r5.yaml` (B2C: eleven calibrated keys, one left out). Every mark has its green half and its
+`09-fixture-r6.yaml` (B2C: eleven calibrated keys, one left out). Every mark has its green half and its
 red half here, and every total is summed over its own denominator and never another's -- each
 denominator read off the registry and the entry (`_slice`, `_plan`), never typed.
 """
