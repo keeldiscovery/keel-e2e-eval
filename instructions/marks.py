@@ -17,9 +17,38 @@ twelve dimensions (4 / 3 / 5, nine deal-breakers, the `b2b_only` pair) and its c
 Calls 46-49 below. Every denominator a scorer reports is read off the registry and the entry's
 persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY_DESIGN`; the corpus
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
-by name. **There is no v10 run of record until `WHY=marks:10` is spent**; v9's, below, is history.
+by name. v10 has no run of record; it is history from v11.
 
-**The corpus v10 judges, recorded 2026-10-09** (spec 030 US2). Revision 4's seven entries in
+**`MARKS_VERSION` 11** (spec 031, 2026-10-09): the subjects' words moved and the ruler follows
+keel-cloud 072 + 073 (branch `073-price`, `0925484`). The registry is **thirteen** (4 / 3 / 6, Price
+back as SHAPES), the corpus **revision 5**; Prevalence and the gate are read as an `event` clause
+held to E1-E3 and C7 / R8 retire; Price is code's on both sides; W7, W9 and U1 (and W3 / W8, where
+the corpus records the names) are structural; the wording rules the subject only instructs (S1, W1,
+W2, W5, W6) are reported per question and never marked; the brief's two commercial figures are
+keel-cloud's own; `rescore.py` refuses every bundle below 11. Calls 50-58 below. **There is no v11
+run of record until `WHY=marks:11` is spent, and it is on hold by the founder**; v10's paragraph
+below is history (v10 never had one).
+
+**The corpus v11 judges, recorded 2026-10-09** (spec 031 US2). Revision 5's seven entries in
+keel-cloud 073's canon (`0925484`), by sha256:
+
+    01-countly         12dae6d50f493955b757788ad73b6d1908f28662f72978ea918778baaea300d7
+    02-compliancelog   3684eaf51872cf812e78285962e9ebad16a934f9b3ea5f1f99670cf2bb99eebb
+    03-lullaby         4e260008aa94c8ff4bff8ec5a305c86bf550d142de2847a92d7e7e948c63920d
+    04-linerly         6ed61c32232367b768d4c86b8fa42c2480b4225821650ca197e11a3d43cba887
+    05-paidly          26e177319115bd659aa8cf788099ae252e2a579106316b9355c0094998d08cd2
+    06-repeatline      926624e183abc77893cd5ba02df82108f3753e543f5aa3fcac1e03ac36d3e699
+    07-mulchrun        3c02a4b28822eb6ec2444c56284a3415bafa9f9089fdabb4c5766fb452a0527e
+
+The v11 denominators, **counted, not estimated**: calibration 11 keys on 01-04 (B2C) and 13 on
+05-07 (B2B), 83 an N; respondent 11 on a B2C entry (4 / 3 / 4 on `PRIMARY`) and 13 on a B2B one (4
+/ 3 on `PRIMARY`, 6 on `COMMERCIAL_B2B`; 5 on Mulch Run, whose founder left Price out), 82 an N;
+`no_leak` 46 sweep-A and 71 sweep-B items an N (never Price, never Frequency over a framed window --
+Countly's *last month* and Repeatline's *last shift* keep theirs); `compare_correctness` 11 + 3 or
+13 + 3 checks an entry, **104** on seven. `anchoring_accuracy` is still 65 reads at N=1; a full run
+still builds 135 model cases at N=1 (405 at N=3).
+
+**The corpus v10 judged, recorded 2026-10-09** (spec 030 US2; history). Revision 4's seven entries in
 keel-cloud 071's canon (`f38ac42`), by sha256:
 
     01-countly         81d5d00665fab6b284f5238f2c2d8512226105d7566e88ad2c1f47a73ba7f391
@@ -357,6 +386,73 @@ sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. It is
     revision-3 file as v9's. `rescore.py` refuses a v8 **or v9** bundle by name: corpus r4 carries
     no standing for thirteen of the dimensions a v9 bundle scored, so a v10 number for it would be
     fiction.
+50. **v11** *(spec 031, 2026-10-09; keel-cloud 073, registry decision 15)*: **the registry is
+    thirteen.** Invariants 1, 3 and 5 restated: thirteen keys, 4 / 3 / 6; `commercial.price` at
+    commercial order 2, SHAPES, not `b2b_only` (asked of whoever pays), founder control
+    `price_range` whose `periods` are exactly `month · year · one_off` (`PriceLadder.PERIODS`, a
+    fifth-invariant fault otherwise), respondent control `price_ladder`, `ordinal_band`; Existing
+    sacrifice asked as `branch_pick_amounts`; Ability to pay's rungs `existing_line ·
+    new_line_signed_off · taken_from_other_spend · no_budget`. The nine deal-breakers and the
+    `b2b_only` pair do not move; the calibrated set is eleven on B2C and thirteen on B2B, read.
+51. **v11**: **corpus revision 5, read from keel-cloud's canon only.** `load()` refuses a directory
+    holding any file at a revision other than 5, naming a revision-4 file as v10's. The founder's
+    Price is `{low, high, period, currency}` -- a low of 1 to under 10,000, the high not below it, a
+    period of the three, the market's currency -- or `unsure` (Mulch Run: LEFT_OUT); its plan row is
+    the ladder's five bands around the low plus `would_not_pay` (`PriceLadder.bands`, mirrored as
+    `corpus.price_ladder_codes`), and a row that disagrees is a refusal naming both; Existing
+    sacrifice's kinds carry money · hours · count and its picks are `{currency, amounts}` on the
+    row in the row's units; every fixed-code founder answer is one of the registry's codes.
+52. **v11**: **the window is code's.** keel-cloud 072 composes the four windowed questions from
+    fixed frames around one model-written clause. `option_validity` reads a Prevalence calibration
+    entry's and the gate's **`event`** and holds it to E1-E3 as `WindowFrame.fault` does (no digit,
+    number word or time word -- the window unit's words included; one clause of at most 25 words,
+    no `?`, no sentence break; not opening with *in*, *how many*, *did you*, *out of*, *do you
+    think*); a missing `event` is E2. Frequency over a window of more than one unit owes no
+    question text, and a text written anyway is ignored, never a fault (keel-cloud D-7); a
+    one-unit window keeps its model-written question. **C7 and R8 retire** from every check, and
+    `RecallWindow.said` / `is_named_in` with them. `no_leak` sweeps the `event` clause where it swept
+    the question.
+53. **v11**: **Price is code's on both sides.** Its calibration entry owes its key (and its
+    `respondent_note`) and nothing else: options are a C2 fault, a question is ignored; its
+    respondent item owes its key, and nothing a model writes there is read. Both count once in
+    `dimension_coverage` and `option_validity`; **neither is ever swept by `no_leak`**, and neither
+    is Frequency over a framed window: there is no model text a reader is shown. The sweep
+    denominators are read off the registry and the entry's window (the case's `swept`).
+54. **v11**: **the money, the hint and the unit are structural** -- each an `option_validity`
+    fault on the screen it is found on, mirrored from keel-cloud 073: W9 (`Wording.money`: a
+    currency symbol, an ISO 4217 code in capitals, or an amount with a currency word) in any
+    model-written question, event, option label or belief phrase; W7 (`Wording.tickAll`: *tick /
+    select / choose all|every*, *pick all*, *all that apply(ies)*) in a question; U1 (an Existing
+    sacrifice founder option but `none` without `unit` money · hours · count; a respondent
+    distractor without its `units[i]`).
+55. **v11**: **one name for the idea, one for the offer -- held only to a name the corpus
+    records.** W3: every SOLUTION calibration question, every part-2 item and the reveal carry
+    `solution_mechanism.short_name` verbatim; W8: every COMMERCIAL calibration question and every
+    part-3 / decision-maker item, Existing sacrifice and Price aside, carry
+    `interpretations.offer_name` verbatim (`Wording.carries`: case, accents, apostrophes,
+    punctuation and a leading article free). The eval never takes a name from a live screen's
+    answer (marks-v9 §1), and **revision 5 records neither**, so on r5 both are held to none --
+    as keel-cloud holds a card confirmed before 072 -- the job is handed `null`, the validator the
+    same mechanism and offer (never its Lullaby fixture's names), and the dry run prints *held to no
+    name*. A name a later revision records is read with no code change.
+56. **v11**: **the wording rules are reported, never marked.** `window-frame-design.md` §3.6-§3.8
+    make S1, S2, W1, W2, W4, W5 and W6 instruction rules the eval counts and the applier never
+    refuses; a mark the product does not enforce would be the ruler inventing a rule. Per question
+    and item with model text, `score.py` counts its words and W1 (more than 20, or 25 with a scene
+    sentence first), W2 (*do you think / believe*, founder side), W6 (second person, founder
+    side), S1 (one sentence over 20 words with a clause in front of the question) and W5 (options
+    over 8 words) into `totals.wording`; the report renders them and `judge()` reads none. S2 and
+    W4 need a name or a jargon list the corpus does not carry: the register page's to read.
+57. **v11**: **the brief's commercial figures are keel-cloud's.** Existing sacrifice's `observed`
+    is `Figures.cost`'s shape with no hourly rate (the corpus records none, so hours are never
+    priced): *a median £22 over three months*, the hours median apart (*; 11 hours*); Price's is
+    `Figures.price`'s, *{inside} of {n} said it would be worth {floor} {period} or more*. Call 42's
+    *£… per three months* is superseded for both. `brief_paragraphs` stays four per-case marks: B6
+    (*will pay / will buy*) is the aggregate's rule, counted by `rule_refusal_rate` and -- refused
+    twice -- scored as a fault on every mark (call 41).
+58. **v11**: **`rescore.py` refuses every bundle below 11** by name: a v10 bundle answered without
+    Price, without units and with the window in the model's own words, so a v11 number for it
+    would be fiction. The only v11 number is a v11 run (`WHY=marks:11`, on hold by the founder).
 """
 
 from __future__ import annotations
@@ -364,11 +460,12 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 10
+MARKS_VERSION = 11
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 
-#: The eight marks of `marks.toml` at v10 (v9's eight, unchanged in number), with its numbers.
+#: The eight marks of `marks.toml` at v11 (v9's eight, unchanged in number), with its numbers. The
+#: wording counts of call 56 are reported and are never a key here.
 #: `golden_belief_recall` is retired (call 29) and is **not** a key: a verdict cannot carry a value
 #: for it. `no_claim_words` (call 48) was never a mark of its own -- one of `brief_paragraphs`' per-case
 #: marks -- so its retirement moves no row here.

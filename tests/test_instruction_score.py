@@ -54,7 +54,7 @@ def test_compare_correctness_is_measured_only_when_every_row_was(entry):
                                   compare_mod.unmeasured(entry.id, "no engine (keel-cloud 058)"))
     totals = score_mod.totals(compare_scores=[good])
     assert totals["compare_measured"] and totals["compare_correctness"] == 1.0
-    assert totals["compare_checks"] == _checks(entry) == 13
+    assert totals["compare_checks"] == _checks(entry) == 14
     mixed = score_mod.totals(compare_scores=[good, bad])
     assert mixed["compare_measured"] is False and mixed["compare_correctness"] is None
     assert mixed["compare_unmeasured"] == [{"entry": "09-fixture",
@@ -140,7 +140,7 @@ def _slice(entry, registry, vector) -> int:
     return len(registry.calibrated_slice(vector, entry.b2b()))
 
 
-@pytest.mark.parametrize("vector, count", [("PROBLEM", 4), ("SOLUTION", 3), ("COMMERCIAL", 3)])
+@pytest.mark.parametrize("vector, count", [("PROBLEM", 4), ("SOLUTION", 3), ("COMMERCIAL", 4)])
 def test_a_good_answer_covers_its_slice_and_meets_every_rule(entry, registry, vector, count):
     assert _slice(entry, registry, vector) == count, "B2C: the b2b_only pair is not calibrated"
     score = _calibrate(entry, registry, vector)
@@ -148,7 +148,8 @@ def test_a_good_answer_covers_its_slice_and_meets_every_rule(entry, registry, ve
     assert (score.validity_hit, score.validity_of) == (count, count), score.faults
     assert score.faults == []
     if vector == "PROBLEM":
-        assert (score.leak_clean, score.leak_of) == (count, count)
+        # Calls 52, 53: Frequency over the framed 7 nights has no model text to sweep.
+        assert (score.leak_clean, score.leak_of) == (count - 1, count - 1)
     else:
         assert score.leak_of == 0, "sweep A runs on the PROBLEM vector only"
 
@@ -207,8 +208,18 @@ def _set_options(r):
      "options on a numeric control"),
     ("numeric spec", "PROBLEM", lambda r: _q(r, "problem.frequency").__setitem__(
         "normalized", {"axis_max": 120}), "numeric spec axis_max"),
-    ("no seven nights", "PROBLEM", lambda r: _q(r, "problem.prevalence").__setitem__(
-        "question", "How many had this recently?"), "the project's window"),
+    ("no event", "PROBLEM", lambda r: _q(r, "problem.prevalence").pop("event"),
+     "E2: Prevalence carries `event`"),
+    ("a time word in the event", "PROBLEM", lambda r: _q(r, "problem.prevalence").__setitem__(
+        "event", "lost their keys last week"), "E1: 'last' is a time word"),
+    ("tick all", "SOLUTION", lambda r: _q(r, "solution.compatibility").__setitem__(
+        "question", "When would it fit? Tick all that apply."), "W7: 'Tick all'"),
+    ("money", "COMMERCIAL", lambda r: _q(r, "commercial.commitment").__setitem__(
+        "question", "Would they pay £3 to try it?"), "W9: '£'"),
+    ("options on Price", "COMMERCIAL", lambda r: _q(r, "commercial.price").__setitem__(
+        "options", [{"label": "Under £2", "belief_phrase": "under two"}]), "C2:"),
+    ("a kind with no unit", "COMMERCIAL", lambda r: _set_options(r)[0].pop("unit"),
+     "U1: 'Option 1 for this' is a kind of cost"),
     ("fifths with a hole", "PROBLEM", lambda r: _q(r, "problem.prevalence")["options"][2]
      .__setitem__("normalized", "p_50_60"), "not the registry's"),
 ])
@@ -285,9 +296,11 @@ def _item(result, key):
     return next(i for i in result["items"] if i["key"] == key)
 
 
-@pytest.mark.parametrize("part, count, sweeps", [(1, 4, 8), (2, 3, 3), (3, 2, 2)])
+@pytest.mark.parametrize("part, count, sweeps", [(1, 4, 6), (2, 3, 3), (3, 3, 2)])
 def test_coverage_per_part_is_the_plan_exactly_once_each(entry, registry, part, count, sweeps):
-    assert len(entry.plan()[part]) == count, "the plan, read: 4 / 3 / 3 less the one left out"
+    """Calls 52, 53: Frequency over the framed 7 nights and Price owe no text, so neither is
+    swept -- part 1 sweeps three items twice, part 3 two of its three once."""
+    assert len(entry.plan()[part]) == count, "the plan, read: 4 / 3 / 4 less the one left out"
     score = _respond(entry, registry, part)
     assert (score.coverage_hit, score.coverage_of) == (count, count)
     assert (score.validity_hit, score.validity_of) == (count, count), score.faults
@@ -364,7 +377,8 @@ def test_a_set_takes_every_founder_label_and_two_to_three_distractors(entry, reg
     founder = [c for c in row["codes"] if c not in RESPONDENT_ESCAPES]
     labels = [c.upper() for c in founder] + [f"Distractor {i}" for i in range(distractors)]
     faults = score_mod.respondent_checks({"key": dimension.key, "question": "After?",
-                                          "options": labels}, dimension, row)
+                                          "options": labels, "units": ["money"] * len(labels)},
+                                         dimension, row)
     assert (faults == []) is ok, faults
     if not ok:
         assert f"{distractors} distractor(s)" in faults[0]
@@ -398,7 +412,8 @@ def test_a_set_is_judged_against_the_founders_labels_not_the_codes(registry):
     labels = lullaby.founder_labels(key)
     shown = [label for code, label in labels.items() if code != "nothing"]
     good = {"key": key, "question": "That last thing?",
-            "options": [s.upper() + "!" for s in shown] + ["Distractor a", "Distractor b"]}
+            "options": [s.upper() + "!" for s in shown] + ["Distractor a", "Distractor b"],
+            "units": ["money"] * (len(shown) + 2)}
     assert score_mod.respondent_checks(good, dimension, row, founder_labels=labels) == [], \
         "058's R2 comparison, and the founder's own 'None of these' left to code"
     codes = dict(good, options=[c for c in labels if c != "nothing"] + ["Distractor a"])
@@ -433,15 +448,16 @@ def test_every_escape_058_appends_is_known_by_its_label(label):
 def test_a_scale_step_that_begins_with_something_else_is_not_an_escape(registry):
     """Call 44: an escape row the model wrote is told by its WHOLE normalised label, never a
     prefix -- certificate run 3 (`runs/20261008T194906Z-instructions`, 06-repeatline Part 3)
-    was faulted on Ability to pay's own scale step, code `barely`."""
+    was faulted on Ability to pay's own scale step (then code `barely`; since r5 the rungs are
+    renamed, `taken_from_other_spend` the nearest)."""
     key = "commercial.ability_to_pay"
     dimension, row = registry.by_key(key), _canon("06-repeatline.yaml").respondent_questions[key]
-    labels = ["Easily, out of what was already there", "Without cutting back on anything",
-              "Only by trading something off", "Something else was cut or given up to cover it"]
+    labels = ["Out of a budget line we already had", "A new line someone signed off",
+              "Taken from other spend", "Something else was cut or given up to cover it"]
     item = {"key": key, "question": "Where did the money come from?",
             "options": [{"label": label, "code": code} for label, code in
-                        zip(labels, ["easily", "without_cutting_back", "with_a_trade_off",
-                                     "barely"])]}
+                        zip(labels, ["existing_line", "new_line_signed_off",
+                                     "taken_from_other_spend", "no_budget"])]}
     assert not score_mod.is_escape_label(labels[-1])
     assert score_mod.respondent_checks(item, dimension, row) == []
 
@@ -564,11 +580,11 @@ def test_a_not_sure_option_is_the_whole_label_never_a_substring(entry, registry,
 
 
 def test_the_b2b_link_scores_the_commercial_part_whole_less_the_left_out(registry):
-    """Call 47: COMMERCIAL_B2B asks the commercial five (the b2b_only pair included), less the
-    founder's unsure Buyer/payer -- four, read off the plan."""
+    """Calls 47, 50: COMMERCIAL_B2B asks the commercial six (the b2b_only pair and Price included),
+    less the founder's unsure Buyer/payer -- five, read off the plan."""
     b2b = fx.entry(fx.ENTRY_B2B)
     count = len(registry.plan_keys(3, b2b.founder_calibration, "COMMERCIAL_B2B", True))
-    assert count == 4 and b2b.plan()[3] == registry.plan_keys(3, b2b.founder_calibration,
+    assert count == 5 and b2b.plan()[3] == registry.plan_keys(3, b2b.founder_calibration,
                                                               "COMMERCIAL_B2B", True)
     score = _respond(b2b, registry, 3, link="COMMERCIAL_B2B")
     assert (score.coverage_hit, score.coverage_of) == (count, count)
@@ -583,8 +599,10 @@ def test_totals_roll_both_question_screens_into_the_same_three_marks(entry, regi
     asked = len(plan[1]) + len(plan[2])
     assert totals["respondent_coverage"] == {"hit": asked, "of": asked} == {"hit": 7, "of": 7}
     assert totals["dimension_coverage"] == 1.0
+    # Calls 52, 53: Frequency (framed on 7 nights) is swept on neither screen.
     assert totals["calibration_leak"]["of"] + totals["respondent_leak"]["of"] == \
-        len(registry.calibrated_slice("PROBLEM", False)) + 2 * len(plan[1]) + len(plan[2])
+        (len(registry.calibrated_slice("PROBLEM", False)) - 1) + 2 * (len(plan[1]) - 1) \
+        + len(plan[2])
 
 
 # -------------------------------------------------------------- US3: INTERPRET (064; call 33)
@@ -668,7 +686,7 @@ def lullaby():
     return _corpus_mod.load_file(fx.canon_entry("03-lullaby.yaml"), registry=fx.registry())
 
 
-@pytest.mark.parametrize("vector, count", [("PROBLEM", 4), ("SOLUTION", 3), ("COMMERCIAL", 3)])
+@pytest.mark.parametrize("vector, count", [("PROBLEM", 4), ("SOLUTION", 3), ("COMMERCIAL", 4)])
 def test_the_golden_062_accepts_scores_clean_with_no_code_on_any_option(lullaby, registry, vector,
                                                                          count):
     result = _golden(vector)
@@ -678,7 +696,7 @@ def test_the_golden_062_accepts_scores_clean_with_no_code_on_any_option(lullaby,
     assert score.faults == [], score.faults
     assert (score.coverage_hit, score.validity_hit, score.validity_of) == (count, count, count)
     if vector == "PROBLEM":
-        assert (score.leak_clean, score.leak_of) == (count, count)
+        assert (score.leak_clean, score.leak_of) == (count - 1, count - 1)   # Frequency is code's
 
 
 def test_a_fixed_code_question_one_option_short_fails_by_position(lullaby, registry):

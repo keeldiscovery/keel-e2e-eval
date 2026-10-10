@@ -103,6 +103,15 @@ CODE_WRITTEN_RESPONDENT_CONTROLS = ("price_ladder",)
 AMOUNTS_CONTROL = "branch_pick_amounts"
 #: The units a kind of cost is counted in (`CalibrationOption.UNITS`, U1).
 UNITS = ("money", "hours", "count")
+#: Existing sacrifice: its kinds carry units, and its question names no offer (keel-cloud 072 D-2).
+SACRIFICE_KEY = "commercial.existing_sacrifice"
+
+
+def names_the_offer(dimension) -> bool:
+    """`ScreenResultApplier.namesTheOffer` (call 55): the questions W3 / W8 hold to the name --
+    every SOLUTION and COMMERCIAL entry but Existing sacrifice, which asks what the problem already
+    costs and names no offer (keel-cloud 072 D-2)."""
+    return dimension.vector != "PROBLEM" and dimension.key != SACRIFICE_KEY
 
 
 #: keel-cloud 058 (2026-10-07): the registry carries `{window}` / `{window_unit}` placeholders, the

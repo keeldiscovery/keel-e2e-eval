@@ -53,16 +53,13 @@ import yaml
 
 from . import text as text_mod
 from .registry import (AMOUNTS_CONTROL, DEAL_BREAKERS, LINK_B2B, LINK_PRIMARY, PRICE_KEY,
-                       PRICE_PERIODS, UNITS, VECTORS, RecallWindow)
+                       PRICE_PERIODS, SACRIFICE_KEY, UNITS, VECTORS, RecallWindow)
 
 REVISION = 5
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 4: "MARKS_VERSION 10's corpus, on the registry of twelve (no Price, no units)"}
-
-#: Existing sacrifice's key, whose kinds carry units and whose picks are amounts (call 51).
-SACRIFICE_KEY = "commercial.existing_sacrifice"
 
 #: `sim/check_corpus_r5.py`'s `CURRENCY` (keel-cloud `Market.currency`'s table, the corpus's markets):
 #: a founder price is in its market's currency, never another.

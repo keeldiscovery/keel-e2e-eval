@@ -1,5 +1,5 @@
 """Re-score a finished run from its own bundle, under today's marks (spec 009, run-bundle
-contract's "re-reading" promise; spec 029 FR-004, research R11; spec 030 FR-004).
+contract's "re-reading" promise; spec 029 FR-004, research R11; spec 030 FR-004; spec 031 FR-005).
 
     python -m instructions.rescore runs/<id> [--no-judge]
 
@@ -19,6 +19,11 @@ it is touched.
 the registry of twenty-five, and corpus revision 4 carries no standing for thirteen of the
 dimensions it scored and no `BAR_SET` or `NOT_TESTED_BY_DESIGN` row -- so a v10 number for it would
 be fiction. It is refused the same way, in one line, by name, with the reason.
+
+**And across the v10 → v11 bump** (spec 031; judgement call 58). A v10 bundle answered the registry
+of twelve, with no Price, no units and the recall window written into the model's own questions --
+what corpus revision 5 and keel-cloud 072 / 073 now read as code's -- so a v11 number for it would be
+fiction. Refused the same way, in one line, by name, with the reason.
 
 For a bundle at the current version the cases are rebuilt with the same builders and the same exported key lists the
 run used, every envelope is scored again by the run's own `_score`, and `COMPARE` is re-run from
@@ -62,8 +67,13 @@ CROSSED_THE_V10_BUMP = ("answered the registry of twenty-five, and corpus r4 doe
                         "measured -- no standing for thirteen of its dimensions, no BAR_SET or "
                         "NOT_TESTED_BY_DESIGN row")
 
+#: The one sentence a v10 bundle is refused with (spec 031, judgement call 58).
+CROSSED_THE_V11_BUMP = ("answered the registry of twelve with no Price, no units and the window in the "
+                        "model's own words; corpus r5 and keel-cloud 072 / 073 read all three as "
+                        "code's")
+
 #: The oldest bundle this version re-scores.
-OLDEST = 10
+OLDEST = 11
 
 
 class _SilentRuntime:
@@ -91,6 +101,11 @@ def refusal(run_dir: Path, original: dict) -> str | None:
         return (f"{run_dir.name} was scored at marks_version {version}: {CROSSED_THE_BUMP}. "
                 "Not re-scored (spec 029 FR-004; judgement call 28) -- a v8 number is a "
                 "measurement of a product v9 does not judge, and the only v9 number is a v9 run.")
+    if version == 10:
+        return (f"{run_dir.name} was scored at marks_version {version}: a v10 scorecard cannot be "
+                f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V11_BUMP}. Not "
+                "re-scored (spec 031; judgement call 58) -- the only v11 number is a v11 run "
+                "(WHY=marks:11).")
     if version < OLDEST:
         return (f"{run_dir.name} was scored at marks_version {version}: a v9 scorecard cannot be "
                 f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V10_BUMP}. Not "

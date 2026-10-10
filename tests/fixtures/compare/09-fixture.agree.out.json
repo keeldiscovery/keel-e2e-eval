@@ -67,6 +67,15 @@
       "optionCounts": "spare_keys=2, locksmith=1, none=5, nothing=0, something_else=0",
       "belief_sentence": "Because of this, commuters who cycle already give up money on spare keys."
     },
+    "commercial.price": {
+      "status": "PEOPLE_DISAGREE",
+      "drift": "BELOW",
+      "n": 8,
+      "inside": 4,
+      "outside": 4,
+      "below": 4,
+      "above": 0
+    },
     "commercial.buyer_payer_alignment": {
       "status": "LEFT_OUT",
       "drift": null

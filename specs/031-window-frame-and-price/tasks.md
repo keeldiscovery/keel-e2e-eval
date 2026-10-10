@@ -15,10 +15,10 @@
 - [x] T006 fixtures `09-fixture-r5.yaml`, `10-fixture-r5-b2b.yaml`; `tests/test_corpus_r5_shape.py`, `tests/test_instruction_corpus_r5.py`.
 
 ## Phase 4 — The marks (FR-003 … FR-006)
-- [ ] T007 `instructions/wording.py` (E1–E3, W3/W8 verbatim, W7, W9, the reported counts).
-- [ ] T008 `score.py`: calls 52–56; `context.py`: names and figures (call 57); `validate.py`'s batch.
-- [ ] T009 `marks.py` calls 50–58, `MARKS_VERSION = 11`; `marks.toml`; `rescore.py` < 11; `report.py`; `run.py`'s denominators.
-- [ ] T010 Tests: `test_instruction_window_frame.py` (new), `test_instruction_score.py`, `test_instruction_leak.py`, `test_instruction_brief.py`, `test_instruction_marks.py`, `test_instruction_rescore.py`.
+- [x] T007 `instructions/wording.py` (E1–E3, W3/W8 verbatim, W7, W9, the reported counts).
+- [x] T008 `score.py`: calls 52–56; `context.py`: names and figures (call 57); `validate.py`'s batch.
+- [x] T009 `marks.py` calls 50–58, `MARKS_VERSION = 11`; `marks.toml`; `rescore.py` < 11; `report.py`; `run.py`'s denominators.
+- [x] T010 Tests: `test_instruction_window_frame.py` (new), `test_instruction_score.py`, `test_instruction_leak.py`, `test_instruction_brief.py`, `test_instruction_marks.py`, `test_instruction_rescore.py`.
 
 ## Phase 5 — Gate and canon (FR-007, FR-008, SC-001)
 - [ ] T011 `make unit` green.

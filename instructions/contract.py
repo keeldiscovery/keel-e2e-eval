@@ -57,7 +57,7 @@ class ExportedContract:
     #: record can say it measured the cloud's table and not a file of its own. `None` on an
     #: export older than that design; `instructions.models.select("exported", ...)` refuses then.
     model_routing: dict | None = None
-    #: `dimension-registry.json` -- keel-cloud 058's export of the registry (twelve keys since 071), checked
+    #: `dimension-registry.json` -- keel-cloud 058's export of the registry (thirteen keys since 073), checked
     #: against its eight invariants on the way in (`instructions/registry.py`). `read` refuses an
     #: export without it, so on any contract a case is built from this is never `None`.
     registry: object = None

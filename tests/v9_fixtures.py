@@ -147,12 +147,14 @@ def calibration_question(dimension, *, b2b=False) -> dict:
     """A question that meets every §2.2 rule for `dimension` -- the green half every red half of
     `tests/test_instruction_score.py` mutates by one thing."""
     from instructions import score as score_mod                       # noqa: PLC0415
-    text = f"About {dimension.name.lower()}: what do you believe, for the people you mean?"
-    if dimension.key == "problem.prevalence":
-        text = "Out of 10, how many had this at least once in the last 7 nights?"
-    if dimension.founder_numeric:
-        return {"key": dimension.key, "question": text, "options": None,
-                "respondent_note": "asked as a number"}
+    text = f"About {dimension.name.lower()}: what is true for the people meant?"
+    if dimension.founder_price:                         # call 53: the key and the note, no more
+        return {"key": dimension.key, "respondent_note": "asked of whoever pays"}
+    if dimension.founder_numeric:                       # call 52: framed on 7 nights, no text
+        return {"key": dimension.key, "options": None, "respondent_note": "asked as a number"}
+    head = {"key": dimension.key, "question": text}
+    if dimension.key == "problem.prevalence":           # call 52: the event clause, no question
+        head = {"key": dimension.key, "event": "could not find their keys on the way out"}
     codes = dimension.fixed_codes
     if codes is None:
         codes = score_mod._ladder_codes(dimension, b2b) or ["first_kind", "second_kind",
@@ -162,8 +164,11 @@ def calibration_question(dimension, *, b2b=False) -> dict:
     options = [{"label": f"Option {i} for this", "normalized": code,
                 "belief_phrase": f"the {code.replace('_', ' ')} answer"}
                for i, code in enumerate(codes, start=1)]
-    return {"key": dimension.key, "question": text, "options": options,
-            "respondent_note": "asked of the stranger in their own words"}
+    if dimension.key == "commercial.existing_sacrifice":              # call 54: U1
+        for option in options:
+            if option["normalized"] != "none":
+                option["unit"] = "money"
+    return {**head, "options": options, "respondent_note": "asked of the stranger in their own words"}
 
 
 def calibration_result(registry, vector, *, b2b=False) -> dict:
@@ -190,9 +195,12 @@ def respondent_item(entry, key, *, label_only=False) -> dict:
     row = entry.respondent_questions[key]
     item = {"key": key, "question": f"Thinking about that time: {key.split('.')[1].replace('_', ' ')}?"}
     from instructions.registry import GATE_CONTROL, NUMERIC_RESPONDENT_CONTROLS  # noqa: PLC0415
-    if row["control"] in NUMERIC_RESPONDENT_CONTROLS + (GATE_CONTROL,):
-        item["options"] = None
-        return item
+    if row["control"] == "price_ladder":                # call 53: code's whole item
+        return {"key": key}
+    if row["control"] == GATE_CONTROL:                  # call 52: the event clause
+        return {"key": key, "event": "lose your keys on the way out", "options": None}
+    if row["control"] in NUMERIC_RESPONDENT_CONTROLS:   # call 52: framed on 7 nights, no text
+        return {"key": key, "options": None}
     dimension = entry.registry.by_key(key)
     is_set = (dimension.fixed_codes is None and not dimension.founder_numeric
               and row["control"] != "multi_choice_ladder")
@@ -205,6 +213,8 @@ def respondent_item(entry, key, *, label_only=False) -> dict:
             label = f"A distractor {n}"
             options.append(label if label_only else {"label": label, "code": f"distractor_{n}"})
     item["options"] = options
+    if key == "commercial.existing_sacrifice":          # call 54: U1, one unit per option
+        item["units"] = ["money"] * len(options)
     return item
 
 

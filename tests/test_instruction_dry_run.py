@@ -113,10 +113,12 @@ def test_a_selected_screen_without_its_template_is_refused_by_name(dry, capsys):
 
 
 def test_a_dry_run_prints_every_structural_marks_denominator_read_off_the_registry(dry, capsys):
-    """Spec 030 US3, call 47: no answer exists to score, so the three structural marks stay
-    unmeasured (call 13) -- but the denominator each would be counted over is read off the
-    registry and the entry and written down: calibration 4 / 3 / 3 (B2C), respondent 4 / 3 / 2
-    (the founder left one out), sweep A on the 4 PROBLEM questions and the 4 Part 1 items."""
+    """Spec 030 US3, call 47; spec 031 calls 52-55: no answer exists to score, so the three
+    structural marks stay unmeasured (call 13) -- but the denominator each would be counted over
+    is read off the registry and the entry and written down: calibration 4 / 3 / 4 (B2C),
+    respondent 4 / 3 / 3 (the founder left one out), sweep A on the 3 PROBLEM questions and the 3
+    Part 1 items with model text (Frequency is framed on 7 nights), sweep B on every item but
+    framed Frequency and Price -- and the names W3 / W8 are held to (none, at r5)."""
     code, bundle = dry()
     assert code == 0
     scorecard = json.loads((bundle / "scorecard.json").read_text())
@@ -125,8 +127,11 @@ def test_a_dry_run_prints_every_structural_marks_denominator_read_off_the_regist
     assert scorecard["denominators"] == {"09-fixture": {
         "calibration": len(entry.calibrated_keys()),
         "respondent": {"PRIMARY": sum(len(keys) for keys in plan.values())},
-        "sweep_a": len(fx.registry().calibrated_slice("PROBLEM", False)) + len(plan[1]),
-        "sweep_b": sum(len(keys) for keys in plan.values())}}
+        "sweep_a": (len(fx.registry().calibrated_slice("PROBLEM", False)) - 1)
+        + (len(plan[1]) - 1),
+        "sweep_b": sum(len(keys) for keys in plan.values()) - 2,
+        "short_name": None, "offer_name": None}}
     out = capsys.readouterr().out
-    assert "denominators read off the registry, per N: dimension_coverage 10 calibration + 9 " \
+    assert "denominators read off the registry, per N: dimension_coverage 11 calibration + 10 " \
            "respondent" in out
+    assert "W3 held to no name · W8 held to no name" in out
