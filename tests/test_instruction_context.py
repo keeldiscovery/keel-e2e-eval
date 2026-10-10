@@ -1,5 +1,5 @@
-"""The seven context builders at `MARKS_VERSION` 10 (spec 029 contracts/screen-shapes.md §2; T018;
-spec 030: the calibrated slice per persona, call 47).
+"""The seven context builders at `MARKS_VERSION` 11 (spec 029 contracts/screen-shapes.md §2; T018;
+spec 030: the calibrated slice per persona, call 47; spec 031: the names and figures, calls 55, 57).
 
 Every key the exporter names, in the exporter's order, filled from the corpus entry and the
 registry and nothing else -- and, as much to the point, what each one must **not** carry: no

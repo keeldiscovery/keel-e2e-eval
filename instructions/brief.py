@@ -197,7 +197,7 @@ def score_brief(case, entry, result, *, outcome: str | None = None, failed: str 
     score = BriefScore(case_id=case.case_id, entry_id=entry.id, run_index=case.run_index,
                        failed=failed)
     vectors = _vectors(case)
-    del registry      # kept in the signature for the callers; v10's four marks read no registry
+    del registry      # kept in the signature for the callers; the four marks read no registry
 
     if needs_input_questions is not None:
         score.needs_input = True

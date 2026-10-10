@@ -78,7 +78,44 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
-### `MARKS_VERSION` 10 — the gate as written, **no run of record yet** (spec `030-marks-v10-deal-breakers`, 2026-10-09)
+### `MARKS_VERSION` 11 — the gate as written, **no run of record yet, and its run on hold** (spec `031-window-frame-and-price`, 2026-10-09)
+
+**Written here before the run, so the run is read against the gate as written.** keel-cloud 072
+(*the window frame*) and 073 (*Price*), on the stacked branch `073-price` (`0925484`), moved the
+subjects' words: code now writes the four windowed questions around one model-written `event`
+clause, Price is back (thirteen dimensions, 4 / 3 / 6) with its question and ladder code's, the
+model writes no money, and every kind of cost carries its unit. The ruler follows (judgement calls
+50–58). **There is no v11 run of record until `WHY=marks:11` is spent, and that run is on hold by
+the founder** — `make instruction-eval HOST=claude WHY=marks:11 MODELS=exported` is ready and is
+neither run nor proposed here. Until then the standing gate is **unmet for both hosts at v11**.
+
+- **The same eight subjects and the same eight marks, unchanged in number** (`marks.toml`).
+- **The registry is thirteen** (call 50): `commercial.price` at commercial order 2, SHAPES, asked of
+  whoever pays, `price_range` over exactly `month · year · one_off` (an invariant-5 fault
+  otherwise); Existing sacrifice asked as `branch_pick_amounts`; Ability to pay's rungs renamed.
+- **The corpus is revision 5** (call 51), keel-cloud's canon only: a founder price per entry (Mulch
+  Run's left out), every Price row the ladder's five bands around the low plus *I wouldn't pay for
+  this*, Existing sacrifice in amounts by unit. An r4 file refuses the load by name as v10's.
+- **The window is code's** (call 52): Prevalence and the gate are read as their `event` clause and
+  held to E1–E3, mirrored from `WindowFrame.fault` (`instructions/wording.py`); Frequency over a
+  framed window owes no text; C7 and R8 are retired.
+- **Price is code's on both sides** (call 53) and never swept by `no_leak`; nor is a framed Frequency.
+- **W7, W9 and U1 are `option_validity` faults** (call 54); **W3 and W8 hold only to a name the
+  corpus records** (call 55) — revision 5 records neither, so both are held to none, and the dry run
+  says so per entry.
+- **S1, W1, W2, W5 and W6 are reported per question, never marked** (call 56): the subject only
+  instructs them, so a mark would be the ruler inventing a rule.
+- **The brief's two commercial figures are keel-cloud's own** (call 57): *a median £22 over three
+  months*; *5 of 8 said it would be worth £5 a month or more*.
+- **Every denominator is read, never typed**: calibration **11** (B2C) / **13** (B2B), 83 an N;
+  respondent 4 / 3 / 4 on `PRIMARY` (B2C), 4 / 3 + **6** on `COMMERCIAL_B2B` (B2B; 5 on Mulch Run),
+  82 an N; `no_leak` 46 sweep-A + 71 sweep-B items an N; `compare_correctness` **104** on seven.
+  `anchoring_accuracy` is still 65 reads at N=1; a full run is still 135 model cases at N=1.
+- **`rescore.py` refuses every bundle below 11 by name** (call 58).
+- **`DRY=1` against keel-cloud 073 (`0925484`), 2026-10-09**: `compare_correctness` **104 of 104**,
+  every other mark unmeasured (no model is called), denominators as above, nothing spent.
+
+### `MARKS_VERSION` 10 — the gate as written (spec `030-marks-v10-deal-breakers`, 2026-10-09; history since v11, never run)
 
 **Written here before the run, so the run is read against the gate as written.** keel-cloud 071
 cut the dimension registry from twenty-five to **twelve** (4 / 3 / 5) and the corpus to
@@ -135,7 +172,8 @@ the re-score as the certificate (decision 48, 2026-10-08). **Every mark met:**
 
 `runs/` is gitignored, so the bundle lives on the founder's machine only; its `scorecard-v9.json`
 is sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. The standing gate was
-**met for Claude at v9**; since 2026-10-09 it is v10's, and v10 has no run of record yet.
+**met for Claude at v9**; since 2026-10-09 it is v10's and then v11's, and neither has a run of
+record yet.
 
 ### `MARKS_VERSION` 9 — the gate as written, before its run of record (spec `029-marks-v9-vectors`, 2026-10-07)
 
@@ -1256,9 +1294,11 @@ KEEL_COPILOT_MODEL=gpt-5.6-luna \
   its own bundle without spending again: `python -m instructions.rescore runs/<id>`, which writes
   `scorecard-v<N>.json` beside the original rather than over it.
 
-  **`MARKS_VERSION` is 10** since 2026-10-09 (spec `030-marks-v10-deal-breakers`, judgement calls
-  46–49; the gate as written is the section *`MARKS_VERSION` 10* near the top of this file) and has
-  **no run of record until `WHY=marks:10` is spent**; `rescore.py` refuses every v9 bundle by name.
+  **`MARKS_VERSION` is 11** since 2026-10-09 (spec `031-window-frame-and-price`, judgement calls
+  50–58; the gate as written is the section *`MARKS_VERSION` 11* near the top of this file) and has
+  **no run of record until `WHY=marks:11` is spent** — on hold by the founder; `rescore.py` refuses
+  every bundle below 11 by name. **`MARKS_VERSION` was 10** for the same day (spec
+  `030-marks-v10-deal-breakers`, judgement calls 46–49), never run.
   **`MARKS_VERSION` was 9** from 2026-10-07 (spec `029-marks-v9-vectors`, judgement calls 28–36; the
   section *`MARKS_VERSION` 9* near the top of this file, history). What follows is v8's
   account, kept: **`MARKS_VERSION` was 8** from 2026-09-30 (spec `025-one-occasion-marks`, judgement calls 23–27),

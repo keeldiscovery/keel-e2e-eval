@@ -1,5 +1,5 @@
-"""`instructions/score.py` at `MARKS_VERSION` 10 (spec 029 data-model §6; T025, T029, T035, T039,
-T040, T042, T043; spec 030 T009-T010, calls 46-47).
+"""`instructions/score.py` at `MARKS_VERSION` 11 (spec 029 data-model §6; T025, T029, T035, T039,
+T040, T042, T043; spec 030 T009-T010, calls 46-47; spec 031 T010, calls 52-55).
 
 Fixtures a person can check by hand: the hand-sized registry slice of twelve and
 `09-fixture-r5.yaml` (B2C: eleven calibrated keys, one left out). Every mark has its green half and its
