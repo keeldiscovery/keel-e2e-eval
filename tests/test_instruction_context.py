@@ -186,32 +186,33 @@ def test_a_read_carries_an_invitation_and_one_story_and_no_stage_or_anchors(entr
     assert "anchors" not in built and "stage" not in repr(built)
 
 
-def test_the_brief_carries_three_vectors_with_their_verdicts_and_belief_sentences(entry, registry):
+def test_the_brief_carries_the_facts_the_beliefs_and_the_stories(entry, registry):
+    """keel-cloud 079 (contract 9): `project_name, market, context, facts, beliefs, stories`; the
+    three vectors live on in `facts.vectors` and the dimension standings in the facts' sections."""
     built = context_mod.build_brief(entry)
-    assert list(built) == ["project_name", "market", "context", "vectors"]
-    assert "claims" not in built
-    vectors = built["vectors"]
-    assert [v["vector"] for v in vectors] == ["PROBLEM", "SOLUTION", "COMMERCIAL"]
-    problem = vectors[0]
-    assert (problem["verdict"], problem["deciding"]) == ("NOT_HOLDING_UP", "problem.importance")
-    assert [d["key"] for d in problem["dimensions"]] == \
-        [d.key for d in registry.calibrated_slice("PROBLEM", entry.b2b())]
-    frequency = next(d for d in problem["dimensions"] if d["key"] == "problem.frequency")
+    assert list(built) == ["project_name", "market", "context", "facts", "beliefs", "stories"]
+    assert "claims" not in built and "vectors" not in built
+    facts = built["facts"]
+    assert [v["vector"] for v in facts["vectors"]] == ["PROBLEM", "SOLUTION", "COMMERCIAL"]
+    assert [v["words"] for v in facts["vectors"]] == [
+        "Not holding up", "Holding up", "Not holding up"]
+    assert facts["decision"]["label"] == "NOT_YET" and facts["decision"]["howSure"] == "MEDIUM"
+    assert facts["decision"]["reason"] == "Smallest group: 8 people."
+    assert facts["money"] == {"currency": "GBP", "currencySymbol": "\u00a3", "period": "month",
+                              "periodWords": "a month"}
+    assert facts["problem"]["prevalence"] == {"yes": 10, "n": 12, "window": "the last 7 nights"}
+    assert facts["commercial"]["existing_sacrifice"]["said"] == "a median \u00a312 a month", "call 57"
+    assert facts["keys"][0] == "problem.prevalence" and len(facts["keys"]) == 12
+    assert facts["sharpest"] is None, "the corpus records no cross-tab"
+    assert {t["key"] for t in facts["targets"]} <= set(facts["keys"])
+    assert {b["key"] for b in built["beliefs"]} <= set(facts["keys"])
+    frequency = next(b for b in built["beliefs"] if b["key"] == "problem.frequency")
     assert frequency["belief_sentence"] == \
         entry.founder_calibration["problem.frequency"]["belief_sentence"]
     assert frequency["founder_phrase"] == "2 to 4 nights out of 7"
-    assert frequency["observed"] == "2.5 nights out of 7", \
-        "the median in the founder's own unit (call 19)"
-    assert frequency["below"] is None and frequency["above"] is None
-    commercial = vectors[2]
-    assert [d["key"] for d in commercial["dimensions"]] == [
-        "commercial.existing_sacrifice", "commercial.price", "commercial.ability_to_pay",
-        "commercial.buyer_payer_alignment", "commercial.commitment"], \
-        "calls 47, 59: a B2C brief carries Ability to pay (derived, calibrated) and no Purchase friction"
-    price = commercial["dimensions"][1]
-    assert price["observed"] == "4 of 8 said it would be worth £2 a month or more", "call 57"
-    assert commercial["dimensions"][2]["observed"] == "7 of 8 already spend £3 a month or more", "call 64"
-    assert commercial["dimensions"][0]["observed"] == "a median £12 a month"
+    assert built["stories"] and all(set(s) == {"invitation_id", "link", "story"}
+                                    for s in built["stories"])
+
 
 
 def test_the_stage_shaped_builders_are_gone():

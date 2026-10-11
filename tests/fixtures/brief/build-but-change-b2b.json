@@ -1,0 +1,255 @@
+{
+ "case_id": "fixture/BRIEF/build-but-change-b2b",
+ "screen": "BRIEF",
+ "market": {
+  "country": "IE",
+  "region": null,
+  "language": "en-IE"
+ },
+ "facts": {
+  "decision": {
+   "label": "BUILD_BUT_CHANGE",
+   "howSure": "MEDIUM",
+   "reason": "Smallest group: 5 decision-makers.",
+   "smallestN": 5
+  },
+  "vectors": [
+   {
+    "vector": "PROBLEM",
+    "verdict": "HOLDING_UP",
+    "words": "Holding up"
+   },
+   {
+    "vector": "SOLUTION",
+    "verdict": "NOT_HOLDING_UP",
+    "words": "Not holding up"
+   },
+   {
+    "vector": "COMMERCIAL",
+    "verdict": "NOT_HOLDING_UP",
+    "words": "Not holding up"
+   }
+  ],
+  "money": {
+   "currency": "EUR",
+   "currencySymbol": "€",
+   "period": "month",
+   "periodWords": "a month"
+  },
+  "problem": {
+   "prevalence": {
+    "yes": 10,
+    "n": 12,
+    "window": "the last 7 nights"
+   },
+   "frequency": {
+    "median": 5,
+    "middle": "5 nights out of 7",
+    "n": 8
+   },
+   "importance": {
+    "fixFirst": 6,
+    "n": 8,
+    "topOther": {
+     "code": "feeding",
+     "label": "Feeding",
+     "count": 1
+    }
+   },
+   "currentSolution": {
+    "workedWell": 1,
+    "afterATry": 2,
+    "didNotWork": 5,
+    "n": 8
+   }
+  },
+  "solution": {
+   "rows": [
+    {
+     "key": "solution.compatibility",
+     "name": "Compatibility",
+     "theirs": {
+      "code": "after_first_try",
+      "label": "After the first thing I tried",
+      "count": 6
+     },
+     "n": 8,
+     "yoursCode": "at_the_start",
+     "yours": "right at the start, before anything is tried",
+     "differs": true,
+     "status": "NOT_HOLDING_UP"
+    }
+   ],
+   "differ": [
+    "solution.compatibility"
+   ],
+   "nothingWouldChange": 1,
+   "n": 8
+  },
+  "commercial": {
+   "sacrifice": {
+    "medianSaid": "€240 a month",
+    "counted": 5,
+    "status": "HOLDING_UP"
+   },
+   "price": {
+    "atOrAbove": 2,
+    "n": 5,
+    "founderBand": "€100 to €200",
+    "status": "NOT_HOLDING_UP"
+   },
+   "priceTable": {
+    "rows": [
+     {
+      "edge": 50,
+      "edgeSaid": "€50 a month",
+      "lose": 5,
+      "chose": 4,
+      "startHere": true,
+      "testThis": false
+     },
+     {
+      "edge": 100,
+      "edgeSaid": "€100 a month",
+      "lose": 4,
+      "chose": 2,
+      "startHere": false,
+      "testThis": true
+     }
+    ],
+    "counted": 5,
+    "n": 5,
+    "start": 50,
+    "startSaid": "€50 a month",
+    "test": 100,
+    "testSaid": "€100 a month",
+    "qualifies": true
+   }
+  },
+  "sharpest": null,
+  "targets": [
+   {
+    "key": "commercial.price",
+    "name": "Price",
+    "status": "NOT_HOLDING_UP",
+    "n": 5
+   },
+   {
+    "key": "commercial.purchase_friction",
+    "name": "Purchase friction",
+    "status": "PEOPLE_DISAGREE",
+    "n": 5
+   }
+  ],
+  "keys": [
+   "problem.prevalence",
+   "problem.frequency",
+   "problem.importance",
+   "problem.current_solution_satisfaction",
+   "solution.compatibility",
+   "solution.relative_advantage",
+   "solution.adoption_friction",
+   "commercial.existing_sacrifice",
+   "commercial.price",
+   "commercial.ability_to_pay",
+   "commercial.buyer_payer_alignment",
+   "commercial.purchase_friction",
+   "commercial.commitment"
+  ]
+ },
+ "stories": [
+  {
+   "invitation_id": "6d3a9e67-0000-4000-8000-000000000001",
+   "link": "PRIMARY",
+   "story": "Around 3am she woke screaming. I tried feeding, then rocking, then just walked the landing for forty minutes guessing what was wrong."
+  }
+ ],
+ "result": {
+  "headline": {
+   "text": "Build, but change the price: the problem and your solution are holding up, and the buyers will not go to your band.",
+   "cites": [
+    "problem.prevalence",
+    "solution.compatibility",
+    "commercial.price"
+   ]
+  },
+  "tiles": {
+   "problem": {
+    "text": "10 of 12 had a night like it in the last 7 nights.",
+    "cites": [
+     "problem.prevalence"
+    ]
+   },
+   "solution": {
+    "text": "They would reach for it where you said.",
+    "cites": [
+     "solution.compatibility"
+    ]
+   },
+   "commercial": {
+    "text": "2 of 5 decision-makers said it would be worth your band or more.",
+    "cites": [
+     "commercial.price"
+    ]
+   }
+  },
+  "problem": {
+   "conclusion": {
+    "text": "The problem deserves a product: it is common and the thing most would fix first.",
+    "cites": [
+     "problem.prevalence",
+     "problem.importance"
+    ]
+   },
+   "infer": {
+    "text": "10 of 12 had it, on a middle 5 nights out of 7, so this is a nightly cost for most of them, not an occasional one.",
+    "cites": [
+     "problem.prevalence",
+     "problem.frequency"
+    ]
+   }
+  },
+  "solution": {
+   "conclusion": {
+    "text": "The moment of use fits what they told you, so there is no change to make there yet.",
+    "cites": [
+     "solution.compatibility"
+    ]
+   }
+  },
+  "commercial": {
+   "conclusion": {
+    "text": "Start at €50 a month and test €100 a month: they already lose €240 a month to this, and only 2 of 5 said your band or more.",
+    "cites": [
+     "commercial.price",
+     "commercial.existing_sacrifice"
+    ]
+   }
+  },
+  "next": {
+   "sentence": {
+    "text": "Before you build, find out what the buyers would pay and what stops them buying.",
+    "cites": [
+     "commercial.price",
+     "commercial.purchase_friction"
+    ]
+   },
+   "tests": [
+    {
+     "key": "commercial.price",
+     "text": "Ask the buyers below your band what made the lower band feel right."
+    },
+    {
+     "key": "commercial.purchase_friction",
+     "text": "Ask what would stop them buying even at that price."
+    }
+   ]
+  },
+  "quotes": [
+   {
+    "invitationId": "6d3a9e67-0000-4000-8000-000000000001",
+    "text": "Around 3am she woke screaming."
+   }
+  ]
+ }
+}

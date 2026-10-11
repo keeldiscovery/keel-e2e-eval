@@ -1,169 +1,203 @@
 """The `BRIEF` subject: does keel-cloud's own `brief.md`, sent to a real model with a real
-project's standings, come back as the paragraph a founder reads under *What this says*?
+project's counted facts, come back as the checked reading a founder sees on the brief page?
 
-The third subject of this eval, and the last screen keel-cloud has (spec 009 follow-on;
-keel-cloud spec 030 FR-006/FR-008/FR-009). It is the one screen **nobody asks for**:
-`ReadingBatchService.sayWhatThisSays` starts the job by itself the moment a reading batch
-finishes, so there is no founder, no question and no second turn -- which is why `brief.md` says
-*you always return COMPLETED* and why the marks below treat a `NEEDS_INPUT` as a failed case
-rather than an ask.
+**Since keel-cloud 079 (contract 9, MARKS_VERSION 14)** the result is no longer one paragraph
+(`whatThisSays`, retired with its four marks) but a structured reading: `{headline, tiles, problem:
+{conclusion, infer}, solution: {conclusion}, commercial: {conclusion}, sharpest?, next: {sentence,
+tests[]}, quotes[]}`, every sentence `{text <= 400, cites[] <= 13}`. The facts are keel-cloud's
+(counted by code); the model only infers over them, and keel-cloud's `BriefReading.check`
+(refusal `B7`) holds every inferred line to the facts it was written over.
 
-**What can honestly be marked here, and what cannot.** The contract is one free-text field, so
-almost everything about a good paragraph is wording -- and design §3.8's rule holds: whether it
-reads like someone who has read all three cards cannot be checked by code. So the paragraph is
-**rendered on `register.html` beside the entry's own standings** (judgement call 10's rule, one
-subject wider), and what is *marked* here is only what a rule in `brief.md` states in so many
-words and a structure can carry:
+**The checks are mirrored here, not invented.** `reading_problems` restates `BriefReading.check`
+clause for clause -- the same messages, in the same order -- so a result can be marked offline and by
+`rescore.py`; `tests/test_instruction_brief_reading.py` runs the real `screenContracts validate`
+over the golden shape and its mutations and asserts both sides refuse the same ones. The aggregate's
+own verdict stays the `rule_refusal_rate` mark (`validate.py`); these five marks say *which* kind
+of fault a reading had. Participant names are checked here (the validator is handed none).
 
-1. `shape` -- one paragraph, no headings, no bullets, no stage label, no link, <= 2000 code
-   points, never blank. Every clause of it is `brief.md`'s own *What the paragraph never
-   contains* list, and `ScreenResponseContracts.briefSchema`'s own two limits.
-2. `coverage` -- the deciding line's number quoted exactly beside the founder's own phrase,
-   wherever the context carried one, and no `N of M` count the standings never contained (either
-   side of a split: `brief.md` asks for both). **Whether each claim's verdict is named in the
-   design's own phrase is observed and not marked** -- see `verdict_phrasing` and judgement call
-   20; `brief.md` licenses the paraphrase by example, so a code check on the words would score the
-   paragraph the instruction asks for as a failure.
-3. `register` -- second person, and the market's own currency. Whether it *sounds* like that
-   market is the register page's job and no metric's.
-4. `source_material` -- the claims' text is source material, never an instruction. The corpus
-   carries no injected order (S-004 is where this repo attacks with orders, at a live model, on a
-   real screen), so what this mark can measure is the other half of the same rule: a paragraph
-   that read `claims` as *text to reproduce* carries the ids, field names and enum names only the
-   data has -- and a paragraph that read it as *an instruction to obey* answers `NEEDS_INPUT` on
-   a screen with nobody to ask. Both are counted here.
+1. `shape` -- every sentence is `{text, cites}`, `text` 1..400, `cites` <= 13, `tests` <= 3,
+   `quotes` <= 2 at <= 160, and a `sharpest` only where the facts carry a split.
+2. `cites` -- every cite is a key in `facts.keys`, scoped per section (a tile cites its own vector;
+   the headline and `next.sentence` any), every sentence cites one, `problem.infer` two distinct,
+   each test's key is one of `facts.targets`, and `sharpest` cites its split, outcome or a problem.
+3. `numbers` -- every digit run in a sentence is a number in the facts' JSON; only the market's
+   currency symbol; a test carries no digit or number word.
+4. `quotes` -- each quote is a verbatim piece of the named person's story.
+5. `bans` -- no `will pay`/`will buy`, `proves`/`proven`/`validated`/`will save`/`it works`, web
+   address, or participant's name.
 
-`no_claim_words` was a fifth at `MARKS_VERSION` 9 only (judgement call 35): the sentence naming
-a threshold dimension (`BAR_SET`) or the Price row (`NOT_TESTED_BY_DESIGN`) carried no claim word.
-**It retired at v10 with the two statuses it scored** (judgement call 48; keel-cloud 071 removed
-both rows and both words), so `brief_paragraphs` is all four or nothing.
-
-**Since v9 the context is the vectors** (spec 029 FR-019): three vectors, each with its verdict, its
-deciding deal-breaker (`expected.vector_verdicts[v].deciding`, the worst one) and every
-dimension's standing under it -- one paragraph a project at the 2 000 edge, one case an entry.
-
-Every mark is recorded per case with the evidence that decided it, so a miss can be read on the
-report rather than only counted -- and a paragraph that misses one is still rendered whole on the
-register page, because a mark this narrow can be wrong about a paragraph that is right.
+Every mark is recorded per case with the evidence that decided it, and the reading is rendered whole
+on `register.html` beside the facts it was written over (judgement call 10's rule).
 """
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation
 
-# ------------------------------------------------------------------------------- the vocabulary
+# `ScreenResponseContracts` -- BRIEF_*: the contract's own limits, mirrored and nothing else.
+SENTENCE_MAX = 400
+CITES_MAX = 13
+TESTS_MAX = 3
+QUOTES_MAX = 2
+QUOTE_MAX = 160
 
-# The verdict words, keyed by the `Status` the context carries (MARKS_VERSION 9). **Observed and
-# never marked** (judgement call 20): `brief.md` licenses the paraphrase by example, so a code check
-# on the words would score the paragraph the instruction asks for as a failure. `verdict_phrasing`
-# records per vector whether the design's own phrase appears, the register renders it, a person
-# decides.
-VERDICT_MARKERS = {
-    "HOLDING_UP": ("holding up", "holds up", "held up"),
-    "NOT_HOLDING_UP": ("not holding up", "isn't holding up", "is not holding up",
-                       "not hold up", "doesn't hold up", "does not hold up", "didn't hold up",
-                       "did not hold up"),
-    "PEOPLE_DISAGREE": ("disagree", "disagrees", "disagreed", "disagreement"),
-    "TOO_FEW_TO_CALL": ("too few",),
-    "NOT_ASKED_YET": ("not asked",),
-    "LEFT_OUT": ("left out",),
-}
+_NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
+_NUMBER_WORD = re.compile(r"(?i)\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
+                          r"twenty|thirty|forty|fifty|hundred|thousand|million|half|percent|"
+                          r"per cent)\b")
+_CURRENCY = re.compile(r"[£$€¥₹]")
+_WEB = re.compile(r"(?i)(https?://|www\.|\b[a-z0-9-]+\.(com|io|co|net|org|app|ai|uk)\b)")
+_PURCHASE = re.compile(r"(?i)\bwill\s+(pay|buy)\b")
+_IDEA = re.compile(r"(?i)\b(proves|proven|validated|will save|it works)\b")
 
-# `NOT_HOLDING_UP`'s phrase contains `HOLDING_UP`'s, so the negative is always taken out of the
-# paragraph first and `HOLDING_UP` is looked for in what is left. Getting this the other way round
-# would call every vector that is not holding up one that is.
-_NEGATED_FIRST = "NOT_HOLDING_UP"
+#: `BriefReading.SENTENCES`: where a sentence sits, and the dimension prefix it may cite (`None`: any).
+SENTENCES = (("headline", None, None), ("tiles", "problem", "problem."),
+             ("tiles", "solution", "solution."), ("tiles", "commercial", "commercial."),
+             ("problem", "conclusion", "problem."), ("problem", "infer", "problem."),
+             ("solution", "conclusion", "solution."), ("commercial", "conclusion", "commercial."),
+             ("next", "sentence", None))
 
-# `brief.md`: "No bullet, no numbered list, no heading, no line break: one paragraph."
-_BULLET_GLYPHS = ("•", "‣", "◦", "⁃")
-_LEADING_MARKER_RE = re.compile(r"^\s*(?:[-*#>]|\d+[.)])\s")
-# `ScreenResponseContracts.NO_LINK_PATTERN`, restated as the contract states it.
-_LINK_RE = re.compile(r"https?://|www\.", re.IGNORECASE)
-# 2 000 since MARKS_VERSION 7 (judgement call 23, the founder, 2026-09-13: "I plan to revisit the
-# brief structure, so for now increase the cap on brief to 2000") -- the contract's own edge,
-# `ScreenResponseContracts.WHAT_THIS_SAYS_MAX`, after DRIFT #68; this mirrors it and nothing else.
-WHAT_THIS_SAYS_MAX = 2000
-
-# `brief.md`: "never PROBLEM, SOLUTION or COMMERCIAL" -- the three vector names. Case-sensitive and
-# whole-word, the way `evals/policy.py`'s own enum sweep reads them -- the lower-case English words
-# are the founder's screen's own copy (*the problem*, *your solution*, *on price*) and are correct.
-VECTOR_LABELS = ("PROBLEM", "SOLUTION", "COMMERCIAL")
-STAGE_LABELS = VECTOR_LABELS
-
-# The names only the data has. A paragraph carrying one has reproduced `claims` rather than read
-# it. `brief.md`: "no id, no field name, no enum name, no rule id" -- and "never the word proxy".
-#
-# **The ordinary-English collisions are exempt**, the same way `evals/policy.py`'s judgement calls
-# 1, 5 and 10 exempt theirs: `inside`, `outside`, `guessed`, `escaped`, `claims`, `beliefs`,
-# `statement`, `heading`, `risk`, `mark`, `verdict` and `drift` are all words `brief.md` itself
-# tells the model to write -- *"how many people landed inside the founder's own band"* is the
-# instruction's own sentence. Sweeping them would flag the paragraph the instruction asks for.
-# What is left is the shape a field name has and prose does not: an underscore, a camel case, or
-# a word no English sentence about a founder's claims would reach for.
-CONTEXT_FIELD_NAMES = (
-    "whatThisSays", "project_name", "median_reads", "founder_phrase", "founderPhrase",
-    "askedOf", "anchorId", "selectionId", "roleType", "existing_roles",
-    # MARKS_VERSION 9: the vector context's own field names.
-    "belief_sentence", "belief_phrase", "n_anchored", "n_guessed", "vector_verdicts",
-    "optionCounts", "founder_calibration", "status_vocabulary", "actor_plural",
-)
-#: The six `Status` words (keel-cloud 071), the two weights, the drift words and the outcomes
-#: (marks §2.6). The vector names are swept by `shape` as labels and here as names, both whole-word
-#: upper-case.
-ENUM_NAMES = ("HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE", "TOO_FEW_TO_CALL",
-              "NOT_ASKED_YET", "LEFT_OUT", "DEAL_BREAKER", "SHAPES",
-              "PROBLEM", "SOLUTION", "COMMERCIAL",
-              "BELOW", "ABOVE", "BOTH", "NONE", "COMPLETED", "NEEDS_INPUT")
-#: Every dotted dimension key -- `problem.frequency` is the data's name, never a founder's word.
-_DOTTED_KEY_RE = re.compile(r"\b(?:problem|solution|commercial)\.[a-z_]+\b")
-
-SECOND_PERSON = ("you", "your", "yours", "you're", "youre")
-_WORD_RE = re.compile(r"[A-Za-z']+")
-
-# Every currency glyph this corpus's markets could put in a paragraph. The allowed set is read off
-# the context that was actually sent, so nothing here decides what GB or US money looks like.
-CURRENCY_GLYPHS = ("£", "$", "€", "¥")
-
-# `brief.md`: "*seven of nine* is `inside` and `inside + outside` read out". A count may be
-# written in words, so the small numbers are named here -- the corpus's largest cohort is twenty.
-_NUMBER_WORDS = {
-    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
-    "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13,
-    "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
-    "nineteen": 19, "twenty": 20,
-}
-_COUNT_RE = re.compile(
-    r"\b(\d{1,3}|" + "|".join(_NUMBER_WORDS) + r")\s+of\s+(?:the\s+)?(\d{1,3}|"
-    + "|".join(_NUMBER_WORDS) + r")\b", re.IGNORECASE)
+MARK_NAMES = ("shape", "cites", "numbers", "quotes", "bans")
 
 
-def _number(token: str):
-    token = token.lower()
-    return _NUMBER_WORDS.get(token, int(token) if token.isdigit() else None)
+def _section(value, key) -> dict:
+    inner = value.get(key) if isinstance(value, dict) else None
+    return inner if isinstance(inner, dict) else {}
 
 
-# ------------------------------------------------------------------------------- the deciding line
-
-def deciding_line(vector_standing: dict) -> dict | None:
-    """The dimension a vector's verdict turns on: `expected.vector_verdicts[v].deciding`, the
-    vector's worst deal-breaker (judgement call 35), looked up among the dimensions the context
-    carried. Nothing is computed from it -- it only says which dimension the paragraph's sentence
-    about that vector must be about. `None` when the vector names none or carries no such
-    dimension."""
-    deciding = (vector_standing or {}).get("deciding")
-    if not deciding:
-        return None
-    for dimension in vector_standing.get("dimensions") or []:
-        if dimension.get("key") == deciding:
-            return dimension
-    return None
+def _cites(sentence) -> list:
+    cites = sentence.get("cites") if isinstance(sentence, dict) else None
+    return [str(c) for c in cites] if isinstance(cites, list) else []
 
 
-# ------------------------------------------------------------------------------------- the marks
+def _normal(number: str) -> str:
+    plain = number.replace(",", "").rstrip(".")
+    try:
+        return format(Decimal(plain).normalize(), "f")
+    except InvalidOperation:
+        return plain
 
-#: The four per-case marks (`no_claim_words` retired at v10, judgement call 48).
-MARK_NAMES = ("shape", "coverage", "register", "source_material")
+
+def numbers_in(text: str) -> set:
+    return {_normal(m.group()) for m in _NUMBER.finditer(text)}
+
+
+def reading_problems(result, facts, stories, names=()) -> list:
+    """`BriefReading.check`, restated: every `(mark, message)` a result has against the facts it
+    was written over, the stories by invitation id and the names never to say. Messages are
+    keel-cloud's own words. `facts` `None` checks only what needs none."""
+    problems = []
+    if not isinstance(result, dict):
+        return [("shape", "result: missing")]
+    keys = None if facts is None else {str(k) for k in facts.get("keys") or []}
+    numbers = None if facts is None else numbers_in(json.dumps(facts, ensure_ascii=False))
+    symbol = (facts or {}).get("money", {}).get("currencySymbol") if facts else None
+    split = (facts or {}).get("sharpest") if facts else None
+
+    def add(mark, message):
+        problems.append((mark, message))
+
+    def bans(path, text):
+        if (m := _PURCHASE.search(text)):
+            add("bans", f"{path}: '{m.group()}' claims a purchase; a stated price is what it "
+                          "was said to be worth")
+        if (m := _IDEA.search(text)):
+            add("bans", f"{path}: '{m.group()}' claims the idea works; nobody has used it")
+        if _WEB.search(text):
+            add("bans", f"{path}: no web address")
+        lower = text.lower()
+        for name in names:
+            if re.search(rf"\b{re.escape(name.lower())}\b", lower):
+                add("bans", f"{path}: names a person ('{name}')")
+
+    def money(path, text):
+        for m in _CURRENCY.finditer(text):
+            if symbol is None or m.group() not in symbol:
+                add("numbers", f"{path}: the currency {m.group()} is not the market's")
+
+    def sentence(path, value, vector):
+        text = value.get("text") if isinstance(value, dict) else None
+        if not isinstance(text, str) or not text.strip():
+            add("shape", f"{path}: a sentence {{text, cites}} is missing")
+            return
+        if len(text) > SENTENCE_MAX:
+            add("shape", f"{path}.text: {len(text)} characters, over {SENTENCE_MAX}")
+        cites = _cites(value)
+        if len(cites) > CITES_MAX:
+            add("shape", f"{path}.cites: more than {CITES_MAX}")
+        if not cites:
+            add("cites", f"{path}.cites: cites at least one dimension")
+        for cite in cites:
+            if keys is not None and cite not in keys:
+                add("cites", f"{path}.cites: '{cite}' is not a dimension on this project")
+            elif vector is not None and not cite.startswith(vector):
+                add("cites", f"{path}.cites: '{cite}' is not a {vector[:-1]} dimension")
+        if numbers is not None:
+            for m in _NUMBER.finditer(text):
+                if _normal(m.group()) not in numbers:
+                    add("numbers", f"{path}.text: the number {m.group()} is not in the facts")
+        money(f"{path}.text", text)
+        bans(f"{path}.text", text)
+
+    for outer, inner, vector in SENTENCES:
+        value = result.get(outer) if inner is None else _section(result, outer).get(inner)
+        sentence(outer if inner is None else f"{outer}.{inner}", value, vector)
+    infer = _cites(_section(result, "problem").get("infer"))
+    if len(set(infer)) < 2:
+        add("cites", f"problem.infer: cites at least two problem dimensions (cited {infer})")
+    sharpest = result.get("sharpest")
+    if sharpest is not None:
+        if facts is not None and not split:
+            add("shape", "sharpest: the facts carry no split, so there is no sharpest sentence")
+        else:
+            sentence("sharpest", sharpest, None)
+            for cite in _cites(sharpest) if facts is not None else []:
+                if not cite.startswith("problem.") and cite not in (split.get("split"),
+                                                                    split.get("outcome")):
+                    add("cites", f"sharpest: cites '{cite}', which is neither the split, the "
+                                 "outcome nor a problem dimension")
+    tests = _section(result, "next").get("tests")
+    targets = None if facts is None else {str(t.get("key")) for t in facts.get("targets") or []
+                                          if isinstance(t, dict)}
+    if not isinstance(tests, list):
+        add("shape", "next.tests: missing")
+    else:
+        if len(tests) > TESTS_MAX:
+            add("shape", f"next.tests: at most {TESTS_MAX} tests")
+        for i, test in enumerate(tests):
+            test = test if isinstance(test, dict) else {}
+            text = test.get("text") if isinstance(test.get("text"), str) else ""
+            path = f"next.tests[{i}]"
+            if not text.strip():
+                add("shape", f"{path}.text: blank")
+            if targets is not None and str(test.get("key")) not in targets:
+                add("cites", f"{path}.key: '{test.get('key')}' is not a next-test target "
+                             f"{sorted(targets)}")
+            if _NUMBER.search(text) or _NUMBER_WORD.search(text):
+                add("numbers", f"{path}.text: a test carries no number")
+            money(f"{path}.text", text)
+            bans(f"{path}.text", text)
+    quotes = result.get("quotes")
+    if not isinstance(quotes, list):
+        add("shape", "quotes: missing")
+    else:
+        if len(quotes) > QUOTES_MAX:
+            add("shape", f"quotes: at most {QUOTES_MAX}")
+        for i, quote in enumerate(quotes):
+            quote = quote if isinstance(quote, dict) else {}
+            text = quote.get("text") if isinstance(quote.get("text"), str) else ""
+            story = (stories or {}).get(str(quote.get("invitationId")))
+            path = f"quotes[{i}]"
+            if not text.strip() or len(text) > QUOTE_MAX:
+                add("shape", f"{path}.text: 1 to {QUOTE_MAX} characters")
+            if story is None:
+                add("quotes", f"{path}.invitationId: '{quote.get('invitationId')}' has no story")
+            elif text.strip() and text not in story:
+                add("quotes", f"{path}.text: not a verbatim piece of that person's story")
+    return problems
 
 
 @dataclass
@@ -171,224 +205,83 @@ class BriefScore:
     case_id: str
     entry_id: str
     run_index: int
-    paragraph: str = ""
+    reading: dict = field(default_factory=dict)
     failed: str | None = None
     needs_input: bool = False
     needs_input_questions: list = field(default_factory=list)
     marks: dict = field(default_factory=dict)        # name -> True | False | None (n/a)
     findings: dict = field(default_factory=dict)     # name -> the evidence that decided it
-    phrasing: list = field(default_factory=list)     # per vector, observed and never marked
-    length: int = 0
+    length: int = 0                                  # characters across every sentence
     subject: str = "BRIEF"
 
     @property
+    def paragraph(self) -> str:
+        """The register's text: every sentence of the reading, in the order a founder reads it."""
+        return reading_text(self.reading)
+
+    @property
     def met(self) -> bool:
-        """All four, and an unmeasured mark is not a met mark (marks.py judgement call 13)."""
+        """All five, and an unmeasured mark is not a met mark (marks.py judgement call 13)."""
         return all(self.marks.get(name) is True for name in MARK_NAMES)
 
 
-def _vectors(case) -> list:
-    return (case.payload.get("context") or {}).get("vectors") or []
+def reading_text(reading) -> str:
+    if not isinstance(reading, dict):
+        return ""
+    parts = []
+    for outer, inner, _vector in SENTENCES:
+        value = reading.get(outer) if inner is None else _section(reading, outer).get(inner)
+        if isinstance(value, dict) and isinstance(value.get("text"), str):
+            parts.append(f"{outer if inner is None else outer + '.' + inner}: {value['text']}")
+    if isinstance(reading.get("sharpest"), dict):
+        parts.append(f"sharpest: {reading['sharpest'].get('text')}")
+    for test in _section(reading, "next").get("tests") or []:
+        if isinstance(test, dict):
+            parts.append(f"test [{test.get('key')}]: {test.get('text')}")
+    for quote in reading.get("quotes") or []:
+        if isinstance(quote, dict):
+            parts.append(f"quote: {quote.get('text')}")
+    return "\n".join(parts)
+
+
+def _stories(context: dict) -> dict:
+    return {str(s.get("invitation_id")): s.get("story") for s in context.get("stories") or []
+            if isinstance(s, dict)}
 
 
 def score_brief(case, entry, result, *, outcome: str | None = None, failed: str | None = None,
                 needs_input_questions=None, registry=None) -> BriefScore:
-    """One BRIEF case, marked four ways against the context it was actually sent."""
+    """One BRIEF case, marked five ways against the facts it was actually sent."""
     score = BriefScore(case_id=case.case_id, entry_id=entry.id, run_index=case.run_index,
                        failed=failed)
-    vectors = _vectors(case)
-    del registry      # kept in the signature for the callers; the four marks read no registry
-
+    del registry      # kept in the signature for the callers; the marks read no registry
     if needs_input_questions is not None:
         score.needs_input = True
         score.needs_input_questions = needs_input_questions
         score.marks = {name: False for name in MARK_NAMES}
-        score.findings = {"source_material": "NEEDS_INPUT on a screen brief.md says has nobody "
-                                             "to ask; brief.md: 'You always return COMPLETED.'"}
+        score.findings = {"shape": "NEEDS_INPUT on a screen brief.md says has nobody to ask; "
+                                   "brief.md: 'You always return COMPLETED.'"}
         return score
-
-    paragraph = result.get("whatThisSays") if isinstance(result, dict) else None
-    if failed or not isinstance(paragraph, str):
+    if failed or not isinstance(result, dict):
         score.marks = {name: False for name in MARK_NAMES}
-        score.findings = {"shape": failed or "the result carried no whatThisSays string"}
+        score.findings = {"shape": failed or "the result was no object"}
         return score
-
-    score.paragraph = paragraph
-    score.length = len(paragraph)
-    score.phrasing = verdict_phrasing(paragraph, vectors)
-    for name, (met, finding) in {
-        "shape": _shape(paragraph),
-        "coverage": _coverage(paragraph, vectors),
-        "register": _register(paragraph, case),
-        "source_material": _source_material(paragraph, entry, outcome),
-    }.items():
-        score.marks[name] = met
-        score.findings[name] = finding
+    context = case.payload.get("context") or {}
+    names = [p.person for p in entry.people() if p.person]
+    names += [n.split()[0] for n in names if len(n.split()[0]) >= 2]
+    found = reading_problems(result, context.get("facts"), _stories(context), names)
+    score.reading = result
+    score.length = len(score.paragraph)
+    for name in MARK_NAMES:
+        mine = [message for mark, message in found if mark == name]
+        score.marks[name] = not mine
+        score.findings[name] = "; ".join(mine) if mine else {
+            "shape": "every sentence {text, cites}, within its limits",
+            "cites": "every cite a dimension of its section; two for problem.infer",
+            "numbers": "every number the facts' own, the market's currency only",
+            "quotes": "every quote verbatim from that person's story",
+            "bans": "no purchase claim, no 'it works', no web address, no name"}[name]
     return score
-
-
-def _shape(paragraph: str) -> tuple[bool, str]:
-    faults = []
-    if not paragraph.strip():
-        faults.append("blank")
-    if "\n" in paragraph or "\r" in paragraph:
-        faults.append("line break")
-    length = len(paragraph)
-    if length > WHAT_THIS_SAYS_MAX:
-        faults.append(f"{length} code points, over the contract's {WHAT_THIS_SAYS_MAX}")
-    if _LINK_RE.search(paragraph):
-        faults.append("a web address")
-    for glyph in _BULLET_GLYPHS:
-        if glyph in paragraph:
-            faults.append(f"bullet glyph {glyph!r}")
-    if _LEADING_MARKER_RE.match(paragraph):
-        faults.append("opens with a list or heading marker")
-    labels = [label for label in VECTOR_LABELS
-              if re.search(rf"\b{label}\b", paragraph)]
-    if labels:
-        faults.append(f"vector label(s) {labels}")
-    return (not faults), ("; ".join(faults) if faults else f"one paragraph, {length} code points")
-
-
-def verdict_phrasing(paragraph: str, vectors: list) -> list:
-    """Per vector: does the design's own phrase for that verdict appear? **Observed, never marked**
-    (judgement call 20). Rendered on `register.html` beside the paragraph."""
-    lowered = paragraph.casefold()
-    residue = lowered
-    for phrase in VERDICT_MARKERS[_NEGATED_FIRST]:
-        residue = residue.replace(phrase, " ")
-    out = []
-    for vector in vectors:
-        verdict = vector.get("verdict")
-        if verdict is None:
-            out.append({"vector": vector.get("vector"), "verdict": None, "phrase": None,
-                        "present": None})
-            continue
-        haystack = lowered if verdict == _NEGATED_FIRST else residue
-        markers = VERDICT_MARKERS.get(verdict, ())
-        out.append({"vector": vector.get("vector"), "verdict": verdict,
-                    "phrase": markers[0] if markers else None,
-                    "present": any(marker in haystack for marker in markers)})
-    return out
-
-
-def _allowed_counts(vectors: list) -> set:
-    """Every `N of M` the context carried: `inside`/`outside` of `n`, and every `optionCounts`
-    row of `n` (call 21's two sides, and the set dimensions' own counts at v9)."""
-    allowed = set()
-    for vector in vectors:
-        for d in vector.get("dimensions") or []:
-            n = d.get("n_anchored")
-            inside, outside = d.get("inside"), d.get("outside")
-            if inside is not None:
-                total = n if n is not None else (inside or 0) + (outside or 0)
-                allowed.add((inside, total))
-                allowed.add((outside if outside is not None else total - inside, total))
-            counts = d.get("option_counts")
-            if isinstance(counts, str) and n is not None:
-                for part in counts.split(","):
-                    if "=" in part:
-                        try:
-                            allowed.add((int(part.split("=")[1].strip()), n))
-                        except ValueError:
-                            pass
-    return allowed
-
-
-def _option_pairs(dimension: dict) -> set:
-    """A set dimension's own `N of M`s: every `optionCounts` row of `n`."""
-    counts, n = dimension.get("option_counts"), dimension.get("n_anchored")
-    pairs = set()
-    if isinstance(counts, str) and n is not None:
-        for part in counts.split(","):
-            if "=" in part:
-                try:
-                    pairs.add((int(part.split("=")[1].strip()), n))
-                except ValueError:
-                    pass
-    return pairs
-
-
-def _counts_in(paragraph: str) -> set:
-    return {(_number(m.group(1)), _number(m.group(2))) for m in _COUNT_RE.finditer(paragraph)}
-
-
-def _coverage(paragraph: str, vectors: list) -> tuple[bool, str]:
-    lowered = paragraph.casefold()
-    faults, notes = [], []
-    # The deciding line's number beside the founder's own phrase, wherever there is one.
-    for vector in vectors:
-        line = deciding_line(vector)
-        if not line:
-            continue
-        name = vector.get("vector")
-        observed = line.get("observed")
-        if observed and observed not in paragraph:
-            faults.append(f"{name}'s deciding line ({line.get('key')}) reads {observed!r} and the "
-                          "paragraph does not quote it")
-        # Call 42: a set's line with no money figure (and no band counts) is said in its option counts -- one of them,
-        # as `N of M`, is what the check asks for.
-        own = _option_pairs(line) if line.get("inside") is None else set()
-        if not observed and own and not (_counts_in(paragraph) & own):
-            faults.append(f"{name}'s deciding line ({line.get('key')}) is a set and the paragraph "
-                          "quotes none of its option counts as N of M")
-        # brief.md, "The four things the paragraph says", 2: `founder_phrase` against `observed`
-        # on every bet whose verdict is `NOT_HOLDING_UP` -- and on no other (a holding bet is said
-        # "with the count that settled it", a split "by the answers they actually gave"). The
-        # phrase is "what the founder said ... and nothing else": no paraphrase is licensed.
-        phrase = line.get("founder_phrase")
-        if (vector.get("verdict") == "NOT_HOLDING_UP" and observed and phrase
-                and phrase.casefold() not in lowered):
-            faults.append(f"{name}'s deciding line was said by the founder as {phrase!r} and the "
-                          "paragraph does not carry it")
-        notes.append(f"{name}: deciding line {line.get('key')} checked")
-    allowed = _allowed_counts(vectors)
-    for match in _COUNT_RE.finditer(paragraph):
-        pair = (_number(match.group(1)), _number(match.group(2)))
-        if pair not in allowed:
-            faults.append(f"the count {match.group(0)!r} is no dimension's inside, outside or "
-                          "option count of n")
-    return (not faults), ("; ".join(faults) if faults else "; ".join(notes)
-                          or "no number to check, and none invented")
-
-
-def _register(paragraph: str, case) -> tuple[bool, str]:
-    words = {w.casefold() for w in _WORD_RE.findall(paragraph)}
-    faults = []
-    if not words & set(SECOND_PERSON):
-        faults.append("no second person: brief.md asks for *you said*, *your band*")
-    context_text = _context_text(case)
-    foreign = [glyph for glyph in CURRENCY_GLYPHS
-               if glyph in paragraph and glyph not in context_text]
-    if foreign:
-        faults.append(f"currency {foreign} the context never carried")
-    return (not faults), ("; ".join(faults) if faults
-                          else "second person, and no money the context did not carry")
-
-
-def _source_material(paragraph: str, entry, outcome: str | None) -> tuple[bool, str]:
-    faults = []
-    if outcome is not None and outcome != "COMPLETED":
-        faults.append(f"outcome {outcome}, where brief.md says there is nobody to ask")
-    keys = sorted(set(_DOTTED_KEY_RE.findall(paragraph)))
-    if keys:
-        faults.append(f"dimension key(s) {keys}")
-    fields = [name for name in CONTEXT_FIELD_NAMES
-              if re.search(rf"\b{re.escape(name)}\b", paragraph)]
-    if fields:
-        faults.append(f"context field name(s) {fields}")
-    enums = [name for name in ENUM_NAMES if re.search(rf"\b{re.escape(name)}\b", paragraph)]
-    if enums:
-        faults.append(f"enum name(s) {enums}")
-    if re.search(r"\bprox(y|ies)\b", paragraph, re.IGNORECASE):
-        faults.append("the word 'proxy', which brief.md forbids by name")
-    return (not faults), ("; ".join(faults) if faults
-                          else "the standings were read, not reproduced or obeyed")
-
-
-def _context_text(case) -> str:
-    import json                                     # noqa: PLC0415 - local, one call a case
-    return json.dumps(case.payload.get("context") or {}, ensure_ascii=False)
 
 
 # ----------------------------------------------------------------------------------- the totals

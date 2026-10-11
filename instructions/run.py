@@ -739,10 +739,7 @@ def _score(case, entry, answer, failed, state, judge) -> dict:
                                       registry=entry.registry)
         state.brief.append(score)
         diff.update(paragraph=score.paragraph, length=score.length, marks=score.marks,
-                    findings=score.findings,
-                    deciding_lines={v.get("vector"): (brief_mod.deciding_line(v) or {}).get("key")
-                                    for v in (case.payload.get("context") or {}).get("vectors")
-                                    or []})
+                    findings=score.findings)
         diff["line"] = "  " + " · ".join(f"{name} {'yes' if score.marks.get(name) else 'no'}"
                                          for name in brief_mod.MARK_NAMES)
     return diff
@@ -851,7 +848,8 @@ def _interpret_json(score) -> dict:
 
 def _brief_json(score) -> dict:
     return {"case_id": score.case_id, "entry_id": score.entry_id, "run_index": score.run_index,
-            "paragraph": score.paragraph, "length": score.length, "marks": score.marks,
+            "reading": score.reading, "paragraph": score.paragraph, "length": score.length,
+            "marks": score.marks,
             "findings": score.findings, "phrasing": score.phrasing,
             "met": score.met, "failed": score.failed,
             "needs_input": score.needs_input,

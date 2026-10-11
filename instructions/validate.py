@@ -182,7 +182,10 @@ def build_batch(cases_and_results) -> dict:
         elif case.kind == "READING":
             entry.update(invitation_id=context.get("invitation_id"), story=context.get("story"))
         elif case.kind == "BRIEF":
-            entry.update(market=context.get("market"), standings=context.get("vectors"))
+            # keel-cloud 079: the facts as served and the stories ({invitation_id, story}) --
+            # `BriefReading.check` judges the reading against exactly these (refusal B7).
+            entry.update(market=context.get("market"), facts=context.get("facts"),
+                         stories=context.get("stories"))
         # The confirmed problem card, as validation state only, on the two question screens: 058
         # confirms it from `problem_statement` (Lullaby's otherwise) and subtracts its words from
         # R4's and C5's vocabulary -- run 2's Countly "mismatch" was refused for lack of it.

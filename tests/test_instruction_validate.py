@@ -100,7 +100,9 @@ def test_every_other_kind_carries_what_its_applier_reads(cases):
     mechanism = _by_screen(batch, "SOLUTION_MECHANISM")[0]
     assert mechanism["problem_statement"] == fx.entry().interpretations["problem"]
     brief = _by_screen(batch, "BRIEF")[0]
-    assert [v["vector"] for v in brief["standings"]] == ["PROBLEM", "SOLUTION", "COMMERCIAL"]
+    assert set(brief) == {"case_id", "screen", "market", "facts", "stories", "result"}
+    assert [v["vector"] for v in brief["facts"]["vectors"]] == ["PROBLEM", "SOLUTION", "COMMERCIAL"]
+    assert brief["stories"] and brief["stories"][0]["invitation_id"]
 
 
 def test_a_compare_row_is_never_batched(cases):
