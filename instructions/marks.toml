@@ -6,7 +6,15 @@
 # evals/policy.py states for POLICY_VERSION, and a separate constant so the two can never be
 # confused.
 
-# MARKS_VERSION 13 (judgement calls 67-70, 2026-10-10; spec 033-buyer-cost-total, the sibling of
+# MARKS_VERSION 14 (judgement calls 71-73, 2026-10-11; spec 034-brief-infer-recommend, the sibling of
+# keel-cloud 079-brief-infer-recommend, merged at 706015c; inference CONTRACT_VERSION 9, project document 16).
+# The BRIEF result is a structured reading over code's facts, not a paragraph. No number below moved except
+# the BRIEF subject's: its four paragraph marks are replaced by five reading marks (shape, cites, numbers,
+# quotes, bans), brief_paragraphs staying all-or-nothing at 1.00. Corpus revision stays 7. **Scores before
+# and after this bump are not comparable**, and a v13 bundle **cannot be re-scored** to v14 (call 73).
+# **Run of record: none yet** -- there is no v14 run of record until `WHY=marks:14` is spent.
+#
+# MARKS_VERSION 13 (history; judgement calls 67-70, 2026-10-10; spec 033-buyer-cost-total, the sibling of
 # keel-cloud 077-buyer-cost-total, branch 077-buyer-cost-total at dc13341; inference CONTRACT_VERSION 8).
 # The buyer's cost is one total: the respondent answers Existing sacrifice with one number (an amount or
 # hours, over the founder's recall period; respondent control cost_total), so there are no kinds of cost.

@@ -39,7 +39,7 @@ def test_each_kind_reaches_its_own_scorer(cases):
         "09-fixture/RESPONDENT_PART1/run1": fx.respondent_result(entry, 1),
         "09-fixture/INTERPRET/Ann Abbott/run1": {"invitationId": "09-fixture/Ann Abbott",
                                                   "anchoring": "ANCHORED"},
-        "09-fixture/BRIEF/run1": {"whatThisSays": "Your problem is not holding up."},
+        "09-fixture/BRIEF/run1": {"headline": {"text": "Not yet.", "cites": []}},
     }
     for case_id, result in answers.items():
         diff = run_mod._score(cases[case_id], entry, _answer(result), None, state, fx.FakeJudge())
@@ -47,8 +47,8 @@ def test_each_kind_reaches_its_own_scorer(cases):
     assert len(state.calibration) == 1 and state.calibration[0].coverage_passed
     assert len(state.respondent) == 1 and state.respondent[0].validity_hit == len(entry.plan()[1])
     assert len(state.interpret) == 1 and state.interpret[0].agreed == 1
-    assert len(state.brief) == 1 and set(state.brief[0].marks) == {"shape", "coverage",
-                                                                    "register", "source_material"}
+    assert len(state.brief) == 1 and set(state.brief[0].marks) == {"shape", "cites", "numbers",
+                                                                    "quotes", "bans"}
     assert len(state.shown_to_aggregate) == 5, "every answer goes to the aggregate"
     assert "CONTEXT_INTERPRET" in state.produced["09-fixture"], \
         "the interpretation is kept for the register and scored by nothing"

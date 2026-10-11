@@ -37,13 +37,13 @@ def judgement_calls() -> list:
     return [int(n) for n in re.findall(r"^(\d+)\.\s", marks_mod.__doc__, re.M)]
 
 
-def test_marks_version_is_thirteen():
-    assert marks_mod.MARKS_VERSION == 13
+def test_marks_version_is_fourteen():
+    assert marks_mod.MARKS_VERSION == 14
 
 
-def test_the_judgement_calls_are_one_to_seventy_with_none_missing_and_none_twice():
+def test_the_judgement_calls_are_one_to_seventy_three_with_none_missing_and_none_twice():
     numbers = judgement_calls()
-    assert sorted(numbers) == list(range(1, 71)), "append-only: 1-70, none struck or renumbered"
+    assert sorted(numbers) == list(range(1, 74)), "append-only: 1-73, none struck or renumbered"
     assert len(numbers) == len(set(numbers)), "no judgement call is written twice"
 
 
@@ -120,13 +120,30 @@ def test_the_eight_v13_calls_are_marked_and_say_what_they_are():
     assert "`W10` retires" in retired and "`U1` retires" in retired
 
 
+def test_the_three_v14_calls_are_marked_and_say_what_they_are():
+    body = marks_mod.__doc__
+    phrases = {71: "the BRIEF result is a reading, not a paragraph", 72: "five marks",
+               73: "refuses every bundle below 14"}
+    for number, phrase in phrases.items():
+        match = re.search(rf"^{number}\. \*\*v14\*\*(.*?)(?=^\d+\. |\Z)", body, re.M | re.S)
+        assert match, f"{number} is not marked v14"
+        assert phrase in " ".join(match.group(1).split()), f"{number} does not carry {phrase!r}"
+
+
+def test_the_marks_file_carries_the_v14_header_above_v13s():
+    text = marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")
+    assert text.index("MARKS_VERSION 14") < text.index("MARKS_VERSION 13") < \
+        text.index("MARKS_VERSION 12")
+    assert "Run of record: none yet" in text and "WHY=marks:14" in text
+
+
 def test_the_marks_file_carries_the_v13_header_and_no_run_of_record_yet():
     """Spec 033 FR-005: the v13 header above v12's, the denominators' comments, and *run of record:
     none yet*."""
     text = marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")
     assert text.index("MARKS_VERSION 13") < text.index("MARKS_VERSION 12") < \
         text.index("MARKS_VERSION 11") < text.index("MARKS_VERSION 10") < text.index("MARKS_VERSION 9")
-    assert "Run of record: none yet" in text and "WHY=marks:13" in text
+    assert "WHY=marks:14" in text
     assert "no_leak 46 + 63 = 109" in text and "108" in text
 
 

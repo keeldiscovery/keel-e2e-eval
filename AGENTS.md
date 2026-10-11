@@ -26,9 +26,18 @@ added to this line rather than quietly written — which is exactly how the thir
   reads *green at the current `MARKS_VERSION`*, so a rubric that moved has no run of record at all
   until one is spent, and a screen is one entry and cannot be one. The policy widened by one named
   event, in the open, which is the amendment shape this document asks for — it did not loosen.
-  **`MARKS_VERSION` 13** (spec `033-buyer-cost-total`, 2026-10-10) is the gate as written, and
-  **there is no run of record until `WHY=marks:13` is spent; never run or propose it** (v12's is
-  still on hold by the founder). keel-cloud 077 (the buyer's cost is one total; branch
+  **`MARKS_VERSION` 14** (spec `034-brief-infer-recommend`, 2026-10-11) is the gate as written, and
+  **there is no run of record until `WHY=marks:14` is spent; never run or propose it**. keel-cloud 079
+  (the brief infers and recommends; merged at `706015c`; inference `CONTRACT_VERSION` 9, project
+  document 16) turned the BRIEF result from one `whatThisSays` paragraph into a structured reading
+  over code's `facts` (context `project_name, market, context, facts, beliefs, stories`). The ruler
+  follows (calls 71-73): five reading marks (`shape`, `cites`, `numbers`, `quotes`, `bans`) restate
+  keel-cloud's `BriefReading.check` and are proved equal to the real `screenContracts validate` by
+  `tests/test_instruction_brief_reading.py`; the corpus stays revision 7; `rescore.py` refuses every
+  bundle below 14. `DRY=1` against keel-cloud 079 measures `compare_correctness` 108 of 108. What
+  follows is v13's account, history since 2026-10-11 (never run).
+  **`MARKS_VERSION` 13** (spec `033-buyer-cost-total`, 2026-10-10) was the gate as written, and
+  **there was no run of record until `WHY=marks:13` was spent** (v12's was on hold by the founder). keel-cloud 077 (the buyer's cost is one total; branch
   `077-buyer-cost-total` at `dc13341`; inference `CONTRACT_VERSION` 8) removed the kinds of cost:
   the respondent answers Existing sacrifice with one number, an amount or hours, over the founder's
   recall period (`cost_total`). The ruler follows (judgement calls 67-70): Existing sacrifice owes

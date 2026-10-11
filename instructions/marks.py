@@ -19,7 +19,21 @@ persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
 by name. v10 has no run of record; it is history from v11.
 
-**`MARKS_VERSION` 13** (spec 033, 2026-10-10): the buyer's cost is one total. The ruler follows keel-cloud
+**`MARKS_VERSION` 14** (spec 034, 2026-10-11): the brief infers and recommends. The ruler follows keel-cloud 079
+(branch `079-brief-infer-recommend`, merged at `706015c`; inference `CONTRACT_VERSION` 9, project document 16):
+the `BRIEF` screen's result is no longer one paragraph (`whatThisSays`, dropped by the 15 -> 16 upcaster, which
+adds `briefReading: null`) but a structured reading -- `{headline, tiles, problem: {conclusion, infer},
+solution: {conclusion}, commercial: {conclusion}, sharpest?, next: {sentence, tests[]}, quotes[]}`, every
+sentence `{text <= 400, cites[] <= 13}` -- over `facts` that code counts. Its context is `project_name,
+market, context, facts, beliefs, stories`. The four paragraph marks retire; **five reading marks replace
+them** (`shape`, `cites`, `numbers`, `quotes`, `bans`), each a clause-for-clause restatement of
+`BriefReading.check` (refusal `B7`) proved equal to the real `screenContracts validate` by
+`tests/test_instruction_brief_reading.py`; the aggregate's own verdict is still `rule_refusal_rate`. Corpus
+revision stays 7; no other mark moved. `rescore.py` refuses every bundle below 14. Calls 71-73 below.
+**There is no v14 run of record until `WHY=marks:14` is spent** (this spec never runs or proposes it); v13's
+paragraph below is history (v13 never had one).
+
+**`MARKS_VERSION` 13** (history since v14, never run; spec 033, 2026-10-10): the buyer's cost is one total. The ruler follows keel-cloud
 077 (branch `077-buyer-cost-total`, `dc13341`, off `911f08c`; inference `CONTRACT_VERSION` 8): the
 respondent answers Existing sacrifice with one number -- an amount or a number of hours -- over the
 founder's recall period (registry respondent control `cost_total`, chips *It cost us nothing* / *I can't
@@ -618,6 +632,26 @@ sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. It is
     a v13 number for it would be fiction. The only v13 number is a v13 run (`WHY=marks:13`). The brief's
     time-only figure (call 65, unchanged in kind) now reads the B2C `HOURS` totals: the median hours per
     the founder's period, valued by the median person's Price band.
+71. **v14**: **the BRIEF result is a reading, not a paragraph.** keel-cloud 079 replaces
+    `{"whatThisSays": string}` with the structured reading above; code's `BriefFacts` (decision, the
+    three vectors' words, the money's symbol, the counted problem / solution / commercial lines, `targets`,
+    `keys`, an optional `sharpest` split) is the model's input beside `beliefs` and `stories`, and a
+    sentence is only ever *over* those facts. This eval builds `facts` from the corpus's own standings in
+    the same shape (`instructions/brief_facts.py`): no `sharpest` and no `priceTable`, since the corpus
+    records neither a cross-tab nor the ladder's rows -- `brief.md` makes both optional and the marks hold
+    the result to exactly the facts it was handed.
+72. **v14**: **five marks, each keel-cloud's `B7` clause restated.** `shape` (sentence objects, 400 / 13 /
+    3 / 2 / 160, `sharpest` only with a split), `cites` (in `facts.keys`, scoped per section, one a sentence,
+    two for `problem.infer`, test keys in `facts.targets`), `numbers` (every digit run in the facts' JSON,
+    the market's currency symbol only, no digit or number word in a test), `quotes` (verbatim from that
+    invitation's story), `bans` (`will pay` / `will buy`, `proves` / `proven` / `validated` / `will save` /
+    `it works`, web addresses, participants' names -- the last checked here, the validator being handed
+    none). `brief_paragraphs` is all five or nothing. `coverage`, `register`, `source_material` and the
+    observed `verdict_phrasing` retire with the paragraph they read; the reading is rendered on
+    `register.html` beside its facts.
+73. **v14**: **`rescore.py` refuses every bundle below 14** by name: a v13 bundle answered the BRIEF screen
+    with a `whatThisSays` paragraph over the vectors' standings, which contract 9 does not accept, so a v14
+    number for it would be fiction. The only v14 number is a v14 run (`WHY=marks:14`).
 """
 
 from __future__ import annotations
@@ -625,7 +659,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 13
+MARKS_VERSION = 14
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 

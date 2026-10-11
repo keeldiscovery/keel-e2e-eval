@@ -78,7 +78,18 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
-### `MARKS_VERSION` 13 — the gate as written, **no run of record yet** (spec `033-buyer-cost-total`, 2026-10-10)
+### `MARKS_VERSION` 14 — the gate as written, **no run of record yet** (spec `034-brief-infer-recommend`, 2026-10-11)
+
+keel-cloud 079 (*the brief infers and recommends*; merged at `706015c`; inference `CONTRACT_VERSION` 9,
+project document 16) replaced the BRIEF result's one `whatThisSays` paragraph with a structured reading
+(`headline`, `tiles`, `problem.{conclusion,infer}`, `solution.conclusion`, `commercial.conclusion`,
+`sharpest?`, `next.{sentence,tests[]}`, `quotes[]`; every sentence `{text, cites}`) over code's `facts`.
+The BRIEF subject's four paragraph marks are replaced by five reading marks (`shape`, `cites`, `numbers`,
+`quotes`, `bans`) that restate `BriefReading.check`, proved equal to the real validator by a test
+(judgement calls 71–73). Corpus revision 7 is unchanged and `rescore.py` refuses every bundle below 14.
+**There is no v14 run of record until `WHY=marks:14` is spent** — neither run nor proposed here.
+
+### `MARKS_VERSION` 13 — history since v14, never run (spec `033-buyer-cost-total`, 2026-10-10)
 
 **Written here before the run, so the run is read against the gate as written.** keel-cloud 077
 (*the buyer's cost is one total*; branch `077-buyer-cost-total` at `dc13341`; inference
@@ -101,7 +112,7 @@ superseded. Until then the standing gate is **unmet for both hosts at v13**.
 - **Every denominator is read, never typed**: calibration 80 an N and respondent 81 an N (both
   unchanged); `no_leak` 46 sweep-A + **63** sweep-B items an N = **109** (the buyer's Existing
   sacrifice is code's, so never swept); `compare_correctness` **108** on seven.
-- **`rescore.py` refuses every bundle below 13 by name** (call 70).
+- **`rescore.py` refuses every bundle below 14 by name** (call 73; below 13 by call 70).
 - **`DRY=1` against keel-cloud 077 (`dc13341`), 2026-10-10**: `compare_correctness` **108 of 108**,
   every other mark unmeasured (no model is called), denominators as above, nothing spent.
 

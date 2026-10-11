@@ -67,7 +67,7 @@ DEFAULT_KEYS = {
     contract_mod.SCREEN_RESPONDENT: ["part", "link", "context", "market", "founder_name",
                                      "items", "founder_options", "mechanism"],
     contract_mod.SCREEN_INTERPRET: ["invitation_id", "story"],
-    contract_mod.SCREEN_BRIEF: ["project_name", "market", "context", "vectors"],
+    contract_mod.SCREEN_BRIEF: ["project_name", "market", "context", "facts", "beliefs", "stories"],
 }
 
 #: The five fields of r3's `context` a screen is handed (`understood` is the golden sentence
@@ -679,9 +679,25 @@ def vectors_for(entry, registry) -> list:
 
 
 def build_brief(entry, keys=None, registry=None) -> dict:
-    """The `BRIEF` screen's context: the project, the market, the context, and the three vectors
-    with every dimension's standing -- one case a project (FR-019). No `claims`, no `stage`."""
+    """The `BRIEF` screen's context (keel-cloud 079, contract 9): the project, the market, the
+    context, and the `facts`, `beliefs` and `stories` of `brief_facts` -- one case a project.
+    The three vectors live on in `facts.vectors` (verdict words) and in `vectors_for`, which the
+    scorer and the register still read off the entry."""
+    from . import brief_facts                                          # noqa: PLC0415
     registry = registry if registry is not None else entry.registry
     keys = DEFAULT_KEYS[contract_mod.SCREEN_BRIEF] if keys is None else keys
+    vectors = vectors_for(entry, registry)
+    currency, per = _money_of(entry, "commercial.existing_sacrifice",
+                              (entry.expected.get("standings") or {}).get(
+                                  "commercial.existing_sacrifice") or {})
+    cost = (entry.founder_calibration.get("commercial.existing_sacrifice") or {}).get("answer")
+    if isinstance(cost, dict):                     # the founder's cost estimate fixes the period
+        currency, per = cost.get("currency") or currency, cost.get("period") or per
+    currency = currency or MARKET_CURRENCY.get((entry.market or {}).get("country"))
+    context = context_of(entry)
     return _fill(keys, {"project_name": entry.title, "market": market_of(entry),
-                        "context": context_of(entry), "vectors": vectors_for(entry, registry)})
+                        "context": context,
+                        "facts": brief_facts.facts_for(entry, vectors, context, currency,
+                                                       per, corpus_mod._PERIOD_WORDS.get(per, "")),
+                        "beliefs": brief_facts.beliefs_for(vectors),
+                        "stories": brief_facts.stories_for(entry)})
