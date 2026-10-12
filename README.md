@@ -78,6 +78,14 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
+### `MARKS_VERSION` 16 — the gate as written, **no run of record yet** (spec `037-reveal-three-lines`, 2026-10-12)
+
+keel-cloud 084 (merged at `fc12b49`; contract 9 -> 10, document 16 -> 17) writes the reveal as three lines with the
+mechanism: `occasion` on `CONTEXT_INTERPRET`, `idea_what` / `idea_how` / `idea_belief` on `SOLUTION_MECHANISM`, no
+`reveal` on `RESPONDENT_QUESTIONS`. keel-cloud's validator owns the new rules; this eval's part-2 reveal W3 fault
+retires; `rescore.py` refuses every bundle below 16. **There is no v16 run of record until `WHY=marks:16` is
+spent** — neither run nor proposed here. `DRY=1` against 084: `compare_correctness` 108 of 108.
+
 ### `MARKS_VERSION` 15 — the gate as written, **no run of record yet** (spec `036-direction-aware-verdicts`, 2026-10-12)
 
 keel-cloud 082 (*direction-aware verdicts*; merged at `438807d`; registry `VERSION` 2, contract stays 9): a person beyond

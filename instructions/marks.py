@@ -19,7 +19,17 @@ persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
 by name. v10 has no run of record; it is history from v11.
 
-**`MARKS_VERSION` 15** (spec 036, 2026-10-12): direction-aware verdicts. The ruler follows keel-cloud 082 (merged at
+**`MARKS_VERSION` 16** (spec 037, 2026-10-12): the reveal is three lines. The ruler follows keel-cloud 084 (merged at
+`fc12b49`; inference `CONTRACT_VERSION` 9 -> 10, project document 16 -> 17). `CONTEXT_INTERPRET` also writes
+`occasion` (rules X1, X3: at most four words, no product word); `SOLUTION_MECHANISM` also writes `idea_what`,
+`idea_how`, `idea_belief` (L1-L4 lengths, no claim word in what / how, belief opens "The people building it believe
+it would"; W3: what carries `short_name`); `RESPONDENT_QUESTIONS` carries no `reveal` and R6 is gone. All of that is
+keel-cloud's validator's, delegated as ever (`rule_refusal_rate`, `shape_refusals`). The one mark that moves is this
+repository's own: the Part 2 reveal W3 fault (call 55) retires, because a result's `reveal` is no longer read.
+Corpus revision stays 8. `rescore.py` refuses every bundle below 16. Call 75 below. **There is no v16 run of record
+until `WHY=marks:16` is spent** (this spec never runs or proposes it); v15's paragraph below is history.
+
+**`MARKS_VERSION` 15** (history since v16, never run; spec 036, 2026-10-12): direction-aware verdicts. The ruler follows keel-cloud 082 (merged at
 `438807d`; contract stays 9, document 16): a dimension with a supporting side is one-sided, so a person beyond the
 founder's band on that side supports the bet. The golden corpus moves to **revision 8** (a revision-7 file is
 refused by name as v13's / v14's; 28 `status` / `drift` / verdict rows moved, the people and picks did not), so
@@ -675,6 +685,11 @@ sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. It is
     `decision.notTested` (the vectors at NOT_TESTED, which make the label KEEP_INTERVIEWING unless the problem is
     not holding). `rescore.py` refuses every bundle below 15: a v14 number was scored against revision 7's
     expectations and would be fiction at 8. The only v15 number is a v15 run (`WHY=marks:15`).
+75. **v16**: **the reveal is three lines, written with the mechanism.** The three screens' results moved (keel-cloud 084,
+    contract 10): `occasion` on `CONTEXT_INTERPRET`, `idea_what` / `idea_how` / `idea_belief` on `SOLUTION_MECHANISM`,
+    no `reveal` on `RESPONDENT_QUESTIONS`. The validator owns X3, L1-L4 and W3 for the lines; this repository adds
+    no copy of them. The part-2 reveal W3 fault retires with the reveal (call 55's other half, the question stems'
+    W3, stays). `rescore.py` refuses every bundle below 16. The only v16 number is a v16 run (`WHY=marks:16`).
 """
 
 from __future__ import annotations
@@ -682,7 +697,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 15
+MARKS_VERSION = 16
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 

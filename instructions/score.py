@@ -790,7 +790,7 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
                      failed: str | None = None) -> RespondentScore:
     """One `RESPONDENT_QUESTIONS` case (063): coverage against the plan's part (call 30), validity
     on the respondent side of §2.2, sweep A on Part 1's items (the stranger has not been told the
-    idea yet) and sweep B on every item's stem, never the reveal (call 44b; the founder's own values, never
+    idea yet) and sweep B on every item's stem (call 44b; a `reveal` is not read since v16; the founder's own values, never
     shown to a stranger; call 40: not its option labels)."""
     part = case.meta.get("part")
     link = case.meta.get("link") or "PRIMARY"
@@ -812,13 +812,6 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
         score.faults.append({"key": None, "check": "dimension_coverage", "evidence": fault})
     window = context_mod.window_of(entry)
     short_name = context_mod.short_name_of(entry)
-    reveal = (result or {}).get("reveal") if isinstance(result, dict) else None
-    if part == 2 and link == "PRIMARY" and short_name and isinstance(reveal, dict) and \
-            not wording_mod.carries(f"{reveal.get('title') or ''} {reveal.get('body') or ''}",
-                                    short_name):
-        score.faults.append({"key": "reveal", "check": "option_validity",          # call 55
-                             "evidence": f"W3: the reveal does not name the idea by its short "
-                                         f"name, {short_name!r}, verbatim"})
     for item in items:
         key = item.get("key")
         if key not in keys:

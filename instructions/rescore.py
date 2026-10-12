@@ -114,7 +114,13 @@ CROSSED_THE_V15_BUMP = ("was scored against corpus revision 7's status / drift, 
                         "revision 8 read that person as supporting the bet")
 
 #: The oldest bundle this version re-scores.
-OLDEST = 15
+#: The one sentence a v15 bundle is refused with (spec 037, judgement call 75).
+CROSSED_THE_V16_BUMP = ("was scored while a Part 2 `reveal` was read and held to W3; keel-cloud 084 "
+                        "(contract 10) writes the idea as three lines with the mechanism and the "
+                        "respondent screen carries no reveal")
+
+#: The oldest bundle this version re-scores.
+OLDEST = 16
 
 
 class _SilentRuntime:
@@ -142,6 +148,11 @@ def refusal(run_dir: Path, original: dict) -> str | None:
         return (f"{run_dir.name} was scored at marks_version {version}: {CROSSED_THE_BUMP}. "
                 "Not re-scored (spec 029 FR-004; judgement call 28) -- a v8 number is a "
                 "measurement of a product v9 does not judge, and the only v9 number is a v9 run.")
+    if version == 15:
+        return (f"{run_dir.name} was scored at marks_version {version}: a v15 scorecard cannot be "
+                f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V16_BUMP}. Not "
+                "re-scored (spec 037; judgement call 75) -- the only v16 number is a v16 run "
+                "(WHY=marks:16).")
     if version == 14:
         return (f"{run_dir.name} was scored at marks_version {version}: a v14 scorecard cannot be "
                 f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V15_BUMP}. Not "

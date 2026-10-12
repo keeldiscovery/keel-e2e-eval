@@ -1,0 +1,4 @@
+- [x] T001 score/report/fixtures: reveal retired
+- [x] T002 marks v16, call 75, rescore floor 16, tests
+- [x] T003 docs
+- [x] T004 make unit; DRY=1 against fc12b49 compare 108/108

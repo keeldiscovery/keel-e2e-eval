@@ -553,11 +553,12 @@ def test_sweep_b_faults_the_founders_phrase_in_a_part_one_stem(entry, registry):
                for f in stem.faults if f.get("sweep") == "B"), stem.faults
 
 
-def test_sweep_b_never_reads_the_reveal(entry, registry):
-    """Call 44b: the reveal is R6's (claim words) and names the mechanism's moment."""
-    score = _respond(entry, registry, 2, lambda r: r["reveal"].__setitem__(
-        "body", "One idea: a single whistle starts it."))
-    assert not [f for f in score.faults if f.get("sweep") == "B"]
+def test_a_reveal_in_a_respondent_result_is_no_longer_read(entry, registry):
+    """Spec 037, call 75: keel-cloud 084 dropped the reveal; one that arrives anyway is neither swept
+    nor held to W3 (the validator refuses it as shape)."""
+    score = _respond(entry, registry, 2, lambda r: r.__setitem__(
+        "reveal", {"title": "x", "body": "One idea: a single whistle starts it."}))
+    assert not [f for f in score.faults if f.get("sweep") == "B" or f.get("key") == "reveal"]
 
 
 def test_a_mechanism_stem_the_registry_itself_words_for_the_dimension_is_no_leak(entry, registry):
