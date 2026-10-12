@@ -120,3 +120,26 @@ def test_names_are_the_one_check_only_the_restatement_makes():
     result["solution"]["conclusion"]["text"] += " Ann said so."
     found = brief_mod.reading_problems(result, fixture["facts"], {}, names=["Ann"])
     assert any("names a person ('Ann')" in m for _, m in found)
+
+
+# ---------------------------------------------- spec 036: keel-cloud 082's split / notTested facts
+
+def _vectors(problem, solution="HOLDING_UP", commercial="HOLDING_UP"):
+    dim = {"weight": "DEAL_BREAKER", "status": "HOLDING_UP", "n_anchored": 12}
+    return [{"vector": v, "verdict": verdict, "dimensions": [dict(dim, status=verdict)]}
+            for v, verdict in (("PROBLEM", problem), ("SOLUTION", solution),
+                               ("COMMERCIAL", commercial))]
+
+
+@pytest.mark.parametrize("vectors, label, split, not_tested", [
+    (_vectors("HOLDING_UP"), "BUILD", False, []),
+    (_vectors("PEOPLE_DISAGREE"), "NOT_YET", True, []),
+    (_vectors("NOT_HOLDING_UP"), "NOT_YET", False, []),
+    (_vectors("NOT_TESTED"), "KEEP_INTERVIEWING", False, ["PROBLEM"]),
+    (_vectors("HOLDING_UP", commercial="NOT_TESTED"), "KEEP_INTERVIEWING", False, ["COMMERCIAL"]),
+    (_vectors("HOLDING_UP", solution="NOT_HOLDING_UP"), "BUILD_BUT_CHANGE", False, []),
+])
+def test_the_decision_carries_split_and_not_tested(vectors, label, split, not_tested):
+    from instructions import brief_facts                                    # noqa: PLC0415
+    decision = brief_facts.decision(vectors, b2b=False)
+    assert (decision["label"], decision["split"], decision["notTested"]) == (label, split, not_tested)

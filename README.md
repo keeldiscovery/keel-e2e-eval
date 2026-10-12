@@ -78,7 +78,16 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
-### `MARKS_VERSION` 14 — the gate as written, **no run of record yet** (spec `034-brief-infer-recommend`, 2026-10-11)
+### `MARKS_VERSION` 15 — the gate as written, **no run of record yet** (spec `036-direction-aware-verdicts`, 2026-10-12)
+
+keel-cloud 082 (*direction-aware verdicts*; merged at `438807d`; registry `VERSION` 2, contract stays 9): a person beyond
+the founder's band on a dimension's supporting side supports the bet. The corpus moves to **revision 8** (drift
+`stronger` / `short`; 28 status / drift / verdict rows moved, people and picks unchanged; an r7 file is refused as
+v13's / v14's), `compare_correctness` moves with it, and the BRIEF facts add `decision.split` and
+`decision.notTested` (judgement call 74). The reading marks are unchanged. `rescore.py` refuses every bundle below 15.
+**There is no v15 run of record until `WHY=marks:15` is spent** — neither run nor proposed here.
+
+### `MARKS_VERSION` 14 — history since v15, never run (spec `034-brief-infer-recommend`, 2026-10-11)
 
 keel-cloud 079 (*the brief infers and recommends*; merged at `706015c`; inference `CONTRACT_VERSION` 9,
 project document 16) replaced the BRIEF result's one `whatThisSays` paragraph with a structured reading

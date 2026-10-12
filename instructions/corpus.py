@@ -1,6 +1,13 @@
-"""The golden corpus at revision 7, read and never written (spec 029 FR-006/FR-012, data-model §2;
+"""The golden corpus at revision 8, read and never written (spec 029 FR-006/FR-012, data-model §2;
 spec 030 FR-002, judgement call 49; spec 031 FR-002, judgement call 51; spec 032 FR-002, call 60;
-spec 033 FR-002, call 68).
+spec 033 FR-002, call 68; spec 036 FR-001, call 74).
+
+**Revision 8 only** (call 74, keel-cloud 082): the revision-7 shape with direction-aware verdicts. A dimension with
+a supporting side is one-sided -- a person beyond the founder's band on that side supports the bet -- so a
+standing's `drift` may be `stronger` (holding, at least half the supports beyond) or `short` (not holding)
+beside `both` / `none`, and `above` / `below` stay on Compatibility only. The people and picks are revision 7's
+byte for byte; only `status` / `drift` and `vector_verdicts` moved (28 rows). A revision-7 file is refused by
+name as v13's / v14's.
 
 `canon/designs/measured-beliefs/corpus/*.yaml` in the keel-cloud checkout is the corpus. This
 module opens those files, hashes them on the way in, and offers `verify_unchanged()` so the end of
@@ -60,7 +67,7 @@ from .registry import (ABILITY_BANDS, ABILITY_KEY, COST_MODES, COST_TOTAL_CONTRO
                        LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY, PRICE_PERIODS, SACRIFICE_KEY,
                        VECTORS, RecallWindow)
 
-REVISION = 7
+REVISION = 8
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
@@ -68,7 +75,9 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 5: "MARKS_VERSION 11's corpus, before cost first (a tick list for Existing sacrifice, "
                    "Price over month / year / one-off, Ability to pay asked of the founder)",
                 6: "MARKS_VERSION 12's corpus, before the buyer's one total (Existing sacrifice a kinds "
-                   "tick list with an amount per kind, `branch_pick_amounts`, option counts)"}
+                   "tick list with an amount per kind, `branch_pick_amounts`, option counts)",
+                7: "MARKS_VERSION 13's and 14's corpus, before direction-aware verdicts (a person beyond the "
+                   "founder's band on the supporting side read as outside it; no `stronger` / `short` drift)"}
 
 #: `sim/check_corpus_r5.py`'s `CURRENCY` (keel-cloud `Market.currency`'s table, the corpus's markets):
 #: a founder price is in its market's currency, never another.
@@ -193,8 +202,12 @@ def ability_value(derived: dict) -> str:
 STATUSES = ("HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE", "TOO_FEW_TO_CALL", "NOT_ASKED_YET",
             "LEFT_OUT")
 
+#: A vector's verdict may also be `NOT_TESTED` (keel-cloud 082: every deal-breaker of the vector was left
+#: out); a dimension's status never is.
+VERDICTS = STATUSES + ("NOT_TESTED",)
+
 #: The drift words `expected.standings[*].drift` may carry (`null` beside them).
-DRIFTS = ("above", "below", "both", "none")
+DRIFTS = ("above", "below", "both", "none", "stronger", "short")
 
 CHIPS = ("cant_recall", "rather_not_say")
 ANCHORINGS = ("ANCHORED", "GUESSED")
@@ -644,7 +657,7 @@ def _check_shape(raw: dict, path: Path) -> None:
     for vector, verdict in (expected.get("vector_verdicts") or {}).items():
         if vector not in VECTORS:
             raise _refuse(entry_id, f"expected.vector_verdicts names {vector!r}", path)
-        if (verdict or {}).get("verdict") not in STATUSES:
+        if (verdict or {}).get("verdict") not in VERDICTS:
             raise _refuse(entry_id, f"expected.vector_verdicts[{vector}].verdict is "
                                     f"{(verdict or {}).get('verdict')!r}, outside Status", path)
         deciding = (verdict or {}).get("deciding")

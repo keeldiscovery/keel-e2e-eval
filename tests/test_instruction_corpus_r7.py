@@ -122,16 +122,18 @@ MUTATIONS = {
     "stages": (lambda r: r["expected"].__setitem__("stages", {}), "`expected.stages`"),
     "anchors": (lambda r: _person(r, "Ann Abbott").__setitem__("anchors", {}), "`anchors`"),
     "revision 3": (lambda r: r.__setitem__("revision", 3), "revision is 3; this eval reads "
-                   "revision 7 only -- revision 3 is MARKS_VERSION 9's corpus"),
+                   "revision 8 only -- revision 3 is MARKS_VERSION 9's corpus"),
     "revision 4": (lambda r: r.__setitem__("revision", 4), "revision is 4; this eval reads "
-                   "revision 7 only -- revision 4 is MARKS_VERSION 10's corpus"),
+                   "revision 8 only -- revision 4 is MARKS_VERSION 10's corpus"),
     "revision 5": (lambda r: r.__setitem__("revision", 5), "revision is 5; this eval reads "
-                   "revision 7 only -- revision 5 is MARKS_VERSION 11's corpus"),
+                   "revision 8 only -- revision 5 is MARKS_VERSION 11's corpus"),
+    "revision 7": (lambda r: r.__setitem__("revision", 7), "revision is 7; this eval reads "
+                   "revision 8 only -- revision 7 is MARKS_VERSION 13's and 14's corpus"),
     "a price off the ladder": (
         lambda r: r["founder_calibration"]["commercial.price"]["answer"].__setitem__("low", 10000),
         "founder_calibration[commercial.price] is 10000 to 5: off the ladder"),
     "revision 6": (lambda r: r.__setitem__("revision", 6), "revision is 6; this eval reads "
-                   "revision 7 only -- revision 6 is MARKS_VERSION 12's corpus"),
+                   "revision 8 only -- revision 6 is MARKS_VERSION 12's corpus"),
     "a price on a period outside the five": (
         lambda r: r["founder_calibration"]["commercial.price"]["answer"].__setitem__(
             "period", "one_off"), "founder_calibration[commercial.price].period is 'one_off'"),

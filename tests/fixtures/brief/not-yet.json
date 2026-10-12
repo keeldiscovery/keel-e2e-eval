@@ -11,7 +11,9 @@
    "label": "NOT_YET",
    "howSure": "MEDIUM",
    "reason": "Smallest group: 8 people.",
-   "smallestN": 8
+   "smallestN": 8,
+   "split": false,
+   "notTested": []
   },
   "vectors": [
    {
