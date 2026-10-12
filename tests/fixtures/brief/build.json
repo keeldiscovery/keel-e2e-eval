@@ -11,7 +11,9 @@
    "label": "BUILD",
    "howSure": "FAIRLY_SURE",
    "reason": "Smallest group: 12 people.",
-   "smallestN": 12
+   "smallestN": 12,
+   "split": false,
+   "notTested": []
   },
   "vectors": [
    {

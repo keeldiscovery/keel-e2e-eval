@@ -30,7 +30,7 @@ V8_BUNDLE = FIXTURES / "runs" / "v8-bundle"
 
 #: Why a test reading keel-cloud's canon corpus skips: the canon is not at revision 7 yet (calls 49, 51, 60, 68 --
 #: there is no fixture fallback any more; keel-cloud 077 carries revision 7).
-CANON_NOT_R7 = ("keel-cloud's canon corpus is not at revision 7 (keel-cloud 077) -- spec 031 reads "
+CANON_NOT_R7 = ("keel-cloud's canon corpus is not at revision 8 (keel-cloud 082) -- spec 031 reads "
                 "the corpus from keel-cloud's canon and nowhere else (judgement call 49)")
 
 
@@ -215,8 +215,6 @@ def respondent_result(entry, part, *, link="PRIMARY", label_only=False) -> dict:
     keys = entry.plan()[part]
     result = {"part": part, "link": link,
               "items": [respondent_item(entry, k, label_only=label_only) for k in keys]}
-    if part == 2:
-        result["reveal"] = {"title": "What we are testing", "body": "A small thing you could try."}
     return result
 
 

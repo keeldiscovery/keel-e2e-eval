@@ -78,7 +78,24 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
-### `MARKS_VERSION` 14 — the gate as written, **no run of record yet** (spec `034-brief-infer-recommend`, 2026-10-11)
+### `MARKS_VERSION` 16 — the gate as written, **no run of record yet** (spec `037-reveal-three-lines`, 2026-10-12)
+
+keel-cloud 084 (merged at `fc12b49`; contract 9 -> 10, document 16 -> 17) writes the reveal as three lines with the
+mechanism: `occasion` on `CONTEXT_INTERPRET`, `idea_what` / `idea_how` / `idea_belief` on `SOLUTION_MECHANISM`, no
+`reveal` on `RESPONDENT_QUESTIONS`. keel-cloud's validator owns the new rules; this eval's part-2 reveal W3 fault
+retires; `rescore.py` refuses every bundle below 16. **There is no v16 run of record until `WHY=marks:16` is
+spent** — neither run nor proposed here. `DRY=1` against 084: `compare_correctness` 108 of 108.
+
+### `MARKS_VERSION` 15 — the gate as written, **no run of record yet** (spec `036-direction-aware-verdicts`, 2026-10-12)
+
+keel-cloud 082 (*direction-aware verdicts*; merged at `438807d`; registry `VERSION` 2, contract stays 9): a person beyond
+the founder's band on a dimension's supporting side supports the bet. The corpus moves to **revision 8** (drift
+`stronger` / `short`; 28 status / drift / verdict rows moved, people and picks unchanged; an r7 file is refused as
+v13's / v14's), `compare_correctness` moves with it, and the BRIEF facts add `decision.split` and
+`decision.notTested` (judgement call 74). The reading marks are unchanged. `rescore.py` refuses every bundle below 15.
+**There is no v15 run of record until `WHY=marks:15` is spent** — neither run nor proposed here.
+
+### `MARKS_VERSION` 14 — history since v15, never run (spec `034-brief-infer-recommend`, 2026-10-11)
 
 keel-cloud 079 (*the brief infers and recommends*; merged at `706015c`; inference `CONTRACT_VERSION` 9,
 project document 16) replaced the BRIEF result's one `whatThisSays` paragraph with a structured reading

@@ -2,7 +2,7 @@
   "standings": {
     "problem.prevalence": {
       "status": "HOLDING_UP",
-      "drift": "above",
+      "drift": "stronger",
       "n": 12,
       "yes": 10,
       "proportion": 0.83,
@@ -19,7 +19,7 @@
     },
     "problem.importance": {
       "status": "HOLDING_UP",
-      "drift": "below",
+      "drift": "short",
       "n": 8,
       "inside": 2,
       "outside": 6,
@@ -59,7 +59,7 @@
     },
     "commercial.existing_sacrifice": {
       "status": "NOT_HOLDING_UP",
-      "drift": "below",
+      "drift": "short",
       "n": 8,
       "inside": 1,
       "below": 7,
@@ -70,7 +70,7 @@
     },
     "commercial.price": {
       "status": "PEOPLE_DISAGREE",
-      "drift": "BELOW",
+      "drift": "BOTH",
       "n": 8,
       "inside": 4,
       "outside": 4,
@@ -91,7 +91,7 @@
     },
     "commercial.commitment": {
       "status": "NOT_HOLDING_UP",
-      "drift": "none",
+      "drift": "short",
       "n": 8,
       "inside": 2,
       "outside": 6,

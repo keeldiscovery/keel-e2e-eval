@@ -14,7 +14,7 @@ from __future__ import annotations
 VERDICT_WORDS = {
     "HOLDING_UP": "Holding up", "NOT_HOLDING_UP": "Not holding up",
     "PEOPLE_DISAGREE": "People disagree", "TOO_FEW_TO_CALL": "Too few to call",
-    "NOT_ASKED_YET": "Not asked yet", "LEFT_OUT": "Left out",
+    "NOT_ASKED_YET": "Not asked yet", "LEFT_OUT": "Left out", "NOT_TESTED": "Not tested",
 }
 CURRENCY_SYMBOL = {"GBP": "£", "USD": "$", "EUR": "€", "JPY": "¥"}
 _THIN = ("TOO_FEW_TO_CALL", "NOT_ASKED_YET")
@@ -29,10 +29,16 @@ def decision(vectors: list, b2b: bool) -> dict:
     verdicts = {v["vector"]: v.get("verdict") for v in vectors}
     problem = next(v for v in vectors if v["vector"] == "PROBLEM")
     deal = lambda d: d.get("weight") == "DEAL_BREAKER"            # noqa: E731
-    if any(deal(d) and d.get("status") in _THIN for d in problem["dimensions"]):
+    not_tested = [v["vector"] for v in vectors if v.get("verdict") == "NOT_TESTED"]
+    split = False
+    if any(deal(d) and d.get("status") in _THIN for d in problem["dimensions"]) \
+            or verdicts.get("PROBLEM") == "NOT_TESTED":
         label = "KEEP_INTERVIEWING"
     elif verdicts.get("PROBLEM") != "HOLDING_UP":
         label = "NOT_YET"
+        split = verdicts.get("PROBLEM") == "PEOPLE_DISAGREE"       # keel-cloud 082: a split, not a no
+    elif not_tested:
+        label = "KEEP_INTERVIEWING"
     elif all(v == "HOLDING_UP" for v in verdicts.values()):
         label = "BUILD"
     else:
@@ -42,7 +48,7 @@ def decision(vectors: list, b2b: bool) -> dict:
                and d.get("n_anchored") is not None]
     if not counted:
         return {"label": label, "howSure": "LOW", "reason": "Nothing has been asked yet.",
-                "smallestN": 0}
+                "smallestN": 0, "split": split, "notTested": not_tested}
     vec, smallest = min(((v, d["n_anchored"]) for v, d in counted), key=lambda p: p[1])
     too_few = any(d.get("status") == "TOO_FEW_TO_CALL" for _, d in counted)
     disagree = any(d.get("status") == "PEOPLE_DISAGREE" for _, d in counted)
@@ -51,7 +57,7 @@ def decision(vectors: list, b2b: bool) -> dict:
     who = ("decision-maker" if smallest == 1 else "decision-makers") \
         if b2b and vec == "COMMERCIAL" else ("person" if smallest == 1 else "people")
     return {"label": label, "howSure": how, "reason": f"Smallest group: {smallest} {who}.",
-            "smallestN": smallest}
+            "smallestN": smallest, "split": split, "notTested": not_tested}
 
 
 def _row(dimension: dict) -> dict:

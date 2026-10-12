@@ -40,10 +40,10 @@ def corpus():
     return corpus_mod.load(keel_cloud, registry=fx.registry())
 
 
-def test_the_seven_entries_are_all_at_revision_seven(corpus):
+def test_the_seven_entries_are_all_at_revision_eight(corpus):
     assert [e.id for e in corpus.entries] == list(ENTRIES)
     for entry in corpus.entries:
-        assert entry.revision == 7, entry.id
+        assert entry.revision == 8, entry.id
     assert Path(corpus.directory) == fx.canon_dir()
 
 
@@ -73,7 +73,7 @@ def test_every_entry_calibrates_its_personas_set_and_plans_per_link(corpus, entr
     assert entry.vocabulary(), "no_leak needs a list to sweep with"
 
 
-def test_the_status_totals_across_the_seven_are_keel_cloud_074s(corpus):
+def test_the_status_totals_across_the_seven_are_keel_cloud_082s(corpus):
     """The six status words only, over 4 x 12 + 3 x 13 rows: the cost-first readings moved Existing sacrifice
     (two too few to call) and added Ability to pay to the four consumer entries."""
     totals = {}
@@ -81,7 +81,7 @@ def test_the_status_totals_across_the_seven_are_keel_cloud_074s(corpus):
         for row in entry.expected["standings"].values():
             assert row["status"] in corpus_mod.STATUSES
             totals[row["status"]] = totals.get(row["status"], 0) + 1
-    assert totals == {"HOLDING_UP": 54, "NOT_HOLDING_UP": 14, "PEOPLE_DISAGREE": 15,
+    assert totals == {"HOLDING_UP": 57, "NOT_HOLDING_UP": 12, "PEOPLE_DISAGREE": 14,
                       "TOO_FEW_TO_CALL": 2, "LEFT_OUT": 2}
     assert sum(totals.values()) == 4 * 12 + 3 * 13
 
@@ -180,7 +180,8 @@ def test_the_vector_verdicts_are_the_ones_golden_corpus_test_pins(corpus):
                        for v, row in e.expected["vector_verdicts"].items()}
                 for e in corpus.entries}
     assert verdicts["02-compliancelog"]["PROBLEM"] == ("NOT_HOLDING_UP", "problem.importance")
-    assert verdicts["04-linerly"]["PROBLEM"] == ("NOT_HOLDING_UP", "problem.importance")
+    assert verdicts["04-linerly"]["PROBLEM"] == ("HOLDING_UP", "problem.prevalence")   # 082: importance lands above
+    assert verdicts["04-linerly"]["COMMERCIAL"] == ("HOLDING_UP", "commercial.existing_sacrifice")
     assert verdicts["06-repeatline"]["PROBLEM"] == ("NOT_HOLDING_UP", "problem.importance")
     assert verdicts["03-lullaby"]["PROBLEM"] == ("NOT_HOLDING_UP",
                                                  "problem.current_solution_satisfaction")
@@ -194,14 +195,14 @@ def test_lullaby_reproduces_the_registrys_worked_example(corpus):
     lullaby = corpus.by_id("03-lullaby")
     standings = lullaby.expected["standings"]
     expected = {
-        "problem.prevalence": ("HOLDING_UP", "above"), "problem.frequency": ("HOLDING_UP", "none"),
+        "problem.prevalence": ("HOLDING_UP", "stronger"), "problem.frequency": ("HOLDING_UP", "none"),
         "problem.importance": ("HOLDING_UP", "none"),
-        "problem.current_solution_satisfaction": ("NOT_HOLDING_UP", "above"),
+        "problem.current_solution_satisfaction": ("NOT_HOLDING_UP", "short"),
         "solution.compatibility": ("NOT_HOLDING_UP", "above"),
-        "solution.adoption_friction": ("PEOPLE_DISAGREE", "below"),
-        "commercial.commitment": ("NOT_HOLDING_UP", "none"),
-        "commercial.price": ("PEOPLE_DISAGREE", "below"),
-        "commercial.existing_sacrifice": ("PEOPLE_DISAGREE", "below"),
+        "solution.adoption_friction": ("PEOPLE_DISAGREE", "both"),
+        "commercial.commitment": ("NOT_HOLDING_UP", "short"),
+        "commercial.price": ("PEOPLE_DISAGREE", "both"),
+        "commercial.existing_sacrifice": ("PEOPLE_DISAGREE", "both"),
         "commercial.ability_to_pay": ("HOLDING_UP", "none"),
     }
     for key, (status, drift) in expected.items():
@@ -308,7 +309,7 @@ def test_the_corpus_reads_the_same_through_the_exported_registry(corpus):
     exported = registry_mod.load(path)
     for entry in corpus.entries:
         corpus_mod.load_file(entry.path, registry=exported)
-    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 7
+    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 8
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)

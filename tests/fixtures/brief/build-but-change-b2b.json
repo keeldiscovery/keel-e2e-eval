@@ -11,7 +11,9 @@
    "label": "BUILD_BUT_CHANGE",
    "howSure": "MEDIUM",
    "reason": "Smallest group: 5 decision-makers.",
-   "smallestN": 5
+   "smallestN": 5,
+   "split": false,
+   "notTested": []
   },
   "vectors": [
    {
