@@ -80,7 +80,9 @@ CLASSES = MEASURED_CLASSES + DORMANT_CLASSES
 #: The six this eval measures, by the `Case.kind` it sorts the corpus into. `COMPARE` has no class:
 #: it is keel-cloud's engine, shelled, and never a model call.
 KIND_TO_CLASS = {"CONTEXT": "context", "FRAME": "frame", "CALIBRATION": "calibration",
-                 "RESPONDENT": "respondent", "READING": "reading", "BRIEF": "brief"}
+                 "RESPONDENT": "respondent", "READING": "reading", "BRIEF": "brief",
+                 # keel-cloud 083: both chat screens are job class CALIBRATION (the standard tier).
+                 "CHAT": "calibration", "FEEDBACK": "calibration"}
 
 #: Every screen's class (FR-023), for a journey (S-012) that sees screens rather than kinds. The
 #: v8 screens stay mapped to the classes they always had: today's product still ships them, and the
@@ -89,6 +91,7 @@ SCREEN_TO_CLASS = {
     "CONTEXT_INTERPRET": "context",
     "PROBLEM_INTERPRET": "frame", "SOLUTION_MECHANISM": "frame",
     "CALIBRATION_QUESTIONS": "calibration", "RESPONDENT_QUESTIONS": "respondent",
+    "CALIBRATION_CHAT": "calibration", "ITEM_FEEDBACK": "calibration",
     "INTERPRET": "reading", "BRIEF": "brief",
     "PROBLEM_FRAME": "frame", "SOLUTION_FRAME": "frame", "COMMERCIAL_FRAME": "frame",
     "PROBLEM_ASSUMPTIONS": "assumptions", "SOLUTION_ASSUMPTIONS": "assumptions",

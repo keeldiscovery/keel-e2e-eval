@@ -119,8 +119,13 @@ CROSSED_THE_V16_BUMP = ("was scored while a Part 2 `reveal` was read and held to
                         "(contract 10) writes the idea as three lines with the mechanism and the "
                         "respondent screen carries no reveal")
 
+#: The one sentence a v16 bundle is refused with (spec 035, judgement call 80).
+CROSSED_THE_V17_BUMP = ("answered neither CALIBRATION_CHAT nor ITEM_FEEDBACK and read corpus revision 8's seven "
+                        "entries alone; keel-cloud 083 (contract 11, registry 3) and corpus revision 9 add the "
+                        "calibration chat, six marks that read it, and the six-scenario verdicts")
+
 #: The oldest bundle this version re-scores.
-OLDEST = 16
+OLDEST = 17
 
 
 class _SilentRuntime:
@@ -148,6 +153,11 @@ def refusal(run_dir: Path, original: dict) -> str | None:
         return (f"{run_dir.name} was scored at marks_version {version}: {CROSSED_THE_BUMP}. "
                 "Not re-scored (spec 029 FR-004; judgement call 28) -- a v8 number is a "
                 "measurement of a product v9 does not judge, and the only v9 number is a v9 run.")
+    if version == 16:
+        return (f"{run_dir.name} was scored at marks_version {version}: a v16 scorecard cannot be "
+                f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V17_BUMP}. Not "
+                "re-scored (spec 035; judgement call 80) -- the only v17 number is a v17 run "
+                "(WHY=marks:17).")
     if version == 15:
         return (f"{run_dir.name} was scored at marks_version {version}: a v15 scorecard cannot be "
                 f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V16_BUMP}. Not "
@@ -211,6 +221,11 @@ def main(argv=None) -> int:
         for case in prompts_mod.build_cases(entry, exported, instructions, _SilentRuntime,
                                             n_runs=max(int(original.get("n_runs") or 1), 1)):
             cases[case.case_id] = case
+    if corpus.chat:
+        for case in prompts_mod.build_chat_cases(corpus, exported, {s: "" for s in run_mod.SCREENS},
+                                                 _SilentRuntime,
+                                                 n_runs=max(int(original.get("n_runs") or 1), 1)):
+            cases[case.case_id] = case
 
     state = run_mod._RunState()
     to_validate, call_41 = [], False
@@ -256,12 +271,21 @@ def main(argv=None) -> int:
         except compare_mod.EngineUnavailable as why:
             raw = compare_mod.unmeasured(entry.id, str(why))
         compare_scores.append(score_mod.score_compare(case, entry, raw))
+    # Corpus revision 9: the six-scenario verdicts, re-run at zero spend like every COMPARE row.
+    if corpus.scenarios:
+        try:
+            six = compare_mod.six_scenarios(config.keel_cloud, corpus.scenarios)
+        except compare_mod.EngineUnavailable as why:
+            six = compare_mod.unmeasured(compare_mod.SIX_ID, str(why))
+        compare_scores.append(score_mod.score_compare(prompts_mod.six_scenarios_case(),
+                                                      types.SimpleNamespace(id=compare_mod.SIX_ID), six))
 
     aggregate, measured, unmeasured_kinds = _ask_aggregate(run_dir, config, to_validate,
                                                            original)
 
     totals = score_mod.totals(state.calibration, state.respondent, state.interpret,
                               compare_scores, brief_scores=state.brief, errored=state.errored,
+                              chat_scores=state.chat,
                               refusals_by_rule=aggregate["refusals_by_rule"],
                               shape_refusals=aggregate["shape_refusals"],
                               refusals_measured=measured,
@@ -286,6 +310,7 @@ def main(argv=None) -> int:
         "respondent": [run_mod._question_json(s) for s in state.respondent],
         "interpret": [run_mod._interpret_json(s) for s in state.interpret],
         "brief": [run_mod._brief_json(s) for s in state.brief],
+        "chat": [run_mod._chat_json(s) for s in state.chat],
         "totals": totals,
         "redraws": state.redraws,
         "judge_calls": judge.calls,
@@ -371,9 +396,11 @@ def _ask_aggregate(run_dir: Path, config, to_validate: list, original: dict):
     if to_validate:
         batch = validate_mod.build_batch(to_validate)
         unmet = validate_mod.unmet_by_screen(config.keel_cloud, batch)
+        own = validate_mod.own_rules_untaken(config.keel_cloud, batch)
         suffix = f"-v{marks_mod.MARKS_VERSION}.json"
         try:
-            report = validate_mod.run(config.keel_cloud, validate_mod.without_screens(batch, unmet),
+            report = validate_mod.run(config.keel_cloud,
+                                      validate_mod.without_screens(batch, list(unmet) + own),
                                       run_dir / f"batch{suffix}", run_dir / f"validation{suffix}")
             return validate_mod.fold_in(report), not unmet, sorted(unmet)
         except Exception as exc:                  # noqa: BLE001 - fall back, never mis-measure

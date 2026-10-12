@@ -19,7 +19,25 @@ persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
 by name. v10 has no run of record; it is history from v11.
 
-**`MARKS_VERSION` 16** (spec 037, 2026-10-12): the reveal is three lines. The ruler follows keel-cloud 084 (merged at
+**`MARKS_VERSION` 17** (spec 035, 2026-10-12): the founder's calibration chat. The ruler follows keel-cloud 083 (branch
+`083-calibration-chat` at `805688a`; registry **3**, project document **18** with the 17 -> 18 reset upcaster, inference
+`CONTRACT_VERSION` **11**, `InferenceCharge.VERSION` 6, migration V45: eighteen screens). Every belief but the gate
+becomes a short chat that ends in one measurable belief; respondents answer code-framed items. Two new screens, job
+class `calibration` (the standard tier): `CALIBRATION_CHAT` (context `vector, dimension, proposal_id, dimension_name,
+meaning, chat, context, market, statement, depends_on, idea_words, b2b`) and `ITEM_FEEDBACK` (`vector, dimension, frame,
+item, addable, rules`). The corpus is **revision 9**: the seven entries are revision 8's, byte for byte (their shapes
+stand; they exercise the pre-chat path, which stays), plus `chat/*.yaml` (the six ideas: 41 chat cases) and
+`verdicts/six-scenarios.yaml`; a directory without the additions is revision 8's whole and is refused by name as v16's.
+`brief.md` grew (16,556 bytes: the direction table and the join) and `BriefFacts` gains `gaps {problemSplit,
+strongerProblemWeakerFix}`, which the facts this eval builds carry. Six marks are born, each a pure function over
+`(case, answer)` in `instructions/chat.py` -- `one_measurable`, `follow_up_budget`, `preview_rules`, `no_founder_leak`,
+`importance_list`, `feedback_obeys` -- at 1.00 each; `compare_correctness` also counts the seven six-scenario rows
+(keel-cloud's own `SixScenarioVerdictsTest`, shelled at zero spend). No number below moved; the calibration and
+respondent denominators are unchanged (the pre-chat screens are still built). `rescore.py` refuses every bundle
+below 17. Calls 76-80 below. **There is no v17 run of record until `WHY=marks:17` is spent** (this spec never runs or proposes
+it); v16's paragraph below is history.
+
+**`MARKS_VERSION` 16** (history since v17, never run; spec 037, 2026-10-12): the reveal is three lines. The ruler follows keel-cloud 084 (merged at
 `fc12b49`; inference `CONTRACT_VERSION` 9 -> 10, project document 16 -> 17). `CONTEXT_INTERPRET` also writes
 `occasion` (rules X1, X3: at most four words, no product word); `SOLUTION_MECHANISM` also writes `idea_what`,
 `idea_how`, `idea_belief` (L1-L4 lengths, no claim word in what / how, belief opens "The people building it believe
@@ -690,6 +708,49 @@ sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. It is
     no `reveal` on `RESPONDENT_QUESTIONS`. The validator owns X3, L1-L4 and W3 for the lines; this repository adds
     no copy of them. The part-2 reveal W3 fault retires with the reveal (call 55's other half, the question stems'
     W3, stays). `rescore.py` refuses every bundle below 16. The only v16 number is a v16 run (`WHY=marks:16`).
+76. **v17**: **`CALIBRATION_CHAT` and `ITEM_FEEDBACK` are subjects, job class `calibration`.** Their contracts, context
+    keys and templates are imported from keel-cloud's export like every screen's (`contract.MODEL_SCREENS`,
+    `instruction.STEMS`, `models.SCREEN_TO_CLASS`). One `CHAT` case an (idea, dimension) of corpus r9's `chat/*.yaml`
+    (41 at r9) and one `FEEDBACK` case a row of `instructions/chat_feedback.yaml`, built as
+    `ScreenContextBuilder.chatContext` / `feedbackContext` build them -- the dependent beliefs included (Current
+    solution for Relative advantage, Existing sacrifice for Price, Frequency for a habit). The corpus names no
+    context, market, statement or idea words, so `instructions/chat_ideas.yaml` is this repository's own sheet for the
+    six ideas (the window and the currency are the six-scenario file's).
+77. **v17**: **one measurable belief, and the follow-up budget.** `one_measurable`: the COMPLETED answer carries one
+    proposal (CC1: never `proposals`, never two kinds), of a kind in the dimension's `chat.measures` (CC2) and the
+    corpus's measure and family, plus CC5 (money is never an effort), CC6 (a ladder ends in money, on its last step
+    only), CC7 (a price names its unit; per item, how many per period) and CC8 (a habit carries its frequency) --
+    or `leave_out` and no proposal where the corpus says nothing fits. `follow_up_budget`: at most one NEEDS_INPUT of
+    one question (C9), asked exactly where the corpus marks `follow_up: true`; a needless follow-up and a missed one both
+    fail, threshold **1.00** (the 2026-10-12 brief, over the spec's 0.95). **The chat is one call here**: the reply to a
+    follow-up is not scripted (no reply is in the corpus; T012), so on a case where the model asks, the marks that read
+    a proposal are unmeasured for that case -- the denominators say so.
+78. **v17**: **the preview rules and the founder's words.** `screenContracts validate` does not take either screen
+    (CC1-CC8, C9, F1, F2 and `ItemRules` run in the orchestrator), so the five refusals are **restated** here
+    (`chat.item_check` is `ItemRules.check`, clause for clause and in its order) and there is no keel-cloud verdict to
+    prove them equal to: the parity test the spec asked for (T008) is NOT written, and `validate._SHAPE_MARKERS` lists the
+    two screens so they are batched the day the validator names them (`validate.OWN_RULES`; meanwhile they are
+    dropped from the batch and are not an unmet prerequisite of the refusal rate). `preview_rules`: the frame is the
+    corpus's, the model wrote no option on a frame code builds, a yes/no ends *..., or not?* (balanced wording judged by
+    structure only, as the spec proposed). `no_founder_leak`: no digit, number word or fraction word of the founder's
+    answer in any respondent slot (*half* and *50%* alike), no run of three of the founder's own words in a question,
+    and no idea word on a PROBLEM slot.
+79. **v17**: **the Importance list and the feedback.** `importance_list`: `own_item` plus exactly six others (CC3), none
+    naming the idea, none the problem in other words (CC4), no two the same thing (near-neighbours merged); "its
+    result" is a judgement the code cannot make and is not marked. `feedback_obeys` over `chat_feedback.yaml` (the
+    corpus carries no feedback file): an allowed change is applied and nothing else moves, a forbidden request is refused
+    with the right rule (SHOWS_NUMBER, SHOWS_BELIEF, LEADING_OPTION, DROPS_ESCAPE, CHANGES_FRAME), and the changed item
+    passes `ItemRules` whatever the model said. A result that sets `refused` applies nothing (keel-cloud's
+    `feedbackCommand`), so a refusal beside a change fails an allowed change.
+80. **v17**: **corpus revision 9, six-scenario compare, the brief's gaps; `rescore.py` refuses every bundle below 17.**
+    `corpus.REVISION` is 9 and `ENTRY_REVISION` 8; `chat/` and `verdicts/` are hashed on the way in and checked by
+    `check_corpus_r9.py`'s rules C and V (C against the registry the export carries). The `compare` command takes the
+    r8 shapes only (it refuses a chat frame), so the six-scenario verdicts are measured by running keel-cloud's own
+    `SixScenarioVerdictsTest` (`gradlew test`, zero spend) and reading its JUnit result: per scenario, its rows
+    (`expect`), three vector verdicts and decision are the checks. `BriefFacts.gaps` is `{problemSplit: decision.split,
+    strongerProblemWeakerFix: Current solution HOLDING_UP and STRONGER, Relative advantage NOT_HOLDING_UP}`. A v16 bundle
+    answered neither chat screen and read corpus r8 alone, so a v17 number for it would be fiction. The only v17
+    number is a v17 run (`WHY=marks:17`).
 """
 
 from __future__ import annotations
@@ -697,7 +758,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 16
+MARKS_VERSION = 17
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 
@@ -715,11 +776,24 @@ DEFAULTS = {
     "rule_refusal_rate": 0.02,
     "shape_refusals": 0,
     "brief_paragraphs": 1.00,
+    # v17 (calls 76-80): the calibration chat's six, `instructions/chat.py`.
+    "one_measurable": 1.00,
+    "follow_up_budget": 1.00,
+    "preview_rules": 1.00,
+    "no_founder_leak": 1.00,
+    "importance_list": 1.00,
+    "feedback_obeys": 1.00,
 }
 
 #: The rows `judge()` returns, in the order the report shows them.
 ROWS = ("dimension_coverage", "option_validity", "no_leak", "anchoring_accuracy",
-        "compare_correctness", "refusals", "shape_refusals", "brief_paragraphs")
+        "compare_correctness", "refusals", "shape_refusals", "brief_paragraphs",
+        "one_measurable", "follow_up_budget", "preview_rules", "no_founder_leak", "importance_list",
+        "feedback_obeys")
+
+#: The calibration chat's six (v17), in the order the report shows them.
+CHAT_ROWS = ("one_measurable", "follow_up_budget", "preview_rules", "no_founder_leak", "importance_list",
+             "feedback_obeys")
 
 
 def load(path: Path | str | None = None) -> dict:
@@ -738,7 +812,7 @@ def _at_least(value, mark) -> bool:
 
 
 def judge(totals: dict, marks: dict) -> dict:
-    """Each of the eight marks against its number. A run passes only if all eight are met.
+    """Each of the fourteen marks against its number. A run passes only if all fourteen are met.
 
     Every row is `{value, mark, measured, met}`, and **an unmeasured mark is not a met mark**
     (judgement call 13): a `None` fails, a refusal count nobody asked for fails, a compare the
@@ -784,5 +858,8 @@ def judge(totals: dict, marks: dict) -> dict:
         "brief_paragraphs": row("brief_paragraphs", brief, totals.get("brief_measured"),
                                 _at_least(brief, marks["brief_paragraphs"])),
     }
+    for name in CHAT_ROWS:
+        value = totals.get(name)
+        results[name] = row(name, value, totals.get(f"{name}_of"), _at_least(value, marks[name]))
     results["passed"] = all(results[name]["met"] for name in ROWS)
     return results

@@ -30,7 +30,7 @@ V8_BUNDLE = FIXTURES / "runs" / "v8-bundle"
 
 #: Why a test reading keel-cloud's canon corpus skips: the canon is not at revision 7 yet (calls 49, 51, 60, 68 --
 #: there is no fixture fallback any more; keel-cloud 077 carries revision 7).
-CANON_NOT_R7 = ("keel-cloud's canon corpus is not at revision 8 (keel-cloud 082) -- spec 031 reads "
+CANON_NOT_R7 = ("keel-cloud's canon corpus is not at revision 9 (keel-cloud 083) -- spec 031 reads "
                 "the corpus from keel-cloud's canon and nowhere else (judgement call 49)")
 
 
@@ -48,7 +48,7 @@ def canon_entry(name: str) -> Path:
         revision = yaml.safe_load(path.read_text(encoding="utf-8")).get("revision")
     except (OSError, AttributeError, yaml.YAMLError):
         revision = None
-    if revision != corpus_mod.REVISION:
+    if revision != corpus_mod.ENTRY_REVISION or not (path.parent / "chat").is_dir():
         pytest.skip(CANON_NOT_R7)
     return path
 
@@ -74,6 +74,23 @@ def write_entry(tmp_path, raw: dict, name="09-fixture-r7.yaml") -> Path:
     path = Path(tmp_path) / name
     path.write_text(yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     return path
+
+
+def write_additions(directory) -> None:
+    """Corpus revision 9's two additions, as small as the loader accepts: one chat idea with one case and the seven
+    scenarios (`chat/` and `verdicts/six-scenarios.yaml`). Rule C needs a registry, which `load` is not handed."""
+    directory = Path(directory)
+    (directory / "chat").mkdir(exist_ok=True)
+    (directory / "verdicts").mkdir(exist_ok=True)
+    (directory / "chat" / "fixture.yaml").write_text(yaml.safe_dump({
+        "id": "fixture", "name": "Fixture", "b2b": False,
+        "cases": [{"dimension": "problem.frequency", "founder": "Twice a week.", "follow_up": False,
+                   "measure": "COUNT", "respondent": "segmented_0_to_7"}]}), encoding="utf-8")
+    scenario = {"expect": {"problem.frequency": {"status": "HOLDING_UP"}},
+                "verdicts": {"PROBLEM": "HOLDING_UP", "SOLUTION": "HOLDING_UP", "COMMERCIAL": "HOLDING_UP"},
+                "decision": "BUILD"}
+    (directory / "verdicts" / "six-scenarios.yaml").write_text(yaml.safe_dump(
+        {"scenarios": [dict(scenario, id=f"s{i}") for i in range(7)]}), encoding="utf-8")
 
 
 def write_export(directory, *, with_registry=True, routing=None, keys=None) -> Path:
