@@ -50,7 +50,17 @@ _SHAPE_MARKERS = {
     "RESPONDENT_QUESTIONS": "InferenceScreen.RESPONDENT_QUESTIONS",
     "INTERPRET": "InferenceScreen.INTERPRET",
     "BRIEF": "InferenceScreen.BRIEF",
+    # MARKS_VERSION 17 (keel-cloud 083): the chat pair. At 083 `ScreenContractTool` takes neither -- their rules
+    # (CC1-CC8, C9, F1, F2, ItemRules) run in the orchestrator, not the validator -- so they are in `OWN_RULES`:
+    # restated by `instructions/chat.py`, and batched here the day the validator names them.
+    "CALIBRATION_CHAT": "InferenceScreen.CALIBRATION_CHAT",
+    "ITEM_FEEDBACK": "InferenceScreen.ITEM_FEEDBACK",
 }
+
+#: The screens whose rules this repository restates (`instructions/chat.py`) because the validator does not take
+#: them. While it does not, they are left out of the batch and are **not** an unmet prerequisite: the rate the
+#: validator owns is measured over the screens it takes, and the chat marks measure the rest.
+OWN_RULES = ("CALIBRATION_CHAT", "ITEM_FEEDBACK")
 
 
 def _prerequisite(screen: str) -> str:
@@ -107,7 +117,14 @@ def unmet_by_screen(keel_cloud: Path, batch: dict) -> dict:
     """
     taken = shapes_taken(keel_cloud)
     return {screen: _PREREQUISITE[screen] for screen in sorted(shapes_needed(batch))
-            if not taken.get(screen)}
+            if not taken.get(screen) and screen not in OWN_RULES}
+
+
+def own_rules_untaken(keel_cloud: Path, batch: dict) -> list:
+    """The `OWN_RULES` screens this batch carries that the validator does not take yet: dropped from the batch
+    (`without_screens`), measured by the chat marks, and named in the scorecard."""
+    taken = shapes_taken(keel_cloud)
+    return [screen for screen in sorted(shapes_needed(batch)) if screen in OWN_RULES and not taken.get(screen)]
 
 
 def unmet_prerequisites(keel_cloud: Path, batch: dict) -> list:

@@ -1,0 +1,122 @@
+# The eval's own `ITEM_FEEDBACK` cases (spec 035 US2; MARKS_VERSION 17, call 78). Corpus revision 9 carries no
+# feedback file, so these are this repository's: the item a founder is looking at (the shape keel-cloud's
+# `feedbackContext` hands the model), what the founder asks for, and what the answer must be.
+#
+#   expect.outcome: change   -> the change is applied, nothing else moves (`reword`, `add_kind`, `remove`,
+#                               `relabel` say what moves) and the changed item passes ItemRules;
+#   expect.outcome: refuse   -> the answer refuses, naming `expect.rule`.
+#
+# `founder_numbers` and `claim` are what ItemRules holds an item against (the measured belief's low and high, and the
+# belief's own words). At least one case per rule and per allowed change; the first is ChatPreview's example.
+cases:
+  - id: payroll-current/chatpreview-example
+    dimension: problem.current_solution_satisfaction
+    frame: band_ladder
+    addable: [NONE, SOMEONE_ELSE]
+    founder_numbers: [2, 3]
+    claim: Checking takes hours each payroll run
+    item: &payroll_bands
+      question: On your last payroll that's been paid and settled, about how long did checking it take?
+      options:
+        - {code: under_1, label: Under 1 hour, kind: BAND}
+        - {code: band_1_2, label: 1 to 2 hours, kind: BAND}
+        - {code: band_2_5, label: 2 to 5 hours, kind: BAND}
+        - {code: band_5_10, label: 5 to 10 hours, kind: BAND}
+        - {code: over_10, label: More than 10 hours, kind: BAND}
+        - {code: none, label: We don't check it, kind: NONE}
+    request: '"Settled" sounds odd for weekly payroll; add an option for when someone else checks it, and make the ranges 2 to 3 hours.'
+    expect: {outcome: change, change: {reword: true, add_kind: SOMEONE_ELSE}}
+  - id: payroll-current/reword
+    dimension: problem.current_solution_satisfaction
+    frame: band_ladder
+    addable: [NONE, SOMEONE_ELSE]
+    founder_numbers: [2, 3]
+    claim: Checking takes hours each payroll run
+    item: *payroll_bands
+    request: Say "run" instead of "payroll that's been paid and settled".
+    expect: {outcome: change, change: {reword: true}}
+  - id: payroll-current/relabel-none
+    dimension: problem.current_solution_satisfaction
+    frame: band_ladder
+    addable: [NONE, SOMEONE_ELSE]
+    founder_numbers: [2, 3]
+    claim: Checking takes hours each payroll run
+    item: *payroll_bands
+    request: Change "We don't check it" to "Nobody checks it".
+    expect: {outcome: change, change: {relabel: [none]}}
+  - id: payroll-current/shows-number
+    dimension: problem.current_solution_satisfaction
+    frame: band_ladder
+    addable: [NONE, SOMEONE_ELSE]
+    founder_numbers: [2, 3]
+    claim: Checking takes hours each payroll run
+    item: *payroll_bands
+    request: Ask whether checking takes two to three hours, so they know what we mean.
+    expect: {outcome: refuse, rule: SHOWS_NUMBER}
+  - id: payroll-current/shows-belief
+    dimension: problem.current_solution_satisfaction
+    frame: band_ladder
+    addable: [NONE, SOMEONE_ELSE]
+    founder_numbers: [2, 3]
+    claim: Checking takes hours each payroll run
+    item: *payroll_bands
+    request: Open the question with "Checking takes hours each payroll run, so ...".
+    expect: {outcome: refuse, rule: SHOWS_BELIEF}
+  - id: payroll-current/drops-escape
+    dimension: problem.current_solution_satisfaction
+    frame: band_ladder
+    addable: [NONE, SOMEONE_ELSE]
+    founder_numbers: [2, 3]
+    claim: Checking takes hours each payroll run
+    item: *payroll_bands
+    request: Take out "We don't check it" -- everyone checks.
+    expect: {outcome: refuse, rule: DROPS_ESCAPE}
+  - id: payroll-current/changes-frame
+    dimension: problem.current_solution_satisfaction
+    frame: band_ladder
+    addable: [NONE, SOMEONE_ELSE]
+    founder_numbers: [2, 3]
+    claim: Checking takes hours each payroll run
+    item: *payroll_bands
+    request: Make the ranges 2 to 3 hours, 3 to 4 hours and so on.
+    expect: {outcome: refuse, rule: CHANGES_FRAME}
+  - id: payroll-adoption/leading-option
+    dimension: solution.adoption_friction
+    frame: effort_yes_no
+    addable: [YES_CONDITIONAL]
+    founder_numbers: [2]
+    claim: Practitioners would upload the register every payroll run
+    item: &effort_yes_no
+      question: Before approving each payroll, you'd download the register and upload it to the checker, about a minute or so. Would you do that every payroll run, or not?
+      options:
+        - {code: "yes", label: "Yes", kind: "YES"}
+        - {code: conditional, label: Only if it clearly saved me time, kind: YES_CONDITIONAL}
+        - {code: probably_not, label: Probably not, kind: PROBABLY_NOT}
+        - {code: "no", label: "No", kind: "NO"}
+    request: Add an answer "Yes, absolutely" so keen people can say so.
+    expect: {outcome: refuse, rule: LEADING_OPTION}
+  - id: payroll-adoption/reword-keeps-balance
+    dimension: solution.adoption_friction
+    frame: effort_yes_no
+    addable: [YES_CONDITIONAL]
+    founder_numbers: [2]
+    claim: Practitioners would upload the register every payroll run
+    item: *effort_yes_no
+    request: Reword the question so it reads less formally.
+    expect: {outcome: change, change: {reword: true}}
+  - id: payroll-importance/remove-item
+    dimension: problem.importance
+    frame: top_three
+    addable: [ESCAPE, ITEM]
+    founder_numbers: []
+    claim: Catching errors before pay goes out is in their top three difficulties
+    item:
+      question: Of these parts of running payroll, which three matter most to you? Tick up to three.
+      options:
+        - {code: own, label: Catching errors before pay goes out, kind: ITEM}
+        - {code: other_1, label: Collecting hours and changes on time, kind: ITEM}
+        - {code: other_2, label: Keeping up with tax and wage rules, kind: ITEM}
+        - {code: other_3, label: Getting approval from finance, kind: ITEM}
+        - {code: none_of_these, label: None of these, kind: ESCAPE}
+    request: Drop "Getting approval from finance"; we don't run that.
+    expect: {outcome: change, change: {remove: [other_3]}}

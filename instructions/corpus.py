@@ -67,7 +67,12 @@ from .registry import (ABILITY_BANDS, ABILITY_KEY, COST_MODES, COST_TOTAL_CONTRO
                        LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY, PRICE_PERIODS, SACRIFICE_KEY,
                        VECTORS, RecallWindow)
 
-REVISION = 8
+#: The corpus revision (call 78, keel-cloud 083): revision 8's seven entries, byte for byte, plus two additions that
+#: are not entries -- `chat/*.yaml` (the calibration chat's cases) and `verdicts/six-scenarios.yaml`.
+REVISION = 9
+#: The `revision:` key an entry file carries. Revision 9 moved no entry, so it is still 8; a directory that
+#: holds the entries without the additions is revision 8's whole, and is refused by name (v16's corpus).
+ENTRY_REVISION = 8
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
@@ -440,11 +445,44 @@ class Entry:
                 f"it gives {m.get('output', '')}").strip()
 
 
+@dataclass(frozen=True)
+class ChatCase:
+    """One row of `chat/<idea>.yaml` (keel-cloud 083, `sim/check_corpus_r9.py`'s rule C): what the founder
+    says to Keel's opening on one dimension, whether one follow-up is expected, and the one measure the chat
+    must end in with its respondent frame (`leave_out`: nothing measurable fits)."""
+    idea: str
+    dimension: str
+    founder: str
+    follow_up: bool
+    measure: str
+    family: str | None
+    respondent: str
+
+    @property
+    def leaves_out(self) -> bool:
+        return self.respondent == "leave_out"
+
+    @property
+    def case_id(self) -> str:
+        return f"{self.idea}/{self.dimension}"
+
+
+@dataclass(frozen=True)
+class ChatIdea:
+    id: str
+    name: str
+    b2b: bool
+    cases: tuple
+
+
 @dataclass
 class Corpus:
     entries: list
     directory: Path
     hashes: dict = field(default_factory=dict)
+    #: Revision 9's additions (call 78): the six ideas' chat cases and the six-scenario verdicts, as read.
+    chat: list = field(default_factory=list)
+    scenarios: list = field(default_factory=list)
 
     def verify_unchanged(self) -> None:
         """Re-hash every file. A difference is a failed run, not a warning.
@@ -475,7 +513,11 @@ class Corpus:
             _check_keys(entry, registry)
             bound.append(replace(entry, registry=registry))
         self.entries = bound
+        check_chat(self.chat, registry)
         return self
+
+    def idea(self, idea_id: str):
+        return next((i for i in self.chat if i.id == idea_id), None)
 
 
 def _sha256(path: Path) -> str:
@@ -507,7 +549,100 @@ def load(keel_cloud: Path, *, registry=None) -> Corpus:
         entry = load_file(path, registry=registry)
         hashes[str(path)] = entry.sha256
         entries.append(entry)
-    return Corpus(entries=entries, directory=directory, hashes=hashes)
+    chat, scenarios = load_additions(directory, hashes)
+    check_scenarios(scenarios)          # rule V needs no registry; rule C is taken at `bind`, against the export's
+    return Corpus(entries=entries, directory=directory, hashes=hashes, chat=chat, scenarios=scenarios)
+
+
+# ------------------------------------------------------------------------- revision 9's additions
+
+CHAT_DIR = "chat"
+VERDICTS_FILE = Path("verdicts") / "six-scenarios.yaml"
+_R8_WHOLE = ("MARKS_VERSION 16's corpus (revision 8): the seven entries without `chat/` and "
+             "`verdicts/six-scenarios.yaml`, which revision 9 (keel-cloud 083) adds")
+
+
+def load_additions(directory: Path, hashes: dict) -> tuple:
+    """`chat/*.yaml` and `verdicts/six-scenarios.yaml`, hashed on the way in. A directory that has
+    neither is revision 8's whole, and is refused by name -- never a fallback to no chat."""
+    chat_dir = Path(directory) / CHAT_DIR
+    verdicts = Path(directory) / VERDICTS_FILE
+    files = sorted(chat_dir.glob("*.yaml")) if chat_dir.is_dir() else []
+    if not files or not verdicts.is_file():
+        raise CorpusError(
+            f"{directory} has no {CHAT_DIR}/*.yaml or {VERDICTS_FILE} -- that is {_R8_WHOLE}. "
+            f"This eval reads corpus revision {REVISION} (keel-cloud 083-calibration-chat).")
+    ideas = []
+    for path in files:
+        hashes[str(path)] = _sha256(path)
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        idea_id = raw.get("id")
+        if not idea_id or not isinstance(raw.get("cases"), list) or not raw["cases"]:
+            raise CorpusError(f"{path.name}: a chat file has an `id` and a list of `cases` "
+                              f"(corpus revision {REVISION})")
+        cases = []
+        for index, case in enumerate(raw["cases"]):
+            where = f"{path.name} case {index} {case.get('dimension')}"
+            for key in ("dimension", "founder", "measure", "respondent"):
+                if not isinstance(case.get(key), str) or not case[key].strip():
+                    raise CorpusError(f"{where}: `{key}` is a non-empty string")
+            if not isinstance(case.get("follow_up"), bool):
+                raise CorpusError(f"{where}: follow_up is not a boolean (rule C)")
+            cases.append(ChatCase(idea=idea_id, dimension=case["dimension"], founder=case["founder"],
+                                  follow_up=case["follow_up"], measure=case["measure"],
+                                  family=case.get("family"), respondent=case["respondent"]))
+        ideas.append(ChatIdea(id=idea_id, name=raw.get("name") or idea_id,
+                              b2b=raw.get("b2b") is True, cases=tuple(cases)))
+    hashes[str(verdicts)] = _sha256(verdicts)
+    document = yaml.safe_load(verdicts.read_text(encoding="utf-8")) or {}
+    scenarios = document.get("scenarios")
+    if not isinstance(scenarios, list) or not scenarios:
+        raise CorpusError(f"{VERDICTS_FILE}: a list of `scenarios` (corpus revision {REVISION})")
+    return ideas, scenarios
+
+
+def check_chat(ideas, registry) -> None:
+    """`check_corpus_r9.py`'s rule C, against the registry the export carried: every case names a
+    dimension with a `chat` block, a `measure` among its `measures`, and a `respondent` that is the
+    block's frame for the measure (`HABIT` under `frames.HABIT`), or `leave_out` where allowed."""
+    for idea in ideas:
+        for case in idea.cases:
+            where = f"{idea.id}/{case.dimension}"
+            if not registry.has(case.dimension):
+                raise CorpusError(f"{where}: no such registry dimension (rule C)")
+            chat = registry.by_key(case.dimension).chat
+            if not chat:
+                raise CorpusError(f"{where}: the registry has no chat block for it (rule C)")
+            if case.measure not in chat.get("measures", []):
+                raise CorpusError(f"{where}: {case.measure} is not in {chat.get('measures')} (rule C)")
+            frames = (chat.get("respondent") or {}).get("frames") or {}
+            expected = frames.get("HABIT") if case.family == "HABIT" else frames.get(case.measure)
+            if case.leaves_out:
+                if not chat.get("leave_out_allowed"):
+                    raise CorpusError(f"{where}: leave_out is not allowed here (rule C)")
+            elif case.respondent != expected:
+                raise CorpusError(f"{where}: respondent {case.respondent} is not the frame "
+                                  f"{expected} (rule C)")
+
+
+SCENARIO_STATUSES = ("HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE", "TOO_FEW_TO_CALL",
+                     "NOT_ASKED_YET", "LEFT_OUT")
+
+
+def check_scenarios(scenarios, registry=None) -> None:
+    """Rule V: the six ideas and the free app, each with `expect`, `verdicts` (the three vectors) and
+    `decision`; every expected status a registry word."""
+    if len(scenarios) != 7:
+        raise CorpusError(f"{VERDICTS_FILE}: {len(scenarios)} scenarios, not seven (rule V)")
+    for scenario in scenarios:
+        for key in ("expect", "verdicts", "decision"):
+            if key not in scenario:
+                raise CorpusError(f"{scenario.get('id')}: no `{key}` (rule V)")
+        for key, row in scenario["expect"].items():
+            if row.get("status") not in SCENARIO_STATUSES:
+                raise CorpusError(f"{scenario.get('id')} {key}: {row.get('status')} (rule V)")
+        if set(scenario["verdicts"]) != {"PROBLEM", "SOLUTION", "COMMERCIAL"}:
+            raise CorpusError(f"{scenario.get('id')}: the verdicts are not the three vectors (rule V)")
 
 
 def load_file(path, *, registry=None) -> Entry:
@@ -531,11 +666,12 @@ def _refuse(entry_id, message, path) -> CorpusError:
 def _check_revision(raw: dict, path: Path) -> None:
     entry_id = raw.get("id") or path.name
     revision = raw.get("revision")
-    if revision != REVISION:
+    if revision != ENTRY_REVISION:
         was = (f" -- revision {revision} is {_REVISION_OF[revision]}"
                if revision in _REVISION_OF else "")
         raise _refuse(entry_id, f"revision is {revision if revision is not None else 'absent'}; "
-                                f"this eval reads revision {REVISION} only{was}", path)
+                                f"this eval reads revision {ENTRY_REVISION} only{was} (corpus revision "
+                                f"{REVISION} adds `chat/` and `verdicts/` and moves no entry)", path)
     for key in R2_KEYS:
         if key in raw:
             raise _refuse(entry_id, f"carries `{key}`, which revision 3 dropped", path)

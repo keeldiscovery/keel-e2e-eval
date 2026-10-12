@@ -252,6 +252,9 @@ class Dimension:
     lullaby: dict = field(default_factory=dict)
     #: keel-cloud 071: calibrated and asked only when the persona is B2B (074: Purchase friction alone).
     b2b_only: bool = False
+    #: keel-cloud 083 (registry version 3): the calibration chat's block -- opening, `measures`, the one
+    #: follow-up, `belief_template`, `respondent.frames`, `compare_rule` -- or `{}` (Prevalence, Ability to pay).
+    chat: dict = field(default_factory=dict)
 
     @property
     def normalized(self) -> dict:
@@ -419,7 +422,7 @@ def _dimension(raw: dict) -> Dimension:
         weight=raw.get("weight"), founder=dict(raw.get("founder") or {}),
         respondent=dict(raw.get("respondent") or {}), answers=dict(raw.get("answers") or {}),
         left_out=dict(raw.get("left_out") or {}), lullaby=dict(raw.get("lullaby") or {}),
-        b2b_only=raw.get("b2b_only") is True)
+        b2b_only=raw.get("b2b_only") is True, chat=dict(raw.get("chat") or {}))
 
 
 def from_document(document, *, source: str = "", check: bool = True) -> Registry:

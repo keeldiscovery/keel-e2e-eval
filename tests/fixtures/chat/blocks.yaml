@@ -1,0 +1,17 @@
+# The registry's `chat` blocks for the dimensions the chat tests use, as keel-cloud 083's registry (version 3) writes
+# them: just `measures` and `respondent.frames` (the only keys a mark reads), by dimension key.
+problem.frequency: {measures: [COUNT], respondent: {frames: {COUNT: segmented_0_to_7}}}
+problem.importance: {measures: [LIST], respondent: {frames: {LIST: top_three}}}
+problem.current_solution_satisfaction:
+  measures: [TIME, MONEY, EFFORT]
+  respondent: {frames: {TIME: band_ladder, MONEY: band_ladder, EFFORT: band_ladder}}
+solution.relative_advantage:
+  measures: [TIME, MONEY, EFFORT, PERCENT, SET, ERRORS, NO_NUMBER]
+  respondent:
+    frames: {TIME: band_ladder, MONEY: band_ladder, EFFORT: band_ladder, PERCENT: word_bands, SET: switch_threshold,
+             ERRORS: balanced, NO_NUMBER: balanced}
+solution.adoption_friction:
+  measures: [EFFORT]
+  respondent: {frames: {EFFORT: effort_yes_no, HABIT: how_often}}
+commercial.price: {measures: [MONEY], respondent: {frames: {MONEY: price_ladder}}}
+commercial.commitment: {measures: [LADDER], respondent: {frames: {LADDER: furthest_rung}}}

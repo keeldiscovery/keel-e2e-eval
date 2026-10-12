@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -215,3 +216,66 @@ def compare_entry(keel_cloud: Path, entry, registry, compare_dir: Path) -> Compa
     except EngineUnavailable as reason:
         return unmeasured(entry.id, str(reason))
     return diff(entry.expected, produced, entry=entry)
+
+
+# ------------------------------------------------------------------------------- the six scenarios (r9)
+
+#: The pseudo-entry the six-scenario verdicts score under (corpus revision 9, `verdicts/six-scenarios.yaml`).
+SIX_ID = "six-scenarios"
+SIX_TEST = "*SixScenarioVerdictsTest"
+SIX_RESULT = (Path("build") / "test-results" / "test"
+              / "TEST-com.keeldiscovery.cloud.domain.vectors.SixScenarioVerdictsTest.xml")
+
+
+def six_checks(scenario: dict) -> int:
+    """What one scenario checks: every `expect` row (status, and drift where it names one), the three vector
+    verdicts and the decision label -- counted off the file, never typed."""
+    return len(scenario.get("expect") or {}) + len(scenario.get("verdicts") or {}) + 1
+
+
+def six_scenarios(keel_cloud: Path, scenarios: list, *, timeout_s: float = 900.0) -> CompareScore:
+    """The seven scenarios of `verdicts/six-scenarios.yaml` through keel-cloud's own engine, at zero spend.
+
+    `screenContracts compare` takes revision 8's shapes only (it refuses a chat frame), and a measured scenario
+    needs `ItemFramer`'s items to be answered at all -- so the engine is asked the way keel-cloud asks it:
+    `SixScenarioVerdictsTest` (`./gradlew cleanTest test --tests ...`), which builds each study, runs `Compare`
+    and asserts every row's status and drift, the three vector verdicts and `BriefFacts.decision`. Its JUnit
+    result is read back, one test a scenario: a passing scenario agrees on all its checks, a failing one on none
+    (the result does not say which row, so its message is kept). This repository keeps no copy of the arithmetic.
+    """
+    keel_cloud = Path(keel_cloud)
+    gradlew = keel_cloud / "gradlew"
+    if not gradlew.is_file():
+        raise EngineUnavailable(f"no {gradlew} -- the six-scenario verdicts need keel-cloud 083")
+    result = keel_cloud / SIX_RESULT
+    argv = [str(gradlew), "-q", "cleanTest", "test", "--tests", SIX_TEST]
+    try:
+        done = subprocess.run(argv, cwd=str(keel_cloud), capture_output=True, text=True, timeout=timeout_s)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise EngineUnavailable(f"could not run keel-cloud's SixScenarioVerdictsTest: {exc}") from exc
+    if not result.is_file():
+        raise EngineUnavailable("keel-cloud's SixScenarioVerdictsTest left no result "
+                                f"({SIX_RESULT}); exit {done.returncode}.\n"
+                                + (done.stderr.strip() or done.stdout.strip())[-2000:])
+    try:
+        cases = ET.parse(result).getroot().findall("testcase")
+    except ET.ParseError as exc:
+        raise EngineUnavailable(f"{result} is not readable JUnit XML: {exc}") from exc
+    outcome = {}
+    for case in cases:
+        failure = case.find("failure")
+        error = case.find("error")
+        broken = failure if failure is not None else error
+        outcome[case.get("name")] = None if broken is None else (broken.get("message") or "failed")[:400]
+    score = CompareScore(entry_id=SIX_ID, measured=True)
+    for scenario in scenarios:
+        checks = six_checks(scenario)
+        score.checks += checks
+        name = scenario.get("id")
+        if name in outcome and outcome[name] is None:
+            score.agreed += checks
+        else:
+            score.mismatches.append({"key": name, "expected": {"checks": checks, "agreed": True},
+                                     "produced": {"agreed": False,
+                                                  "why": outcome.get(name, "no test ran for this scenario")}})
+    return score

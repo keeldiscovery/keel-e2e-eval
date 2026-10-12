@@ -297,6 +297,7 @@ def test_the_loader_reads_keel_clouds_canon_and_nowhere_else(tmp_path):
     directory.mkdir(parents=True)
     raw = fx.raw_entry()
     fx.write_entry(directory, raw, "02-new.yaml")
+    fx.write_additions(directory)
     assert corpus_mod.source_dir(keel_cloud) == directory
     assert [e.id for e in corpus_mod.load(keel_cloud).entries] == ["09-fixture"]
     fx.write_entry(directory, dict(raw, revision=3), "01-old.yaml")

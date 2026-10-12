@@ -1,6 +1,6 @@
-# Feature Specification: 035 Calibration chat marks (MARKS_VERSION 15)
+# Feature Specification: 035 Calibration chat marks (MARKS_VERSION 17 as implemented; written for 15)
 
-**Branch**: `035-calibration-chat` (off `e3f192f`) · **Created**: 2026-10-12 · **Status**: Draft
+**Branch**: `035-calibration-chat` (off `e3f192f`) · **Created**: 2026-10-12 · **Status**: Implemented, DRY only (see `tasks.md`, *Deviations*: v17, calls 76-80, corpus r9, no parity possible at 083)
 
 **Sibling of**: keel-cloud `083-calibration-chat`:
 - registry v2;

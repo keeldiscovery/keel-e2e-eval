@@ -34,9 +34,15 @@ SCREEN_COMPARE = "COMPARE"
 # The screen nobody asks for -- keel-cloud starts it by itself once the answers are read.
 SCREEN_BRIEF = "BRIEF"
 
-#: The seven screens a model answers, in the order a run builds them (FR-016).
+# MARKS_VERSION 17 (spec 035, keel-cloud 083, contract 11): the founder's calibration chat -- one dimension's chat
+# turn and the founder's change to a previewed item. Job class CALIBRATION (the standard tier).
+SCREEN_CHAT = "CALIBRATION_CHAT"
+SCREEN_FEEDBACK = "ITEM_FEEDBACK"
+
+#: The nine screens a model answers, in the order a run builds them (FR-016; the chat pair appended at v17).
 MODEL_SCREENS = (SCREEN_CONTEXT_INTERPRET, SCREEN_PROBLEM_INTERPRET, SCREEN_SOLUTION_MECHANISM,
-                 SCREEN_CALIBRATION, SCREEN_RESPONDENT, SCREEN_INTERPRET, SCREEN_BRIEF)
+                 SCREEN_CALIBRATION, SCREEN_RESPONDENT, SCREEN_INTERPRET, SCREEN_BRIEF,
+                 SCREEN_CHAT, SCREEN_FEEDBACK)
 
 #: The exporter's new fourth file (keel-cloud 058, research R4), read into `ExportedContract.registry`.
 REGISTRY_NAME = "dimension-registry.json"

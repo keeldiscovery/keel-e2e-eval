@@ -32,6 +32,9 @@ STEMS = {
     "SOLUTION_MECHANISM": "solution-mechanism",
     "CALIBRATION_QUESTIONS": "calibration-questions",
     "RESPONDENT_QUESTIONS": "respondent-questions",
+    # MARKS_VERSION 17 (keel-cloud 083): the calibration chat's two templates.
+    "CALIBRATION_CHAT": "calibration-chat",
+    "ITEM_FEEDBACK": "item-feedback",
 }
 
 

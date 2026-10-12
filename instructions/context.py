@@ -68,6 +68,10 @@ DEFAULT_KEYS = {
                                      "items", "founder_options", "mechanism"],
     contract_mod.SCREEN_INTERPRET: ["invitation_id", "story"],
     contract_mod.SCREEN_BRIEF: ["project_name", "market", "context", "facts", "beliefs", "stories"],
+    # keel-cloud 083 (`ScreenContextBuilder.chatContext` / `feedbackContext`), in the order it writes them.
+    contract_mod.SCREEN_CHAT: ["vector", "dimension", "proposal_id", "dimension_name", "meaning", "chat",
+                               "context", "market", "statement", "depends_on", "idea_words", "b2b"],
+    contract_mod.SCREEN_FEEDBACK: ["vector", "dimension", "frame", "item", "addable", "rules"],
 }
 
 #: The five fields of r3's `context` a screen is handed (`understood` is the golden sentence
@@ -701,3 +705,97 @@ def build_brief(entry, keys=None, registry=None) -> dict:
                                                        per, corpus_mod._PERIOD_WORDS.get(per, "")),
                         "beliefs": brief_facts.beliefs_for(vectors),
                         "stories": brief_facts.stories_for(entry)})
+
+
+# ------------------------------------------------------------------- the calibration chat (083)
+
+#: `ScreenContextBuilder.dependsOn`: the beliefs a chat reads beside its own.
+CHAT_DEPENDS_ON = {"solution.relative_advantage": ("problem.current_solution_satisfaction",),
+                   "commercial.price": ("commercial.existing_sacrifice",),
+                   "solution.adoption_friction": ("problem.frequency",)}
+
+_SLOT_FIELDS = ("actor", "actor_plural", "job", "circumstance", "segment")
+_CURRENCY_WORD = {"GBP": "\u00a3", "USD": "$", "EUR": "\u20ac"}
+
+
+def _one(value, symbol="") -> str:
+    shown = f"{value:,.0f}" if isinstance(value, (int, float)) and float(value).is_integer() else str(value)
+    return f"{symbol}{shown}"
+
+
+def _number_phrase(low, high, unit, symbol="") -> str:
+    span = _one(low, symbol) if low == high or high is None else f"{_one(low, symbol)} to {_one(high, symbol)}"
+    return f"{span} {unit}".strip()
+
+
+def belief_value(row, currency) -> str | None:
+    """The `{value}` a founder's measured belief puts in `chat.belief_template`, from a six-scenario row: a
+    number and its unit, an amount over a period, or `None` where the row is unsure or has no figure the
+    template could say (the dependent belief is then simply absent, as in keel-cloud)."""
+    if not isinstance(row, dict) or row.get("unsure"):
+        return None
+    symbol = _CURRENCY_WORD.get(currency, currency or "")
+    for key in ("cost", "price"):
+        if isinstance(row.get(key), dict):
+            money = row[key]
+            return _number_phrase(money["low"], money["high"], f"a {money['period']}", symbol)
+    if row.get("low") is not None and row.get("unit"):
+        return _number_phrase(row["low"], row.get("high"), row["unit"])
+    return None
+
+
+def fill_slots(text, slots: dict) -> str:
+    """`Slots.fill`: the five context slots into `{actor}`, `{actor_plural}`, `{job}`..."""
+    for name in _SLOT_FIELDS:
+        text = text.replace("{" + name + "}", str(slots.get(name) or ""))
+    return text
+
+
+def build_calibration_chat(case, sheet: dict, scenario: dict, registry, keys=None) -> dict:
+    """`CALIBRATION_CHAT` for one (idea, dimension), as `ScreenContextBuilder.chatContext` hands it: the dimension
+    and its `chat` block with the opening filled, the context and market, the vector's statement, the beliefs
+    this one reads beside it, the idea's own words and whether someone else pays. The founder's answer to the
+    opening is the turn's content, not a key."""
+    keys = DEFAULT_KEYS[contract_mod.SCREEN_CHAT] if keys is None else keys
+    dimension = registry.by_key(case.dimension)
+    chat = dimension.chat
+    slots = dict(sheet["context"])
+    window = RecallWindow.read(scenario["window"])
+    currency = scenario.get("currency")
+    block = {
+        "opens_with": window.fill(fill_slots(chat["opens_with"], slots)),
+        "measures": list(chat["measures"]),
+        "follow_up": chat["follow_up"],
+        "leave_out_allowed": chat["leave_out_allowed"],
+        "asks_number": chat["asks_number"],
+        "frames": dict(sorted(((chat.get("respondent") or {}).get("frames") or {}).items())),
+    }
+    depends = {}
+    for key in CHAT_DEPENDS_ON.get(case.dimension, ()):
+        row = (scenario.get("founder") or {}).get(key)
+        value = belief_value(row, currency)
+        template = (registry.by_key(key).chat or {}).get("belief_template")
+        if value and template:
+            depends[key] = fill_slots(template, slots).replace("{value}", value)
+    values = {
+        "vector": dimension.vector, "dimension": dimension.key,
+        "proposal_id": f"p-{case.idea}-{dimension.key}",
+        "dimension_name": dimension.name, "meaning": dimension.meaning, "chat": block,
+        "context": {**slots, "window": window.words()}, "market": dict(sheet["market"]),
+        "statement": (sheet.get("statements") or {}).get(dimension.vector),
+        "depends_on": depends, "idea_words": list(sheet.get("idea_words") or []),
+        "b2b": bool(scenario.get("b2b")),
+    }
+    return _fill(keys, values)
+
+
+def build_item_feedback(case: dict, rules, keys=None) -> dict:
+    """`ITEM_FEEDBACK`, as `ScreenContextBuilder.feedbackContext` hands it: the vector and dimension, the frame
+    (code's), the item as it stands, the kinds an added option may take and the rules a change is held to. The
+    founder's request is the turn's content."""
+    keys = DEFAULT_KEYS[contract_mod.SCREEN_FEEDBACK] if keys is None else keys
+    vector = case["dimension"].split(".", 1)[0].upper()
+    return _fill(keys, {"vector": vector, "dimension": case["dimension"], "frame": case["frame"],
+                        "item": {"question": case["item"]["question"],
+                                 "options": [dict(o) for o in case["item"]["options"]]},
+                        "addable": sorted(case.get("addable") or []), "rules": list(rules)})

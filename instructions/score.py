@@ -48,6 +48,7 @@ import re
 from dataclasses import dataclass, field
 
 from . import brief as brief_mod
+from . import chat as chat_mod
 from . import text as text_mod
 from . import context as context_mod
 from . import wording as wording_mod
@@ -950,7 +951,7 @@ def _question_screen(scores) -> dict:
 
 
 def totals(calibration_scores=(), respondent_scores=(), interpret_scores=(), compare_scores=(),
-           *, brief_scores=(), errored: int = 0, refusals_by_rule: dict | None = None,
+           *, brief_scores=(), chat_scores=(), errored: int = 0, refusals_by_rule: dict | None = None,
            shape_refusals: int = 0, schema_invalid: int = 0, refusals_measured: bool = False,
            refusals_shown: int = 0, judge_calls: int = 0, leak_hits: int | None = None,
            leak_judged: int | None = None, refusals_unmeasured_kinds=()) -> dict:
@@ -982,9 +983,11 @@ def totals(calibration_scores=(), respondent_scores=(), interpret_scores=(), com
     compare_agreed = sum(s.agreed for s in compare_scores if s.measured)
 
     brief = brief_mod.totals(list(brief_scores or []))
+    chat = chat_mod.totals(list(chat_scores or []))
 
     return {
         **brief,
+        **chat,
         "calibration_cases": calibration["cases"],
         "calibration_coverage": calibration["coverage"],
         "calibration_validity": calibration["validity"],
