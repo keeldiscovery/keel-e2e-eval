@@ -563,7 +563,7 @@ def render_register(run_dir: Path, *, entries_by_market: dict,
     marked *accepted* or *refused (rule id)* by the aggregate -- the only words this page adds; the
     calibration questions in registry order beside the registry's own founder question where it
     has one, the founder's chosen phrase and the belief sentence the corpus records; the respondent items
-    beside the plan row, the reveal between parts 1 and 2, the B2B link on its own; and the brief
+    beside the plan row, the B2B link on its own; and the brief
     paragraph beside the standings table. A judgement here would look like evidence and would be
     similarity to one hand-written example (judgement call 10); the person who knows the market
     reads it instead.
@@ -593,7 +593,7 @@ def render_register(run_dir: Path, *, entries_by_market: dict,
             parts.append(_redrawn_html(block.get("redraws") or []))
             parts.append(_interpretations_html(block.get("interpretations") or []))
             parts.append(_calibration_html(block.get("calibration") or []))
-            parts.append(_respondent_html(block.get("respondent") or [], block.get("reveal"),
+            parts.append(_respondent_html(block.get("respondent") or [],
                                           block.get("b2b") or []))
     for market_key, entries in (paragraphs or {}).items():
         parts.append(f"<div class='market'><b>{_esc(market_key)}</b> — what this says</div>")
@@ -672,7 +672,7 @@ def _calibration_html(rows: list) -> str:
     return "".join(out)
 
 
-def _respondent_html(parts_rows: list, reveal, b2b_rows: list) -> str:
+def _respondent_html(parts_rows: list, b2b_rows: list) -> str:
     if not parts_rows and not b2b_rows:
         return ""
     out = ["<h3>Respondent items, beside the plan</h3>"]
@@ -689,9 +689,6 @@ def _respondent_html(parts_rows: list, reveal, b2b_rows: list) -> str:
                     for o in options) + "</ul>")
 
     items([r for r in parts_rows if r.get("part") == 1])
-    if reveal:
-        out.append("<div class='banner note'><b>The reveal</b> — "
-                   f"{_esc(reveal.get('title'))}<br>{_esc(reveal.get('body'))}</div>")
     items([r for r in parts_rows if r.get("part") != 1])
     if b2b_rows:
         out.append("<h3>The decision-maker's link (COMMERCIAL_B2B)</h3>")
@@ -764,7 +761,7 @@ def register_blocks(corpus, produced: dict, registry=None, aggregate: dict | Non
         reg = registry if registry is not None else entry.registry
         shown_ids = {case_id for case_id, _result in mine.values()}
         block = {"title": entry.title, "interpretations": [], "calibration": [],
-                 "respondent": [], "reveal": None, "b2b": [],
+                 "respondent": [], "b2b": [],
                  "redraws": [r for r in redraws or () if r.get("case_id") in shown_ids]}
         for screen in ("CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "SOLUTION_MECHANISM"):
             if screen not in mine:
@@ -822,7 +819,5 @@ def register_blocks(corpus, produced: dict, registry=None, aggregate: dict | Non
                 block["b2b"] = rows
             else:
                 block["respondent"].extend(rows)
-            if label == "PART2" and isinstance(result.get("reveal"), dict):
-                block["reveal"] = result["reveal"]
         grouped.setdefault(_market_key(entry), {})[entry.id] = block
     return grouped

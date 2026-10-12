@@ -85,7 +85,7 @@ def test_the_register_carries_no_score_tick_cross_met_or_mark(tmp_path, corpus):
         assert not re.search(rf"\b{word}\b", html, re.IGNORECASE), word
 
 
-def test_the_respondent_block_sits_beside_the_plan_with_the_reveal_between_parts(tmp_path, corpus):
+def test_the_respondent_block_sits_beside_the_plan_and_carries_no_reveal(tmp_path, corpus):
     entry = corpus.entries[0]
     produced = _produced(fx.registry())
     for part in (1, 2, 3):
@@ -99,15 +99,14 @@ def test_the_respondent_block_sits_beside_the_plan_with_the_reveal_between_parts
     gate = block["respondent"][0]
     assert (gate["key"], gate["part"], gate["control"], gate["codes"]) == (
         "problem.prevalence", 1, "gate_yes_no", ["yes", "no"])
-    assert block["reveal"]["title"] == "What we are testing"
+    assert "reveal" not in block
     assert len(block["b2b"]) == 4
 
     html = _visible(report_mod.render_register(tmp_path, entries_by_market=blocks,
                                                paragraphs={}).read_text(encoding="utf-8"))
     part1_end = html.index("problem.current_solution_satisfaction</b> · part 1")
-    reveal = html.index("<b>The reveal</b>")
     part2_start = html.index("solution.compatibility</b> · part 2")
-    assert part1_end < reveal < part2_start, "the reveal sits between parts 1 and 2"
+    assert part1_end < part2_start and "The reveal" not in html, "no reveal between parts 1 and 2"
     assert "The decision-maker's link (COMMERCIAL_B2B)" in html
     for word in ("score", "met", "mark"):
         assert not re.search(rf"\b{word}\b", html, re.IGNORECASE), word

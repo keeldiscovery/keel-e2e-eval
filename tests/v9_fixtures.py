@@ -215,8 +215,6 @@ def respondent_result(entry, part, *, link="PRIMARY", label_only=False) -> dict:
     keys = entry.plan()[part]
     result = {"part": part, "link": link,
               "items": [respondent_item(entry, k, label_only=label_only) for k in keys]}
-    if part == 2:
-        result["reveal"] = {"title": "What we are testing", "body": "A small thing you could try."}
     return result
 
 

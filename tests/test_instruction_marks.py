@@ -37,13 +37,13 @@ def judgement_calls() -> list:
     return [int(n) for n in re.findall(r"^(\d+)\.\s", marks_mod.__doc__, re.M)]
 
 
-def test_marks_version_is_fifteen():
-    assert marks_mod.MARKS_VERSION == 15
+def test_marks_version_is_sixteen():
+    assert marks_mod.MARKS_VERSION == 16
 
 
-def test_the_judgement_calls_are_one_to_seventy_four_with_none_missing_and_none_twice():
+def test_the_judgement_calls_are_one_to_seventy_five_with_none_missing_and_none_twice():
     numbers = judgement_calls()
-    assert sorted(numbers) == list(range(1, 75)), "append-only: 1-74, none struck or renumbered"
+    assert sorted(numbers) == list(range(1, 76)), "append-only: 1-75, none struck or renumbered"
     assert len(numbers) == len(set(numbers)), "no judgement call is written twice"
 
 
@@ -130,6 +130,15 @@ def test_the_three_v14_calls_are_marked_and_say_what_they_are():
         assert phrase in " ".join(match.group(1).split()), f"{number} does not carry {phrase!r}"
 
 
+def test_the_v16_call_is_marked_and_says_what_it_is():
+    body = marks_mod.__doc__
+    match = re.search(r"^75\. \*\*v16\*\*(.*?)(?=^\d+\. |\Z)", body, re.M | re.S)
+    assert match, "75 is not marked v16"
+    said = " ".join(match.group(1).split())
+    for phrase in ("`occasion`", "`idea_what`", "no `reveal`", "X3, L1-L4 and W3", "refuses every bundle below 16"):
+        assert phrase in said, phrase
+
+
 def test_the_v15_call_is_marked_and_says_what_it_is():
     body = marks_mod.__doc__
     match = re.search(r"^74\. \*\*v15\*\*(.*?)(?=^\d+\. |\Z)", body, re.M | re.S)
@@ -138,6 +147,12 @@ def test_the_v15_call_is_marked_and_says_what_it_is():
     for phrase in ("corpus revision 8", "`stronger`", "`short`", "`NOT_TESTED`", "decision.split",
                    "decision.notTested", "refuses every bundle below 15"):
         assert phrase in said, phrase
+
+
+def test_the_marks_file_carries_the_v16_header_above_v15s():
+    text = marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")
+    assert text.index("MARKS_VERSION 16") < text.index("MARKS_VERSION 15")
+    assert "WHY=marks:16" in text
 
 
 def test_the_marks_file_carries_the_v15_header_above_v14s():

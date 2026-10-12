@@ -6,7 +6,14 @@
 # evals/policy.py states for POLICY_VERSION, and a separate constant so the two can never be
 # confused.
 
-# MARKS_VERSION 15 (judgement call 74, 2026-10-12; spec 036-direction-aware-verdicts, the sibling of
+# MARKS_VERSION 16 (judgement call 75, 2026-10-12; spec 037-reveal-three-lines, the sibling of keel-cloud
+# 084-reveal-three-lines, merged at fc12b49; contract 9 -> 10, document 16 -> 17). The idea is three lines written
+# with the mechanism (occasion on the context screen; no reveal on the respondent screen); the validator owns the
+# new rules and the part-2 reveal W3 fault retires. No number below moved. **Scores before and after this bump are
+# not comparable**, and a v15 bundle **cannot be re-scored** to v16. **Run of record: none yet** -- there is none
+# until `WHY=marks:16` is spent.
+#
+# MARKS_VERSION 15 (history; judgement call 74, 2026-10-12; spec 036-direction-aware-verdicts, the sibling of
 # keel-cloud 082-direction-aware-verdicts, merged at 438807d; contract stays 9, registry VERSION 2).
 # Corpus REVISION 8: drift stronger / short, 28 status/drift/verdict rows moved (people and picks did not);
 # compare_correctness moves with it. The BRIEF facts add decision.split and decision.notTested. No number
