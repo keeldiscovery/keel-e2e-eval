@@ -30,7 +30,7 @@ V8_BUNDLE = FIXTURES / "runs" / "v8-bundle"
 
 #: Why a test reading keel-cloud's canon corpus skips: the canon is not at revision 7 yet (calls 49, 51, 60, 68 --
 #: there is no fixture fallback any more; keel-cloud 077 carries revision 7).
-CANON_NOT_R7 = ("keel-cloud's canon corpus is not at revision 7 (keel-cloud 077) -- spec 031 reads "
+CANON_NOT_R7 = ("keel-cloud's canon corpus is not at revision 8 (keel-cloud 082) -- spec 031 reads "
                 "the corpus from keel-cloud's canon and nowhere else (judgement call 49)")
 
 

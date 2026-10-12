@@ -65,7 +65,7 @@ def test_a_v9_bundle_is_refused_by_name_and_left_untouched(tmp_path, capsys, mon
     assert rescore_mod.main([str(bundle)]) == 2
     said = capsys.readouterr().err
     assert "20261008T000000Z-instructions was scored at marks_version 9" in said
-    assert "a v9 scorecard cannot be re-scored at v14" in said
+    assert "a v9 scorecard cannot be re-scored at v15" in said
     assert "corpus r4 does not carry what it measured" in said
     assert _digests(bundle) == before, "nothing in a refused bundle is touched"
 
@@ -80,7 +80,7 @@ def test_a_v10_bundle_is_refused_by_name_and_left_untouched(tmp_path, capsys, mo
     assert rescore_mod.main([str(bundle)]) == 2
     said = capsys.readouterr().err
     assert "20261008T000000Z-instructions was scored at marks_version 10" in said
-    assert "a v10 scorecard cannot be re-scored at v14" in said
+    assert "a v10 scorecard cannot be re-scored at v15" in said
     assert "no Price, no units and the window in the model's own words" in said
     assert _digests(bundle) == before, "nothing in a refused bundle is touched"
 
@@ -95,7 +95,7 @@ def test_a_v11_bundle_is_refused_by_name_and_left_untouched(tmp_path, capsys, mo
     assert rescore_mod.main([str(bundle)]) == 2
     said = capsys.readouterr().err
     assert "20261008T000000Z-instructions was scored at marks_version 11" in said
-    assert "a v11 scorecard cannot be re-scored at v14" in said
+    assert "a v11 scorecard cannot be re-scored at v15" in said
     assert "a model-written Ability to pay" in said and "(WHY=marks:12)" in said
     assert _digests(bundle) == before, "nothing in a refused bundle is touched"
 
@@ -110,7 +110,7 @@ def test_a_v12_bundle_is_refused_by_name_and_left_untouched(tmp_path, capsys, mo
     assert rescore_mod.main([str(bundle)]) == 2
     said = capsys.readouterr().err
     assert "20261008T000000Z-instructions was scored at marks_version 12" in said
-    assert "a v12 scorecard cannot be re-scored at v14" in said
+    assert "a v12 scorecard cannot be re-scored at v15" in said
     assert "kinds with a unit each" in said and "(WHY=marks:13)" in said
     assert _digests(bundle) == before, "nothing in a refused bundle is touched"
 
@@ -125,8 +125,23 @@ def test_a_v13_bundle_is_refused_by_name_and_left_untouched(tmp_path, capsys, mo
     assert rescore_mod.main([str(bundle)]) == 2
     said = capsys.readouterr().err
     assert "20261008T000000Z-instructions was scored at marks_version 13" in said
-    assert "a v13 scorecard cannot be re-scored at v14" in said
+    assert "a v13 scorecard cannot be re-scored at v15" in said
     assert "`whatThisSays` paragraph" in said and "(WHY=marks:14)" in said
+    assert _digests(bundle) == before, "nothing in a refused bundle is touched"
+
+
+def test_a_v14_bundle_is_refused_by_name_and_left_untouched(tmp_path, capsys, monkeypatch):
+    """Spec 036 SC-003, call 74: a v14 bundle was scored against corpus revision 7's status / drift --
+    one line, by name, before the corpus is reached."""
+    bundle = _bundle(tmp_path, version=14)
+    before = _digests(bundle)
+    monkeypatch.setattr(rescore_mod, "load_config",
+                        lambda: (_ for _ in ()).throw(AssertionError("the corpus was reached")))
+    assert rescore_mod.main([str(bundle)]) == 2
+    said = capsys.readouterr().err
+    assert "20261008T000000Z-instructions was scored at marks_version 14" in said
+    assert "a v14 scorecard cannot be re-scored at v15" in said
+    assert "corpus revision 7's status / drift" in said and "(WHY=marks:15)" in said
     assert _digests(bundle) == before, "nothing in a refused bundle is touched"
 
 
@@ -145,7 +160,7 @@ def test_a_current_bundle_is_rescored_beside_and_never_over(tmp_path, monkeypatc
     assert rescore_mod.main([str(bundle), "--no-judge"]) == 0
     assert (bundle / "scorecard.json").read_bytes() == original, "never over"
     written = json.loads((bundle / f"scorecard-v{marks_mod.MARKS_VERSION}.json").read_text())
-    assert written["marks_version"] == written["rescored_from"] == marks_mod.MARKS_VERSION == 14
+    assert written["marks_version"] == written["rescored_from"] == marks_mod.MARKS_VERSION == 15
     assert written["totals"]["compare_measured"] is False, \
         "a bundle with no engine input re-measures no compare"
     assert "re-scored" in capsys.readouterr().out

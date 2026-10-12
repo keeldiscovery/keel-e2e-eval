@@ -37,13 +37,13 @@ def judgement_calls() -> list:
     return [int(n) for n in re.findall(r"^(\d+)\.\s", marks_mod.__doc__, re.M)]
 
 
-def test_marks_version_is_fourteen():
-    assert marks_mod.MARKS_VERSION == 14
+def test_marks_version_is_fifteen():
+    assert marks_mod.MARKS_VERSION == 15
 
 
-def test_the_judgement_calls_are_one_to_seventy_three_with_none_missing_and_none_twice():
+def test_the_judgement_calls_are_one_to_seventy_four_with_none_missing_and_none_twice():
     numbers = judgement_calls()
-    assert sorted(numbers) == list(range(1, 74)), "append-only: 1-73, none struck or renumbered"
+    assert sorted(numbers) == list(range(1, 75)), "append-only: 1-74, none struck or renumbered"
     assert len(numbers) == len(set(numbers)), "no judgement call is written twice"
 
 
@@ -130,6 +130,23 @@ def test_the_three_v14_calls_are_marked_and_say_what_they_are():
         assert phrase in " ".join(match.group(1).split()), f"{number} does not carry {phrase!r}"
 
 
+def test_the_v15_call_is_marked_and_says_what_it_is():
+    body = marks_mod.__doc__
+    match = re.search(r"^74\. \*\*v15\*\*(.*?)(?=^\d+\. |\Z)", body, re.M | re.S)
+    assert match, "74 is not marked v15"
+    said = " ".join(match.group(1).split())
+    for phrase in ("corpus revision 8", "`stronger`", "`short`", "`NOT_TESTED`", "decision.split",
+                   "decision.notTested", "refuses every bundle below 15"):
+        assert phrase in said, phrase
+
+
+def test_the_marks_file_carries_the_v15_header_above_v14s():
+    text = marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")
+    assert text.index("MARKS_VERSION 15") < text.index("MARKS_VERSION 14") < \
+        text.index("MARKS_VERSION 13") < text.index("MARKS_VERSION 12")
+    assert "Run of record: none yet" in text and "WHY=marks:15" in text
+
+
 def test_the_marks_file_carries_the_v14_header_above_v13s():
     text = marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")
     assert text.index("MARKS_VERSION 14") < text.index("MARKS_VERSION 13") < \
@@ -209,7 +226,7 @@ def test_the_refusal_mark_is_a_rate_over_the_answers_judged():
 def test_the_v13_header_names_the_seven_r7_digests_and_the_counted_denominators():
     """Spec 033 US2: one dated paragraph above the call list -- never a call, never a line of
     `marks.toml`. The digests are keel-cloud's canon's own bytes (skipped by name when the
-    configured keel-cloud is not at revision 7); v12's and v11's paragraphs stay below it as history."""
+    configured keel-cloud is not at revision 8); v12's and v11's paragraphs stay below it as history."""
     import hashlib                                                          # noqa: PLC0415
     from tests import v9_fixtures as fx                                     # noqa: PLC0415
     doc = marks_mod.__doc__

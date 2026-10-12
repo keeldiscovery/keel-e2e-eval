@@ -19,7 +19,20 @@ persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
 by name. v10 has no run of record; it is history from v11.
 
-**`MARKS_VERSION` 14** (spec 034, 2026-10-11): the brief infers and recommends. The ruler follows keel-cloud 079
+**`MARKS_VERSION` 15** (spec 036, 2026-10-12): direction-aware verdicts. The ruler follows keel-cloud 082 (merged at
+`438807d`; contract stays 9, document 16): a dimension with a supporting side is one-sided, so a person beyond the
+founder's band on that side supports the bet. The golden corpus moves to **revision 8** (a revision-7 file is
+refused by name as v13's / v14's; 28 `status` / `drift` / verdict rows moved, the people and picks did not), so
+`compare_correctness` -- the engine's `status` + `drift` against the corpus's -- now expects `stronger` / `short`
+drift (and, on Linerly, a holding PROBLEM and COMMERCIAL). The registry is exported at **version 2** (the
+engine refuses version 1). The `BRIEF` facts this eval builds carry `decision.split` and `decision.notTested`
+(`instructions/brief_facts.py`, §4.2 as 082 amended it); `BriefReading.check` did not change, so the five
+reading marks are unchanged and take the new facts. No other mark moved. `rescore.py` refuses every bundle
+below 15. Call 74 below. **There is no v15 run of record until `WHY=marks:15` is spent** (this spec never
+runs or proposes it); v14 never had one.
+The seven revision-8 files, by sha256 (keel-cloud canon's own bytes, equal to `src/test/resources/keel/corpus-r8/`): `01-countly.yaml` `81fedfde1c591923b0287a2add568bffe6ac08d749319b37c767a2db9193cdf2`; `02-compliancelog.yaml` `0f58ac60e8df4aa330fb8c0bf5208e2e54838be8d5d08b3c0f7483324605eeda`; `03-lullaby.yaml` `b6693e5d349016815dc9e1b8960929b68af7dd81fc72f94e729f74b380773b85`; `04-linerly.yaml` `3be787a195e4910888d6c49ab6171a4c9c6bc737990f34fa5d330d46ed056699`; `05-paidly.yaml` `d4565a0597905c8a6b5633f27478650178109fc7932cb0c530669bf6798ab9ed`; `06-repeatline.yaml` `407ef8d007cf65189a7f667f2dd07490f7ef3b77565291fd73cf99944b628e5e`; `07-mulchrun.yaml` `11c038f3ac986396b3e517ce57b4ff746ac1c86da52e450344e16af88c14797a`.
+
+**`MARKS_VERSION` 14** (history since v15, never run; spec 034, 2026-10-11): the brief infers and recommends. The ruler follows keel-cloud 079
 (branch `079-brief-infer-recommend`, merged at `706015c`; inference `CONTRACT_VERSION` 9, project document 16):
 the `BRIEF` screen's result is no longer one paragraph (`whatThisSays`, dropped by the 15 -> 16 upcaster, which
 adds `briefReading: null`) but a structured reading -- `{headline, tiles, problem: {conclusion, infer},
@@ -652,6 +665,16 @@ sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. It is
 73. **v14**: **`rescore.py` refuses every bundle below 14** by name: a v13 bundle answered the BRIEF screen
     with a `whatThisSays` paragraph over the vectors' standings, which contract 9 does not accept, so a v14
     number for it would be fiction. The only v14 number is a v14 run (`WHY=marks:14`).
+74. **v15**: **corpus revision 8, read from keel-cloud's canon only; direction-aware verdicts.** `load()` refuses
+    a directory holding any file at a revision other than 8, naming an r7 file as v13's / v14's. A standing's
+    `drift` may be `stronger` (holding, at least half the supports beyond the founder) or `short` (not
+    holding), beside `both` / `none`; `above` / `below` stay on Compatibility. A vector verdict may be
+    `NOT_TESTED` (every deal-breaker left out; never a dimension status). `compare_correctness` is unchanged
+    in kind -- the engine's output against the corpus -- and moves because both did. The BRIEF facts add
+    `decision.split` (NOT_YET with the PROBLEM vector at PEOPLE_DISAGREE: a split, not a no) and
+    `decision.notTested` (the vectors at NOT_TESTED, which make the label KEEP_INTERVIEWING unless the problem is
+    not holding). `rescore.py` refuses every bundle below 15: a v14 number was scored against revision 7's
+    expectations and would be fiction at 8. The only v15 number is a v15 run (`WHY=marks:15`).
 """
 
 from __future__ import annotations
@@ -659,7 +682,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 14
+MARKS_VERSION = 15
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 

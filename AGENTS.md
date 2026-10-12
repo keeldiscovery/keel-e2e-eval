@@ -26,8 +26,15 @@ added to this line rather than quietly written — which is exactly how the thir
   reads *green at the current `MARKS_VERSION`*, so a rubric that moved has no run of record at all
   until one is spent, and a screen is one entry and cannot be one. The policy widened by one named
   event, in the open, which is the amendment shape this document asks for — it did not loosen.
-  **`MARKS_VERSION` 14** (spec `034-brief-infer-recommend`, 2026-10-11) is the gate as written, and
-  **there is no run of record until `WHY=marks:14` is spent; never run or propose it**. keel-cloud 079
+  **`MARKS_VERSION` 15** (spec `036-direction-aware-verdicts`, 2026-10-12) is the gate as written, and
+  **there is no run of record until `WHY=marks:15` is spent; never run or propose it**. keel-cloud 082
+  (direction-aware verdicts; merged at `438807d`; registry `VERSION` 2, contract stays 9) makes a dimension
+  with a supporting side one-sided: the corpus is revision 8 (drift `stronger` / `short`, 28 rows moved, people
+  and picks not), the BRIEF facts carry `decision.split` / `decision.notTested`, `rescore.py` refuses every
+  bundle below 15 (call 74). `DRY=1` against keel-cloud 082 measures `compare_correctness` 108 of 108. What
+  follows is v14's account, history since 2026-10-12 (never run).
+  **`MARKS_VERSION` 14** (spec `034-brief-infer-recommend`, 2026-10-11) was the gate as written, and
+  **there was no run of record until `WHY=marks:14` was spent**. keel-cloud 079
   (the brief infers and recommends; merged at `706015c`; inference `CONTRACT_VERSION` 9, project
   document 16) turned the BRIEF result from one `whatThisSays` paragraph into a structured reading
   over code's `facts` (context `project_name, market, context, facts, beliefs, stories`). The ruler
