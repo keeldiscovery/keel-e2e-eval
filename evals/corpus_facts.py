@@ -195,3 +195,21 @@ def facts_for(entry, *, modal_person: str | None = None,
             facts[f"said.{slug}.{anchor_id}"] = Fact(
                 text=str(written.get("text")).strip(), kind="answer", hops=hops)
     return facts
+
+
+def vectors_facts_for(entry) -> dict[str, Fact]:
+    """The fact registry of a **vectors** corpus journey (spec 039): the project's name, the three
+    seed statements and every story a person typed, each on the hop that shows it -- and nothing a
+    founder typed on any page a stranger reads.
+
+    `facts_for` above reads the revision-2 shape (beliefs, bands, expected picks) and stays for the
+    classic scenarios that still call it. A revision-9 entry has no beliefs, so a vectors journey
+    registers what it does carry.
+    """
+    facts: dict[str, Fact] = {"name": Fact(text=entry.title, kind="statement", hops=["stage_screen"])}
+    for person in entry.people():
+        story = (person.story or "").strip()
+        if story and person.chip is None:
+            slug = person.person.lower().replace(" ", "-")
+            facts[f"said.{slug}"] = Fact(text=story, kind="answer", hops=["participant_page"])
+    return facts

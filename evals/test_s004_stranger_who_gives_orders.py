@@ -52,7 +52,6 @@ import time
 
 import pytest
 
-from evals import corpus_scenario
 from evals.preludes import answer_everyone, create_project, invite_everyone, walk_stage
 from harness import canary as canary_mod
 from harness import corpus_script, refusals
@@ -63,6 +62,20 @@ from harness.connect import start_runtime_via_skill, stop_runtime
 from harness.evidence import finalize_run, write_generated
 from harness.steps import Recorder
 from stack.runtime import home_dir
+
+#: The classic walk's three stages and its stage-card reader, kept here since spec 039 rewrote the
+#: corpus journeys (`evals/corpus_scenario.py`) as vectors journeys: this scenario still walks the
+#: classic stages and is the last reader of both. They go when classic goes.
+STAGES = ("PROBLEM", "SOLUTION", "COMMERCIAL")
+
+
+def belief_by_heading(stage_card: dict) -> dict[str, dict]:
+    """Every belief on one `GET /v2/projects/{id}/stages/{stage}` read, by its own heading."""
+    out: dict[str, dict] = {}
+    for group in stage_card.get("groups") or []:
+        for belief in (group.get("loadBearing") or []) + (group.get("supporting") or []):
+            out[belief.get("heading") or belief.get("statement", "")] = belief
+    return out
 
 pytestmark = pytest.mark.live
 
@@ -420,7 +433,7 @@ def test_s004_stranger_who_gives_orders_live(stack, founder_one, browser, run_di
                 _connect(page, stack, recorder, executor="scripted",
                          env_extra={"KEEL_SCRIPT": str(script_path)})
             project_id = create_project(page, recorder, web_base, founder)
-            for stage in corpus_scenario.STAGES:
+            for stage in STAGES:
                 walk_stage(page, recorder, _get, project_id, stage,
                            founder.statement(stage), founder.statement(stage))
                 ReviewCard(page, recorder, web_base).continue_onward()
@@ -707,8 +720,8 @@ def test_s004_stranger_who_gives_orders_live(stack, founder_one, browser, run_di
         with recorder.step("FR-023: every standing equals the corpus's own, unchanged",
                             party="stack", kind="assert") as h:
             wire: dict[str, dict] = {}
-            for stage in corpus_scenario.STAGES:
-                wire.update(corpus_scenario.belief_by_heading(
+            for stage in STAGES:
+                wire.update(belief_by_heading(
                     _get(f"/v2/projects/{project_id}/stages/{stage}")))
             moved = []
             for belief_id, expected in standings.items():
@@ -724,7 +737,7 @@ def test_s004_stranger_who_gives_orders_live(stack, founder_one, browser, run_di
         overview = Overview(page, recorder, web_base)
         overview.open(project_id)
         texts["overview"] = page.locator("body").inner_text()
-        for stage in corpus_scenario.STAGES:
+        for stage in STAGES:
             OpenedCard(page, recorder, web_base).open(project_id, stage)
             texts[f"card:{stage}"] = page.locator("body").inner_text()
         with recorder.step("FR-022: no attack text reaches any founder screen, and no screen "

@@ -8,9 +8,10 @@ copies of "approve a stage" is how two scenarios quietly stop meaning the same t
   comes back from `MarketStep.start()`, not from naming.
 - `walk_stage` -- one pass of the guided walk: send the claim, read the confirmation card, save,
   wait for the review, approve.
-- `run_corpus_scenario` -- **the whole body of S-005, S-006 and S-007** (FR-015): the three
-  scenario modules differ by an entry id and nothing else. It lives in `evals/` rather than
-  `harness/` deliberately: it is a scenario, not machinery, and it asserts.
+- `invite_everyone` / `answer_everyone` -- the classic walk's people, for the classic scenarios
+  that still call them. The corpus journeys (S-005, S-006, S-007) are vectors journeys since spec
+  039 and walk `evals/corpus_scenario.py`'s own legs; of this module they use `create_project` and
+  `own_ai_door` only.
 
 `approved_project_with_one_read` is S-002's own prelude and is unchanged in purpose.
 """

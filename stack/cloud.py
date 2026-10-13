@@ -72,6 +72,11 @@ def build_env(config: StackConfig) -> dict[str, str]:
         # default falls back to KEEL_V2_FOUNDER_BASE_URL + "/connect" already, but this is set
         # explicitly so the gate (US1 acceptance scenario 3) never depends on that fallback.
         "KEEL_V2_CONNECT_VERIFICATION_URI": f"http://localhost:{config.web_port}/connect",
+        # spec 039: the vector corridor's two controllers (`VectorsController`, `InterviewController`)
+        # are `@ConditionalOnProperty(keel.vectors.enabled)`, default false, and on for the staging
+        # twin through keel-cloud `deploy/bin/common.sh`. The corpus journeys are vectors journeys
+        # now, so this stack is the twin's shape: with the flag off every corridor route is a 404.
+        "KEEL_VECTORS_ENABLED": "true",
     })
     # Sign in with Google, pointed at this profile's stub issuer (keel-cloud
     # `canon/designs/google-sign-in-design.md` 10.3). Wired now, ahead of keel-cloud spec 032,

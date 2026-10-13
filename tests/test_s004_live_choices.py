@@ -256,11 +256,11 @@ def test_every_claim_box_carries_its_own_stage():
     """The stage is read from `CLAIM_BOXES`, never mapped from the label at the point of use --
     which is how the first live run opened the *problem* card and captured it as
     `stage: COMMERCIAL`."""
-    from evals import corpus_scenario
-
     labels = [label for label, _, _ in s004.CLAIM_BOXES]
     stages = [stage for _, stage, _ in s004.CLAIM_BOXES]
-    assert stages == list(corpus_scenario.STAGES), "the claim boxes are not the walk's own stages"
+    # The classic walk's stages live in S-004 itself since spec 039 made the corpus journeys
+    # vectors journeys (`evals/corpus_scenario.py` carries no classic stages any more).
+    assert stages == list(s004.STAGES), "the claim boxes are not the walk's own stages"
     assert labels == [b for b in s004.BOXES if b.startswith(("B3", "B4", "B5"))]
     assert set(stages) == set(s004.FOLLOW_UPS), "a stage has no follow-ups, or has spare ones"
     source = Path(s004.__file__).read_text()

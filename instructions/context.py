@@ -31,7 +31,7 @@ from .registry import (LINK_B2B, LINK_PRIMARY, DEFAULT_WINDOW, SACRIFICE_KEY, Re
                        fill_window)
 
 # data-model.md note 2 (spec 009): the corpus writes the tap the way a person reads it; the wire
-# wants the enum name. Kept for `harness/corpus_script.py` and `harness/stranger_stories.py`, which
+# wants the enum name. Kept for `harness/corpus_script.py` (the classic S-001 and S-004), which
 # drive today's product (spec 029 O-1); no v9 builder reads it.
 TAP_ENUM = {
     "hasn't happened": "HASNT_HAPPENED",

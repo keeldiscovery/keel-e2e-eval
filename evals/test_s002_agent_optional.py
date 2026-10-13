@@ -55,7 +55,12 @@ from harness.steps import Recorder
 # generator every other scenario uses. The second person is the fixture's own second one -- a
 # genuinely different person of the same kind, whose invitation is created while no agent is
 # connected (US1 step 4).
-SECOND_PARTICIPANT = fx.people()[1]
+def _second_participant():
+    """Read when the scenario runs, not when pytest collects it (spec 039): the payroll fixture is
+    read through the classic r2 reader, which refuses by name since the corpus left revision 2, and
+    a refusal raised at import interrupted the collection of every scenario -- the three vectors
+    corpus journeys included -- so `make eval K=s005` could not run at all."""
+    return fx.people()[1]
 
 
 def _facts(typed_answers: list[str]) -> dict[str, Fact]:
@@ -87,7 +92,7 @@ def _facts(typed_answers: list[str]) -> dict[str, Fact]:
     for key, fact in base.items():
         if key.startswith("role."):
             result[key] = fact
-    slug = SECOND_PARTICIPANT.person.lower().replace(" ", "_")
+    slug = _second_participant().person.lower().replace(" ", "_")
     for n, text in enumerate(typed_answers, start=1):
         result[f"{slug}_answer_{n}"] = Fact(text=text, kind="answer", hops=["participant_page"])
     return result
@@ -279,9 +284,9 @@ def test_s002_agent_optional(stack, founder_one, browser, run_dir):
         if page.locator(".role").count() == 0:
             people.switch_to_kinds_tab()
         second_role = next(r["label"] for r in fx.entry().roles
-                            if r["id"] == SECOND_PARTICIPANT.role_id)
+                            if r["id"] == _second_participant().role_id)
         people.open_send_popup(second_role)
-        people.fill_who(SECOND_PARTICIPANT.person,
+        people.fill_who(_second_participant().person,
                          about=f"{second_role}, asked about one real occasion.")
         preview = people.go_to_preview()
         with recorder.step("§1.4: the preview shows what they'll be asked, no agent needed",
@@ -292,7 +297,7 @@ def test_s002_agent_optional(stack, founder_one, browser, run_dir):
         with page.expect_response(
             lambda r: r.url.endswith("/invitations") and r.request.method == "POST"
         ) as invite_resp_info:
-            invite_url = people.generate_link(SECOND_PARTICIPANT.person.split()[0])
+            invite_url = people.generate_link(_second_participant().person.split()[0])
         invite_response = invite_resp_info.value
         with recorder.step("§1.4 wire: POST .../invitations succeeds with no live agent",
                             party="stack", kind="assert") as h:
@@ -309,8 +314,8 @@ def test_s002_agent_optional(stack, founder_one, browser, run_dir):
             participant_page = participant_context.new_page()
             pb = ParticipantPage(participant_page, recorder)
             pb.open(invite_url)
-            pb.answer_as(SECOND_PARTICIPANT, fx.entry())
-            typed_answers = [a.text for a in SECOND_PARTICIPANT.written() if a.text]
+            pb.answer_as(_second_participant(), fx.entry())
+            typed_answers = [a.text for a in _second_participant().written() if a.text]
             pb.submit()
         finally:
             participant_context.close()
@@ -322,7 +327,7 @@ def test_s002_agent_optional(stack, founder_one, browser, run_dir):
         people.open(project_id)
         people.switch_to_who_tab()
         rows = people.table_rows()
-        first_name = SECOND_PARTICIPANT.person.split()[0]
+        first_name = _second_participant().person.split()[0]
         # The **last** row bearing this name, not the first. On the warm path this scenario reuses
         # S-001's own project, and spec 010 grew the smoke from three people to eleven -- so
         # `SECOND_PARTICIPANT` (`fx.people()[1]`, Wei Zhang) already has a row there, invited and
@@ -335,7 +340,7 @@ def test_s002_agent_optional(stack, founder_one, browser, run_dir):
         with recorder.step("§1.5: the new answer shows in Their answer; Your agent reads Not read yet",
                             party="founder", kind="assert") as h:
             h.record_assert({"their_answer": "answered", "your_agent": "not read yet"}, target_row)
-            assert target_row is not None, f"expected a row for {SECOND_PARTICIPANT.person!r}, got {rows}"
+            assert target_row is not None, f"expected a row for {_second_participant().person!r}, got {rows}"
             assert "answered" in target_row["their_answer"].lower(), (
                 f"expected Their answer to read Answered, got {target_row!r}")
             assert "not read yet" in target_row["your_agent"].lower(), (

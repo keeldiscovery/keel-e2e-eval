@@ -1,18 +1,30 @@
-"""S-005, S-006 and S-007's whole body (spec 010 FR-011..FR-015, T026).
+"""S-005, S-006 and S-007's whole body: the corpus journeys, as **vectors** journeys (spec 039).
 
-**The entry id is the only thing that differs between the three scenario modules.** That is
-FR-015, and it is the test of whether the generator was done right rather than a hope: if
-`01-countly` needed one special case here, `05-paidly` would need two.
+**The entry id is the only thing that differs between the three scenario modules** (spec 010
+FR-015, kept): if `01-countly` needed one special case here, `05-paidly` would need two.
 
-What the scenario does, in the founder's own order: builds a project on the entry's own market,
-frames its three statements, reads each review card and checks the pick lists it offers against
-the entry's `expected.buckets` **before approving anything**, invites one person per corpus
-person, opens each of their links in an isolated context and types their story and their picks,
-has the agent read them, and then asserts the entry's whole `expected` section -- `stages`,
-`standings`, and the counts they roll up into -- **on the rendered overview, on the opened cards,
-on the download page, and again on the wire beside them** (FR-014). A screen that agrees with a
-wrong aggregate and a screen that disagrees with a right one are different findings, and a bundle
-that only carried one of the two could not tell them apart.
+What the scenario does, in the founder's own order, one function per leg so a later spec can change
+one leg and leave the others alone:
+
+1. `leg_context`   -- the project on the entry's own market; the four context fields and the entry's
+                      own recall window; CONTEXT_INTERPRET; *Yes, that's it*.
+2. `leg_interpret` -- the problem seed and PROBLEM_INTERPRET's card; later the solution seed,
+                      SOLUTION_MECHANISM's card and the idea's three lines approved.
+3. `leg_calibrate` -- one vector at a time: CALIBRATION_QUESTIONS, the founder's corpus answer per
+                      dimension, the review; the persona (who decides) between solution and
+                      commercial.
+4. `leg_lock`      -- *Lock and write the questions*; three RESPONDENT_QUESTIONS jobs; READY.
+5. `leg_invite`    -- one link per corpus person: the primary link, or on a B2B entry the
+                      decision-maker's commercial link.
+6. `leg_interview` -- each person in their own browser context, no founder session: the gate, the
+                      story or chip, one closed answer per item, by code; the founder reads after
+                      each person so the scripted readings land on the corpus's own people.
+7. `leg_standings` -- `GET standings` against the entry's `expected.standings` and
+                      `expected.vector_verdicts`, and the same on the rendered board and vector pages.
+8. `leg_brief`     -- the brief: the scripted reading on the wire and on the printed page.
+
+Every inference job is answered by keel-runtime's **scripted** executor from the entry's own stored
+texts (`harness/vectors_script.py`); no model runs anywhere in this file (`evals/policy.py`).
 
 It lives in `evals/` and not in `harness/` because it asserts. `harness/` is machinery.
 """
@@ -20,755 +32,844 @@ It lives in `evals/` and not in `harness/` because it asserts. `harness/` is mac
 from __future__ import annotations
 
 import json
-import re
 import time
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, Callable
 
 from evals import corpus_facts
-from evals.preludes import (answer_everyone, create_project, invite_everyone,
-                            own_ai_door, walk_stage)
-from harness import corpus_script
-from harness.browser import Auth, Connect, Landing, OpenedCard, Overview, PrintPage, People, ReviewCard, Shell
+from evals.preludes import create_project, own_ai_door
+from harness import vectors_script as vs
+from harness import vectors_screens as vs_screens
+from harness.browser import Auth, Connect, Landing, People
 from harness.connect import start_runtime_via_skill, stop_runtime
-from stack import remote
-from stack import runtime as stack_runtime
 from harness.evidence import finalize_run, write_generated
 from harness.steps import Recorder
+from instructions import contract as contract_mod
+from stack import remote
+from stack import runtime as stack_runtime
 
-STAGES = ("PROBLEM", "SOLUTION", "COMMERCIAL")
+VECTORS = vs.VECTORS
 
-# keel-web's own words for a verdict (`translate.ts`'s `measuredStatus`) and for a drift
-# (`driftClause`). Named here, once, so three scenarios cannot drift apart on what "not holding
-# up" is spelled like -- and so a copy change in keel-web is one edit here, not three.
+#: keel-web's own words for a status (`translate.ts` `standingStatus`), named once here so the
+#: three scenarios cannot drift apart on what *not holding up* is spelled like.
 STATUS_WORD = {
-    "SUPPORTED": "Holding up",
-    "CONTRADICTED": "Not holding up",
-    "MIXED": "People disagree",
-    "UNTESTED": "Not asked yet",
-}
-DRIFT_CLAUSE = {
-    ("BELOW", False): "smaller than you think",
-    ("ABOVE", False): "bigger than you think",
-    # A rate is measured as the gap between the last two incidents, so a longer gap is *less
-    # often* -- the direction reverses (design §6.4, `translate.ts`'s own `driftClause`).
-    ("BELOW", True): "more often than you think",
-    ("ABOVE", True): "less often than you think",
-}
-LEGEND_OF_VERDICT = {
-    "SUPPORTED": "holding up",
-    "CONTRADICTED": "not holding up",
-    "MIXED": "people disagree",
-    "UNTESTED": "not asked yet",
+    "HOLDING_UP": "Holding up",
+    "NOT_HOLDING_UP": "Not holding up",
+    "PEOPLE_DISAGREE": "People disagree",
+    "TOO_FEW_TO_CALL": "Too few to call",
+    "NOT_ASKED_YET": "Not asked yet",
+    "LEFT_OUT": "Left out",
+    "NOT_TESTED": "Not tested",
 }
 
+#: The settled and the refused ends of an interaction (keel-cloud `InteractionStatus`).
+TERMINAL_BAD = {"RESULT_INVALID", "DOMAIN_REFUSED", "STATE_CONFLICT", "JOB_FAILED", "APPLY_ERROR",
+                "ABANDONED"}
 
-def status_text(verdict: str, drift: str | None, measure_kind: str | None) -> str:
-    """What a status word must read, in full, for this verdict and this drift."""
-    word = STATUS_WORD.get((verdict or "").upper(), "")
-    clause = DRIFT_CLAUSE.get(((drift or "").upper(), (measure_kind or "").upper() == "RATE"))
-    return f"{word} · {clause}" if clause else word
+#: The count keys `expected.standings` may carry and the wire's own place for each
+#: (`DimensionStanding.interval` / `.choice`, `n` on the row).
+INTERVAL_KEYS = ("inside", "below", "above")
 
 
-def belief_by_heading(stage_card: dict) -> dict[str, dict]:
-    """Every belief on one `GET /v2/projects/{id}/stages/{stage}` read, by its own heading."""
-    out: dict[str, dict] = {}
-    for group in stage_card.get("groups") or []:
-        for belief in (group.get("loadBearing") or []) + (group.get("supporting") or []):
-            out[belief.get("heading") or belief.get("statement", "")] = belief
+# ------------------------------------------------------------------------------------ the journey
+
+@dataclass
+class Journey:
+    """What every leg reads and writes: the recorder, the founder's page and its wire, the entry and
+    its typed inputs, and what earlier legs learned (the project id, each person's token)."""
+    recorder: Recorder
+    page: Any
+    context: Any
+    web_base: str
+    cloud_base: str
+    entry: Any
+    founder: vs.FounderInputs
+    people: list
+    script: vs.GeneratedScript | None = None
+    browser: Any = None
+    project_id: str = ""
+    tokens: dict = field(default_factory=dict)       # person -> token
+    links: dict = field(default_factory=dict)        # person -> the link the founder sends
+    corridor: Any = None
+    answers: Any = None
+    interviews: dict = field(default_factory=dict)   # person -> the interview the wire served
+    screens: dict = field(default_factory=dict)      # what the answer pages drew, by page
+    #: True on the three scripted corpus journeys: every model answer is the corpus's, so every
+    #: screen and every standing is held to the entry. False on S-012, where a host's model writes
+    #: the corridor: the same legs run, the same screens are held to the same wire, and nothing is
+    #: held to the corpus's own words or counts (spec 016 FR-007's rule, kept).
+    strict: bool = True
+    #: How many times longer a wait on a model may take: 1 on the scripted journeys, more on S-012.
+    patience: float = 1.0
+    standings: dict = field(default_factory=dict)    # the last GET standings
+
+    # --------------------------------------------------------------------------- the wire
+
+    def call(self, method: str, path: str, body: dict | None = None, *,
+             ok: tuple = (200, 201, 202, 204)) -> tuple[int, Any]:
+        url = f"{self.cloud_base}{path}"
+        kwargs: dict = {"timeout": 20_000}
+        if body is not None:
+            kwargs["data"] = json.dumps(body)
+            kwargs["headers"] = {"Content-Type": "application/json"}
+        response = self.context.request.fetch(url, method=method, **kwargs)
+        try:
+            payload = response.json()
+        except Exception:  # noqa: BLE001 - an empty 204 or a non-JSON error page
+            payload = response.text()
+        if response.status not in ok:
+            raise AssertionError(f"{method} {path} answered {response.status}: {payload}")
+        return response.status, payload
+
+    def get(self, path: str) -> Any:
+        return self.call("GET", path)[1]
+
+    def project(self, suffix: str) -> str:
+        return f"/v2/projects/{self.project_id}{suffix}"
+
+    def revision(self) -> int:
+        """The project's current revision, off the overview read every corridor write is held to."""
+        return int((self.get(self.project("/overview")) or {}).get("revision") or 0)
+
+    def wait_interaction(self, interaction_id: str, want: set, *, timeout_s: float = 90) -> dict:
+        deadline = time.monotonic() + timeout_s
+        last: dict = {}
+        while time.monotonic() < deadline:
+            last = self.get(f"/v2/inference-interactions/{interaction_id}") or {}
+            status = last.get("status")
+            if status in want:
+                return last
+            if status in TERMINAL_BAD:
+                raise AssertionError(
+                    f"interaction {interaction_id} ({last.get('screen')}) ended {status}: "
+                    f"{last.get('diagnostic') or last.get('refusal')}")
+            time.sleep(0.5)
+        raise AssertionError(f"interaction {interaction_id} never reached {sorted(want)}: {last}")
+
+
+def open_journey(recorder: Recorder, page, context, browser, stack, entry, founder, people, *,
+                 script: vs.GeneratedScript | None = None, strict: bool = True,
+                 patience: float = 1.0) -> Journey:
+    """One journey on one founder page: the legs below read and write it. S-005/6/7 open it strict
+    on their scripted runtime; S-012 opens it with `strict=False` on a host's live model."""
+    return Journey(recorder=recorder, page=page, context=context, web_base=stack.web_base_url,
+                   cloud_base=stack.cloud_base_url, entry=entry, founder=founder, people=people,
+                   script=script, browser=browser, strict=strict, patience=patience,
+                   corridor=vs_screens.Corridor(page, recorder, stack.web_base_url, patience=patience),
+                   answers=vs_screens.Answers(page, recorder, stack.web_base_url))
+
+
+def _step(j: Journey, name: str, *, party: str = "stack", kind: str = "assert"):
+    return j.recorder.step(name, party=party, kind=kind)
+
+
+# ------------------------------------------------------------------------------- leg 1: context
+
+def leg_project(j: Journey) -> None:
+    """The project, on the landing's own name and market steps, on the entry's market."""
+    founder = j.founder
+    j.project_id = create_project(j.page, j.recorder, j.web_base, _market_inputs(founder))
+    with _step(j, f"{j.entry.id}: the market is the one the entry names") as h:
+        market = (j.get(j.project("/overview")) or {}).get("market") or {}
+        h.record_assert({"country": founder.country, "region": founder.region,
+                         "language": founder.language}, market)
+        assert market.get("country") == founder.country, market
+        assert (market.get("region") or None) == founder.region, market
+        assert market.get("language") == founder.language, market
+
+
+def leg_context(j: Journey) -> None:
+    """The context step: the four fields and the entry's own recall window, one CONTEXT_INTERPRET
+    job, and *Yes, that's it*. Asserted on the card and on the wire: the sentence Keel understood
+    (the entry's own `context.understood` on a scripted journey), and the four fields and the window
+    the founder typed."""
+    founder = j.founder
+    drawn = j.corridor.context(j.project_id, founder.context_fields, founder.window.as_wire())
+    with _step(j, "the card says what Keel understood, in the entry's own sentence, over the "
+                  "entry's own window", party="founder") as h:
+        want = j.entry.context["understood"] if j.strict else "a sentence"
+        window_line = j.corridor.context_window_line()
+        h.record_assert({"understands": want, "window": vs.window_words(founder.window)},
+                        {"understands": drawn, "window": window_line})
+        assert drawn.strip(), "the context card drew no sentence"
+        if j.strict:
+            assert drawn == want, drawn
+        assert vs.window_words(founder.window) in window_line, window_line
+    j.corridor.confirm_context()
+    with _step(j, "the context is confirmed on the wire: the four fields, the sentence, the window") as h:
+        view = j.get(j.project("/context")) or {}
+        fields = view.get("fields") or {}
+        h.record_assert({**founder.context_fields, "recallWindow": founder.window.as_wire(),
+                         "understands": drawn}, view)
+        assert view.get("state") == "CONFIRMED", view
+        assert view.get("understands") == drawn, (view.get("understands"), drawn)
+        assert fields.get("recallWindow") == founder.window.as_wire(), fields
+        for key, value in founder.context_fields.items():
+            assert fields.get(key) == value, (key, fields)
+
+
+def _market_inputs(founder: vs.FounderInputs):
+    """`evals/preludes.create_project` reads a classic `FounderInputs`; this is the slice of one
+    it touches -- the name and the market -- and nothing else."""
+    from types import SimpleNamespace
+    return SimpleNamespace(project_name=founder.project_name,
+                           market=SimpleNamespace(country=founder.country, region=founder.region,
+                                                  language=founder.language))
+
+
+# ----------------------------------------------------------------------------- leg 2: interpret
+
+def leg_interpret_problem(j: Journey) -> None:
+    """The problem seed typed into the chat (the entry's own problem statement), PROBLEM_INTERPRET's
+    card, and *Yes, that's the problem* -- which chains the PROBLEM calibration questions."""
+    card = j.corridor.seed(j.project_id, "PROBLEM", j.founder.problem_seed)
+    want = vs.problem_result(j.entry)
+    with _step(j, "the problem card is the entry's own interpretation", party="founder") as h:
+        h.record_assert(want["statement"] if j.strict else "a statement", card["claim"])
+        assert card["claim"].strip(), card
+        if j.strict:
+            assert card["claim"] == want["statement"], card
+    j.corridor.confirm_seed("PROBLEM")
+    with _step(j, "the confirmed statement and the offer's name are the entry's, on the wire") as h:
+        review = j.get(j.project("/review/PROBLEM")) or {}
+        h.record_assert({"statement": card["claim"]}, {"statement": review.get("statement")})
+        assert review.get("statement") == card["claim"], review.get("statement")
+
+
+def leg_interpret_solution(j: Journey) -> None:
+    """The solution seed, SOLUTION_MECHANISM's card and *Looks right*, which chains the SOLUTION
+    calibration questions. The idea's three lines are approved on step 5 (`leg_lock`)."""
+    card = j.corridor.seed(j.project_id, "SOLUTION", j.founder.solution_seed)
+    m = j.entry.solution_mechanism
+    with _step(j, "the mechanism card draws the entry's own actor, trigger, mechanism and output",
+               party="founder") as h:
+        want = [m["trigger"], m["mechanism"], m["output"]] if j.strict else []
+        missing = [part for part in want if part not in card["text"]]
+        h.record_assert(want, card)
+        assert card["text"].strip(), card
+        assert not missing, missing
+    j.corridor.confirm_seed("SOLUTION")
+    with _step(j, "the idea's three lines are the ones the mechanism drafted, on the wire") as h:
+        idea = j.get(j.project("/idea")) or {}
+        want = vs.idea_lines(j.entry)
+        h.record_assert(want if j.strict else "three lines carrying the short name", idea)
+        assert all((idea.get(k) or "").strip() for k in ("what", "how", "belief")), idea
+        assert (idea.get("shortName") or "") in (idea.get("what") or ""), idea
+        if j.strict:
+            assert {k: idea.get(k) for k in want} == want, idea
+            assert idea.get("shortName") == m["short_name"], idea
+
+
+# ----------------------------------------------------------------------------- leg 3: calibrate
+
+def leg_calibrate(j: Journey, vector: str) -> None:
+    """One vector, on its screens: CALIBRATION_QUESTIONS READY, one screen per dimension answered the
+    way the entry answers it, the review read and confirmed. Asserted on the screens -- each belief
+    line as the founder sees it before *Continue*, and the review's rows -- and on the wire: the
+    slice, every answer stored, `complete`, LEFT_OUT exactly where the founder was unsure."""
+    view = _wait_calibration(j, vector)
+    with _step(j, f"{vector.lower()}: the calibration offers exactly the registry's slice, in order",
+               party="founder") as h:
+        keys = [q.get("dimension") for q in view.get("questions") or []]
+        want = vs.founder_keys(j.entry, vector)
+        h.record_assert(want, keys)
+        assert keys == want, keys
+    j.corridor.wait_questions()
+    answers = {a.dimension: _offered_codes(j, a.as_wire(), view) for a in j.founder.calibration[vector]}
+    beliefs = {}
+    for question in view.get("questions") or []:
+        seen = j.corridor.answer(question, answers[question["dimension"]])
+        beliefs[question["dimension"]] = seen["belief"]
+    with _step(j, f"{vector.lower()}: each screen's belief line is the entry's own sentence, where "
+                  "the entry's answer is one phrase", party="founder") as h:
+        mismatches = []
+        for key, drawn in beliefs.items():
+            founder = j.entry.founder_calibration.get(key) or {}
+            # The screen composes its belief line live, joining every ticked phrase; keel-cloud's
+            # sentence wins on disagreement (`answerCalibration`), and on the ladder it names the
+            # highest rung alone. So a multi-tick answer is held to the server's sentence on the
+            # review, and to nothing here.
+            answer = founder.get("answer")
+            if not j.strict or answers[key].get("unsure") or not _single_phrase(j.entry, key) or (
+                    isinstance(answer, list) and len(answer) > 1):
+                continue
+            if drawn != founder.get("belief_sentence"):
+                mismatches.append({"dimension": key, "screen": drawn,
+                                   "corpus": founder.get("belief_sentence")})
+        h.record_assert([], mismatches)
+        assert not mismatches, json.dumps(mismatches, indent=2)
+    drawn = j.corridor.review(j.project_id, vector)
+    extra = {k: v for k, v in answers.items() if k not in beliefs}
+    if extra:
+        # runs/DRIFT.md #74: the one answer no screen asks for -- Frequency on a one-unit window.
+        with _step(j, f"{vector.lower()}: DRIFT #74 -- the answer no screen asks ({', '.join(extra)}) "
+                      "goes on the wire, so the standings can be read at all",
+                   party="stack", kind="protocol") as h:
+            body = {"expectedRevision": (j.get(j.project(f"/calibration/{vector}")) or {}).get("revision"),
+                    "answers": list(extra.values())}
+            _, saved = j.call("PUT", j.project(f"/calibration/{vector}"), body)
+            h.record_wire(body, saved)
+    if vector == "COMMERCIAL" and j.founder.hourly_rate is not None:
+        _hourly_rate(j)
+    review = j.get(j.project(f"/review/{vector}")) or {}
+    with _step(j, f"{vector.lower()}: the review is complete and reads the entry's beliefs, on the "
+                  "screen and on the wire", party="founder") as h:
+        rows = {r.get("dimension"): r for r in review.get("rows") or []}
+        mismatches = []
+        for key in vs.founder_keys(j.entry, vector) + (
+                ["commercial.ability_to_pay"] if vector == "COMMERCIAL" else []):
+            founder = j.entry.founder_calibration.get(key) or {}
+            row = rows.get(key) or {}
+            if founder.get("unsure") or (key == "problem.frequency" and not vs.frequency_fits(j.entry)):
+                if not (row.get("leftOut") or row.get("unsure")):
+                    mismatches.append({"dimension": key, "want": "left out", "row": row})
+                continue
+            sentence = founder.get("belief_sentence")
+            if j.strict and _single_phrase(j.entry, key):
+                if row.get("belief") != sentence:
+                    mismatches.append({"dimension": key, "wire": row.get("belief"), "corpus": sentence})
+                if sentence and sentence not in drawn["text"]:
+                    mismatches.append({"dimension": key, "screen": "absent", "corpus": sentence})
+        h.record_assert({"complete": True, "mismatches": []},
+                        {"complete": review.get("complete"), "mismatches": mismatches,
+                         "rows": review.get("rows"), "foot": drawn["foot"]})
+        assert review.get("complete") is True, review
+        assert not mismatches, json.dumps(mismatches, indent=2)
+    j.corridor.confirm_review(vector)
+
+
+def _offered_codes(j: Journey, answer: dict, view: dict) -> dict:
+    """The founder's answer on the codes this calibration offers. On the scripted journeys every
+    corpus code is offered and that is asserted; on a live one a model-written set (Purchase
+    friction) slugs its own codes, so the founder ticks the same number of options from the top."""
+    codes = answer.get("codes")
+    if not codes:
+        return answer
+    question = next((q for q in view.get("questions") or [] if q.get("dimension") == answer["dimension"]), {})
+    offered = [o.get("normalized") for o in question.get("options") or []]
+    if all(code in offered for code in codes):
+        return answer
+    assert not j.strict, f"{answer['dimension']}: the corpus codes {codes} are not offered: {offered}"
+    return {**answer, "codes": offered[:len(codes)]}
+
+
+def _hourly_rate(j: Journey) -> None:
+    """A B2B entry records the hourly rate its brief prices hours at. keel-web draws the rate only
+    under an HOURS cost estimate, and every corpus estimate is an AMOUNT, so where keel-cloud's
+    market default is not the entry's the rate is set on the wire -- and the step says which it was."""
+    view = j.get(j.project("/calibration/COMMERCIAL")) or {}
+    rate = (view.get("hourlyRate") or {}).get("amount")
+    with _step(j, "the hourly rate is the entry's own", party="stack", kind="protocol") as h:
+        if rate is not None and float(rate) == float(j.founder.hourly_rate):
+            h.record_wire({"hourlyRate": j.founder.hourly_rate}, {"default": rate, "set": False})
+            return
+        body = {"expectedRevision": view.get("revision"), "hourlyRate": j.founder.hourly_rate}
+        _, saved = j.call("PUT", j.project("/calibration/COMMERCIAL"), body)
+        h.record_wire(body, {"default": rate, "set": True, "saved": saved})
+
+
+def _single_phrase(entry, key: str) -> bool:
+    """Whether the corpus's `belief_sentence` is one keel-cloud must reproduce from this journey's
+    labels: one chosen code, the ladder's highest rung, a cost, a price or the derived ratio. A set
+    ticked twice is joined by keel-cloud from per-option phrases the corpus does not record (spec
+    039 D-4)."""
+    founder = entry.founder_calibration.get(key) or {}
+    answer = founder.get("answer")
+    if key == "commercial.commitment":
+        return True
+    if isinstance(answer, list):
+        return len(answer) == 1
+    return answer is not None
+
+
+def _wait_calibration(j: Journey, vector: str, *, timeout_s: float = 90) -> dict:
+    deadline = time.monotonic() + timeout_s * j.patience
+    view: dict = {}
+    while time.monotonic() < deadline:
+        view = j.get(j.project(f"/calibration/{vector}")) or {}
+        if view.get("state") == "READY":
+            return view
+        if view.get("state") == "FAILED":
+            why = j.get(f"/v2/inference-interactions/{view.get('interactionId')}") or {}
+            raise AssertionError(f"{vector}'s calibration questions FAILED: "
+                                 f"{why.get('status')}: {why.get('diagnostic') or why.get('refusal')}")
+        time.sleep(0.5)
+    raise AssertionError(f"{vector}'s calibration questions never became READY: {view}")
+
+
+def leg_persona(j: Journey) -> None:
+    """Who decides to pay, on the persona step: the same person on a B2C entry, the entry's
+    decision-maker role on a B2B one -- which is what gives a B2B study its second respondent type
+    and its commercial link."""
+    j.corridor.persona(j.founder.decider)
+    with _step(j, "the persona yields one respondent type, or two on a B2B entry") as h:
+        view = j.get(j.project("/persona")) or {}
+        types = view.get("respondentTypes") or []
+        want = 2 if vs.is_b2b(j.entry) else 1
+        h.record_assert(want, types)
+        assert len(types) == want, types
+        if vs.is_b2b(j.entry):
+            assert sum(1 for t in types if t.get("commercialLink")) == 1, types
+            assert (view.get("decider") or {}).get("role") == j.founder.decider["role"], view
+
+
+# ---------------------------------------------------------------------------------- leg 4: lock
+
+def leg_lock(j: Journey) -> None:
+    """Step 5: the idea in three lines approved (*This describes my idea correctly*, `POST
+    idea/approve` -- the gate lock and every invitation wait on), then *Lock and write the
+    questions*: three RESPONDENT_QUESTIONS jobs (part 3 the decision-maker's link's on a B2B entry),
+    READY before anyone is invited."""
+    drawn = j.corridor.approve_idea_and_lock()
+    with _step(j, "the idea preview shows the three lines, and the wire says they were approved") as h:
+        idea = j.get(j.project("/idea")) or {}
+        want = vs.idea_lines(j.entry)
+        h.record_assert({**want, "approved": True}, {"preview": drawn["idea_preview"], "wire": idea})
+        assert idea.get("approved") is True, idea
+        assert want["what"] in drawn["idea_preview"], drawn
+    deadline = time.monotonic() + 120 * j.patience
+    state = None
+    while time.monotonic() < deadline:
+        state = (j.get(j.project("/overview")) or {}).get("questionsState")
+        if state in ("READY", "FAILED"):
+            break
+        time.sleep(0.5)
+    with _step(j, "the study is version 1, and the three parts' questions are written, READY") as h:
+        plan = j.get(j.project("/plan")) or {}
+        h.record_assert({"locked": True, "version": 1, "questionsState": "READY"},
+                        {"locked": plan.get("locked"), "version": plan.get("version"),
+                         "questionsState": state, "plan.questions": plan.get("questions")})
+        assert plan.get("locked") is True and plan.get("version") == 1, plan
+        assert state == "READY", (state, plan.get("questions"))
+
+
+# -------------------------------------------------------------------------------- leg 5: invite
+
+def leg_invite(j: Journey) -> None:
+    """One link per corpus person, in corpus order, through the People page's popups: the
+    specialist's *Send the questions*, or on a B2B entry the decision-maker's commercial link for
+    every person on `COMMERCIAL_B2B`."""
+    persona = j.get(j.project("/persona")) or {}
+    primary = next(t for t in persona.get("respondentTypes") or [] if not t.get("commercialLink"))
+    decider = next((t for t in persona.get("respondentTypes") or [] if t.get("commercialLink")), None)
+    links = vs_screens.PeopleLinks(j.page, j.recorder, j.web_base, patience=j.patience)
+    for person in j.people:
+        if person.link == vs.LINK_B2B:
+            url = links.commercial_link(j.project_id, decider["label"], person.person)
+        else:
+            url = links.specialist_link(j.project_id, primary["label"], person.person,
+                                        f"{primary.get('label')}, asked about one real time.")
+        j.links[person.person] = url
+        j.tokens[person.person] = url.rstrip("/").rsplit("/", 1)[-1]
+    with _step(j, "every corpus person has a link of their own, and the wire has one invitation "
+                  "per link", party="founder") as h:
+        people = j.get(j.project("/people")) or {}
+        h.record_assert(len(j.people), {"links": len(set(j.tokens.values())), "people": people})
+        assert len(set(j.tokens.values())) == len(j.people), j.tokens
+
+
+# ----------------------------------------------------------------------------- leg 6: interview
+
+def leg_interview(j: Journey) -> None:
+    """Each person on their own link, in their own browser context with no founder session, through
+    the real interview screens: the gate, the story or chip, one closed answer per item. The body the
+    page POSTs is asserted against the corpus person's own answers, by item and by option id. The
+    founder has their AI read after each person, so the scripted readings land on the corpus's own
+    people in order."""
+    for person in j.people:
+        _answer_one(j, person, j.tokens[person.person])
+        _read(j, person)
+
+
+def _answer_one(j: Journey, person, token: str) -> None:
+    stranger = j.browser.new_context()
+    try:
+        interview = stranger.request.get(f"{j.cloud_base}/v2/i/{token}/interview",
+                                         timeout=20_000).json()
+        j.interviews[person.person] = interview
+        items = {i.get("dimension"): i for part in interview.get("parts") or []
+                 for i in part.get("items") or []}
+        kind = "COMMERCIAL_LINK" if person.link == vs.LINK_B2B else "FULL"
+        with _step(j, f"{person.person}: the {kind} interview carries every item this person "
+                      "answers, and every option they pick", party="participant") as h:
+            missing = [p.dimension for p in person.picks if p.dimension not in items]
+            unoffered = []
+            for pick in person.picks:
+                item = items.get(pick.dimension) or {}
+                offered = {o.get("optionId") for o in item.get("options") or []}
+                offered |= {a.get("id") for a in item.get("advantages") or []}
+                unoffered += [(pick.dimension, code) for code in pick.codes + pick.advantages
+                              if vs.option_id(token, pick.dimension, code) not in offered]
+            h.record_assert({"kind": kind, "missing": [], "unoffered": []},
+                            {"kind": interview.get("kind"), "missing": missing,
+                             "unoffered": unoffered, "items": sorted(items)})
+            assert interview.get("kind") == kind, interview.get("kind")
+            assert not missing, missing
+            if j.strict:
+                assert not unoffered, unoffered
+        recall = ((items.get("commercial.existing_sacrifice") or {}).get("costTotal") or {}).get("recallPeriod")
+        expected = person.response(token, recall)
+        if unoffered:
+            expected = _on_the_offered_options(expected, items)
+        by_item = {a["itemId"]: a for a in expected.get("answers") or []}
+        page = stranger.new_page()
+        screens = vs_screens.Interview(page, j.recorder)
+        screens.open(j.links[person.person])
+        walked = screens.walk(person, interview, by_item)
+        with _step(j, f"{person.person}: the page sent exactly this person's answers",
+                   party="participant") as h:
+            sent = walked["body"] or {}
+            h.record_assert(expected, sent)
+            assert _normal_body(sent) == _normal_body(expected), (sent, expected)
+            h.capture_text("participant_page", "\n\n".join(walked["seen"]))
+        if person.pilot_opt_in and person.recency is not False:
+            screens.opt_in_to_pilot(interview)
+    finally:
+        stranger.close()
+
+
+def _on_the_offered_options(body: dict, items: dict) -> dict:
+    """A live journey's answer on the options the model actually wrote: an option id the item does
+    not offer (a model-slugged Importance difficulty, a Purchase friction blocker) becomes the item's
+    first options, as many as the person picked. Never reached on a scripted journey."""
+    by_id = {i.get("itemId"): i for i in items.values()}
+    answers = []
+    for answer in body.get("answers") or []:
+        item = by_id.get(answer.get("itemId")) or {}
+        offered = [o.get("optionId") for o in item.get("options") or [] if not o.get("somethingElse")]
+        picked = answer.get("optionIds")
+        if picked and not all(p in offered for p in picked):
+            answer = {k: v for k, v in answer.items() if k != "somethingElse"}
+            answer["optionIds"] = offered[:len(picked)]
+        answers.append(answer)
+    return {**body, "answers": answers}
+
+
+def _normal_body(body: dict) -> dict:
+    """A response body with its order taken out -- answers by item, ids as sets -- and keel-web's
+    one deprecated constant (`pilotOptIn: false`) dropped, so two bodies compare on what they say."""
+    out = {k: v for k, v in body.items() if k not in ("answers", "pilotOptIn")}
+    answers = {}
+    for answer in body.get("answers") or []:
+        a = dict(answer)
+        for key in ("optionIds", "advantageIds"):
+            if key in a:
+                a[key] = sorted(a[key])
+        if "costTotal" in a and a["costTotal"].get("value") is not None:
+            a["costTotal"] = {**a["costTotal"], "value": round(float(a["costTotal"]["value"]), 4)}
+        answers[a.pop("itemId")] = a
+    out["answers"] = answers
     return out
 
 
-def expected_legend(entry) -> dict[str, int]:
-    """The four counts by verdict, derived from the entry's own `expected.standings` and nothing
-    else.
+def _read(j: Journey, person) -> None:
+    """The founder has their AI read the new answer, on the People page, when this person wrote a
+    story the reader is shown; nobody else's answer queues a reading (a gate no, a chip, the
+    decision-maker's link)."""
+    readable = any(p.person == person.person for p in vs.readable_people(j.entry))
+    if not readable:
+        return
+    people = People(j.page, j.recorder, j.web_base)
+    deadline = time.monotonic() + 45 * j.patience
+    while True:
+        people.open(j.project_id)
+        state = people.read_action_state()
+        if state.get("enabled"):
+            break
+        if time.monotonic() > deadline:
+            raise AssertionError(f"{person.person}'s answer never reached the read action: {state}")
+        j.page.wait_for_timeout(1_000)
+    people.read_all_and_wait(timeout_s=90 * j.patience)
+    with _step(j, f"{person.person}'s answer is read, and nothing failed") as h:
+        batches = j.get(j.project("/readings")) or []
+        batch = batches[0] if isinstance(batches, list) and batches else {}
+        h.record_assert({"status": "DONE", "failed": []}, batch)
+        assert batch.get("status") == "DONE", batch
+        assert not batch.get("failed"), batch
 
-    **Kept exactly as it was, and it is no longer a legend.** keel-web spec 027 FR-020 took the
-    four-word legend off the overview with the evidence bar, so nothing on a founder screen draws
-    these four side by side any more. The arithmetic is unchanged and is still the entry's own, and
-    `expected_panel_rows` below is how the deck is compared against it.
-    """
-    counts = {word: 0 for word in LEGEND_OF_VERDICT.values()}
-    for standing in (entry.expected.get("standings") or {}).values():
-        counts[LEGEND_OF_VERDICT[(standing.get("verdict") or "UNTESTED").upper()]] += 1
-    return counts
+
+# ----------------------------------------------------------------------------- leg 7: standings
+
+def expected_status(entry, key: str) -> str:
+    """The entry's own status for `key`, but `LEFT_OUT` where this journey had to leave Frequency
+    out (spec 039 D-1: the corpus's Frequency is on a 0-to-7 axis its own window cannot carry)."""
+    if key == "problem.frequency" and not vs.frequency_fits(entry):
+        return "LEFT_OUT"
+    return str(((entry.expected.get("standings") or {}).get(key) or {}).get("status") or "").upper()
 
 
-def expected_panel_rows(entry) -> dict[str, int]:
-    """The same four counts, arranged the way **the deck** draws them (keel-web spec 027 FR-011,
-    FR-012).
+def _option_counts(raw: str) -> dict[str, int]:
+    out = {}
+    for part in str(raw).split(","):
+        code, _, count = part.strip().partition("=")
+        if code:
+            out[code.strip()] = int(count)
+    return out
 
-    A panel has two parts and only two: `HELD`, which is `Standing.holdingUp`, and `DID NOT HOLD`,
-    which is `notHoldingUp` **and** `peopleDisagree` together — bad news first, which is the wire's
-    own two lists in order. So three of the four counts survive onto the screen, two of them added
-    together.
 
-    **`untested` is the fourth and the deck draws it nowhere**: a line nobody could answer appears
-    in no part, and `panel__count`'s *N of M lines holding* carries it only inside its denominator.
-    It is returned here so a caller asserts it against the wire rather than quietly dropping it
-    (tasks.md **D-6**).
-    """
-    want = expected_legend(entry)
-    return {"held": want["holding up"],
-            "did_not_hold": want["not holding up"] + want["people disagree"],
-            "untested": want["not asked yet"],
-            "total": sum(want.values())}
+def leg_standings(j: Journey) -> None:
+    """`GET standings` against the entry, dimension by dimension -- status, drift, n and every count
+    the entry records -- and every vector's verdict and deciding dimension."""
+    j.standings = j.get(j.project("/standings")) or {}
+    dims = {d.get("dimension"): d for v in j.standings.get("vectors") or []
+            for d in v.get("dimensions") or []}
+    expected = j.entry.expected.get("standings") or {}
+    if not j.strict:
+        with _step(j, "every vector stands, with a status from keel-cloud's own words on every "
+                      "dimension (a live journey: nothing is held to the corpus)") as h:
+            statuses = {k: d.get("status") for k, d in dims.items()}
+            verdicts = {v.get("vector"): v.get("verdict") for v in j.standings.get("vectors") or []}
+            h.record_assert({"vectors": list(VECTORS), "statuses": sorted(STATUS_WORD)},
+                            {"verdicts": verdicts, "statuses": statuses})
+            assert set(verdicts) == set(VECTORS), verdicts
+            assert all(s in STATUS_WORD for s in list(statuses.values()) + list(verdicts.values())), (
+                statuses, verdicts)
+        _board(j)
+        for vector in VECTORS:
+            _vector_page(j, vector)
+        return
+    with _step(j, "every dimension stands where the entry says it does: status, drift and counts") as h:
+        mismatches = []
+        for key, want in expected.items():
+            got = dims.get(key) or {}
+            row: dict = {"dimension": key}
+            status = expected_status(j.entry, key)
+            if (got.get("status") or "") != status:
+                row["status"] = {"wire": got.get("status"), "corpus": status}
+            overridden = status != str(want.get("status") or "").upper()
+            want_drift = "NONE" if overridden else str(want.get("drift") or "none").upper()
+            if (got.get("drift") or "NONE") != want_drift:
+                row["drift"] = {"wire": got.get("drift"), "corpus": want_drift}
+            if not overridden and status != "LEFT_OUT":
+                if "n" in want and int(got.get("n") or 0) != int(want["n"]):
+                    row["n"] = {"wire": got.get("n"), "corpus": want["n"]}
+                interval = got.get("interval") or {}
+                for count in INTERVAL_KEYS:
+                    if count in want and interval and int(interval.get(count) or 0) != int(want[count]):
+                        row[count] = {"wire": interval.get(count), "corpus": want[count]}
+                if "optionCounts" in want:
+                    wire_counts = {o.get("code"): int(o.get("count") or 0)
+                                   for o in (got.get("choice") or {}).get("optionCounts") or []}
+                    for code, count in _option_counts(want["optionCounts"]).items():
+                        if wire_counts.get(code, 0) != count:
+                            row.setdefault("optionCounts", {})[code] = {
+                                "wire": wire_counts.get(code), "corpus": count}
+            if len(row) > 1:
+                mismatches.append(row)
+        h.record_assert([], mismatches)
+        assert not mismatches, json.dumps(mismatches, indent=2)
 
+    with _step(j, "every vector's verdict is its deciding deal-breaker's, as the entry says") as h:
+        verdicts = {v.get("vector"): v for v in j.standings.get("vectors") or []}
+        mismatches = []
+        for vector, want in (j.entry.expected.get("vector_verdicts") or {}).items():
+            got = verdicts.get(vector) or {}
+            deciding = (dims.get(want.get("deciding")) or {}).get("status")
+            if got.get("verdict") != want.get("verdict") or deciding != want.get("verdict"):
+                mismatches.append({"vector": vector, "wire": got.get("verdict"),
+                                   "deciding on the wire": deciding, "corpus": want})
+        h.record_assert([], mismatches)
+        assert not mismatches, json.dumps(mismatches, indent=2)
+
+    _board(j)
+    for vector in VECTORS:
+        _vector_page(j, vector)
+
+
+def _board(j: Journey) -> None:
+    """The board, as the founder opens it: one panel per vector, worst first, each pill the
+    vector's verdict in keel-web's word; the headline the worst vector's own; the belief count the
+    entry's calibrated set; the download live, since answers have been read."""
+    board = j.screens["board"] = j.answers.board(j.project_id)
+    verdicts = {v.get("vector"): v for v in j.standings.get("vectors") or []}
+    with _step(j, "the board: three panels, each the wire's vector verdict in keel-web's word, and "
+                  "the download live",
+               party="founder") as h:
+        want = {v: STATUS_WORD[verdicts[v]["verdict"]] for v in VECTORS}
+        got = {p["stage"]: p["pill"] for p in board["panels"]}
+        # The tile counts beliefs: every dimension the founder did not leave out.
+        beliefs = sum(1 for v in j.standings.get("vectors") or [] for d in v.get("dimensions") or []
+                      if d.get("status") != "LEFT_OUT")
+        h.record_assert({"pills": want, "bands": 3, "download": True, "beliefs": str(beliefs)},
+                        {"pills": got, "bands": len(board["bands"]), "download": board["download"],
+                         "tiles": board["tiles"], "overall": board["overall"]})
+        assert set(got) == set(VECTORS), got
+        for vector, word in want.items():
+            assert word in got[vector], (vector, got[vector], word)
+        assert len(board["bands"]) == 3, board["bands"]
+        assert board["download"], "the download is not live after every answer was read"
+        assert board["tiles"] and board["tiles"][0] == str(beliefs), (board["tiles"], beliefs)
+        headlines = [v.get("headline") for v in verdicts.values()]
+        assert board["overall"] in headlines, (board["overall"], headlines)
+
+
+def _vector_page(j: Journey, vector: str) -> None:
+    """One vector page: a row per dimension, each status the entry's in keel-web's word (amber where
+    left out), the vector's headline the wire's own, and on a B2B commercial page the banner naming
+    the decision-maker."""
+    page = j.screens[vector] = j.answers.vector_page(j.project_id, vector)
+    standing = next(v for v in j.standings.get("vectors") or [] if v.get("vector") == vector)
+    with _step(j, f"the {vector.lower()} page: every dimension reads the wire's status in keel-web's "
+                  "word",
+               party="founder") as h:
+        mismatches = []
+        for d in standing.get("dimensions") or []:
+            key = d.get("dimension")
+            row = page["rows"].get(key) or {}
+            word = STATUS_WORD[d.get("status")]
+            if not row.get("status", "").startswith(word):
+                mismatches.append({"dimension": key, "screen": row.get("status"), "want": word})
+            if d.get("status") == "LEFT_OUT" and not row.get("amber"):
+                mismatches.append({"dimension": key, "screen": "not amber", "want": "amber"})
+        h.record_assert({"headline": standing.get("headline"), "mismatches": []},
+                        {"headline": page["headline"], "mismatches": mismatches,
+                         "rows": page["rows"]})
+        assert page["headline"] == standing.get("headline"), (page["headline"], standing.get("headline"))
+        assert len(page["rows"]) == len(standing.get("dimensions") or []), page["rows"]
+        assert not mismatches, json.dumps(mismatches, indent=2)
+        if vector == "COMMERCIAL" and vs.is_b2b(j.entry):
+            role = j.founder.decider["role"].lower()
+            assert role in page["decider_banner"].lower(), page["decider_banner"]
+
+
+# --------------------------------------------------------------------------------- leg 8: brief
+
+def leg_brief(j: Journey, *, timeout_s: float = 60) -> None:
+    """The brief over the same standings, on the wire and on the page the founder hands over. On the
+    scripted journeys the reading is the referee's own and keel-cloud kept it (`fallbackUsed`
+    false); on a live one it is whatever the model wrote or code's fallback, and either way the
+    printed page draws the wire's headline and the wire's decision."""
+    deadline = time.monotonic() + timeout_s * j.patience
+    brief: dict = {}
+    while time.monotonic() < deadline:
+        brief = (j.get(j.project("/standings")) or {}).get("brief") or {}
+        if brief.get("fallbackUsed") is False:
+            break
+        time.sleep(1)
+    headline = ((brief.get("reading") or {}).get("headline") or {}).get("text")
+    if j.strict:
+        with _step(j, "the brief carries the scripted reading, not code's fallback") as h:
+            want = vs.brief_result(j.entry)["headline"]["text"]
+            h.record_assert({"fallbackUsed": False, "headline": want},
+                            {"fallbackUsed": brief.get("fallbackUsed"), "headline": headline})
+            assert brief.get("fallbackUsed") is False, brief.get("fallbackUsed")
+            assert headline == want, headline
+    printed = j.screens["brief"] = j.answers.brief(j.project_id)
+    with _step(j, "the printed brief: the wire's headline, the wire's decision, four sections",
+               party="founder") as h:
+        facts = brief.get("facts") or {}
+        decision = str((facts.get("decision") or {}).get("label") or "").lower()
+        sections = ["brief-problem", "brief-solution", "brief-commercial", "brief-next"]
+        h.record_assert({"headline": headline, "decision": decision, "sections": sections},
+                        {"headline": printed["headline"], "decision": printed["decision"],
+                         "sections": printed["sections"], "tiles": printed["tiles"],
+                         "fallbackUsed": brief.get("fallbackUsed")})
+        assert headline and printed["headline"] == headline, (printed["headline"], headline)
+        assert printed["decision"] == decision, (printed["decision"], decision)
+        assert printed["sections"] == sections, printed["sections"]
+
+
+# ------------------------------------------------------------------------------------- the whole
 
 def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
-        extra=None) -> None:
+        extra: Callable[[Journey], None] | None = None) -> None:
     """The whole scenario. `entry_id` is the only argument that differs between S-005, S-006 and
-    S-007 (FR-015).
-
-    `extra` is the one seam: a callable the scenario module passes to say the thing only *its*
-    entry can say -- countly's mockup numbers, paidly's floor met exactly, mulchrun's dollars and
-    miles. It is handed the whole context and asserts in the scenario's own recorder. Everything a
-    second entry would also need belongs above it, not in it.
-    """
+    S-007. `extra` is the one seam: the thing only *its* entry can say, handed the `Journey`."""
     recorder = Recorder(run_dir)
-    # Spec 017: the stack's own addresses -- `http://localhost:<port>` on the eval and playground
-    # profiles, the twin's URLs on `remote` -- and the founder this run signs in as: the built-in
-    # Eval Founder locally, a founder registered for this cell against the twin's gated chooser.
-    # (The nightly of 2026-09-12, run 34660286884, found both hard-wired to localhost: S-005/6/7
-    # rode the macOS x Claude cell for the first time and every one of them failed at sign-in with
-    # `ERR_CONNECTION_REFUSED at http://localhost:443/login`.)
     web_base = stack.web_base_url
-    cloud_base = stack.cloud_base_url
     cell_label = (f"{remote.cell_name()} · corpus {slug} · "
                   f"{time.strftime('%Y-%m-%d', time.gmtime())}")
     founder_one = remote.identity_to_sign_in_as(stack, cell_label, fallback=founder_one)
-    # Spec 029 O-1: the corpus is at revision 3 and this walk reads the r2 shape. The refusal is
-    # named here, before a browser context or a project exists, never twenty steps in.
     try:
-        corpus, entry = corpus_script.entry_for(stack.keel_cloud, entry_id)
-    except corpus_script.corpus_reader.CorpusError as refusal:
+        corpus, entry = vs.entry_for(stack.keel_cloud, entry_id)
+    except (vs.VectorsScriptError, vs.corpus_reader.CorpusError) as refusal:
         import pytest                                       # noqa: PLC0415
         pytest.fail(f"{entry_id}: {refusal}", pytrace=False)
     started = time.monotonic()
     passed = False
     context = browser.new_context()
-
     hashes_before = dict(corpus.hashes)
-    script = corpus_script.generate(entry)
-    founder = corpus_script.founder_inputs(entry)
-    people_inputs = corpus_script.person_inputs(entry)
-    script_path = run_dir / "script.json"
-    write_generated(run_dir, script=script.to_json(),
-                    inputs=corpus_script.inputs_json(entry, founder, people_inputs))
-
-    standings = entry.expected.get("standings") or {}
-    buckets = entry.expected.get("buckets") or {}
-    stages_expected = entry.expected.get("stages") or {}
-    by_id = {b.id: b for b in entry.beliefs}
-    heading_of = {b.id: b.heading for b in entry.beliefs}
-    measure_of = {b.id: (b.measure or {}).get("kind") for b in entry.beliefs}
-    expectation_of = {b.heading: b.type for b in entry.beliefs}
-
-    def _get(path: str) -> dict:
-        return context.request.get(f"{cloud_base}{path}", timeout=15_000).json()
-
+    script = vs.generate(entry)
+    founder = vs.founder_inputs(entry)
+    people = vs.person_inputs(entry)
+    write_generated(run_dir, script=script.to_json(), inputs=vs.inputs_json(entry, founder, people))
     try:
+        exported = contract_mod.export(stack.keel_cloud, run_dir / "export")
+        keys_path = run_dir / "context-keys.json"
+        keys_path.write_text(json.dumps(vs.context_keys_for(exported.context_keys), indent=2) + "\n",
+                             encoding="utf-8")
         page = context.new_page()
-        auth = Auth(page, recorder, web_base)
+        journey = open_journey(recorder, page, context, browser, stack, entry, founder, people,
+                               script=script)
+        user_code = _connect(stack, recorder, page, founder_one, web_base, run_dir, keys_path)
+        own_ai_door(page, recorder, stack, journey.get, through_the_code_story=bool(user_code))
 
-        # ------------------------------------------------------------------------ the runtime
-        # **The runtime starts BEFORE the founder signs in, and that ordering is the product's,
-        # not a convenience** (spec `024-keels-ai-cell`; keel-cloud spec 044 FR-014,
-        # `GoogleSignIn.doorOf`). keel-cloud decides which AI an account runs on from the door it
-        # was **created** through -- read back off the pre-login record's own stored `return_to`
-        # -- and `/connect` is the only path that answers `OWN`. A bare `/` answers `KEEL`, grants
-        # 1,500 credits, and once keel-cloud spec 045 lands hands that founder's jobs to Keel's
-        # own Anthropic key. On the twin every one of these scenarios registers a brand-new
-        # identity minutes before it signs in, so every one of them was creating an account on the
-        # wrong door. It starts the runtime first now, takes the code the runtime printed, and
-        # signs in at `/login?user_code=...` the way a first-time founder does.
-        # The script travels as `KEEL_SCRIPT` through `harness/connect.py`'s existing `env_extra`
-        # (spec judgement call 2): the env var touches one repo and leaves keel-connect-skill's
-        # stable output contract alone. The runtime is still only ever started through that
-        # skill's own script -- it is one of the four applications under referee.
-        #
-        # A runtime another scenario left running is holding *that* scenario's script, and the
-        # connect skill reports `already_connected` rather than restarting it -- so it is stopped
-        # first, the same way `make down` stops one. Each corpus scenario answers from its own
-        # entry or it is not measuring that entry at all.
-        if stack_runtime.status(stack).get("running"):
-            stop_runtime(stack, recorder)
-        if stack.is_remote:
-            # On the twin this scenario signed in as a founder registered minutes ago, and the
-            # profile's runtime home still holds the credential the PREVIOUS scenario's founder
-            # approved: left alone, `keel connect` reconnects as that founder's device, this
-            # founder's screens read "no AI connected", and the project-name field stays disabled
-            # (the nightly of 2026-09-12, run 34662465285: S-005 green, then S-006 and S-007 red
-            # at "founder names the project" with `<input disabled>`). A fresh home makes the
-            # device this founder's, through the same approval S-005 already walks. Locally every
-            # scenario is the one Eval Founder, and the saved credential is right as it is.
-            with recorder.step("the runtime home is put back the way `make up` leaves it: this "
-                                "founder's device, not the previous scenario's",
-                                party="stack", kind="protocol") as h:
-                stack_runtime.reset(stack)
-                h.record_wire({"home": str(stack_runtime.home_dir(stack))},
-                               {"after": stack_runtime.status(stack)})
-        result = start_runtime_via_skill(stack, recorder,
-                                          env_extra={"KEEL_SCRIPT": str(script_path)})
-        landing = Landing(page, recorder, web_base)
-        user_code = result.get("user_code")
-        if result.get("outcome") == "authorization_started" and user_code:
-            # The first-time flow, in the founder's own order: the code the runtime just printed
-            # goes to `/login?user_code=...`, and the `return_to` that travels with it is
-            # `/connect?user_code=...` -- the one path `GoogleSignIn.doorOf` reads as OWN.
-            auth.sign_in_with_code(founder_one, user_code)
-            connect = Connect(page, recorder)
-            connect.open(result["verification_uri"])
-            connect.approve()
-            connect.wait_for_connected(timeout_s=30)
-            connect.go_to_projects()
-        else:
-            # **No code, so no code story.** The runtime reconnected on a credential the home
-            # already held (`connected` / `already_connected`), which is what a local profile
-            # does: `make up` leaves a home behind and every scenario there is the one built-in
-            # Eval Founder, whose account was created by whichever run first signed in. There is
-            # nothing to carry and nothing to decide -- `ai_path` is immutable, so this sign-in
-            # cannot move it either way -- and the ordinary door is what a returning founder uses.
-            with recorder.step("no device code: the runtime reconnected on the credential its "
-                                "home already held, so this founder signs in as a returning one",
-                                party="stack", kind="note") as h:
-                h.record_wire({"outcome": result.get("outcome")},
-                               {"user_code": user_code,
-                                "why it does not decide a door": (
-                                    "keel-cloud reads the door only on the branch that CREATES "
-                                    "the account (keel-cloud spec 044 FR-014); a returning "
-                                    "founder keeps whatever their row already says")})
-            auth.sign_in(founder_one)
-        landing.visit()
-        own_ai_door(page, recorder, stack, _get,
-                    through_the_code_story=bool(user_code))
-
-        # ------------------------------------------------------------------------- the market
-        project_id = create_project(page, recorder, web_base, founder)
-        with recorder.step(f"§1.1: {entry_id}'s market is the one the entry names",
-                            party="stack", kind="assert") as h:
-            market = (_get(f"/v2/projects/{project_id}/overview") or {}).get("market") or {}
-            h.record_assert({"country": founder.market.country, "region": founder.market.region,
-                              "language": founder.market.language}, market)
-            assert market.get("country") == founder.market.country, (
-                f"the market did not persist: expected {founder.market.country}, got {market}")
-            assert (market.get("region") or None) == founder.market.region, (
-                f"the region did not persist: expected {founder.market.region!r}, got {market}")
-            assert market.get("language") == founder.market.language, (
-                f"the server derived a different language: expected {founder.market.language}, "
-                f"got {market}")
-
-        # -------------------------------------------------------------- the three review cards
-        for stage in STAGES:
-            # `approve=False`: the review card is what this asserts, and an approved card is a
-            # different screen entirely (strips, not lines). Read first, approve second.
-            card = walk_stage(page, recorder, _get, project_id, stage, founder.statement(stage),
-                              founder.statement(stage), approve=False)
-            _assert_review_card(recorder, card, entry, stage, buckets)
-            card.approve()
-            card.continue_onward()
-
-        # -------------------------------------------------------------- the people, and the read
-        urls = invite_everyone(page, recorder, project_id, entry, people_inputs, web_base)
-
-        # ------------------------------------------------- *What this says*, before any reading
-        _assert_no_paragraph_yet(recorder, page, web_base, _get, project_id)
-
-        # Read after each person, so the reading jobs arrive in the entry's own order and the
-        # corpus's own anchorings land on the corpus's own people (`answer_everyone`'s note).
-        typed = answer_everyone(browser, recorder, entry, people_inputs, urls,
-                                 read_each=(page, project_id, web_base))
-        with recorder.step("every person answered their own role's anchors and nobody else's",
-                            party="participant", kind="assert") as h:
-            strays = [row for row in typed if row["skipped"]]
-            h.record_assert([], strays)
-            assert not strays, (
-                "a person was offered, or refused, something their role's anchor set does not "
-                f"match: {strays}")
-
-        # ------------------------------------------------------------------- the overview, the deck
-        # **`_assert_what_this_says` is no longer called here, and this is the whole of why**:
-        # keel-web spec 027 FR-020 took the paragraph off this screen and FR-027 prints it on page
-        # 1 of the sheet. The step is unchanged and still asserts the same three findings; it is
-        # called below, once the sheet is open, and is handed the `PrintPage` instead of the
-        # `Overview`. The `print_page` is built here rather than there so an entry's own `extra`
-        # can reach the sheet too -- `05-paidly` and `07-mulchrun` both sweep a founder screen, and
-        # one of the screens they sweep is page 1 now.
-        overview = Overview(page, recorder, web_base)
-        overview.open(project_id)
-        _assert_overview(recorder, overview, entry, standings, _get, project_id)
-        print_page = PrintPage(page, recorder, web_base)
+        leg_project(journey)
+        leg_context(journey)
+        leg_interpret_problem(journey)
+        leg_calibrate(journey, "PROBLEM")
+        leg_interpret_solution(journey)
+        leg_calibrate(journey, "SOLUTION")
+        leg_persona(journey)
+        leg_calibrate(journey, "COMMERCIAL")
+        leg_lock(journey)
+        leg_invite(journey)
+        leg_interview(journey)
+        leg_standings(journey)
+        leg_brief(journey)
         if extra is not None:
-            extra({"recorder": recorder, "page": page, "entry": entry, "overview": overview,
-                   "print_page": print_page,
-                   "project_id": project_id, "get": _get, "web_base": web_base,
-                   "people": people_inputs, "founder": founder, "standings": standings,
-                   "heading_of": heading_of, "browser": browser})
+            extra(journey)
 
-        # --------------------------------------------------------------------- the opened cards
-        wire_standings: dict[str, dict] = {}
-        for stage in STAGES:
-            stage_card = _get(f"/v2/projects/{project_id}/stages/{stage}")
-            wire_standings.update(belief_by_heading(stage_card))
-            drifts = {heading_of[bid]: (standings.get(bid) or {}).get("drift", "").upper()
-                      for bid in standings if by_id[bid].stage == stage}
-            opened = OpenedCard(page, recorder, web_base)
-            opened.open(project_id, stage, expectations=expectation_of, drifts=drifts)
-            _assert_stage_card(recorder, opened, entry, stage, standings, stages_expected,
-                               heading_of, measure_of, by_id)
-
-        _assert_wire(recorder, entry, standings, heading_of, wire_standings)
-
-        # ---------------------------------------------------------------------- the download
-        print_page.open(project_id)
-        _assert_download(recorder, print_page, entry, standings, heading_of)
-        _assert_what_this_says(recorder, print_page, _get, project_id, script)
-
-        # ------------------------------------------------------- the corpus has not moved (FR-005)
         with recorder.step("the corpus hashes exactly as it did when the run began",
-                            party="stack", kind="assert") as h:
+                           party="stack", kind="assert") as h:
             corpus.verify_unchanged()
-            after = {path: corpus_script.corpus_reader._sha256(  # noqa: SLF001 - one reader (R6)
-                __import__("pathlib").Path(path)) for path in hashes_before}
-            h.record_assert(hashes_before, after)
-            assert after == hashes_before, (
-                "a corpus file moved while the run was in flight; this run has measured nothing")
+            h.record_assert(hashes_before, dict(corpus.hashes))
         passed = True
     finally:
         context.close()
-        finalize_run(run_dir, slug=slug,
-                     facts=corpus_facts.facts_for(entry, modal_person=None),
+        finalize_run(run_dir, slug=slug, facts=corpus_facts.vectors_facts_for(entry),
                      passed=passed, failed_step=recorder.failed_step,
                      duration_s=time.monotonic() - started)
         print(f"\nrun bundle: {run_dir}")
 
 
-# ------------------------------------------------------------------------------------ assertions
-
-def _assert_review_card(recorder, card, entry, stage, buckets) -> None:
-    lines = card.lines()
-    with recorder.step(f"§1.2: the {stage.lower()} review card carries every line the entry has",
-                        party="founder", kind="assert") as h:
-        expected_headings = [b.heading for b in entry.beliefs_for(stage)]
-        got = [line["heading"] for line in lines]
-        h.record_assert(expected_headings, got)
-        missing = [heading for heading in expected_headings
-                   if not any(heading in seen for seen in got)]
-        assert not missing, f"the {stage} card is missing lines the entry carries: {missing}"
-
-    with recorder.step(f"§1.2: every PROXY line on {stage.lower()} is marked *asked indirectly*",
-                        party="founder", kind="assert") as h:
-        proxies = {b.heading for b in entry.beliefs_for(stage) if b.mark == "PROXY"}
-        marked = {line["heading"] for line in lines if line["proxy"]}
-        h.record_assert(sorted(proxies), sorted(marked))
-        for heading in proxies:
-            assert any(heading in seen for seen in marked), (
-                f"{heading!r} is a PROXY belief and the card does not mark it asked indirectly")
-
-    with recorder.step(f"§1.2: {stage.lower()}'s deal-breakers are separated under their own rule "
-                        "line", party="founder", kind="assert") as h:
-        rule_lines = card.rule_lines()
-        h.record_assert("a Deal-breakers rule line", rule_lines)
-        if any(b.risk == "LOAD_BEARING" for b in entry.beliefs_for(stage)):
-            assert any("deal-breaker" in line.lower() for line in rule_lines), (
-                f"{stage} has load-bearing lines and no deal-breaker rule line: {rule_lines}")
-
-    with recorder.step(f"§1.2: the {stage.lower()} card names what the person will be asked first",
-                        party="founder", kind="assert") as h:
-        asked_first = card.asked_first()
-        h.record_assert("one story, then the picks", asked_first)
-        assert asked_first, "no *what they'll be asked first* block on this review card"
-        assert "story" in asked_first.lower(), asked_first
-        assert "pick" in asked_first.lower(), asked_first
-
-    # FR-013: the offered list equals the entry's own `expected.buckets`, in order.
-    for belief in entry.beliefs_for(stage):
-        wanted = buckets.get(belief.selection)
-        if not wanted:
-            continue
-        with recorder.step(
-                f"FR-013: line {belief.id} offers the entry's own pick list, in order",
-                party="founder", kind="assert") as h:
-            got = card.chip_labels(belief.heading)
-            h.record_assert(list(wanted), got)
-            assert got == list(wanted), (
-                f"{belief.id} ({belief.selection}) offers {got}, the entry says {list(wanted)}")
-
-    with recorder.step(f"§1.2: the founder's own phrase is quoted on every {stage.lower()} line",
-                        party="founder", kind="assert") as h:
-        phrases = {b.heading: b.founder_phrase for b in entry.beliefs_for(stage)
-                   if b.founder_phrase}
-        missing = []
-        for line in lines:
-            for heading, phrase in phrases.items():
-                if heading in line["heading"] and phrase not in line["you_said"]:
-                    missing.append({"line": heading, "phrase": phrase, "read": line["you_said"]})
-        h.record_assert([], missing)
-        assert not missing, f"a line does not quote the founder's own words: {missing}"
-
-
-def _assert_overview(recorder, overview, entry, standings, get, project_id) -> None:
-    """**The deck** (keel-web spec 027 `brief-ship`; keel-cloud `canon/designs/brief-page-design.md`
-    §3). Three steps, and they are the three that stood here before, each reading the thing its
-    subject became:
-
-    | what stood here | what it reads now |
-    |---|---|
-    | *N of T lines have answers*, off `.evidence__title` | the ship's own caption — the project, the line count and the people asked |
-    | the legend's four counts, off `.legend .up`/`.down`/`.split`/`.none` | the three panels' `HELD` and `DID NOT HOLD` rows, summed — and `untested` against the wire, because the deck draws it nowhere (**D-6**) |
-    | three `OverviewCard`s, each with a status, its counts and its deal-breaker tally | three panels, each with a status word, a count line and its stage's name |
-
-    Every tail is opened first (`open_every_tail`), because a part at rest shows at most three
-    lines and a count taken over a closed panel would be a count of the budget rather than of the
-    evidence. A budget moves a number; it never deletes one.
-    """
-    with recorder.step("§1.7: the ship's caption counts every line and everybody asked",
-                        party="founder", kind="assert") as h:
-        counts = overview.ship_counts()
-        h.record_assert({"lines": len(standings)},
-                         {"caption": overview.ship_caption(), "lines, asked": counts,
-                          "the figure in one line": overview.ship_label()})
-        assert overview.is_deck(), (
-            "the overview is not the deck; every stage is approved and every answer is read, so "
-            "`GuidedStep` here means keel-web is drawing the walk over a finished project")
-        assert counts is not None, (
-            f"no ship caption at all: {overview.ship_caption()!r}. It is what succeeded the "
-            f"evidence bar's own project line (keel-web FR-007/FR-020).")
-        assert counts[0] == len(standings), (
-            f"the caption counts {counts[0]} lines; the entry has {len(standings)}")
-        assert counts[1] >= 1, f"the caption says nobody was asked: {overview.ship_caption()!r}"
-
-    with recorder.step("§1.7: the three panels' own rows are the entry's four counts, and the one "
-                        "the deck never draws is asserted against the wire",
-                        party="founder", kind="assert") as h:
-        # **The legend's assertion, moved rather than dropped.** Opening the tails first is what
-        # makes the two sides comparable: `HELD` and `DID NOT HOLD` each show three lines at rest.
-        overview.open_every_tail()
-        panels = overview.panels()
-        held = sum(len(Overview.lines_of(panel, Overview.PANEL_HELD)) for panel in panels)
-        failed = sum(len(Overview.lines_of(panel, Overview.PANEL_DID_NOT_HOLD))
-                     for panel in panels)
-        want = expected_panel_rows(entry)
-        wire = get(f"/v2/projects/{project_id}/standing") or {}
-        untested = len(wire.get("untested") or [])
-        h.record_assert({"HELD rows": want["held"], "DID NOT HOLD rows": want["did_not_hold"],
-                          "untested, on the wire": want["untested"]},
-                         {"HELD rows": held, "DID NOT HOLD rows": failed,
-                          "untested, on the wire": untested,
-                          "the four counts by verdict, from the entry": expected_legend(entry),
-                          "per panel": [{"stage": q["stage"], "word": q["word"],
-                                          "count": q["count"]} for q in panels]})
-        assert held == want["held"], (
-            f"the panels show {held} lines that held; the entry's standings say {want['held']}")
-        assert failed == want["did_not_hold"], (
-            f"the panels show {failed} lines that did not hold; the entry's standings say "
-            f"{want['did_not_hold']} -- `notHoldingUp` and `peopleDisagree` together, which is "
-            f"the one part keel-web draws them in")
-        assert untested == want["untested"], (
-            f"`GET /standing` carries {untested} untested lines; the entry's standings say "
-            f"{want['untested']}. This one is read off the wire and not off the screen because "
-            f"the deck draws it nowhere -- a line nobody could answer is in no part, and the "
-            f"count line carries it only inside its denominator (D-6).")
-
-    with recorder.step("§1.7: every panel carries its stage, a status word and its own count line",
-                        party="founder", kind="assert") as h:
-        panels = overview.panels()
-        bands = overview.bands()
-        h.record_assert({"panels": 3, "bands": 3},
-                         {"bands": bands, "panels": panels})
-        assert len(panels) == 3, f"expected three panels, got {[q['stage'] for q in panels]}"
-        assert len(bands) == 3, f"expected three bands, got {[b['stage'] for b in bands]}"
-        assert {b["stage"] for b in bands} == {q["stage"] for q in panels} == set(STAGES), (
-            f"the bands name {[b['stage'] for b in bands]} and the panels "
-            f"{[q['stage'] for q in panels]}; there are three stages and one of each per stage")
-        for panel in panels:
-            assert panel["name"].strip(), f"{panel['stage']} panel does not name its stage"
-            assert panel["word"].strip(), f"{panel['stage']} panel has no status word"
-            assert "lines holding" in panel["count"], (
-                f"{panel['stage']} panel has no *N of M lines holding* clause: "
-                f"{panel['count']!r}")
-            assert "answered" in panel["count"], (
-                f"{panel['stage']} panel's count line does not say how many people answered: "
-                f"{panel['count']!r}")
-        for band in bands:
-            assert band["wash"], f"{band['stage']} band carries no verdict class: {band!r}"
-            assert band["label"].strip(), (
-                f"{band['stage']} band has no accessible name, so its colour is the only carrier "
-                f"of its verdict (keel-web FR-003)")
-        # The deal-breaker tally the three cards each carried. keel-web omits the clause entirely
-        # where a stage has no deal-breaker, rather than printing *0 of 0* -- so this asserts that
-        # at least one stage carries it, which is the shape the corpus guarantees.
-        assert any("deal-breaker" in panel["count"] for panel in panels), (
-            f"no panel carries a deal-breaker tally at all: "
-            f"{[q['count'] for q in panels]}")
-
-
-def _assert_no_paragraph_yet(recorder, page, web_base, get, project_id) -> None:
-    """**Inverted, with the reason above it** (keel-web spec 027 FR-020/FR-027; tasks.md **D-5**).
-
-    What this asserted: before anything has been read there is no paragraph, and the wire says so
-    **in its own words** (`FounderVoice.whatThisSaysNote`) rather than leaving a block that reads
-    as a bug — and the overview shows that note, character for character.
-
-    **There is no screen left that draws the note.** The paragraph moved to page 1 of the sheet,
-    and `PrintRoute` prints no note at all: keel-web's own comment is that *"a sheet does not
-    explain to itself why a block it left out is missing"*. So two of the three findings stand
-    where they stood, on the wire — no paragraph, and a note composed in keel-cloud's own words —
-    and the third is inverted: the overview must draw **no** *What this says* block, and the
-    founder-facing sentence for *there is nothing yet* is the download's own disabled state,
-    *Nothing to hand over yet*, with *The brief fills as your AI reads answers.* beside it
-    (FR-025 state 3).
-
-    Which is a better reading of the same moment: the note was a sentence about a paragraph the
-    founder had not asked for, and the disabled control is a sentence about the thing they came to
-    do.
-
-    Still read here, one moment before the first answer is read, because it is still the only
-    moment it can be read: `Project.whatThisSays` is written once and replaced whole, and every
-    reading after the first leaves it standing.
-    """
-    overview = Overview(page, recorder, web_base)
-    overview.open(project_id)
-    with recorder.step("§1.7: before the first reading the wire carries its own 'not yet' line, "
-                        "the overview draws no paragraph, and there is nothing to hand over yet",
-                        party="founder", kind="assert") as h:
-        wire = get(f"/v2/projects/{project_id}/overview") or {}
-        note = wire.get("whatThisSaysNote")
-        download = overview.download_state()
-        h.record_assert({"whatThisSays": None, "note": note,
-                          "a *What this says* block on the overview": False,
-                          "download enabled": False},
-                         {"whatThisSays": wire.get("whatThisSays"), "note": note,
-                          "a *What this says* block on the overview":
-                              overview.carries_what_this_says(),
-                          "download": download})
-        assert wire.get("whatThisSays") is None, (
-            "a paragraph exists before anything was read: " f"{wire.get('whatThisSays')!r}")
-        assert note, (
-            "the wire carries neither a paragraph nor a note, so nothing in the system has a word "
-            "for the state the founder is in")
-        assert not overview.carries_what_this_says(), (
-            "the overview still draws a *What this says* block; keel-web spec 027 FR-020 moved it "
-            "to page 1 of the sheet and this screen is the deck now")
-        assert download["label"].strip(), (
-            "the deck's foot offers no download control at all -- not a disabled one either, "
-            "which is the state keel-web FR-025 requires here")
-        assert not download["enabled"], (
-            f"the download is live before a single answer has been read: {download!r}")
-        assert download["why"].strip(), (
-            "the download is disabled and says nothing about why; a disabled control that does "
-            "not say why is a bug the founder has to guess at (design §6.1 decision 5)")
-
-
-def _assert_what_this_says(recorder, print_page, get, project_id, script) -> None:
-    """FR-008, **on the page that draws it now**: the sheet's page 1 renders the paragraph the
-    `BRIEF` pipeline wrote, **verbatim** (keel-web spec 027 FR-027).
-
-    Three claims in one step, and they are different findings — unchanged from when this step read
-    the overview. That keel-cloud ran the job and applied what came back (the wire carries the
-    scripted paragraph), that the "not yet" note has stood down (`whatThisSaysNote` is gone), and
-    that keel-web rendered the server's words rather than words of its own (the screen equals the
-    wire, character for character).
-
-    Before this existed the check was *a heading and more than twenty characters under it*, which
-    `whatThisSaysNote` satisfies on its own — so six green runs at 5.0/5 had never once seen a
-    paragraph, and 51 `BRIEF` jobs had failed unremarked behind
-    `ReadingBatchService.sayWhatThisSays`'s own `catch`. That is why the equality is byte-for-byte,
-    and it is why the reader is scoped to **page 1's own `p.pclaim`**: pages 2-4 each draw one too,
-    carrying `StageSummary.claim`, and a sheet-wide read would have compared a stage's claim against
-    the paragraph and passed or failed on the wrong sentence (tasks.md **D-2**).
-    """
-    scripted = script.screens["BRIEF"][0]["result"]["whatThisSays"]
-    with recorder.step("§1.10: *What this says* is the agent's own paragraph, printed verbatim on "
-                        "page 1 of the brief", party="founder", kind="assert") as h:
-        wire = get(f"/v2/projects/{project_id}/overview") or {}
-        paragraph = print_page.what_this_says_paragraph()
-        heading = print_page.what_this_says_heading()
-        h.record_assert(scripted, {"wire": wire.get("whatThisSays"), "page 1": paragraph,
-                                    "the heading above it": heading})
-        assert wire.get("whatThisSays") == scripted, (
-            "the BRIEF job never produced the paragraph -- the wire carries "
-            f"{wire.get('whatThisSays')!r} where the script answered {scripted!r}")
-        assert not wire.get("whatThisSaysNote"), (
-            "the server still offers its 'not yet' note beside a paragraph that exists: "
-            f"{wire.get('whatThisSaysNote')!r}")
-        assert heading.strip(), (
-            "page 1 prints the paragraph under no heading -- `WHAT_THIS_SAYS_HEADING` is what "
-            "tells a reader what the paragraph is")
-        assert paragraph == scripted, (
-            f"page 1 prints {paragraph!r}, not the server's own {scripted!r}")
-
-
-def _assert_stage_card(recorder, opened, entry, stage, standings, stages_expected,
-                       heading_of, measure_of, by_id) -> None:
-    with recorder.step(f"§1.7: the {stage.lower()} card's own status is the entry's stage verdict",
-                        party="founder", kind="assert") as h:
-        want = stages_expected.get(stage)
-        got = opened.status_word()
-        h.record_assert(STATUS_WORD.get(want, want), got)
-        assert STATUS_WORD.get(want, "") in got, (
-            f"the {stage} card reads {got!r}; the entry says {want}")
-
-    strips = {s["heading"]: s for s in opened.strips()}
-    for belief_id, expected in standings.items():
-        belief = by_id[belief_id]
-        if belief.stage != stage:
-            continue
-        heading = heading_of[belief_id]
-        strip = next((s for h2, s in strips.items() if heading in h2), None)
-        with recorder.step(f"§1.7: line {belief_id} reads the standing the entry says it should",
-                            party="founder", kind="assert") as h:
-            want = status_text(expected.get("verdict"), expected.get("drift"),
-                               measure_of.get(belief_id))
-            h.record_assert(want, strip["status"] if strip else None)
-            assert strip is not None, f"no strip on the {stage} card for {heading!r}"
-            assert want in strip["status"], (
-                f"{belief_id} reads {strip['status']!r}; the entry says {want!r}")
-
-        with recorder.step(f"§1.7: line {belief_id}'s median is on the strip where the entry "
-                            "records one", party="founder", kind="assert") as h:
-            # **An absent `median` is not a claim that there is none.** The corpus's own checker
-            # (`canon/designs/measured-beliefs/sim/check_corpus.py`) compares only the keys an
-            # entry actually writes, and most lines record no median at all -- `01-countly` writes
-            # one on three of eighteen. This spec's research R10 read the absence as an assertion
-            # ("where `expected.standings[b]` gives no `median`, the screen must show none") and
-            # that reading is wrong against the golden set it is reading: it fails `P1` for
-            # showing a median that nine anchored people plainly have.
-            #
-            # R10's real point survives and is asserted where it bites: `NEVER` is positive
-            # infinity, so a set containing one has no median at all. None of the three chosen
-            # entries has an anchored `never` pick (`03-lullaby` and `04-linerly` do, and neither
-            # is in this set), so there is no line here whose median must be absent -- and saying
-            # so out loud is better than a check that passes because nothing exercises it.
-            wants_median = "median" in expected
-            h.record_assert({"entry records a median": wants_median},
-                             {"strip shows a tick": strip["median"]})
-            if wants_median:
-                assert strip["median"], (
-                    f"{belief_id}: the entry records a median of {expected['median']} and the "
-                    "strip shows no tick at all")
-
-        with recorder.step(f"§1.7: line {belief_id} names the question that produced it",
-                            party="founder", kind="assert") as h:
-            h.record_assert("Asked: “…” or *Same pick list as line N*", strip["read_line"])
-            assert strip["read_line"].strip(), (
-                f"{belief_id} carries no *Asked:* line and no *same pick list* note")
-
-
-def _assert_wire(recorder, entry, standings, heading_of, wire) -> None:
-    """FR-014: the same standings read off the wire beside the screen, so a screen agreeing with a
-    wrong aggregate and a screen disagreeing with a right one are distinguishable in the bundle.
-    The per-belief shape is `BeliefStanding` -- never spec 023's `Standing`, which is the founder
-    brief and a different thing entirely."""
-    with recorder.step("FR-014 wire: every BeliefStanding equals the entry's own",
-                        party="stack", kind="assert") as h:
-        mismatches = []
-        for belief_id, expected in standings.items():
-            got = (wire.get(heading_of[belief_id]) or {}).get("standing") or {}
-            row = {"belief": belief_id}
-            if (got.get("verdict") or "").upper() != (expected.get("verdict") or "").upper():
-                row["verdict"] = {"wire": got.get("verdict"), "corpus": expected.get("verdict")}
-            if not corpus_script.drift_equal(expected.get("drift"), got.get("drift")):
-                row["drift"] = {"wire": got.get("drift"), "corpus": expected.get("drift")}
-            for key in ("inside", "outside", "guessed", "escaped"):
-                if key in expected and int(got.get(key) or 0) != int(expected[key]):
-                    row[key] = {"wire": got.get(key), "corpus": expected[key]}
-            if "median" in expected:
-                wire_median = got.get("median")
-                if wire_median is None or abs(float(wire_median) - float(expected["median"])) > 1e-6:
-                    row["median"] = {"wire": wire_median, "corpus": expected["median"]}
-            # An absent `median` is a key the entry did not record, not a claim of absence --
-            # the corpus's own checker compares only the keys that are there (see the strip
-            # assertion above for the whole reasoning).
-            if len(row) > 1:
-                mismatches.append(row)
-        h.record_assert([], mismatches)
-        assert not mismatches, (
-            f"the aggregate disagrees with the frozen corpus: {json.dumps(mismatches, indent=2)}")
-
-    with recorder.step("FR-034: `expected.placements`, asserted when the entry carries one",
-                        party="stack", kind="assert") as h:
-        placements = entry.expected.get("placements")
-        h.record_assert("asserted when present", bool(placements))
-        if placements:
-            for belief_id, want in placements.items():
-                testimony = (wire.get(heading_of[belief_id]) or {}).get("testimony") or []
-                got = [row.get("placement") for row in testimony]
-                assert got == list(want), f"{belief_id}: placements {got}, entry says {want}"
-
-
-def _assert_download(recorder, print_page, entry, standings, heading_of) -> None:
-    # **Still five sheets, and not the same five.** Until keel-web spec 027 they were a title page,
-    # an overview page and three stages; FR-030 retired the title page ("a five-page document does
-    # not need a cover made of metadata") and FR-029 added the evidence page, so the order is now
-    # page 1, problem, solution, commercial, evidence (keel-web SC-008). The count assertion is
-    # unchanged and the composition is asserted beside it, because a count alone never proved the
-    # sheet had not changed -- which is exactly how this step went on passing over a rewrite.
-    with recorder.step("§1.10: the brief is five pages -- page 1, one per stage, and the evidence",
-                        party="founder", kind="assert") as h:
-        sheets = print_page.sheets()
-        one = print_page.page_one()
-        h.record_assert({"sheets": 5, "page 1": "kicker, name, hand-off line, 16:9 block"},
-                         {"sheets": len(sheets), "page 1": one,
-                          "16:9": print_page.block_169()})
-        assert len(sheets) == 5, f"expected five sheets, got {len(sheets)}"
-        assert not print_page.has_founder_chrome(), (
-            "the download page rendered the founder's own chrome; it is its own page")
-        assert one["name"].strip(), (
-            "page 1 is headed by nothing; `.ptitle` is retired and page 1 carries the name now "
-            "(keel-web FR-030)")
-        assert one["handoff"].strip(), (
-            "page 1 carries no hand-off line. The twenty-eight words are addressed to whoever "
-            "builds this, and FR-022 moved them from under the overview's button to the top of "
-            "the thing being handed over.")
-        assert print_page.block_169()["present"], (
-            "page 1 drew no 16:9 block (FR-026) -- the one thing on the sheet a founder is meant "
-            "to lift straight into a deck")
-
-    with recorder.step("§1.10: the evidence page counts every line and names nobody",
-                        party="founder", kind="assert") as h:
-        # keel-web FR-029 / SC-009, and the principle is **P8** -- a stranger's words held on their
-        # terms. This is the page most likely to be forwarded to an agency or an investor, and a
-        # table of names is a list that travels. The names the sheet does print, on the stage
-        # pages' *In their words* blocks, are what this step sweeps page 5 for -- so the assertion
-        # needs no fixture of its own and cannot go stale against one.
-        evidence = print_page.evidence_page()
-        named = [name for name in print_page.participant_names() if name.strip()]
-        cells = " ".join(cell for row in evidence["rows"] for cell in row)
-        leaked = sorted({name for name in named if name in cells})
-        h.record_assert({"rows": len(standings), "names on page 5": [],
-                          "columns": list(PrintPage.EVIDENCE_COLUMNS)},
-                         {"rows": len(evidence["rows"]), "columns": evidence["columns"],
-                          "heading": evidence["heading"],
-                          "names on page 5": leaked,
-                          "the names the sheet prints, on the stage pages": sorted(set(named))})
-        assert evidence["heading"].strip(), "the evidence page carries no heading"
-        assert len(evidence["rows"]) == len(standings), (
-            f"the evidence page draws {len(evidence['rows'])} rows for the {len(standings)} lines "
-            f"the entry carries -- every line, or it is not the evidence")
-        assert not leaked, (
-            f"page 5 names {leaked}. Principle P8: this is the page that gets forwarded, and "
-            f"keel-web FR-029 puts no participant name on it.")
-        assert not evidence["names"], (
-            f"page 5 drew an *In their words* block with names in it: {evidence['names']}")
-
-    with recorder.step("§1.10: each stage's table names what it measures, what you said and the "
-                        "answers", party="founder", kind="assert") as h:
-        columns = print_page.table_columns()
-        h.record_assert([list(print_page.COLUMNS)] * 3, columns)
-        assert columns, "the download page rendered no per-stage table at all"
-        wanted = [c.casefold() for c in print_page.COLUMNS]
-        for row in columns:
-            assert [c.casefold() for c in row[:3]] == wanted, row
-
-    with recorder.step("§1.10: a stage starts on a fresh page, by the stylesheet's own rule",
-                        party="founder", kind="assert") as h:
-        rule = print_page.fresh_page_rule()
-        h.record_assert("page", rule)
-        assert rule == "page", (
-            f"`.page + .page` carries break-before {rule!r}; a stage does not start fresh")
-
-    with recorder.step("§1.10: the download quotes people in their own words",
-                        party="founder", kind="assert") as h:
-        quotes = print_page.quotes()
-        h.record_assert(">= 1 quote", len(quotes))
-        assert quotes, "no *In their words* quotes on any stage sheet"
+def _connect(stack, recorder, page, founder_one, web_base, run_dir, keys_path) -> str | None:
+    """The runtime on this entry's script, then the founder signed in through the door the runtime's
+    code opens (unchanged from the classic journeys: the runtime starts BEFORE the founder signs
+    in, because keel-cloud decides the account's AI from the door it was created through)."""
+    auth = Auth(page, recorder, web_base)
+    if stack_runtime.status(stack).get("running"):
+        stop_runtime(stack, recorder)
+    if stack.is_remote:
+        with recorder.step("the runtime home is put back the way `make up` leaves it",
+                           party="stack", kind="protocol") as h:
+            stack_runtime.reset(stack)
+            h.record_wire({"home": str(stack_runtime.home_dir(stack))},
+                          {"after": stack_runtime.status(stack)})
+    result = start_runtime_via_skill(stack, recorder, env_extra={
+        "KEEL_SCRIPT": str(run_dir / "script.json"),
+        "KEEL_CONTEXT_KEYS": str(keys_path)})
+    user_code = result.get("user_code")
+    if result.get("outcome") == "authorization_started" and user_code:
+        auth.sign_in_with_code(founder_one, user_code)
+        connect = Connect(page, recorder)
+        connect.open(result["verification_uri"])
+        connect.approve()
+        connect.wait_for_connected(timeout_s=30)
+        connect.go_to_projects()
+    else:
+        # **No code, so no code story.** The runtime reconnected on a credential the home already
+        # held, which is what a local profile does; `ai_path` is immutable, so this sign-in cannot
+        # move it either way, and the ordinary door is what a returning founder uses.
+        with recorder.step("no device code: the runtime reconnected on the credential its "
+                           "home already held, so this founder signs in as a returning one",
+                           party="stack", kind="note") as h:
+            h.record_wire({"outcome": result.get("outcome")},
+                          {"user_code": user_code,
+                           "why it does not decide a door": (
+                               "keel-cloud reads the door only on the branch that CREATES "
+                               "the account (keel-cloud spec 044 FR-014); a returning "
+                               "founder keeps whatever their row already says")})
+        auth.sign_in(founder_one)
+    Landing(page, recorder, web_base).visit()
+    return user_code

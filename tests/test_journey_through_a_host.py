@@ -112,12 +112,13 @@ def test_the_scenario_reads_its_length_once_at_import_and_branches_on_it_by_name
 
 def test_the_short_journey_asserts_the_card_through_the_very_same_function():
     """The founder's own rule: *"assertions in short mode are the same ones the full journey makes
-    up to that point"*. It is held by `_land_the_card` being one function called from two places,
-    rather than by two blocks that look alike today."""
-    assert SCENARIO.count("def _land_the_card(") == 1
-    assert SCENARIO.count("_land_the_card(page, recorder, _get, project_id") == 1
-    assert "chat, _card = _land_the_card(" in SCENARIO, (
-        "the full journey's walk goes through it too, or the two would be free to drift")
+    up to that point"*. Since spec 039 the first model job is the context card, and it is held by
+    one leg function -- `corpus_scenario.leg_context` -- called once, before the journey branches on
+    its length, rather than by two blocks that look alike today."""
+    assert SCENARIO.count("_leg(corpus_scenario.leg_context)") == 1
+    assert SCENARIO.index("_leg(corpus_scenario.leg_context)") < SCENARIO.index("        if SHORT:\n"), (
+        "the context card is asserted before the journey branches, so by both lengths")
+    assert SCENARIO.count("def leg_context(") == 0, "the leg is the corpus journeys' own, not a copy"
 
 
 def test_the_short_journey_still_leaves_by_the_founders_own_door():
@@ -140,13 +141,14 @@ def test_the_default_founder_is_the_lullaby_entry():
 def test_an_unknown_entry_is_refused_by_the_corpus_reader_and_not_here():
     """This repository carries no list of the corpus's filenames and should not grow one: the one
     reader that opens the corpus already refuses an id by name, with the ids there actually are,
-    and that is the refusal the six scripted scenarios get too."""
-    from harness import corpus_script
+    and that is the refusal the three scripted corpus journeys get too (spec 039: the vectors
+    reader)."""
+    from harness import vectors_script
 
     assert agent_host.journey_entry({"KEEL_JOURNEY_ENTRY": "99-nope"}) == "99-nope"
-    source = (REPO / "harness" / "corpus_script.py").read_text()
+    source = (REPO / "harness" / "vectors_script.py").read_text()
     assert "no corpus entry {entry_id!r}" in source
-    assert hasattr(corpus_script, "entry_for")
+    assert hasattr(vectors_script, "entry_for")
 
 
 def test_the_makefile_passes_the_entry_through():
@@ -154,75 +156,80 @@ def test_the_makefile_passes_the_entry_through():
 
 
 def test_the_scenario_reads_its_founder_through_the_scripted_scenarios_own_reader():
-    """Reuse, not a copy (the founder's own word). `founder_inputs` already refuses an entry with
-    a missing statement by name and `person_inputs` already refuses a person offered an anchor
-    their role is not asked; a second reader here would be a second chance to be wrong about
-    both."""
-    assert "corpus, entry = corpus_script.entry_for(stack.keel_cloud, ENTRY_ID)" in SCENARIO
-    assert "founder = corpus_script.founder_inputs(entry)" in SCENARIO
-    # Amended 2026-09-13: the people come through the same reader, five of them on `full`.
-    assert "people_chosen, people_skipped = corpus_script.people_to_invite(entry, PEOPLE)" in SCENARIO
+    """Reuse, not a copy (the founder's own word). Since spec 039 the reader is the vectors one,
+    `harness/vectors_script.py`, the same one S-005, S-006 and S-007 read their entries through."""
+    assert "corpus, entry = vectors_script.entry_for(stack.keel_cloud, ENTRY_ID)" in SCENARIO
+    assert "founder = vectors_script.founder_inputs(entry)" in SCENARIO
+    assert "people_chosen, people_skipped = vectors_script.people_to_invite(entry, PEOPLE)" in SCENARIO
     assert "person = people_chosen[0]" in SCENARIO
+    assert "corpus_script" not in SCENARIO, "the classic r2 reader is S-001's and S-004's, not S-012's"
     assert "payroll_exceptions" not in SCENARIO, (
         "the smoke's fixture stays the smoke's; S-012 no longer borrows it")
 
 
-@r2_corpus.requires_r2              # spec 029 T016 / O-1
-def test_the_founder_types_the_entrys_own_title_market_and_three_statements():
+def test_the_scenario_walks_the_corpus_journeys_own_legs_live():
+    """Spec 039: leg two is the vectors corridor, through `evals/corpus_scenario.py`'s legs opened
+    with `strict=False` -- the same legs, in the same order, held to the same wire, and nothing held
+    to the corpus's own words."""
+    assert "corpus_scenario.open_journey(" in SCENARIO
+    assert "strict=False" in SCENARIO
+    order = ["leg_project", "leg_context", "leg_interpret_problem", 'leg_calibrate, "PROBLEM"',
+             "leg_interpret_solution", 'leg_calibrate, "SOLUTION"', "leg_persona",
+             'leg_calibrate, "COMMERCIAL"', "leg_lock", "leg_invite", "leg_interview",
+             "leg_standings", "leg_brief"]
+    at = [SCENARIO.index(f"_leg(corpus_scenario.{name}") for name in order]
+    assert at == sorted(at), "the legs are walked out of the corridor's own order"
+
+
+def _lullaby():
+    from harness import vectors_script
+    from stack.config import load_config
+    config = load_config(validate=False)
+    keel_cloud = Path(config.keel_cloud)
+    if not (keel_cloud / "canon" / "designs" / "measured-beliefs" / "corpus").is_dir():
+        pytest.skip(f"no keel-cloud corpus at {keel_cloud}")
+    return vectors_script.entry_for(keel_cloud, "03-lullaby")[1]
+
+
+def test_the_founder_types_the_entrys_own_title_market_context_and_two_seeds():
     """What `founder_inputs` hands back, checked against the entry the journey defaults to --
-    through the real corpus, so a corpus edit that emptied a statement fails here."""
-    from harness import corpus_script
-    from stack.config import load_config
-
-    _, entry = corpus_script.entry_for(load_config(validate=False).keel_cloud, "03-lullaby")
-    founder = corpus_script.founder_inputs(entry)
+    through the real corpus, so a corpus edit that emptied a field fails here."""
+    from harness import vectors_script
+    entry = _lullaby()
+    founder = vectors_script.founder_inputs(entry)
     assert founder.project_name == entry.title
-    assert founder.market.country == "GB"
-    assert founder.correction is None, "the correction is S-001's turn, not the journey's"
-    for stage in ("PROBLEM", "SOLUTION", "COMMERCIAL"):
-        assert founder.statement(stage).strip()
-        assert founder.statement(stage) == entry.statements[stage.lower()].strip()
+    assert founder.country == "GB"
+    assert founder.problem_seed == " ".join(entry.statements["problem"].split())
+    assert founder.solution_seed == " ".join(entry.statements["solution"].split())
+    assert set(founder.context_fields) == {"actor", "job", "circumstance", "segment"}
+    assert founder.window.as_wire() == entry.context["recall_window"]
 
 
-@r2_corpus.requires_r2              # spec 029 T016 / O-1
-def test_the_one_person_is_the_entrys_first_and_brings_their_own_words():
-    """**The reader moved and the assertion did not loosen** (spec 028 T022). This read
-    `_story_texts(person)`, which has been deleted: it answered *this person's stories, in the
-    corpus's order*, and the caller handed them out by **position**, which is how run 36895521843
-    filed the purchase story under the wrong occasion. `PersonInputs.written()` is the thing it
-    wrapped and is still this repository's one reading of *wrote something*, so the same three
-    claims are made against it here. Which anchor each story lands under is
-    `tests/test_stranger_stories.py`'s, where the matcher lives."""
-    from harness import corpus_script
-    from stack.config import load_config
-
-    _, entry = corpus_script.entry_for(load_config(validate=False).keel_cloud, "03-lullaby")
-    person = corpus_script.person_inputs(entry)[0]
+def test_the_one_person_is_the_entrys_first_and_brings_their_own_story():
+    from harness import vectors_script
+    entry = _lullaby()
+    chosen, _ = vectors_script.people_to_invite(entry, 5)
+    person = chosen[0]
     assert person.person == "Amira Saleh"
-    stories = [(a.text or "").strip() for a in person.written()]
-    # Two, not three, since the 2026-09-30 corpus revision: Amira wrote under `A1`, `A2` and `A3`,
-    # and `A1` and `A2` were one wake-up all along -- `A2`'s own prompt was *"Think of that same
-    # wake-up"*. One occasion, one story box (keel-cloud spec 049, `MARKS_VERSION` 8 call 25).
-    assert len(stories) == 2, "she wrote under both of her role's anchors"
-    assert stories[0].startswith("Last night. Up at one")
-    assert all(s.strip() for s in stories)
-    assert [a.anchor_id for a in person.written()] == ["A1", "A3"]
+    assert person.recency is True and person.story.startswith("Last night. Up at one")
 
 
-def test_their_pick_prefers_their_own_answer_and_falls_back_to_the_pages_first():
-    """On a live run the option list is the model's, not the corpus's, so a corpus value is used
-    where it is offered and the page's own first option where it is not. Which of the two happened
-    goes into the bundle; neither is ever asserted (FR-007)."""
-    from evals.test_s012_journey_through_a_host import _their_pick
-    from harness import corpus_script
-
-    person = corpus_script.PersonInputs(
-        person="Amira Saleh", role_id="parent",
-        picks=[corpus_script.Pick(selection_id="S2", values=["3 to 4"]),
-               corpus_script.Pick(selection_id="S4", values=["no"])])
-    assert _their_pick(person, ["1 to 2", "3 to 4", "5 or more"]) == ("3 to 4", True)
-    assert _their_pick(person, ["  3 TO 4 ", "other"]) == ("  3 TO 4 ", True)
-    assert _their_pick(person, ["daily", "weekly"]) == ("daily", False)
+def test_a_live_answer_falls_back_to_the_options_the_model_wrote():
+    """On a live run a model-written set slugs its own codes, so an option id the corpus code names
+    may not be offered: the person then picks as many of the item's own first options, and a
+    *Something else* flag is never carried onto an option that is not it. Which happened is in the
+    bundle; it is never asserted (FR-007)."""
+    from evals.corpus_scenario import _on_the_offered_options
+    items = {"problem.importance": {"itemId": "i1", "options": [
+        {"optionId": "a", "label": "A"}, {"optionId": "b", "label": "B"},
+        {"optionId": "z", "label": "Something else", "somethingElse": True}]}}
+    body = {"recency": True, "answers": [{"itemId": "i1", "optionIds": ["nope"], "somethingElse": True},
+                                         {"itemId": "i9", "scale": 3}]}
+    out = _on_the_offered_options(body, items)
+    assert out["answers"][0] == {"itemId": "i1", "optionIds": ["a"]}
+    assert out["answers"][1] == {"itemId": "i9", "scale": 3}
+    kept = _on_the_offered_options({"answers": [{"itemId": "i1", "optionIds": ["b"]}]}, items)
+    assert kept["answers"][0]["optionIds"] == ["b"]
 
 
 def test_the_bundle_says_whose_founder_and_how_far():
@@ -780,63 +787,30 @@ def test_the_make_target_and_the_scenario_carry_the_people_axis():
     assert "KEEL_JOURNEY_PEOPLE=$(if $(PEOPLE),$(PEOPLE),$(KEEL_JOURNEY_PEOPLE))" in MAKEFILE, (
         "`make eval-live K=s012 PEOPLE=n` no longer reaches the scenario")
     assert "PEOPLE = agent_host.journey_people(LEGS)" in SCENARIO
-    assert "corpus_script.people_to_invite(entry, PEOPLE)" in SCENARIO
+    assert "vectors_script.people_to_invite(entry, PEOPLE)" in SCENARIO
     for key in ('"people": people_names', '"people_count": len(people_chosen)'):
         assert key in SCENARIO, f"the journey block no longer records {key}"
 
 
-def _lullaby():
-    from harness import corpus_script
-    from stack.config import load_config
-    config = load_config(validate=False)
-    keel_cloud = Path(config.keel_cloud)
-    if not (keel_cloud / "canon" / "designs" / "measured-beliefs" / "corpus").is_dir():
-        pytest.skip(f"no keel-cloud corpus at {keel_cloud}")
-    return corpus_script.entry_for(keel_cloud, "03-lullaby")[1]
-
-
-@r2_corpus.requires_r2              # spec 029 T016 / O-1
-def test_the_first_five_people_are_taken_in_corpus_order():
-    from harness import corpus_script
+def test_the_first_five_readable_people_are_taken_in_corpus_order():
+    from harness import vectors_script
     entry = _lullaby()
-    everyone = corpus_script.person_inputs(entry)
-    chosen, skipped = corpus_script.people_to_invite(entry, 5)
-    assert [p.person for p in chosen] == [p.person for p in everyone[:5]]
-    assert all(p.written() for p in chosen)
+    readable = [p.person for p in vectors_script.readable_people(entry)]
+    chosen, skipped = vectors_script.people_to_invite(entry, 5)
+    assert [p.person for p in chosen] == readable[:5]
     assert skipped == []
-    one, _ = corpus_script.people_to_invite(entry, 1)
-    assert [p.person for p in one] == [everyone[0].person]
+    one, _ = vectors_script.people_to_invite(entry, 1)
+    assert [p.person for p in one] == readable[:1]
 
 
-@r2_corpus.requires_r2              # spec 029 T016 / O-1
-def test_a_person_with_nothing_written_is_skipped_by_name():
-    """A taps-only person cannot be typed for on a live page; they are named in the bundle's
-    inputs rather than sent in with a blank page."""
-    from dataclasses import replace
-    from harness import corpus_script
+def test_a_person_with_no_story_to_read_is_skipped_by_name():
+    """A gate no, or a chip, leaves no reading for the brief; the person is named in the bundle's
+    inputs rather than sent in to stand for somebody who could have been read."""
+    from harness import vectors_script
     entry = _lullaby()
-    everyone = corpus_script.person_inputs(entry)
-    silent = replace(everyone[1], anchors=[replace(a, text=None, tap="HASNT_HAPPENED")
-                                           for a in everyone[1].anchors])
-    fake = [everyone[0], silent, *everyone[2:]]
-    chosen, skipped = corpus_script.people_to_invite.__wrapped__(fake, 3) if hasattr(
-        corpus_script.people_to_invite, "__wrapped__") else _invite_from(fake, 3)
-    assert [p.person for p in chosen] == [everyone[0].person, everyone[2].person, everyone[3].person]
-    assert skipped == [everyone[1].person]
-
-
-def _invite_from(people, count):
-    """`people_to_invite` over a list the test built, through the same rule."""
-    from harness import corpus_script
-
-    class Entry:
-        pass
-
-    class _Person:
-        pass
-    saved = corpus_script.person_inputs
-    corpus_script.person_inputs = lambda entry: people
-    try:
-        return corpus_script.people_to_invite(Entry(), count)
-    finally:
-        corpus_script.person_inputs = saved
+    everyone = [p.person for p in vectors_script.person_inputs(entry)]
+    readable = {p.person for p in vectors_script.readable_people(entry)}
+    chosen, skipped = vectors_script.people_to_invite(entry, len(readable))
+    assert {p.person for p in chosen} == readable
+    assert skipped == [name for name in everyone if name not in readable
+                       and everyone.index(name) < everyone.index(chosen[-1].person)]

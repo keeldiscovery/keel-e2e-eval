@@ -272,15 +272,25 @@ enforcing a journey moment cites it (`§n.m`).
 
 **The corpus has a second job now** (spec 010): keel-cloud's frozen golden set
 (`canon/designs/measured-beliefs/corpus/*.yaml`) is not only what the instruction eval scores the
-instructions against — it is also **the script three browser scenarios run on**. S-005
-(`01-countly`), S-006 (`05-paidly`) and S-007 (`07-mulchrun`) generate a keel-runtime script from
-an entry (`harness/corpus_script.py`, reading through `instructions/corpus.py` so there is one
-reader and one hash), drive it through the real screens, and assert that entry's own `expected`
-section where a founder reads it and on the wire beside it. Spec 009 asks *did the prose reach
-these beliefs*; these ask *does the product reach these standings*. **Nothing generated is
-committed** — the script and the typed inputs go into the run bundle, so a run can never be green
-against a script that drifted from a corpus that moved, and `Corpus.verify_unchanged()` is called
-at the end of every one.
+instructions against — it is also **the script three browser scenarios run on**. **Since spec
+`039-vectors-journey` (2026-10-13) the corpus journeys are vectors journeys**: S-005 (`01-countly`,
+B2C), S-006 (`05-paidly`, B2B) and S-007 (`07-mulchrun`, US, B2B) walk keel-cloud's **vector
+corridor** on revision 9 -- context, the problem and the mechanism, three calibrations, the persona,
+the lock and its three parts' questions, one link per corpus person (the decision-makers on their
+commercial link), the real interview, the readings, the board, the three vector pages and the brief
+-- through keel-web's own screens, one function per leg in `evals/corpus_scenario.py`, every job
+answered by the scripted executor from the entry's own stored texts (`harness/vectors_script.py`,
+which also derives the four RESPONDENT_QUESTIONS key sets the executor matches on from keel-cloud's
+own export). Each asserts the entry's `expected.standings` (status, drift, `n`, counts) and
+`expected.vector_verdicts` on the wire and on the rendered pages; where revision 9 and the wire
+disagree (Frequency's 0-to-7 axis on the entries' own windows, the cost totals' recorded quarter,
+Purchase friction's labels) the spec's *Disagreements* say so and the corpus is not edited. They are
+the journey coverage that survives classic's deletion; S-012's leg two walks the same legs live
+(`strict=False`). `make up` needs keel-web's framework plugin and `KEEL_VECTORS_ENABLED=true`, both
+in `stack/` now. `make unit` after 039: **1,705 passed / 53 skipped** (was 1,764 / 75: classic-only
+S-012 tests deleted, 33 vectors tests added). **Nothing generated is committed** -- the script, the
+keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
+the end of every run.
 
 throughout; S-002 (`evals/test_s002_agent_optional.py`, spec 006-agent-optional) starts from a
 project S-001 already built (in the same stack session) or its own prelude, then stops the

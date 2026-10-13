@@ -182,17 +182,18 @@ def test_the_scenario_reads_the_ceiling_off_the_host_object_not_an_if_chain():
     assert 'if HOST == "keel":' not in SCENARIO
 
 
-def test_the_review_card_wait_and_the_brief_wait_both_fail_fast_on_the_keel_door():
-    """Neither wait may sit out its full ceiling on a job the wire already knows was refunded
-    (spec 024 FR-010): the review card's wait is chunked exactly as the agent-turn wait is, and
-    the BRIEF paragraph's wait asks the wire on every poll rather than only after its deadline."""
-    assert "def _wait_for_review_card(" in SCENARIO
-    assert ("try:\n            return chat.wait_for_review(project_id, stage,\n"
-            "                                         timeout_s=min(NAMED_REASON_POLL_S, "
-            "remaining))\n        except TimeoutError:\n            "
-            "_refuse_if_the_door_is_shut(recorder, get_json, project_id)") in SCENARIO
-    assert ("if KEELS_AI:\n                        _refuse_if_the_door_is_shut(recorder, _get, "
-            "project_id)") in SCENARIO
+def test_every_leg_of_the_corridor_fails_fast_on_the_keel_door():
+    """No leg may sit out its full ceiling on a job the wire already knows was refused (spec 024
+    FR-010). Since spec 039 leg two is the corpus journeys' own legs, so the rule is held once, by
+    the one wrapper every leg is called through: on a failure it asks the wire for a named reason
+    first, and only then lets the failure through."""
+    assert "def _leg(step, *args, **kwargs):" in SCENARIO
+    assert ("if KEELS_AI and journey.project_id:\n                    "
+            "_refuse_if_the_door_is_shut(recorder, _get, journey.project_id)\n"
+            "                raise") in SCENARIO
+    calls = [line for line in SCENARIO.splitlines()
+             if "corpus_scenario.leg_" in line and not line.strip().startswith("#")]
+    assert calls and all("_leg(corpus_scenario.leg_" in line for line in calls), calls
 
 
 # ------------------------------------------------------------------- what the wire is read for
@@ -274,20 +275,17 @@ def test_the_scenario_fails_fast_on_a_shut_door_rather_than_waiting_out_a_timeou
     """spec 024 FR-010. `KEEL_AI_DISABLED` is answered before a socket is opened; a run that
     waited five minutes for it and then reported a timeout would be reporting the referee's own
     patience instead of the product's own sentence."""
-    assert "_refuse_if_the_door_is_shut(recorder, get_json, project_id)" in SCENARIO
-    assert "NAMED_REASON_POLL_S" in SCENARIO
+    assert "_refuse_if_the_door_is_shut(recorder, _get, journey.project_id)" in SCENARIO
     assert "class KeelsAiRefused" in SCENARIO
 
 
-def test_only_the_keel_door_chunks_its_wait_and_the_three_cli_hosts_are_untouched():
-    """Do not weaken any existing cell: on the three CLI doors the wait is the one call it has
-    been since spec 016, in one branch guarded by the axis."""
-    assert "if not KEELS_AI:\n        return chat.wait_for_agent_turn(timeout_s=timeout_s)" in SCENARIO
-
-
-def test_the_follow_ups_are_never_spent_on_a_door_with_no_key_behind_it():
-    assert ("if KEELS_AI:\n            _refuse_if_the_door_is_shut(recorder, get_json, "
-            "project_id)") in SCENARIO
+def test_the_three_cli_hosts_are_untouched_by_the_keel_doors_check():
+    """Do not weaken any existing cell: on the three CLI doors a failed leg is re-raised as it
+    came, with no wire read in between -- the check is guarded by the axis."""
+    body = SCENARIO[SCENARIO.index("def _leg(step, *args, **kwargs):"):]
+    body = body[:body.index("_leg(corpus_scenario.leg_project)")]
+    assert "if KEELS_AI and journey.project_id:" in body
+    assert body.count("raise") == 1
 
 
 def test_the_scenario_asserts_the_doors_own_six_facts():
@@ -666,27 +664,24 @@ def test_each_door_says_in_one_sentence_where_its_short_run_stopped():
         assert "the host leg entire" in agent_host.short_stops_at(host), host
 
 
-def test_the_short_run_reads_the_lines_through_the_very_same_function_the_full_run_calls():
-    """Spec 021's own rule, one stage further along: *"the assertion the short run makes is
-    literally the assertion the full run makes at the same point"*. Held by `_read_the_lines`
-    being one function called from two places, not by two blocks that look alike today."""
-    assert SCENARIO.count("def _read_the_lines(") == 1
-    assert SCENARIO.count("_read_the_lines(page, recorder, _get, project_id, \"PROBLEM\", chat)") == 1
-    assert SCENARIO.count("card_page = _read_the_lines(page, recorder, get_json, project_id, stage, chat,") == 1
+def test_the_short_run_reads_the_problem_through_the_very_same_functions_the_full_run_calls():
+    """Spec 021's own rule, one step further along: *"the assertion the short run makes is
+    literally the assertion the full run makes at the same point"*. On the Keel door the short run
+    goes as far as the problem's card and its calibration questions written -- through
+    `leg_interpret_problem` and `_wait_calibration`, the very functions the full run's
+    `leg_calibrate` stands on."""
+    short = SCENARIO[SCENARIO.index("        if SHORT:\n"):SCENARIO.index("        else:\n            _leg(corpus_scenario.leg_interpret_problem)")]
+    assert "_leg(corpus_scenario.leg_interpret_problem)" in short
+    assert 'corpus_scenario._wait_calibration(journey, "PROBLEM")' in short
+    assert SCENARIO.count("_leg(corpus_scenario.leg_interpret_problem)") == 2
 
 
-def test_the_short_run_does_not_approve_the_card_it_read():
-    """`_read_the_lines` hands the card back un-approved and the caller decides: the full journey
-    approves it and walks on, the framing run stops there. Approving is the one thing the founder
-    did not ask for."""
-    import re as _re
-
-    body = SCENARIO[SCENARIO.index("def _read_the_lines("):SCENARIO.index("def _walk_stage_live(")]
-    assert "card_page.approve()" not in body, (
-        "the shared reader approves the card, so the framing run would approve one too")
-    assert _re.search(r"card_page = _read_the_lines\(.*?\n.*?\n\s+card_page\.approve\(\)",
-                      SCENARIO, _re.S), (
-        "the full journey no longer approves the card the shared reader hands it back")
+def test_the_short_run_answers_nothing_it_read():
+    """The short run stops at the questions it was shown: it answers no calibration, confirms no
+    review and locks nothing -- answering is the one thing the founder did not ask it to do."""
+    short = SCENARIO[SCENARIO.index("        if SHORT:\n"):SCENARIO.index("        else:\n            _leg(corpus_scenario.leg_interpret_problem)")]
+    for leg in ("leg_calibrate", "leg_persona", "leg_lock", "leg_invite"):
+        assert leg not in short, leg
 
 
 def test_the_framing_run_records_what_the_effort_comparison_needs():
