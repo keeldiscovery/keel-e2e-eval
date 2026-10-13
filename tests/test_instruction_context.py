@@ -202,6 +202,8 @@ def test_the_brief_carries_the_facts_the_beliefs_and_the_stories(entry, registry
                               "periodWords": "a month"}
     assert facts["problem"]["prevalence"] == {"yes": 10, "n": 12, "window": "the last 7 nights"}
     assert facts["commercial"]["existing_sacrifice"]["said"] == "a median \u00a312 a month", "call 57"
+    # call 76 (keel-cloud 085): the three answers of the people counted -- six better, two no difference; Ivy is a guess
+    assert facts["solution"]["benefit"] == {"better": 6, "noDifference": 2, "worse": 0, "n": 8}
     assert facts["keys"][0] == "problem.prevalence" and len(facts["keys"]) == 12
     assert facts["sharpest"] is None, "the corpus records no cross-tab"
     assert {t["key"] for t in facts["targets"]} <= set(facts["keys"])

@@ -190,7 +190,7 @@ def respondent_item(entry, key, *, label_only=False) -> dict:
     row = entry.respondent_questions[key]
     item = {"key": key, "question": f"Thinking about that time: {key.split('.')[1].replace('_', ' ')}?"}
     from instructions.registry import GATE_CONTROL, NUMERIC_RESPONDENT_CONTROLS  # noqa: PLC0415
-    if row["control"] in ("price_ladder", "cost_total"):   # calls 53, 67: code's whole item
+    if row["control"] in ("price_ladder", "cost_total", "benefit_with_advantages"):   # calls 53, 67, 76: code's whole item
         return {"key": key}
     if row["control"] == GATE_CONTROL:                  # call 52: the event clause
         return {"key": key, "event": "lose your keys on the way out", "options": None}

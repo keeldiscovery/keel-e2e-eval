@@ -5,7 +5,7 @@
 # corpus entry; values invented.
 id: 10-fixture-b2b
 title: Fixture — the keys you cannot find, bought by the office
-revision: 8
+revision: 9
 market: {country: GB, region: null, language: en-GB}
 statements: {problem: Commuters who cycle lose ten minutes most mornings looking for their keys., solution: 'A tag on the
     key ring that listens for a whistle and beeps back, so the owner can follow the sound.', commercial: '£3 a month, paid
@@ -41,8 +41,8 @@ founder_calibration:
       who cycle handle it today is hit and miss.}
   solution.compatibility: {answer: after_first_attempt_fails, belief_phrase: once the first look has failed, belief_sentence: It
       fits into the episode once the first look has failed.}
-  solution.relative_advantage: {answer: shorter_time, belief_phrase: a shorter search, belief_sentence: 'To be worth switching
-      to, it must mainly deliver a shorter search.'}
+  solution.relative_advantage: {answer: [shorter_time], belief_phrase: a shorter search, belief_sentence: 'To be worth switching
+      to, it must deliver a shorter search.'}
   solution.adoption_friction: {answer: one_tap, belief_phrase: a single whistle, belief_sentence: The most extra effort they
       would accept at the moment of use is a single whistle.}
   commercial.existing_sacrifice:
@@ -88,8 +88,8 @@ respondent_questions:
       something_else]
   solution.relative_advantage:
     part: 2
-    control: single_choice
-    codes: [fewer_attempts, shorter_time, less_worry, less_help_needed, easier_recovery, nothing_would_change, something_else]
+    control: benefit_with_advantages
+    codes: [positive, neutral, negative]
   solution.adoption_friction:
     part: 2
     control: single_choice
@@ -119,63 +119,63 @@ answers:
   story: Tuesday. They were in my coat from the night before. Ten minutes, late for the train.
   chip: null
   anchoring: ANCHORED
-  picks: {problem.frequency: 3, commercial.existing_sacrifice: {mode: HOURS, value: 2, currency: GBP, period: month}}
+  picks: {problem.frequency: 3, commercial.existing_sacrifice: {mode: HOURS, value: 2, currency: GBP, period: month}, solution.relative_advantage: {answer: positive, advantages: [shorter_time]}}
   pilot_opt_in: true
 - person: Bo Brand
   recency: 'yes'
   story: Yesterday, under the post on the mat. I listened for the jangle and heard nothing.
   chip: null
   anchoring: ANCHORED
-  picks: {problem.frequency: 2}
+  picks: {problem.frequency: 2, solution.relative_advantage: {answer: positive, advantages: [shorter_time]}}
   pilot_opt_in: false
 - person: Cy Cole
   recency: 'yes'
   story: This morning, in the bike bag. Five minutes.
   chip: null
   anchoring: ANCHORED
-  picks: {problem.frequency: 4}
+  picks: {problem.frequency: 4, solution.relative_advantage: {answer: positive, advantages: [shorter_time]}}
   pilot_opt_in: false
 - person: Di Dunn
   recency: 'yes'
   story: Monday, on the kitchen shelf behind the kettle. Twenty minutes.
   chip: null
   anchoring: ANCHORED
-  picks: {problem.frequency: 2}
+  picks: {problem.frequency: 2, solution.relative_advantage: {answer: positive, advantages: [shorter_time]}}
   pilot_opt_in: true
 - person: Ed Eze
   recency: 'yes'
   story: Last Thursday, in yesterday's jeans. Took a while.
   chip: null
   anchoring: ANCHORED
-  picks: {problem.frequency: 1}
+  picks: {problem.frequency: 1, solution.relative_advantage: {answer: positive, advantages: [shorter_time]}}
   pilot_opt_in: false
 - person: Flo Fay
   recency: 'yes'
   story: Friday, my housemate had moved them to the hook. Eight minutes.
   chip: null
   anchoring: ANCHORED
-  picks: {problem.frequency: 3}
+  picks: {problem.frequency: 3, solution.relative_advantage: {answer: positive, advantages: [shorter_time]}}
   pilot_opt_in: false
 - person: Gus Gale
   recency: 'yes'
   story: Wednesday, in the front door, outside. Two minutes of panic.
   chip: null
   anchoring: ANCHORED
-  picks: {problem.frequency: 2}
+  picks: {problem.frequency: 2, solution.relative_advantage: {answer: neutral}}
   pilot_opt_in: false
 - person: Hal Hart
   recency: 'yes'
   story: Saturday, at the bottom of the gym bag. Twelve minutes.
   chip: null
   anchoring: ANCHORED
-  picks: {problem.frequency: 4}
+  picks: {problem.frequency: 4, solution.relative_advantage: {answer: neutral}}
   pilot_opt_in: true
 - person: Ivy Ives
   recency: 'yes'
   story: It happens a lot, they turn up somewhere eventually.
   chip: null
   anchoring: GUESSED
-  picks: {problem.frequency: 5}
+  picks: {problem.frequency: 5, solution.relative_advantage: {answer: positive, advantages: [shorter_time]}}
   pilot_opt_in: false
 - person: Jo Judd
   recency: 'yes'

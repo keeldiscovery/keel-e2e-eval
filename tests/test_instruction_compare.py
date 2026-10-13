@@ -29,7 +29,7 @@ def entry():
 
 def test_the_input_is_built_from_the_corpus_only(entry):
     built = compare_mod.build_input(entry, entry.registry)
-    assert built["entry"] == "09-fixture" and built["registry_version"] == 1
+    assert built["entry"] == "09-fixture" and built["registry_version"] == 3
     assert list(built["founder_calibration"]) == entry.calibrated_keys()
     assert len(built["founder_calibration"]) == len(entry.registry.calibrated_keys(False)) == 12
     assert built["founder_calibration"]["commercial.buyer_payer_alignment"] == {"unsure": True}

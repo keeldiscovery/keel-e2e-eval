@@ -4,7 +4,7 @@
 # code's or absent), every founder.normalized, respondent.*, answers.* (less the drift templates), weight, order, the
 # entry-level b2b_only (Purchase friction) and respondent.b2b_link_only (Ability to pay); prose notes, decisions and the worked
 # lullaby objects dropped. Passes all eight invariants. Not a corpus entry.
-version: 1
+version: 3
 common:
   left_out:
     ask_respondent: false
@@ -260,8 +260,8 @@ dimensions:
   meaning: The improvement the user expects over the current alternative before the new solution is worth changing behavior for.
   weight: DEAL_BREAKER
   founder:
-    control: single_choice
-    guidance: The one thing that must be materially better than the current routine for people to switch.
+    control: multi_choice
+    guidance: 'What must be materially better than the current routine for people to switch: the founder ticks every one they believe, up to four.'
     normalized:
       kind: categorical
       codes:
@@ -271,21 +271,20 @@ dimensions:
       - less_help_needed
       - easier_recovery
     option_rule: Exactly 5 options onto the codes, worded for this circumstance; each with a belief phrase naming the improvement as a noun phrase.
-    belief_template: To be worth switching to, it must mainly deliver {value}.
+    belief_template: To be worth switching to, it must deliver {value}.
     unsure_allowed: true
   respondent:
     part: 2
     anchor: the_reveal
-    control: single_choice
-    guidance: 'If you had had that information that night, what, if anything, would have gone differently: one pick, including ''nothing would have changed''. Never
-      the founder''s pick first.'
-    option_rule: Founder's codes + 'Nothing would have changed' + 'Something else'.
+    control: benefit_with_advantages
+    guidance: 'Code''s whole (spec 085): would the idea, by its short name, have made things better for you that last time, or not; those who say better tick which of the founder''s advantages would have been better. The model writes nothing for it.'
+    option_rule: 'Code''s: ''It would have made things better'' · ''No difference'' · ''It would have made things worse''; under the first, the founder''s ticked advantages by the founder''s labels.'
     chips:
     - I can't recall
     - I'd rather not say
   answers:
     shape: choice
-    compare_rule: choice_majority
+    compare_rule: benefit_first
     status_vocabulary:
     - HOLDING_UP
     - NOT_HOLDING_UP

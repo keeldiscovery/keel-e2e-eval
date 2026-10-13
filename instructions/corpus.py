@@ -1,6 +1,13 @@
-"""The golden corpus at revision 8, read and never written (spec 029 FR-006/FR-012, data-model §2;
+"""The golden corpus at revision 9, read and never written (spec 029 FR-006/FR-012, data-model §2;
 spec 030 FR-002, judgement call 49; spec 031 FR-002, judgement call 51; spec 032 FR-002, call 60;
-spec 033 FR-002, call 68; spec 036 FR-001, call 74).
+spec 033 FR-002, call 68; spec 036 FR-001, call 74; spec 038 FR-001, call 81).
+
+**Revision 9 only** (call 81, keel-cloud 085): the revision-8 shape with Relative advantage asked benefit first.
+The founder's answer is a **list** of one to four of the registry's advantages; the plan row is
+`control: benefit_with_advantages`, codes `positive` / `neutral` / `negative`; a person's pick is
+`{answer: positive | neutral | negative, advantages: [...]}` (advantages a non-empty subset of the founder's ticks
+exactly under `positive`) or a chip. No status, count or verdict moved; three drifts did (04-linerly and
+06-repeatline `short`, 02-compliancelog `both`). A revision-8 file is refused by name as v16's.
 
 **Revision 8 only** (call 74, keel-cloud 082): the revision-7 shape with direction-aware verdicts. A dimension with
 a supporting side is one-sided -- a person beyond the founder's band on that side supports the bet -- so a
@@ -63,11 +70,12 @@ from pathlib import Path
 import yaml
 
 from . import text as text_mod
-from .registry import (ABILITY_BANDS, ABILITY_KEY, COST_MODES, COST_TOTAL_CONTROL, DEAL_BREAKERS,
+from .registry import (ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTROL, BENEFIT_KEY,
+                       BENEFIT_MAX_TICKS, COST_MODES, COST_TOTAL_CONTROL, DEAL_BREAKERS,
                        LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY, PRICE_PERIODS, SACRIFICE_KEY,
                        VECTORS, RecallWindow)
 
-REVISION = 8
+REVISION = 9
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
@@ -77,7 +85,9 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 6: "MARKS_VERSION 12's corpus, before the buyer's one total (Existing sacrifice a kinds "
                    "tick list with an amount per kind, `branch_pick_amounts`, option counts)",
                 7: "MARKS_VERSION 13's and 14's corpus, before direction-aware verdicts (a person beyond the "
-                   "founder's band on the supporting side read as outside it; no `stronger` / `short` drift)"}
+                   "founder's band on the supporting side read as outside it; no `stronger` / `short` drift)",
+                8: "MARKS_VERSION 15's and 16's corpus, before benefit first (Relative advantage a single choice "
+                   "among the founder's advantages, `choice_majority`)"}
 
 #: `sim/check_corpus_r5.py`'s `CURRENCY` (keel-cloud `Market.currency`'s table, the corpus's markets):
 #: a founder price is in its market's currency, never another.
@@ -645,6 +655,7 @@ def _check_shape(raw: dict, path: Path) -> None:
         raise _refuse(entry_id, f"persona.decision_maker is {maker!r}; it is same_person or "
                                 "{role: <id>}", path)
     _check_cost_first(raw, entry_id, path)
+    _check_benefit_first(raw, entry_id, path)
     expected = raw.get("expected") or {}
     for key, standing in (expected.get("standings") or {}).items():
         status = (standing or {}).get("status")
@@ -664,6 +675,39 @@ def _check_shape(raw: dict, path: Path) -> None:
         if deciding not in DEAL_BREAKERS[vector]:
             raise _refuse(entry_id, f"expected.vector_verdicts[{vector}].deciding is {deciding!r}, "
                                     f"not a DEAL_BREAKER of {vector}", path)
+
+
+def _check_benefit_first(raw: dict, entry_id, path: Path) -> None:
+    """Revision 9's rule B (call 81; `check_corpus_r9.py`'s B, its shape half -- the counts are the engine's):
+    the founder's Relative advantage is a list of one to four distinct advantages (or `unsure`); its plan row is
+    the code-written benefit item; every pick is `{answer, advantages}` with the advantages a non-empty subset of
+    the founder's ticks exactly under `positive`, or a chip."""
+    calibration = (raw.get("founder_calibration") or {}).get(BENEFIT_KEY)
+    if calibration is None:
+        return
+    row = (raw.get("respondent_questions") or {}).get(BENEFIT_KEY)
+    if row is not None and (row.get("control") != BENEFIT_CONTROL or list(row.get("codes") or []) != list(BENEFIT_CODES)):
+        raise _refuse(entry_id, f"respondent_questions[{BENEFIT_KEY}] is {row.get('control')!r} over codes "
+                                f"{row.get('codes')!r}; revision 9 asks {BENEFIT_CONTROL} over "
+                                f"{list(BENEFIT_CODES)}", path)
+    if calibration.get("unsure"):
+        return
+    ticks = calibration.get("answer")
+    if (not isinstance(ticks, list) or not 1 <= len(ticks) <= BENEFIT_MAX_TICKS
+            or len(set(map(str, ticks))) != len(ticks)):
+        raise _refuse(entry_id, f"founder_calibration[{BENEFIT_KEY}].answer is {ticks!r}; revision 9 ticks "
+                                f"one to {BENEFIT_MAX_TICKS} distinct advantages, as a list", path)
+    for person in raw.get("answers") or []:
+        pick = (person.get("picks") or {}).get(BENEFIT_KEY)
+        if pick is None or (isinstance(pick, dict) and "chip" in pick):
+            continue
+        if not isinstance(pick, dict) or pick.get("answer") not in BENEFIT_CODES:
+            raise _refuse(entry_id, f"{person.get('person')}'s {BENEFIT_KEY} pick is {pick!r}; revision 9 "
+                                    f"answers {{answer: {' | '.join(BENEFIT_CODES)}, advantages: [...]}}", path)
+        advantages = pick.get("advantages") or []
+        if (pick["answer"] == "positive") != bool(advantages) or not set(advantages) <= set(ticks):
+            raise _refuse(entry_id, f"{person.get('person')}'s {BENEFIT_KEY} pick {pick!r}: its advantages are "
+                                    f"a non-empty subset of the founder's {ticks} exactly under positive", path)
 
 
 def _check_price_and_total(raw: dict, entry_id, path: Path) -> None:

@@ -39,6 +39,10 @@ At `MARKS_VERSION` 13 the buyer's cost is one total (call 67; keel-cloud 077): E
 refused with C2; the respondent job's item is its key alone, code composing the question over the recall
 period. `W10` and `U1` retire (there is no model text and there are no kinds to hold them to).
 
+At `MARKS_VERSION` 17 Relative advantage's respondent item is code's whole (call 76; keel-cloud 085): the model's
+item is its key alone, nothing it writes there is read, and neither sweep touches it -- on the respondent side only;
+the founder question and its five options are still the model's, held to every calibration rule as before.
+
 `totals` rolls each over **its own** denominator and never another's.
 """
 
@@ -297,7 +301,8 @@ def model_text(question: dict, dimension, window=DEFAULT_WINDOW, *, founder: boo
     Price (code's sentence) and on Existing sacrifice (code asks *What does it cost ... today?* of the founder
     and *{Last month}, what did it cost ... ?* of the buyer; any question the model writes is not read, v13).
     The one-unit window keeps its question."""
-    if dimension.key == GATE_KEY or dimension.founder_price or dimension.respondent_code_written:
+    if dimension.key == GATE_KEY or dimension.founder_price \
+            or (dimension.respondent_code_written and not founder):    # call 81: RA's founder question is the model's
         return None
     if founder and dimension.founder_cost:
         return None
@@ -477,7 +482,7 @@ def is_swept(dimension, window=DEFAULT_WINDOW, *, founder: bool = False) -> bool
     over a framed window, and -- on the founder's side -- never Existing sacrifice: code writes every
     word of those, so there is no model text to sweep. Read off the registry and the entry's window,
     so a dry run counts the same denominator."""
-    if dimension.founder_price or dimension.respondent_code_written:
+    if dimension.founder_price or (dimension.respondent_code_written and not founder):
         return False
     if founder and dimension.founder_cost:
         return False

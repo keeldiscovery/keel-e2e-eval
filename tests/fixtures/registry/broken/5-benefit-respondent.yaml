@@ -1,0 +1,7 @@
+# slice.yaml with one value changed, failing exactly invariant 5 (spec 038; keel-cloud 085): Relative advantage is read by
+# benefit_first, so its respondent control must be the code-written benefit item -- here it is a single_choice.
+base: ../slice.yaml
+invariant: 5
+key: solution.relative_advantage
+path: [respondent, control]
+value: single_choice

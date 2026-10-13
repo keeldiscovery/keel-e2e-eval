@@ -40,10 +40,10 @@ def corpus():
     return corpus_mod.load(keel_cloud, registry=fx.registry())
 
 
-def test_the_seven_entries_are_all_at_revision_eight(corpus):
+def test_the_seven_entries_are_all_at_revision_nine(corpus):
     assert [e.id for e in corpus.entries] == list(ENTRIES)
     for entry in corpus.entries:
-        assert entry.revision == 8, entry.id
+        assert entry.revision == 9, entry.id
     assert Path(corpus.directory) == fx.canon_dir()
 
 
@@ -309,7 +309,7 @@ def test_the_corpus_reads_the_same_through_the_exported_registry(corpus):
     exported = registry_mod.load(path)
     for entry in corpus.entries:
         corpus_mod.load_file(entry.path, registry=exported)
-    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 8
+    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 9
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)
@@ -323,3 +323,21 @@ def test_every_entry_records_the_two_golden_names(corpus, entry_id):
     assert offer and len(offer.split()) <= 6, (entry_id, offer)
     if entry_id == "03-lullaby":
         assert (short, offer) == ("a suggested reason for crying", "something that helps at night")
+
+
+def test_every_relative_advantage_is_benefit_first_and_the_facts_count_it_as_the_standing_does(corpus):
+    """Call 76 (keel-cloud 085, rule B): the founder ticks a list, the plan row is the code-written item, a pick is
+    `{answer, advantages}`; `brief_facts.benefit` counts the three answers off the picks and agrees with the
+    standing's `n` / `inside` on every entry (it raises when it does not)."""
+    from instructions import brief_facts                                       # noqa: PLC0415
+    key = "solution.relative_advantage"
+    drifts = {"02-compliancelog": "both", "04-linerly": "short", "06-repeatline": "short"}
+    for entry in corpus.entries:
+        assert isinstance(entry.founder_calibration[key]["answer"], list), entry.id
+        assert entry.respondent_questions[key] == {"part": 2, "control": "benefit_with_advantages",
+                                                   "codes": ["positive", "neutral", "negative"]}, entry.id
+        standing = entry.expected["standings"][key]
+        counted = brief_facts.benefit(entry, {key: {"status": standing["status"], "n_anchored": standing["n"]}})
+        assert counted["n"] == standing["n"] and counted["better"] == standing["inside"], entry.id
+        assert counted["better"] + counted["noDifference"] + counted["worse"] == counted["n"]
+        assert standing["drift"] == drifts.get(entry.id, "none"), entry.id

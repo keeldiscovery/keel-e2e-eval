@@ -78,7 +78,16 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
-### `MARKS_VERSION` 16 — the gate as written, **no run of record yet** (spec `037-reveal-three-lines`, 2026-10-12)
+### `MARKS_VERSION` 17 — the gate as written, **no run of record yet** (spec `038-advantage-benefit-first`, 2026-10-12)
+
+keel-cloud 085 (merged at `b8a4eed`; registry `VERSION` 3, document 18, contract stays 10): Relative advantage is asked
+benefit first. The founder ticks one to four advantages; the respondent's one item is code's whole (better / no
+difference / worse, and under better the founder's ticks), so the model's item is its key alone and owes no question,
+options, W3 or sweep. The corpus is revision 9 (a revision-8 file is refused by name); the BRIEF facts add
+`solution.benefit`; `rescore.py` refuses every bundle below 17. **There is no v17 run of record until `WHY=marks:17` is
+spent** — neither run nor proposed here. `DRY=1` against 085: `compare_correctness` 108 of 108.
+
+### `MARKS_VERSION` 16 — history, never run (spec `037-reveal-three-lines`, 2026-10-12)
 
 keel-cloud 084 (merged at `fc12b49`; contract 9 -> 10, document 16 -> 17) writes the reveal as three lines with the
 mechanism: `occasion` on `CONTEXT_INTERPRET`, `idea_what` / `idea_how` / `idea_belief` on `SOLUTION_MECHANISM`, no
