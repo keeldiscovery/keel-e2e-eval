@@ -1,6 +1,6 @@
 """`instructions/corpus.py` at revision 7: the loader on a hand-sized entry (spec 029 FR-006, data-model
 §2-§3; T012; at revision 4 by spec 030 T006, judgement calls 47 and 49; at revision 5 by spec 031
-T006, judgement calls 50 and 51; at revision 6 by spec 032 T005, judgement calls 59 and 60; at revision 7 by spec 033 T004, call 68).
+T006, judgement calls 50 and 51; at revision 6 by spec 032 T005, judgement calls 59 and 60; at revision 7 by spec 033 T004, call 68; at revision 9 by spec 038 T002, call 76).
 
 Everything the scorers read off an entry -- the plan, the vocabulary and its inflection ledger, who
 is readable -- is checked here on `tests/fixtures/corpus/09-fixture-r7.yaml`, a person can count it
@@ -122,18 +122,44 @@ MUTATIONS = {
     "stages": (lambda r: r["expected"].__setitem__("stages", {}), "`expected.stages`"),
     "anchors": (lambda r: _person(r, "Ann Abbott").__setitem__("anchors", {}), "`anchors`"),
     "revision 3": (lambda r: r.__setitem__("revision", 3), "revision is 3; this eval reads "
-                   "revision 8 only -- revision 3 is MARKS_VERSION 9's corpus"),
+                   "revision 9 only -- revision 3 is MARKS_VERSION 9's corpus"),
     "revision 4": (lambda r: r.__setitem__("revision", 4), "revision is 4; this eval reads "
-                   "revision 8 only -- revision 4 is MARKS_VERSION 10's corpus"),
+                   "revision 9 only -- revision 4 is MARKS_VERSION 10's corpus"),
     "revision 5": (lambda r: r.__setitem__("revision", 5), "revision is 5; this eval reads "
-                   "revision 8 only -- revision 5 is MARKS_VERSION 11's corpus"),
+                   "revision 9 only -- revision 5 is MARKS_VERSION 11's corpus"),
     "revision 7": (lambda r: r.__setitem__("revision", 7), "revision is 7; this eval reads "
-                   "revision 8 only -- revision 7 is MARKS_VERSION 13's and 14's corpus"),
+                   "revision 9 only -- revision 7 is MARKS_VERSION 13's and 14's corpus"),
+    "revision 8": (lambda r: r.__setitem__("revision", 8), "revision is 8; this eval reads "
+                   "revision 9 only -- revision 8 is MARKS_VERSION 15's and 16's corpus, before benefit first"),
+    "an advantage answer that is not a list": (
+        lambda r: r["founder_calibration"]["solution.relative_advantage"].__setitem__(
+            "answer", "shorter_time"), "revision 9 ticks one to 4 distinct advantages, as a list"),
+    "five advantages ticked": (
+        lambda r: r["founder_calibration"]["solution.relative_advantage"].__setitem__(
+            "answer", ["fewer_attempts", "shorter_time", "less_worry", "less_help_needed", "easier_recovery"]),
+        "revision 9 ticks one to 4 distinct advantages, as a list"),
+    "the old single-choice plan row": (
+        lambda r: r["respondent_questions"]["solution.relative_advantage"].__setitem__(
+            "control", "single_choice"), "revision 9 asks benefit_with_advantages over"),
+    "a benefit pick that is a bare code": (
+        lambda r: _person(r, "Ann Abbott")["picks"].__setitem__("solution.relative_advantage", "shorter_time"),
+        "Ann Abbott's solution.relative_advantage pick is 'shorter_time'; revision 9 answers"),
+    "positive without an advantage": (
+        lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
+            "solution.relative_advantage", {"answer": "positive"}), "exactly under positive"),
+    "an advantage the founder did not tick": (
+        lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
+            "solution.relative_advantage", {"answer": "positive", "advantages": ["less_worry"]}),
+        "exactly under positive"),
+    "advantages under neutral": (
+        lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
+            "solution.relative_advantage", {"answer": "neutral", "advantages": ["shorter_time"]}),
+        "exactly under positive"),
     "a price off the ladder": (
         lambda r: r["founder_calibration"]["commercial.price"]["answer"].__setitem__("low", 10000),
         "founder_calibration[commercial.price] is 10000 to 5: off the ladder"),
     "revision 6": (lambda r: r.__setitem__("revision", 6), "revision is 6; this eval reads "
-                   "revision 8 only -- revision 6 is MARKS_VERSION 12's corpus"),
+                   "revision 9 only -- revision 6 is MARKS_VERSION 12's corpus"),
     "a price on a period outside the five": (
         lambda r: r["founder_calibration"]["commercial.price"]["answer"].__setitem__(
             "period", "one_off"), "founder_calibration[commercial.price].period is 'one_off'"),

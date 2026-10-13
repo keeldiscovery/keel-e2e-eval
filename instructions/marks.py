@@ -19,14 +19,30 @@ persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
 by name. v10 has no run of record; it is history from v11.
 
-**`MARKS_VERSION` 16** (spec 037, 2026-10-12): the reveal is three lines. The ruler follows keel-cloud 084 (merged at
+**`MARKS_VERSION` 17** (spec 038, 2026-10-12): Relative advantage, benefit first. The ruler follows keel-cloud 085 (merged at
+`b8a4eed`; registry `VERSION` 2 -> 3, project document 17 -> 18, `CONTRACT_VERSION` stays 10). The founder ticks one to
+four advantages (`multi_choice`, the belief joined with "or"), and the respondent's one item is **code's whole**
+(`benefit_with_advantages`: better / no difference / worse, and under better the founder's ticks): the model's
+`RESPONDENT_QUESTIONS` result carries `{"key": "solution.relative_advantage"}` alone, like Price, and anything else it
+writes there is not read -- so the RA respondent item owes no question, no options and no W3, and is swept by neither
+sweep (sweep B is **56** a run at N=1, was 63, with sweep A still **46**: **102** sweeps, was 109). The founder-side RA
+question and five options are the model's as before. The golden corpus moves to **revision 9** (a revision-8 file is
+refused by name as v15's / v16's; no status, count or vector verdict moved; three drifts did -- 04-linerly and
+06-repeatline `short`, 02-compliancelog `both`), so `compare_correctness` expects them; the `BRIEF` facts carry
+`solution.benefit {better, noDifference, worse, n}`. Why a bump: a v16 bundle scored a model-written RA item and a
+revision-8 corpus, and cannot be compared. `rescore.py` refuses every bundle below 17. Call 76 below. **There is no
+v17 run of record until `WHY=marks:17` is spent** (this spec never runs or proposes it); v16's paragraph below is
+history (v16 never had one).
+The seven revision-9 files, by sha256 (keel-cloud canon's own bytes, equal to `src/test/resources/keel/corpus-r9/`): `01-countly.yaml` `584625b0d3bdeecd6d64be79433386cadbd47095f1bf8ca11c45da225206e976`; `02-compliancelog.yaml` `c1497e4dad42aba8f4dffc750febf20e0688eca396ed2b502f2beb743de85508`; `03-lullaby.yaml` `4f14d564e4ddc0bf2005e041c372271a6c67c3e115985e5698ef2c234b4edcf2`; `04-linerly.yaml` `3e74db8a58652ee8615248c3cf2449a1f6c2264f37a899bafcb3d044b91f0236`; `05-paidly.yaml` `f2ad5e4a853249b1f2692cd21f352d842113be3927bcae0927f7202d64fb7ef8`; `06-repeatline.yaml` `d72785bf41fca14e36bdac0c75785fc9e7930723d76311d39b5c0da00384daf4`; `07-mulchrun.yaml` `7b6c6d453a485065fa8372dadfd33e6135daba985324b41ba5294b13d3e60e43`.
+
+**`MARKS_VERSION` 16** (history since v17, never run; spec 037, 2026-10-12): the reveal is three lines. The ruler follows keel-cloud 084 (merged at
 `fc12b49`; inference `CONTRACT_VERSION` 9 -> 10, project document 16 -> 17). `CONTEXT_INTERPRET` also writes
 `occasion` (rules X1, X3: at most four words, no product word); `SOLUTION_MECHANISM` also writes `idea_what`,
 `idea_how`, `idea_belief` (L1-L4 lengths, no claim word in what / how, belief opens "The people building it believe
 it would"; W3: what carries `short_name`); `RESPONDENT_QUESTIONS` carries no `reveal` and R6 is gone. All of that is
 keel-cloud's validator's, delegated as ever (`rule_refusal_rate`, `shape_refusals`). The one mark that moves is this
 repository's own: the Part 2 reveal W3 fault (call 55) retires, because a result's `reveal` is no longer read.
-Corpus revision stays 8. `rescore.py` refuses every bundle below 16. Call 75 below. **There is no v16 run of record
+Corpus revision stays 8 at v16. `rescore.py` refuses every bundle below 16. Call 75 below. **There is no v16 run of record
 until `WHY=marks:16` is spent** (this spec never runs or proposes it); v15's paragraph below is history.
 
 **`MARKS_VERSION` 15** (history since v16, never run; spec 036, 2026-10-12): direction-aware verdicts. The ruler follows keel-cloud 082 (merged at
@@ -690,6 +706,17 @@ sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. It is
     no `reveal` on `RESPONDENT_QUESTIONS`. The validator owns X3, L1-L4 and W3 for the lines; this repository adds
     no copy of them. The part-2 reveal W3 fault retires with the reveal (call 55's other half, the question stems'
     W3, stays). `rescore.py` refuses every bundle below 16. The only v16 number is a v16 run (`WHY=marks:16`).
+76. **v17**: **Relative advantage is asked benefit first, and the respondent's item is code's.** keel-cloud 085 (registry 3,
+    document 18, `CONTRACT_VERSION` 10 unchanged): the founder ticks one to four advantages, so the corpus's founder
+    answer is a list (rule B, shape half in `corpus._check_benefit_first`; the counts are the engine's), and a person's
+    pick is `{answer: positive | neutral | negative, advantages: [...]}`. The respondent RA item joins Price and
+    Existing sacrifice in `registry.CODE_WRITTEN_RESPONDENT_CONTROLS` (`benefit_with_advantages`): the model's item is its
+    key alone, nothing it writes is read, W3 / W7 / W9 and both sweeps skip it -- on the respondent side only (the
+    founder question and options stay the model's, so `score.model_text` / `is_swept` read the control when
+    `founder=False`). A registry that reads `benefit_first` on any other control, or whose founder control is not
+    `multi_choice`, fails invariant 5. The corpus is revision 9; a revision-8 file is refused by name. The BRIEF facts
+    add `solution.benefit`, counted off the picks the engine counts (anchored, no chip) and held to the standing's
+    `n`. `rescore.py` refuses every bundle below 17. The only v17 number is a v17 run (`WHY=marks:17`).
 """
 
 from __future__ import annotations
@@ -697,7 +724,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 16
+MARKS_VERSION = 17
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 

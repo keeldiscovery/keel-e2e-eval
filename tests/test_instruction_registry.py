@@ -159,9 +159,9 @@ def test_each_broken_registry_fails_exactly_its_own_invariant_naming_the_key(nam
 
 def test_there_is_a_broken_fixture_per_invariant_and_the_cost_first_extras():
     invariants = sorted(yaml.safe_load(p.read_text())["invariant"] for p in fx.BROKEN.glob("*.yaml"))
-    assert invariants == [1, 2, 3, 3, 4, 5, 5, 5, 5, 5, 6, 6, 7, 8]
+    assert invariants == [1, 2, 3, 3, 4, 5, 5, 5, 5, 5, 5, 5, 6, 6, 7, 8]
     for name in ("5-price-periods", "5-cost-modes", "5-derived-sides", "3-b2b-link-only", "6-shape-amounts",
-                 "5-cost-kinds"):
+                 "5-cost-kinds", "5-benefit-respondent", "5-benefit-founder"):
         assert (fx.BROKEN / f"{name}.yaml").is_file()
 
 
@@ -239,7 +239,7 @@ def test_an_export_with_the_registry_carries_it_checked(tmp_path):
     fx.write_export(tmp_path)
     exported = contract_mod.read(tmp_path)
     assert exported.registry.by_key("problem.prevalence").respondent["control"] == "gate_yes_no"
-    assert exported.registry.version == 1
+    assert exported.registry.version == 3
 
 
 def test_the_manifest_names_the_registry_file_as_058_writes_it(tmp_path):

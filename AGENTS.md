@@ -26,7 +26,15 @@ added to this line rather than quietly written — which is exactly how the thir
   reads *green at the current `MARKS_VERSION`*, so a rubric that moved has no run of record at all
   until one is spent, and a screen is one entry and cannot be one. The policy widened by one named
   event, in the open, which is the amendment shape this document asks for — it did not loosen.
-  **`MARKS_VERSION` 16** (spec `037-reveal-three-lines`, 2026-10-12) is the gate as written, and
+  **`MARKS_VERSION` 17** (spec `038-advantage-benefit-first`, 2026-10-12) is the gate as written, and
+  **there is no run of record until `WHY=marks:17` is spent; never run or propose it**. keel-cloud 085
+  (merged at `b8a4eed`; registry `VERSION` 3, document 18, `CONTRACT_VERSION` stays 10) asks Relative advantage benefit
+  first: the founder ticks one to four advantages, the respondent's one item is code's whole (the model's
+  `RESPONDENT_QUESTIONS` result carries the key alone, as Price does), the corpus is revision 9 (three drifts moved, no
+  status), the BRIEF facts carry `solution.benefit`, and `rescore.py` refuses every bundle below 17 (call 76).
+  `DRY=1` against keel-cloud 085 measures `compare_correctness` 108 of 108. What follows is v16's account, history
+  since 2026-10-12 (never run).
+  **`MARKS_VERSION` 16** (spec `037-reveal-three-lines`, 2026-10-12) was the gate as written, and
   **there is no run of record until `WHY=marks:16` is spent; never run or propose it**. keel-cloud 084
   (merged at `fc12b49`; inference `CONTRACT_VERSION` 10, document 17) writes the reveal as three lines with the
   mechanism: `occasion` on CONTEXT_INTERPRET, `idea_what` / `idea_how` / `idea_belief` on SOLUTION_MECHANISM, no

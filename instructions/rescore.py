@@ -1,5 +1,5 @@
 """Re-score a finished run from its own bundle, under today's marks (spec 009, run-bundle
-contract's "re-reading" promise; spec 029 FR-004, research R11; spec 030 FR-004; spec 031 FR-005; spec 032 FR-005; spec 033 FR-005; spec 034 FR-005; spec 036 FR-005).
+contract's "re-reading" promise; spec 029 FR-004, research R11; spec 030 FR-004; spec 031 FR-005; spec 032 FR-005; spec 033 FR-005; spec 034 FR-005; spec 036 FR-005; spec 038 FR-005).
 
     python -m instructions.rescore runs/<id> [--no-judge]
 
@@ -119,8 +119,13 @@ CROSSED_THE_V16_BUMP = ("was scored while a Part 2 `reveal` was read and held to
                         "(contract 10) writes the idea as three lines with the mechanism and the "
                         "respondent screen carries no reveal")
 
+#: The one sentence a v16 bundle is refused with (spec 038, judgement call 76).
+CROSSED_THE_V17_BUMP = ("was scored on a model-written Relative advantage respondent question against corpus "
+                        "revision 8; keel-cloud 085 asks it benefit first -- code's whole item, the founder's "
+                        "ticks, corpus revision 9")
+
 #: The oldest bundle this version re-scores.
-OLDEST = 16
+OLDEST = 17
 
 
 class _SilentRuntime:
@@ -148,6 +153,11 @@ def refusal(run_dir: Path, original: dict) -> str | None:
         return (f"{run_dir.name} was scored at marks_version {version}: {CROSSED_THE_BUMP}. "
                 "Not re-scored (spec 029 FR-004; judgement call 28) -- a v8 number is a "
                 "measurement of a product v9 does not judge, and the only v9 number is a v9 run.")
+    if version == 16:
+        return (f"{run_dir.name} was scored at marks_version {version}: a v16 scorecard cannot be "
+                f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V17_BUMP}. Not "
+                "re-scored (spec 038; judgement call 76) -- the only v17 number is a v17 run "
+                "(WHY=marks:17).")
     if version == 15:
         return (f"{run_dir.name} was scored at marks_version {version}: a v15 scorecard cannot be "
                 f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V16_BUMP}. Not "

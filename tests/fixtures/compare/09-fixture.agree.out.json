@@ -47,7 +47,7 @@
       "n": 8,
       "inside": 6,
       "outside": 2,
-      "belief_sentence": "To be worth switching to, it must mainly deliver a shorter search."
+      "belief_sentence": "To be worth switching to, it must deliver a shorter search."
     },
     "solution.adoption_friction": {
       "status": "HOLDING_UP",

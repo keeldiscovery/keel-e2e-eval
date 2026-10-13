@@ -310,10 +310,11 @@ def _item(result, key):
     return next(i for i in result["items"] if i["key"] == key)
 
 
-@pytest.mark.parametrize("part, count, sweeps", [(1, 4, 6), (2, 3, 3), (3, 3, 1)])
+@pytest.mark.parametrize("part, count, sweeps", [(1, 4, 6), (2, 3, 2), (3, 3, 1)])
 def test_coverage_per_part_is_the_plan_exactly_once_each(entry, registry, part, count, sweeps):
-    """Calls 52, 53, 67: Frequency over the framed 7 nights, Price and Existing sacrifice owe no text, so
-    none is swept -- part 1 sweeps three items twice, part 3 one of its three once."""
+    """Calls 52, 53, 67, 76: Frequency over the framed 7 nights, Price, Existing sacrifice and the benefit item
+    owe no text, so none is swept -- part 1 sweeps three items twice, part 2 two of its three once, part 3 one
+    of its three once."""
     assert len(entry.plan()[part]) == count, "the plan, read: 4 / 3 / 4 less the one left out"
     score = _respond(entry, registry, part)
     assert (score.coverage_hit, score.coverage_of) == (count, count)
@@ -372,13 +373,13 @@ def _row(entry, key):
 
 
 def test_a_fixed_code_control_owes_exactly_one_label_per_founder_code(entry, registry):
-    dimension = registry.by_key("solution.relative_advantage")
+    dimension = registry.by_key("solution.adoption_friction")     # Relative advantage's item is code's since 085
     row = _row(entry, dimension.key)
-    want = [c for c in row["codes"] if c not in ("nothing_would_change", "something_else")]
+    want = [c for c in row["codes"] if c not in ("would_not_reach", "something_else")]
     item = {"key": dimension.key, "question": "That night?",
             "options": [f"Label {i}" for i in range(len(want))]}
     assert score_mod.respondent_checks(item, dimension, row) == []
-    plus_escape = dict(item, options=item["options"] + ["Nothing would have changed"])
+    plus_escape = dict(item, options=item["options"] + ["Would not reach it"])
     assert any(f"{len(want) + 1} options; the plan has {len(want)}" in f
                for f in score_mod.respondent_checks(plus_escape, dimension, row))
     short = dict(item, options=item["options"][:-1])
@@ -491,10 +492,33 @@ def test_sweep_a_runs_on_part_one_and_sweep_b_on_every_part(entry, registry):
         "question", "When would the beep have helped?"))
     assert not [f for f in part2.faults if f["check"] == "no_leak"], \
         "after the reveal the mechanism may be named"
-    leak_b = _respond(entry, registry, 2, lambda r: _item(r, "solution.relative_advantage")
-                      .__setitem__("question", "Would a shorter search have mattered?"))
+    leak_b = _respond(entry, registry, 2, lambda r: _item(r, "solution.adoption_friction")
+                      .__setitem__("question", "Would a single whistle have been fine?"))
     faults = [f for f in leak_b.faults if f["check"] == "no_leak"]
-    assert [f["sweep"] for f in faults] == ["B"] and "a shorter search" in faults[0]["evidence"]
+    assert [f["sweep"] for f in faults] == ["B"] and "a single whistle" in faults[0]["evidence"]
+
+
+def test_the_benefit_item_is_its_key_alone_and_nothing_written_there_is_read(entry, registry):
+    """Call 76 (keel-cloud 085): Relative advantage's respondent item is code's whole -- like Price, the model owes
+    the key, and a question that names the founder's advantage, options, or no question at all is no fault."""
+    key = "solution.relative_advantage"
+    assert registry.by_key(key).respondent_code_written
+    alone = _respond(entry, registry, 2)
+    assert _item({"items": [fx.respondent_item(entry, key)]}, key) == {"key": key}
+    assert alone.faults == [] and (alone.validity_hit, alone.validity_of) == (3, 3)
+    noisy = _respond(entry, registry, 2, lambda r: _item(r, key).update(
+        question="Would a shorter search have mattered?", options=["Better", "Worse", "Something else"]))
+    assert noisy.faults == [] and (noisy.leak_clean, noisy.leak_of) == (alone.leak_clean, alone.leak_of)
+
+
+def test_the_founders_benefit_question_is_still_the_models_and_is_held_to_the_name(entry, registry):
+    """The founder side is the model's (five options, a belief phrase each): only the respondent item is code's."""
+    dimension = registry.by_key("solution.relative_advantage")
+    assert dimension.founder.get("control") == "multi_choice"
+    asked = {"key": dimension.key, "question": "What would have to be better?"}
+    assert score_mod.model_text(asked, dimension, founder=True) == "What would have to be better?"
+    assert score_mod.model_text(asked, dimension) is None, "the respondent's item is code's"
+    assert score_mod.is_swept(dimension, founder=True) and not score_mod.is_swept(dimension)
 
 
 def test_a_part_one_mechanism_stem_only_in_an_option_label_is_judged_not_faulted(entry, registry):
@@ -613,10 +637,10 @@ def test_totals_roll_both_question_screens_into_the_same_three_marks(entry, regi
     asked = len(plan[1]) + len(plan[2])
     assert totals["respondent_coverage"] == {"hit": asked, "of": asked} == {"hit": 7, "of": 7}
     assert totals["dimension_coverage"] == 1.0
-    # Calls 52, 53: Frequency (framed on 7 nights) is swept on neither screen.
+    # Calls 52, 53, 76: Frequency (framed on 7 nights) is swept on neither screen, nor the benefit item on the respondent's.
     assert totals["calibration_leak"]["of"] + totals["respondent_leak"]["of"] == \
         (len(registry.calibrated_slice("PROBLEM", False)) - 1) + 2 * (len(plan[1]) - 1) \
-        + len(plan[2])
+        + (len(plan[2]) - 1)
 
 
 # -------------------------------------------------------------- US3: INTERPRET (064; call 33)

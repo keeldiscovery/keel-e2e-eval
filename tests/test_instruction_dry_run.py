@@ -118,7 +118,7 @@ def test_a_dry_run_prints_every_structural_marks_denominator_read_off_the_regist
     is read off the registry and the entry and written down: calibration 4 / 3 / 4 (B2C),
     respondent 4 / 3 / 3 (the founder left one out), sweep A on the 3 PROBLEM questions and the 3
     Part 1 items with model text (Frequency is framed on 7 nights), sweep B on every item but
-    framed Frequency, Price and Existing sacrifice (call 67) -- and the names W3 / W8 are held to (none, at r5)."""
+    framed Frequency, Price, Existing sacrifice (call 67) and the code-written benefit item (call 76) -- and the names W3 / W8 are held to (none, at r5)."""
     code, bundle = dry()
     assert code == 0
     scorecard = json.loads((bundle / "scorecard.json").read_text())
@@ -129,7 +129,7 @@ def test_a_dry_run_prints_every_structural_marks_denominator_read_off_the_regist
         "respondent": {"PRIMARY": sum(len(keys) for keys in plan.values())},
         "sweep_a": (len(fx.registry().calibrated_slice("PROBLEM", False)) - 1)
         + (len(plan[1]) - 1),
-        "sweep_b": sum(len(keys) for keys in plan.values()) - 3,    # call 67: nor Existing sacrifice
+        "sweep_b": sum(len(keys) for keys in plan.values()) - 4,    # calls 67, 76: nor Existing sacrifice, nor the benefit item
         "short_name": None, "offer_name": None}}
     out = capsys.readouterr().out
     assert "denominators read off the registry, per N: dimension_coverage 11 calibration + 10 " \

@@ -117,10 +117,22 @@ DERIVED_FOUNDER_CONTROL = "derived"
 DERIVED_COMPARE_RULE = "cost_covers_price"
 #: `AbilityToPay`'s four bands (with decision 2, 2026-10-10).
 ABILITY_BANDS = ("small_share", "mostly_from_spend", "some_from_spend", "new_money")
-#: The respondent controls whose question and options are wholly code's (calls 53, 67): the model owes
+#: Relative advantage, benefit first (keel-cloud 085, call 81): the founder ticks one to four advantages
+#: (`multi_choice`), and the respondent's item is code's whole -- better / no difference / worse, and under
+#: better the founder's ticks -- read by `benefit_first`. The model writes the founder's question and five
+#: options as before, and for the respondent the item's key alone.
+BENEFIT_KEY = "solution.relative_advantage"
+BENEFIT_CONTROL = "benefit_with_advantages"
+BENEFIT_RULE = "benefit_first"
+BENEFIT_FOUNDER_CONTROL = "multi_choice"
+BENEFIT_CODES = ("positive", "neutral", "negative")
+BENEFIT_MAX_TICKS = 4
+#: The respondent controls whose question and options are wholly code's (calls 53, 67, 81): the model owes
 #: the item's key and nothing else, and nothing it writes there is read. Since keel-cloud 077 that is
-#: Price's ladder and Existing sacrifice's one total (no kinds, so no options and no units).
-CODE_WRITTEN_RESPONDENT_CONTROLS = ("price_ladder", COST_TOTAL_CONTROL)
+#: Price's ladder and Existing sacrifice's one total (no kinds, so no options and no units); since 085
+#: Relative advantage's benefit item -- on the **respondent** side only (its founder question is still the
+#: model's, so `score.model_text` / `is_swept` read the code-written control on the respondent side only).
+CODE_WRITTEN_RESPONDENT_CONTROLS = ("price_ladder", COST_TOTAL_CONTROL, BENEFIT_CONTROL)
 #: Existing sacrifice's respondent control since 077: one total (`AMOUNT | HOURS`, one number) over the
 #: founder's recall period. `branch_pick_amounts` (073-076) is gone, and is refused by name.
 GONE_AMOUNTS_CONTROL = "branch_pick_amounts"
@@ -299,6 +311,11 @@ class Dimension:
     def respondent_code_written(self) -> bool:
         """An item whose question and options are wholly code's (call 53: the Price ladder)."""
         return self.respondent.get("control") in CODE_WRITTEN_RESPONDENT_CONTROLS
+
+    @property
+    def benefit_first(self) -> bool:
+        """Relative advantage since keel-cloud 085: read by `benefit_first`, asked by `benefit_with_advantages`."""
+        return self.answers.get("compare_rule") == BENEFIT_RULE
 
     @property
     def respondent_numeric(self) -> bool:
@@ -634,6 +651,13 @@ def check_invariants(registry: Registry) -> list[str]:
             if d.answers.get("compare_rule") != DERIVED_COMPARE_RULE:
                 faults.append(f"invariant 5 (derived is cost_covers_price): {d.key} is derived and "
                               f"read by {d.answers.get('compare_rule')!r}")
+        # keel-cloud 085: the benefit rule and the benefit control go together, the founder ticks a set.
+        if d.benefit_first != (d.respondent.get("control") == BENEFIT_CONTROL):
+            faults.append(f"invariant 5 (benefit on both sides): {d.key} is read by "
+                          f"{d.answers.get('compare_rule')!r} on a {d.respondent.get('control')!r} control")
+        if d.benefit_first and d.founder.get("control") != BENEFIT_FOUNDER_CONTROL:
+            faults.append(f"invariant 5 (the founder ticks advantages): {d.key}'s founder control is "
+                          f"{d.founder.get('control')!r}, not {BENEFIT_FOUNDER_CONTROL!r}")
         bins = d.normalized.get("bins")
         if bins is not None and not _bins_contiguous(bins):
             faults.append(f"invariant 5 (contiguous bins): {d.key}'s bins {bins} are not "

@@ -1,4 +1,4 @@
-"""The `facts`, `beliefs` and `stories` a `BRIEF` job is handed (keel-cloud 079, contract 9).
+"""The `facts`, `beliefs` and `stories` a `BRIEF` job is handed (keel-cloud 079, contract 9; `solution.benefit` since 085).
 
 keel-cloud computes `BriefFacts` from a project's stored answers; the corpus holds no project, only
 `expected.standings`, so **this is the eval's reading of those standings in the same shape**, and
@@ -10,6 +10,8 @@ are optional, and the marks hold the result to exactly the facts it was handed.
 """
 
 from __future__ import annotations
+
+from .registry import BENEFIT_CODES, BENEFIT_KEY
 
 VERDICT_WORDS = {
     "HOLDING_UP": "Holding up", "NOT_HOLDING_UP": "Not holding up",
@@ -60,6 +62,27 @@ def decision(vectors: list, b2b: bool) -> dict:
             "smallestN": smallest, "split": split, "notTested": not_tested}
 
 
+def benefit(entry, by_key: dict) -> dict | None:
+    """`BriefFacts.solution.benefit` (keel-cloud 085, call 81): `{better, noDifference, worse, n}` -- how many of
+    the people counted on Relative advantage said it would have made things better, made no difference or made
+    things worse. The corpus's standing records only `n` / `inside` / `outside`, so the three answers are counted
+    off the picks of the people the engine counts (anchored, no chip, a benefit answer) and held to the
+    standing's `n`; `None` when the founder left the dimension out or the entry records no such pick."""
+    row = by_key.get(BENEFIT_KEY) or {}
+    if row.get("status") in (None, "LEFT_OUT", "NOT_ASKED_YET") or row.get("n_anchored") is None:
+        return None
+    answers = [p.picks.get(BENEFIT_KEY) for p in entry.gate_yes()
+               if p.anchoring == "ANCHORED" and not p.chip]
+    answers = [a["answer"] for a in answers if isinstance(a, dict) and a.get("answer") in BENEFIT_CODES]
+    if not answers:                       # a hand-sized fixture that records no picks for it
+        return None
+    if len(answers) != row["n_anchored"]:
+        raise ValueError(f"{entry.id}: {BENEFIT_KEY} counts {len(answers)} benefit answers, the standing says "
+                         f"{row['n_anchored']}")
+    return {"better": answers.count("positive"), "noDifference": answers.count("neutral"),
+            "worse": answers.count("negative"), "n": len(answers)}
+
+
 def _row(dimension: dict) -> dict:
     """What a dimension's standing says, in the counts it carries and no others."""
     out = {"status": dimension.get("status"), "n": dimension.get("n_anchored")}
@@ -83,6 +106,9 @@ def facts_for(entry, vectors: list, context: dict, currency: str | None, period:
     for name in ("problem", "solution", "commercial"):
         section[name] = {k.split(".", 1)[1]: _row(d) for k, d in by_key.items()
                          if k.startswith(name + ".") and d.get("status") != "LEFT_OUT"}
+    counted = benefit(entry, by_key)
+    if counted is not None:
+        section["solution"]["benefit"] = counted
     standing = ((entry.expected or {}).get("standings") or {}).get("problem.prevalence") or {}
     if standing.get("yes") is not None:
         section["problem"]["prevalence"] = {"yes": standing["yes"], "n": standing.get("n"),
