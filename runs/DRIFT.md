@@ -5026,3 +5026,47 @@ though the card no longer draws them.
 
 **The proof run** is recorded in keel-cloud-docs
 `canon/drafts/matrix-codex-copilot-v8-2026-10-03.md` §5, with its run id and its verdict.
+
+## 74. Open (keel-cloud, with keel-web beside it): on a **one-unit recall window** no screen asks Frequency, and `GET standings` answers **500** until it carries an answer
+
+Found by spec `039-vectors-journey`'s first local run of S-005 (`01-countly`, whose own recall window
+is `{count: 1, unit: MONTHS}` -- *a mismatched delivery in the last month*), against keel-cloud-docs
+`b8a4eed` and keel-web `e54cb1c`, on the scripted executor.
+
+**What the founder sees.** keel-cloud spec 078 decides that on a one-unit window the gate's yes / no
+already answers how often, so Frequency is *not asked, by design*: keel-web's `CalibrationRoute`
+filters `problem.frequency` out of the PROBLEM screens (`oneUnitWindow`, spec 056), and keel-cloud's
+own `GET calibration/PROBLEM` serves three questions (`total: 4`). The review is `complete`, the lock
+succeeds, the interview asks no Frequency item, the readings run -- and then:
+
+    GET /v2/projects/{id}/standings -> 500
+    java.lang.IllegalArgumentException: founder_calibration has no answer for 'problem.frequency';
+    every calibrated dimension needs one, answered or unsure
+
+and every `ReadingBatchService` batch logs *no paragraph written ... founder_calibration has no
+answer for 'problem.frequency'*, so the brief is never written either. `Compare.standing` already
+has the arm for this case (`NOT_ASKED_YET`, *"Not asked: with a one-month window, the first question
+already answers it"*) -- it is never reached, because the input builder refuses the missing answer
+first. **Any founder who picks *the last cycle* (one of keel-web's five common choices) or types a
+count of 1 cannot read their answers at all.**
+
+**What the journey does, and says.** S-005 answers the three screens keel-web draws, then sends the
+one answer no screen asks for -- `{dimension: problem.frequency, unsure: true}` -- on the wire, in a
+step named for this entry (`evals/corpus_scenario.py::leg_calibrate`, *"DRIFT #74 -- the answer no
+screen asks"*), so the rest of the journey is measurable. The standing it then asserts is the one
+that answer produces (`LEFT_OUT`), not the corpus's `HOLDING_UP` and not spec 078's `NOT_ASKED_YET`.
+When keel-cloud's input builder reads a one-unit Frequency with no answer as not asked, the wire
+step goes and `expected_status` moves to `NOT_ASKED_YET` with it.
+
+## 75. Observation (keel-web): the commercial-link popup posts the revision of the page's last overview poll, so a link made within one poll of the previous invitation is refused CONCURRENCY with keel-cloud's raw remedy on screen
+
+Found by spec 039's S-006 (`05-paidly`): twelve specialist links, then the first decision-maker's
+*Make their link* -- `POST /commercial-link` answered `409 {rule: concurrency, problem: "project ...
+was expected at revision 36, and is not there at that revision any more ..."}` and the dialog drew
+the problem and the remedy sentences verbatim. The specialist popup did not hit it in the same run.
+`PeopleRoute` refreshes `GET /overview` every 4 s while an invitation is out, and the commercial
+popup takes its `expectedRevision` from that cache, so it is a race a quick founder can hit and a
+slow one will not. The journey reloads the People page before each commercial link
+(`harness/vectors_screens.py::PeopleLinks.commercial_link`) and says why there. Not a product
+decision this repository makes; recorded so keel-web can decide whether the popup should read the
+revision when it opens.

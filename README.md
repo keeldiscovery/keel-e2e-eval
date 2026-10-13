@@ -1592,6 +1592,14 @@ and must close back to the screen it came from. `doors.json` lists every route, 
 **S-004, the stranger who gives orders** (`evals/test_s004_stranger_who_gives_orders.py`, spec
 `008-stranger-who-gives-orders`) — live, opt-in, below.
 
+**S-005, S-006 and S-007 are vectors journeys since spec `039-vectors-journey`** (2026-10-13). The
+account below is the classic one they replaced, kept as history: today each walks keel-cloud's vector
+corridor on corpus revision 9 through keel-web's own screens -- context, problem, mechanism, three
+calibrations, persona, lock, one link per person, the interview, the readings, the board, the vector
+pages and the brief -- and asserts the entry's `expected.standings` and `expected.vector_verdicts` on
+the wire and on those pages (`specs/039-vectors-journey/spec.md`, which also lists where revision 9
+and the wire disagree).
+
 **S-005, S-006 and S-007** (`test_s005_countly.py`, `test_s006_paidly.py`,
 `test_s007_mulchrun.py`) drive keel-cloud's **frozen golden corpus** through the real screens.
 This is the corpus's second job: spec 009's instruction eval asks *did the prose reach these

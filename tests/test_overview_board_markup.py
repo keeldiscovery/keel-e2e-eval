@@ -39,12 +39,15 @@ import pytest
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import sync_playwright
 
-from evals.test_s012_journey_through_a_host import (VERDICT_PEOPLE_FLOOR, _expected_card,
-                                                    _stage_deal_breakers, _status_tone)
 from harness.browser import Overview
 from harness.steps import Recorder
 
 PROJECT = "p-0001"
+
+#: keel-cloud's floor -- *Too few to call* under five people -- which a state-C row names. S-012
+#: carried it until spec 039 moved its leg two to the vectors corridor; the classic board this file
+#: renders still draws it.
+VERDICT_PEOPLE_FLOOR = 5
 
 STAGES = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 
@@ -394,82 +397,3 @@ def test_the_deck_wait_still_answers_on_the_board(tmp_path, browser):
         assert overview.is_deck()
     finally:
         page.close()
-
-
-# ----------------------------------------------- the rule, restated in Python (§1.7's own helpers)
-
-#: `GET /v2/projects/{id}/standing`, cut to what `_stage_deal_breakers` reads: the two failing
-#: lists, their `stage`, their `risk` and their heading. Four deal-breakers failed on SOLUTION, one
-#: `CONTRADICTED` and three `MIXED`, which is the fixture card's state B at the cap with `+2 more`.
-_STANDING = {
-    "holdingUp": [{"stage": "COMMERCIAL", "risk": "LOAD_BEARING", "assumptionId": "a-1",
-                   "heading": "They would pay monthly"}],
-    "notHoldingUp": [{"stage": "SOLUTION", "risk": "LOAD_BEARING", "assumptionId": "a-2",
-                      "heading": "A tablet is at hand"},
-                     {"stage": "SOLUTION", "risk": "SUPPORTING", "assumptionId": "a-3",
-                      "heading": "Worth knowing, and not a deal-breaker"}],
-    "peopleDisagree": [{"stage": "SOLUTION", "risk": "LOAD_BEARING", "assumptionId": "a-4",
-                        "heading": "They check it the same day"},
-                       {"stage": "SOLUTION", "risk": "LOAD_BEARING", "assumptionId": "a-5",
-                        "heading": "Deliveries land before noon"},
-                       {"stage": "SOLUTION", "risk": "LOAD_BEARING", "assumptionId": "a-6",
-                        "statement": "A statement, where the belief has no heading"}],
-    "untested": [{"stage": "PROBLEM", "risk": "LOAD_BEARING", "assumptionId": "a-7",
-                  "heading": "Woken more than twice a night"}],
-}
-
-
-def test_the_failing_deal_breakers_are_the_wires_own_two_lists_in_order():
-    """FR-010: `notHoldingUp` before `peopleDisagree`, each in the wire's own order, filtered to
-    the stage **and to `LOAD_BEARING`** -- so the two the cap shows are the two worst (P5). A
-    `SUPPORTING` line is not a deal-breaker and has no row on this card at all (FR-013)."""
-    failed = _stage_deal_breakers(_STANDING, "SOLUTION")
-    assert [row["tone"] for row in failed] == ["bad", "warn", "warn", "warn"]
-    assert [row["heading"] for row in failed] == ["A tablet is at hand",
-                                                  "They check it the same day",
-                                                  "Deliveries land before noon",
-                                                  "A statement, where the belief has no heading"]
-    assert "Worth knowing, and not a deal-breaker" not in [row["heading"] for row in failed]
-    assert _stage_deal_breakers(_STANDING, "COMMERCIAL") == []
-
-
-@pytest.mark.parametrize("summary,state,rows,tail,foot", [
-    # C: the verdict is UNTESTED, or absent entirely -- the floor's own state.
-    ({"verdict": "UNTESTED", "peopleAnswered": 3}, "C", 1, 0, False),
-    ({"peopleAnswered": 0}, "C", 1, 0, False),
-    # A: every deal-breaker holds. And FR-012's edge case: none to hold means no row at all.
-    ({"verdict": "SUPPORTED", "dealBreakersHolding": 2, "dealBreakersTotal": 2}, "A", 1, 0, True),
-    ({"verdict": "SUPPORTED", "dealBreakersHolding": 0, "dealBreakersTotal": 0}, "A", 0, 0, True),
-    # B: otherwise -- the cap of two, and the tail only past it.
-    ({"verdict": "MIXED", "dealBreakersHolding": 1, "dealBreakersTotal": 5}, "B", 2, 2, True),
-])
-def test_the_three_states_are_exhaustive_disjoint_and_ordered(summary, state, rows, tail, foot):
-    """FR-009, and the order *is* the rule. `_expected_card` is what §1.7 puts the card's own
-    `data-state` against, and every input is a `StageSummary` field the wire sent."""
-    want = _expected_card(summary, _stage_deal_breakers(_STANDING, "SOLUTION"))
-    assert want["state"] == state
-    assert want["rows"] == rows
-    assert want["tail"] == tail
-    assert want["foot"] is foot
-
-
-def test_state_b_shows_the_first_two_and_counts_the_rest():
-    """FR-011: nothing is lost to the cap -- the tail says how many more failed and the foot says
-    out of how many, so four failures on a card of two rows is still four on the screen."""
-    failed = _stage_deal_breakers(_STANDING, "SOLUTION")
-    want = _expected_card({"verdict": "MIXED", "dealBreakersHolding": 1, "dealBreakersTotal": 5},
-                          failed)
-    assert want["the two the cap shows"] == ["A tablet is at hand", "They check it the same day"]
-    assert want["their own glyphs"] == ["bad", "warn"]
-    assert want["tail"] == len(failed) - Overview.ROW_CAP == 2
-
-
-def test_the_headlines_tone_is_unwashed_where_a_bands_is_not():
-    """FR-001: `OverviewRoute` writes `st-${headline.tone}` straight off `measuredStatus`, so an
-    `UNTESTED` project's headline is `st-mute` where its band and its pill are `--none`. Two
-    mappings, deliberately, and §1.7 reads each off its own node."""
-    assert _status_tone({"verdict": "CONTRADICTED"}) == "bad"
-    assert _status_tone({"verdict": "MIXED"}) == "warn"
-    assert _status_tone({"verdict": "SUPPORTED"}) == "good"
-    assert _status_tone({"verdict": "UNTESTED"}) == "mute"
-    assert _status_tone({}) == "mute"

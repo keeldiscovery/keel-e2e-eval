@@ -1,68 +1,76 @@
-"""S-006: `05-paidly`, the widest questionnaire (spec 010 US2, T030).
+"""S-006: `05-paidly`, the widest B2B entry, walked through the vector corridor (spec 039).
 
-Five anchors across three stages, **two roles asked their own anchor sets and not each other's**,
-twenty people, the corpus's only `SHARE` belief outside mulchrun, its one drift of `both` on
-`P1` -- and `S6`, which has **exactly five** anchored people.
+Twenty people on **two links**: twelve freelance translators answer parts 1 and 2 on the primary
+link, and eight agency project managers -- the decision-makers -- answer part 3 alone on their own
+commercial link (no gate, no reveal). It is the only entry here whose commercial vector is counted
+over people who never saw the problem's questions, so it is the one that proves the decision-maker's
+link is counted at all (keel-cloud 075 found one that counted nowhere).
 
-`S6` is the sharpest test in the corpus. `Project.FLOOR` is five: one fewer and the line is
-`UNTESTED` whatever anyone said. So a screen that reads *Not asked yet* on `S6` is not a rounding
-error, it is the floor being applied one person too early, and a screen that reads a real verdict
-is the floor being applied exactly right. Nothing else in the corpus sits on that edge.
+**The floor-of-five extra, re-read.** Until revision 2 this module asserted `S6`, a line with exactly
+five anchored people, reading a real verdict. Revision 9 has no paidly dimension at exactly five --
+the smallest anchored count is eight -- so that assertion has no subject left (spec 039 D-6). What
+survives of it is the floor itself, which is now the wire's to say: every dimension carries
+`floor: 5`, and every paidly dimension sits above it and calls a real status.
 """
 
 from __future__ import annotations
 
 from evals import corpus_scenario
-from evals.corpus_scenario import STATUS_WORD
+from harness import vectors_script as vs
 
 ENTRY_ID = "05-paidly"
 FLOOR = 5
 
 
-def _paidly_extras(ctx) -> None:
-    recorder, entry = ctx["recorder"], ctx["entry"]
-    standings = ctx["standings"]
+def _paidly_extras(j) -> None:
+    standings = {d["dimension"]: d for v in j.standings.get("vectors") or []
+                 for d in v.get("dimensions") or []}
+    deciders = [p for p in j.people if p.link == vs.LINK_B2B]
+    primary = [p for p in j.people if p.link == vs.LINK_PRIMARY]
 
-    with recorder.step("T030: two roles, each asked their own anchors and not the other's",
-                        party="participant", kind="assert") as h:
-        roles = {p.role_id for p in ctx["people"]}
-        by_role = {role: sorted({a.anchor_id for p in ctx["people"] if p.role_id == role
-                                  for a in p.anchors}) for role in roles}
-        h.record_assert("two disjoint anchor sets", by_role)
-        assert len(roles) == 2, f"expected two roles, got {sorted(roles)}"
-        sets = list(by_role.values())
-        assert not (set(sets[0]) & set(sets[1])), (
-            f"the two roles share an anchor, which the entry does not: {by_role}")
+    with j.recorder.step("S-006: two respondent types -- translators on the full link, agency "
+                         "project managers on the commercial link, part 3 alone",
+                         party="participant", kind="assert") as h:
+        kinds = {p.person: j.interviews[p.person].get("kind") for p in j.people}
+        parts = {p.person: sorted(q.get("part") for q in j.interviews[p.person].get("parts") or [])
+                 for p in j.people}
+        h.record_assert({"primary": [len(primary), "FULL", [1, 2]],
+                         "decision-makers": [len(deciders), "COMMERCIAL_LINK", [3]]},
+                        {"kinds": kinds, "parts": parts})
+        assert (len(primary), len(deciders)) == (12, 8), (len(primary), len(deciders))
+        for p in primary:
+            assert kinds[p.person] == "FULL" and parts[p.person] == [1, 2], (p.person, parts[p.person])
+            assert j.interviews[p.person].get("gate"), p.person
+        for p in deciders:
+            assert kinds[p.person] == "COMMERCIAL_LINK" and parts[p.person] == [3], p.person
+            assert not j.interviews[p.person].get("gate"), p.person
 
-    with recorder.step("T030: twenty people answered", party="participant", kind="assert") as h:
-        h.record_assert(20, len(ctx["people"]))
-        assert len(ctx["people"]) == 20, f"expected twenty people, got {len(ctx['people'])}"
+    with j.recorder.step("S-006: the commercial vector is counted over the eight decision-makers",
+                         party="stack", kind="assert") as h:
+        commercial = {k: v.get("n") for k, v in standings.items()
+                      if k.startswith("commercial.") and v.get("status") != "LEFT_OUT"}
+        h.record_assert({k: len(deciders) for k in commercial}, commercial)
+        assert all(n == len(deciders) for n in commercial.values()), commercial
+        assert "agency project managers" in j.screens["COMMERCIAL"]["decider_banner"].lower(), (
+            j.screens["COMMERCIAL"]["decider_banner"])
 
-    with recorder.step(f"T030: S6 sits exactly on FLOOR = {FLOOR} and reads a real verdict",
-                        party="stack", kind="assert") as h:
-        stage_card = ctx["get"](f"/v2/projects/{ctx['project_id']}/stages/SOLUTION")
-        beliefs = corpus_scenario.belief_by_heading(stage_card)
-        standing = (beliefs.get(ctx["heading_of"]["S6"]) or {}).get("standing") or {}
-        spoke = int(standing.get("inside") or 0) + int(standing.get("outside") or 0)
-        h.record_assert({"spoke": FLOOR, "verdict": standings["S6"]["verdict"]},
-                         {"spoke": spoke, "verdict": standing.get("verdict")})
-        assert spoke == FLOOR, (
-            f"S6 has {spoke} people who described an occasion; the entry puts it exactly on the "
-            f"floor of {FLOOR}, and a different count means the run, not the aggregate, is wrong")
-        assert standing.get("verdict") == standings["S6"]["verdict"], (
-            f"S6 reads {standing.get('verdict')}; the entry says {standings['S6']['verdict']} -- "
-            "the floor is *met*, not missed, and UNTESTED here would be it applied one person "
-            "too early")
+    with j.recorder.step(f"S-006: the floor is {FLOOR} on every dimension, and every paidly "
+                         "dimension clears it with a real status", party="stack", kind="assert") as h:
+        floors = {k: v.get("floor") for k, v in standings.items()}
+        asked = {k: (v.get("n"), v.get("status")) for k, v in standings.items()
+                 if v.get("status") != "LEFT_OUT"}
+        h.record_assert({"floor": FLOOR}, {"floors": floors, "asked": asked})
+        assert set(floors.values()) == {FLOOR}, floors
+        for key, (n, status) in asked.items():
+            assert n >= FLOOR and status not in ("TOO_FEW_TO_CALL", "NOT_ASKED_YET"), (key, n, status)
 
-    with recorder.step("T030: P1's drift is `both`, and a `both` shows no direction",
-                        party="founder", kind="assert") as h:
-        want = corpus_scenario.status_text(standings["P1"]["verdict"], standings["P1"]["drift"],
-                                            None)
-        h.record_assert(want, standings["P1"]["drift"])
-        assert standings["P1"]["drift"] == "both"
-        assert want == STATUS_WORD[standings["P1"]["verdict"]], (
-            "a drift of `both` points nowhere, so the status word carries no direction "
-            f"(would have read {want!r})")
+    with j.recorder.step("S-006: twenty people asked and twenty answered, on the board",
+                         party="founder", kind="assert") as h:
+        people = j.standings.get("people") or {}
+        h.record_assert({"invited": 20, "answered": 20},
+                        {"people": people, "tiles": j.screens["board"]["tiles"]})
+        assert people.get("invited") == 20 and people.get("answered") == 20, people
+        assert "20" in j.screens["board"]["tiles"], j.screens["board"]["tiles"]
 
 
 def test_s006_paidly(stack, founder_one, browser, run_dir):
