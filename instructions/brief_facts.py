@@ -1,4 +1,4 @@
-"""The `facts`, `beliefs` and `stories` a `BRIEF` job is handed (keel-cloud 079, contract 9; `gaps` since 083).
+"""The `facts`, `beliefs` and `stories` a `BRIEF` job is handed (keel-cloud 079, contract 9).
 
 keel-cloud computes `BriefFacts` from a project's stored answers; the corpus holds no project, only
 `expected.standings`, so **this is the eval's reading of those standings in the same shape**, and
@@ -60,19 +60,6 @@ def decision(vectors: list, b2b: bool) -> dict:
             "smallestN": smallest, "split": split, "notTested": not_tested}
 
 
-def gaps(by_key: dict, decision_row: dict) -> dict:
-    """`BriefFacts.gaps` (keel-cloud 083, design §8.9 and §8.10), read off the standings and the decision:
-    `problemSplit` -- the decision is NOT_YET because people disagree on a problem deal-breaker, a split and not a
-    no; `strongerProblemWeakerFix` -- Current solution holds STRONGER while Relative advantage is not holding up (a
-    bigger problem than you think, and a smaller fix). Both verdicts stand; the brief joins them."""
-    current = by_key.get("problem.current_solution_satisfaction") or {}
-    advantage = by_key.get("solution.relative_advantage") or {}
-    stronger = (current.get("status") == "HOLDING_UP"
-                and str(current.get("drift") or "").lower() == "stronger"
-                and advantage.get("status") == "NOT_HOLDING_UP")
-    return {"problemSplit": bool(decision_row.get("split")), "strongerProblemWeakerFix": stronger}
-
-
 def _row(dimension: dict) -> dict:
     """What a dimension's standing says, in the counts it carries and no others."""
     out = {"status": dimension.get("status"), "n": dimension.get("n_anchored")}
@@ -103,9 +90,8 @@ def facts_for(entry, vectors: list, context: dict, currency: str | None, period:
     targets = [{"key": k, "name": d["name"], "status": d["status"], "n": d.get("n_anchored")}
                for k, d in by_key.items()
                if d.get("status") in ("NOT_HOLDING_UP", "PEOPLE_DISAGREE")][:3]
-    decided = decision(vectors, entry.b2b())
     return {
-        "decision": decided,
+        "decision": decision(vectors, entry.b2b()),
         "vectors": [{"vector": v["vector"], "verdict": v.get("verdict"),
                      "words": VERDICT_WORDS.get(v.get("verdict"), "Not asked yet")}
                     for v in vectors],
@@ -115,7 +101,6 @@ def facts_for(entry, vectors: list, context: dict, currency: str | None, period:
         "sharpest": None,
         "targets": targets,
         "keys": keys,
-        "gaps": gaps(by_key, decided),
     }
 
 

@@ -78,17 +78,7 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
-### `MARKS_VERSION` 17 — the gate as written, **no run of record yet** (spec `035-calibration-chat`, 2026-10-12)
-
-keel-cloud 083 (`083-calibration-chat` at `805688a`; registry 3, document 18, contract 11): every belief but the gate is
-a short chat that ends in one measurable belief. Two new screens (`CALIBRATION_CHAT`, `ITEM_FEEDBACK`; job class
-calibration), six new marks at 1.00 (`one_measurable`, `follow_up_budget`, `preview_rules`, `no_founder_leak`,
-`importance_list`, `feedback_obeys`), corpus revision 9 (the seven entries unchanged, plus 41 chat cases over six
-ideas and the six-scenario verdicts) and `BriefFacts.gaps`. `rescore.py` refuses every bundle below 17. **There is no v17
-run of record until `WHY=marks:17` is spent** — neither run nor proposed here. `DRY=1` against 083 prints the chat
-cases and measures `compare_correctness` over the entries and the seven scenarios.
-
-### `MARKS_VERSION` 16 — history, never run (spec `037-reveal-three-lines`, 2026-10-12)
+### `MARKS_VERSION` 16 — the gate as written, **no run of record yet** (spec `037-reveal-three-lines`, 2026-10-12)
 
 keel-cloud 084 (merged at `fc12b49`; contract 9 -> 10, document 16 -> 17) writes the reveal as three lines with the
 mechanism: `occasion` on `CONTEXT_INTERPRET`, `idea_what` / `idea_how` / `idea_belief` on `SOLUTION_MECHANISM`, no

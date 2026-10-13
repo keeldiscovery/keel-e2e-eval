@@ -37,17 +37,13 @@ def judgement_calls() -> list:
     return [int(n) for n in re.findall(r"^(\d+)\.\s", marks_mod.__doc__, re.M)]
 
 
-V17_MARKS = {"one_measurable": 1.00, "follow_up_budget": 1.00, "preview_rules": 1.00,
-             "no_founder_leak": 1.00, "importance_list": 1.00, "feedback_obeys": 1.00}
+def test_marks_version_is_sixteen():
+    assert marks_mod.MARKS_VERSION == 16
 
 
-def test_marks_version_is_seventeen():
-    assert marks_mod.MARKS_VERSION == 17
-
-
-def test_the_judgement_calls_are_one_to_eighty_with_none_missing_and_none_twice():
+def test_the_judgement_calls_are_one_to_seventy_five_with_none_missing_and_none_twice():
     numbers = judgement_calls()
-    assert sorted(numbers) == list(range(1, 81)), "append-only: 1-80, none struck or renumbered"
+    assert sorted(numbers) == list(range(1, 76)), "append-only: 1-75, none struck or renumbered"
     assert len(numbers) == len(set(numbers)), "no judgement call is written twice"
 
 
@@ -134,23 +130,6 @@ def test_the_three_v14_calls_are_marked_and_say_what_they_are():
         assert phrase in " ".join(match.group(1).split()), f"{number} does not carry {phrase!r}"
 
 
-def test_the_five_v17_calls_are_marked_and_say_what_they_are():
-    body = marks_mod.__doc__
-    phrases = {76: "`CALIBRATION_CHAT` and `ITEM_FEEDBACK` are subjects", 77: "one measurable belief",
-               78: "restated", 79: "the Importance list", 80: "refuses every bundle below 17"}
-    for number, phrase in phrases.items():
-        match = re.search(rf"^{number}\. \*\*v17\*\*(.*?)(?=^\d+\. |\Z)", body, re.M | re.S)
-        assert match, f"{number} is not marked v17"
-        assert phrase in " ".join(match.group(1).split()), f"{number} does not carry {phrase!r}"
-
-
-def test_the_marks_file_carries_the_v17_header_above_v16s_and_the_six_numbers():
-    text = marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")
-    assert text.index("MARKS_VERSION 17") < text.index("MARKS_VERSION 16")
-    assert "Run of record: none yet" in text and "WHY=marks:17" in text
-    assert marks_mod.load() == {**V9_MARKS, **V17_MARKS}
-
-
 def test_the_v16_call_is_marked_and_says_what_it_is():
     body = marks_mod.__doc__
     match = re.search(r"^75\. \*\*v16\*\*(.*?)(?=^\d+\. |\Z)", body, re.M | re.S)
@@ -211,10 +190,8 @@ def test_the_v10_header_stays_as_history():
 
 
 def test_the_eight_marks_and_no_golden_belief_recall():
-    """The eight of v9 have never moved; v17 adds six beside them, never in their place."""
-    assert {k: v for k, v in marks_mod.load().items() if k not in V17_MARKS} == V9_MARKS
-    assert {k: v for k, v in marks_mod.DEFAULTS.items() if k not in V17_MARKS} == V9_MARKS
-    assert {k: marks_mod.DEFAULTS[k] for k in V17_MARKS} == V17_MARKS
+    assert marks_mod.load() == V9_MARKS
+    assert marks_mod.DEFAULTS == V9_MARKS
     assert "golden_belief_recall" not in marks_mod.DEFAULTS
 
 
@@ -229,11 +206,10 @@ def _all_met_totals() -> dict:
     return {"dimension_coverage": 1.0, "option_validity": 1.0, "no_leak": 1.0,
             "anchoring_accuracy": 0.95, "compare_correctness": 1.0, "compare_measured": True,
             "refusals_by_rule": {}, "refusals_measured": True, "refusals_shown": 50,
-            "shape_refusals": 0, "brief_paragraphs": 1.0, "brief_measured": True,
-            **{name: 1.0 for name in V17_MARKS}, **{f"{name}_of": 5 for name in V17_MARKS}}
+            "shape_refusals": 0, "brief_paragraphs": 1.0, "brief_measured": True}
 
 
-def test_judge_returns_the_fourteen_rows_each_measured_and_met():
+def test_judge_returns_the_eight_rows_each_measured_and_met():
     judged = marks_mod.judge(_all_met_totals(), marks_mod.load())
     assert [k for k in judged if k != "passed"] == list(marks_mod.ROWS)
     for name in marks_mod.ROWS:
@@ -252,17 +228,6 @@ def test_one_unmeasured_mark_fails_the_run_and_says_so_on_its_row():
         judged = marks_mod.judge(totals, marks_mod.load())
         assert judged["passed"] is False, name
         assert judged[name]["measured"] is False and judged[name]["met"] is False, name
-
-
-def test_a_chat_mark_nobody_reached_is_unmeasured_and_not_met():
-    for name in V17_MARKS:
-        totals = {**_all_met_totals(), name: None, f"{name}_of": 0}
-        judged = marks_mod.judge(totals, marks_mod.load())
-        assert judged["passed"] is False, name
-        assert judged[name]["measured"] is False and judged[name]["met"] is False, name
-    short = {**_all_met_totals(), "one_measurable": 0.9}
-    row = marks_mod.judge(short, marks_mod.load())["one_measurable"]
-    assert row["measured"] and not row["met"] and row["mark"] == 1.0
 
 
 def test_the_refusal_mark_is_a_rate_over_the_answers_judged():

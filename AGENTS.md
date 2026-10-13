@@ -26,17 +26,7 @@ added to this line rather than quietly written — which is exactly how the thir
   reads *green at the current `MARKS_VERSION`*, so a rubric that moved has no run of record at all
   until one is spent, and a screen is one entry and cannot be one. The policy widened by one named
   event, in the open, which is the amendment shape this document asks for — it did not loosen.
-  **`MARKS_VERSION` 17** (spec `035-calibration-chat`, 2026-10-12) is the gate as written, and
-  **there is no run of record until `WHY=marks:17` is spent; never run or propose it**. keel-cloud 083
-  (`083-calibration-chat` at `805688a`: registry 3, document 18, inference `CONTRACT_VERSION` 11, V45) turns every
-  belief but the gate into a short chat that ends in one measurable belief: two new screens, `CALIBRATION_CHAT` and
-  `ITEM_FEEDBACK` (job class calibration), six new marks (`one_measurable`, `follow_up_budget`, `preview_rules`,
-  `no_founder_leak`, `importance_list`, `feedback_obeys`, each 1.00; `instructions/chat.py`), corpus r9 (the seven
-  entries unchanged, plus `chat/` and `verdicts/six-scenarios.yaml`), and the six-scenario verdicts in
-  `compare_correctness` (keel-cloud's own `SixScenarioVerdictsTest`). The validator takes neither chat screen, so their
-  rules are restated here and proved only against keel-cloud's own test cases; `rescore.py` refuses every bundle below
-  17 (call 80). Nothing live was called. What follows is v16's account, history since 2026-10-12 (never run).
-  **`MARKS_VERSION` 16** (spec `037-reveal-three-lines`, 2026-10-12) was the gate as written, and
+  **`MARKS_VERSION` 16** (spec `037-reveal-three-lines`, 2026-10-12) is the gate as written, and
   **there is no run of record until `WHY=marks:16` is spent; never run or propose it**. keel-cloud 084
   (merged at `fc12b49`; inference `CONTRACT_VERSION` 10, document 17) writes the reveal as three lines with the
   mechanism: `occasion` on CONTEXT_INTERPRET, `idea_what` / `idea_how` / `idea_belief` on SOLUTION_MECHANISM, no

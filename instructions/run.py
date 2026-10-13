@@ -34,13 +34,11 @@ import json
 import os
 import sys
 import time
-import types
 from pathlib import Path
 
 from stack.config import REPO_ROOT, load_config
 
 from . import brief as brief_mod
-from . import chat as chat_mod
 from . import compare as compare_mod
 from . import contract as contract_mod
 from . import corpus as corpus_mod
@@ -58,7 +56,7 @@ from . import validate as validate_mod
 # number before the first call is that nobody is surprised by the size of the bill.
 COST_PER_CASE_ESTIMATE_USD = 0.04
 
-#: The nine model screens (spec 029 FR-016; the chat pair at v17). `COMPARE` is not one: it is never sent.
+#: The seven model screens (spec 029 FR-016). `COMPARE` is not one: it is never sent.
 SCREENS = contract_mod.MODEL_SCREENS
 
 #: `-k` kind words (research R6): each selects by `Case.kind` exactly. `interpret` is deliberately
@@ -66,7 +64,7 @@ SCREENS = contract_mod.MODEL_SCREENS
 #: slash form `03-lullaby/INTERPRET` selects the reads.
 KIND_WORDS = {"context": "CONTEXT", "frame": "FRAME", "calibration": "CALIBRATION",
               "respondent": "RESPONDENT", "reading": "READING", "compare": "COMPARE",
-              "brief": "BRIEF", "chat": "CHAT", "feedback": "FEEDBACK"}
+              "brief": "BRIEF"}
 
 
 def main(argv=None) -> int:
@@ -171,13 +169,6 @@ def _all_cases(corpus, exported, instructions, executor_module, args) -> list:
     for entry in corpus.entries:
         cases.extend(prompts_mod.build_cases(entry, exported, instructions, executor_module,
                                              n_runs=args.n_runs, host=args.host))
-    # Corpus revision 9 (MARKS_VERSION 17): the calibration chat's cases, then the six-scenario verdicts' row.
-    # (`load` always carries them; a corpus built by hand without them builds neither.)
-    if corpus.chat:
-        cases.extend(prompts_mod.build_chat_cases(corpus, exported, instructions, executor_module,
-                                                  n_runs=args.n_runs, host=args.host))
-    if corpus.scenarios:
-        cases.append(prompts_mod.six_scenarios_case())
     return select(cases, args.filter)
 
 
@@ -187,16 +178,6 @@ def _compare(config, corpus, cases, run_dir) -> list:
     scores = []
     for case in cases:
         if case.kind != "COMPARE":
-            continue
-        if case.entry_id == compare_mod.SIX_ID:
-            try:
-                raw = compare_mod.six_scenarios(config.keel_cloud, corpus.scenarios)
-            except compare_mod.EngineUnavailable as reason:
-                raw = compare_mod.unmeasured(compare_mod.SIX_ID, str(reason))
-            scores.append(score_mod.score_compare(case, types.SimpleNamespace(id=compare_mod.SIX_ID), raw))
-            line = (f"{raw.agreed} of {raw.checks} agreed · {len(raw.mismatches)} scenarios differ"
-                    if raw.measured else f"NOT measured -- {str(raw.reason).splitlines()[0]}")
-            print(f"[compare] {case.case_id:<44} {line}")
             continue
         entry = corpus.by_id(case.entry_id)
         compare_dir = Path(run_dir) / "compare"
@@ -262,31 +243,6 @@ def denominators(cases) -> dict:
         if case.meta.get("part") == 1 and link == corpus_mod.LINK_PRIMARY:
             row["sweep_a"] += swept
     return out
-
-
-def chat_denominators(cases) -> dict:
-    """What each chat mark is counted over per N, read off the cases and the corpus's own labels (never typed):
-    the chat cases (`follow_up_budget`, `preview_rules`, `no_founder_leak`), those the corpus measures rather than
-    leaves out (`one_measurable` reads a proposal on all of them, and `leave_out` on the rest), those expecting one
-    follow-up (a case where the model asks has no proposal to read in this one-call chat), the Importance cases
-    (`importance_list`) and the feedback cases (`feedback_obeys`)."""
-    chat = [c for c in cases if c.kind == "CHAT" and c.run_index == 1]
-    feedback = [c for c in cases if c.kind == "FEEDBACK" and c.run_index == 1]
-    labels = [c.meta["chat_case"] for c in chat]
-    return {"chat": len(chat), "ideas": len({c.entry_id for c in chat}),
-            "leave_out": sum(1 for x in labels if x.leaves_out),
-            "follow_up_expected": sum(1 for x in labels if x.follow_up),
-            "importance": sum(1 for x in labels if x.dimension == chat_mod.IMPORTANCE),
-            "feedback": len(feedback),
-            "feedback_refusals": sum(1 for c in feedback
-                                     if c.meta["feedback"]["expect"]["outcome"] == "refuse")}
-
-
-def _chat_denominator_line(row: dict) -> str:
-    return (f"calibration chat, per N: {row['chat']} chat cases over {row['ideas']} ideas "
-            f"({row['follow_up_expected']} expecting one follow-up, {row['leave_out']} to leave out, "
-            f"{row['importance']} Importance) · {row['feedback']} feedback cases "
-            f"({row['feedback_refusals']} to refuse)")
 
 
 def _denominator_line(rows: dict) -> str:
@@ -360,7 +316,6 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
         "compare": [_compare_json(s) for s in compare_scores],
         "totals": totals, "spread": {}, "prompts": [],
         "denominators": denominators(cases),
-        "chat_denominators": chat_denominators(cases),
     }
     report_mod.write_scorecard(run_dir, scorecard)
     judged = marks_mod.judge(totals, marks)
@@ -377,8 +332,7 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
     print("-" * 100)
     print(f"{len(model_cases)} cases: {counts['CONTEXT'] + counts['FRAME']} interpretation, "
           f"{counts['CALIBRATION']} calibration, {counts['RESPONDENT']} respondent, "
-          f"{counts['READING']} interpret, {counts['BRIEF']} brief, {counts['CHAT']} chat, "
-          f"{counts['FEEDBACK']} feedback, N={args.n_runs} runs per case "
+          f"{counts['READING']} interpret, {counts['BRIEF']} brief, N={args.n_runs} runs per case "
           f"-- plus {counts['COMPARE']} COMPARE row(s), which are never a call")
     compare_line = (f"{totals['compare_agreed']} of {totals['compare_checks']}"
                     if totals["compare_measured"] else "NOT measured")
@@ -392,7 +346,6 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
         print(f"  {entry_id:<20} calibration {row['calibration']} · respondent {links} · "
               f"no_leak sweep A {row['sweep_a']} + sweep B {row['sweep_b']} · {names}")
     print(_denominator_line(scorecard["denominators"]))
-    print(_chat_denominator_line(scorecard["chat_denominators"]))
     print(f"rough estimate at ${COST_PER_CASE_ESTIMATE_USD:.2f} a case: "
           f"${len(model_cases) * COST_PER_CASE_ESTIMATE_USD:.2f} of the founder's own money")
     print(f"bundle: {run_dir}")
@@ -472,7 +425,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
             render=lambda payload, case=case: prompts_mod.render(
                 executor_module, payload, job_id=prompts_mod._slug(case.case_id) + "-turn2",
                 host=args.host))
-        entry = corpus.by_id(case.entry_id)          # None on a chat case: it belongs to no entry
+        entry = corpus.by_id(case.entry_id)
         for draft in (answer, answer.redraw):
             if draft is not None:
                 _count_draft(state, draft)
@@ -510,9 +463,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         unmet_by_screen = validate_mod.unmet_by_screen(config.keel_cloud, batch)
         unmet = list(unmet_by_screen.values())
         unmeasured_kinds = sorted(unmet_by_screen)
-        # The chat pair's rules are restated by `instructions/chat.py` while the validator does not take them.
-        own_rules = validate_mod.own_rules_untaken(config.keel_cloud, batch)
-        batch = validate_mod.without_screens(batch, list(unmet_by_screen) + own_rules)
+        batch = validate_mod.without_screens(batch, unmet_by_screen)
         try:
             report = validate_mod.run(config.keel_cloud, batch,
                                       run_dir / "batch.json", run_dir / "validation.json")
@@ -533,7 +484,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
 
     totals = score_mod.totals(state.calibration, state.respondent, state.interpret,
                               compare_scores, brief_scores=state.brief, errored=state.errored,
-                              chat_scores=state.chat, schema_invalid=state.schema_invalid,
+                              schema_invalid=state.schema_invalid,
                               refusals_by_rule=aggregate["refusals_by_rule"],
                               shape_refusals=aggregate["shape_refusals"],
                               refusals_measured=refusals_measured,
@@ -559,8 +510,6 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         "respondent": [_question_json(s) for s in state.respondent],
         "interpret": [_interpret_json(s) for s in state.interpret],
         "brief": [_brief_json(s) for s in state.brief],
-        "chat": [_chat_json(s) for s in state.chat],
-        "chat_denominators": chat_denominators(cases),
         "totals": totals,
         "redraws": state.redraws,
         "spread": _spreads(state),
@@ -686,7 +635,6 @@ class _RunState:
 
     def __init__(self):
         self.calibration, self.respondent, self.interpret, self.brief = [], [], [], []
-        self.chat = []                   # MARKS_VERSION 17: the calibration chat's scores
         self.shown_to_aggregate = []
         # Call 41: the answers judged during the run, their report entries (the first draft's
         # under its case id, a redraw's under `<case_id>#redraw`), and one row a redraw.
@@ -783,19 +731,6 @@ def _score(case, entry, answer, failed, state, judge) -> dict:
         diff.update(golden=score.golden, produced=score.produced,
                     missing_ids=score.missing_ids, extra_ids=score.extra_ids)
         diff["line"] = (f"  {score.produced or 'no word'} (corpus {score.golden})")
-    elif case.kind == "CHAT":
-        score = chat_mod.score_chat(case.meta["chat_case"], case.meta["chat_block"],
-                                    case.meta["idea_words"], answer.outcome, result,
-                                    questions=len(answer.questions or []), failed=failed)
-        state.chat.append(score)
-        diff.update(faults=score.faults, marks=score.marks)
-        diff["line"] = "  " + " · ".join(f"{name} {'yes' if verdict else 'no'}"
-                                         for name, verdict in score.marks.items() if verdict is not None)
-    elif case.kind == "FEEDBACK":
-        score = chat_mod.score_feedback(case.meta["feedback"], answer.outcome, result, failed=failed)
-        state.chat.append(score)
-        diff.update(faults=score.faults, marks=score.marks)
-        diff["line"] = f"  feedback_obeys {'yes' if score.marks['feedback_obeys'] else 'no'}"
     elif case.kind == "BRIEF":
         questions = answer.questions if answer.outcome == "NEEDS_INPUT" else None
         score = brief_mod.score_brief(case, entry, answer.result, outcome=answer.outcome,
@@ -909,11 +844,6 @@ def _question_json(score) -> dict:
 
 def _interpret_json(score) -> dict:
     return {k: v for k, v in vars(score).items() if not k.startswith("_")}
-
-
-def _chat_json(score) -> dict:
-    return {"case_id": score.case_id, "kind": score.kind, "marks": score.marks,
-            "faults": [list(f) for f in score.faults]}
 
 
 def _brief_json(score) -> dict:

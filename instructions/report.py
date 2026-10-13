@@ -225,7 +225,7 @@ def _count(value) -> str:
     return "—" if value is None else str(value)
 
 
-#: The fourteen rows of the v17 mark table (the eight of v11 and the chat's six), in `marks.ROWS` order: (row, label, formatter).
+#: The eight rows of the v11 mark table, in `marks.ROWS` order: (row, label, formatter).
 MARK_ROWS = (
     ("dimension_coverage", "dimension coverage (one question a dimension, both screens)", _pct),
     ("option_validity", "option validity (every registry rule, every question)", _pct),
@@ -235,13 +235,6 @@ MARK_ROWS = (
     ("refusals", "rule refusals, as a rate of answers judged", _pct),
     ("shape_refusals", "shape refusals", _count),
     ("brief_paragraphs", "BRIEF paragraphs (all four marks)", _pct),
-    # MARKS_VERSION 17 (calls 76-80): the calibration chat's six, `instructions/chat.py`.
-    ("one_measurable", "chat: one measurable belief (one measure, in the registry's kinds)", _pct),
-    ("follow_up_budget", "chat: the follow-up budget (at most one, where expected)", _pct),
-    ("preview_rules", "chat: the preview rules (frame, balanced wording)", _pct),
-    ("no_founder_leak", "chat: no founder number or belief in a respondent slot", _pct),
-    ("importance_list", "chat: the Importance list (the problem plus six others)", _pct),
-    ("feedback_obeys", "chat: feedback obeys the can and can't rules", _pct),
 )
 
 

@@ -6,13 +6,7 @@
 # evals/policy.py states for POLICY_VERSION, and a separate constant so the two can never be
 # confused.
 
-# MARKS_VERSION 17 (judgement calls 76-80, 2026-10-12; spec 035-calibration-chat, the sibling of keel-cloud
-# 083-calibration-chat at 805688a; registry 3, document 18, contract 11, corpus revision 9). Two screens, CALIBRATION_CHAT
-# and ITEM_FEEDBACK (job class calibration), and six marks at the bottom of this file; no number above moved.
-# **Scores before and after this bump are not comparable**, and a v16 bundle **cannot be re-scored** to v17.
-# **Run of record: none yet** -- there is none until `WHY=marks:17` is spent.
-#
-# MARKS_VERSION 16 (history; judgement call 75, 2026-10-12; spec 037-reveal-three-lines, the sibling of keel-cloud
+# MARKS_VERSION 16 (judgement call 75, 2026-10-12; spec 037-reveal-three-lines, the sibling of keel-cloud
 # 084-reveal-three-lines, merged at fc12b49; contract 9 -> 10, document 16 -> 17). The idea is three lines written
 # with the mechanism (occasion on the context screen; no reveal on the respondent screen); the validator owns the
 # new rules and the part-2 reveal W3 fault retires. No number below moved. **Scores before and after this bump are
@@ -245,11 +239,3 @@ brief_paragraphs = 1.00
 # `wording` (call 56, v11) is reported on every run and marked on none: per screen, the questions with
 # model text, their words, and how many run over W1's 20 (25 with a scene), carry W2's "do you think",
 # W6's "you" on the founder's side, miss S1's scene-then-question, and how many options run over W5's 8.
-# MARKS_VERSION 17 (spec 035, calls 76-80): the calibration chat's six. The 2026-10-12 brief: follow_up_budget at 1.00 (the spec said 0.95)
-# (a needless or a missed follow-up is a fault), balanced wording judged by structure only.
-one_measurable = 1.00
-follow_up_budget = 1.00
-preview_rules = 1.00
-no_founder_leak = 1.00
-importance_list = 1.00
-feedback_obeys = 1.00

@@ -540,11 +540,10 @@ def test_the_rubric_did_not_move():
     # no host ever got its own. The version itself is pinned by `test_instruction_marks.py`; what
     # is asserted here is that the five numbers a host is judged against have never moved.
     # v9 (spec 029, calls 28-36) moved the subjects and the marks -- again for every host at once.
-    # v17 (spec 035) added six chat marks beside them -- for every host at once -- and moved none of these.
-    assert {k: v for k, v in marks_mod.DEFAULTS.items() if k not in marks_mod.CHAT_ROWS} == {
-        "dimension_coverage": 1.00, "option_validity": 1.00, "no_leak": 1.00, "anchoring_accuracy": 0.90,
-        "compare_correctness": 1.00, "rule_refusal_rate": 0.02, "shape_refusals": 0,
-        "brief_paragraphs": 1.00}
+    assert marks_mod.DEFAULTS == {"dimension_coverage": 1.00, "option_validity": 1.00,
+                                  "no_leak": 1.00, "anchoring_accuracy": 0.90,
+                                  "compare_correctness": 1.00, "rule_refusal_rate": 0.02,
+                                  "shape_refusals": 0, "brief_paragraphs": 1.00}
 
 
 def test_the_makefile_defaults_to_claude_and_threads_the_host_through():

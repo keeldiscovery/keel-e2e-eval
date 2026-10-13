@@ -56,10 +56,7 @@ def load_runtime(keel_runtime: Path):
 
 
 #: `Case.kind` at `MARKS_VERSION` 9 (data-model §4). `FRAME` is the two typed-seed interpretations.
-#: `CHAT` and `FEEDBACK` are the calibration chat's two screens (MARKS_VERSION 17, keel-cloud 083): one case an
-#: (idea, dimension) and one a feedback request, neither belonging to a corpus entry.
-KINDS = ("CONTEXT", "FRAME", "CALIBRATION", "RESPONDENT", "READING", "COMPARE", "BRIEF", "CHAT",
-         "FEEDBACK")
+KINDS = ("CONTEXT", "FRAME", "CALIBRATION", "RESPONDENT", "READING", "COMPARE", "BRIEF")
 
 
 @dataclass
@@ -258,57 +255,3 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
     add(f"{entry.id}/BRIEF", "BRIEF", c.SCREEN_BRIEF, "BRIEF",
         context_mod.build_brief(entry, exported.keys_for(c.SCREEN_BRIEF), registry))
     return cases
-
-
-def build_chat_cases(corpus, exported, instructions_by_screen, executor_module, *, n_runs: int = 3,
-                     host: str = "claude") -> list:
-    """The calibration chat's cases (MARKS_VERSION 17): one `CALIBRATION_CHAT` case an (idea, dimension) of corpus
-    r9's `chat/*.yaml` -- 41 at r9 -- the founder's words as the turn's content, and one `ITEM_FEEDBACK` case a
-    row of `chat_feedback.yaml`, the founder's request as its content. `n_runs` repeats each, as every model
-    case is. Nothing is called: this renders the prompts."""
-    from . import chat as chat_mod                      # noqa: PLC0415 - avoids a circular import
-    from . import context as context_mod                # noqa: PLC0415
-    from . import contract as c                         # noqa: PLC0415
-
-    registry = exported.registry
-    sheets = chat_mod.ideas()
-    scenarios = {s["id"]: s for s in corpus.scenarios}
-    cases = []
-
-    def add(case_id_stem, kind, screen, subject, entry_id, context, content, meta):
-        payload = payload_for(instructions_by_screen[screen], context, exported.for_screen(screen),
-                              content=content)
-        for run_index in range(1, n_runs + 1):
-            case = Case(case_id=f"{case_id_stem}/run{run_index}", kind=kind, entry_id=entry_id,
-                        screen=screen, subject=subject, run_index=run_index, payload=payload,
-                        meta=dict(meta))
-            case.prompt = render(executor_module, payload, job_id=_slug(case.case_id), host=host)
-            cases.append(case)
-
-    keys = exported.keys_for(c.SCREEN_CHAT)
-    for idea in corpus.chat:
-        sheet, scenario = sheets.get(idea.id), scenarios.get(idea.id)
-        if sheet is None or scenario is None:
-            raise RuntimeUnavailable(f"chat idea {idea.id!r} has no sheet in chat_ideas.yaml or no scenario "
-                                     "in verdicts/six-scenarios.yaml")
-        for chat_case in idea.cases:
-            add(f"chat/{idea.id}/{chat_case.dimension}", "CHAT", c.SCREEN_CHAT, chat_case.dimension,
-                idea.id, context_mod.build_calibration_chat(chat_case, sheet, scenario, registry, keys),
-                chat_case.founder,
-                {"chat_case": chat_case, "idea_words": list(sheet.get("idea_words") or []),
-                 "chat_block": registry.by_key(chat_case.dimension).chat, "b2b": idea.b2b})
-    keys = exported.keys_for(c.SCREEN_FEEDBACK)
-    for feedback in chat_mod.feedback_cases():
-        add(f"chat/feedback/{feedback['id']}", "FEEDBACK", c.SCREEN_FEEDBACK, feedback["dimension"],
-            "feedback", context_mod.build_item_feedback(feedback, chat_mod.RULES, keys),
-            feedback["request"], {"feedback": feedback})
-    return cases
-
-
-def six_scenarios_case():
-    """The row for corpus r9's `verdicts/six-scenarios.yaml`: a `COMPARE` row like an entry's (never a call, no
-    prompt), measured by `compare.six_scenarios` and counted into `compare_correctness`."""
-    from . import compare as compare_mod                # noqa: PLC0415
-    from . import contract as c                         # noqa: PLC0415
-    return Case(case_id=f"{compare_mod.SIX_ID}/COMPARE", kind="COMPARE", entry_id=compare_mod.SIX_ID,
-                screen=c.SCREEN_COMPARE, subject="COMPARE", run_index=0, payload={})
