@@ -399,15 +399,16 @@ def test_a_refused_asked_job_is_redrawn_once_with_the_derivation_text(cases):
     assert answer.scored.result is redrawn
 
 
-def test_an_l_refusal_reported_as_shape_is_redrawn_as_the_rule_it_is():
-    """Judgement call 86 (DRIFT #76): keel-cloud's validator reports a founder-lists refusal `kind: shape`; the cloud's
-    orchestrator repairs it, so the eval reads it as rule `L<n>` and redraws it once."""
+def test_an_l_refusal_is_redrawn_as_the_rule_the_validator_reports():
+    """Spec 042 call 113 (DRIFT #76 closed): keel-cloud's validator reports a founder-lists refusal `kind: rule`, and
+    the cloud's orchestrator repairs it, so the eval redraws it once; a shape refusal is never redrawn, whatever its
+    message opens with (spec 040's call 86 reading is gone)."""
     import types                                                         # noqa: PLC0415
     from instructions import runner as runner_mod                        # noqa: PLC0415
     case = types.SimpleNamespace(screen="CALIBRATION_QUESTIONS")
+    rule = {"accepted": False, "refusal": {"kind": "rule", "rule": "L1", "path": "result.questions[2].list.items",
+                                           "message": "L1: problem.importance takes exactly 5 items"}}
     shaped = {"accepted": False, "refusal": {"kind": "shape", "rule": None, "path": "result.questions[2].list.items",
                                              "message": "L1: problem.importance takes exactly 5 items"}}
-    plain = {"accepted": False, "refusal": {"kind": "shape", "rule": None, "path": "result.vector",
-                                            "message": "must be one of PROBLEM, SOLUTION, COMMERCIAL"}}
-    assert runner_mod.should_redraw(case, shaped)
-    assert not runner_mod.should_redraw(case, plain)
+    assert runner_mod.should_redraw(case, rule)
+    assert not runner_mod.should_redraw(case, shaped)

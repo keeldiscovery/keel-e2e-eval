@@ -78,7 +78,21 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
-### `MARKS_VERSION` 18 — the gate as written, **no run of record yet** (spec `040-marks-v18`, 2026-10-14)
+### `MARKS_VERSION` 19 — the gate as written, **no run of record yet** (spec `042-contract-14-r11`, 2026-10-14)
+
+The defects batch (keel-cloud 090 / 091, merged at keel-cloud-docs `c432c1d`; registry `VERSION` 4, document 20,
+`CONTRACT_VERSION` 14, routing v11, `InferenceCharge` 7, the lock holding one job of 35). No mark is born or retired and
+no number in `marks.toml` moved; four judgement calls moved under them (110-115). The corpus is **revision 11** (a
+revision-10 file is refused by name): DRIFT #77's five words fixed and 05-paidly's Frequency in months out of 3 (one
+median moved, no status or verdict). `spoken_form` holds **every** stem to 20 words with nothing named apart; an `L`
+refusal is read as the validator's rule (DRIFT #76 closed, the reclassification deleted); `brief_facts` reads 091's
+`keelBar` and its words. `rescore.py` refuses every bundle below 19. **There is no v19 run of record until
+`WHY=marks:19` is spent, on the founder's word only** -- neither run nor proposed here. Measured at zero spend against
+`c432c1d` (the unit tests over keel-cloud's own corpus tests): `compare_correctness` **108 of 108**, `spoken_form`
+**109 of 109**, `brief_facts` **94 of 94**. The journeys (S-005 / 006 / 007) walk revision 11 and contract 14: one
+RESPONDENT_QUESTIONS job a lock, and on S-006 the founder names the idea on S2 (keel-cloud 090).
+
+### `MARKS_VERSION` 18 — history since v19, never run (spec `040-marks-v18`, 2026-10-14)
 
 The October redesign (keel-cloud 087 / 088 / 089, merged at keel-cloud-docs `7b151f9`; registry `VERSION` 4, document 20,
 `CONTRACT_VERSION` 13, routing v11 with `asked: light`, `InferenceCharge` 7; `canon/designs/design-2026-10-14.md` §9 row

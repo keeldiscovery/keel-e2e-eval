@@ -1,12 +1,14 @@
-"""The vectors corpus becomes the script (spec 039; spec 041: corpus revision 10, contract 13).
+"""The vectors corpus becomes the script (spec 039; spec 041: corpus revision 10, contract 13; spec 042: corpus
+revision 11, contract 14 -- one RESPONDENT_QUESTIONS job a lock, the founder's name for the idea).
 
-One revision-10 corpus entry in; out come the three things S-005, S-006 and S-007 need to drive the
+One revision-11 corpus entry in; out come the three things S-005, S-006 and S-007 need to drive the
 **vector corridor** deterministically, and nothing else:
 
 1. a **keel-runtime scripted-executor script** keyed by screen name -- the corridor's screens
    (`CONTEXT_INTERPRET`, `PROBLEM_INTERPRET`, `SOLUTION_MECHANISM`, `CALIBRATION_QUESTIONS`, `ASKED`,
    `RESPONDENT_QUESTIONS`), the gate-story reading (`INTERPRET`) and the brief's reading (`BRIEF`),
-   every result written in contract 13's shapes from the entry's own stored texts;
+   every result written in contract 13's screen shapes (contract 14 moved no screen schema) from the entry's own
+   stored texts;
 2. the **context-keys table** that script is matched through (`context_keys_for`), derived from
    keel-cloud's own export rather than copied -- see that function for why it is not the export
    byte for byte;
@@ -20,7 +22,9 @@ Check-screen draft, `list {items[{label, asked?}], phrase?}` -- the entry's own 
 what the founder then saves untouched -- and runs once a vector *and once more for every list
 dimension the founder answers* (`POST calibration/{vector}/draft`: the same key set, `answers`
 carrying the founder's Answer), so its entries are the corridor's own order (`calibration_jobs`).
-`RESPONDENT_QUESTIONS` writes the gate's clause and nothing else (`{key, event?}`); `ASKED` the
+`RESPONDENT_QUESTIONS` writes the gate's clause and nothing else (`{key, event?}`) -- and since keel-cloud 091
+(contract 14) it is **one job a lock**, part 1 on the primary link, the part that carries the gate; parts 2 and 3 are
+composed by code in the lock's own commit, so the script answers part 1 alone; `ASKED` the
 stranger's faces of a saved Compatibility / Adoption friction list (the corpus's own `asked`); `BRIEF`
 the headline and three answers, each citing its stage's deciding dimension (`broke`, where the
 stage broke).
@@ -31,7 +35,7 @@ while the corpus keeps revision 9's slugs. `wire_code` maps one onto the other b
 the founder's list, so a person's pick is sent -- and an `optionCounts` row compared -- on the wire's
 code.
 
-**One reader, one hash.** The entry is read through `instructions/corpus.py` -- the revision-10
+**One reader, one hash.** The entry is read through `instructions/corpus.py` -- the revision-11
 reader the instruction eval already uses -- and never a second time.
 
 **What the corpus does not carry is composed, and named** (`COMPOSED`). Revision 10 records the
@@ -57,8 +61,8 @@ from instructions import corpus as corpus_reader
 
 VECTORS = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 
-# The screen names the script is keyed by. `RESPONDENT_QUESTIONS` is four names, not one -- see
-# `context_keys_for`.
+# The screen names the script is keyed by (`context_keys_for`). Since keel-cloud 091 `RESPONDENT_QUESTIONS` is one
+# name again, on part 1's key set: the lock starts that one job and no other (spec 042).
 CONTEXT_SCREEN = "CONTEXT_INTERPRET"
 PROBLEM_SCREEN = "PROBLEM_INTERPRET"
 MECHANISM_SCREEN = "SOLUTION_MECHANISM"
@@ -68,10 +72,6 @@ INTERPRET_SCREEN = "INTERPRET"
 BRIEF_SCREEN = "BRIEF"
 #: keel-cloud 088 (contract 12): the `asked` faces of a saved Compatibility / Adoption friction list.
 ASKED_SCREEN = "ASKED"
-RESPONDENT_ALIASES = {(1, "PRIMARY"): "RESPONDENT_QUESTIONS_P1",
-                      (2, "PRIMARY"): "RESPONDENT_QUESTIONS_P2",
-                      (3, "PRIMARY"): "RESPONDENT_QUESTIONS_P3",
-                      (3, "COMMERCIAL_B2B"): "RESPONDENT_QUESTIONS_P3_B2B"}
 CORRIDOR_SCREENS = (CONTEXT_SCREEN, PROBLEM_SCREEN, MECHANISM_SCREEN, CALIBRATION_SCREEN,
                     ASKED_SCREEN, INTERPRET_SCREEN, BRIEF_SCREEN)
 
@@ -95,6 +95,8 @@ COMPOSED = (
     "when {circumstance}', or the referee's shorter clause where that frames past 20 words (E4)",
     "BRIEF reading -- r10 records none; a referee-worded headline and three answers citing each stage's "
     "deciding dimension",
+    "the founder's own name for the idea on S2 (keel-cloud 090, D14) -- r11 records Keel's short name only; one "
+    "entry (IDEA_NAMES) is renamed by the founder, every other keeps Keel's draft untouched",
 )
 
 
@@ -164,12 +166,13 @@ def frequency_fits(entry) -> bool:
     """Whether the corpus's Frequency can be stated on the entry's **own** recall window.
 
     keel-cloud counts Frequency in the window's own unit, on an axis from 0 to the window's count
-    (the respondent's `segmented_0_to_7` runs 0..count). Revision 10 keeps Frequency on the founder's
-    own "out of N" (spec 040 call 78: 05-paidly asks "invoices out of 7" over a 3-month window), so
-    where the founder's range or any pick lies past the window's count the founder cannot state it and
-    no respondent can answer it, and the journey leaves Frequency **out** (`unsure`) rather than
-    inventing a number (spec 039 D-1, spec 041 D-1). Countly's r10 window, {4, WEEKS}, carries its
-    "1 to 3 weeks out of 4": Frequency is asked there (D13).
+    (the respondent's `segmented_0_to_7` runs 0..count). The corpus keeps Frequency on the founder's
+    own "out of N", so where the founder's range or any pick lies past the window's count the founder
+    cannot state it and no respondent can answer it, and the journey leaves Frequency **out** (`unsure`)
+    rather than inventing a number (spec 039 D-1, spec 041 D-1, spec 042 D-1). Countly's {4, WEEKS}
+    carries its "1 to 3 weeks out of 4" and, since revision 11 (keel-cloud 091), Paidly's {3, MONTHS}
+    its "2 to 3 months out of 3": Frequency is asked on both. Mulch Run's "working days out of 7" on
+    {2, WEEKS} still does not fit (091 judgement call 11 left it).
     """
     window = window_of(entry)
     answer = (entry.founder_calibration.get("problem.frequency") or {}).get("answer")
@@ -284,6 +287,63 @@ def idea_lines(entry) -> dict:
     return {"what": what, "how": how[:300], "belief": belief[:200]}
 
 
+#: keel-cloud 090 (D14): the founder names the idea on S2. One entry's founder renames it -- three plain words, no
+#: claim word (L3) and no product word, at most five (L5) -- so one journey proves the name every later question uses is the founder's;
+#: every other journey saves Keel's draft untouched (spec 042 call 117, COMPOSED).
+IDEA_NAMES = {"05-paidly": "Invoice payout service"}
+
+
+def idea_name_of(line: str) -> str:
+    """keel-cloud `IdeaLines.nameOf` (spec 090): the name a what line carries -- a trailing full stop and a leading
+    *Imagine* are not part of it, whitespace runs are one space, a leading article is kept (lower-cased), and a first
+    word in sentence case is lower-cased when the name has more than one word and no other word starts with a
+    capital (it is read mid-sentence)."""
+    name = " ".join(str(line or "").split())
+    while name.endswith("."):
+        name = name[:-1].strip()
+    if name[:7].lower() == "imagine" and (len(name) == 7 or name[7] == " "):
+        name = name[7:].strip()
+    if not name:
+        return name
+    words = name.split(" ")
+    first = words[0]
+    article = first.lower() in ("a", "an", "the")
+    sentence_case = first[:1].isupper() and first[1:] == first[1:].lower()
+    rest_lower = all(not w[:1].isupper() for w in words[1:])
+    if article or (sentence_case and len(words) > 1 and rest_lower):
+        words[0] = first.lower()
+    return " ".join(words)
+
+
+def idea_view(entry) -> dict:
+    """`IdeaView` as keel-cloud serves Keel's draft (spec 090 FR-003): `what` the draft's name -- no *Imagine* -- which
+    for every r11 entry is its short name byte for byte (090 FR-006), `how` and `belief` the draft's."""
+    lines = idea_lines(entry)
+    return {"what": idea_name_of(lines["what"]), "how": lines["how"], "belief": lines["belief"]}
+
+
+def idea_card(name: str) -> str:
+    """keel-cloud `IdeaLines.card` (spec 090): the strangers' what line, composed by code -- *Imagine {name}.*"""
+    return f"Imagine {name.strip()}."
+
+
+def benefit_question(occasion_word: str, name: str) -> str:
+    """keel-cloud `BenefitFirst.question` (spec 091 FR-E): Relative advantage's stem, around the idea's current name."""
+    return f"On your last {occasion_word.strip() or 'time'}, would {name.strip() or 'the idea'} have made things " \
+           "better, or not?"
+
+
+def founder_idea_name(entry) -> str | None:
+    """What the founder types over the what line on S2, or `None` where Keel's draft is saved untouched."""
+    return IDEA_NAMES.get(entry.id)
+
+
+def idea_name(entry) -> str:
+    """The idea's name after S2 -- the founder's (`IDEA_NAMES`) or Keel's own short name -- as keel-cloud stores it."""
+    typed = founder_idea_name(entry)
+    return idea_name_of(typed) if typed else short_name(entry)
+
+
 def mechanism_result(entry) -> dict:
     m = entry.solution_mechanism or {}
     terms = list(m.get("mechanism_terms") or [])
@@ -349,7 +409,7 @@ ASKED_FACES = {"solution.compatibility", "solution.adoption_friction"}
 NOBODY_ELSE = ("nobody_else", "Nobody else")
 #: Every escape the registry gives an item (registry 4 `respondent.escape.code`).
 ESCAPES = {"cant_recall", "cant_tell", "cant_say", "cant_recall_one", "none_of_these", "someone_else_checks"}
-#: The gate story's one chip at contract 13 (keel-cloud 088: RATHER_NOT_SAY gone; spec 041 D-4).
+#: The gate story's one chip since contract 13 (keel-cloud 088: RATHER_NOT_SAY gone; spec 041 D-4, still r11's).
 STORY_CHIPS = {"cant_recall": "CANT_RECALL", "rather_not_say": "CANT_RECALL"}
 
 #: Registry 4's dimension names (`name`), for the referee's brief words only.
@@ -630,9 +690,10 @@ def plan_keys(entry, part: int, link: str) -> list[str]:
 
 
 def respondent_jobs(entry) -> list[tuple[int, str]]:
-    if is_b2b(entry):
-        return [(1, LINK_PRIMARY), (2, LINK_PRIMARY), (3, LINK_B2B)]
-    return [(1, LINK_PRIMARY), (2, LINK_PRIMARY), (3, LINK_PRIMARY)]
+    """The RESPONDENT_QUESTIONS jobs a lock starts: since keel-cloud 091 (contract 14, design §6) **one**, part 1 on the
+    primary link -- the part that carries the gate's clause -- on either persona; parts 2 and 3 (on B2B part 3 the
+    decision-maker's link's) are code's, written with the lock."""
+    return [(1, LINK_PRIMARY)]
 
 
 def respondent_item(entry, key: str) -> dict:
@@ -753,8 +814,8 @@ def generate(entry) -> GeneratedScript:
              if not entry.unsure(key)]
     if asked:
         screens[ASKED_SCREEN] = asked
-    for part, link in respondent_jobs(entry):
-        screens[RESPONDENT_ALIASES[(part, link)]] = [_completed(respondent_result(entry, part, link))]
+    (part, link), = respondent_jobs(entry)
+    screens[RESPONDENT_SCREEN] = [_completed(respondent_result(entry, part, link))]
     interpret = interpret_entries(entry)
     if interpret:
         screens[INTERPRET_SCREEN] = interpret
@@ -767,15 +828,15 @@ def generate(entry) -> GeneratedScript:
 def context_keys_for(exported: dict) -> dict:
     """The scripted executor's screen table, from keel-cloud's own `context-keys.json` export.
 
-    Three changes, each forced by keel-runtime's exact key-set match and each derived from the
+    Two changes, each forced by keel-runtime's exact key-set match and each derived from the
     export rather than typed:
 
-    * **`RESPONDENT_QUESTIONS` becomes four names.** The export writes the *union* of the four key
-      sets keel-cloud's `ScreenContextBuilder` uses -- part 1 carries no `mechanism` and no
-      `offer_name`, part 2 adds `mechanism`, part 3 on the primary link adds both, part 3 on the
-      decision-maker's link adds `offer_name` alone -- so only one of the four would ever match.
-      The three lock jobs land in keel-cloud's order, not the script's, so each part gets its own
-      alias (`RESPONDENT_ALIASES`) and its own entry.
+    * **`RESPONDENT_QUESTIONS` is part 1's key set.** The export writes the *union* of the key sets
+      keel-cloud's `ScreenContextBuilder` can use -- part 1 carries no `mechanism` and no `offer_name`,
+      part 2 adds `mechanism`, part 3 on the primary link adds both, part 3 on the decision-maker's link
+      `offer_name` alone. Since keel-cloud 091 the lock starts part 1's job and no other, so the table
+      names part 1's set alone (spec 041 aliased all four): a part 2 or 3 job, were the cloud ever to start
+      one again, matches nothing, fails, and the journey's one-job step says why.
     * **The classic screens are dropped.** No classic job runs on a vectors project, and a table
       that cannot answer one is the honest table.
     * Nothing else: `CALIBRATION_QUESTIONS`, `ASKED`, `INTERPRET` and `BRIEF` are the export's own sets.
@@ -789,12 +850,8 @@ def context_keys_for(exported: dict) -> dict:
     if not {"mechanism", "offer_name"} <= set(union):
         raise VectorsScriptError(
             f"keel-cloud's RESPONDENT_QUESTIONS keys {union} no longer carry both `mechanism` and "
-            "`offer_name`; the four per-part key sets cannot be derived")
-    base = [k for k in union if k not in ("mechanism", "offer_name")]
-    out[RESPONDENT_ALIASES[(1, LINK_PRIMARY)]] = base
-    out[RESPONDENT_ALIASES[(2, LINK_PRIMARY)]] = base + ["mechanism"]
-    out[RESPONDENT_ALIASES[(3, LINK_PRIMARY)]] = union
-    out[RESPONDENT_ALIASES[(3, LINK_B2B)]] = base + ["offer_name"]
+            "`offer_name`; part 1's key set cannot be derived")
+    out[RESPONDENT_SCREEN] = [k for k in union if k not in ("mechanism", "offer_name")]
     seen = {}
     for screen, keys in out.items():
         clash = seen.get(frozenset(keys))
@@ -819,6 +876,8 @@ class FounderInputs:
     decider: dict              # PersonaInput.decider
     calibration: dict          # vector -> [CalibrationAnswer]
     hourly_rate: float | None
+    #: What the founder types over S2's what line (keel-cloud 090); `None` saves Keel's draft untouched.
+    idea_name: str | None = None
 
 
 def founder_inputs(entry) -> FounderInputs:
@@ -847,6 +906,7 @@ def founder_inputs(entry) -> FounderInputs:
         decider=decider,
         calibration={v: calibration_answers(entry, v) for v in VECTORS},
         hourly_rate=hourly_rate(entry),
+        idea_name=founder_idea_name(entry),
     )
 
 
@@ -859,7 +919,7 @@ class Pick:
     cost: dict | None = None
     scale: int | None = None
     chip: str | None = None
-    #: The recall period the corpus recorded a cost total over (`quarter` throughout r10).
+    #: The recall period the corpus recorded a cost total over (`quarter` throughout r10 and r11).
     cost_period: str | None = None
 
     def asked_over(self, period: str | None) -> "Pick":
@@ -926,7 +986,7 @@ def _pick(entry, key: str, raw) -> Pick:
     if isinstance(raw, dict) and raw.get("chip"):
         chip = str(raw["chip"])
         if chip not in ESCAPES:
-            raise VectorsScriptError(f"{entry.id}: {key}'s chip {chip!r} is not an escape at contract 13")
+            raise VectorsScriptError(f"{entry.id}: {key}'s chip {chip!r} is not an escape at contract 14")
         return Pick(dimension=key, chip=chip.upper())
     if key == "commercial.existing_sacrifice":
         if not isinstance(raw, dict):

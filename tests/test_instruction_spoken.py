@@ -1,9 +1,9 @@
 """The spoken-form marks and the cloud corpus they read (spec 040 FR-005; `spoken-questions-guidelines.md` §2-§5, §8;
-keel-cloud 088 FR-001 / FR-003 / FR-005; judgement calls 79-81).
+keel-cloud 088 FR-001 / FR-003 / FR-005; judgement calls 79-81; spec 042 calls 111-112).
 
 Each of `S1`-`S10` and `K2`-`K6` fails once for its own reason on a hand-built item and passes on the good one, and the
-real record -- keel-cloud's `build/spoken-corpus.txt` over corpus revision 10 -- keeps every rule but the five corpus
-items call 81 names, which are found, reported and kept out of the denominator. Stackless and modelless: the real
+real record -- keel-cloud's `build/spoken-corpus.txt` over corpus revision 11 -- keeps every rule, every stem at most
+20 words, with no item known apart (keel-cloud 091 fixed the five revision-10 items spec 040's call 81 named). Stackless and modelless: the real
 record is read from the keel-cloud checkout `stack.toml` names (skipped by name when its corpus test has not run).
 """
 
@@ -85,21 +85,24 @@ def test_each_spoken_rule_fails_once_for_its_own_reason(change, rule):
     assert set(rules) <= allowed, rules
 
 
-def test_the_two_unchanged_frames_are_held_at_twenty_five_until_the_founder_decides():
-    """Call 79 (keel-cloud 088 call 12): Existing sacrifice and Relative advantage run to 25 words; every other stem
-    20."""
-    stem = ("Thinking of your last busy morning, would a tag that beeps back have made things better for you, or not, "
+def test_every_stem_is_held_to_twenty_words_the_two_frames_too():
+    """Call 111 (keel-cloud 091 FR-E): Relative advantage's and Existing sacrifice's frames were shortened, so spec
+    040's 25-word allowance (call 79) is gone -- a 21-word stem is an S1 fault on every dimension."""
+    stem = ("On your last busy morning before work, would a tag that beeps back have made things better, or not, for "
             "today?")
-    assert 20 < len(stem.split()) <= 25
+    assert len(stem.split()) == 21
     benefit = _item(key="solution.relative_advantage", question=stem, stem=stem,
                     options=("It would have made things better", "No difference", "It would have made things worse"),
                     count_line="I'll read three options.",
                     options_line="It would have made things better; no difference; or it would have made things "
                                  "worse.", transform="yes_no_per_benefit")
-    assert spoken_mod.item_faults(benefit) == []
-    assert _rules(dataclasses.replace(benefit, key="solution.compatibility", transform="none")) == ["S1"]
-    assert spoken_mod.stem_limit("commercial.existing_sacrifice") == 25 and spoken_mod.stem_limit(
-        "problem.importance") == 20
+    assert _rules(benefit) == ["S1"]
+    short = "On your last busy morning, would a tag that beeps back have made things better, or not?"
+    assert len(short.split()) <= 20
+    assert spoken_mod.item_faults(dataclasses.replace(benefit, question=short, stem=short)) == []
+    assert {spoken_mod.stem_limit(k) for k in ("commercial.existing_sacrifice", "solution.relative_advantage",
+                                                "problem.importance")} == {20}
+    assert not hasattr(spoken_mod, "LONG_FRAMES")
 
 
 def test_importance_picks_two_and_is_read_one_then_one_more():
@@ -260,25 +263,25 @@ def real():
     if not (keel_cloud / cloud_mod.SPOKEN_FILE).is_file():
         pytest.skip("keel-cloud's SpokenGuidelinesCorpusTest has not written build/spoken-corpus.txt -- run "
                     "`./gradlew test --tests '*SpokenGuidelinesCorpusTest'` in the keel-cloud checkout")
-    fx.canon_entry("01-countly.yaml")                                 # skips by name off revision 10
+    fx.canon_entry("01-countly.yaml")                                 # skips by name off revision 11
     registry = fx.registry()
     corpus = corpus_mod.load(keel_cloud).bind(registry)
     return corpus, cloud_mod.read(keel_cloud, corpus=corpus, registry=registry)
 
 
-def test_the_corpus_record_keeps_every_rule_but_the_five_known_items(real):
+def test_the_corpus_record_keeps_every_rule_and_nothing_is_known_apart(real):
+    """Calls 111, 112 (keel-cloud 091): revision 11 fixed DRIFT #77's five words and every stem is at most 20, so the
+    record keeps every rule with no item named apart -- 74 composed items and 35 faces, 109 of 109."""
     corpus, cloud = real
     score = spoken_mod.score(cloud, corpus)
     assert score.faults == [], score.faults
-    assert (score.units, score.clean, score.spoken_form) == (104, 104, 1.0)
-    found = sorted((k["entry"], k["key"], k["evidence"].split(":")[0]) for k in score.known)
-    assert found == sorted((e, k, r) for e, k, r, _code in spoken_mod.KNOWN)
-    assert score.missing_known == []
+    assert (score.units, score.clean, score.spoken_form) == (109, 109, 1.0)
+    assert spoken_mod.KNOWN == () and score.known == [] and score.missing_known == []
     assert sum(len(cloud.items_of(e.id)) for e in corpus.entries) == 74, "seventy-four composed items, the gate aside"
 
 
-def test_a_known_item_no_longer_found_is_itself_a_fault(real, monkeypatch):
-    """Call 81: the ledger shrinks with the corpus -- a stale entry in it fails the mark."""
+def test_a_known_item_no_longer_found_is_still_a_fault_were_one_named(real, monkeypatch):
+    """Call 81's ledger, kept empty (call 112): were an item named again and not found, the mark would say so."""
     corpus, cloud = real
     stale = ("01-countly", "commercial.commitment", "S10", None)
     monkeypatch.setattr(spoken_mod, "KNOWN", spoken_mod.KNOWN + (stale,))
@@ -291,5 +294,5 @@ def test_a_known_item_no_longer_found_is_itself_a_fault(real, monkeypatch):
 def test_a_selection_of_entries_marks_those_alone(real):
     corpus, cloud = real
     score = spoken_mod.score(cloud, corpus, entry_ids={"03-lullaby"})
-    assert set(score.by_entry) == {"03-lullaby"} and score.units == 14
-    assert [k["entry"] for k in score.known] == ["03-lullaby"]
+    assert set(score.by_entry) == {"03-lullaby"} and score.units == 15
+    assert score.known == []

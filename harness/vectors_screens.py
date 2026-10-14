@@ -271,10 +271,14 @@ class Corridor:
             _wait_url(self.page, nxt)
             h.add_screenshot(self._b.screenshot(f"{slug}-confirmed"))
 
-    def idea_check(self) -> dict:
-        """S2 (keel-web 063 FR-007): the idea's three lines, read as drawn, saved untouched -- Save is the
-        approval -- and on to the solution's first question. Returns the lines and the frame."""
-        with self._b.step("founder checks the idea's three lines and saves them (S2: Save approves)") as h:
+    def idea_check(self, name: str | None = None) -> dict:
+        """S2 (keel-web 063 FR-007): the idea's three lines, read as drawn, and saved -- Save is the approval -- and on
+        to the solution's first question. With `name` the founder first types it over the what line (keel-cloud 090,
+        D14: the what line is the idea's name, and it replaces Keel's short name); without, Keel's draft is saved
+        untouched. Returns the lines as drawn (before any edit), the name typed, and the frame."""
+        title = ("founder names the idea on S2 and saves it (Save approves)" if name else
+                 "founder checks the idea's three lines and saves them (S2: Save approves)")
+        with self._b.step(title) as h:
             _wait_url(self.page, r"/define/solution/idea")
             self.page.locator("#idea-what").wait_for(state="visible", timeout=20_000)
             reloaded = False
@@ -292,9 +296,12 @@ class Corridor:
             frame = self.frame()
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot("idea-check"))
+            if name:
+                self.page.locator("#idea-what").fill(name)
+                h.add_screenshot(self._b.screenshot("idea-named"))
             label = self._press_primary(SAVE)
             _wait_url(self.page, r"/define/solution/q/\d+$")
-            return {"lines": lines, "frame": frame, "primary": label, "reloaded": reloaded}
+            return {"lines": lines, "typed": name, "frame": frame, "primary": label, "reloaded": reloaded}
 
     # -------------------------------------------------- calibration: one screen per single question
 
@@ -459,7 +466,8 @@ class Corridor:
 
     def word_pilot_and_lock(self) -> dict:
         """Step 5 (keel-web 063 FR-007: the idea screen moved to S2): *A word from you* (1 of 2), *The pilot*
-        (2 of 2) and *Lock and write the questions*. Returns the two counters as drawn."""
+        (2 of 2) and *Lock and write the questions*. Returns the two counters as drawn and the lock's receipt as
+        keel-web received it (`LockReceipt`; contract 14: one interaction id)."""
         with self._b.step("founder passes the word and the pilot, then locks") as h:
             _wait_url(self.page, r"/define/ready")
             counter = self.page.get_by_test_id("before-counter")
@@ -471,10 +479,16 @@ class Corridor:
             self.page.locator("[data-testid=before-counter]", has_text="2 of 2").wait_for(timeout=10_000)
             second = counter.text_content() or ""
             h.add_screenshot(self._b.screenshot("pilot"))
-            _button(self.page, BEFORE_LOCK).click()
+            with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/lock"),
+                                           timeout=30_000) as locked:
+                _button(self.page, BEFORE_LOCK).click()
+            try:
+                receipt = locked.value.json()
+            except Exception:  # noqa: BLE001 - a refused lock's body is the leg's to report
+                receipt = {"status": locked.value.status, "text": _safe_text(lambda: locked.value.text())}
             _wait_url(self.page, r"/people", timeout_s=60)
             h.add_screenshot(self._b.screenshot("locked-people"))
-            return {"counters": [first.strip(), second.strip()]}
+            return {"counters": [first.strip(), second.strip()], "receipt": receipt}
 
 
 # ------------------------------------------------------------------------------------ PeopleLinks

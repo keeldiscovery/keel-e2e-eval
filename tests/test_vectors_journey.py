@@ -1,5 +1,6 @@
-"""Spec 039 / spec 041: the corpus journeys are vectors journeys -- the script, the typed inputs and the legs,
-held without a stack, at corpus revision 10 and contract 13.
+"""Spec 039 / spec 041 / spec 042: the corpus journeys are vectors journeys -- the script, the typed inputs and the
+legs, held without a stack, at corpus revision 11 and contract 14 (one RESPONDENT_QUESTIONS job a lock; the founder's
+name for the idea).
 
 Read through keel-cloud's own canon corpus, as the three scenarios read it, so a corpus edit that a
 journey could no longer drive fails here before it fails twenty steps into a run. Every test that needs
@@ -85,10 +86,11 @@ def test_a_list_items_code_is_its_place_as_keel_cloud_codes_it():
 def test_the_script_answers_every_corridor_screen_from_the_entry(entry_id):
     entry = _entry(entry_id)
     screens = vs.generate(entry).screens
-    jobs = vs.respondent_jobs(entry)
     want = {vs.CONTEXT_SCREEN, vs.PROBLEM_SCREEN, vs.MECHANISM_SCREEN, vs.CALIBRATION_SCREEN,
-            vs.ASKED_SCREEN, vs.INTERPRET_SCREEN, vs.BRIEF_SCREEN} | {vs.RESPONDENT_ALIASES[j] for j in jobs}
+            vs.ASKED_SCREEN, vs.RESPONDENT_SCREEN, vs.INTERPRET_SCREEN, vs.BRIEF_SCREEN}
     assert set(screens) == want
+    assert [e["result"] for e in screens[vs.RESPONDENT_SCREEN]] == [vs.respondent_result(entry, 1, vs.LINK_PRIMARY)], (
+        "keel-cloud 091: one RESPONDENT_QUESTIONS job a lock -- part 1 on the primary link, the gate's clause")
     calibration = [(e["result"]["vector"], [q["key"] for q in e["result"]["questions"]])
                    for e in screens[vs.CALIBRATION_SCREEN]]
     assert calibration == [(v, [only] if only else vs.calibrated_keys(entry, v))
@@ -112,9 +114,14 @@ def test_the_script_answers_every_corridor_screen_from_the_entry(entry_id):
                      vs.asked_result(entry, "solution.adoption_friction")]
 
 
-def test_a_b2b_entry_writes_part_three_for_the_decision_makers_link():
-    assert (3, vs.LINK_B2B) in vs.respondent_jobs(_entry("05-paidly"))
-    assert (3, vs.LINK_PRIMARY) in vs.respondent_jobs(_entry("01-countly"))
+def test_the_lock_starts_one_job_on_either_persona_and_part_three_stays_the_decision_makers():
+    """keel-cloud 091 FR-D (contract 14): one RESPONDENT_QUESTIONS job a lock, part 1 on the primary link, B2C and B2B
+    alike; part 3 of a B2B study is still planned for the decision-maker's link (code writes it), so the people on it
+    still answer Ability to pay and Purchase friction."""
+    for entry_id in ENTRIES:
+        assert vs.respondent_jobs(_entry(entry_id)) == [(1, vs.LINK_PRIMARY)], entry_id
+    paidly = _entry("05-paidly")
+    assert {"commercial.ability_to_pay", "commercial.purchase_friction"} <= set(vs.plan_keys(paidly, 3, vs.LINK_B2B))
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)
@@ -239,17 +246,17 @@ def test_the_brief_reading_cites_what_broke_and_carries_no_number(entry_id):
 
 # ------------------------------------------------------------------------------- the keys table
 
-def test_the_respondent_screen_becomes_four_names_derived_from_the_export():
+def test_the_respondent_screen_is_part_ones_key_set_derived_from_the_export():
+    """keel-cloud 091: the lock's one job is part 1's, so the table names part 1's key set alone (the export's union
+    less `mechanism` and `offer_name`) -- a part 2 or 3 job would match nothing (spec 041's four aliases are gone)."""
     union = ["part", "link", "context", "market", "founder_name", "items", "mechanism", "offer_name"]
     exported = {screen: [f"{screen.lower()}_key"] for screen in vs.CORRIDOR_SCREENS}
     exported[vs.RESPONDENT_SCREEN] = union
     table = vs.context_keys_for(exported)
     base = [k for k in union if k not in ("mechanism", "offer_name")]
-    assert table["RESPONDENT_QUESTIONS_P1"] == base
-    assert table["RESPONDENT_QUESTIONS_P2"] == base + ["mechanism"]
-    assert table["RESPONDENT_QUESTIONS_P3"] == union
-    assert table["RESPONDENT_QUESTIONS_P3_B2B"] == base + ["offer_name"]
-    assert "RESPONDENT_QUESTIONS" not in table and "PROBLEM_FRAME" not in table
+    assert table[vs.RESPONDENT_SCREEN] == base
+    assert not any(k.startswith("RESPONDENT_QUESTIONS_") for k in table) and "PROBLEM_FRAME" not in table
+    assert not hasattr(vs, "RESPONDENT_ALIASES")
     assert table[vs.ASKED_SCREEN] == ["asked_key"]
     assert len({frozenset(v) for v in table.values()}) == len(table), "two names share a key set"
 
@@ -263,21 +270,61 @@ def test_an_export_that_lost_the_per_part_keys_is_refused_by_name():
 
 # ------------------------------------------------------------------------------- the founder
 
-def test_frequency_is_asked_on_countlys_four_weeks_and_left_out_where_the_window_cannot_carry_it():
-    """D13 (spec 040): Countly's window is {4, WEEKS} at r10 and its "1 to 3 weeks out of 4" fits it, so
-    Frequency is asked; D-1: Paidly's "invoices out of 7" on three months and Mulch Run's "working days out of
-    7" on two weeks do not, so the founder leaves it out and the standing asserted is LEFT_OUT."""
-    countly = _entry("01-countly")
-    assert vs.frequency_fits(countly)
-    problem = {a.dimension: a.body for a in vs.calibration_answers(countly, "PROBLEM")}
-    assert problem["problem.frequency"]["interval"] == {"low": 1, "high": 3, "unit": "weeks out of 4"}
-    assert corpus_scenario.expected_status(countly, "problem.frequency") == "HOLDING_UP"
-    for entry_id in ("05-paidly", "07-mulchrun"):
+def test_frequency_is_asked_where_the_window_carries_it_and_left_out_on_mulch_run():
+    """D13 (spec 040): Countly's {4, WEEKS} carries its "1 to 3 weeks out of 4"; since revision 11 (keel-cloud 091
+    FR-G) Paidly's {3, MONTHS} carries its "2 to 3 months out of 3" -- both asked. D-1 (spec 042): Mulch Run's
+    "working days out of 7" on two weeks still does not (091 call 11), so the founder leaves it out and the standing
+    asserted is LEFT_OUT."""
+    for entry_id, interval in (("01-countly", {"low": 1, "high": 3, "unit": "weeks out of 4"}),
+                               ("05-paidly", {"low": 2, "high": 3, "unit": "months out of 3"})):
         entry = _entry(entry_id)
-        assert not vs.frequency_fits(entry), entry_id
-        assert corpus_scenario.expected_status(entry, "problem.frequency") == "LEFT_OUT"
+        assert vs.frequency_fits(entry), entry_id
         problem = {a.dimension: a.body for a in vs.calibration_answers(entry, "PROBLEM")}
-        assert problem["problem.frequency"] == {"dimension": "problem.frequency", "unsure": True}
+        assert problem["problem.frequency"]["interval"] == interval, entry_id
+        assert corpus_scenario.expected_status(entry, "problem.frequency") == "HOLDING_UP", entry_id
+        assert "problem.frequency" in vs.plan_keys(entry, 1, vs.LINK_PRIMARY), entry_id
+    mulch = _entry("07-mulchrun")
+    assert not vs.frequency_fits(mulch)
+    assert corpus_scenario.expected_status(mulch, "problem.frequency") == "LEFT_OUT"
+    problem = {a.dimension: a.body for a in vs.calibration_answers(mulch, "PROBLEM")}
+    assert problem["problem.frequency"] == {"dimension": "problem.frequency", "unsure": True}
+
+
+def test_idea_names_read_as_keel_cloud_derives_them():
+    """keel-cloud 090 `IdeaLines.nameOf` restated (`vs.idea_name_of`): *Imagine* and the full stop are not the name, an
+    article is kept and lower-cased, a sentence-case first word is lower-cased when nothing else is capitalised, a
+    title-case name, a capital inside a word and a one-word name keep their case."""
+    assert vs.idea_name_of("Imagine a payroll error checker.") == "a payroll error checker"
+    assert vs.idea_name_of("Payroll error catcher") == "payroll error catcher"
+    assert vs.idea_name_of("  Anomaly   detection tool. ") == "anomaly detection tool"
+    assert vs.idea_name_of("The Payroll tool") == "the Payroll tool"
+    assert vs.idea_name_of("Payroll Checker") == "Payroll Checker"
+    assert vs.idea_name_of("PayCheck tool") == "PayCheck tool"
+    assert vs.idea_name_of("Keel") == "Keel"
+    assert vs.idea_name_of("imagine") == ""
+    assert vs.idea_card("payroll error catcher") == "Imagine payroll error catcher."
+    assert vs.benefit_question("payroll run", "a list of flagged employees") == (
+        "On your last payroll run, would a list of flagged employees have made things better, or not?")
+
+
+@pytest.mark.parametrize("entry_id", ENTRIES)
+def test_keels_draft_names_the_idea_by_its_short_name_and_one_founder_renames_it(entry_id):
+    """keel-cloud 090 FR-006: Keel's scripted draft *Imagine {short_name}.* derives to the entry's short name byte for
+    byte (so `IdeaView.what` is it, no *Imagine*). One founder (05-paidly, `IDEA_NAMES`) types a name of their own on S2
+    -- at most five words, no claim word (L5, L3) -- and every later question uses that; the others keep Keel's. Every
+    composed stem it lands in stays within 20 words."""
+    entry = _entry(entry_id)
+    assert vs.idea_view(entry)["what"] == vs.short_name(entry)
+    typed = vs.founder_idea_name(entry)
+    founder = vs.founder_inputs(entry)
+    assert founder.idea_name == typed
+    if entry_id == "05-paidly":
+        assert typed == "Invoice payout service" and vs.idea_name(entry) == "invoice payout service"
+        assert len(typed.split()) <= 5 and not _words(typed) & (CLAIM_WORDS | PRODUCT_WORDS)
+        assert len(vs.idea_card(vs.idea_name(entry))) <= 80
+    else:
+        assert typed is None and vs.idea_name(entry) == vs.short_name(entry)
+    assert _count(vs.benefit_question(vs.occasion(entry), vs.idea_name(entry))) <= vs.STEM_MAX_WORDS
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)

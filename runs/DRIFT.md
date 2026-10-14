@@ -5094,7 +5094,18 @@ slow one will not. The journey reloads the People page before each commercial li
 decision this repository makes; recorded so keel-web can decide whether the popup should read the
 revision when it opens.
 
-## 76. Owed (keel-cloud, one letter wide): `screenContracts validate` reports a founder-lists refusal (`L1`-`L5`) as `kind: shape`, because `ScreenContractTool.VECTOR_RULE` has no `L`
+## 76. RESOLVED -- was owed (keel-cloud, one letter wide): `screenContracts validate` reported a founder-lists refusal (`L1`-`L5`) as `kind: shape`, because `ScreenContractTool.VECTOR_RULE` had no `L`
+
+**Closed by keel-cloud 091 FR-C, 2026-10-14** (spec `042-contract-14-r11`, against keel-cloud-docs `c432c1d`). The
+pattern is `^([XPMCRIBEWKL][0-9]+): ` now, so a founder-lists refusal arrives `kind: rule` with its id. This repository
+follows: judgement call 86's reading (`validate._reclassified`, used by `validate.fold_in` and `runner.should_redraw`)
+is **deleted** -- the report's `kind` is read as it is (judgement call 113) -- and `validate.vector_rule_letters` reads
+the pattern off the validator's own source, so `tests/test_instruction_validate.py` holds the `L` there
+(`XPMCRIBEWKL` at `c432c1d`). Not a journey defect: no journey step stepped round it, so there is nothing to observe on
+the stack; the instruction eval would count a list draft's `L` refusal as a rule on its next run.
+
+**Was: owed.** The entry as it was written:
+
 
 Found by spec `040-marks-v18` reading keel-cloud-docs `7b151f9` (keel-cloud 088 saw it and left it: *"the
 `ScreenContractTool` rule-id pattern lacked `L` (founder-lists `L1`-`L5` report as shape)"*). The pattern is
@@ -5105,7 +5116,21 @@ a list rule against `shape_refusals` (an absolute zero) instead of `rule_refusal
 `L<n>: ` as rule `L<n>` (judgement call 86) until keel-cloud adds the letter, and `runner.should_redraw` reads it the same
 way, so a refused list gets the one repair turn the cloud's orchestrator gives it.
 
-## 77. Observation (keel-cloud canon, corpus revision 10): five hand-written respondent words break the rules the model's are held to -- four Compatibility faces say no "you", and one Commitment step says "you" twice
+## 77. RESOLVED -- was an observation (keel-cloud canon, corpus revision 10): five hand-written respondent words broke the rules the model's are held to -- four Compatibility faces said no "you", and one Commitment step said "you" twice
+
+**Closed by keel-cloud 091 FR-G, 2026-10-14: corpus revision 11** (spec `042-contract-14-r11`, against keel-cloud-docs
+`c432c1d`). The four untested faces say *your* (01 *did your invoice come with the delivery itself*, 02 *... recorded in
+your learning system*, 03 *... for your phone to hear the cry*, 07 *... at the curb of your job for a mulch drop*),
+06-repeatline's step is *introduce us to the practice's IT supplier* (composed *would you introduce us to ...*), and
+`check_corpus_r11.py` holds K3 and S10 on every file. This repository follows: the corpus reader is revision 11 and
+checks the same two rules (judgement call 110), `spoken.KNOWN` is **empty** (call 112) and `spoken_form` reads keel-cloud's
+own record at `c432c1d` **109 of 109** (74 composed items, 35 faces, none named apart; it was 104 of 104 with five
+apart). **Observed live** (spec 042's journeys, local stack on keel-cloud-docs `c432c1d` + keel-web `844ea36`): the faces and the step are what the strangers'
+screens draw -- S-005's and S-007's Compatibility lists are saved and stored with the r11 faces (the lock's lists
+equal the corpus's, `leg_lock`), on every run.
+
+**Was: an observation.** The entry as it was written:
+
 
 Found by spec `040-marks-v18`'s `spoken_form` mark (`instructions/spoken.py`) over keel-cloud's own composed record
 (`SpokenGuidelinesCorpusTest`'s `build/spoken-corpus.txt`) and the corpus's lists. `K3` (the face is said to the
@@ -5122,6 +5147,12 @@ so the ledger has to shrink with the corpus.
 
 ## 78. Observation (keel-web): S2, opened straight from the mechanism card, draws the idea's three lines **empty** and holds them, so *Save* stays off until the page is reloaded
 
+**Still open on keel-web `844ea36`, 2026-10-14** (spec `042-contract-14-r11`, local stack on keel-cloud-docs `c432c1d` + keel-web `844ea36`): the reload step
+fired on every journey of both final runs (S-005, S-006, S-007). keel-web 066 (merged at `d03583d` while spec 042 was
+in flight: *IdeaCheck refills from the served idea*) says it fixes it; spec 042 ran the web it was given (`844ea36`), so
+the step stays, and the journey spec that runs 066 closes this entry once the step stops firing.
+
+
 Found by spec `041-vectors-journey-r10`'s first local run of S-005, and every run since on all three entries (keel-web
 `c499bf7`, keel-cloud-docs `7b151f9`). The solution seed's *Looks right* navigates to `define/solution/idea`
 (keel-web 063 call 1). `IdeaRoute` renders `IdeaCheck` from `plan.data.idea` the moment the plan is in the query
@@ -5136,6 +5167,11 @@ the wire's `GET /idea` and the corpus. For keel-web: key `IdeaCheck` on the idea
 
 ## 79. Observation (keel-web, with keel-cloud beside it): Buyer and payer's *Keel will test* sentence opens lower-case -- *"the restaurant manager decides, and nobody else has to agree."* -- where the server's belief reads *"The restaurant manager decides, ..."*
 
+**Still open on keel-web `844ea36`, 2026-10-14** (spec 042, local stack on keel-cloud-docs `c432c1d` + keel-web `844ea36`): the one-letter step fired on every
+journey of both final runs. keel-web 066 (`d03583d`, *fillBelief capitalises*) says it fixes it; closed by the journey
+spec that runs 066, as #78.
+
+
 Found by spec 041 on all three entries' C6 (Choose) screen. keel-cloud serves `CalibrationQuestion.beliefTemplate` with
 `{decider}` already filled by `BeliefSentence.the(...)` -- *"the restaurant manager decides, and {value} has to
 agree."* (`VectorsController`, the registry's `"{decider} decides, and {value} has to agree."`) -- lower-case at the head,
@@ -5146,7 +5182,19 @@ head. The journey holds the box to the server's sentence (the corpus's `belief_s
 step named for the entry (*"DRIFT #79 -- ..."*). Either side can close it: keel-cloud capitalising the served
 template's head, or keel-web capitalising the sentence it fills.
 
-## 80. Observation (keel-cloud, with keel-web beside it): a Check screen's *Save* right after a redraft can be refused **409 CONCURRENCY**, and the screen says nothing
+## 80. RESOLVED (keel-cloud's half) -- was an observation (keel-cloud, with keel-web beside it): a Check screen's *Save* right after a redraft could be refused **409 CONCURRENCY**, and the screen said nothing
+
+**Closed by keel-cloud 091 FR-A, 2026-10-14** (spec `042-contract-14-r11`). `VectorCorridorService.calibration` reads
+the interaction first and the project second, so a READY is always over a project that carries the draft and the Check
+screen's Save carries the drafted revision. **Observed live** (local stack on keel-cloud-docs `c432c1d` + keel-web `844ea36`): no corridor write was refused 409 on
+any of the nine journeys spec 042 ran on keel-web `844ea36` -- the six of the two final runs and three before them (spec 041 saw it in 4 of 6).
+**The step round it is now a guard** (judgement call 118): `Corridor._press_primary` still records a 409 and presses
+once more (so the bundle shows what followed), but `leg_calibrate` then **fails the journey** in a step named *"DRIFT
+#80 came back"* -- a step that never fires again is a workaround nobody can see is dead. keel-web's half (say something
+on a 409) is keel-web 066's (`d03583d`, StaleBanner), not run here.
+
+**Was: an observation.** The entry as it was written:
+
 
 Seen in 4 of the 6 journeys of spec 041's two final local runs (all three entries), and first on S-005's Relative
 advantage Check screen (console: *"Failed to load resource: the server responded with a status of 409 (Conflict)"*). `GET calibration/{vector}` reads the project first and the latest
@@ -5161,7 +5209,17 @@ The journey presses again once, after the poll, when -- and only when -- a 409 a
 on the screen; pressed again"*). For keel-cloud: read the interaction and the project in one snapshot (or the project
 after the interaction); for keel-web: say something on a 409.
 
-## 81. Observation (keel-cloud): right after the lock, `GET /overview` can read `questionsState: FAILED` for one read while the three parts land
+## 81. RESOLVED -- was an observation (keel-cloud): right after the lock, `GET /overview` could read `questionsState: FAILED` for one read while the three parts landed
+
+**Closed by keel-cloud 091 FR-B and FR-D, 2026-10-14** (spec `042-contract-14-r11`). FAILED is believed only over a
+project read after the interactions, and the lock now starts **one** RESPONDENT_QUESTIONS job (part 1; parts 2 and 3 are
+composed by code in the lock's own commit), so there are no three parts landing. **Observed live** (local stack on keel-cloud-docs `c432c1d` + keel-web `844ea36`):
+on every journey the lock's receipt carried exactly one interaction id, `GET /v2/inference-interactions` listed exactly
+that one RESPONDENT_QUESTIONS job, APPLIED, and the overview went WRITING -> READY with no FAILED read. **The re-read is
+gone and a FAILED fails the journey** (judgement call 118), in a step that says #81 came back if the one job landed.
+
+**Was: an observation.** The entry as it was written:
+
 
 Seen once in five local S-005 runs (spec 041): the overview answered `FAILED` and, two seconds later, `READY`; every
 RESPONDENT_QUESTIONS interaction was `APPLIED` on its first turn. `InferenceOrchestrator.respondentQuestionsState` reads

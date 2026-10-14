@@ -1,5 +1,6 @@
 """S-005, S-006 and S-007's whole body: the corpus journeys, as **vectors** journeys (spec 039; spec 041:
-corpus revision 10, contract 13, keel-web 063's founder screens and 064's stranger's screens).
+corpus revision 10, contract 13, keel-web 063's founder screens and 064's stranger's screens; spec 042: corpus
+revision 11, contract 14 -- one RESPONDENT_QUESTIONS job a lock, the founder's name for the idea).
 
 **The entry id is the only thing that differs between the three scenario modules** (spec 010
 FR-015, kept): if `01-countly` needed one special case here, `05-paidly` would need two.
@@ -17,16 +18,19 @@ one leg and leave the others alone:
                       picks, *Choose*; each screen's counter, dots and locked nav; the stored lists and the
                       review on the wire.
 5. `leg_interpret_solution` -- the solution seed, SOLUTION_MECHANISM's card, and **the idea as the
-                      solution's first question**: S2, the three lines checked, Save approving them.
+                      solution's first question**: S2, the three lines checked (one entry's founder
+                      names the idea there, keel-cloud 090), Save approving them.
 6. `leg_persona`   -- who decides; on a B2B entry the decision-maker's respondent type.
-7. `leg_lock`      -- step 5's two screens, *Lock and write the questions*; three RESPONDENT_QUESTIONS
-                      jobs; READY; the lock stores every saved list and its picked index (D7).
+7. `leg_lock`      -- step 5's two screens, *Lock and write the questions*; ONE RESPONDENT_QUESTIONS job
+                      (keel-cloud 091: part 1; parts 2 and 3 code's); READY; the lock stores every saved
+                      list and its picked index (D7).
 8. `leg_invite`    -- one link per corpus person: the primary link, or on a B2B entry the
                       decision-maker's commercial link.
 9. `leg_interview` -- each person in their own browser context, no founder session, through keel-web
                       064's screens: the decision-maker's idea screen first, the gate (its one chip), every
                       item as served (one escape, last), two picks on Importance, the fixed answers,
-                      "nothing" typed as 0; the founder reads after each person.
+                      "nothing" typed as 0; the idea card and the Relative advantage question on the
+                      idea's current name (keel-cloud 090); the founder reads after each person.
 10. `leg_standings` -- `GET standings` against the entry's `expected.standings` and `expected.vector_verdicts`
                       (codes mapped onto the wire's), and the same on the board (its pilot tile among them)
                       and the three stage pages, one row's per-person list among them.
@@ -134,6 +138,10 @@ class Journey:
     #: How many times longer a wait on a model may take: 1 on the scripted journeys, more on S-012.
     patience: float = 1.0
     standings: dict = field(default_factory=dict)    # the last GET standings
+    #: The idea's name every later question uses, as the wire stored it after S2 (`IdeaView.shortName`, keel-cloud 090).
+    idea_name: str = ""
+    #: The lock's receipt (`LockReceipt`), as keel-web received it from `POST lock`.
+    receipt: dict = field(default_factory=dict)
 
     # --------------------------------------------------------------------------- the wire
 
@@ -286,31 +294,46 @@ def leg_interpret_solution(j: Journey) -> None:
         assert not missing, missing
     j.corridor.confirm_seed("SOLUTION")
     view = _wait_calibration(j, "SOLUTION")
-    seen = j.corridor.idea_check()
+    typed = j.founder.idea_name
+    seen = j.corridor.idea_check(typed)
     j.framing["idea"] = [seen]
     if seen["reloaded"]:
         # runs/DRIFT.md #78: S2 opened straight from the mechanism card draws the plan's cached idea -- three
         # empty lines from before the card -- and holds them, so Save stays off. The page is reloaded, the way
-        # a founder who comes back to it has it.
+        # a founder who comes back to it has it. (Open until keel-web 066.)
         with _step(j, f"{j.entry.id}: DRIFT #78 -- S2 drew three empty lines from the stale plan; reloaded once",
                    party="founder", kind="protocol") as h:
             h.record_wire({"reloaded": True}, {"lines after the reload": seen["lines"]})
-    with _step(j, "S2: the idea's three lines are the mechanism's, under Solution · 1 of n, and Save "
-                  "approved them on the wire", party="founder") as h:
+    with _step(j, "S2: the idea's three lines are the mechanism's, the what line its name (keel-cloud 090), under "
+                  "Solution · 1 of n, and Save approved them on the wire", party="founder") as h:
         idea = j.get(j.project("/idea")) or {}
-        want = vs.idea_lines(j.entry)
+        want = vs.idea_view(j.entry)
         total = len(view.get("questions") or []) + STAGE_OFFSET["SOLUTION"]
-        h.record_assert({**(want if j.strict else {}), "approved": True,
+        name = vs.idea_name_of(typed) if typed else seen["lines"]["what"]
+        h.record_assert({**(want if j.strict else {}), "typed": typed, "name": name, "approved": True,
                          "progress": f"Solution · 1 of {total}"},
                         {"screen": seen, "wire": idea})
         assert all((idea.get(k) or "").strip() for k in ("what", "how", "belief")), idea
-        assert {k: idea.get(k) for k in ("what", "how", "belief")} == seen["lines"], (idea, seen["lines"])
+        assert {k: idea.get(k) for k in ("how", "belief")} == {k: seen["lines"][k] for k in ("how", "belief")}, (
+            idea, seen["lines"])
+        assert not (idea.get("what") or "").lower().startswith("imagine"), idea
+        assert idea.get("what") == name, (idea.get("what"), name)
         assert idea.get("approved") is True, idea
-        assert (idea.get("shortName") or "") in (idea.get("what") or ""), idea
+        assert idea.get("shortName") == idea.get("what"), idea
         _hold_frame(seen["frame"], "SOLUTION", 1, total)
         if j.strict:
-            assert {k: idea.get(k) for k in want} == want, idea
-            assert idea.get("shortName") == m["short_name"], idea
+            assert {k: seen["lines"][k] for k in want} == want, (seen["lines"], want)
+            assert idea.get("shortName") == vs.idea_name(j.entry), (idea, vs.idea_name(j.entry))
+        j.idea_name = str(idea.get("shortName") or "")
+    if typed:
+        with _step(j, f"{j.entry.id}: the founder named the idea {typed!r} on S2, and the name replaced Keel's "
+                      f"{m['short_name']!r} (keel-cloud 090, D14)", party="founder") as h:
+            plan = j.get(j.project("/plan")) or {}
+            h.record_assert({"shortName": vs.idea_name_of(typed), "plan.idea.what": vs.idea_name_of(typed)},
+                            {"idea": idea, "plan.idea": plan.get("idea")})
+            assert j.idea_name == vs.idea_name_of(typed) != m["short_name"], (j.idea_name, m["short_name"])
+            assert len(typed.split()) <= 5, typed
+            assert ((plan.get("idea") or {}).get("what")) == j.idea_name, plan.get("idea")
 
 
 # ----------------------------------------------------------------------------- leg 3: calibrate
@@ -377,12 +400,13 @@ def leg_calibrate(j: Journey, vector: str) -> None:
         j.framing[key] = seen
     refused = j.corridor.conflicts[conflicts:]
     if refused:
-        # runs/DRIFT.md #80: a Save or Continue posted at a revision the server had already moved past (the
-        # list's redraft landing) is answered 409 CONCURRENCY and the screen says nothing; pressed again once the
-        # page's poll held the new revision, as a founder would.
-        with _step(j, f"{j.entry.id}: DRIFT #80 -- {len(refused)} {vector.lower()} write(s) refused 409 with "
-                      "nothing on the screen; pressed again", party="founder", kind="protocol") as h:
-            h.record_wire({"pressed again": len(refused)}, refused)
+        # runs/DRIFT.md #80, closed by keel-cloud 091 FR-A (`GET calibration/{vector}` reads the interaction first and
+        # the project second, so a READY is always over the drafted project): spec 041 pressed again after the poll.
+        # Spec 042 keeps the page object's second press only so the bundle shows what followed, and fails here.
+        with _step(j, f"{j.entry.id}: DRIFT #80 came back -- {len(refused)} {vector.lower()} write(s) refused 409 "
+                      "after a redraft (closed by keel-cloud 091)", party="founder") as h:
+            h.record_assert({"refused": 0}, refused)
+            raise AssertionError(f"DRIFT #80 came back: {json.dumps(refused)}")
 
     with _step(j, f"{vector.lower()}: every screen reads {STAGE_WORD[vector]} · k of {total} with its dots, "
                   "the side nav locked, and the stage's last primary names the next stage",
@@ -566,31 +590,44 @@ def leg_persona(j: Journey) -> None:
 
 def leg_lock(j: Journey) -> None:
     """Step 5's two screens (*A word from you* 1 of 2, *The pilot* 2 of 2; the idea moved to S2), then
-    *Lock and write the questions*: three RESPONDENT_QUESTIONS jobs (part 3 the decision-maker's link's on a
-    B2B entry), READY before anyone is invited, and the lock storing every saved list with its picked
+    *Lock and write the questions*: **one** RESPONDENT_QUESTIONS job (keel-cloud 091, contract 14: part 1 on the
+    primary link, the gate's clause; parts 2 and 3 -- on B2B part 3 the decision-maker's link's -- composed by code in
+    the lock's own commit), READY before anyone is invited, and the lock storing every saved list with its picked
     index (design §6, D7)."""
     drawn = j.corridor.word_pilot_and_lock()
+    j.receipt = drawn.get("receipt") or {}
     with _step(j, "step 5 is two screens, 1 of 2 and 2 of 2", party="founder") as h:
         h.record_assert(["1 of 2", "2 of 2"], drawn["counters"])
         assert drawn["counters"] == ["1 of 2", "2 of 2"], drawn
     deadline = time.monotonic() + 120 * j.patience
     state = None
-    seen_failed = False
     while time.monotonic() < deadline:
         state = (j.get(j.project("/overview")) or {}).get("questionsState")
-        if state == "FAILED" and not seen_failed:
-            # runs/DRIFT.md #81: the state is read off the project and then off the open interactions, two reads
-            # apart; a part applied between them reads FAILED for that one read. Read again before believing it.
-            seen_failed = True
-            time.sleep(2)
-            continue
         if state in ("READY", "FAILED"):
             break
         time.sleep(0.5)
-    if seen_failed and state == "READY":
-        with _step(j, f"{j.entry.id}: DRIFT #81 -- the overview read the questions FAILED while the parts were "
-                      "landing; READY on the next read", party="stack", kind="protocol") as h:
-            h.record_wire({"questionsState": "FAILED"}, {"questionsState": state})
+    if state == "FAILED":
+        # runs/DRIFT.md #81, closed by keel-cloud 091 FR-B (FAILED is believed over a fresh project): spec 041 read
+        # again once before believing a FAILED. Spec 042 keeps no re-read -- a FAILED now fails the journey, and the
+        # step says #81 may have come back if the job itself landed.
+        interactions = j.get(f"/v2/inference-interactions?project_id={j.project_id}") or []
+        landed = [i.get("status") for i in interactions if i.get("screen") == "RESPONDENT_QUESTIONS"]
+        with _step(j, f"{j.entry.id}: the overview read the questions FAILED -- DRIFT #81 is closed by keel-cloud "
+                      "091, so this is a failure, not a race to step round", party="stack") as h:
+            h.record_assert({"questionsState": "READY"}, {"questionsState": state, "jobs": landed})
+            raise AssertionError(f"questionsState FAILED after the lock (RESPONDENT_QUESTIONS jobs: {landed}); "
+                                 "DRIFT #81 came back if every job is APPLIED")
+    with _step(j, "the lock started ONE RESPONDENT_QUESTIONS job -- part 1, the gate's clause -- and no other "
+                  "(keel-cloud 091, contract 14: LockReceipt.questions.interactionIds is exactly 1)") as h:
+        ids = list(((j.receipt.get("questions") or {}).get("interactionIds")) or [])
+        interactions = j.get(f"/v2/inference-interactions?project_id={j.project_id}") or []
+        respondent = [i for i in interactions if i.get("screen") == "RESPONDENT_QUESTIONS"]
+        h.record_assert({"interactionIds": 1, "RESPONDENT_QUESTIONS jobs": 1, "status": "APPLIED"},
+                        {"receipt": j.receipt, "jobs": [{k: i.get(k) for k in ("interaction_id", "status", "job")}
+                                                         for i in respondent]})
+        assert len(ids) == 1, j.receipt
+        assert [i.get("interaction_id") for i in respondent] == ids, (ids, respondent)
+        assert respondent[0].get("status") == "APPLIED", respondent[0]
     with _step(j, "the study is version 1, the three parts' questions are written, READY, and the lock "
                   "holds every saved list and its picked index (D7)") as h:
         plan = j.get(j.project("/plan")) or {}
@@ -750,6 +787,47 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
                 faults.append({"dimension": drawn["dimension"], "escape": escape, "want": None})
         h.record_assert([], faults)
         assert not faults, json.dumps(faults, indent=2)
+    _hold_the_idea_name(j, person, interview, walked)
+
+
+#: The dimension whose stem carries the idea's name (keel-cloud 085 / 091 `BenefitFirst.question`).
+RA_KEY = "solution.relative_advantage"
+
+
+def _hold_the_idea_name(j: Journey, person, interview: dict, walked: dict) -> None:
+    """keel-cloud 090 (D14) on every journey: the idea card strangers read is *Imagine {name}.* and the Relative
+    advantage question *On your last {occasion}, would {name} have made things better, or not?*, both composed by code
+    around the idea's **current** name -- the one the wire stored after S2 (`IdeaView.shortName`): Keel's short name
+    where the founder saved the draft untouched, the founder's own where they renamed it. Held on the wire (the served
+    reveal / idea and the item's question) and on the screens (the reveal's or idea screen's card, and the idea card
+    above the Relative advantage item)."""
+    name = j.idea_name
+    card = vs.idea_card(name)
+    served = [("reveal", interview.get("reveal")), ("idea", interview.get("idea"))]
+    items = {i.get("dimension"): i for p in interview.get("parts") or [] for i in p.get("items") or []}
+    advantage = items.get(RA_KEY)
+    if not any(lines for _, lines in served) and advantage is None:
+        return                                       # a gate No: nothing about the idea was served
+    with _step(j, f"{person.person}: the idea card and the Relative advantage question name the idea "
+                  f"{name!r}, its current name (keel-cloud 090)", party="participant") as h:
+        faults = []
+        occasion = interview.get("occasion") or ""
+        want_question = vs.benefit_question(occasion, name)
+        for kind, lines in served:
+            if lines and lines.get("what") != card:
+                faults.append({kind: lines.get("what"), "want": card})
+        if advantage is not None and advantage.get("question") != want_question:
+            faults.append({"question": advantage.get("question"), "want": want_question})
+        if j.strict and occasion != vs.occasion(j.entry):
+            faults.append({"occasion": occasion, "corpus": vs.occasion(j.entry)})
+        for drawn in walked["screens"]:
+            if drawn.get("screen") in ("reveal", "idea") and card not in (drawn.get("card") or ""):
+                faults.append({"screen": drawn.get("screen"), "card": drawn.get("card"), "want": card})
+            if drawn.get("screen") == "item" and drawn.get("dimension") == RA_KEY and drawn.get("idea_card") != card:
+                faults.append({"screen": "item", "idea card": drawn.get("idea_card"), "want": card})
+        h.record_assert({"card": card, "question": want_question, "faults": []},
+                        {"served": dict(served), "question": (advantage or {}).get("question"), "faults": faults})
+        assert not faults, json.dumps(faults, indent=2)
 
 
 def _on_the_offered_options(body: dict, items: dict) -> dict:
@@ -819,7 +897,8 @@ def _read(j: Journey, person) -> None:
 
 def expected_status(entry, key: str) -> str:
     """The entry's own status for `key`, but `LEFT_OUT` where this journey had to leave Frequency
-    out (spec 039 / 041 D-1: the corpus's Frequency is on an "out of N" its own window cannot carry)."""
+    out (spec 039 / 041 / 042 D-1: the corpus's Frequency is on an "out of N" its own window cannot carry -- since
+    revision 11 on Mulch Run alone)."""
     if key == "problem.frequency" and not vs.frequency_fits(entry):
         return "LEFT_OUT"
     return str(((entry.expected.get("standings") or {}).get(key) or {}).get("status") or "").upper()
@@ -1047,13 +1126,44 @@ def leg_brief(j: Journey, *, timeout_s: float = 60) -> None:
             have_broke = {v: ((facts.get(v.lower()) or {}).get("broke") or {}).get("key") for v in VECTORS}
             h.record_assert(want_broke, have_broke)
             assert have_broke == want_broke, (have_broke, want_broke)
+        with _step(j, "each stage's notAsked is the entry's, in keel-cloud 091's one house style (FR-F3)") as h:
+            want_not = {v: expected_not_asked(j, v) for v in VECTORS}
+            have_not = {v: [{k: n.get(k) for k in ("key", "name", "why")}
+                            for n in (facts.get(v.lower()) or {}).get("notAsked") or []] for v in VECTORS}
+            h.record_assert(want_not, have_not)
+            assert have_not == want_not, json.dumps({"wire": have_not, "corpus": want_not}, indent=2)
         with _step(j, "the pilot: the entry's sign-ups over everyone who answered, per link -- on the brief "
                       "and on the overview's read") as h:
             want_pilot = brief_facts_mod.pilot_for(j.entry)
             h.record_assert(want_pilot, {"brief": facts.get("pilot"), "standings": standings.get("pilot")})
             assert facts.get("pilot") == want_pilot, (facts.get("pilot"), want_pilot)
             assert standings.get("pilot") == want_pilot, (standings.get("pilot"), want_pilot)
+    with _step(j, "every served quote is credited to its link in the header's words (keel-cloud 091 FR-F2: "
+                  "BriefReading.quotes[].link / words)" + (" -- the referee's reading quotes nobody" if j.strict
+                                                            else "")) as h:
+        quotes = list(reading.get("quotes") or [])
+        faults = [q for q in quotes if q.get("link") not in brief_facts_mod.LINK_WORDS
+                  or q.get("words") != brief_facts_mod.LINK_WORDS[q.get("link")]]
+        h.record_assert({"faults": [], **({"quotes": []} if j.strict else {})}, {"quotes": quotes, "faults": faults})
+        assert not faults, faults
+        if j.strict:
+            assert quotes == [], quotes
     _brief_pages(j, brief, standings)
+
+
+def expected_not_asked(j: Journey, vector: str) -> list[dict]:
+    """`BriefFacts.<stage>.notAsked` as `instructions/brief_facts.py` reads the entry (keel-cloud 089 FR-002, 091
+    FR-F3's house style), with the dimension this journey had to leave out read as left out (D-1)."""
+    out = []
+    b2b = j.entry.b2b()
+    for d in j.registry.slice(vector):
+        if d.b2b_only and not b2b:
+            out.append({"key": d.key, "name": d.name, "why": brief_facts_mod.NOT_ASKED_WHY[d.key]})
+        elif expected_status(j.entry, d.key) == "LEFT_OUT":
+            out.append({"key": d.key, "name": d.name, "why": brief_facts_mod.LEFT_OUT_LINE})
+        elif d.b2b_link_only and not b2b:
+            out.append({"key": d.key, "name": d.name, "why": brief_facts_mod.NOT_ASKED_WHY[d.key]})
+    return out
 
 
 #: Words keel-web 065 took off page one (FR-002; D3): none of them may come back.

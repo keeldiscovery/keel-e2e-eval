@@ -1,5 +1,5 @@
 """S-005: `01-countly`, the B2C entry, walked through the vector corridor (spec 039; spec 041: corpus revision 10,
-keel-web 063 / 064).
+keel-web 063 / 064; spec 042: revision 11, contract 14 -- Keel's draft name for the idea kept on S2).
 
 Countly is the corpus's B2C entry with the most people (twelve), and it earns its place three ways:
 

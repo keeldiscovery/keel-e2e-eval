@@ -268,19 +268,19 @@ def verdict(keel_cloud: Path, case, result, directory: Path, *, redraw: bool = F
     raise ContractUnavailable(f"keel-cloud's validator returned no verdict for {case_id}")
 
 
-#: Judgement call 86: keel-cloud's `ScreenContractTool.VECTOR_RULE` (`^[XPMCRIBEWK][0-9]+: `) has no `L`, so a
-#: founder-lists refusal (`L1`-`L5`, keel-cloud 087) comes back `kind: shape` though its reason opens with its id
-#: (keel-cloud 088 saw it and left it). Read here as the rule it is -- a model's list draft breaking a list rule is a
-#: rule refusal, not an answer that missed the contract -- until keel-cloud adds the letter (a follow-up).
-_SHAPED_RULE = re.compile(r"^(L[0-9]+): ")
+#: keel-cloud's `ScreenContractTool.VECTOR_RULE`, the rule-id letters a vector screen's refusal is reported under.
+#: Since keel-cloud 091 FR-C it carries `L` (`^([XPMCRIBEWKL][0-9]+): `), so a founder-lists refusal (`L1`-`L5`)
+#: arrives `kind: rule` with its id and spec 040's judgement call 86 (reading a shaped `L<n>` as a rule) is gone
+#: (spec 042 call 113; DRIFT #76 closed). `vector_rule_letters` reads the pattern off the validator's source, so a
+#: test can hold the letter there.
+_VECTOR_RULE = re.compile(r'VECTOR_RULE\s*=\s*(?:java\.util\.regex\.)?Pattern\.compile\("\^\(\[([A-Z]+)\]')
 
 
-def _reclassified(refusal: dict) -> dict:
-    if (refusal or {}).get("kind") == "shape":
-        match = _SHAPED_RULE.match(str(refusal.get("message") or ""))
-        if match:
-            return {**refusal, "kind": "rule", "rule": match.group(1)}
-    return refusal or {}
+def vector_rule_letters(keel_cloud) -> str:
+    """The letters `ScreenContractTool.VECTOR_RULE` names, read off keel-cloud's source; `""` when absent."""
+    path = Path(keel_cloud) / _TOOL
+    match = _VECTOR_RULE.search(path.read_text(encoding="utf-8")) if path.is_file() else None
+    return match.group(1) if match else ""
 
 
 def fold_in(report: list) -> dict:
@@ -309,7 +309,7 @@ def fold_in(report: list) -> dict:
             else:
                 accepted += 1
             continue
-        refusal = _reclassified(entry.get("refusal") or {})
+        refusal = entry.get("refusal") or {}
         kind = refusal.get("kind")
         if second and kind in ("rule", "shape"):
             second_refusals += 1
