@@ -2,7 +2,7 @@
 # file's own directory, so `make` works the same regardless of the caller's cwd.
 
 [paths]
-keel_cloud = "../keel-cloud"
+keel_cloud = "../keel-cloud-docs"
 keel_web = "../keel-web"
 keel_runtime = "../keel-runtime"
 keel_connect_skill = "../keel-connect-skill"
