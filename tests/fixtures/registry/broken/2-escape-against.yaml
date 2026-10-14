@@ -1,0 +1,7 @@
+# slice.yaml with one value changed, failing exactly invariant 2 (spec 040; keel-cloud 087 FR-002): only Importance's
+# escape ("None of these") counts against -- here Compatibility's does too.
+base: ../slice.yaml
+invariant: 2
+key: solution.compatibility
+path: [respondent, escape, counts]
+value: against

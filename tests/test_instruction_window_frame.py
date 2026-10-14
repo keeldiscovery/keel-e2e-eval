@@ -1,20 +1,18 @@
-"""The window frame and Price, as the ruler reads them at `MARKS_VERSION` 11 (spec 031 US3; T010;
-judgement calls 52-56).
+"""The window frame, as the ruler reads it at `MARKS_VERSION` 18 (spec 031 US3; spec 040; judgement calls 52-55,
+78, 83, 85).
 
-keel-cloud 072 writes the four windowed questions from fixed frames around one model-written clause,
-and 073 makes Price code's and the model's money a refusal. `instructions/wording.py` mirrors the
-Java line for line (`WindowFrame.fault`, `Wording.money` / `tickAll` / `carries`); these tests hold
-the mirror to the Java's own worked cases -- the payroll and Lullaby clauses of
-`window-frame-design.md` §3.1, keel-cloud 072's D-4 and D-6 -- and the scorers to calls 52-56. Each
-rule fails once for its own reason and passes once, and the reported wording counts never reach
-`marks.judge`.
+keel-cloud 072 writes the windowed questions from fixed frames around one model-written clause; since 087 (D13) a
+window counts at least two units, so every project frames Frequency and there is no one-unit branch; since 088 the
+respondent job writes the gate's clause and nothing else, and `E4` holds the gate and the Frequency question it frames
+to 20 words each. `instructions/wording.py` mirrors the Java (`WindowFrame.fault`, `gate`, `frequencyRespondent`,
+`Wording.money`); these tests hold the mirror to the design's own clauses and the scorers to calls 83 and 85. Each
+rule fails once for its own reason and passes once.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from instructions import marks as marks_mod
 from instructions import score as score_mod
 from instructions import validate as validate_mod
 from instructions import wording as wording_mod
@@ -23,7 +21,7 @@ from tests import v9_fixtures as fx
 
 SEVEN_NIGHTS = RecallWindow(7, "NIGHTS")
 THIRTY_DAYS = RecallWindow(30, "DAYS")
-LAST_SHIFT = RecallWindow(1, "SHIFTS")
+FOUR_WEEKS = RecallWindow(4, "WEEKS")
 
 
 # ---------------------------------------------------------------- E1-E3 (`WindowFrame.fault`)
@@ -44,7 +42,8 @@ def test_the_designs_own_clauses_pass_e1_to_e3(event, window):
     ("had 3 bad nights", SEVEN_NIGHTS, "E1", "'3' is a number"),
     ("woke up one more time", SEVEN_NIGHTS, "E1", "'one' is a number"),
     ("had a payroll error last month", THIRTY_DAYS, "E1", "'last' is a time word"),
-    ("had a bad shift with the rota", LAST_SHIFT, "E1", "'shift' is a time word"),
+    ("had a bad shift with the rota", SEVEN_NIGHTS, "E1", "'shift' is a time word"),
+    ("had a bad week with the rota", FOUR_WEEKS, "E1", "'week' is a time word"),
     ("had a bad night, did they?", SEVEN_NIGHTS, "E1", "time word"),
     ("had to guess why the baby cried?", SEVEN_NIGHTS, "E2", "is a question"),
     ("had to guess. Then they rocked the baby", SEVEN_NIGHTS, "E2", "more than one sentence"),
@@ -64,18 +63,7 @@ def test_the_clause_is_trimmed_as_the_frame_holds_it():
     assert wording_mod.clause("NHS staff were short") == "NHS staff were short", "an acronym"
 
 
-# ----------------------------------------------------- W7 / W9 / W3 / W8 (`Wording`, mirrored)
-
-@pytest.mark.parametrize("text, hit", [
-    ("Which of these? Tick all that apply.", "Tick all"),
-    ("Tick every one you believe applies.", "Tick every"),
-    ("Select all that apply", "Select all"),
-    ("Pick all you would take.", "Pick all"),
-    ("Would they check every payroll?", None),                       # 072 D-6: a real question
-])
-def test_w7_is_the_tick_all_hint_and_nothing_else(text, hit):
-    assert wording_mod.tick_all(text) == hit
-
+# --------------------------------------------------------------------------- W9 (`Wording.money`)
 
 @pytest.mark.parametrize("text, hit", [
     ("Would they pay £5 a month?", "£"), ("About $40?", "$"), ("In GBP or not", "GBP"),
@@ -86,155 +74,103 @@ def test_w9_is_money_in_any_model_text(text, hit):
     assert wording_mod.money(text) == hit
 
 
-@pytest.mark.parametrize("text, name, carried", [
-    ("When would a parent look at a suggested reason for crying?",
-     "a suggested reason for crying", True),
-    ("Would the Suggested-Reason for Crying help?", "a suggested reason for crying", True),
-    ("Would the list of flagged employees help?", "a list of flagged employees", True),
-    ("Would a suggestion help?", "a suggested reason for crying", False),
-    ("Anything at all", None, True),                                 # a card with no name
-])
-def test_verbatim_is_case_punctuation_and_a_leading_article_free(text, name, carried):
-    """keel-cloud 072 D-4."""
-    assert wording_mod.carries(text, name) is carried
 
 
-# ---------------------------------------------------------- calls 52-55 on the two scorers
+def test_the_retired_wording_mirrors_are_gone():
+    """Call 83: W7's `tick_all`, W3 / W8's `carries` and call 56's reported counts read model question text, and the
+    model writes none since keel-cloud 087 / 088."""
+    for name in ("tick_all", "carries", "normal", "reported", "long_options"):
+        assert not hasattr(wording_mod, name), name
+
+
+# ------------------------------------------------------------- E4 (keel-cloud 088, the gate framed)
+
+def test_the_gate_and_frequency_are_framed_around_the_clause():
+    assert wording_mod.gate(SEVEN_NIGHTS, "Had to guess why the baby cried.") == \
+        "In the last 7 nights, did you had to guess why the baby cried?"
+    assert wording_mod.gate(FOUR_WEEKS, "lose your keys") == "In the last 4 weeks, did you lose your keys?"
+    assert wording_mod.frequency_respondent(FOUR_WEEKS, "lose your keys") == \
+        "On how many of those 4 weeks did you lose your keys?"
+    assert wording_mod.frequency_respondent(FOUR_WEEKS, "") == "On how many of those 4 weeks did that happen?", \
+        "no clause: the old frame (keel-cloud 2026-10-12)"
+
+
+def test_e4_holds_each_framed_question_to_twenty_words():
+    assert wording_mod.framed_fault("lose your keys on the way out", SEVEN_NIGHTS) is None
+    # 11 words of clause: Frequency frames it into 20 -- the longest still within 20.
+    eleven = "search the whole flat for your keys before leaving for work"
+    assert wording_mod.framed_fault(eleven, SEVEN_NIGHTS) is None
+    fault = wording_mod.framed_fault(eleven + " again", SEVEN_NIGHTS)
+    assert fault is not None and fault.startswith("E4:") and "21 words" in fault, fault
+    assert "On how many of those 7 nights" in fault, "the longer of the two is named"
+
+
+# ---------------------------------------------------------- calls 83, 85 on the two scorers
 
 @pytest.fixture()
 def registry():
     return fx.registry()
 
 
-def test_frequency_owes_no_text_on_a_framed_window_and_its_question_on_a_one_unit_window(registry):
-    """Call 52 (072 D-7): a text written anyway on a framed window is ignored, never a fault."""
+def test_frequency_owes_its_key_and_note_alone(registry):
+    """Call 85 (keel-cloud 087): Frequency's question is code's on every window (D13); a text written anyway is not
+    read, and options are C2."""
     frequency = registry.by_key("problem.frequency")
     bare = {"key": frequency.key, "respondent_note": "x"}
     assert score_mod.calibration_checks(bare, frequency, window=SEVEN_NIGHTS) == []
     written = dict(bare, question="On how many nights did it happen? Tick all that apply.")
-    assert score_mod.calibration_checks(written, frequency, window=SEVEN_NIGHTS) == [], \
-        "a text on a framed window is not read"
-    assert score_mod.calibration_checks(bare, frequency, window=LAST_SHIFT) == \
-        ["no question written"]
+    assert score_mod.calibration_checks(written, frequency, window=SEVEN_NIGHTS) == [], "a text is not read"
+    with_options = dict(bare, options=[{"label": "Most nights", "belief_phrase": "most"}])
+    assert score_mod.calibration_checks(with_options, frequency)[0].startswith("C2:")
+    assert not score_mod.is_swept(frequency) and not score_mod.is_swept(frequency, founder=False)
 
 
-def test_price_owes_its_key_alone_on_both_screens(registry):
-    """Call 53: options on the founder's Price are C2; the respondent's Price item is code's whole."""
-    price = registry.by_key("commercial.price")
-    assert score_mod.calibration_checks({"key": price.key, "respondent_note": "x"}, price) == []
-    with_options = {"key": price.key, "options": [{"label": "Under £2", "belief_phrase": "x"}]}
-    assert score_mod.calibration_checks(with_options, price)[0].startswith("C2:")
-    anything = {"key": price.key, "question": "Pay £5? Tick all that apply.", "options": ["£5"]}
-    assert score_mod.respondent_checks(anything, price, {"control": "price_ladder"}) == []
-    assert not score_mod.is_swept(price) and not score_mod.is_swept(
-        registry.by_key("problem.frequency"), SEVEN_NIGHTS)
-    assert score_mod.is_swept(registry.by_key("problem.frequency"), LAST_SHIFT)
-
-
-def test_the_gate_owes_its_event_and_is_held_to_e1_to_e3(registry):
+def test_the_gate_owes_its_event_and_is_held_to_e1_to_e4(registry):
     gate = registry.by_key("problem.prevalence")
-    row = {"control": "gate_yes_no"}
-    assert score_mod.respondent_checks({"key": gate.key, "event": "lose your keys",
-                                        "options": None}, gate, row) == []
+    assert score_mod.respondent_checks({"key": gate.key, "event": "lose your keys"}, gate) == []
     assert score_mod.respondent_checks({"key": gate.key, "question": "In the last 7 nights, did "
-                                        "you lose your keys?"}, gate, row)[0].startswith("E2:")
+                                        "you lose your keys?"}, gate)[0].startswith("E2:")
     assert score_mod.respondent_checks({"key": gate.key, "event": "lose your keys last night"},
-                                       gate, row)[0].startswith("E1:")
+                                       gate)[0].startswith("E1:")
+    long = "have to search the whole flat for your keys before leaving for work again"
+    assert score_mod.respondent_checks({"key": gate.key, "event": long}, gate,
+                                       window=SEVEN_NIGHTS)[0].startswith("E4:")
     assert any(f.startswith("W9:") for f in score_mod.respondent_checks(
-        {"key": gate.key, "event": "lose a £5 key"}, gate, row))
+        {"key": gate.key, "event": "lose a £5 key"}, gate))
 
 
-def test_u1_is_retired_there_is_no_unit_to_hold_on_either_screen(registry):
-    """Call 67 (keel-cloud 077, contract 8): `unit` and `units` are gone with the kinds of cost, so what a model
-    writes under them is not read -- the calibration refuses options (C2), the respondent item is the key."""
-    sacrifice = registry.by_key("commercial.existing_sacrifice")
-    question = dict(fx.calibration_question(sacrifice), options=[{"label": "Taxis", "unit": "days"}])
-    assert [f[:3] for f in score_mod.calibration_checks(question, sacrifice)] == ["C2:"]
-    entry = fx.entry()
-    row = entry.respondent_questions[sacrifice.key]
-    item = {"key": sacrifice.key, "options": ["Taxis", "Bus fares"], "units": [None, "days"]}
-    assert score_mod.respondent_checks(item, sacrifice, row) == []
+def test_every_other_respondent_item_is_codes_whole(registry):
+    """Call 83 (keel-cloud 088 FR-002): an item's key is all the model owes; a question or options written anyway are
+    not read and are never a fault."""
+    for key in ("problem.frequency", "problem.importance", "commercial.price", "commercial.commitment"):
+        anything = {"key": key, "question": "Pay £5? Tick all that apply.", "options": ["£5"], "event": "x"}
+        assert score_mod.respondent_checks(anything, registry.by_key(key)) == [], key
 
 
-def test_w3_and_w8_hold_only_to_a_name_the_corpus_records(registry):
-    """Call 55: with no name nothing is held; with one, the SOLUTION and COMMERCIAL questions
-    (Existing sacrifice aside) carry it verbatim."""
-    compatibility = registry.by_key("solution.compatibility")
-    question = {"key": compatibility.key, "question": "When would a parent look at it?",
-                "options": fx.calibration_question(compatibility)["options"]}
-    assert score_mod.calibration_checks(question, compatibility) == []
-    assert score_mod.calibration_checks(question, compatibility,
-                                        short_name="a suggested reason for crying") == [
-        "W3: the question does not name the idea by its short name, 'a suggested reason for "
-        "crying', verbatim"]
-    commitment = registry.by_key("commercial.commitment")
-    asked = dict(fx.calibration_question(commitment),
-                 question="Which steps would they take to try something that helps at night?")
-    assert score_mod.calibration_checks(asked, commitment,
-                                        offer_name="something that helps at night") == []
-    sacrifice = registry.by_key("commercial.existing_sacrifice")
-    assert score_mod.calibration_checks(fx.calibration_question(sacrifice), sacrifice,
-                                        offer_name="something that helps at night") == [], \
-        "072 D-2: Existing sacrifice names no offer"
-    item = {"key": commitment.key, "question": "Which would you do now?", "options": ["A"]}
-    faults = score_mod.respondent_checks(item, commitment, {"control": "multi_choice_ladder"},
-                                         part=3, offer_name="something that helps at night")
-    assert any(f.startswith("W8:") for f in faults), faults
-
-
-def test_w7_and_w9_are_option_validity_faults_on_the_respondent_screen(registry):
-    scale = registry.by_key("problem.current_solution_satisfaction")
-    row = {"control": "single_choice_5", "codes": list(scale.fixed_codes)}
-    item = {"key": scale.key, "question": "How well did it work? Tick all that apply.",
-            "options": [f"Choice {i}" for i in range(5)]}
-    assert any(f.startswith("W7:") for f in score_mod.respondent_checks(item, scale, row))
-    item = dict(item, question="How well did it work?", options=["£1"] + item["options"][1:])
-    assert any(f.startswith("W9:") for f in score_mod.respondent_checks(item, scale, row))
-
-
-# ---------------------------------------------------------------- call 56: reported, never marked
-
-def test_the_wording_rules_are_counted_per_question():
-    long_one = ("When a payroll has been run and needs checking before employees are paid, at what "
-                "point do you think a payroll practitioner would look at a list of employees?")
-    counted = wording_mod.reported(long_one, founder=True)
-    assert counted["words"] == 29 and counted["w1"] and counted["w2"] and counted["w6"]
-    assert counted["s1"], "a clause in front of a long one-sentence question"
-    shorthand = "After a payroll run, when would a practitioner look at a list of flagged employees?"
-    counted = wording_mod.reported(shorthand, founder=True)     # §3.7 says 14; the words are 15
-    assert counted["words"] == 15
-    assert not counted["w1"] and not counted["s1"] and not counted["w2"] and not counted["w6"]
-    scene = ("A payroll has been run and needs checking before payday. At what point would a "
-             "payroll practitioner look at a list of employees flagged as unusual?")
-    counted = wording_mod.reported(scene, founder=True)
-    assert (counted["words"], counted["w1"], counted["s1"]) == (26, True, False), \
-        "§3.6's own S1 example is one word over W1's 25 with a scene -- reported, never a fault"
-    assert "w2" not in wording_mod.reported("Do you think so?", founder=False), \
-        "W2 and W6 are the founder's side only"
-    assert wording_mod.long_options(["Straight after the run",
-                                     "Only with a special exception or extra sign-off from above"]) == 1
-
-
-def test_the_wording_counts_reach_the_totals_and_never_the_judge(registry):
-    entry = fx.entry()
-    result = fx.calibration_result(registry, "SOLUTION")
-    result["questions"][0]["question"] = ("When the keys are gone and the train is due, do you "
-                                          "think a commuter who cycles would look at it first?")
-    score = score_mod.score_calibration(fx.calibration_case(entry, "SOLUTION"), entry, registry,
-                                        result)
-    totals = score_mod.totals([score])
-    wording = totals["wording"]["calibration"]
-    assert wording["questions"] == 3 and wording["w2"] == 1 and wording["s1"] == 1
-    assert totals["option_validity"] == 1.0, "a reported rule is never a fault"
-    judged = marks_mod.judge(totals, marks_mod.load())
-    assert "wording" not in judged and "wording" not in marks_mod.DEFAULTS
+def test_the_prevalence_calibration_entry_owes_its_event_and_five_fifths(registry):
+    """Call 85: E1-E3 on the clause, the five fifths each a label and a belief phrase (C2-C4), W9."""
+    gate = registry.by_key("problem.prevalence")
+    good = fx.calibration_question(gate)
+    assert score_mod.calibration_checks(good, gate) == []
+    assert score_mod.calibration_checks(dict(good, event=None), gate)[0].startswith("E2:")
+    assert score_mod.calibration_checks(dict(good, event="lost their keys last week"), gate)[0].startswith("E1:")
+    assert score_mod.calibration_checks(dict(good, options=good["options"][:4]), gate)[0].startswith("C2:")
+    phrase = [dict(o) for o in good["options"]]
+    phrase[0]["belief_phrase"] = ""
+    assert any(f.startswith("C4:") for f in score_mod.calibration_checks(dict(good, options=phrase), gate))
+    sure = [dict(o) for o in good["options"]]
+    sure[1]["label"] = "Not sure"
+    assert any(f.startswith("C3:") for f in score_mod.calibration_checks(dict(good, options=sure), gate))
+    money = [dict(o) for o in good["options"]]
+    money[2]["label"] = "About £5 worth"
+    assert any(f.startswith("W9:") for f in score_mod.calibration_checks(dict(good, options=money), gate))
 
 
 # ------------------------------------------------- call 55: the validator holds what the job had
 
 def test_the_validators_batch_carries_the_mechanism_and_offer_the_job_was_handed(tmp_path):
-    """keel-cloud's validator stands Lullaby's fixture in for a missing mechanism, and that fixture
-    carries a short name the corpus does not: the batch hands it the entry's own, name and all."""
+    """keel-cloud's validator stands Lullaby's fixture in for a missing mechanism: the batch hands it the entry's
+    own, short name and all; the PROBLEM job and its validator are handed none."""
     from instructions import prompts as prompts_mod                         # noqa: PLC0415
     entry = fx.entry()
     cases = prompts_mod.build_cases(entry, fx.exported(tmp_path), fx.instructions(),
@@ -245,8 +181,10 @@ def test_the_validators_batch_carries_the_mechanism_and_offer_the_job_was_handed
                                       (problem, {"questions": []})])
     sent, plain = batch["cases"]
     assert sent["mechanism"]["mechanism"] == entry.solution_mechanism["mechanism"]
-    assert sent["mechanism"]["short_name"] is None and sent["offer_name"] is None
+    assert sent["mechanism"]["short_name"] == "a tag that beeps back"
+    assert sent["offer_name"] == "a fix for lost keys"
     assert "mechanism" not in plain, "the PROBLEM job is handed no mechanism, nor its validator"
-    assert len(solution.meta["swept"]) == 3, "every SOLUTION key has model text (swept on PROBLEM only)"
+    assert solution.meta["swept"] == ["solution.compatibility", "solution.relative_advantage",
+                                      "solution.adoption_friction"], "the lists' words (swept on PROBLEM only)"
     assert problem.meta["swept"] == [
         "problem.prevalence", "problem.importance", "problem.current_solution_satisfaction"]

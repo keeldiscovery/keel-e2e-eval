@@ -1,8 +1,9 @@
 """`instructions/registry.py`: the registry the export carries, and its eight invariants (spec 029
 FR-021, data-model §1, research R4; T011; at twelve keys by spec 030 T004, judgement calls 46-47;
-at thirteen by spec 031 T004, judgement call 50; cost first by spec 032 T002, judgement call 59).
+at thirteen by spec 031 T004, judgement call 50; cost first by spec 032 T002, judgement call 59;
+registry 4 by spec 040 T002, judgement calls 77 and 78 -- all thirteen decide, no one-unit window).
 
-The golden every v12 scorer checks a question against is only honest if it is itself well formed,
+The golden every v18 scorer checks a result against is only honest if it is itself well formed,
 so each invariant is made to fail once, on its own, by a one-value patch of the hand-sized slice
 (`tests/fixtures/registry/broken/`), and the refusal must name the invariant and the key.
 """
@@ -36,53 +37,96 @@ def test_a_vector_slice_is_its_dimensions_in_order():
     assert registry.slice("COMMERCIAL")[1].key == registry_mod.PRICE_KEY
 
 
-def test_price_is_shapes_asked_of_whoever_pays_over_the_costs_five_periods():
-    """Call 59 (keel-cloud 074, registry decision 16): Price at order 2, SHAPES, not b2b_only, a price_range
-    over day · week · month · quarter · year, a price_ladder item, ordinal_band."""
+def test_price_asked_of_whoever_pays_over_the_costs_five_periods():
+    """Call 59 (keel-cloud 074): Price at order 2, not b2b_only, a price_range over day · week · month · quarter ·
+    year, a price_ladder item, ordinal_band, the escape *I can't say*. Since 087 it decides like every dimension."""
     registry = fx.registry()
     price = registry.by_key(registry_mod.PRICE_KEY)
-    assert (price.order, price.weight, price.b2b_only) == (2, "SHAPES", False)
-    assert price.founder_price and price.respondent_code_written and not price.founder_numeric
+    assert (price.order, price.b2b_only) == (2, False)
+    assert price.founder_price and not price.founder_numeric and not price.founder_list
     assert tuple(price.normalized["periods"]) == registry_mod.PRICE_PERIODS == registry_mod.PERIODS
-    assert price.answers["compare_rule"] == "ordinal_band" and price.part == 3
-    assert "would_not_pay" in registry_mod.RESPONDENT_ESCAPES
+    assert price.compare_rule == "ordinal_band" and price.part == 3
+    assert price.respondent_control == "price_ladder" and price.escape["code"] == "cant_say"
 
 
 def test_existing_sacrifice_is_a_cost_estimate_read_as_an_interval():
     """Call 59: `cost_estimate` over the five periods and the modes AMOUNT / HOURS, `cost_total` (call 67)
     yields a number so it is drawn as an interval, read by `interval_contains_median`; no kinds anywhere."""
     sacrifice = fx.registry().by_key(registry_mod.SACRIFICE_KEY)
-    assert sacrifice.founder_cost and sacrifice.founder_code_framed and not sacrifice.derived
+    assert sacrifice.founder_cost and not sacrifice.derived
     assert tuple(sacrifice.normalized["periods"]) == registry_mod.PERIODS
     assert tuple(sacrifice.normalized["modes"]) == registry_mod.COST_MODES
-    assert sacrifice.respondent["control"] == registry_mod.COST_TOTAL_CONTROL == "cost_total"
+    assert sacrifice.respondent_control == registry_mod.COST_TOTAL_CONTROL == "cost_total"
     assert registry_mod.COST_TOTAL_CONTROL in registry_mod.NUMBER_YIELDING_CONTROLS
     assert registry_mod.COST_TOTAL_CONTROL not in registry_mod.NUMERIC_RESPONDENT_CONTROLS
-    assert "code_rule" not in sacrifice.normalized and sacrifice.respondent_code_written
-    assert sacrifice.respondent["chips"] == ["It cost us nothing", "I can't recall", "That's a rough guess"]
+    assert "code_rule" not in sacrifice.normalized
+    assert sacrifice.escape == {"code": "cant_recall", "label": "I can't recall", "counts": "apart"}
     assert sacrifice.answers["shape"] == "interval"
-    assert sacrifice.answers["compare_rule"] == "interval_contains_median"
+    assert sacrifice.compare_rule == "interval_contains_median"
 
 
 def test_ability_to_pay_is_derived_and_asked_on_the_decision_makers_link_only():
     """Call 59: `derived` (a price_cost_ratio from the cost and the price), `cost_covers_price`,
-    b2b_link_only, calibrated on every persona; the four rungs stay the budget source's codes."""
+    b2b_link_only, calibrated on every persona; since keel-cloud 088 its four budget sources are fixed answers."""
     ability = fx.registry().by_key(registry_mod.ABILITY_KEY)
-    assert ability.derived and ability.founder_code_framed and ability.b2b_link_only
-    assert not ability.b2b_only
+    assert ability.derived and ability.b2b_link_only and not ability.b2b_only
     assert ability.normalized["kind"] == "price_cost_ratio"
     assert ability.normalized["from"] == [registry_mod.SACRIFICE_KEY, registry_mod.PRICE_KEY]
-    assert ability.answers["compare_rule"] == registry_mod.DERIVED_COMPARE_RULE
-    assert ability.respondent["codes"] == [
+    assert ability.compare_rule == registry_mod.DERIVED_COMPARE_RULE
+    assert ability.fixed_answer_codes == [
         "existing_line", "new_line_signed_off", "taken_from_other_spend", "no_budget"]
 
 
-def test_the_nine_deal_breakers_are_the_registrys_and_every_one_can_fail():
+def test_all_thirteen_decide_and_no_weight_is_read():
+    """Call 77 (D3): the registry carries no weight, and nothing here names a deal-breaker."""
     registry = fx.registry()
-    for vector in registry_mod.VECTORS:
-        assert registry.deal_breakers(vector) == list(registry_mod.DEAL_BREAKERS[vector])
-        for key in registry.deal_breakers(vector):
-            assert "NOT_HOLDING_UP" in registry.by_key(key).status_vocabulary
+    assert all("weight" not in d.raw_keys for d in registry.dimensions)
+    assert not hasattr(registry_mod, "DEAL_BREAKERS") and not hasattr(registry, "deal_breakers")
+    assert not hasattr(registry_mod.Dimension, "weight")
+    for name in ("RESPONDENT_ESCAPES", "FIXED_RESPONDENT_CODES", "CODE_WRITTEN_RESPONDENT_CONTROLS",
+                 "names_the_offer"):
+        assert not hasattr(registry_mod, name), name
+
+
+def test_the_seven_lists_carry_their_saves_and_the_rest_none():
+    """keel-cloud 087 FR-001 / FR-007: `founder.saves` bounds what the lock stores on the seven list controls."""
+    registry = fx.registry()
+    lists = {d.key: d.saves for d in registry.dimensions if d.founder_list}
+    assert sorted(lists) == sorted([
+        "problem.importance", "problem.current_solution_satisfaction", "solution.compatibility",
+        "solution.relative_advantage", "solution.adoption_friction", "commercial.buyer_payer_alignment",
+        "commercial.purchase_friction", "commercial.commitment"])
+    assert lists["problem.importance"]["min_items"] == lists["problem.importance"]["max_items"] == 5
+    assert lists["problem.current_solution_satisfaction"]["phrase"] is True
+    assert lists["solution.compatibility"]["asked"] and lists["solution.adoption_friction"]["asked"]
+    assert lists["commercial.buyer_payer_alignment"]["fixed_first"] == {"code": "nobody_else", "label": "Nobody else"}
+    assert lists["commercial.buyer_payer_alignment"]["max_words"] == 4
+    assert all(d.saves == {} for d in registry.dimensions if not d.founder_list)
+
+
+def test_one_escape_a_dimension_and_only_importances_counts_against():
+    """Call 77, invariant 2 (the spoken guidelines §5): none on the gate or Commitment."""
+    registry = fx.registry()
+    escapes = {d.key: d.escape for d in registry.dimensions}
+    assert escapes["problem.prevalence"] is None and escapes["commercial.commitment"] is None
+    assert [k for k, e in escapes.items() if e and e["counts"] == "against"] == ["problem.importance"]
+    assert escapes["problem.importance"]["label"] == "None of these"
+    assert sum(1 for e in escapes.values() if e) == 11
+
+
+def test_the_fixed_answer_sets_fit_the_spoken_guidelines():
+    """Invariant 8: at most five answers, each at most nine words; supports and the conditional among them."""
+    registry = fx.registry()
+    commitment = registry.by_key("commercial.commitment")
+    assert commitment.respondent_control == "fixed_four"
+    assert commitment.fixed_answer_codes == ["yes_start", "yes_after_trying", "probably_not", "no"]
+    assert commitment.respondent["supports"] == ["yes_start", "yes_after_trying"]
+    assert commitment.respondent["conditional"] == "yes_after_trying"
+    friction = registry.by_key("commercial.purchase_friction")
+    assert friction.respondent_control == "fixed_three" and friction.compare_rule == "caution_turned"
+    for d in registry.dimensions:
+        assert len(d.fixed_answers) <= registry_mod.MAX_FIXED_ANSWERS
+        assert all(registry_mod.words(a["label"]) <= registry_mod.MAX_ANSWER_WORDS for a in d.fixed_answers)
 
 
 def test_the_calibrated_set_is_twelve_on_b2c_and_thirteen_on_b2b_the_answered_set_less_the_derived():
@@ -128,12 +172,6 @@ def test_plan_keys_are_per_part_and_link_less_what_the_founder_left_out():
     assert registry.link_of(1, True) == primary
 
 
-def test_the_fixed_respondent_codes_are_the_registrys_one():
-    registry = fx.registry()
-    assert registry.fixed_respondent_codes("commercial.commitment") == ["nothing_yet"]
-    assert registry.fixed_respondent_codes("problem.frequency") == []
-
-
 def _patched(name: str) -> tuple[dict, dict]:
     patch = yaml.safe_load((fx.BROKEN / name).read_text(encoding="utf-8"))
     document = copy.deepcopy(fx.registry_document())
@@ -159,9 +197,10 @@ def test_each_broken_registry_fails_exactly_its_own_invariant_naming_the_key(nam
 
 def test_there_is_a_broken_fixture_per_invariant_and_the_cost_first_extras():
     invariants = sorted(yaml.safe_load(p.read_text())["invariant"] for p in fx.BROKEN.glob("*.yaml"))
-    assert invariants == [1, 2, 3, 3, 4, 5, 5, 5, 5, 5, 5, 5, 6, 6, 7, 8]
+    assert invariants == [1, 2, 2, 3, 3, 4, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 7, 8]
     for name in ("5-price-periods", "5-cost-modes", "5-derived-sides", "3-b2b-link-only", "6-shape-amounts",
-                 "5-cost-kinds", "5-benefit-respondent", "5-benefit-founder"):
+                 "5-cost-kinds", "5-benefit-respondent", "5-benefit-founder", "2-escape", "2-escape-against",
+                 "5-saves", "8-options"):
         assert (fx.BROKEN / f"{name}.yaml").is_file()
 
 
@@ -173,6 +212,29 @@ def test_a_registry_still_carrying_asked_in_v1_is_refused_as_unknown_shaped():
         registry_mod.from_document(document, source="v9.json")
     assert "asked_in_v1" in str(refusal.value)
     assert "problem.frequency" in str(refusal.value)
+
+
+@pytest.mark.parametrize("where, name", [
+    ("entry", "weight"), ("respondent", "chips"), ("answers", "status_vocabulary"), ("respondent", "codes")])
+def test_a_registry_3_shape_is_refused_by_name(where, name):
+    """Call 77: what keel-cloud 087 / 088 removed is refused as unknown-shaped, never ignored."""
+    document = copy.deepcopy(fx.registry_document())
+    dimension = document["dimensions"][2]
+    target = dimension if where == "entry" else dimension[where]
+    target[name] = "DEAL_BREAKER" if name == "weight" else ["x"]
+    with pytest.raises(registry_mod.RegistryUnavailable) as refusal:
+        registry_mod.from_document(document, source="v3.json")
+    assert f"carries {'`' + name + '`' if where == 'entry' else where + '.' + name}" in str(refusal.value)
+    assert "problem.importance" in str(refusal.value) and "judgement call 77" in str(refusal.value)
+
+
+@pytest.mark.parametrize("name", ["chips", "something_else"])
+def test_a_registry_3_common_block_is_refused_by_name(name):
+    document = copy.deepcopy(fx.registry_document())
+    document["common"][name] = {"default": ["I'd rather not say"]}
+    with pytest.raises(registry_mod.RegistryUnavailable) as refusal:
+        registry_mod.from_document(document, source="v3.json")
+    assert f"common.{name}" in str(refusal.value)
 
 
 def test_the_v11_registry_is_refused_naming_invariant_3_and_5():
@@ -239,7 +301,7 @@ def test_an_export_with_the_registry_carries_it_checked(tmp_path):
     fx.write_export(tmp_path)
     exported = contract_mod.read(tmp_path)
     assert exported.registry.by_key("problem.prevalence").respondent["control"] == "gate_yes_no"
-    assert exported.registry.version == 3
+    assert exported.registry.version == 4
 
 
 def test_the_manifest_names_the_registry_file_as_058_writes_it(tmp_path):
@@ -261,28 +323,33 @@ def test_the_window_placeholders_are_filled_by_code():
 @pytest.mark.parametrize("raw, words, unit", [
     ({"count": 7, "unit": "NIGHTS"}, "the last 7 nights", "nights out of 7"),
     ({"count": 3, "unit": "MONTHS"}, "the last 3 months", "months out of 3"),
-    ({"count": 1, "unit": "SHIFTS"}, "the last shift", "shifts out of 1"),
+    ({"count": 4, "unit": "WEEKS"}, "the last 4 weeks", "weeks out of 4"),
     ({"count": 5, "unit": "WORKING_DAYS"}, "the last 5 working days", "working days out of 5"),
-    ("LAST_CYCLE", "the last cycle", "cycles out of 1"),
+    ("THIRTY_DAYS", "the last 30 days", "days out of 30"),
 ])
-def test_a_recall_window_renders_as_keel_cloud_058s_record_does(raw, words, unit):
-    """`RecallWindow.words()` / `unit()` (058 `cb0422a`): a count of 1 drops the number, and
-    `{window_unit}` is the plural out of the count; a legacy enum name is upcast."""
+def test_a_recall_window_renders_as_keel_clouds_record_does(raw, words, unit):
+    """`RecallWindow.words()` / `unit()`: `{window_unit}` is the plural out of the count; a legacy multi-unit enum
+    name is upcast."""
     window = registry_mod.RecallWindow.read(raw)
     assert (window.words(), window.unit_words()) == (words, unit)
 
 
-def test_a_window_frames_frequency_above_one_unit_and_is_refused_when_unreadable():
-    """Call 52 (`WindowFrame.framesFrequency`): C7 and R8 are retired with the ways they read a
-    window; what is left is whether code frames Frequency -- a count above one."""
-    assert registry_mod.RecallWindow(7, "NIGHTS").frames_frequency
-    assert not registry_mod.RecallWindow(1, "SHIFTS").frames_frequency
-    assert not hasattr(registry_mod.RecallWindow, "is_named_in")
+@pytest.mark.parametrize("bad", [
+    {"count": 1, "unit": "MONTHS"}, {"count": 0, "unit": "NIGHTS"}, {"count": 1, "unit": "SHIFTS"},
+    {"count": 3, "unit": "CYCLES"}, {"count": 2, "unit": "YEARS"}, {"count": 1.5, "unit": "DAYS"},
+    "LAST_CYCLE", "FORTNIGHT"])
+def test_there_is_no_one_unit_window_and_an_unreadable_one_is_refused(bad):
+    """Call 78 (D13, keel-cloud 087 FR-009): a window counts at least two of five units; `CYCLES`, `SHIFTS` and the
+    `LAST_CYCLE` preset are gone -- refused like any old document, which closes DRIFT #74 by construction."""
+    with pytest.raises(ValueError):
+        registry_mod.RecallWindow.read(bad)
+
+
+def test_the_one_unit_branch_is_gone():
     assert registry_mod.RecallWindow.read(None) is None
-    for bad in ({"count": 0, "unit": "NIGHTS"}, {"count": 2, "unit": "YEARS"},
-                {"count": 1.5, "unit": "DAYS"}, "FORTNIGHT"):
-        with pytest.raises(ValueError):
-            registry_mod.RecallWindow.read(bad)
+    assert not hasattr(registry_mod.RecallWindow, "frames_frequency")
+    assert not hasattr(registry_mod.RecallWindow, "is_named_in")
+    assert registry_mod.WINDOW_MIN_COUNT == 2
 
 
 def test_the_v12_registry_is_refused_for_its_kinds_and_its_amounts_control():
@@ -290,8 +357,9 @@ def test_the_v12_registry_is_refused_for_its_kinds_and_its_amounts_control():
     document = copy.deepcopy(fx.registry_document())
     sacrifice = next(d for d in document["dimensions"] if d["key"] == registry_mod.SACRIFICE_KEY)
     sacrifice["founder"]["normalized"]["code_rule"] = "4-6 slug codes for the kinds of cost"
-    sacrifice["respondent"]["control"] = registry_mod.GONE_AMOUNTS_CONTROL
+    sacrifice["respondent"]["control"] = "branch_pick_amounts"
     faults = registry_mod.check_invariants(registry_mod.from_document(document, check=False))
     assert any("a cost has no kinds" in f for f in faults), faults
     assert any(f.startswith("invariant 5 (one total)") for f in faults), faults
+    assert any(f.startswith("invariant 5 (respondent controls)") for f in faults), faults
     assert any(f.startswith("invariant 6 ") for f in faults), faults

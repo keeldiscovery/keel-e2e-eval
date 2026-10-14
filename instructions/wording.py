@@ -7,22 +7,23 @@ it, so the structural rules it checks are ported here line for line, each beside
 from -- the same arrangement the v9 checks have with C2-C4:
 
 - `event_fault` is `WindowFrame.fault` (E1-E3) with `WindowFrame.clause`;
-- `money` is `Wording.money` (W9), `tick_all` is `Wording.tickAll` (W7), `carries` is
-  `Wording.carries` (W3 / W8's *verbatim*);
+- `money` is `Wording.money` (W9). `tick_all` (W7) and `carries` (W3 / W8's *verbatim*) retired at v18 (call 83):
+  the model writes no question text for them to read;
 - `NUMBER_WORDS` is `Vocabulary.NUMBER_WORDS`, `first_word` is `Vocabulary.firstWord`;
 - `recall_words` is `Period.recallWords`: the registry's `{cost_period}` is filled with it. `RespondentQuestionsRules.checkRecall`
   (W10) went with the model's Existing sacrifice question (keel-cloud 077, call 67); nothing here mirrors it.
 
-**And the rules the subject only instructs are counted here, never marked** (call 56;
-`window-frame-design.md` §3.6-§3.8: *"checked by the eval's judge-free length counts ... reported,
-not refused"*): `reported(text, founder=…)` returns one question's words and its W1 / W2 / W6 / S1
-flags, and `long_options` its W5 count. `score.py` adds them up; `marks.judge` never reads them.
+- `gate`, `frequency_respondent` and `framed_fault` are `WindowFrame.gate` / `frequencyRespondent` and keel-cloud
+  088's `E4`: the framed gate and Frequency question at most 20 words each.
+
+The reported wording counts of call 56 (W1 / W2 / W5 / W6 / S1 over the model's question text) retired at v18 with the
+text they counted (call 83): since keel-cloud 087 / 088 the model writes no question at all -- the founder's Answer
+prompts and every respondent word are code's.
 """
 
 from __future__ import annotations
 
 import re
-import unicodedata
 
 # -------------------------------------------------------------------------- Vocabulary (mirrored)
 
@@ -109,7 +110,7 @@ def event_fault(event, window) -> str | None:
     return None
 
 
-# -------------------------------------------------------------------- Wording (W3/W7/W8/W9, mirrored)
+# --------------------------------------------------------------------------- Wording (W9, mirrored)
 
 _ISO = ("USD|GBP|EUR|CHF|SEK|NOK|DKK|PLN|INR|CAD|AUD|MXN|JPY|SGD|KRW|CNY|HKD|IDR|MYR|PHP|THB|VND|"
         "AED")
@@ -122,9 +123,6 @@ _MONEY = re.compile(
     re.IGNORECASE)
 #: `Wording.ISO_CODES`: an ISO 4217 code in capitals.
 _ISO_CODES = re.compile(r"\b(" + _ISO + r")\b")
-#: `Wording.TICK_ALL` (W7).
-_TICK_ALL = re.compile(r"\b(tick|select|choose)\s+(all|every)\b|\bpick\s+all\b"
-                       r"|\ball\s+that\s+appl(y|ies)\b", re.IGNORECASE)
 
 
 def money(text) -> str | None:
@@ -143,40 +141,6 @@ def money(text) -> str | None:
     return None
 
 
-def tick_all(question) -> str | None:
-    """`Wording.tickAll` (W7): the words of a tick-all instruction in a question, or `None`."""
-    if question is None:
-        return None
-    match = _TICK_ALL.search(str(question))
-    return match.group() if match else None
-
-
-def normal(text) -> str:
-    """`Wording.normal`: NFKC, lower case, apostrophes dropped, every run of non-letters and
-    non-digits one space."""
-    if text is None:
-        return ""
-    folded = re.sub(r"['‘’ʼ]", "", unicodedata.normalize("NFKC", str(text)).lower())
-    return re.sub(r"[\W_]+", " ", folded).strip()
-
-
-def _without_article(text: str) -> str:
-    for article in ("a ", "an ", "the "):
-        if text.startswith(article):
-            return text[len(article):]
-    return text
-
-
-def carries(text, name) -> bool:
-    """`Wording.carries` (W3 / W8, keel-cloud D-4): `name` verbatim in `text` -- case, accents,
-    apostrophes and punctuation aside, a leading article free. A blank name is carried by
-    anything (a card with no name is held to none)."""
-    if name is None or not str(name).strip():
-        return True
-    needle = _without_article(normal(name))
-    return not needle or f" {needle} " in f" {normal(text)} "
-
-
 # ------------------------------------------------------------- the recall words (call 62; keel-cloud 074)
 
 #: `Period.recallWords` (keel-cloud 074): the words a respondent recalls what the problem cost over, by the
@@ -191,36 +155,32 @@ def recall_words(period) -> str:
     return RECALL_WORDS.get(period, RECALL_WORDS["quarter"])
 
 
+# ----------------------------------------------------------- the respondent's frames (E4, mirrored)
 
-# --------------------------------------------------------------- the reported rules (call 56)
-
-#: W1: at most 20 words in a question, 25 where a scene sentence comes first.
-W1_MAX, W1_SCENE_MAX = 20, 25
-#: W5: an option of at most 8 words.
-W5_MAX = 8
-_W2 = re.compile(r"\bdo you (think|believe)\b", re.IGNORECASE)
-_SECOND_PERSON = re.compile(r"\b(you|your|yours|yourself|you're|youre)\b", re.IGNORECASE)
-_SENTENCES = re.compile(r"(?<=[.!?])\s+")
+#: `SpokenForm.STEM_MAX_WORDS` (keel-cloud 088 E4; the spoken guidelines §2).
+SPOKEN_STEM_MAX_WORDS = 20
 
 
-def reported(text, *, founder: bool) -> dict:
-    """One model-written question's reported wording (call 56) -- never a fault, never a mark:
-    `words`; `w1` over 20 words (25 with a scene sentence first); on the founder's side `w2` (*do
-    you think / believe*) and `w6` (second person: the founder's questions are about others); and
-    `s1`, a one-sentence question over 20 words with a clause in front of it (*When a payroll has
-    been run ..., at what point ...?*) where S1 asks for the scene as its own sentence."""
-    text = str(text or "").strip()
-    words = len(text.split())
-    sentences = [s for s in _SENTENCES.split(text) if s.strip()]
-    scene = len(sentences) > 1 and not sentences[0].rstrip().endswith("?")
-    out = {"words": words, "w1": words > (W1_SCENE_MAX if scene else W1_MAX),
-           "s1": len(sentences) == 1 and words > W1_MAX and "," in text.split("?")[0]}
-    if founder:
-        out["w2"] = bool(_W2.search(text))
-        out["w6"] = bool(_SECOND_PERSON.search(text))
-    return out
+def gate(window, event) -> str:
+    """`WindowFrame.gate`: the respondent's gate around the model's clause."""
+    return f"In {window.words()}, did you {clause(event)}?"
 
 
-def long_options(labels) -> int:
-    """W5's count: the options over 8 words (reported, call 56)."""
-    return sum(1 for label in labels or () if len(str(label or "").split()) > W5_MAX)
+def frequency_respondent(window, event) -> str:
+    """`WindowFrame.frequencyRespondent(window, event)`: Frequency carries the gate's own clause."""
+    text = clause(event)
+    if not text.strip():
+        return f"On how many of those {window.count} {window.plural} did that happen?"
+    return f"On how many of those {window.count} {window.plural} did you {text}?"
+
+
+def framed_fault(event, window) -> str | None:
+    """E4 (keel-cloud 088 `RespondentQuestionsRules.gate`): framed, the gate and the Frequency question it frames
+    are each at most 20 words."""
+    questions = (gate(window, event), frequency_respondent(window, event))
+    longest = max(questions, key=lambda q: len(q.split()))
+    count = len(longest.split())
+    if count > SPOKEN_STEM_MAX_WORDS:
+        return (f"E4: framed, the clause makes a question of {count} words ('{longest}'); every question a "
+                f"stranger hears is at most {SPOKEN_STEM_MAX_WORDS} words, so shorten the clause")
+    return None

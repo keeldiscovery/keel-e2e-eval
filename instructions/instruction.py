@@ -30,8 +30,10 @@ STEMS = {
     "CONTEXT_INTERPRET": "context-interpret",
     "PROBLEM_INTERPRET": "problem-interpret",
     "SOLUTION_MECHANISM": "solution-mechanism",
-    "CALIBRATION_QUESTIONS": "calibration-questions",
+    # keel-cloud 087: the screen keeps its name, its instruction is `founder-lists.md`; 088: `asked.md`.
+    "CALIBRATION_QUESTIONS": "founder-lists",
     "RESPONDENT_QUESTIONS": "respondent-questions",
+    "ASKED": "asked",
 }
 
 

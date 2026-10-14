@@ -2,7 +2,8 @@
 
 **The rules are never re-implemented here.** The v9 templates' rule ids (`X1`..`X3`, `P1`..`P3`,
 `M1`..`M3`, `C1`..`C6`, `R1`..`R7`, `I1`, `B1`..`B6`, and since keel-cloud 072 / 073 `E1`..`E3`,
-`W3`, `W7`..`W9` (`U1` and `W10` retired at v13) -- screen-shapes §4; C7 and R8 retired) live in keel-cloud, and
+`W3`, `W7`..`W9` (`U1` and `W10` retired at v13) -- screen-shapes §4; C7 and R8 retired; since keel-cloud 087
+the founder lists' `L1`..`L5`, since 088 the gate's `E4` and the ASKED screen's `K1`..`K6`) live in keel-cloud, and
 the only honest way to ask whether the aggregate would have taken a result is to hand it to the
 aggregate. So this module collects a whole run's answers into one batch and shells
 `./gradlew -q screenContracts --args="validate <batch> <report>"` **once** — one JVM start for the
@@ -38,7 +39,7 @@ from .contract import ContractUnavailable
 _TOOL = (Path("src") / "test" / "java" / "com" / "keeldiscovery" / "cloud" / "tooling"
          / "ScreenContractTool.java")
 
-#: The seven model screens a v9 batch carries, and the marker in the validator's source that says
+#: The eight model screens a batch carries (contract 13), and the marker in the validator's source that says
 #: it takes each -- the **constant reference**, `InferenceScreen.<SCREEN>`, the way `QUESTIONS` was
 #: read at v8: a screen named in that file's prose is a screen assumed. `COMPARE` is never batched
 #: (there is no answer to validate).
@@ -48,6 +49,7 @@ _SHAPE_MARKERS = {
     "SOLUTION_MECHANISM": "InferenceScreen.SOLUTION_MECHANISM",
     "CALIBRATION_QUESTIONS": "InferenceScreen.CALIBRATION_QUESTIONS",
     "RESPONDENT_QUESTIONS": "InferenceScreen.RESPONDENT_QUESTIONS",
+    "ASKED": "InferenceScreen.ASKED",
     "INTERPRET": "InferenceScreen.INTERPRET",
     "BRIEF": "InferenceScreen.BRIEF",
 }
@@ -56,7 +58,7 @@ _SHAPE_MARKERS = {
 def _prerequisite(screen: str) -> str:
     own = (" `dimension_coverage`, `option_validity` and `no_leak` are this repository's code and "
            "are measured either way." if screen in ("CALIBRATION_QUESTIONS",
-                                                    "RESPONDENT_QUESTIONS") else "")
+                                                    "RESPONDENT_QUESTIONS", "ASKED") else "")
     return (f"keel-cloud's `screenContracts validate` does not take the {screen} case kind "
             f"(no `{_SHAPE_MARKERS[screen]}` in {_TOOL.name}). **Prerequisite for keel-cloud**: "
             f"spec 058's `ScreenContractTool` {screen} case (keel-e2e-eval spec 029 FR-024, "
@@ -88,7 +90,15 @@ def _taken_by(screen: str):
     it does take unmeasured (run 20261008T001657Z). Prose still never counts: a label needs
     `case` before it and `->`/`:`/`,` after it."""
     name = re.escape(screen)
-    return re.compile(rf"InferenceScreen\.{name}\b|\bcase\s+(?:[A-Z_]+\s*,\s*)*{name}\s*(?:->|:|,)")
+    extra = "".join(f"|{re.escape(call)}" for call in _CALL_MARKERS.get(screen, ()))
+    return re.compile(rf"InferenceScreen\.{name}\b|\bcase\s+(?:[A-Z_]+\s*,\s*)*{name}\s*(?:->|:|,){extra}")
+
+
+#: Spec 040: a screen the validator takes by the **call** that judges it rather than by its constant. keel-cloud 086
+#: deleted `ScreenContractTool`'s last `InferenceScreen.BRIEF` reference -- a BRIEF case is every case that is
+#: neither a vector screen nor INTERPRET, judged by `BriefReading.check(...)` -- so the constant alone read BRIEF
+#: as not taken and left its rule refusals unmeasured from 086 on. The call is code, never prose.
+_CALL_MARKERS = {"BRIEF": ("BriefReading.check(",)}
 
 
 def shapes_needed(batch: dict) -> set:
@@ -171,7 +181,6 @@ def build_batch(cases_and_results) -> dict:
             entry.update(dict(context))
             entry.update(market=context.get("market"), part=case.meta.get("part"),
                          link=case.meta.get("link"), plan=list(case.meta.get("plan") or []),
-                         founder_options=context.get("founder_options"),
                          founder_values=case.meta.get("founder_values"))
             # The golden mechanism, as validation state only, wherever the job was handed none
             # (Part 1, B2B): 058 applies R4 with the project's own vocabulary, never its stand-in
@@ -179,6 +188,13 @@ def build_batch(cases_and_results) -> dict:
             if not entry.get("mechanism") and case.meta.get("validation_mechanism"):
                 entry["mechanism"] = case.meta["validation_mechanism"]
             entry["offer_name"] = case.meta.get("offer_name")
+        elif case.kind == "ASKED":
+            # keel-cloud 088 (`screenContracts validate`'s ASKED case, its judgement call 24): the list's key and
+            # the items handed `[{index, label}]`, on the entry's own context and market; the K ids are rules.
+            entry.update(market=context.get("market"), context=context.get("context"),
+                         dimension=(context.get("dimension") or {}).get("key"), items=context.get("items"))
+            if case.meta.get("validation_mechanism"):
+                entry["mechanism"] = case.meta["validation_mechanism"]
         elif case.kind == "READING":
             entry.update(invitation_id=context.get("invitation_id"), story=context.get("story"))
         elif case.kind == "BRIEF":
@@ -189,7 +205,7 @@ def build_batch(cases_and_results) -> dict:
         # The confirmed problem card, as validation state only, on the two question screens: 058
         # confirms it from `problem_statement` (Lullaby's otherwise) and subtracts its words from
         # R4's and C5's vocabulary -- run 2's Countly "mismatch" was refused for lack of it.
-        if case.kind in ("CALIBRATION", "RESPONDENT") and not entry.get("problem_statement") \
+        if case.kind in ("CALIBRATION", "RESPONDENT", "ASKED") and not entry.get("problem_statement") \
                 and case.meta.get("validation_problem_statement"):
             entry["problem_statement"] = case.meta["validation_problem_statement"]
         entry.update(case_id=case_id, screen=case.screen)     # never a context key's
@@ -252,6 +268,21 @@ def verdict(keel_cloud: Path, case, result, directory: Path, *, redraw: bool = F
     raise ContractUnavailable(f"keel-cloud's validator returned no verdict for {case_id}")
 
 
+#: Judgement call 86: keel-cloud's `ScreenContractTool.VECTOR_RULE` (`^[XPMCRIBEWK][0-9]+: `) has no `L`, so a
+#: founder-lists refusal (`L1`-`L5`, keel-cloud 087) comes back `kind: shape` though its reason opens with its id
+#: (keel-cloud 088 saw it and left it). Read here as the rule it is -- a model's list draft breaking a list rule is a
+#: rule refusal, not an answer that missed the contract -- until keel-cloud adds the letter (a follow-up).
+_SHAPED_RULE = re.compile(r"^(L[0-9]+): ")
+
+
+def _reclassified(refusal: dict) -> dict:
+    if (refusal or {}).get("kind") == "shape":
+        match = _SHAPED_RULE.match(str(refusal.get("message") or ""))
+        if match:
+            return {**refusal, "kind": "rule", "rule": match.group(1)}
+    return refusal or {}
+
+
 def fold_in(report: list) -> dict:
     """The report, counted the way the marks read it.
 
@@ -278,7 +309,7 @@ def fold_in(report: list) -> dict:
             else:
                 accepted += 1
             continue
-        refusal = entry.get("refusal") or {}
+        refusal = _reclassified(entry.get("refusal") or {})
         kind = refusal.get("kind")
         if second and kind in ("rule", "shape"):
             second_refusals += 1

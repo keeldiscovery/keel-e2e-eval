@@ -6,7 +6,18 @@
 # evals/policy.py states for POLICY_VERSION, and a separate constant so the two can never be
 # confused.
 
-# MARKS_VERSION 17 (judgement call 76, 2026-10-12; spec 038-advantage-benefit-first, the sibling of keel-cloud
+# MARKS_VERSION 18 (judgement calls 77-90, 2026-10-14; spec 040-marks-v18, the sibling of keel-cloud 087 / 088 / 089,
+# merged at keel-cloud-docs 7b151f9; registry VERSION 4, document 20, CONTRACT_VERSION 13, routing v11). The October
+# redesign: all thirteen dimensions decide (no weight anywhere); corpus REVISION 10 (lists, fixed answers, one escape,
+# no one-unit window); the model writes the founder lists, the gate's clause and -- an eighth screen -- the ASKED
+# faces, nothing else; `brief_paragraphs` becomes `brief_answers` (seven per-case marks over the headline, the three
+# answers, the tests and the quotes); two deterministic marks are born, `spoken_form` (every composed corpus item held
+# to the spoken guidelines) and `brief_facts` (keel-cloud's cards and pilot against this repository's reading). No
+# other number moved. **Scores before and after this bump are not comparable**, and a v17 bundle **cannot be
+# re-scored** to v18. **Run of record: none yet** -- there is none until `WHY=marks:18` is spent, on the founder's
+# word only.
+#
+# MARKS_VERSION 17 (history; judgement call 76, 2026-10-12; spec 038-advantage-benefit-first, the sibling of keel-cloud
 # 085-advantage-benefit-first, merged at b8a4eed; registry VERSION 3, document 18, contract stays 10). Relative
 # advantage is asked benefit first: the founder ticks one to four advantages and the respondent's item is code's
 # whole (the model writes its key alone, so it owes no question, options, W3 or sweep). Corpus REVISION 9; three
@@ -235,7 +246,9 @@ shape_refusals = 0
 # call 42, orchestrator 2026-10-08, bundle 20261008T115552Z: coverage's observed figure for a money set -- a set dimension's money median (Existing sacrifice) is written in the founder's unit, `£165 per three months` (the currency's symbol and the period from the standing, else the one the answers' costs agree on, the currency else the market's; the price likewise as keel-cloud's `observedFigure` writes it), and a set whose money cannot be written so carries no figure and is asked for one of its own option counts as `N of M`; the founder's phrase is asked for only on a bet whose verdict is NOT_HOLDING_UP (brief.md, 'The four things the paragraph says', 2), verbatim (brief.md licenses no paraphrase); v9 amended before any run of record
 # call 41 extended by founder decision 46, 2026-10-08: BRIEF is redrawn once on a rule refusal (repairUnattended -> queueAnotherQuestionsTurn: turn one's context plus `repair`, no history, empty input), the accepted paragraph is scored, and a brief refused twice is scored on its raw paragraph as a fault, every mark missed; v9 amended before any run of record
 # MARKS_VERSION 11 (call 57): Existing sacrifice's observed figure is keel-cloud's Figures.cost ('a median £22 over three months', hours apart, never priced: the corpus records no hourly rate) and Price's is Figures.price ('5 of 8 said it would be worth £5 a month or more'); still four per-case marks -- B6 ('will pay' / 'will buy') is the aggregate's rule (rule_refusal_rate; refused twice, every mark missed, call 41)
-brief_paragraphs = 1.00
+brief_answers = 1.00
+spoken_form = 1.00
+brief_facts = 1.00
 # RETIRED at MARKS_VERSION 9 (call 29) -- see the header. Kept here struck through in a comment,
 # never as a key, so a verdict cannot carry a value for it:
 #   golden_belief_recall = 0.80   (v1-v8)

@@ -11,20 +11,21 @@
                      result is the expected one
     -k NEEDLE        only cases whose case id contains it, case-insensitively (`-k 03-lullaby`,
                      `-k 03-lullaby/INTERPRET`), or one kind word: context, frame, calibration,
-                     respondent, reading, compare, brief. A needle matching nothing says so and
-                     spends nothing.
+                     asked, respondent, reading, compare, brief. A needle matching nothing says so
+                     and spends nothing.
     -n N             runs per model case (default 3)
     --marks FILE     an alternative marks file
     --models FILE    a model-routing table pinning each job class -- context, frame, calibration,
-                     respondent, reading, brief -- through the job's own `model` key, exactly as
+                     asked, respondent, reading, brief -- through the job's own `model` key, exactly as
                      the cloud sends it; `exported` means the table keel-cloud's own exporter
                      wrote beside the contracts. Never beside `KEEL_<HOST>_MODEL`.
 
-**Read a prompt before spending anything.** The dry run exists for exactly that. At
-`MARKS_VERSION` 9 it does one more thing: `COMPARE` is keel-cloud's engine, not a model, so the dry
-run measures `compare_correctness` for real and writes it into a bundle (judgement call 34) -- and
-every model-scored mark beside it is *not measured*, so the dry verdict is `passed: false` by
-construction and says why.
+**Read a prompt before spending anything.** The dry run exists for exactly that. It does more: the
+three deterministic marks cost nothing, so the dry run measures them for real and writes them into a
+bundle -- `compare_correctness` (keel-cloud's engine, call 34) and, since `MARKS_VERSION` 18,
+`spoken_form` and `brief_facts` (keel-cloud's corpus tests' composed wording and facts, calls 79 and
+82) -- and every model-scored mark beside them is *not measured*, so the dry verdict is
+`passed: false` by construction and says why.
 """
 
 from __future__ import annotations
@@ -39,6 +40,8 @@ from pathlib import Path
 from stack.config import REPO_ROOT, load_config
 
 from . import brief as brief_mod
+from . import brief_facts as brief_facts_mod
+from . import cloud_corpus as cloud_mod
 from . import compare as compare_mod
 from . import contract as contract_mod
 from . import corpus as corpus_mod
@@ -50,20 +53,21 @@ from . import prompts as prompts_mod
 from . import report as report_mod
 from . import runner as runner_mod
 from . import score as score_mod
+from . import spoken as spoken_mod
 from . import validate as validate_mod
 
 # Rough, and honest about being rough: the founder's own account pays, and the point of printing a
 # number before the first call is that nobody is surprised by the size of the bill.
 COST_PER_CASE_ESTIMATE_USD = 0.04
 
-#: The seven model screens (spec 029 FR-016). `COMPARE` is not one: it is never sent.
+#: The eight model screens (spec 029 FR-016; spec 040). `COMPARE` is not one: it is never sent.
 SCREENS = contract_mod.MODEL_SCREENS
 
 #: `-k` kind words (research R6): each selects by `Case.kind` exactly. `interpret` is deliberately
 #: not one -- it would be ambiguous between the three interpretation screens and the reads; the
 #: slash form `03-lullaby/INTERPRET` selects the reads.
 KIND_WORDS = {"context": "CONTEXT", "frame": "FRAME", "calibration": "CALIBRATION",
-              "respondent": "RESPONDENT", "reading": "READING", "compare": "COMPARE",
+              "asked": "ASKED", "respondent": "RESPONDENT", "reading": "READING", "compare": "COMPARE",
               "brief": "BRIEF"}
 
 
@@ -164,12 +168,45 @@ def select(cases: list, needle: str | None) -> list:
     return [c for c in cases if word in c.case_id.lower()]
 
 
-def _all_cases(corpus, exported, instructions, executor_module, args) -> list:
+def _all_cases(corpus, exported, instructions, executor_module, args, brief_facts=None) -> list:
     cases = []
     for entry in corpus.entries:
         cases.extend(prompts_mod.build_cases(entry, exported, instructions, executor_module,
-                                             n_runs=args.n_runs, host=args.host))
+                                             n_runs=args.n_runs, host=args.host,
+                                             brief_facts=brief_facts))
     return select(cases, args.filter)
+
+
+def _cloud(config, corpus, registry, run_dir):
+    """keel-cloud's composed wording and facts (calls 79, 82, 84), asked once and kept in the bundle -- or
+    `None` with the reason printed, when keel-cloud's corpus tests cannot be run (both marks then unmeasured)."""
+    try:
+        cloud = cloud_mod.produce(config.keel_cloud, corpus=corpus, registry=registry)
+        cloud_mod.copy_into(run_dir, config.keel_cloud)
+        return cloud, None
+    except cloud_mod.CloudCorpusUnavailable as reason:
+        print(f"[cloud-corpus] NOT read -- {str(reason).splitlines()[0]}")
+        return None, str(reason)
+
+
+def deterministic(corpus, registry, cases, cloud, reason=None):
+    """`spoken_form` and `brief_facts` over the entries the selected cases are drawn from (zero spend)."""
+    entries = {c.entry_id for c in cases}
+    if cloud is None:
+        return (spoken_mod.unmeasured(reason or cloud_mod.PREREQUISITE),
+                [brief_facts_mod.unmeasured(e, reason or cloud_mod.PREREQUISITE) for e in sorted(entries)])
+    spoken = spoken_mod.score(cloud, corpus, entry_ids=entries)
+    facts = [brief_facts_mod.compare(e, registry, cloud.facts.get(e.id)) for e in corpus.entries
+             if e.id in entries]
+    print(f"[spoken] {spoken.clean} of {spoken.units} composed items and faces keep the guidelines"
+          f" · {len(spoken.known)} known corpus items named apart (call 81)")
+    for fault in spoken.faults:
+        print(f"[spoken]   {fault['entry']} {fault['key']} {fault['unit']}: {fault['evidence']}")
+    for score in facts:
+        line = (f"{score.agreed} of {score.checks} agreed · {len(score.reported_diffs)} reported"
+                if score.measured else f"NOT measured -- {score.reason}")
+        print(f"[facts]  {score.entry_id:<44} {line}")
+    return spoken, facts
 
 
 def _compare(config, corpus, cases, run_dir) -> list:
@@ -196,12 +233,15 @@ def _compare(config, corpus, cases, run_dir) -> list:
 
 
 def _prepare(config, corpus, executor_module, args, contracts_dir):
-    """The export, the registry bound to the corpus, the cases selected -- or a refusal by name."""
+    """The export, the registry bound to the corpus, keel-cloud's corpus files, the cases selected -- or a
+    refusal by name."""
     exported = contract_mod.export(config.keel_cloud, contracts_dir)
     corpus.bind(exported.registry)
+    cloud, reason = _cloud(config, corpus, exported.registry, Path(contracts_dir).parent)
     instructions = _instructions_for(config)
-    cases = _all_cases(corpus, exported, instructions, executor_module, args)
-    return exported, instructions, cases
+    cases = _all_cases(corpus, exported, instructions, executor_module, args,
+                       brief_facts=cloud.facts if cloud is not None else None)
+    return exported, instructions, cases, cloud, reason
 
 
 def _counts(cases) -> dict:
@@ -213,44 +253,48 @@ def _counts(cases) -> dict:
 
 def denominators(cases) -> dict:
     """Spec 030 US3, call 47: what each structural mark is counted over, per entry and per N --
-    read off the cases the registry and the entries built (`registry_slice`, `plan`), never typed.
-    A dry run has no answer to score, so `dimension_coverage`, `option_validity` and `no_leak` stay
-    unmeasured there (call 13); what it can show, and does, is the denominator each would have.
-    Calibration and respondent count one a dimension (coverage and validity alike, Price
-    included); `sweep_a` is the PROBLEM calibration questions and the PRIMARY Part 1 items,
-    `sweep_b` every respondent item -- each only where the model wrote text a reader is shown
-    (calls 52, 53: never Price, never Frequency over a framed window; the case's `swept`). And the
-    names W3 / W8 are held to (call 55): the corpus's, else none."""
+    read off the cases the registry and the entries built (`registry_slice`, `plan`, the items an
+    `ASKED` case is handed), never typed. A dry run has no answer to score, so `dimension_coverage`,
+    `option_validity` and `no_leak` stay unmeasured there (call 13); what it can show, and does, is
+    the denominator each would have. Coverage counts one a dimension (calibration), one a planned
+    item (respondent) and one an index handed (asked); validity one a dimension, the gate alone
+    (call 83) and one a face; `sweep_a` is the PROBLEM job's written entries and the gate's clause,
+    `sweep_b` the gate's clause (the case's `swept`)."""
     out = {}
     for case in cases:
-        if case.run_index != 1 or case.kind not in ("CALIBRATION", "RESPONDENT"):
+        if case.run_index != 1 or case.kind not in ("CALIBRATION", "RESPONDENT", "ASKED"):
             continue
-        row = out.setdefault(case.entry_id, {"calibration": 0, "respondent": {}, "sweep_a": 0,
-                                             "sweep_b": 0, "short_name": None,
-                                             "offer_name": None})
-        row["short_name"] = case.meta.get("short_name")
-        row["offer_name"] = case.meta.get("offer_name")
+        row = out.setdefault(case.entry_id, {"calibration": 0, "respondent": {}, "asked": 0,
+                                             "validity": 0, "sweep_a": 0, "sweep_b": 0})
         swept = len(case.meta.get("swept") or [])
         if case.kind == "CALIBRATION":
             row["calibration"] += len(case.meta.get("registry_slice") or [])
+            row["validity"] += len(case.meta.get("registry_slice") or [])
             if case.meta.get("vector") == "PROBLEM":
                 row["sweep_a"] += swept
             continue
-        count = len(case.meta.get("plan") or [])
+        if case.kind == "ASKED":
+            row["asked"] += len(case.meta.get("items") or [])
+            row["validity"] += len(case.meta.get("items") or [])
+            continue
+        plan = list(case.meta.get("plan") or [])
         link = case.meta.get("link") or corpus_mod.LINK_PRIMARY
-        row["respondent"][link] = row["respondent"].get(link, 0) + count
+        row["respondent"][link] = row["respondent"].get(link, 0) + len(plan)
+        row["validity"] += sum(1 for k in plan if k == "problem.prevalence")
+        row["sweep_a"] += swept
         row["sweep_b"] += swept
-        if case.meta.get("part") == 1 and link == corpus_mod.LINK_PRIMARY:
-            row["sweep_a"] += swept
     return out
 
 
 def _denominator_line(rows: dict) -> str:
     calibration = sum(r["calibration"] for r in rows.values())
     respondent = sum(sum(r["respondent"].values()) for r in rows.values())
+    asked = sum(r["asked"] for r in rows.values())
+    validity = sum(r["validity"] for r in rows.values())
     sweeps = sum(r["sweep_a"] + r["sweep_b"] for r in rows.values())
     return (f"denominators read off the registry, per N: dimension_coverage {calibration} "
-            f"calibration + {respondent} respondent · no_leak {sweeps} sweeps")
+            f"calibration + {respondent} respondent + {asked} asked · option_validity {validity} · "
+            f"no_leak {sweeps} sweeps")
 
 
 def _dry_run(config, corpus, executor_module, facts, args) -> int:
@@ -258,8 +302,8 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
     which costs nothing, done for real."""
     run_dir = report_mod.start_bundle(config, baseline=args.baseline, host=args.host)
     try:
-        exported, instructions, cases = _prepare(config, corpus, executor_module, args,
-                                                 run_dir / "contracts")
+        exported, instructions, cases, cloud, cloud_reason = _prepare(
+            config, corpus, executor_module, args, run_dir / "contracts")
     except (contract_mod.ContractUnavailable, corpus_mod.CorpusError) as reason:
         print(f"instruction eval cannot start: {reason}", file=sys.stderr)
         return 2
@@ -306,14 +350,18 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
         print()
 
     compare_scores = _compare(config, corpus, cases, run_dir)
+    spoken, facts_scores = deterministic(corpus, exported.registry, cases, cloud, cloud_reason)
     marks = marks_mod.load(args.marks)
-    totals = score_mod.totals(compare_scores=compare_scores)
+    totals = score_mod.totals(compare_scores=compare_scores, spoken_score=spoken,
+                              facts_scores=facts_scores)
     scorecard = {
         "marks_version": marks_mod.MARKS_VERSION, "marks": marks, "dry_run": True,
         "model": {"host": args.host, "cli": facts.get("cli"), "cli_version": None},
         "n_runs": args.n_runs, "registry_version": exported.registry.version,
         "contract_manifest": exported.manifest,
         "compare": [_compare_json(s) for s in compare_scores],
+        "spoken": _spoken_json(spoken),
+        "brief_facts": [_facts_json(s) for s in facts_scores],
         "totals": totals, "spread": {}, "prompts": [],
         "denominators": denominators(cases),
     }
@@ -322,7 +370,8 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
     counts = _counts(cases)
     verdict = {"scenario": "instructions", "dry_run": True, "host": args.host,
                "passed": False, "marks": judged, "marks_version": marks_mod.MARKS_VERSION,
-               "unmet_prerequisites": [u["reason"] for u in totals["compare_unmeasured"]],
+               "unmet_prerequisites": [u["reason"] for u in totals["compare_unmeasured"]]
+               + ([totals["spoken_unmeasured"]] if totals.get("spoken_unmeasured") else []),
                "why_not_passed": "a dry run calls no model: every model-scored mark is "
                                  "unmeasured, and an unmeasured mark is not met (call 13)",
                "cases": len(model_cases), "compare_rows": counts["COMPARE"],
@@ -331,20 +380,21 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
 
     print("-" * 100)
     print(f"{len(model_cases)} cases: {counts['CONTEXT'] + counts['FRAME']} interpretation, "
-          f"{counts['CALIBRATION']} calibration, {counts['RESPONDENT']} respondent, "
+          f"{counts['CALIBRATION']} calibration, {counts['ASKED']} asked, {counts['RESPONDENT']} respondent, "
           f"{counts['READING']} interpret, {counts['BRIEF']} brief, N={args.n_runs} runs per case "
           f"-- plus {counts['COMPARE']} COMPARE row(s), which are never a call")
     compare_line = (f"{totals['compare_agreed']} of {totals['compare_checks']}"
                     if totals["compare_measured"] else "NOT measured")
-    print(f"compare_correctness: {compare_line} · every model mark unmeasured · passed: false")
+    spoken_line = (f"{totals['spoken_clean']} of {totals['spoken_units']} ({totals['spoken_known']} known apart)"
+                   if totals["spoken_measured"] else "NOT measured")
+    facts_line = (f"{totals['brief_facts_agreed']} of {totals['brief_facts_checks']}"
+                  if totals["brief_facts_measured"] else "NOT measured")
+    print(f"compare_correctness: {compare_line} · spoken_form: {spoken_line} · brief_facts: {facts_line} · "
+          "every model mark unmeasured · passed: false")
     for entry_id, row in scorecard["denominators"].items():
         links = " + ".join(f"{n} {link}" for link, n in row["respondent"].items())
-        names = (f"W3 held to {row.get('short_name')!r}" if row.get("short_name")
-                 else "W3 held to no name") + " · " + (
-            f"W8 held to {row.get('offer_name')!r}" if row.get("offer_name")
-            else "W8 held to no name")
-        print(f"  {entry_id:<20} calibration {row['calibration']} · respondent {links} · "
-              f"no_leak sweep A {row['sweep_a']} + sweep B {row['sweep_b']} · {names}")
+        print(f"  {entry_id:<20} calibration {row['calibration']} · asked {row['asked']} · respondent {links} · "
+              f"validity {row['validity']} · no_leak sweep A {row['sweep_a']} + sweep B {row['sweep_b']}")
     print(_denominator_line(scorecard["denominators"]))
     print(f"rough estimate at ${COST_PER_CASE_ESTIMATE_USD:.2f} a case: "
           f"${len(model_cases) * COST_PER_CASE_ESTIMATE_USD:.2f} of the founder's own money")
@@ -360,8 +410,8 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     print(f"host: {args.host} ({facts.get('cli')} {facts.get('cli_version') or 'version unknown'})")
 
     try:
-        exported, instructions, cases = _prepare(config, corpus, executor_module, args,
-                                                 run_dir / "contracts")
+        exported, instructions, cases, cloud, cloud_reason = _prepare(
+            config, corpus, executor_module, args, run_dir / "contracts")
     except (contract_mod.ContractUnavailable, corpus_mod.CorpusError) as reason:
         print(f"instruction eval cannot start: {reason}", file=sys.stderr)
         return 2
@@ -410,8 +460,9 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
                                                  corpus=corpus))
 
     # COMPARE first: it spends nothing, and a run whose engine cannot be asked should say so
-    # before the first paid call rather than after the last.
+    # before the first paid call rather than after the last. The two v18 deterministic marks likewise.
     compare_scores = _compare(config, corpus, cases, run_dir)
+    spoken, facts_scores = deterministic(corpus, exported.registry, cases, cloud, cloud_reason)
 
     state = _RunState()
     # Judgement call 41: the five screens keel-cloud redraws are judged as they are answered, so a
@@ -483,7 +534,8 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
             print(f"the aggregate was asked a shape it does not take: {reason}", file=sys.stderr)
 
     totals = score_mod.totals(state.calibration, state.respondent, state.interpret,
-                              compare_scores, brief_scores=state.brief, errored=state.errored,
+                              compare_scores, asked_scores=state.asked, brief_scores=state.brief,
+                              spoken_score=spoken, facts_scores=facts_scores, errored=state.errored,
                               schema_invalid=state.schema_invalid,
                               refusals_by_rule=aggregate["refusals_by_rule"],
                               shape_refusals=aggregate["shape_refusals"],
@@ -494,6 +546,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     totals.update(redraw_totals(aggregate, scored_on="accepted"))
     totals["chipped_skipped"] = _chipped(corpus, cases)
     unmet += [u["reason"] for u in totals["compare_unmeasured"]]
+    unmet += [totals["spoken_unmeasured"]] if totals.get("spoken_unmeasured") else []
     scorecard = {
         "marks_version": marks_mod.MARKS_VERSION,
         "marks": marks,
@@ -506,7 +559,10 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         "judge_calls": judge.calls,
         "contract_manifest": exported.manifest,
         "compare": [_compare_json(s) for s in compare_scores],
+        "spoken": _spoken_json(spoken),
+        "brief_facts": [_facts_json(s) for s in facts_scores],
         "calibration": [_question_json(s) for s in state.calibration],
+        "asked": [_question_json(s) for s in state.asked],
         "respondent": [_question_json(s) for s in state.respondent],
         "interpret": [_interpret_json(s) for s in state.interpret],
         "brief": [_brief_json(s) for s in state.brief],
@@ -635,6 +691,7 @@ class _RunState:
 
     def __init__(self):
         self.calibration, self.respondent, self.interpret, self.brief = [], [], [], []
+        self.asked = []
         self.shown_to_aggregate = []
         # Call 41: the answers judged during the run, their report entries (the first draft's
         # under its case id, a redraw's under `<case_id>#redraw`), and one row a redraw.
@@ -687,6 +744,8 @@ def _produced_key(case) -> str:
         return f"CALIBRATION_{case.subject}"
     if case.kind == "RESPONDENT":
         return f"RESPONDENT_{case.subject}"
+    if case.kind == "ASKED":
+        return f"ASKED_{case.subject}"
     if case.kind == "READING":
         return f"INTERPRET/{case.subject}"
     return case.screen
@@ -716,6 +775,12 @@ def _score(case, entry, answer, failed, state, judge) -> dict:
         diff["line"] = (f"  coverage {score.coverage_hit}/{score.coverage_of} · validity "
                         f"{score.validity_hit}/{score.validity_of} · leak {score.leak_clean}/"
                         f"{score.leak_of} (judged {score.leak_judged})")
+    elif case.kind == "ASKED":
+        score = score_mod.score_asked(case, entry, entry.registry, result, failed=failed)
+        state.asked.append(score)
+        diff.update(faults=score.faults, coverage_passed=score.coverage_passed)
+        diff["line"] = (f"  coverage {score.coverage_hit}/{score.coverage_of} · validity "
+                        f"{score.validity_hit}/{score.validity_of}")
     elif case.kind == "RESPONDENT":
         score = score_mod.score_respondent(case, entry, entry.registry, entry.plan(), result,
                                            judge=judge, failed=failed)
@@ -738,7 +803,7 @@ def _score(case, entry, answer, failed, state, judge) -> dict:
                                       needs_input_questions=questions,
                                       registry=entry.registry)
         state.brief.append(score)
-        diff.update(paragraph=score.paragraph, length=score.length, marks=score.marks,
+        diff.update(reading=score.paragraph, length=score.length, marks=score.marks,
                     findings=score.findings)
         diff["line"] = "  " + " · ".join(f"{name} {'yes' if score.marks.get(name) else 'no'}"
                                          for name in brief_mod.MARK_NAMES)
@@ -754,11 +819,10 @@ def _chipped(corpus, cases) -> int:
 
 
 def _spreads(state) -> dict:
+    questions = state.calibration + state.asked + state.respondent
     return {
-        "coverage": score_mod.spread(state.calibration + state.respondent,
-                                     lambda s: s.coverage),
-        "validity": score_mod.spread(state.calibration + state.respondent,
-                                     lambda s: s.validity),
+        "coverage": score_mod.spread(questions, lambda s: s.coverage),
+        "validity": score_mod.spread(questions, lambda s: s.validity),
         "leak": score_mod.spread(state.calibration + state.respondent, lambda s: s.leak),
         "anchoring": score_mod.spread(state.interpret, lambda s: s.anchoring_accuracy),
         "brief": score_mod.spread(state.brief, lambda s: 1.0 if s.met else 0.0),
@@ -836,6 +900,18 @@ def _compare_json(score) -> dict:
             "agreed": score.agreed, "compare_correctness": score.compare_correctness,
             "mismatches": score.mismatches, "reported_diffs": score.reported_diffs,
             "measured": score.measured, "reason": score.reason}
+
+
+def _spoken_json(score) -> dict:
+    return {"measured": score.measured, "reason": score.reason, "units": score.units, "clean": score.clean,
+            "spoken_form": score.spoken_form, "faults": score.faults, "known": score.known,
+            "missing_known": [list(k) for k in score.missing_known], "by_entry": score.by_entry}
+
+
+def _facts_json(score) -> dict:
+    return {"entry_id": score.entry_id, "checks": score.checks, "agreed": score.agreed,
+            "brief_facts": score.correctness, "mismatches": score.mismatches,
+            "reported_diffs": score.reported_diffs, "measured": score.measured, "reason": score.reason}
 
 
 def _question_json(score) -> dict:

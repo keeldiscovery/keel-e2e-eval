@@ -11,10 +11,13 @@ dropped, so a screen that gains one is visible in the prompt instead of silently
 `contracts/screen-shapes.md` §2's order, the request to keel-cloud 058, corrected when 058 ships.
 
 **Every input is the corpus's own, never another screen's live output** (marks-v9 §1): the
-calibration job reads r3's `context`, `interpretations.problem` and `solution_mechanism`; the
-respondent job reads the plan the eval derived by code from `founder_calibration` (call 30) and is
-**never** handed a founder answer; the reader is handed one gate story; the brief is handed
-`expected.standings` and the belief sentences r3 records (research R9 -- this repo composes none).
+calibration job reads the corpus's `context`, `interpretations.problem` and `solution_mechanism` (and, since
+keel-cloud 087, an empty `answers`: the seed-time job drafts every list from the interpretation alone, and the
+corpus records no Answer-screen text); the respondent job reads the plan the eval derived by code from
+`founder_calibration` (call 30) and is **never** handed a founder answer; the `ASKED` job (keel-cloud 088) is
+handed one list's labels by index; the reader is handed one gate story; the brief is handed keel-cloud's own
+facts for the entry where they are to hand, else this repository's reading of them (`brief_facts.facts_for`,
+call 84).
 
 At `MARKS_VERSION` 8 this module also numbered the earlier stages' lines, the questionnaire's
 measurements and the brief's claims. All three retired with the subjects they fed (judgement calls
@@ -25,10 +28,8 @@ measurements and the brief's claims. All three retired with the subjects they fe
 from __future__ import annotations
 
 from . import contract as contract_mod
-from . import corpus as corpus_mod
 from . import wording as wording_mod
-from .registry import (LINK_B2B, LINK_PRIMARY, DEFAULT_WINDOW, SACRIFICE_KEY, RecallWindow,
-                       fill_window)
+from .registry import LINK_B2B, LINK_PRIMARY, DEFAULT_WINDOW, RecallWindow, fill_window
 
 # data-model.md note 2 (spec 009): the corpus writes the tap the way a person reads it; the wire
 # wants the enum name. Kept for `harness/corpus_script.py` (the classic S-001 and S-004), which
@@ -63,9 +64,10 @@ DEFAULT_KEYS = {
     contract_mod.SCREEN_PROBLEM_INTERPRET: ["context", "market"],
     contract_mod.SCREEN_SOLUTION_MECHANISM: ["context", "problem_statement", "market"],
     contract_mod.SCREEN_CALIBRATION: ["vector", "context", "market", "interpretation",
-                                      "dimensions"],
+                                      "dimensions", "answers"],
     contract_mod.SCREEN_RESPONDENT: ["part", "link", "context", "market", "founder_name",
-                                     "items", "founder_options", "mechanism"],
+                                     "items", "mechanism", "offer_name"],
+    contract_mod.SCREEN_ASKED: ["dimension", "context", "market", "items"],
     contract_mod.SCREEN_INTERPRET: ["invitation_id", "story"],
     contract_mod.SCREEN_BRIEF: ["project_name", "market", "context", "facts", "beliefs", "stories"],
 }
@@ -81,17 +83,19 @@ _CALIBRATION_SEES = {"problem": VECTORS, "mechanism": ("SOLUTION", "COMMERCIAL")
                      "persona": ("COMMERCIAL",)}
 _SOLUTION_KEYS = ("mechanism", "solution", "solution_mechanism", "solution_statement")
 
-#: The thirteen registry fields a calibration job is handed per dimension (instruction-table §B
-#: row 3), as `(section, field)` -- `section` `None` for a top-level field.
+#: The registry fields a calibration job is handed per dimension (`RegistrySlices.calibrationSlice`, keel-cloud
+#: 087: no weight, and the list dimensions' `saves`), as `(section, field)` -- `section` `None` for a top-level
+#: field. A founder field the registry leaves out is not written (the cloud writes only non-null ones).
 CALIBRATION_FIELDS = (
-    (None, "key"), (None, "order"), (None, "name"), (None, "meaning"), (None, "weight"),
+    (None, "key"), (None, "order"), (None, "name"), (None, "meaning"),
     ("founder", "control"), ("founder", "guidance"), ("founder", "normalized"),
     ("founder", "option_rule"), ("founder", "belief_template"), ("founder", "unsure_allowed"),
-    ("respondent", "anchor"), ("respondent", "guidance"),
+    ("founder", "saves"), ("respondent", "anchor"), ("respondent", "guidance"),
 )
 
-#: The registry fields a respondent item carries (screen-shapes §2).
-RESPONDENT_FIELDS = ("anchor", "control", "guidance", "option_rule", "chips")
+#: The registry fields a respondent item carries (`RegistrySlices.respondentItems`, keel-cloud 088: the one
+#: `escape` where `chips` were).
+RESPONDENT_FIELDS = ("anchor", "control", "guidance", "option_rule", "escape")
 
 def _fill(keys, values: dict) -> dict:
     """Every key in the exporter's order, `None` where this builder has no value."""
@@ -258,13 +262,18 @@ def seed_of(entry, screen: str) -> str:
 # --------------------------------------------------------------------------- calibration (062)
 
 def calibration_dimension(dimension) -> dict:
-    """One registry dimension as a calibration job sees it: exactly the thirteen fields."""
+    """One registry dimension as a calibration job sees it: `CALIBRATION_FIELDS`, a founder field the registry
+    does not carry left out as the cloud leaves it out."""
     out = {}
     for section, name in CALIBRATION_FIELDS:
         if section is None:
             out[name] = getattr(dimension, name)
-        else:
-            out.setdefault(section, {})[name] = getattr(dimension, section).get(name)
+            continue
+        value = getattr(dimension, section).get(name)
+        if section == "founder" and value is None:
+            out.setdefault(section, {})
+            continue
+        out.setdefault(section, {})[name] = value
     return out
 
 
@@ -289,6 +298,9 @@ def build_calibration(entry, vector: str, registry=None, keys=None) -> dict:
         "dimensions": fill_window([calibration_dimension(d)
                                    for d in registry.answered_slice(vector, entry.b2b())],
                                   window_of(entry)),
+        # keel-cloud 087 call 8: a redraft carries one dimension and the founder's Answer for it; the seed-time
+        # job -- the one this eval measures -- carries none (the corpus records no Answer-screen text).
+        "answers": {},
     }
     out = {}
     for key in keys:
@@ -303,24 +315,6 @@ def build_calibration(entry, vector: str, registry=None, keys=None) -> dict:
 
 # ---------------------------------------------------------------------------- respondent (063)
 
-def founder_option_codes(entry, registry, key: str) -> list:
-    """The founder's option set for one dimension, as codes: the registry's fixed codes, or -- for
-    a `model_written` set -- the golden plan row's codes less the escapes and respondent-only codes
-    (`registry.RESPONDENT_ESCAPES`). Never which of them the founder picked."""
-    dimension = registry.by_key(key)
-    if dimension.fixed_codes is not None:
-        return list(dimension.fixed_codes)
-    return entry.founder_option_codes(key)
-
-
-def founder_option_labels(entry, registry, key: str) -> list:
-    """keel-cloud 058's `founderOptions` for one model-written set: the LABELS the founder's
-    calibration showed (`founder_calibration[key].labels`), in order -- never which were picked.
-    An entry recording no labels falls back to the codes."""
-    labels = entry.founder_labels(key)
-    return list(labels.values()) if labels else founder_option_codes(entry, registry, key)
-
-
 def respondent_item(dimension, *, link: str = LINK_PRIMARY) -> dict:
     respondent = dimension.respondent
     item = {"key": dimension.key, "order": dimension.order, "name": dimension.name,
@@ -333,10 +327,10 @@ def respondent_item(dimension, *, link: str = LINK_PRIMARY) -> dict:
 def build_respondent(entry, part: int, plan: dict | None = None, registry=None, keys=None, *,
                      link: str = LINK_PRIMARY) -> dict:
     """`RESPONDENT_QUESTIONS` for one part: the plan's items for that part with the registry's
-    respondent fields, the founder's option *sets* (never an answer), and the mechanism on parts 2
-    and 3 only -- Part 1 is asked before the reveal, and a mechanism there is a leak by
-    construction. The B2B link is Part 3's items for the decision-maker, with the registry's `b2b`
-    block beside each (no context card and no reveal: the template's, not this builder's)."""
+    respondent fields (never a founder answer -- keel-cloud 087 dropped `founder_options`), and the
+    mechanism on parts 2 and 3 only -- Part 1 is asked before the reveal, and a mechanism there is a
+    leak by construction. The B2B link is Part 3's items for the decision-maker, with the registry's
+    `b2b` block beside each. Since keel-cloud 088 the job writes the gate's clause and nothing else."""
     registry = registry if registry is not None else entry.registry
     plan = plan if plan is not None else entry.plan(registry)
     keys = DEFAULT_KEYS[contract_mod.SCREEN_RESPONDENT] if keys is None else keys
@@ -352,14 +346,6 @@ def build_respondent(entry, part: int, plan: dict | None = None, registry=None, 
         "items": fill_cost(fill_window([respondent_item(registry.by_key(k), link=link)
                                         for k in item_keys], window_of(entry)),
                            cost_recall_of(entry)),             # call 62: `{cost_period}` filled
-        # keel-cloud 058's `founderOptions`: the model-written sets only (the fixed codes are the
-        # registry's, and the model has them already) -- the founder's LABELS, as production
-        # sends them (`founder_calibration[key].labels`, r3).
-        "founder_options": {k: founder_option_labels(entry, registry, k) for k in item_keys
-                            if registry.by_key(k).fixed_codes is None
-                            and not registry.by_key(k).founder_numeric
-                            and not registry.by_key(k).derived
-                            and not registry.by_key(k).founder_cost},   # call 67: no kinds any more
     }
     if part in (2, 3) and link != LINK_B2B:
         values["mechanism"] = mechanism_of(entry)
@@ -375,6 +361,32 @@ def build_respondent(entry, part: int, plan: dict | None = None, registry=None, 
             continue
         out[key] = values.get(key)
     return out
+
+
+# ---------------------------------------------------------------------------------- ASKED (088)
+
+def asked_frame(key: str, occasion: str | None) -> str:
+    """`AskedRules.framed(dimension, occasion, "{asked}")`: the question code puts a face into (design §5.1)."""
+    if key == "solution.adoption_friction":
+        return "{asked}. Would you do that, or not?"
+    return f"On your last {occasion or 'time'}, {{asked}}?"
+
+
+def asked_items(entry, key: str) -> list:
+    """`[{index, label}]`: the founder's list items to phrase, by their index in the list -- the corpus's own."""
+    saved = entry.founder_list(key) or {}
+    return [{"index": i, "label": item.get("label")} for i, item in enumerate(saved.get("items") or [])]
+
+
+def build_asked(entry, key: str, registry=None, keys=None) -> dict:
+    """`ASKED` (keel-cloud 088 FR-003): one list dimension -- `{key, name, frame}` -- the context slots, the
+    market and the items by index, as `ScreenContextBuilder` hands them on a Save."""
+    registry = registry if registry is not None else entry.registry
+    keys = DEFAULT_KEYS[contract_mod.SCREEN_ASKED] if keys is None else keys
+    name = registry.by_key(key).name if registry is not None else key
+    return _fill(keys, {"dimension": {"key": key, "name": name, "frame": asked_frame(key, entry.occasion())},
+                        "context": context_of(entry), "market": market_of(entry),
+                        "items": asked_items(entry, key)})
 
 
 def founder_values(entry, keys) -> dict:
@@ -400,304 +412,18 @@ def build_interpret(entry, person, keys=None) -> dict:
                                      "tap": None}]})
 
 
-# ------------------------------------------------------------------------------------ BRIEF (065)
+# ------------------------------------------------------------------------------------ BRIEF (089)
 
-#: Call 42: a money figure carries its currency's symbol, as keel-cloud's `Market.symbolFor` does
-#: (an unlisted currency is its code and a space); a currency the standing and the answers do not
-#: name is the market's own.
-CURRENCY_SYMBOL = {"GBP": "£", "USD": "$", "EUR": "€", "JPY": "¥"}
-MARKET_CURRENCY = {"GB": "GBP", "US": "USD", "IE": "EUR", "DE": "EUR", "FR": "EUR", "JP": "JPY"}
-
-
-def _number_words(value) -> str:
-    if isinstance(value, float) and value.is_integer():
-        value = int(value)
-    return str(value)
-
-
-def _per_words(per) -> str:
-    """keel-cloud's `perWords`: *per month*, *one-off* as it is; `three_months` read as words."""
-    words = str(per).replace("_", " ").strip()
-    return words if words.startswith("per ") or words == "one-off" else f"per {words}"
-
-
-def is_set(entry, key: str, standing: dict) -> bool:
-    """A set dimension: the founder picked several codes, or the standing is option counts."""
-    answer = (entry.founder_calibration.get(key) or {}).get("answer")
-    return isinstance(answer, list) or bool(standing.get("optionCounts"))
-
-
-def _money(value) -> str:
-    """`PriceLadder.money` after `Figures.round` (HALF_UP to a whole unit): 2500 -> "2,500"."""
-    from decimal import ROUND_HALF_UP, Decimal                        # noqa: PLC0415
-    whole = int(Decimal(str(value)).quantize(Decimal(1), rounding=ROUND_HALF_UP))
-    return f"{whole:,}"
-
-
-def _hours(value) -> str:
-    """`Figures.number`: one decimal at most, a whole number bare."""
-    from decimal import ROUND_HALF_UP, Decimal                        # noqa: PLC0415
-    one = Decimal(str(value)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
-    return str(int(one)) if one == one.to_integral() else str(one)
-
-
-def currency_of(entry) -> str | None:
-    """The project's currency: the market's (keel-cloud 073 `Market.currency`), never guessed."""
-    return MARKET_CURRENCY.get((entry.market or {}).get("country"))
-
-
-def _amount(value, currency) -> str:
-    """`CostEstimate.amount`: `rounded` (two places, half up, only where there are pennies) after the
-    currency's prefix -- not Python's float `round`, which is banker's."""
-    from decimal import ROUND_HALF_UP, Decimal                        # noqa: PLC0415
-    stripped = Decimal(str(value)).normalize()
-    if stripped.as_tuple().exponent > 0:
-        stripped = stripped.quantize(Decimal(1))
-    if stripped.as_tuple().exponent < 0:
-        stripped = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    text = f"{int(stripped):,}" if stripped == stripped.to_integral() else f"{stripped:,.2f}"
-    symbol = CURRENCY_SYMBOL.get(currency or "", f"{currency} ")
-    return f"{symbol}{text}"
-
-
-#: `Period.days`: a day 1, a week 7, a month 365.25 / 12, a quarter 365.25 / 4, a year 365.25 -- exact.
-_DAYS = {"day": 1, "week": 7, "month": "30.4375", "quarter": "91.3125", "year": "365.25"}
-
-
-def _period_days(period):
-    from fractions import Fraction                                    # noqa: PLC0415
-    return Fraction(_DAYS.get(period) or _DAYS["quarter"])
-
-
-def time_only_people(entry) -> list:
-    """`Compare.timeOnly` (call 65; keel-cloud 074 D-12, 077): the anchored, un-chipped B2C people whose one
-    total is hours -- reported apart from Existing sacrifice, never £0. A *Nothing* is 0 and counted; B2B has
-    none (hours are priced at the rate)."""
-    if entry.b2b():
-        return []
-    out = []
-    for person in entry.gate_yes():
-        if person.anchoring != "ANCHORED" or person.chip:
-            continue
-        pick = person.picks.get(SACRIFICE_KEY)
-        if not isinstance(pick, dict) or "chip" in pick or pick.get("nothing"):
-            continue
-        if pick.get("mode") == "HOURS" and isinstance(pick.get("value"), (int, float)):
-            out.append((person, pick))
-    return out
-
-
-def _time_only_figure(entry, period_words: str, currency) -> str | None:
-    """`Figures.timeOnly`: *3 lose only time: median 6 hours a month, valued getting them back at £5 to £10 a
-    month, about £0.83 to £1.67 an hour* -- the median person's Price band (the lower middle, by the band's
-    floor) over the median hours, per the founder's period."""
-    from decimal import ROUND_HALF_UP, Decimal, localcontext         # noqa: PLC0415
-    import statistics                                                 # noqa: PLC0415
-    apart = time_only_people(entry)
-    if not apart:
-        return None
-    founder = (entry.cost() or {}).get("period")
-    who = f"{len(apart)} lose only time" if len(apart) != 1 else "1 loses only time"
-    hours = []
-    for _person, pick in apart:
-        hours.append(pick["value"] * _period_days(founder) / _period_days(pick.get("period")))
-    if not hours:
-        return who
-    with localcontext() as ctx:
-        ctx.prec = 16                                                  # MathContext.DECIMAL64
-        median = statistics.median(hours)
-        median = Decimal(median.numerator) / Decimal(median.denominator)
-        line = f"{who}: median {_hours(median)} hours {period_words}"
-        bands = [p.picks.get("commercial.price") for p, _pick in apart]
-        bands = sorted((b for b in bands if isinstance(b, str)),
-                       key=lambda c: corpus_mod.band_floor(c) if corpus_mod.band_floor(c) is not None
-                       else -1)
-        if not bands or median <= 0:
-            return line
-        pick = bands[(len(bands) - 1) // 2]
-        if pick == corpus_mod.WOULD_NOT_PAY or corpus_mod.band_floor(pick) is None:
-            return line + ", and would not pay to get them back"
-        kind, *edges = pick.split("_")
-        low = None if kind == "under" else Decimal(edges[0])
-        high = None if kind == "over" else Decimal(edges[0 if kind == "under" else 1])
-        symbol = CURRENCY_SYMBOL.get(currency or "", f"{currency} ")
-        if low is None:
-            label, per_hour = f"Under {symbol}{_money(high)}", f"under {_amount(high / median, currency)} an hour"
-        elif high is None:
-            label, per_hour = f"Over {symbol}{_money(low)}", f"over {_amount(low / median, currency)} an hour"
-        else:
-            label = f"{symbol}{_money(low)} to {symbol}{_money(high)}"
-            per_hour = f"{_amount(low / median, currency)} to {_amount(high / median, currency)} an hour"
-        return f"{line}, valued getting them back at {label} {period_words}, about {per_hour}"
-
-
-def cost_figure(entry, standing: dict) -> str | None:
-    """Call 64: `Figures.cost`'s shape per the founder's period (keel-cloud 074) -- *a median £35 a month*, and
-    on B2C the people who gave only time apart (*; 4 lose only time: median 3.7 hours a month, valued getting
-    them back at £20 to £50 a month, about £5.45 to £13.64 an hour*). On B2B the corpus records the total
-    median only, not its money / hours split, so the figure is the total alone (a deviation, recorded in
-    call 64). `None` where the standing carries neither a median nor anyone apart."""
-    currency = currency_of(entry)
-    cost = entry.cost() if hasattr(entry, "cost") else None
-    period_words = corpus_mod._PERIOD_WORDS.get((cost or {}).get("period"), "over three months")
-    parts = []
-    if standing.get("median") is not None:
-        parts.append(f"a median {_amount(standing['median'], currency)} {period_words}")
-    apart = _time_only_figure(entry, period_words, currency)
-    if apart:
-        parts.append(apart)
-    return "; ".join(parts) or None
-
-
-def ability_figure(entry, standing: dict) -> str | None:
-    """Call 64: `Figures.ability` -- *{inside} of {n} already spend {price low} {period} or more*; `None`
-    before anyone is counted or without a price."""
-    answer = (entry.founder_calibration.get("commercial.price") or {}).get("answer")
-    if not isinstance(answer, dict) or not standing.get("n") or standing.get("inside") is None:
-        return None
-    period = corpus_mod._PERIOD_WORDS.get(answer.get("period"), "")
-    return (f"{standing['inside']} of {standing['n']} already spend "
-            f"{_amount(answer['low'], answer.get('currency'))}" + (f" {period}" if period else "")
-            + " or more")
-
-
-def price_figure(entry, standing: dict) -> str | None:
-    """Call 57, 64: `Figures.price` -- *{inside} of {n} said it would be worth {floor} {period} or
-    more*, in the cost's period; `None` before anyone is counted or where the founder left Price out."""
-    from .corpus import price_floor                                   # noqa: PLC0415
-    answer = (entry.founder_calibration.get("commercial.price") or {}).get("answer")
-    if not isinstance(answer, dict) or not standing.get("n") or standing.get("inside") is None:
-        return None
-    symbol = CURRENCY_SYMBOL.get(answer.get("currency"), f"{answer.get('currency')} ")
-    period = corpus_mod._PERIOD_WORDS.get(answer.get("period"), "")
-    return (f"{standing['inside']} of {standing['n']} said it would be worth {symbol}"
-            f"{_money(price_floor(answer['low']))}" + (f" {period}" if period else "") + " or more")
-
-
-def _money_of(entry, key: str, standing: dict) -> tuple[str | None, str | None]:
-    """The currency and the period a set's money median is in: the standing's own, else the one
-    every answer's `cost` agrees on (the median is taken over them), the currency else the
-    market's. `(None, None)` where the answers carry no money at all."""
-    costs = [(p.picks.get(key) or {}).get("cost") for p in entry.people()
-             if isinstance(p.picks.get(key), dict)]
-    costs = [c for c in costs if isinstance(c, dict)]
-    if not costs and not (standing.get("currency") or standing.get("per")):
-        return None, None
-    currencies = {c.get("currency") for c in costs if c.get("currency")}
-    periods = {c.get("per") for c in costs if c.get("per")}
-    currency = standing.get("currency") or (currencies.pop() if len(currencies) == 1 else None)
-    currency = currency or MARKET_CURRENCY.get((entry.market or {}).get("country"))
-    per = standing.get("per") or (periods.pop() if len(periods) == 1 else None)
-    return currency, per
-
-
-def observed_of(entry, key: str, standing: dict) -> str | None:
-    """The deciding line's number, **in the founder's own unit and not keel-cloud's phrase** --
-    the median with the unit the founder's answer carried (judgement call 19's rule, at v9: this
-    repo does not own `Measure.say` and keeps no copy of it). `None` where the standing carries no
-    median.
-
-    **Call 42**: a set dimension's median is money (Existing sacrifice: what they already pay), and
-    a bare *165* is a number nobody can quote. It is written in the founder's unit -- *£165 per
-    three months*, the currency's symbol and the period from the standing, else from the answers
-    the median was taken over -- and a set whose money cannot be written so is `None`: the check
-    then asks for its option counts (`N of M`), which is what such a paragraph can say.
-
-    **Call 57 (v11)** supersedes call 42 on the two commercial figures keel-cloud 073 writes itself:
-    Existing sacrifice's is `cost_figure` (*a median £22 over three months*) and Price's
-    `price_figure` (*5 of 8 said it would be worth £5 a month or more*)."""
-    if key == "commercial.existing_sacrifice":
-        return cost_figure(entry, standing)                          # calls 57, 64
-    if key == "commercial.price":
-        return price_figure(entry, standing)                         # calls 57, 64
-    if key == "commercial.ability_to_pay":
-        return ability_figure(entry, standing)                       # call 64
-    median = standing.get("median")
-    if median is None:
-        return None
-    if is_set(entry, key, standing):
-        currency, per = _money_of(entry, key, standing)
-        if not (currency and per):
-            return None
-        symbol = CURRENCY_SYMBOL.get(currency, f"{currency} ")
-        return f"{symbol}{_number_words(median)} {_per_words(per)}"
-    median = _number_words(median)
-    answer = (entry.founder_calibration.get(key) or {}).get("answer")
-    if isinstance(answer, dict) and answer.get("currency"):
-        # The price, as keel-cloud's `observedFigure` writes it: symbol, number, `per` words.
-        return f"{CURRENCY_SYMBOL.get(answer['currency'], answer['currency'] + ' ')}{median}" \
-            + (f" {_per_words(answer.get('per'))}" if answer.get("per") else "")
-    unit = answer.get("unit") if isinstance(answer, dict) else None
-    return f"{median} {unit}" if unit else str(median)
-
-
-def _guessed_count(entry, key: str) -> int:
-    return sum(1 for p in entry.gate_yes() if p.anchoring == "GUESSED" and key in p.picks)
-
-
-def brief_dimension(entry, dimension, standing: dict) -> dict:
-    calibration = entry.founder_calibration.get(dimension.key) or {}
-    return {
-        "key": dimension.key,
-        "name": dimension.name,
-        "weight": dimension.weight,
-        "status": standing.get("status"),
-        "belief_sentence": calibration.get("belief_sentence"),
-        "founder_phrase": calibration.get("belief_phrase"),
-        "observed": observed_of(entry, dimension.key, standing),
-        "inside": standing.get("inside"),
-        "outside": standing.get("outside"),
-        # `Standing.below`/`above` are the engine's; the corpus records the side, not the count.
-        "below": None,
-        "above": None,
-        "drift": standing.get("drift"),
-        "n_anchored": standing.get("n"),
-        "n_guessed": _guessed_count(entry, dimension.key),
-        # Beyond screen-shapes §2's list, and named as such: a set dimension's standing *is* its
-        # option counts (marks §2.6 allows every `optionCounts` row of `n` as an `N of M`), so a
-        # paragraph about one cannot be written, or checked, without them.
-        "option_counts": standing.get("optionCounts"),
-    }
-
-
-def vectors_for(entry, registry) -> list:
-    """`vectors[]`: each vector's verdict and deciding dimension, and every dimension's standing
-    under it, in registry order -- from `expected` and the registry and nothing else."""
-    standings = (entry.expected or {}).get("standings") or {}
-    verdicts = (entry.expected or {}).get("vector_verdicts") or {}
-    out = []
-    for vector in VECTORS:
-        verdict = verdicts.get(vector) or {}
-        out.append({
-            "vector": vector,
-            "verdict": verdict.get("verdict"),
-            "deciding": verdict.get("deciding"),
-            "dimensions": [brief_dimension(entry, d, standings.get(d.key) or {})
-                           for d in registry.calibrated_slice(vector, entry.b2b())],
-        })
-    return out
-
-
-def build_brief(entry, keys=None, registry=None) -> dict:
-    """The `BRIEF` screen's context (keel-cloud 079, contract 9): the project, the market, the
-    context, and the `facts`, `beliefs` and `stories` of `brief_facts` -- one case a project.
-    The three vectors live on in `facts.vectors` (verdict words) and in `vectors_for`, which the
-    scorer and the register still read off the entry."""
+def build_brief(entry, keys=None, registry=None, *, facts=None) -> dict:
+    """The `BRIEF` screen's context (keel-cloud 089, contract 13): the project, the market, the context, the
+    `facts`, the `beliefs` and the `stories` -- one case a project. `facts` is keel-cloud's own for the entry
+    (`cloud_corpus`, `BriefFactsCorpusTest`) where the run has it, else this repository's reading
+    (`brief_facts.facts_for`, call 84)."""
     from . import brief_facts                                          # noqa: PLC0415
     registry = registry if registry is not None else entry.registry
     keys = DEFAULT_KEYS[contract_mod.SCREEN_BRIEF] if keys is None else keys
-    vectors = vectors_for(entry, registry)
-    currency, per = _money_of(entry, "commercial.existing_sacrifice",
-                              (entry.expected.get("standings") or {}).get(
-                                  "commercial.existing_sacrifice") or {})
-    cost = (entry.founder_calibration.get("commercial.existing_sacrifice") or {}).get("answer")
-    if isinstance(cost, dict):                     # the founder's cost estimate fixes the period
-        currency, per = cost.get("currency") or currency, cost.get("period") or per
-    currency = currency or MARKET_CURRENCY.get((entry.market or {}).get("country"))
-    context = context_of(entry)
     return _fill(keys, {"project_name": entry.title, "market": market_of(entry),
-                        "context": context,
-                        "facts": brief_facts.facts_for(entry, vectors, context, currency,
-                                                       per, corpus_mod._PERIOD_WORDS.get(per, "")),
-                        "beliefs": brief_facts.beliefs_for(vectors),
+                        "context": context_of(entry),
+                        "facts": facts if facts is not None else brief_facts.facts_for(entry, registry),
+                        "beliefs": brief_facts.beliefs_for(entry, registry),
                         "stories": brief_facts.stories_for(entry)})

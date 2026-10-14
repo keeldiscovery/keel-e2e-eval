@@ -78,7 +78,27 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
-### `MARKS_VERSION` 17 — the gate as written, **no run of record yet** (spec `038-advantage-benefit-first`, 2026-10-12)
+### `MARKS_VERSION` 18 — the gate as written, **no run of record yet** (spec `040-marks-v18`, 2026-10-14)
+
+The October redesign (keel-cloud 087 / 088 / 089, merged at keel-cloud-docs `7b151f9`; registry `VERSION` 4, document 20,
+`CONTRACT_VERSION` 13, routing v11 with `asked: light`, `InferenceCharge` 7; `canon/designs/design-2026-10-14.md` §9 row
+11). **All thirteen dimensions decide** -- no weight, no DEAL_BREAKER or SHAPES anywhere; a vector's verdict is the worst
+of its dimensions. The corpus is **revision 10** (a revision-9 file is refused by name): the founder's lists and picked
+item, the registry's fixed answers and one escape per question, no guessed flag, and no one-unit window (D13; DRIFT
+#74 closed). The model writes no question at all: **`founder-lists.md`** drafts the lists (`L1`-`L5`, with a drafted
+`asked` face held to `K2`-`K6` too), **`respondent-questions.md`** writes the gate's clause alone (`E1`-`E4`), and the
+eighth screen, **`asked.md`** (`ASKED`), the stranger's faces (`K1`-`K6`). Ten marks (`instructions/marks.toml`):
+`dimension_coverage`, `option_validity`, `no_leak`, `anchoring_accuracy` 0.90, `compare_correctness`, the refusal
+rate <= 0.02, `shape_refusals` 0, **`brief_answers`** (the brief's headline, three answers, tests and quotes -- seven
+per-case marks restating keel-cloud 089's `BriefReading.check`, `brief_paragraphs` retired), and two born at v18 and
+measured at zero spend: **`spoken_form`** (every item of every corpus questionnaire, as keel-cloud composed it, held to
+`canon/designs/spoken-questions-guidelines.md` §2-§5; five corpus wording items named apart, `runs/DRIFT.md` #77) and
+**`brief_facts`** (keel-cloud's cards and pilot against this repository's reading of the corpus). `rescore.py` refuses
+every bundle below 18. **There is no v18 run of record until `WHY=marks:18` is spent, on the founder's word only** --
+neither run nor proposed here. `DRY=1` against `7b151f9`: `compare_correctness` **108 of 108**, `spoken_form` **104 of
+104** (5 known apart), `brief_facts` **94 of 94**.
+
+### `MARKS_VERSION` 17 — history since v18, never run (spec `038-advantage-benefit-first`, 2026-10-12)
 
 keel-cloud 085 (merged at `b8a4eed`; registry `VERSION` 3, document 18, contract stays 10): Relative advantage is asked
 benefit first. The founder ticks one to four advantages; the respondent's one item is code's whole (better / no
@@ -1390,7 +1410,9 @@ KEEL_COPILOT_MODEL=gpt-5.6-luna \
   its own bundle without spending again: `python -m instructions.rescore runs/<id>`, which writes
   `scorecard-v<N>.json` beside the original rather than over it.
 
-  **`MARKS_VERSION` is 11** since 2026-10-09 (spec `031-window-frame-and-price`, judgement calls
+  **`MARKS_VERSION` is 18** since 2026-10-14 (spec `040-marks-v18`, judgement calls 77-90; the section
+  *`MARKS_VERSION` 18* near the top of this file), and every version from 11 to 17 is history there.
+  **`MARKS_VERSION` was 11** from 2026-10-09 (spec `031-window-frame-and-price`, judgement calls
   50–58; the gate as written is the section *`MARKS_VERSION` 11* near the top of this file) and has
   **no run of record until `WHY=marks:11` is spent** — on hold by the founder; `rescore.py` refuses
   every bundle below 11 by name. **`MARKS_VERSION` was 10** for the same day (spec
@@ -1592,8 +1614,15 @@ and must close back to the screen it came from. `doors.json` lists every route, 
 **S-004, the stranger who gives orders** (`evals/test_s004_stranger_who_gives_orders.py`, spec
 `008-stranger-who-gives-orders`) — live, opt-in, below.
 
+**Since spec `040-marks-v18` (2026-10-14) the corpus is revision 10 and the contract 13**, and the three journeys
+cannot run until keel-web specs 7, 8 and 10 land: their script (`harness/vectors_script.py`) and typed inputs still
+write revision 9's shapes, and re-pointing them -- and the legs and page objects -- at the founder lists, the `{key,
+event}` items, the `asked` faces and the brief's answers is the later journey spec's. Their stackless unit tests that
+read the corpus skip by name until then (spec 040 judgement call 89); the keys table already reads the eight-screen
+export.
+
 **S-005, S-006 and S-007 are vectors journeys since spec `039-vectors-journey`** (2026-10-13). The
-account below is the classic one they replaced, kept as history: today each walks keel-cloud's vector
+account below is the classic one they replaced, kept as history: on 039 each walked keel-cloud's vector
 corridor on corpus revision 9 through keel-web's own screens -- context, problem, mechanism, three
 calibrations, persona, lock, one link per person, the interview, the readings, the board, the vector
 pages and the brief -- and asserts the entry's `expected.standings` and `expected.vector_verdicts` on

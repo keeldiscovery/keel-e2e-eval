@@ -1,11 +1,11 @@
-"""Cost first, held by code (spec 032 US3; judgement calls 59-65; keel-cloud 074) -- and, since spec 033 (call
-67; keel-cloud 077), the buyer's cost as one total.
+"""Cost first, held by code (spec 032 US3; judgement calls 59-67; keel-cloud 074 / 077) -- at `MARKS_VERSION` 18
+(spec 040, calls 83, 85).
 
 The two money questions are code's -- Existing sacrifice asks *What does it cost ... today?* of the founder and
-*{Last month}, what did it cost ...?* of the buyer, Price *What price do you have in mind ...?* -- so the model
-owes each its key (and, in calibration, a note) and nothing else, and Ability to pay (derived) is not in the
-calibration job at all. `W10` and `U1` retired with the kinds. Stackless and modelless: the hand-sized
-fixtures, never keel-cloud.
+*{Last month}, what did it cost ...?* of the buyer, Price *What price do you have in mind ...?* -- so the founder-lists
+job owes each its key (and a note) and nothing else, and Ability to pay (derived) is not in that job at all. Since
+keel-cloud 088 every respondent item but the gate is code's whole, the cost total and Ability to pay's four budget
+sources among them. Stackless and modelless: the hand-sized fixtures, never keel-cloud.
 """
 
 from __future__ import annotations
@@ -13,7 +13,6 @@ from __future__ import annotations
 import pytest
 
 from instructions import context as context_mod
-from instructions import registry as registry_mod
 from instructions import score as score_mod
 from instructions import wording as wording_mod
 from tests import v9_fixtures as fx
@@ -39,26 +38,21 @@ def _calibrate(entry, registry, vector, mutate=None):
     return score_mod.score_calibration(fx.calibration_case(entry, vector), entry, registry, result)
 
 
-def _q(result, key):
-    return next(q for q in result["questions"] if q["key"] == key)
-
-
 # ------------------------------------------------- the calibration side: the key and the note, no kinds
 
-def test_existing_sacrifice_owes_its_key_and_nothing_else(registry):
-    """Call 67: no options, no unit, no question, no belief phrase -- the entry is the key and the note."""
-    sacrifice = registry.by_key(SACRIFICE)
-    question = fx.calibration_question(sacrifice)
+@pytest.mark.parametrize("key", [SACRIFICE, "commercial.price"])
+def test_the_money_entries_owe_their_key_and_nothing_else(registry, key):
+    """Calls 53, 67: no options, no unit, no question -- the entry is the key and the note."""
+    dimension = registry.by_key(key)
+    question = fx.calibration_question(dimension)
     assert set(question) == {"key", "respondent_note"}
-    assert score_mod.calibration_checks(question, sacrifice) == []
-    assert score_mod.model_text(question, sacrifice, founder=True) is None
+    assert score_mod.calibration_checks(question, dimension) == []
 
 
 def test_a_question_the_model_wrote_anyway_is_not_read(registry):
-    """Never a fault, never held to W7 / W9: keel-cloud sets it aside (`withQuestion(null)`)."""
+    """Never a fault: keel-cloud sets it aside (`withQuestion(null)`)."""
     sacrifice = registry.by_key(SACRIFICE)
-    question = dict(fx.calibration_question(sacrifice),
-                    question="What does it cost? Tick all that apply. About £5?")
+    question = dict(fx.calibration_question(sacrifice), question="What does it cost? Tick all that apply.")
     assert score_mod.calibration_checks(question, sacrifice) == []
 
 
@@ -67,7 +61,7 @@ def test_a_question_the_model_wrote_anyway_is_not_read(registry):
     [{"label": f"Kind {i}", "belief_phrase": "x"} for i in range(5)],
 ])
 def test_any_option_on_existing_sacrifice_is_c2_as_on_price(registry, options):
-    """Call 67 (keel-cloud 077, contract 8: `unit` is gone): options are refused with C2, like Price's."""
+    """Call 67 (keel-cloud 077): options are refused with C2, like Price's."""
     sacrifice = registry.by_key(SACRIFICE)
     question = dict(fx.calibration_question(sacrifice), options=options)
     faults = score_mod.calibration_checks(question, sacrifice)
@@ -75,9 +69,17 @@ def test_any_option_on_existing_sacrifice_is_c2_as_on_price(registry, options):
 
 
 def test_money_in_the_event_is_still_w9_on_existing_sacrifice(registry):
+    """`ScreenResultApplier.refuseMoney` reads every entry's event and options."""
     sacrifice = registry.by_key(SACRIFICE)
     question = dict(fx.calibration_question(sacrifice), event="spent £5 on a spare")
     assert any(f.startswith("W9:") for f in score_mod.calibration_checks(question, sacrifice))
+
+
+def test_a_list_on_a_money_entry_is_l1(registry):
+    """Call 85: a draft is written only for the seven list dimensions."""
+    price = registry.by_key("commercial.price")
+    question = dict(fx.calibration_question(price), list={"items": [{"label": "About five pounds"}]})
+    assert score_mod.calibration_checks(question, price)[0].startswith("L1:")
 
 
 def test_ability_to_pay_is_not_in_the_job_and_the_denominator_is_the_answered_set(entry, registry):
@@ -87,9 +89,8 @@ def test_ability_to_pay_is_not_in_the_job_and_the_denominator_is_the_answered_se
         SACRIFICE, "commercial.price", "commercial.buyer_payer_alignment", "commercial.commitment"]
 
     def include_ability(result):
-        ability = registry.by_key(ABILITY)
-        result["questions"].insert(2, {"key": ABILITY, "question": "How would they pay?"})
-        assert ability.derived
+        assert registry.by_key(ABILITY).derived
+        result["questions"].insert(2, {"key": ABILITY, "respondent_note": "x"})
     bad = _calibrate(entry, registry, "COMMERCIAL", include_ability)
     assert bad.coverage_passed is False
     assert any("outside the slice commercial.ability_to_pay" in f["evidence"] for f in bad.faults)
@@ -103,16 +104,14 @@ def test_the_b2b_job_is_five_answered_and_still_has_purchase_friction():
     assert "commercial.purchase_friction" in [d.key for d in registry.answered_slice("COMMERCIAL", True)]
 
 
-def test_neither_side_sweeps_existing_sacrifice(registry):
-    """Call 67: the founder's side was never read (v12) and the respondent's is code's now, so nothing the
-    model wrote is swept, as with Price."""
-    sacrifice = registry.by_key(SACRIFICE)
-    assert not score_mod.is_swept(sacrifice, founder=True)
-    assert not score_mod.is_swept(sacrifice)
-    assert not score_mod.is_swept(registry.by_key("commercial.price"))
+def test_neither_side_sweeps_the_money_entries(registry):
+    """Call 83: code writes every word of them, so nothing the model wrote is swept."""
+    for key in (SACRIFICE, "commercial.price", ABILITY):
+        dimension = registry.by_key(key)
+        assert not score_mod.is_swept(dimension) and not score_mod.is_swept(dimension, founder=False)
 
 
-# ------------------------------------------------------ the respondent side: the key alone, W10 and U1 retired
+# ------------------------------------------------------ the respondent side: the key alone
 
 @pytest.mark.parametrize("period, words", [
     ("day", "last week"), ("week", "last week"), ("month", "last month"),
@@ -123,16 +122,13 @@ def test_the_recall_words_follow_the_founders_cost_period(period, words):
     assert wording_mod.recall_words(period) == words
 
 
-def test_the_respondent_item_is_the_key_alone_and_w10_and_u1_are_retired(entry, registry):
-    """Call 67: whatever question, options or units a model writes for the total is not read -- no W10 on the
-    recall words, no U1 on a unit, no options to count."""
-    sacrifice = registry.by_key(SACRIFICE)
-    row = entry.respondent_questions[SACRIFICE]
-    assert row["control"] == "cost_total" and sacrifice.respondent_code_written
-    assert score_mod.respondent_checks({"key": SACRIFICE}, sacrifice, row, part=3) == []
-    written = {"key": SACRIFICE, "question": "What did the keys cost you in the last three months?",
+@pytest.mark.parametrize("key", [SACRIFICE, ABILITY, "commercial.price"])
+def test_the_respondent_item_is_the_key_alone(registry, key):
+    """Calls 67, 83: whatever question, options or units a model writes for a code-written item is not read."""
+    dimension = registry.by_key(key)
+    written = {"key": key, "question": "What did the keys cost you in the last three months?",
                "options": ["Taxis", "Bus fares"], "units": [None, "days"]}
-    assert score_mod.respondent_checks(written, sacrifice, row, part=3) == []
+    assert score_mod.respondent_checks(written, dimension) == []
     assert not hasattr(wording_mod, "recall_fault") and not hasattr(score_mod, "UNITS")
 
 
@@ -142,28 +138,18 @@ def test_the_context_names_the_recall_words_the_job_is_handed_filled(entry, regi
     built = context_mod.build_respondent(entry, 3, entry.plan(registry), registry)
     sacrifice = next(i for i in built["items"] if i["key"] == SACRIFICE)
     assert "{cost_period}" not in str(sacrifice)
-    registry_text = registry.by_key(SACRIFICE).respondent["guidance"]
+    registry_text = registry.by_key(SACRIFICE).respondent["b2b"]["guidance"]
     assert "{cost_period}" in registry_text, "the registry keeps the placeholder; the job never sees it"
-    assert "last month" in sacrifice["respondent"]["guidance"]
-    calibration = context_mod.build_calibration(entry, "COMMERCIAL", registry)
-    assert "{cost_period}" in str(calibration["dimensions"][0]), \
-        "keel-cloud fills the placeholder on respondent items only; the calibration copy keeps it"
 
 
-# ------------------------------------------------------ Ability to pay's respondent item and sweep B
-
-def test_ability_to_pays_four_rungs_are_the_fixed_respondent_codes_on_the_b2b_link():
-    b2b = fx.entry(fx.ENTRY_B2B)
-    registry = fx.registry()
+def test_ability_to_pays_four_sources_are_the_registrys_fixed_answers(registry):
+    """keel-cloud 088 FR-001: Ability to pay's budget sources are `respondent.fixed_answers` on its single_choice,
+    asked on the decision-maker's link only."""
     ability = registry.by_key(ABILITY)
-    row = b2b.respondent_questions[ABILITY]
-    item = {"key": ABILITY, "question": "Where did the money come from?",
-            "options": ["From an existing line", "A new line, signed off", "From other spend", "None"]}
-    assert score_mod.respondent_checks(item, ability, row, part=3) == []
-    five = dict(item, options=item["options"] + ["Free"])
-    assert any("5 options; the plan has 4" in f for f in score_mod.respondent_checks(
-        five, ability, row, part=3))
-    assert ABILITY in b2b.plan()[3] and ABILITY not in fx.entry().plan()[3]
+    assert ability.fixed_answer_codes == ["existing_line", "new_line_signed_off", "taken_from_other_spend",
+                                          "no_budget"]
+    assert ability.escape["code"] == "cant_recall_one" and ability.b2b_link_only
+    assert ABILITY in fx.entry(fx.ENTRY_B2B).plan()[3] and ABILITY not in fx.entry().plan()[3]
 
 
 def test_sweep_b_reads_the_cost_estimates_low_and_high(entry, registry):
@@ -178,6 +164,5 @@ def test_sweep_b_reads_the_cost_estimates_low_and_high(entry, registry):
 def test_a_good_respondent_plan_scores_clean_end_to_end(entry, registry):
     for part in (1, 2, 3):
         result = fx.respondent_result(entry, part)
-        case = fx.respondent_case(entry, part)
-        score = score_mod.score_respondent(case, entry, registry, entry.plan(), result)
+        score = score_mod.score_respondent(fx.respondent_case(entry, part), entry, registry, entry.plan(), result)
         assert score.coverage_passed and score.faults == [], (part, score.faults)

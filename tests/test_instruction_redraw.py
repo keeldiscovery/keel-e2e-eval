@@ -187,10 +187,17 @@ def test_an_unaskable_aggregate_redraws_nothing(cases):
 
 
 def _broken(result):
+    """The gate's clause breaks E1 (a time word) and an item's key is foreign -- the two things a respondent
+    answer can get wrong since keel-cloud 088 (call 83)."""
     broken = json.loads(json.dumps(result))
-    broken["items"][0]["options"] = []
+    broken["items"][0]["event"] = "lost your keys last week"
     broken["items"][1]["key"] = "not.a.key"
     return broken
+
+
+def _gates(entry) -> int:
+    """Call 83: the respondent's validity is the gate's clause, one a Part 1 job."""
+    return sum(1 for k in entry.plan()[1] if k == "problem.prevalence")
 
 
 def test_the_scorer_reads_the_accepted_answer_and_the_raw_one_after_a_second_refusal(cases):
@@ -206,10 +213,10 @@ def test_the_scorer_reads_the_accepted_answer_and_the_raw_one_after_a_second_ref
 
     accepted = scored(bad, good)
     raw = scored(bad, {**good, "bad": True})
-    asked = len(entry.plan()[1])
-    assert accepted.validity_hit == accepted.validity_of == asked
+    assert accepted.validity_hit == accepted.validity_of == _gates(entry) == 1
     assert accepted.coverage_passed
-    assert raw.validity_hit < asked, "refused twice: the raw answer's faults are the score"
+    assert raw.validity_hit < _gates(entry) and not raw.coverage_passed, \
+        "refused twice: the raw answer's faults are the score"
 
 
 def test_the_rate_counts_every_refusal_over_the_first_drafts():
@@ -289,7 +296,7 @@ def test_the_bundle_records_both_drafts_and_a_rescore_reads_the_accepted_one(
     assert rescore_mod.main([str(bundle), "--no-judge"]) == 0
     written = json.loads((bundle / f"scorecard-v{marks_mod.MARKS_VERSION}.json").read_text())
     assert written["totals"]["scored_on"] == run_mod.SCORED_ON_ACCEPTED
-    assert written["totals"]["respondent_validity"]["hit"] == len(entry.plan()[1])
+    assert written["totals"]["respondent_validity"]["hit"] == _gates(entry)
     assert written["redraws"][0]["accepted"] is True
     assert "scored on  accepted" in capsys.readouterr().out
 
@@ -311,7 +318,7 @@ def test_a_bundle_without_the_answer_block_scores_raw_and_says_so(
     assert rescore_mod.main([str(bundle), "--no-judge"]) == 0
     written = json.loads((bundle / f"scorecard-v{marks_mod.MARKS_VERSION}.json").read_text())
     assert written["totals"]["scored_on"] == run_mod.SCORED_ON_RAW
-    assert written["totals"]["respondent_validity"]["hit"] < len(entry.plan()[1])
+    assert written["totals"]["respondent_validity"]["hit"] < _gates(entry)
     assert "predates judgement call 41" in capsys.readouterr().out
     page = (bundle / f"report-v{marks_mod.MARKS_VERSION}.html").read_text()
     assert "Scored on the raw answer" in page and "predates judgement call 41" in page
@@ -357,3 +364,50 @@ def test_a_brief_refused_twice_scores_its_raw_paragraph_as_a_fault(cases):
     assert state.brief[0].met is False and all(v is False for v in state.brief[0].marks.values())
     assert run_mod.refused_twice(cases[RESPONDENT], True, False, answer.refusals) is None, \
         "the question screens keep their raw faults"
+
+
+# -------------------------------------- spec 040 (call 87): ASKED is redrawn like the question screens
+
+ASKED = "09-fixture/ASKED_COMPATIBILITY/run1"
+K3 = {"kind": "rule", "rule": "K3", "path": "result.items[index=0].asked",
+      "message": "K3: 'was the phone to hand' is not said to the stranger; write it in the second person (you, your)"}
+
+
+def test_asked_is_an_unattended_question_screen():
+    assert "ASKED" in runner_mod.QUESTION_SCREENS
+    assert "ASKED" in runner_mod.UNATTENDED_SCREENS and "ASKED" in runner_mod.REDRAW_SCREENS
+
+
+def test_a_refused_asked_job_is_redrawn_once_with_the_derivation_text(cases):
+    """keel-cloud 088's `askedLadder`: the first repair is `queueAnotherQuestionsTurn` with
+    `RecoverySection.derivationRepairText(path + ": " + why)`, on the class's own tier; its second rung (standard)
+    is not modelled."""
+    case = cases[ASKED]
+    raw = {"bad": True, "items": [{"index": 0, "asked": "was the phone to hand"},
+                                  {"index": 1, "asked": "were your keys all on one ring"}]}
+    redrawn = fx.asked_result(fx.entry())
+    host, aggregate = _Host(raw, redrawn), _Aggregate(K3)
+    answer = _ask(case, host, aggregate)
+    assert len(host.requests) == 2 and aggregate.calls == [(ASKED, False), (ASKED, True)]
+    sent = host.requests[1].request_payload
+    assert sent["context"] == {**case.payload["context"], "repair": (
+        "NOT DERIVED -- your previous answer was accepted as a shape and then could not be resolved: "
+        "result.items[index=0].asked: K3: 'was the phone to hand' is not said to the stranger; write it in the "
+        "second person (you, your). Answer again with everything you already had; fix only that; change nothing "
+        "else.")}
+    assert sent["interaction_history"] == [] and sent["input"] == {"content": ""}
+    assert answer.scored.result is redrawn
+
+
+def test_an_l_refusal_reported_as_shape_is_redrawn_as_the_rule_it_is():
+    """Judgement call 86 (DRIFT #76): keel-cloud's validator reports a founder-lists refusal `kind: shape`; the cloud's
+    orchestrator repairs it, so the eval reads it as rule `L<n>` and redraws it once."""
+    import types                                                         # noqa: PLC0415
+    from instructions import runner as runner_mod                        # noqa: PLC0415
+    case = types.SimpleNamespace(screen="CALIBRATION_QUESTIONS")
+    shaped = {"accepted": False, "refusal": {"kind": "shape", "rule": None, "path": "result.questions[2].list.items",
+                                             "message": "L1: problem.importance takes exactly 5 items"}}
+    plain = {"accepted": False, "refusal": {"kind": "shape", "rule": None, "path": "result.vector",
+                                            "message": "must be one of PROBLEM, SOLUTION, COMMERCIAL"}}
+    assert runner_mod.should_redraw(case, shaped)
+    assert not runner_mod.should_redraw(case, plain)

@@ -19,7 +19,28 @@ persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
 by name. v10 has no run of record; it is history from v11.
 
-**`MARKS_VERSION` 17** (spec 038, 2026-10-12): Relative advantage, benefit first. The ruler follows keel-cloud 085 (merged at
+**`MARKS_VERSION` 18** (spec 040, 2026-10-14): the October redesign. The ruler follows keel-cloud 087 / 088 / 089
+(keel-cloud-docs `7b151f9`; registry `VERSION` 4, document 20, `CONTRACT_VERSION` 13, routing v11, charge 7) and
+`canon/designs/design-2026-10-14.md` §9 row 11. **All thirteen dimensions decide** (D3): no weight, no DEAL_BREAKER,
+no SHAPES anywhere -- a registry still carrying them is refused (call 77) and a vector's verdict is the worst of its
+dimensions, which `compare_correctness` asks the engine for (108 of 108 on revision 10). The corpus is **revision 10**
+(call 78; a revision-9 file is refused by name as v17's): the founder's lists and picked item, fixed answers and one
+escape, no guessed flag, no one-unit window (DRIFT #74 closed by D13). The model writes **no question at all**: the
+founder lists (`founder-lists.md`, call 85), the gate's clause (call 83) and -- new, the eighth screen -- the
+stranger's `asked` faces (`asked.md`, `ASKED`, call 84); its marks are code's restatements of `L1`-`L5`, `E1`-`E4`
+and `K1`-`K6`. Two marks are born and measured at zero spend: **`spoken_form`** -- every item of every corpus
+questionnaire, as keel-cloud composed it, held to the spoken-question guidelines (calls 79-81) -- and **`brief_facts`**
+-- keel-cloud's cards and pilot against this repository's reading of the corpus (call 82); and `brief_paragraphs`
+becomes **`brief_answers`** over the brief's new result (headline, three answers, tests, quotes; call 82). The
+reported wording counts of call 56 retire with the text they counted. `rescore.py` refuses every bundle below 18
+(call 88). **There is no v18 run of record until `WHY=marks:18` is spent**, on the founder's word only (this spec
+never runs or proposes it); v17's paragraph below is history (v17 never had one).
+The seven revision-10 files, by sha256 (keel-cloud canon's own bytes at keel-cloud-docs `7b151f9`, equal to
+`src/test/resources/keel/corpus-r10/`): `01-countly.yaml` `160a967a162bf44d5fe6dfe0c070df340f829615a876255403624f36a8860e8f`; `02-compliancelog.yaml` `a5dc7c4b4c0f04f0f0a86ec2c49aa9b15ee4546bfb2e433dbca1922f650dc470`; `03-lullaby.yaml`
+`9d7eaa6746303f7d4a30e7d615a1498e11b345a8d62a6741cbaf540a4d05b3b4`; `04-linerly.yaml` `84776f41508e05ea9186fb2bd29e8283d254a407497296c65253f85d4e60a9bc`; `05-paidly.yaml` `05478dfae22c3ce0f84f094641f430580712ddfc7e73d05be18540ca9ffdf7c0`; `06-repeatline.yaml` `6fc0caa2e5c30a3244f8878cafe9a3da0041bd793397f04e4d25760b18270827`; `07-mulchrun.yaml`
+`733ebc7f3dbe25aceeb8fa15db9900ac3b8dae872a9c04a637ced5076cc3a3e7`.
+
+**`MARKS_VERSION` 17** (history since v18, never run; spec 038, 2026-10-12): Relative advantage, benefit first. The ruler follows keel-cloud 085 (merged at
 `b8a4eed`; registry `VERSION` 2 -> 3, project document 17 -> 18, `CONTRACT_VERSION` stays 10). The founder ticks one to
 four advantages (`multi_choice`, the belief joined with "or"), and the respondent's one item is **code's whole**
 (`benefit_with_advantages`: better / no difference / worse, and under better the founder's ticks): the model's
@@ -717,6 +738,91 @@ sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. It is
     `multi_choice`, fails invariant 5. The corpus is revision 9; a revision-8 file is refused by name. The BRIEF facts
     add `solution.benefit`, counted off the picks the engine counts (anchored, no chip) and held to the standing's
     `n`. `rescore.py` refuses every bundle below 17. The only v17 number is a v17 run (`WHY=marks:17`).
+
+77. **v18**: **registry 4: all thirteen decide** (keel-cloud 087 FR-001 / FR-002, D3). The registry is read with no
+    `weight`; a registry carrying `weight`, `respondent.chips` / `codes` / `asked_in_v1`, `common.chips` /
+    `something_else` or `answers.status_vocabulary` is refused as unknown-shaped (invariant 0), never read. The eight
+    invariants are 087's: 1 keys; 2 one escape at most, only Importance's counts against, none on the gate or
+    Commitment; 3 b2b; 4 `{value}` once in every template but the benefit list's; 5 codes (controls and rules
+    087's, Prevalence's fifths, a list's `saves`, fixed answers unique with their supports, cost / price / derived /
+    benefit); 6 interval iff numeric; 7 one gate; 8 every fixed answer set at most five answers of at most nine
+    words. `DEAL_BREAKERS`, `deal_breakers()`, `FIXED_RESPONDENT_CODES`, `RESPONDENT_ESCAPES`,
+    `CODE_WRITTEN_RESPONDENT_CONTROLS` and `names_the_offer` are deleted: every respondent word is code's.
+78. **v18**: **corpus revision 10, read from keel-cloud's canon only** (087 *Corpus revision 10*). `load()` refuses
+    any other revision by name (revision 9 is v17's). What is checked is `check_corpus_r10.py`'s shape half -- S, W
+    (a window of at least two units, never one -- D13, so `RecallWindow` refuses a count below 2 and has no
+    `CYCLES` / `SHIFTS`, and DRIFT #74 is closed by construction; an `occasion` of one to four words), L (each list
+    against the registry's `saves`: count, words, `picked`, `phrase`, `asked`, the fixed `Nobody else`), R (each row's
+    control, codes and one escape the registry's), A (a pick a code of its row, Importance two, an escape exactly its
+    row's, no guessed flag) -- and r9's P / K / D / U / O; the recount is the engine's (`compare_correctness`).
+    `expected` drifts are `both | none | stronger | short` (`above` / `below` went with `choice_majority`); a
+    vector's `deciding` is any of its dimensions, `null` exactly when `NOT_TESTED`.
+79. **v18**: **`spoken_form`, a deterministic mark** (the spoken guidelines §8; design §9 row 11). keel-cloud composes
+    every respondent item and its spoken block by code and its `SpokenGuidelinesCorpusTest` writes them
+    (`build/spoken-corpus.txt`); `instructions/cloud_corpus.py` runs that test (and 089's) once and
+    `instructions/spoken.py` holds the record to §2-§5: `S1` stem at most 20 words, **25 on Existing sacrifice and
+    Relative advantage** (keel-cloud 088 call 12: their unchanged frames carry an unbounded slot; held at 25 until
+    the founder decides), `S2` anchor + stem the question and one anchor a part, `S3` at most five options (Price
+    six), `S4` options at most nine words, `S5` parallel and exclusive, `S6` the §5 escape said last, `S7` / `S8` the §3
+    count and options lines, `S9` the §4 transform by dimension, `S10` Commitment's step said once; and every corpus
+    `asked` face `K2`-`K6`. One unit an item, one a face; 1.00 is every unit clean. The record is tested once; the
+    renderer is keel-cloud's and is never copied here.
+80. **v18**: **the three-word option floor binds the founder's words only** -- Importance's five and Current
+    solution's five. The registry's fixed answers (*Yes*, *No*, *Yes, easily*) and Price's bands are the record
+    (keel-cloud 088 call 14).
+81. **v18**: **five corpus wording items are known, named and out of the denominator** (`spoken.KNOWN`): 06-repeatline's
+    Commitment step *introduce you to the practice's IT supplier* (`S10`) and four Compatibility faces with no *you*
+    (`K3`) -- 01-countly's (keel-cloud 088 saw it), 02-compliancelog's, 03-lullaby's and 07-mulchrun's. They are the
+    next corpus revision's items (spec 040 follow-ups); a known item no longer found is a fault, so the ledger shrinks
+    with the corpus.
+82. **v18**: **the brief is answered, and its facts are compared** (keel-cloud 089 FR-001-FR-007). `brief_paragraphs`
+    retires with `tiles`, `conclusion`, `infer`, `sharpest` and `next.sentence`; **`brief_answers`** is a case
+    meeting seven marks, each a clause of `BriefReading.check` restated -- `shape`, `length` (the headline and each
+    answer at most 2 sentences and 45 words), `cites`, `broke` (an answer whose stage broke cites what broke),
+    `numbers`, `quotes`, `bans` -- proved equal to the real validator by `tests/test_instruction_brief_reading.py`.
+    **`brief_facts`** is `DRY=1`-measurable: one check a card (`key`, `name`, `number`, `line`, `status`, the verdict
+    half of `statusWords`) and one the pilot, keel-cloud's (`BriefFactsCorpusTest`, `build/brief-facts/<entry>.json`)
+    against `instructions/brief_facts.py`'s reading of the corpus; the insight half of `statusWords` (spec 082's
+    words), the decision, the vector words, `broke` and `notAsked` are reported, never marked. 94 checks on the
+    seven entries.
+83. **v18**: **the respondent job writes the gate's clause and nothing else** (keel-cloud 088 FR-002). Coverage is
+    one `{key}` a planned item (R1); validity is the gate alone -- `event`, E1-E3 and E4 (framed, the gate and the
+    Frequency question at most 20 words each); `no_leak` is sweeps A and B over that one clause on Part 1 of the
+    primary link. Anything else a model writes on an item is not read and is never a fault. With no model question
+    text anywhere, W3 / W7 / W8 (held by the validator as guards) and call 56's reported wording counts
+    (`wording.reported`, `long_options`) retire from this repository.
+84. **v18**: **eight screens: `ASKED` is a subject** (contract 12-13; routing v11 `asked: light`; `InferenceCharge` 7 is
+    keel-cloud's and no mark reads it). One case a saved Compatibility and a saved Adoption friction list an entry
+    (`<entry>/ASKED_COMPATIBILITY`, `<entry>/ASKED_ADOPTION_FRICTION`), handed the corpus's labels by index;
+    coverage is K1 (every index once, no other), validity K2-K6 (`spoken.face_faults`, the same function the corpus
+    faces are marked by), and the aggregate's K refusals are rules. A `BRIEF` case is handed keel-cloud's own facts
+    for the entry (`cloud_corpus`) and, where a run has none (the unit fixtures), this repository's reading
+    (`brief_facts.facts_for`); its meta says which.
+85. **v18**: **the founder-lists job, marked by code** (`founder-lists.md`, keel-cloud 087 FR-012). Coverage is C1 (the
+    vector's answered slice in order); validity is Prevalence's `event` (E1-E3) and five fifths (C2-C4), Frequency /
+    Price / Existing sacrifice their key and note alone (C2), and every list dimension's draft held to `L1`-`L5`
+    against the registry's `saves` -- **and a drafted `asked` face to `K2`-`K6`**, stricter than the aggregate's L4
+    (words and no `?`), because a face the founder keeps is never re-phrased and reaches a stranger as drafted
+    (keel-cloud 088 FR-003's vouching). `no_leak` sweeps A over the PROBLEM job's written words: Prevalence's clause
+    and fifths, Importance's five, Current solution's phrase and outcomes.
+86. **v18**: **an `L` refusal is a rule.** keel-cloud's `ScreenContractTool.VECTOR_RULE` lacks the letter, so a
+    founder-lists refusal arrives `kind: shape`; `validate.fold_in` reads a shape refusal whose reason opens `L<n>: `
+    as rule `L<n>` (keel-cloud follow-up: add `L` to the pattern).
+87. **v18**: **`ASKED` is redrawn like the question screens** (call 41): keel-cloud 088's ladder queues its first repair
+    on the class's own tier with the derivation text, which `runner.redraw_payload` mirrors; its second rung (one turn
+    on `standard`) is not modelled -- the eval measures the instruction at the tier the table names.
+88. **v18**: **`rescore.py` refuses every bundle below 18** by name: a v17 bundle answered model-written option sets, a
+    respondent questionnaire and a BRIEF reading with tiles, against corpus revision 9 and the nine deal-breakers.
+    The only v18 number is a v18 run (`WHY=marks:18`).
+89. **v18**: **the journey's corpus-reading unit tests skip by name at revision 10.** `harness/vectors_script.py`'s
+    results and typed inputs still write revision 9's shapes; re-pointing them (with the legs and the page objects)
+    is the later journey spec's, once keel-web specs 7, 8 and 10 land. The keys table reads the eight-screen export
+    and the one-unit branches are deleted.
+90. **v18**: **`BRIEF` is a screen the validator takes, read off the call that judges it.** keel-cloud 086 deleted
+    `ScreenContractTool`'s last `InferenceScreen.BRIEF` reference (a BRIEF case is any case neither a vector screen
+    nor `INTERPRET`, judged by `BriefReading.check(...)`), so `validate.shapes_taken` read BRIEF as not taken and a real
+    run would have left its refusal rate unmeasured. The call `BriefReading.check(` is now a marker beside the
+    constant (`validate._CALL_MARKERS`); prose still never counts.
 """
 
 from __future__ import annotations
@@ -724,15 +830,14 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 17
+MARKS_VERSION = 18
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 
-#: The eight marks of `marks.toml` at v12 (v9's eight, unchanged in number), with its numbers. The
-#: wording counts of call 56 are reported and are never a key here.
-#: `golden_belief_recall` is retired (call 29) and is **not** a key: a verdict cannot carry a value
-#: for it. `no_claim_words` (call 48) was never a mark of its own -- one of `brief_paragraphs`' per-case
-#: marks -- so its retirement moves no row here.
+#: The ten marks of `marks.toml` at v18 (calls 79, 82): v17's eight with `brief_paragraphs` become
+#: `brief_answers`, and the two deterministic marks born at v18, `spoken_form` and `brief_facts`.
+#: `golden_belief_recall` is retired (call 29) and `brief_paragraphs` (call 82): **not** keys, so a verdict cannot
+#: carry a value for either.
 DEFAULTS = {
     "dimension_coverage": 1.00,
     "option_validity": 1.00,
@@ -741,12 +846,15 @@ DEFAULTS = {
     "compare_correctness": 1.00,
     "rule_refusal_rate": 0.02,
     "shape_refusals": 0,
-    "brief_paragraphs": 1.00,
+    "brief_answers": 1.00,
+    "spoken_form": 1.00,
+    "brief_facts": 1.00,
 }
 
 #: The rows `judge()` returns, in the order the report shows them.
 ROWS = ("dimension_coverage", "option_validity", "no_leak", "anchoring_accuracy",
-        "compare_correctness", "refusals", "shape_refusals", "brief_paragraphs")
+        "compare_correctness", "refusals", "shape_refusals", "brief_answers", "spoken_form",
+        "brief_facts")
 
 
 def load(path: Path | str | None = None) -> dict:
@@ -765,7 +873,7 @@ def _at_least(value, mark) -> bool:
 
 
 def judge(totals: dict, marks: dict) -> dict:
-    """Each of the eight marks against its number. A run passes only if all eight are met.
+    """Each of the ten marks against its number. A run passes only if all ten are met.
 
     Every row is `{value, mark, measured, met}`, and **an unmeasured mark is not a met mark**
     (judgement call 13): a `None` fails, a refusal count nobody asked for fails, a compare the
@@ -782,7 +890,9 @@ def judge(totals: dict, marks: dict) -> dict:
     leak = totals.get("no_leak")
     accuracy = totals.get("anchoring_accuracy")
     compare = totals.get("compare_correctness")
-    brief = totals.get("brief_paragraphs")
+    brief = totals.get("brief_answers")
+    spoken = totals.get("spoken_form")
+    facts = totals.get("brief_facts")
     measured = bool(totals.get("refusals_measured"))
     refusals = sum((totals.get("refusals_by_rule") or {}).values())
     # v6 (call 22), v9 (call 36): a rate over the answers the aggregate judged -- `refusals_shown`,
@@ -808,8 +918,12 @@ def judge(totals: dict, marks: dict) -> dict:
                         shown=shown if measured else None),
         "shape_refusals": row("shape_refusals", shape if measured else None, measured,
                               shape is not None and shape <= marks["shape_refusals"]),
-        "brief_paragraphs": row("brief_paragraphs", brief, totals.get("brief_measured"),
-                                _at_least(brief, marks["brief_paragraphs"])),
+        "brief_answers": row("brief_answers", brief, totals.get("brief_measured"),
+                             _at_least(brief, marks["brief_answers"])),
+        "spoken_form": row("spoken_form", spoken, totals.get("spoken_measured"),
+                           _at_least(spoken, marks["spoken_form"])),
+        "brief_facts": row("brief_facts", facts, totals.get("brief_facts_measured"),
+                           _at_least(facts, marks["brief_facts"])),
     }
     results["passed"] = all(results[name]["met"] for name in ROWS)
     return results

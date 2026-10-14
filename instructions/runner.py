@@ -443,7 +443,10 @@ def ask(executor_module, validator_module, executor, case, *, payload: dict | No
 #: `repairUnattended` -> `queueAnotherQuestionsTurn` path as the question screens (turn one's
 #: context plus `repair`, no history, empty input; priced as a TURN in the cloud). `INTERPRET`
 #: keeps its own refusal, unchanged: no redraw.
-QUESTION_SCREENS = ("CALIBRATION_QUESTIONS", "RESPONDENT_QUESTIONS")
+#: Spec 040 (call 87): `ASKED` too -- keel-cloud 088's `askedLadder` queues its first repair through the same
+#: `queueAnotherQuestionsTurn` with the derivation text, on the class's own tier; its second rung (one turn on
+#: `standard`) is a routing step this eval does not model.
+QUESTION_SCREENS = ("CALIBRATION_QUESTIONS", "RESPONDENT_QUESTIONS", "ASKED")
 DRAFT_SCREENS = ("CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "SOLUTION_MECHANISM")
 UNATTENDED_SCREENS = QUESTION_SCREENS + ("BRIEF",)
 REDRAW_SCREENS = UNATTENDED_SCREENS + DRAFT_SCREENS
@@ -464,9 +467,10 @@ def should_redraw(case, verdict) -> bool:
     """A **rule** refusal on a screen the cloud redraws. A shape refusal is not redrawn here
     (call 41: shape refusals stay an absolute zero on the raw answer), nor is a `case` fault, which
     is the eval's own."""
+    from . import validate as validate_mod                     # noqa: PLC0415 - call 86's reading
     return (case.screen in REDRAW_SCREENS and verdict is not None
             and not verdict.get("accepted")
-            and (verdict.get("refusal") or {}).get("kind") == "rule")
+            and validate_mod._reclassified(verdict.get("refusal") or {}).get("kind") == "rule")
 
 
 def repair_text(screen: str, refusal: dict) -> str:

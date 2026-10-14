@@ -1,57 +1,36 @@
-"""The golden corpus at revision 9, read and never written (spec 029 FR-006/FR-012, data-model §2;
-spec 030 FR-002, judgement call 49; spec 031 FR-002, judgement call 51; spec 032 FR-002, call 60;
-spec 033 FR-002, call 68; spec 036 FR-001, call 74; spec 038 FR-001, call 81).
+"""The golden corpus at revision 10, read and never written (spec 029 FR-006/FR-012, data-model §2;
+spec 030 FR-002, judgement call 49; ...; spec 038 FR-001, call 81; spec 040 FR-002, call 78).
 
-**Revision 9 only** (call 81, keel-cloud 085): the revision-8 shape with Relative advantage asked benefit first.
-The founder's answer is a **list** of one to four of the registry's advantages; the plan row is
-`control: benefit_with_advantages`, codes `positive` / `neutral` / `negative`; a person's pick is
-`{answer: positive | neutral | negative, advantages: [...]}` (advantages a non-empty subset of the founder's ticks
-exactly under `positive`) or a chip. No status, count or verdict moved; three drifts did (04-linerly and
-06-repeatline `short`, 02-compliancelog `both`). A revision-8 file is refused by name as v16's.
-
-**Revision 8 only** (call 74, keel-cloud 082): the revision-7 shape with direction-aware verdicts. A dimension with
-a supporting side is one-sided -- a person beyond the founder's band on that side supports the bet -- so a
-standing's `drift` may be `stronger` (holding, at least half the supports beyond) or `short` (not holding)
-beside `both` / `none`, and `above` / `below` stay on Compatibility only. The people and picks are revision 7's
-byte for byte; only `status` / `drift` and `vector_verdicts` moved (28 rows). A revision-7 file is refused by
-name as v13's / v14's.
+**Revision 10 only** (call 78; keel-cloud 087, `design-2026-10-14.md`): **all thirteen dimensions decide**
+(D3) -- a vector's verdict is the worst status of every dimension it calibrates, a tie to the first in
+registry order, every dimension left out `NOT_TESTED` -- and seven dimensions are the founder's **lists**
+(D4, D5, D7): Importance's five (own item first), Current solution's second-person `phrase` and five
+outcomes, Compatibility's 2-4 conditions and Adoption friction's 1-4 efforts (each `{code, label, asked}`,
+one `picked`), Relative advantage's 1-4 benefits, Buyer and payer's `Nobody else` and at most two roles
+(one `picked`), Purchase friction's 1-4 steps on a B2B entry (one `picked`) and Commitment's one `step`.
+The stranger answers a **fixed set with one escape** (D2): a respondent row carries its `escape` code, a
+fixed-answer row the registry's codes, a pick is a code of its row, two distinct codes on Importance, or
+`{chip: <the row's escape>}` -- never Commitment's, which has none. There is **no guessed flag** (D8) and
+**no one-unit window** (D13): a recall window counts at least two (`01-countly` {4, WEEKS}, `06-repeatline`
+{7, DAYS}), and every entry records `context.occasion`. A revision-9 file is refused by name as v17's.
 
 `canon/designs/measured-beliefs/corpus/*.yaml` in the keel-cloud checkout is the corpus. This
 module opens those files, hashes them on the way in, and offers `verify_unchanged()` so the end of
 a run can prove nothing here moved while it ran. **If an instruction cannot reach a golden, the
 instruction is wrong** -- or the design is, and it goes back to step 1. Never the corpus.
 
-**Revision 7 only** (call 68). `MARKS_VERSION` 13 reads keel-cloud 077's schema, revision 6's but for
-Existing sacrifice, which is **one total** (below); revision 6, read at v12, was keel-cloud 074's: revision 3's
-shape (`context`, `interpretations.problem`, `solution_mechanism`, `persona`, the golden plan
-`respondent_questions`, people with a gate answer, a story, a chip, a golden anchoring and picks by
-dimension, `expected.standings` + `expected.vector_verdicts`) on the registry of **thirteen**, with
-`founder_calibration` keyed by the entry's **calibrated set** -- twelve keys on a B2C persona,
-thirteen on a B2B one (calls 47, 59) -- and the six `Status` words. Revision 6 adds, to revision 5's
-Price and units (keel-cloud `sim/check_corpus_r6.py`'s K, D, U and T), what this module checks:
-Existing sacrifice's founder answer is a **cost estimate** `{mode, low, high, rate?, period,
-currency}` (or `unsure`) and its belief the engine's sentence; Price takes the cost's **period**;
-Ability to pay is **derived** on every entry -- `{ratio_low, ratio_high, band}` recomputed here from
-the cost and the price (`derive_ability`, keel-cloud's `AbilityToPay.derive` mirrored), `unsure`
-exactly when the cost or the price is; every Existing sacrifice pick records its recall `period`; a
-B2B entry records a top-level `hourly_rate`; a decision-maker on the `COMMERCIAL_B2B` link has no
-story and no chip and is `ANCHORED` by rule (keel-cloud 075); a B2C Existing sacrifice standing
-may record `time_only` / `time_only_hours` (people who gave only time, reported apart). Revision 7 (keel-cloud
-`sim/check_corpus_r7.py`'s O): Existing sacrifice has no kinds -- its plan row is `control: cost_total` with
-no codes and no units, the founder entry carries no `labels` / `units`, every pick is `{mode: AMOUNT | HOURS,
-value >= 0, currency, period}`, `{nothing: true, currency, period}` or `{chip}`, and its standing records no
-`optionCounts`. A file at any other revision (a revision-6 file is named as v12's, a revision-5 file as v11's, a revision-4 one as v10's, a revision-3
-one as v9's), or still carrying `beliefs`, `questionnaire`, `expected.buckets`, `expected.stages`
-or a per-anchor answer, is a **refusal to start** by entry and by key -- never a fallback, the same
-shape v8's scalar-`stage` refusal had.
+What this reader checks is the **shape half** of keel-cloud's `sim/check_corpus_r10.py` (its S, W, L, R
+and A rules, and r9's P, K, D, U, O); the recount (its C) is keel-cloud's engine's, asked through
+`COMPARE` (`compare_correctness`), and the checker's own -- this repository keeps no copy of the
+arithmetic. The registry-bound halves (a list's `saves`, a row's control, codes and escape, a pick's
+code) are taken in `Corpus.bind` / `load_file(registry=...)`, against the registry the export carried.
 
 Three things the corpus says (since r3) that the code has to carry:
 
 1. **The plan is derived, and the file's own plan is a check on it** (calls 30, 47). `plan()` is
-   the registry's keys asked on each part's link (`Registry.link_of`: part 3 of a B2B study is the
-   decision-maker's `COMMERCIAL_B2B` link, and asks Ability to pay and Purchase friction too), by part, that the
-   founder did not leave out; the file's `respondent_questions` must hold exactly those keys per
-   part, or the file disagrees with the registry it is keyed by -- a refusal.
+   the registry's keys asked on each part's link, by part, that the founder did not leave out; the
+   file's `respondent_questions` must hold exactly those keys per part, or the file disagrees with the
+   registry it is keyed by -- a refusal.
 2. **The chipped story is a corpus fact, not a judgement** (call 33 amended, FR-017). `readable()` is
    the people who passed the gate, carry no chip and wrote a story; nobody else is ever shown to the
    reader, and a chip-carrying person's golden `GUESSED` is checked by `compare_correctness`.
@@ -64,6 +43,7 @@ Three things the corpus says (since r3) that the code has to carry:
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
@@ -71,13 +51,13 @@ import yaml
 
 from . import text as text_mod
 from .registry import (ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTROL, BENEFIT_KEY,
-                       BENEFIT_MAX_TICKS, COST_MODES, COST_TOTAL_CONTROL, DEAL_BREAKERS,
-                       LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY, PRICE_PERIODS, SACRIFICE_KEY,
-                       VECTORS, RecallWindow)
+                       BENEFIT_MAX_TICKS, COMMITMENT_KEY, COST_MODES, COST_TOTAL_CONTROL,
+                       FREQUENCY_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY,
+                       PRICE_PERIODS, SACRIFICE_KEY, VECTORS, RecallWindow, words)
 
-REVISION = 9
+REVISION = 10
 
-#: The revisions a refusal names by the rubric that read them (calls 49, 51).
+#: The revisions a refusal names by the rubric that read them (calls 49, 51, 78).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 4: "MARKS_VERSION 10's corpus, on the registry of twelve (no Price, no units)",
                 5: "MARKS_VERSION 11's corpus, before cost first (a tick list for Existing sacrifice, "
@@ -87,7 +67,9 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 7: "MARKS_VERSION 13's and 14's corpus, before direction-aware verdicts (a person beyond the "
                    "founder's band on the supporting side read as outside it; no `stronger` / `short` drift)",
                 8: "MARKS_VERSION 15's and 16's corpus, before benefit first (Relative advantage a single choice "
-                   "among the founder's advantages, `choice_majority`)"}
+                   "among the founder's advantages, `choice_majority`)",
+                9: "MARKS_VERSION 17's corpus, before the October redesign (nine deal-breakers and four SHAPES, "
+                   "model-written option sets, chips and `something_else`, a one-unit window)"}
 
 #: `sim/check_corpus_r5.py`'s `CURRENCY` (keel-cloud `Market.currency`'s table, the corpus's markets):
 #: a founder price is in its market's currency, never another.
@@ -110,17 +92,6 @@ def price_floor(low):
     return next(p for p in reversed(LADDER_POINTS[:-1]) if low >= p) if low >= 1 else LADDER_POINTS[0]
 
 
-def band_floor(code):
-    """`PriceLadder.floorOf`: a band's lower bound read back from its code -- 0 for `under`, the low for a
-    `band` or `over`, `None` for `would_not_pay`."""
-    parts = str(code).split("_")
-    if parts[0] == "under":
-        return 0
-    if parts[0] in ("band", "over") and len(parts) > 1:
-        return float(parts[1])
-    return None
-
-
 def price_ladder_codes(low) -> list:
     """`PriceLadder.bands`' codes: five consecutive bands with the founder's in the middle three
     (clamped at the ladder's ends), then `would_not_pay` -- what a Price plan row must hold."""
@@ -135,8 +106,6 @@ def price_ladder_codes(low) -> list:
             + [f"band_{plain(LADDER_POINTS[i])}_{plain(LADDER_POINTS[i + 1])}"
                for i in range(k, k + 3)]
             + [f"over_{plain(LADDER_POINTS[k + 3])}", WOULD_NOT_PAY])
-
-STAGES = VECTORS
 
 #: The recall periods an Existing sacrifice pick is asked over (`Period.recall`: a day is asked over a
 #: week, a year over the last three months).
@@ -212,19 +181,34 @@ def ability_value(derived: dict) -> str:
 STATUSES = ("HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE", "TOO_FEW_TO_CALL", "NOT_ASKED_YET",
             "LEFT_OUT")
 
-#: A vector's verdict may also be `NOT_TESTED` (keel-cloud 082: every deal-breaker of the vector was left
+#: A vector's verdict may also be `NOT_TESTED` (keel-cloud 082 / 087: every dimension of the vector was left
 #: out); a dimension's status never is.
 VERDICTS = STATUSES + ("NOT_TESTED",)
 
-#: The drift words `expected.standings[*].drift` may carry (`null` beside them).
-DRIFTS = ("above", "below", "both", "none", "stronger", "short")
+#: The drift words `expected.standings[*].drift` may carry at revision 10 (`null` beside them). `above` /
+#: `below` went with `choice_majority` (keel-cloud 087): no rule reaches them.
+DRIFTS = ("both", "none", "stronger", "short")
 
+#: A gate story's chip (the corpus records them as the people gave them; `GUESSED` by code).
 CHIPS = ("cant_recall", "rather_not_say")
 ANCHORINGS = ("ANCHORED", "GUESSED")
 
 #: The keys revision 2 carried and revision 3 dropped (marks §4 *Dropped*).
 R2_KEYS = ("beliefs", "questionnaire", "normalization_rationale")
 R2_EXPECTED_KEYS = ("buckets", "stages")
+
+#: The seven dimensions revision 10 reshaped into founder lists (keel-cloud 087's *Corpus revision 10*):
+#: no `belief_phrase`, no `labels`.
+RESHAPED = ("problem.importance", "problem.current_solution_satisfaction", "solution.compatibility",
+            "solution.adoption_friction", "commercial.buyer_payer_alignment",
+            "commercial.purchase_friction", "commercial.commitment")
+#: The words a list label may never be (`check_corpus_r10.py`'s NOT_SURE).
+NOT_SURE = ("not sure", "unsure", "don't know", "dont know", "no idea")
+#: A `context.occasion` is a noun of one to four words (rule W).
+OCCASION_MAX_WORDS = 4
+#: An `asked` clause is at most twenty words and asks nothing (design §4; rule L).
+ASKED_MAX_WORDS = 20
+_DIGITS = re.compile(r"\d+(?:[.,]\d+)?")
 
 
 class CorpusError(RuntimeError):
@@ -316,13 +300,12 @@ class Entry:
 
     def price(self) -> dict | None:
         """The founder's Price, `{low, high, period, currency}`, or `None` when they left it out
-        (call 51; Mulch Run's per-yard price is on no period of the ladder)."""
+        (Mulch Run's per-yard price is on no period of the ladder)."""
         answer = (self.founder_calibration.get(PRICE_KEY) or {}).get("answer")
         return answer if isinstance(answer, dict) else None
 
     def cost(self) -> dict | None:
-        """The founder's cost estimate, `{mode, low, high, rate?, period, currency}`, or `None` when
-        they left it out (call 60)."""
+        """The founder's cost estimate, `{mode, low, high, rate?, period, currency}`, or `None`."""
         answer = (self.founder_calibration.get(SACRIFICE_KEY) or {}).get("answer")
         return answer if isinstance(answer, dict) else None
 
@@ -330,6 +313,14 @@ class Entry:
         """The B2B entry's top-level `hourly_rate.value` (call 60), else `None`."""
         value = (self.raw_rate or {}).get("value") if isinstance(self.raw_rate, dict) else None
         return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+    def occasion(self) -> str | None:
+        """`context.occasion` (revision 10, rule W): one time it happens -- *delivery*, *night*."""
+        occasion = (self.context or {}).get("occasion")
+        return occasion if isinstance(occasion, str) and occasion.strip() else None
+
+    def window(self) -> RecallWindow:
+        return RecallWindow.read((self.context or {}).get("recall_window")) or RecallWindow(7, "NIGHTS")
 
     def link_of(self, part: int) -> str:
         """The link a part is asked on: part 3 of a B2B study is the decision-maker's (decision 26)."""
@@ -359,22 +350,26 @@ class Entry:
                 out[part].append(key)
         return out
 
-    # ----------------------------------------------------------- the founder's labels
+    # ------------------------------------------------------------------ the founder's lists
 
-    def founder_option_codes(self, key: str) -> list:
-        """The codes of the options the founder's calibration showed for a model-written set: the
-        golden plan row's codes less the respondent-only rows code appends (call 38), keeping a
-        founder-side `none` / `nothing` -- the founder saw it; code appends the respondent's."""
-        return founder_codes_of((self.respondent_questions or {}).get(key) or {})
-
-    def founder_labels(self, key: str) -> dict | None:
-        """`{code: label}` -- the labels the founder saw (`founder_calibration[key].labels`, one per
-        `founder_option_codes`, in order), what production's `founderOptions` carries; `None` where
-        the entry records none."""
-        labels = (self.founder_calibration.get(key) or {}).get("labels")
-        if not labels:
+    def founder_list(self, key: str) -> dict | None:
+        """A list dimension's saved list (087 FR-007, the lock's `SavedList`): `{items: [{code, label,
+        asked?}], picked: int | None, phrase: str | None}`; `None` when left out or not a list."""
+        answer = (self.founder_calibration.get(key) or {}).get("answer")
+        if not isinstance(answer, dict) or not isinstance(answer.get("items"), list):
             return None
-        return dict(zip(self.founder_option_codes(key), labels))
+        return {"items": [dict(i) for i in answer["items"] if isinstance(i, dict)],
+                "picked": answer.get("picked"), "phrase": answer.get("phrase")}
+
+    def tested(self, key: str) -> dict | None:
+        """The one item the founder picked (design §1's *tested item*), or Importance's own item / the
+        Commitment step (item 0 of a list with no pick); `None` when the list is absent."""
+        saved = self.founder_list(key)
+        if not saved or not saved["items"]:
+            return None
+        picked = saved.get("picked")
+        index = picked if isinstance(picked, int) and 0 <= picked < len(saved["items"]) else 0
+        return saved["items"][index]
 
     # ------------------------------------------------------------- the mechanism's words
 
@@ -532,10 +527,11 @@ def load_file(path, *, registry=None) -> Entry:
     return entry
 
 
+
 # ------------------------------------------------------------------------------- the refusals
 
 def _refuse(entry_id, message, path) -> CorpusError:
-    return CorpusError(f"{entry_id}: {message} (spec 033 FR-002; judgement calls 49, 51, 60, 68). {path}")
+    return CorpusError(f"{entry_id}: {message} (spec 040 FR-002; judgement calls 49, 78). {path}")
 
 
 def _check_revision(raw: dict, path: Path) -> None:
@@ -558,48 +554,83 @@ def _check_revision(raw: dict, path: Path) -> None:
                                     "person answers one gate story", path)
 
 
-def founder_codes_of(row: dict) -> list:
-    """`Entry.founder_option_codes` on a plan row."""
-    from .registry import RESPONDENT_ESCAPES                  # noqa: PLC0415
-    return [c for c in (row or {}).get("codes") or []
-            if c not in RESPONDENT_ESCAPES or c in FOUNDER_NONE]
+def _out_of(raw: dict):
+    """Frequency's axis: the founder's "... out of N" (`check_corpus_r10.py`'s `out_of`), else `None`."""
+    answer = ((raw.get("founder_calibration") or {}).get(FREQUENCY_KEY) or {}).get("answer")
+    match = re.search(r"out of (\d+)\s*$", str((answer or {}).get("unit") or "") if isinstance(answer, dict) else "")
+    return int(match.group(1)) if match else None
 
 
-#: The founder's own *none of these* option (Existing sacrifice's `none`; r3 spells it `nothing`):
-#: shown to the founder, so it has a label; on the respondent screen code appends it.
-FOUNDER_NONE = ("none", "nothing")
+def _digits(text) -> set:
+    return set(_DIGITS.findall(str(text or "")))
 
 
 def _check_shape(raw: dict, path: Path) -> None:
+    """The registry-free half of `check_corpus_r10.py`'s S, W, L (shape), A (people) and r9's money rules."""
     entry_id = raw.get("id") or path.name
-    # `context.recall_window: {count, unit}` (founder decision 42; keel-cloud 058 `cb0422a`):
-    # optional -- an entry without one reads the default, 7 nights -- and refused when unreadable.
+    context = raw.get("context") or {}
+    # Rule W (D13): a window of at least two units, never one; an occasion of one to four words.
     try:
-        RecallWindow.read((raw.get("context") or {}).get("recall_window"))
+        window = RecallWindow.read(context.get("recall_window"))
     except ValueError as why:
         raise _refuse(entry_id, f"context.recall_window: {why}", path) from None
+    if window is None:
+        raise _refuse(entry_id, "context.recall_window is absent; revision 10 records every entry's window "
+                                "(D13: at least two units)", path)
+    occasion = context.get("occasion")
+    if not isinstance(occasion, str) or not 1 <= words(occasion) <= OCCASION_MAX_WORDS or "?" in occasion:
+        raise _refuse(entry_id, f"context.occasion is {occasion!r}; revision 10 records one to "
+                                f"{OCCASION_MAX_WORDS} words, no question", path)
+    statements = " ".join(str(v) for v in (raw.get("statements") or {}).values())
     for key, value in (raw.get("founder_calibration") or {}).items():
         if not isinstance(value, dict) or not ("answer" in value or value.get("unsure") is True):
             raise _refuse(entry_id, f"founder_calibration[{key}] carries neither `answer` nor "
                                     "`unsure: true`", path)
-        if key == SACRIFICE_KEY:
-            for name in ("labels", "units"):
-                if name in value:
-                    raise _refuse(entry_id, f"founder_calibration[{key}] carries `{name}`; revision 7 "
-                                            "has no kinds of cost (the buyer answers one total)", path)
-        labels = value.get("labels")
-        if labels is not None:
-            codes = founder_codes_of((raw.get("respondent_questions") or {}).get(key) or {})
-            if (not isinstance(labels, list) or not all(isinstance(x, str) and x.strip()
-                                                         for x in labels)
-                    or len(labels) != len(codes)):
-                raise _refuse(entry_id, f"founder_calibration[{key}].labels must be one label per "
-                                        f"founder option {codes}", path)
+        if "labels" in value or "units" in value:
+            raise _refuse(entry_id, f"founder_calibration[{key}] carries `labels` / `units`; revision 10's "
+                                    "lists carry their own labels and there are no kinds", path)
+        if key in RESHAPED and "belief_phrase" in value:
+            raise _refuse(entry_id, f"founder_calibration[{key}] carries a `belief_phrase`; revision 10 "
+                                    "reshaped it into a list (the belief sentence is the template's)", path)
+        answer = value.get("answer")
+        if key in RESHAPED and not value.get("unsure"):
+            if not isinstance(answer, dict) or not isinstance(answer.get("items"), list) \
+                    or not answer["items"]:
+                raise _refuse(entry_id, f"founder_calibration[{key}].answer is {answer!r}; revision 10 "
+                                        "records the founder's list {items: [{code, label}], ...}", path)
+        if isinstance(answer, dict) and isinstance(answer.get("items"), list):
+            codes = []
+            for i, item in enumerate(answer["items"]):
+                where = f"founder_calibration[{key}].answer.items[{i}]"
+                if not isinstance(item, dict) or not item.get("code") or not str(item.get("label") or "").strip():
+                    raise _refuse(entry_id, f"{where} is {item!r}; an item is {{code, label}}", path)
+                codes.append(item["code"])
+                label = str(item["label"])
+                if any(word in label.lower() for word in NOT_SURE):
+                    raise _refuse(entry_id, f"{where}.label {label!r} carries a not-sure word", path)
+                foreign = sorted(_digits(label) - _digits(statements))
+                if foreign:
+                    raise _refuse(entry_id, f"{where}.label {label!r} carries {foreign[0]!r}, a number the "
+                                            "entry's statements do not (rule L)", path)
+                asked = item.get("asked")
+                if asked is not None and (not isinstance(asked, str) or not 1 <= words(asked) <= ASKED_MAX_WORDS
+                                          or "?" in asked):
+                    raise _refuse(entry_id, f"{where}.asked {asked!r} is not a clause of 1 to "
+                                            f"{ASKED_MAX_WORDS} words with no question mark", path)
+            if len(set(codes)) != len(codes):
+                raise _refuse(entry_id, f"founder_calibration[{key}]'s list repeats a code: {codes}", path)
     b2b = isinstance((raw.get("persona") or {}).get("decision_maker"), dict)
     for person in raw.get("answers") or []:
         name = person.get("person")
         recency = person.get("recency")
         link = person.get("link", LINK_PRIMARY)
+        for key, pick in (person.get("picks") or {}).items():
+            if isinstance(pick, dict) and ("rough" in pick or "rough_guess" in pick):
+                raise _refuse(entry_id, f"{name}'s {key} pick carries a guessed flag; D8: numbers are "
+                                        "taken as said, there is no guessed flag", path)
+            if isinstance(pick, dict) and "somethingElse" in pick or pick == "something_else":
+                raise _refuse(entry_id, f"{name}'s {key} pick is 'Something else', which revision 10 "
+                                        "deleted (D2)", path)
         if link not in (LINK_PRIMARY, LINK_B2B):
             raise _refuse(entry_id, f"{name}'s link is {link!r}", path)
         if link == LINK_B2B:
@@ -643,6 +674,13 @@ def _check_shape(raw: dict, path: Path) -> None:
         if chip is not None and anchoring != "GUESSED":
             raise _refuse(entry_id, f"{name} carries the chip {chip} and is {anchoring}; a chipped "
                                     "story is GUESSED by code (call 33 amended)", path)
+        frequency = (person.get("picks") or {}).get(FREQUENCY_KEY)
+        most = _out_of(raw)
+        if frequency is not None and not (isinstance(frequency, dict) and "chip" in frequency) and (
+                not isinstance(frequency, int) or isinstance(frequency, bool)
+                or (most is not None and not 0 <= frequency <= most)):
+            raise _refuse(entry_id, f"{name}'s {FREQUENCY_KEY} pick is {frequency!r}; a whole number from 0 "
+                                    f"to the founder's out of {most} (rule A)", path)
     _check_price_and_total(raw, entry_id, path)
     maker = (raw.get("persona") or {}).get("decision_maker")
     if isinstance(maker, dict):
@@ -664,45 +702,52 @@ def _check_shape(raw: dict, path: Path) -> None:
                                     "Status", path)
         drift = (standing or {}).get("drift")
         if drift is not None and drift not in DRIFTS:
-            raise _refuse(entry_id, f"expected.standings[{key}].drift is {drift!r}", path)
+            raise _refuse(entry_id, f"expected.standings[{key}].drift is {drift!r}; revision 10's drifts are "
+                                    f"{DRIFTS}", path)
     for vector, verdict in (expected.get("vector_verdicts") or {}).items():
         if vector not in VECTORS:
             raise _refuse(entry_id, f"expected.vector_verdicts names {vector!r}", path)
-        if (verdict or {}).get("verdict") not in VERDICTS:
-            raise _refuse(entry_id, f"expected.vector_verdicts[{vector}].verdict is "
-                                    f"{(verdict or {}).get('verdict')!r}, outside Status", path)
+        word = (verdict or {}).get("verdict")
+        if word not in VERDICTS:
+            raise _refuse(entry_id, f"expected.vector_verdicts[{vector}].verdict is {word!r}, outside "
+                                    "Status", path)
         deciding = (verdict or {}).get("deciding")
-        if deciding not in DEAL_BREAKERS[vector]:
-            raise _refuse(entry_id, f"expected.vector_verdicts[{vector}].deciding is {deciding!r}, "
-                                    f"not a DEAL_BREAKER of {vector}", path)
+        if word == "NOT_TESTED":
+            if deciding is not None:
+                raise _refuse(entry_id, f"expected.vector_verdicts[{vector}] is NOT_TESTED and names "
+                                        f"{deciding!r}; every dimension was left out", path)
+        elif not str(deciding or "").startswith(vector.lower() + "."):
+            raise _refuse(entry_id, f"expected.vector_verdicts[{vector}].deciding is {deciding!r}, not a "
+                                    f"{vector} dimension (D3: any of them decides)", path)
 
 
 def _check_benefit_first(raw: dict, entry_id, path: Path) -> None:
-    """Revision 9's rule B (call 81; `check_corpus_r9.py`'s B, its shape half -- the counts are the engine's):
-    the founder's Relative advantage is a list of one to four distinct advantages (or `unsure`); its plan row is
-    the code-written benefit item; every pick is `{answer, advantages}` with the advantages a non-empty subset of
-    the founder's ticks exactly under `positive`, or a chip."""
+    """Rule B's shape half at revision 10 (call 81 kept, call 78): the founder's Relative advantage is a list of one
+    to four distinct benefits `{items: [{code, label}]}` (or `unsure`); its plan row is the code-written benefit
+    item; every pick is `{answer, advantages}` with the advantages a non-empty subset of the founder's codes exactly
+    under `positive`, or the escape."""
     calibration = (raw.get("founder_calibration") or {}).get(BENEFIT_KEY)
     if calibration is None:
         return
     row = (raw.get("respondent_questions") or {}).get(BENEFIT_KEY)
     if row is not None and (row.get("control") != BENEFIT_CONTROL or list(row.get("codes") or []) != list(BENEFIT_CODES)):
         raise _refuse(entry_id, f"respondent_questions[{BENEFIT_KEY}] is {row.get('control')!r} over codes "
-                                f"{row.get('codes')!r}; revision 9 asks {BENEFIT_CONTROL} over "
+                                f"{row.get('codes')!r}; revision 10 asks {BENEFIT_CONTROL} over "
                                 f"{list(BENEFIT_CODES)}", path)
     if calibration.get("unsure"):
         return
-    ticks = calibration.get("answer")
-    if (not isinstance(ticks, list) or not 1 <= len(ticks) <= BENEFIT_MAX_TICKS
-            or len(set(map(str, ticks))) != len(ticks)):
-        raise _refuse(entry_id, f"founder_calibration[{BENEFIT_KEY}].answer is {ticks!r}; revision 9 ticks "
-                                f"one to {BENEFIT_MAX_TICKS} distinct advantages, as a list", path)
+    items = (calibration.get("answer") or {}).get("items") if isinstance(calibration.get("answer"), dict) else None
+    if not isinstance(items, list) or not 1 <= len(items) <= BENEFIT_MAX_TICKS:
+        raise _refuse(entry_id, f"founder_calibration[{BENEFIT_KEY}].answer is {calibration.get('answer')!r}; "
+                                f"revision 10 lists one to {BENEFIT_MAX_TICKS} benefits, {{items: [{{code, label}}]}}",
+                      path)
+    ticks = [i.get("code") for i in items if isinstance(i, dict)]
     for person in raw.get("answers") or []:
         pick = (person.get("picks") or {}).get(BENEFIT_KEY)
         if pick is None or (isinstance(pick, dict) and "chip" in pick):
             continue
         if not isinstance(pick, dict) or pick.get("answer") not in BENEFIT_CODES:
-            raise _refuse(entry_id, f"{person.get('person')}'s {BENEFIT_KEY} pick is {pick!r}; revision 9 "
+            raise _refuse(entry_id, f"{person.get('person')}'s {BENEFIT_KEY} pick is {pick!r}; revision 10 "
                                     f"answers {{answer: {' | '.join(BENEFIT_CODES)}, advantages: [...]}}", path)
         advantages = pick.get("advantages") or []
         if (pick["answer"] == "positive") != bool(advantages) or not set(advantages) <= set(ticks):
@@ -846,11 +891,106 @@ def _check_cost_first(raw: dict, entry_id, path: Path) -> None:
                                     f"was asked over, one of {RECALL_PERIODS}", path)
 
 
+def _check_list(entry: Entry, registry, key: str) -> None:
+    """Rule L, against the registry's `founder.saves` (087 FR-007): the count (a fixed first item -- Buyer and
+    payer's `Nobody else` -- among it), the words an item, `picked` exactly where the registry picks one and in
+    range, the `phrase` exactly where it carries one, an `asked` face on every item exactly where it asks."""
+    dimension = registry.by_key(key)
+    saves = dimension.saves
+    saved = entry.founder_list(key)
+    if saved is None:
+        raise _refuse(entry.id, f"founder_calibration[{key}] is a {dimension.founder_control} with no list",
+                      entry.path)
+    items = saved["items"]
+    low, high = saves.get("min_items", 1), saves.get("max_items", len(items))
+    if not low <= len(items) <= high:
+        raise _refuse(entry.id, f"founder_calibration[{key}] lists {len(items)} items; the registry saves "
+                                f"{low} to {high}", entry.path)
+    for i, item in enumerate(items):
+        if words(item.get("label")) > saves.get("max_words", 9):
+            raise _refuse(entry.id, f"founder_calibration[{key}].items[{i}].label {item.get('label')!r} is "
+                                    f"{words(item.get('label'))} words; the registry saves at most "
+                                    f"{saves.get('max_words')}", entry.path)
+        if bool(saves.get("asked")) != bool(item.get("asked")):
+            raise _refuse(entry.id, f"founder_calibration[{key}].items[{i}] "
+                                    f"{'lacks' if saves.get('asked') else 'carries'} an `asked` face; the "
+                                    f"registry {'asks' if saves.get('asked') else 'does not ask'} one", entry.path)
+    first = saves.get("fixed_first")
+    if first and (not items or (items[0].get("code"), items[0].get("label")) != (first.get("code"),
+                                                                                first.get("label"))):
+        raise _refuse(entry.id, f"founder_calibration[{key}]'s item 0 is {items[0] if items else None!r}; the "
+                                f"registry fixes it as {first!r}", entry.path)
+    picked = saved.get("picked")
+    if saves.get("picked"):
+        if not isinstance(picked, int) or isinstance(picked, bool) or not 0 <= picked < len(items):
+            raise _refuse(entry.id, f"founder_calibration[{key}].picked is {picked!r}; the founder picks one "
+                                    f"of the {len(items)} items (D7)", entry.path)
+    elif picked is not None:
+        raise _refuse(entry.id, f"founder_calibration[{key}] carries `picked`; the registry picks none on a "
+                                f"{dimension.founder_control}", entry.path)
+    if bool(saves.get("phrase")) != bool(str(saved.get("phrase") or "").strip()):
+        raise _refuse(entry.id, f"founder_calibration[{key}] {'lacks' if saves.get('phrase') else 'carries'} a "
+                                "`phrase`", entry.path)
+
+
+def _check_row(entry: Entry, registry, key: str, row: dict) -> None:
+    """Rule R, against the registry (087 FR-001, 088): the row's control and escape are the registry's; a fixed
+    answer set is the registry's codes in order; Importance's codes are the founder's five with `own_item` its item 0;
+    Current solution's the founder's five outcomes in order."""
+    dimension = registry.by_key(key)
+    if row.get("control") != dimension.respondent_control:
+        raise _refuse(entry.id, f"respondent_questions[{key}].control is {row.get('control')!r}; the registry's is "
+                                f"{dimension.respondent_control!r}", entry.path)
+    escape = (dimension.escape or {}).get("code")
+    if row.get("escape") != escape:
+        raise _refuse(entry.id, f"respondent_questions[{key}].escape is {row.get('escape')!r}; the registry's one "
+                                f"escape is {escape!r}", entry.path)
+    codes = list(row.get("codes") or [])
+    if dimension.fixed_answers and codes != dimension.fixed_answer_codes:
+        raise _refuse(entry.id, f"respondent_questions[{key}].codes are {codes}; the registry fixes "
+                                f"{dimension.fixed_answer_codes}", entry.path)
+    saved = entry.founder_list(key)
+    if key == IMPORTANCE_KEY and saved:
+        own = saved["items"][0].get("code")
+        if row.get("own_item") != own or sorted(codes) != sorted(i.get("code") for i in saved["items"]):
+            raise _refuse(entry.id, f"respondent_questions[{key}] asks {codes} with own item "
+                                    f"{row.get('own_item')!r}; the founder's five are "
+                                    f"{[i.get('code') for i in saved['items']]}, own first", entry.path)
+    if dimension.respondent_control == "single_choice_5" and saved \
+            and codes != [i.get("code") for i in saved["items"]]:
+        raise _refuse(entry.id, f"respondent_questions[{key}].codes are {codes}; the founder's five outcomes in "
+                                f"order are {[i.get('code') for i in saved['items']]}", entry.path)
+
+
+def _check_pick(entry: Entry, registry, person: dict, key: str, pick) -> None:
+    """Rule A's pick shapes (087 FR-004, D2, D8): an escape is exactly `{chip: <the row's escape>}` (Commitment has
+    none); Importance two distinct codes of its row; a fixed answer, a Current solution outcome or a Price band one
+    code of its row."""
+    row = (entry.respondent_questions or {}).get(key) or {}
+    name = person.get("person")
+    if isinstance(pick, dict) and "chip" in pick:
+        escape = (registry.by_key(key).escape or {}).get("code")
+        if escape is None or pick.get("chip") != escape or set(pick) != {"chip"}:
+            raise _refuse(entry.id, f"{name}'s {key} pick is {pick!r}; its one escape is {escape!r}"
+                                    + (" (Commitment has none)" if key == COMMITMENT_KEY else ""), entry.path)
+        return
+    control = row.get("control")
+    codes = [str(c) for c in row.get("codes") or []]
+    if control == "pick_two":
+        if not isinstance(pick, list) or len(pick) != 2 or len(set(pick)) != 2 \
+                or not set(map(str, pick)) <= set(codes):
+            raise _refuse(entry.id, f"{name}'s {key} pick is {pick!r}; Importance is two distinct codes of "
+                                    f"{codes}", entry.path)
+    elif control in ("fixed_four", "fixed_three", "single_choice_5", "single_choice") and codes:
+        if not isinstance(pick, str) or pick not in codes:
+            raise _refuse(entry.id, f"{name}'s {key} pick is {pick!r}, not one of {codes}", entry.path)
+
+
 def _check_keys(entry: Entry, registry) -> None:
-    """The refusals that need the registry: every dimension-keyed map keyed by the entry's
-    calibrated set (calls 47, 59: the registry's thirteen less Purchase friction on a B2C persona),
-    every fixed-code founder answer one of the registry's codes (call 51), and
-    the file's own plan equal to the one the registry derives per link (data-model §2-§3)."""
+    """The refusals that need the registry: every dimension-keyed map keyed by the entry's calibrated set (calls
+    47, 59), every fixed-code founder answer one of the registry's codes, every list against its `saves` (L),
+    every row against the registry (R), every pick its row's (A), and the file's own plan equal to the one the
+    registry derives per link (data-model §2-§3)."""
     registry_keys = set(registry.keys())
     keys = set(registry.calibrated_keys(entry.b2b()))
     persona = "B2B" if entry.b2b() else "B2C"
@@ -858,19 +998,19 @@ def _check_keys(entry: Entry, registry) -> None:
     def outside(key) -> str:
         if key not in registry_keys:
             return "which is not a registry key"
-        return (f"which a {persona} entry does not calibrate (b2b_only; judgement call 47)")
+        return f"which a {persona} entry does not calibrate (b2b_only; judgement call 47)"
 
     for key, value in entry.founder_calibration.items():
         if key not in registry_keys or (value or {}).get("unsure"):
             continue
-        fixed = registry.by_key(key).fixed_codes
+        dimension = registry.by_key(key)
+        fixed = dimension.fixed_codes
         answer = (value or {}).get("answer")
-        picked = answer if isinstance(answer, list) else [answer] if isinstance(answer, str) else []
-        foreign = [c for c in picked if fixed is not None and c not in fixed]
-        if foreign:
-            raise _refuse(entry.id, f"founder_calibration[{key}] answers {foreign[0]!r}, which is not "
-                                    f"one of the registry's codes {fixed} (call 51: Ability to pay's "
-                                    "rungs were renamed)", entry.path)
+        if fixed is not None and isinstance(answer, str) and answer not in fixed:
+            raise _refuse(entry.id, f"founder_calibration[{key}] answers {answer!r}, which is not one of the "
+                                    f"registry's codes {fixed}", entry.path)
+        if dimension.founder_list:
+            _check_list(entry, registry, key)
     calibrated = set(entry.founder_calibration)
     for key in sorted(calibrated - keys):
         raise _refuse(entry.id, f"founder_calibration names {key}, {outside(key)}", entry.path)
@@ -879,15 +1019,16 @@ def _check_keys(entry: Entry, registry) -> None:
         raise _refuse(entry.id, f"founder_calibration is not exactly the {len(keys)} keys a "
                                 f"{persona} entry calibrates; missing {', '.join(missing)}",
                       entry.path)
+    for key, row in (entry.respondent_questions or {}).items():
+        if key not in keys:
+            raise _refuse(entry.id, f"respondent_questions carries {key}, {outside(key)}", entry.path)
+        _check_row(entry, registry, key, row or {})
     for person in entry.answers:
-        for key in (person.get("picks") or {}):
+        for key, pick in (person.get("picks") or {}).items():
             if key not in keys:
                 raise _refuse(entry.id, f"{person.get('person')} picks {key}, {outside(key)}",
                               entry.path)
-    for key in entry.respondent_questions or {}:
-        if key not in keys:
-            raise _refuse(entry.id, f"respondent_questions carries {key}, {outside(key)}",
-                          entry.path)
+            _check_pick(entry, registry, person, key, pick)
     standings = set(entry.expected.get("standings") or {})
     for key in sorted(standings - keys):
         raise _refuse(entry.id, f"expected.standings carries {key}, {outside(key)}", entry.path)

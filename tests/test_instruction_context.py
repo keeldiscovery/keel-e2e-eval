@@ -1,10 +1,13 @@
-"""The seven context builders at `MARKS_VERSION` 11 (spec 029 contracts/screen-shapes.md §2; T018;
-spec 030: the calibrated slice per persona, call 47; spec 031: the names and figures, calls 55, 57).
+"""The eight context builders at `MARKS_VERSION` 18 (spec 029 contracts/screen-shapes.md §2; T018;
+spec 030: the calibrated slice per persona, call 47; spec 031: the names, call 55; spec 040: contract 13 --
+the founder-lists job's `saves` and `answers`, the respondent items' one `escape`, the ASKED job, the brief's
+facts, calls 83-85).
 
 Every key the exporter names, in the exporter's order, filled from the corpus entry and the
 registry and nothing else -- and, as much to the point, what each one must **not** carry: no
-solution field on the PROBLEM calibration job (US2.1), no mechanism and no founder answer on Part 1,
-no `stage` and no `anchors[]` on a read, no `claims` on the brief.
+solution field on the PROBLEM calibration job (US2.1), no weight anywhere (D3), no mechanism and no
+founder answer on Part 1, no `founder_options` on any respondent job (keel-cloud 087), no `stage` and no
+`anchors[]` on a read, no `claims` on the brief.
 """
 
 from __future__ import annotations
@@ -68,10 +71,13 @@ def _dotted(dimension: dict) -> set:
     return out
 
 
-def test_the_problem_calibration_job_carries_the_slice_with_thirteen_fields_and_no_solution(
-        entry, registry):
+def test_the_problem_calibration_job_carries_the_slice_its_saves_and_no_solution(entry, registry):
+    """`RegistrySlices.calibrationSlice` (keel-cloud 087): no weight, a list dimension's `saves`, a founder field the
+    registry leaves out not written; the seed-time job's `answers` is empty (087 call 8)."""
     built = context_mod.build_calibration(entry, "PROBLEM", registry)
     assert built["vector"] == "PROBLEM"
+    assert built["answers"] == {}, "the corpus records no Answer-screen text"
+    assert list(built) == context_mod.DEFAULT_KEYS["CALIBRATION_QUESTIONS"]
     assert built["interpretation"] == {"statement": entry.interpretations["problem"]}, \
         "US2.1: the PROBLEM job's interpretation is the problem statement and no solution field"
     assert "mechanism" not in built and "solution" not in built and "persona" not in built
@@ -82,11 +88,15 @@ def test_the_problem_calibration_job_carries_the_slice_with_thirteen_fields_and_
     assert [d["key"] for d in dimensions] == \
         [d.key for d in registry.calibrated_slice("PROBLEM", entry.b2b())]
     assert len(dimensions) == 4
-    expected = {"key", "order", "name", "meaning", "weight", "founder.control", "founder.guidance",
+    expected = {"key", "order", "name", "meaning", "founder.control", "founder.guidance",
                 "founder.normalized", "founder.option_rule", "founder.belief_template",
                 "founder.unsure_allowed", "respondent.anchor", "respondent.guidance"}
     for dimension in dimensions:
-        assert _dotted(dimension) == expected, dimension["key"]
+        listed = registry.by_key(dimension["key"]).founder_list
+        assert _dotted(dimension) == expected | ({"founder.saves"} if listed else set()), dimension["key"]
+        assert "weight" not in repr(dimension), "D3: all thirteen decide"
+    importance = next(d for d in dimensions if d["key"] == "problem.importance")
+    assert importance["founder"]["saves"]["min_items"] == importance["founder"]["saves"]["max_items"] == 5
 
 
 def test_the_solution_and_commercial_jobs_see_the_mechanism_and_the_persona(entry, registry):
@@ -95,11 +105,11 @@ def test_the_solution_and_commercial_jobs_see_the_mechanism_and_the_persona(entr
     assert card["mechanism"] == entry.solution_mechanism["mechanism"]
     assert card["mechanism_terms"] == entry.solution_mechanism["mechanism_terms"]
     assert "not_assumed" not in card, "the claims the card stripped are never handed on"
-    assert card["short_name"] is None, "call 55: the corpus records no short name at r5"
+    assert card["short_name"] == "a tag that beeps back", "call 55: the corpus's own short name"
     commercial = context_mod.build_calibration(entry, "COMMERCIAL", registry)
     assert commercial["interpretation"] == {"summary": None, "decider_role": None, "b2b": False,
-                                            "offer_name": None}, \
-        "072: the persona map with the offer's name (none recorded at r5, call 55)"
+                                            "offer_name": "a fix for lost keys"}, \
+        "072: the persona map with the offer's name (call 55)"
     keys = [d["key"] for d in commercial["dimensions"]]
     assert keys == ["commercial.existing_sacrifice", "commercial.price",
                     "commercial.buyer_payer_alignment", "commercial.commitment"], \
@@ -128,35 +138,37 @@ def test_a_name_the_corpus_records_reaches_the_job_and_the_validator(entry, regi
     assert "offer_name" not in context_mod.build_respondent(named, 1, named.plan(registry),
                                                             registry, keys), "part 3 only"
     assert context_mod.validation_mechanism(named)["short_name"] == "a beeping tag"
+    no_offer = [k for k in keys if k != "offer_name"]
     assert "offer_name" not in context_mod.build_respondent(named, 3, named.plan(registry),
-                                                            registry), \
-        "the export decides the keys: 073's context-keys.json names no offer_name"
+                                                            registry, no_offer), \
+        "the export decides the keys: a key list without offer_name writes none"
 
 
 def test_part_one_carries_no_mechanism_and_no_founder_answer_ever(entry, registry):
+    """keel-cloud 087 / 088: each item carries the registry's respondent fields with its one `escape` (no
+    `chips`), and no respondent job is handed `founder_options` -- every respondent word is code's."""
     plan = entry.plan()
     built = context_mod.build_respondent(entry, 1, plan, registry)
-    assert "mechanism" not in built
+    assert list(built) == [k for k in context_mod.DEFAULT_KEYS["RESPONDENT_QUESTIONS"]
+                           if k not in ("mechanism", "offer_name")]
+    assert "mechanism" not in built and "founder_options" not in built
     assert [item["key"] for item in built["items"]] == plan[1]
-    assert set(built["items"][0]["respondent"]) == {"anchor", "control", "guidance",
-                                                     "option_rule", "chips"}
+    for item in built["items"]:
+        assert set(item["respondent"]) == {"anchor", "control", "guidance", "option_rule", "escape"}
+        assert "chips" not in repr(item)
+    frequency = next(i for i in built["items"] if i["key"] == "problem.frequency")
+    assert frequency["respondent"]["escape"] == {"code": "cant_recall", "label": "I can't recall",
+                                                 "counts": "apart"}
+    gate = next(i for i in built["items"] if i["key"] == "problem.prevalence")
+    assert gate["respondent"]["escape"] is None, "the gate has no way out"
     text = repr(built)
-    for value in ("one of the top three", "is hit and miss", "2 to 4 nights", "hit_and_miss"):
+    for value in ("Finding the keys on the way out", "your way of finding them", "2 to 4 nights", "p_60_80"):
         assert value not in text, f"a founder answer reached the respondent screen: {value}"
-    assert built["founder_options"] == {}, \
-        "058's founderOptions: the model-written sets only, and Part 1 has none at v10"
     part3 = context_mod.build_respondent(entry, 3, plan, registry)
-    assert "commercial.existing_sacrifice" not in part3["founder_options"], \
-        "spec 077: Existing sacrifice has no kinds, so no founder option set"
-
-
-def test_the_respondent_screen_is_shown_the_founders_labels_where_the_entry_records_them(registry):
-    from instructions import corpus as corpus_mod                       # noqa: PLC0415
-    lullaby = corpus_mod.load_file(fx.canon_entry("03-lullaby.yaml"), registry=registry)
-    part3 = context_mod.build_respondent(lullaby, 3, lullaby.plan(), registry)
-    assert part3["founder_options"]["commercial.commitment"][1] == "Install the app", \
-        "058 (afe36fd): production sends the calibration's LABELS, never the codes"
-    assert "commercial.existing_sacrifice" not in part3["founder_options"], "no kinds since keel-cloud 077"
+    assert "founder_options" not in part3
+    commitment = next(i for i in part3["items"] if i["key"] == "commercial.commitment")
+    assert commitment["respondent"]["escape"] is None, "Commitment has none"
+    assert "install the app" not in repr(part3)
 
 
 def test_parts_two_and_three_carry_the_mechanism_and_the_b2b_link_does_not(entry, registry):
@@ -187,34 +199,59 @@ def test_a_read_carries_an_invitation_and_one_story_and_no_stage_or_anchors(entr
 
 
 def test_the_brief_carries_the_facts_the_beliefs_and_the_stories(entry, registry):
-    """keel-cloud 079 (contract 9): `project_name, market, context, facts, beliefs, stories`; the
-    three vectors live on in `facts.vectors` and the dimension standings in the facts' sections."""
+    """keel-cloud 089 (contract 13): `project_name, market, context, facts, beliefs, stories`. With no facts of
+    keel-cloud's to hand (a unit fixture), the facts are this repository's reading (call 84): the decision over every
+    dimension, the vector words, the money, the pilot, one card a dimension, what broke, what was not asked."""
     built = context_mod.build_brief(entry)
     assert list(built) == ["project_name", "market", "context", "facts", "beliefs", "stories"]
     assert "claims" not in built and "vectors" not in built
     facts = built["facts"]
-    assert [v["vector"] for v in facts["vectors"]] == ["PROBLEM", "SOLUTION", "COMMERCIAL"]
-    assert [v["words"] for v in facts["vectors"]] == [
-        "Not holding up", "Holding up", "Not holding up"]
-    assert facts["decision"]["label"] == "NOT_YET" and facts["decision"]["howSure"] == "MEDIUM"
-    assert facts["decision"]["reason"] == "Smallest group: 8 people."
+    assert [v["words"] for v in facts["vectors"]] == ["Holding up", "Holding up", "Not holding up"]
+    assert facts["decision"] == {"label": "BUILD_BUT_CHANGE", "howSure": "MEDIUM",
+                                 "reason": "Smallest group: 7 people.", "smallestN": 7, "split": False,
+                                 "notTested": []}
     assert facts["money"] == {"currency": "GBP", "currencySymbol": "\u00a3", "period": "month",
                               "periodWords": "a month"}
-    assert facts["problem"]["prevalence"] == {"yes": 10, "n": 12, "window": "the last 7 nights"}
-    assert facts["commercial"]["existing_sacrifice"]["said"] == "a median \u00a312 a month", "call 57"
-    # call 76 (keel-cloud 085): the three answers of the people counted -- six better, two no difference; Ivy is a guess
-    assert facts["solution"]["benefit"] == {"better": 6, "noDifference": 2, "worse": 0, "n": 8}
-    assert facts["keys"][0] == "problem.prevalence" and len(facts["keys"]) == 12
-    assert facts["sharpest"] is None, "the corpus records no cross-tab"
+    assert facts["pilot"]["optedIn"] == 3 and facts["pilot"]["finished"] == 12
+    assert [c["key"] for c in facts["cards"]] == facts["keys"] == registry.calibrated_keys(False)
+    assert facts["cards"][0]["number"] == "10 of 12" and facts["cards"][0]["line"] == "had it in the last 7 nights"
+    assert facts["commercial"]["broke"]["key"] == "commercial.existing_sacrifice"
+    assert "broke" not in facts["problem"] and "broke" not in facts["solution"]
+    assert {n["key"] for n in facts["commercial"]["notAsked"]} == {
+        "commercial.ability_to_pay", "commercial.buyer_payer_alignment", "commercial.purchase_friction"}
+    assert "sharpest" not in facts, "a cross-tab is keel-cloud's; this reading carries none"
     assert {t["key"] for t in facts["targets"]} <= set(facts["keys"])
-    assert {b["key"] for b in built["beliefs"]} <= set(facts["keys"])
+    assert all("weight" not in b for b in built["beliefs"]), "D3"
+    assert {b["key"] for b in built["beliefs"]} == set(facts["keys"])
     frequency = next(b for b in built["beliefs"] if b["key"] == "problem.frequency")
-    assert frequency["belief_sentence"] == \
-        entry.founder_calibration["problem.frequency"]["belief_sentence"]
+    assert frequency["belief_sentence"] == entry.founder_calibration["problem.frequency"]["belief_sentence"]
     assert frequency["founder_phrase"] == "2 to 4 nights out of 7"
-    assert built["stories"] and all(set(s) == {"invitation_id", "link", "story"}
-                                    for s in built["stories"])
+    assert built["stories"] and all(set(s) == {"invitation_id", "link", "story"} for s in built["stories"])
 
+
+def test_the_brief_is_handed_keel_clouds_own_facts_where_the_run_has_them(entry):
+    """Call 84: a case's facts are keel-cloud's for the entry (`BriefFactsCorpusTest`) when given, untouched."""
+    given = {"decision": {"label": "BUILD"}, "keys": ["problem.prevalence"]}
+    built = context_mod.build_brief(entry, facts=given)
+    assert built["facts"] is given
+
+
+def test_the_asked_job_is_one_list_its_frame_and_its_items_by_index(entry, registry):
+    """keel-cloud 088 FR-003 (`ScreenContextBuilder`'s ASKED): `{key, name, frame}` with `{asked}` where the face
+    goes, the slots, the market, and the founder's items `[{index, label}]` -- never the faces themselves."""
+    built = context_mod.build_asked(entry, "solution.compatibility", registry)
+    assert list(built) == context_mod.DEFAULT_KEYS["ASKED"] == ["dimension", "context", "market", "items"]
+    assert built["dimension"] == {"key": "solution.compatibility", "name": "Compatibility",
+                                  "frame": "On your last morning, {asked}?"}
+    assert built["items"] == [{"index": 0, "label": "They had a phone to hand"},
+                              {"index": 1, "label": "Their keys were on one ring"}]
+    assert "asked\"" not in repr(built["items"]) and "did you have" not in repr(built), "the faces are the job's to write"
+    adoption = context_mod.build_asked(entry, "solution.adoption_friction", registry)
+    assert adoption["dimension"]["frame"] == "{asked}. Would you do that, or not?"
+    assert adoption["items"] == [{"index": 0, "label": "Clip a tag to the key ring"}]
+    assert built["context"]["window"] == "the last 7 nights"
+    keys = ["items", "dimension", "unknown"]
+    assert list(context_mod.build_asked(entry, "solution.compatibility", registry, keys)) == keys
 
 
 def test_the_stage_shaped_builders_are_gone():
@@ -224,15 +261,15 @@ def test_the_stage_shaped_builders_are_gone():
 
 
 @pytest.mark.parametrize("name, window, words", [
-    ("01-countly.yaml", {"count": 1, "unit": "MONTHS"}, "the last month"),
+    ("01-countly.yaml", {"count": 4, "unit": "WEEKS"}, "the last 4 weeks"),
     ("02-compliancelog.yaml", {"count": 3, "unit": "MONTHS"}, "the last 3 months"),
     ("03-lullaby.yaml", {"count": 7, "unit": "NIGHTS"}, "the last 7 nights"),
-    ("06-repeatline.yaml", {"count": 1, "unit": "SHIFTS"}, "the last shift"),
+    ("06-repeatline.yaml", {"count": 7, "unit": "DAYS"}, "the last 7 days"),
 ])
-def test_an_r4_entrys_own_window_reaches_every_screen_that_reads_it(name, window, words):
-    """keel-cloud 058 `5fc7220`: `context.recall_window` is sent as `{count, unit}` on
-    CONTEXT_INTERPRET (`proposeContext`) and as its words in the slots (`ScreenContextBuilder`),
-    and fills the registry's `{window}` in every calibration slice."""
+def test_an_entrys_own_window_reaches_every_screen_that_reads_it(name, window, words):
+    """keel-cloud 058 `5fc7220`, D13: `context.recall_window` is sent as `{count, unit}` on CONTEXT_INTERPRET and as
+    its words in the slots, and fills the registry's `{window}` in every calibration slice -- 01's {1, MONTHS} is
+    {4, WEEKS} and 06's {1, SHIFTS} {7, DAYS} at revision 10."""
     from instructions import corpus as corpus_mod                       # noqa: PLC0415
     entry = corpus_mod.load_file(fx.canon_entry(name), registry=fx.registry())
     assert context_mod.build_context_interpret(entry)["context_fields"]["recall_window"] == window

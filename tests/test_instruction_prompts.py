@@ -92,23 +92,90 @@ def test_the_seeded_screens_carry_the_seed_as_input_content():
     assert payload["input"] == {"content": "the founder typed this"}
 
 
-def test_build_cases_emits_nineteen_model_cases_and_one_compare_row_in_fr_016s_order(cases):
+def test_build_cases_emits_twenty_one_model_cases_and_one_compare_row_in_fr_016s_order(cases):
+    """Spec 040 (call 84): the two `ASKED` cases -- one a saved Compatibility and Adoption friction list -- come
+    after the three calibration jobs, as a Save does after the Check screens."""
     ids = [c.case_id for c in cases]
-    assert ids[:9] == [
+    assert ids[:11] == [
         "09-fixture/CONTEXT_INTERPRET/run1", "09-fixture/PROBLEM_INTERPRET/run1",
         "09-fixture/SOLUTION_MECHANISM/run1", "09-fixture/CALIBRATION_PROBLEM/run1",
         "09-fixture/CALIBRATION_SOLUTION/run1", "09-fixture/CALIBRATION_COMMERCIAL/run1",
+        "09-fixture/ASKED_COMPATIBILITY/run1", "09-fixture/ASKED_ADOPTION_FRICTION/run1",
         "09-fixture/RESPONDENT_PART1/run1", "09-fixture/RESPONDENT_PART2/run1",
         "09-fixture/RESPONDENT_PART3/run1"]
     reads = [c for c in cases if c.kind == "READING"]
-    assert len(reads) == 9 and ids[9:18] == [c.case_id for c in reads]
+    assert len(reads) == 9 and ids[11:20] == [c.case_id for c in reads]
     assert {c.subject for c in reads}.isdisjoint({"Jo Judd", "Kit Kerr", "Lu Lam"}), \
         "no read for a gate-No or a chipped story (FR-017)"
-    assert ids[18:] == ["09-fixture/COMPARE", "09-fixture/BRIEF/run1"]
+    assert ids[20:] == ["09-fixture/COMPARE", "09-fixture/BRIEF/run1"]
     model = [c for c in cases if c.kind != "COMPARE"]
-    assert len(model) == 19, "SC-003: 3 + 3 + 3 + 9 + 1"
-    assert [c.kind for c in cases[:9]] == ["CONTEXT", "FRAME", "FRAME"] + ["CALIBRATION"] * 3 \
-        + ["RESPONDENT"] * 3
+    assert len(model) == 21, "SC-003: 3 + 3 + 2 + 3 + 9 + 1"
+    assert [c.kind for c in cases[:11]] == ["CONTEXT", "FRAME", "FRAME"] + ["CALIBRATION"] * 3 \
+        + ["ASKED"] * 2 + ["RESPONDENT"] * 3
+
+
+def test_an_asked_case_is_handed_its_list_by_index_and_keeps_it_for_the_scorer(cases):
+    asked = next(c for c in cases if c.case_id == "09-fixture/ASKED_COMPATIBILITY/run1")
+    assert asked.screen == "ASKED" and asked.subject == "COMPATIBILITY"
+    assert asked.meta["dimension"] == "solution.compatibility"
+    assert asked.meta["items"] == asked.payload["context"]["items"] == [
+        {"index": 0, "label": "They had a phone to hand"}, {"index": 1, "label": "Their keys were on one ring"}]
+    assert asked.meta["validation_mechanism"]["mechanism_terms"] == ["tag", "whistle", "beep", "key ring"]
+    assert "did you have your phone" not in asked.prompt, "the corpus's own faces are the golden, never shown"
+
+
+def test_a_list_left_out_builds_no_asked_case(tmp_path):
+    import dataclasses                                                      # noqa: PLC0415
+    entry = fx.entry()
+    calibration = dict(entry.founder_calibration)
+    calibration["solution.adoption_friction"] = {"unsure": True, "belief_sentence": "Left out."}
+    left = dataclasses.replace(entry, founder_calibration=calibration)
+    cases = prompts_mod.build_cases(left, fx.exported(tmp_path), fx.instructions(), fx.FakeRuntime, n_runs=1)
+    assert [c.subject for c in cases if c.kind == "ASKED"] == ["COMPATIBILITY"]
+
+
+def test_the_brief_case_says_whose_facts_it_was_handed(tmp_path):
+    """Call 84: keel-cloud's facts for the entry when the run has them, else this repository's reading."""
+    entry = fx.entry()
+    mine = prompts_mod.build_cases(entry, fx.exported(tmp_path), fx.instructions(), fx.FakeRuntime, n_runs=1)
+    brief = next(c for c in mine if c.kind == "BRIEF")
+    assert brief.meta["facts_source"] == "the eval's reading (brief_facts.facts_for)"
+    assert brief.payload["context"]["facts"]["cards"][0]["key"] == "problem.prevalence"
+    given = {"keys": ["problem.prevalence"], "cards": []}
+    theirs = prompts_mod.build_cases(entry, fx.exported(tmp_path / "b"), fx.instructions(), fx.FakeRuntime,
+                                     n_runs=1, brief_facts={"09-fixture": given})
+    brief = next(c for c in theirs if c.kind == "BRIEF")
+    assert brief.meta["facts_source"] == "keel-cloud BriefFactsCorpusTest"
+    assert brief.payload["context"]["facts"] == given
+
+
+def test_the_real_corpus_builds_149_model_cases_and_the_denominators_per_n(tmp_path):
+    """Spec 040: on revision 10 at N=1 -- 7 context, 14 frame, 21 calibration, 14 asked, 21 respondent, 65 reads,
+    7 briefs (149) and 7 COMPARE rows; coverage 80 calibration + 81 respondent + 35 asked, validity 122 (80 entries,
+    7 gates, 35 faces), `no_leak` 35 sweeps (sweep A on 4 PROBLEM entries and the gate, sweep B on the gate, an
+    entry). Read off the cases, never typed."""
+    from stack.config import load_config                                    # noqa: PLC0415
+    from instructions import corpus as corpus_mod                           # noqa: PLC0415
+    for name in ("01-countly", "07-mulchrun"):
+        fx.canon_entry(f"{name}.yaml")
+    corpus = corpus_mod.load(load_config(validate=False).keel_cloud, registry=fx.registry())
+    exported = fx.exported(tmp_path)
+    cases = []
+    for entry in corpus.entries:
+        cases += prompts_mod.build_cases(entry, exported, fx.instructions(), fx.FakeRuntime, n_runs=1)
+    counts = run_mod._counts(cases)
+    assert counts == {"CONTEXT": 7, "FRAME": 14, "CALIBRATION": 21, "ASKED": 14, "RESPONDENT": 21,
+                      "READING": 65, "COMPARE": 7, "BRIEF": 7}
+    assert sum(n for kind, n in counts.items() if kind != "COMPARE") == 149
+    rows = run_mod.denominators(cases)
+    assert sum(r["calibration"] for r in rows.values()) == 80
+    assert sum(sum(r["respondent"].values()) for r in rows.values()) == 81
+    assert sum(r["asked"] for r in rows.values()) == 35
+    assert sum(r["validity"] for r in rows.values()) == 122
+    assert sum(r["sweep_a"] + r["sweep_b"] for r in rows.values()) == 35
+    assert run_mod._denominator_line(rows) == (
+        "denominators read off the registry, per N: dimension_coverage 80 calibration + 81 respondent + 35 asked "
+        "· option_validity 122 · no_leak 35 sweeps")
 
 
 def test_the_compare_row_is_a_row_and_never_a_call(cases):
@@ -135,7 +202,7 @@ def test_the_b2b_entry_asks_part_three_on_its_own_link_and_nowhere_else(tmp_path
 def test_n_runs_repeats_each_model_case_and_never_the_compare_row(tmp_path):
     cases = prompts_mod.build_cases(fx.entry(), fx.exported(tmp_path), fx.instructions(),
                                     fx.FakeRuntime, n_runs=3)
-    assert len([c for c in cases if c.kind != "COMPARE"]) == 57, "SC-010"
+    assert len([c for c in cases if c.kind != "COMPARE"]) == 63, "SC-010"
     assert len([c for c in cases if c.kind == "COMPARE"]) == 1
 
 
@@ -150,9 +217,12 @@ def test_every_payload_carries_its_screens_instruction_and_its_contract(cases):
 
 def test_the_respondent_case_keeps_the_founder_values_for_the_batch_and_out_of_the_prompt(cases):
     part1 = next(c for c in cases if c.case_id == "09-fixture/RESPONDENT_PART1/run1")
-    scale = part1.meta["founder_values"]["problem.current_solution_satisfaction"]
-    assert scale["answer"] == "hit_and_miss"
-    assert "is hit and miss" not in part1.prompt
+    frequency = part1.meta["founder_values"]["problem.frequency"]
+    assert frequency["answer"] == {"lower": 2, "upper": 4, "unit": "nights out of 7"}
+    assert "2 to 4 nights" not in part1.prompt
+    assert part1.meta["swept"] == ["problem.prevalence"], "call 83: the gate's clause is the one swept"
+    part2 = next(c for c in cases if c.case_id == "09-fixture/RESPONDENT_PART2/run1")
+    assert part2.meta["swept"] == []
 
 
 def _select(cases, needle):
@@ -166,7 +236,7 @@ def test_a_slash_needle_selects_the_reads_and_no_interpretation(cases):
 
 @pytest.mark.parametrize("word, kind, count", [
     ("context", "CONTEXT", 1), ("frame", "FRAME", 2), ("calibration", "CALIBRATION", 3),
-    ("respondent", "RESPONDENT", 3), ("reading", "READING", 9), ("compare", "COMPARE", 1),
+    ("asked", "ASKED", 2), ("respondent", "RESPONDENT", 3), ("reading", "READING", 9), ("compare", "COMPARE", 1),
     ("brief", "BRIEF", 1)])
 def test_each_kind_word_selects_its_kind(cases, word, kind, count):
     selected = _select(cases, word)
