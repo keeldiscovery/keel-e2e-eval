@@ -2,114 +2,156 @@
   "standings": {
     "problem.prevalence": {
       "status": "HOLDING_UP",
-      "drift": "stronger",
+      "drift": "STRONGER",
       "n": 12,
       "yes": 10,
       "proportion": 0.83,
-      "belief_sentence": "Most of these commuters who cycle had this at least once in the last 7 nights."
+      "drift_clause": "more than you think · you said Most · 10 of 12 said yes",
+      "insight": "more people have it than you thought",
+      "status_line": "10 of 12 said yes"
     },
     "problem.frequency": {
       "status": "HOLDING_UP",
-      "drift": "none",
+      "drift": "NONE",
       "n": 8,
       "inside": 7,
       "outside": 1,
+      "below": 1,
+      "above": 0,
       "median": 3,
-      "belief_sentence": "Commuters who cycle face this on 2 to 4 nights out of 7."
+      "status_line": "median 2.5 nights out of 7 · 7 of 8 inside what you said"
     },
     "problem.importance": {
-      "status": "HOLDING_UP",
-      "drift": "short",
+      "status": "NOT_HOLDING_UP",
+      "drift": "STRONGER",
       "n": 8,
-      "inside": 2,
-      "outside": 6,
-      "belief_sentence": "Among the difficulties that come with the morning they cannot find their keys, this is one of the top three."
+      "own_item_picks": 6,
+      "share": 0.75,
+      "inside": 6,
+      "outside": 2,
+      "below": 2,
+      "above": 0,
+      "optionCounts": "finding_keys=6, the_traffic=3, the_weather=2, a_flat_tyre=2, bike_parking=1",
+      "drift_clause": "you said finding the keys on the way out · 6 of 8 put it in their two",
+      "insight": "it's the difficulty they'd most like made easier",
+      "status_line": "6 of 8 put it in their two"
     },
     "problem.current_solution_satisfaction": {
       "status": "HOLDING_UP",
-      "drift": "none",
-      "n": 8,
-      "inside": 6,
+      "drift": "NONE",
+      "n": 7,
+      "inside": 5,
       "outside": 2,
-      "belief_sentence": "The way commuters who cycle handle it today is hit and miss."
+      "below": 2,
+      "above": 0,
+      "optionCounts": "works_well=1, mostly_works=1, hit_and_miss=3, works_poorly=1, no_reliable_way=1",
+      "status_line": "5 of 7 said today's way falls short"
     },
     "solution.compatibility": {
       "status": "HOLDING_UP",
-      "drift": "none",
-      "n": 8,
-      "inside": 6,
+      "drift": "NONE",
+      "n": 7,
+      "inside": 5,
       "outside": 2,
-      "belief_sentence": "It fits into the episode once the first look has failed."
+      "below": 2,
+      "above": 0,
+      "optionCounts": "yes_easily=3, yes_with_steps=2, only_with_help=1, no=1",
+      "status_line": "5 of 7 said yes, easily or with some steps"
     },
     "solution.relative_advantage": {
       "status": "HOLDING_UP",
-      "drift": "none",
+      "drift": "NONE",
       "n": 8,
       "inside": 6,
       "outside": 2,
-      "belief_sentence": "To be worth switching to, it must deliver a shorter search."
+      "below": 2,
+      "above": 0,
+      "optionCounts": "positive=6, neutral=2, negative=0",
+      "status_line": "6 of 8 said it would have been better"
     },
     "solution.adoption_friction": {
       "status": "HOLDING_UP",
-      "drift": "none",
+      "drift": "NONE",
       "n": 8,
       "inside": 6,
       "outside": 2,
-      "belief_sentence": "The most extra effort they would accept at the moment of use is a single whistle."
+      "below": 2,
+      "above": 0,
+      "optionCounts": "yes=5, yes_if_worth_it=1, probably_not=1, no=1",
+      "status_line": "6 of 8 would do it"
     },
     "commercial.existing_sacrifice": {
       "status": "NOT_HOLDING_UP",
-      "drift": "short",
-      "n": 8,
+      "drift": "SHORT",
+      "n": 7,
       "inside": 1,
-      "below": 7,
+      "outside": 6,
+      "below": 6,
       "above": 0,
-      "outside": 7,
-      "median": 12,
-      "belief_sentence": "The problem already costs the payer about £20 to £60 a month."
+      "median": 10.0,
+      "drift_clause": "it costs less than you think · you said about £20 to £60 a month · the 7 who answered spent a median £10 a month",
+      "insight": "smaller than you think: they lose less today than you estimated",
+      "status_line": "median £10 a month · 6 of 7 below what you said"
     },
     "commercial.price": {
       "status": "PEOPLE_DISAGREE",
       "drift": "BOTH",
       "n": 8,
-      "inside": 4,
-      "outside": 4,
-      "below": 4,
-      "above": 0
+      "inside": 5,
+      "outside": 3,
+      "below": 3,
+      "above": 0,
+      "optionCounts": "under_1=0, band_1_2=1, band_2_5=4, band_5_10=1, over_10=0, would_not_pay=2",
+      "drift_clause": "lower than you think · you said £3 to £5 a month · 5 of 8 said it was worth your band or more",
+      "insight": "a split: 5 at or beyond what you said, 3 short of it",
+      "status_line": "5 of 8 said your band or more"
     },
     "commercial.ability_to_pay": {
       "status": "HOLDING_UP",
-      "drift": "none",
-      "n": 8,
-      "inside": 7,
+      "drift": "STRONGER",
+      "n": 7,
+      "inside": 6,
       "outside": 1,
-      "belief_sentence": "Your price is 5% to 25% of what the problem costs them today: a small share of what the problem costs them."
+      "below": 1,
+      "above": 0,
+      "optionCounts": "existing_line=0, new_line_signed_off=0, taken_from_other_spend=0, no_budget=0",
+      "drift_clause": "easier to pay than you think · you said 5% to 25% of what the problem costs them today: a small share of what the problem costs them · 6 of 7 already spend your price or more",
+      "insight": "more could pay from today's spend than you thought",
+      "status_line": "6 of 7 already spend your price or more"
     },
     "commercial.buyer_payer_alignment": {
       "status": "LEFT_OUT",
-      "drift": null
+      "drift": "NONE",
+      "n": 0,
+      "status_line": "you weren't sure · left out"
     },
     "commercial.commitment": {
-      "status": "NOT_HOLDING_UP",
-      "drift": "short",
+      "status": "HOLDING_UP",
+      "drift": "NONE",
       "n": 8,
-      "inside": 2,
-      "outside": 6,
-      "belief_sentence": "For a trial, right now, they would go as far as installing the app."
+      "inside": 6,
+      "outside": 2,
+      "below": 2,
+      "above": 0,
+      "optionCounts": "yes_start=4, yes_after_trying=2, probably_not=1, no=1",
+      "status_line": "6 of 8 are open to it"
     }
   },
   "vector_verdicts": {
     "PROBLEM": {
-      "verdict": "NOT_HOLDING_UP",
-      "deciding": "problem.importance"
+      "verdict": "HOLDING_UP",
+      "deciding": "problem.prevalence",
+      "drift": "STRONGER"
     },
     "SOLUTION": {
       "verdict": "HOLDING_UP",
-      "deciding": "solution.compatibility"
+      "deciding": "solution.compatibility",
+      "drift": "NONE"
     },
     "COMMERCIAL": {
       "verdict": "NOT_HOLDING_UP",
-      "deciding": "commercial.commitment"
+      "deciding": "commercial.commitment",
+      "drift": "SHORT"
     }
   }
 }

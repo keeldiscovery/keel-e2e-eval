@@ -1,5 +1,5 @@
-"""`register.html` at `MARKS_VERSION` 11 (spec 029 FR-022, contracts/screen-shapes.md §7; T033, T041;
-spec 030 call 47: the calibrated set and the plan per link).
+"""`register.html` at `MARKS_VERSION` 18 (spec 029 FR-022, contracts/screen-shapes.md §7; T033, T041;
+spec 030 call 47: the calibrated set and the plan per link; spec 040: the founder lists' drafts).
 
 The one page with no number on it. Per entry: the three interpretations, verbatim, marked only
 *accepted* or *refused (rule id)* by the aggregate; the calibration questions of the entry's
@@ -65,9 +65,19 @@ def test_the_calibration_block_is_the_registry_in_order_beside_the_founder(tmp_p
     assert "commercial.ability_to_pay" in [r["key"] for r in rows], "derived, shown beside the founder"
     assert "commercial.purchase_friction" not in [r["key"] for r in rows]
     prevalence = rows[0]
-    assert prevalence["founder_question"].startswith("Out of 10 parents of babies")
+    assert prevalence["founder_question"] is None, "the hand-sized registry slice drops the Lullaby worked objects"
     assert prevalence["belief_phrase"] == "Most"
     assert prevalence["belief_sentence"].startswith("Most of these parents")
+    importance = rows[2]
+    assert importance["list"]["items"][0]["label"] == "Finding the keys on the way out", "the model's draft"
+    assert importance["belief_phrase"] == corpus.entries[0].tested("problem.importance")["label"], \
+        "a list's chosen phrase is the founder's tested item"
+
+
+def test_a_drafted_list_is_rendered_with_its_faces(tmp_path, corpus):
+    html = _render(tmp_path, corpus, _produced(fx.registry()))
+    assert "Clip a tag to the key ring" in html and "asked: you&#x27;d clip a tag" in html
+    assert "phrase: your way of finding them" in html
 
 
 def test_the_three_interpretations_are_marked_only_accepted_or_refused_by_rule(tmp_path, corpus):

@@ -1,11 +1,11 @@
 """`instructions/compare.py`: keel-cloud's engine, shelled at zero spend (spec 029 FR-018,
-contracts/screen-shapes.md §5, judgement call 34; T020; spec 030 T010, call 47).
+contracts/screen-shapes.md §5, judgement call 34; T020; spec 030 T010, call 47; spec 040, calls 77-78).
 
 The engine is never imitated here. What is tested is the shim around it: the input is built from
 the corpus entry and nothing in `expected`; the command is the exporter's sibling, run in the
-keel-cloud checkout; the output is diffed -- one marked check a calibrated standing (10 on a B2C
-entry, 12 on a B2B one) and one a vector, everything else reported, the count read off the entry
-and never typed; and an
+keel-cloud checkout; the output is diffed -- one marked check a calibrated standing (12 on a B2C
+entry, 13 on a B2B one; all thirteen decide, D3) and one a vector, everything else reported, the count
+read off the entry and never typed; and an
 engine that cannot be asked leaves the mark **unmeasured, by name** -- with a fake `gradlew` that
 fails the way a checkout without 058 would.
 """
@@ -29,7 +29,7 @@ def entry():
 
 def test_the_input_is_built_from_the_corpus_only(entry):
     built = compare_mod.build_input(entry, entry.registry)
-    assert built["entry"] == "09-fixture" and built["registry_version"] == 3
+    assert built["entry"] == "09-fixture" and built["registry_version"] == 4
     assert list(built["founder_calibration"]) == entry.calibrated_keys()
     assert len(built["founder_calibration"]) == len(entry.registry.calibrated_keys(False)) == 12
     assert built["founder_calibration"]["commercial.buyer_payer_alignment"] == {"unsure": True}
@@ -146,6 +146,35 @@ def test_an_engine_none_drift_agrees_with_the_corpus_null_and_case_is_folded(ent
 
 def test_a_count_only_the_engine_states_is_not_a_disagreement(entry):
     produced = _load("agree")
-    produced["standings"]["problem.current_solution_satisfaction"]["optionCounts"] = "works_well=1"
+    produced["standings"]["problem.frequency"]["optionCounts"] = "1=1"
     produced["standings"]["commercial.buyer_payer_alignment"]["n"] = 0
     assert compare_mod.diff(entry.expected, produced, entry=entry).reported_diffs == []
+
+
+def test_the_founders_lists_and_escapes_reach_the_engine_as_written(entry):
+    """Revision 10 (call 78): the lists travel as `{items, picked}`, a pick of two codes and an escape chip as the
+    corpus records them -- the engine reads them, this shim never re-expresses them."""
+    built = compare_mod.build_input(entry, entry.registry)
+    assert built["founder_calibration"]["solution.compatibility"]["answer"]["picked"] == 0
+    flo = next(a for a in built["answers"] if a["person"] == "Flo Fay")
+    assert flo["picks"]["problem.importance"] == {"chip": "none_of_these"}
+    ann = next(a for a in built["answers"] if a["person"] == "Ann Abbott")
+    assert ann["picks"]["problem.importance"] == ["finding_keys", "the_traffic"]
+
+
+def test_keel_clouds_engine_agrees_with_corpus_r10_on_all_108_checks(tmp_path):
+    """The DRY count (spec 040): keel-cloud 087's own engine against revision 10's `expected` -- 12 + 3 checks on a
+    B2C entry, 13 + 3 on a B2B one, 108 on the seven. Spends nothing; skipped by name without a checkout."""
+    from stack.config import load_config                                       # noqa: PLC0415
+    from instructions import corpus as corpus_mod                              # noqa: PLC0415
+    keel_cloud = load_config(validate=False).keel_cloud
+    if not (keel_cloud / "gradlew").is_file():
+        pytest.skip("no keel-cloud checkout to run `screenContracts compare` against")
+    for name in ("01-countly", "05-paidly"):
+        fx.canon_entry(f"{name}.yaml")
+    corpus = corpus_mod.load(keel_cloud, registry=fx.registry())
+    scores = [compare_mod.compare_entry(keel_cloud, e, e.registry, tmp_path) for e in corpus.entries]
+    assert all(s.measured for s in scores), [s.reason for s in scores if not s.measured][:1]
+    assert [s.checks for s in scores] == [15, 15, 15, 15, 16, 16, 16]
+    assert sum(s.agreed for s in scores) == sum(s.checks for s in scores) == 108, \
+        [m for s in scores for m in s.mismatches]

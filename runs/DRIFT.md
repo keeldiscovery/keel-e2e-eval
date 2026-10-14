@@ -5027,7 +5027,24 @@ though the card no longer draws them.
 **The proof run** is recorded in keel-cloud-docs
 `canon/drafts/matrix-codex-copilot-v8-2026-10-03.md` §5, with its run id and its verdict.
 
-## 74. Open (keel-cloud, with keel-web beside it): on a **one-unit recall window** no screen asks Frequency, and `GET standings` answers **500** until it carries an answer
+## 74. RESOLVED -- was open (keel-cloud, with keel-web beside it): on a **one-unit recall window** no screen asks Frequency, and `GET standings` answers **500** until it carries an answer
+
+**Closed by construction, 2026-10-14** (spec `040-marks-v18`, against keel-cloud-docs `7b151f9`). The founder decided
+there is **no one-unit window** (`canon/designs/design-2026-10-14.md` D13), and keel-cloud 087 (FR-009) built it:
+`RecallWindow` refuses a count below 2 and has no `CYCLES` / `SHIFTS`, `oneUnit()` / `asks()` and every spec 078 /
+080 branch are deleted, `upcast("LAST_CYCLE")` is refused like any old name, and Frequency is asked on every project
+-- so the state this entry describes cannot be reached. Corpus revision 10 re-windowed the two one-unit entries
+(`01-countly` `{1, MONTHS}` -> `{4, WEEKS}`, `06-repeatline` `{1, SHIFTS}` -> `{7, DAYS}`). This repository follows:
+`instructions/registry.RecallWindow` and the corpus reader refuse a window of one (judgement call 78),
+`harness/vectors_script.py`'s one-unit branches (`one_unit_window`, the CYCLES / SHIFTS words, the Frequency the
+calibration job wrote and no screen showed) are deleted, and S-005's spec-078 step ("the one-unit window asks no
+Frequency of anybody") is inverted into D13's ("the window counts at least two, and Frequency is asked"). The wire
+step `evals/corpus_scenario.py::leg_calibrate` sent for this entry now has nothing to send (every calibrated key is on
+a screen) and goes with the later journey spec, which re-points the legs once keel-web specs 7, 8 and 10 land. **Not
+yet observed live**: no corpus journey can run until those keel-web specs land.
+
+**Was: open.** The entry as it was written, kept because the shape of the hole is the reason D13 is the right fix:
+
 
 Found by spec `039-vectors-journey`'s first local run of S-005 (`01-countly`, whose own recall window
 is `{count: 1, unit: MONTHS}` -- *a mismatched delivery in the last month*), against keel-cloud-docs
@@ -5070,3 +5087,29 @@ slow one will not. The journey reloads the People page before each commercial li
 (`harness/vectors_screens.py::PeopleLinks.commercial_link`) and says why there. Not a product
 decision this repository makes; recorded so keel-web can decide whether the popup should read the
 revision when it opens.
+
+## 76. Owed (keel-cloud, one letter wide): `screenContracts validate` reports a founder-lists refusal (`L1`-`L5`) as `kind: shape`, because `ScreenContractTool.VECTOR_RULE` has no `L`
+
+Found by spec `040-marks-v18` reading keel-cloud-docs `7b151f9` (keel-cloud 088 saw it and left it: *"the
+`ScreenContractTool` rule-id pattern lacked `L` (founder-lists `L1`-`L5` report as shape)"*). The pattern is
+`^([XPMCRIBEWK][0-9]+): `; every founder-lists refusal's reason opens `L<n>: `, so it falls through to the shape
+branch and arrives as a shape refusal with no rule id. In this eval that would count a model's list draft that broke
+a list rule against `shape_refusals` (an absolute zero) instead of `rule_refusal_rate`, and would never be redrawn
+(call 41 redraws rule refusals only). `instructions/validate.fold_in` reads a shape refusal whose reason opens
+`L<n>: ` as rule `L<n>` (judgement call 86) until keel-cloud adds the letter, and `runner.should_redraw` reads it the same
+way, so a refused list gets the one repair turn the cloud's orchestrator gives it.
+
+## 77. Observation (keel-cloud canon, corpus revision 10): five hand-written respondent words break the rules the model's are held to -- four Compatibility faces say no "you", and one Commitment step says "you" twice
+
+Found by spec `040-marks-v18`'s `spoken_form` mark (`instructions/spoken.py`) over keel-cloud's own composed record
+(`SpokenGuidelinesCorpusTest`'s `build/spoken-corpus.txt`) and the corpus's lists. `K3` (the face is said to the
+stranger: *you*, *your*) fails on four Compatibility `asked` faces -- `01-countly` *did the invoice come with the
+delivery itself* (keel-cloud 088 saw this one), `02-compliancelog` *was every completion already recorded in the
+learning system*, `03-lullaby` *was the room quiet enough for a phone to hear the cry*, `07-mulchrun` *was there room
+at the curb of that job for a mulch drop* -- none of them the tested item, every one a face a founder could pick. `S10`
+fails on `06-repeatline`'s Commitment step *introduce you to the practice's IT supplier*, composed *If it were ready
+today, would you introduce you to the practice's IT supplier, or not?*. keel-cloud's own corpus test holds the faces
+to no `?` and 20 words only, and says K3 holds the model's faces, not these. The plan allowed one corpus revision and
+087 spent it, so these are the **next corpus revision's items** (spec 040 *Follow-ups*); `spoken.KNOWN` names all five
+and leaves them out of the denominator (judgement call 81), and a known item that is no longer found becomes a fault,
+so the ledger has to shrink with the corpus.

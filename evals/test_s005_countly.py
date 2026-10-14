@@ -51,14 +51,17 @@ def _countly_extras(j) -> None:
         assert row.get("status") == "TOO_FEW_TO_CALL", row.get("status")
         assert drawn.startswith(corpus_scenario.STATUS_WORD["TOO_FEW_TO_CALL"]), drawn
 
-    with j.recorder.step("S-005: the one-unit window asks no Frequency of anybody (spec 078)",
+    # D13 (keel-cloud 087; spec 040): there is no one-unit window -- Countly's is {4, WEEKS} at revision 10 -- so the
+    # spec-078 step that asserted "no Frequency asked of anybody" is inverted. runs/DRIFT.md #74 is closed. The leg
+    # itself is the later journey spec's to re-point (keel-web 7, 8, 10).
+    with j.recorder.step("S-005: the window counts at least two, and Frequency is asked (D13)",
                          party="participant", kind="assert") as h:
         asked = sorted({i.get("dimension") for iv in j.interviews.values()
                         for p in iv.get("parts") or [] for i in p.get("items") or []})
-        h.record_assert({"window": vs.window_words(j.founder.window), "frequency asked": False},
+        h.record_assert({"window": vs.window_words(j.founder.window), "frequency asked": True},
                         {"asked": asked})
-        assert vs.one_unit_window(j.entry), j.founder.window
-        assert "problem.frequency" not in asked, asked
+        assert j.founder.window.count >= 2, j.founder.window
+        assert "problem.frequency" in asked, asked
 
 
 def test_s005_countly(stack, founder_one, browser, run_dir):

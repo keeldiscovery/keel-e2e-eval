@@ -169,7 +169,7 @@ def test_every_case_a_copilot_run_builds_carries_the_copilot_prompt(monkeypatch,
                                     fx.instructions(), _FakeRuntime, n_runs=1, host="copilot")
     model = [c for c in cases if c.kind != "COMPARE"]
 
-    assert {c.kind for c in model} == {"CONTEXT", "FRAME", "CALIBRATION", "RESPONDENT",
+    assert {c.kind for c in model} == {"CONTEXT", "FRAME", "CALIBRATION", "ASKED", "RESPONDENT",
                                        "READING", "BRIEF"}, \
         "every model loop must be exercised or this test proves nothing"
     assert set(seen) == {"copilot"} and len(seen) == len(model)
@@ -539,11 +539,14 @@ def test_the_rubric_did_not_move():
     # once**, which is what keeps this test's point: the hosts are still judged by one rubric, and
     # no host ever got its own. The version itself is pinned by `test_instruction_marks.py`; what
     # is asserted here is that the five numbers a host is judged against have never moved.
-    # v9 (spec 029, calls 28-36) moved the subjects and the marks -- again for every host at once.
+    # v9 (spec 029, calls 28-36) moved the subjects and the marks -- again for every host at once; v18
+    # (spec 040, calls 79, 82) renamed `brief_paragraphs` `brief_answers` and added two zero-spend marks, for
+    # every host at once.
     assert marks_mod.DEFAULTS == {"dimension_coverage": 1.00, "option_validity": 1.00,
                                   "no_leak": 1.00, "anchoring_accuracy": 0.90,
                                   "compare_correctness": 1.00, "rule_refusal_rate": 0.02,
-                                  "shape_refusals": 0, "brief_paragraphs": 1.00}
+                                  "shape_refusals": 0, "brief_answers": 1.00, "spoken_form": 1.00,
+                                  "brief_facts": 1.00}
 
 
 def test_the_makefile_defaults_to_claude_and_threads_the_host_through():

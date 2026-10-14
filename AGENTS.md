@@ -26,7 +26,21 @@ added to this line rather than quietly written — which is exactly how the thir
   reads *green at the current `MARKS_VERSION`*, so a rubric that moved has no run of record at all
   until one is spent, and a screen is one entry and cannot be one. The policy widened by one named
   event, in the open, which is the amendment shape this document asks for — it did not loosen.
-  **`MARKS_VERSION` 17** (spec `038-advantage-benefit-first`, 2026-10-12) is the gate as written, and
+  **`MARKS_VERSION` 18** (spec `040-marks-v18`, 2026-10-14) is the gate as written, and **there is no run
+  of record until `WHY=marks:18` is spent -- the certificate is the founder's word only; never run or
+  propose it**. keel-cloud 087 / 088 / 089 (merged at keel-cloud-docs `7b151f9`: registry `VERSION` 4,
+  document 20, `CONTRACT_VERSION` 13, routing v11 `asked: light`, charge 7) are the October redesign: all
+  thirteen dimensions decide (no weight anywhere), corpus revision 10 (lists, fixed answers, one escape, no
+  one-unit window -- DRIFT #74 closed), the model writes the founder lists (`founder-lists.md`), the gate's
+  clause and, on an **eighth screen**, the stranger's `asked` faces (`asked.md`), and the brief answers over
+  cards. Ten marks: v17's eight with `brief_paragraphs` become `brief_answers`, and two deterministic ones
+  measured at zero spend -- `spoken_form` (every composed corpus item held to the spoken-question
+  guidelines, read from keel-cloud's own `SpokenGuidelinesCorpusTest` output) and `brief_facts` (keel-cloud's
+  `BriefFactsCorpusTest` cards and pilot against this repository's reading). `rescore.py` refuses every
+  bundle below 18 (calls 77-90). `DRY=1` against `7b151f9` measures `compare_correctness` 108 of 108,
+  `spoken_form` 104 of 104 (five corpus wording items named apart, DRIFT #77) and `brief_facts` 94 of 94.
+  What follows is v17's account, history since 2026-10-14 (never run).
+  **`MARKS_VERSION` 17** (spec `038-advantage-benefit-first`, 2026-10-12) was the gate as written, and
   **there is no run of record until `WHY=marks:17` is spent; never run or propose it**. keel-cloud 085
   (merged at `b8a4eed`; registry `VERSION` 3, document 18, `CONTRACT_VERSION` stays 10) asks Relative advantage benefit
   first: the founder ticks one to four advantages, the respondent's one item is code's whole (the model's
@@ -288,7 +302,12 @@ Purchase friction's labels) the spec's *Disagreements* say so and the corpus is 
 the journey coverage that survives classic's deletion; S-012's leg two walks the same legs live
 (`strict=False`). `make up` needs keel-web's framework plugin and `KEEL_VECTORS_ENABLED=true`, both
 in `stack/` now. `make unit` after 039: **1,705 passed / 53 skipped** (was 1,764 / 75: classic-only
-S-012 tests deleted, 33 vectors tests added). **Nothing generated is committed** -- the script, the
+S-012 tests deleted, 33 vectors tests added). **Since spec `040-marks-v18` the canon is revision 10 and
+the contract 13, and the three journeys wait for keel-web specs 7, 8 and 10**: the script and the typed
+inputs still write revision 9's shapes and are the later journey spec's to re-point (with the legs, the
+page objects and S-012's leg two); their corpus-reading unit tests skip by name (call 89), the keys
+table reads the eight-screen export, and the one-unit branches are gone. `make unit` after 040:
+**1,818 passed / 77 skipped** (53 of them 039's r2-shape skips, 24 call 89's). **Nothing generated is committed** -- the script, the
 keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
 the end of every run.
 

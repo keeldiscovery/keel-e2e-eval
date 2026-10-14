@@ -225,16 +225,18 @@ def _count(value) -> str:
     return "—" if value is None else str(value)
 
 
-#: The eight rows of the v11 mark table, in `marks.ROWS` order: (row, label, formatter).
+#: The ten rows of the v18 mark table, in `marks.ROWS` order: (row, label, formatter).
 MARK_ROWS = (
-    ("dimension_coverage", "dimension coverage (one question a dimension, both screens)", _pct),
-    ("option_validity", "option validity (every registry rule, every question)", _pct),
+    ("dimension_coverage", "dimension coverage (one entry a dimension, item or index handed)", _pct),
+    ("option_validity", "option validity (lists, the gate's clause, the asked faces: every registry rule)", _pct),
     ("no_leak", "no leak (mechanism words and founder values, swept)", _pct),
     ("anchoring_accuracy", "anchoring accuracy (one judgement a readable person)", _pct),
     ("compare_correctness", "compare correctness (keel-cloud's engine, status + drift)", _pct),
     ("refusals", "rule refusals, as a rate of answers judged", _pct),
     ("shape_refusals", "shape refusals", _count),
-    ("brief_paragraphs", "BRIEF paragraphs (all four marks)", _pct),
+    ("brief_answers", "BRIEF answers (all seven marks)", _pct),
+    ("spoken_form", "spoken form (every composed corpus item and face, the guidelines)", _pct),
+    ("brief_facts", "brief facts (keel-cloud's cards and pilot against the corpus)", _pct),
 )
 
 
@@ -333,7 +335,6 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
                  f"items with a <code>no_leak</code> hit ({_esc(t.get('leak_hits', 0))} word hits) "
                  f"— <b>{_pct(t.get('judged_fraction'))}</b>. Every other item was decided by "
                  "code.</p>")
-    parts.append(wording_html(t.get("wording")))
 
     parts.append("<h2>Sibling commits</h2><table><tr><th>Repo</th><th>Commit</th><th>Dirty</th></tr>")
     for name, info in versions.items():
@@ -353,16 +354,16 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
                  "<a href='register.html'>register.html</a>, and that reading is recorded with "
                  "the run.<br><b>The three interpretation screens are rendered, never scored</b> "
                  "(judgement call 28): their leaks are the aggregate's rule refusals and count in "
-                 "the rate only.<br><b>Wording is free.</b> <code>option_validity</code> checks the "
-                 "mapping onto the registry, never the invention (call 31); whether an option list "
-                 "leads is still not scored.</div>")
+                 "the rate only.<br><b>Wording is free.</b> <code>option_validity</code> checks a "
+                 "list's counts, words, numbers and faces against the registry, never the invention "
+                 "(call 31); whether a drafted list leads is still not scored.</div>")
 
     # --------------------------------------------------------------------------- compare
     parts.append("<h2>COMPARE — keel-cloud's engine against the corpus</h2>")
     if t.get("compare_measured"):
         parts.append(f"<p><b>{_esc(t['compare_agreed'])} of {_esc(t['compare_checks'])}</b> "
-                     "status + drift checks agreed (every calibrated dimension -- 10 on a B2C entry, 12 on "
-                     "a B2B one -- and 3 vectors an entry) · "
+                     "status + drift checks agreed (every calibrated dimension -- 12 on a B2C entry, 13 on "
+                     "a B2B one -- and 3 vectors an entry; all thirteen decide) · "
                      f"{_esc(t.get('compare_reported_diffs', 0))} counts differ (reported, never "
                      "marked — call 3).</p>")
     else:
@@ -379,12 +380,47 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
                          f"<td><code>{_esc(json.dumps(m['produced']))}</code></td></tr>")
         parts.append("</table>")
 
-    # ----------------------------------------------------------- the two question screens
-    for title, prefix in (("CALIBRATION_QUESTIONS", "calibration"),
+    # -------------------------------------------------------- spoken form and brief facts (v18)
+    parts.append("<h2>Spoken form — every composed corpus item, the guidelines (calls 79-81)</h2>")
+    spoken = scorecard.get("spoken") or {}
+    if t.get("spoken_measured"):
+        parts.append(f"<p><b>{_esc(t['spoken_clean'])} of {_esc(t['spoken_units'])}</b> items and faces keep "
+                     f"§2-§5 · {_esc(t['spoken_known'])} known corpus items named apart (call 81).</p>")
+        rows = list(spoken.get("faults") or []) + [dict(k, evidence="known: " + k["evidence"])
+                                                   for k in spoken.get("known") or []]
+        if rows:
+            parts.append("<table><tr><th>Entry</th><th>Dimension</th><th>Unit</th><th>Evidence</th></tr>")
+            for f in rows:
+                parts.append(f"<tr><td>{_esc(f.get('entry'))}</td><td>{_esc(f.get('key'))}</td>"
+                             f"<td>{_esc(f.get('unit'))}</td><td>{_esc(f.get('evidence'))}</td></tr>")
+            parts.append("</table>")
+    else:
+        parts.append(f"<p><b>Not measured.</b> {_esc(t.get('spoken_unmeasured'))}</p>")
+    parts.append("<h2>Brief facts — keel-cloud's cards and pilot against the corpus (call 82)</h2>")
+    if t.get("brief_facts_measured"):
+        parts.append(f"<p><b>{_esc(t['brief_facts_agreed'])} of {_esc(t['brief_facts_checks'])}</b> card and "
+                     f"pilot checks agreed · {_esc(t.get('brief_facts_reported_diffs', 0))} reported (insights, "
+                     "decision, broke, notAsked -- never marked).</p>")
+        rows = [(c, m) for c in scorecard.get("brief_facts") or [] for m in c.get("mismatches") or []]
+        if rows:
+            parts.append("<table><tr><th>Entry</th><th>Row</th><th>Corpus</th><th>keel-cloud</th></tr>")
+            for c, m in rows:
+                parts.append(f"<tr><td>{_esc(c['entry_id'])}</td><td>{_esc(m['key'])}</td>"
+                             f"<td><code>{_esc(json.dumps(m['expected']))}</code></td>"
+                             f"<td><code>{_esc(json.dumps(m['produced']))}</code></td></tr>")
+            parts.append("</table>")
+    else:
+        parts.append("<p><b>Not measured.</b> " + "; ".join(
+            _esc(f"{u['entry']}: {u['reason']}") for u in t.get("brief_facts_unmeasured") or []) + "</p>")
+
+    # --------------------------------------------------------- the three question screens
+    for title, prefix in (("CALIBRATION_QUESTIONS (founder-lists.md)", "calibration"),
+                          ("ASKED (asked.md)", "asked"),
                           ("RESPONDENT_QUESTIONS", "respondent")):
         if not t.get(f"{prefix}_cases"):
             continue
-        cov, val, leak = (t[f"{prefix}_coverage"], t[f"{prefix}_validity"], t[f"{prefix}_leak"])
+        cov, val = (t[f"{prefix}_coverage"], t[f"{prefix}_validity"])
+        leak = t.get(f"{prefix}_leak") or {"clean": 0, "of": 0}
         parts.append(f"<h2>{title}</h2><p>{t[f'{prefix}_cases']} cases · coverage "
                      f"{cov['hit']} of {cov['of']} · validity {val['hit']} of {val['of']} · "
                      f"leak {leak['clean']} clean of {leak['of']} swept</p>")
@@ -429,17 +465,14 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
 
     # ---------------------------------------------------------------------------------- brief
     if t.get("brief_measured"):
-        parts.append("<h2>What this says (the BRIEF screen)</h2>")
-        parts.append(f"<p><b>{_pct(t['brief_paragraphs'])}</b> of {t['brief_cases']} paragraphs "
+        parts.append("<h2>The brief's answers (the BRIEF screen)</h2>")
+        parts.append(f"<p><b>{_pct(t['brief_answers'])}</b> of {t['brief_cases']} readings "
                      f"met all {len(brief_mod.MARK_NAMES)} marks · "
                      f"{t['brief_needs_input']} asked a question on a screen "
                      "with nobody to ask.</p>")
-        parts.append("<div class='banner note'><b>The context this subject sends is not, in one "
-                     "field, the context production sends.</b> keel-cloud renders the deciding "
-                     "line's number with <code>Measure.say</code>; this repo keeps no copy of that "
-                     "arithmetic, so the middle answer goes over in the founder's own unit "
-                     "(judgement call 19). And the paragraph is rendered whole on "
-                     "<a href='register.html'>register.html</a>, unscored.</div>")
+        parts.append("<div class='banner note'>Each case is handed keel-cloud's own facts for its entry "
+                     "(<code>BriefFactsCorpusTest</code>, call 84) where the run had them. The reading is "
+                     "rendered whole on <a href='register.html'>register.html</a>, unscored.</div>")
         by_mark = t.get("brief_by_mark") or {}
         parts.append("<table><tr><th>Mark</th><th>Met</th></tr>")
         for name in brief_mod.MARK_NAMES:
@@ -498,28 +531,6 @@ _REGISTER_CSS = """
 .side{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#8a8378;margin-bottom:4px}
 ul{margin:4px 0 0 18px;padding:0}
 """
-
-
-def wording_html(wording) -> str:
-    """Call 56: the wording rules the subject only instructs, counted per screen -- reported, never
-    a mark, and said so on the page."""
-    if not wording:
-        return ""
-    rows = []
-    for screen in ("calibration", "respondent"):
-        w = wording.get(screen) or {}
-        if not w.get("questions"):
-            continue
-        founder = (f" · W2 <i>do you think</i> {_esc(w.get('w2', 0))} · W6 second person "
-                   f"{_esc(w.get('w6', 0))}" if screen == "calibration" else "")
-        rows.append(f"{_esc(screen)}: {_esc(w.get('questions'))} questions with model text, "
-                    f"{_esc(w.get('words'))} words · W1 over length {_esc(w.get('w1', 0))} · "
-                    f"S1 clause first {_esc(w.get('s1', 0))}{founder} · W5 options over 8 words "
-                    f"{_esc(w.get('w5', 0))} of {_esc(w.get('options', 0))}")
-    if not rows:
-        return ""
-    return ("<p class='small'>Wording, <b>reported and never marked</b> (judgement call 56; "
-            "<code>window-frame-design.md</code> §3.6-§3.8): " + "; ".join(rows) + ".</p>")
 
 
 def _redraws_html(t: dict, redraws: list) -> str:
@@ -664,6 +675,15 @@ def _calibration_html(rows: list) -> str:
             out.append("<ul>" + "".join(
                 f"<li>{_esc(o.get('label'))} <span class='small'>({_esc(o.get('normalized'))}; "
                 f"{_esc(o.get('belief_phrase'))})</span></li>" for o in options) + "</ul>")
+        draft = row.get("list") or {}
+        if draft.get("phrase"):
+            out.append(f"<p class='small'>phrase: {_esc(draft.get('phrase'))}</p>")
+        if draft.get("items"):
+            out.append("<ol>" + "".join(
+                f"<li>{_esc(i.get('label'))}" + (f" <span class='small'>· asked: {_esc(i.get('asked'))}</span>"
+                                                 if i.get("asked") else "")
+                + (" <span class='small'>(suggested)</span>" if i.get("suggested") else "") + "</li>"
+                for i in draft["items"] if isinstance(i, dict)) + "</ol>")
         out.append("</div><div><div class='side'>the registry's own question, and the founder's "
                    "answer</div>"
                    f"<p>{_esc(row.get('founder_question') or '— the registry has none')}</p>"
@@ -794,10 +814,11 @@ def register_blocks(corpus, produced: dict, registry=None, aggregate: dict | Non
                 calibration = entry.founder_calibration.get(d.key) or {}
                 block["calibration"].append({
                     "key": d.key, "question": q.get("question"), "event": q.get("event"),
-                    "options": q.get("options"),
+                    "options": q.get("options"), "list": q.get("list"),
                     "founder_question": (d.lullaby or {}).get("founder_question")
                     if entry.id == "03-lullaby" else None,
-                    "belief_phrase": calibration.get("belief_phrase"),
+                    "belief_phrase": calibration.get("belief_phrase")
+                    or ((entry.tested(d.key) or {}).get("label") if d.founder_list else None),
                     "belief_sentence": calibration.get("belief_sentence")})
         for label in ("PART1", "PART2", "PART3", "B2B"):
             _case_id, result = mine.get(f"RESPONDENT_{label}", (None, None))

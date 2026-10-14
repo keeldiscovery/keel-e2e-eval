@@ -1,35 +1,38 @@
 """keel-cloud's dimension registry, read from the export and checked before a case is built
-(spec 029 FR-021, data-model §1, research R4; cut to twelve by keel-cloud 071 and spec 030; thirteen
-again since keel-cloud 073 and spec 031, Price back; cost first since keel-cloud 074 and spec 032).
+(spec 029 FR-021, data-model §1, research R4; registry 4 since keel-cloud 087 and spec 040).
 
 The registry is the **golden** for `dimension_coverage` and `option_validity` (judgement calls 30
-and 31): every control, code, bin, belief template and plan part a scorer checks a question
-against. keel-cloud 058 exports it as `dimension-registry.json` beside `model-routing.json`;
-`instructions/contract.read` loads it through `from_document` here. Nothing in this module is a
-copy of the cloud's registry -- the fixture under `tests/fixtures/registry/` is a hand-sized slice
-of keel-cloud 074's export.
+and 31): every control, code, list bound, escape, fixed answer, belief template and plan part a
+scorer checks a result against. keel-cloud 058 exports it as `dimension-registry.json` beside
+`model-routing.json`; `instructions/contract.read` loads it through `from_document` here. Nothing in
+this module is a copy of the cloud's registry -- the fixture under `tests/fixtures/registry/` is a
+hand-sized slice of keel-cloud 087's export.
+
+**Registry 4** (keel-cloud 087, `design-2026-10-14.md` §2; spec 040, judgement call 77): **all thirteen
+dimensions decide** (D3) -- there is no weight, no DEAL_BREAKER and no SHAPES anywhere, and a registry
+still carrying `weight`, `respondent.chips`, `common.chips`, `common.something_else` or
+`answers.status_vocabulary` is refused as unknown-shaped (invariant 0), never read. Seven dimensions are
+founder lists (`rival_list`, `scale_lines`, `item_list`, `benefit_list`, `role_list`, `one_step`) whose
+`founder.saves` bounds what the lock stores; every respondent item carries **one escape at most**
+(`respondent.escape {code, label, counts}`), and the five reshaped ones a registry-fixed answer set
+(`respondent.fixed_answers`, `supports`, `conditional`). Every respondent word is code's (keel-cloud
+088): the model writes the gate's `event` clause and nothing else on the respondent side.
 
 **The eight invariants are this repository's to check** (keel-cloud `registry-schema.md`
 §Invariants; spec 030 judgement call 46), because a mark of 1.00 is honest only against a registry
-that is itself well formed -- marks §2.2: *"1.00 is honest only because the registry fixes the
-codes"*. A registry that fails one is a **refusal to start** naming the invariant and the key,
-never a warning and never a score. At `MARKS_VERSION` 12 and 13 the registry is **thirteen keys, 4 / 3 / 6**
-(judgement call 59; keel-cloud 074's `DimensionRegistry`, mirrored): nine of them deal-breakers that
-can each read `NOT_HOLDING_UP`; `asked_in_v1` is gone (a registry still carrying it is refused as
-unknown-shaped, not ignored); the entry-level `b2b_only` sits on **Purchase friction alone** and
-Ability to pay is `b2b_link_only` on the respondent side (calibrated on every persona, asked on the
-decision-maker's link only); Existing sacrifice's founder control is `cost_estimate` over the five
-periods and the modes `AMOUNT · HOURS` (and, since v13, no `code_rule`: there are no kinds of cost),
-its respondent control `cost_total` yields a number (so it is drawn as an interval, invariant 6); Price is back as SHAPES over the same five periods
-(`day · week · month · quarter · year`, fixed to the cost's); Ability to pay's founder control is
-`derived` -- a `price_cost_ratio` from the registry's own keys, read by `cost_covers_price`.
+that is itself well formed. At registry 4 (087 FR-002): 1 keys (13, 4 / 3 / 6); 2 one escape at most,
+only Importance's counts against, none on the gate or Commitment; 3 b2b (Purchase friction `b2b_only`,
+Ability to pay `b2b_link_only`); 4 `{value}` exactly once in every belief template but the
+`benefit_list`'s, which has none; 5 codes (Prevalence's fifths, a list control's `saves`, fixed answers
+unique, the cost / price / derived / benefit shapes); 6 interval iff numeric control; 7 one gate; 8 every
+respondent option set fits the spoken guidelines -- at most five fixed answers, each at most nine words.
+A registry that fails one is a **refusal to start** naming the invariant and the key.
 
 **What a project calibrates, answers and asks is read here, never typed by a scorer** (calls 46,
 47, 59): `calibrated(b2b)` is every entry less the `b2b_only` one when the persona is not B2B (twelve
 on B2C, thirteen on B2B); `answered(b2b)` is that less the `derived` one, which code writes -- what
-the calibration job writes questions for (eleven / twelve); and `plan_keys(part, founder_calibration,
-link, b2b)` is what one link asks in one part -- keel-cloud 074's `DimensionRegistry.calibrated` /
-`answered` / `asked` and `EvidencePlan`, mirrored.
+the calibration job writes for (eleven / twelve); and `plan_keys(part, founder_calibration, link,
+b2b)` is what one link asks in one part.
 """
 
 from __future__ import annotations
@@ -41,26 +44,11 @@ from pathlib import Path
 
 VECTORS = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 
-#: Invariant 1: 13 keys, 4 / 3 / 6 (keel-cloud 073: `commercial.price` back at commercial order 2).
+#: Invariant 1: 13 keys, 4 / 3 / 6.
 PER_VECTOR = {"PROBLEM": 4, "SOLUTION": 3, "COMMERCIAL": 6}
 
-#: Invariant 2: the nine deal-breakers, exactly (`registry-schema.draft.md` §Invariants 2). Fixed
-#: by the schema rather than read off the file, because the point of the invariant is that the file
-#: cannot quietly promote or demote one.
-DEAL_BREAKERS = {
-    "PROBLEM": ("problem.prevalence", "problem.importance",
-                "problem.current_solution_satisfaction"),
-    "SOLUTION": ("solution.compatibility", "solution.relative_advantage",
-                 "solution.adoption_friction"),
-    "COMMERCIAL": ("commercial.existing_sacrifice", "commercial.buyer_payer_alignment",
-                   "commercial.commitment"),
-}
-
-#: Invariant 3: `b2b_only` on exactly Purchase friction (calibrated and asked only on a B2B persona),
-#: `b2b_link_only` on exactly Ability to pay (calibrated on every persona, asked on the
-#: decision-maker's link only; keel-cloud 074), and every entry asked in the part of its own vector
-#: -- 4 / 3 / 6 entries a part. On `PRIMARY` that is 3 / 3 / 4 after the gate; on `COMMERCIAL_B2B`
-#: the commercial part whole, 6.
+#: Invariant 3: `b2b_only` on exactly Purchase friction, `b2b_link_only` on exactly Ability to pay, and
+#: every entry asked in the part of its own vector -- 4 / 3 / 6 entries a part.
 B2B_ONLY = ("commercial.purchase_friction",)
 B2B_LINK_ONLY = ("commercial.ability_to_pay",)
 PER_PART = {1: 4, 2: 3, 3: 6}
@@ -70,45 +58,57 @@ PART_VECTOR = {1: "PROBLEM", 2: "SOLUTION", 3: "COMMERCIAL"}
 LINK_PRIMARY = "PRIMARY"
 LINK_B2B = "COMMERCIAL_B2B"
 
-#: The respondent controls a person taps or types and that owe no options (the model writes `null`):
-#: Frequency's 0-to-7 control, and the number it becomes on a recall window longer than 7.
-NUMERIC_RESPONDENT_CONTROLS = ("segmented_0_to_7", "number_with_unit")
-#: Invariant 6: the respondent controls whose answer is a number (`answers.shape == interval`) --
-#: keel-cloud 077's `RespondentControl.yieldsNumber`. `cost_total` joins the two above (Existing sacrifice
-#: is drawn as an interval, D-6) and, unlike v12's `branch_pick_amounts`, owes no options at all (call 67).
-COST_TOTAL_CONTROL = "cost_total"
-NUMBER_YIELDING_CONTROLS = NUMERIC_RESPONDENT_CONTROLS + (COST_TOTAL_CONTROL,)
-
 #: Invariant 7: the one gate.
 GATE_KEY = "problem.prevalence"
 GATE_CONTROL = "gate_yes_no"
+FREQUENCY_KEY = "problem.frequency"
+IMPORTANCE_KEY = "problem.importance"
+CURRENT_SOLUTION_KEY = "problem.current_solution_satisfaction"
+COMPATIBILITY_KEY = "solution.compatibility"
+ADOPTION_KEY = "solution.adoption_friction"
+BUYER_KEY = "commercial.buyer_payer_alignment"
+PURCHASE_FRICTION_KEY = "commercial.purchase_friction"
+COMMITMENT_KEY = "commercial.commitment"
 
-#: Respondent-only codes the registry adds on the respondent side and never offers the founder
-#: (registry decision 12).
-FIXED_RESPONDENT_CODES = {
-    "commercial.commitment": ("nothing_yet",),
-}
+#: The respondent controls whose answer is a number (`answers.shape == interval`, invariant 6):
+#: Frequency's 0-to-7 control and the number it becomes on a longer window, and Existing sacrifice's
+#: one total (keel-cloud 077).
+NUMERIC_RESPONDENT_CONTROLS = ("segmented_0_to_7", "number_with_unit")
+COST_TOTAL_CONTROL = "cost_total"
+NUMBER_YIELDING_CONTROLS = NUMERIC_RESPONDENT_CONTROLS + (COST_TOTAL_CONTROL,)
 
-#: Codes a respondent item adds that are no founder's option: the escapes and the respondent-only
-#: fixed codes above. What is left of a golden plan row's codes once these go is the founder's own
-#: option set -- `founder_options` on the respondent screen, and what `option_validity` requires
-#: present.
-RESPONDENT_ESCAPES = ("something_else", "nothing", "never_came_up", "would_not_fit",
-                      "nothing_would_change", "free_or_gift", "it_was_free", "would_not_reach",
-                      "nothing_yet", "would_not_pay")
+#: keel-cloud 087's `FounderControl`: the founder lists (D4, D5, D7) beside the five unchanged controls.
+LIST_FOUNDER_CONTROLS = ("rival_list", "scale_lines", "item_list", "benefit_list", "role_list", "one_step")
+FOUNDER_CONTROLS = ("single_choice", "numeric_interval") + LIST_FOUNDER_CONTROLS + (
+    "cost_estimate", "price_range", "derived")
+#: keel-cloud 087's `RespondentControl`.
+RESPONDENT_CONTROLS = ("gate_yes_no", "segmented_0_to_7", "number_with_unit", "single_choice",
+                       "single_choice_5", "pick_two", "fixed_four", "fixed_three", "cost_total",
+                       "price_ladder", "benefit_with_advantages")
+#: The controls whose answers are the registry's fixed set (`respondent.fixed_answers`).
+FIXED_ANSWER_CONTROLS = ("fixed_four", "fixed_three")
+#: keel-cloud 087's `CompareRule`.
+COMPARE_RULES = ("proportion_from_gate", "interval_contains_median", "share_in_picks", "below_line",
+                 "fixed_last_two_against", "benefit_first", "ordinal_band", "cost_covers_price",
+                 "first_supports", "caution_turned")
+#: An escape is apart, or (Importance's alone) counted against (087 FR-004).
+ESCAPE_COUNTS = ("apart", "against")
+
+#: Invariant 8 (087 FR-002, the spoken guidelines §2): a fixed answer set is at most five answers, each
+#: at most nine words.
+MAX_FIXED_ANSWERS = 5
+MAX_ANSWER_WORDS = 9
 
 #: The founder-side numeric control: no options, a spec the registry owns.
 NUMERIC_FOUNDER_CONTROLS = ("numeric_interval",)
 
-#: Price (keel-cloud 073, judgement call 50; 074): the founder states a range, rendered by code over the
-#: cost's period -- no options, and no question text the model writes (call 53).
+#: Price (keel-cloud 073 / 074): the founder states a range, rendered by code over the cost's period.
 PRICE_KEY = "commercial.price"
 PRICE_FOUNDER_CONTROL = "price_range"
 #: keel-cloud 074's `Period.wires()`: the five periods a cost is stated over, and a price is fixed to.
 PERIODS = ("day", "week", "month", "quarter", "year")
-#: Invariant 5 (074): a `price_range` entry's periods are exactly `PriceLadder.PERIODS` = `Period.wires()`.
 PRICE_PERIODS = PERIODS
-#: The cost estimate (074): the founder's control on Existing sacrifice, its modes (`CalibrationAnswer.Cost.MODES`).
+#: The cost estimate (074): the founder's control on Existing sacrifice, its modes.
 COST_FOUNDER_CONTROL = "cost_estimate"
 COST_MODES = ("AMOUNT", "HOURS")
 #: Ability to pay (074): derived by code from the cost and the price, read by `cost_covers_price`.
@@ -117,56 +117,45 @@ DERIVED_FOUNDER_CONTROL = "derived"
 DERIVED_COMPARE_RULE = "cost_covers_price"
 #: `AbilityToPay`'s four bands (with decision 2, 2026-10-10).
 ABILITY_BANDS = ("small_share", "mostly_from_spend", "some_from_spend", "new_money")
-#: Relative advantage, benefit first (keel-cloud 085, call 81): the founder ticks one to four advantages
-#: (`multi_choice`), and the respondent's item is code's whole -- better / no difference / worse, and under
-#: better the founder's ticks -- read by `benefit_first`. The model writes the founder's question and five
-#: options as before, and for the respondent the item's key alone.
+#: Relative advantage, benefit first (keel-cloud 085; 087 makes the founder's ticks a `benefit_list`).
 BENEFIT_KEY = "solution.relative_advantage"
 BENEFIT_CONTROL = "benefit_with_advantages"
 BENEFIT_RULE = "benefit_first"
-BENEFIT_FOUNDER_CONTROL = "multi_choice"
+BENEFIT_FOUNDER_CONTROL = "benefit_list"
 BENEFIT_CODES = ("positive", "neutral", "negative")
 BENEFIT_MAX_TICKS = 4
-#: The respondent controls whose question and options are wholly code's (calls 53, 67, 81): the model owes
-#: the item's key and nothing else, and nothing it writes there is read. Since keel-cloud 077 that is
-#: Price's ladder and Existing sacrifice's one total (no kinds, so no options and no units); since 085
-#: Relative advantage's benefit item -- on the **respondent** side only (its founder question is still the
-#: model's, so `score.model_text` / `is_swept` read the code-written control on the respondent side only).
-CODE_WRITTEN_RESPONDENT_CONTROLS = ("price_ladder", COST_TOTAL_CONTROL, BENEFIT_CONTROL)
-#: Existing sacrifice's respondent control since 077: one total (`AMOUNT | HOURS`, one number) over the
-#: founder's recall period. `branch_pick_amounts` (073-076) is gone, and is refused by name.
-GONE_AMOUNTS_CONTROL = "branch_pick_amounts"
 #: Existing sacrifice: its question names no offer (keel-cloud 072 D-2).
 SACRIFICE_KEY = "commercial.existing_sacrifice"
 
-
-def names_the_offer(dimension) -> bool:
-    """`ScreenResultApplier.namesTheOffer` (call 55): the questions W3 / W8 hold to the name --
-    every SOLUTION and COMMERCIAL entry but Existing sacrifice, which asks what the problem already
-    costs and names no offer (keel-cloud 072 D-2)."""
-    return dimension.vector != "PROBLEM" and dimension.key != SACRIFICE_KEY
+#: Invariant 0: the registry-3 shape keel-cloud 087 removed (D3, D2) -- refused by name, never ignored.
+GONE_ENTRY_KEYS = ("weight",)
+GONE_RESPONDENT_KEYS = ("chips", "asked_in_v1", "codes")
+GONE_ANSWER_KEYS = ("status_vocabulary",)
+GONE_COMMON_KEYS = ("chips", "something_else")
 
 
 #: keel-cloud 058 (2026-10-07): the registry carries `{window}` / `{window_unit}` placeholders, the
-#: project's recall window, filled by code. Founder decision 42 (2026-10-08) made the window COUNT +
-#: UNIT, chosen at the Context step; every r3 entry records its own as `context.recall_window`.
+#: project's recall window, filled by code. Founder decision 42 made the window COUNT + UNIT; D13
+#: (2026-10-14, keel-cloud 087) took the one-unit window away: `CYCLES` and `SHIFTS` are gone and a
+#: window counts at least two.
 _WINDOW_UNITS = {
-    # Appended only, never reordered -- `RecallWindow.Unit`'s order and words.
+    # `RecallWindow.Unit`'s order and words.
     "NIGHTS": ("night", "nights"), "DAYS": ("day", "days"),
     "WORKING_DAYS": ("working day", "working days"), "WEEKS": ("week", "weeks"),
-    "MONTHS": ("month", "months"), "CYCLES": ("cycle", "cycles"), "SHIFTS": ("shift", "shifts"),
+    "MONTHS": ("month", "months"),
 }
 _LEGACY_WINDOWS = {"SEVEN_NIGHTS": (7, "NIGHTS"), "SEVEN_DAYS": (7, "DAYS"),
-                   "FIVE_WORKING_DAYS": (5, "WORKING_DAYS"), "THIRTY_DAYS": (30, "DAYS"),
-                   "LAST_CYCLE": (1, "CYCLES")}
+                   "FIVE_WORKING_DAYS": (5, "WORKING_DAYS"), "THIRTY_DAYS": (30, "DAYS")}
+#: D13: the smallest count a recall window takes.
+WINDOW_MIN_COUNT = 2
 
 
 @dataclass(frozen=True)
 class RecallWindow:
-    """keel-cloud 058's `domain.vectors.RecallWindow` (5fc7220), mirrored: the words `{window}` and
-    `{window_unit}` are filled with. Code fills both; a model never does -- and since keel-cloud 072
-    code writes the windowed questions too, so the ways `C7` / `R8` accepted a question naming the
-    window (`said`, `is_named_in`) retired with those rules (judgement call 52)."""
+    """keel-cloud's `domain.vectors.RecallWindow`, mirrored: the words `{window}` and `{window_unit}`
+    are filled with. Code fills both; a model never does. Since D13 (keel-cloud 087) a window counts at
+    least two of nights / days / working days / weeks / months -- so Frequency is asked on every
+    project and there is no one-unit branch anywhere (DRIFT #74 closed by construction)."""
 
     count: int
     unit: str
@@ -174,10 +163,12 @@ class RecallWindow:
     def __post_init__(self):
         if self.unit not in _WINDOW_UNITS:
             raise ValueError(f"{self.unit!r} is not a recall-window unit; use one of "
-                                f"{list(_WINDOW_UNITS)}")
-        if not isinstance(self.count, int) or isinstance(self.count, bool) or self.count < 1:
-            raise ValueError(f"a recall window counts at least one "
-                                f"{_WINDOW_UNITS[self.unit][0]}, and this was {self.count!r}")
+                             f"{list(_WINDOW_UNITS)} (CYCLES and SHIFTS went with D13)")
+        if not isinstance(self.count, int) or isinstance(self.count, bool) \
+                or self.count < WINDOW_MIN_COUNT:
+            raise ValueError(f"a recall window counts at least {WINDOW_MIN_COUNT} "
+                             f"{_WINDOW_UNITS[self.unit][1]} (D13: no one-unit window), and this was "
+                             f"{self.count!r}")
 
     @property
     def singular(self) -> str:
@@ -188,9 +179,8 @@ class RecallWindow:
         return _WINDOW_UNITS[self.unit][1]
 
     def words(self) -> str:
-        """`{window}`: "the last 7 nights", or "the last shift" for a count of 1."""
-        return f"the last {self.singular}" if self.count == 1 else \
-            f"the last {self.count} {self.plural}"
+        """`{window}`: "the last 7 nights"."""
+        return f"the last {self.count} {self.plural}"
 
     def unit_words(self) -> str:
         """`{window_unit}` -- Java's `unit()`: Frequency's unit, "nights out of 7"."""
@@ -200,20 +190,14 @@ class RecallWindow:
         return None if text is None else \
             text.replace("{window_unit}", self.unit_words()).replace("{window}", self.words())
 
-    @property
-    def frames_frequency(self) -> bool:
-        """`WindowFrame.framesFrequency`: Frequency is code's sentence on a window of more than one
-        unit ("those 7 nights"); a one-unit window keeps a model-written question (call 52)."""
-        return self.count > 1
-
     def to_map(self) -> dict:
         """`{count, unit}`, as the wire and the job carry it."""
         return {"count": self.count, "unit": self.unit}
 
     @classmethod
     def read(cls, raw):
-        """`RecallWindow.read`: a `{count, unit}` map, or a legacy five-value name (upcast);
-        `None` reads `None`, anything else is refused."""
+        """`RecallWindow.read`: a `{count, unit}` map, or a legacy multi-unit name (upcast); `None`
+        reads `None`, anything else -- `LAST_CYCLE` among it -- is refused."""
         if raw is None or isinstance(raw, cls):
             return raw
         if isinstance(raw, dict):
@@ -245,6 +229,11 @@ def fill_window(node, window=DEFAULT_WINDOW):
     return node
 
 
+def words(text) -> int:
+    """`DimensionRegistry.words` / `SpokenForm.words`: whitespace-separated words."""
+    return len(str(text or "").split())
+
+
 class RegistryUnavailable(RuntimeError):
     """The registry could not be read, or it fails an invariant -- a reason to stop, never a score."""
 
@@ -256,7 +245,6 @@ class Dimension:
     order: int
     name: str
     meaning: str
-    weight: str
     founder: dict
     respondent: dict
     answers: dict
@@ -264,6 +252,8 @@ class Dimension:
     lullaby: dict = field(default_factory=dict)
     #: keel-cloud 071: calibrated and asked only when the persona is B2B (074: Purchase friction alone).
     b2b_only: bool = False
+    #: The entry's own top-level keys as exported, so invariant 0 can name a removed one.
+    raw_keys: tuple = ()
 
     @property
     def normalized(self) -> dict:
@@ -271,7 +261,7 @@ class Dimension:
 
     @property
     def codes(self):
-        """The fixed founder codes, or the string `model_written`, or `None` for a numeric spec."""
+        """The fixed founder codes (Prevalence's fifths), or `None`."""
         return self.normalized.get("codes")
 
     @property
@@ -284,23 +274,40 @@ class Dimension:
         return self.respondent.get("part")
 
     @property
+    def founder_control(self):
+        return self.founder.get("control")
+
+    @property
+    def respondent_control(self):
+        return self.respondent.get("control")
+
+    @property
     def founder_numeric(self) -> bool:
-        return self.founder.get("control") in NUMERIC_FOUNDER_CONTROLS
+        return self.founder_control in NUMERIC_FOUNDER_CONTROLS
 
     @property
     def founder_price(self) -> bool:
-        """Price's founder side (call 53): a range and a period, code's input and code's question."""
-        return self.founder.get("control") == PRICE_FOUNDER_CONTROL
+        return self.founder_control == PRICE_FOUNDER_CONTROL
 
     @property
     def founder_cost(self) -> bool:
-        """Existing sacrifice's founder side (074): a cost estimate rendered and framed by code."""
-        return self.founder.get("control") == COST_FOUNDER_CONTROL
+        return self.founder_control == COST_FOUNDER_CONTROL
 
     @property
     def derived(self) -> bool:
         """Ability to pay's founder side (074): written by code, asked of no one, in no model job."""
-        return self.founder.get("control") == DERIVED_FOUNDER_CONTROL
+        return self.founder_control == DERIVED_FOUNDER_CONTROL
+
+    @property
+    def founder_list(self) -> bool:
+        """A founder list (087 D5, D7): the model drafts it, the founder edits it, the lock stores it."""
+        return self.founder_control in LIST_FOUNDER_CONTROLS
+
+    @property
+    def saves(self) -> dict:
+        """`founder.saves` -- `{min_items, max_items, max_words, picked, phrase?, own_first?, asked?,
+        fixed_first?}` -- on a list dimension, `{}` elsewhere."""
+        return dict(self.founder.get("saves") or {})
 
     @property
     def b2b_link_only(self) -> bool:
@@ -308,9 +315,19 @@ class Dimension:
         return self.respondent.get("b2b_link_only") is True
 
     @property
-    def respondent_code_written(self) -> bool:
-        """An item whose question and options are wholly code's (call 53: the Price ladder)."""
-        return self.respondent.get("control") in CODE_WRITTEN_RESPONDENT_CONTROLS
+    def escape(self) -> dict | None:
+        """The one escape (087 FR-001; the spoken guidelines §5), `{code, label, counts}`, or `None`."""
+        escape = self.respondent.get("escape")
+        return dict(escape) if isinstance(escape, dict) else None
+
+    @property
+    def fixed_answers(self) -> list:
+        """`respondent.fixed_answers` -- `[{code, label}]` -- or `[]`."""
+        return [dict(a) for a in self.respondent.get("fixed_answers") or [] if isinstance(a, dict)]
+
+    @property
+    def fixed_answer_codes(self) -> list:
+        return [a.get("code") for a in self.fixed_answers]
 
     @property
     def benefit_first(self) -> bool:
@@ -318,18 +335,8 @@ class Dimension:
         return self.answers.get("compare_rule") == BENEFIT_RULE
 
     @property
-    def respondent_numeric(self) -> bool:
-        return self.respondent.get("control") in NUMERIC_RESPONDENT_CONTROLS + (GATE_CONTROL,)
-
-    @property
-    def founder_code_framed(self) -> bool:
-        """Questions code composes whole (calls 53, 61, 67): Price and Existing sacrifice (and Ability to pay,
-        which is asked of no one). The model owes these no question text, and no options."""
-        return self.founder_price or self.founder_cost or self.derived
-
-    @property
-    def status_vocabulary(self) -> list:
-        return list(self.answers.get("status_vocabulary") or [])
+    def compare_rule(self):
+        return self.answers.get("compare_rule")
 
 
 @dataclass(frozen=True)
@@ -352,20 +359,11 @@ class Registry:
         return any(d.key == key for d in self.dimensions)
 
     def slice(self, vector: str) -> list[Dimension]:
-        """The calibration job's input for one vector: its dimensions, in `order`."""
+        """One vector's dimensions, in `order`."""
         return sorted((d for d in self.dimensions if d.vector == vector), key=lambda d: d.order)
 
     def part_of(self, key: str):
         return self.by_key(key).part
-
-    def codes_of(self, key: str):
-        return self.by_key(key).codes
-
-    def fixed_respondent_codes(self, key: str) -> list[str]:
-        return list(FIXED_RESPONDENT_CODES.get(key, ()))
-
-    def deal_breakers(self, vector: str) -> list[str]:
-        return [d.key for d in self.slice(vector) if d.weight == "DEAL_BREAKER"]
 
     def b2b_only(self) -> list[str]:
         return [d.key for d in self.dimensions if d.b2b_only]
@@ -374,26 +372,24 @@ class Registry:
         return [d.key for d in self.dimensions if d.b2b_link_only]
 
     def calibrated(self, b2b: bool) -> list[Dimension]:
-        """The entries a project calibrates (calls 47, 59; keel-cloud 074 `calibrated(b2b)`): every
-        entry, less the `b2b_only` one when the persona is not B2B -- in vector order, then
-        `order`. Twelve on B2C, thirteen on B2B."""
+        """The entries a project calibrates (calls 47, 59): every entry, less the `b2b_only` one when
+        the persona is not B2B -- in vector order, then `order`. Twelve on B2C, thirteen on B2B. **All of
+        them decide** (D3): a vector's verdict is the worst of its calibrated dimensions."""
         return [d for vector in VECTORS for d in self.slice(vector) if b2b or not d.b2b_only]
 
     def calibrated_keys(self, b2b: bool) -> list[str]:
         return [d.key for d in self.calibrated(b2b)]
 
     def calibrated_slice(self, vector: str, b2b: bool) -> list[Dimension]:
-        """One vector's calibrated entries: the standings' and the verdicts' set."""
+        """One vector's calibrated entries: the standings' and the verdict's set."""
         return [d for d in self.slice(vector) if b2b or not d.b2b_only]
 
     def answered(self, b2b: bool) -> list[Dimension]:
-        """keel-cloud 074 `answered(vector, b2b)`: the calibrated entries less the `derived` one, which
-        code writes (call 59). Eleven on B2C, twelve on B2B."""
+        """keel-cloud 074 `answered(vector, b2b)`: the calibrated entries less the `derived` one."""
         return [d for d in self.calibrated(b2b) if not d.derived]
 
     def answered_slice(self, vector: str, b2b: bool) -> list[Dimension]:
-        """One vector's answered entries: the calibration job's input, and its coverage and validity
-        denominator (call 61)."""
+        """One vector's answered entries: the calibration job's slice, and its coverage denominator."""
         return [d for d in self.calibrated_slice(vector, b2b) if not d.derived]
 
     def asked(self, link: str, b2b: bool) -> list[Dimension]:
@@ -407,15 +403,13 @@ class Registry:
 
     @staticmethod
     def link_of(part: int, b2b: bool) -> str:
-        """The link a part is asked on (keel-cloud `EvidencePlan`, decision 26): part 3 of a B2B
-        study is the decision-maker's, never the primary link's."""
+        """The link a part is asked on: part 3 of a B2B study is the decision-maker's."""
         return LINK_B2B if (b2b and part == 3) else LINK_PRIMARY
 
     def plan_keys(self, part: int, founder_calibration: dict, link: str = LINK_PRIMARY,
                   b2b: bool = False) -> list[str]:
         """The respondent items of one part on one link (calls 30, 47): asked on that link, in this
-        part, and not left out by the founder -- in vector order, then `order`. What production's
-        `EVIDENCE_PLAN` hands the job, and the respondent denominator of `dimension_coverage`."""
+        part, and not left out by the founder -- in vector order, then `order`."""
         out = []
         for d in self.asked(link, b2b):
             if d.part != part:
@@ -433,20 +427,19 @@ def _dimension(raw: dict) -> Dimension:
     return Dimension(
         key=raw.get("key"), vector=raw.get("vector"), order=raw.get("order"),
         name=raw.get("name") or "", meaning=raw.get("meaning") or "",
-        weight=raw.get("weight"), founder=dict(raw.get("founder") or {}),
+        founder=dict(raw.get("founder") or {}),
         respondent=dict(raw.get("respondent") or {}), answers=dict(raw.get("answers") or {}),
         left_out=dict(raw.get("left_out") or {}), lullaby=dict(raw.get("lullaby") or {}),
-        b2b_only=raw.get("b2b_only") is True)
+        b2b_only=raw.get("b2b_only") is True, raw_keys=tuple(raw))
 
 
 def from_document(document, *, source: str = "", check: bool = True) -> Registry:
     """A registry from its exported shape -- `{version?, common, dimensions: [...]}` -- checked
-    against the eight invariants unless `check` is false (the invariant tests ask for the
-    unchecked object to show each refusal on its own)."""
+    against the eight invariants unless `check` is false."""
     if not isinstance(document, dict) or not isinstance(document.get("dimensions"), list):
         raise RegistryUnavailable(
             f"{source or 'the registry'} is not a dimension registry: expected an object with a "
-            "`dimensions` list (registry-schema.draft.md)")
+            "`dimensions` list (registry-schema.md)")
     registry = Registry(dimensions=tuple(_dimension(d) for d in document["dimensions"]),
                         common=dict(document.get("common") or {}),
                         version=document.get("version"), source=source)
@@ -454,7 +447,7 @@ def from_document(document, *, source: str = "", check: bool = True) -> Registry
         faults = check_invariants(registry)
         if faults:
             raise RegistryUnavailable(
-                f"{source or 'the registry'} fails registry-schema.draft.md's invariants -- "
+                f"{source or 'the registry'} fails registry-schema.md's invariants -- "
                 "refusing to build a case against it:\n  " + "\n  ".join(faults))
     return registry
 
@@ -527,15 +520,26 @@ def check_invariants(registry: Registry) -> list[str]:
     total = sum(PER_VECTOR.values())
     split = " / ".join(str(n) for n in PER_VECTOR.values())
 
-    # 0. The shape v10 reads: `asked_in_v1` is gone (call 46) -- refused as unknown-shaped, never
-    #    ignored, because a registry still carrying it is not the one this rubric was written for.
+    # 0. The shape registry 4 reads: what keel-cloud 087 removed is refused by name, never ignored.
     for d in dims:
-        if "asked_in_v1" in d.respondent:
-            faults.append(f"unknown shape: {d.key} carries respondent.asked_in_v1, which keel-cloud "
-                          "071 removed (every entry is asked; b2b_only marks the B2B pair) -- "
-                          "judgement call 46")
+        for name in GONE_ENTRY_KEYS:
+            if name in d.raw_keys:
+                faults.append(f"unknown shape: {d.key} carries `{name}`, which keel-cloud 087 removed "
+                              "(D3: all thirteen dimensions decide) -- judgement call 77")
+        for name in GONE_RESPONDENT_KEYS:
+            if name in d.respondent:
+                faults.append(f"unknown shape: {d.key} carries respondent.{name}, which keel-cloud "
+                              "087 / 088 removed (one escape, code's codes) -- judgement call 77")
+        for name in GONE_ANSWER_KEYS:
+            if name in d.answers:
+                faults.append(f"unknown shape: {d.key} carries answers.{name}, which keel-cloud 087 "
+                              "removed (every dimension reaches the five statuses) -- judgement call 77")
+    for name in GONE_COMMON_KEYS:
+        if name in registry.common:
+            faults.append(f"unknown shape: the registry carries common.{name}, which keel-cloud 087 "
+                          "removed -- judgement call 77")
 
-    # 1. 13 keys, 4 / 3 / 6, `order` contiguous from 1 within each vector (call 50).
+    # 1. 13 keys, 4 / 3 / 6, `order` contiguous from 1 within each vector.
     if len(keys) != total or len(set(keys)) != len(keys):
         faults.append(f"invariant 1 ({total} unique keys): the registry has {len(set(keys))} "
                       f"unique of {len(keys)}")
@@ -553,19 +557,28 @@ def check_invariants(registry: Registry) -> list[str]:
     if unknown:
         faults.append(f"invariant 1 (vectors): {', '.join(unknown)} name no vector")
 
-    # 2. The nine deal-breakers, exactly.
-    expected = {k for keys_ in DEAL_BREAKERS.values() for k in keys_}
-    actual = {d.key for d in dims if d.weight == "DEAL_BREAKER"}
-    for key in sorted(actual - expected):
-        faults.append(f"invariant 2 (the nine deal-breakers): {key} is a DEAL_BREAKER and the "
-                      "schema does not make it one")
-    for key in sorted(expected - actual):
-        faults.append(f"invariant 2 (the nine deal-breakers): {key} is not a DEAL_BREAKER")
+    # 2. One escape at most (087 FR-002): `{code, label, counts}`; only Importance's counts against;
+    #    none on the gate or Commitment.
     for d in dims:
-        if d.weight not in ("DEAL_BREAKER", "SHAPES"):
-            faults.append(f"invariant 2 (weights): {d.key} weighs {d.weight!r}")
+        raw = d.respondent.get("escape")
+        if raw is None:
+            if d.key not in (GATE_KEY, COMMITMENT_KEY):
+                faults.append(f"invariant 2 (one escape): {d.key} carries none; only the gate and "
+                              "Commitment have no way out")
+            continue
+        if not isinstance(raw, dict) or not raw.get("code") or not raw.get("label") \
+                or raw.get("counts") not in ESCAPE_COUNTS:
+            faults.append(f"invariant 2 (one escape): {d.key}'s escape is {raw!r}; it is one "
+                          f"{{code, label, counts: {' | '.join(ESCAPE_COUNTS)}}}")
+            continue
+        if d.key in (GATE_KEY, COMMITMENT_KEY):
+            faults.append(f"invariant 2 (one escape): {d.key} carries an escape; the gate and "
+                          "Commitment have none")
+        if (raw.get("counts") == "against") != (d.key == IMPORTANCE_KEY):
+            faults.append(f"invariant 2 (one escape): {d.key}'s escape counts "
+                          f"{raw.get('counts')!r}; only Importance's counts against")
 
-    # 3. `b2b_only` on exactly Purchase friction, `b2b_link_only` on exactly Ability to pay (074);
+    # 3. `b2b_only` on exactly Purchase friction, `b2b_link_only` on exactly Ability to pay;
     #    every entry asked in its own vector's part, 4 / 3 / 6.
     flagged = {d.key for d in dims if d.b2b_only}
     for key in sorted(flagged - set(B2B_ONLY)):
@@ -594,16 +607,27 @@ def check_invariants(registry: Registry) -> list[str]:
             faults.append(f"invariant 3 (parts): {d.key} is asked in part {d.part}, which asks "
                           f"{PART_VECTOR[d.part]}")
 
-    # 4. `{value}` exactly once in every belief template.
+    # 4. `{value}` exactly once in every belief template but the benefit list's, which has none.
     for d in dims:
         template = str(d.founder.get("belief_template") or "")
-        if template.count("{value}") != 1:
-            faults.append(f"invariant 4 ({{value}} exactly once): {d.key}'s belief template "
-                          f"carries it {template.count('{value}')} times")
+        want = 0 if d.benefit_first else 1           # the benefit list's template names no value
+        if template.count("{value}") != want:
+            faults.append(f"invariant 4 ({{value}} {'never' if want == 0 else 'exactly once'}): "
+                          f"{d.key}'s belief template carries it {template.count('{value}')} times")
 
-    # 5. Fixed codes 4-6, none repeated; numeric bins contiguous and ordered; a `price_range`
-    #    entry's periods exactly the five of `Period.wires` (keel-cloud 074, `PriceLadder.PERIODS`; `one_off` was 073's).
+    # 5. Codes: the controls are keel-cloud 087's; Prevalence's fifths 4-6, unique, contiguous; a list
+    #    control's `saves` bounds; fixed answers unique, their supports theirs; the price, cost, derived
+    #    and benefit shapes.
     for d in dims:
+        if d.founder_control not in FOUNDER_CONTROLS:
+            faults.append(f"invariant 5 (founder controls): {d.key}'s founder control is "
+                          f"{d.founder_control!r}, not one of keel-cloud 087's")
+        if d.respondent_control not in RESPONDENT_CONTROLS:
+            faults.append(f"invariant 5 (respondent controls): {d.key}'s respondent control is "
+                          f"{d.respondent_control!r}, not one of keel-cloud 087's")
+        if d.compare_rule not in COMPARE_RULES:
+            faults.append(f"invariant 5 (compare rules): {d.key} is read by {d.compare_rule!r}, not "
+                          "one of keel-cloud 087's")
         codes = d.fixed_codes
         if codes is not None:
             if not 4 <= len(codes) <= 6:
@@ -615,15 +639,39 @@ def check_invariants(registry: Registry) -> list[str]:
             if not _proportion_bins_contiguous(codes):
                 faults.append(f"invariant 5 (contiguous bins): {d.key}'s proportion bins have a "
                               "gap")
-        elif d.codes is not None and d.codes != "model_written":
+        elif d.codes is not None:
             faults.append(f"invariant 5 (codes): {d.key}'s codes are {d.codes!r}")
+        if d.founder_list:
+            saves = d.saves
+            low, high, most = saves.get("min_items"), saves.get("max_items"), saves.get("max_words")
+            if not (isinstance(low, int) and isinstance(high, int) and 0 < low <= high
+                    and isinstance(most, int) and most > 0 and isinstance(saves.get("picked"), bool)):
+                faults.append(f"invariant 5 (a list's saves): {d.key} is a {d.founder_control} whose "
+                              f"saves are {saves!r}; it bounds min_items <= max_items, max_words and "
+                              "picked")
+        elif d.founder.get("saves") is not None:
+            faults.append(f"invariant 5 (a list's saves): {d.key} carries saves on a "
+                          f"{d.founder_control!r} control")
+        answers = d.fixed_answer_codes
+        if d.respondent_control in FIXED_ANSWER_CONTROLS and not answers:
+            faults.append(f"invariant 5 (fixed answers): {d.key} is {d.respondent_control} with no "
+                          "fixed_answers")
+        if answers:
+            if len(set(answers)) != len(answers) or not all(answers):
+                faults.append(f"invariant 5 (fixed answers unique): {d.key}'s codes are {answers}")
+            supports = list(d.respondent.get("supports") or [])
+            if not set(supports) <= set(answers):
+                faults.append(f"invariant 5 (fixed answers): {d.key}'s supports {supports} are not "
+                              f"among its answers {answers}")
+            conditional = d.respondent.get("conditional")
+            if conditional is not None and conditional not in supports:
+                faults.append(f"invariant 5 (fixed answers): {d.key}'s conditional {conditional!r} is "
+                              "not one of its supports")
         if d.normalized.get("kind") == PRICE_FOUNDER_CONTROL or d.founder_price:
             periods = d.normalized.get("periods")
             if list(periods or []) != list(PRICE_PERIODS):
                 faults.append(f"invariant 5 (price periods): {d.key}'s periods are {periods!r}, not "
                               f"{list(PRICE_PERIODS)}")
-        # keel-cloud 074: a cost names the five periods and the two modes; an entry is derived on both
-        # sides or neither, is read by cost_covers_price, and is derived from registry keys.
         if d.normalized.get("kind") == "cost" or d.founder_cost:
             periods, modes = d.normalized.get("periods"), d.normalized.get("modes")
             if list(periods or []) != list(PERIODS):
@@ -635,52 +683,55 @@ def check_invariants(registry: Registry) -> list[str]:
             if "code_rule" in d.normalized:        # keel-cloud 077: no kinds of cost anywhere
                 faults.append(f"invariant 5 (a cost has no kinds): {d.key} carries a code_rule; "
                               "keel-cloud 077 removed the respondent's kinds")
-            if d.respondent.get("control") != COST_TOTAL_CONTROL:
+            if d.respondent_control != COST_TOTAL_CONTROL:
                 faults.append(f"invariant 5 (one total): {d.key}'s respondent control is "
-                              f"{d.respondent.get('control')!r}, not {COST_TOTAL_CONTROL!r}")
+                              f"{d.respondent_control!r}, not {COST_TOTAL_CONTROL!r}")
         derived_kind = d.normalized.get("kind") == "price_cost_ratio"
         if derived_kind != d.derived:
             faults.append(f"invariant 5 (derived on both sides): {d.key} is derived on one side only: "
-                          f"control {d.founder.get('control')!r}, normalized "
-                          f"{d.normalized.get('kind')!r}")
+                          f"control {d.founder_control!r}, normalized {d.normalized.get('kind')!r}")
         if derived_kind:
             sources = list(d.normalized.get("from") or [])
             if not sources or not all(k in keys for k in sources):
                 faults.append(f"invariant 5 (derived from keys): {d.key} is derived from {sources!r}, "
                               "which are not all registry keys")
-            if d.answers.get("compare_rule") != DERIVED_COMPARE_RULE:
+            if d.compare_rule != DERIVED_COMPARE_RULE:
                 faults.append(f"invariant 5 (derived is cost_covers_price): {d.key} is derived and "
-                              f"read by {d.answers.get('compare_rule')!r}")
-        # keel-cloud 085: the benefit rule and the benefit control go together, the founder ticks a set.
-        if d.benefit_first != (d.respondent.get("control") == BENEFIT_CONTROL):
+                              f"read by {d.compare_rule!r}")
+        if d.benefit_first != (d.respondent_control == BENEFIT_CONTROL):
             faults.append(f"invariant 5 (benefit on both sides): {d.key} is read by "
-                          f"{d.answers.get('compare_rule')!r} on a {d.respondent.get('control')!r} control")
-        if d.benefit_first and d.founder.get("control") != BENEFIT_FOUNDER_CONTROL:
-            faults.append(f"invariant 5 (the founder ticks advantages): {d.key}'s founder control is "
-                          f"{d.founder.get('control')!r}, not {BENEFIT_FOUNDER_CONTROL!r}")
+                          f"{d.compare_rule!r} on a {d.respondent_control!r} control")
+        if d.benefit_first and d.founder_control != BENEFIT_FOUNDER_CONTROL:
+            faults.append(f"invariant 5 (the founder lists benefits): {d.key}'s founder control is "
+                          f"{d.founder_control!r}, not {BENEFIT_FOUNDER_CONTROL!r}")
         bins = d.normalized.get("bins")
         if bins is not None and not _bins_contiguous(bins):
             faults.append(f"invariant 5 (contiguous bins): {d.key}'s bins {bins} are not "
                           "contiguous and ordered")
 
-    # 6. `answers.shape == interval` iff the respondent control yields a number (074: Existing
-    #    sacrifice's `cost_total` since 077; `branch_pick_amounts` before).
+    # 6. `answers.shape == interval` iff the respondent control yields a number.
     for d in dims:
-        numeric = d.respondent.get("control") in NUMBER_YIELDING_CONTROLS
+        numeric = d.respondent_control in NUMBER_YIELDING_CONTROLS
         shape = d.answers.get("shape")
         if numeric != (shape == "interval"):
             faults.append(f"invariant 6 (interval iff numeric control): {d.key} answers as "
-                          f"{shape!r} on a {d.respondent.get('control')!r} control")
+                          f"{shape!r} on a {d.respondent_control!r} control")
 
     # 7. The gate is problem.prevalence's, and nobody else's.
-    gates = [d.key for d in dims if d.respondent.get("control") == GATE_CONTROL]
+    gates = [d.key for d in dims if d.respondent_control == GATE_CONTROL]
     if gates != [GATE_KEY]:
         faults.append(f"invariant 7 (the one gate): gate_yes_no is on "
                       f"{', '.join(gates) or 'no dimension'}, and must be on {GATE_KEY} alone")
 
-    # 8. Every deal-breaker can fail: its status vocabulary reaches NOT_HOLDING_UP (keel-cloud 071).
+    # 8. Every respondent option set fits the spoken guidelines (087 FR-002): at most five fixed
+    #    answers, each at most nine words.
     for d in dims:
-        if d.weight == "DEAL_BREAKER" and "NOT_HOLDING_UP" not in d.status_vocabulary:
-            faults.append(f"invariant 8 (a deal-breaker can fail): {d.key} is a DEAL_BREAKER whose "
-                          "status vocabulary never reaches NOT_HOLDING_UP")
+        answers = d.fixed_answers
+        if len(answers) > MAX_FIXED_ANSWERS:
+            faults.append(f"invariant 8 (spoken: at most {MAX_FIXED_ANSWERS} answers): {d.key} has "
+                          f"{len(answers)}")
+        for answer in answers:
+            if words(answer.get("label")) > MAX_ANSWER_WORDS:
+                faults.append(f"invariant 8 (spoken: at most {MAX_ANSWER_WORDS} words an answer): "
+                              f"{d.key}'s {answer.get('label')!r} is {words(answer.get('label'))}")
     return faults

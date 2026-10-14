@@ -1,0 +1,10 @@
+# slice.yaml with one value changed, failing exactly invariant 8 (spec 040; keel-cloud 087 FR-002, the spoken guidelines
+# §2): a fixed answer is at most nine words -- here one of Purchase friction's three runs to eleven.
+base: ../slice.yaml
+invariant: 8
+key: commercial.purchase_friction
+path: [respondent, fixed_answers]
+value:
+- {code: yes_long, label: "Yes, and it took a long time, more than a month"}
+- {code: yes_quick, label: "Yes, but it was quick"}
+- {code: not_needed, label: "No, it wasn't needed"}

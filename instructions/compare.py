@@ -1,8 +1,8 @@
 """`COMPARE`: keel-cloud's deterministic engine, shelled at zero spend (spec 029 FR-018, research
 R3, `contracts/screen-shapes.md` §5; `MARKS_VERSION` 9 judgement call 34).
 
-**An engine shim, not an engine.** The eval builds the engine's input from the corpus at revision 6 and
-nothing else, hands it to keel-cloud's own `screenContracts compare <in> <out>` -- the exporter's
+**An engine shim, not an engine.** The eval builds the engine's input from the corpus at revision 10 and
+nothing else (the founder's lists, the fixed-answer picks and the escapes travel as the corpus records them), hands it to keel-cloud's own `screenContracts compare <in> <out>` -- the exporter's
 and the validator's sibling, same Gradle task, same `cwd`, same refusal discipline as
 `contract.export` and `validate.run` -- keeps both files in the bundle, and **diffs** the output
 against `expected`. This repository keeps no copy of the compare arithmetic (`runs/DRIFT.md`
@@ -10,9 +10,10 @@ against `expected`. This repository keeps no copy of the compare arithmetic (`ru
 itself.
 
 **Marked** (call 34): per calibrated dimension, `status` and `drift` together; per vector,
-`verdict` and `deciding` together (3 checks). The count is the entry's, read from its
+`verdict` and `deciding` together (3 checks) -- since keel-cloud 087 (D3, call 77) a vector's verdict is the worst
+of **all** its dimensions, so `deciding` may be any of them. The count is the entry's, read from its
 `expected.standings` -- the calibrated set (calls 47, 59): 12 + 3 on a B2C entry, 13 + 3 on a B2B one, 108
-on keel-cloud 074's seven. Nothing here types it. **Reported, never
+on revision 10's seven. Nothing here types it. **Reported, never
 marked** (call 3): `n`, `inside`, `outside`, `median`, `proportion`, `optionCounts`, `bar` and the
 belief sentence -- a finding first.
 
@@ -60,11 +61,11 @@ class CompareScore:
 
 def build_input(entry, registry=None) -> dict:
     """screen-shapes §5's `in.json`, **from the corpus only**: the founder's calibrations -- the
-    entry's calibrated set, 10 on B2C and 12 on B2B (call 47) -- (the answer,
-    or `unsure`, and the chosen phrase the belief sentence is made of), the persona, the context
-    slots the sentence fills, and every person's gate answer, golden anchoring and picks -- `rough`
-    and `chip` preserved as written. Nothing from `expected`: that is what the output is diffed
-    against."""
+    entry's calibrated set, 12 on B2C and 13 on B2B (call 47) -- (the answer, a list `{items, picked,
+    phrase}` on the seven list dimensions, or `unsure`, and the chosen phrase where the corpus records
+    one), the persona, the context slots the sentence fills, and every person's gate answer, golden
+    anchoring and picks -- an escape `{chip}` preserved as written. Nothing from `expected`: that is
+    what the output is diffed against."""
     registry = registry if registry is not None else entry.registry
     calibration = {}
     for key, value in (entry.founder_calibration or {}).items():

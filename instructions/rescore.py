@@ -1,5 +1,5 @@
 """Re-score a finished run from its own bundle, under today's marks (spec 009, run-bundle
-contract's "re-reading" promise; spec 029 FR-004, research R11; spec 030 FR-004; spec 031 FR-005; spec 032 FR-005; spec 033 FR-005; spec 034 FR-005; spec 036 FR-005; spec 038 FR-005).
+contract's "re-reading" promise; spec 029 FR-004, research R11; spec 030 FR-004; spec 031 FR-005; spec 032 FR-005; spec 033 FR-005; spec 034 FR-005; spec 036 FR-005; spec 038 FR-005; spec 040 FR-009).
 
     python -m instructions.rescore runs/<id> [--no-judge]
 
@@ -41,6 +41,10 @@ with the reason.
 `whatThisSays` paragraph, which keel-cloud 079 (contract 9) no longer takes, so a v14 number for it would be
 fiction. Refused the same way, in one line, by name, with the reason.
 
+**And across the v17 → v18 bump** (spec 040; judgement call 88). A v17 bundle answered the founder's model-written
+option sets, a whole respondent questionnaire and a BRIEF reading with tiles, scored against corpus revision 9 and
+the nine deal-breakers; keel-cloud 087 / 088 / 089 (contract 13) have all thirteen decide, every respondent word
+code's and the brief answered over cards -- so a v18 number for it would be fiction. Refused the same way.
 **And across the v14 → v15 bump** (spec 036; judgement call 74). A v14 bundle was scored against corpus revision 7's
 expected status / drift (a person beyond the founder's band on the supporting side read as outside it), which keel-cloud
 082 and revision 8 no longer hold, so a v15 number for it would be fiction. Refused the same way, in one line, by
@@ -69,6 +73,7 @@ from pathlib import Path
 
 from stack.config import load_config
 
+from . import cloud_corpus as cloud_mod
 from . import compare as compare_mod
 from . import contract as contract_mod
 from . import corpus as corpus_mod
@@ -124,8 +129,13 @@ CROSSED_THE_V17_BUMP = ("was scored on a model-written Relative advantage respon
                         "revision 8; keel-cloud 085 asks it benefit first -- code's whole item, the founder's "
                         "ticks, corpus revision 9")
 
+#: The one sentence a v17 bundle is refused with (spec 040, judgement call 88).
+CROSSED_THE_V18_BUMP = ("answered model-written option sets, a respondent questionnaire and a BRIEF reading with "
+                        "tiles, against corpus revision 9 and the nine deal-breakers; keel-cloud 087 / 088 / 089 "
+                        "(contract 13) have every dimension decide, every respondent word code's and the brief "
+                        "answered over cards")
 #: The oldest bundle this version re-scores.
-OLDEST = 17
+OLDEST = 18
 
 
 class _SilentRuntime:
@@ -153,6 +163,11 @@ def refusal(run_dir: Path, original: dict) -> str | None:
         return (f"{run_dir.name} was scored at marks_version {version}: {CROSSED_THE_BUMP}. "
                 "Not re-scored (spec 029 FR-004; judgement call 28) -- a v8 number is a "
                 "measurement of a product v9 does not judge, and the only v9 number is a v9 run.")
+    if version == 17:
+        return (f"{run_dir.name} was scored at marks_version {version}: a v17 scorecard cannot be "
+                f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V18_BUMP}. Not "
+                "re-scored (spec 040; judgement call 88) -- the only v18 number is a v18 run "
+                "(WHY=marks:18).")
     if version == 16:
         return (f"{run_dir.name} was scored at marks_version {version}: a v16 scorecard cannot be "
                 f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V17_BUMP}. Not "
@@ -214,12 +229,18 @@ def main(argv=None) -> int:
     exported = contract_mod.read(run_dir / "contracts")
     corpus = corpus_mod.load(config.keel_cloud).bind(exported.registry)
     judge = judge_mod.NoJudge() if args.no_judge else judge_mod.Judge()
+    # Calls 79, 82, 84: keel-cloud's composed wording and facts as the run read them (its `cloud-corpus/`).
+    try:
+        cloud, cloud_reason = cloud_mod.read_bundle(run_dir, corpus=corpus, registry=exported.registry), None
+    except cloud_mod.CloudCorpusUnavailable as why:
+        cloud, cloud_reason = None, str(why)
 
     cases = {}
     for entry in corpus.entries:
         instructions = {screen: "" for screen in run_mod.SCREENS}
         for case in prompts_mod.build_cases(entry, exported, instructions, _SilentRuntime,
-                                            n_runs=max(int(original.get("n_runs") or 1), 1)):
+                                            n_runs=max(int(original.get("n_runs") or 1), 1),
+                                            brief_facts=cloud.facts if cloud is not None else None):
             cases[case.case_id] = case
 
     state = run_mod._RunState()
@@ -269,9 +290,12 @@ def main(argv=None) -> int:
 
     aggregate, measured, unmeasured_kinds = _ask_aggregate(run_dir, config, to_validate,
                                                            original)
+    spoken, facts_scores = run_mod.deterministic(corpus, exported.registry, list(cases.values()), cloud,
+                                                 cloud_reason)
 
     totals = score_mod.totals(state.calibration, state.respondent, state.interpret,
-                              compare_scores, brief_scores=state.brief, errored=state.errored,
+                              compare_scores, asked_scores=state.asked, brief_scores=state.brief,
+                              spoken_score=spoken, facts_scores=facts_scores, errored=state.errored,
                               refusals_by_rule=aggregate["refusals_by_rule"],
                               shape_refusals=aggregate["shape_refusals"],
                               refusals_measured=measured,
@@ -292,7 +316,10 @@ def main(argv=None) -> int:
         "registry_version": exported.registry.version,
         "contract_manifest": original.get("contract_manifest"),
         "compare": [run_mod._compare_json(s) for s in compare_scores],
+        "spoken": run_mod._spoken_json(spoken),
+        "brief_facts": [run_mod._facts_json(s) for s in facts_scores],
         "calibration": [run_mod._question_json(s) for s in state.calibration],
+        "asked": [run_mod._question_json(s) for s in state.asked],
         "respondent": [run_mod._question_json(s) for s in state.respondent],
         "interpret": [run_mod._interpret_json(s) for s in state.interpret],
         "brief": [run_mod._brief_json(s) for s in state.brief],

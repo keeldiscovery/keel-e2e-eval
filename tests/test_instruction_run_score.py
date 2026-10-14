@@ -2,8 +2,8 @@
 T043, T049).
 
 One answer a kind, on the hand-sized entry, through the function a real run and a rescore both
-call: the calibration and respondent cases reach the question scorers, a read reaches
-`score_interpret` keyed on the person, a brief reaches the five marks, and the three
+call: the calibration, asked and respondent cases reach the question scorers, a read reaches
+`score_interpret` keyed on the person, a brief reaches the seven marks (spec 040), and the three
 interpretations are kept for the aggregate and the register and scored by nothing (call 28).
 """
 
@@ -36,6 +36,7 @@ def test_each_kind_reaches_its_own_scorer(cases):
     answers = {
         "09-fixture/CONTEXT_INTERPRET/run1": {"understands": "commuters", "actor": "commuter"},
         "09-fixture/CALIBRATION_PROBLEM/run1": fx.calibration_result(registry, "PROBLEM"),
+        "09-fixture/ASKED_COMPATIBILITY/run1": fx.asked_result(entry),
         "09-fixture/RESPONDENT_PART1/run1": fx.respondent_result(entry, 1),
         "09-fixture/INTERPRET/Ann Abbott/run1": {"invitationId": "09-fixture/Ann Abbott",
                                                   "anchoring": "ANCHORED"},
@@ -45,11 +46,14 @@ def test_each_kind_reaches_its_own_scorer(cases):
         diff = run_mod._score(cases[case_id], entry, _answer(result), None, state, fx.FakeJudge())
         assert diff["case_id"] == case_id
     assert len(state.calibration) == 1 and state.calibration[0].coverage_passed
-    assert len(state.respondent) == 1 and state.respondent[0].validity_hit == len(entry.plan()[1])
+    assert len(state.respondent) == 1 and state.respondent[0].coverage_hit == len(entry.plan()[1])
+    assert state.respondent[0].validity_hit == 1, "call 83: the gate's clause alone is the model's"
+    assert len(state.asked) == 1 and state.asked[0].coverage_passed and state.asked[0].validity_hit == 2
+    assert "ASKED_COMPATIBILITY" in state.produced["09-fixture"]
     assert len(state.interpret) == 1 and state.interpret[0].agreed == 1
-    assert len(state.brief) == 1 and set(state.brief[0].marks) == {"shape", "cites", "numbers",
-                                                                    "quotes", "bans"}
-    assert len(state.shown_to_aggregate) == 5, "every answer goes to the aggregate"
+    assert len(state.brief) == 1 and set(state.brief[0].marks) == {"shape", "length", "cites", "broke",
+                                                                    "numbers", "quotes", "bans"}
+    assert len(state.shown_to_aggregate) == 6, "every answer goes to the aggregate"
     assert "CONTEXT_INTERPRET" in state.produced["09-fixture"], \
         "the interpretation is kept for the register and scored by nothing"
 

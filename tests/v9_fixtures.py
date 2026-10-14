@@ -1,5 +1,5 @@
-"""Shared, hand-checkable fixtures for the `MARKS_VERSION` 9 tests (spec 029 T004-T006), at 10 since
-spec 030 (the registry of twelve, corpus revision 4).
+"""Shared, hand-checkable fixtures for the instruction-eval tests (spec 029 T004-T006; at `MARKS_VERSION` 18 since
+spec 040: registry 4, corpus revision 10, contract 13).
 
 Nothing here is a corpus entry or a copy of the cloud: the registry is a hand-sized slice of the
 design-time draft, the two entries are invented and small, and the export is written by the test
@@ -23,15 +23,16 @@ from instructions import registry as registry_mod
 FIXTURES = Path(__file__).parent / "fixtures"
 SLICE = FIXTURES / "registry" / "slice.yaml"
 BROKEN = FIXTURES / "registry" / "broken"
-ENTRY = FIXTURES / "corpus" / "09-fixture-r7.yaml"
-ENTRY_B2B = FIXTURES / "corpus" / "10-fixture-r7-b2b.yaml"
+ENTRY = FIXTURES / "corpus" / "09-fixture.yaml"
+ENTRY_B2B = FIXTURES / "corpus" / "10-fixture-b2b.yaml"
 COMPARE = FIXTURES / "compare"
 V8_BUNDLE = FIXTURES / "runs" / "v8-bundle"
 
-#: Why a test reading keel-cloud's canon corpus skips: the canon is not at revision 7 yet (calls 49, 51, 60, 68 --
-#: there is no fixture fallback any more; keel-cloud 077 carries revision 7).
-CANON_NOT_R7 = ("keel-cloud's canon corpus is not at revision 8 (keel-cloud 082) -- spec 031 reads "
-                "the corpus from keel-cloud's canon and nowhere else (judgement call 49)")
+#: Why a test reading keel-cloud's canon corpus skips: the canon is not at the reader's revision (calls 49, 78 --
+#: there is no fixture fallback; keel-cloud 087 carries revision 10).
+CANON_NOT_R10 = ("keel-cloud's canon corpus is not at revision 10 (keel-cloud 087) -- spec 040 reads "
+                 "the corpus from keel-cloud's canon and nowhere else (judgement calls 49, 78)")
+CANON_NOT_R7 = CANON_NOT_R10
 
 
 def canon_dir() -> Path:
@@ -41,7 +42,7 @@ def canon_dir() -> Path:
 
 
 def canon_entry(name: str) -> Path:
-    """One of keel-cloud's revision-7 entries (`03-lullaby.yaml`...), or a skip naming why."""
+    """One of keel-cloud's revision-10 entries (`03-lullaby.yaml`...), or a skip naming why."""
     import pytest                                                     # noqa: PLC0415
     path = canon_dir() / name
     try:
@@ -49,7 +50,7 @@ def canon_entry(name: str) -> Path:
     except (OSError, AttributeError, yaml.YAMLError):
         revision = None
     if revision != corpus_mod.REVISION:
-        pytest.skip(CANON_NOT_R7)
+        pytest.skip(CANON_NOT_R10)
     return path
 
 
@@ -70,14 +71,14 @@ def raw_entry(path=ENTRY) -> dict:
     return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
 
 
-def write_entry(tmp_path, raw: dict, name="09-fixture-r7.yaml") -> Path:
+def write_entry(tmp_path, raw: dict, name="09-fixture.yaml") -> Path:
     path = Path(tmp_path) / name
     path.write_text(yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     return path
 
 
 def write_export(directory, *, with_registry=True, routing=None, keys=None) -> Path:
-    """An exported contract in 058's requested shape: the seven model screens, each with the
+    """An exported contract in 058's requested shape: the eight model screens (contract 13), each with the
     context keys of screen-shapes §2 and a permissive contract, plus `dimension-registry.json`."""
     directory = Path(directory)
     (directory / "contracts").mkdir(parents=True, exist_ok=True)
@@ -143,26 +144,49 @@ class FakeJudge:
         return self._cache[key]
 
 
+#: A list draft that meets every L rule (and, with a face, the K rules) -- the green half the scorer's red halves
+#: mutate by one thing.
+GOOD_LISTS = {
+    "problem.importance": {"items": [{"label": "Finding the keys on the way out"},
+                                     {"label": "Getting through the morning traffic"},
+                                     {"label": "Riding in wet weather"},
+                                     {"label": "Fixing a flat tyre on the way"},
+                                     {"label": "Finding somewhere safe to park"}]},
+    "problem.current_solution_satisfaction": {"phrase": "your way of finding them",
+                                              "items": [{"label": "Found them straight away"},
+                                                        {"label": "Found them after a quick look"},
+                                                        {"label": "It took a full search"},
+                                                        {"label": "Found them only after being late"},
+                                                        {"label": "Never found them that morning"}]},
+    "solution.compatibility": {"items": [{"label": "They had a phone to hand",
+                                          "asked": "did you have your phone to hand"},
+                                         {"label": "Their keys were on one ring",
+                                          "asked": "were your keys all on one ring"}]},
+    "solution.relative_advantage": {"items": [{"label": "A shorter search"}]},
+    "solution.adoption_friction": {"items": [{"label": "Clip a tag to the key ring",
+                                              "asked": "you'd clip a tag to your key ring, once"}]},
+    "commercial.buyer_payer_alignment": {"items": [{"label": "The office manager"}]},
+    "commercial.purchase_friction": {"items": [{"label": "The office manager's sign-off"},
+                                               {"label": "A security check", "suggested": True}]},
+    "commercial.commitment": {"items": [{"label": "install the app"}]},
+}
+
+#: The five fifths Prevalence is written as (C2-C4).
+FIFTHS = [("Fewer than 2 in 10", "Only a few"), ("2 to 4 in 10", "A minority"), ("4 to 6 in 10", "Around half"),
+          ("6 to 8 in 10", "Most"), ("8 to 10 in 10", "Nearly all")]
+
+
 def calibration_question(dimension, *, b2b=False) -> dict:
-    """A question that meets every §2.2 rule for `dimension` -- the green half every red half of
-    `tests/test_instruction_score.py` mutates by one thing."""
-    from instructions import score as score_mod                       # noqa: PLC0415
-    text = f"About {dimension.name.lower()}: what is true for the people meant?"
-    if dimension.founder_price or dimension.founder_cost:   # calls 53, 67: the key and the note, no more
-        return {"key": dimension.key, "respondent_note": "asked of whoever pays"}
-    if dimension.founder_numeric:                       # call 52: framed on 7 nights, no text
-        return {"key": dimension.key, "options": None, "respondent_note": "asked as a number"}
-    head = {"key": dimension.key, "question": text}
-    if dimension.key == "problem.prevalence":           # call 52: the event clause, no question
-        head = {"key": dimension.key, "event": "could not find their keys on the way out"}
-    codes = dimension.fixed_codes
-    if codes is None:
-        codes = score_mod._ladder_codes(dimension, b2b) or ["first_kind", "second_kind",
-                                                            "third_kind", "fourth_kind"]
-    options = [{"label": f"Option {i} for this", "normalized": code,
-                "belief_phrase": f"the {code.replace('_', ' ')} answer"}
-               for i, code in enumerate(codes, start=1)]
-    return {**head, "options": options, "respondent_note": "asked of the stranger in their own words"}
+    """An entry that meets every rule the founder-lists job is held to for `dimension` (calls 83, 85)."""
+    import copy                                                       # noqa: PLC0415
+    note = "asked of the stranger in their own words"
+    if dimension.key == "problem.prevalence":
+        return {"key": dimension.key, "event": "could not find their keys on the way out",
+                "options": [{"label": label, "belief_phrase": phrase} for label, phrase in FIFTHS],
+                "respondent_note": note}
+    if dimension.founder_list:
+        return {"key": dimension.key, "list": copy.deepcopy(GOOD_LISTS[dimension.key]), "respondent_note": note}
+    return {"key": dimension.key, "respondent_note": note}
 
 
 def calibration_result(registry, vector, *, b2b=False) -> dict:
@@ -180,42 +204,34 @@ def calibration_case(entry, vector, run_index=1):
                             run_index=run_index, payload={}, meta={"vector": vector})
 
 
-def respondent_item(entry, key, *, label_only=False) -> dict:
-    """An item meeting every §2.2 respondent rule (call 38), written from the golden plan row: the
-    code-appended codes (`RESPONDENT_ESCAPES`, *Something else*) left to code; a set carries the
-    founder's labels (the fixture records none, so its codes stand in) plus two distractors (a
-    categorical pick none); a band, numeric or gate
-    control carries `options: None`."""
-    from instructions.registry import RESPONDENT_ESCAPES             # noqa: PLC0415
-    row = entry.respondent_questions[key]
-    item = {"key": key, "question": f"Thinking about that time: {key.split('.')[1].replace('_', ' ')}?"}
-    from instructions.registry import GATE_CONTROL, NUMERIC_RESPONDENT_CONTROLS  # noqa: PLC0415
-    if row["control"] in ("price_ladder", "cost_total", "benefit_with_advantages"):   # calls 53, 67, 76: code's whole item
-        return {"key": key}
-    if row["control"] == GATE_CONTROL:                  # call 52: the event clause
-        return {"key": key, "event": "lose your keys on the way out", "options": None}
-    if row["control"] in NUMERIC_RESPONDENT_CONTROLS:   # call 52: framed on 7 nights, no text
-        return {"key": key, "options": None}
-    dimension = entry.registry.by_key(key)
-    is_set = (dimension.fixed_codes is None and not dimension.founder_numeric
-              and not dimension.derived and row["control"] != "multi_choice_ladder")
-    options = []
-    for i, code in enumerate(c for c in row.get("codes") or [] if c not in RESPONDENT_ESCAPES):
-        label = code if is_set else f"Choice {i + 1}"
-        options.append(label if label_only else {"label": label, "code": code})
-    if is_set and dimension.normalized.get("kind") != "categorical":
-        for n in ("one", "two"):
-            label = f"A distractor {n}"
-            options.append(label if label_only else {"label": label, "code": f"distractor_{n}"})
-    item["options"] = options
-    return item
+def respondent_item(entry, key) -> dict:
+    """An item meeting keel-cloud 088's respondent rule: the key alone, and on the gate its `event` clause."""
+    if key == "problem.prevalence":
+        return {"key": key, "event": "lose your keys on the way out"}
+    return {"key": key}
 
 
-def respondent_result(entry, part, *, link="PRIMARY", label_only=False) -> dict:
+def respondent_result(entry, part, *, link="PRIMARY") -> dict:
     keys = entry.plan()[part]
-    result = {"part": part, "link": link,
-              "items": [respondent_item(entry, k, label_only=label_only) for k in keys]}
-    return result
+    return {"part": part, "link": link, "items": [respondent_item(entry, k) for k in keys]}
+
+
+def asked_case(entry, key="solution.compatibility", run_index=1):
+    """An `ASKED` case on the entry's own list (spec 040), its items by index."""
+    from instructions import context as context_mod                   # noqa: PLC0415
+    from instructions import prompts as prompts_mod                   # noqa: PLC0415
+    context = context_mod.build_asked(entry, key)
+    subject = prompts_mod.ASKED_SUBJECTS[key]
+    return prompts_mod.Case(case_id=f"{entry.id}/ASKED_{subject}/run{run_index}", kind="ASKED",
+                            entry_id=entry.id, screen="ASKED", subject=subject, run_index=run_index,
+                            payload={"context": context},
+                            meta={"dimension": key, "items": list(context["items"])})
+
+
+def asked_result(entry, key="solution.compatibility") -> dict:
+    """The corpus's own faces, as the model would return them."""
+    saved = entry.founder_list(key) or {}
+    return {"items": [{"index": i, "asked": item.get("asked")} for i, item in enumerate(saved.get("items") or [])]}
 
 
 def respondent_case(entry, part, *, link="PRIMARY", run_index=1):

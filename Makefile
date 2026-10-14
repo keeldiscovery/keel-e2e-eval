@@ -151,8 +151,9 @@ acceptance: venv
 # exactly as production sends it, produce the measured beliefs the frozen golden corpus says it
 # should? Unlike every other target here it needs **no `make up`** and no stack at all -- it talks
 # to no service, only to keel-cloud's exporter, keel-runtime's own build_prompt, and the `claude`
-# CLI. Like `eval-live` it **costs real money** on the founder's own account (about 131 calls a
-# pass at N=1, the seven BRIEF paragraphs included), so start with DRY=1 and read a prompt.
+# CLI. Like `eval-live` it **costs real money** on the founder's own account (149 model cases a
+# pass at N=1 since MARKS_VERSION 18, the seven BRIEF readings and fourteen ASKED faces included), so
+# start with DRY=1 and read a prompt.
 # Deliberately NOT a dependency of `eval`,
 # `eval-all` or `eval-live`, and it never reads or writes evals/policy.py -- its own rubric is
 # versioned separately as instructions/marks.py's MARKS_VERSION.
@@ -231,7 +232,11 @@ acceptance: venv
 #   make instruction-eval HOST=claude WHY=marks:16 MODELS=exported
 #       -- MARKS_VERSION 16's own run of record (spec 037), never spent: v17 superseded it
 #   make instruction-eval HOST=claude WHY=marks:17 MODELS=exported
-#       -- MARKS_VERSION 17's own run of record (spec 038): none yet; never run or proposed here
+#       -- MARKS_VERSION 17's own run of record (spec 038), never spent: v18 superseded it
+#   make instruction-eval HOST=claude WHY=marks:18 MODELS=exported
+#       -- MARKS_VERSION 18's own run of record (spec 040): none yet -- the certificate, on the founder's word only
+#   make instruction-screen HOST=claude WHY=instruction:asked.md K=asked MODELS=exported
+#       -- the eighth screen's instruction (keel-cloud 088), before routing v11's `asked: light` row is trusted
 instruction-screen: venv
 	$(PY) -m instructions.run --host $(if $(HOST),$(HOST),claude) \
 		$(if $(DRY),--dry-run,) -k "$(if $(K),$(K),01-countly)" -n $(if $(N),$(N),3) \

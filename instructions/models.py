@@ -61,11 +61,11 @@ EFFORTS = ("low", "medium", "high", "xhigh", "max")
 #: The ladder (design §3): light → standard → frontier. Exactly these three, in this order.
 TIERS = ("light", "standard", "frontier")
 
-#: The job classes at `MARKS_VERSION` 9 (spec 029 FR-023, A-8): the **six** the vector redesign's
-#: seven model screens route through, lower-cased `JobClass` names -- `context`
-#: (CONTEXT_INTERPRET), `frame` (PROBLEM_INTERPRET, SOLUTION_MECHANISM), `calibration`,
-#: `respondent`, `reading` (INTERPRET) and `brief`.
-MEASURED_CLASSES = ("context", "frame", "calibration", "respondent", "reading", "brief")
+#: The job classes (spec 029 FR-023, A-8; spec 040 call 84): the **seven** the eight model screens of contract 13
+#: route through, lower-cased `JobClass` names -- `context` (CONTEXT_INTERPRET), `frame` (PROBLEM_INTERPRET,
+#: SOLUTION_MECHANISM), `calibration`, `respondent`, `reading` (INTERPRET), `brief` and, since keel-cloud 088,
+#: `asked` (ASKED, on `light` in table v11).
+MEASURED_CLASSES = ("context", "frame", "calibration", "respondent", "reading", "brief", "asked")
 
 #: The three names a v8-era table still carries and no v9 case runs (research R5). **Tolerated by
 #: `parse` and reported by nobody**: `parse` refuses an unknown class name, so dropping them would
@@ -80,7 +80,7 @@ CLASSES = MEASURED_CLASSES + DORMANT_CLASSES
 #: The six this eval measures, by the `Case.kind` it sorts the corpus into. `COMPARE` has no class:
 #: it is keel-cloud's engine, shelled, and never a model call.
 KIND_TO_CLASS = {"CONTEXT": "context", "FRAME": "frame", "CALIBRATION": "calibration",
-                 "RESPONDENT": "respondent", "READING": "reading", "BRIEF": "brief"}
+                 "RESPONDENT": "respondent", "READING": "reading", "BRIEF": "brief", "ASKED": "asked"}
 
 #: Every screen's class (FR-023), for a journey (S-012) that sees screens rather than kinds. The
 #: v8 screens stay mapped to the classes they always had: today's product still ships them, and the
@@ -89,7 +89,7 @@ SCREEN_TO_CLASS = {
     "CONTEXT_INTERPRET": "context",
     "PROBLEM_INTERPRET": "frame", "SOLUTION_MECHANISM": "frame",
     "CALIBRATION_QUESTIONS": "calibration", "RESPONDENT_QUESTIONS": "respondent",
-    "INTERPRET": "reading", "BRIEF": "brief",
+    "INTERPRET": "reading", "BRIEF": "brief", "ASKED": "asked",
     "PROBLEM_FRAME": "frame", "SOLUTION_FRAME": "frame", "COMMERCIAL_FRAME": "frame",
     "PROBLEM_ASSUMPTIONS": "assumptions", "SOLUTION_ASSUMPTIONS": "assumptions",
     "COMMERCIAL_ASSUMPTIONS": "assumptions",
@@ -235,9 +235,10 @@ def parse(document: object, *, source: str = "") -> ModelTable:
         raise ModelsUnavailable(
             f"classes says nothing about {', '.join(missing)} (table version {version}) -- every "
             "class this eval measures must name its tier, so that a missing one is never a silent "
-            "default. MARKS_VERSION 9 measures context, frame, calibration, respondent, reading "
-            "and brief; until keel-cloud 058 exports a table carrying the three new classes, pin "
-            "a screen with MODELS=<file> (spec 029 FR-023, A-9)")
+            "default. MARKS_VERSION 18 measures context, frame, calibration, asked, respondent, "
+            "reading and brief -- `asked` since keel-cloud 088 (routing v11, `asked: light`); a table "
+            "older than that is refused, so pin a screen with MODELS=<file> naming all seven (spec 029 "
+            "FR-023, A-9; spec 040 call 84)")
     efforts = document.get("efforts")
     if efforts is None:
         efforts = {}

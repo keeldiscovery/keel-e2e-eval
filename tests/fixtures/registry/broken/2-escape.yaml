@@ -1,0 +1,7 @@
+# slice.yaml with one value changed, failing exactly invariant 2 (spec 040; keel-cloud 087 FR-002): the gate has no way
+# out -- here problem.prevalence carries an escape.
+base: ../slice.yaml
+invariant: 2
+key: problem.prevalence
+path: [respondent, escape]
+value: {code: cant_recall, label: "I can't recall", counts: apart}

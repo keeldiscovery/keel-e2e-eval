@@ -1,24 +1,15 @@
-# A hand-sized registry fixture (spec 033 T002, at keel-cloud 077's dc13341; spec 032 T003; thirteen by spec 031, cut at twelve by spec 030, first cut spec 029 T004): the 13 keys
-# of keel-cloud 077's exported dimension-registry.json (dc13341; {window}/{window_unit}/{cost_period} placeholders kept) with the
-# Lullaby founder questions the register shows (Price, Existing sacrifice and Ability to pay have none: their questions are
-# code's or absent), every founder.normalized, respondent.*, answers.* (less the drift templates), weight, order, the
-# entry-level b2b_only (Purchase friction) and respondent.b2b_link_only (Ability to pay); prose notes, decisions and the worked
-# lullaby objects dropped. Passes all eight invariants. Not a corpus entry.
-version: 3
+# A hand-sized registry fixture (spec 040 T002, at keel-cloud 087's export, keel-cloud-docs 7b151f9; registry
+# VERSION 4): the 13 keys of the exported dimension-registry.json ({window}/{window_unit}/{cost_period} placeholders
+# kept) with every founder.* (saves on the seven lists), respondent.* (one escape, the fixed answers, supports,
+# conditional), answers.* (less the drift templates), order, the entry-level b2b_only (Purchase friction) and
+# respondent.b2b_link_only (Ability to pay); the lullaby worked objects, the checks block and the common prose dropped.
+# No weight anywhere (D3: all thirteen decide). Passes all eight invariants. Not a corpus entry.
+version: 4
 common:
   left_out:
     ask_respondent: false
     status: LEFT_OUT
     note: You weren't sure, so this was left out of the study. The brief says it is untested.
-  chips:
-    default:
-    - I can't recall
-    - I'd rather not say
-    numeric_extra: That's a rough guess
-  something_else:
-    rule: Every closed respondent item whose belief is a SET (multi_choice, multi_choice_ladder) and every single_choice built from a market-specific
-      option set ends with "Something else". Fixed scales (single_choice_5, bands, 0-to-7, yes/no) do not. "Something else" is an observation placed OUTSIDE, kept
-      verbatim, never a row of its own on the answers page (spec 050).
   floor:
     default: 5
     unit: anchored people
@@ -29,11 +20,10 @@ dimensions:
   order: 1
   name: Prevalence
   meaning: How much of the target segment experiences the problem within a defined period.
-  weight: DEAL_BREAKER
   founder:
     control: single_choice
-    guidance: Out of 10 people in the segment, how many had this at least once in {window}. The window is the project's recall window (the gate's window); the bins
-      are contiguous fifths of the segment.
+    guidance: Out of 10 people in the segment, how many had this at least once in {window}. The window is the project's recall
+      window (the gate's window); the bins are contiguous fifths of the segment.
     normalized:
       kind: proportion_bin
       window: '{window}'
@@ -43,40 +33,37 @@ dimensions:
       - p_40_60
       - p_60_80
       - p_80_100
-    option_rule: 'Exactly 5 options, contiguous: fewer than 2 in 10 · 2 to 4 · 4 to 6 · 6 to 8 · 8 to 10. No gaps (the smoke test''s 5-6 / 7-8 / 9-10 had holes).
-      Each option carries its own belief phrase (only a few · a minority · around half · most · nearly all); never the label.'
+    option_rule: 'Exactly 5 options, contiguous: fewer than 2 in 10 · 2 to 4 · 4 to 6 · 6 to 8 · 8 to 10. No gaps. Each option
+      carries its own belief phrase (only a few · a minority · around half · most · nearly all); never the label.'
     belief_template: '{value} of these {actor_plural} had this at least once in {window}.'
     unsure_allowed: false
   respondent:
     part: 1
     anchor: that_night
     control: gate_yes_no
-    guidance: 'This item IS the gate: "In {window}, did [the circumstance] happen to you?" Yes / No. Explicit, never inferred from the story. No → graceful exit;
-      the person still counts in the denominator. Yes → the story prompt (the anchor test), then the rest of Part 1. Never names the idea, the app or the mechanism.'
-    option_rule: 'Yes · No. No distractors, no ''Something else''. Chips: none (a gate must be answered). Code renders the options; the model writes the question
-      only.'
-    chips: []
+    guidance: 'This item IS the gate: "In {window}, did [the circumstance] happen to you?" Yes / No. Explicit, never inferred
+      from the story. No → graceful exit; the person still counts in the denominator. Yes → the story prompt (the anchor test),
+      then the rest of Part 1. Never names the idea, the app or the mechanism.'
+    option_rule: Yes · No. Code renders the options; the model writes the event clause only.
+    escape: null
   answers:
     shape: choice
     compare_rule: proportion_from_gate
-    status_vocabulary:
-    - HOLDING_UP
-    - NOT_HOLDING_UP
-    - TOO_FEW_TO_CALL
-    - NOT_ASKED_YET
+    supporting_side: more
     floor: 5
-  lullaby:
-    founder_question: Out of 10 parents of babies under six months, how many do you think had a night in the last 7 nights when the baby cried and they had to decide
-      what to try?
+  left_out:
+    ask_respondent: false
+    status: LEFT_OUT
+    note: 'Unreachable: ''I''m not sure'' is not offered on the gate.'
 - key: problem.frequency
   vector: PROBLEM
   order: 2
   name: Frequency
   meaning: How often an affected person experiences the problem.
-  weight: SHAPES
   founder:
     control: numeric_interval
-    guidance: 'On how many {window_unit} an affected person faces it: a range on an axis from 0 to the window''s length, whole units.'
+    guidance: 'On how many {window_unit} an affected person faces it: a range on an axis from 0 to the window''s length, whole
+      units.'
     normalized:
       kind: interval
       unit_options:
@@ -94,7 +81,8 @@ dimensions:
       - 5
       - 6
       - 7
-    option_rule: 'No options: a two-handle range from 0 to the window''s length. Belief value = the range with its unit (''4 to 7 {window_unit}'').'
+    option_rule: 'No options: a two-handle range from 0 to the window''s length. Belief value = the range with its unit (''4
+      to 7 {window_unit}'').'
     belief_template: '{actor_plural} face this on {value}.'
     unsure_allowed: true
   respondent:
@@ -102,254 +90,262 @@ dimensions:
     anchor: that_night
     control: segmented_0_to_7
     guidance: Count how many {window_unit} it happened on, not how many times it happened. Never shows the founder's range.
-    option_rule: A segmented control from 0 to the window's count, one tap, when the count is at most 7; a number in {window_unit} for a longer window. No 'Something
-      else'. Code renders the options; the model writes the question only.
-    chips:
-    - I can't recall
-    - I'd rather not say
-    - That's a rough guess
+    option_rule: A segmented control from 0 to the window's count when the count is at most 7; a number in {window_unit} for
+      a longer window. Code renders the options and the question.
+    escape:
+      code: cant_recall
+      label: I can't recall
+      counts: apart
   answers:
     shape: interval
     compare_rule: interval_contains_median
-    status_vocabulary:
-    - HOLDING_UP
-    - NOT_HOLDING_UP
-    - PEOPLE_DISAGREE
-    - TOO_FEW_TO_CALL
-    - NOT_ASKED_YET
-    - LEFT_OUT
+    supporting_side: more
     floor: 5
-  lullaby:
-    founder_question: In a typical week, on how many nights out of 7 do you think a parent is woken by a cry and has to work out what the baby needs?
+  left_out:
+    ask_respondent: false
+    status: LEFT_OUT
+    note: You weren't sure, so this was left out of the study. The brief says it is untested.
 - key: problem.importance
   vector: PROBLEM
   order: 3
   name: Importance
   meaning: How much the actor cares about improving this problem relative to other competing problems.
-  weight: DEAL_BREAKER
   founder:
-    control: rank_pick
-    guidance: 'Where this ranks among the actor''s difficulties in the circumstance: a rank band, not a rating. The model writes 4–6 distractor difficulties for the
-      same circumstance; they are reused on the respondent side.'
+    control: rival_list
+    guidance: 'What else is hard for {actor_plural} when {circumstance}: the founder''s Answer becomes four rival difficulties
+      beside the problem''s own (locked, first); the founder edits the rivals. Keel''s bar is fixed: the problem is one of
+      their two, out of five.'
     normalized:
-      kind: rank_band
-      codes:
-      - biggest
-      - top_three
-      - middle
-      - minor
-      - negligible
-    option_rule: Exactly 5 options in rank order mapped onto the codes; each with a belief phrase ('the biggest difficulty', 'one of the top three', ...).
-    belief_template: Among the difficulties that come up when {circumstance}, this is {value}.
+      kind: saved_list
+    option_rule: The own item and exactly four rivals, each at most 9 words, difficulties of the same circumstance in the
+      same register; no number the founder did not write; never a fix or a product.
+    belief_template: When {circumstance}, {value} is one of the two difficulties {actor_plural} would most like made easier,
+      out of five.
     unsure_allowed: true
+    saves:
+      min_items: 5
+      max_items: 5
+      max_words: 9
+      picked: false
+      own_first: true
   respondent:
     part: 1
     anchor: that_night
-    control: single_choice
-    guidance: 'A trade-off, not a rating: ''If you could make one part of [the circumstance] easier, which would it be?'' Closed pick (no text box). The problem''s
-      own item sits among the model''s distractors, never first. Elicited in the respondent''s own terms; never names the idea.'
-    option_rule: 5–6 difficulties for the circumstance including the problem's own, order shuffled per project with the problem's item never first, plus 'Something
-      else'.
-    chips:
-    - I can't recall
-    - I'd rather not say
+    control: pick_two
+    guidance: '''Thinking about that last {occasion}, which two of these would you most like made easier?'' Your difficulty
+      and your four, shuffled per study, yours never first. Never names the idea.'
+    option_rule: The founder's five (own item + four rivals), own never first; pick exactly two. Escape 'None of these' counts
+      against.
+    escape:
+      code: none_of_these
+      label: None of these
+      counts: against
   answers:
     shape: choice
-    compare_rule: ordinal_band
-    status_vocabulary:
-    - HOLDING_UP
-    - NOT_HOLDING_UP
-    - PEOPLE_DISAGREE
-    - TOO_FEW_TO_CALL
-    - NOT_ASKED_YET
-    - LEFT_OUT
+    compare_rule: share_in_picks
     floor: 5
-  lullaby:
-    founder_question: Compared with the other things that make nights hard with a baby under six months, where do you think working out what the cry means ranks for
-      the parent?
+  left_out:
+    ask_respondent: false
+    status: LEFT_OUT
+    note: You weren't sure, so this was left out of the study. The brief says it is untested.
 - key: problem.current_solution_satisfaction
   vector: PROBLEM
   order: 4
   name: Current solution
   meaning: How adequately the actor's current method or alternative solves the job.
-  weight: DEAL_BREAKER
   founder:
-    control: single_choice
-    guidance: 'How well today''s way of handling it serves them: an ordered five-point scale written as outcomes, from works reliably to no reliable way.'
+    control: scale_lines
+    guidance: 'How they deal with it today: the founder''s Answer becomes a second-person phrase for today''s way and five
+      outcomes from works well to fails, the line after 2; the founder rewords them, order and line fixed.'
     normalized:
-      kind: ordinal
-      codes:
-      - works_well
-      - mostly_works
-      - hit_and_miss
-      - works_poorly
-      - no_reliable_way
-    option_rule: Exactly 5 options in order onto the codes; each a one-line outcome; each with a belief phrase.
-    belief_template: The way {actor_plural} handle it today {value}.
+      kind: saved_list
+    option_rule: A second-person phrase ('your way of checking for errors') and exactly five outcomes, best to worst, each
+      at most 9 words, parallel in form.
+    belief_template: 'For most {actor_plural}, {value} falls short: it takes a lot of effort or lets errors through.'
     unsure_allowed: true
+    saves:
+      min_items: 5
+      max_items: 5
+      max_words: 9
+      picked: false
+      phrase: true
   respondent:
     part: 1
     anchor: that_night
     control: single_choice_5
-    guidance: 'How well their own approach worked that night, not in general: five ordered outcomes from ''worked straight away'' to ''didn''t work at all''. Never
-      names the idea.'
-    option_rule: Fixed scale, 5 options, same order as the codes. No 'Something else'.
-    chips:
-    - I can't recall
-    - I'd rather not say
+    guidance: '''Think of the last {occasion}. How well did'' today''s way, in your words, ''work?'' Your five outcomes, in
+      order. Never names the idea.'
+    option_rule: The founder's five outcomes, in order. Escape 'Someone else does the checking', apart.
+    escape:
+      code: someone_else_checks
+      label: Someone else does the checking
+      counts: apart
   answers:
     shape: choice
-    compare_rule: ordinal_band
-    status_vocabulary:
-    - HOLDING_UP
-    - NOT_HOLDING_UP
-    - PEOPLE_DISAGREE
-    - TOO_FEW_TO_CALL
-    - NOT_ASKED_YET
-    - LEFT_OUT
+    compare_rule: below_line
     floor: 5
-  lullaby:
-    founder_question: Thinking about how parents work out what the baby needs today, how well do you think that way of doing it serves them?
+  left_out:
+    ask_respondent: false
+    status: LEFT_OUT
+    note: You weren't sure, so this was left out of the study. The brief says it is untested.
 - key: solution.compatibility
   vector: SOLUTION
   order: 1
   name: Compatibility
   meaning: How well the proposed approach fits the actor's existing workflow, values, routines, and context.
-  weight: DEAL_BREAKER
   founder:
-    control: single_choice
-    guidance: 'At what point in the real episode the mechanism would be used: ordered positions in the sequence of attempts, ending with ''it would not fit''.'
+    control: item_list
+    guidance: 'How it fits the way they work today: the founder''s Answer becomes 2 to 4 conditions it must meet, each with
+      the stranger''s question clause; the founder edits them and picks the one to test.'
     normalized:
-      kind: ordinal
-      codes:
-      - before_any_attempt
-      - after_first_attempt_fails
-      - after_several_attempts
-      - only_when_nothing_works
-      - would_not_fit
-    option_rule: Exactly 5 options in order onto the codes, worded for this mechanism's moment of use; each with a belief phrase.
-    belief_template: It fits into the episode {value}.
+      kind: saved_list
+    option_rule: 2 to 4 conditions, each at most 9 words (third person) with its `asked` clause (second person, at most 20
+      words, no question mark); no number the founder did not write.
+    belief_template: For most, on their last {occasion}, {value}.
     unsure_allowed: true
+    saves:
+      min_items: 2
+      max_items: 4
+      max_words: 9
+      picked: true
+      asked: true
   respondent:
     part: 2
     anchor: the_reveal
-    guidance: Thinking about that night, at what point, if any, could the mechanism's moment of use (from the reveal, e.g. 'hold the phone near the cot for ten seconds')
-      have fitted. Options worded from the respondent's account's shape, never from the founder's pick.
-    control: single_choice
-    option_rule: Founder's codes + 'At no point that night' (= would_not_fit) + 'Something else'.
-    chips:
-    - I can't recall
-    - I'd rather not say
+    control: fixed_four
+    guidance: '''On your last {occasion},'' the condition you picked, asked as a question: would you have been able to? Yes,
+      easily · Yes, with some steps · Only with help or approval · No.'
+    option_rule: The registry's fixed four, in order. Escape 'I can't tell', apart.
+    escape:
+      code: cant_tell
+      label: I can't tell
+      counts: apart
+    fixed_answers:
+    - code: yes_easily
+      label: Yes, easily
+    - code: yes_with_steps
+      label: Yes, with some steps
+    - code: only_with_help
+      label: Only with help or approval
+    - code: 'no'
+      label: 'No'
+    supports:
+    - yes_easily
+    - yes_with_steps
   answers:
     shape: choice
-    compare_rule: choice_majority
-    status_vocabulary:
-    - HOLDING_UP
-    - NOT_HOLDING_UP
-    - PEOPLE_DISAGREE
-    - TOO_FEW_TO_CALL
-    - NOT_ASKED_YET
-    - LEFT_OUT
+    compare_rule: fixed_last_two_against
     floor: 5
-  lullaby:
-    founder_question: During a night-time crying episode, at what point would a parent most naturally hold the phone near the cot and let it listen?
+  left_out:
+    ask_respondent: false
+    status: LEFT_OUT
+    note: You weren't sure, so this was left out of the study. The brief says it is untested.
 - key: solution.relative_advantage
   vector: SOLUTION
   order: 2
   name: Relative advantage
-  meaning: The improvement the user expects over the current alternative before the new solution is worth changing behavior for.
-  weight: DEAL_BREAKER
+  meaning: The improvement the user expects over the current alternative before the new solution is worth changing behavior
+    for.
   founder:
-    control: multi_choice
-    guidance: 'What must be materially better than the current routine for people to switch: the founder ticks every one they believe, up to four.'
+    control: benefit_list
+    guidance: 'What it does better than the way they do it today: the founder''s Answer becomes one to four benefits, all
+      equal.'
     normalized:
-      kind: categorical
-      codes:
-      - fewer_attempts
-      - shorter_time
-      - less_worry
-      - less_help_needed
-      - easier_recovery
-    option_rule: Exactly 5 options onto the codes, worded for this circumstance; each with a belief phrase naming the improvement as a noun phrase.
-    belief_template: To be worth switching to, it must deliver {value}.
+      kind: saved_list
+    option_rule: 1 to 4 benefits, each at most 9 words, a noun phrase naming the improvement; no number the founder did not
+      write.
+    belief_template: For most, it would have made their last {occasion} better.
     unsure_allowed: true
+    saves:
+      min_items: 1
+      max_items: 4
+      max_words: 9
+      picked: false
   respondent:
     part: 2
     anchor: the_reveal
     control: benefit_with_advantages
-    guidance: 'Code''s whole (spec 085): would the idea, by its short name, have made things better for you that last time, or not; those who say better tick which of the founder''s advantages would have been better. The model writes nothing for it.'
-    option_rule: 'Code''s: ''It would have made things better'' · ''No difference'' · ''It would have made things worse''; under the first, the founder''s ticked advantages by the founder''s labels.'
-    chips:
-    - I can't recall
-    - I'd rather not say
+    guidance: '''Thinking of your last {occasion}, would'' your idea, by its short name, ''have made things better for you,
+      or not?'' Those who say better tick which of your benefits would have been better.'
+    option_rule: '''It would have made things better'' · ''No difference'' · ''It would have made things worse''; under the
+      first, your benefits in your words. Escape ''I can''t tell'', apart.'
+    escape:
+      code: cant_tell
+      label: I can't tell
+      counts: apart
   answers:
     shape: choice
     compare_rule: benefit_first
-    status_vocabulary:
-    - HOLDING_UP
-    - NOT_HOLDING_UP
-    - PEOPLE_DISAGREE
-    - TOO_FEW_TO_CALL
-    - NOT_ASKED_YET
-    - LEFT_OUT
     floor: 5
-  lullaby:
-    founder_question: Compared with how a parent copes today, what would have to be clearly better for them to prefer a suggestion from the app?
+  left_out:
+    ask_respondent: false
+    status: LEFT_OUT
+    note: You weren't sure, so this was left out of the study. The brief says it is untested.
 - key: solution.adoption_friction
   vector: SOLUTION
   order: 3
   name: Adoption friction
   meaning: The additional effort, behavior change, setup, learning, or interruption required to use the solution.
-  weight: DEAL_BREAKER
   founder:
-    control: single_choice
-    guidance: 'The most extra effort a user would accept at the moment of use: an ordered effort ladder from nothing extra to a daytime setup.'
+    control: item_list
+    guidance: 'What they will have to do to start using it: the founder''s Answer becomes 1 to 4 efforts, each with the stranger''s
+      clause; Keel keeps the founder''s numbers and adds none; the founder picks the one to test.'
     normalized:
-      kind: ordinal
-      codes:
-      - nothing_extra
-      - one_tap
-      - a_few_taps
-      - setup_once
-      - daytime_setup
-    option_rule: Exactly 5 options in order onto the codes, worded for this mechanism's moment of use; each with a belief phrase.
-    belief_template: The most extra effort they would accept at the moment of use is {value}.
+      kind: saved_list
+    option_rule: 1 to 4 efforts, each at most 9 words, a base-form verb phrase, with its `asked` clause (second person, at
+      most 20 words, no question mark); only the founder's numbers.
+    belief_template: Most would {value}.
     unsure_allowed: true
+    saves:
+      min_items: 1
+      max_items: 4
+      max_words: 9
+      picked: true
+      asked: true
   respondent:
     part: 2
     anchor: the_reveal
-    control: single_choice
-    guidance: 'That night, with the phone where it was and your hands as they were, how much could you have managed before giving up on it: the same effort ladder,
-      plus ''I wouldn''t have reached for the phone at all''.'
-    option_rule: Founder's 5 rungs in order + 'I wouldn't have reached for the phone at all' (outside, no direction). No 'Something else'.
-    chips:
-    - I can't recall
-    - I'd rather not say
+    control: fixed_four
+    guidance: The effort you picked, said to them, then 'Would you do that, or not?' Yes · Yes, if it was clearly worth it
+      · Probably not · No.
+    option_rule: The registry's fixed four, in order; 'Yes, if it was clearly worth it' supports and is shown apart. Escape
+      'I can't tell', apart.
+    escape:
+      code: cant_tell
+      label: I can't tell
+      counts: apart
+    fixed_answers:
+    - code: 'yes'
+      label: 'Yes'
+    - code: yes_if_worth_it
+      label: Yes, if it was clearly worth it
+    - code: probably_not
+      label: Probably not
+    - code: 'no'
+      label: 'No'
+    supports:
+    - 'yes'
+    - yes_if_worth_it
+    conditional: yes_if_worth_it
   answers:
     shape: choice
-    compare_rule: ordinal_band
-    status_vocabulary:
-    - HOLDING_UP
-    - NOT_HOLDING_UP
-    - PEOPLE_DISAGREE
-    - TOO_FEW_TO_CALL
-    - NOT_ASKED_YET
-    - LEFT_OUT
+    compare_rule: fixed_last_two_against
     floor: 5
-  lullaby:
-    founder_question: At 3 a.m., how much extra effort would a parent put into getting the app listening before giving up on it?
+  left_out:
+    ask_respondent: false
+    status: LEFT_OUT
+    note: You weren't sure, so this was left out of the study. The brief says it is untested.
 - key: commercial.existing_sacrifice
   vector: COMMERCIAL
   order: 1
   name: Existing sacrifice
   meaning: 'Resources already given up because of the problem: money, time, effort, inconvenience, risk, or foregone alternatives.'
-  weight: DEAL_BREAKER
   founder:
     control: cost_estimate
-    guidance: 'What the founder believes the problem costs the payer today, entered on the commercial step and rendered by code: on a B2B study a fixed amount or
-      hours at the project''s one hourly rate, on B2C an amount only (a person''s own time is never priced), over a period the founder picks (a day, a week, a month,
-      a quarter, a year). Code writes the question and the belief sentence. The model writes no question text, no options and no money here: the respondent note at
-      most (spec 077: there are no kinds of cost anywhere).'
+    guidance: 'What the founder believes the problem costs the payer today, entered on the commercial step and rendered by
+      code: on a B2B study a fixed amount or hours at the project''s one hourly rate, on B2C an amount only (a person''s own
+      time is never priced), over a period the founder picks (a day, a week, a month, a quarter, a year). Code writes the
+      question and the belief sentence. The model writes no question text, no options and no money here.'
     normalized:
       kind: cost
       modes:
@@ -361,50 +357,48 @@ dimensions:
       - month
       - quarter
       - year
-    option_rule: 'No options: a range in the market''s currency (low above 0), or on a B2B study a range of hours and the hourly rate, and a period. ''I''m not sure''
-      leaves it out.'
+    option_rule: 'No options: a range in the market''s currency (low above 0), or on a B2B study a range of hours and the
+      hourly rate, and a period. ''I''m not sure'' leaves it out.'
     belief_template: The problem already costs the payer {value}.
     unsure_allowed: true
   respondent:
     part: 3
     anchor: last_purchase
     control: cost_total
-    guidance: 'One total, all code''s: what it cost them over {cost_period} when {circumstance} -- an amount in the market currency or a number of hours (AMOUNT |
-      HOURS), one number. The respondent never sees or enters a rate. The model writes nothing for this item: its key alone.'
-    option_rule: 'No options. Chips: ''It cost us nothing'' (an answer: 0, counted), ''I can''t recall'' (no answer), ''That''s a rough guess'' (a flag on the number).'
-    chips:
-    - It cost us nothing
-    - I can't recall
-    - That's a rough guess
+    guidance: 'One total, all code''s: what it cost them over {cost_period} when {circumstance} -- an amount in the market
+      currency or a number of hours (AMOUNT | HOURS), one number; ''nothing'' is 0 (D8). The respondent never sees or enters
+      a rate. The model writes nothing for this item: its key alone.'
+    option_rule: No options. Escape 'I can't recall', apart; 'nothing' is the number 0.
+    escape:
+      code: cant_recall
+      label: I can't recall
+      counts: apart
     b2b:
       anchor: last_cycle
-      guidance: 'One total, all code''s: what it cost the team over {cost_period} when {circumstance} -- an amount or a number of the team''s hours (priced at the
-        project''s rate by code, never shown). The decision-maker sees no context card and nothing of what the specialists said.'
-      option_rule: No options; the same three chips.
+      guidance: 'One total, all code''s: what it cost the team over {cost_period} when {circumstance} -- an amount or a number
+        of the team''s hours (priced at the project''s rate by code, never shown). The decision-maker sees no context card
+        and nothing of what the specialists said.'
+      option_rule: No options; the same escape.
   answers:
     shape: interval
     compare_rule: interval_contains_median
-    status_vocabulary:
-    - HOLDING_UP
-    - NOT_HOLDING_UP
-    - PEOPLE_DISAGREE
-    - TOO_FEW_TO_CALL
-    - NOT_ASKED_YET
-    - LEFT_OUT
+    supporting_side: costs_more
     floor: 5
-  lullaby:
-    founder_question: What does it cost parents of babies under six months today when the baby cries in the night?
+  left_out:
+    ask_respondent: false
+    status: LEFT_OUT
+    note: You weren't sure, so this was left out of the study. The brief says it is untested.
 - key: commercial.price
   vector: COMMERCIAL
   order: 2
   name: Price
   meaning: What the payer would give for the offer, read against what the problem already costs them.
-  weight: SHAPES
   founder:
     control: price_range
-    guidance: 'The price the founder has in mind, as a range in the market''s currency over the cost estimate''s own period (fixed; a one-off is priced against a
-      year), entered on the commercial step and rendered by code beside the founder''s cost estimate. The model writes no question text and no money for this entry:
-      code asks ''What price do you have in mind for {offer_name}?''.'
+    guidance: 'The price the founder has in mind, as a range in the market''s currency over the cost estimate''s own period
+      (fixed; a one-off is priced against a year), entered on the commercial step and rendered by code beside the founder''s
+      cost estimate. The model writes no question text and no money for this entry: code asks ''What price do you have in
+      mind for {offer_name}?''.'
     normalized:
       kind: price_range
       periods:
@@ -413,50 +407,49 @@ dimensions:
       - month
       - quarter
       - year
-    option_rule: 'No options: two numbers in the market''s currency (low at least 1, under 10,000) over the cost estimate''s period. ''No price yet'' is the not-sure
-      chip: Price is left out.'
+    option_rule: 'No options: two numbers in the market''s currency (low at least 1, under 10,000) over the cost estimate''s
+      period. ''No price yet'' is the not-sure chip: Price is left out.'
     belief_template: The payer would think it worth {value}.
     unsure_allowed: true
   respondent:
     part: 3
     anchor: last_purchase
     control: price_ladder
-    guidance: 'Asked of whoever pays. Code writes the question -- ''What would {offer_name} be worth to you {period}?'', the founder''s period -- the anchor line
-      from the respondent''s own Existing sacrifice amounts (money, plus hours on a B2B study; never counts; left out when there is none), and the options: five consecutive
-      bands of the currency''s fixed 1-2-5 ladder that put the founder''s band in the middle three, plus ''I wouldn''t pay for this''. The model writes nothing for
-      this item and never shows the founder''s range.'
-    option_rule: 'Code''s: five bands of the ladder 1 · 2 · 5 · 10 · 20 · 50 · 100 · 250 · 500 · 1,000 · 2,500 · 5,000 · 10,000 in the market''s currency, the founder''s
-      band in the middle three, + ''I wouldn''t pay for this'' (outside, lower). No ''Something else''.'
-    chips:
-    - I can't say
-    - I'd rather not say
+    guidance: 'Asked of whoever pays. Code writes the question -- ''What would {offer_name} be worth to you {period}?'', the
+      founder''s period -- the anchor line from the respondent''s own Existing sacrifice total, and the options: five consecutive
+      bands of the currency''s fixed 1-2-5 ladder that put the founder''s band in the middle three, plus ''I wouldn''t pay
+      for this''. The model writes nothing for this item and never shows the founder''s range.'
+    option_rule: Five bands of the ladder 1 · 2 · 5 · 10 · 20 · 50 · 100 · 250 · 500 · 1,000 · 2,500 · 5,000 · 10,000 in the
+      market's currency, the founder's band in the middle three, + 'I wouldn't pay for this' (six, the one ladder read in
+      two steps when spoken). Escape 'I can't say', apart.
+    escape:
+      code: cant_say
+      label: I can't say
+      counts: apart
     b2b:
       anchor: last_purchase
-      guidance: 'The same item on the decision-maker''s link: the anchor line names money and hours (hours are the team''s time); the question and the bands are code''s.'
-      option_rule: 'Code''s: the five bands + ''I wouldn''t pay for this''.'
+      guidance: 'The same item on the decision-maker''s link: the anchor line names money and hours (hours are the team''s
+        time); the question and the bands are code''s.'
+      option_rule: The five bands + 'I wouldn't pay for this'.
   answers:
     shape: choice
     compare_rule: ordinal_band
-    status_vocabulary:
-    - HOLDING_UP
-    - NOT_HOLDING_UP
-    - PEOPLE_DISAGREE
-    - TOO_FEW_TO_CALL
-    - NOT_ASKED_YET
-    - LEFT_OUT
+    supporting_side: higher
     floor: 5
-  lullaby:
-    founder_question: What price do you have in mind for something that helps at night?
+  left_out:
+    ask_respondent: false
+    status: LEFT_OUT
+    note: You weren't sure, so this was left out of the study. The brief says it is untested.
 - key: commercial.ability_to_pay
   vector: COMMERCIAL
   order: 3
   name: Ability to pay
   meaning: Whether the buyer has accessible personal or organizational budget at the relevant price level.
-  weight: SHAPES
   founder:
     control: derived
-    guidance: 'Never asked of the founder: derived by code from the founder''s cost estimate and price, over the same period -- the price as a share of the cost (price
-      low / cost high to price high / cost low, whole percent) and one sentence by band. No question from code or model.'
+    guidance: 'Never asked of the founder: derived by code from the founder''s cost estimate and price, over the same period
+      -- the price as a share of the cost (price low / cost high to price high / cost low, whole percent) and one sentence
+      by band. No question from code or model.'
     normalized:
       kind: price_cost_ratio
       from:
@@ -465,7 +458,8 @@ dimensions:
       bands:
       - 50
       - 100
-    option_rule: 'No options and no answer: written by code whenever the cost estimate and the price are both stated; left out when either is.'
+    option_rule: 'No options and no answer: written by code whenever the cost estimate and the price are both stated; left
+      out when either is.'
     belief_template: Your price is {value}.
     unsure_allowed: true
   respondent:
@@ -473,172 +467,199 @@ dimensions:
     anchor: last_purchase
     control: single_choice
     b2b_link_only: true
-    codes:
-    - existing_line
-    - new_line_signed_off
-    - taken_from_other_spend
-    - no_budget
-    guidance: 'Asked on the decision-maker''s link only, as supporting context: when you last paid for something for this problem, where did the money come from --
-      four steps, easiest to hardest, plus ''it was free or a gift''.'
-    option_rule: The 4 codes in order + 'It was free or a gift' (escape, counts nothing). No 'Something else'.
-    chips:
-    - I can't recall
-    - I'd rather not say
+    guidance: 'Asked on the decision-maker''s link only, as supporting context: ''Think of the last tool your team paid for.
+      Where did the money come from?'' Four budget sources, easiest to hardest; its first sentence is the part''s one anchor.'
+    option_rule: The registry's four budget sources, in order. Escape 'I can't recall one', apart (it covers 'it was free').
+    escape:
+      code: cant_recall_one
+      label: I can't recall one
+      counts: apart
+    fixed_answers:
+    - code: existing_line
+      label: A budget line we already had
+    - code: new_line_signed_off
+      label: A new budget line someone signed off
+    - code: taken_from_other_spend
+      label: Taken from other spending
+    - code: no_budget
+      label: There was no budget for it
     b2b:
       anchor: last_purchase
-      guidance: 'Where the budget for the last comparable purchase came from: an existing line, a new line that needed sign-off, taken from other spend, or there
-        was none.'
-      option_rule: 4 ordered options mirroring the codes (existing line · new line signed off · taken from other spend · no budget) + 'It was free'.
+      guidance: '''Think of the last tool your team paid for. Where did the money come from?'' Four budget sources, easiest
+        to hardest; its first sentence is the part''s one anchor.'
+      option_rule: The registry's four budget sources, in order.
   answers:
     shape: choice
     compare_rule: cost_covers_price
-    status_vocabulary:
-    - HOLDING_UP
-    - NOT_HOLDING_UP
-    - PEOPLE_DISAGREE
-    - TOO_FEW_TO_CALL
-    - NOT_ASKED_YET
-    - LEFT_OUT
+    supporting_side: more_covering
     floor: 5
+  left_out:
+    ask_respondent: false
+    status: LEFT_OUT
+    note: You weren't sure, so this was left out of the study. The brief says it is untested.
 - key: commercial.buyer_payer_alignment
   vector: COMMERCIAL
   order: 4
-  name: Buyer / payer alignment
+  name: Buyer and payer
   meaning: Whether the user, beneficiary, decision maker, approver, and payer are the same person or a workable chain.
-  weight: DEAL_BREAKER
   founder:
-    control: single_choice
-    guidance: Set by the who-decides step (D1); the calibration confirms the chain from user to payer as one of five role chains.
+    control: role_list
+    guidance: 'Besides the decider, who has to agree before they can buy: ''Nobody'' is an answer. The roles are only those
+      the founder named (Keel adds none), each at most 4 words; the founder picks the one to test, or Nobody else.'
     normalized:
-      kind: role_chain
-      codes:
-      - same_person
-      - user_decides_other_pays
-      - joint_decision
-      - someone_else_decides
-      - institution_pays
-    option_rule: Exactly 5 options onto the codes, worded for this market's roles; each with a belief phrase that names the chain.
-    belief_template: 'On buying: {value}.'
+      kind: saved_list
+    option_rule: '''Nobody else'' first (fixed), then at most two roles the founder named, each at most 4 words.'
+    belief_template: '{decider} decides, and {value} has to agree.'
     unsure_allowed: true
+    saves:
+      min_items: 1
+      max_items: 3
+      max_words: 4
+      picked: true
+      fixed_first:
+        code: nobody_else
+        label: Nobody else
   respondent:
     part: 3
     anchor: last_purchase
-    control: single_choice
-    guidance: 'Who paid for that last thing, and did anyone else have to agree: one pick on the same chains, plus ''it was free''.'
-    option_rule: Founder's 5 codes worded as 'me, no one else needed to agree' etc. + 'It was free' (escape). No 'Something else'.
-    chips:
-    - I can't recall
-    - I'd rather not say
+    control: fixed_four
+    guidance: '''For that tool, did'' the role you picked ''have to agree before it went through?'' (''did anyone else have
+      to agree'' when you picked Nobody else; on a study where the user pays, ''Did ... have to agree before you paid for
+      it?''). The fixed four.'
+    option_rule: The registry's fixed four, in order. Escape 'I can't recall one', apart.
+    escape:
+      code: cant_recall_one
+      label: I can't recall one
+      counts: apart
+    fixed_answers:
+    - code: had_to_agree
+      label: Yes, they had to agree
+    - code: decided_alone
+      label: No, I decided on my own
+    - code: someone_else_agreed
+      label: No, someone else had to agree
+    - code: someone_else_decided
+      label: Someone else decided, not me
+    supports:
+    - had_to_agree
     b2b:
       anchor: last_purchase
-      guidance: 'For the last comparable purchase: who had to agree before it went through (you alone · you plus your manager · a committee · procurement or finance
-        · someone else entirely).'
-      option_rule: 5 options mirroring the codes + 'It was free'.
+      guidance: 'For the last tool the team paid for: did the tested role have to agree before it went through; the fixed
+        four.'
+      option_rule: The registry's fixed four.
   answers:
     shape: choice
-    compare_rule: role_chain_match
-    status_vocabulary:
-    - HOLDING_UP
-    - NOT_HOLDING_UP
-    - PEOPLE_DISAGREE
-    - TOO_FEW_TO_CALL
-    - NOT_ASKED_YET
-    - LEFT_OUT
+    compare_rule: first_supports
     floor: 5
-  lullaby:
-    founder_question: When a parent decides to try something new for the baby's nights, who actually pays for it?
+  left_out:
+    ask_respondent: false
+    status: LEFT_OUT
+    note: You weren't sure, so this was left out of the study. The brief says it is untested.
 - key: commercial.purchase_friction
   vector: COMMERCIAL
   order: 5
   name: Purchase friction
-  meaning: The approvals, procurement, account setup, switching, security, spouse/manager agreement, or other steps between interest and purchase.
-  weight: SHAPES
+  meaning: The approvals, procurement, account setup, switching, security, spouse/manager agreement, or other steps between
+    interest and purchase.
   b2b_only: true
   founder:
-    control: multi_choice
-    guidance: 'What could slow or stop the decision-maker between interest and paying: approvals, proof, payment effort, cancellation worry, privacy, forgetting.'
+    control: item_list
+    guidance: 'What could slow down or stop a purchase: the founder''s Answer becomes 1 to 4 steps; Keel may add one, tagged
+      suggested until Save; the founder picks the one to test.'
     normalized:
-      kind: set
-      codes: model_written
-      code_rule: 4–6 slug codes for this market (e.g. partner_approval, social_proof, payment_effort, cancel_worry, privacy, forgetting); ordered as presented.
-    option_rule: 4–6 options, each one blocker, each with a belief phrase; ticked phrases joined with 'and'.
-    belief_template: Between wanting it and paying, {value} could hold them back.
+      kind: saved_list
+    option_rule: 1 to 4 steps, each at most 9 words, a noun phrase (a security review, the finance director's sign-off); at
+      most one suggested by Keel.
+    belief_template: '{value} slows the purchase most.'
     unsure_allowed: true
+    saves:
+      min_items: 1
+      max_items: 4
+      max_words: 9
+      picked: true
   respondent:
     part: 3
     anchor: last_purchase
-    control: multi_choice
-    guidance: The last time you nearly bought something for this and didn't, what got in the way; or, for that last purchase, what had to happen first. Tick all;
-      include 'Nothing; it never came up'.
-    option_rule: Founder's labels verbatim + 2–3 distractors + 'Nothing; it never came up' + 'Something else' (both code-appended).
-    chips:
-    - I can't recall
-    - I'd rather not say
+    control: fixed_three
+    guidance: '''For that tool, did it need'' the step you picked ''before it went through?'' The fixed three.'
+    option_rule: The registry's fixed three, in order. Escape 'I can't recall', apart.
+    escape:
+      code: cant_recall
+      label: I can't recall
+      counts: apart
+    fixed_answers:
+    - code: yes_long
+      label: Yes, and it took a long time
+    - code: yes_quick
+      label: Yes, but it was quick
+    - code: not_needed
+      label: No, it wasn't needed
+    supports:
+    - yes_quick
+    - not_needed
     b2b:
       anchor: last_purchase
-      guidance: 'For the last comparable purchase, what had to happen before it went through: security review, procurement, a pilot, budget sign-off, a champion,
-        a contract. Tick all.'
-      option_rule: Founder's codes + 'Nothing; it went straight through' + 'Something else'.
+      guidance: 'For the last tool the team paid for: did it need the tested step before it went through; the fixed three.'
+      option_rule: The registry's fixed three.
   answers:
     shape: choice
-    compare_rule: set_overlap
-    status_vocabulary:
-    - HOLDING_UP
-    - NOT_HOLDING_UP
-    - PEOPLE_DISAGREE
-    - TOO_FEW_TO_CALL
-    - NOT_ASKED_YET
-    - LEFT_OUT
+    compare_rule: caution_turned
     floor: 5
-  lullaby:
-    founder_question: Which of these would most likely slow down or stop a parent between hearing about the app and actually paying for it? Pick all that apply.
+  left_out:
+    ask_respondent: false
+    status: LEFT_OUT
+    note: You weren't sure, so this was left out of the study. The brief says it is untested.
 - key: commercial.commitment
   vector: COMMERCIAL
   order: 6
   name: Commitment
-  meaning: The meaningful actions the person is willing to take before purchase, such as time, installation, data access, referral, deposit, or trial participation.
-  weight: DEAL_BREAKER
+  meaning: The meaningful actions the person is willing to take before purchase, such as time, installation, data access,
+    referral, deposit, or trial participation.
   founder:
-    control: multi_choice
-    guidance: Which real next steps people would take now for a trial, from a fixed ladder for the market type; the founder's highest ticked rung is the belief.
+    control: one_step
+    guidance: 'The first real step the founder wants them to take: the founder''s Answer becomes the step as strangers hear
+      it, in base form, at most 9 words; a note when it is only a conversation.'
     normalized:
-      kind: ladder
-      codes: model_written
-      code_rule: 'Exactly the 5 fixed rungs for the project''s type, in order. B2C: setup, install, mic, next_episode, contact_me. B2B: call, read_only_trial, it_intro,
-        data, paid_pilot. The model writes the labels for the mechanism; the respondent side adds the fixed code nothing_yet (''Nothing yet''), never offered to the
-        founder.'
-    option_rule: Exactly 5 options, one per rung, in rung order; each with a belief phrase naming the action.
-    belief_template: For a trial, right now, they would go as far as {value}.
+      kind: saved_list
+    option_rule: Exactly one step, base form, at most 9 words; no number the founder did not write.
+    belief_template: Most are open to {value} now.
     unsure_allowed: true
+    saves:
+      min_items: 1
+      max_items: 1
+      max_words: 9
+      picked: false
   respondent:
     part: 3
     anchor: last_purchase
-    control: multi_choice_ladder
-    guidance: 'Tick what you would actually do now, not what you might do: the 5 rungs for the market type plus ''Nothing yet''. Real next steps, offered after the
-      done screen as far as the product can honour them.'
-    option_rule: The 5 B2C rungs (setup, install, mic, next_episode, contact_me) + 'Nothing yet'. No 'Something else'.
-    chips:
-    - I'd rather not say
+    control: fixed_four
+    guidance: '''If it were ready today, would you'' take your first step, ''or not?'' The fixed four. No escape: ''No'' is
+      the floor.'
+    option_rule: The registry's fixed four, in order; 'Yes, after trying it first' supports and is shown apart.
+    escape: null
+    fixed_answers:
+    - code: yes_start
+      label: Yes, I'd start one
+    - code: yes_after_trying
+      label: Yes, after trying it first
+    - code: probably_not
+      label: Probably not
+    - code: 'no'
+      label: 'No'
+    supports:
+    - yes_start
+    - yes_after_trying
+    conditional: yes_after_trying
     b2b:
       anchor: last_cycle
-      guidance: 'Tick the real next steps you would take now: the B2B ladder plus ''Nothing yet''.'
-      option_rule: The 5 B2B rungs + 'Nothing yet'. No 'Something else'.
-      ladder_rungs:
-      - call
-      - read_only_trial
-      - it_intro
-      - data
-      - paid_pilot
+      guidance: 'The same item on the decision-maker''s link: if it were ready today, would you take the founder''s step;
+        the fixed four.'
+      option_rule: The registry's fixed four.
   answers:
     shape: choice
-    compare_rule: ladder_rung
-    status_vocabulary:
-    - HOLDING_UP
-    - NOT_HOLDING_UP
-    - PEOPLE_DISAGREE
-    - TOO_FEW_TO_CALL
-    - NOT_ASKED_YET
-    - LEFT_OUT
+    compare_rule: fixed_last_two_against
     floor: 5
-  lullaby:
-    founder_question: For a trial right now, which of these do you think most parents would actually do? Pick all that apply.
+  left_out:
+    ask_respondent: false
+    status: LEFT_OUT
+    note: You weren't sure, so this was left out of the study. The brief says it is untested.

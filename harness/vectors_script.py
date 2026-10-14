@@ -1,5 +1,12 @@
 """The vectors corpus becomes the script (spec 039, the corpus journeys as vectors journeys).
 
+**Since spec 040 the corpus is revision 10 and the contract 13** (keel-cloud 087 / 088 / 089): the keys table below
+reads the new export (eight screens, `ASKED` among them) and the one-unit window's branches are gone (D13,
+runs/DRIFT.md #74 closed). The script's *results* and the typed inputs below still write revision 9's shapes -- the
+founder's model-written option sets, the respondent questionnaire, the brief's tiles -- and are re-pointed at the
+founder lists, `{key, event}` items, the `asked` faces and the brief's answers by the later journey spec, once keel-web
+specs 7, 8 and 10 land; until then the unit tests that read the corpus through them skip by name.
+
 One revision-9 corpus entry in; out come the three things S-005, S-006 and S-007 need to drive the
 **vector corridor** deterministically, and nothing else:
 
@@ -51,12 +58,15 @@ CALIBRATION_SCREEN = "CALIBRATION_QUESTIONS"
 RESPONDENT_SCREEN = "RESPONDENT_QUESTIONS"
 INTERPRET_SCREEN = "INTERPRET"
 BRIEF_SCREEN = "BRIEF"
+#: keel-cloud 088 (contract 12): the `asked` faces of a saved Compatibility / Adoption friction list. Its keys are
+#: the export's own; what the script answers on it is the later journey spec's (spec 040 *Follow-ups*).
+ASKED_SCREEN = "ASKED"
 RESPONDENT_ALIASES = {(1, "PRIMARY"): "RESPONDENT_QUESTIONS_P1",
                       (2, "PRIMARY"): "RESPONDENT_QUESTIONS_P2",
                       (3, "PRIMARY"): "RESPONDENT_QUESTIONS_P3",
                       (3, "COMMERCIAL_B2B"): "RESPONDENT_QUESTIONS_P3_B2B"}
 CORRIDOR_SCREENS = (CONTEXT_SCREEN, PROBLEM_SCREEN, MECHANISM_SCREEN, CALIBRATION_SCREEN,
-                    INTERPRET_SCREEN, BRIEF_SCREEN)
+                    ASKED_SCREEN, INTERPRET_SCREEN, BRIEF_SCREEN)
 
 LINK_PRIMARY = "PRIMARY"
 LINK_B2B = "COMMERCIAL_B2B"
@@ -121,16 +131,16 @@ def entry_for(keel_cloud, entry_id: str):
 
 # ------------------------------------------------------------------------- the recall window
 
+#: D13 (keel-cloud 087): CYCLES and SHIFTS went with the one-unit window; a window counts at least two.
 _UNIT_WORDS = {"NIGHTS": ("night", "nights"), "DAYS": ("day", "days"),
                "WORKING_DAYS": ("working day", "working days"), "WEEKS": ("week", "weeks"),
-               "MONTHS": ("month", "months"), "CYCLES": ("cycle", "cycles"),
-               "SHIFTS": ("shift", "shifts")}
+               "MONTHS": ("month", "months")}
 
 
 @dataclass(frozen=True)
 class Window:
     count: int
-    unit: str           # the wire's enum: NIGHTS | DAYS | WORKING_DAYS | WEEKS | MONTHS | CYCLES | SHIFTS
+    unit: str           # the wire's enum: NIGHTS | DAYS | WORKING_DAYS | WEEKS | MONTHS
 
     def as_wire(self) -> dict:
         return {"count": self.count, "unit": self.unit}
@@ -138,9 +148,9 @@ class Window:
 
 def window_of(entry) -> Window:
     raw = (entry.context or {}).get("recall_window") or {}
-    if not raw.get("count") or raw.get("unit") not in _UNIT_WORDS:
+    if not raw.get("count") or int(raw["count"]) < 2 or raw.get("unit") not in _UNIT_WORDS:
         raise VectorsScriptError(f"{entry.id}: context.recall_window is {raw!r}; the wire needs "
-                                 f"{{count >= 1, unit in {sorted(_UNIT_WORDS)}}}")
+                                 f"{{count >= 2, unit in {sorted(_UNIT_WORDS)}}} (D13)")
     return Window(count=int(raw["count"]), unit=str(raw["unit"]))
 
 
@@ -156,8 +166,6 @@ def frequency_fits(entry) -> bool:
     (`unsure`) rather than inventing a number (spec 039 *Disagreements*, D-1).
     """
     window = window_of(entry)
-    if window.count <= 1:
-        return False
     answer = (entry.founder_calibration.get("problem.frequency") or {}).get("answer")
     if not isinstance(answer, dict):
         return False
@@ -173,8 +181,7 @@ def frequency_fits(entry) -> bool:
 def window_words(window: Window) -> str:
     """keel-web `RECALL_WINDOW_WORDS`: "the last month", "7 nights", "2 weeks" -- what the context
     card's *Counting the last ...* line carries."""
-    one, many = _UNIT_WORDS[window.unit]
-    return f"the last {one}" if window.count == 1 else f"{window.count} {many}"
+    return f"{window.count} {_UNIT_WORDS[window.unit][1]}"
 
 
 # ------------------------------------------------------------------------- composed labels
@@ -358,20 +365,10 @@ def calibrated_keys(entry, vector: str) -> list[str]:
     return keys
 
 
-def one_unit_window(entry) -> bool:
-    """keel-cloud spec 078: on a one-unit window ("the last month") the gate's yes / no already
-    answers how often, so Frequency is written by the calibration job but shown to nobody -- not
-    the founder's screens, not the interview -- and stands `NOT_ASKED_YET` by design."""
-    return window_of(entry).count <= 1
-
-
 def founder_keys(entry, vector: str) -> list[str]:
-    """The dimensions the founder's calibration screens show: the job's slice, less Frequency on
-    a one-unit window."""
-    keys = calibrated_keys(entry, vector)
-    if one_unit_window(entry):
-        keys = [k for k in keys if k != "problem.frequency"]
-    return keys
+    """The dimensions the founder's calibration screens show: the job's slice (D13: no one-unit window, so
+    Frequency is shown on every project -- runs/DRIFT.md #74 closed)."""
+    return calibrated_keys(entry, vector)
 
 
 def _founder(entry, key: str) -> dict:
@@ -432,9 +429,7 @@ def calibration_question(entry, key: str) -> dict:
     if key == "problem.prevalence":
         q["event"] = event_past(entry)
     elif key == "problem.frequency":
-        if one_unit_window(entry):
-            # Written, never shown (spec 078): the job's slice still carries Frequency.
-            q["question"] = (f"On how many occasions do {ctx['actor_plural']} meet this situation?")
+        pass
     elif key in ("commercial.price", "commercial.existing_sacrifice"):
         pass
     elif key == "problem.importance":
@@ -490,13 +485,6 @@ def calibration_answers(entry, vector: str) -> list[CalibrationAnswer]:
     Ability to pay is never sent -- it is derived."""
     out = []
     keys = founder_keys(entry, vector)
-    if vector == "PROBLEM" and one_unit_window(entry):
-        # runs/DRIFT.md #74: on a one-unit window no founder screen asks Frequency (keel-web
-        # `CalibrationRoute` filters it, keel-cloud's GET serves none), yet `GET standings` answers
-        # 500 -- "founder_calibration has no answer for 'problem.frequency'" -- until the dimension
-        # carries one. The journey sends the one answer the product could mean, `unsure`, on the
-        # wire, and says so; it is the only calibration answer no screen gives.
-        keys = calibrated_keys(entry, vector)
     for key in keys:
         founder = _founder(entry, key)
         answer = founder.get("answer")

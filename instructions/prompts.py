@@ -56,7 +56,10 @@ def load_runtime(keel_runtime: Path):
 
 
 #: `Case.kind` at `MARKS_VERSION` 9 (data-model §4). `FRAME` is the two typed-seed interpretations.
-KINDS = ("CONTEXT", "FRAME", "CALIBRATION", "RESPONDENT", "READING", "COMPARE", "BRIEF")
+KINDS = ("CONTEXT", "FRAME", "CALIBRATION", "ASKED", "RESPONDENT", "READING", "COMPARE", "BRIEF")
+
+#: The `ASKED` cases' subjects (keel-cloud 088): the two lists whose items carry a stranger's face.
+ASKED_SUBJECTS = {"solution.compatibility": "COMPATIBILITY", "solution.adoption_friction": "ADOPTION_FRICTION"}
 
 
 @dataclass
@@ -156,13 +159,17 @@ def canonical_host(executor_module, host: str) -> str:
 
 
 def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_runs: int = 3,
-                host: str = "claude") -> list:
-    """Every case one corpus entry produces at `MARKS_VERSION` 9, in FR-016's order and ids:
+                host: str = "claude", brief_facts: dict | None = None) -> list:
+    """Every case one corpus entry produces at `MARKS_VERSION` 18, in FR-016's order and ids:
 
         <entry>/CONTEXT_INTERPRET/run<N>  <entry>/PROBLEM_INTERPRET/run<N>
         <entry>/SOLUTION_MECHANISM/run<N> <entry>/CALIBRATION_<VECTOR>/run<N> x3
+        <entry>/ASKED_COMPATIBILITY/run<N> <entry>/ASKED_ADOPTION_FRICTION/run<N>   (spec 040: each saved list)
         <entry>/RESPONDENT_PART<P>/run<N> x3 (+ <entry>/RESPONDENT_B2B/run<N> on a B2B entry)
         <entry>/INTERPRET/<person>/run<N> per readable person    <entry>/COMPARE    <entry>/BRIEF/run<N>
+
+    `brief_facts` is keel-cloud's own facts by entry id (`cloud_corpus`), handed to the BRIEF case as production
+    hands them; an entry it does not carry is handed this repository's reading (call 84).
 
     The registry is the export's (`exported.registry`); the plan is derived from it by code (call
     30). **No `INTERPRET` case is built for a gate-No, a chipped or an empty story** -- the chip is
@@ -209,14 +216,28 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
                   # Calls 47, 61: the ANSWERED slice -- the derived Ability to pay is not in the job.
                   "registry_slice": [d.key for d in registry.answered_slice(vector,
                                                                             entry.b2b())],
-                  # Calls 52, 53: the keys whose model text a reader is shown, so `no_leak`'s
+                  # The keys whose model text a reader is shown (Prevalence and the lists), so `no_leak`'s
                   # denominator is read, never typed, on a dry run too.
                   "swept": [d.key for d in registry.answered_slice(vector, entry.b2b())
-                            if score_mod.is_swept(d, context_mod.window_of(entry), founder=True)],
+                            if score_mod.is_swept(d, founder=True)],
                   # Call 55: the names W3 / W8 hold to -- the corpus's, else none -- and the
                   # mechanism the validator holds them with (never its Lullaby fixture's).
                   "short_name": context_mod.short_name_of(entry),
                   "offer_name": context_mod.offer_name_of(entry),
+                  "validation_mechanism": context_mod.validation_mechanism(entry),
+                  "validation_problem_statement": context_mod.problem_statement(entry)})
+
+    # ASKED (keel-cloud 088 FR-003): one job a saved Compatibility / Adoption friction list, its items by index --
+    # the job a Save starts for the items code cannot vouch for; the corpus's lists stand in for the founder's.
+    keys = exported.keys_for(c.SCREEN_ASKED)
+    for key, subject in ASKED_SUBJECTS.items():
+        if key not in entry.calibrated_keys(registry) or entry.unsure(key):
+            continue
+        context = context_mod.build_asked(entry, key, registry, keys)
+        if not context.get("items"):
+            continue
+        add(f"{entry.id}/ASKED_{subject}", "ASKED", c.SCREEN_ASKED, subject, context,
+            meta={"dimension": key, "items": list(context.get("items") or []),
                   "validation_mechanism": context_mod.validation_mechanism(entry),
                   "validation_problem_statement": context_mod.problem_statement(entry)})
 
@@ -232,7 +253,8 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
             context_mod.build_respondent(entry, part, plan, registry, keys, link=link),
             meta={"part": part, "link": link, "plan": list(plan[part]),
                   "swept": [k for k in plan[part]
-                            if score_mod.is_swept(registry.by_key(k), context_mod.window_of(entry))],
+                            if score_mod.is_swept(registry.by_key(k), founder=False)
+                            and part == 1 and link == context_mod.LINK_PRIMARY],
                   "short_name": context_mod.short_name_of(entry),
                   "offer_name": context_mod.offer_name_of(entry),
                   "founder_values": context_mod.founder_values(entry, plan[part]),
@@ -251,7 +273,10 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
                       screen=c.SCREEN_COMPARE, subject="COMPARE", run_index=0, payload={},
                       compare_input=compare_mod.build_input(entry, registry)))
 
-    # BRIEF: one paragraph a project, last -- what a founder reads once every answer is read.
+    # BRIEF: one reading a project, last -- what a founder reads once every answer is read.
+    facts = (brief_facts or {}).get(entry.id)
     add(f"{entry.id}/BRIEF", "BRIEF", c.SCREEN_BRIEF, "BRIEF",
-        context_mod.build_brief(entry, exported.keys_for(c.SCREEN_BRIEF), registry))
+        context_mod.build_brief(entry, exported.keys_for(c.SCREEN_BRIEF), registry, facts=facts),
+        meta={"facts_source": "keel-cloud BriefFactsCorpusTest" if facts is not None
+              else "the eval's reading (brief_facts.facts_for)"})
     return cases

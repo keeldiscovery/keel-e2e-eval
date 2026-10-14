@@ -1,21 +1,27 @@
-"""`instructions/score.py` at `MARKS_VERSION` 13 (spec 029 data-model §6; T025, T029, T035, T039,
-T040, T042, T043; spec 030 T009-T010, calls 46-47; spec 031 T010, calls 52-55).
+"""`instructions/score.py` at `MARKS_VERSION` 18 (spec 029 data-model §6; spec 030 calls 46-47; spec 040, judgement
+calls 77-85).
 
-Fixtures a person can check by hand: the hand-sized registry slice of twelve and
-`09-fixture-r7.yaml` (B2C: eleven calibrated keys, one left out). Every mark has its green half and its
-red half here, and every total is summed over its own denominator and never another's -- each
-denominator read off the registry and the entry (`_slice`, `_plan`), never typed.
+Fixtures a person can check by hand: the hand-sized registry slice (registry 4) and `09-fixture.yaml` (B2C: twelve
+calibrated keys, Buyer and payer left out) with its B2B twin. Since keel-cloud 087 / 088 the model writes no question:
+the founder-lists job writes Prevalence's clause and fifths and every list dimension's draft (call 85), the respondent
+job the gate's clause (call 83), the `ASKED` job a face a list item (call 84). Every mark has its green half and its
+red half here, and every total is summed over its own denominator and never another's -- each denominator read off
+the registry and the entry (`_slice`, the plan, the items handed), never typed.
 """
 
 from __future__ import annotations
 
+import copy
 import json
 
 import pytest
 
 from instructions import compare as compare_mod
+from instructions import corpus as corpus_mod
 from instructions import marks as marks_mod
 from instructions import prompts as prompts_mod
+from instructions import spoken as spoken_mod
+from instructions import brief_facts as brief_facts_mod
 from instructions import score as score_mod
 from tests import v9_fixtures as fx
 
@@ -27,9 +33,13 @@ def entry():
 
 @pytest.fixture()
 def b2b_entry():
-    """The B2B twin: since v13 Existing sacrifice is code's whole, so the one model-written set a
-    persona calibrates and asks is Purchase friction's, which only a B2B entry carries."""
+    """The B2B twin: Purchase friction calibrated and its two steps listed; part 3 the decision-maker's link."""
     return fx.entry(fx.ENTRY_B2B)
+
+
+@pytest.fixture()
+def registry():
+    return fx.registry()
 
 
 def _compare_case(entry):
@@ -43,9 +53,8 @@ def _compare(entry, name="agree"):
                                    compare_mod.diff(entry.expected, produced, entry=entry))
 
 
-# ------------------------------------------------------------------------------------ compare
-
 def _checks(entry) -> int:
+    """All thirteen decide (call 77): one check a calibrated dimension and one a vector."""
     return len(entry.calibrated_keys()) + len(entry.expected["vector_verdicts"])
 
 
@@ -83,28 +92,32 @@ def test_a_run_with_no_compare_row_has_compare_unmeasured():
 
 # ------------------------------------------------------------------------------------- totals
 
-def test_totals_carries_every_v9_key_and_nothing_retired():
+def test_totals_carries_every_v18_key_and_nothing_retired():
     totals = score_mod.totals()
     for key in ("calibration_cases", "calibration_coverage", "calibration_validity",
                 "calibration_leak", "respondent_cases", "respondent_coverage",
-                "respondent_validity", "respondent_leak", "dimension_coverage", "option_validity",
+                "respondent_validity", "respondent_leak", "asked_cases", "asked_coverage", "asked_validity",
+                "dimension_coverage", "option_validity",
                 "no_leak", "leak_hits", "leak_judged", "judged_fraction", "judge_calls",
                 "anchoring_accuracy", "guessed_precision", "guessed_recall", "confusion",
                 "people_given", "people_answered", "reading_missing_ids", "reading_extra_ids",
                 "chipped_skipped", "compare_checks", "compare_agreed", "compare_correctness",
-                "compare_measured", "compare_reported_diffs", "refusals_by_rule",
+                "compare_measured", "compare_reported_diffs", "spoken_form", "spoken_measured",
+                "spoken_units", "spoken_clean", "spoken_known", "spoken_unmeasured", "brief_facts",
+                "brief_facts_checks", "brief_facts_agreed", "brief_facts_measured", "brief_facts_reported_diffs",
+                "brief_facts_unmeasured", "refusals_by_rule",
                 "refusals_measured", "refusals_shown", "shape_refusals", "schema_invalid",
-                "errored", "brief_cases", "brief_paragraphs", "brief_measured", "brief_by_mark"):
+                "errored", "brief_cases", "brief_answers", "brief_measured", "brief_by_mark"):
         assert key in totals, key
     for retired in ("golden_belief_recall", "exact_match", "phrase_band", "anchors_given",
-                    "unresolved_reads"):
+                    "unresolved_reads", "brief_paragraphs", "wording"):
         assert retired not in totals, retired
 
 
 def test_an_empty_run_measures_nothing_and_says_none_rather_than_zero():
     totals = score_mod.totals()
     for name in ("dimension_coverage", "option_validity", "no_leak", "anchoring_accuracy",
-                 "compare_correctness", "brief_paragraphs"):
+                 "compare_correctness", "brief_answers", "spoken_form", "brief_facts"):
         assert totals[name] is None, name
 
 
@@ -116,19 +129,33 @@ def test_the_spread_reports_each_run_and_averages_nothing():
 
 
 def test_the_retired_scorers_are_gone():
-    for name in ("score_assumptions", "score_reading", "AssumptionScore", "FIELDS"):
+    """Calls 29, 83: the assumption scorers, and the model-written option and wording checks."""
+    for name in ("score_assumptions", "score_reading", "AssumptionScore", "FIELDS", "model_text",
+                 "WORDING_KEYS", "wording_totals", "is_escape_label", "ESCAPE_LABELS", "_ladder_codes",
+                 "_named_faults", "_question_texts"):
         assert not hasattr(score_mod, name), name
 
 
-# ------------------------------------------- US2: calibration (062; calls 30-32, marks §2.1-§2.3)
+def test_the_two_deterministic_marks_reach_the_totals_measured_or_not(entry, registry):
+    """Calls 79, 82: `spoken_form` and `brief_facts` are measured at zero spend, and an unmeasured one says why."""
+    unmeasured = score_mod.totals(spoken_score=spoken_mod.unmeasured("no gradlew"),
+                                  facts_scores=[brief_facts_mod.unmeasured(entry.id, "no facts")])
+    assert unmeasured["spoken_form"] is None and unmeasured["spoken_unmeasured"] == "no gradlew"
+    assert unmeasured["brief_facts"] is None
+    assert unmeasured["brief_facts_unmeasured"] == [{"entry": entry.id, "reason": "no facts"}]
+    judged = marks_mod.judge(unmeasured, marks_mod.load())
+    assert judged["spoken_form"]["measured"] is False and judged["brief_facts"]["measured"] is False
+    spoken = spoken_mod.SpokenScore(units=4, clean=3, measured=True)
+    facts = brief_facts_mod.FactsCompare(entry.id)
+    facts.checks, facts.agreed = 13, 13
+    measured = score_mod.totals(spoken_score=spoken, facts_scores=[facts])
+    assert (measured["spoken_form"], measured["spoken_units"], measured["spoken_clean"]) == (0.75, 4, 3)
+    assert (measured["brief_facts"], measured["brief_facts_checks"]) == (1.0, 13)
+    judged = marks_mod.judge(measured, marks_mod.load())
+    assert judged["spoken_form"]["met"] is False and judged["brief_facts"]["met"] is True
 
-import copy                                                                  # noqa: E402
 
-
-@pytest.fixture()
-def registry():
-    return fx.registry()
-
+# --------------------------------------------- calibration: the founder-lists job (calls 30-32, 85)
 
 def _calibrate(entry, registry, vector="PROBLEM", mutate=None, judge=None):
     result = fx.calibration_result(registry, vector, b2b=entry.b2b())
@@ -140,6 +167,10 @@ def _calibrate(entry, registry, vector="PROBLEM", mutate=None, judge=None):
 
 def _q(result, key):
     return next(q for q in result["questions"] if q["key"] == key)
+
+
+def _items(result, key):
+    return _q(result, key)["list"]["items"]
 
 
 def _slice(entry, registry, vector) -> int:
@@ -155,7 +186,7 @@ def test_a_good_answer_covers_its_slice_and_meets_every_rule(entry, registry, ve
     assert (score.validity_hit, score.validity_of) == (count, count), score.faults
     assert score.faults == []
     if vector == "PROBLEM":
-        # Calls 52, 53: Frequency over the framed 7 nights has no model text to sweep.
+        # Frequency writes nothing a reader is shown: Prevalence and the two lists are swept.
         assert (score.leak_clean, score.leak_of) == (count - 1, count - 1)
     else:
         assert score.leak_of == 0, "sweep A runs on the PROBLEM vector only"
@@ -164,7 +195,7 @@ def test_a_good_answer_covers_its_slice_and_meets_every_rule(entry, registry, ve
 @pytest.mark.parametrize("name, mutate, words", [
     ("doubled", lambda r: r["questions"].append(copy.deepcopy(r["questions"][1])), "doubled"),
     ("missing", lambda r: r["questions"].pop(2), "missing problem.importance"),
-    ("foreign", lambda r: r["questions"].append({"key": "problem.vibes", "question": "?"}),
+    ("foreign", lambda r: r["questions"].append({"key": "problem.vibes", "respondent_note": "?"}),
      "outside the slice problem.vibes"),
     ("out of order", lambda r: r["questions"].insert(0, r["questions"].pop(3)), "out of order"),
 ])
@@ -174,66 +205,74 @@ def test_coverage_is_absolute_and_any_slip_fails_the_case(entry, registry, name,
     assert any(words in f["evidence"] for f in score.faults if f["check"] == "dimension_coverage")
 
 
-#: The fixed five-point scale of v10's PROBLEM vector (it was Severity's at v9).
-SCALE = "problem.current_solution_satisfaction"
-#: The one model-written set there is to calibrate or ask, on a B2B entry (it was Existing sacrifice's kinds at
-#: v12 and Consequence's at v9; call 67).
-SET = "commercial.purchase_friction"
+IMPORTANCE = "problem.importance"
+CURRENT = "problem.current_solution_satisfaction"
+COMPAT = "solution.compatibility"
+ADOPTION = "solution.adoption_friction"
+GATE = "problem.prevalence"
 
 
-def _scale_options(r):
-    return _q(r, SCALE)["options"]
-
-
-def _set_options(r):
-    return _q(r, SET)["options"]
+def _set(key, index, field, value):
+    return lambda r: _items(r, key)[index].__setitem__(field, value)
 
 
 @pytest.mark.parametrize("name, vector, mutate, words", [
-    ("count", "PROBLEM", lambda r: _scale_options(r).pop(), "4 options; the registry fixes 5"),
-    ("order", "PROBLEM", lambda r: _scale_options(r).insert(0, _scale_options(r).pop(2)),
-     "out of registry order"),
-    ("foreign code", "PROBLEM", lambda r: _scale_options(r)[0].__setitem__("normalized", "awful"),
-     "not the registry's"),
-    ("repeated", "COMMERCIAL", lambda r: _set_options(r).append(
-        copy.deepcopy(_set_options(r)[0])), "repeated"),
-    ("too few written", "COMMERCIAL", lambda r: _set_options(r).__delitem__(slice(1, 3)),
-     "the rule asks 4-6"),
-    ("not a slug", "COMMERCIAL", lambda r: _set_options(r)[0].__setitem__(
-        "normalized", "Lost Sleep"), "not slugs"),
-    ("empty phrase", "PROBLEM", lambda r: _scale_options(r)[1].__setitem__("belief_phrase", " "),
-     "no belief_phrase"),
-    ("phrase too long", "PROBLEM", lambda r: _scale_options(r)[1].__setitem__(
-        "belief_phrase", "x" * 121), "121 characters, longer than 120"),
-    ("phrase not sure", "PROBLEM", lambda r: _scale_options(r)[1].__setitem__(
-        "belief_phrase", "not sure how bad it is"), "belief_phrase carries a not-sure word"),
-    ("not sure", "PROBLEM", lambda r: _scale_options(r)[4].__setitem__("label", "I'm not sure"),
-     "not-sure option"),
-    ("template", "PROBLEM", lambda r: _q(r, SCALE).__setitem__("belief_template", "x"),
-     "{value} exactly once"),
-    ("options on numeric", "PROBLEM", lambda r: _q(r, "problem.frequency").__setitem__(
-        "options", [{"label": "1", "normalized": "one", "belief_phrase": "one"}]),
-     "options on a numeric control"),
-    ("numeric spec", "PROBLEM", lambda r: _q(r, "problem.frequency").__setitem__(
-        "normalized", {"axis_max": 120}), "numeric spec axis_max"),
-    ("no event", "PROBLEM", lambda r: _q(r, "problem.prevalence").pop("event"),
-     "E2: Prevalence carries `event`"),
-    ("a time word in the event", "PROBLEM", lambda r: _q(r, "problem.prevalence").__setitem__(
+    # L1: the count, the phrase, the list itself
+    ("importance four", "PROBLEM", lambda r: _items(r, IMPORTANCE).pop(), "L1: problem.importance takes exactly 5"),
+    ("no phrase", "PROBLEM", lambda r: _q(r, CURRENT)["list"].__setitem__("phrase", " "),
+     "L1: Current solution carries the second-person phrase"),
+    ("no list", "SOLUTION", lambda r: _q(r, COMPAT).pop("list"), "write its draft list"),
+    ("options on a list", "SOLUTION", lambda r: _q(r, ADOPTION).__setitem__(
+        "options", [{"label": "Clip it", "belief_phrase": "clip"}]), "never options"),
+    ("five conditions", "SOLUTION", lambda r: _items(r, COMPAT).extend(
+        copy.deepcopy(_items(r, COMPAT)[:1]) * 3), "takes 2 to 4 items"),
+    ("two steps", "COMMERCIAL", lambda r: _items(r, "commercial.commitment").append({"label": "pay for it"}),
+     "takes exactly 1 items"),
+    ("three roles", "COMMERCIAL", lambda r: _items(r, "commercial.buyer_payer_alignment").extend(
+        [{"label": "The owner"}, {"label": "Finance"}]), "takes 0 to 2 items besides Nobody else"),
+    # L2: words an item (roles four)
+    ("a long rival", "PROBLEM", _set(IMPORTANCE, 2, "label", "Riding in the wet weather on the way into work today"),
+     "L2: item 3 is 1 to 9 words"),
+    ("a long role", "COMMERCIAL", _set("commercial.buyer_payer_alignment", 0, "label",
+                                       "The manager of the whole office"), "L2: item 1 is 1 to 4 words"),
+    # L3: no number the founder did not write
+    ("an invented number", "SOLUTION", _set(COMPAT, 1, "label", "Their 3 keys were on one ring"),
+     "L3: '3' in item 2 is a number the founder did not write"),
+    # L4 and the K rules on a drafted face (call 85)
+    ("no face", "SOLUTION", _set(ADOPTION, 0, "asked", ""), "L4: item 1 carries the stranger's clause"),
+    ("a question mark", "SOLUTION", _set(COMPAT, 0, "asked", "did you have your phone to hand?"), "L4:"),
+    ("not to the stranger", "SOLUTION", _set(COMPAT, 0, "asked", "did the phone sit within reach"), "K3:"),
+    ("framed too long", "SOLUTION", _set(ADOPTION, 0, "asked",
+                                         "you'd clip a small tag to your key ring once and then whistle for "
+                                         "it every morning before work"), "K2: framed"),
+    # L5: one suggested item, on Purchase friction only
+    ("a suggested condition", "SOLUTION", _set(COMPAT, 0, "suggested", True), "L5: item 1"),
+    # C3 and W9 on a list
+    ("a not-sure rival", "PROBLEM", _set(IMPORTANCE, 4, "label", "Not sure"), "C3:"),
+    ("money in an outcome", "PROBLEM", _set(CURRENT, 1, "label", "Lost five pounds on a taxi, £5"), "W9:"),
+    # Prevalence: the clause and the five fifths (E1-E3, C2-C4)
+    ("no event", "PROBLEM", lambda r: _q(r, GATE).pop("event"), "E2: Prevalence carries `event`"),
+    ("a time word in the event", "PROBLEM", lambda r: _q(r, GATE).__setitem__(
         "event", "lost their keys last week"), "E1: 'last' is a time word"),
-    ("tick all", "SOLUTION", lambda r: _q(r, "solution.compatibility").__setitem__(
-        "question", "When would it fit? Tick all that apply."), "W7: 'Tick all'"),
-    ("money", "COMMERCIAL", lambda r: _q(r, "commercial.commitment").__setitem__(
-        "question", "Would they pay £3 to try it?"), "W9: '£'"),
+    ("four fifths", "PROBLEM", lambda r: _q(r, GATE)["options"].pop(), "C2: 4 options; the registry fixes 5"),
+    ("empty phrase", "PROBLEM", lambda r: _q(r, GATE)["options"][1].__setitem__("belief_phrase", " "),
+     "no belief_phrase"),
+    ("phrase too long", "PROBLEM", lambda r: _q(r, GATE)["options"][1].__setitem__("belief_phrase", "x" * 121),
+     "121 characters, longer than 120"),
+    ("phrase not sure", "PROBLEM", lambda r: _q(r, GATE)["options"][1].__setitem__(
+        "belief_phrase", "not sure how many"), "belief_phrase carries a not-sure word"),
+    ("a not-sure fifth", "PROBLEM", lambda r: _q(r, GATE)["options"][4].__setitem__("label", "I'm not sure"),
+     "not-sure option"),
+    # the code-written entries owe their key alone
+    ("options on Frequency", "PROBLEM", lambda r: _q(r, "problem.frequency").__setitem__(
+        "options", [{"label": "1", "belief_phrase": "one"}]), "C2: 1 options on Frequency"),
+    ("a list on Frequency", "PROBLEM", lambda r: _q(r, "problem.frequency").__setitem__(
+        "list", {"items": [{"label": "Most nights"}]}), "L1: problem.frequency is no list"),
     ("options on Price", "COMMERCIAL", lambda r: _q(r, "commercial.price").__setitem__(
-        "options", [{"label": "Under £2", "belief_phrase": "under two"}]), "C2:"),
-    ("options on Existing sacrifice", "COMMERCIAL", lambda r: _q(r, "commercial.existing_sacrifice")
-     .__setitem__("options", [{"label": "Spare keys", "belief_phrase": "spare keys"}]),
-     "C2: 1 options on Existing sacrifice"),
-    ("fifths with a hole", "PROBLEM", lambda r: _q(r, "problem.prevalence")["options"][2]
-     .__setitem__("normalized", "p_50_60"), "not the registry's"),
+        "options", [{"label": "Under two pounds", "belief_phrase": "under two"}]), "C2:"),
 ])
-def test_option_validity_fails_on_each_registry_rule_made_to_fail_once(entry, b2b_entry, registry, name,
-                                                                       vector, mutate, words):
+def test_option_validity_fails_on_each_rule_made_to_fail_once(entry, b2b_entry, registry, name, vector, mutate,
+                                                               words):
     entry = b2b_entry if vector == "COMMERCIAL" else entry
     score = _calibrate(entry, registry, vector, mutate=mutate)
     validity = [f for f in score.faults if f["check"] == "option_validity"]
@@ -242,37 +281,36 @@ def test_option_validity_fails_on_each_registry_rule_made_to_fail_once(entry, b2
     assert score.validity_hit == score.validity_of - 1
 
 
+def test_one_suggested_step_is_allowed_on_purchase_friction_and_a_second_is_not(b2b_entry, registry):
+    """L5: the good B2B draft already tags one step suggested."""
+    assert _calibrate(b2b_entry, registry, "COMMERCIAL").faults == []
+    score = _calibrate(b2b_entry, registry, "COMMERCIAL",
+                       _set("commercial.purchase_friction", 0, "suggested", True))
+    assert any("L5: item 2" in f["evidence"] for f in score.faults)
+
+
+def test_a_drafted_face_is_held_to_its_own_labels_digits(entry, registry):
+    """Call 85, K4: a face may carry a number only where its label does."""
+    def numbered(r):
+        item = _items(r, ADOPTION)[0]
+        item["label"], item["asked"] = "Clip 7 tags to the key ring", "you'd clip 7 tags to your key ring, once"
+    assert _calibrate(entry, registry, "SOLUTION", numbered).faults == [], "7 is the window's, so L3 allows it too"
+
 
 def test_a_belief_phrase_equal_to_its_label_is_accepted(entry, registry):
-    # Call 37 (founder decision 32, 2026-10-08): C4 no longer refuses a phrase that repeats its
-    # label, case-folded -- keel-cloud 062 accepts it, so the eval does too.
+    # Call 37 (founder decision 32, 2026-10-08): C4 does not refuse a phrase that repeats its label, case-folded.
     def same(r):
-        for option in _scale_options(r):
+        for option in _q(r, GATE)["options"]:
             option["belief_phrase"] = str(option["label"]).upper()
     score = _calibrate(entry, registry, mutate=same)
     assert not [f for f in score.faults if f["check"] == "option_validity"], score.faults
-    assert score.validity_hit == score.validity_of
-
-def test_existing_sacrifice_owes_its_key_and_nothing_else_on_the_calibration_screen(registry):
-    """Call 67 (keel-cloud 077): no kinds of cost, so no options, no unit and no fixed `none` -- the entry is
-    its key (and note), options are `C2`, a question the model wrote anyway is not read."""
-    dimension = registry.by_key("commercial.existing_sacrifice")
-    good = fx.calibration_question(dimension)
-    assert good == {"key": dimension.key, "respondent_note": "asked of whoever pays"}
-    assert score_mod.calibration_checks(good, dimension) == []
-    assert score_mod.calibration_checks(dict(good, question="What did it cost last month?"), dimension) == []
-    tick_list = dict(good, options=[{"label": "Spare keys", "unit": "money"}])
-    assert [f[:3] for f in score_mod.calibration_checks(tick_list, dimension)] == ["C2:"]
 
 
-def test_the_commitment_ladder_is_the_rungs_for_the_projects_type(registry):
-    dimension = registry.by_key("commercial.commitment")
-    b2c = fx.calibration_question(dimension)
-    assert [o["normalized"] for o in b2c["options"]] == ["setup", "install", "mic",
-                                                          "next_episode", "contact_me"]
-    assert score_mod.calibration_checks(b2c, dimension) == []
-    assert any("the ladder is" in f for f in score_mod.calibration_checks(b2c, dimension,
-                                                                         b2b=True))
+def test_a_question_written_on_a_list_is_not_read(entry, registry):
+    """keel-cloud 087: a list dimension's question is code's Answer prompt; one written anyway is never a fault."""
+    score = _calibrate(entry, registry, "SOLUTION",
+                       lambda r: _q(r, COMPAT).__setitem__("question", "Tick all that apply. £5?"))
+    assert score.faults == []
 
 
 def test_a_failed_case_covers_nothing_and_writes_nothing(entry, registry):
@@ -296,10 +334,43 @@ def test_totals_roll_calibration_into_the_three_marks(entry, registry):
     assert totals["no_leak"] == 1.0
 
 
-# --------------------------------------------- US3: respondent (063; calls 30-32, marks §2.2-§2.3)
+@pytest.fixture()
+def lullaby():
+    return corpus_mod.load_file(fx.canon_entry("03-lullaby.yaml"), registry=fx.registry())
 
-def _respond(entry, registry, part, mutate=None, *, link="PRIMARY", judge=None, label_only=False):
-    result = fx.respondent_result(entry, part, link=link, label_only=label_only)
+
+def _drafted_from(entry, registry, vector) -> dict:
+    """The corpus's own founder answers, as the founder-lists job would have drafted them."""
+    questions = []
+    for d in registry.answered_slice(vector, entry.b2b()):
+        if d.key == GATE:
+            questions.append(fx.calibration_question(d) | {"event": "had to work out why their baby was crying"})
+        elif d.founder_list:
+            saved = entry.founder_list(d.key) or {}
+            items = [{k: i[k] for k in ("label", "asked") if k in i} for i in saved.get("items") or []
+                     if i.get("code") != "nobody_else"]
+            draft = {"items": items} | ({"phrase": saved["phrase"]} if saved.get("phrase") else {})
+            questions.append({"key": d.key, "list": draft, "respondent_note": "x"})
+        else:
+            questions.append({"key": d.key, "respondent_note": "x"})
+    return {"vector": vector, "questions": questions}
+
+
+@pytest.mark.parametrize("vector", ["PROBLEM", "SOLUTION", "COMMERCIAL"])
+def test_the_corpus_lists_as_a_draft_score_clean_but_for_the_known_face(lullaby, registry, vector):
+    """Calls 81, 85: Lullaby's own lists meet every L rule; the one fault is the Compatibility face *was the room
+    quiet enough for a phone to hear the cry* -- K3, one of the five known corpus items."""
+    score = score_mod.score_calibration(fx.calibration_case(lullaby, vector), lullaby, registry,
+                                        _drafted_from(lullaby, registry, vector), judge=fx.FakeJudge())
+    faults = [(f["key"], f["evidence"].split(":")[0]) for f in score.faults]
+    assert faults == ([(COMPAT, "K3")] if vector == "SOLUTION" else []), score.faults
+    assert ("03-lullaby", COMPAT, "K3", "quiet_enough") in spoken_mod.KNOWN
+
+
+# --------------------------------------------- respondent: the gate's clause (calls 30-32, 83)
+
+def _respond(entry, registry, part, mutate=None, *, link="PRIMARY", judge=None):
+    result = fx.respondent_result(entry, part, link=link)
     if mutate:
         mutate(result)
     return score_mod.score_respondent(fx.respondent_case(entry, part, link=link), entry,
@@ -310,337 +381,125 @@ def _item(result, key):
     return next(i for i in result["items"] if i["key"] == key)
 
 
-@pytest.mark.parametrize("part, count, sweeps", [(1, 4, 6), (2, 3, 2), (3, 3, 1)])
-def test_coverage_per_part_is_the_plan_exactly_once_each(entry, registry, part, count, sweeps):
-    """Calls 52, 53, 67, 76: Frequency over the framed 7 nights, Price, Existing sacrifice and the benefit item
-    owe no text, so none is swept -- part 1 sweeps three items twice, part 2 two of its three once, part 3 one
-    of its three once."""
+@pytest.mark.parametrize("part, count, gate, sweeps", [(1, 4, 1, 2), (2, 3, 0, 0), (3, 3, 0, 0)])
+def test_coverage_per_part_is_the_plan_and_validity_the_gate_alone(entry, registry, part, count, gate, sweeps):
+    """Call 83: coverage is one `{key}` a planned item; validity and both sweeps read the gate's clause only."""
     assert len(entry.plan()[part]) == count, "the plan, read: 4 / 3 / 4 less the one left out"
     score = _respond(entry, registry, part)
     assert (score.coverage_hit, score.coverage_of) == (count, count)
-    assert (score.validity_hit, score.validity_of) == (count, count), score.faults
-    assert (score.leak_clean, score.leak_of) == (sweeps, sweeps), \
-        "sweep A on Part 1's items, sweep B on every item"
+    assert (score.validity_hit, score.validity_of) == (gate, gate), score.faults
+    assert (score.leak_clean, score.leak_of) == (sweeps, sweeps)
 
 
-def test_a_label_only_answer_is_held_to_the_count(entry, registry):
-    score = _respond(entry, registry, 1, label_only=True)
-    assert score.validity_hit == score.validity_of == len(entry.plan()[1]), score.faults
-
-
-def _options(result, key):
-    return _item(result, key)["options"]
-
-
-@pytest.mark.parametrize("name, part, mutate, words", [
-    ("control", 1, lambda r: _item(r, SCALE).__setitem__("control", "single_choice"),
-     "control 'single_choice'"),
-    ("founder label missing", 3, lambda r: _options(r, SET).pop(0),
-     "missing founder label(s) ['forgetting']"),
-    ("one distractor", 3, lambda r: _options(r, SET).pop(),
-     "1 distractor(s); a set takes 2 to 3"),
-    ("something else written", 3, lambda r: _options(r, SET).append("Something else"),
-     "code appends it"),
-    ("fixed scale grew", 1, lambda r: _options(r, SCALE).append(
-        {"label": "Off the scale", "code": "off_scale"}), "nothing added"),
-    ("chips", 1, lambda r: _item(r, SCALE).__setitem__("chips", []), "chips []"),
-    ("anchor", 1, lambda r: _item(r, SCALE).__setitem__("anchor", "last_purchase"),
-     "anchor 'last_purchase'"),
-    ("importance too short", 1, lambda r: _item(r, "problem.importance").__setitem__(
-        "options", ["One", "Two", "Three"]), "3 difficulties; Importance takes 4 to 6"),
-    ("not sure", 1, lambda r: _options(r, SCALE)[0].__setitem__("label", "Not sure."),
-     "not-sure option"),
-    ("options on a number", 1, lambda r: _item(r, "problem.frequency").__setitem__(
-        "options", ["5", "10"]), "options on a segmented_0_to_7 control"),
-    ("options on the gate", 1, lambda r: _item(r, "problem.prevalence").__setitem__(
-        "options", ["Yes", "No"]), "options on a gate_yes_no control"),
+@pytest.mark.parametrize("name, mutate, words", [
+    ("doubled", lambda r: r["items"].append({"key": "problem.frequency"}), "doubled"),
+    ("missing", lambda r: r["items"].pop(1), "missing problem.frequency"),
+    ("foreign", lambda r: r["items"].append({"key": "commercial.price"}), "outside the slice commercial.price"),
+    ("out of order", lambda r: r["items"].insert(0, r["items"].pop(3)), "out of order"),
 ])
-def test_validity_fails_on_each_respondent_rule_made_to_fail_once(entry, b2b_entry, registry, name, part,
-                                                                  mutate, words):
-    if part == 3:                         # the set is Purchase friction's, on the decision-maker's link
-        score = _respond(b2b_entry, registry, 3, mutate, link="COMMERCIAL_B2B")
-    else:
-        score = _respond(entry, registry, part, mutate)
-    validity = [f for f in score.faults if f["check"] == "option_validity"]
-    assert len(validity) == 1, (name, score.faults)
-    assert words in validity[0]["evidence"], (name, validity[0]["evidence"])
+def test_respondent_coverage_is_absolute(entry, registry, name, mutate, words):
+    score = _respond(entry, registry, 1, mutate)
+    assert score.coverage_passed is False, name
+    assert any(words in f["evidence"] for f in score.faults if f["check"] == "dimension_coverage")
 
 
-# Call 38: code appends, never the model -- the scorer judges the plan's codes less the appended.
-
-def _row(entry, key):
-    return entry.respondent_questions[key]
-
-
-def test_a_fixed_code_control_owes_exactly_one_label_per_founder_code(entry, registry):
-    dimension = registry.by_key("solution.adoption_friction")     # Relative advantage's item is code's since 085
-    row = _row(entry, dimension.key)
-    want = [c for c in row["codes"] if c not in ("would_not_reach", "something_else")]
-    item = {"key": dimension.key, "question": "That night?",
-            "options": [f"Label {i}" for i in range(len(want))]}
-    assert score_mod.respondent_checks(item, dimension, row) == []
-    plus_escape = dict(item, options=item["options"] + ["Would not reach it"])
-    assert any(f"{len(want) + 1} options; the plan has {len(want)}" in f
-               for f in score_mod.respondent_checks(plus_escape, dimension, row))
-    short = dict(item, options=item["options"][:-1])
-    assert score_mod.respondent_checks(short, dimension, row)
-
-
-@pytest.mark.parametrize("distractors, ok", [(1, False), (2, True), (3, True), (4, False)])
-def test_a_set_takes_every_founder_label_and_two_to_three_distractors(b2b_entry, registry,
-                                                                      distractors, ok):
-    entry = b2b_entry
-    from instructions.registry import RESPONDENT_ESCAPES                     # noqa: PLC0415
-    dimension = registry.by_key(SET)
-    row = _row(entry, dimension.key)
-    founder = [c for c in row["codes"] if c not in RESPONDENT_ESCAPES]
-    labels = [c.upper() for c in founder] + [f"Distractor {i}" for i in range(distractors)]
-    faults = score_mod.respondent_checks({"key": dimension.key, "question": "Over the last three months?",
-                                          "options": labels},
-                                         dimension, row)
-    assert (faults == []) is ok, faults
-    if not ok:
-        assert f"{distractors} distractor(s)" in faults[0]
-
-
-def test_a_set_missing_a_founder_label_fails(b2b_entry, registry):
-    entry = b2b_entry
-    from instructions.registry import RESPONDENT_ESCAPES                     # noqa: PLC0415
-    dimension = registry.by_key(SET)
-    row = _row(entry, dimension.key)
-    founder = [c for c in row["codes"] if c not in RESPONDENT_ESCAPES]
-    labels = founder[1:] + ["Distractor a", "Distractor b"]
-    faults = score_mod.respondent_checks({"key": dimension.key, "question": "Over the last three months?",
-                                          "options": labels}, dimension, row)
-    assert any(f"missing founder label(s) [{founder[0]!r}]" in f for f in faults), faults
-
-
-def _canon(name="03-lullaby.yaml"):
-    """One of keel-cloud's r7 entries (skipped by name when the canon is not at r7)."""
-    from instructions import corpus as corpus_mod                       # noqa: PLC0415
-    return corpus_mod.load_file(fx.canon_entry(name), registry=fx.registry())
-
-
-def test_a_set_is_judged_against_the_founders_labels_not_the_codes(registry):
-    paidly = _canon("05-paidly.yaml")
-    key = "commercial.purchase_friction"
-    dimension, row = registry.by_key(key), paidly.respondent_questions[key]
-    labels = paidly.founder_labels(key)
-    shown = list(labels.values())
-    good = {"key": key, "question": "What could have held you back?",
-            "options": [s.upper() + "!" for s in shown] + ["Distractor a", "Distractor b"]}
-    assert score_mod.respondent_checks(good, dimension, row, founder_labels=labels, part=3) == [], \
-        "058's R2 comparison, the escapes left to code"
-    codes = dict(good, options=list(labels) + ["Distractor a"])
-    faults = score_mod.respondent_checks(codes, dimension, row, founder_labels=labels, part=3)
-    assert any("missing founder label(s)" in f for f in faults), faults
-
-
-def test_existing_sacrifice_owes_its_key_alone_on_the_respondent_screen(registry):
-    """Call 67 (keel-cloud 077): `cost_total` is code's whole -- the item is its key, nothing the model writes
-    is read (no W10 on a question, no U1 on a unit, no options), as Price's ladder is."""
-    lullaby = _canon()
-    key = "commercial.existing_sacrifice"
-    dimension, row = registry.by_key(key), lullaby.respondent_questions[key]
-    assert dimension.respondent_code_written and row["control"] == "cost_total" and "codes" not in row
-    assert score_mod.respondent_checks({"key": key}, dimension, row, part=3) == []
-    written = {"key": key, "question": "What did it cost?", "options": ["Spare keys", "Taxis"],
-               "units": ["money", "money"]}
-    assert score_mod.respondent_checks(written, dimension, row, part=3) == []
-    assert score_mod.model_text(written, dimension) is None
-
-
-@pytest.mark.parametrize("label", ["None of these", "None of these; they cope with what they have",
-                                   "Nothing", "Nothing yet", "I wouldn't have reached for it at all",
-                                   "Something else"])
-def test_every_escape_058_appends_is_known_by_its_label(label):
-    assert score_mod.is_escape_label(label)
-    assert not score_mod.is_escape_label("Nothing on the shelf matched")
-
-
-def test_a_scale_step_that_begins_with_something_else_is_not_an_escape(registry):
-    """Call 44: an escape row the model wrote is told by its WHOLE normalised label, never a
-    prefix -- certificate run 3 (`runs/20261008T194906Z-instructions`, 06-repeatline Part 3)
-    was faulted on Ability to pay's own scale step (then code `barely`; since r5 the rungs are
-    renamed, `taken_from_other_spend` the nearest)."""
-    key = "commercial.ability_to_pay"
-    dimension, row = registry.by_key(key), _canon("06-repeatline.yaml").respondent_questions[key]
-    labels = ["Out of a budget line we already had", "A new line someone signed off",
-              "Taken from other spend", "Something else was cut or given up to cover it"]
-    item = {"key": key, "question": "Where did the money come from?",
-            "options": [{"label": label, "code": code} for label, code in
-                        zip(labels, ["existing_line", "new_line_signed_off",
-                                     "taken_from_other_spend", "no_budget"])]}
-    assert not score_mod.is_escape_label(labels[-1])
-    assert score_mod.respondent_checks(item, dimension, row) == []
-
-
-@pytest.mark.parametrize("label", ["Something else", "something else.", "None of these",
-                                   "Nothing yet", "Nothing"])
-def test_a_bare_escape_written_on_a_set_is_still_a_fault(b2b_entry, registry, label):
-    score = _respond(b2b_entry, registry, 3, mutate=lambda r: _options(r, SET).append(label),
-                     link="COMMERCIAL_B2B")
-    assert any("written by the model; code appends it" in f["evidence"] for f in score.faults), \
-        score.faults
-
-
-def test_sweep_a_runs_on_part_one_and_sweep_b_on_every_part(entry, registry):
-    leak_a = _respond(entry, registry, 1, lambda r: _item(r, SCALE).__setitem__(
-        "question", "How bad was it before the beep?"))
-    assert [f["sweep"] for f in leak_a.faults if f["check"] == "no_leak"] == ["A"]
-    part2 = _respond(entry, registry, 2, lambda r: _item(r, "solution.compatibility").__setitem__(
-        "question", "When would the beep have helped?"))
-    assert not [f for f in part2.faults if f["check"] == "no_leak"], \
-        "after the reveal the mechanism may be named"
-    leak_b = _respond(entry, registry, 2, lambda r: _item(r, "solution.adoption_friction")
-                      .__setitem__("question", "Would a single whistle have been fine?"))
-    faults = [f for f in leak_b.faults if f["check"] == "no_leak"]
-    assert [f["sweep"] for f in faults] == ["B"] and "a single whistle" in faults[0]["evidence"]
-
-
-def test_the_benefit_item_is_its_key_alone_and_nothing_written_there_is_read(entry, registry):
-    """Call 76 (keel-cloud 085): Relative advantage's respondent item is code's whole -- like Price, the model owes
-    the key, and a question that names the founder's advantage, options, or no question at all is no fault."""
-    key = "solution.relative_advantage"
-    assert registry.by_key(key).respondent_code_written
-    alone = _respond(entry, registry, 2)
-    assert _item({"items": [fx.respondent_item(entry, key)]}, key) == {"key": key}
-    assert alone.faults == [] and (alone.validity_hit, alone.validity_of) == (3, 3)
-    noisy = _respond(entry, registry, 2, lambda r: _item(r, key).update(
-        question="Would a shorter search have mattered?", options=["Better", "Worse", "Something else"]))
-    assert noisy.faults == [] and (noisy.leak_clean, noisy.leak_of) == (alone.leak_clean, alone.leak_of)
-
-
-def test_the_founders_benefit_question_is_still_the_models_and_is_held_to_the_name(entry, registry):
-    """The founder side is the model's (five options, a belief phrase each): only the respondent item is code's."""
-    dimension = registry.by_key("solution.relative_advantage")
-    assert dimension.founder.get("control") == "multi_choice"
-    asked = {"key": dimension.key, "question": "What would have to be better?"}
-    assert score_mod.model_text(asked, dimension, founder=True) == "What would have to be better?"
-    assert score_mod.model_text(asked, dimension) is None, "the respondent's item is code's"
-    assert score_mod.is_swept(dimension, founder=True) and not score_mod.is_swept(dimension)
-
-
-def test_a_part_one_mechanism_stem_only_in_an_option_label_is_judged_not_faulted(entry, registry):
-    """Call 43: *phone*, *wheel*, *caught* -- a stem offered as an answer goes to the judge."""
+@pytest.mark.parametrize("event, rule", [
+    (None, "E2"), ("lose your keys last night", "E1"), ("lose 3 keys", "E1"),
+    ("did you lose your keys", "E3"),
+    ("have to search the whole flat for your keys before you can leave for work", "E4"),
+    ("lose a spare that cost GBP", "W9")])
+def test_the_gate_clause_fails_each_rule_once(entry, registry, event, rule):
     def mutate(r):
-        item = next(i for i in r["items"] if i.get("options"))
-        _set_option(r, item["key"], 0, "The beep went off")
-    judge = fx.FakeJudge(answer=False)
-    score = _respond(entry, registry, 1, mutate, judge=judge)
-    assert len(judge.calls) == 1
-    assert not [f for f in score.faults if f.get("sweep") == "A"]
+        gate = _item(r, GATE)
+        if event is None:
+            gate.pop("event")
+        else:
+            gate["event"] = event
+    score = _respond(entry, registry, 1, mutate)
+    validity = [f for f in score.faults if f["check"] == "option_validity"]
+    assert len(validity) == 1 and validity[0]["evidence"].startswith(rule + ":"), score.faults
+    assert (score.validity_hit, score.validity_of) == (0, 1)
 
 
-def test_sweep_b_catches_a_founder_number_the_registry_did_not_fix(entry, registry):
-    """At v10 Frequency is the one numeric dimension and its axis (0-7) is the registry's, so a
-    founder number outside it is the only one sweep B can catch."""
-    dimension = registry.by_key("problem.frequency")
-    founder = {"answer": {"lower": 9, "upper": 12, "unit": "days out of 14"}}
-    swept = score_mod.sweep_b(["Was it more like 12 days?"], dimension, founder)
-    assert swept["fault"] and "12" in swept["evidence"]
-    assert not score_mod.sweep_b(["Was it more like 4 nights?"], dimension,
-                                 {"answer": {"lower": 2, "upper": 4}})["fault"], \
-        "4 is on the registry's own axis"
-    window = _respond(entry, registry, 1, lambda r: _item(r, "problem.frequency").__setitem__(
-        "question", "On how many of the last 7 nights?"))
-    assert not [f for f in window.faults if f["check"] == "no_leak"], \
-        "the founder said up to 4 of 7; the 7 is the registry's window"
+def test_anything_written_on_another_item_is_not_read(entry, registry):
+    """keel-cloud 088 FR-002: a `question` or `options` on any item but the gate is not read, never a fault."""
+    def written(r):
+        for item in r["items"]:
+            if item["key"] != GATE:
+                item.update(question="Tick all that apply. £5?", options=["A distractor"], event="x")
+    for part in (1, 2, 3):
+        assert _respond(entry, registry, part, written).faults == [], part
 
 
-def _set_option(result, key, index, label):
-    option = _item(result, key)["options"][index]
-    if isinstance(option, dict):
-        option["label"] = label
-    else:
-        _item(result, key)["options"][index] = label
+def test_the_b2b_link_covers_the_commercial_part_whole_less_the_left_out(b2b_entry, registry):
+    plan = b2b_entry.plan()[3]
+    assert plan == ["commercial.existing_sacrifice", "commercial.price", "commercial.ability_to_pay",
+                    "commercial.purchase_friction", "commercial.commitment"]
+    score = _respond(b2b_entry, registry, 3, link="COMMERCIAL_B2B")
+    assert (score.coverage_hit, score.coverage_of, score.validity_of, score.leak_of) == (5, 5, 0, 0)
 
 
-def test_sweep_b_passes_the_founders_label_in_an_option(entry, registry):
-    """Call 40: a fixed-code control shows every rung, the founder's own among them."""
-    score = _respond(entry, registry, 2, lambda r: _set_option(
-        r, "solution.adoption_friction", 1, "A single whistle"))
-    assert not [f for f in score.faults if f["check"] == "no_leak"]
-
-
-def test_sweep_b_faults_the_founders_label_in_the_stem(entry, registry):
-    score = _respond(entry, registry, 2, lambda r: _item(r, "solution.adoption_friction")
-                     .__setitem__("question", "Would a single whistle have been too much?"))
-    faults = [f for f in score.faults if f["check"] == "no_leak"]
-    assert [f["sweep"] for f in faults] == ["B"] and "a single whistle" in faults[0]["evidence"]
-
-
-def test_sweep_b_faults_the_founders_phrase_in_a_part_one_stem(entry, registry):
-    stem = _respond(entry, registry, 1, lambda r: _item(r, SCALE).__setitem__(
-        "question", "Would you say the way you handle it is hit and miss?"))
-    assert any("is hit and miss" in f["evidence"]
-               for f in stem.faults if f.get("sweep") == "B"), stem.faults
-
-
-def test_a_reveal_in_a_respondent_result_is_no_longer_read(entry, registry):
-    """Spec 037, call 75: keel-cloud 084 dropped the reveal; one that arrives anyway is neither swept
-    nor held to W3 (the validator refuses it as shape)."""
-    score = _respond(entry, registry, 2, lambda r: r.__setitem__(
-        "reveal", {"title": "x", "body": "One idea: a single whistle starts it."}))
-    assert not [f for f in score.faults if f.get("sweep") == "B" or f.get("key") == "reveal"]
-
-
-def test_a_mechanism_stem_the_registry_itself_words_for_the_dimension_is_no_leak(entry, registry):
-    """Call 44a: wording the registry gives the dimension can never be a leak."""
-    dimension = registry.by_key(SCALE)
-    assert score_mod.text_mod.stem("beep") not in score_mod.registry_stems(registry, dimension)
-    faulted = _respond(entry, registry, 1, lambda r: _item(r, SCALE).__setitem__(
-        "question", "How bad was it before the beep?"))
-    assert [f for f in faulted.faults if f.get("sweep") == "A"]
-    dimension.respondent["guidance"] = dimension.respondent.get("guidance", "") + " Until the beep."
-    assert score_mod.text_mod.stem("beep") in score_mod.registry_stems(registry, dimension)
-    clean = _respond(entry, registry, 1, lambda r: _item(r, SCALE).__setitem__(
-        "question", "How bad was it before the beep?"))
-    assert not [f for f in clean.faults if f.get("sweep") == "A"], clean.faults
-
-
-def test_the_registrys_lullaby_example_is_not_registry_wording(registry):
-    dimension = registry.by_key(SCALE)
-    dimension.lullaby["founder_question"] = "Does the whistle help?"
-    assert score_mod.text_mod.stem("whistle") not in score_mod.registry_stems(registry, dimension)
-
-
-@pytest.mark.parametrize("label, faulted", [
-    ("I'm not sure", True), ("Not sure", True), ("Don't know", True), ("I don't know", True),
-    ("Unsure", True), ("Prefer not to say", True), ("Not sure it would fit", False),
-    ("When working for a new agency they do not know yet", False)])
-def test_a_not_sure_option_is_the_whole_label_never_a_substring(entry, registry, label, faulted):
-    """Call 44: the whole normalised label against the list (keel-cloud 058's C3 likewise)."""
-    score = _respond(entry, registry, 1, lambda r: _options(r, SCALE)[0]
-                     .__setitem__("label", label))
-    hits = [f for f in score.faults if "not-sure option" in f.get("evidence", "")]
-    assert bool(hits) is faulted
-
-
-def test_the_b2b_link_scores_the_commercial_part_whole_less_the_left_out(registry):
-    """Calls 47, 50: COMMERCIAL_B2B asks the commercial six (the b2b_only pair and Price included),
-    less the founder's unsure Buyer/payer -- five, read off the plan."""
-    b2b = fx.entry(fx.ENTRY_B2B)
-    count = len(registry.plan_keys(3, b2b.founder_calibration, "COMMERCIAL_B2B", True))
-    assert count == 5 and b2b.plan()[3] == registry.plan_keys(3, b2b.founder_calibration,
-                                                              "COMMERCIAL_B2B", True)
-    score = _respond(b2b, registry, 3, link="COMMERCIAL_B2B")
-    assert (score.coverage_hit, score.coverage_of) == (count, count)
-    assert score.validity_hit == count, score.faults
-    assert score.link == "COMMERCIAL_B2B" and score.subject == "B2B"
-
-
-def test_totals_roll_both_question_screens_into_the_same_three_marks(entry, registry):
-    totals = score_mod.totals([_calibrate(entry, registry)], [_respond(entry, registry, 1),
-                                                              _respond(entry, registry, 2)])
+def test_totals_roll_every_screen_into_the_same_three_marks(entry, registry):
+    calibration = _calibrate(entry, registry)
+    respondent = [_respond(entry, registry, p) for p in (1, 2, 3)]
+    asked = score_mod.score_asked(fx.asked_case(entry), entry, registry, fx.asked_result(entry))
+    totals = score_mod.totals([calibration], respondent, asked_scores=[asked])
     plan = entry.plan()
-    asked = len(plan[1]) + len(plan[2])
-    assert totals["respondent_coverage"] == {"hit": asked, "of": asked} == {"hit": 7, "of": 7}
-    assert totals["dimension_coverage"] == 1.0
-    # Calls 52, 53, 76: Frequency (framed on 7 nights) is swept on neither screen, nor the benefit item on the respondent's.
-    assert totals["calibration_leak"]["of"] + totals["respondent_leak"]["of"] == \
-        (len(registry.calibrated_slice("PROBLEM", False)) - 1) + 2 * (len(plan[1]) - 1) \
-        + (len(plan[2]) - 1)
+    assert totals["dimension_coverage"] == 1.0 and totals["option_validity"] == 1.0
+    assert totals["calibration_coverage"]["of"] + totals["respondent_coverage"]["of"] \
+        + totals["asked_coverage"]["of"] == 4 + sum(len(v) for v in plan.values()) + 2
+    assert totals["respondent_validity"]["of"] == 1 and totals["asked_validity"]["of"] == 2
+    assert totals["calibration_leak"]["of"] + totals["respondent_leak"]["of"] == 3 + 2
+
+
+# ---------------------------------------------------------------- ASKED: the faces (calls 84, 85)
+
+def _ask(entry, registry, mutate=None, key=COMPAT):
+    result = fx.asked_result(entry, key)
+    if mutate:
+        mutate(result)
+    return score_mod.score_asked(fx.asked_case(entry, key), entry, registry, result)
+
+
+@pytest.mark.parametrize("key, count", [(COMPAT, 2), (ADOPTION, 1)])
+def test_the_corpus_faces_cover_every_index_and_keep_every_k_rule(entry, registry, key, count):
+    score = _ask(entry, registry, key=key)
+    assert (score.coverage_hit, score.coverage_of, score.validity_hit, score.validity_of) == \
+        (count, count, count, count), score.faults
+
+
+@pytest.mark.parametrize("name, mutate, words", [
+    ("a foreign index", lambda r: r["items"].append({"index": 7, "asked": "did you"}), "K1: [7] are not indices"),
+    ("phrased twice", lambda r: r["items"].append(dict(r["items"][0])), "K1: [0] phrased twice"),
+    ("one missing", lambda r: r["items"].pop(), "K1: [1] not phrased"),
+])
+def test_k1_is_every_index_handed_once_and_no_other(entry, registry, name, mutate, words):
+    score = _ask(entry, registry, mutate)
+    assert score.coverage_passed is False and score.coverage_hit == 0, name
+    assert any(words in f["evidence"] for f in score.faults if f["check"] == "dimension_coverage"), score.faults
+
+
+@pytest.mark.parametrize("asked, rule", [
+    ("did the phone sit within reach", "K3"), ("did you have your 2 phones to hand", "K4"),
+    ("did you have your phone to hand?", "K6"), ("", "K2"),
+    (" ".join(["you"] * 21), "K2")])
+def test_each_k_rule_fails_once_for_its_own_reason(entry, registry, asked, rule):
+    score = _ask(entry, registry, lambda r: r["items"][0].__setitem__("asked", asked))
+    validity = [f for f in score.faults if f["check"] == "option_validity"]
+    assert len(validity) == 1 and validity[0]["evidence"].startswith(rule + ":"), score.faults
+    assert validity[0]["key"] == f"{COMPAT}[0]"
+    assert (score.validity_hit, score.validity_of) == (1, 2)
+
+
+def test_an_adoption_face_framed_past_twenty_words_is_k2(entry, registry):
+    long = "you'd clip a small tag to your key ring once and then whistle for it every morning"
+    score = _ask(entry, registry, lambda r: r["items"][0].__setitem__("asked", long), key=ADOPTION)
+    assert any("K2: framed" in f["evidence"] for f in score.faults)
+
+
+def test_a_failed_asked_case_covers_nothing(entry, registry):
+    score = score_mod.score_asked(fx.asked_case(entry), entry, registry, None, failed="schema-invalid")
+    assert (score.coverage_hit, score.coverage_of, score.validity_of) == (0, 2, 0)
 
 
 # -------------------------------------------------------------- US3: INTERPRET (064; call 33)
@@ -704,60 +563,3 @@ def test_a_read_in_keel_clouds_v8_interpret_shape_is_read_until_064_narrows_it(e
                                         "anchorings": [{"anchorId": "story",
                                                         "anchoring": "ANCHORED"}]})
     assert score.answered == 1 and score.agreed == 1
-
-
-# ------------------------------------- keel-cloud 062: options carry no code, joined by position
-
-import json as _json                                                         # noqa: E402
-
-from instructions import corpus as _corpus_mod                               # noqa: E402
-
-GOLDEN = fx.FIXTURES / "calibration"
-
-
-def _golden(vector):
-    return _json.loads((GOLDEN / f"03-lullaby.{vector}.result.json").read_text(encoding="utf-8"))
-
-
-@pytest.fixture()
-def lullaby():
-    return _corpus_mod.load_file(fx.canon_entry("03-lullaby.yaml"), registry=fx.registry())
-
-
-@pytest.mark.parametrize("vector, count", [("PROBLEM", 4), ("SOLUTION", 3), ("COMMERCIAL", 4)])
-def test_the_golden_062_accepts_scores_clean_with_no_code_on_any_option(lullaby, registry, vector,
-                                                                         count):
-    result = _golden(vector)
-    assert not any("normalized" in o for q in result["questions"] for o in q.get("options") or [])
-    score = score_mod.score_calibration(fx.calibration_case(lullaby, vector), lullaby, registry,
-                                        result, judge=fx.FakeJudge())
-    assert score.faults == [], score.faults
-    assert (score.coverage_hit, score.validity_hit, score.validity_of) == (count, count, count)
-    if vector == "PROBLEM":
-        assert (score.leak_clean, score.leak_of) == (count - 1, count - 1)   # Frequency is code's
-
-
-def test_a_fixed_code_question_one_option_short_fails_by_position(lullaby, registry):
-    result = _golden("PROBLEM")
-    next(q for q in result["questions"] if q["key"] == SCALE)["options"].pop()
-    score = score_mod.score_calibration(fx.calibration_case(lullaby, "PROBLEM"), lullaby,
-                                        registry, result, judge=fx.FakeJudge())
-    assert [f["key"] for f in score.faults] == [SCALE]
-    assert "joined by position" in score.faults[0]["evidence"]
-
-
-def test_a_stated_code_is_only_a_cross_check_against_its_position(registry):
-    dimension = registry.by_key(SCALE)
-    question = fx.calibration_question(dimension)
-    assert score_mod.calibration_checks(question, dimension) == []
-    question["options"][0]["normalized"] = "hit_and_miss"
-    assert any("by position it is 'works_well'" in f
-               for f in score_mod.calibration_checks(question, dimension))
-
-
-def test_a_label_only_respondent_answer_takes_the_plans_codes_by_position(entry, b2b_entry, registry):
-    score = _respond(entry, registry, 1, label_only=True)
-    assert score.validity_hit == score.validity_of == len(entry.plan()[1])
-    short = _respond(b2b_entry, registry, 3, lambda r: _options(r, SET).pop(0), label_only=True,
-                     link="COMMERCIAL_B2B")
-    assert [f["key"] for f in short.faults if f["check"] == "option_validity"] == [SET]

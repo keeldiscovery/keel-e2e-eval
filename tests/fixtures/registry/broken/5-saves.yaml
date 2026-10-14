@@ -1,0 +1,7 @@
+# slice.yaml with one value changed, failing exactly invariant 5 (spec 040; keel-cloud 087 FR-002): a list's saves bound
+# min_items <= max_items -- here Compatibility takes "at least 5, at most 4".
+base: ../slice.yaml
+invariant: 5
+key: solution.compatibility
+path: [founder, saves, min_items]
+value: 5
