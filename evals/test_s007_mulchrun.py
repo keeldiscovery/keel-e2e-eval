@@ -1,4 +1,5 @@
-"""S-007: `07-mulchrun`, the only US market, walked through the vector corridor (spec 039).
+"""S-007: `07-mulchrun`, the only US market, walked through the vector corridor (spec 039; spec 041: corpus
+revision 10, keel-web 063 / 064).
 
 `{country: US, region: TX, language: en-US}` -- the only entry that exercises a non-null region, the
 dollar and American English, and a founder who left the price out. What was asserted about miles,
@@ -10,7 +11,8 @@ unit, spec 039 D-6); what survives is the market and the money:
   the commercial screen, the standings' figure, the brief -- and **no pound or euro reaches any
   page the founder reads**;
 * the founder's *No price yet* leaves Price **and** the Ability to pay derived from it out, and the
-  commercial vector is still called, on its deal-breakers.
+  commercial vector is still called, on the worst of the dimensions left (D3: all thirteen decide) --
+  Purchase friction's split, as the corpus says.
 """
 
 from __future__ import annotations
@@ -49,7 +51,7 @@ def _mulchrun_extras(j) -> None:
         assert not leaks, leaks
 
     with j.recorder.step("S-007: no price yet leaves Price and Ability to pay out, and the "
-                         "commercial vector is still called on its deal-breakers",
+                         "commercial vector is still called on the dimensions left",
                          party="founder", kind="assert") as h:
         left = {k: standings[k].get("status") for k in ("commercial.price", "commercial.ability_to_pay")}
         commercial = next(v for v in j.standings.get("vectors") or [] if v.get("vector") == "COMMERCIAL")

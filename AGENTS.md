@@ -303,11 +303,22 @@ the journey coverage that survives classic's deletion; S-012's leg two walks the
 (`strict=False`). `make up` needs keel-web's framework plugin and `KEEL_VECTORS_ENABLED=true`, both
 in `stack/` now. `make unit` after 039: **1,705 passed / 53 skipped** (was 1,764 / 75: classic-only
 S-012 tests deleted, 33 vectors tests added). **Since spec `040-marks-v18` the canon is revision 10 and
-the contract 13, and the three journeys wait for keel-web specs 7, 8 and 10**: the script and the typed
-inputs still write revision 9's shapes and are the later journey spec's to re-point (with the legs, the
-page objects and S-012's leg two); their corpus-reading unit tests skip by name (call 89), the keys
-table reads the eight-screen export, and the one-unit branches are gone. `make unit` after 040:
-**1,818 passed / 77 skipped** (53 of them 039's r2-shape skips, 24 call 89's). **Nothing generated is committed** -- the script, the
+the contract 13; since spec `041-vectors-journey-r10` (2026-10-14) the three journeys walk it** on keel-web 063's
+founder screens and 064's stranger's screens: one dimension a screen -- each list dimension's *Answer* (the founder's
+words, which `POST calibration/{vector}/draft` redrafts the list from), *Check and save* (the entry's own list, saved
+untouched) and *Choose* (the entry's picked item) -- with every screen's *Stage · k of n*, dots and locked nav held; the
+idea as the solution's first question (S2, Save approving it); step 5's two screens; the lock holding every saved list;
+each person through the decision-maker's idea screen, the gate's one chip, two picks on Importance, the fixed answers,
+one escape last and "nothing" typed as 0; the standings on the wire (each `optionCounts` code mapped onto the wire's
+positional codes), the board and the three stage pages (one row's per-person list read); and the brief **on the wire**
+(the scripted headline and three answers, a card per dimension equal to `instructions/brief_facts.py`'s reading, what
+broke, the pilot on the brief and on `StandingsView`) and **keel-web 065's two pages held to that wire** (page one's
+answers, cards, pilot tile and bans; page two's blocks and *What broke*; the download's tab; the board's pilot tile).
+The script answers contract 13 (`CALIBRATION_QUESTIONS` lists, one
+redraft entry per list in corridor order; `RESPONDENT_QUESTIONS` the gate's clause; `ASKED` the corpus's faces; `BRIEF`
+headline + three answers citing what broke); the DRIFT #74 wire step is gone. Product defects met on the way are DRIFT
+#78-#81, each stepped round in a step named for the entry. Green locally against keel-cloud-docs `7b151f9` + keel-web
+`844ea36`. `make unit` after 041: **1,846 passed / 53 skipped** (the 24 call-89 skips gone; was 1,818 / 77). **Nothing generated is committed** -- the script, the
 keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
 the end of every run.
 

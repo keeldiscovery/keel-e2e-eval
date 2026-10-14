@@ -1,4 +1,4 @@
-"""keel-web's vector-corridor screens, as page objects (spec 039).
+"""keel-web's vector-corridor screens, as page objects (spec 039; spec 041: keel-web 063 and 064).
 
 Machinery, not judgement: every class here acts and reads, and asserts nothing -- the scenario
 (`evals/corpus_scenario.py`) judges what they read. The labels a page object **presses** are spelled
@@ -7,14 +7,21 @@ named mismatch rather than as a fifteen-second wait on nothing (the rule DRIFT #
 
 Four groups, in the journey's order:
 
-* `Corridor`   -- the founder's five steps under `/p/{id}/define/...`: the context, the two seeds and
-                  their cards, one calibration screen per dimension, the review, the persona, and
-                  step 5 (the idea, the word, the pilot, *Lock and write the questions*).
+* `Corridor`   -- the founder's five steps under `/p/{id}/define/...` (keel-web 063: one dimension a
+                  screen): the context, the two seeds and their cards, Prevalence / Frequency / the cost /
+                  the price on one screen each, every list dimension's *Answer* -> *Check and save* ->
+                  *Choose*, S2 (the idea's three lines, checked), the persona, and step 5 (the word, the
+                  pilot, *Lock and write the questions*). Each screen reads its frame: the kicker, the
+                  stage counter (*Problem · 3 of 4*) and its dots, and the side nav's lock.
 * `PeopleLinks` -- the People page's two send popups: the specialist's three steps and, on a B2B
                   study, the decision-maker's commercial link.
-* `Interview`  -- the stranger's `/i/{token}` pager: intro, gate, items, reveal, done.
-* `Answers`    -- the board (`/p/{id}`), the vector pages (`/p/{id}/s/{VECTOR}`) and the brief
-                  (`/p/{id}/print`).
+* `Interview`  -- the stranger's `/i/{token}` pager (keel-web 064): intro, the decision-maker's idea
+                  screen, the gate, every item as served (kicker, stem, options, one escape last), the
+                  reveal, done.
+* `Answers`    -- the board (`/p/{id}`), the stage pages (`/p/{id}/s/{VECTOR}`) with one row's
+                  per-person list, the overview's pilot tile, and keel-web 065's brief: page one
+                  (`/p/{id}/brief`, and the download's `/p/{id}/print`) and page two
+                  (`/p/{id}/brief/breakdown`).
 """
 
 from __future__ import annotations
@@ -30,29 +37,32 @@ from harness.steps import Recorder
 
 CONTEXT_SAVE = "Save and continue"
 CONTEXT_YES = "Yes, that's it"
-WINDOW_COUNT = "How many"
-WINDOW_UNIT = "Unit"
 SEED_SEND = "Send"
 CARD_YES_PROBLEM = "Yes, that's the problem"
 CARD_LOOKS_RIGHT = "Looks right"
 KICKER_INTERPRETATION = "Here's what Keel understood"
 KICKER_MECHANISM = "Here's the mechanism Keel understood"
 KICKER_CONTEXT = "Keel understands"
-CALIB_CONTINUE = "Continue"
+CONTINUE = "Continue"
+SAVE = "Save"
+#: `STAGE_EXIT_LABEL`: a stage's last screen names where it goes next (design §4: P6, S10, C11).
+STAGE_EXIT = {"PROBLEM": "Save and continue to the solution",
+              "SOLUTION": "Continue to paying",
+              "COMMERCIAL": "Save and continue to Before people see it"}
 UNSURE_CHIP = "I'm not sure"
 PRICE_NONE_CHIP = "No price yet"
+LEAVE_OUT_CHIP = "Leave this out of the study"
+LIST_DRAFTING = "Keel is writing this from your answer."
 COST_MODE_GROUP = "Measured as"
 COST_MODE_WORD = {"AMOUNT": "Fixed amount", "HOURS": "Hours"}
-REVIEW_CONFIRM = {"PROBLEM": "Confirm problem · on to your solution",
-                  "SOLUTION": "Confirm solution · on to will they pay",
-                  "COMMERCIAL": "Continue to people"}
 PERSONA_QUESTION = "Who makes the buying decision?"
 PERSONA_SAME = "The same person would decide to pay"
 PERSONA_SOMEONE_ELSE = "Someone else would decide"
 PERSONA_ROLE = "If someone else, what role would that person typically have?"
 BEFORE_CONTINUE = "Continue"
-BEFORE_APPROVE = "This describes my idea correctly"
 BEFORE_LOCK = "Lock and write the questions"
+NAV_LOCK_LINE = "Opens once you start recruiting"
+NAV_LOCKED_LABEL = "Project sections, locked until recruiting starts"
 SEND_THE_QUESTIONS = "Send the questions"
 SEND_NAME = "Their name"
 SEND_NEXT = re.compile(r"Next — see what they.ll be asked")
@@ -64,29 +74,60 @@ IV_NEXT = "Next"
 IV_SEND = "Send my answers"
 IV_YES = "Yes"
 IV_NO = "No"
-IV_AMOUNT = {"AMOUNT": "Amount", "HOURS": "Hours"}
-IV_NOTHING = "It cost us nothing"
-IV_DONE_TITLE = "That's it."
+IV_COST_MODE_GROUP = "Measured as"
+IV_COST_MODE_WORD = {"AMOUNT": "Amount", "HOURS": "Hours"}
+IV_PICK_TWO = "Pick two."
+IV_TWO_PICKED = "2 of 2 picked. Untick one to change."
 
 
-def chip_word(chip: str, *, on_gate: bool = False, occasion: str | None = None) -> str:
-    """keel-web `chipWord`: the words a chip button carries."""
-    return {"NOTHING": IV_NOTHING,
-            "CANT_RECALL": (f"I can't recall one particular {(occasion or '').strip() or 'time'}"
-                            if on_gate else "I can't recall"),
-            "RATHER_NOT_SAY": "I'd rather not say",
-            "ROUGH_GUESS": "That's a rough guess",
-            "CANT_SAY": "I can't say",
-            "SKIP": "Skip this one"}[chip]
+def gate_chip_word(occasion: str | None) -> str:
+    """keel-web `gateChipWord`: the gate story's one chip (contract 13: CANT_RECALL alone)."""
+    return f"I can't recall one particular {(occasion or '').strip() or 'time'}"
 
 
 def _wait_url(page: Page, pattern: str, *, timeout_s: float = 30) -> None:
     page.wait_for_url(re.compile(pattern), timeout=timeout_s * 1000)
 
 
-def _button(page: Page, name, *, exact: bool = True):
+def _button(page, name, *, exact: bool = True):
     return page.get_by_role("button", name=name, exact=exact) if isinstance(name, str) else \
         page.get_by_role("button", name=name)
+
+
+def _first_text(scope, selector: str) -> str:
+    """The first match's text, or "" at once when nothing matches -- never Playwright's thirty-second
+    wait for an element a screen variant does not draw (the decider banner on a B2C page)."""
+    try:
+        found = scope.locator(selector)
+        return found.first.inner_text() if found.count() else ""
+    except Exception:  # noqa: BLE001 - a read, never load-bearing
+        return ""
+
+
+def _text(page: Page) -> str:
+    """The rendered words of the page's working region: `main` where keel-web draws one, the body
+    otherwise (the founder's shell has no `<main>`)."""
+    return _screen_text(page, "main") or _screen_text(page, "body")
+
+
+def _number(value) -> str:
+    value = float(value)
+    return str(int(value)) if value.is_integer() else str(value)
+
+
+def _tc(locator) -> str:
+    """The first match's DOM words (`text_content`, not the CSS's capitals), "" at once when nothing matches."""
+    try:
+        return " ".join((locator.first.text_content() or "").split()) if locator.count() else ""
+    except Exception:  # noqa: BLE001 - a read
+        return ""
+
+
+def _value(locator) -> str:
+    try:
+        return locator.input_value()
+    except Exception:  # noqa: BLE001 - a read
+        return ""
 
 
 # --------------------------------------------------------------------------------------- Corridor
@@ -94,15 +135,76 @@ def _button(page: Page, name, *, exact: bool = True):
 class Corridor:
     """The founder's corridor screens. One instance per founder page.
 
-    `patience` scales the waits that wait on a **model** -- a card landing, questions being written
-    -- and nothing else: 1 on the scripted journeys, where the scripted executor answers in well
-    under a second, more on S-012, where a host's model writes each one."""
+    `patience` scales the waits that wait on a **model** -- a card landing, questions or a list being
+    written -- and nothing else: 1 on the scripted journeys, where the scripted executor answers in
+    well under a second, more on S-012, where a host's model writes each one."""
 
     def __init__(self, page: Page, recorder: Recorder, base_url: str, *, patience: float = 1.0):
         self.page = page
         self.base = base_url.rstrip("/")
         self.patience = patience
         self._b = _BrowserStep(recorder, page, "founder")
+        self.conflicts = []
+
+    # ------------------------------------------------------------------------ every screen's frame
+
+    def frame(self) -> dict:
+        """What frames the screen on display (keel-web 063 FR-003, FR-009): the kicker, *Problem · k of n*
+        and its dots (how many, which one is now), and the side nav's lock."""
+        dots = self.page.locator(".calib__progress .calib__dots i")
+        classes = [dots.nth(i).get_attribute("class") or "" for i in range(dots.count())]
+        nav = self.page.locator(f"nav[aria-label='{NAV_LOCKED_LABEL}']")
+        return {"kicker": _first_text(self.page, ".corridor__kicker"),
+                "progress": _first_text(self.page, ".calib__progress > span"),
+                "dots": len(classes),
+                "now": next((i + 1 for i, c in enumerate(classes) if "now" in c.split()), None),
+                "done": sum(1 for c in classes if "done" in c.split()),
+                "nav_locked": nav.count() > 0 and NAV_LOCK_LINE in _first_text(self.page, ".side-nav__lockline"),
+                "nav_links": self.page.locator("nav.side-nav a").count()}
+
+    def _primary(self):
+        return self.page.locator(".ccard__foot button.btn.primary").first
+
+    #: Every write a corridor screen's primary refused 409 CONCURRENCY and pressed again (runs/DRIFT.md #80).
+    conflicts: list
+
+    def _press_primary(self, expected_label: str | None = None) -> str:
+        """Presses the card's primary and waits for the next address; returns the label it carried.
+
+        runs/DRIFT.md #80: a write the page posts at a revision the server has moved past is answered 409
+        CONCURRENCY and the screen says nothing -- the founder presses again once the page's 3-second poll
+        has the new revision. So does this, once, and keeps the refusal in `conflicts` for the leg to name."""
+        primary = self._primary()
+        primary.wait_for(state="visible", timeout=20_000)
+        label = _safe_text(lambda: primary.inner_text()).strip()
+        if expected_label is not None and label != expected_label:
+            raise AssertionError(f"the primary reads {label!r}, not {expected_label!r}")
+        before = self.page.url
+        refused: list = []
+
+        def on_response(response) -> None:
+            if response.status == 409 and response.request.method in ("PUT", "POST") \
+                    and "/v2/projects/" in response.url:
+                refused.append({"url": response.url, "method": response.request.method})
+
+        self.page.on("response", on_response)
+        try:
+            self.page.wait_for_function("(b) => !b.disabled", arg=primary.element_handle(), timeout=30_000)
+            primary.click()
+            try:
+                self.page.wait_for_function("(u) => window.location.href !== u", arg=before, timeout=10_000)
+            except Exception:  # noqa: BLE001 - only a refused write earns the second press
+                if not refused:
+                    raise
+                self.page.wait_for_timeout(4_000)
+                self.page.wait_for_function("(b) => !b.disabled", arg=self._primary().element_handle(),
+                                            timeout=30_000)
+                self._primary().click()
+                self.page.wait_for_function("(u) => window.location.href !== u", arg=before, timeout=30_000)
+                self.conflicts.append({"screen": before, "refused": refused, "label": label})
+        finally:
+            self.page.remove_listener("response", on_response)
+        return label
 
     # ------------------------------------------------------------------------ step 1: context
 
@@ -159,29 +261,51 @@ class Corridor:
             return {"claim": claim, "rows": rows, "text": _text(self.page)}
 
     def confirm_seed(self, vector: str) -> None:
+        """The card confirmed: the problem's opens Prevalence; the solution's is the idea's Answer (keel-web
+        063 call 1), so it opens S2, the idea's Check screen."""
         slug = vector.lower()
         name = CARD_YES_PROBLEM if vector == "PROBLEM" else CARD_LOOKS_RIGHT
+        nxt = r"/define/problem/q/1" if vector == "PROBLEM" else r"/define/solution/idea"
         with self._b.step(f"founder confirms the {slug} card: {name}") as h:
             _button(self.page, name).click()
-            _wait_url(self.page, rf"/define/{slug}/q/1")
+            _wait_url(self.page, nxt)
             h.add_screenshot(self._b.screenshot(f"{slug}-confirmed"))
 
-    # ------------------------------------------------------------------ calibration, one screen
+    def idea_check(self) -> dict:
+        """S2 (keel-web 063 FR-007): the idea's three lines, read as drawn, saved untouched -- Save is the
+        approval -- and on to the solution's first question. Returns the lines and the frame."""
+        with self._b.step("founder checks the idea's three lines and saves them (S2: Save approves)") as h:
+            _wait_url(self.page, r"/define/solution/idea")
+            self.page.locator("#idea-what").wait_for(state="visible", timeout=20_000)
+            reloaded = False
+            try:
+                self.page.wait_for_function("() => (document.querySelector('#idea-what')?.value || '') !== ''",
+                                            timeout=5_000)
+            except Exception:  # noqa: BLE001 - runs/DRIFT.md #78: the stale plan's empty lines
+                h.add_screenshot(self._b.screenshot("idea-check-empty"))
+                self.page.reload(wait_until="load")
+                self.page.locator("#idea-what").wait_for(state="visible", timeout=20_000)
+                self.page.wait_for_function(
+                    "() => (document.querySelector('#idea-what')?.value || '') !== ''", timeout=20_000)
+                reloaded = True
+            lines = {line: _value(self.page.locator(f"#idea-{line}")) for line in ("what", "how", "belief")}
+            frame = self.frame()
+            h.capture_text("stage_screen", _text(self.page))
+            h.add_screenshot(self._b.screenshot("idea-check"))
+            label = self._press_primary(SAVE)
+            _wait_url(self.page, r"/define/solution/q/\d+$")
+            return {"lines": lines, "frame": frame, "primary": label, "reloaded": reloaded}
+
+    # -------------------------------------------------- calibration: one screen per single question
 
     def wait_questions(self, *, timeout_s: float = 60) -> None:
         self.page.locator("h1.calib__q").first.wait_for(
             state="visible", timeout=timeout_s * 1000 * self.patience)
 
-    def calibration_screen(self) -> dict:
-        return {"name": _first_text(self.page, ".calib__name"),
-                "question": _first_text(self.page, "h1.calib__q"),
-                "progress": _first_text(self.page, ".calib__progress span"),
-                "belief": _first_text(self.page, ".calib__belief-text")}
-
-    def answer(self, question: dict, answer: dict) -> dict:
-        """Answers the calibration screen on display for `question` (a `CalibrationQuestion` read
-        off the wire) with `answer` (the wire's `CalibrationAnswer`), then *Continue*. Returns what
-        the screen showed, the belief line included, just before Continue."""
+    def single(self, question: dict, answer: dict) -> dict:
+        """Answers one single screen -- Prevalence, Frequency, the cost, the price -- for `question` (a
+        `CalibrationQuestion` read off the wire) with `answer` (the wire's `CalibrationAnswer`), then the
+        primary. Returns what the screen showed just before it: the frame, the belief line, the primary."""
         name = question.get("dimension")
         with self._b.step(f"founder answers {name}") as h:
             self.page.locator("h1.calib__q").first.wait_for(state="visible", timeout=30_000)
@@ -190,20 +314,16 @@ class Corridor:
             if answer.get("unsure"):
                 chip = PRICE_NONE_CHIP if control == "price_range" else UNSURE_CHIP
                 self.page.locator("button.calib__chip", has_text=chip).first.click()
-            elif control in ("single_choice", "rank_pick"):
+            elif control == "single_choice":
                 group = self.page.get_by_role("radiogroup", name=question.get("name"), exact=True)
                 group.get_by_role("radio", name=labels[answer["codes"][0]], exact=True).click()
-            elif control == "multi_choice":
-                group = self.page.get_by_role("group", name=question.get("name"), exact=True)
-                for code in answer["codes"]:
-                    group.get_by_role("checkbox", name=labels[code], exact=True).click()
             elif control == "numeric_interval":
                 interval = answer["interval"]
                 nums = self.page.locator("input.calib__num")
                 nums.nth(0).fill(_number(interval["low"]))
                 nums.nth(1).fill(_number(interval["high"]))
                 unit = self.page.locator("select.calib__unit")
-                if unit.count():
+                if unit.count() and unit.first.locator(f"option[value='{interval['unit']}']").count():
                     unit.first.select_option(interval["unit"])
             elif control == "cost_estimate":
                 cost = answer["cost"]
@@ -220,40 +340,100 @@ class Corridor:
                 nums.nth(0).fill(_number(price["low"]))
                 nums.nth(1).fill(_number(price["high"]))
             else:
-                raise AssertionError(f"no screen for the calibration control {control!r} ({name})")
-            seen = self.calibration_screen()
+                raise AssertionError(f"no single screen for the calibration control {control!r} ({name})")
+            seen = {"screen": "single", "frame": self.frame(), "question": _first_text(self.page, "h1.calib__q"),
+                    "belief": _first_text(self.page, ".calib__belief-text")}
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot(f"calibration-{name}"))
-            before = self.page.url
-            _button(self.page, CALIB_CONTINUE).click()
-            # Continue writes and then navigates: the next screen is a new URL (`q/{n+1}` or the
-            # review). Typing into this one before it has gone types into the wrong question.
-            self.page.wait_for_function("(u) => window.location.href !== u", arg=before,
-                                        timeout=30_000)
+            seen["primary"] = self._press_primary()
             return seen
 
-    # ---------------------------------------------------------------------------------- review
+    # ------------------------------------------- calibration: a list's Answer, Check and save, Choose
 
-    def review(self, project_id: str, vector: str) -> dict:
-        slug = vector.lower()
-        with self._b.step(f"founder reads the {slug} review") as h:
-            _wait_url(self.page, rf"/define/{slug}/review")
-            self.page.locator(".rtable, .rstrips").first.wait_for(state="visible", timeout=20_000)
-            rows = []
-            for row in self.page.locator(".rtable tbody tr").all():
-                cells = [_safe_text(lambda c=c: c.inner_text()) for c in row.locator("td").all()]
-                rows.append(cells)
-            h.add_screenshot(self._b.screenshot(f"{slug}-review"))
-            return {"rows": rows, "foot": _first_text(self.page, ".rfoot"),
-                    "text": _text(self.page)}
+    def list_answer(self, question: dict, text: str | None) -> dict:
+        """A list dimension's *Answer* (keel-web 063 FR-004): the founder's words typed and Continue --
+        which posts `calibration/{vector}/draft` and opens Check -- or, `text` None, *Leave this out of the
+        study* and on past this question. Returns the frame and the prompt drawn."""
+        name = question.get("dimension")
+        with self._b.step(f"founder answers {name} in their own words" if text else
+                          f"founder leaves {name} out of the study") as h:
+            self.page.locator("textarea.calib__answerbox").first.wait_for(state="visible", timeout=30_000)
+            seen = {"screen": "answer", "frame": self.frame(), "question": _first_text(self.page, "h1.calib__q"),
+                    "hint": _first_text(self.page, ".calib__hint"),
+                    "derived": _first_text(self.page, ".calib__derived")}
+            if text:
+                self.page.locator("textarea.calib__answerbox").first.fill(text)
+                seen["counter"] = _first_text(self.page, ".calib__wc")
+            else:
+                self.page.locator("button.calib__chip", has_text=LEAVE_OUT_CHIP).first.click()
+            h.capture_text("stage_screen", _text(self.page))
+            h.add_screenshot(self._b.screenshot(f"answer-{name}"))
+            seen["primary"] = self._press_primary(CONTINUE)
+            if text:
+                _wait_url(self.page, r"/check")
+            return seen
 
-    def confirm_review(self, vector: str) -> None:
-        nxt = {"PROBLEM": r"/define/solution/seed", "SOLUTION": r"/define/persona",
-               "COMMERCIAL": r"/define/ready"}[vector]
-        with self._b.step(f"founder confirms the {vector.lower()} review") as h:
-            _button(self.page, REVIEW_CONFIRM[vector]).click()
-            _wait_url(self.page, nxt)
-            h.add_screenshot(self._b.screenshot(f"{vector.lower()}-review-confirmed"))
+    def _list_rows(self) -> dict:
+        rows = []
+        for li in self.page.locator(".listcheck ul.listrows li.listrow").all():
+            locked = li.locator(".listrow__ed--lock")
+            if locked.count():
+                rows.append({"text": _first_text(li, ".listrow__ed--lock"), "tag": _first_text(li, ".listrow__tag"),
+                             "locked": True})
+            else:
+                rows.append({"text": _value(li.locator("textarea.listrow__ed").first),
+                             "tag": _first_text(li, ".listrow__tag"), "locked": False,
+                             "counter": _first_text(li, ".listrow__wc"), "warn": _first_text(li, ".listrow__warn")})
+        field = self.page.locator(".listcheck .listcheck__field textarea.listrow__ed")
+        return {"rows": rows, "field": _value(field.first) if field.count() else None,
+                "line": _first_text(self.page, ".listcheck__line"),
+                "note": _first_text(self.page, ".listcheck__note"),
+                "title": _first_text(self.page, ".listcheck__title")}
+
+    def _keel_test(self) -> dict:
+        return {"belief": _first_text(self.page, ".keeltest__t"), "bar": _first_text(self.page, ".keeltest__b"),
+                "shown": self.page.locator(".keeltest").count() > 0}
+
+    def list_check(self, question: dict, *, timeout_s: float = 60) -> dict:
+        """*Check and save* (FR-005): waits out *Keel is writing this from your answer.*, reads the drafted
+        list as drawn -- every row, the locked ones (*yours*, *context*, *who decides*), the phrase or the
+        step, the *Keel will test* box -- and saves it untouched with the primary (*Save*, or the stage's
+        exit where the list does not pick). Returns what it read."""
+        name = question.get("dimension")
+        with self._b.step(f"founder checks Keel's list for {name} and saves it") as h:
+            _wait_url(self.page, r"/check")
+            self.page.locator(".listcheck").first.wait_for(state="visible",
+                                                           timeout=timeout_s * 1000 * self.patience)
+            drafting = self.page.locator(".calib__drafting")
+            if drafting.count():
+                drafting.first.wait_for(state="detached", timeout=timeout_s * 1000 * self.patience)
+            seen = {"screen": "check", "frame": self.frame(), **self._list_rows(), "test": self._keel_test()}
+            h.capture_text("stage_screen", _text(self.page))
+            h.add_screenshot(self._b.screenshot(f"check-{name}"))
+            seen["primary"] = self._press_primary()
+            return seen
+
+    def list_choose(self, question: dict, label: str) -> dict:
+        """*Choose* (FR-006): none pre-picked; the radio named `label` picked; the *Keel will test* box
+        read with the pick; the primary (*Continue*, or the stage's exit). Returns what it read."""
+        name = question.get("dimension")
+        with self._b.step(f"founder picks the one item strangers are asked about: {label!r} ({name})") as h:
+            _wait_url(self.page, r"/choose")
+            group = self.page.locator(".listcheck [role=radiogroup]").first
+            group.wait_for(state="visible", timeout=20_000)
+            radios = group.get_by_role("radio")
+            before = [radios.nth(i).get_attribute("aria-checked") for i in range(radios.count())]
+            options = [_safe_text(lambda r=radios.nth(i): r.inner_text()).strip() for i in range(radios.count())]
+            empty = self._keel_test()
+            group.get_by_role("radio", name=label, exact=True).click()
+            seen = {"screen": "choose", "frame": self.frame(), "options": options,
+                    "picked_before": [i for i, c in enumerate(before) if c == "true"],
+                    "test_before": empty, "test": self._keel_test(),
+                    "prompt": _first_text(self.page, ".listcheck__title")}
+            h.capture_text("stage_screen", _text(self.page))
+            h.add_screenshot(self._b.screenshot(f"choose-{name}"))
+            seen["primary"] = self._press_primary()
+            return seen
 
     # --------------------------------------------------------------------------------- persona
 
@@ -267,56 +447,34 @@ class Corridor:
             else:
                 group.get_by_role("radio", name=PERSONA_SOMEONE_ELSE, exact=True).click()
                 self.page.get_by_label(PERSONA_ROLE, exact=True).fill(decider["role"])
-            _button(self.page, CALIB_CONTINUE).click()
+            _button(self.page, CONTINUE).click()
             self.page.get_by_text(KICKER_CONTEXT).first.wait_for(state="visible", timeout=20_000)
             text = _text(self.page)
             h.add_screenshot(self._b.screenshot("persona-set"))
-            _button(self.page, CALIB_CONTINUE).click()
+            _button(self.page, CONTINUE).click()
             _wait_url(self.page, r"/define/commercial/q/1")
             return {"text": text}
 
     # ------------------------------------------------------------------- step 5: before people
 
-    def approve_idea_and_lock(self) -> dict:
-        """The idea screen (approve the three lines), the word, the pilot, and *Lock and write the
-        questions*. Returns what the idea preview drew."""
-        with self._b.step("founder approves the idea's three lines, then locks") as h:
+    def word_pilot_and_lock(self) -> dict:
+        """Step 5 (keel-web 063 FR-007: the idea screen moved to S2): *A word from you* (1 of 2), *The pilot*
+        (2 of 2) and *Lock and write the questions*. Returns the two counters as drawn."""
+        with self._b.step("founder passes the word and the pilot, then locks") as h:
             _wait_url(self.page, r"/define/ready")
-            self.page.get_by_test_id("before-counter").wait_for(state="visible", timeout=20_000)
-            preview = _safe_text(lambda: self.page.get_by_test_id("idea-preview").inner_text())
-            self.page.get_by_label(BEFORE_APPROVE, exact=True).check()
-            self.page.wait_for_timeout(500)
-            h.add_screenshot(self._b.screenshot("idea-approved"))
-            _button(self.page, BEFORE_CONTINUE).click()
-            _wait_url(self.page, r"/define/ready/word")
+            counter = self.page.get_by_test_id("before-counter")
+            counter.wait_for(state="visible", timeout=20_000)
+            # The DOM's words, not the CSS's capitals (`text-transform`).
+            first = counter.text_content() or ""
             _button(self.page, BEFORE_CONTINUE).click()
             _wait_url(self.page, r"/define/ready/pilot")
+            self.page.locator("[data-testid=before-counter]", has_text="2 of 2").wait_for(timeout=10_000)
+            second = counter.text_content() or ""
             h.add_screenshot(self._b.screenshot("pilot"))
             _button(self.page, BEFORE_LOCK).click()
             _wait_url(self.page, r"/people", timeout_s=60)
             h.add_screenshot(self._b.screenshot("locked-people"))
-            return {"idea_preview": preview}
-
-
-def _first_text(scope, selector: str) -> str:
-    """The first match's text, or "" at once when nothing matches -- never Playwright's thirty-second
-    wait for an element a screen variant does not draw (the decider banner on a B2C page)."""
-    try:
-        found = scope.locator(selector)
-        return found.first.inner_text() if found.count() else ""
-    except Exception:  # noqa: BLE001 - a read, never load-bearing
-        return ""
-
-
-def _text(page: Page) -> str:
-    """The rendered words of the page's working region: `main` where keel-web draws one, the body
-    otherwise (the founder's shell has no `<main>`)."""
-    return _screen_text(page, "main") or _screen_text(page, "body")
-
-
-def _number(value) -> str:
-    value = float(value)
-    return str(int(value)) if value.is_integer() else str(value)
+            return {"counters": [first.strip(), second.strip()]}
 
 
 # ------------------------------------------------------------------------------------ PeopleLinks
@@ -404,21 +562,20 @@ def _link_of(box) -> str:
 # --------------------------------------------------------------------------------------- Interview
 
 class Interview:
-    """The stranger's `/i/{token}`: one screen at a time. `walk` takes the interview as the wire
-    served it (to read the labels of the option ids a pick names) and the person's picks."""
+    """The stranger's `/i/{token}` (keel-web 064): one screen at a time, every word as served. `walk`
+    takes the interview as the wire served it (to read the labels of the option ids a pick names) and
+    the person's answers; it records what each screen drew (`screens`) for the scenario to judge."""
 
     def __init__(self, page: Page, recorder: Recorder):
         self.page = page
         self._b = _BrowserStep(recorder, page, "participant")
         self.seen: list[str] = []
+        self.screens: list[dict] = []
 
     def _keep(self) -> None:
         text = _screen_text(self.page, "div.iv-page") or _screen_text(self.page, "body")
         if text and (not self.seen or self.seen[-1] != text):
             self.seen.append(text)
-
-    def kicker(self) -> str:
-        return _first_text(self.page, ".iv-kicker")
 
     def _main(self):
         return self.page.locator("main").first
@@ -431,20 +588,21 @@ class Interview:
             h.add_screenshot(self._b.screenshot("interview-intro"))
 
     def walk(self, person, interview: dict, wire_answers: dict) -> dict:
-        """Begin, the gate, every item and the reveal, *Send my answers*; returns the body the page
-        POSTed and the done screen's heading. `wire_answers` is `{itemId: ItemAnswer}` -- what this
-        person answers, already re-expressed as the wire takes it."""
+        """Begin, the decision-maker's idea screen, the gate, every item and the reveal, *Send my
+        answers*; returns the body the page POSTed, the done screen's heading and what every screen drew.
+        `wire_answers` is `{itemId: ItemAnswer}` -- what this person answers, already re-expressed as the
+        wire takes it."""
         page = self.page
         with self._b.step(f"{person.person} answers the interview, screen by screen") as h:
             with page.expect_request(lambda r: r.method == "POST"
                                      and r.url.endswith("/interview/response"),
                                      timeout=120_000) as sent:
                 _button(page, IV_BEGIN).click()
+                if interview.get("kind") == "COMMERCIAL_LINK" and interview.get("idea"):
+                    self._idea()
                 gate = interview.get("gate")
                 if gate:
                     self._gate(person, gate, interview.get("occasion"))
-                    if not person.recency:
-                        pass
                 if gate is None or person.recency:
                     self._items(interview, wire_answers)
             body = sent.value.post_data_json
@@ -452,7 +610,7 @@ class Interview:
             self._keep()
             heading = _safe_text(lambda: page.get_by_role("heading", level=1).first.inner_text())
             h.add_screenshot(self._b.screenshot(f"interview-done-{person.person.split()[0]}"))
-            return {"body": body, "done": heading, "seen": list(self.seen)}
+            return {"body": body, "done": heading, "seen": list(self.seen), "screens": list(self.screens)}
 
     def opt_in_to_pilot(self, interview: dict) -> None:
         label = ((interview.get("done") or {}).get("pilot") or {}).get("label")
@@ -462,27 +620,38 @@ class Interview:
                                       timeout=20_000):
             self.page.get_by_role("checkbox", name=label, exact=True).click()
 
+    def _idea(self) -> None:
+        """D9 (keel-web 064 FR-007): the decision-maker's link opens with the idea's three lines."""
+        page = self.page
+        _button(page, IV_CONTINUE).wait_for(state="visible", timeout=20_000)
+        self._keep()
+        self.screens.append({"screen": "idea", "kicker": _first_text(page, ".iv-kicker"),
+                             "card": _first_text(page, ".iv-card"),
+                             "question": _first_text(page, "h1.iv-q")})
+        _button(page, IV_CONTINUE).click()
+
     def _gate(self, person, gate: dict, occasion: str | None) -> None:
         page = self.page
         group = page.get_by_role("radiogroup", name=gate["question"], exact=True)
         group.wait_for(state="visible", timeout=20_000)
         self._keep()
         group.get_by_role("radio", name=IV_YES if person.recency else IV_NO, exact=True).click()
+        chips = []
         if person.recency:
+            chips = _safe_all_texts(page, ".iv-story .iv-chips button")
             if person.anchor_chip:
-                _button(page, chip_word(person.anchor_chip, on_gate=True, occasion=occasion)).click()
+                _button(page, gate_chip_word(occasion)).click()
             elif person.story:
                 page.locator("textarea").first.fill(person.story)
+        self.screens.append({"screen": "gate", "kicker": _first_text(page, ".iv-kicker"),
+                             "question": _first_text(page, "h1.iv-q"), "chips": chips})
         _button(page, IV_CONTINUE).click()
 
     def _items(self, interview: dict, wire_answers: dict) -> None:
         page = self.page
         parts = interview.get("parts") or []
+        reveal = interview.get("reveal") or {}
         for p_index, part in enumerate(parts):
-            if p_index > 0 and interview.get("reveal") and part.get("anchor") == "the_reveal":
-                _button(page, IV_CONTINUE).wait_for(state="visible", timeout=20_000)
-                self._keep()
-                _button(page, IV_CONTINUE).click()
             items = part.get("items") or []
             for i_index, item in enumerate(items):
                 page.locator("h1.iv-q").first.wait_for(state="visible", timeout=20_000)
@@ -490,32 +659,56 @@ class Interview:
                 answer = wire_answers.get(item.get("itemId"))
                 if answer is not None:
                     self._answer(item, answer)
+                self.screens.append(self._item_screen(item))
                 last = p_index == len(parts) - 1 and i_index == len(items) - 1
                 _button(page, IV_SEND if last else IV_NEXT).click()
+            if interview.get("kind") == "FULL" and reveal and reveal.get("afterPart") == part.get("part") \
+                    and p_index < len(parts) - 1:
+                _button(page, IV_CONTINUE).wait_for(state="visible", timeout=20_000)
+                self._keep()
+                self.screens.append({"screen": "reveal", "kicker": _first_text(page, ".iv-kicker"),
+                                     "card": _first_text(page, ".iv-card")})
+                _button(page, IV_CONTINUE).click()
+
+    def _item_screen(self, item: dict) -> dict:
+        """What one item's screen drew, in the order drawn: the kicker, the idea card, the stem, the hint,
+        the control's rows, the escape chips (and whether the escape is the last control before the
+        buttons)."""
+        page = self.page
+        main = self._main()
+        rows = _safe_all_texts(page, ".iv-control [role=radio], .iv-control [role=checkbox]")
+        chips = _safe_all_texts(page, ".iv-chips button")
+        order = main.evaluate(
+            "(m) => Array.from(m.children).map((c) => c.className || c.tagName)") if main.count() else []
+        return {"screen": "item", "dimension": item.get("dimension"), "control": item.get("control"),
+                "kicker": _first_text(page, ".iv-kicker"), "question": _first_text(page, "h1.iv-q"),
+                "idea_card": _first_text(page, ".iv-ideacard__what"),
+                "hint": _first_text(page, ".iv-tick"), "picked_line": _first_text(page, ".iv-picked"),
+                "rows": [r.strip() for r in rows], "chips": [c.strip() for c in chips], "order": order}
 
     def _answer(self, item: dict, answer: dict) -> None:
         main = self._main()
         options = {o.get("optionId"): o.get("label") for o in item.get("options") or []}
         advantages = {a.get("id"): a.get("label") for a in item.get("advantages") or []}
         if answer.get("chip"):
-            _button(self.page, chip_word(answer["chip"])).click()
+            escape = item.get("escape") or {}
+            main.locator(".iv-chips").get_by_role("button", name=escape.get("label"), exact=True).click()
             return
         if "scale" in answer:
             main.get_by_role("radio", name=str(answer["scale"]), exact=True).click()
             return
         if "costTotal" in answer:
             cost = answer["costTotal"]
-            if cost.get("nothing"):
-                _button(self.page, IV_NOTHING).click()
-                return
-            main.get_by_role("radiogroup", name="Measured as", exact=True) \
-                .get_by_role("radio", name=IV_AMOUNT[cost["mode"]], exact=True).click()
-            main.locator("input").first.fill(_number(cost["value"]))
+            modes = main.get_by_role("radiogroup", name=IV_COST_MODE_GROUP, exact=True)
+            if modes.count():
+                radio = modes.get_by_role("radio", name=IV_COST_MODE_WORD[cost["mode"]], exact=True)
+                if radio.get_attribute("aria-checked") != "true":
+                    radio.click()
+            main.locator(".iv-num input").first.fill(_number(cost["value"]))
             return
-        multi = item.get("control") in ("multi_choice", "multi_choice_ladder")
+        role = "checkbox" if item.get("control") == "pick_two" else "radio"
         for option_id in answer.get("optionIds") or []:
-            role = "checkbox" if multi else "radio"
-            main.get_by_role(role, name=options[option_id], exact=True).first.click()
+            main.locator(".iv-control").get_by_role(role, name=options[option_id], exact=True).first.click()
         for advantage_id in answer.get("advantageIds") or []:
             main.get_by_role("checkbox", name=advantages[advantage_id], exact=True).click()
 
@@ -547,15 +740,21 @@ class Answers:
             bands = [{"stage": b.get_attribute("data-stage"), "class": b.get_attribute("class") or ""}
                      for b in self.page.locator("svg.ship path.band").all()]
             tiles = _safe_all_texts(self.page, ".tile b")
+            pilot_tile = self.page.locator(".tile--pilot")
+            pilot = {"big": _tc(pilot_tile.locator("b")), "label": _tc(pilot_tile.locator(".tile__label")),
+                     "line": _tc(pilot_tile.locator(".tile__line")), "present": pilot_tile.count() > 0}
             download = self.page.get_by_role("link", name="Download the brief")
             text = _text(self.page)
             h.capture_text("stage_screen", text)
             h.add_screenshot(self._b.screenshot("board"))
-            return {"panels": panels, "bands": bands, "tiles": tiles,
+            return {"panels": panels, "bands": bands, "tiles": tiles, "pilot": pilot,
                     "overall": _first_text(self.page, "p.overall"),
                     "download": download.count() > 0, "text": text}
 
-    def vector_page(self, project_id: str, vector: str) -> dict:
+    def vector_page(self, project_id: str, vector: str, *, open_row: str | None = None) -> dict:
+        """One stage page: every row's name, belief, status and amber; and, `open_row` named, that row
+        opened and its per-person list read (keel-web `DimensionStagePage`'s `ul.dimpeople`: each person's
+        name and how the answer was read)."""
         with self._b.step(f"founder opens the {vector.lower()} page") as h:
             self.page.goto(f"{self.base}/p/{project_id}/s/{vector}", wait_until="load")
             self.page.locator(".dimrow").first.wait_for(state="visible", timeout=30_000)
@@ -567,26 +766,97 @@ class Answers:
                     "status": _first_text(row, "span.status"),
                     "amber": row.locator(".dimword--amber").count() > 0,
                 }
+            people = []
+            if open_row:
+                row = self.page.locator(f".dimrow[id='{open_row}']").first
+                head = row.locator("button.dimrow__head")
+                if head.count():
+                    head.first.click()
+                    row.locator(".dimrow__body").first.wait_for(state="visible", timeout=10_000)
+                for li in row.locator("ul.dimpeople li").all():
+                    spans = li.locator("span")
+                    people.append({"name": _safe_text(lambda s=spans.nth(0): s.inner_text()).strip(),
+                                   "readAs": _first_text(li, ".dimpeople__read").strip()})
             text = _text(self.page)
             h.capture_text("stage_screen", text)
             h.add_screenshot(self._b.screenshot(f"vector-{vector.lower()}"))
-            return {"rows": rows, "text": text,
+            return {"rows": rows, "text": text, "people": people, "open_row": open_row,
                     "headline": _first_text(self.page, "p.answers__headline"),
                     "decider_banner": _first_text(self.page, "p.decider-banner")}
 
-    def brief(self, project_id: str) -> dict:
-        with self._b.step("founder opens the brief to hand over") as h:
-            self.page.add_init_script("window.print = () => {};")
-            self.page.goto(f"{self.base}/p/{project_id}/print", wait_until="load")
+    def brief(self, project_id: str, *, printed: bool = False) -> dict:
+        """The brief's **page one** (keel-web 065, `/p/{id}/brief`; `printed` reads the download's tab,
+        `/p/{id}/print`, the same page): the decision and how sure, the headline, the four tiles (three verdict
+        words and the pilot sign-ups, *k of n · p%* over its per-link line), per stage its question, the served
+        answer and its cards (name, number, line, status words, each linking to its block), the next tests and the
+        footer. Every word read as the DOM carries it, not as the CSS capitalises it."""
+        where = "print" if printed else "brief"
+        with self._b.step("founder opens the brief to hand over" if printed else "founder opens the brief") as h:
+            if printed:
+                self.page.add_init_script("window.print = () => {};")
+            self.page.goto(f"{self.base}/p/{project_id}/{where}", wait_until="load")
             self.page.locator("div.brief").first.wait_for(state="visible", timeout=30_000)
+            brief = self.page.locator("div.brief").first
             text = _screen_text(self.page, "div.brief")
-            h.capture_text("download", text)
-            h.add_screenshot(self._b.screenshot("brief"))
+            h.capture_text("download" if printed else "stage_screen", text)
+            h.add_screenshot(self._b.screenshot("brief-print" if printed else "brief"))
+            stages = {}
+            for stage in ("problem", "solution", "commercial"):
+                section = brief.locator(f"#brief-{stage}")
+                stages[stage] = {
+                    "question": _tc(section.locator(".bq")),
+                    "answer": _tc(section.locator(".bans")),
+                    "cards": [{"key": c.get_attribute("data-dim"), "href": c.get_attribute("href"),
+                               "name": _tc(c.locator(".bcard__name")),
+                               "number": _tc(c.locator(".bcard__number")) or None,
+                               "line": _tc(c.locator(".bcard__line")),
+                               "statusWords": _tc(c.locator(".bcard__status"))}
+                              for c in section.locator("a.bcard").all()],
+                }
+            tiles = [{"label": _tc(t.locator(".btile__label")), "word": _tc(t.locator(".btile__word")),
+                      "big": _tc(t.locator(".btile__big")), "line": _tc(t.locator(".btile__line")),
+                      "pilot": "btile--pilot" in (t.get_attribute("class") or "")}
+                     for t in brief.locator(".btile").all()]
+            nxt = [{"text": _tc(li.locator(".bnext__text")),
+                    "chip": li.locator("a.bchip").first.get_attribute("data-dim") if li.locator("a.bchip").count()
+                    else None} for li in brief.locator("#brief-next .bnext li").all()]
             return {
-                "decision": self.page.locator("div.brief").first.get_attribute("data-decision"),
-                "headline": _first_text(self.page, ".bhead__headline"),
-                "tiles": [_first_text(t, ".btile__word")
-                          for t in self.page.locator(".btile").all()],
-                "sections": [s.get_attribute("id") for s in self.page.locator("section.bsec").all()],
+                "decision": brief.get_attribute("data-decision"),
+                "decision_words": _tc(brief.locator(".bdecision")),
+                "how": _tc(brief.locator(".bhow")),
+                "headline": _tc(brief.locator(".bhead__headline")),
+                "tiles": tiles,
+                "sections": [s_.get_attribute("id") for s_ in brief.locator("section.bsec").all()],
+                "stages": stages,
+                "next": nxt,
+                "footer": _tc(brief.locator(".bfooter")),
                 "text": text,
             }
+
+    def breakdown(self, project_id: str) -> dict:
+        """The brief's **page two** (keel-web 065, `/p/{id}/brief/breakdown`): per stage section, one block per card
+        -- its name and status words, the card's number and line, its rows (*Tested*, *What broke*, *Not tested*,
+        *Not asked*), whether the stage row's own body is drawn -- and the back link."""
+        with self._b.step("founder opens the brief's breakdown") as h:
+            self.page.goto(f"{self.base}/p/{project_id}/brief/breakdown", wait_until="load")
+            root = self.page.locator("div.brief--breakdown").first
+            root.wait_for(state="visible", timeout=30_000)
+            text = _screen_text(self.page, "div.brief--breakdown")
+            h.capture_text("stage_screen", text)
+            h.add_screenshot(self._b.screenshot("brief-breakdown"))
+            stages = {}
+            for stage in ("problem", "solution", "commercial"):
+                section = root.locator(f"#breakdown-{stage}")
+                blocks = []
+                for block in section.locator(".bd").all():
+                    key = block.get_attribute("id")
+                    if not key:
+                        continue                       # the problem's quotes and sharpest line, no card
+                    blocks.append({"key": key, "name": _tc(block.locator(".bd__name")),
+                                   "statusWords": _tc(block.locator(".bd__status")),
+                                   "card": _tc(block.locator(".bd__card")),
+                                   "rows": [_tc(r) for r in block.locator(":scope > .bd__row").all()],
+                                   "broke": _tc(block.locator(".bd__broke")) or None,
+                                   "body": block.locator(".dimrow__body").count() > 0})
+                stages[stage] = {"present": section.count() > 0, "blocks": blocks}
+            return {"stages": stages, "back": root.locator("a.bback").count(), "text": text}

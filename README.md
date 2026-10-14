@@ -1614,12 +1614,17 @@ and must close back to the screen it came from. `doors.json` lists every route, 
 **S-004, the stranger who gives orders** (`evals/test_s004_stranger_who_gives_orders.py`, spec
 `008-stranger-who-gives-orders`) — live, opt-in, below.
 
-**Since spec `040-marks-v18` (2026-10-14) the corpus is revision 10 and the contract 13**, and the three journeys
-cannot run until keel-web specs 7, 8 and 10 land: their script (`harness/vectors_script.py`) and typed inputs still
-write revision 9's shapes, and re-pointing them -- and the legs and page objects -- at the founder lists, the `{key,
-event}` items, the `asked` faces and the brief's answers is the later journey spec's. Their stackless unit tests that
-read the corpus skip by name until then (spec 040 judgement call 89); the keys table already reads the eight-screen
-export.
+**Since spec `041-vectors-journey-r10` (2026-10-14) S-005, S-006 and S-007 walk corpus revision 10 and contract 13**
+(keel-cloud-docs `7b151f9`) through keel-web `844ea36`'s redesigned screens -- the founder's one-dimension-a-screen
+framing of keel-web 063, the stranger's screens of 064 and the brief and pilot tile of 065 -- and are green against a
+local stack (`make eval K="s005 or s006 or s007"`: 3 passed, twice). Each list dimension is walked *Answer* -> *Check and save* -> *Choose*, the idea is the
+solution's first question (S2), the decision-maker's link opens with the idea, every item draws one escape last, and the
+brief is asserted on the wire (headline, three answers, a card per dimension, what broke, the pilot) and on 065's two
+pages and the overview's pilot tile, held to that wire. The
+spec's *Disagreements* list where revision 10 and the wire part (Frequency on Paidly's and Mulch Run's windows, the
+positional list codes, the story chip, the persona's role), and `runs/DRIFT.md` #78-#81 the four product defects the
+journeys step round. Their stackless unit tests read the corpus again (spec 040 call 89's 24 skips gone): `make unit`
+**1,846 passed / 53 skipped**.
 
 **S-005, S-006 and S-007 are vectors journeys since spec `039-vectors-journey`** (2026-10-13). The
 account below is the classic one they replaced, kept as history: on 039 each walked keel-cloud's vector

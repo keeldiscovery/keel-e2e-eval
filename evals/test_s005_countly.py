@@ -1,4 +1,5 @@
-"""S-005: `01-countly`, the B2C entry, walked through the vector corridor (spec 039).
+"""S-005: `01-countly`, the B2C entry, walked through the vector corridor (spec 039; spec 041: corpus revision 10,
+keel-web 063 / 064).
 
 Countly is the corpus's B2C entry with the most people (twelve), and it earns its place three ways:
 
@@ -8,9 +9,9 @@ Countly is the corpus's B2C entry with the most people (twelve), and it earns it
   four anchored money answers -- one under keel-cloud's floor of five -- and reads *Too few to call*,
   which is also the COMMERCIAL verdict. A screen that called a status on four people would be the
   floor applied one person too late.
-* **the one-unit window.** It counts the gate over *the last month*. keel-cloud asks no Frequency on
-  a one-unit window (spec 078), and that is where `runs/DRIFT.md` #74 was found: no screen asks it,
-  and the standings cannot be read until it carries an answer.
+* **the window of four weeks.** Revision 10 re-windowed it from *the last month* to `{4, WEEKS}` (D13: no
+  window counts fewer than two), so the Frequency `runs/DRIFT.md` #74 found unasked is now drawn on the
+  founder's screen and asked of every person on *those 4 weeks* -- and stands where the corpus says.
 """
 
 from __future__ import annotations
@@ -51,17 +52,21 @@ def _countly_extras(j) -> None:
         assert row.get("status") == "TOO_FEW_TO_CALL", row.get("status")
         assert drawn.startswith(corpus_scenario.STATUS_WORD["TOO_FEW_TO_CALL"]), drawn
 
-    # D13 (keel-cloud 087; spec 040): there is no one-unit window -- Countly's is {4, WEEKS} at revision 10 -- so the
-    # spec-078 step that asserted "no Frequency asked of anybody" is inverted. runs/DRIFT.md #74 is closed. The leg
-    # itself is the later journey spec's to re-point (keel-web 7, 8, 10).
-    with j.recorder.step("S-005: the window counts at least two, and Frequency is asked (D13)",
+    # D13 (keel-cloud 087; spec 040): no window counts fewer than two -- Countly's is {4, WEEKS} at revision 10 -- so
+    # Frequency is on the founder's screens and asked of everyone, and it stands where the corpus says (spec 041).
+    with j.recorder.step("S-005: the window counts four weeks, Frequency is asked of everyone and holds up (D13)",
                          party="participant", kind="assert") as h:
-        asked = sorted({i.get("dimension") for iv in j.interviews.values()
-                        for p in iv.get("parts") or [] for i in p.get("items") or []})
-        h.record_assert({"window": vs.window_words(j.founder.window), "frequency asked": True},
-                        {"asked": asked})
-        assert j.founder.window.count >= 2, j.founder.window
-        assert "problem.frequency" in asked, asked
+        asked = {name: sorted(i.get("dimension") for p in iv.get("parts") or [] for i in p.get("items") or [])
+                 for name, iv in j.interviews.items() if iv.get("parts")}
+        frequency = standings["problem.frequency"]
+        h.record_assert({"window": vs.window_words(j.founder.window), "frequency asked": True,
+                         "status": "HOLDING_UP", "n": 8},
+                        {"asked": asked, "frequency": {k: frequency.get(k) for k in ("status", "n", "interval")},
+                         "screen": j.framing["problem.frequency"][0]["question"]})
+        assert j.founder.window.as_wire() == {"count": 4, "unit": "WEEKS"}, j.founder.window
+        assert asked and all("problem.frequency" in dims for dims in asked.values()), asked
+        assert frequency.get("status") == "HOLDING_UP" and frequency.get("n") == 8, frequency
+        assert "4 weeks" in j.framing["problem.frequency"][0]["question"], j.framing["problem.frequency"]
 
 
 def test_s005_countly(stack, founder_one, browser, run_dir):

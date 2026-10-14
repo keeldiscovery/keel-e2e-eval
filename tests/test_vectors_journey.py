@@ -1,14 +1,10 @@
-"""Spec 039: the corpus journeys are vectors journeys -- the script, the typed inputs and the legs,
-held without a stack.
+"""Spec 039 / spec 041: the corpus journeys are vectors journeys -- the script, the typed inputs and the legs,
+held without a stack, at corpus revision 10 and contract 13.
 
 Read through keel-cloud's own canon corpus, as the three scenarios read it, so a corpus edit that a
 journey could no longer drive fails here before it fails twenty steps into a run. Every test that needs
-the canon skips by name when `stack.toml`'s keel-cloud checkout carries none -- **and, since spec 040,
-whenever the canon is at revision 10** (judgement call 89): the script's results and the typed inputs
-still write revision 9's shapes (model-written option sets, the respondent questionnaire, the brief's
-tiles), and re-pointing them at the founder lists, the `{key, event}` items, the `asked` faces and the
-brief's answers is the later journey spec's, once keel-web specs 7, 8 and 10 land. The keys table, the
-id codec and the scenario's structure read no corpus and keep running.
+the canon skips by name when `stack.toml`'s keel-cloud checkout carries none. Spec 040's judgement call 89
+skipped them at revision 10 until the script wrote contract 13's shapes; spec 041 re-pointed it and they run.
 """
 
 from __future__ import annotations
@@ -31,30 +27,33 @@ PRODUCT_WORDS = {"app", "apps", "platform", "dashboard", "portal", "plugin", "ap
                  "website", "algorithm", "device"}
 CLAIM_WORDS = {"works", "accurate", "accurately", "saves", "faster", "better", "reliable",
                "reliably", "trusted", "improves", "helps"}
+# keel-cloud `WindowFrame.TIME_WORDS` (E1) and `FRAME_OPENINGS` (E3).
 TIME_WORDS = {"last", "past", "recent", "recently", "ago", "today", "yesterday", "week", "weeks",
               "month", "months", "year", "years", "day", "days", "night", "nights", "shift",
               "shifts", "cycle", "cycles"}
-
-
-#: Judgement call 89 (spec 040): why a corpus-reading journey test skips at revision 10.
-JOURNEY_SPEC = ("corpus revision 10 / contract 13: harness/vectors_script.py's results and typed inputs write "
-                "revision 9's shapes; the later journey spec re-points them (and the legs) once keel-web specs "
-                "7, 8 and 10 land -- spec 040 judgement call 89")
+FRAME_OPENINGS = ("in ", "how many", "did you", "out of", "do you think")
+# Registry 4's `founder.saves` (keel-cloud 087 FR-001): (min, max, words) a list carries, Buyer and payer's
+# fixed "Nobody else" not counted (code adds it).
+SAVES = {"problem.importance": (5, 5, 9), "problem.current_solution_satisfaction": (5, 5, 9),
+         "solution.compatibility": (2, 4, 9), "solution.relative_advantage": (1, 4, 9),
+         "solution.adoption_friction": (1, 4, 9), "commercial.buyer_payer_alignment": (0, 2, 4),
+         "commercial.purchase_friction": (1, 4, 9), "commercial.commitment": (1, 1, 9)}
 
 
 def _entry(entry_id: str):
     from stack.config import load_config
-    from instructions import corpus as corpus_mod
     keel_cloud = Path(load_config(validate=False).keel_cloud)
     if not (keel_cloud / "canon" / "designs" / "measured-beliefs" / "corpus").is_dir():
         pytest.skip(f"no keel-cloud corpus at {keel_cloud}")
-    if corpus_mod.REVISION >= 10:
-        pytest.skip(JOURNEY_SPEC)
     return vs.entry_for(keel_cloud, entry_id)[1]
 
 
 def _words(text: str) -> set:
     return set(re.findall(r"[a-z']+", text.lower()))
+
+
+def _count(text: str) -> int:
+    return len(text.split())
 
 
 # ------------------------------------------------------------------------------- the id codec
@@ -68,10 +67,16 @@ def test_the_ids_are_keel_clouds_interview_id_codec():
         b"tok|option|commercial.price|band_20_50").hexdigest()[:12]
 
 
-def test_the_slug_is_keel_clouds_first_four_words():
-    assert vs.slug("None of these; they cope with what they have") == "none_of_these_they"
-    assert vs.slug("Owner approval") == "owner_approval"
-    assert vs.slug(vs.label_of_code("matching_deliveries")) == "matching_deliveries"
+def test_a_list_items_code_is_its_place_as_keel_cloud_codes_it():
+    """keel-cloud `SavedList.codeFor` (087 judgement call 2): the wire never carries the corpus's slugs."""
+    assert [vs.wire_code("problem.importance", i) for i in range(5)] == [
+        "own", "rival_1", "rival_2", "rival_3", "rival_4"]
+    assert vs.wire_code("problem.current_solution_satisfaction", 4) == "outcome_5"
+    assert vs.wire_code("solution.relative_advantage", 0) == "benefit_1"
+    assert vs.wire_code("solution.compatibility", 2) == "item_3"
+    assert [vs.wire_code("commercial.buyer_payer_alignment", i) for i in range(3)] == [
+        "nobody_else", "role_1", "role_2"]
+    assert vs.wire_code("commercial.commitment", 0) == "step"
 
 
 # ------------------------------------------------------------------------------- the script
@@ -82,20 +87,29 @@ def test_the_script_answers_every_corridor_screen_from_the_entry(entry_id):
     screens = vs.generate(entry).screens
     jobs = vs.respondent_jobs(entry)
     want = {vs.CONTEXT_SCREEN, vs.PROBLEM_SCREEN, vs.MECHANISM_SCREEN, vs.CALIBRATION_SCREEN,
-            vs.INTERPRET_SCREEN, vs.BRIEF_SCREEN} | {vs.RESPONDENT_ALIASES[j] for j in jobs}
+            vs.ASKED_SCREEN, vs.INTERPRET_SCREEN, vs.BRIEF_SCREEN} | {vs.RESPONDENT_ALIASES[j] for j in jobs}
     assert set(screens) == want
-    assert [e["result"]["vector"] for e in screens[vs.CALIBRATION_SCREEN]] == list(vs.VECTORS), (
-        "the three calibration jobs share one key set, so their entries are the corridor's order")
+    calibration = [(e["result"]["vector"], [q["key"] for q in e["result"]["questions"]])
+                   for e in screens[vs.CALIBRATION_SCREEN]]
+    assert calibration == [(v, [only] if only else vs.calibrated_keys(entry, v))
+                           for v, only in vs.calibration_jobs(entry)], (
+        "one key set for every calibration job: the slice on each seed, then one redraft per list the founder "
+        "answers, in the corridor's own order")
+    assert [v for v, only in vs.calibration_jobs(entry) if only is None] == list(vs.VECTORS)
     assert len(screens[vs.INTERPRET_SCREEN]) == len(vs.readable_people(entry))
     assert [e["result"]["anchoring"] for e in screens[vs.INTERPRET_SCREEN]] == [
         p.anchoring for p in vs.readable_people(entry)]
     context = screens[vs.CONTEXT_SCREEN][0]["result"]
     assert context["understands"] == entry.context["understood"]
+    assert context["occasion"] == entry.context["occasion"]
     assert screens[vs.PROBLEM_SCREEN][0]["result"]["statement"] == entry.interpretations["problem"]
     mechanism = screens[vs.MECHANISM_SCREEN][0]["result"]
     assert mechanism["short_name"] in mechanism["idea_what"]
     assert mechanism["idea_belief"].startswith(vs.BELIEF_FRAME)
     assert 3 <= len(mechanism["mechanism_terms"]) <= 8
+    asked = [e["result"] for e in screens[vs.ASKED_SCREEN]]
+    assert asked == [vs.asked_result(entry, "solution.compatibility"),
+                     vs.asked_result(entry, "solution.adoption_friction")]
 
 
 def test_a_b2b_entry_writes_part_three_for_the_decision_makers_link():
@@ -104,81 +118,123 @@ def test_a_b2b_entry_writes_part_three_for_the_decision_makers_link():
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)
-def test_the_composed_calibration_words_keep_keel_clouds_rules(entry_id):
-    """C5 (no product word in a PROBLEM question), C6 (no claim word in a SOLUTION question, but
-    *better* on Relative advantage), W3/W8 (the short name and the offer's name), E1/E3 (the
-    Prevalence clause carries no number, no time word, no frame opening) -- on the referee's own
-    words, which keel-cloud would otherwise refuse with one repair turn the script cannot answer."""
+def test_the_drafted_lists_keep_keel_clouds_rules(entry_id):
+    """`founder-lists.md` as keel-cloud's applier holds it (087 L1-L5, C5, C6, W9) and Prevalence's clause
+    (E1-E3), on the referee's results -- which keel-cloud would otherwise refuse with one repair turn the
+    script cannot answer: each list the registry's count and words, Importance five, Current solution five and
+    its phrase, every face at most 20 words and no question mark, no digit the sources lack, no product word on
+    the problem's, no claim word on the solution's, no money anywhere."""
     entry = _entry(entry_id)
+    sources = json.dumps([entry.context, entry.interpretations])
     for vector in vs.VECTORS:
         for q in vs.calibration_result(entry, vector)["questions"]:
-            text = " ".join([q.get("question") or "", q.get("event") or ""]
-                            + [o["label"] + " " + o["belief_phrase"] for o in q.get("options") or []])
+            key = q["key"]
+            texts = [q.get("event") or ""] + [o["label"] + " " + o["belief_phrase"] for o in q.get("options") or []]
+            if vs.is_list(key):
+                draft = q["list"]
+                low, high, words = SAVES[key]
+                assert low <= len(draft["items"]) <= high, (key, draft)
+                for item in draft["items"]:
+                    assert 1 <= _count(item["label"]) <= words, (key, item)
+                    if key in vs.ASKED_FACES:
+                        assert 1 <= _count(item["asked"]) <= 20 and "?" not in item["asked"], (key, item)
+                    else:
+                        assert "asked" not in item, (key, item)
+                    assert "Nobody else" != item["label"], "code adds Buyer and payer's fixed first item"
+                    texts += [item["label"], item.get("asked") or ""]
+                if key == "problem.current_solution_satisfaction":
+                    assert draft["phrase"].startswith("your "), draft
+                    texts.append(draft["phrase"])
+                else:
+                    assert "phrase" not in draft
+                answer = vs.answer_text(entry, key)
+                for digit in re.findall(r"\d+", " ".join(texts)):
+                    assert digit in sources + answer, (key, digit)
+            else:
+                assert "list" not in q
+            text = " ".join(texts)
             if vector == "PROBLEM":
-                assert not _words(text) & PRODUCT_WORDS, (q["key"], text)
+                assert not _words(text) & PRODUCT_WORDS, (key, text)
             if vector == "SOLUTION":
-                claims = CLAIM_WORDS - ({"better"} if q["key"] == "solution.relative_advantage" else set())
-                assert not _words(text) & claims, (q["key"], text)
-                if q.get("question"):
-                    assert vs.short_name(entry) in q["question"], q
-            if vector == "COMMERCIAL" and q.get("question"):
-                assert vs.offer_name(entry) in q["question"], q
-            if q["key"] == "problem.prevalence":
+                claims = CLAIM_WORDS - ({"better"} if key == "solution.relative_advantage" else set())
+                assert not _words(text) & claims, (key, text)
+            if key == "problem.prevalence":
+                assert len(q["options"]) == 5
                 assert not re.search(r"\d", q["event"]) and not _words(q["event"]) & TIME_WORDS
-                assert not q["event"].lower().startswith(("in ", "how many", "did you"))
-            assert not re.search(r"[£$€]", text), (q["key"], text)
+                assert not q["event"].lower().startswith(FRAME_OPENINGS)
+            assert not re.search(r"[£$€]", text), (key, text)
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)
-def test_the_respondent_words_keep_keel_clouds_rules(entry_id):
+def test_the_respondent_job_writes_the_gates_clause_and_nothing_else(entry_id):
+    """keel-cloud 088 FR-002: `{key, event?}` per planned key, the event on the gate alone, held to E1-E4 --
+    framed, the gate and the Frequency question are each at most 20 words -- and no product word or mechanism
+    term in it (R4 on part 1)."""
     entry = _entry(entry_id)
+    window = vs.window_of(entry)
+    terms = {t.lower() for t in (entry.solution_mechanism or {}).get("mechanism_terms") or []}
     for part, link in vs.respondent_jobs(entry):
         result = vs.respondent_result(entry, part, link)
         assert [i["key"] for i in result["items"]] == vs.plan_keys(entry, part, link)
         for item in result["items"]:
-            question = item.get("question") or ""
-            assert not re.search(r"\b(usually|typically|normally|generally)\b", question), item
-            if part == 1:
-                assert not _words(question + " ".join(item.get("options") or [])) & PRODUCT_WORDS
-            if part == 2 and question:
-                assert vs.short_name(entry) in question, item
-            if part == 3 and question:
-                assert vs.offer_name(entry) in question, item
+            if item["key"] != "problem.prevalence":
+                assert item == {"key": item["key"]}, item
+                continue
+            event = item["event"]
+            assert not re.search(r"\d", event) and not _words(event) & TIME_WORDS, event
+            assert not event.lower().startswith(FRAME_OPENINGS) and "?" not in event, event
+            assert _count(vs.gate_question(window, event)) <= vs.STEM_MAX_WORDS
+            assert _count(vs.frequency_question(window, event)) <= vs.STEM_MAX_WORDS
+            assert not _words(event) & (PRODUCT_WORDS | terms), event
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)
-def test_importance_and_purchase_friction_slug_to_the_corpus_codes(entry_id):
-    """A model-written set's codes are keel-cloud's slugs of its labels, so the labels this journey
-    writes are each the slug-inverse of a corpus code -- and Importance's own item goes first."""
+def test_every_pick_rides_on_the_wires_own_code(entry_id):
+    """A person's pick on a list the founder made is sent on the list's positional code (Importance's
+    `own` / `rival_n`, Current solution's `outcome_n`, Relative advantage's `benefit_n`), and every
+    `optionCounts` code the entry records maps onto one -- the fixed answers pass through unchanged."""
     entry = _entry(entry_id)
-    row = entry.respondent_questions["problem.importance"]
-    labels = vs.importance_labels(entry)
-    assert vs.slug(labels[0]) == row["own_item"]
-    assert {vs.slug(label) for label in labels} == {c for c in row["codes"] if c != "something_else"}
-    if vs.is_b2b(entry):
-        codes = [c for c in entry.respondent_questions["commercial.purchase_friction"]["codes"]
-                 if c not in vs.RESPONDENT_ESCAPES]
-        pairs = vs.purchase_friction_labels(entry)
-        assert 4 <= len(pairs) <= 6
-        assert [vs.slug(label) for label, _ in pairs][:len(codes)] == codes
-        assert all(vs.slug(label) == code for label, code in pairs)
+    importance = vs.wire_codes(entry, "problem.importance")
+    own = (entry.founder_list("problem.importance") or {})["items"][0]["code"]
+    assert importance[own] == "own" and sorted(importance.values()) == [
+        "own", "rival_1", "rival_2", "rival_3", "rival_4"]
+    for person in vs.person_inputs(entry):
+        for pick in person.picks:
+            codes = vs.wire_codes(entry, pick.dimension)
+            if codes:
+                assert set(pick.codes) <= set(codes.values()) | {"positive", "neutral", "negative"}, pick
+            for code in pick.advantages:
+                assert code.startswith("benefit_"), pick
+            if pick.dimension == "problem.importance" and not pick.chip:
+                assert len(pick.codes) == 2, pick
+    for key, row in ((entry.expected or {}).get("standings") or {}).items():
+        for code in corpus_scenario._option_counts(row.get("optionCounts", "")):
+            wire = vs.on_the_wire(entry, key, code)
+            assert wire == code or key in vs.PICKED_AMONG_ITEMS, (key, code, wire)
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)
-def test_the_brief_reading_cites_its_own_vectors_and_carries_no_number(entry_id):
+def test_the_brief_reading_cites_what_broke_and_carries_no_number(entry_id):
+    """keel-cloud 089 `BriefReading.check` on the referee's reading: the headline and each answer at most two
+    sentences and 45 words, citing its own stage -- what broke, where the stage broke -- with no digit, no
+    currency, no person's name; no tests, no quotes."""
     entry = _entry(entry_id)
     reading = vs.brief_result(entry)
-    sentences = [reading["headline"], reading["next"]["sentence"],
-                 *reading["tiles"].values(), reading["problem"]["conclusion"],
-                 reading["problem"]["infer"], reading["solution"]["conclusion"],
-                 reading["commercial"]["conclusion"]]
-    for sentence in sentences:
-        assert sentence["cites"] and not re.search(r"\d", sentence["text"]), sentence
-        assert len(sentence["text"]) <= 400
-    assert len(set(reading["problem"]["infer"]["cites"])) == 2
-    for vector in ("problem", "solution", "commercial"):
-        assert all(c.startswith(vector + ".") for c in reading["tiles"][vector]["cites"])
-    assert reading["next"]["tests"] == [] and reading["quotes"] == []
+    names = {w.lower() for p in entry.people() for w in [p.person, p.person.split()[0]]}
+    sentences = [("headline", reading["headline"])] + [
+        (stage, reading[stage]["answer"]) for stage in ("problem", "solution", "commercial")]
+    for stage, sentence in sentences:
+        text = sentence["text"]
+        assert sentence["cites"] and not re.search(r"\d|[£$€]", text), sentence
+        assert len(re.findall(r"[.!?]+(?=\s|$)", text)) <= 2 and _count(text) <= 45, sentence
+        assert not any(re.search(rf"\b{re.escape(n)}\b", text.lower()) for n in names), sentence
+        if stage != "headline":
+            assert all(c.startswith(stage + ".") for c in sentence["cites"]), sentence
+            broke = vs.broke_key(entry, stage.upper())
+            if broke:
+                assert broke in sentence["cites"], (stage, broke, sentence)
+    assert reading["next"] == {"tests": []} and reading["quotes"] == []
+    assert set(reading) == {"headline", "problem", "solution", "commercial", "next", "quotes"}
 
 
 # ------------------------------------------------------------------------------- the keys table
@@ -194,6 +250,7 @@ def test_the_respondent_screen_becomes_four_names_derived_from_the_export():
     assert table["RESPONDENT_QUESTIONS_P3"] == union
     assert table["RESPONDENT_QUESTIONS_P3_B2B"] == base + ["offer_name"]
     assert "RESPONDENT_QUESTIONS" not in table and "PROBLEM_FRAME" not in table
+    assert table[vs.ASKED_SCREEN] == ["asked_key"]
     assert len({frozenset(v) for v in table.values()}) == len(table), "two names share a key set"
 
 
@@ -206,11 +263,16 @@ def test_an_export_that_lost_the_per_part_keys_is_refused_by_name():
 
 # ------------------------------------------------------------------------------- the founder
 
-def test_frequency_cannot_be_stated_on_any_of_the_three_entries_own_windows():
-    """D-1: revision 9 keeps every Frequency on a 0-to-7 axis its own recall window cannot carry --
-    so the journey leaves it out rather than inventing a number, and the standing it asserts is
-    LEFT_OUT."""
-    for entry_id in ENTRIES:
+def test_frequency_is_asked_on_countlys_four_weeks_and_left_out_where_the_window_cannot_carry_it():
+    """D13 (spec 040): Countly's window is {4, WEEKS} at r10 and its "1 to 3 weeks out of 4" fits it, so
+    Frequency is asked; D-1: Paidly's "invoices out of 7" on three months and Mulch Run's "working days out of
+    7" on two weeks do not, so the founder leaves it out and the standing asserted is LEFT_OUT."""
+    countly = _entry("01-countly")
+    assert vs.frequency_fits(countly)
+    problem = {a.dimension: a.body for a in vs.calibration_answers(countly, "PROBLEM")}
+    assert problem["problem.frequency"]["interval"] == {"low": 1, "high": 3, "unit": "weeks out of 4"}
+    assert corpus_scenario.expected_status(countly, "problem.frequency") == "HOLDING_UP"
+    for entry_id in ("05-paidly", "07-mulchrun"):
         entry = _entry(entry_id)
         assert not vs.frequency_fits(entry), entry_id
         assert corpus_scenario.expected_status(entry, "problem.frequency") == "LEFT_OUT"
@@ -228,24 +290,51 @@ def test_the_founder_answers_on_the_wires_own_shapes(entry_id):
     assert set(cost["cost"]) >= {"mode", "low", "high", "period"}
     price = commercial["commercial.price"]
     assert price.get("unsure") or set(price["price"]) == {"low", "high", "period"}
-    assert founder.decider["kind"] == ("SOMEONE_ELSE" if vs.is_b2b(entry) else "SAME_PERSON")
+    if vs.is_b2b(entry):
+        assert founder.decider == {"kind": "SOMEONE_ELSE", "role": entry.decision_maker_role()}
+    else:
+        assert founder.decider == {"kind": "SAME_PERSON"}
     assert founder.window.as_wire() == entry.context["recall_window"]
+    for vector in vs.VECTORS:
+        for answer in founder.calibration[vector]:
+            if not vs.is_list(answer.dimension) or answer.unsure:
+                assert answer.text is None and "list" not in answer.body
+                continue
+            listed = answer.body["list"]
+            saved = vs.saved_list(entry, answer.dimension)
+            assert [i["label"] for i in listed["items"]] == [i["label"] for i in saved["items"]]
+            assert listed["pickedIndex"] == saved["pickedIndex"]
+            assert (listed["pickedIndex"] is not None) == (answer.dimension in vs.PICKED)
+            assert "code" not in json.dumps(listed["items"]), "a code the client sends is ignored, so none is"
+            assert 1 <= _count(answer.text) <= 25, answer.text
 
 
 # ------------------------------------------------------------------------------- the people
 
 def test_a_cost_total_is_re_expressed_over_the_period_it_is_asked_over():
-    """D-3: revision 9 records every cost total over a quarter; keel-cloud asks over the founder's
-    own period (a month here), so the amount is carried by keel-cloud's own `Period` days."""
+    """D-3: revision 10 records every cost total over a quarter; keel-cloud asks over the founder's
+    own period (a month here), so the amount is carried by keel-cloud's own `Period` days -- and
+    "nothing" is the number 0 typed as an amount (D8), which needs no re-expressing."""
     pick = vs.Pick(dimension="commercial.existing_sacrifice", cost={"mode": "AMOUNT", "value": 150},
                    cost_period="quarter")
     month = pick.asked_over("month")
     assert month.cost["value"] == pytest.approx(150 * 30.4375 / 91.3125)
     assert month.cost_period == "month"
     assert pick.asked_over("quarter") is pick
-    nothing = vs.Pick(dimension="commercial.existing_sacrifice", cost={"nothing": True},
+    nothing = vs.Pick(dimension="commercial.existing_sacrifice", cost={"mode": "AMOUNT", "value": 0},
                       cost_period="quarter")
     assert nothing.asked_over("month") is nothing
+
+
+def test_nothing_is_typed_as_zero_and_the_gate_story_chip_is_cant_recall_alone():
+    """D8 / keel-web 064: Paidly's two decision-makers who lost nothing send `{AMOUNT, 0}`; Xavier Dubois's
+    r10 `rather_not_say` story chip is gone from contract 13 and travels as CANT_RECALL (spec 041 D-4)."""
+    entry = _entry("05-paidly")
+    people = {p.person: p for p in vs.person_inputs(entry)}
+    for name in ("Sara Cedar", "Wanda Gorse"):
+        cost = next(p for p in people[name].picks if p.dimension == "commercial.existing_sacrifice")
+        assert cost.as_wire("t")["costTotal"] == {"mode": "AMOUNT", "value": 0}
+    assert people["Xavier Dubois"].anchor_chip == "CANT_RECALL"
 
 
 def test_each_link_carries_only_its_own_parts():
@@ -286,13 +375,22 @@ def test_the_scenario_is_one_function_per_leg_in_the_corridors_order():
         assert f"def {leg}(" in source, leg
 
 
-def test_the_scenario_carries_no_classic_reader_and_no_model():
+def test_the_scenario_carries_no_classic_reader_no_model_and_no_drift_74_step():
     source = (REPO / "evals" / "corpus_scenario.py").read_text(encoding="utf-8")
     for classic in ("corpus_script", "walk_stage", "ReviewCard", "OpenedCard", "expected.buckets",
-                    "SUPPORTED", "CONTRADICTED"):
+                    "SUPPORTED", "CONTRADICTED", "DRIFT #74", "somethingElse", "RATHER_NOT_SAY"):
         assert classic not in source, classic
     assert "KEEL_SCRIPT" in source and "KEEL_CONTEXT_KEYS" in source, (
         "every job is answered by the scripted executor, through the derived keys table")
+
+
+def test_every_product_defect_the_journey_steps_round_is_named_in_drift():
+    source = (REPO / "evals" / "corpus_scenario.py").read_text(encoding="utf-8")
+    screens = (REPO / "harness" / "vectors_screens.py").read_text(encoding="utf-8")
+    drift = (REPO / "runs" / "DRIFT.md").read_text(encoding="utf-8")
+    for number in ("78", "79", "80", "81"):
+        assert f"DRIFT #{number}" in source and f"DRIFT.md #{number}" in source + screens, number
+        assert re.search(rf"^## {number}\. ", drift, re.M), number
 
 
 def test_the_three_corpus_extras_name_only_what_survived():
@@ -303,22 +401,31 @@ def test_the_three_corpus_extras_name_only_what_survived():
     assert "FLOOR = 5" in s006 and "COMMERCIAL_LINK" in s006
     assert '"region") == "TX"' in s007 and "OTHER_CURRENCIES" in s007
     for body in (s005, s006, s007):
-        assert "buckets" not in body and "MOCKUP" not in body
+        assert "buckets" not in body and "MOCKUP" not in body and "one-unit window" not in body
 
 
-def test_the_offered_codes_fall_back_only_on_a_live_journey():
-    view = {"questions": [{"dimension": "commercial.purchase_friction",
-                           "options": [{"normalized": "a"}, {"normalized": "b"}, {"normalized": "c"}]}]}
-    answer = {"dimension": "commercial.purchase_friction", "codes": ["x", "y"]}
+def test_choose_picks_the_entrys_own_item_and_on_a_live_journey_the_models_at_that_place():
+    answer = vs.CalibrationAnswer(dimension="solution.compatibility", body={
+        "dimension": "solution.compatibility",
+        "list": {"items": [{"label": "A"}, {"label": "B"}, {"label": "C"}], "pickedIndex": 2}}, text="A; B; C")
+    question = {"dimension": "solution.compatibility", "draft": {"items": [{"label": "x"}, {"label": "y"}]}}
 
     class _J:
-        strict = False
-    assert corpus_scenario._offered_codes(_J(), answer, view)["codes"] == ["a", "b"]
-    _J.strict = True
-    with pytest.raises(AssertionError):
-        corpus_scenario._offered_codes(_J(), answer, view)
-    ok = {"dimension": "commercial.purchase_friction", "codes": ["b"]}
-    assert corpus_scenario._offered_codes(_J(), ok, view) == ok
+        strict = True
+    assert corpus_scenario._choose_label(_J(), question, answer) == ("C", 2)
+    _J.strict = False
+    assert corpus_scenario._choose_label(_J(), question, answer) == ("y", 1)
+
+
+def test_a_check_screen_is_read_in_the_corpus_shape():
+    rows = [{"text": "Mine", "tag": "yours", "locked": True}, {"text": "Two", "tag": "", "locked": False}]
+    assert corpus_scenario._drawn_list("problem.importance", {"rows": rows, "field": None}) == {
+        "items": ["Mine", "Two"]}
+    assert corpus_scenario._drawn_list("commercial.commitment", {"rows": [], "field": "install the app"}) == {
+        "items": ["install the app"]}
+    roles = [{"text": "manager · has the problem", "tag": "context", "locked": True}]
+    assert corpus_scenario._drawn_list("commercial.buyer_payer_alignment", {"rows": roles, "field": None}) == {
+        "items": []}
 
 
 def test_the_inputs_bundle_records_what_was_composed():
@@ -326,4 +433,18 @@ def test_the_inputs_bundle_records_what_was_composed():
     founder = vs.founder_inputs(entry)
     inputs = vs.inputs_json(entry, founder, vs.person_inputs(entry))
     assert inputs["composed"] == list(vs.COMPOSED)
+    importance = next(a for a in inputs["founder"]["calibration"]["PROBLEM"]
+                      if a["dimension"] == "problem.importance")
+    assert importance["_answer"] and importance["list"]["items"][0]["label"] == (
+        "Matching deliveries against their invoices")
     json.dumps(inputs)
+
+
+def test_the_pilot_is_worded_as_keel_web_words_it():
+    """keel-web 065 `pilotNumber` / `pilotLinkLine`: the tile on page one and on the overview."""
+    pilot = {"optedIn": 2, "finished": 20, "percent": 10, "perLink": [
+        {"link": "PRIMARY", "words": "people who have it", "optedIn": 2, "finished": 12},
+        {"link": "COMMERCIAL_B2B", "words": "decision-makers", "optedIn": 0, "finished": 8}]}
+    assert corpus_scenario.pilot_words(pilot) == (
+        "2 of 20 · 10%", "2 of 12 people who have it · 0 of 8 decision-makers")
+    assert corpus_scenario.PAGE_ONE_BANS == ("deal-breaker", "where they differ", "inferred from")

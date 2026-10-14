@@ -5043,6 +5043,12 @@ step `evals/corpus_scenario.py::leg_calibrate` sent for this entry now has nothi
 a screen) and goes with the later journey spec, which re-points the legs once keel-web specs 7, 8 and 10 land. **Not
 yet observed live**: no corpus journey can run until those keel-web specs land.
 
+**Observed live, 2026-10-14** (spec `041-vectors-journey-r10`, local stack on keel-cloud-docs `7b151f9` + keel-web
+`c499bf7`): S-005 types Countly's window `{4, WEEKS}`, the Frequency screen is drawn and answered (*1 to 3 weeks out of
+4*), every person is asked *On how many of those 4 weeks did you ...?*, and `GET standings` reads Frequency
+`HOLDING_UP`, n 8, 8 inside, as the corpus says. The wire step is gone from `leg_calibrate`; nothing is sent that a
+screen did not ask.
+
 **Was: open.** The entry as it was written, kept because the shape of the hole is the reason D13 is the right fix:
 
 
@@ -5113,3 +5119,55 @@ to no `?` and 20 words only, and says K3 holds the model's faces, not these. The
 087 spent it, so these are the **next corpus revision's items** (spec 040 *Follow-ups*); `spoken.KNOWN` names all five
 and leaves them out of the denominator (judgement call 81), and a known item that is no longer found becomes a fault,
 so the ledger has to shrink with the corpus.
+
+## 78. Observation (keel-web): S2, opened straight from the mechanism card, draws the idea's three lines **empty** and holds them, so *Save* stays off until the page is reloaded
+
+Found by spec `041-vectors-journey-r10`'s first local run of S-005, and every run since on all three entries (keel-web
+`c499bf7`, keel-cloud-docs `7b151f9`). The solution seed's *Looks right* navigates to `define/solution/idea`
+(keel-web 063 call 1). `IdeaRoute` renders `IdeaCheck` from `plan.data.idea` the moment the plan is in the query
+cache, and the plan in the cache was read before the mechanism card was confirmed -- keel-cloud's `PlanView.idea` is
+always present and, before the card, three empty strings (`VectorsController.ideaView`). `IdeaCheck` copies the lines
+into `useState` once, so the refetched plan (with the mechanism's lines) never reaches the boxes: three empty textareas,
+*Save* disabled (`empty`), no message. A founder who reloads gets the lines. The journey waits five seconds for *What it
+is* to fill, then reloads once (`harness/vectors_screens.py::Corridor.idea_check`), in a step named for the entry
+(*"DRIFT #78 -- S2 drew three empty lines from the stale plan; reloaded once"*), and holds the lines after the reload to
+the wire's `GET /idea` and the corpus. For keel-web: key `IdeaCheck` on the idea's revision (or re-seed its state when
+`idea` changes), or invalidate the plan when the mechanism is confirmed.
+
+## 79. Observation (keel-web, with keel-cloud beside it): Buyer and payer's *Keel will test* sentence opens lower-case -- *"the restaurant manager decides, and nobody else has to agree."* -- where the server's belief reads *"The restaurant manager decides, ..."*
+
+Found by spec 041 on all three entries' C6 (Choose) screen. keel-cloud serves `CalibrationQuestion.beliefTemplate` with
+`{decider}` already filled by `BeliefSentence.the(...)` -- *"the restaurant manager decides, and {value} has to
+agree."* (`VectorsController`, the registry's `"{decider} decides, and {value} has to agree."`) -- lower-case at the head,
+and its own stored sentence capitalises (`BeliefSentence.of` -> `capitalised`). keel-web's `fillBelief` (063 call 13)
+fills `{value}` and does not capitalise the sentence's first letter, so the preview differs from the server's sentence by
+one letter; 063's unit test holds the two equal only for Lullaby's saved lists, where the template has no `{decider}`
+head. The journey holds the box to the server's sentence (the corpus's `belief_sentence`) but for that first letter, in a
+step named for the entry (*"DRIFT #79 -- ..."*). Either side can close it: keel-cloud capitalising the served
+template's head, or keel-web capitalising the sentence it fills.
+
+## 80. Observation (keel-cloud, with keel-web beside it): a Check screen's *Save* right after a redraft can be refused **409 CONCURRENCY**, and the screen says nothing
+
+Seen in 4 of the 6 journeys of spec 041's two final local runs (all three entries), and first on S-005's Relative
+advantage Check screen (console: *"Failed to load resource: the server responded with a status of 409 (Conflict)"*). `GET calibration/{vector}` reads the project first and the latest
+interaction second (`VectorCorridorService.calibration`); a redraft (`POST calibration/{vector}/draft`) applied between
+the two reads is reported `READY` over the project as it was **before** the draft landed -- the old revision and the old
+draft. keel-web's Check screen takes that view (063 call 6) and its *Save* posts `expectedRevision` one behind, and
+`useAnswerCalibration`'s 409 has no banner (only a 422 draws `RemedyBanner`), so the founder sees a Save that did nothing
+until the next 3-second poll brings the new revision and a second press goes through. (A founder may also be shown the
+pre-draft list for that one poll; on the scripted journeys the two drafts are the same words, so only the 409 shows.)
+The journey presses again once, after the poll, when -- and only when -- a 409 answered the first press
+(`Corridor._press_primary`), and names each in a step for the entry (*"DRIFT #80 -- n write(s) refused 409 with nothing
+on the screen; pressed again"*). For keel-cloud: read the interaction and the project in one snapshot (or the project
+after the interaction); for keel-web: say something on a 409.
+
+## 81. Observation (keel-cloud): right after the lock, `GET /overview` can read `questionsState: FAILED` for one read while the three parts land
+
+Seen once in five local S-005 runs (spec 041): the overview answered `FAILED` and, two seconds later, `READY`; every
+RESPONDENT_QUESTIONS interaction was `APPLIED` on its first turn. `InferenceOrchestrator.respondentQuestionsState` reads
+the project's unwritten parts from a project loaded before the read and then asks for open RESPONDENT_QUESTIONS
+interactions; since keel-cloud 088 the three scripted parts land within ~40 ms, so a part applied between the two reads
+is neither written (in the stale project) nor open -- FAILED. keel-web's People page would show the failed-questions
+state for one poll. The journey re-reads once before believing a FAILED (`leg_lock`), in a step named for the entry
+(*"DRIFT #81 -- the overview read the questions FAILED while the parts were landing; READY on the next read"*). Same
+two-read shape as #80.
