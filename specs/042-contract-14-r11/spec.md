@@ -4,8 +4,9 @@ The keel-e2e-eval half of keel-cloud 090 (*the founder names the idea*, D14) and
 #77, #80, #81; one RESPONDENT_QUESTIONS job per lock; every stem 20 words; the brief's words; contract 14; corpus
 revision 11), merged at keel-cloud-docs master `c432c1d` (= `5ae2de2` + 090 + 091). Its inputs are 091's *Follow-ups:
 keel-e2e-eval* and 090's, and keel-cloud's `canon/openapi-v2.yaml` at contract 14. Sibling of keel-web master `844ea36`
-(065) -- keel-web 066 merged at `d03583d` while this spec was in flight and is **not** what the journeys ran (judgement
-call 122). **No model is called and no money is spent**; the proof is the unit suite over keel-cloud's own corpus tests
+(065) in its first commit -- keel-web 066 merged at `d03583d` while it was in flight (judgement call 122) -- and of
+keel-web master **`c14d513`** (= `844ea36` + 066 + 067: contract 14 vendored, the overview's two tiles, S2's name
+counter, the #78 / #79 / #80-web fixes, page two's *Keel's bar* and quote credits) in its **second commit** (FR-012). **No model is called and no money is spent**; the proof is the unit suite over keel-cloud's own corpus tests
 and the local stack.
 
 ## What moved
@@ -59,12 +60,24 @@ and the local stack.
 - FR-009 **Frequency on Paidly** (revision 11): the founder's *2 to 3 months out of 3* fits `{3, MONTHS}`, so
   `vs.frequency_fits` is true there, the founder answers the Frequency screen, every translator is asked it, and it holds
   up (n 9) -- spec 041's D-1 shrinks to Mulch Run. S-006 asserts it.
-- FR-010 **The brief's page objects**: page one is spec 041's, unchanged; page two's *Keel's bar: ...* (Importance,
-  Current solution) and the quotes credited by `quotes[].words` are asserted **on the wire only** -- keel-web renders
-  them in a later spec (067), so their DOM assertions are a named follow-up.
+- FR-010 **The brief's page objects**: page one is spec 041's (plus 066's pilot tile, FR-012); page two's *Keel's bar:
+  ...* (Importance, Current solution) and the quotes credited by `quotes[].words` were asserted on the wire alone in the
+  first commit and are held in the DOM since the second (FR-012, keel-web 067).
+- FR-012 **keel-web `c14d513` (066 + 067), the second commit.** `stack.toml` names the real keel-web checkout again
+  (the archive export is gone). The board holds 066's two tiles (`_board_tiles`): `.tile` the people asked (its `b`
+  `people.invited`, *1 person asked* / *n people asked*), then `.tile--pilot` (*k of n · p%* over the per-link line, or
+  *None yet* with no `.tile__line` before anyone finishes -- read once right after the invitations, once after the
+  readings), and the people line *n people asked · a answered · r read by your AI*; the spec-041 beliefs tile check is
+  gone; the brief header's pilot tile has a line exactly when someone finished. S2 holds 066's counter (*n / 5 words*,
+  Save off over five: the rename types one word past five first, reads the counter over and Save off, then the name).
+  Page two holds 067's *Keel's bar: {keelBar}* (`p.dimrow__said.dimrow__said--keel`) per block, nowhere else and on no
+  stage page, and each `.bquote`'s `cite` / `data-link` to `reading.quotes[i].words` / `.link` -- see DRIFT #82 for why
+  the bar is never drawn live. #78 and #79 are closed (neither fired) and their steps are guards (call 125).
 - FR-011 **DRIFT** (`runs/DRIFT.md`): #76, #77, #80 (keel-cloud's half) and #81 RESOLVED by keel-cloud 091 with the live
-  observation; the #80 / #81 steps are now guards that fail the journey if they fire (call 118); #78 and #79 stay open
-  (both still fire on keel-web `844ea36`; keel-web 066 says it fixes them).
+  observation; the #80 / #81 steps are now guards that fail the journey if they fire (call 118). Second commit: #78 and
+  #79 RESOLVED by keel-web 066 (neither fired on `c14d513`), their steps guards too (call 125); **#82** new -- page two
+  never draws Keel's bar live (keel-web 067 prefers the row's `founderSaid`, which keel-cloud always sends), stepped
+  round in a step named for the entry (call 126).
 
 ## Results
 
@@ -75,8 +88,10 @@ and the local stack.
 - At zero spend, against `c432c1d` (keel-cloud's `SpokenGuidelinesCorpusTest` and `BriefFactsCorpusTest` re-run with
   `--rerun`, the engine shelled by the compare tests): `compare_correctness` **108 of 108**, `spoken_form` **109 of
   109** (74 composed items + 35 faces, none apart; it was 104 of 104 with 5 apart), `brief_facts` **94 of 94**.
-- `COMPOSE_PROJECT_NAME=keel-e2e-eval make up`, then `make eval K="s005 or s006 or s007"`: **3 passed, twice**, against
-  keel-cloud-docs `c432c1d` + keel-web `844ea36` (local stack; 398 s and 393 s; bundles `runs/20261014T1407*` and `runs/20261014T1414*`, gitignored). No model, no money.
+- **Second commit**: `make unit` **1,857 passed / 53 skipped** (the new holds live inside the journeys, so no unit test was added or lost); `make eval K="s005 or s006 or s007"` **3 passed, twice**, against
+  keel-cloud-docs `c432c1d` + keel-web **`c14d513`** (392 s and 368 s; bundles `runs/20261014T1457*` to `runs/20261014T1508*`), and a third time (414 s) after a one-name variable rename in `_board_tiles` the unit suite asked for. No model, no money.
+- First commit: `COMPOSE_PROJECT_NAME=keel-e2e-eval make up`, then `make eval K="s005 or s006 or s007"`: **3 passed,
+  twice**, against keel-cloud-docs `c432c1d` + keel-web `844ea36` (local stack; 398 s and 393 s; bundles `runs/20261014T1407*` and `runs/20261014T1414*`, gitignored). No model, no money.
 
 ## Disagreements between corpus r11 and the wire (reported, the corpus not edited)
 
@@ -137,17 +152,32 @@ where the inputs are silent, and each can be reversed alone.
      the calibrations before it passed with neither #78's nor #79's step firing.
 123. **`IdeaView.what` is held to be the name with no *Imagine*** (`vs.idea_view`: the draft's name), and
      `IdeaView.shortName` to equal it after Save -- untouched or renamed.
+124. **066's tiles are read twice**: once right after the invitations (nobody finished: *None yet*, no line, the people
+     tile already the invited count) and once after the readings, both held to `StandingsView.people` / `.pilot`. The
+     counter's word count is the drawn line's words split on spaces, as keel-web's `wordCount` reads a name.
+125. **#78's and #79's workarounds became failing guards**, as #80's and #81's (call 118): the S2 page object still
+     reloads once on empty lines and `leg_calibrate` still collects a lower-case head, and each then fails the journey
+     in a step named *DRIFT #n came back*. Neither fired on `c14d513`.
+126. **DRIFT #82 is stepped round, not failed**: the wire is held (`keelBar` on exactly Importance and Current solution),
+     the bar slot is held to what keel-web's rule draws where the row also carries `founderSaid` (the founder's words),
+     and the step is named for the entry. Failing the journey on it would hide every later assertion behind a design
+     question (which bar wins) that is neither the eval's nor settled.
+127. **The quotes on page two are held to the wire, which on the scripted journeys is none.** The scripted executor
+     loads one fixed BRIEF result before any invitation exists (it fills `invitationId` only on INTERPRET), so the
+     referee's reading cannot quote anybody (call 120): `.bquote` count, `cite` words and `data-link` are compared to
+     `reading.quotes` -- zero and zero here, real on S-012. A keel-runtime change (filling a quote's `invitationId` from
+     the BRIEF context's `stories`) would make it real here; not this repository's to make.
+128. **The S2 over-five probe** appends words to the founder's name (*Invoice payout service for every single*, six) and
+     reads the counter *6 / 5 words*, `calib__wc--over` and Save disabled before typing the name back; only on the
+     journey that renames (S-006), so the other two journeys' S2 stays an untouched approval.
 
 ## Follow-ups
 
-- **keel-web 067 page objects** (page two of the brief): *Keel's bar: {card.keelBar}* under Importance's and Current
-  solution's blocks, held to `BriefCard.keelBar`; the quotes credited by `quotes[].words` (vacuous on the scripted
-  journeys -- see call 120 -- so held on S-012 or on a fixture); `notAsked.why` verbatim if 067 draws it. Until then both
-  are asserted on the wire alone (FR-010).
-- **keel-web 066** (merged at `d03583d` during this spec, not run here): the journey spec that runs it re-points the
-  board's tiles (066 drops the beliefs tile -- `_board` asserts `tiles[0]` is the belief count -- and adds *people asked*
-  and *None yet*), retires the #78 and #79 steps once they stop firing (closing both entries), and may hold S2's
-  five-word counter and the 409 StaleBanner (#80's web half).
+- **DRIFT #82** (keel-web and keel-cloud, a design call): which bar page two shows on Importance and Current solution.
+  When it is settled the #82 step stops firing and page two is held to *Keel's bar: {keelBar}*.
+- **Page two's quotes on a scripted journey** need a keel-runtime change (call 127); `notAsked.why` is held on the wire,
+  and on page two only through the block rows spec 041 already compares.
+- **#80's web half** (066's StaleBanner) is on master but unexercised: no write is refused any more.
 - **The instruction eval's RESPONDENT cases for parts 2 and 3** are kept: the screen still takes a part 2 / 3 result
   (for a job in flight at deploy) and the golden payload is part 2's, but the cloud no longer starts those jobs, so
   their cases measure an instruction no lock asks for. Dropping them moves the respondent denominators -- a marks

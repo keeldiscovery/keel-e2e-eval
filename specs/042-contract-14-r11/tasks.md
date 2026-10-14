@@ -16,4 +16,11 @@
   `844ea36`
 - [x] T011 `runs/DRIFT.md` (#76, #77, #80, #81 resolved with the live observation; #78, #79 open), AGENTS.md, README.md,
   spec.md
-- [ ] T012 (follow-up, keel-web 067) page two's *Keel's bar* and credited quotes in the DOM
+- [x] T012 (second commit) `stack.toml` back on the keel-web checkout at `c14d513` (066 + 067); the archive dropped
+- [x] T013 066's board: two tiles (people asked, pilot sign-ups / *None yet*), the people line, read before and after the
+  answers; the brief header's pilot tile line; S2's *n / 5 words* counter and Save off over five
+- [x] T014 067's page two: *Keel's bar* per block (`.dimrow__said--keel`, nowhere else, none on the stage pages), quote
+  credits (`.bquote > cite`, `data-link`) held to the wire; DRIFT #82 stepped round in a named step
+- [x] T015 #78 / #79 steps turned into failing guards; DRIFT #78 / #79 resolved with the live observation; #82 recorded
+- [x] T016 `make unit` green; `make eval K="s005 or s006 or s007"` 3 passed twice against keel-cloud-docs `c432c1d` +
+  keel-web `c14d513`

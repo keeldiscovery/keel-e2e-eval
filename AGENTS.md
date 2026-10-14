@@ -333,7 +333,11 @@ script answers alone and `leg_lock` asserts on the receipt and the job list; eve
 advantage question carry the idea's current name, and on S-006 the founder renames the idea on S2 (*Invoice payout
 service*); Paidly's Frequency is asked (r11's months out of 3); the brief's `keelBar`, `notAsked` and quotes are held
 on the wire. DRIFT #76 / #77 / #80 / #81 are closed by 091 and the #80 / #81 steps are failing guards; #78 / #79 still
-step round keel-web `844ea36`. Green locally twice against `c432c1d` + keel-web `844ea36`. `make unit` after 042:
+stepped round keel-web `844ea36` until 066 closed them. **Since spec 042's second commit the journeys run keel-web
+`c14d513` (066 + 067)**: the board's two tiles (people asked, pilot sign-ups or *None yet*) and people line, S2's
+*n / 5 words* counter, page two's *Keel's bar* and quote credits held to the wire (DRIFT #82: the bar is never drawn
+live, stepped round in a named step), and #78 / #79 closed with failing guards in their place. Green locally twice
+against `c432c1d` + keel-web `c14d513` (and twice before that against `844ea36`). `make unit` after 042:
 **1,857 passed / 53 skipped** (was 1,729 / 28 failed / 142 skipped on the same checkouts). **Nothing generated is committed** -- the script, the
 keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
 the end of every run.

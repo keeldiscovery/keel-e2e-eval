@@ -17,3 +17,5 @@
 7. The local stack against keel-cloud-docs `c432c1d` + keel-web `844ea36` (an archive export, since keel-web master moved):
    `make eval K="s005 or s006 or s007"` twice.
 8. Docs: `runs/DRIFT.md` (#76, #77, #80, #81 resolved; #78, #79 still open), AGENTS.md, README.md, this folder.
+9. Second commit (keel-web `c14d513` = 066 + 067): `stack.toml` on the real checkout; 066's two tiles and people line,
+   S2's counter; 067's *Keel's bar* and quote credits on page two; #78 / #79 guards and closures; DRIFT #82; two runs.

@@ -294,14 +294,31 @@ class Corridor:
                 reloaded = True
             lines = {line: _value(self.page.locator(f"#idea-{line}")) for line in ("what", "how", "belief")}
             frame = self.frame()
+            counter = {"drawn": self._name_counter()}
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot("idea-check"))
             if name:
+                # keel-web 066 (D14): the counter is live and Save is off over five words -- typed once one word past
+                # five, read, then the name itself.
+                over = f"{name} {' '.join(['for', 'every', 'single', 'day', 'and', 'night'][:6 - len(name.split())])}"
+                self.page.locator("#idea-what").fill(over)
+                counter["over"] = {"typed": over, **self._name_counter()}
+                h.add_screenshot(self._b.screenshot("idea-named-over-five"))
                 self.page.locator("#idea-what").fill(name)
+                counter["named"] = self._name_counter()
                 h.add_screenshot(self._b.screenshot("idea-named"))
             label = self._press_primary(SAVE)
             _wait_url(self.page, r"/define/solution/q/\d+$")
-            return {"lines": lines, "typed": name, "frame": frame, "primary": label, "reloaded": reloaded}
+            return {"lines": lines, "typed": name, "frame": frame, "primary": label, "reloaded": reloaded,
+                    "counter": counter}
+
+    def _name_counter(self) -> dict:
+        """keel-web 066's S2 counter under *What it is* (`[data-testid=idea-name-words]`, *n / 5 words*), whether it
+        reads over, and whether Save is enabled."""
+        wc = self.page.locator("[data-testid=idea-name-words]")
+        return {"text": _tc(wc) if wc.count() else None,
+                "over": wc.count() > 0 and "calib__wc--over" in (wc.first.get_attribute("class") or ""),
+                "save_enabled": self._primary().is_enabled()}
 
     # -------------------------------------------------- calibration: one screen per single question
 
@@ -754,14 +771,22 @@ class Answers:
             bands = [{"stage": b.get_attribute("data-stage"), "class": b.get_attribute("class") or ""}
                      for b in self.page.locator("svg.ship path.band").all()]
             tiles = _safe_all_texts(self.page, ".tile b")
+            # keel-web 066 (D15): two tiles -- the people asked, then the pilot sign-ups (*None yet* and no line before
+            # anyone finishes) -- and the people line under them.
+            cards = [{"class": t.get_attribute("class") or "", "big": _tc(t.locator("b")),
+                      "label": _tc(t.locator(".tile__label")), "line": _tc(t.locator(".tile__line")),
+                      "has_line": t.locator(".tile__line").count() > 0}
+                     for t in self.page.locator(".deck .tiles > .tile").all()]
             pilot_tile = self.page.locator(".tile--pilot")
             pilot = {"big": _tc(pilot_tile.locator("b")), "label": _tc(pilot_tile.locator(".tile__label")),
-                     "line": _tc(pilot_tile.locator(".tile__line")), "present": pilot_tile.count() > 0}
+                     "line": _tc(pilot_tile.locator(".tile__line")), "present": pilot_tile.count() > 0,
+                     "has_line": pilot_tile.locator(".tile__line").count() > 0}
             download = self.page.get_by_role("link", name="Download the brief")
             text = _text(self.page)
             h.capture_text("stage_screen", text)
             h.add_screenshot(self._b.screenshot("board"))
-            return {"panels": panels, "bands": bands, "tiles": tiles, "pilot": pilot,
+            return {"panels": panels, "bands": bands, "tiles": tiles, "tile_cards": cards, "pilot": pilot,
+                    "people_line": _tc(self.page.locator("p.deck__people")),
                     "overall": _first_text(self.page, "p.overall"),
                     "download": download.count() > 0, "text": text}
 
@@ -795,6 +820,7 @@ class Answers:
             h.capture_text("stage_screen", text)
             h.add_screenshot(self._b.screenshot(f"vector-{vector.lower()}"))
             return {"rows": rows, "text": text, "people": people, "open_row": open_row,
+                    "keel_bars": self.page.locator(".dimrow__said--keel").count(),
                     "headline": _first_text(self.page, "p.answers__headline"),
                     "decider_banner": _first_text(self.page, "p.decider-banner")}
 
@@ -829,6 +855,7 @@ class Answers:
                 }
             tiles = [{"label": _tc(t.locator(".btile__label")), "word": _tc(t.locator(".btile__word")),
                       "big": _tc(t.locator(".btile__big")), "line": _tc(t.locator(".btile__line")),
+                      "has_line": t.locator(".btile__line").count() > 0,
                       "pilot": "btile--pilot" in (t.get_attribute("class") or "")}
                      for t in brief.locator(".btile").all()]
             nxt = [{"text": _tc(li.locator(".bnext__text")),
@@ -871,6 +898,13 @@ class Answers:
                                    "card": _tc(block.locator(".bd__card")),
                                    "rows": [_tc(r) for r in block.locator(":scope > .bd__row").all()],
                                    "broke": _tc(block.locator(".bd__broke")) or None,
-                                   "body": block.locator(".dimrow__body").count() > 0})
-                stages[stage] = {"present": section.count() > 0, "blocks": blocks}
-            return {"stages": stages, "back": root.locator("a.bback").count(), "text": text}
+                                   "body": block.locator(".dimrow__body").count() > 0,
+                                   # keel-web 067: Keel's bar in the row body's bar slot, where Keel sets it
+                                   "keel_bar": [_tc(k) for k in block.locator("p.dimrow__said.dimrow__said--keel").all()],
+                                   "said": [_tc(k) for k in block.locator("p.dimrow__said").all()]})
+                stages[stage] = {"present": section.count() > 0, "blocks": blocks,
+                                 # keel-web 067: each quote credited by its served words, its link on `data-link`
+                                 "quotes": [{"link": q.get_attribute("data-link"), "words": _tc(q.locator(":scope > cite"))}
+                                            for q in section.locator(".bquote").all()]}
+            return {"stages": stages, "back": root.locator("a.bback").count(), "text": text,
+                    "keel_bars": len(root.locator(".dimrow__said--keel").all())}

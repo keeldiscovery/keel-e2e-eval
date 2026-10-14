@@ -5145,13 +5145,16 @@ to no `?` and 20 words only, and says K3 holds the model's faces, not these. The
 and leaves them out of the denominator (judgement call 81), and a known item that is no longer found becomes a fault,
 so the ledger has to shrink with the corpus.
 
-## 78. Observation (keel-web): S2, opened straight from the mechanism card, draws the idea's three lines **empty** and holds them, so *Save* stays off until the page is reloaded
+## 78. RESOLVED -- was an observation (keel-web): S2, opened straight from the mechanism card, drew the idea's three lines **empty** and held them, so *Save* stayed off until the page was reloaded
 
-**Still open on keel-web `844ea36`, 2026-10-14** (spec `042-contract-14-r11`, local stack on keel-cloud-docs `c432c1d` + keel-web `844ea36`): the reload step
-fired on every journey of both final runs (S-005, S-006, S-007). keel-web 066 (merged at `d03583d` while spec 042 was
-in flight: *IdeaCheck refills from the served idea*) says it fixes it; spec 042 ran the web it was given (`844ea36`), so
-the step stays, and the journey spec that runs 066 closes this entry once the step stops firing.
+**Closed by keel-web 066, 2026-10-14** (*IdeaCheck refills from the served idea*; merged at `d03583d`, on master
+`c14d513`). **Observed live** (spec `042-contract-14-r11`'s second commit, local stack on keel-cloud-docs `c432c1d` + keel-web `c14d513`): S2 drew Keel's three lines
+within five seconds on every journey -- S-005, S-006, S-007, the single runs and both final runs -- and no reload was
+needed (it fired on every journey against `844ea36`, the first commit's runs). **The reload is now a guard**
+(judgement call 125): `Corridor.idea_check` still reloads once if the lines stay empty, and `leg_interpret_solution`
+then fails in a step named *DRIFT #78 came back*.
 
+**Was: an observation.** The entry as it was written:
 
 Found by spec `041-vectors-journey-r10`'s first local run of S-005, and every run since on all three entries (keel-web
 `c499bf7`, keel-cloud-docs `7b151f9`). The solution seed's *Looks right* navigates to `define/solution/idea`
@@ -5165,12 +5168,14 @@ is* to fill, then reloads once (`harness/vectors_screens.py::Corridor.idea_check
 the wire's `GET /idea` and the corpus. For keel-web: key `IdeaCheck` on the idea's revision (or re-seed its state when
 `idea` changes), or invalidate the plan when the mechanism is confirmed.
 
-## 79. Observation (keel-web, with keel-cloud beside it): Buyer and payer's *Keel will test* sentence opens lower-case -- *"the restaurant manager decides, and nobody else has to agree."* -- where the server's belief reads *"The restaurant manager decides, ..."*
+## 79. RESOLVED -- was an observation (keel-web, with keel-cloud beside it): Buyer and payer's *Keel will test* sentence opened lower-case -- *"the restaurant manager decides, and nobody else has to agree."* -- where the server's belief reads *"The restaurant manager decides, ..."*
 
-**Still open on keel-web `844ea36`, 2026-10-14** (spec 042, local stack on keel-cloud-docs `c432c1d` + keel-web `844ea36`): the one-letter step fired on every
-journey of both final runs. keel-web 066 (`d03583d`, *fillBelief capitalises*) says it fixes it; closed by the journey
-spec that runs 066, as #78.
+**Closed by keel-web 066, 2026-10-14** (*fillBelief capitalises*; on master `c14d513`). **Observed live** (spec 042's
+second commit, local stack on keel-cloud-docs `c432c1d` + keel-web `c14d513`): every Choose screen's *Keel will test* box equals the server's sentence -- the corpus's
+`belief_sentence` -- letter for letter, Buyer and payer's included, on every journey. **The one-letter allowance is now a
+guard** (call 125): a lower-case head fails `leg_calibrate` in a step named *DRIFT #79 came back*.
 
+**Was: an observation.** The entry as it was written:
 
 Found by spec 041 on all three entries' C6 (Choose) screen. keel-cloud serves `CalibrationQuestion.beliefTemplate` with
 `{decider}` already filled by `BeliefSentence.the(...)` -- *"the restaurant manager decides, and {value} has to
@@ -5191,7 +5196,9 @@ any of the nine journeys spec 042 ran on keel-web `844ea36` -- the six of the tw
 **The step round it is now a guard** (judgement call 118): `Corridor._press_primary` still records a 409 and presses
 once more (so the bundle shows what followed), but `leg_calibrate` then **fails the journey** in a step named *"DRIFT
 #80 came back"* -- a step that never fires again is a workaround nobody can see is dead. keel-web's half (say something
-on a 409) is keel-web 066's (`d03583d`, StaleBanner), not run here.
+on a 409) is keel-web 066's (StaleBanner, *"This screen was out of date. It has refreshed; press Save again."*, and a
+re-read), on master `c14d513` since spec 042's second commit; **not exercised** there, because no write was refused --
+the guard would fail the journey before a banner mattered.
 
 **Was: an observation.** The entry as it was written:
 
@@ -5229,3 +5236,21 @@ is neither written (in the stale project) nor open -- FAILED. keel-web's People 
 state for one poll. The journey re-reads once before believing a FAILED (`leg_lock`), in a step named for the entry
 (*"DRIFT #81 -- the overview read the questions FAILED while the parts were landing; READY on the next read"*). Same
 two-read shape as #80.
+
+## 82. Observation (keel-web, with keel-cloud beside it): brief page two never draws *Keel's bar* on a real project -- keel-web 067 draws it only where the row has no `founderSaid`, and keel-cloud's Importance and Current solution rows always carry one
+
+Found by spec `042-contract-14-r11`'s second commit on all three entries (local stack on keel-cloud-docs `c432c1d` + keel-web `c14d513`). keel-cloud 091 FR-F1 serves
+`BriefCard.keelBar` on Importance (*holds if at least 2 in 3 put it in their two*) and Current solution (*holds if at
+least 2 in 3 say today's way falls short (answers 3 to 5)*), and its description says the founder's bar is the row's
+`founderSaid` "on every other card". keel-web 067's `DimensionRowBody` fills the bar slot with `row.founderSaid` when
+there is one and only otherwise with *Keel's bar: {keelBar}* -- and on a live project keel-cloud's
+`DimensionStanding.founderSaid` is set on those two rows as on every other (S-005: *You said matching deliveries
+against their invoices.* and *You said their way of putting the stock records right.*), so page two draws the
+founder's words and never Keel's bar. keel-web's own fixture (`tests/visual/states/brief-corpus.json`, from
+`BriefFactsCorpusTest`) has `founderSaid` null on both rows, which is why its frames show the bar. The journey holds
+the wire (`keelBar` on exactly those two cards, absent elsewhere), holds the bar slot to what keel-web's rule draws (the
+row's `founderSaid`), asserts no `.dimrow__said--keel` anywhere else (and none on the stage pages), and names it in a
+step for the entry (*"DRIFT #82 -- page two draws the founder's words, not Keel's bar, ..."*); when either side
+changes, the step stops firing and the bar is held to *Keel's bar: {keelBar}*. For keel-web: prefer `keelBar` over
+`founderSaid` where the card carries one; for keel-cloud: leave `founderSaid` off the rows whose bar is Keel's -- the
+design's §7.3 decides which.
