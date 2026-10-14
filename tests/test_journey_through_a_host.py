@@ -195,13 +195,7 @@ def test_the_founder_types_the_entrys_own_title_market_context_and_two_seeds():
     """What `founder_inputs` hands back, checked against the entry the journey defaults to --
     through the real corpus, so a corpus edit that emptied a field fails here."""
     from harness import vectors_script
-    from instructions import corpus as corpus_mod
-    from tests.test_vectors_journey import JOURNEY_SPEC
     entry = _lullaby()
-    if corpus_mod.REVISION >= 10:
-        # Spec 040, judgement call 89: `founder_inputs` still types revision 9's calibration answers; the founder
-        # lists of revision 10 are the later journey spec's to type.
-        pytest.skip(JOURNEY_SPEC)
     founder = vectors_script.founder_inputs(entry)
     assert founder.project_name == entry.title
     assert founder.country == "GB"
@@ -209,6 +203,11 @@ def test_the_founder_types_the_entrys_own_title_market_context_and_two_seeds():
     assert founder.solution_seed == " ".join(entry.statements["solution"].split())
     assert set(founder.context_fields) == {"actor", "job", "circumstance", "segment"}
     assert founder.window.as_wire() == entry.context["recall_window"]
+    # Spec 041: revision 10's founder lists are typed as lists -- the Answer words, the saved list, its pick.
+    listed = {a.dimension: a for v in vectors_script.VECTORS for a in founder.calibration[v] if a.listed}
+    assert set(listed) == {k for k in vectors_script.LIST_CONTROLS if k in entry.founder_calibration
+                           and not entry.unsure(k)}
+    assert all(a.text and len(a.text.split()) <= 25 for a in listed.values())
 
 
 def test_the_one_person_is_the_entrys_first_and_brings_their_own_story():
@@ -221,19 +220,22 @@ def test_the_one_person_is_the_entrys_first_and_brings_their_own_story():
 
 
 def test_a_live_answer_falls_back_to_the_options_the_model_wrote():
-    """On a live run a model-written set slugs its own codes, so an option id the corpus code names
-    may not be offered: the person then picks as many of the item's own first options, and a
-    *Something else* flag is never carried onto an option that is not it. Which happened is in the
-    bundle; it is never asserted (FR-007)."""
+    """On a live run the model drafts the founder's lists, so an option id the corpus's place names may not
+    be offered (a benefit the model's list has no place for): the person then picks as many of the item's own
+    first options -- and advantages -- as they picked. Contract 13 has no *Something else* (keel-cloud 088).
+    Which happened is in the bundle; it is never asserted (FR-007)."""
     from evals.corpus_scenario import _on_the_offered_options
     items = {"problem.importance": {"itemId": "i1", "options": [
-        {"optionId": "a", "label": "A"}, {"optionId": "b", "label": "B"},
-        {"optionId": "z", "label": "Something else", "somethingElse": True}]}}
-    body = {"recency": True, "answers": [{"itemId": "i1", "optionIds": ["nope"], "somethingElse": True},
+        {"optionId": "a", "label": "A"}, {"optionId": "b", "label": "B"}, {"optionId": "c", "label": "C"}]},
+        "solution.relative_advantage": {"itemId": "i2", "options": [{"optionId": "p", "label": "Better"}],
+                                        "advantages": [{"id": "x", "label": "X"}]}}
+    body = {"recency": True, "answers": [{"itemId": "i1", "optionIds": ["nope", "b"]},
+                                         {"itemId": "i2", "optionIds": ["p"], "advantageIds": ["gone"]},
                                          {"itemId": "i9", "scale": 3}]}
     out = _on_the_offered_options(body, items)
-    assert out["answers"][0] == {"itemId": "i1", "optionIds": ["a"]}
-    assert out["answers"][1] == {"itemId": "i9", "scale": 3}
+    assert out["answers"][0] == {"itemId": "i1", "optionIds": ["a", "b"]}
+    assert out["answers"][1] == {"itemId": "i2", "optionIds": ["p"], "advantageIds": ["x"]}
+    assert out["answers"][2] == {"itemId": "i9", "scale": 3}
     kept = _on_the_offered_options({"answers": [{"itemId": "i1", "optionIds": ["b"]}]}, items)
     assert kept["answers"][0]["optionIds"] == ["b"]
 

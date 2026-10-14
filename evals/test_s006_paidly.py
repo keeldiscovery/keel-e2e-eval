@@ -1,4 +1,5 @@
-"""S-006: `05-paidly`, the widest B2B entry, walked through the vector corridor (spec 039).
+"""S-006: `05-paidly`, the widest B2B entry, walked through the vector corridor (spec 039; spec 041: corpus
+revision 10, keel-web 063 / 064).
 
 Twenty people on **two links**: twelve freelance translators answer parts 1 and 2 on the primary
 link, and eight agency project managers -- the decision-makers -- answer part 3 alone on their own
@@ -45,13 +46,30 @@ def _paidly_extras(j) -> None:
             assert kinds[p.person] == "COMMERCIAL_LINK" and parts[p.person] == [3], p.person
             assert not j.interviews[p.person].get("gate"), p.person
 
+    with j.recorder.step("S-006: each decision-maker's link opens with the idea's three lines (D9) and asks "
+                         "Ability to pay and Purchase friction; each translator's kicker counts two parts",
+                         party="participant", kind="assert") as h:
+        firsts = {p.person: (j.walked[p.person]["screens"] or [{}])[0] for p in deciders}
+        kickers = {p.person: [s.get("kicker") for s in j.walked[p.person]["screens"] if s.get("screen") == "item"]
+                   for p in primary if j.walked[p.person]["screens"][1:]}
+        b2b_asked = {p.person: [i.get("dimension") for q in j.interviews[p.person].get("parts") or []
+                                for i in q.get("items") or []] for p in deciders}
+        h.record_assert({"first screen": "idea", "asked": ["commercial.ability_to_pay",
+                                                           "commercial.purchase_friction"], "parts": "of 2"},
+                        {"firsts": firsts, "asked": b2b_asked, "kickers": kickers})
+        for p in deciders:
+            assert firsts[p.person].get("screen") == "idea", firsts[p.person]
+            assert firsts[p.person].get("kicker") == j.interviews[p.person]["idea"]["kicker"], firsts[p.person]
+            assert {"commercial.ability_to_pay", "commercial.purchase_friction"} <= set(b2b_asked[p.person])
+        assert kickers and all(k and all("of 2" in (w or "") for w in k) for k in kickers.values()), kickers
+
     with j.recorder.step("S-006: the commercial vector is counted over the eight decision-makers",
                          party="stack", kind="assert") as h:
         commercial = {k: v.get("n") for k, v in standings.items()
                       if k.startswith("commercial.") and v.get("status") != "LEFT_OUT"}
         h.record_assert({k: len(deciders) for k in commercial}, commercial)
         assert all(n == len(deciders) for n in commercial.values()), commercial
-        assert "agency project managers" in j.screens["COMMERCIAL"]["decider_banner"].lower(), (
+        assert j.founder.decider["role"].lower() in j.screens["COMMERCIAL"]["decider_banner"].lower(), (
             j.screens["COMMERCIAL"]["decider_banner"])
 
     with j.recorder.step(f"S-006: the floor is {FLOOR} on every dimension, and every paidly "

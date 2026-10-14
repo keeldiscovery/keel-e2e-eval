@@ -1,35 +1,44 @@
-"""The vectors corpus becomes the script (spec 039, the corpus journeys as vectors journeys).
+"""The vectors corpus becomes the script (spec 039; spec 041: corpus revision 10, contract 13).
 
-**Since spec 040 the corpus is revision 10 and the contract 13** (keel-cloud 087 / 088 / 089): the keys table below
-reads the new export (eight screens, `ASKED` among them) and the one-unit window's branches are gone (D13,
-runs/DRIFT.md #74 closed). The script's *results* and the typed inputs below still write revision 9's shapes -- the
-founder's model-written option sets, the respondent questionnaire, the brief's tiles -- and are re-pointed at the
-founder lists, `{key, event}` items, the `asked` faces and the brief's answers by the later journey spec, once keel-web
-specs 7, 8 and 10 land; until then the unit tests that read the corpus through them skip by name.
-
-One revision-9 corpus entry in; out come the three things S-005, S-006 and S-007 need to drive the
+One revision-10 corpus entry in; out come the three things S-005, S-006 and S-007 need to drive the
 **vector corridor** deterministically, and nothing else:
 
-1. a **keel-runtime scripted-executor script** keyed by screen name -- the five corridor screens
-   (`CONTEXT_INTERPRET`, `PROBLEM_INTERPRET`, `SOLUTION_MECHANISM`, `CALIBRATION_QUESTIONS`,
+1. a **keel-runtime scripted-executor script** keyed by screen name -- the corridor's screens
+   (`CONTEXT_INTERPRET`, `PROBLEM_INTERPRET`, `SOLUTION_MECHANISM`, `CALIBRATION_QUESTIONS`, `ASKED`,
    `RESPONDENT_QUESTIONS`), the gate-story reading (`INTERPRET`) and the brief's reading (`BRIEF`),
-   every result written from the entry's own stored texts and its own codes;
+   every result written in contract 13's shapes from the entry's own stored texts;
 2. the **context-keys table** that script is matched through (`context_keys_for`), derived from
    keel-cloud's own export rather than copied -- see that function for why it is not the export
    byte for byte;
 3. the **founder's typed inputs** (the four context fields, the recall window, the two seeds, one
-   answer per calibrated dimension, the persona) and **each person's typed inputs** (the gate, the
-   story or chip, one closed answer per item, by dimension and by code).
+   answer per calibrated dimension -- a list dimension's Answer words, its saved list and its picked
+   index -- and the persona) and **each person's typed inputs** (the gate, the story or chip, one
+   answer per item, by dimension and by the wire's own code).
 
-**One reader, one hash.** The entry is read through `instructions/corpus.py` -- the revision-9
+**Contract 13 (keel-cloud 087 / 088 / 089).** `CALIBRATION_QUESTIONS` answers a list dimension with its
+Check-screen draft, `list {items[{label, asked?}], phrase?}` -- the entry's own founder list, which is
+what the founder then saves untouched -- and runs once a vector *and once more for every list
+dimension the founder answers* (`POST calibration/{vector}/draft`: the same key set, `answers`
+carrying the founder's Answer), so its entries are the corridor's own order (`calibration_jobs`).
+`RESPONDENT_QUESTIONS` writes the gate's clause and nothing else (`{key, event?}`); `ASKED` the
+stranger's faces of a saved Compatibility / Adoption friction list (the corpus's own `asked`); `BRIEF`
+the headline and three answers, each citing its stage's deciding dimension (`broke`, where the
+stage broke).
+
+**The wire's codes are code's** (keel-cloud 087 judgement call 2): a list item is coded by position
+(`own`, `rival_1`..; `outcome_1`..; `item_1`..; `benefit_1`..; `nobody_else`, `role_1`..; `step`),
+while the corpus keeps revision 9's slugs. `wire_code` maps one onto the other by the item's place in
+the founder's list, so a person's pick is sent -- and an `optionCounts` row compared -- on the wire's
+code.
+
+**One reader, one hash.** The entry is read through `instructions/corpus.py` -- the revision-10
 reader the instruction eval already uses -- and never a second time.
 
-**What the corpus does not carry is composed, and named** (`COMPOSED`). Revision 9 records the
-golden *beliefs*, *codes* and *people*; it records no model *wording* -- no calibration question, no
-option label for a registry-fixed scale, no respondent question, no Prevalence `event` clause, no
-`occasion`, no idea lines. A screen result needs all of them, so this module writes them from the
-entry's own context fields in one fixed register, and the spec's *disagreements* section lists every
-one. A composed word never reaches an assertion about a standing: the engine compares codes.
+**What the corpus does not carry is composed, and named** (`COMPOSED`). Revision 10 records the
+founder's lists, the golden codes and people; it records no gate clause, no Prevalence option labels,
+no Answer-screen words and no brief reading. A screen result needs them, so this module writes them in
+one fixed register and spec 041's *Disagreements* list every one. A composed word never reaches an
+assertion about a standing: the engine compares codes.
 
 **Nothing generated is committed.** The script, the context-keys table and the typed inputs go into
 the run bundle, so a run can never be green against a script that drifted from the corpus.
@@ -41,7 +50,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 
@@ -58,8 +66,7 @@ CALIBRATION_SCREEN = "CALIBRATION_QUESTIONS"
 RESPONDENT_SCREEN = "RESPONDENT_QUESTIONS"
 INTERPRET_SCREEN = "INTERPRET"
 BRIEF_SCREEN = "BRIEF"
-#: keel-cloud 088 (contract 12): the `asked` faces of a saved Compatibility / Adoption friction list. Its keys are
-#: the export's own; what the script answers on it is the later journey spec's (spec 040 *Follow-ups*).
+#: keel-cloud 088 (contract 12): the `asked` faces of a saved Compatibility / Adoption friction list.
 ASKED_SCREEN = "ASKED"
 RESPONDENT_ALIASES = {(1, "PRIMARY"): "RESPONDENT_QUESTIONS_P1",
                       (2, "PRIMARY"): "RESPONDENT_QUESTIONS_P2",
@@ -77,18 +84,17 @@ BELIEF_FRAME = "The people building it believe it would "
 #: The one note every composed calibration question carries (`respondent_note` is required).
 RESPONDENT_NOTE = "Respondents are asked about their own most recent time, never about this."
 
-#: Every place this module writes a word the corpus does not record (spec 039 *Disagreements*).
+#: Every place this module writes a word the corpus does not record (spec 041 *Disagreements*).
 COMPOSED = (
-    "CONTEXT_INTERPRET.occasion -- r9 records no occasion; composed as the word 'time'",
-    "SOLUTION_MECHANISM.idea_what / idea_how / idea_belief -- r9 records none; composed from the mechanism",
-    "CALIBRATION_QUESTIONS question texts, Prevalence's event, and the option labels and belief phrases of "
-    "every registry-fixed scale -- r9 records only the founder's chosen code and its phrase",
-    "CALIBRATION_QUESTIONS commercial.purchase_friction labels -- r9 records three labels that do not slug "
-    "to its codes; the calibration needs four to six whose slugs are the codes",
-    "RESPONDENT_QUESTIONS question texts, the gate's event, the fixed-scale labels and Importance's "
-    "difficulty labels (each the slug-inverse of its corpus code)",
-    "RESPONDENT_QUESTIONS commercial.purchase_friction distractors -- r9 records none; a set needs two",
-    "BRIEF reading -- r9 records none; a referee-worded reading citing the entry's deal-breakers",
+    "SOLUTION_MECHANISM.idea_what / idea_how / idea_belief -- r10 records none; composed from the mechanism",
+    "CALIBRATION_QUESTIONS Prevalence's event and its five fifths' labels and belief phrases -- r10 records "
+    "only the founder's chosen code and its phrase",
+    "the founder's Answer-screen words on each list dimension -- r10 records the saved list, not the Answer "
+    "it was drafted from; composed as the list's own labels, at most 25 words",
+    "RESPONDENT_QUESTIONS the gate's event clause -- r10 records none (keel-cloud 088 call 13); 'have a time "
+    "when {circumstance}', or the referee's shorter clause where that frames past 20 words (E4)",
+    "BRIEF reading -- r10 records none; a referee-worded headline and three answers citing each stage's "
+    "deciding dimension",
 )
 
 
@@ -115,7 +121,7 @@ def option_id(token: str, dimension: str, code: str) -> str:
 # ------------------------------------------------------------------------------- reading in
 
 def load(keel_cloud) -> corpus_reader.Corpus:
-    """The corpus, through `instructions/corpus.py` and nothing else: revision 9 or a refusal."""
+    """The corpus, through `instructions/corpus.py` and nothing else: revision 10 or a refusal."""
     return corpus_reader.load(keel_cloud)
 
 
@@ -158,12 +164,12 @@ def frequency_fits(entry) -> bool:
     """Whether the corpus's Frequency can be stated on the entry's **own** recall window.
 
     keel-cloud counts Frequency in the window's own unit, on an axis from 0 to the window's count
-    (`numeric.axisMax`; the respondent's `segmented_0_to_7` runs 0..count), and frames it only on a
-    window of more than one unit. Revision 9 keeps every Frequency belief and pick on a 0-to-7 axis
-    in units of its own ("days out of 7", "invoices out of 7"), which the corpus README records as
-    *known, not corrected*. Where the founder's range or any pick lies past the window's count the
-    founder cannot state it and no respondent can answer it, so the journey leaves Frequency **out**
-    (`unsure`) rather than inventing a number (spec 039 *Disagreements*, D-1).
+    (the respondent's `segmented_0_to_7` runs 0..count). Revision 10 keeps Frequency on the founder's
+    own "out of N" (spec 040 call 78: 05-paidly asks "invoices out of 7" over a 3-month window), so
+    where the founder's range or any pick lies past the window's count the founder cannot state it and
+    no respondent can answer it, and the journey leaves Frequency **out** (`unsure`) rather than
+    inventing a number (spec 039 D-1, spec 041 D-1). Countly's r10 window, {4, WEEKS}, carries its
+    "1 to 3 weeks out of 4": Frequency is asked there (D13).
     """
     window = window_of(entry)
     answer = (entry.founder_calibration.get("problem.frequency") or {}).get("answer")
@@ -179,97 +185,9 @@ def frequency_fits(entry) -> bool:
 
 
 def window_words(window: Window) -> str:
-    """keel-web `RECALL_WINDOW_WORDS`: "the last month", "7 nights", "2 weeks" -- what the context
-    card's *Counting the last ...* line carries."""
+    """keel-web `RECALL_WINDOW_WORDS`: "7 nights", "4 weeks" -- what the context card's *Counting the
+    last ...* line carries."""
     return f"{window.count} {_UNIT_WORDS[window.unit][1]}"
-
-
-# ------------------------------------------------------------------------- composed labels
-
-#: One label and one belief phrase per registry-fixed code, in a register that names no product,
-#: no mechanism, no claim word and no money (rules X1, C5, C6, W9). The founder's chosen code's
-#: phrase is replaced by the corpus's own `belief_phrase`, so the belief sentence keel-cloud writes is
-#: the corpus's.
-FIXED_LABELS = {
-    "problem.prevalence": [
-        ("Fewer than 2 in 10", "p_0_20", "Only a few"),
-        ("2 to 4 in 10", "p_20_40", "A minority"),
-        ("4 to 6 in 10", "p_40_60", "Around half"),
-        ("6 to 8 in 10", "p_60_80", "Most"),
-        ("8 to 10 in 10", "p_80_100", "Nearly all")],
-    "problem.importance": [
-        ("The biggest difficulty they face", "biggest", "the biggest difficulty"),
-        ("One of their top three", "top_three", "one of the top three"),
-        ("Somewhere in the middle", "middle", "a middling one"),
-        ("A minor one next to the others", "minor", "a minor one"),
-        ("It barely registers against the others", "negligible", "barely on the list")],
-    "problem.current_solution_satisfaction": [
-        ("Very well; they rarely feel stuck", "works_well", "serves them reliably"),
-        ("Fairly well; it does the job most times", "mostly_works", "does the job most of the time"),
-        ("Mixed; about half the time", "hit_and_miss", "is hit and miss"),
-        ("Poorly; they often end up stuck", "works_poorly", "serves them poorly"),
-        ("Very poorly; there is no reliable way", "no_reliable_way", "gives them no reliable way")],
-    "solution.compatibility": [
-        ("Straight away, before trying anything", "before_any_attempt",
-         "right at the start, before anything is tried"),
-        ("After the first attempt has not done it", "after_first_attempt_fails",
-         "once the first attempt has failed"),
-        ("After several attempts", "after_several_attempts", "only after several attempts"),
-        ("Only once nothing else has done it", "only_when_nothing_works",
-         "only when nothing else has done it"),
-        ("It would not fit in at all", "would_not_fit", "nowhere; it would not fit")],
-    "solution.relative_advantage": [
-        ("Fewer things tried along the way", "fewer_attempts", "fewer things tried"),
-        ("A shorter time from start to finish", "shorter_time", "a shorter time"),
-        ("Less worry while it is happening", "less_worry", "less worry in the moment"),
-        ("Less need to call on someone else", "less_help_needed", "less need for a second pair of hands"),
-        ("Less strain afterwards", "easier_recovery", "an easier recovery afterwards")],
-    "solution.adoption_friction": [
-        ("Nothing extra at all", "nothing_extra", "nothing at all"),
-        ("One tap to start", "one_tap", "a single tap"),
-        ("A few taps", "a_few_taps", "a few taps"),
-        ("A short one-time setup, then a tap", "setup_once", "a one-time setup, then a tap"),
-        ("A longer setup done beforehand", "daytime_setup", "a proper setup done beforehand")],
-    "commercial.buyer_payer_alignment": [
-        ("The person who has the problem pays, with no one else to agree", "same_person",
-         "the same person uses it, decides and pays"),
-        ("They decide, but someone else pays", "user_decides_other_pays",
-         "they decide and someone else pays"),
-        ("They decide together with someone else", "joint_decision", "they decide jointly"),
-        ("Someone else decides and pays", "someone_else_decides", "someone else decides and pays"),
-        ("An institution pays", "institution_pays", "an institution pays")],
-    "commercial.ability_to_pay": [
-        ("From a budget line that already existed", "existing_line", "an existing line"),
-        ("From a new line someone signed off", "new_line_signed_off", "a new line signed off"),
-        ("Taken from other spending", "taken_from_other_spend", "taken from other spend"),
-        ("There was no budget for it", "no_budget", "no budget")],
-}
-
-#: The B2C ladder's rungs (keel-cloud `ScreenResultApplier.B2C_RUNGS`) and the B2B one.
-B2C_RUNGS = ("setup", "install", "mic", "next_episode", "contact_me")
-B2B_RUNGS = ("call", "read_only_trial", "it_intro", "data", "paid_pilot")
-
-#: The escapes keel-cloud appends to a respondent item and the model never writes
-#: (`RespondentQuestionsRules.ESCAPES`), plus "Something else".
-RESPONDENT_ESCAPES = {"would_not_fit", "would_not_reach", "free_or_gift", "it_was_free",
-                      "never_came_up", "nothing_yet", "something_else"}
-
-
-def slug(label: str) -> str:
-    """keel-cloud `ScreenResultApplier.slugs` for one label: lower-cased, non-alphanumerics to
-    `_`, the first four words."""
-    import unicodedata
-    base = unicodedata.normalize("NFD", label)
-    base = "".join(c for c in base if unicodedata.category(c) != "Mn").lower()
-    base = re.sub(r"[^a-z0-9]+", "_", base).strip("_")
-    words = base.split("_") if base else ["option"]
-    return "_".join(words[:4])
-
-
-def label_of_code(code: str) -> str:
-    """The slug-inverse of a corpus code: `matching_deliveries` -> `Matching deliveries`."""
-    text = code.replace("_", " ").strip()
-    return text[:1].upper() + text[1:]
 
 
 # ------------------------------------------------------------------------- the founder's words
@@ -281,6 +199,11 @@ def _ctx(entry) -> dict:
 def _sentence(text: str) -> str:
     text = " ".join(str(text).split()).strip()
     return text[:1].upper() + text[1:]
+
+
+def _words(text: str) -> int:
+    text = (text or "").strip()
+    return len(text.split()) if text else 0
 
 
 def short_name(entry) -> str:
@@ -297,21 +220,56 @@ def offer_name(entry) -> str:
     return str(name)
 
 
+def occasion(entry) -> str:
+    """`context.occasion` (r10 records one on every entry: *delivery*, *invoice*, *yard run*)."""
+    return entry.occasion() or "time"
+
+
 def event_past(entry) -> str:
     """Prevalence's clause for the founder (rules E1-E3): what happened, past tense, no time word."""
     return f"had a time when {_ctx(entry)['circumstance']}"
 
 
+#: keel-cloud 088 `E4`: framed, the gate ("In the last 3 months, did you ...?") and the Frequency question
+#: ("On how many of those 3 months did you ...?") are each at most 20 words. Where "have a time when
+#: {circumstance}" frames longer, the referee's shorter clause, in the same register (COMPOSED).
+GATE_EVENTS = {
+    "02-compliancelog": "have the training-compliance report fall due at quarter close",
+    "04-linerly": "get a tyre puncture on the way to or from work",
+    "05-paidly": "wait to be paid for an invoice an agency had approved",
+    "07-mulchrun": "fetch mulch from the supply yard for a job",
+}
+
+#: keel-cloud `SpokenForm.STEM_MAX_WORDS`.
+STEM_MAX_WORDS = 20
+
+
+def gate_question(window: Window, event: str) -> str:
+    """keel-cloud `WindowFrame.gate`."""
+    return f"In the last {window_words(window)}, did you {event}?"
+
+
+def frequency_question(window: Window, event: str) -> str:
+    """keel-cloud `WindowFrame.frequencyRespondent(window, event)`."""
+    return f"On how many of those {window_words(window)} did you {event}?"
+
+
 def event_base(entry) -> str:
-    """The gate's clause for the respondent: base form, second person."""
-    return f"have a time when {_ctx(entry)['circumstance']}"
+    """The gate's clause for the respondent: base form, second person, framed within E4's 20 words."""
+    event = GATE_EVENTS.get(entry.id) or f"have a time when {_ctx(entry)['circumstance']}"
+    window = window_of(entry)
+    longest = max(_words(gate_question(window, event)), _words(frequency_question(window, event)))
+    if longest > STEM_MAX_WORDS:
+        raise VectorsScriptError(f"{entry.id}: the gate's clause {event!r} frames a question of {longest} "
+                                 f"words; E4 allows {STEM_MAX_WORDS} (add a shorter clause to GATE_EVENTS)")
+    return event
 
 
 def context_result(entry) -> dict:
     ctx = _ctx(entry)
     return {"understands": ctx["understood"], "actor": ctx["actor"],
             "actor_plural": ctx["actor_plural"], "job": ctx["job"],
-            "circumstance": ctx["circumstance"], "segment": ctx["segment"], "occasion": "time"}
+            "circumstance": ctx["circumstance"], "segment": ctx["segment"], "occasion": occasion(entry)}
 
 
 def problem_result(entry) -> dict:
@@ -330,7 +288,7 @@ def mechanism_result(entry) -> dict:
     m = entry.solution_mechanism or {}
     terms = list(m.get("mechanism_terms") or [])
     if len(terms) < 3:
-        # keel-cloud wants 3-8 mechanism terms; r9's Paidly records two. The short name's own
+        # keel-cloud wants 3-8 mechanism terms; r10's Paidly records two. The short name's own
         # content words fill the list -- words the mechanism already uses, never new ones.
         for word in short_name(entry).split():
             if len(terms) >= 3:
@@ -371,6 +329,86 @@ def founder_keys(entry, vector: str) -> list[str]:
     return calibrated_keys(entry, vector)
 
 
+#: keel-cloud 087's list controls, by dimension (registry 4 `founder.control`).
+LIST_CONTROLS = {
+    "problem.importance": "rival_list",
+    "problem.current_solution_satisfaction": "scale_lines",
+    "solution.compatibility": "item_list",
+    "solution.relative_advantage": "benefit_list",
+    "solution.adoption_friction": "item_list",
+    "commercial.buyer_payer_alignment": "role_list",
+    "commercial.purchase_friction": "item_list",
+    "commercial.commitment": "one_step",
+}
+#: `saves.picked`: the list is posted from Choose with the one item tested (keel-web 063 call 4).
+PICKED = {"solution.compatibility", "solution.adoption_friction", "commercial.buyer_payer_alignment",
+          "commercial.purchase_friction"}
+#: `saves.asked`: each item carries the stranger's face (keel-cloud 088 FR-003).
+ASKED_FACES = {"solution.compatibility", "solution.adoption_friction"}
+#: Buyer and payer's fixed first item, code's (keel-cloud `SavedList.NOBODY_ELSE`).
+NOBODY_ELSE = ("nobody_else", "Nobody else")
+#: Every escape the registry gives an item (registry 4 `respondent.escape.code`).
+ESCAPES = {"cant_recall", "cant_tell", "cant_say", "cant_recall_one", "none_of_these", "someone_else_checks"}
+#: The gate story's one chip at contract 13 (keel-cloud 088: RATHER_NOT_SAY gone; spec 041 D-4).
+STORY_CHIPS = {"cant_recall": "CANT_RECALL", "rather_not_say": "CANT_RECALL"}
+
+#: Registry 4's dimension names (`name`), for the referee's brief words only.
+NAMES = {"problem.prevalence": "Prevalence", "problem.frequency": "Frequency",
+         "problem.importance": "Importance", "problem.current_solution_satisfaction": "Current solution",
+         "solution.compatibility": "Compatibility", "solution.relative_advantage": "Relative advantage",
+         "solution.adoption_friction": "Adoption friction", "commercial.existing_sacrifice": "Existing sacrifice",
+         "commercial.price": "Price", "commercial.ability_to_pay": "Ability to pay",
+         "commercial.buyer_payer_alignment": "Buyer and payer",
+         "commercial.purchase_friction": "Purchase friction", "commercial.commitment": "Commitment"}
+
+
+def is_list(key: str) -> bool:
+    return key in LIST_CONTROLS
+
+
+def wire_code(key: str, index: int) -> str:
+    """keel-cloud `SavedList.codeFor` (087 judgement call 2): a list item's code is its place."""
+    control = LIST_CONTROLS[key]
+    if control == "rival_list":
+        return "own" if index == 0 else f"rival_{index}"
+    if control == "scale_lines":
+        return f"outcome_{index + 1}"
+    if control == "benefit_list":
+        return f"benefit_{index + 1}"
+    if control == "role_list":
+        return NOBODY_ELSE[0] if index == 0 else f"role_{index}"
+    if control == "one_step":
+        return "step"
+    return f"item_{index + 1}"
+
+
+def founder_list(entry, key: str) -> dict:
+    """The entry's own saved list for a list dimension: `{items: [{code, label, asked?}], picked, phrase}`."""
+    saved = entry.founder_list(key)
+    if not saved or not saved["items"]:
+        raise VectorsScriptError(f"{entry.id}: {key} carries no founder list; a list dimension is drafted "
+                                 "from one")
+    return saved
+
+
+#: The list dimensions a stranger picks among the founder's own items; every other dimension's codes are
+#: the registry's fixed ones and pass through unchanged.
+PICKED_AMONG_ITEMS = ("problem.importance", "problem.current_solution_satisfaction", "solution.relative_advantage")
+
+
+def wire_codes(entry, key: str) -> dict[str, str]:
+    """`{corpus code: wire code}` for a list dimension whose items the stranger picks among (Importance's
+    five, Current solution's five outcomes, Relative advantage's benefits); `{}` elsewhere."""
+    if key not in PICKED_AMONG_ITEMS:
+        return {}
+    return {item["code"]: wire_code(key, i) for i, item in enumerate(founder_list(entry, key)["items"])}
+
+
+def on_the_wire(entry, key: str, code: str) -> str:
+    """One corpus code as the wire codes it."""
+    return wire_codes(entry, key).get(code, code)
+
+
 def _founder(entry, key: str) -> dict:
     return entry.founder_calibration.get(key) or {}
 
@@ -384,111 +422,147 @@ def _chosen_codes(entry, key: str) -> list[str]:
     return []
 
 
-def purchase_friction_labels(entry) -> list[tuple[str, str]]:
-    """`(label, code)` for the founder's Purchase friction options: one per corpus code (the plan
-    row's codes less the escapes), each label the slug-inverse of its code so keel-cloud's slug is
-    the corpus code, padded to four with a fixed fourth that slugs to no corpus code."""
-    codes = [c for c in (entry.respondent_questions.get("commercial.purchase_friction") or {})
-             .get("codes") or [] if c not in RESPONDENT_ESCAPES]
-    pairs = [(label_of_code(c), c) for c in codes]
-    for spare in ("Contract terms", "Training the team", "Changing habits"):
-        if len(pairs) >= 4:
+#: Prevalence's five fifths (keel-cloud's `single_choice` codes, by position) in a register that names no
+#: product, mechanism, claim word or money (rules X1, C5, C6, W9); the founder's chosen code's phrase is the
+#: corpus's own `belief_phrase`, so the belief sentence keel-cloud writes is the corpus's.
+PREVALENCE_OPTIONS = [
+    ("Fewer than 2 in 10", "p_0_20", "Only a few"),
+    ("2 to 4 in 10", "p_20_40", "A minority"),
+    ("4 to 6 in 10", "p_40_60", "Around half"),
+    ("6 to 8 in 10", "p_60_80", "Most"),
+    ("8 to 10 in 10", "p_80_100", "Nearly all"),
+]
+
+
+def drafted_list(entry, key: str) -> dict:
+    """The `CALIBRATION_QUESTIONS` result's `list` for a list dimension (founder-lists.md): the entry's own
+    items in its order -- Buyer and payer's "Nobody else" left to code, which adds it -- each `label`, the
+    `asked` face on Compatibility and Adoption friction, and Current solution's `phrase`."""
+    saved = founder_list(entry, key)
+    items = []
+    for item in saved["items"]:
+        if key == "commercial.buyer_payer_alignment" and item.get("code") == NOBODY_ELSE[0]:
+            continue
+        out = {"label": item["label"]}
+        if key in ASKED_FACES:
+            if not item.get("asked"):
+                raise VectorsScriptError(f"{entry.id}: {key} item {item['label']!r} carries no `asked` face (L4)")
+            out["asked"] = item["asked"]
+        items.append(out)
+    draft: dict = {"items": items}
+    if key == "problem.current_solution_satisfaction":
+        if not saved.get("phrase"):
+            raise VectorsScriptError(f"{entry.id}: {key} carries no second-person phrase (L1)")
+        draft["phrase"] = saved["phrase"]
+    return draft
+
+
+def saved_list(entry, key: str) -> dict:
+    """The list as the founder saves it and the wire stores it (keel-cloud `SavedList`): every item, in
+    order, with code's positional codes, `asked` where the dimension carries faces, `pickedIndex` where it
+    picks, Current solution's `phrase`."""
+    saved = founder_list(entry, key)
+    items = []
+    for i, item in enumerate(saved["items"]):
+        out = {"code": wire_code(key, i), "label": item["label"]}
+        if key in ASKED_FACES and item.get("asked"):
+            out["asked"] = item["asked"]
+        items.append(out)
+    picked = saved.get("picked")
+    return {"items": items, "pickedIndex": int(picked) if key in PICKED and picked is not None else None,
+            "phrase": saved.get("phrase") if key == "problem.current_solution_satisfaction" else None}
+
+
+def answer_text(entry, key: str) -> str:
+    """The founder's words on a list dimension's Answer screen (at most 25): the list's own labels, joined,
+    as many whole ones as fit -- r10 records the list the Answer was drafted from, not the Answer (COMPOSED).
+    Buyer and payer with nobody else to agree is "Nobody" (keel-web's hint: *"Nobody" is an answer*)."""
+    saved = founder_list(entry, key)
+    labels = [i["label"] for i in saved["items"] if i.get("code") != NOBODY_ELSE[0]]
+    if key == "problem.current_solution_satisfaction" and saved.get("phrase"):
+        labels = [saved["phrase"]] + labels
+    if not labels:
+        return "Nobody"
+    text = labels[0]
+    for label in labels[1:]:
+        candidate = f"{text}; {label}"
+        if _words(candidate) > 25:
             break
-        if slug(spare) not in codes:
-            pairs.append((spare, slug(spare)))
-    return pairs
-
-
-def commitment_labels(entry) -> list[tuple[str, str]]:
-    rungs = B2B_RUNGS if is_b2b(entry) else B2C_RUNGS
-    labels = _founder(entry, "commercial.commitment").get("labels") or []
-    if len(labels) != len(rungs):
-        raise VectorsScriptError(f"{entry.id}: commercial.commitment carries {len(labels)} labels; "
-                                 f"the ladder is {len(rungs)} rungs")
-    return list(zip(labels, rungs))
-
-
-def _phrase(entry, key: str, code: str, default: str) -> str:
-    """The corpus's own belief phrase on the founder's chosen option -- the highest ticked rung on
-    the ladder, the only tick on a one-tick set -- and the composed one elsewhere."""
-    chosen = _chosen_codes(entry, key)
-    phrase = _founder(entry, key).get("belief_phrase")
-    if not phrase or code not in chosen:
-        return default
-    if key == "commercial.commitment":
-        return phrase if code == chosen[-1] else default
-    if len(chosen) > 1:
-        return default
-    return phrase
+        text = candidate
+    return text
 
 
 def calibration_question(entry, key: str) -> dict:
-    ctx = _ctx(entry)
+    """One question of the `CALIBRATION_QUESTIONS` result (contract 13): Prevalence's `event` and five
+    fifths, a list dimension's `list`, and nothing but the key and the note on Frequency, the cost and the
+    price (code's questions)."""
     q: dict = {"key": key, "respondent_note": RESPONDENT_NOTE}
-    options: list[tuple[str, str]] = []
     if key == "problem.prevalence":
         q["event"] = event_past(entry)
-    elif key == "problem.frequency":
-        pass
-    elif key in ("commercial.price", "commercial.existing_sacrifice"):
-        pass
-    elif key == "problem.importance":
-        q["question"] = (f"Among the difficulties that come up when {ctx['circumstance']}, where "
-                         "does this one rank?")
-    elif key == "problem.current_solution_satisfaction":
-        q["question"] = f"How well does today's way of handling it serve {ctx['actor_plural']}?"
-    elif key == "solution.compatibility":
-        q["question"] = f"At what point would {ctx['actor_plural']} turn to {short_name(entry)}?"
-    elif key == "solution.relative_advantage":
-        q["question"] = (f"What must {short_name(entry)} do better than today's way for them to "
-                         "switch?")
-    elif key == "solution.adoption_friction":
-        q["question"] = (f"How much extra effort would they accept at that moment to get "
-                         f"{short_name(entry)}?")
-    elif key == "commercial.buyer_payer_alignment":
-        q["question"] = f"Who decides on, and pays for, {offer_name(entry)}?"
-    elif key == "commercial.purchase_friction":
-        q["question"] = f"What could slow or stop them buying {offer_name(entry)}?"
-        options = purchase_friction_labels(entry)
-    elif key == "commercial.commitment":
-        q["question"] = f"Which real next steps would they take now to try {offer_name(entry)}?"
-        options = commitment_labels(entry)
-    else:
-        raise VectorsScriptError(f"{entry.id}: no calibration wording for {key}")
-    if key in FIXED_LABELS and key != "commercial.ability_to_pay":
-        q["options"] = [{"label": label, "belief_phrase": _phrase(entry, key, code, phrase)}
-                        for label, code, phrase in FIXED_LABELS[key]]
-    elif options:
-        q["options"] = [{"label": label, "belief_phrase": _phrase(entry, key, code, label.lower())}
-                        for label, code in options]
+        chosen = _chosen_codes(entry, key)
+        phrase = _founder(entry, key).get("belief_phrase")
+        q["options"] = [{"label": label,
+                         "belief_phrase": phrase if (phrase and code in chosen) else default}
+                        for label, code, default in PREVALENCE_OPTIONS]
+    elif is_list(key):
+        q["list"] = drafted_list(entry, key)
+    elif key not in ("problem.frequency", "commercial.price", "commercial.existing_sacrifice"):
+        raise VectorsScriptError(f"{entry.id}: no calibration shape for {key}")
     return q
 
 
-def calibration_result(entry, vector: str) -> dict:
-    return {"vector": vector,
-            "questions": [calibration_question(entry, key) for key in calibrated_keys(entry, vector)]}
+def calibration_result(entry, vector: str, only: str | None = None) -> dict:
+    """A vector's calibration: every dimension of the slice, or -- a redraft -- the one list dimension the
+    founder answered (keel-cloud 087 judgement call 8; `C1`: the keys are the one dimension redrafted)."""
+    keys = [only] if only else calibrated_keys(entry, vector)
+    return {"vector": vector, "questions": [calibration_question(entry, key) for key in keys]}
+
+
+def calibration_jobs(entry) -> list[tuple[str, str | None]]:
+    """Every `CALIBRATION_QUESTIONS` job a journey runs, in the order it runs them: a vector's slice on its
+    seed's confirmation (the persona for COMMERCIAL), then one redraft per list dimension the founder
+    answers in words (a dimension left out is not drafted). The scripted executor consumes a screen's
+    entries in order and all of them share one key set, so this order is the script's."""
+    jobs: list[tuple[str, str | None]] = []
+    for vector in VECTORS:
+        jobs.append((vector, None))
+        for key in founder_keys(entry, vector):
+            if is_list(key) and not entry.unsure(key):
+                jobs.append((vector, key))
+    return jobs
 
 
 @dataclass(frozen=True)
 class CalibrationAnswer:
     dimension: str
     body: dict          # the wire's CalibrationAnswer, `dimension` included
+    #: A list dimension's Answer-screen words (None elsewhere, and where the founder left it out).
+    text: str | None = None
 
     def as_wire(self) -> dict:
         return dict(self.body)
 
+    @property
+    def unsure(self) -> bool:
+        return bool(self.body.get("unsure"))
+
+    @property
+    def listed(self) -> dict | None:
+        return self.body.get("list")
+
 
 def calibration_answers(entry, vector: str) -> list[CalibrationAnswer]:
     """One typed answer per calibrated dimension, the corpus's own (keel-cloud
-    `VectorCorpusFixture.founderAnswer`'s mapping): codes for a closed control, `interval` for
-    Frequency, `cost` / `price` for the two commercial numbers, `unsure` for a dimension left out.
+    `VectorCorpusFixture.founderAnswer`'s mapping): codes for Prevalence, `interval` for Frequency, `cost` /
+    `price` for the two commercial numbers, `list` (the saved list, posted as keel-web posts it: labels,
+    the untouched faces, `pickedIndex`, `phrase`) for a list dimension, `unsure` for a dimension left out.
     Ability to pay is never sent -- it is derived."""
     out = []
-    keys = founder_keys(entry, vector)
-    for key in keys:
+    for key in founder_keys(entry, vector):
         founder = _founder(entry, key)
         answer = founder.get("answer")
         body: dict = {"dimension": key}
+        text = None
         if founder.get("unsure") or answer is None:
             body["unsure"] = True
         elif key == "problem.frequency":
@@ -504,12 +578,29 @@ def calibration_answers(entry, vector: str) -> list[CalibrationAnswer]:
                 body["cost"]["rate"] = answer["rate"]
         elif key == "commercial.price":
             body["price"] = {k: answer[k] for k in ("low", "high", "period")}
+        elif is_list(key):
+            saved = saved_list(entry, key)
+            listed: dict = {"items": [{k: v for k, v in item.items() if k != "code"} for item in saved["items"]],
+                            "pickedIndex": saved["pickedIndex"]}
+            if saved["phrase"]:
+                listed["phrase"] = saved["phrase"]
+            body["list"] = listed
+            text = answer_text(entry, key)
         elif isinstance(answer, (str, list)):
             body["codes"] = _chosen_codes(entry, key)
         else:
             raise VectorsScriptError(f"{entry.id}: {key}'s founder answer {answer!r} has no wire shape")
-        out.append(CalibrationAnswer(dimension=key, body=body))
+        out.append(CalibrationAnswer(dimension=key, body=body, text=text))
     return out
+
+
+def asked_result(entry, key: str) -> dict:
+    """The `ASKED` result for one saved list (keel-cloud 088 FR-003): each item's stranger's face by its
+    index, the corpus's own `asked` (K1: one face per index handed). The journey saves every list untouched,
+    so code vouches for every face and no ASKED job runs; the entry is here so one would be answered."""
+    saved = founder_list(entry, key)
+    return {"items": [{"index": i, "asked": item["asked"]} for i, item in enumerate(saved["items"])
+                      if item.get("asked")]}
 
 
 def hourly_rate(entry) -> float | None:
@@ -544,64 +635,16 @@ def respondent_jobs(entry) -> list[tuple[int, str]]:
     return [(1, LINK_PRIMARY), (2, LINK_PRIMARY), (3, LINK_PRIMARY)]
 
 
-def importance_labels(entry) -> list[str]:
-    """Importance's difficulties, the problem's own first (keel-cloud moves it off the top), each the
-    slug-inverse of its corpus code so keel-cloud's slug is the corpus code."""
-    row = entry.respondent_questions.get("problem.importance") or {}
-    own = row.get("own_item")
-    codes = [c for c in row.get("codes") or [] if c not in RESPONDENT_ESCAPES]
-    if own not in codes:
-        raise VectorsScriptError(f"{entry.id}: problem.importance's own_item {own!r} is not one of "
-                                 f"its codes {codes}")
-    ordered = [own] + [c for c in codes if c != own]
-    return [label_of_code(c) for c in ordered]
-
-
-def respondent_item(entry, key: str, part: int) -> dict:
-    ctx = _ctx(entry)
-    item: dict = {"key": key}
-    if key in ("commercial.price", "commercial.existing_sacrifice", "solution.relative_advantage",
-               "problem.frequency"):
-        return item
+def respondent_item(entry, key: str) -> dict:
+    """keel-cloud 088 FR-002: the item is `{key}`, the gate `{key, event}` -- every other word is code's."""
     if key == "problem.prevalence":
-        item["event"] = event_base(entry)
-        return item
-    if key == "problem.importance":
-        item["question"] = (f"If you could make one part of that time easier, when "
-                            f"{ctx['circumstance']}, which would it be?")
-        item["options"] = importance_labels(entry)
-        return item
-    words = {
-        "problem.current_solution_satisfaction": "That time, how well did your own way of handling it go?",
-        "solution.compatibility": f"Think back to that time. At what point could {short_name(entry)} have fitted?",
-        "solution.adoption_friction": (f"That time, how much could you have managed to get "
-                                       f"{short_name(entry)}?"),
-        "commercial.ability_to_pay": (f"When you last paid for {offer_name(entry)}, where did the money "
-                                      "come from?"),
-        "commercial.buyer_payer_alignment": f"Who would decide on, and pay for, {offer_name(entry)}?",
-        "commercial.purchase_friction": (f"The last time you nearly bought {offer_name(entry)}, what got "
-                                         "in the way?"),
-        "commercial.commitment": f"Which of these would you actually do now to try {offer_name(entry)}?",
-    }
-    if key not in words:
-        raise VectorsScriptError(f"{entry.id}: no respondent wording for {key}")
-    item["question"] = words[key]
-    if key in FIXED_LABELS:
-        item["options"] = [label for label, code, _ in FIXED_LABELS[key]
-                           if code not in RESPONDENT_ESCAPES]
-    elif key == "commercial.purchase_friction":
-        founder = [label for label, _ in purchase_friction_labels(entry)]
-        # The founder's labels verbatim plus two distractors, the founder's first label never first
-        # (rule R2). The distractors are the referee's and slug to no corpus code.
-        item["options"] = ["Waiting for a quote", founder[0], "A competing offer"] + founder[1:]
-    elif key == "commercial.commitment":
-        item["options"] = [label for label, _ in commitment_labels(entry)]
-    return item
+        return {"key": key, "event": event_base(entry)}
+    return {"key": key}
 
 
 def respondent_result(entry, part: int, link: str) -> dict:
     return {"part": part, "link": link,
-            "items": [respondent_item(entry, key, part) for key in plan_keys(entry, part, link)]}
+            "items": [respondent_item(entry, key) for key in plan_keys(entry, part, link)]}
 
 
 # ------------------------------------------------------------------------- the readings, the brief
@@ -624,52 +667,50 @@ def interpret_entries(entry) -> list[dict]:
     return out
 
 
-def deal_breaker_cites(entry) -> dict[str, list[str]]:
-    """One or two dimension keys per vector to cite: the vector's deciding dimension first (it is
-    always among `facts.keys`), then the next deal-breaker the founder did not leave out."""
-    order = {"PROBLEM": ["problem.prevalence", "problem.importance",
-                         "problem.current_solution_satisfaction"],
-             "SOLUTION": ["solution.compatibility", "solution.relative_advantage",
-                          "solution.adoption_friction"],
-             "COMMERCIAL": ["commercial.existing_sacrifice", "commercial.buyer_payer_alignment",
-                            "commercial.commitment"]}
-    verdicts = entry.expected.get("vector_verdicts") or {}
-    out = {}
-    for vector, keys in order.items():
-        keys = [k for k in keys if not entry.unsure(k)]
-        deciding = (verdicts.get(vector) or {}).get("deciding")
-        if deciding in keys:
-            keys = [deciding] + [k for k in keys if k != deciding]
-        out[vector] = keys[:2]
-    return out
+#: A stage's verdicts that `broke` (keel-cloud 089 judgement call 10): its answer must cite what broke.
+BROKE = ("NOT_HOLDING_UP", "PEOPLE_DISAGREE")
+
+
+def stage_cite(entry, vector: str) -> str:
+    """The one dimension a stage's answer cites: the entry's deciding dimension (`broke.key` where the stage
+    broke, keel-cloud 089 FR-007), else the stage's first dimension the founder did not leave out."""
+    deciding = ((entry.expected.get("vector_verdicts") or {}).get(vector) or {}).get("deciding")
+    if deciding:
+        return str(deciding)
+    keys = [k for k in founder_keys(entry, vector) if not entry.unsure(k)]
+    if not keys:
+        raise VectorsScriptError(f"{entry.id}: {vector} has no dimension to cite")
+    return keys[0]
+
+
+def broke_key(entry, vector: str) -> str | None:
+    """The corpus's own `broke` for a stage: its deciding dimension when the verdict is a called failure."""
+    verdict = (entry.expected.get("vector_verdicts") or {}).get(vector) or {}
+    return verdict.get("deciding") if verdict.get("verdict") in BROKE else None
 
 
 def brief_result(entry) -> dict:
-    """The BRIEF reading, worded by the referee and checkable without a model: every sentence cites
-    a deal-breaker of its own vector, carries no digit, no currency, no name and no banned word, and
-    there are no tests, no quotes and no `sharpest` (keel-cloud `BriefReading.check`)."""
-    cites = deal_breaker_cites(entry)
+    """The BRIEF reading (contract 13), worded by the referee and checkable without a model
+    (keel-cloud `BriefReading.check`): a headline and one answer a stage, each one sentence of at most 45
+    words, citing the stage's deciding dimension (what broke, where it broke), with no digit, no currency,
+    no person's name and no banned word; no tests and no quotes."""
     who = entry.title.split("—")[0].strip()
 
-    def sentence(text, keys):
-        return {"text": text, "cites": list(keys)}
+    def answer(vector: str, subject: str) -> dict:
+        key = stage_cite(entry, vector)
+        if broke_key(entry, vector):
+            text = f"On {subject}, {NAMES[key]} is what broke, so it is what to change before anything else."
+        else:
+            text = f"On {subject}, {NAMES[key]} decides the reading, as the counted answers show."
+        return {"answer": {"text": text, "cites": [key]}}
 
-    lead = f"Scripted by the referee from the frozen corpus entry for {who}, not written by a model."
     return {
-        "headline": sentence(lead, [cites["PROBLEM"][0]]),
-        "tiles": {v.lower(): sentence(f"The {v.lower()} reading is the counted standing, as scripted.",
-                                      cites[v][:1]) for v in VECTORS},
-        "problem": {"conclusion": sentence("The problem is read off the deal-breakers below.",
-                                           cites["PROBLEM"][:1]),
-                    "infer": sentence("Two problem deal-breakers are read together here.",
-                                      cites["PROBLEM"][:2])},
-        "solution": {"conclusion": sentence("The solution is read off its deal-breakers.",
-                                            cites["SOLUTION"][:1])},
-        "commercial": {"conclusion": sentence("The commercial case is read off its deal-breakers.",
-                                              cites["COMMERCIAL"][:1])},
-        "next": {"sentence": sentence("Read the counted standings before deciding anything.",
-                                      [cites["PROBLEM"][0]]),
-                 "tests": []},
+        "headline": {"text": f"Scripted by the referee from the frozen corpus entry for {who}, not written "
+                             "by a model.", "cites": [stage_cite(entry, "PROBLEM")]},
+        "problem": answer("PROBLEM", "the problem"),
+        "solution": answer("SOLUTION", "the solution"),
+        "commercial": answer("COMMERCIAL", "what they would pay"),
+        "next": {"tests": []},
         "quotes": [],
     }
 
@@ -696,17 +737,22 @@ def _completed(result: dict) -> dict:
 
 
 def generate(entry) -> GeneratedScript:
-    """The runtime script for one entry. `CALIBRATION_QUESTIONS` is three entries in the corridor's
-    own order -- PROBLEM on the problem's confirmation, SOLUTION on the mechanism's, COMMERCIAL on
-    the persona -- because the job's context key set is the same for all three and the scripted
-    executor consumes a screen's entries in order. `INTERPRET` is one entry per readable person, in
-    corpus order, which is why the journey reads after each person."""
+    """The runtime script for one entry. `CALIBRATION_QUESTIONS` is one entry per job of
+    `calibration_jobs`, in the corridor's own order, because every one of them shares one key set and the
+    scripted executor consumes a screen's entries in order. `ASKED` is one entry per saved list with faces,
+    in corridor order. `INTERPRET` is one entry per readable person, in corpus order, which is why the
+    journey reads after each person."""
     screens: dict[str, list[dict]] = {
         CONTEXT_SCREEN: [_completed(context_result(entry))],
         PROBLEM_SCREEN: [_completed(problem_result(entry))],
         MECHANISM_SCREEN: [_completed(mechanism_result(entry))],
-        CALIBRATION_SCREEN: [_completed(calibration_result(entry, v)) for v in VECTORS],
+        CALIBRATION_SCREEN: [_completed(calibration_result(entry, vector, only))
+                             for vector, only in calibration_jobs(entry)],
     }
+    asked = [_completed(asked_result(entry, key)) for key in ("solution.compatibility", "solution.adoption_friction")
+             if not entry.unsure(key)]
+    if asked:
+        screens[ASKED_SCREEN] = asked
     for part, link in respondent_jobs(entry):
         screens[RESPONDENT_ALIASES[(part, link)]] = [_completed(respondent_result(entry, part, link))]
     interpret = interpret_entries(entry)
@@ -732,7 +778,7 @@ def context_keys_for(exported: dict) -> dict:
       alias (`RESPONDENT_ALIASES`) and its own entry.
     * **The classic screens are dropped.** No classic job runs on a vectors project, and a table
       that cannot answer one is the honest table.
-    * Nothing else: `CALIBRATION_QUESTIONS`, `INTERPRET` and `BRIEF` are the export's own sets.
+    * Nothing else: `CALIBRATION_QUESTIONS`, `ASKED`, `INTERPRET` and `BRIEF` are the export's own sets.
     """
     out = {}
     for screen in CORRIDOR_SCREENS:
@@ -783,8 +829,10 @@ def founder_inputs(entry) -> FounderInputs:
     if missing:
         raise VectorsScriptError(f"{entry.id}: no {', '.join(missing)} statement")
     if is_b2b(entry):
-        role = entry.role(entry.decision_maker_role()) or {}
-        decider = {"kind": "SOMEONE_ELSE", "role": role.get("label") or entry.decision_maker_role()}
+        # Spec 041 call 93: the persona's role as r10 records it (`persona.decision_maker.role`: *agency*,
+        # *owner*), the word keel-cloud 087 read it as ("a B2B decider is the persona's role, 'the agency'"), so
+        # Buyer and payer's belief -- "The agency decides, ..." -- is the corpus's; not the role's `label`.
+        decider = {"kind": "SOMEONE_ELSE", "role": entry.decision_maker_role()}
     else:
         decider = {"kind": "SAME_PERSON"}
     return FounderInputs(
@@ -804,21 +852,21 @@ def founder_inputs(entry) -> FounderInputs:
 
 @dataclass(frozen=True)
 class Pick:
-    """One item's answer, by dimension and by code -- the ids are computed per token."""
+    """One item's answer, by dimension and by the wire's code -- the ids are computed per token."""
     dimension: str
     codes: list = field(default_factory=list)
     advantages: list = field(default_factory=list)
     cost: dict | None = None
     scale: int | None = None
     chip: str | None = None
-    #: The recall period the corpus recorded a cost total over (`quarter` throughout r9).
+    #: The recall period the corpus recorded a cost total over (`quarter` throughout r10).
     cost_period: str | None = None
 
     def asked_over(self, period: str | None) -> "Pick":
         """This cost total re-expressed over `period`, the recall period keel-cloud asks it over
         (`InterviewItem.costTotal.recallPeriod`), by keel-cloud's own `Period` days -- so the cost the
         engine normalises to the founder's period is the corpus's to the last digit (spec 039 D-3)."""
-        if self.cost is None or self.cost.get("nothing") or not period or not self.cost_period \
+        if self.cost is None or not self.cost.get("value") or not period or not self.cost_period \
                 or period == self.cost_period:
             return self
         factor = PERIOD_DAYS[period] / PERIOD_DAYS[self.cost_period]
@@ -838,8 +886,6 @@ class Pick:
             out["costTotal"] = dict(self.cost)
             return out
         out["optionIds"] = [option_id(token, self.dimension, c) for c in self.codes]
-        if "something_else" in self.codes:
-            out["somethingElse"] = True
         if self.advantages:
             out["advantageIds"] = [option_id(token, self.dimension, a) for a in self.advantages]
         return out
@@ -872,29 +918,32 @@ class PersonInputs:
         return body
 
 
-_CHIPS = {"cant_recall": "CANT_RECALL", "rather_not_say": "RATHER_NOT_SAY"}
-
 #: keel-cloud `Period`'s days, the one table a cost total is normalised by.
 PERIOD_DAYS = {"day": 1.0, "week": 7.0, "month": 30.4375, "quarter": 91.3125, "year": 365.25}
 
 
 def _pick(entry, key: str, raw) -> Pick:
     if isinstance(raw, dict) and raw.get("chip"):
-        return Pick(dimension=key, chip=str(raw["chip"]).upper())
+        chip = str(raw["chip"])
+        if chip not in ESCAPES:
+            raise VectorsScriptError(f"{entry.id}: {key}'s chip {chip!r} is not an escape at contract 13")
+        return Pick(dimension=key, chip=chip.upper())
     if key == "commercial.existing_sacrifice":
         if not isinstance(raw, dict):
             raise VectorsScriptError(f"{entry.id}: {key} pick {raw!r} is not a cost total")
         if raw.get("nothing"):
-            return Pick(dimension=key, cost={"nothing": True}, cost_period=raw.get("period"))
+            # D8 (keel-web 064 call 9): "nothing" is the number 0, typed -- as an amount
+            return Pick(dimension=key, cost={"mode": "AMOUNT", "value": 0}, cost_period=raw.get("period"))
         return Pick(dimension=key, cost={"mode": raw["mode"], "value": raw["value"]},
                     cost_period=raw.get("period"))
     if key == "solution.relative_advantage":
-        return Pick(dimension=key, codes=[raw["answer"]], advantages=list(raw.get("advantages") or []))
+        return Pick(dimension=key, codes=[raw["answer"]],
+                    advantages=[on_the_wire(entry, key, a) for a in raw.get("advantages") or []])
     if key == "problem.frequency":
         return Pick(dimension=key, scale=int(raw))
     if isinstance(raw, list):
-        return Pick(dimension=key, codes=[str(c) for c in raw])
-    return Pick(dimension=key, codes=[str(raw)])
+        return Pick(dimension=key, codes=[on_the_wire(entry, key, str(c)) for c in raw])
+    return Pick(dimension=key, codes=[on_the_wire(entry, key, str(raw))])
 
 
 def person_inputs(entry) -> list[PersonInputs]:
@@ -910,7 +959,7 @@ def person_inputs(entry) -> list[PersonInputs]:
         people.append(PersonInputs(
             person=person.person, link=person.link,
             recency=None if person.link == LINK_B2B else person.recency == "yes",
-            story=person.story, anchor_chip=_CHIPS.get(person.chip) if person.chip else None,
+            story=person.story, anchor_chip=STORY_CHIPS.get(person.chip) if person.chip else None,
             picks=picks, pilot_opt_in=person.pilot_opt_in, anchoring=person.anchoring))
     return people
 
@@ -939,7 +988,8 @@ def people_to_invite(entry, count: int) -> tuple[list[PersonInputs], list[str]]:
 def inputs_json(entry, founder: FounderInputs, people: list[PersonInputs]) -> dict:
     return {"_entry_id": entry.id,
             "founder": {**asdict(founder),
-                        "calibration": {v: [a.as_wire() for a in answers]
+                        "calibration": {v: [{**a.as_wire(), **({"_answer": a.text} if a.text else {})}
+                                            for a in answers]
                                         for v, answers in founder.calibration.items()}},
             "people": [asdict(p) for p in people],
             "composed": list(COMPOSED)}

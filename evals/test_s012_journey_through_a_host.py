@@ -966,13 +966,14 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
         # at read time -- keel-cloud spec 044 FR-033, design X2).
         credits_before = _credits_now() if KEELS_AI else None
 
-        # **Leg two is the vectors corridor now** (keel-e2e-eval spec 039). It walks the very leg
-        # functions S-005, S-006 and S-007 walk -- `evals/corpus_scenario.py`, one function per leg
-        # -- opened with `strict=False`: the host's model writes every card, every question and
-        # every reading, so the same screens are held to the same wire and nothing is held to the
-        # corpus's own words or counts (spec 016 FR-007, kept). What the founder types and what each
-        # person answers are the entry's own (`harness/vectors_script.py`), on whatever options the
-        # model wrote.
+        # **Leg two is the vectors corridor now** (keel-e2e-eval spec 039; spec 041: corpus revision 10 and
+        # keel-web 063 / 064's screens). It walks the very leg functions S-005, S-006 and S-007 walk --
+        # `evals/corpus_scenario.py`, one function per leg -- opened with `strict=False`: the host's model
+        # writes every card, every drafted list, the gate's clause and every reading, so the same screens are
+        # held to the same wire and nothing is held to the corpus's own words or counts (spec 016 FR-007,
+        # kept). What the founder types (the Answer words, each saved list as the model drafted it, the
+        # entry's picked index) and what each person answers are the entry's own (`harness/vectors_script.py`),
+        # on whatever lists the model drafted.
         journey = corpus_scenario.open_journey(
             recorder, page, context, browser, stack, entry, founder, people_chosen,
             strict=False, patience=JOURNEY_PATIENCE)
