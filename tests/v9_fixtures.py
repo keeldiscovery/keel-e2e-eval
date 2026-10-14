@@ -28,11 +28,10 @@ ENTRY_B2B = FIXTURES / "corpus" / "10-fixture-b2b.yaml"
 COMPARE = FIXTURES / "compare"
 V8_BUNDLE = FIXTURES / "runs" / "v8-bundle"
 
-#: Why a test reading keel-cloud's canon corpus skips: the canon is not at the reader's revision (calls 49, 78 --
-#: there is no fixture fallback; keel-cloud 087 carries revision 10).
-CANON_NOT_R10 = ("keel-cloud's canon corpus is not at revision 10 (keel-cloud 087) -- spec 040 reads "
-                 "the corpus from keel-cloud's canon and nowhere else (judgement calls 49, 78)")
-CANON_NOT_R7 = CANON_NOT_R10
+#: Why a test reading keel-cloud's canon corpus skips: the canon is not at the reader's revision (calls 49, 78, 110 --
+#: there is no fixture fallback; keel-cloud 091 carries revision 11).
+CANON_NOT_R11 = ("keel-cloud's canon corpus is not at revision 11 (keel-cloud 091) -- spec 042 reads "
+                 "the corpus from keel-cloud's canon and nowhere else (judgement calls 49, 78, 110)")
 
 
 def canon_dir() -> Path:
@@ -42,7 +41,7 @@ def canon_dir() -> Path:
 
 
 def canon_entry(name: str) -> Path:
-    """One of keel-cloud's revision-10 entries (`03-lullaby.yaml`...), or a skip naming why."""
+    """One of keel-cloud's revision-11 entries (`03-lullaby.yaml`...), or a skip naming why."""
     import pytest                                                     # noqa: PLC0415
     path = canon_dir() / name
     try:
@@ -50,7 +49,7 @@ def canon_entry(name: str) -> Path:
     except (OSError, AttributeError, yaml.YAMLError):
         revision = None
     if revision != corpus_mod.REVISION:
-        pytest.skip(CANON_NOT_R10)
+        pytest.skip(CANON_NOT_R11)
     return path
 
 

@@ -1,5 +1,5 @@
 """S-006: `05-paidly`, the widest B2B entry, walked through the vector corridor (spec 039; spec 041: corpus
-revision 10, keel-web 063 / 064).
+revision 10, keel-web 063 / 064; spec 042: corpus revision 11, contract 14).
 
 Twenty people on **two links**: twelve freelance translators answer parts 1 and 2 on the primary
 link, and eight agency project managers -- the decision-makers -- answer part 3 alone on their own
@@ -12,6 +12,16 @@ five anchored people, reading a real verdict. Revision 9 has no paidly dimension
 the smallest anchored count is eight -- so that assertion has no subject left (spec 039 D-6). What
 survives of it is the floor itself, which is now the wire's to say: every dimension carries
 `floor: 5`, and every paidly dimension sits above it and calls a real status.
+
+**The founder names the idea** (spec 042, keel-cloud 090 D14). Paidly's founder types *Invoice payout service* over
+S2's what line instead of saving Keel's *payment within seven days*: the wire's idea and short name become *invoice
+payout service* (sentence case read mid-sentence), every translator's reveal and idea card and every decision-maker's
+opening screen read *Imagine invoice payout service.*, and the Relative advantage question is *On your last invoice,
+would invoice payout service have made things better, or not?*. The other two journeys keep Keel's draft name.
+
+**Frequency is asked** since revision 11 (keel-cloud 091 FR-G): the founder's *2 to 3 months out of 3* fits the
+`{3, MONTHS}` window, so spec 041's D-1 left-out Frequency is gone here -- asked of every translator, holding up (n 9,
+median 2).
 """
 
 from __future__ import annotations
@@ -89,6 +99,45 @@ def _paidly_extras(j) -> None:
                         {"people": people, "tiles": j.screens["board"]["tiles"]})
         assert people.get("invited") == 20 and people.get("answered") == 20, people
         assert "20" in j.screens["board"]["tiles"], j.screens["board"]["tiles"]
+
+
+    named = vs.idea_name_of(vs.IDEA_NAMES[ENTRY_ID])
+    with j.recorder.step(f"S-006: the founder's name for the idea, {vs.IDEA_NAMES[ENTRY_ID]!r}, is on the wire and on "
+                         "every stranger's screen that names the idea (keel-cloud 090, D14)",
+                         party="participant", kind="assert") as h:
+        idea = j.get(j.project("/idea")) or {}
+        card = vs.idea_card(named)
+        question = vs.benefit_question(vs.occasion(j.entry), named)
+        reveals = {p.person: (j.interviews[p.person].get("reveal") or {}).get("what") for p in primary
+                   if j.interviews[p.person].get("reveal")}
+        openings = {p.person: (j.interviews[p.person].get("idea") or {}).get("what") for p in deciders}
+        asked = {p.person: next((i.get("question") for q in j.interviews[p.person].get("parts") or []
+                                 for i in q.get("items") or [] if i.get("dimension") == "solution.relative_advantage"),
+                                None) for p in primary if j.interviews[p.person].get("parts")}
+        cards = {p.person: [s.get("idea_card") for s in j.walked[p.person]["screens"]
+                            if s.get("screen") == "item" and s.get("dimension") == "solution.relative_advantage"]
+                 for p in primary}
+        h.record_assert({"what": named, "shortName": named, "card": card, "question": question},
+                        {"idea": idea, "reveals": reveals, "openings": openings, "asked": asked, "cards": cards})
+        assert named == "invoice payout service" and card == "Imagine invoice payout service.", (named, card)
+        assert idea.get("what") == named and idea.get("shortName") == named, idea
+        assert named != j.entry.solution_mechanism["short_name"], named
+        assert reveals and set(reveals.values()) == {card}, reveals
+        assert openings and set(openings.values()) == {card}, openings
+        asked = {k: v for k, v in asked.items() if v is not None}
+        assert asked and set(asked.values()) == {question}, asked
+        drawn = [c for cs in cards.values() for c in cs]
+        assert drawn and set(drawn) == {card}, cards
+
+    with j.recorder.step("S-006: Frequency is asked on the three months and holds up -- revision 11's months out of "
+                         "3 fit the window (spec 041's D-1 gone here)", party="participant", kind="assert") as h:
+        frequency = standings["problem.frequency"]
+        h.record_assert({"status": "HOLDING_UP", "n": 9, "founder": "2 to 3 months out of 3"},
+                        {"frequency": {k: frequency.get(k) for k in ("status", "n", "interval")},
+                         "screen": j.framing["problem.frequency"][0].get("question")})
+        assert vs.frequency_fits(j.entry)
+        assert frequency.get("status") == "HOLDING_UP" and frequency.get("n") == 9, frequency
+        assert "3 months" in (j.framing["problem.frequency"][0].get("question") or ""), j.framing["problem.frequency"]
 
 
 def test_s006_paidly(stack, founder_one, browser, run_dir):

@@ -1,5 +1,5 @@
 """S-007: `07-mulchrun`, the only US market, walked through the vector corridor (spec 039; spec 041: corpus
-revision 10, keel-web 063 / 064).
+revision 10, keel-web 063 / 064; spec 042: revision 11, contract 14 -- Frequency still left out, D-1).
 
 `{country: US, region: TX, language: en-US}` -- the only entry that exercises a non-null region, the
 dollar and American English, and a founder who left the price out. What was asserted about miles,

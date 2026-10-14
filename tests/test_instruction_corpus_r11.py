@@ -1,11 +1,12 @@
-"""`instructions/corpus.py` at revision 10: the loader on a hand-sized entry (spec 029 FR-006, data-model
-§2-§3; T012; at revision 10 by spec 040 T004, judgement call 78; earlier revisions by specs 030-038).
+"""`instructions/corpus.py` at revision 11: the loader on a hand-sized entry (spec 029 FR-006, data-model
+§2-§3; T012; at revision 10 by spec 040 T004, judgement call 78; at revision 11 by spec 042, call 110 -- revision
+10's rules and r11's K3 / S10 in L; earlier revisions by specs 030-038).
 
 Everything the scorers read off an entry -- the plan, the founder's lists and their tested item, the
 vocabulary and its inflection ledger, who is readable -- is checked here on `tests/fixtures/corpus/09-fixture.yaml`,
 which a person can count by hand: 12 people, Kit and Lu answer No at the gate, Jo chips, Ivy's story is vague, eight
 are anchored; Buyer and payer is left out. And every refusal of revision 10's S / W / L / R / A rules (the shape half
-of keel-cloud's `check_corpus_r10.py`) is made to happen once, from a one-line change to that file, naming the entry
+of keel-cloud's `check_corpus_r11.py`) is made to happen once, from a one-line change to that file, naming the entry
 and the key -- the registry-free ones on the file alone, the registry-bound ones (a list's `saves`, a row's control,
 codes and escape, a pick's code) only once the registry is bound.
 """
@@ -144,7 +145,7 @@ def _items(raw, key):
 
 def _revision(n, words):
     return (lambda r: r.__setitem__("revision", n),
-            f"revision is {n}; this eval reads revision 10 only -- revision {n} is {words}")
+            f"revision is {n}; this eval reads revision 11 only -- revision {n} is {words}")
 
 
 #: The registry-free refusals: the file alone is refused.
@@ -158,6 +159,13 @@ MUTATIONS = {
     "revision 7": _revision(7, "MARKS_VERSION 13's and 14's corpus"),
     "revision 8": _revision(8, "MARKS_VERSION 15's and 16's corpus, before benefit first"),
     "revision 9": _revision(9, "MARKS_VERSION 17's corpus, before the October redesign"),
+    # spec 042 call 110: revision 10 refused by name
+    "revision 10": _revision(10, "MARKS_VERSION 18's corpus, before keel-cloud 091"),
+    # r11's two rules in L (keel-cloud 091 FR-G, DRIFT #77): K3 on a face, S10 on Commitment's step
+    "a face with no you": (lambda r: _items(r, "solution.compatibility")[0].__setitem__(
+        "asked", "was the phone to hand"), "is said to the stranger and carries no 'you' or 'your' (rule L, K3)"),
+    "a step that says you": (lambda r: _items(r, "commercial.commitment")[0].__setitem__(
+        "label", "introduce you to the IT team"), "carries 'you'; code says it as 'would you {step}' (rule L, S10)"),
     "beliefs": (lambda r: r.__setitem__("beliefs", []), "`beliefs`"),
     "questionnaire": (lambda r: r.__setitem__("questionnaire", {}), "`questionnaire`"),
     "buckets": (lambda r: r["expected"].__setitem__("buckets", {}), "`expected.buckets`"),

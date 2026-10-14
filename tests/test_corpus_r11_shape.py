@@ -1,5 +1,8 @@
-"""Corpus revision 10, the real seven files, through the one reader (spec 040 FR-002, T004, judgement call 78;
-revision 9's by spec 038, first written for revision 3 by spec 029 T047).
+"""Corpus revision 11, the real seven files, through the one reader (spec 042 call 110; revision 10's by spec 040
+FR-002, T004, judgement call 78; revision 9's by spec 038, first written for revision 3 by spec 029 T047).
+
+Revision 11 (keel-cloud 091 FR-G) is revision 10 with DRIFT #77's five words fixed and 05-paidly's Frequency in its
+window's unit (one median moved, 5 -> 2); every other fact held here is revision 10's, unchanged.
 
 **One reader, one hash, one place** (spec 010's rule; judgement call 49): the files are read through
 `instructions.corpus.load` exactly as a run reads them -- keel-cloud's canon, and nowhere else. Nothing here is a copy
@@ -9,7 +12,7 @@ verdicts and 21 standings 087's table moved, the two re-windowed entries (D13), 
 list against the registry's `saves`, every pick's shape, the founder cost and the derived Ability to pay, the price
 ladder, the recall periods, and the B2B entries' decision-makers.
 
-When `stack.toml`'s keel-cloud is not at revision 10 every test here skips **by name**, with the reason -- never a
+When `stack.toml`'s keel-cloud is not at revision 11 every test here skips **by name**, with the reason -- never a
 fixture copy, which would be a second frozen corpus in all but name.
 """
 
@@ -34,14 +37,14 @@ B2B = ("05-paidly", "06-repeatline", "07-mulchrun")
 def corpus():
     keel_cloud = load_config(validate=False).keel_cloud
     for name in ENTRIES:
-        fx.canon_entry(f"{name}.yaml")                 # skips, by name, when canon is not r10
+        fx.canon_entry(f"{name}.yaml")                 # skips, by name, when canon is not r11
     return corpus_mod.load(keel_cloud, registry=fx.registry())
 
 
-def test_the_seven_entries_are_all_at_revision_ten(corpus):
+def test_the_seven_entries_are_all_at_revision_eleven(corpus):
     assert [e.id for e in corpus.entries] == list(ENTRIES)
     for entry in corpus.entries:
-        assert entry.revision == 10, entry.id
+        assert entry.revision == 11, entry.id
     assert Path(corpus.directory) == fx.canon_dir()
 
 
@@ -410,7 +413,7 @@ def test_the_corpus_reads_the_same_through_the_exported_registry(corpus):
     exported = registry_mod.load(path)
     for entry in corpus.entries:
         corpus_mod.load_file(entry.path, registry=exported)
-    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 10
+    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 11
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)
@@ -435,3 +438,30 @@ def test_every_relative_advantage_is_benefit_first(corpus):
         assert entry.respondent_questions[key] == {"part": 2, "control": "benefit_with_advantages",
                                                    "codes": ["positive", "neutral", "negative"],
                                                    "escape": "cant_tell"}, entry.id
+
+
+def test_revision_eleven_fixed_drift_77s_five_words_and_paidlys_frequency_unit(corpus):
+    """keel-cloud 091 FR-G (spec 042 call 110): every Compatibility and Adoption friction face says *you* / *your*
+    (DRIFT #77's four untested faces among them), 06-repeatline's step is *introduce us to ...* (one *you* when
+    composed), and 05-paidly's Frequency is in months out of 3 -- the founder's 2 to 3, every pick 0..3, median 2 with
+    status, drift, n and counts unchanged."""
+    faces = {(e.id, item.get("code")): item.get("asked") for e in corpus.entries
+             for key in ("solution.compatibility", "solution.adoption_friction")
+             for item in (e.founder_list(key) or {}).get("items") or [] if item.get("asked")}
+    no_you = {k: v for k, v in faces.items() if not any(w in v.lower().split() for w in ("you", "your", "you'd"))}
+    assert not no_you, no_you
+    for entry_id, code, word in (("01-countly", "invoice_came_with_it", "your invoice"),
+                                 ("02-compliancelog", "completions_recorded", "your learning system"),
+                                 ("03-lullaby", "quiet_enough", "your phone"),
+                                 ("07-mulchrun", "room_at_curb", "your job")):
+        assert word in faces[(entry_id, code)], (entry_id, faces[(entry_id, code)])
+    step = corpus.by_id("06-repeatline").founder_list("commercial.commitment")["items"][0]["label"]
+    assert step == "introduce us to the practice's IT supplier", step
+    paidly = corpus.by_id("05-paidly")
+    answer = paidly.founder_calibration["problem.frequency"]["answer"]
+    assert answer == {"lower": 2, "upper": 3, "unit": "months out of 3"}, answer
+    picks = [p.picks.get("problem.frequency") for p in paidly.people() if "problem.frequency" in (p.picks or {})]
+    assert picks and all(isinstance(v, int) and 0 <= v <= 3 for v in picks), picks
+    row = paidly.expected["standings"]["problem.frequency"]
+    assert {k: row[k] for k in ("status", "drift", "n", "inside", "outside", "median")} == {
+        "status": "HOLDING_UP", "drift": "none", "n": 9, "inside": 7, "outside": 2, "median": 2}, row

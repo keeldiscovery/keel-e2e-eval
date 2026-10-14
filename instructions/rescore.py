@@ -45,6 +45,9 @@ fiction. Refused the same way, in one line, by name, with the reason.
 option sets, a whole respondent questionnaire and a BRIEF reading with tiles, scored against corpus revision 9 and
 the nine deal-breakers; keel-cloud 087 / 088 / 089 (contract 13) have all thirteen decide, every respondent word
 code's and the brief answered over cards -- so a v18 number for it would be fiction. Refused the same way.
+**And across the v18 → v19 bump** (spec 042; judgement call 115). A v18 bundle was scored against corpus revision 10,
+with two stems held at 25 words and five corpus items named apart; keel-cloud 091 (contract 14) and revision 11 hold
+every stem to 20 and fixed the five -- so a v19 number for it would be fiction. Refused the same way.
 **And across the v14 → v15 bump** (spec 036; judgement call 74). A v14 bundle was scored against corpus revision 7's
 expected status / drift (a person beyond the founder's band on the supporting side read as outside it), which keel-cloud
 082 and revision 8 no longer hold, so a v15 number for it would be fiction. Refused the same way, in one line, by
@@ -134,8 +137,12 @@ CROSSED_THE_V18_BUMP = ("answered model-written option sets, a respondent questi
                         "tiles, against corpus revision 9 and the nine deal-breakers; keel-cloud 087 / 088 / 089 "
                         "(contract 13) have every dimension decide, every respondent word code's and the brief "
                         "answered over cards")
+#: The one sentence a v18 bundle is refused with (spec 042, judgement call 115).
+CROSSED_THE_V19_BUMP = ("was scored against corpus revision 10, with Existing sacrifice's and Relative advantage's "
+                        "stems held at 25 words and five corpus items named apart; keel-cloud 091 (contract 14) and "
+                        "revision 11 hold every stem to 20 and fixed the five")
 #: The oldest bundle this version re-scores.
-OLDEST = 18
+OLDEST = 19
 
 
 class _SilentRuntime:
@@ -163,6 +170,11 @@ def refusal(run_dir: Path, original: dict) -> str | None:
         return (f"{run_dir.name} was scored at marks_version {version}: {CROSSED_THE_BUMP}. "
                 "Not re-scored (spec 029 FR-004; judgement call 28) -- a v8 number is a "
                 "measurement of a product v9 does not judge, and the only v9 number is a v9 run.")
+    if version == 18:
+        return (f"{run_dir.name} was scored at marks_version {version}: a v18 scorecard cannot be "
+                f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V19_BUMP}. Not "
+                "re-scored (spec 042; judgement call 115) -- the only v19 number is a v19 run "
+                "(WHY=marks:19).")
     if version == 17:
         return (f"{run_dir.name} was scored at marks_version {version}: a v17 scorecard cannot be "
                 f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V18_BUMP}. Not "

@@ -19,6 +19,26 @@ persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
 by name. v10 has no run of record; it is history from v11.
 
+**`MARKS_VERSION` 19** (spec 042, 2026-10-14): the defects batch. The ruler follows keel-cloud 090 / 091 (keel-cloud-docs
+`c432c1d`; registry `VERSION` 4, document 20, `CONTRACT_VERSION` 14, routing v11, charge 7 -- the lock holds one job of
+35). No mark is born or retired and no number in `marks.toml` moved; four judgement calls moved under them, so the
+version moves (this module's own rule). The corpus is **revision 11** (call 110; a revision-10 file is refused by name
+as v18's): DRIFT #77's five words fixed -- four Compatibility faces say *your*, 06-repeatline's step is *introduce us
+to ...* -- and 05-paidly's Frequency in months out of 3, one median moved (5 -> 2), no status or verdict. `spoken_form`
+holds **every** stem to 20 words (call 111: keel-cloud 091 FR-E shortened the two frames call 79 allowed 25) with no
+item known apart (call 112: `spoken.KNOWN` is empty); an `L` refusal is read as the validator reports it, a rule
+(call 113: keel-cloud 091 FR-C added the letter, DRIFT #76 closed, call 86's reading gone); `brief_facts` reads 091's
+words -- `keelBar` on Importance and Current solution, the derived B2C Ability to pay line, `notAsked`'s house style
+(call 114). The model's screens, contexts and results are unchanged (091 moved no screen schema; 090 freed only the
+founder's idea name). `rescore.py` refuses every bundle below 19 (call 115). **There is no v19 run of record until
+`WHY=marks:19` is spent -- the certificate is the founder's word only; never run or propose it.** `DRY=1`-measurable at
+`c432c1d`: `compare_correctness` 108 of 108, `spoken_form` **109 of 109** (74 composed items + 35 faces, none apart),
+`brief_facts` 94 of 94. v18's paragraph below is history (v18 never had a run of record).
+The seven revision-11 files, by sha256 (keel-cloud canon's own bytes at keel-cloud-docs `c432c1d`, equal to
+`src/test/resources/keel/corpus-r11/`): `01-countly.yaml` `a3d899d134ca8a48cf075fef6d9133444bc3f64e19f8d60b8d3e3137183c5795`; `02-compliancelog.yaml` `a7c8a68cbd641dade0a1a57fbff885ef3308c1a7327b34cafdf6bf648c3161be`; `03-lullaby.yaml`
+`efd8df743e712f333e11195ce376f79922f5554705f8ae4ee577a951dc63f35e`; `04-linerly.yaml` `2dfa46d899d8b006fe5c9977ac2a8e814932cbc88a809f4e7e456d8e10b115f3`; `05-paidly.yaml` `3cef7d5eff5ea528d9b571f68b6ace0fe0b0f89a03eef3127150c627d6cf6668`; `06-repeatline.yaml` `02a04d8a5e38c4f6b5871caf8f904988b58fd81e3052e7b6e712b4e02fb6edc1`; `07-mulchrun.yaml`
+`47dde5e0565aef1cb3fd18e8efa8269ba83e2edf8b527de96097f16672840200`.
+
 **`MARKS_VERSION` 18** (spec 040, 2026-10-14): the October redesign. The ruler follows keel-cloud 087 / 088 / 089
 (keel-cloud-docs `7b151f9`; registry `VERSION` 4, document 20, `CONTRACT_VERSION` 13, routing v11, charge 7) and
 `canon/designs/design-2026-10-14.md` §9 row 11. **All thirteen dimensions decide** (D3): no weight, no DEAL_BREAKER,
@@ -823,6 +843,39 @@ sha256 `1cae4bb5b85bfeb47dedfb54b51ea9d06361f79bfecbee78cd21884445e81dea`. It is
     nor `INTERPRET`, judged by `BriefReading.check(...)`), so `validate.shapes_taken` read BRIEF as not taken and a real
     run would have left its refusal rate unmeasured. The call `BriefReading.check(` is now a marker beside the
     constant (`validate._CALL_MARKERS`); prose still never counts.
+
+Calls 91-109 are spec 041's (the journey on corpus revision 10): they read no mark and live in
+`specs/041-vectors-journey-r10/spec.md`, as spec 042's journey calls (116 on) live in its own.
+
+110. **v19**: **corpus revision 11, read from keel-cloud's canon only** (keel-cloud 091 FR-G). `load()` refuses any other
+    revision by name (revision 10 is v18's). What is checked is `check_corpus_r11.py`'s shape half: revision 10's S, W,
+    L, R, A (call 78) and r11's two rules in L -- every `asked` face carries *you* / *your* (`K3`) and Commitment's step
+    carries no *you* of its own (`S10`, since code says *would you {step}*). The unit fixtures are revision 11 (their
+    faces already said *you* and their step none; nothing in `expected` moved) and `check_corpus_r11.py` prints OK for
+    both. One standing moved on the corpus (05-paidly's Frequency median, 5 -> 2: months out of 3, not invoices out of
+    7); no status, drift, count or verdict, so `compare_correctness` stays 108 of 108.
+111. **v19**: **`S1` holds every stem to 20 words.** keel-cloud 091 FR-E shortened Relative advantage's frame (*On your
+    last {occasion}, would {name} have made things better, or not?*) and made Existing sacrifice's step down until it
+    fits, and its `SpokenGuidelinesCorpusTest` holds every item to 20; the 25-word allowance of call 79 and
+    `spoken.LONG_FRAMES` are gone.
+112. **v19**: **no corpus item is known apart.** Revision 11 rewrote the five items call 81 named (DRIFT #77, closed), so
+    `spoken.KNOWN` is empty and `spoken_form` counts every composed item and every face -- 109 units on the seven
+    entries. The ledger's machinery is kept (a known item no longer found would still be a fault); it has nothing to
+    fire on.
+113. **v19**: **an `L` refusal is a rule, as the validator reports it.** keel-cloud 091 FR-C added `L` to
+    `ScreenContractTool.VECTOR_RULE` (DRIFT #76, closed), so `validate.fold_in` and `runner.should_redraw` read the
+    report's `kind` as it is; call 86's reading of a shaped `L<n>` as a rule (`validate._reclassified`) is deleted, and
+    `validate.vector_rule_letters` reads the pattern off the validator's source so a unit test holds the letter there.
+114. **v19**: **`brief_facts` reads keel-cloud 091's words.** A card carries `keelBar` where Keel sets the bar --
+    Importance *holds if at least 2 in 3 put it in their two*, Current solution *holds if at least 2 in 3 say today's
+    way falls short (answers 3 to 5)*, absent on every other card and on a left-out one -- and it is one of the fields
+    a card's check compares; on a B2C entry Ability to pay's line is *derived from cost and price: already lose your
+    price or more*; `notAsked.why` is one house style (*it is derived from what they lose today and your price, so it
+    was not asked*; *a person, not a business, buys it, so it was not asked*), reported. Buyer and payer's *of the k
+    against, m said ...* is the insight half of `statusWords`, reported, never marked (call 82). Still 94 checks.
+115. **v19**: **`rescore.py` refuses every bundle below 19** by name: a v18 bundle was scored against corpus revision 10,
+    with the two frames held at 25 words and five corpus items named apart. The only v19 number is a v19 run
+    (`WHY=marks:19`).
 """
 
 from __future__ import annotations
@@ -830,7 +883,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 18
+MARKS_VERSION = 19
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 

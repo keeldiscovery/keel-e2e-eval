@@ -1,7 +1,11 @@
-"""The golden corpus at revision 10, read and never written (spec 029 FR-006/FR-012, data-model §2;
-spec 030 FR-002, judgement call 49; ...; spec 038 FR-001, call 81; spec 040 FR-002, call 78).
+"""The golden corpus at revision 11, read and never written (spec 029 FR-006/FR-012, data-model §2;
+spec 030 FR-002, judgement call 49; ...; spec 038 FR-001, call 81; spec 040 FR-002, call 78; spec 042 call 110).
 
-**Revision 10 only** (call 78; keel-cloud 087, `design-2026-10-14.md`): **all thirteen dimensions decide**
+**Revision 11 only** (call 110; keel-cloud 091 FR-G): revision 10's rules, and the respondent words a file authors
+held to the model's -- every `asked` face says *you* or *your* (`K3`), Commitment's step carries no *you* of its own
+(`S10`: code says it as *would you {step}*) -- and 05-paidly's Frequency in its window's unit (months out of 3). A
+revision-10 file is refused by name as v18's. What follows is revision 10's account, which r11 keeps:
+**Revision 10** (call 78; keel-cloud 087, `design-2026-10-14.md`): **all thirteen dimensions decide**
 (D3) -- a vector's verdict is the worst status of every dimension it calibrates, a tie to the first in
 registry order, every dimension left out `NOT_TESTED` -- and seven dimensions are the founder's **lists**
 (D4, D5, D7): Importance's five (own item first), Current solution's second-person `phrase` and five
@@ -12,14 +16,14 @@ The stranger answers a **fixed set with one escape** (D2): a respondent row carr
 fixed-answer row the registry's codes, a pick is a code of its row, two distinct codes on Importance, or
 `{chip: <the row's escape>}` -- never Commitment's, which has none. There is **no guessed flag** (D8) and
 **no one-unit window** (D13): a recall window counts at least two (`01-countly` {4, WEEKS}, `06-repeatline`
-{7, DAYS}), and every entry records `context.occasion`. A revision-9 file is refused by name as v17's.
+{7, DAYS}), and every entry records `context.occasion`.
 
 `canon/designs/measured-beliefs/corpus/*.yaml` in the keel-cloud checkout is the corpus. This
 module opens those files, hashes them on the way in, and offers `verify_unchanged()` so the end of
 a run can prove nothing here moved while it ran. **If an instruction cannot reach a golden, the
 instruction is wrong** -- or the design is, and it goes back to step 1. Never the corpus.
 
-What this reader checks is the **shape half** of keel-cloud's `sim/check_corpus_r10.py` (its S, W, L, R
+What this reader checks is the **shape half** of keel-cloud's `sim/check_corpus_r11.py` (its S, W, L, R
 and A rules, and r9's P, K, D, U, O); the recount (its C) is keel-cloud's engine's, asked through
 `COMPARE` (`compare_correctness`), and the checker's own -- this repository keeps no copy of the
 arithmetic. The registry-bound halves (a list's `saves`, a row's control, codes and escape, a pick's
@@ -55,7 +59,7 @@ from .registry import (ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTRO
                        FREQUENCY_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY,
                        PRICE_PERIODS, SACRIFICE_KEY, VECTORS, RecallWindow, words)
 
-REVISION = 10
+REVISION = 11
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51, 78).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
@@ -69,7 +73,9 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 8: "MARKS_VERSION 15's and 16's corpus, before benefit first (Relative advantage a single choice "
                    "among the founder's advantages, `choice_majority`)",
                 9: "MARKS_VERSION 17's corpus, before the October redesign (nine deal-breakers and four SHAPES, "
-                   "model-written option sets, chips and `something_else`, a one-unit window)"}
+                   "model-written option sets, chips and `something_else`, a one-unit window)",
+                10: "MARKS_VERSION 18's corpus, before keel-cloud 091 (four Compatibility faces with no 'you', "
+                    "06-repeatline's 'introduce you to', 05-paidly's Frequency in invoices out of 7)"}
 
 #: `sim/check_corpus_r5.py`'s `CURRENCY` (keel-cloud `Market.currency`'s table, the corpus's markets):
 #: a founder price is in its market's currency, never another.
@@ -202,13 +208,16 @@ R2_EXPECTED_KEYS = ("buckets", "stages")
 RESHAPED = ("problem.importance", "problem.current_solution_satisfaction", "solution.compatibility",
             "solution.adoption_friction", "commercial.buyer_payer_alignment",
             "commercial.purchase_friction", "commercial.commitment")
-#: The words a list label may never be (`check_corpus_r10.py`'s NOT_SURE).
+#: The words a list label may never be (`check_corpus_r11.py`'s NOT_SURE).
 NOT_SURE = ("not sure", "unsure", "don't know", "dont know", "no idea")
 #: A `context.occasion` is a noun of one to four words (rule W).
 OCCASION_MAX_WORDS = 4
 #: An `asked` clause is at most twenty words and asks nothing (design §4; rule L).
 ASKED_MAX_WORDS = 20
 _DIGITS = re.compile(r"\d+(?:[.,]\d+)?")
+#: r11's K3 and S10 (`check_corpus_r11.py`): a face carries the second person; a Commitment step carries no "you".
+_YOU = re.compile(r"(?i)\b(you|your|you'd|you're|yours)\b")
+_YOU_ALONE = re.compile(r"(?i)\byou\b")
 
 
 class CorpusError(RuntimeError):
@@ -531,7 +540,7 @@ def load_file(path, *, registry=None) -> Entry:
 # ------------------------------------------------------------------------------- the refusals
 
 def _refuse(entry_id, message, path) -> CorpusError:
-    return CorpusError(f"{entry_id}: {message} (spec 040 FR-002; judgement calls 49, 78). {path}")
+    return CorpusError(f"{entry_id}: {message} (spec 042; judgement calls 49, 78, 110). {path}")
 
 
 def _check_revision(raw: dict, path: Path) -> None:
@@ -555,7 +564,7 @@ def _check_revision(raw: dict, path: Path) -> None:
 
 
 def _out_of(raw: dict):
-    """Frequency's axis: the founder's "... out of N" (`check_corpus_r10.py`'s `out_of`), else `None`."""
+    """Frequency's axis: the founder's "... out of N" (`check_corpus_r11.py`'s `out_of`), else `None`."""
     answer = ((raw.get("founder_calibration") or {}).get(FREQUENCY_KEY) or {}).get("answer")
     match = re.search(r"out of (\d+)\s*$", str((answer or {}).get("unit") or "") if isinstance(answer, dict) else "")
     return int(match.group(1)) if match else None
@@ -566,7 +575,8 @@ def _digits(text) -> set:
 
 
 def _check_shape(raw: dict, path: Path) -> None:
-    """The registry-free half of `check_corpus_r10.py`'s S, W, L (shape), A (people) and r9's money rules."""
+    """The registry-free half of `check_corpus_r11.py`'s S, W, L (shape; r11's K3 and S10), A (people) and r9's money
+    rules."""
     entry_id = raw.get("id") or path.name
     context = raw.get("context") or {}
     # Rule W (D13): a window of at least two units, never one; an occasion of one to four words.
@@ -617,6 +627,14 @@ def _check_shape(raw: dict, path: Path) -> None:
                                           or "?" in asked):
                     raise _refuse(entry_id, f"{where}.asked {asked!r} is not a clause of 1 to "
                                             f"{ASKED_MAX_WORDS} words with no question mark", path)
+                if asked is not None and not _YOU.search(asked):
+                    # r11 (keel-cloud 091, DRIFT #77): a face is said to the stranger -- `K3`.
+                    raise _refuse(entry_id, f"{where}.asked {asked!r} is said to the stranger and carries no "
+                                            "'you' or 'your' (rule L, K3)", path)
+                if key == COMMITMENT_KEY and _YOU_ALONE.search(label):
+                    # r11 (keel-cloud 091): code says the step as "would you {step}" -- `S10`.
+                    raise _refuse(entry_id, f"{where}.label {label!r} carries 'you'; code says it as "
+                                            "'would you {step}' (rule L, S10)", path)
             if len(set(codes)) != len(codes):
                 raise _refuse(entry_id, f"founder_calibration[{key}]'s list repeats a code: {codes}", path)
     b2b = isinstance((raw.get("persona") or {}).get("decision_maker"), dict)

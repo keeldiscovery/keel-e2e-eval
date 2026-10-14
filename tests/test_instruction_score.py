@@ -357,14 +357,13 @@ def _drafted_from(entry, registry, vector) -> dict:
 
 
 @pytest.mark.parametrize("vector", ["PROBLEM", "SOLUTION", "COMMERCIAL"])
-def test_the_corpus_lists_as_a_draft_score_clean_but_for_the_known_face(lullaby, registry, vector):
-    """Calls 81, 85: Lullaby's own lists meet every L rule; the one fault is the Compatibility face *was the room
-    quiet enough for a phone to hear the cry* -- K3, one of the five known corpus items."""
+def test_the_corpus_lists_as_a_draft_score_clean(lullaby, registry, vector):
+    """Calls 85, 112: Lullaby's own lists meet every L rule and, at revision 11, every face the K rules too -- *was the
+    room quiet enough for your phone to hear the cry* says *your* (keel-cloud 091, DRIFT #77 closed)."""
     score = score_mod.score_calibration(fx.calibration_case(lullaby, vector), lullaby, registry,
                                         _drafted_from(lullaby, registry, vector), judge=fx.FakeJudge())
-    faults = [(f["key"], f["evidence"].split(":")[0]) for f in score.faults]
-    assert faults == ([(COMPAT, "K3")] if vector == "SOLUTION" else []), score.faults
-    assert ("03-lullaby", COMPAT, "K3", "quiet_enough") in spoken_mod.KNOWN
+    assert score.faults == [], score.faults
+    assert spoken_mod.KNOWN == ()
 
 
 # --------------------------------------------- respondent: the gate's clause (calls 30-32, 83)

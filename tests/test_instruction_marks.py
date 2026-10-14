@@ -1,6 +1,7 @@
-"""The rubric's own constants at `MARKS_VERSION` 18 (spec 029 FR-001 to FR-003, SC-001; T008; spec 030
+"""The rubric's own constants at `MARKS_VERSION` 19 (spec 029 FR-001 to FR-003, SC-001; T008; spec 030
 FR-003, T010: judgement calls 46-49; spec 031 FR-005, T010: judgement calls 50-58; spec 032 FR-005,
-T007: judgement calls 59-66; spec 033, calls 67-70; ...; spec 040, calls 77-90).
+T007: judgement calls 59-66; spec 033, calls 67-70; ...; spec 040, calls 77-90; spec 042, calls 110-115 --
+91-109 are spec 041's journey calls, which read no mark and are written in its spec, not here).
 
 Three things this holds, and none needs a model, a stack or a corpus:
 
@@ -11,7 +12,7 @@ list is a set, not a sorted run: call 22 sits between 16 and 17, where it was wr
 46-49 are spec 030's, each marked `**v10**`; 50-58 spec 031's, each marked `**v11**`; 59-66 spec
 032's, each marked `**v12**`; 67-70 spec 033's, each marked `**v13**`.
 
-**`marks.toml` carries the v18 header** and `DEFAULTS` follows it: ten keys -- v17's eight with
+**`marks.toml` carries the v19 header** (no number moved from v18's) and `DEFAULTS` follows it: ten keys -- v17's eight with
 `brief_paragraphs` become `brief_answers`, and `spoken_form` and `brief_facts` born (calls 79, 82) -- no
 `golden_belief_recall`, no `no_claim_words` and no `brief_paragraphs`: a verdict cannot carry a value for a
 retired mark.
@@ -38,14 +39,18 @@ def judgement_calls() -> list:
     return [int(n) for n in re.findall(r"^(\d+)\.\s", marks_mod.__doc__, re.M)]
 
 
-def test_marks_version_is_eighteen():
-    assert marks_mod.MARKS_VERSION == 18
+def test_marks_version_is_nineteen():
+    assert marks_mod.MARKS_VERSION == 19
 
 
-def test_the_judgement_calls_are_one_to_ninety_with_none_missing_and_none_twice():
+def test_the_judgement_calls_are_one_to_ninety_and_110_to_115_with_none_missing_and_none_twice():
+    """91-109 are spec 041's journey calls (they read no mark; `specs/041-vectors-journey-r10/spec.md`), so the
+    rubric's list resumes at 110 (spec 042)."""
     numbers = judgement_calls()
-    assert sorted(numbers) == list(range(1, 91)), "append-only: 1-90, none struck or renumbered"
+    assert sorted(numbers) == list(range(1, 91)) + list(range(110, 116)), \
+        "append-only: 1-90 and 110-115, none struck or renumbered"
     assert len(numbers) == len(set(numbers)), "no judgement call is written twice"
+    assert "Calls 91-109 are spec 041's" in marks_mod.__doc__
 
 
 def test_calls_one_to_twenty_seven_are_byte_for_byte_v8s():
@@ -150,6 +155,19 @@ def test_the_twelve_v18_calls_are_marked_and_say_what_they_are():
     assert "`brief_paragraphs` retires" in said and "94 checks" in said
 
 
+def test_the_six_v19_calls_are_marked_and_say_what_they_are():
+    body = marks_mod.__doc__
+    phrases = {110: "corpus revision 11, read from keel-cloud's canon only", 111: "holds every stem to 20 words",
+               112: "no corpus item is known apart", 113: "an `L` refusal is a rule, as the validator reports it",
+               114: "`brief_facts` reads keel-cloud 091's words", 115: "refuses every bundle below 19"}
+    for number, phrase in phrases.items():
+        match = re.search(rf"^{number}\. \*\*v19\*\*(.*?)(?=^\d+\. |^Calls |\Z)", body, re.M | re.S)
+        assert match, f"{number} is not marked v19"
+        assert phrase in " ".join(match.group(1).split()), f"{number} does not carry {phrase!r}"
+    said = " ".join(re.search(r"^110\. .*?(?=^111\. )", body, re.M | re.S).group(0).split())
+    assert "revision 10 is v18's" in said and "`K3`" in said and "`S10`" in said and "108 of 108" in said
+
+
 def test_the_v17_call_is_marked_and_says_what_it_is():
     body = marks_mod.__doc__
     match = re.search(r"^76\. \*\*v17\*\*(.*?)(?=^\d+\. |\Z)", body, re.M | re.S)
@@ -179,10 +197,11 @@ def test_the_v15_call_is_marked_and_says_what_it_is():
         assert phrase in said, phrase
 
 
-def test_the_marks_file_carries_the_v18_header_above_v17s():
+def test_the_marks_file_carries_the_v19_header_above_v18s():
     text = marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")
-    assert text.index("MARKS_VERSION 18") < text.index("MARKS_VERSION 17") < text.index("MARKS_VERSION 16")
-    assert "WHY=marks:18" in text and "founder's" in text
+    assert text.index("MARKS_VERSION 19") < text.index("MARKS_VERSION 18") < text.index("MARKS_VERSION 17") < \
+        text.index("MARKS_VERSION 16")
+    assert "WHY=marks:19" in text and "founder's" in text
     assert re.search(r"^brief_answers = 1\.00$", text, re.M) and re.search(r"^spoken_form = 1\.00$", text, re.M)
     assert re.search(r"^brief_facts = 1\.00$", text, re.M)
     assert not re.search(r"^brief_paragraphs\s*=", text, re.M)
@@ -294,9 +313,9 @@ def test_the_refusal_mark_is_a_rate_over_the_answers_judged():
     assert marks_mod.judge(totals, marks_mod.load())["refusals"]["met"] is False
 
 
-def test_the_header_names_the_seven_r10_digests_and_keeps_v13s_counted_denominators():
-    """Spec 040 (call 78): the v18 paragraph names the seven revision-10 files by their canon bytes (skipped by name
-    when the configured keel-cloud is not at revision 10); v13's dated paragraph and its counted denominators stay
+def test_the_header_names_the_seven_r11_digests_and_keeps_v13s_counted_denominators():
+    """Spec 042 (call 110): the v19 paragraph names the seven revision-11 files by their canon bytes (skipped by name
+    when the configured keel-cloud is not at revision 11); v13's dated paragraph and its counted denominators stay
     below it as history."""
     import hashlib                                                          # noqa: PLC0415
     from tests import v9_fixtures as fx                                     # noqa: PLC0415

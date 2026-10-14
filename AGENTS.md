@@ -26,9 +26,17 @@ added to this line rather than quietly written — which is exactly how the thir
   reads *green at the current `MARKS_VERSION`*, so a rubric that moved has no run of record at all
   until one is spent, and a screen is one entry and cannot be one. The policy widened by one named
   event, in the open, which is the amendment shape this document asks for — it did not loosen.
-  **`MARKS_VERSION` 18** (spec `040-marks-v18`, 2026-10-14) is the gate as written, and **there is no run
-  of record until `WHY=marks:18` is spent -- the certificate is the founder's word only; never run or
-  propose it**. keel-cloud 087 / 088 / 089 (merged at keel-cloud-docs `7b151f9`: registry `VERSION` 4,
+  **`MARKS_VERSION` 19** (spec `042-contract-14-r11`, 2026-10-14) is the gate as written, and **there is no run
+  of record until `WHY=marks:19` is spent -- the certificate is the founder's word only; never run or
+  propose it**. keel-cloud 090 / 091 (merged at keel-cloud-docs `c432c1d`: `CONTRACT_VERSION` 14, the lock one
+  RESPONDENT_QUESTIONS job of 35, corpus revision 11) moved four calls under unchanged numbers (110-115): the corpus is
+  revision 11 (r10 refused by name; DRIFT #77's five words fixed, 05-paidly's Frequency in months out of 3),
+  `spoken_form` holds every stem to 20 with `spoken.KNOWN` empty, an `L` refusal is read as the validator's rule
+  (DRIFT #76 closed; call 86's reclassification deleted), and `brief_facts` reads 091's `keelBar` and words. At zero
+  spend against `c432c1d`: `compare_correctness` 108 of 108, `spoken_form` 109 of 109, `brief_facts` 94 of 94. What
+  follows is v18's account, history since 2026-10-14 (never run).
+  **`MARKS_VERSION` 18** (spec `040-marks-v18`, 2026-10-14) was the gate as written, and **there was no run
+  of record until `WHY=marks:18` was spent -- never run**. keel-cloud 087 / 088 / 089 (merged at keel-cloud-docs `7b151f9`: registry `VERSION` 4,
   document 20, `CONTRACT_VERSION` 13, routing v11 `asked: light`, charge 7) are the October redesign: all
   thirteen dimensions decide (no weight anywhere), corpus revision 10 (lists, fixed answers, one escape, no
   one-unit window -- DRIFT #74 closed), the model writes the founder lists (`founder-lists.md`), the gate's
@@ -318,7 +326,19 @@ The script answers contract 13 (`CALIBRATION_QUESTIONS` lists, one
 redraft entry per list in corridor order; `RESPONDENT_QUESTIONS` the gate's clause; `ASKED` the corpus's faces; `BRIEF`
 headline + three answers citing what broke); the DRIFT #74 wire step is gone. Product defects met on the way are DRIFT
 #78-#81, each stepped round in a step named for the entry. Green locally against keel-cloud-docs `7b151f9` + keel-web
-`844ea36`. `make unit` after 041: **1,846 passed / 53 skipped** (the 24 call-89 skips gone; was 1,818 / 77). **Nothing generated is committed** -- the script, the
+`844ea36`. `make unit` after 041: **1,846 passed / 53 skipped** (the 24 call-89 skips gone; was 1,818 / 77). **Since spec
+`042-contract-14-r11` (2026-10-14) they walk corpus revision 11 and contract 14** (keel-cloud 090 / 091 at
+keel-cloud-docs `c432c1d`): the lock starts ONE RESPONDENT_QUESTIONS job (part 1; parts 2 and 3 are code's), which the
+script answers alone and `leg_lock` asserts on the receipt and the job list; every interview's idea card and Relative
+advantage question carry the idea's current name, and on S-006 the founder renames the idea on S2 (*Invoice payout
+service*); Paidly's Frequency is asked (r11's months out of 3); the brief's `keelBar`, `notAsked` and quotes are held
+on the wire. DRIFT #76 / #77 / #80 / #81 are closed by 091 and the #80 / #81 steps are failing guards; #78 / #79 still
+stepped round keel-web `844ea36` until 066 closed them. **Since spec 042's second commit the journeys run keel-web
+`c14d513` (066 + 067)**: the board's two tiles (people asked, pilot sign-ups or *None yet*) and people line, S2's
+*n / 5 words* counter, page two's *Keel's bar* and quote credits held to the wire (DRIFT #82: the bar is never drawn
+live, stepped round in a named step), and #78 / #79 closed with failing guards in their place. Green locally twice
+against `c432c1d` + keel-web `c14d513` (and twice before that against `844ea36`). `make unit` after 042:
+**1,857 passed / 53 skipped** (was 1,729 / 28 failed / 142 skipped on the same checkouts). **Nothing generated is committed** -- the script, the
 keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
 the end of every run.
 

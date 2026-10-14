@@ -186,20 +186,33 @@ def test_fold_in_counts_rule_refusals_by_id_and_keeps_shape_and_case_faults_apar
     assert folded["shape_refusals"] == 1 and folded["case_faults"] == 1
 
 
-def test_fold_in_reads_a_shaped_l_refusal_as_the_rule_it_is():
-    """Judgement call 86: keel-cloud's `VECTOR_RULE` lacks `L`, so a founder-lists refusal arrives `kind: shape`
-    though its reason opens with its id -- read as rule `L<n>`; any other shape refusal stays one."""
+def test_fold_in_takes_an_l_refusal_as_the_validator_reports_it():
+    """Spec 042 call 113 (DRIFT #76 closed by keel-cloud 091 FR-C): `VECTOR_RULE` carries `L`, so a founder-lists
+    refusal arrives `kind: rule` with its id and is counted as one; a shape refusal is a shape refusal whatever its
+    message opens with -- the reclassification spec 040's call 86 made is gone."""
     folded = validate_mod.fold_in([
         {"case_id": "a", "accepted": False,
-         "refusal": {"kind": "shape", "path": "result.questions[2].list.items",
+         "refusal": {"kind": "rule", "rule": "L1", "path": "result.questions[2].list.items",
                      "message": "L1: problem.importance takes exactly 5 items, and 4 were written"}},
         {"case_id": "b", "accepted": False,
          "refusal": {"kind": "shape", "path": "result.questions[0].list", "message": "must be an object"}},
         {"case_id": "c", "accepted": False,
-         "refusal": {"kind": "shape", "path": "x", "message": "Lunch: not a rule"}},
+         "refusal": {"kind": "shape", "path": "x", "message": "L2: read as a shape, as reported"}},
     ])
     assert folded["refusals_by_rule"] == {"L1": 1}
     assert folded["shape_refusals"] == 2 and folded["shown"] == 1
+    assert not hasattr(validate_mod, "_reclassified")
+
+
+def test_the_real_validator_names_l_among_its_rule_letters():
+    """DRIFT #76, closed: keel-cloud's `ScreenContractTool.VECTOR_RULE` -- read off the validator's own source -- names
+    `L`, so this eval reads the validator's `kind` as it is (spec 042 call 113)."""
+    from stack.config import load_config                                     # noqa: PLC0415
+    keel_cloud = load_config(validate=False).keel_cloud
+    if not (keel_cloud / validate_mod._TOOL).is_file():
+        pytest.skip("no keel-cloud checkout to read the validator from")
+    letters = validate_mod.vector_rule_letters(keel_cloud)
+    assert "L" in letters and set("XPMCRIBEWK") <= set(letters), letters
 
 
 def test_the_real_validator_takes_the_asked_screen():

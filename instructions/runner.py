@@ -466,11 +466,10 @@ _FIX = " \u2014 Fix: "            # DomainException's own `rule + ": " + problem
 def should_redraw(case, verdict) -> bool:
     """A **rule** refusal on a screen the cloud redraws. A shape refusal is not redrawn here
     (call 41: shape refusals stay an absolute zero on the raw answer), nor is a `case` fault, which
-    is the eval's own."""
-    from . import validate as validate_mod                     # noqa: PLC0415 - call 86's reading
+    is the eval's own. (Since keel-cloud 091 an `L` refusal arrives `kind: rule`; spec 042 call 113.)"""
     return (case.screen in REDRAW_SCREENS and verdict is not None
             and not verdict.get("accepted")
-            and validate_mod._reclassified(verdict.get("refusal") or {}).get("kind") == "rule")
+            and (verdict.get("refusal") or {}).get("kind") == "rule")
 
 
 def repair_text(screen: str, refusal: dict) -> str:

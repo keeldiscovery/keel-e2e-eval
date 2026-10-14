@@ -9,7 +9,9 @@ keel-cloud assembles `BriefFacts` from a project's stored answers by `StandingsA
 design §7.2 and keel-cloud 089 state -- and `compare` holds keel-cloud's to it:
 
 - **marked** (`brief_facts`, one check a card and one the pilot): every card's `key`, `name`, `number`, `line`,
-  `status` and the verdict half of its `statusWords`; the pilot's `optedIn`, `finished`, `percent` and `perLink`;
+  `status`, `keelBar` (keel-cloud 091 FR-F1: Keel's bar on Importance and Current solution, absent elsewhere and on a
+  left-out card; spec 042 call 114) and the verdict half of its `statusWords`; the pilot's `optedIn`, `finished`,
+  `percent` and `perLink`;
 - **reported, never marked** (call 3): the insight half of `statusWords` (spec 082's words, keel-cloud's own), the
   decision, the vector words, each stage's `broke` key and `notAsked` keys.
 
@@ -43,10 +45,16 @@ BROKE_ON = ("NOT_HOLDING_UP", "PEOPLE_DISAGREE")
 LINK_WORDS = {LINK_PRIMARY: "people who have it", LINK_B2B: "decision-makers"}
 LEFT_OUT_LINE = "you weren't sure, so it was left out"
 NOBODY_LINE = "nobody has answered yet"
-NOT_ASKED_WHY = {ABILITY_KEY: "not asked: read from what they lose today against your price",
-                 PURCHASE_FRICTION_KEY: "asked only when a business buys it"}
-#: What a card's compare reads; `statusWords` is compared on its verdict half (call 82).
-CARD_FIELDS = ("key", "name", "number", "line", "status")
+#: keel-cloud 091 FR-F3: one house style -- a lower-case fragment, the cause, then ", so it was not asked".
+NOT_ASKED_WHY = {ABILITY_KEY: "it is derived from what they lose today and your price, so it was not asked",
+                 PURCHASE_FRICTION_KEY: "a person, not a business, buys it, so it was not asked"}
+#: keel-cloud 091 FR-F4: the B2C Ability to pay card, derived and never asked.
+DERIVED_ABILITY_LINE = "derived from cost and price: already lose your price or more"
+#: keel-cloud 091 FR-F1 (`BriefFacts.Card.keelBar`): Keel's bar where Keel sets it, the words after "Keel's bar: ".
+KEEL_BAR = {IMPORTANCE_KEY: "holds if at least 2 in 3 put it in their two",
+            CURRENT_SOLUTION_KEY: "holds if at least 2 in 3 say today's way falls short (answers 3 to 5)"}
+#: What a card's compare reads; `statusWords` is compared on its verdict half (call 82); `keelBar` since 091 (call 114).
+CARD_FIELDS = ("key", "name", "number", "line", "status", "keelBar")
 PILOT_FIELDS = ("optedIn", "finished", "percent", "perLink")
 
 
@@ -118,7 +126,8 @@ def card(entry, dimension, standing: dict) -> dict:
     elif key == PRICE_KEY:
         out.update(number=_count(standing), line="at your band or more")
     elif key == ABILITY_KEY:
-        out.update(number=_count(standing), line="already lose your price or more")
+        out.update(number=_count(standing),
+                   line="already lose your price or more" if entry.b2b() else DERIVED_ABILITY_LINE)
     elif key == BUYER_KEY:
         tested = entry.tested(key) or {}
         line = "decided on their own" if tested.get("code") == "nobody_else" \
@@ -131,6 +140,8 @@ def card(entry, dimension, standing: dict) -> dict:
     elif key == COMMITMENT_KEY:
         out.update(number=_count(standing), line=f"open to {(entry.tested(key) or {}).get('label')}")
     out.update(status=status, statusWords=VERDICT_WORDS.get(status, status))
+    if key in KEEL_BAR and status != "LEFT_OUT":
+        out["keelBar"] = KEEL_BAR[key]
     return out
 
 

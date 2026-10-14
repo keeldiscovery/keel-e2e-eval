@@ -1,4 +1,4 @@
-# A hand-sized revision-10 entry for the loader and scorer tests (spec 040 T004; earlier cuts specs 029-038). NOT a
+# A hand-sized revision-11 entry for the loader and scorer tests (spec 040 T004; earlier cuts specs 029-038). NOT a
 # corpus entry: values are invented and small. B2C, so the twelve calibrated keys (Purchase friction is not calibrated;
 # Ability to pay is derived: 5% to 25%, small_share). The founder's lists are revision 10's shapes -- Importance's five
 # (own first), Current solution's phrase and five outcomes, two Compatibility conditions and one Adoption friction effort
@@ -7,10 +7,10 @@
 # cant_recall on Existing sacrifice). 12 people -- Kit and Lu answer No at the gate, Jo chips (cant_recall, GUESSED by
 # code), Ivy's story is vague (GUESSED, no chip), eight ANCHORED. One planted inflection collision: the mechanism
 # `listens`, Bo's story `listened`. `expected` is keel-cloud 087's engine's own output on this file (`screenContracts
-# compare`), and `check_corpus_r10.py` prints OK for it.
+# compare`), and `check_corpus_r11.py` prints OK for it (revision 11 since spec 042: its faces already said "you", its step none).
 id: 09-fixture
 title: Fixture — the keys you cannot find
-revision: 10
+revision: 11
 market:
   country: GB
   region: null

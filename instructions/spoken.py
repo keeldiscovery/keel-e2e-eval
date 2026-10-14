@@ -9,10 +9,10 @@ an item, one unit an `asked` face; a unit with any fault is not clean, and `spok
 
 Per composed item (§2, §3, §4, §5):
 
-- `S1` the stem is one question of at most **20** words -- **25** on Existing sacrifice and Relative advantage
-  (keel-cloud 088 judgement call 12: their unchanged frames carry an unbounded context slot -- `{circumstance}`,
-  `{occasion}` and the short name -- and four corpus items run 21 to 24 words; **the mark holds them at 25 until the
-  founder decides** to shorten the frames or bound the slots);
+- `S1` the stem is one question of at most **20** words, every dimension's (keel-cloud 091 FR-E shortened the
+  two frames 088 judgement call 12 had left at 21-24 -- Relative advantage *On your last {occasion}, would {name}
+  have made things better, or not?*, Existing sacrifice stepping down until it fits -- so spec 042 call 111 drops
+  spec 040's 25-word allowance);
 - `S2` the anchor, where there is one, and the stem are the screen's question, and a part sets one anchor at most;
 - `S3` at most **five** options (Price's ladder **six**); none on a number (Frequency, Existing sacrifice);
 - `S4` every option at most **nine** words, and the founder-written ones (Importance's five, Current solution's
@@ -37,15 +37,11 @@ label does not carry (no founder value reaches a stranger but the label's own); 
 item (vacuous for both list dimensions today, kept for the guidelines' sake); `K6` no question mark. The same
 function marks the model's faces on the `ASKED` screen (`score.score_asked`).
 
-**Five corpus items are known and named, not counted** (judgement call 81): revision 10 holds 06-repeatline's
-Commitment step *introduce you to the practice's IT supplier* (composed: *would you introduce you to ...*, `S10`)
-and four Compatibility faces with no *you* (`K3`) -- 01-countly's *did the invoice come with the delivery itself*,
-which keel-cloud 088 saw, and three this mark found beside it: 02-compliancelog's *was every completion already
-recorded in the learning system*, 03-lullaby's *was the room quiet enough for a phone to hear the cry* and
-07-mulchrun's *was there room at the curb of that job for a mulch drop* (none of the four is the tested item).
-keel-cloud 088 left them to this spec; the plan allows one corpus revision and 087 spent it, so they are the next
-revision's items (spec 040 *Follow-ups*). `KNOWN` lists them; each is reported with its evidence and leaves the denominator.
-A known fault that is no longer found is itself a fault -- the ledger must shrink with the corpus.
+**No corpus item is known apart any more** (spec 042 call 112). Spec 040's call 81 named five revision-10 items
+(06-repeatline's Commitment step *introduce you to ...*, `S10`, and four Compatibility faces with no *you*, `K3`) and
+left them out of the denominator; keel-cloud 091's corpus revision 11 rewrote all five (DRIFT #77, closed), so `KNOWN`
+is empty, every item and face is counted, and the ledger's own fault -- a known item no longer found -- has nothing
+left to fire on. The machinery stays for the day a revision is again known to be short of a rule.
 """
 
 from __future__ import annotations
@@ -56,10 +52,8 @@ from dataclasses import dataclass, field
 from .registry import (ADOPTION_KEY, BENEFIT_KEY, COMMITMENT_KEY, COMPATIBILITY_KEY, CURRENT_SOLUTION_KEY,
                        FREQUENCY_KEY, IMPORTANCE_KEY, PRICE_KEY, SACRIFICE_KEY, words)
 
-#: §2: a stem is at most 20 words; keel-cloud 088 call 12's two unchanged frames, 25.
+#: §2: a stem is at most 20 words, every dimension's (keel-cloud 091 FR-E; spec 042 call 111).
 STEM_MAX_WORDS = 20
-LONG_FRAME_MAX_WORDS = 25
-LONG_FRAMES = (SACRIFICE_KEY, BENEFIT_KEY)
 #: §2: at most five options (Price six), each 3 to 9 words.
 MAX_OPTIONS = 5
 PRICE_MAX_OPTIONS = 6
@@ -92,14 +86,9 @@ TRANSFORMS = {IMPORTANCE_KEY: "one_then_one_more", BENEFIT_KEY: "yes_no_per_bene
 #: The list dimensions whose items carry an `asked` face (design §4).
 FACED = (COMPATIBILITY_KEY, ADOPTION_KEY)
 
-#: Call 81: the corpus-r10 wording items the next corpus revision fixes -- `(entry, key, rule, item code or None)`.
-KNOWN = (
-    ("06-repeatline", COMMITMENT_KEY, "S10", None),
-    ("01-countly", COMPATIBILITY_KEY, "K3", "invoice_came_with_it"),
-    ("02-compliancelog", COMPATIBILITY_KEY, "K3", "completions_recorded"),
-    ("03-lullaby", COMPATIBILITY_KEY, "K3", "quiet_enough"),
-    ("07-mulchrun", COMPATIBILITY_KEY, "K3", "room_at_curb"),
-)
+#: Call 81's ledger of corpus wording items known to break a rule -- `(entry, key, rule, item code or None)`. Empty at
+#: revision 11 (call 112: keel-cloud 091 fixed all five revision-10 items, DRIFT #77).
+KNOWN: tuple = ()
 
 _NUMBER_WORDS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
 _COUNT_LINE = re.compile(r"^I'll read (two|three|four|five|six) options(; pick two)?\.$")
@@ -137,14 +126,15 @@ def _is_sentence(label) -> bool:
 
 
 def stem_limit(key: str) -> int:
-    return LONG_FRAME_MAX_WORDS if key in LONG_FRAMES else STEM_MAX_WORDS
+    """Every stem's limit, 20 (call 111; the key is kept for the caller's sake)."""
+    return STEM_MAX_WORDS
 
 
 def item_faults(item) -> list:
     """Every `S` fault of one composed item (a `cloud_corpus.ComposedItem`), `[]` when it keeps the record."""
     faults = []
     key = item.key
-    # S1: one question, at most 20 words (25 on the two unchanged frames, call 79).
+    # S1: one question, at most 20 words (call 111).
     most = stem_limit(key)
     if words(item.stem) > most:
         faults.append(f"S1: the stem {item.stem!r} is {words(item.stem)} words; at most {most}")
