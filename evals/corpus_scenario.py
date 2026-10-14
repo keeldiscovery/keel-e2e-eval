@@ -1289,36 +1289,34 @@ def _brief_pages(j: Journey, brief: dict, standings: dict) -> None:
     rows = {d.get("dimension"): d for v in standings.get("vectors") or [] for d in v.get("dimensions") or []}
     have_bars = {b["key"]: b["keel_bar"] for stage in breakdown["stages"].values() for b in stage["blocks"]}
     have_said = {b["key"]: b["said"] for stage in breakdown["stages"].values() for b in stage["blocks"]}
-    # runs/DRIFT.md #82: keel-web 067 draws *Keel's bar* only where the row carries no `founderSaid`, and keel-cloud's
-    # Importance and Current solution rows always carry one ("You said ..."), so the bar is never drawn live. Each card
-    # whose wire `keelBar` is shadowed so is held to what keel-web's rule draws (the founder's words) and named.
+    # runs/DRIFT.md #82 (resolved by keel-web da0b9eb, 2026-10-14): Keel's bar wins wherever the wire serves `keelBar`,
+    # even though keel-cloud also sends `founderSaid` on those rows. The slot is held to *Keel's bar: {keelBar}* on
+    # every such card; a block that draws the founder's words there instead is the defect come back (a guard).
+    want_bars = {c["key"]: [f"Keel's bar: {c['keelBar']}"] if c.get("keelBar") else [] for c in cards}
     shadowed = {c["key"]: rows[c["key"]].get("founderSaid") for c in cards
-                if c.get("keelBar") and (rows.get(c["key"]) or {}).get("founderSaid")
-                and (rows.get(c["key"]) or {}).get("status") != "LEFT_OUT"}
-    want_bars = {c["key"]: [f"Keel's bar: {c['keelBar']}"] if c.get("keelBar") and c["key"] not in shadowed else []
-                 for c in cards}
+                if c.get("keelBar") and (rows.get(c["key"]) or {}).get("founderSaid")}
+    came_back = {k: have_said.get(k) for k, v in shadowed.items()
+                 if have_said.get(k) == [v] and not have_bars.get(k)}
+    if came_back:
+        with _step(j, f"{j.entry.id}: DRIFT #82 came back -- page two drew the founder's words, not Keel's bar, on "
+                      f"{', '.join(sorted(came_back))}", party="founder", kind="protocol") as h:
+            h.record_wire({k: {"keelBar": next(c["keelBar"] for c in cards if c["key"] == k), "founderSaid": v}
+                           for k, v in shadowed.items() if k in came_back}, {"bar slot drawn": came_back})
+            raise AssertionError(f"DRIFT #82 came back: {sorted(came_back)}")
     with _step(j, "the brief, page two: Keel's bar where the wire sets it and nowhere else, and every quote credited "
-                  "by its served words and link (keel-web 067, keel-cloud 091 FR-F1 / F2)", party="founder") as h:
+                  "by its served words and link (keel-web 067 + da0b9eb, keel-cloud 091 FR-F1 / F2)", party="founder") as h:
         want_quotes = [{"link": q.get("link"), "words": q.get("words")} for q in reading.get("quotes") or []]
         have_quotes = breakdown["stages"]["problem"]["quotes"]
         others = [q for stage in ("solution", "commercial") for q in breakdown["stages"][stage]["quotes"]]
         h.record_assert({"bars": want_bars, "quotes": want_quotes},
                         {"bars": have_bars, "quotes": have_quotes, "elsewhere": others,
-                         "bars drawn": breakdown["keel_bars"], "shadowed (DRIFT #82)": shadowed})
+                         "bars drawn": breakdown["keel_bars"], "founderSaid beside keelBar": shadowed})
         assert have_bars == want_bars, json.dumps({"page": have_bars, "wire": want_bars}, indent=2)
         assert breakdown["keel_bars"] == sum(1 for v in want_bars.values() if v), breakdown["keel_bars"]
         assert have_quotes == want_quotes and not others, (have_quotes, want_quotes, others)
         if j.strict:
             keyed = {c["key"] for c in cards if c.get("keelBar")}
             assert keyed == {"problem.importance", "problem.current_solution_satisfaction"}, keyed
-    if shadowed:
-        with _step(j, f"{j.entry.id}: DRIFT #82 -- page two draws the founder's words, not Keel's bar, on "
-                      f"{', '.join(sorted(shadowed))}: the wire sends keelBar and founderSaid both", party="founder",
-                   kind="protocol") as h:
-            drawn = {k: have_said.get(k) for k in shadowed}
-            h.record_wire({k: {"keelBar": next(c["keelBar"] for c in cards if c["key"] == k), "founderSaid": v}
-                           for k, v in shadowed.items()}, {"bar slot drawn": drawn})
-            assert all(drawn[k] == [v] for k, v in shadowed.items()), drawn
     printed = j.screens["printed"] = j.answers.brief(j.project_id, printed=True)
     with _step(j, "the download's tab draws page one again: the same decision, headline and answers",
                party="founder") as h:

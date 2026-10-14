@@ -5254,3 +5254,4 @@ step for the entry (*"DRIFT #82 -- page two draws the founder's words, not Keel'
 changes, the step stops firing and the bar is held to *Keel's bar: {keelBar}*. For keel-web: prefer `keelBar` over
 `founderSaid` where the card carries one; for keel-cloud: leave `founderSaid` off the rows whose bar is Keel's -- the
 design's §7.3 decides which.
+**Resolved by keel-web `da0b9eb` (2026-10-14, spec 067 judgement call 2 reversed): a served `keelBar` wins over `founderSaid` on that block.** Observed live on the staging twin (keel-cloud-docs `c432c1d` + keel-web `da0b9eb`): page two drew *Keel's bar: ...* on Importance and Current solution on all three entries. The journey now holds the slot to *Keel's bar: {keelBar}* wherever the wire serves one and keeps a guard step (*"DRIFT #82 came back"*) that fails the journey if the founder's words are ever drawn there again.
