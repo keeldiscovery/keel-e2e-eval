@@ -1,5 +1,5 @@
 """S-006: `05-paidly`, the widest B2B entry, walked through the vector corridor (spec 039; spec 041: corpus
-revision 10, keel-web 063 / 064; spec 042: corpus revision 11, contract 14).
+revision 10, keel-web 063 / 064; spec 042: corpus revision 11, contract 14; spec 043: contract 15, the contacts leg).
 
 Twenty people on **two links**: twelve freelance translators answer parts 1 and 2 on the primary
 link, and eight agency project managers -- the decision-makers -- answer part 3 alone on their own
@@ -26,7 +26,7 @@ median 2).
 
 from __future__ import annotations
 
-from evals import corpus_scenario
+from evals import contacts_leg, corpus_scenario
 from harness import vectors_script as vs
 
 ENTRY_ID = "05-paidly"
@@ -138,6 +138,10 @@ def _paidly_extras(j) -> None:
         assert vs.frequency_fits(j.entry)
         assert frequency.get("status") == "HOLDING_UP" and frequency.get("n") == 9, frequency
         assert "3 months" in (j.framing["problem.frequency"][0].get("question") or ""), j.framing["problem.frequency"]
+
+    # Spec 043 (keel-cloud 093, contract 15): the decision-makers found through Contacts, on the wire, last -- its one
+    # answer moves no standing this module holds above.
+    contacts_leg.leg_contacts(j)
 
 
 def test_s006_paidly(stack, founder_one, browser, run_dir):

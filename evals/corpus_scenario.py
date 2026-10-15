@@ -41,6 +41,9 @@ one leg and leave the others alone:
                       card's words, the pilot tile), page two (one block a card, *What broke* on the broke
                       block alone) and the download's tab.
 
+After them each scenario's `extra` runs: S-006's ends with **the contacts leg** (spec 043, keel-cloud 093,
+`evals/contacts_leg.py`) on the wire, and S-005's with the B2C `NOT_B2B` refusal.
+
 Every inference job is answered by keel-runtime's **scripted** executor from the entry's own stored
 texts (`harness/vectors_script.py`); no model runs anywhere in this file (`evals/policy.py`).
 
@@ -142,6 +145,10 @@ class Journey:
     idea_name: str = ""
     #: The lock's receipt (`LockReceipt`), as keel-web received it from `POST lock`.
     receipt: dict = field(default_factory=dict)
+    #: The stack and the identity the founder signed in as (spec 043: the contacts leg reads the ledger and stands the
+    #: founder on Keel's door, `stack/ledger.py`). None on S-012, which never runs that leg.
+    stack: Any = None
+    founder_identity: Any = None
 
     # --------------------------------------------------------------------------- the wire
 
@@ -1360,6 +1367,7 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         page = context.new_page()
         journey = open_journey(recorder, page, context, browser, stack, entry, founder, people,
                                script=script, registry=exported.registry)
+        journey.stack, journey.founder_identity = stack, founder_one
         user_code = _connect(stack, recorder, page, founder_one, web_base, run_dir, keys_path)
         own_ai_door(page, recorder, stack, journey.get, through_the_code_story=bool(user_code))
 

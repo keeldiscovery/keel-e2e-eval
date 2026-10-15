@@ -5255,3 +5255,21 @@ changes, the step stops firing and the bar is held to *Keel's bar: {keelBar}*. F
 `founderSaid` where the card carries one; for keel-cloud: leave `founderSaid` off the rows whose bar is Keel's -- the
 design's §7.3 decides which.
 **Resolved by keel-web `da0b9eb` (2026-10-14, spec 067 judgement call 2 reversed): a served `keelBar` wins over `founderSaid` on that block.** Observed live on the staging twin (keel-cloud-docs `c432c1d` + keel-web `da0b9eb`): page two drew *Keel's bar: ...* on Importance and Current solution on all three entries. The journey now holds the slot to *Keel's bar: {keelBar}* wherever the wire serves one and keeps a guard step (*"DRIFT #82 came back"*) that fails the journey if the founder's words are ever drawn there again.
+
+## 83. Observation (keel-cloud, one field wide): after *Make a new link* the found person's row reads the new link's time, where keel-cloud 093 judgement call 16 says it keeps the first link's -- the first time is stored and served nowhere
+
+Found by spec `043-contacts-journey` on S-006's contacts leg (local stack on keel-cloud-docs `7850360` + keel-web
+`da0b9eb`), on every run (bundles `runs/20261015T041013Z-s006-paidly`, `...T041922Z-...` and `...T042540Z-...`). keel-cloud 093 call 16: *"`Invitation.relinkedAt` moves the register's 'Link made'; the found
+person's `linkMadeAt` keeps the first link's time."* The domain does keep it (`FoundPerson.linkMadeAt`, written once by
+the batch, untouched by `Project.relink`), but the wire never shows it: `ContactsController.personRow` fills
+`FoundPersonRow.linkMadeAt` from the invitation's `linkMadeAt()` whenever the row has a link, and that is the relink's
+time. Observed (`T042540Z`): the batch made the second person's link at `04:27:56.989Z`; *Make a new link* answered
+`linkMadeAt` `04:27:57.071Z`; `GET contacts/datasets/{id}` then read that person's `linkMadeAt` `04:27:57.071Z`, equal
+to the register's *Link made* -- so the dataset page and the Sent register agree, and the first link's time that call 16
+keeps is served by no route. Nothing a founder does breaks (C3's row and T1's row read the same time); it is a spec
+sentence and a DTO disagreeing about which time a found person's row shows. The journey holds the wire as served (the
+register's *Link made* moved; the old link 404s, the new one opens, the invitation is the same) and names it in a step
+for the entry (*"DRIFT #83 -- ...'s found-person row reads the new link's time ..."*); the moment the row keeps the
+first time, that step stops firing and the row is held to call 16. For keel-cloud: either serve the stored first time
+on `FoundPersonRow.linkMadeAt` (and say so in the field's description), or amend call 16 to say the row follows the
+link -- the design's C3 decides which.

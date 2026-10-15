@@ -1,5 +1,6 @@
 """S-005: `01-countly`, the B2C entry, walked through the vector corridor (spec 039; spec 041: corpus revision 10,
-keel-web 063 / 064; spec 042: revision 11, contract 14 -- Keel's draft name for the idea kept on S2).
+keel-web 063 / 064; spec 042: revision 11, contract 14 -- Keel's draft name for the idea kept on S2; spec 043: contract 15,
+a consumer study's Contacts refused NOT_B2B).
 
 Countly is the corpus's B2C entry with the most people (twelve), and it earns its place three ways:
 
@@ -16,7 +17,7 @@ Countly is the corpus's B2C entry with the most people (twelve), and it earns it
 
 from __future__ import annotations
 
-from evals import corpus_scenario
+from evals import contacts_leg, corpus_scenario
 from harness import vectors_script as vs
 
 ENTRY_ID = "01-countly"
@@ -67,6 +68,9 @@ def _countly_extras(j) -> None:
         assert asked and all("problem.frequency" in dims for dims in asked.values()), asked
         assert frequency.get("status") == "HOLDING_UP" and frequency.get("n") == 8, frequency
         assert "4 weeks" in j.framing["problem.frequency"][0]["question"], j.framing["problem.frequency"]
+
+    # Spec 043 (keel-cloud 093 D10): Contacts are B2B only; a consumer study is refused NOT_B2B, before the door.
+    contacts_leg.leg_contacts_not_b2b(j)
 
 
 def test_s005_countly(stack, founder_one, browser, run_dir):
