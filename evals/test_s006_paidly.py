@@ -26,7 +26,7 @@ median 2).
 
 from __future__ import annotations
 
-from evals import contacts_leg, corpus_scenario
+from evals import contacts_leg, corpus_scenario, interviewer_leg
 from harness import vectors_script as vs
 
 ENTRY_ID = "05-paidly"
@@ -142,6 +142,9 @@ def _paidly_extras(j) -> None:
     # Spec 043 (keel-cloud 093, contract 15): the decision-makers found through Contacts, on the wire, last -- its one
     # answer moves no standing this module holds above.
     contacts_leg.leg_contacts(j)
+    # Spec 044 (keel-cloud 094, contract 16; keel-web 069): the AI interviewer, recorded on Keel's door after the
+    # contacts leg -- its two answered links come last too, and move no standing held above.
+    interviewer_leg.leg_interviewer(j)
 
 
 def test_s006_paidly(stack, founder_one, browser, run_dir):

@@ -5284,7 +5284,7 @@ first time, that step stops firing and the row is held to call 16. For keel-clou
 on `FoundPersonRow.linkMadeAt` (and say so in the field's description), or amend call 16 to say the row follows the
 link -- the design's C3 decides which.
 
-## 84. Observation (keel-web, with keel-cloud beside it): no screen starts a reading any more -- keel-web 068 deleted the reading batch with People's page, while keel-cloud still reads a story only on `POST readings` and the board still counts *read by your AI*
+## 84. RESOLVED (keel-cloud-docs `a0b3759`, spec 095, for Keel's door) -- was an observation (keel-web, with keel-cloud beside it): no screen starts a reading any more -- keel-web 068 deleted the reading batch with People's page, while keel-cloud still reads a story only on `POST readings` and the board still counts *read by your AI*
 
 Found by spec `043-contacts-journey`'s second commit on all three entries (local stack on keel-cloud-docs `a4f2c95` +
 keel-web `752a8c4`). keel-web 068 FR-009 deletes "People's page (`PeopleRoute`), its send popup, the commercial-link
@@ -5299,3 +5299,75 @@ starts the batch on the wire, exactly the call People's button made, so every la
 keel-web and keel-cloud together, a design call: either a screen that starts the reading (Sent's register would carry
 it), or keel-cloud reads a story when it is answered and the board's *read by your AI* goes (or keeps counting what the
 server read by itself).
+
+**Resolved by keel-cloud 095** (*Read on arrival, and a lost race is retried*, the founder's option 1; merged at
+keel-cloud-docs `a0b3759`, the same code as the 095 worktree's `ee86d1e`). On Keel's door every answer with words is read
+when it arrives -- an `INTERPRET` HOLD with `reason` `read-on-arrival:<invitationId>`, the brief after the batch with
+`brief:after-batch`, a lost revision race retried up to three times (`retry:<n>:<parent>`) -- and a founder's own `POST
+readings` meets 409 `READING_IN_PROGRESS` or `NOTHING_TO_READ`. Spec 044's journeys (call 151) press nothing on Keel's
+door and wait for the newest batch; the interviewer leg holds the reasons on the ledger (IM13). **On the founder's own
+AI the shape stays, by 095's own reading** (its judgement call 14, raised for the founder): with the agent connected
+before the answers nothing reads on arrival -- it reads at the next connect or on the founder's own `POST readings`,
+which no screen offers -- so S-005 / 006 / 007, whose scripted runtime connects first, keep asking for each reading on
+the wire, in a step that now names 095's rule instead of this entry.
+
+## 85. Observation (keel-cloud): on their own AI, the founder's AI-interviewer link in a **batch** is refused 409 `INTERVIEWER_NOT_READY`, where contract 16 says 422 `INTERVIEWER_NEEDS_CREDITS`
+
+Found by spec `044-ai-interviewer-journey` on S-005 and S-006 (local stack on keel-cloud-docs `78c90b6` + keel-web
+`df2e97a`). Contract 16's `POST .../invitations/batch` description: *"AI_INTERVIEWER and CHOICE wait for the project's
+recording (409 INTERVIEWER_NOT_READY until it is READY; an account on its own AI 422 INTERVIEWER_NEEDS_CREDITS)"*, and
+the single link's: *"AI_INTERVIEWER / CHOICE on an account on its own AI is INTERVIEWER_NEEDS_CREDITS"*. The single link
+(`FounderErrandController.invite`) and the commercial link (`VectorCorridorService.createCommercialLink`) ask the door
+first (`InterviewerService.requireFormatOpen`) and answer 422; the batch (`ContactsService.makeLinks`) never asks it --
+`Project.requireFormatAvailable` refuses first, and an own-AI project never has a recording -- so the same founder is
+told *"The interviewer is still being recorded ... wait a few minutes"*, which no wait will ever make true. Nothing is
+made either way. The leg steps round it in a step named for the entry (`_drift_85`), holding the
+single link to 422 straight and the batch to "nothing made", and holds the batch to 422 the moment it answers it. For
+keel-cloud: `makeLinks` calls `requireFormatOpen` before the aggregate's own refusal, as the two other link routes do.
+
+## 86. Observation (keel-cloud, a seam): the fake renderer's fail-once is reachable from a Java test alone, so spec 044 step 9 (a seeded failed clip retried for free) cannot be driven on the stack
+
+Found by spec `044-ai-interviewer-journey` (keel-cloud-docs `78c90b6`). Spec 044 FR-002.9 and its plan read *"a seeded
+fail-once clip (the fake's seam) is retried by the recorder and READY still arrives; the retry wrote no ledger row ...
+the fake's fail-once seam over the stack's env"*. `FakeInterviewerRenders.failOnce(vendorRef)` and `failScripts(...)` are
+methods on the bean, called by keel-cloud's own `InterviewerRecorderTest` / `InterviewerJourneyTest`; no property
+(`keel.v2.interviewer.fake.*` carries `delay-seconds` and `transcript` only) and no route reaches them, and the eval
+neither fakes a failure nor writes a clip's status into the document. So **IM12 is unmeasured on every run, never
+passed**; the leg reads the stored recording for a clip with two attempts (none, on the fake) and records the seam it
+could not reach. keel-cloud's own journey test holds the retry. For keel-cloud, if the eval should hold it: one
+stack-only property (say `keel.v2.interviewer.fake.fail-once-kinds=SOLUTION`) the fake reads at boot.
+
+## 87. Observation (keel-web): L1, revisited on a locked project, checks Judy -- the preselected face -- while Tito asks every question
+
+Found by spec `044-ai-interviewer-journey` on S-006 (local stack on keel-cloud-docs `a0b3759` + keel-web `d23895f`). After
+the founder records Tito (`GET interviewer` `face.code` TITO, READY), `/p/{id}/define/ready/interviewer` still draws the
+carousel -- disabled, under *Locked* -- with **Judy** `aria-checked`: `BeforeStep` seeds the pick from
+`InterviewerFaces.preselected` and never reads the project's own face. Sent's persona line, the walkthrough's frame 2 and
+Send more all say Tito. keel-web 069 says nothing about L1 after the lock. The leg holds L1's five faces, one checked and
+no price, and records the face it checks in a step named for the entry. For keel-web: seed the pick from `GET
+interviewer` once the project is locked (or draw no carousel there).
+
+## 88. Observation (keel-web, with keel-cloud 095 beside it): a link made on Sent right after an answer is read on arrival is refused 409 `concurrency`, and the popup shows the server's own words
+
+Found by spec `044-ai-interviewer-journey` on S-006 (local stack on keel-cloud-docs `a0b3759` + keel-web `d23895f`), every
+run. The AI-interviewer link is answered; keel-cloud 095 reads the answer on arrival (Keel's door), which writes the
+project -- revision 199 to 200 and on -- while the founder's Sent page still holds 199. *Send more → Let them choose →
+Someone I know → Make their link* sends `POST invitations/batch {expectedRevision: 199, ...}` and is refused **409**
+`rule` `concurrency`; the popup draws *"project 5c86fe81-... was expected at revision 199, and is not there at that
+revision any more -- either it has moved on since you read it, or it is not stored at all"* and *"reload the project,
+re-apply your commands ..."* -- an engineer's sentence, a project id, and no way forward but a reload. Before 095 nothing
+wrote a project behind the founder's back on Sent (a reading started only when they pressed for it), so DRIFT #75's
+shape (one popup a revision) was enough. The leg steps round it in a step named for the entry: Sent opened again, the
+link made once more. For keel-web (a design call with keel-cloud): Send more re-reads the revision when it opens or on a
+409 retries once with a fresh read (the batch touches nothing a reading writes), or keel-cloud's batch takes no
+`expectedRevision` from a screen that cannot know about arrivals.
+
+## 89. Observation (keel-web): a value typed into the AI interviewer's field goes back with `how` TYPED and no `heard`, where keel-web 069 FR-008 says `heard` is "the final transcript or the typed text"
+
+Found by spec `044-ai-interviewer-journey` on S-005 (local stack on keel-cloud-docs `a0b3759` + keel-web `d23895f`). The
+consumer's cost total typed into the amount-or-hours field (*Amount*, 30) is sent as `{costTotal: {mode: AMOUNT, value:
+30}, how: TYPED}` with no `heard` (`AiFlow.resolveWindow`: `take(mapped, "TYPED", "")` for a field answer); text typed
+through *Type instead* does carry it. Contract 16 makes `heard` optional and keel-cloud stores the answer either way, so
+nothing breaks; the founder's record of the answer simply has no words for it. Spec 044's own mark is *heard on every
+spoken answer* (IM9), which holds. For keel-web: send the field's own text (*30*, *£30*) as `heard`, or say in 069 that a
+field value carries none.

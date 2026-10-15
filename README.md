@@ -105,6 +105,19 @@ Since the spec's second commit the leg runs on keel-web 068's Interviews section
 Sent, Send more, Make a new link, Contacts, C2, the page of names, C3, the credits popup), and every journey makes its
 links on Sent.
 
+### The AI interviewer — contract 16 and read on arrival (spec `044-ai-interviewer-journey`, 2026-10-15)
+
+keel-cloud 094 (the pre-rendered AI interviewer: contract 16, `InferenceCharge` 9, document 22) and 095 (read on arrival,
+a lost race retried), merged at keel-cloud-docs `a0b3759`, on keel-web `d23895f` (069). The stack runs keel-cloud's fake
+renderer and transcriber -- **no vendor, no key, no money** -- keeps the clips under `runs/.stack/clips-<profile>`
+(`KEEL_CLIPS_DIR`), and serves keel-web with `vite --mode test` so the stranger can speak through the test build's one
+seam (`window.__keelSpeech`; `EVAL_WEB_MODE` overrides). S-006 ends with the interviewer leg (`evals/interviewer_leg.py`):
+the founder, stood on Keel's door after the lock, records Tito from Sent, watches RECORDING turn READY, tries the
+interview, sends an AI link a stranger answers aloud on the stage, a Let-them-choose link, changes to Judy for 400 and is
+refused at 100; S-005 walks the short form. Scored by `evals/interviewer_marks.py` (IM1-IM13) into `interviewer-marks.json`
+beside the transcript; `MARKS_VERSION` stays 19. The scripts are read from the stored recording (`stack/ledger.recording`).
+DRIFT #85-#89 are what the screens and the wire did that the specs do not say.
+
 ### `MARKS_VERSION` 18 — history since v19, never run (spec `040-marks-v18`, 2026-10-14)
 
 The October redesign (keel-cloud 087 / 088 / 089, merged at keel-cloud-docs `7b151f9`; registry `VERSION` 4, document 20,

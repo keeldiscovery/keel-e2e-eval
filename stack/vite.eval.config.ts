@@ -54,6 +54,12 @@ export default async () => {
   }
 
   return {
+    // Spec 044 (keel-web 069 FR-010): the eval serves keel-web the way keel-web's own e2e does, `--mode test`, so the
+    // test build's one seam -- `window.__keelSpeech`, the speech recogniser the AI interviewer's page listens through --
+    // is in it, and the stranger can "speak" without a microphone. Nothing else in keel-web reads the mode
+    // (`import.meta.env.DEV` is still true under `vite` serve); a production build folds the seam away, which
+    // `tests/test_interviewer_screens.py` holds on keel-web's source. EVAL_WEB_MODE overrides it.
+    mode: process.env.EVAL_WEB_MODE ?? "test",
     plugins,
     define: {
       "import.meta.env.VITE_KEEL_SHOW_SPEC_KIT_PANEL": JSON.stringify(process.env.VITE_KEEL_SHOW_SPEC_KIT_PANEL ?? "0"),

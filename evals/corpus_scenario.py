@@ -610,16 +610,28 @@ def leg_persona(j: Journey) -> None:
 # ---------------------------------------------------------------------------------- leg 4: lock
 
 def leg_lock(j: Journey) -> None:
-    """Step 5's two screens (*A word from you* 1 of 2, *The pilot* 2 of 2; the idea moved to S2), then
-    *Lock and write the questions*: **one** RESPONDENT_QUESTIONS job (keel-cloud 091, contract 14: part 1 on the
+    """Step 5's three screens since keel-web 069 (*A word from you* 1 of 3, *The pilot* 2 of 3, L1 *Who asks the
+    questions* 3 of 3 -- on the own door one line and *Lock and approve*; the idea moved to S2), then the lock:
+    **one** RESPONDENT_QUESTIONS job (keel-cloud 091, contract 14: part 1 on the
     primary link, the gate's clause; parts 2 and 3 -- on B2B part 3 the decision-maker's link's -- composed by code in
     the lock's own commit), READY before anyone is invited, and the lock storing every saved list with its picked
     index (design §6, D7)."""
     drawn = j.corridor.word_pilot_and_lock()
     j.receipt = drawn.get("receipt") or {}
-    with _step(j, "step 5 is two screens, 1 of 2 and 2 of 2", party="founder") as h:
-        h.record_assert(["1 of 2", "2 of 2"], drawn["counters"])
-        assert drawn["counters"] == ["1 of 2", "2 of 2"], drawn
+    j.screens["L1"] = drawn.get("l1") or {}
+    with _step(j, "step 5 is three screens since keel-web 069 -- 1 of 3, 2 of 3 and L1 *Who asks the questions* 3 "
+                  "of 3, which on an account on its own AI is one line and *Lock and approve*, no carousel; the "
+                  "lock's receipt carries no interviewer (contract 16)", party="founder") as h:
+        l1 = drawn.get("l1") or {}
+        h.record_assert({"counters": ["1 of 3", "2 of 3", "3 of 3"], "title": vs_screens.L1_TITLE,
+                         "sub": vs_screens.BEFORE_INTERVIEWER_OWN, "carousel": False,
+                         "button": vs_screens.BEFORE_LOCK_APPROVE, "receipt.interviewer": None},
+                        {**l1, "counters": drawn["counters"], "receipt": j.receipt})
+        assert drawn["counters"] == ["1 of 3", "2 of 3", "3 of 3"], drawn
+        assert l1.get("title") == vs_screens.L1_TITLE and l1.get("carousel") is False, l1
+        assert l1.get("sub") == vs_screens.BEFORE_INTERVIEWER_OWN, l1
+        assert l1.get("button") == vs_screens.BEFORE_LOCK_APPROVE, l1
+        assert "interviewer" not in j.receipt, j.receipt
     deadline = time.monotonic() + 120 * j.patience
     state = None
     while time.monotonic() < deadline:
@@ -713,9 +725,10 @@ def leg_invite(j: Journey) -> None:
                              "drawn": made["url"], "link": link, "formats": made["formats"]})
             assert made["status"] == 201 and (made["batch"] or {}).get("format") == "TEXT", made
             assert made["url"] == link.get("url") and link.get("personName") == person.person, made
-            assert made["formats"].get("Text", {}).get("checked") is True, made["formats"]
-            assert all(f["disabled"] and f["word"] == iv_screens.FORMAT_NOT_AVAILABLE
-                       for name, f in made["formats"].items() if name != "Text"), made["formats"]
+            # keel-web 069: *Text only*; on their own AI the other two greyed *needs Keel's credits*
+            assert made["formats"].get(iv_screens.TEXT_ONLY, {}).get("checked") is True, made["formats"]
+            assert all(f["disabled"] and f["word"] == iv_screens.FORMAT_NEEDS_CREDITS
+                       for name, f in made["formats"].items() if name != iv_screens.TEXT_ONLY), made["formats"]
         j.links[person.person] = made["url"]
         j.tokens[person.person] = made["url"].rstrip("/").rsplit("/", 1)[-1]
     with _step(j, "every corpus person has a link of their own; the Sent register draws one row a person, newest "
@@ -794,6 +807,7 @@ def _answer_one(j: Journey, person, token: str) -> None:
                    party="participant") as h:
             sent = walked["body"] or {}
             h.record_assert(expected, sent)
+            assert walked.get("status") in (200, 201), walked.get("status")
             assert _normal_body(sent) == _normal_body(expected), (sent, expected)
             h.capture_text("participant_page", "\n\n".join(walked["seen"]))
         if person.pilot_opt_in:
@@ -929,19 +943,26 @@ def _normal_body(body: dict) -> dict:
 
 
 def _read(j: Journey, person) -> None:
-    """The founder has their AI read the new answer when this person wrote a story the reader is shown; nobody else's
-    answer queues a reading (a gate no, a chip, the decision-maker's link).
+    """The person's answer is read when this person wrote a story the reader is shown; nobody else's answer queues a
+    reading (a gate no, a chip, the decision-maker's link).
 
-    **DRIFT #84, stepped round** (spec 043 call 140): keel-web 068 deleted the reading batch's button with People's
-    page (068 call 7), while keel-cloud still reads a story only on `POST readings` and the board still counts *read
-    by your AI*. So the founder's own session starts the batch on the wire -- exactly the call People's button made --
-    in a step named for the entry, and every later assertion stands as it did."""
+    **Since keel-cloud 095 (DRIFT #84 resolved for Keel's door)** a Keel's-door project reads every answer on arrival:
+    the journey presses nothing, waits for the newest batch -- the arrival's, which it did not start -- and any after
+    it to be DONE, and a `POST readings` of its own is refused 409 (`READING_IN_PROGRESS` while it runs,
+    `NOTHING_TO_READ` once all is read). **On the founder's own AI with the agent connected before the answers**
+    nothing reads on arrival (095 judgement call 14: the own door reads at its next connect or on the founder's own
+    `POST readings`), so the founder's session asks for the reading on the wire -- the call People's button made --
+    exactly as before (spec 044 call 151)."""
     readable = any(p.person == person.person for p in vs.readable_people(j.entry))
     if not readable:
         return
-    with _step(j, f"DRIFT #84 -- no screen reads {person.person}'s answer any more (keel-web 068 removed the reading "
-                  "batch); the founder's session starts it on the wire, as People's button did", party="founder",
-               kind="note") as h:
+    door = (j.get("/v2/me") or {}).get("aiPath")
+    if door == "KEEL":
+        _read_on_arrival(j, person)
+        return
+    with _step(j, f"{person.person}'s answer: on their own AI with the agent connected nothing reads on arrival "
+                  "(keel-cloud 095 call 14), so the founder's session asks for the reading on the wire",
+               party="founder", kind="note") as h:
         deadline = time.monotonic() + 45 * j.patience
         while True:
             status, started = j.call("POST", j.project("/readings"), {}, ok=(201, 409))
@@ -951,19 +972,45 @@ def _read(j: Journey, person) -> None:
                 raise AssertionError(f"{person.person}'s answer never reached a reading: {started}")
             time.sleep(1)
         h.record_wire({"POST": "readings"}, started)
-        deadline = time.monotonic() + 90 * j.patience
-        while True:
-            batches = j.get(j.project("/readings")) or []
-            batch = batches[0] if isinstance(batches, list) and batches else {}
-            if batch.get("status") not in (None, "RUNNING", "PENDING"):
-                break
-            if time.monotonic() > deadline:
-                raise AssertionError(f"{person.person}'s reading never finished: {batch}")
-            time.sleep(1)
+        batch = _batches_done(j, person)
     with _step(j, f"{person.person}'s answer is read, and nothing failed") as h:
         h.record_assert({"status": "DONE", "failed": []}, batch)
         assert batch.get("status") == "DONE", batch
         assert not batch.get("failed"), batch
+
+
+def _batches_done(j: Journey, person, *, before: set | None = None) -> dict:
+    """The newest reading batch, once it -- and any started after it -- is no longer running."""
+    deadline = time.monotonic() + 90 * j.patience
+    while True:
+        batches = j.get(j.project("/readings")) or []
+        batch = batches[0] if isinstance(batches, list) and batches else {}
+        fresh = batch.get("batchId") not in (before or set())
+        if fresh and batch.get("status") not in (None, "RUNNING", "PENDING"):
+            return batch
+        if time.monotonic() > deadline:
+            raise AssertionError(f"{person.person}'s reading never finished: {batch}")
+        time.sleep(1)
+
+
+def _read_on_arrival(j: Journey, person) -> None:
+    """keel-cloud 095 FR-A, on Keel's door: the answer is read on its own; the founder presses nothing."""
+    with _step(j, f"{person.person}'s answer is read on arrival (keel-cloud 095): the founder presses nothing, the "
+                  "newest batch -- one the journey did not start -- and any after it end DONE, and a POST readings "
+                  "of the founder's is refused 409 READING_IN_PROGRESS or NOTHING_TO_READ", party="stack") as h:
+        batch = _batches_done(j, person)
+        status, refused = j.call("POST", j.project("/readings"), {}, ok=(409,))
+        h.record_assert({"status": "DONE", "failed": [], "POST readings": [409, "READING_IN_PROGRESS",
+                                                                           "NOTHING_TO_READ"]},
+                        {"batch": batch, "POST readings": [status, _refusal(refused)]})
+        assert batch.get("status") == "DONE" and not batch.get("failed"), batch
+        assert _refusal(refused) in ("READING_IN_PROGRESS", "NOTHING_TO_READ"), refused
+
+
+def _refusal(body) -> str | None:
+    """A reading's refusal names itself in `rule` (keel-cloud `ReadingRefusal`), a vector refusal in `code`."""
+    body = body if isinstance(body, dict) else {}
+    return body.get("code") or body.get("rule")
 
 
 # ----------------------------------------------------------------------------- leg 7: standings

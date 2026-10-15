@@ -19,7 +19,7 @@ from stack.config import load_config
 PROJECT = str(uuid.uuid4())
 
 
-def _pair(action: str, credits: int, *, version: int = 8) -> list[dict]:
+def _pair(action: str, credits: int, *, version: int = 9) -> list[dict]:
     op = str(uuid.uuid4())
     unit, cost = ((fake.NAME_CREDITS, fake.NAME_COST_MICRO_USD) if action == "CONTACT_PAGE"
                   else (fake.EMAIL_CREDITS, fake.EMAIL_COST_MICRO_USD))
@@ -67,10 +67,9 @@ def good() -> dict:
                    *_pair("CONTACT_PAGE", 150), *_pair("CONTACT_EMAIL", 36), *_pair("CONTACT_PAGE", 12),
                    {"kind": "PURCHASE", "credits": -1282, "action": None, "price_version": None,
                     "idempotency_key": "e2e-eval:043:x:low-balance"}],
-        "format_refusal": {"status": 422, "body": {"code": "FORMAT_NOT_AVAILABLE",
-                                                    "problem": "The AI interviewer is not available yet"},
+        "format_refusal": {"status": 409, "body": {"code": "INTERVIEWER_NOT_READY"},
                            "register_before": 20, "register_after": 20,
-                           "commercial_link": {"status": 422, "body": {"code": "FORMAT_NOT_AVAILABLE"}}},
+                           "commercial_link": {"status": 409, "body": {"code": "INTERVIEWER_NOT_READY"}}},
         "batch": {"format": "TEXT", "links": links,
                   "csv": "name,email,email_status,link\n" + "\n".join(f"P,{i}@x.example,verified,u" for i in range(3))},
         "status_trail": ["FOUND", "LINK_MADE", "OPENED", "ANSWERED"],
@@ -110,7 +109,7 @@ def test_a_good_record_meets_every_b2b_mark_and_leaves_the_b2c_one_unmeasured():
     assert not checks["CM14"].measured and not checks["CM14"].ok
     card = marks.scorecard(good())
     assert (card["measured"], card["met"], card["unmeasured"]) == (13, 13, ["CM14"])
-    assert card["version"] == marks.CONTACTS_MARKS_VERSION == 1
+    assert card["version"] == marks.CONTACTS_MARKS_VERSION == 2
 
 
 def test_the_b2c_record_measures_not_b2b_alone():
@@ -132,10 +131,10 @@ SEEDED = [
     ("CM1", ["sizes", 1, "wire"], 30),                                       # sized off the fake
     ("CM1", ["sizes", 0, "balance_after"], 1490),                            # sizing charged
     ("CM2", ["ledger"], lambda rows: [r for r in rows if not r["idempotency_key"].endswith(":spend")][:2] + rows[3:]),
-    ("CM2", ["ledger", 1, "price_version"], 7),                              # the charge table's old version
+    ("CM2", ["ledger", 1, "price_version"], 8),                              # the charge table's old version
     ("CM2", ["ledger", 2, "actual_cost_micro_usd"], 1),                      # a cost off the Starter rate
     ("CM2", ["purchases", 1, "charged"], 48),                                # a receipt with no pair
-    ("CM3", ["ledger", 3, "price_version"], 7),
+    ("CM3", ["ledger", 3, "price_version"], 8),
     ("CM4", ["purchases", 0, "me_after"], 1500),                             # /v2/me disagrees
     ("CM5", ["pages", 1, "ids"], ["p24", "p25"]),                            # a repeat
     ("CM5", ["pages", 0, "fake_ids"], ["q"]),                                # not the fake's page
@@ -165,6 +164,7 @@ SEEDED = [
     ("CM11", ["credit_refusals", "names", "body", "remedy"], "Not enough credits."),
     ("CM12", ["format_refusal", "register_after"], 21),                      # a link was made anyway
     ("CM12", ["format_refusal", "commercial_link", "status"], 201),
+    ("CM12", ["format_refusal", "body", "code"], "FORMAT_NOT_AVAILABLE"),         # contract 15's refusal
     ("CM13", ["own_ai_refusal", "body", "code"], "NOT_B2B"),
 ]
 

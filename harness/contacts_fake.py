@@ -24,7 +24,7 @@ from pathlib import Path
 
 FIXTURE = Path("src/main/resources/keel/contacts/fake-contacts.json")
 
-#: keel-cloud `Dataset.PAGE_SIZE`; `InferenceCharge.CONTACT_PAGE` / `CONTACT_EMAIL` (VERSION 8) and their Starter-rate
+#: keel-cloud `Dataset.PAGE_SIZE`; `InferenceCharge.CONTACT_PAGE` / `CONTACT_EMAIL` and their Starter-rate
 #: costs in µUSD (spec 093 judgement call 6: 30,000 a name -- one source credit at $0.03 -- and 60,000 an email, two).
 PAGE_SIZE = 25
 PAGE_CREDITS = 150
@@ -32,7 +32,9 @@ EMAIL_CREDITS = 12
 NAME_CREDITS = PAGE_CREDITS // PAGE_SIZE
 NAME_COST_MICRO_USD = 30_000
 EMAIL_COST_MICRO_USD = 60_000
-PRICE_VERSION = 8
+#: `InferenceCharge.VERSION`, which every HOLD carries: 8 at spec 093, **9** since keel-cloud 094 added the interviewer's
+#: two rows (spec 044 FR-001; the contacts rows and their prices did not move).
+PRICE_VERSION = 9
 
 _WORDS = re.compile(r"\W+", re.ASCII)
 

@@ -1,11 +1,14 @@
 """keel-cloud's credit ledger, read off the local stack's Postgres -- and the **three stand-ins** spec 043's contacts leg
-writes, each named, each reversed by the leg itself (judgement calls 129-131).
+writes, each named, each reversed by the leg itself (judgement calls 129-131), which spec 044's interviewer leg writes
+too under its own key (judgement call 148); and, since spec 044, the project's stored recording (`recording`).
 
 **Why the referee reads the database at all.** keel-cloud spec 093 settles every purchase of names or emails as a
 `HOLD` and its `SPEND`, written together with no job, the `HOLD` carrying `price_version` 8 (`CreditLedgerEntry.
 passThrough`). No route serves a ledger row: `/v2/me.creditsAvailable` is the sum and nothing more. So the pair, its
 keys, its `price_version` and its Starter-rate cost are only observable in `credit_ledger` itself, and reading it is
-the only way to hold them. Reads are plain `SELECT`s; nothing here reads a project document.
+the only way to hold them. Reads are plain `SELECT`s. Spec 044 adds the one read of a project document: the lock's
+`recording` (document 22) and the founder's word, because no route serves a clip's script (`ClipRef` is an id, a URL
+and a length) and the spoken order, the solution passage and the word never spoken are rules about the scripts.
 
 **Why it writes three rows' worth, and only on the local profiles.** Contacts are refused to an own-AI account
 (`CONTACTS_NEED_CREDITS`, D9) and open only on a locked B2B project; on the local stack a Keel's-AI account cannot
@@ -15,7 +18,8 @@ product has no route from one state to the other either ("There is no route that
 `MeResponse.aiPath`). So the leg takes the project the scripted runtime just built and stands its founder on Keel's
 door with a fresh grant -- `stand_in_keels_door` -- lowers the balance once to see the two refusals --
 `stand_in_balance` -- and puts the founder back on their own door with nothing to spend -- `restore_own_door` -- in a
-`finally`. Every row written carries `reason` `e2e-eval spec 043: ...` and an `idempotency_key` under `e2e-eval:043:`,
+`finally`. Every row written carries `reason` `e2e-eval spec 043: ...` and an `idempotency_key` under `e2e-eval:043:`
+(spec 044's: `e2e-eval spec 044: ...` under `e2e-eval:044:`),
 so a reader of the table can tell the referee's rows from the product's. Nothing else in this repository writes to
 the database, and the remote profile (the staging twin) refuses all three by name.
 
@@ -33,9 +37,23 @@ import uuid
 from stack import postgres
 from stack.config import REPO_ROOT, StackConfig
 
-#: What every stand-in row says it is.
-REASON = "e2e-eval spec 043: {what} (a stand-in; keel-cloud has no route to this state on a stack with no Keel's-AI key)"
-KEY_PREFIX = "e2e-eval:043:"
+#: What every stand-in row says it is -- and which spec wrote it (043's contacts leg, 044's interviewer leg).
+REASON = "e2e-eval spec {spec}: {what} (a stand-in; keel-cloud has no route to this state on a stack with no Keel's-AI key)"
+
+
+def key_prefix(spec: str) -> str:
+    """The `idempotency_key` prefix of one spec's stand-in rows: `e2e-eval:043:`, `e2e-eval:044:`."""
+    return f"e2e-eval:{spec}:"
+
+
+def reason(spec: str, what: str) -> str:
+    return REASON.format(spec=spec, what=what)
+
+
+#: Spec 043's own rows (the contacts leg filters its ledger on it).
+KEY_PREFIX = key_prefix("043")
+#: Any spec's stand-in row.
+STAND_IN_PREFIX = "e2e-eval:"
 #: keel-cloud `CreditPolicy.GRANT_CREDITS`: what a Google sign-up is granted (`CreditLedgerEntry.grant`).
 GRANT_CREDITS = 1500
 
@@ -94,6 +112,23 @@ def balance(config: StackConfig, founder_id: str) -> int:
     return int(out)
 
 
+def recording(config: StackConfig, project_id: str) -> dict:
+    """Spec 044: the project's interviewer as keel-cloud stored it (document 22: the lock's `recording` and the
+    `previousRecording` a change of face is replacing, every clip with its role, kind, item, script, status and
+    attempts) and the founder's word -- the scripts are on no route (`ClipRef` carries an id, a URL and a length), so
+    the spoken order, the solution passage and the word never spoken are only observable here. A plain `SELECT` of
+    three paths of one row; nothing else of the document is read."""
+    _require_uuid(project_id)
+    rows = _json(config, "SELECT content->'corridor'->'lock'->'recording' AS recording, "
+                         "content->'corridor'->'lock'->'previousRecording' AS previous, "
+                         "content->'corridor'->'word'->>'pitch' AS pitch, content->'corridor'->'word' AS word, "
+                         "schema_version "
+                         "FROM project_content WHERE project_id = :'project'", project=project_id)
+    if len(rows) != 1:
+        raise LedgerUnavailable(f"expected one project_content row for {project_id}, found {len(rows)}")
+    return rows[0]
+
+
 def now(config: StackConfig) -> str:
     """The database's own clock, so `since` is compared on one clock with `created_at`."""
     return _psql(config, "SELECT to_json(now())#>>'{}';\n")
@@ -101,7 +136,7 @@ def now(config: StackConfig) -> str:
 
 # ------------------------------------------------------------------------------------- the stand-ins
 
-def stand_in_keels_door(config: StackConfig, founder_id: str, run: str) -> int:
+def stand_in_keels_door(config: StackConfig, founder_id: str, run: str, *, spec: str = "043") -> int:
     """Stand-in 1 (call 129): the account on Keel's door with a fresh grant of 1,500 -- the two facts a Google sign-up
     writes (`ai_path` KEEL, `CreditLedgerEntry.grant`), the grant topping up whatever balance the account holds to
     exactly 1,500. Returns the credits added."""
@@ -113,12 +148,12 @@ def stand_in_keels_door(config: StackConfig, founder_id: str, run: str) -> int:
                   " VALUES (:'row', :'founder', 'GRANT', :'credits', :'reason', :'key', now());\n"
                   "COMMIT;\n",
           founder=founder_id, row=str(uuid.uuid4()), credits=str(added),
-          reason=REASON.format(what="the account on Keel's door with a fresh grant of 1,500"),
-          key=f"{KEY_PREFIX}{run}:door")
+          reason=reason(spec, "the account on Keel's door with a fresh grant of 1,500"),
+          key=f"{key_prefix(spec)}{run}:door")
     return added
 
 
-def stand_in_balance(config: StackConfig, founder_id: str, run: str, *, to: int) -> int:
+def stand_in_balance(config: StackConfig, founder_id: str, run: str, *, to: int, spec: str = "043") -> int:
     """Stand-in 2 (call 130): the balance lowered to `to` with one row, as keel-cloud's own `ContactsJourneyTest.
     balance` does (a `PURCHASE` row of the difference) -- the eval cannot spend the fake's 53 people down past 954
     credits of a 1,500 grant. Returns the row's credits."""
@@ -127,12 +162,12 @@ def stand_in_balance(config: StackConfig, founder_id: str, run: str, *, to: int)
     _psql(config, "INSERT INTO credit_ledger (id, founder_account_id, kind, credits, reason, idempotency_key, created_at)"
                   " VALUES (:'row', :'founder', 'PURCHASE', :'credits', :'reason', :'key', now());\n",
           founder=founder_id, row=str(uuid.uuid4()), credits=str(delta),
-          reason=REASON.format(what=f"the balance lowered to {int(to)} to see the two credit refusals"),
-          key=f"{KEY_PREFIX}{run}:low-balance")
+          reason=reason(spec, f"the balance lowered to {int(to)} to see the credit refusals"),
+          key=f"{key_prefix(spec)}{run}:low-balance")
     return delta
 
 
-def restore_own_door(config: StackConfig, founder_id: str, run: str) -> int:
+def restore_own_door(config: StackConfig, founder_id: str, run: str, *, spec: str = "043") -> int:
     """Stand-in 3 (call 131): the account back on its own door with a zero balance, so the next journey on the same
     founder (S-007 after S-006, or a second run on an un-dropped database) meets the account it always met: `ai_path`
     OWN and nothing to spend (an OWN account's `creditsAvailable` is null whatever the ledger holds). Returns the
@@ -145,8 +180,8 @@ def restore_own_door(config: StackConfig, founder_id: str, run: str) -> int:
                   "UPDATE founder_account SET ai_path = 'OWN' WHERE id = :'founder';\n"
                   "COMMIT;\n",
           founder=founder_id, row=str(uuid.uuid4()), credits=str(delta),
-          reason=REASON.format(what="the account back on its own door with nothing to spend"),
-          key=f"{KEY_PREFIX}{run}:restore")
+          reason=reason(spec, "the account back on its own door with nothing to spend"),
+          key=f"{key_prefix(spec)}{run}:restore")
     return delta
 
 

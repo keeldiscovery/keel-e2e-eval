@@ -17,7 +17,7 @@ Countly is the corpus's B2C entry with the most people (twelve), and it earns it
 
 from __future__ import annotations
 
-from evals import contacts_leg, corpus_scenario
+from evals import contacts_leg, corpus_scenario, interviewer_leg
 from harness import vectors_script as vs
 
 ENTRY_ID = "01-countly"
@@ -71,6 +71,8 @@ def _countly_extras(j) -> None:
 
     # Spec 043 (keel-cloud 093 D10): Contacts are B2B only; a consumer study is refused NOT_B2B, before the door.
     contacts_leg.leg_contacts_not_b2b(j)
+    # Spec 044: the AI interviewer's short form on a consumer study -- the recording's charge, READY, one AI link.
+    interviewer_leg.leg_interviewer_short(j)
 
 
 def test_s005_countly(stack, founder_one, browser, run_dir):

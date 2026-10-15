@@ -1,0 +1,84 @@
+"""Spec 044 T003: the AI interviewer's page objects (`harness/interviewer_screens.py`) against keel-web's own source --
+the speech seam the eval drives exists only in a test-mode build (judgement call 1's "one check"), the eval's init
+script is keel-web's fixture restated, and the words the page objects read are keel-web's own."""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+import pytest
+
+from harness import interviewer_screens as ivs
+from harness import interviews_screens as iv
+from stack.config import REPO_ROOT, load_config
+
+
+def _web(rel: str) -> str:
+    path = load_config(validate=False).keel_web / rel
+    if not path.is_file():
+        pytest.skip(f"keel-web has no {rel} (before spec 069)")
+    return path.read_text(encoding="utf-8")
+
+
+def test_the_speech_seam_is_read_only_in_a_test_build():
+    """Every read of `window.__keelSpeech` in keel-web's app code sits under `import.meta.env.MODE === "test"`, which a
+    production build folds to false and deletes with the seam (keel-web 069 judgement call 5)."""
+    root = load_config(validate=False).keel_web / "src"
+    if not (root / "components/interview/ai/useSpeechRecognition.ts").is_file():
+        pytest.skip("keel-web predates spec 069")
+    reads = []
+    for path in root.rglob("*.ts*"):
+        text = path.read_text(encoding="utf-8")
+        for m in re.finditer(r"window\.__keelSpeech", text):
+            line_start = text.rfind("\n", 0, m.start()) + 1
+            line = text[line_start:text.find("\n", m.end())]
+            if line.lstrip().startswith(("*", "//", "__keelSpeech?:")):
+                continue
+            reads.append((path.name, text[max(0, m.start() - 400):m.start()]))
+    assert reads, "keel-web reads the seam nowhere"
+    for name, before in reads:
+        assert 'import.meta.env.MODE === "test"' in before, name
+
+
+def test_the_eval_serves_keel_web_in_test_mode():
+    config = (REPO_ROOT / "stack" / "vite.eval.config.ts").read_text(encoding="utf-8")
+    assert 'mode: process.env.EVAL_WEB_MODE ?? "test"' in config
+
+
+def test_the_init_script_is_keel_webs_fixture_restated():
+    fixture = _web("tests/fixtures/interviewer/fakeSpeech.ts")
+    for name in ("__keelSpeech", "__say", "__speechError", "__speechEnd", "__recognisers", "Recognition"):
+        assert name in fixture and name in ivs.SPEECH_SEAM, name
+
+
+@pytest.mark.parametrize("word", [ivs.PERSONA_RECORDING, ivs.PERSONA_NOT_RECORDED, ivs.TRY_IT_YOURSELF_RECORDING,
+                                  ivs.TRY_NOTHING_STORED, ivs.SEND_TEXT_ONLY_LINKS, ivs.SEND_FORMAT_RECORDED,
+                                  ivs.SEND_FORMAT_RECORDING, ivs.RECORD_FACE_TITLE, ivs.CHANGE_FACE_TITLE,
+                                  iv.TEXT_ONLY, iv.FORMAT_RECORDING, iv.FORMAT_NOT_RECORDED, iv.FORMAT_NEEDS_CREDITS])
+def test_the_words_are_keel_webs_own(word):
+    assert f'"{word}"' in _web("src/lib/translate.ts"), word
+
+
+def test_the_templates_are_keel_webs_own():
+    translate = _web("src/lib/translate.ts")
+    assert "`${face} asks your questions.`" in translate and ivs.persona_asks("Tito") == "Tito asks your questions."
+    assert "`Change who asks · ${creditsAmount(credits)} AI credits`" in translate
+    assert ivs.change_who_asks(400) == "Change who asks · 400 AI credits"
+    assert "`Record the interviewer · ${creditsAmount(credits)} AI credits`" in translate
+    assert "`${face} asks your questions`" in translate and "`${face} will ask you ${questions} questions.`" in translate
+
+
+@pytest.mark.parametrize("testid", ["persona-line", "change-who-asks", "change-face-popup", "change-face-confirm",
+                                    "try-it-yourself", "ai-intro", "start-talking", "choice-talk", "choice-write",
+                                    "ai-stage", "ai-where", "ai-end", "ship-mark", "ai-sheet", "ai-options",
+                                    "ai-field", "ai-preview", "ai-heard", "ai-answer", "ai-next", "ai-type",
+                                    "ai-typed", "ai-done", "face-carousel", "lock-and-record"])
+def test_every_selector_the_page_objects_press_is_in_keel_web(testid):
+    root = load_config(validate=False).keel_web / "src"
+    if not (root / "components/interview/ai").is_dir():
+        pytest.skip("keel-web predates spec 069")
+    hits = [p for p in root.rglob("*.tsx") if f'data-testid="{testid}"' in p.read_text(encoding="utf-8")]
+    assert hits, testid
+    assert testid in Path(ivs.__file__).read_text(encoding="utf-8") + Path(
+        REPO_ROOT / "harness" / "vectors_screens.py").read_text(encoding="utf-8"), testid
