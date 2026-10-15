@@ -30,7 +30,8 @@ added to this line rather than quietly written — which is exactly how the thir
   of record until `WHY=marks:19` is spent -- the certificate is the founder's word only; never run or
   propose it**. keel-cloud 090 / 091 (merged at keel-cloud-docs `c432c1d`: `CONTRACT_VERSION` 14, the lock one
   RESPONDENT_QUESTIONS job of 35, corpus revision 11) moved four calls under unchanged numbers (110-115): the corpus is
-  revision 11 (r10 refused by name; DRIFT #77's five words fixed, 05-paidly's Frequency in months out of 3),
+  revision 11 (r10 refused by name; DRIFT #77's five words fixed, 05-paidly's Frequency in months out of 3; keel-cloud 092 /
+  093 at `7850360` -- contract 15, charge 8 -- moved no screen schema and no instruction, so v19 stands, spec 043 call 135),
   `spoken_form` holds every stem to 20 with `spoken.KNOWN` empty, an `L` refusal is read as the validator's rule
   (DRIFT #76 closed; call 86's reclassification deleted), and `brief_facts` reads 091's `keelBar` and words. At zero
   spend against `c432c1d`: `compare_correctness` 108 of 108, `spoken_form` 109 of 109, `brief_facts` 94 of 94. What
@@ -338,7 +339,21 @@ stepped round keel-web `844ea36` until 066 closed them. **Since spec 042's secon
 *n / 5 words* counter, page two's *Keel's bar* and quote credits held to the wire (DRIFT #82: the bar is never drawn
 live, stepped round in a named step), and #78 / #79 closed with failing guards in their place. Green locally twice
 against `c432c1d` + keel-web `c14d513` (and twice before that against `844ea36`). `make unit` after 042:
-**1,857 passed / 53 skipped** (was 1,729 / 28 failed / 142 skipped on the same checkouts). **Nothing generated is committed** -- the script, the
+**1,857 passed / 53 skipped** (was 1,729 / 28 failed / 142 skipped on the same checkouts). **Since spec
+`043-contacts-journey` (2026-10-15) they run keel-cloud 092 / 093 (keel-cloud-docs `7850360`: contract 15, `InferenceCharge`
+8, document 21)** on keel-web `da0b9eb`, whose pages took contract 15's additive register (newest first) unchanged; **S-006
+ends with the contacts leg on the wire** (`evals/contacts_leg.py`): the own-AI refusal, then the founder stood on Keel's door
+with a fresh grant (a stand-in, `stack/ledger.py` -- **the one module here that writes to the database**: three named rows'
+worth, reversed in a `finally`, local profiles only), Keel's base query, a dataset sized free to the fake's 27, a page of 25
+for 150, three emails for 36, links in one Text batch, one found person through FOUND -> LINK_MADE -> OPENED -> ANSWERED,
+*Make a new link* (the old link 404), a second page and a second dataset that repeat nobody, `FORMAT_NOT_AVAILABLE`, both
+422 credit refusals at 20 and the ledger's HOLD / SPEND pairs at `price_version` 8; S-005 asserts `NOT_B2B`. They are scored
+by `evals/contacts_marks.py` (CM1-CM14, `CONTACTS_MARKS_VERSION` 1, a journey ruler apart from `MARKS_VERSION`). **Since spec
+043's second commit they run keel-cloud-docs `a4f2c95` (DRIFT #83 closed) on keel-web `752a8c4` (068: People became
+Interviews)**: every journey's links are made on Sent's *Send more* (W1 held once per account), the contacts leg runs on
+068's own screens (`harness/interviews_screens.py`) with every wire assertion kept, and the readings 068 no longer
+starts are started on the wire in a step named DRIFT #84.
+`make unit` after 043: **1,912 passed / 53 skipped**. **Nothing generated is committed** -- the script, the
 keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
 the end of every run.
 

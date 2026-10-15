@@ -41,6 +41,9 @@ one leg and leave the others alone:
                       card's words, the pilot tile), page two (one block a card, *What broke* on the broke
                       block alone) and the download's tab.
 
+After them each scenario's `extra` runs: S-006's ends with **the contacts leg** (spec 043, keel-cloud 093,
+`evals/contacts_leg.py`) on the wire, and S-005's with the B2C `NOT_B2B` refusal.
+
 Every inference job is answered by keel-runtime's **scripted** executor from the entry's own stored
 texts (`harness/vectors_script.py`); no model runs anywhere in this file (`evals/policy.py`).
 
@@ -57,8 +60,9 @@ from typing import Any, Callable
 from evals import corpus_facts
 from evals.preludes import create_project, own_ai_door
 from harness import vectors_script as vs
+from harness import interviews_screens as iv_screens
 from harness import vectors_screens as vs_screens
-from harness.browser import Auth, Connect, Landing, People
+from harness.browser import Auth, Connect, Landing
 from harness.connect import start_runtime_via_skill, stop_runtime
 from harness.evidence import finalize_run, write_generated
 from harness.steps import Recorder
@@ -142,6 +146,10 @@ class Journey:
     idea_name: str = ""
     #: The lock's receipt (`LockReceipt`), as keel-web received it from `POST lock`.
     receipt: dict = field(default_factory=dict)
+    #: The stack and the identity the founder signed in as (spec 043: the contacts leg reads the ledger and stands the
+    #: founder on Keel's door, `stack/ledger.py`). None on S-012, which never runs that leg.
+    stack: Any = None
+    founder_identity: Any = None
 
     # --------------------------------------------------------------------------- the wire
 
@@ -665,26 +673,63 @@ def leg_lock(j: Journey) -> None:
 # -------------------------------------------------------------------------------- leg 5: invite
 
 def leg_invite(j: Journey) -> None:
-    """One link per corpus person, in corpus order, through the People page's popups: the
-    specialist's *Send the questions*, or on a B2B entry the decision-maker's commercial link for
-    every person on `COMMERCIAL_B2B`."""
+    """One link per corpus person, in corpus order, through keel-web 068's Interviews section (spec 043's second
+    commit; the People page and its two popups are gone): Sent, W1 the walkthrough the first time this account
+    arrives, then each kind's *Send the questions* / *Send more* -- Text, *Someone I know*, the person's name, *Make
+    their link* -- for the specialist and, on a B2B entry, the decision-maker (one `POST invitations/batch` for both,
+    068 call 11). The register is then held to the wire: newest link first, one row a person, Text, not opened."""
+    register = j.get(j.project("/invitations")) or {}
+    labels = {k.get("respondentType"): k.get("label") for k in register.get("kinds") or []}
     persona = j.get(j.project("/persona")) or {}
     primary = next(t for t in persona.get("respondentTypes") or [] if not t.get("commercialLink"))
-    decider = next((t for t in persona.get("respondentTypes") or [] if t.get("commercialLink")), None)
-    links = vs_screens.PeopleLinks(j.page, j.recorder, j.web_base, patience=j.patience)
+    sent = iv_screens.Interviews(j.page, j.recorder, j.web_base, patience=j.patience)
+    me_before = j.get("/v2/me") or {}
+    walked = sent.land(j.project_id)
+    with _step(j, "Interviews (keel-web 068 FR-002 / FR-003): the side nav's group with its three sub-rows, Sent "
+                  "current; the walkthrough played exactly when the account had never seen it, and Got it stamped it",
+               party="founder") as h:
+        nav = sent.nav()
+        me_after = j.get("/v2/me") or {}
+        h.record_assert({"row": iv_screens.NAV_INTERVIEWS, "subs": iv_screens.SUBPAGES, "current": ["Sent"],
+                         "walkthrough": me_before.get("walkthroughSeenAt") is None},
+                        {"nav": nav, "walkthrough": walked, "seen before": me_before.get("walkthroughSeenAt"),
+                         "seen after": me_after.get("walkthroughSeenAt")})
+        assert nav["row"] == iv_screens.NAV_INTERVIEWS and (nav["href"] or "").endswith(
+            f"/p/{j.project_id}/interviews/sent"), nav
+        assert nav["subs"] == iv_screens.SUBPAGES and nav["current"] == ["Sent"], nav
+        assert (walked is not None) == (me_before.get("walkthroughSeenAt") is None), (walked, me_before)
+        if walked is not None:
+            assert walked["title"] == iv_screens.WALKTHROUGH_TITLE and walked["patch"]["status"] == 200, walked
+        assert me_after.get("walkthroughSeenAt"), me_after
     for person in j.people:
-        if person.link == vs.LINK_B2B:
-            url = links.commercial_link(j.project_id, decider["label"], person.person)
-        else:
-            url = links.specialist_link(j.project_id, primary["label"], person.person,
-                                        f"{primary.get('label')}, asked about one real time.")
-        j.links[person.person] = url
-        j.tokens[person.person] = url.rstrip("/").rsplit("/", 1)[-1]
-    with _step(j, "every corpus person has a link of their own, and the wire has one invitation "
-                  "per link", party="founder") as h:
-        people = j.get(j.project("/people")) or {}
-        h.record_assert(len(j.people), {"links": len(set(j.tokens.values())), "people": people})
+        kind = vs.LINK_B2B if person.link == vs.LINK_B2B else vs.LINK_PRIMARY
+        about = None if kind == vs.LINK_B2B else f"{primary.get('label')}, asked about one real time."
+        made = sent.send_someone(j.project_id, labels[kind], person.person, about)
+        link = ((made["batch"] or {}).get("links") or [{}])[0]
+        with _step(j, f"{person.person}: one link on the {kind} kind, handed back once and drawn as it came",
+                   party="founder") as h:
+            h.record_assert({"status": 201, "format": "TEXT", "drawn": link.get("url"), "personName": person.person},
+                            {"status": made["status"], "format": (made["batch"] or {}).get("format"),
+                             "drawn": made["url"], "link": link, "formats": made["formats"]})
+            assert made["status"] == 201 and (made["batch"] or {}).get("format") == "TEXT", made
+            assert made["url"] == link.get("url") and link.get("personName") == person.person, made
+            assert made["formats"].get("Text", {}).get("checked") is True, made["formats"]
+            assert all(f["disabled"] and f["word"] == iv_screens.FORMAT_NOT_AVAILABLE
+                       for name, f in made["formats"].items() if name != "Text"), made["formats"]
+        j.links[person.person] = made["url"]
+        j.tokens[person.person] = made["url"].rstrip("/").rsplit("/", 1)[-1]
+    with _step(j, "every corpus person has a link of their own; the Sent register draws one row a person, newest "
+                  "link first, as the wire lists them", party="founder") as h:
+        wire = (j.get(j.project("/invitations")) or {}).get("invitations") or []
+        drawn = sent.register()
+        h.record_assert({"links": len(j.people), "order": [p.person for p in j.people][::-1]},
+                        {"links": len(set(j.tokens.values())), "wire": [r.get("personName") for r in wire],
+                         "drawn": drawn})
         assert len(set(j.tokens.values())) == len(j.people), j.tokens
+        assert [r.get("personName") for r in wire] == [p.person for p in j.people][::-1], wire
+        assert [r.get("Who") for r in drawn] == [r.get("personName") for r in wire], drawn
+        assert {r.get("Format") for r in drawn} == {"Text"}, drawn
+        assert all((r.get("Status") or "").startswith(iv_screens.REGISTER_STATUS["SENT"]) for r in drawn), drawn
     # keel-web 066 (D15): before anyone finishes, the board's pilot tile reads *None yet* with no per-link line.
     j.standings = j.get(j.project("/standings")) or {}
     _board_tiles(j, j.answers.board(j.project_id), "before anyone answered")
@@ -884,26 +929,38 @@ def _normal_body(body: dict) -> dict:
 
 
 def _read(j: Journey, person) -> None:
-    """The founder has their AI read the new answer, on the People page, when this person wrote a
-    story the reader is shown; nobody else's answer queues a reading (a gate no, a chip, the
-    decision-maker's link)."""
+    """The founder has their AI read the new answer when this person wrote a story the reader is shown; nobody else's
+    answer queues a reading (a gate no, a chip, the decision-maker's link).
+
+    **DRIFT #84, stepped round** (spec 043 call 140): keel-web 068 deleted the reading batch's button with People's
+    page (068 call 7), while keel-cloud still reads a story only on `POST readings` and the board still counts *read
+    by your AI*. So the founder's own session starts the batch on the wire -- exactly the call People's button made --
+    in a step named for the entry, and every later assertion stands as it did."""
     readable = any(p.person == person.person for p in vs.readable_people(j.entry))
     if not readable:
         return
-    people = People(j.page, j.recorder, j.web_base)
-    deadline = time.monotonic() + 45 * j.patience
-    while True:
-        people.open(j.project_id)
-        state = people.read_action_state()
-        if state.get("enabled"):
-            break
-        if time.monotonic() > deadline:
-            raise AssertionError(f"{person.person}'s answer never reached the read action: {state}")
-        j.page.wait_for_timeout(1_000)
-    people.read_all_and_wait(timeout_s=90 * j.patience)
+    with _step(j, f"DRIFT #84 -- no screen reads {person.person}'s answer any more (keel-web 068 removed the reading "
+                  "batch); the founder's session starts it on the wire, as People's button did", party="founder",
+               kind="note") as h:
+        deadline = time.monotonic() + 45 * j.patience
+        while True:
+            status, started = j.call("POST", j.project("/readings"), {}, ok=(201, 409))
+            if status == 201:
+                break
+            if time.monotonic() > deadline:
+                raise AssertionError(f"{person.person}'s answer never reached a reading: {started}")
+            time.sleep(1)
+        h.record_wire({"POST": "readings"}, started)
+        deadline = time.monotonic() + 90 * j.patience
+        while True:
+            batches = j.get(j.project("/readings")) or []
+            batch = batches[0] if isinstance(batches, list) and batches else {}
+            if batch.get("status") not in (None, "RUNNING", "PENDING"):
+                break
+            if time.monotonic() > deadline:
+                raise AssertionError(f"{person.person}'s reading never finished: {batch}")
+            time.sleep(1)
     with _step(j, f"{person.person}'s answer is read, and nothing failed") as h:
-        batches = j.get(j.project("/readings")) or []
-        batch = batches[0] if isinstance(batches, list) and batches else {}
         h.record_assert({"status": "DONE", "failed": []}, batch)
         assert batch.get("status") == "DONE", batch
         assert not batch.get("failed"), batch
@@ -1360,6 +1417,7 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         page = context.new_page()
         journey = open_journey(recorder, page, context, browser, stack, entry, founder, people,
                                script=script, registry=exported.registry)
+        journey.stack, journey.founder_identity = stack, founder_one
         user_code = _connect(stack, recorder, page, founder_one, web_base, run_dir, keys_path)
         own_ai_door(page, recorder, stack, journey.get, through_the_code_story=bool(user_code))
 

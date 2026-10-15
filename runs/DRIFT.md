@@ -5255,3 +5255,47 @@ changes, the step stops firing and the bar is held to *Keel's bar: {keelBar}*. F
 `founderSaid` where the card carries one; for keel-cloud: leave `founderSaid` off the rows whose bar is Keel's -- the
 design's §7.3 decides which.
 **Resolved by keel-web `da0b9eb` (2026-10-14, spec 067 judgement call 2 reversed): a served `keelBar` wins over `founderSaid` on that block.** Observed live on the staging twin (keel-cloud-docs `c432c1d` + keel-web `da0b9eb`): page two drew *Keel's bar: ...* on Importance and Current solution on all three entries. The journey now holds the slot to *Keel's bar: {keelBar}* wherever the wire serves one and keeps a guard step (*"DRIFT #82 came back"*) that fails the journey if the founder's words are ever drawn there again.
+
+## 83. RESOLVED -- was an observation (keel-cloud, one field wide): after *Make a new link* the found person's row read the new link's time, where keel-cloud 093 judgement call 16 says it keeps the first link's -- the first time was stored and served nowhere
+
+**Closed by keel-cloud-docs `a4f2c95`, 2026-10-15** (one commit on `7850360`, contract unchanged): `FoundPersonRow.linkMadeAt`
+reads the found person's own (first) time, and the register row's `linkMadeAt` follows the new link. **Observed live**
+(spec 043's second commit, local stack on keel-cloud-docs `a4f2c95` + keel-web `752a8c4`): on every S-006, after *Make a
+new link* on Sent, the dataset's row kept the batch's time and the register moved to the relink's. **The step round it is
+gone**: `contacts_leg._link_times` holds both straight and fails the journey if either moves the wrong way, and CM10
+holds the same on the record.
+
+**Was: an observation.** The entry as it was written:
+
+
+Found by spec `043-contacts-journey` on S-006's contacts leg (local stack on keel-cloud-docs `7850360` + keel-web
+`da0b9eb`), on every run (bundles `runs/20261015T041013Z-s006-paidly`, `...T041922Z-...` and `...T042540Z-...`). keel-cloud 093 call 16: *"`Invitation.relinkedAt` moves the register's 'Link made'; the found
+person's `linkMadeAt` keeps the first link's time."* The domain does keep it (`FoundPerson.linkMadeAt`, written once by
+the batch, untouched by `Project.relink`), but the wire never shows it: `ContactsController.personRow` fills
+`FoundPersonRow.linkMadeAt` from the invitation's `linkMadeAt()` whenever the row has a link, and that is the relink's
+time. Observed (`T042540Z`): the batch made the second person's link at `04:27:56.989Z`; *Make a new link* answered
+`linkMadeAt` `04:27:57.071Z`; `GET contacts/datasets/{id}` then read that person's `linkMadeAt` `04:27:57.071Z`, equal
+to the register's *Link made* -- so the dataset page and the Sent register agree, and the first link's time that call 16
+keeps is served by no route. Nothing a founder does breaks (C3's row and T1's row read the same time); it is a spec
+sentence and a DTO disagreeing about which time a found person's row shows. The journey holds the wire as served (the
+register's *Link made* moved; the old link 404s, the new one opens, the invitation is the same) and names it in a step
+for the entry (*"DRIFT #83 -- ...'s found-person row reads the new link's time ..."*); the moment the row keeps the
+first time, that step stops firing and the row is held to call 16. For keel-cloud: either serve the stored first time
+on `FoundPersonRow.linkMadeAt` (and say so in the field's description), or amend call 16 to say the row follows the
+link -- the design's C3 decides which.
+
+## 84. Observation (keel-web, with keel-cloud beside it): no screen starts a reading any more -- keel-web 068 deleted the reading batch with People's page, while keel-cloud still reads a story only on `POST readings` and the board still counts *read by your AI*
+
+Found by spec `043-contacts-journey`'s second commit on all three entries (local stack on keel-cloud-docs `a4f2c95` +
+keel-web `752a8c4`). keel-web 068 FR-009 deletes "People's page (`PeopleRoute`), its send popup, the commercial-link
+popup, the reading batch's hooks"; its judgement call 7 reads *"a vectors project's standings read every answer by
+code"*. The standings do (no journey assertion on a standing moved), but keel-cloud's INTERPRET of a stranger's story --
+what the board's people line counts as *n read by your AI* (keel-web's own `evidenceBarPeopleLine`, still drawn on
+the board) and what the brief's stories are read from -- still runs only when the founder's session calls `POST
+/v2/projects/{id}/readings` (`ReadingBatch`; contract 15 unchanged), and no screen at `752a8c4` calls it: a founder on
+the new web can never have an answer read, and the board's *read by your AI* stays 0. The journeys step round it in a
+step named for the entry (*"DRIFT #84 -- no screen reads {person}'s answer any more ..."*): the founder's own session
+starts the batch on the wire, exactly the call People's button made, so every later assertion stands as it did. For
+keel-web and keel-cloud together, a design call: either a screen that starts the reading (Sent's register would carry
+it), or keel-cloud reads a story when it is answered and the board's *read by your AI* goes (or keeps counting what the
+server read by itself).

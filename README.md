@@ -92,6 +92,19 @@ refusal is read as the validator's rule (DRIFT #76 closed, the reclassification 
 **109 of 109**, `brief_facts` **94 of 94**. The journeys (S-005 / 006 / 007) walk revision 11 and contract 14: one
 RESPONDENT_QUESTIONS job a lock, and on S-006 the founder names the idea on S2 (keel-cloud 090).
 
+### The contacts leg — contract 15 on the wire (spec `043-contacts-journey`, 2026-10-15)
+
+keel-cloud 092 / 093 (merged at keel-cloud-docs `7850360`: contract 15, `InferenceCharge` 8, document 21; the stack's
+default contact source is keel-cloud's in-process fake, so nothing in Compose or the env moved). S-006 ends with the
+founder finding the decision-makers through Contacts, on the wire (`evals/contacts_leg.py`), and S-005 holds the B2C
+refusal (`NOT_B2B`). Contacts are bought with credits and this stack has no Keel's-AI key, so the leg stands the
+journey's founder on Keel's door with a fresh grant of 1,500 and reverses it in a `finally` (`stack/ledger.py`, the
+only module that writes to the database -- local profiles only). The rules are scored by `evals/contacts_marks.py`
+(CM1-CM14, `CONTACTS_MARKS_VERSION` 1) into `contacts-marks.json` beside the transcript; `MARKS_VERSION` stays 19.
+Since the spec's second commit the leg runs on keel-web 068's Interviews section (`harness/interviews_screens.py`:
+Sent, Send more, Make a new link, Contacts, C2, the page of names, C3, the credits popup), and every journey makes its
+links on Sent.
+
 ### `MARKS_VERSION` 18 — history since v19, never run (spec `040-marks-v18`, 2026-10-14)
 
 The October redesign (keel-cloud 087 / 088 / 089, merged at keel-cloud-docs `7b151f9`; registry `VERSION` 4, document 20,
