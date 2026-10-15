@@ -324,6 +324,16 @@ jobs:
         with:
           node-version: "22"
 
+      # deploy.sh runs `npm run build` in KEEL_WEB_DIR and installs nothing: on the Mac the
+      # checkout already has its node_modules. A fresh checkout here has none, and the first time
+      # this job reached the web build (2026-10-15, matrix run 38729501763) `tsc` resolved to the
+      # runner's own global TypeScript, which rejects keel-web's tsconfig. The lockfile's
+      # TypeScript is the one keel-web's own gates run, so it is the one that builds the bundle.
+      - name: Install keel-web's dependencies from its lockfile
+        shell: bash
+        working-directory: keel-web
+        run: npm ci --no-audit --no-fund
+
       - name: The tools deploy.sh names (aws, jq, docker, npm, git)
         shell: bash
         run: |
@@ -470,7 +480,12 @@ jobs:
               git checkout --quiet "$deployed"
               echo "the change is elsewhere: the twin stays on $deployed" ;;
           esac
-          echo "tag=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          # SEVEN characters, always. `--short` alone lets git pick the width, and on 2026-10-15
+          # the runner answered a4f2c955 for the commit the Mac had deployed as a4f2c95: the
+          # deploy step below then compared the two, saw a "new" tag, and tried a full redeploy
+          # of what the twin already ran. The Mac's deploy.sh takes the tag as typed, and the
+          # founder types seven, so seven is the width the two sides agree on.
+          echo "tag=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
 
       - id: ecr
         uses: aws-actions/amazon-ecr-login@v2
