@@ -77,6 +77,11 @@ def build_env(config: StackConfig) -> dict[str, str]:
         # twin through keel-cloud `deploy/bin/common.sh`. The corpus journeys are vectors journeys
         # now, so this stack is the twin's shape: with the flag off every corridor route is a 404.
         "KEEL_VECTORS_ENABLED": "true",
+        # spec 044 (keel-cloud 094 FR-D): the AI interviewer's clips are files keel-cloud writes to
+        # `keel.v2.interviewer.clips-dir`, `./data/clips` by default -- relative to keel-cloud's own checkout, which
+        # would leave rendered files in a sibling repository. The stack keeps them under its own `runs/.stack/`.
+        # The renderer and the transcriber stay keel-cloud's defaults (`fake`): no vendor, no key, no money.
+        "KEEL_CLIPS_DIR": str(REPO_ROOT / "runs" / ".stack" / f"clips-{config.profile}"),
     })
     # Sign in with Google, pointed at this profile's stub issuer (keel-cloud
     # `canon/designs/google-sign-in-design.md` 10.3). Wired now, ahead of keel-cloud spec 032,

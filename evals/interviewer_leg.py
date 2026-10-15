@@ -49,6 +49,10 @@ LOW_BALANCE = 100
 AI_PERSON = "Someone the founder knows, by voice"
 CHOICE_PERSON = "Someone the founder knows, who picks"
 TEXT_PERSON = "Someone the founder knows, in writing"
+#: The founder's word the leg writes after the lock (call 149: no corpus founder writes one; `PUT word` is legal after
+#: the lock) -- so the rule that it is never spoken has a word to hold. Composed here, never generated.
+FOUNDERS_WORD = ("I started this because I spent years watching good people lose whole evenings to it, and I would "
+                 "like to hear how it goes for you before I build anything.")
 
 #: What waits for keel-web 069's page objects (`harness/interviewer_screens.py`): L1's carousel, W1's frame 2, Sent's
 #: persona line (S1 / S2), Send more's format row (S3), the change popup, the role card's *Try it yourself*, the dry
@@ -152,6 +156,7 @@ def _leg(j, *, short: bool) -> dict:
     since = stack_ledger.now(j.stack)
     try:
         _keels_door(j, wire, founder_id, run)
+        _founders_word(j, wire, record)
         _first_recording(j, wire, record)
         if not short:
             _while_recording(j, wire, record)
@@ -176,6 +181,9 @@ def _leg(j, *, short: bool) -> dict:
             assert not others, others
     finally:
         _restore(j, wire, founder_id, run)
+    if short:
+        # the short form answers no AI link, so the pilot's count has no subject: what was served is kept apart
+        record["pilot_served"] = record.pop("pilot", {}).get("served")
     require = ["IM1", "IM3", "IM4", "IM5", "IM7"] if short else [m for m, _, _ in marks.MARKS if m in _owed(record)]
     _score(j, record, require=require)
     return record
@@ -183,7 +191,7 @@ def _leg(j, *, short: bool) -> dict:
 
 def _owed(record: dict) -> set[str]:
     """Every mark whose subject this record carries -- the screen marks join when 069's page objects draw them, and
-    IM12 when the stack can seed the fake's fail-once (D-2)."""
+    IM12 when the stack can seed the fake's fail-once (DRIFT #86)."""
     return {m for m, key, _ in marks.MARKS if key in record}
 
 
@@ -195,17 +203,40 @@ def _own_ai(j, wire: _Wire, record: dict) -> None:
                          "INTERVIEWER_NEEDS_CREDITS, and nothing is made", party="founder", kind="assert") as h:
         me = wire.me()
         status, body = wire("GET", "/interviewer", ok=(422,))
+        roles = _role_ids(j)
         before = len((wire("GET", "/invitations")[1]).get("invitations") or [])
-        link, link_body = wire("POST", "/invitations/batch", {
-            "expectedRevision": j.revision(), "respondentType": vs.LINK_PRIMARY, "format": "AI_INTERVIEWER",
-            "people": [{"personName": AI_PERSON}]}, ok=(422,))
+        single, single_body = wire("POST", "/invitations", {
+            "expectedRevision": j.revision(), "roleId": roles[vs.LINK_PRIMARY], "personName": AI_PERSON,
+            "about": "the AI interviewer on an account on its own AI", "format": "AI_INTERVIEWER"}, ok=(422,))
         after = len((wire("GET", "/invitations")[1]).get("invitations") or [])
         record["own_ai"] = {"aiPath": me.get("aiPath"), "receipt": j.receipt, "status": status, "body": body,
-                            "link": {"status": link, "body": link_body}, "register": [before, after]}
+                            "link": {"status": single, "body": single_body}, "register": [before, after]}
         h.record_assert({"aiPath": "OWN", "receipt.interviewer": None, "status": 422, "code": fake.NEEDS_CREDITS,
                          "link": fake.NEEDS_CREDITS, "made": 0}, record["own_ai"])
         assert me.get("aiPath") == "OWN" and "interviewer" not in (j.receipt or {}), record["own_ai"]
-        assert body.get("code") == fake.NEEDS_CREDITS == link_body.get("code") and before == after, record["own_ai"]
+        assert body.get("code") == fake.NEEDS_CREDITS == single_body.get("code") and before == after, record["own_ai"]
+    _drift_85(j, wire, record)
+
+
+def _drift_85(j, wire: _Wire, record: dict) -> None:
+    """runs/DRIFT.md #85: contract 16 says the batch refuses an own-AI account's AI_INTERVIEWER / CHOICE links 422
+    INTERVIEWER_NEEDS_CREDITS, as the single link and the commercial link do; keel-cloud's batch (`ContactsService.
+    makeLinks`) never asks the door and answers 409 INTERVIEWER_NOT_READY. Stepped round, not failed: what is held is
+    that nothing is made; the code is held straight the moment it is the contract's."""
+    with j.recorder.step("interviewer: DRIFT #85 -- on their own AI the founder's AI-interviewer link in a BATCH is "
+                         "refused 409 INTERVIEWER_NOT_READY where contract 16 says 422 INTERVIEWER_NEEDS_CREDITS; "
+                         "nothing is made either way", party="founder", kind="assert") as h:
+        before = len((wire("GET", "/invitations")[1]).get("invitations") or [])
+        status, body = wire("POST", "/invitations/batch", {
+            "expectedRevision": j.revision(), "respondentType": vs.LINK_PRIMARY, "format": "AI_INTERVIEWER",
+            "people": [{"personName": AI_PERSON}]}, ok=(409, 422))
+        after = len((wire("GET", "/invitations")[1]).get("invitations") or [])
+        fired = (status, body.get("code")) == (409, fake.NOT_READY)
+        record["own_ai"]["batch"] = {"status": status, "body": body, "drift_85": fired}
+        h.record_assert({"status": 422, "code": fake.NEEDS_CREDITS, "made": 0},
+                        {"status": status, "code": body.get("code"), "made": after - before, "DRIFT #85": fired})
+        assert before == after, (before, after)
+        assert fired or (status, body.get("code")) == (422, fake.NEEDS_CREDITS), body
 
 
 def _keels_door(j, wire: _Wire, founder_id: str, run: str) -> None:
@@ -227,6 +258,22 @@ def _restore(j, wire: _Wire, founder_id: str, run: str) -> None:
         h.record_wire({"closing row": taken}, {"aiPath": me.get("aiPath"),
                                                "creditsAvailable": me.get("creditsAvailable")})
         assert me.get("aiPath") == "OWN" and me.get("creditsAvailable") is None, me
+
+
+def _founders_word(j, wire: _Wire, record: dict) -> None:
+    with j.recorder.step("interviewer (call 149): the founder writes a word after the lock -- `PUT word`, legal after "
+                         "the lock, the incentive and the pilot kept as stored -- so the word never spoken has a "
+                         "subject; it is on the done screen as text", party="founder", kind="assert") as h:
+        stored = (stack_ledger.recording(j.stack, j.project_id).get("word") or {})
+        body = {"expectedRevision": j.revision(), "pitch": FOUNDERS_WORD, "incentive": stored.get("incentive")}
+        if stored.get("pilotEnabled") is not None:
+            body["pilotEnabled"] = stored.get("pilotEnabled")
+        status, saved = wire("PUT", "/word", body)
+        after = stack_ledger.recording(j.stack, j.project_id)
+        record["word_written"] = {"status": status, "before": stored, "after": after.get("word")}
+        h.record_assert({"pitch": FOUNDERS_WORD, "incentive": stored.get("incentive")}, record["word_written"])
+        assert after.get("pitch") == FOUNDERS_WORD, record["word_written"]
+        assert (after.get("word") or {}).get("incentive") == stored.get("incentive"), record["word_written"]
 
 
 def _first_recording(j, wire: _Wire, record: dict) -> None:
@@ -492,19 +539,21 @@ def _person_for_the_link(j):
 
 def _with_heard(body: dict, interview: dict) -> dict:
     """The corpus person's body as the AI page sends it: `format` AI_INTERVIEWER and `heard` / `how` on every answer --
-    the first said aloud (its option's words), a cost total typed, the rest tapped (heard: the tapped option's words)."""
+    the first with options said aloud (its options' words), a cost total typed, the rest tapped (heard: the tapped
+    option's words)."""
     labels = {}
     for part in interview.get("parts") or []:
         for item in part.get("items") or []:
             labels[item.get("itemId")] = {o.get("optionId"): o.get("label") for o in item.get("options") or []}
     out = dict(body, format="AI_INTERVIEWER")
     answers = []
-    for n, a in enumerate(body.get("answers") or []):
+    said = False
+    for a in body.get("answers") or []:
         words = " and ".join(labels.get(a.get("itemId"), {}).get(o, "") for o in a.get("optionIds") or []).strip()
         if a.get("costTotal"):
             how, heard = "TYPED", str((a.get("costTotal") or {}).get("value"))
-        elif n == 0 and words:
-            how, heard = "SPOKEN", words
+        elif not said and words:
+            how, heard, said = "SPOKEN", words, True
         else:
             how, heard = "TAPPED", words or str(a.get("scale") or a.get("number") or a.get("chip") or "")
         answers.append({**a, "heard": heard, "how": how})
@@ -618,12 +667,12 @@ def _low_balance(j, wire: _Wire, record: dict, founder_id: str, run: str) -> Non
 def _retry(j, wire: _Wire, record: dict) -> None:
     """Step 9: a clip the fake fails once is retried by the recorder, READY still arrives, and the retry is free. The
     fake's seams (`FakeInterviewerRenders.failOnce` / `failScripts`) are reachable from a test's own Spring context and
-    from nothing the stack sets (D-2), so the retry is read off the recording where it happened and is otherwise
+    from nothing the stack sets (DRIFT #86), so the retry is read off the recording where it happened and is otherwise
     unmeasured, never passed."""
     stored = (stack_ledger.recording(j.stack, j.project_id).get("recording") or {})
     retried = [c for c in stored.get("clips") or [] if int(c.get("attempts") or 0) >= 2]
     with j.recorder.step("interviewer (FR-E): a clip retried by the recorder on its own -- read off the stored "
-                         "recording; the fake's fail-once seam is not reachable from the stack (D-2)",
+                         "recording; the fake's fail-once seam is not reachable from the stack (DRIFT #86)",
                          party="stack", kind="note") as h:
         h.record_wire({"seam": "FakeInterviewerRenders.failOnce / failScripts"},
                       {"retried": [(c.get("kind"), c.get("attempts"), c.get("status")) for c in retried]})

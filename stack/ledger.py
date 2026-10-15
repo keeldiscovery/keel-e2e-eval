@@ -121,7 +121,8 @@ def recording(config: StackConfig, project_id: str) -> dict:
     _require_uuid(project_id)
     rows = _json(config, "SELECT content->'corridor'->'lock'->'recording' AS recording, "
                          "content->'corridor'->'lock'->'previousRecording' AS previous, "
-                         "content->'corridor'->'word'->>'pitch' AS pitch, schema_version "
+                         "content->'corridor'->'word'->>'pitch' AS pitch, content->'corridor'->'word' AS word, "
+                         "schema_version "
                          "FROM project_content WHERE project_id = :'project'", project=project_id)
     if len(rows) != 1:
         raise LedgerUnavailable(f"expected one project_content row for {project_id}, found {len(rows)}")

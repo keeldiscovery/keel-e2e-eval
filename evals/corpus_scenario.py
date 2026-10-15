@@ -794,6 +794,7 @@ def _answer_one(j: Journey, person, token: str) -> None:
                    party="participant") as h:
             sent = walked["body"] or {}
             h.record_assert(expected, sent)
+            assert walked.get("status") in (200, 201), walked.get("status")
             assert _normal_body(sent) == _normal_body(expected), (sent, expected)
             h.capture_text("participant_page", "\n\n".join(walked["seen"]))
         if person.pilot_opt_in:

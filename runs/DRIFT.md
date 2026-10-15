@@ -5299,3 +5299,29 @@ starts the batch on the wire, exactly the call People's button made, so every la
 keel-web and keel-cloud together, a design call: either a screen that starts the reading (Sent's register would carry
 it), or keel-cloud reads a story when it is answered and the board's *read by your AI* goes (or keeps counting what the
 server read by itself).
+
+## 85. Observation (keel-cloud): on their own AI, the founder's AI-interviewer link in a **batch** is refused 409 `INTERVIEWER_NOT_READY`, where contract 16 says 422 `INTERVIEWER_NEEDS_CREDITS`
+
+Found by spec `044-ai-interviewer-journey` on S-005 and S-006 (local stack on keel-cloud-docs `78c90b6` + keel-web
+`df2e97a`). Contract 16's `POST .../invitations/batch` description: *"AI_INTERVIEWER and CHOICE wait for the project's
+recording (409 INTERVIEWER_NOT_READY until it is READY; an account on its own AI 422 INTERVIEWER_NEEDS_CREDITS)"*, and
+the single link's: *"AI_INTERVIEWER / CHOICE on an account on its own AI is INTERVIEWER_NEEDS_CREDITS"*. The single link
+(`FounderErrandController.invite`) and the commercial link (`VectorCorridorService.createCommercialLink`) ask the door
+first (`InterviewerService.requireFormatOpen`) and answer 422; the batch (`ContactsService.makeLinks`) never asks it --
+`Project.requireFormatAvailable` refuses first, and an own-AI project never has a recording -- so the same founder is
+told *"The interviewer is still being recorded ... wait a few minutes"*, which no wait will ever make true. Nothing is
+made either way. The leg steps round it in a step named for the entry (`_drift_85`), holding the
+single link to 422 straight and the batch to "nothing made", and holds the batch to 422 the moment it answers it. For
+keel-cloud: `makeLinks` calls `requireFormatOpen` before the aggregate's own refusal, as the two other link routes do.
+
+## 86. Observation (keel-cloud, a seam): the fake renderer's fail-once is reachable from a Java test alone, so spec 044 step 9 (a seeded failed clip retried for free) cannot be driven on the stack
+
+Found by spec `044-ai-interviewer-journey` (keel-cloud-docs `78c90b6`). Spec 044 FR-002.9 and its plan read *"a seeded
+fail-once clip (the fake's seam) is retried by the recorder and READY still arrives; the retry wrote no ledger row ...
+the fake's fail-once seam over the stack's env"*. `FakeInterviewerRenders.failOnce(vendorRef)` and `failScripts(...)` are
+methods on the bean, called by keel-cloud's own `InterviewerRecorderTest` / `InterviewerJourneyTest`; no property
+(`keel.v2.interviewer.fake.*` carries `delay-seconds` and `transcript` only) and no route reaches them, and the eval
+neither fakes a failure nor writes a clip's status into the document. So **IM12 is unmeasured on every run, never
+passed**; the leg reads the stored recording for a clip with two attempts (none, on the fake) and records the seam it
+could not reach. keel-cloud's own journey test holds the retry. For keel-cloud, if the eval should hold it: one
+stack-only property (say `keel.v2.interviewer.fake.fail-once-kinds=SOLUTION`) the fake reads at boot.

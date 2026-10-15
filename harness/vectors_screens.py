@@ -625,9 +625,12 @@ class Interview:
         wire takes it."""
         page = self.page
         with self._b.step(f"{person.person} answers the interview, screen by screen") as h:
-            with page.expect_request(lambda r: r.method == "POST"
-                                     and r.url.endswith("/interview/response"),
-                                     timeout=120_000) as sent:
+            # Spec 044 call 150: wait for the answer's own response, not the request leaving the browser -- the last
+            # decision-maker's done screen is not a heading of its own, so the walk returned while the POST was in
+            # flight and the standings read the project before it landed (S-006, n 7 of 8, once).
+            with page.expect_response(lambda r: r.request.method == "POST"
+                                      and r.url.endswith("/interview/response"),
+                                      timeout=120_000) as answered:
                 _button(page, IV_BEGIN).click()
                 if interview.get("kind") == "COMMERCIAL_LINK" and interview.get("idea"):
                     self._idea()
@@ -636,12 +639,14 @@ class Interview:
                     self._gate(person, gate, interview.get("occasion"))
                 if gate is None or person.recency:
                     self._items(interview, wire_answers)
-            body = sent.value.post_data_json
+            body = answered.value.request.post_data_json
+            status = answered.value.status
             page.get_by_role("heading", level=1).first.wait_for(state="visible", timeout=20_000)
             self._keep()
             heading = _safe_text(lambda: page.get_by_role("heading", level=1).first.inner_text())
             h.add_screenshot(self._b.screenshot(f"interview-done-{person.person.split()[0]}"))
-            return {"body": body, "done": heading, "seen": list(self.seen), "screens": list(self.screens)}
+            return {"body": body, "status": status, "done": heading, "seen": list(self.seen),
+                    "screens": list(self.screens)}
 
     def opt_in_to_pilot(self, interview: dict) -> None:
         label = ((interview.get("done") or {}).get("pilot") or {}).get("label")
