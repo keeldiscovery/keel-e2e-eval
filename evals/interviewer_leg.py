@@ -30,6 +30,7 @@ called and no money is spent anywhere here.
 from __future__ import annotations
 
 import json
+import re
 import time
 import uuid
 from pathlib import Path
@@ -38,6 +39,8 @@ import requests
 
 from evals import interviewer_marks as marks
 from harness import interviewer_fake as fake
+from harness import interviewer_screens as ivs
+from harness import interviews_screens as iv
 from harness import vectors_script as vs
 from stack import ledger as stack_ledger
 
@@ -54,15 +57,16 @@ TEXT_PERSON = "Someone the founder knows, in writing"
 FOUNDERS_WORD = ("I started this because I spent years watching good people lose whole evenings to it, and I would "
                  "like to hear how it goes for you before I build anything.")
 
-#: What waits for keel-web 069's page objects (`harness/interviewer_screens.py`): L1's carousel, W1's frame 2, Sent's
-#: persona line (S1 / S2), Send more's format row (S3), the change popup, the role card's *Try it yourself*, the dry
-#: run's page and the stranger's stage, sheet and field through the speech seam.
+#: keel-web 069's page objects (`harness/interviewer_screens.py`), built in spec 044 once 069 merged at `d23895f`.
 WEB_069_FOLLOW_UP = (
-    "keel-web 069 (the AI interviewer's screens): page objects for L1, W1 frame 2, S1 / S2 / S3, the change popup, Try "
-    "it yourself and the respondent's player through window.__keelSpeech -- each held to the wire this leg holds.")
-
-
+    "keel-web 069 (the AI interviewer's screens), DONE in spec 044: L1, W1 frame 2 (replayed), S1 / S2 / S3, the "
+    "persona line's popup, Try it yourself and the respondent's stage and sheet through window.__keelSpeech -- each "
+    "held to the wire this leg holds.")
 READ_REASON = marks.READ_REASON
+#: Spec 044 judgement call 3, widened (call 155): the B2C short form -- the recording, READY, its clips, one AI link
+#: served with Range and answered on the stranger's own screen (the consumer link carries the cost total, so the field
+#: is typed there), the pilot, the reading on arrival.
+SHORT_FORM = ["IM1", "IM3", "IM4", "IM5", "IM6", "IM7", "IM9", "IM13"]
 
 
 class _Wire:
@@ -76,7 +80,9 @@ class _Wire:
         path = suffix if suffix.startswith("/v2/") else self.j.project(suffix)
         status, payload = self.j.call(method, path, body, ok=ok)
         self.record["responses"].append({"method": method, "path": path, "status": status, "body": payload})
-        if "/interviewer" in path and isinstance(payload, dict) and status < 300:
+        # the founder's interviewer views (the persona line, the faces, a face change, a retry) -- not Try it
+        # yourself's `Interview`, whose cost and price questions are the respondent's, not the recording's
+        if re.search(r"/interviewer(/faces|/face|/retry)?$", path) and isinstance(payload, dict) and status < 300:
             self.record.setdefault("wire_views", []).append(payload)
         return status, payload if isinstance(payload, dict) else {}
 
@@ -128,6 +134,16 @@ def _rows(j, record: dict) -> int:
     return len(stack_ledger.rows(j.stack, record["founder_id"]))
 
 
+def _persona(j) -> ivs.Persona:
+    return ivs.Persona(j.page, j.recorder, j.web_base, patience=j.patience)
+
+
+def _labels(j) -> dict[str, str]:
+    """Each kind's card label on Sent, by link (`InvitationRow.kinds[]` / the register's kinds)."""
+    register = j.get(j.project("/invitations")) or {}
+    return {k.get("respondentType"): k.get("label") for k in register.get("kinds") or []}
+
+
 # --------------------------------------------------------------------------------------------- the legs
 
 def leg_interviewer(j) -> dict:
@@ -136,8 +152,9 @@ def leg_interviewer(j) -> dict:
 
 
 def leg_interviewer_short(j) -> dict:
-    """S-005 (01-countly, B2C): the short form (spec 044 judgement call 3) -- the recording's one charge, READY, the
-    spoken order and the solution passage on the one role, and one AI-interviewer link served with Range."""
+    """S-005 (01-countly, B2C): the short form (spec 044 judgement call 3, widened by call 155) -- the recording's one
+    charge, READY, the spoken order and the solution passage on the one role, and one AI-interviewer link served with
+    Range and answered on the stranger's own screen (the consumer link asks the cost total, typed into its field)."""
     return _leg(j, short=True)
 
 
@@ -162,12 +179,15 @@ def _leg(j, *, short: bool) -> dict:
         _founders_word(j, wire, record)
         _first_recording(j, wire, record)
         if not short:
+            _screens_recording(j, wire, record)
             _while_recording(j, wire, record)
         _ready(j, wire, record, FIRST_FACE, "the first recording")
+        if not short:
+            _screens_ready(j, wire, record)
         _the_recording(j, wire, record)
         if not short:
             _dry_run(j, wire, record)
-        _ai_link(j, wire, record, answer=not short)
+        _ai_link(j, wire, record, answer=True)
         if not short:
             _choice_link(j, wire, record)
             _change_face(j, wire, record)
@@ -191,10 +211,7 @@ def _leg(j, *, short: bool) -> dict:
         _restore(j, wire, founder_id, run)
         if record.get("arrivals"):
             _read_what_is_left(j, wire, record)
-    if short:
-        # the short form answers no AI link, so the pilot's count has no subject: what was served is kept apart
-        record["pilot_served"] = record.pop("pilot", {}).get("served")
-    require = ["IM1", "IM3", "IM4", "IM5", "IM7"] if short else [m for m, _, _ in marks.MARKS if m in _owed(record)]
+    require = SHORT_FORM if short else [m for m, _, _ in marks.MARKS if m in _owed(record)]
     _score(j, record, require=require)
     return record
 
@@ -312,11 +329,28 @@ def _first_recording(j, wire: _Wire, record: dict) -> None:
                          "starts RECORDING at once (0 of N until the clips are composed), one charge, nothing shown",
                          party="founder", kind="assert") as h:
         balance_before = wire.credits()
-        status, view = wire("POST", "/interviewer/face", {"face": FIRST_FACE})
+        persona = _persona(j)
+        persona.sent(j.project_id)
+        before = persona.wait_state("NOT_RECORDED")
+        pressed = persona.record(FIRST_FACE)
+        status, view = pressed["status"], pressed["body"]
         record["first"] = {"status": status, "view": view, "balance_before": balance_before,
-                           "balance_after": wire.credits(), "at": stack_ledger.now(j.stack)}
+                           "balance_after": wire.credits(), "at": stack_ledger.now(j.stack), "line": before,
+                           "popup": pressed["popup"], "sent": pressed["sent"]}
+        record["wire_views"].append(view)
         h.record_assert({"status": 200, "face": FIRST_FACE, "recording": "RECORDING or READY",
-                         "balance": balance_before - fake.CREDITS}, record["first"])
+                         "balance": balance_before - fake.CREDITS,
+                         "line": {"state": "NOT_RECORDED", "text": ivs.PERSONA_NOT_RECORDED,
+                                  "action": ivs.pick_who_asks(fake.CREDITS)},
+                         "popup": {"title": ivs.RECORD_FACE_TITLE, "faces": list(fake.FACES),
+                                   "confirm": f"Record {fake.FACE_NAMES[FIRST_FACE]}"},
+                         "sent": {"face": FIRST_FACE}}, record["first"])
+        assert before.get("state") == "NOT_RECORDED" and ivs.PERSONA_NOT_RECORDED in before.get("text", ""), before
+        assert before.get("action") == ivs.pick_who_asks(fake.CREDITS), before
+        assert pressed["popup"]["title"] == ivs.RECORD_FACE_TITLE, pressed["popup"]
+        assert pressed["popup"]["faces"] == list(fake.FACES), pressed["popup"]
+        assert pressed["popup"]["confirm"] == f"Record {fake.FACE_NAMES[FIRST_FACE]}", pressed["popup"]
+        assert pressed["sent"] == {"face": FIRST_FACE} and status == 200, pressed
         assert (view.get("face") or {}).get("code") == FIRST_FACE, view
         assert view.get("status") in ("RECORDING", "READY"), view
         assert record["first"]["balance_after"] == balance_before - fake.CREDITS, record["first"]
@@ -370,6 +404,88 @@ def _while_recording(j, wire: _Wire, record: dict) -> None:
         assert text == 201 and text_body.get("format") == "TEXT" and len(text_body.get("links") or []) == 1, text_body
         progress = view.get("progress") or {}
         assert 0 <= int(progress.get("done", -1)) <= int(progress.get("total", -1)), view
+
+
+def _screens_recording(j, wire: _Wire, record: dict) -> None:
+    """S1 (keel-web 069 FR-004 / FR-005 / FR-006): while the clips record, Sent's persona line names the face, says it
+    is recording with a bar and *k of N clips done*; each card's *Try it yourself* is greyed *recording*; the primary
+    reads *Send text-only links*; Send more greys the AI interviewer and Let them choose *recording*. No price."""
+    persona = _persona(j)
+    with j.recorder.step("interviewer (S1): while RECORDING the persona line names Tito, recording, a bar and k of N "
+                         "clips; Try it yourself greyed *recording*; *Send text-only links*; Send more greys the AI "
+                         "interviewer and Let them choose *recording*", party="founder", kind="assert") as h:
+        line = persona.wait_state("RECORDING")
+        cards = persona.cards()
+        labels = _labels(j)
+        formats = persona.formats_now(labels[vs.LINK_PRIMARY])
+        record.setdefault("screens", {})["S1"] = line["text"]
+        record["screens_drawn"] = {"S1": {"line": line, "cards": cards, "formats": formats}}
+        name = fake.FACE_NAMES[FIRST_FACE]
+        h.record_assert({"line": f"{ivs.persona_asks(name)} {ivs.PERSONA_RECORDING}", "try": ivs.TRY_IT_YOURSELF_RECORDING,
+                         "primary": ivs.SEND_TEXT_ONLY_LINKS, "greyed": iv.FORMAT_RECORDING,
+                         "hint": ivs.SEND_FORMAT_RECORDING}, record["screens_drawn"]["S1"])
+        if line.get("state") != "RECORDING":
+            return                                         # READY landed while the screen was read
+        assert ivs.persona_asks(name) in line["text"] and ivs.PERSONA_RECORDING in line["text"], line
+        assert line.get("bar") is not None, line
+        assert all(c["try"] and not c["try"]["enabled"] and c["try"]["text"] == ivs.TRY_IT_YOURSELF_RECORDING
+                   for c in cards), cards
+        assert all(c["primary"] == ivs.SEND_TEXT_ONLY_LINKS for c in cards), cards
+        rows = formats["rows"]
+        assert rows.get(iv.TEXT_ONLY, {}).get("disabled") is False, rows
+        assert all(r["disabled"] and r["word"] == iv.FORMAT_RECORDING for n, r in rows.items() if n != iv.TEXT_ONLY), rows
+
+
+def _screens_ready(j, wire: _Wire, record: dict) -> None:
+    """S2, S3, W1 and L1 once READY: the line *Recorded today at hh:mm.* with the one priced action, *Try it yourself*
+    lit and *Send links*; Send more offers *AI interviewer · Tito*; W1 replayed names Tito in frame 2; L1 revisited
+    draws the carousel with Tito checked. None of them shows a price but the one action (IM2)."""
+    persona = _persona(j)
+    name = fake.FACE_NAMES[FIRST_FACE]
+    with j.recorder.step("interviewer (S2 / S3): READY in place -- *Recorded today at hh:mm.* and *Change who asks · "
+                         "400 AI credits*; Try it yourself lit, *Send links*; Send more offers *AI interviewer · Tito* "
+                         "and says it is already recorded", party="founder", kind="assert") as h:
+        persona.sent(j.project_id)
+        line = persona.wait_state("READY")
+        cards = persona.cards()
+        formats = persona.formats_now(_labels(j)[vs.LINK_PRIMARY])
+        record["screens"]["S2"] = line["text"]
+        record["screens"]["S3"] = formats["text"]
+        record["screens_drawn"]["S2"] = {"line": line, "cards": cards}
+        record["screens_drawn"]["S3"] = formats
+        h.record_assert({"line": "Recorded today at", "action": ivs.change_who_asks(fake.CREDITS),
+                         "try": ivs.TRY_IT_YOURSELF, "primary": ivs.SEND_LINKS,
+                         "formats": [iv.ai_format_name(name), iv.TEXT_ONLY, iv.CHOICE_NAME],
+                         "hint": ivs.SEND_FORMAT_RECORDED}, {"S2": record["screens_drawn"]["S2"], "S3": formats})
+        assert "Recorded today at" in line["text"] and line.get("action") == ivs.change_who_asks(fake.CREDITS), line
+        assert all(c["try"] and c["try"]["enabled"] and c["try"]["text"] == ivs.TRY_IT_YOURSELF for c in cards), cards
+        assert all(c["primary"] == ivs.SEND_LINKS for c in cards), cards
+        assert list(formats["rows"]) == [iv.ai_format_name(name), iv.TEXT_ONLY, iv.CHOICE_NAME], formats["rows"]
+        assert not any(r["disabled"] for r in formats["rows"].values()), formats["rows"]
+        assert formats["hint"] == ivs.SEND_FORMAT_RECORDED, formats
+    with j.recorder.step("interviewer (W1, FR-003): *How it works* replays the walkthrough's four frames, frame 2 "
+                         "*Tito asks your questions*", party="founder", kind="assert") as h:
+        drawn = persona.walkthrough_again()
+        record["screens_drawn"]["W1"] = drawn
+        h.record_assert({"frames": 4, "frame 2": ivs.walkthrough_asks_title(name)}, drawn)
+        assert len(drawn["texts"]) == 4 and ivs.walkthrough_asks_title(name) in drawn["texts"][1], drawn
+    with j.recorder.step("interviewer (L1, FR-002): the lock's last screen revisited on Keel's door -- *Who asks the "
+                         "questions*, the five faces, one checked -- and no price on it", party="founder",
+                         kind="assert") as h:
+        l1 = persona.l1_again(j.project_id)
+        record["screens"]["L1"] = l1["text"]
+        record["screens_drawn"]["L1"] = l1
+        h.record_assert({"faces": list(fake.FACES), "checked": 1, "price words": []},
+                        {**l1, "price words": marks.PRICE_WORD.findall(l1["text"])})
+        assert l1["faces"] == list(fake.FACES) and len(l1["checked"]) == 1, l1
+        assert not marks.PRICE_WORD.search(l1["text"]), l1["text"]
+    with j.recorder.step("interviewer: DRIFT #87 -- L1 revisited after the lock checks Judy, the preselected face, "
+                         "while Tito asks every question (stepped round: the face asking is held on the persona line "
+                         "and the wire)", party="founder", kind="note") as h:
+        h.record_wire({"recorded": FIRST_FACE}, {"checked on L1": l1["checked"],
+                                                 "DRIFT #87": l1["checked"] != [FIRST_FACE]})
+        record["screens_drawn"]["L1"]["drift_87"] = l1["checked"] != [FIRST_FACE]
+    persona.sent(j.project_id)
 
 
 def _ready(j, wire: _Wire, record: dict, face: str, what: str) -> dict:
@@ -477,27 +593,87 @@ def _dry_run(j, wire: _Wire, record: dict) -> None:
         player = served.get("interviewer") or {}
         opening = (player.get("clips") or {}).get("opening") or {}
         founder_clip = wire.clip(opening.get("url") or "", "bytes=0-99")
+        drawn = _dry_run_on_screen(j)
         after = _counts(j, wire, record)
         clips = len([c for c in (player.get("clips") or {}).values() if c]) + sum(
             1 + (1 if v.get("more") else 0) for v in (player.get("items") or {}).values())
         record["dry_run"] = {"tryRun": served.get("tryRun"), "clips": clips, "before": before, "after": after,
-                             "writes": [], "founder_clip": founder_clip, "opening_url": opening.get("url"),
-                             "mark": player.get("mark")}
+                             "writes": drawn["writes"], "founder_clip": founder_clip, "opening_url": opening.get("url"),
+                             "mark": player.get("mark"), "screen": drawn}
         h.record_assert({"tryRun": True, "mark": fake.MARK, "url": f"/v2/projects/{j.project_id}/interviewer/clips/",
                          "clip": 206, "before == after": True}, record["dry_run"])
         assert served.get("tryRun") is True and player.get("mark") == fake.MARK, served.get("tryRun")
         assert (opening.get("url") or "").startswith(f"/v2/projects/{j.project_id}/interviewer/clips/"), opening
         assert founder_clip["status"] == 206, founder_clip
         assert before == after, (before, after)
+        assert drawn["mark"] == ivs.MARK_TRY and drawn["done"]["tryRun"], drawn
+        assert ivs.TRY_NOTHING_STORED in drawn["done"]["text"] and not drawn["writes"], drawn
+        assert drawn["first"]["question"] and drawn["videos"] == 1, drawn
 
 
-def _make_link(j, wire: _Wire, fmt: str, person: str) -> dict:
-    _, batch = wire("POST", "/invitations/batch", {"expectedRevision": j.revision(),
-                                                   "respondentType": vs.LINK_PRIMARY, "format": fmt,
-                                                   "people": [{"personName": person}]})
+def _dry_run_on_screen(j) -> dict:
+    """keel-web 069 FR-007 on the founder's own page: *Try it yourself* on the specialists' card, *Start talking* (the
+    opening plays on the one `<video>`), the first question answered aloud through the seam, End -- the dry run stops
+    there -- *Nothing was stored.*, and the page wrote nothing."""
+    j.context.add_init_script(ivs.SPEECH_SEAM)
+    persona = _persona(j)
+    persona.sent(j.project_id)
+    persona.try_it(j.project_id, _labels(j)[vs.LINK_PRIMARY])
+    # the button navigates inside the app; the seam's init script runs on a document's load, so the dry run's own
+    # route is loaded once more (same URL) before anything is said
+    j.page.reload(wait_until="load")
+    player = ivs.Player(j.page, j.recorder, party="founder", patience=j.patience)
+    try:
+        with player.step("founder tries the interview: Start talking, one answer aloud, End") as h:
+            try:
+                j.page.get_by_test_id("start-talking").wait_for(state="visible", timeout=30_000)
+                player.requests.clear()
+                player.start()
+                player.wait_phase("listening")
+                stage = player.stage()
+                first = player.sheet()
+                player.say("yes", True)
+                player.answer()
+                where = player.stage()["where"]
+                player.end()                                   # the dry run stops at End (069 FR-007)
+                done = player.done()
+            except Exception:
+                h.add_screenshot(player.screenshot("try-stuck"))
+                h.record_wire({"stuck": True}, player.where_it_stood())
+                raise
+            h.add_screenshot(player.screenshot("try-done"))
+            writes = [r for r in player.requests if r["method"] != "GET"]
+            return {"mark": stage["mark"], "first": first, "pilot_where": where, "done": done, "writes": writes,
+                    "videos": stage["videos"]}
+    finally:
+        j.page.remove_listener("request", player._keep)
+
+
+def _send_link(j, fmt: str, person: str) -> dict:
+    """A link made on Sent's *Send more* (keel-web 069 S3): the format picked, *Someone I know*, the name, *Make their
+    link* -- the batch keel-web received and the link it drew."""
+    persona = _persona(j)
+    primary = next(t for t in (j.get(j.project("/persona")) or {}).get("respondentTypes") or []
+                   if not t.get("commercialLink"))
+    sent = iv.Interviews(j.page, j.recorder, j.web_base, patience=j.patience)
+    about = f"{primary.get('label')}, asked about one real time."
+    persona.sent(j.project_id)
+    made = sent.send_someone(j.project_id, _labels(j)[vs.LINK_PRIMARY], person, about, fmt=fmt)
+    if made["status"] == 409 and (made["batch"] or {}).get("rule") == "concurrency":
+        with j.recorder.step("interviewer: DRIFT #88 -- Send more sent the revision Sent read when it opened; an "
+                             "answer read on arrival (keel-cloud 095) moved the project since, and the link was "
+                             "refused 409 with the server's own words in the popup; Sent is opened again and the "
+                             "link made once more", party="founder", kind="note") as h:
+            h.record_wire({"sent": made.get("sent")}, {"status": made["status"], "body": made["batch"],
+                                                       "drawn": made.get("drawn")})
+        j.page.goto(f"{j.web_base}/p/{j.project_id}/interviews/sent", wait_until="load")
+        persona.sent(j.project_id)
+        made = sent.send_someone(j.project_id, _labels(j)[vs.LINK_PRIMARY], person, about, fmt=fmt)
+    batch = made["batch"] or {}
     link = (batch.get("links") or [{}])[0]
+    assert made["status"] == 201 and made["url"] == link.get("url"), made
     return {"format": batch.get("format"), "url": link.get("url"), "invitationId": link.get("invitationId"),
-            "token": _token(link.get("url") or "")}
+            "token": _token(link.get("url") or ""), "formats": made["formats"], "by": "keel-web"}
 
 
 def _ai_link(j, wire: _Wire, record: dict, *, answer: bool) -> None:
@@ -507,7 +683,7 @@ def _ai_link(j, wire: _Wire, record: dict, *, answer: bool) -> None:
                          "carries `interviewer` (the face, the mark, every clip in order) and `formats` "
                          "[AI_INTERVIEWER]; its clips answer 206 to a Range, 200 whole, 404 for another role's clip",
                          party="participant", kind="assert") as h:
-        made = _make_link(j, wire, "AI_INTERVIEWER", AI_PERSON)
+        made = _send_link(j, "AI_INTERVIEWER", AI_PERSON)
         response = _participant(j, "GET", made["token"], "/interview")
         interview = _json_of(response)
         player = interview.get("interviewer") or {}
@@ -539,7 +715,7 @@ def _ai_link(j, wire: _Wire, record: dict, *, answer: bool) -> None:
         assert part["status"] == 206 and whole["status"] == 200 and foreign["status"] == 404, record["range"]
     j.tokens["interviewer:ai"] = made["token"]
     if answer:
-        _answer_ai_on_the_wire(j, wire, record, made, interview)
+        _answer_ai_on_screen(j, wire, record, made, interview)
 
 
 def _person_for_the_link(j):
@@ -551,57 +727,193 @@ def _person_for_the_link(j):
     return [p for p in j.people if p.person in names][-1]
 
 
-def _with_heard(body: dict, interview: dict) -> dict:
-    """The corpus person's body as the AI page sends it: `format` AI_INTERVIEWER and `heard` / `how` on every answer --
-    the first with options said aloud (its options' words), a cost total typed, the rest tapped (heard: the tapped
-    option's words)."""
-    labels = {}
-    for part in interview.get("parts") or []:
-        for item in part.get("items") or []:
-            labels[item.get("itemId")] = {o.get("optionId"): o.get("label") for o in item.get("options") or []}
-    out = dict(body, format="AI_INTERVIEWER")
-    answers = []
-    said = False
-    for a in body.get("answers") or []:
-        words = " and ".join(labels.get(a.get("itemId"), {}).get(o, "") for o in a.get("optionIds") or []).strip()
-        if a.get("costTotal"):
-            how, heard = "TYPED", str((a.get("costTotal") or {}).get("value"))
-        elif not said and words:
-            how, heard, said = "SPOKEN", words, True
+ORDINALS = ["the first one", "the second one", "the third one", "the fourth one", "the fifth one", "the sixth one"]
+NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
+
+
+def _closed(answer: dict) -> dict:
+    """An answer's closed fields, order taken out -- what the person answered, not how."""
+    a = {k: v for k, v in answer.items() if k not in ("heard", "how", "itemId")}
+    for key in ("optionIds", "advantageIds"):
+        if key in a:
+            a[key] = sorted(a[key])
+    if a.get("costTotal") and a["costTotal"].get("value") is not None:
+        a["costTotal"] = {**a["costTotal"], "value": round(float(a["costTotal"]["value"]), 4)}
+    return a
+
+
+def _drive_ai(player, interview: dict, expected: dict) -> list[dict]:
+    """The stranger answers every question the way the corpus person did, as a person would on the stage: the gate
+    said aloud, the story typed, one ordinal, one miss ("31" -- out of every range here -- then the number in words,
+    after the didn't-catch clip), a pick-two tapped, "all of them" for the advantages when they are all the person's,
+    the rest said by their options' own words (or a cost total typed into the field), the escape tapped; then the pilot
+    ask -- *Last question* -- Yes, *Finish*. Returns what each sheet drew and what was done on it."""
+    gate = interview.get("gate") or {}
+    items = {i.get("question"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
+    by_prompt = {i.get("advantagesPrompt"): i for i in items.values() if i.get("advantagesPrompt")}
+    by_id = {a["itemId"]: a for a in expected.get("answers") or []}
+    walked: list[dict] = []
+    used = {"ordinal": False, "miss": False}
+    for _ in range(40):
+        player.wait_phase("listening", timeout_s=40)
+        stage, sheet = player.stage(), player.sheet()
+        entry = {"where": stage["where"], "question": sheet["question"], "options": [o["label"] for o in sheet["options"]],
+                 "mark": stage["mark"], "did": []}
+        walked.append(entry)
+        q = sheet["question"]
+        if stage["where"] == ivs.LAST_QUESTION:
+            player.tap("Yes")
+            entry["did"].append("tap Yes")
+            player.next()
+            return walked
+        if gate and q == gate.get("question"):
+            player.say("yes, I did", True)
+            player.answer()
+            entry["did"].append("said yes, I did")
+            player.next()
+            continue
+        after_gate = len(walked) > 1 and walked[-2]["question"] == gate.get("question")
+        if gate and after_gate and q not in items and q not in by_prompt:      # the story, after Yes
+            if expected.get("anchorChip"):
+                player.tap_chip()
+                entry["did"].append("tap the story's chip")
+            else:
+                player.type_instead(expected.get("story") or "")
+                player.answer()
+                entry["did"].append("typed the story")
+            player.next()
+            continue
+        if q in by_prompt:                                          # the advantages, after "better"
+            item = by_prompt[q]
+            want = by_id[item["itemId"]].get("advantageIds") or []
+            labels = {a["id"]: a["label"] for a in item.get("advantages") or []}
+            if want and sorted(want) == sorted(labels):
+                player.say("all of them", True)
+                player.answer()
+                entry["did"].append("said all of them")
+            else:
+                for a in want:
+                    player.tap(labels[a])
+                    entry["did"].append(f"tap {labels[a]}")
+            player.next()
+            continue
+        item = items.get(q)
+        assert item, {"an unknown question on the sheet": q, "served": sorted(items)}
+        ans = by_id.get(item["itemId"]) or {}
+        options = {o["optionId"]: o["label"] for o in item.get("options") or []}
+        control = item.get("control")
+        if ans.get("chip"):
+            player.tap_chip()
+            entry["did"].append("tap the escape")
+        elif control == "pick_two":
+            for o in ans.get("optionIds") or []:
+                player.tap(options[o])
+                entry["did"].append(f"tap {options[o]}")
+        elif ans.get("scale") is not None or ans.get("number") is not None:
+            value = ans.get("scale") if ans.get("scale") is not None else ans.get("number")
+            if not used["miss"]:
+                player.say("31", True)
+                player.answer()
+                player.wait_phase("listening", timeout_s=20)        # the didn't-catch clip, then the window again
+                entry["missed"] = player.sheet()["preview"] or player.sheet()["status"]
+                entry["did"].append("said 31 (a miss)")
+                used["miss"] = True
+            words = NUMBER_WORDS[int(value)] if str(value).isdigit() and int(value) < len(NUMBER_WORDS) else str(value)
+            player.say(words, True)
+            player.answer()
+            entry["did"].append(f"said {words}")
+        elif ans.get("costTotal"):
+            cost = ans["costTotal"]
+            player.unit("HOURS" if cost.get("mode") == "HOURS" else "AMOUNT")
+            player.fill_field(str(cost.get("value")))
+            player.answer()
+            entry["did"].append(f"typed {cost.get('value')} into the field")
         else:
-            how, heard = "TAPPED", words or str(a.get("scale") or a.get("number") or a.get("chip") or "")
-        answers.append({**a, "heard": heard, "how": how})
-    out["answers"] = answers
-    return out
+            labels = [options[o] for o in ans.get("optionIds") or []]
+            assert len(labels) == 1, {"item": item["dimension"], "answer": ans}
+            index = [o["label"] for o in sheet["options"]].index(labels[0])
+            if not used["ordinal"] and index < len(ORDINALS):
+                said = ORDINALS[index]
+                used["ordinal"] = True
+            else:
+                said = labels[0]
+            player.say(said, True)
+            player.answer()
+            entry["did"].append(f"said {said}")
+        player.next()
+    raise AssertionError({"the interview never reached its pilot ask": walked[-3:]})
 
 
-def _answer_ai_on_the_wire(j, wire: _Wire, record: dict, made: dict, interview: dict) -> None:
-    """Until keel-web 069's player is driven through the speech seam: the body its page sends, on the wire."""
-    with j.recorder.step("interviewer (FR-H): the AI link answered -- `format` AI_INTERVIEWER and `heard` / `how` on "
-                         "every answer; then the pilot ask's Yes, the same write a text link's is, counted in the "
-                         "overview's pilot", party="participant", kind="assert") as h:
-        person = _person_for_the_link(j)
-        items = {i.get("dimension"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
-        recall = ((items.get("commercial.existing_sacrifice") or {}).get("costTotal") or {}).get("recallPeriod")
-        body = _with_heard(person.response(made["token"], recall), interview)
-        pilot_before = (j.get(j.project("/standings")) or {}).get("pilot") or {}
-        posted = _participant(j, "POST", made["token"], "/interview/response", body)
-        pilot = _participant(j, "POST", made["token"], "/interview/pilot", {"pilotOptIn": True})
+def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: dict) -> None:
+    """keel-web 069 FR-008 on the stranger's own page, through the speech seam (`vite --mode test`): the intro (who
+    asks, an AI, Start talking), then every question as `_drive_ai` answers it; the one `POST response` keel-web sends
+    -- `format` AI_INTERVIEWER, `heard` / `how` on every answer, the person's own closed answers -- then the pilot
+    ask's Yes, the same write a text link's is, counted in the overview's pilot."""
+    person = _person_for_the_link(j)
+    items = {i.get("dimension"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
+    recall = ((items.get("commercial.existing_sacrifice") or {}).get("costTotal") or {}).get("recallPeriod")
+    expected = person.response(made["token"], recall)
+    pilot_before = (j.get(j.project("/standings")) or {}).get("pilot") or {}
+    stranger = j.browser.new_context()
+    stranger.add_init_script(ivs.SPEECH_SEAM)
+    seen: dict = {}
+
+    def keep(response) -> None:
+        if response.request.method == "POST" and response.url.endswith(("/interview/response", "/interview/pilot")):
+            seen.setdefault(response.url.rsplit("/", 1)[-1], []).append(
+                {"status": response.status, "body": response.request.post_data_json})
+    try:
+        page = stranger.new_page()
+        page.on("response", keep)
+        player = ivs.Player(page, j.recorder, patience=j.patience)
+        with player.step("the stranger answers the AI interviewer: the intro, Start talking, every question by voice, "
+                         "tap or typing, the pilot ask, Finish") as h:
+            try:
+                intro = player.open(made["url"])
+                player.start()
+                walked = _drive_ai(player, interview, expected)
+                done = player.done()
+            except Exception:
+                h.add_screenshot(player.screenshot("ai-stuck"))
+                h.record_wire({"stuck": True}, player.where_it_stood())
+                raise
+            h.add_screenshot(player.screenshot("ai-done"))
+    finally:
+        stranger.close()
+    with j.recorder.step("interviewer (FR-008 / FR-H): keel-web sent ONE response -- `format` AI_INTERVIEWER, `heard` / "
+                         "`how` on every answer, exactly the person's own answers -- and after the pilot ask (*Last "
+                         "question*, never skipped) one pilot write, counted in the overview's pilot", party="participant",
+                         kind="assert") as h:
+        responses, pilots = seen.get("response") or [], seen.get("pilot") or []
+        body = (responses[0] if responses else {}).get("body") or {}
         _, register = wire("GET", "/invitations")
         row = next((r for r in register.get("invitations") or [] if r.get("invitationId") == made["invitationId"]),
                    {})
         pilot_after = (j.get(j.project("/standings")) or {}).get("pilot") or {}
-        record["ai_answers"] = {"body": body, "status": posted.status_code, "register_row": row, "by": "wire"}
-        record["pilot"] = {**record.get("pilot", {}), "answered": "YES" if pilot.status_code == 204 else None,
+        sent = {a["itemId"]: _closed(a) for a in body.get("answers") or []}
+        want = {a["itemId"]: _closed(a) for a in expected.get("answers") or []}
+        top = {k: body.get(k) for k in ("recency", "story", "anchorChip") if k in expected}
+        record["ai_answers"] = {"body": body, "status": (responses[0] if responses else {}).get("status"),
+                                "register_row": row, "by": "keel-web", "walked": walked, "intro": intro,
+                                "done": done, "expected": expected}
+        record["pilot"] = {**record.get("pilot", {}), "answered": "YES" if pilots and pilots[0]["status"] == 204 else None,
                            "before": pilot_before.get("optedIn"), "after": pilot_after.get("optedIn"),
-                           "status": pilot.status_code}
-        h.record_assert({"response": 201, "pilot": 204, "formatUsed": "AI_INTERVIEWER", "status": "ANSWERED",
-                         "optedIn": (pilot_before.get("optedIn") or 0) + 1},
-                        {"response": posted.status_code, "pilot": pilot.status_code, "row": row,
-                         "optedIn": pilot_after.get("optedIn")})
-        assert posted.status_code in (200, 201), _json_of(posted)
-        assert pilot.status_code == 204, pilot.text
+                           "status": pilots[0]["status"] if pilots else None,
+                           "asked": [w["where"] for w in walked][-1:]}
+        h.record_assert({"responses": 1, "format": "AI_INTERVIEWER", "answers": want,
+                         "top": {k: expected[k] for k in top}, "pilot": 204, "formatUsed": "AI_INTERVIEWER",
+                         "intro": {"intro": "AI_INTERVIEWER", "heading": f"{fake.FACE_NAMES[FIRST_FACE]} will ask you"}},
+                        {"responses": len(responses), "format": body.get("format"), "answers": sent, "top": top,
+                         "pilots": pilots, "row": row, "intro": intro, "walked": walked})
+        assert intro["intro"] == "AI_INTERVIEWER" and intro["buttons"] == ["start-talking"], intro
+        assert intro["heading"].startswith(f"{fake.FACE_NAMES[FIRST_FACE]} will ask you"), intro
+        assert len(responses) == 1 and responses[0]["status"] in (200, 201), responses
+        assert body.get("format") == "AI_INTERVIEWER", body
+        assert sent == want, {"sent": sent, "want": want}
+        assert top == {k: expected[k] for k in top}, (top, expected)
+        assert len(pilots) == 1 and pilots[0]["status"] == 204, pilots
         assert row.get("formatUsed") == "AI_INTERVIEWER" and row.get("status") == "ANSWERED", row
+        assert all(w["mark"] == ivs.MARK for w in walked), [w["mark"] for w in walked]
     _read_on_arrival(j, wire, record, made["invitationId"], "the AI link's")
 
 
@@ -661,12 +973,29 @@ def _read_what_is_left(j, wire: _Wire, record: dict) -> None:
         assert again == 409 and (nothing.get("code") or nothing.get("rule")) == "NOTHING_TO_READ", record["left_unread"]
 
 
+def _choice_intro_on_screen(j, url: str) -> dict:
+    """A Let-them-choose link's intro on the stranger's own page (P0c): both offered. Read only -- the answer in
+    writing goes on the wire (call 154: the text player behind *Answer in writing* is the text link's, walked on every
+    journey already)."""
+    stranger = j.browser.new_context()
+    try:
+        page = stranger.new_page()
+        player = ivs.Player(page, j.recorder, patience=j.patience)
+        with player.step("the stranger opens a Let-them-choose link: Talk to Tito, or Answer in writing") as h:
+            drawn = player.open(url)
+            h.add_screenshot(player.screenshot("choice-intro"))
+            return drawn
+    finally:
+        stranger.close()
+
+
 def _choice_link(j, wire: _Wire, record: dict) -> None:
     with j.recorder.step("interviewer (FR-H): a Let-them-choose link's interview offers both -- `formats` [TEXT, "
                          "AI_INTERVIEWER] with the player -- and an answer in writing posts `format` TEXT, which the "
                          "register reads as `formatUsed` TEXT", party="participant", kind="assert") as h:
-        made = _make_link(j, wire, "CHOICE", CHOICE_PERSON)
+        made = _send_link(j, "CHOICE", CHOICE_PERSON)
         interview = _json_of(_participant(j, "GET", made["token"], "/interview"))
+        intro = _choice_intro_on_screen(j, made["url"])
         person = _person_for_the_link(j)
         items = {i.get("dimension"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
         recall = ((items.get("commercial.existing_sacrifice") or {}).get("costTotal") or {}).get("recallPeriod")
@@ -677,12 +1006,13 @@ def _choice_link(j, wire: _Wire, record: dict) -> None:
                    {})
         record["choice"] = {"made": made, "formats": interview.get("formats"),
                             "player": bool(interview.get("interviewer")), "response": posted.status_code,
-                            "register_row": row}
+                            "register_row": row, "intro": intro}
         h.record_assert({"format": "CHOICE", "formats": ["TEXT", "AI_INTERVIEWER"], "player": True,
                          "formatUsed": "TEXT"}, record["choice"])
         assert made["format"] == "CHOICE" and interview.get("formats") == ["TEXT", "AI_INTERVIEWER"], record["choice"]
         assert interview.get("interviewer") and posted.status_code in (200, 201), record["choice"]
         assert row.get("format") == "CHOICE" and row.get("formatUsed") == "TEXT", row
+        assert intro["intro"] == "CHOICE" and intro["buttons"] == ["choice-talk", "choice-write"], intro
     _read_on_arrival(j, wire, record, made["invitationId"], "the Let-them-choose link's")
 
 
@@ -694,7 +1024,12 @@ def _change_face(j, wire: _Wire, record: dict) -> None:
         old = (record.get("recording") or {}).get("clips") or []
         old_ai = record["ai_link"]["made"]["token"]
         before = wire.credits()
-        status, view = wire("POST", "/interviewer/face", {"face": CHANGED_FACE})
+        persona = _persona(j)
+        persona.sent(j.project_id)
+        pressed = persona.record(CHANGED_FACE)
+        status, view = pressed["status"], pressed["body"]
+        record["wire_views"].append(view)
+        drawn_after = persona.line()
         ready = _ready(j, wire, record, CHANGED_FACE, "the change of face")
         after = wire.credits()
         stored = (stack_ledger.recording(j.stack, j.project_id).get("recording") or {})
@@ -703,10 +1038,13 @@ def _change_face(j, wire: _Wire, record: dict) -> None:
                             "face_after": (view.get("face") or {}).get("code"), "status": status,
                             "balance_before": before, "balance_after": after,
                             "trail": [view.get("status")] + ready["trail"],
-                            "ready_face": stored.get("face"), "old_clip_after_ready": gone.get("status")}
+                            "ready_face": stored.get("face"), "old_clip_after_ready": gone.get("status"),
+                            "popup": pressed["popup"], "line_after_press": drawn_after}
         h.record_assert({"face": CHANGED_FACE, "charged": fake.CREDITS, "trail": "RECORDING ... READY",
                          "old clip": 404}, record["change"])
         assert status == 200 and record["change"]["face_after"] == CHANGED_FACE, view
+        assert pressed["popup"]["title"] == ivs.CHANGE_FACE_TITLE, pressed["popup"]
+        assert pressed["popup"]["confirm"] == f"Record {fake.FACE_NAMES[CHANGED_FACE]}", pressed["popup"]
         assert before - after == fake.CREDITS, record["change"]
         assert stored.get("face") == CHANGED_FACE and stored.get("status") == "READY", stored.get("status")
         assert not old or gone.get("status") == 404, gone
@@ -723,17 +1061,24 @@ def _low_balance(j, wire: _Wire, record: dict, founder_id: str, run: str) -> Non
                          "INSUFFICIENT_CREDITS_FOR_INTERVIEWER with required / available and keel-cloud's sentence; "
                          "nothing is charged and Judy still asks", party="founder", kind="assert") as h:
         rows_before = _rows(j, record)
-        status, body = wire("POST", "/interviewer/face", {"face": FIRST_FACE}, ok=(422,))
+        persona = _persona(j)
+        persona.sent(j.project_id)
+        persona.wait_state("READY")
+        pressed = persona.record(FIRST_FACE)
+        status, body = pressed["status"], pressed["body"]
         _, view = wire("GET", "/interviewer")
         record["low_balance"] = {"status": status, "body": body, "balance": LOW_BALANCE,
                                  "balance_after": wire.credits(), "ledger_rows_added": _rows(j, record) - rows_before,
-                                 "face_before": CHANGED_FACE, "face_after": (view.get("face") or {}).get("code")}
+                                 "face_before": CHANGED_FACE, "face_after": (view.get("face") or {}).get("code"),
+                                 "popup": pressed.get("popup_text"), "refusal_drawn": pressed.get("refusal")}
         want = fake.INSUFFICIENT_REMEDY.format(required=fake.CREDITS, available=LOW_BALANCE)
         h.record_assert({"status": 422, "code": fake.INSUFFICIENT, "required": fake.CREDITS, "available": LOW_BALANCE,
                          "remedy": want}, record["low_balance"])
         assert body.get("code") == fake.INSUFFICIENT and body.get("required") == fake.CREDITS, body
         assert body.get("available") == LOW_BALANCE and body.get("remedy") == want, body
         assert record["low_balance"]["ledger_rows_added"] == 0 and view.get("status") == "READY", record["low_balance"]
+        # the popup draws the server's words, its balance sentence left off (keel-web 069 `withoutBalance`)
+        assert want.split(" You have")[0] in (pressed.get("popup_text") or ""), pressed
 
 
 def _retry(j, wire: _Wire, record: dict) -> None:

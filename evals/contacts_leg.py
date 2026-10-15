@@ -2,8 +2,8 @@
 commit): after S-006's journey the founder finds the decision-makers through Keel's Contacts -- **on keel-web's own
 screens** -- Keel's base query on its tab, *Start from it*, *Size it* (free), the chips removed down to the market,
 *Show the first 25* (150 credits), the page of names and *Save 3 picked* (12 each), C3, *Go to Sent → Send more* (Text;
-the AI interviewer greyed), the batch's links and .csv; one found person answers on the stranger's own screens; *Make
-a new link* on Sent; *Find 25 more*; a second dataset that finds nobody new; the two credit refusals in the *Not enough
+the AI interviewer greyed, *not recorded* since keel-web 069), the batch's links and .csv; one found person answers on
+the stranger's own screens; *Make a new link* on Sent; *Find 25 more*; a second dataset that finds nobody new; the two credit refusals in the *Not enough
 credits* popup at a low balance; and nothing ever emailed. S-005 holds the B2C half: `NOT_B2B` and its card.
 
 **Every screen is held to the wire it was handed**: each press returns the response keel-web received (the page
@@ -454,7 +454,7 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
             record["format_refusal"]
 
     with j.recorder.step(f"contacts (S1-S3a): *Go to Sent → Send more* opens the decision-makers' popup with the dataset "
-                         f"chosen -- Text checked, the AI interviewer and Let them choose *Not available yet* -- the "
+                         f"chosen -- Text only checked, the AI interviewer and Let them choose *not recorded* -- the "
                          f"founder picks the {PICKS}, *Make {PICKS} links*: one batch as Text, each link handed back once "
                          "with the saved email, the batch's own .csv downloaded; Keel sends nothing; each LINK_MADE",
                          party="founder", kind="assert") as h:
@@ -471,9 +471,11 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
                          "dataset": DATASET_NAME, "downloaded": "the batch's csv, verbatim"},
                         {"batch": record["batch"], "statuses": statuses})
         assert made["status"] == 201 and batch.get("format") == "TEXT" and len(links) == PICKS, batch
-        assert made["formats"]["Text"]["checked"] and not made["formats"]["Text"]["disabled"], made["formats"]
-        assert all(made["formats"][f]["disabled"] and made["formats"][f]["word"] == iv.FORMAT_NOT_AVAILABLE
-                   for f in ("AI interviewer", "Let them choose")), made["formats"]
+        text = made["formats"][iv.TEXT_ONLY]
+        assert text["checked"] and not text["disabled"], made["formats"]
+        # keel-web 069: on Keel's door with no recording yet the other two are greyed *not recorded*
+        assert all(f["disabled"] and f["word"] == iv.FORMAT_NOT_RECORDED
+                   for name, f in made["formats"].items() if name != iv.TEXT_ONLY), made["formats"]
         assert made["who"].get("true") == iv.WHO_DATASET and made["dataset"] == DATASET_NAME, made
         assert sorted(link.get("foundPersonId") for link in links) == sorted(found), links
         assert {link.get("email") for link in links} == {s["email"] for s in record["saved"]}, links

@@ -5336,3 +5336,38 @@ neither fakes a failure nor writes a clip's status into the document. So **IM12 
 passed**; the leg reads the stored recording for a clip with two attempts (none, on the fake) and records the seam it
 could not reach. keel-cloud's own journey test holds the retry. For keel-cloud, if the eval should hold it: one
 stack-only property (say `keel.v2.interviewer.fake.fail-once-kinds=SOLUTION`) the fake reads at boot.
+
+## 87. Observation (keel-web): L1, revisited on a locked project, checks Judy -- the preselected face -- while Tito asks every question
+
+Found by spec `044-ai-interviewer-journey` on S-006 (local stack on keel-cloud-docs `a0b3759` + keel-web `d23895f`). After
+the founder records Tito (`GET interviewer` `face.code` TITO, READY), `/p/{id}/define/ready/interviewer` still draws the
+carousel -- disabled, under *Locked* -- with **Judy** `aria-checked`: `BeforeStep` seeds the pick from
+`InterviewerFaces.preselected` and never reads the project's own face. Sent's persona line, the walkthrough's frame 2 and
+Send more all say Tito. keel-web 069 says nothing about L1 after the lock. The leg holds L1's five faces, one checked and
+no price, and records the face it checks in a step named for the entry. For keel-web: seed the pick from `GET
+interviewer` once the project is locked (or draw no carousel there).
+
+## 88. Observation (keel-web, with keel-cloud 095 beside it): a link made on Sent right after an answer is read on arrival is refused 409 `concurrency`, and the popup shows the server's own words
+
+Found by spec `044-ai-interviewer-journey` on S-006 (local stack on keel-cloud-docs `a0b3759` + keel-web `d23895f`), every
+run. The AI-interviewer link is answered; keel-cloud 095 reads the answer on arrival (Keel's door), which writes the
+project -- revision 199 to 200 and on -- while the founder's Sent page still holds 199. *Send more → Let them choose →
+Someone I know → Make their link* sends `POST invitations/batch {expectedRevision: 199, ...}` and is refused **409**
+`rule` `concurrency`; the popup draws *"project 5c86fe81-... was expected at revision 199, and is not there at that
+revision any more -- either it has moved on since you read it, or it is not stored at all"* and *"reload the project,
+re-apply your commands ..."* -- an engineer's sentence, a project id, and no way forward but a reload. Before 095 nothing
+wrote a project behind the founder's back on Sent (a reading started only when they pressed for it), so DRIFT #75's
+shape (one popup a revision) was enough. The leg steps round it in a step named for the entry: Sent opened again, the
+link made once more. For keel-web (a design call with keel-cloud): Send more re-reads the revision when it opens or on a
+409 retries once with a fresh read (the batch touches nothing a reading writes), or keel-cloud's batch takes no
+`expectedRevision` from a screen that cannot know about arrivals.
+
+## 89. Observation (keel-web): a value typed into the AI interviewer's field goes back with `how` TYPED and no `heard`, where keel-web 069 FR-008 says `heard` is "the final transcript or the typed text"
+
+Found by spec `044-ai-interviewer-journey` on S-005 (local stack on keel-cloud-docs `a0b3759` + keel-web `d23895f`). The
+consumer's cost total typed into the amount-or-hours field (*Amount*, 30) is sent as `{costTotal: {mode: AMOUNT, value:
+30}, how: TYPED}` with no `heard` (`AiFlow.resolveWindow`: `take(mapped, "TYPED", "")` for a field answer); text typed
+through *Type instead* does carry it. Contract 16 makes `heard` optional and keel-cloud stores the answer either way, so
+nothing breaks; the founder's record of the answer simply has no words for it. Spec 044's own mark is *heard on every
+spoken answer* (IM9), which holds. For keel-web: send the field's own text (*30*, *£30*) as `heard`, or say in 069 that a
+field value carries none.

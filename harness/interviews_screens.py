@@ -36,8 +36,18 @@ SEND_MORE = "Send more"
 SEND_THE_QUESTIONS = "Send the questions"
 MAKE_A_NEW_LINK = "Make a new link"
 RELINK_DONE = "Done"
-FORMAT_NOT_AVAILABLE = "Not available yet"
-FORMAT_NAMES = {"TEXT": "Text", "AI_INTERVIEWER": "AI interviewer", "CHOICE": "Let them choose"}
+FORMAT_NOT_AVAILABLE = "Not available yet"             # keel-web 068, until 069
+FORMAT_NAMES = {"TEXT": "Text", "AI_INTERVIEWER": "AI interviewer", "CHOICE": "Let them choose"}   # the Continue words
+# ---- keel-web 069 (`translate.ts` at d23895f): Send more's rows and their greyed words
+TEXT_ONLY = "Text only"
+CHOICE_NAME = "Let them choose"
+FORMAT_RECORDING = "recording"
+FORMAT_NOT_RECORDED = "not recorded"
+FORMAT_NEEDS_CREDITS = "needs Keel's credits"
+
+
+def ai_format_name(face: str) -> str:
+    return f"AI interviewer · {face}"
 WHO_OWN = "Someone I know"
 WHO_DATASET = "People from a dataset"
 SEND_NAME = "Their name"
@@ -163,18 +173,29 @@ class Interviews:
         out = {}
         for radio in dialog.locator("[role=radio]").all():
             name = _safe_text(lambda r=radio: r.locator(".fmt__name").first.inner_text())
+            # keel-web 069: only a greyed row carries its word (`b.fmt__na`); reading an absent one waited 30 s a row
+            word = radio.locator("b")
             out[name] = {"checked": radio.get_attribute("aria-checked") == "true", "disabled": radio.is_disabled(),
-                         "word": _safe_text(lambda r=radio: r.locator("b").first.inner_text())}
+                         "word": " ".join((word.first.text_content() or "").split()) if word.count() else None}
         return out
 
-    def _step_one(self, dialog) -> dict:
+    def _step_one(self, dialog, fmt: str = "TEXT") -> dict:
+        """Step 1: the formats as drawn, then `fmt` picked (keel-web 069: Text only, the AI interviewer, Let them
+        choose) and *Continue · {format}*."""
         dialog.locator("[role=radiogroup] [role=radio]").first.wait_for(state="visible", timeout=10_000)
         formats = self._formats(dialog)
-        dialog.get_by_role("button", name="Continue · Text", exact=True).click()
+        # keel-web 069 checks the AI interviewer first once it is recorded: the asked format is always pressed
+        pattern = {"AI_INTERVIEWER": re.compile(r"^AI interviewer"), "CHOICE": re.compile(rf"^{CHOICE_NAME}"),
+                   "TEXT": re.compile(rf"^({TEXT_ONLY}|Text)$")}[fmt]
+        radio = dialog.locator("[role=radiogroup] [role=radio]", has=self.page.locator(".fmt__name", has_text=pattern))
+        if radio.count() and radio.first.get_attribute("aria-checked") != "true":
+            radio.first.click()
+        dialog.get_by_role("button", name=f"Continue · {FORMAT_NAMES[fmt]}", exact=True).click()
         dialog.get_by_role("radiogroup", name="Who").wait_for(state="visible", timeout=10_000)
         return formats
 
-    def send_someone(self, project_id: str, kind_label: str, person: str, about: str | None = None) -> dict:
+    def send_someone(self, project_id: str, kind_label: str, person: str, about: str | None = None,
+                     fmt: str = "TEXT") -> dict:
         """*Send more* (or *Send the questions*) on a kind's row, for someone the founder knows: Text, their name
         (and the line when given), *Make their link*; returns the link drawn, the batch keel-web received and step
         1's formats."""
@@ -184,7 +205,7 @@ class Interviews:
             card = self._kind_card(kind_label)
             card.locator(".btn.primary").click()
             dialog = self.page.get_by_role("dialog")
-            formats = self._step_one(dialog)
+            formats = self._step_one(dialog, fmt)
             dialog.get_by_role("radio", name=re.compile(rf"^{WHO_OWN}")).click()
             dialog.locator("#send-name").fill(person)
             if about is not None and dialog.locator("#send-about").count():
@@ -193,6 +214,11 @@ class Interviews:
                                            and r.url.endswith("/invitations/batch"), timeout=30_000) as made:
                 dialog.get_by_role("button", name=SEND_MAKE_ONE, exact=True).click()
             batch = _json(made.value)
+            if made.value.status >= 400:                     # refused: what keel-web received, and what it drew
+                h.add_screenshot(self._b.screenshot(f"link-refused-{person.split()[0]}"))
+                drawn = " ".join((dialog.text_content() or "").split())
+                return {"url": None, "batch": batch, "status": made.value.status, "formats": formats,
+                        "drawn": drawn, "sent": made.value.request.post_data_json}
             box = dialog.locator(".linkbox").first
             box.wait_for(state="visible", timeout=20_000)
             url = (box.text_content() or "").strip()

@@ -60,7 +60,12 @@ PERSONA_SAME = "The same person would decide to pay"
 PERSONA_SOMEONE_ELSE = "Someone else would decide"
 PERSONA_ROLE = "If someone else, what role would that person typically have?"
 BEFORE_CONTINUE = "Continue"
-BEFORE_LOCK = "Lock and write the questions"
+BEFORE_LOCK = "Lock and write the questions"           # until keel-web 069
+#: keel-web 069 `translate.ts`: L1, the third screen of step 5.
+L1_TITLE = "Who asks the questions"
+BEFORE_LOCK_RECORD = "Lock and record the interviewer"
+BEFORE_LOCK_APPROVE = "Lock and approve"
+BEFORE_INTERVIEWER_OWN = "The AI interviewer needs Keel's credits; links go out as text."
 NAV_LOCK_LINE = "Opens once you start recruiting"
 NAV_LOCKED_LABEL = "Project sections, locked until recruiting starts"
 SEND_THE_QUESTIONS = "Send the questions"
@@ -481,11 +486,12 @@ class Corridor:
 
     # ------------------------------------------------------------------- step 5: before people
 
-    def word_pilot_and_lock(self) -> dict:
-        """Step 5 (keel-web 063 FR-007: the idea screen moved to S2): *A word from you* (1 of 2), *The pilot*
-        (2 of 2) and *Lock and write the questions*. Returns the two counters as drawn and the lock's receipt as
-        keel-web received it (`LockReceipt`; contract 14: one interaction id)."""
-        with self._b.step("founder passes the word and the pilot, then locks") as h:
+    def word_pilot_and_lock(self, face: str | None = None) -> dict:
+        """Step 5 (keel-web 063 FR-007; keel-web 069 FR-002 since spec 044): *A word from you* (1 of 3), *The pilot*
+        (2 of 3), then L1 *Who asks the questions* (3 of 3) -- the carousel of five faces on Keel's door (`face`
+        tapped when given), one line on an account on its own AI -- and *Lock and record the interviewer* / *Lock and
+        approve*. Returns the counters, what L1 drew and the lock's receipt as keel-web received it (`LockReceipt`)."""
+        with self._b.step("founder passes the word and the pilot, picks who asks, then locks") as h:
             _wait_url(self.page, r"/define/ready")
             counter = self.page.get_by_test_id("before-counter")
             counter.wait_for(state="visible", timeout=20_000)
@@ -493,19 +499,49 @@ class Corridor:
             first = counter.text_content() or ""
             _button(self.page, BEFORE_CONTINUE).click()
             _wait_url(self.page, r"/define/ready/pilot")
-            self.page.locator("[data-testid=before-counter]", has_text="2 of 2").wait_for(timeout=10_000)
+            self.page.locator("[data-testid=before-counter]", has_text=re.compile(r"^2 of")).wait_for(timeout=10_000)
             second = counter.text_content() or ""
             h.add_screenshot(self._b.screenshot("pilot"))
+            counters = [first.strip(), second.strip()]
+            l1: dict = {}
+            if self.page.get_by_test_id("lock-and-record").count() == 0:          # keel-web 069: a third screen
+                _button(self.page, BEFORE_CONTINUE).click()
+                _wait_url(self.page, r"/define/ready/interviewer")
+                self.page.locator("[data-testid=before-counter]", has_text="3 of 3").wait_for(timeout=10_000)
+                counters.append((counter.text_content() or "").strip())
+                l1 = self.l1(face)
             with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/lock"),
                                            timeout=30_000) as locked:
-                _button(self.page, BEFORE_LOCK).click()
+                self.page.get_by_test_id("lock-and-record").click()
             try:
                 receipt = locked.value.json()
             except Exception:  # noqa: BLE001 - a refused lock's body is the leg's to report
                 receipt = {"status": locked.value.status, "text": _safe_text(lambda: locked.value.text())}
+            l1["sent"] = locked.value.request.post_data_json
             _wait_url(self.page, r"/interviews/sent|/people", timeout_s=60)       # keel-web 068: Sent
             h.add_screenshot(self._b.screenshot("locked-people"))
-            return {"counters": [first.strip(), second.strip()], "receipt": receipt}
+            return {"counters": counters, "receipt": receipt, "l1": l1}
+
+    def l1(self, face: str | None = None) -> dict:
+        """L1 as drawn (keel-web 069 FR-002): the title, the lead or the own-AI line, the carousel's faces and which is
+        checked, the button's words and the main column's whole text (for the no-price rule). `face` is tapped."""
+        main = self.page.locator(".corridor.before").first
+        main.wait_for(state="visible", timeout=20_000)
+        carousel = self.page.get_by_test_id("face-carousel")
+        faces = []
+        if carousel.count():
+            if face:
+                carousel.locator(f'[data-face="{face}"]').click()
+                carousel.locator(f'[data-face="{face}"][aria-checked="true"]').wait_for(timeout=5_000)
+            faces = [{"face": b.get_attribute("data-face"), "checked": b.get_attribute("aria-checked") == "true",
+                      "text": " ".join((b.text_content() or "").split())}
+                     for b in carousel.locator('button[role="radio"]').all()]
+        button = self.page.get_by_test_id("lock-and-record")
+        return {"title": _safe_text(lambda: main.locator("h1").first.inner_text()),
+                "sub": _safe_text(lambda: main.locator(".ccard__sub").first.inner_text()),
+                "faces": faces, "carousel": carousel.count() > 0,
+                "button": _safe_text(lambda: button.inner_text()) if button.count() else None,
+                "text": " ".join((main.text_content() or "").split())}
 
 
 # ------------------------------------------------------------------------------------ PeopleLinks

@@ -99,7 +99,8 @@ def good() -> dict:
         "ai_answers": {"body": {"format": "AI_INTERVIEWER", "answers": [
                            {"itemId": "a", "how": "SPOKEN", "heard": "about three, maybe four"},
                            {"itemId": "b", "how": "TAPPED", "heard": ""},
-                           {"itemId": "c", "how": "TYPED", "heard": "200"}]},
+                           {"itemId": "c", "how": "TYPED", "heard": "200"},
+                           {"itemId": "d", "how": "TYPED"}]},                    # a value typed into the field
                        "register_row": {"formatUsed": "AI_INTERVIEWER"}},
         "change": {"face": "JUDY", "face_before": "TITO", "face_after": "JUDY", "ready_face": "JUDY",
                    "balance_before": 1100, "balance_after": 700, "trail": ["RECORDING", "RECORDING", "READY"]},

@@ -213,13 +213,14 @@ def dry_run_wrote_nothing(r: dict) -> tuple[bool, Any]:
 
 def heard_on_every_answer(r: dict) -> tuple[bool, Any]:
     """IM9: the AI link's `POST response` says `format` AI_INTERVIEWER and carries `how` on every answer and `heard`
-    on every spoken or typed one (at most 600 characters); the register's row then reads `formatUsed` AI_INTERVIEWER."""
+    on every spoken one (at most 600 characters; spec 044 FR-003 "heard on every spoken answer" -- a value typed into
+    a field carries none, DRIFT #89); the register's row then reads `formatUsed` AI_INTERVIEWER."""
     x = r["ai_answers"]
     body = x.get("body") or {}
     answers = body.get("answers") or []
     bad = [a.get("itemId") for a in answers
            if a.get("how") not in ("SPOKEN", "TAPPED", "TYPED")
-           or (a.get("how") in ("SPOKEN", "TYPED") and not (a.get("heard") or "").strip())
+           or (a.get("how") == "SPOKEN" and not (a.get("heard") or "").strip())
            or len(a.get("heard") or "") > 600]
     spoken = [a for a in answers if a.get("how") == "SPOKEN"]
     ok = (body.get("format") == "AI_INTERVIEWER" and bool(answers) and bool(spoken) and not bad

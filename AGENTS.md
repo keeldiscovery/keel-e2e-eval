@@ -353,7 +353,19 @@ by `evals/contacts_marks.py` (CM1-CM14, `CONTACTS_MARKS_VERSION` 1, a journey ru
 Interviews)**: every journey's links are made on Sent's *Send more* (W1 held once per account), the contacts leg runs on
 068's own screens (`harness/interviews_screens.py`) with every wire assertion kept, and the readings 068 no longer
 starts are started on the wire in a step named DRIFT #84.
-`make unit` after 043: **1,912 passed / 53 skipped**. **Nothing generated is committed** -- the script, the
+`make unit` after 043: **1,912 passed / 53 skipped**. **Since spec `044-ai-interviewer-journey` (2026-10-15) they run
+keel-cloud 094 + 095 (keel-cloud-docs `a0b3759`: contract 16, `InferenceCharge` 9 -- `price_version` 9 on every HOLD --
+document 22, read on arrival) on keel-web `d23895f` (069: the AI interviewer), served `vite --mode test` for the speech
+seam.** Step 5 is three screens (L1 *Who asks the questions*; on the own door one line and *Lock and approve*). S-006 ends
+with **the interviewer leg** (`evals/interviewer_leg.py`) after the contacts leg: the own-AI refusals, the founder stood
+on Keel's door (spec 043's stand-in, keyed `e2e-eval:044:`), Tito recorded from Sent's persona line (NOT_RECORDED ->
+RECORDING -> READY on keel-cloud's fake renderer), S1 / S2 / S3, W1 replayed, Try it yourself writing nothing, an AI link
+answered on the stranger's own stage through `window.__keelSpeech` (`harness/interviewer_screens.py`), a Let-them-choose
+link, Judy for 400, the refusal at 100, the readings on arrival and nothing left unread; S-005 the short form with its AI
+link answered. Scored by `evals/interviewer_marks.py` (IM1-IM13, `INTERVIEWER_MARKS_VERSION` 1; IM12 unmeasured, DRIFT
+#86). The journeys' readings: on Keel's door nothing is pressed (095); on the own door with the agent connected first the
+founder's session asks, as before. `stack/ledger.py` also reads the stored recording (the scripts are on no route). DRIFT
+#84 resolved; #85-#89 new. `make unit` after 044: **2,035 passed / 53 skipped**. **Nothing generated is committed** -- the script, the
 keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
 the end of every run.
 

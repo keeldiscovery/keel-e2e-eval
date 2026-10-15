@@ -610,16 +610,28 @@ def leg_persona(j: Journey) -> None:
 # ---------------------------------------------------------------------------------- leg 4: lock
 
 def leg_lock(j: Journey) -> None:
-    """Step 5's two screens (*A word from you* 1 of 2, *The pilot* 2 of 2; the idea moved to S2), then
-    *Lock and write the questions*: **one** RESPONDENT_QUESTIONS job (keel-cloud 091, contract 14: part 1 on the
+    """Step 5's three screens since keel-web 069 (*A word from you* 1 of 3, *The pilot* 2 of 3, L1 *Who asks the
+    questions* 3 of 3 -- on the own door one line and *Lock and approve*; the idea moved to S2), then the lock:
+    **one** RESPONDENT_QUESTIONS job (keel-cloud 091, contract 14: part 1 on the
     primary link, the gate's clause; parts 2 and 3 -- on B2B part 3 the decision-maker's link's -- composed by code in
     the lock's own commit), READY before anyone is invited, and the lock storing every saved list with its picked
     index (design §6, D7)."""
     drawn = j.corridor.word_pilot_and_lock()
     j.receipt = drawn.get("receipt") or {}
-    with _step(j, "step 5 is two screens, 1 of 2 and 2 of 2", party="founder") as h:
-        h.record_assert(["1 of 2", "2 of 2"], drawn["counters"])
-        assert drawn["counters"] == ["1 of 2", "2 of 2"], drawn
+    j.screens["L1"] = drawn.get("l1") or {}
+    with _step(j, "step 5 is three screens since keel-web 069 -- 1 of 3, 2 of 3 and L1 *Who asks the questions* 3 "
+                  "of 3, which on an account on its own AI is one line and *Lock and approve*, no carousel; the "
+                  "lock's receipt carries no interviewer (contract 16)", party="founder") as h:
+        l1 = drawn.get("l1") or {}
+        h.record_assert({"counters": ["1 of 3", "2 of 3", "3 of 3"], "title": vs_screens.L1_TITLE,
+                         "sub": vs_screens.BEFORE_INTERVIEWER_OWN, "carousel": False,
+                         "button": vs_screens.BEFORE_LOCK_APPROVE, "receipt.interviewer": None},
+                        {**l1, "counters": drawn["counters"], "receipt": j.receipt})
+        assert drawn["counters"] == ["1 of 3", "2 of 3", "3 of 3"], drawn
+        assert l1.get("title") == vs_screens.L1_TITLE and l1.get("carousel") is False, l1
+        assert l1.get("sub") == vs_screens.BEFORE_INTERVIEWER_OWN, l1
+        assert l1.get("button") == vs_screens.BEFORE_LOCK_APPROVE, l1
+        assert "interviewer" not in j.receipt, j.receipt
     deadline = time.monotonic() + 120 * j.patience
     state = None
     while time.monotonic() < deadline:
@@ -713,9 +725,10 @@ def leg_invite(j: Journey) -> None:
                              "drawn": made["url"], "link": link, "formats": made["formats"]})
             assert made["status"] == 201 and (made["batch"] or {}).get("format") == "TEXT", made
             assert made["url"] == link.get("url") and link.get("personName") == person.person, made
-            assert made["formats"].get("Text", {}).get("checked") is True, made["formats"]
-            assert all(f["disabled"] and f["word"] == iv_screens.FORMAT_NOT_AVAILABLE
-                       for name, f in made["formats"].items() if name != "Text"), made["formats"]
+            # keel-web 069: *Text only*; on their own AI the other two greyed *needs Keel's credits*
+            assert made["formats"].get(iv_screens.TEXT_ONLY, {}).get("checked") is True, made["formats"]
+            assert all(f["disabled"] and f["word"] == iv_screens.FORMAT_NEEDS_CREDITS
+                       for name, f in made["formats"].items() if name != iv_screens.TEXT_ONLY), made["formats"]
         j.links[person.person] = made["url"]
         j.tokens[person.person] = made["url"].rstrip("/").rsplit("/", 1)[-1]
     with _step(j, "every corpus person has a link of their own; the Sent register draws one row a person, newest "
