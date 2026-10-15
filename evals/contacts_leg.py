@@ -434,23 +434,23 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
         name_of = {s["foundPersonId"]: s["fullName"] for s in record["saved"]}
 
     # ---- links: Go to Sent -> Send more
-    with j.recorder.step("contacts (S3, call 134): the AI interviewer is refused FORMAT_NOT_AVAILABLE -- *not "
-                         "available yet* -- on the batch and on the single commercial link, and nothing is made "
-                         "(keel-web never offers it: its radios are greyed)", party="founder", kind="assert") as h:
+    with j.recorder.step("contacts (S3, call 134; contract 16 since spec 044): the AI interviewer is refused 409 "
+                         "INTERVIEWER_NOT_READY -- this project has no recording yet -- on the batch and on the single "
+                         "commercial link, and nothing is made", party="founder", kind="assert") as h:
         before = len((wire("GET", "/invitations")[1]).get("invitations") or [])
         status, body = wire("POST", "/invitations/batch", {"expectedRevision": j.revision(), "respondentType": KIND,
                                                            "format": "AI_INTERVIEWER",
-                                                           "people": [{"foundPersonId": found[0]}]}, ok=(422,))
+                                                           "people": [{"foundPersonId": found[0]}]}, ok=(409,))
         single, single_body = wire("POST", "/commercial-link", {"expectedRevision": j.revision(),
                                                                 "personName": "Someone the founder knows",
-                                                                "format": "AI_INTERVIEWER"}, ok=(422,))
+                                                                "format": "AI_INTERVIEWER"}, ok=(409,))
         after = len((wire("GET", "/invitations")[1]).get("invitations") or [])
         record["format_refusal"] = {"status": status, "body": body, "register_before": before,
                                     "register_after": after,
                                     "commercial_link": {"status": single, "body": single_body}}
-        h.record_assert({"status": 422, "code": "FORMAT_NOT_AVAILABLE", "commercial-link": "FORMAT_NOT_AVAILABLE"},
+        h.record_assert({"status": 409, "code": "INTERVIEWER_NOT_READY", "commercial-link": "INTERVIEWER_NOT_READY"},
                         record["format_refusal"])
-        assert body.get("code") == "FORMAT_NOT_AVAILABLE" == single_body.get("code") and before == after, \
+        assert body.get("code") == "INTERVIEWER_NOT_READY" == single_body.get("code") and before == after, \
             record["format_refusal"]
 
     with j.recorder.step(f"contacts (S1-S3a): *Go to Sent → Send more* opens the decision-makers' popup with the dataset "

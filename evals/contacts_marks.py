@@ -20,9 +20,12 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 from harness import contacts_fake as fake
+from harness import interviewer_fake as fake_interviewer
 
 #: Bumped whenever a mark is born, retired, or reads its record differently.
-CONTACTS_MARKS_VERSION = 1
+CONTACTS_MARKS_VERSION = 2
+#: v2 (spec 044, contract 16): CM12 reads the AI interviewer's refusal as 409 INTERVIEWER_NOT_READY; CM2 / CM3 hold
+#: `price_version` 9.
 
 #: Every key the wire might name a phone by; none may appear anywhere in a contacts response (E6).
 PHONE_KEY = re.compile(r"phone|mobile|\btel\b|telephone", re.I)
@@ -82,7 +85,7 @@ def sizing_is_free_and_the_fakes(r: dict) -> tuple[bool, Any]:
 
 
 def every_purchase_a_pair(r: dict) -> tuple[bool, Any]:
-    """CM2: every page and every reveal that charged credits is one HOLD of -n (price_version 8, no job, this project)
+    """CM2: every page and every reveal that charged credits is one HOLD of -n (price_version 9, no job, this project)
     and its SPEND of 0 carrying the price n and the Starter-rate cost, under one `contacts:<op>:` key; a receipt that
     charged nothing wrote nothing."""
     rows = [x for x in r["ledger"] if x.get("action") in ("CONTACT_PAGE", "CONTACT_EMAIL")]
@@ -117,8 +120,9 @@ def every_purchase_a_pair(r: dict) -> tuple[bool, Any]:
     return not faults and sorted(pairs) == charged, {"pairs": sorted(pairs), "receipts": charged, "faults": faults}
 
 
-def every_hold_price_version_8(r: dict) -> tuple[bool, Any]:
-    """CM3: every HOLD written on the founder's ledger while the leg ran carries `price_version` 8 (charge v8)."""
+def every_hold_at_the_charge_version(r: dict) -> tuple[bool, Any]:
+    """CM3: every HOLD written on the founder's ledger while the leg ran carries `price_version` 9 (charge v9 since
+    keel-cloud 094; 8 at spec 043)."""
     holds = [x for x in r["ledger"] if x.get("kind") == "HOLD"]
     bad = [x for x in holds if x.get("price_version") != fake.PRICE_VERSION]
     return bool(holds) and not bad, {"holds": len(holds), "bad": bad}
@@ -237,14 +241,15 @@ def refused_without_the_credits(r: dict) -> tuple[bool, Any]:
 
 
 def format_not_available(r: dict) -> tuple[bool, Any]:
-    """CM12: an AI interviewer link is refused 422 FORMAT_NOT_AVAILABLE ("not available yet") on the batch and on the
-    single commercial link, and nothing is made."""
+    """CM12: an AI interviewer link on a project with no recording is refused 409 INTERVIEWER_NOT_READY on the batch
+    and on the single commercial link, and nothing is made (contract 16: FORMAT_NOT_AVAILABLE is no longer answered;
+    until spec 044 it was 422 FORMAT_NOT_AVAILABLE, "not available yet")."""
     x = r["format_refusal"]
     body = x.get("body") or {}
     single = x.get("commercial_link") or {}
-    ok = (x["status"] == 422 and body.get("code") == "FORMAT_NOT_AVAILABLE"
-          and "not available yet" in (body.get("problem") or "") and x["register_before"] == x["register_after"]
-          and single.get("status") == 422 and (single.get("body") or {}).get("code") == "FORMAT_NOT_AVAILABLE")
+    ok = (x["status"] == 409 and body.get("code") == fake_interviewer.NOT_READY
+          and x["register_before"] == x["register_after"]
+          and single.get("status") == 409 and (single.get("body") or {}).get("code") == fake_interviewer.NOT_READY)
     return ok, x
 
 
@@ -264,7 +269,7 @@ def consumers_not_b2b(r: dict) -> tuple[bool, Any]:
 MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("CM1", "sizes", sizing_is_free_and_the_fakes),
     ("CM2", "ledger", every_purchase_a_pair),
-    ("CM3", "ledger", every_hold_price_version_8),
+    ("CM3", "ledger", every_hold_at_the_charge_version),
     ("CM4", "purchases", balance_follows_receipts),
     ("CM5", "pages", nobody_fetched_twice),
     ("CM6", "second_dataset", excluded_on_sizing),
