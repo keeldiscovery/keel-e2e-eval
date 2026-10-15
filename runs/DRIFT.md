@@ -5284,7 +5284,7 @@ first time, that step stops firing and the row is held to call 16. For keel-clou
 on `FoundPersonRow.linkMadeAt` (and say so in the field's description), or amend call 16 to say the row follows the
 link -- the design's C3 decides which.
 
-## 84. Observation (keel-web, with keel-cloud beside it): no screen starts a reading any more -- keel-web 068 deleted the reading batch with People's page, while keel-cloud still reads a story only on `POST readings` and the board still counts *read by your AI*
+## 84. RESOLVED (keel-cloud-docs `a0b3759`, spec 095, for Keel's door) -- was an observation (keel-web, with keel-cloud beside it): no screen starts a reading any more -- keel-web 068 deleted the reading batch with People's page, while keel-cloud still reads a story only on `POST readings` and the board still counts *read by your AI*
 
 Found by spec `043-contacts-journey`'s second commit on all three entries (local stack on keel-cloud-docs `a4f2c95` +
 keel-web `752a8c4`). keel-web 068 FR-009 deletes "People's page (`PeopleRoute`), its send popup, the commercial-link
@@ -5299,6 +5299,17 @@ starts the batch on the wire, exactly the call People's button made, so every la
 keel-web and keel-cloud together, a design call: either a screen that starts the reading (Sent's register would carry
 it), or keel-cloud reads a story when it is answered and the board's *read by your AI* goes (or keeps counting what the
 server read by itself).
+
+**Resolved by keel-cloud 095** (*Read on arrival, and a lost race is retried*, the founder's option 1; merged at
+keel-cloud-docs `a0b3759`, the same code as the 095 worktree's `ee86d1e`). On Keel's door every answer with words is read
+when it arrives -- an `INTERPRET` HOLD with `reason` `read-on-arrival:<invitationId>`, the brief after the batch with
+`brief:after-batch`, a lost revision race retried up to three times (`retry:<n>:<parent>`) -- and a founder's own `POST
+readings` meets 409 `READING_IN_PROGRESS` or `NOTHING_TO_READ`. Spec 044's journeys (call 151) press nothing on Keel's
+door and wait for the newest batch; the interviewer leg holds the reasons on the ledger (IM13). **On the founder's own
+AI the shape stays, by 095's own reading** (its judgement call 14, raised for the founder): with the agent connected
+before the answers nothing reads on arrival -- it reads at the next connect or on the founder's own `POST readings`,
+which no screen offers -- so S-005 / 006 / 007, whose scripted runtime connects first, keep asking for each reading on
+the wire, in a step that now names 095's rule instead of this entry.
 
 ## 85. Observation (keel-cloud): on their own AI, the founder's AI-interviewer link in a **batch** is refused 409 `INTERVIEWER_NOT_READY`, where contract 16 says 422 `INTERVIEWER_NEEDS_CREDITS`
 

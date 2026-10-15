@@ -32,6 +32,9 @@ CHANGE_ACTION = f"Change who asks · {fake.CHANGE_PRICE} AI credits"
 CONTENT_WORD = 4          # a word of at least this many letters counts toward a line's coverage
 COVERAGE = 0.8            # the share of a line's content words the solution passage must say
 SHINGLE = 6               # six words of the founder's word in a row, spoken, is the word spoken
+#: keel-cloud 095 FR-E: why a reading's or a brief's HOLD was written without a click (a founder's own POST readings
+#: carries none).
+READ_REASON = re.compile(r"^(read-on-arrival:[0-9a-f-]{36}|brief:after-batch|retry:[23]:[0-9a-f-]{36})$")
 
 
 @dataclass(frozen=True)
@@ -261,6 +264,21 @@ def the_retry_free(r: dict) -> tuple[bool, Any]:
     return ok, x
 
 
+def read_on_arrival(r: dict) -> tuple[bool, Any]:
+    """IM13 (keel-cloud 095): on Keel's door every answer with words is read on arrival -- its INTERPRET HOLD says
+    `read-on-arrival:<invitationId>`, at most three attempts a reading (a retry says `retry:<n>:<parent>`) -- and
+    every reading or brief HOLD the leg's ledger holds says why it was written: none was pressed by the founder."""
+    holds = [x for x in r["ledger"] if x.get("kind") == "HOLD" and x.get("action") in ("INTERPRET", "BRIEF")]
+    unexplained = [x for x in holds if not READ_REASON.match(x.get("reason") or "")]
+    per = {}
+    for a in r["arrivals"]:
+        mine = [x for x in a.get("holds") or [] if x.get("action") == "INTERPRET"
+                and x.get("reason") == f"read-on-arrival:{a['invitationId']}"]
+        per[a["invitationId"]] = len(mine)
+    ok = bool(per) and all(1 <= n <= 3 for n in per.values()) and not unexplained
+    return ok, {"arrivals": per, "unexplained": unexplained, "holds": len(holds)}
+
+
 #: (mark id, the record key it reads, the rule). Order is the leg's.
 MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("IM1", "ledger", one_recording_pair),
@@ -275,6 +293,7 @@ MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("IM10", "change", the_change_pair),
     ("IM11", "low_balance", refused_at_low_balance),
     ("IM12", "retry", the_retry_free),
+    ("IM13", "arrivals", read_on_arrival),
 ]
 
 

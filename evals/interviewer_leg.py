@@ -62,6 +62,9 @@ WEB_069_FOLLOW_UP = (
     "it yourself and the respondent's player through window.__keelSpeech -- each held to the wire this leg holds.")
 
 
+READ_REASON = marks.READ_REASON
+
+
 class _Wire:
     """The founder's calls on keel-cloud's routes, each kept for the record (IM2 sweeps the interviewer bodies)."""
 
@@ -172,15 +175,22 @@ def _leg(j, *, short: bool) -> dict:
             _retry(j, wire, record)
         record["ledger"] = stack_ledger.rows(j.stack, founder_id, since=since)
         with j.recorder.step("interviewer: the ledger since Keel's door -- the stand-in grant, the recording's one "
-                             "HOLD / SPEND pair, the change's, the stand-in low balance, and no other row",
+                             "HOLD / SPEND pair, the change's, the stand-in low balance, the readings on arrival "
+                             "(keel-cloud 095), and no other row",
                              party="stack", kind="assert") as h:
+            reading_jobs = {x.get("inference_job_id") for x in record["ledger"]
+                            if x.get("kind") == "HOLD" and x.get("action") in ("INTERPRET", "BRIEF")
+                            and READ_REASON.match(x.get("reason") or "")}
             others = [x for x in record["ledger"] if x.get("action") not in fake.ACTIONS
-                      and not (x.get("idempotency_key") or "").startswith(stack_ledger.key_prefix(SPEC))]
+                      and not (x.get("idempotency_key") or "").startswith(stack_ledger.key_prefix(SPEC))
+                      and not (x.get("inference_job_id") and x.get("inference_job_id") in reading_jobs)]
             h.record_assert({"other rows": []}, {"rows": [(x["kind"], x.get("action"), x["credits"])
                                                           for x in record["ledger"]], "others": others})
             assert not others, others
     finally:
         _restore(j, wire, founder_id, run)
+        if record.get("arrivals"):
+            _read_what_is_left(j, wire, record)
     if short:
         # the short form answers no AI link, so the pilot's count has no subject: what was served is kept apart
         record["pilot_served"] = record.pop("pilot", {}).get("served")
@@ -533,8 +543,12 @@ def _ai_link(j, wire: _Wire, record: dict, *, answer: bool) -> None:
 
 
 def _person_for_the_link(j):
-    """The first corpus person on the primary link -- composed, never generated (spec 043 call 133's rule)."""
-    return next(p for p in j.people if p.link == vs.LINK_PRIMARY)
+    """The **last** corpus person keel-cloud reads (a gate yes with a story) -- composed, never generated (spec 043
+    call 133's rule). The last, because the two answers this leg makes are read on arrival on Keel's door, which has no
+    key on this stack, so they stay unread; the leg reads them on the founder's own door before it ends (call 152),
+    and the scripted executor repeats its last INTERPRET entry once its readings are spent -- this person's own."""
+    names = {p.person for p in vs.readable_people(j.entry)}
+    return [p for p in j.people if p.person in names][-1]
 
 
 def _with_heard(body: dict, interview: dict) -> dict:
@@ -588,6 +602,63 @@ def _answer_ai_on_the_wire(j, wire: _Wire, record: dict, made: dict, interview: 
         assert posted.status_code in (200, 201), _json_of(posted)
         assert pilot.status_code == 204, pilot.text
         assert row.get("formatUsed") == "AI_INTERVIEWER" and row.get("status") == "ANSWERED", row
+    _read_on_arrival(j, wire, record, made["invitationId"], "the AI link's")
+
+
+def _read_on_arrival(j, wire: _Wire, record: dict, invitation_id: str, whose: str) -> None:
+    """keel-cloud 095 FR-A / FR-E, on Keel's door: an answer with words is read on arrival -- the founder presses
+    nothing -- and its INTERPRET HOLD says why (`read-on-arrival:<invitationId>`), the brief's after the batch
+    `brief:after-batch`. On this stack Keel's own AI has no key, so each job fails at once and is refunded; the batch
+    still ends. Nothing here starts a reading."""
+    with j.recorder.step(f"interviewer (keel-cloud 095): {whose} answer is read on arrival -- no POST readings; the "
+                         "newest batch ends; its INTERPRET HOLD carries read-on-arrival:<invitationId> and the brief's "
+                         "brief:after-batch (Keel's AI has no key on this stack: each job refunded)", party="stack",
+                         kind="assert") as h:
+        deadline = time.monotonic() + 60 * j.patience
+        batch: dict = {}
+        while time.monotonic() < deadline:
+            batches = j.get(j.project("/readings")) or []
+            batch = batches[0] if isinstance(batches, list) and batches else {}
+            if invitation_id in (batch.get("invitationIds") or []) and batch.get("status") not in ("RUNNING",
+                                                                                                    "PENDING"):
+                break
+            time.sleep(1)
+        rows = stack_ledger.rows(j.stack, record["founder_id"])
+        mine = [x for x in rows if (x.get("reason") or "") == f"read-on-arrival:{invitation_id}"]
+        record.setdefault("arrivals", []).append({"invitationId": invitation_id, "batch": batch,
+                                                  "holds": [x for x in mine if x.get("kind") == "HOLD"]})
+        h.record_assert({"batch": "ends with this answer in it", "HOLD reason": f"read-on-arrival:{invitation_id}"},
+                        {"batch": batch, "rows": [(x["kind"], x.get("action"), x["credits"], x.get("reason"))
+                                                  for x in rows if x.get("action") in ("INTERPRET", "BRIEF")]})
+        assert invitation_id in (batch.get("invitationIds") or []), batch
+        assert batch.get("status") not in ("RUNNING", "PENDING"), batch
+        assert [x for x in mine if x.get("kind") == "HOLD" and x.get("action") == "INTERPRET"], mine
+
+
+def _read_what_is_left(j, wire: _Wire, record: dict) -> None:
+    """Call 152: the answers read on arrival failed on Keel's keyless door and wait unread; keel-cloud 095 FR-D reads
+    every unread answer of the founder's projects when an agent next connects -- S-007's runtime, on S-007's script,
+    which would spend S-007's readings on them (found once: S-007's standings moved by one person). So, back on their
+    own door with this journey's runtime still connected, the founder asks for the reading on the wire, and the leg
+    leaves nothing unread."""
+    with j.recorder.step("interviewer (call 152): back on their own door, the founder's session reads what Keel's "
+                         "keyless door left unread, so the next agent to connect finds nothing of this project's to "
+                         "read", party="founder", kind="assert") as h:
+        status, started = wire("POST", "/readings", {}, ok=(201, 409))
+        deadline = time.monotonic() + 60 * j.patience
+        batch = started if isinstance(started, dict) else {}
+        while status == 201 and time.monotonic() < deadline:
+            batches = j.get(j.project("/readings")) or []
+            batch = batches[0] if isinstance(batches, list) and batches else {}
+            if batch.get("status") not in ("RUNNING", "PENDING"):
+                break
+            time.sleep(1)
+        again, nothing = wire("POST", "/readings", {}, ok=(201, 409))
+        record["left_unread"] = {"status": status, "batch": batch, "after": {"status": again, "body": nothing}}
+        h.record_assert({"batch": "DONE", "failed": [], "after": "409 NOTHING_TO_READ"}, record["left_unread"])
+        assert status == 201 and batch.get("status") == "DONE" and not batch.get("failed"), record["left_unread"]
+        # a reading's refusal names itself in `rule` (`ReadingRefusal`), not `code`
+        assert again == 409 and (nothing.get("code") or nothing.get("rule")) == "NOTHING_TO_READ", record["left_unread"]
 
 
 def _choice_link(j, wire: _Wire, record: dict) -> None:
@@ -612,6 +683,7 @@ def _choice_link(j, wire: _Wire, record: dict) -> None:
         assert made["format"] == "CHOICE" and interview.get("formats") == ["TEXT", "AI_INTERVIEWER"], record["choice"]
         assert interview.get("interviewer") and posted.status_code in (200, 201), record["choice"]
         assert row.get("format") == "CHOICE" and row.get("formatUsed") == "TEXT", row
+    _read_on_arrival(j, wire, record, made["invitationId"], "the Let-them-choose link's")
 
 
 def _change_face(j, wire: _Wire, record: dict) -> None:

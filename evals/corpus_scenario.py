@@ -930,19 +930,26 @@ def _normal_body(body: dict) -> dict:
 
 
 def _read(j: Journey, person) -> None:
-    """The founder has their AI read the new answer when this person wrote a story the reader is shown; nobody else's
-    answer queues a reading (a gate no, a chip, the decision-maker's link).
+    """The person's answer is read when this person wrote a story the reader is shown; nobody else's answer queues a
+    reading (a gate no, a chip, the decision-maker's link).
 
-    **DRIFT #84, stepped round** (spec 043 call 140): keel-web 068 deleted the reading batch's button with People's
-    page (068 call 7), while keel-cloud still reads a story only on `POST readings` and the board still counts *read
-    by your AI*. So the founder's own session starts the batch on the wire -- exactly the call People's button made --
-    in a step named for the entry, and every later assertion stands as it did."""
+    **Since keel-cloud 095 (DRIFT #84 resolved for Keel's door)** a Keel's-door project reads every answer on arrival:
+    the journey presses nothing, waits for the newest batch -- the arrival's, which it did not start -- and any after
+    it to be DONE, and a `POST readings` of its own is refused 409 (`READING_IN_PROGRESS` while it runs,
+    `NOTHING_TO_READ` once all is read). **On the founder's own AI with the agent connected before the answers**
+    nothing reads on arrival (095 judgement call 14: the own door reads at its next connect or on the founder's own
+    `POST readings`), so the founder's session asks for the reading on the wire -- the call People's button made --
+    exactly as before (spec 044 call 151)."""
     readable = any(p.person == person.person for p in vs.readable_people(j.entry))
     if not readable:
         return
-    with _step(j, f"DRIFT #84 -- no screen reads {person.person}'s answer any more (keel-web 068 removed the reading "
-                  "batch); the founder's session starts it on the wire, as People's button did", party="founder",
-               kind="note") as h:
+    door = (j.get("/v2/me") or {}).get("aiPath")
+    if door == "KEEL":
+        _read_on_arrival(j, person)
+        return
+    with _step(j, f"{person.person}'s answer: on their own AI with the agent connected nothing reads on arrival "
+                  "(keel-cloud 095 call 14), so the founder's session asks for the reading on the wire",
+               party="founder", kind="note") as h:
         deadline = time.monotonic() + 45 * j.patience
         while True:
             status, started = j.call("POST", j.project("/readings"), {}, ok=(201, 409))
@@ -952,19 +959,45 @@ def _read(j: Journey, person) -> None:
                 raise AssertionError(f"{person.person}'s answer never reached a reading: {started}")
             time.sleep(1)
         h.record_wire({"POST": "readings"}, started)
-        deadline = time.monotonic() + 90 * j.patience
-        while True:
-            batches = j.get(j.project("/readings")) or []
-            batch = batches[0] if isinstance(batches, list) and batches else {}
-            if batch.get("status") not in (None, "RUNNING", "PENDING"):
-                break
-            if time.monotonic() > deadline:
-                raise AssertionError(f"{person.person}'s reading never finished: {batch}")
-            time.sleep(1)
+        batch = _batches_done(j, person)
     with _step(j, f"{person.person}'s answer is read, and nothing failed") as h:
         h.record_assert({"status": "DONE", "failed": []}, batch)
         assert batch.get("status") == "DONE", batch
         assert not batch.get("failed"), batch
+
+
+def _batches_done(j: Journey, person, *, before: set | None = None) -> dict:
+    """The newest reading batch, once it -- and any started after it -- is no longer running."""
+    deadline = time.monotonic() + 90 * j.patience
+    while True:
+        batches = j.get(j.project("/readings")) or []
+        batch = batches[0] if isinstance(batches, list) and batches else {}
+        fresh = batch.get("batchId") not in (before or set())
+        if fresh and batch.get("status") not in (None, "RUNNING", "PENDING"):
+            return batch
+        if time.monotonic() > deadline:
+            raise AssertionError(f"{person.person}'s reading never finished: {batch}")
+        time.sleep(1)
+
+
+def _read_on_arrival(j: Journey, person) -> None:
+    """keel-cloud 095 FR-A, on Keel's door: the answer is read on its own; the founder presses nothing."""
+    with _step(j, f"{person.person}'s answer is read on arrival (keel-cloud 095): the founder presses nothing, the "
+                  "newest batch -- one the journey did not start -- and any after it end DONE, and a POST readings "
+                  "of the founder's is refused 409 READING_IN_PROGRESS or NOTHING_TO_READ", party="stack") as h:
+        batch = _batches_done(j, person)
+        status, refused = j.call("POST", j.project("/readings"), {}, ok=(409,))
+        h.record_assert({"status": "DONE", "failed": [], "POST readings": [409, "READING_IN_PROGRESS",
+                                                                           "NOTHING_TO_READ"]},
+                        {"batch": batch, "POST readings": [status, _refusal(refused)]})
+        assert batch.get("status") == "DONE" and not batch.get("failed"), batch
+        assert _refusal(refused) in ("READING_IN_PROGRESS", "NOTHING_TO_READ"), refused
+
+
+def _refusal(body) -> str | None:
+    """A reading's refusal names itself in `rule` (keel-cloud `ReadingRefusal`), a vector refusal in `code`."""
+    body = body if isinstance(body, dict) else {}
+    return body.get("code") or body.get("rule")
 
 
 # ----------------------------------------------------------------------------- leg 7: standings

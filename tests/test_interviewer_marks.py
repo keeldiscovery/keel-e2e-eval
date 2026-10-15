@@ -30,6 +30,15 @@ def _pair(action: str) -> list[dict]:
              "inference_job_id": None, "price_credits": 400, "actual_cost_micro_usd": 2_000_000}]
 
 
+AI_INVITATION = str(uuid.uuid4())
+CHOICE_INVITATION = str(uuid.uuid4())
+
+
+def _reading(action: str, reason: str | None) -> dict:
+    return {"kind": "HOLD", "credits": -35, "action": action, "price_version": 9, "project_id": PROJECT,
+            "inference_job_id": str(uuid.uuid4()), "reason": reason}
+
+
 def _clip(role: str, kind: str, item: str | None = None, script: str = "Words.", attempts: int = 1) -> dict:
     return {"id": str(uuid.uuid4()), "role": role, "kind": kind, "itemId": item, "script": script, "status": "DONE",
             "attempts": attempts, "durationSeconds": 0.1, "bytes": 1000}
@@ -62,6 +71,7 @@ def good() -> dict:
         "entry": "05-paidly", "project_id": PROJECT,
         "ledger": [{"kind": "GRANT", "credits": 1500, "action": None, "price_version": None},
                    *_pair("INTERVIEWER_RECORDING"), *_pair("INTERVIEWER_CHANGE"),
+                   _reading("INTERPRET", f"read-on-arrival:{AI_INVITATION}"), _reading("BRIEF", "brief:after-batch"),
                    {"kind": "PURCHASE", "credits": -800, "action": None, "price_version": None}],
         "screens": {"L1": "Who asks the questions. Keel records your interviewer once for this project. Lock and record "
                           "the interviewer",
@@ -99,6 +109,9 @@ def good() -> dict:
                                  "available": 100, "remedy": fake.INSUFFICIENT_REMEDY.format(required=400,
                                                                                             available=100)}},
         "retry": {"status": "READY", "ledger_rows_added": 0, "clip": {"attempts": 2, "status": "DONE"}},
+        "arrivals": [{"invitationId": AI_INVITATION, "holds": [_reading("INTERPRET", f"read-on-arrival:{AI_INVITATION}")]},
+                     {"invitationId": CHOICE_INVITATION,
+                      "holds": [_reading("INTERPRET", f"read-on-arrival:{CHOICE_INVITATION}")]}],
     }
 
 
@@ -110,9 +123,9 @@ def test_a_good_record_meets_every_mark():
     checks = _by_mark(good())
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
-    assert (card["measured"], card["met"], card["unmeasured"]) == (12, 12, [])
+    assert (card["measured"], card["met"], card["unmeasured"]) == (13, 13, [])
     assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 1
-    assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 13)]
+    assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 14)]
 
 
 def test_the_short_form_measures_what_it_carries_and_nothing_else():
@@ -206,6 +219,10 @@ SEEDED = [
     ("IM12", ["retry", "clip", "attempts"], 1),                                           # never failed, never retried
     ("IM12", ["retry", "ledger_rows_added"], 2),                                          # the retry paid again
     ("IM12", ["retry", "status"], "FAILED"),
+    ("IM13", ["ledger"], lambda rows: rows + [_reading("INTERPRET", None)]),          # a reading the founder pressed
+    ("IM13", ["arrivals", 0, "holds"], []),                                             # an answer never read
+    ("IM13", ["arrivals", 1, "holds"], [_reading("INTERPRET", "read-on-arrival:" + str(uuid.uuid4()))]),
+    ("IM13", ["arrivals", 0, "holds"], lambda h: h * 4),                                # read four times
 ]
 
 
