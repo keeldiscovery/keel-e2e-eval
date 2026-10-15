@@ -37,7 +37,7 @@ live render test lives in keel-cloud and is not run here.
   9. a seeded fail-once clip (the fake's seam) is retried by the recorder and READY still arrives; the retry wrote no
      ledger row.
 - FR-003 **Marks** (`evals/interviewer_marks.py`, IM1-IM12: one recording pair per lock, no price on L1/S1/S2/S3, the
-  spoken order, the solution passage's three facts, no spoken founder's word, pilot last, Range served, the dry run
+  spoken order, the solution passage's three facts, no spoken founder's word, pilot last AND asked on every AI interview with its Yes landing in the overview's pilot count, Range served, the dry run
   wrote nothing, heard on every spoken answer, the change pair, the refusal at a low balance, the retry free).
   Unmeasured never passes.
 
