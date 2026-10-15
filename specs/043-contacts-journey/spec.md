@@ -81,8 +81,47 @@ and no money is spent.**
   `SELECT`s for the ledger and the account, and three named writes, each row carrying `reason` *e2e-eval spec 043: ...*
   and a key under `e2e-eval:043:`; values only ever as `psql -v` variables (a unit test walks every SQL argument); the
   remote profile refused by name.
-- FR-006 **DRIFT** (`runs/DRIFT.md`): **#83** new -- the found person's row reads the new link's time after *Make a new
+- FR-006 **DRIFT** (`runs/DRIFT.md`): **#83** new (RESOLVED in the second commit, FR-010) -- the found person's row reads the new link's time after *Make a new
   link*, where 093 call 16 says it keeps the first link's; stepped round in a step named for the entry (call 136).
+
+## Second commit -- keel-web 068's Interviews section and keel-cloud's #83 fix
+
+Siblings: keel-cloud-docs **`a4f2c95`** (= `7850360` + the DRIFT #83 fix: `FoundPersonRow.linkMadeAt` keeps the first
+link's time; contract unchanged) and keel-web **`752a8c4`** (= `da0b9eb` + 068: People becomes Interviews -- Sent,
+Contacts, Keel-managed; People's page, its send popup, the commercial-link popup and the reading batch deleted).
+
+- FR-007 **Page objects** (`harness/interviews_screens.py`, labels copied from keel-web `translate.ts` at `752a8c4`, the
+  selectors 068's spec names for this repository): `Interviews` -- W1 (*Got it* and its `PATCH /v2/me`), the side nav's
+  group (`.side-nav__group a.side-nav__item`, `.side-nav__item--sub`), the register (`table.ppl--sent`, cells by
+  `data-label`, *Show all*), the kind rows (`.role .btn.primary`), *Send more* for someone the founder knows and for a
+  dataset's people (step 1's `[role=radio]`, step 2's who / dataset / `.pickrow`, step 3's `.linkbox` or `.pop
+  table.ppl--tight` and the downloaded .csv) and *Make a new link* in the status cell; `Contacts` -- the NOT_B2B card,
+  the own-AI line, the tabs, *Start from it*, C2's chips (`.prow`, `.qchip__x`), the name, *Size it* / *Size it again*,
+  *Show the first 25*, the page of names and *Save n picked*, C3, *Find 25 more*, *Go to Sent → Send more* and the *Not
+  enough credits* popup (`dialog.credits-refusal`). Each write returns the response keel-web received. No selector of
+  068's was unusable.
+- FR-008 **Every journey's links go through Sent** (`corpus_scenario.leg_invite`): W1 the first time the account
+  arrives (held to `walkthroughSeenAt`: played exactly when it was null, stamped after), the nav group (*Interviews*,
+  *Sent · Contacts · Keel-managed*, Sent current), then per corpus person the kind's *Send the questions* / *Send more*
+  -- Text (the other two greyed *Not available yet*), *Someone I know*, the name, *Make their link* -- for the
+  specialist and the decision-maker alike (one `POST invitations/batch`, 068 call 11); the register held to the wire
+  (one row a person, newest first, Text, *Not opened*). The lock lands on `/interviews/sent`.
+- FR-009 **The contacts leg on keel-web's screens** (`evals/contacts_leg.py`): the own-AI line and the NOT_B2B card;
+  C1's tabs and base row; *Start from it* (the chips are the base query's), *Size it* (create BASE, size 0); the chips
+  removed down to *Where*, the name typed, *Size it* again (27, *About 27 people with a work email match*); *Show the
+  first 25* (the 25 drawn are the receipt's); *Save 3 picked and get their emails · 36 credits*; C3 (*Saved · no link
+  yet*, the emails); *Go to Sent → Send more* (Text checked, the other two greyed, *People from a dataset* with *Everyone
+  in the UK* chosen, *Make 3 links*, the table, the downloaded .csv equal to the batch's); the found person answers on
+  the stranger's own screens (`vectors_screens.Interview`, the page's POST equal to the corpus decision-maker's picks);
+  Sent's register (the answered row *Text*, *… dataset*, *Answered*, no *Make a new link*); *Make a new link* on Sent
+  (the drawn link is the served one); C3's *Find 25 more*; the second dataset made on C2 the same way (sized 0, *Show the
+  first 25* off); and the two refusals pressed on screen, each in the *Not enough credits* popup with keel-cloud's
+  sentence and one *Close*. Every wire assertion of the first commit stands, and every body keel-web received for a
+  contacts or register route joins CM7's sweep.
+- FR-010 **DRIFT**: **#83 RESOLVED** by keel-cloud-docs `a4f2c95` -- the step round it is replaced by the straight
+  assertion (`_link_times`: the found person's time unchanged, the register's moved) and CM10 holds it too (call 145);
+  **#84** new -- no screen starts a reading since 068 deleted the reading batch, while keel-cloud reads a story only on
+  `POST readings` and the board counts *read by your AI*; stepped round in a step named for the entry (call 140).
 
 ## Results
 
@@ -99,6 +138,12 @@ and no money is spent.**
     after each; and once before that (439 s, `runs/20261015T0407*` to `runs/20261015T0412*`) on the leg before calls
     134's single-link refusal and 137's source read were added.
   No model, no money; nothing generated committed.
+
+- **Second commit**, against keel-cloud-docs `a4f2c95` + keel-web `752a8c4` (`make down`, then `make up` on a fresh
+  database): `make unit` **1,912 passed / 53 skipped** (the first commit's 1,910 plus CM10's two new seeded faults); `make eval K="s005 or s006 or s007"` **3 passed, twice** (383 s and 353 s; bundles
+  `runs/20261015T0610*` to `runs/20261015T0614*` and `runs/20261015T0616*` to `runs/20261015T0620*`). The contacts marks 13 of 13 on S-006 and
+  1 of 1 on S-005 each time; W1 played once (the first journey on the fresh database) and never again; the #84 step on
+  every reading.
 
 ## Disagreements and gaps (reported, nothing edited)
 
@@ -154,15 +199,37 @@ journeys green where the inputs are silent, and each can be reversed alone.
      HOLD it wrote, `CONTACT_PAGE` 150 / `CONTACT_EMAIL` 12 and their costs in `harness/contacts_fake.py`); the
      journeys' own-AI founder writes no ledger row, so nothing older pinned v7 to move.
 
+139. **Four things stay on the wire because no screen can say them** (second commit): the AI interviewer's refusal
+     (keel-web greys both other formats and never sends them; the greyed radios are held), a relink of an answered link
+     (Sent offers *See … answers* instead; held), a dataset in another country (C2's places narrow within the market's
+     country, #50), and the empty page of a search sized 0 (C2 turns *Show the first 25* off; held).
+140. **DRIFT #84 is stepped round, not failed**: the founder's own session calls `POST readings` -- the call People's
+     button made -- in a step named for the entry, so the board's *read by your AI* and the brief read what they read
+     before; failing every journey on a design call between two repositories would hide everything after it.
+141. **W1 is held to the account, not to the journey**: it plays exactly when `walkthroughSeenAt` was null before Sent
+     first opened (the first journey on a fresh database), *Got it* answers 200 and stamps it; later journeys on the
+     same founder assert it does not play.
+142. **One Send more popup per corpus person** (Done, then the kind's button again) rather than *Invite another*, so
+     every link is made from a popup opened on the register's current revision -- the shape of DRIFT #75's stale
+     revision, avoided rather than met; the decision-makers go through the same popup (068 call 11).
+143. **The page of names is read once it shows the receipt's names**: right after *Find 25 more* the names view drew
+     the previous page's 22 for a moment before its re-read; the page object waits (up to ten seconds) for the drawn
+     names to equal the fetch's `page`, and the leg asserts they do. It converged on every run, so it is not a DRIFT.
+144. **After a chip changes, C2 offers *Size it*, not *Size it again*** (068's `dirty` forgets the size); the page object
+     presses whichever is drawn.
+145. **Call 136 reversed**: DRIFT #83 closed, so the found person's row is held to the first link's time and the
+     register to the new one's, straight, in the leg and in CM10.
+146. **`stack.toml` is not 043's**: its absolute sibling paths are this worktree's machine-local setup, so it was
+     reverted before the commit (the run used it; the tracked file keeps the repository's relative paths).
+
 ## Follow-ups
 
-- **keel-web 068 (the Interviews section) -- `contacts_leg.WEB_068_FOLLOW_UP`**: page objects for the Contacts tabs (one
-  per kind, the base query's chips and free size), the dataset page (*Show 25* / *Find 25 more*, the picks, *Save and
-  get their emails*, the statuses), the *Send more* popup (a kind, Text only, AI interviewer and *Let them choose* shown
-  not available, the batch's links and `.csv`) and the Sent register (newest first, format / source / dataset / *Link
-  made*, *Make a new link*), each held to the wire this leg already holds -- the leg's steps stay and gain a screen
-  each. Waiting for 068's selectors.
-- **DRIFT #83** (keel-cloud, a design call on C3).
+- ~~keel-web 068's page objects~~ -- done in the second commit (`harness/interviews_screens.py`).
+- **DRIFT #84** (keel-web and keel-cloud, a design call): which screen starts a reading, or whether keel-cloud reads a
+  story on its own.
+- **Keel-managed (K1)** has no page object: nothing in the journeys sends a managed request.
+- **S-001 / S-002 / S-003 / S-004** still drive People's deleted page; they were already classic-only and are not in
+  the set this spec runs.
 - **The staging twin**: the leg's Keel's-door half on a real Keel's-AI founder costs a corridor of inference; not run.
 - **keel-cloud**: a served view of the fake's counters (or a ledger read) would let the eval drop call 137's indirect
   holds; the AI interviewer (spec 094) will add a hold to CM2 / CM3's subject.

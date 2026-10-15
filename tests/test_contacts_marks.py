@@ -77,6 +77,8 @@ def good() -> dict:
         "register": {"invitations": register, "kinds": []},
         "register_row": register[2], "answered_found_person": "f0", "dataset_name": "Everyone in the UK",
         "relink": {"old_url": "http://x/i/t1", "new_url": "http://x/i/n1", "old_status": 404, "new_status": 200,
+                   "first_linkMadeAt": "2026-10-15T04:00:01Z", "relinked_at": "2026-10-15T04:00:05Z",
+                   "register_linkMadeAt": "2026-10-15T04:00:05Z", "found_person_linkMadeAt": "2026-10-15T04:00:01Z",
                    "same_invitation": True, "answered_refusal": {"status": 422, "body": {"code": "ALREADY_ANSWERED"}}},
         "second_dataset": {"size": 0, "fake": 0, "page": [], "charged": 0, "ledger_rows_added": 0},
         "credit_refusals": {
@@ -156,6 +158,8 @@ SEEDED = [
     ("CM9", ["register", "invitations"], lambda rows: rows[::-1]),          # oldest first
     ("CM10", ["relink", "old_status"], 200),                                 # the old link still opens
     ("CM10", ["relink", "answered_refusal"], {"status": 201, "body": {}}),
+    ("CM10", ["relink", "found_person_linkMadeAt"], "2026-10-15T04:00:05Z"),  # DRIFT #83: the row followed the relink
+    ("CM10", ["relink", "register_linkMadeAt"], "2026-10-15T04:00:01Z"),     # the register's Link made did not move
     ("CM11", ["credit_refusals", "names", "status"], 409),                   # the older gates' status
     ("CM11", ["credit_refusals", "emails", "ledger_rows_added"], 2),         # charged on a refusal
     ("CM11", ["credit_refusals", "names", "body", "remedy"], "Not enough credits."),
@@ -275,4 +279,4 @@ def test_the_leg_reverses_the_door_in_a_finally_and_never_asks_for_a_phone():
              if isinstance(n, ast.Call) and getattr(n.func, "id", "") in ("wire", "_participant")]
     assert len(calls) > 20
     assert not [ast.unparse(c) for c in calls if "phone" in ast.unparse(c).lower()]
-    assert "068" in contacts_leg.WEB_068_FOLLOW_UP and "Send more" in contacts_leg.WEB_068_FOLLOW_UP
+    assert "068" in contacts_leg.WEB_068_FOLLOW_UP and "DONE" in contacts_leg.WEB_068_FOLLOW_UP

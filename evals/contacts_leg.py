@@ -1,13 +1,18 @@
-"""The contacts leg (spec 043, keel-cloud 093 at contract 15): **on the wire**, after S-006's journey, the founder finds
-the decision-makers through Keel's Contacts -- datasets per kind of people, sizing (free), a page of 25 names (150
-credits), their verified emails (12 each), links in one batch -- and one found person answers through their link; then
-Make a new link, the two credit refusals at a low balance, a second page and a second dataset that leave out everyone
-already fetched, the AI interviewer refused, and nothing ever emailed. S-005 holds the B2C half: `NOT_B2B`.
+"""The contacts leg (spec 043, keel-cloud 093 at contract 15; keel-web 068's Interviews section since the second
+commit): after S-006's journey the founder finds the decision-makers through Keel's Contacts -- **on keel-web's own
+screens** -- Keel's base query on its tab, *Start from it*, *Size it* (free), the chips removed down to the market,
+*Show the first 25* (150 credits), the page of names and *Save 3 picked* (12 each), C3, *Go to Sent → Send more* (Text;
+the AI interviewer greyed), the batch's links and .csv; one found person answers on the stranger's own screens; *Make
+a new link* on Sent; *Find 25 more*; a second dataset that finds nobody new; the two credit refusals in the *Not enough
+credits* popup at a low balance; and nothing ever emailed. S-005 holds the B2C half: `NOT_B2B` and its card.
 
-**No page objects yet** (keel-web 068, the Interviews section, is being built in parallel): every step is the founder's
-own session on keel-cloud's routes, the stranger's link on the participant routes, and keel-cloud's own fake contact
-source (`keel.v2.contacts.source = fake`, the stack's default) restated by `harness/contacts_fake.py`. What waits for
-068 is named in `WEB_068_FOLLOW_UP` below and in spec 043's follow-ups.
+**Every screen is held to the wire it was handed**: each press returns the response keel-web received (the page
+objects in `harness/interviews_screens.py`), the founder's session re-reads the dataset, the register and the ledger,
+and keel-cloud's own fake contact source (`keel.v2.contacts.source = fake`, the stack's default) is restated by
+`harness/contacts_fake.py`. Four things stay on the wire because no screen can say them (judgement call 139): the
+AI interviewer's refusal (keel-web greys it and never sends it), a relink of an answered link (Sent offers none), a
+dataset in another country (C2's places narrow within the market's own country, #50), and the empty page of a search
+sized 0 (C2 turns *Show the first 25* off).
 
 **The founder's door is a stand-in** (judgement calls 129-131, `stack/ledger.py`): the journey's founder is on their
 own AI (the scripted runtime built the project), contacts need credits, and on a stack with no Keel's-AI key nothing
@@ -22,6 +27,7 @@ Every rule is scored by `evals/contacts_marks.py` over the record this leg build
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import re
 import time
@@ -31,7 +37,10 @@ import requests
 import yaml
 
 from evals import contacts_marks as marks
+from evals import corpus_scenario
 from harness import contacts_fake as fake
+from harness import interviews_screens as iv
+from harness import vectors_screens as vs_screens
 from harness import vectors_script as vs
 from stack import cloud as stack_cloud
 from stack import ledger as stack_ledger
@@ -46,13 +55,10 @@ DATASET_NAME = "Everyone in the UK"
 SECOND_NAME = "Everyone in the UK, again"
 ELSEWHERE_NAME = "Practitioners in the US"
 
-#: What waits for keel-web 068's page objects (the Interviews section); see spec 043's follow-ups.
+#: What waited for keel-web 068's page objects (built in spec 043's second commit, `harness/interviews_screens.py`).
 WEB_068_FOLLOW_UP = (
-    "keel-web 068 (the Interviews section): page objects for the Contacts tabs (one per kind of people, Keel's base "
-    "query's chips and its free size), the dataset page (Show 25 / Find 25 more, the picks, Save and get their emails, "
-    "the statuses), the Send more popup (a kind, Text only, AI interviewer and Let them choose shown not available, "
-    "the batch's links and .csv) and the Sent register (newest first, format / source / dataset / Link made, Make a "
-    "new link) -- each held to the wire this leg already holds.")
+    "keel-web 068 (the Interviews section), DONE in spec 043's second commit: page objects for the Contacts tabs, the "
+    "dataset page, the Send more popup and the Sent register, each held to the wire this leg already held.")
 
 
 def _mail_config(keel_cloud: Path) -> list[str]:
@@ -137,20 +143,60 @@ def _people_by_id(view: dict) -> dict:
     return {p["foundPersonId"]: p for p in view.get("people") or []}
 
 
+class _Captured:
+    """Every contacts / register body keel-web itself received while the leg ran (CM7 sweeps their keys too)."""
+
+    def __init__(self, page, record: dict):
+        self.page = page
+        self.record = record
+
+    def __enter__(self):
+        self.page.on("response", self._keep)
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.page.remove_listener("response", self._keep)
+
+    def _keep(self, response) -> None:
+        url = response.url
+        if "/v2/projects/" not in url or not ("/contacts/" in url or "/invitations" in url):
+            return
+        try:
+            body = response.json()
+        except Exception:  # noqa: BLE001 - a 204 or a page
+            return
+        self.record["responses"].append({"method": response.request.method, "path": url, "status": response.status,
+                                         "body": body, "by": "keel-web"})
+
+
+def _downloads(page):
+    """A press that downloads a file, read back as text (the batch's own .csv, verbatim)."""
+    def press(click) -> str:
+        with page.expect_download(timeout=20_000) as got:
+            click()
+        return Path(got.value.path()).read_text(encoding="utf-8")
+    return press
+
+
 # ---------------------------------------------------------------------------------------------- B2C
 
 def leg_contacts_not_b2b(j) -> dict:
     """S-005 (01-countly, B2C): Contacts are refused NOT_B2B -- before any other gate, so an own-AI founder meets it
-    too (keel-cloud 093 call 8's order: ownership, NOT_B2B, NOT_LOCKED, CONTACTS_NEED_CREDITS)."""
+    too (keel-cloud 093 call 8's order: ownership, NOT_B2B, NOT_LOCKED, CONTACTS_NEED_CREDITS) -- and keel-web 068
+    draws *Finding consumers is coming* (D10)."""
     record: dict = {"entry": j.entry.id, "project_id": j.project_id, "responses": []}
     wire = _Wire(j, record)
-    with j.recorder.step("contacts (keel-cloud 093, D10): a consumer study's Contacts are refused NOT_B2B -- the web "
-                         "shows *Finding consumers is coming*", party="founder", kind="assert") as h:
+    contacts = iv.Contacts(j.page, j.recorder, j.web_base, patience=j.patience)
+    with j.recorder.step("contacts (keel-cloud 093, D10): a consumer study's Contacts are refused NOT_B2B; keel-web "
+                         "draws *Finding consumers is coming*", party="founder", kind="assert") as h:
+        drawn = contacts.open(j.project_id)
         status, body = wire("GET", "/contacts/datasets", ok=(422,))
         created, created_body = wire("POST", "/contacts/datasets", {"respondentType": vs.LINK_PRIMARY}, ok=(422,))
-        record["not_b2b"] = {"status": status, "body": body, "create": {"status": created, "body": created_body}}
-        h.record_assert({"status": 422, "code": "NOT_B2B"}, record["not_b2b"])
+        record["not_b2b"] = {"status": status, "body": body, "create": {"status": created, "body": created_body},
+                             "drawn": drawn}
+        h.record_assert({"status": 422, "code": "NOT_B2B", "card": iv.CONTACTS_B2C_TITLE}, record["not_b2b"])
         assert body.get("code") == "NOT_B2B" and created_body.get("code") == "NOT_B2B", record["not_b2b"]
+        assert drawn.get("card") == iv.CONTACTS_B2C_TITLE, drawn
     _score(j, record, require=["CM14"])
     return record
 
@@ -162,15 +208,18 @@ def leg_contacts(j) -> dict:
     record: dict = {"entry": j.entry.id, "project_id": j.project_id, "responses": [], "sizes": [], "pages": [],
                     "purchases": [], "saved": []}
     wire = _Wire(j, record)
+    contacts = iv.Contacts(j.page, j.recorder, j.web_base, patience=j.patience)
 
     with j.recorder.step("contacts (keel-cloud 093, D9): on their own AI the founder's Contacts are refused "
-                         "CONTACTS_NEED_CREDITS -- contacts are bought with credits", party="founder",
-                         kind="assert") as h:
+                         "CONTACTS_NEED_CREDITS; keel-web draws its one line", party="founder", kind="assert") as h:
         me = wire.me()
         status, body = wire("GET", "/contacts/datasets", ok=(422,))
-        record["own_ai_refusal"] = {"status": status, "body": body, "aiPath": me.get("aiPath")}
-        h.record_assert({"aiPath": "OWN", "status": 422, "code": "CONTACTS_NEED_CREDITS"}, record["own_ai_refusal"])
+        drawn = contacts.open(j.project_id)
+        record["own_ai_refusal"] = {"status": status, "body": body, "aiPath": me.get("aiPath"), "drawn": drawn}
+        h.record_assert({"aiPath": "OWN", "status": 422, "code": "CONTACTS_NEED_CREDITS",
+                         "line": iv.CONTACTS_NEED_CREDITS_LINE}, record["own_ai_refusal"])
         assert me.get("aiPath") == "OWN" and body.get("code") == "CONTACTS_NEED_CREDITS", record["own_ai_refusal"]
+        assert drawn.get("line") == iv.CONTACTS_NEED_CREDITS_LINE, drawn
 
     if j.stack is None or j.stack.is_remote:
         with j.recorder.step("contacts: the rest of the leg needs the local stack's database (the stand-in door and "
@@ -188,7 +237,8 @@ def leg_contacts(j) -> dict:
     since = stack_ledger.now(j.stack)
     try:
         _keels_door(j, wire, record, founder_id, run)
-        _the_work(j, wire, record, everyone, founder_id, run)
+        with _Captured(j.page, record):
+            _the_work(j, wire, contacts, record, everyone, founder_id, run)
         record["ledger"] = stack_ledger.rows(j.stack, founder_id, since=since)
         with j.recorder.step("contacts: the ledger since Keel's door -- the stand-in grant, one HOLD / SPEND pair a "
                              "purchase, the stand-in low balance, and no other row", party="stack", kind="assert") as h:
@@ -228,38 +278,49 @@ def _restore(j, wire: _Wire, founder_id: str, run: str) -> None:
         assert me.get("aiPath") == "OWN" and me.get("creditsAvailable") is None, me
 
 
-def _size(j, wire: _Wire, record: dict, everyone, dataset_id: str, query: dict, fetched: set, label: str) -> int:
-    before = wire.credits()
-    rows_before = len(stack_ledger.rows(j.stack, record["founder_id"]))
-    _, summary = wire("POST", f"/contacts/datasets/{dataset_id}/size", {})
-    after = wire.credits()
-    entry = {"dataset": label, "wire": summary.get("sizedWithEmail"), "fake": fake.size(everyone, query, fetched),
-             "balance_before": before, "balance_after": after,
-             "ledger_rows_added": len(stack_ledger.rows(j.stack, record["founder_id"])) - rows_before}
+def _rows(j, record: dict) -> int:
+    return len(stack_ledger.rows(j.stack, record["founder_id"]))
+
+
+def _sized(j, wire: _Wire, record: dict, everyone, press, query: dict, fetched: set, label: str) -> dict:
+    """A *Size it* the founder pressed: the size keel-web received, held to the fake's count, free."""
+    before, rows_before = wire.credits(), _rows(j, record)
+    out = press()
+    entry = {"dataset": label, "wire": (out["summary"] or {}).get("sizedWithEmail"),
+             "fake": fake.size(everyone, query, fetched), "balance_before": before, "balance_after": wire.credits(),
+             "ledger_rows_added": _rows(j, record) - rows_before, "drawn": out.get("drawn")}
     record["sizes"].append(entry)
-    return entry["wire"]
+    return {**out, "entry": entry}
 
 
-def _fetch(j, wire: _Wire, record: dict, everyone, dataset_id: str, query: dict, fetched: set,
-           after: str | None, label: str) -> dict:
+def _paged(j, wire: _Wire, record: dict, everyone, press, query: dict, fetched: set, after: str | None,
+           label: str) -> dict:
+    """A page of names the founder asked for: the receipt keel-web received, the names it drew, the fake's own."""
     before = wire.credits()
-    _, receipt = wire("POST", f"/contacts/datasets/{dataset_id}/fetch", {})
+    out = press()
+    receipt = out["body"] or {}
     rows = receipt.get("page") or []
     ids = [r["sourceId"] for r in rows]
-    page = {"dataset": label, "ids": ids, "rows": rows,
-            "fake_ids": [p.source_id for p in fake.page(everyone, query, fetched, after=after)]}
-    record["pages"].append(page)
+    record["pages"].append({"dataset": label, "ids": ids, "rows": rows, "drawn": (out["drawn"] or {}).get("names"),
+                            "fake_ids": [p.source_id for p in fake.page(everyone, query, fetched, after=after)]})
     record["purchases"].append({"action": "CONTACT_PAGE", "charged": receipt.get("creditsCharged"),
                                 "available": receipt.get("creditsAvailable"), "balance_before": before,
                                 "me_after": wire.credits(), "units": len(rows)})
     fetched.update(ids)
-    return receipt
+    return out
 
 
-def _the_work(j, wire: _Wire, record: dict, everyone, founder_id: str, run: str) -> None:
+def _dataset_id(url: str) -> str:
+    match = re.search(r"/interviews/contacts/([0-9a-f-]{36})", url)
+    assert match, url
+    return match.group(1)
+
+
+def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str, run: str) -> None:
     fetched: set[str] = set()
+    sent = iv.Interviews(j.page, j.recorder, j.web_base, patience=j.patience)
 
-    # ---- the tabs and Keel's base query
+    # ---- C1: the tabs and Keel's base query
     with j.recorder.step("contacts (C1): one tab per kind of people -- the translators and the agency project managers "
                          "-- each with Keel's base query, sized free to the fake's own count; the prices from the "
                          "server's table", party="founder", kind="assert") as h:
@@ -267,11 +328,14 @@ def _the_work(j, wire: _Wire, record: dict, everyone, founder_id: str, run: str)
         kinds = {k["respondentType"]: k for k in overview.get("kinds") or []}
         deciders = kinds.get(KIND) or {}
         base = (deciders.get("base") or {}).get("query") or {}
+        drawn = contacts.open(j.project_id)
+        tab = contacts.tab(deciders.get("label") or "")
         record["overview"] = {"kinds": list(kinds), "prices": overview.get("prices"), "base": base,
                               "base_sized": (deciders.get("base") or {}).get("sizedWithEmail"),
-                              "base_fake": fake.size(everyone, base) if base else None}
+                              "base_fake": fake.size(everyone, base) if base else None, "drawn": drawn, "tab": tab}
         h.record_assert({"kinds": [vs.LINK_PRIMARY, KIND], "prices": {"page": 150, "email": 12, "pageSize": 25},
-                         "base sized": record["overview"]["base_fake"]}, record["overview"])
+                         "base sized": record["overview"]["base_fake"],
+                         "tabs": [f"{kinds[k]['label']} · 0" for k in kinds]}, record["overview"])
         assert list(kinds) == [vs.LINK_PRIMARY, KIND], list(kinds)
         assert overview.get("prices") == {"page": fake.PAGE_CREDITS, "email": fake.EMAIL_CREDITS,
                                           "pageSize": fake.PAGE_SIZE}, overview.get("prices")
@@ -279,77 +343,100 @@ def _the_work(j, wire: _Wire, record: dict, everyone, founder_id: str, run: str)
         assert [{k: v for k, v in p.items() if k != "label"} for p in base.get("places") or []] == \
             [{"kind": "COUNTRY", "code": j.entry.market["country"]}], base
         assert record["overview"]["base_sized"] == record["overview"]["base_fake"], record["overview"]
+        assert drawn.get("tabs") == [f"{kinds[k]['label']} · 0" for k in kinds], drawn
+        assert tab["datasets"] == [] and tab["base"]["sized"].startswith("Sized free"), tab
+        assert f"about {record['overview']['base_fake']} with a work email" in tab["base"]["sized"], tab
 
-    with j.recorder.step("contacts (C2): a dataset for the decision-makers from Keel's base query -- unsized, nothing "
-                         "spent -- and sized free to the fake's count", party="founder", kind="assert") as h:
-        _, created = wire("POST", "/contacts/datasets", {"respondentType": KIND, "basedOn": "BASE"})
-        dataset = created.get("dataset") or {}
-        dataset_id = dataset.get("datasetId")
-        sized = _size(j, wire, record, everyone, dataset_id, base, fetched, "base")
-        h.record_assert({"basedOn": "BASE", "query": base, "sizedWithEmail": None, "sized": record["sizes"][-1]["fake"]},
-                        {"dataset": dataset, "sized": sized})
+    with j.recorder.step("contacts (C2): *Start from it* draws Keel's base query as chips; *Size it* makes the dataset "
+                         "(BASE) and sizes it free to the fake's count", party="founder", kind="assert") as h:
+        chips = contacts.start_from_base()
+        out = _sized(j, wire, record, everyone, contacts.size_it, base, fetched, "base")
+        dataset_id = _dataset_id(out["url"])
+        _, view = wire("GET", f"/contacts/datasets/{dataset_id}")
+        dataset = view.get("dataset") or {}
+        h.record_assert({"chips": {"titles": base["titles"], "levels": len(base["levels"]),
+                                   "sizes": len(base["companySizes"])}, "basedOn": "BASE", "sized": out["entry"]["fake"]},
+                        {"chips": chips, "dataset": dataset, "sized": out["entry"]})
+        assert chips.get("Who · job titles") == base["titles"], chips
+        assert len(chips.get("Level") or []) == len(base["levels"]), chips
+        assert len(chips.get("Companies") or []) == len(base["categories"]) + len(base["companySizes"]), chips
         assert dataset.get("basedOn") == "BASE" and dataset.get("respondentType") == KIND, dataset
         assert {k: dataset["query"][k] for k in ("titles", "levels", "categories", "companySizes")} == \
             {k: base[k] for k in ("titles", "levels", "categories", "companySizes")}, (dataset["query"], base)
-        assert dataset.get("sizedWithEmail") is None, dataset
+        assert out["entry"]["wire"] == out["entry"]["fake"], out["entry"]
 
-    with j.recorder.step(f"contacts (C2, call 132): the founder removes every chip but the market -- {DATASET_NAME!r}; "
-                         "the fake's payroll people match no Paidly title -- and sizes it: 27 with a work email (30 in "
-                         "the UK, 3 with none, never counted)", party="founder", kind="assert") as h:
+    with j.recorder.step(f"contacts (C2, call 132): the founder removes every chip but the market, names it "
+                         f"{DATASET_NAME!r} -- the fake's payroll people match no Paidly title -- and sizes it again: 27 "
+                         "with a work email (30 in the UK, 3 with none, never counted)", party="founder",
+                         kind="assert") as h:
+        chips = contacts.remove_all_but_places()
+        contacts.name(DATASET_NAME)
         query = {"places": [{k: v for k, v in place.items() if k != "label"} for place in base["places"]]}
-        _, edited = wire("PATCH", f"/contacts/datasets/{dataset_id}", {"name": DATASET_NAME, "query": query})
-        dataset = edited.get("dataset") or {}
-        sized = _size(j, wire, record, everyone, dataset_id, query, fetched, DATASET_NAME)
+        out = _sized(j, wire, record, everyone, lambda: contacts.size_it(again=True), query, fetched, DATASET_NAME)
+        _, view = wire("GET", f"/contacts/datasets/{dataset_id}")
+        dataset = view.get("dataset") or {}
         uk = [p for p in everyone if p.country == "GB"]
-        h.record_assert({"name": DATASET_NAME, "sizedWithEmail": 27, "fake": record["sizes"][-1]["fake"],
-                         "in the UK": 30, "with no email": 3},
-                        {"dataset": dataset, "sized": sized, "uk": len(uk), "no email": sum(1 for p in uk if not p.email)})
-        assert dataset.get("name") == DATASET_NAME and dataset.get("sizedWithEmail") is None, dataset
-        assert sized == 27 == record["sizes"][-1]["fake"], record["sizes"][-1]
+        h.record_assert({"chips": {"Where": 1}, "name": DATASET_NAME, "sizedWithEmail": 27, "drawn": "About 27"},
+                        {"chips": chips, "dataset": dataset, "sized": out["entry"]})
+        assert [k for k, v in chips.items() if v] == ["Where"], chips
+        assert dataset.get("name") == DATASET_NAME and dataset.get("sizedWithEmail") == 27, dataset
+        assert dataset["query"]["titles"] == [] and dataset["query"]["levels"] == [], dataset["query"]
+        assert out["entry"]["wire"] == 27 == out["entry"]["fake"], out["entry"]
+        assert (out["entry"]["drawn"] or "").startswith("About 27 people with a work email"), out["entry"]
         assert len(uk) == 30 and sum(1 for p in uk if not p.email) == 3, len(uk)
     record["dataset_name"] = DATASET_NAME
 
-    with j.recorder.step("contacts (Show 25): a page of 25 names is 150 credits, the fake's own first 25, no email on "
-                         "any row; the balance and /v2/me drop by 150", party="founder", kind="assert") as h:
-        receipt = _fetch(j, wire, record, everyone, dataset_id, query, fetched, None, DATASET_NAME)
-        first = record["pages"][-1]
-        h.record_assert({"rows": 25, "charged": 150, "available": 1350, "ids": first["fake_ids"]},
+    with j.recorder.step("contacts (Show 25): a page of 25 names is 150 credits, the fake's own first 25, drawn with a "
+                         "box each and no email on any row; the balance and /v2/me drop by 150", party="founder",
+                         kind="assert") as h:
+        out = _paged(j, wire, record, everyone, contacts.show_first, query, fetched, None, DATASET_NAME)
+        receipt, first = out["body"], record["pages"][-1]
+        names = [r["fullName"] for r in first["rows"]]
+        h.record_assert({"rows": 25, "charged": 150, "available": 1350, "ids": first["fake_ids"], "drawn": names},
                         {"rows": len(first["ids"]), "charged": receipt.get("creditsCharged"),
-                         "available": receipt.get("creditsAvailable"), "ids": first["ids"],
-                         "moreToFetch": (receipt.get("dataset") or {}).get("moreToFetch")})
-        assert len(first["ids"]) == 25 and receipt.get("creditsCharged") == 150, receipt
+                         "available": receipt.get("creditsAvailable"), "ids": first["ids"], "drawn": out["drawn"]})
+        assert out["status"] == 200 and len(first["ids"]) == 25 and receipt.get("creditsCharged") == 150, receipt
         assert receipt.get("creditsAvailable") == 1350 == wire.credits(), receipt
         assert (receipt.get("dataset") or {}).get("moreToFetch") is True, receipt.get("dataset")
-        resized = _size(j, wire, record, everyone, dataset_id, query, fetched, f"{DATASET_NAME} after a page")
-        assert resized == 2, resized
+        assert out["drawn"]["names"] == names, out["drawn"]
+        _, resized = wire("POST", f"/contacts/datasets/{dataset_id}/size", {})
+        assert resized.get("sizedWithEmail") == 2, resized
 
-    with j.recorder.step(f"contacts (Save): the founder saves {PICKS} picks and gets their verified emails at 12 each "
-                         "-- the fake's own addresses, email only; each FOUND", party="founder", kind="assert") as h:
-        picks = first["ids"][:PICKS]
+    with j.recorder.step(f"contacts (Save): the founder ticks {PICKS} and saves them -- *Save {PICKS} picked and get "
+                         f"their emails · {PICKS * 12} credits* -- the fake's own addresses, email only; C3 draws each "
+                         "*Saved · no link yet*", party="founder", kind="assert") as h:
+        picks = names[:PICKS]
         before = wire.credits()
-        _, saved = wire("POST", f"/contacts/datasets/{dataset_id}/save", {"sourceIds": picks})
+        out = contacts.save_picked(picks)
+        saved = out["body"] or {}
         record["purchases"].append({"action": "CONTACT_EMAIL", "charged": saved.get("creditsCharged"),
                                     "available": saved.get("creditsAvailable"), "balance_before": before,
                                     "me_after": wire.credits(), "units": saved.get("savedCount")})
-        people = (saved.get("dataset") or {}).get("people") or []
-        by_source = fake.by_id(everyone)
-        names = {p.full_name: p for p in (by_source[i] for i in picks)}
-        for person in people:
-            truth = names.get(person["fullName"])
+        by_name = {p.full_name: p for p in everyone}
+        for person in (saved.get("dataset") or {}).get("people") or []:
+            truth = by_name.get(person["fullName"])
             record["saved"].append({**{k: person.get(k) for k in ("foundPersonId", "fullName", "email", "emailStatus",
                                                                  "verified", "status")},
                                     "fake_email": truth.email if truth else None,
                                     "fake_status": truth.email_status if truth else None})
-        h.record_assert({"savedCount": PICKS, "charged": PICKS * 12, "status": "FOUND"},
-                        {"saved": record["saved"], "charged": saved.get("creditsCharged")})
+        c3 = out["drawn"]
+        h.record_assert({"button": f"Save {PICKS} picked and get their emails · {PICKS * 12} credits",
+                         "savedCount": PICKS, "charged": PICKS * 12, "status": iv.FOUND_STATUS["FOUND"]},
+                        {"button": out["button"], "saved": record["saved"], "c3": c3})
+        assert out["button"] == f"Save {PICKS} picked and get their emails · {PICKS * 12} credits", out["button"]
         assert saved.get("savedCount") == PICKS and saved.get("creditsCharged") == PICKS * fake.EMAIL_CREDITS, saved
         assert len(record["saved"]) == PICKS and {s["status"] for s in record["saved"]} == {"FOUND"}, record["saved"]
+        drawn_names = sorted(n for n in picks if any(r.get("Name", "").startswith(n) for r in c3["rows"]))
+        assert drawn_names == sorted(picks) and len(c3["rows"]) == PICKS, c3
+        assert all(iv.FOUND_STATUS["FOUND"] in r.get("Status", "") for r in c3["rows"]), c3
+        assert all(any(s["email"] in r.get("Email", "") for r in c3["rows"]) for s in record["saved"]), c3
         found = [s["foundPersonId"] for s in record["saved"]]
+        name_of = {s["foundPersonId"]: s["fullName"] for s in record["saved"]}
 
-    # ---- links
+    # ---- links: Go to Sent -> Send more
     with j.recorder.step("contacts (S3, call 134): the AI interviewer is refused FORMAT_NOT_AVAILABLE -- *not "
-                         "available yet* -- on the batch and on the single commercial link, and nothing is made",
-                         party="founder", kind="assert") as h:
+                         "available yet* -- on the batch and on the single commercial link, and nothing is made "
+                         "(keel-web never offers it: its radios are greyed)", party="founder", kind="assert") as h:
         before = len((wire("GET", "/invitations")[1]).get("invitations") or [])
         status, body = wire("POST", "/invitations/batch", {"expectedRevision": j.revision(), "respondentType": KIND,
                                                            "format": "AI_INTERVIEWER",
@@ -366,27 +453,38 @@ def _the_work(j, wire: _Wire, record: dict, everyone, founder_id: str, run: str)
         assert body.get("code") == "FORMAT_NOT_AVAILABLE" == single_body.get("code") and before == after, \
             record["format_refusal"]
 
-    with j.recorder.step(f"contacts (S3a): links for the {PICKS} found people in one batch, as Text -- each handed "
-                         "back once with their saved email, and a .csv; Keel sends nothing; each LINK_MADE",
+    with j.recorder.step(f"contacts (S1-S3a): *Go to Sent → Send more* opens the decision-makers' popup with the dataset "
+                         f"chosen -- Text checked, the AI interviewer and Let them choose *Not available yet* -- the "
+                         f"founder picks the {PICKS}, *Make {PICKS} links*: one batch as Text, each link handed back once "
+                         "with the saved email, the batch's own .csv downloaded; Keel sends nothing; each LINK_MADE",
                          party="founder", kind="assert") as h:
-        _, batch = wire("POST", "/invitations/batch", {"expectedRevision": j.revision(), "respondentType": KIND,
-                                                       "format": "TEXT",
-                                                       "people": [{"foundPersonId": f} for f in found]})
+        contacts.go_to_send_more()
+        made = sent.send_from_dataset([name_of[f] for f in found], downloads=_downloads(j.page))
+        batch = made["batch"] or {}
         links = batch.get("links") or []
-        record["batch"] = {"format": batch.get("format"), "links": links, "csv": batch.get("csv")}
+        record["batch"] = {"format": batch.get("format"), "links": links, "csv": batch.get("csv"),
+                           "downloaded": made["csv"], "ui": {k: made[k] for k in ("formats", "who", "dataset",
+                                                                                  "rows", "table")}}
         _, view = wire("GET", f"/contacts/datasets/{dataset_id}")
         statuses = {fp: p.get("status") for fp, p in _people_by_id(view).items() if fp in found}
-        h.record_assert({"links": PICKS, "format": "TEXT", "statuses": "LINK_MADE", "csv lines": PICKS + 1},
+        h.record_assert({"links": PICKS, "format": "TEXT", "statuses": "LINK_MADE", "csv lines": PICKS + 1,
+                         "dataset": DATASET_NAME, "downloaded": "the batch's csv, verbatim"},
                         {"batch": record["batch"], "statuses": statuses})
-        assert batch.get("format") == "TEXT" and len(links) == PICKS, batch
-        assert [link.get("foundPersonId") for link in links] == found, links
-        assert [link.get("email") for link in links] == [s["email"] for s in record["saved"]], links
-        assert len((batch.get("csv") or "").splitlines()) == PICKS + 1, batch.get("csv")
+        assert made["status"] == 201 and batch.get("format") == "TEXT" and len(links) == PICKS, batch
+        assert made["formats"]["Text"]["checked"] and not made["formats"]["Text"]["disabled"], made["formats"]
+        assert all(made["formats"][f]["disabled"] and made["formats"][f]["word"] == iv.FORMAT_NOT_AVAILABLE
+                   for f in ("AI interviewer", "Let them choose")), made["formats"]
+        assert made["who"].get("true") == iv.WHO_DATASET and made["dataset"] == DATASET_NAME, made
+        assert sorted(link.get("foundPersonId") for link in links) == sorted(found), links
+        assert {link.get("email") for link in links} == {s["email"] for s in record["saved"]}, links
+        assert made["csv"] == batch.get("csv") and len((batch.get("csv") or "").splitlines()) == PICKS + 1, made["csv"]
+        assert len(made["table"]) == PICKS, made["table"]
         assert set(statuses.values()) == {"LINK_MADE"}, statuses
+    link_of = {link["foundPersonId"]: link for link in links}
 
-    # ---- one found person answers
+    # ---- one found person answers, through the stranger's own screens
     answered, relinked_person = found[0], found[1]
-    answered_link, other_link = links[0], links[1]
+    answered_link, other_link = link_of[answered], link_of[relinked_person]
     token = _token(answered_link["url"])
     decider = next(p for p in j.people if p.link == KIND)
     trail = [record["saved"][0]["status"]]
@@ -395,54 +493,78 @@ def _the_work(j, wire: _Wire, record: dict, everyone, founder_id: str, run: str)
         return _people_by_id(wire("GET", f"/contacts/datasets/{dataset_id}")[1]).get(fp, {}).get("status")
 
     trail.append(status_of(answered))
-    with j.recorder.step(f"contacts: {answered_link['personName']} opens their link -- a decision-maker's interview, "
-                         "part 3 alone -- and reads OPENED", party="participant", kind="assert") as h:
-        got, interview = _participant(j, "GET", token, "/interview")
-        opened, _ = _participant(j, "POST", token, "/opened")
-        trail.append(status_of(answered))
-        h.record_assert({"interview": 200, "kind": "COMMERCIAL_LINK", "opened": 204, "status": "OPENED"},
-                        {"interview": got, "kind": interview.get("kind"), "opened": opened, "status": trail[-1]})
-        assert got == 200 and interview.get("kind") == "COMMERCIAL_LINK" and opened == 204, (got, opened)
+    stranger = j.browser.new_context()
+    try:
+        page = stranger.new_page()
+        screens = vs_screens.Interview(page, j.recorder)
+        with j.recorder.step(f"contacts: {answered_link['personName']} opens their link -- a decision-maker's interview, "
+                             "part 3 alone -- and reads OPENED", party="participant", kind="assert") as h:
+            got, interview = _participant(j, "GET", token, "/interview")
+            screens.open(answered_link["url"])
+            deadline = time.monotonic() + 20
+            while status_of(answered) != "OPENED" and time.monotonic() < deadline:
+                time.sleep(0.5)
+            trail.append(status_of(answered))
+            h.record_assert({"interview": 200, "kind": "COMMERCIAL_LINK", "status": "OPENED"},
+                            {"interview": got, "kind": interview.get("kind"), "status": trail[-1]})
+            assert got == 200 and interview.get("kind") == "COMMERCIAL_LINK", got
 
-    with j.recorder.step(f"contacts: {answered_link['personName']} answers through the link (the corpus "
-                         f"decision-maker {decider.person}'s picks, call 133) and reads ANSWERED", party="participant",
-                         kind="assert") as h:
-        items = {i.get("dimension"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
-        recall = ((items.get("commercial.existing_sacrifice") or {}).get("costTotal") or {}).get("recallPeriod")
-        sent, reply = _participant(j, "POST", token, "/interview/response", decider.response(token, recall))
-        trail.append(status_of(answered))
-        record["status_trail"] = trail
-        h.record_assert({"response": [200, 201, 204], "trail": marks.STATUS_ORDER}, {"response": sent, "trail": trail,
-                                                                                    "reply": reply})
-        assert sent in (200, 201, 204), (sent, reply)
+        with j.recorder.step(f"contacts: {answered_link['personName']} answers on their own screens (the corpus "
+                             f"decision-maker {decider.person}'s picks, call 133) and reads ANSWERED",
+                             party="participant", kind="assert") as h:
+            items = {i.get("dimension"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
+            recall = ((items.get("commercial.existing_sacrifice") or {}).get("costTotal") or {}).get("recallPeriod")
+            expected = decider.response(token, recall)
+            by_item = {a["itemId"]: a for a in expected.get("answers") or []}
+            walked = screens.walk(dataclasses.replace(decider, person=answered_link["personName"]), interview,
+                                  by_item)
+            deadline = time.monotonic() + 20
+            while status_of(answered) != "ANSWERED" and time.monotonic() < deadline:
+                time.sleep(0.5)
+            trail.append(status_of(answered))
+            record["status_trail"] = trail
+            h.record_assert({"sent": expected, "trail": marks.STATUS_ORDER}, {"sent": walked["body"], "trail": trail})
+            assert corpus_scenario._normal_body(walked["body"] or {}) == corpus_scenario._normal_body(expected), \
+                (walked["body"], expected)
+    finally:
+        stranger.close()
 
     with j.recorder.step("contacts (T1): the Sent register -- newest link first; the answered person's row reads Text, "
-                         f"from {DATASET_NAME!r}, when the link was made and when they answered; no email field on any "
+                         f"from the {DATASET_NAME!r} dataset, Answered, with no *Make a new link*; no email field on any "
                          "row; the decision-makers' kind row counts them", party="founder", kind="assert") as h:
+        sent.land(j.project_id)
+        drawn = sent.register()
         _, register = wire("GET", "/invitations")
         rows = register.get("invitations") or []
         row = next((r for r in rows if r.get("invitationId") == answered_link["invitationId"]), {})
         kind_row = next((k for k in register.get("kinds") or [] if k.get("respondentType") == KIND), {})
-        record["register"] = {"invitations": rows, "kinds": register.get("kinds")}
+        record["register"] = {"invitations": rows, "kinds": register.get("kinds"), "drawn": drawn}
         record["register_row"] = row
         record["answered_found_person"] = answered
         corpus_deciders = sum(1 for p in j.people if p.link == KIND)
-        h.record_assert({"top": [link["invitationId"] for link in links][::-1], "row": "TEXT · DATASET",
+        offers = sent.status_cell_offers(answered_link["personName"])
+        drawn_row = next((r for r in drawn if r.get("Who") == answered_link["personName"]), {})
+        h.record_assert({"top": sorted(link["personName"] for link in links), "row": "Text · dataset · Answered",
                          "kind": {"linksMade": corpus_deciders + PICKS, "answered": corpus_deciders + 1}},
-                        {"top": [r.get("invitationId") for r in rows[:PICKS]], "row": row, "kind": kind_row})
+                        {"top": [r.get("Who") for r in drawn[:PICKS]], "row": drawn_row, "offers": offers,
+                         "kind": kind_row})
         assert {r.get("invitationId") for r in rows[:PICKS]} == {link["invitationId"] for link in links}, rows[:PICKS]
+        assert [r.get("Who") for r in drawn] == [r.get("personName") for r in rows], drawn
+        assert drawn_row.get("Format") == "Text" and "dataset" in (drawn_row.get("Kind · from") or ""), drawn_row
+        assert (drawn_row.get("Status") or "").startswith(iv.REGISTER_STATUS["ANSWERED"]), drawn_row
+        assert iv.MAKE_A_NEW_LINK not in offers, offers
         assert kind_row.get("linksMade") == corpus_deciders + PICKS, kind_row
         assert kind_row.get("answered") == corpus_deciders + 1, kind_row
 
-    with j.recorder.step(f"contacts (D7): Make a new link for {other_link['personName']} -- the old link answers 404, "
-                         "the new one opens, the same invitation; an answered link is refused ALREADY_ANSWERED",
-                         party="founder", kind="assert") as h:
+    with j.recorder.step(f"contacts (D7): *Make a new link* for {other_link['personName']} on Sent -- the old link "
+                         "answers 404, the new one opens, the same invitation; an answered link is refused "
+                         "ALREADY_ANSWERED", party="founder", kind="assert") as h:
         old = _token(other_link["url"])
         first_made = next((r.get("linkMadeAt") for r in record["register"]["invitations"]
                            if r.get("invitationId") == other_link["invitationId"]), None)
-        _, relinked = wire("POST", f"/invitations/{other_link['invitationId']}/relink",
-                           {"expectedRevision": j.revision()})
-        new = _token(relinked.get("url") or "")
+        made = sent.make_new_link(other_link["personName"])
+        relinked = made["relinked"] or {}
+        new = _token(made["url"])
         old_status, _ = _participant(j, "GET", old, "/interview")
         new_status, _ = _participant(j, "GET", new, "/interview")
         refused, refusal = wire("POST", f"/invitations/{answered_link['invitationId']}/relink",
@@ -451,53 +573,67 @@ def _the_work(j, wire: _Wire, record: dict, everyone, founder_id: str, run: str)
         moved = next((r for r in register.get("invitations") or []
                       if r.get("invitationId") == other_link["invitationId"]), {})
         person = _people_by_id(wire("GET", f"/contacts/datasets/{dataset_id}")[1]).get(relinked_person, {})
-        record["relink"] = {"old_url": other_link["url"], "new_url": relinked.get("url"), "old_status": old_status,
-                            "new_status": new_status,
+        record["relink"] = {"old_url": other_link["url"], "new_url": made["url"], "old_status": old_status,
+                            "new_status": new_status, "drawn_is_served": made["url"] == relinked.get("url"),
                             "same_invitation": relinked.get("invitationId") == other_link["invitationId"],
                             "first_linkMadeAt": first_made, "register_linkMadeAt": moved.get("linkMadeAt"),
                             "relinked_at": relinked.get("linkMadeAt"),
                             "found_person_linkMadeAt": person.get("linkMadeAt"),
                             "answered_refusal": {"status": refused, "body": refusal}}
         h.record_assert({"old": 404, "new": 200, "answered": "ALREADY_ANSWERED"}, record["relink"])
+        assert made["status"] == 201 and made["url"] == relinked.get("url"), made
         assert old_status == 404 and new_status == 200, record["relink"]
         assert moved.get("linkMadeAt") == relinked.get("linkMadeAt") != first_made, record["relink"]
-    _drift_83(j, record["relink"], other_link["personName"])
+    _link_times(j, record["relink"], other_link["personName"])
 
     # ---- nobody twice
-    with j.recorder.step("contacts (Find 25 more): the second page is the two left -- 12 credits, 6 a name -- and "
-                         "repeats nobody", party="founder", kind="assert") as h:
-        receipt = _fetch(j, wire, record, everyone, dataset_id, query, fetched, first["ids"][-1], DATASET_NAME)
-        second = record["pages"][-1]
+    with j.recorder.step("contacts (Find 25 more): on C3 the second page is the two left -- 12 credits, 6 a name -- "
+                         "and repeats nobody", party="founder", kind="assert") as h:
+        contacts.open_dataset(j.project_id, dataset_id)
+        out = _paged(j, wire, record, everyone, contacts.find_more, query, fetched, first["ids"][-1], DATASET_NAME)
+        receipt, second = out["body"], record["pages"][-1]
         h.record_assert({"rows": 2, "charged": 12, "repeats": []},
                         {"rows": len(second["ids"]), "charged": receipt.get("creditsCharged"),
-                         "repeats": sorted(set(second["ids"]) & set(first["ids"]))})
-        assert len(second["ids"]) == 2 and receipt.get("creditsCharged") == 2 * fake.NAME_CREDITS, receipt
+                         "repeats": sorted(set(second["ids"]) & set(first["ids"])), "drawn": out["drawn"]})
+        assert out["status"] == 200 and len(second["ids"]) == 2, receipt
+        assert receipt.get("creditsCharged") == 2 * fake.NAME_CREDITS, receipt
         assert not set(second["ids"]) & set(first["ids"]), second["ids"]
+        assert out["drawn"]["names"] == [r["fullName"] for r in second["rows"]], out["drawn"]
 
-    with j.recorder.step(f"contacts (E11): a second dataset on the same search, {SECOND_NAME!r}, sizes to 0 -- every "
-                         "one of the 27 was fetched on this project -- and its empty page charges nothing",
-                         party="founder", kind="assert") as h:
-        _, created = wire("POST", "/contacts/datasets", {"respondentType": KIND, "name": SECOND_NAME, "query": query})
-        second_id = (created.get("dataset") or {}).get("datasetId")
-        sized = _size(j, wire, record, everyone, second_id, query, fetched, SECOND_NAME)
-        rows_before = len(stack_ledger.rows(j.stack, founder_id))
-        before = wire.credits()
-        _, empty = wire("POST", f"/contacts/datasets/{second_id}/fetch", {})
-        record["second_dataset"] = {"size": sized, "fake": fake.size(everyone, query, fetched),
+    with j.recorder.step(f"contacts (E11): a second dataset on the same search, {SECOND_NAME!r}, made from the base "
+                         "query's chips with the same ones removed, sizes to 0 -- every one of the 27 was fetched on "
+                         "this project -- C2 offers no page, and the empty page asked for on the wire charges nothing", party="founder", kind="assert") as h:
+        contacts.open(j.project_id)
+        contacts.tab(deciders.get("label") or "")
+        contacts.start_from_base()
+        contacts.remove_all_but_places()
+        contacts.name(SECOND_NAME)
+        sized = _sized(j, wire, record, everyone, contacts.size_it, query, fetched, SECOND_NAME)
+        second_id = _dataset_id(sized["url"])
+        offered = contacts.show_first_enabled()                # 068: *Show the first 25* is off at a size of 0
+        rows_before, before = _rows(j, record), wire.credits()
+        _, empty = wire("POST", f"/contacts/datasets/{second_id}/fetch", {})     # call 139: on the wire, as no screen can
+        record["second_dataset"] = {"size": sized["entry"]["wire"], "fake": fake.size(everyone, query, fetched),
                                     "page": empty.get("page"), "charged": empty.get("creditsCharged"),
-                                    "balance": [before, wire.credits()],
-                                    "ledger_rows_added": len(stack_ledger.rows(j.stack, founder_id)) - rows_before}
-        h.record_assert({"size": 0, "page": [], "charged": 0}, record["second_dataset"])
-        assert sized == 0 and empty.get("page") == [] and empty.get("creditsCharged") == 0, record["second_dataset"]
+                                    "balance": [before, wire.credits()], "show_first_offered": offered,
+                                    "drawn": sized["entry"]["drawn"],
+                                    "ledger_rows_added": _rows(j, record) - rows_before}
+        h.record_assert({"size": 0, "page": [], "charged": 0, "show_first_offered": False}, record["second_dataset"])
+        assert sized["entry"]["wire"] == 0 and empty.get("page") == [], record["second_dataset"]
+        assert empty.get("creditsCharged") == 0 and offered is False, record["second_dataset"]
+        assert second_id != dataset_id
 
     # ---- the two refusals at a low balance
     with j.recorder.step(f"contacts: another kind's dataset in another country, {ELSEWHERE_NAME!r} -- 26 with a work "
-                         "email, none fetched yet", party="founder", kind="assert") as h:
+                         "email, none fetched yet (on the wire: the chips narrow within the market's own country, #50)",
+                         party="founder", kind="assert") as h:
         elsewhere = {"places": [{"kind": "COUNTRY", "code": "US"}]}
         _, created = wire("POST", "/contacts/datasets", {"respondentType": vs.LINK_PRIMARY, "name": ELSEWHERE_NAME,
                                                          "query": elsewhere})
         elsewhere_id = (created.get("dataset") or {}).get("datasetId")
-        us = _size(j, wire, record, everyone, elsewhere_id, elsewhere, fetched, ELSEWHERE_NAME)
+        us = _sized(j, wire, record, everyone,
+                    lambda: {"summary": wire("POST", f"/contacts/datasets/{elsewhere_id}/size", {})[1]},
+                    elsewhere, fetched, ELSEWHERE_NAME)["entry"]["wire"]
         h.record_assert(26, us)
         assert us == 26, us
 
@@ -507,51 +643,55 @@ def _the_work(j, wire: _Wire, record: dict, everyone, founder_id: str, run: str)
         h.record_wire({"row": delta}, {"creditsAvailable": wire.credits()})
         assert wire.credits() == LOW_BALANCE
 
-    with j.recorder.step(f"contacts (D5): at {LOW_BALANCE} credits a page of names and the two waiting names' emails "
-                         "are REFUSED 422 with required / available -- nothing fetched, revealed, stored or charged",
-                         party="founder", kind="assert") as h:
+    with j.recorder.step(f"contacts (D5): at {LOW_BALANCE} credits *Show the first 25* and *Save 2 picked* are REFUSED "
+                         "422 with required / available -- the *Not enough credits* popup draws the two numbers, one "
+                         "Close, no buy path -- and nothing is fetched, revealed, stored or charged", party="founder",
+                         kind="assert") as h:
         refusals = {}
-        waiting = second["ids"]                                  # the first dataset's second page, still unsaved
-        for name, method, suffix, body, required in (
-                ("names", "POST", f"/contacts/datasets/{elsewhere_id}/fetch", {}, fake.PAGE_CREDITS),
-                ("emails", "POST", f"/contacts/datasets/{dataset_id}/save", {"sourceIds": waiting},
-                 len(waiting) * fake.EMAIL_CREDITS)):
-            rows_before = len(stack_ledger.rows(j.stack, founder_id))
+        waiting = [r["fullName"] for r in second["rows"]]          # the first dataset's second page, still unsaved
+        for name, open_it, press, required in (
+                ("names", lambda: contacts.open_dataset(j.project_id, elsewhere_id, "?view=edit"),
+                 contacts.show_first, fake.PAGE_CREDITS),
+                ("emails", lambda: contacts.open_dataset(j.project_id, dataset_id, "?view=names"),
+                 lambda: contacts.save_picked(waiting), len(waiting) * fake.EMAIL_CREDITS)):
+            rows_before = _rows(j, record)
             view_before = wire("GET", f"/contacts/datasets/{dataset_id}")[1]
-            status, refusal = wire(method, suffix, body, ok=(422,))
+            open_it()
+            out = press()
             view_after = wire("GET", f"/contacts/datasets/{dataset_id}")[1]
             us_after = wire("POST", f"/contacts/datasets/{elsewhere_id}/size", {})[1].get("sizedWithEmail")
-            refusals[name] = {"status": status, "body": refusal, "required": required, "available": LOW_BALANCE,
-                              "balance_after": wire.credits(),
-                              "ledger_rows_added": len(stack_ledger.rows(j.stack, founder_id)) - rows_before,
+            refusals[name] = {"status": out["status"], "body": out["body"], "required": required,
+                              "available": LOW_BALANCE, "balance_after": wire.credits(), "drawn": out["drawn"],
+                              "ledger_rows_added": _rows(j, record) - rows_before,
                               "unchanged": (len(view_before.get("people") or []) == len(view_after.get("people") or [])
                                             and [r["sourceId"] for r in view_before.get("page") or []]
                                             == [r["sourceId"] for r in view_after.get("page") or []]
                                             and us_after == 26)}
         record["credit_refusals"] = refusals
-        h.record_assert({"names": {"code": "INSUFFICIENT_CREDITS_FOR_NAMES", "required": 150, "available": LOW_BALANCE},
+        h.record_assert({"names": {"code": "INSUFFICIENT_CREDITS_FOR_NAMES", "required": 150, "available": LOW_BALANCE,
+                                   "drawn": marks.NAMES_REMEDY.format(required=150, available=LOW_BALANCE)},
                          "emails": {"code": "INSUFFICIENT_CREDITS_FOR_EMAILS", "required": 24,
-                                    "available": LOW_BALANCE}}, refusals)
-        for name, code in (("names", "INSUFFICIENT_CREDITS_FOR_NAMES"), ("emails", "INSUFFICIENT_CREDITS_FOR_EMAILS")):
-            assert refusals[name]["body"].get("code") == code, refusals[name]
+                                    "available": LOW_BALANCE,
+                                    "drawn": marks.EMAILS_REMEDY.format(required=24, available=LOW_BALANCE)}},
+                        refusals)
+        for name, code, template in (("names", "INSUFFICIENT_CREDITS_FOR_NAMES", marks.NAMES_REMEDY),
+                                     ("emails", "INSUFFICIENT_CREDITS_FOR_EMAILS", marks.EMAILS_REMEDY)):
+            x = refusals[name]
+            assert x["body"].get("code") == code, x
+            assert x["drawn"]["sentence"] == template.format(required=x["required"], available=LOW_BALANCE), x
+            assert x["drawn"]["buttons"] == ["Close"], x
 
 
-def _drift_83(j, relink: dict, who: str) -> None:
-    """DRIFT #83, stepped round (call 136): keel-cloud 093 call 16 says the found person's `linkMadeAt` keeps the first
-    link's time while the register's *Link made* moves; the wire's `FoundPersonRow.linkMadeAt` reads the invitation's
-    (`ContactsController.personRow`), so it moves too, and the first time is served nowhere. Named while it fires; held
-    to call 16 the moment it does not."""
-    served, first = relink.get("found_person_linkMadeAt"), relink.get("first_linkMadeAt")
-    if served == relink.get("relinked_at") != first:
-        with j.recorder.step(f"DRIFT #83 -- {who}'s found-person row reads the new link's time ({served}), not the first "
-                             f"link's ({first}) that keel-cloud 093 call 16 says it keeps; the register's Link made "
-                             "moved, as it should", party="stack", kind="note") as h:
-            h.record_wire({"call 16": "the found person's linkMadeAt keeps the first link's time"}, relink)
-        return
-    with j.recorder.step(f"contacts (call 16): {who}'s found-person row keeps the first link's time", party="stack",
-                         kind="assert") as h:
-        h.record_assert(first, served)
-        assert served == first, relink
+def _link_times(j, relink: dict, who: str) -> None:
+    """keel-cloud 093 call 16, held straight since DRIFT #83 closed (keel-cloud-docs `a4f2c95`): after *Make a new
+    link* the register's *Link made* is the new link's time, and the found person's row keeps the first link's."""
+    with j.recorder.step(f"contacts (call 16, DRIFT #83 closed): {who}'s found-person row keeps the first link's time; "
+                         "the register's Link made moved to the new link's", party="founder", kind="assert") as h:
+        h.record_assert({"found person": relink.get("first_linkMadeAt"), "register": relink.get("relinked_at")},
+                        {"found person": relink.get("found_person_linkMadeAt"),
+                         "register": relink.get("register_linkMadeAt")})
+        assert relink.get("found_person_linkMadeAt") == relink.get("first_linkMadeAt"), relink
+        assert relink.get("register_linkMadeAt") == relink.get("relinked_at") != relink.get("first_linkMadeAt"), relink
 
 
 def _score(j, record: dict, *, require: list[str]) -> None:

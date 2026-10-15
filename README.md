@@ -101,7 +101,9 @@ refusal (`NOT_B2B`). Contacts are bought with credits and this stack has no Keel
 journey's founder on Keel's door with a fresh grant of 1,500 and reverses it in a `finally` (`stack/ledger.py`, the
 only module that writes to the database -- local profiles only). The rules are scored by `evals/contacts_marks.py`
 (CM1-CM14, `CONTACTS_MARKS_VERSION` 1) into `contacts-marks.json` beside the transcript; `MARKS_VERSION` stays 19.
-keel-web 068's Interviews section will add page objects over the same steps.
+Since the spec's second commit the leg runs on keel-web 068's Interviews section (`harness/interviews_screens.py`:
+Sent, Send more, Make a new link, Contacts, C2, the page of names, C3, the credits popup), and every journey makes its
+links on Sent.
 
 ### `MARKS_VERSION` 18 — history since v19, never run (spec `040-marks-v18`, 2026-10-14)
 

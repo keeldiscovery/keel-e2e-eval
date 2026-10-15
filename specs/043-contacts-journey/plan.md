@@ -13,3 +13,6 @@
 7. `tests/test_contacts_marks.py`; `make unit`.
 8. The local stack: `make eval K="s005 or s006 or s007"` twice with the leg.
 9. Docs: `runs/DRIFT.md` #83, AGENTS.md, README.md, this folder.
+10. Second commit (keel-cloud-docs `a4f2c95` + keel-web `752a8c4`): `harness/interviews_screens.py`; `leg_invite`
+    through Sent, the lock's landing, readings on the wire (DRIFT #84); the contacts leg through the screens; #83's
+    step replaced by the straight assertion; DRIFT, spec, AGENTS, README; `stack.toml` reverted; two runs.

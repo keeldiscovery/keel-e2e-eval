@@ -348,9 +348,12 @@ worth, reversed in a `finally`, local profiles only), Keel's base query, a datas
 for 150, three emails for 36, links in one Text batch, one found person through FOUND -> LINK_MADE -> OPENED -> ANSWERED,
 *Make a new link* (the old link 404), a second page and a second dataset that repeat nobody, `FORMAT_NOT_AVAILABLE`, both
 422 credit refusals at 20 and the ledger's HOLD / SPEND pairs at `price_version` 8; S-005 asserts `NOT_B2B`. They are scored
-by `evals/contacts_marks.py` (CM1-CM14, `CONTACTS_MARKS_VERSION` 1, a journey ruler apart from `MARKS_VERSION`). DRIFT #83 is
-stepped round in a named step. Page objects for keel-web 068's Interviews section wait (`contacts_leg.WEB_068_FOLLOW_UP`).
-`make unit` after 043: **1,910 passed / 53 skipped**. **Nothing generated is committed** -- the script, the
+by `evals/contacts_marks.py` (CM1-CM14, `CONTACTS_MARKS_VERSION` 1, a journey ruler apart from `MARKS_VERSION`). **Since spec
+043's second commit they run keel-cloud-docs `a4f2c95` (DRIFT #83 closed) on keel-web `752a8c4` (068: People became
+Interviews)**: every journey's links are made on Sent's *Send more* (W1 held once per account), the contacts leg runs on
+068's own screens (`harness/interviews_screens.py`) with every wire assertion kept, and the readings 068 no longer
+starts are started on the wire in a step named DRIFT #84.
+`make unit` after 043: **1,912 passed / 53 skipped**. **Nothing generated is committed** -- the script, the
 keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
 the end of every run.
 

@@ -503,7 +503,7 @@ class Corridor:
                 receipt = locked.value.json()
             except Exception:  # noqa: BLE001 - a refused lock's body is the leg's to report
                 receipt = {"status": locked.value.status, "text": _safe_text(lambda: locked.value.text())}
-            _wait_url(self.page, r"/people", timeout_s=60)
+            _wait_url(self.page, r"/interviews/sent|/people", timeout_s=60)       # keel-web 068: Sent
             h.add_screenshot(self._b.screenshot("locked-people"))
             return {"counters": [first.strip(), second.strip()], "receipt": receipt}
 

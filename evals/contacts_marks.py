@@ -203,10 +203,15 @@ def status_follows_the_link(r: dict) -> tuple[bool, Any]:
 
 
 def a_new_link_retires_the_old(r: dict) -> tuple[bool, Any]:
-    """CM10: Make a new link -- the old link answers 404, the new one opens, the invitation is the same one; an
-    answered link is refused ALREADY_ANSWERED."""
+    """CM10: Make a new link -- the old link answers 404, the new one opens, the invitation is the same one, the
+    register's Link made moves while the found person keeps the first link's time (093 call 16; DRIFT #83 closed by
+    keel-cloud-docs a4f2c95); an answered link is refused ALREADY_ANSWERED."""
     x = r["relink"]
-    ok = (x["old_status"] == 404 and x["new_status"] == 200 and x["same_invitation"] and x["new_url"] != x["old_url"]
+    times = ("found_person_linkMadeAt" not in x
+             or (x["found_person_linkMadeAt"] == x.get("first_linkMadeAt")
+                 and x.get("register_linkMadeAt") == x.get("relinked_at") != x.get("first_linkMadeAt")))
+    ok = (times and x["old_status"] == 404 and x["new_status"] == 200 and x["same_invitation"]
+          and x["new_url"] != x["old_url"]
           and x["answered_refusal"].get("status") == 422
           and (x["answered_refusal"].get("body") or {}).get("code") == "ALREADY_ANSWERED")
     return ok, x
