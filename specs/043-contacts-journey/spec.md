@@ -222,6 +222,16 @@ journeys green where the inputs are silent, and each can be reversed alone.
 146. **`stack.toml` is not 043's**: its absolute sibling paths are this worktree's machine-local setup, so it was
      reverted before the commit (the run used it; the tracked file keeps the repository's relative paths).
 
+147. **The pilot tick waits for its 204** (third commit, 2026-10-15, staging): the first remote run of the three
+    journeys against keel-cloud a4f2c95 + keel-web 752a8c4 failed S-006 on the #84 reading -- `INTERPRET` captured
+    revision 56 and the project was at 57 by the time it applied (*This project changed while your AI was
+    thinking*). The staging rows showed the 57 was the stranger's pilot opt-in, recorded at 06:37:34.52 after the
+    answers at 06:37:34.xx; `opt_in_to_pilot` returned on `expect_request` (the request leaving the browser), so
+    the founder's `POST readings` and the pilot's `POST .../pilot` reached the box together. Locally the tick
+    always landed first (three passes). It now waits on `expect_response` and asserts the 204. A product note for
+    keel-cloud: a reading that loses this race is reported as failed and never retried by anything, which with
+    #84 (no screen starts a reading) means nobody would start it again.
+
 ## Follow-ups
 
 - ~~keel-web 068's page objects~~ -- done in the second commit (`harness/interviews_screens.py`).

@@ -647,9 +647,13 @@ class Interview:
         label = ((interview.get("done") or {}).get("pilot") or {}).get("label")
         if not label:
             return
-        with self.page.expect_request(lambda r: r.method == "POST" and r.url.endswith("/interview/pilot"),
-                                      timeout=20_000):
+        # Wait for the pilot's 204, not just the request leaving the browser (spec 043 call 147): the tick is a
+        # project write, and on staging the founder's next move (the #84 reading) raced it -- the reading captured
+        # the revision before the tick and failed STATE_CONFLICT. Locally the tick always landed first.
+        with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/interview/pilot"),
+                                       timeout=20_000) as ticked:
             self.page.get_by_role("checkbox", name=label, exact=True).click()
+        assert ticked.value.status == 204, f"the pilot tick answered {ticked.value.status}"
 
     def _idea(self) -> None:
         """D9 (keel-web 064 FR-007): the decision-maker's link opens with the idea's three lines."""
