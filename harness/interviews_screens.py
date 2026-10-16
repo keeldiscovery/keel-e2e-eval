@@ -62,6 +62,12 @@ SIZE_IT_AGAIN = "Size it again"
 SHOW_FIRST = re.compile(r"^Show the first \d+ · [\d,]+ credits$")
 FIND_MORE = re.compile(r"^Find \d+ more · [\d,]+ credits$")
 SAVE_PICKED = re.compile(r"^Save \d+ picked and get their emails · [\d,]+ credits$")
+#: keel-web 070 F3: hidden on the dataset page "for now" (its route stays) -- the page object reads its absence.
+COPY_AS_NEW = "Copy as a new dataset"
+#: keel-web 070 F4: the page of names' two tools (`names-select-all`, `names-clear`) and its pager (`names-pager`).
+NAMES_SELECT_ALL = "Select all"
+NAMES_CLEAR = "Clear"
+NAMES_PER_PAGE = 25
 GO_TO_SEND_MORE = "Go to Sent → Send more"
 CHIP_REMOVE = "Remove"
 CHIP_ROW_PLACES = "Where"
@@ -210,22 +216,43 @@ class Interviews:
             dialog.locator("#send-name").fill(person)
             if about is not None and dialog.locator("#send-about").count():
                 dialog.locator("#send-about").fill(about)
-            with self.page.expect_response(lambda r: r.request.method == "POST"
-                                           and r.url.endswith("/invitations/batch"), timeout=30_000) as made:
-                dialog.get_by_role("button", name=SEND_MAKE_ONE, exact=True).click()
-            batch = _json(made.value)
-            if made.value.status >= 400:                     # refused: what keel-web received, and what it drew
+            batches: list = []
+            keep = lambda r: batches.append(r) if (r.request.method == "POST"  # noqa: E731
+                                                   and r.url.endswith("/invitations/batch")) else None
+            self.page.on("response", keep)
+            try:
+                with self.page.expect_response(lambda r: r.request.method == "POST"
+                                               and r.url.endswith("/invitations/batch"), timeout=30_000) as made:
+                    dialog.get_by_role("button", name=SEND_MAKE_ONE, exact=True).click()
+                response = made.value
+                retried = []
+                if response.status == 409 and (_json(response) or {}).get("rule") == "concurrency":
+                    # keel-web 070 (DRIFT #88): a 409 concurrency is read again and sent once more, silently.
+                    retried.append({"status": response.status, "body": _json(response),
+                                    "sent": response.request.post_data_json})
+                    for _ in range(60):
+                        if len(batches) >= 2:
+                            response = batches[-1]
+                            break
+                        self.page.wait_for_timeout(250)
+            finally:
+                self.page.remove_listener("response", keep)
+            made_value = response
+            batch = _json(made_value)
+            if made_value.status >= 400:                     # refused: what keel-web received, and what it drew
                 h.add_screenshot(self._b.screenshot(f"link-refused-{person.split()[0]}"))
                 drawn = " ".join((dialog.text_content() or "").split())
-                return {"url": None, "batch": batch, "status": made.value.status, "formats": formats,
-                        "drawn": drawn, "sent": made.value.request.post_data_json}
+                return {"url": None, "batch": batch, "status": made_value.status, "formats": formats,
+                        "drawn": drawn, "sent": made_value.request.post_data_json, "retried": retried}
             box = dialog.locator(".linkbox").first
             box.wait_for(state="visible", timeout=20_000)
             url = (box.text_content() or "").strip()
             h.add_screenshot(self._b.screenshot(f"link-{person.split()[0]}"))
+            drawn = " ".join((dialog.text_content() or "").split())
             dialog.get_by_role("button", name=SEND_DONE, exact=True).click()
             dialog.wait_for(state="hidden", timeout=10_000)
-            return {"url": url, "batch": batch, "status": made.value.status, "formats": formats}
+            return {"url": url, "batch": batch, "status": made_value.status, "formats": formats, "retried": retried,
+                    "drawn": drawn}
 
     def send_from_dataset(self, people: list[str], *, downloads) -> dict:
         """The popup C3's *Go to Sent -> Send more* opened (`?send=<kind>&dataset=<id>`): step 1's formats, step 2 with
@@ -400,8 +427,38 @@ class Contacts:
             h.add_screenshot(self._b.screenshot(slug))
             return {"status": status, "body": body, "drawn": drawn}
 
-    def save_picked(self, names: list[str]) -> dict:
-        """The page of names: tick these, *Save n picked and get their emails*; the receipt or the refusal."""
+    def select_all_and_clear(self) -> dict:
+        """keel-web 070 F4 on the page of names: *Select all* ticks every name on the page in view and the Save button
+        counts them; *Clear* unticks them and the button counts none. Returns what each press drew."""
+        with self._b.step("founder presses Select all, reads the count, then Clear") as h:
+            tools = {"select_all": self.page.get_by_test_id("names-select-all"),
+                     "clear": self.page.get_by_test_id("names-clear")}
+            tools["select_all"].wait_for(state="visible", timeout=10_000)
+            rows = self.page.locator(".picklist .pickrow")
+            out = {"rows": rows.count(), "pager": self.page.get_by_test_id("names-pager").count() > 0,
+                   "labels": {k: _safe_text(lambda b=b: b.inner_text()).strip() for k, b in tools.items()},
+                   "before": {k: b.is_enabled() for k, b in tools.items()}}
+            tools["select_all"].click()
+            button = self.page.get_by_role("button", name=SAVE_PICKED)
+            button.wait_for(state="visible", timeout=10_000)
+            out["all"] = {"button": _safe_text(lambda: button.inner_text()),
+                          "ticked": self.page.locator(".picklist .pickrow[aria-checked=true]").count(),
+                          "tools": {k: b.is_enabled() for k, b in tools.items()}}
+            h.add_screenshot(self._b.screenshot("names-select-all"))
+            tools["clear"].click()
+            self.page.wait_for_function(
+                "() => !document.querySelector('.picklist .pickrow[aria-checked=true]')", timeout=5_000)
+            save = self.page.locator("button", has_text=re.compile(r"^Save \d+ picked"))
+            out["cleared"] = {"ticked": self.page.locator(".picklist .pickrow[aria-checked=true]").count(),
+                              "button": _safe_text(lambda: save.first.inner_text()) if save.count() else None,
+                              "save_enabled": save.first.is_enabled() if save.count() else None,
+                              "tools": {k: b.is_enabled() for k, b in tools.items()}}
+            return out
+
+    def save_picked(self, names: list[str], *, tools: bool = False) -> dict:
+        """The page of names: tick these, *Save n picked and get their emails*; the receipt or the refusal. With `tools`
+        the page's *Select all* and *Clear* are pressed first (keel-web 070 F4), and what they drew comes back."""
+        drawn_tools = self.select_all_and_clear() if tools else None
         with self._b.step(f"founder saves {len(names)} picked and gets their emails") as h:
             for name in names:
                 self.page.locator(".pickrow", has=self.page.locator(".pickrow__who b", has_text=name)).first.click()
@@ -413,7 +470,7 @@ class Contacts:
             status = saved.value.status
             drawn = self.credits_refusal() if status != 200 else self.dataset()
             h.add_screenshot(self._b.screenshot("saved"))
-            return {"status": status, "body": _json(saved.value), "button": label, "drawn": drawn}
+            return {"status": status, "body": _json(saved.value), "button": label, "drawn": drawn, "tools": drawn_tools}
 
     def dataset(self) -> dict:
         """C3: the head line and every saved person's row (after *Show all*)."""
@@ -426,7 +483,8 @@ class Contacts:
         return {"title": _safe_text(lambda: self.page.locator(".dsopen__title").inner_text()),
                 "line": _safe_text(lambda: self.page.locator(".dsopen__line").inner_text()),
                 "rows": rows,
-                "find_more": self.page.get_by_role("button", name=FIND_MORE).count() > 0}
+                "find_more": self.page.get_by_role("button", name=FIND_MORE).count() > 0,
+                "copy_as_new": self.page.get_by_role("button", name=COPY_AS_NEW).count()}
 
     def open_dataset(self, project_id: str, dataset_id: str, view: str = "") -> None:
         self.page.goto(f"{self.base}/p/{project_id}/interviews/contacts/{dataset_id}{view}", wait_until="load")

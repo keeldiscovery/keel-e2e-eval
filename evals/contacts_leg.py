@@ -409,7 +409,7 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
                          "*Saved · no link yet*", party="founder", kind="assert") as h:
         picks = names[:PICKS]
         before = wire.credits()
-        out = contacts.save_picked(picks)
+        out = contacts.save_picked(picks, tools=True)
         saved = out["body"] or {}
         record["purchases"].append({"action": "CONTACT_EMAIL", "charged": saved.get("creditsCharged"),
                                     "available": saved.get("creditsAvailable"), "balance_before": before,
@@ -432,8 +432,26 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
         assert drawn_names == sorted(picks) and len(c3["rows"]) == PICKS, c3
         assert all(iv.FOUND_STATUS["FOUND"] in r.get("Status", "") for r in c3["rows"]), c3
         assert all(any(s["email"] in r.get("Email", "") for r in c3["rows"]) for s in record["saved"]), c3
-        found = [s["foundPersonId"] for s in record["saved"]]
-        name_of = {s["foundPersonId"]: s["fullName"] for s in record["saved"]}
+    with j.recorder.step("contacts (keel-web 070 F3 / F4): on the page of names *Select all* ticks the page's 25 and the "
+                         f"button counts them -- *Save 25 picked ... · {25 * fake.EMAIL_CREDITS} credits* -- and *Clear* "
+                         "unticks them (Save off, 0); one page, so no pager; the dataset page draws no *Copy as a new "
+                         "dataset*", party="founder", kind="assert") as h:
+        tools = out["tools"] or {}
+        n = tools.get("rows")
+        want = {"labels": {"select_all": iv.NAMES_SELECT_ALL, "clear": iv.NAMES_CLEAR},
+                "all": f"Save {n} picked and get their emails · {n * fake.EMAIL_CREDITS} credits",
+                "cleared": f"Save 0 picked and get their emails · 0 credits", "copy_as_new": 0}
+        h.record_assert(want, {**tools, "c3 copy_as_new": c3.get("copy_as_new")})
+        assert n == iv.NAMES_PER_PAGE and tools["pager"] is False, tools
+        assert tools["labels"] == want["labels"], tools
+        assert tools["before"] == {"select_all": True, "clear": False}, tools
+        assert tools["all"]["ticked"] == n and tools["all"]["button"] == want["all"], tools
+        assert tools["all"]["tools"] == {"select_all": False, "clear": True}, tools
+        assert tools["cleared"]["ticked"] == 0 and tools["cleared"]["button"] == want["cleared"], tools
+        assert tools["cleared"]["save_enabled"] is False, tools
+        assert c3.get("copy_as_new") == 0, c3
+    found = [s["foundPersonId"] for s in record["saved"]]
+    name_of = {s["foundPersonId"]: s["fullName"] for s in record["saved"]}
 
     # ---- links: Go to Sent -> Send more
     with j.recorder.step("contacts (S3, call 134; contract 16 since spec 044): the AI interviewer is refused 409 "

@@ -93,7 +93,8 @@ COMPOSED = (
     "only the founder's chosen code and its phrase",
     "the founder's Answer-screen words on each list dimension -- r10 records the saved list, not the Answer "
     "it was drafted from; composed as the list's own labels, at most 25 words (Importance's: the others alone, "
-    "spec 046 -- the own item is the problem, code's, locked first)",
+    "spec 046 -- the own item is the problem, code's, locked first -- and on 01-countly one of them, on 05-paidly two, "
+    "the founder typing the rest on the Check screen: IMPORTANCE_NAMED)",
     "RESPONDENT_QUESTIONS the gate's event clause -- r10 records none (keel-cloud 088 call 13); 'have a time "
     "when {circumstance}', or the referee's shorter clause where that frames past 20 words (E4)",
     "BRIEF reading -- r10 records none; a referee-worded headline and three answers citing each stage's "
@@ -584,6 +585,8 @@ def drafted_list(entry, key: str) -> dict:
                 raise VectorsScriptError(f"{entry.id}: {key} item {item['label']!r} carries no `asked` face (L4)")
             out["asked"] = item["asked"]
         items.append(out)
+    if key == "problem.importance":
+        items = items[:1 + len(importance_named(entry))]     # Keel adds only what the Answer named (097 F9)
     draft: dict = {"items": items}
     if key == "problem.current_solution_satisfaction":
         if not saved.get("phrase"):
@@ -616,8 +619,9 @@ def answer_text(entry, key: str) -> str:
     labels = [i["label"] for i in saved["items"] if i.get("code") != NOBODY_ELSE[0]]
     if key == "problem.importance":
         # keel-cloud 097 (F9): the Answer names the OTHER difficulties -- the own item is the problem itself, locked
-        # first by code -- and Keel's redraft is the own item plus exactly those (spec 046 FM2).
-        labels = labels[1:]
+        # first by code -- and Keel's redraft is the own item plus exactly those (spec 046 FM2); on two entries it
+        # names fewer than the list holds and the founder types the rest on the Check screen (`IMPORTANCE_NAMED`).
+        labels = importance_named(entry)
     if key == "problem.current_solution_satisfaction" and saved.get("phrase"):
         labels = [saved["phrase"]] + labels
     if not labels:
@@ -678,6 +682,29 @@ def founders_words_before_answers(entry) -> str:
 
 #: keel-cloud 097 (F9, judgement call 12): Save and the lock need Importance's own item and two others.
 IMPORTANCE_MIN_ITEMS = 3
+
+
+#: Spec 046 FR-003 (keel-web 070 F9): how many of the other difficulties the founder's Importance Answer names, where
+#: it names fewer than the corpus list holds -- the rest the founder types on the Check screen themselves. 01-countly's
+#: Answer names ONE (own + 1: Save is refused ONE_MORE_NEEDED and the screen asks for one more), 05-paidly's TWO (own +
+#: 2, the Check screen with two others, Save on); every other entry names them all (COMPOSED).
+IMPORTANCE_NAMED = {"01-countly": 1, "05-paidly": 2}
+
+
+def importance_others(entry) -> list[str]:
+    """The other difficulties of the entry's Importance list, in order (the own item is first and code's)."""
+    return [i["label"] for i in founder_list(entry, "problem.importance")["items"][1:]]
+
+
+def importance_named(entry) -> list[str]:
+    """The other difficulties the founder's Importance Answer names -- and so Keel's redraft adds (097 F9: no more)."""
+    others = importance_others(entry)
+    return others[:IMPORTANCE_NAMED.get(entry.id, len(others))]
+
+
+def importance_typed(entry) -> list[str]:
+    """The other difficulties the founder types on Importance's Check screen, after Keel's redraft (070 F9)."""
+    return importance_others(entry)[len(importance_named(entry)):]
 
 
 def importance_first_draft(entry) -> dict:

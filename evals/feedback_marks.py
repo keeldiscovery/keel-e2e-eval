@@ -16,7 +16,8 @@ The journey (`evals/corpus_scenario.py`) builds the record from what the wire an
   fields, the two seeds, the persona's roles and that dimension's Answer (judgement call 2: L6's allow-list also takes
   the confirmed mechanism card and the other saved lists; the eval holds the words the founder typed).
 - **FM2** Importance is the own item plus exactly the difficulties the founder's Answer named: Keel's first draft is
-  the own item alone, the redraft from the Answer adds those and none other.
+  the own item alone, the redraft from the Answer adds those and none other, and the list saved is that redraft and
+  whatever the founder typed on the Check screen themselves.
 - **FM3** Keel's base query carries no industry: no `categories` on any kind's base query.
 - **FM4** the idea's name is the seed's product name when the seed carries one; else Keel served none, the Check
   screen demanded one (Save refused `IDEA_NAME_REQUIRED` on the wire; on the screen an empty field with its
@@ -96,19 +97,21 @@ def no_unnamed_role(r: dict) -> tuple[bool, Any]:
 
 def importance_is_own_plus_named(r: dict) -> tuple[bool, Any]:
     """FM2: Importance is the own item plus exactly the difficulties the Answer named -- Keel's first draft the own
-    item alone, its redraft the own item and those, none invented -- and the list saved is that list."""
+    item alone, its redraft the own item and those, none invented -- and the list saved is that list and what the
+    founder typed on the Check screen, three at least."""
     x = r["importance"]
     own = x.get("own")
     named = list(x.get("named") or [])
     first = list(x.get("first_draft") or [])
     redraft = list(x.get("redraft") or [])
     saved = list(x.get("saved") or [])
+    typed = list(x.get("typed") or [])
     invented = [label for label in redraft[1:] if label not in named]
     missing = [label for label in named if label not in redraft[1:]]
     ok = (bool(own) and first == [own] and redraft[:1] == [own] and not invented and not missing
-          and len(redraft) == 1 + len(named) and saved == redraft and len(saved) >= IMPORTANCE_MIN_ITEMS)
-    return ok, {"own": own, "first draft": first, "named": named, "redraft": redraft, "saved": saved,
-                "invented": invented, "missing": missing}
+          and len(redraft) == 1 + len(named) and saved == redraft + typed and len(saved) >= IMPORTANCE_MIN_ITEMS)
+    return ok, {"own": own, "first draft": first, "named": named, "redraft": redraft, "typed on Check": typed,
+                "saved": saved, "invented": invented, "missing": missing}
 
 
 def base_query_has_no_industry(r: dict) -> tuple[bool, Any]:
@@ -161,6 +164,8 @@ def advances_without_next(r: dict) -> tuple[bool, Any]:
         elif e.get("kind") == "play" and start is not None:
             spans.append(round(e["t"] - start))
             start = None
+        elif e.get("kind") == "next":
+            start = None                         # a press moved it on (Finish on the pilot ask), not the flow
     plays = sum(1 for e in events if e.get("kind") == "play")
     long = [ms for ms in spans if ms > THINKING_MAX_MS]
     ok = x.get("next_presses") == 0 and plays >= 2 and not long

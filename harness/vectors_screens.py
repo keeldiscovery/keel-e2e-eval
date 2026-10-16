@@ -40,6 +40,8 @@ CONTEXT_YES = "Yes, that's it"
 SEED_SEND = "Send"
 CARD_YES_PROBLEM = "Yes, that's the problem"
 CARD_LOOKS_RIGHT = "Looks right"
+#: Until keel-web 070 F8: the mechanism card's *Someone else would use it* link and its *Who would use it instead?* box.
+SOMEONE_ELSE_USES = ("Someone else would use it", "Who would use it instead?")
 KICKER_INTERPRETATION = "Here's what Keel understood"
 KICKER_MECHANISM = "Here's the mechanism Keel understood"
 KICKER_CONTEXT = "Keel understands"
@@ -133,6 +135,14 @@ def _value(locator) -> str:
         return locator.input_value()
     except Exception:  # noqa: BLE001 - a read
         return ""
+
+
+def _json_body(response) -> dict:
+    try:
+        body = response.json()
+    except Exception:  # noqa: BLE001 - an empty or non-JSON body
+        return {}
+    return body if isinstance(body, dict) else {"body": body}
 
 
 # --------------------------------------------------------------------------------------- Corridor
@@ -277,10 +287,10 @@ class Corridor:
             h.add_screenshot(self._b.screenshot(f"{slug}-confirmed"))
 
     def idea_check(self, name: str | None = None) -> dict:
-        """S2 (keel-web 063 FR-007): the idea's three lines, read as drawn, and saved -- Save is the approval -- and on
-        to the solution's first question. With `name` the founder first types it over the what line (keel-cloud 090,
-        D14: the what line is the idea's name, and it replaces Keel's short name); without, Keel's draft is saved
-        untouched. Returns the lines as drawn (before any edit), the name typed, and the frame."""
+        """S2 (keel-web 063 FR-007; 070 F7): the idea's three lines, read as drawn, and saved -- Save is the approval --
+        and on to the solution's first question. Since keel-cloud 097 the what line is never Keel's draft: it is empty
+        with its placeholder (*Name it in up to five words*) and Save off until the founder types a name, which is
+        `name`. Returns the lines as drawn (before any edit), the what box's own state, the name typed and the frame."""
         title = ("founder names the idea on S2 and saves it (Save approves)" if name else
                  "founder checks the idea's three lines and saves them (S2: Save approves)")
         with self._b.step(title) as h:
@@ -288,16 +298,19 @@ class Corridor:
             self.page.locator("#idea-what").wait_for(state="visible", timeout=20_000)
             reloaded = False
             try:
-                self.page.wait_for_function("() => (document.querySelector('#idea-what')?.value || '') !== ''",
+                self.page.wait_for_function("() => (document.querySelector('#idea-how')?.value || '') !== ''",
                                             timeout=5_000)
             except Exception:  # noqa: BLE001 - runs/DRIFT.md #78: the stale plan's empty lines
                 h.add_screenshot(self._b.screenshot("idea-check-empty"))
                 self.page.reload(wait_until="load")
                 self.page.locator("#idea-what").wait_for(state="visible", timeout=20_000)
                 self.page.wait_for_function(
-                    "() => (document.querySelector('#idea-what')?.value || '') !== ''", timeout=20_000)
+                    "() => (document.querySelector('#idea-how')?.value || '') !== ''", timeout=20_000)
                 reloaded = True
             lines = {line: _value(self.page.locator(f"#idea-{line}")) for line in ("what", "how", "belief")}
+            what = self.page.locator("#idea-what")
+            unnamed = {"value": lines["what"], "placeholder": what.get_attribute("placeholder") or "",
+                       "save_enabled": self._primary().is_enabled()}
             frame = self.frame()
             counter = {"drawn": self._name_counter()}
             h.capture_text("stage_screen", _text(self.page))
@@ -306,16 +319,16 @@ class Corridor:
                 # keel-web 066 (D14): the counter is live and Save is off over five words -- typed once one word past
                 # five, read, then the name itself.
                 over = f"{name} {' '.join(['for', 'every', 'single', 'day', 'and', 'night'][:6 - len(name.split())])}"
-                self.page.locator("#idea-what").fill(over)
+                what.fill(over)
                 counter["over"] = {"typed": over, **self._name_counter()}
                 h.add_screenshot(self._b.screenshot("idea-named-over-five"))
-                self.page.locator("#idea-what").fill(name)
+                what.fill(name)
                 counter["named"] = self._name_counter()
                 h.add_screenshot(self._b.screenshot("idea-named"))
             label = self._press_primary(SAVE)
             _wait_url(self.page, r"/define/solution/q/\d+$")
-            return {"lines": lines, "typed": name, "frame": frame, "primary": label, "reloaded": reloaded,
-                    "counter": counter}
+            return {"lines": lines, "unnamed": unnamed, "typed": name, "frame": frame, "primary": label,
+                    "reloaded": reloaded, "counter": counter}
 
     def _name_counter(self) -> dict:
         """keel-web 066's S2 counter under *What it is* (`[data-testid=idea-name-words]`, *n / 5 words*), whether it
@@ -423,7 +436,49 @@ class Corridor:
         return {"belief": _first_text(self.page, ".keeltest__t"), "bar": _first_text(self.page, ".keeltest__b"),
                 "shown": self.page.locator(".keeltest").count() > 0}
 
-    def list_check(self, question: dict, *, timeout_s: float = 60) -> dict:
+    def importance_rows(self, add: list[str], *, one_more: bool) -> dict:
+        """keel-web 070 F9 on Importance's Check screen: the counter (*yours + n*) and the one-more ask as drawn, then the
+        founder's own further difficulties typed in. With `one_more` the list is own + 1: *Save* is pressed first and
+        answered 422 ONE_MORE_NEEDED, which opens an empty line, and the first of `add` is typed into it; every other
+        is typed into a line *+ Write a difficulty they'd recognise* opens. Returns what each stage drew."""
+        name = "problem.importance"
+        counter = lambda: _first_text(self.page, "[data-testid=importance-counter]")  # noqa: E731
+        ask = lambda: _first_text(self.page, "[data-testid=importance-one-more]")  # noqa: E731
+        rows = self.page.locator(".listcheck ul.listrows li.listrow textarea.listrow__ed")
+        out: dict = {"counter": counter(), "ask": ask(), "save_enabled": self._primary().is_enabled(), "added": []}
+        with self._b.step(f"founder names {len(add)} more difficult{'y' if len(add) == 1 else 'ies'} on Importance's "
+                          "Check screen" + (" after Save asks for one more" if one_more else "")) as h:
+            h.add_screenshot(self._b.screenshot(f"check-{name}-as-drafted"))
+            if one_more:
+                before = rows.count()
+                with self.page.expect_response(lambda r: r.request.method == "PUT" and "/calibration/PROBLEM" in r.url,
+                                               timeout=20_000) as refused:
+                    self._primary().click()
+                out["refused"] = {"status": refused.value.status, "body": _json_body(refused.value)}
+                self.page.wait_for_function("(n) => document.querySelectorAll("
+                                            "'.listcheck ul.listrows li.listrow textarea.listrow__ed').length > n",
+                                            arg=before, timeout=10_000)
+                out["after_refusal"] = {"rows": rows.count(), "ask": ask(), "remedy": _first_text(
+                    self.page, ".listcheck ~ .err[role=alert], .ccard .err[role=alert]"), "text": _text(self.page)}
+                h.add_screenshot(self._b.screenshot(f"check-{name}-one-more"))
+                rows.nth(rows.count() - 1).fill(add[0])
+                out["added"].append(add[0])
+                add = add[1:]
+            for label in add:
+                before = rows.count()
+                self.page.locator(".listcheck__add").first.click()
+                self.page.wait_for_function("(n) => document.querySelectorAll("
+                                            "'.listcheck ul.listrows li.listrow textarea.listrow__ed').length > n",
+                                            arg=before, timeout=10_000)
+                rows.nth(rows.count() - 1).fill(label)
+                out["added"].append(label)
+            out["counter_after"] = counter()
+            out["ask_after"] = ask()
+            h.add_screenshot(self._b.screenshot(f"check-{name}-named"))
+        return out
+
+    def list_check(self, question: dict, *, timeout_s: float = 60, add: list[str] | None = None,
+                   one_more: bool = False) -> dict:
         """*Check and save* (FR-005): waits out *Keel is writing this from your answer.*, reads the drafted
         list as drawn -- every row, the locked ones (*yours*, *context*, *who decides*), the phrase or the
         step, the *Keel will test* box -- and saves it untouched with the primary (*Save*, or the stage's
@@ -439,7 +494,13 @@ class Corridor:
             seen = {"screen": "check", "frame": self.frame(), **self._list_rows(), "test": self._keel_test()}
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot(f"check-{name}"))
+        if add is not None:
+            seen["importance"] = self.importance_rows(add, one_more=one_more)
+            seen["after"] = self._list_rows()
+            seen["test_after"] = self._keel_test()
+        with self._b.step(f"founder saves {name}") as h:
             seen["primary"] = self._press_primary()
+            h.add_screenshot(self._b.screenshot(f"check-{name}-saved"))
             return seen
 
     def list_choose(self, question: dict, label: str) -> dict:

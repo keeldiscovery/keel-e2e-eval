@@ -163,11 +163,21 @@ def test_role_words_are_keel_clouds_own_list():
      "own + 1 saved: people pick two of three at least"),
     (lambda x: x.update(saved=list(reversed(x["saved"]))), "the saved list is not the redraft"),
     (lambda x: x.update(redraft=list(reversed(x["redraft"]))), "the own item not first"),
+    (lambda x: x.update(typed=["Working to tight deadlines"]), "typed on Check, and not saved"),
 ])
 def test_fm2_fails_on_an_invented_or_missing_difficulty(fault, why):
     record = good()
     fault(record["importance"])
     assert not _by_mark(record)["FM2"].ok, why
+
+
+def test_fm2_counts_what_the_founder_typed_on_the_check_screen():
+    """keel-web 070 F9: Keel's redraft is own + what the Answer named; the founder may type more on Check, and the list
+    saved is both -- nothing of it Keel's own invention."""
+    record = good()
+    x = record["importance"]
+    x.update(named=x["named"][:1], redraft=x["redraft"][:2], typed=["Getting fair rates for work"])
+    assert _by_mark(record)["FM2"].ok, _by_mark(record)["FM2"].detail
 
 
 def test_fm3_fails_on_an_industry_in_any_base_query():
@@ -224,6 +234,18 @@ def test_fm5_fails_on_a_next_press_or_a_long_think():
     record = good()
     record["ai_flow"]["events"] = record["ai_flow"]["events"][:2]
     assert not _by_mark(record)["FM5"].ok, "one clip played is no advance measured"
+
+
+def test_fm5_does_not_time_the_pilot_asks_finish():
+    """The pilot ask keeps *Finish* (keel-web 070 F1): the wait before it is the stranger's, not a stop of the flow."""
+    record = good()
+    record["ai_flow"]["events"] += [{"t": 2600, "kind": "phase", "value": "listening"},
+                                    {"t": 2700, "kind": "phase", "value": "thinking"},
+                                    {"t": 6000, "kind": "next", "value": "Finish"},
+                                    {"t": 6050, "kind": "phase", "value": "speaking"},
+                                    {"t": 6100, "kind": "play", "clip": "thanks"}]
+    check = _by_mark(record)["FM5"]
+    assert check.ok and check.detail["thinking spans (ms)"] == [600], check.detail
 
 
 def test_fm6_fails_on_a_typed_value_without_heard():

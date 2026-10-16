@@ -349,7 +349,8 @@ def test_the_seed_name_rule_reads_as_keel_cloud_097_wrote_it():
 def test_importance_is_drafted_as_the_own_item_then_what_the_answer_names(entry_id):
     """keel-cloud 097 F9 (judgement call 10; spec 046 FM2): the slice's first draft of Importance is the own item alone,
     the founder's Answer names the other difficulties (never the own item, which is code's, locked first), and the
-    redraft from it is the own item and exactly those -- the corpus's own list, three to five items."""
+    redraft from it is the own item and exactly those; on 01-countly the Answer names one and on 05-paidly two (the
+    founder types the rest of the corpus list on the Check screen, keel-web 070 F9), elsewhere all four."""
     entry = _entry(entry_id)
     if entry.unsure("problem.importance"):
         pytest.skip("Importance left out")
@@ -358,11 +359,14 @@ def test_importance_is_drafted_as_the_own_item_then_what_the_answer_names(entry_
     first = next(e for e, (v, only) in zip(screens, jobs) if v == "PROBLEM" and only is None)
     redraft = next(e for e, (v, only) in zip(screens, jobs) if only == "problem.importance")
     own, *others = [i["label"] for i in vs.founder_list(entry, "problem.importance")["items"]]
+    named = vs.importance_named(entry)
     drafted = {q["key"]: q for q in first["result"]["questions"]}["problem.importance"]["list"]["items"]
     assert [i["label"] for i in drafted] == [own]
-    assert [i["label"] for i in redraft["result"]["questions"][0]["list"]["items"]] == [own] + others
+    assert [i["label"] for i in redraft["result"]["questions"][0]["list"]["items"]] == [own] + named
     answer = vs.answer_text(entry, "problem.importance")
-    assert [p.strip() for p in answer.split(";")] == others and own not in answer
+    assert [p.strip() for p in answer.split(";")] == named and own not in answer
+    assert named + vs.importance_typed(entry) == others, "the founder types the rest of their own list on Check"
+    assert len(named) == {"01-countly": 1, "05-paidly": 2}.get(entry_id, len(others)), "one, two, then all named"
     assert vs.IMPORTANCE_MIN_ITEMS <= 1 + len(others) <= 5
 
 

@@ -303,6 +303,11 @@ def leg_interpret_solution(j: Journey) -> None:
         h.record_assert(want, card)
         assert card["text"].strip(), card
         assert not missing, missing
+    with _step(j, "the mechanism card offers no *Someone else would use it* (keel-web 070 F8): who decides is asked "
+                  "once, on the persona step", party="founder") as h:
+        offered = [words for words in vs_screens.SOMEONE_ELSE_USES if words in card["text"]]
+        h.record_assert([], offered)
+        assert not offered, offered
     j.corridor.confirm_seed("SOLUTION")
     view = _wait_calibration(j, "SOLUTION")
     typed = j.founder.idea_name
@@ -321,7 +326,7 @@ def leg_interpret_solution(j: Journey) -> None:
         counter = seen.get("counter") or {}
         drawn_words = len(seen["lines"]["what"].split())
         over = counter.get("over") or {}
-        want = {"drawn": {"text": f"{drawn_words} / 5 words", "over": False, "save_enabled": True},
+        want = {"drawn": {"text": f"{drawn_words} / 5 words", "over": False, "save_enabled": drawn_words > 0},
                 "over": {"typed": over.get("typed"), "text": f"{len(str(over.get('typed')).split())} / 5 words",
                          "over": True, "save_enabled": False},
                 "named": {"text": f"{len(typed.split())} / 5 words", "over": False, "save_enabled": True}}
@@ -353,6 +358,14 @@ def leg_interpret_solution(j: Journey) -> None:
         j.idea_name = str(idea.get("shortName") or "")
         named = j.feedback.setdefault("idea", {})
         named.update({"stored": idea.get("what"), "approved": idea.get("approved"), "typed_name": name})
+        if not NAME_ON_THE_WIRE:
+            named["screen"] = seen["unnamed"]
+    if not NAME_ON_THE_WIRE:
+        with _step(j, "S2 demands the name (keel-web 070 F7): the what box empty with its placeholder *Name it in up "
+                      "to five words*, 0 / 5 words and Save off, until the founder typed one", party="founder") as h:
+            want = {"value": "", "placeholder": feedback_marks.NAME_PLACEHOLDER, "save_enabled": False}
+            h.record_assert(want, seen["unnamed"])
+            assert seen["unnamed"] == want, seen["unnamed"]
     if typed != m["short_name"]:
         with _step(j, f"{j.entry.id}: the founder named the idea {typed!r} on S2, not the mechanism card's "
                       f"{m['short_name']!r} (keel-cloud 090, D14)", party="founder") as h:
@@ -364,9 +377,10 @@ def leg_interpret_solution(j: Journey) -> None:
             assert ((plan.get("idea") or {}).get("what")) == j.idea_name, plan.get("idea")
 
 
-#: Spec 046 T004, until keel-web 070's page objects: the journey names the idea on the wire (`PUT idea`) before S2,
-#: so the screen opens on the name and its Save approves it. False once S2 types the name into the empty field.
-NAME_ON_THE_WIRE = True
+#: Spec 046 T004: True names the idea on the wire (`PUT idea`) before S2, so the screen opens on the name and its Save
+#: approves it -- the stand-in until keel-web 070's S2 (the wire phase). False, since 070: S2 opens empty and the
+#: journey types the name there.
+NAME_ON_THE_WIRE = False
 
 
 def _idea_unnamed(j: Journey, typed: str) -> None:
@@ -469,7 +483,12 @@ def leg_calibrate(j: Journey, vector: str) -> None:
         drafted = _wait_calibration(j, vector)
         question = next((q for q in drafted.get("questions") or [] if q.get("dimension") == key), question)
         _keep_draft(j, question, "answer", answer.text)
-        seen.append(j.corridor.list_check(question))
+        typed = vs.importance_typed(j.entry) if (key == "problem.importance" and j.strict) else []
+        if typed:
+            seen.append(j.corridor.list_check(question, add=typed, one_more=len(vs.importance_named(j.entry)) == 1))
+            _hold_importance_check(j, seen[-1], typed)
+        else:
+            seen.append(j.corridor.list_check(question))
         if key in vs.PICKED:
             label, _ = _choose_label(j, question, answer)
             seen.append(j.corridor.list_choose(question, label))
@@ -517,7 +536,8 @@ def leg_calibrate(j: Journey, vector: str) -> None:
             if drawn != want:
                 mismatches.append({"dimension": key, "screen": drawn, "corpus": want})
             sentence = (j.entry.founder_calibration.get(key) or {}).get("belief_sentence")
-            box = (choose or check)["test"] if (choose or key in KEEL_SET) else None
+            box = (choose or check).get("test_after") or (choose or check)["test"] \
+                if (choose or key in KEEL_SET) else None
             if box is None or box["belief"] == sentence:
                 continue
             if key == "commercial.buyer_payer_alignment" and _capital(box["belief"]) == sentence:
@@ -585,6 +605,45 @@ def leg_calibrate(j: Journey, vector: str) -> None:
 
 def _capital(text: str) -> str:
     return text[:1].upper() + text[1:]
+
+
+def _hold_importance_check(j: Journey, seen: dict, typed: list[str]) -> None:
+    """keel-web 070 F9 on Importance's Check screen: the counter reads *yours + n* for what the Answer named; with one
+    named the screen asks for one more in the founder's words, Save is refused 422 ONE_MORE_NEEDED and opens a line;
+    with two the ask is absent and Save on. The founder types the rest of their own list, and the counter reads
+    *yours + 4*. The *Keel will test* box's sentence counts the list as it stands: *out of two* / *three*, then *five*
+    (keel-web 070 fills `{list_size}`)."""
+    named = len(vs.importance_named(j.entry))
+    x = seen["importance"]
+    one = named == 1
+    with _step(j, f"Importance's Check screen with {named} other{'s' if named != 1 else ''} (keel-web 070 F9): "
+                  f"*yours + {named}*" + (", the ask for one more, Save refused 422 ONE_MORE_NEEDED and a line opened"
+                                          if one else ", no ask, Save on") +
+               f"; the founder types {len(typed)} more and it reads *yours + {named + len(typed)}*",
+               party="founder") as h:
+        size = ["zero", "one", "two", "three", "four", "five"]
+        want = {"counter": f"yours + {named}", "ask": ONE_MORE_ASK if one else "",
+                "save_enabled": True, "added": typed, "counter_after": f"yours + {named + len(typed)}",
+                "ask_after": "", "test": f"out of {size[1 + named]}.",
+                "test_after": f"out of {size[1 + named + len(typed)]}."}
+        if one:
+            want["refused"] = {"status": 422, "code": feedback_marks.ONE_MORE_NEEDED}
+        have = {k: x.get(k) for k in want if k not in ("refused", "test", "test_after")}
+        have["test"] = next((f"out of {w}." for w in size if (seen["test"]["belief"] or "").endswith(f"out of {w}.")),
+                            seen["test"]["belief"])
+        have["test_after"] = next((f"out of {w}." for w in size
+                                   if ((seen.get("test_after") or {}).get("belief") or "").endswith(f"out of {w}.")),
+                                  (seen.get("test_after") or {}).get("belief"))
+        if one:
+            refused = x.get("refused") or {}
+            have["refused"] = {"status": refused.get("status"), "code": _refusal(refused.get("body"))}
+        h.record_assert(want, {**have, "after the refusal": x.get("after_refusal")})
+        assert have == want, json.dumps({"screen": have, "want": want}, indent=2)
+        j.feedback["importance_typed"] = list(typed)
+
+
+#: keel-web 070 `listOneMore(1)`: the Check screen's ask below three in all.
+ONE_MORE_ASK = "Name one more difficulty, in your own words. People pick two of these, so the list needs three."
 
 
 def _keep_draft(j: Journey, question: dict, draft: str, answer: str | None) -> None:
@@ -660,9 +719,12 @@ def _drawn_list(key: str, check: dict) -> dict:
 
 def _corpus_list(entry, key: str) -> dict:
     """The entry's own list as a Check screen draws it: Buyer and payer's "Nobody else" is code's and
-    drawn nowhere on Check (it is Choose's first radio)."""
+    drawn nowhere on Check (it is Choose's first radio); Importance is drawn as Keel redrafted it, the own item and what
+    the Answer named (the founder types the rest there, keel-web 070 F9)."""
     saved = vs.founder_list(entry, key)
     labels = [i["label"] for i in saved["items"] if i.get("code") != vs.NOBODY_ELSE[0]]
+    if key == "problem.importance":
+        labels = labels[:1 + len(vs.importance_named(entry))]
     out = {"items": labels}
     if key == "problem.current_solution_satisfaction":
         out["phrase"] = saved.get("phrase")
@@ -1584,7 +1646,7 @@ def feedback_record(j: Journey) -> dict:
     """Spec 046: the record `evals/feedback_marks.py` scores -- the lists Keel drafted (FM1) with the role words keel-cloud
     exported (`common.role_words`) and the founder's own words, Importance's drafts and saved list (FM2), and what the
     legs kept for FM3-FM6 (the base query, the idea, the AI flow, the typed fields)."""
-    record = {k: v for k, v in j.feedback.items() if k not in ("lists", "importance_probe")}
+    record = {k: v for k, v in j.feedback.items() if k not in ("lists", "importance_probe", "importance_typed")}
     lists = list(j.feedback.get("lists") or [])
     if lists:
         common = getattr(j.registry, "common", None) or {}
@@ -1607,6 +1669,7 @@ def feedback_record(j: Journey) -> dict:
             "first_draft": [i["label"] for i in drafts["first"]["items"]],
             "redraft": [i["label"] for i in (drafts.get("answer") or {}).get("items") or []],
             "saved": [i.get("label") for i in (stored.get(key) or {}).get("items") or []],
+            "typed": list(j.feedback.get("importance_typed") or []),
             "probe": j.feedback.get("importance_probe")}
     return record
 
