@@ -365,7 +365,10 @@ link, Judy for 400, the refusal at 100, the readings on arrival and nothing left
 link answered. Scored by `evals/interviewer_marks.py` (IM1-IM13, `INTERVIEWER_MARKS_VERSION` 1; IM12 unmeasured, DRIFT
 #86). The journeys' readings: on Keel's door nothing is pressed (095); on the own door with the agent connected first the
 founder's session asks, as before. `stack/ledger.py` also reads the stored recording (the scripts are on no route). DRIFT
-#84 resolved; #85-#89 new. `make unit` after 044: **2,035 passed / 53 skipped**. **Nothing generated is committed** -- the script, the
+#84 resolved; #85-#89 new. `make unit` after 044: **2,035 passed / 53 skipped**. **Since spec `045-brief-on-return`
+(2026-10-16) they run keel-cloud 096 (keel-cloud-docs `7b1e4f6`, document 23)**: no batch writes the brief; after every
+answer is read each journey holds no BRIEF, comes back as the founder (`GET overview`) and sees exactly one land
+(`_brief_on_return`); IM13 reads `brief:on-return` and fails `brief:after-batch`. **Nothing generated is committed** -- the script, the
 keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
 the end of every run.
 

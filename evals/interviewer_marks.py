@@ -32,9 +32,10 @@ CHANGE_ACTION = f"Change who asks · {fake.CHANGE_PRICE} AI credits"
 CONTENT_WORD = 4          # a word of at least this many letters counts toward a line's coverage
 COVERAGE = 0.8            # the share of a line's content words the solution passage must say
 SHINGLE = 6               # six words of the founder's word in a row, spoken, is the word spoken
-#: keel-cloud 095 FR-E: why a reading's or a brief's HOLD was written without a click (a founder's own POST readings
-#: carries none).
-READ_REASON = re.compile(r"^(read-on-arrival:[0-9a-f-]{36}|brief:after-batch|retry:[23]:[0-9a-f-]{36})$")
+#: keel-cloud 095 FR-E / 096: why a reading's or a brief's HOLD was written without a click -- a reading on arrival, the
+#: brief on the founder's return (096; 095's `brief:after-batch` is retired), a lost race's retry. A founder's own POST
+#: readings carries none.
+READ_REASON = re.compile(r"^(read-on-arrival:[0-9a-f-]{36}|brief:on-return|retry:[23]:[0-9a-f-]{36})$")
 
 
 @dataclass(frozen=True)
@@ -266,9 +267,10 @@ def the_retry_free(r: dict) -> tuple[bool, Any]:
 
 
 def read_on_arrival(r: dict) -> tuple[bool, Any]:
-    """IM13 (keel-cloud 095): on Keel's door every answer with words is read on arrival -- its INTERPRET HOLD says
+    """IM13 (keel-cloud 095 / 096): on Keel's door every answer with words is read on arrival -- its INTERPRET HOLD says
     `read-on-arrival:<invitationId>`, at most three attempts a reading (a retry says `retry:<n>:<parent>`) -- and
-    every reading or brief HOLD the leg's ledger holds says why it was written: none was pressed by the founder."""
+    every reading or brief HOLD the leg's ledger holds says why it was written (a brief `brief:on-return`): none was
+    pressed by the founder, and no brief is written by a batch."""
     holds = [x for x in r["ledger"] if x.get("kind") == "HOLD" and x.get("action") in ("INTERPRET", "BRIEF")]
     unexplained = [x for x in holds if not READ_REASON.match(x.get("reason") or "")]
     per = {}

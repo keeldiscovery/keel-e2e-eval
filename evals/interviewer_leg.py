@@ -571,7 +571,7 @@ def _the_recording(j, wire: _Wire, record: dict) -> None:
                          "clips": [(c.get("role"), c.get("kind"), c.get("itemId")) for c in rec.get("clips") or []],
                          "off the fake": off, "schema_version": stored.get("schema_version")})
         assert rec.get("face") == FIRST_FACE and rec.get("status") == "READY", rec.get("status")
-        assert stored.get("schema_version") == 22, stored.get("schema_version")
+        assert int(stored.get("schema_version") or 0) >= 22, stored.get("schema_version")   # 23 since keel-cloud 096
         assert not off, off
 
 
@@ -919,12 +919,12 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
 
 def _read_on_arrival(j, wire: _Wire, record: dict, invitation_id: str, whose: str) -> None:
     """keel-cloud 095 FR-A / FR-E, on Keel's door: an answer with words is read on arrival -- the founder presses
-    nothing -- and its INTERPRET HOLD says why (`read-on-arrival:<invitationId>`), the brief's after the batch
-    `brief:after-batch`. On this stack Keel's own AI has no key, so each job fails at once and is refunded; the batch
-    still ends. Nothing here starts a reading."""
+    nothing -- and its INTERPRET HOLD says why (`read-on-arrival:<invitationId>`); since keel-cloud 096 no batch writes
+    the brief. On this stack Keel's own AI has no key, so each job fails at once and is refunded; the batch still ends.
+    Nothing here starts a reading."""
     with j.recorder.step(f"interviewer (keel-cloud 095): {whose} answer is read on arrival -- no POST readings; the "
-                         "newest batch ends; its INTERPRET HOLD carries read-on-arrival:<invitationId> and the brief's "
-                         "brief:after-batch (Keel's AI has no key on this stack: each job refunded)", party="stack",
+                         "newest batch ends; its INTERPRET HOLD carries read-on-arrival:<invitationId>, and no batch "
+                         "writes the brief (096; Keel's AI has no key on this stack: each job refunded)", party="stack",
                          kind="assert") as h:
         deadline = time.monotonic() + 60 * j.patience
         batch: dict = {}
@@ -971,6 +971,25 @@ def _read_what_is_left(j, wire: _Wire, record: dict) -> None:
         assert status == 201 and batch.get("status") == "DONE" and not batch.get("failed"), record["left_unread"]
         # a reading's refusal names itself in `rule` (`ReadingRefusal`), not `code`
         assert again == 409 and (nothing.get("code") or nothing.get("rule")) == "NOTHING_TO_READ", record["left_unread"]
+    with j.recorder.step("interviewer (keel-cloud 096, spec 045): the readings wrote no brief; the founder comes back "
+                         "(GET overview on the session the agent is bound to) and one BRIEF is started and ends on "
+                         "this journey's own runtime (spec 045 call 172)", party="founder", kind="assert") as h:
+        briefs = lambda: [i for i in (j.get(f"/v2/inference-interactions?project_id={j.project_id}") or [])  # noqa: E731
+                          if i.get("screen") == "BRIEF"]
+        before = briefs()
+        j.get(j.project("/overview"))
+        deadline = time.monotonic() + 60 * j.patience
+        after = briefs()
+        ended = {"APPLIED", "RESULT_INVALID", "DOMAIN_REFUSED", "JOB_FAILED", "APPLY_ERROR", "ABANDONED"}
+        seen = {x.get("interaction_id") for x in before}
+        while time.monotonic() < deadline and not [b for b in after
+                                                   if b.get("interaction_id") not in seen and b.get("status") in ended]:
+            time.sleep(1)
+            after = briefs()
+        new = [b.get("status") for b in after if b.get("interaction_id") not in seen]
+        record["brief_on_return"] = {"before": [b.get("status") for b in before], "new": new}
+        h.record_assert({"new BRIEF": "one that ends (a lost race's retries aside)"}, record["brief_on_return"])
+        assert 1 <= len(new) <= 3 and new.count("STATE_CONFLICT") == len(new) - 1, new
 
 
 def _choice_intro_on_screen(j, url: str) -> dict:
