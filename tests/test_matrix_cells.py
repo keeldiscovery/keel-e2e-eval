@@ -361,8 +361,15 @@ def test_the_default_scenario_is_the_journey(matrix):
 
 
 def test_the_live_scenarios_are_the_two_marked_live(matrix):
-    # The two `@pytest.mark.live` modules in evals/, and no others: everything else is free.
-    assert set(matrix.live) == {"s004", "s012"}
+    # The two `@pytest.mark.live` scenario modules in evals/, and no others: everything else is free -- and, since spec
+    # 048, the live classifier check (`evals/test_classifier_live.py`), which is live and is not a scenario.
+    assert set(matrix.live) == {"s004", "s012", "classifier"}
+
+
+def test_the_live_classifier_check_rides_the_weekly_corpus_cell_alone(matrix):
+    carriers = [c for s in matrix.sets.values() for c in s if "classifier" in c.scenarios]
+    assert [c.id for c in carriers] == ["macos-latest-claude-py3.13"], [c.id for c in carriers]
+    assert carriers[0].as_dict(matrix.live)["live_k"] == "s012 or classifier"
 
 
 def test_ids_are_unique_within_every_set(matrix):

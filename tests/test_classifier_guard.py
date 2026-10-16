@@ -196,11 +196,27 @@ def test_the_fakes_reasons_are_its_own():
     files = [root / "infrastructure/interviewer/FakeClassifier.java", root / "application/interviewer/Classification.java"]
     if not all(f.is_file() for f in files):
         pytest.skip("keel-cloud has no FakeClassifier (before 099)")
-    calls = re.compile(r"(?:valued|picked|unclear|escaped|agreed|new Read|settle|\.at)\(")
-    written = {lit for f in files for line in f.read_text(encoding="utf-8").splitlines() if calls.search(line)
-               for lit in re.findall(r'"([^"]*)"', line)}
-    assert all(guard.fake_reason(r) for r in written), sorted(r for r in written if not guard.fake_reason(r))
+    calls = re.compile(r"\b(?:valued|picked|unclear|escaped|agreed|hours|settle|withOrdinals)\(|new Read\(|\.at\(")
+    written: set[str] = set()
+    for f in files:
+        source = re.sub(r"//[^\n]*", "", re.sub(r"/\*.*?\*/", "", f.read_text(encoding="utf-8"), flags=re.S))
+        for statement in source.split(";"):
+            if "return" in statement and calls.search(statement):
+                written |= set(re.findall(r'"([^"]*)"', statement))
+    # the words the same statements match on, never a reason
+    words = {"a", "all", "an", "and", "day", "each", "every", "full", "half", "hour", "not all", "one", "whole"}
+    unknown = sorted(r for r in written - words if not guard.fake_reason(r) and not re.search(r"[?|]", r))
+    assert not unknown, unknown
+    assert "yes or no" in written and "two labels fit" in written, sorted(written)
     report = guard.Report(outcomes=[guard.Outcome(None, 200, {"reason": "two labels fit"}, "safe")])
     assert report.answered_by_fake
     report.outcomes.append(guard.Outcome(None, 200, {"reason": "correction: timesheets replaces tax"}, "right"))
     assert not report.answered_by_fake
+
+
+def test_a_run_the_model_never_answered_is_told_apart():
+    failed = guard.Report(outcomes=[guard.Outcome(None, 200, {"reason": r, "unclear": True}, "safe")
+                                    for r in ("timeout", "vendor")])
+    assert failed.model_never_answered and not failed.answered_by_fake
+    failed.outcomes.append(guard.Outcome(None, 200, {"reason": "two labels fit"}, "safe"))
+    assert not failed.model_never_answered

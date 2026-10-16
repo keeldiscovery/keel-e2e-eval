@@ -47,7 +47,11 @@ FAKE_REASONS = frozenset({
     "both an amount and hours", "both", "correction", "escape", "inside a label", "key words",
     "no amount or hours heard", "no amount or hours", "no number heard", "no number", "no option matched", "no unit",
     "no yes or no heard", "not one of the options", "nothing heard", "ordinal", "out of range", "replaced",
-    "the label said", "the story is not classified", "two answers", "two labels fit", "unclear", "which one?", ""})
+    "the label said", "the story is not classified", "two answers", "two labels fit", "unclear", "which one?",
+    "yes or no", "number", "two numbers heard", "hours", "minutes as hours", "days as hours", "a day", "an hour",
+    "half a day", "half an hour", "a day and a half", "days and a half", "part of a day", ""})
+#: What keel-cloud's KeelsAiClassifier answers when the model did not (099 FR-2: never an error to the page).
+FAILED_REASONS = frozenset({"timeout", "vendor"})
 
 
 def fake_reason(reason: str | None) -> bool:
@@ -466,6 +470,10 @@ class Report:
     def answered_by_fake(self) -> bool:
         """Every answer's reason is one the fake writes (see `FAKE_REASONS`)."""
         return bool(self.outcomes) and all(fake_reason(o.got.get("reason")) for o in self.outcomes)
+
+    @property
+    def model_never_answered(self) -> bool:
+        return bool(self.outcomes) and all((o.got.get("reason") or "") in FAILED_REASONS for o in self.outcomes)
 
     def summary(self) -> dict:
         return {"cases": len(self.outcomes) + len(self.skipped), "asked": len(self.outcomes),

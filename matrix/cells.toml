@@ -122,7 +122,12 @@ default = ["s012"]
 # `make eval`, deterministic and free. The workflow splits a cell's list on this, which is how the
 # weekly's corpus cell (S-005/6/7, decision 11: "they cost nothing but minutes") rides on a cell
 # that is already paid for.
-live = ["s004", "s012"]
+#
+# `classifier` (spec 048 FR-2) is not a scenario: it is `evals/test_classifier_live.py`, the live column's one
+# text-only check of keel-cloud 099's classifier against Keel's AI on staging -- the spoken-answer cases on a named
+# AI link (`KEEL_CLASSIFIER_LINK`, the workflow's secret of that name), under $0.10, skipped by name without the link.
+# It rides the weekly's macOS x Claude 3.13 cell beside the corpus trio.
+live = ["s004", "s012", "classifier"]
 
 # ------------------------------------------------------------------------------------- the sets
 
@@ -157,7 +162,8 @@ nightly = []
 # model at all, and cost this set nothing but the minutes of a cell already running. They land
 # under their own founders in the picker, beside the eight.
 weekly = [
-    { os = "macos-latest",   host = "claude",  python = "3.13", scenarios = ["s012", "s005", "s006", "s007", "s013"] },
+    { os = "macos-latest",   host = "claude",  python = "3.13", scenarios = ["s012", "s005", "s006", "s007", "s013",
+                                                                           "classifier"] },
     { os = "macos-latest",   host = "claude",  python = "3.13", legs = "short", install = "speckit" },
     { os = "macos-latest",   host = "copilot", python = "3.13" },
     { os = "macos-latest",   host = "codex",   python = "3.13" },

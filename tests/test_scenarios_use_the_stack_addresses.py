@@ -57,7 +57,7 @@ def _scenarios_in_remote_sets() -> set[str]:
 
 
 def _module_for(scenario_id: str) -> Path:
-    matches = sorted(EVALS.glob(f"test_{scenario_id}_*.py"))
+    matches = sorted(EVALS.glob(f"test_{scenario_id}_*.py")) or sorted(EVALS.glob(f"test_{scenario_id}.py"))
     assert len(matches) == 1, f"{scenario_id}: expected one module, found {matches}"
     return matches[0]
 
@@ -73,6 +73,10 @@ def _body_of(module: Path) -> str:
 @pytest.mark.parametrize("scenario_id", sorted(_scenarios_in_remote_sets()))
 def test_a_scenario_the_matrix_runs_signs_in_as_the_cells_own_founder(scenario_id: str):
     text = _body_of(_module_for(scenario_id))
+    if "sign_in" not in text and "Auth(" not in text:
+        # spec 048: the live classifier check signs in as nobody -- a stranger's link is its only credential
+        assert "/v2/i/" in text, f"{scenario_id} signs in as nobody and reaches no stranger's route either"
+        return
     assert "remote.identity_to_sign_in_as(" in text, (
         f"{scenario_id} is in a matrix set but signs in as the built-in founder; on the twin it "
         "must sign in as `remote.identity_to_sign_in_as(stack, <label>, fallback=founder_one)`")

@@ -668,6 +668,9 @@ jobs:
       # §4.3: this is the name of the founder the cell registers with the twin's picker, which is
       # what the founder reads in the morning.
       KEEL_REMOTE_CELL: ${{ matrix.cell.id }}
+      # spec 048 FR-2: the live classifier check's one subject -- an unanswered AI-interviewer link on the twin whose
+      # founder is outside fake-for, made by the founder once (classify stores nothing). Absent: skipped by name.
+      KEEL_CLASSIFIER_LINK: ${{ secrets.KEEL_CLASSIFIER_LINK }}
       KEEL_JOURNEY_HOST: ${{ matrix.cell.host }}
       # spec 021: `short` on the four per-change cells -- the host leg and the first model job --
       # and `full` everywhere else. The cell's own field, so the set decides and the job reads.
