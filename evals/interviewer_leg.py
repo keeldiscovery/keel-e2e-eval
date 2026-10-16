@@ -246,24 +246,22 @@ def _own_ai(j, wire: _Wire, record: dict) -> None:
 
 
 def _drift_85(j, wire: _Wire, record: dict) -> None:
-    """runs/DRIFT.md #85: contract 16 says the batch refuses an own-AI account's AI_INTERVIEWER / CHOICE links 422
-    INTERVIEWER_NEEDS_CREDITS, as the single link and the commercial link do; keel-cloud's batch (`ContactsService.
-    makeLinks`) never asks the door and answers 409 INTERVIEWER_NOT_READY. Stepped round, not failed: what is held is
-    that nothing is made; the code is held straight the moment it is the contract's."""
-    with j.recorder.step("interviewer: DRIFT #85 -- on their own AI the founder's AI-interviewer link in a BATCH is "
-                         "refused 409 INTERVIEWER_NOT_READY where contract 16 says 422 INTERVIEWER_NEEDS_CREDITS; "
-                         "nothing is made either way", party="founder", kind="assert") as h:
+    """runs/DRIFT.md #85, RESOLVED by keel-cloud 097 (call 21): on their own AI the founder's AI_INTERVIEWER link in a
+    batch is refused 422 INTERVIEWER_NEEDS_CREDITS -- the door is asked first, as on the single-link routes -- and
+    nothing is made (spec 046 FR-003; spec 044 stepped round its 409 INTERVIEWER_NOT_READY)."""
+    with j.recorder.step("interviewer (keel-cloud 097, DRIFT #85 closed): on their own AI the founder's AI-interviewer "
+                         "link in a BATCH is refused 422 INTERVIEWER_NEEDS_CREDITS, and nothing is made",
+                         party="founder", kind="assert") as h:
         before = len((wire("GET", "/invitations")[1]).get("invitations") or [])
         status, body = wire("POST", "/invitations/batch", {
             "expectedRevision": j.revision(), "respondentType": vs.LINK_PRIMARY, "format": "AI_INTERVIEWER",
             "people": [{"personName": AI_PERSON}]}, ok=(409, 422))
         after = len((wire("GET", "/invitations")[1]).get("invitations") or [])
-        fired = (status, body.get("code")) == (409, fake.NOT_READY)
-        record["own_ai"]["batch"] = {"status": status, "body": body, "drift_85": fired}
+        record["own_ai"]["batch"] = {"status": status, "body": body}
         h.record_assert({"status": 422, "code": fake.NEEDS_CREDITS, "made": 0},
-                        {"status": status, "code": body.get("code"), "made": after - before, "DRIFT #85": fired})
+                        {"status": status, "code": body.get("code"), "made": after - before})
         assert before == after, (before, after)
-        assert fired or (status, body.get("code")) == (422, fake.NEEDS_CREDITS), body
+        assert (status, body.get("code")) == (422, fake.NEEDS_CREDITS), body
 
 
 def _keels_door(j, wire: _Wire, founder_id: str, run: str) -> None:
@@ -828,6 +826,7 @@ def _drive_ai(player, interview: dict, expected: dict) -> list[dict]:
             player.fill_field(str(cost.get("value")))
             player.answer()
             entry["did"].append(f"typed {cost.get('value')} into the field")
+            entry["typed"] = {"itemId": item["itemId"], "value": str(cost.get("value"))}
         else:
             labels = [options[o] for o in ans.get("optionIds") or []]
             assert len(labels) == 1, {"item": item["dimension"], "answer": ans}
@@ -893,6 +892,13 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
         sent = {a["itemId"]: _closed(a) for a in body.get("answers") or []}
         want = {a["itemId"]: _closed(a) for a in expected.get("answers") or []}
         top = {k: body.get(k) for k in ("recency", "story", "anchorChip") if k in expected}
+        by_item = {a.get("itemId"): a for a in body.get("answers") or []}
+        typed = [{"itemId": w["typed"]["itemId"], "typed": w["typed"]["value"],
+                  "how": (by_item.get(w["typed"]["itemId"]) or {}).get("how"),
+                  "heard": (by_item.get(w["typed"]["itemId"]) or {}).get("heard")} for w in walked if w.get("typed")]
+        if typed:
+            # Spec 046 FM6 (keel-web 070, DRIFT #89 closed): a value typed into the field carries `heard`.
+            record["typed_fields"] = j.feedback["typed_fields"] = typed
         record["ai_answers"] = {"body": body, "status": (responses[0] if responses else {}).get("status"),
                                 "register_row": row, "by": "keel-web", "walked": walked, "intro": intro,
                                 "done": done, "expected": expected}

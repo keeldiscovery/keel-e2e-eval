@@ -330,6 +330,8 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
         base = (deciders.get("base") or {}).get("query") or {}
         drawn = contacts.open(j.project_id)
         tab = contacts.tab(deciders.get("label") or "")
+        # Spec 046 FM3 (keel-cloud 097 F5): the base query carries no industry, on any kind's tab.
+        j.feedback["base_query"] = {k: (v.get("base") or {}).get("query") for k, v in kinds.items()}
         record["overview"] = {"kinds": list(kinds), "prices": overview.get("prices"), "base": base,
                               "base_sized": (deciders.get("base") or {}).get("sizedWithEmail"),
                               "base_fake": fake.size(everyone, base) if base else None, "drawn": drawn, "tab": tab}
@@ -359,10 +361,10 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
                         {"chips": chips, "dataset": dataset, "sized": out["entry"]})
         assert chips.get("Who · job titles") == base["titles"], chips
         assert len(chips.get("Level") or []) == len(base["levels"]), chips
-        assert len(chips.get("Companies") or []) == len(base["categories"]) + len(base["companySizes"]), chips
+        assert len(chips.get("Companies") or []) == len(base.get("categories") or []) + len(base["companySizes"]), chips
         assert dataset.get("basedOn") == "BASE" and dataset.get("respondentType") == KIND, dataset
-        assert {k: dataset["query"][k] for k in ("titles", "levels", "categories", "companySizes")} == \
-            {k: base[k] for k in ("titles", "levels", "categories", "companySizes")}, (dataset["query"], base)
+        assert {k: dataset["query"].get(k) or [] for k in ("titles", "levels", "categories", "companySizes")} == \
+            {k: base.get(k) or [] for k in ("titles", "levels", "categories", "companySizes")}, (dataset["query"], base)
         assert out["entry"]["wire"] == out["entry"]["fake"], out["entry"]
 
     with j.recorder.step(f"contacts (C2, call 132): the founder removes every chip but the market, names it "

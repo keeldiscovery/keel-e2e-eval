@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 
@@ -86,17 +87,20 @@ RESPONDENT_NOTE = "Respondents are asked about their own most recent time, never
 
 #: Every place this module writes a word the corpus does not record (spec 041 *Disagreements*).
 COMPOSED = (
-    "SOLUTION_MECHANISM.idea_what / idea_how / idea_belief -- r10 records none; composed from the mechanism",
+    "SOLUTION_MECHANISM.idea_how / idea_belief -- r10 records none; composed from the mechanism (keel-cloud 097 F7: "
+    "no idea_what -- the idea's name is never the model's)",
     "CALIBRATION_QUESTIONS Prevalence's event and its five fifths' labels and belief phrases -- r10 records "
     "only the founder's chosen code and its phrase",
     "the founder's Answer-screen words on each list dimension -- r10 records the saved list, not the Answer "
-    "it was drafted from; composed as the list's own labels, at most 25 words",
+    "it was drafted from; composed as the list's own labels, at most 25 words (Importance's: the others alone, "
+    "spec 046 -- the own item is the problem, code's, locked first)",
     "RESPONDENT_QUESTIONS the gate's event clause -- r10 records none (keel-cloud 088 call 13); 'have a time "
     "when {circumstance}', or the referee's shorter clause where that frames past 20 words (E4)",
     "BRIEF reading -- r10 records none; a referee-worded headline and three answers citing each stage's "
     "deciding dimension",
-    "the founder's own name for the idea on S2 (keel-cloud 090, D14) -- r11 records Keel's short name only; one "
-    "entry (IDEA_NAMES) is renamed by the founder, every other keeps Keel's draft untouched",
+    "the founder's own name for the idea on S2 (keel-cloud 090, D14; 097 F7) -- r11 records Keel's short name only and "
+    "no r11 solution seed carries a product name, so every founder types one: the entry's short name, or one entry's "
+    "own (IDEA_NAMES)",
 )
 
 
@@ -280,6 +284,9 @@ def problem_result(entry) -> dict:
 
 
 def idea_lines(entry) -> dict:
+    """The idea's three lines as r10 composed them: *Imagine {short_name}.*, the how, the belief. Since keel-cloud 097
+    (F7) the what line is not the model's -- the script sends `idea_how` / `idea_belief` alone -- and the what is the
+    name the founder types (`idea_name`)."""
     m = entry.solution_mechanism or {}
     what = f"Imagine {short_name(entry)}."
     how = _sentence(f"{m['trigger']}, {m['actor']} {m['mechanism']}; it gives {m['output']}.")
@@ -287,10 +294,15 @@ def idea_lines(entry) -> dict:
     return {"what": what, "how": how[:300], "belief": belief[:200]}
 
 
-#: keel-cloud 090 (D14): the founder names the idea on S2. One entry's founder renames it -- three plain words, no
-#: claim word (L3) and no product word, at most five (L5) -- so one journey proves the name every later question uses is the founder's;
-#: every other journey saves Keel's draft untouched (spec 042 call 117, COMPOSED).
+#: keel-cloud 090 (D14): the founder names the idea on S2. Since keel-cloud 097 (F7) every founder does -- Keel drafts
+#: no name and no r11 seed carries one (`seed_idea_name`) -- so every journey types the entry's short name, and one
+#: entry's founder types a name of their own -- three plain words, no claim word (L3) and no product word, at most five
+#: (L5) -- so one journey proves the name every later question uses is the founder's, not the card's (spec 042 call
+#: 117, spec 046, COMPOSED).
 IDEA_NAMES = {"05-paidly": "Invoice payout service"}
+
+#: keel-cloud `IdeaLines.NAME_MAX_WORDS` (L5).
+NAME_MAX_WORDS = 5
 
 
 def idea_name_of(line: str) -> str:
@@ -315,11 +327,74 @@ def idea_name_of(line: str) -> str:
     return " ".join(words)
 
 
+# keel-cloud 097 `IdeaName.fromSeed`, restated: a quoted phrase of one to five words with no sentence punctuation, else
+# the first run of two to five capitalised words that is not only a sentence's opening capital, not a place and not
+# acronyms alone; else nothing.
+_QUOTED = re.compile(r'"([^"]{1,80})"|\u201c([^\u201d]{1,80})\u201d|\u2018([^\u2019]{1,80})\u2019')
+_SEED_WORD = re.compile(r"[^\W_]+(?:[-'\u2019&][^\W_]+)*")
+_OPENERS = {"a", "an", "the", "it", "its", "this", "that", "these", "those", "we", "our", "i", "my", "you", "your",
+            "they", "their", "he", "she", "when", "if", "after", "before", "once", "then", "so", "and", "but",
+            "imagine", "with", "for", "every", "each", "there", "here", "what", "how", "today", "now"}
+_PLACE_WORDS = {"in", "at", "from", "near", "across", "around", "throughout"}
+_ASCII_PUNCT = re.escape("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
+_ASCII_PUNCT_NO_PAREN = re.escape("!\"#$%&'(*+,-./:;<=>?@[\\]^_`{|}~")
+
+
+def _clean_name(phrase: str | None) -> str:
+    phrase = re.sub(r"\s+", " ", (phrase or "").strip())
+    phrase = re.sub(f"^[{_ASCII_PUNCT}]+|[{_ASCII_PUNCT_NO_PAREN}]+$", "", phrase)
+    return phrase.strip()
+
+
+def seed_idea_name(seed: str | None) -> str | None:
+    """keel-cloud 097 `IdeaName.fromSeed` (judgement call 14): the product name the founder's solution seed carries, or
+    `None`. keel-cloud also drops a name its Save rules (L1-L3, L5) would refuse; no r11 seed yields one either way."""
+    if not seed or not seed.strip():
+        return None
+    for m in _QUOTED.finditer(seed):
+        phrase = _clean_name(m.group(1) or m.group(2) or m.group(3))
+        words = len(phrase.split(" ")) if phrase else 0
+        if 1 <= words <= NAME_MAX_WORDS and not re.search(r"[.!?;:]", phrase):
+            return phrase
+    tokens = [(m.start(), m.end()) for m in _SEED_WORD.finditer(seed)]
+
+    def text(t):
+        return seed[t[0]:t[1]]
+
+    def capitalised(t):
+        return seed[t[0]].isupper()
+
+    def sentence_start(t):
+        before = seed[:t[0]].rstrip()
+        return not before or before[-1] in ".!?:;\n\"\u201c("
+
+    i = 0
+    while i < len(tokens):
+        if not capitalised(tokens[i]):
+            i += 1
+            continue
+        end = i
+        while end + 1 < len(tokens) and capitalised(tokens[end + 1]) \
+                and re.fullmatch(r"[ \t]+", seed[tokens[end][1]:tokens[end + 1][0]]):
+            end += 1
+        start = i
+        if sentence_start(tokens[i]) and text(tokens[i]).lower() in _OPENERS:
+            start += 1
+        place = start > 0 and start == i and text(tokens[i - 1]).lower() in _PLACE_WORDS
+        words = end - start + 1
+        acronyms = all(text(tokens[k]) == text(tokens[k]).upper() for k in range(start, end + 1))
+        if not place and 2 <= words <= NAME_MAX_WORDS and not acronyms:
+            return _clean_name(seed[tokens[start][0]:tokens[end][1]])
+        i = end + 1
+    return None
+
+
 def idea_view(entry) -> dict:
-    """`IdeaView` as keel-cloud serves Keel's draft (spec 090 FR-003): `what` the draft's name -- no *Imagine* -- which
-    for every r11 entry is its short name byte for byte (090 FR-006), `how` and `belief` the draft's."""
+    """`IdeaView` as keel-cloud serves it once the mechanism card lands (spec 090 FR-003; 097 F7): `what` the seed's
+    product name or **None** (no r11 seed carries one), `how` and `belief` Keel's draft."""
     lines = idea_lines(entry)
-    return {"what": idea_name_of(lines["what"]), "how": lines["how"], "belief": lines["belief"]}
+    return {"what": seed_idea_name(" ".join(str((entry.statements or {}).get("solution") or "").split())),
+            "how": lines["how"], "belief": lines["belief"]}
 
 
 def idea_card(name: str) -> str:
@@ -333,15 +408,15 @@ def benefit_question(occasion_word: str, name: str) -> str:
            "better, or not?"
 
 
-def founder_idea_name(entry) -> str | None:
-    """What the founder types over the what line on S2, or `None` where Keel's draft is saved untouched."""
-    return IDEA_NAMES.get(entry.id)
+def founder_idea_name(entry) -> str:
+    """What the founder types as the idea's name on S2 (keel-cloud 097 F7: every founder names it) -- the entry's own
+    (`IDEA_NAMES`) or its short name."""
+    return IDEA_NAMES.get(entry.id) or short_name(entry)
 
 
 def idea_name(entry) -> str:
-    """The idea's name after S2 -- the founder's (`IDEA_NAMES`) or Keel's own short name -- as keel-cloud stores it."""
-    typed = founder_idea_name(entry)
-    return idea_name_of(typed) if typed else short_name(entry)
+    """The idea's name after S2 -- what the founder typed -- as keel-cloud stores it (`IdeaLines.nameOf`)."""
+    return idea_name_of(founder_idea_name(entry))
 
 
 def mechanism_result(entry) -> dict:
@@ -359,7 +434,7 @@ def mechanism_result(entry) -> dict:
     return {"actor": m["actor"], "trigger": m["trigger"], "mechanism": m["mechanism"],
             "output": m["output"], "not_assumed": list(m.get("not_assumed") or []),
             "mechanism_terms": terms, "short_name": short_name(entry),
-            "idea_what": idea["what"], "idea_how": idea["how"], "idea_belief": idea["belief"]}
+            "idea_how": idea["how"], "idea_belief": idea["belief"]}
 
 
 # ---------------------------------------------------------------------- the founder's calibration
@@ -539,6 +614,10 @@ def answer_text(entry, key: str) -> str:
     Buyer and payer with nobody else to agree is "Nobody" (keel-web's hint: *"Nobody" is an answer*)."""
     saved = founder_list(entry, key)
     labels = [i["label"] for i in saved["items"] if i.get("code") != NOBODY_ELSE[0]]
+    if key == "problem.importance":
+        # keel-cloud 097 (F9): the Answer names the OTHER difficulties -- the own item is the problem itself, locked
+        # first by code -- and Keel's redraft is the own item plus exactly those (spec 046 FM2).
+        labels = labels[1:]
     if key == "problem.current_solution_satisfaction" and saved.get("phrase"):
         labels = [saved["phrase"]] + labels
     if not labels:
@@ -552,10 +631,81 @@ def answer_text(entry, key: str) -> str:
     return text
 
 
-def calibration_question(entry, key: str) -> dict:
+#: keel-cloud 097 `common.role_words` (registry decision 21), restated: the role nouns its `L6` refuses in a drafted list
+#: item the founder's own words do not carry. `tests/test_feedback_marks.py` holds it equal to keel-cloud's export.
+ROLE_WORDS = ("director", "manager", "CFO", "CTO", "CEO", "head", "officer", "VP", "partner", "spouse", "owner",
+              "founder", "accountant", "lawyer", "HR", "finance", "legal", "procurement", "IT", "security team")
+
+
+def role_pattern(word: str) -> re.Pattern:
+    """keel-cloud 097 `RoleWords.pattern`, restated: whole words, a plural or possessive counted ("directors",
+    "partner's", "owners'"); a word the registry writes in capitals (CFO, HR, IT, VP) matches in capitals only, so
+    "it" is never IT; a word of more than one word ("security team") matches across any run of spaces."""
+    stripped = word.strip()
+    capitals = any(c.isalpha() for c in stripped) and stripped == stripped.upper()
+    body = r"\s+".join(re.escape(part) for part in stripped.split())
+    regex = rf"(?<![^\W_]){body}(?:s|es)?(?:['\u2019]s?)?(?![^\W_])"
+    return re.compile(regex) if capitals else re.compile(regex, re.IGNORECASE)
+
+
+def carries_role(text: str | None, word: str) -> bool:
+    """`RoleWords.carries`: whether `text` carries `word` as a whole word, a plural or possessive counted."""
+    if not text or not word or not word.strip():
+        return False
+    return bool(role_pattern(word).search(text))
+
+
+def first_unnamed_role(text: str | None, role_words, founders_text: str) -> str | None:
+    """`RoleWords.firstUnnamed`: the first role word `text` carries that the founder's text does not, in list order."""
+    if not text or not text.strip():
+        return None
+    return next((w for w in role_words if carries_role(text, w) and not carries_role(founders_text, w)), None)
+
+
+def founders_words_before_answers(entry) -> str:
+    """The founder's own words keel-cloud's `L6` reads on a vector's FIRST draft -- before any Answer: the context
+    fields as typed, the problem seed, the persona's decider and the confirmed mechanism card (097 call 6; the saved
+    lists and the context slots it also reads are left out, so the script never leans on them)."""
+    ctx = _ctx(entry)
+    m = entry.solution_mechanism or {}
+    parts = [ctx.get(k) for k in ("actor", "job", "circumstance", "segment")]
+    parts += [(entry.statements or {}).get("problem")]
+    parts += [m.get(k) for k in ("actor", "trigger", "mechanism", "output")] + list(m.get("not_assumed") or [])
+    if is_b2b(entry):
+        parts.append(entry.decision_maker_role())
+    return " ".join(str(p) for p in parts if p)
+
+
+#: keel-cloud 097 (F9, judgement call 12): Save and the lock need Importance's own item and two others.
+IMPORTANCE_MIN_ITEMS = 3
+
+
+def importance_first_draft(entry) -> dict:
+    """keel-cloud 097 (F9, judgement call 10): Keel's first draft of Importance, before the founder's Answer, is the
+    own item alone (`L1`: exactly one) -- the others come from the Answer and Keel adds none."""
+    return {"items": [{"label": founder_list(entry, "problem.importance")["items"][0]["label"]}]}
+
+
+def first_draft(entry, key: str) -> dict:
+    """A list's first draft, before the founder's Answer (keel-cloud 097 F6, `L6`): the entry's own items less every one
+    that names a role the founder had not yet written -- the role comes from the Answer, which the redraft reads
+    (05-paidly's Purchase friction drafts *A security review* alone; the agency owner and finance come with the Answer).
+    An item dropped is the corpus's, never replaced."""
+    draft = drafted_list(entry, key)
+    own = founders_words_before_answers(entry)
+    texts = lambda item: [item.get("label"), item.get("asked")]  # noqa: E731
+    kept = [item for item in draft["items"]
+            if not any(first_unnamed_role(t, ROLE_WORDS, own) for t in texts(item))]
+    if not kept and draft["items"]:
+        raise VectorsScriptError(f"{entry.id}: every item of {key} names a role the founder has not written before "
+                                 "the Answer, so no first draft keel-cloud's L6 takes can be read off the corpus")
+    return {**draft, "items": kept}
+
+
+def calibration_question(entry, key: str, *, first: bool = False) -> dict:
     """One question of the `CALIBRATION_QUESTIONS` result (contract 13): Prevalence's `event` and five
     fifths, a list dimension's `list`, and nothing but the key and the note on Frequency, the cost and the
-    price (code's questions)."""
+    price (code's questions). `first`: the slice's first draft, where Importance is the own item alone (097)."""
     q: dict = {"key": key, "respondent_note": RESPONDENT_NOTE}
     if key == "problem.prevalence":
         q["event"] = event_past(entry)
@@ -565,7 +715,12 @@ def calibration_question(entry, key: str) -> dict:
                          "belief_phrase": phrase if (phrase and code in chosen) else default}
                         for label, code, default in PREVALENCE_OPTIONS]
     elif is_list(key):
-        q["list"] = drafted_list(entry, key)
+        if first and key == "problem.importance":
+            q["list"] = importance_first_draft(entry)
+        elif first:
+            q["list"] = first_draft(entry, key)
+        else:
+            q["list"] = drafted_list(entry, key)
     elif key not in ("problem.frequency", "commercial.price", "commercial.existing_sacrifice"):
         raise VectorsScriptError(f"{entry.id}: no calibration shape for {key}")
     return q
@@ -575,7 +730,7 @@ def calibration_result(entry, vector: str, only: str | None = None) -> dict:
     """A vector's calibration: every dimension of the slice, or -- a redraft -- the one list dimension the
     founder answered (keel-cloud 087 judgement call 8; `C1`: the keys are the one dimension redrafted)."""
     keys = [only] if only else calibrated_keys(entry, vector)
-    return {"vector": vector, "questions": [calibration_question(entry, key) for key in keys]}
+    return {"vector": vector, "questions": [calibration_question(entry, key, first=only is None) for key in keys]}
 
 
 def calibration_jobs(entry) -> list[tuple[str, str | None]]:
