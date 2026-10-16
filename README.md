@@ -122,6 +122,19 @@ the wire (`how` RECORDED). Scored by IM14-IM18 (`INTERVIEWER_MARKS_VERSION` 2). 
 `make eval-live K=classifier PROFILE=remote` (`evals/test_classifier_live.py`): the same cases against Keel's AI on a
 link named by the `KEEL_CLASSIFIER_LINK` secret, under $0.10, skipped by name without it.
 
+### Hear them out (spec `049-hear-them-out`, 2026-10-16)
+
+keel-cloud 100 (keel-cloud-docs `d2f00d4`: the classifier reads a question read aloud, then answered; 18 `readaloud`
+cases) and keel-web 073 (`baf934f`: nothing lit or filled while they speak; the utterance read after a quiet gap, every
+final joined; tapped checkboxes finish on *Save and next*; the pilot's yes held and on by itself; two earcons, off on
+the eval's seam). Contract 18 unchanged. The cases copy is re-copied whole (170 cases) and the guard counts the
+`readaloud` group on its own: never a confident wrong answer. The walk reads one question aloud first and then answers
+it within a second -- one `classify` carrying both, nothing ticked between (IM19, with every final looked at inside the
+gap) -- taps the first pick-two and presses Save (IM20), and says the pilot's yes and waits for the thanks. The walk
+encodes no gap length (1.5 s at 073, 4.0 s from keel-web 074): it waits for the held or unsure status or the next
+question. S-006's recorded link writes its pilot ask down through `transcribe` after its answers, as the page does --
+refused 409 on an answered link (DRIFT #91). `INTERVIEWER_MARKS_VERSION` 3.
+
 ### The AI interviewer — contract 16 and read on arrival (spec `044-ai-interviewer-journey`, 2026-10-15)
 
 keel-cloud 094 (the pre-rendered AI interviewer: contract 16, `InferenceCharge` 9, document 22) and 095 (read on arrival,

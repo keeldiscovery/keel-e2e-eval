@@ -5405,3 +5405,22 @@ the founder asked about (*"How was this populated"*). The journeys record it in 
 hold nothing on it. For keel-cloud: serve `shortName` null while `what` is null (or say in contract 17 that it is the
 card's draft until named).
 
+
+## 91. Observation (keel-web 073 with keel-cloud beside it): on the recorded path the pilot ask's "yes" is never written down -- `transcribe` is refused 409 on a link whose answers have just gone, so the pilot is never posted
+
+Found by spec `049-hear-them-out` on S-006 (local stack, keel-cloud-docs `d2f00d4` + keel-web `baf934f`; run
+`runs/20261016T211032Z-s006-paidly`, step *the recorded link's pilot ask*). keel-web 073 FR-7(b) records the pilot
+ask where the browser cannot listen and sends the recording to `POST /v2/i/{token}/interview/transcribe` against the
+first question's item, then reads the transcript on the page. But the page sends the answers **before** it asks the
+pilot (`aiInterviewFlow.ts` `toPilot()`: `submit()` first, then the pilot step), and keel-cloud's
+`InterviewService.transcribe` answers an answered invitation `TranscribeAnswered` -> **409** *"You've already answered
+these questions -- thank you."* The page catches the refusal as nothing heard (`text = ""`), so the yes is a miss and
+`POST .../interview/pilot` never goes. On the wire, in the page's order: the recorded link's response 201, then
+`transcribe` with a 16 KiB webm -> `{"status": 409, "message": "You've already answered these questions -- thank
+you."}`, where the same recording sent to `interview/answer` moments earlier, before the response (IM18's step), was
+written down "yes" by the stack's fake transcriber. The founder's own finding behind 073 FR-7 (*"Even though I said
+yes, it was not recorded"*) therefore still holds for every respondent on the recorded path (Chrome on iPhone, the
+transcriber's case); the browser path reads the pilot locally and is unaffected (IM6 green). The journey records the
+409 under this number and holds nothing on it; the step becomes a failing guard (transcript "yes", pilot 204) once the
+pilot ask is written down. For keel-cloud: let `transcribe` serve an answered AI link for the pilot ask (it stores
+nothing), or for keel-web: write the pilot ask down before the answers go (or send it with them).

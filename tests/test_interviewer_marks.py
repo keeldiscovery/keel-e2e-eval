@@ -122,7 +122,38 @@ def good() -> dict:
                            {"question": "Which fits?", "status": HELD, "lit": ["Agency A"], "heard": "", "went_on": True,
                             "presses": [], "said": "agency a"}],
                  "veto": {"question": "Which fits?", "said": "no", "reopened": True, "lit": ["Agency A"]},
-                 "statuses": [{"status": "Listening…"}, {"status": HELD}], "saw_thats_my_answer": False},
+                 "statuses": [{"status": "Listening…"}, {"status": HELD}], "saw_thats_my_answer": False,
+                 # spec 049 (keel-web 073 FR-7): the pilot's spoken yes held with the ring, on by itself
+                 "pilot": {"question": "Would you like to try it?", "status": HELD, "lit": ["Yes"], "ring": True,
+                           "finish": True, "went_on": True, "presses": [], "done": True, "said": "yes"},
+                 "finish_presses": 0},
+        # spec 049 (keel-web 073 FR-1 / FR-2): the question read aloud, then the answer -- one read, nothing lit
+        "hear_out": {"question": "Would Agency have made things better for you, or not?", "item": "r",
+                     "first": "Would Agency have made things better for you", "second": "No difference",
+                     "between_ms": 420, "reads_in_gap": 0,
+                     "after_first": {"said": "Would Agency have made things better for you", "phase": "listening",
+                                     "before": {"lit": [], "field": None, "preview": "", "heard": "", "status": ""},
+                                     "after": {"lit": [], "field": None, "preview": "",
+                                               "heard": "Would Agency have made things better for you hearing",
+                                               "status": "Listening. Pause when you’re done."}, "still": True},
+                     "reads": ["Would Agency have made things better for you No difference"],
+                     "meant": "No difference", "sent": ["No difference"], "settled": "held",
+                     "hearing": [{"said": "about three", "phase": "listening",
+                                  "before": {"lit": [], "field": "", "preview": ""},
+                                  "after": {"lit": [], "field": "", "preview": ""}, "still": True},
+                                 {"said": "yes", "phase": "confirming",
+                                  "before": {"lit": ["Agency C"], "field": None, "preview": ""},
+                                  "after": {"lit": ["Agency C"], "field": None, "preview": ""}, "still": True}]},
+        # spec 049 (keel-web 073 FR-6): a pick-two by taps waits for Save and next
+        "taps": {"question": "Which two?", "item": "p", "want": ["Agency A", "Agency C"],
+                 "one": {"shown": True, "enabled": False, "words": "Save and next", "ring": False, "phase": "listening",
+                         "checked": ["Agency A"], "question_same": True},
+                 "two": {"shown": True, "enabled": True, "words": "Save and next", "ring": False, "phase": "listening",
+                         "checked": ["Agency A", "Agency C"]},
+                 "third": {"tapped": "Agency B", "shown": True, "enabled": True, "ring": False, "phase": "listening",
+                           "checked": ["Agency A", "Agency C"]},
+                 "statuses_after_save": ["Got it."], "next": "Which fits?", "sent": ["Agency C", "Agency A"],
+                 "sent_how": "TAPPED"},
         "confirm": {"turns": [{"question": "Which one?", "status": IS_THAT_RIGHT, "lit": ["Agency A"],
                                "yes": "Yes, that’s it", "went_on": True, "meant": ["Agency C"], "sent": ["Agency C"],
                                "said": "the first one, wait, actually the third", "answered": "yes"}]},
@@ -148,9 +179,9 @@ def test_a_good_record_meets_every_mark():
     checks = _by_mark(good())
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
-    assert (card["measured"], card["met"], card["unmeasured"]) == (18, 18, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 2
-    assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 19)]
+    assert (card["measured"], card["met"], card["unmeasured"]) == (20, 20, [])
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 3
+    assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 21)]
 
 
 def test_the_short_form_measures_what_it_carries_and_nothing_else():
@@ -278,6 +309,23 @@ SEEDED = [
     ("IM18", ["recorded", "status"], 422),                                               # RECORDED refused
     ("IM18", ["recorded", "body", "answers", 0, "how"], "SPOKEN"),
     ("IM18", ["recorded", "register_row", "status"], "OPENED"),
+    # spec 049: the pilot's hold (IM14), hearing them out (IM19), taps that wait for Save (IM20)
+    ("IM14", ["hold", "pilot", "ring"], False),                                          # no ring on the pilot
+    ("IM14", ["hold", "finish_presses"], 1),                                             # Finish pressed
+    ("IM14", ["hold", "pilot"], None),                                                   # the pilot never held
+    ("IM19", ["hear_out", "after_first", "after", "lit"], ["Yes"]),                      # lit on the first final
+    ("IM19", ["hear_out", "reads"], ["Would Agency have made things better for you", "No difference"]),  # two reads
+    ("IM19", ["hear_out", "reads_in_gap"], 1),                                           # read before the gap ran
+    ("IM19", ["hear_out", "after_first", "after", "status"], "Got that…"),
+    ("IM19", ["hear_out", "between_ms"], 2_400),                                         # not within a second
+    ("IM19", ["hear_out", "hearing", 0, "after", "field"], "3"),                         # filled while speaking
+    ("IM19", ["hear_out", "sent"], ["It would have made things better"]),
+    ("IM20", ["taps", "one", "enabled"], True),                                          # Save on at one tick
+    ("IM20", ["taps", "one", "question_same"], False),                                   # went on at one tick
+    ("IM20", ["taps", "one", "ring"], True),                                             # a tick held
+    ("IM20", ["taps", "two", "enabled"], False),
+    ("IM20", ["taps", "third", "checked"], ["Agency A", "Agency B", "Agency C"]),          # a third ticked
+    ("IM20", ["taps", "sent_how"], "SPOKEN"),
 ]
 
 
@@ -336,7 +384,8 @@ def test_the_kinds_are_keel_clouds_own():
     text = _cloud_text("src/main/java/com/keeldiscovery/cloud/domain/interviewer/ClipKind.java")
     import re                                                             # noqa: PLC0415
     body = text.split("enum ClipKind", 1)[1]
-    assert tuple(re.findall(r"^\s+([A-Z_]+),?$", body, re.M)) == fake.KINDS
+    # keel-cloud 101 closes the constants on ";" (a method follows them)
+    assert tuple(re.findall(r"^\s+([A-Z_]+)[,;]?$", body, re.M)) == fake.KINDS
 
 
 # ------------------------------------------------------------------------------------------ the new reads

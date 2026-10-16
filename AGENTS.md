@@ -393,7 +393,12 @@ on the page) and held, asked *Is that right?*, or missed; Back once, "no" in a h
 (`harness/classifier_guard.py`) sends the canon's 152 spoken-answer cases carried onto the link's own items before it is
 answered, and through Try it yourself's founder route; S-006 answers one link from the recorded path on the wire (`how`
 RECORDED); IM14-IM18 (`INTERVIEWER_MARKS_VERSION` 2). `MARKS_VERSION` stays 19 and the corpus revision 11 (099 moved no
-screen and no corpus item; its `classify-answer.md` is guarded here, not by the instruction eval). **Nothing generated is committed** -- the script, the
+screen and no corpus item; its `classify-answer.md` is guarded here, not by the instruction eval). **Since spec
+`049-hear-them-out` (2026-10-16) they run keel-cloud 100 (keel-cloud-docs `d2f00d4`) and keel-web 073 (`baf934f`)**:
+nothing lit while they speak, the utterance read after a quiet gap (the walk encodes no length: 1.5 s at 073, 4.0 s
+from 074); the cases copy carries 100's 18 `readaloud` cases (170); one question read aloud, then answered (IM19); a
+pick-two by taps and *Save and next* (IM20); the pilot's yes held and on by itself; `INTERVIEWER_MARKS_VERSION` 3,
+`MARKS_VERSION` 19 and corpus r11 unchanged; DRIFT #91 (the recorded pilot ask refused on an answered link). **Nothing generated is committed** -- the script, the
 keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
 the end of every run.
 

@@ -1,6 +1,7 @@
-"""The spoken-answer cases (spec 048 FR-3), copied whole from keel-cloud
-canon/designs/spoken-classifier-check-2026-10-16/cases.py at keel-cloud-docs 0f582b2 (the canon keeps the record;
-this repository owns the copy from now on). Read by harness/classifier_guard.py. The original docstring follows.
+"""The spoken-answer cases (spec 048 FR-3; re-copied by spec 049 FR-1 / FR-8), copied whole from keel-cloud
+canon/designs/spoken-classifier-check-2026-10-16/cases.py at keel-cloud-docs d2f00d4 (the file is unchanged since
+e20d8aa, spec 100: 18 `readaloud` cases, 170 in all; the canon keeps the record, this repository owns the copy from now
+on). Read by harness/classifier_guard.py. The original docstring follows.
 """
 
 """The spoken-answer check: what people say aloud against one closed question each, with the answer a careful human
@@ -128,6 +129,25 @@ CASES = [
     ("long", "effort", "got it eventually after trying a few things", P(4)), ("long", "effort", "effort", U),
     ("long", "effort", "a lot of effort", P(1)), ("long", "effort", "caught everything", U),
     ("long", "effort", "the third", P(3)), ("long", "effort", "it took a few tries to find it", P(4)),
+    # --- they read the question or the options aloud first, then answer (spec 100, the founder's try of 2026-10-16) ---
+    ("readaloud", "better", "Did it make things better, no difference, or worse? Hmm. It would have made things better.", P(1)),
+    ("readaloud", "better", "better, no difference, worse... hmm... no difference, I'd say", P(2)),
+    ("readaloud", "better", "better or worse... hmm", U),
+    ("readaloud", "better", "it would have made things better, no difference, it would have made things worse... worse. Actually no, no difference.", P(2)),
+    ("readaloud", "gate", "did I, yes or no... um, no, I didn't", P(2)),
+    ("readaloud", "gate", "yes or no... hmm, yes or no", U),
+    ("readaloud", "approval", "Yes and it took a long time, yes but quick, no... someone else decided, not me.", P(4)),
+    ("readaloud", "approval", "did anyone have to approve it... um... yes, but it was quick", P(2)),
+    ("readaloud", "effort", "caught everything with a lot of effort, or with a little extra... a little extra effort, yeah", P(2)),
+    ("readaloud", "effort", "caught everything with a lot of effort, or a little extra, or a few tries... hmm", U),
+    ("readaloud", "importance", "catching errors, chasing timesheets, explaining payslips, tax changes, the ledger... OK, the timesheets and the tax changes", P(2, 4)),
+    ("readaloud", "importance", "which two matter most... um, keeping up with tax changes, and, uh, reconciling with the ledger", P(4, 5)),
+    ("readaloud", "benefits", "catching errors, less time on the register, less worry... the less worry one, mostly", P(3)),
+    ("readaloud", "cost", "how much did it cost, money or hours... about three hours, I think", H(3)),
+    ("readaloud", "cost", "money or hours... hmm", U),
+    ("readaloud", "days", "how many days ago... um, five? No, about a week ago.", {"value": 7}),
+    ("readaloud", "budget", "a budget line we already had, a new one someone signed off, or no budget... it was a new one, someone signed it off", P(2)),
+    ("readaloud", "budget", "an existing budget line, or a new one, or none at all, hmm", U),
 ]
 
 # confirmation turns: (item, previous pick numbers, said, expected)

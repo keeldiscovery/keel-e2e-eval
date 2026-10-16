@@ -1,4 +1,4 @@
-"""The classifier guard (spec 048 FR-3, and FR-2's live check): the 152 spoken-answer cases of
+"""The classifier guard (spec 048 FR-3, and FR-2's live check): the 170 spoken-answer cases of
 `harness/classifier_cases.py` sent to a real `classify` route -- the stack's (keel-cloud 099's `FakeClassifier`, which
 every `fake-for` founder and every keyless box gets) or, in the weekly live column, staging's for a founder outside
 `fake-for` (Keel's AI on the light tier) -- and judged the way keel-cloud's `FakeClassifierCasesTest` judges them:
@@ -7,6 +7,9 @@ every `fake-for` founder and every keyless box gets) or, in the weekly live colu
 * **safe** -- not right, but `unclear` or below `high`: the didn't-catch path or "Is that right?", never a wrong row;
 * **wrong** -- a confident wrong answer. The guard's one bar: **none**. The four corrections the old matcher recorded
   wrong with confidence (`CORRECTIONS`) must come back right.
+
+Spec 049 (keel-cloud 100): the copy gains the group `readaloud` -- they read the question or the options aloud, then
+answer -- held to the same bar (never a confident wrong answer) and counted on its own (`Report.groups`).
 
 **The cases are carried onto the link's own items** (judgement call 1 of spec 048's guard). The route builds the
 question from the item the link serves -- the page never sends labels (keel-cloud 099 FR-1) -- so a case written
@@ -39,7 +42,8 @@ CORRECTIONS = ("the first one wait actually the third", "option 4 instead of 3",
 COST_PER_CALL_USD = 0.0006
 LIVE_BUDGET_USD = 0.10
 
-#: Every reason keel-cloud's FakeClassifier and `Classification.validated` write (099 at keel-cloud-docs 0f582b2;
+#: Every reason keel-cloud's FakeClassifier and `Classification.validated` write (099 at keel-cloud-docs 0f582b2, 100's
+#: three at d2f00d4;
 #: `tests/test_classifier_guard.py` holds this to the source where the checkout carries it). A live run whose every
 #: reason is one of these was answered by the fake -- its founder is in `fake-for` -- and proves nothing of the model.
 FAKE_REASONS = frozenset({
@@ -49,7 +53,10 @@ FAKE_REASONS = frozenset({
     "no yes or no heard", "not one of the options", "nothing heard", "ordinal", "out of range", "replaced",
     "the label said", "the story is not classified", "two answers", "two labels fit", "unclear", "which one?",
     "yes or no", "number", "two numbers heard", "hours", "minutes as hours", "days as hours", "a day", "an hour",
-    "half a day", "half an hour", "a day and a half", "days and a half", "part of a day", ""})
+    "half a day", "half an hour", "a day and a half", "days and a half", "part of a day",
+    # keel-cloud 100: a yes and a no heard with no correction between; the options read aloud and none settled on;
+    # what follows the last pause, read at most medium
+    "yes and no heard", "read the options aloud, settled on none", "read aloud first", ""})
 #: What keel-cloud's KeelsAiClassifier answers when the model did not (099 FR-2: never an error to the page).
 FAILED_REASONS = frozenset({"timeout", "vendor"})
 
@@ -124,7 +131,7 @@ class Case:
 
 
 def all_cases() -> list[Case]:
-    """The 137 answers and the 15 confirmation turns, in the check's order."""
+    """The 155 answers (137 of 099, 18 `readaloud` of 100) and the 15 confirmation turns, in the check's order."""
     out = [Case(group, item, said, expected) for group, item, said, expected in cases.CASES]
     out += [Case("confirm", item, said, expected, tuple(previous) if previous else None)
             for item, previous, said, expected in cases.CONFIRM]
@@ -475,11 +482,23 @@ class Report:
     def model_never_answered(self) -> bool:
         return bool(self.outcomes) and all((o.got.get("reason") or "") in FAILED_REASONS for o in self.outcomes)
 
+    def groups(self) -> dict[str, dict]:
+        """Per case group (`readaloud`, `pick2`, ..., `confirm`): asked, right, safe, wrong, not asked."""
+        out: dict[str, dict] = {}
+        for o in self.outcomes:
+            g = out.setdefault(o.asked.case.group, {"asked": 0, "right": 0, "safe": 0, "wrong": 0, "not asked": 0})
+            g["asked"] += 1
+            if o.verdict in ("right", "safe", "wrong"):
+                g[o.verdict] += 1
+        for s in self.skipped:
+            out.setdefault(s.case.group, {"asked": 0, "right": 0, "safe": 0, "wrong": 0, "not asked": 0})["not asked"] += 1
+        return out
+
     def summary(self) -> dict:
         return {"cases": len(self.outcomes) + len(self.skipped), "asked": len(self.outcomes),
                 "right": self.count("right"), "safe": self.count("safe"), "wrong": len(self.wrong),
                 "refused": len(self.refused), "corrections": self.corrections,
-                "not asked": len(self.skipped),
+                "not asked": len(self.skipped), "groups": self.groups(),
                 "wrong cases": [o.row() for o in self.wrong], "refused cases": [o.row() for o in self.refused]}
 
     def to_json(self) -> dict:

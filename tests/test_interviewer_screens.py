@@ -141,3 +141,53 @@ def test_the_player_never_presses_thats_my_answer():
     assert "def answer(" not in source and 'get_by_test_id("ai-answer")' not in source
     leg = (REPO_ROOT / "evals" / "interviewer_leg.py").read_text(encoding="utf-8")
     assert "player.answer()" not in leg and "player.next()" not in leg
+
+
+# ------------------------------------------------------------------ spec 049: keel-web 073 hears them out
+
+def _web_073() -> Path:
+    root = load_config(validate=False).keel_web
+    answer_path = root / "src/lib/answerPath.ts"
+    if not answer_path.is_file() or "QUIET_MS" not in answer_path.read_text(encoding="utf-8"):
+        pytest.skip("keel-web predates spec 073 (no quiet gap)")
+    return root
+
+
+def test_the_quiet_gap_is_keel_webs_own():
+    source = (_web_073() / "src/lib/answerPath.ts").read_text(encoding="utf-8")
+    m = re.search(r"QUIET_MS\s*=\s*([\d_]+)", source)
+    # 1,500 at 073, 4,000 from 074: the walk encodes neither, it tolerates up to GAP_TOLERATED_MS
+    assert m and 0 < int(m.group(1).replace("_", "")) <= ivs.GAP_TOLERATED_MS, m and m.group(0)
+
+
+@pytest.mark.parametrize("word", [ivs.HEARING, ivs.ANSWERED, ivs.TAG_HEARING, ivs.TAG_NOT_TAKEN])
+def test_the_hearing_words_are_keel_webs_own(word):
+    assert f'"{word}"' in (_web_073() / "src/lib/translate.ts").read_text(encoding="utf-8"), word
+
+
+def test_tap_finish_is_gone_from_keel_web():
+    """073 FR-7: the pilot's *Tap Finish when you're ready.* (`answeredPilot`) is gone -- the yes goes on by itself."""
+    translate = (_web_073() / "src/lib/translate.ts").read_text(encoding="utf-8")
+    assert "answeredPilot" not in translate and "Tap Finish when you" not in translate
+
+
+@pytest.mark.parametrize("testid", ["ai-save", "ai-finish", "ai-ring"])
+def test_the_save_finish_and_ring_selectors_are_in_keel_web(testid):
+    root = _web_073() / "src"
+    hits = [p for p in root.rglob("*.tsx") if f'data-testid="{testid}"' in p.read_text(encoding="utf-8")]
+    assert hits, testid
+    assert testid in Path(ivs.__file__).read_text(encoding="utf-8") + (
+        REPO_ROOT / "evals" / "interviewer_leg.py").read_text(encoding="utf-8"), testid
+
+
+def test_the_seam_listens_as_keel_webs_fixture_does_and_is_silent():
+    """073 D-04 / FR-8: keel-web's fixture gains `__listening()` (the newest recogniser started and still handed
+    results), which the eval's seam restates; the seam's `earcons: false` is a key keel-web reads."""
+    fixture = _web("tests/fixtures/interviewer/fakeSpeech.ts")
+    if "__listening" not in fixture:
+        pytest.skip("keel-web's fixture predates spec 073")
+    assert "__listening" in ivs.SPEECH_SEAM and "r.onresult" in ivs.SPEECH_SEAM
+    assert "earcons: false" in ivs.SPEECH_SEAM
+    seam = (_web_073() / "src/components/interview/ai/useSpeechRecognition.ts").read_text(encoding="utf-8")
+    assert "earcons?: boolean" in seam and "s.earcons !== false" in seam
+    assert "quietMs" not in ivs.SPEECH_SEAM                       # the journeys keep the default gap (073 FR-4)

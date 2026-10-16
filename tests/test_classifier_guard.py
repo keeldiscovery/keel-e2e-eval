@@ -12,8 +12,14 @@ from harness import classifier_guard as guard
 from stack.config import load_config
 
 
-def test_the_cases_are_the_checks_152():
-    assert (len(cases.CASES), len(cases.CONFIRM), len(guard.all_cases())) == (137, 15, 152)
+def test_the_cases_are_the_checks_170():
+    """099's 152 and keel-cloud 100's 18 `readaloud` cases (spec 049 FR-1 / FR-8)."""
+    assert (len(cases.CASES), len(cases.CONFIRM), len(guard.all_cases())) == (155, 15, 170)
+    readaloud = [c for c in guard.all_cases() if c.group == "readaloud"]
+    assert len(readaloud) == 18
+    assert {c.item for c in readaloud} == {"gate", "better", "approval", "effort", "importance", "benefits", "cost",
+                                           "days", "budget"}
+    assert sum(1 for c in readaloud if c.expected == {"unclear": True}) >= 2
     assert set(cases.ITEMS) == {c.item for c in guard.all_cases()}
     for said in guard.CORRECTIONS:
         assert said in {c.said for c in guard.all_cases()}, said
@@ -176,16 +182,24 @@ def test_run_sends_each_case_once_and_counts():
 
     report = guard.run(post, served)
     unclear = [c for c in guard.all_cases() if guard.matches(guard.case_item(c.item), c.expected, _got(unclear=True))]
-    assert len(sent) == 152 and not report.wrong and not report.skipped
-    assert (report.count("right"), report.count("safe")) == (len(unclear), 152 - len(unclear))
+    assert len(sent) == 170 and not report.wrong and not report.skipped
+    assert (report.count("right"), report.count("safe")) == (len(unclear), 170 - len(unclear))
+    groups = report.groups()
+    assert groups["readaloud"]["asked"] == 18 and groups["confirm"]["asked"] == 15
+    assert sum(g["asked"] for g in groups.values()) == 170 and not any(g["wrong"] for g in groups.values())
     assert all(set(b) <= {"itemId", "heard", "language", "previous", "ask"} for b in sent)
     assert sum(1 for b in sent if b.get("previous")) == 14            # the confirmation turn on days holds no option
     with pytest.raises(ValueError, match="over the"):
         guard.run(post, served, limit=100)
 
 
-def test_the_live_budget_holds_every_case():
-    assert len(guard.all_cases()) * guard.COST_PER_CALL_USD < guard.LIVE_BUDGET_USD
+def test_the_live_budget_holds_what_a_link_can_ask():
+    """Spec 049 judgement call: the ceiling stays $0.10 (spec 048 FR-2). 170 cases at $0.0006 would be $0.102, but the
+    live check asks only the cases its link's items can carry (048 measured 83 and 119 on the corpus links) and is
+    refused by name before the first call when the plan would pass the ceiling (`run(limit=...)`), never overspent."""
+    calls = int(guard.LIVE_BUDGET_USD / guard.COST_PER_CALL_USD)
+    assert calls == 166 and len(guard.all_cases()) - calls == 4
+    assert len([c for c in guard.all_cases() if c.group != "readaloud"]) * guard.COST_PER_CALL_USD < guard.LIVE_BUDGET_USD
 
 
 def test_the_fakes_reasons_are_its_own():
@@ -208,6 +222,8 @@ def test_the_fakes_reasons_are_its_own():
     unknown = sorted(r for r in written - words if not guard.fake_reason(r) and not re.search(r"[?|]", r))
     assert not unknown, unknown
     assert "yes or no" in written and "two labels fit" in written, sorted(written)
+    if "read aloud first" in " ".join(written):                         # keel-cloud 100's rules are in the checkout
+        assert {"yes and no heard", "read the options aloud, settled on none", "read aloud first"} <= written
     report = guard.Report(outcomes=[guard.Outcome(None, 200, {"reason": "two labels fit"}, "safe")])
     assert report.answered_by_fake
     report.outcomes.append(guard.Outcome(None, 200, {"reason": "correction: timesheets replaces tax"}, "right"))

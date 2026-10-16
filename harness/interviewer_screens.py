@@ -24,6 +24,13 @@ repository (*Selectors (for keel-e2e-eval 044)*) and 072's spec names (`ai-yes`,
                  is put on the seam** (spec 048 judgement call 1): the page calls the real route, and the stack's
                  keel-cloud answers it with its `FakeClassifier` -- what staging runs for eval founders too.
 
+Spec 049 (keel-web 073, *hear them out*): nothing lights or fills while they speak, and an utterance is read
+`QUIET_MS` (1.5 s) after the recogniser's end after a final -- the page restarts the recogniser for that gap, so a
+final said within it joins the same utterance. `say()` keeps what the sheet showed while the words were heard
+(`hearing`: nothing newly lit, the field and the preview untouched); `ear()` counts a recogniser as listening only while
+the page still hands it results (keel-web's `__listening()`, 073 D-04: recogniser counts now grow on every final's end);
+tapped checkboxes wait for *Save and next* (`save_state`); the earcons are switched off on the seam (073 FR-8).
+
 Every write a press makes returns the response keel-web received, so the leg holds the wire the page was handed.
 """
 
@@ -67,6 +74,18 @@ INTRO_TRANSCRIBED = ("Where your browser can't listen, Keel's transcription prov
 GOT_THAT = "Got that…"
 WRITING_DOWN = "Writing it down…"
 HELD = "Got it. Moving on… say no to change"
+#: keel-web 073 FR-3: the status through the quiet gap (`AI_STATUS.heard`), and a tap's or a Save's 500 ms advance
+#: (`AI_STATUS.answered`); the heard line's tags (`AI_TAG_HEARING`, `AI_TAG_NOT_TAKEN`).
+HEARING = "Listening. Pause when you’re done."
+ANSWERED = "Got it."
+TAG_HEARING = "hearing"
+TAG_NOT_TAKEN = "not taken"
+#: keel-web 073 FR-2 `QUIET_MS` (`src/lib/answerPath.ts`): the gap after a final before the utterance is read -- 1.5 s
+#: at 073, 4.0 s on every window from keel-web 074 (the founder's decision, 2026-10-16). The walk encodes neither: it
+#: waits for the held / unsure status or the next question, with timeouts that tolerate the longest gap here plus the
+#: 2.0 s hold (spec 049 judgement call 6). The one fixed wait is IM20's: a tapped tick must not go on by itself.
+GAP_TOLERATED_MS = 4_000
+TAP_WAIT_MS = 1_500
 IS_THAT_RIGHT = "Is that right? Say yes, or tell me the right one"
 YES_THATS_IT = "Yes, that’s it"
 #: The words a stranger says for each move (design §3-§4).
@@ -155,7 +174,10 @@ def ai_intro_heading(face: str, questions: int) -> str:
 #: the app does; the app reads the seam only in a test-mode build). Spec 048 (keel-web 072): a final result is followed
 #: by the recogniser's end, so a final said is an utterance ended and the page reads it; `mic` is a microphone that is
 #: always granted with a steady level, so *Test your mic* is driven by `__say("hello", true)`. Unlike keel-web's own
-#: fixture it puts **no `classify`** on the seam: the route is left real (judgement call 1).
+#: fixture it puts **no `classify`** on the seam: the route is left real (judgement call 1). Spec 049 (keel-web 073):
+#: the page reads the utterance 1.5 s after that end and restarts the recogniser meanwhile, so `__say` within the gap
+#: goes to the gap's own recogniser; `__listening()` is keel-web's (the newest started and still handed results);
+#: `earcons: false` silences the two tones (073 FR-8; the fake mic has no AudioContext, so nothing waits on them).
 SPEECH_SEAM = r"""
 (() => {
   class FakeRecognition {
@@ -172,6 +194,7 @@ SPEECH_SEAM = r"""
   window.__keelSpeech = {
     Recognition: FakeRecognition, recorder: null,
     mic: { acquire: async () => true, level: () => 0.12, release: () => undefined },
+    earcons: false,
   };
   const last = () => (window.__speech || [])[(window.__speech || []).length - 1];
   window.__say = (text, final) => {
@@ -185,6 +208,7 @@ SPEECH_SEAM = r"""
   window.__speechError = (error) => { const r = last(); if (r && r.onerror) r.onerror({ error }); };
   window.__speechEnd = () => { const r = last(); if (r && r.onend) r.onend({}); };
   window.__recognisers = () => (window.__speech || []).length;
+  window.__listening = () => { const r = last(); return !!(r && r.started && !r.stopped && r.onresult); };
 })();
 """
 
@@ -337,11 +361,22 @@ class Player:
         self.patience = patience
         self._b = _BrowserStep(recorder, page, party)
         self.requests: list[dict] = []
+        #: Spec 049: every `classify` the page sent, its body, in order (the read-aloud step counts its reads here).
+        self.classified: list[dict] = []
+        #: Spec 049 (keel-web 073 FR-1): what the sheet showed a moment after each final said on a question's or a
+        #: confirmation's window, inside the quiet gap -- before the utterance was read.
+        self.hearing: list[dict] = []
         page.on("request", self._keep)
 
     def _keep(self, request) -> None:
         if "/v2/" in request.url and request.method != "GET":
             self.requests.append({"method": request.method, "url": request.url})
+            if request.url.split("?")[0].endswith("/classify"):
+                try:
+                    body = request.post_data_json
+                except Exception:  # noqa: BLE001 - a body that is not JSON
+                    body = None
+                self.classified.append({"url": request.url, "body": body})
 
     # ---- arriving
     def open(self, url: str) -> dict:
@@ -362,7 +397,7 @@ class Player:
                 "mic_heard": _words(heard) or None,
                 "start_enabled": start.is_enabled() if start.count() else None}
 
-    def mic_test(self, heard: str = "hello", *, timeout_s: float = 15) -> dict:
+    def mic_test(self, heard: str = "hello", *, timeout_s: float = 20) -> dict:
         """keel-web 072 FR-7: *Test your mic* -> the seam's microphone (always granted) -> *Say hello* -> `heard` said
         -> *Heard: hello* with its tick, and *Start the interview* enabled. What the intro drew before and after."""
         before = self.intro()
@@ -424,16 +459,46 @@ class Player:
                 "status": _words(sheet.get_by_test_id("ai-status")),
                 "banner": _words(sheet.get_by_test_id("ai-banner")) or None}
 
-    def say(self, text: str, final: bool = True) -> bool:
+    def say(self, text: str, final: bool = True, *, look: bool = True) -> bool:
         """The stranger speaks into the newest recogniser. A final ends the utterance (the seam's recogniser then ends,
-        keel-web 072 FR-3), and the page sends what it heard to `classify`; nothing is pressed after it."""
-        return bool(self.page.evaluate("([t, f]) => window.__say(t, f)", [text, final]))
+        keel-web 072 FR-3), and -- keel-web 073 -- the page reads it after the quiet gap; nothing is pressed after it.
+        On a question's or a confirmation's window (`listening` / `confirming`) a final is looked at inside the gap
+        (`look`): what was ticked, filled and previewed before the words and 250 ms after them, kept on `hearing`."""
+        phase = self.phase() if final and look else None
+        before = self._drawn() if phase in ("listening", "confirming") else None
+        said = bool(self.page.evaluate("([t, f]) => window.__say(t, f)", [text, final]))
+        if before is not None and said:
+            self.page.wait_for_timeout(250)
+            after = self._drawn()
+            self.hearing.append({"said": text, "phase": phase, "before": before, "after": after,
+                                 "still": self.phase() == phase and after["status"] == HEARING})
+        return said
+
+    def _drawn(self) -> dict:
+        """The sheet's ticks, field, preview, heard line and status, read in one evaluate (inside the gap it must be
+        quick)."""
+        return self.page.evaluate("""() => {
+            const sheet = document.querySelector('[data-testid=ai-sheet]');
+            const words = (el) => el ? (el.textContent || '').replace(/\\s+/g, ' ').trim() : '';
+            if (!sheet) return { lit: [], field: null, preview: '', heard: '', status: '' };
+            const lit = [...sheet.querySelectorAll('[data-testid=ai-options] .opt[aria-checked="true"]')].map(words);
+            const field = sheet.querySelector('[data-testid=ai-field]');
+            return { lit, field: field ? field.value : null,
+                     preview: words(sheet.querySelector('[data-testid=ai-preview]')),
+                     heard: words(sheet.querySelector('[data-testid=ai-heard]')),
+                     status: words(sheet.querySelector('[data-testid=ai-status]')) };
+        }""")
+
+    def checked(self) -> list[str]:
+        """The rows ticked on the sheet now (`aria-checked="true"`)."""
+        return list(self._drawn()["lit"])
 
     def ear(self) -> dict:
-        """The seam's recognisers: how many the page has made, and whether the newest is listening (started, not
-        stopped)."""
+        """The seam's recognisers: how many the page has made, and whether the newest is listening -- started, not
+        stopped, and still handed results by the page (keel-web 073 `__listening()`: the gap's restart and a read's
+        stop leave recognisers behind that no longer hear anything)."""
         return self.page.evaluate("""() => { const s = window.__speech || []; const r = s[s.length - 1];
-            return { count: s.length, live: !!(r && r.started && !r.stopped) }; }""")
+            return { count: s.length, live: !!(r && r.started && !r.stopped && r.onresult) }; }""")
 
     def wait_ear(self, *, newer_than: int | None = None, timeout_s: float = 20) -> dict:
         """A recogniser listening -- one made after `newer_than` recognisers when given (a window opened again after
@@ -467,6 +532,19 @@ class Player:
             waited += 100
         raise AssertionError({"status never read": words, "it read": self.status(), "phase": self.phase()})
 
+    def wait_missed(self, *, timeout_s: float = 20) -> str:
+        """keel-web 073: a miss is read after the quiet gap -- the heard line tagged *not taken*, or her asking again.
+        What the heard line or the status then read."""
+        deadline = timeout_s * 1000 * self.patience
+        waited = 0.0
+        while waited <= deadline:
+            drawn = self._drawn()
+            if TAG_NOT_TAKEN in drawn["heard"] or "asks again" in drawn["status"] or "Say it again" in drawn["status"]:
+                return drawn["preview"] or drawn["heard"] or drawn["status"]
+            self.page.wait_for_timeout(100)
+            waited += 100
+        raise AssertionError({"the miss was never read": self._drawn(), "phase": self.phase()})
+
     def hold(self, *, timeout_s: float = 20) -> dict:
         """A confident read held (keel-web 072 FR-4): the status reads *Got it. Moving on… say no to change* with the
         pick lit, and -- nothing said, nothing tapped -- the question goes on by itself. What the hold drew, and the
@@ -475,13 +553,15 @@ class Player:
         status = self.wait_status(HELD, timeout_s=timeout_s)
         sheet = self.sheet()
         rings = self.page.locator("[data-testid=ai-sheet] .aiv__ring").count()
+        finish = self.page.get_by_test_id("ai-finish")
+        finish_shown = finish.count() > 0 and finish.first.is_visible()
         deadline = timeout_s * 1000 * self.patience
         waited = 0.0
         while waited <= deadline and self.question() == before and HELD in self.status():
             self.page.wait_for_timeout(100)
             waited += 100
         return {"question": before, "status": status, "lit": [o["label"] for o in sheet["options"] if o["checked"]],
-                "heard": sheet["heard"], "ring": rings > 0, "next": self.question(),
+                "heard": sheet["heard"], "ring": rings > 0, "finish": finish_shown, "next": self.question(),
                 "went_on": self.question() != before or HELD not in self.status()}
 
     def veto(self, word: str = VETO, *, final: bool = False) -> dict:
@@ -557,11 +637,24 @@ class Player:
             return None
 
     def save(self) -> None:
-        """*Save and next* -- typed words keep their explicit press (072 FR-5)."""
+        """*Save and next* -- typed words keep their explicit press (072 FR-5), and since keel-web 073 FR-6 tapped
+        checkboxes finish on it too."""
         self.page.get_by_test_id("ai-sheet").get_by_role("button", name=SAVE_AND_NEXT, exact=True).click()
 
+    def save_state(self) -> dict:
+        """keel-web 073 FR-6: *Save and next* (`ai-save`) -- drawn or not, enabled or not, its words; and the hold's ring
+        (`ai-ring`), which a tick never starts."""
+        button = self.page.get_by_test_id("ai-save")
+        shown = button.count() > 0 and button.first.is_visible()
+        return {"shown": shown, "enabled": button.first.is_enabled() if shown else None,
+                "words": _words(button.first) if shown else None,
+                "ring": self.page.get_by_test_id("ai-ring").count() > 0, "phase": self.phase(),
+                "checked": self.checked()}
+
     def finish(self) -> None:
-        """*Finish* on the pilot ask (072 FR-2: the pilot keeps it)."""
+        """*Finish* on the pilot ask (072 FR-2). Since keel-web 073 FR-7 the pilot's yes is held and goes on by itself:
+        *Finish* only ends that hold early, and after a tap it is on the sheet for the tap's 500 ms alone (073 D-03) --
+        the walk waits for the thanks instead of pressing it."""
         button = self.page.get_by_test_id("ai-sheet").get_by_role("button", name=FINISH, exact=True)
         button.wait_for(state="visible", timeout=10_000 * self.patience)
         button.click()

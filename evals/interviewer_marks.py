@@ -23,13 +23,20 @@ from harness import interviewer_fake as fake
 #: contract 18): IM14-IM18 born (the hold, "Is that right?", the way back, Test your mic, RECORDED); IM3 reads one
 #: IS_THAT_RIGHT a role beside DIDNT_CATCH; IM8 reads a classify / answer / transcribe call as no write; IM9 takes
 #: RECORDED, with its words.
-INTERVIEWER_MARKS_VERSION = 2
+#: v3 (spec 049, keel-cloud 100 / keel-web 073, contract 18 unchanged): IM19 (hears them out) and IM20 (taps wait for
+#: Save) born; IM14 reads the pilot ask's hold too (held with the ring, on by itself, *Finish* never pressed).
+INTERVIEWER_MARKS_VERSION = 3
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe)$")
 #: keel-web 072 FR-9's status words, restated where the marks read them (harness/interviewer_screens.py keeps the page's).
 HELD = "Got it. Moving on… say no to change"
 IS_THAT_RIGHT = "Is that right? Say yes, or tell me the right one"
+#: keel-web 073 FR-3 / FR-6: the status through the quiet gap, and a Save's 500 ms advance.
+HEARING = "Listening. Pause when you’re done."
+ANSWERED = "Got it."
+#: keel-web 073 FR-2's quiet gap: a second final said within a second of the first joins the same utterance.
+WITHIN_MS = 1_000
 
 #: A price word on a screen that must carry none (decision 1: "no price shown").
 PRICE_WORD = re.compile(r"\bcredits?\b|[$£€]\s?\d|\bprice[sd]?\b|\bcosts?\b|\bpaid\b|\bcharge[sd]?\b", re.I)
@@ -303,11 +310,18 @@ def held_then_on(r: dict) -> tuple[bool, Any]:
     clean = [h for h in holds if HELD in (h.get("status") or "") and h.get("went_on") and not h.get("presses")
              and (h.get("lit") or h.get("heard"))]
     veto = x.get("veto") or {}
+    # v3 (keel-web 073 FR-7): the pilot ask's spoken yes is held like any other -- the ring on Yes, *Finish* on the
+    # sheet -- and goes on to the thanks by itself; *Finish* is never pressed on the spoken route
+    pilot = x.get("pilot") if "pilot" in x else {"not walked": True}
+    pilot_ok = pilot is None or "not walked" in pilot or (
+        HELD in (pilot.get("status") or "") and pilot.get("ring") is True and pilot.get("went_on") is True
+        and not pilot.get("presses") and pilot.get("done") is True and not x.get("finish_presses"))
     ok = (bool(clean) and len(clean) == len(holds) and x.get("saw_thats_my_answer") is False
-          and (not veto or veto.get("reopened") is True)
+          and (not veto or veto.get("reopened") is True) and pilot is not None and pilot_ok
           and any(HELD in (s.get("status") or "") for s in x.get("statuses") or []))
     return ok, {"holds": len(holds), "clean": len(clean), "veto": veto,
-                "thats my answer seen": x.get("saw_thats_my_answer"), "statuses": len(x.get("statuses") or [])}
+                "thats my answer seen": x.get("saw_thats_my_answer"), "statuses": len(x.get("statuses") or []),
+                "pilot": pilot, "finish presses": x.get("finish_presses")}
 
 
 def asked_is_that_right(r: dict) -> tuple[bool, Any]:
@@ -358,6 +372,59 @@ def recorded_accepted(r: dict) -> tuple[bool, Any]:
                 "recorded": sum(a.get("how") == "RECORDED" for a in answers)}
 
 
+def _norm(text: str | None) -> str:
+    return " ".join(re.findall(r"[a-z0-9']+", (text or "").replace("’", "'").lower()))
+
+
+def _quiet(sample: dict) -> bool:
+    """One final said on a question's or a confirmation's window, looked at inside the quiet gap: nothing newly
+    ticked, the field as it was, no preview drawn by the words (a miss's reason drawn before them may stay)."""
+    before, after = sample.get("before") or {}, sample.get("after") or {}
+    return (set(after.get("lit") or []) <= set(before.get("lit") or []) and after.get("field") == before.get("field")
+            and after.get("preview") in ("", None, before.get("preview")))
+
+
+def hears_them_out(r: dict) -> tuple[bool, Any]:
+    """IM19 (keel-web 073 FR-1 / FR-2, keel-cloud 100): nothing is lit before the utterance ends -- after a final, inside
+    the quiet gap, no row newly ticked, no field filled, no preview, on every spoken answer -- and a question read
+    aloud, then answered within a second, is ONE read: the first final leaves nothing ticked and the status *Listening.
+    Pause when you're done.*, no `classify` in the gap, then one `classify` whose `heard` is both finals joined; the
+    response carries the answer meant."""
+    x = r["hear_out"]
+    hearing = x.get("hearing") or []
+    loud = [s for s in hearing if not _quiet(s)]
+    first = x.get("after_first") or {}
+    after = first.get("after") or {}
+    reads = x.get("reads") or []
+    joined = _norm(f"{x.get('first')} {x.get('second')}")
+    ok = (bool(hearing) and not loud and bool(first) and not after.get("lit") and not after.get("field")
+          and not after.get("preview") and after.get("status") == HEARING and first.get("still") is True
+          and (x.get("between_ms") or 10 ** 9) <= WITHIN_MS and x.get("reads_in_gap") == 0
+          and len(reads) == 1 and _norm(reads[0]) == joined and x.get("sent") == [x.get("meant")])
+    return ok, {"question": x.get("question"), "first": x.get("first"), "second": x.get("second"),
+                "between_ms": x.get("between_ms"), "after first": after, "reads in gap": x.get("reads_in_gap"),
+                "reads": reads, "settled": x.get("settled"), "sent": x.get("sent"), "meant": x.get("meant"),
+                "finals looked at": len(hearing), "lit while hearing": loud}
+
+
+def taps_wait_for_save(r: dict) -> tuple[bool, Any]:
+    """IM20 (keel-web 073 FR-6): on a pick-two a tap only ticks -- one tick draws *Save and next* disabled and nothing
+    goes on by itself for 1.5 s (the same question, `listening`, no ring); two ticks enable it; a third row tapped is
+    ignored; Save shows *Got it.* and goes on; the response carries both picks, `how` TAPPED."""
+    x = r["taps"]
+    one, two, three = x.get("one") or {}, x.get("two") or {}, x.get("third") or {}
+    want = sorted(x.get("want") or [])
+    ok = (one.get("shown") is True and one.get("enabled") is False and one.get("question_same") is True
+          and one.get("phase") == "listening" and one.get("ring") is False and len(one.get("checked") or []) == 1
+          and two.get("shown") is True and two.get("enabled") is True and sorted(two.get("checked") or []) == want
+          and two.get("ring") is False
+          and (not three.get("tapped") or sorted(three.get("checked") or []) == want)
+          and ANSWERED in (x.get("statuses_after_save") or []) and x.get("next") != x.get("question")
+          and sorted(x.get("sent") or []) == want and x.get("sent_how") == "TAPPED")
+    return ok, {k: x.get(k) for k in ("question", "want", "one", "two", "third", "statuses_after_save", "sent",
+                                      "sent_how")}
+
+
 #: (mark id, the record key it reads, the rule). Order is the leg's.
 MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("IM1", "ledger", one_recording_pair),
@@ -378,6 +445,8 @@ MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("IM16", "back", went_back),
     ("IM17", "mic_test", mic_tested),
     ("IM18", "recorded", recorded_accepted),
+    ("IM19", "hear_out", hears_them_out),
+    ("IM20", "taps", taps_wait_for_save),
 ]
 
 
