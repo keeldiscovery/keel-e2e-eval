@@ -105,6 +105,23 @@ Since the spec's second commit the leg runs on keel-web 068's Interviews section
 Sent, Send more, Make a new link, Contacts, C2, the page of names, C3, the credits popup), and every journey makes its
 links on Sent.
 
+### The answer path — contract 18 (spec `048-answer-path`, 2026-10-16)
+
+keel-cloud 099 (merged at keel-cloud-docs `0f582b2`: `POST /v2/i/{token}/interview/classify` and `/answer`, the
+founder's `interviewer/classify` and `/answer` for Try it yourself, `clips.isThatRight`, `AnswerHow` RECORDED) and
+keel-web 072 (no *That's my answer*, the three tiers, the hold, Back, *Test your mic*). **The stack stays free and
+offline**: `stack/cloud.py` pins `KEEL_INTERVIEWER_TRANSCRIBER=fake`, blanks `KEEL_OPENAI_API_KEY` and makes the fake
+transcriber hear "yes"; with no Anthropic key every founder is read by keel-cloud's `FakeClassifier`, and the page calls
+that route for real -- the eval's speech seam puts no `classify` on `window.__keelSpeech`. **The classifier guard**
+(`harness/classifier_guard.py` over `harness/classifier_cases.py`, the canon's 152 cases copied whole) carries every case
+onto an AI link's own items and sends it, before the link is answered, to the stranger's route and to Try it yourself's:
+no confident wrong answer, the corrections right (measured: 0 wrong of 83 asked on Paidly's link, of 119 on Countly's).
+The stranger's walk tests the mic, is held and goes on by itself, is asked *Is that right?* for a correction and for one
+word two labels carry, goes Back once and says "no" in a hold once; S-006 also answers a link from the recorded path on
+the wire (`how` RECORDED). Scored by IM14-IM18 (`INTERVIEWER_MARKS_VERSION` 2). The weekly live column gains
+`make eval-live K=classifier PROFILE=remote` (`evals/test_classifier_live.py`): the same cases against Keel's AI on a
+link named by the `KEEL_CLASSIFIER_LINK` secret, under $0.10, skipped by name without it.
+
 ### The AI interviewer — contract 16 and read on arrival (spec `044-ai-interviewer-journey`, 2026-10-15)
 
 keel-cloud 094 (the pre-rendered AI interviewer: contract 16, `InferenceCharge` 9, document 22) and 095 (read on arrival,
@@ -1361,6 +1378,7 @@ until the stop.
 | `KEEL_STAGING_HARNESS_PASSWORD` | the `harness` gate password, whose bcrypt is `/keel/staging/oidc-gate-harness-hash`. The founder's own gate password is never here. |
 | `KEEL_SIBLINGS_TOKEN` | a fine-grained token with **read-only Contents** on keel-cloud and keel-web — the two private repositories the deploy job checks out, and (spec 021) the one directory a **cell** checks out: `canon/designs/measured-beliefs/corpus`, which is S-012's founder and S-005/6/7's whole subject. A cell without it warns and then fails by name rather than walking a founder nobody wrote down. |
 | `ANTHROPIC_API_KEY`, `KEEL_RUNTIME_CI_COPILOT` | already organisation secrets, shared with keel-runtime; nothing to do |
+| `KEEL_CLASSIFIER_LINK` | (spec 048, optional) an **unanswered** AI-interviewer link on the twin, made by the founder on a project of his own -- outside `fake-for`, so Keel's AI answers its `classify` -- for the weekly's live classifier check. `classify` stores nothing, so one link serves every week until a reset wipes it. Absent: the check is skipped by name. |
 
 `KEEL_DISPATCH_TOKEN` is **not** set here: it is the senders' secret, one per repository, and it
 only needs the right to POST `/dispatches` on this one.

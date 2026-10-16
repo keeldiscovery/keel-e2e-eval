@@ -88,8 +88,16 @@ def test_the_third_llm_place_is_named_in_agents_md():
     assert "test_s012_journey_through_a_host.py" in agents, (
         "S-012 is live and AGENTS.md does not name it -- the LLM exceptions are named in one "
         "place on purpose")
-    assert "three named places" in agents, (
-        "AGENTS.md still says there are two named LLM places while three exist")
+    assert "four named places" in agents, (
+        "AGENTS.md does not count four named LLM places while four exist (spec 048: the live classifier check)")
+
+
+def test_the_fourth_llm_place_is_named_in_agents_md():
+    """Spec 048: the live classifier check calls Keel's AI on staging -- named, and live-marked, or it is the quiet
+    fourth the rule forbids."""
+    agents = (REPO / "AGENTS.md").read_text()
+    assert "evals/test_classifier_live.py" in agents
+    assert "pytestmark = pytest.mark.live" in (EVALS / "test_classifier_live.py").read_text()
 
 
 def test_the_three_new_scenarios_need_no_makefile_edit_to_dispatch():

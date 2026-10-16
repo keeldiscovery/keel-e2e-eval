@@ -5,8 +5,8 @@ applications (keel-cloud, keel-web, keel-runtime, keel-connect-skill) agree — 
 and with the journey. It never talks to keel-skill or the retired agent-protocol/relay surfaces
 (archived 2026-09-03, `runs/DRIFT.md`'s dated retirement note); no Prism, ever.
 
-**No LLM except in three named places** (amended 2026-09-06, spec 009; amended again
-2026-09-10, spec 016; the third **widened**, not multiplied, by spec 019). Naming them is the
+**No LLM except in four named places** (amended 2026-09-06, spec 009; amended again
+2026-09-10, spec 016; the third **widened**, not multiplied, by spec 019; the fourth argued for by spec 048). Naming them is the
 point: everything not named here stays deterministic, and a fourth would have to be argued for and
 added to this line rather than quietly written — which is exactly how the third arrived.
 - **S-004**, *the stranger who gives orders* (`evals/test_s004_stranger_who_gives_orders.py`,
@@ -225,6 +225,16 @@ added to this line rather than quietly written — which is exactly how the thir
   is shorter. A `test_s013_short_journey.py` would have been a fourth named place and would have
   had to be argued for; this is not one.
 
+- **The live classifier check** (`evals/test_classifier_live.py`, spec 048 FR-2) -- the fourth, argued here as the
+  rule asks. keel-cloud 099 makes a model (Keel's AI, the light tier) decide what a respondent's spoken answer means,
+  and the only way to know whether it gives a confident wrong answer on real items is to ask it: the FakeClassifier
+  the stack and every eval founder run is guarded on every journey, but it is not the thing a stranger meets. So the
+  check is live for the same reason S-004 and S-012 are -- **the thing under referee is a model's behaviour** -- and it
+  is the smallest such place there could be: text only (no audio, no browser, no journey), one `classify` call a case
+  on a link the founder names (`KEEL_CLASSIFIER_LINK`), refused before the first call over $0.10, `-m live`, the weekly
+  macOS x Claude cell's alone (`matrix/cells.toml`), skipped by name without the link. It is not a scenario: the
+  scenario set stays thirteen.
+
 **The canon comes first**: keel-cloud `canon/CANON.md` holds the governing documents,
 their precedence, and the ledger this repo's `tests/test_journey_coverage.py` enforces. This
 repo deliberately floats at sibling HEADs (a referee pinned to the past can't call the present).
@@ -376,7 +386,14 @@ founder has not written to the Answer's redraft (`L6`); the idea arrives unnamed
 every founder types its name on S2; own + 1 / own + 2 on the wire; the own-AI batch 422 `INTERVIEWER_NEEDS_CREDITS`; the
 AI flow with no *Next question*; Select all / Clear and no Copy on Contacts. Scored by `evals/feedback_marks.py`
 (FM1-FM6, `FEEDBACK_MARKS_VERSION` 1, owed where the record carries the subject) at the end of every journey. DRIFT
-#85, #87-#89 resolved, #90 new. `make unit` after 046: **2,074 passed / 57 skipped**. **Nothing generated is committed** -- the script, the
+#85, #87-#89 resolved, #90 new. `make unit` after 046: **2,074 passed / 57 skipped**. **Since spec `048-answer-path` (2026-10-16) they run keel-cloud 099
+(contract 18, keel-cloud-docs `0f582b2`) and keel-web 072**: no *That's my answer*; the AI link's intro tests the mic;
+every spoken answer is read by the cloud's classifier (the stack's FakeClassifier -- the eval's seam puts no `classify`
+on the page) and held, asked *Is that right?*, or missed; Back once, "no" in a hold once; the classifier guard
+(`harness/classifier_guard.py`) sends the canon's 152 spoken-answer cases carried onto the link's own items before it is
+answered, and through Try it yourself's founder route; S-006 answers one link from the recorded path on the wire (`how`
+RECORDED); IM14-IM18 (`INTERVIEWER_MARKS_VERSION` 2). `MARKS_VERSION` stays 19 and the corpus revision 11 (099 moved no
+screen and no corpus item; its `classify-answer.md` is guarded here, not by the instruction eval). **Nothing generated is committed** -- the script, the
 keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
 the end of every run.
 
