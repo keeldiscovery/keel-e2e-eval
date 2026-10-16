@@ -82,6 +82,14 @@ def build_env(config: StackConfig) -> dict[str, str]:
         # would leave rendered files in a sibling repository. The stack keeps them under its own `runs/.stack/`.
         # The renderer and the transcriber stay keel-cloud's defaults (`fake`): no vendor, no key, no money.
         "KEEL_CLIPS_DIR": str(REPO_ROOT / "runs" / ".stack" / f"clips-{config.profile}"),
+        # spec 048 (keel-cloud 099, contract 18): the answer path stays free and offline. The transcriber is pinned to
+        # the fake and OpenAI's key is blanked whatever the caller's shell holds, so no recording ever leaves the box;
+        # with no Anthropic key on this stack (and every eval founder in `fake-for`) the classifier is keel-cloud's
+        # FakeClassifier. What the fake hears for a recording over the silence floor is one word, "yes" -- enough for
+        # the interviewer leg's recorded link to be transcribed and read end to end (`evals/interviewer_leg.py`).
+        "KEEL_INTERVIEWER_TRANSCRIBER": "fake",
+        "KEEL_OPENAI_API_KEY": "",
+        "KEEL_INTERVIEWER_FAKE_TRANSCRIPT": "yes",
     })
     # Sign in with Google, pointed at this profile's stub issuer (keel-cloud
     # `canon/designs/google-sign-in-design.md` 10.3). Wired now, ahead of keel-cloud spec 032,
