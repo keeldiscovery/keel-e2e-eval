@@ -761,6 +761,39 @@ def leg_interview(j: Journey) -> None:
     for person in j.people:
         _answer_one(j, person, j.tokens[person.person])
         _read(j, person)
+    _brief_on_return(j)
+
+
+def _briefs(j: Journey) -> list[dict]:
+    interactions = j.get(f"/v2/inference-interactions?project_id={j.project_id}") or []
+    return [i for i in interactions if i.get("screen") == "BRIEF"]
+
+
+def _brief_on_return(j: Journey, *, timeout_s: float = 60) -> None:
+    """keel-cloud 096 (spec 045): no batch writes the brief any more -- it is written when the founder comes back. After
+    every answer is read the project holds **no** BRIEF; the founder's own read of the project (`GET overview` on their
+    session, which on their own AI is the session the agent is bound to) starts **one**, and the brief lands."""
+    with _step(j, "the brief waits for the founder (keel-cloud 096): every answer read and no BRIEF yet; the founder "
+                  "opens the project (GET overview) and exactly one BRIEF is started and lands", party="founder") as h:
+        before = _briefs(j)
+        overview = j.get(j.project("/overview")) or {}
+        deadline = time.monotonic() + timeout_s * j.patience
+        after = _briefs(j)
+        landed = lambda rows: any(b.get("status") == "APPLIED" or (b.get("status") in TERMINAL_BAD  # noqa: E731
+                                                                    and b.get("status") != "STATE_CONFLICT")
+                                  for b in rows)
+        while time.monotonic() < deadline and not landed(after):
+            time.sleep(1)
+            after = _briefs(j)
+        h.record_assert({"BRIEF before the return": 0, "BRIEF after it": "one APPLIED (a lost race's retries, up to "
+                                                                          "three in all, STATE_CONFLICT)"},
+                        {"before": [(b.get("status"), b.get("interaction_id")) for b in before],
+                         "after": [(b.get("status"), b.get("interaction_id")) for b in after],
+                         "awaitingInterpretation": overview.get("awaitingInterpretation")})
+        assert before == [], before
+        statuses = sorted(b.get("status") for b in after)
+        assert 1 <= len(after) <= 3 and statuses.count("APPLIED") == 1, after
+        assert set(statuses) <= {"APPLIED", "STATE_CONFLICT"}, after        # 095: a lost race is retried
 
 
 def _answer_one(j: Journey, person, token: str) -> None:

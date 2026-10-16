@@ -71,7 +71,7 @@ def good() -> dict:
         "entry": "05-paidly", "project_id": PROJECT,
         "ledger": [{"kind": "GRANT", "credits": 1500, "action": None, "price_version": None},
                    *_pair("INTERVIEWER_RECORDING"), *_pair("INTERVIEWER_CHANGE"),
-                   _reading("INTERPRET", f"read-on-arrival:{AI_INVITATION}"), _reading("BRIEF", "brief:after-batch"),
+                   _reading("INTERPRET", f"read-on-arrival:{AI_INVITATION}"), _reading("BRIEF", "brief:on-return"),
                    {"kind": "PURCHASE", "credits": -800, "action": None, "price_version": None}],
         "screens": {"L1": "Who asks the questions. Keel records your interviewer once for this project. Lock and record "
                           "the interviewer",
@@ -224,6 +224,7 @@ SEEDED = [
     ("IM13", ["arrivals", 0, "holds"], []),                                             # an answer never read
     ("IM13", ["arrivals", 1, "holds"], [_reading("INTERPRET", "read-on-arrival:" + str(uuid.uuid4()))]),
     ("IM13", ["arrivals", 0, "holds"], lambda h: h * 4),                                # read four times
+    ("IM13", ["ledger"], lambda rows: rows + [_reading("BRIEF", "brief:after-batch")]), # 095's retired reason
 ]
 
 
