@@ -98,7 +98,7 @@ keel-cloud 092 / 093 (merged at keel-cloud-docs `7850360`: contract 15, `Inferen
 default contact source is keel-cloud's in-process fake, so nothing in Compose or the env moved). S-006 ends with the
 founder finding the decision-makers through Contacts, on the wire (`evals/contacts_leg.py`), and S-005 holds the B2C
 refusal (`NOT_B2B`). Contacts are bought with credits and this stack has no Keel's-AI key, so the leg stands the
-journey's founder on Keel's door with a fresh grant of 1,500 and reverses it in a `finally` (`stack/ledger.py`, the
+journey's founder on Keel's door with a fresh grant of 2,000 and reverses it in a `finally` (`stack/ledger.py`, the
 only module that writes to the database -- local profiles only). The rules are scored by `evals/contacts_marks.py`
 (CM1-CM14, `CONTACTS_MARKS_VERSION` 1) into `contacts-marks.json` beside the transcript; `MARKS_VERSION` stays 19.
 Since the spec's second commit the leg runs on keel-web 068's Interviews section (`harness/interviews_screens.py`:
@@ -1957,15 +1957,15 @@ answered, what keel-cloud says it paid and how long the founder waited.
 target bills the founder's own plan — his Max subscription, his Copilot seat, his OpenAI key.
 This one bills Keel's Anthropic account: about **1,250 credits** a journey, which is **$12.50 at
 list price** and about **$2.44 of actual inference** (design §6.3, the five-participant row),
-inside the 1,500 the grant gives and inside keel-cloud spec 045's $10.00-a-day-per-founder cap.
+inside the 2,000 the grant gives and inside keel-cloud spec 045's $10.00-a-day-per-founder cap.
 So the matrix buys it **once a Saturday and never on a merge**, and `matrix/cells.py`'s coverage
 rules refuse it in `per_change` by name.
 
 Leg one is **skipped**, not weakened: `harness/keel_host.py` raises from `add_marketplace`,
 `install_plugin`, `skill_proof`, `say` and the rest, so a future edit that reached for it gets a
 sentence rather than an empty result that would read as a pass. What is asserted instead is the
-six things only that door shows — `1,500 credits available` on the shell line and **no** agent
-line, `aiPath: "KEEL"` and `creditsAvailable: 1500` on the wire, a balance that drops once the
+six things only that door shows — `2,000 credits available` on the shell line and **no** agent
+line, `aiPath: "KEEL"` and `creditsAvailable: 2000` on the wire, a balance that drops once the
 first framing is held, `execution.host: "api"` with a present, non-zero `actual_cost_micro_usd`
 on every job, the founder's screens reading *Keel* rather than *your AI*, and a `KEEL_HOME` that
 is still empty when the brief is written. And when the door is bolted — no
@@ -1984,7 +1984,7 @@ the stored `return_to` of that first sign-in (spec 044 FR-014, `GoogleSignIn.doo
 is the only path that answers `OWN`, and **everything else answers `KEEL`**. S-012 signed in at
 the plain `/login`, with a `return_to` of `/`, *before* it installed anything — and on the twin
 every cell registers a brand-new identity minutes earlier, so that sign-in is the one that creates
-the account. Every CLI cell was quietly making a Keel's-AI account with a 1,500-credit grant, and
+the account. Every CLI cell was quietly making a Keel's-AI account with a 2,000-credit grant, and
 once keel-cloud spec 045 lands, keel-cloud would answer all eight weekly cells' jobs on **Keel's
 own Anthropic key** instead of on the CLI each cell had just installed.
 

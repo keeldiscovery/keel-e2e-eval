@@ -437,33 +437,23 @@ class Corridor:
                 "shown": self.page.locator(".keeltest").count() > 0}
 
     def importance_rows(self, add: list[str], *, one_more: bool) -> dict:
-        """keel-web 070 F9 on Importance's Check screen: the counter (*yours + n*) and the one-more ask as drawn, then the
-        founder's own further difficulties typed in. With `one_more` the list is own + 1: *Save* is pressed first and
-        answered 422 ONE_MORE_NEEDED, which opens an empty line, and the first of `add` is typed into it; every other
-        is typed into a line *+ Write a difficulty they'd recognise* opens. Returns what each stage drew."""
+        """keel-web 070 F9 / 071 on Importance's Check screen: the counter (*yours + n*) and the one-more ask as drawn,
+        then the founder's own further difficulties typed in, each into a line *+ Write a difficulty they'd recognise*
+        opens. With `one_more` the list is own + 1: *Save* is disabled (keel-web 071; the server's ONE_MORE_NEEDED is
+        the backstop) and the harness records that it is, presses nothing, and reads it enabled once three stand.
+        Returns what each stage drew."""
         name = "problem.importance"
         counter = lambda: _first_text(self.page, "[data-testid=importance-counter]")  # noqa: E731
         ask = lambda: _first_text(self.page, "[data-testid=importance-one-more]")  # noqa: E731
         rows = self.page.locator(".listcheck ul.listrows li.listrow textarea.listrow__ed")
         out: dict = {"counter": counter(), "ask": ask(), "save_enabled": self._primary().is_enabled(), "added": []}
         with self._b.step(f"founder names {len(add)} more difficult{'y' if len(add) == 1 else 'ies'} on Importance's "
-                          "Check screen" + (" after Save asks for one more" if one_more else "")) as h:
+                          "Check screen" + (" while Save waits for three" if one_more else "")) as h:
             h.add_screenshot(self._b.screenshot(f"check-{name}-as-drafted"))
             if one_more:
-                before = rows.count()
-                with self.page.expect_response(lambda r: r.request.method == "PUT" and "/calibration/PROBLEM" in r.url,
-                                               timeout=20_000) as refused:
-                    self._primary().click()
-                out["refused"] = {"status": refused.value.status, "body": _json_body(refused.value)}
-                self.page.wait_for_function("(n) => document.querySelectorAll("
-                                            "'.listcheck ul.listrows li.listrow textarea.listrow__ed').length > n",
-                                            arg=before, timeout=10_000)
-                out["after_refusal"] = {"rows": rows.count(), "ask": ask(), "remedy": _first_text(
-                    self.page, ".listcheck ~ .err[role=alert], .ccard .err[role=alert]"), "text": _text(self.page)}
+                # keel-web 071: nothing to press -- Save is off below three; a click on a disabled button sends nothing
+                out["save_disabled_below_three"] = not self._primary().is_enabled()
                 h.add_screenshot(self._b.screenshot(f"check-{name}-one-more"))
-                rows.nth(rows.count() - 1).fill(add[0])
-                out["added"].append(add[0])
-                add = add[1:]
             for label in add:
                 before = rows.count()
                 self.page.locator(".listcheck__add").first.click()
@@ -474,6 +464,7 @@ class Corridor:
                 out["added"].append(label)
             out["counter_after"] = counter()
             out["ask_after"] = ask()
+            out["save_enabled_after"] = self._primary().is_enabled()
             h.add_screenshot(self._b.screenshot(f"check-{name}-named"))
         return out
 

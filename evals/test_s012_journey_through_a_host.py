@@ -23,7 +23,7 @@ every job in process on its own Anthropic account (keel-cloud specs 044 and 045)
 `HOST=keel` **skips leg one entire** -- skipped, never asserted loosely: `harness/keel_host.py`
 raises from every one of its host-leg methods, so an edit that reached for one gets a sentence
 rather than an empty result that would read as a pass -- and asserts instead the six things only
-that door shows: `1,500 credits available` on the shell line and **no** agent line,
+that door shows: `2,000 credits available` on the shell line and **no** agent line,
 `aiPath: "KEEL"` on the wire, a balance that drops the moment the first framing is held,
 `execution.host: "api"` with a present, non-zero `actual_cost_micro_usd` on every job, the
 founder's screens reading *Keel* rather than *your AI*, and a `KEEL_HOME` still empty when the
@@ -592,7 +592,7 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
         # **The door is the whole of the message** (keel-cloud spec 044 FR-014,
         # `GoogleSignIn.doorOf`). Nothing in this harness says which AI the founder wants, because
         # there is no field that could: keel-cloud reads the door off the pre-login record's own
-        # stored `return_to`. `/signup`'s is `/` and makes a KEEL account with a 1,500-credit
+        # stored `return_to`. `/signup`'s is `/` and makes a KEEL account with a 2,000-credit
         # grant; the code story's is `/connect?user_code=...` and makes an OWN one. Same three
         # hops, same real callback, same stub picker -- a different screen, and therefore a
         # different account.
@@ -607,7 +607,7 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
             auth.sign_up(founder_one)
             arrival = landing.visit()
             # ================================================ THE DOOR: what only Keel's AI shows
-            with recorder.step("spec 024: the landing reads a number, not an agent -- 1,500 "
+            with recorder.step("spec 024: the landing reads a number, not an agent -- 2,000 "
                                 "credits, no agent line, and this run's KEEL_HOME is empty",
                                 party="founder", kind="assert") as h:
                 shell = Shell(page, recorder)
@@ -809,7 +809,7 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
             # keel-cloud spec 044 FR-014, `GoogleSignIn.doorOf`: the door an account is **made**
             # on is read back off the pre-login record's own stored `return_to`, and `/connect` is
             # the ONLY path that answers `OWN`. Everything else -- including the bare `/` this
-            # scenario signed in with until today -- answers `KEEL`, grants 1,500 credits, and
+            # scenario signed in with until today -- answers `KEEL`, grants 2,000 credits, and
             # (once keel-cloud spec 045 lands) hands that founder's jobs to Keel's own Anthropic
             # key instead of to the CLI this cell has just installed. Eight weekly cells would
             # have been spending the company's money on a founder who brought their own.
@@ -1100,7 +1100,7 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                                 kind="note") as h:
                 h.record_wire({agent_host.LEGS_ENV: LEGS, "host": HOST},
                                {"asserted": (
-                                    "sign-up through the Google door, 1,500 credits and no agent "
+                                    "sign-up through the Google door, 2,000 credits and no agent "
                                     "line, a project started with no runtime bound, the context "
                                     "card, the problem's card and the problem's calibration "
                                     "questions written -- through the same functions the full "

@@ -686,7 +686,7 @@ IMPORTANCE_MIN_ITEMS = 3
 
 #: Spec 046 FR-003 (keel-web 070 F9): how many of the other difficulties the founder's Importance Answer names, where
 #: it names fewer than the corpus list holds -- the rest the founder types on the Check screen themselves. 01-countly's
-#: Answer names ONE (own + 1: Save is refused ONE_MORE_NEEDED and the screen asks for one more), 05-paidly's TWO (own +
+#: Answer names ONE (own + 1: the screen asks for one more and Save waits for three, keel-web 071), 05-paidly's TWO (own +
 #: 2, the Check screen with two others, Save on); every other entry names them all (COMPOSED).
 IMPORTANCE_NAMED = {"01-countly": 1, "05-paidly": 2}
 

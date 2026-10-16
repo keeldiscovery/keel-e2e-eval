@@ -608,36 +608,33 @@ def _capital(text: str) -> str:
 
 
 def _hold_importance_check(j: Journey, seen: dict, typed: list[str]) -> None:
-    """keel-web 070 F9 on Importance's Check screen: the counter reads *yours + n* for what the Answer named; with one
-    named the screen asks for one more in the founder's words, Save is refused 422 ONE_MORE_NEEDED and opens a line;
-    with two the ask is absent and Save on. The founder types the rest of their own list, and the counter reads
-    *yours + 4*. The *Keel will test* box's sentence counts the list as it stands: *out of two* / *three*, then *five*
-    (keel-web 070 fills `{list_size}`)."""
+    """keel-web 070 F9 / 071 on Importance's Check screen: the counter reads *yours + n* for what the Answer named; with
+    one named the screen asks for one more in the founder's words and Save is disabled (071: the screen asks before
+    the server's ONE_MORE_NEEDED); with two the ask is absent and Save on. The founder types the rest of their own
+    list, the counter reads *yours + 4*, the ask is gone and Save is on. The *Keel will test* box's sentence counts the
+    list as it stands: *out of two* / *three*, then *five* (keel-web 070 fills `{list_size}`)."""
     named = len(vs.importance_named(j.entry))
     x = seen["importance"]
     one = named == 1
     with _step(j, f"Importance's Check screen with {named} other{'s' if named != 1 else ''} (keel-web 070 F9): "
-                  f"*yours + {named}*" + (", the ask for one more, Save refused 422 ONE_MORE_NEEDED and a line opened"
+                  f"*yours + {named}*" + (", the ask for one more, Save off until three (keel-web 071)"
                                           if one else ", no ask, Save on") +
                f"; the founder types {len(typed)} more and it reads *yours + {named + len(typed)}*",
                party="founder") as h:
         size = ["zero", "one", "two", "three", "four", "five"]
         want = {"counter": f"yours + {named}", "ask": ONE_MORE_ASK if one else "",
-                "save_enabled": True, "added": typed, "counter_after": f"yours + {named + len(typed)}",
-                "ask_after": "", "test": f"out of {size[1 + named]}.",
+                "save_enabled": not one, "added": typed, "counter_after": f"yours + {named + len(typed)}",
+                "ask_after": "", "save_enabled_after": True, "test": f"out of {size[1 + named]}.",
                 "test_after": f"out of {size[1 + named + len(typed)]}."}
         if one:
-            want["refused"] = {"status": 422, "code": feedback_marks.ONE_MORE_NEEDED}
-        have = {k: x.get(k) for k in want if k not in ("refused", "test", "test_after")}
+            want["save_disabled_below_three"] = True
+        have = {k: x.get(k) for k in want if k not in ("test", "test_after")}
         have["test"] = next((f"out of {w}." for w in size if (seen["test"]["belief"] or "").endswith(f"out of {w}.")),
                             seen["test"]["belief"])
         have["test_after"] = next((f"out of {w}." for w in size
                                    if ((seen.get("test_after") or {}).get("belief") or "").endswith(f"out of {w}.")),
                                   (seen.get("test_after") or {}).get("belief"))
-        if one:
-            refused = x.get("refused") or {}
-            have["refused"] = {"status": refused.get("status"), "code": _refusal(refused.get("body"))}
-        h.record_assert(want, {**have, "after the refusal": x.get("after_refusal")})
+        h.record_assert(want, have)
         assert have == want, json.dumps({"screen": have, "want": want}, indent=2)
         j.feedback["importance_typed"] = list(typed)
 

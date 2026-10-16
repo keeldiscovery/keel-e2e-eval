@@ -716,7 +716,7 @@ class Auth:
         that travels with it is `/connect?user_code=...`. keel-cloud reads exactly that stored
         `return_to` back when it **creates** the account: `/connect` is the only path that makes an
         `OWN` account, and every other one -- including a bare `/` -- makes a `KEEL` account with a
-        1,500-credit grant.
+        2,000-credit grant.
 
         So this is not a convenience wrapper. A founder who is about to connect a runtime, but
         signs in at the plain `/login` first, arrives on the wrong side of that branch -- and once
@@ -1041,7 +1041,7 @@ class Shell:
         return self.page.locator(".agentline").count() > 0
 
     def credits_line_text(self) -> str:
-        """`.creditsline` -- *"1,500 credits available"* (keel-web spec 024 FR-011; keel-cloud
+        """`.creditsline` -- *"2,000 credits available"* (keel-web spec 024 FR-011; keel-cloud
         `ai-credits-design.md` §6.2).
 
         keel-web's own `creditsLine()` is `${creditsAmount(credits)} credits available`, where the

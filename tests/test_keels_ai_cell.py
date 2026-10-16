@@ -90,8 +90,8 @@ def test_the_absence_of_an_install_is_never_spelled_in_a_name():
 def test_the_grant_is_written_down_once():
     """Asserted twice on that door -- as the integer `/v2/me` answers and as the sentence keel-web
     renders from it -- so a run where only one moved says which (keel-cloud spec 044 FR-017)."""
-    assert agent_host.KEELS_AI_GRANT == 1500
-    assert f"{agent_host.KEELS_AI_GRANT:,} credits available" == "1,500 credits available"
+    assert agent_host.KEELS_AI_GRANT == 2000  # keel-cloud spec 098, 2026-10-16 (1,500 before)
+    assert f"{agent_host.KEELS_AI_GRANT:,} credits available" == "2,000 credits available"
 
 
 # -------------------------------------------------------- leg one is skipped, and it is refused
@@ -268,7 +268,7 @@ def test_the_founder_signs_up_at_the_signup_door_and_in_with_a_code_at_the_other
     assert "auth.sign_in_with_code(founder_one, user_code)" in SCENARIO
     assert "auth.sign_in(founder_one)" not in SCENARIO, (
         "a bare `/login` sign-in is back in S-012; on a CLI door it creates a KEEL account with a "
-        "1,500-credit grant (keel-cloud spec 044 FR-014)")
+        "2,000-credit grant (keel-cloud spec 044 FR-014; 098)")
 
 
 def test_the_scenario_fails_fast_on_a_shut_door_rather_than_waiting_out_a_timeout():

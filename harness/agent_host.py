@@ -90,16 +90,16 @@ CLI_HOSTS = tuple(h for h in HOSTS if h not in HOSTS_WITHOUT_A_CLI)
 
 #: **What keel-cloud grants a founder who comes in through the Google door**, once per Google
 #: identity, in the same transaction as the `founder_account` row (keel-cloud spec 044 FR-017;
-#: `ai-credits-design.md` §5). One credit is one cent of what Keel charges, so 1,500 is the
-#: "free for your first project" the plans page sells -- *one project with up to 20 participants:
-#: the problem framing, twenty interview readings and the brief* -- and it costs Keel about $3.00
-#: of expected inference (§5), or $4.53 at the design's buffered figure.
+#: `ai-credits-design.md` §5; **2,000 since keel-cloud spec 098**, 2026-10-16, 1,500 before). One credit is one cent
+#: of what Keel charges, so 2,000 is the "free for your first project" the plans page sells -- *one project with up
+#: to 20 participants: the problem framing, twenty interview readings and the brief* -- and it costs Keel about
+#: $4.00 of expected inference (§5), or $6.04 at the design's buffered figure.
 #:
 #: Written down here, once, because S-012 asserts it twice on that door: as the integer
 #: `/v2/me.creditsAvailable` answers, and as the sentence keel-web renders from it. A run where
 #: the two disagree is a formatting change; a run where both moved is a grant change; and a
 #: bundle that could not tell them apart would be no use on the morning either happened.
-KEELS_AI_GRANT = 1500
+KEELS_AI_GRANT = 2000
 
 #: keel-cloud's own two words for which AI an account runs on (`/v2/me.aiPath`; keel-cloud spec
 #: 044 FR-033, `canon/openapi-v2.yaml`'s `MeResponse.aiPath`). `OWN` is a founder's own Claude

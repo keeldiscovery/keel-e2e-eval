@@ -54,8 +54,9 @@ def reason(spec: str, what: str) -> str:
 KEY_PREFIX = key_prefix("043")
 #: Any spec's stand-in row.
 STAND_IN_PREFIX = "e2e-eval:"
-#: keel-cloud `CreditPolicy.GRANT_CREDITS`: what a Google sign-up is granted (`CreditLedgerEntry.grant`).
-GRANT_CREDITS = 1500
+#: keel-cloud `CreditPolicy.GRANT_CREDITS`: what a Google sign-up is granted (`CreditLedgerEntry.grant`); 2,000 since
+#: keel-cloud spec 098 (2026-10-16).
+GRANT_CREDITS = 2000
 
 _UUID = re.compile(r"^[0-9a-fA-F-]{36}$")
 
@@ -137,9 +138,9 @@ def now(config: StackConfig) -> str:
 # ------------------------------------------------------------------------------------- the stand-ins
 
 def stand_in_keels_door(config: StackConfig, founder_id: str, run: str, *, spec: str = "043") -> int:
-    """Stand-in 1 (call 129): the account on Keel's door with a fresh grant of 1,500 -- the two facts a Google sign-up
+    """Stand-in 1 (call 129): the account on Keel's door with a fresh grant of 2,000 -- the two facts a Google sign-up
     writes (`ai_path` KEEL, `CreditLedgerEntry.grant`), the grant topping up whatever balance the account holds to
-    exactly 1,500. Returns the credits added."""
+    exactly 2,000. Returns the credits added."""
     _require_uuid(founder_id)
     added = GRANT_CREDITS - balance(config, founder_id)
     _psql(config, "BEGIN;\n"
@@ -148,15 +149,15 @@ def stand_in_keels_door(config: StackConfig, founder_id: str, run: str, *, spec:
                   " VALUES (:'row', :'founder', 'GRANT', :'credits', :'reason', :'key', now());\n"
                   "COMMIT;\n",
           founder=founder_id, row=str(uuid.uuid4()), credits=str(added),
-          reason=reason(spec, "the account on Keel's door with a fresh grant of 1,500"),
+          reason=reason(spec, "the account on Keel's door with a fresh grant of 2,000"),
           key=f"{key_prefix(spec)}{run}:door")
     return added
 
 
 def stand_in_balance(config: StackConfig, founder_id: str, run: str, *, to: int, spec: str = "043") -> int:
     """Stand-in 2 (call 130): the balance lowered to `to` with one row, as keel-cloud's own `ContactsJourneyTest.
-    balance` does (a `PURCHASE` row of the difference) -- the eval cannot spend the fake's 53 people down past 954
-    credits of a 1,500 grant. Returns the row's credits."""
+    balance` does (a `PURCHASE` row of the difference) -- the eval cannot spend the fake's 53 people down past 1,454
+    credits of a 2,000 grant. Returns the row's credits."""
     _require_uuid(founder_id)
     delta = int(to) - balance(config, founder_id)
     _psql(config, "INSERT INTO credit_ledger (id, founder_account_id, kind, credits, reason, idempotency_key, created_at)"

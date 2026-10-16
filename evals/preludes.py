@@ -44,7 +44,7 @@ def own_ai_door(page: Page, recorder: Recorder, stack, get_json: Callable[[str],
     this account come through* is how two scenarios quietly stop meaning the same thing -- and
     this one is worth real money: keel-cloud writes `ai_path` when the account is **created**,
     from the pre-login record's own stored `return_to`, and nothing ever changes it. `/connect` is
-    the only path that answers `OWN`. A bare `/` answers `KEEL`, grants 1,500 credits, and (once
+    the only path that answers `OWN`. A bare `/` answers `KEEL`, grants 2,000 credits, and (once
     keel-cloud spec 045 lands) runs that founder's jobs on **Keel's own** Anthropic key instead of
     on the CLI they already pay for.
 
@@ -97,7 +97,7 @@ def own_ai_door(page: Page, recorder: Recorder, stack, get_json: Callable[[str],
             f"{facts['ai_path']!r}. The first-time flow signs in at `/login?user_code=...`, so the "
             f"stored `return_to` is `/connect?user_code=...` -- the only path "
             f"`GoogleSignIn.doorOf` reads as OWN (keel-cloud spec 044 FR-014). A KEEL account here "
-            f"means keel-cloud granted this founder 1,500 credits and, once spec 045 lands, will "
+            f"means keel-cloud granted this founder 2,000 credits and, once spec 045 lands, will "
             f"answer their jobs on Keel's own Anthropic key rather than on the runtime this "
             f"scenario just connected.")
         assert facts["credits"] is None, (

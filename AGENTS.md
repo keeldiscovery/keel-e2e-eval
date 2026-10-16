@@ -175,7 +175,7 @@ added to this line rather than quietly written — which is exactly how the thir
   `make keels-ai` / `make eval-live K=s012 HOST=keel` walks the same journey through that door:
   leg one is **skipped** (`harness/keel_host.py` raises from every one of its methods, so a
   future edit that reached for it gets a sentence rather than an empty result that would read as
-  a pass), and what is asserted instead is the six things only that door shows -- 1,500 credits
+  a pass), and what is asserted instead is the six things only that door shows -- 2,000 credits
   on the shell line and no agent line, `aiPath: "KEEL"` on the wire, a balance that drops when
   the first framing is held, `execution.host: "api"` with a real `actual_cost_micro_usd` on every
   job, the founder's screens reading *Keel*, and a `KEEL_HOME` still empty when the brief is
@@ -190,7 +190,7 @@ added to this line rather than quietly written — which is exactly how the thir
   through -- the stored `return_to` of that first sign-in -- and `/connect` is the only path that
   answers `OWN`. S-012 signed in at the plain `/login` before it installed anything, so on the
   twin (where every cell registers its own founder minutes earlier) every CLI cell was creating a
-  **Keel's-AI** account with a 1,500-credit grant. The legs are in the founder's own order now --
+  **Keel's-AI** account with a 2,000-credit grant. The legs are in the founder's own order now --
   install, *"keel connect"*, the code, and only then `/login?user_code=...` -- and so are the
   corpus riders' and S-013's. Nothing was removed; two assertions were added.
 

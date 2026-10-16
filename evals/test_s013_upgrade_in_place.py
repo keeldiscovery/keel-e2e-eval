@@ -111,7 +111,7 @@ def test_s013_upgrade_in_place(stack, founder_one, browser, run_dir):
         # spec 044 FR-014, `GoogleSignIn.doorOf`). keel-cloud decides which AI an account runs on
         # from the door it was **created** through, read back off the pre-login record's own
         # stored `return_to`, and `/connect` is the only path that answers `OWN`. A bare `/`
-        # answers `KEEL`, grants 1,500 credits, and once keel-cloud spec 045 lands runs that
+        # answers `KEEL`, grants 2,000 credits, and once keel-cloud spec 045 lands runs that
         # founder's jobs on Keel's own Anthropic key. On the twin this scenario registers a
         # brand-new identity minutes before it signs in, so it was creating an account on the
         # wrong door every time. The code the runtime prints is what fixes it, and this scenario

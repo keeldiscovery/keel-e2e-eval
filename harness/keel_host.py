@@ -5,7 +5,7 @@
 is on their own AI: they install a plugin, load a skill, approve a device, and a runtime on their
 own machine answers every job with their own model on their own plan. A founder who signs up with
 Google at keel-web's `/signup` is on **Keel's** AI: keel-cloud marks the account `ai_path = KEEL`
-from the door alone (spec 044 FR-014), grants 1,500 credits once (FR-017), and answers every job
+from the door alone (spec 044 FR-014), grants 2,000 credits once (FR-017), and answers every job
 in process on Keel's own Anthropic account (spec 045).
 
 The journey between those two founders is the same journey -- describe the idea, approve the

@@ -265,7 +265,7 @@ def _drift_85(j, wire: _Wire, record: dict) -> None:
 
 
 def _keels_door(j, wire: _Wire, founder_id: str, run: str) -> None:
-    with j.recorder.step("interviewer: STAND-IN (call 148) -- the founder on Keel's door with a fresh grant of 1,500 "
+    with j.recorder.step("interviewer: STAND-IN (call 148) -- the founder on Keel's door with a fresh grant of 2,000 "
                          "(spec 043's stand-in, keyed e2e-eval:044:); a lock on Keel's door never reaches READY on a "
                          "stack with no Keel's-AI key", party="stack", kind="protocol") as h:
         added = stack_ledger.stand_in_keels_door(j.stack, founder_id, run, spec=SPEC)

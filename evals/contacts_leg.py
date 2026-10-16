@@ -17,7 +17,7 @@ sized 0 (C2 turns *Show the first 25* off).
 **The founder's door is a stand-in** (judgement calls 129-131, `stack/ledger.py`): the journey's founder is on their
 own AI (the scripted runtime built the project), contacts need credits, and on a stack with no Keel's-AI key nothing
 else can build a locked B2B project for a Keel's-AI founder. So the leg asserts the own-AI refusal first, stands the
-founder on Keel's door with a fresh grant of 1,500, does the work, lowers the balance once for the two refusals, and
+founder on Keel's door with a fresh grant of 2,000, does the work, lowers the balance once for the two refusals, and
 puts the founder back on their own door in a `finally`. On the remote profile (the staging twin, no database) only the
 own-AI refusal runs, and the rest is skipped by name.
 
@@ -257,7 +257,7 @@ def leg_contacts(j) -> dict:
 
 
 def _keels_door(j, wire: _Wire, record: dict, founder_id: str, run: str) -> None:
-    with j.recorder.step("contacts: STAND-IN (call 129) -- the founder on Keel's door with a fresh grant of 1,500; on a "
+    with j.recorder.step("contacts: STAND-IN (call 129) -- the founder on Keel's door with a fresh grant of 2,000; on a "
                          "stack with no Keel's-AI key nothing else can build a locked B2B project for a Keel's-AI "
                          "founder", party="stack", kind="protocol") as h:
         added = stack_ledger.stand_in_keels_door(j.stack, founder_id, run)
@@ -660,7 +660,7 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
         assert us == 26, us
 
     with j.recorder.step(f"contacts: STAND-IN (call 130) -- the balance lowered to {LOW_BALANCE}; the fake's 53 people "
-                         "cannot spend a grant of 1,500 below 546", party="stack", kind="protocol") as h:
+                         "cannot spend a grant of 2,000 below 1,046", party="stack", kind="protocol") as h:
         delta = stack_ledger.stand_in_balance(j.stack, founder_id, run, to=LOW_BALANCE)
         h.record_wire({"row": delta}, {"creditsAvailable": wire.credits()})
         assert wire.credits() == LOW_BALANCE
