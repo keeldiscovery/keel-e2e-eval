@@ -66,11 +66,16 @@ OPENING = ("I'm Keel's interviewer. I'm an AI, not a person. I'll read each ques
 DIDNT_CATCH = "I didn't catch that, could you say it again?"
 PILOT_ASK = "Would you like to take part in the pilot?"
 MORE = "And which one more?"
+#: keel-cloud 099 FR-6 (contract 18): the generic "Is that right?" line, one a role, asked when the classifier is unsure.
+IS_THAT_RIGHT = "Is that right?"
 
 #: `ClipKind`, and the spoken order of one role's set (design §2.4; `ClipKind`'s own javadoc): the opening, then per
-#: part its passage and its items (an item's follow-up right after it), the pilot ask, thanks. DIDNT_CATCH has no place
-#: in the order; the composer writes it last.
-KINDS = ("OPENING", "PROBLEM", "ITEM", "ITEM_MORE", "SOLUTION", "COMMERCIAL", "DIDNT_CATCH", "PILOT", "THANKS")
+#: part its passage and its items (an item's follow-up right after it), the pilot ask, thanks. DIDNT_CATCH and, since
+#: keel-cloud 099 (contract 18), IS_THAT_RIGHT have no place in the order; the composer writes them last.
+KINDS = ("OPENING", "PROBLEM", "ITEM", "ITEM_MORE", "SOLUTION", "COMMERCIAL", "DIDNT_CATCH", "PILOT", "THANKS",
+         "IS_THAT_RIGHT")
+#: The clips said only when an answer asks for them -- never in the spoken order.
+UNSPOKEN = ("DIDNT_CATCH", "IS_THAT_RIGHT")
 PASSAGES = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 #: Which passage introduces a part, by the part's vector (`InterviewPart.vector` on the wire, or its number).
 PASSAGE_OF_VECTOR = {"PROBLEM": "PROBLEM", "SOLUTION": "SOLUTION", "COMMERCIAL": "COMMERCIAL"}
@@ -116,8 +121,8 @@ def role_sets(recording: dict) -> dict[str, list[dict]]:
 
 
 def spoken(clips: list[dict]) -> list[dict]:
-    """One role's clips as spoken (DIDNT_CATCH has no place in the order)."""
-    return [c for c in clips if c.get("kind") != "DIDNT_CATCH"]
+    """One role's clips as spoken (DIDNT_CATCH and IS_THAT_RIGHT have no place in the order)."""
+    return [c for c in clips if c.get("kind") not in UNSPOKEN]
 
 
 def first_sentence(text: str) -> str:

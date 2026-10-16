@@ -394,11 +394,13 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
         out = _paged(j, wire, record, everyone, contacts.show_first, query, fetched, None, DATASET_NAME)
         receipt, first = out["body"], record["pages"][-1]
         names = [r["fullName"] for r in first["rows"]]
-        h.record_assert({"rows": 25, "charged": 150, "available": 1350, "ids": first["fake_ids"], "drawn": names},
+        # spec 048: the grant is 2,000 since spec 047 (keel-cloud 098); this line still read 1,500 - 150
+        h.record_assert({"rows": 25, "charged": 150, "available": stack_ledger.GRANT_CREDITS - 150,
+                         "ids": first["fake_ids"], "drawn": names},
                         {"rows": len(first["ids"]), "charged": receipt.get("creditsCharged"),
                          "available": receipt.get("creditsAvailable"), "ids": first["ids"], "drawn": out["drawn"]})
         assert out["status"] == 200 and len(first["ids"]) == 25 and receipt.get("creditsCharged") == 150, receipt
-        assert receipt.get("creditsAvailable") == 1350 == wire.credits(), receipt
+        assert receipt.get("creditsAvailable") == stack_ledger.GRANT_CREDITS - 150 == wire.credits(), receipt
         assert (receipt.get("dataset") or {}).get("moreToFetch") is True, receipt.get("dataset")
         assert out["drawn"]["names"] == names, out["drawn"]
         _, resized = wire("POST", f"/contacts/datasets/{dataset_id}/size", {})
