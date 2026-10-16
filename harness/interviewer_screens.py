@@ -488,8 +488,12 @@ class Player:
         """A word of protest in the hold (FR-4): the hold ends and the question reopens, the pick still lit."""
         before = self.question()
         self.wait_status(HELD)
+        self.wait_ear()                                 # the hold's window listening (the answer's has closed)
         self.say(word, True)
-        self.page.wait_for_timeout(200)
+        waited = 0
+        while waited < 5_000 * self.patience and HELD in self.status():
+            self.page.wait_for_timeout(100)
+            waited += 100
         reopened = self.question() == before and HELD not in self.status()
         return {"question": before, "said": word, "reopened": reopened, "status": self.status(),
                 "lit": [o["label"] for o in self.sheet()["options"] if o["checked"]]}

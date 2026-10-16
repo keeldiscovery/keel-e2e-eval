@@ -22,6 +22,15 @@ their own door in a `finally`. On the remote profile only the own-AI refusals ru
 and the founder's word are read from the recording keel-cloud stored (`stack/ledger.recording`, a plain `SELECT` of
 three paths of the project's document).
 
+**Since spec 048 (keel-cloud 099 + keel-web 072, contract 18) the stranger's walk is the answer path**: the intro's
+*Test your mic* ("hello" -> *Heard: hello*), no *That's my answer* anywhere, every spoken answer read by the cloud's
+classifier -- the stack's FakeClassifier, left real behind the page (judgement call 1) -- a confident read **held** and
+gone on by itself, a correction and one word two labels carry asked *Is that right?*, a word of protest in a hold, Back
+from the next question with the answer changed by a tap; before the link is answered the classifier guard sends the
+152 spoken-answer cases carried onto its own items (`harness/classifier_guard.py`), Try it yourself asks its own
+founder's route, and S-006 answers one more AI link from the recorded path on the wire (silence, the fake transcriber,
+`how` RECORDED).
+
 Every rule is scored by `evals/interviewer_marks.py` over the record this leg builds (`interviewer.json` and
 `interviewer-marks.json` in the run bundle); the leg fails when an owed mark is unmet. No model runs, no vendor is
 called and no money is spent anywhere here.
@@ -38,6 +47,7 @@ from pathlib import Path
 import requests
 
 from evals import interviewer_marks as marks
+from harness import classifier_guard as guard
 from harness import interviewer_fake as fake
 from harness import interviewer_screens as ivs
 from harness import interviews_screens as iv
@@ -45,12 +55,21 @@ from harness import vectors_script as vs
 from stack import ledger as stack_ledger
 
 SPEC = "044"
+#: What the stack's fake transcriber hears for any recording over the silence floor (`stack/cloud.py`
+#: KEEL_INTERVIEWER_FAKE_TRANSCRIPT; keel-cloud 099 FakeTranscriber's `otherwise`).
+FAKE_TRANSCRIPT = "yes"
 FIRST_FACE = "TITO"
 CHANGED_FACE = "JUDY"
 #: The balance the change is refused at (stand-in 2): under one change (400), over nothing else the leg needs.
 LOW_BALANCE = 100
 AI_PERSON = "Someone the founder knows, by voice"
 CHOICE_PERSON = "Someone the founder knows, who picks"
+#: Spec 048 (keel-cloud 099 FR-4 / FR-7): an AI link answered from the recorded path, on the wire.
+RECORDED_PERSON = "Someone the founder knows, whose browser records"
+#: keel-cloud 099 judgement call 1: under 12 KiB of audio/webm is silence -- never transcribed, never classified. One
+#: byte under, and one well over (what the stack's fake transcriber hears for it is `FAKE_TRANSCRIPT`).
+SILENT_WEBM = b"\x1a\x45\xdf\xa3" + b"\x00" * (12 * 1024 - 5)
+SOUNDED_WEBM = b"\x1a\x45\xdf\xa3" + b"\x01" * (16 * 1024)
 TEXT_PERSON = "Someone the founder knows, in writing"
 #: The founder's word the leg writes after the lock (call 149: no corpus founder writes one; `PUT word` is legal after
 #: the lock) -- so the rule that it is never spoken has a word to hold. Composed here, never generated.
@@ -66,7 +85,9 @@ READ_REASON = marks.READ_REASON
 #: Spec 044 judgement call 3, widened (call 155): the B2C short form -- the recording, READY, its clips, one AI link
 #: served with Range and answered on the stranger's own screen (the consumer link carries the cost total, so the field
 #: is typed there), the pilot, the reading on arrival.
-SHORT_FORM = ["IM1", "IM3", "IM4", "IM5", "IM6", "IM7", "IM9", "IM13"]
+#: Spec 048: the stranger's walk is the answer path on S-005 too -- the mic test, the holds, "Is that right?" and the
+#: way back are owed there as on S-006; RECORDED (IM18) is the full leg's alone.
+SHORT_FORM = ["IM1", "IM3", "IM4", "IM5", "IM6", "IM7", "IM9", "IM13", "IM14", "IM15", "IM16", "IM17"]
 
 
 class _Wire:
@@ -190,6 +211,7 @@ def _leg(j, *, short: bool) -> dict:
         _ai_link(j, wire, record, answer=True)
         if not short:
             _choice_link(j, wire, record)
+            _recorded_link(j, wire, record)
             _change_face(j, wire, record)
             _low_balance(j, wire, record, founder_id, run)
             _retry(j, wire, record)
@@ -603,15 +625,56 @@ def _dry_run(j, wire: _Wire, record: dict) -> None:
         assert founder_clip["status"] == 206, founder_clip
         assert before == after, (before, after)
         assert drawn["mark"] == ivs.MARK_TRY and drawn["done"]["tryRun"], drawn
-        assert ivs.TRY_NOTHING_STORED in drawn["done"]["text"] and not drawn["writes"], drawn
+        stores = [w for w in drawn["writes"] if w not in drawn["reads"]]
+        assert ivs.TRY_NOTHING_STORED in drawn["done"]["text"] and not stores, drawn
         assert drawn["first"]["question"] and drawn["videos"] == 1, drawn
+        # keel-web 072 on the dry run: the mic tested, the answer read by the founder's own classify route and held
+        assert drawn["mic"]["after"]["mic_heard"] == ivs.mic_heard("hello"), drawn["mic"]
+        assert ivs.HELD in drawn["hold"]["status"] and drawn["hold"]["went_on"], drawn["hold"]
+        assert any(r["url"].endswith(f"/v2/projects/{j.project_id}/interviewer/classify") for r in drawn["reads"]), \
+            drawn["reads"]
+    _dry_run_guard(j, wire, record, served)
+
+
+def _dry_run_guard(j, wire: _Wire, record: dict, served: dict) -> None:
+    """Spec 048 FR-6 / FR-3 on the founder's side: the same cases through the dry run's own classify route
+    (`POST /v2/projects/{projectId}/interviewer/classify`, keel-cloud 099 T011) on Try it yourself's items -- the same
+    validators, the founder's own routing (the fake for an eval founder), nothing stored; and an item the dry run does
+    not serve is 422 ITEM_NOT_ON_FORM."""
+    with j.recorder.step("classifier guard (spec 048 FR-6): the cases through Try it yourself's own classify route -- "
+                         "no confident wrong answer, the corrections right, nothing stored; an item not on its form "
+                         "422 ITEM_NOT_ON_FORM", party="founder", kind="assert") as h:
+        items = guard.served_items(served)
+
+        def post(body: dict) -> tuple[int, dict]:
+            status, got = j.call("POST", j.project("/interviewer/classify"), body, ok=(200, 409, 422))
+            return status, got if isinstance(got, dict) else {}
+
+        before = _counts(j, wire, record)
+        report = guard.run(post, items)
+        refused, refusal = j.call("POST", j.project("/interviewer/classify"),
+                                  {"itemId": "not-an-item-of-this-form", "heard": "yes"}, ok=(422,))
+        after = _counts(j, wire, record)
+        summary = report.summary()
+        record["dry_run_guard"] = {**report.to_json(), "foreign": {"status": refused, "body": refusal},
+                                   "before": before, "after": after}
+        h.record_assert({"wrong": 0, "refused": 0, "foreign": 422, "before == after": True},
+                        {k: v for k, v in summary.items()} | {"foreign": {"status": refused, "body": refusal},
+                                                              "before": before, "after": after})
+        assert not report.refused and not report.wrong, summary
+        assert all(v == "right" for v in report.corrections.values()), report.corrections
+        assert (refusal.get("code") if isinstance(refusal, dict) else None) == "ITEM_NOT_ON_FORM", refusal
+        assert before == after, (before, after)
 
 
 def _dry_run_on_screen(j) -> dict:
-    """keel-web 069 FR-007 on the founder's own page: *Try it yourself* on the specialists' card, *Start talking* (the
-    opening plays on the one `<video>`), the first question answered aloud through the seam, End -- the dry run stops
-    there -- *Nothing was stored.*, and the page wrote nothing."""
+    """keel-web 069 FR-007 and 072 on the founder's own page: *Try it yourself* on the specialists' card, *Test your
+    mic* ("hello"), *Start the interview* (the opening plays on the one `<video>`), the first question answered aloud
+    through the seam and **held** -- the walkthrough's frame of the hold photographed -- then End: *Nothing was
+    stored.*, and the page posted nothing but the answer path's reads (the founder's own `interviewer/classify`, which
+    store nothing; keel-cloud 099 T011)."""
     j.context.add_init_script(ivs.SPEECH_SEAM)
+    j.context.add_init_script(ivs.FLOW_TIMELINE)
     persona = _persona(j)
     persona.sent(j.project_id)
     persona.try_it(j.project_id, _labels(j)[vs.LINK_PRIMARY])
@@ -620,16 +683,21 @@ def _dry_run_on_screen(j) -> dict:
     j.page.reload(wait_until="load")
     player = ivs.Player(j.page, j.recorder, party="founder", patience=j.patience)
     try:
-        with player.step("founder tries the interview: Start talking, one answer aloud, End") as h:
+        with player.step("founder tries the interview: Test your mic, Start the interview, one answer aloud and held, "
+                         "End") as h:
             try:
-                j.page.get_by_test_id("start-talking").wait_for(state="visible", timeout=30_000)
+                j.page.get_by_test_id("ai-intro").wait_for(state="visible", timeout=30_000)
                 player.requests.clear()
+                mic = player.mic_test("hello")
                 player.start()
                 player.wait_phase("listening")
                 stage = player.stage()
                 first = player.sheet()
+                player.wait_ear()
                 player.say("yes", True)
-                player.answer()
+                player.wait_status(ivs.HELD)
+                h.add_screenshot(player.screenshot("try-hold"))     # the walkthrough's frame: the hold
+                hold = player.hold()
                 where = player.stage()["where"]
                 player.end()                                   # the dry run stops at End (069 FR-007)
                 done = player.done()
@@ -638,9 +706,10 @@ def _dry_run_on_screen(j) -> dict:
                 h.record_wire({"stuck": True}, player.where_it_stood())
                 raise
             h.add_screenshot(player.screenshot("try-done"))
-            writes = [r for r in player.requests if r["method"] != "GET"]
-            return {"mark": stage["mark"], "first": first, "pilot_where": where, "done": done, "writes": writes,
-                    "videos": stage["videos"]}
+            posts = [r for r in player.requests if r["method"] != "GET"]
+            return {"mark": stage["mark"], "first": first, "pilot_where": where, "done": done, "writes": posts,
+                    "videos": stage["videos"], "mic": mic, "hold": hold,
+                    "reads": [r for r in posts if marks.READS.search(r["url"].split("?")[0])]}
     finally:
         j.page.remove_listener("request", player._keep)
 
@@ -711,8 +780,43 @@ def _ai_link(j, wire: _Wire, record: dict, *, answer: bool) -> None:
                    for c in clips.values() if c), clips
         assert part["status"] == 206 and whole["status"] == 200 and foreign["status"] == 404, record["range"]
     j.tokens["interviewer:ai"] = made["token"]
+    record["served_interview"] = interview
+    _classifier_guard(j, wire, record, made, interview)
     if answer:
         _answer_ai_on_screen(j, wire, record, made, interview)
+
+
+def _classifier_guard(j, wire: _Wire, record: dict, made: dict, interview: dict) -> None:
+    """Spec 048 FR-3: the 152 spoken-answer cases (`harness/classifier_cases.py`) carried onto this AI link's own items
+    and sent to the stranger's `POST /v2/i/{token}/interview/classify` -- keel-cloud 099's FakeClassifier, which every
+    eval founder gets and the stack runs for everyone (no key) -- before the link is answered: no confident wrong
+    answer, the corrections asked come back right, nothing refused, and nothing stored (the link still unanswered)."""
+    with j.recorder.step("classifier guard (spec 048 FR-3): the spoken-answer cases carried onto this AI link's items "
+                         "and sent to POST /v2/i/{token}/interview/classify -- keel-cloud 099's FakeClassifier: no "
+                         "confident wrong answer, every correction asked right, nothing refused, nothing stored",
+                         party="participant", kind="assert") as h:
+        served = guard.served_items(interview)
+
+        def post(body: dict) -> tuple[int, dict]:
+            response = _participant(j, "POST", made["token"], "/interview/classify", body)
+            return response.status_code, _json_of(response)
+
+        report = guard.run(post, served)
+        _, register = wire("GET", "/invitations")
+        row = next((r for r in register.get("invitations") or [] if r.get("invitationId") == made["invitationId"]),
+                   {})
+        record["classifier_guard"] = {**report.to_json(), "served": [s.shape for s in served],
+                                      "link_after": row.get("status")}
+        summary = report.summary()
+        h.record_assert({"wrong": 0, "refused": 0, "corrections": "right where asked", "link": "not ANSWERED"},
+                        {k: v for k, v in summary.items() if k not in ("wrong cases", "refused cases")}
+                        | {"wrong cases": summary["wrong cases"], "refused cases": summary["refused cases"],
+                           "link": row.get("status")})
+        assert not report.refused, summary["refused cases"]
+        assert not report.wrong, summary["wrong cases"]
+        assert all(v == "right" for v in report.corrections.values()), report.corrections
+        assert summary["asked"] >= len([c for c in guard.all_cases() if c.item == "gate"]), summary
+        assert row.get("status") != "ANSWERED", row
 
 
 def _person_for_the_link(j):
@@ -724,8 +828,10 @@ def _person_for_the_link(j):
     return [p for p in j.people if p.person in names][-1]
 
 
-ORDINALS = ["the first one", "the second one", "the third one", "the fourth one", "the fifth one", "the sixth one"]
+ORDINALS = ["first", "second", "third", "fourth", "fifth", "sixth"]
 NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
+#: A cost total said aloud is said in the served currency's word (keel-cloud's FakeClassifier reads these).
+CURRENCY_WORDS = {"USD": "dollars", "GBP": "pounds", "EUR": "euros"}
 
 
 def _closed(answer: dict) -> dict:
@@ -739,114 +845,289 @@ def _closed(answer: dict) -> dict:
     return a
 
 
-def _drive_ai(player, interview: dict, expected: dict) -> list[dict]:
-    """The stranger answers every question the way the corpus person did, as a person would on the stage: the gate
-    said aloud, the story typed, one ordinal, one miss ("31" -- out of every range here -- then the number in words,
-    after the didn't-catch clip), a pick-two tapped, "all of them" for the advantages when they are all the person's,
-    the rest said by their options' own words (or a cost total typed into the field), the escape tapped; then the pilot
-    ask -- *Last question* -- Yes, *Finish*. Since keel-web 070 F1 nothing else is pressed after an answer: a resolved
-    one goes on to the next clip by itself (typed words on *Save and next*, a pick-any's ticks on *That's my answer*).
-    Returns what each sheet drew and what was done on it."""
-    gate = interview.get("gate") or {}
-    items = {i.get("question"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
-    by_prompt = {i.get("advantagesPrompt"): i for i in items.values() if i.get("advantagesPrompt")}
-    by_id = {a["itemId"]: a for a in expected.get("answers") or []}
-    walked: list[dict] = []
-    used = {"ordinal": False, "miss": False}
-    for _ in range(40):
-        player.wait_phase("listening", timeout_s=40)
-        stage, sheet = player.stage(), player.sheet()
-        entry = {"where": stage["where"], "question": sheet["question"], "options": [o["label"] for o in sheet["options"]],
-                 "mark": stage["mark"], "did": []}
-        walked.append(entry)
-        q = sheet["question"]
-        if stage["where"] == ivs.LAST_QUESTION:
-            player.tap("Yes")
-            entry["did"].append("tap Yes")
-            player.next()
-            return walked
-        if gate and q == gate.get("question"):
-            player.say("yes, I did", True)
-            player.answer()
-            entry["did"].append("said yes, I did")
-            continue
-        after_gate = len(walked) > 1 and walked[-2]["question"] == gate.get("question")
-        if gate and after_gate and q not in items and q not in by_prompt:      # the story, after Yes
-            if expected.get("anchorChip"):
-                player.tap_chip()
-                entry["did"].append("tap the story's chip")
-            else:
-                player.type_instead(expected.get("story") or "")
-                player.answer()                                 # *Save and next* (keel-web 070 F1)
-                entry["did"].append("typed the story")
-            continue
-        if q in by_prompt:                                          # the advantages, after "better"
-            item = by_prompt[q]
-            want = by_id[item["itemId"]].get("advantageIds") or []
-            labels = {a["id"]: a["label"] for a in item.get("advantages") or []}
-            if want and sorted(want) == sorted(labels):
-                player.say("all of them", True)
-                player.answer()
-                entry["did"].append("said all of them")
-            else:
-                for a in want:
-                    player.tap(labels[a])
-                    entry["did"].append(f"tap {labels[a]}")
-                player.answer()                                 # a pick-any's ticks go on with That's my answer (070 F1)
-            continue
-        item = items.get(q)
-        assert item, {"an unknown question on the sheet": q, "served": sorted(items)}
-        ans = by_id.get(item["itemId"]) or {}
+def _shared_word(label: str, labels: list[str]) -> str | None:
+    """One word of `label` that another label also carries (keel-cloud FakeClassifier's "one word in two labels" --
+    "payroll" on the check's payroll item): said alone it is read unsure, never guessed."""
+    for word in guard._sig(label):
+        if sum(1 for other in labels if any(guard.same(word, w) for w in guard._sig(other))) >= 2:
+            return word
+    return None
+
+
+def _wait_next(player, question: str, *, timeout_s: float = 30) -> None:
+    """The sheet on another question than `question` (or the end screen)."""
+    deadline = time.monotonic() + timeout_s * player.patience
+    while time.monotonic() < deadline:
+        if player.page.get_by_test_id("ai-done").count() or (player.question() and player.question() != question):
+            return
+        time.sleep(0.1)
+    raise AssertionError({"the sheet stayed on": question, "status": player.status(), "phase": player.phase()})
+
+
+def _presses_between(player, start: float, end: float) -> list[dict]:
+    return [e for e in player.timeline() if e.get("kind") == "press" and start <= (e.get("t") or 0) <= end]
+
+
+def _now(player) -> float:
+    return float(player.page.evaluate("() => performance.now()"))
+
+
+class _Walk:
+    """What the stranger did on the stage, kept for the record: each sheet, the holds, the "Is that right?" turns,
+    the way back, and how each item was answered (`how` the response must then carry)."""
+
+    def __init__(self, player, interview: dict, expected: dict):
+        self.player = player
+        self.gate = interview.get("gate") or {}
+        self.items = {i.get("question"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
+        self.by_prompt = {i.get("advantagesPrompt"): i for i in self.items.values() if i.get("advantagesPrompt")}
+        self.order = [i.get("itemId") for part in interview.get("parts") or [] for i in part.get("items") or []]
+        self.by_id = {a["itemId"]: a for a in expected.get("answers") or []}
+        self.expected = expected
+        self.walked: list[dict] = []
+        self.holds: list[dict] = []
+        self.confirms: list[dict] = []
+        self.back: dict | None = None
+        self.veto: dict | None = None
+        self.how: dict[str, str] = {}
+        self.used = {"miss": False, "medium": False, "correction": False, "back": False, "veto": False}
+        self._back_from: dict | None = None
+
+    # ---- one spoken answer, held
+    def held(self, entry: dict, said: str) -> dict:
+        p = self.player
+        start = _now(p)
+        p.wait_ear()
+        p.say(said, True)
+        hold = p.hold()
+        hold["said"] = said
+        hold["presses"] = _presses_between(p, start, _now(p))
+        self.holds.append(hold)
+        entry["did"].append(f"said {said!r}, held")
+        return hold
+
+    def confirm(self, entry: dict, item: dict, said: str, answer_with: str | None, meant: str) -> None:
+        """An unsure read: "Is that right?" -> `answer_with` said (None: the Yes chip tapped)."""
+        p = self.player
+        made = p.ear()["count"]
+        p.wait_ear()
+        p.say(said, True)
+        turn = p.confirming()
+        turn.update({"said": said, "meant": [meant], "item": item.get("dimension")})
+        # the "Is that right?" clip plays, then the window opens again on the same question
+        p.wait_ear(newer_than=made)
+        start = _now(p)
+        if answer_with is None:
+            p.yes(by="tap")
+            turn["answered"] = "tap Yes, that's it"
+        else:
+            p.say(answer_with, True)
+            turn["answered"] = answer_with
+        # agreed: straight on, no hold; named again: re-read, and held when it is sure
+        hold = _held_or_on(p, turn["question"])
+        if hold is not None:
+            hold.update({"said": answer_with, "presses": _presses_between(p, start, _now(p))})
+            self.holds.append(hold)
+        turn["held after"] = hold is not None
+        _wait_next(p, turn["question"])
+        turn["went_on"] = True
+        turn["sent_item"] = item.get("itemId")
+        self.confirms.append(turn)
+        entry["did"].append(f"said {said!r}: Is that right? -> {turn['answered']!r}")
+
+    # ---- the walk
+    def run(self) -> list[dict]:
+        p = self.player
+        for _ in range(60):
+            p.wait_phase("listening", "held", "confirming", timeout_s=40)
+            p.wait_phase("listening", timeout_s=40)
+            stage, sheet = p.stage(), p.sheet()
+            entry = {"where": stage["where"], "question": sheet["question"],
+                     "options": [o["label"] for o in sheet["options"]], "mark": stage["mark"], "did": [],
+                     "back": _words_of(p, "ai-back")}
+            self.walked.append(entry)
+            q = sheet["question"]
+            if self._back_from and q == self._back_from["next"]:
+                self.go_back(entry)
+                continue
+            if stage["where"] == ivs.LAST_QUESTION:
+                self.pilot(entry)
+                return self.walked
+            if self.gate and q == self.gate.get("question"):
+                self.held(entry, "yes" if self.expected.get("recency", True) is not False else "no")
+                self.how[self.gate.get("itemId")] = "SPOKEN"
+                continue
+            after_gate = len(self.walked) > 1 and self.walked[-2]["question"] == self.gate.get("question")
+            if self.gate and after_gate and q not in self.items and q not in self.by_prompt:
+                self.story(entry)
+                continue
+            if q in self.by_prompt:
+                self.advantages(entry, self.by_prompt[q])
+                continue
+            item = self.items.get(q)
+            assert item, {"an unknown question on the sheet": q, "served": sorted(self.items)}
+            self.answer(entry, item, sheet)
+        raise AssertionError({"the interview never reached its pilot ask": self.walked[-3:]})
+
+    def story(self, entry: dict) -> None:
+        p = self.player
+        if self.expected.get("anchorChip"):
+            p.tap_chip()
+            entry["did"].append("tap the story's chip")
+        else:
+            # keel-web 072: the story is spoken -- never classified, the transcript is the answer
+            p.wait_ear()
+            p.say(self.expected.get("story") or "", True)
+            entry["did"].append("said the story")
+        _wait_next(p, entry["question"])
+
+    def advantages(self, entry: dict, item: dict) -> None:
+        want = self.by_id[item["itemId"]].get("advantageIds") or []
+        labels = {a["id"]: a["label"] for a in item.get("advantages") or []}
+        said = "all of them" if want and sorted(want) == sorted(labels) else " and ".join(labels[a] for a in want)
+        self.held(entry, said)
+        _wait_next(self.player, entry["question"])
+
+    def pilot(self, entry: dict) -> None:
+        """The pilot ask -- *Last question*, never skipped: "yes" said, held, and *Finish* (072: the pilot keeps it)."""
+        p = self.player
+        p.wait_ear()
+        p.say("yes", True)
+        p.finish()
+        entry["did"].append("said yes, Finish")
+
+    def go_back(self, entry: dict) -> None:
+        """FR-6: from the next question, *Back* -- the previous question reopens with the (wrong) answer said there lit;
+        the person's own is tapped, and the interview goes forward again."""
+        p = self.player
+        back = self._back_from
+        self._back_from = None
+        went = p.back(by="tap")
+        p.tap(back["meant"])
+        _wait_next(p, back["question"])
+        self.back = {"from": back["next"], "question": back["question"], "button": went["button"], "to": went["to"],
+                     "lit_on_return": went["lit"], "said_first": back["said"], "changed_to": back["meant"],
+                     "forward": p.question(), "item": back["itemId"]}
+        self.how[back["itemId"]] = "TAPPED"
+        entry["did"].append(f"Back to {back['question']!r}, tapped {back['meant']!r}, forward again")
+
+    def answer(self, entry: dict, item: dict, sheet: dict) -> None:
+        p = self.player
+        ans = self.by_id.get(item["itemId"]) or {}
         options = {o["optionId"]: o["label"] for o in item.get("options") or []}
         control = item.get("control")
+        labels_shown = [o["label"] for o in sheet["options"]]
         if ans.get("chip"):
-            player.tap_chip()
+            p.tap_chip()
             entry["did"].append("tap the escape")
-        elif control == "pick_two":
-            for o in ans.get("optionIds") or []:
-                player.tap(options[o])
-                entry["did"].append(f"tap {options[o]}")
-        elif ans.get("scale") is not None or ans.get("number") is not None:
+            self.how[item["itemId"]] = "TAPPED"
+            _wait_next(p, entry["question"])
+            return
+        if control == "pick_two":
+            self.held(entry, " and ".join(options[o] for o in ans.get("optionIds") or []))
+            self.how[item["itemId"]] = "SPOKEN"
+            _wait_next(p, entry["question"])
+            return
+        if ans.get("scale") is not None or ans.get("number") is not None:
             value = ans.get("scale") if ans.get("scale") is not None else ans.get("number")
-            if not used["miss"]:
-                player.say("31", True)
-                player.answer()
-                player.wait_phase("listening", timeout_s=20)        # the didn't-catch clip, then the window again
-                entry["missed"] = player.sheet()["preview"] or player.sheet()["status"]
+            if not self.used["miss"]:
+                made = p.ear()["count"]
+                p.wait_ear()
+                p.say("31", True)                       # out of every range here: the didn't-catch clip
+                p.wait_ear(newer_than=made, timeout_s=20)
+                entry["missed"] = p.sheet()["preview"] or p.status()
                 entry["did"].append("said 31 (a miss)")
-                used["miss"] = True
+                self.used["miss"] = True
             words = NUMBER_WORDS[int(value)] if str(value).isdigit() and int(value) < len(NUMBER_WORDS) else str(value)
-            player.say(words, True)
-            player.answer()
-            entry["did"].append(f"said {words}")
-        elif ans.get("costTotal"):
+            self.held(entry, f"about {words}")
+            self.how[item["itemId"]] = "SPOKEN"
+            _wait_next(p, entry["question"])
+            return
+        if ans.get("costTotal"):
             cost = ans["costTotal"]
-            player.unit("HOURS" if cost.get("mode") == "HOURS" else "AMOUNT")
-            player.fill_field(str(cost.get("value")))
-            player.answer()
-            entry["did"].append(f"typed {cost.get('value')} into the field")
-            entry["typed"] = {"itemId": item["itemId"], "value": str(cost.get("value"))}
-        else:
-            labels = [options[o] for o in ans.get("optionIds") or []]
-            assert len(labels) == 1, {"item": item["dimension"], "answer": ans}
-            index = [o["label"] for o in sheet["options"]].index(labels[0])
-            if not used["ordinal"] and index < len(ORDINALS):
-                said = ORDINALS[index]
-                used["ordinal"] = True
+            value = float(cost.get("value") or 0)
+            currency = (item.get("costTotal") or {}).get("currency")
+            word = "hours" if cost.get("mode") == "HOURS" else CURRENCY_WORDS.get(currency or "")
+            if value.is_integer() and word:
+                self.held(entry, f"{int(value)} {word}")
+                self.how[item["itemId"]] = "SPOKEN"
             else:
-                said = labels[0]
-            player.say(said, True)
-            player.answer()
-            entry["did"].append(f"said {said}")
-        # keel-web 070 F1: a resolved answer goes on to the next clip by itself -- no *Next question*.
-    raise AssertionError({"the interview never reached its pilot ask": walked[-3:]})
+                p.unit("HOURS" if cost.get("mode") == "HOURS" else "AMOUNT")
+                p.fill_field(str(cost.get("value")))
+                p.save()                                # typed words keep *Save and next*
+                entry["did"].append(f"typed {cost.get('value')} into the field")
+                entry["typed"] = {"itemId": item["itemId"], "value": str(cost.get("value"))}
+                self.how[item["itemId"]] = "TYPED"
+            _wait_next(p, entry["question"])
+            return
+        labels = [options[o] for o in ans.get("optionIds") or []]
+        assert len(labels) == 1, {"item": item["dimension"], "answer": ans}
+        meant = labels[0]
+        index = labels_shown.index(meant)
+        others = [i for i in range(len(labels_shown)) if i != index and i < len(ORDINALS)]
+        last_item = self.order and item["itemId"] == self.order[-1]
+        self.how[item["itemId"]] = "SPOKEN"
+        if not self.used["correction"] and len(labels_shown) >= 3 and index < len(ORDINALS) and others:
+            # "the first one, wait, actually the third": the last correction wins, and a correction is read unsure
+            # (keel-cloud 099 judgement call 8) -- "Is that right?" with the right one lit, then "yes"
+            self.used["correction"] = True
+            said = f"the {ORDINALS[others[0]]} one, wait, actually the {ORDINALS[index]}"
+            self.confirm(entry, item, said, "yes", meant)
+            return
+        shared = _shared_word(meant, labels_shown)
+        if not self.used["medium"] and shared and index < len(ORDINALS):
+            # one word two labels carry ("payroll"): "Is that right?" -> the person names theirs by its place
+            self.used["medium"] = True
+            self.confirm(entry, item, shared, f"the {ORDINALS[index]} one", meant)
+            return
+        if not self.used["back"] and others and not last_item:
+            # answered with another option's own words, held; Back from the next question changes it by a tap
+            self.used["back"] = True
+            wrong = labels_shown[others[0]]
+            self.held(entry, wrong)
+            _wait_next(p, entry["question"])
+            self._back_from = {"question": entry["question"], "next": p.question(), "meant": meant, "said": wrong,
+                               "itemId": item["itemId"]}
+            return
+        if not self.used["veto"]:
+            # a word of protest in the hold reopens the question; the option said again is held and goes on
+            self.used["veto"] = True
+            p.wait_ear()
+            p.say(meant, True)
+            self.veto = p.veto()
+            entry["did"].append(f"said {meant!r}, then 'no' in the hold")
+            self.held(entry, meant)
+            _wait_next(p, entry["question"])
+            return
+        self.held(entry, meant)                          # the option's own words
+        _wait_next(p, entry["question"])
+
+
+def _held_or_on(player, question: str, *, timeout_s: float = 20) -> dict | None:
+    """After an answer to "Is that right?": the question went on at once (agreed -- None), or the read was held."""
+    deadline = time.monotonic() + timeout_s * player.patience
+    while time.monotonic() < deadline:
+        if player.page.get_by_test_id("ai-done").count() or player.question() != question:
+            return None
+        if ivs.HELD in player.status():
+            return player.hold()
+        time.sleep(0.1)
+    raise AssertionError({"after Is that right? the sheet stayed": question, "status": player.status()})
+
+
+def _words_of(player, testid: str) -> str | None:
+    loc = player.page.get_by_test_id(testid)
+    return " ".join((loc.first.text_content() or "").split()) if loc.count() else None
 
 
 def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: dict) -> None:
-    """keel-web 069 FR-008 on the stranger's own page, through the speech seam (`vite --mode test`): the intro (who
-    asks, an AI, Start talking), then every question as `_drive_ai` answers it; the one `POST response` keel-web sends
-    -- `format` AI_INTERVIEWER, `heard` / `how` on every answer, the person's own closed answers -- then the pilot
-    ask's Yes, the same write a text link's is, counted in the overview's pilot."""
+    """keel-web 069 FR-008 and 072's answer path on the stranger's own page, through the speech seam (`vite --mode
+    test`) with the classifier left real (the stack's FakeClassifier): the intro, *Test your mic* ("hello" -> *Heard:
+    hello*), *Start the interview*, then every question as `_Walk` answers it -- no *That's my answer* anywhere, a
+    confident read held and gone on by itself, "Is that right?" for a correction and for one word two labels carry,
+    Back once, a word of protest once -- the pilot ask "yes" and *Finish*; then the one `POST response` keel-web sends:
+    `format` AI_INTERVIEWER, `how` and `heard` on every answer as it was given, exactly the person's own answers (the
+    changed one included), and the pilot's Yes counted."""
     person = _person_for_the_link(j)
     items = {i.get("dimension"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
     recall = ((items.get("commercial.existing_sacrifice") or {}).get("costTotal") or {}).get("recallPeriod")
@@ -858,22 +1139,26 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
     seen: dict = {}
 
     def keep(response) -> None:
-        if response.request.method == "POST" and response.url.endswith(("/interview/response", "/interview/pilot")):
+        if response.request.method == "POST" and response.url.endswith(("/interview/response", "/interview/pilot",
+                                                                        "/interview/classify")):
             seen.setdefault(response.url.rsplit("/", 1)[-1], []).append(
                 {"status": response.status, "body": response.request.post_data_json})
     try:
         page = stranger.new_page()
         page.on("response", keep)
         player = ivs.Player(page, j.recorder, patience=j.patience)
-        with player.step("the stranger answers the AI interviewer: the intro, Start talking, every question by voice, "
-                         "tap or typing, the pilot ask, Finish") as h:
+        with player.step("the stranger answers the AI interviewer: the intro, Test your mic, Start the interview, every "
+                         "question by voice (held, Is that right?, Back once), the pilot ask, Finish") as h:
             try:
                 intro = player.open(made["url"])
+                mic = player.mic_test("hello")
+                h.add_screenshot(player.screenshot("ai-mic-tested"))
                 player.start()
-                walked = _drive_ai(player, interview, expected)
+                walk = _Walk(player, interview, expected)
+                walked = walk.run()
                 done = player.done()
-                events = player.timeline()
-                # Spec 046 FM5 (keel-web 070 F1): no *Next question* pressed, no long think before the next clip.
+                events, statuses = player.timeline(), player.statuses()
+                saw = player.saw_thats_my_answer()
                 record["ai_flow"] = j.feedback["ai_flow"] = {
                     "events": events, "next_presses": sum(1 for e in events if e.get("kind") == "next"
                                                           and e.get("value") != ivs.FINISH),
@@ -885,11 +1170,16 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
             h.add_screenshot(player.screenshot("ai-done"))
     finally:
         stranger.close()
-    with j.recorder.step("interviewer (FR-008 / FR-H): keel-web sent ONE response -- `format` AI_INTERVIEWER, `heard` / "
-                         "`how` on every answer, exactly the person's own answers -- and after the pilot ask (*Last "
-                         "question*, never skipped) one pilot write, counted in the overview's pilot", party="participant",
+    record["mic_test"] = {**mic, "intro": intro}
+    record["hold"] = {"holds": walk.holds, "veto": walk.veto, "statuses": statuses, "saw_thats_my_answer": saw}
+    with j.recorder.step("interviewer (FR-008 / FR-H; keel-web 072): keel-web sent ONE response -- `format` "
+                         "AI_INTERVIEWER, `how` and `heard` on every answer as it was given, exactly the person's own "
+                         "answers (the one changed through Back included) -- the classifier asked for every spoken "
+                         "closed answer, That's my answer never drawn, and after the pilot ask (*Last question*, never "
+                         "skipped) one pilot write, counted in the overview's pilot", party="participant",
                          kind="assert") as h:
         responses, pilots = seen.get("response") or [], seen.get("pilot") or []
+        classified = seen.get("classify") or []
         body = (responses[0] if responses else {}).get("body") or {}
         _, register = wire("GET", "/invitations")
         row = next((r for r in register.get("invitations") or [] if r.get("invitationId") == made["invitationId"]),
@@ -899,30 +1189,55 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
         want = {a["itemId"]: _closed(a) for a in expected.get("answers") or []}
         top = {k: body.get(k) for k in ("recency", "story", "anchorChip") if k in expected}
         by_item = {a.get("itemId"): a for a in body.get("answers") or []}
+        hows = {k: (by_item.get(k) or {}).get("how") for k in walk.how if k in by_item}
         typed = [{"itemId": w["typed"]["itemId"], "typed": w["typed"]["value"],
                   "how": (by_item.get(w["typed"]["itemId"]) or {}).get("how"),
                   "heard": (by_item.get(w["typed"]["itemId"]) or {}).get("heard")} for w in walked if w.get("typed")]
         if typed:
             # Spec 046 FM6 (keel-web 070, DRIFT #89 closed): a value typed into the field carries `heard`.
             record["typed_fields"] = j.feedback["typed_fields"] = typed
+        for turn in walk.confirms:
+            a = by_item.get(turn["sent_item"]) or {}
+            options = {o["optionId"]: o["label"] for o in (next((i for i in items.values()
+                                                                  if i.get("itemId") == turn["sent_item"]), {})
+                                                            .get("options") or [])}
+            turn["sent"] = [options.get(o) for o in a.get("optionIds") or []]
+        if walk.back:
+            a = by_item.get(walk.back["item"]) or {}
+            options = {o["optionId"]: o["label"] for o in (next((i for i in items.values()
+                                                                  if i.get("itemId") == walk.back["item"]), {})
+                                                            .get("options") or [])}
+            record["back"] = {**walk.back, "sent": [options.get(o) for o in a.get("optionIds") or []],
+                              "sent_how": a.get("how")}
+        record["confirm"] = {"turns": walk.confirms}
         record["ai_answers"] = {"body": body, "status": (responses[0] if responses else {}).get("status"),
                                 "register_row": row, "by": "keel-web", "walked": walked, "intro": intro,
-                                "done": done, "expected": expected}
+                                "done": done, "expected": expected, "how": {"want": walk.how, "sent": hows},
+                                "classified": len(classified)}
         record["pilot"] = {**record.get("pilot", {}), "answered": "YES" if pilots and pilots[0]["status"] == 204 else None,
                            "before": pilot_before.get("optedIn"), "after": pilot_after.get("optedIn"),
                            "status": pilots[0]["status"] if pilots else None,
                            "asked": [w["where"] for w in walked][-1:]}
-        h.record_assert({"responses": 1, "format": "AI_INTERVIEWER", "answers": want,
+        spoken = [k for k, v in walk.how.items() if v == "SPOKEN" and k != (interview.get("gate") or {}).get("itemId")]
+        h.record_assert({"responses": 1, "format": "AI_INTERVIEWER", "answers": want, "how": walk.how,
                          "top": {k: expected[k] for k in top}, "pilot": 204, "formatUsed": "AI_INTERVIEWER",
+                         "That's my answer": "never in the DOM", "classify": f">= {len(spoken)} calls, all 200",
                          "intro": {"intro": "AI_INTERVIEWER", "heading": f"{fake.FACE_NAMES[FIRST_FACE]} will ask you"}},
-                        {"responses": len(responses), "format": body.get("format"), "answers": sent, "top": top,
-                         "pilots": pilots, "row": row, "intro": intro, "walked": walked})
+                        {"responses": len(responses), "format": body.get("format"), "answers": sent, "how": hows,
+                         "top": top, "pilots": pilots, "row": row, "intro": intro, "walked": walked,
+                         "saw That's my answer": saw, "classify": [c["status"] for c in classified],
+                         "statuses": [s.get("status") for s in statuses]})
         assert intro["intro"] == "AI_INTERVIEWER" and intro["buttons"] == ["start-talking"], intro
         assert intro["heading"].startswith(f"{fake.FACE_NAMES[FIRST_FACE]} will ask you"), intro
         assert len(responses) == 1 and responses[0]["status"] in (200, 201), responses
         assert body.get("format") == "AI_INTERVIEWER", body
         assert sent == want, {"sent": sent, "want": want}
         assert top == {k: expected[k] for k in top}, (top, expected)
+        assert hows == {k: v for k, v in walk.how.items() if k in by_item}, {"sent": hows, "want": walk.how}
+        assert all((by_item.get(k) or {}).get("heard") for k, v in walk.how.items()
+                   if v == "SPOKEN" and k in by_item), {k: (by_item.get(k) or {}).get("heard") for k in walk.how}
+        assert saw is False, "That's my answer (ai-answer) was drawn"
+        assert len(classified) >= len(spoken) and all(c["status"] == 200 for c in classified), classified
         assert len(pilots) == 1 and pilots[0]["status"] == 204, pilots
         assert row.get("formatUsed") == "AI_INTERVIEWER" and row.get("status") == "ANSWERED", row
         assert all(w["mark"] == ivs.MARK for w in walked), [w["mark"] for w in walked]
@@ -1045,6 +1360,78 @@ def _choice_link(j, wire: _Wire, record: dict) -> None:
         assert row.get("format") == "CHOICE" and row.get("formatUsed") == "TEXT", row
         assert intro["intro"] == "CHOICE" and intro["buttons"] == ["choice-talk", "choice-write"], intro
     _read_on_arrival(j, wire, record, made["invitationId"], "the Let-them-choose link's")
+
+
+def _recorded_link(j, wire: _Wire, record: dict) -> None:
+    """keel-cloud 099 FR-4 / FR-7 (contract 18) on the wire: an AI link answered from the recorded path -- the page
+    keel-web draws where a browser cannot listen sends each window's recording to `POST /v2/i/{token}/interview/answer`.
+    A recording under the silence floor comes back `heard` "", unclear, reason silence (nothing transcribed); one over it
+    is written down by the stack's fake transcriber and read by its fake classifier, `how` RECORDED; and the one
+    response, its spoken answers `how` RECORDED with what was heard, is accepted and stored as answered."""
+    import base64                                                             # noqa: PLC0415
+
+    with j.recorder.step("interviewer (keel-cloud 099 FR-4 / FR-7): an AI link answered from the recorded path -- "
+                         "silence under the floor is read as silence and never transcribed, a recording over it is "
+                         "transcribed (the fake) and classified, and a response with how RECORDED is accepted",
+                         party="participant", kind="assert") as h:
+        status, made = wire("POST", "/invitations/batch", {
+            "expectedRevision": j.revision(), "respondentType": vs.LINK_PRIMARY, "format": "AI_INTERVIEWER",
+            "people": [{"personName": RECORDED_PERSON}]})
+        link = (made.get("links") or [{}])[0]
+        token = _token(link.get("url") or "")
+        interview = _json_of(_participant(j, "GET", token, "/interview"))
+        gate = interview.get("gate") or {}
+
+        def answer(audio: bytes) -> dict:
+            response = _participant(j, "POST", token, "/interview/answer", {
+                "itemId": gate.get("itemId"), "audio": base64.b64encode(audio).decode("ascii"),
+                "mimeType": "audio/webm", "language": "en-GB"})
+            return {"status": response.status_code, **_json_of(response)}
+
+        silence, sounded = answer(SILENT_WEBM), answer(SOUNDED_WEBM)
+        person = _person_for_the_link(j)
+        items = {i.get("dimension"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
+        recall = ((items.get("commercial.existing_sacrifice") or {}).get("costTotal") or {}).get("recallPeriod")
+        body = dict(person.response(token, recall), format="AI_INTERVIEWER")
+        body["answers"] = [{**a, "how": "RECORDED", "heard": _heard_for(a, interview)} for a in body["answers"]]
+        posted = _participant(j, "POST", token, "/interview/response", body)
+        _, register = wire("GET", "/invitations")
+        row = next((r for r in register.get("invitations") or [] if r.get("invitationId") == link.get("invitationId")),
+                   {})
+        record["recorded"] = {"made": {"status": status, "invitationId": link.get("invitationId")},
+                              "silence": silence, "sounded": sounded, "status": posted.status_code,
+                              "response": _json_of(posted), "body": body, "register_row": row}
+        h.record_assert({"silence": {"status": 200, "heard": "", "unclear": True, "reason": "silence"},
+                         "sounded": {"status": 200, "heard": FAKE_TRANSCRIPT}, "response": "201",
+                         "register": {"status": "ANSWERED", "formatUsed": "AI_INTERVIEWER"}},
+                        {k: v for k, v in record["recorded"].items() if k != "body"})
+        assert status == 201 and token, made
+        assert silence["status"] == 200 and silence.get("heard") == "" and silence.get("unclear") is True, silence
+        assert silence.get("reason") == "silence", silence
+        assert sounded["status"] == 200 and sounded.get("heard") == FAKE_TRANSCRIPT, sounded
+        assert sounded.get("picks") == ["Yes"] and sounded.get("confidence") == "high", sounded
+        assert posted.status_code in (200, 201), record["recorded"]["response"]
+        assert row.get("status") == "ANSWERED" and row.get("formatUsed") == "AI_INTERVIEWER", row
+    _read_on_arrival(j, wire, record, link.get("invitationId"), "the recorded link's")
+
+
+def _heard_for(answer: dict, interview: dict) -> str:
+    """What a recorded answer was heard as: the option's own words, the value, or the escape's (composed here)."""
+    for part in interview.get("parts") or []:
+        for item in part.get("items") or []:
+            if item.get("itemId") != answer.get("itemId"):
+                continue
+            labels = {o["optionId"]: o["label"] for o in item.get("options") or []}
+            labels.update({a["id"]: a["label"] for a in item.get("advantages") or []})
+            if answer.get("chip"):
+                return (item.get("escape") or {}).get("label") or "I can't say"
+            if answer.get("costTotal"):
+                return str(answer["costTotal"].get("value"))
+            if answer.get("scale") is not None:
+                return str(answer["scale"])
+            words = [labels.get(o, "") for o in (answer.get("optionIds") or []) + (answer.get("advantageIds") or [])]
+            return " and ".join(w for w in words if w) or "yes"
+    return "yes"
 
 
 def _change_face(j, wire: _Wire, record: dict) -> None:

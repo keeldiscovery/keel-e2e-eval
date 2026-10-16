@@ -19,8 +19,17 @@ from typing import Any, Callable
 
 from harness import interviewer_fake as fake
 
-#: Bumped whenever a mark is born, retired, or reads its record differently.
-INTERVIEWER_MARKS_VERSION = 1
+#: Bumped whenever a mark is born, retired, or reads its record differently. v2 (spec 048, keel-cloud 099 / keel-web 072,
+#: contract 18): IM14-IM18 born (the hold, "Is that right?", the way back, Test your mic, RECORDED); IM3 reads one
+#: IS_THAT_RIGHT a role beside DIDNT_CATCH; IM8 reads a classify / answer / transcribe call as no write; IM9 takes
+#: RECORDED, with its words.
+INTERVIEWER_MARKS_VERSION = 2
+#: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
+#: run that only asks them has written nothing.
+READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe)$")
+#: keel-web 072 FR-9's status words, restated where the marks read them (harness/interviewer_screens.py keeps the page's).
+HELD = "Got it. Moving on… say no to change"
+IS_THAT_RIGHT = "Is that right? Say yes, or tell me the right one"
 
 #: A price word on a screen that must carry none (decision 1: "no price shown").
 PRICE_WORD = re.compile(r"\bcredits?\b|[$£€]\s?\d|\bprice[sd]?\b|\bcosts?\b|\bpaid\b|\bcharge[sd]?\b", re.I)
@@ -122,7 +131,7 @@ def _expected_kinds(role: dict) -> list[tuple[str, str | None]]:
 def spoken_order(r: dict) -> tuple[bool, Any]:
     """IM3: every role's clips in the spoken order -- OPENING, PROBLEM and part 1's items, SOLUTION and part 2's,
     COMMERCIAL and part 3's (a follow-up right after the item it hangs on), PILOT, THANKS -- each item once, as its
-    link serves it; and one DIDNT_CATCH a role."""
+    link serves it; and one DIDNT_CATCH and (keel-cloud 099) one IS_THAT_RIGHT a role, neither in the order."""
     sets = fake.role_sets(r["recording"])
     out: dict = {}
     ok = bool(r["roles"]) and set(sets) == set(r["roles"])
@@ -137,9 +146,10 @@ def spoken_order(r: dict) -> tuple[bool, Any]:
             said.append((c.get("kind"), c.get("itemId") if c.get("kind") == "ITEM" else None))
         want = _expected_kinds(role)
         catches = sum(c.get("kind") == "DIDNT_CATCH" for c in clips)
-        this = said == want and catches == 1
+        unsure = sum(c.get("kind") == "IS_THAT_RIGHT" for c in clips)
+        this = said == want and catches == 1 and unsure == 1
         ok = ok and this
-        out[name] = {"ok": this, "said": said, "want": want, "didntCatch": catches}
+        out[name] = {"ok": this, "said": said, "want": want, "didntCatch": catches, "isThatRight": unsure}
     return ok, out
 
 
@@ -205,23 +215,25 @@ def range_served(r: dict) -> tuple[bool, Any]:
 
 def dry_run_wrote_nothing(r: dict) -> tuple[bool, Any]:
     """IM8: *Try it yourself* is served (`tryRun`, the clips) and writes nothing -- no invitation, no response, no pilot,
-    no ledger row, and the page posts nothing."""
+    no ledger row, and the page posts nothing but the answer path's reads (classify / answer / transcribe store
+    nothing, keel-cloud 099)."""
     x = r["dry_run"]
-    ok = (x.get("tryRun") is True and x.get("clips", 0) > 0 and x.get("before") == x.get("after")
-          and not x.get("writes"))
-    return ok, x
+    writes = [w for w in x.get("writes") or [] if not READS.search((w.get("url") or "").split("?")[0])]
+    ok = (x.get("tryRun") is True and x.get("clips", 0) > 0 and x.get("before") == x.get("after") and not writes)
+    return ok, {**x, "writes that store": writes}
 
 
 def heard_on_every_answer(r: dict) -> tuple[bool, Any]:
     """IM9: the AI link's `POST response` says `format` AI_INTERVIEWER and carries `how` on every answer and `heard`
     on every spoken one (at most 600 characters; spec 044 FR-003 "heard on every spoken answer" -- a value typed into
-    a field carries none, DRIFT #89); the register's row then reads `formatUsed` AI_INTERVIEWER."""
+    a field carries none, DRIFT #89; keel-cloud 099: RECORDED is spoken too); the register's row then reads
+    `formatUsed` AI_INTERVIEWER."""
     x = r["ai_answers"]
     body = x.get("body") or {}
     answers = body.get("answers") or []
     bad = [a.get("itemId") for a in answers
-           if a.get("how") not in ("SPOKEN", "TAPPED", "TYPED")
-           or (a.get("how") == "SPOKEN" and not (a.get("heard") or "").strip())
+           if a.get("how") not in ("SPOKEN", "TAPPED", "TYPED", "RECORDED")
+           or (a.get("how") in ("SPOKEN", "RECORDED") and not (a.get("heard") or "").strip())
            or len(a.get("heard") or "") > 600]
     spoken = [a for a in answers if a.get("how") == "SPOKEN"]
     ok = (body.get("format") == "AI_INTERVIEWER" and bool(answers) and bool(spoken) and not bad
@@ -282,6 +294,70 @@ def read_on_arrival(r: dict) -> tuple[bool, Any]:
     return ok, {"arrivals": per, "unexplained": unexplained, "holds": len(holds)}
 
 
+def held_then_on(r: dict) -> tuple[bool, Any]:
+    """IM14 (keel-web 072 FR-4 / FR-5): a confident spoken answer is **held** -- the status reads *Got it. Moving on…
+    say no to change* with the pick lit -- and the next question comes by itself, nothing pressed in the hold; a word of
+    protest in a hold reopens the question; and *That's my answer* is never in the DOM."""
+    x = r["hold"]
+    holds = x.get("holds") or []
+    clean = [h for h in holds if HELD in (h.get("status") or "") and h.get("went_on") and not h.get("presses")
+             and (h.get("lit") or h.get("heard"))]
+    veto = x.get("veto") or {}
+    ok = (bool(clean) and len(clean) == len(holds) and x.get("saw_thats_my_answer") is False
+          and (not veto or veto.get("reopened") is True)
+          and any(HELD in (s.get("status") or "") for s in x.get("statuses") or []))
+    return ok, {"holds": len(holds), "clean": len(clean), "veto": veto,
+                "thats my answer seen": x.get("saw_thats_my_answer"), "statuses": len(x.get("statuses") or [])}
+
+
+def asked_is_that_right(r: dict) -> tuple[bool, Any]:
+    """IM15 (FR-2): an unsure read asks *Is that right? Say yes, or tell me the right one* with a pick lit and the
+    *Yes, that's it* chip; the answer to it settles the question -- straight on after a yes -- and the response
+    carries what the stranger meant for that item."""
+    x = r["confirm"]
+    turns = x.get("turns") or []
+    good = [c for c in turns if IS_THAT_RIGHT in (c.get("status") or "") and c.get("lit") and c.get("yes")
+            and c.get("went_on") and c.get("sent") == c.get("meant")]
+    return bool(turns) and len(good) == len(turns), {"turns": turns}
+
+
+def went_back(r: dict) -> tuple[bool, Any]:
+    """IM16 (FR-6): from the next question *‹ Back to question n* reopens the previous one with its answer lit; it
+    is changed by a tap and the interview goes forward again; the one response carries the changed answer, TAPPED."""
+    x = r["back"]
+    ok = (bool(x.get("button")) and x.get("to") == x.get("question") and bool(x.get("lit_on_return"))
+          and x.get("lit_on_return") != [x.get("changed_to")] and x.get("forward") == x.get("from")
+          and x.get("sent") == [x.get("changed_to")] and x.get("sent_how") == "TAPPED")
+    return ok, x
+
+
+def mic_tested(r: dict) -> tuple[bool, Any]:
+    """IM17 (FR-7): the AI link's intro asks *Test your mic* before Start; "hello" said reads *Heard: hello*, and
+    *Start the interview* is enabled by it."""
+    x = r["mic_test"]
+    before, after = x.get("before") or {}, x.get("after") or {}
+    ok = (before.get("mic_test") is True and before.get("start_enabled") is False
+          and after.get("mic_heard") == "Heard: hello" and after.get("start_enabled") is True)
+    return ok, {"before": {k: before.get(k) for k in ("mic_test", "start_enabled", "mic_heard")},
+                "after": {k: after.get(k) for k in ("mic_test", "start_enabled", "mic_heard")}}
+
+
+def recorded_accepted(r: dict) -> tuple[bool, Any]:
+    """IM18 (keel-cloud 099 FR-4 / FR-7): a recording under the silence floor is read as silence on `answer` --
+    `heard` empty, unclear, reason silence, nothing transcribed -- and a response whose spoken answers say `how`
+    RECORDED is accepted and stored as answered on an AI link."""
+    x = r["recorded"]
+    silence = x.get("silence") or {}
+    answers = (x.get("body") or {}).get("answers") or []
+    ok = (silence.get("status") == 200 and silence.get("heard") == "" and silence.get("unclear") is True
+          and silence.get("reason") == "silence"
+          and x.get("status") in (200, 201) and any(a.get("how") == "RECORDED" for a in answers)
+          and (x.get("register_row") or {}).get("status") == "ANSWERED"
+          and (x.get("register_row") or {}).get("formatUsed") == "AI_INTERVIEWER")
+    return ok, {"silence": silence, "status": x.get("status"), "register_row": x.get("register_row"),
+                "recorded": sum(a.get("how") == "RECORDED" for a in answers)}
+
+
 #: (mark id, the record key it reads, the rule). Order is the leg's.
 MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("IM1", "ledger", one_recording_pair),
@@ -297,6 +373,11 @@ MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("IM11", "low_balance", refused_at_low_balance),
     ("IM12", "retry", the_retry_free),
     ("IM13", "arrivals", read_on_arrival),
+    ("IM14", "hold", held_then_on),
+    ("IM15", "confirm", asked_is_that_right),
+    ("IM16", "back", went_back),
+    ("IM17", "mic_test", mic_tested),
+    ("IM18", "recorded", recorded_accepted),
 ]
 
 

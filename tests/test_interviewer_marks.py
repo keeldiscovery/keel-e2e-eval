@@ -21,6 +21,8 @@ NAME = "invoice payout service"
 HOW = ("You send an invoice and the service pays you within seven days. It collects from the agency later.")
 BELIEF = "The people building it believe it would get translators paid on time."
 PITCH = "I spent six years chasing agencies for my own invoices and I want nobody else to have to."
+HELD = "Got it. Moving on… say no to change"
+IS_THAT_RIGHT = "Is that right? Say yes, or tell me the right one"
 
 
 def _pair(action: str) -> list[dict]:
@@ -58,7 +60,8 @@ def good() -> dict:
                _clip("PRIMARY", "ITEM_MORE", "solution.relative_advantage"),
                _clip("PRIMARY", "ITEM", "solution.compatibility", attempts=2),
                _clip("PRIMARY", "PILOT", script=fake.PILOT_ASK), _clip("PRIMARY", "THANKS", script="Thank you."),
-               _clip("PRIMARY", "DIDNT_CATCH", script=fake.DIDNT_CATCH)]
+               _clip("PRIMARY", "DIDNT_CATCH", script=fake.DIDNT_CATCH),
+               _clip("PRIMARY", "IS_THAT_RIGHT", script=fake.IS_THAT_RIGHT)]
     commercial = [_clip("COMMERCIAL_B2B", "OPENING", script=fake.OPENING),
                   _clip("COMMERCIAL_B2B", "SOLUTION", script=SOLUTION),
                   _clip("COMMERCIAL_B2B", "COMMERCIAL", script="Last, the money side. 2 questions."),
@@ -66,7 +69,8 @@ def good() -> dict:
                   _clip("COMMERCIAL_B2B", "ITEM", "commercial.purchase_friction"),
                   _clip("COMMERCIAL_B2B", "PILOT", script=fake.PILOT_ASK),
                   _clip("COMMERCIAL_B2B", "THANKS", script="Thank you."),
-                  _clip("COMMERCIAL_B2B", "DIDNT_CATCH", script=fake.DIDNT_CATCH)]
+                  _clip("COMMERCIAL_B2B", "DIDNT_CATCH", script=fake.DIDNT_CATCH),
+                  _clip("COMMERCIAL_B2B", "IS_THAT_RIGHT", script=fake.IS_THAT_RIGHT)]
     return {
         "entry": "05-paidly", "project_id": PROJECT,
         "ledger": [{"kind": "GRANT", "credits": 1500, "action": None, "price_version": None},
@@ -93,14 +97,17 @@ def good() -> dict:
         "range": {"part": {"status": 206, "content_range": "bytes 0-99/1000", "accept_ranges": "bytes", "length": 100},
                   "whole": {"status": 200, "accept_ranges": "bytes", "length": 1000},
                   "foreign": {"status": 404}},
-        "dry_run": {"tryRun": True, "clips": 11, "writes": [],
+        "dry_run": {"tryRun": True, "clips": 11,                             # 099: the dry run's reads store nothing
+                    "writes": [{"method": "POST",
+                                "url": f"http://localhost:18080/v2/projects/{PROJECT}/interviewer/classify"}],
                     "before": {"invitations": 21, "answered": 20, "pilot": 4, "ledger": 3},
                     "after": {"invitations": 21, "answered": 20, "pilot": 4, "ledger": 3}},
         "ai_answers": {"body": {"format": "AI_INTERVIEWER", "answers": [
                            {"itemId": "a", "how": "SPOKEN", "heard": "about three, maybe four"},
                            {"itemId": "b", "how": "TAPPED", "heard": ""},
                            {"itemId": "c", "how": "TYPED", "heard": "200"},
-                           {"itemId": "d", "how": "TYPED"}]},                    # a value typed into the field
+                           {"itemId": "d", "how": "TYPED"},                     # a value typed into the field
+                           {"itemId": "e", "how": "RECORDED", "heard": "the second one"}]},
                        "register_row": {"formatUsed": "AI_INTERVIEWER"}},
         "change": {"face": "JUDY", "face_before": "TITO", "face_after": "JUDY", "ready_face": "JUDY",
                    "balance_before": 1100, "balance_after": 700, "trail": ["RECORDING", "RECORDING", "READY"]},
@@ -110,6 +117,23 @@ def good() -> dict:
                                  "available": 100, "remedy": fake.INSUFFICIENT_REMEDY.format(required=400,
                                                                                             available=100)}},
         "retry": {"status": "READY", "ledger_rows_added": 0, "clip": {"attempts": 2, "status": "DONE"}},
+        "hold": {"holds": [{"question": "Did it happen?", "status": HELD, "lit": ["Yes"], "heard": "", "went_on": True,
+                            "presses": [], "said": "yes"},
+                           {"question": "Which fits?", "status": HELD, "lit": ["Agency A"], "heard": "", "went_on": True,
+                            "presses": [], "said": "agency a"}],
+                 "veto": {"question": "Which fits?", "said": "no", "reopened": True, "lit": ["Agency A"]},
+                 "statuses": [{"status": "Listening…"}, {"status": HELD}], "saw_thats_my_answer": False},
+        "confirm": {"turns": [{"question": "Which one?", "status": IS_THAT_RIGHT, "lit": ["Agency A"],
+                               "yes": "Yes, that’s it", "went_on": True, "meant": ["Agency C"], "sent": ["Agency C"],
+                               "said": "the first one, wait, actually the third", "answered": "yes"}]},
+        "back": {"from": "Next?", "question": "Which fits?", "button": "‹ Back to question 4", "to": "Which fits?",
+                 "lit_on_return": ["Agency B"], "said_first": "Agency B", "changed_to": "Agency A", "forward": "Next?",
+                 "sent": ["Agency A"], "sent_how": "TAPPED"},
+        "mic_test": {"before": {"mic_test": True, "start_enabled": False, "mic_heard": None},
+                     "after": {"mic_test": True, "start_enabled": True, "mic_heard": "Heard: hello"}},
+        "recorded": {"silence": {"status": 200, "heard": "", "unclear": True, "reason": "silence"},
+                     "status": 201, "body": {"answers": [{"itemId": "a", "how": "RECORDED", "heard": "the first"}]},
+                     "register_row": {"status": "ANSWERED", "formatUsed": "AI_INTERVIEWER"}},
         "arrivals": [{"invitationId": AI_INVITATION, "holds": [_reading("INTERPRET", f"read-on-arrival:{AI_INVITATION}")]},
                      {"invitationId": CHOICE_INVITATION,
                       "holds": [_reading("INTERPRET", f"read-on-arrival:{CHOICE_INVITATION}")]}],
@@ -124,9 +148,9 @@ def test_a_good_record_meets_every_mark():
     checks = _by_mark(good())
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
-    assert (card["measured"], card["met"], card["unmeasured"]) == (13, 13, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 1
-    assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 14)]
+    assert (card["measured"], card["met"], card["unmeasured"]) == (18, 18, [])
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 2
+    assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 19)]
 
 
 def test_the_short_form_measures_what_it_carries_and_nothing_else():
@@ -172,6 +196,9 @@ SEEDED = [
     ("IM3", ["recording"], _clips(lambda c: c[:5] + [c[6], c[5]] + c[7:])),               # a follow-up before its item
     ("IM3", ["recording"], _clips(lambda c: [x for x in c if not (x["kind"] == "DIDNT_CATCH"
                                                                     and x["role"] == "COMMERCIAL_B2B")])),
+    ("IM3", ["recording"], _clips(lambda c: [x for x in c if not (x["kind"] == "IS_THAT_RIGHT"
+                                                                    and x["role"] == "PRIMARY")])),  # 099's line missing
+    ("IM3", ["recording"], _clips(lambda c: c + [_clip("PRIMARY", "IS_THAT_RIGHT")])),   # twice
     ("IM3", ["recording"], _clips(lambda c: [x for x in c if x["role"] == "PRIMARY"])),   # a role with no clips
     ("IM3", ["recording"], _clips(lambda c: [x for x in c if not (x["kind"] == "SOLUTION"
                                                                     and x["role"] == "COMMERCIAL_B2B")])),
@@ -201,12 +228,15 @@ SEEDED = [
     ("IM8", ["dry_run", "after", "ledger"], 5),                                           # or charged
     ("IM8", ["dry_run", "writes"], [{"method": "POST", "url": "/v2/i/x/interview/response"}]),
     ("IM8", ["dry_run", "tryRun"], None),
+    ("IM8", ["dry_run", "writes"], lambda w: w + [{"method": "POST", "url": "/v2/i/x/interview/pilot"}]),
     ("IM9", ["ai_answers", "body", "format"], "TEXT"),
     ("IM9", ["ai_answers", "body", "answers", 0, "heard"], ""),                          # a spoken answer, nothing heard
     ("IM9", ["ai_answers", "body", "answers", 1], {"itemId": "b"}),                       # no how
     ("IM9", ["ai_answers", "body", "answers", 2, "heard"], "x" * 601),
     ("IM9", ["ai_answers", "body", "answers"], lambda a: [x for x in a if x["how"] != "SPOKEN"]),
     ("IM9", ["ai_answers", "register_row", "formatUsed"], None),
+    ("IM9", ["ai_answers", "body", "answers", 4, "heard"], ""),                          # recorded, nothing heard
+    ("IM9", ["ai_answers", "body", "answers", 4, "how"], "WHISPERED"),
     ("IM10", ["ledger"], lambda rows: [r for r in rows if r["action"] != "INTERVIEWER_CHANGE"]),  # changed for free
     ("IM10", ["ledger"], lambda rows: rows + _pair("INTERVIEWER_CHANGE")),                # charged twice
     ("IM10", ["change", "balance_after"], 1100),
@@ -225,6 +255,29 @@ SEEDED = [
     ("IM13", ["arrivals", 1, "holds"], [_reading("INTERPRET", "read-on-arrival:" + str(uuid.uuid4()))]),
     ("IM13", ["arrivals", 0, "holds"], lambda h: h * 4),                                # read four times
     ("IM13", ["ledger"], lambda rows: rows + [_reading("BRIEF", "brief:after-batch")]), # 095's retired reason
+    ("IM14", ["hold", "saw_thats_my_answer"], True),                                     # the old button drawn
+    ("IM14", ["hold", "holds", 0, "presses"], [{"kind": "press", "testid": "ai-next"}]), # a press in the hold
+    ("IM14", ["hold", "holds", 1, "went_on"], False),                                    # held and stuck
+    ("IM14", ["hold", "holds"], []),                                                     # never held
+    ("IM14", ["hold", "veto", "reopened"], False),                                       # "no" ignored
+    ("IM14", ["hold", "statuses"], [{"status": "Listening…"}]),                          # the words never drawn
+    ("IM15", ["confirm", "turns"], []),                                                  # never asked
+    ("IM15", ["confirm", "turns", 0, "sent"], ["Agency A"]),                             # the unsure pick sent
+    ("IM15", ["confirm", "turns", 0, "yes"], None),                                      # no Yes chip
+    ("IM15", ["confirm", "turns", 0, "status"], "Listening…"),
+    ("IM16", ["back", "button"], None),                                                  # no Back drawn
+    ("IM16", ["back", "lit_on_return"], []),                                             # reopened blank
+    ("IM16", ["back", "sent"], ["Agency B"]),                                            # the first answer sent
+    ("IM16", ["back", "sent_how"], "SPOKEN"),
+    ("IM16", ["back", "forward"], "Which fits?"),                                        # stuck behind
+    ("IM17", ["mic_test", "after", "mic_heard"], None),                                  # nothing heard drawn
+    ("IM17", ["mic_test", "before", "start_enabled"], True),                             # Start before the test
+    ("IM17", ["mic_test", "after", "start_enabled"], False),
+    ("IM18", ["recorded", "silence", "reason"], "vendor"),                               # silence sent on
+    ("IM18", ["recorded", "silence", "heard"], "you"),                                   # Whisper's ghost
+    ("IM18", ["recorded", "status"], 422),                                               # RECORDED refused
+    ("IM18", ["recorded", "body", "answers", 0, "how"], "SPOKEN"),
+    ("IM18", ["recorded", "register_row", "status"], "OPENED"),
 ]
 
 
