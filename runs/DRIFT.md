@@ -5311,7 +5311,12 @@ before the answers nothing reads on arrival -- it reads at the next connect or o
 which no screen offers -- so S-005 / 006 / 007, whose scripted runtime connects first, keep asking for each reading on
 the wire, in a step that now names 095's rule instead of this entry.
 
-## 85. Observation (keel-cloud): on their own AI, the founder's AI-interviewer link in a **batch** is refused 409 `INTERVIEWER_NOT_READY`, where contract 16 says 422 `INTERVIEWER_NEEDS_CREDITS`
+## 85. RESOLVED (keel-cloud-docs `3002978`, spec 097 judgement call 21) -- was an observation (keel-cloud): on their own AI, the founder's AI-interviewer link in a **batch** is refused 409 `INTERVIEWER_NOT_READY`, where contract 16 says 422 `INTERVIEWER_NEEDS_CREDITS`
+
+**Resolved by keel-cloud 097** (merged at keel-cloud-docs `3002978`, the 097 worktree's `8060a7e`): the batch asks the
+door first (`InterviewerService.requireFormatOpen`, AI_INTERVIEWER and CHOICE only). Spec 046 holds it straight on S-005
+and S-006 (`interviewer_leg._drift_85`, no step round): 422 `INTERVIEWER_NEEDS_CREDITS`, nothing made. What follows is
+the observation as filed.
 
 Found by spec `044-ai-interviewer-journey` on S-005 and S-006 (local stack on keel-cloud-docs `78c90b6` + keel-web
 `df2e97a`). Contract 16's `POST .../invitations/batch` description: *"AI_INTERVIEWER and CHOICE wait for the project's
@@ -5337,7 +5342,11 @@ passed**; the leg reads the stored recording for a clip with two attempts (none,
 could not reach. keel-cloud's own journey test holds the retry. For keel-cloud, if the eval should hold it: one
 stack-only property (say `keel.v2.interviewer.fake.fail-once-kinds=SOLUTION`) the fake reads at boot.
 
-## 87. Observation (keel-web): L1, revisited on a locked project, checks Judy -- the preselected face -- while Tito asks every question
+## 87. RESOLVED (keel-web 070, `752e873`, branch head `7d72b3a`) -- was an observation (keel-web): L1, revisited on a locked project, checks Judy -- the preselected face -- while Tito asks every question
+
+**Resolved by keel-web 070** (T005, `660ecb3`; run on branch head `752e873`, branch head `7d72b3a`): once locked, L1 ticks `GET interviewer`'s
+face. Spec 046 holds L1 to Tito on S-006 (`interviewer_leg._screens_ready`, an assert, no note). What follows is the
+observation as filed.
 
 Found by spec `044-ai-interviewer-journey` on S-006 (local stack on keel-cloud-docs `a0b3759` + keel-web `d23895f`). After
 the founder records Tito (`GET interviewer` `face.code` TITO, READY), `/p/{id}/define/ready/interviewer` still draws the
@@ -5347,7 +5356,13 @@ Send more all say Tito. keel-web 069 says nothing about L1 after the lock. The l
 no price, and records the face it checks in a step named for the entry. For keel-web: seed the pick from `GET
 interviewer` once the project is locked (or draw no carousel there).
 
-## 88. Observation (keel-web, with keel-cloud 095 beside it): a link made on Sent right after an answer is read on arrival is refused 409 `concurrency`, and the popup shows the server's own words
+## 88. RESOLVED (keel-web 070, `752e873`, branch head `7d72b3a`) -- was an observation (keel-web, with keel-cloud 095 beside it): a link made on Sent right after an answer is read on arrival is refused 409 `concurrency`, and the popup shows the server's own words
+
+**Resolved by keel-web 070** (T005, `660ecb3`): on a 409 `concurrency` the batch reads the register again and sends once
+more on that revision, silently; only a second refusal is drawn, in code's words. Spec 046's page object
+(`interviews_screens.Interviews.send_someone`) keeps every batch response of the press, and `interviewer_leg._send_link`
+holds a retried link to 201 with no server sentence drawn (no second press of the founder's). What follows is the
+observation as filed.
 
 Found by spec `044-ai-interviewer-journey` on S-006 (local stack on keel-cloud-docs `a0b3759` + keel-web `d23895f`), every
 run. The AI-interviewer link is answered; keel-cloud 095 reads the answer on arrival (Keel's door), which writes the
@@ -5362,7 +5377,11 @@ link made once more. For keel-web (a design call with keel-cloud): Send more re-
 409 retries once with a fresh read (the batch touches nothing a reading writes), or keel-cloud's batch takes no
 `expectedRevision` from a screen that cannot know about arrivals.
 
-## 89. Observation (keel-web): a value typed into the AI interviewer's field goes back with `how` TYPED and no `heard`, where keel-web 069 FR-008 says `heard` is "the final transcript or the typed text"
+## 89. RESOLVED (keel-web 070, `752e873`, branch head `7d72b3a`) -- was an observation (keel-web): a value typed into the AI interviewer's field goes back with `how` TYPED and no `heard`, where keel-web 069 FR-008 says `heard` is "the final transcript or the typed text"
+
+**Resolved by keel-web 070** (T002, `3592381`): a field's typed value goes back with `heard` -- the value as text -- and
+`how` TYPED. Spec 046 marks it (FM6, `evals/feedback_marks.py`) on S-005 and S-006. What follows is the observation as
+filed.
 
 Found by spec `044-ai-interviewer-journey` on S-005 (local stack on keel-cloud-docs `a0b3759` + keel-web `d23895f`). The
 consumer's cost total typed into the amount-or-hours field (*Amount*, 30) is sent as `{costTotal: {mode: AMOUNT, value:
@@ -5371,3 +5390,18 @@ through *Type instead* does carry it. Contract 16 makes `heard` optional and kee
 nothing breaks; the founder's record of the answer simply has no words for it. Spec 044's own mark is *heard on every
 spoken answer* (IM9), which holds. For keel-web: send the field's own text (*30*, *£30*) as `heard`, or say in 069 that a
 field value carries none.
+
+## 90. Observation (keel-cloud, one field wide): before the founder names the idea, `GET idea` serves `what` null and `shortName` the mechanism card's model-written short name
+
+Found by spec `046-founder-feedback-2026-10-16` on S-005 / S-006 / S-007 (local stack on keel-cloud-docs `3002978` +
+keel-web 070). Right after SOLUTION_MECHANISM lands, `GET /v2/projects/{id}/idea` reads `{"what": null, ...,
+"approved": false, "shortName": "mulch delivered to the job"}` (07-mulchrun): `VectorsController.ideaView` takes
+`shortName` from the confirmed card (`mechanism().shortName()`), which the job still writes (`short_name`, held to five
+words by W3, 097 call 15), while 097 F7's rule is *"the idea's name is never model-written"*. Nothing reaches a stranger
+-- approve and the lock refuse an unnamed idea (IDEA_NAME_REQUIRED, 097 call 16), and naming it reseeds the card's short
+name -- and keel-web 070's S2 reads `what` alone. But the wire's own description of `shortName` is *"the name later
+questions use"*, and a screen that drew it before the founder named the idea would show exactly the model-drafted name
+the founder asked about (*"How was this populated"*). The journeys record it in the step *the idea arrives unnamed* and
+hold nothing on it. For keel-cloud: serve `shortName` null while `what` is null (or say in contract 17 that it is the
+card's draft until named).
+
