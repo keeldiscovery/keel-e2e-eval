@@ -19,6 +19,14 @@ held yes; the waveform; start tone off). Contract 18 unchanged.
   cloud moves) reads the new words after the first respondent read -- if the stack cannot seed an old recording,
   skip with a note; the remote journeys on staging cover it on the founder's project.
 
+- **FR-6 DRIFT #91 closes.** keel-cloud 102 (cloud master 3a6b045) accepts `transcribe` on an answered AI link while
+  its pilot opt-in is not yet recorded (expected hint yes/no, log `item=pilot`). The S-006 recorded-link step that
+  recorded the 409 under #91 now REQUIRES: transcribe 200 with the fake transcript "yes", then `POST pilot` 204, the
+  opt-in true on the project; mark #91 resolved in `runs/DRIFT.md` with the shas.
+- **FR-7 The mic off at the end** (web 075 FR-4): the done screen and the End screen show `ai-mic-off`; the walk
+  asserts it once on each link after the thanks (no mark, a plain assertion).
+- **FR-8 Clip 404 refetch** (web 075 FR-3): not journeyed on the stack (needs a swap mid-interview); note it.
+
 ## Acceptance
 
 `make unit` green; `make eval K="s005 or s006 or s007"` green on the stack against cloud 101 + web 075; remote
