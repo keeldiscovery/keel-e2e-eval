@@ -33,7 +33,8 @@ def test_the_speech_seam_is_read_only_in_a_test_build():
         for m in re.finditer(r"window\.__keelSpeech", text):
             line_start = text.rfind("\n", 0, m.start()) + 1
             line = text[line_start:text.find("\n", m.end())]
-            if line.lstrip().startswith(("*", "//", "__keelSpeech?:")):
+            # a comment names the seam (072's `/** ... window.__keelSpeech.classify ...`), never reads it
+            if line.lstrip().startswith(("*", "/*", "//", "__keelSpeech?:")):
                 continue
             reads.append((path.name, text[max(0, m.start() - 400):m.start()]))
     assert reads, "keel-web reads the seam nowhere"
@@ -72,7 +73,7 @@ def test_the_templates_are_keel_webs_own():
 @pytest.mark.parametrize("testid", ["persona-line", "change-who-asks", "change-face-popup", "change-face-confirm",
                                     "try-it-yourself", "ai-intro", "start-talking", "choice-talk", "choice-write",
                                     "ai-stage", "ai-where", "ai-end", "ship-mark", "ai-sheet", "ai-options",
-                                    "ai-field", "ai-preview", "ai-heard", "ai-answer", "ai-next", "ai-type",
+                                    "ai-field", "ai-preview", "ai-heard", "ai-type",
                                     "ai-typed", "ai-done", "face-carousel", "lock-and-record"])
 def test_every_selector_the_page_objects_press_is_in_keel_web(testid):
     root = load_config(validate=False).keel_web / "src"
@@ -82,3 +83,61 @@ def test_every_selector_the_page_objects_press_is_in_keel_web(testid):
     assert hits, testid
     assert testid in Path(ivs.__file__).read_text(encoding="utf-8") + Path(
         REPO_ROOT / "harness" / "vectors_screens.py").read_text(encoding="utf-8"), testid
+
+
+# ------------------------------------------------------------------ spec 048: keel-web 072's answer path
+
+def _web_072() -> Path:
+    root = load_config(validate=False).keel_web
+    translate = root / "src/lib/translate.ts"
+    if not translate.is_file() or "AI_MIC_TEST" not in translate.read_text(encoding="utf-8"):
+        pytest.skip("keel-web predates spec 072 (no Test your mic)")
+    return root
+
+
+@pytest.mark.parametrize("testid", ["ai-yes", "ai-back", "ai-mic-test", "ai-mic-heard", "ai-status"])
+def test_the_answer_paths_selectors_are_in_keel_web(testid):
+    root = _web_072() / "src"
+    hits = [p for p in root.rglob("*.tsx") if f'data-testid="{testid}"' in p.read_text(encoding="utf-8")]
+    assert hits, testid
+    assert testid in Path(ivs.__file__).read_text(encoding="utf-8"), testid
+
+
+def test_thats_my_answer_is_gone_from_keel_web():
+    """072 FR-5: `ai-answer` is removed from the sheet; the journey asserts it is never drawn."""
+    root = _web_072() / "src"
+    assert not [p.name for p in root.rglob("*.tsx") if 'data-testid="ai-answer"' in p.read_text(encoding="utf-8")]
+    assert ivs.THATS_MY_ANSWER not in [m for m in re.findall(r'"([^"]+)"', (root / "lib/translate.ts").read_text(
+        encoding="utf-8"))]
+
+
+@pytest.mark.parametrize("word", [ivs.START_THE_INTERVIEW, ivs.MIC_TEST, ivs.SAY_HELLO, ivs.MIC_FALLBACK,
+                                  ivs.INTRO_TRANSCRIBED, ivs.GOT_THAT, ivs.WRITING_DOWN, ivs.HELD, ivs.IS_THAT_RIGHT,
+                                  ivs.YES_THATS_IT, ivs.SAVE_AND_NEXT, ivs.FINISH])
+def test_the_answer_paths_words_are_keel_webs_own(word):
+    assert f'"{word}"' in (_web_072() / "src/lib/translate.ts").read_text(encoding="utf-8"), word
+
+
+def test_the_answer_paths_templates_are_keel_webs_own():
+    translate = (_web_072() / "src/lib/translate.ts").read_text(encoding="utf-8")
+    assert "`Heard: ${text}`" in translate and ivs.mic_heard("hello") == "Heard: hello"
+    assert "`‹ Back to question ${n}`" in translate and ivs.back_to(4) == "‹ Back to question 4"
+
+
+def test_the_seam_ends_an_utterance_on_a_final_and_grants_the_mic():
+    """072 FR-3 / FR-7, restated from keel-web's fixture: a final result is followed by the recogniser's end, and the
+    seam's microphone is always granted. The eval's seam puts no `classify` on it (judgement call 1)."""
+    fixture = _web(  # noqa: F841 - read for its presence
+        "tests/fixtures/interviewer/fakeSpeech.ts")
+    if "mic:" not in fixture:
+        pytest.skip("keel-web's fixture predates spec 072")
+    assert "if (final) setTimeout(" in ivs.SPEECH_SEAM and "onend" in ivs.SPEECH_SEAM
+    assert "mic: { acquire: async () => true" in ivs.SPEECH_SEAM and "acquire: async () => true" in fixture
+    assert "classify" not in ivs.SPEECH_SEAM
+
+
+def test_the_player_never_presses_thats_my_answer():
+    source = Path(ivs.__file__).read_text(encoding="utf-8")
+    assert "def answer(" not in source and 'get_by_test_id("ai-answer")' not in source
+    leg = (REPO_ROOT / "evals" / "interviewer_leg.py").read_text(encoding="utf-8")
+    assert "player.answer()" not in leg and "player.next()" not in leg
