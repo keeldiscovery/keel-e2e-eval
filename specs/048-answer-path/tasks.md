@@ -3,9 +3,20 @@
 - [x] T001 Contract 18 pins; `harness/classifier_cases.py` from the canon's `cases.py`
 - [x] T002 Classifier guard unit test against the stack's `classify` route (FR-3)
 - [x] T003 `Player`: `hold`, `veto`, `yes`, `back`, `mic_test`; `say` ends the utterance; no `answer` (FR-4)
-- [x] T004 Journeys (FR-5, FR-6) + marks (FR-7) + vectors (FR-8) -- written; the screens' run waits for keel-web 072
+- [x] T004 Journeys (FR-5, FR-6) + marks (FR-7) + vectors (FR-8)
 - [x] T005 Live cell: the text-only classifier check (FR-2)
-- [ ] T006 `make unit`, `make eval` on the stack green; remote journeys on staging; judgement calls written here
+- [x] T006 `make unit`, `make eval` on the stack green; judgement calls written here -- remote journeys on staging wait
+  for cloud 099 + web 072 to be deployed there
+
+## Measured (2026-10-16, keel-cloud-docs `0f582b2` + keel-web `d49f013`, stack fakes only, a fresh stack)
+
+- `make unit`: **2,298 passed / 53 skipped** (was 2,078 / 53 before spec 048; the 072 source checks now run).
+- `make eval K="s005 or s006 or s007"`: **3 passed** (582 s). S-005 interviewer marks v2 **12 of 12** owed (IM14-IM17
+  among them); S-006 **17 of 17** (IM14-IM18; IM12 unmeasured as before, DRIFT #86). Classifier guard on the links:
+  S-005 116 asked / 103 right / 13 safe / **0 wrong**; S-006 80 / 71 / 9 / **0** on the stranger's route and the same on
+  Try it yourself's founder route; the three corrections right on both.
+- Not yet: the remote journeys on staging (cloud 099 / web 072 not deployed there); the live classifier check (needs
+  `KEEL_CLASSIFIER_LINK`).
 
 ## Where things are
 
@@ -81,3 +92,21 @@
 12. **Found on the way** (fixed here, not product drift): the contacts leg still asserted 1,350 credits after the first
     page (1,500 - 150) though spec 047 moved the grant to 2,000 -- S-006 failed there against `0f582b2`; and
     `tests/test_interviewer_marks.py` read keel-cloud's `ClipKind` without 099's IS_THAT_RIGHT.
+13. **The walk reads where the tier lands** (after keel-web 072 merged). The page also asks "Is that right?" for one
+    word two labels hold ("Yes" inside "Yes, if it was clearly worth it"; "No" inside "No, I decided on my own") even
+    where the fake was sure, and a read meant to be unsure can come back sure. So every spoken answer waits for the held
+    status, the unsure one, or the next question: unsure where a hold was meant -> answered ("yes" if the lit one is
+    meant, else its place) and kept as an "Is that right?" turn; sure where unsure was meant -> held on the one meant,
+    or "no" in the hold and the one meant by its place, and the move tried again on a later question. The Back move says
+    the clearest other option (no label inside another) and is tried before the shared-word move, so a short form like
+    Paidly's still goes back once; Back and the veto are never tried on benefit_with_advantages (072 call 7: Back lands
+    on the main ask and asks the advantages again). The veto is said as an interim (072 hears it in an interim and keeps
+    the recogniser, call 5), so the option said next is the new answer, and the same pick said again may be taken
+    straight on. IM14-IM18 are owed on S-006 whatever the record carries.
+14. **A stray overview read on Keel's keyless door** (found running S-006): the recorded link first took its revision
+    from `GET overview`, which on Keel's door starts the stale brief (096 FR-D), fails it keyless, and leaves that
+    staleness "tried" -- no brief on the founder's return later. It reads `GET persona`'s revision instead.
+15. **Seen once, not reproduced**: on one S-005 run the stranger's page came back to a fresh intro (Test your mic not
+    done) right after the story was said; the next three S-005 runs did not. Not filed as drift. A failed S-006 that
+    has already sent its AI response leaves answers unread, and S-007's connect then reads them on S-007's script
+    (standings off by one person) -- a fresh stack after a failed S-006, as before.

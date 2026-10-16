@@ -484,12 +484,14 @@ class Player:
                 "heard": sheet["heard"], "ring": rings > 0, "next": self.question(),
                 "went_on": self.question() != before or HELD not in self.status()}
 
-    def veto(self, word: str = VETO) -> dict:
-        """A word of protest in the hold (FR-4): the hold ends and the question reopens, the pick still lit."""
+    def veto(self, word: str = VETO, *, final: bool = False) -> dict:
+        """A word of protest in the hold (FR-4): the hold ends and the question reopens, the pick still lit. Said as an
+        interim by default -- keel-web 072 hears a veto in an interim or a final, and keeps the same recogniser for the
+        question (its call 5), so what is said next is the new answer, not "no" read on its own."""
         before = self.question()
         self.wait_status(HELD)
-        self.wait_ear()                                 # the hold's window listening (the answer's has closed)
-        self.say(word, True)
+        self.wait_ear()                                 # the hold's window listening
+        self.say(word, final)
         waited = 0
         while waited < 5_000 * self.patience and HELD in self.status():
             self.page.wait_for_timeout(100)
@@ -502,9 +504,10 @@ class Player:
         """An unsure read (FR-2): *Is that right? Say yes, or tell me the right one*, the pick lit, the Yes chip."""
         status = self.wait_status(IS_THAT_RIGHT, timeout_s=timeout_s)
         sheet = self.sheet()
+        unsure = [_words(o) for o in self.page.locator('[data-testid=ai-sheet] .opt[data-unsure="true"]').all()]
         yes = self.page.get_by_test_id("ai-yes")
         return {"question": self.question(), "status": status,
-                "lit": [o["label"] for o in sheet["options"] if o["checked"]],
+                "lit": [o["label"] for o in sheet["options"] if o["checked"]], "unsure": unsure,
                 "yes": _words(yes) if yes.count() else None}
 
     def yes(self, *, by: str = "say") -> None:

@@ -233,7 +233,10 @@ def _leg(j, *, short: bool) -> dict:
         _restore(j, wire, founder_id, run)
         if record.get("arrivals"):
             _read_what_is_left(j, wire, record)
-    require = SHORT_FORM if short else [m for m, _, _ in marks.MARKS if m in _owed(record)]
+    # spec 048: the answer path's five are owed on the full leg whatever the record carries -- a walk that never went
+    # back is a walk that failed to, not a mark left unmeasured
+    answer_path = ["IM14", "IM15", "IM16", "IM17", "IM18"]
+    require = SHORT_FORM if short else [m for m, _, _ in marks.MARKS if m in _owed(record) or m in answer_path]
     _score(j, record, require=require)
     return record
 
@@ -854,6 +857,31 @@ def _shared_word(label: str, labels: list[str]) -> str | None:
     return None
 
 
+def _status_or_on(player, question: str, *, timeout_s: float = 20) -> str | None:
+    """After an answer: the held or the unsure status, or None when the sheet went on to another question first."""
+    deadline = time.monotonic() + timeout_s * player.patience
+    while time.monotonic() < deadline:
+        status = player.status()
+        if ivs.HELD in status or ivs.IS_THAT_RIGHT in status:
+            return status
+        if player.page.get_by_test_id("ai-done").count() or player.question() != question:
+            return None
+        time.sleep(0.05)
+    raise AssertionError({"status never read": (ivs.HELD, ivs.IS_THAT_RIGHT), "it read": player.status(),
+                          "phase": player.phase(), "question": question})
+
+
+def _clearest(indexes: list[int], labels: list[str]) -> int:
+    """Of `indexes`, the option whose words no other label holds and which holds no other label ("Yes" sits inside
+    "Yes, if it was clearly worth it"): said whole, it is read with confidence. The first, when none is."""
+    norm = [guard._norm(label) for label in labels]
+    for i in indexes:
+        if not any(j != i and (f" {norm[i]} " in f" {norm[j]} " or f" {norm[j]} " in f" {norm[i]} ")
+                   for j in range(len(norm))):
+            return i
+    return indexes[0]
+
+
 def _wait_next(player, question: str, *, timeout_s: float = 30) -> None:
     """The sheet on another question than `question` (or the end screen)."""
     deadline = time.monotonic() + timeout_s * player.patience
@@ -894,11 +922,42 @@ class _Walk:
         self._back_from: dict | None = None
 
     # ---- one spoken answer, held
-    def held(self, entry: dict, said: str) -> dict:
+    def held(self, entry: dict, said: str, *, item: dict | None = None, meant: str | None = None,
+             labels: list[str] | None = None, keep_turn: bool = True) -> dict | None:
+        """`said`, read with confidence and held. Where the read comes back unsure instead (keel-web 072 asks "Is that
+        right?" for one word two labels hold, as "Yes" is in "Yes, if it was clearly worth it"), the turn is
+        answered -- "yes" when the lit pick is the one meant, else the one meant by its place -- and kept as an "Is that
+        right?" turn."""
         p = self.player
         start = _now(p)
+        made = p.ear()["count"]
         p.wait_ear()
+        question = p.question()
         p.say(said, True)
+        now = _status_or_on(p, question)
+        if now is None:
+            # straight on, no hold: after a veto the same pick said again is taken as it stands (keel-web 072 call 5)
+            entry["did"].append(f"said {said!r}, taken straight on")
+            return None
+        if ivs.IS_THAT_RIGHT in now and item is not None and meant is not None:
+            turn = p.confirming()
+            turn.update({"said": said, "meant": [meant], "item": item.get("dimension"), "unasked": True})
+            p.wait_ear(newer_than=made)
+            index = (labels or []).index(meant) if meant in (labels or []) else None
+            answer_with = "yes" if turn["lit"] == [meant] or index is None else f"the {ORDINALS[index]} one"
+            again = _now(p)
+            p.say(answer_with, True)
+            turn["answered"] = answer_with
+            hold = _held_or_on(p, turn["question"])
+            if hold is not None:
+                hold.update({"said": answer_with, "presses": _presses_between(p, again, _now(p))})
+                self.holds.append(hold)
+            _wait_next(p, turn["question"])
+            turn.update({"went_on": True, "sent_item": item.get("itemId")})
+            if keep_turn:                               # the Back move's first answer is changed later: not kept
+                self.confirms.append(turn)
+            entry["did"].append(f"said {said!r}: Is that right? -> {answer_with!r}")
+            return None
         hold = p.hold()
         hold["said"] = said
         hold["presses"] = _presses_between(p, start, _now(p))
@@ -906,13 +965,22 @@ class _Walk:
         entry["did"].append(f"said {said!r}, held")
         return hold
 
-    def confirm(self, entry: dict, item: dict, said: str, answer_with: str | None, meant: str) -> None:
-        """An unsure read: "Is that right?" -> `answer_with` said (None: the Yes chip tapped)."""
+    def confirm(self, entry: dict, item: dict, said: str, answer_with: str | None, meant: str,
+                labels: list[str]) -> bool:
+        """`said`, meant to be read unsure: "Is that right?" -> `answer_with` said (None: the Yes chip tapped). The
+        tier is the cloud's and the page's to decide, so a read that comes back sure instead is settled where it lands
+        (held on the one meant, or "no" in the hold and the one meant by its place) and False is returned -- the move
+        is tried again on a later question."""
         p = self.player
         made = p.ear()["count"]
         p.wait_ear()
+        question = p.question()
         p.say(said, True)
-        turn = p.confirming()
+        now = _status_or_on(p, question)
+        if now is None or ivs.HELD in now:
+            self._settle_held(entry, question, said, meant, labels)
+            return False
+        turn = p.confirming(timeout_s=1)
         turn.update({"said": said, "meant": [meant], "item": item.get("dimension")})
         # the "Is that right?" clip plays, then the window opens again on the same question
         p.wait_ear(newer_than=made)
@@ -934,6 +1002,28 @@ class _Walk:
         turn["sent_item"] = item.get("itemId")
         self.confirms.append(turn)
         entry["did"].append(f"said {said!r}: Is that right? -> {turn['answered']!r}")
+        return True
+
+    def _settle_held(self, entry: dict, question: str, said: str, meant: str, labels: list[str]) -> None:
+        """A read that was sure where an unsure one was meant: held on the one meant, it runs out; held on another,
+        "no" in the hold and the one meant by its place."""
+        p = self.player
+        if p.question() != question:
+            entry["did"].append(f"said {said!r}, taken straight on")
+            return
+        lit = [o["label"] for o in p.sheet()["options"] if o["checked"]]
+        if lit == [meant]:
+            hold = p.hold()
+            hold.update({"said": said, "presses": []})
+            self.holds.append(hold)
+            entry["did"].append(f"said {said!r}, held (sure)")
+        else:
+            p.veto()
+            p.wait_ear()
+            p.say(f"the {ORDINALS[labels.index(meant)]} one", True)
+            _held_or_on(p, question)
+            entry["did"].append(f"said {said!r}, held on {lit}: 'no', then its place")
+        _wait_next(p, question)
 
     # ---- the walk
     def run(self) -> list[dict]:
@@ -1066,40 +1156,50 @@ class _Walk:
         index = labels_shown.index(meant)
         others = [i for i in range(len(labels_shown)) if i != index and i < len(ORDINALS)]
         last_item = self.order and item["itemId"] == self.order[-1]
+        # keel-web 072 call 7: Back lands on a step's main ask and asks its follow-ups again -- the way back and the
+        # veto are tried on a plain one-of question, never on benefit_with_advantages (its advantages follow)
+        plain = control != "benefit_with_advantages"
         self.how[item["itemId"]] = "SPOKEN"
         if not self.used["correction"] and len(labels_shown) >= 3 and index < len(ORDINALS) and others:
             # "the first one, wait, actually the third": the last correction wins, and a correction is read unsure
             # (keel-cloud 099 judgement call 8) -- "Is that right?" with the right one lit, then "yes"
-            self.used["correction"] = True
             said = f"the {ORDINALS[others[0]]} one, wait, actually the {ORDINALS[index]}"
-            self.confirm(entry, item, said, "yes", meant)
+            self.used["correction"] = self.confirm(entry, item, said, "yes", meant, labels_shown)
             return
-        shared = _shared_word(meant, labels_shown)
-        if not self.used["medium"] and shared and index < len(ORDINALS):
-            # one word two labels carry ("payroll"): "Is that right?" -> the person names theirs by its place
-            self.used["medium"] = True
-            self.confirm(entry, item, shared, f"the {ORDINALS[index]} one", meant)
-            return
-        if not self.used["back"] and others and not last_item:
+        if not self.used["back"] and others and not last_item and plain:
             # answered with another option's own words, held; Back from the next question changes it by a tap
             self.used["back"] = True
-            wrong = labels_shown[others[0]]
-            self.held(entry, wrong)
+            wrong = labels_shown[_clearest(others, labels_shown)]
+            self.held(entry, wrong, item=item, meant=wrong, labels=labels_shown, keep_turn=False)
             _wait_next(p, entry["question"])
             self._back_from = {"question": entry["question"], "next": p.question(), "meant": meant, "said": wrong,
                                "itemId": item["itemId"]}
             return
-        if not self.used["veto"]:
+        shared = _shared_word(meant, labels_shown)
+        if not self.used["medium"] and shared and index < len(ORDINALS):
+            # one word two labels carry ("payroll"): "Is that right?" -> the person names theirs by its place
+            self.used["medium"] = self.confirm(entry, item, shared, f"the {ORDINALS[index]} one", meant, labels_shown)
+            return
+        if not self.used["veto"] and plain:
             # a word of protest in the hold reopens the question; the option said again is held and goes on
             self.used["veto"] = True
             p.wait_ear()
             p.say(meant, True)
+            if ivs.IS_THAT_RIGHT in p.wait_status(ivs.HELD, ivs.IS_THAT_RIGHT):
+                # unsure, not held: no hold to protest in -- named by its place instead, and the veto tried later
+                self.used["veto"] = False
+                p.wait_ear()
+                p.say(f"the {ORDINALS[index]} one", True)
+                _held_or_on(p, entry["question"])
+                _wait_next(p, entry["question"])
+                entry["did"].append(f"said {meant!r}: unsure, then its place")
+                return
             self.veto = p.veto()
             entry["did"].append(f"said {meant!r}, then 'no' in the hold")
-            self.held(entry, meant)
+            self.held(entry, meant, item=item, meant=meant, labels=labels_shown)
             _wait_next(p, entry["question"])
             return
-        self.held(entry, meant)                          # the option's own words
+        self.held(entry, meant, item=item, meant=meant, labels=labels_shown)   # the option's own words
         _wait_next(p, entry["question"])
 
 
@@ -1374,8 +1474,11 @@ def _recorded_link(j, wire: _Wire, record: dict) -> None:
                          "silence under the floor is read as silence and never transcribed, a recording over it is "
                          "transcribed (the fake) and classified, and a response with how RECORDED is accepted",
                          party="participant", kind="assert") as h:
+        # the revision off GET persona, not GET overview: on Keel's keyless door a read of the overview would start the
+        # stale brief (keel-cloud 096 FR-D), fail it, and leave this staleness "tried" -- no brief on the return later
+        revision = int((j.get(j.project("/persona")) or {}).get("revision") or 0)
         status, made = wire("POST", "/invitations/batch", {
-            "expectedRevision": j.revision(), "respondentType": vs.LINK_PRIMARY, "format": "AI_INTERVIEWER",
+            "expectedRevision": revision, "respondentType": vs.LINK_PRIMARY, "format": "AI_INTERVIEWER",
             "people": [{"personName": RECORDED_PERSON}]})
         link = (made.get("links") or [{}])[0]
         token = _token(link.get("url") or "")
