@@ -35,7 +35,8 @@ TIME_WORDS = {"last", "past", "recent", "recently", "ago", "today", "yesterday",
 FRAME_OPENINGS = ("in ", "how many", "did you", "out of", "do you think")
 # Registry 4's `founder.saves` (keel-cloud 087 FR-001): (min, max, words) a list carries, Buyer and payer's
 # fixed "Nobody else" not counted (code adds it).
-SAVES = {"problem.importance": (5, 5, 9), "problem.current_solution_satisfaction": (5, 5, 9),
+#: The slice's first drafts (`calibration_result` with no `only`): keel-cloud 097 F9 drafts Importance as the own item alone.
+SAVES = {"problem.importance": (1, 1, 9), "problem.current_solution_satisfaction": (5, 5, 9),
          "solution.compatibility": (2, 4, 9), "solution.relative_advantage": (1, 4, 9),
          "solution.adoption_friction": (1, 4, 9), "commercial.buyer_payer_alignment": (0, 2, 4),
          "commercial.purchase_friction": (1, 4, 9), "commercial.commitment": (1, 1, 9)}
@@ -106,7 +107,8 @@ def test_the_script_answers_every_corridor_screen_from_the_entry(entry_id):
     assert context["occasion"] == entry.context["occasion"]
     assert screens[vs.PROBLEM_SCREEN][0]["result"]["statement"] == entry.interpretations["problem"]
     mechanism = screens[vs.MECHANISM_SCREEN][0]["result"]
-    assert mechanism["short_name"] in mechanism["idea_what"]
+    assert "idea_what" not in mechanism, "keel-cloud 097 F7: the idea's name is never the model's"
+    assert mechanism["idea_how"] and mechanism["short_name"]
     assert mechanism["idea_belief"].startswith(vs.BELIEF_FRAME)
     assert 3 <= len(mechanism["mechanism_terms"]) <= 8
     asked = [e["result"] for e in screens[vs.ASKED_SCREEN]]
@@ -128,7 +130,8 @@ def test_the_lock_starts_one_job_on_either_persona_and_part_three_stays_the_deci
 def test_the_drafted_lists_keep_keel_clouds_rules(entry_id):
     """`founder-lists.md` as keel-cloud's applier holds it (087 L1-L5, C5, C6, W9) and Prevalence's clause
     (E1-E3), on the referee's results -- which keel-cloud would otherwise refuse with one repair turn the
-    script cannot answer: each list the registry's count and words, Importance five, Current solution five and
+    script cannot answer: each list the registry's count and words, Importance the own item alone (097 call 10),
+    Current solution five and
     its phrase, every face at most 20 words and no question mark, no digit the sources lack, no product word on
     the problem's, no claim word on the solution's, no money anywhere."""
     entry = _entry(entry_id)
@@ -308,23 +311,63 @@ def test_idea_names_read_as_keel_cloud_derives_them():
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)
-def test_keels_draft_names_the_idea_by_its_short_name_and_one_founder_renames_it(entry_id):
-    """keel-cloud 090 FR-006: Keel's scripted draft *Imagine {short_name}.* derives to the entry's short name byte for
-    byte (so `IdeaView.what` is it, no *Imagine*). One founder (05-paidly, `IDEA_NAMES`) types a name of their own on S2
-    -- at most five words, no claim word (L5, L3) -- and every later question uses that; the others keep Keel's. Every
-    composed stem it lands in stays within 20 words."""
+def test_every_founder_names_the_idea_and_one_names_it_their_own_way(entry_id):
+    """keel-cloud 097 F7 (spec 046 FM4): Keel drafts no name -- the idea is served with `what` null, because no r11 solution
+    seed carries a product name (`IdeaName.fromSeed`, restated as `vs.seed_idea_name`) -- so every founder types one on
+    S2: the entry's short name, or (05-paidly, `IDEA_NAMES`) a name of their own -- at most five words, no claim word
+    (L5, L3) -- which every later question uses. Every composed stem it lands in stays within 20 words."""
     entry = _entry(entry_id)
-    assert vs.idea_view(entry)["what"] == vs.short_name(entry)
+    assert vs.seed_idea_name(entry.statements["solution"]) is None
+    assert vs.idea_view(entry)["what"] is None
     typed = vs.founder_idea_name(entry)
     founder = vs.founder_inputs(entry)
-    assert founder.idea_name == typed
+    assert founder.idea_name == typed and 1 <= len(typed.split()) <= vs.NAME_MAX_WORDS
     if entry_id == "05-paidly":
         assert typed == "Invoice payout service" and vs.idea_name(entry) == "invoice payout service"
-        assert len(typed.split()) <= 5 and not _words(typed) & (CLAIM_WORDS | PRODUCT_WORDS)
+        assert not _words(typed) & (CLAIM_WORDS | PRODUCT_WORDS)
         assert len(vs.idea_card(vs.idea_name(entry))) <= 80
     else:
-        assert typed is None and vs.idea_name(entry) == vs.short_name(entry)
+        assert typed == vs.short_name(entry) and vs.idea_name(entry) == vs.idea_name_of(vs.short_name(entry))
     assert _count(vs.benefit_question(vs.occasion(entry), vs.idea_name(entry))) <= vs.STEM_MAX_WORDS
+
+
+def test_the_seed_name_rule_reads_as_keel_cloud_097_wrote_it():
+    """keel-cloud 097 `IdeaName.fromSeed` restated (judgement call 14): a quoted phrase of one to five words without
+    sentence punctuation; else the first run of two to five capitalised words that is not only a sentence's opening
+    capital (a common opener dropped), not a place after *in* / *at* / *from* ..., not acronyms alone; else None."""
+    assert vs.seed_idea_name('We call it "Payroll Guard". It checks the run.') == "Payroll Guard"
+    assert vs.seed_idea_name("We call it \u201cPay Check\u201d, a checker.") == "Pay Check"
+    assert vs.seed_idea_name('It is "a tool. that checks"') is None
+    assert vs.seed_idea_name("Restaurants in New York would use Payroll Guard Pro daily.") == "Payroll Guard Pro"
+    assert vs.seed_idea_name("The Payroll Guard checks every run.") == "Payroll Guard"
+    assert vs.seed_idea_name("When the HR IT team runs payroll, nothing checks it.") is None
+    assert vs.seed_idea_name("A platform that pays the translator within seven days.") is None
+    assert vs.seed_idea_name("") is None and vs.seed_idea_name(None) is None
+
+
+@pytest.mark.parametrize("entry_id", ENTRIES)
+def test_importance_is_drafted_as_the_own_item_then_what_the_answer_names(entry_id):
+    """keel-cloud 097 F9 (judgement call 10; spec 046 FM2): the slice's first draft of Importance is the own item alone,
+    the founder's Answer names the other difficulties (never the own item, which is code's, locked first), and the
+    redraft from it is the own item and exactly those; on 01-countly the Answer names one and on 05-paidly two (the
+    founder types the rest of the corpus list on the Check screen, keel-web 070 F9), elsewhere all four."""
+    entry = _entry(entry_id)
+    if entry.unsure("problem.importance"):
+        pytest.skip("Importance left out")
+    screens = vs.generate(entry).screens[vs.CALIBRATION_SCREEN]
+    jobs = vs.calibration_jobs(entry)
+    first = next(e for e, (v, only) in zip(screens, jobs) if v == "PROBLEM" and only is None)
+    redraft = next(e for e, (v, only) in zip(screens, jobs) if only == "problem.importance")
+    own, *others = [i["label"] for i in vs.founder_list(entry, "problem.importance")["items"]]
+    named = vs.importance_named(entry)
+    drafted = {q["key"]: q for q in first["result"]["questions"]}["problem.importance"]["list"]["items"]
+    assert [i["label"] for i in drafted] == [own]
+    assert [i["label"] for i in redraft["result"]["questions"][0]["list"]["items"]] == [own] + named
+    answer = vs.answer_text(entry, "problem.importance")
+    assert [p.strip() for p in answer.split(";")] == named and own not in answer
+    assert named + vs.importance_typed(entry) == others, "the founder types the rest of their own list on Check"
+    assert len(named) == {"01-countly": 1, "05-paidly": 2}.get(entry_id, len(others)), "one, two, then all named"
+    assert vs.IMPORTANCE_MIN_ITEMS <= 1 + len(others) <= 5
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)

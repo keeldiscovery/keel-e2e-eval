@@ -368,7 +368,15 @@ founder's session asks, as before. `stack/ledger.py` also reads the stored recor
 #84 resolved; #85-#89 new. `make unit` after 044: **2,035 passed / 53 skipped**. **Since spec `045-brief-on-return`
 (2026-10-16) they run keel-cloud 096 (keel-cloud-docs `7b1e4f6`, document 23)**: no batch writes the brief; after every
 answer is read each journey holds no BRIEF, comes back as the founder (`GET overview`) and sees exactly one land
-(`_brief_on_return`); IM13 reads `brief:on-return` and fails `brief:after-batch`. **Nothing generated is committed** -- the script, the
+(`_brief_on_return`); IM13 reads `brief:on-return` and fails `brief:after-batch`. **Since spec `046-founder-feedback-2026-10-16`
+(2026-10-16) they run keel-cloud 097 (contract 17, keel-cloud-docs `3002978`) and keel-web 070 (`752e873`)**: Importance's
+first draft is the own item alone and its Answer names the others (01-countly one, 05-paidly two, the founder typing the
+rest on the Check screen -- *yours + n*, the one-more ask, 422 `ONE_MORE_NEEDED`); a first draft leaves a role the
+founder has not written to the Answer's redraft (`L6`); the idea arrives unnamed (approve 422 `IDEA_NAME_REQUIRED`) and
+every founder types its name on S2; own + 1 / own + 2 on the wire; the own-AI batch 422 `INTERVIEWER_NEEDS_CREDITS`; the
+AI flow with no *Next question*; Select all / Clear and no Copy on Contacts. Scored by `evals/feedback_marks.py`
+(FM1-FM6, `FEEDBACK_MARKS_VERSION` 1, owed where the record carries the subject) at the end of every journey. DRIFT
+#85, #87-#89 resolved, #90 new. `make unit` after 046: **2,074 passed / 57 skipped**. **Nothing generated is committed** -- the script, the
 keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
 the end of every run.
 

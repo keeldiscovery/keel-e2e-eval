@@ -246,24 +246,22 @@ def _own_ai(j, wire: _Wire, record: dict) -> None:
 
 
 def _drift_85(j, wire: _Wire, record: dict) -> None:
-    """runs/DRIFT.md #85: contract 16 says the batch refuses an own-AI account's AI_INTERVIEWER / CHOICE links 422
-    INTERVIEWER_NEEDS_CREDITS, as the single link and the commercial link do; keel-cloud's batch (`ContactsService.
-    makeLinks`) never asks the door and answers 409 INTERVIEWER_NOT_READY. Stepped round, not failed: what is held is
-    that nothing is made; the code is held straight the moment it is the contract's."""
-    with j.recorder.step("interviewer: DRIFT #85 -- on their own AI the founder's AI-interviewer link in a BATCH is "
-                         "refused 409 INTERVIEWER_NOT_READY where contract 16 says 422 INTERVIEWER_NEEDS_CREDITS; "
-                         "nothing is made either way", party="founder", kind="assert") as h:
+    """runs/DRIFT.md #85, RESOLVED by keel-cloud 097 (call 21): on their own AI the founder's AI_INTERVIEWER link in a
+    batch is refused 422 INTERVIEWER_NEEDS_CREDITS -- the door is asked first, as on the single-link routes -- and
+    nothing is made (spec 046 FR-003; spec 044 stepped round its 409 INTERVIEWER_NOT_READY)."""
+    with j.recorder.step("interviewer (keel-cloud 097, DRIFT #85 closed): on their own AI the founder's AI-interviewer "
+                         "link in a BATCH is refused 422 INTERVIEWER_NEEDS_CREDITS, and nothing is made",
+                         party="founder", kind="assert") as h:
         before = len((wire("GET", "/invitations")[1]).get("invitations") or [])
         status, body = wire("POST", "/invitations/batch", {
             "expectedRevision": j.revision(), "respondentType": vs.LINK_PRIMARY, "format": "AI_INTERVIEWER",
             "people": [{"personName": AI_PERSON}]}, ok=(409, 422))
         after = len((wire("GET", "/invitations")[1]).get("invitations") or [])
-        fired = (status, body.get("code")) == (409, fake.NOT_READY)
-        record["own_ai"]["batch"] = {"status": status, "body": body, "drift_85": fired}
+        record["own_ai"]["batch"] = {"status": status, "body": body}
         h.record_assert({"status": 422, "code": fake.NEEDS_CREDITS, "made": 0},
-                        {"status": status, "code": body.get("code"), "made": after - before, "DRIFT #85": fired})
+                        {"status": status, "code": body.get("code"), "made": after - before})
         assert before == after, (before, after)
-        assert fired or (status, body.get("code")) == (422, fake.NEEDS_CREDITS), body
+        assert (status, body.get("code")) == (422, fake.NEEDS_CREDITS), body
 
 
 def _keels_door(j, wire: _Wire, founder_id: str, run: str) -> None:
@@ -479,12 +477,10 @@ def _screens_ready(j, wire: _Wire, record: dict) -> None:
                         {**l1, "price words": marks.PRICE_WORD.findall(l1["text"])})
         assert l1["faces"] == list(fake.FACES) and len(l1["checked"]) == 1, l1
         assert not marks.PRICE_WORD.search(l1["text"]), l1["text"]
-    with j.recorder.step("interviewer: DRIFT #87 -- L1 revisited after the lock checks Judy, the preselected face, "
-                         "while Tito asks every question (stepped round: the face asking is held on the persona line "
-                         "and the wire)", party="founder", kind="note") as h:
-        h.record_wire({"recorded": FIRST_FACE}, {"checked on L1": l1["checked"],
-                                                 "DRIFT #87": l1["checked"] != [FIRST_FACE]})
-        record["screens_drawn"]["L1"]["drift_87"] = l1["checked"] != [FIRST_FACE]
+    with j.recorder.step("interviewer (keel-web 070, DRIFT #87 closed): L1 revisited after the lock checks the face "
+                         "that was recorded -- Tito -- not the preselected Judy", party="founder", kind="assert") as h:
+        h.record_assert({"checked": [FIRST_FACE]}, {"checked on L1": l1["checked"]})
+        assert l1["checked"] == [FIRST_FACE], l1["checked"]
     persona.sent(j.project_id)
 
 
@@ -659,16 +655,17 @@ def _send_link(j, fmt: str, person: str) -> dict:
     about = f"{primary.get('label')}, asked about one real time."
     persona.sent(j.project_id)
     made = sent.send_someone(j.project_id, _labels(j)[vs.LINK_PRIMARY], person, about, fmt=fmt)
-    if made["status"] == 409 and (made["batch"] or {}).get("rule") == "concurrency":
-        with j.recorder.step("interviewer: DRIFT #88 -- Send more sent the revision Sent read when it opened; an "
-                             "answer read on arrival (keel-cloud 095) moved the project since, and the link was "
-                             "refused 409 with the server's own words in the popup; Sent is opened again and the "
-                             "link made once more", party="founder", kind="note") as h:
-            h.record_wire({"sent": made.get("sent")}, {"status": made["status"], "body": made["batch"],
-                                                       "drawn": made.get("drawn")})
-        j.page.goto(f"{j.web_base}/p/{j.project_id}/interviews/sent", wait_until="load")
-        persona.sent(j.project_id)
-        made = sent.send_someone(j.project_id, _labels(j)[vs.LINK_PRIMARY], person, about, fmt=fmt)
+    if made.get("retried"):
+        # runs/DRIFT.md #88, RESOLVED by keel-web 070: a link refused 409 concurrency (an answer read on arrival moved the
+        # project behind Sent) is read again and sent once more, silently -- the popup never shows the server's words.
+        with j.recorder.step("interviewer (keel-web 070, DRIFT #88 closed): Send more's link was refused 409 "
+                             "concurrency behind an arrival reading and keel-web sent it once more on the new "
+                             "revision, silently -- made, and no server sentence drawn", party="founder") as h:
+            first = made["retried"][0]
+            h.record_assert({"retry": 201, "drawn": "no 'expected at revision'"},
+                            {"first": first, "status": made["status"], "drawn": made.get("drawn")})
+            assert made["status"] == 201, made
+            assert "expected at revision" not in (made.get("drawn") or ""), made.get("drawn")
     batch = made["batch"] or {}
     link = (batch.get("links") or [{}])[0]
     assert made["status"] == 201 and made["url"] == link.get("url"), made
@@ -747,7 +744,9 @@ def _drive_ai(player, interview: dict, expected: dict) -> list[dict]:
     said aloud, the story typed, one ordinal, one miss ("31" -- out of every range here -- then the number in words,
     after the didn't-catch clip), a pick-two tapped, "all of them" for the advantages when they are all the person's,
     the rest said by their options' own words (or a cost total typed into the field), the escape tapped; then the pilot
-    ask -- *Last question* -- Yes, *Finish*. Returns what each sheet drew and what was done on it."""
+    ask -- *Last question* -- Yes, *Finish*. Since keel-web 070 F1 nothing else is pressed after an answer: a resolved
+    one goes on to the next clip by itself (typed words on *Save and next*, a pick-any's ticks on *That's my answer*).
+    Returns what each sheet drew and what was done on it."""
     gate = interview.get("gate") or {}
     items = {i.get("question"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
     by_prompt = {i.get("advantagesPrompt"): i for i in items.values() if i.get("advantagesPrompt")}
@@ -770,7 +769,6 @@ def _drive_ai(player, interview: dict, expected: dict) -> list[dict]:
             player.say("yes, I did", True)
             player.answer()
             entry["did"].append("said yes, I did")
-            player.next()
             continue
         after_gate = len(walked) > 1 and walked[-2]["question"] == gate.get("question")
         if gate and after_gate and q not in items and q not in by_prompt:      # the story, after Yes
@@ -779,9 +777,8 @@ def _drive_ai(player, interview: dict, expected: dict) -> list[dict]:
                 entry["did"].append("tap the story's chip")
             else:
                 player.type_instead(expected.get("story") or "")
-                player.answer()
+                player.answer()                                 # *Save and next* (keel-web 070 F1)
                 entry["did"].append("typed the story")
-            player.next()
             continue
         if q in by_prompt:                                          # the advantages, after "better"
             item = by_prompt[q]
@@ -795,7 +792,7 @@ def _drive_ai(player, interview: dict, expected: dict) -> list[dict]:
                 for a in want:
                     player.tap(labels[a])
                     entry["did"].append(f"tap {labels[a]}")
-            player.next()
+                player.answer()                                 # a pick-any's ticks go on with That's my answer (070 F1)
             continue
         item = items.get(q)
         assert item, {"an unknown question on the sheet": q, "served": sorted(items)}
@@ -828,6 +825,7 @@ def _drive_ai(player, interview: dict, expected: dict) -> list[dict]:
             player.fill_field(str(cost.get("value")))
             player.answer()
             entry["did"].append(f"typed {cost.get('value')} into the field")
+            entry["typed"] = {"itemId": item["itemId"], "value": str(cost.get("value"))}
         else:
             labels = [options[o] for o in ans.get("optionIds") or []]
             assert len(labels) == 1, {"item": item["dimension"], "answer": ans}
@@ -840,7 +838,7 @@ def _drive_ai(player, interview: dict, expected: dict) -> list[dict]:
             player.say(said, True)
             player.answer()
             entry["did"].append(f"said {said}")
-        player.next()
+        # keel-web 070 F1: a resolved answer goes on to the next clip by itself -- no *Next question*.
     raise AssertionError({"the interview never reached its pilot ask": walked[-3:]})
 
 
@@ -856,6 +854,7 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
     pilot_before = (j.get(j.project("/standings")) or {}).get("pilot") or {}
     stranger = j.browser.new_context()
     stranger.add_init_script(ivs.SPEECH_SEAM)
+    stranger.add_init_script(ivs.FLOW_TIMELINE)
     seen: dict = {}
 
     def keep(response) -> None:
@@ -873,6 +872,12 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
                 player.start()
                 walked = _drive_ai(player, interview, expected)
                 done = player.done()
+                events = player.timeline()
+                # Spec 046 FM5 (keel-web 070 F1): no *Next question* pressed, no long think before the next clip.
+                record["ai_flow"] = j.feedback["ai_flow"] = {
+                    "events": events, "next_presses": sum(1 for e in events if e.get("kind") == "next"
+                                                          and e.get("value") != ivs.FINISH),
+                    "finish_presses": sum(1 for e in events if e.get("kind") == "next" and e.get("value") == ivs.FINISH)}
             except Exception:
                 h.add_screenshot(player.screenshot("ai-stuck"))
                 h.record_wire({"stuck": True}, player.where_it_stood())
@@ -893,6 +898,13 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
         sent = {a["itemId"]: _closed(a) for a in body.get("answers") or []}
         want = {a["itemId"]: _closed(a) for a in expected.get("answers") or []}
         top = {k: body.get(k) for k in ("recency", "story", "anchorChip") if k in expected}
+        by_item = {a.get("itemId"): a for a in body.get("answers") or []}
+        typed = [{"itemId": w["typed"]["itemId"], "typed": w["typed"]["value"],
+                  "how": (by_item.get(w["typed"]["itemId"]) or {}).get("how"),
+                  "heard": (by_item.get(w["typed"]["itemId"]) or {}).get("heard")} for w in walked if w.get("typed")]
+        if typed:
+            # Spec 046 FM6 (keel-web 070, DRIFT #89 closed): a value typed into the field carries `heard`.
+            record["typed_fields"] = j.feedback["typed_fields"] = typed
         record["ai_answers"] = {"body": body, "status": (responses[0] if responses else {}).get("status"),
                                 "register_row": row, "by": "keel-web", "walked": walked, "intro": intro,
                                 "done": done, "expected": expected}

@@ -46,7 +46,35 @@ MARK_TRY = "Keel · AI interviewer · try run"
 LAST_QUESTION = "Last question"
 THATS_MY_ANSWER = "That’s my answer"
 FINISH = "Finish"
-NEXT_QUESTION = "Next question"
+NEXT_QUESTION = "Next question"        # until keel-web 070 F1: a resolved answer goes on by itself
+#: keel-web 070 F1: typed words keep an explicit press, on `ai-answer`.
+SAVE_AND_NEXT = "Save and next"
+
+#: Spec 046 FM5: the stage's timeline, kept by the page itself from before the app runs -- every `data-phase` the stage
+#: takes (`performance.now()`), every `play` of a clip on the stage's `<video>`, and every press of `ai-next` with the
+#: words it carried (*Finish* on the pilot ask is the one 070 keeps). `window.__keelFlow()` hands it back.
+FLOW_TIMELINE = r"""
+(() => {
+  const events = [];
+  let phase = null;
+  const read = () => {
+    const stage = document.querySelector('[data-testid=ai-stage]');
+    const now = stage ? stage.getAttribute('data-phase') : null;
+    if (now !== phase) { phase = now; events.push({ t: performance.now(), kind: 'phase', value: now }); }
+  };
+  new MutationObserver(read).observe(document, { subtree: true, childList: true, attributes: true,
+                                                 attributeFilter: ['data-phase'] });
+  document.addEventListener('play', (e) => {
+    const v = e.target;
+    if (v && v.tagName === 'VIDEO') events.push({ t: performance.now(), kind: 'play', clip: v.getAttribute('data-clip') });
+  }, true);
+  document.addEventListener('click', (e) => {
+    const b = e.target && e.target.closest ? e.target.closest('[data-testid=ai-next]') : null;
+    if (b) events.push({ t: performance.now(), kind: 'next', value: (b.textContent || '').trim() });
+  }, true);
+  window.__keelFlow = () => events.slice();
+})();
+"""
 
 
 def persona_asks(face: str) -> str:
@@ -328,8 +356,16 @@ class Player:
         self.page.locator('[data-testid=ai-answer]:not([disabled])').wait_for(timeout=10_000)
         button.click()
 
+    def timeline(self) -> list[dict]:
+        """`FLOW_TIMELINE`'s events, or none where the init script was not installed."""
+        try:
+            return list(self.page.evaluate("() => window.__keelFlow ? window.__keelFlow() : []") or [])
+        except Exception:  # noqa: BLE001 - a page that has gone
+            return []
+
     def next(self) -> None:
-        """*Next question* / *Finish*, once the answer is held."""
+        """*Finish* on the pilot ask (keel-web 070 F1: the one press after an answer that is left; until 070 also *Next
+        question*)."""
         self.page.get_by_test_id("ai-next").wait_for(state="visible", timeout=10_000)
         self.page.get_by_test_id("ai-next").click()
 
