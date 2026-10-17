@@ -20,8 +20,11 @@ door with a fresh grant -- `stand_in_keels_door` -- lowers the balance once to s
 `stand_in_balance` -- and puts the founder back on their own door with nothing to spend -- `restore_own_door` -- in a
 `finally`. Every row written carries `reason` `e2e-eval spec 043: ...` and an `idempotency_key` under `e2e-eval:043:`
 (spec 044's: `e2e-eval spec 044: ...` under `e2e-eval:044:`),
-so a reader of the table can tell the referee's rows from the product's. Nothing else in this repository writes to
-the database, and the remote profile (the staging twin) refuses all three by name.
+so a reader of the table can tell the referee's rows from the product's. Spec 050 adds a fourth stand-in, the one
+write to a project document -- `stand_in_old_words`: a stored recording's opening, problem and idea scripts put back to
+the words from before keel-cloud 101, so the first read can be seen re-rendering them (FR-5; no route records a
+recording in old words once the cloud says new ones) -- and one more read, `pilot_opt_in`. Nothing else in this
+repository writes to the database, and the remote profile (the staging twin) refuses every one of them by name.
 
 Through `docker compose exec` on the profile's own service, exactly as `stack/postgres.py` checks readiness; SQL goes
 in on stdin with `psql -v` variables, so no value is ever spliced into a statement.
@@ -130,6 +133,18 @@ def recording(config: StackConfig, project_id: str) -> dict:
     return rows[0]
 
 
+def pilot_opt_in(config: StackConfig, project_id: str, invitation_id: str) -> bool | None:
+    """Spec 050 FR-6: one invitation's stored `pilotOptIn` (document `InterviewDocument.pilotOptIn`), or None when it
+    has no response -- read here because `GET standings` on Keel's keyless door starts the stale brief (049 D-03)."""
+    _require_uuid(project_id)
+    _require_uuid(invitation_id)
+    rows = _json(config, "SELECT (inv->'interview'->>'pilotOptIn')::boolean AS opted FROM project_content, "
+                         "jsonb_array_elements(content->'invitations') AS inv "
+                         "WHERE project_id = :'project' AND inv->>'id' = :'invitation'",
+                 project=project_id, invitation=invitation_id)
+    return rows[0].get("opted") if rows else None
+
+
 def now(config: StackConfig) -> str:
     """The database's own clock, so `since` is compared on one clock with `created_at`."""
     return _psql(config, "SELECT to_json(now())#>>'{}';\n")
@@ -184,6 +199,25 @@ def restore_own_door(config: StackConfig, founder_id: str, run: str, *, spec: st
           reason=reason(spec, "the account back on its own door with nothing to spend"),
           key=f"{key_prefix(spec)}{run}:restore")
     return delta
+
+
+def stand_in_old_words(config: StackConfig, project_id: str, scripts: dict[str, str]) -> int:
+    """Stand-in 4 (spec 050 FR-5): the stored recording's clips named in `scripts` (clip id -> words) say those words
+    instead -- the opening, problem and idea passages as a recording made before keel-cloud 101 says them. Only each
+    clip's `script` changes; its id, file, status and place stay, and the project's revision is not moved (nothing
+    the founder holds goes stale). Returns how many clips now say the old words."""
+    _require_uuid(project_id)
+    for clip_id in scripts:
+        _require_uuid(clip_id)
+    out = _psql(config, "WITH u AS (UPDATE project_content SET content = jsonb_set(content, "
+                        "'{corridor,lock,recording,clips}', (SELECT jsonb_agg(CASE WHEN (:'scripts'::jsonb) ? (c->>'id') "
+                        "THEN jsonb_set(c, '{script}', (:'scripts'::jsonb)->(c->>'id')) ELSE c END ORDER BY n) "
+                        "FROM jsonb_array_elements(content->'corridor'->'lock'->'recording'->'clips') "
+                        "WITH ORDINALITY AS a(c, n))) WHERE project_id = :'project' RETURNING content) "
+                        "SELECT count(*) FROM u, jsonb_array_elements(u.content->'corridor'->'lock'->'recording'->'clips')"
+                        " AS c WHERE (:'scripts'::jsonb) ? (c->>'id') AND c->>'script' = (:'scripts'::jsonb)->>(c->>'id');\n",
+                project=project_id, scripts=json.dumps(scripts))
+    return int(out or 0)
 
 
 def _require_uuid(value: str) -> None:

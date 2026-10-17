@@ -156,7 +156,10 @@ def good() -> dict:
                  "sent_how": "TAPPED"},
         "confirm": {"turns": [{"question": "Which one?", "status": IS_THAT_RIGHT, "lit": ["Agency A"],
                                "yes": "Yes, that’s it", "went_on": True, "meant": ["Agency C"], "sent": ["Agency C"],
-                               "said": "the first one, wait, actually the third", "answered": "yes"}]},
+                               "said": "the first one, wait, actually the third", "answered": "yes",
+                               # spec 050 (keel-web 074 FR-3): the yes held
+                               "held": {"phase": "held", "ring": True, "unsure": ["false"], "status": HELD,
+                                        "lit": ["Agency C"], "went_on": True}}]},
         "back": {"from": "Next?", "question": "Which fits?", "button": "‹ Back to question 4", "to": "Which fits?",
                  "lit_on_return": ["Agency B"], "said_first": "Agency B", "changed_to": "Agency A", "forward": "Next?",
                  "sent": ["Agency A"], "sent_how": "TAPPED"},
@@ -165,6 +168,19 @@ def good() -> dict:
         "recorded": {"silence": {"status": 200, "heard": "", "unclear": True, "reason": "silence"},
                      "status": 201, "body": {"answers": [{"itemId": "a", "how": "RECORDED", "heard": "the first"}]},
                      "register_row": {"status": "ANSWERED", "formatUsed": "AI_INTERVIEWER"}},
+        # spec 050 (keel-web 075 FR-1): a beat after the problem and the idea passages
+        "beat": {"expected": ["PROBLEM", "SOLUTION"], "beat_ms": 2000,
+                 "beats": [{"after_kind": kind, "ms": 2004, "statuses": ["Take a moment."], "pills": ["pause"],
+                            "micOn": False, "question": False, "options": False, "buttons": [], "starts_in": 0,
+                            "recordings_in": 0, "next": "speaking"} for kind in ("PROBLEM", "SOLUTION")]},
+        # spec 050 (keel-web 074 FR-2): the story ended by its Save
+        "story": {"by": "save", "question": "Tell me about it.", "said": "It was a Tuesday and the agency was late",
+                  "status_before": "Take your time. Pause for a few seconds when you’re done, or tap Save.",
+                  "save_before": {"shown": False}, "save_after_final": {"shown": True, "enabled": True},
+                  "pressed": True, "final_to_held_ms": 410, "press_to_held_ms": 60,
+                  "presses": [{"kind": "press", "testid": "ai-save"}], "classified": 0, "held_phase_seen": True,
+                  "held": {"status": HELD, "heard": "It was a Tuesday and the agency was late heard", "went_on": True},
+                  "next": "Which fits?", "sent": "It was a Tuesday and the agency was late"},
         "arrivals": [{"invitationId": AI_INVITATION, "holds": [_reading("INTERPRET", f"read-on-arrival:{AI_INVITATION}")]},
                      {"invitationId": CHOICE_INVITATION,
                       "holds": [_reading("INTERPRET", f"read-on-arrival:{CHOICE_INVITATION}")]}],
@@ -179,9 +195,18 @@ def test_a_good_record_meets_every_mark():
     checks = _by_mark(good())
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
-    assert (card["measured"], card["met"], card["unmeasured"]) == (20, 20, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 3
-    assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 21)]
+    assert (card["measured"], card["met"], card["unmeasured"]) == (22, 22, [])
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 4
+    assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 23)]
+
+
+def test_the_story_ended_by_the_pause_meets_im22_with_nothing_pressed():
+    record = good()
+    record["story"] = {**record["story"], "by": "wait", "pressed": False, "presses": [], "press_to_held_ms": None,
+                       "final_to_held_ms": 4100}
+    assert _by_mark(record)["IM22"].ok, _by_mark(record)["IM22"].detail
+    record["story"]["presses"] = [{"kind": "press", "testid": "ai-save"}]                # pressed on the wait path
+    assert not _by_mark(record)["IM22"].ok
 
 
 def test_the_short_form_measures_what_it_carries_and_nothing_else():
@@ -326,6 +351,28 @@ SEEDED = [
     ("IM20", ["taps", "two", "enabled"], False),
     ("IM20", ["taps", "third", "checked"], ["Agency A", "Agency B", "Agency C"]),          # a third ticked
     ("IM20", ["taps", "sent_how"], "SPOKEN"),
+    # spec 050: the held yes (IM15), the beat (IM21), the story's Save (IM22)
+    ("IM15", ["confirm", "turns", 0, "held"], None),                                     # straight on, not held
+    ("IM15", ["confirm", "turns", 0, "held", "unsure"], ["true"]),                       # held still unsure
+    ("IM15", ["confirm", "turns", 0, "held", "ring"], False),
+    ("IM21", ["beat", "beats"], lambda b: b[:1]),                                        # no beat after the idea
+    ("IM21", ["beat", "beats"], lambda b: b + [{**b[0], "after_kind": "OPENING"}]),     # a beat after the opening
+    ("IM21", ["beat", "beats", 0, "starts_in"], 1),                                      # a window opened in it
+    ("IM21", ["beat", "beats", 0, "micOn"], True),                                       # the waveform drawn
+    ("IM21", ["beat", "beats", 0, "statuses"], ["Take a moment.", "Listening. Say the one that fits, or tap it."]),
+    ("IM21", ["beat", "beats", 1, "ms"], 200),                                           # the e2e fake's beat
+    ("IM21", ["beat", "beats", 1, "pills"], ["listening"]),
+    ("IM21", ["beat", "beats", 0, "question"], True),                                    # a question drawn in it
+    ("IM21", ["beat", "beats", 0, "next"], "listening"),                                 # listened straight after
+    ("IM21", ["beat", "expected"], []),                                                  # nothing to hold it to
+    ("IM22", ["story", "status_before"], "Listening. Say the one that fits, or tap it."),
+    ("IM22", ["story", "save_before", "shown"], True),                                   # Save before a word
+    ("IM22", ["story", "save_after_final", "shown"], False),                             # no Save after one
+    ("IM22", ["story", "final_to_held_ms"], 4_200),                                      # Save waited for the gap
+    ("IM22", ["story", "classified"], 1),                                                # the story classified
+    ("IM22", ["story", "held", "heard"], "It was a Tuesday"),                            # words lost
+    ("IM22", ["story", "held_phase_seen"], False),
+    ("IM22", ["story", "sent"], ""),                                                     # the story not sent
 ]
 
 
@@ -395,6 +442,8 @@ class _Remote:
 
 
 @pytest.mark.parametrize("call", [lambda c: ledger.recording(c, str(uuid.uuid4())),
+                                  lambda c: ledger.pilot_opt_in(c, str(uuid.uuid4()), str(uuid.uuid4())),
+                                  lambda c: ledger.stand_in_old_words(c, str(uuid.uuid4()), {str(uuid.uuid4()): "x"}),
                                   lambda c: ledger.stand_in_keels_door(c, str(uuid.uuid4()), "r", spec="044"),
                                   lambda c: ledger.stand_in_balance(c, str(uuid.uuid4()), "r", to=100, spec="044")])
 def test_the_interviewer_reads_are_never_reached_on_the_remote_profile(call):
@@ -407,3 +456,54 @@ def test_a_stand_in_names_its_spec():
     assert "spec 044" in ledger.reason("044", "x") and "spec 043" in ledger.reason("043", "x")
     with pytest.raises(ledger.LedgerUnavailable):
         ledger.recording(type("Local", (), {"is_remote": False})(), "1; DROP TABLE project_content")
+
+
+# --------------------------------------------------------------- spec 050: keel-cloud 101's framing lines, restated
+
+def _composer() -> str:
+    text = _cloud_text("src/main/java/com/keeldiscovery/cloud/application/interviewer/PassageComposer.java")
+    if "COMMERCIAL_ROUTE" not in text:
+        pytest.skip("keel-cloud predates spec 101 (no framing lines)")
+    return text
+
+
+@pytest.mark.parametrize("name", ["INTRODUCED", "HOW_TO_ANSWER", "FULL_ROUTE", "COMMERCIAL_ROUTE", "PROBLEM_CLOSE",
+                                  "SOLUTION_CLOSE", "SOLUTION_OPENING", "COMMERCIAL_OPENING", "DIDNT_CATCH",
+                                  "IS_THAT_RIGHT", "ONE_MORE"])
+def test_the_framing_lines_are_the_composers_own(name):
+    import re                                                             # noqa: PLC0415
+    m = re.search(rf"\b{name} =\s*\"([^\"]*)\";", _composer())
+    mine = fake.MORE if name == "ONE_MORE" else getattr(fake, name)
+    assert m and m.group(1) == mine, (name, m and m.group(1), mine)
+
+
+def test_the_composers_number_words_fallback_and_the_shape_of_its_sentences():
+    import re                                                             # noqa: PLC0415
+    text = _composer()
+    words = re.search(r"NUMBER_WORDS = List\.of\(([^)]*)\)", text, re.S)
+    assert words and tuple(re.findall(r'"(\w+)"', words.group(1))) == fake.NUMBER_WORDS
+    assert f'"{fake.FOUNDER_FALLBACK}"' in text and '" has an idea for a problem you may know."' in text
+    assert '"Then I\'ll ask you "' in text and '"about it"' in text and '"on whether it would help you"' in text
+
+
+def test_the_fakes_framing_lines():
+    assert fake.opening("Maya") == ("I'm Keel's interviewer. I'm an AI, not a person. Maya has an idea for a problem "
+                                    "you may know. First the problem, then the idea, with a few questions about each. "
+                                    "Say the answer that fits, or tap it.")
+    assert fake.opening("  ", True) == ("I'm Keel's interviewer. I'm an AI, not a person. The founder has an idea for a "
+                                        "problem you may know. First the idea, then a few questions on the money side. "
+                                        "Say the answer that fits, or tap it.")
+    assert fake.OPENING == fake.opening(None)
+    assert fake.problem_passage("Payroll runs late.", 4) == ("Payroll runs late. That's the problem. Take a moment with "
+                                                            "it. Then I'll ask you four questions about it.")
+    assert fake.solution_close(1) == ("That's the idea. Take a moment. Then I'll ask you one question on whether it "
+                                      "would help you.")
+    assert fake.number(12) == "twelve" and fake.number(13) == "13"
+
+
+def test_the_words_from_before_101_differ_and_keep_the_count():
+    problem = fake.problem_passage("Payroll runs late.", 4)
+    assert fake.before_101("PROBLEM", problem) == "Payroll runs late. I'll ask you four questions about that."
+    solution = f"{fake.SOLUTION_OPENING} It is called X. {fake.solution_close(3)}"
+    assert fake.before_101("SOLUTION", solution) == "Now the idea. It is called X. I'll ask you three questions about that."
+    assert fake.before_101("OPENING", fake.opening("Maya")) == fake.OPENING_BEFORE_101 != fake.OPENING

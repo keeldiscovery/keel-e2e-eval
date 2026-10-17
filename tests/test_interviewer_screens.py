@@ -191,3 +191,47 @@ def test_the_seam_listens_as_keel_webs_fixture_does_and_is_silent():
     seam = (_web_073() / "src/components/interview/ai/useSpeechRecognition.ts").read_text(encoding="utf-8")
     assert "earcons?: boolean" in seam and "s.earcons !== false" in seam
     assert "quietMs" not in ivs.SPEECH_SEAM                       # the journeys keep the default gap (073 FR-4)
+
+
+# ------------------------------------------------------- spec 050: keel-web 074 (the story, the held yes) + 075 (beat)
+
+def _web_075() -> Path:
+    root = load_config(validate=False).keel_web
+    flow = root / "src/lib/aiInterviewFlow.ts"
+    if not flow.is_file() or "BEAT_MS" not in flow.read_text(encoding="utf-8"):
+        pytest.skip("keel-web predates spec 075 (no beat)")
+    return root
+
+
+def test_the_beat_is_keel_webs_own_length():
+    source = (_web_075() / "src/lib/aiInterviewFlow.ts").read_text(encoding="utf-8")
+    m = re.search(r"BEAT_MS\s*=\s*([\d_]+)", source)
+    assert m and int(m.group(1).replace("_", "")) == ivs.BEAT_MS, m and m.group(0)
+
+
+@pytest.mark.parametrize("word", [ivs.STORY, ivs.BEAT, ivs.BEAT_PILL, ivs.MIC_OFF])
+def test_the_story_beat_and_mic_off_words_are_keel_webs_own(word):
+    assert f'"{word}"' in (_web_075() / "src/lib/translate.ts").read_text(encoding="utf-8"), word
+
+
+@pytest.mark.parametrize("testid", ["ai-mic-off", "ai-mic-on", "ai-state", "ai-ring"])
+def test_the_mic_and_beat_selectors_are_in_keel_web(testid):
+    root = _web_075() / "src"
+    hits = [p for p in root.rglob("*.tsx") if f'data-testid="{testid}"' in p.read_text(encoding="utf-8")]
+    assert hits, testid
+    assert testid in Path(ivs.__file__).read_text(encoding="utf-8"), testid
+
+
+def test_the_lit_row_carries_data_unsure_and_the_stage_a_beat_phase():
+    sheet = (_web_075() / "src/components/interview/ai/Sheet.tsx").read_text(encoding="utf-8")
+    assert "data-unsure=" in sheet
+    flow = (_web_075() / "src/lib/aiInterviewFlow.ts").read_text(encoding="utf-8")
+    assert '"beat"' in flow
+
+
+def test_the_seam_keeps_the_pages_beat_and_gap_and_stamps_every_start():
+    """Spec 050 judgement call 3: the stack's journeys keep the page's 2 s beat and 4 s gap; the seam stamps every
+    recogniser started (and every recording begun) so the leg can say nothing listened in a beat."""
+    assert "beatMs" not in ivs.SPEECH_SEAM and "quietMs" not in ivs.SPEECH_SEAM
+    assert "__speechStarts" in ivs.SPEECH_SEAM and "__recordStarts" in ivs.SPEECH_SEAM
+    assert "__keelBeats" in ivs.FLOW_TIMELINE and "'beat'" in ivs.FLOW_TIMELINE

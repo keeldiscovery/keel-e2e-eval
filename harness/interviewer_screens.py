@@ -31,6 +31,13 @@ final said within it joins the same utterance. `say()` keeps what the sheet show
 the page still hands it results (keel-web's `__listening()`, 073 D-04: recogniser counts now grow on every final's end);
 tapped checkboxes wait for *Save and next* (`save_state`); the earcons are switched off on the seam (073 FR-8).
 
+Spec 050 (keel-web 074 + 075): the gap is 4.0 s on every window (the walk still encodes none); the story says how to
+end it (`STORY`) and its *Save and next* reads it at once; a yes to *Is that right?* is held (`data-unsure="false"`,
+`ai-ring`); the live waveform `ai-mic-on` while a window listens; after the problem and the idea passages a 2.0 s
+**beat** (`data-phase="beat"`, the status *Take a moment.*, the pill *pause*, nothing listening) -- the timeline keeps
+each beat as it was drawn and the seam stamps every recogniser started, so the leg can say nothing listened in it;
+*Microphone off* (`ai-mic-off`) on the end screens once everything is released.
+
 Every write a press makes returns the response keel-web received, so the leg holds the wire the page was handed.
 """
 
@@ -89,6 +96,15 @@ TAP_WAIT_MS = 1_500
 IS_THAT_RIGHT = "Is that right? Say yes, or tell me the right one"
 YES_THATS_IT = "Yes, that’s it"
 #: The words a stranger says for each move (design §3-§4).
+#: keel-web 074 FR-2 (`AI_STATUS.story`): the story's window says how to end it.
+STORY = "Take your time. Pause for a few seconds when you’re done, or tap Save."
+#: keel-web 075 FR-1: the beat after the PROBLEM and SOLUTION passage clips (`BEAT_MS`, `AI_STATUS.beat`, the pill's
+#: `AI_STATE.beat`); the seam's `beatMs` is left at the page's default on the stack (spec 050 judgement call 3).
+BEAT = "Take a moment."
+BEAT_PILL = "pause"
+BEAT_MS = 2_000
+#: keel-web 075 FR-4 (`AI_STATUS.micOff`): the end screens once every holder of the microphone has let go.
+MIC_OFF = "Microphone off"
 VETO = "no"
 SAY_YES = "yes"
 GO_BACK = "go back"
@@ -113,12 +129,38 @@ FLOW_TIMELINE = r"""
   let phase = null;
   let status = null;
   let sawAnswer = false;
+  const beats = [];
+  let beat = null;
+  let lastClip = null;
   const read = () => {
     const stage = document.querySelector('[data-testid=ai-stage]');
     const now = stage ? stage.getAttribute('data-phase') : null;
-    if (now !== phase) { phase = now; events.push({ t: performance.now(), kind: 'phase', value: now }); }
+    if (now !== phase) {
+      const t = performance.now();
+      if (beat && phase === 'beat') { beat.t1 = t; beat.next = now; beat = null; }
+      phase = now; events.push({ t, kind: 'phase', value: now });
+      if (now === 'beat') {
+        beat = { t0: t, t1: null, next: null, after: lastClip, statuses: [], pills: [], micOn: false,
+                 question: false, options: false, buttons: [] };
+        beats.push(beat);
+      }
+    }
     const line = document.querySelector('[data-testid=ai-status]');
     const words = line ? (line.textContent || '').trim() : null;
+    if (beat) {
+      // spec 050 (keel-web 075 FR-1): what the beat drew, every time the page changed while it lasted
+      const pill = document.querySelector('[data-testid=ai-state]');
+      const pillWords = pill ? (pill.textContent || '').trim() : null;
+      if (words !== null && beat.statuses[beat.statuses.length - 1] !== words) beat.statuses.push(words);
+      if (pillWords !== null && beat.pills[beat.pills.length - 1] !== pillWords) beat.pills.push(pillWords);
+      if (document.querySelector('[data-testid=ai-mic-on]')) beat.micOn = true;
+      if (document.querySelector('[data-testid=ai-sheet] .iv-q')) beat.question = true;
+      if (document.querySelector('[data-testid=ai-options]')) beat.options = true;
+      for (const b of document.querySelectorAll('[data-testid=ai-sheet] button')) {
+        const id = b.getAttribute('data-testid') || (b.textContent || '').trim();
+        if (!beat.buttons.includes(id)) beat.buttons.push(id);
+      }
+    }
     if (words && words !== status) {
       status = words;
       const q = document.querySelector('[data-testid=ai-sheet] .iv-q');
@@ -130,7 +172,10 @@ FLOW_TIMELINE = r"""
                                                  characterData: true });
   document.addEventListener('play', (e) => {
     const v = e.target;
-    if (v && v.tagName === 'VIDEO') events.push({ t: performance.now(), kind: 'play', clip: v.getAttribute('data-clip') });
+    if (v && v.tagName === 'VIDEO') {
+      lastClip = v.getAttribute('data-clip');
+      events.push({ t: performance.now(), kind: 'play', clip: lastClip });
+    }
   }, true);
   document.addEventListener('click', (e) => {
     const b = e.target && e.target.closest ? e.target.closest('[data-testid=ai-next]') : null;
@@ -142,6 +187,7 @@ FLOW_TIMELINE = r"""
   window.__keelFlow = () => events.slice();
   window.__keelPhases = () => statuses.slice();
   window.__keelSawAnswer = () => sawAnswer;
+  window.__keelBeats = () => beats.map((b) => Object.assign({}, b));
 })();
 """
 
@@ -178,6 +224,9 @@ def ai_intro_heading(face: str, questions: int) -> str:
 #: the page reads the utterance 1.5 s after that end and restarts the recogniser meanwhile, so `__say` within the gap
 #: goes to the gap's own recogniser; `__listening()` is keel-web's (the newest started and still handed results);
 #: `earcons: false` silences the two tones (073 FR-8; the fake mic has no AudioContext, so nothing waits on them).
+#: Spec 050: every `start()` is stamped (`__speechStarts`, `performance.now()`), and so is every `MediaRecorder.start`
+#: (`__recordStarts`), so the leg can say nothing listened in a beat or after the thanks. `quietMs` and `beatMs` are
+#: left at the page's defaults (4.0 s, 2.0 s).
 SPEECH_SEAM = r"""
 (() => {
   class FakeRecognition {
@@ -187,7 +236,7 @@ SPEECH_SEAM = r"""
       this.results = []; this.started = false; this.stopped = false;
       (window.__speech = window.__speech || []).push(this);
     }
-    start() { this.started = true; }
+    start() { this.started = true; (window.__speechStarts = window.__speechStarts || []).push(performance.now()); }
     stop() { this.stopped = true; }
     abort() {}
   }
@@ -209,6 +258,14 @@ SPEECH_SEAM = r"""
   window.__speechEnd = () => { const r = last(); if (r && r.onend) r.onend({}); };
   window.__recognisers = () => (window.__speech || []).length;
   window.__listening = () => { const r = last(); return !!(r && r.started && !r.stopped && r.onresult); };
+  // spec 050: every recording started, stamped (the seam's path is the browser's, so none is expected)
+  if (window.MediaRecorder && window.MediaRecorder.prototype && window.MediaRecorder.prototype.start) {
+    const start = window.MediaRecorder.prototype.start;
+    window.MediaRecorder.prototype.start = function (...args) {
+      (window.__recordStarts = window.__recordStarts || []).push(performance.now());
+      return start.apply(this, args);
+    };
+  }
 })();
 """
 
@@ -451,7 +508,8 @@ class Player:
         field = sheet.get_by_test_id("ai-field")
         return {"question": _words(sheet.locator(".iv-q").first), "kicker": _words(sheet.locator(".iv-kicker").first),
                 "options": [{"label": _words(o), "checked": o.get_attribute("aria-checked") == "true",
-                             "role": o.get_attribute("role")} for o in options.all()],
+                             "role": o.get_attribute("role"), "unsure": o.get_attribute("data-unsure")}
+                            for o in options.all()],
                 "field": field.input_value() if field.count() else None,
                 "chip": _words(sheet.locator(".iv-chips .chip").first) or None,
                 "preview": _words(sheet.get_by_test_id("ai-preview")),
@@ -551,8 +609,9 @@ class Player:
         question that came after it."""
         before = self.question()
         status = self.wait_status(HELD, timeout_s=timeout_s)
+        phase = self.phase()
         sheet = self.sheet()
-        rings = self.page.locator("[data-testid=ai-sheet] .aiv__ring").count()
+        rings = self.page.locator("[data-testid=ai-sheet] .aiv__ring, [data-testid=ai-ring]").count()
         finish = self.page.get_by_test_id("ai-finish")
         finish_shown = finish.count() > 0 and finish.first.is_visible()
         deadline = timeout_s * 1000 * self.patience
@@ -561,6 +620,7 @@ class Player:
             self.page.wait_for_timeout(100)
             waited += 100
         return {"question": before, "status": status, "lit": [o["label"] for o in sheet["options"] if o["checked"]],
+                "unsure": [o["unsure"] for o in sheet["options"] if o["checked"]], "phase": phase,
                 "heard": sheet["heard"], "ring": rings > 0, "finish": finish_shown, "next": self.question(),
                 "went_on": self.question() != before or HELD not in self.status()}
 
@@ -635,6 +695,37 @@ class Player:
             return self.page.evaluate("() => window.__keelSawAnswer ? window.__keelSawAnswer() : null")
         except Exception:  # noqa: BLE001
             return None
+
+    def beats(self) -> list[dict]:
+        """Spec 050 (keel-web 075 FR-1): every beat the timeline kept -- its start and end (`performance.now()`), the clip
+        played before it, the statuses and pills it drew, and whether the waveform, a question, the options or a sheet
+        button were ever in it."""
+        try:
+            return list(self.page.evaluate("() => window.__keelBeats ? window.__keelBeats() : []") or [])
+        except Exception:  # noqa: BLE001 - a page that has gone
+            return []
+
+    def starts(self) -> dict:
+        """Spec 050: when every seam recogniser was started and every recording begun (`performance.now()`)."""
+        try:
+            return dict(self.page.evaluate(
+                "() => ({ speech: (window.__speechStarts || []).slice(), record: (window.__recordStarts || []).slice() })"))
+        except Exception:  # noqa: BLE001
+            return {"speech": [], "record": []}
+
+    def mic_off(self, *, timeout_s: float = 10) -> dict:
+        """keel-web 075 FR-4: *Microphone off* (`ai-mic-off`, `role=status`) on the done or the ended screen once every
+        holder of the microphone has let go; and the seam's newest recogniser no longer listening."""
+        line = self.page.get_by_test_id("ai-mic-off")
+        try:
+            line.first.wait_for(state="visible", timeout=timeout_s * 1000 * self.patience)
+        except Exception:  # noqa: BLE001 - not drawn: reported, the leg judges
+            pass
+        shown = line.count() > 0 and line.first.is_visible()
+        return {"shown": shown, "text": _words(line.first) if shown else None,
+                "role": line.first.get_attribute("role") if shown else None,
+                "listening": bool(self.page.evaluate("() => window.__listening ? window.__listening() : false")),
+                "at": float(self.page.evaluate("() => performance.now()"))}
 
     def save(self) -> None:
         """*Save and next* -- typed words keep their explicit press (072 FR-5), and since keel-web 073 FR-6 tapped

@@ -5406,7 +5406,15 @@ hold nothing on it. For keel-cloud: serve `shortName` null while `what` is null 
 card's draft until named).
 
 
-## 91. Observation (keel-web 073 with keel-cloud beside it): on the recorded path the pilot ask's "yes" is never written down -- `transcribe` is refused 409 on a link whose answers have just gone, so the pilot is never posted
+## 91. RESOLVED (keel-cloud-docs `3a6b045`, spec 102; master `2c79e30`) -- was an observation (keel-web 073 with keel-cloud beside it): on the recorded path the pilot ask's "yes" is never written down -- `transcribe` is refused 409 on a link whose answers have just gone, so the pilot is never posted
+
+**Resolved by keel-cloud 102** (`7ec124c` spec, `3a6b045` code): `InterviewService.transcribe` serves an answered AI or
+CHOICE link while its stored `pilotOptIn` is still false (`awaitsPilot`), asking the transcriber with the item word
+`pilot` and yes / no expected, and logging `item=pilot`; `POST .../pilot` closes the window. Spec 050 FR-6 turns S-006's
+step *the recorded link's pilot ask* into a failing guard: on the recorded link, after its response 201, `transcribe`
+of the 16 KiB webm -> **200 "yes"**, then `POST .../interview/pilot` -> **204**, the stored opt-in false -> **true**
+(`stack.ledger.pilot_opt_in`), and a second `transcribe` -> **409** (the window closed). Green on the fresh stack of
+spec 050 (keel-cloud-docs `2c79e30` + keel-web `43cc2ee`). What follows is the observation as filed.
 
 Found by spec `049-hear-them-out` on S-006 (local stack, keel-cloud-docs `d2f00d4` + keel-web `baf934f`; run
 `runs/20261016T211032Z-s006-paidly`, step *the recorded link's pilot ask*). keel-web 073 FR-7(b) records the pilot

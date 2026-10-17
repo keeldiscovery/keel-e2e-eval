@@ -8,6 +8,9 @@ vendorRef failed once on request).
 fake`, `transcriber = fake`); the one live render test lives in keel-cloud (`HeyGenRenderLiveTest`, tag `live`) and is
 never run here.
 
+Spec 050 (keel-cloud 101): the framing lines -- the opening says whose idea it is and the route, the problem and the
+idea passages close on *Take a moment* and the count -- restated from `PassageComposer` (cloud-docs `3a6b045`).
+
 This module is machinery: it asserts nothing. `evals/interviewer_leg.py` and `evals/interviewer_marks.py` judge with it.
 """
 
@@ -61,8 +64,82 @@ RECORDING_STATES = ("NOT_RECORDED", "RECORDING", "READY", "FAILED")
 
 # -------------------------------------------------------------------------- the scripts (FR-B, code)
 
-OPENING = ("I'm Keel's interviewer. I'm an AI, not a person. I'll read each question and a few options. Say the one "
-           "that fits, or tap it.")
+#: keel-cloud 101 (cloud-docs master `3a6b045`, `PassageComposer`): the framing lines, copied word for word -- one
+#: source, the composer's own constants (`tests/test_interviewer_marks.py` holds them to its source). The opening says
+#: who speaks, whose idea it is (`{First}`: `Interview.founderFirstName` as served, else *The founder*), the route the
+#: link takes and how to answer; the problem and the idea passages close on a beat to think, then the count.
+INTRODUCED = "I'm Keel's interviewer. I'm an AI, not a person."
+HOW_TO_ANSWER = "Say the answer that fits, or tap it."
+FULL_ROUTE = "First the problem, then the idea, with a few questions about each."
+#: 101 judgement call 3: the decision-maker's link opens with the idea, then the money side.
+COMMERCIAL_ROUTE = "First the idea, then a few questions on the money side."
+PROBLEM_CLOSE = "That's the problem. Take a moment with it."
+SOLUTION_CLOSE = "That's the idea. Take a moment."
+SOLUTION_OPENING = "Now the idea."
+COMMERCIAL_OPENING = "Last, the money side."
+FOUNDER_FALLBACK = "The founder"
+#: `PassageComposer.NUMBER_WORDS`: the count said as a word up to twelve, digits above.
+NUMBER_WORDS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven",
+                "twelve")
+#: The opening before keel-cloud 101 (094's `OPENING`): what a recording made before it says -- the words the
+#: backfill check seeds (spec 050 FR-5).
+OPENING_BEFORE_101 = ("I'm Keel's interviewer. I'm an AI, not a person. I'll read each question and a few options. "
+                      "Say the one that fits, or tap it.")
+
+
+def _join(*parts: str | None) -> str:
+    return " ".join(p.strip() for p in parts if p and p.strip())
+
+
+def number(n: int) -> str:
+    return NUMBER_WORDS[n] if 0 <= n < len(NUMBER_WORDS) else str(n)
+
+
+def opening(first: str | None, commercial_link: bool = False) -> str:
+    """`PassageComposer.opening`: *I'm Keel's interviewer. I'm an AI, not a person. {First} has an idea for a problem
+    you may know. First the problem, then the idea, with a few questions about each. Say the answer that fits, or tap
+    it.* -- the decision-maker's link says its own route."""
+    founder = (first or "").strip() or FOUNDER_FALLBACK
+    return _join(INTRODUCED, f"{founder} has an idea for a problem you may know.",
+                 COMMERCIAL_ROUTE if commercial_link else FULL_ROUTE, HOW_TO_ANSWER)
+
+
+def then(count: int, about: str) -> str:
+    """`PassageComposer.then`: *Then I'll ask you four questions about it.* -- one question singular."""
+    return f"Then I'll ask you {number(count)} {'question' if count == 1 else 'questions'} {about}."
+
+
+def problem_passage(topic: str, count: int) -> str:
+    """The PROBLEM clip: `{topic} That's the problem. Take a moment with it. Then I'll ask you {N} questions about it.`
+    (`{N}`: part 1's items with the gate)."""
+    return _join(topic, PROBLEM_CLOSE, then(count, "about it"))
+
+
+def solution_close(count: int) -> str:
+    """The SOLUTION clip's close, on the full link and the decision-maker's alike: `That's the idea. Take a moment.
+    Then I'll ask you {N} questions on whether it would help you.` (it opens `Now the idea. {what} {how} {belief}`)."""
+    return _join(SOLUTION_CLOSE, then(count, "on whether it would help you"))
+
+
+#: 101's closes, as a recording made before 101 did not say them: `... I'll ask you {N} questions about that.`
+_CLOSE_101 = re.compile(r"\s*That's the (problem|idea)\. Take a moment(?: with it)?\. Then I'll ask you (\S+) "
+                        r"(questions?) .*$", re.S)
+
+
+def before_101(kind: str, script: str) -> str:
+    """What a passage of `kind` said before keel-cloud 101 (094 / 099's composer): the old opening; a problem or idea
+    passage with its 101 close put back to *I'll ask you {N} questions about that.* The backfill check (spec 050
+    FR-5) seeds these into a stored recording and watches the first read re-render them."""
+    if kind == "OPENING":
+        return OPENING_BEFORE_101
+    m = _CLOSE_101.search(script or "")
+    if not m:
+        return script
+    return f"{script[:m.start()]} I'll ask you {m.group(2)} {m.group(3)} about that."
+
+
+#: The full link's opening when the interview serves no first name.
+OPENING = opening(None)
 DIDNT_CATCH = "I didn't catch that, could you say it again?"
 PILOT_ASK = "Would you like to take part in the pilot?"
 MORE = "And which one more?"

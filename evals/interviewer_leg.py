@@ -39,6 +39,14 @@ then the option's own words as a final within a second -- and the leg holds one 
 and goes on with no *Finish*; and the recorded link's pilot ask is written down through `transcribe` as the page
 does it (DRIFT #91).
 
+**Since spec 050 (keel-cloud 101 + 102, keel-web 074 + 075)**: every role's opening says whose idea it is and the
+route, and the problem and idea passages close on *Take a moment* and the count (a plain assertion on the stored
+scripts); on S-006 a recording seeded in the old words re-renders them at no charge on the first read (FR-5); the walk
+lets the 2 s beat after each of those passages pass and holds what it drew (IM21) and the 4 s gap (no length
+encoded); the story ends by the pause on S-005 and by its *Save and next* on S-006 (IM22); a yes to *Is that right?* is
+held (IM15); *Microphone off* after the thanks (and on the dry run's End); and the recorded link's pilot yes is written
+down now that keel-cloud 102 serves `transcribe` until the opt-in (DRIFT #91 resolved).
+
 Every rule is scored by `evals/interviewer_marks.py` over the record this leg builds (`interviewer.json` and
 `interviewer-marks.json` in the run bundle); the leg fails when an owed mark is unmet. No model runs, no vendor is
 called and no money is spent anywhere here.
@@ -96,8 +104,10 @@ READ_REASON = marks.READ_REASON
 #: Spec 048: the stranger's walk is the answer path on S-005 too -- the mic test, the holds, "Is that right?" and the
 #: way back are owed there as on S-006; RECORDED (IM18) is the full leg's alone.
 #: Spec 049: IM19 (hears them out) and IM20 (taps wait for Save) are owed on the short form too.
+#: Spec 050: IM21 (a beat after the passages) and IM22 (the story's Save -- S-005 ends it by the pause, S-006 by Save)
+#: are owed on the short form too.
 SHORT_FORM = ["IM1", "IM3", "IM4", "IM5", "IM6", "IM7", "IM9", "IM13", "IM14", "IM15", "IM16", "IM17", "IM19",
-              "IM20"]
+              "IM20", "IM21", "IM22"]
 
 
 class _Wire:
@@ -217,6 +227,7 @@ def _leg(j, *, short: bool) -> dict:
             _screens_ready(j, wire, record)
         _the_recording(j, wire, record)
         if not short:
+            _backfill(j, wire, record)
             _dry_run(j, wire, record)
         _ai_link(j, wire, record, answer=True)
         if not short:
@@ -245,7 +256,7 @@ def _leg(j, *, short: bool) -> dict:
             _read_what_is_left(j, wire, record)
     # spec 048: the answer path's five are owed on the full leg whatever the record carries -- a walk that never went
     # back is a walk that failed to, not a mark left unmeasured
-    answer_path = ["IM14", "IM15", "IM16", "IM17", "IM18", "IM19", "IM20"]
+    answer_path = ["IM14", "IM15", "IM16", "IM17", "IM18", "IM19", "IM20", "IM21", "IM22"]
     require = SHORT_FORM if short else [m for m, _, _ in marks.MARKS if m in _owed(record) or m in answer_path]
     _score(j, record, require=require)
     return record
@@ -604,6 +615,105 @@ def _the_recording(j, wire: _Wire, record: dict) -> None:
         assert rec.get("face") == FIRST_FACE and rec.get("status") == "READY", rec.get("status")
         assert int(stored.get("schema_version") or 0) >= 22, stored.get("schema_version")   # 23 since keel-cloud 096
         assert not off, off
+    record["tries_served"] = tries
+    _framing_lines(j, record, tries)
+
+
+def _framing_words(served: dict, role: dict) -> dict[str, dict]:
+    """Spec 050 FR-1 (keel-cloud 101): what each passage of a role must say, from the interview its link serves -- the
+    opening whole; the problem passage whole (`{topic} That's the problem. ...`, part 1's items with the gate); the
+    idea passage's opening and close (the reveal's three lines between are IM4's), its count part 2's items on the full
+    link and every served item on the decision-maker's."""
+    commercial = served.get("kind") == "COMMERCIAL_LINK"
+    counts = {int(part["part"]): len(part["items"]) for part in role["parts"]}
+    out = {"OPENING": {"whole": fake.opening(served.get("founderFirstName"), commercial)}}
+    if 1 in counts:
+        out["PROBLEM"] = {"whole": fake.problem_passage(served.get("topic") or "", counts[1])}
+    if 2 in counts or commercial:
+        n = sum(counts.values()) if commercial else counts[2]
+        out["SOLUTION"] = {"starts": fake.SOLUTION_OPENING, "ends": fake.solution_close(n)}
+    return out
+
+
+def _says(script: str, want: dict) -> bool:
+    script = script or ""
+    return (script == want["whole"]) if "whole" in want else (
+        script.startswith(want["starts"]) and script.endswith(want["ends"]))
+
+
+def _framing_lines(j, record: dict, tries: dict) -> None:
+    """Spec 050 FR-1, a plain assertion on what keel-cloud stored: every role's opening, problem and idea passages say
+    101's framing lines (`harness/interviewer_fake.py`, copied from `PassageComposer`)."""
+    with j.recorder.step("interviewer (keel-cloud 101): every role's opening says whose idea it is and the route, the "
+                         "problem and the idea passages close on Take a moment and the count", party="stack",
+                         kind="assert") as h:
+        sets = fake.role_sets(record["recording"])
+        out = {}
+        for link, served in tries.items():
+            want = _framing_words(served, record["roles"][link])
+            have = {c.get("kind"): c.get("script") for c in sets.get(link) or [] if c.get("kind") in want}
+            out[link] = {kind: {"want": w, "said": have.get(kind), "ok": _says(have.get(kind), w)}
+                         for kind, w in want.items()}
+        record["framing"] = out
+        h.record_assert({link: {k: "101's words" for k in v} for link, v in out.items()}, out)
+        bad = {link: [k for k, v in kinds.items() if not v["ok"]] for link, kinds in out.items()}
+        assert out and not any(bad.values()), {link: {k: out[link][k] for k in ks} for link, ks in bad.items() if ks}
+
+
+def _backfill(j, wire: _Wire, record: dict) -> None:
+    """Spec 050 FR-5 (keel-cloud 101 FR-2): a recording in the words from before 101 re-renders its opening, problem
+    and idea passages at no charge on the first read, the old clips serving until the new are stored. The stack cannot
+    record in old words any more, so it is seeded -- STAND-IN 4, the stored scripts of those clips put back to the old
+    words (`stack.ledger.stand_in_old_words`) -- and the first read is the founder's Try it yourself (`GET interviewer/
+    try/{roleId}`, 101 judgement call 4: the same `backfill` a stranger's link read runs). Then: one new clip per role
+    and kind, stored with today's words, the old ids gone from the set and from what the next read serves, the
+    recording READY throughout, and no ledger row."""
+    rec = record["recording"]
+    today = {c["id"]: c for c in rec.get("clips") or [] if c.get("kind") in ("OPENING", "PROBLEM", "SOLUTION")}
+    old = {cid: fake.before_101(c["kind"], c["script"]) for cid, c in today.items()}
+    with j.recorder.step("interviewer: STAND-IN -- the stored recording's opening, problem and idea passages put back "
+                         "to the words from before keel-cloud 101", party="stack", kind="protocol") as h:
+        seeded = stack_ledger.stand_in_old_words(j.stack, j.project_id, old)
+        h.record_wire({"clips": {cid: (today[cid]["role"], today[cid]["kind"]) for cid in old}},
+                      {"seeded": seeded, "old words": old})
+        assert seeded == len(old) and old, (seeded, old)
+    with j.recorder.step("interviewer (keel-cloud 101 FR-2): the first read re-renders the passages in today's words at "
+                         "no charge -- one new clip per role and kind, the old clips gone once the new are stored, "
+                         "READY throughout, no ledger row", party="founder", kind="assert") as h:
+        rows_before = _rows(j, record)
+        roles = _role_ids(j)
+        served_before = {link: wire("GET", f"/interviewer/try/{rid}")[1] for link, rid in roles.items()}
+        statuses, swapped, waited = [], {}, 0.0
+        while waited <= 90 * j.patience:
+            stored = stack_ledger.recording(j.stack, j.project_id).get("recording") or {}
+            statuses.append(stored.get("status"))
+            clips = stored.get("clips") or []
+            swapped = {}
+            for cid, c in today.items():
+                same = [x for x in clips if x.get("role") == c["role"] and x.get("kind") == c["kind"]]
+                swapped[cid] = {"role": c["role"], "kind": c["kind"], "now": [(x.get("id"), x.get("status"))
+                                                                              for x in same],
+                                "ok": len(same) == 1 and same[0].get("id") != cid and same[0].get("status") == "DONE"
+                                and same[0].get("script") == c["script"]}
+            if all(v["ok"] for v in swapped.values()):
+                break
+            time.sleep(2)
+            waited += 2
+        served_after = {link: wire("GET", f"/interviewer/try/{rid}")[1] for link, rid in roles.items()}
+        refs = {link: {slot: (((v.get("interviewer") or {}).get("clips") or {}).get(slot) or {}).get("clipId")
+                       for slot in ("opening", "problem", "solution")} for link, v in served_after.items()}
+        refs_before = {link: {slot: (((v.get("interviewer") or {}).get("clips") or {}).get(slot) or {}).get("clipId")
+                              for slot in ("opening", "problem", "solution")} for link, v in served_before.items()}
+        still_old = sorted({cid for link in refs.values() for cid in link.values() if cid in today})
+        record["backfill"] = {"seeded": len(old), "swapped": swapped, "statuses": sorted(set(statuses)),
+                              "waited_s": waited, "served_before": refs_before, "served_after": refs,
+                              "ledger_rows_added": _rows(j, record) - rows_before}
+        h.record_assert({"swapped": {cid: True for cid in today}, "statuses": ["READY"], "served old ids": [],
+                         "ledger rows added": 0}, {**record["backfill"], "served old ids": still_old})
+        assert all(v["ok"] for v in swapped.values()), swapped
+        assert set(statuses) == {"READY"}, statuses
+        assert not still_old, refs
+        assert record["backfill"]["ledger_rows_added"] == 0, record["backfill"]
 
 
 def _counts(j, wire: _Wire, record: dict) -> dict:
@@ -644,6 +754,9 @@ def _dry_run(j, wire: _Wire, record: dict) -> None:
         # keel-web 072 on the dry run: the mic tested, the answer read by the founder's own classify route and held
         assert drawn["mic"]["after"]["mic_heard"] == ivs.mic_heard("hello"), drawn["mic"]
         assert ivs.HELD in drawn["hold"]["status"] and drawn["hold"]["went_on"], drawn["hold"]
+        # keel-web 075 FR-4: End's screen says the microphone is off, and nothing listens
+        assert drawn["mic_off"]["shown"] and drawn["mic_off"]["text"] == ivs.MIC_OFF, drawn["mic_off"]
+        assert drawn["mic_off"]["listening"] is False, drawn["mic_off"]
         assert any(r["url"].endswith(f"/v2/projects/{j.project_id}/interviewer/classify") for r in drawn["reads"]), \
             drawn["reads"]
     _dry_run_guard(j, wire, record, served)
@@ -714,6 +827,7 @@ def _dry_run_on_screen(j) -> dict:
                 where = player.stage()["where"]
                 player.end()                                   # the dry run stops at End (069 FR-007)
                 done = player.done()
+                mic_off = player.mic_off()                     # keel-web 075 FR-4: the dry run's done screen too
             except Exception:
                 h.add_screenshot(player.screenshot("try-stuck"))
                 h.record_wire({"stuck": True}, player.where_it_stood())
@@ -721,7 +835,7 @@ def _dry_run_on_screen(j) -> dict:
             h.add_screenshot(player.screenshot("try-done"))
             posts = [r for r in player.requests if r["method"] != "GET"]
             return {"mark": stage["mark"], "first": first, "pilot_where": where, "done": done, "writes": posts,
-                    "videos": stage["videos"], "mic": mic, "hold": hold,
+                    "videos": stage["videos"], "mic": mic, "hold": hold, "mic_off": mic_off,
                     "reads": [r for r in posts if marks.READS.search(r["url"].split("?")[0])]}
     finally:
         j.page.remove_listener("request", player._keep)
@@ -950,7 +1064,7 @@ class _Walk:
     """What the stranger did on the stage, kept for the record: each sheet, the holds, the "Is that right?" turns,
     the way back, and how each item was answered (`how` the response must then carry)."""
 
-    def __init__(self, player, interview: dict, expected: dict):
+    def __init__(self, player, interview: dict, expected: dict, *, story_by: str = "wait"):
         self.player = player
         self.gate = interview.get("gate") or {}
         self.items = {i.get("question"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
@@ -972,6 +1086,10 @@ class _Walk:
         self.hear_out: dict | None = None
         self.taps: dict | None = None
         self.pilot_hold: dict | None = None
+        #: Spec 050 FR-3 (keel-web 074 FR-2): the story ended by the pause (`wait`, S-005) or by its Save (`save`,
+        #: S-006), and what it drew (IM22).
+        self.story_by = story_by
+        self.story_seen: dict | None = None
 
     # ---- one spoken answer, held
     def held(self, entry: dict, said: str, *, item: dict | None = None, meant: str | None = None,
@@ -1004,6 +1122,7 @@ class _Walk:
             if hold is not None:
                 hold.update({"said": answer_with, "presses": _presses_between(p, again, _now(p))})
                 self.holds.append(hold)
+            turn["held"] = _held_facts(hold)                # keel-web 074: the answer to it is held too
             _wait_next(p, turn["question"])
             turn.update({"went_on": True, "sent_item": item.get("itemId")})
             if keep_turn:                               # the Back move's first answer is changed later: not kept
@@ -1050,6 +1169,7 @@ class _Walk:
             hold.update({"said": answer_with, "presses": _presses_between(p, start, _now(p))})
             self.holds.append(hold)
         turn["held after"] = hold is not None
+        turn["held"] = _held_facts(hold)
         _wait_next(p, turn["question"])
         turn["went_on"] = True
         turn["sent_item"] = item.get("itemId")
@@ -1113,16 +1233,49 @@ class _Walk:
         raise AssertionError({"the interview never reached its pilot ask": self.walked[-3:]})
 
     def story(self, entry: dict) -> None:
+        """The gate's story. keel-web 072: spoken -- never classified, the transcript is the answer. keel-web 074 FR-2
+        (spec 050 FR-3): its window says *Take your time. Pause for a few seconds when you're done, or tap Save.*; *Save
+        and next* (`ai-save`) is absent until a final is heard; then the story ends by the pause (`story_by` "wait":
+        the gap runs, nothing pressed) or by Save (it is read at once) -- held either way, then on (IM22)."""
         p = self.player
         if self.expected.get("anchorChip"):
             p.tap_chip()
             entry["did"].append("tap the story's chip")
-        else:
-            # keel-web 072: the story is spoken -- never classified, the transcript is the answer
-            p.wait_ear()
-            p.say(self.expected.get("story") or "", True)
-            entry["did"].append("said the story")
+            _wait_next(p, entry["question"])
+            return
+        story = self.expected.get("story") or ""
+        p.wait_ear()
+        try:
+            status_before = p.wait_status(ivs.STORY, timeout_s=5)
+        except AssertionError:
+            status_before = p.status()
+        save_before = p.save_state()
+        reads0 = len(p.classified)
+        said_at = _now(p)
+        p.say(story, True)
+        waited = 0
+        while waited < 3_000 * p.patience and not p.save_state()["shown"]:
+            p.page.wait_for_timeout(50)
+            waited += 50
+        save_after = p.save_state()
+        pressed_at = None
+        if self.story_by == "save" and save_after["shown"]:
+            pressed_at = _now(p)
+            p.page.get_by_test_id("ai-save").click()
+        hold = p.hold(timeout_s=20)
         _wait_next(p, entry["question"])
+        events = p.timeline()
+        held_at = next((e["t"] for e in events if e.get("kind") == "phase" and e.get("value") == "held"
+                        and (e.get("t") or 0) >= said_at), None)
+        self.story_seen = {
+            "by": self.story_by, "question": entry["question"], "said": story, "status_before": status_before,
+            "save_before": save_before, "save_after_final": save_after, "pressed": pressed_at is not None,
+            "held": hold, "held_phase_seen": held_at is not None,
+            "final_to_held_ms": round(held_at - said_at) if held_at is not None else None,
+            "press_to_held_ms": round(held_at - pressed_at) if held_at is not None and pressed_at is not None else None,
+            "presses": _presses_between(p, said_at, _now(p)), "classified": len(p.classified) - reads0,
+            "next": p.question()}
+        entry["did"].append("said the story, then " + ("Save and next" if pressed_at is not None else "the pause"))
 
     def advantages(self, entry: dict, item: dict) -> None:
         want = self.by_id[item["itemId"]].get("advantageIds") or []
@@ -1189,6 +1342,7 @@ class _Walk:
             if hold is not None:
                 hold.update({"said": answer_with, "presses": []})
                 self.holds.append(hold)
+            turn["held"] = _held_facts(hold)
             _wait_next(p, turn["question"])
             turn.update({"went_on": True, "sent_item": item.get("itemId")})
             self.confirms.append(turn)
@@ -1369,9 +1523,66 @@ def _held_or_on(player, question: str, *, timeout_s: float = 20) -> dict | None:
     raise AssertionError({"after Is that right? the sheet stayed": question, "status": player.status()})
 
 
+def _held_facts(hold: dict | None) -> dict | None:
+    """Spec 050 FR-4 (keel-web 074 FR-3): what the hold after an answer to *Is that right?* drew -- `data-phase` held,
+    the ring, the lit row's `data-unsure` ("false" once agreed), the status."""
+    if hold is None:
+        return None
+    return {k: hold.get(k) for k in ("phase", "ring", "unsure", "status", "lit", "went_on")}
+
+
 def _words_of(player, testid: str) -> str | None:
     loc = player.page.get_by_test_id(testid)
     return " ".join((loc.first.text_content() or "").split()) if loc.count() else None
+
+
+def _clip_kinds(interview: dict) -> dict[str, str]:
+    """A served interview's clip ids by what they say: the slots' names upper-cased (`opening` -> OPENING), an item's
+    clip ITEM, its follow-up ITEM_MORE."""
+    player = interview.get("interviewer") or {}
+    kinds = {c.get("clipId"): re.sub(r"(?<!^)(?=[A-Z])", "_", slot).upper()
+             for slot, c in (player.get("clips") or {}).items() if c}
+    for item in (player.get("items") or {}).values():
+        if item.get("clip"):
+            kinds[item["clip"].get("clipId")] = "ITEM"
+        if item.get("more"):
+            kinds[item["more"].get("clipId")] = "ITEM_MORE"
+    return kinds
+
+
+def _beats_seen(interview: dict, beats: list[dict], starts: dict) -> dict:
+    """Spec 050 FR-2 (keel-web 075 FR-1), IM21's record: every beat the stage took, after which clip, how long, what it
+    drew, and how many recognisers or recordings were started inside it; and the passages it is owed after (the served
+    PROBLEM and SOLUTION clips, in the spoken order)."""
+    kinds = _clip_kinds(interview)
+    clips = (interview.get("interviewer") or {}).get("clips") or {}
+    out = []
+    for b in beats:
+        t0, t1 = b.get("t0"), b.get("t1")
+        inside = (lambda ts: sum(1 for t in ts or [] if t0 is not None and t >= t0 and (t1 is None or t <= t1)))
+        out.append({**b, "after_kind": kinds.get(b.get("after")),
+                    "ms": round(t1 - t0) if t0 is not None and t1 is not None else None,
+                    "starts_in": inside(starts.get("speech")), "recordings_in": inside(starts.get("record"))})
+    return {"beats": out, "expected": [k.upper() for k in ("problem", "solution") if clips.get(k)],
+            "beat_ms": ivs.BEAT_MS}
+
+
+def _mic_off_after_thanks(j, interview: dict, mic_off: dict, starts: dict, events: list[dict], whose: str) -> None:
+    """Spec 050 FR-7 (keel-web 075 FR-4), a plain assertion once a link: after the thanks the done screen says
+    *Microphone off* (`ai-mic-off`, `role=status`), the seam's recogniser no longer listens, and no recogniser was
+    started after the thanks clip began."""
+    thanks = (((interview.get("interviewer") or {}).get("clips") or {}).get("thanks") or {}).get("clipId")
+    played = [e.get("t") for e in events if e.get("kind") == "play" and thanks and e.get("clip") == thanks]
+    since = played[-1] if played else None
+    after = [t for t in starts.get("speech") or [] if since is not None and t > since]
+    with j.recorder.step(f"interviewer (keel-web 075 FR-4): after {whose} thanks the done screen says Microphone off "
+                         "and nothing listens any more", party="participant", kind="assert") as h:
+        h.record_assert({"ai-mic-off": ivs.MIC_OFF, "role": "status", "listening": False,
+                         "recognisers started after the thanks": 0},
+                        {**mic_off, "thanks played at": since, "recognisers started after the thanks": len(after)})
+        assert mic_off["shown"] and mic_off["text"] == ivs.MIC_OFF and mic_off["role"] == "status", mic_off
+        assert mic_off["listening"] is False, mic_off
+        assert since is not None and not after, {"thanks": since, "started after": after}
 
 
 def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: dict) -> None:
@@ -1409,9 +1620,12 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
                 mic = player.mic_test("hello")
                 h.add_screenshot(player.screenshot("ai-mic-tested"))
                 player.start()
-                walk = _Walk(player, interview, expected)
+                walk = _Walk(player, interview, expected, story_by="wait" if record.get("short") else "save")
                 walked = walk.run()
                 done = player.done()
+                mic_off = player.mic_off()
+                h.add_screenshot(player.screenshot("ai-mic-off"))
+                beats, starts = player.beats(), player.starts()
                 events, statuses = player.timeline(), player.statuses()
                 saw = player.saw_thats_my_answer()
                 record["ai_flow"] = j.feedback["ai_flow"] = {
@@ -1426,6 +1640,10 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
     finally:
         stranger.close()
     record["mic_test"] = {**mic, "intro": intro}
+    record["beat"] = _beats_seen(interview, beats, starts)
+    if walk.story_seen:
+        record["story"] = walk.story_seen
+    _mic_off_after_thanks(j, interview, mic_off, starts, events, "the AI link's")
     record["hold"] = {"holds": walk.holds, "veto": walk.veto, "statuses": statuses, "saw_thats_my_answer": saw,
                       "pilot": walk.pilot_hold, "finish_presses": record["ai_flow"]["finish_presses"]
                       + sum(1 for e in events if e.get("kind") == "press" and e.get("testid") == "ai-finish")}
@@ -1483,6 +1701,8 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
         if walk.taps:
             record["taps"] = {**walk.taps, "sent": sent_labels(walk.taps["item"]),
                               "sent_how": (by_item.get(walk.taps["item"]) or {}).get("how")}
+        if record.get("story"):
+            record["story"]["sent"] = body.get("story")                 # IM22: the response carries the story
         record["ai_answers"] = {"body": body, "status": (responses[0] if responses else {}).get("status"),
                                 "register_row": row, "by": "keel-web", "walked": walked, "intro": intro,
                                 "done": done, "expected": expected, "how": {"want": walk.how, "sent": hows},
@@ -1688,20 +1908,19 @@ def _recorded_link(j, wire: _Wire, record: dict) -> None:
         assert sounded.get("picks") == ["Yes"] and sounded.get("confidence") == "high", sounded
         assert posted.status_code in (200, 201), record["recorded"]["response"]
         assert row.get("status") == "ANSWERED" and row.get("formatUsed") == "AI_INTERVIEWER", row
-    _recorded_pilot(j, record, token, interview)
+    _recorded_pilot(j, record, token, interview, link.get("invitationId"))
     _read_on_arrival(j, wire, record, link.get("invitationId"), "the recorded link's")
 
 
-def _recorded_pilot(j, record: dict, token: str, interview: dict) -> None:
+def _recorded_pilot(j, record: dict, token: str, interview: dict, invitation_id: str | None = None) -> None:
     """Spec 049 FR-6 (keel-web 073 FR-7(b)) on the wire, in the page's own order: the answers go first (`toPilot` sends
     the response, then asks the pilot), then the pilot ask's recording is written down through `POST .../transcribe`
     against the first question's item (no `expected`, 073 D-02) and read on the page; a "yes" is held and goes on, and
     the page posts `POST .../pilot {pilotOptIn: true}`. The stack's fake transcriber hears "yes" for any recording over
-    the floor, so the opt-in must be written -- **DRIFT #91**: keel-cloud refuses `transcribe` 409 on a link already answered
-    (`InterviewService.transcribe` -> `TranscribeAnswered`), the page reads the refusal as nothing heard, and the
-    recorded pilot's yes never reaches the pilot. A 409 is recorded under the drift's name (the page would post no
-    pilot, so neither does the leg); once the pilot ask is written down, the transcript must be "yes" and the opt-in
-    written 204 -- a failing guard from then on."""
+    the floor, so the opt-in must be written. **DRIFT #91, RESOLVED by keel-cloud 102** (spec 050 FR-6): `transcribe` is
+    served on an answered AI link while its pilot opt-in is not yet recorded (the item word `pilot`, yes / no
+    expected), so the step REQUIRES transcribe 200 "yes", then `POST pilot` 204, the stored opt-in true
+    (`stack.ledger.pilot_opt_in`), and the window closed after it (a second transcribe 409)."""
     import base64                                                             # noqa: PLC0415
 
     gate = interview.get("gate") or {}
@@ -1718,21 +1937,26 @@ def _recorded_pilot(j, record: dict, token: str, interview: dict) -> None:
             "itemId": first, "audio": base64.b64encode(SOUNDED_WEBM).decode("ascii"), "mimeType": "audio/webm",
             "language": "en-GB"})
         got = {"status": written.status_code, **_json_of(written)}
-        out: dict = {"itemId": first, "transcribe": got}
+        out: dict = {"itemId": first, "transcribe": got, "drift": "#91 resolved (keel-cloud 102)"}
         record["recorded"]["pilot"] = out
-        if written.status_code == 409:
-            out["drift"] = "#91"
-            h.record_assert({"transcribe": {"status": 200, "text": FAKE_TRANSCRIPT}, "pilot": 204},
-                            {**out, "DRIFT #91": "transcribe refused on a link already answered: the recorded "
-                                                 "pilot's yes is never written down, so never posted"})
-            return
+        opted_before = stack_ledger.pilot_opt_in(j.stack, j.project_id, invitation_id) if invitation_id else None
         heard = (got.get("text") or "").strip().lower()
         pilot = _participant(j, "POST", token, "/interview/pilot", {"pilotOptIn": True}) \
             if written.status_code == 200 and heard == FAKE_TRANSCRIPT else None
         out["pilot"] = pilot.status_code if pilot is not None else None
-        h.record_assert({"transcribe": {"status": 200, "text": FAKE_TRANSCRIPT}, "pilot": 204}, out)
+        out["opted_in"] = {"before": opted_before,
+                           "after": stack_ledger.pilot_opt_in(j.stack, j.project_id, invitation_id)
+                           if invitation_id else None}
+        again = _participant(j, "POST", token, "/interview/transcribe", {
+            "itemId": first, "audio": base64.b64encode(SOUNDED_WEBM).decode("ascii"), "mimeType": "audio/webm",
+            "language": "en-GB"})
+        out["transcribe_after_pilot"] = again.status_code
+        h.record_assert({"transcribe": {"status": 200, "text": FAKE_TRANSCRIPT}, "pilot": 204,
+                         "opted_in": {"before": False, "after": True}, "transcribe_after_pilot": 409}, out)
         assert written.status_code == 200 and heard == FAKE_TRANSCRIPT, got
         assert out["pilot"] == 204, out
+        assert out["opted_in"] == {"before": False, "after": True}, out["opted_in"]
+        assert again.status_code == 409, out
 
 
 def _heard_for(answer: dict, interview: dict) -> str:

@@ -25,7 +25,9 @@ from harness import interviewer_fake as fake
 #: RECORDED, with its words.
 #: v3 (spec 049, keel-cloud 100 / keel-web 073, contract 18 unchanged): IM19 (hears them out) and IM20 (taps wait for
 #: Save) born; IM14 reads the pilot ask's hold too (held with the ring, on by itself, *Finish* never pressed).
-INTERVIEWER_MARKS_VERSION = 3
+#: v4 (spec 050, keel-cloud 101 / keel-web 074 + 075, contract 18 unchanged): IM21 (a beat after the passages) and IM22
+#: (the story's Save) born; IM15 reads the held yes (`data-phase` held, the ring, `data-unsure` "false").
+INTERVIEWER_MARKS_VERSION = 4
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe)$")
@@ -37,6 +39,14 @@ HEARING = "Listening. Pause when you’re done."
 ANSWERED = "Got it."
 #: keel-web 073 FR-2's quiet gap: a second final said within a second of the first joins the same utterance.
 WITHIN_MS = 1_000
+#: keel-web 074 FR-2 / 075 FR-1's words, restated where the marks read them.
+STORY = "Take your time. Pause for a few seconds when you’re done, or tap Save."
+BEAT = "Take a moment."
+BEAT_PILL = "pause"
+#: A beat shorter than this share of its length (`BEAT_MS`, 2.0 s) is not the beat.
+BEAT_SHARE = 0.9
+#: keel-web 074's gap (`QUIET_MS`, 4.0 s): a Save that reads the story at once is held well inside it.
+GAP_MS = 4_000
 
 #: A price word on a screen that must carry none (decision 1: "no price shown").
 PRICE_WORD = re.compile(r"\bcredits?\b|[$£€]\s?\d|\bprice[sd]?\b|\bcosts?\b|\bpaid\b|\bcharge[sd]?\b", re.I)
@@ -324,15 +334,25 @@ def held_then_on(r: dict) -> tuple[bool, Any]:
                 "pilot": pilot, "finish presses": x.get("finish_presses")}
 
 
+def _held_yes(held: dict | None) -> bool:
+    """keel-web 074 FR-3: the answer to *Is that right?* held -- `data-phase` held, *Got it. Moving on… say no to
+    change*, the ring on the lit row, every lit row `data-unsure` "false"."""
+    held = held or {}
+    unsure = held.get("unsure") or []
+    return (held.get("phase") == "held" and HELD in (held.get("status") or "") and held.get("ring") is True
+            and bool(unsure) and all(u == "false" for u in unsure))
+
+
 def asked_is_that_right(r: dict) -> tuple[bool, Any]:
     """IM15 (FR-2): an unsure read asks *Is that right? Say yes, or tell me the right one* with a pick lit and the
-    *Yes, that's it* chip; the answer to it settles the question -- straight on after a yes -- and the response
-    carries what the stranger meant for that item."""
+    *Yes, that's it* chip; the answer to it settles the question and is **held** (v4, keel-web 074 FR-3: `data-phase`
+    held, the ring, the lit row `data-unsure` "false") before the next question; and the response carries what the
+    stranger meant for that item."""
     x = r["confirm"]
     turns = x.get("turns") or []
     good = [c for c in turns if IS_THAT_RIGHT in (c.get("status") or "") and c.get("lit") and c.get("yes")
-            and c.get("went_on") and c.get("sent") == c.get("meant")]
-    return bool(turns) and len(good) == len(turns), {"turns": turns}
+            and c.get("went_on") and c.get("sent") == c.get("meant") and _held_yes(c.get("held"))]
+    return bool(turns) and len(good) == len(turns), {"turns": turns, "held": len(good)}
 
 
 def went_back(r: dict) -> tuple[bool, Any]:
@@ -425,6 +445,50 @@ def taps_wait_for_save(r: dict) -> tuple[bool, Any]:
                                       "sent_how")}
 
 
+def a_beat_after_the_passages(r: dict) -> tuple[bool, Any]:
+    """IM21 (keel-web 075 FR-1, keel-cloud 101): after the problem and the idea passages -- and nowhere else -- a beat:
+    `data-phase` beat for its 2 s, the status *Take a moment.* alone, the pill *pause*, no waveform, no question, no
+    options, no button on the sheet, no recogniser started and no recording begun inside it, then the next clip."""
+    x = r["beat"]
+    beats = x.get("beats") or []
+    expected = x.get("expected") or []
+    least = BEAT_SHARE * float(x.get("beat_ms") or 0)
+    bad = [b for b in beats if not (
+        b.get("statuses") == [BEAT] and set(b.get("pills") or []) == {BEAT_PILL} and b.get("micOn") is False
+        and b.get("question") is False and b.get("options") is False and not b.get("buttons")
+        and b.get("starts_in") == 0 and b.get("recordings_in") == 0
+        and b.get("ms") is not None and b.get("ms") >= least and b.get("next") == "speaking")]
+    after = [b.get("after_kind") for b in beats]
+    ok = bool(expected) and after == expected and not bad and least > 0
+    return ok, {"expected after": expected, "after": after, "ms": [b.get("ms") for b in beats],
+                "off": [{k: b.get(k) for k in ("after_kind", "ms", "statuses", "pills", "micOn", "question",
+                                               "options", "buttons", "starts_in", "recordings_in", "next")}
+                        for b in bad]}
+
+
+def the_storys_save(r: dict) -> tuple[bool, Any]:
+    """IM22 (keel-web 074 FR-2): the story's window says *Take your time. Pause for a few seconds when you're done, or
+    tap Save.*; *Save and next* is absent until a final is heard, then drawn and enabled; the story ends by the pause
+    with nothing pressed (S-005) or by Save, read at once -- held inside the gap (S-006); held either way with the
+    words heard, never classified, then on; and the response carries the story."""
+    x = r["story"]
+    before, after, held = x.get("save_before") or {}, x.get("save_after_final") or {}, x.get("held") or {}
+    by = x.get("by")
+    ended = (by == "wait" and not x.get("pressed") and not x.get("presses")) or (
+        by == "save" and x.get("pressed") is True and x.get("press_to_held_ms") is not None
+        and x.get("final_to_held_ms") is not None and x.get("final_to_held_ms") < GAP_MS
+        and [p.get("testid") for p in x.get("presses") or []] == ["ai-save"])
+    said = _norm(x.get("said"))
+    ok = (x.get("status_before") == STORY and before.get("shown") is False and after.get("shown") is True
+          and after.get("enabled") is True and ended and x.get("held_phase_seen") is True
+          and HELD in (held.get("status") or "") and bool(said) and said in _norm(held.get("heard"))
+          and held.get("went_on") is True and x.get("classified") == 0 and x.get("next") != x.get("question")
+          and _norm(x.get("sent")) == said)
+    return ok, {k: x.get(k) for k in ("by", "status_before", "save_before", "save_after_final", "pressed",
+                                      "final_to_held_ms", "press_to_held_ms", "presses", "classified", "sent")} | {
+        "held": {k: held.get(k) for k in ("status", "heard", "went_on")}}
+
+
 #: (mark id, the record key it reads, the rule). Order is the leg's.
 MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("IM1", "ledger", one_recording_pair),
@@ -447,6 +511,8 @@ MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("IM18", "recorded", recorded_accepted),
     ("IM19", "hear_out", hears_them_out),
     ("IM20", "taps", taps_wait_for_save),
+    ("IM21", "beat", a_beat_after_the_passages),
+    ("IM22", "story", the_storys_save),
 ]
 
 
