@@ -31,8 +31,9 @@ from pathlib import Path
 
 # ------------------------------------------------------------------------------------- charge v9 (FR-F)
 
-#: keel-cloud `InferenceCharge.VERSION` since 094: every HOLD written carries it.
-PRICE_VERSION = 9
+#: keel-cloud `InferenceCharge.VERSION`, which every HOLD written carries: 9 since 094, **10** since 104 (BRIEF out,
+#: THEMES in; spec 052 -- the interviewer's two rows did not move).
+PRICE_VERSION = 10
 #: The first recording, written at lock (or, on a project with none, at the first face chosen) -- and the change.
 RECORDING = "INTERVIEWER_RECORDING"
 CHANGE = "INTERVIEWER_CHANGE"
@@ -530,20 +531,30 @@ def nothing_to_read_line(n: int) -> str:
             "sure. The follow-up answers are kept and appear here once a card is called.")
 
 
+def said_why_tail(answered: int, against: int) -> str:
+    """keel-web 077 `saidWhy`: the heading's tail, *· 6 of the 8 said why*."""
+    return f"· {answered} of the {against} said why"
+
+
 def said_why(heading: str, answered: int, against: int) -> str:
     """The rung's heading line: *What gets in the way · 6 of the 8 said why*."""
-    return f"{heading} · {answered} of the {against} said why"
+    return f"{heading} {said_why_tail(answered, against)}"
 
 
 def took_by(asked: int, against: int, rungs) -> str:
-    """*Only {asked} of the {against} were asked here: {k} had already been asked about {Rung}, the first rung they
-    failed.* -- one clause a rung that took people (`tookBy[]`, in the served order)."""
-    clauses = "; ".join(f"{r.get('count')} had already been asked about {r.get('name')}" for r in rungs or [])
-    return f"Only {asked} of the {against} were asked here: {clauses}, the first rung they failed."
+    """keel-web 077 `TOOK_BY`: *Only {asked} of the {against} were asked here: {k} had already been asked about {Rung}
+    [and {k} about {Rung}], the first rung they failed.* (`tookBy[]`, in the served order; 077 call 12)."""
+    rungs = list(rungs or [])
+    if not rungs:
+        return ""
+    earlier = " and ".join([f"{rungs[0].get('count')} had already been asked about {rungs[0].get('name')}"]
+                           + [f"{r.get('count')} about {r.get('name')}" for r in rungs[1:]])
+    return f"Only {asked} of the {against} were asked here: {earlier}, the first rung they failed."
 
 
 def no_follow_up(why: str) -> str:
-    return f"No follow-up on this rung: {why}."
+    """keel-web 077 `NO_FOLLOW_UP`: the served reason with one closing full stop."""
+    return f"No follow-up on this rung: {str(why or '').rstrip('.')}."
 
 
 def quote_words(quote: dict) -> str:

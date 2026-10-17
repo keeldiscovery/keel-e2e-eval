@@ -62,7 +62,7 @@ WHAT_THEY_AGREED_LINE = ("They ticked the box at the end of the interview: Keel 
 DM_ONLY = "Decision-makers answer the money part only."
 KEEL_NEVER_EMAILS = "Keel never emails on your behalf. You write to them from your own mailbox."
 NOBODY_SIGNED_UP = "Nobody has signed up yet."
-SOURCE_WORDS = {"KNOWN": "You know them", "DATASET": "Contacts dataset", "KEEL_MANAGED": "Contacts dataset"}
+SOURCE_WORDS = {"KNOWN": "You know them", "DATASET": "Contacts dataset", "KEEL_MANAGED": "Keel-managed"}
 ONE_LAST_THING = "One last thing"
 
 # ------------------------------------------------------------------------------ the binding's words (as 077)
@@ -71,10 +71,22 @@ PREPARING = "Preparing your brief…"
 INSIGHTS_PAGE_TITLE = "What the people who did not agree said"
 BREAKDOWN_PAGE_TITLE = "Every card, every answer"
 #: The breakdown tables' own chrome (their headings), which no view draws.
-BREAKDOWN_CHROME = ("Dimension", "Card", "Answers", "Status", "tested", "not tested", "you said", "theirs",
-                    "budget source", BREAKDOWN_PAGE_TITLE)
+BREAKDOWN_CHROME = ("Dimension", "Card", "Answers", "Status", "Tested:", "Not tested:", "You said", "theirs",
+                    "Budget source:", "Not asked yet", BREAKDOWN_PAGE_TITLE, "Price table", "From",
+                    "Already lose this much or more", "Already spend this much or more", "Chose this band or higher",
+                    "Start here", "Test this", "Half or more would pay", "or more")
 #: The old brief's words that may never come back on the sheet (design §4.5).
 OLD_BRIEF_WORDS = ("What to do next",)
+
+_MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+           "November", "December")
+
+
+def day_words(instant: str | None) -> str:
+    """keel-web 077 `dayWords`: *17 October 2026*, from an instant's UTC day (the binding's tab title)."""
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", str(instant or ""))
+    return f"{int(m.group(3))} {_MONTHS[int(m.group(2)) - 1]} {m.group(1)}" if m else ""
+
 
 MARK_NAMES = ("report_overview", "report_insights", "report_no_repeat", "report_pilot", "report_binding")
 
@@ -158,8 +170,10 @@ def _words_in(value) -> str:
 
 def expected_overview(standings: dict) -> dict:
     facts = standings.get("facts") or {}
+    served = {v.get("vector"): {k: v[k] for k in ("dimensionsHolding", "dimensionsTotal", "peopleAnswered") if k in v}
+              for v in standings.get("vectors") or []}
     return ov.overview(facts, price_median=standings.get("priceMedian"), n_of=n_of(standings),
-                       use_facts_median=False)
+                       use_facts_median=False, served=served)
 
 
 def _label_class(label: str) -> set:
@@ -245,13 +259,11 @@ def failing_dimensions(standings: dict) -> list[str]:
 
 
 def thin(standings: dict) -> bool:
-    """The *Nothing to read into yet* state: the decision says keep interviewing, or a card is too few or unasked
-    (spec 052 call 4: *Nothing is failing* says every dimension holds on 10 or more, untrue on a project nobody has
-    answered)."""
+    """The *Nothing to read into yet* state, keel-web 077's `insightsStateOf` (design §4.2's rule): no box, and a card
+    TOO_FEW_TO_CALL. A project nobody has answered (every card not asked) reads *Nothing is failing* -- the design's
+    *otherwise* -- whose line says every dimension holds on 10 or more people (spec 052 call 4, DRIFT #93)."""
     facts = standings.get("facts") or {}
-    if (facts.get("decision") or {}).get("label") == "KEEP_INTERVIEWING":
-        return True
-    return any(c.get("status") in ov.THIN for c in facts.get("cards") or [])
+    return any(c.get("status") == "TOO_FEW_TO_CALL" for c in facts.get("cards") or [])
 
 
 def expected_box(insight: dict) -> dict:
@@ -263,7 +275,7 @@ def expected_box(insight: dict) -> dict:
         "key": insight.get("dimension"),
         "head": [insight.get("name"), VERDICT_WORDS.get(insight.get("status"), insight.get("status"))],
         "split": fake.SPLIT_NOTE if insight.get("status") == "PEOPLE_DISAGREE" else None,
-        "concern": fake.said_why(heading, insight.get("answered"), insight.get("against")) if heading else None,
+        "concern": [heading, fake.said_why_tail(insight.get("answered"), insight.get("against"))] if heading else None,
         "themes": themes,
         "took_by": fake.took_by(insight.get("asked"), insight.get("against"), insight.get("tookBy"))
         if insight.get("tookBy") else None,
@@ -324,7 +336,7 @@ def insight_faults(standings: dict, page: dict, *, strict: bool, names: dict) ->
         missing = ov.in_order(got.get("head"), want["head"])
         for part in ("split", "concern", "took_by", "no_follow_up"):
             if want[part] is not None:
-                missing += ov.in_order(got.get("text"), [want[part]])
+                missing += ov.in_order(got.get("text"), want[part] if isinstance(want[part], list) else [want[part]])
             elif part in ("split", "took_by", "no_follow_up") and got.get(part):
                 faults.append({key: f"{part} drawn where the wire has none", "drawn": got.get(part)})
         drawn = got.get("themes") or []
@@ -447,7 +459,7 @@ def pilot_faults(standings: dict, page: dict, *, opted_in=None, invitations=None
             faults.append({"nobody yet": page.get("none"), "want": NOBODY_SIGNED_UP})
     elif page.get("none"):
         faults.append({"nobody yet drawn beside people": page.get("none")})
-    if ov.in_order(page.get("foot") or page.get("text"), [KEEL_NEVER_EMAILS]):
+    if people and ov.in_order(page.get("foot") or page.get("text"), [KEEL_NEVER_EMAILS]):
         faults.append({"foot": page.get("foot"), "want": KEEL_NEVER_EMAILS})
     return faults
 

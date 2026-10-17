@@ -44,7 +44,7 @@ def _green_extras(j) -> None:
     with j.recorder.step("S-014: the report says nothing more -- Nothing is failing, the sign-ups listed, the binding "
                          "ending after page 3 and the breakdown; all five report marks measured and met",
                          party="founder", kind="assert") as h:
-        card = j.screens.get("report-marks") or {}
+        card = j.report_card or {}
         checks = {c["mark"]: c for c in card.get("checks") or []}
         insights = j.screens.get("insights") or {}
         pages = [p.get("page") for p in (j.screens.get("printed") or {}).get("pages") or []]

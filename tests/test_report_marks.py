@@ -269,7 +269,8 @@ def test_the_overview_of_too_few_is_keep_interviewing_not_asked_and_nobody_yet()
     assert drawn["tiles"]["pilot"] == [ov.PILOT_TILE_LABEL, ov.PILOT_NONE_YET, ov.PILOT_FILLS]
     assert all(r["parts"][2] == ov.NOBODY_YET for v in ov.VECTORS for r in drawn["panels"][v]["rows"])
     st = {"facts": facts, "vectors": [], "insights": [], "priceMedian": None}
-    assert rm.thin(st) and rm.failing_dimensions(st) == []
+    assert not rm.thin(st) and rm.failing_dimensions(st) == [], \
+        "keel-web 077: nobody answered is *Nothing is failing* (no card too few); spec 052 call 4, DRIFT #93"
 
 
 def test_the_lead_lines_follow_the_stage_status():
@@ -379,9 +380,11 @@ def test_the_insights_empty_states_are_the_right_one_of_the_two():
     assert "Nothing is failing" in r["insights"]["empty"] and _card(r)["report_insights"].ok
     r["insights"]["empty"] = _join(fake.NOTHING_TO_READ_YET, fake.nothing_to_read_line(17))
     assert not _card(r)["report_insights"].ok, "the too-few state on a healthy project"
-    st["facts"]["decision"]["label"] = "KEEP_INTERVIEWING"
+    st["facts"]["cards"][0]["status"] = "TOO_FEW_TO_CALL"
     r = record(st)
     assert r["insights"]["empty"].startswith(fake.NOTHING_TO_READ_YET) and _card(r)["report_insights"].ok
+    r["insights"]["empty"] = _join(fake.NOTHING_FAILING, fake.NOTHING_FAILING_LINE)
+    assert not _card(r)["report_insights"].ok, "a card too few to call is the too-few state, not Nothing is failing"
 
 
 def test_off_the_stack_the_themes_are_held_for_shape_only():

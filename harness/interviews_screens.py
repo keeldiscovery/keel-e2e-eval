@@ -298,16 +298,30 @@ class Interviews:
         with self._b.step(f"founder makes a new link for {person} on Sent") as h:
             self.register()
             row = self.page.locator("table.ppl--sent tbody tr", has=self.page.locator("td b", has_text=person)).first
-            with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/relink"),
-                                           timeout=30_000) as made:
-                row.get_by_role("button", name=MAKE_A_NEW_LINK, exact=True).click()
-            dialog = self.page.get_by_role("dialog", name=f"A new link for {person}")
-            dialog.wait_for(state="visible", timeout=20_000)
+            # keel-cloud 104 (Discovered 5): right after a return the THEMES housekeeping can move the revision, so the
+            # page's first relink may meet 409 and keel-web retries it once (`withOneRetry`, DRIFT #88's); every relink
+            # response is kept and the one the dialog drew -- the last -- is the relink
+            seen: list = []
+
+            def on_response(response) -> None:
+                if response.request.method == "POST" and response.url.endswith("/relink"):
+                    seen.append(response)
+            self.page.on("response", on_response)
+            try:
+                with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/relink"),
+                                               timeout=30_000):
+                    row.get_by_role("button", name=MAKE_A_NEW_LINK, exact=True).click()
+                dialog = self.page.get_by_role("dialog", name=f"A new link for {person}")
+                dialog.wait_for(state="visible", timeout=20_000)
+            finally:
+                self.page.remove_listener("response", on_response)
             url = (dialog.locator(".linkbox").first.text_content() or "").strip()
             h.add_screenshot(self._b.screenshot(f"relink-{person.split()[0]}"))
             dialog.get_by_role("button", name=RELINK_DONE, exact=True).click()
             dialog.wait_for(state="hidden", timeout=10_000)
-            return {"url": url, "relinked": _json(made.value), "status": made.value.status}
+            last = seen[-1]
+            return {"url": url, "relinked": _json(last), "status": last.status,
+                    "retried": [r.status for r in seen[:-1]]}
 
     def status_cell_offers(self, person: str) -> list[str]:
         row = self.page.locator("table.ppl--sent tbody tr", has=self.page.locator("td b", has_text=person)).first

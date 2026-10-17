@@ -19,7 +19,7 @@ from stack.config import load_config
 PROJECT = str(uuid.uuid4())
 
 
-def _pair(action: str, credits: int, *, version: int = 9) -> list[dict]:
+def _pair(action: str, credits: int, *, version: int = fake.PRICE_VERSION) -> list[dict]:
     op = str(uuid.uuid4())
     unit, cost = ((fake.NAME_CREDITS, fake.NAME_COST_MICRO_USD) if action == "CONTACT_PAGE"
                   else (fake.EMAIL_CREDITS, fake.EMAIL_COST_MICRO_USD))

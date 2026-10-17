@@ -100,9 +100,12 @@ def stage_of(key: str) -> str:
 # ------------------------------------------------------------------------------------------- the drawing
 
 def card_words(card: dict) -> str:
-    """A row's card: the number and the line, or *nobody has answered this yet* when the card has no number."""
+    """A row's card: the number and the line; with no number a left-out card's served line (keel-web 077 call 8), else
+    *nobody has answered this yet*."""
     number = card.get("number")
-    return f"{number} {card.get('line')}" if number else NOBODY_YET
+    if number:
+        return f"{number} {card.get('line')}"
+    return card.get("line") if card.get("status") == "LEFT_OUT" else NOBODY_YET
 
 
 def tiles(facts: dict, price_median: dict | None) -> dict:
@@ -139,26 +142,36 @@ def hero(facts: dict) -> dict:
             "caption": [STAGE_NAME[v] for v in VECTORS]}
 
 
-def panels(facts: dict, n_of: dict | None = None) -> dict:
-    """The three panels in `VECTORS` order: name, pill, lead lines, one row a card in the facts' (registry) order."""
+def panels(facts: dict, n_of: dict | None = None, served: dict | None = None) -> dict:
+    """The three panels in `VECTORS` order: name, pill, lead lines, one row a card in the facts' (registry) order.
+    `served` is the wire's own vector counts where the page reads them (keel-web 077 `panelLeadOf`: *k of n holding.*
+    is `dimensionsHolding` of `dimensionsTotal`, the too-few lead `peopleAnswered`); without it (the DRY compare) the
+    lead counts the facts' cards and the dimensions' `n`."""
     n_of = n_of or {}
+    served = served or {}
     verdicts = {v.get("vector"): v.get("verdict") for v in facts.get("vectors") or []}
     out = {}
     for vector in VECTORS:
         cards = [c for c in facts.get("cards") or [] if stage_of(c.get("key")) == vector]
         verdict = verdicts.get(vector)
-        if verdict == "HOLDING_UP":
-            holding = sum(1 for c in cards if c.get("status") == "HOLDING_UP")
-            lead = [f"{holding} of {holding} holding."]
-        elif verdict in BROKE_ON:
-            lead = [f"{c.get('name')} · {card_words(c) if c.get('number') else c.get('line')}"
-                    for c in cards if c.get("status") in BROKE_ON]
+        mine = served.get(vector) or {}
+        holding = mine.get("dimensionsHolding", sum(1 for c in cards if c.get("status") == "HOLDING_UP"))
+        total = mine.get("dimensionsTotal", holding)
+        failing_cards = [c for c in cards if c.get("status") in BROKE_ON]
+        if verdict in BROKE_ON and failing_cards:
+            lead = [f"{c.get('name')} · {' '.join(x for x in (c.get('number'), c.get('line')) if x)}"
+                    for c in failing_cards]
         elif verdict == "TOO_FEW_TO_CALL":
-            thin = [n_of.get(c.get("key")) for c in cards if c.get("status") == "TOO_FEW_TO_CALL"]
-            thin = [x for x in thin if x is not None]
-            lead = [too_few_lead(min(thin) if thin else 0)]
-        else:
+            if "peopleAnswered" in mine:
+                answered = mine["peopleAnswered"]
+            else:
+                thin = [n_of.get(c.get("key")) for c in cards if c.get("status") == "TOO_FEW_TO_CALL"]
+                answered = min([x for x in thin if x is not None] or [0])
+            lead = [too_few_lead(answered)]
+        elif verdict in ("NOT_ASKED_YET", "NOT_TESTED"):
             lead = [NOT_ASKED_LEAD]
+        else:
+            lead = [f"{holding} of {total} holding."]
         out[vector] = {"name": STAGE_NAME[vector], "pill": VERDICT_WORDS.get(verdict, verdict), "lead": lead,
                        "rows": [{"key": c.get("key"), "parts": [c.get("name"), head(c.get("statusWords")),
                                                                 card_words(c)],
@@ -166,7 +179,8 @@ def panels(facts: dict, n_of: dict | None = None) -> dict:
     return out
 
 
-def overview(facts: dict, *, price_median=None, n_of: dict | None = None, use_facts_median: bool = True) -> dict:
+def overview(facts: dict, *, price_median=None, n_of: dict | None = None, use_facts_median: bool = True,
+             served: dict | None = None) -> dict:
     """The whole Overview from one `BriefFacts`. `price_median` defaults to `facts.commercial.priceMedian` (keel-cloud
     104 serves it there and at `StandingsView.priceMedian`, equal); `n_of` is each dimension's `n`, the too-few lead's
     count."""
@@ -175,7 +189,7 @@ def overview(facts: dict, *, price_median=None, n_of: dict | None = None, use_fa
     pilot = facts.get("pilot") or {}
     n = int(pilot.get("finished") or 0)
     return {"eyebrow": eyebrow(n), "hero": hero(facts), "tiles": tiles(facts, price_median),
-            "panels": panels(facts, n_of),
+            "panels": panels(facts, n_of, served),
             "foot": [EVERY_ROW_OPENS, f"{n} answered · {people_by_link(pilot.get('perLink'))}"]}
 
 

@@ -5452,28 +5452,37 @@ can be deleted. The journeys hold the served line exactly (held to keel-cloud's 
 `tests/test_follow_up_ladder.py`) and the design's phrase not at all. For the founder: which line is the participant's;
 for keel-cloud: serve the design's line (or amend §9 to the served one).
 
-## 93. Reserved (spec 052, the report) -- what the report shows that the wire does not say
+## 93. Observation (keel-web 077, with the design beside it): on a project nobody has answered, the Insights view says *Every dimension holds on 10 or more people*; and the report's own words around the wire
 
-**Reserved, nothing filed yet.** Spec 052's acceptance 3 keeps this number for the first time the journeys read keel-web
-077's report against keel-cloud 104's `StandingsView` (contract 19, the standings side) and find the page drawing what
-the wire does not serve: a word, a number, a row or a person on the Overview, the Insights view or the Pilot view, or a
-token on *Download the brief* that no view shows (design D10). The marks that would find it are `report_overview`,
-`report_insights`, `report_pilot` and `report_binding` (`evals/report_marks.py`, `REPORT_MARKS_VERSION` 1); the entry is
-written with the run bundle's `report.json` / `report-marks.json` once a journey has run on a stack carrying keel-cloud
-104 and keel-web 077 (not before 2026-10-17: 077 was not on keel-web's master when spec 052's code was written). Two
-words are already known to be at risk and are named here so the first reader looks for them: the price tile reads *…
-decision-makers* on a consumer study too (077 FR-2 words it so; design §3's tile is the decision-makers'), and the
-Insights view's *Nothing is failing* says *Every dimension holds on 10 or more people* where the design's rule
-(*otherwise*) would draw it on a project nobody has answered -- the eval reads that state as *Nothing to read into
-yet* (spec 052 judgement call 4). **Numbering note:** written as #92 on spec 052's branch; renumbered #93 when 052
-was rebased onto 051 (whose #92 is the consent line above), and the D6 reservation below with it, #93 -> #94.
+Found by spec `052-report` on S-005 / S-006 / S-007 / S-014 (local stack, keel-cloud-docs `80d4259` (code `9a033fe`) +
+keel-web `b89bc32` + keel-runtime 0.8.0 bundled in keel-connect-skill `c677950`; runs `20261017T185504Z-s005-countly`,
+`...T190008Z-s006-paidly`, `...T190507Z-s007-mulchrun`, `...T190719Z-s014-green`, each step *the report before anyone
+answered*). Every number the report draws is the wire's, and the four report marks that hold the page to it
+(`report_overview`, `report_insights`, `report_pilot`, `report_binding`) met on all four journeys. One sentence is not
+true of the project it is drawn on: **before anyone has answered, the Insights view reads *Nothing is failing ·
+Every dimension holds on 10 or more people. There is nothing to add to the overview.*** -- `insightsStateOf` draws
+*Nothing to read into yet* only when a card is TOO_FEW_TO_CALL, and with nobody answered every card is NOT_ASKED_YET,
+so the design's *otherwise* (§4.2) falls through to the green state while the Overview beside it says *Keep
+interviewing · 0 people have answered*. After the fourth answer the same view correctly reads *Nothing to read into
+yet · 4 people have answered* (each journey's *the report after 4 answers*). The eval predicts 077's rule (spec 052
+call 4) and holds nothing against it; for keel-web (or the design): read NOT_ASKED_YET as too few as well, or give
+the unanswered project its own line.
 
-## 94. Reserved (spec 052, the report) -- a number the Insights view repeats from the Overview (design D6)
+Also recorded here, as 077's tasks.md lists them (the words the page composes around the wire; held by the marks as
+predicted, not faults): the hero's *Fairly sure.* / *Medium.* / *Low.*, the verdict words, *{Dimension} is {status
+word}*, *{n} people have answered.* (`pilot.finished`) and *A card needs 5 …*; the ship caption's status words
+(`standingStatus(vector.verdict)`); the price tile's *… {chose} of {n} decision-makers* **on a consumer study too**
+(S-005 Countly: *£20 a month or more · half or more said so · 7 of 8 decision-makers*, where the eight are the managers
+who have the problem); the panel leads' counts (`dimensionsHolding` / `dimensionsTotal`, `peopleAnswered`); the Pilot
+view's *Yes / No*, the source words and *One last thing · {rung}*; the binding's dates and the breakdown's labels.
+**Numbering note:** reserved as #92 on spec 052's branch, renumbered #93 on the rebase onto 051 (whose #92 is the
+consent line above).
 
-**Reserved, nothing filed yet.** The founder's D6: *"They already know about the stats from the overview page … careful
-not to repeat it again and again."* Spec 052 expects the first builds of keel-web 077 to repeat one, and keeps this
-number for it. `report_no_repeat` is the literal check: outside a quote (`.rp-quote`) and the view's own lines
-(*· {answered} of the {against} said why*, *Only k of the n were asked here …*), the Insights view's text carries no
-`\d+ of \d+`, no currency figure, no `\d+ months? out of`, and none of the Overview cards' `number` strings. A hit is
-written here with the repeated text, the box it sat in and the run bundle -- read, not tolerated: the regex is blunt on
-purpose (spec 052 plan), so a false positive is a finding about the check to read here, never a widening.
+## 94. RELEASED (spec 052) -- was reserved for a number the Insights view repeats from the Overview (design D6)
+
+**Nothing filed: `report_no_repeat` met on all four journeys** (S-005 / S-006 / S-007 / S-014, the runs above): outside
+a quote (`.rp-quote`) and the view's own lines (`.rp-concern`, `.rp-tookby`), keel-web 077's Insights view carried no
+`\d+ of \d+`, no currency figure, no `\d+ months? out of` and none of the Overview cards' `number` strings. The
+spec expected the first builds to repeat one; 077 as built does not (its own unit test holds D6 too). The number stays
+spent, so the next finding is #95. **Numbering note:** reserved as #93 on spec 052's branch, renumbered #94 on the
+rebase onto 051.

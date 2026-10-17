@@ -26,7 +26,7 @@ IS_THAT_RIGHT = "Is that right? Say yes, or tell me the right one"
 
 
 def _pair(action: str) -> list[dict]:
-    return [{"kind": "HOLD", "credits": -400, "action": action, "price_version": 9, "project_id": PROJECT,
+    return [{"kind": "HOLD", "credits": -400, "action": action, "price_version": fake.PRICE_VERSION, "project_id": PROJECT,
              "inference_job_id": None, "price_credits": None, "actual_cost_micro_usd": None},
             {"kind": "SPEND", "credits": 0, "action": action, "price_version": None, "project_id": PROJECT,
              "inference_job_id": None, "price_credits": 400, "actual_cost_micro_usd": 2_000_000}]
@@ -37,7 +37,7 @@ CHOICE_INVITATION = str(uuid.uuid4())
 
 
 def _reading(action: str, reason: str | None) -> dict:
-    return {"kind": "HOLD", "credits": -35, "action": action, "price_version": 9, "project_id": PROJECT,
+    return {"kind": "HOLD", "credits": -35, "action": action, "price_version": fake.PRICE_VERSION, "project_id": PROJECT,
             "inference_job_id": str(uuid.uuid4()), "reason": reason}
 
 
@@ -524,7 +524,7 @@ def test_the_price_word_finds_a_price_and_leaves_plain_words_alone():
 # ------------------------------------------------------------------------------- the fake and charge v9, restated
 
 def test_charge_v9_and_the_fixed_lines():
-    assert (fake.PRICE_VERSION, fake.CREDITS, fake.COST_MICRO_USD, fake.CHANGE_PRICE) == (9, 400, 2_000_000, 400)
+    assert (fake.PRICE_VERSION, fake.CREDITS, fake.COST_MICRO_USD, fake.CHANGE_PRICE) == (10, 400, 2_000_000, 400)
     assert fake.FACES == ("JUDY", "JIN", "ANNA", "DAPHNE", "TITO") and fake.PRESELECTED == "JUDY"
     assert fake.preview_path("TITO") == "/interviewer/faces/tito.webp"
     assert fake.REFUSAL_STATUS == {"INTERVIEWER_NOT_READY": 409, "INTERVIEWER_NEEDS_CREDITS": 422,

@@ -33,8 +33,9 @@ NAME_CREDITS = PAGE_CREDITS // PAGE_SIZE
 NAME_COST_MICRO_USD = 30_000
 EMAIL_COST_MICRO_USD = 60_000
 #: `InferenceCharge.VERSION`, which every HOLD carries: 8 at spec 093, **9** since keel-cloud 094 added the interviewer's
-#: two rows (spec 044 FR-001; the contacts rows and their prices did not move).
-PRICE_VERSION = 9
+#: two rows (spec 044 FR-001; the contacts rows and their prices did not move); **10** since keel-cloud 104 (BRIEF out,
+#: THEMES in; spec 052 -- no contacts price moved).
+PRICE_VERSION = 10
 
 _WORDS = re.compile(r"\W+", re.ASCII)
 

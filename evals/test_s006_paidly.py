@@ -92,13 +92,16 @@ def _paidly_extras(j) -> None:
         for key, (n, status) in asked.items():
             assert n >= FLOOR and status not in ("TOO_FEW_TO_CALL", "NOT_ASKED_YET"), (key, n, status)
 
-    with j.recorder.step("S-006: twenty people asked and twenty answered, on the board",
+    with j.recorder.step("S-006: twenty people asked and twenty answered, on the report (keel-web 077: the eyebrow and "
+                         "the foot carry the count; the people tile went with the deck)",
                          party="founder", kind="assert") as h:
         people = j.standings.get("people") or {}
-        h.record_assert({"invited": 20, "answered": 20},
-                        {"people": people, "tiles": j.screens["board"]["tiles"]})
+        board = j.screens["board"]
+        h.record_assert({"invited": 20, "answered": 20, "eyebrow": "Overview · locked · 20 answered"},
+                        {"people": people, "eyebrow": board["eyebrow"], "foot": board["foot"]})
         assert people.get("invited") == 20 and people.get("answered") == 20, people
-        assert "20" in j.screens["board"]["tiles"], j.screens["board"]["tiles"]
+        assert board["eyebrow"] == "Overview · locked · 20 answered", board["eyebrow"]
+        assert "20 answered" in board["foot"], board["foot"]
 
 
     named = vs.idea_name_of(vs.IDEA_NAMES[ENTRY_ID])

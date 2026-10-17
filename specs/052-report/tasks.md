@@ -33,11 +33,67 @@
   `c677950`): `vectors_script.themes_entries` writes the script's THEMES entries -- one a dimension the entry leaves
   failing that the walks give follow-ups on, the fake's piles of the posted texts, then the catch-all -- and
   `context_keys_for` refuses a THEMES row that is not `dimension, name, rungHeading, answers`
-- [ ] T009 **owed to the journey pass**: acceptance 2 (`make eval K="s005 or s006 or s007 or s014"` on a fresh stack
-  against keel-cloud 104 + keel-web 077, after 051 + 076) -- the page objects held to what 077 built, the four journey
-  marks measured and met on S-006 and S-014, the too-few state on S-005
-- [ ] T010 **owed to the journey pass**: acceptance 3 (remote journeys on staging with 104 + 077; DRIFT #93 / #94 filled
-  or released)
+- [x] T009 acceptance 2: `make eval K="s005 or s006 or s007 or s014"` **4 passed in 862 s** on a fresh stack (keel-cloud-docs
+  `80d4259` = code `9a033fe` + keel-web `b89bc32` + runtime 0.8.0) -- the page objects held to 077 as built, all five
+  report marks measured and met on every journey, the too-few state on S-005 (and on the other three), THEMES resolved
+  on the stack for every predicted dimension (see *Acceptance 2, measured*)
+- [ ] T010 **owed**: acceptance 3 -- remote journeys on staging once 104 + 077 are deployed there. DRIFT #93 filled
+  (the zero-answer Insights line, and 077's own words), #94 released (nothing repeated)
+
+## Acceptance 2, measured (2026-10-17 UTC, the journey pass)
+
+One fresh stack, `make eval K="s005 or s006 or s007 or s014"`: **4 passed in 862 s** on keel-cloud-docs `80d4259` (code
+`9a033fe`, spec 104) + keel-web `b89bc32` (077 on 076) + keel-runtime `3988131` 0.8.0 bundled in keel-connect-skill
+`c677950` 2.5.0; `make down` after. Earlier single-journey runs (each on its own fresh stack) found the eight fixes
+listed under *The journey pass's fixes*; this run is the first after the last of them.
+
+| Journey | Run | Time | Report marks | Interviewer marks | THEMES on the stack |
+|---|---|---|---|---|---|
+| S-005 countly | `20261017T185504Z-s005-countly` | 303 s | **5 of 5** | 21 of 21 | Current solution: *quick* (1), *habit* (1); against 3, asked 2, Importance took 1 |
+| S-006 paidly | `20261017T190008Z-s006-paidly` | 299 s | **5 of 5** | 26 of 26 | Price: *proof* (1), *seeing* (1), against 3, asked 3, 1 skipped; Buyer and payer: *manager* (1), *finance* (1), against 4, asked 2, Price took 2 |
+| S-007 mulchrun | `20261017T190507Z-s007-mulchrun` | 132 s | **5 of 5** | (no leg) | Importance: *two* (2), against 3, asked 3, 1 skipped; Commitment: *free* (1), *short* (1), Buyer and payer took 1 |
+| S-014 green | `20261017T190719Z-s014-green` | 125 s | **5 of 5** | (no leg) | none due: `insights[]` empty, the catch-all unused |
+
+- Every scripted THEMES entry resolved on keel-runtime 0.8.0: the served labels are the fake's, the counts its, the
+  quotes the walks' own lines under the invitations' names -- `report_insights` strict on all four. The dimensions with
+  no question (S-006 Existing sacrifice, Ability to pay, Purchase friction; S-007 Prevalence, Purchase friction) and
+  S-007's Current solution (every one against taken by Importance) are boxes with no themes, as served.
+- The too-few state, every journey: before anyone answered *Keep interviewing*, the price tile *Not asked yet*,
+  *nobody has answered this yet* on every commercial row not left out, and the Insights view **Nothing is failing**
+  (077's rule; DRIFT #93); after the fourth answer *Keep interviewing* and **Nothing to read into yet · 4 people have
+  answered** (`_too_few_answered`).
+- The price median on the wire equals `brief_facts.price_median_for` on the three corpus entries (*£20 a month · 7 of 8*,
+  *£50 · 5 of 8*, none on Mulch Run's left-out Price) and on S-014 (*£50 · 10 of 10*); S-014's standings hold up on ten
+  everywhere, decision BUILD, nobody owed a follow-up, the binding pages 1-4.
+- `report_no_repeat` met everywhere (DRIFT #94 released); `report_binding` met with the tab title *{project} — Keel
+  brief — 17 October 2026* and *Preparing your brief…* seen first.
+- `make unit` after the pass: **2,587 collected = 2,532 passed / 55 skipped, 0 failed** (the 077 words source check now
+  runs against keel-web's master and passes).
+
+### The journey pass's fixes
+
+1. **Each read loads the report afresh** (`Answers._report`): the page reads the standings once a mount, so a page left
+   open drew the earlier wire (S-005's after-four read drew *0 answered*).
+2. **One stage row open at a time**: opening a second rung's row closed the first, so each follow-up row is opened (again)
+   right before its people are read; the line is `.dimpeople__follow`.
+3. **Tokens from spaced DOM words** (`_words`, the harness's `_SCREEN_TEXT_JS`): `text_content` runs two elements'
+   words together (*call* + *Pilot* = *callpilot*), so the binding's pages, their frames and the Insights / Pilot view
+   texts are read with a space between text nodes.
+4. **077's words as built**: *k of n holding.* over `dimensionsHolding` / `dimensionsTotal`, *Too few to call* over
+   `peopleAnswered` (both off the wire's vector); a left-out card's row reads its served line (077 call 8); the
+   said-why tail and `TOOK_BY` / `NO_FOLLOW_UP` as `translate.ts` composes them; KEEL_MANAGED *Keel-managed*; *Keel
+   never emails …* only beside people; the tab title's date as `dayWords(asOf)`; the breakdown's own labels (price
+   table, *Start here*, *Test this* ...) as chrome.
+5. **Call 4 re-decided to 077's rule** (`report_marks.thin`: a card TOO_FEW_TO_CALL), the zero-answer line filed as
+   DRIFT #93.
+6. **`InferenceCharge.VERSION` 10** (keel-cloud 104: BRIEF out, THEMES in): the interviewer's and the contacts' HOLD pins
+   moved 9 -> 10 (`interviewer_fake.PRICE_VERSION`, `contacts_fake.PRICE_VERSION`); IM1 failed on 9.
+7. **S-006's people count** reads the eyebrow and the foot (*Overview · locked · 20 answered*); the people tile went with
+   the deck.
+8. **The relink after a return** (keel-cloud 104 Discovered 5): Sent's *Make a new link* may meet 409 once and keel-web
+   retries (`withOneRetry`); `Interviews.make_new_link` keeps every relink response and reads the last, the one the
+   dialog drew (`retried` records the others; none on the acceptance run). The report's scorecard moved off
+   `j.screens` (`Journey.report_card`), whose every entry S-007's currency sweep reads for text.
 
 ## Measured (2026-10-17, no stack)
 
@@ -107,17 +163,21 @@
    the record carries their subject and failing the journey, never rows of `judge()` -- a row there would fail every
    instruction-eval run by construction (call 120). `report_overview` is scored on the journey too, page against wire.
    Acceptance 2's "the four new corpus marks" is read as these four.
-4. **The Insights empty state on a project nobody has answered**: the design's rule draws *Nothing is failing* "otherwise",
-   whose line says *Every dimension holds on 10 or more people*; the eval predicts *Nothing to read into yet* whenever the
-   decision is KEEP_INTERVIEWING or a card is too few or not asked (`report_marks.thin`). If 077 draws the other one,
-   that is DRIFT #93's to read, not a tolerance.
-5. **The too-few state is read before anyone answered** (FR-7): its four words -- *Keep interviewing*, *Nothing to read
-   into yet*, *Not asked yet* on the price tile, *nobody has answered this yet* on every commercial row -- hold together
-   only at zero answers on a consumer entry (Countly asks Price of everyone, so from the first priced answer the tile has
-   a median); `_too_few` widens the existing read in `leg_invite` (044's *None yet*), on every corpus journey.
-6. **Words in order, not elements** (`overview.in_order`): 077 was not built when this was written, so the readers take
-   each part's `text_content` (`report-hero`, `[data-tile]`, `report-stage-*`, `a.rp-row[data-dim]`, `.rp-ibox[data-dim]`,
-   `.rp-themes li`, `.rp-quote`, `.rp-person[data-invitation]`, `article.page[data-page]` -- 077's spec's selectors) and
+4. **The Insights empty state follows 077's rule** (re-decided on the journey pass): *Nothing to read into yet* when no box
+   and a card is TOO_FEW_TO_CALL (`report_marks.thin`, keel-web `insightsStateOf`), else *Nothing is failing* -- which on a
+   project nobody has answered says *Every dimension holds on 10 or more people*: filed as DRIFT #93, not tolerated
+   in the prediction and not a fault of the page against the wire.
+5. **The too-few state is read twice** (FR-7): before anyone answered (`_too_few`, widening 044's *None yet* read in
+   `leg_invite`) -- *Keep interviewing*, *Not asked yet* on the price tile, *nobody has answered this yet* on every
+   commercial row not left out -- and after the fourth answer (`_too_few_answered`) -- *Keep interviewing* and *Nothing
+   to read into yet* -- because with 077's rule the spec's four words never hold at one moment (at zero the Insights view
+   is *Nothing is failing*; from the first priced answer the price tile has a median). Both on every corpus journey.
+6. **Words in order, not elements** (`overview.in_order`), on 077's selectors as built (its tasks.md table: the tabs
+   `button[role=tab][data-view]`, `#report-view`, `h1.rp-verdict[data-label]`, `.rp-why`, `.rp-shipcap`, `[data-tile]`
+   with `.rp-tile__*`, `.rp-pname` / `.rp-pill` / `.rp-plead`, `a.rp-row[data-dim][data-status]`, `.rp-ibox`,
+   `.rp-concern`, `.rp-themes > li`, `.rp-quote`, `.rp-tookby`, `.rp-nofollow`, `.rp-raw`, `.rp-inone`, `details.rp-person`,
+   `.rp-pbody`, `.rp-pnote`, `article.page.rp-page` with `.rp-kick` / `.rp-pt` / `.rp-pmeta` / `.rp-pfoot`); a part's
+   words are its `text_content`, a token's text the spaced DOM words (fix 3), and
    the marks ask that the predicted words appear in that order. The words *as 077 defines* live in `overview.py`,
    `interviewer_fake.py` and `report_marks.py`, one place each; the journey pass moves them there if 077 words them
    otherwise. A source check holds them to 077's source once `src/components/report/` is on keel-web's master.
@@ -187,5 +247,10 @@
 - **D-07:** 051 landed first after all (master `ad916b8`) and took DRIFT #92 (the served consent line is not design
   §9's); on the rebase this spec's two reservations moved #92 -> #93 (what the report shows that the wire does not say)
   and #93 -> #94 (a number the Insights view repeats), each entry saying so.
+- **D-09:** `GET /v2/inference-interactions?project_id=` lists no THEMES row on the stack, so `_themes_on_return`'s job
+  count reads none (vacuous) and its wait ends on `insights[]` itself (every insight with answers carrying themes or
+  raw); the themes' arrival is proved by their labels, which only the scripted executor's resolution can produce.
+- **D-10 (051's to read):** a spoken story on the speak-or-type box ends in the stack fake's *yes* (S-005, Priya
+  Natarajan's: *… fixed the sheet. yes*), the transcript appended to what she typed -- 051's walk, not this spec's.
 - **D-08:** S-014 is in no matrix cell yet (`matrix/cells.toml` carries s005 / s006 / s007 / s013 on the macOS Claude
   cell); adding it is a cost call (20 walks) for the coordinator once it is green.

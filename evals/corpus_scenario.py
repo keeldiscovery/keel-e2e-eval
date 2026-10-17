@@ -154,6 +154,8 @@ class Journey:
     founder_identity: Any = None
     #: Spec 046: the record `evals/feedback_marks.py` scores at the end of the journey (FM1-FM6).
     feedback: dict = field(default_factory=dict)
+    #: Spec 052: the report marks' scorecard `_score_report` wrote (`report-marks.json`).
+    report_card: dict = field(default_factory=dict)
     #: Spec 051: each text walk's follow-up (the harness's own rung, the route's answer, the screen, what was sent) and
     #: the story's box where it was spoken -- the interviewer marks read them (IM23, IM24, IM26).
     follow_ups: dict = field(default_factory=dict)
@@ -933,9 +935,11 @@ def leg_interview(j: Journey) -> None:
     every journey; the body the page POSTs is held to the corpus person's own answers, by item and by
     option id. The founder has their AI read after each person, so the scripted readings land on the
     corpus's own people in order."""
-    for person in j.people:
+    for i, person in enumerate(j.people):
         _answer_one(j, person, j.tokens[person.person])
         _read(j, person)
+        if i == 3:
+            _too_few_answered(j, 4)
     _themes_on_return(j)
 
 
@@ -1508,15 +1512,37 @@ def _board(j: Journey) -> None:
 TOO_FEW_WORDS = ("Keep interviewing", "Nothing to read into yet", "Not asked yet", "nobody has answered this yet")
 
 
+def _too_few_answered(j: Journey, n: int) -> None:
+    """Spec 052 FR-7, the half that holds only after someone answered: with fewer than five on every card the Insights
+    view is *Nothing to read into yet* with the served count (keel-web 077 `insightsStateOf`: a card too few to call,
+    no box), the Overview *Keep interviewing* with *{n} people have answered.* -- every word the wire's drawing."""
+    j.standings = j.get(j.project("/standings")) or {}
+    board = j.screens["board-four"] = j.answers.board(j.project_id)
+    insights = j.screens["insights-four"] = j.answers.insights(j.project_id)
+    with _step(j, f"the report after {n} answers: Keep interviewing, and the Insights view Nothing to read into yet "
+                  "(spec 052 FR-7)", party="founder") as h:
+        faults = report_marks.overview_faults(j.standings, board) + report_marks.insight_faults(
+            j.standings, insights, strict=j.strict, names=report_marks.names_of(j.standings))
+        h.record_assert({"faults": [], "verdict": TOO_FEW_WORDS[0], "insights": TOO_FEW_WORDS[1]},
+                        {"faults": faults, "verdict": board["hero"]["verdict"], "insights": insights.get("empty"),
+                         "thin": report_marks.thin(j.standings)})
+        assert not faults, json.dumps(faults, indent=2, default=str)
+        assert board["hero"]["verdict"] == TOO_FEW_WORDS[0], board["hero"]
+        assert TOO_FEW_WORDS[1] in (insights.get("empty") or ""), insights.get("empty")
+
+
 def _too_few(j: Journey, when: str) -> None:
     """Spec 052 FR-7 (widening 044's *None yet* read): before the fifth answer the report is the too-few state --
-    *Keep interviewing*, the price tile *Not asked yet*, *nobody has answered this yet* on every commercial row, and the
-    Insights view *Nothing to read into yet* -- every word the wire's drawing (`overview_faults`, `insight_faults`).
-    Read where it holds whole: before anyone answered (judgement call 5)."""
+    *Keep interviewing*, the price tile *Not asked yet*, *nobody has answered this yet* on every commercial row not left
+    out (a left-out one reads its served line, keel-web 077 call 8), and the
+    Insights view's empty state -- every word the wire's drawing (`overview_faults`, `insight_faults`). Before anyone
+    answered no card is too few (they are not asked), so keel-web 077 draws *Nothing is failing* there (design §4.2's
+    *otherwise*; DRIFT #93) and *Nothing to read into yet* after the fourth answer (`_too_few_answered`; call 5)."""
     board = j.screens["board-too-few"] = j.answers.board(j.project_id)
     insights = j.screens["insights-too-few"] = j.answers.insights(j.project_id)
     with _step(j, f"the report {when}: Keep interviewing, Not asked yet on the price tile, nobody has answered this "
-                  "yet on every commercial row, and Nothing to read into yet (spec 052 FR-7)", party="founder") as h:
+                  "yet on every commercial row, and the Insights view's empty state (spec 052 FR-7)",
+               party="founder") as h:
         faults = report_marks.overview_faults(j.standings, board) + report_marks.insight_faults(
             j.standings, insights, strict=j.strict, names=report_marks.names_of(j.standings))
         rows = [r.get("text") for r in board["panels"]["COMMERCIAL"]["rows"]]
@@ -1525,9 +1551,11 @@ def _too_few(j: Journey, when: str) -> None:
                          "commercial rows": rows, "insights": insights.get("empty")})
         assert not faults, json.dumps(faults, indent=2, default=str)
         assert board["hero"]["verdict"] == TOO_FEW_WORDS[0], board["hero"]
-        assert TOO_FEW_WORDS[1] in (insights.get("empty") or ""), insights.get("empty")
+        assert insights.get("empty"), "no empty state before anyone answered"
         assert TOO_FEW_WORDS[2] in board["tiles"]["price"]["text"], board["tiles"]["price"]
-        assert rows and all(TOO_FEW_WORDS[3] in (r or "") for r in rows), rows
+        # keel-web 077 call 8: a left-out card reads its served line, not *nobody has answered this yet*
+        asked = [r.get("text") for r in board["panels"]["COMMERCIAL"]["rows"] if r.get("status") != "LEFT_OUT"]
+        assert asked and all(TOO_FEW_WORDS[3] in (r or "") for r in asked), rows
 
 
 def _vector_page(j: Journey, vector: str) -> None:
@@ -1682,7 +1710,7 @@ def report_record(j: Journey) -> dict:
     by_name = {v["name"]: k for k, v in invitations.items()}
     record = {
         "standings": j.standings, "strict": j.strict, "project": (j.standings or {}).get("name"),
-        "date": time.strftime("%Y-%m-%d", time.gmtime()),
+        "date": report_marks.day_words((j.standings or {}).get("asOf")),
         "invitations": invitations,
         "opted_in": [by_name[p.person] for p in j.people if getattr(p, "pilot_opt_in", False) and p.person in by_name]
         if j.strict else None,
@@ -1702,7 +1730,7 @@ def _score_report(j: Journey) -> dict:
     `report-marks.json`); the journey fails on any owed mark unmet."""
     from pathlib import Path                                  # noqa: PLC0415
     record = report_record(j)
-    card = j.screens["report-marks"] = report_marks.scorecard(record)
+    card = j.report_card = report_marks.scorecard(record)
     run_dir = Path(j.recorder.run_dir)
     (run_dir / "report.json").write_text(json.dumps(record, indent=2, default=str) + "\n", encoding="utf-8")
     (run_dir / "report-marks.json").write_text(json.dumps(card, indent=2, default=str) + "\n", encoding="utf-8")
