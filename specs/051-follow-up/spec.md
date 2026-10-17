@@ -12,6 +12,12 @@ selector it is marked *as 076 defines*.
 
 - **FR-1 Contract 19** wherever 18 is pinned (`harness/`, `stack/`, README, AGENTS, the corpus marks' header). The
   stack stays free and offline (048 FR-2): fake transcriber, no key, `FakeClassifier`.
+- **Amended 2026-10-17 (keel-cloud 103 at implementation):** the page does not walk the ladder; it posts its answers
+  to `POST /v2/i/{token}/interview/follow-up` and shows the `text` the cloud returns (204 = no rung). The harness's own
+  `LADDER` copy and `first_rung` below are therefore the **independent check** of the cloud's walk, not a mirror of the
+  page; IM23 compares the route's answer (and the clip / screen) with `first_rung`. The against set for Buyer and payer
+  and Price follows the lock the way `Compare` scores (a named role tested: "had to agree" supports), so `LADDER` carries
+  that rule, not a fixed code list, for those two rungs.
 - **FR-2 The ladder, one source.** `harness/interviewer_fake.py` gains `LADDER`: the eight rungs of design §2 in order
   -- `(dimension, against codes, text template, spoken wording)` -- copied from keel-cloud 103's registry `follow_up`
   blocks (note the sha), and `first_rung(picks, link_kind)` that walks it the way the cloud does (an escape or a chip
