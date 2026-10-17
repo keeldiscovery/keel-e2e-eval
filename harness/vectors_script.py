@@ -6,8 +6,8 @@ One revision-11 corpus entry in; out come the three things S-005, S-006 and S-00
 
 1. a **keel-runtime scripted-executor script** keyed by screen name -- the corridor's screens
    (`CONTEXT_INTERPRET`, `PROBLEM_INTERPRET`, `SOLUTION_MECHANISM`, `CALIBRATION_QUESTIONS`, `ASKED`,
-   `RESPONDENT_QUESTIONS`) and the gate-story reading (`INTERPRET`) -- the brief's reading (`BRIEF`) left with
-   keel-cloud 104, and its THEMES job (contract 19) is not one a fixed script can answer (see `THEMES_SCREEN`),
+   `RESPONDENT_QUESTIONS`), the gate-story reading (`INTERPRET`) and, since keel-cloud 104 (contract 19), the themes
+   job (`THEMES`, one entry a failing dimension, chosen by dimension -- see `THEMES_SCREEN`; the brief's BRIEF left),
    every result written in contract 13's screen shapes (contract 14 moved no screen schema) from the entry's own
    stored texts;
 2. the **context-keys table** that script is matched through (`context_keys_for`), derived from
@@ -70,12 +70,16 @@ CALIBRATION_SCREEN = "CALIBRATION_QUESTIONS"
 RESPONDENT_SCREEN = "RESPONDENT_QUESTIONS"
 INTERPRET_SCREEN = "INTERPRET"
 #: keel-cloud 104 (contract 19): one job a failing dimension, `{dimension, name, rungHeading, answers[{id, text}]}`,
-#: answered `{themes: [{label, answerIds}]}`. **Its answer depends on the context** -- the ids are the invitations',
-#: minted on the stack -- and the jobs run side by side in no fixed order, so keel-runtime's scripted executor (an
-#: ordered list a screen) cannot answer it from a script written before the run: it needs the fake's grouping
-#: (`harness/interviewer_fake.themes`) applied to the context, as it fills INTERPRET's `invitationId`. Until then the
-#: table names the screen (so the runtime says *no entry for THEMES*, by name) and the script carries no entry.
+#: answered `{themes: [{label, answerIds}]}`. The ids are the invitations', minted on the stack, and the jobs run side
+#: by side in no fixed order -- so keel-runtime 0.8.0's scripted executor (spec 012, bundled in keel-connect-skill
+#: 2.5.0) chooses a THEMES entry by the context's `dimension`, never by the cursor, and resolves each theme scripted
+#: by its answers' **texts** (`{label, answers: [text, ...]}`) to the context's ids by verbatim equality, refusing a
+#: text the context does not carry. `themes_entries` writes one entry a dimension the walks leave failing with
+#: follow-up answers -- the fake's grouping (`harness/interviewer_fake.themes`) of the very lines the walks post --
+#: and a catch-all with no themes last, so a dimension nobody expected to fail serves the raw fallback, not a refusal.
 THEMES_SCREEN = "THEMES"
+#: `Insights.Due.context()`'s keys, in its order: the table must name THEMES by exactly these (keel-runtime 012 FR-1).
+THEMES_KEYS = ("dimension", "name", "rungHeading", "answers")
 #: keel-cloud 088 (contract 12): the `asked` faces of a saved Compatibility / Adoption friction list.
 ASKED_SCREEN = "ASKED"
 CORRIDOR_SCREENS = (CONTEXT_SCREEN, PROBLEM_SCREEN, MECHANISM_SCREEN, CALIBRATION_SCREEN,
@@ -978,9 +982,69 @@ def generate(entry) -> GeneratedScript:
     interpret = interpret_entries(entry)
     if interpret:
         screens[INTERPRET_SCREEN] = interpret
+    screens[THEMES_SCREEN] = themes_entries(entry, walked_follow_ups(entry, person_inputs(entry)))
     return GeneratedScript(entry_id=entry.id, entry_sha256=entry.sha256,
                            source=f"keel-cloud canon/designs/measured-beliefs/corpus/{entry.path.name}",
                            screens=screens)
+
+
+# ------------------------------------------------------------------------- the themes (keel-cloud 104)
+
+def failing_keys(entry) -> list[str]:
+    """The dimensions the entry's standings leave not holding up or split, in registry order -- the ones keel-cloud
+    asks THEMES about (`Insights.due`: NOT_HOLDING_UP / PEOPLE_DISAGREE)."""
+    standings = (entry.expected or {}).get("standings") or {}
+    return [k for k in NAMES if str((standings.get(k) or {}).get("status") or "").upper() in BROKE]
+
+
+def walked_follow_ups(entry, people) -> list[tuple[str, str]]:
+    """`[(rung, text)]`, one a person who types a follow-up, in the walks' (the entry's) order: the line the person
+    posts (`PersonInputs.follow_up`, spec 051) on the first rung their own picks go against (`first_rung`, 051's walk of
+    the ladder over the founder's side). **The seam with spec 051**: until 051's `follow_up` lines and `first_rung` are on
+    this branch nobody types a follow-up, this is `[]`, and the script carries the catch-all alone."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415
+    first_rung = getattr(fake, "first_rung", None)
+    founder_side = globals().get("founder_side")
+    if first_rung is None or founder_side is None:
+        return []
+    founder = founder_side(entry)
+    out = []
+    for person in people:
+        text = getattr(person, "follow_up", None)
+        if not text:
+            continue
+        rung = first_rung(person.picks, founder, person.link, b2b=is_b2b(entry))
+        if rung:
+            out.append((rung, text))
+    return out
+
+
+def themes_entries(entry, follow_ups) -> list[dict]:
+    """The script's THEMES entries (keel-runtime 012's shape): for each dimension the entry leaves failing (registry
+    order) that the walks give follow-up answers on, `{dimension, outcome: COMPLETED, result: {themes: [{label,
+    answers}]}}` -- the fake's piles (`interviewer_fake.themes`, keel-cloud's `FakeThemes`) of those answers, each
+    pile's texts verbatim, once each, in the order the walks post them (a text two people typed resolves to both their
+    ids) -- then the catch-all, `{outcome: COMPLETED, result: {themes: []}}`, last."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415
+    by_rung: dict[str, list[str]] = {}
+    for rung, text in follow_ups:
+        by_rung.setdefault(rung, []).append(text)
+    out = []
+    for key in failing_keys(entry):
+        texts = by_rung.get(key)
+        if not texts:
+            continue
+        grouped = fake.themes([{"id": str(i), "text": t} for i, t in enumerate(texts)], NAMES[key])["themes"]
+        themes = []
+        for pile in grouped:
+            said: list[str] = []
+            for i in pile["answerIds"]:
+                if texts[int(i)] not in said:
+                    said.append(texts[int(i)])
+            themes.append({"label": pile["label"], "answers": said})
+        out.append({"dimension": key, "outcome": "COMPLETED", "result": {"themes": themes}})
+    out.append({"outcome": "COMPLETED", "result": {"themes": []}})
+    return out
 
 
 def context_keys_for(exported: dict) -> dict:
@@ -1010,6 +1074,9 @@ def context_keys_for(exported: dict) -> dict:
             f"keel-cloud's RESPONDENT_QUESTIONS keys {union} no longer carry both `mechanism` and "
             "`offer_name`; part 1's key set cannot be derived")
     out[RESPONDENT_SCREEN] = [k for k in union if k not in ("mechanism", "offer_name")]
+    if tuple(out[THEMES_SCREEN]) != THEMES_KEYS:
+        raise VectorsScriptError(f"keel-cloud's THEMES keys {out[THEMES_SCREEN]} are not {list(THEMES_KEYS)} "
+                                 "(keel-runtime 012 matches the screen by exactly these four)")
     seen = {}
     for screen, keys in out.items():
         clash = seen.get(frozenset(keys))

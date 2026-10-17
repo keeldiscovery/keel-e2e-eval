@@ -88,8 +88,9 @@ def test_the_script_answers_every_corridor_screen_from_the_entry(entry_id):
     entry = _entry(entry_id)
     screens = vs.generate(entry).screens
     want = {vs.CONTEXT_SCREEN, vs.PROBLEM_SCREEN, vs.MECHANISM_SCREEN, vs.CALIBRATION_SCREEN,
-            vs.ASKED_SCREEN, vs.RESPONDENT_SCREEN, vs.INTERPRET_SCREEN}
-    assert set(screens) == want, "no BRIEF since keel-cloud 104, and no THEMES entry a fixed script could hold"
+            vs.ASKED_SCREEN, vs.RESPONDENT_SCREEN, vs.INTERPRET_SCREEN, vs.THEMES_SCREEN}
+    assert set(screens) == want, "no BRIEF since keel-cloud 104; THEMES chosen by dimension (keel-runtime 012)"
+    assert screens[vs.THEMES_SCREEN][-1] == {"outcome": "COMPLETED", "result": {"themes": []}}, "the catch-all last"
     assert [e["result"] for e in screens[vs.RESPONDENT_SCREEN]] == [vs.respondent_result(entry, 1, vs.LINK_PRIMARY)], (
         "keel-cloud 091: one RESPONDENT_QUESTIONS job a lock -- part 1 on the primary link, the gate's clause")
     calibration = [(e["result"]["vector"], [q["key"] for q in e["result"]["questions"]])
@@ -223,11 +224,20 @@ def test_every_pick_rides_on_the_wires_own_code(entry_id):
             assert wire == code or key in vs.PICKED_AMONG_ITEMS, (key, code, wire)
 
 
-def test_the_screen_table_names_themes_and_no_brief():
-    """Spec 052: keel-cloud 104's THEMES is in the corridor's table (the runtime names it when it has no entry for it),
-    BRIEF is gone, and the script carries neither."""
+def test_the_screen_table_names_themes_by_its_four_keys_and_no_brief():
+    """Spec 052: keel-cloud 104's THEMES is in the corridor's table by exactly `Insights.Due.context()`'s four keys (the
+    runtime matches the screen by them, keel-runtime 012 FR-1); BRIEF is gone; a THEMES row the export moved is
+    refused by name."""
     assert vs.THEMES_SCREEN in vs.CORRIDOR_SCREENS and "BRIEF" not in vs.CORRIDOR_SCREENS
     assert not hasattr(vs, "brief_result") and not hasattr(vs, "BRIEF_SCREEN")
+    assert vs.THEMES_KEYS == ("dimension", "name", "rungHeading", "answers")
+    exported = {screen: [f"{screen.lower()}_key"] for screen in vs.CORRIDOR_SCREENS}
+    exported[vs.RESPONDENT_SCREEN] = ["part", "link", "items", "mechanism", "offer_name"]
+    exported[vs.THEMES_SCREEN] = ["dimension", "name", "answers"]
+    with pytest.raises(vs.VectorsScriptError, match="THEMES"):
+        vs.context_keys_for(exported)
+    exported[vs.THEMES_SCREEN] = list(vs.THEMES_KEYS)
+    assert vs.context_keys_for(exported)[vs.THEMES_SCREEN] == list(vs.THEMES_KEYS)
 
 
 # ------------------------------------------------------------------------------- the keys table
@@ -238,6 +248,7 @@ def test_the_respondent_screen_is_part_ones_key_set_derived_from_the_export():
     union = ["part", "link", "context", "market", "founder_name", "items", "mechanism", "offer_name"]
     exported = {screen: [f"{screen.lower()}_key"] for screen in vs.CORRIDOR_SCREENS}
     exported[vs.RESPONDENT_SCREEN] = union
+    exported[vs.THEMES_SCREEN] = list(vs.THEMES_KEYS)
     table = vs.context_keys_for(exported)
     base = [k for k in union if k not in ("mechanism", "offer_name")]
     assert table[vs.RESPONDENT_SCREEN] == base

@@ -28,6 +28,10 @@
 - [x] T007 FR-7 S-014 `evals/test_s014_green.py` on the built healthy project (`preludes.healthy_entry`); the scenario
   set is fourteen
 - [x] T008 DRIFT #92 and #93 reserved (`runs/DRIFT.md`); `make unit`; this file
+- [x] T008b D-01 resolved on keel-runtime 012 (master `3988131` = 0.8.0, bundled in keel-connect-skill 2.5.0
+  `c677950`): `vectors_script.themes_entries` writes the script's THEMES entries -- one a dimension the entry leaves
+  failing that the walks give follow-ups on, the fake's piles of the posted texts, then the catch-all -- and
+  `context_keys_for` refuses a THEMES row that is not `dimension, name, rungHeading, answers`
 - [ ] T009 **owed to the journey pass**: acceptance 2 (`make eval K="s005 or s006 or s007 or s014"` on a fresh stack
   against keel-cloud 104 + keel-web 077, after 051 + 076) -- the page objects held to what 077 built, the four journey
   marks measured and met on S-006 and S-014, the too-few state on S-005
@@ -42,7 +46,8 @@
   that 103 / 104 caused: `test_the_real_validator_takes_the_asked_screen` (BRIEF gone from the validator),
   `test_the_kinds_are_keel_clouds_own` (103's `ClipKind.FOLLOW_UP`), and `test_instruction_brief_reading.py`'s four
   (no `brief.md`). All six are fixed or deleted here.
-- `make unit` on this branch: **2,490 collected = 2,433 passed / 56 skipped / 1 failed**. The one red is not this spec's:
+- `make unit` on this branch: **2,490 collected = 2,433 passed / 56 skipped / 1 failed** at `93623d0`; **2,495 = 2,438 /
+  56 / 1** after T008b (five THEMES-script tests). The one red is not this spec's:
   keel-web's master moved to 076 (`c9ce17c`) during the run, and `test_interviewer_screens.py::
   test_the_seam_ends_an_utterance_on_a_final_and_grants_the_mic` reads 076's `fakeSpeech.ts`, whose mic `acquire` is no
   longer `async () => true` (076 FR-T6, a refusable mic) -- spec 051's seam to re-read (D-02); it was green in this
@@ -74,6 +79,7 @@
 | the readers | `harness/vectors_screens.py` `Answers.board` / `insights` / `pilot` / `brief(printed=True)` / `vector_page` |
 | the journey | `evals/corpus_scenario.py` `leg_report`, `report_record`, `_score_report`, `_themes_on_return`, `_board`, `_too_few` |
 | the healthy project | `evals/preludes.py` `healthy_entry`, `HEALTHY_PICKS`, `healthy_expected`; `evals/test_s014_green.py` |
+| the THEMES script | `harness/vectors_script.py` `themes_entries`, `walked_follow_ups`, `failing_keys`, `THEMES_KEYS` |
 
 ## Judgement calls decided
 
@@ -125,19 +131,41 @@
     takes it (051 FR-3, byte for byte as 051 words it); and IM13 / the interviewer leg read THEMES with
     `themes:on-return` where they read BRIEF with `brief:on-return`. `INTERVIEWER_MARKS_VERSION` is not bumped here: 051
     bumps it to 5 and takes this reading with it.
-11. **THEMES is in the scripted executor's screen table and the script carries no THEMES entry** (D-01): the runtime
-    then names the screen it cannot answer.
+11. **THEMES is scripted by dimension and by text** (D-01, resolved): keel-runtime 012 chooses a THEMES entry by the
+    context's `dimension` (never the cursor) and resolves each theme's verbatim `answers` texts to the context's ids.
+    `themes_entries(entry, follow_ups)` writes, for each dimension in `failing_keys(entry)` (the entry's standings not
+    holding up or split, registry order) that `follow_ups` (`[(rung, text)]`) reaches, the fake's piles
+    (`interviewer_fake.themes`, labels the fake's) with each pile's texts once each in posting order (a text two
+    people typed resolves to both ids), then a catch-all `{themes: []}` -- so a dimension nobody expected to fail is
+    accepted with no themes (served as the raw fallback where it has answers) rather than refused. `follow_ups` comes
+    from `walked_follow_ups(entry, person_inputs(entry))`: each person's posted line (`PersonInputs.follow_up`) on the
+    rung their own picks go against first (`interviewer_fake.first_rung` over `founder_side(entry)`) -- **spec 051's
+    names**, read through `getattr`, so on this branch (051 not landed) nobody types one and every script carries the
+    catch-all alone; the entries light up when 051 merges, with no change here. The texts are therefore 051's composed
+    `FOLLOW_UP_LINES` (r11 records no follow-up), the strings the text walk types -- not corpus text.
 
 ## Discovered
 
-- **D-01 (blocks acceptance 2's themes, keel-runtime's to fix or the eval's to work round):** keel-cloud 104 says the
+- **D-01 RESOLVED (keel-runtime 012, 0.8.0; judgement call 11):** keel-cloud 104 says the
   eval founders' THEMES jobs are "answered by keel-e2e-eval's scripted executor, which mirrors this grouping" -- but
   keel-runtime's `ScriptedExecutor` answers a screen from an ordered list written before the run, and a THEMES answer
   depends on its context (`answerIds` are the stack's invitation ids) while the jobs run one a failing dimension in no
   fixed order. It needs a context resolver beside INTERPRET's (`_resolve_interpret_result`): the fake's grouping
   (`harness/interviewer_fake.themes`, held to `FakeThemes`) applied to `context.answers` with `context.name`. Until
-  then every eval founder's THEMES job fails *no entry for THEMES* and the Insights view serves the raw fallback; on
-  the scripted stack `report_insights` then fails on the fake's labels (as it should).
+  then every eval founder's THEMES job failed *no entry for THEMES*. keel-runtime 012 now chooses entries by dimension
+  and resolves texts to ids; the script writes them (`themes_entries`). Held by `tests/test_report_marks.py`: the
+  entries written from C3's and S03's texts alone, resolved by keel-runtime's own `ScriptedExecutor` (imported from the
+  sibling checkout, 0.8.0) against the jobs' contexts in reverse order and twice, equal `FakeThemes`' results; a
+  dimension nobody scripted gets the catch-all's empty themes; every scripted text of the three corpus scripts is a
+  line some person posts. **What may still not resolve cleanly**, for the journey pass: (a) a follow-up said on an AI
+  link (S-005's and S-006's interviewer legs) is the stack's fake transcriber sentence (051's
+  `KEEL_INTERVIEWER_FAKE_FOLLOW_UP`), not a scripted line -- those people answer after `leg_report`, so the report
+  marks never see it, but the THEMES regrouping on the next return leaves that sentence out of every theme (accepted,
+  not refused), so a later Insights read would differ from the fake over the whole context; (b) the cloud stores the
+  follow-up under `TextBoundary` -- a line it trimmed or normalised would no longer equal the scripted text and the job
+  would be refused by name (051's lines carry no edge space, so none is expected); (c) the rung of each line is 051's
+  `first_rung`; the cloud refuses a response whose `followUp.dimension` is not its own walk's, so a disagreement would
+  fail the walk before it reached THEMES.
 - **D-02:** keel-web's master moved from `43cc2ee` to 076 (`c9ce17c`) while this ran; one unit test of 051's seam
   (`fakeSpeech.ts`'s mic `acquire`) went red. Not changed here.
 - **D-03:** at `3ac82f1` the unit run was already red against keel-cloud-docs `9a033fe` (2 failed, 4 errors, all from

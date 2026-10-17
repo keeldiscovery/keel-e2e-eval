@@ -610,3 +610,123 @@ def test_the_healthy_answers_are_against_on_no_rung():
     assert entry.tested("commercial.buyer_payer_alignment")["code"] == "nobody_else"
     assert picks["commercial.buyer_payer_alignment"] == "decided_alone"
     assert bf.price_median_for(preludes.healthy_entry(entry)) == {"edgeSaid": "£50 a month", "chose": 10, "n": 10}
+
+
+# ------------------------------------------------------- the THEMES script (keel-runtime 012, D-01 resolved)
+
+def _runtime():
+    """keel-runtime's own scripted executor (0.8.0, spec 012), read from the sibling checkout -- or a skip."""
+    import importlib                                                       # noqa: PLC0415
+    import sys                                                             # noqa: PLC0415
+    root = Path(load_config(validate=False).keel_runtime)
+    if not (root / "keel_runtime" / "testing" / "scripted_executor.py").is_file():
+        pytest.skip(f"no keel-runtime checkout at {root}")
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    module = importlib.import_module("keel_runtime.testing.scripted_executor")
+    if not hasattr(module, "_resolve_themes_result"):
+        pytest.skip("this keel-runtime predates spec 012 (0.8.0)")
+    return module, importlib.import_module("keel_runtime.executor")
+
+
+def _failing(*keys):
+    import types                                                           # noqa: PLC0415
+    return types.SimpleNamespace(expected={"standings": {k: {"status": "NOT_HOLDING_UP"} for k in keys}})
+
+
+def _job(executor_mod, dimension, name, answers):
+    context = {"dimension": dimension, "name": name, "rungHeading": fake.RUNG_HEADINGS.get(dimension),
+               "answers": answers}
+    return executor_mod.InferenceRequest(job_id="j", interaction_id="i", turn_number=1,
+                                         request_payload={"context": context})
+
+
+def test_the_scripted_themes_resolve_on_the_runtime_to_the_fakes_grouping_of_the_same_texts():
+    """C3-like (Compatibility) and S03-like (Importance): the script's entries, written from the answers' texts alone,
+    resolved by keel-runtime 012 against the job's context, are exactly `FakeThemes`' result on that context -- whichever
+    job arrives first, and the same when asked twice."""
+    from harness import vectors_script as vs                               # noqa: PLC0415
+    if not THEMES_CASES.is_file():
+        pytest.skip(f"no themes cases at {THEMES_CASES}")
+    runtime, executor_mod = _runtime()
+    cases = json.loads(THEMES_CASES.read_text(encoding="utf-8"))["cases"]
+    entry = _failing(*(c["dimension"] for c in cases))
+    follow_ups = [(c["dimension"], a["text"]) for c in cases for a in c["answers"]]
+    entries = vs.themes_entries(entry, follow_ups)
+    assert [e.get("dimension") for e in entries] == [k for k in vs.NAMES if k in {c["dimension"] for c in cases}] \
+        + [None], "one entry a failing dimension, in registry order, then the catch-all"
+    executor = runtime.ScriptedExecutor({"THEMES": entries})
+    for case in reversed(cases + cases):
+        got = executor.execute(_job(executor_mod, case["dimension"], case["name"], case["answers"]))
+        assert got == {"outcome": "COMPLETED", "result": case["result"]}, case["case_id"]
+        assert got["result"] == fake.themes(case["answers"], case["name"]), case["case_id"]
+
+
+def test_a_dimension_nobody_scripted_gets_the_catch_alls_empty_themes():
+    from harness import vectors_script as vs                               # noqa: PLC0415
+    runtime, executor_mod = _runtime()
+    entries = vs.themes_entries(_failing("commercial.price"), [("commercial.price", "A trial first.")])
+    executor = runtime.ScriptedExecutor({"THEMES": entries})
+    got = executor.execute(_job(executor_mod, "commercial.commitment", "Commitment",
+                                [{"id": "a", "text": "Something nobody scripted."}]))
+    assert got == {"outcome": "COMPLETED", "result": {"themes": []}}, "the raw fallback, not a refusal"
+    assert vs.themes_entries(_failing(), []) == [{"outcome": "COMPLETED", "result": {"themes": []}}]
+
+
+def test_a_text_two_people_typed_is_scripted_once_and_a_dimension_not_failing_is_not_scripted():
+    from harness import vectors_script as vs                               # noqa: PLC0415
+    entries = vs.themes_entries(_failing("commercial.commitment"), [
+        ("commercial.commitment", "A free trial on one small job first."),
+        ("commercial.commitment", "A short demo with our own numbers in it."),
+        ("commercial.commitment", "A free trial on one small job first."),
+        ("commercial.price", "Seeing it work with our own clients first would.")])
+    assert entries[0] == {"dimension": "commercial.commitment", "outcome": "COMPLETED", "result": {"themes": [
+        {"label": "free", "answers": ["A free trial on one small job first."]},
+        {"label": "short", "answers": ["A short demo with our own numbers in it."]}]}}
+    assert [e.get("dimension") for e in entries] == ["commercial.commitment", None], "Price holds on this entry"
+
+
+def test_every_scripted_text_is_a_line_the_walk_posts(monkeypatch):
+    """The texts resolve only if they are the strings the walks post: every THEMES text of a scenario's script is some
+    person's `follow_up` line (spec 051's), on a dimension the entry leaves failing. With 051's walk on this branch the
+    real lines are read; before it (no `follow_up`, no `first_rung`) the script carries the catch-all alone, and the
+    seam is exercised here with a stand-in walk that puts every person on the entry's first failing rung."""
+    import dataclasses                                                     # noqa: PLC0415
+    from harness import vectors_script as vs                               # noqa: PLC0415
+    for name in ("01-countly.yaml", "05-paidly.yaml", "07-mulchrun.yaml"):
+        entry = _canon(name)
+        people = vs.person_inputs(entry)
+        posted = {getattr(p, "follow_up", None) for p in people} - {None}
+        entries = vs.generate(entry).screens[vs.THEMES_SCREEN]
+        texts = [t for e in entries for th in e["result"]["themes"] for t in th["answers"]]
+        assert set(texts) <= posted, name
+        assert {e.get("dimension") for e in entries} - {None} <= set(vs.failing_keys(entry)), name
+        assert entries[-1] == {"outcome": "COMPLETED", "result": {"themes": []}}, name
+        if not posted:
+            assert len(entries) == 1, f"{name}: no walk posts a follow-up before spec 051, so only the catch-all"
+    entry = _canon("05-paidly.yaml")
+    first = vs.failing_keys(entry)[0]
+    lines = ["Proof that it saves time every month.", "Seeing it work with our own clients first.",
+             "Proof from a firm like ours."]
+    people = [dataclasses.replace(p, **({"follow_up": lines[i % 3]} if "follow_up" in
+                                        {f.name for f in dataclasses.fields(p)} else {}))
+              for i, p in enumerate(vs.person_inputs(entry))]
+    if "follow_up" not in {f.name for f in dataclasses.fields(people[0])}:
+        import types                                                       # noqa: PLC0415
+        people = [types.SimpleNamespace(picks=p.picks, link=p.link, follow_up=lines[i % 3])
+                  for i, p in enumerate(vs.person_inputs(entry))]
+    monkeypatch.setattr(fake, "first_rung", lambda picks, founder, link, b2b=False: first, raising=False)
+    monkeypatch.setattr(vs, "founder_side", lambda entry: None, raising=False)
+    walked = vs.walked_follow_ups(entry, people)
+    assert walked and {r for r, _t in walked} == {first}
+    entries = vs.themes_entries(entry, walked)
+    assert entries[0]["dimension"] == first
+    assert {t for th in entries[0]["result"]["themes"] for t in th["answers"]} == set(lines)
+    assert [th["label"] for th in entries[0]["result"]["themes"]] == ["proof", "seeing"]
+
+
+def test_the_healthy_project_scripts_the_catch_all_alone():
+    from harness import vectors_script as vs                               # noqa: PLC0415
+    healthy = preludes.healthy_entry(_canon("05-paidly.yaml"))
+    assert vs.failing_keys(healthy) == []
+    assert vs.generate(healthy).screens[vs.THEMES_SCREEN] == [{"outcome": "COMPLETED", "result": {"themes": []}}]
