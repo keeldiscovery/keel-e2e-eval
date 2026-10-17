@@ -1,12 +1,14 @@
-# The B2B twin of 09-fixture.yaml (spec 040 T004): persona.decision_maker is the `buyer` role, so the entry calibrates
+# The B2B twin of 09-fixture.yaml (spec 040 T004; revision 12 since spec 053): persona.decision_maker is the `buyer` role, so the entry calibrates
 # all thirteen keys -- Purchase friction's two steps, the first picked -- and part 3 is the COMMERCIAL_B2B link's (five
 # asked: the commercial six less the unsure Buyer and payer), answered by five decision-makers (Pip escapes Existing
 # sacrifice and Ability to pay). The cost is HOURS (1 to 3 at the entry's `hourly_rate` of £20, about £20 to £60 a
 # month); Ability to pay is derived. Not a corpus entry; values invented. `expected` is the engine's own output, and
 # `check_corpus_r11.py` prints OK for it (revision 11 since spec 042: its faces already said "you", its step none).
+# Revision 12 since spec 053, and **GB deliberately**, as 09 is: the reader's non-US path, the B2B hourly rate in GBP.
+# `expected` is unchanged; `check_corpus_r12.py`'s rule U would refuse this file, and the reader does not mirror it.
 id: 10-fixture-b2b
 title: Fixture — the keys you cannot find, bought by the office
-revision: 11
+revision: 12
 market:
   country: GB
   region: null

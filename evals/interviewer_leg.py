@@ -2392,7 +2392,7 @@ def _recorded_link(j, wire: _Wire, record: dict) -> None:
         def answer(audio: bytes) -> dict:
             response = _participant(j, "POST", token, "/interview/answer", {
                 "itemId": gate.get("itemId"), "audio": base64.b64encode(audio).decode("ascii"),
-                "mimeType": "audio/webm", "language": "en-GB"})
+                "mimeType": "audio/webm", "language": j.entry.market["language"]})
             return {"status": response.status_code, **_json_of(response)}
 
         silence, sounded = answer(SILENT_WEBM), answer(SOUNDED_WEBM)
@@ -2454,7 +2454,7 @@ def _recorded_follow_up(j, token: str, interview: dict, person, body: dict) -> d
     def transcribe(seconds: int) -> dict:
         got = _participant(j, "POST", token, "/interview/transcribe", {
             "itemId": asked.get("itemId"), "audio": base64.b64encode(SOUNDED_WEBM).decode("ascii"),
-            "mimeType": "audio/webm", "language": "en-GB", "maxSeconds": seconds})
+            "mimeType": "audio/webm", "language": j.entry.market["language"], "maxSeconds": seconds})
         return {"status": got.status_code, **_json_of(got)}
 
     over, heard = transcribe(90), transcribe(120)
@@ -2490,7 +2490,7 @@ def _recorded_pilot(j, record: dict, token: str, interview: dict, invitation_id:
                          party="participant", kind="assert") as h:
         written = _participant(j, "POST", token, "/interview/transcribe", {
             "itemId": first, "audio": base64.b64encode(SOUNDED_WEBM).decode("ascii"), "mimeType": "audio/webm",
-            "language": "en-GB"})
+            "language": j.entry.market["language"]})
         got = {"status": written.status_code, **_json_of(written)}
         out: dict = {"itemId": first, "transcribe": got, "drift": "#91 resolved (keel-cloud 102)"}
         record["recorded"]["pilot"] = out
@@ -2504,7 +2504,7 @@ def _recorded_pilot(j, record: dict, token: str, interview: dict, invitation_id:
                            if invitation_id else None}
         again = _participant(j, "POST", token, "/interview/transcribe", {
             "itemId": first, "audio": base64.b64encode(SOUNDED_WEBM).decode("ascii"), "mimeType": "audio/webm",
-            "language": "en-GB"})
+            "language": j.entry.market["language"]})
         out["transcribe_after_pilot"] = again.status_code
         h.record_assert({"transcribe": {"status": 200, "text": FAKE_TRANSCRIPT}, "pilot": 204,
                          "opted_in": {"before": False, "after": True}, "transcribe_after_pilot": 409}, out)

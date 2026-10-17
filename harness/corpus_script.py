@@ -117,9 +117,9 @@ class GeneratedScript:
 
 @dataclass(frozen=True)
 class Market:
-    country: str            # ISO alpha-2, "GB" / "US"
-    region: str | None      # "TX", or None -- left empty on the screen, never the word "null"
-    language: str           # "en-GB" / "en-US" -- asserted, never typed (the server derives it)
+    country: str            # ISO alpha-2: "US" on every corpus entry since revision 12
+    region: str | None      # "TX", "OR", or None -- left empty on the screen, never the word "null"
+    language: str           # "en-US" -- asserted, never typed (the server derives it)
 
 
 @dataclass(frozen=True)
@@ -683,9 +683,10 @@ def founder_inputs(entry, *, correction: Correction | None = None) -> FounderInp
         raise CorpusScriptError(f"{entry.id}: no {', '.join(missing)} statement")
     return FounderInputs(
         project_name=entry.title,
-        market=Market(country=market.get("country") or "GB",
+        # never reached (every entry records its market), but a fallback is a country keel-web 078 offers (spec 053)
+        market=Market(country=market.get("country") or "US",
                       region=market.get("region"),
-                      language=market.get("language") or "en-GB"),
+                      language=market.get("language") or "en-US"),
         problem=str(statements["problem"]).strip(),
         solution=str(statements["solution"]).strip(),
         commercial=str(statements["commercial"]).strip(),

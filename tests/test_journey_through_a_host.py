@@ -198,7 +198,7 @@ def test_the_founder_types_the_entrys_own_title_market_context_and_two_seeds():
     entry = _lullaby()
     founder = vectors_script.founder_inputs(entry)
     assert founder.project_name == entry.title
-    assert founder.country == "GB"
+    assert founder.country == "US"
     assert founder.problem_seed == " ".join(entry.statements["problem"].split())
     assert founder.solution_seed == " ".join(entry.statements["solution"].split())
     assert set(founder.context_fields) == {"actor", "job", "circumstance", "segment"}

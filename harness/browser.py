@@ -1763,10 +1763,12 @@ class StageCard:
 
 # ------------------------------------------------------------------------------------ MarketStep
 
-# `lib/markets.ts`: the country list is fixed, grouped, and the region field is optional. The three
+# `lib/markets.ts`: the country list is fixed, grouped, and the region field is optional. The
 # optgroup labels are asserted by name because the design's own point is that a founder picks from
-# a list rather than typing a country.
-MARKET_GROUPS = ("North America", "Europe", "Asia")
+# a list rather than typing a country. Since keel-web 078 (design D20; spec 053) the list is one
+# group, *North America*, holding the United States alone -- as 078 defines `MARKET_GROUPS`; the
+# step keeps its drop-down (one `<optgroup>`, one `<option>`).
+MARKET_GROUPS = ("North America",)
 
 
 class MarketStep:
@@ -1777,9 +1779,11 @@ class MarketStep:
     **The region input is found positionally.** Its `aria-label` is its own placeholder and the
     placeholder depends on the country (`regionPlaceholder`: *"State or region, if it matters —
     Texas, California, New York (optional)"* for US, and a shorter sentence everywhere else), so a
-    label-matched locator would find it for `07-mulchrun` and silently mismatch for every GB entry
-    (research R7). The text input that follows the country select is the region box, and that is
-    stable in a way its label is not.
+    label-matched locator once found it for `07-mulchrun` and silently mismatched for every GB
+    entry (research R7). Since corpus revision 12 every entry is US and keel-web 078 offers only
+    the US (spec 053), so a label match would work today -- but position does not hang on a
+    placeholder's words: the text input that follows the country select is the region box, and
+    that is stable in a way its label is not.
     """
 
     def __init__(self, page: Page, *args: Any, party: str = "founder"):
@@ -1823,7 +1827,8 @@ class MarketStep:
 
     def described_sentence(self, *, timeout_s: float = 10) -> str:
         """`Market.described`, off `GET /v2/markets/{country}` -- *"So the questions will be in
-        British English, in pounds and pence, kilometres, metres and working days."* Composed by
+        American English, in dollars and cents, miles, feet and working days."* (`/v2/markets/US`,
+        as keel-cloud's `FounderMarketControllerContractTest` pins it). Composed by
         keel-cloud (spec 030 FR-014) and rendered verbatim; the read is debounced behind the
         country select, so this waits rather than reading an empty string a moment too early.
 

@@ -206,7 +206,7 @@ def _money_of(entry) -> tuple:
 
 
 def edge_said(edge, currency, period) -> str:
-    """`BriefFacts.said`: the amount in the market's money, then the period's words (*£50 a month*)."""
+    """`BriefFacts.said`: the amount in the market's money, then the period's words (*$50 a month*)."""
     words = corpus_mod._PERIOD_WORDS.get(period) if period else None
     return corpus_mod.money_text(edge, currency) + (f" {words}" if words else "")
 

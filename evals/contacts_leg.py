@@ -49,11 +49,16 @@ from stack.config import REPO_ROOT
 KIND = vs.LINK_B2B
 #: The founder's first three picks get their emails and their links; the first answers, the second gets a new link.
 PICKS = 3
-#: The balance the refusals are seen at (stand-in 2): under a page (150) and under the two names waiting (24).
-LOW_BALANCE = 20
-DATASET_NAME = "Everyone in the UK"
-SECOND_NAME = "Everyone in the UK, again"
-ELSEWHERE_NAME = "Practitioners in the US"
+#: The balance the refusals are seen at (stand-in 2): under a page (150) and under the one name waiting (12) -- 20
+#: until spec 053, when the market was GB: its 27 left two names after the first page, their emails 24.
+LOW_BALANCE = 10
+#: Spec 053 (D20): the base query's place is the project's market (keel-cloud `BaseQuery.marketFor`), every corpus
+#: entry's is the US since revision 12, so the market's own dataset is the US's; the other country is the fake's other,
+#: GB (it has no third; judgement call 5). The counts are `fake.size` on each country wherever the code can read them.
+DATASET_NAME = "Everyone in the US"
+SECOND_NAME = "Everyone in the US, again"
+ELSEWHERE_COUNTRY = "GB"
+ELSEWHERE_NAME = "Practitioners in the UK"
 
 #: What waited for keel-web 068's page objects (built in spec 043's second commit, `harness/interviews_screens.py`).
 WEB_068_FOLLOW_UP = (
@@ -367,9 +372,15 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
             {k: base.get(k) or [] for k in ("titles", "levels", "categories", "companySizes")}, (dataset["query"], base)
         assert out["entry"]["wire"] == out["entry"]["fake"], out["entry"]
 
+    country = j.entry.market["country"]
+    market_query = {"places": [{"kind": "COUNTRY", "code": country}]}
+    in_market = [p for p in everyone if p.country == country]
+    with_email = fake.size(everyone, market_query)                     # 26 on the US since spec 053 (27 on GB)
+    left_after_page = with_email - fake.PAGE_SIZE                      # 1 (2 on GB)
     with j.recorder.step(f"contacts (C2, call 132): the founder removes every chip but the market, names it "
-                         f"{DATASET_NAME!r} -- the fake's payroll people match no Paidly title -- and sizes it again: 27 "
-                         "with a work email (30 in the UK, 3 with none, never counted)", party="founder",
+                         f"{DATASET_NAME!r} -- the fake's payroll people match no Paidly title -- and sizes it again: "
+                         f"{with_email} with a work email ({len(in_market)} in the {country}, "
+                         f"{sum(1 for p in in_market if not p.email)} with none, never counted)", party="founder",
                          kind="assert") as h:
         chips = contacts.remove_all_but_places()
         contacts.name(DATASET_NAME)
@@ -377,15 +388,18 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
         out = _sized(j, wire, record, everyone, lambda: contacts.size_it(again=True), query, fetched, DATASET_NAME)
         _, view = wire("GET", f"/contacts/datasets/{dataset_id}")
         dataset = view.get("dataset") or {}
-        uk = [p for p in everyone if p.country == "GB"]
-        h.record_assert({"chips": {"Where": 1}, "name": DATASET_NAME, "sizedWithEmail": 27, "drawn": "About 27"},
+        h.record_assert({"chips": {"Where": 1}, "name": DATASET_NAME, "sizedWithEmail": with_email,
+                         "drawn": f"About {with_email}"},
                         {"chips": chips, "dataset": dataset, "sized": out["entry"]})
+        assert query == market_query, (query, market_query)
         assert [k for k, v in chips.items() if v] == ["Where"], chips
-        assert dataset.get("name") == DATASET_NAME and dataset.get("sizedWithEmail") == 27, dataset
+        assert dataset.get("name") == DATASET_NAME and dataset.get("sizedWithEmail") == with_email, dataset
         assert dataset["query"]["titles"] == [] and dataset["query"]["levels"] == [], dataset["query"]
-        assert out["entry"]["wire"] == 27 == out["entry"]["fake"], out["entry"]
-        assert (out["entry"]["drawn"] or "").startswith("About 27 people with a work email"), out["entry"]
-        assert len(uk) == 30 and sum(1 for p in uk if not p.email) == 3, len(uk)
+        assert out["entry"]["wire"] == with_email == out["entry"]["fake"], out["entry"]
+        assert (out["entry"]["drawn"] or "").startswith(f"About {with_email} people with a work email"), out["entry"]
+        # the fixture's own facts (keel-cloud 092 FR-D, `fake-contacts.json`): 29 in the US, 3 with no work email
+        assert country == "US" and len(in_market) == 29 and with_email == 26, (country, len(in_market), with_email)
+        assert 0 < left_after_page < fake.PAGE_SIZE, left_after_page
     record["dataset_name"] = DATASET_NAME
 
     with j.recorder.step("contacts (Show 25): a page of 25 names is 150 credits, the fake's own first 25, drawn with a "
@@ -404,7 +418,7 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
         assert (receipt.get("dataset") or {}).get("moreToFetch") is True, receipt.get("dataset")
         assert out["drawn"]["names"] == names, out["drawn"]
         _, resized = wire("POST", f"/contacts/datasets/{dataset_id}/size", {})
-        assert resized.get("sizedWithEmail") == 2, resized
+        assert resized.get("sizedWithEmail") == left_after_page, resized
 
     with j.recorder.step(f"contacts (Save): the founder ticks {PICKS} and saves them -- *Save {PICKS} picked and get "
                          f"their emails · {PICKS * 12} credits* -- the fake's own addresses, email only; C3 draws each "
@@ -611,21 +625,22 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
     _link_times(j, record["relink"], other_link["personName"])
 
     # ---- nobody twice
-    with j.recorder.step("contacts (Find 25 more): on C3 the second page is the two left -- 12 credits, 6 a name -- "
-                         "and repeats nobody", party="founder", kind="assert") as h:
+    with j.recorder.step(f"contacts (Find 25 more): on C3 the second page is the {left_after_page} left -- "
+                         f"{left_after_page * fake.NAME_CREDITS} credits, {fake.NAME_CREDITS} a name -- and repeats "
+                         "nobody", party="founder", kind="assert") as h:
         contacts.open_dataset(j.project_id, dataset_id)
         out = _paged(j, wire, record, everyone, contacts.find_more, query, fetched, first["ids"][-1], DATASET_NAME)
         receipt, second = out["body"], record["pages"][-1]
-        h.record_assert({"rows": 2, "charged": 12, "repeats": []},
+        h.record_assert({"rows": left_after_page, "charged": left_after_page * fake.NAME_CREDITS, "repeats": []},
                         {"rows": len(second["ids"]), "charged": receipt.get("creditsCharged"),
                          "repeats": sorted(set(second["ids"]) & set(first["ids"])), "drawn": out["drawn"]})
-        assert out["status"] == 200 and len(second["ids"]) == 2, receipt
-        assert receipt.get("creditsCharged") == 2 * fake.NAME_CREDITS, receipt
+        assert out["status"] == 200 and len(second["ids"]) == left_after_page, receipt
+        assert receipt.get("creditsCharged") == left_after_page * fake.NAME_CREDITS, receipt
         assert not set(second["ids"]) & set(first["ids"]), second["ids"]
         assert out["drawn"]["names"] == [r["fullName"] for r in second["rows"]], out["drawn"]
 
     with j.recorder.step(f"contacts (E11): a second dataset on the same search, {SECOND_NAME!r}, made from the base "
-                         "query's chips with the same ones removed, sizes to 0 -- every one of the 27 was fetched on "
+                         f"query's chips with the same ones removed, sizes to 0 -- every one of the {with_email} was fetched on "
                          "this project -- C2 offers no page, and the empty page asked for on the wire charges nothing", party="founder", kind="assert") as h:
         contacts.open(j.project_id)
         contacts.tab(deciders.get("label") or "")
@@ -648,18 +663,20 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
         assert second_id != dataset_id
 
     # ---- the two refusals at a low balance
-    with j.recorder.step(f"contacts: another kind's dataset in another country, {ELSEWHERE_NAME!r} -- 26 with a work "
-                         "email, none fetched yet (on the wire: the chips narrow within the market's own country, #50)",
-                         party="founder", kind="assert") as h:
-        elsewhere = {"places": [{"kind": "COUNTRY", "code": "US"}]}
+    elsewhere = {"places": [{"kind": "COUNTRY", "code": ELSEWHERE_COUNTRY}]}
+    elsewhere_size = fake.size(everyone, elsewhere)                     # 27 on GB (26 on the US until spec 053)
+    with j.recorder.step(f"contacts: another kind's dataset in another country, {ELSEWHERE_NAME!r} -- "
+                         f"{elsewhere_size} with a work email, none fetched yet (on the wire: the chips narrow within "
+                         "the market's own country, #50)", party="founder", kind="assert") as h:
+        assert ELSEWHERE_COUNTRY != country and elsewhere_size == 27, (country, elsewhere_size)
         _, created = wire("POST", "/contacts/datasets", {"respondentType": vs.LINK_PRIMARY, "name": ELSEWHERE_NAME,
                                                          "query": elsewhere})
         elsewhere_id = (created.get("dataset") or {}).get("datasetId")
-        us = _sized(j, wire, record, everyone,
-                    lambda: {"summary": wire("POST", f"/contacts/datasets/{elsewhere_id}/size", {})[1]},
-                    elsewhere, fetched, ELSEWHERE_NAME)["entry"]["wire"]
-        h.record_assert(26, us)
-        assert us == 26, us
+        other = _sized(j, wire, record, everyone,
+                       lambda: {"summary": wire("POST", f"/contacts/datasets/{elsewhere_id}/size", {})[1]},
+                       elsewhere, fetched, ELSEWHERE_NAME)["entry"]["wire"]
+        h.record_assert(elsewhere_size, other)
+        assert other == elsewhere_size, other
 
     with j.recorder.step(f"contacts: STAND-IN (call 130) -- the balance lowered to {LOW_BALANCE}; the fake's 53 people "
                          "cannot spend a grant of 2,000 below 1,046", party="stack", kind="protocol") as h:
@@ -667,7 +684,8 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
         h.record_wire({"row": delta}, {"creditsAvailable": wire.credits()})
         assert wire.credits() == LOW_BALANCE
 
-    with j.recorder.step(f"contacts (D5): at {LOW_BALANCE} credits *Show the first 25* and *Save 2 picked* are REFUSED "
+    with j.recorder.step(f"contacts (D5): at {LOW_BALANCE} credits *Show the first 25* and *Save "
+                         f"{left_after_page} picked* are REFUSED "
                          "422 with required / available -- the *Not enough credits* popup draws the two numbers, one "
                          "Close, no buy path -- and nothing is fetched, revealed, stored or charged", party="founder",
                          kind="assert") as h:
@@ -683,20 +701,21 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
             open_it()
             out = press()
             view_after = wire("GET", f"/contacts/datasets/{dataset_id}")[1]
-            us_after = wire("POST", f"/contacts/datasets/{elsewhere_id}/size", {})[1].get("sizedWithEmail")
+            other_after = wire("POST", f"/contacts/datasets/{elsewhere_id}/size", {})[1].get("sizedWithEmail")
             refusals[name] = {"status": out["status"], "body": out["body"], "required": required,
                               "available": LOW_BALANCE, "balance_after": wire.credits(), "drawn": out["drawn"],
                               "ledger_rows_added": _rows(j, record) - rows_before,
                               "unchanged": (len(view_before.get("people") or []) == len(view_after.get("people") or [])
                                             and [r["sourceId"] for r in view_before.get("page") or []]
                                             == [r["sourceId"] for r in view_after.get("page") or []]
-                                            and us_after == 26)}
+                                            and other_after == elsewhere_size)}
         record["credit_refusals"] = refusals
         h.record_assert({"names": {"code": "INSUFFICIENT_CREDITS_FOR_NAMES", "required": 150, "available": LOW_BALANCE,
                                    "drawn": marks.NAMES_REMEDY.format(required=150, available=LOW_BALANCE)},
-                         "emails": {"code": "INSUFFICIENT_CREDITS_FOR_EMAILS", "required": 24,
-                                    "available": LOW_BALANCE,
-                                    "drawn": marks.EMAILS_REMEDY.format(required=24, available=LOW_BALANCE)}},
+                         "emails": {"code": "INSUFFICIENT_CREDITS_FOR_EMAILS",
+                                    "required": left_after_page * fake.EMAIL_CREDITS, "available": LOW_BALANCE,
+                                    "drawn": marks.EMAILS_REMEDY.format(required=left_after_page * fake.EMAIL_CREDITS,
+                                                                        available=LOW_BALANCE)}},
                         refusals)
         for name, code, template in (("names", "INSUFFICIENT_CREDITS_FOR_NAMES", marks.NAMES_REMEDY),
                                      ("emails", "INSUFFICIENT_CREDITS_FOR_EMAILS", marks.EMAILS_REMEDY)):

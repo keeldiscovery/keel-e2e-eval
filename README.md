@@ -88,7 +88,10 @@ against the one this repository's reading draws (`instructions/overview.py`, cal
 in `evals/report_marks.py` -- `report_insights`, `report_no_repeat` (D6), `report_pilot`, `report_binding` (D10) --
 and scored on S-005 / 006 / 007 and the new healthy journey S-014 (call 120). `rescore.py` refuses every bundle below 20.
 At zero spend against `9a033fe`: `brief_facts` **101 of 101**, `report_overview` **49 of 49**. **There is no v20 run of
-record until `WHY=marks:20` is spent, on the founder's word only.**
+record until `WHY=marks:20` is spent, on the founder's word only.** Since spec `053-corpus-in-dollars` (keel-cloud 105,
+keel-cloud-docs `7e64f20`) v20 reads corpus **revision 12** -- every entry a US entry in dollars, the same digits, no
+number moved -- and refuses revision 11 by name; the zero-spend rows hold at `7e64f20` (`compare_correctness` 108 of
+108, `spoken_form` 109 of 109, `brief_facts` 101 of 101, `report_overview` 49 of 49).
 
 ### `MARKS_VERSION` 19 — history since v20, never run (spec `042-contract-14-r11`, 2026-10-14)
 

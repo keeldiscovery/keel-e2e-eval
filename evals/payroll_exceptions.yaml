@@ -20,10 +20,13 @@
 #    who runs a payroll team*, a MANAGER, exactly as the retired fixture's own correction did.
 # 3. **The two bands are countly's own**, so their bucket scales are known rather than guessed:
 #    `Q1` is `01-countly`'s `S3` (DURATION, hours, per incident, 1..2) and `Q6` is its `C15`
-#    (MONEY, GBP, per month, at least 25). The `expected.buckets` below are therefore that entry's
+#    (MONEY, per month, at least 25). The `expected.buckets` below are therefore that entry's
 #    own, read off the frozen corpus, and a scale that comes back different is a real finding.
-#    The commercial claim reads in pounds for the same reason the market is `GB`: a dollar sign on
-#    a GB market was the old fixture's own inconsistency, not the journey's.
+#    The commercial claim reads in dollars for the same reason the market is `US` (spec 053, D20:
+#    keel-web 078 offers the United States alone, and the founder's own words, 2026-10-17: "the
+#    currency amount should be dollars, because we are primarily targeting US markets"): the
+#    symbol agrees with the market, as it did in pounds on GB. The digits did not move -- the
+#    ladder is one set of numbers in every currency (keel-cloud 073's `PriceLadder.POINTS`).
 #
 # `expected` here carries **buckets only**. The smoke asserts the journey's shape, not a golden
 # standing -- that is S-005/S-006/S-007's job against a corpus that was worked by hand and checked.
@@ -33,7 +36,7 @@
 id: payroll-exceptions
 title: Payroll Exceptions
 
-market: {country: GB, region: null, language: en-GB}
+market: {country: US, region: null, language: en-US}
 
 statements:
   problem: >-
@@ -43,7 +46,7 @@ statements:
     An exceptions queue inside the payroll tool that assigns every exception an owner the day it
     appears.
   commercial: >-
-    £30 a seat per month, billed annually upfront.
+    $30 a seat per month, billed annually upfront.
 
 roles:
   - id: manager
@@ -133,14 +136,14 @@ beliefs:
   - id: C1
     stage: COMMERCIAL
     heading: They already spend at this level per seat
-    statement: They pay at least £25 a month per seat today for the closest payroll tool.
-    founderPhrase: £30 a seat per month
+    statement: They pay at least $25 a month per seat today for the closest payroll tool.
+    founderPhrase: $30 a seat per month
     risk: SUPPORTING
     askedOf: lead
     mark: PROXY
     expectation:
       type: INTERVAL
-      measure: {kind: MONEY, unit: GBP, per: month}
+      measure: {kind: MONEY, unit: USD, per: month}
       lower: {value: 25, inclusive: true, exact: true}
       upper: null
     selection: Q6
@@ -262,27 +265,27 @@ answers:
   - person: Marcus Webb
     anchors:
       A3: {text: "We moved onto a payroll bureau's portal last year. I signed it off, they billed us per run.", anchoring: ANCHORED}
-    picks: {Q6: £25 to £50, Q7: per run}
+    picks: {Q6: $25 to $50, Q7: per run}
   - person: Hannah Beck
     anchors:
       A3: {text: "A rota add-on, in the spring. Finance asked for it and I approved the spend.", anchoring: ANCHORED}
-    picks: {Q6: under £5, Q7: monthly}
+    picks: {Q6: under $5, Q7: monthly}
   - person: Yusuf Kaya
     anchors:
       A3: {text: "Payroll software renewal in January — same vendor, we just paid the year in one go.", anchoring: ANCHORED}
-    picks: {Q6: £10 to £20, Q7: annually upfront}
+    picks: {Q6: $10 to $20, Q7: annually upfront}
   - person: Elena Sokolova
     anchors:
       A3: {text: "An expenses tool, about six months ago. Monthly, on the company card.", anchoring: ANCHORED}
-    picks: {Q6: £25 to £50, Q7: monthly}
+    picks: {Q6: $25 to $50, Q7: monthly}
   - person: Ben Oyelaran
     anchors:
       A3: {text: "We took on a time-and-attendance system last autumn and paid the first year upfront.", anchoring: ANCHORED}
-    picks: {Q6: £5 to £10, Q7: annually upfront}
+    picks: {Q6: $5 to $10, Q7: annually upfront}
 
 expected:
   # `01-countly`'s own S3 and C15 scales, because Q1 and Q6 carry countly's own bands (header
   # note 3). Buckets only: see the header -- this repo does not invent golden standings.
   buckets:
     Q1: [under 15 min, 15 min to 30 min, 30 min to 1 h, 1 h to 2 h, 2 h to 4 h, 4 h to 8 h, 8 h to 1 day, "more than 1 day, say roughly"]
-    Q6: [under £5, £5 to £10, £10 to £20, £20 to £25, £25 to £50, £50 to £100, £100 to £200, "more than £200, say roughly"]
+    Q6: [under $5, $5 to $10, $10 to $20, $20 to $25, $25 to $50, $50 to $100, $100 to $200, "more than $200, say roughly"]

@@ -42,6 +42,20 @@ never had a run of record).
 schema and no instruction -- the follow-up's ladder is registry data and code composes its words -- so v19 stood; the
 journey ruler moved instead (`INTERVIEWER_MARKS_VERSION` 5). 052 took the standings side and this version's bump (v20 above).
 
+**Spec 053 (2026-10-17)**: keel-cloud 105 (corpus **revision 12**, keel-cloud-docs `7e64f20`) moved no screen schema,
+no instruction and no golden number -- the six GB entries are US entries in dollars, the same digits, `$` and `USD`,
+a few words in the US register (*"the currency amount should be dollars, because we are primarily targeting US
+markets"*, the founder) -- so v20 stands and reads **revision 12**, refusing a revision-11 file by name as v19's and
+v20's, in pounds; v20's *the corpus stays revision 11* above is history, and so is every numbered call's figure in
+pounds (calls 42, 57, 64, 65: each records its rule with the figure of its day, and the rule -- the symbol from the
+currency -- did not move). v20 has no run of record, so no r11 bundle waits to be re-scored. The seven revision-12
+files, by sha256 (keel-cloud canon's own bytes at keel-cloud-docs `7e64f20`, equal to
+`src/test/resources/keel/corpus-r12/`): `01-countly.yaml` `8de12220f62ac40f05cab2d4bfa041a3291b4abb7427ee467e33a605a7651dbc`; `02-compliancelog.yaml` `af94938d25394012fdd32d3ee6ba3a09f844c89755004d5ec01a2bab6bc3aeaa`; `03-lullaby.yaml`
+`632afc3450c76af381e91658cbcb58ac275cbca32a9699f7facf80892f07206e`; `04-linerly.yaml` `f962a7890d59a9a84eda03b552221bf440890e2d3e0288266f7131769c3172d3`; `05-paidly.yaml` `152febaa431191157f04deb3ad72b10ff875c4e609ce4a409d330c6d29264f09`; `06-repeatline.yaml` `5922698ce8551de475258fa0e9a8b7ee0944d47727fe1845dad30c5ffb289a28`; `07-mulchrun.yaml`
+`f62b28077eca972ccba275ca8c99fc0d821bffaa834c589e91b37bbdd1e55591`. `DRY=1`-measurable at `7e64f20`:
+`brief_facts` 101 of 101 (05-paidly *$50 a month or more · 5 of 8*), `report_overview` 49 of 49,
+`compare_correctness` 108 of 108, `spoken_form` 109 of 109.
+
 **`MARKS_VERSION` 19** (history since v20, never run; spec 042, 2026-10-14): the defects batch. The ruler follows keel-cloud 090 / 091 (keel-cloud-docs
 `c432c1d`; registry `VERSION` 4, document 20, `CONTRACT_VERSION` 14, routing v11, charge 7 -- the lock holds one job of
 35). No mark is born or retired and no number in `marks.toml` moved; four judgement calls moved under them, so the

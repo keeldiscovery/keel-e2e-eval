@@ -39,6 +39,10 @@ one leg and leave the others alone:
                       holds equal to keel-cloud's), what broke, the pilot and the price median; then keel-web
                       077's three views -- Overview, Insights, Pilot -- and *Download the brief*, their binding,
                       scored by the five report marks (`evals/report_marks.py`).
+12. `leg_one_currency` -- (spec 053, design D19) no pound or euro on any page the journey drew, the
+                      three views and the binding included (`OTHER_CURRENCIES`, S-007's sweep made every
+                      journey's), and the project's market the entry's own: since revision 12 the US, en-US,
+                      its region.
 
 After them each scenario's `extra` runs: S-006's ends with **the contacts leg** (spec 043, keel-cloud 093,
 `evals/contacts_leg.py`) on the wire, and S-005's with the B2C `NOT_B2B` refusal.
@@ -1716,6 +1720,48 @@ def leg_report(j: Journey, *, timeout_s: float = 60) -> None:
     _score_report(j)
 
 
+#: Spec 053 FR-3d (design D19: no founder page shows a pound): what may never appear on a page a corpus journey reads,
+#: now that every corpus entry is a US entry in dollars (corpus revision 12). Moved here from S-007, whose own sweep
+#: it was (the only US market until revision 12).
+OTHER_CURRENCIES = ("£", "€", "GBP", "EUR")
+
+#: The views `report_record` reads, which every corpus journey draws -- the sweep must have read each.
+REPORT_VIEWS = ("board", "insights", "pilot", "printed")
+
+
+def currency_leaks(screens: dict) -> dict:
+    """`{page: [the other currencies its drawn text carries]}` over every page in `screens` that drew any."""
+    pages = {name: (drawn.get("text") if isinstance(drawn, dict) else None) or ""
+             for name, drawn in screens.items()}
+    leaks = {name: [c for c in OTHER_CURRENCIES if c in text] for name, text in pages.items()}
+    return {name: found for name, found in leaks.items() if found}
+
+
+def leg_one_currency(j: Journey) -> None:
+    """Spec 053 FR-3d (judgement call 3): an assertion in every corpus journey, not a mark. After the report, none of
+    `OTHER_CURRENCIES` in any text `j.screens` drew -- the founder screens, the stage pages, the three views and the
+    binding -- and the project's market is the entry's (`market` as the corpus records it: US, en-US, its region).
+    A pound on a page after keel-web 078 is DRIFT #95 (spec 053 FR-6), never a tolerance here."""
+    want = {"country": (j.entry.market or {}).get("country"), "region": (j.entry.market or {}).get("region"),
+            "language": (j.entry.market or {}).get("language")}
+    with _step(j, f"{j.entry.id}: the project's market is the entry's own -- {want['country']}, "
+                  f"{want['language']}, region {want['region'] or 'none'}") as h:
+        market = (j.get(j.project("/overview")) or {}).get("market") or {}
+        have = {"country": market.get("country"), "region": market.get("region") or None,
+                "language": market.get("language")}
+        h.record_assert(want, have)
+        assert have == want, (have, want)
+    with _step(j, "no pound or euro reaches any page the founder reads, the report's three views and its binding "
+                  "included (design D19)", party="founder") as h:
+        leaks = currency_leaks(j.screens)
+        read = sorted(name for name, drawn in j.screens.items()
+                      if isinstance(drawn, dict) and (drawn.get("text") or "").strip())
+        h.record_assert({"leaks": {}, "read": list(REPORT_VIEWS)}, {"leaks": leaks, "read": read})
+        missing = [name for name in REPORT_VIEWS if name not in read]
+        assert not missing, f"the sweep read no text on {missing}, so it swept nothing there"
+        assert not leaks, leaks
+
+
 def _invitations(j: Journey) -> dict:
     """`{invitationId: {name, email, source}}` off the register (the names the quotes and the pilot rows carry)."""
     rows = (j.get(j.project("/invitations")) or {}).get("invitations") or []
@@ -1890,6 +1936,7 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         leg_interview(journey)
         leg_standings(journey)
         leg_report(journey)
+        leg_one_currency(journey)
         if extra is not None:
             extra(journey)
         score_feedback(journey)

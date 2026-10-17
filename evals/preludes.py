@@ -407,15 +407,15 @@ def approved_project_with_one_read(
 HEALTHY_FROM = "05-paidly"
 #: One supporting answer a dimension, a link (05-paidly's founder lists and calibration): Frequency 2 months out of
 #: the founder's 2-3; the own item in the top two; the worst-but-one outcome; Compatibility yes, easily; better,
-#: with the founder's advantage; yes to the effort -- and for the decision-maker £150 a month lost (in the founder's
-#: £100-£300), the £50-£100 band (the founder's), a new line signed off, decided alone (the tested *Nobody else*),
+#: with the founder's advantage; yes to the effort -- and for the decision-maker $150 a month lost (in the founder's
+#: $100-$300), the $50-$100 band (the founder's), a new line signed off, decided alone (the tested *Nobody else*),
 #: the approval quick, and yes to start.
 HEALTHY_PICKS = {
     "PRIMARY": {"problem.frequency": 2, "problem.importance": ["late_payment", "finding_work"],
                 "problem.current_solution_satisfaction": "works_poorly", "solution.compatibility": "yes_easily",
                 "solution.relative_advantage": {"answer": "positive", "advantages": ["shorter_time"]},
                 "solution.adoption_friction": "yes"},
-    "COMMERCIAL_B2B": {"commercial.existing_sacrifice": {"mode": "AMOUNT", "value": 450, "currency": "GBP",
+    "COMMERCIAL_B2B": {"commercial.existing_sacrifice": {"mode": "AMOUNT", "value": 450, "currency": "USD",
                                                          "period": "quarter"},
                        "commercial.price": "band_50_100", "commercial.ability_to_pay": "new_line_signed_off",
                        "commercial.buyer_payer_alignment": "decided_alone", "commercial.purchase_friction": "yes_quick",

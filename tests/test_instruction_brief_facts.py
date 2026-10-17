@@ -224,7 +224,9 @@ def test_no_facts_from_keel_cloud_is_unmeasured_never_zero(entry):
 
 def cloud_facts_at_104():
     """keel-cloud's `build/brief-facts/` read whole -- or a skip naming why: absent, or written before keel-cloud 104
-    (no `commercial.priceMedian` key), which a fresh `BriefFactsCorpusTest` run rewrites."""
+    (no `commercial.priceMedian` key on any entry), which a fresh `BriefFactsCorpusTest` run rewrites. Spec 053: *any*
+    entry, not *every* -- `BriefFacts` is `NON_NULL`, so 07-mulchrun's left-out Price writes no key on a 104 export
+    too, and the every-entry test skipped on every export (052's two DRY tests never ran in `make unit`)."""
     keel_cloud = load_config(validate=False).keel_cloud
     if not (keel_cloud / cloud_mod.FACTS_DIR).is_dir():
         pytest.skip("keel-cloud's build/brief-facts/ is absent -- run its BriefFactsCorpusTest "
@@ -233,15 +235,16 @@ def cloud_facts_at_104():
     registry = fx.registry()
     corpus = corpus_mod.load(keel_cloud).bind(registry)
     cloud = cloud_mod.read(keel_cloud, corpus=corpus, registry=registry)
-    if any("priceMedian" not in ((f or {}).get("commercial") or {}) for f in cloud.facts.values()):
+    if not any("priceMedian" in ((f or {}).get("commercial") or {}) for f in cloud.facts.values()):
         pytest.skip("keel-cloud's build/brief-facts/ predates keel-cloud 104 (no commercial.priceMedian) -- rerun "
                     "its BriefFactsCorpusTest to compare")
     return registry, corpus, cloud
 
 
-def test_keel_clouds_facts_agree_on_every_card_pilot_and_price_median_of_corpus_r11():
-    """The DRY compare (spec 040 SC; spec 052): keel-cloud 104's facts for the seven r11 entries against this reading
-    -- 87 cards, 7 pilots, 7 price medians (101 of 101 at keel-cloud-docs 9a033fe)."""
+def test_keel_clouds_facts_agree_on_every_card_pilot_and_price_median_of_corpus_r12():
+    """The DRY compare (spec 040 SC; spec 052; spec 053): keel-cloud 104's facts for the seven r12 entries against this
+    reading -- 87 cards, 7 pilots, 7 price medians (101 of 101 at keel-cloud-docs 9a033fe on r11, and at 7e64f20 on
+    r12, 05-paidly's *$50 a month or more · 5 of 8*)."""
     registry, corpus, cloud = cloud_facts_at_104()
     scores = [bf.compare(e, registry, cloud.facts.get(e.id)) for e in corpus.entries]
     assert sum(s.checks for s in scores) == 101

@@ -33,8 +33,11 @@ added to this line rather than quietly written — which is exactly how the thir
   `report_overview` is born at zero spend (the Overview keel-cloud's facts draw against the corpus's, call 117); four
   journey marks -- `report_insights`, `report_no_repeat`, `report_pilot`, `report_binding` -- are
   `evals/report_marks.py`'s, never rows of `judge()` (call 120). At zero spend against `9a033fe` (a fresh
-  `BriefFactsCorpusTest`): `brief_facts` 101 of 101, `report_overview` 49 of 49. Corpus revision 11 unchanged. What
-  follows is v19's account, history since 2026-10-17 (never run).
+  `BriefFactsCorpusTest`): `brief_facts` 101 of 101, `report_overview` 49 of 49. Corpus revision 11 unchanged. **Since
+  spec `053-corpus-in-dollars`** (keel-cloud 105, keel-cloud-docs `7e64f20`) v20 reads corpus **revision 12** -- the six
+  GB entries in the US and in dollars, the same digits, no number moved; a revision-11 file refused by name -- and the
+  zero-spend rows hold there: `compare_correctness` 108 of 108, `spoken_form` 109 of 109, `brief_facts` 101 of 101,
+  `report_overview` 49 of 49. What follows is v19's account, history since 2026-10-17 (never run).
   **`MARKS_VERSION` 19** (spec `042-contract-14-r11`, 2026-10-14) was the gate as written, and **there was no run
   of record until `WHY=marks:19` was spent -- never run**. keel-cloud 090 / 091 (merged at keel-cloud-docs `c432c1d`: `CONTRACT_VERSION` 14, the lock one
   RESPONDENT_QUESTIONS job of 35, corpus revision 11) moved four calls under unchanged numbers (110-115): the corpus is

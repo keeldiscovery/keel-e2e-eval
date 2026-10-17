@@ -1,8 +1,13 @@
-"""Corpus revision 11, the real seven files, through the one reader (spec 042 call 110; revision 10's by spec 040
-FR-002, T004, judgement call 78; revision 9's by spec 038, first written for revision 3 by spec 029 T047).
+"""Corpus revision 12, the real seven files, through the one reader (spec 053; revision 11's by spec 042 call 110;
+revision 10's by spec 040 FR-002, T004, judgement call 78; revision 9's by spec 038, first written for revision 3 by
+spec 029 T047). The file keeps its r11 name (history).
 
-Revision 11 (keel-cloud 091 FR-G) is revision 10 with DRIFT #77's five words fixed and 05-paidly's Frequency in its
-window's unit (one median moved, 5 -> 2); every other fact held here is revision 10's, unchanged.
+Revision 12 (keel-cloud 105) is revision 11 with the six GB entries in the US and in dollars -- the same digits, `$`
+and `USD`, a few words in the US register; no standing, count or verdict moved -- so every fact held here is r11's,
+unchanged, and one more is held: **every entry is a US entry in dollars** (105's `everyEntryIsAUsEntryInDollars`,
+`check_corpus_r12.py`'s rule U), which the reader itself does not enforce (the eval's own fixtures 09 / 10 stay GB on
+purpose, spec 053 FR-4). Revision 11 (keel-cloud 091 FR-G) is revision 10 with DRIFT #77's five words fixed and
+05-paidly's Frequency in its window's unit (one median moved, 5 -> 2).
 
 **One reader, one hash, one place** (spec 010's rule; judgement call 49): the files are read through
 `instructions.corpus.load` exactly as a run reads them -- keel-cloud's canon, and nowhere else. Nothing here is a copy
@@ -12,7 +17,7 @@ verdicts and 21 standings 087's table moved, the two re-windowed entries (D13), 
 list against the registry's `saves`, every pick's shape, the founder cost and the derived Ability to pay, the price
 ladder, the recall periods, and the B2B entries' decision-makers.
 
-When `stack.toml`'s keel-cloud is not at revision 11 every test here skips **by name**, with the reason -- never a
+When `stack.toml`'s keel-cloud is not at revision 12 every test here skips **by name**, with the reason -- never a
 fixture copy, which would be a second frozen corpus in all but name.
 """
 
@@ -37,14 +42,14 @@ B2B = ("05-paidly", "06-repeatline", "07-mulchrun")
 def corpus():
     keel_cloud = load_config(validate=False).keel_cloud
     for name in ENTRIES:
-        fx.canon_entry(f"{name}.yaml")                 # skips, by name, when canon is not r11
+        fx.canon_entry(f"{name}.yaml")                 # skips, by name, when canon is not r12
     return corpus_mod.load(keel_cloud, registry=fx.registry())
 
 
-def test_the_seven_entries_are_all_at_revision_eleven(corpus):
+def test_the_seven_entries_are_all_at_revision_twelve(corpus):
     assert [e.id for e in corpus.entries] == list(ENTRIES)
     for entry in corpus.entries:
-        assert entry.revision == 11, entry.id
+        assert entry.revision == 12, entry.id
     assert Path(corpus.directory) == fx.canon_dir()
 
 
@@ -381,8 +386,9 @@ def test_the_fixture_fallback_is_gone():
     assert not hasattr(corpus_mod, "FIXTURE_DIR")
 
 
-@pytest.mark.parametrize("revision, rubric", [(9, "MARKS_VERSION 17"), (8, "MARKS_VERSION 15"),
-                                              (6, "MARKS_VERSION 12"), (3, "MARKS_VERSION 9")])
+@pytest.mark.parametrize("revision, rubric", [(11, "MARKS_VERSION 19"), (9, "MARKS_VERSION 17"),
+                                              (8, "MARKS_VERSION 15"), (6, "MARKS_VERSION 12"),
+                                              (3, "MARKS_VERSION 9")])
 def test_a_corpus_directory_holding_an_older_file_refuses_by_name(tmp_path, revision, rubric):
     """Calls 49, 78: one older file in keel-cloud's corpus refuses the whole load, naming the entry and the rubric
     that read its revision -- never a fallback."""
@@ -413,7 +419,43 @@ def test_the_corpus_reads_the_same_through_the_exported_registry(corpus):
     exported = registry_mod.load(path)
     for entry in corpus.entries:
         corpus_mod.load_file(entry.path, registry=exported)
-    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 11
+    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 12
+
+
+#: 105 FR-1's market lines: every entry the US, two with a state.
+US_REGIONS = {"04-linerly": "OR", "07-mulchrun": "TX"}
+
+
+def _currency_nodes(node, path=""):
+    """Every `currency` value anywhere in an entry's data, with where it sits."""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            here = f"{path}.{key}" if path else str(key)
+            if key == "currency":
+                yield here, value
+            yield from _currency_nodes(value, here)
+    elif isinstance(node, list):
+        for i, value in enumerate(node):
+            yield from _currency_nodes(value, f"{path}[{i}]")
+
+
+def test_every_entry_is_a_us_entry_in_dollars(corpus):
+    """Spec 053 FR-1 (keel-cloud 105's `everyEntryIsAUsEntryInDollars`, `check_corpus_r12.py`'s rule U; design D19):
+    through `load`, seven `country: US`, `language: en-US`, the region Oregon on Linerly and Texas on Mulch Run and
+    none elsewhere, every `currency` node `USD`, and no pound sign, `GBP` or `en-GB` in any file's bytes, comments
+    included.
+    The canon's rule, not the reader's: the eval's own fixtures 09 / 10 stay GB on purpose (FR-4)."""
+    for entry in corpus.entries:
+        market = entry.market or {}
+        assert market.get("country") == "US", (entry.id, market)
+        assert market.get("language") == "en-US", (entry.id, market)
+        assert market.get("region") == US_REGIONS.get(entry.id), (entry.id, market)
+        raw = Path(entry.path).read_bytes()
+        nodes = list(_currency_nodes(yaml.safe_load(raw)))
+        assert nodes and all(value == "USD" for _, value in nodes), (entry.id, [n for n in nodes if n[1] != "USD"])
+        text = raw.decode("utf-8")
+        for token in ("\N{POUND SIGN}", "GBP", "en-GB"):
+            assert token not in text, (entry.id, token)
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)

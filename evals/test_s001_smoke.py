@@ -169,8 +169,9 @@ def test_s001_smoke(stack, founder_one, browser, run_dir):
         landing.name_project(founder.project_name)
         from harness.browser import MarketStep
         market_step = MarketStep(page, recorder, web_base)
-        with recorder.step("§1.1: the market screen offers a list of countries, in three groups, "
-                            "with the region optional", party="founder", kind="assert") as h:
+        with recorder.step("§1.1: the market screen offers a list of countries, in the groups "
+                            "keel-web 078 defines (the United States alone), with the region "
+                            "optional", party="founder", kind="assert") as h:
             groups = market_step.country_groups()
             codes = market_step.country_codes()
             h.record_assert(list(MARKET_GROUPS), {"groups": groups, "countries": len(codes)})

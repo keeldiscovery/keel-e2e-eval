@@ -59,7 +59,7 @@ def _render(tmp_path, corpus, produced):
 def test_the_calibration_block_is_the_registry_in_order_beside_the_founder(tmp_path, corpus):
     registry = fx.registry()
     blocks = report_mod.register_blocks(corpus, _produced(registry), registry, _AGGREGATE)
-    block = blocks["GB · en-GB"]["03-lullaby"]
+    block = blocks["US · en-US"]["03-lullaby"]
     rows = block["calibration"]
     assert [r["key"] for r in rows] == registry.calibrated_keys(False), "B2C: the twelve"
     assert "commercial.ability_to_pay" in [r["key"] for r in rows], "derived, shown beside the founder"
@@ -104,7 +104,7 @@ def test_the_respondent_block_sits_beside_the_plan_and_carries_no_reveal(tmp_pat
     produced["03-lullaby"]["RESPONDENT_B2B"] = (
         "03-lullaby/RESPONDENT_B2B/run1", fx.respondent_result(entry, 3, link="COMMERCIAL_B2B"))
     blocks = report_mod.register_blocks(corpus, produced, fx.registry(), _AGGREGATE)
-    block = blocks["GB · en-GB"]["03-lullaby"]
+    block = blocks["US · en-US"]["03-lullaby"]
     assert len(block["respondent"]) == sum(len(keys) for keys in entry.plan().values()) == 11
     gate = block["respondent"][0]
     assert (gate["key"], gate["part"], gate["control"], gate["codes"]) == (

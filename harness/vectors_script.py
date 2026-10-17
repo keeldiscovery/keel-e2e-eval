@@ -1116,8 +1116,9 @@ def founder_inputs(entry) -> FounderInputs:
         decider = {"kind": "SAME_PERSON"}
     return FounderInputs(
         project_name=entry.title,
-        country=market.get("country") or "GB", region=market.get("region"),
-        language=market.get("language") or "en-GB",
+        # never reached (every entry records its market), but a fallback is a country keel-web 078 offers (spec 053)
+        country=market.get("country") or "US", region=market.get("region"),
+        language=market.get("language") or "en-US",
         context_fields={"actor": ctx["actor"], "job": ctx["job"],
                         "circumstance": ctx["circumstance"], "segment": ctx["segment"]},
         window=window_of(entry),

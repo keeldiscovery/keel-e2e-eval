@@ -483,9 +483,61 @@ def test_the_three_corpus_extras_name_only_what_survived():
     s007 = (REPO / "evals" / "test_s007_mulchrun.py").read_text(encoding="utf-8")
     assert "TOO_FEW_TO_CALL" in s005 and "FLOOR = 5" in s005
     assert "FLOOR = 5" in s006 and "COMMERCIAL_LINK" in s006
-    assert '"region") == "TX"' in s007 and "OTHER_CURRENCIES" in s007
+    assert '"region") == "TX"' in s007 and "OTHER_CURRENCIES" in s007 and '"USD"' in s007
+    # spec 053 FR-3d: the currency sweep is every corpus journey's, after the report
+    scenario = (REPO / "evals" / "corpus_scenario.py").read_text(encoding="utf-8")
+    assert corpus_scenario.OTHER_CURRENCIES == ("\N{POUND SIGN}", "€", "GBP", "EUR")
+    assert "OTHER_CURRENCIES" in scenario
+    assert "        leg_report(journey)\n        leg_one_currency(journey)\n" in scenario
     for body in (s005, s006, s007):
         assert "buckets" not in body and "MOCKUP" not in body and "one-unit window" not in body
+
+
+class _Step:
+    def __init__(self):
+        self.asserted = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def record_assert(self, want, have):
+        self.asserted = (want, have)
+
+
+class _Recorder:
+    def step(self, name, **kwargs):
+        return _Step()
+
+
+def _currency_journey(screens, market):
+    from types import SimpleNamespace                                   # noqa: PLC0415
+    return SimpleNamespace(entry=SimpleNamespace(id="01-countly",
+                                                 market={"country": "US", "region": None, "language": "en-US"}),
+                           screens=screens, recorder=_Recorder(), project=lambda path: path,
+                           get=lambda url: {"market": market})
+
+
+REPORT_DRAWN = {name: {"text": f"{name} $50 a month or more"} for name in corpus_scenario.REPORT_VIEWS}
+
+
+def test_every_corpus_journey_sweeps_for_another_currency_and_holds_the_entrys_market():
+    """Spec 053 FR-3d (call 3): no other currency on any drawn page, the report's views included, and the project's
+    market the entry's own -- the sweep S-007 alone ran until revision 12, on every journey."""
+    us = {"country": "US", "region": None, "language": "en-US"}
+    corpus_scenario.leg_one_currency(_currency_journey(dict(REPORT_DRAWN, L1={"text": "$10 to $30"}), us))
+    for leak in ("€20", "20 GBP", "EUR 20"):
+        screens = dict(REPORT_DRAWN, COMMERCIAL={"text": f"about {leak} a month"})
+        assert corpus_scenario.currency_leaks(screens) == {"COMMERCIAL": [c for c in corpus_scenario.OTHER_CURRENCIES
+                                                                          if c in leak]}
+        with pytest.raises(AssertionError):
+            corpus_scenario.leg_one_currency(_currency_journey(screens, us))
+    with pytest.raises(AssertionError, match="swept nothing"):
+        corpus_scenario.leg_one_currency(_currency_journey(dict(REPORT_DRAWN, printed={"text": " "}), us))
+    with pytest.raises(AssertionError):
+        corpus_scenario.leg_one_currency(_currency_journey(REPORT_DRAWN, dict(us, country="GB", language="en-GB")))
 
 
 def test_choose_picks_the_entrys_own_item_and_on_a_live_journey_the_models_at_that_place():

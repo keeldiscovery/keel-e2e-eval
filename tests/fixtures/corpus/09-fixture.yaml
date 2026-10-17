@@ -1,4 +1,4 @@
-# A hand-sized revision-11 entry for the loader and scorer tests (spec 040 T004; earlier cuts specs 029-038). NOT a
+# A hand-sized revision-12 entry for the loader and scorer tests (spec 040 T004; earlier cuts specs 029-038). NOT a
 # corpus entry: values are invented and small. B2C, so the twelve calibrated keys (Purchase friction is not calibrated;
 # Ability to pay is derived: 5% to 25%, small_share). The founder's lists are revision 10's shapes -- Importance's five
 # (own first), Current solution's phrase and five outcomes, two Compatibility conditions and one Adoption friction effort
@@ -8,9 +8,12 @@
 # code), Ivy's story is vague (GUESSED, no chip), eight ANCHORED. One planted inflection collision: the mechanism
 # `listens`, Bo's story `listened`. `expected` is keel-cloud 087's engine's own output on this file (`screenContracts
 # compare`), and `check_corpus_r11.py` prints OK for it (revision 11 since spec 042: its faces already said "you", its step none).
+# Revision 12 since spec 053, and **GB deliberately**: the reader's one non-US path (`MARKET_CURRENCY`, `money_text`'s
+# pound, a GBP price) -- keel-cloud's Market table still serves GB (105 FR-6). `expected` is unchanged (no number moved);
+# `check_corpus_r12.py`'s rule U would refuse this file, and the reader does not mirror that rule (the canon test does).
 id: 09-fixture
 title: Fixture — the keys you cannot find
-revision: 11
+revision: 12
 market:
   country: GB
   region: null

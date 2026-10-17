@@ -263,7 +263,7 @@ def real():
     if not (keel_cloud / cloud_mod.SPOKEN_FILE).is_file():
         pytest.skip("keel-cloud's SpokenGuidelinesCorpusTest has not written build/spoken-corpus.txt -- run "
                     "`./gradlew test --tests '*SpokenGuidelinesCorpusTest'` in the keel-cloud checkout")
-    fx.canon_entry("01-countly.yaml")                                 # skips by name off revision 11
+    fx.canon_entry("01-countly.yaml")                                 # skips by name off revision 12
     registry = fx.registry()
     corpus = corpus_mod.load(keel_cloud).bind(registry)
     return corpus, cloud_mod.read(keel_cloud, corpus=corpus, registry=registry)

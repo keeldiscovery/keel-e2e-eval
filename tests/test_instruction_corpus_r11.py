@@ -1,6 +1,7 @@
-"""`instructions/corpus.py` at revision 11: the loader on a hand-sized entry (spec 029 FR-006, data-model
+"""`instructions/corpus.py` at revision 12: the loader on a hand-sized entry (spec 029 FR-006, data-model
 §2-§3; T012; at revision 10 by spec 040 T004, judgement call 78; at revision 11 by spec 042, call 110 -- revision
-10's rules and r11's K3 / S10 in L; earlier revisions by specs 030-038).
+10's rules and r11's K3 / S10 in L; at revision 12 by spec 053 -- r11's rules, the canon in dollars, the fixture
+kept GB; earlier revisions by specs 030-038). The file keeps its r11 name (history).
 
 Everything the scorers read off an entry -- the plan, the founder's lists and their tested item, the
 vocabulary and its inflection ledger, who is readable -- is checked here on `tests/fixtures/corpus/09-fixture.yaml`,
@@ -145,7 +146,7 @@ def _items(raw, key):
 
 def _revision(n, words):
     return (lambda r: r.__setitem__("revision", n),
-            f"revision is {n}; this eval reads revision 11 only -- revision {n} is {words}")
+            f"revision is {n}; this eval reads revision 12 only -- revision {n} is {words}")
 
 
 #: The registry-free refusals: the file alone is refused.
@@ -161,6 +162,9 @@ MUTATIONS = {
     "revision 9": _revision(9, "MARKS_VERSION 17's corpus, before the October redesign"),
     # spec 042 call 110: revision 10 refused by name
     "revision 10": _revision(10, "MARKS_VERSION 18's corpus, before keel-cloud 091"),
+    # spec 053: revision 11 refused by name, in pounds
+    "revision 11": _revision(11, "MARKS_VERSION 19's and 20's corpus, in pounds (six GB entries, before keel-cloud "
+                                 "105: 'the currency amount should be dollars')"),
     # r11's two rules in L (keel-cloud 091 FR-G, DRIFT #77): K3 on a face, S10 on Commitment's step
     "a face with no you": (lambda r: _items(r, "solution.compatibility")[0].__setitem__(
         "asked", "was the phone to hand"), "is said to the stranger and carries no 'you' or 'your' (rule L, K3)"),

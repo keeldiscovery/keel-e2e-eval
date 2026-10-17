@@ -1,7 +1,15 @@
-"""The golden corpus at revision 11, read and never written (spec 029 FR-006/FR-012, data-model §2;
-spec 030 FR-002, judgement call 49; ...; spec 038 FR-001, call 81; spec 040 FR-002, call 78; spec 042 call 110).
+"""The golden corpus at revision 12, read and never written (spec 029 FR-006/FR-012, data-model §2;
+spec 030 FR-002, judgement call 49; ...; spec 038 FR-001, call 81; spec 040 FR-002, call 78; spec 042 call 110;
+spec 053 FR-1).
 
-**Revision 11 only** (call 110; keel-cloud 091 FR-G): revision 10's rules, and the respondent words a file authors
+**Revision 12 only** (spec 053; keel-cloud 105): revision 11's rules, and the six GB entries in the US and in dollars
+-- *"the currency amount should be dollars, because we are primarily targeting US markets"* (the founder, 2026-10-17):
+`market: {country: US, region: <a state or null>, language: en-US}`, every money node `currency: USD` with the same
+digits, a few words in the US register; no standing, count or verdict moved. A revision-11 file is refused by name as
+v19's and v20's, in pounds. The checker's rule U (every entry US, in dollars) is **not** mirrored here -- the eval's
+own fixtures 09 / 10 stay GB on purpose, the reader's one non-US path -- a canon-only unit test holds the canon to it.
+What follows is revision 11's account, which r12 keeps:
+**Revision 11** (call 110; keel-cloud 091 FR-G): revision 10's rules, and the respondent words a file authors
 held to the model's -- every `asked` face says *you* or *your* (`K3`), Commitment's step carries no *you* of its own
 (`S10`: code says it as *would you {step}*) -- and 05-paidly's Frequency in its window's unit (months out of 3). A
 revision-10 file is refused by name as v18's. What follows is revision 10's account, which r11 keeps:
@@ -23,7 +31,7 @@ module opens those files, hashes them on the way in, and offers `verify_unchange
 a run can prove nothing here moved while it ran. **If an instruction cannot reach a golden, the
 instruction is wrong** -- or the design is, and it goes back to step 1. Never the corpus.
 
-What this reader checks is the **shape half** of keel-cloud's `sim/check_corpus_r11.py` (its S, W, L, R
+What this reader checks is the **shape half** of keel-cloud's `sim/check_corpus_r12.py` less r12's new rule U (r11's S, W, L, R
 and A rules, and r9's P, K, D, U, O); the recount (its C) is keel-cloud's engine's, asked through
 `COMPARE` (`compare_correctness`), and the checker's own -- this repository keeps no copy of the
 arithmetic. The registry-bound halves (a list's `saves`, a row's control, codes and escape, a pick's
@@ -59,7 +67,7 @@ from .registry import (ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTRO
                        FREQUENCY_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY,
                        PRICE_PERIODS, SACRIFICE_KEY, VECTORS, RecallWindow, words)
 
-REVISION = 11
+REVISION = 12
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51, 78).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
@@ -75,7 +83,9 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 9: "MARKS_VERSION 17's corpus, before the October redesign (nine deal-breakers and four SHAPES, "
                    "model-written option sets, chips and `something_else`, a one-unit window)",
                 10: "MARKS_VERSION 18's corpus, before keel-cloud 091 (four Compatibility faces with no 'you', "
-                    "06-repeatline's 'introduce you to', 05-paidly's Frequency in invoices out of 7)"}
+                    "06-repeatline's 'introduce you to', 05-paidly's Frequency in invoices out of 7)",
+                11: "MARKS_VERSION 19's and 20's corpus, in pounds (six GB entries, before keel-cloud 105: "
+                    "'the currency amount should be dollars')"}
 
 #: `sim/check_corpus_r5.py`'s `CURRENCY` (keel-cloud `Market.currency`'s table, the corpus's markets):
 #: a founder price is in its market's currency, never another.
@@ -153,7 +163,7 @@ def cost_money(cost: dict) -> tuple:
 
 
 def cost_said(cost: dict) -> str:
-    """`CostEstimate.said`: *about £10 to £30 a month*, or *30 to 60 hours a quarter, about $2,400 to $4,800*."""
+    """`CostEstimate.said`: *about $10 to $30 a month*, or *30 to 60 hours a quarter, about $2,400 to $4,800*."""
     period = _PERIOD_WORDS[cost["period"]]
     low, high = cost_money(cost)
     spread = money_text(low, cost["currency"]) if low == high else \

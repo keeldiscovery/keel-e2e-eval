@@ -612,7 +612,7 @@ def test_the_healthy_answers_are_against_on_no_rung():
     assert bf._floor_of(picks["commercial.price"]) == 50 <= price["low"] < 100
     assert entry.tested("commercial.buyer_payer_alignment")["code"] == "nobody_else"
     assert picks["commercial.buyer_payer_alignment"] == "decided_alone"
-    assert bf.price_median_for(preludes.healthy_entry(entry)) == {"edgeSaid": "£50 a month", "chose": 10, "n": 10}
+    assert bf.price_median_for(preludes.healthy_entry(entry)) == {"edgeSaid": "$50 a month", "chose": 10, "n": 10}
 
 
 # ------------------------------------------------------- the THEMES script (keel-runtime 012, D-01 resolved)
