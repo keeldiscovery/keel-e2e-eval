@@ -1533,14 +1533,16 @@ def _board(j: Journey) -> None:
         assert not faults, json.dumps(faults, indent=2, default=str)
 
 
-#: keel-web 077's too-few words the founder reads before the fifth answer (spec 052 FR-7).
+#: keel-web 077's too-few words the founder reads before the fifth answer (spec 052 FR-7; the Insights view's by
+#: keel-web 079's rule).
 TOO_FEW_WORDS = ("Keep interviewing", "Nothing to read into yet", "Not asked yet", "nobody has answered this yet")
 
 
 def _too_few_answered(j: Journey, n: int) -> None:
     """Spec 052 FR-7, the half that holds only after someone answered: with fewer than five on every card the Insights
-    view is *Nothing to read into yet* with the served count (keel-web 077 `insightsStateOf`: a card too few to call,
-    no box), the Overview *Keep interviewing* with *{n} people have answered.* -- every word the wire's drawing."""
+    view is *Nothing to read into yet* with the served count (keel-web 079 `insightsStateOf`: Keep interviewing, nobody
+    answered or a card too few to call, no box), the Overview *Keep interviewing* with *{n} people have answered.* --
+    every word the wire's drawing."""
     j.standings = j.get(j.project("/standings")) or {}
     board = j.screens["board-four"] = j.answers.board(j.project_id)
     insights = j.screens["insights-four"] = j.answers.insights(j.project_id)
@@ -1561,8 +1563,9 @@ def _too_few(j: Journey, when: str) -> None:
     *Keep interviewing*, the price tile *Not asked yet*, *nobody has answered this yet* on every commercial row not left
     out (a left-out one reads its served line, keel-web 077 call 8), and the
     Insights view's empty state -- every word the wire's drawing (`overview_faults`, `insight_faults`). Before anyone
-    answered no card is too few (they are not asked), so keel-web 077 draws *Nothing is failing* there (design §4.2's
-    *otherwise*; DRIFT #93) and *Nothing to read into yet* after the fourth answer (`_too_few_answered`; call 5)."""
+    answered the verdict is Keep interviewing and `pilot.finished` 0, so keel-web 079 draws *Nothing to read into yet*
+    with *0 people have answered* there (design §4.2's rule; DRIFT #93 closed, call 4 back to it by the amendment of
+    2026-10-17 (b)), as after the fourth answer (`_too_few_answered`; call 5)."""
     board = j.screens["board-too-few"] = j.answers.board(j.project_id)
     insights = j.screens["insights-too-few"] = j.answers.insights(j.project_id)
     with _step(j, f"the report {when}: Keep interviewing, Not asked yet on the price tile, nobody has answered this "
@@ -1577,6 +1580,7 @@ def _too_few(j: Journey, when: str) -> None:
         assert not faults, json.dumps(faults, indent=2, default=str)
         assert board["hero"]["verdict"] == TOO_FEW_WORDS[0], board["hero"]
         assert insights.get("empty"), "no empty state before anyone answered"
+        assert TOO_FEW_WORDS[1] in insights["empty"], insights["empty"]
         assert TOO_FEW_WORDS[2] in board["tiles"]["price"]["text"], board["tiles"]["price"]
         # keel-web 077 call 8: a left-out card reads its served line, not *nobody has answered this yet*
         asked = [r.get("text") for r in board["panels"]["COMMERCIAL"]["rows"] if r.get("status") != "LEFT_OUT"]

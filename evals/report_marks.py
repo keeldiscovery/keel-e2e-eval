@@ -259,10 +259,15 @@ def failing_dimensions(standings: dict) -> list[str]:
 
 
 def thin(standings: dict) -> bool:
-    """The *Nothing to read into yet* state, keel-web 077's `insightsStateOf` (design §4.2's rule): no box, and a card
-    TOO_FEW_TO_CALL. A project nobody has answered (every card not asked) reads *Nothing is failing* -- the design's
-    *otherwise* -- whose line says every dimension holds on 10 or more people (spec 052 call 4, DRIFT #93)."""
+    """The *Nothing to read into yet* state, keel-web 079's `insightsStateOf` (design §4.2's rule, DRIFT #93 closed):
+    no box, and the verdict KEEP_INTERVIEWING, or nobody has answered (`pilot.finished` 0), or a card TOO_FEW_TO_CALL.
+    *Nothing is failing* -- whose line says every dimension holds on 10 or more people -- only on a called verdict
+    with no box (spec 052 call 4, back to the design's rule by the amendment of 2026-10-17 (b))."""
     facts = standings.get("facts") or {}
+    if (facts.get("decision") or {}).get("label") == "KEEP_INTERVIEWING":
+        return True
+    if int((facts.get("pilot") or {}).get("finished") or 0) == 0:
+        return True
     return any(c.get("status") == "TOO_FEW_TO_CALL" for c in facts.get("cards") or [])
 
 

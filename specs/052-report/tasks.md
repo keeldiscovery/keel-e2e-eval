@@ -254,3 +254,28 @@ listed under *The journey pass's fixes*; this run is the first after the last of
   Natarajan's: *… fixed the sheet. yes*), the transcript appended to what she typed -- 051's walk, not this spec's.
 - **D-08:** S-014 is in no matrix cell yet (`matrix/cells.toml` carries s005 / s006 / s007 / s013 on the macOS Claude
   cell); adding it is a cost call (20 walks) for the coordinator once it is green.
+
+## Amendment 2026-10-17 (b): call 4 back to the design's rule
+
+- **What.** `report_marks.thin` predicts keel-web 079's `insightsStateOf` exactly: *Nothing to read into yet* + its count
+  line (`fake.nothing_to_read_line(pilot.finished)`) when the verdict is KEEP_INTERVIEWING, or `pilot.finished` is 0,
+  or any card is TOO_FEW_TO_CALL; *Nothing is failing* + *Every dimension holds on 10 or more people ...* only on a
+  called verdict with no box. `corpus_scenario._too_few` (the read before anyone answered) now also asserts *Nothing to
+  read into yet* in the view; `_too_few_answered` (after the fourth) is unchanged in what it predicts. Words are
+  compared in order (`ov.in_order`), so the page's h2 + line with no space between them (*... yet0 people have
+  answered ...*) reads the same as the spaced form.
+- **Why.** keel-web 079 FR-3 (master `42b71d7`) closed DRIFT #93 by moving the product to the design's rule (§4.2), while
+  the journey pass (T009) had re-decided call 4 to 077's rule; the eval predicted *Nothing is failing* at zero answers.
+- **Seen in** the remote journeys on staging (keel-cloud-docs `7e64f20` + keel-web `42b71d7`, 2026-10-17 ~22:42Z (18:42 local)):
+  `runs/20261017T224157Z-s005-countly` and `runs/20261017T224348Z-s006-paidly` failed at *the report before anyone
+  answered* with `{"empty state": "Nothing to read into yet0 people have answered…", "want": ["Nothing is failing", …]}`.
+- **Unit.** `tests/test_report_marks.py`: the zero-answer standings are thin, *Nothing to read into yet* (spaced or as
+  the page joins it) has no fault and *Nothing is failing* there is one; Keep interviewing with 17 answered and BUILD
+  with 0 answered are each the too-few state, with *Nothing is failing* seeded as a `report_insights` fault.
+- **The same run's other two, not the eval's** (no timeout raised): S-007 (`runs/20261017T224546Z-s007-mulchrun`)
+  waited 60 s for `.understands` with the page on *Keel is reading your four answers. 58 s* -- the step takes 4.7-5.0 s
+  on every remote S-005 / S-006 / S-007 / S-014 bundle since 2026-10-14 (and 4.7 s on S-005 / S-006 of this run), so the
+  CONTEXT_INTERPRET job stalled rather than ran slow; S-014 (`runs/20261017T224727Z-s014-green`) died before its first
+  step on a TLS handshake timeout, and the S-007 runtime's goodbye at the same minute failed with the same
+  `_ssl.c:983` (`keel-connect-check.launch.log`) -- a short network blip to eval.keeldiscovery.com. Re-run them.
+- `make unit`: **2,541 passed / 53 skipped** (unchanged counts: the new holds are asserts in existing tests).

@@ -269,8 +269,15 @@ def test_the_overview_of_too_few_is_keep_interviewing_not_asked_and_nobody_yet()
     assert drawn["tiles"]["pilot"] == [ov.PILOT_TILE_LABEL, ov.PILOT_NONE_YET, ov.PILOT_FILLS]
     assert all(r["parts"][2] == ov.NOBODY_YET for v in ov.VECTORS for r in drawn["panels"][v]["rows"])
     st = {"facts": facts, "vectors": [], "insights": [], "priceMedian": None}
-    assert not rm.thin(st) and rm.failing_dimensions(st) == [], \
-        "keel-web 077: nobody answered is *Nothing is failing* (no card too few); spec 052 call 4, DRIFT #93"
+    assert rm.thin(st) and rm.failing_dimensions(st) == [], \
+        "keel-web 079: nobody answered is *Nothing to read into yet*; spec 052 call 4, DRIFT #93 closed"
+    too_few = {"boxes": [], "empty": _join(fake.NOTHING_TO_READ_YET, fake.nothing_to_read_line(0))}
+    assert rm.insight_faults(st, too_few, strict=True, names={}) == []
+    as_read = {"boxes": [], "empty": fake.NOTHING_TO_READ_YET + fake.nothing_to_read_line(0)}   # h2 + line, no space
+    assert rm.insight_faults(st, as_read, strict=True, names={}) == [], "the page's own join (staging 2026-10-17)"
+    green = {"boxes": [], "empty": _join(fake.NOTHING_FAILING, fake.NOTHING_FAILING_LINE)}
+    assert rm.insight_faults(st, green, strict=True, names={}), \
+        "*Nothing is failing* at zero answers is the fault (DRIFT #93, keel-web 079)"
 
 
 def test_the_lead_lines_follow_the_stage_status():
@@ -385,6 +392,15 @@ def test_the_insights_empty_states_are_the_right_one_of_the_two():
     assert r["insights"]["empty"].startswith(fake.NOTHING_TO_READ_YET) and _card(r)["report_insights"].ok
     r["insights"]["empty"] = _join(fake.NOTHING_FAILING, fake.NOTHING_FAILING_LINE)
     assert not _card(r)["report_insights"].ok, "a card too few to call is the too-few state, not Nothing is failing"
+    for label, finished in (("KEEP_INTERVIEWING", 17), ("BUILD", 0)):
+        st["facts"]["cards"][0]["status"] = "HOLDING_UP"
+        st["facts"]["decision"]["label"], st["facts"]["pilot"]["finished"] = label, finished
+        r = record(st)
+        assert r["insights"]["empty"] == _join(fake.NOTHING_TO_READ_YET, fake.nothing_to_read_line(finished)) and \
+            _card(r)["report_insights"].ok, (label, finished)
+        r["insights"]["empty"] = _join(fake.NOTHING_FAILING, fake.NOTHING_FAILING_LINE)
+        assert not _card(r)["report_insights"].ok, \
+            f"keel-web 079: {label} with {finished} answered is the too-few state, not Nothing is failing"
 
 
 def test_off_the_stack_the_themes_are_held_for_shape_only():

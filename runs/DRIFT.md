@@ -5452,7 +5452,18 @@ can be deleted. The journeys hold the served line exactly (held to keel-cloud's 
 `tests/test_follow_up_ladder.py`) and the design's phrase not at all. For the founder: which line is the participant's;
 for keel-cloud: serve the design's line (or amend §9 to the served one).
 
-## 93. Observation (keel-web 077, with the design beside it): on a project nobody has answered, the Insights view says *Every dimension holds on 10 or more people*; and the report's own words around the wire
+## 93. RESOLVED (keel-web `42b71d7`, spec 079 FR-3, 2026-10-17) -- was an observation (keel-web 077, with the design beside it): on a project nobody has answered, the Insights view says *Every dimension holds on 10 or more people*; and the report's own words around the wire
+
+**Resolved by keel-web 079** (`specs/079-small-fixes`, master `42b71d7`, on staging with keel-cloud-docs `7e64f20` on
+2026-10-17): `insightsStateOf` (`src/lib/report.ts`) draws *Nothing to read into yet* with its count line (*0 people have
+answered. A card needs 5 to say anything and 10 to be sure. ...*) whenever the verdict is KEEP_INTERVIEWING, or
+`pilot.finished` is 0, or any card is TOO_FEW_TO_CALL; *Nothing is failing* only on a called verdict with no box. The
+eval's spec 052 call 4 is back to that rule (`report_marks.thin`; spec 052 tasks.md *Amendment 2026-10-17 (b)*), so a
+page that says *Nothing is failing* before anyone answered is now a `report_insights` fault. Seen first as the eval's
+own stale prediction on the remote journeys of 2026-10-17 ~22:42Z (18:42 local) (`runs/20261017T224157Z-s005-countly`,
+`runs/20261017T224348Z-s006-paidly`, step *the report before anyone answered*). The report's own words listed in the
+second paragraph below stay as recorded (not faults). What follows is the observation as filed.
+
 
 Found by spec `052-report` on S-005 / S-006 / S-007 / S-014 (local stack, keel-cloud-docs `80d4259` (code `9a033fe`) +
 keel-web `b89bc32` + keel-runtime 0.8.0 bundled in keel-connect-skill `c677950`; runs `20261017T185504Z-s005-countly`,
