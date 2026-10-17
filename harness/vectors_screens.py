@@ -30,6 +30,7 @@ import re
 
 from playwright.sync_api import Page
 
+from harness import interviewer_screens as ivs
 from harness.browser import _BrowserStep, _safe_all_texts, _safe_text, _screen_text
 from harness.steps import Recorder
 
@@ -706,13 +707,28 @@ class Interview:
             self._keep()
             h.add_screenshot(self._b.screenshot("interview-intro"))
 
-    def walk(self, person, interview: dict, wire_answers: dict) -> dict:
+    def walk(self, person, interview: dict, wire_answers: dict, *, follow_up: str | None = None,
+             speak: str | None = None) -> dict:
         """Begin, the decision-maker's idea screen, the gate, every item and the reveal, *Send my
         answers*; returns the body the page POSTed, the done screen's heading and what every screen drew.
         `wire_answers` is `{itemId: ItemAnswer}` -- what this person answers, already re-expressed as the
-        wire takes it."""
+        wire takes it.
+
+        Spec 051 (keel-web 076, keel-cloud 103): *Send my answers* first posts the answers to `POST .../interview/
+        follow-up` (never after a gate No); a 200 opens the one follow-up (*One last thing*), where `follow_up` is
+        typed and *Continue* pressed -- `None` presses *Skip this one* -- and then the response goes; a 204 sends it at
+        once. `speak` drives the story's box (`SpeakOrTypeBox`, through `text_seam`): "quiet" or "done" -- the story
+        typed, then *Speak*, a sound, and the take ended by the 4 s quiet or by *Done* (T1 -> T4); "refused" -- *Speak*
+        on a refused microphone (T6), then typed. What the route answered, the screen drew and the box did is kept."""
         page = self.page
+        self.route: dict = {}
+        self.follow_up_seen: dict | None = None
+        self.speak_seen: dict | None = None
+        self._transcribe_responses: list = []
+        page.on("response", self._keep_transcribe)
         with self._b.step(f"{person.person} answers the interview, screen by screen") as h:
+            self.consent = {"heading": _first_text(page, "section.iv-consent h2"),
+                            "text": _first_text(page, "section.iv-consent p")}
             # Spec 044 call 150: wait for the answer's own response, not the request leaving the browser -- the last
             # decision-maker's done screen is not a heading of its own, so the walk returned while the POST was in
             # flight and the standings read the project before it landed (S-006, n 7 of 8, once).
@@ -724,17 +740,66 @@ class Interview:
                     self._idea()
                 gate = interview.get("gate")
                 if gate:
-                    self._gate(person, gate, interview.get("occasion"))
+                    self._gate(person, gate, interview.get("occasion"), speak=speak)
                 if gate is None or person.recency:
                     self._items(interview, wire_answers)
+                    self._follow_up(follow_up)
             body = answered.value.request.post_data_json
             status = answered.value.status
             page.get_by_role("heading", level=1).first.wait_for(state="visible", timeout=20_000)
             self._keep()
             heading = _safe_text(lambda: page.get_by_role("heading", level=1).first.inner_text())
             h.add_screenshot(self._b.screenshot(f"interview-done-{person.person.split()[0]}"))
+            page.remove_listener("response", self._keep_transcribe)
             return {"body": body, "status": status, "done": heading, "seen": list(self.seen),
-                    "screens": list(self.screens)}
+                    "screens": list(self.screens), "follow_up_route": self.route, "follow_up": self.follow_up_seen,
+                    "speak": self.speak_seen, "transcribed": self._transcribed(), "consent": self.consent}
+
+    def _keep_transcribe(self, response) -> None:
+        """Every `transcribe` the page sent (the box's recorded take): kept as the response, read after the walk (a
+        body read inside an event handler would wait on the handler itself)."""
+        if response.request.method == "POST" and response.url.split("?")[0].endswith("/interview/transcribe"):
+            self._transcribe_responses.append(response)
+
+    def _transcribed(self) -> list[dict]:
+        out = []
+        for response in self._transcribe_responses:
+            body = response.request.post_data_json or {}
+            got = _json_body(response)
+            out.append({"itemId": body.get("itemId"), "maxSeconds": body.get("maxSeconds"),
+                        "mimeType": body.get("mimeType"), "language": body.get("language"),
+                        "status": response.status, "text": got.get("text")})
+        return out
+
+    def _follow_up(self, line: str | None) -> None:
+        """Spec 051 FR-4 (keel-web 076 FR-3): the route's answer to the last item's *Send my answers* -- 200 opens *One
+        last thing* (the kicker, the cloud's question as `h1.iv-q`, the note, the box, *Continue* off while empty, *Skip
+        this one*), where `line` is typed and *Continue* pressed, or (no line) *Skip this one*; 204 sends at once."""
+        page = self.page
+        route = self.route
+        if route.get("status") != 200:
+            return
+        screen = page.get_by_test_id("iv-follow-up")
+        screen.wait_for(state="visible", timeout=20_000)
+        self._keep()
+        box = ivs.SpeakBox(page, "[data-testid=iv-follow-up]")
+        cont = _button(page, IV_CONTINUE)
+        drawn = {"kicker": _first_text(screen, ".iv-kicker"), "question": _first_text(screen, "h1.iv-q"),
+                 "note": _first_text(screen, ".iv-note"), "box": box.read(),
+                 "continue_enabled_empty": cont.is_enabled(),
+                 "skip": _tc(screen.get_by_test_id("iv-follow-up-skip")),
+                 "textarea_label": screen.locator("textarea").first.get_attribute("aria-label")}
+        self.screens.append({"screen": "follow_up", **{k: drawn[k] for k in ("kicker", "question", "note")}})
+        if line:
+            screen.locator("textarea").first.fill(line)
+            drawn["continue_enabled_typed"] = cont.is_enabled()
+            drawn["did"] = "typed"
+            drawn["typed"] = line
+            cont.click()
+        else:
+            drawn["did"] = "skipped"
+            screen.get_by_test_id("iv-follow-up-skip").click()
+        self.follow_up_seen = drawn
 
     def opt_in_to_pilot(self, interview: dict) -> None:
         label = ((interview.get("done") or {}).get("pilot") or {}).get("label")
@@ -758,7 +823,7 @@ class Interview:
                              "question": _first_text(page, "h1.iv-q")})
         _button(page, IV_CONTINUE).click()
 
-    def _gate(self, person, gate: dict, occasion: str | None) -> None:
+    def _gate(self, person, gate: dict, occasion: str | None, *, speak: str | None = None) -> None:
         page = self.page
         group = page.get_by_role("radiogroup", name=gate["question"], exact=True)
         group.wait_for(state="visible", timeout=20_000)
@@ -769,12 +834,68 @@ class Interview:
             chips = _safe_all_texts(page, ".iv-story .iv-chips button")
             if person.anchor_chip:
                 _button(page, gate_chip_word(occasion)).click()
+            elif person.story and speak:
+                self._speak_story(person.story, speak)
             elif person.story:
                 page.locator("textarea").first.fill(person.story)
         self.screens.append({"screen": "gate", "kicker": _first_text(page, ".iv-kicker"),
                              "question": _first_text(page, "h1.iv-q"), "chips": chips})
         _button(page, IV_CONTINUE).click()
 
+    def _speak_story(self, story: str, how: str) -> None:
+        """Spec 051 FR-5 (keel-web 076 FR-6..FR-8, design §6): the story's box, T1 -> T4 through the seam's recorder --
+        idle (nothing asked of the microphone yet), the story typed, *Speak* tapped (the microphone asked for now), the
+        listening card (the waveform, the clock, Cancel, Done; Continue off), a sound, then the take ended by the 4 s
+        quiet (`how` "quiet") or by *Done* ("done"); *Writing it down…* (the recorder's stop held so it can be read), and
+        the transcript appended with the caret at the end, *Heard you.*, the pill *Add more*. "refused": *Speak* on a
+        refused microphone -- typing only (T6) -- then the story typed."""
+        page = self.page
+        box = ivs.SpeakBox(page, "main")
+        out: dict = {"how": how}
+        cont = _button(page, IV_CONTINUE)
+        box.wait_state("idle")
+        out["t1"] = box.read()
+        out["before_pill"] = box.counts()
+        if how == "refused":
+            box.tap()
+            out["t6"] = box.wait_state("typing-only")
+            out["t6_pill"] = page.locator("main .sot [data-testid=iv-mic]").count()
+            out["after_pill"] = box.counts()
+            page.locator("main .sot textarea").first.fill(story)
+            out["value"] = box.read()["value"]
+            self.speak_seen = out
+            return
+        page.locator("main .sot textarea").first.fill(story)
+        out["typed"] = story
+        box.tap()
+        out["t2"] = box.wait_state("listening")
+        page.locator("main [data-testid=iv-listening] [data-testid=ai-mic-on]").first.wait_for(
+            state="attached", timeout=10_000)
+        out["t2"] = box.read()
+        # read three times across 600 ms: the screen's Continue goes off through the box's state (`onBoxState`)
+        out["continue_while_listening"] = []
+        for _ in range(3):
+            out["continue_while_listening"].append({"enabled": cont.is_enabled(),
+                                                    "disabled": cont.get_attribute("disabled"), "at": box.now()})
+            page.wait_for_timeout(200)
+        out["continue_enabled_listening"] = out["continue_while_listening"][-1]["enabled"]
+        out["after_pill"] = box.counts()
+        box.hold_stop()
+        out["sound_at"] = box.speak()
+        out["clock_speaking"] = box.read()["clock"]
+        if how == "done":
+            out["done_at"] = box.now()
+            box.done()
+        else:
+            out["quiet_at"] = box.quiet()
+        out["t3"] = box.wait_state("writing", timeout_s=15)
+        out["writing_at"] = box.now()
+        box.release_stop()
+        out["t4"] = box.wait_state("heard", timeout_s=20)
+        page.wait_for_timeout(150)                      # the caret is put after the words on the next render
+        out["t4"] = box.read()
+        out["counts"] = box.counts()
+        self.speak_seen = out
     def _items(self, interview: dict, wire_answers: dict) -> None:
         page = self.page
         parts = interview.get("parts") or []
@@ -789,7 +910,17 @@ class Interview:
                     self._answer(item, answer)
                 self.screens.append(self._item_screen(item))
                 last = p_index == len(parts) - 1 and i_index == len(items) - 1
-                _button(page, IV_SEND if last else IV_NEXT).click()
+                if last:
+                    # keel-web 076 FR-1: the last *Send my answers* posts the answers to the follow-up route first
+                    with page.expect_response(lambda r: r.request.method == "POST"
+                                              and r.url.split("?")[0].endswith("/interview/follow-up"),
+                                              timeout=30_000) as asked:
+                        _button(page, IV_SEND).click()
+                    self.route = {"status": asked.value.status, "body": _json_body(asked.value)
+                                  if asked.value.status == 200 else {},
+                                  "sent": asked.value.request.post_data_json}
+                else:
+                    _button(page, IV_NEXT).click()
             if interview.get("kind") == "FULL" and reveal and reveal.get("afterPart") == part.get("part") \
                     and p_index < len(parts) - 1:
                 _button(page, IV_CONTINUE).wait_for(state="visible", timeout=20_000)

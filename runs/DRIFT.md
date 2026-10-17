@@ -5432,3 +5432,22 @@ transcriber's case); the browser path reads the pilot locally and is unaffected 
 409 under this number and holds nothing on it; the step becomes a failing guard (transcript "yes", pilot 204) once the
 pilot ask is written down. For keel-cloud: let `transcribe` serve an answered AI link for the pilot ask (it stores
 nothing), or for keel-web: write the pilot ask down before the answers go (or send it with them).
+
+
+## 92. Observation (keel-cloud, the words of one line): the served consent line is not design §9's
+
+Found by spec `051-follow-up` on S-005 / S-006 / S-007 (local stack, keel-cloud-docs `4cda99a` + keel-web `c9ce17c`;
+runs `20261017T170418Z-s005-countly`, `...T170927Z-s006-paidly`, `...T171432Z-s007-mulchrun`, every step *the intro's
+consent says the name travels with the words*). The design of record (`report-and-follow-up-design-2026-10-17.md` §9,
+D17) gives the participant line as *"Your answers go to {founder}, with your name as they have it, and may be quoted to
+them in their report. Keel's AI reads them to prepare that report; it runs with an AI provider under Keel's account,
+and under that provider's terms your words are not used to train anything."* keel-cloud 103 serves
+`InterviewComposer.CONSENT_TEXT` instead -- *"Keel is storing what you say here and sharing it with the founder who
+invited you, with your name as they have it; they may quote your words in their report. There is no way to delete it
+once you send it."* -- and keel-web 076 draws it verbatim on every intro, text and AI (076 D-09 saw the same gap between
+the contract's description and the design). What D17 decided holds -- the name travels with the words, quotes may be
+used, *Nothing here asks for your name* is gone -- but the founder's line also told the participant who reads the words
+(Keel's AI, under a provider that does not train on them), and the served one does not; it says instead that nothing
+can be deleted. The journeys hold the served line exactly (held to keel-cloud's source by
+`tests/test_follow_up_ladder.py`) and the design's phrase not at all. For the founder: which line is the participant's;
+for keel-cloud: serve the design's line (or amend §9 to the served one).

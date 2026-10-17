@@ -11,12 +11,22 @@ never run here.
 Spec 050 (keel-cloud 101): the framing lines -- the opening says whose idea it is and the route, the problem and the
 idea passages close on *Take a moment* and the count -- restated from `PassageComposer` (cloud-docs `3a6b045`).
 
+Spec 051 (keel-cloud 103, contract 19, the interview side): **the ladder** -- the eight rungs of design §2 that carry
+the one follow-up, in registry order, copied from the registry's `follow_up` blocks (cloud-docs `4cda99a`) -- and
+`first_rung`, which walks a person's own picks up it the way `Ladder.rungOf` does. Since 103's amendment the server
+walks and composes (`POST .../interview/follow-up`); this copy is the **independent check** of that walk, not a mirror
+of the page (the page walks nothing). `fill` composes the question's text the way `FollowUpComposer` fills it, from
+the served labels and the founder's own words, so the walk can hold the route's `text` (and the screen's) to it. The
+FOLLOW_UP clip kind (one a rung a role's link walks: *One last thing.* and the rung's spoken wording) is unspoken --
+it plays only when the walk finds its rung.
+
 This module is machinery: it asserts nothing. `evals/interviewer_leg.py` and `evals/interviewer_marks.py` judge with it.
 """
 
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 # ------------------------------------------------------------------------------------- charge v9 (FR-F)
@@ -149,10 +159,12 @@ IS_THAT_RIGHT = "Is that right?"
 #: `ClipKind`, and the spoken order of one role's set (design §2.4; `ClipKind`'s own javadoc): the opening, then per
 #: part its passage and its items (an item's follow-up right after it), the pilot ask, thanks. DIDNT_CATCH and, since
 #: keel-cloud 099 (contract 18), IS_THAT_RIGHT have no place in the order; the composer writes them last.
+#: Spec 051 (keel-cloud 103): FOLLOW_UP, last in the enum; the composer writes a role's between PILOT and THANKS.
 KINDS = ("OPENING", "PROBLEM", "ITEM", "ITEM_MORE", "SOLUTION", "COMMERCIAL", "DIDNT_CATCH", "PILOT", "THANKS",
-         "IS_THAT_RIGHT")
-#: The clips said only when an answer asks for them -- never in the spoken order.
-UNSPOKEN = ("DIDNT_CATCH", "IS_THAT_RIGHT")
+         "IS_THAT_RIGHT", "FOLLOW_UP")
+#: The clips said only when an answer asks for them -- never in the spoken order (103: the follow-up, only when the
+#: walk finds its rung).
+UNSPOKEN = ("DIDNT_CATCH", "IS_THAT_RIGHT", "FOLLOW_UP")
 PASSAGES = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 #: Which passage introduces a part, by the part's vector (`InterviewPart.vector` on the wire, or its number).
 PASSAGE_OF_VECTOR = {"PROBLEM": "PROBLEM", "SOLUTION": "SOLUTION", "COMMERCIAL": "COMMERCIAL"}
@@ -188,6 +200,192 @@ def fake_seconds(script: str) -> float:
 
 
 # --------------------------------------------------------------------------------- reading a recording
+
+# ------------------------------------------------------------------------- the ladder (spec 051, keel-cloud 103)
+
+#: The registry's word for a rung whose against set is the founder's lock, read as `Compare` scores it (Price's
+#: `ordinal_band`, Buyer and payer's `first_supports`): `FollowUpBlock.LOCK_RULE`.
+LOCK_RULE = "lock_rule"
+#: The cloud-docs commit the copy below was taken from (`dimension-registry.yaml`'s `follow_up` blocks, registry
+#: decision 22, invariant 9; `tests/test_interviewer_marks.py` holds it to the registry export the stack runs).
+LADDER_SHA = "4cda99a"
+#: Design §2, as the registry carries it: `(dimension, against, text template, spoken wording)`, in interview order.
+#: Importance's `against` names its one escape that counts against; the rung's own rule is the founder's item absent
+#: from the two picks. The two lock-rule rungs carry the word, not a list.
+LADDER: tuple[tuple[str, tuple[str, ...] | str, str, str], ...] = (
+    ("problem.importance", ("none_of_these",),
+     "You picked {their_picks} over {founder_item}. What makes those more pressing?",
+     "You put other difficulties ahead of this one. What makes those more pressing?"),
+    ("problem.current_solution_satisfaction", ("outcome_1", "outcome_2"),
+     "You said {their_answer}. What do you do today that makes it work?",
+     "You said today's way works for you. What do you do that makes it work?"),
+    ("solution.compatibility", ("only_with_help", "no"),
+     "You said {condition} would {would}. What gets in the way?",
+     "You said that step would be hard in your setup. What gets in the way?"),
+    ("solution.relative_advantage", ("neutral", "negative"),
+     "You said {benefit} would have made no difference to your last {occasion}. What would have?",
+     "You said it would not have made much difference. What would have?"),
+    ("solution.adoption_friction", ("probably_not", "no"),
+     "You said you probably would not {effort}. What makes it too much?",
+     "You said that would be too much to do. What makes it too much?"),
+    ("commercial.price", LOCK_RULE,
+     "You put it at {band}. What would make it worth more?",
+     "You put it below what we asked. What would make it worth more?"),
+    ("commercial.buyer_payer_alignment", LOCK_RULE,
+     "Who had to agree, and what did they need to see?",
+     "Who had to agree, and what did they need to see?"),
+    ("commercial.commitment", ("yes_after_trying", "probably_not", "no"),
+     "What would you start with instead?",
+     "What would you start with instead?"),
+)
+RUNGS = tuple(r[0] for r in LADDER)
+#: Design §2's rungs with no question (a gate No ends the interview; a number has no why; derived; the reason itself).
+NO_FOLLOW_UP = ("problem.prevalence", "problem.frequency", "commercial.existing_sacrifice", "commercial.ability_to_pay",
+                "commercial.purchase_friction")
+#: `PassageComposer.ONE_LAST_THING`: the FOLLOW_UP clip opens on it; the screens' kicker is *One last thing*.
+ONE_LAST_THING = "One last thing."
+FOLLOW_UP_KICKER = "One last thing"
+#: Buyer and payer's fixed answers and the one that supports when "Nobody else" is tested (`Compare.BUYER_DECIDED_ALONE`)
+#: -- with a named role tested the registry's `supports` (`had_to_agree`).
+BUYER_ANSWERS = ("had_to_agree", "decided_alone", "someone_else_agreed", "someone_else_decided")
+BUYER_ALONE = "decided_alone"
+BUYER_SUPPORTS = ("had_to_agree",)
+#: `PriceLadder.POINTS` and its escape below every band.
+PRICE_POINTS = (1, 2, 5, 10, 20, 50, 100, 250, 500, 1_000, 2_500, 5_000, 10_000)
+WOULD_NOT_PAY = "would_not_pay"
+#: `FollowUpComposer.DEFAULTS` / `WOULD_NOT_PAY_BAND`: what a placeholder says when its words are missing.
+FILL_DEFAULTS = {"{their_picks}": "other difficulties", "{founder_item}": "this one",
+                 "{their_answer}": "today's way works", "{condition}": "that step", "{would}": "be hard",
+                 "{benefit}": "it", "{occasion}": "time", "{effort}": "do that", "{band}": "less than we asked"}
+WOULD_NOT_PAY_BAND = "nothing"
+
+
+def follow_up_script(spoken_words: str) -> str:
+    """`PassageComposer.followUp`: a rung's FOLLOW_UP clip says *One last thing.* and its one spoken wording."""
+    return f"{ONE_LAST_THING} {spoken_words.strip()}"
+
+
+def rung(dimension: str) -> tuple | None:
+    return next((r for r in LADDER if r[0] == dimension), None)
+
+
+@dataclass(frozen=True)
+class Founder:
+    """What the walk reads off the founder's side (keel-cloud `Ladder.Founder`): Importance's own item's code (`own`,
+    the saved list's item 0; None when Importance was left out), the price's low (None: no price), and Buyer and
+    payer's supporting codes as `Compare.supportingCodes` reads the tested item (None: not calibrated)."""
+    importance_item: str | None = "own"
+    price_low: float | None = None
+    buyer_supports: tuple[str, ...] | None = None
+
+
+def _founder_floor(low: float) -> float:
+    for point in reversed(PRICE_POINTS[:-1]):
+        if low >= point:
+            return point
+    return PRICE_POINTS[0]
+
+
+def price_floor(code: str | None) -> float | None:
+    """`PriceLadder.floorOf`: 0 for "under", the low for a band or "over", None otherwise (`would_not_pay`)."""
+    parts = (code or "").split("_")
+    if parts[0] == "under":
+        return 0.0
+    if parts[0] in ("band", "over") and len(parts) > 1:
+        try:
+            return float(parts[1])
+        except ValueError:
+            return None
+    return None
+
+
+def _value(pick) -> dict:
+    """A pick's `{dimension, codes, chip}`, from a `harness.vectors_script.Pick` or a plain dict."""
+    if isinstance(pick, dict):
+        return {"dimension": pick.get("dimension"), "codes": list(pick.get("codes") or []), "chip": pick.get("chip")}
+    return {"dimension": pick.dimension, "codes": list(pick.codes or []), "chip": pick.chip}
+
+
+def against(dimension: str, pick, founder: Founder) -> bool:
+    """`Ladder.against`: whether one stored answer is against the founder on `dimension`'s rung. An escape is apart
+    but for the one the rung names (Importance's *None of these*); a lock-rule rung reads the founder's lock; a rung held
+    to a founder's answer the lock does not have (Importance left out, no price) is never found."""
+    entry = rung(dimension)
+    if entry is None:
+        return False
+    _, codes_against, _, _ = entry
+    v = _value(pick)
+    if dimension == "problem.importance" and founder.importance_item is None:
+        return False
+    if dimension == "commercial.price" and founder.price_low is None:
+        return False
+    if v["chip"]:
+        return codes_against != LOCK_RULE and str(v["chip"]).lower() in codes_against
+    codes = v["codes"]
+    if codes_against == LOCK_RULE:
+        if len(codes) != 1:
+            return False
+        if dimension == "commercial.price":
+            floor = price_floor(codes[0])
+            return not (floor is not None and floor >= _founder_floor(float(founder.price_low)))
+        supports = founder.buyer_supports
+        return supports is not None and codes[0] in BUYER_ANSWERS and codes[0] not in supports
+    if dimension == "problem.importance":
+        return bool(codes) and founder.importance_item not in codes
+    return bool(codes) and codes[0] in codes_against
+
+
+def walks(link: str, b2b: bool) -> tuple[str, ...]:
+    """`Ladder.walks(link, b2b)`: the decision-maker's link walks the three commercial rungs, a B2B study's primary
+    link the five of parts 1 and 2, a B2C study's primary link all eight."""
+    if link == "COMMERCIAL_B2B":
+        return tuple(r for r in RUNGS if r.startswith("commercial."))
+    if b2b:
+        return tuple(r for r in RUNGS if not r.startswith("commercial."))
+    return RUNGS
+
+
+def first_rung(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False,
+               served: set[str] | None = None) -> str | None:
+    """The first rung, in ladder order, whose own answer is against the founder -- or None (nothing owed). Only the
+    rungs the link walks and, when given, the dimensions its interview serves are read."""
+    by_dimension = {_value(p)["dimension"]: p for p in picks}
+    for dimension in walks(link, b2b):
+        if served is not None and dimension not in served:
+            continue
+        pick = by_dimension.get(dimension)
+        if pick is not None and against(dimension, pick, founder):
+            return dimension
+    return None
+
+
+def lower(label: str | None) -> str | None:
+    """`BeliefSentence.lower`: a label as it reads mid-sentence -- the first letter lower-cased, unless the second is a
+    capital (an acronym)."""
+    if label is None:
+        return None
+    label = label.strip()
+    if not label or (len(label) > 1 and label[1].isupper()):
+        return label
+    return label[0].lower() + label[1:]
+
+
+def joined(labels: list[str | None], word: str) -> str | None:
+    """`FollowUpComposer.joined`: "a", "a and b", "a, b and c", each lower-cased."""
+    kept = [lower(x) for x in labels if x and x.strip()]
+    if not kept:
+        return None
+    return kept[0] if len(kept) == 1 else ", ".join(kept[:-1]) + f" {word} " + kept[-1]
+
+
+def fill(dimension: str, values: dict[str, str | None]) -> str:
+    """`FollowUpComposer.fill`: the rung's text with each placeholder replaced, a missing value its plain default."""
+    text = rung(dimension)[2]
+    for placeholder in re.findall(r"\{[a-z_]+\}", text):
+        value = values.get(placeholder)
+        text = text.replace(placeholder, value if value and value.strip() else FILL_DEFAULTS[placeholder])
+    return text
+
 
 def role_sets(recording: dict) -> dict[str, list[dict]]:
     """A stored recording's clips (document 22 `ClipDocument`), by role, in the order the composer wrote them."""

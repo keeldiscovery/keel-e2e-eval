@@ -398,7 +398,14 @@ screen and no corpus item; its `classify-answer.md` is guarded here, not by the 
 nothing lit while they speak, the utterance read after a quiet gap (the walk encodes no length: 1.5 s at 073, 4.0 s
 from 074); the cases copy carries 100's 18 `readaloud` cases (170); one question read aloud, then answered (IM19); a
 pick-two by taps and *Save and next* (IM20); the pilot's yes held and on by itself; `INTERVIEWER_MARKS_VERSION` 3,
-`MARKS_VERSION` 19 and corpus r11 unchanged; DRIFT #91 (the recorded pilot ask refused on an answered link). **Nothing generated is committed** -- the script, the
+`MARKS_VERSION` 19 and corpus r11 unchanged; DRIFT #91 (the recorded pilot ask refused on an answered link). **Since spec
+`051-follow-up` (2026-10-17) they run keel-cloud 103 (contract 19, the interview side, keel-cloud-docs `4cda99a`) and
+keel-web 076 (`c9ce17c`)**: the one follow-up on the first rung against -- the cloud walks and composes
+(`POST .../interview/follow-up`), the harness's `LADDER` copy and `first_rung` (`harness/interviewer_fake.py`, held to the
+registry export) are the independent check; every text walk meets it where owed; the story's box spoken (T1 -> T4) and
+refused (T6) through `text_seam`; the AI links' two windows by way of Back (S-005 pause then Save; S-006 recorded 4 s
+then silent to the seam's cap); the FOLLOW_UP clips and their backfill; the consent line with names; IM23-IM27,
+`INTERVIEWER_MARKS_VERSION` 5. **Nothing generated is committed** -- the script, the
 keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
 the end of every run.
 

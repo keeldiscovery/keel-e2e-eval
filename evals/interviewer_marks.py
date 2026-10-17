@@ -27,10 +27,13 @@ from harness import interviewer_fake as fake
 #: Save) born; IM14 reads the pilot ask's hold too (held with the ring, on by itself, *Finish* never pressed).
 #: v4 (spec 050, keel-cloud 101 / keel-web 074 + 075, contract 18 unchanged): IM21 (a beat after the passages) and IM22
 #: (the story's Save) born; IM15 reads the held yes (`data-phase` held, the ring, `data-unsure` "false").
-INTERVIEWER_MARKS_VERSION = 4
+#: v5 (spec 051, keel-cloud 103 / keel-web 076, contract 18 -> 19 on the interview side): IM23 (asked on the first rung
+#: against), IM24 (skipped honoured), IM25 (two minutes, four seconds), IM26 (speak or type) and IM27 (the follow-up
+#: clips) born; IM3 and IM6 read FOLLOW_UP as unspoken (it plays only when the walk finds its rung).
+INTERVIEWER_MARKS_VERSION = 5
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
-READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe)$")
+READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
 #: keel-web 072 FR-9's status words, restated where the marks read them (harness/interviewer_screens.py keeps the page's).
 HELD = "Got it. Moving on… say no to change"
 IS_THAT_RIGHT = "Is that right? Say yes, or tell me the right one"
@@ -47,6 +50,19 @@ BEAT_PILL = "pause"
 BEAT_SHARE = 0.9
 #: keel-web 074's gap (`QUIET_MS`, 4.0 s): a Save that reads the story at once is held well inside it.
 GAP_MS = 4_000
+
+#: keel-web 076 / keel-cloud 103's words and numbers, restated where the marks read them.
+FOLLOW_UP_KICKER = "One last thing"
+LAST_QUESTION = "Last question"
+SILENCE_MS = 4_000
+WINDOW_TOLERANCE_MS = 500
+FOLLOW_UP_CAP_MS = 120_000
+STORY_CAP = "1:00"
+SPEAK = "Speak"
+ADD_MORE = "Add more"
+HEARD_YOU = "Heard you. Fix anything that’s wrong."
+MIC_OFF_TYPING = "The microphone is off, so it’s typing on this one."
+WRITING_DOWN = "Writing it down…"
 
 #: A price word on a screen that must carry none (decision 1: "no price shown").
 PRICE_WORD = re.compile(r"\bcredits?\b|[$£€]\s?\d|\bprice[sd]?\b|\bcosts?\b|\bpaid\b|\bcharge[sd]?\b", re.I)
@@ -489,6 +505,182 @@ def the_storys_save(r: dict) -> tuple[bool, Any]:
         "held": {k: held.get(k) for k in ("status", "heard", "went_on")}}
 
 
+def _text_asked_right(t: dict) -> bool:
+    """One text walk's follow-up as IM23 holds it: the route 200 on the harness's rung with its text, the screen
+    showing that text under *One last thing*, the response naming that rung -- or, owed nothing, 204, no screen, no
+    `followUp`; and a walk that never reached the route (a gate No) asked nothing."""
+    owed, route, screen, sent = t.get("owed"), t.get("route") or {}, t.get("screen"), t.get("sent")
+    if not t.get("asked"):
+        return not route and not screen and sent is None
+    if not owed:
+        return route.get("status") == 204 and not screen and sent is None
+    body = route.get("body") or {}
+    return (route.get("status") == 200 and body.get("dimension") == owed.get("dimension")
+            and body.get("text") == owed.get("text") and bool(screen) and screen.get("question") == body.get("text")
+            and screen.get("kicker") == FOLLOW_UP_KICKER and (sent or {}).get("dimension") == owed.get("dimension"))
+
+
+def _ai_asked_right(ai: dict) -> bool:
+    """The AI link's follow-up as IM23 holds it: every ask of the route on the harness's rung with its text and the
+    rung's clip, every window opened on that clip with that text (`followUp` step), the response naming the rung."""
+    owed = ai.get("owed") or {}
+    want_clip = ((ai.get("clips") or {}).get(owed.get("dimension")) or {}).get("clipId")
+    routes = [a for a in ai.get("asked") or [] if a.get("route") == "follow-up"]
+    windows = (ai.get("walk") or {}).get("windows") or []
+    return (bool(owed) and bool(want_clip) and bool(routes) and bool(windows)
+            and all(a.get("status") == 200 and (a.get("body") or {}).get("dimension") == owed.get("dimension")
+                    and (a.get("body") or {}).get("text") == owed.get("text")
+                    and ((a.get("body") or {}).get("clip") or {}).get("clipId") == want_clip for a in routes)
+            and all(w.get("clip") == want_clip and w.get("question") == owed.get("text") and w.get("step") == "followUp"
+                    for w in windows)
+            and (ai.get("sent") or {}).get("dimension") == owed.get("dimension"))
+
+
+def asked_on_the_first_rung(r: dict) -> tuple[bool, Any]:
+    """IM23 (keel-cloud 103, design §2 / §5): the one follow-up is asked on exactly the first rung against -- the
+    harness's own walk (`first_rung`, the LADDER copy) -- on every text walk (the route, the screen, the response), on
+    the AI link (the route's rung and text, the rung's FOLLOW_UP clip into every window) and on Try it yourself's twin
+    where walked; none where nothing is owed, and none asked after a gate No."""
+    x = r["follow_up"]
+    text = x.get("text") or []
+    bad = [t.get("person") for t in text if not _text_asked_right(t)]
+    ai = x.get("ai")
+    tried = x.get("try")
+    try_ok = tried is None or ((tried.get("status") == 200 and (tried.get("body") or {}).get("dimension")
+                                == (tried.get("owed") or {}).get("dimension")
+                                and (tried.get("clear") or {}).get("status") == 204))
+    owed = [t for t in text if t.get("asked") and t.get("owed")]
+    clear = [t for t in text if t.get("asked") and not t.get("owed")]
+    ok = bool(owed) and bool(clear) and not bad and ai is not None and _ai_asked_right(ai) and try_ok
+    return ok, {"text walks": len(text), "owed": len(owed), "owed nothing": len(clear), "wrong": bad,
+                "rungs": sorted({t["owed"]["dimension"] for t in owed}),
+                "ai": None if ai is None else {"owed": (ai.get("owed") or {}).get("dimension"),
+                                               "ok": _ai_asked_right(ai), "sent": ai.get("sent")},
+                "try": tried and {"status": tried.get("status"), "clear": (tried.get("clear") or {}).get("status")}}
+
+
+def skipped_honoured(r: dict) -> tuple[bool, Any]:
+    """IM24 (keel-web 076, keel-cloud 103): a skip -- *Skip this one* pressed on a text link, or the AI interviewer's
+    window left silent to its cap -- posts `{dimension, skipped: true}` with no text, and the pilot ask follows (the AI
+    link: no didn't-catch, *Last question* next)."""
+    x = r["follow_up"]
+    pressed = [t for t in x.get("text") or [] if t.get("asked") and t.get("owed") and not t.get("line")]
+    good = [t for t in pressed if t.get("sent") == {"dimension": t["owed"]["dimension"], "skipped": True}
+            and (t.get("screen") or {}).get("did") == "skipped"]
+    silent = []
+    ai = x.get("ai") or {}
+    for w in (ai.get("walk") or {}).get("windows") or []:
+        if w.get("ended") == "cap":
+            silent.append({"ok": ai.get("sent") == {"dimension": (ai.get("owed") or {}).get("dimension"),
+                                                    "skipped": True}
+                           and w.get("didnt_catch_played") == 0 and w.get("next") == LAST_QUESTION, **w})
+    ok = bool(pressed or silent) and len(good) == len(pressed) and all(s["ok"] for s in silent)
+    return ok, {"pressed": [t.get("person") for t in pressed], "pressed and sent skipped": len(good),
+                "silent": [{k: s.get(k) for k in ("ok", "ran_ms", "cap_ms", "didnt_catch_played", "next")}
+                           for s in silent], "ai sent": ai.get("sent")}
+
+
+def _window_ok(w: dict) -> bool:
+    if w.get("path") == "recorded" and w.get("ended") == "quiet":
+        heard = w.get("transcribed") or []
+        return (w.get("quiet_to_stop_ms") is not None
+                and abs(w["quiet_to_stop_ms"] - SILENCE_MS) <= WINDOW_TOLERANCE_MS
+                and len(heard) == 1 and (heard[0].get("sent") or {}).get("maxSeconds") == 120
+                and heard[0].get("status") == 200)
+    if w.get("path") == "recorded" and w.get("ended") == "cap":
+        return (w.get("ran_ms") is not None and w.get("cap_ms") is not None and w["cap_ms"] <= FOLLOW_UP_CAP_MS
+                and 0.95 * w["cap_ms"] <= w["ran_ms"] <= w["cap_ms"] + 2_000)
+    if w.get("path") == "browser" and w.get("ended") == "wait":
+        return (not w.get("pressed") and not w.get("presses") and w.get("final_to_held_ms") is not None
+                and w["final_to_held_ms"] >= 0.9 * GAP_MS)
+    if w.get("path") == "browser" and w.get("ended") == "save":
+        return (w.get("pressed") is True and w.get("final_to_held_ms") is not None and w["final_to_held_ms"] < GAP_MS
+                and [p.get("testid") for p in w.get("presses") or []] == ["ai-save"])
+    return False
+
+
+def two_minutes_four_seconds(r: dict) -> tuple[bool, Any]:
+    """IM25 (design §5.3, D15): the recorded follow-up window ends 4,000 +/- 500 ms after the last sound and is written
+    down in its two-minute window (`maxSeconds` 120), or -- nothing said -- runs to its cap (shortened through the
+    seam, never past the page's 120 s, which keel-web's source holds); the browser path's ends on the pause (nothing
+    pressed, after the 4 s gap) or on *Save and next* (at once), as the story's does (IM22's measure)."""
+    x = r["follow_up_windows"]
+    windows = x.get("windows") or []
+    kinds = {(w.get("path"), w.get("ended")) for w in windows}
+    off = [w for w in windows if not _window_ok(w)]
+    full = x.get("full") is True
+    ok = (bool(windows) and not off and x.get("page_cap_ms") == FOLLOW_UP_CAP_MS
+          and (not full or {("recorded", "quiet"), ("recorded", "cap")} <= kinds))
+    return ok, {"windows": [{k: w.get(k) for k in ("path", "ended", "quiet_to_stop_ms", "ran_ms", "cap_ms",
+                                                   "final_to_held_ms", "pressed")} for w in windows],
+                "off": [w.get("ended") for w in off], "page cap": x.get("page_cap_ms"), "full": full}
+
+
+def _take_ok(v: dict) -> bool:
+    t1, t2, t3, t4 = (v.get(k) or {} for k in ("t1", "t2", "t3", "t4"))
+    before, after = v.get("before_pill") or {}, v.get("after_pill") or {}
+    heard = v.get("transcribed") or []
+    ended = (v.get("how") == "done") or (v.get("quiet_to_stop_ms") is not None
+                                         and abs(v["quiet_to_stop_ms"] - SILENCE_MS) <= WINDOW_TOLERANCE_MS)
+    return (t1.get("state") == "idle" and t1.get("pill") == SPEAK and before.get("acquired") == 0
+            and not before.get("starts") and after.get("acquired") == 1
+            and t2.get("state") == "listening" and t2.get("card") and t2.get("wave")
+            and (t2.get("clock") or "").endswith(f"up to {STORY_CAP}") and v.get("continue_enabled_listening") is False
+            and t3.get("state") == "writing" and t3.get("writing") == WRITING_DOWN
+            and len(heard) == 1 and heard[0].get("maxSeconds") == 60 and heard[0].get("status") == 200
+            and bool(v.get("appended")) and t4.get("state") == "heard" and t4.get("value") == v.get("want")
+            and t4.get("caret") == len(v.get("want") or "") and t4.get("footer") == HEARD_YOU
+            and t4.get("pill") == ADD_MORE and v.get("sent") == v.get("want") and ended)
+
+
+def _refused_ok(v: dict) -> bool:
+    t6, before, after = v.get("t6") or {}, v.get("before_pill") or {}, v.get("after_pill") or {}
+    return (before.get("acquired") == 0 and after.get("acquired") == 1 and not after.get("starts")
+            and t6.get("state") == "typing-only" and t6.get("footer") == MIC_OFF_TYPING and v.get("pill_after") == 0)
+
+
+def speak_or_type(r: dict) -> tuple[bool, Any]:
+    """IM26 (keel-web 076 FR-6..FR-8, design §6): on a text link the story's box goes T1 -> T4 -- idle with *Speak* and
+    nothing asked of the microphone, listening on the tap (the card, the waveform, the clock to 1:00, Continue off),
+    *Writing it down…*, then the transcript **appended** to what was typed with the caret at the end, *Heard you.* and
+    *Add more* -- `transcribe` with `maxSeconds` 60, the take ended by the 4 s quiet or by Done; the POSTed story is the
+    box's; and T6 once: a refused microphone leaves typing only, said once."""
+    x = r["speak"]
+    takes = [v for v in x.values() if v.get("how") in ("quiet", "done")]
+    refused = [v for v in x.values() if v.get("how") == "refused"]
+    ok = bool(takes) and bool(refused) and all(_take_ok(v) for v in takes) and all(_refused_ok(v) for v in refused)
+    return ok, {"takes": {v.get("person"): {"how": v.get("how"), "ok": _take_ok(v), "appended": v.get("appended"),
+                                             "quiet_to_stop_ms": v.get("quiet_to_stop_ms")} for v in takes},
+                "refused": {v.get("person"): _refused_ok(v) for v in refused}}
+
+
+def the_follow_up_clips(r: dict) -> tuple[bool, Any]:
+    """IM27 (keel-cloud 103 FR-6): every role's recording holds one FOLLOW_UP clip per rung its link walks, each saying
+    *One last thing.* and the registry's spoken wording (the LADDER copy), DONE, served by rung -- never in the spoken
+    order -- and (the full leg) a recording without them gains them on the first read: one DONE clip per rung per
+    role in the same words, `{}` served before, READY throughout, no ledger row."""
+    x = r["follow_up_clips"]
+    roles = x.get("roles") or {}
+    bad = {}
+    for link, role in roles.items():
+        want = role.get("want") or []
+        clips = role.get("clips") or []
+        if not (want and [c.get("itemId") for c in clips] == want and role.get("served") == sorted(want)
+                and all(fake.rung(c.get("itemId")) and c.get("status") == "DONE"
+                        and c.get("script") == fake.follow_up_script(fake.rung(c["itemId"])[3]) for c in clips)):
+            bad[link] = role
+    back = x.get("backfill")
+    back_ok = back is None and not x.get("full") or (
+        back is not None and back.get("taken_out") == sum(len(r_.get("want") or []) for r_ in roles.values())
+        and all(v.get("ok") for v in (back.get("stored") or {}).values()) and bool(back.get("stored"))
+        and all(v == [] for v in (back.get("served_before") or {}).values())
+        and back.get("served_after") == back.get("want") and back.get("statuses") == ["READY"]
+        and back.get("ledger_rows_added") == 0)
+    ok = bool(roles) and not bad and "FOLLOW_UP" in fake.UNSPOKEN and back_ok
+    return ok, {"roles": {k: {"want": v.get("want"), "clips": len(v.get("clips") or [])} for k, v in roles.items()},
+                "off": bad, "backfill": back}
+
+
 #: (mark id, the record key it reads, the rule). Order is the leg's.
 MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("IM1", "ledger", one_recording_pair),
@@ -513,6 +705,11 @@ MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("IM20", "taps", taps_wait_for_save),
     ("IM21", "beat", a_beat_after_the_passages),
     ("IM22", "story", the_storys_save),
+    ("IM23", "follow_up", asked_on_the_first_rung),
+    ("IM24", "follow_up", skipped_honoured),
+    ("IM25", "follow_up_windows", two_minutes_four_seconds),
+    ("IM26", "speak", speak_or_type),
+    ("IM27", "follow_up_clips", the_follow_up_clips),
 ]
 
 

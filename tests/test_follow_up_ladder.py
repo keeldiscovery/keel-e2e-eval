@@ -1,0 +1,301 @@
+"""Spec 051 (keel-cloud 103, keel-web 076, contract 19's interview side): the harness's LADDER copy -- the independent
+check of the cloud's walk -- held to the registry export the stack runs; `first_rung` against a hand-worked table (one
+case a rung, the escape, the chip, the commercial link, the lock's rule, nothing owed); `fill` against
+`FollowUpComposer`'s own defaults and words; the fake's FOLLOW_UP lines; keel-web 076's words, caps and seam as the walk
+reads them; the corpus people's follow-up lines; the two new ledger reads refused on the remote profile."""
+
+from __future__ import annotations
+
+import json
+import re
+import uuid
+
+import pytest
+
+from harness import interviewer_fake as fake
+from harness import interviewer_screens as ivs
+from harness import vectors_script as vs
+from stack import ledger
+from stack.config import load_config
+
+CONFIG = load_config(validate=False)
+
+
+def _cloud(rel: str) -> str:
+    path = CONFIG.keel_cloud / rel
+    if not path.is_file():
+        pytest.skip(f"keel-cloud has no {rel}")
+    return path.read_text(encoding="utf-8")
+
+
+def _web(rel: str) -> str:
+    path = CONFIG.keel_web / rel
+    if not path.is_file():
+        pytest.skip(f"keel-web has no {rel}")
+    return path.read_text(encoding="utf-8")
+
+
+def _registry() -> dict:
+    text = _cloud("src/main/resources/keel/dimension-registry.json")
+    registry = json.loads(text)
+    if not any(e.get("follow_up") for e in registry["dimensions"]):
+        pytest.skip("keel-cloud predates spec 103 (no follow_up blocks)")
+    return registry
+
+
+# ------------------------------------------------------------------------------------- the copy, held
+
+def test_the_ladder_is_the_registrys_own():
+    """Every rung, in the registry's order (vector, then `order`), with its `against` set (or `lock_rule`), its text
+    and its spoken wording, exactly; the five without a block are NO_FOLLOW_UP."""
+    registry = _registry()
+    vectors = ("PROBLEM", "SOLUTION", "COMMERCIAL")
+    entries = sorted(registry["dimensions"], key=lambda e: (vectors.index(e["vector"]), e["order"]))
+    theirs = [(e["key"], e["follow_up"]["against"] if e["follow_up"]["against"] == fake.LOCK_RULE
+               else tuple(e["follow_up"]["against"]), e["follow_up"]["text"], e["follow_up"]["spoken"])
+              for e in entries if e.get("follow_up")]
+    assert list(fake.LADDER) == theirs
+    assert tuple(e["key"] for e in entries if not e.get("follow_up")) == fake.NO_FOLLOW_UP
+    checks = registry.get("checks", {}).get("9_follow_up") or {}
+    assert tuple(checks.get("rungs") or ()) == fake.RUNGS and tuple(checks.get("without") or ()) == fake.NO_FOLLOW_UP
+    assert sorted(checks.get("lock_rule") or ()) == sorted(r[0] for r in fake.LADDER if r[1] == fake.LOCK_RULE)
+
+
+def test_each_texts_placeholders_are_the_registrys_and_fill_knows_them():
+    for e in _registry()["dimensions"]:
+        block = e.get("follow_up")
+        if block:
+            assert re.findall(r"\{[a-z_]+\}", block["text"]) == block["placeholders"], e["key"]
+            assert all(p in fake.FILL_DEFAULTS for p in block["placeholders"]), e["key"]
+            assert not re.search(r"[{}]", block["spoken"]), e["key"]
+
+
+def test_the_composers_defaults_and_its_one_last_thing():
+    composer = _cloud("src/main/java/com/keeldiscovery/cloud/application/FollowUpComposer.java")
+    defaults = re.search(r"DEFAULTS = Map\.of\((.*?)\);", composer, re.S)
+    pairs = dict(re.findall(r'"(\{[a-z_]+\})",\s*"([^"]*)"', defaults.group(1) if defaults else ""))
+    assert pairs == fake.FILL_DEFAULTS
+    assert f'WOULD_NOT_PAY_BAND = "{fake.WOULD_NOT_PAY_BAND}"' in composer
+    passages = _cloud("src/main/java/com/keeldiscovery/cloud/application/interviewer/PassageComposer.java")
+    assert f'ONE_LAST_THING = "{fake.ONE_LAST_THING} "' in passages
+    price = _cloud("src/main/java/com/keeldiscovery/cloud/domain/vectors/PriceLadder.java")
+    points = re.search(r"POINTS = List\.of\(([^)]*)\)", price, re.S)
+    assert points and tuple(int(x.replace("_", "")) for x in re.findall(r"[\d_]+", points.group(1))) == \
+        fake.PRICE_POINTS
+    compare = _cloud("src/main/java/com/keeldiscovery/cloud/domain/vectors/Compare.java")
+    assert f'BUYER_DECIDED_ALONE = "{fake.BUYER_ALONE}"' in compare
+
+
+def test_the_buyer_answers_and_supports_are_the_registrys():
+    entry = next(e for e in _registry()["dimensions"] if e["key"] == "commercial.buyer_payer_alignment")
+    assert tuple(a["code"] for a in entry["respondent"]["fixed_answers"]) == fake.BUYER_ANSWERS
+    assert tuple(entry["respondent"]["supports"]) == fake.BUYER_SUPPORTS
+
+
+def test_the_consent_line_is_the_composers_own():
+    from evals.corpus_scenario import CONSENT_GONE, CONSENT_TEXT        # noqa: PLC0415
+
+    composer = _cloud("src/main/java/com/keeldiscovery/cloud/application/InterviewComposer.java")
+    m = re.search(r'CONSENT_TEXT = ((?:"[^"]*"\s*\+?\s*)+);', composer)
+    assert m and "".join(re.findall(r'"([^"]*)"', m.group(1))) == CONSENT_TEXT
+    assert CONSENT_GONE not in CONSENT_TEXT and "with your name as they have it" in CONSENT_TEXT
+
+
+# ------------------------------------------------------------------------------------- the walk, by hand
+
+NOBODY = fake.Founder(importance_item="own", price_low=30.0, buyer_supports=(fake.BUYER_ALONE,))
+NAMED = fake.Founder(importance_item="own", price_low=30.0, buyer_supports=fake.BUYER_SUPPORTS)
+
+
+def _p(dimension: str, *codes: str, chip: str | None = None) -> dict:
+    return {"dimension": dimension, "codes": list(codes), "chip": chip}
+
+
+#: Everything supporting the founder (a B2C link that answers all eight rungs, "Nobody else" tested, a £30 low).
+CLEAR = [_p("problem.importance", "rival_1", "own"), _p("problem.current_solution_satisfaction", "outcome_3"),
+         _p("solution.compatibility", "yes_easily"), _p("solution.relative_advantage", "positive"),
+         _p("solution.adoption_friction", "yes_if_worth_it"), _p("commercial.price", "band_20_50"),
+         _p("commercial.buyer_payer_alignment", "decided_alone"), _p("commercial.commitment", "yes_start")]
+
+
+def _with(*changed: dict) -> list[dict]:
+    by = {p["dimension"]: p for p in changed}
+    return [by.get(p["dimension"], p) for p in CLEAR]
+
+
+TABLE = [
+    ("nothing owed", CLEAR, NOBODY, "PRIMARY", False, None),
+    ("Importance: the own item not picked", _with(_p("problem.importance", "rival_1", "rival_2")), NOBODY, "PRIMARY",
+     False, "problem.importance"),
+    ("Importance: None of these, the escape that counts against",
+     _with(_p("problem.importance", chip="NONE_OF_THESE")), NOBODY, "PRIMARY", False, "problem.importance"),
+    ("Importance left out of the lock: no rung", _with(_p("problem.importance", "rival_1", "rival_2")),
+     fake.Founder(importance_item=None, price_low=30.0, buyer_supports=(fake.BUYER_ALONE,)), "PRIMARY", False, None),
+    ("Current solution: works well", _with(_p("problem.current_solution_satisfaction", "outcome_1")), NOBODY,
+     "PRIMARY", False, "problem.current_solution_satisfaction"),
+    ("Current solution: an escape is apart",
+     _with(_p("problem.current_solution_satisfaction", chip="SOMEONE_ELSE_CHECKS")), NOBODY, "PRIMARY", False, None),
+    ("Compatibility: only with help", _with(_p("solution.compatibility", "only_with_help")), NOBODY, "PRIMARY", False,
+     "solution.compatibility"),
+    ("Relative advantage: no difference", _with(_p("solution.relative_advantage", "neutral")), NOBODY, "PRIMARY",
+     False, "solution.relative_advantage"),
+    ("Adoption friction: probably not", _with(_p("solution.adoption_friction", "probably_not")), NOBODY, "PRIMARY",
+     False, "solution.adoption_friction"),
+    ("Price: a band below the founder's", _with(_p("commercial.price", "band_10_20")), NOBODY, "PRIMARY", False,
+     "commercial.price"),
+    ("Price: I wouldn't pay", _with(_p("commercial.price", "would_not_pay")), NOBODY, "PRIMARY", False,
+     "commercial.price"),
+    ("Price: the founder's band and above hold", _with(_p("commercial.price", "over_100")), NOBODY, "PRIMARY", False,
+     None),
+    ("Price: I can't say is apart", _with(_p("commercial.price", chip="CANT_SAY")), NOBODY, "PRIMARY", False, None),
+    ("Price: no price in the lock", _with(_p("commercial.price", "would_not_pay")),
+     fake.Founder(importance_item="own", price_low=None, buyer_supports=(fake.BUYER_ALONE,)), "PRIMARY", False, None),
+    ("Buyer and payer, Nobody else tested: had to agree", _with(_p("commercial.buyer_payer_alignment",
+                                                                   "had_to_agree")), NOBODY, "PRIMARY", False,
+     "commercial.buyer_payer_alignment"),
+    ("Buyer and payer, a role tested: had to agree supports", _with(_p("commercial.buyer_payer_alignment",
+                                                                       "had_to_agree")), NAMED, "PRIMARY", False, None),
+    ("Buyer and payer, a role tested: decided alone is against",
+     [_p("commercial.buyer_payer_alignment", "decided_alone")], NAMED, "COMMERCIAL_B2B", True,
+     "commercial.buyer_payer_alignment"),
+    ("Commitment: yes, after trying it first (asked too)", _with(_p("commercial.commitment", "yes_after_trying")),
+     NOBODY, "PRIMARY", False, "commercial.commitment"),
+    ("the first rung wins", _with(_p("solution.compatibility", "no"), _p("commercial.commitment", "no")), NOBODY,
+     "PRIMARY", False, "solution.compatibility"),
+    ("a B2B practitioner's link walks no commercial rung", _with(_p("commercial.commitment", "no")), NOBODY, "PRIMARY",
+     True, None),
+    ("the decision-maker's link walks the commercial rungs only",
+     [_p("problem.importance", "rival_1", "rival_2"), _p("commercial.price", "band_10_20")], NOBODY,
+     "COMMERCIAL_B2B", True, "commercial.price"),
+]
+
+
+@pytest.mark.parametrize("name,picks,founder,link,b2b,want", TABLE, ids=[t[0] for t in TABLE])
+def test_first_rung_by_hand(name, picks, founder, link, b2b, want):
+    assert fake.first_rung(picks, founder, link, b2b=b2b) == want
+
+
+def test_first_rung_reads_only_what_the_link_serves():
+    picks = _with(_p("problem.importance", "rival_1", "rival_2"), _p("commercial.commitment", "no"))
+    served = {p["dimension"] for p in CLEAR} - {"problem.importance"}
+    assert fake.first_rung(picks, NOBODY, served=served) == "commercial.commitment"
+
+
+def test_every_rung_is_a_case_of_the_table():
+    assert {t[5] for t in TABLE if t[5]} == set(fake.RUNGS)
+
+
+# ------------------------------------------------------------------------------------- the fill
+
+def test_fill_and_its_words():
+    assert fake.lower("Matching deliveries") == "matching deliveries" and fake.lower("POS tools") == "POS tools"
+    assert fake.joined(["A", "B"], "and") == "a and b" and fake.joined(["A", "B", "C"], "or") == "a, b or c"
+    assert fake.joined([None, " "], "and") is None
+    assert fake.fill("problem.importance", {"{their_picks}": "a and b", "{founder_item}": "c"}) == \
+        "You picked a and b over c. What makes those more pressing?"
+    assert fake.fill("problem.importance", {}) == ("You picked other difficulties over this one. What makes those "
+                                                   "more pressing?")
+    assert fake.fill("commercial.price", {"{band}": fake.WOULD_NOT_PAY_BAND}) == \
+        "You put it at nothing. What would make it worth more?"
+    assert fake.fill("commercial.commitment", {}) == "What would you start with instead?"
+    assert fake.price_floor("under_10") == 0 and fake.price_floor("band_20_50") == 20
+    assert fake.price_floor("over_100") == 100 and fake.price_floor("would_not_pay") is None
+
+
+def test_the_fakes_follow_up_lines():
+    assert fake.KINDS[-1] == "FOLLOW_UP" and "FOLLOW_UP" in fake.UNSPOKEN
+    assert fake.follow_up_script(fake.rung("problem.importance")[3]) == (
+        "One last thing. You put other difficulties ahead of this one. What makes those more pressing?")
+    assert fake.walks("COMMERCIAL_B2B", True) == ("commercial.price", "commercial.buyer_payer_alignment",
+                                                  "commercial.commitment")
+    assert len(fake.walks("PRIMARY", True)) == 5 and len(fake.walks("PRIMARY", False)) == 8
+    assert all(fake.fake_seconds(fake.follow_up_script(r[3])) >= 1.0 for r in fake.LADDER)
+
+
+# ------------------------------------------------------------------------------------- keel-web 076, restated
+
+@pytest.mark.parametrize("name", ["FOLLOW_UP_KICKER", "FOLLOW_UP_NOTE", "FOLLOW_UP_SKIP", "FOLLOW_UP_HINT",
+                                  "SPEAK_HINT_STORY", "SPEAK_OR_TYPE_PLACEHOLDER", "SPEAK_TYPE_PLACEHOLDER",
+                                  "SPEAK_LABEL", "SPEAK_ADD_MORE", "SPEAK_LISTENING", "SPEAK_LISTENING_NOTE",
+                                  "SPEAK_MIC_OFF"])
+def test_the_follow_up_and_box_words_are_keel_webs(name):
+    text = _web("src/lib/translate.ts")
+    m = re.search(rf"export const {name} = \"([^\"]*)\";", text)
+    assert m and m.group(1) == getattr(ivs, name), (name, m and m.group(1))
+
+
+def test_the_heard_line_and_the_caps_are_keel_webs():
+    text = _web("src/lib/translate.ts")
+    lead = re.search(r'SPEAK_HEARD_LEAD = "([^"]*)"', text).group(1)
+    rest = re.search(r'SPEAK_HEARD = "([^"]*)"', text).group(1)
+    assert f"{lead} {rest}" == ivs.SPEAK_HEARD
+    path = _web("src/lib/answerPath.ts")
+    assert re.search(r"SILENCE_MS = (\d[\d_]*);", path).group(1).replace("_", "") == str(ivs.SILENCE_MS)
+    assert re.search(r"FOLLOW_UP_RECORD_CAP_MS = (\d[\d_]*);", path).group(1).replace("_", "") == \
+        str(ivs.FOLLOW_UP_RECORD_CAP_MS)
+    assert ivs.FOLLOW_UP_SEAM_CAP_MS < ivs.FOLLOW_UP_RECORD_CAP_MS
+
+
+def test_the_seam_keys_the_walk_sets_are_keel_webs():
+    seam = _web("src/components/interview/ai/useSpeechRecognition.ts")
+    for key in ("followUpCapMs", "silenceMs", "storyCapMs", "recorder", "mic", "earcons"):
+        assert re.search(rf"\b{key}\?:", seam), key
+    text = ivs.text_seam(refused=True)
+    assert "Recognition: null" in text and "return !true" in text and "__micAcquired" in text
+    assert "return !false" in ivs.text_seam()
+    assert "followUpCapMs = 9000" in ivs.recorder_seam(follow_up_cap_ms=9000)
+    assert "followUpCapMs" not in ivs.recorder_seam()
+    box = _web("src/components/interview/SpeakOrTypeBox.tsx")
+    for testid in ("iv-mic", "iv-listening", "iv-mic-clock", "iv-mic-cancel", "iv-mic-done"):
+        assert f'data-testid="{testid}"' in box, testid
+    assert 'data-testid="iv-follow-up"' in _web("src/components/interview/FollowUpScreen.tsx")
+    assert 'data-testid="ai-skip"' in _web("src/components/interview/ai/Sheet.tsx")
+
+
+# ------------------------------------------------------------------------------------- the corpus people's lines
+
+@pytest.mark.parametrize("entry_id", ["01-countly", "05-paidly", "07-mulchrun"])
+def test_the_follow_up_lines(entry_id):
+    _, entry = vs.entry_for(CONFIG.keel_cloud, entry_id)
+    people = vs.person_inputs(entry)
+    founder = vs.founder_side(entry)
+    names = {w.lower() for p in people for w in p.person.split()}
+    rungs: dict[str, list] = {}
+    for p in people:
+        asked = p.link == vs.LINK_B2B or p.recency
+        rung = fake.first_rung(p.picks, founder, p.link, b2b=vs.is_b2b(entry)) if asked else None
+        if rung:
+            rungs.setdefault(rung, []).append(p)
+        if p.follow_up is not None:
+            assert rung and not re.search(r"\d", p.follow_up), (p.person, p.follow_up)
+            assert not ({w.strip(".,").lower() for w in p.follow_up.split()} & names), (p.person, p.follow_up)
+            assert p.follow_up.count(".") == 1 and p.follow_up.endswith("."), p.follow_up
+    assert rungs, entry_id
+    for rung, on in rungs.items():
+        assert any(p.follow_up for p in on), (entry_id, rung)          # someone on every failing rung types
+    assert any(p.recency and not fake.first_rung(p.picks, founder, p.link, b2b=vs.is_b2b(entry))
+               for p in people)                                         # someone is owed nothing
+    skippers = [p.person for p in people if p.follow_up is None and p.person in vs.FOLLOW_UP_SKIPS[entry_id]]
+    assert skippers == list(vs.FOLLOW_UP_SKIPS[entry_id])
+    spoken = vs.STORY_SPOKEN[entry_id]
+    assert all(next(p for p in people if p.person == who).story for who in spoken), spoken
+
+
+def test_the_founder_side_of_three_entries():
+    sides = {eid: vs.founder_side(vs.entry_for(CONFIG.keel_cloud, eid)[1])
+             for eid in ("01-countly", "05-paidly", "07-mulchrun")}
+    assert sides["01-countly"] == fake.Founder("own", 30.0, (fake.BUYER_ALONE,))
+    assert sides["07-mulchrun"].price_low is None                        # no price yet: no Price rung
+
+
+# ------------------------------------------------------------------------------------- the new reads
+
+class _Remote:
+    is_remote = True
+
+
+@pytest.mark.parametrize("call", [lambda c: ledger.stand_in_no_follow_ups(c, str(uuid.uuid4())),
+                                  lambda c: ledger.stored_follow_ups(c, str(uuid.uuid4()))])
+def test_the_follow_up_reads_are_never_reached_on_the_remote_profile(call):
+    with pytest.raises(ledger.LedgerUnavailable, match="remote"):
+        call(_Remote())

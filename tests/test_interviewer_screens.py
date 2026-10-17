@@ -132,7 +132,10 @@ def test_the_seam_ends_an_utterance_on_a_final_and_grants_the_mic():
     if "mic:" not in fixture:
         pytest.skip("keel-web's fixture predates spec 072")
     assert "if (final) setTimeout(" in ivs.SPEECH_SEAM and "onend" in ivs.SPEECH_SEAM
-    assert "mic: { acquire: async () => true" in ivs.SPEECH_SEAM and "acquire: async () => true" in fixture
+    assert "mic: { acquire: async () => true" in ivs.SPEECH_SEAM
+    # keel-web 076: the fixture's microphone counts its acquisitions and is granted unless a test refused it
+    # (`installRefusedMic`); before 076 it was granted outright
+    assert "acquire: async () => true" in fixture or "return !w.__micRefused" in fixture
     assert "classify" not in ivs.SPEECH_SEAM
 
 

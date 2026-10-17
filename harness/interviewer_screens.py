@@ -38,6 +38,13 @@ end it (`STORY`) and its *Save and next* reads it at once; a yes to *Is that rig
 each beat as it was drawn and the seam stamps every recogniser started, so the leg can say nothing listened in it;
 *Microphone off* (`ai-mic-off`) on the end screens once everything is released.
 
+Spec 051 (keel-web 076, contract 19): the one follow-up -- on the AI page the sheet's `data-step="followUp"`, the
+`ai-where` pill *One last thing*, the story's window, `ai-skip`; on the text page `SpeakOrTypeBox` (`.sot[data-state]`,
+the `iv-mic` pill, the listening card `iv-listening` with `ai-mic-on`, `iv-mic-clock`, `iv-mic-cancel`, `iv-mic-done`)
+driven through `text_seam` (a microphone that counts its acquisitions, refused on request, and a recorder whose level
+the walk sets) -- `SpeakBox` reads and drives it. `RECORDER_SEAM` adds the same recorder to the AI page's seam, so a
+browser that refuses its recogniser (`not-allowed`, Chrome on iPhone) records the window instead.
+
 Every write a press makes returns the response keel-web received, so the leg holds the wire the page was handed.
 """
 
@@ -108,6 +115,33 @@ MIC_OFF = "Microphone off"
 VETO = "no"
 SAY_YES = "yes"
 GO_BACK = "go back"
+#: keel-web 076 `translate.ts` (spec 051): the follow-up and the speak-or-type box, restated where the walks read them.
+FOLLOW_UP_KICKER = "One last thing"
+FOLLOW_UP_NOTE = "In your own words. A sentence or two is plenty."
+FOLLOW_UP_SKIP = "Skip this one"
+FOLLOW_UP_HINT = "The only extra question."
+SPEAK_HINT_STORY = "A few lines is plenty."
+SPEAK_OR_TYPE_PLACEHOLDER = "Type here, or tap the mic and just talk."
+SPEAK_TYPE_PLACEHOLDER = "Type here."
+SPEAK_LABEL = "Speak"
+SPEAK_ADD_MORE = "Add more"
+SPEAK_LISTENING = "Listening. Take your time."
+SPEAK_LISTENING_NOTE = "Pause for a few seconds when you’re done, or tap Done."
+SPEAK_HEARD = "Heard you. Fix anything that’s wrong."
+SPEAK_MIC_OFF = "The microphone is off, so it’s typing on this one."
+#: keel-web 076: the box's two caps as the clock says them (`clockOf(capMs)`): the story's minute, the follow-up's two.
+STORY_CAP = "1:00"
+FOLLOW_UP_CAP = "2:00"
+#: keel-web `answerPath.ts`: the recorded path's quiet after the last sound (`SILENCE_MS`, 4.0 s on every window since
+#: 074) and the follow-up's cap (`FOLLOW_UP_RECORD_CAP_MS`, two minutes) -- held to the source by a unit test.
+SILENCE_MS = 4_000
+FOLLOW_UP_RECORD_CAP_MS = 120_000
+#: Spec 051 judgement call 2: the AI follow-up's silent window is shortened through the seam (`followUpCapMs`); the
+#: real two minutes are held on the wire (`maxSeconds: 120`) and in keel-web's source.
+FOLLOW_UP_SEAM_CAP_MS = 9_000
+#: A level the recorder hears as a sound (`LEVEL_THRESHOLD` is 0.02) and how long the walk speaks for.
+SOUND = 0.3
+SPEAK_MS = 1_200
 
 
 def mic_heard(text: str) -> str:
@@ -268,6 +302,62 @@ SPEECH_SEAM = r"""
   }
 })();
 """
+
+
+#: Spec 051 (keel-web 076 FR-6..FR-8; its `installFakeRecorder` / `installRefusedMic`, restated): the recorder the walks
+#: drive and a microphone that counts its acquisitions. `__level(rms)` is what it hears from now on (ten times a second,
+#: as the real one); every start, stop and cancel is stamped (`performance.now()`) on `__recordStarts` /
+#: `__recordStops` / `__recordCancels`, every level set on `__levels`; `__holdStop()` makes the next stop wait for
+#: `__releaseStop()` (so *Writing it down…* can be read). The audio handed back is a few KiB of `audio/webm` -- under
+#: every window's size cap and over nothing the cloud checks, so the stack's fake transcriber writes it down.
+_RECORDER = r"""
+  const stamps = (name) => (window[name] = window[name] || []);
+  window.__levelNow = 0;
+  let ticker; let held = false; let waiting = null;
+  const recorder = {
+    start: async (onLevel) => {
+      stamps('__recordStarts').push(performance.now());
+      clearInterval(ticker);
+      ticker = setInterval(() => { if (onLevel) onLevel(window.__levelNow); }, 100);
+      return true;
+    },
+    stop: async () => {
+      clearInterval(ticker);
+      stamps('__recordStops').push(performance.now());
+      if (held) await new Promise((resolve) => { waiting = resolve; });
+      return { audio: btoa('a spoken answer '.repeat(256)), mimeType: 'audio/webm' };
+    },
+    cancel: () => { clearInterval(ticker); stamps('__recordCancels').push(performance.now()); },
+  };
+  window.__level = (rms) => { window.__levelNow = rms; stamps('__levels').push([performance.now(), rms]); };
+  window.__holdStop = () => { held = true; };
+  window.__releaseStop = () => { held = false; if (waiting) { const w = waiting; waiting = null; w(); } };
+"""
+
+
+def text_seam(*, refused: bool = False) -> str:
+    """The text page's seam (keel-web 076: the box reads `Recognition`, `recorder`, `mic`, `quietMs`, `silenceMs` and
+    the caps): no recogniser, so the box records; the microphone counted (`__micAcquired`, 0 until the pill is tapped)
+    and refused when `refused` (T6). The quiet and the caps are left at the page's defaults (4 s, 60 s, 120 s)."""
+    return ("(() => {" + _RECORDER + """
+  window.__micAcquired = 0; window.__micReleased = 0;
+  window.__keelSpeech = {
+    Recognition: null, recorder,
+    mic: { acquire: async () => { window.__micAcquired += 1; stamps('__micAcquiredAt').push(performance.now());
+                                  return !%s; },
+           level: () => window.__levelNow, release: () => { window.__micReleased += 1; } },
+    earcons: false,
+  };
+})();
+""" % ("true" if refused else "false"))
+
+
+def recorder_seam(*, follow_up_cap_ms: int | None = None) -> str:
+    """Spec 051 FR-6 / FR-7: the AI page's seam (`SPEECH_SEAM`, installed first) gains the recorder -- the page keeps
+    its recogniser until one refuses (`not-allowed`), then records every window (keel-web `listenFailed`) -- and,
+    when given, the follow-up's cap through the seam (`followUpCapMs`; the wire's `maxSeconds` stays 120)."""
+    cap = f"window.__keelSpeech.followUpCapMs = {int(follow_up_cap_ms)};" if follow_up_cap_ms else ""
+    return "(() => {" + _RECORDER + "  window.__keelSpeech.recorder = recorder;\n  " + cap + "\n})();\n"
 
 
 def _json(response) -> dict:
@@ -797,3 +887,82 @@ class Player:
 
     def step(self, name: str):
         return self._b.step(name)
+
+
+# ------------------------------------------------------------------------------------- speak or type (076)
+
+class SpeakBox:
+    """keel-web 076's `SpeakOrTypeBox` on a text page (the story's, or the follow-up's): `.sot[data-state]` around the
+    textarea and its footer (`.sot__bar`: the hint / the heard line / the mic-off line, and the `iv-mic` pill), the
+    listening card (`iv-listening`: `ai-mic-on`, `iv-mic-clock`, `iv-mic-cancel`, `iv-mic-done`) and the writing card
+    drawn over it. Driven through `text_seam`: `speak` sets the recorder's level to a sound, `quiet` back to nothing;
+    what the seam counted is `counts()`. Reads and acts; judges nothing."""
+
+    def __init__(self, page: Page, scope: str = "main"):
+        self.page = page
+        self.scope = scope
+
+    def _sot(self):
+        return self.page.locator(f"{self.scope} .sot").first
+
+    def now(self) -> float:
+        return float(self.page.evaluate("() => performance.now()"))
+
+    def read(self) -> dict:
+        """What the box draws now, read in one evaluate."""
+        return self.page.evaluate("""(scope) => {
+            const words = (el) => el ? (el.textContent || '').replace(/\\s+/g, ' ').trim() : null;
+            const sot = document.querySelector(scope + ' .sot');
+            if (!sot) return { state: null };
+            const text = sot.querySelector('textarea');
+            const card = sot.querySelector('[data-testid=iv-listening]');
+            const bar = sot.querySelector('.sot__bar');
+            const pill = sot.querySelector('[data-testid=iv-mic]');
+            const writing = sot.querySelector('.sot__writing');
+            return { state: sot.getAttribute('data-state'), placeholder: text ? text.getAttribute('placeholder') : null,
+                     value: text ? text.value : null, caret: text ? text.selectionStart : null,
+                     caretEnd: text ? text.selectionEnd : null, focused: !!text && document.activeElement === text,
+                     pill: words(pill), footer: bar ? words(bar.querySelector('span')) : null,
+                     card: !!card, cardWords: words(card), wave: !!(card && card.querySelector('[data-testid=ai-mic-on]')),
+                     clock: words(sot.querySelector('[data-testid=iv-mic-clock]')),
+                     cancel: !!sot.querySelector('[data-testid=iv-mic-cancel]'),
+                     done: !!sot.querySelector('[data-testid=iv-mic-done]'),
+                     writing: words(writing), note: words(sot.querySelector('.sot__note')) };
+        }""", self.scope)
+
+    def counts(self) -> dict:
+        """The seam's stamps: microphone acquisitions, recordings started / stopped / cancelled, levels set."""
+        return self.page.evaluate("""() => ({ acquired: window.__micAcquired || 0,
+            acquiredAt: (window.__micAcquiredAt || []).slice(), starts: (window.__recordStarts || []).slice(),
+            stops: (window.__recordStops || []).slice(), cancels: (window.__recordCancels || []).slice(),
+            levels: (window.__levels || []).slice(), released: window.__micReleased || 0 })""")
+
+    def wait_state(self, *states: str, timeout_s: float = 20) -> dict:
+        sel = ", ".join(f'{self.scope} .sot[data-state="{s}"]' for s in states)
+        self.page.locator(sel).first.wait_for(state="attached", timeout=timeout_s * 1000)
+        return self.read()
+
+    def tap(self) -> None:
+        self._sot().get_by_test_id("iv-mic").click()
+
+    def done(self) -> None:
+        self._sot().get_by_test_id("iv-mic-done").click()
+
+    def speak(self, ms: int = SPEAK_MS) -> float:
+        """The person talks for `ms`: the recorder hears a sound; returns when the sound began."""
+        at = self.now()
+        self.page.evaluate(f"() => window.__level({SOUND})")
+        self.page.wait_for_timeout(ms)
+        return at
+
+    def quiet(self) -> float:
+        """The person stops: the recorder hears nothing from now on; returns when."""
+        at = self.now()
+        self.page.evaluate("() => window.__level(0)")
+        return at
+
+    def hold_stop(self) -> None:
+        self.page.evaluate("() => window.__holdStop()")
+
+    def release_stop(self) -> None:
+        self.page.evaluate("() => window.__releaseStop()")

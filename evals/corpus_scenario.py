@@ -61,6 +61,7 @@ from evals import corpus_facts
 from evals import feedback_marks
 from evals.preludes import create_project, own_ai_door
 from harness import vectors_script as vs
+from harness import interviewer_screens as ivs
 from harness import interviews_screens as iv_screens
 from harness import vectors_screens as vs_screens
 from harness.browser import Auth, Connect, Landing
@@ -153,6 +154,10 @@ class Journey:
     founder_identity: Any = None
     #: Spec 046: the record `evals/feedback_marks.py` scores at the end of the journey (FM1-FM6).
     feedback: dict = field(default_factory=dict)
+    #: Spec 051: each text walk's follow-up (the harness's own rung, the route's answer, the screen, what was sent) and
+    #: the story's box where it was spoken -- the interviewer marks read them (IM23, IM24, IM26).
+    follow_ups: dict = field(default_factory=dict)
+    speak: dict = field(default_factory=dict)
 
     # --------------------------------------------------------------------------- the wire
 
@@ -1000,12 +1005,23 @@ def _answer_one(j: Journey, person, token: str) -> None:
         if unoffered:
             expected = _on_the_offered_options(expected, items)
         by_item = {a["itemId"]: a for a in expected.get("answers") or []}
+        # spec 051 FR-5: one person a scenario speaks the story through the box (the text page's seam), one under a
+        # refused microphone; everyone else's page runs with no seam at all
+        speak = vs.STORY_SPOKEN.get(j.entry.id, {}).get(person.person) if person.recency and person.story else None
+        if speak:
+            stranger.add_init_script(ivs.text_seam(refused=speak == "refused"))
+        owed = vs.follow_up_question(j.entry, person.picks, person.link, interview, token) \
+            if (person.link == vs.LINK_B2B or person.recency) else None
         page = stranger.new_page()
         screens = vs_screens.Interview(page, j.recorder)
         screens.open(j.links[person.person])
-        walked = screens.walk(person, interview, by_item)
+        walked = screens.walk(person, interview, by_item, follow_up=person.follow_up, speak=speak)
         j.walked[person.person] = walked
         _hold_the_screens(j, person, interview, walked)
+        _hold_the_consent(j, person, walked)
+        if speak:
+            expected = _hold_the_box(j, person, interview, walked, expected, speak)
+        _hold_the_follow_up(j, person, interview, walked, owed)
         with _step(j, f"{person.person}: the page sent exactly this person's answers",
                    party="participant") as h:
             sent = walked["body"] or {}
@@ -1017,6 +1033,155 @@ def _answer_one(j: Journey, person, token: str) -> None:
             screens.opt_in_to_pilot(interview)
     finally:
         stranger.close()
+
+
+#: keel-cloud 103 `InterviewComposer.CONSENT_TEXT` (D17, design §9): names travel with the words now. The served line,
+#: held to keel-cloud's source by `tests/test_interviewer_marks.py`.
+CONSENT_TEXT = ("Keel is storing what you say here and sharing it with the founder who invited you, with your name as "
+                "they have it; they may quote your words in their report. There is no way to delete it once you send it.")
+#: keel-web 069-075's door line, gone with keel-web 076 FR-5 (`CONSENT_PARTICIPANT_KEEL`).
+CONSENT_GONE = "Nothing here asks for your name"
+
+
+def _hold_the_consent(j: Journey, person, walked: dict) -> None:
+    """Spec 051 FR-9 (keel-cloud 103 FR-8, keel-web 076 FR-5), a plain assertion: the intro's consent block is the
+    served line -- the name as the founder has it, quotable in their report -- and the old door line is gone."""
+    with _step(j, f"{person.person}: the intro's consent says the name travels with the words and may be quoted "
+                  "(keel-cloud 103, D17); Nothing here asks for your name is gone", party="participant") as h:
+        drawn = (walked.get("consent") or {}).get("text") or ""
+        served = (j.interviews.get(person.person) or {}).get("consentText")
+        h.record_assert({"served": CONSENT_TEXT, "drawn": CONSENT_TEXT, "gone": CONSENT_GONE},
+                        {"served": served, "drawn": drawn})
+        assert served == CONSENT_TEXT and " ".join(drawn.split()) == CONSENT_TEXT, (served, drawn)
+        assert "with your name as they have it" in drawn and "quote your words in their report" in drawn, drawn
+        assert CONSENT_GONE not in " ".join(walked.get("seen") or []), "the old door line is still drawn"
+
+
+def _hold_the_box(j: Journey, person, interview: dict, walked: dict, expected: dict, how: str) -> dict:
+    """Spec 051 FR-5 (keel-web 076 FR-6..FR-8; design §6's frames), on the story's box: T1 idle -- the placeholder,
+    the *Speak* pill, nothing asked of the microphone and nothing recorded; T2 listening on the tap -- the card, the
+    waveform, the clock *m:ss · up to 1:00*, Cancel and Done, Continue off; T3 *Writing it down…* with *Microphone off*;
+    T4 heard -- the fake transcriber's words **appended** to what was typed, the caret at the end, *Heard you.*, the pill
+    *Add more*; `transcribe` with `maxSeconds` 60 against the gate's item; the take ended by the 4 s quiet or by Done.
+    T6 (refused): the tap asks once, the pill goes, the footer says so, the story is typed. Returns the body the page
+    owes: the story as the box holds it."""
+    x = walked.get("speak") or {}
+    gate_item = (interview.get("gate") or {}).get("itemId")
+    with _step(j, f"{person.person}: the story's box -- speak or type (keel-web 076, T1 -> T4" +
+               (", T6: the microphone refused" if how == "refused" else f", the take ended by {how}") + ")",
+               party="participant") as h:
+        t1, before, after = x.get("t1") or {}, x.get("before_pill") or {}, x.get("after_pill") or {}
+        record = {"person": person.person, "how": how, "t1": t1, "before_pill": before, "after_pill": after}
+        h.record_assert({"t1": {"state": "idle", "pill": ivs.SPEAK_LABEL, "placeholder": ivs.SPEAK_OR_TYPE_PLACEHOLDER},
+                         "before the pill": {"acquired": 0, "recordings": 0}}, x)
+        assert t1.get("state") == "idle" and t1.get("pill") == ivs.SPEAK_LABEL, t1
+        assert t1.get("placeholder") == ivs.SPEAK_OR_TYPE_PLACEHOLDER, t1
+        assert before.get("acquired") == 0 and not before.get("starts"), before
+        if how == "refused":
+            t6 = x.get("t6") or {}
+            record.update({"t6": t6, "pill_after": x.get("t6_pill"), "sent": None})
+            assert t6.get("state") == "typing-only" and t6.get("footer") == ivs.SPEAK_MIC_OFF, t6
+            assert x.get("t6_pill") == 0 and t6.get("placeholder") == ivs.SPEAK_TYPE_PLACEHOLDER, x
+            assert after.get("acquired") == 1 and not after.get("starts"), after
+            j.speak[person.person] = record
+            return expected
+        t2, t3, t4 = x.get("t2") or {}, x.get("t3") or {}, x.get("t4") or {}
+        heard = [t for t in walked.get("transcribed") or [] if t.get("itemId") == gate_item]
+        words = (heard[-1].get("text") or "").strip() if heard else ""
+        want = f"{person.story.rstrip()} {words}" if words else person.story
+        counts = x.get("counts") or {}
+        ended_ms = None
+        if how == "quiet":
+            ended_ms = round((counts.get("stops") or [0])[-1] - x["quiet_at"]) if counts.get("stops") else None
+        record.update({"t2": t2, "t3": t3, "t4": t4, "transcribed": heard, "appended": words, "want": want,
+                       "continue_enabled_listening": x.get("continue_enabled_listening"), "counts": counts,
+                       "quiet_to_stop_ms": ended_ms, "sent": (walked.get("body") or {}).get("story")})
+        h.record_assert({"t2": {"state": "listening", "card": True, "wave": True, "clock": f"m:ss · up to "
+                                                                                       f"{ivs.STORY_CAP}"},
+                         "t3": {"state": "writing", "writing": ivs.WRITING_DOWN, "footer": ivs.MIC_OFF},
+                         "t4": {"state": "heard", "value": want, "caret": len(want), "footer": ivs.SPEAK_HEARD,
+                                "pill": ivs.SPEAK_ADD_MORE},
+                         "transcribe": {"itemId": gate_item, "maxSeconds": 60, "status": 200}}, record)
+        assert t2.get("state") == "listening" and t2.get("card") and t2.get("wave"), t2
+        assert t2.get("cancel") and t2.get("done"), t2
+        assert (t2.get("clock") or "").endswith(f"· up to {ivs.STORY_CAP}"), t2
+        # read across 600 ms: Continue goes off through the box's state a render after the card is drawn (D-02)
+        record["continue_while_listening"] = x.get("continue_while_listening")
+        assert x.get("continue_enabled_listening") is False, x.get("continue_while_listening")
+        assert after.get("acquired") == 1 and len(after.get("starts") or []) == 1, after
+        assert t3.get("state") == "writing" and t3.get("writing") == ivs.WRITING_DOWN, t3
+        assert t3.get("footer") == ivs.MIC_OFF, t3
+        assert len(heard) == 1 and heard[0].get("maxSeconds") == 60 and heard[0].get("status") == 200, heard
+        assert words, heard
+        assert t4.get("state") == "heard" and t4.get("value") == want, (t4, want)
+        assert t4.get("caret") == len(want) == t4.get("caretEnd"), t4
+        assert t4.get("footer") == ivs.SPEAK_HEARD and t4.get("pill") == ivs.SPEAK_ADD_MORE, t4
+        if how == "quiet":
+            # the recorded path's quiet: 4 s after the last sound (the level is read ten times a second)
+            assert ended_ms is not None and ivs.SILENCE_MS - 500 <= ended_ms <= ivs.SILENCE_MS + 500, ended_ms
+        else:
+            assert x.get("done_at") is not None and (counts.get("stops") or [0])[-1] >= x["done_at"], x
+        j.speak[person.person] = record
+    return {**expected, "story": want}
+
+
+def _hold_the_follow_up(j: Journey, person, interview: dict, walked: dict, owed: dict | None) -> None:
+    """Spec 051 FR-4 (keel-cloud 103's route, keel-web 076 FR-1..FR-4): *Send my answers* posted the answers to the
+    follow-up route (never after a gate No); it answers 200 exactly when the harness's own walk (`first_rung`) owes a
+    follow-up, on that rung, its text the harness's own composition (judgement call 1), the spoken wording the
+    registry's, no clip on a text link; the screen draws *One last thing*, that text, the note, the box, *Continue* off
+    while empty and *Skip this one*; the response's `followUp` is the line typed (TYPED, `skipped` false) or the skip
+    (`skipped` true, no text) -- and is absent when nothing is owed."""
+    route = walked.get("follow_up_route") or {}
+    seen = walked.get("follow_up") or {}
+    sent = (walked.get("body") or {}).get("followUp")
+    asked = person.link == vs.LINK_B2B or bool(person.recency)
+    want_rung = (owed or {}).get("dimension")
+    with _step(j, f"{person.person}: the one follow-up -- " + (f"owed on {want_rung}, asked and "
+                                                               + ("typed" if person.follow_up else "skipped")
+                                                               if owed else "nothing owed, nothing asked"),
+               party="participant") as h:
+        body = route.get("body") or {}
+        record = {"person": person.person, "link": person.link, "owed": owed, "route": route, "screen": seen,
+                  "sent": sent, "line": person.follow_up, "asked": asked}
+        j.follow_ups[person.person] = record
+        h.record_assert({"route": (200 if owed else 204) if asked else "not called", "dimension": want_rung,
+                         "text": (owed or {}).get("text"), "screen": FOLLOW_UP_SCREEN if owed else None,
+                         "followUp": _want_follow_up(owed, person.follow_up)}, record)
+        if not asked:
+            assert not route and not seen and sent is None, record
+            return
+        assert route.get("status") == (200 if owed else 204), route
+        assert sent == _want_follow_up(owed, person.follow_up), {"sent": sent, "want": _want_follow_up(
+            owed, person.follow_up)}
+        if not owed:
+            assert not seen, seen
+            return
+        assert body.get("dimension") == want_rung and body.get("spoken") == owed["spoken"], body
+        assert body.get("itemId") and "clip" not in body, body                      # a text link plays nothing
+        if j.strict:
+            assert body.get("text") == owed["text"], {"route": body.get("text"), "harness": owed["text"]}
+        assert seen.get("kicker") == ivs.FOLLOW_UP_KICKER and seen.get("question") == body.get("text"), seen
+        assert seen.get("note") == ivs.FOLLOW_UP_NOTE and seen.get("skip") == ivs.FOLLOW_UP_SKIP, seen
+        assert seen.get("continue_enabled_empty") is False, seen
+        assert (seen.get("box") or {}).get("state") in ("idle", "typing-only"), seen.get("box")
+        assert seen.get("did") == ("typed" if person.follow_up else "skipped"), seen
+        if person.follow_up:
+            assert seen.get("continue_enabled_typed") is True, seen
+
+
+#: What the follow-up screen draws (keel-web 076 FR-3), for the step's record.
+FOLLOW_UP_SCREEN = {"kicker": ivs.FOLLOW_UP_KICKER, "note": ivs.FOLLOW_UP_NOTE, "skip": ivs.FOLLOW_UP_SKIP}
+
+
+def _want_follow_up(owed: dict | None, line: str | None) -> dict | None:
+    """The response's `followUp` keel-web owes (076 judgement call 10): `{dimension, text, how, skipped: false}` typed,
+    `{dimension, skipped: true}` skipped, none when nothing is owed."""
+    if not owed:
+        return None
+    if line:
+        return {"dimension": owed["dimension"], "text": line, "how": "TYPED", "skipped": False}
+    return {"dimension": owed["dimension"], "skipped": True}
 
 
 def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None:
@@ -1131,7 +1296,8 @@ def _on_the_offered_options(body: dict, items: dict) -> dict:
 def _normal_body(body: dict) -> dict:
     """A response body with its order taken out -- answers by item, ids as sets -- and keel-web's
     one deprecated constant (`pilotOptIn: false`) dropped, so two bodies compare on what they say."""
-    out = {k: v for k, v in body.items() if k not in ("answers", "pilotOptIn")}
+    # spec 051: the follow-up is held on its own (`_hold_the_follow_up`), against the harness's walk
+    out = {k: v for k, v in body.items() if k not in ("answers", "pilotOptIn", "followUp")}
     answers = {}
     for answer in body.get("answers") or []:
         a = dict(answer)

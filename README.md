@@ -122,6 +122,23 @@ the wire (`how` RECORDED). Scored by IM14-IM18 (`INTERVIEWER_MARKS_VERSION` 2). 
 `make eval-live K=classifier PROFILE=remote` (`evals/test_classifier_live.py`): the same cases against Keel's AI on a
 link named by the `KEEL_CLASSIFIER_LINK` secret, under $0.10, skipped by name without it.
 
+### The one follow-up — contract 19, the interview side (spec `051-follow-up`, 2026-10-17)
+
+keel-cloud 103 (keel-cloud-docs `4cda99a`: the ladder in the registry's `follow_up` blocks, `POST
+/v2/i/{token}/interview/follow-up` and its founder twin, `Interview.followUps[]`, `InterviewResponse.followUp` with the
+submit-time walk check, `ClipKind.FOLLOW_UP` backfilled free, `transcribe` on every link kind with `maxSeconds`, the
+consent line with names) and keel-web 076 (`c9ce17c`: `SpeakOrTypeBox` on the story and the follow-up, `FollowUpScreen`,
+the AI player's follow-up window). **The server walks and composes**; `harness/interviewer_fake.LADDER` (copied from the
+registry, held to the export the stack runs) and `first_rung` are the **independent check** of that walk, and the walk
+composes each question's text itself (`harness/vectors_script.follow_up_question`) and holds the route's words and the
+screen to it. Every text walk on S-005 / S-006 / S-007 meets the follow-up where it is owed (the corpus people type a
+composed line, one a scenario presses *Skip this one*); one person a scenario speaks the story through the box's
+recorder (T1 -> T4, the stack's fake transcriber's "yes" appended), one under a refused microphone (T6). The AI links:
+S-005's follow-up ended by the pause, Back, then by *Save and next* (SPOKEN); S-006's recorded (`not-allowed`, then the
+seam's recorder: 4 s after the last sound, `maxSeconds` 120), Back, then left silent to its cap (shortened through the
+seam, `followUpCapMs`) and skipped. S-006 backfills a recording seeded without its FOLLOW_UP clips. Scored by IM23-IM27
+(`INTERVIEWER_MARKS_VERSION` 5); `MARKS_VERSION` 19 and corpus r11 unchanged (052 takes the standings side and the bump).
+
 ### Hear them out (spec `049-hear-them-out`, 2026-10-16)
 
 keel-cloud 100 (keel-cloud-docs `d2f00d4`: the classifier reads a question read aloud, then answered; 18 `readaloud`

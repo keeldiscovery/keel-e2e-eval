@@ -1143,6 +1143,9 @@ class PersonInputs:
     picks: list
     pilot_opt_in: bool
     anchoring: str | None
+    #: Spec 051 (keel-cloud 103): what this person types on the one follow-up when one is asked of them -- one
+    #: composed sentence (`FOLLOW_UP_LINES`), no name, no digit; None presses *Skip this one*.
+    follow_up: str | None = None
 
     def response(self, token: str, recall_period: str | None = None) -> dict:
         """The one `POST /v2/i/{token}/interview/response` body; a cost total re-expressed over
@@ -1188,6 +1191,144 @@ def _pick(entry, key: str, raw) -> Pick:
     return Pick(dimension=key, codes=[on_the_wire(entry, key, str(raw))])
 
 
+# ---------------------------------------------------------------- spec 051: the founder's side of the ladder
+
+def founder_side(entry):
+    """The founder's side of the follow-up's walk (keel-cloud 103 `Ladder.Founder.of`, judgement call 2), read off the
+    entry's own founder answers -- what the corridor locks: Importance's own item (`own`, the saved list's item 0; none
+    when the list is absent), the price's low (none when the founder gave no price), and Buyer and payer's supporting
+    answer by the tested item (`decided_alone` when "Nobody else" is tested, else the registry's `had_to_agree`)."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415 - the ladder lives there
+
+    importance = entry.founder_list("problem.importance")
+    price = (_founder(entry, "commercial.price") or {}).get("answer")
+    low = float(price["low"]) if isinstance(price, dict) and price.get("low") is not None else None
+    buyer = entry.founder_list("commercial.buyer_payer_alignment")
+    supports = None
+    if buyer and buyer["items"]:
+        tested = entry.tested("commercial.buyer_payer_alignment") or {}
+        supports = (fake.BUYER_ALONE,) if tested.get("code") == NOBODY_ELSE[0] else fake.BUYER_SUPPORTS
+    return fake.Founder(importance_item=wire_code("problem.importance", 0) if importance and importance["items"]
+                        else None, price_low=low, buyer_supports=supports)
+
+
+def founder_follow_up_words(entry) -> dict[str, str | None]:
+    """The founder's words a follow-up's text says (`FollowUpComposer.values`): the tested Compatibility condition and
+    Adoption friction effort, each its saved list item's label as the founder wrote it."""
+    return {"{condition}": (entry.tested("solution.compatibility") or {}).get("label"),
+            "{effort}": (entry.tested("solution.adoption_friction") or {}).get("label")}
+
+
+#: Spec 051 FR-11: the follow-up lines the corpus people type -- composed here (r11 records none), one sentence each, no
+#: name and no digit, three a rung so the people on one rung say different things (the themes job groups them, spec
+#: 052). A person on the rung types the line of their place among that rung's people in the entry, cycling.
+FOLLOW_UP_LINES = {
+    "problem.importance": (
+        "The other two land on me every single week, so they come first.",
+        "Those two cost real money when they go wrong, this one only costs time.",
+        "Customers notice those two straight away and nobody notices this one."),
+    "problem.current_solution_satisfaction": (
+        "A quick check at the end of the day usually catches it.",
+        "Habit mostly, a short list that I tick off before anything goes out.",
+        "Someone on the team double checks it before it matters."),
+    "solution.compatibility": (
+        "Approval sits with someone else and they are rarely around.",
+        "Our setup does not let me add a new tool without help.",
+        "The people involved are never in the same place at once."),
+    "solution.relative_advantage": (
+        "Fewer emails back and forth would have helped far more.",
+        "Only a faster answer from the other side would have.",
+        "A clear record of what was agreed would have."),
+    "solution.adoption_friction": (
+        "Another step on a busy day is one step too many.",
+        "Learning a new app is the part I never have time for.",
+        "My team would push back on anything extra to do."),
+    "commercial.price": (
+        "Proof that it saves time every month would make it worth more.",
+        "Seeing it work with our own clients first would.",
+        "A trial period where the difference is obvious."),
+    "commercial.buyer_payer_alignment": (
+        "My manager had to sign it off and wanted to see the cost.",
+        "Finance needed a written quote before anything was agreed.",
+        "The owner wanted to hear from someone like us who uses it."),
+    "commercial.commitment": (
+        "A free trial on one small job first.",
+        "A short demo with our own numbers in it.",
+        "Just a look at it before committing to anything."),
+}
+#: Spec 051 FR-4: who presses *Skip this one* instead (one a scenario, on a rung others on it type for).
+FOLLOW_UP_SKIPS = {"01-countly": ("Lena Fischer",), "05-paidly": ("Viktor Fern",), "07-mulchrun": ("Jamal Washington",)}
+#: Spec 051 FR-5: whose story goes through the speak-or-type box, and how -- the take ended by the 4 s quiet ("quiet")
+#: or by *Done* ("done"), or the microphone refused ("refused", T6) -- one of each kind a scenario at most.
+STORY_SPOKEN = {"01-countly": {"Priya Natarajan": "quiet", "Hana Yoshida": "refused"},
+                "05-paidly": {"Nadia Petrova": "done", "Omar Farouk": "refused"},
+                "07-mulchrun": {"Travis Buckley": "quiet"}}
+
+
+def follow_up_lines(entry, people: list) -> dict[str, str | None]:
+    """`{person: line}` for every person a follow-up is owed (by the harness's own walk, `first_rung`), the skippers'
+    `None`; nobody else is in it."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415
+
+    founder = founder_side(entry)
+    seen: dict[str, int] = {}
+    out: dict[str, str | None] = {}
+    for person in people:
+        if person.link != LINK_B2B and not person.recency:
+            continue
+        rung = fake.first_rung(person.picks, founder, person.link, b2b=is_b2b(entry))
+        if rung is None:
+            continue
+        n = seen.get(rung, 0)
+        seen[rung] = n + 1
+        lines = FOLLOW_UP_LINES[rung]
+        out[person.person] = None if person.person in FOLLOW_UP_SKIPS.get(entry.id, ()) else lines[n % len(lines)]
+    return out
+
+
+def follow_up_question(entry, picks: list, link: str, interview: dict, token: str) -> dict | None:
+    """Spec 051 FR-2 / judgement call 1: the one follow-up the cloud owes these picks on this link -- the rung by the
+    harness's own walk and its text filled the way `FollowUpComposer` fills it, from the served labels (`interview`,
+    the person's own link) and the founder's own words -- or None. The walk holds the route's answer and the screen to
+    it."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415
+
+    served = {i.get("dimension"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
+    rung = fake.first_rung(picks, founder_side(entry), link, b2b=is_b2b(entry), served=set(served))
+    if rung is None:
+        return None
+    item = served.get(rung) or {}
+    labels = {o.get("optionId"): o.get("label") for o in item.get("options") or []}
+    label = lambda code: labels.get(option_id(token, rung, code))  # noqa: E731
+    pick = next((p for p in picks if p.dimension == rung), None)
+    codes = list(pick.codes) if pick else []
+    values: dict[str, str | None] = {"{occasion}": interview.get("occasion")}
+    if rung == "problem.importance":
+        values["{their_picks}"] = fake.joined([label(c) for c in codes], "and")
+        values["{founder_item}"] = fake.lower(label(founder_side(entry).importance_item))
+    elif rung == "problem.current_solution_satisfaction":
+        values["{their_answer}"] = fake.lower(label(codes[0]) if codes else None)
+    elif rung == "solution.compatibility":
+        values["{condition}"] = fake.lower(founder_follow_up_words(entry)["{condition}"])
+        values["{would}"] = "only work with help" if codes[:1] == ["only_with_help"] else "not work"
+    elif rung == "solution.relative_advantage":
+        values["{benefit}"] = fake.joined([a.get("label") for a in item.get("advantages") or []], "or")
+    elif rung == "solution.adoption_friction":
+        values["{effort}"] = fake.lower(founder_follow_up_words(entry)["{effort}"])
+    elif rung == "commercial.price":
+        values["{band}"] = fake.WOULD_NOT_PAY_BAND if codes[:1] == [fake.WOULD_NOT_PAY] else \
+            fake.lower(label(codes[0]) if codes else None)
+    return {"dimension": rung, "text": fake.fill(rung, values), "spoken": fake.rung(rung)[3]}
+
+
+def with_pick(person: "PersonInputs", dimension: str, codes: list[str]) -> "PersonInputs":
+    """`person` with one pick's codes replaced (spec 051: the AI link's person made owed a follow-up)."""
+    import dataclasses                                                 # noqa: PLC0415
+
+    picks = [dataclasses.replace(p, codes=list(codes)) if p.dimension == dimension else p for p in person.picks]
+    return dataclasses.replace(person, picks=picks)
+
+
 def person_inputs(entry) -> list[PersonInputs]:
     people = []
     for person in entry.people():
@@ -1203,7 +1344,10 @@ def person_inputs(entry) -> list[PersonInputs]:
             recency=None if person.link == LINK_B2B else person.recency == "yes",
             story=person.story, anchor_chip=STORY_CHIPS.get(person.chip) if person.chip else None,
             picks=picks, pilot_opt_in=person.pilot_opt_in, anchoring=person.anchoring))
-    return people
+    import dataclasses                                                 # noqa: PLC0415
+
+    lines = follow_up_lines(entry, people)
+    return [dataclasses.replace(p, follow_up=lines.get(p.person)) for p in people]
 
 
 def people_to_invite(entry, count: int) -> tuple[list[PersonInputs], list[str]]:

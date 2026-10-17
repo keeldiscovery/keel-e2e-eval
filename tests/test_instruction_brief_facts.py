@@ -30,12 +30,15 @@ def b2b():
     return fx.entry(fx.ENTRY_B2B)
 
 
-def test_lower_keeps_an_acronym_and_could_phrase_reads_089_call_4():
+def test_lower_keeps_an_acronym_and_could_phrase_reads_103():
     assert bf.lower("The HR director") == "the HR director"
     assert bf.lower("HR director") == "HR director"
     assert bf.could_phrase("They could connect a tool") == "could connect a tool"
     assert bf.could_phrase("Could connect a tool") == "could connect a tool"
-    assert bf.could_phrase("Their phone was within reach") == "said yes: their phone was within reach"
+    # keel-cloud 103 (FR-9): every other subject reads "said ...", no "yes:"
+    assert bf.could_phrase("Their phone was within reach") == "said their phone was within reach"
+    assert bf.could_phrase("The agency could approve it") == "said the agency could approve it"
+    assert bf.could_phrase("") == "said yes, easily or with some steps"
 
 
 def test_one_card_a_calibrated_dimension_in_registry_order(entry, b2b):
@@ -48,7 +51,7 @@ def test_one_card_a_calibrated_dimension_in_registry_order(entry, b2b):
     assert by_key["problem.prevalence"]["line"] == "had it in the last 7 nights"
     assert by_key["problem.frequency"]["number"] == "2.5 nights out of 7"
     assert by_key["problem.importance"]["line"] == "put it in their top two"
-    assert by_key["solution.compatibility"]["line"] == "said yes: they had a phone to hand"
+    assert by_key["solution.compatibility"]["line"] == "said they had a phone to hand"
     assert by_key["solution.relative_advantage"]["line"] == "said it would have made their last morning better"
     assert by_key["solution.adoption_friction"]["line"] == "would clip a tag to the key ring"
     assert by_key["commercial.existing_sacrifice"]["line"] == "a month, what it costs them today"
@@ -58,13 +61,13 @@ def test_one_card_a_calibrated_dimension_in_registry_order(entry, b2b):
     assert all(c["statusWords"] == bf.VERDICT_WORDS[c["status"]] for c in cards)
 
 
-def test_purchase_friction_counts_the_two_needed_answers(b2b):
-    """089 call 7: the card counts "needed" (yes long and yes quick), not the supports."""
+def test_purchase_friction_counts_the_supporters(b2b):
+    """keel-cloud 103 (FR-9, design §3): the card counts the supporters -- quick or not needed -- not "needed"."""
     card = next(c for c in bf.cards_for(b2b, fx.registry()) if c["key"] == "commercial.purchase_friction")
     standing = b2b.expected["standings"]["commercial.purchase_friction"]
-    needed = bf._option_count(standing, "yes_long") + bf._option_count(standing, "yes_quick")
-    assert card["number"] == f"{needed} of {standing['n']}"
-    assert card["line"] == "needed the office manager's sign-off"
+    supporters = bf._option_count(standing, "yes_quick") + bf._option_count(standing, "not_needed")
+    assert card["number"] == f"{supporters} of {standing['n']}"
+    assert card["line"] == "did not need the office manager's sign-off, or it was quick"
 
 
 def test_the_pilot_counts_every_finished_interview_on_either_link(entry, b2b):

@@ -74,13 +74,17 @@ def _half_up(x) -> int:
 
 
 def could_phrase(condition: str) -> str:
-    """089 call 4: "They could ..." reads "could ..."; "Could ..." is kept; any other "said yes: {condition}"."""
+    """089 call 4, fixed by keel-cloud 103 (FR-9, design §3; spec 051): "They could ..." reads "could ..."; "Could ..."
+    is kept; any other subject reads "said {condition}" (before 103: "said yes: {condition}"); none at all, "said yes,
+    easily or with some steps"."""
     text = str(condition or "").strip()
+    if not text:
+        return "said yes, easily or with some steps"
     if text.lower().startswith("they could "):
-        return text[len("they "):]
+        return lower(text)[len("they "):]
     if text.lower().startswith("could "):
         return lower(text)
-    return f"said yes: {lower(text)}"
+    return f"said {lower(text)}"
 
 
 def _count(standing: dict, name: str = "inside") -> str:
@@ -134,9 +138,11 @@ def card(entry, dimension, standing: dict) -> dict:
             else f"{lower(tested.get('label'))} had to agree"
         out.update(number=_count(standing), line=line)
     elif key == PURCHASE_FRICTION_KEY:
-        needed = _option_count(standing, "yes_long") + _option_count(standing, "yes_quick")
-        out.update(number=f"{needed} of {standing.get('n')}",
-                   line=f"needed {lower((entry.tested(key) or {}).get('label'))}")
+        # keel-cloud 103 (FR-9, design §3; spec 051): the supporters -- quick or not needed -- so the number falls when
+        # the bet fails, like every other card (089 call 7 counted "needed", which rose)
+        supporters = _option_count(standing, "yes_quick") + _option_count(standing, "not_needed")
+        step = lower((entry.tested(key) or {}).get("label")) or "the step"
+        out.update(number=f"{supporters} of {standing.get('n')}", line=f"did not need {step}, or it was quick")
     elif key == COMMITMENT_KEY:
         out.update(number=_count(standing), line=f"open to {(entry.tested(key) or {}).get('label')}")
     out.update(status=status, statusWords=VERDICT_WORDS.get(status, status))

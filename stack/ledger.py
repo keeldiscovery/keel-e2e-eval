@@ -23,7 +23,8 @@ door with a fresh grant -- `stand_in_keels_door` -- lowers the balance once to s
 so a reader of the table can tell the referee's rows from the product's. Spec 050 adds a fourth stand-in, the one
 write to a project document -- `stand_in_old_words`: a stored recording's opening, problem and idea scripts put back to
 the words from before keel-cloud 101, so the first read can be seen re-rendering them (FR-5; no route records a
-recording in old words once the cloud says new ones) -- and one more read, `pilot_opt_in`. Nothing else in this
+recording in old words once the cloud says new ones) -- and one more read, `pilot_opt_in`. Spec 051 widens it by one
+more, `stand_in_no_follow_ups`: the same recording with its FOLLOW_UP clips taken out (keel-cloud 103's backfill). Nothing else in this
 repository writes to the database, and the remote profile (the staging twin) refuses every one of them by name.
 
 Through `docker compose exec` on the profile's own service, exactly as `stack/postgres.py` checks readiness; SQL goes
@@ -145,6 +146,22 @@ def pilot_opt_in(config: StackConfig, project_id: str, invitation_id: str) -> bo
     return rows[0].get("opted") if rows else None
 
 
+def stored_follow_ups(config: StackConfig, project_id: str) -> dict[str, dict | None]:
+    """Spec 051 (keel-cloud 103, document 24): every answered invitation's stored follow-up by the person's name --
+    `{dimension, text, how, skipped}`, or None where the response carries none (a gate No, nothing owed). Read here
+    because no founder route serves a response whole (the stage page's row is `people[].followUp`, 104's side)."""
+    _require_uuid(project_id)
+    rows = _json(config, "SELECT inv->>'personName' AS person, inv->>'id' AS id, inv->'interview'->'followUp' AS "
+                         "follow_up FROM project_content, jsonb_array_elements(content->'invitations') AS inv "
+                         "WHERE project_id = :'project' AND inv->'interview' IS NOT NULL "
+                         "AND jsonb_typeof(inv->'interview') = 'object'", project=project_id)
+    out: dict[str, dict | None] = {}
+    for row in rows:
+        out[row.get("person")] = row.get("follow_up")
+        out[row.get("id")] = row.get("follow_up")
+    return out
+
+
 def now(config: StackConfig) -> str:
     """The database's own clock, so `since` is compared on one clock with `created_at`."""
     return _psql(config, "SELECT to_json(now())#>>'{}';\n")
@@ -217,6 +234,24 @@ def stand_in_old_words(config: StackConfig, project_id: str, scripts: dict[str, 
                         "SELECT count(*) FROM u, jsonb_array_elements(u.content->'corridor'->'lock'->'recording'->'clips')"
                         " AS c WHERE (:'scripts'::jsonb) ? (c->>'id') AND c->>'script' = (:'scripts'::jsonb)->>(c->>'id');\n",
                 project=project_id, scripts=json.dumps(scripts))
+    return int(out or 0)
+
+
+def stand_in_no_follow_ups(config: StackConfig, project_id: str) -> int:
+    """Stand-in 5 (spec 051 FR-8, 050's stand-in widened): the stored recording as one made before keel-cloud 103 --
+    every FOLLOW_UP clip taken out of its set (the files stay on disk, unreferenced) -- so the first read can be seen
+    backfilling them at no charge. Nothing else in the document moves, the project's revision included. Returns how
+    many clips were taken out."""
+    _require_uuid(project_id)
+    out = _psql(config, "WITH before AS (SELECT count(*) AS n FROM project_content, "
+                        "jsonb_array_elements(content->'corridor'->'lock'->'recording'->'clips') AS c "
+                        "WHERE project_id = :'project' AND c->>'kind' = 'FOLLOW_UP'), "
+                        "u AS (UPDATE project_content SET content = jsonb_set(content, "
+                        "'{corridor,lock,recording,clips}', (SELECT COALESCE(jsonb_agg(c ORDER BY n), '[]'::jsonb) "
+                        "FROM jsonb_array_elements(content->'corridor'->'lock'->'recording'->'clips') "
+                        "WITH ORDINALITY AS a(c, n) WHERE c->>'kind' <> 'FOLLOW_UP')) "
+                        "WHERE project_id = :'project' RETURNING 1) "
+                        "SELECT (SELECT n FROM before) FROM u;\n", project=project_id)
     return int(out or 0)
 
 

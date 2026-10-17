@@ -19,6 +19,10 @@ persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
 by name. v10 has no run of record; it is history from v11.
 
+**Spec 051 (2026-10-17)**: keel-cloud 103 (contract 19, the interview side, keel-cloud-docs `4cda99a`) moved no screen
+schema and no instruction -- the follow-up's ladder is registry data and code composes its words -- so v19 stands; the
+journey ruler moved instead (`INTERVIEWER_MARKS_VERSION` 5). 052 takes the standings side and this version's bump.
+
 **`MARKS_VERSION` 19** (spec 042, 2026-10-14): the defects batch. The ruler follows keel-cloud 090 / 091 (keel-cloud-docs
 `c432c1d`; registry `VERSION` 4, document 20, `CONTRACT_VERSION` 14, routing v11, charge 7 -- the lock holds one job of
 35). No mark is born or retired and no number in `marks.toml` moved; four judgement calls moved under them, so the

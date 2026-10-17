@@ -22,7 +22,7 @@ their own door in a `finally`. On the remote profile only the own-AI refusals ru
 and the founder's word are read from the recording keel-cloud stored (`stack/ledger.recording`, a plain `SELECT` of
 three paths of the project's document).
 
-**Since spec 048 (keel-cloud 099 + keel-web 072, contract 18) the stranger's walk is the answer path**: the intro's
+**Since spec 048 (keel-cloud 099 + keel-web 072, contract 18; 19 since 051) the stranger's walk is the answer path**: the intro's
 *Test your mic* ("hello" -> *Heard: hello*), no *That's my answer* anywhere, every spoken answer read by the cloud's
 classifier -- the stack's FakeClassifier, left real behind the page (judgement call 1) -- a confident read **held** and
 gone on by itself, a correction and one word two labels carry asked *Is that right?*, a word of protest in a hold, Back
@@ -46,6 +46,13 @@ lets the 2 s beat after each of those passages pass and holds what it drew (IM21
 encoded); the story ends by the pause on S-005 and by its *Save and next* on S-006 (IM22); a yes to *Is that right?* is
 held (IM15); *Microphone off* after the thanks (and on the dry run's End); and the recorded link's pilot yes is written
 down now that keel-cloud 102 serves `transcribe` until the opt-in (DRIFT #91 resolved).
+
+**Since spec 051 (keel-cloud 103, contract 19 on the interview side; keel-web 076)**: after the last item's hold the
+page asks the cloud's follow-up route; the leg holds the rung and the words to the harness's own walk (`LADDER`,
+`first_rung`), walks two windows by way of Back -- S-005's browser path by the pause then by *Save and next*, S-006's
+recorded path (the recogniser refusing, the seam's recorder) 4 s after the last sound, then left silent to the cap and
+skipped -- checks Try it yourself's twin route and the recorded link's follow-up on the wire, every role's FOLLOW_UP
+clips and their free backfill (stand-in 5), and the consent line (IM23-IM27).
 
 Every rule is scored by `evals/interviewer_marks.py` over the record this leg builds (`interviewer.json` and
 `interviewer-marks.json` in the run bundle); the leg fails when an owed mark is unmet. No model runs, no vendor is
@@ -106,8 +113,10 @@ READ_REASON = marks.READ_REASON
 #: Spec 049: IM19 (hears them out) and IM20 (taps wait for Save) are owed on the short form too.
 #: Spec 050: IM21 (a beat after the passages) and IM22 (the story's Save -- S-005 ends it by the pause, S-006 by Save)
 #: are owed on the short form too.
+#: Spec 051: IM23 (asked on the first rung), IM24 (skipped honoured) and IM26 (speak or type) on the short form too;
+#: IM25's recorded window and IM27's backfill are the full leg's.
 SHORT_FORM = ["IM1", "IM3", "IM4", "IM5", "IM6", "IM7", "IM9", "IM13", "IM14", "IM15", "IM16", "IM17", "IM19",
-              "IM20", "IM21", "IM22"]
+              "IM20", "IM21", "IM22", "IM23", "IM24", "IM26"]
 
 
 class _Wire:
@@ -254,12 +263,36 @@ def _leg(j, *, short: bool) -> dict:
         _restore(j, wire, founder_id, run)
         if record.get("arrivals"):
             _read_what_is_left(j, wire, record)
+    _follow_up_record(j, record)
     # spec 048: the answer path's five are owed on the full leg whatever the record carries -- a walk that never went
-    # back is a walk that failed to, not a mark left unmeasured
-    answer_path = ["IM14", "IM15", "IM16", "IM17", "IM18", "IM19", "IM20", "IM21", "IM22"]
+    # back is a walk that failed to, not a mark left unmeasured (spec 051: and the follow-up's five)
+    answer_path = ["IM14", "IM15", "IM16", "IM17", "IM18", "IM19", "IM20", "IM21", "IM22", "IM23", "IM24", "IM25",
+                   "IM26", "IM27"]
     require = SHORT_FORM if short else [m for m, _, _ in marks.MARKS if m in _owed(record) or m in answer_path]
     _score(j, record, require=require)
     return record
+
+
+def _follow_up_record(j, record: dict) -> None:
+    """Spec 051: the follow-up's record for IM23-IM26 -- every text walk's (the corpus leg's, `j.follow_ups`), the AI
+    link's and Try it yourself's twin; the AI link's windows; the story's boxes (`j.speak`)."""
+    if record.get("follow_up_ai") is None:
+        return
+    record["follow_up"] = {"text": list((getattr(j, "follow_ups", None) or {}).values()),
+                           "ai": record["follow_up_ai"], "try": (record.get("dry_run") or {}).get("follow_up")}
+    record["follow_up_windows"] = {"windows": ((record["follow_up_ai"].get("walk") or {}).get("windows") or []),
+                                   "full": not record.get("short"), "page_cap_ms": _page_cap(j)}
+    if getattr(j, "speak", None):
+        record["speak"] = dict(j.speak)
+
+
+def _page_cap(j) -> int | None:
+    """keel-web's own two minutes (`answerPath.ts` `FOLLOW_UP_RECORD_CAP_MS`), read off the checkout the stack serves:
+    the seam shortened the silent window, so the real cap is held here (and on the wire, `maxSeconds` 120)."""
+    path = Path(j.stack.keel_web) / "src" / "lib" / "answerPath.ts"
+    m = re.search(r"FOLLOW_UP_RECORD_CAP_MS\s*=\s*([\d_]+)", path.read_text(encoding="utf-8")) if path.is_file() \
+        else None
+    return int(m.group(1).replace("_", "")) if m else None
 
 
 def _owed(record: dict) -> set[str]:
@@ -617,6 +650,35 @@ def _the_recording(j, wire: _Wire, record: dict) -> None:
         assert not off, off
     record["tries_served"] = tries
     _framing_lines(j, record, tries)
+    _follow_up_clips(j, record, tries)
+
+
+def _follow_up_clips(j, record: dict, tries: dict) -> None:
+    """Spec 051 (keel-cloud 103 FR-6), IM27's record and a plain assertion: every role's set holds one FOLLOW_UP clip
+    per rung its link walks (the served `followUps[]`: five on a B2B practitioner's link, three on the decision-maker's,
+    every rung a B2C link serves), each saying *One last thing.* and the registry's spoken wording, DONE -- and the
+    served `clips.followUp` names exactly those rungs."""
+    sets = fake.role_sets(record["recording"])
+    roles = {}
+    for link, served in tries.items():
+        want = [f.get("dimension") for f in served.get("followUps") or []]
+        spoken_words = {f.get("dimension"): f.get("spoken") for f in served.get("followUps") or []}
+        clips = [{"itemId": c.get("itemId"), "script": c.get("script"), "status": c.get("status")}
+                 for c in sets.get(link) or [] if c.get("kind") == "FOLLOW_UP"]
+        roles[link] = {"want": want, "spoken": spoken_words, "clips": clips,
+                       "served": sorted(((served.get("interviewer") or {}).get("clips") or {}).get("followUp") or {})}
+    record["follow_up_clips"] = {"roles": roles, "full": not record.get("short")}
+    with j.recorder.step("interviewer (keel-cloud 103 FR-6): every role holds one FOLLOW_UP clip per rung its link "
+                         "walks -- One last thing. and the rung's spoken wording, DONE -- and serves them by rung",
+                         party="stack", kind="assert") as h:
+        h.record_assert({link: {"rungs": r["want"], "script": "One last thing. {spoken}"} for link, r in roles.items()},
+                        roles)
+        for link, r in roles.items():
+            assert r["want"] and [c["itemId"] for c in r["clips"]] == r["want"], (link, r)
+            assert all(c["script"] == fake.follow_up_script(fake.rung(c["itemId"])[3]) and c["status"] == "DONE"
+                       for c in r["clips"]), (link, r["clips"])
+            assert all(r["spoken"][d] == fake.rung(d)[3] for d in r["want"]), (link, r["spoken"])
+            assert r["served"] == sorted(r["want"]), (link, r["served"])
 
 
 def _framing_words(served: dict, role: dict) -> dict[str, dict]:
@@ -667,23 +729,34 @@ def _backfill(j, wire: _Wire, record: dict) -> None:
     words (`stack.ledger.stand_in_old_words`) -- and the first read is the founder's Try it yourself (`GET interviewer/
     try/{roleId}`, 101 judgement call 4: the same `backfill` a stranger's link read runs). Then: one new clip per role
     and kind, stored with today's words, the old ids gone from the set and from what the next read serves, the
-    recording READY throughout, and no ledger row."""
+    recording READY throughout, and no ledger row.
+
+    Spec 051 FR-8 (keel-cloud 103 FR-6), on the same read: the recording is also made one from before 103 -- STAND-IN 5,
+    its FOLLOW_UP clips taken out (`stack.ledger.stand_in_no_follow_ups`) -- so the first read serves `clips.followUp`
+    `{}` and queues one line per rung per role at no charge; then each rung's clip is stored again, DONE, in the same
+    words (*One last thing.* and the registry's spoken wording), and served."""
     rec = record["recording"]
     today = {c["id"]: c for c in rec.get("clips") or [] if c.get("kind") in ("OPENING", "PROBLEM", "SOLUTION")}
     old = {cid: fake.before_101(c["kind"], c["script"]) for cid, c in today.items()}
+    follow = {(c["role"], c["itemId"]): c for c in rec.get("clips") or [] if c.get("kind") == "FOLLOW_UP"}
     with j.recorder.step("interviewer: STAND-IN -- the stored recording's opening, problem and idea passages put back "
-                         "to the words from before keel-cloud 101", party="stack", kind="protocol") as h:
+                         "to the words from before keel-cloud 101, and its follow-up clips taken out (a recording "
+                         "from before keel-cloud 103)", party="stack", kind="protocol") as h:
         seeded = stack_ledger.stand_in_old_words(j.stack, j.project_id, old)
-        h.record_wire({"clips": {cid: (today[cid]["role"], today[cid]["kind"]) for cid in old}},
-                      {"seeded": seeded, "old words": old})
+        removed = stack_ledger.stand_in_no_follow_ups(j.stack, j.project_id)
+        h.record_wire({"clips": {cid: (today[cid]["role"], today[cid]["kind"]) for cid in old},
+                       "follow-ups": sorted(f"{r}:{d}" for r, d in follow)},
+                      {"seeded": seeded, "old words": old, "follow-ups taken out": removed})
         assert seeded == len(old) and old, (seeded, old)
-    with j.recorder.step("interviewer (keel-cloud 101 FR-2): the first read re-renders the passages in today's words at "
-                         "no charge -- one new clip per role and kind, the old clips gone once the new are stored, "
-                         "READY throughout, no ledger row", party="founder", kind="assert") as h:
+        assert removed == len(follow) and follow, (removed, sorted(follow))
+    with j.recorder.step("interviewer (keel-cloud 101 FR-2, 103 FR-6): the first read re-renders the passages in "
+                         "today's words and stores each rung's follow-up again, at no charge -- one new clip per role "
+                         "and kind, the old clips gone once the new are stored, READY throughout, no ledger row",
+                         party="founder", kind="assert") as h:
         rows_before = _rows(j, record)
         roles = _role_ids(j)
         served_before = {link: wire("GET", f"/interviewer/try/{rid}")[1] for link, rid in roles.items()}
-        statuses, swapped, waited = [], {}, 0.0
+        statuses, swapped, followed, waited = [], {}, {}, 0.0
         while waited <= 90 * j.patience:
             stored = stack_ledger.recording(j.stack, j.project_id).get("recording") or {}
             statuses.append(stored.get("status"))
@@ -695,7 +768,15 @@ def _backfill(j, wire: _Wire, record: dict) -> None:
                                                                               for x in same],
                                 "ok": len(same) == 1 and same[0].get("id") != cid and same[0].get("status") == "DONE"
                                 and same[0].get("script") == c["script"]}
-            if all(v["ok"] for v in swapped.values()):
+            followed = {}
+            for (role, dim), c in follow.items():
+                same = [x for x in clips if x.get("role") == role and x.get("kind") == "FOLLOW_UP"
+                        and x.get("itemId") == dim]
+                followed[f"{role}:{dim}"] = {"now": [(x.get("id"), x.get("status")) for x in same],
+                                             "ok": len(same) == 1 and same[0].get("id") != c["id"]
+                                             and same[0].get("status") == "DONE"
+                                             and same[0].get("script") == c["script"]}
+            if all(v["ok"] for v in swapped.values()) and all(v["ok"] for v in followed.values()):
                 break
             time.sleep(2)
             waited += 2
@@ -705,15 +786,32 @@ def _backfill(j, wire: _Wire, record: dict) -> None:
         refs_before = {link: {slot: (((v.get("interviewer") or {}).get("clips") or {}).get(slot) or {}).get("clipId")
                               for slot in ("opening", "problem", "solution")} for link, v in served_before.items()}
         still_old = sorted({cid for link in refs.values() for cid in link.values() if cid in today})
+        fu_before = {link: sorted((((v.get("interviewer") or {}).get("clips") or {}).get("followUp") or {}))
+                     for link, v in served_before.items()}
+        fu_after = {link: sorted((((v.get("interviewer") or {}).get("clips") or {}).get("followUp") or {}))
+                    for link, v in served_after.items()}
+        fu_want = {link: sorted(d for r, d in follow if r == link) for link in roles}
         record["backfill"] = {"seeded": len(old), "swapped": swapped, "statuses": sorted(set(statuses)),
                               "waited_s": waited, "served_before": refs_before, "served_after": refs,
-                              "ledger_rows_added": _rows(j, record) - rows_before}
+                              "ledger_rows_added": _rows(j, record) - rows_before,
+                              "follow_ups": {"taken_out": removed, "stored": followed, "served_before": fu_before,
+                                             "served_after": fu_after, "want": fu_want}}
         h.record_assert({"swapped": {cid: True for cid in today}, "statuses": ["READY"], "served old ids": [],
-                         "ledger rows added": 0}, {**record["backfill"], "served old ids": still_old})
+                         "ledger rows added": 0, "follow-ups": {"served before": {k: [] for k in fu_want},
+                                                                "stored": {k: True for k in followed},
+                                                                "served after": fu_want}},
+                        {**record["backfill"], "served old ids": still_old})
         assert all(v["ok"] for v in swapped.values()), swapped
+        assert all(v["ok"] for v in followed.values()), followed
         assert set(statuses) == {"READY"}, statuses
         assert not still_old, refs
+        assert all(v == [] for v in fu_before.values()), fu_before
+        assert fu_after == fu_want, (fu_after, fu_want)
         assert record["backfill"]["ledger_rows_added"] == 0, record["backfill"]
+    if record.get("follow_up_clips") is not None:
+        record["follow_up_clips"]["backfill"] = {**record["backfill"]["follow_ups"],
+                                                 "statuses": record["backfill"]["statuses"],
+                                                 "ledger_rows_added": record["backfill"]["ledger_rows_added"]}
 
 
 def _counts(j, wire: _Wire, record: dict) -> dict:
@@ -736,7 +834,7 @@ def _dry_run(j, wire: _Wire, record: dict) -> None:
         founder_clip = wire.clip(opening.get("url") or "", "bytes=0-99")
         drawn = _dry_run_on_screen(j)
         after = _counts(j, wire, record)
-        clips = len([c for c in (player.get("clips") or {}).values() if c]) + sum(
+        clips = len(_all_clips(player.get("clips") or {})) + sum(
             1 + (1 if v.get("more") else 0) for v in (player.get("items") or {}).values())
         record["dry_run"] = {"tryRun": served.get("tryRun"), "clips": clips, "before": before, "after": after,
                              "writes": drawn["writes"], "founder_clip": founder_clip, "opening_url": opening.get("url"),
@@ -884,7 +982,7 @@ def _ai_link(j, wire: _Wire, record: dict, *, answer: bool) -> None:
         opening = clips.get("opening") or {}
         part = _stranger_clip(j, opening.get("url") or "", "bytes=0-99")
         whole = _stranger_clip(j, opening.get("url") or "")
-        own = {c.get("clipId") for c in clips.values() if c} | {
+        own = {c.get("clipId") for c in _all_clips(clips)} | {
             r.get("clipId") for v in (player.get("items") or {}).values() for r in (v.get("clip"), v.get("more")) if r}
         others = [c for c in (record.get("recording") or {}).get("clips") or []
                   if c.get("role") != vs.LINK_PRIMARY and c.get("id") not in own]
@@ -904,13 +1002,77 @@ def _ai_link(j, wire: _Wire, record: dict, *, answer: bool) -> None:
         assert interview.get("formats") == ["AI_INTERVIEWER"], interview.get("formats")
         assert (player.get("face") or {}).get("code") == FIRST_FACE and player.get("mark") == fake.MARK, player
         assert all((c.get("url") or "").startswith(f"/v2/i/{made['token']}/interview/clips/")
-                   for c in clips.values() if c), clips
+                   for c in _all_clips(clips)), clips
         assert part["status"] == 206 and whole["status"] == 200 and foreign["status"] == 404, record["range"]
     j.tokens["interviewer:ai"] = made["token"]
     record["served_interview"] = interview
     _classifier_guard(j, wire, record, made, interview)
+    if not record.get("short"):
+        _dry_run_follow_up(j, wire, record, interview, made["token"])
     if answer:
         _answer_ai_on_screen(j, wire, record, made, interview)
+
+
+def _on_the_try(answers: list[dict], link: dict, tried: dict) -> list[dict]:
+    """A link's answers carried onto Try it yourself's own ids (the dry run's interview is the same questions under
+    the founder's ids): each item by its dimension, each option by its label."""
+    link_items = {i["itemId"]: i for part in link.get("parts") or [] for i in part.get("items") or []}
+    try_items = {i.get("dimension"): i for part in tried.get("parts") or [] for i in part.get("items") or []}
+    out = []
+    for a in answers:
+        item = link_items.get(a.get("itemId")) or {}
+        mine = try_items.get(item.get("dimension")) or {}
+        if not mine:
+            continue
+        by_label = {o["label"]: o["optionId"] for o in mine.get("options") or []}
+        adv_label = {x["label"]: x["id"] for x in mine.get("advantages") or []}
+        labels = {o["optionId"]: o["label"] for o in item.get("options") or []}
+        adv = {x["id"]: x["label"] for x in item.get("advantages") or []}
+        moved = {**a, "itemId": mine.get("itemId")}
+        if "optionIds" in a:
+            moved["optionIds"] = [by_label[labels[o]] for o in a["optionIds"]]
+        if "advantageIds" in a:
+            moved["advantageIds"] = [adv_label[adv[o]] for o in a["advantageIds"]]
+        out.append(moved)
+    return out
+
+
+def _dry_run_follow_up(j, wire: _Wire, record: dict, interview: dict, token: str) -> None:
+    """Spec 051 FR-6 (keel-cloud 103's founder twin, `POST /v2/projects/{projectId}/interviewer/follow-up`): Try it
+    yourself's follow-up, on the wire -- the AI link's person's answers carried onto the dry run's own ids are asked the
+    harness's rung with the harness's text, and the rung's clip on the founder's own clip route (206 to a Range); a
+    person owed nothing is 204; nothing is stored (no invitation, response, pilot or ledger row). The dry run's screen
+    is walked to its first question and End (spec 050), not to its follow-up (judgement call 7)."""
+    # read again: the backfill (stand-in 5) stored the follow-up clips anew since the recording was first read
+    _, tried = wire("GET", f"/interviewer/try/{_role_ids(j)[vs.LINK_PRIMARY]}")
+    person, owed, _ = _ai_person(j, interview, token)
+    clear = next(p for p in j.people if p.link == vs.LINK_PRIMARY and p.recency
+                 and vs.follow_up_question(j.entry, p.picks, p.link, interview, token) is None)
+    with j.recorder.step("interviewer (keel-cloud 103): Try it yourself's follow-up on the founder's twin route -- the "
+                         f"harness's rung ({owed['dimension']}) and text with the rung's clip on the founder's route, "
+                         "204 for a person owed nothing, nothing stored", party="founder", kind="assert") as h:
+        before = _counts(j, wire, record)
+        asked, got = j.call("POST", j.project("/interviewer/follow-up"),
+                            {"answers": _on_the_try(person.response(token)["answers"], interview, tried)}, ok=(200,))
+        none, nothing = j.call("POST", j.project("/interviewer/follow-up"),
+                               {"answers": _on_the_try(clear.response(token)["answers"], interview, tried)},
+                               ok=(204, 200))
+        clip = (got or {}).get("clip") or {}
+        fetched = wire.clip(clip.get("url") or "", "bytes=0-99") if clip.get("url") else {}
+        after = _counts(j, wire, record)
+        want_clip = ((((tried.get("interviewer") or {}).get("clips") or {}).get("followUp") or {})
+                     .get(owed["dimension"]) or {}).get("clipId")
+        out = {"owed": owed, "status": asked, "body": got, "clear": {"person": clear.person, "status": none},
+               "clip": fetched, "want_clip": want_clip, "before": before, "after": after}
+        record["dry_run"] = {**record.get("dry_run", {}), "follow_up": out}
+        h.record_assert({"status": 200, "dimension": owed["dimension"], "text": owed["text"], "clip": 206,
+                         "clear": 204, "before == after": True}, out)
+        assert got.get("dimension") == owed["dimension"] and got.get("text") == owed["text"], got
+        assert clip.get("clipId") == want_clip and (clip.get("url") or "").startswith(
+            f"/v2/projects/{j.project_id}/interviewer/clips/"), (clip, want_clip)
+        assert fetched.get("status") == 206, fetched
+        assert none == 204, (none, nothing)
+        assert before == after, (before, after)
 
 
 def _classifier_guard(j, wire: _Wire, record: dict, made: dict, interview: dict) -> None:
@@ -1064,7 +1226,8 @@ class _Walk:
     """What the stranger did on the stage, kept for the record: each sheet, the holds, the "Is that right?" turns,
     the way back, and how each item was answered (`how` the response must then carry)."""
 
-    def __init__(self, player, interview: dict, expected: dict, *, story_by: str = "wait"):
+    def __init__(self, player, interview: dict, expected: dict, *, story_by: str = "wait",
+                 follow_up: dict | None = None):
         self.player = player
         self.gate = interview.get("gate") or {}
         self.items = {i.get("question"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
@@ -1090,6 +1253,13 @@ class _Walk:
         #: S-006), and what it drew (IM22).
         self.story_by = story_by
         self.story_seen: dict | None = None
+        #: Spec 051 FR-6 / FR-7: the one follow-up -- `{"line", "by": "browser" | "recorded"}` -- and what it drew.
+        self.follow_up_plan = follow_up or {}
+        self.follow_up_seen: dict | None = None
+        self.recorded = False
+        clips = (interview.get("interviewer") or {}).get("clips") or {}
+        self.didnt_catch = (clips.get("didntCatch") or {}).get("clipId")
+        self.pilot_clip = (clips.get("pilot") or {}).get("clipId")
 
     # ---- one spoken answer, held
     def held(self, entry: dict, said: str, *, item: dict | None = None, meant: str | None = None,
@@ -1216,6 +1386,9 @@ class _Walk:
             if stage["where"] == ivs.LAST_QUESTION:
                 self.pilot(entry)
                 return self.walked
+            if stage["where"] == ivs.FOLLOW_UP_KICKER:
+                self.follow_up(entry)
+                continue
             if self.gate and q == self.gate.get("question"):
                 self.held(entry, "yes" if self.expected.get("recency", True) is not False else "no")
                 self.how[self.gate.get("itemId")] = "SPOKEN"
@@ -1288,16 +1461,158 @@ class _Walk:
         """The pilot ask -- *Last question*, never skipped: "yes" said, and (keel-web 073 FR-7) held like any confident
         answer -- the ring on Yes, *Finish* on the sheet -- and on by itself to the thanks: nothing pressed."""
         p = self.player
-        p.wait_ear()
         start = _now(p)
-        p.say("yes", True)
-        hold = p.hold()
+        if self.recorded:
+            # spec 051: the recogniser refused on the follow-up, so the page records every window since (keel-web
+            # `listenFailed`); the pilot ask's "yes" is written down by the stack's fake transcriber
+            box = ivs.SpeakBox(p.page)
+            _wait_recording_since(p, _played_at(p, self.pilot_clip))
+            box.speak()
+            box.quiet()
+        else:
+            p.wait_ear()
+            p.say("yes", True)
+        hold = p.hold(timeout_s=30)
         done = p.done(timeout_s=20)
         hold.update({"said": "yes", "presses": _presses_between(p, start, _now(p)), "pilot": True,
                      "done": bool(done.get("text"))})
         self.holds.append(hold)
         self.pilot_hold = hold
         entry["did"].append("said yes: held, then the thanks with nothing pressed")
+
+    # ---- spec 051: the one follow-up
+    def follow_up(self, entry: dict) -> None:
+        """Spec 051 FR-6 / FR-7 (keel-web 076 FR-9, keel-cloud 103 design §5.3): after the last item's hold the page
+        asks the cloud's route; with a rung it plays the rung's FOLLOW_UP clip, the sheet says *One last thing* and the
+        cloud's filled text, and the window is the story's -- never classified. Two windows, by way of *Back* from the
+        first (076: Back from the follow-up lands on the last item; on again, the route is asked again):
+
+        * **browser** (S-005): the first window said and ended by the pause, Back in its hold, the last item tapped
+          again, the second said and ended by *Save and next* -- the response's `followUp` SPOKEN with the words;
+        * **recorded** (S-006): the recogniser refuses on the first window (`not-allowed`, Chrome on iPhone), so the
+          page records it -- a sound, then quiet: it ends 4 s after the last sound and is written down with
+          `maxSeconds` 120; Back in its hold, the last item tapped again, the second window left silent: it runs to the
+          cap (shortened through the seam, judgement call 2) and the question is skipped -- `skipped: true`, no
+          didn't-catch, the pilot ask next."""
+        p = self.player
+        plan = self.follow_up_plan
+        line = plan.get("line") or ""
+        by = plan.get("by") or "browser"
+        x = self.follow_up_seen = {"by": by, "windows": [], "line": line}
+        last = self.order[-1]
+        last_item = next(i for i in self.items.values() if i.get("itemId") == last)
+        options = {o["optionId"]: o["label"] for o in last_item.get("options") or []}
+        meant = [options[o] for o in (self.by_id.get(last) or {}).get("optionIds") or []]
+        assert len(meant) == 1 and last_item.get("control") not in ("pick_two", "benefit_with_advantages"), \
+            {"the last item is answered again by one tap": last_item.get("dimension"), "meant": meant}
+        # the first window
+        first = self._follow_up_window(entry, "first")
+        if by == "recorded":
+            first.update(self._recorded_take(first))
+        else:
+            first.update(self._browser_take(line, "wait"))
+        x["windows"].append(first)
+        # Back in its hold: the last item again, tapped again -- and the follow-up asked once more
+        p.page.get_by_test_id("ai-back").click()
+        _wait_question(p, last_item.get("question"))
+        x["back"] = {"to": p.question(), "lit": p.checked(), "step": _step_of(p)}
+        p.tap(meant[0])
+        self.how[last] = "TAPPED"
+        x["back"]["tapped"] = meant[0]
+        deadline = time.monotonic() + 40 * p.patience
+        while time.monotonic() < deadline and not (_step_of(p) == "followUp" and p.phase() == "listening"):
+            p.page.wait_for_timeout(100)
+        second = self._follow_up_window(entry, "second")
+        if by == "recorded":
+            second.update(self._silent_window(second))
+        else:
+            second.update(self._browser_take(line, "save"))
+        x["windows"].append(second)
+        entry["did"].append(f"the follow-up: {first.get('ended')}, Back and on, then {second.get('ended')}")
+
+    def _follow_up_window(self, entry: dict, which: str) -> dict:
+        """What one follow-up window drew as it opened: the sheet's step and where, the kicker, the question, the
+        status, *Skip this one*, *Save and next* (none before words), Back -- and the clip that played into it."""
+        p = self.player
+        p.wait_phase("listening", timeout_s=40)
+        sheet = p.sheet()
+        events = p.timeline()
+        plays = [e for e in events if e.get("kind") == "play"]
+        return {"which": which, "opened_at": _now(p), "step": _step_of(p), "where": p.stage()["where"],
+                "kicker": sheet["kicker"], "question": sheet["question"], "status": sheet["status"],
+                "skip": _words_of(p, "ai-skip"), "save_before": p.save_state(), "back": _words_of(p, "ai-back"),
+                "clip": plays[-1].get("clip") if plays else None, "classified_before": len(p.classified),
+                "banner": sheet.get("banner")}
+
+    def _browser_take(self, line: str, by: str) -> dict:
+        """The browser path's window: the line said as one final, then the pause ("wait": nothing pressed, held after
+        the gap) or *Save and next* at once ("save")."""
+        p = self.player
+        p.wait_ear()
+        said_at = _now(p)
+        p.say(line, True, look=False)
+        waited = 0
+        while waited < 3_000 * p.patience and not p.save_state()["shown"]:
+            p.page.wait_for_timeout(50)
+            waited += 50
+        save_after = p.save_state()
+        pressed_at = None
+        if by == "save" and save_after["shown"]:
+            pressed_at = _now(p)
+            p.page.get_by_test_id("ai-save").click()
+        status = p.wait_status(ivs.HELD, timeout_s=20)
+        held_at = next((e["t"] for e in p.timeline() if e.get("kind") == "phase" and e.get("value") == "held"
+                        and (e.get("t") or 0) >= said_at), None)
+        sheet = p.sheet()
+        out = {"path": "browser", "ended": by, "said": line, "save_after_final": save_after,
+               "pressed": pressed_at is not None, "held_status": status, "heard": sheet["heard"],
+               "final_to_held_ms": round(held_at - said_at) if held_at is not None else None,
+               "press_to_held_ms": round(held_at - pressed_at) if held_at is not None and pressed_at else None,
+               "presses": _presses_between(p, said_at, _now(p)), "classified": len(p.classified)}
+        if by == "save":
+            hold = p.hold(timeout_s=20)
+            out["went_on"] = hold.get("went_on")
+            _wait_where(p, ivs.LAST_QUESTION)
+            out["next"] = p.stage()["where"]
+        return out
+
+    def _recorded_take(self, opened: dict) -> dict:
+        """The recorded path's window (spec 051 FR-7): the recogniser refuses (`not-allowed`), the page records the
+        window; a sound for a moment, then quiet -- the recording stops 4 s after the last sound and is written down
+        (`transcribe`, `maxSeconds` 120); the transcript is held."""
+        p = self.player
+        box = ivs.SpeakBox(p.page)
+        p.wait_ear()
+        before = len(_record_stamps(p)["starts"])
+        p.page.evaluate("() => window.__speechError('not-allowed')")
+        self.recorded = True
+        started = _wait_recording(p, before)
+        sound_at = box.speak()
+        quiet_at = box.quiet()
+        status = p.wait_status(ivs.HELD, timeout_s=30)
+        stamps = _record_stamps(p)
+        stops = [t for t in stamps["stops"] if t >= quiet_at]
+        sheet = p.sheet()
+        return {"path": "recorded", "ended": "quiet", "recording_started": started, "sound_at": sound_at,
+                "quiet_at": quiet_at, "stopped_at": stops[0] if stops else None,
+                "quiet_to_stop_ms": round(stops[0] - quiet_at) if stops else None, "held_status": status,
+                "heard": sheet["heard"], "banner": sheet.get("banner"), "classified": len(p.classified),
+                "classified_before": opened.get("classified_before")}
+
+    def _silent_window(self, opened: dict) -> dict:
+        """The recorded path's silent window (spec 051 FR-7, IM24): nothing said; the recording runs to the cap
+        (`followUpCapMs` through the seam) and the question is skipped -- no didn't-catch, the pilot ask next."""
+        p = self.player
+        started = _wait_recording_since(p, _played_at(p, opened.get("clip")))
+        _wait_where(p, ivs.LAST_QUESTION, timeout_s=ivs.FOLLOW_UP_SEAM_CAP_MS / 1000 + 30)
+        stamps = _record_stamps(p)
+        cancels = [t for t in stamps["cancels"] if t >= started]
+        catches = [e for e in p.timeline() if e.get("kind") == "play" and e.get("clip") == self.didnt_catch
+                   and (e.get("t") or 0) >= started]
+        return {"path": "recorded", "ended": "cap", "recording_started": started,
+                "cancelled_at": cancels[0] if cancels else None,
+                "ran_ms": round(cancels[0] - started) if cancels else None, "cap_ms": ivs.FOLLOW_UP_SEAM_CAP_MS,
+                "didnt_catch_played": len(catches), "next": p.stage()["where"]}
 
     def read_aloud(self, entry: dict, item: dict, meant: str, labels: list[str]) -> None:
         """Spec 049 FR-2: the way people answer -- the question's first words read aloud as a final, then within a
@@ -1511,6 +1826,62 @@ class _Walk:
         _wait_next(p, entry["question"])
 
 
+def _step_of(player) -> str | None:
+    """keel-web 076: the sheet's step (`ai-sheet[data-step]`: gate | item | followUp | pilot)."""
+    sheet = player.page.get_by_test_id("ai-sheet")
+    return sheet.first.get_attribute("data-step") if sheet.count() else None
+
+
+def _wait_question(player, question: str | None, *, timeout_s: float = 20) -> None:
+    deadline = time.monotonic() + timeout_s * player.patience
+    while time.monotonic() < deadline and player.question() != question:
+        time.sleep(0.05)
+    assert player.question() == question, {"Back landed on": player.question(), "want": question}
+
+
+def _wait_where(player, where: str, *, timeout_s: float = 30) -> None:
+    deadline = time.monotonic() + timeout_s * player.patience
+    while time.monotonic() < deadline and player.stage()["where"] != where:
+        time.sleep(0.1)
+    assert player.stage()["where"] == where, {"the stage never reached": where, "it reads": player.stage()}
+
+
+def _record_stamps(player) -> dict:
+    """The seam recorder's stamps (`harness/interviewer_screens.recorder_seam`)."""
+    return player.page.evaluate("""() => ({ starts: (window.__recordStarts || []).slice(),
+        stops: (window.__recordStops || []).slice(), cancels: (window.__recordCancels || []).slice() })""")
+
+
+def _played_at(player, clip_id: str | None) -> float:
+    """When `clip_id` last began to play on the stage (the timeline's `play`), or 0."""
+    plays = [e.get("t") or 0 for e in player.timeline() if e.get("kind") == "play" and clip_id
+             and e.get("clip") == clip_id]
+    return plays[-1] if plays else 0.0
+
+
+def _wait_recording_since(player, since: float, *, timeout_s: float = 20) -> float:
+    """The first recording begun at or after `since` (a clip's play): when."""
+    deadline = time.monotonic() + timeout_s * player.patience
+    while time.monotonic() < deadline:
+        starts = [t for t in _record_stamps(player)["starts"] if t >= since]
+        if starts:
+            return starts[0]
+        time.sleep(0.05)
+    raise AssertionError({"no recording began after": since, "stamps": _record_stamps(player),
+                          "status": player.status()})
+
+
+def _wait_recording(player, before: int, *, timeout_s: float = 20) -> float:
+    """A recording begun after the `before`-th: when (`performance.now()`)."""
+    deadline = time.monotonic() + timeout_s * player.patience
+    while time.monotonic() < deadline:
+        starts = _record_stamps(player)["starts"]
+        if len(starts) > before:
+            return starts[-1]
+        time.sleep(0.05)
+    raise AssertionError({"no recording began": _record_stamps(player), "status": player.status()})
+
+
 def _held_or_on(player, question: str, *, timeout_s: float = 20) -> dict | None:
     """After an answer to "Is that right?": the question went on at once (agreed -- None), or the read was held."""
     deadline = time.monotonic() + timeout_s * player.patience
@@ -1536,12 +1907,25 @@ def _words_of(player, testid: str) -> str | None:
     return " ".join((loc.first.text_content() or "").split()) if loc.count() else None
 
 
+def _slot_clips(clips: dict) -> dict[str, dict]:
+    """A player's one-clip slots (`opening`, `pilot`, ...) -- not `followUp`, which since keel-cloud 103 is a map of
+    one clip per rung."""
+    return {slot: c for slot, c in (clips or {}).items() if c and slot != "followUp"}
+
+
+def _all_clips(clips: dict) -> list[dict]:
+    """Every clip a player's `clips` carries: the slots and each rung's follow-up."""
+    return list(_slot_clips(clips).values()) + list(((clips or {}).get("followUp") or {}).values())
+
+
 def _clip_kinds(interview: dict) -> dict[str, str]:
     """A served interview's clip ids by what they say: the slots' names upper-cased (`opening` -> OPENING), an item's
     clip ITEM, its follow-up ITEM_MORE."""
     player = interview.get("interviewer") or {}
     kinds = {c.get("clipId"): re.sub(r"(?<!^)(?=[A-Z])", "_", slot).upper()
-             for slot, c in (player.get("clips") or {}).items() if c}
+             for slot, c in _slot_clips(player.get("clips") or {}).items()}
+    for clip in ((player.get("clips") or {}).get("followUp") or {}).values():
+        kinds[clip.get("clipId")] = "FOLLOW_UP"                     # spec 051: one a rung, keyed by dimension
     for item in (player.get("items") or {}).values():
         if item.get("clip"):
             kinds[item["clip"].get("clipId")] = "ITEM"
@@ -1593,21 +1977,29 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
     Back once, a word of protest once -- the pilot ask "yes" and *Finish*; then the one `POST response` keel-web sends:
     `format` AI_INTERVIEWER, `how` and `heard` on every answer as it was given, exactly the person's own answers (the
     changed one included), and the pilot's Yes counted."""
-    person = _person_for_the_link(j)
+    person, owed, line = _ai_person(j, interview, made["token"])
     items = {i.get("dimension"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
     recall = ((items.get("commercial.existing_sacrifice") or {}).get("costTotal") or {}).get("recallPeriod")
     expected = person.response(made["token"], recall)
     pilot_before = (j.get(j.project("/standings")) or {}).get("pilot") or {}
     stranger = j.browser.new_context()
     stranger.add_init_script(ivs.SPEECH_SEAM)
+    by = "browser" if record.get("short") else "recorded"
+    if by == "recorded":
+        # spec 051 FR-7: the recorder the page falls back to, and the follow-up's cap shortened (judgement call 2)
+        stranger.add_init_script(ivs.recorder_seam(follow_up_cap_ms=ivs.FOLLOW_UP_SEAM_CAP_MS))
     stranger.add_init_script(ivs.FLOW_TIMELINE)
     seen: dict = {}
+    replies: list = []
 
     def keep(response) -> None:
         if response.request.method == "POST" and response.url.endswith(("/interview/response", "/interview/pilot",
                                                                         "/interview/classify")):
             seen.setdefault(response.url.rsplit("/", 1)[-1], []).append(
                 {"status": response.status, "body": response.request.post_data_json})
+        if response.request.method == "POST" and response.url.endswith(("/interview/follow-up",
+                                                                        "/interview/transcribe")):
+            replies.append(response)                     # read once the walk is over (never inside the handler)
     try:
         page = stranger.new_page()
         page.on("response", keep)
@@ -1620,9 +2012,11 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
                 mic = player.mic_test("hello")
                 h.add_screenshot(player.screenshot("ai-mic-tested"))
                 player.start()
-                walk = _Walk(player, interview, expected, story_by="wait" if record.get("short") else "save")
+                walk = _Walk(player, interview, expected, story_by="wait" if record.get("short") else "save",
+                             follow_up={"line": line, "by": by})
                 walked = walk.run()
                 done = player.done()
+                asked = _replies(replies)
                 mic_off = player.mic_off()
                 h.add_screenshot(player.screenshot("ai-mic-off"))
                 beats, starts = player.beats(), player.starts()
@@ -1640,6 +2034,10 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
     finally:
         stranger.close()
     record["mic_test"] = {**mic, "intro": intro}
+    _consent_on_the_intro(j, interview, intro, "the AI link's")
+    record["follow_up_ai"] = {"owed": owed, "line": line, "by": by, "asked": asked, "walk": walk.follow_up_seen,
+                              "clips": ((interview.get("interviewer") or {}).get("clips") or {}).get("followUp"),
+                              "followUps": interview.get("followUps")}
     record["beat"] = _beats_seen(interview, beats, starts)
     if walk.story_seen:
         record["story"] = walk.story_seen
@@ -1703,6 +2101,7 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
                               "sent_how": (by_item.get(walk.taps["item"]) or {}).get("how")}
         if record.get("story"):
             record["story"]["sent"] = body.get("story")                 # IM22: the response carries the story
+        record["follow_up_ai"]["sent"] = body.get("followUp")
         record["ai_answers"] = {"body": body, "status": (responses[0] if responses else {}).get("status"),
                                 "register_row": row, "by": "keel-web", "walked": walked, "intro": intro,
                                 "done": done, "expected": expected, "how": {"want": walk.how, "sent": hows},
@@ -1734,7 +2133,107 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
         assert len(pilots) == 1 and pilots[0]["status"] == 204, pilots
         assert row.get("formatUsed") == "AI_INTERVIEWER" and row.get("status") == "ANSWERED", row
         assert all(w["mark"] == ivs.MARK for w in walked), [w["mark"] for w in walked]
+    _follow_up_on_the_ai_link(j, record)
     _read_on_arrival(j, wire, record, made["invitationId"], "the AI link's")
+
+
+def _ai_person(j, interview: dict, token: str):
+    """Spec 051: the person who answers the AI link (`_person_for_the_link`, the last read) and the follow-up the
+    harness's own walk owes them on it. Where their own picks owe none (01-countly's last reader holds up on every
+    rung), their Commitment is answered *Yes, after trying it first* instead -- a support in `Compare`, so no standing
+    moves, and the ladder's last rung against (design §2: it is asked too) -- so the short form has a follow-up to
+    walk (judgement call 6). Returns (person, the owed question, the line they say)."""
+    person = _person_for_the_link(j)
+    owed = vs.follow_up_question(j.entry, person.picks, vs.LINK_PRIMARY, interview, token)
+    if owed is None:
+        person = vs.with_pick(person, "commercial.commitment", ["yes_after_trying"])
+        owed = vs.follow_up_question(j.entry, person.picks, vs.LINK_PRIMARY, interview, token)
+    assert owed is not None, {"no follow-up owed on the AI link": person.person}
+    line = person.follow_up or vs.FOLLOW_UP_LINES[owed["dimension"]][0]
+    return person, owed, line
+
+
+def _replies(responses: list) -> list[dict]:
+    """The follow-up route's and `transcribe`'s answers the page received, in order: what was sent and what came."""
+    out = []
+    for response in responses:
+        try:
+            got = response.json() if response.status == 200 else {}
+        except Exception:  # noqa: BLE001 - a 204
+            got = {}
+        out.append({"route": response.url.rsplit("/", 1)[-1], "status": response.status,
+                    "sent": response.request.post_data_json, "body": got})
+    return out
+
+
+def _consent_on_the_intro(j, interview: dict, intro: dict, whose: str) -> None:
+    """Spec 051 FR-9, a plain assertion on the AI intro: the served consent line (keel-cloud 103, D17) is drawn, and
+    the old door line is gone."""
+    from evals.corpus_scenario import CONSENT_GONE, CONSENT_TEXT        # noqa: PLC0415 - the one copy of the line
+
+    with j.recorder.step(f"interviewer (keel-cloud 103 FR-8, D17): {whose} intro says the name travels with the words "
+                         "and may be quoted; Nothing here asks for your name is gone", party="participant",
+                         kind="assert") as h:
+        text = " ".join((intro.get("text") or "").split())
+        h.record_assert({"served": CONSENT_TEXT, "drawn": True, "gone": CONSENT_GONE},
+                        {"served": interview.get("consentText"), "intro": text})
+        assert interview.get("consentText") == CONSENT_TEXT, interview.get("consentText")
+        assert CONSENT_TEXT in text and CONSENT_GONE not in text, text
+
+
+def _follow_up_on_the_ai_link(j, record: dict) -> None:
+    """Spec 051 FR-6 / FR-7 (keel-web 076 FR-9, keel-cloud 103): what the AI link's follow-up did, held -- the route
+    asked twice (once a pass of the last item) and both times on the harness's rung with the harness's text, the
+    rung's FOLLOW_UP clip played into both windows (`clips.followUp[dimension]`, the route's own `clip`), the sheet's
+    step `followUp` with *One last thing*, the story's status, *Skip this one*, no *Save and next* before words, nothing
+    classified; the browser path's first window ended by the pause and its second by Save (the response SPOKEN with
+    the words), or the recorded path's first window 4 s after the last sound (`transcribe` `maxSeconds` 120) and its
+    second, silent, at the cap -- skipped, no didn't-catch, the pilot ask next."""
+    x = record["follow_up_ai"]
+    owed = x["owed"]
+    clips = x.get("clips") or {}
+    want_clip = (clips.get(owed["dimension"]) or {}).get("clipId")
+    routes = [a for a in x.get("asked") or [] if a["route"] == "follow-up"]
+    windows = (x.get("walk") or {}).get("windows") or []
+    with j.recorder.step(f"interviewer (keel-cloud 103, keel-web 076): the AI link's follow-up on {owed['dimension']} "
+                         f"-- the {x['by']} path, two windows by way of Back", party="participant", kind="assert") as h:
+        if x["by"] == "browser":
+            want_sent = {"dimension": owed["dimension"], "text": x["line"], "how": "SPOKEN", "skipped": False}
+        else:
+            want_sent = {"dimension": owed["dimension"], "skipped": True}
+        h.record_assert({"routes": [{"status": 200, "dimension": owed["dimension"], "text": owed["text"]}] * 2,
+                         "clip": want_clip, "windows": ["wait", "save"] if x["by"] == "browser" else ["quiet", "cap"],
+                         "sent": want_sent}, x)
+        assert len(routes) == 2 and all(r["status"] == 200 for r in routes), routes
+        for r in routes:
+            assert r["body"].get("dimension") == owed["dimension"] and r["body"].get("spoken") == owed["spoken"], r
+            assert r["body"].get("text") == owed["text"], {"route": r["body"].get("text"), "harness": owed["text"]}
+            assert (r["body"].get("clip") or {}).get("clipId") == want_clip, (r["body"].get("clip"), want_clip)
+        assert len(windows) == 2, windows
+        for w in windows:
+            assert w["step"] == "followUp" and w["where"] == ivs.FOLLOW_UP_KICKER, w
+            assert w["kicker"] == ivs.FOLLOW_UP_KICKER and w["question"] == owed["text"], w
+            assert w["status"] == ivs.STORY and w["skip"] == ivs.FOLLOW_UP_SKIP, w
+            assert w["save_before"]["shown"] is False and w["clip"] == want_clip, w
+            assert w.get("classified", w["classified_before"]) == w["classified_before"], w     # never classified
+        if x["by"] == "browser":
+            first, second = windows
+            assert first["ended"] == "wait" and not first["presses"] and not first["pressed"], first
+            assert second["ended"] == "save" and second["pressed"] and second["went_on"], second
+            assert second["final_to_held_ms"] is not None and second["final_to_held_ms"] < marks.GAP_MS, second
+        else:
+            first, second = windows
+            transcribed = [a for a in x.get("asked") or [] if a["route"] == "transcribe"
+                           and (a["sent"] or {}).get("itemId") == routes[0]["body"].get("itemId")]
+            first["transcribed"] = transcribed
+            assert len(transcribed) == 1 and transcribed[0]["status"] == 200, transcribed
+            assert transcribed[0]["sent"].get("maxSeconds") == 120, transcribed[0]["sent"]
+            assert first["quiet_to_stop_ms"] is not None and abs(first["quiet_to_stop_ms"] - ivs.SILENCE_MS) <= 500, \
+                first
+            assert FAKE_TRANSCRIPT in (first["heard"] or "").lower(), first
+            assert second["ran_ms"] is not None and second["ran_ms"] >= 0.95 * second["cap_ms"], second
+            assert second["didnt_catch_played"] == 0 and second["next"] == ivs.LAST_QUESTION, second
+        assert x.get("sent") == want_sent, {"sent": x.get("sent"), "want": want_sent}
 
 
 def _read_on_arrival(j, wire: _Wire, record: dict, invitation_id: str, whose: str) -> None:
@@ -1843,15 +2342,20 @@ def _choice_link(j, wire: _Wire, record: dict) -> None:
         _, register = wire("GET", "/invitations")
         row = next((r for r in register.get("invitations") or [] if r.get("invitationId") == made["invitationId"]),
                    {})
+        owed = vs.follow_up_question(j.entry, person.picks, vs.LINK_PRIMARY, interview, made["token"])
+        stored = stack_ledger.stored_follow_ups(j.stack, j.project_id).get(made["invitationId"])
         record["choice"] = {"made": made, "formats": interview.get("formats"),
                             "player": bool(interview.get("interviewer")), "response": posted.status_code,
-                            "register_row": row, "intro": intro}
+                            "register_row": row, "intro": intro,
+                            "follow_up": {"owed": owed, "sent": None, "stored": stored}}
         h.record_assert({"format": "CHOICE", "formats": ["TEXT", "AI_INTERVIEWER"], "player": True,
                          "formatUsed": "TEXT"}, record["choice"])
         assert made["format"] == "CHOICE" and interview.get("formats") == ["TEXT", "AI_INTERVIEWER"], record["choice"]
         assert interview.get("interviewer") and posted.status_code in (200, 201), record["choice"]
         assert row.get("format") == "CHOICE" and row.get("formatUsed") == "TEXT", row
         assert intro["intro"] == "CHOICE" and intro["buttons"] == ["choice-talk", "choice-write"], intro
+        # keel-cloud 103: a response that owes a follow-up and sends none is stored skipped
+        assert owed and stored == {"dimension": owed["dimension"], "text": None, "how": None, "skipped": True}, stored
     _read_on_arrival(j, wire, record, made["invitationId"], "the Let-them-choose link's")
 
 
@@ -1890,13 +2394,17 @@ def _recorded_link(j, wire: _Wire, record: dict) -> None:
         recall = ((items.get("commercial.existing_sacrifice") or {}).get("costTotal") or {}).get("recallPeriod")
         body = dict(person.response(token, recall), format="AI_INTERVIEWER")
         body["answers"] = [{**a, "how": "RECORDED", "heard": _heard_for(a, interview)} for a in body["answers"]]
+        follow_up = _recorded_follow_up(j, token, interview, person, body)
         posted = _participant(j, "POST", token, "/interview/response", body)
         _, register = wire("GET", "/invitations")
         row = next((r for r in register.get("invitations") or [] if r.get("invitationId") == link.get("invitationId")),
                    {})
+        stored = stack_ledger.stored_follow_ups(j.stack, j.project_id).get(link.get("invitationId"))
+        follow_up["stored"] = stored
         record["recorded"] = {"made": {"status": status, "invitationId": link.get("invitationId")},
                               "silence": silence, "sounded": sounded, "status": posted.status_code,
-                              "response": _json_of(posted), "body": body, "register_row": row}
+                              "response": _json_of(posted), "body": body, "register_row": row,
+                              "follow_up": follow_up}
         h.record_assert({"silence": {"status": 200, "heard": "", "unclear": True, "reason": "silence"},
                          "sounded": {"status": 200, "heard": FAKE_TRANSCRIPT}, "response": "201",
                          "register": {"status": "ANSWERED", "formatUsed": "AI_INTERVIEWER"}},
@@ -1908,8 +2416,48 @@ def _recorded_link(j, wire: _Wire, record: dict) -> None:
         assert sounded.get("picks") == ["Yes"] and sounded.get("confidence") == "high", sounded
         assert posted.status_code in (200, 201), record["recorded"]["response"]
         assert row.get("status") == "ANSWERED" and row.get("formatUsed") == "AI_INTERVIEWER", row
+        # spec 051 (keel-cloud 103): the follow-up, recorded and written down in its two-minute window, then stored
+        want = {"dimension": follow_up["owed"]["dimension"], "text": FAKE_TRANSCRIPT, "how": "RECORDED",
+                "skipped": False}
+        assert follow_up["route"]["status"] == 200 and follow_up["route"]["body"].get("dimension") == want[
+            "dimension"], follow_up["route"]
+        assert follow_up["route"]["body"].get("text") == follow_up["owed"]["text"], follow_up["route"]
+        assert follow_up["over"]["status"] == 422 and follow_up["heard"]["status"] == 200, follow_up
+        assert follow_up["heard"].get("text") == FAKE_TRANSCRIPT, follow_up["heard"]
+        assert follow_up["wrong"]["status"] == 422 and follow_up["wrong"]["body"].get("code") == "SHAPE_MISMATCH", \
+            follow_up["wrong"]
+        assert body.get("followUp") == want and stored == want, {"sent": body.get("followUp"), "stored": stored}
     _recorded_pilot(j, record, token, interview, link.get("invitationId"))
     _read_on_arrival(j, wire, record, link.get("invitationId"), "the recorded link's")
+
+
+def _recorded_follow_up(j, token: str, interview: dict, person, body: dict) -> dict:
+    """Spec 051 FR-6 on the wire, the recorded link's follow-up in the page's order (keel-web 076 FR-9): the answers to
+    `POST .../interview/follow-up` (the harness's rung and text), the window's recording to `transcribe` against the
+    follow-up's own id -- refused 422 at `maxSeconds` 90 (60 or 120 only), written down at 120 (the stack's fake hears
+    "yes") -- a response naming another rung refused 422 SHAPE_MISMATCH (the cloud walks the ladder too), and the
+    words put on `body` as `followUp` RECORDED."""
+    import base64                                                             # noqa: PLC0415
+
+    owed = vs.follow_up_question(j.entry, person.picks, vs.LINK_PRIMARY, interview, token)
+    assert owed is not None, {"the recorded link's person is owed no follow-up": person.person}
+    route = _participant(j, "POST", token, "/interview/follow-up", {"answers": body["answers"]})
+    asked = _json_of(route)
+
+    def transcribe(seconds: int) -> dict:
+        got = _participant(j, "POST", token, "/interview/transcribe", {
+            "itemId": asked.get("itemId"), "audio": base64.b64encode(SOUNDED_WEBM).decode("ascii"),
+            "mimeType": "audio/webm", "language": "en-GB", "maxSeconds": seconds})
+        return {"status": got.status_code, **_json_of(got)}
+
+    over, heard = transcribe(90), transcribe(120)
+    other = next(r for r in fake.walks(vs.LINK_PRIMARY, vs.is_b2b(j.entry)) if r != owed["dimension"])
+    wrong = _participant(j, "POST", token, "/interview/response", {
+        **body, "followUp": {"dimension": other, "text": heard.get("text") or "x", "how": "RECORDED"}})
+    body["followUp"] = {"dimension": asked.get("dimension"), "text": heard.get("text"), "how": "RECORDED",
+                        "skipped": False}
+    return {"owed": owed, "route": {"status": route.status_code, "body": asked}, "over": over, "heard": heard,
+            "wrong": {"status": wrong.status_code, "body": _json_of(wrong), "dimension": other}}
 
 
 def _recorded_pilot(j, record: dict, token: str, interview: dict, invitation_id: str | None = None) -> None:

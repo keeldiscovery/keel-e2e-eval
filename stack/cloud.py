@@ -87,6 +87,10 @@ def build_env(config: StackConfig) -> dict[str, str]:
         # with no Anthropic key on this stack (and every eval founder in `fake-for`) the classifier is keel-cloud's
         # FakeClassifier. What the fake hears for a recording over the silence floor is one word, "yes" -- enough for
         # the interviewer leg's recorded link to be transcribed and read end to end (`evals/interviewer_leg.py`).
+        # Spec 051 (keel-cloud 103, contract 19): `transcribe` opens to every link kind for the story and the follow-up
+        # (`maxSeconds` 60 / 120); 103's fake keys its lines by the window's item word (`story`, `follow_up`) through a
+        # test-only seam (`FakeTranscriber.answer`) no environment variable reaches, so on this stack every window --
+        # the text link's spoken story and follow-up too -- is heard as this one word.
         "KEEL_INTERVIEWER_TRANSCRIBER": "fake",
         "KEEL_OPENAI_API_KEY": "",
         "KEEL_INTERVIEWER_FAKE_TRANSCRIPT": "yes",

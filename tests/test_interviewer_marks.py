@@ -50,6 +50,73 @@ SOLUTION = (f"Now the idea. It is called {NAME}. It claims to send an invoice an
             f"days, and the benefit is it would get translators paid on time. I'll ask you 2 questions about that.")
 
 
+RA = "solution.relative_advantage"
+RA_TEXT = "You said a shorter reconciliation would have made no difference to your last delivery. What would have?"
+RA_CLIP = str(uuid.uuid4())
+
+
+def _text_walk(person: str, rung: str | None, line: str | None) -> dict:
+    """One text walk's follow-up as `evals/corpus_scenario._hold_the_follow_up` records it."""
+    if rung is None:
+        return {"person": person, "asked": True, "owed": None, "route": {"status": 204, "body": {}}, "screen": None,
+                "sent": None, "line": None}
+    text = f"Question on {rung}."
+    sent = {"dimension": rung, "text": line, "how": "TYPED", "skipped": False} if line else \
+        {"dimension": rung, "skipped": True}
+    return {"person": person, "asked": True, "owed": {"dimension": rung, "text": text},
+            "route": {"status": 200, "body": {"dimension": rung, "text": text, "itemId": "f", "spoken": "x"}},
+            "screen": {"kicker": "One last thing", "question": text, "did": "typed" if line else "skipped"},
+            "sent": sent, "line": line}
+
+
+def _ai_follow_up() -> dict:
+    """S-006's AI link: the recorded path -- 4 s after the last sound, Back, then the silent window to the cap."""
+    route = {"route": "follow-up", "status": 200, "sent": {"answers": []},
+             "body": {"dimension": RA, "text": RA_TEXT, "itemId": "fu", "clip": {"clipId": RA_CLIP}}}
+    heard = {"route": "transcribe", "status": 200, "sent": {"itemId": "fu", "maxSeconds": 120}, "body": {"text": "yes"}}
+    windows = [{"which": "first", "step": "followUp", "question": RA_TEXT, "clip": RA_CLIP, "path": "recorded",
+                "ended": "quiet", "quiet_to_stop_ms": 3_960, "transcribed": [heard]},
+               {"which": "second", "step": "followUp", "question": RA_TEXT, "clip": RA_CLIP, "path": "recorded",
+                "ended": "cap", "ran_ms": 9_004, "cap_ms": 9_000, "didnt_catch_played": 0, "next": "Last question"}]
+    return {"owed": {"dimension": RA, "text": RA_TEXT}, "by": "recorded", "asked": [route, heard, route],
+            "walk": {"windows": windows}, "clips": {RA: {"clipId": RA_CLIP}},
+            "sent": {"dimension": RA, "skipped": True}}
+
+
+def _take(person: str, how: str) -> dict:
+    want = "It was Tuesday. yes"
+    return {"person": person, "how": how, "t1": {"state": "idle", "pill": "Speak"},
+            "before_pill": {"acquired": 0, "starts": []}, "after_pill": {"acquired": 1, "starts": [10.0]},
+            "t2": {"state": "listening", "card": True, "wave": True, "clock": "0:00 · up to 1:00"},
+            "continue_enabled_listening": False, "t3": {"state": "writing", "writing": "Writing it down…"},
+            "t4": {"state": "heard", "value": want, "caret": len(want), "footer": "Heard you. Fix anything that’s wrong.",
+                   "pill": "Add more"},
+            "transcribed": [{"itemId": "g", "maxSeconds": 60, "status": 200, "text": "yes"}], "appended": "yes",
+            "want": want, "sent": want, "quiet_to_stop_ms": 3_950 if how == "quiet" else None}
+
+
+def _refused(person: str) -> dict:
+    return {"person": person, "how": "refused", "before_pill": {"acquired": 0, "starts": []},
+            "after_pill": {"acquired": 1, "starts": []},
+            "t6": {"state": "typing-only", "footer": "The microphone is off, so it’s typing on this one."},
+            "pill_after": 0}
+
+
+def _follow_up_clips() -> dict:
+    primary = ["problem.importance", "problem.current_solution_satisfaction", "solution.compatibility", RA,
+               "solution.adoption_friction"]
+    commercial = ["commercial.price", "commercial.buyer_payer_alignment", "commercial.commitment"]
+    roles = {link: {"want": dims, "served": sorted(dims),
+                    "clips": [{"itemId": d, "status": "DONE", "script": fake.follow_up_script(fake.rung(d)[3])}
+                              for d in dims]} for link, dims in (("PRIMARY", primary), ("COMMERCIAL_B2B", commercial))}
+    want = {"PRIMARY": sorted(primary), "COMMERCIAL_B2B": sorted(commercial)}
+    return {"roles": roles, "full": True,
+            "backfill": {"taken_out": 8, "stored": {f"{k}:{d}": {"ok": True} for k, v in want.items() for d in v},
+                         "served_before": {"PRIMARY": [], "COMMERCIAL_B2B": []}, "served_after": copy.deepcopy(want),
+                         "want": want,
+                         "statuses": ["READY"], "ledger_rows_added": 0}}
+
+
 def good() -> dict:
     """A record as S-006's leg writes one: Tito at the first recording, Judy after the change, one fail-once retried."""
     primary = [_clip("PRIMARY", "OPENING", script=fake.OPENING),
@@ -181,6 +248,18 @@ def good() -> dict:
                   "presses": [{"kind": "press", "testid": "ai-save"}], "classified": 0, "held_phase_seen": True,
                   "held": {"status": HELD, "heard": "It was a Tuesday and the agency was late heard", "went_on": True},
                   "next": "Which fits?", "sent": "It was a Tuesday and the agency was late"},
+        # spec 051: the one follow-up (IM23-IM27)
+        "follow_up": {"text": [_text_walk("Tom", "problem.importance", "Those two first."),
+                               _text_walk("Lena", "problem.importance", None),
+                               _text_walk("Marcus", None, None),
+                               {"person": "Oliver", "asked": False, "owed": None, "route": {}, "screen": None,
+                                "sent": None, "line": None}],
+                      "ai": _ai_follow_up(), "try": {"status": 200, "owed": {"dimension": RA},
+                                                     "body": {"dimension": RA, "text": RA_TEXT},
+                                                     "clear": {"status": 204}}},
+        "follow_up_windows": {"windows": _ai_follow_up()["walk"]["windows"], "full": True, "page_cap_ms": 120_000},
+        "speak": {"Priya": _take("Priya", "quiet"), "Nadia": _take("Nadia", "done"), "Hana": _refused("Hana")},
+        "follow_up_clips": _follow_up_clips(),
         "arrivals": [{"invitationId": AI_INVITATION, "holds": [_reading("INTERPRET", f"read-on-arrival:{AI_INVITATION}")]},
                      {"invitationId": CHOICE_INVITATION,
                       "holds": [_reading("INTERPRET", f"read-on-arrival:{CHOICE_INVITATION}")]}],
@@ -195,9 +274,9 @@ def test_a_good_record_meets_every_mark():
     checks = _by_mark(good())
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
-    assert (card["measured"], card["met"], card["unmeasured"]) == (22, 22, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 4
-    assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 23)]
+    assert (card["measured"], card["met"], card["unmeasured"]) == (27, 27, [])
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 5
+    assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 28)]
 
 
 def test_the_story_ended_by_the_pause_meets_im22_with_nothing_pressed():
@@ -373,6 +452,48 @@ SEEDED = [
     ("IM22", ["story", "held", "heard"], "It was a Tuesday"),                            # words lost
     ("IM22", ["story", "held_phase_seen"], False),
     ("IM22", ["story", "sent"], ""),                                                     # the story not sent
+    # spec 051: the one follow-up
+    ("IM23", ["follow_up", "text", 0, "route", "body", "dimension"], "problem.frequency"),  # the wrong rung asked
+    ("IM23", ["follow_up", "text", 2, "route"], {"status": 200, "body": {"dimension": RA}}),  # asked of one owed none
+    ("IM23", ["follow_up", "text", 0, "screen"], None),                                  # owed, never shown
+    ("IM23", ["follow_up", "text", 0, "screen", "question"], "Something else?"),         # the screen's own words
+    ("IM23", ["follow_up", "text", 0, "sent"], {"dimension": "commercial.price", "text": "x", "how": "TYPED"}),
+    ("IM23", ["follow_up", "text", 3, "route"], {"status": 204}),                       # asked after a gate No
+    ("IM23", ["follow_up", "ai", "walk", "windows", 1, "clip"], str(uuid.uuid4())),     # another rung's clip played
+    ("IM23", ["follow_up", "ai", "asked", 2, "body", "text"], "You said it."),          # the second ask's text
+    ("IM23", ["follow_up", "ai"], None),                                                 # the AI link never walked
+    ("IM23", ["follow_up", "try", "clear", "status"], 200),                              # the twin asked one owed none
+    ("IM23", ["follow_up", "text"], lambda t: [x for x in t if x.get("owed") is None]),  # nobody owed one
+    ("IM24", ["follow_up", "text", 1, "sent"], {"dimension": "problem.importance", "text": "", "skipped": True}),
+    ("IM24", ["follow_up", "text", 1, "sent"], {"dimension": "problem.importance", "skipped": False}),
+    ("IM24", ["follow_up", "ai", "sent"], {"dimension": RA, "text": "yes", "how": "RECORDED", "skipped": False}),
+    ("IM24", ["follow_up", "ai", "walk", "windows", 1, "didnt_catch_played"], 1),         # a didn't-catch loop
+    ("IM24", ["follow_up", "ai", "walk", "windows", 1, "next"], "Question 9 of 9"),      # asked again, not the pilot
+    ("IM25", ["follow_up_windows", "windows", 0, "quiet_to_stop_ms"], 1_900),            # 074's 2 s, not 4
+    ("IM25", ["follow_up_windows", "windows", 0, "transcribed", 0, "sent", "maxSeconds"], 60),  # the story's minute
+    ("IM25", ["follow_up_windows", "windows", 1, "ran_ms"], 4_100),                      # stopped long before the cap
+    ("IM25", ["follow_up_windows", "windows", 1, "cap_ms"], 180_000),                    # past two minutes
+    ("IM25", ["follow_up_windows", "page_cap_ms"], 60_000),
+    ("IM25", ["follow_up_windows", "windows"], lambda w: w[:1]),                         # the silent window unseen
+    ("IM25", ["follow_up_windows", "windows"], lambda w: w + [{"path": "browser", "ended": "save", "pressed": True,
+                                                               "final_to_held_ms": 4_300, "presses": []}]),
+    ("IM26", ["speak", "Priya", "before_pill", "acquired"], 1),                          # the mic asked on load
+    ("IM26", ["speak", "Priya", "t4", "value"], "yes"),                                  # replaced, not appended
+    ("IM26", ["speak", "Priya", "t4", "caret"], 0),                                      # the caret left behind
+    ("IM26", ["speak", "Priya", "transcribed", 0, "maxSeconds"], 120),                   # the follow-up's window
+    ("IM26", ["speak", "Priya", "sent"], "It was Tuesday."),                             # the append not sent
+    ("IM26", ["speak", "Priya", "quiet_to_stop_ms"], 2_000),
+    ("IM26", ["speak", "Nadia", "continue_enabled_listening"], True),                    # Continue on while listening
+    ("IM26", ["speak", "Hana", "t6", "footer"], ""),                                     # T6 said nothing
+    ("IM26", ["speak", "Hana", "after_pill", "starts"], [12.0]),                         # recorded on a refused mic
+    ("IM26", ["speak"], lambda v: {k: x for k, x in v.items() if x["how"] != "refused"}),  # T6 never walked
+    ("IM27", ["follow_up_clips", "roles", "PRIMARY", "clips"], lambda c: c[:-1]),        # a rung's clip missing
+    ("IM27", ["follow_up_clips", "roles", "COMMERCIAL_B2B", "clips", 0, "script"], "One last thing."),
+    ("IM27", ["follow_up_clips", "roles", "PRIMARY", "clips", 0, "status"], "FAILED"),
+    ("IM27", ["follow_up_clips", "backfill", "ledger_rows_added"], 1),                   # the backfill charged
+    ("IM27", ["follow_up_clips", "backfill", "statuses"], ["READY", "RECORDING"]),
+    ("IM27", ["follow_up_clips", "backfill", "served_after", "PRIMARY"], []),           # never served again
+    ("IM27", ["follow_up_clips", "backfill"], None),                                     # the full leg never seeded it
 ]
 
 
