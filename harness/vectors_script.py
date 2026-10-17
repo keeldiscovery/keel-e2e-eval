@@ -999,23 +999,18 @@ def failing_keys(entry) -> list[str]:
 
 def walked_follow_ups(entry, people) -> list[tuple[str, str]]:
     """`[(rung, text)]`, one a person who types a follow-up, in the walks' (the entry's) order: the line the person
-    posts (`PersonInputs.follow_up`, spec 051) on the first rung their own picks go against (`first_rung`, 051's walk of
-    the ladder over the founder's side). **The seam with spec 051**: until 051's `follow_up` lines and `first_rung` are on
-    this branch nobody types a follow-up, this is `[]`, and the script carries the catch-all alone."""
+    posts (`PersonInputs.follow_up`, spec 051's `FOLLOW_UP_LINES`) on the rung `follow_up_lines` gave it -- the first
+    rung their own picks go against (`interviewer_fake.first_rung` over `founder_side(entry)`). A skipper (`None`)
+    posts no text and is not themed."""
     from harness import interviewer_fake as fake                       # noqa: PLC0415
-    first_rung = getattr(fake, "first_rung", None)
-    founder_side = globals().get("founder_side")
-    if first_rung is None or founder_side is None:
-        return []
     founder = founder_side(entry)
     out = []
     for person in people:
-        text = getattr(person, "follow_up", None)
-        if not text:
+        if not person.follow_up:
             continue
-        rung = first_rung(person.picks, founder, person.link, b2b=is_b2b(entry))
+        rung = fake.first_rung(person.picks, founder, person.link, b2b=is_b2b(entry))
         if rung:
-            out.append((rung, text))
+            out.append((rung, person.follow_up))
     return out
 
 

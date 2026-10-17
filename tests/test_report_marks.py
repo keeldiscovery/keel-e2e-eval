@@ -71,7 +71,7 @@ def standings() -> dict:
     insights = [
         {"dimension": "commercial.purchase_friction", "name": names["commercial.purchase_friction"],
          "status": "PEOPLE_DISAGREE", "rungHeading": None,
-         "noQuestionWhy": fake.NO_FOLLOW_UP["commercial.purchase_friction"], "against": 2, "asked": 0,
+         "noQuestionWhy": fake.NO_FOLLOW_UP_WHY["commercial.purchase_friction"], "against": 2, "asked": 0,
          "answered": 0, "skipped": 0, "tookBy": [], "themes": [], "raw": False, "rawQuotes": []},
         {"dimension": "commercial.commitment", "name": "Commitment", "status": "PEOPLE_DISAGREE",
          "rungHeading": fake.RUNG_HEADINGS["commercial.commitment"], "noQuestionWhy": None, "against": 3,
@@ -550,7 +550,7 @@ def test_the_rung_headings_and_no_question_reasons_are_the_registrys():
     if not headings:
         pytest.skip("this keel-cloud checkout predates 104's headings")
     assert headings == fake.RUNG_HEADINGS
-    assert reasons == fake.NO_FOLLOW_UP
+    assert reasons == fake.NO_FOLLOW_UP_WHY and tuple(reasons) == fake.NO_FOLLOW_UP
 
 
 def test_the_insights_words_are_keel_web_077s():
@@ -686,43 +686,39 @@ def test_a_text_two_people_typed_is_scripted_once_and_a_dimension_not_failing_is
     assert [e.get("dimension") for e in entries] == ["commercial.commitment", None], "Price holds on this entry"
 
 
-def test_every_scripted_text_is_a_line_the_walk_posts(monkeypatch):
-    """The texts resolve only if they are the strings the walks post: every THEMES text of a scenario's script is some
-    person's `follow_up` line (spec 051's), on a dimension the entry leaves failing. With 051's walk on this branch the
-    real lines are read; before it (no `follow_up`, no `first_rung`) the script carries the catch-all alone, and the
-    seam is exercised here with a stand-in walk that puts every person on the entry's first failing rung."""
-    import dataclasses                                                     # noqa: PLC0415
+#: The THEMES entries each scenario's script carries (spec 051's lines on the entry's failing rungs), then the catch-all.
+SCRIPTED_THEMES = {"01-countly.yaml": ["problem.current_solution_satisfaction"],
+                   "05-paidly.yaml": ["commercial.price", "commercial.buyer_payer_alignment"],
+                   "07-mulchrun.yaml": ["problem.importance", "commercial.commitment"]}
+
+
+@pytest.mark.parametrize("name", sorted(SCRIPTED_THEMES))
+def test_every_scripted_text_is_a_line_the_walk_posts(name):
+    """The texts resolve only if they are the strings the walks post: every THEMES text of a scenario's script is a
+    person's `follow_up` line (spec 051's `FOLLOW_UP_LINES`) on a dimension the entry leaves failing, the rung that
+    person's picks go against first; each entry is the fake's grouping of exactly those lines; the catch-all last."""
     from harness import vectors_script as vs                               # noqa: PLC0415
-    for name in ("01-countly.yaml", "05-paidly.yaml", "07-mulchrun.yaml"):
-        entry = _canon(name)
-        people = vs.person_inputs(entry)
-        posted = {getattr(p, "follow_up", None) for p in people} - {None}
-        entries = vs.generate(entry).screens[vs.THEMES_SCREEN]
-        texts = [t for e in entries for th in e["result"]["themes"] for t in th["answers"]]
-        assert set(texts) <= posted, name
-        assert {e.get("dimension") for e in entries} - {None} <= set(vs.failing_keys(entry)), name
-        assert entries[-1] == {"outcome": "COMPLETED", "result": {"themes": []}}, name
-        if not posted:
-            assert len(entries) == 1, f"{name}: no walk posts a follow-up before spec 051, so only the catch-all"
-    entry = _canon("05-paidly.yaml")
-    first = vs.failing_keys(entry)[0]
-    lines = ["Proof that it saves time every month.", "Seeing it work with our own clients first.",
-             "Proof from a firm like ours."]
-    people = [dataclasses.replace(p, **({"follow_up": lines[i % 3]} if "follow_up" in
-                                        {f.name for f in dataclasses.fields(p)} else {}))
-              for i, p in enumerate(vs.person_inputs(entry))]
-    if "follow_up" not in {f.name for f in dataclasses.fields(people[0])}:
-        import types                                                       # noqa: PLC0415
-        people = [types.SimpleNamespace(picks=p.picks, link=p.link, follow_up=lines[i % 3])
-                  for i, p in enumerate(vs.person_inputs(entry))]
-    monkeypatch.setattr(fake, "first_rung", lambda picks, founder, link, b2b=False: first, raising=False)
-    monkeypatch.setattr(vs, "founder_side", lambda entry: None, raising=False)
-    walked = vs.walked_follow_ups(entry, people)
-    assert walked and {r for r, _t in walked} == {first}
-    entries = vs.themes_entries(entry, walked)
-    assert entries[0]["dimension"] == first
-    assert {t for th in entries[0]["result"]["themes"] for t in th["answers"]} == set(lines)
-    assert [th["label"] for th in entries[0]["result"]["themes"]] == ["proof", "seeing"]
+    entry = _canon(name)
+    people = vs.person_inputs(entry)
+    founder = vs.founder_side(entry)
+    posted: dict[str, list[str]] = {}
+    for p in people:
+        if p.follow_up:
+            posted.setdefault(fake.first_rung(p.picks, founder, p.link, b2b=vs.is_b2b(entry)), []).append(p.follow_up)
+    entries = vs.generate(entry).screens[vs.THEMES_SCREEN]
+    assert [e.get("dimension") for e in entries] == SCRIPTED_THEMES[name] + [None], name
+    assert entries[-1] == {"outcome": "COMPLETED", "result": {"themes": []}}
+    for e in entries[:-1]:
+        key = e["dimension"]
+        assert key in vs.failing_keys(entry), key
+        texts = [t for th in e["result"]["themes"] for t in th["answers"]]
+        assert set(texts) == set(posted[key]) and all(t in vs.FOLLOW_UP_LINES[key] for t in texts), key
+        ids = {t: [str(i) for i, x in enumerate(posted[key]) if x == t] for t in texts}
+        want = fake.themes([{"id": str(i), "text": t} for i, t in enumerate(posted[key])], vs.NAMES[key])["themes"]
+        assert [{"label": th["label"], "answerIds": sorted({i for t in th["answers"] for i in ids[t]}, key=int)}
+                for th in e["result"]["themes"]] == want, key
+    unscripted = set(posted) - set(SCRIPTED_THEMES[name])
+    assert not unscripted & set(vs.failing_keys(entry)), "a failing rung with follow-ups and no entry of its own"
 
 
 def test_the_healthy_project_scripts_the_catch_all_alone():

@@ -511,7 +511,7 @@ RUNG_HEADINGS = {
     "commercial.commitment": "What they would start with",
 }
 #: Design §2 *Rungs with no question*: why a dimension asks no follow-up (`no_follow_up`).
-NO_FOLLOW_UP = {
+NO_FOLLOW_UP_WHY = {
     "problem.prevalence": "a No at the gate ends the interview",
     "problem.frequency": "a number has no why worth a question",
     "commercial.existing_sacrifice": "a number has no why worth a question",

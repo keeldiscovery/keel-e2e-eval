@@ -27,7 +27,8 @@
   `themes:on-return`)
 - [x] T007 FR-7 S-014 `evals/test_s014_green.py` on the built healthy project (`preludes.healthy_entry`); the scenario
   set is fourteen
-- [x] T008 DRIFT #92 and #93 reserved (`runs/DRIFT.md`); `make unit`; this file
+- [x] T008 DRIFT #93 and #94 reserved (`runs/DRIFT.md`; written #92 / #93, renumbered on the rebase onto 051, whose
+  #92 is the consent line); `make unit`; this file
 - [x] T008b D-01 resolved on keel-runtime 012 (master `3988131` = 0.8.0, bundled in keel-connect-skill 2.5.0
   `c677950`): `vectors_script.themes_entries` writes the script's THEMES entries -- one a dimension the entry leaves
   failing that the walks give follow-ups on, the fake's piles of the posted texts, then the catch-all -- and
@@ -35,7 +36,7 @@
 - [ ] T009 **owed to the journey pass**: acceptance 2 (`make eval K="s005 or s006 or s007 or s014"` on a fresh stack
   against keel-cloud 104 + keel-web 077, after 051 + 076) -- the page objects held to what 077 built, the four journey
   marks measured and met on S-006 and S-014, the too-few state on S-005
-- [ ] T010 **owed to the journey pass**: acceptance 3 (remote journeys on staging with 104 + 077; DRIFT #92 / #93 filled
+- [ ] T010 **owed to the journey pass**: acceptance 3 (remote journeys on staging with 104 + 077; DRIFT #93 / #94 filled
   or released)
 
 ## Measured (2026-10-17, no stack)
@@ -46,8 +47,11 @@
   that 103 / 104 caused: `test_the_real_validator_takes_the_asked_screen` (BRIEF gone from the validator),
   `test_the_kinds_are_keel_clouds_own` (103's `ClipKind.FOLLOW_UP`), and `test_instruction_brief_reading.py`'s four
   (no `brief.md`). All six are fixed or deleted here.
-- `make unit` on this branch: **2,490 collected = 2,433 passed / 56 skipped / 1 failed** at `93623d0`; **2,495 = 2,438 /
-  56 / 1** after T008b (five THEMES-script tests). The one red is not this spec's:
+- **After the rebase onto 051 (master `ad916b8`)**: master itself on keel-cloud-docs `9a033fe` is **2,475 passed / 53
+  skipped / 2 failed / 4 errors** (the coordinator's 2,477 / 57: the same run, the six BRIEF reds counted in), the six
+  BRIEF-only reds this spec deletes or fixes. This branch: **2,587 collected = 2,531 passed / 56 skipped, 0 failed**.
+- Before the rebase: **2,490 collected = 2,433 passed / 56 skipped / 1 failed** at `93623d0`; **2,495 = 2,438 /
+  56 / 1** after T008b (five THEMES-script tests). The one red then was not this spec's:
   keel-web's master moved to 076 (`c9ce17c`) during the run, and `test_interviewer_screens.py::
   test_the_seam_ends_an_utterance_on_a_final_and_grants_the_mic` reads 076's `fakeSpeech.ts`, whose mic `acquire` is no
   longer `async () => true` (076 FR-T6, a refusable mic) -- spec 051's seam to re-read (D-02); it was green in this
@@ -106,7 +110,7 @@
 4. **The Insights empty state on a project nobody has answered**: the design's rule draws *Nothing is failing* "otherwise",
    whose line says *Every dimension holds on 10 or more people*; the eval predicts *Nothing to read into yet* whenever the
    decision is KEEP_INTERVIEWING or a card is too few or not asked (`report_marks.thin`). If 077 draws the other one,
-   that is DRIFT #92's to read, not a tolerance.
+   that is DRIFT #93's to read, not a tolerance.
 5. **The too-few state is read before anyone answered** (FR-7): its four words -- *Keep interviewing*, *Nothing to read
    into yet*, *Not asked yet* on the price tile, *nobody has answered this yet* on every commercial row -- hold together
    only at zero answers on a consumer entry (Countly asks Price of everyone, so from the first priced answer the tile has
@@ -127,10 +131,11 @@
 9. **The price median is the corpus's own counts restated**: the Price standing's `optionCounts` over the founder's
    ladder (`PriceLadder.bands` low edges; *under* floors at 0, *would not pay* counts in `n` only), not a recount of the
    picks -- the counted picks are the anchored ones, which `optionCounts` already is.
-10. **Two of 051's lines made here** so the unit run holds against keel-cloud 103: `KINDS` gains FOLLOW_UP and `UNSPOKEN`
-    takes it (051 FR-3, byte for byte as 051 words it); and IM13 / the interviewer leg read THEMES with
-    `themes:on-return` where they read BRIEF with `brief:on-return`. `INTERVIEWER_MARKS_VERSION` is not bumped here: 051
-    bumps it to 5 and takes this reading with it.
+10. **Two of 051's lines were made here before 051 landed** (`KINDS` / `UNSPOKEN` gaining FOLLOW_UP); on the rebase onto
+    `ad916b8` 051's own words were kept. IM13 / the interviewer leg read THEMES with `themes:on-return` where they read
+    BRIEF with `brief:on-return` -- this spec's reading, carried under 051's `INTERVIEWER_MARKS_VERSION` 5. The Insights
+    view's no-question reasons are `interviewer_fake.NO_FOLLOW_UP_WHY` (a dict, beside 051's `NO_FOLLOW_UP`, the tuple
+    of the five keys; the first build of this branch shadowed 051's name, renamed on the rebase).
 11. **THEMES is scripted by dimension and by text** (D-01, resolved): keel-runtime 012 chooses a THEMES entry by the
     context's `dimension` (never the cursor) and resolves each theme's verbatim `answers` texts to the context's ids.
     `themes_entries(entry, follow_ups)` writes, for each dimension in `failing_keys(entry)` (the entry's standings not
@@ -139,10 +144,13 @@
     people typed resolves to both ids), then a catch-all `{themes: []}` -- so a dimension nobody expected to fail is
     accepted with no themes (served as the raw fallback where it has answers) rather than refused. `follow_ups` comes
     from `walked_follow_ups(entry, person_inputs(entry))`: each person's posted line (`PersonInputs.follow_up`) on the
-    rung their own picks go against first (`interviewer_fake.first_rung` over `founder_side(entry)`) -- **spec 051's
-    names**, read through `getattr`, so on this branch (051 not landed) nobody types one and every script carries the
-    catch-all alone; the entries light up when 051 merges, with no change here. The texts are therefore 051's composed
-    `FOLLOW_UP_LINES` (r11 records no follow-up), the strings the text walk types -- not corpus text.
+    rung their own picks go against first (`interviewer_fake.first_rung` over `founder_side(entry)`), read directly
+    since the rebase onto 051 (the `getattr` seam is gone). The texts are 051's composed `FOLLOW_UP_LINES` (r11 records
+    no follow-up), the strings the text walk types -- not corpus text. The scripts carry, after the rebase: S-005
+    Current solution (*quick* / *habit*); S-006 Price (*proof* / *seeing*), Buyer and payer (*manager* / *finance*);
+    S-007 Importance (*two*, both lines), Commitment (*free* / *short*); S-014 the catch-all alone; S-012 is live
+    (no script). Each held by `test_every_scripted_text_is_a_line_the_walk_posts` against 051's real lines and the
+    fake's grouping of them; S-006's Existing sacrifice, Ability to pay and Purchase friction fail but have no rung.
 
 ## Discovered
 
@@ -166,8 +174,8 @@
   would be refused by name (051's lines carry no edge space, so none is expected); (c) the rung of each line is 051's
   `first_rung`; the cloud refuses a response whose `followUp.dimension` is not its own walk's, so a disagreement would
   fail the walk before it reached THEMES.
-- **D-02:** keel-web's master moved from `43cc2ee` to 076 (`c9ce17c`) while this ran; one unit test of 051's seam
-  (`fakeSpeech.ts`'s mic `acquire`) went red. Not changed here.
+- **D-02 (resolved by 051):** keel-web's master moved from `43cc2ee` to 076 (`c9ce17c`) while this ran; one unit test of
+  051's seam (`fakeSpeech.ts`'s mic `acquire`) went red. 051 (`ad916b8`) re-read it; green after the rebase.
 - **D-03:** at `3ac82f1` the unit run was already red against keel-cloud-docs `9a033fe` (2 failed, 4 errors, all from
   103 / 104); spec 052's "2,391 / 53 before" predates the sibling move.
 - **D-04:** the master checkout's keel-cloud `build/brief-facts/` predates 104, so both canon DRY tests skip there; a
@@ -175,7 +183,9 @@
 - **D-05:** keel-cloud 103 / 104's Purchase friction line is *did not need {step}, or it was quick*, not the design's
   *needed {step}*; the eval follows the cloud's (`BriefFacts.card`), since the cards are the cloud's one source.
 - **D-06:** 077 FR-2 words the price tile *… {chose} of {n} decision-makers* on a consumer study too (Countly: *7 of 8
-  decision-makers*); predicted as written, named under DRIFT #92 for the journey pass to look at.
-- **D-07:** spec 051 named DRIFT #92 its next number; this spec's reservations are #92 and #93, so 051's first is #94.
+  decision-makers*); predicted as written, named under DRIFT #93 for the journey pass to look at.
+- **D-07:** 051 landed first after all (master `ad916b8`) and took DRIFT #92 (the served consent line is not design
+  §9's); on the rebase this spec's two reservations moved #92 -> #93 (what the report shows that the wire does not say)
+  and #93 -> #94 (a number the Insights view repeats), each entry saying so.
 - **D-08:** S-014 is in no matrix cell yet (`matrix/cells.toml` carries s005 / s006 / s007 / s013 on the macOS Claude
   cell); adding it is a cost call (20 walks) for the coordinator once it is green.
