@@ -50,11 +50,12 @@
 - [x] T013 FR-5 the zero-spend re-measure against the regenerated exports (below, *Measured*)
 - [x] T014 Acceptance 1 `make unit`; Acceptance 4 the two grep gates (below); this file; AGENTS.md / README.md one line each
   (v20 reads revision 12, the four zero-spend rows at `7e64f20`)
-- [ ] T015 **owed to the journey pass** (after keel-web 078 is merged): acceptance 2 -- `make eval K="s005 or s006 or s007
-  or s014"` on a fresh stack, keel-cloud 105 + keel-web 078 (every corpus journey US / en-US and `leg_one_currency` met;
-  S-006's contacts on the US counts; S-014 16 of 16 and *$50 a month or more · 10 of 10* on the price tile; durations
-  here). Also owed to that pass: the S-001 / S-004 page reads on 078's drop-down (`MARKET_GROUPS`, the US option, the
-  region box), and DRIFT #95 only if a page shows a pound (not written; nothing has been seen)
+- [x] T015 acceptance 2, the journey pass: `make eval K="s005 or s006 or s007 or s014"` **4 passed in 939 s** on a fresh
+  stack (keel-cloud-docs `7e64f20` = 105, keel-web `3adf5c7` = 078, runtime 0.8.0); every corpus journey US / en-US and
+  `leg_one_currency` met on twelve drawn pages each, no leak; S-006's contacts on the US counts; S-014 16 of 16 and *$50 a
+  month or more · 10 of 10* on the price tile (see *Acceptance 2, measured*). DRIFT #95 not written: no page showed a
+  pound. S-001 / S-002 / S-003 cannot prove the payroll fixture or the drop-down's groups (they refuse at the door,
+  retired since spec 029 -- below); S-004 is `live` (a real `claude`, real money) and was not run
 - [ ] T016 **owed**: acceptance 3 -- remote journeys on staging once 105 + 078 are deployed (the smoke's market step
   included)
 
@@ -87,6 +88,38 @@
   Lullaby *$5 a month · 5 of 8*, Linerly *$20 a year · 7 of 8*, Paidly *$50 a month · 5 of 8*, Repeatline *$100 a month ·
   7 of 7*, Mulch Run none (Price left out); the healthy project *$50 a month · 10 of 10* (`test_report_marks.py`). Every
   standing, count and verdict as at r11 but the symbol (105's invariant held; nothing re-typed).
+
+## Acceptance 2, measured (2026-10-17 UTC, the journey pass)
+
+One fresh stack (`COMPOSE_PROJECT_NAME=keel-e2e-eval-053`, `make up`), `make eval K="s005 or s006 or s007 or s014"`:
+**4 passed, 11 deselected in 938.85 s** on keel-cloud-docs `7e64f20` (spec 105) + keel-web `3adf5c7` (078 on `c0d38e9` and
+079's doc commit `d8b4602`) + keel-runtime `3988131` 0.8.0 (bundled in keel-connect-skill); `make down` after. The first
+run, no fixes needed.
+
+| Journey | Run | Time | Report marks | Market (entry's, on the wire) | Currency guard | Other marks | Price tile |
+|---|---|---|---|---|---|---|---|
+| S-005 countly | `20261017T214126Z-s005-countly` | 313 s | **5 of 5** | US, en-US, no region | met, 12 pages, no leak | interviewer 21 / 21, contacts 1 / 1, feedback 4 / 4 | *$20 a month or more · 7 of 8* |
+| S-006 paidly | `20261017T214640Z-s006-paidly` | 333 s | **5 of 5** | US, en-US, no region | met, 12 pages, no leak | interviewer 26 / 26, contacts 13 / 13, feedback 5 / 5 | *$50 a month or more · 5 of 8* |
+| S-007 mulchrun | `20261017T215214Z-s007-mulchrun` | 144 s | **5 of 5** | US, en-US, TX | met, 12 pages, no leak | feedback 3 / 3; TX / `$` / USD asserts met | *Not asked yet* (Price left out) |
+| S-014 green | `20261017T215438Z-s014-green` | 142 s | **5 of 5** | US, en-US, no region | met, 12 pages, no leak | feedback 3 / 3 | **$50 a month or more · 10 of 10** |
+
+- The twelve pages the guard swept on every journey: the three founder stage screens (`PROBLEM`, `SOLUTION`,
+  `COMMERCIAL`), `L1`, the Overview three times (`board-too-few`, `board-four`, `board`), Insights three times, Pilot
+  and the binding (`printed`). None carried `£`, `€`, `GBP` or `EUR`.
+- **S-006's contacts leg, as seen on the stack** (`contacts.json`): *Everyone in the US* sized **26** (wire = fake, drawn
+  *About 26 people with a work email*); pages of **25** then **1**; *Find 25 more* **6 credits**; *Everyone in the US,
+  again* **0**; *Practitioners in the UK* **27**; at `LOW_BALANCE` **10** both refused 422 -- names *A page of 25 names is
+  150 credits. You have 10.*, emails *Their verified emails are 12 credits, 12 each. You have 10.*; contacts marks 13 of 13.
+- The interviewer leg's participant bodies carried `en-US` (IM 21 / 21 and 26 / 26, nothing refused on the language).
+- Every corpus journey chose the US through `MarketStep.fill` on 078's one-option drop-down (`preludes.create_project`),
+  and `leg_project` read the market back. `MARKET_GROUPS` equals 078's `src/lib/markets.ts` (one group, *North America*,
+  `[UNITED_STATES]`, read off keel-web `3adf5c7`); its page read lives in S-001's §1.1, which does not run (below).
+- **S-001 / S-002 / S-003 on a second fresh stack** (`make eval K="s001 or s002 or s003 or s004"`): **3 failed, 12
+  deselected in 15 s** -- each refuses at the door with `corpus_script.R2_READERS_RETIRED` (*the corpus is past revision
+  2 ...; the journey's readers of the r2 shape are a sibling journey spec's -- Open item O-1*), raised unconditionally at
+  `harness/corpus_script.py:193` on master `fe87278` too. Not 053's: these three have been retired since spec 029, so
+  the payroll fixture's dollars and S-001's group read are unit-held only. S-004 is `pytest.mark.live` (deselected by
+  `-m "not live"`; `make eval-live` spends real money) and was not run.
 
 ## The contacts leg, verified
 
@@ -183,9 +216,12 @@ harness/classifier_guard.py:509, 520 (the en-GB defaults)
   master reads r11 -- 105 and 053 refuse each other by name, as the plan's merge-order risk says. Merge 105 and 053 together.
 - **D-03:** `described_sentence`'s example is copied from keel-cloud's contract test, not off a stack (no stack this pass);
   the journey pass can confirm it against `GET /v2/markets/US`.
-- **D-04:** keel-web's master already carries 078's spec commit (`c0d38e9`, spec and plan only); `src/lib/markets.ts` there
-  still lists thirty-one countries in three groups. `MARKET_GROUPS` follows 078's FR-1 as written (one group, *North
-  America*); S-001's read proves it when 078 is built and on the stack.
+- **D-04 (resolved by 078's merge):** at the first pass keel-web's master carried only 078's spec commit (`c0d38e9`);
+  at `3adf5c7` `MARKET_GROUPS` is one group, *North America*, the United States alone -- what `harness/browser.py` says.
+- **D-06:** S-001 / S-002 / S-003 refuse at the door since spec 029 (`R2_READERS_RETIRED`, Open item O-1), so no stack
+  journey walks `evals/payroll_exceptions.yaml` or reads the drop-down's groups; S-004 is live. Acceptance 3's *the
+  smoke's market step included* cannot be met by S-001 on staging either (the same refusal); the remote corpus journeys
+  (the 051 amendment's four) walk the market step through `preludes.create_project` instead.
 - **D-05:** `test_feedback_marks.good()` is a hand-written record "as S-006's journey writes one (05-paidly's words)" whose
   segment still says *in the UK*; synthetic, nothing compares it to the entry, kept (FR-3h's rule).
 
