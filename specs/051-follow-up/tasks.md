@@ -160,3 +160,26 @@
   reads the words inside it.
 - D-07 Not walked: keel-web 076 call 6 builds no Back from the pilot ask (design §5.2 says Back returns to the
   follow-up; the response has gone by then). Left to the founder / coordinator, as 076 says.
+
+## Amendment 2026-10-17: the remote profile types
+
+- **What.** On the remote profile (`j.stack.is_remote`) nobody speaks the story: `corpus_scenario._speak_for` hands the
+  walk `speak = None` for everyone, so no page gets `ivs.text_seam`, the story is typed as everyone else's is, and
+  `_hold_the_box` (T1 -> T4, T6) is not run -- one note step per would-be speaker says so ("... skipped on the remote
+  profile", `REMOTE_TYPES`). The interviewer leg's remote return now writes its `interviewer-marks.json` too, with
+  `owed: []`, IM26 among the unmeasured, and one `note` line (`interviewer_leg.REMOTE_MARKS`); the step reads *none owed
+  on the remote profile*. Locally nothing changes: the five speakers of FR-5 / call 9 still speak through the seam.
+- **Why.** keel-web reads `window.__keelSpeech` only under `import.meta.env.MODE === "test"`
+  (`useSpeechRecognition.ts`, `useRecorderFallback.ts`, `useMicStream.ts`) and staging serves the production build, so
+  the seam was ignored there and the box never left *listening* / never drew its card. The AI walk already skipped on
+  remote (`interviewer_leg._leg`); the text link's speak step had no such gate. The eval's own gap, not the product's:
+  no DRIFT entry.
+- **Seen in** the four remote journeys of 2026-10-17 ~19:25 local (`make eval K="s005 or s006 or s007 or s014"
+  PROFILE=remote`): `runs/20261017T191744Z-s005-countly`, `runs/20261017T191954Z-s006-paidly`,
+  `runs/20261017T192220Z-s007-mulchrun`, `runs/20261017T192433Z-s014-green` -- S-005 / S-007 timed out waiting for
+  `main .sot[data-state="writing"]`, S-006 / S-014 for `iv-mic-done`.
+- **Checked behind the same gate already:** every other `add_init_script` of the speech seam (`SPEECH_SEAM`,
+  `recorder_seam(follow_up_cap_ms=...)`, `FLOW_TIMELINE` in Try it yourself and the AI link) and `_page_cap`'s read of
+  the keel-web checkout sit after the interviewer leg's remote return. The text follow-up screen reads the DOM only.
+- `make unit`: **2,535 passed / 55 skipped** (+3 in `tests/test_follow_up_ladder.py`: remote installs no
+  `__keelSpeech` and `speak` is None, local still speaks, the remote card owes nothing).

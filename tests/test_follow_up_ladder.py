@@ -299,3 +299,122 @@ class _Remote:
 def test_the_follow_up_reads_are_never_reached_on_the_remote_profile(call):
     with pytest.raises(ledger.LedgerUnavailable, match="remote"):
         call(_Remote())
+
+
+# ------------------------------------------------------------------------------------- the remote profile types
+
+class _Handle:
+    def __init__(self, steps: list, name: str, kind: str):
+        self.step = {"name": name, "kind": kind}
+        steps.append(self.step)
+
+    def record_wire(self, expected, actual):
+        self.step["wire"] = (expected, actual)
+
+    def record_assert(self, expected, actual):
+        self.step["assert"] = (expected, actual)
+
+    def capture_text(self, *_):
+        pass
+
+
+class _Recorder:
+    def __init__(self):
+        self.steps: list = []
+
+    def step(self, name, *, party="stack", kind="assert"):
+        import contextlib  # noqa: PLC0415
+
+        @contextlib.contextmanager
+        def cm():
+            yield _Handle(self.steps, name, kind)
+        return cm()
+
+
+class _Context:
+    def __init__(self):
+        self.scripts: list[str] = []
+        self.request = self
+
+    def get(self, url, timeout=None):
+        return type("R", (), {"json": staticmethod(lambda: {"kind": "FULL", "parts": []})})()
+
+    def add_init_script(self, script):
+        self.scripts.append(script)
+
+    def new_page(self):
+        return object()
+
+    def close(self):
+        pass
+
+
+class _Walked(Exception):
+    pass
+
+
+def _answer_priya(monkeypatch, stack):
+    """`corpus_scenario._answer_one` for 01-countly's Priya Natarajan (STORY_SPOKEN "quiet") up to her walk: what the
+    stranger's context had installed, and the `speak` the walk was handed."""
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from evals import corpus_scenario as cs  # noqa: PLC0415
+
+    seen: dict = {}
+
+    class _Interview:
+        def __init__(self, page, recorder):
+            pass
+
+        def open(self, link):
+            pass
+
+        def walk(self, person, interview, by_item, *, follow_up=None, speak=None):
+            seen["speak"] = speak
+            raise _Walked
+
+    context = _Context()
+    monkeypatch.setattr(cs.vs_screens, "Interview", _Interview)
+    monkeypatch.setattr(cs.vs, "follow_up_question", lambda *a, **k: None)
+    person = SimpleNamespace(person="Priya Natarajan", recency=True, story="It was a Tuesday.", picks=[],
+                             link=vs.LINK_PRIMARY, follow_up=None, response=lambda token, recall: {"answers": []})
+    assert vs.STORY_SPOKEN["01-countly"][person.person] == "quiet"
+    recorder = _Recorder()
+    j = SimpleNamespace(browser=SimpleNamespace(new_context=lambda: context), cloud_base="http://cloud",
+                        interviews={}, entry=SimpleNamespace(id="01-countly"), links={person.person: "http://link"},
+                        recorder=recorder, stack=stack, strict=True, speak={})
+    with pytest.raises(_Walked):
+        cs._answer_one(j, person, "tok")
+    return context.scripts, seen["speak"], recorder.steps
+
+
+def test_the_remote_profile_installs_no_speech_seam_and_types_the_story(monkeypatch):
+    """Amendment 2026-10-17: staging serves keel-web's production build, which never reads `window.__keelSpeech`, so on
+    the remote profile the story's speaker gets no seam and types (`speak` None), and a note says it was skipped."""
+    scripts, speak, steps = _answer_priya(monkeypatch, _Remote())
+    assert speak is None
+    assert not any("__keelSpeech" in s for s in scripts), scripts
+    notes = [s for s in steps if s["kind"] == "note"]
+    assert len(notes) == 1 and "skipped on the remote profile" in notes[0]["name"], steps
+
+
+def test_the_local_profile_still_speaks_through_the_seam(monkeypatch):
+    scripts, speak, steps = _answer_priya(monkeypatch, type("Local", (), {"is_remote": False})())
+    assert speak == "quiet"
+    assert any("__keelSpeech" in s for s in scripts) and not [s for s in steps if s["kind"] == "note"], steps
+
+
+def test_the_interviewer_scorecard_owes_nothing_on_the_remote_profile(monkeypatch, tmp_path):
+    """The interviewer leg's remote return writes its card with nothing owed, IM26 unmeasured, and the one line why."""
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from evals import interviewer_leg as leg  # noqa: PLC0415
+
+    monkeypatch.setattr(leg, "_own_ai", lambda j, wire, record: None)
+    recorder = _Recorder()
+    recorder.run_dir = str(tmp_path)
+    j = SimpleNamespace(entry=SimpleNamespace(id="01-countly"), project_id="p", recorder=recorder, stack=_Remote())
+    leg._leg(j, short=True)
+    card = json.loads((tmp_path / "interviewer-marks.json").read_text(encoding="utf-8"))
+    assert card["owed"] == [] and "IM26" in card["unmeasured"] and "remote profile" in card["note"], card
+    assert any("none owed on the remote profile" in s["name"] for s in recorder.steps), recorder.steps

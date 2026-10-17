@@ -219,6 +219,8 @@ def _leg(j, *, short: bool) -> dict:
                              party="stack", kind="note") as h:
             h.record_wire({"profile": getattr(j.stack, "profile", None)},
                           {"skipped": "Keel's door, the recording, the links, the change, the refusal"})
+        if j.stack is not None:
+            _score(j, record, require=[], note=REMOTE_MARKS)
         return record
     account = stack_ledger.founder_account(j.stack, j.founder_identity.sub)
     record["founder_id"] = founder_id = account["id"]
@@ -2612,14 +2614,25 @@ def _retry(j, wire: _Wire, record: dict) -> None:
         record["retry"] = {"clip": retried[0], "status": stored.get("status"), "ledger_rows_added": 0}
 
 
-def _score(j, record: dict, *, require: list[str]) -> None:
-    """The interviewer marks over the record, written into the bundle; the leg fails on any owed mark unmet."""
+#: The scorecard's one line on the remote profile (amendment 2026-10-17 to spec 051): nothing is owed there.
+REMOTE_MARKS = ("none owed on the remote profile: the AI walk (IM14-IM25), Try it yourself and the clips need the local "
+                "database and keel-web's test build (window.__keelSpeech), which staging does not serve, and the text "
+                "links' stories are typed there, so IM26 (speak or type) is unmeasured")
+
+
+def _score(j, record: dict, *, require: list[str], note: str | None = None) -> None:
+    """The interviewer marks over the record, written into the bundle; the leg fails on any owed mark unmet. `note`
+    says, in one line on the card and the step, why nothing is owed (the remote profile)."""
     card = marks.scorecard(record)
+    card["owed"] = list(require)
+    if note:
+        card["note"] = note
     run_dir = Path(j.recorder.run_dir)
     (run_dir / "interviewer.json").write_text(json.dumps(record, indent=2, default=str) + "\n", encoding="utf-8")
     (run_dir / "interviewer-marks.json").write_text(json.dumps(card, indent=2, default=str) + "\n", encoding="utf-8")
+    owing = f"{', '.join(require)} owed" if require else (note or "none owed")
     with j.recorder.step(f"interviewer marks v{marks.INTERVIEWER_MARKS_VERSION}: {card['met']} of {card['measured']} "
-                         f"met ({', '.join(require)} owed)", party="stack", kind="assert") as h:
+                         f"met ({owing})", party="stack", kind="assert") as h:
         owed = {c["mark"]: c for c in card["checks"] if c["mark"] in require}
         h.record_assert({m: True for m in require}, {m: {"ok": c["ok"], "detail": c["detail"]}
                                                      for m, c in owed.items()})

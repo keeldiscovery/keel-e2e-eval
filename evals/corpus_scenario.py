@@ -1024,8 +1024,8 @@ def _answer_one(j: Journey, person, token: str) -> None:
             expected = _on_the_offered_options(expected, items)
         by_item = {a["itemId"]: a for a in expected.get("answers") or []}
         # spec 051 FR-5: one person a scenario speaks the story through the box (the text page's seam), one under a
-        # refused microphone; everyone else's page runs with no seam at all
-        speak = vs.STORY_SPOKEN.get(j.entry.id, {}).get(person.person) if person.recency and person.story else None
+        # refused microphone; everyone else's page runs with no seam at all -- and on the remote profile no page does
+        speak = _speak_for(j, person)
         if speak:
             stranger.add_init_script(ivs.text_seam(refused=speak == "refused"))
         owed = vs.follow_up_question(j.entry, person.picks, person.link, interview, token) \
@@ -1051,6 +1051,27 @@ def _answer_one(j: Journey, person, token: str) -> None:
             screens.opt_in_to_pilot(interview)
     finally:
         stranger.close()
+
+
+#: Why the story's box is typed on the remote profile (amendment 2026-10-17): keel-web reads the speech seam
+#: (`window.__keelSpeech`) only in its test build (`import.meta.env.MODE === "test"`), and staging serves the production
+#: build -- so `text_seam` would be ignored there and the box would never leave *listening*.
+REMOTE_TYPES = ("keel-web reads window.__keelSpeech only in its test build and staging serves the production build, "
+                "so the story is typed and the box's T1 -> T4 / T6 (IM26's speak) is skipped on the remote profile")
+
+
+def _speak_for(j: Journey, person) -> str | None:
+    """Spec 051 FR-5's speaker (`vs.STORY_SPOKEN`: "quiet", "done" or "refused") for this person's story, or None:
+    nobody else speaks, and on the remote profile nobody does -- the page gets no seam, the story is typed as everyone
+    else's is, and `_hold_the_box` is not run (the step says why)."""
+    speak = vs.STORY_SPOKEN.get(j.entry.id, {}).get(person.person) if person.recency and person.story else None
+    if speak and getattr(j.stack, "is_remote", False):
+        with _step(j, f"{person.person}: the story's box is typed, not spoken ({speak}) -- {REMOTE_TYPES}",
+                   party="participant", kind="note") as h:
+            h.record_wire({"profile": getattr(j.stack, "profile", None), "speak": speak},
+                          {"skipped": "IM26 speak: the seam, the take, T1 -> T4 / T6", "typed": True})
+        return None
+    return speak
 
 
 #: keel-cloud 103 `InterviewComposer.CONSENT_TEXT` (D17, design §9): names travel with the words now. The served line,
