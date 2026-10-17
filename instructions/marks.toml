@@ -6,7 +6,15 @@
 # evals/policy.py states for POLICY_VERSION, and a separate constant so the two can never be
 # confused.
 
-# MARKS_VERSION 19 (judgement calls 110-115, 2026-10-14; spec 042-contract-14-r11, the sibling of keel-cloud 090 / 091,
+# MARKS_VERSION 20 (judgement calls 116-120, 2026-10-17; spec 052-report, the sibling of keel-cloud 104 /
+# keel-web 077, keel-cloud-docs 9a033fe; contract 19, the standings side). The report replaces the brief: the BRIEF
+# screen is gone, so brief_answers and its seven reading marks RETIRE; brief_facts gains the price median and 103's
+# two card lines; report_overview is born (DRY=1). Four journey marks -- report_insights, report_no_repeat,
+# report_pilot, report_binding -- are evals/report_marks.py's, never keys here (call 120). Corpus revision 11.
+# **Scores before and after this bump are not comparable**, and a v19 bundle **cannot be re-scored** to v20.
+# **Run of record: none yet** -- there is none until `WHY=marks:20` is spent, on the founder's word only.
+#
+# MARKS_VERSION 19 (history; judgement calls 110-115, 2026-10-14; spec 042-contract-14-r11, the sibling of keel-cloud 090 / 091,
 # merged at keel-cloud-docs c432c1d; registry VERSION 4, document 20, CONTRACT_VERSION 14, routing v11). The defects
 # batch: corpus REVISION 11 (DRIFT #77's five words fixed, 05-paidly's Frequency in months out of 3, one median moved);
 # spoken_form holds every stem to 20 words with nothing known apart; an L refusal is read as the validator's rule (DRIFT
@@ -253,9 +261,14 @@ shape_refusals = 0
 # call 42, orchestrator 2026-10-08, bundle 20261008T115552Z: coverage's observed figure for a money set -- a set dimension's money median (Existing sacrifice) is written in the founder's unit, `£165 per three months` (the currency's symbol and the period from the standing, else the one the answers' costs agree on, the currency else the market's; the price likewise as keel-cloud's `observedFigure` writes it), and a set whose money cannot be written so carries no figure and is asked for one of its own option counts as `N of M`; the founder's phrase is asked for only on a bet whose verdict is NOT_HOLDING_UP (brief.md, 'The four things the paragraph says', 2), verbatim (brief.md licenses no paraphrase); v9 amended before any run of record
 # call 41 extended by founder decision 46, 2026-10-08: BRIEF is redrawn once on a rule refusal (repairUnattended -> queueAnotherQuestionsTurn: turn one's context plus `repair`, no history, empty input), the accepted paragraph is scored, and a brief refused twice is scored on its raw paragraph as a fault, every mark missed; v9 amended before any run of record
 # MARKS_VERSION 11 (call 57): Existing sacrifice's observed figure is keel-cloud's Figures.cost ('a median £22 over three months', hours apart, never priced: the corpus records no hourly rate) and Price's is Figures.price ('5 of 8 said it would be worth £5 a month or more'); still four per-case marks -- B6 ('will pay' / 'will buy') is the aggregate's rule (rule_refusal_rate; refused twice, every mark missed, call 41)
-brief_answers = 1.00
+# RETIRED at MARKS_VERSION 20 (call 116) with keel-cloud 104's BRIEF screen; the comment above is its history:
+#   brief_answers = 1.00   (v18-v19)
 spoken_form = 1.00
+# MARKS_VERSION 20 (call 119): one more check an entry, the price median {edgeSaid, chose, n} or absent.
 brief_facts = 1.00
+# MARKS_VERSION 20 (call 117): the Overview keel-cloud's facts draw against the one the corpus's reading draws --
+# one check a hero, a tile, a panel and the foot, at zero spend (DRY=1). Born at v20.
+report_overview = 1.00
 # RETIRED at MARKS_VERSION 9 (call 29) -- see the header. Kept here struck through in a comment,
 # never as a key, so a verdict cannot carry a value for it:
 #   golden_belief_recall = 0.80   (v1-v8)

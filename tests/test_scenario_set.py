@@ -1,6 +1,6 @@
 """The set itself (spec 010 FR-016/T055, research R12; spec 012 adds the eighth, spec 013 the
-ninth, spec 015's second half the tenth and eleventh, and spec 016 the twelfth): **twelve**
-scenarios, **two** of them live.
+ninth, spec 015's second half the tenth and eleventh, spec 016 the twelfth, spec 022 the thirteenth and spec 052
+the fourteenth): **fourteen** scenarios, **two** of them live.
 
 FR-016 asks that `K=s005|s006|s007` dispatch exactly as `s001`-`s003` do, that all three run under
 `make eval` and `make eval-all`, and that none is live. **`K` is pytest's own `-k`**, so none of
@@ -46,6 +46,9 @@ EXPECTED = {
     # rides the weekly's macOS x Claude 3.13 cell beside the corpus trio (the nightly's until
     # 2026-09-13, design §15).
     "test_s013_upgrade_in_place.py",
+    # spec 052-report: the healthy project -- 05-paidly with every person supporting (judgement call 1), nobody owed a
+    # follow-up, the Insights view *Nothing is failing*, the binding ending after page 3 and the breakdown.
+    "test_s014_green.py",
 }
 
 
@@ -53,9 +56,9 @@ def _scenario_files() -> set[str]:
     return {p.name for p in EVALS.glob("test_s*.py")}
 
 
-def test_there_are_thirteen_scenarios():
+def test_there_are_fourteen_scenarios():
     assert _scenario_files() == EXPECTED, (
-        "the scenario set moved; README.md and AGENTS.md name these thirteen by number")
+        "the scenario set moved; README.md and AGENTS.md name these fourteen by number")
 
 
 def test_the_two_new_scenarios_are_deterministic_and_in_the_smoke():

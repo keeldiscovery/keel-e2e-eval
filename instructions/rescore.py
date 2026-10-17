@@ -48,6 +48,9 @@ code's and the brief answered over cards -- so a v18 number for it would be fict
 **And across the v18 → v19 bump** (spec 042; judgement call 115). A v18 bundle was scored against corpus revision 10,
 with two stems held at 25 words and five corpus items named apart; keel-cloud 091 (contract 14) and revision 11 hold
 every stem to 20 and fixed the five -- so a v19 number for it would be fiction. Refused the same way.
+**And across the v19 → v20 bump** (spec 052; judgement call 118). A v19 bundle answered the BRIEF screen and was held
+to its seven reading marks; keel-cloud 104 (contract 19) deleted the screen, `brief.md` and `BriefReading`, so a v20
+number for it would be fiction. Refused the same way.
 **And across the v14 → v15 bump** (spec 036; judgement call 74). A v14 bundle was scored against corpus revision 7's
 expected status / drift (a person beyond the founder's band on the supporting side read as outside it), which keel-cloud
 082 and revision 8 no longer hold, so a v15 number for it would be fiction. Refused the same way, in one line, by
@@ -141,8 +144,11 @@ CROSSED_THE_V18_BUMP = ("answered model-written option sets, a respondent questi
 CROSSED_THE_V19_BUMP = ("was scored against corpus revision 10, with Existing sacrifice's and Relative advantage's "
                         "stems held at 25 words and five corpus items named apart; keel-cloud 091 (contract 14) and "
                         "revision 11 hold every stem to 20 and fixed the five")
+#: The one sentence a v19 bundle is refused with (spec 052, judgement call 118).
+CROSSED_THE_V20_BUMP = ("answered the BRIEF screen and was held to its seven reading marks (`brief_answers`); "
+                        "keel-cloud 104 (contract 19) deleted the screen, `brief.md` and `BriefReading`")
 #: The oldest bundle this version re-scores.
-OLDEST = 19
+OLDEST = 20
 
 
 class _SilentRuntime:
@@ -170,6 +176,11 @@ def refusal(run_dir: Path, original: dict) -> str | None:
         return (f"{run_dir.name} was scored at marks_version {version}: {CROSSED_THE_BUMP}. "
                 "Not re-scored (spec 029 FR-004; judgement call 28) -- a v8 number is a "
                 "measurement of a product v9 does not judge, and the only v9 number is a v9 run.")
+    if version == 19:
+        return (f"{run_dir.name} was scored at marks_version {version}: a v19 scorecard cannot be "
+                f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V20_BUMP}. Not "
+                "re-scored (spec 052; judgement call 118) -- the only v20 number is a v20 run "
+                "(WHY=marks:20).")
     if version == 18:
         return (f"{run_dir.name} was scored at marks_version {version}: a v18 scorecard cannot be "
                 f"re-scored at v{marks_mod.MARKS_VERSION} -- it {CROSSED_THE_V19_BUMP}. Not "
@@ -251,8 +262,7 @@ def main(argv=None) -> int:
     for entry in corpus.entries:
         instructions = {screen: "" for screen in run_mod.SCREENS}
         for case in prompts_mod.build_cases(entry, exported, instructions, _SilentRuntime,
-                                            n_runs=max(int(original.get("n_runs") or 1), 1),
-                                            brief_facts=cloud.facts if cloud is not None else None):
+                                            n_runs=max(int(original.get("n_runs") or 1), 1)):
             cases[case.case_id] = case
 
     state = run_mod._RunState()
@@ -267,10 +277,6 @@ def main(argv=None) -> int:
         view = ((drafts or {}).get("accepted") or raw) if drafts else envelope
         answer = _answer(view)
         failed = answer.error or (answer.schema_error if not answer.schema_valid else None)
-        if drafts:                                                      # decision 46
-            failed = failed or run_mod.refused_twice(
-                case, isinstance(envelope.get("redraw"), dict), drafts.get("accepted") is not None,
-                envelope.get("refusals"))
         if answer.errored and "never fit its shape" not in str(answer.error):
             state.errored += 1
         run_mod._score(case, corpus.by_id(case.entry_id), answer, failed, state, judge)
@@ -302,12 +308,13 @@ def main(argv=None) -> int:
 
     aggregate, measured, unmeasured_kinds = _ask_aggregate(run_dir, config, to_validate,
                                                            original)
-    spoken, facts_scores = run_mod.deterministic(corpus, exported.registry, list(cases.values()), cloud,
-                                                 cloud_reason)
+    spoken, facts_scores, overview_scores = run_mod.deterministic(corpus, exported.registry, list(cases.values()),
+                                                                  cloud, cloud_reason)
 
     totals = score_mod.totals(state.calibration, state.respondent, state.interpret,
-                              compare_scores, asked_scores=state.asked, brief_scores=state.brief,
-                              spoken_score=spoken, facts_scores=facts_scores, errored=state.errored,
+                              compare_scores, asked_scores=state.asked,
+                              spoken_score=spoken, facts_scores=facts_scores, overview_scores=overview_scores,
+                              errored=state.errored,
                               refusals_by_rule=aggregate["refusals_by_rule"],
                               shape_refusals=aggregate["shape_refusals"],
                               refusals_measured=measured,
@@ -330,11 +337,11 @@ def main(argv=None) -> int:
         "compare": [run_mod._compare_json(s) for s in compare_scores],
         "spoken": run_mod._spoken_json(spoken),
         "brief_facts": [run_mod._facts_json(s) for s in facts_scores],
+        "report_overview": [run_mod._overview_json(s) for s in overview_scores],
         "calibration": [run_mod._question_json(s) for s in state.calibration],
         "asked": [run_mod._question_json(s) for s in state.asked],
         "respondent": [run_mod._question_json(s) for s in state.respondent],
         "interpret": [run_mod._interpret_json(s) for s in state.interpret],
-        "brief": [run_mod._brief_json(s) for s in state.brief],
         "totals": totals,
         "redraws": state.redraws,
         "judge_calls": judge.calls,
@@ -343,13 +350,6 @@ def main(argv=None) -> int:
     }
     out = run_dir / f"scorecard-v{marks_mod.MARKS_VERSION}.json"
     out.write_text(json.dumps(scorecard, indent=2, default=str), encoding="utf-8")
-    if state.brief:
-        report_mod.render_register(
-            run_dir, entries_by_market={},
-            paragraphs=report_mod.paragraph_blocks(corpus, state.brief), host=host,
-            cli_version=(original.get("model") or {}).get("cli_version"),
-            model=(original.get("model") or {}).get("reported_model"),
-            filename=f"register-v{marks_mod.MARKS_VERSION}.html")
 
     report_path = _render_report(run_dir, judged, scorecard, host)
 

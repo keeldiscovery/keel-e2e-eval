@@ -8,19 +8,21 @@ keel-cloud assembles `BriefFacts` from a project's stored answers by `StandingsA
 `expected.standings`, `expected.vector_verdicts`, the founder's lists and each answer's `pilot_opt_in`, by the words
 design §7.2 and keel-cloud 089 state -- and `compare` holds keel-cloud's to it:
 
-- **marked** (`brief_facts`, one check a card and one the pilot): every card's `key`, `name`, `number`, `line`,
-  `status`, `keelBar` (keel-cloud 091 FR-F1: Keel's bar on Importance and Current solution, absent elsewhere and on a
-  left-out card; spec 042 call 114) and the verdict half of its `statusWords`; the pilot's `optedIn`, `finished`,
-  `percent` and `perLink`;
+- **marked** (`brief_facts`, one check a card, one the pilot and one the price median): every card's `key`, `name`,
+  `number`, `line`, `status`, `keelBar` (keel-cloud 091 FR-F1: Keel's bar on Importance and Current solution, absent
+  elsewhere and on a left-out card; spec 042 call 114) and the verdict half of its `statusWords`; the pilot's
+  `optedIn`, `finished`, `percent` and `perLink`; and (spec 052, keel-cloud 104 FR-1, design §3 D11) the price
+  median's `edgeSaid`, `chose` and `n`, or its absence;
 - **reported, never marked** (call 3): the insight half of `statusWords` (spec 082's words, keel-cloud's own), the
   decision, the vector words, each stage's `broke` key and `notAsked` keys.
 
 The arithmetic here is the corpus's own counts restated, never the engine's: `n`, `inside`, `own_item_picks`,
 `optionCounts`, `median` and `yes` are read off the standings the checker and `GoldenCorpusTest` pin; nothing is
-recounted from the picks but the pilot, which no standing carries.
+recounted from the picks but the pilot, which no standing carries. The price table is Price's own `optionCounts`
+restated over the founder's ladder (`price_table`).
 
-`facts_for` is the same reading in `BriefFacts`' shape, the `BRIEF` case's facts when keel-cloud's are not to hand
-(the unit fixtures); a run hands the case keel-cloud's own (call 84).
+`facts_for` is the same reading in `BriefFacts`' shape (without `sharpest`, `targets` and `keys`, which keel-cloud 104
+deleted), what `instructions/overview.py` draws the corpus's Overview from (spec 052, `report_overview`).
 """
 
 from __future__ import annotations
@@ -56,6 +58,8 @@ KEEL_BAR = {IMPORTANCE_KEY: "holds if at least 2 in 3 put it in their two",
 #: What a card's compare reads; `statusWords` is compared on its verdict half (call 82); `keelBar` since 091 (call 114).
 CARD_FIELDS = ("key", "name", "number", "line", "status", "keelBar")
 PILOT_FIELDS = ("optedIn", "finished", "percent", "perLink")
+#: keel-cloud 104 `BriefFacts.PriceMedian`: what the price tile says (`edge` is its number, not compared).
+PRICE_MEDIAN_FIELDS = ("edgeSaid", "chose", "n")
 
 
 def lower(text) -> str:
@@ -73,18 +77,22 @@ def _half_up(x) -> int:
     return int(Decimal(repr(x)).quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
 
+#: keel-cloud 103 `BriefFacts.couldPhrase`: the line when the tested condition carries no words.
+COULD_PHRASE_BLANK = "said yes, easily or with some steps"
+
+
 def could_phrase(condition: str) -> str:
-    """089 call 4, fixed by keel-cloud 103 (FR-9, design §3; spec 051): "They could ..." reads "could ..."; "Could ..."
-    is kept; any other subject reads "said {condition}" (before 103: "said yes: {condition}"); none at all, "said yes,
-    easily or with some steps"."""
+    """keel-cloud 103 FR-9 (design §3, fixing 089 call 4): "They could ..." reads "could ..."; "Could ..." is kept;
+    any other subject is kept after "said" ("The agency could ..." -> "said the agency could ..."); no "said yes:"."""
     text = str(condition or "").strip()
     if not text:
-        return "said yes, easily or with some steps"
-    if text.lower().startswith("they could "):
-        return lower(text)[len("they "):]
-    if text.lower().startswith("could "):
-        return lower(text)
-    return f"said {lower(text)}"
+        return COULD_PHRASE_BLANK
+    lowered = lower(text)
+    if lowered.lower().startswith("they could "):
+        return lowered[len("they "):]
+    if lowered.lower().startswith("could "):
+        return lowered
+    return f"said {lowered}"
 
 
 def _count(standing: dict, name: str = "inside") -> str:
@@ -138,11 +146,11 @@ def card(entry, dimension, standing: dict) -> dict:
             else f"{lower(tested.get('label'))} had to agree"
         out.update(number=_count(standing), line=line)
     elif key == PURCHASE_FRICTION_KEY:
-        # keel-cloud 103 (FR-9, design §3; spec 051): the supporters -- quick or not needed -- so the number falls when
-        # the bet fails, like every other card (089 call 7 counted "needed", which rose)
+        # keel-cloud 103 FR-9 (design §3): the supporters -- quick or not needed -- so it falls when the bet fails
         supporters = _option_count(standing, "yes_quick") + _option_count(standing, "not_needed")
-        step = lower((entry.tested(key) or {}).get("label")) or "the step"
-        out.update(number=f"{supporters} of {standing.get('n')}", line=f"did not need {step}, or it was quick")
+        step = (entry.tested(key) or {}).get("label")
+        out.update(number=f"{supporters} of {standing.get('n')}",
+                   line=f"did not need {lower(step) if step else 'the step'}, or it was quick")
     elif key == COMMITMENT_KEY:
         out.update(number=_count(standing), line=f"open to {(entry.tested(key) or {}).get('label')}")
     out.update(status=status, statusWords=VERDICT_WORDS.get(status, status))
@@ -170,6 +178,83 @@ def pilot_for(entry) -> dict:
     finished = sum(p["finished"] for p in per)
     return {"optedIn": opted, "finished": finished,
             "percent": _half_up(opted * 100 / finished) if finished else 0, "perLink": per}
+
+
+def _floor_of(code: str):
+    """`PriceLadder.floorOf`: *under* reads 0, a band or *over* its low edge, anything else (`would_not_pay`) none."""
+    parts = str(code or "").split("_")
+    if parts[0] == "under":
+        return 0
+    if parts[0] in ("band", "over") and len(parts) > 1:
+        return float(parts[1])
+    return None
+
+
+def _edges(low) -> list:
+    """`PriceLadder.bands(low)`' low edges, the Under band having none: three bands' lows and the Over band's."""
+    return [_floor_of(code) for code in corpus_mod.price_ladder_codes(low)
+            if code.startswith(("band_", "over_"))]
+
+
+def _money_of(entry) -> tuple:
+    cost = entry.cost() or {}
+    price = entry.price() or {}
+    currency = cost.get("currency") or price.get("currency") or \
+        corpus_mod.MARKET_CURRENCY.get((entry.market or {}).get("country"))
+    period = cost.get("period") or price.get("period")
+    return currency, period
+
+
+def edge_said(edge, currency, period) -> str:
+    """`BriefFacts.said`: the amount in the market's money, then the period's words (*£50 a month*)."""
+    words = corpus_mod._PERIOD_WORDS.get(period) if period else None
+    return corpus_mod.money_text(edge, currency) + (f" {words}" if words else "")
+
+
+def price_table(founder_low, bands: list, *, currency=None, period=None) -> list | None:
+    """`BriefFacts.priceTable`'s `chose` column (§4.5): one row per low edge of the founder's ladder, each the number
+    of the counted Price picks (`bands`, the codes) whose band starts at or above it. `None` off the ladder."""
+    if not corpus_mod.price_placeable(founder_low):
+        return None
+    floors = [_floor_of(b) for b in bands]
+    return [{"edge": edge, "edgeSaid": edge_said(edge, currency, period),
+             "chose": sum(1 for f in floors if f is not None and f >= edge)}
+            for edge in _edges(founder_low)]
+
+
+def price_median(rows: list | None, n: int) -> dict | None:
+    """keel-cloud 104 FR-1 (design §3, D11): the **highest** row at least half of `n` chose at or above
+    (`chose * 2 >= n`, so an exact half qualifies) -- `{edgeSaid, chose, n}`; `None` with no table, `n == 0` or no
+    row that reaches half. A floor, never a point: the answers are bands."""
+    if not rows or not n:
+        return None
+    best = None
+    for row in rows:
+        if row["chose"] * 2 >= n and (best is None or row["edge"] > best["edge"]):
+            best = row
+    return None if best is None else {"edgeSaid": best["edgeSaid"], "chose": best["chose"], "n": n}
+
+
+def price_median_for(entry) -> dict | None:
+    """The entry's price median: its Price standing's `optionCounts` (the counted picks: anchored, a band or *would
+    not pay*, never an escape) over the founder's ladder. `None` where Price was left out, the founder gave no price,
+    or nobody counted answered it."""
+    standing = ((entry.expected or {}).get("standings") or {}).get(PRICE_KEY) or {}
+    price = entry.price() or {}
+    if standing.get("status") == "LEFT_OUT" or not price or price.get("unsure") or not standing.get("n"):
+        return None
+    bands = [code for code, count in _option_counts_all(standing).items() for _ in range(count)]
+    currency, period = _money_of(entry)
+    return price_median(price_table(price.get("low"), bands, currency=currency, period=period), len(bands))
+
+
+def _option_counts_all(standing: dict) -> dict:
+    out = {}
+    for part in str(standing.get("optionCounts") or "").split(","):
+        name, _, value = part.strip().partition("=")
+        if name:
+            out[name] = int(value or 0)
+    return out
 
 
 def vectors_for(entry) -> list:
@@ -236,34 +321,12 @@ def not_asked(entry, registry, vector: str) -> list:
     return out
 
 
-def targets_for(entry, registry) -> list:
-    """The next tests' targets in this reading: the calibrated dimensions that are not holding, worst first, then
-    registry order, at most three, each with the items listed and not tested (keel-cloud's own pick also reaches a
-    holding one; the BRIEF case is handed keel-cloud's where it has them, call 84)."""
-    standings = (entry.expected or {}).get("standings") or {}
-    order = {"NOT_HOLDING_UP": 0, "PEOPLE_DISAGREE": 1, "TOO_FEW_TO_CALL": 2, "NOT_ASKED_YET": 3}
-    rows = [(order[(standings.get(d.key) or {}).get("status")], i, d) for i, d in
-            enumerate(registry.calibrated(entry.b2b())) if (standings.get(d.key) or {}).get("status") in order]
-    out = []
-    for _rank, _i, d in sorted(rows)[:3]:
-        saved = entry.founder_list(d.key) if d.saves.get("picked") else None
-        tested = entry.tested(d.key) if saved else None
-        not_tested = [i.get("label") for i in (saved or {}).get("items") or []
-                      if i is not tested and i.get("code") != "nobody_else"]
-        out.append({"key": d.key, "name": d.name, "status": (standings.get(d.key) or {}).get("status"),
-                    "n": (standings.get(d.key) or {}).get("n"), "notTested": not_tested})
-    return out
-
-
 def facts_for(entry, registry) -> dict:
     """The reading in `BriefFacts`' shape: header, decision, vectors, money, pilot, cards, the three stages (broke,
-    notAsked), targets and keys. No `sharpest` (a cross-tab of two items, keel-cloud's) and no rows."""
+    notAsked; `commercial.priceMedian`, keel-cloud 104). No `sharpest`, `targets` or `keys` (keel-cloud 104 deleted
+    them) and no rows."""
     cards = cards_for(entry, registry)
-    cost = entry.cost() or {}
-    price = entry.price() or {}
-    currency = cost.get("currency") or price.get("currency") or \
-        corpus_mod.MARKET_CURRENCY.get((entry.market or {}).get("country"))
-    period = cost.get("period") or price.get("period")
+    currency, period = _money_of(entry)
     people = [{"link": link, "words": LINK_WORDS[link], "people": sum(1 for p in entry.people() if p.link == link)}
               for link in ([LINK_PRIMARY] + ([LINK_B2B] if entry.b2b() else []))]
     out = {
@@ -281,31 +344,10 @@ def facts_for(entry, registry) -> dict:
         broke = broke_of(entry, cards, vector)
         if broke:
             stage = {"broke": broke, **stage}
+        if vector == "COMMERCIAL":
+            stage["priceMedian"] = price_median_for(entry)
         out[vector.lower()] = stage
-    out["targets"] = targets_for(entry, registry)
-    out["keys"] = registry.calibrated_keys(entry.b2b())
     return out
-
-
-def beliefs_for(entry, registry) -> list:
-    """`beliefs`: per calibrated dimension `{key, name, belief_sentence, founder_phrase}` (no weight since 087) --
-    the phrase the corpus records, else the list's own phrase (Current solution's), else the tested item's label."""
-    out = []
-    for d in registry.calibrated(entry.b2b()):
-        calibration = entry.founder_calibration.get(d.key) or {}
-        phrase = calibration.get("belief_phrase")
-        if phrase is None and d.founder_list and not calibration.get("unsure"):
-            saved = entry.founder_list(d.key) or {}
-            phrase = saved.get("phrase") or (entry.tested(d.key) or {}).get("label")
-        out.append({"key": d.key, "name": d.name, "belief_sentence": calibration.get("belief_sentence"),
-                    "founder_phrase": phrase})
-    return out
-
-
-def stories_for(entry) -> list:
-    """`stories`: each readable person's story by invitation id (the person's id, here)."""
-    return [{"invitation_id": f"{entry.id}/{p.person}", "link": p.link, "story": p.story}
-            for p in entry.people() if p.readable]
 
 
 # ----------------------------------------------------------------------------------- the compare
@@ -332,7 +374,8 @@ def _head(words) -> str:
 
 
 def compare(entry, registry, cloud_facts: dict | None) -> FactsCompare:
-    """keel-cloud's facts for one entry against this reading: one marked check a card and one the pilot."""
+    """keel-cloud's facts for one entry against this reading: one marked check a card, one the pilot and one the price
+    median (`facts.commercial.priceMedian`, `{edgeSaid, chose, n}` or null; keel-cloud 104)."""
     score = FactsCompare(entry.id)
     if not isinstance(cloud_facts, dict):
         score.measured = False
@@ -362,6 +405,15 @@ def compare(entry, registry, cloud_facts: dict | None) -> FactsCompare:
         score.agreed += 1
     else:
         score.mismatches.append({"key": "pilot", "expected": pilot, "produced": got})
+    want_median = price_median_for(entry)
+    commercial = cloud_facts.get("commercial") or {}
+    have = commercial.get("priceMedian")
+    have_median = {k: have.get(k) for k in PRICE_MEDIAN_FIELDS} if isinstance(have, dict) else None
+    score.checks += 1
+    if have_median == want_median:
+        score.agreed += 1
+    else:
+        score.mismatches.append({"key": "priceMedian", "expected": want_median, "produced": have})
     for name, want, have in (
             ("decision", decision(entry, registry), cloud_facts.get("decision")),
             ("vectors", vectors_for(entry), cloud_facts.get("vectors"))):

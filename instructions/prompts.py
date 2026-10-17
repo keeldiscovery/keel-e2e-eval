@@ -56,7 +56,8 @@ def load_runtime(keel_runtime: Path):
 
 
 #: `Case.kind` at `MARKS_VERSION` 9 (data-model §4). `FRAME` is the two typed-seed interpretations.
-KINDS = ("CONTEXT", "FRAME", "CALIBRATION", "ASKED", "RESPONDENT", "READING", "COMPARE", "BRIEF")
+#: Spec 052: `BRIEF` left with keel-cloud 104's BRIEF screen.
+KINDS = ("CONTEXT", "FRAME", "CALIBRATION", "ASKED", "RESPONDENT", "READING", "COMPARE")
 
 #: The `ASKED` cases' subjects (keel-cloud 088): the two lists whose items carry a stranger's face.
 ASKED_SUBJECTS = {"solution.compatibility": "COMPATIBILITY", "solution.adoption_friction": "ADOPTION_FRICTION"}
@@ -70,7 +71,7 @@ class Case:
     kind: str                 # one of KINDS
     entry_id: str
     screen: str
-    subject: str              # the screen, the vector, the part, the person, COMPARE or BRIEF
+    subject: str              # the screen, the vector, the part, the person or COMPARE
     run_index: int
     payload: dict
     prompt: str = ""
@@ -159,17 +160,16 @@ def canonical_host(executor_module, host: str) -> str:
 
 
 def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_runs: int = 3,
-                host: str = "claude", brief_facts: dict | None = None) -> list:
-    """Every case one corpus entry produces at `MARKS_VERSION` 18, in FR-016's order and ids:
+                host: str = "claude") -> list:
+    """Every case one corpus entry produces at `MARKS_VERSION` 20, in FR-016's order and ids:
 
         <entry>/CONTEXT_INTERPRET/run<N>  <entry>/PROBLEM_INTERPRET/run<N>
         <entry>/SOLUTION_MECHANISM/run<N> <entry>/CALIBRATION_<VECTOR>/run<N> x3
         <entry>/ASKED_COMPATIBILITY/run<N> <entry>/ASKED_ADOPTION_FRICTION/run<N>   (spec 040: each saved list)
         <entry>/RESPONDENT_PART<P>/run<N> x3 (+ <entry>/RESPONDENT_B2B/run<N> on a B2B entry)
-        <entry>/INTERPRET/<person>/run<N> per readable person    <entry>/COMPARE    <entry>/BRIEF/run<N>
+        <entry>/INTERPRET/<person>/run<N> per readable person    <entry>/COMPARE
 
-    `brief_facts` is keel-cloud's own facts by entry id (`cloud_corpus`), handed to the BRIEF case as production
-    hands them; an entry it does not carry is handed this repository's reading (call 84).
+    (No `<entry>/BRIEF` since `MARKS_VERSION` 20: keel-cloud 104 deleted the screen.)
 
     The registry is the export's (`exported.registry`); the plan is derived from it by code (call
     30). **No `INTERPRET` case is built for a gate-No, a chipped or an empty story** -- the chip is
@@ -272,11 +272,4 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
     cases.append(Case(case_id=f"{entry.id}/COMPARE", kind="COMPARE", entry_id=entry.id,
                       screen=c.SCREEN_COMPARE, subject="COMPARE", run_index=0, payload={},
                       compare_input=compare_mod.build_input(entry, registry)))
-
-    # BRIEF: one reading a project, last -- what a founder reads once every answer is read.
-    facts = (brief_facts or {}).get(entry.id)
-    add(f"{entry.id}/BRIEF", "BRIEF", c.SCREEN_BRIEF, "BRIEF",
-        context_mod.build_brief(entry, exported.keys_for(c.SCREEN_BRIEF), registry, facts=facts),
-        meta={"facts_source": "keel-cloud BriefFactsCorpusTest" if facts is not None
-              else "the eval's reading (brief_facts.facts_for)"})
     return cases

@@ -392,3 +392,93 @@ def approved_project_with_one_read(
     people.switch_to_who_tab()
     people.read_all_and_wait(timeout_s=90)
     return project_id, urls
+
+
+# ------------------------------------------------------------------- the healthy project (spec 052 FR-7)
+#
+# Judgement call 1 of spec 052: **no revision-11 corpus entry holds on every dimension on ten or more** (every one of
+# the seven has a vector not holding up, split or too few -- read off `expected`), so S-014's project is **built**, as
+# the spec's fallback says and the cloud's `InsightsSimulationTest` baseline is: 05-paidly's market, statements, lists,
+# founder calibration and window kept whole, and only the answers replaced -- every person supporting every rung, so
+# nobody is owed a follow-up (051 IM23's none case) and the Insights view has nothing to say. The people are
+# 05-paidly's own ten gate-yes, un-chipped specialists (their stories kept, each read as anchored) and its eight
+# decision-makers with two more, each answering as the template below; the pilot sign-ups are the corpus's.
+
+HEALTHY_FROM = "05-paidly"
+#: One supporting answer a dimension, a link (05-paidly's founder lists and calibration): Frequency 2 months out of
+#: the founder's 2-3; the own item in the top two; the worst-but-one outcome; Compatibility yes, easily; better,
+#: with the founder's advantage; yes to the effort -- and for the decision-maker £150 a month lost (in the founder's
+#: £100-£300), the £50-£100 band (the founder's), a new line signed off, decided alone (the tested *Nobody else*),
+#: the approval quick, and yes to start.
+HEALTHY_PICKS = {
+    "PRIMARY": {"problem.frequency": 2, "problem.importance": ["late_payment", "finding_work"],
+                "problem.current_solution_satisfaction": "works_poorly", "solution.compatibility": "yes_easily",
+                "solution.relative_advantage": {"answer": "positive", "advantages": ["shorter_time"]},
+                "solution.adoption_friction": "yes"},
+    "COMMERCIAL_B2B": {"commercial.existing_sacrifice": {"mode": "AMOUNT", "value": 450, "currency": "GBP",
+                                                         "period": "quarter"},
+                       "commercial.price": "band_50_100", "commercial.ability_to_pay": "new_line_signed_off",
+                       "commercial.buyer_payer_alignment": "decided_alone", "commercial.purchase_friction": "yes_quick",
+                       "commercial.commitment": "yes_start"},
+}
+#: Two decision-makers more than 05-paidly's eight, so every commercial card counts ten.
+HEALTHY_EXTRA_DECIDERS = ("Ava Larch", "Ben Rowan")
+HEALTHY_N = 10
+
+
+def healthy_expected() -> dict:
+    """What the standings must say of the healthy project: every dimension holding up on ten, the counts ten identical
+    supporters make (no drift but Ability to pay's *stronger*); every vector holding up on its first dimension. Held
+    to keel-cloud's own engine once, at zero spend: 16 of 16 (spec 052 tasks.md)."""
+    n = HEALTHY_N
+    held = {"status": "HOLDING_UP", "drift": "none", "n": n}
+    every = dict(held, inside=n, outside=0)
+    standings = {
+        "problem.prevalence": dict(held, yes=n, proportion=1.0),
+        "problem.frequency": dict(every, median=2),
+        "problem.importance": dict(every, own_item_picks=n, share=1.0),
+        "problem.current_solution_satisfaction": dict(
+            every, optionCounts=f"works_well=0, mostly_works=0, hit_and_miss=0, works_poorly={n}, no_reliable_way=0"),
+        "solution.compatibility": dict(
+            every, optionCounts=f"yes_easily={n}, yes_with_steps=0, only_with_help=0, no=0"),
+        "solution.relative_advantage": dict(every),
+        "solution.adoption_friction": dict(every, optionCounts=f"yes={n}, yes_if_worth_it=0, probably_not=0, no=0"),
+        "commercial.existing_sacrifice": dict(every, below=0, above=0, median=150),
+        "commercial.price": dict(every, optionCounts=f"under_20=0, band_20_50=0, band_50_100={n}, band_100_250=0, "
+                                                     "over_250=0, would_not_pay=0"),
+        # keel-cloud's engine (`instructions/compare.py`, 9a033fe): a new line signed off is beyond the founder's
+        # "mostly from spend" on the supporting side -- holding up, drift STRONGER
+        "commercial.ability_to_pay": dict(every, drift="stronger"),
+        "commercial.buyer_payer_alignment": dict(
+            every, optionCounts=f"had_to_agree=0, decided_alone={n}, someone_else_agreed=0, someone_else_decided=0"),
+        "commercial.purchase_friction": dict(every, optionCounts=f"yes_long=0, yes_quick={n}, not_needed=0"),
+        "commercial.commitment": dict(every, optionCounts=f"yes_start={n}, yes_after_trying=0, probably_not=0, no=0"),
+    }
+    verdicts = {"PROBLEM": {"verdict": "HOLDING_UP", "deciding": "problem.prevalence"},
+                "SOLUTION": {"verdict": "HOLDING_UP", "deciding": "solution.compatibility"},
+                "COMMERCIAL": {"verdict": "HOLDING_UP", "deciding": "commercial.existing_sacrifice"}}
+    return {"standings": standings, "vector_verdicts": verdicts}
+
+
+def healthy_entry(entry):
+    """05-paidly with every person supporting (judgement call 1): the ten gate-yes, un-chipped specialists read as
+    anchored and the ten decision-makers, each answering `HEALTHY_PICKS`; `expected` is `healthy_expected()`."""
+    import dataclasses                                                   # noqa: PLC0415
+    if entry.id != HEALTHY_FROM:
+        raise ValueError(f"the healthy project is built from {HEALTHY_FROM}, not {entry.id}")
+    answers = []
+    for raw in entry.answers:
+        link = raw.get("link", "PRIMARY")
+        if link == "PRIMARY":
+            if raw.get("recency") != "yes" or raw.get("chip") or not (raw.get("story") or "").strip():
+                continue
+            answers.append(dict(raw, anchoring="ANCHORED", picks=dict(HEALTHY_PICKS["PRIMARY"])))
+        else:
+            answers.append(dict(raw, picks=dict(HEALTHY_PICKS["COMMERCIAL_B2B"])))
+    for name in HEALTHY_EXTRA_DECIDERS:
+        answers.append({"person": name, "link": "COMMERCIAL_B2B", "anchoring": "ANCHORED", "pilot_opt_in": False,
+                        "picks": dict(HEALTHY_PICKS["COMMERCIAL_B2B"])})
+    counts = {link: sum(1 for a in answers if a.get("link", "PRIMARY") == link) for link in HEALTHY_PICKS}
+    if counts != {"PRIMARY": HEALTHY_N, "COMMERCIAL_B2B": HEALTHY_N}:
+        raise ValueError(f"the healthy project needs {HEALTHY_N} people a link, built {counts}")
+    return dataclasses.replace(entry, answers=answers, expected=healthy_expected())

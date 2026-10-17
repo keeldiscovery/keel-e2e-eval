@@ -142,7 +142,7 @@ def good() -> dict:
         "entry": "05-paidly", "project_id": PROJECT,
         "ledger": [{"kind": "GRANT", "credits": 1500, "action": None, "price_version": None},
                    *_pair("INTERVIEWER_RECORDING"), *_pair("INTERVIEWER_CHANGE"),
-                   _reading("INTERPRET", f"read-on-arrival:{AI_INVITATION}"), _reading("BRIEF", "brief:on-return"),
+                   _reading("INTERPRET", f"read-on-arrival:{AI_INVITATION}"), _reading("THEMES", "themes:on-return"),
                    {"kind": "PURCHASE", "credits": -800, "action": None, "price_version": None}],
         "screens": {"L1": "Who asks the questions. Keel records your interviewer once for this project. Lock and record "
                           "the interviewer",
@@ -389,7 +389,7 @@ SEEDED = [
     ("IM13", ["arrivals", 0, "holds"], []),                                             # an answer never read
     ("IM13", ["arrivals", 1, "holds"], [_reading("INTERPRET", "read-on-arrival:" + str(uuid.uuid4()))]),
     ("IM13", ["arrivals", 0, "holds"], lambda h: h * 4),                                # read four times
-    ("IM13", ["ledger"], lambda rows: rows + [_reading("BRIEF", "brief:after-batch")]), # 095's retired reason
+    ("IM13", ["ledger"], lambda rows: rows + [_reading("THEMES", "brief:on-return")]),  # 104's retired reason
     ("IM14", ["hold", "saw_thats_my_answer"], True),                                     # the old button drawn
     ("IM14", ["hold", "holds", 0, "presses"], [{"kind": "press", "testid": "ai-next"}]), # a press in the hold
     ("IM14", ["hold", "holds", 1, "went_on"], False),                                    # held and stuck

@@ -251,7 +251,7 @@ def _leg(j, *, short: bool) -> dict:
                              "(keel-cloud 095), and no other row",
                              party="stack", kind="assert") as h:
             reading_jobs = {x.get("inference_job_id") for x in record["ledger"]
-                            if x.get("kind") == "HOLD" and x.get("action") in ("INTERPRET", "BRIEF")
+                            if x.get("kind") == "HOLD" and x.get("action") in marks.READ_ACTIONS
                             and READ_REASON.match(x.get("reason") or "")}
             others = [x for x in record["ledger"] if x.get("action") not in fake.ACTIONS
                       and not (x.get("idempotency_key") or "").startswith(stack_ledger.key_prefix(SPEC))
@@ -2260,7 +2260,7 @@ def _read_on_arrival(j, wire: _Wire, record: dict, invitation_id: str, whose: st
                                                   "holds": [x for x in mine if x.get("kind") == "HOLD"]})
         h.record_assert({"batch": "ends with this answer in it", "HOLD reason": f"read-on-arrival:{invitation_id}"},
                         {"batch": batch, "rows": [(x["kind"], x.get("action"), x["credits"], x.get("reason"))
-                                                  for x in rows if x.get("action") in ("INTERPRET", "BRIEF")]})
+                                                  for x in rows if x.get("action") in marks.READ_ACTIONS]})
         assert invitation_id in (batch.get("invitationIds") or []), batch
         assert batch.get("status") not in ("RUNNING", "PENDING"), batch
         assert [x for x in mine if x.get("kind") == "HOLD" and x.get("action") == "INTERPRET"], mine
@@ -2290,25 +2290,30 @@ def _read_what_is_left(j, wire: _Wire, record: dict) -> None:
         assert status == 201 and batch.get("status") == "DONE" and not batch.get("failed"), record["left_unread"]
         # a reading's refusal names itself in `rule` (`ReadingRefusal`), not `code`
         assert again == 409 and (nothing.get("code") or nothing.get("rule")) == "NOTHING_TO_READ", record["left_unread"]
-    with j.recorder.step("interviewer (keel-cloud 096, spec 045): the readings wrote no brief; the founder comes back "
-                         "(GET overview on the session the agent is bound to) and one BRIEF is started and ends on "
-                         "this journey's own runtime (spec 045 call 172)", party="founder", kind="assert") as h:
+    with j.recorder.step("interviewer (keel-cloud 104, spec 052; was 096's brief): the readings wrote no themes; the "
+                         "founder comes back (GET overview on the session the agent is bound to) and every THEMES job "
+                         "started -- at most one a failing dimension -- ends on this journey's own runtime",
+                         party="founder", kind="assert") as h:
         briefs = lambda: [i for i in (j.get(f"/v2/inference-interactions?project_id={j.project_id}") or [])  # noqa: E731
-                          if i.get("screen") == "BRIEF"]
+                          if i.get("screen") == "THEMES"]
         before = briefs()
         j.get(j.project("/overview"))
         deadline = time.monotonic() + 60 * j.patience
         after = briefs()
         ended = {"APPLIED", "RESULT_INVALID", "DOMAIN_REFUSED", "JOB_FAILED", "APPLY_ERROR", "ABANDONED"}
         seen = {x.get("interaction_id") for x in before}
-        while time.monotonic() < deadline and not [b for b in after
-                                                   if b.get("interaction_id") not in seen and b.get("status") in ended]:
+        quiet = time.monotonic() + 10 * j.patience          # none due: no THEMES appears, and none is waited for
+        while time.monotonic() < deadline:
+            fresh = [b for b in after if b.get("interaction_id") not in seen]
+            if (fresh and all(b.get("status") in ended for b in fresh)) or (not fresh and time.monotonic() > quiet):
+                break
             time.sleep(1)
             after = briefs()
         new = [b.get("status") for b in after if b.get("interaction_id") not in seen]
-        record["brief_on_return"] = {"before": [b.get("status") for b in before], "new": new}
-        h.record_assert({"new BRIEF": "one that ends (a lost race's retries aside)"}, record["brief_on_return"])
-        assert 1 <= len(new) <= 3 and new.count("STATE_CONFLICT") == len(new) - 1, new
+        record["themes_on_return"] = {"before": [b.get("status") for b in before], "new": new}
+        h.record_assert({"new THEMES": "each one that ends (a lost race's retries aside); none when no failing "
+                                       "dimension's answers moved"}, record["themes_on_return"])
+        assert all(s in ended or s == "STATE_CONFLICT" for s in new), new
 
 
 def _choice_intro_on_screen(j, url: str) -> dict:

@@ -419,3 +419,133 @@ def normal(text: str) -> str:
     """Lower case, curly quotes straightened, every run of non-word characters one space."""
     text = (text or "").replace("’", "'").replace("‘", "'").lower()
     return " ".join(re.findall(r"[a-z0-9']+", text))
+
+
+# ------------------------------------------------------------------------------- the themes fake (spec 052)
+#
+# keel-cloud 104 (FR-9, design §7 "Fake"): the THEMES job is answered for the eval founders by a deterministic
+# grouping, test scope in the cloud (`support.FakeThemes`), exported whole as `themes-cases.json` (its rule, its
+# stop-word list, C3 Compatibility's and S03 Importance's cases) so this copy is held to it word for word
+# (`tests/test_report_marks.py`). The eval predicts the Insights view from the people's follow-up answers with it.
+
+#: `FakeThemes.MAX`: at most three themes, as the real job.
+THEMES_MAX = 3
+#: `FakeThemes.STOP_WORDS`, the words a first noun is never (cloud-docs `9a033fe`; held to the export's list).
+THEMES_STOP_WORDS = frozenset((
+    "a", "about", "all", "also", "always", "am", "an", "and", "another", "any", "anything", "are", "as", "at", "be",
+    "been", "being", "but", "by", "can", "can't", "cannot", "could", "did", "didn't", "do", "does", "don't", "done",
+    "down", "each", "else", "every", "everything", "for", "from", "get", "got", "had", "has", "have", "he", "her",
+    "here", "his", "how", "i", "i'm", "idea", "if", "in", "into", "is", "isn't", "it", "it's", "its", "just", "made",
+    "make", "many", "me", "more", "most", "much", "my", "need", "needed", "needs", "never", "no", "nor", "not",
+    "nothing", "of", "on", "one", "only", "or", "other", "our", "out", "over", "own", "really", "she", "should", "so",
+    "some", "something", "still", "take", "takes", "than", "that", "that's", "the", "their", "them", "then", "there",
+    "there's", "these", "they", "this", "those", "to", "too", "took", "under", "up", "us", "very", "was", "wasn't",
+    "we", "were", "what", "when", "where", "which", "who", "whom", "why", "will", "with", "won't", "would", "yet",
+    "you", "your"))
+
+_SPLIT = re.compile(r"[^\w']+|[\d_]+", re.UNICODE)
+
+
+def _theme_words(text: str) -> list[str]:
+    """`FakeThemes.words`: lower-cased, split on anything not a letter or an apostrophe, edge apostrophes stripped."""
+    out = []
+    for raw in _SPLIT.split((text or "").lower()):
+        word = raw.strip("'")
+        if word:
+            out.append(word)
+    return out
+
+
+def first_noun(text: str, name_words=frozenset()) -> str | None:
+    """`FakeThemes.firstNoun`: the first word of three letters or more (apostrophes not counted) that is no stop word
+    and no word of the dimension's name."""
+    for word in _theme_words(text):
+        if len(word.replace("'", "")) >= 3 and word not in THEMES_STOP_WORDS and word not in name_words:
+            return word
+    return None
+
+
+def themes(answers, name: str = "") -> dict:
+    """`FakeThemes.themes(name, answers)`: `answers` is `[{id, text}]` in the job's order; the result is
+    `{themes: [{label, answerIds}]}` -- piles by first noun, by size descending, ties by first appearance, the first
+    three; an answer with no such word, or in a smaller pile, is left out."""
+    name_words = frozenset(_theme_words(name))
+    piles: dict[str, list[str]] = {}
+    for answer in answers or []:
+        noun = first_noun(answer.get("text"), name_words)
+        if noun is not None:
+            piles.setdefault(noun, []).append(answer.get("id"))
+    ordered = sorted(piles.items(), key=lambda pile: -len(pile[1]))       # stable: first pile first on a tie
+    return {"themes": [{"label": label, "answerIds": list(ids)} for label, ids in ordered[:THEMES_MAX]]}
+
+
+#: keel-cloud 104 `Insights`: a theme serves at most three quotes, shortest first (design §7: "top three per theme by
+#: length ascending, so short ones first"); the raw fallback likewise at most three.
+QUOTES_MAX = 3
+
+
+def served_quotes(ids, by_id: dict) -> list[dict]:
+    """A theme's quotes as the standings serve them: `[{invitationId, name, text}]`, by length ascending (the job's
+    order on a tie), at most three. `by_id` is `{invitationId: {name, text}}`."""
+    rows = [{"invitationId": i, "name": (by_id.get(i) or {}).get("name"), "text": (by_id.get(i) or {}).get("text")}
+            for i in ids if i in by_id]
+    return sorted(rows, key=lambda q: len(q["text"] or ""))[:QUOTES_MAX]
+
+
+# ---------------------------------------------------------------- the Insights view's words (spec 052 FR-4)
+#
+# Copied once, beside the ladder (051's): the rung headings and the no-question reasons are keel-cloud registry data
+# (`follow_up.heading`, `no_follow_up`; registry decision 23, cloud-docs `9a033fe`), held to the export by a unit
+# test; the view's own strings are keel-web 077's (`InsightsView.tsx`, as 077's spec words them), held to its source
+# by a source check once 077 is on master.
+
+#: Design §4.2: the rung's heading over its themes, one a dimension with a question (`follow_up.heading`).
+RUNG_HEADINGS = {
+    "problem.importance": "Why other things come first",
+    "problem.current_solution_satisfaction": "What makes today's way work for them",
+    "solution.compatibility": "What gets in the way",
+    "solution.relative_advantage": "What would have made a difference",
+    "solution.adoption_friction": "What makes it too much",
+    "commercial.price": "What would make it worth more",
+    "commercial.buyer_payer_alignment": "Who had to agree",
+    "commercial.commitment": "What they would start with",
+}
+#: Design §2 *Rungs with no question*: why a dimension asks no follow-up (`no_follow_up`).
+NO_FOLLOW_UP = {
+    "problem.prevalence": "a No at the gate ends the interview",
+    "problem.frequency": "a number has no why worth a question",
+    "commercial.existing_sacrifice": "a number has no why worth a question",
+    "commercial.ability_to_pay": "it is derived from the cost and the price, never asked",
+    "commercial.purchase_friction": "“needed approval and it took a long time” is the reason itself",
+}
+SPLIT_NOTE = "A split, not a no: it fits one group and not the other."
+IN_THEIR_WORDS = "In their words"
+NOTHING_TO_READ_YET = "Nothing to read into yet"
+NOTHING_FAILING = "Nothing is failing"
+NOTHING_FAILING_LINE = "Every dimension holds on 10 or more people. There is nothing to add to the overview."
+
+
+def nothing_to_read_line(n: int) -> str:
+    return (f"{n} {'person has' if n == 1 else 'people have'} answered. A card needs 5 to say anything and 10 to be "
+            "sure. The follow-up answers are kept and appear here once a card is called.")
+
+
+def said_why(heading: str, answered: int, against: int) -> str:
+    """The rung's heading line: *What gets in the way · 6 of the 8 said why*."""
+    return f"{heading} · {answered} of the {against} said why"
+
+
+def took_by(asked: int, against: int, rungs) -> str:
+    """*Only {asked} of the {against} were asked here: {k} had already been asked about {Rung}, the first rung they
+    failed.* -- one clause a rung that took people (`tookBy[]`, in the served order)."""
+    clauses = "; ".join(f"{r.get('count')} had already been asked about {r.get('name')}" for r in rungs or [])
+    return f"Only {asked} of the {against} were asked here: {clauses}, the first rung they failed."
+
+
+def no_follow_up(why: str) -> str:
+    return f"No follow-up on this rung: {why}."
+
+
+def quote_words(quote: dict) -> str:
+    """A quote as the view draws it: the words in curly quotes, then *— {Name}* (design D7, D17)."""
+    return f"“{quote.get('text')}” — {quote.get('name')}"

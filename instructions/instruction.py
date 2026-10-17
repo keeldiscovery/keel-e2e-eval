@@ -22,7 +22,6 @@ STEMS = {
     "COMMERCIAL_ASSUMPTIONS": "commercial-assumptions",
     "COMMERCIAL_REFRAME": "commercial-reframe",
     "INTERPRET": "interpret",
-    "BRIEF": "brief",
     "QUESTIONS": "questions",
     # MARKS_VERSION 9 (spec 029 W4): the five new templates, keel-cloud 059-063. The stems above
     # stay -- keel-cloud keeps those files while today's product still ships -- but no v9 case reads

@@ -26,9 +26,17 @@ added to this line rather than quietly written — which is exactly how the thir
   reads *green at the current `MARKS_VERSION`*, so a rubric that moved has no run of record at all
   until one is spent, and a screen is one entry and cannot be one. The policy widened by one named
   event, in the open, which is the amendment shape this document asks for — it did not loosen.
-  **`MARKS_VERSION` 19** (spec `042-contract-14-r11`, 2026-10-14) is the gate as written, and **there is no run
-  of record until `WHY=marks:19` is spent -- the certificate is the founder's word only; never run or
-  propose it**. keel-cloud 090 / 091 (merged at keel-cloud-docs `c432c1d`: `CONTRACT_VERSION` 14, the lock one
+  **`MARKS_VERSION` 20** (spec `052-report`, 2026-10-17) is the gate as written, and **there is no run of record
+  until `WHY=marks:20` is spent -- the certificate is the founder's word only; never run or propose it**. keel-cloud
+  104 (keel-cloud-docs `9a033fe`, contract 19's standings side) deleted the BRIEF screen, so `brief_answers` and its
+  seven reading marks retire (call 116); `brief_facts` gains the price median and 103's two card lines (call 119);
+  `report_overview` is born at zero spend (the Overview keel-cloud's facts draw against the corpus's, call 117); four
+  journey marks -- `report_insights`, `report_no_repeat`, `report_pilot`, `report_binding` -- are
+  `evals/report_marks.py`'s, never rows of `judge()` (call 120). At zero spend against `9a033fe` (a fresh
+  `BriefFactsCorpusTest`): `brief_facts` 101 of 101, `report_overview` 49 of 49. Corpus revision 11 unchanged. What
+  follows is v19's account, history since 2026-10-17 (never run).
+  **`MARKS_VERSION` 19** (spec `042-contract-14-r11`, 2026-10-14) was the gate as written, and **there was no run
+  of record until `WHY=marks:19` was spent -- never run**. keel-cloud 090 / 091 (merged at keel-cloud-docs `c432c1d`: `CONTRACT_VERSION` 14, the lock one
   RESPONDENT_QUESTIONS job of 35, corpus revision 11) moved four calls under unchanged numbers (110-115): the corpus is
   revision 11 (r10 refused by name; DRIFT #77's five words fixed, 05-paidly's Frequency in months out of 3; keel-cloud 092 /
   093 at `7850360` -- contract 15, charge 8 -- moved no screen schema and no instruction, so v19 stands, spec 043 call 135),
@@ -295,10 +303,10 @@ real callback -- and `stack/auth.py`'s one browserless sign-in walks the same th
 anywhere in this harness that produces a founder session by any other means.** Two scenarios came
 with it: **S-010** (two founders on one instance -- every one of another founder's routes a bare
 404) and **S-011** (the callback's own refusals, each with the founder-voiced line the design
-names). The scenario set is **thirteen**.
+names). The scenario set is **fourteen** (spec 052 added S-014, the healthy project).
 
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
-to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **thirteen** scenarios are
+to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **fourteen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
 the participants' typed answers are fixture or corpus data, never generated) and every assertion
 enforcing a journey moment cites it (`§n.m`).

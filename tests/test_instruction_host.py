@@ -170,7 +170,7 @@ def test_every_case_a_copilot_run_builds_carries_the_copilot_prompt(monkeypatch,
     model = [c for c in cases if c.kind != "COMPARE"]
 
     assert {c.kind for c in model} == {"CONTEXT", "FRAME", "CALIBRATION", "ASKED", "RESPONDENT",
-                                       "READING", "BRIEF"}, \
+                                       "READING"}, \
         "every model loop must be exercised or this test proves nothing"
     assert set(seen) == {"copilot"} and len(seen) == len(model)
     assert {c.prompt for c in model} == {"prompt-for-copilot"}
@@ -541,12 +541,12 @@ def test_the_rubric_did_not_move():
     # is asserted here is that the five numbers a host is judged against have never moved.
     # v9 (spec 029, calls 28-36) moved the subjects and the marks -- again for every host at once; v18
     # (spec 040, calls 79, 82) renamed `brief_paragraphs` `brief_answers` and added two zero-spend marks, for
-    # every host at once.
+    # every host at once; v20 (spec 052, calls 116, 117) retired `brief_answers` and added `report_overview`.
     assert marks_mod.DEFAULTS == {"dimension_coverage": 1.00, "option_validity": 1.00,
                                   "no_leak": 1.00, "anchoring_accuracy": 0.90,
                                   "compare_correctness": 1.00, "rule_refusal_rate": 0.02,
-                                  "shape_refusals": 0, "brief_answers": 1.00, "spoken_form": 1.00,
-                                  "brief_facts": 1.00}
+                                  "shape_refusals": 0, "spoken_form": 1.00,
+                                  "brief_facts": 1.00, "report_overview": 1.00}
 
 
 def test_the_makefile_defaults_to_claude_and_threads_the_host_through():

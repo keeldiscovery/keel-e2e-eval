@@ -15,9 +15,8 @@ calibration job reads the corpus's `context`, `interpretations.problem` and `sol
 keel-cloud 087, an empty `answers`: the seed-time job drafts every list from the interpretation alone, and the
 corpus records no Answer-screen text); the respondent job reads the plan the eval derived by code from
 `founder_calibration` (call 30) and is **never** handed a founder answer; the `ASKED` job (keel-cloud 088) is
-handed one list's labels by index; the reader is handed one gate story; the brief is handed keel-cloud's own
-facts for the entry where they are to hand, else this repository's reading of them (`brief_facts.facts_for`,
-call 84).
+handed one list's labels by index; the reader is handed one gate story. (The brief's context left with the BRIEF
+screen, keel-cloud 104; spec 052.)
 
 At `MARKS_VERSION` 8 this module also numbered the earlier stages' lines, the questionnaire's
 measurements and the brief's claims. All three retired with the subjects they fed (judgement calls
@@ -57,8 +56,7 @@ def tap_enum(tap):
 VECTORS = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 
 #: The key order per screen when no export is handed in (the unit tests): keel-cloud 058's export at
-#: `14a1430` for the five new screens, and screen-shapes §2's narrowed keys for `INTERPRET` and
-#: `BRIEF`, which 058 still exports in their v8 shape until keel-cloud 064 / 065 (tasks.md T002).
+#: `14a1430` for the five new screens, and screen-shapes §2's narrowed keys for `INTERPRET`.
 DEFAULT_KEYS = {
     contract_mod.SCREEN_CONTEXT_INTERPRET: ["context_fields", "market", "project_name"],
     contract_mod.SCREEN_PROBLEM_INTERPRET: ["context", "market"],
@@ -69,7 +67,6 @@ DEFAULT_KEYS = {
                                      "items", "mechanism", "offer_name"],
     contract_mod.SCREEN_ASKED: ["dimension", "context", "market", "items"],
     contract_mod.SCREEN_INTERPRET: ["invitation_id", "story"],
-    contract_mod.SCREEN_BRIEF: ["project_name", "market", "context", "facts", "beliefs", "stories"],
 }
 
 #: The five fields of r3's `context` a screen is handed (`understood` is the golden sentence
@@ -410,20 +407,3 @@ def build_interpret(entry, person, keys=None) -> dict:
                         # narrows it: the one gate story is handed as the one anchor written under.
                         "anchors": [{"anchor_id": "story", "prompt": None, "text": person.story,
                                      "tap": None}]})
-
-
-# ------------------------------------------------------------------------------------ BRIEF (089)
-
-def build_brief(entry, keys=None, registry=None, *, facts=None) -> dict:
-    """The `BRIEF` screen's context (keel-cloud 089, contract 13): the project, the market, the context, the
-    `facts`, the `beliefs` and the `stories` -- one case a project. `facts` is keel-cloud's own for the entry
-    (`cloud_corpus`, `BriefFactsCorpusTest`) where the run has it, else this repository's reading
-    (`brief_facts.facts_for`, call 84)."""
-    from . import brief_facts                                          # noqa: PLC0415
-    registry = registry if registry is not None else entry.registry
-    keys = DEFAULT_KEYS[contract_mod.SCREEN_BRIEF] if keys is None else keys
-    return _fill(keys, {"project_name": entry.title, "market": market_of(entry),
-                        "context": context_of(entry),
-                        "facts": facts if facts is not None else brief_facts.facts_for(entry, registry),
-                        "beliefs": brief_facts.beliefs_for(entry, registry),
-                        "stories": brief_facts.stories_for(entry)})

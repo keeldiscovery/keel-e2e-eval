@@ -8,7 +8,7 @@ imported `instructions.report` at all, so nothing could have caught it.
 
 At `MARKS_VERSION` 9 the map moved (research R15): `align` retired with the subject it aligned
 (judgement call 29); `compare`, `registry` and `text` joined. At 18 (spec 040) `brief_facts`, `cloud_corpus`,
-`spoken` and `wording` are in the map. The scorecard below is the v9 totals
+`spoken` and `wording` are in the map; at 20 (spec 052) `brief` left (call 116) and `overview` joined (call 117). The scorecard below is the v9 totals
 shape of data-model §6, made by `score.totals` itself so it can never drift from what a run writes.
 """
 
@@ -21,8 +21,8 @@ import pytest
 
 from instructions import score as score_mod
 
-MODULES = ["brief", "brief_facts", "cloud_corpus", "compare", "context", "contract", "corpus", "instruction",
-           "judge", "marks", "models", "prompts", "registry", "report", "rescore", "run", "runner", "score",
+MODULES = ["brief_facts", "cloud_corpus", "compare", "context", "contract", "corpus", "instruction",
+           "judge", "marks", "models", "overview", "prompts", "registry", "report", "rescore", "run", "runner", "score",
            "spoken", "text", "validate", "why", "wording"]
 
 
@@ -64,7 +64,7 @@ _SCORECARD = {
     "contract_manifest": {"keel_cloud_commit": "abc1234", "keel_cloud_dirty": False,
                           "generated_at": "2026-10-07T00:00:00Z"},
     "registry_version": 1,
-    "compare": [], "calibration": [], "respondent": [], "interpret": [], "brief": [],
+    "compare": [], "calibration": [], "respondent": [], "interpret": [],
     "prompts": [], "spread": {},
     "totals": _totals(),
 }
@@ -85,10 +85,11 @@ def test_the_report_renders_the_ten_marks_and_what_it_cannot_measure(tmp_path):
     assert "a-model" in html, "a run must always name the model it was judged under"
     assert "300.0s" in html, "and the wall clock it ran production's own"
     for label in ("dimension coverage", "option validity", "no leak", "anchoring accuracy",
-                  "compare correctness", "rule refusals", "shape refusals", "BRIEF answers",
-                  "spoken form", "brief facts"):
+                  "compare correctness", "rule refusals", "shape refusals",
+                  "spoken form", "brief facts", "report overview"):
         assert label in html, label
     assert "BRIEF paragraphs" not in html, "retired at v18 (call 82)"
+    assert "BRIEF answers" not in html, "retired at v20 (call 116)"
     assert "Spoken form" in html and "Not measured" in html, "the two v18 sections say what they measured"
     assert "golden-belief recall" not in html, "retired at v9 (call 29)"
     assert "register is not scored" in html

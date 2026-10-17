@@ -39,7 +39,7 @@ from .contract import ContractUnavailable
 _TOOL = (Path("src") / "test" / "java" / "com" / "keeldiscovery" / "cloud" / "tooling"
          / "ScreenContractTool.java")
 
-#: The eight model screens a batch carries (contract 13), and the marker in the validator's source that says
+#: The seven model screens a batch carries (contract 13; BRIEF gone with keel-cloud 104), and the marker in the validator's source that says
 #: it takes each -- the **constant reference**, `InferenceScreen.<SCREEN>`, the way `QUESTIONS` was
 #: read at v8: a screen named in that file's prose is a screen assumed. `COMPARE` is never batched
 #: (there is no answer to validate).
@@ -51,7 +51,6 @@ _SHAPE_MARKERS = {
     "RESPONDENT_QUESTIONS": "InferenceScreen.RESPONDENT_QUESTIONS",
     "ASKED": "InferenceScreen.ASKED",
     "INTERPRET": "InferenceScreen.INTERPRET",
-    "BRIEF": "InferenceScreen.BRIEF",
 }
 
 
@@ -94,11 +93,9 @@ def _taken_by(screen: str):
     return re.compile(rf"InferenceScreen\.{name}\b|\bcase\s+(?:[A-Z_]+\s*,\s*)*{name}\s*(?:->|:|,){extra}")
 
 
-#: Spec 040: a screen the validator takes by the **call** that judges it rather than by its constant. keel-cloud 086
-#: deleted `ScreenContractTool`'s last `InferenceScreen.BRIEF` reference -- a BRIEF case is every case that is
-#: neither a vector screen nor INTERPRET, judged by `BriefReading.check(...)` -- so the constant alone read BRIEF
-#: as not taken and left its rule refusals unmeasured from 086 on. The call is code, never prose.
-_CALL_MARKERS = {"BRIEF": ("BriefReading.check(",)}
+#: Spec 040: a screen the validator takes by the **call** that judges it rather than by its constant (BRIEF's
+#: `BriefReading.check(`, until keel-cloud 104 deleted the screen; spec 052). None is left; the seam stays.
+_CALL_MARKERS: dict = {}
 
 
 def shapes_needed(batch: dict) -> set:
@@ -138,8 +135,8 @@ def build_batch(cases_and_results) -> dict:
     calibration case; the part, the link, the plan and the founder's option sets **and values** on
     a respondent case (`R3` is checked against values the model was never shown, so the validator
     needs the state the screen would really have arrived into -- 025 D12/D18); the invitation and
-    the story on an `INTERPRET` case; the context and the seed on the interpretations; the
-    standings on `BRIEF`. A `COMPARE` row is never batched.
+    the story on an `INTERPRET` case; the context and the seed on the interpretations. A `COMPARE` row is never
+    batched.
     """
     cases = []
     for item in cases_and_results:
@@ -197,11 +194,6 @@ def build_batch(cases_and_results) -> dict:
                 entry["mechanism"] = case.meta["validation_mechanism"]
         elif case.kind == "READING":
             entry.update(invitation_id=context.get("invitation_id"), story=context.get("story"))
-        elif case.kind == "BRIEF":
-            # keel-cloud 079: the facts as served and the stories ({invitation_id, story}) --
-            # `BriefReading.check` judges the reading against exactly these (refusal B7).
-            entry.update(market=context.get("market"), facts=context.get("facts"),
-                         stories=context.get("stories"))
         # The confirmed problem card, as validation state only, on the two question screens: 058
         # confirms it from `problem_statement` (Lullaby's otherwise) and subtracts its words from
         # R4's and C5's vocabulary -- run 2's Countly "mismatch" was refused for lack of it.

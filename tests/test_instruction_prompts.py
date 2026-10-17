@@ -92,7 +92,7 @@ def test_the_seeded_screens_carry_the_seed_as_input_content():
     assert payload["input"] == {"content": "the founder typed this"}
 
 
-def test_build_cases_emits_twenty_one_model_cases_and_one_compare_row_in_fr_016s_order(cases):
+def test_build_cases_emits_twenty_model_cases_and_one_compare_row_in_fr_016s_order(cases):
     """Spec 040 (call 84): the two `ASKED` cases -- one a saved Compatibility and Adoption friction list -- come
     after the three calibration jobs, as a Save does after the Check screens."""
     ids = [c.case_id for c in cases]
@@ -107,9 +107,9 @@ def test_build_cases_emits_twenty_one_model_cases_and_one_compare_row_in_fr_016s
     assert len(reads) == 9 and ids[11:20] == [c.case_id for c in reads]
     assert {c.subject for c in reads}.isdisjoint({"Jo Judd", "Kit Kerr", "Lu Lam"}), \
         "no read for a gate-No or a chipped story (FR-017)"
-    assert ids[20:] == ["09-fixture/COMPARE", "09-fixture/BRIEF/run1"]
+    assert ids[20:] == ["09-fixture/COMPARE"], "no BRIEF case since keel-cloud 104 (spec 052, call 116)"
     model = [c for c in cases if c.kind != "COMPARE"]
-    assert len(model) == 21, "SC-003: 3 + 3 + 2 + 3 + 9 + 1"
+    assert len(model) == 20, "SC-003: 3 + 3 + 2 + 3 + 9"
     assert [c.kind for c in cases[:11]] == ["CONTEXT", "FRAME", "FRAME"] + ["CALIBRATION"] * 3 \
         + ["ASKED"] * 2 + ["RESPONDENT"] * 3
 
@@ -134,24 +134,17 @@ def test_a_list_left_out_builds_no_asked_case(tmp_path):
     assert [c.subject for c in cases if c.kind == "ASKED"] == ["COMPATIBILITY"]
 
 
-def test_the_brief_case_says_whose_facts_it_was_handed(tmp_path):
-    """Call 84: keel-cloud's facts for the entry when the run has them, else this repository's reading."""
-    entry = fx.entry()
-    mine = prompts_mod.build_cases(entry, fx.exported(tmp_path), fx.instructions(), fx.FakeRuntime, n_runs=1)
-    brief = next(c for c in mine if c.kind == "BRIEF")
-    assert brief.meta["facts_source"] == "the eval's reading (brief_facts.facts_for)"
-    assert brief.payload["context"]["facts"]["cards"][0]["key"] == "problem.prevalence"
-    given = {"keys": ["problem.prevalence"], "cards": []}
-    theirs = prompts_mod.build_cases(entry, fx.exported(tmp_path / "b"), fx.instructions(), fx.FakeRuntime,
-                                     n_runs=1, brief_facts={"09-fixture": given})
-    brief = next(c for c in theirs if c.kind == "BRIEF")
-    assert brief.meta["facts_source"] == "keel-cloud BriefFactsCorpusTest"
-    assert brief.payload["context"]["facts"] == given
+def test_no_brief_case_is_built_and_build_cases_takes_no_facts(tmp_path):
+    """Spec 052 (call 116): keel-cloud 104 deleted the BRIEF screen; no case kind, no facts handed in."""
+    import inspect                                                           # noqa: PLC0415
+    cases = prompts_mod.build_cases(fx.entry(), fx.exported(tmp_path), fx.instructions(), fx.FakeRuntime, n_runs=1)
+    assert "BRIEF" not in {c.kind for c in cases} and "BRIEF" not in prompts_mod.KINDS
+    assert "brief_facts" not in inspect.signature(prompts_mod.build_cases).parameters
 
 
-def test_the_real_corpus_builds_149_model_cases_and_the_denominators_per_n(tmp_path):
-    """Spec 040: on revision 10 at N=1 -- 7 context, 14 frame, 21 calibration, 14 asked, 21 respondent, 65 reads,
-    7 briefs (149) and 7 COMPARE rows; coverage 80 calibration + 81 respondent + 35 asked, validity 122 (80 entries,
+def test_the_real_corpus_builds_142_model_cases_and_the_denominators_per_n(tmp_path):
+    """Spec 040: on revision 10 at N=1 -- 7 context, 14 frame, 21 calibration, 14 asked, 21 respondent, 65 reads
+    (142; the 7 briefs left with keel-cloud 104, spec 052) and 7 COMPARE rows; coverage 80 calibration + 81 respondent + 35 asked, validity 122 (80 entries,
     7 gates, 35 faces), `no_leak` 35 sweeps (sweep A on 4 PROBLEM entries and the gate, sweep B on the gate, an
     entry). Read off the cases, never typed."""
     from stack.config import load_config                                    # noqa: PLC0415
@@ -165,8 +158,8 @@ def test_the_real_corpus_builds_149_model_cases_and_the_denominators_per_n(tmp_p
         cases += prompts_mod.build_cases(entry, exported, fx.instructions(), fx.FakeRuntime, n_runs=1)
     counts = run_mod._counts(cases)
     assert counts == {"CONTEXT": 7, "FRAME": 14, "CALIBRATION": 21, "ASKED": 14, "RESPONDENT": 21,
-                      "READING": 65, "COMPARE": 7, "BRIEF": 7}
-    assert sum(n for kind, n in counts.items() if kind != "COMPARE") == 149
+                      "READING": 65, "COMPARE": 7}
+    assert sum(n for kind, n in counts.items() if kind != "COMPARE") == 142
     rows = run_mod.denominators(cases)
     assert sum(r["calibration"] for r in rows.values()) == 80
     assert sum(sum(r["respondent"].values()) for r in rows.values()) == 81
@@ -202,7 +195,7 @@ def test_the_b2b_entry_asks_part_three_on_its_own_link_and_nowhere_else(tmp_path
 def test_n_runs_repeats_each_model_case_and_never_the_compare_row(tmp_path):
     cases = prompts_mod.build_cases(fx.entry(), fx.exported(tmp_path), fx.instructions(),
                                     fx.FakeRuntime, n_runs=3)
-    assert len([c for c in cases if c.kind != "COMPARE"]) == 63, "SC-010"
+    assert len([c for c in cases if c.kind != "COMPARE"]) == 60, "SC-010"
     assert len([c for c in cases if c.kind == "COMPARE"]) == 1
 
 
@@ -236,8 +229,7 @@ def test_a_slash_needle_selects_the_reads_and_no_interpretation(cases):
 
 @pytest.mark.parametrize("word, kind, count", [
     ("context", "CONTEXT", 1), ("frame", "FRAME", 2), ("calibration", "CALIBRATION", 3),
-    ("asked", "ASKED", 2), ("respondent", "RESPONDENT", 3), ("reading", "READING", 9), ("compare", "COMPARE", 1),
-    ("brief", "BRIEF", 1)])
+    ("asked", "ASKED", 2), ("respondent", "RESPONDENT", 3), ("reading", "READING", 9), ("compare", "COMPARE", 1)])
 def test_each_kind_word_selects_its_kind(cases, word, kind, count):
     selected = _select(cases, word)
     assert len(selected) == count and {c.kind for c in selected} == {kind}

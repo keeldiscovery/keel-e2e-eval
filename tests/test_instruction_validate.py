@@ -116,15 +116,12 @@ def test_every_other_kind_carries_what_its_applier_reads(cases):
     assert _by_screen(batch, "PROBLEM_INTERPRET")[0]["seed"] == fx.entry().statements["problem"]
     mechanism = _by_screen(batch, "SOLUTION_MECHANISM")[0]
     assert mechanism["problem_statement"] == fx.entry().interpretations["problem"]
-    brief = _by_screen(batch, "BRIEF")[0]
-    assert set(brief) == {"case_id", "screen", "market", "facts", "stories", "result"}
-    assert [v["vector"] for v in brief["facts"]["vectors"]] == ["PROBLEM", "SOLUTION", "COMMERCIAL"]
-    assert brief["stories"] and brief["stories"][0]["invitation_id"]
+    assert not _by_screen(batch, "BRIEF"), "no BRIEF case since keel-cloud 104 (spec 052)"
 
 
 def test_a_compare_row_is_never_batched(cases):
     assert not _by_screen(_batch(cases), "COMPARE")
-    assert len(_batch(cases)["cases"]) == 21
+    assert len(_batch(cases)["cases"]) == 20
 
 
 def _tool(tmp_path, *screens) -> Path:
@@ -136,9 +133,9 @@ def _tool(tmp_path, *screens) -> Path:
 
 
 def test_shapes_taken_reads_one_marker_a_screen_off_the_validator(tmp_path):
-    keel_cloud = _tool(tmp_path, "INTERPRET", "BRIEF")
+    keel_cloud = _tool(tmp_path, "INTERPRET", "ASKED")
     taken = validate_mod.shapes_taken(keel_cloud)
-    assert taken["INTERPRET"] and taken["BRIEF"]
+    assert taken["INTERPRET"] and taken["ASKED"] and "BRIEF" not in taken
     assert not taken["CALIBRATION_QUESTIONS"]
     assert not any(validate_mod.shapes_taken(tmp_path / "nowhere").values()), \
         "an unreadable sibling is a prerequisite that has not landed"
@@ -158,12 +155,12 @@ def test_an_enum_switch_label_is_a_screen_taken_and_prose_is_not(tmp_path):
     assert taken["CONTEXT_INTERPRET"] and taken["CALIBRATION_QUESTIONS"]
     assert taken["RESPONDENT_QUESTIONS"]
     assert not taken["INTERPRET"], "`case CONTEXT_INTERPRET` is not a label for INTERPRET"
-    assert not taken["BRIEF"]
+    assert "BRIEF" not in taken
 
 def test_a_kind_the_validator_does_not_take_is_unmeasured_by_name_for_that_kind_only(tmp_path,
                                                                                       cases):
     keel_cloud = _tool(tmp_path, "CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "SOLUTION_MECHANISM",
-                       "ASKED", "RESPONDENT_QUESTIONS", "INTERPRET", "BRIEF")
+                       "ASKED", "RESPONDENT_QUESTIONS", "INTERPRET")
     batch = _batch(cases)
     unmet = validate_mod.unmet_by_screen(keel_cloud, batch)
     assert list(unmet) == ["CALIBRATION_QUESTIONS"]
@@ -172,7 +169,7 @@ def test_a_kind_the_validator_does_not_take_is_unmeasured_by_name_for_that_kind_
     assert "rule_refusal_rate" in reason and "shape_refusals" in reason
     sent = validate_mod.without_screens(batch, unmet)
     assert not _by_screen(sent, "CALIBRATION_QUESTIONS")
-    assert len(sent["cases"]) == 18, "every other kind is still asked"
+    assert len(sent["cases"]) == 17, "every other kind is still asked"
 
 
 def test_fold_in_counts_rule_refusals_by_id_and_keeps_shape_and_case_faults_apart():
@@ -253,12 +250,11 @@ def test_the_real_validator_refuses_each_k_rule_by_id_on_an_asked_case(tmp_path,
         assert report[rule]["refusal"]["kind"] == "rule" and report[rule]["refusal"]["rule"] == rule, report[rule]
 
 
-def test_brief_is_taken_by_the_call_that_judges_it(tmp_path):
-    """keel-cloud 086 removed the validator's last `InferenceScreen.BRIEF`: a BRIEF case is judged by
-    `BriefReading.check(...)` in the fall-through branch, so that call is BRIEF's marker; its name in prose is not."""
+def test_no_screen_is_taken_by_a_call_since_brief_left(tmp_path):
+    """Spec 040 read BRIEF by `BriefReading.check(` (keel-cloud 086); keel-cloud 104 deleted the screen, so the seven
+    screens are all read by their constant or their switch label and the call markers are empty (spec 052)."""
+    assert validate_mod._CALL_MARKERS == {} and "BRIEF" not in validate_mod._SHAPE_MARKERS
     tool = tmp_path / validate_mod._TOOL
     tool.parent.mkdir(parents=True)
-    tool.write_text("/** BriefReading.check holds the reading. */\n")
-    assert not validate_mod.shapes_taken(tmp_path)["BRIEF"]
     tool.write_text("List<String> problems = BriefReading.check(result, facts, stories, List.of());\n")
-    assert validate_mod.shapes_taken(tmp_path)["BRIEF"]
+    assert not any(validate_mod.shapes_taken(tmp_path).values())

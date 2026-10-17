@@ -198,14 +198,14 @@ def test_a_read_carries_an_invitation_and_one_story_and_no_stage_or_anchors(entr
     assert "anchors" not in built and "stage" not in repr(built)
 
 
-def test_the_brief_carries_the_facts_the_beliefs_and_the_stories(entry, registry):
-    """keel-cloud 089 (contract 13): `project_name, market, context, facts, beliefs, stories`. With no facts of
-    keel-cloud's to hand (a unit fixture), the facts are this repository's reading (call 84): the decision over every
-    dimension, the vector words, the money, the pilot, one card a dimension, what broke, what was not asked."""
-    built = context_mod.build_brief(entry)
-    assert list(built) == ["project_name", "market", "context", "facts", "beliefs", "stories"]
-    assert "claims" not in built and "vectors" not in built
-    facts = built["facts"]
+def test_no_screen_builds_a_brief_context_since_keel_cloud_104(entry, registry):
+    """Spec 052 (call 116): keel-cloud 104 deleted the BRIEF screen, so no context is built for it; the facts this
+    repository reads (`brief_facts.facts_for`, what `instructions/overview.py` draws from) keep their shape: the
+    decision over every dimension, the vector words, the money, the pilot, one card a dimension, what broke, what was
+    not asked and the price median."""
+    from instructions import brief_facts                                # noqa: PLC0415
+    assert not hasattr(context_mod, "build_brief") and "BRIEF" not in context_mod.DEFAULT_KEYS
+    facts = brief_facts.facts_for(entry, registry)
     assert [v["words"] for v in facts["vectors"]] == ["Holding up", "Holding up", "Not holding up"]
     assert facts["decision"] == {"label": "BUILD_BUT_CHANGE", "howSure": "MEDIUM",
                                  "reason": "Smallest group: 7 people.", "smallestN": 7, "split": False,
@@ -213,27 +213,14 @@ def test_the_brief_carries_the_facts_the_beliefs_and_the_stories(entry, registry
     assert facts["money"] == {"currency": "GBP", "currencySymbol": "\u00a3", "period": "month",
                               "periodWords": "a month"}
     assert facts["pilot"]["optedIn"] == 3 and facts["pilot"]["finished"] == 12
-    assert [c["key"] for c in facts["cards"]] == facts["keys"] == registry.calibrated_keys(False)
+    assert [c["key"] for c in facts["cards"]] == registry.calibrated_keys(False)
     assert facts["cards"][0]["number"] == "10 of 12" and facts["cards"][0]["line"] == "had it in the last 7 nights"
     assert facts["commercial"]["broke"]["key"] == "commercial.existing_sacrifice"
     assert "broke" not in facts["problem"] and "broke" not in facts["solution"]
     assert {n["key"] for n in facts["commercial"]["notAsked"]} == {
         "commercial.ability_to_pay", "commercial.buyer_payer_alignment", "commercial.purchase_friction"}
-    assert "sharpest" not in facts, "a cross-tab is keel-cloud's; this reading carries none"
-    assert {t["key"] for t in facts["targets"]} <= set(facts["keys"])
-    assert all("weight" not in b for b in built["beliefs"]), "D3"
-    assert {b["key"] for b in built["beliefs"]} == set(facts["keys"])
-    frequency = next(b for b in built["beliefs"] if b["key"] == "problem.frequency")
-    assert frequency["belief_sentence"] == entry.founder_calibration["problem.frequency"]["belief_sentence"]
-    assert frequency["founder_phrase"] == "2 to 4 nights out of 7"
-    assert built["stories"] and all(set(s) == {"invitation_id", "link", "story"} for s in built["stories"])
-
-
-def test_the_brief_is_handed_keel_clouds_own_facts_where_the_run_has_them(entry):
-    """Call 84: a case's facts are keel-cloud's for the entry (`BriefFactsCorpusTest`) when given, untouched."""
-    given = {"decision": {"label": "BUILD"}, "keys": ["problem.prevalence"]}
-    built = context_mod.build_brief(entry, facts=given)
-    assert built["facts"] is given
+    assert facts["commercial"]["priceMedian"] == {"edgeSaid": "\u00a32 a month", "chose": 5, "n": 8}
+    assert not {"sharpest", "targets", "keys"} & set(facts), "keel-cloud 104 deleted them"
 
 
 def test_the_asked_job_is_one_list_its_frame_and_its_items_by_index(entry, registry):

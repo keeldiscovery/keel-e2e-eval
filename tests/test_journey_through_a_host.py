@@ -176,7 +176,7 @@ def test_the_scenario_walks_the_corpus_journeys_own_legs_live():
     order = ["leg_project", "leg_context", "leg_interpret_problem", 'leg_calibrate, "PROBLEM"',
              "leg_interpret_solution", 'leg_calibrate, "SOLUTION"', "leg_persona",
              'leg_calibrate, "COMMERCIAL"', "leg_lock", "leg_invite", "leg_interview",
-             "leg_standings", "leg_brief"]
+             "leg_standings", "leg_report"]
     at = [SCENARIO.index(f"_leg(corpus_scenario.{name}") for name in order]
     assert at == sorted(at), "the legs are walked out of the corridor's own order"
 

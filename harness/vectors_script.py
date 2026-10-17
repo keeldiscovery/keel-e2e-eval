@@ -6,7 +6,8 @@ One revision-11 corpus entry in; out come the three things S-005, S-006 and S-00
 
 1. a **keel-runtime scripted-executor script** keyed by screen name -- the corridor's screens
    (`CONTEXT_INTERPRET`, `PROBLEM_INTERPRET`, `SOLUTION_MECHANISM`, `CALIBRATION_QUESTIONS`, `ASKED`,
-   `RESPONDENT_QUESTIONS`), the gate-story reading (`INTERPRET`) and the brief's reading (`BRIEF`),
+   `RESPONDENT_QUESTIONS`) and the gate-story reading (`INTERPRET`) -- the brief's reading (`BRIEF`) left with
+   keel-cloud 104, and its THEMES job (contract 19) is not one a fixed script can answer (see `THEMES_SCREEN`),
    every result written in contract 13's screen shapes (contract 14 moved no screen schema) from the entry's own
    stored texts;
 2. the **context-keys table** that script is matched through (`context_keys_for`), derived from
@@ -25,9 +26,7 @@ carrying the founder's Answer), so its entries are the corridor's own order (`ca
 `RESPONDENT_QUESTIONS` writes the gate's clause and nothing else (`{key, event?}`) -- and since keel-cloud 091
 (contract 14) it is **one job a lock**, part 1 on the primary link, the part that carries the gate; parts 2 and 3 are
 composed by code in the lock's own commit, so the script answers part 1 alone; `ASKED` the
-stranger's faces of a saved Compatibility / Adoption friction list (the corpus's own `asked`); `BRIEF`
-the headline and three answers, each citing its stage's deciding dimension (`broke`, where the
-stage broke).
+stranger's faces of a saved Compatibility / Adoption friction list (the corpus's own `asked`).
 
 **The wire's codes are code's** (keel-cloud 087 judgement call 2): a list item is coded by position
 (`own`, `rival_1`..; `outcome_1`..; `item_1`..; `benefit_1`..; `nobody_else`, `role_1`..; `step`),
@@ -40,7 +39,7 @@ reader the instruction eval already uses -- and never a second time.
 
 **What the corpus does not carry is composed, and named** (`COMPOSED`). Revision 10 records the
 founder's lists, the golden codes and people; it records no gate clause, no Prevalence option labels,
-no Answer-screen words and no brief reading. A screen result needs them, so this module writes them in
+no Answer-screen words. A screen result needs them, so this module writes them in
 one fixed register and spec 041's *Disagreements* list every one. A composed word never reaches an
 assertion about a standing: the engine compares codes.
 
@@ -70,11 +69,17 @@ MECHANISM_SCREEN = "SOLUTION_MECHANISM"
 CALIBRATION_SCREEN = "CALIBRATION_QUESTIONS"
 RESPONDENT_SCREEN = "RESPONDENT_QUESTIONS"
 INTERPRET_SCREEN = "INTERPRET"
-BRIEF_SCREEN = "BRIEF"
+#: keel-cloud 104 (contract 19): one job a failing dimension, `{dimension, name, rungHeading, answers[{id, text}]}`,
+#: answered `{themes: [{label, answerIds}]}`. **Its answer depends on the context** -- the ids are the invitations',
+#: minted on the stack -- and the jobs run side by side in no fixed order, so keel-runtime's scripted executor (an
+#: ordered list a screen) cannot answer it from a script written before the run: it needs the fake's grouping
+#: (`harness/interviewer_fake.themes`) applied to the context, as it fills INTERPRET's `invitationId`. Until then the
+#: table names the screen (so the runtime says *no entry for THEMES*, by name) and the script carries no entry.
+THEMES_SCREEN = "THEMES"
 #: keel-cloud 088 (contract 12): the `asked` faces of a saved Compatibility / Adoption friction list.
 ASKED_SCREEN = "ASKED"
 CORRIDOR_SCREENS = (CONTEXT_SCREEN, PROBLEM_SCREEN, MECHANISM_SCREEN, CALIBRATION_SCREEN,
-                    ASKED_SCREEN, INTERPRET_SCREEN, BRIEF_SCREEN)
+                    ASKED_SCREEN, INTERPRET_SCREEN, THEMES_SCREEN)
 
 LINK_PRIMARY = "PRIMARY"
 LINK_B2B = "COMMERCIAL_B2B"
@@ -97,8 +102,6 @@ COMPOSED = (
     "the founder typing the rest on the Check screen: IMPORTANCE_NAMED)",
     "RESPONDENT_QUESTIONS the gate's event clause -- r10 records none (keel-cloud 088 call 13); 'have a time "
     "when {circumstance}', or the referee's shorter clause where that frames past 20 words (E4)",
-    "BRIEF reading -- r10 records none; a referee-worded headline and three answers citing each stage's "
-    "deciding dimension",
     "the founder's own name for the idea on S2 (keel-cloud 090, D14; 097 F7) -- r11 records Keel's short name only and "
     "no r11 solution seed carries a product name, so every founder types one: the entry's short name, or one entry's "
     "own (IDEA_NAMES)",
@@ -932,32 +935,6 @@ def broke_key(entry, vector: str) -> str | None:
     return verdict.get("deciding") if verdict.get("verdict") in BROKE else None
 
 
-def brief_result(entry) -> dict:
-    """The BRIEF reading (contract 13), worded by the referee and checkable without a model
-    (keel-cloud `BriefReading.check`): a headline and one answer a stage, each one sentence of at most 45
-    words, citing the stage's deciding dimension (what broke, where it broke), with no digit, no currency,
-    no person's name and no banned word; no tests and no quotes."""
-    who = entry.title.split("—")[0].strip()
-
-    def answer(vector: str, subject: str) -> dict:
-        key = stage_cite(entry, vector)
-        if broke_key(entry, vector):
-            text = f"On {subject}, {NAMES[key]} is what broke, so it is what to change before anything else."
-        else:
-            text = f"On {subject}, {NAMES[key]} decides the reading, as the counted answers show."
-        return {"answer": {"text": text, "cites": [key]}}
-
-    return {
-        "headline": {"text": f"Scripted by the referee from the frozen corpus entry for {who}, not written "
-                             "by a model.", "cites": [stage_cite(entry, "PROBLEM")]},
-        "problem": answer("PROBLEM", "the problem"),
-        "solution": answer("SOLUTION", "the solution"),
-        "commercial": answer("COMMERCIAL", "what they would pay"),
-        "next": {"tests": []},
-        "quotes": [],
-    }
-
-
 # ------------------------------------------------------------------------- the script itself
 
 @dataclass(frozen=True)
@@ -1001,7 +978,6 @@ def generate(entry) -> GeneratedScript:
     interpret = interpret_entries(entry)
     if interpret:
         screens[INTERPRET_SCREEN] = interpret
-    screens[BRIEF_SCREEN] = [_completed(brief_result(entry))]
     return GeneratedScript(entry_id=entry.id, entry_sha256=entry.sha256,
                            source=f"keel-cloud canon/designs/measured-beliefs/corpus/{entry.path.name}",
                            screens=screens)
@@ -1021,7 +997,7 @@ def context_keys_for(exported: dict) -> dict:
       one again, matches nothing, fails, and the journey's one-job step says why.
     * **The classic screens are dropped.** No classic job runs on a vectors project, and a table
       that cannot answer one is the honest table.
-    * Nothing else: `CALIBRATION_QUESTIONS`, `ASKED`, `INTERPRET` and `BRIEF` are the export's own sets.
+    * Nothing else: `CALIBRATION_QUESTIONS`, `ASKED`, `INTERPRET` and `THEMES` are the export's own sets.
     """
     out = {}
     for screen in CORRIDOR_SCREENS:

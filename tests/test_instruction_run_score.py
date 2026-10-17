@@ -3,7 +3,7 @@ T043, T049).
 
 One answer a kind, on the hand-sized entry, through the function a real run and a rescore both
 call: the calibration, asked and respondent cases reach the question scorers, a read reaches
-`score_interpret` keyed on the person, a brief reaches the seven marks (spec 040), and the three
+`score_interpret` keyed on the person (no brief since keel-cloud 104, spec 052), and the three
 interpretations are kept for the aggregate and the register and scored by nothing (call 28).
 """
 
@@ -40,7 +40,6 @@ def test_each_kind_reaches_its_own_scorer(cases):
         "09-fixture/RESPONDENT_PART1/run1": fx.respondent_result(entry, 1),
         "09-fixture/INTERPRET/Ann Abbott/run1": {"invitationId": "09-fixture/Ann Abbott",
                                                   "anchoring": "ANCHORED"},
-        "09-fixture/BRIEF/run1": {"headline": {"text": "Not yet.", "cites": []}},
     }
     for case_id, result in answers.items():
         diff = run_mod._score(cases[case_id], entry, _answer(result), None, state, fx.FakeJudge())
@@ -51,9 +50,8 @@ def test_each_kind_reaches_its_own_scorer(cases):
     assert len(state.asked) == 1 and state.asked[0].coverage_passed and state.asked[0].validity_hit == 2
     assert "ASKED_COMPATIBILITY" in state.produced["09-fixture"]
     assert len(state.interpret) == 1 and state.interpret[0].agreed == 1
-    assert len(state.brief) == 1 and set(state.brief[0].marks) == {"shape", "length", "cites", "broke",
-                                                                    "numbers", "quotes", "bans"}
-    assert len(state.shown_to_aggregate) == 6, "every answer goes to the aggregate"
+    assert not hasattr(state, "brief"), "the BRIEF subject retired at v20 (call 116)"
+    assert len(state.shown_to_aggregate) == 5, "every answer goes to the aggregate"
     assert "CONTEXT_INTERPRET" in state.produced["09-fixture"], \
         "the interpretation is kept for the register and scored by nothing"
 

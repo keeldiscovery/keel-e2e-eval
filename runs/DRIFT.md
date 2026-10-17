@@ -5451,3 +5451,29 @@ used, *Nothing here asks for your name* is gone -- but the founder's line also t
 can be deleted. The journeys hold the served line exactly (held to keel-cloud's source by
 `tests/test_follow_up_ladder.py`) and the design's phrase not at all. For the founder: which line is the participant's;
 for keel-cloud: serve the design's line (or amend §9 to the served one).
+
+## 93. Reserved (spec 052, the report) -- what the report shows that the wire does not say
+
+**Reserved, nothing filed yet.** Spec 052's acceptance 3 keeps this number for the first time the journeys read keel-web
+077's report against keel-cloud 104's `StandingsView` (contract 19, the standings side) and find the page drawing what
+the wire does not serve: a word, a number, a row or a person on the Overview, the Insights view or the Pilot view, or a
+token on *Download the brief* that no view shows (design D10). The marks that would find it are `report_overview`,
+`report_insights`, `report_pilot` and `report_binding` (`evals/report_marks.py`, `REPORT_MARKS_VERSION` 1); the entry is
+written with the run bundle's `report.json` / `report-marks.json` once a journey has run on a stack carrying keel-cloud
+104 and keel-web 077 (not before 2026-10-17: 077 was not on keel-web's master when spec 052's code was written). Two
+words are already known to be at risk and are named here so the first reader looks for them: the price tile reads *…
+decision-makers* on a consumer study too (077 FR-2 words it so; design §3's tile is the decision-makers'), and the
+Insights view's *Nothing is failing* says *Every dimension holds on 10 or more people* where the design's rule
+(*otherwise*) would draw it on a project nobody has answered -- the eval reads that state as *Nothing to read into
+yet* (spec 052 judgement call 4). **Numbering note:** written as #92 on spec 052's branch; renumbered #93 when 052
+was rebased onto 051 (whose #92 is the consent line above), and the D6 reservation below with it, #93 -> #94.
+
+## 94. Reserved (spec 052, the report) -- a number the Insights view repeats from the Overview (design D6)
+
+**Reserved, nothing filed yet.** The founder's D6: *"They already know about the stats from the overview page … careful
+not to repeat it again and again."* Spec 052 expects the first builds of keel-web 077 to repeat one, and keeps this
+number for it. `report_no_repeat` is the literal check: outside a quote (`.rp-quote`) and the view's own lines
+(*· {answered} of the {against} said why*, *Only k of the n were asked here …*), the Insights view's text carries no
+`\d+ of \d+`, no currency figure, no `\d+ months? out of`, and none of the Overview cards' `number` strings. A hit is
+written here with the repeated text, the box it sat in and the run bundle -- read, not tolerated: the regex is blunt on
+purpose (spec 052 plan), so a false positive is a finding about the check to read here, never a widening.

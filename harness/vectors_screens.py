@@ -982,46 +982,166 @@ class Answers:
         self.base = base_url.rstrip("/")
         self._b = _BrowserStep(recorder, page, "founder")
 
+    # ------------------------------------------------------------------ the report (keel-web 077, spec 052)
+    #
+    # One page, `/p/{id}`, three views -- Overview, Insights, Pilot -- switched by the segmented control
+    # (`report-views`, `button[data-view]`, the view in the hash), and *Download the brief* (`report-download`) opening
+    # `/p/{id}/print`, the binding. Selectors are keel-web 077's spec's (its *Selectors (for keel-e2e-eval 052)*
+    # section); everything is read as the DOM carries it (`text_content`), never as the CSS capitalises it, and the
+    # marks compare words in order (`instructions/overview.in_order`), so the markup between them may move.
+
+    def _report(self, project_id: str, view: str) -> None:
+        """The report on `view`: the page opened at `/p/{id}`, then the control pressed as a founder would (the hash
+        as the fallback a link would take)."""
+        url = f"{self.base}/p/{project_id}"
+        if not self.page.url.split("#", 1)[0].endswith(f"/p/{project_id}"):
+            self.page.goto(url, wait_until="load")
+        self.page.get_by_test_id("report-views").first.wait_for(state="visible", timeout=30_000)
+        button = self.page.get_by_test_id("report-views").locator(f"button[data-view='{view}']")
+        if button.count():
+            button.first.click()
+        else:
+            self.page.goto(f"{url}#{view}", wait_until="load")
+
     def board(self, project_id: str) -> dict:
-        with self._b.step("founder opens the board") as h:
-            self.page.goto(f"{self.base}/p/{project_id}", wait_until="load")
-            self.page.locator(".panels a.panel").first.wait_for(state="visible", timeout=30_000)
-            panels = []
-            for panel in self.page.locator(".panels a.panel").all():
-                panels.append({
-                    "stage": panel.get_attribute("data-stage"),
-                    "class": panel.get_attribute("class") or "",
-                    "name": _first_text(panel, ".panel__name"),
-                    "pill": _first_text(panel, ".panel__pill"),
-                    "counts": [_safe_text(lambda c=c: c.inner_text())
-                               for c in panel.locator(".panel__count").all()],
-                })
+        """The Overview view (keel-web 077 FR-2): the eyebrow, the hero (`report-hero`: the verdict
+        `h1.rp-verdict[data-label]` and its class, the why line, the *Send the questions to more people* link, the ship's
+        bands and caption), the two tiles (`report-tiles [data-tile]`), the three panels (`report-stage-{STAGE}`: name and
+        pill, the lead `.rp-plead`, one `a.rp-row[data-dim]` a dimension), the foot, the download, and what the old deck
+        drew (each a count that must be 0)."""
+        with self._b.step("founder opens the report's overview") as h:
+            self._report(project_id, "overview")
+            hero = self.page.get_by_test_id("report-hero").first
+            hero.wait_for(state="visible", timeout=30_000)
+            verdict = hero.locator("h1.rp-verdict")
+            send = hero.get_by_role("link", name=re.compile(r"Send the questions to more people"))
+            tiles = {}
+            for name in ("pilot", "price"):
+                tile = self.page.get_by_test_id("report-tiles").locator(f"[data-tile='{name}']")
+                tiles[name] = {"present": tile.count() > 0, "text": _tc(tile)}
+            panels = {}
+            for stage in ("PROBLEM", "SOLUTION", "COMMERCIAL"):
+                panel = self.page.get_by_test_id(f"report-stage-{stage}")
+                rows = [{"key": r.get_attribute("data-dim"), "href": r.get_attribute("href"), "text": _tc(r)}
+                        for r in panel.locator("a.rp-row").all()]
+                head = " ".join(x for x in (_tc(panel.locator(".rp-pname")), _tc(panel.locator("[class*='pill']")))
+                                if x)
+                panels[stage] = {"present": panel.count() > 0, "head": head, "lead": _tc(panel.locator(".rp-plead")),
+                                 "rows": rows, "text": _tc(panel)}
             bands = [{"stage": b.get_attribute("data-stage"), "class": b.get_attribute("class") or ""}
+                     for b in hero.locator("svg path.band").all()] or \
+                    [{"stage": b.get_attribute("data-stage"), "class": b.get_attribute("class") or ""}
                      for b in self.page.locator("svg.ship path.band").all()]
-            tiles = _safe_all_texts(self.page, ".tile b")
-            # keel-web 066 (D15): two tiles -- the people asked, then the pilot sign-ups (*None yet* and no line before
-            # anyone finishes) -- and the people line under them.
-            cards = [{"class": t.get_attribute("class") or "", "big": _tc(t.locator("b")),
-                      "label": _tc(t.locator(".tile__label")), "line": _tc(t.locator(".tile__line")),
-                      "has_line": t.locator(".tile__line").count() > 0}
-                     for t in self.page.locator(".deck .tiles > .tile").all()]
-            pilot_tile = self.page.locator(".tile--pilot")
-            pilot = {"big": _tc(pilot_tile.locator("b")), "label": _tc(pilot_tile.locator(".tile__label")),
-                     "line": _tc(pilot_tile.locator(".tile__line")), "present": pilot_tile.count() > 0,
-                     "has_line": pilot_tile.locator(".tile__line").count() > 0}
-            download = self.page.get_by_role("link", name="Download the brief")
+            download = self.page.get_by_test_id("report-download")
             text = _text(self.page)
             h.capture_text("stage_screen", text)
-            h.add_screenshot(self._b.screenshot("board"))
-            return {"panels": panels, "bands": bands, "tiles": tiles, "tile_cards": cards, "pilot": pilot,
-                    "people_line": _tc(self.page.locator("p.deck__people")),
-                    "overall": _first_text(self.page, "p.overall"),
-                    "download": download.count() > 0, "text": text}
+            h.add_screenshot(self._b.screenshot("report-overview"))
+            return {
+                "views": [_tc(b) for b in self.page.get_by_test_id("report-views").locator("button").all()],
+                "eyebrow": _first_text(self.page, "[class*='eyebrow']"),
+                "hero": {"label": verdict.first.get_attribute("data-label") if verdict.count() else None,
+                         "class": verdict.first.get_attribute("class") if verdict.count() else "",
+                         "verdict": _tc(verdict), "text": _tc(hero),
+                         "send_more": {"text": _tc(send), "href": send.first.get_attribute("href")}
+                         if send.count() else None,
+                         "caption": _tc(hero.locator(".rp-shipcap")) or _tc(self.page.locator(".rp-shipcap"))},
+                "bands": bands, "tiles": tiles, "panels": panels,
+                "foot": _tc(self.page.locator("[class*='rp-foot']")) or text,
+                "download": {"present": download.count() > 0,
+                             "enabled": download.count() > 0 and (download.first.get_attribute("aria-disabled")
+                                                                  != "true") and download.first.is_enabled(),
+                             "href": download.first.get_attribute("href") if download.count() else None,
+                             "target": download.first.get_attribute("target") if download.count() else None},
+                # design §4.1 *Gone from today's deck* -- each must be 0
+                "old_deck": {"p.overall": self.page.locator("p.overall").count(),
+                             ".tile--people": self.page.locator(".tile--people").count(),
+                             ".snaprow": self.page.locator(".snaprow").count(),
+                             ".panel__count": self.page.locator(".panel__count").count(),
+                             "a disabled download": self.page.locator("[data-testid='report-download'][aria-disabled="
+                                                                      "'true'], button[disabled]:has-text('Download')"
+                                                                      ).count()},
+                "text": text,
+            }
 
-    def vector_page(self, project_id: str, vector: str, *, open_row: str | None = None) -> dict:
+    def insights(self, project_id: str) -> dict:
+        """The Insights view (keel-web 077 FR-3, `report-insights`): per box (`.rp-ibox[data-dim]`, worst first) its head
+        (the `h2` name and the pill), its whole text, the split / took-by / no-follow-up lines where drawn, the themes
+        (`.rp-themes li`: the label, *(count)*, the `.rp-quote`s); the empty state (`.rp-inone`); every quote and the
+        view's own *said why* / *Only k of the n* lines (what `report_no_repeat` takes out)."""
+        from harness import interviewer_fake as fake                    # noqa: PLC0415
+        with self._b.step("founder opens the report's insights") as h:
+            self._report(project_id, "insights")
+            view = self.page.get_by_test_id("report-insights").first
+            view.wait_for(state="visible", timeout=30_000)
+            boxes, own_lines = [], []
+            for box in view.locator(".rp-ibox").all():
+                text = _tc(box)
+                themes = []
+                for li in box.locator(".rp-themes li").all():
+                    quotes = [_tc(q) for q in li.locator(".rp-quote").all()]
+                    rest = _tc(li)
+                    for q in quotes:
+                        rest = rest.replace(q, " ")
+                    m = re.match(r"\s*(.*?)\s*\((\d+)\)", rest)
+                    themes.append({"label": (m.group(1) if m else rest).strip(), "count": int(m.group(2)) if m else None,
+                                   "quotes": quotes})
+                concern = _tc(box.locator(".rp-concern"))
+                took = re.search(r"Only \d+ of the \d+ were asked here:.*?the first rung they failed\.", text)
+                own_lines += [x for x in (concern, took.group(0) if took else "") if x]
+                boxes.append({
+                    "key": box.get_attribute("data-dim"),
+                    "head": " ".join(x for x in (_tc(box.locator("h2")), _tc(box.locator("[class*='pill']"))) if x),
+                    "concern": concern, "themes": themes, "text": text,
+                    "split": fake.SPLIT_NOTE if fake.SPLIT_NOTE in text else None,
+                    "took_by": took.group(0) if took else None,
+                    "no_follow_up": text[text.index("No follow-up on this rung"):]
+                    if "No follow-up on this rung" in text else None,
+                })
+            text = _tc(view)
+            h.capture_text("stage_screen", text)
+            h.add_screenshot(self._b.screenshot("report-insights"))
+            return {"boxes": boxes, "empty": _tc(view.locator(".rp-inone")) or None,
+                    "quotes": [_tc(q) for q in view.locator(".rp-quote").all()], "own_lines": own_lines,
+                    "text": text}
+
+    def pilot(self, project_id: str) -> dict:
+        """The Pilot view (keel-web 077 FR-4, `report-pilot`): the pilot tile and *What they agreed to*, one
+        `details.rp-person[data-invitation]` a person -- its summary (name, role words, source), the email where drawn,
+        and inside (each row opened, as the founder would) the gate, the story, the answers, the follow-up -- the
+        *Nobody has signed up yet.* line, and the foot."""
+        with self._b.step("founder opens the report's pilot list") as h:
+            self._report(project_id, "pilot")
+            view = self.page.get_by_test_id("report-pilot").first
+            view.wait_for(state="visible", timeout=30_000)
+            people = []
+            for row in view.locator(".rp-person").all():
+                summary = row.locator("summary")
+                try:
+                    if row.get_attribute("open") is None and summary.count():
+                        summary.first.click()
+                except Exception:  # noqa: BLE001 - a read; the words are in the DOM either way
+                    pass
+                whole, head = _tc(row), _tc(summary)
+                email = re.search(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", whole)
+                people.append({"invitation": row.get_attribute("data-invitation"), "summary": head,
+                               "email": email.group(0) if email else None,
+                               "inside": whole[len(head):] if whole.startswith(head) else whole})
+            text = _tc(view)
+            tiles = {"pilot": {"text": _tc(view.locator("[data-tile='pilot'], .tile--pilot"))},
+                     "agreed": {"text": _tc(view.locator("[data-tile='agreed']")) or text}}
+            h.capture_text("stage_screen", text)
+            h.add_screenshot(self._b.screenshot("report-pilot"))
+            return {"tiles": tiles, "people": people,
+                    "none": "Nobody has signed up yet." if "Nobody has signed up yet." in text else None,
+                    "foot": _tc(view.locator("[class*='foot']")) or text, "text": text}
+
+    def vector_page(self, project_id: str, vector: str, *, open_row: str | None = None,
+                    follow_up_rows=()) -> dict:
         """One stage page: every row's name, belief, status and amber; and, `open_row` named, that row
         opened and its per-person list read (keel-web `DimensionStagePage`'s `ul.dimpeople`: each person's
-        name and how the answer was read)."""
+        name and how the answer was read). Spec 052 FR-8: each of `follow_up_rows` (the rungs whose people answered
+        the follow-up) opened too, and every person's *One last thing · {rung}: "…"* line read off its list
+        (`follow_ups`: `{dimension: [{name, line}]}`)."""
         with self._b.step(f"founder opens the {vector.lower()} page") as h:
             self.page.goto(f"{self.base}/p/{project_id}/s/{vector}", wait_until="load")
             self.page.locator(".dimrow").first.wait_for(state="visible", timeout=30_000)
@@ -1044,95 +1164,56 @@ class Answers:
                     spans = li.locator("span")
                     people.append({"name": _safe_text(lambda s=spans.nth(0): s.inner_text()).strip(),
                                    "readAs": _first_text(li, ".dimpeople__read").strip()})
+            follow_ups = {}
+            for key in follow_up_rows or ():
+                row = self.page.locator(f".dimrow[id='{key}']").first
+                head = row.locator("button.dimrow__head")
+                if key != open_row and head.count():
+                    head.first.click()
+                    row.locator(".dimrow__body").first.wait_for(state="visible", timeout=10_000)
+                follow_ups[key] = [{"name": _safe_text(lambda li=li: li.locator("span").nth(0).inner_text()).strip(),
+                                    "line": next((m.group(0) for m in [re.search(r"One last thing\\s*·.*", _tc(li))]
+                                                  if m), None)}
+                                   for li in row.locator("ul.dimpeople li").all()]
             text = _text(self.page)
             h.capture_text("stage_screen", text)
             h.add_screenshot(self._b.screenshot(f"vector-{vector.lower()}"))
-            return {"rows": rows, "text": text, "people": people, "open_row": open_row,
+            return {"rows": rows, "text": text, "people": people, "open_row": open_row, "follow_ups": follow_ups,
                     "keel_bars": self.page.locator(".dimrow__said--keel").count(),
                     "headline": _first_text(self.page, "p.answers__headline"),
                     "decider_banner": _first_text(self.page, "p.decider-banner")}
 
-    def brief(self, project_id: str, *, printed: bool = False) -> dict:
-        """The brief's **page one** (keel-web 065, `/p/{id}/brief`; `printed` reads the download's tab,
-        `/p/{id}/print`, the same page): the decision and how sure, the headline, the four tiles (three verdict
-        words and the pilot sign-ups, *k of n · p%* over its per-link line), per stage its question, the served
-        answer and its cards (name, number, line, status words, each linking to its block), the next tests and the
-        footer. Every word read as the DOM carries it, not as the CSS capitalises it."""
-        where = "print" if printed else "brief"
-        with self._b.step("founder opens the brief to hand over" if printed else "founder opens the brief") as h:
-            if printed:
-                self.page.add_init_script("window.print = () => {};")
-            self.page.goto(f"{self.base}/p/{project_id}/{where}", wait_until="load")
-            self.page.locator("div.brief").first.wait_for(state="visible", timeout=30_000)
-            brief = self.page.locator("div.brief").first
-            text = _screen_text(self.page, "div.brief")
-            h.capture_text("download" if printed else "stage_screen", text)
-            h.add_screenshot(self._b.screenshot("brief-print" if printed else "brief"))
-            stages = {}
-            for stage in ("problem", "solution", "commercial"):
-                section = brief.locator(f"#brief-{stage}")
-                stages[stage] = {
-                    "question": _tc(section.locator(".bq")),
-                    "answer": _tc(section.locator(".bans")),
-                    "cards": [{"key": c.get_attribute("data-dim"), "href": c.get_attribute("href"),
-                               "name": _tc(c.locator(".bcard__name")),
-                               "number": _tc(c.locator(".bcard__number")) or None,
-                               "line": _tc(c.locator(".bcard__line")),
-                               "statusWords": _tc(c.locator(".bcard__status"))}
-                              for c in section.locator("a.bcard").all()],
-                }
-            tiles = [{"label": _tc(t.locator(".btile__label")), "word": _tc(t.locator(".btile__word")),
-                      "big": _tc(t.locator(".btile__big")), "line": _tc(t.locator(".btile__line")),
-                      "has_line": t.locator(".btile__line").count() > 0,
-                      "pilot": "btile--pilot" in (t.get_attribute("class") or "")}
-                     for t in brief.locator(".btile").all()]
-            nxt = [{"text": _tc(li.locator(".bnext__text")),
-                    "chip": li.locator("a.bchip").first.get_attribute("data-dim") if li.locator("a.bchip").count()
-                    else None} for li in brief.locator("#brief-next .bnext li").all()]
-            return {
-                "decision": brief.get_attribute("data-decision"),
-                "decision_words": _tc(brief.locator(".bdecision")),
-                "how": _tc(brief.locator(".bhow")),
-                "headline": _tc(brief.locator(".bhead__headline")),
-                "tiles": tiles,
-                "sections": [s_.get_attribute("id") for s_ in brief.locator("section.bsec").all()],
-                "stages": stages,
-                "next": nxt,
-                "footer": _tc(brief.locator(".bfooter")),
-                "text": text,
-            }
-
-    def breakdown(self, project_id: str) -> dict:
-        """The brief's **page two** (keel-web 065, `/p/{id}/brief/breakdown`): per stage section, one block per card
-        -- its name and status words, the card's number and line, its rows (*Tested*, *What broke*, *Not tested*,
-        *Not asked*), whether the stage row's own body is drawn -- and the back link."""
-        with self._b.step("founder opens the brief's breakdown") as h:
-            self.page.goto(f"{self.base}/p/{project_id}/brief/breakdown", wait_until="load")
-            root = self.page.locator("div.brief--breakdown").first
-            root.wait_for(state="visible", timeout=30_000)
-            text = _screen_text(self.page, "div.brief--breakdown")
-            h.capture_text("stage_screen", text)
-            h.add_screenshot(self._b.screenshot("brief-breakdown"))
-            stages = {}
-            for stage in ("problem", "solution", "commercial"):
-                section = root.locator(f"#breakdown-{stage}")
-                blocks = []
-                for block in section.locator(".bd").all():
-                    key = block.get_attribute("id")
-                    if not key:
-                        continue                       # the problem's quotes and sharpest line, no card
-                    blocks.append({"key": key, "name": _tc(block.locator(".bd__name")),
-                                   "statusWords": _tc(block.locator(".bd__status")),
-                                   "card": _tc(block.locator(".bd__card")),
-                                   "rows": [_tc(r) for r in block.locator(":scope > .bd__row").all()],
-                                   "broke": _tc(block.locator(".bd__broke")) or None,
-                                   "body": block.locator(".dimrow__body").count() > 0,
-                                   # keel-web 067: Keel's bar in the row body's bar slot, where Keel sets it
-                                   "keel_bar": [_tc(k) for k in block.locator("p.dimrow__said.dimrow__said--keel").all()],
-                                   "said": [_tc(k) for k in block.locator("p.dimrow__said").all()]})
-                stages[stage] = {"present": section.count() > 0, "blocks": blocks,
-                                 # keel-web 067: each quote credited by its served words, its link on `data-link`
-                                 "quotes": [{"link": q.get_attribute("data-link"), "words": _tc(q.locator(":scope > cite"))}
-                                            for q in section.locator(".bquote").all()]}
-            return {"stages": stages, "back": root.locator("a.bback").count(), "text": text,
-                    "keel_bars": len(root.locator(".dimrow__said--keel").all())}
+    def brief(self, project_id: str, *, printed: bool = True) -> dict:
+        """*Download the brief* -- the binding (keel-web 077 FR-5, `/p/{id}/print`, `report-binding`): the tab's title
+        (the file name), whether *Preparing your brief…* was drawn first (a mutation observer installed before the
+        page loads), and each `article.page[data-page]` -- its kicker, title, meta line and foot (the page frame), its
+        whole text, and how many Overview rows it drew (page 1 draws the lead lines only). `window.print` is stubbed
+        (050's), so nothing opens a dialog. `printed=False` is refused: the brief has no on-screen page any more
+        (keel-web 077 FR-6 sends `/p/{id}/brief` to the Insights view)."""
+        if not printed:
+            raise ValueError("keel-web 077 deleted the brief's on-screen pages; read the report's views instead")
+        with self._b.step("founder downloads the brief") as h:
+            self.page.add_init_script("""window.print = () => {};
+                window.__preparingSeen = false;
+                new MutationObserver(() => {
+                  if ((document.body && document.body.textContent || '').includes('Preparing your brief'))
+                    window.__preparingSeen = true;
+                }).observe(document, {subtree: true, childList: true, characterData: true});""")
+            self.page.goto(f"{self.base}/p/{project_id}/print", wait_until="commit")
+            binding = self.page.get_by_test_id("report-binding").first
+            binding.locator("article.page").first.wait_for(state="visible", timeout=60_000)
+            pages = []
+            for page in binding.locator("article.page").all():
+                number = page.get_attribute("data-page")
+                pages.append({"page": int(number) if (number or "").isdigit() else number,
+                              "kicker": _tc(page.locator("[class*='kicker']")),
+                              "title": _tc(page.locator("h1, h2")),
+                              "meta": _tc(page.locator("[class*='meta']")),
+                              "foot": _tc(page.locator("footer, [class*='foot']")),
+                              "rows": page.locator("a.rp-row").count(),
+                              "text": _tc(page)})
+            text = _screen_text(self.page, "[data-testid='report-binding']")
+            h.capture_text("download", text)
+            h.add_screenshot(self._b.screenshot("brief-print"))
+            return {"title": self.page.title(), "preparing_seen": bool(self.page.evaluate("window.__preparingSeen")),
+                    "pages": pages, "old_headline": self.page.locator(".bhead__headline").count(), "text": text}

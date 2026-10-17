@@ -21,7 +21,6 @@ from pathlib import Path
 
 from harness.evidence import new_run_dir, write_versions
 
-from . import brief as brief_mod
 from . import marks as marks_mod
 
 
@@ -225,7 +224,7 @@ def _count(value) -> str:
     return "—" if value is None else str(value)
 
 
-#: The ten rows of the v18 mark table, in `marks.ROWS` order: (row, label, formatter).
+#: The ten rows of the v20 mark table, in `marks.ROWS` order: (row, label, formatter).
 MARK_ROWS = (
     ("dimension_coverage", "dimension coverage (one entry a dimension, item or index handed)", _pct),
     ("option_validity", "option validity (lists, the gate's clause, the asked faces: every registry rule)", _pct),
@@ -234,9 +233,9 @@ MARK_ROWS = (
     ("compare_correctness", "compare correctness (keel-cloud's engine, status + drift)", _pct),
     ("refusals", "rule refusals, as a rate of answers judged", _pct),
     ("shape_refusals", "shape refusals", _count),
-    ("brief_answers", "BRIEF answers (all seven marks)", _pct),
     ("spoken_form", "spoken form (every composed corpus item and face, the guidelines)", _pct),
-    ("brief_facts", "brief facts (keel-cloud's cards and pilot against the corpus)", _pct),
+    ("brief_facts", "brief facts (keel-cloud's cards, pilot and price median against the corpus)", _pct),
+    ("report_overview", "report overview (the Overview keel-cloud's facts draw, against the corpus's)", _pct),
 )
 
 
@@ -412,6 +411,22 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
     else:
         parts.append("<p><b>Not measured.</b> " + "; ".join(
             _esc(f"{u['entry']}: {u['reason']}") for u in t.get("brief_facts_unmeasured") or []) + "</p>")
+    parts.append("<h2>Report overview — the Overview a founder reads, keel-cloud's facts against the corpus "
+                 "(call 117)</h2>")
+    if t.get("report_overview_measured"):
+        parts.append(f"<p><b>{_esc(t['report_overview_agreed'])} of {_esc(t['report_overview_checks'])}</b> "
+                     "hero, tile and panel checks agreed.</p>")
+        rows = [(c, m) for c in scorecard.get("report_overview") or [] for m in c.get("mismatches") or []]
+        if rows:
+            parts.append("<table><tr><th>Entry</th><th>Part</th><th>Corpus</th><th>keel-cloud</th></tr>")
+            for c, m in rows:
+                parts.append(f"<tr><td>{_esc(c['entry_id'])}</td><td>{_esc(m['key'])}</td>"
+                             f"<td><code>{_esc(json.dumps(m['expected']))}</code></td>"
+                             f"<td><code>{_esc(json.dumps(m['produced']))}</code></td></tr>")
+            parts.append("</table>")
+    else:
+        parts.append("<p><b>Not measured.</b> " + "; ".join(
+            _esc(f"{u['entry']}: {u['reason']}") for u in t.get("report_overview_unmeasured") or []) + "</p>")
 
     # --------------------------------------------------------- the three question screens
     for title, prefix in (("CALIBRATION_QUESTIONS (founder-lists.md)", "calibration"),
@@ -462,36 +477,6 @@ def render_report(run_dir: Path, *, verdict: dict, scorecard: dict, versions: di
                  f"<td>the aggregate read it and refused it: "
                  f"{_esc(json.dumps(t['refusals_by_rule']))}</td></tr></table>")
     parts.append(_redraws_html(t, scorecard.get("redraws") or []))
-
-    # ---------------------------------------------------------------------------------- brief
-    if t.get("brief_measured"):
-        parts.append("<h2>The brief's answers (the BRIEF screen)</h2>")
-        parts.append(f"<p><b>{_pct(t['brief_answers'])}</b> of {t['brief_cases']} readings "
-                     f"met all {len(brief_mod.MARK_NAMES)} marks · "
-                     f"{t['brief_needs_input']} asked a question on a screen "
-                     "with nobody to ask.</p>")
-        parts.append("<div class='banner note'>Each case is handed keel-cloud's own facts for its entry "
-                     "(<code>BriefFactsCorpusTest</code>, call 84) where the run had them. The reading is "
-                     "rendered whole on <a href='register.html'>register.html</a>, unscored.</div>")
-        by_mark = t.get("brief_by_mark") or {}
-        parts.append("<table><tr><th>Mark</th><th>Met</th></tr>")
-        for name in brief_mod.MARK_NAMES:
-            row = by_mark.get(name) or {}
-            parts.append(f"<tr><td><code>{_esc(name)}</code></td>"
-                         f"<td>{row.get('met', 0)} / {row.get('of', 0)}</td></tr>")
-        parts.append("</table>")
-        misses = [c for c in (scorecard.get("brief") or []) if not c["met"]]
-        if misses:
-            parts.append(f"<h3>What the misses were ({len(misses)})</h3><table>"
-                         "<tr><th>Case</th><th>Mark</th><th>Finding</th></tr>")
-            for case in misses:
-                for name, met in case["marks"].items():
-                    if met is True:
-                        continue
-                    parts.append(f"<tr><td>{_esc(case['case_id'])}</td>"
-                                 f"<td><code>{_esc(name)}</code></td>"
-                                 f"<td>{_esc(case['findings'].get(name))}</td></tr>")
-            parts.append("</table>")
 
     # ---------------------------------------------------------------------------------- spread
     parts.append("<h2>The spread</h2><p class='small'>Each of the N runs on its own. A case that "
@@ -739,28 +724,6 @@ def _market_key(entry) -> str:
     key = " · ".join(str(part) for part in
                      (market.get("country"), market.get("region"), market.get("language")) if part)
     return key or "no market named"
-
-
-def paragraph_blocks(corpus, brief_scores: list) -> dict:
-    """Every BRIEF paragraph, grouped by market beside its entry's own standings (judgement call
-    17). The **first** run of each case: the register is read once per instruction."""
-    first = {}
-    for score in brief_scores or []:
-        first.setdefault(score.entry_id, score)
-    grouped = {}
-    for entry in corpus.entries:
-        score = first.get(entry.id)
-        if score is None:
-            continue
-        verdicts = (entry.expected or {}).get("vector_verdicts") or {}
-        grouped.setdefault(_market_key(entry), {})[entry.id] = {
-            "title": entry.title,
-            "paragraph": score.paragraph,
-            "verdicts": {v: (verdicts.get(v) or {}).get("verdict") for v in verdicts},
-            "vector_verdicts": verdicts,
-            "standings": (entry.expected or {}).get("standings") or {},
-        }
-    return grouped
 
 
 def register_blocks(corpus, produced: dict, registry=None, aggregate: dict | None = None,

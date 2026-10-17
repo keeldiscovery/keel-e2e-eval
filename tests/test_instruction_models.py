@@ -62,7 +62,7 @@ def test_a_missing_host_is_no_pin_never_a_failure():
     table = models_mod.parse(TABLE)
     assert table.resolve("gemini", "calibration") is None
     assert table.job_map("gemini", "CALIBRATION") is None
-    assert table.models_used("gemini") == {"context": None, "frame": None, "calibration": None, "respondent": None, "reading": None, "brief": None, "asked": None}
+    assert table.models_used("gemini") == {"context": None, "frame": None, "calibration": None, "respondent": None, "reading": None, "asked": None}
 
 
 def test_a_missing_tier_on_a_hosts_row_is_the_clis_default_for_that_class():
@@ -72,13 +72,13 @@ def test_a_missing_tier_on_a_hosts_row_is_the_clis_default_for_that_class():
     assert table.models_used("copilot") == {"context": None, "frame": "gpt-5.6-luna",
                                             "calibration": "gpt-5.6-luna",
                                             "respondent": "gpt-5.6-luna", "reading": None,
-                                            "brief": "gpt-5.6-luna", "asked": None}
+                                            "asked": None}
 
 
 def test_the_empty_table_the_cloud_ships_first_pins_nothing_anywhere():
     table = models_mod.parse({"version": 1, "hosts": {}, "classes": TABLE["classes"]})
     for host in ("claude", "copilot", "codex"):
-        assert table.models_used(host) == {"context": None, "frame": None, "calibration": None, "respondent": None, "reading": None, "brief": None, "asked": None}
+        assert table.models_used(host) == {"context": None, "frame": None, "calibration": None, "respondent": None, "reading": None, "asked": None}
 
 
 # ------------------------------------------------------------------------ 2. the file's edges
@@ -167,7 +167,7 @@ def test_run_py_refuses_a_bad_table_before_the_preflight_and_the_lock(monkeypatc
 def test_the_pin_is_the_sixth_key_of_the_payload_and_never_the_environment(monkeypatch):
     monkeypatch.delenv("KEEL_CODEX_MODEL", raising=False)
     table = models_mod.parse(TABLE)
-    cases = [_case("CALIBRATION"), _case("READING", "e/Tom/run1"), _case("BRIEF", "e/BRIEF/run1")]
+    cases = [_case("CALIBRATION"), _case("READING", "e/Tom/run1"), _case("FRAME", "e/PROBLEM_INTERPRET/run1")]
     models_mod.stamp(cases, table, "codex")
 
     assert list(cases[0].payload) == ["instruction", "context", "interaction_history", "input",
@@ -254,7 +254,7 @@ def test_the_model_block_and_the_manifest_carry_the_per_class_pins_and_their_sou
     assert block["models_used"] == {"context": "gpt-5.5-mini", "frame": "gpt-5.6-terra",
                                     "calibration": "gpt-5.6-terra",
                                     "respondent": "gpt-5.6-terra", "reading": "gpt-5.5-mini",
-                                    "brief": "gpt-5.6-terra", "asked": "gpt-5.5-mini"}
+                                    "asked": "gpt-5.5-mini"}
     assert block["models_source"] == ""
     manifest = run_mod._manifest(_args(), facts, _Codexish(), None, None, "2026-09-13T00:00:00Z",
                                  table=table)
@@ -466,8 +466,8 @@ def test_v6_efforts_used_is_the_per_class_record_a_verdict_carries():
     # carries no effort -- `effort` errors on Haiku 4.5.
     assert table.efforts_used("claude") == {
         "context": None, "frame": "medium", "calibration": "medium", "respondent": "medium",
-        "reading": None, "brief": "medium", "asked": None}
-    assert table.efforts_used("codex") == {"context": None, "frame": None, "calibration": None, "respondent": None, "reading": None, "brief": None, "asked": None}
+        "reading": None, "asked": None}
+    assert table.efforts_used("codex") == {"context": None, "frame": None, "calibration": None, "respondent": None, "reading": None, "asked": None}
 
 
 def test_a_table_older_than_v6_pins_no_effort_anywhere():
@@ -479,15 +479,15 @@ def test_a_table_older_than_v6_pins_no_effort_anywhere():
 
     assert table.efforts == {}
     assert table.resolve_effort("claude", "calibration") is None
-    assert table.efforts_used("claude") == {"context": None, "frame": None, "calibration": None, "respondent": None, "reading": None, "brief": None, "asked": None}
+    assert table.efforts_used("claude") == {"context": None, "frame": None, "calibration": None, "respondent": None, "reading": None, "asked": None}
 
 
 def test_stamp_writes_the_seventh_key_and_leaves_a_reading_untouched():
     table = models_mod.parse(V6, source="v6")
-    cases = [_case("CALIBRATION"), _case("READING"), _case("BRIEF")]
+    cases = [_case("CALIBRATION"), _case("READING"), _case("FRAME")]
     models_mod.stamp(cases, table, "claude")
 
-    calibration, reading, brief = cases
+    calibration, reading, brief = cases                 # `brief`: a standard-tier frame since spec 052
     assert calibration.payload["model"] == {"claude": "claude-sonnet-5-5"}
     assert calibration.payload["effort"] == {"claude": "medium"}
     assert calibration.effort == "medium"
@@ -565,10 +565,11 @@ V8_TABLE = {
 }
 
 
-def test_a_table_naming_the_seven_classes_parses():
+def test_a_table_naming_the_six_measured_classes_parses():
     table = models_mod.parse(TABLE)
     assert models_mod.MEASURED_CLASSES == ("context", "frame", "calibration", "respondent",
-                                           "reading", "brief", "asked")
+                                           "reading", "asked")
+    assert "brief" in models_mod.DORMANT_CLASSES, "THEMES routes through it; no case measures it (spec 052)"
     assert table.resolve_kind("claude", "ASKED") == "haiku"
     assert table.resolve_screen("claude", "ASKED") == "haiku"
     assert models_mod.KIND_TO_CLASS["ASKED"] == models_mod.SCREEN_TO_CLASS["ASKED"] == "asked"
@@ -621,11 +622,11 @@ def test_a_table_naming_an_unknown_class_still_refuses_by_name():
     assert "questionnaire" in str(refusal.value) and "classes are exactly" in str(refusal.value)
 
 
-def test_models_used_and_efforts_used_report_exactly_the_seven():
+def test_models_used_and_efforts_used_report_exactly_the_six():
     table = models_mod.parse(TABLE)
-    seven = ["context", "frame", "calibration", "respondent", "reading", "brief", "asked"]
-    assert list(table.models_used("claude")) == seven
-    assert list(table.efforts_used("claude")) == seven
+    six = ["context", "frame", "calibration", "respondent", "reading", "asked"]
+    assert list(table.models_used("claude")) == six
+    assert list(table.efforts_used("claude")) == six
 
 
 def test_the_wire_pins_a_context_case_on_the_light_row_and_writes_it_no_effort():

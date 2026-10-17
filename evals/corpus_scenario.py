@@ -32,14 +32,13 @@ one leg and leave the others alone:
                       "nothing" typed as 0; the idea card and the Relative advantage question on the
                       idea's current name (keel-cloud 090); the founder reads after each person.
 10. `leg_standings` -- `GET standings` against the entry's `expected.standings` and `expected.vector_verdicts`
-                      (codes mapped onto the wire's), and the same on the board (its pilot tile among them)
-                      and the three stage pages, one row's per-person list among them.
-11. `leg_brief`    -- the brief on the wire: the scripted headline and three answers, a card per dimension
-                      equal to the eval's own reading of the entry (`instructions/brief_facts.py`, which
-                      spec 040's DRY proved equal to keel-cloud's), what broke, the pilot -- and keel-web
-                      065's two pages held to that wire: page one (the decision, headline, answers, every
-                      card's words, the pilot tile), page two (one block a card, *What broke* on the broke
-                      block alone) and the download's tab.
+                      (codes mapped onto the wire's), then the report's Overview (keel-web 077) and the three
+                      stage pages, one row's per-person list and every rung's *One last thing* line among them.
+11. `leg_report`   -- the report on the wire (keel-cloud 104, spec 052): a card per dimension equal to the
+                      eval's own reading of the entry (`instructions/brief_facts.py`, which the DRY compare
+                      holds equal to keel-cloud's), what broke, the pilot and the price median; then keel-web
+                      077's three views -- Overview, Insights, Pilot -- and *Download the brief*, their binding,
+                      scored by the five report marks (`evals/report_marks.py`).
 
 After them each scenario's `extra` runs: S-006's ends with **the contacts leg** (spec 043, keel-cloud 093,
 `evals/contacts_leg.py`) on the wire, and S-005's with the B2C `NOT_B2B` refusal.
@@ -59,6 +58,7 @@ from typing import Any, Callable
 
 from evals import corpus_facts
 from evals import feedback_marks
+from evals import report_marks
 from evals.preludes import create_project, own_ai_door
 from harness import vectors_script as vs
 from harness import interviewer_screens as ivs
@@ -918,9 +918,9 @@ def leg_invite(j: Journey) -> None:
         assert [r.get("Who") for r in drawn] == [r.get("personName") for r in wire], drawn
         assert {r.get("Format") for r in drawn} == {"Text"}, drawn
         assert all((r.get("Status") or "").startswith(iv_screens.REGISTER_STATUS["SENT"]) for r in drawn), drawn
-    # keel-web 066 (D15): before anyone finishes, the board's pilot tile reads *None yet* with no per-link line.
+    # keel-web 077 (spec 052 FR-7): before anyone finishes, the report is the too-few state (the pilot tile *None yet*).
     j.standings = j.get(j.project("/standings")) or {}
-    _board_tiles(j, j.answers.board(j.project_id), "before anyone answered")
+    _too_few(j, "before anyone answered")
 
 
 # ----------------------------------------------------------------------------- leg 6: interview
@@ -936,39 +936,53 @@ def leg_interview(j: Journey) -> None:
     for person in j.people:
         _answer_one(j, person, j.tokens[person.person])
         _read(j, person)
-    _brief_on_return(j)
+    _themes_on_return(j)
 
 
-def _briefs(j: Journey) -> list[dict]:
+def _themes(j: Journey) -> list[dict]:
     interactions = j.get(f"/v2/inference-interactions?project_id={j.project_id}") or []
-    return [i for i in interactions if i.get("screen") == "BRIEF"]
+    return [i for i in interactions if i.get("screen") == "THEMES"]
 
 
-def _brief_on_return(j: Journey, *, timeout_s: float = 60) -> None:
-    """keel-cloud 096 (spec 045): no batch writes the brief any more -- it is written when the founder comes back. After
-    every answer is read the project holds **no** BRIEF; the founder's own read of the project (`GET overview` on their
-    session, which on their own AI is the session the agent is bound to) starts **one**, and the brief lands."""
-    with _step(j, "the brief waits for the founder (keel-cloud 096): every answer read and no BRIEF yet; the founder "
-                  "opens the project (GET overview) and exactly one BRIEF is started and lands", party="founder") as h:
-        before = _briefs(j)
-        overview = j.get(j.project("/overview")) or {}
+#: An interaction still to land (keel-cloud `InteractionStatus`): the THEMES job is not done while one is open.
+OPEN_STATUSES = {"PENDING", "CLAIMED", "RUNNING", "QUEUED", "DRAFT", "NEEDS_INPUT"}
+
+
+def _themes_on_return(j: Journey, *, timeout_s: float = 90) -> None:
+    """keel-cloud 104 (FR-4, `ThemesOnReturn`): the insights go stale on each new response and are regrouped when the
+    founder comes back -- the founder's own read of the project (`GET overview` on their session) starts at most one
+    THEMES job a failing dimension with follow-up answers, and each lands (a lost race retried, as the brief's was).
+    The step waits until no THEMES is open and every served insight with answers carries themes or the raw fallback,
+    and records what it saw; what the Insights view must say is `report_insights`'s (spec 052)."""
+    with _step(j, "the insights wait for the founder (keel-cloud 104): the founder opens the project (GET overview), "
+                  "at most one THEMES job a failing dimension is started, and every one lands",
+               party="founder") as h:
+        before = _themes(j)
+        j.get(j.project("/overview"))
         deadline = time.monotonic() + timeout_s * j.patience
-        after = _briefs(j)
-        landed = lambda rows: any(b.get("status") == "APPLIED" or (b.get("status") in TERMINAL_BAD  # noqa: E731
-                                                                    and b.get("status") != "STATE_CONFLICT")
-                                  for b in rows)
-        while time.monotonic() < deadline and not landed(after):
+        standings: dict = {}
+        while True:
+            after = _themes(j)
+            standings = j.get(j.project("/standings")) or {}
+            settled = all((i.get("themes") or i.get("raw") or not int(i.get("answered") or 0))
+                          for i in standings.get("insights") or [])
+            if (settled and not any(t.get("status") in OPEN_STATUSES for t in after)) or time.monotonic() > deadline:
+                break
             time.sleep(1)
-            after = _briefs(j)
-        h.record_assert({"BRIEF before the return": 0, "BRIEF after it": "one APPLIED (a lost race's retries, up to "
-                                                                          "three in all, STATE_CONFLICT)"},
-                        {"before": [(b.get("status"), b.get("interaction_id")) for b in before],
-                         "after": [(b.get("status"), b.get("interaction_id")) for b in after],
-                         "awaitingInterpretation": overview.get("awaitingInterpretation")})
-        assert before == [], before
-        statuses = sorted(b.get("status") for b in after)
-        assert 1 <= len(after) <= 3 and statuses.count("APPLIED") == 1, after
-        assert set(statuses) <= {"APPLIED", "STATE_CONFLICT"}, after        # 095: a lost race is retried
+        failing = report_marks.failing_dimensions(standings)
+        seen = {t.get("interaction_id") for t in before}
+        opened = [t for t in after if t.get("interaction_id") not in seen and t.get("status") != "STATE_CONFLICT"]
+        h.record_assert({"THEMES on this return": f"at most one a failing dimension ({len(failing)} failing)",
+                         "open": 0},
+                        {"before": [(t.get("status"), t.get("interaction_id")) for t in before],
+                         "after": [(t.get("status"), t.get("interaction_id")) for t in after],
+                         "insights": [{k: i.get(k) for k in ("dimension", "answered", "raw")}
+                                      | {"themes": len(i.get("themes") or [])}
+                                      for i in standings.get("insights") or []]})
+        assert not any(t.get("status") in OPEN_STATUSES for t in after), after
+        assert len(opened) <= len(failing), (opened, failing)
+        bad = [t for t in after if t.get("status") in TERMINAL_BAD and t.get("status") != "STATE_CONFLICT"]
+        assert not bad, bad
 
 
 def _answer_one(j: Journey, person, token: str) -> None:
@@ -1475,63 +1489,45 @@ def leg_standings(j: Journey) -> None:
 
 
 def _board(j: Journey) -> None:
-    """The board, as the founder opens it: one panel per vector, worst first, each pill the
-    vector's verdict in keel-web's word; the headline the worst vector's own; the belief count the
-    entry's calibrated set; the download live, since answers have been read."""
+    """The report's Overview (keel-web 077 FR-2), as the founder opens it after every answer was read: every part of it
+    the wire's `StandingsView` drawn (`report_marks.overview_faults` -- the verdict and its line, the ship, the two
+    tiles, per stage the pill, the lead lines and every row in the registry's order, the foot, the download live and
+    nothing of the old deck). `report_overview` scores the same read again in `leg_report`."""
     board = j.screens["board"] = j.answers.board(j.project_id)
-    verdicts = {v.get("vector"): v for v in j.standings.get("vectors") or []}
-    with _step(j, "the board: three panels, each the wire's vector verdict in keel-web's word, and "
-                  "the download live",
-               party="founder") as h:
-        want = {v: STATUS_WORD[verdicts[v]["verdict"]] for v in VECTORS}
-        got = {p["stage"]: p["pill"] for p in board["panels"]}
-        h.record_assert({"pills": want, "bands": 3, "download": True},
-                        {"pills": got, "bands": len(board["bands"]), "download": board["download"],
-                         "tiles": board["tile_cards"], "overall": board["overall"]})
-        assert set(got) == set(VECTORS), got
-        for vector, word in want.items():
-            assert word in got[vector], (vector, got[vector], word)
-        assert len(board["bands"]) == 3, board["bands"]
-        assert board["download"], "the download is not live after every answer was read"
-        headlines = [v.get("headline") for v in verdicts.values()]
-        assert board["overall"] in headlines, (board["overall"], headlines)
-    _board_tiles(j, board, "after every answer was read")
+    with _step(j, "the overview: the verdict, the two tiles and every stage's rows are the wire's cards, drawn "
+                  "(keel-web 077)", party="founder") as h:
+        want = report_marks.expected_overview(j.standings)
+        faults = report_marks.overview_faults(j.standings, board)
+        h.record_assert({"faults": [], "overview": want},
+                        {"faults": faults, "hero": board["hero"], "tiles": board["tiles"],
+                         "panels": {v: {k: p.get(k) for k in ("head", "lead")} for v, p in board["panels"].items()}})
+        assert not faults, json.dumps(faults, indent=2, default=str)
 
 
-def people_label(n: int) -> str:
-    """keel-web `statLabelPeople` (066, D15): *person asked* under a 1, *people asked* otherwise."""
-    return "person asked" if n == 1 else "people asked"
+#: keel-web 077's too-few words the founder reads before the fifth answer (spec 052 FR-7).
+TOO_FEW_WORDS = ("Keep interviewing", "Nothing to read into yet", "Not asked yet", "nobody has answered this yet")
 
 
-def people_line(counts: dict) -> str:
-    """keel-web `evidenceBarPeopleLine` (066): *1 person asked · 0 answered · 0 read by your AI*."""
-    n = int(counts.get("invited") or 0)
-    return f"{n} {'person' if n == 1 else 'people'} asked · {counts.get('answered')} answered · " \
-           f"{counts.get('read')} read by your AI"
-
-
-def _board_tiles(j: Journey, board: dict, when: str) -> None:
-    """keel-web 066 (D15): the overview's two tiles -- the people asked (`.tile`, its number `people.invited`, *1 person
-    asked* / *n people asked*), then the pilot sign-ups (`.tile--pilot`: *k of n · p%* over the per-link line, or
-    *None yet* and no line before anyone finishes) -- and the people line under them, all the wire's own."""
-    with _step(j, f"the board's two tiles, {when}: the people asked, then the pilot sign-ups, and the people line "
-                  "(keel-web 066, D15)", party="founder") as h:
-        counts = j.standings.get("people") or {}
-        pilot = j.standings.get("pilot") or {}
-        big, line = pilot_words(pilot)
-        nobody = int(pilot.get("finished") or 0) == 0
-        want = {"cards": [{"pilot": False, "big": str(counts.get("invited")),
-                           "label": people_label(int(counts.get("invited") or 0)), "has_line": False},
-                          {"pilot": True, "big": big, "label": "pilot sign-ups", "has_line": not nobody,
-                           "line": line}],
-                "people_line": people_line(counts)}
-        cards = board["tile_cards"]
-        have = {"cards": [{"pilot": "tile--pilot" in c["class"], "big": c["big"], "label": c["label"],
-                           "has_line": c["has_line"], **({"line": c["line"]} if "tile--pilot" in c["class"] else {})}
-                          for c in cards],
-                "people_line": board["people_line"]}
-        h.record_assert(want, have)
-        assert have == want, json.dumps({"screen": have, "wire": want}, indent=2)
+def _too_few(j: Journey, when: str) -> None:
+    """Spec 052 FR-7 (widening 044's *None yet* read): before the fifth answer the report is the too-few state --
+    *Keep interviewing*, the price tile *Not asked yet*, *nobody has answered this yet* on every commercial row, and the
+    Insights view *Nothing to read into yet* -- every word the wire's drawing (`overview_faults`, `insight_faults`).
+    Read where it holds whole: before anyone answered (judgement call 5)."""
+    board = j.screens["board-too-few"] = j.answers.board(j.project_id)
+    insights = j.screens["insights-too-few"] = j.answers.insights(j.project_id)
+    with _step(j, f"the report {when}: Keep interviewing, Not asked yet on the price tile, nobody has answered this "
+                  "yet on every commercial row, and Nothing to read into yet (spec 052 FR-7)", party="founder") as h:
+        faults = report_marks.overview_faults(j.standings, board) + report_marks.insight_faults(
+            j.standings, insights, strict=j.strict, names=report_marks.names_of(j.standings))
+        rows = [r.get("text") for r in board["panels"]["COMMERCIAL"]["rows"]]
+        h.record_assert({"faults": [], "words": list(TOO_FEW_WORDS)},
+                        {"faults": faults, "verdict": board["hero"]["verdict"], "price": board["tiles"]["price"],
+                         "commercial rows": rows, "insights": insights.get("empty")})
+        assert not faults, json.dumps(faults, indent=2, default=str)
+        assert board["hero"]["verdict"] == TOO_FEW_WORDS[0], board["hero"]
+        assert TOO_FEW_WORDS[1] in (insights.get("empty") or ""), insights.get("empty")
+        assert TOO_FEW_WORDS[2] in board["tiles"]["price"]["text"], board["tiles"]["price"]
+        assert rows and all(TOO_FEW_WORDS[3] in (r or "") for r in rows), rows
 
 
 def _vector_page(j: Journey, vector: str) -> None:
@@ -1547,8 +1543,10 @@ def _vector_page(j: Journey, vector: str) -> None:
         deciding = vs.stage_cite(j.entry, vector) if j.strict else None
     opened = next((d for d in rows if d.get("dimension") == deciding and d.get("people")), None) or \
         next((d for d in rows if d.get("people")), None)
+    rungs = [d.get("dimension") for d in rows if any(p.get("followUp") for p in d.get("people") or [])]
     page = j.screens[vector] = j.answers.vector_page(j.project_id, vector,
-                                                     open_row=(opened or {}).get("dimension"))
+                                                     open_row=(opened or {}).get("dimension"),
+                                                     follow_up_rows=rungs)
     with _step(j, f"the {vector.lower()} page: every dimension reads the wire's status in keel-web's "
                   "word, and one row's people are the wire's, each as it was read",
                party="founder") as h:
@@ -1575,9 +1573,28 @@ def _vector_page(j: Journey, vector: str) -> None:
         if vector == "COMMERCIAL" and vs.is_b2b(j.entry):
             role = j.founder.decider["role"].lower()
             assert role in page["decider_banner"].lower(), page["decider_banner"]
+    if rungs:
+        with _step(j, f"the {vector.lower()} page: every person who answered the follow-up shows it under their name, "
+                      "One last thing · {rung}: \"...\" (design §5.4, spec 052 FR-8)", party="founder") as h:
+            want = {d.get("dimension"): [{"name": p.get("personName"), "line": follow_up_line(d.get("name"),
+                                                                                              p.get("followUp"))}
+                                         for p in d.get("people") or [] if p.get("followUp")]
+                    for d in rows if d.get("dimension") in rungs}
+            have = {k: [x for x in v if x.get("line")] for k, v in (page.get("follow_ups") or {}).items()}
+            h.record_assert(want, have)
+            for key, lines in want.items():
+                drawn = {x["name"]: report_marks.ov.norm(x["line"]) for x in have.get(key) or []}
+                for line in lines:
+                    assert drawn.get(line["name"]) == report_marks.ov.norm(line["line"]), (key, line, drawn)
+                assert len(drawn) == len(lines), (key, drawn, lines)
 
 
-# --------------------------------------------------------------------------------- leg 8: brief
+def follow_up_line(rung: str, text: str) -> str:
+    """keel-web's per-person follow-up line on a stage page (design §5.4): *One last thing · {rung}: "{text}"*."""
+    return f"{report_marks.ONE_LAST_THING} · {rung}: \u201c{text}\u201d"
+
+
+# -------------------------------------------------------------------------------- leg 8: the report
 
 def expected_cards(j: Journey) -> list[dict]:
     """The entry's cards (keel-cloud 089 FR-001) as `instructions/brief_facts.py` reads them -- the reading
@@ -1598,41 +1615,24 @@ def _card(card: dict) -> dict:
         "statusWords": str(card.get("statusWords") or "").split(" · ", 1)[0]}
 
 
-def leg_brief(j: Journey, *, timeout_s: float = 60) -> None:
-    """The brief over the same standings, **on the wire** (`GET standings`, keel-cloud 089): on the scripted
-    journeys the headline and the three stage answers are the referee's own and keel-cloud kept them
-    (`fallbackUsed` false); every dimension's card is the entry's own (number, line, status); each stage's
-    `broke` is the entry's deciding dimension where the stage broke; the pilot -- on the brief and on the
-    overview's read -- is the entry's sign-ups over everyone who answered. On a live journey it is whatever
-    the model wrote or code's fallback, a headline and three answers either way. keel-web 065's two pages and the
-    download's tab are then held to that wire (`_brief_pages`)."""
-    deadline = time.monotonic() + timeout_s * j.patience
-    brief: dict = {}
-    standings: dict = {}
-    while time.monotonic() < deadline:
-        standings = j.get(j.project("/standings")) or {}
-        brief = standings.get("brief") or {}
-        if brief.get("fallbackUsed") is False:
-            break
-        time.sleep(1)
-    reading = brief.get("reading") or {}
-    facts = brief.get("facts") or {}
-    answers = {v.lower(): ((reading.get(v.lower()) or {}).get("answer") or {}) for v in VECTORS}
-    headline = (reading.get("headline") or {}).get("text")
-    with _step(j, "the brief reads a headline and one answer a stage" + (
-            ", the scripted ones, not code's fallback" if j.strict else "")) as h:
-        want = vs.brief_result(j.entry) if j.strict else None
-        h.record_assert({"fallbackUsed": False, "reading": want} if j.strict else "a headline and three answers",
-                        {"fallbackUsed": brief.get("fallbackUsed"), "reading": reading})
-        assert headline and all((a.get("text") or "").strip() for a in answers.values()), reading
-        assert set(reading) >= {"headline", "problem", "solution", "commercial", "next", "quotes"}, sorted(reading)
-        if j.strict:
-            assert brief.get("fallbackUsed") is False, brief.get("fallbackUsed")
-            assert headline == want["headline"]["text"], headline
-            for stage in ("problem", "solution", "commercial"):
-                assert answers[stage] == want[stage]["answer"], (stage, answers[stage])
+def leg_report(j: Journey, *, timeout_s: float = 60) -> None:
+    """The report over the same standings, **on the wire** (`GET standings`, keel-cloud 104, contract 19): on the
+    scripted journeys every dimension's card is the entry's own (number, line, status), each stage's `broke` the
+    entry's deciding dimension where the stage broke, each stage's `notAsked`, the pilot the entry's sign-ups over
+    everyone who answered, and the price median the entry's own (`brief_facts.price_median_for`) -- at
+    `StandingsView.priceMedian` and `facts.commercial.priceMedian` alike. Then keel-web 077's three views and the
+    binding are read and the five report marks scored over them (`_score_report`). On a live journey nothing is held
+    to the corpus and the Insights view is held for shape only (FR-9)."""
+    standings = j.standings = j.get(j.project("/standings")) or {}
+    facts = standings.get("facts") or {}
+    with _step(j, "the standings carry the report's parts (contract 19): facts, pilot, priceMedian (present, maybe "
+                  "null), pilotPeople, insights -- and no brief") as h:
+        keys = sorted(standings)
+        h.record_assert({"has": ["facts", "insights", "pilot", "pilotPeople", "priceMedian"], "no": ["brief"]}, keys)
+        assert {"facts", "insights", "pilot", "pilotPeople", "priceMedian"} <= set(standings), keys
+        assert "brief" not in standings, keys
     if j.strict and j.registry is not None:
-        with _step(j, "the brief's cards are the entry's own, one a dimension: number, line, status") as h:
+        with _step(j, "the report's cards are the entry's own, one a dimension: number, line, status") as h:
             want_cards = [_card(c) for c in expected_cards(j)]
             have_cards = [_card(c) for c in facts.get("cards") or []]
             h.record_assert(want_cards, facts.get("cards"))
@@ -1649,23 +1649,73 @@ def leg_brief(j: Journey, *, timeout_s: float = 60) -> None:
                             for n in (facts.get(v.lower()) or {}).get("notAsked") or []] for v in VECTORS}
             h.record_assert(want_not, have_not)
             assert have_not == want_not, json.dumps({"wire": have_not, "corpus": want_not}, indent=2)
-        with _step(j, "the pilot: the entry's sign-ups over everyone who answered, per link -- on the brief "
-                      "and on the overview's read") as h:
+        with _step(j, "the pilot: the entry's sign-ups over everyone who answered, per link -- in the facts and on "
+                      "the standings") as h:
             want_pilot = brief_facts_mod.pilot_for(j.entry)
-            h.record_assert(want_pilot, {"brief": facts.get("pilot"), "standings": standings.get("pilot")})
+            h.record_assert(want_pilot, {"facts": facts.get("pilot"), "standings": standings.get("pilot")})
             assert facts.get("pilot") == want_pilot, (facts.get("pilot"), want_pilot)
             assert standings.get("pilot") == want_pilot, (standings.get("pilot"), want_pilot)
-    with _step(j, "every served quote is credited to its link in the header's words (keel-cloud 091 FR-F2: "
-                  "BriefReading.quotes[].link / words)" + (" -- the referee's reading quotes nobody" if j.strict
-                                                            else "")) as h:
-        quotes = list(reading.get("quotes") or [])
-        faults = [q for q in quotes if q.get("link") not in brief_facts_mod.LINK_WORDS
-                  or q.get("words") != brief_facts_mod.LINK_WORDS[q.get("link")]]
-        h.record_assert({"faults": [], **({"quotes": []} if j.strict else {})}, {"quotes": quotes, "faults": faults})
-        assert not faults, faults
-        if j.strict:
-            assert quotes == [], quotes
-    _brief_pages(j, brief, standings)
+        with _step(j, "what they would pay: the entry's price median -- the highest edge half or more chose at or "
+                      "above (keel-cloud 104 FR-1) -- at StandingsView.priceMedian and facts.commercial alike") as h:
+            want = brief_facts_mod.price_median_for(j.entry)
+            served = standings.get("priceMedian")
+            have = {k: served.get(k) for k in brief_facts_mod.PRICE_MEDIAN_FIELDS} if isinstance(served, dict) \
+                else served
+            h.record_assert(want, {"standings": served, "facts": (facts.get("commercial") or {}).get("priceMedian")})
+            assert have == want, (served, want)
+            assert served == (facts.get("commercial") or {}).get("priceMedian"), (served, facts.get("commercial"))
+    _score_report(j)
+
+
+def _invitations(j: Journey) -> dict:
+    """`{invitationId: {name, email, source}}` off the register (the names the quotes and the pilot rows carry)."""
+    rows = (j.get(j.project("/invitations")) or {}).get("invitations") or []
+    return {(r.get("invitationId") or r.get("id")): {"name": r.get("personName"), "email": r.get("email"),
+                                                      "source": r.get("source")}
+            for r in rows if r.get("invitationId") or r.get("id")}
+
+
+def report_record(j: Journey) -> dict:
+    """The record `evals/report_marks.py` scores: the wire, the three views and the binding as drawn, the stage pages'
+    text, the register's names, and the people the walks opted in (the corpus people who tick the box)."""
+    invitations = _invitations(j)
+    by_name = {v["name"]: k for k, v in invitations.items()}
+    record = {
+        "standings": j.standings, "strict": j.strict, "project": (j.standings or {}).get("name"),
+        "date": time.strftime("%Y-%m-%d", time.gmtime()),
+        "invitations": invitations,
+        "opted_in": [by_name[p.person] for p in j.people if getattr(p, "pilot_opt_in", False) and p.person in by_name]
+        if j.strict else None,
+        "stage_pages": {v: (j.screens.get(v) or {}).get("text") or "" for v in VECTORS},
+    }
+    if record["opted_in"] is None:
+        del record["opted_in"]
+    record["overview"] = j.screens.get("board") or j.answers.board(j.project_id)
+    record["insights"] = j.screens["insights"] = j.answers.insights(j.project_id)
+    record["pilot"] = j.screens["pilot"] = j.answers.pilot(j.project_id)
+    record["binding"] = j.screens["printed"] = j.answers.brief(j.project_id, printed=True)
+    return record
+
+
+def _score_report(j: Journey) -> dict:
+    """The five report marks over the journey's record, written into the bundle (`report.json`,
+    `report-marks.json`); the journey fails on any owed mark unmet."""
+    from pathlib import Path                                  # noqa: PLC0415
+    record = report_record(j)
+    card = j.screens["report-marks"] = report_marks.scorecard(record)
+    run_dir = Path(j.recorder.run_dir)
+    (run_dir / "report.json").write_text(json.dumps(record, indent=2, default=str) + "\n", encoding="utf-8")
+    (run_dir / "report-marks.json").write_text(json.dumps(card, indent=2, default=str) + "\n", encoding="utf-8")
+    require = report_marks.owed(record)
+    with _step(j, f"report marks v{report_marks.REPORT_MARKS_VERSION} (spec 052): {card['met']} of {card['measured']} "
+                  f"met ({', '.join(require) or 'none'} owed; {', '.join(card['unmeasured']) or 'none'} unmeasured)",
+               party="stack") as h:
+        owed = {c["mark"]: c for c in card["checks"] if c["mark"] in require}
+        h.record_assert({m: True for m in require}, {m: {"ok": c["ok"], "detail": c["detail"]}
+                                                     for m, c in owed.items()})
+        unmet = [m for m, c in owed.items() if not (c["measured"] and c["ok"])]
+        assert not unmet, {m: owed[m] for m in unmet}
+    return card
 
 
 def expected_not_asked(j: Journey, vector: str) -> list[dict]:
@@ -1681,124 +1731,6 @@ def expected_not_asked(j: Journey, vector: str) -> list[dict]:
         elif d.b2b_link_only and not b2b:
             out.append({"key": d.key, "name": d.name, "why": brief_facts_mod.NOT_ASKED_WHY[d.key]})
     return out
-
-
-#: Words keel-web 065 took off page one (FR-002; D3): none of them may come back.
-PAGE_ONE_BANS = ("deal-breaker", "where they differ", "inferred from")
-
-
-def pilot_words(pilot: dict) -> tuple[str, str]:
-    """keel-web `pilotNumber` and `pilotLinkLine`: *2 of 12 · 17%* over *2 of 12 people who have it*; before anyone
-    finishes *None yet* and no line (keel-web 066, D15)."""
-    if int(pilot.get("finished") or 0) == 0:
-        return "None yet", ""
-    big = f"{pilot.get('optedIn')} of {pilot.get('finished')} · {pilot.get('percent')}%"
-    line = " · ".join(f"{p.get('optedIn')} of {p.get('finished')} {p.get('words')}" for p in pilot.get("perLink") or [])
-    return big, line
-
-
-def _card_words(card: dict) -> dict:
-    return {"key": card.get("key"), "name": card.get("name"), "number": card.get("number") or None,
-            "line": card.get("line"), "statusWords": card.get("statusWords")}
-
-
-def _brief_pages(j: Journey, brief: dict, standings: dict) -> None:
-    """keel-web 065's two pages over the brief `leg_brief` read off the wire, held to it on every journey: page
-    one draws the served decision, headline and answers, each stage's served cards (every word, in order, each
-    linking to its block), the pilot tile's *k of n · p%* and per-link line from both `facts.pilot` and
-    `StandingsView.pilot`, the next tests, and none of the words 065 took off it; page two draws one block per
-    card with the card's own words, *What broke* on the broke dimension's block alone; the download's tab draws
-    page one again."""
-    reading = brief.get("reading") or {}
-    facts = brief.get("facts") or {}
-    cards = facts.get("cards") or []
-    page = j.screens["brief"] = j.answers.brief(j.project_id)
-    with _step(j, "the brief, page one: the served decision, headline and answers, every card's words in order, "
-                  "the pilot tile, the next tests, and nothing 065 took off it", party="founder") as h:
-        decision = str((facts.get("decision") or {}).get("label") or "").lower()
-        big, line = pilot_words(facts.get("pilot") or {})
-        want = {"decision": decision, "headline": (reading.get("headline") or {}).get("text"),
-                "stages": {stage: {"answer": ((reading.get(stage) or {}).get("answer") or {}).get("text"),
-                                   "cards": [_card_words(c) for c in cards if str(c.get("key")).startswith(stage + ".")]}
-                           for stage in ("problem", "solution", "commercial")},
-                "pilot": {"big": big, "line": line},
-                "next": [{"text": t.get("text"), "chip": t.get("key")} for t in (reading.get("next") or {}).get("tests") or []],
-                "bans": []}
-        tiles = page["tiles"]
-        pilot_tile = tiles[-1] if tiles else {}
-        have = {"decision": page["decision"], "headline": page["headline"],
-                "stages": {stage: {"answer": drawn["answer"],
-                                   "cards": [{k: c[k] for k in ("key", "name", "number", "line", "statusWords")}
-                                             for c in drawn["cards"]]}
-                           for stage, drawn in page["stages"].items()},
-                "pilot": {"big": pilot_tile.get("big"), "line": pilot_tile.get("line")},
-                "next": page["next"],
-                "bans": [w for w in PAGE_ONE_BANS if w in page["text"].lower()]}
-        h.record_assert(want, {**have, "tiles": tiles, "footer": page["footer"]})
-        assert have == want, json.dumps({"page": have, "wire": want}, indent=2)
-        assert len(tiles) == 4 and pilot_tile.get("pilot") and [t["pilot"] for t in tiles[:3]] == [False] * 3, tiles
-        assert pilot_tile.get("has_line") is (int((facts.get("pilot") or {}).get("finished") or 0) > 0), pilot_tile
-        assert pilot_words(standings.get("pilot") or {}) == (big, line), (standings.get("pilot"), facts.get("pilot"))
-        for drawn in page["stages"].values():
-            for card in drawn["cards"]:
-                assert str(card["href"] or "").endswith(f"/brief/breakdown#{card['key']}"), card
-        assert page["footer"], "page one draws no footer"
-    breakdown = j.screens["breakdown"] = j.answers.breakdown(j.project_id)
-    with _step(j, "the brief, page two: one block per card with the card's own words, What broke on the broke "
-                  "dimension's block alone, and the way back", party="founder") as h:
-        want_blocks, have_blocks = {}, {}
-        for stage in ("problem", "solution", "commercial"):
-            mine = [c for c in cards if str(c.get("key")).startswith(stage + ".")]
-            broke = ((facts.get(stage) or {}).get("broke") or {}).get("key")
-            want_blocks[stage] = [{"key": c["key"], "name": c["name"], "statusWords": c["statusWords"],
-                                   "card": " ".join(x for x in (c.get("number"), c.get("line")) if x),
-                                   "broke": c["key"] == broke} for c in mine]
-            have_blocks[stage] = [{"key": b["key"], "name": b["name"], "statusWords": b["statusWords"],
-                                   "card": b["card"], "broke": b["broke"] is not None}
-                                  for b in breakdown["stages"][stage]["blocks"]]
-        h.record_assert(want_blocks, {"blocks": breakdown["stages"], "back": breakdown["back"]})
-        assert have_blocks == want_blocks, json.dumps({"page": have_blocks, "wire": want_blocks}, indent=2)
-        assert breakdown["back"] >= 1, "page two draws no way back to the brief"
-    rows = {d.get("dimension"): d for v in standings.get("vectors") or [] for d in v.get("dimensions") or []}
-    have_bars = {b["key"]: b["keel_bar"] for stage in breakdown["stages"].values() for b in stage["blocks"]}
-    have_said = {b["key"]: b["said"] for stage in breakdown["stages"].values() for b in stage["blocks"]}
-    # runs/DRIFT.md #82 (resolved by keel-web da0b9eb, 2026-10-14): Keel's bar wins wherever the wire serves `keelBar`,
-    # even though keel-cloud also sends `founderSaid` on those rows. The slot is held to *Keel's bar: {keelBar}* on
-    # every such card; a block that draws the founder's words there instead is the defect come back (a guard).
-    want_bars = {c["key"]: [f"Keel's bar: {c['keelBar']}"] if c.get("keelBar") else [] for c in cards}
-    shadowed = {c["key"]: rows[c["key"]].get("founderSaid") for c in cards
-                if c.get("keelBar") and (rows.get(c["key"]) or {}).get("founderSaid")}
-    came_back = {k: have_said.get(k) for k, v in shadowed.items()
-                 if have_said.get(k) == [v] and not have_bars.get(k)}
-    if came_back:
-        with _step(j, f"{j.entry.id}: DRIFT #82 came back -- page two drew the founder's words, not Keel's bar, on "
-                      f"{', '.join(sorted(came_back))}", party="founder", kind="protocol") as h:
-            h.record_wire({k: {"keelBar": next(c["keelBar"] for c in cards if c["key"] == k), "founderSaid": v}
-                           for k, v in shadowed.items() if k in came_back}, {"bar slot drawn": came_back})
-            raise AssertionError(f"DRIFT #82 came back: {sorted(came_back)}")
-    with _step(j, "the brief, page two: Keel's bar where the wire sets it and nowhere else, and every quote credited "
-                  "by its served words and link (keel-web 067 + da0b9eb, keel-cloud 091 FR-F1 / F2)", party="founder") as h:
-        want_quotes = [{"link": q.get("link"), "words": q.get("words")} for q in reading.get("quotes") or []]
-        have_quotes = breakdown["stages"]["problem"]["quotes"]
-        others = [q for stage in ("solution", "commercial") for q in breakdown["stages"][stage]["quotes"]]
-        h.record_assert({"bars": want_bars, "quotes": want_quotes},
-                        {"bars": have_bars, "quotes": have_quotes, "elsewhere": others,
-                         "bars drawn": breakdown["keel_bars"], "founderSaid beside keelBar": shadowed})
-        assert have_bars == want_bars, json.dumps({"page": have_bars, "wire": want_bars}, indent=2)
-        assert breakdown["keel_bars"] == sum(1 for v in want_bars.values() if v), breakdown["keel_bars"]
-        assert have_quotes == want_quotes and not others, (have_quotes, want_quotes, others)
-        if j.strict:
-            keyed = {c["key"] for c in cards if c.get("keelBar")}
-            assert keyed == {"problem.importance", "problem.current_solution_satisfaction"}, keyed
-    printed = j.screens["printed"] = j.answers.brief(j.project_id, printed=True)
-    with _step(j, "the download's tab draws page one again: the same decision, headline and answers",
-               party="founder") as h:
-        same = {k: page[k] for k in ("decision", "headline")} | {
-            "answers": {s_: d["answer"] for s_, d in page["stages"].items()}}
-        got = {k: printed[k] for k in ("decision", "headline")} | {
-            "answers": {s_: d["answer"] for s_, d in printed["stages"].items()}}
-        h.record_assert(same, got)
-        assert got == same, (got, same)
 
 
 # ------------------------------------------------------------------------------------- the whole
@@ -1859,9 +1791,11 @@ def score_feedback(j: Journey) -> dict:
 
 
 def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
-        extra: Callable[[Journey], None] | None = None) -> None:
+        extra: Callable[[Journey], None] | None = None, entry_from: Callable | None = None) -> None:
     """The whole scenario. `entry_id` is the only argument that differs between S-005, S-006 and
-    S-007. `extra` is the one seam: the thing only *its* entry can say, handed the `Journey`."""
+    S-007. `extra` is the one seam: the thing only *its* entry can say, handed the `Journey`. `entry_from` is S-014's
+    (spec 052 FR-7): the entry the journey walks, built from the canon one (`preludes.healthy_entry`) -- the canon's
+    bytes are hashed and held unchanged as on every journey."""
     recorder = Recorder(run_dir)
     web_base = stack.web_base_url
     cell_label = (f"{remote.cell_name()} · corpus {slug} · "
@@ -1872,6 +1806,8 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
     except (vs.VectorsScriptError, vs.corpus_reader.CorpusError) as refusal:
         import pytest                                       # noqa: PLC0415
         pytest.fail(f"{entry_id}: {refusal}", pytrace=False)
+    if entry_from is not None:
+        entry = entry_from(entry)
     started = time.monotonic()
     passed = False
     context = browser.new_context()
@@ -1904,7 +1840,7 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         leg_invite(journey)
         leg_interview(journey)
         leg_standings(journey)
-        leg_brief(journey)
+        leg_report(journey)
         if extra is not None:
             extra(journey)
         score_feedback(journey)

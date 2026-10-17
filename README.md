@@ -78,7 +78,19 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
-### `MARKS_VERSION` 19 — the gate as written, **no run of record yet** (spec `042-contract-14-r11`, 2026-10-14)
+### `MARKS_VERSION` 20 — the gate as written, **no run of record yet** (spec `052-report`, 2026-10-17)
+
+The report replaces the brief (keel-cloud 104 at keel-cloud-docs `9a033fe`, contract 19's standings side; keel-web 077).
+The BRIEF screen is gone, so `brief_answers` and its seven reading marks **retire** (`instructions/brief.py` deleted, call
+116); `brief_facts` stays and gains the price median (the highest edge half or more chose at or above) and keel-cloud
+103's two card lines (call 119); `report_overview` is born, `DRY=1`-measurable -- the Overview keel-cloud's facts draw
+against the one this repository's reading draws (`instructions/overview.py`, call 117). Four **journey** marks are born
+in `evals/report_marks.py` -- `report_insights`, `report_no_repeat` (D6), `report_pilot`, `report_binding` (D10) --
+and scored on S-005 / 006 / 007 and the new healthy journey S-014 (call 120). `rescore.py` refuses every bundle below 20.
+At zero spend against `9a033fe`: `brief_facts` **101 of 101**, `report_overview` **49 of 49**. **There is no v20 run of
+record until `WHY=marks:20` is spent, on the founder's word only.**
+
+### `MARKS_VERSION` 19 — history since v20, never run (spec `042-contract-14-r11`, 2026-10-14)
 
 The defects batch (keel-cloud 090 / 091, merged at keel-cloud-docs `c432c1d`; registry `VERSION` 4, document 20,
 `CONTRACT_VERSION` 14, routing v11, `InferenceCharge` 7, the lock holding one job of 35). No mark is born or retired and

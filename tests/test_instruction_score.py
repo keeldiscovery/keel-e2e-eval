@@ -92,7 +92,7 @@ def test_a_run_with_no_compare_row_has_compare_unmeasured():
 
 # ------------------------------------------------------------------------------------- totals
 
-def test_totals_carries_every_v18_key_and_nothing_retired():
+def test_totals_carries_every_v20_key_and_nothing_retired():
     totals = score_mod.totals()
     for key in ("calibration_cases", "calibration_coverage", "calibration_validity",
                 "calibration_leak", "respondent_cases", "respondent_coverage",
@@ -105,19 +105,21 @@ def test_totals_carries_every_v18_key_and_nothing_retired():
                 "compare_measured", "compare_reported_diffs", "spoken_form", "spoken_measured",
                 "spoken_units", "spoken_clean", "spoken_known", "spoken_unmeasured", "brief_facts",
                 "brief_facts_checks", "brief_facts_agreed", "brief_facts_measured", "brief_facts_reported_diffs",
-                "brief_facts_unmeasured", "refusals_by_rule",
+                "brief_facts_unmeasured", "report_overview", "report_overview_checks", "report_overview_agreed",
+                "report_overview_measured", "report_overview_unmeasured", "refusals_by_rule",
                 "refusals_measured", "refusals_shown", "shape_refusals", "schema_invalid",
-                "errored", "brief_cases", "brief_answers", "brief_measured", "brief_by_mark"):
+                "errored"):
         assert key in totals, key
     for retired in ("golden_belief_recall", "exact_match", "phrase_band", "anchors_given",
-                    "unresolved_reads", "brief_paragraphs", "wording"):
+                    "unresolved_reads", "brief_paragraphs", "wording", "brief_cases", "brief_answers",
+                    "brief_measured", "brief_by_mark", "brief_needs_input"):
         assert retired not in totals, retired
 
 
 def test_an_empty_run_measures_nothing_and_says_none_rather_than_zero():
     totals = score_mod.totals()
     for name in ("dimension_coverage", "option_validity", "no_leak", "anchoring_accuracy",
-                 "compare_correctness", "brief_answers", "spoken_form", "brief_facts"):
+                 "compare_correctness", "spoken_form", "brief_facts", "report_overview"):
         assert totals[name] is None, name
 
 
@@ -136,6 +138,26 @@ def test_the_retired_scorers_are_gone():
         assert not hasattr(score_mod, name), name
 
 
+def test_report_overview_reaches_the_totals_measured_or_not(entry):
+    """Call 117: `report_overview` is measured at zero spend; an unmeasured one says why."""
+    from instructions import overview as overview_mod                    # noqa: PLC0415
+    unmeasured = score_mod.totals(overview_scores=[overview_mod.unmeasured(entry.id, "no facts")])
+    assert unmeasured["report_overview"] is None
+    assert unmeasured["report_overview_unmeasured"] == [{"entry": entry.id, "reason": "no facts"}]
+    score = overview_mod.compare(entry, fx_registry(), None)
+    assert score.measured is False and "no brief facts" in score.reason
+    agreed = overview_mod.FactsCompare(entry.id)
+    agreed.checks, agreed.agreed = 7, 6
+    measured = score_mod.totals(overview_scores=[agreed])
+    assert (measured["report_overview"], measured["report_overview_checks"]) == (6 / 7, 7)
+    assert marks_mod.judge(measured, marks_mod.load())["report_overview"]["met"] is False
+
+
+def fx_registry():
+    from tests import v9_fixtures as fx                                     # noqa: PLC0415
+    return fx.registry()
+
+
 def test_the_two_deterministic_marks_reach_the_totals_measured_or_not(entry, registry):
     """Calls 79, 82: `spoken_form` and `brief_facts` are measured at zero spend, and an unmeasured one says why."""
     unmeasured = score_mod.totals(spoken_score=spoken_mod.unmeasured("no gradlew"),
@@ -147,10 +169,10 @@ def test_the_two_deterministic_marks_reach_the_totals_measured_or_not(entry, reg
     assert judged["spoken_form"]["measured"] is False and judged["brief_facts"]["measured"] is False
     spoken = spoken_mod.SpokenScore(units=4, clean=3, measured=True)
     facts = brief_facts_mod.FactsCompare(entry.id)
-    facts.checks, facts.agreed = 13, 13
+    facts.checks, facts.agreed = 14, 14
     measured = score_mod.totals(spoken_score=spoken, facts_scores=[facts])
     assert (measured["spoken_form"], measured["spoken_units"], measured["spoken_clean"]) == (0.75, 4, 3)
-    assert (measured["brief_facts"], measured["brief_facts_checks"]) == (1.0, 13)
+    assert (measured["brief_facts"], measured["brief_facts_checks"]) == (1.0, 14)
     judged = marks_mod.judge(measured, marks_mod.load())
     assert judged["spoken_form"]["met"] is False and judged["brief_facts"]["met"] is True
 

@@ -1,6 +1,7 @@
-"""The rubric's own constants at `MARKS_VERSION` 19 (spec 029 FR-001 to FR-003, SC-001; T008; spec 030
+"""The rubric's own constants at `MARKS_VERSION` 20 (spec 029 FR-001 to FR-003, SC-001; T008; spec 030
 FR-003, T010: judgement calls 46-49; spec 031 FR-005, T010: judgement calls 50-58; spec 032 FR-005,
-T007: judgement calls 59-66; spec 033, calls 67-70; ...; spec 040, calls 77-90; spec 042, calls 110-115 --
+T007: judgement calls 59-66; spec 033, calls 67-70; ...; spec 040, calls 77-90; spec 042, calls 110-115; spec 052,
+calls 116-120 --
 91-109 are spec 041's journey calls, which read no mark and are written in its spec, not here).
 
 Three things this holds, and none needs a model, a stack or a corpus:
@@ -12,10 +13,10 @@ list is a set, not a sorted run: call 22 sits between 16 and 17, where it was wr
 46-49 are spec 030's, each marked `**v10**`; 50-58 spec 031's, each marked `**v11**`; 59-66 spec
 032's, each marked `**v12**`; 67-70 spec 033's, each marked `**v13**`.
 
-**`marks.toml` carries the v19 header** (no number moved from v18's) and `DEFAULTS` follows it: ten keys -- v17's eight with
-`brief_paragraphs` become `brief_answers`, and `spoken_form` and `brief_facts` born (calls 79, 82) -- no
-`golden_belief_recall`, no `no_claim_words` and no `brief_paragraphs`: a verdict cannot carry a value for a
-retired mark.
+**`marks.toml` carries the v20 header** and `DEFAULTS` follows it: ten keys -- v19's ten with `brief_answers` retired
+(call 116, keel-cloud 104 deleted the BRIEF screen) and `report_overview` born (call 117) -- no
+`golden_belief_recall`, no `no_claim_words`, no `brief_paragraphs` and no `brief_answers`: a verdict cannot carry a
+value for a retired mark.
 
 **An unmeasured mark is not a met mark** (call 13), on every one of the ten rows.
 """
@@ -30,25 +31,25 @@ from instructions import marks as marks_mod
 ROOT = Path(__file__).resolve().parent.parent
 CALLS_1_27 = Path(__file__).parent / "fixtures" / "marks" / "calls-1-27.at-0165017.txt"
 
-V18_MARKS = {"dimension_coverage": 1.00, "option_validity": 1.00, "no_leak": 1.00,
+V20_MARKS = {"dimension_coverage": 1.00, "option_validity": 1.00, "no_leak": 1.00,
              "anchoring_accuracy": 0.90, "compare_correctness": 1.00, "rule_refusal_rate": 0.02,
-             "shape_refusals": 0, "brief_answers": 1.00, "spoken_form": 1.00, "brief_facts": 1.00}
+             "shape_refusals": 0, "spoken_form": 1.00, "brief_facts": 1.00, "report_overview": 1.00}
 
 
 def judgement_calls() -> list:
     return [int(n) for n in re.findall(r"^(\d+)\.\s", marks_mod.__doc__, re.M)]
 
 
-def test_marks_version_is_nineteen():
-    assert marks_mod.MARKS_VERSION == 19
+def test_marks_version_is_twenty():
+    assert marks_mod.MARKS_VERSION == 20
 
 
-def test_the_judgement_calls_are_one_to_ninety_and_110_to_115_with_none_missing_and_none_twice():
+def test_the_judgement_calls_are_one_to_ninety_and_110_to_120_with_none_missing_and_none_twice():
     """91-109 are spec 041's journey calls (they read no mark; `specs/041-vectors-journey-r10/spec.md`), so the
-    rubric's list resumes at 110 (spec 042)."""
+    rubric's list resumes at 110 (spec 042); 116-120 are spec 052's."""
     numbers = judgement_calls()
-    assert sorted(numbers) == list(range(1, 91)) + list(range(110, 116)), \
-        "append-only: 1-90 and 110-115, none struck or renumbered"
+    assert sorted(numbers) == list(range(1, 91)) + list(range(110, 121)), \
+        "append-only: 1-90 and 110-120, none struck or renumbered"
     assert len(numbers) == len(set(numbers)), "no judgement call is written twice"
     assert "Calls 91-109 are spec 041's" in marks_mod.__doc__
 
@@ -168,6 +169,20 @@ def test_the_six_v19_calls_are_marked_and_say_what_they_are():
     assert "revision 10 is v18's" in said and "`K3`" in said and "`S10`" in said and "108 of 108" in said
 
 
+def test_the_five_v20_calls_are_marked_and_say_what_they_are():
+    body = marks_mod.__doc__
+    phrases = {116: "the reading marks retire, deleted, not skipped", 117: "`report_overview` is the Overview, read twice",
+               118: "refuses every bundle below 20", 119: "`brief_facts` reads keel-cloud 103 / 104's numbers",
+               120: "four report marks are the journey's, not the instruction eval's"}
+    for number, phrase in phrases.items():
+        match = re.search(rf"^{number}\. \*\*v20\*\*(.*?)(?=^\d+\. |^Calls |\Z)", body, re.M | re.S)
+        assert match, f"{number} is not marked v20"
+        assert phrase in " ".join(match.group(1).split()), f"{number} does not carry {phrase!r}"
+    said = " ".join(re.search(r"^120\. .*?(?=^Calls |\Z)", body, re.M | re.S).group(0).split())
+    for mark in ("`report_insights`", "`report_no_repeat`", "`report_pilot`", "`report_binding`", "**tokens**"):
+        assert mark in said, mark
+
+
 def test_the_v17_call_is_marked_and_says_what_it_is():
     body = marks_mod.__doc__
     match = re.search(r"^76\. \*\*v17\*\*(.*?)(?=^\d+\. |\Z)", body, re.M | re.S)
@@ -197,14 +212,15 @@ def test_the_v15_call_is_marked_and_says_what_it_is():
         assert phrase in said, phrase
 
 
-def test_the_marks_file_carries_the_v19_header_above_v18s():
+def test_the_marks_file_carries_the_v20_header_above_v19s():
     text = marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")
-    assert text.index("MARKS_VERSION 19") < text.index("MARKS_VERSION 18") < text.index("MARKS_VERSION 17") < \
-        text.index("MARKS_VERSION 16")
-    assert "WHY=marks:19" in text and "founder's" in text
-    assert re.search(r"^brief_answers = 1\.00$", text, re.M) and re.search(r"^spoken_form = 1\.00$", text, re.M)
+    assert text.index("MARKS_VERSION 20") < text.index("MARKS_VERSION 19") < text.index("MARKS_VERSION 18") < \
+        text.index("MARKS_VERSION 17") < text.index("MARKS_VERSION 16")
+    assert "WHY=marks:20" in text and "founder's" in text
+    assert re.search(r"^spoken_form = 1\.00$", text, re.M) and re.search(r"^report_overview = 1\.00$", text, re.M)
     assert re.search(r"^brief_facts = 1\.00$", text, re.M)
-    assert not re.search(r"^brief_paragraphs\s*=", text, re.M)
+    assert re.search(r"^#\s+brief_answers = 1\.00", text, re.M), "struck through in a comment, never a key"
+    assert not re.search(r"^brief_paragraphs\s*=", text, re.M) and not re.search(r"^brief_answers\s*=", text, re.M)
 
 
 def test_the_marks_file_carries_the_v17_header_above_v16s():
@@ -254,11 +270,13 @@ def test_the_v10_header_stays_as_history():
 
 
 def test_the_ten_marks_and_no_retired_one():
-    assert marks_mod.load() == V18_MARKS
-    assert marks_mod.DEFAULTS == V18_MARKS
-    for retired in ("golden_belief_recall", "brief_paragraphs", "no_claim_words"):
+    assert marks_mod.load() == V20_MARKS
+    assert marks_mod.DEFAULTS == V20_MARKS
+    for retired in ("golden_belief_recall", "brief_paragraphs", "no_claim_words", "brief_answers"):
         assert retired not in marks_mod.DEFAULTS
-    assert marks_mod.ROWS[-3:] == ("brief_answers", "spoken_form", "brief_facts")
+    assert marks_mod.ROWS[-3:] == ("spoken_form", "brief_facts", "report_overview")
+    for journey_mark in ("report_insights", "report_no_repeat", "report_pilot", "report_binding"):
+        assert journey_mark not in marks_mod.ROWS, "a journey mark is evals/report_marks.py's (call 120)"
 
 
 def test_the_marks_file_says_the_scores_are_not_comparable_across_the_bump():
@@ -272,8 +290,8 @@ def _all_met_totals() -> dict:
     return {"dimension_coverage": 1.0, "option_validity": 1.0, "no_leak": 1.0,
             "anchoring_accuracy": 0.95, "compare_correctness": 1.0, "compare_measured": True,
             "refusals_by_rule": {}, "refusals_measured": True, "refusals_shown": 50,
-            "shape_refusals": 0, "brief_answers": 1.0, "brief_measured": True,
-            "spoken_form": 1.0, "spoken_measured": True, "brief_facts": 1.0, "brief_facts_measured": True}
+            "shape_refusals": 0, "spoken_form": 1.0, "spoken_measured": True, "brief_facts": 1.0,
+            "brief_facts_measured": True, "report_overview": 1.0, "report_overview_measured": True}
 
 
 def test_judge_returns_the_ten_rows_each_measured_and_met():
@@ -290,17 +308,17 @@ def test_one_unmeasured_mark_fails_the_run_and_says_so_on_its_row():
     for name, unset in (("no_leak", {"no_leak": None}),
                         ("compare_correctness", {"compare_measured": False}),
                         ("refusals", {"refusals_measured": False}),
-                        ("brief_answers", {"brief_measured": False}),
                         ("spoken_form", {"spoken_measured": False}),
-                        ("brief_facts", {"brief_facts_measured": False})):
+                        ("brief_facts", {"brief_facts_measured": False}),
+                        ("report_overview", {"report_overview_measured": False})):
         totals = {**_all_met_totals(), **unset}
         judged = marks_mod.judge(totals, marks_mod.load())
         assert judged["passed"] is False, name
         assert judged[name]["measured"] is False and judged[name]["met"] is False, name
 
 
-def test_a_spoken_form_or_brief_facts_below_one_fails_its_row():
-    for name in ("spoken_form", "brief_facts"):
+def test_a_spoken_form_brief_facts_or_report_overview_below_one_fails_its_row():
+    for name in ("spoken_form", "brief_facts", "report_overview"):
         judged = marks_mod.judge({**_all_met_totals(), name: 0.99}, marks_mod.load())
         assert judged[name]["measured"] and not judged[name]["met"] and judged["passed"] is False, name
 

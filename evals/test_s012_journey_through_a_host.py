@@ -1135,7 +1135,7 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                 assert sorted(journey.tokens) == sorted(people_names), journey.tokens
             _leg(corpus_scenario.leg_interview)
             _leg(corpus_scenario.leg_standings)
-            _leg(corpus_scenario.leg_brief, timeout_s=QUESTIONS_WAIT_S)
+            _leg(corpus_scenario.leg_report, timeout_s=QUESTIONS_WAIT_S)
 
         # ------------------------------------------------- what it cost, and what never happened
         # **A QUESTIONS retry shows up here, and that is the design** (spec 026 FR-020). The one

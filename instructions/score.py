@@ -30,11 +30,13 @@ and what is scored here by code against the registry keel-cloud exports:
 - `score_asked` (`ASKED`, `asked.md`) -- coverage: every index handed phrased once (K1); validity: each face's
   `K2`-`K6` (`instructions/spoken.face_faults`);
 - `score_interpret` -- one anchoring judgement a readable person (call 33);
-- `score_compare` -- keel-cloud's engine against `expected` (call 34; `instructions/compare.py`);
-- `brief.score_brief` -- seven per-case marks, all or nothing (call 82).
+- `score_compare` -- keel-cloud's engine against `expected` (call 34; `instructions/compare.py`).
 
-The two deterministic marks born at v18 -- `spoken_form` (`instructions/spoken.py`) and `brief_facts`
-(`instructions/brief_facts.compare`) -- are measured at zero spend, beside `compare_correctness`.
+(`brief.score_brief` and its seven reading marks retired at v20 with keel-cloud 104's BRIEF screen; call 116.)
+
+The deterministic marks -- `spoken_form` (`instructions/spoken.py`) and `brief_facts`
+(`instructions/brief_facts.compare`), born at v18, and `report_overview` (`instructions/overview.compare`), born at
+v20 -- are measured at zero spend, beside `compare_correctness`.
 
 `totals` rolls each over **its own** denominator and never another's.
 """
@@ -45,7 +47,6 @@ import json
 import re
 from dataclasses import dataclass, field
 
-from . import brief as brief_mod
 from . import context as context_mod
 from . import spoken as spoken_mod
 from . import text as text_mod
@@ -746,7 +747,7 @@ def _question_screen(scores) -> dict:
 
 
 def totals(calibration_scores=(), respondent_scores=(), interpret_scores=(), compare_scores=(),
-           *, asked_scores=(), brief_scores=(), spoken_score=None, facts_scores=(), errored: int = 0,
+           *, asked_scores=(), spoken_score=None, facts_scores=(), overview_scores=(), errored: int = 0,
            refusals_by_rule: dict | None = None, shape_refusals: int = 0, schema_invalid: int = 0,
            refusals_measured: bool = False, refusals_shown: int = 0, judge_calls: int = 0,
            leak_hits: int | None = None, leak_judged: int | None = None, refusals_unmeasured_kinds=()) -> dict:
@@ -783,13 +784,14 @@ def totals(calibration_scores=(), respondent_scores=(), interpret_scores=(), com
     facts_checks = sum(s.checks for s in facts_scores if s.measured)
     facts_agreed = sum(s.agreed for s in facts_scores if s.measured)
 
+    overview_measured = bool(overview_scores) and all(s.measured for s in overview_scores)
+    overview_checks = sum(s.checks for s in overview_scores if s.measured)
+    overview_agreed = sum(s.agreed for s in overview_scores if s.measured)
+
     spoken = spoken_score
     spoken_measured = bool(spoken is not None and spoken.measured)
 
-    brief = brief_mod.totals(list(brief_scores or []))
-
     return {
-        **brief,
         "calibration_cases": calibration["cases"],
         "calibration_coverage": calibration["coverage"],
         "calibration_validity": calibration["validity"],
@@ -842,6 +844,13 @@ def totals(calibration_scores=(), respondent_scores=(), interpret_scores=(), com
         "brief_facts_reported_diffs": sum(len(s.reported_diffs) for s in facts_scores),
         "brief_facts_unmeasured": [{"entry": s.entry_id, "reason": s.reason}
                                    for s in facts_scores if not s.measured],
+        # Call 117: the Overview a founder reads, from keel-cloud's facts against this repository's reading.
+        "report_overview_checks": overview_checks,
+        "report_overview_agreed": overview_agreed,
+        "report_overview": _fraction(overview_agreed, overview_checks) if overview_measured else None,
+        "report_overview_measured": overview_measured,
+        "report_overview_unmeasured": [{"entry": s.entry_id, "reason": s.reason}
+                                       for s in overview_scores if not s.measured],
         "refusals_by_rule": dict(refusals_by_rule or {}),
         # v6 (call 22): how many answers the aggregate judged -- the rate's denominator.
         "refusals_shown": int(refusals_shown or 0),

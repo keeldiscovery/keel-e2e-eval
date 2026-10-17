@@ -88,8 +88,8 @@ def test_the_script_answers_every_corridor_screen_from_the_entry(entry_id):
     entry = _entry(entry_id)
     screens = vs.generate(entry).screens
     want = {vs.CONTEXT_SCREEN, vs.PROBLEM_SCREEN, vs.MECHANISM_SCREEN, vs.CALIBRATION_SCREEN,
-            vs.ASKED_SCREEN, vs.RESPONDENT_SCREEN, vs.INTERPRET_SCREEN, vs.BRIEF_SCREEN}
-    assert set(screens) == want
+            vs.ASKED_SCREEN, vs.RESPONDENT_SCREEN, vs.INTERPRET_SCREEN}
+    assert set(screens) == want, "no BRIEF since keel-cloud 104, and no THEMES entry a fixed script could hold"
     assert [e["result"] for e in screens[vs.RESPONDENT_SCREEN]] == [vs.respondent_result(entry, 1, vs.LINK_PRIMARY)], (
         "keel-cloud 091: one RESPONDENT_QUESTIONS job a lock -- part 1 on the primary link, the gate's clause")
     calibration = [(e["result"]["vector"], [q["key"] for q in e["result"]["questions"]])
@@ -223,28 +223,11 @@ def test_every_pick_rides_on_the_wires_own_code(entry_id):
             assert wire == code or key in vs.PICKED_AMONG_ITEMS, (key, code, wire)
 
 
-@pytest.mark.parametrize("entry_id", ENTRIES)
-def test_the_brief_reading_cites_what_broke_and_carries_no_number(entry_id):
-    """keel-cloud 089 `BriefReading.check` on the referee's reading: the headline and each answer at most two
-    sentences and 45 words, citing its own stage -- what broke, where the stage broke -- with no digit, no
-    currency, no person's name; no tests, no quotes."""
-    entry = _entry(entry_id)
-    reading = vs.brief_result(entry)
-    names = {w.lower() for p in entry.people() for w in [p.person, p.person.split()[0]]}
-    sentences = [("headline", reading["headline"])] + [
-        (stage, reading[stage]["answer"]) for stage in ("problem", "solution", "commercial")]
-    for stage, sentence in sentences:
-        text = sentence["text"]
-        assert sentence["cites"] and not re.search(r"\d|[£$€]", text), sentence
-        assert len(re.findall(r"[.!?]+(?=\s|$)", text)) <= 2 and _count(text) <= 45, sentence
-        assert not any(re.search(rf"\b{re.escape(n)}\b", text.lower()) for n in names), sentence
-        if stage != "headline":
-            assert all(c.startswith(stage + ".") for c in sentence["cites"]), sentence
-            broke = vs.broke_key(entry, stage.upper())
-            if broke:
-                assert broke in sentence["cites"], (stage, broke, sentence)
-    assert reading["next"] == {"tests": []} and reading["quotes"] == []
-    assert set(reading) == {"headline", "problem", "solution", "commercial", "next", "quotes"}
+def test_the_screen_table_names_themes_and_no_brief():
+    """Spec 052: keel-cloud 104's THEMES is in the corridor's table (the runtime names it when it has no entry for it),
+    BRIEF is gone, and the script carries neither."""
+    assert vs.THEMES_SCREEN in vs.CORRIDOR_SCREENS and "BRIEF" not in vs.CORRIDOR_SCREENS
+    assert not hasattr(vs, "brief_result") and not hasattr(vs, "BRIEF_SCREEN")
 
 
 # ------------------------------------------------------------------------------- the keys table
@@ -455,13 +438,13 @@ def test_the_scenario_is_one_function_per_leg_in_the_corridors_order():
     order = ["leg_project", "leg_context", "leg_interpret_problem", 'leg_calibrate(journey, "PROBLEM")',
              "leg_interpret_solution", 'leg_calibrate(journey, "SOLUTION")', "leg_persona",
              'leg_calibrate(journey, "COMMERCIAL")', "leg_lock", "leg_invite", "leg_interview",
-             "leg_standings", "leg_brief"]
+             "leg_standings", "leg_report"]
     run = source[source.index("def run("):]
     at = [run.index(name) for name in order]
     assert at == sorted(at)
     for leg in ("leg_project", "leg_context", "leg_interpret_problem", "leg_interpret_solution",
                 "leg_calibrate", "leg_persona", "leg_lock", "leg_invite", "leg_interview",
-                "leg_standings", "leg_brief"):
+                "leg_standings", "leg_report"):
         assert f"def {leg}(" in source, leg
 
 
@@ -530,11 +513,14 @@ def test_the_inputs_bundle_records_what_was_composed():
     json.dumps(inputs)
 
 
-def test_the_pilot_is_worded_as_keel_web_words_it():
-    """keel-web 065 `pilotNumber` / `pilotLinkLine`: the tile on page one and on the overview."""
+def test_the_pilot_tile_is_worded_as_keel_web_077_words_it():
+    """keel-web 077 FR-2 (`pilotSignedUp`, `pilotLinkLine`): *k of n signed up* over *p% · per link*; *None yet* and
+    *fills as people finish* before anyone finishes (`instructions/overview.tiles`)."""
+    from instructions import overview as ov                                 # noqa: PLC0415
     pilot = {"optedIn": 2, "finished": 20, "percent": 10, "perLink": [
         {"link": "PRIMARY", "words": "people who have it", "optedIn": 2, "finished": 12},
         {"link": "COMMERCIAL_B2B", "words": "decision-makers", "optedIn": 0, "finished": 8}]}
-    assert corpus_scenario.pilot_words(pilot) == (
-        "2 of 20 · 10%", "2 of 12 people who have it · 0 of 8 decision-makers")
-    assert corpus_scenario.PAGE_ONE_BANS == ("deal-breaker", "where they differ", "inferred from")
+    assert ov.tiles({"pilot": pilot}, None)["pilot"] == [
+        "Pilot", "2 of 20 signed up", "10% · 2 of 12 people who have it · 0 of 8 decision-makers"]
+    assert ov.tiles({"pilot": {"finished": 0}}, None)["pilot"] == ["Pilot", "None yet", "fills as people finish"]
+    assert not hasattr(corpus_scenario, "pilot_words") and not hasattr(corpus_scenario, "PAGE_ONE_BANS")

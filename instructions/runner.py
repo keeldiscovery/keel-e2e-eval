@@ -448,7 +448,8 @@ def ask(executor_module, validator_module, executor, case, *, payload: dict | No
 #: `standard`) is a routing step this eval does not model.
 QUESTION_SCREENS = ("CALIBRATION_QUESTIONS", "RESPONDENT_QUESTIONS", "ASKED")
 DRAFT_SCREENS = ("CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "SOLUTION_MECHANISM")
-UNATTENDED_SCREENS = QUESTION_SCREENS + ("BRIEF",)
+#: Spec 052: `BRIEF` left with keel-cloud 104 (decision 46's redraw went with the screen).
+UNATTENDED_SCREENS = QUESTION_SCREENS
 REDRAW_SCREENS = UNATTENDED_SCREENS + DRAFT_SCREENS
 
 #: The cloud's own sentences, byte for byte. `ANSWER_AGAIN` closes both `REFUSED by rule ...`
@@ -499,7 +500,7 @@ def redraw_payload(case, refusal: dict, first: Answer) -> dict:
 
     Turn one's context **plus one key, `repair`**; the screen's own instruction, response contract,
     model and effort unchanged; `input.content` empty. The previous answer is **not** sent back:
-    on a question screen and on `BRIEF` (`queueAnotherQuestionsTurn`) the history is empty, and on a draft screen
+    on a question screen (`queueAnotherQuestionsTurn`) the history is empty, and on a draft screen
     (`refuseOrRepairDraft` -> `buildHistory`) it is turn one's `{turn_number, input, outcome,
     questions}` -- which carries no `result`. What the model gets is the refusal, in words.
     """

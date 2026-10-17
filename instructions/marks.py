@@ -19,11 +19,30 @@ persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
 by name. v10 has no run of record; it is history from v11.
 
-**Spec 051 (2026-10-17)**: keel-cloud 103 (contract 19, the interview side, keel-cloud-docs `4cda99a`) moved no screen
-schema and no instruction -- the follow-up's ladder is registry data and code composes its words -- so v19 stands; the
-journey ruler moved instead (`INTERVIEWER_MARKS_VERSION` 5). 052 takes the standings side and this version's bump.
+**`MARKS_VERSION` 20** (spec 052, 2026-10-17): the report replaces the brief. The ruler follows keel-cloud 104
+(keel-cloud-docs `9a033fe`; contract 19, the standings side; `InferenceCharge.VERSION` 10, document 25): the BRIEF
+screen, `brief.md`, `BriefReading` and `StandingsView.brief` are deleted, and with them **the seven reading marks and
+`brief_answers` retire** (`instructions/brief.py`, the `BRIEF` case kind, `tests/test_instruction_brief_reading.py`;
+call 116) -- a subject the product no longer has is not marked. `brief_facts` **stays** (the card lines are the one
+source, design §3) and gains the project's second number, `priceMedian` -- the highest price-table edge at least half
+of `n` chose at or above, `{edgeSaid, chose, n}` or absent -- one more check an entry, and reads 103's two moved card
+lines: Compatibility *said {condition}* (no *said yes:*), Purchase friction counting the supporters, *did not need
+{step}, or it was quick* (call 119). One deterministic mark is born at zero spend, **`report_overview`**: the Overview
+a founder reads -- the verdict and its line, the two tiles, the three panels' pills, lead lines and rows, the foot --
+drawn from keel-cloud's facts (`BriefFactsCorpusTest`) against the same Overview drawn from this repository's reading
+of the corpus (`instructions/overview.py`; call 117). Four more report marks are born as **journey** marks, measured
+on the stack and never rows of `judge()`: `report_insights`, `report_no_repeat` (design D6), `report_pilot` and
+`report_binding` (D10), in `evals/report_marks.py` (`REPORT_MARKS_VERSION` 1); the journeys also measure
+`report_overview` against the page (call 120). The corpus stays **revision 11**: no screen schema the model writes
+moved. `rescore.py` refuses every bundle below 20 (call 118). **There is no v20 run of record until `WHY=marks:20` is
+spent -- the certificate is the founder's word only; never run or propose it.** v19's paragraph below is history (v19
+never had a run of record).
 
-**`MARKS_VERSION` 19** (spec 042, 2026-10-14): the defects batch. The ruler follows keel-cloud 090 / 091 (keel-cloud-docs
+**Spec 051 (2026-10-17)**: keel-cloud 103 (contract 19, the interview side, keel-cloud-docs `4cda99a`) moved no screen
+schema and no instruction -- the follow-up's ladder is registry data and code composes its words -- so v19 stood; the
+journey ruler moved instead (`INTERVIEWER_MARKS_VERSION` 5). 052 took the standings side and this version's bump (v20 above).
+
+**`MARKS_VERSION` 19** (history since v20, never run; spec 042, 2026-10-14): the defects batch. The ruler follows keel-cloud 090 / 091 (keel-cloud-docs
 `c432c1d`; registry `VERSION` 4, document 20, `CONTRACT_VERSION` 14, routing v11, charge 7 -- the lock holds one job of
 35). No mark is born or retired and no number in `marks.toml` moved; four judgement calls moved under them, so the
 version moves (this module's own rule). The corpus is **revision 11** (call 110; a revision-10 file is refused by name
@@ -880,6 +899,39 @@ Calls 91-109 are spec 041's (the journey on corpus revision 10): they read no ma
 115. **v19**: **`rescore.py` refuses every bundle below 19** by name: a v18 bundle was scored against corpus revision 10,
     with the two frames held at 25 words and five corpus items named apart. The only v19 number is a v19 run
     (`WHY=marks:19`).
+116. **v20**: **the reading marks retire, deleted, not skipped.** keel-cloud 104 deleted the BRIEF screen, so
+    `instructions/brief.py` (`shape`, `cites`, `numbers`, `quotes`, `bans`, the headline's and the answers' marks and
+    `brief_answers`), the `BRIEF` case kind and its context (`context.build_brief`, `brief_facts.beliefs_for` /
+    `stories_for` / `targets_for`), decision 46's BRIEF redraw (`run.refused_twice`) and the register's paragraphs
+    are gone; `brief_answers` is no longer a key of `marks.toml`, so a verdict cannot carry a value for it. The `brief`
+    job class stays in the routing table (THEMES routes through it) and is tolerated as dormant: this eval sends no
+    THEMES case (its fake is the stack's; `harness/interviewer_fake.themes`).
+117. **v20**: **`report_overview` is the Overview, read twice.** `instructions/overview.py` draws, from one
+    `BriefFacts`, what keel-web 077's Overview says: the verdict's words and its line (*{How sure}. {reason}* then
+    *Every dimension holds.* or each failing dimension's *{name} is {status}*; on KEEP_INTERVIEWING *{n} people have
+    answered.* and *A card needs 5 to say anything and 10 to be sure.*), the pilot tile (*k of n signed up* over
+    *p% · per link*, or *None yet*), the price tile (*{edgeSaid} or more* over *half or more said so · {chose} of {n}
+    decision-makers*, or *Not asked yet*), per stage the pill, the lead lines and every row (name, status word,
+    *number line* or *nobody has answered this yet*), and the foot. One check a hero, a tile, a panel and the foot:
+    keel-cloud's facts for the entry against this repository's reading (`brief_facts.facts_for`). `DRY=1`-measurable;
+    a cloud that cannot be asked leaves it unmeasured, never zero. On a journey the same drawing, from the wire's
+    `StandingsView`, is held to the page (`evals/report_marks.py`).
+118. **v20**: **`rescore.py` refuses every bundle below 20** by name: a v19 bundle answered the BRIEF screen and was
+    held to its reading marks. The only v20 number is a v20 run (`WHY=marks:20`).
+119. **v20**: **`brief_facts` reads keel-cloud 103 / 104's numbers.** Compatibility's line is *could ...* for a *They
+    could ...* condition, kept for *could ...*, else *said {condition}* (*said yes:* is gone); Purchase friction's
+    number counts `yes_quick` + `not_needed` and its line is *did not need {step}, or it was quick*, so it falls when
+    the bet fails like every other card; and `priceMedian` is one more check an entry, `{edgeSaid, chose, n}` from the
+    entry's price picks over the founder's ladder (the highest edge with `chose * 2 >= n`; the corpus records the
+    picks, so the table is recounted from them -- the one count here besides the pilot's), absent when nobody counted
+    answered Price or no edge reaches half.
+120. **v20**: **four report marks are the journey's, not the instruction eval's.** `report_insights`,
+    `report_no_repeat`, `report_pilot` and `report_binding` read a page, which a model-screen run never has, so a row
+    in `judge()` would fail every instruction-eval run by construction (call 13: unmeasured is not met). They are
+    scored by `evals/report_marks.py` over a journey's record, owed whenever the record carries their subject, and
+    fail the journey; `report_overview` is scored there too, page against wire. `report_binding` compares **tokens**
+    (words of four letters or more, lower-cased, and every number), not sentences: CSS case and line breaks differ
+    between a view and its sheet (spec 052 call 2).
 """
 
 from __future__ import annotations
@@ -887,14 +939,14 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 19
+MARKS_VERSION = 20
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 
-#: The ten marks of `marks.toml` at v18 (calls 79, 82): v17's eight with `brief_paragraphs` become
-#: `brief_answers`, and the two deterministic marks born at v18, `spoken_form` and `brief_facts`.
-#: `golden_belief_recall` is retired (call 29) and `brief_paragraphs` (call 82): **not** keys, so a verdict cannot
-#: carry a value for either.
+#: The ten marks of `marks.toml` at v20 (calls 79, 82, 116, 117): v19's ten without `brief_answers` (retired with the
+#: BRIEF screen) and with `report_overview` (the Overview, at zero spend). `golden_belief_recall` (call 29),
+#: `brief_paragraphs` (call 82) and `brief_answers` (call 116) are retired: **not** keys, so a verdict cannot carry a
+#: value for any of them. The four journey report marks are `evals/report_marks.py`'s (call 120), never keys here.
 DEFAULTS = {
     "dimension_coverage": 1.00,
     "option_validity": 1.00,
@@ -903,15 +955,15 @@ DEFAULTS = {
     "compare_correctness": 1.00,
     "rule_refusal_rate": 0.02,
     "shape_refusals": 0,
-    "brief_answers": 1.00,
     "spoken_form": 1.00,
     "brief_facts": 1.00,
+    "report_overview": 1.00,
 }
 
 #: The rows `judge()` returns, in the order the report shows them.
 ROWS = ("dimension_coverage", "option_validity", "no_leak", "anchoring_accuracy",
-        "compare_correctness", "refusals", "shape_refusals", "brief_answers", "spoken_form",
-        "brief_facts")
+        "compare_correctness", "refusals", "shape_refusals", "spoken_form",
+        "brief_facts", "report_overview")
 
 
 def load(path: Path | str | None = None) -> dict:
@@ -947,9 +999,9 @@ def judge(totals: dict, marks: dict) -> dict:
     leak = totals.get("no_leak")
     accuracy = totals.get("anchoring_accuracy")
     compare = totals.get("compare_correctness")
-    brief = totals.get("brief_answers")
     spoken = totals.get("spoken_form")
     facts = totals.get("brief_facts")
+    overview = totals.get("report_overview")
     measured = bool(totals.get("refusals_measured"))
     refusals = sum((totals.get("refusals_by_rule") or {}).values())
     # v6 (call 22), v9 (call 36): a rate over the answers the aggregate judged -- `refusals_shown`,
@@ -975,12 +1027,12 @@ def judge(totals: dict, marks: dict) -> dict:
                         shown=shown if measured else None),
         "shape_refusals": row("shape_refusals", shape if measured else None, measured,
                               shape is not None and shape <= marks["shape_refusals"]),
-        "brief_answers": row("brief_answers", brief, totals.get("brief_measured"),
-                             _at_least(brief, marks["brief_answers"])),
         "spoken_form": row("spoken_form", spoken, totals.get("spoken_measured"),
                            _at_least(spoken, marks["spoken_form"])),
         "brief_facts": row("brief_facts", facts, totals.get("brief_facts_measured"),
                            _at_least(facts, marks["brief_facts"])),
+        "report_overview": row("report_overview", overview, totals.get("report_overview_measured"),
+                               _at_least(overview, marks["report_overview"])),
     }
     results["passed"] = all(results[name]["met"] for name in ROWS)
     return results

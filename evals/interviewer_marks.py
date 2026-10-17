@@ -77,7 +77,10 @@ SHINGLE = 6               # six words of the founder's word in a row, spoken, is
 #: keel-cloud 095 FR-E / 096: why a reading's or a brief's HOLD was written without a click -- a reading on arrival, the
 #: brief on the founder's return (096; 095's `brief:after-batch` is retired), a lost race's retry. A founder's own POST
 #: readings carries none.
-READ_REASON = re.compile(r"^(read-on-arrival:[0-9a-f-]{36}|brief:on-return|retry:[23]:[0-9a-f-]{36})$")
+#: Spec 052 (keel-cloud 104): the brief's `brief:on-return` left with the BRIEF job; its THEMES jobs hold `themes:on-return`.
+READ_REASON = re.compile(r"^(read-on-arrival:[0-9a-f-]{36}|themes:on-return|retry:[23]:[0-9a-f-]{36})$")
+#: The HOLD actions IM13 explains: a reading, and since keel-cloud 104 the themes job (the brief's was BRIEF).
+READ_ACTIONS = ("INTERPRET", "THEMES")
 
 
 @dataclass(frozen=True)
@@ -314,9 +317,9 @@ def the_retry_free(r: dict) -> tuple[bool, Any]:
 def read_on_arrival(r: dict) -> tuple[bool, Any]:
     """IM13 (keel-cloud 095 / 096): on Keel's door every answer with words is read on arrival -- its INTERPRET HOLD says
     `read-on-arrival:<invitationId>`, at most three attempts a reading (a retry says `retry:<n>:<parent>`) -- and
-    every reading or brief HOLD the leg's ledger holds says why it was written (a brief `brief:on-return`): none was
-    pressed by the founder, and no brief is written by a batch."""
-    holds = [x for x in r["ledger"] if x.get("kind") == "HOLD" and x.get("action") in ("INTERPRET", "BRIEF")]
+    every reading or themes HOLD the leg's ledger holds says why it was written (a themes job `themes:on-return`, keel-cloud
+    104, where the brief's said `brief:on-return`): none was pressed by the founder, and none is written by a batch."""
+    holds = [x for x in r["ledger"] if x.get("kind") == "HOLD" and x.get("action") in READ_ACTIONS]
     unexplained = [x for x in holds if not READ_REASON.match(x.get("reason") or "")]
     per = {}
     for a in r["arrivals"]:

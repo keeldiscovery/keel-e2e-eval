@@ -324,46 +324,14 @@ def test_a_bundle_without_the_answer_block_scores_raw_and_says_so(
     assert "Scored on the raw answer" in page and "predates judgement call 41" in page
 
 
-# ------------------------------------------- decision 46: BRIEF is redrawn once, like the questions
+# ------------------------------------------- decision 46's BRIEF redraw left with the screen (spec 052)
 
-BRIEF = "09-fixture/BRIEF/run1"
-B5 = {"kind": "rule", "rule": "B5", "path": "result.whatThisSays",
-      "message": "B5: 'works' in the sentence that names the bar"}
-
-
-def test_a_refused_brief_is_redrawn_once_with_the_question_screens_repair(cases):
-    case = cases[BRIEF]
-    raw = {"bad": True, "whatThisSays": "The bar works."}
-    redrawn = {"whatThisSays": "They set the bar higher than yours."}
-    host, aggregate = _Host(raw, redrawn), _Aggregate(B5)
-    answer = _ask(case, host, aggregate)
-    assert len(host.requests) == 2 and aggregate.calls == [(BRIEF, False), (BRIEF, True)]
-    sent = host.requests[1].request_payload
-    # repairUnattended -> queueAnotherQuestionsTurn, as 058 does for BRIEF (decision 46).
-    assert sent["context"] == {**case.payload["context"], "repair": (
-        "NOT DERIVED -- your previous answer was accepted as a shape and then could not be "
-        "resolved: result.whatThisSays: B5: 'works' in the sentence that names the bar. Answer "
-        "again with everything you already had; fix only that; change nothing else.")}
-    assert sent["interaction_history"] == [] and sent["input"] == {"content": ""}
-    assert "The bar works." not in json.dumps(sent)
-    assert answer.scored.result is redrawn
-    assert run_mod.refused_twice(case, True, True, answer.refusals) is None
-
-
-def test_a_brief_refused_twice_scores_its_raw_paragraph_as_a_fault(cases):
-    case = cases[BRIEF]
-    raw = {"bad": True, "whatThisSays": "The bar works."}
-    host = _Host(raw, {"bad": True, "whatThisSays": "The bar still works."})
-    answer = _ask(case, host, _Aggregate(B5))
-    assert len(host.requests) == 2 and answer.accepted is None and answer.scored.result is raw
-    failed = run_mod.refused_twice(case, answer.redraw is not None, answer.accepted is not None,
-                                   answer.refusals)
-    assert failed and "B5 then B5" in failed
-    state = run_mod._RunState()
-    run_mod._score(case, fx.entry(), answer.scored, failed, state, None)
-    assert state.brief[0].met is False and all(v is False for v in state.brief[0].marks.values())
-    assert run_mod.refused_twice(cases[RESPONDENT], True, False, answer.refusals) is None, \
-        "the question screens keep their raw faults"
+def test_no_brief_is_redrawn_since_keel_cloud_104():
+    """Call 116: keel-cloud 104 deleted the BRIEF screen, so decision 46's redraw of it (and `refused_twice`, which
+    scored a brief refused twice as a fault) went with it; the question screens' redraw is unchanged."""
+    from instructions import runner as runner_mod                            # noqa: PLC0415
+    assert "BRIEF" not in runner_mod.REDRAW_SCREENS and not hasattr(run_mod, "refused_twice")
+    assert runner_mod.UNATTENDED_SCREENS == runner_mod.QUESTION_SCREENS
 
 
 # -------------------------------------- spec 040 (call 87): ASKED is redrawn like the question screens
