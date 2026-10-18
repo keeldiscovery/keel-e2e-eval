@@ -71,11 +71,10 @@ stack** (`make unit` only): the journeys and the remote run are owed to the jour
 - [x] T009 `_score_guide(j)` after `score_feedback`: `guide.json`, `guide-marks.json`, the journey fails on any owed mark
   unmet; README / AGENTS one paragraph each; this file
 - [x] T010 Acceptance 1 `make unit`: **2,611 passed / 61 skipped** (below)
-- [ ] T011 **owed to the journey pass** (after keel-web 080 merges): acceptance 2, `make eval K="s005 or s006 or s007 or
-  s014"` on a fresh stack (keel-cloud-docs `7c4d9a9` + keel-web 080): G1-G3 met on all four, G4 / G5 on S-005;
-  `leg_welcome`'s seconds per journey here; the page objects held to 080 as built (the shell's first-screen selector,
-  the Feedback trigger, the sheet's controls, Skip's word, the caption at 0 s); DRIFT from #95 for anything the page
-  shows that the design does not say (candidates below)
+- [x] T011 acceptance 2, the journey pass: `make eval K="s005 or s006 or s007 or s014"` **4 passed, 11 deselected in
+  894 s** on a fresh stack (keel-cloud-docs `7c4d9a9` = 106, contract 20; keel-web `3c83ac4` = 080 on `248a41f`; runtime
+  0.8.0), the first run, **no fix needed**: G1-G3 met on all four, G4 and G5 met on S-005 (see *Acceptance 2, measured*).
+  No DRIFT written: everything the sheet showed is what 080 or 106 says (below)
 - [ ] T012 **owed**: acceptance 3, the remote journeys on staging once 106 + 080 are deployed: G1-G3 met, G4 / G5
   unmeasured with the step's why, each journey's welcome seconds under 5
 
@@ -89,8 +88,46 @@ stack** (`make unit` only): the journeys and the remote run are owed to the jour
   cue ids, the words, the six test ids; the Feedback trigger's check runs on master already) that wait for 080 on
   keel-web master; read against the 080 worktree (`wt/keel-web-080`, read-only) the cue ids and times, the sound labels and all
   six test ids are there.
+- **`make unit` on the journey pass** (keel-web master `3c83ac4`, 080 merged): **2,619 passed / 53 skipped** -- the 8
+  checks against keel-web's own files now run and pass (the twelve cue ids and times, the words, the six test ids).
 - The first full run after the change was red once: `test_vectors_journey`'s classic-word sweep found `SUPPORTED`
   inside `MEDIA_ERR_SRC_NOT_SUPPORTED`; the constant is `MEDIA_ERR_NO_DECODE` now.
+
+## Acceptance 2, measured (2026-10-18 UTC, the journey pass)
+
+One fresh stack (`COMPOSE_PROJECT_NAME=keel-e2e-eval-054`, `make up`), `make eval K="s005 or s006 or s007 or s014"`:
+**4 passed, 11 deselected in 894.03 s** on keel-cloud-docs `7c4d9a9` (106) + keel-web `3c83ac4` (080) + keel-runtime
+`3988131` 0.8.0; `make down` after. Every other mark family on these journeys held as before (the journeys passed whole).
+
+| Journey | Run | Time | Guide marks | Door | Welcome leg | Sheet gone | Next write | Later frames |
+|---|---|---|---|---|---|---|---|---|
+| S-005 countly | `20261018T022340Z-s005-countly` | 309 s | **5 of 5** (G1-G5) | Escape | **0.88 s** | 28 ms | PUT context 202 | 22, no sheet |
+| S-006 paidly | `20261018T022850Z-s006-paidly` | 306 s | **3 of 3** (G4, G5 unmeasured) | Skip | **0.90 s** | 64 ms | PUT context 202 | 25, no sheet |
+| S-007 mulchrun | `20261018T023356Z-s007-mulchrun` | 140 s | **3 of 3** (G4, G5 unmeasured) | Skip | **0.90 s** | 71 ms | PUT context 202 | 25, no sheet |
+| S-014 green | `20261018T023616Z-s014-green` | 135 s | **3 of 3** (G4, G5 unmeasured) | Skip | **0.91 s** | 55 ms | PUT context 202 | 25, no sheet |
+
+- **The welcome's cost** is under a second on every journey against the 5 s budget (FR-5): the face read's 600 ms is
+  most of it; the press ~0.1 s, the repeat POST and the revision reads ~0.1 s, the next open's `goto` and absence read
+  ~0.16 s. S-005's cue walk took 0.2 s and its two replays 3.5 s (outside the budget, as FR-5 says).
+- **On every journey**: the sheet at `/p/{id}/define/context` (where *Start* lands) over an overview the page received
+  with `{welcomeSeen: false, openersSeen: []}`; one `guide-seen {what: WELCOME}` from the page, 204; the repeat on the
+  wire 204; the overview's revision 0 before the press, after it and after the repeat; the next open received
+  `{welcomeSeen: true, openersSeen: []}` and drew no sheet; the context Save 202 on its first press.
+- **The face decoded in the bundled Chromium** (judgement call 1's note never fired): muted, unpaused, `readyState` 4 and
+  the clock rising (~0.6 s over 600 ms) on S-006 / 007 / 014; on S-005 the first read caught it still loading
+  (`readyState` 1, 0 s) and the second at `readyState` 4, 0.39 s -- call 8's "still loading" branch, met. The track
+  `/guide/welcome.vtt`, mode `hidden`. The caption read *What if you could find out whether your* on all four (S-005's
+  through the seam's `seek(0.35)`: its clock was still under 0.30 s at the read).
+- **Skip** *Skip ›*, 67 x 44 px, in view and hit at both sizes (1280 x 720: at 971, 519; 390 x 844: at 291, 637), focused;
+  the controls on the sheet: Skip and the face's wordless `button` *Sound on* (call 6, which the design now allows).
+  `cuesFired` `[]` at the reads on every local journey.
+- **S-005's walk**: the served `welcome.cues.json` the twelve in order (080's times), `cuesFired` `["wordmark"]` before the
+  walk (the caption nudge), the face held, each seek drawing its cue and the list growing by one to twelve.
+  **Replays**: both through the Feedback panel (`button.fb-tab`, then `guide-replay`), the first at 0.0003 s and closed
+  by Skip, the second ended by the seek to the end, zero `guide-seen` requests, `welcomeSeen` true, revision 0 -> 0.
+- **No DRIFT** (#95 stays free): the sound toggle is allowed (the coordinator: the design now says so); *Skip ›* is
+  080's `GUIDE_SKIP`; *Play the welcome again* at the Feedback panel's foot is 080's judgement call 2 (keel-web has no
+  help menu) -- each is said by 080, so none is an unsaid thing the page showed.
 
 ## Judgement calls
 
@@ -137,10 +174,9 @@ Decided this pass (each a reading of the spec against 106 as built and 080 as sp
 
 ## Discovered
 
-- **D-01 (DRIFT candidates for the journey pass, none written: `runs/DRIFT.md` records only what a stack showed):**
-  the face's speaker glyph (a second, wordless control: call 6); Skip's word *Skip ›* (D24 says *Skip*); where *Play
-  again* lives (the Feedback panel's foot, not a help menu: §5 / D24 say the help menu); any words on the sheet beyond
-  the caption and the snippets.
+- **D-01 (the DRIFT candidates, closed by the journey pass without an entry):** the face's speaker glyph (call 6; the
+  design now allows it), Skip's word *Skip ›* (080 `GUIDE_SKIP`), where *Play again* lives (080 judgement call 2); no
+  control or label beyond Skip and the speaker showed on the sheet.
 - **D-02:** 080 calls `play()` rather than setting `autoplay`, so `face()["autoplay"]` reads false on a sheet that plays
   on its own; it is recorded and never required.
 - **D-03:** on a phone, *Play again* lives in the Lines sheet's Feedback row, which exists only after the lock (080
