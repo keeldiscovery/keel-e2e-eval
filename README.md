@@ -93,6 +93,17 @@ keel-cloud-docs `7e64f20`) v20 reads corpus **revision 12** -- every entry a US 
 number moved -- and refuses revision 11 by name; the zero-spend rows hold at `7e64f20` (`compare_correctness` 108 of
 108, `spoken_form` 109 of 109, `brief_facts` 101 of 101, `report_overview` 49 of 49).
 
+### The guide's welcome — contract 20 (spec `054-guide-welcome`, 2026-10-17; the journey pass owed)
+
+keel-cloud 106 (keel-cloud-docs `7c4d9a9`: `Overview.guide {welcomeSeen, openersSeen[]}`, `POST .../guide-seen` 204,
+idempotent, revision-neutral) and keel-web 080 (the welcome sheet at a new project's first open). Every corpus journey
+holds the sheet (`leg_welcome`, right after `leg_project`): up over an overview saying `welcomeSeen: false`, Skip the one
+control and in view at 1280 x 720 and 390 x 844, Skip (Escape on S-005) posting `{what: WELCOME}` once, the revision
+unmoved, none at the next open; S-005 local also walks the twelve cues through `window.__keelGuide` and replays it twice,
+posting nothing. Scored by `evals/guide_marks.py` (G1-G5, `GUIDE_MARKS_VERSION` 1, a journey ruler; G4 / G5 unmeasured
+off S-005 local) into `guide-marks.json`; every other journey passes the sheet by in `MarketStep.start(welcome="pass")`.
+`MARKS_VERSION` stays 20.
+
 ### `MARKS_VERSION` 19 — history since v20, never run (spec `042-contract-14-r11`, 2026-10-14)
 
 The defects batch (keel-cloud 090 / 091, merged at keel-cloud-docs `c432c1d`; registry `VERSION` 4, document 20,

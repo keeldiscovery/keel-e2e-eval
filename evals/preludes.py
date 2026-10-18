@@ -116,12 +116,15 @@ def stage_from_overview(overview_body: dict, stage_type: str) -> dict:
 
 
 def create_project(page: Page, recorder: Recorder, web_base: str,
-                   founder: corpus_script.FounderInputs) -> str:
+                   founder: corpus_script.FounderInputs, *, welcome: str = "pass") -> str:
     """Name -> market -> start. Returns the new project id.
 
     The market's `language` is never typed: `CreateProjectRequest.market` carries only
     `{country, region}` and the server derives the rest (vendored fact V7). A `region` of `None`
     leaves the box empty -- never the word "null" (spec edge case).
+
+    `welcome` is forwarded to `MarketStep.start` (spec 054 FR-6): "pass" skips keel-web 080's
+    welcome sheet if it comes, "hold" leaves it for the corpus journeys' `leg_welcome`.
     """
     landing = Landing(page, recorder, web_base)
     landing.visit()
@@ -130,7 +133,7 @@ def create_project(page: Page, recorder: Recorder, web_base: str,
     landing.name_project(founder.project_name)
     market = MarketStep(page, recorder, web_base)
     market.fill(founder.market.country, founder.market.region)
-    return market.start()
+    return market.start(welcome=welcome)
 
 
 def walk_stage(page: Page, recorder: Recorder, get_json: GetJson, project_id: str, stage_type: str,

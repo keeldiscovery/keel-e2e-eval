@@ -416,7 +416,11 @@ keel-web 076 (`c9ce17c`)**: the one follow-up on the first rung against -- the c
 registry export) are the independent check; every text walk meets it where owed; the story's box spoken (T1 -> T4) and
 refused (T6) through `text_seam`; the AI links' two windows by way of Back (S-005 pause then Save; S-006 recorded 4 s
 then silent to the seam's cap); the FOLLOW_UP clips and their backfill; the consent line with names; IM23-IM27,
-`INTERVIEWER_MARKS_VERSION` 5. **Nothing generated is committed** -- the script, the
+`INTERVIEWER_MARKS_VERSION` 5. **Since spec `054-guide-welcome` (2026-10-17) they hold keel-web 080's welcome over
+keel-cloud 106 (contract 20, keel-cloud-docs `7c4d9a9`)** right after the project (`leg_welcome`): once per project,
+Skip the one control at both sizes, `guide-seen {what: WELCOME}` 204 and idempotent, the revision unmoved; S-005 local
+walks the cues and replays it; G1-G5 in `evals/guide_marks.py` (`GUIDE_MARKS_VERSION` 1); every other journey passes it
+by (`MarketStep.start(welcome="pass")`). **Nothing generated is committed** -- the script, the
 keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
 the end of every run.
 

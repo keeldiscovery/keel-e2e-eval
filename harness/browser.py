@@ -1871,18 +1871,37 @@ class MarketStep:
                 self.page.locator(".guided-step__question").wait_for(state="visible", timeout=10_000)
                 h.add_screenshot(self._bstep.screenshot("market-back"))
 
-    def start(self) -> str:
+    def start(self, welcome: str = "pass") -> str:
         """*Start* -- `POST /v2/projects {name, market}` (vendored fact V7: the request carries no
-        `language`; the server derives it). Returns the new project id off the resulting URL."""
-        with self._scope():
-            with self._bstep.step("founder starts the project") as h:
-                self.page.get_by_role("button", name=re.compile(r"^start$", re.I)).click()
-                _wait_for_url_change(self.page, lambda url: "/p/" in url)
-                h.capture_text("screen", "overview")
-                h.add_screenshot(self._bstep.screenshot("market-started"))
-        match = re.search(r"/p/([^/?#]+)", self.page.url)
-        if not match:
-            raise AssertionError(f"starting the project did not land on a project shell: {self.page.url}")
+        `language`; the server derives it). Returns the new project id off the resulting URL.
+
+        **The guide's welcome** (keel-web 080, spec 054 FR-6): a new project opens under a sheet that
+        swallows clicks until it is skipped. `welcome="pass"` (every journey that does not judge it)
+        reads the overview the page received and, where the sheet is due, waits up to 5 s for it and
+        presses Skip in one `note` step -- its absence is not a failure. `welcome="hold"` (the corpus
+        journeys' `Journey.hold_welcome`) leaves it up for `evals/corpus_scenario.leg_welcome`."""
+        if welcome not in ("pass", "hold"):
+            raise ValueError(f"welcome is 'pass' or 'hold', not {welcome!r}")
+        wire = None
+        if welcome == "pass":
+            # `harness.vectors_screens` imports this module, so the guide's page object is imported here.
+            from harness.vectors_screens import GuideWelcome, GuideWire  # noqa: PLC0415
+            wire = GuideWire(self.page).attach()
+        try:
+            with self._scope():
+                with self._bstep.step("founder starts the project") as h:
+                    self.page.get_by_role("button", name=re.compile(r"^start$", re.I)).click()
+                    _wait_for_url_change(self.page, lambda url: "/p/" in url)
+                    h.capture_text("screen", "overview")
+                    h.add_screenshot(self._bstep.screenshot("market-started"))
+            match = re.search(r"/p/([^/?#]+)", self.page.url)
+            if not match:
+                raise AssertionError(f"starting the project did not land on a project shell: {self.page.url}")
+            if wire is not None:
+                GuideWelcome(self.page, self._bstep.recorder).pass_by(wire, timeout_s=5.0)
+        finally:
+            if wire is not None:
+                wire.detach()
         return match.group(1)
 
 

@@ -9,6 +9,12 @@ What the scenario does, in the founder's own order, one function per leg so a la
 one leg and leave the others alone:
 
 1. `leg_project`   -- the project on the entry's own market.
+1b. `leg_welcome`  -- (spec 054, keel-cloud 106 / keel-web 080, design D24) the guide's welcome at the first open:
+                      up over an overview saying `welcomeSeen: false`, playing muted with captions, Skip the one
+                      control and in view at 1280 x 720 and 390 x 844; Skip (Escape on S-005) closes it and posts
+                      `guide-seen {what: WELCOME}` once, 204, the revision unmoved; the next open has none and the
+                      wire says `welcomeSeen: true`; on S-005 local the twelve cues walked through the seam and *Play
+                      the welcome again* twice, posting nothing. Scored by the guide marks (`evals/guide_marks.py`).
 2. `leg_context`   -- the four context fields and the entry's own recall window (D13: at least two);
                       CONTEXT_INTERPRET; *Yes, that's it*.
 3. `leg_interpret_problem` -- the problem seed and PROBLEM_INTERPRET's card.
@@ -62,6 +68,7 @@ from typing import Any, Callable
 
 from evals import corpus_facts
 from evals import feedback_marks
+from evals import guide_marks
 from evals import report_marks
 from evals.preludes import create_project, own_ai_door
 from harness import vectors_script as vs
@@ -164,6 +171,14 @@ class Journey:
     #: the story's box where it was spoken -- the interviewer marks read them (IM23, IM24, IM26).
     follow_ups: dict = field(default_factory=dict)
     speak: dict = field(default_factory=dict)
+    #: Spec 054 FR-6: True on the corpus journeys (`run()` sets it): *Start* leaves keel-web 080's welcome up for
+    #: `leg_welcome` to judge. False (S-012, every prelude): `MarketStep.start` passes it by.
+    hold_welcome: bool = False
+    #: Spec 054: the record `evals/guide_marks.py` scores (`welcome`, and on S-005 local `walk` and `replay`).
+    guide: dict = field(default_factory=dict)
+    #: Spec 054: what the founder's page sent and received about the guide, from *Start* to the context Save
+    #: (`vs_screens.GuideWire`); detached after, so later legs pay nothing.
+    guide_wire: Any = None
 
     # --------------------------------------------------------------------------- the wire
 
@@ -230,7 +245,10 @@ def _step(j: Journey, name: str, *, party: str = "stack", kind: str = "assert"):
 def leg_project(j: Journey) -> None:
     """The project, on the landing's own name and market steps, on the entry's market."""
     founder = j.founder
-    j.project_id = create_project(j.page, j.recorder, j.web_base, _market_inputs(founder))
+    if j.hold_welcome:
+        j.guide_wire = vs_screens.GuideWire(j.page).attach()
+    j.project_id = create_project(j.page, j.recorder, j.web_base, _market_inputs(founder),
+                                  welcome="hold" if j.hold_welcome else "pass")
     with _step(j, f"{j.entry.id}: the market is the one the entry names") as h:
         market = (j.get(j.project("/overview")) or {}).get("market") or {}
         h.record_assert({"country": founder.country, "region": founder.region,
@@ -247,6 +265,8 @@ def leg_context(j: Journey) -> None:
     the founder typed -- a window of at least two units (D13)."""
     founder = j.founder
     drawn = j.corridor.context(j.project_id, founder.context_fields, founder.window.as_wire())
+    if j.guide_wire is not None:
+        _next_write_after_the_welcome(j)
     with _step(j, "the card says what Keel understood, in the entry's own sentence, over the "
                   "entry's own window", party="founder") as h:
         want = j.entry.context["understood"] if j.strict else "a sentence"
@@ -279,6 +299,228 @@ def _market_inputs(founder: vs.FounderInputs):
     return SimpleNamespace(project_name=founder.project_name,
                            market=SimpleNamespace(country=founder.country, region=founder.region,
                                                   language=founder.language))
+
+
+# ------------------------------------------------------------------------- leg 1b: the welcome
+
+#: Spec 054 FR-5: `leg_welcome` adds at most this much to a journey (the sheet seen to the next open's absence read,
+#: Skip at once; the cue walk excluded).
+WELCOME_BUDGET_S = 5.0
+#: Spec 054 FR-2 b: the two sizes Skip is read at -- the harness's window (no context passes a viewport, so
+#: Playwright's default) and the phone (design §5).
+WELCOME_SIZES = {"1280x720": {"width": 1280, "height": 720}, "390x844": {"width": 390, "height": 844}}
+#: `HTMLMediaElement.error.code` 4 (the source cannot be played): Playwright's bundled Chromium (`evals/conftest.py`)
+#: does not decode H.264, so the face may never play there -- a note, never a failure or a DRIFT (054 judgement call 1).
+MEDIA_ERR_NO_DECODE = 4
+#: keel-web 080's welcome is 86 s; the replay's end is sought past it (or past the duration the face reports).
+WELCOME_SECONDS = 86.0
+#: `welcome.vtt`'s first cue begins at 0.30 s: before it the live caption line is empty by design (`captionAt`).
+FIRST_CAPTION_AT = 0.30
+
+
+def _playing(face: dict | None) -> tuple[bool, str]:
+    """054 judgement call 1: "playing" is `paused` false and `muted` true at the first read. The clock rising over
+    600 ms and `readyState` are recorded, and the clock is required to move only where the browser has decoded enough
+    to play (`readyState >= 3` at the second read); a MediaError 4 (no H.264 in the bundled Chromium) is a note."""
+    if not face:
+        return False, "no guide-face to read"
+    if face.get("muted") is not True:
+        return False, "the face is not muted"
+    if MEDIA_ERR_NO_DECODE in (face.get("error"), face.get("errorLater")):
+        return True, "the browser cannot decode the mp4 (MediaError 4): recorded, not required"
+    if face.get("paused") is not False:
+        return False, "the face is paused"
+    ready = int(face.get("readyStateLater", face.get("readyState")) or 0)
+    rising = float(face.get("currentTimeLater") or 0) > float(face.get("currentTime") or 0)
+    if ready >= 3 and not rising:
+        return False, "the face has decoded enough to play but its clock did not move over 600 ms"
+    return True, "playing, muted" if rising else f"asked to play, muted, still loading (readyState {ready})"
+
+
+def leg_welcome(j: Journey, *, walk: bool = False) -> None:
+    """Spec 054 FR-2 / FR-3 / FR-5 (keel-cloud 106, keel-web 080, design D24): the guide's welcome at the first open of
+    the project, judged and then skipped. Every read goes into `j.guide["welcome"]` (and on S-005's local journey
+    `walk` and `replay`), which `_score_guide` scores; the leg itself asserts what the marks do not: the sheet is
+    there to judge at all, the face plays muted with its captions (judgement call 1), and the leg's seconds."""
+    remote = bool(getattr(j.stack, "is_remote", False))
+    walk = walk and not remote
+    door = "escape" if walk else "skip"
+    guide = vs_screens.GuideWelcome(j.page, j.recorder, j.web_base)
+    wire = j.guide_wire
+    record: dict = {"profile": "remote" if remote else "local", "door": door}
+    j.guide["welcome"] = record
+
+    with _step(j, "the guide's welcome is up at the first open of the project, over an overview that said "
+                  "welcomeSeen: false (keel-web 080, D24)", party="founder") as h:
+        present = guide.present(timeout_s=10)
+        started = time.monotonic()
+        record["first_frame"] = {"cues_fired": guide.cues_fired(), "current_time": guide.clock()}
+        record["first_open"] = {"present": present, "received": wire.received() if wire else None,
+                                "url": j.page.url}
+        h.record_assert({"present": True, "received": {"welcomeSeen": False, "openersSeen": []}},
+                        record["first_open"])
+        assert present, f"G1: no guide-welcome at the first open ({j.page.url})"
+    revision_before = j.revision()
+
+    with _step(j, "Skip is visible, enabled and in view at 1280 x 720 and at 390 x 844, and the sheet's only "
+                  "control, before any cue (D24)", party="founder") as h:
+        original = j.page.viewport_size or WELCOME_SIZES["1280x720"]
+        reads = {}
+        for name, size in WELCOME_SIZES.items():
+            if j.page.viewport_size != size:
+                j.page.set_viewport_size(size)
+            reads[name] = guide.skip_in_view()
+            if name == "1280x720":
+                record["controls"] = guide.controls()
+        if j.page.viewport_size != original:
+            j.page.set_viewport_size(original)
+        record["skip_reads"] = reads
+        h.record_assert({size: {"visible": True, "enabled": True, "in_view": True, "hit": True}
+                         for size in WELCOME_SIZES}, {"reads": reads, "controls": record["controls"],
+                                                      "first_frame": record["first_frame"]})
+
+    with _step(j, "the face plays muted (judgement call 1) and the captions are on: the live caption has words and "
+                  f"the video carries a captions track ending {vs_screens.WELCOME_CAPTIONS}", party="founder") as h:
+        face = record["face"] = guide.face()
+        playing, how = _playing(face)
+        caption = guide.caption()
+        nudged = None
+        if not caption and guide.seam():
+            # The face never played (no decode), so the clock is still 0 and the caption line is empty until the first
+            # caption begins (0.30 s): the seam moves the line there, as a playing video would.
+            guide.seek(FIRST_CAPTION_AT + guide_marks.SEEK_PAST)
+            caption = nudged = guide.caption()
+        track = (face or {}).get("track") or {}
+        record["captions"] = {"caption": caption, "visible": guide.caption_visible(), "nudged": nudged is not None,
+                              "track": track}
+        h.record_assert({"playing": True, "muted": True, "caption": "words",
+                         "track": f"…/{vs_screens.WELCOME_CAPTIONS}"},
+                        {"face": face, "how": how, **record["captions"]})
+        assert playing, {"face": face, "why": how}
+        assert str(track.get("src") or "").endswith(vs_screens.WELCOME_CAPTIONS), track
+        # The line is owed words wherever the seam can move it (local) or the clock has passed the first caption; on
+        # the remote profile a face that never played (no decode, or still loading) leaves it empty before 0.30 s.
+        if not remote or float((face or {}).get("currentTimeLater") or 0) >= FIRST_CAPTION_AT:
+            assert caption.strip(), {"caption": caption, "face": face}
+    if MEDIA_ERR_NO_DECODE in ((face or {}).get("error"), (face or {}).get("errorLater")):
+        with _step(j, "the bundled Chromium cannot decode the welcome's mp4 (MediaError 4): the face shows its poster; "
+                      "the cues run on the seam's clock (judgement call 1) -- a note, not a failure",
+                   party="founder", kind="note") as h:
+            h.request = {"src": (face or {}).get("src")}
+            h.response = {"error": (face or {}).get("error"), "caption": caption, "nudged": nudged is not None}
+
+    seconds = time.monotonic() - started
+    if walk:
+        _walk_the_cues(j, guide)
+    else:
+        why = guide_marks.REMOTE_WHY if remote else guide_marks.ELSEWHERE_WHY
+        j.guide["notes"] = {"G4": why, "G5": why}
+        with _step(j, f"the welcome's cue walk and replays are not run on this journey: {why}", party="founder",
+                   kind="note") as h:
+            h.request = {"profile": record["profile"], "walk": False}
+            h.response = {"unmeasured": ["G4", "G5"]}
+    resumed = time.monotonic()
+
+    with _step(j, f"{'Escape' if door == 'escape' else 'Skip'} closes the welcome within a second and posts "
+                  "guide-seen {what: WELCOME} once, 204; the same POST again is 204; the revision does not move "
+                  "(keel-cloud 106)", party="founder") as h:
+        press = guide.escape() if door == "escape" else guide.skip()
+        record["press"] = press
+        after_press = j.revision()
+        status, _ = j.call("POST", j.project("/guide-seen"), {"what": "WELCOME"}, ok=(204, 404, 409, 422))
+        record["repeat"] = {"status": status}
+        record["revision"] = {"before": revision_before, "after_press": after_press, "after_repeat": j.revision()}
+        h.record_assert({"requests": [{"method": "POST", "body": {"what": "WELCOME"}, "status": 204}],
+                         "gone_ms": f"<= {guide_marks.GONE_MS}", "repeat": 204, "revision": "unchanged"},
+                        {"press": press, "repeat": record["repeat"], "revision": record["revision"]})
+
+    with _step(j, "the next open (a plain goto) shows no welcome, and the wire says welcomeSeen: true, openersSeen []",
+               party="founder") as h:
+        nxt = guide.absent(after=lambda: j.page.goto(f"{j.web_base}/p/{j.project_id}", wait_until="load"))
+        seconds += time.monotonic() - resumed
+        record["next_open"] = nxt
+        record["wire_after"] = (j.get(j.project("/overview")) or {}).get("guide")
+        h.record_assert({"count": 0, "received": {"welcomeSeen": True, "openersSeen": []},
+                         "wire": {"welcomeSeen": True, "openersSeen": []}},
+                        {**nxt, "wire": record["wire_after"]})
+
+    record["seconds"] = round(seconds, 2)
+    with _step(j, f"the welcome leg added {seconds:.1f} s (at most {WELCOME_BUDGET_S:.0f} s: the sheet seen to the "
+                  "next open's absence read, the cue walk excluded -- FR-5)") as h:
+        h.record_assert({"seconds": f"<= {WELCOME_BUDGET_S}"}, {"seconds": record["seconds"]})
+        assert seconds <= WELCOME_BUDGET_S, record["seconds"]
+
+    if walk:
+        _replay_twice(j, guide)
+
+
+def _walk_the_cues(j: Journey, guide) -> None:
+    """FR-3 a / b (S-005, local): the twelve cues as served, then a seam seek to each `at + 0.05` in order, the snippet
+    and `cuesFired` read after each. The face is paused first so the page's own clock cannot run on past the walk."""
+    with _step(j, "the welcome's twelve cues, as served and walked through the seam in order (design §7.1)",
+               party="founder") as h:
+        served = guide.served_cues()
+        walk = {"served": [{"id": c.get("id"), "at": c.get("at")} for c in served],
+                "before": guide.cues_fired() or [], "held": guide.hold_face(), "steps": []}
+        for cue in served:
+            at = round(float(cue.get("at") or 0) + guide_marks.SEEK_PAST, 2)
+            guide.seek(at)
+            drawn = guide.wait_cue(str(cue.get("id")))
+            walk["steps"].append({"id": cue.get("id"), "seek": at, "cue": drawn, "fired": guide.cues_fired()})
+        j.guide["walk"] = walk
+        h.add_screenshot(guide._b.screenshot("guide-walked"))
+        h.record_assert({"ids": list(guide_marks.WELCOME_CUES)}, walk)
+
+
+def _replay_twice(j: Journey, guide) -> None:
+    """FR-3 d (S-005, local): *Play the welcome again* opens the sheet near 0 s with Skip in view and Skip closes it;
+    once more, a seek to the end closes it by itself; neither posts, `welcomeSeen` stays true, the revision unmoved."""
+    with _step(j, "Play the welcome again twice: Skip closes the first, the end the second, and neither posts "
+                  "guide-seen (keel-web 080 FR-4)", party="founder") as h:
+        before = j.revision()
+        opened = guide.replay()
+        first = {"found": opened["found"], "via": opened["via"], "opened": opened["opened"],
+                 "current_time": guide.clock(), "skip": guide.skip_in_view()}
+        closed = guide.skip() if opened["opened"] else {"gone_ms": None, "requests": []}
+        first.update({"closed": closed["gone_ms"] is not None, "closed_by": "skip",
+                      "requests": opened["requests"] + closed["requests"]})
+        again = guide.replay()
+        second = {"found": again["found"], "via": again["via"], "opened": again["opened"]}
+        duration = ((guide.face() or {}).get("duration") or 0) if again["opened"] else 0
+        ended = guide.end(max(WELCOME_SECONDS, float(duration)) + 0.5) if again["opened"] else \
+            {"gone_ms": None, "requests": []}
+        second.update({"closed": ended["gone_ms"] is not None, "closed_by": "end",
+                       "requests": again["requests"] + ended["requests"]})
+        replay = {"first": first, "second": second,
+                  "after": (j.get(j.project("/overview")) or {}).get("guide"),
+                  "revision": {"before": before, "after": j.revision()}}
+        j.guide["replay"] = replay
+        h.record_assert({"requests": 0, "welcomeSeen": True, "revision": "unchanged"}, replay)
+
+
+def _next_write_after_the_welcome(j: Journey) -> None:
+    """FR-2 d (G3): the founder's next write after the welcome was marked seen -- the context step's Save -- as the page
+    received its answer, on its first press (`Corridor.context` has no second). keel-cloud's `proposeContext` answers
+    202 and carries no `expectedRevision`; any 409 here names G3, not a minute's wait for a card. The wire is then
+    detached: the page's `guide-seen` requests over the whole window go into the record (G1)."""
+    wire = j.guide_wire
+    writes = wire.writes_after_guide()
+    saves = list(j.corridor.saves)
+    first = writes[0] if writes else (saves[-1] if saves else {})
+    record = j.guide.setdefault("welcome", {})
+    record["next_write"] = {**first, "presses": len(saves) or 1,
+                            "refused": [w for w in writes if w.get("status") == 409]}
+    record["page_posts"] = wire.guide_posts()
+    record["overviews"] = len(wire.overviews())
+    wire.detach()
+    j.guide_wire = None
+    with _step(j, "the next founder write after the welcome -- the context Save -- answered on its first press, no "
+                  "409 (the mark moved no revision: keel-cloud 106)", party="founder") as h:
+        h.record_assert({"status": "2xx (proposeContext: 202)", "presses": 1, "refused": []},
+                        record["next_write"])
+        status = first.get("status")
+        assert isinstance(status, int) and 200 <= status < 300 and not record["next_write"]["refused"], (
+            f"G3: the next write after the welcome answered {status}", record["next_write"])
 
 
 # ----------------------------------------------------------------------------- leg 2: interpret
@@ -444,6 +686,8 @@ def _hold_frame(frame: dict, vector: str, position: int, total: int) -> None:
     assert frame["dots"] == total and frame["now"] == position, frame
     assert frame["done"] == position - 1, frame
     assert frame["nav_locked"] and frame["nav_links"] == 0, frame
+    # Spec 054 FR-2 e (G1): the welcome never returns once seen -- no sheet over any corridor frame.
+    assert frame.get("welcome", 0) == 0, frame
 
 
 def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> tuple[str, int]:
@@ -1889,12 +2133,49 @@ def score_feedback(j: Journey) -> dict:
     return card
 
 
+def guide_record(j: Journey) -> dict:
+    """The guide marks' record (spec 054): what `leg_welcome` read, and every corridor frame the journey read after it
+    (`Corridor.frame()["welcome"]`, the sheets over each -- G1's "never returns")."""
+    record = {k: v for k, v in j.guide.items()}
+    if "welcome" in record:
+        record["welcome"] = dict(record["welcome"])
+        record["welcome"]["later_frames"] = [(screen.get("frame") or {}).get("welcome")
+                                             for seen in j.framing.values() for screen in seen
+                                             if isinstance(screen, dict) and screen.get("frame")]
+    return record
+
+
+def _score_guide(j: Journey) -> dict:
+    """The guide marks over the journey's record, written into the bundle (`guide.json`, `guide-marks.json`); the
+    journey fails on any owed mark unmet -- owed being every mark whose subject the record carries (G4 / G5 only on
+    S-005's local journey; elsewhere unmeasured, the record's `notes` saying why)."""
+    from pathlib import Path                                  # noqa: PLC0415
+    record = guide_record(j)
+    card = guide_marks.scorecard(record)
+    run_dir = Path(j.recorder.run_dir)
+    (run_dir / "guide.json").write_text(json.dumps(record, indent=2, default=str) + "\n", encoding="utf-8")
+    (run_dir / "guide-marks.json").write_text(json.dumps(card, indent=2, default=str) + "\n", encoding="utf-8")
+    require = guide_marks.owed(record)
+    with _step(j, f"guide marks v{guide_marks.GUIDE_MARKS_VERSION} (spec 054): {card['met']} of {card['measured']} met "
+                  f"({', '.join(require) or 'none'} owed; {', '.join(card['unmeasured']) or 'none'} unmeasured)",
+               party="stack") as h:
+        owed = {c["mark"]: c for c in card["checks"] if c["mark"] in require}
+        h.record_assert({m: True for m in require}, {"owed": {m: {"ok": c["ok"], "detail": c["detail"]}
+                                                              for m, c in owed.items()},
+                                                     "why unmeasured": card["why_unmeasured"]})
+        unmet = [m for m, c in owed.items() if not (c["measured"] and c["ok"])]
+        assert not unmet, {m: owed[m] for m in unmet}
+    return card
+
+
 def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
-        extra: Callable[[Journey], None] | None = None, entry_from: Callable | None = None) -> None:
+        extra: Callable[[Journey], None] | None = None, entry_from: Callable | None = None,
+        welcome_walk: bool = False) -> None:
     """The whole scenario. `entry_id` is the only argument that differs between S-005, S-006 and
     S-007. `extra` is the one seam: the thing only *its* entry can say, handed the `Journey`. `entry_from` is S-014's
     (spec 052 FR-7): the entry the journey walks, built from the canon one (`preludes.healthy_entry`) -- the canon's
-    bytes are hashed and held unchanged as on every journey."""
+    bytes are hashed and held unchanged as on every journey. `welcome_walk` is S-005's (spec 054 FR-3): on the local
+    profile the welcome's twelve cues are walked through the seam and *Play the welcome again* pressed twice."""
     recorder = Recorder(run_dir)
     web_base = stack.web_base_url
     cell_label = (f"{remote.cell_name()} · corpus {slug} · "
@@ -1924,10 +2205,12 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         journey = open_journey(recorder, page, context, browser, stack, entry, founder, people,
                                script=script, registry=exported.registry)
         journey.stack, journey.founder_identity = stack, founder_one
+        journey.hold_welcome = True
         user_code = _connect(stack, recorder, page, founder_one, web_base, run_dir, keys_path)
         own_ai_door(page, recorder, stack, journey.get, through_the_code_story=bool(user_code))
 
         leg_project(journey)
+        leg_welcome(journey, walk=welcome_walk)
         leg_context(journey)
         leg_interpret_problem(journey)
         leg_calibrate(journey, "PROBLEM")
@@ -1944,6 +2227,7 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         if extra is not None:
             extra(journey)
         score_feedback(journey)
+        _score_guide(journey)
 
         with recorder.step("the corpus hashes exactly as it did when the run began",
                            party="stack", kind="assert") as h:

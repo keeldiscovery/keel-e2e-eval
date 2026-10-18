@@ -18,6 +18,9 @@ Four groups, in the journey's order:
 * `Interview`  -- the stranger's `/i/{token}` pager (keel-web 064): intro, the decision-maker's idea
                   screen, the gate, every item as served (kicker, stem, options, one escape last), the
                   reveal, done.
+* `GuideWelcome` -- keel-web 080's welcome sheet over a new project's first screen (spec 054): the face, the live
+                  caption, the snippet, Skip (the one control), *Play the welcome again*, and the test build's seam;
+                  `GuideWire` keeps what the page sent and received about it (the `guide-seen` POSTs, the overviews).
 * `Answers`    -- the board (`/p/{id}`), the stage pages (`/p/{id}/s/{VECTOR}`) with one row's
                   per-person list, the overview's pilot tile, and keel-web 065's brief: page one
                   (`/p/{id}/brief`, and the download's `/p/{id}/print`) and page two
@@ -27,6 +30,8 @@ Four groups, in the journey's order:
 from __future__ import annotations
 
 import re
+import time
+from typing import Any, Callable
 
 from playwright.sync_api import Page
 
@@ -155,6 +160,441 @@ def _json_body(response) -> dict:
     return body if isinstance(body, dict) else {"body": body}
 
 
+# ------------------------------------------------------------------- keel-web 080's guide (spec 054)
+#
+# The six test ids, the seam's name and the files, spelled once (keel-web `specs/080-guide-welcome/spec.md` FR-6,
+# FR-1, FR-2.7). The page objects press and read by these and never by words (054 judgement call 2).
+
+GUIDE_WELCOME = "[data-testid='guide-welcome']"
+GUIDE_FACE = "[data-testid='guide-face']"
+GUIDE_CAPTION = "[data-testid='guide-caption']"
+GUIDE_SNIPPET = "[data-testid='guide-snippet']"
+GUIDE_SKIP = "[data-testid='guide-skip']"
+GUIDE_REPLAY = "[data-testid='guide-replay']"
+#: `window.__keelGuide {seek(seconds), cuesFired[]}` -- keel-web's test build only (`import.meta.env.MODE === "test"`).
+GUIDE_SEAM = "__keelGuide"
+#: The welcome's files, keel-web's own `public/guide/` (design D29).
+WELCOME_CUES_PATH = "/guide/welcome.cues.json"
+WELCOME_CAPTIONS = "welcome.vtt"
+#: keel-web 080 judgement call 2: *Play the welcome again* lives at the foot of the Feedback panel; the panel's trigger
+#: is `FeedbackTab`'s one button (`.fb-tab`, `aria-haspopup="dialog"`), the right-edge tab above 720 px.
+FEEDBACK_TRIGGER = "button.fb-tab[aria-haspopup='dialog']"
+#: The project's first screen has drawn: the shell's main column holds something.
+PROJECT_SCREEN = ".shell--project .shell__main > *"
+GUIDE_SEEN_PATH = re.compile(r"/v2/projects/[^/?#]+/guide-seen(?:[?#]|$)")
+OVERVIEW_PATH = re.compile(r"/v2/projects/([^/?#]+)/overview(?:[?#]|$)")
+#: A founder write: anything but a read under one project (the create, `POST /v2/projects`, has no id segment).
+PROJECT_WRITE = re.compile(r"/v2/projects/[^/?#]+(?:/[^?#]*)?(?:[?#]|$)")
+#: After a press that should post nothing, how long a `guide-seen` request is waited for before "none" is read.
+GUIDE_SETTLE_MS = 750
+
+#: One read of the sheet's face, in one round trip: the `<video>`'s state, its captions track, and `currentTime` again
+#: 600 ms later (054 judgement call 1: whether the clock moves is recorded, and required only where it decodes).
+_FACE_JS = r"""async (sel) => {
+  const v = document.querySelector(sel);
+  if (!v) return null;
+  const track = v.querySelector('track');
+  const tt = v.textTracks && v.textTracks.length ? v.textTracks[0] : null;
+  const first = {paused: v.paused, muted: v.muted, autoplay: v.autoplay, readyState: v.readyState,
+                 currentTime: v.currentTime, error: v.error ? v.error.code : null,
+                 duration: Number.isFinite(v.duration) ? v.duration : null, src: v.currentSrc || v.src || ''};
+  await new Promise((r) => setTimeout(r, 600));
+  return {...first, currentTimeLater: v.currentTime, pausedLater: v.paused, readyStateLater: v.readyState,
+          errorLater: v.error ? v.error.code : null,
+          track: track ? {src: track.src, kind: track.kind, mode: tt ? tt.mode : null} : null};
+}"""
+
+#: Skip's box against the viewport, and what `elementFromPoint` finds at its centre.
+_SKIP_JS = r"""(sel) => {
+  const s = document.querySelector(sel);
+  const vw = window.innerWidth, vh = window.innerHeight;
+  if (!s) return {present: false, visible: false, enabled: false, in_view: false, hit: false,
+                  viewport: {width: vw, height: vh}};
+  const r = s.getBoundingClientRect();
+  const cs = getComputedStyle(s);
+  const visible = r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'
+                  && parseFloat(cs.opacity || '1') > 0;
+  const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  return {present: true, visible, enabled: !s.disabled && s.getAttribute('aria-disabled') !== 'true',
+          in_view: r.top >= 0 && r.left >= 0 && r.bottom <= vh && r.right <= vw,
+          hit: !!at && (at === s || s.contains(at)), focused: document.activeElement === s,
+          words: (s.innerText || '').replace(/\s+/g, ' ').trim(),
+          box: {x: r.left, y: r.top, width: r.width, height: r.height}, viewport: {width: vw, height: vh},
+          scroll: {x: window.scrollX, y: window.scrollY}};
+}"""
+
+#: Every control inside the sheet, with its words and its accessible label.
+_CONTROLS_JS = r"""(sel) => {
+  const root = document.querySelector(sel);
+  if (!root) return [];
+  const all = root.querySelectorAll('button, a, input, select, textarea, label, [role=button], [role=link], '
+                                    + '[role=checkbox], [role=switch], [tabindex]:not([tabindex="-1"])');
+  return Array.from(all).map((el) => ({
+    tag: el.tagName.toLowerCase(), testid: el.getAttribute('data-testid'), role: el.getAttribute('role'),
+    words: (el.innerText || '').replace(/\s+/g, ' ').trim(), label: el.getAttribute('aria-label'),
+    visible: !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)}));
+}"""
+
+
+def _guide_of(response) -> dict | None:
+    """The `Overview.guide` a response carried, `None` when it carried none (a cloud before contract 20)."""
+    body = _json_body(response)
+    guide = body.get("guide")
+    return guide if isinstance(guide, dict) else None
+
+
+def _request_row(request) -> dict:
+    """A request as the record keeps it: method, path, body, and the status it was answered (read after the event)."""
+    try:
+        body = request.post_data_json
+    except Exception:  # noqa: BLE001 - a body that is not JSON
+        body = request.post_data
+    try:
+        response = request.response()
+        status = response.status if response is not None else None
+    except Exception:  # noqa: BLE001 - a request that failed has no response
+        status = None
+    return {"method": request.method, "path": request.url.split("?")[0], "body": body, "status": status}
+
+
+class GuideWire:
+    """What the founder's page sent and received about the guide while attached (spec 054): every `guide-seen`
+    request, every overview it read (its `guide` and `revision`), and every founder write under the project -- kept as
+    Playwright objects in the order they came and read after, never inside the handler (a body read there waits on the
+    handler itself). Machinery: it asserts nothing."""
+
+    def __init__(self, page: Page):
+        self.page = page
+        self.events: list[tuple[str, Any]] = []
+        self._on = False
+
+    def attach(self) -> "GuideWire":
+        if not self._on:
+            self.page.on("request", self._request)
+            self.page.on("response", self._response)
+            self._on = True
+        return self
+
+    def detach(self) -> None:
+        if self._on:
+            self.page.remove_listener("request", self._request)
+            self.page.remove_listener("response", self._response)
+            self._on = False
+
+    def _request(self, request) -> None:
+        if request.method == "POST" and GUIDE_SEEN_PATH.search(request.url):
+            self.events.append(("guide", request))
+
+    def _response(self, response) -> None:
+        url, method = response.url, response.request.method
+        if method == "GET" and OVERVIEW_PATH.search(url):
+            self.events.append(("overview", response))
+        elif method in ("PUT", "POST", "PATCH", "DELETE") and PROJECT_WRITE.search(url) \
+                and not GUIDE_SEEN_PATH.search(url):
+            self.events.append(("write", response))
+
+    def guide_posts(self) -> list[dict]:
+        return [_request_row(r) for kind, r in self.events if kind == "guide"]
+
+    def overviews(self) -> list[dict]:
+        """Each overview the page received, in order: its `guide` (or None) and `revision`."""
+        out = []
+        for kind, response in self.events:
+            if kind == "overview":
+                body = _json_body(response)
+                out.append({"guide": _guide_of(response), "revision": body.get("revision"),
+                            "status": response.status})
+        return out
+
+    def received(self) -> dict | None:
+        """The `guide` of the first overview the page received, or None."""
+        seen = self.overviews()
+        return seen[0]["guide"] if seen else None
+
+    def writes_after_guide(self) -> list[dict]:
+        """The founder writes the page made after its first `guide-seen` request, in order."""
+        out, after = [], False
+        for kind, obj in self.events:
+            if kind == "guide":
+                after = True
+            elif kind == "write" and after:
+                out.append({"method": obj.request.method, "path": obj.url.split("?")[0], "status": obj.status})
+        return out
+
+    def wait_overview(self, timeout_s: float) -> bool:
+        """Waits for the page's first overview response (an event, never a bare sleep); True when one came."""
+        if any(kind == "overview" for kind, _ in self.events):
+            return True
+        try:
+            self.page.wait_for_event("response", predicate=lambda r: r.request.method == "GET"
+                                     and bool(OVERVIEW_PATH.search(r.url)), timeout=timeout_s * 1000)
+        except Exception:  # noqa: BLE001 - none came: the caller reads that
+            pass
+        return any(kind == "overview" for kind, _ in self.events)
+
+
+class GuideWelcome:
+    """keel-web 080's welcome sheet (spec 054 FR-1): the face, the caption, the snippet, Skip, *Play the welcome again*
+    and the test build's seam. Acts and reads; asserts nothing (this module's rule) -- `evals/corpus_scenario.
+    leg_welcome` judges what it reads, `evals/guide_marks.py` scores it."""
+
+    def __init__(self, page: Page, recorder: Recorder, base_url: str = ""):
+        self.page = page
+        self.base = (base_url or "").rstrip("/")
+        self._b = _BrowserStep(recorder, page, "founder")
+        self.recorder = recorder
+
+    # --------------------------------------------------------------------------------------------- reads
+
+    def present(self, timeout_s: float = 10) -> bool:
+        """True once the sheet is visible, False if it never was within `timeout_s`."""
+        try:
+            self.page.locator(GUIDE_WELCOME).first.wait_for(state="visible", timeout=timeout_s * 1000)
+            return True
+        except Exception:  # noqa: BLE001 - absence is a reading, not a crash
+            return False
+
+    def count(self) -> int:
+        return self.page.locator(GUIDE_WELCOME).count()
+
+    def absent(self, after: Callable[[], Any] | None = None, *, timeout_s: float = 15,
+               grace_s: float = 5) -> dict:
+        """The sheet's count, read only once the page has received the overview that carries `guide` and drawn the
+        project's first screen (never a bare sleep). `after` opens the page (a `goto`); the overview is listened for
+        from before it. When the overview the page received does not say `welcomeSeen: true` the page could still open
+        the sheet (its chunk is lazy), so the sheet is waited for up to `grace_s` before the count is read."""
+        responses: list = []
+
+        def keep(response) -> None:
+            if response.request.method == "GET" and OVERVIEW_PATH.search(response.url):
+                responses.append(response)
+
+        self.page.on("response", keep)
+        try:
+            if after is not None:
+                after()
+            if not responses:
+                try:
+                    self.page.wait_for_event("response", predicate=lambda r: r.request.method == "GET"
+                                             and bool(OVERVIEW_PATH.search(r.url)), timeout=timeout_s * 1000)
+                except Exception:  # noqa: BLE001 - recorded as no overview
+                    pass
+            try:
+                self.page.locator(PROJECT_SCREEN).first.wait_for(state="visible", timeout=timeout_s * 1000)
+                screen = True
+            except Exception:  # noqa: BLE001 - recorded
+                screen = False
+            guide = _guide_of(responses[0]) if responses else None
+            if not (guide or {}).get("welcomeSeen") is True:
+                try:
+                    self.page.locator(GUIDE_WELCOME).first.wait_for(state="attached", timeout=grace_s * 1000)
+                except Exception:  # noqa: BLE001 - the expected outcome
+                    pass
+            count = self.count()
+        finally:
+            self.page.remove_listener("response", keep)
+        return {"count": count, "received": guide, "screen": screen, "overviews": len(responses),
+                "url": self.page.url}
+
+    def face(self) -> dict | None:
+        """`guide-face`: paused, muted, autoplay, readyState, currentTime and again 600 ms later, the media error's code,
+        the duration, and the captions track's src, kind and mode -- one round trip."""
+        try:
+            return self.page.evaluate(_FACE_JS, GUIDE_FACE)
+        except Exception:  # noqa: BLE001 - a read
+            return None
+
+    def clock(self) -> float | None:
+        """The face's `currentTime` alone (a cheap read, for "before any cue")."""
+        try:
+            return self.page.evaluate("(sel) => { const v = document.querySelector(sel); "
+                                      "return v ? v.currentTime : null; }", GUIDE_FACE)
+        except Exception:  # noqa: BLE001 - a read
+            return None
+
+    def wait_cue(self, cue_id: str, *, timeout_s: float = 2.0) -> str | None:
+        """Waits (a condition, bounded) for the snippet to draw `cue_id` after a seek, then reads `data-cue`."""
+        try:
+            self.page.locator(f"{GUIDE_SNIPPET}[data-cue='{cue_id}']").first.wait_for(state="attached",
+                                                                                     timeout=timeout_s * 1000)
+        except Exception:  # noqa: BLE001 - read whatever is drawn
+            pass
+        return self.cue()
+
+    def caption(self) -> str:
+        """The live caption line as drawn (`guide-caption`)."""
+        return _tc(self.page.locator(GUIDE_CAPTION))
+
+    def caption_visible(self) -> bool:
+        try:
+            found = self.page.locator(GUIDE_CAPTION)
+            return bool(found.count()) and found.first.is_visible()
+        except Exception:  # noqa: BLE001 - a read
+            return False
+
+    def cue(self) -> str | None:
+        """The snippet's `data-cue`, or None while no cue has fired."""
+        try:
+            found = self.page.locator(GUIDE_SNIPPET)
+            return found.first.get_attribute("data-cue") if found.count() else None
+        except Exception:  # noqa: BLE001 - a read
+            return None
+
+    def controls(self) -> list[dict]:
+        """Every button, link, field and label inside the sheet, with its words and its `aria-label`."""
+        try:
+            return self.page.evaluate(_CONTROLS_JS, GUIDE_WELCOME) or []
+        except Exception:  # noqa: BLE001 - a read
+            return []
+
+    def skip_in_view(self) -> dict:
+        """Skip's box inside the viewport, and `elementFromPoint` at its centre is Skip (or inside it)."""
+        try:
+            return self.page.evaluate(_SKIP_JS, GUIDE_SKIP)
+        except Exception:  # noqa: BLE001 - a read
+            return {"present": False, "visible": False, "enabled": False, "in_view": False, "hit": False}
+
+    def served_cues(self) -> list[dict]:
+        """`{web_base}/guide/welcome.cues.json`, as the site serves it."""
+        response = self.page.context.request.get(f"{self.base}{WELCOME_CUES_PATH}", timeout=10_000)
+        body = response.json() if response.ok else []
+        return body if isinstance(body, list) else []
+
+    # ------------------------------------------------------------------------------------------ the seam
+
+    def seam(self) -> bool:
+        """True where keel-web's test build put `window.__keelGuide` (absent from a production build)."""
+        try:
+            return bool(self.page.evaluate("(n) => !!window[n]", GUIDE_SEAM))
+        except Exception:  # noqa: BLE001 - a read
+            return False
+
+    def seek(self, seconds: float) -> bool:
+        """`__keelGuide.seek(seconds)`; False where there is no seam."""
+        return bool(self.page.evaluate("([n, s]) => window[n] ? (window[n].seek(s), true) : false",
+                                       [GUIDE_SEAM, seconds]))
+
+    def cues_fired(self) -> list[str] | None:
+        """`__keelGuide.cuesFired`, or None where there is no seam."""
+        try:
+            return self.page.evaluate("(n) => window[n] ? Array.from(window[n].cuesFired) : null", GUIDE_SEAM)
+        except Exception:  # noqa: BLE001 - a read
+            return None
+
+    def hold_face(self) -> bool:
+        """Pauses the face so the page's own clock cannot run past a seam walk (the seam drives the cues either way)."""
+        try:
+            return bool(self.page.evaluate("(sel) => { const v = document.querySelector(sel); "
+                                           "if (!v) return false; v.pause(); return true; }", GUIDE_FACE))
+        except Exception:  # noqa: BLE001 - a face that would not pause is recorded as False
+            return False
+
+    # ------------------------------------------------------------------------------------------- actions
+
+    def _close(self, press: Callable[[], None]) -> dict:
+        """Presses, waits for the sheet to go, and returns the `guide-seen` requests the press caused (method, body,
+        status) and how long the sheet took to go (None when it never went)."""
+        seen: list = []
+
+        def keep(request) -> None:
+            if request.method == "POST" and GUIDE_SEEN_PATH.search(request.url):
+                seen.append(request)
+
+        self.page.on("request", keep)
+        try:
+            started = time.monotonic()
+            press()
+            try:
+                self.page.locator(GUIDE_WELCOME).first.wait_for(state="detached", timeout=5_000)
+                gone_ms = round((time.monotonic() - started) * 1000)
+            except Exception:  # noqa: BLE001 - recorded as never gone
+                gone_ms = None
+            if not seen:
+                try:
+                    self.page.wait_for_event("request", predicate=lambda r: r.method == "POST"
+                                             and bool(GUIDE_SEEN_PATH.search(r.url)), timeout=GUIDE_SETTLE_MS)
+                except Exception:  # noqa: BLE001 - none went out: the reading
+                    pass
+        finally:
+            self.page.remove_listener("request", keep)
+        return {"gone_ms": gone_ms, "requests": [_request_row(r) for r in seen]}
+
+    def _press_skip(self) -> None:
+        self.page.locator(GUIDE_SKIP).first.click()
+
+    def skip(self) -> dict:
+        """Presses Skip; returns `{door, gone_ms, requests}`."""
+        with self._b.step("founder presses Skip on the guide's welcome") as h:
+            out = {"door": "skip", **self._close(self._press_skip)}
+            h.add_screenshot(self._b.screenshot("guide-skipped"))
+        return out
+
+    def escape(self) -> dict:
+        """Presses Escape (keel-web 080 FR-2.6: Escape is Skip); returns `{door, gone_ms, requests}`."""
+        with self._b.step("founder presses Escape on the guide's welcome") as h:
+            out = {"door": "escape", **self._close(lambda: self.page.keyboard.press("Escape"))}
+            h.add_screenshot(self._b.screenshot("guide-escaped"))
+        return out
+
+    def end(self, seconds: float) -> dict:
+        """Seeks to the video's end through the seam (local only); the sheet closes by itself. `{door: end, ...}`."""
+        with self._b.step(f"the welcome plays to its end ({seconds:.1f} s, through the seam)") as h:
+            out = {"door": "end", **self._close(lambda: self.seek(seconds))}
+            h.add_screenshot(self._b.screenshot("guide-ended"))
+        return out
+
+    def replay(self) -> dict:
+        """*Play the welcome again*: `guide-replay` if it is visible, else the Feedback panel's trigger first (080
+        judgement call 2), then `guide-replay`. Returns `{found, via, opened, requests}` -- the `guide-seen` requests the
+        press and the opening caused."""
+        with self._b.step("founder presses Play the welcome again") as h:
+            target = self.page.locator(GUIDE_REPLAY).first
+            via = "guide-replay"
+            if not (self.page.locator(GUIDE_REPLAY).count() and target.is_visible()):
+                trigger = self.page.locator(FEEDBACK_TRIGGER)
+                if not trigger.count():
+                    return {"found": False, "via": None, "opened": False, "requests": []}
+                trigger.first.click()
+                via = "the Feedback panel"
+                try:
+                    target.wait_for(state="visible", timeout=5_000)
+                except Exception:  # noqa: BLE001 - not there: the reading
+                    return {"found": False, "via": via, "opened": False, "requests": []}
+            seen: list = []
+
+            def keep(request) -> None:
+                if request.method == "POST" and GUIDE_SEEN_PATH.search(request.url):
+                    seen.append(request)
+
+            self.page.on("request", keep)
+            try:
+                target.click()
+                opened = self.present(timeout_s=10)
+            finally:
+                self.page.remove_listener("request", keep)
+            h.add_screenshot(self._b.screenshot("guide-replayed"))
+        return {"found": True, "via": via, "opened": opened, "requests": [_request_row(r) for r in seen]}
+
+    def pass_by(self, wire: GuideWire, *, timeout_s: float = 5.0) -> dict:
+        """Spec 054 FR-6, for every journey that does not judge the welcome: decided from the overview the page received
+        (no wait when it says `welcomeSeen: true` or carries no `guide`), else the sheet waited for up to `timeout_s`
+        and, if it comes, Skip pressed -- in one `note` step. Absence is not a failure."""
+        deadline = time.monotonic() + timeout_s
+        received = wire.received() if wire.wait_overview(timeout_s) else None
+        overviews = wire.overviews()
+        if overviews and (received is None or received.get("welcomeSeen") is True):
+            return {"shown": False, "received": received}
+        if not self.present(timeout_s=max(0.1, deadline - time.monotonic())):
+            return {"shown": False, "received": received}
+        with self.recorder.step("the guide's welcome opened over the project's first screen; this journey does not "
+                                "judge it and passes it by with Skip (spec 054 FR-6)",
+                                party="founder", kind="note") as h:
+            out = {"shown": True, "received": received, **self._close(self._press_skip)}
+            h.request = {"received": received}
+            h.response = out
+        return out
+
+
 # --------------------------------------------------------------------------------------- Corridor
 
 class Corridor:
@@ -170,12 +610,14 @@ class Corridor:
         self.patience = patience
         self._b = _BrowserStep(recorder, page, "founder")
         self.conflicts = []
+        self.saves = []
 
     # ------------------------------------------------------------------------ every screen's frame
 
     def frame(self) -> dict:
         """What frames the screen on display (keel-web 063 FR-003, FR-009): the kicker, *Problem · k of n*
-        and its dots (how many, which one is now), and the side nav's lock."""
+        and its dots (how many, which one is now), the side nav's lock, and (spec 054 FR-2 e) how many welcome
+        sheets cover it -- 0 on every frame after the welcome was seen."""
         dots = self.page.locator(".calib__progress .calib__dots i")
         classes = [dots.nth(i).get_attribute("class") or "" for i in range(dots.count())]
         nav = self.page.locator(f"nav[aria-label='{NAV_LOCKED_LABEL}']")
@@ -185,7 +627,8 @@ class Corridor:
                 "now": next((i + 1 for i, c in enumerate(classes) if "now" in c.split()), None),
                 "done": sum(1 for c in classes if "done" in c.split()),
                 "nav_locked": nav.count() > 0 and NAV_LOCK_LINE in _first_text(self.page, ".side-nav__lockline"),
-                "nav_links": self.page.locator("nav.side-nav a").count()}
+                "nav_links": self.page.locator("nav.side-nav a").count(),
+                "welcome": self.page.locator(GUIDE_WELCOME).count()}
 
     def _primary(self):
         return self.page.locator(".ccard__foot button.btn.primary").first
@@ -245,12 +688,32 @@ class Corridor:
             self.page.locator("input.cwindow__count").fill(str(window["count"]))
             self.page.locator("select.cwindow__unit").select_option(window["unit"])
             h.add_screenshot(self._b.screenshot("context-filled"))
-            _button(self.page, CONTEXT_SAVE).click()
+            saved = self._save_context()
+            self.saves.append(saved)
+            if isinstance(saved.get("status"), int) and saved["status"] >= 400:
+                # A refused Save never brings the card (and the screen has no second press): the leg reads
+                # `saves` and names what refused it rather than a minute's timeout (spec 054 FR-2 d).
+                h.capture_text("stage_screen", _screen_text(self.page, ".ccard"))
+                return ""
             self.page.locator(".understands").first.wait_for(state="visible",
                                                              timeout=60_000 * self.patience)
             h.capture_text("stage_screen", _screen_text(self.page, ".ccard"))
             h.add_screenshot(self._b.screenshot("context-card"))
             return _first_text(self.page, ".understands__big")
+
+    #: Every context Save's answer as the page received it (`PUT /v2/projects/{id}/context`): method, path, status.
+    saves: list
+
+    def _save_context(self) -> dict:
+        try:
+            with self.page.expect_response(lambda r: r.request.method == "PUT"
+                                           and r.url.split("?")[0].endswith("/context"), timeout=20_000) as got:
+                _button(self.page, CONTEXT_SAVE).click()
+            response = got.value
+            return {"method": "PUT", "path": response.url.split("?")[0], "status": response.status,
+                    "body": _json_body(response) if response.status >= 400 else None}
+        except Exception as missing:  # noqa: BLE001 - recorded: no Save reached the wire
+            return {"method": "PUT", "path": None, "status": None, "error": repr(missing)}
 
     def context_window_line(self) -> str:
         return _first_text(self.page, ".understands__window")
