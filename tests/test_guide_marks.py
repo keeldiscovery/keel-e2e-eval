@@ -441,7 +441,7 @@ def test_the_frame_holds_no_sheet():
     ({"paused": False, "muted": True, "readyState": 4, "currentTime": 0.2, "currentTimeLater": 0.8, "error": None}, True),
     ({"paused": True, "muted": True, "readyState": 0, "currentTime": 0, "currentTimeLater": 0, "error": 4}, True),
     ({"paused": False, "muted": False, "readyState": 4, "currentTime": 0.2, "currentTimeLater": 0.8, "error": None},
-     False),
+     True),  # D31: sound on by default is playing too
     ({"paused": True, "muted": True, "readyState": 4, "currentTime": 0.2, "currentTimeLater": 0.2, "error": None}, False),
     ({"paused": False, "muted": True, "readyState": 4, "readyStateLater": 4, "currentTime": 0.2,
       "currentTimeLater": 0.2, "error": None}, False),
@@ -449,5 +449,5 @@ def test_the_frame_holds_no_sheet():
       "currentTimeLater": 0.0, "error": None}, True),
     (None, False),
 ])
-def test_playing_is_unpaused_and_muted_and_a_decode_error_or_a_slow_load_is_only_a_note(face, ok):
+def test_playing_is_unpaused_muted_or_not_and_a_decode_error_or_a_slow_load_is_only_a_note(face, ok):
     assert corpus_scenario._playing(face)[0] is ok

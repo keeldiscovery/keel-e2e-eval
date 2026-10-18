@@ -319,13 +319,14 @@ FIRST_CAPTION_AT = 0.30
 
 
 def _playing(face: dict | None) -> tuple[bool, str]:
-    """054 judgement call 1: "playing" is `paused` false and `muted` true at the first read. The clock rising over
+    """054 judgement call 1 as amended by D31: "playing" is `paused` false at the first read; muted or not is recorded. The clock rising over
     600 ms and `readyState` are recorded, and the clock is required to move only where the browser has decoded enough
     to play (`readyState >= 3` at the second read); a MediaError 4 (no H.264 in the bundled Chromium) is a note."""
     if not face:
         return False, "no guide-face to read"
-    if face.get("muted") is not True:
-        return False, "the face is not muted"
+    # keel-web 081 / design D31: sound on by default where the browser allows it, muted with the glyph lit where it
+    # refuses -- either is "playing"; the state is recorded, never required (054 call 1 asked for muted before D31).
+    sound = "sound on" if face.get("muted") is False else "muted"
     if MEDIA_ERR_NO_DECODE in (face.get("error"), face.get("errorLater")):
         return True, "the browser cannot decode the mp4 (MediaError 4): recorded, not required"
     if face.get("paused") is not False:
@@ -334,7 +335,7 @@ def _playing(face: dict | None) -> tuple[bool, str]:
     rising = float(face.get("currentTimeLater") or 0) > float(face.get("currentTime") or 0)
     if ready >= 3 and not rising:
         return False, "the face has decoded enough to play but its clock did not move over 600 ms"
-    return True, "playing, muted" if rising else f"asked to play, muted, still loading (readyState {ready})"
+    return True, f"playing, {sound}" if rising else f"asked to play, {sound}, still loading (readyState {ready})"
 
 
 def leg_welcome(j: Journey, *, walk: bool = False) -> None:
@@ -379,7 +380,7 @@ def leg_welcome(j: Journey, *, walk: bool = False) -> None:
                          for size in WELCOME_SIZES}, {"reads": reads, "controls": record["controls"],
                                                       "first_frame": record["first_frame"]})
 
-    with _step(j, "the face plays muted (judgement call 1) and the captions are on: the live caption has words and "
+    with _step(j, "the face plays, with sound where the browser allows it (D31), and the captions are on: the live caption has words and "
                   f"the video carries a captions track ending {vs_screens.WELCOME_CAPTIONS}", party="founder") as h:
         face = record["face"] = guide.face()
         playing, how = _playing(face)
@@ -398,7 +399,7 @@ def leg_welcome(j: Journey, *, walk: bool = False) -> None:
         track = (face or {}).get("track") or {}
         record["captions"] = {"caption": caption, "visible": guide.caption_visible(), "nudged": nudged is not None,
                               "track": track}
-        h.record_assert({"playing": True, "muted": True, "caption": "words",
+        h.record_assert({"playing": True, "muted": "either (D31)", "caption": "words",
                          "track": f"…/{vs_screens.WELCOME_CAPTIONS}"},
                         {"face": face, "how": how, **record["captions"]})
         assert playing, {"face": face, "why": how}
