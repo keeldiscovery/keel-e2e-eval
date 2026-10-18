@@ -796,7 +796,15 @@ class Corridor:
                 counter["over"] = {"typed": over, **self._name_counter()}
                 h.add_screenshot(self._b.screenshot("idea-named-over-five"))
                 what.fill(name)
-                counter["named"] = self._name_counter()
+                # keel-web 083 (D33): Save waits while a step is open or the screen's revision lags the overview
+                # (`corridor-waiting`), and lights within one poll; give it that poll before reading the named state.
+                try:
+                    self.page.locator("[data-testid=idea-save]:enabled, button:enabled:has-text('Save')").first.wait_for(
+                        state="visible", timeout=15_000)
+                except Exception:
+                    pass
+                counter["named"] = {**self._name_counter(),
+                                    "waiting": self.page.locator("[data-testid=corridor-waiting]").count() > 0}
                 h.add_screenshot(self._b.screenshot("idea-named"))
             label = self._press_primary(SAVE)
             _wait_url(self.page, r"/define/solution/q/\d+$")

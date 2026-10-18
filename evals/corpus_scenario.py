@@ -589,8 +589,11 @@ def leg_interpret_solution(j: Journey) -> None:
                 "over": {"typed": over.get("typed"), "text": f"{len(str(over.get('typed')).split())} / 5 words",
                          "over": True, "save_enabled": False},
                 "named": {"text": f"{len(typed.split())} / 5 words", "over": False, "save_enabled": True}}
-        h.record_assert(want, counter)
-        assert counter == want, json.dumps({"screen": counter, "want": want}, indent=2)
+        named = dict(counter.get("named") or {})
+        waiting = named.pop("waiting", None)
+        seen_counter = {**counter, "named": named}
+        h.record_assert(want, {**counter, "named_waiting": waiting})
+        assert seen_counter == want, json.dumps({"screen": counter, "want": want}, indent=2)
         assert len(str(counter["over"]["typed"]).split()) == 6, counter
     with _step(j, "S2: the idea's how and belief are the mechanism's, the what line the name the founder typed "
                   "(keel-cloud 097 F7), under Solution · 1 of n, and Save approved them on the wire",
