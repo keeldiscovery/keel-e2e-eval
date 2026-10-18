@@ -49,9 +49,10 @@ from typing import Any, Callable
 #: welcome only; `openers` and `explainers` are reserved for the specs that build D25 and D26 / D27 (G6 on).
 GUIDE_MARKS_VERSION = 1
 
-#: keel-web 080 FR-1 / design §7.1: the welcome's twelve cues, in the order they play (`welcome.cues.json`'s ids).
-WELCOME_CUES = ("wordmark", "three-questions", "three-chips", "thirteen-dots", "phone-interview", "report", "rows-hold",
-                "quote", "price-pilot", "promise", "explainer-pill", "start")
+#: keel-web 081 FR-2 / design §7.1 v2: the welcome's fourteen cues, in the order they play (`welcome.cues.json`'s
+#: ids); 080's twelve gained `contacts` and `interviewer-clip` after `phone-interview` (the founder, 2026-10-18).
+WELCOME_CUES = ("wordmark", "three-questions", "three-chips", "thirteen-dots", "phone-interview", "contacts",
+                "interviewer-clip", "report", "rows-hold", "quote", "price-pilot", "promise", "explainer-pill", "start")
 #: keel-web 080 FR-1: cue 2's `at` -- a read with no seam to ask (remote) is "before any cue but the wordmark" when the
 #: video's clock is below it.
 SECOND_CUE_AT = 13.25
@@ -205,7 +206,7 @@ def replay_posts_nothing(r: dict) -> tuple[bool, Any]:
 
 
 def cues_in_order(r: dict) -> tuple[bool, Any]:
-    """G5: the twelve cues served in order, ids unique, `at` rising; each seek draws its cue and `cuesFired` grows by
+    """G5: the fourteen cues served in order, ids unique, `at` rising; each seek draws its cue and `cuesFired` grows by
     that id alone."""
     x = r["walk"]
     served = list(x.get("served") or [])

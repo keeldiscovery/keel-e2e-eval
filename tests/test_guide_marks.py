@@ -17,7 +17,7 @@ from stack.config import load_config
 
 REPO = Path(__file__).resolve().parent.parent
 #: keel-web 080 FR-1's hand-worked times (`welcome.cues.json`).
-ATS = (0.3, 13.25, 24.55, 36.02, 48.94, 55.3, 57.98, 62.58, 64.84, 68.3, 79.47, 84.93)
+ATS = (0.3, 13.25, 23.7, 33.67, 46.38, 51.84, 60.46, 73.82, 76.39, 80.92, 83.13, 86.08, 92.51, 98.31)  # keel-web 081, v2
 SKIP = {"present": True, "visible": True, "enabled": True, "in_view": True, "hit": True, "focused": True,
         "words": "Skip ›"}
 CONTROLS = [{"tag": "button", "testid": None, "role": None, "words": "", "label": "Sound on", "visible": True},

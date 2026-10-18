@@ -314,7 +314,10 @@ def test_every_guide_selector_is_in_keel_web(testid):
     root = load_config(validate=False).keel_web / "src"
     if not (root / "components" / "guide").is_dir():
         pytest.skip("keel-web predates spec 080")
-    hits = [p for p in root.rglob("*.tsx") if f'data-testid="{testid}"' in p.read_text(encoding="utf-8")]
+    # 081 split the sheet: `GuideSheet` takes `testId="guide-welcome"` / `"guide-landing"` as a prop.
+    hits = [p for p in root.rglob("*.tsx")
+            if f'data-testid="{testid}"' in p.read_text(encoding="utf-8")
+            or f'testId="{testid}"' in p.read_text(encoding="utf-8")]
     assert hits, testid
     assert f"'{testid}'" in Path(vs.__file__).read_text(encoding="utf-8")
 
