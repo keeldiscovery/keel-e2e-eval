@@ -390,6 +390,11 @@ def leg_welcome(j: Journey, *, walk: bool = False) -> None:
             # caption begins (0.30 s): the seam moves the line there, as a playing video would.
             guide.seek(FIRST_CAPTION_AT + guide_marks.SEEK_PAST)
             caption = nudged = guide.caption()
+        if not caption and not guide.seam() and float((face or {}).get("currentTimeLater") or 0) >= FIRST_CAPTION_AT:
+            # Remote: the clock passed the first caption during the face read, but the line paints on the next
+            # timeupdate (about 250 ms apart) -- read it once more rather than fail a race the founder never sees.
+            j.page.wait_for_timeout(600)
+            caption = guide.caption()
         track = (face or {}).get("track") or {}
         record["captions"] = {"caption": caption, "visible": guide.caption_visible(), "nudged": nudged is not None,
                               "track": track}
@@ -2202,6 +2207,10 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         keys_path.write_text(json.dumps(vs.context_keys_for(exported.context_keys), indent=2) + "\n",
                              encoding="utf-8")
         page = context.new_page()
+        if getattr(stack, "is_remote", False):
+            # Remote: the welcome's 11 MB mp4 delays the load event over the wire (a media element delays load until it
+            # has current data); 30 s is not enough on a slow link, and nothing the founder sees waits on it.
+            page.set_default_navigation_timeout(90_000)
         journey = open_journey(recorder, page, context, browser, stack, entry, founder, people,
                                script=script, registry=exported.registry)
         journey.stack, journey.founder_identity = stack, founder_one
