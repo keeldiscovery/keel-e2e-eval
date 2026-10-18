@@ -151,16 +151,22 @@ def test_the_player_never_presses_thats_my_answer():
 def _web_073() -> Path:
     root = load_config(validate=False).keel_web
     answer_path = root / "src/lib/answerPath.ts"
-    if not answer_path.is_file() or "QUIET_MS" not in answer_path.read_text(encoding="utf-8"):
+    if not answer_path.is_file() or "QUIET_" not in answer_path.read_text(encoding="utf-8"):
         pytest.skip("keel-web predates spec 073 (no quiet gap)")
     return root
 
 
 def test_the_quiet_gap_is_keel_webs_own():
     source = (_web_073() / "src/lib/answerPath.ts").read_text(encoding="utf-8")
-    m = re.search(r"QUIET_MS\s*=\s*([\d_]+)", source)
-    # 1,500 at 073, 4,000 from 074: the walk encodes neither, it tolerates up to GAP_TOLERATED_MS
-    assert m and 0 < int(m.group(1).replace("_", "")) <= ivs.GAP_TOLERATED_MS, m and m.group(0)
+    if "QUIET_FREE_MS" not in source:          # 073 / 074: one gap, 1,500 then 4,000; the walk encodes neither
+        m = re.search(r"QUIET_MS\s*=\s*([\d_]+)", source)
+        assert m and 0 < int(m.group(1).replace("_", "")) <= ivs.GAP_TOLERATED_MS, m and m.group(0)
+        return
+    # keel-web 082 (D36): two gaps by window kind, restated; the walk tolerates the longer
+    for name in ("QUIET_OPTION_MS", "QUIET_FREE_MS"):
+        m = re.search(rf"export const {name} = ([\d_]+);", source)
+        assert m and int(m.group(1).replace("_", "")) == getattr(ivs, name) <= ivs.GAP_TOLERATED_MS, name
+    assert "seam.quietFreeMs ?? QUIET_FREE_MS" in source and "seam.quietMs ?? QUIET_OPTION_MS" in source
 
 
 @pytest.mark.parametrize("word", [ivs.HEARING, ivs.ANSWERED, ivs.TAG_HEARING, ivs.TAG_NOT_TAKEN])

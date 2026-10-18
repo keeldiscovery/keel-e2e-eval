@@ -2222,7 +2222,7 @@ def _follow_up_on_the_ai_link(j, record: dict) -> None:
             first, second = windows
             assert first["ended"] == "wait" and not first["presses"] and not first["pressed"], first
             assert second["ended"] == "save" and second["pressed"] and second["went_on"], second
-            assert second["final_to_held_ms"] is not None and second["final_to_held_ms"] < marks.GAP_MS, second
+            assert second["final_to_held_ms"] is not None and second["final_to_held_ms"] < marks.GAP_FREE_MS, second
         else:
             first, second = windows
             transcribed = [a for a in x.get("asked") or [] if a["route"] == "transcribe"
@@ -2230,7 +2230,7 @@ def _follow_up_on_the_ai_link(j, record: dict) -> None:
             first["transcribed"] = transcribed
             assert len(transcribed) == 1 and transcribed[0]["status"] == 200, transcribed
             assert transcribed[0]["sent"].get("maxSeconds") == 120, transcribed[0]["sent"]
-            assert first["quiet_to_stop_ms"] is not None and abs(first["quiet_to_stop_ms"] - ivs.SILENCE_MS) <= 500, \
+            assert first["quiet_to_stop_ms"] is not None and abs(first["quiet_to_stop_ms"] - ivs.SILENCE_FREE_MS) <= 500, \
                 first
             assert FAKE_TRANSCRIPT in (first["heard"] or "").lower(), first
             assert second["ran_ms"] is not None and second["ran_ms"] >= 0.95 * second["cap_ms"], second

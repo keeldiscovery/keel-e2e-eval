@@ -217,7 +217,7 @@ def test_the_fakes_follow_up_lines():
 @pytest.mark.parametrize("name", ["FOLLOW_UP_KICKER", "FOLLOW_UP_NOTE", "FOLLOW_UP_SKIP", "FOLLOW_UP_HINT",
                                   "SPEAK_HINT_STORY", "SPEAK_OR_TYPE_PLACEHOLDER", "SPEAK_TYPE_PLACEHOLDER",
                                   "SPEAK_LABEL", "SPEAK_ADD_MORE", "SPEAK_LISTENING", "SPEAK_LISTENING_NOTE",
-                                  "SPEAK_MIC_OFF"])
+                                  "SPEAK_MIC_OFF", "HEARING_YOU"])
 def test_the_follow_up_and_box_words_are_keel_webs(name):
     text = _web("src/lib/translate.ts")
     m = re.search(rf"export const {name} = \"([^\"]*)\";", text)
@@ -230,7 +230,12 @@ def test_the_heard_line_and_the_caps_are_keel_webs():
     rest = re.search(r'SPEAK_HEARD = "([^"]*)"', text).group(1)
     assert f"{lead} {rest}" == ivs.SPEAK_HEARD
     path = _web("src/lib/answerPath.ts")
-    assert re.search(r"SILENCE_MS = (\d[\d_]*);", path).group(1).replace("_", "") == str(ivs.SILENCE_MS)
+    # keel-web 082 (D36): the recorded silence by window kind, the same two values as the quiet gaps
+    assert re.search(r"export const QUIET_OPTION_MS = (\d[\d_]*);", path).group(1).replace("_", "") == \
+        str(ivs.SILENCE_OPTION_MS)
+    assert re.search(r"export const QUIET_FREE_MS = (\d[\d_]*);", path).group(1).replace("_", "") == \
+        str(ivs.SILENCE_FREE_MS)
+    assert "SILENCE_OPTION_MS = QUIET_OPTION_MS;" in path and "SILENCE_FREE_MS = QUIET_FREE_MS;" in path
     assert re.search(r"FOLLOW_UP_RECORD_CAP_MS = (\d[\d_]*);", path).group(1).replace("_", "") == \
         str(ivs.FOLLOW_UP_RECORD_CAP_MS)
     assert ivs.FOLLOW_UP_SEAM_CAP_MS < ivs.FOLLOW_UP_RECORD_CAP_MS

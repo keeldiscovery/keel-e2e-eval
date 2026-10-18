@@ -1410,8 +1410,8 @@ def _hold_the_box(j: Journey, person, interview: dict, walked: dict, expected: d
         assert t4.get("caret") == len(want) == t4.get("caretEnd"), t4
         assert t4.get("footer") == ivs.SPEAK_HEARD and t4.get("pill") == ivs.SPEAK_ADD_MORE, t4
         if how == "quiet":
-            # the recorded path's quiet: 4 s after the last sound (the level is read ten times a second)
-            assert ended_ms is not None and ivs.SILENCE_MS - 500 <= ended_ms <= ivs.SILENCE_MS + 500, ended_ms
+            # the recorded path's quiet on a free-text window: 4 s after the last sound (keel-web 082 D36) (the level is read ten times a second)
+            assert ended_ms is not None and ivs.SILENCE_FREE_MS - 500 <= ended_ms <= ivs.SILENCE_FREE_MS + 500, ended_ms
         else:
             assert x.get("done_at") is not None and (counts.get("stops") or [0])[-1] >= x["done_at"], x
         j.speak[person.person] = record

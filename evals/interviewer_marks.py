@@ -30,6 +30,9 @@ from harness import interviewer_fake as fake
 #: v5 (spec 051, keel-cloud 103 / keel-web 076, contract 18 -> 19 on the interview side): IM23 (asked on the first rung
 #: against), IM24 (skipped honoured), IM25 (two minutes, four seconds), IM26 (speak or type) and IM27 (the follow-up
 #: clips) born; IM3 and IM6 read FOLLOW_UP as unspoken (it plays only when the walk finds its rung).
+#: v5 kept (spec 055, keel-web 082 D35/D36, 2026-10-18): the gap split by window kind -- options 2.0 s
+#: (`GAP_OPTION_MS`), free text 4.0 s (`GAP_FREE_MS`, `SILENCE_FREE_MS`); IM22 and IM25 measure free-text windows only
+#: (the story, the follow-up), so they read the free gap and no mark reads its record differently.
 INTERVIEWER_MARKS_VERSION = 5
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
@@ -48,13 +51,17 @@ BEAT = "Take a moment."
 BEAT_PILL = "pause"
 #: A beat shorter than this share of its length (`BEAT_MS`, 2.0 s) is not the beat.
 BEAT_SHARE = 0.9
-#: keel-web 074's gap (`QUIET_MS`, 4.0 s): a Save that reads the story at once is held well inside it.
-GAP_MS = 4_000
+#: keel-web 074's gap (`QUIET_MS`, 4.0 s), split by keel-web 082 (D36): the free-text gap (`QUIET_FREE_MS`, the story
+#: and the follow-up) stays 4.0 s -- a Save that reads the story at once is held well inside it; the option gap
+#: (`QUIET_OPTION_MS`) is 2.0 s and no mark measures it.
+GAP_FREE_MS = 4_000
+GAP_OPTION_MS = 2_000
 
 #: keel-web 076 / keel-cloud 103's words and numbers, restated where the marks read them.
 FOLLOW_UP_KICKER = "One last thing"
 LAST_QUESTION = "Last question"
-SILENCE_MS = 4_000
+#: keel-web 082: the recorded path's silence on a free-text window (`SILENCE_FREE_MS`; options are 2.0 s).
+SILENCE_FREE_MS = 4_000
 WINDOW_TOLERANCE_MS = 500
 FOLLOW_UP_CAP_MS = 120_000
 STORY_CAP = "1:00"
@@ -495,7 +502,7 @@ def the_storys_save(r: dict) -> tuple[bool, Any]:
     by = x.get("by")
     ended = (by == "wait" and not x.get("pressed") and not x.get("presses")) or (
         by == "save" and x.get("pressed") is True and x.get("press_to_held_ms") is not None
-        and x.get("final_to_held_ms") is not None and x.get("final_to_held_ms") < GAP_MS
+        and x.get("final_to_held_ms") is not None and x.get("final_to_held_ms") < GAP_FREE_MS
         and [p.get("testid") for p in x.get("presses") or []] == ["ai-save"])
     said = _norm(x.get("said"))
     ok = (x.get("status_before") == STORY and before.get("shown") is False and after.get("shown") is True
@@ -587,7 +594,7 @@ def _window_ok(w: dict) -> bool:
     if w.get("path") == "recorded" and w.get("ended") == "quiet":
         heard = w.get("transcribed") or []
         return (w.get("quiet_to_stop_ms") is not None
-                and abs(w["quiet_to_stop_ms"] - SILENCE_MS) <= WINDOW_TOLERANCE_MS
+                and abs(w["quiet_to_stop_ms"] - SILENCE_FREE_MS) <= WINDOW_TOLERANCE_MS
                 and len(heard) == 1 and (heard[0].get("sent") or {}).get("maxSeconds") == 120
                 and heard[0].get("status") == 200)
     if w.get("path") == "recorded" and w.get("ended") == "cap":
@@ -595,9 +602,9 @@ def _window_ok(w: dict) -> bool:
                 and 0.95 * w["cap_ms"] <= w["ran_ms"] <= w["cap_ms"] + 2_000)
     if w.get("path") == "browser" and w.get("ended") == "wait":
         return (not w.get("pressed") and not w.get("presses") and w.get("final_to_held_ms") is not None
-                and w["final_to_held_ms"] >= 0.9 * GAP_MS)
+                and w["final_to_held_ms"] >= 0.9 * GAP_FREE_MS)
     if w.get("path") == "browser" and w.get("ended") == "save":
-        return (w.get("pressed") is True and w.get("final_to_held_ms") is not None and w["final_to_held_ms"] < GAP_MS
+        return (w.get("pressed") is True and w.get("final_to_held_ms") is not None and w["final_to_held_ms"] < GAP_FREE_MS
                 and [p.get("testid") for p in w.get("presses") or []] == ["ai-save"])
     return False
 
@@ -624,7 +631,7 @@ def _take_ok(v: dict) -> bool:
     before, after = v.get("before_pill") or {}, v.get("after_pill") or {}
     heard = v.get("transcribed") or []
     ended = (v.get("how") == "done") or (v.get("quiet_to_stop_ms") is not None
-                                         and abs(v["quiet_to_stop_ms"] - SILENCE_MS) <= WINDOW_TOLERANCE_MS)
+                                         and abs(v["quiet_to_stop_ms"] - SILENCE_FREE_MS) <= WINDOW_TOLERANCE_MS)
     return (t1.get("state") == "idle" and t1.get("pill") == SPEAK and before.get("acquired") == 0
             and not before.get("starts") and after.get("acquired") == 1
             and t2.get("state") == "listening" and t2.get("card") and t2.get("wave")

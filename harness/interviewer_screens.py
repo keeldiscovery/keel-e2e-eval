@@ -95,10 +95,15 @@ ANSWERED = "Got it."
 TAG_HEARING = "hearing"
 TAG_NOT_TAKEN = "not taken"
 #: keel-web 073 FR-2 `QUIET_MS` (`src/lib/answerPath.ts`): the gap after a final before the utterance is read -- 1.5 s
-#: at 073, 4.0 s on every window from keel-web 074 (the founder's decision, 2026-10-16). The walk encodes neither: it
-#: waits for the held / unsure status or the next question, with timeouts that tolerate the longest gap here plus the
-#: 2.0 s hold (spec 049 judgement call 6). The one fixed wait is IM20's: a tapped tick must not go on by itself.
-GAP_TOLERATED_MS = 4_000
+#: at 073, 4.0 s on every window from keel-web 074 (the founder's decision, 2026-10-16), and two gaps from keel-web 082
+#: (D36): the option questions (yes/no, number, list, amount or hours, the pilot ask, the confirmations) close after
+#: `QUIET_OPTION_MS` 2.0 s, free text (the story, the follow-up, the speak-or-type box) after `QUIET_FREE_MS` 4.0 s.
+#: The seam: `quietMs` is the option gap, `quietFreeMs` the free one (absent -> `quietMs`). The walk encodes neither:
+#: it waits for the held / unsure status or the next question, with timeouts that tolerate the longest gap here plus
+#: the 2.0 s hold (spec 049 judgement call 6). The one fixed wait is IM20's: a tapped tick must not go on by itself.
+QUIET_OPTION_MS = 2_000
+QUIET_FREE_MS = 4_000
+GAP_TOLERATED_MS = max(QUIET_OPTION_MS, QUIET_FREE_MS)
 TAP_WAIT_MS = 1_500
 IS_THAT_RIGHT = "Is that right? Say yes, or tell me the right one"
 YES_THATS_IT = "Yes, that’s it"
@@ -128,13 +133,19 @@ SPEAK_ADD_MORE = "Add more"
 SPEAK_LISTENING = "Listening. Take your time."
 SPEAK_LISTENING_NOTE = "Pause for a few seconds when you’re done, or tap Done."
 SPEAK_HEARD = "Heard you. Fix anything that’s wrong."
+#: keel-web 082 FR-3 (D35, `HEARING_YOU`): the recorded path's status once a sound came in -- the AI sheet's heard line
+#: (`ai-heard`) and the box's listening card (`iv-mic-say`); *Nothing heard yet* only while nothing has.
+HEARING_YOU = "Hearing you…"
 SPEAK_MIC_OFF = "The microphone is off, so it’s typing on this one."
 #: keel-web 076: the box's two caps as the clock says them (`clockOf(capMs)`): the story's minute, the follow-up's two.
 STORY_CAP = "1:00"
 FOLLOW_UP_CAP = "2:00"
-#: keel-web `answerPath.ts`: the recorded path's quiet after the last sound (`SILENCE_MS`, 4.0 s on every window since
-#: 074) and the follow-up's cap (`FOLLOW_UP_RECORD_CAP_MS`, two minutes) -- held to the source by a unit test.
-SILENCE_MS = 4_000
+#: keel-web `answerPath.ts`: the recorded path's quiet after the last sound -- 4.0 s on every window from 074, by window
+#: kind from 082 (D36: `SILENCE_OPTION_MS` 2.0 s, `SILENCE_FREE_MS` 4.0 s; the seam's `silenceMs` overrides both) --
+#: and the follow-up's cap (`FOLLOW_UP_RECORD_CAP_MS`, two minutes) -- held to the source by a unit test. The walks
+#: measure only free-text windows on the recorded path (the story's box, the follow-up), so they read the free one.
+SILENCE_OPTION_MS = 2_000
+SILENCE_FREE_MS = 4_000
 FOLLOW_UP_RECORD_CAP_MS = 120_000
 #: Spec 051 judgement call 2: the AI follow-up's silent window is shortened through the seam (`followUpCapMs`); the
 #: real two minutes are held on the wire (`maxSeconds: 120`) and in keel-web's source.
@@ -260,7 +271,7 @@ def ai_intro_heading(face: str, questions: int) -> str:
 #: `earcons: false` silences the two tones (073 FR-8; the fake mic has no AudioContext, so nothing waits on them).
 #: Spec 050: every `start()` is stamped (`__speechStarts`, `performance.now()`), and so is every `MediaRecorder.start`
 #: (`__recordStarts`), so the leg can say nothing listened in a beat or after the thanks. `quietMs` and `beatMs` are
-#: left at the page's defaults (4.0 s, 2.0 s).
+#: left at the page's defaults (2.0 s on options, 4.0 s on free text since keel-web 082; 2.0 s).
 SPEECH_SEAM = r"""
 (() => {
   class FakeRecognition {
@@ -338,7 +349,7 @@ _RECORDER = r"""
 def text_seam(*, refused: bool = False) -> str:
     """The text page's seam (keel-web 076: the box reads `Recognition`, `recorder`, `mic`, `quietMs`, `silenceMs` and
     the caps): no recogniser, so the box records; the microphone counted (`__micAcquired`, 0 until the pill is tapped)
-    and refused when `refused` (T6). The quiet and the caps are left at the page's defaults (4 s, 60 s, 120 s)."""
+    and refused when `refused` (T6). The quiet and the caps are left at the page's defaults (4 s free text, 60 s, 120 s)."""
     return ("(() => {" + _RECORDER + """
   window.__micAcquired = 0; window.__micReleased = 0;
   window.__keelSpeech = {

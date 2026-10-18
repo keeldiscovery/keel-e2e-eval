@@ -250,6 +250,9 @@ listed under *The journey pass's fixes*; this run is the first after the last of
 - **D-09:** `GET /v2/inference-interactions?project_id=` lists no THEMES row on the stack, so `_themes_on_return`'s job
   count reads none (vacuous) and its wait ends on `insights[]` itself (every insight with answers carrying themes or
   raw); the themes' arrival is proved by their labels, which only the scripted executor's resolution can produce.
+  *2026-10-18:* keel-cloud 107 proves the list carries THEMES rows (PENDING, then APPLIED after landing;
+  `ReadingBatchJourneyTest`), so the stack's "no THEMES rows" was most likely a stale stack image; nothing changed in
+  code -- re-check on the next journey pass.
 - **D-10 (051's to read):** a spoken story on the speak-or-type box ends in the stack fake's *yes* (S-005, Priya
   Natarajan's: *… fixed the sheet. yes*), the transcript appended to what she typed -- 051's walk, not this spec's.
 - **D-08:** S-014 is in no matrix cell yet (`matrix/cells.toml` carries s005 / s006 / s007 / s013 on the macOS Claude
