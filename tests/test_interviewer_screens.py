@@ -244,3 +244,31 @@ def test_the_seam_keeps_the_pages_beat_and_gap_and_stamps_every_start():
     assert "beatMs" not in ivs.SPEECH_SEAM and "quietMs" not in ivs.SPEECH_SEAM
     assert "__speechStarts" in ivs.SPEECH_SEAM and "__recordStarts" in ivs.SPEECH_SEAM
     assert "__keelBeats" in ivs.FLOW_TIMELINE and "'beat'" in ivs.FLOW_TIMELINE
+
+
+# ------------------------------------------------------------------ spec 058: keel-web 087's tap to hear
+
+def _web_087() -> Path:
+    root = load_config(validate=False).keel_web
+    translate = root / "src/lib/translate.ts"
+    if not translate.is_file() or "introHear" not in translate.read_text(encoding="utf-8"):
+        pytest.skip("keel-web predates spec 087 (no tap to hear)")
+    return root
+
+
+@pytest.mark.parametrize("testid", [ivs.FACE_HEAR, ivs.INTRO_HEAR])
+def test_the_hear_selectors_are_keel_webs_own(testid):
+    root = _web_087() / "src"
+    assert [p for p in root.rglob("*.tsx") if f'data-testid="{testid}"' in p.read_text(encoding="utf-8")], testid
+
+
+def test_the_hear_words_and_the_four_hellos_are_keel_webs_own():
+    root = _web_087()
+    translate = (root / "src/lib/translate.ts").read_text(encoding="utf-8")
+    assert "`Hear ${face} · ${seconds} s`" in translate and ivs.HEAR_PREFIX == "Hear "
+    from harness import interviewer_fake as fake                          # noqa: PLC0415
+    faces = root / "public"
+    assert all((faces / fake.hello_path(f).lstrip("/")).is_file() for f in fake.FACES)
+    # keel-web 087 FR-1: a retired face keeps its still (keel-cloud 110 serves its previewUrl) and has no hello
+    assert all((faces / fake.preview_path(f).lstrip("/")).is_file() for f in fake.FACES + fake.RETIRED)
+    assert not any((faces / fake.hello_path(f).lstrip("/")).is_file() for f in fake.RETIRED)
