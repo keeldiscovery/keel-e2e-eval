@@ -15,6 +15,7 @@ from harness import vectors_screens as vs
 from stack.config import load_config
 
 POST = "/v2/projects/7/guide-seen"
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _post(body: dict, status: int = 204) -> list[dict]:
@@ -427,3 +428,95 @@ def test_g10_a_primary_off_before_an_answer_is_held_to_its_own_before():
     record = full()
     record["explainers"]["bands"]["PROBLEM"].update(disabled_before=True, disabled_after=True)
     _met(record, "G10")
+
+
+# ------------------------------------------------------- the pass-by: every journey but S-005 skips the sheets
+
+class _Sheet:
+    """GuideWelcome's stand-in: `up` sheets now, `comes` whether a due one arrives; Skip recorded."""
+    def __init__(self, up: int, comes: bool):
+        self.up, self.comes, self.skipped = up, comes, 0
+
+    def count(self):
+        return self.up
+
+    def present(self, timeout_s=10):
+        return self.comes
+
+    def _press_skip(self):
+        self.skipped += 1
+
+    def _close(self, press):
+        press()
+        return {"gone_ms": 40, "requests": _post({"report": True})}
+
+
+class _Recorder:
+    from contextlib import contextmanager
+
+    def __init__(self):
+        self.notes = []
+
+    @contextmanager
+    def step(self, name, *, party, kind):
+        self.notes.append((name, kind))
+        yield type("H", (), {})()
+
+
+class _Page:
+    url = "http://localhost:5173/p/7/define/problem/seed"
+
+
+def _pass(monkeypatch, kind, *, up=0, comes=True, guide=None, present=True, stage=None):
+    made = {}
+
+    def sheet(page, recorder, base, *, sheet):
+        made["selector"] = sheet
+        made["sheet"] = _Sheet(up, comes)
+        return made["sheet"]
+
+    monkeypatch.setattr(vs, "GuideWelcome", sheet)
+    monkeypatch.setattr(vs, "_due_guide", lambda page, base: guide)
+    monkeypatch.setitem(vs._MANIFESTS, "http://web", {"opener-the-problem": {"present": present},
+                                                       "report-read": {"present": present}})
+    recorder = _Recorder()
+    out = vs.pass_teaching_sheet(_Page(), recorder, "http://web", kind, stage)
+    return out, made, recorder
+
+
+SEEN = {"welcomeSeen": True, "openersSeen": [], "reportSeen": False, "lineFailedSeen": False}
+
+
+@pytest.mark.parametrize("guide,present,up,shown", [
+    (SEEN, True, 0, True),                                       # due: waited for and skipped
+    ({**SEEN, "openersSeen": ["PROBLEM"]}, True, 0, False),      # seen: no wait
+    (SEEN, False, 0, False),                                     # clip absent: no wait
+    ({"welcomeSeen": True, "openersSeen": []}, True, 0, False),  # a cloud before contract 22
+    ({**SEEN, "openersSeen": ["PROBLEM"]}, True, 1, True),       # already up: skipped whatever the wire says
+], ids=["due", "seen", "absent", "contract 20", "up"])
+def test_the_opener_is_passed_by_at_a_stages_first_open(monkeypatch, guide, present, up, shown):
+    out, made, recorder = _pass(monkeypatch, "opener", guide=guide, present=present, up=up)
+    assert out["shown"] is shown
+    assert made["selector"] == vs.GUIDE_OPENER
+    assert made["sheet"].skipped == (1 if shown else 0)
+    assert [k for _, k in recorder.notes] == (["note"] if shown else [])
+    if shown:
+        assert out["stage"] == "PROBLEM"     # read off the address, as 086's stageOfPath does
+
+
+@pytest.mark.parametrize("guide,shown", [(SEEN, True), ({**SEEN, "reportSeen": True}, False)], ids=["due", "seen"])
+def test_the_report_sheet_is_passed_by_at_the_reports_first_open(monkeypatch, guide, shown):
+    out, made, recorder = _pass(monkeypatch, "report", guide=guide)
+    assert out["shown"] is shown and made["selector"] == vs.GUIDE_REPORT
+    assert made["sheet"].skipped == (1 if shown else 0)
+
+
+def test_only_s005_measures_the_teaching_marks():
+    import inspect
+    from evals import corpus_scenario
+    assert "teaching=True" in (REPO_ROOT / "evals" / "test_s005_countly.py").read_text(encoding="utf-8")
+    for name in ("test_s006_paidly.py", "test_s007_mulchrun.py", "test_s014_green.py"):
+        assert "teaching=True" not in (REPO_ROOT / "evals" / name).read_text(encoding="utf-8")
+    assert "teaching: bool = False" in inspect.getsource(corpus_scenario.run)
+    for page_object in (vs.Corridor.seed, vs.Corridor.persona, vs.Answers._report):
+        assert "pass_teaching_sheet(" in inspect.getsource(page_object)

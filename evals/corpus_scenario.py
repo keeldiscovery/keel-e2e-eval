@@ -2415,12 +2415,14 @@ def _score_guide(j: Journey) -> dict:
 
 def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         extra: Callable[[Journey], None] | None = None, entry_from: Callable | None = None,
-        welcome_walk: bool = False) -> None:
+        welcome_walk: bool = False, teaching: bool = False) -> None:
     """The whole scenario. `entry_id` is the only argument that differs between S-005, S-006 and
     S-007. `extra` is the one seam: the thing only *its* entry can say, handed the `Journey`. `entry_from` is S-014's
     (spec 052 FR-7): the entry the journey walks, built from the canon one (`preludes.healthy_entry`) -- the canon's
     bytes are hashed and held unchanged as on every journey. `welcome_walk` is S-005's (spec 054 FR-3): on the local
-    profile the welcome's twelve cues are walked through the seam and *Play the welcome again* pressed twice."""
+    profile the welcome's twelve cues are walked through the seam and *Play the welcome again* pressed twice.
+    `teaching` is S-005's too (spec 057): it measures G6-G12; every other journey passes keel-web 086's opener and
+    report sheets by (`vs_screens.pass_teaching_sheet`, in the corridor and the report's page objects)."""
     recorder = Recorder(run_dir)
     web_base = stack.web_base_url
     cell_label = (f"{remote.cell_name()} · corpus {slug} · "
@@ -2460,7 +2462,12 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
 
         leg_project(journey)
         leg_welcome(journey, walk=welcome_walk)
-        teaching_start(journey)
+        if teaching:
+            teaching_start(journey)
+        else:
+            # spec 057: G6-G12 are S-005's (the founder journey); here the corridor and the report pass the sheets by
+            journey.guide.setdefault("notes", {}).update({m: guide_marks.TEACHING_ELSEWHERE_WHY
+                                                          for m in guide_marks.TEACHING_MARKS})
         leg_context(journey)
         opener(journey, "PROBLEM")
         leg_interpret_problem(journey)

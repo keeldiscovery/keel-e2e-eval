@@ -147,6 +147,9 @@ def walk_stage(page: Page, recorder: Recorder, get_json: GetJson, project_id: st
     is missing (keel-cloud decision 14) and the corpus always has one. The founder's one piece of
     mid-walk free text is the **correction turn at the review card**, which S-001 walks separately.
     """
+    # spec 057: keel-web 086's opener at the stage's first open is passed by, as the welcome is
+    from harness.vectors_screens import pass_teaching_sheet   # noqa: PLC0415
+    pass_teaching_sheet(page, recorder, _base_of(page), "opener", stage_type)
     chat = Chat(page, recorder)
     chat.send(opening)
     turn = chat.wait_for_agent_turn(timeout_s=90)

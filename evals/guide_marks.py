@@ -314,6 +314,10 @@ REMOTE_SEAM_WHY = ("staging serves keel-web's production build, which has no win
                    "and the line-failed video's end (G7) are not run on the remote profile")
 
 NOT_APPLICABLE = None
+#: G6-G12 are measured on S-005's founder journey only; every other journey passes the sheets by (spec 057).
+TEACHING_MARKS = ("G6", "G7", "G8", "G9", "G10", "G11", "G12")
+TEACHING_ELSEWHERE_WHY = ("the teaching videos (G6-G12) are S-005's founder journey's; this journey passes the opener "
+                          "and report sheets by with Skip")
 
 
 def project_words(text: str | None) -> list[str]:

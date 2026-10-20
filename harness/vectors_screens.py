@@ -820,6 +820,65 @@ class GuideTeaching:
         return _tc(self.page.locator(GUIDE_CHAPTER))
 
 
+# ------------------------------------------------- spec 057: passing 086's opener and report sheets by
+
+#: keel-web 086 FR-8: each founder stage's opener clip; `stageOfPath`'s reading of the address (086 `ProjectShell`).
+OPENER_CLIPS = {"PROBLEM": "opener-the-problem", "SOLUTION": "opener-your-solution",
+                "COMMERCIAL": "opener-will-they-pay"}
+_STAGE_OF_PATH = {"problem": "PROBLEM", "solution": "SOLUTION", "persona": "COMMERCIAL", "commercial": "COMMERCIAL"}
+_PROJECT_OF_URL = re.compile(r"/p/([^/?#]+)")
+#: One served manifest per web base for the run (the pass-by reads it on every stage and report open).
+_MANIFESTS: dict = {}
+
+
+def _due_guide(page: Page, base: str) -> dict | None:
+    """The project's `Overview.guide` off the page's own origin (keel-web proxies `/v2`), or None."""
+    found = _PROJECT_OF_URL.search(page.url or "")
+    if not found:
+        return None
+    try:
+        response = page.context.request.get(f"{base}/v2/projects/{found.group(1)}/overview", timeout=10_000)
+        guide = (response.json() or {}).get("guide") if response.ok else None
+    except Exception:  # noqa: BLE001 - not readable: nothing is due
+        return None
+    return guide if isinstance(guide, dict) else None
+
+
+def pass_teaching_sheet(page: Page, recorder: Recorder, base: str, kind: str, stage: str | None = None, *,
+                        timeout_s: float = 10.0) -> dict:
+    """The coordinator's pass-by for spec 057: every journey that does not judge keel-web 086's teaching sheets (all
+    but S-005's measured founder journey) skips them as `MarketStep.start` skips the welcome. `kind` is `"opener"`
+    (with the founder `stage`, or the one the address names) or `"report"`. Decided without a wait from the served
+    manifest and the project's `guide` (contract 22): a sheet already up is skipped; one that is due (clip present,
+    the stage not in `openersSeen` / `reportSeen` false) is waited for up to `timeout_s` and skipped in one `note`
+    step; nothing due, no wait. Absence is never a failure."""
+    base = (base or "").rstrip("/")
+    if kind == "opener" and stage is None:
+        part = re.search(r"/define/([a-z]+)", page.url or "")
+        stage = _STAGE_OF_PATH.get(part.group(1)) if part else None
+    if kind == "opener" and stage not in OPENER_CLIPS:
+        return {"shown": False, "why": "not a founder stage"}
+    selector, clip = (GUIDE_REPORT, "report-read") if kind == "report" else (GUIDE_OPENER, OPENER_CLIPS[stage])
+    sheet = GuideWelcome(page, recorder, base, sheet=selector)
+    if not sheet.count():
+        if base not in _MANIFESTS:
+            _MANIFESTS[base] = GuideTeaching(page, recorder, base).manifest()
+        if not (_MANIFESTS[base].get(clip) or {}).get("present"):
+            return {"shown": False, "why": f"{clip} absent from the manifest"}
+        guide = _due_guide(page, base)
+        if guide is None or "reportSeen" not in guide:
+            return {"shown": False, "why": "no contract-22 guide"}
+        due = guide.get("reportSeen") is False if kind == "report" else stage not in (guide.get("openersSeen") or [])
+        if not due or not sheet.present(timeout_s=timeout_s):
+            return {"shown": False, "due": due}
+    with recorder.step(f"keel-web 086's {kind} sheet{f' ({stage})' if stage else ''} opened; this journey does not "
+                       "judge it and passes it by with Skip (spec 057)", party="founder", kind="note") as h:
+        out = {"shown": True, "kind": kind, "stage": stage, **sheet._close(sheet._press_skip)}
+        h.request = {"kind": kind, "stage": stage}
+        h.response = out
+    return out
+
+
 # --------------------------------------------------------------------------------------- Corridor
 
 class Corridor:
@@ -963,6 +1022,7 @@ class Corridor:
                 self.page.goto(f"{self.base}/p/{project_id}/define/{slug}/seed", wait_until="load")
             box = self.page.get_by_role("textbox", name=SEED_SEND)
             box.wait_for(state="visible", timeout=20_000)
+            pass_teaching_sheet(self.page, self._b.recorder, self.base, "opener", vector)
             box.fill(text)
             _button(self.page, SEED_SEND).click()
             self.page.get_by_text(kicker).first.wait_for(state="visible",
@@ -1232,6 +1292,7 @@ class Corridor:
             _wait_url(self.page, r"/define/persona")
             group = self.page.get_by_role("radiogroup", name=PERSONA_QUESTION, exact=True)
             group.wait_for(state="visible", timeout=20_000)
+            pass_teaching_sheet(self.page, self._b.recorder, self.base, "opener", "COMMERCIAL")
             if decider["kind"] == "SAME_PERSON":
                 group.get_by_role("radio", name=PERSONA_SAME, exact=True).click()
             else:
@@ -1705,6 +1766,7 @@ class Answers:
         # a fresh load every read: the report's standings are read once a mount, so a page left open would draw an
         # earlier wire (the after-four read on S-005 drew 0 answered from the page the zero read left)
         self.page.goto(f"{self.base}/p/{project_id}", wait_until="load")
+        pass_teaching_sheet(self.page, self._b.recorder, self.base, "report")
         views = self.page.get_by_test_id("report-views").first
         views.wait_for(state="visible", timeout=30_000)
         tab = views.locator(f"button[role='tab'][data-view='{view}']").first
