@@ -713,6 +713,16 @@ class GuideTeaching:
         return {"present": True, "chip": _tc(band.first.locator(GUIDE_CHAPTER)), "src": src,
                 "snippet": _tc(band.first.locator(GUIDE_SNIPPET))}
 
+    def fields(self) -> int:
+        """The question's visible answer fields (inputs, boxes, lists, radios) -- 086 FR-5 hides them under a band."""
+        try:
+            return int(self.page.evaluate(
+                "() => Array.from(document.querySelectorAll('.ccard input, .ccard textarea, .ccard select, "
+                ".ccard [role=radio]')).filter((el) => !!(el.offsetWidth || el.offsetHeight "
+                "|| el.getClientRects().length)).length"))
+        except Exception:  # noqa: BLE001 - a read
+            return -1
+
     def primary_disabled(self) -> bool | None:
         primary = self.page.locator(CALIB_PRIMARY)
         if not primary.count():

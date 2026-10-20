@@ -607,18 +607,21 @@ def explainer_band(j: Journey, vector: str, question: dict) -> None:
     if not clip or not j.teach.present(clip):
         return
     j.guide["explainers"]["owed_bands"].append(vector)
-    with _step(j, f"the explainer on {key}: its band disables the card's primary while open, Skip gives it back "
-                  "(keel-web 086 FR-5)", party="founder") as h:
+    with _step(j, f"the explainer on {key}: its band stands in the field's place and disables the card's primary "
+                  "while open; Skip gives both back (keel-web 086 FR-5)", party="founder") as h:
+        before = {"disabled_before": j.teach.primary_disabled(), "fields_before": j.teach.fields()}
         opened = j.teach.open_pill("explain")
-        band = {"dimension": key, "clip": clip, "opened": opened["opened"],
-                "disabled_open": j.teach.primary_disabled()}
+        band = {"dimension": key, "clip": clip, "opened": opened["opened"], **before,
+                "disabled_open": j.teach.primary_disabled(), "fields_open": j.teach.fields()}
         if opened["opened"]:
             if opened["band"].get("snippet"):
                 j.guide["snippets"].append(opened["band"]["snippet"])
             band.update(j.teach.band_skip())
         band["disabled_after"] = j.teach.primary_disabled()
+        band["fields_after"] = j.teach.fields()
         j.guide["explainers"]["bands"][vector] = band
-        h.record_assert({"opened": True, "disabled_open": True, "disabled_after": False, "closed": True}, band)
+        h.record_assert({"opened": True, "disabled_open": True, "fields_open": 0, "closed": True,
+                         "after": "as before"}, band)
 
 
 def report_sheet(j: Journey) -> None:

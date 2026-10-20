@@ -50,7 +50,8 @@ that an absent clip drew nothing (086 FR-1: no pill, no sheet). A missing render
   `stage-money-b2b-1/2` on a business one -- as the band plays them.
 - **G10 an explainer under every question** (`explainers`, D27): each calibration question whose `explain-<slug>` is
   present draws its pill (absent: none), *Your idea* (S2) among them; on each stage's first question whose explainer
-  is present the band is opened: it disables the card's primary while open and gives it back after Skip.
+  is present the band is opened: it hides the question's fields and disables the card's primary while open, and Skip
+  gives both back as they were (the primary is already off before an answer is picked, so the fields carry the proof).
 - **G11 the openers once per stage** (`openers`, D25): each present opener in the sheet at its stage's first open, Skip
   posting `{what: OPENER, stage}` once, 204; `openersSeen` fills in Vector order (PROBLEM, SOLUTION, COMMERCIAL) with
   exactly the present ones; no opener over any later corridor frame.
@@ -462,8 +463,10 @@ def explainer_under_every_question(r: dict) -> tuple[bool | None, Any]:
     bands = x.get("bands") or {}
     for vector in x.get("owed_bands") or []:
         band = bands.get(vector)
-        if not band or not band.get("opened") or band.get("disabled_open") is not True \
-                or band.get("disabled_after") is not False or not band.get("closed"):
+        if not band or not band.get("opened") or not band.get("closed") or band.get("disabled_open") is not True \
+                or band.get("disabled_after") != band.get("disabled_before") \
+                or band.get("fields_open") != 0 or not (band.get("fields_before") or 0) > 0 \
+                or band.get("fields_after") != band.get("fields_before"):
             faults.append({vector: band or "no band opened on the stage's first question"})
     if not present:
         return (NOT_APPLICABLE if not faults else False), {"absent": len(x.get("questions") or {}), "faults": faults}

@@ -72,7 +72,9 @@ def explainers(present: bool = True) -> dict:
     return {"questions": {k: {"clip": c, "present": present, "pills": [_pill(c)] if present else []}
                           for k, c in marks.EXPLAINERS.items()},
             "bands": {"PROBLEM": {"dimension": "problem.prevalence", "clip": "explain-prevalence", "opened": True,
-                                  "disabled_open": True, "closed": True, "requests": [], "disabled_after": False}}
+                                  "disabled_before": False, "fields_before": 5, "disabled_open": True,
+                                  "fields_open": 0, "closed": True, "requests": [], "disabled_after": False,
+                                  "fields_after": 5}}
             if present else {},
             "owed_bands": ["PROBLEM"] if present else []}
 
@@ -272,10 +274,13 @@ def test_g9_pair_choice(b2b, played, ok):
     lambda x: x["questions"]["problem.importance"].update(pills=[_pill("explain-importance")] * 2),
     lambda x: x["bands"]["PROBLEM"].update(disabled_open=False),
     lambda x: x["bands"]["PROBLEM"].update(disabled_after=True),
+    lambda x: x["bands"]["PROBLEM"].update(fields_open=5),
+    lambda x: x["bands"]["PROBLEM"].update(fields_after=0),
     lambda x: x["bands"]["PROBLEM"].update(closed=False),
     lambda x: x.update(bands={}),
     lambda x: x["questions"]["idea"].update(pills=[]),
-], ids=["missing pill", "two pills", "primary live while open", "primary dead after", "never closed", "no band",
+], ids=["missing pill", "two pills", "primary live while open", "primary dead after", "field under the band",
+        "field never back", "never closed", "no band",
         "no pill on Your idea"])
 def test_g10_explainer_faults(fault):
     record = full()
@@ -416,3 +421,9 @@ def test_a_full_record_is_not_mutated_by_scoring():
     before = copy.deepcopy(record)
     marks.scorecard(record)
     assert record == before
+
+
+def test_g10_a_primary_off_before_an_answer_is_held_to_its_own_before():
+    record = full()
+    record["explainers"]["bands"]["PROBLEM"].update(disabled_before=True, disabled_after=True)
+    _met(record, "G10")
