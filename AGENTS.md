@@ -379,10 +379,10 @@ keel-cloud 094 + 095 (keel-cloud-docs `a0b3759`: contract 16, `InferenceCharge` 
 document 22, read on arrival) on keel-web `d23895f` (069: the AI interviewer), served `vite --mode test` for the speech
 seam.** Step 5 is three screens (L1 *Who asks the questions*; on the own door one line and *Lock and approve*). S-006 ends
 with **the interviewer leg** (`evals/interviewer_leg.py`) after the contacts leg: the own-AI refusals, the founder stood
-on Keel's door (spec 043's stand-in, keyed `e2e-eval:044:`), Tito recorded from Sent's persona line (NOT_RECORDED ->
+on Keel's door (spec 043's stand-in, keyed `e2e-eval:044:`), Chukwu (Tito before spec 058) recorded from Sent's persona line (NOT_RECORDED ->
 RECORDING -> READY on keel-cloud's fake renderer), S1 / S2 / S3, W1 replayed, Try it yourself writing nothing, an AI link
 answered on the stranger's own stage through `window.__keelSpeech` (`harness/interviewer_screens.py`), a Let-them-choose
-link, Judy for 400, the refusal at 100, the readings on arrival and nothing left unread; S-005 the short form with its AI
+link, Livia for 400 (Judy before 058), the refusal at 100, the readings on arrival and nothing left unread; S-005 the short form with its AI
 link answered. Scored by `evals/interviewer_marks.py` (IM1-IM13, `INTERVIEWER_MARKS_VERSION` 1; IM12 unmeasured, DRIFT
 #86). The journeys' readings: on Keel's door nothing is pressed (095); on the own door with the agent connected first the
 founder's session asks, as before. `stack/ledger.py` also reads the stored recording (the scripts are on no route). DRIFT

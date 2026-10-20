@@ -63,7 +63,7 @@ def test_the_words_are_keel_webs_own(word):
 
 def test_the_templates_are_keel_webs_own():
     translate = _web("src/lib/translate.ts")
-    assert "`${face} asks your questions.`" in translate and ivs.persona_asks("Tito") == "Tito asks your questions."
+    assert "`${face} asks your questions.`" in translate and ivs.persona_asks("Livia") == "Livia asks your questions."
     assert "`Change who asks · ${creditsAmount(credits)} AI credits`" in translate
     assert ivs.change_who_asks(400) == "Change who asks · 400 AI credits"
     assert "`Record the interviewer · ${creditsAmount(credits)} AI credits`" in translate

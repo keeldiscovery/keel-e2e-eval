@@ -1,8 +1,8 @@
 """The AI interviewer leg (spec 044; keel-cloud 094 at contract 16, `InferenceCharge` 9; keel-web 069): after S-006's
-contacts leg the founder's project gets its interviewer -- Tito, recorded once by the stack's fake renderer -- and the
-leg walks everything 094 and 069 say about it: the recording's one charge, the persona line through RECORDING to READY,
-the links that wait for it (`INTERVIEWER_NOT_READY`) and the text link that never does, the spoken order of every
-role's clips, the solution passage's three facts, the founder's word never spoken, *Try it yourself* writing nothing,
+contacts leg the founder's project gets its interviewer -- Chukwu since spec 058 (Tito before), recorded once by the
+stack's fake renderer -- and the leg walks everything 094 and 069 say about it: the recording's one charge, the persona
+line through RECORDING to READY, the links that wait for it (`INTERVIEWER_NOT_READY`) and the text link that never
+does, the spoken order of every role's clips, the solution passage's three facts, the founder's word never spoken, *Try it yourself* writing nothing,
 an AI-interviewer link's clips served with HTTP Range and answered with `heard` / `how`, a Let-them-choose link
 answered in writing, the change of face for 400 credits, its refusal at a low balance, and the pilot ask -- the last
 line of every role, its Yes counted where a text link's is. S-005 walks the short form: the recording, READY, one AI
@@ -81,8 +81,10 @@ SPEC = "044"
 #: What the stack's fake transcriber hears for any recording over the silence floor (`stack/cloud.py`
 #: KEEL_INTERVIEWER_FAKE_TRANSCRIPT; keel-cloud 099 FakeTranscriber's `otherwise`).
 FAKE_TRANSCRIPT = "yes"
-FIRST_FACE = "TITO"
-CHANGED_FACE = "JUDY"
+#: Spec 058 (keel-cloud 110): the four photo avatars -- the first recording is the last card (Tito's place), the change
+#: goes to LIVIA (where JUDY was), the preselected face, which is therefore a change and not the default.
+FIRST_FACE = "CHUKWU"
+CHANGED_FACE = "LIVIA"
 #: The balance the change is refused at (stand-in 2): under one change (400), over nothing else the leg needs.
 LOW_BALANCE = 100
 AI_PERSON = "Someone the founder knows, by voice"
@@ -384,24 +386,31 @@ def _founders_word(j, wire: _Wire, record: dict) -> None:
 
 def _first_recording(j, wire: _Wire, record: dict) -> None:
     with j.recorder.step("interviewer (contract 16): on Keel's door the project locked with no recording reads "
-                         "NOT_RECORDED; the five faces, Judy preselected, the change price 400; a face not on the list "
-                         "is refused FACE_UNKNOWN and charges nothing", party="founder", kind="assert") as h:
+                         "NOT_RECORDED; the four faces with their stills and hellos, Livia preselected, the change price 400; "
+                         "a face not on the list, and a retired one (Judy), is refused FACE_UNKNOWN and charges "
+                         "nothing", party="founder", kind="assert") as h:
         _, view = wire("GET", "/interviewer")
         _, faces = wire("GET", "/interviewer/faces")
         rows_before, balance_before = _rows(j, record), wire.credits()
         unknown, unknown_body = wire("POST", "/interviewer/face", {"face": "BOB"}, ok=(422,))
+        # spec 058 FR-1: a code keel-cloud 110 retired is a face not on the list
+        retired, retired_body = wire("POST", "/interviewer/face", {"face": fake.RETIRED[0]}, ok=(422,))
         record["faces"] = {"view": view, "faces": faces, "unknown": {"status": unknown, "body": unknown_body,
                                                                      "ledger_rows_added": _rows(j, record) - rows_before,
-                                                                     "balance_after": wire.credits()}}
+                                                                     "balance_after": wire.credits()},
+                           "retired": {"face": fake.RETIRED[0], "status": retired, "code": retired_body.get("code")}}
         h.record_assert({"status": "NOT_RECORDED", "face": None, "faces": list(fake.FACES),
                          "preselected": fake.PRESELECTED, "changePrice": fake.CHANGE_PRICE,
-                         "unknown": fake.FACE_UNKNOWN}, record["faces"])
+                         "unknown": fake.FACE_UNKNOWN,
+                         "retired": {"face": fake.RETIRED[0], "status": 422, "code": fake.FACE_UNKNOWN},
+                         "helloUrl": [fake.hello_path(f) for f in fake.FACES]}, record["faces"])
         assert view.get("status") == "NOT_RECORDED" and view.get("face") is None, view
         assert [f.get("code") for f in faces.get("faces") or []] == list(fake.FACES), faces
         assert [f.get("name") for f in faces.get("faces") or []] == [fake.FACE_NAMES[f] for f in fake.FACES], faces
         assert all(f.get("previewUrl") == fake.preview_path(f.get("code")) for f in faces.get("faces") or []), faces
+        assert all(f.get("helloUrl") == fake.hello_path(f.get("code")) for f in faces.get("faces") or []), faces
         assert faces.get("preselected") == fake.PRESELECTED and faces.get("changePrice") == fake.CHANGE_PRICE, faces
-        assert unknown_body.get("code") == fake.FACE_UNKNOWN, unknown_body
+        assert unknown_body.get("code") == fake.FACE_UNKNOWN == retired_body.get("code"), (unknown_body, retired_body)
         assert record["faces"]["unknown"]["ledger_rows_added"] == 0 and wire.credits() == balance_before
 
     with j.recorder.step(f"interviewer: the founder picks {fake.FACE_NAMES[FIRST_FACE]} -- the first recording "
@@ -490,9 +499,10 @@ def _screens_recording(j, wire: _Wire, record: dict) -> None:
     is recording with a bar and *k of N clips done*; each card's *Try it yourself* is greyed *recording*; the primary
     reads *Send text-only links*; Send more greys the AI interviewer and Let them choose *recording*. No price."""
     persona = _persona(j)
-    with j.recorder.step("interviewer (S1): while RECORDING the persona line names Tito, recording, a bar and k of N "
-                         "clips; Try it yourself greyed *recording*; *Send text-only links*; Send more greys the AI "
-                         "interviewer and Let them choose *recording*", party="founder", kind="assert") as h:
+    with j.recorder.step(f"interviewer (S1): while RECORDING the persona line names {fake.FACE_NAMES[FIRST_FACE]}, "
+                         "recording, a bar and k of N clips; Try it yourself greyed *recording*; *Send text-only "
+                         "links*; Send more greys the AI interviewer and Let them choose *recording*", party="founder",
+                         kind="assert") as h:
         line = persona.wait_state("RECORDING")
         cards = persona.cards()
         labels = _labels(j)
@@ -517,12 +527,12 @@ def _screens_recording(j, wire: _Wire, record: dict) -> None:
 
 def _screens_ready(j, wire: _Wire, record: dict) -> None:
     """S2, S3, W1 and L1 once READY: the line *Recorded today at hh:mm.* with the one priced action, *Try it yourself*
-    lit and *Send links*; Send more offers *AI interviewer · Tito*; W1 replayed names Tito in frame 2; L1 revisited
-    draws the carousel with Tito checked. None of them shows a price but the one action (IM2)."""
+    lit and *Send links*; Send more offers *AI interviewer · {face}*; W1 replayed names the face in frame 2; L1 revisited
+    draws the carousel with the first face checked. None of them shows a price but the one action (IM2)."""
     persona = _persona(j)
     name = fake.FACE_NAMES[FIRST_FACE]
     with j.recorder.step("interviewer (S2 / S3): READY in place -- *Recorded today at hh:mm.* and *Change who asks · "
-                         "400 AI credits*; Try it yourself lit, *Send links*; Send more offers *AI interviewer · Tito* "
+                         f"400 AI credits*; Try it yourself lit, *Send links*; Send more offers *AI interviewer · {name}* "
                          "and says it is already recorded", party="founder", kind="assert") as h:
         persona.sent(j.project_id)
         line = persona.wait_state("READY")
@@ -543,13 +553,13 @@ def _screens_ready(j, wire: _Wire, record: dict) -> None:
         assert not any(r["disabled"] for r in formats["rows"].values()), formats["rows"]
         assert formats["hint"] == ivs.SEND_FORMAT_RECORDED, formats
     with j.recorder.step("interviewer (W1, FR-003): *How it works* replays the walkthrough's four frames, frame 2 "
-                         "*Tito asks your questions*", party="founder", kind="assert") as h:
+                         f"*{name} asks your questions*", party="founder", kind="assert") as h:
         drawn = persona.walkthrough_again()
         record["screens_drawn"]["W1"] = drawn
         h.record_assert({"frames": 4, "frame 2": ivs.walkthrough_asks_title(name)}, drawn)
         assert len(drawn["texts"]) == 4 and ivs.walkthrough_asks_title(name) in drawn["texts"][1], drawn
     with j.recorder.step("interviewer (L1, FR-002): the lock's last screen revisited on Keel's door -- *Who asks the "
-                         "questions*, the five faces, one checked -- and no price on it", party="founder",
+                         "questions*, the four faces, one checked -- and no price on it", party="founder",
                          kind="assert") as h:
         l1 = persona.l1_again(j.project_id)
         record["screens"]["L1"] = l1["text"]
@@ -559,7 +569,8 @@ def _screens_ready(j, wire: _Wire, record: dict) -> None:
         assert l1["faces"] == list(fake.FACES) and len(l1["checked"]) == 1, l1
         assert not marks.PRICE_WORD.search(l1["text"]), l1["text"]
     with j.recorder.step("interviewer (keel-web 070, DRIFT #87 closed): L1 revisited after the lock checks the face "
-                         "that was recorded -- Tito -- not the preselected Judy", party="founder", kind="assert") as h:
+                         f"that was recorded -- {fake.FACE_NAMES[FIRST_FACE]} -- not the preselected "
+                         f"{fake.FACE_NAMES[fake.PRESELECTED]}", party="founder", kind="assert") as h:
         h.record_assert({"checked": [FIRST_FACE]}, {"checked on L1": l1["checked"]})
         assert l1["checked"] == [FIRST_FACE], l1["checked"]
     persona.sent(j.project_id)
@@ -2326,7 +2337,7 @@ def _choice_intro_on_screen(j, url: str) -> dict:
     try:
         page = stranger.new_page()
         player = ivs.Player(page, j.recorder, patience=j.patience)
-        with player.step("the stranger opens a Let-them-choose link: Talk to Tito, or Answer in writing") as h:
+        with player.step(f"the stranger opens a Let-them-choose link: Talk to {fake.FACE_NAMES[FIRST_FACE]}, or Answer in writing") as h:
             drawn = player.open(url)
             h.add_screenshot(player.screenshot("choice-intro"))
             return drawn
@@ -2576,7 +2587,8 @@ def _low_balance(j, wire: _Wire, record: dict, founder_id: str, run: str) -> Non
         assert wire.credits() == LOW_BALANCE
     with j.recorder.step(f"interviewer (decision 3): at {LOW_BALANCE} credits a change of face is REFUSED 422 "
                          "INSUFFICIENT_CREDITS_FOR_INTERVIEWER with required / available and keel-cloud's sentence; "
-                         "nothing is charged and Judy still asks", party="founder", kind="assert") as h:
+                         f"nothing is charged and {fake.FACE_NAMES[CHANGED_FACE]} still asks", party="founder",
+                         kind="assert") as h:
         rows_before = _rows(j, record)
         persona = _persona(j)
         persona.sent(j.project_id)

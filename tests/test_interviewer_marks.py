@@ -118,7 +118,8 @@ def _follow_up_clips() -> dict:
 
 
 def good() -> dict:
-    """A record as S-006's leg writes one: Tito at the first recording, Judy after the change, one fail-once retried."""
+    """A record as S-006's leg writes one: Chukwu at the first recording, Livia after the change, one fail-once
+    retried (spec 058: Tito and Judy before)."""
     primary = [_clip("PRIMARY", "OPENING", script=fake.OPENING),
                _clip("PRIMARY", "PROBLEM", script="Translators wait months to be paid. I'll ask you 2 questions."),
                _clip("PRIMARY", "ITEM", "problem.recency"), _clip("PRIMARY", "ITEM", "problem.importance"),
@@ -146,13 +147,13 @@ def good() -> dict:
                    {"kind": "PURCHASE", "credits": -800, "action": None, "price_version": None}],
         "screens": {"L1": "Who asks the questions. Keel records your interviewer once for this project. Lock and record "
                           "the interviewer",
-                    "S1": "Tito asks your questions. Recording now, usually ready in about five minutes. 3 of 19 clips",
+                    "S1": "Chukwu asks your questions. Recording now, usually ready in about five minutes. 3 of 19 clips",
                     "S2": "Recorded today at 16:02. Change who asks · 400 AI credits",
-                    "S3": "AI interviewer · Tito Text only Let them choose The interviewer is already recorded."},
-        "wire_views": [{"face": {"code": "TITO"}, "status": "READY", "progress": {"done": 19, "total": 19},
-                        "changePrice": 400, "faces": [{"code": "JUDY"}]},
-                       {"interviewer": {"face": "TITO", "status": "RECORDING"}, "revision": 40}],
-        "recording": {"face": "JUDY", "status": "READY", "clips": primary + commercial},
+                    "S3": "AI interviewer · Chukwu Text only Let them choose The interviewer is already recorded."},
+        "wire_views": [{"face": {"code": "CHUKWU"}, "status": "READY", "progress": {"done": 19, "total": 19},
+                        "changePrice": 400, "faces": [{"code": "LIVIA"}]},
+                       {"interviewer": {"face": "CHUKWU", "status": "RECORDING"}, "revision": 40}],
+        "recording": {"face": "LIVIA", "status": "READY", "clips": primary + commercial},
         "roles": {"PRIMARY": {"kind": "FULL", "parts": [
                       {"part": 1, "items": ["problem.recency", "problem.importance"]},
                       {"part": 2, "items": ["solution.relative_advantage", "solution.compatibility"]}]},
@@ -176,10 +177,10 @@ def good() -> dict:
                            {"itemId": "d", "how": "TYPED"},                     # a value typed into the field
                            {"itemId": "e", "how": "RECORDED", "heard": "the second one"}]},
                        "register_row": {"formatUsed": "AI_INTERVIEWER"}},
-        "change": {"face": "JUDY", "face_before": "TITO", "face_after": "JUDY", "ready_face": "JUDY",
+        "change": {"face": "LIVIA", "face_before": "CHUKWU", "face_after": "LIVIA", "ready_face": "LIVIA",
                    "balance_before": 1100, "balance_after": 700, "trail": ["RECORDING", "RECORDING", "READY"]},
         "low_balance": {"status": 422, "balance": 100, "balance_after": 100, "ledger_rows_added": 0,
-                        "face_before": "JUDY", "face_after": "JUDY",
+                        "face_before": "LIVIA", "face_after": "LIVIA",
                         "body": {"rule": "credits", "code": "INSUFFICIENT_CREDITS_FOR_INTERVIEWER", "required": 400,
                                  "available": 100, "remedy": fake.INSUFFICIENT_REMEDY.format(required=400,
                                                                                             available=100)}},
@@ -319,11 +320,11 @@ SEEDED = [
     ("IM1", ["ledger", 2, "actual_cost_micro_usd"], 1_430_000),                         # the vendor's bill passed on
     ("IM1", ["ledger", 1, "inference_job_id"], str(uuid.uuid4())),                       # held on a job
     ("IM2", ["screens", "L1"], "Who asks the questions · 400 credits"),                  # a price on Lock
-    ("IM2", ["screens", "S1"], "Tito asks your questions. Recording now ($1.43)."),
-    ("IM2", ["screens", "S3"], "AI interviewer · Tito · 400 credits"),
+    ("IM2", ["screens", "S1"], "Chukwu asks your questions. Recording now ($1.43)."),
+    ("IM2", ["screens", "S3"], "AI interviewer · Chukwu · 400 credits"),
     ("IM2", ["screens", "S2"], "Recorded today at 16:02. Change who asks"),              # the one action missing
     ("IM2", ["screens"], lambda s: {k: v for k, v in s.items() if k != "S3"}),           # a screen not drawn
-    ("IM2", ["wire_views"], lambda v: v + [{"interviewer": {"face": "TITO", "creditsCharged": 400}}]),
+    ("IM2", ["wire_views"], lambda v: v + [{"interviewer": {"face": "CHUKWU", "creditsCharged": 400}}]),
     ("IM3", ["recording"], _clips(lambda c: [c[4]] + c[:4] + c[5:])),                    # the idea before the problem
     ("IM3", ["recording"], _clips(lambda c: c[:8] + [c[9], c[8]] + c[10:])),              # thanks before the pilot
     ("IM3", ["recording"], _clips(lambda c: c[:2] + [c[3], c[2]] + c[4:])),               # items out of order
@@ -376,11 +377,11 @@ SEEDED = [
     ("IM10", ["ledger"], lambda rows: rows + _pair("INTERVIEWER_CHANGE")),                # charged twice
     ("IM10", ["change", "balance_after"], 1100),
     ("IM10", ["change", "trail"], ["READY"]),                                             # never re-recorded
-    ("IM10", ["change", "ready_face"], "TITO"),                                           # READY on the old face
+    ("IM10", ["change", "ready_face"], "CHUKWU"),                                           # READY on the old face
     ("IM11", ["low_balance", "status"], 200),                                             # changed anyway
     ("IM11", ["low_balance", "body", "remedy"], "Not enough credits."),
     ("IM11", ["low_balance", "ledger_rows_added"], 2),
-    ("IM11", ["low_balance", "face_after"], "TITO"),
+    ("IM11", ["low_balance", "face_after"], "CHUKWU"),
     ("IM11", ["low_balance", "body", "available"], 0),
     ("IM12", ["retry", "clip", "attempts"], 1),                                           # never failed, never retried
     ("IM12", ["retry", "ledger_rows_added"], 2),                                          # the retry paid again
@@ -525,8 +526,10 @@ def test_the_price_word_finds_a_price_and_leaves_plain_words_alone():
 
 def test_charge_v9_and_the_fixed_lines():
     assert (fake.PRICE_VERSION, fake.CREDITS, fake.COST_MICRO_USD, fake.CHANGE_PRICE) == (10, 400, 2_000_000, 400)
-    assert fake.FACES == ("JUDY", "JIN", "ANNA", "DAPHNE", "TITO") and fake.PRESELECTED == "JUDY"
-    assert fake.preview_path("TITO") == "/interviewer/faces/tito.webp"
+    assert fake.FACES == ("LIVIA", "JIA", "MARIEKE", "CHUKWU") and fake.PRESELECTED == "LIVIA"
+    assert fake.RETIRED == ("JUDY", "JIN", "ANNA", "DAPHNE", "TITO") and not set(fake.RETIRED) & set(fake.FACES)
+    assert fake.preview_path("CHUKWU") == "/interviewer/faces/chukwu.webp"
+    assert fake.hello_path("LIVIA") == "/interviewer/faces/livia.mp4"
     assert fake.REFUSAL_STATUS == {"INTERVIEWER_NOT_READY": 409, "INTERVIEWER_NEEDS_CREDITS": 422,
                                    "FACE_UNKNOWN": 422, "INTERVIEWER_FAILED": 409,
                                    "INSUFFICIENT_CREDITS_FOR_INTERVIEWER": 422}
@@ -545,7 +548,7 @@ def test_the_faces_are_keel_clouds_own():
     text = _cloud_text("src/main/java/com/keeldiscovery/cloud/domain/interviewer/InterviewerFace.java")
     import re                                                             # noqa: PLC0415
     assert tuple(re.findall(r"^\s+([A-Z]+)\(\"", text, re.M)) == fake.FACES
-    assert "PRESELECTED = JUDY" in text
+    assert "PRESELECTED = LIVIA" in text
 
 
 def test_the_kinds_are_keel_clouds_own():

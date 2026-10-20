@@ -1,7 +1,7 @@
 """keel-cloud's pre-rendered AI interviewer, restated where this eval reads it (spec 044; keel-cloud 094, contract 16,
-`InferenceCharge` 9, document 22): the charge rows, the five faces, the refusal codes, the spoken order of a role's
-clips, the fixed lines code writes (design `ai-interviewer-prerendered-2026-10-15.md` FR-B), and what the stack's fake
-renderer does (`FakeInterviewerRenders`: a one-second silent mp4 per clip after a 3 s virtual delay, 0.1 s a word, one
+`InferenceCharge` 9, document 22): the charge rows, the faces (four since keel-cloud 110), the refusal codes, the
+spoken order of a role's clips, the fixed lines code writes (design `ai-interviewer-prerendered-2026-10-15.md` FR-B),
+and what the stack's fake renderer does (`FakeInterviewerRenders`: a one-second silent mp4 per clip after a 3 s virtual delay, 0.1 s a word, one
 vendorRef failed once on request).
 
 **No vendor is called and no money is spent.** The stack runs keel-cloud's defaults (`keel.v2.interviewer.renders =
@@ -46,14 +46,24 @@ CHANGE_PRICE = CREDITS
 
 # ------------------------------------------------------------------------------------------ faces (FR-A)
 
-FACES = ("JUDY", "JIN", "ANNA", "DAPHNE", "TITO")
-FACE_NAMES = {"JUDY": "Judy", "JIN": "Jin", "ANNA": "Anna", "DAPHNE": "Daphne", "TITO": "Tito"}
-PRESELECTED = "JUDY"
+#: Spec 058 (keel-cloud 110, contract 23): four photo avatars, each with its own voice, LIVIA preselected where JUDY
+#: was. 094's five studio faces are retired: a pick of one is 422 FACE_UNKNOWN (`RETIRED`).
+FACES = ("LIVIA", "JIA", "MARIEKE", "CHUKWU")
+FACE_NAMES = {"LIVIA": "Livia", "JIA": "Jia", "MARIEKE": "Marieke", "CHUKWU": "Chukwu"}
+PRESELECTED = "LIVIA"
+RETIRED = ("JUDY", "JIN", "ANNA", "DAPHNE", "TITO")
+#: Spec 058 FR-2 / FR-3 (keel-web 087): each face's hello is one clip of 4.6-5.4 s; one longer than this is not it.
+HELLO_MAX_S = 8.0
 
 
 def preview_path(face: str) -> str:
     """`InterviewerFace.previewPath`: the still keel-web ships, never a vendor URL."""
     return f"/interviewer/faces/{face.lower()}.webp"
+
+
+def hello_path(face: str) -> str:
+    """`InterviewerFace.helloPath` (keel-cloud 110): the face's hello clip keel-web ships, served as `helloUrl`."""
+    return f"/interviewer/faces/{face.lower()}.mp4"
 
 
 # ------------------------------------------------------------------------------ refusals (contract 16)
