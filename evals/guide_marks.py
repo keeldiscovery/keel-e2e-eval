@@ -329,8 +329,14 @@ def is_pill(pill: Any, key: str) -> bool:
     if pill.get("clip"):
         return pill["clip"] == key
     family = key if key in PILL_WORDS else key.split("-", 1)[0]
+    if pill.get("testid"):
+        # keel-web 086 `GuidePlacement`: `guide-pill-{id}`, the id `report-read`, `report-fails`, `stage` or `explain`
+        return pill["testid"] == f"guide-pill-{family}"
     words = PILL_WORDS.get(family)
-    return bool(words) and str(pill.get("words") or "").startswith(words)
+    if not (words and str(pill.get("words") or "").startswith(words)):
+        return False
+    # 086's pills carry no clip key: *How to read this* is not *How to read these charts*
+    return not (family == "report-read" and str(pill.get("words")).startswith(PILL_WORDS["stage"]))
 
 
 def _one_post(requests: list[dict] | None, body: dict) -> bool:

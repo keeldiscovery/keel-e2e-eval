@@ -608,7 +608,10 @@ class GuideWelcome:
 
 GUIDE_REPORT = "[data-testid='guide-report']"
 GUIDE_OPENER = "[data-testid='guide-opener']"
-GUIDE_PILL = "[data-testid='guide-pill']"
+#: keel-web 086 `GuidePill`: a pressable pill is `button.guide-pill` (its test id, if any, is per placement); the fresh
+#: dot is `guide-pill-new`, named *new* (D45). The pill carries no clip key: it is known by its words.
+GUIDE_PILL = "button.guide-pill"
+GUIDE_PILL_NEW = "[data-testid='guide-pill-new']"
 GUIDE_BAND = "[data-testid='guide-band']"
 GUIDE_CHAPTER = "[data-testid='guide-chapter']"
 #: keel-web 086 FR-1: every clip key with `present` and its duration; a placement whose clip is absent draws no pill.
@@ -618,10 +621,9 @@ CALIB_PRIMARY = ".ccard__foot button.btn.primary"
 
 _PILLS_JS = r"""(sel) => Array.from(document.querySelectorAll(sel)).filter(
     (el) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)).map((el) => ({
-  clip: el.getAttribute('data-clip'), words: (el.innerText || '').replace(/\s+/g, ' ').trim(),
-  label: el.getAttribute('aria-label'),
-  fresh: el.getAttribute('data-fresh') === 'true'
-         || !!el.querySelector('[aria-label="new" i], [data-fresh="true"]')}))"""
+  clip: el.getAttribute('data-clip'), testid: el.getAttribute('data-testid'),
+  words: (el.innerText || '').replace(/\s+/g, ' ').trim(), label: el.getAttribute('aria-label'),
+  fresh: !!el.querySelector('[data-testid="guide-pill-new"], [aria-label="new" i]')}))"""
 
 
 def _safe_eval(page: Page, js: str, arg: Any) -> list:
@@ -742,12 +744,12 @@ class GuideTeaching:
             self.page.remove_listener("request", keep)
         return [_request_row(r) for r in seen]
 
-    def open_pill(self, clip: str | None = None, words: str | None = None) -> dict:
-        """Presses the pill for `clip` (or the one whose words start `words`); `{opened, band}`."""
-        with self._b.step(f"founder presses the guide pill {clip or words}") as h:
-            pills = self.page.locator(f"{GUIDE_PILL}[data-clip='{clip}']" if clip else GUIDE_PILL)
-            if words and not clip:
-                pills = pills.filter(has_text=words)
+    def open_pill(self, pill_id: str) -> dict:
+        """Presses keel-web 086's pill `guide-pill-{pill_id}` (`report-read`, `report-fails`, `stage`, `explain`);
+        `{opened, band}`."""
+        clip = pill_id
+        with self._b.step(f"founder presses the guide pill {pill_id}") as h:
+            pills = self.page.locator(f"{GUIDE_PILL}[data-testid='guide-pill-{pill_id}']")
             if not pills.count():
                 return {"opened": False, "band": {"present": False}}
             pills.first.click()
@@ -843,7 +845,7 @@ class Corridor:
                 "nav_links": self.page.locator("nav.side-nav a").count(),
                 "welcome": self.page.locator(GUIDE_WELCOME).count(),
                 # spec 057 G10 / G11: the pills under the question (each clip's key) and the opener sheets over it
-                "pills": [p.get("clip") or p.get("words") for p in _safe_eval(self.page, _PILLS_JS, GUIDE_PILL)],
+                "pills": _safe_eval(self.page, _PILLS_JS, GUIDE_PILL),
                 "openers": self.page.locator(GUIDE_OPENER).count()}
 
     def _primary(self):

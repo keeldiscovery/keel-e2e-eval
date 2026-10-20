@@ -360,6 +360,12 @@ def test_g3_reads_the_welcome_flags_alone_on_contract_22():
                                  "lineFailedSeen": False}) == {"welcomeSeen": True, "openersSeen": []}
 
 
+def test_086s_pill_test_ids_name_the_family():
+    assert marks.is_pill({"testid": "guide-pill-explain", "words": "Hear this one · 36 s"}, "explain-prevalence")
+    assert marks.is_pill({"testid": "guide-pill-report-fails", "words": "When a line fails"}, "report-fails")
+    assert not marks.is_pill({"testid": "guide-pill-stage", "words": "How to read these charts"}, "report-read")
+
+
 def test_the_corridor_frame_reads_pills_and_openers():
     import inspect
     source = inspect.getsource(vs.Corridor.frame)
@@ -393,7 +399,7 @@ def test_every_present_clip_in_keel_webs_manifest_is_one_the_marks_know():
     assert keys and keys <= known | {"welcome", "interviewer-sample"}, sorted(keys - known)
 
 
-@pytest.mark.parametrize("testid", ["guide-report", "guide-opener", "guide-pill", "guide-band", "guide-chapter"])
+@pytest.mark.parametrize("testid", ["guide-report", "guide-opener", "guide-pill-new", "guide-band", "guide-chapter"])
 def test_every_teaching_selector_is_in_keel_web(testid):
     root = load_config(validate=False).keel_web / "src"
     if not (_guide_dir() / "manifest.json").is_file():

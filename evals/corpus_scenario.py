@@ -607,9 +607,7 @@ def explainer_band(j: Journey, vector: str, question: dict) -> None:
     j.guide["explainers"]["owed_bands"].append(vector)
     with _step(j, f"the explainer on {key}: its band disables the card's primary while open, Skip gives it back "
                   "(keel-web 086 FR-5)", party="founder") as h:
-        opened = j.teach.open_pill(clip=clip)
-        if not opened["opened"]:
-            opened = j.teach.open_pill(words=guide_marks.PILL_WORDS["explain"])
+        opened = j.teach.open_pill("explain")
         band = {"dimension": key, "clip": clip, "opened": opened["opened"],
                 "disabled_open": j.teach.primary_disabled()}
         if opened["opened"]:
@@ -676,9 +674,7 @@ def watch_line_failed(j: Journey) -> None:
         return
     with _step(j, "When a line fails, played to its end, posts {lineFailed: true} and its fresh dot is gone at the "
                   "next open (keel-web 086 FR-6)", party="founder") as h:
-        opened = j.teach.open_pill(clip="report-fails")
-        if not opened["opened"]:
-            opened = j.teach.open_pill(words=guide_marks.PILL_WORDS["report-fails"])
+        opened = j.teach.open_pill("report-fails")
         if opened["band"].get("snippet"):
             j.guide["snippets"].append(opened["band"]["snippet"])
         duration = float((j.teach.manifest().get("report-fails") or {}).get("duration") or 600)
@@ -708,7 +704,7 @@ def stage_band(j: Journey, vector: str) -> None:
         return
     with _step(j, f"the {vector.lower()} page's band plays two chapters, {keys[0]} then {keys[1]}, the chip 1 of 2 "
                   "then 2 of 2 (keel-web 086 FR-7)", party="founder") as h:
-        opened = j.teach.open_pill(words=guide_marks.PILL_WORDS["stage"])
+        opened = j.teach.open_pill("stage")
         band = opened["band"]
         one.update({"opened": opened["opened"], "chip_first": band.get("chip"), "src_first": band.get("src"),
                     "seam": j.teach.seam()})
