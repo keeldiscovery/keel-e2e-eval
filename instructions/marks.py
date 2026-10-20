@@ -64,6 +64,14 @@ a stage band (D43, D46), G9 the money pair by kind (D47), G10 an explainer under
 once per stage (D25), G12 no project word in a caption or snippet (D42, D48); a mark whose clips are absent from the
 served manifest passes as not applicable.
 
+**Spec 058 (2026-10-20)**: keel-cloud 110 / keel-web 087 (contract 23, keel-cloud-docs `b54c349`) moved no screen
+schema, no instruction and no corpus file -- the four interviewers (LIVIA preselected where JUDY was, JIA, MARIEKE,
+CHUKWU) are faces and clips -- so v20 stands. The two new rows are the journey ruler's (`evals/interviewer_marks.py`,
+`INTERVIEWER_MARKS_VERSION` 6, its own changelog in that file): IM28 *tap to hear* (a tap on an unpicked card picks it
+and her hello plays inside the card to its end, 8 s or less, the still returns, the picked face is posted) and IM29 *the
+respondent hears her* (*Hear <name>* on the Let-them-choose intro plays her hello, the choice buttons enabled
+throughout).
+
 **`MARKS_VERSION` 19** (history since v20, never run; spec 042, 2026-10-14): the defects batch. The ruler follows keel-cloud 090 / 091 (keel-cloud-docs
 `c432c1d`; registry `VERSION` 4, document 20, `CONTRACT_VERSION` 14, routing v11, charge 7 -- the lock holds one job of
 35). No mark is born or retired and no number in `marks.toml` moved; four judgement calls moved under them, so the

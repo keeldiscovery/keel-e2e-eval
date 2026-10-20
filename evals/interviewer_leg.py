@@ -85,6 +85,10 @@ FAKE_TRANSCRIPT = "yes"
 #: goes to LIVIA (where JUDY was), the preselected face, which is therefore a change and not the default.
 FIRST_FACE = "CHUKWU"
 CHANGED_FACE = "LIVIA"
+#: Spec 058 FR-2 / FR-3: how long a tapped hello (4.6-5.4 s) is waited for to end -- on the remote profile the 90 s
+#: navigation timeout, as the welcome's mp4 is (a clip over the wire may take its time to load).
+HEAR_WAIT_S = 20
+HEAR_WAIT_REMOTE_S = 90
 #: The balance the change is refused at (stand-in 2): under one change (400), over nothing else the leg needs.
 LOW_BALANCE = 100
 AI_PERSON = "Someone the founder knows, by voice"
@@ -117,8 +121,10 @@ READ_REASON = marks.READ_REASON
 #: are owed on the short form too.
 #: Spec 051: IM23 (asked on the first rung), IM24 (skipped honoured) and IM26 (speak or type) on the short form too;
 #: IM25's recorded window and IM27's backfill are the full leg's.
+#: Spec 058: IM28 (tap to hear) on the short form too -- it records from the same popup; IM29's Let-them-choose link is
+#: the full leg's.
 SHORT_FORM = ["IM1", "IM3", "IM4", "IM5", "IM6", "IM7", "IM9", "IM13", "IM14", "IM15", "IM16", "IM17", "IM19",
-              "IM20", "IM21", "IM22", "IM23", "IM24", "IM26"]
+              "IM20", "IM21", "IM22", "IM23", "IM24", "IM26", "IM28"]
 
 
 class _Wire:
@@ -184,6 +190,16 @@ def _token(url: str) -> str:
 
 def _rows(j, record: dict) -> int:
     return len(stack_ledger.rows(j.stack, record["founder_id"]))
+
+
+def _hear_wait(j) -> float:
+    return HEAR_WAIT_REMOTE_S if getattr(j.stack, "is_remote", False) else HEAR_WAIT_S
+
+
+def _hello(record: dict, face: str) -> str | None:
+    """The face's `helloUrl` as `GET interviewer/faces` served it (contract 23)."""
+    faces = ((record.get("faces") or {}).get("faces") or {}).get("faces") or []
+    return next((f.get("helloUrl") for f in faces if f.get("code") == face), None)
 
 
 def _persona(j) -> ivs.Persona:
@@ -271,7 +287,7 @@ def _leg(j, *, short: bool) -> dict:
     # spec 048: the answer path's five are owed on the full leg whatever the record carries -- a walk that never went
     # back is a walk that failed to, not a mark left unmeasured (spec 051: and the follow-up's five)
     answer_path = ["IM14", "IM15", "IM16", "IM17", "IM18", "IM19", "IM20", "IM21", "IM22", "IM23", "IM24", "IM25",
-                   "IM26", "IM27"]
+                   "IM26", "IM27", "IM28", "IM29"]
     require = SHORT_FORM if short else [m for m, _, _ in marks.MARKS if m in _owed(record) or m in answer_path]
     _score(j, record, require=require)
     return record
@@ -420,8 +436,11 @@ def _first_recording(j, wire: _Wire, record: dict) -> None:
         persona = _persona(j)
         persona.sent(j.project_id)
         before = persona.wait_state("NOT_RECORDED")
-        pressed = persona.record(FIRST_FACE)
+        pressed = persona.record(FIRST_FACE, hear_s=_hear_wait(j))
         status, view = pressed["status"], pressed["body"]
+        # spec 058 FR-2 (IM28): the tap that picked the face played her hello in the card
+        record["hear_face"] = {**(pressed.get("hear") or {}), "hello": _hello(record, FIRST_FACE),
+                               "sent": pressed["sent"]}
         record["first"] = {"status": status, "view": view, "balance_before": balance_before,
                            "balance_after": wire.credits(), "at": stack_ledger.now(j.stack), "line": before,
                            "popup": pressed["popup"], "sent": pressed["sent"]}
@@ -2337,9 +2356,12 @@ def _choice_intro_on_screen(j, url: str) -> dict:
     try:
         page = stranger.new_page()
         player = ivs.Player(page, j.recorder, patience=j.patience)
-        with player.step(f"the stranger opens a Let-them-choose link: Talk to {fake.FACE_NAMES[FIRST_FACE]}, or Answer in writing") as h:
+        with player.step(f"the stranger opens a Let-them-choose link: Talk to {fake.FACE_NAMES[FIRST_FACE]}, or "
+                         "Answer in writing -- and taps *Hear* (keel-web 087 FR-3)") as h:
             drawn = player.open(url)
             h.add_screenshot(player.screenshot("choice-intro"))
+            drawn["hear"] = player.hear(wait_s=_hear_wait(j))
+            h.add_screenshot(player.screenshot("choice-intro-heard"))
             return drawn
     finally:
         stranger.close()
@@ -2362,6 +2384,9 @@ def _choice_link(j, wire: _Wire, record: dict) -> None:
                    {})
         owed = vs.follow_up_question(j.entry, person.picks, vs.LINK_PRIMARY, interview, made["token"])
         stored = stack_ledger.stored_follow_ups(j.stack, j.project_id).get(made["invitationId"])
+        # spec 058 FR-3 (IM29): *Hear <name>* on this intro played her hello, the choice buttons enabled throughout
+        record["hear_intro"] = {**(intro.pop("hear", None) or {}), "face": FIRST_FACE,
+                                "hello": _hello(record, FIRST_FACE)}
         record["choice"] = {"made": made, "formats": interview.get("formats"),
                             "player": bool(interview.get("interviewer")), "response": posted.status_code,
                             "register_row": row, "intro": intro,

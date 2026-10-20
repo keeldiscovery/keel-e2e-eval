@@ -117,6 +117,40 @@ def _follow_up_clips() -> dict:
                          "statuses": ["READY"], "ledger_rows_added": 0}}
 
 
+def _media(type_: str, ms: int, *, face: str | None = None, intro: bool = False, muted: bool = False,
+           current: float = 0.0, src: str = "") -> dict:
+    """One media event as `harness/interviewer_screens.HEAR_JS` logs it."""
+    return {"type": type_, "ms": ms, "face": face, "intro": intro, "muted": muted, "paused": type_ != "playing",
+            "currentTime": current, "duration": 5.2, "src": src, "error": None}
+
+
+def _hear_face() -> dict:
+    """Spec 058 IM28: Chukwu tapped in the popup's carousel, her hello played in the card, the still back."""
+    src = "http://localhost:5173/interviewer/faces/chukwu.mp4"
+    return {"face": "CHUKWU", "hello": fake.hello_path("CHUKWU"), "sent": {"face": "CHUKWU"}, "ended": True,
+            "before": {"picked": False, "glyph": True, "video": False, "videos": 0, "still": True,
+                       "glyphs": {"JIA": True, "MARIEKE": True, "CHUKWU": True}},
+            "events": [_media("play", 40, face="CHUKWU", src=src), _media("playing", 120, face="CHUKWU", src=src),
+                       _media("pause", 5_330, face="CHUKWU", current=5.2, src=src),
+                       _media("ended", 5_331, face="CHUKWU", current=5.2, src=src)],
+            "polls": [], "elapsed_ms": 5_400,
+            "after": {"picked": True, "still": True, "video": False, "videos": 0, "waited_ms": 100},
+            "checked": ["CHUKWU"]}
+
+
+def _hear_intro() -> dict:
+    """Spec 058 IM29: *Hear Chukwu* on the Let-them-choose intro, the buttons enabled throughout."""
+    src = "http://localhost:5173/interviewer/faces/chukwu.mp4"
+    return {"face": "CHUKWU", "hello": fake.hello_path("CHUKWU"), "ended": True,
+            "before": {"words": "Hear Chukwu · 5 s", "label": "Hear Chukwu", "still": True, "video": False,
+                       "videos": 0, "buttons": {"choice-talk": True, "choice-write": True}},
+            "events": [_media("playing", 90, intro=True, src=src), _media("ended", 5_300, intro=True, current=5.2,
+                                                                          src=src)],
+            "polls": [[True, True]] * 52, "elapsed_ms": 5_350,
+            "after": {"still": True, "video": False, "videos": 0, "waited_ms": 0,
+                      "buttons": {"choice-talk": True, "choice-write": True}}}
+
+
 def good() -> dict:
     """A record as S-006's leg writes one: Chukwu at the first recording, Livia after the change, one fail-once
     retried (spec 058: Tito and Judy before)."""
@@ -261,6 +295,8 @@ def good() -> dict:
         "follow_up_windows": {"windows": _ai_follow_up()["walk"]["windows"], "full": True, "page_cap_ms": 120_000},
         "speak": {"Priya": _take("Priya", "quiet"), "Nadia": _take("Nadia", "done"), "Hana": _refused("Hana")},
         "follow_up_clips": _follow_up_clips(),
+        # spec 058: tap to hear (IM28) and the respondent hears her (IM29)
+        "hear_face": _hear_face(), "hear_intro": _hear_intro(),
         "arrivals": [{"invitationId": AI_INVITATION, "holds": [_reading("INTERPRET", f"read-on-arrival:{AI_INVITATION}")]},
                      {"invitationId": CHOICE_INVITATION,
                       "holds": [_reading("INTERPRET", f"read-on-arrival:{CHOICE_INVITATION}")]}],
@@ -275,9 +311,9 @@ def test_a_good_record_meets_every_mark():
     checks = _by_mark(good())
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
-    assert (card["measured"], card["met"], card["unmeasured"]) == (27, 27, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 5
-    assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 28)]
+    assert (card["measured"], card["met"], card["unmeasured"]) == (29, 29, [])
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 6
+    assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 30)]
 
 
 def test_the_story_ended_by_the_pause_meets_im22_with_nothing_pressed():
@@ -496,6 +532,68 @@ SEEDED = [
     ("IM27", ["follow_up_clips", "backfill", "served_after", "PRIMARY"], []),           # never served again
     ("IM27", ["follow_up_clips", "backfill"], None),                                     # the full leg never seeded it
 ]
+
+#: Spec 058 acceptance 1: the two evaluators' tables -- each fault fails its mark, alone.
+_ENDED = 3
+HEAR_FACE_FAULTS = [
+    ("picked already", ["hear_face", "before", "picked"], True),
+    ("no glyph on the card", ["hear_face", "before", "glyph"], False),
+    ("an unpicked card with no glyph", ["hear_face", "before", "glyphs", "JIA"], False),
+    ("a clip showing before the tap", ["hear_face", "before", "video"], True),
+    ("never ended", ["hear_face", "events"], lambda ev: ev[:_ENDED]),
+    ("never played", ["hear_face", "events"], lambda ev: [e for e in ev if e["type"] != "playing"]),
+    ("muted", ["hear_face", "events", 1, "muted"], True),
+    ("another clip", ["hear_face", "events", 1, "src"], "http://localhost:5173/interviewer/faces/livia.mp4"),
+    ("over 8 s long", ["hear_face", "events", _ENDED, "duration"], 9.0),
+    ("ended over 8 s after playing", ["hear_face", "events", _ENDED, "ms"], 8_200),
+    ("stopped short of the end", ["hear_face", "events", _ENDED, "currentTime"], 2.0),
+    ("a media error", ["hear_face", "events"], lambda ev: ev + [dict(ev[0], type="error", error=4)]),
+    ("another card played", ["hear_face", "events"], lambda ev: ev + [dict(ev[1], face="JIA")]),
+    ("the still never returned", ["hear_face", "after", "still"], False),
+    ("the clip still showing", ["hear_face", "after", "video"], True),
+    ("not picked by the tap", ["hear_face", "after", "picked"], False),
+    ("two checked", ["hear_face", "checked"], ["LIVIA", "CHUKWU"]),
+    ("another face posted", ["hear_face", "sent"], {"face": "LIVIA"}),
+    ("the hello not served", ["hear_face", "hello"], None),
+    ("a retired face", ["hear_face", "face"], "TITO"),
+]
+HEAR_INTRO_FAULTS = [
+    ("other words", ["hear_intro", "before", "words"], "Listen"),
+    ("another name", ["hear_intro", "before", "words"], "Hear Livia · 5 s"),
+    ("no still before", ["hear_intro", "before", "still"], False),
+    ("never ended", ["hear_intro", "events"], lambda ev: ev[:1]),
+    ("muted", ["hear_intro", "events", 0, "muted"], True),
+    ("played outside the intro", ["hear_intro", "events"], lambda ev: [dict(e, intro=False) for e in ev]),
+    ("another clip", ["hear_intro", "events", 0, "src"], "http://localhost:5173/interviewer/faces/jia.mp4"),
+    ("over 8 s long", ["hear_intro", "events", 1, "duration"], 8.5),
+    ("the still never returned", ["hear_intro", "after", "still"], False),
+    ("the clip still showing", ["hear_intro", "after", "video"], True),
+    ("Talk disabled while playing", ["hear_intro", "polls"], lambda p: p[:10] + [[False, True]] + p[10:]),
+    ("Write gone while playing", ["hear_intro", "polls"], lambda p: p[:10] + [[True, None]]),
+    ("never polled", ["hear_intro", "polls"], []),
+    ("Write disabled before", ["hear_intro", "before", "buttons", "choice-write"], False),
+    ("Talk disabled after", ["hear_intro", "after", "buttons", "choice-talk"], False),
+    ("only one button", ["hear_intro", "after", "buttons"], {"choice-talk": True}),
+    ("the hello not served", ["hear_intro", "hello"], "/interviewer/faces/chukwu.webp"),
+]
+SEEDED += [("IM28", path, value) for _, path, value in HEAR_FACE_FAULTS]
+SEEDED += [("IM29", path, value) for _, path, value in HEAR_INTRO_FAULTS]
+
+
+@pytest.mark.parametrize("why,path,value", HEAR_FACE_FAULTS + HEAR_INTRO_FAULTS,
+                         ids=[w for w, _, _ in HEAR_FACE_FAULTS + HEAR_INTRO_FAULTS])
+def test_a_hear_fault_fails_its_mark_alone(why, path, value):
+    checks = _by_mark(_seed(path, value))
+    failed = {m for m, c in checks.items() if not c.ok}
+    assert failed == {"IM28" if path[0] == "hear_face" else "IM29"}, (why, failed)
+
+
+def test_the_hello_ended_by_the_still_alone_and_a_glyph_on_every_unpicked_card_meet_im28():
+    record = good()
+    record["hear_face"]["events"] = [e for e in record["hear_face"]["events"] if e["type"] in ("playing", "ended")]
+    assert _by_mark(record)["IM28"].ok, _by_mark(record)["IM28"].detail
+    record["hear_face"]["before"]["glyphs"] = {}
+    assert not _by_mark(record)["IM28"].ok
 
 
 @pytest.mark.parametrize("mark,path,value", SEEDED, ids=[f"{m}-{i}" for i, (m, _, _) in enumerate(SEEDED)])

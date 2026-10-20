@@ -45,6 +45,12 @@ driven through `text_seam` (a microphone that counts its acquisitions, refused o
 the walk sets) -- `SpeakBox` reads and drives it. `RECORDER_SEAM` adds the same recorder to the AI page's seam, so a
 browser that refuses its recogniser (`not-allowed`, Chrome on iPhone) records the window instead.
 
+Spec 058 (keel-web 087, contract 23): **tap to hear** -- a tap on an unpicked card of the carousel picks it and plays
+her hello in a `video` inside the card (`face-hear`, the play glyph on each unpicked card), and the respondent's intro
+plays it under *Hear <name>* (`intro-hear`). `HEAR_JS` listens for every `video`'s media events on the document (they do
+not bubble; a capture listener hears them) and polls the choice buttons while it plays; `hear_card` / `Player.hear`
+tap, wait for the clip's `ended` and the still's return, and return what was heard, for IM28 / IM29 to judge.
+
 Every write a press makes returns the response keel-web received, so the leg holds the wire the page was handed.
 """
 
@@ -383,6 +389,114 @@ def _words(locator) -> str:
     return " ".join((locator.text_content() or "").split()) if locator.count() else ""
 
 
+# ------------------------------------------------------------------------------------- tap to hear (087)
+
+#: keel-web 087's test ids: the play glyph on an unpicked card, the intro's *Hear <name>*.
+FACE_HEAR = "face-hear"
+INTRO_HEAR = "intro-hear"
+#: keel-web 087 FR-5 `introHear(name, seconds)`: the intro's button starts *Hear <name>* (its seconds after a dot).
+HEAR_PREFIX = "Hear "
+
+#: Installed once a page: every `video`'s play / playing / pause / ended / error, heard on the document in the capture
+#: phase, with the card (`data-face`) or the intro it plays in, `muted`, the clock, the duration and the source; and
+#: `poll(selectors)` -- every 100 ms, whether each selector's element is there and enabled -- until `stop()`.
+HEAR_JS = r"""() => {
+  if (!window.__keelHear) {
+    const log = {events: [], polls: [], timer: null};
+    const snap = (v, type) => {
+      const card = v.closest('[data-face]');
+      log.events.push({type, t: performance.now(), face: card ? card.getAttribute('data-face') : null,
+                       intro: !!v.closest('[data-testid=ai-intro]'), muted: v.muted, paused: v.paused,
+                       currentTime: v.currentTime, duration: Number.isFinite(v.duration) ? v.duration : null,
+                       src: v.currentSrc || v.src || '', error: v.error ? v.error.code : null});
+    };
+    for (const type of ['play', 'playing', 'pause', 'ended', 'error']) {
+      document.addEventListener(type, (e) => { if (e.target instanceof HTMLVideoElement) snap(e.target, type); }, true);
+    }
+    log.reset = () => { log.events = []; log.polls = []; };
+    log.poll = (selectors) => {
+      log.stop();
+      log.timer = setInterval(() => {
+        log.polls.push({t: performance.now(), enabled: selectors.map((sel) => {
+          const el = document.querySelector(sel);
+          return el ? !el.disabled : null; })});
+      }, 100);
+    };
+    log.stop = () => { if (log.timer) clearInterval(log.timer); log.timer = null; };
+    log.read = () => ({events: log.events.slice(), polls: log.polls.slice(), now: performance.now()});
+    window.__keelHear = log;
+  }
+  window.__keelHear.reset();
+  return true;
+}"""
+
+#: Whether a container shows a `video` (laid out) and its still (`role=img`, laid out) -- the clip in place of the still.
+_SHOWING_JS = r"""(el) => {
+  const shown = (x) => { if (!x) return false; const r = x.getBoundingClientRect(); const cs = getComputedStyle(x);
+    return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0'; };
+  const videos = Array.from(el.querySelectorAll('video'));
+  return {video: videos.some(shown), videos: videos.length, still: Array.from(el.querySelectorAll('[role=img]')).some(shown)};
+}"""
+
+#: The ended (or an error) of a clip in `where` -- a card's code, or "intro".
+_ENDED_JS = r"""(where) => (window.__keelHear ? window.__keelHear.events : []).some((e) =>
+  (e.type === 'ended' || e.type === 'error') && (where === 'intro' ? e.intro : e.face === where))"""
+
+
+def _showing(locator) -> dict:
+    return locator.evaluate(_SHOWING_JS) if locator.count() else {"video": False, "videos": 0, "still": False}
+
+
+def _heard(page: Page, where: str, start, *, wait_s: float, polls: list[str] | None = None) -> dict:
+    """Tap (`start()`), then wait for the clip in `where` to end and the still to return; what the listener heard."""
+    page.evaluate(HEAR_JS)
+    if polls:
+        page.evaluate("(sels) => window.__keelHear.poll(sels)", polls)
+    t0 = page.evaluate("() => performance.now()")
+    start()
+    ended = True
+    try:
+        page.wait_for_function(_ENDED_JS, arg=where, timeout=wait_s * 1000)
+    except Exception:  # noqa: BLE001 - a clip that never ends is the mark's to fail, not the walk's
+        ended = False
+    page.evaluate("() => window.__keelHear.stop()")
+    log = page.evaluate("() => window.__keelHear.read()")
+    for e in log["events"]:
+        e["ms"] = round(e.pop("t") - t0)
+    return {"ended": ended, "events": log["events"],
+            "polls": [p["enabled"] for p in log["polls"]], "elapsed_ms": round(log["now"] - t0)}
+
+
+def _still_back(container, *, wait_s: float) -> dict:
+    """The container's still back and no clip showing, waited for up to `wait_s` after the end."""
+    deadline = wait_s * 1000
+    waited = 0
+    shown = _showing(container)
+    while (shown["video"] or not shown["still"]) and waited < deadline:
+        container.page.wait_for_timeout(100)
+        waited += 100
+        shown = _showing(container)
+    return {**shown, "waited_ms": waited}
+
+
+def hear_card(page: Page, scope, face: str, *, wait_s: float) -> dict:
+    """keel-web 087 FR-2: a tap on `face`'s card in the carousel under `scope` -- what the card was (picked, its glyph,
+    its still), what played inside it and in any other card, and the card after the clip's end (picked, the still
+    back, no clip showing). Every unpicked card's glyph is counted too."""
+    carousel = scope.get_by_test_id("face-carousel") if scope.get_by_test_id("face-carousel").count() else scope
+    card = carousel.locator(f'[data-face="{face}"]')
+    card.wait_for(state="visible", timeout=10_000)
+    cards = carousel.locator('button[role="radio"]')
+    before = {"picked": card.get_attribute("aria-checked") == "true",
+              "glyph": card.get_by_test_id(FACE_HEAR).count() > 0, **_showing(card),
+              "glyphs": {c.get_attribute("data-face"): c.get_by_test_id(FACE_HEAR).count() > 0
+                         for c in cards.all() if c.get_attribute("aria-checked") != "true"}}
+    heard = _heard(page, face, card.click, wait_s=wait_s)
+    after = {"picked": card.get_attribute("aria-checked") == "true", **_still_back(card, wait_s=5)}
+    return {"face": face, "before": before, **heard, "after": after,
+            "checked": [c.get_attribute("data-face") for c in cards.all() if c.get_attribute("aria-checked") == "true"]}
+
+
 # --------------------------------------------------------------------------------------------- the founder
 
 class Persona:
@@ -426,16 +540,22 @@ class Persona:
                         "primary": _words(card.locator(".btn.primary").first)})
         return out
 
-    def record(self, face: str, *, expect_status: int | None = None) -> dict:
+    def record(self, face: str, *, expect_status: int | None = None, hear_s: float | None = None) -> dict:
         """*Change who asks* / *Record the interviewer* -> the popup -> the face -> *Record {Face}*: what the popup drew,
-        the POST keel-web sent and what it received; on a refusal the popup's words (it stays open; Cancel closes)."""
+        the POST keel-web sent and what it received; on a refusal the popup's words (it stays open; Cancel closes).
+        `hear_s` (spec 058): the tap is keel-web 087's tap to hear, its clip waited for up to that long (`hear`)."""
         with self._b.step(f"founder picks {face.title()} in the persona line's popup") as h:
             self.page.get_by_test_id("change-who-asks").click()
             popup = self.page.get_by_test_id("change-face-popup")
             popup.wait_for(state="visible", timeout=10_000)
             drawn = {"title": _words(popup.locator("h2").first), "lead": _words(popup.locator(".ccard__sub").first),
                      "faces": [b.get_attribute("data-face") for b in popup.locator('button[role="radio"]').all()]}
-            popup.locator(f'[data-face="{face}"]').click()
+            heard = None
+            if hear_s is None:
+                popup.locator(f'[data-face="{face}"]').click()
+            else:
+                heard = hear_card(self.page, popup, face, wait_s=hear_s)
+                h.add_screenshot(self._b.screenshot(f"heard-{face.lower()}"))
             confirm = popup.get_by_test_id("change-face-confirm")
             drawn["confirm"] = _words(confirm)
             with self.page.expect_response(lambda r: r.request.method == "POST"
@@ -443,6 +563,8 @@ class Persona:
                 confirm.click()
             out = {"popup": drawn, "sent": posted.value.request.post_data_json, "status": posted.value.status,
                    "body": _json(posted.value)}
+            if heard is not None:
+                out["hear"] = heard
             if posted.value.status >= 400:
                 popup.locator(".remedy, [role=alert], .banner").first.wait_for(state="visible", timeout=10_000)
                 out["refusal"] = _words(popup.locator(".remedy, [role=alert], .banner").first)
@@ -554,6 +676,23 @@ class Player:
                 "mic_test": self.page.get_by_test_id("ai-mic-test").count() > 0,
                 "mic_heard": _words(heard) or None,
                 "start_enabled": start.is_enabled() if start.count() else None}
+
+    def hear(self, *, wait_s: float) -> dict:
+        """keel-web 087 FR-3: *Hear <name>* (`intro-hear`) on the intro -- its words, the clip that played in place of
+        the round still, the still after the end, and the choice buttons' enabled state polled every 100 ms from the
+        tap to the end (`polls`: one [talk, write] pair a poll)."""
+        intro = self.page.get_by_test_id("ai-intro")
+        button = self.page.get_by_test_id(INTRO_HEAR)
+        button.wait_for(state="visible", timeout=10_000)
+        before = {"words": _words(button), "label": button.get_attribute("aria-label"), **_showing(intro),
+                  "buttons": {t: self.page.get_by_test_id(t).is_enabled() for t in ("choice-talk", "choice-write")
+                              if self.page.get_by_test_id(t).count()}}
+        heard = _heard(self.page, "intro", button.click, wait_s=wait_s,
+                       polls=["[data-testid=choice-talk]", "[data-testid=choice-write]"])
+        after = {**_still_back(intro, wait_s=5),
+                 "buttons": {t: self.page.get_by_test_id(t).is_enabled() for t in ("choice-talk", "choice-write")
+                             if self.page.get_by_test_id(t).count()}}
+        return {"before": before, **heard, "after": after}
 
     def mic_test(self, heard: str = "hello", *, timeout_s: float = 20) -> dict:
         """keel-web 072 FR-7: *Test your mic* -> the seam's microphone (always granted) -> *Say hello* -> `heard` said

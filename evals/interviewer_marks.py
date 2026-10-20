@@ -33,7 +33,11 @@ from harness import interviewer_fake as fake
 #: v5 kept (spec 055, keel-web 082 D35/D36, 2026-10-18): the gap split by window kind -- options 2.0 s
 #: (`GAP_OPTION_MS`), free text 4.0 s (`GAP_FREE_MS`, `SILENCE_FREE_MS`); IM22 and IM25 measure free-text windows only
 #: (the story, the follow-up), so they read the free gap and no mark reads its record differently.
-INTERVIEWER_MARKS_VERSION = 5
+#: v6 (spec 058, keel-cloud 110 / keel-web 087, contract 23): the four faces (LIVIA preselected where JUDY was); IM28
+#: (tap to hear: a tap on an unpicked card picks it and her hello plays inside the card to its end, the still returns,
+#: the picked face is posted) and IM29 (the respondent hears her: *Hear <name>* on the Let-them-choose intro, the
+#: choice buttons enabled throughout) born.
+INTERVIEWER_MARKS_VERSION = 6
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
@@ -691,6 +695,60 @@ def the_follow_up_clips(r: dict) -> tuple[bool, Any]:
                 "off": bad, "backfill": back}
 
 
+def _clip_heard(events: list[dict], hello: str | None) -> dict:
+    """One clip's play as the page's media events tell it: the first `playing` and the `ended` after it, sound on,
+    the served hello, no longer than `fake.HELLO_MAX_S` (its duration and the time from playing to ended), no error."""
+    playing = next((e for e in events if e.get("type") == "playing"), None)
+    ended = next((e for e in events if e.get("type") == "ended"), None)
+    errors = [e for e in events if e.get("type") == "error" or e.get("error")]
+    played_ms = ended["ms"] - playing["ms"] if playing and ended else None
+    duration = (ended or playing or {}).get("duration")
+    ok = bool(playing and ended and hello and not errors and playing.get("muted") is False
+              and (playing.get("src") or "").endswith(hello) and duration and duration <= fake.HELLO_MAX_S
+              and played_ms is not None and 0 < played_ms <= fake.HELLO_MAX_S * 1000
+              and (ended.get("currentTime") or 0) >= duration - 0.25)
+    return {"ok": ok, "played_ms": played_ms, "duration": duration,
+            "muted": playing.get("muted") if playing else None, "src": playing.get("src") if playing else None,
+            "errors": len(errors)}
+
+
+def tap_to_hear(r: dict) -> tuple[bool, Any]:
+    """IM28 (keel-web 087 FR-2): a tap on an unpicked card picks it and her hello plays inside that card -- a `video`
+    in the card, sound on, the served `helloUrl` -- to its end (8 s or less), and the still returns; every unpicked
+    card carries the play glyph, no other card plays, and the face picked is the one posted."""
+    x = r["hear_face"]
+    face, before, after = x.get("face"), x.get("before") or {}, x.get("after") or {}
+    mine = [e for e in x.get("events") or [] if e.get("face") == face]
+    others = [e for e in x.get("events") or [] if e.get("face") != face and e.get("type") in ("play", "playing")]
+    clip = _clip_heard(mine, x.get("hello"))
+    ok = (face in fake.FACES and x.get("hello") == fake.hello_path(face) and before.get("picked") is False
+          and before.get("glyph") is True and bool(before.get("glyphs")) and all(before["glyphs"].values())
+          and before.get("video") is False and clip["ok"] and not others
+          and after.get("picked") is True and after.get("still") is True and after.get("video") is False
+          and x.get("checked") == [face] and x.get("sent") == {"face": face})
+    return ok, {"face": face, "clip": clip, "before": before, "after": after, "others": len(others),
+                "checked": x.get("checked"), "sent": x.get("sent")}
+
+
+def the_respondent_hears_her(r: dict) -> tuple[bool, Any]:
+    """IM29 (keel-web 087 FR-3): on the intro when the founder let them choose, *Hear <name>* plays her hello in place
+    of the round still -- sound on, the served `helloUrl`, to its end -- and the still returns; *Talk to <name>* and
+    *Answer in writing* stay enabled before, throughout (polled) and after."""
+    x = r["hear_intro"]
+    face, before, after = x.get("face"), x.get("before") or {}, x.get("after") or {}
+    name = fake.FACE_NAMES.get(face or "", "")
+    clip = _clip_heard([e for e in x.get("events") or [] if e.get("intro")], x.get("hello"))
+    polls = x.get("polls") or []
+    enabled = (len(before.get("buttons") or {}) == 2 and all((before.get("buttons") or {}).values())
+               and len(after.get("buttons") or {}) == 2 and all((after.get("buttons") or {}).values())
+               and bool(polls) and all(p == [True, True] for p in polls))
+    ok = (bool(name) and x.get("hello") == fake.hello_path(face) and (before.get("words") or "").startswith(
+              f"Hear {name}") and before.get("still") is True and before.get("video") is False and clip["ok"]
+          and after.get("still") is True and after.get("video") is False and enabled)
+    return ok, {"face": face, "words": before.get("words"), "clip": clip, "polls": len(polls),
+                "disabled_polls": sum(p != [True, True] for p in polls), "after": after}
+
+
 #: (mark id, the record key it reads, the rule). Order is the leg's.
 MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("IM1", "ledger", one_recording_pair),
@@ -720,6 +778,8 @@ MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("IM25", "follow_up_windows", two_minutes_four_seconds),
     ("IM26", "speak", speak_or_type),
     ("IM27", "follow_up_clips", the_follow_up_clips),
+    ("IM28", "hear_face", tap_to_hear),
+    ("IM29", "hear_intro", the_respondent_hears_her),
 ]
 
 
