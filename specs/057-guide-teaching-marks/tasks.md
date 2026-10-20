@@ -24,6 +24,11 @@ No assumption is left open.
 - [x] T004 Acceptance 1: `tests/test_guide_teaching_marks.py` (88): sheet-once faults, the two-pill table, chapter
   chip faults, the pair table, explainer / opener faults, the word-guard table, the manifest shapes, today's and
   nothing-rendered not-applicable cards, 086's ids against keel-web's files (skip before 086).
+- [x] T006 (the coordinator, closing D-04) only S-005 measures G6-G12 (`run(teaching=True)`); every other journey
+  passes the sheets by: `vs_screens.pass_teaching_sheet` in `Corridor.seed` / `persona` (the opener at each stage's
+  first open), `Answers._report` (the report sheet) and `preludes.walk_stage`; decided from the manifest and the
+  project's guide (a sheet up is skipped; a due one waited for up to 10 s; nothing due, no wait), one `note` step.
+  G6-G12 unmeasured elsewhere with `TEACHING_ELSEWHERE_WHY`. Unit: one table per sheet kind (8 cases).
 - [x] T005 Acceptance 2, the stack (below). Acceptance 3 `make unit` (below; this repo has no `make check`).
 
 ## Judgement calls
@@ -46,8 +51,8 @@ No assumption is left open.
 - **D-03** the snippet half of G12 read **0** snippet texts on the stack (the bands' and sheets' snippet slot is
   empty at the moment it is read); the captions half read all 26 vtts. keel-web 086 FR-10's own unit test greps the
   snippet sources.
-- **D-04 (risk, not in scope)** the preludes (`MarketStep.start`'s pass-by) pass the welcome only: a non-corpus
-  journey that opens a stage or the report on keel-web 086 will meet an opener or the report sheet over its page.
+- **D-04 (closed by T006)** the preludes passed the welcome only: any other journey opening a stage or the report on
+  keel-web 086 met an opener or the report sheet over its page.
 
 ## Measured (2026-10-20)
 
@@ -62,3 +67,8 @@ runs before were red on D-02 and D-01, a third on G10's first reading (call 2).
 
 **`make unit`** (keel-web at the 086 worktree, ports put back): **2,709 passed / 53 skipped** against master's
 2,620 / 53 (+89: 88 new, 1 `_playing` row). Against keel-web master the seven checks of 086's files skip (not run).
+
+**T006, measured**: `make eval K=s006` on the same stack (same ports, web from `wt/keel-web-086` afbf38b) **1 passed
+in 317 s** (`runs/20261020T205056Z-s006-paidly`): four pass-by notes (the openers PROBLEM, SOLUTION, COMMERCIAL and
+the report sheet, once each), guide marks 3 of 3 (G4-G12 unmeasured with the why). `make unit` **2,717 passed / 53
+skipped** (+8 over 2,709).
