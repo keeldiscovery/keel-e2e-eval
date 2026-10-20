@@ -16,6 +16,8 @@ from instructions import marks as instruction_marks
 from stack.config import load_config
 
 REPO = Path(__file__).resolve().parent.parent
+#: Spec 057's marks, unmeasured on a record that carries only the welcome's subjects.
+TEACHING = ["G6", "G7", "G8", "G9", "G10", "G11", "G12"]
 #: keel-web 080 FR-1's hand-worked times (`welcome.cues.json`).
 ATS = (0.3, 13.25, 23.7, 33.67, 46.38, 51.84, 60.46, 73.82, 76.39, 80.92, 83.13, 86.08, 92.51, 98.31)  # keel-web 081, v2
 SKIP = {"present": True, "visible": True, "enabled": True, "in_view": True, "hit": True, "focused": True,
@@ -87,18 +89,20 @@ def _fails(record: dict, mark: str) -> None:
 
 # ---------------------------------------------------------------------------------------------- good records
 
-def test_the_version_is_one_and_the_instruction_marks_did_not_move():
-    assert marks.GUIDE_MARKS_VERSION == 1
+def test_the_version_is_two_and_the_instruction_marks_did_not_move():
+    assert marks.GUIDE_MARKS_VERSION == 2
     assert instruction_marks.MARKS_VERSION == 20
     source = (REPO / "evals" / "guide_marks.py").read_text(encoding="utf-8")
     assert "v1 (spec 054, keel-cloud 106 / keel-web 080, contract 20)" in source
-    assert [m for m, _, _ in marks.MARKS] == ["G1", "G2", "G3", "G4", "G5"]
+    assert "v2 (spec 057, keel-web 086 / keel-cloud 109, contract 22)" in source
+    assert [m for m, _, _ in marks.MARKS] == ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11",
+                                              "G12"]
 
 
 def test_every_mark_is_met_on_s005s_local_record():
     card = marks.scorecard(s005_local())
-    assert card["version"] == 1
-    assert card["measured"] == card["met"] == 5 and card["unmeasured"] == [], card
+    assert card["version"] == 2
+    assert card["measured"] == card["met"] == 5 and card["unmeasured"] == TEACHING, card
     assert marks.owed(s005_local()) == ["G1", "G2", "G3", "G4", "G5"]
 
 
@@ -106,7 +110,7 @@ def test_every_mark_is_met_on_s005s_local_record():
 def test_elsewhere_g1_to_g3_are_met_and_g4_g5_unmeasured_with_the_why(record, why):
     card = marks.scorecard(record())
     assert card["measured"] == card["met"] == 3, card
-    assert card["unmeasured"] == ["G4", "G5"]
+    assert card["unmeasured"] == ["G4", "G5", *TEACHING]
     assert card["why_unmeasured"] == {"G4": why, "G5": why}
     assert marks.owed(record()) == ["G1", "G2", "G3"]
     for check in card["checks"]:
@@ -130,7 +134,7 @@ def test_an_absent_subject_is_unmeasured_and_never_passed(key, mark):
 
 def test_no_welcome_record_leaves_g1_to_g3_unmeasured():
     card = marks.scorecard({})
-    assert card["measured"] == 0 and card["unmeasured"] == ["G1", "G2", "G3", "G4", "G5"]
+    assert card["measured"] == 0 and card["unmeasured"] == ["G1", "G2", "G3", "G4", "G5", *TEACHING]
 
 
 def test_a_record_that_cannot_be_read_fails_rather_than_crashes():

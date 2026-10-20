@@ -338,8 +338,11 @@ class GuideWelcome:
     and the test build's seam. Acts and reads; asserts nothing (this module's rule) -- `evals/corpus_scenario.
     leg_welcome` judges what it reads, `evals/guide_marks.py` scores it."""
 
-    def __init__(self, page: Page, recorder: Recorder, base_url: str = ""):
+    def __init__(self, page: Page, recorder: Recorder, base_url: str = "", *, sheet: str = ""):
         self.page = page
+        #: The sheet this object reads: the welcome by default; spec 057 hands it 086's report or opener sheet (the
+        #: same `GuideSheet`, another test id) and reads it with the same calls.
+        self.sheet = sheet or GUIDE_WELCOME
         self.base = (base_url or "").rstrip("/")
         self._b = _BrowserStep(recorder, page, "founder")
         self.recorder = recorder
@@ -349,16 +352,16 @@ class GuideWelcome:
     def present(self, timeout_s: float = 10) -> bool:
         """True once the sheet is visible, False if it never was within `timeout_s`."""
         try:
-            self.page.locator(GUIDE_WELCOME).first.wait_for(state="visible", timeout=timeout_s * 1000)
+            self.page.locator(self.sheet).first.wait_for(state="visible", timeout=timeout_s * 1000)
             return True
         except Exception:  # noqa: BLE001 - absence is a reading, not a crash
             return False
 
     def count(self) -> int:
-        return self.page.locator(GUIDE_WELCOME).count()
+        return self.page.locator(self.sheet).count()
 
     def absent(self, after: Callable[[], Any] | None = None, *, timeout_s: float = 15,
-               grace_s: float = 5) -> dict:
+               grace_s: float = 5, seen_key: str = "welcomeSeen", screen: str = "") -> dict:
         """The sheet's count, read only once the page has received the overview that carries `guide` and drawn the
         project's first screen (never a bare sleep). `after` opens the page (a `goto`); the overview is listened for
         from before it. When the overview the page received does not say `welcomeSeen: true` the page could still open
@@ -380,20 +383,21 @@ class GuideWelcome:
                 except Exception:  # noqa: BLE001 - recorded as no overview
                     pass
             try:
-                self.page.locator(PROJECT_SCREEN).first.wait_for(state="visible", timeout=timeout_s * 1000)
-                screen = True
+                self.page.locator(screen or PROJECT_SCREEN).first.wait_for(state="visible",
+                                                                           timeout=timeout_s * 1000)
+                drawn = True
             except Exception:  # noqa: BLE001 - recorded
-                screen = False
+                drawn = False
             guide = _guide_of(responses[0]) if responses else None
-            if not (guide or {}).get("welcomeSeen") is True:
+            if not (guide or {}).get(seen_key) is True:
                 try:
-                    self.page.locator(GUIDE_WELCOME).first.wait_for(state="attached", timeout=grace_s * 1000)
+                    self.page.locator(self.sheet).first.wait_for(state="attached", timeout=grace_s * 1000)
                 except Exception:  # noqa: BLE001 - the expected outcome
                     pass
             count = self.count()
         finally:
             self.page.remove_listener("response", keep)
-        return {"count": count, "received": guide, "screen": screen, "overviews": len(responses),
+        return {"count": count, "received": guide, "screen": drawn, "overviews": len(responses),
                 "url": self.page.url}
 
     def face(self) -> dict | None:
@@ -443,7 +447,7 @@ class GuideWelcome:
     def controls(self) -> list[dict]:
         """Every button, link, field and label inside the sheet, with its words and its `aria-label`."""
         try:
-            return self.page.evaluate(_CONTROLS_JS, GUIDE_WELCOME) or []
+            return self.page.evaluate(_CONTROLS_JS, self.sheet) or []
         except Exception:  # noqa: BLE001 - a read
             return []
 
@@ -505,7 +509,7 @@ class GuideWelcome:
             started = time.monotonic()
             press()
             try:
-                self.page.locator(GUIDE_WELCOME).first.wait_for(state="detached", timeout=5_000)
+                self.page.locator(self.sheet).first.wait_for(state="detached", timeout=5_000)
                 gone_ms = round((time.monotonic() - started) * 1000)
             except Exception:  # noqa: BLE001 - recorded as never gone
                 gone_ms = None
@@ -595,6 +599,215 @@ class GuideWelcome:
         return out
 
 
+# ------------------------------------------------------------- keel-web 086's teaching videos (spec 057)
+#
+# The report sheet, the openers, the pills and the band (keel-web `specs/086-guide-teaching/spec.md` FR-3 to FR-8),
+# spelled once. **The test ids are this spec's reading of 086 as specified** (built in parallel): the report and the
+# opener play in 080's `GuideSheet` under their own `testId`; a pill carries its clip's key in `data-clip` and the
+# fresh dot as `data-fresh`; the band and its chapter chip have their own ids. tasks.md names any not yet in 086.
+
+GUIDE_REPORT = "[data-testid='guide-report']"
+GUIDE_OPENER = "[data-testid='guide-opener']"
+GUIDE_PILL = "[data-testid='guide-pill']"
+GUIDE_BAND = "[data-testid='guide-band']"
+GUIDE_CHAPTER = "[data-testid='guide-chapter']"
+#: keel-web 086 FR-1: every clip key with `present` and its duration; a placement whose clip is absent draws no pill.
+GUIDE_MANIFEST_PATH = "/guide/manifest.json"
+#: The calibration card's primary (the one `Corridor._primary` presses), read while an explainer band is open.
+CALIB_PRIMARY = ".ccard__foot button.btn.primary"
+
+_PILLS_JS = r"""(sel) => Array.from(document.querySelectorAll(sel)).filter(
+    (el) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)).map((el) => ({
+  clip: el.getAttribute('data-clip'), words: (el.innerText || '').replace(/\s+/g, ' ').trim(),
+  label: el.getAttribute('aria-label'),
+  fresh: el.getAttribute('data-fresh') === 'true'
+         || !!el.querySelector('[aria-label="new" i], [data-fresh="true"]')}))"""
+
+
+def _safe_eval(page: Page, js: str, arg: Any) -> list:
+    try:
+        return page.evaluate(js, arg) or []
+    except Exception:  # noqa: BLE001 - a read on a page mid-navigation
+        return []
+
+
+def normal_manifest(body: Any) -> dict:
+    """keel-web 086's `manifest.json` as `{key: {present, duration}}`, whatever its outer shape: a map of key to entry,
+    the same under `clips`, or a list of entries carrying `key`. Anything else (a web before 086, a 404) is `{}` --
+    every clip absent."""
+    if isinstance(body, dict) and isinstance(body.get("clips"), (dict, list)):
+        body = body["clips"]
+    rows = body.items() if isinstance(body, dict) else (
+        ((r.get("key"), r) for r in body if isinstance(r, dict)) if isinstance(body, list) else ())
+    out = {}
+    for key, row in rows:
+        if isinstance(key, str) and isinstance(row, dict):
+            out[key] = {"present": row.get("present") is True, "duration": row.get("duration")}
+    return out
+
+
+class GuideTeaching:
+    """keel-web 086's teaching videos (spec 057): the served manifest and captions, the pills on a page, the band a pill
+    opens (its chapter chip, its face, its snippet's words), and the calibration primary under an open band. Acts and
+    reads; asserts nothing -- `evals/corpus_scenario` judges, `evals/guide_marks.py` scores."""
+
+    def __init__(self, page: Page, recorder: Recorder, base_url: str = ""):
+        self.page = page
+        self.base = (base_url or "").rstrip("/")
+        self._b = _BrowserStep(recorder, page, "founder")
+        self._manifest: dict | None = None
+
+    # ------------------------------------------------------------------------------------------ served
+
+    def _get(self, path: str):
+        try:
+            return self.page.context.request.get(f"{self.base}{path}", timeout=10_000)
+        except Exception:  # noqa: BLE001 - not served: the reading
+            return None
+
+    def manifest(self) -> dict:
+        """`/guide/manifest.json` as the web serves it, normalised (`normal_manifest`); read once per object."""
+        if self._manifest is None:
+            response = self._get(GUIDE_MANIFEST_PATH)
+            try:
+                body = response.json() if response is not None and response.ok else None
+            except Exception:  # noqa: BLE001 - not JSON (a SPA fallback page)
+                body = None
+            self._manifest = normal_manifest(body)
+        return self._manifest
+
+    def present(self, key: str) -> bool:
+        return (self.manifest().get(key) or {}).get("present") is True
+
+    def vtt(self, key: str) -> str | None:
+        """`/guide/{key}.vtt` as served, or None (absent, or the SPA's HTML fallback)."""
+        response = self._get(f"/guide/{key}.vtt")
+        if response is None or not response.ok:
+            return None
+        text = response.text()
+        return text if text.lstrip().startswith("WEBVTT") else None
+
+    # -------------------------------------------------------------------------------------------- reads
+
+    def pills(self) -> list[dict]:
+        """Every visible pill: its clip (`data-clip`), words, label and fresh dot."""
+        try:
+            return self.page.evaluate(_PILLS_JS, GUIDE_PILL) or []
+        except Exception:  # noqa: BLE001 - a read
+            return []
+
+    def band(self) -> dict:
+        """The open band: present, its chapter chip's words, its face's source, its snippet's words."""
+        band = self.page.locator(GUIDE_BAND)
+        if not band.count():
+            return {"present": False}
+        face = band.first.locator(GUIDE_FACE)
+        src = None
+        if face.count():
+            try:
+                src = face.first.evaluate("(v) => v.currentSrc || v.src || ''")
+            except Exception:  # noqa: BLE001 - a read
+                src = None
+        return {"present": True, "chip": _tc(band.first.locator(GUIDE_CHAPTER)), "src": src,
+                "snippet": _tc(band.first.locator(GUIDE_SNIPPET))}
+
+    def primary_disabled(self) -> bool | None:
+        primary = self.page.locator(CALIB_PRIMARY)
+        if not primary.count():
+            return None
+        try:
+            return bool(primary.first.evaluate("(b) => b.disabled || b.getAttribute('aria-disabled') === 'true'"))
+        except Exception:  # noqa: BLE001 - a read
+            return None
+
+    # ------------------------------------------------------------------------------------------ actions
+
+    def _posts_during(self, act: Callable[[], Any], settle_ms: int = GUIDE_SETTLE_MS) -> list[dict]:
+        seen: list = []
+
+        def keep(request) -> None:
+            if request.method == "POST" and GUIDE_SEEN_PATH.search(request.url):
+                seen.append(request)
+
+        self.page.on("request", keep)
+        try:
+            act()
+            if not seen:
+                try:
+                    self.page.wait_for_event("request", predicate=lambda r: r.method == "POST"
+                                             and bool(GUIDE_SEEN_PATH.search(r.url)), timeout=settle_ms)
+                except Exception:  # noqa: BLE001 - none went out
+                    pass
+        finally:
+            self.page.remove_listener("request", keep)
+        return [_request_row(r) for r in seen]
+
+    def open_pill(self, clip: str | None = None, words: str | None = None) -> dict:
+        """Presses the pill for `clip` (or the one whose words start `words`); `{opened, band}`."""
+        with self._b.step(f"founder presses the guide pill {clip or words}") as h:
+            pills = self.page.locator(f"{GUIDE_PILL}[data-clip='{clip}']" if clip else GUIDE_PILL)
+            if words and not clip:
+                pills = pills.filter(has_text=words)
+            if not pills.count():
+                return {"opened": False, "band": {"present": False}}
+            pills.first.click()
+            try:
+                self.page.locator(GUIDE_BAND).first.wait_for(state="visible", timeout=5_000)
+            except Exception:  # noqa: BLE001 - recorded
+                pass
+            band = self.band()
+            h.add_screenshot(self._b.screenshot(f"guide-band-{clip or 'pill'}"))
+        return {"opened": band["present"], "band": band}
+
+    def _gone(self) -> bool:
+        try:
+            self.page.locator(GUIDE_BAND).first.wait_for(state="detached", timeout=5_000)
+            return True
+        except Exception:  # noqa: BLE001 - recorded
+            return False
+
+    def band_skip(self) -> dict:
+        """Skip inside the band; `{closed, requests}` (the `guide-seen` posts the press caused)."""
+        out: dict = {}
+
+        def press() -> None:
+            self.page.locator(f"{GUIDE_BAND} {GUIDE_SKIP}").first.click()
+            out["closed"] = self._gone()
+
+        requests = self._posts_during(press)
+        return {"closed": bool(out.get("closed")), "requests": requests}
+
+    def seek(self, seconds: float) -> bool:
+        return bool(self.page.evaluate("([n, s]) => window[n] ? (window[n].seek(s), true) : false",
+                                       [GUIDE_SEAM, seconds]))
+
+    def seam(self) -> bool:
+        try:
+            return bool(self.page.evaluate("(n) => !!window[n]", GUIDE_SEAM))
+        except Exception:  # noqa: BLE001 - a read
+            return False
+
+    def band_end(self, seconds: float) -> dict:
+        """Seeks the band's current clip to `seconds` (its end) through the seam; `{closed, requests}`."""
+        out: dict = {}
+
+        def end() -> None:
+            self.seek(seconds)
+            out["closed"] = self._gone()
+
+        requests = self._posts_during(end)
+        return {"closed": bool(out.get("closed")), "requests": requests}
+
+    def wait_chip(self, words: str, *, timeout_s: float = 3.0) -> str:
+        """Waits (bounded) for the chip to carry `words`; returns what it carries."""
+        try:
+            self.page.locator(GUIDE_CHAPTER, has_text=words).first.wait_for(state="visible",
+                                                                            timeout=timeout_s * 1000)
+        except Exception:  # noqa: BLE001 - read whatever is drawn
+            pass
+        return _tc(self.page.locator(GUIDE_CHAPTER))
+
+
 # --------------------------------------------------------------------------------------- Corridor
 
 class Corridor:
@@ -628,7 +841,10 @@ class Corridor:
                 "done": sum(1 for c in classes if "done" in c.split()),
                 "nav_locked": nav.count() > 0 and NAV_LOCK_LINE in _first_text(self.page, ".side-nav__lockline"),
                 "nav_links": self.page.locator("nav.side-nav a").count(),
-                "welcome": self.page.locator(GUIDE_WELCOME).count()}
+                "welcome": self.page.locator(GUIDE_WELCOME).count(),
+                # spec 057 G10 / G11: the pills under the question (each clip's key) and the opener sheets over it
+                "pills": [p.get("clip") or p.get("words") for p in _safe_eval(self.page, _PILLS_JS, GUIDE_PILL)],
+                "openers": self.page.locator(GUIDE_OPENER).count()}
 
     def _primary(self):
         return self.page.locator(".ccard__foot button.btn.primary").first
@@ -1533,6 +1749,9 @@ class Answers:
                          if send.count() else None,
                          "caption": _tc(hero.locator(".rp-shipcap"))},
                 "bands": bands, "tiles": tiles, "panels": panels,
+                # spec 057 G6 / G7 (keel-web 086 FR-6): the pills the Overview draws and any report sheet over it
+                "guide_pills": _safe_eval(self.page, _PILLS_JS, GUIDE_PILL),
+                "report_sheet": self.page.locator(GUIDE_REPORT).count(),
                 "foot": _tc(self.page.locator(".rp-foot")),
                 "download": {"present": download.count() > 0,
                              "enabled": download.count() > 0 and download.first.get_attribute("aria-disabled")

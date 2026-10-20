@@ -179,6 +179,9 @@ class Journey:
     #: Spec 054: what the founder's page sent and received about the guide, from *Start* to the context Save
     #: (`vs_screens.GuideWire`); detached after, so later legs pay nothing.
     guide_wire: Any = None
+    #: Spec 057: keel-web 086's teaching videos (`vs_screens.GuideTeaching`), set by `run()` after the welcome; None
+    #: elsewhere (S-012, the preludes), where every teaching read below is skipped.
+    teach: Any = None
 
     # --------------------------------------------------------------------------- the wire
 
@@ -529,6 +532,212 @@ def _next_write_after_the_welcome(j: Journey) -> None:
             f"G3: the next write after the welcome answered {status}", record["next_write"])
 
 
+# ------------------------------------------------------------------ spec 057: the teaching videos (G6-G12)
+#
+# keel-web 086 / keel-cloud 109 (contract 22). Every read goes into `j.guide` under the mark's record key; a clip the
+# served manifest says is absent costs nothing (no wait) and its mark passes as not applicable (guide_marks).
+
+def _remote(j: Journey) -> bool:
+    return bool(getattr(j.stack, "is_remote", False))
+
+
+def teaching_start(j: Journey) -> None:
+    """The manifest read once; the records the later legs fill, keyed as `guide_marks.MARKS` reads them."""
+    teach = j.teach = vs_screens.GuideTeaching(j.page, j.recorder, j.web_base)
+    manifest = teach.manifest()
+    present = sorted(k for k, v in manifest.items() if v.get("present"))
+    j.guide["report"] = {"applicable": teach.present("report-read")}
+    j.guide["overview"] = {"read_present": teach.present("report-read"),
+                           "fails_present": teach.present("report-fails"), "reads": []}
+    j.guide["stages"] = {}
+    j.guide["explainers"] = {"questions": {}, "band": None}
+    j.guide["openers"] = {"stages": {}, "final": None}
+    j.guide["snippets"] = []
+    with _step(j, f"the guide's manifest as keel-web serves it: {len(present)} of {len(manifest)} clips present "
+                  "(keel-web 086 FR-1; an absent clip draws nothing and its mark passes as not applicable)") as h:
+        h.record_assert({"served": True}, {"present": present,
+                                           "absent": sorted(k for k in manifest if k not in present)})
+
+
+def _overview_guide(j: Journey) -> dict:
+    return (j.get(j.project("/overview")) or {}).get("guide") or {}
+
+
+def _snippet(j: Journey, scope: str) -> None:
+    text = vs_screens._tc(j.page.locator(f"{scope} {vs_screens.GUIDE_SNIPPET}"))
+    if text:
+        j.guide.setdefault("snippets", []).append(text)
+
+
+def opener(j: Journey, vector: str) -> None:
+    """G11 (D25): at the stage's first open, the opener sheet when its clip is present -- read, Skip pressed, the POST
+    kept; an absent opener is only looked for (no wait)."""
+    if j.teach is None:
+        return
+    key = guide_marks.OPENERS[vector]
+    one: dict = {"present": j.teach.present(key)}
+    j.guide["openers"]["stages"][vector] = one
+    sheet = vs_screens.GuideWelcome(j.page, j.recorder, j.web_base, sheet=vs_screens.GUIDE_OPENER)
+    if not one["present"]:
+        one["shown"] = sheet.count() > 0
+        return
+    with _step(j, f"{vector.lower()}: the opener plays once at the stage's first open, Skip posts "
+                  f"{{what: OPENER, stage: {vector}}} (D25)", party="founder") as h:
+        one["shown"] = sheet.present(timeout_s=10)
+        if one["shown"]:
+            _snippet(j, vs_screens.GUIDE_OPENER)
+            one["press"] = sheet.skip()
+        h.record_assert({"shown": True, "posted": {"what": "OPENER", "stage": vector}}, one)
+
+
+def openers_final(j: Journey) -> None:
+    if j.teach is not None:
+        j.guide["openers"]["final"] = list(_overview_guide(j).get("openersSeen") or [])
+
+
+def explainer_band(j: Journey, question: dict) -> None:
+    """G10 (D27): on a stage's first question, when its explainer is present and no band was tried yet, the pill opened
+    -- the card's primary disabled while the band plays -- and Skip, the primary back."""
+    if j.teach is None or j.guide["explainers"]["band"] is not None:
+        return
+    key = question.get("dimension")
+    clip = guide_marks.EXPLAINERS.get(key)
+    if not clip or not j.teach.present(clip):
+        return
+    with _step(j, f"the explainer on {key}: its band disables the card's primary while open, Skip gives it back "
+                  "(keel-web 086 FR-5)", party="founder") as h:
+        opened = j.teach.open_pill(clip=clip)
+        if not opened["opened"]:
+            opened = j.teach.open_pill(words=guide_marks.PILL_WORDS["explain"])
+        band = {"dimension": key, "clip": clip, "opened": opened["opened"],
+                "disabled_open": j.teach.primary_disabled()}
+        if opened["opened"]:
+            if opened["band"].get("snippet"):
+                j.guide["snippets"].append(opened["band"]["snippet"])
+            band.update(j.teach.band_skip())
+        band["disabled_after"] = j.teach.primary_disabled()
+        j.guide["explainers"]["band"] = band
+        h.record_assert({"opened": True, "disabled_open": True, "disabled_after": False, "closed": True}, band)
+
+
+def report_sheet(j: Journey) -> None:
+    """G6 (D44): the report's first open plays `report-read` in the sheet over the Overview; Skip posts `{report: true}`
+    204, the wire remembers `reportSeen`, and the next open draws none. When the clip is absent, nothing is waited for
+    (the later report reads count the sheet: none may come)."""
+    if j.teach is None or not j.guide["report"]["applicable"]:
+        return
+    record = j.guide["report"]
+    sheet = vs_screens.GuideWelcome(j.page, j.recorder, j.web_base, sheet=vs_screens.GUIDE_REPORT)
+    wire = vs_screens.GuideWire(j.page).attach()
+    with _step(j, "the report's first open plays report-read in the sheet; Skip posts {report: true} once, 204, and "
+                  "the wire says reportSeen: true (keel-web 086 FR-6, keel-cloud 109)", party="founder") as h:
+        try:
+            j.page.goto(f"{j.web_base}/p/{j.project_id}", wait_until="load")
+            present = sheet.present(timeout_s=15)
+            wire.wait_overview(5)
+            src = j.page.evaluate("(sel) => { const v = document.querySelector(sel); "
+                                  "return v ? (v.currentSrc || v.src || '') : null; }",
+                                  f"{vs_screens.GUIDE_REPORT} {vs_screens.GUIDE_FACE}")
+            received = next((o["guide"] for o in wire.overviews() if o.get("guide") is not None), None)
+            record["first_open"] = {"present": present, "received": received, "src": src}
+            if present:
+                _snippet(j, vs_screens.GUIDE_REPORT)
+                record["press"] = sheet.skip()
+        finally:
+            wire.detach()
+        record["wire_after"] = _overview_guide(j)
+        record["next_open"] = sheet.absent(after=lambda: j.page.goto(f"{j.web_base}/p/{j.project_id}",
+                                                                      wait_until="load"), seen_key="reportSeen")
+        h.record_assert({"present": True, "posted": guide_marks.REPORT, "reportSeen": True, "next open": 0},
+                        record)
+
+
+def overview_read(j: Journey, when: str, board: dict) -> None:
+    """G7 (D45): the pills one Overview read drew, beside whether the wire had a failed line then and `lineFailedSeen`."""
+    if j.teach is None:
+        return
+    dims = [d for v in (j.standings or {}).get("vectors") or [] for d in v.get("dimensions") or []]
+    j.guide["overview"]["reads"].append({
+        "when": when, "pills": board.get("guide_pills") or [], "report_sheet": board.get("report_sheet"),
+        "failing": any(d.get("status") in guide_marks.FAILING for d in dims),
+        "lineFailedSeen": _overview_guide(j).get("lineFailedSeen")})
+
+
+def watch_line_failed(j: Journey) -> None:
+    """G7's second half (local, the seam): *When a line fails* played to its end posts `{lineFailed: true}` and the
+    next open draws it without the dot."""
+    x = j.guide.get("overview") if j.teach is not None else None
+    last = (x or {}).get("reads") or []
+    if not x or not x["fails_present"] or not last or not last[-1]["failing"]:
+        return
+    if _remote(j):
+        j.guide.setdefault("notes", {})["G7"] = guide_marks.REMOTE_SEAM_WHY
+        return
+    with _step(j, "When a line fails, played to its end, posts {lineFailed: true} and its fresh dot is gone at the "
+                  "next open (keel-web 086 FR-6)", party="founder") as h:
+        opened = j.teach.open_pill(clip="report-fails")
+        if not opened["opened"]:
+            opened = j.teach.open_pill(words=guide_marks.PILL_WORDS["report-fails"])
+        if opened["band"].get("snippet"):
+            j.guide["snippets"].append(opened["band"]["snippet"])
+        duration = float((j.teach.manifest().get("report-fails") or {}).get("duration") or 600)
+        ended = j.teach.band_end(duration + 0.5) if opened["opened"] else {"closed": False, "requests": []}
+        j.page.goto(f"{j.web_base}/p/{j.project_id}", wait_until="load")
+        j.page.get_by_test_id("report-views").first.wait_for(state="visible", timeout=30_000)
+        fails = [p for p in j.teach.pills() if guide_marks.is_pill(p, "report-fails")]
+        watched = {"opened": opened["opened"], **ended, "fresh_after": fails[0].get("fresh") if fails else None,
+                   "wire_after": _overview_guide(j)}
+        x["watched"] = watched
+        h.record_assert({"requests": [guide_marks.LINE_FAILED], "fresh_after": False,
+                         "lineFailedSeen": True}, watched)
+
+
+def stage_band(j: Journey, vector: str) -> None:
+    """G8 / G9 (D46 / D47): on the stage page `vector_page` left open, when both chapters are present, the pill's band
+    -- chip *1 of 2* and chapter 1's clip; through the seam (local) a seek past chapter 1's end, chip *2 of 2* and
+    chapter 2's clip -- then Skip. Absent chapters: recorded, nothing pressed."""
+    if j.teach is None:
+        return
+    b2b = vs.is_b2b(j.entry)
+    keys = guide_marks.MONEY_CHAPTERS[b2b] if vector == "COMMERCIAL" else guide_marks.STAGE_CHAPTERS[vector]
+    one: dict = {"chapters": list(keys), "b2b": b2b, "applicable": all(j.teach.present(k) for k in keys)}
+    j.guide["stages"][vector] = one
+    if not one["applicable"]:
+        one["pills"] = j.teach.pills()
+        return
+    with _step(j, f"the {vector.lower()} page's band plays two chapters, {keys[0]} then {keys[1]}, the chip 1 of 2 "
+                  "then 2 of 2 (keel-web 086 FR-7)", party="founder") as h:
+        opened = j.teach.open_pill(words=guide_marks.PILL_WORDS["stage"])
+        band = opened["band"]
+        one.update({"opened": opened["opened"], "chip_first": band.get("chip"), "src_first": band.get("src"),
+                    "seam": j.teach.seam()})
+        if band.get("snippet"):
+            j.guide["snippets"].append(band["snippet"])
+        if opened["opened"] and one["seam"]:
+            first = float((j.teach.manifest().get(keys[0]) or {}).get("duration") or 0)
+            j.teach.seek(first + 0.05)
+            one["chip_second"] = j.teach.wait_chip("2 of 2")
+            one["src_second"] = j.teach.band().get("src")
+        elif not one["seam"]:
+            j.guide.setdefault("notes", {})["G8"] = guide_marks.REMOTE_SEAM_WHY
+        if opened["opened"]:
+            one.update(j.teach.band_skip())
+        h.record_assert({"chip": ["1 of 2", "2 of 2"], "chapters": list(keys), "closed": True}, one)
+
+
+def captions_read(j: Journey) -> None:
+    """G12 (D42): every present clip's served `/guide/<key>.vtt`, its project words (the text is not kept)."""
+    if j.teach is None:
+        return
+    clips = {}
+    for key, row in sorted(j.teach.manifest().items()):
+        if row.get("present"):
+            text = j.teach.vtt(key)
+            clips[key] = {"served": text is not None, "words": guide_marks.project_words(text),
+                          "cues": (text or "").count("-->")}
+    j.guide["captions"] = {"clips": clips, "snippets": list(j.guide.get("snippets") or [])}
+
+
 # ----------------------------------------------------------------------------- leg 2: interpret
 
 def leg_interpret_problem(j: Journey) -> None:
@@ -732,6 +941,8 @@ def leg_calibrate(j: Journey, vector: str) -> None:
     answers = {a.dimension: a for a in j.founder.calibration[vector]}
     total = len(view.get("questions") or []) + STAGE_OFFSET[vector]
     questions = view.get("questions") or []
+    if questions:
+        explainer_band(j, questions[0])
     conflicts = len(j.corridor.conflicts)
     for question in questions:
         key = question["dimension"]
@@ -1179,6 +1390,7 @@ def leg_invite(j: Journey) -> None:
         assert all((r.get("Status") or "").startswith(iv_screens.REGISTER_STATUS["SENT"]) for r in drawn), drawn
     # keel-web 077 (spec 052 FR-7): before anyone finishes, the report is the too-few state (the pilot tile *None yet*).
     j.standings = j.get(j.project("/standings")) or {}
+    report_sheet(j)
     _too_few(j, "before anyone answered")
 
 
@@ -1776,6 +1988,7 @@ def _board(j: Journey) -> None:
     tiles, per stage the pill, the lead lines and every row in the registry's order, the foot, the download live and
     nothing of the old deck). `report_overview` scores the same read again in `leg_report`."""
     board = j.screens["board"] = j.answers.board(j.project_id)
+    overview_read(j, "board", board)
     with _step(j, "the overview: the verdict, the two tiles and every stage's rows are the wire's cards, drawn "
                   "(keel-web 077)", party="founder") as h:
         want = report_marks.expected_overview(j.standings)
@@ -1784,6 +1997,7 @@ def _board(j: Journey) -> None:
                         {"faults": faults, "hero": board["hero"], "tiles": board["tiles"],
                          "panels": {v: {k: p.get(k) for k in ("head", "lead")} for v, p in board["panels"].items()}})
         assert not faults, json.dumps(faults, indent=2, default=str)
+    watch_line_failed(j)
 
 
 #: keel-web 077's too-few words the founder reads before the fifth answer (spec 052 FR-7; the Insights view's by
@@ -1798,6 +2012,7 @@ def _too_few_answered(j: Journey, n: int) -> None:
     every word the wire's drawing."""
     j.standings = j.get(j.project("/standings")) or {}
     board = j.screens["board-four"] = j.answers.board(j.project_id)
+    overview_read(j, "board-four", board)
     insights = j.screens["insights-four"] = j.answers.insights(j.project_id)
     with _step(j, f"the report after {n} answers: Keep interviewing, and the Insights view Nothing to read into yet "
                   "(spec 052 FR-7)", party="founder") as h:
@@ -1820,6 +2035,7 @@ def _too_few(j: Journey, when: str) -> None:
     with *0 people have answered* there (design §4.2's rule; DRIFT #93 closed, call 4 back to it by the amendment of
     2026-10-17 (b)), as after the fourth answer (`_too_few_answered`; call 5)."""
     board = j.screens["board-too-few"] = j.answers.board(j.project_id)
+    overview_read(j, "board-too-few", board)
     insights = j.screens["insights-too-few"] = j.answers.insights(j.project_id)
     with _step(j, f"the report {when}: Keep interviewing, Not asked yet on the price tile, nobody has answered this "
                   "yet on every commercial row, and the Insights view's empty state (spec 052 FR-7)",
@@ -1883,6 +2099,7 @@ def _vector_page(j: Journey, vector: str) -> None:
         if vector == "COMMERCIAL" and vs.is_b2b(j.entry):
             role = j.founder.decider["role"].lower()
             assert role in page["decider_banner"].lower(), page["decider_banner"]
+    stage_band(j, vector)
     if rungs:
         with _step(j, f"the {vector.lower()} page: every person who answered the follow-up shows it under their name, "
                       "One last thing · {rung}: \"...\" (design §5.4, spec 052 FR-8)", party="founder") as h:
@@ -2145,7 +2362,22 @@ def score_feedback(j: Journey) -> dict:
 def guide_record(j: Journey) -> dict:
     """The guide marks' record (spec 054): what `leg_welcome` read, and every corridor frame the journey read after it
     (`Corridor.frame()["welcome"]`, the sheets over each -- G1's "never returns")."""
-    record = {k: v for k, v in j.guide.items()}
+    record = {k: v for k, v in j.guide.items() if k != "snippets"}
+    frames = [(key, screen.get("frame") or {}) for key, seen in j.framing.items() for screen in seen
+              if isinstance(screen, dict) and screen.get("frame")]
+    if j.teach is not None:
+        # G10: the pills on each question's first screen; G11: the openers over every corridor frame; G6: the report
+        # sheet over every Overview read after the first open.
+        firsts: dict = {}
+        for key, frame in frames:
+            firsts.setdefault(key, frame)
+        record["explainers"] = {**j.guide["explainers"], "questions": {
+            key: {"clip": guide_marks.EXPLAINERS[key], "present": j.teach.present(guide_marks.EXPLAINERS[key]),
+                  "pills": frame.get("pills") or []}
+            for key, frame in firsts.items() if key in guide_marks.EXPLAINERS}}
+        record["openers"] = {**j.guide["openers"], "later": [frame.get("openers") or 0 for _, frame in frames]}
+        record["report"] = {**j.guide["report"], "later": [r.get("report_sheet") or 0
+                                                           for r in j.guide["overview"]["reads"]]}
     if "welcome" in record:
         record["welcome"] = dict(record["welcome"])
         record["welcome"]["later_frames"] = [(screen.get("frame") or {}).get("welcome")
@@ -2159,14 +2391,16 @@ def _score_guide(j: Journey) -> dict:
     journey fails on any owed mark unmet -- owed being every mark whose subject the record carries (G4 / G5 only on
     S-005's local journey; elsewhere unmeasured, the record's `notes` saying why)."""
     from pathlib import Path                                  # noqa: PLC0415
+    captions_read(j)
     record = guide_record(j)
     card = guide_marks.scorecard(record)
     run_dir = Path(j.recorder.run_dir)
     (run_dir / "guide.json").write_text(json.dumps(record, indent=2, default=str) + "\n", encoding="utf-8")
     (run_dir / "guide-marks.json").write_text(json.dumps(card, indent=2, default=str) + "\n", encoding="utf-8")
     require = guide_marks.owed(record)
-    with _step(j, f"guide marks v{guide_marks.GUIDE_MARKS_VERSION} (spec 054): {card['met']} of {card['measured']} met "
-                  f"({', '.join(require) or 'none'} owed; {', '.join(card['unmeasured']) or 'none'} unmeasured)",
+    with _step(j, f"guide marks v{guide_marks.GUIDE_MARKS_VERSION} (specs 054, 057): {card['met']} of {card['measured']} "
+                  f"met ({', '.join(require) or 'none'} owed; {', '.join(card['unmeasured']) or 'none'} unmeasured; "
+                  f"{', '.join(card['not_applicable']) or 'none'} not applicable)",
                party="stack") as h:
         owed = {c["mark"]: c for c in card["checks"] if c["mark"] in require}
         h.record_assert({m: True for m in require}, {"owed": {m: {"ok": c["ok"], "detail": c["detail"]}
@@ -2224,13 +2458,18 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
 
         leg_project(journey)
         leg_welcome(journey, walk=welcome_walk)
+        teaching_start(journey)
         leg_context(journey)
+        opener(journey, "PROBLEM")
         leg_interpret_problem(journey)
         leg_calibrate(journey, "PROBLEM")
+        opener(journey, "SOLUTION")
         leg_interpret_solution(journey)
         leg_calibrate(journey, "SOLUTION")
+        opener(journey, "COMMERCIAL")
         leg_persona(journey)
         leg_calibrate(journey, "COMMERCIAL")
+        openers_final(journey)
         leg_lock(journey)
         leg_invite(journey)
         leg_interview(journey)
