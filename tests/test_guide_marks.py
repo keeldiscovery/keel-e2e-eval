@@ -451,6 +451,9 @@ def test_the_frame_holds_no_sheet():
       "currentTimeLater": 0.2, "error": None}, False),
     ({"paused": False, "muted": True, "readyState": 1, "readyStateLater": 1, "currentTime": 0.0,
       "currentTimeLater": 0.0, "error": None}, True),
+    # spec 057 D-01: loaded only during the 600 ms (1 -> 4) -- recorded, the clock not yet owed a move
+    ({"paused": False, "muted": False, "readyState": 1, "readyStateLater": 4, "currentTime": 0.0,
+      "currentTimeLater": 0.0, "error": None}, True),
     (None, False),
 ])
 def test_playing_is_unpaused_muted_or_not_and_a_decode_error_or_a_slow_load_is_only_a_note(face, ok):

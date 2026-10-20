@@ -336,7 +336,9 @@ def _playing(face: dict | None) -> tuple[bool, str]:
         return False, "the face is paused"
     ready = int(face.get("readyStateLater", face.get("readyState")) or 0)
     rising = float(face.get("currentTimeLater") or 0) > float(face.get("currentTime") or 0)
-    if ready >= 3 and not rising:
+    # spec 057 run D-01: a face that only reached HAVE_ENOUGH_DATA during the 600 ms (readyState 1 -> 4) has not yet had
+    # a frame of the window to play in; its clock is owed a move only where it could already play at the first read.
+    if ready >= 3 and int(face.get("readyState") or 0) >= 3 and not rising:
         return False, "the face has decoded enough to play but its clock did not move over 600 ms"
     return True, f"playing, {sound}" if rising else f"asked to play, {sound}, still loading (readyState {ready})"
 

@@ -74,6 +74,9 @@ export default async () => {
     server: {
       port: WEB_PORT,
       strictPort: true,
+      // A git worktree of keel-web may link `node_modules` to the main checkout's: vite serves the linked files only if
+      // their real directory is allowed (react-router's entry.client lives there).
+      fs: { allow: [process.cwd(), fs.realpathSync(path.join(process.cwd(), "node_modules"))] },
       proxy: {
         "/v2": `http://localhost:${CLOUD_PORT}`,
       },
