@@ -550,7 +550,7 @@ def teaching_start(j: Journey) -> None:
     j.guide["overview"] = {"read_present": teach.present("report-read"),
                            "fails_present": teach.present("report-fails"), "reads": []}
     j.guide["stages"] = {}
-    j.guide["explainers"] = {"questions": {}, "band": None}
+    j.guide["explainers"] = {"questions": {}, "bands": {}, "owed_bands": []}
     j.guide["openers"] = {"stages": {}, "final": None}
     j.guide["snippets"] = []
     with _step(j, f"the guide's manifest as keel-web serves it: {len(present)} of {len(manifest)} clips present "
@@ -595,15 +595,16 @@ def openers_final(j: Journey) -> None:
         j.guide["openers"]["final"] = list(_overview_guide(j).get("openersSeen") or [])
 
 
-def explainer_band(j: Journey, question: dict) -> None:
-    """G10 (D27): on a stage's first question, when its explainer is present and no band was tried yet, the pill opened
-    -- the card's primary disabled while the band plays -- and Skip, the primary back."""
-    if j.teach is None or j.guide["explainers"]["band"] is not None:
+def explainer_band(j: Journey, vector: str, question: dict) -> None:
+    """G10 (D27): on each stage's first question, when its explainer is present, the pill opened -- the card's primary
+    disabled while the band plays -- and Skip, the primary back."""
+    if j.teach is None:
         return
     key = question.get("dimension")
     clip = guide_marks.EXPLAINERS.get(key)
     if not clip or not j.teach.present(clip):
         return
+    j.guide["explainers"]["owed_bands"].append(vector)
     with _step(j, f"the explainer on {key}: its band disables the card's primary while open, Skip gives it back "
                   "(keel-web 086 FR-5)", party="founder") as h:
         opened = j.teach.open_pill(clip=clip)
@@ -616,7 +617,7 @@ def explainer_band(j: Journey, question: dict) -> None:
                 j.guide["snippets"].append(opened["band"]["snippet"])
             band.update(j.teach.band_skip())
         band["disabled_after"] = j.teach.primary_disabled()
-        j.guide["explainers"]["band"] = band
+        j.guide["explainers"]["bands"][vector] = band
         h.record_assert({"opened": True, "disabled_open": True, "disabled_after": False, "closed": True}, band)
 
 
@@ -942,7 +943,7 @@ def leg_calibrate(j: Journey, vector: str) -> None:
     total = len(view.get("questions") or []) + STAGE_OFFSET[vector]
     questions = view.get("questions") or []
     if questions:
-        explainer_band(j, questions[0])
+        explainer_band(j, vector, questions[0])
     conflicts = len(j.corridor.conflicts)
     for question in questions:
         key = question["dimension"]

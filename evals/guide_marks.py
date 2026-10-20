@@ -49,8 +49,8 @@ that an absent clip drew nothing (086 FR-1: no pill, no sheet). A missing render
 - **G9 the money pair** (`stages`, D47): Will they pay's chapters are `stage-money-b2c-1/2` on a consumer project and
   `stage-money-b2b-1/2` on a business one -- as the band plays them.
 - **G10 an explainer under every question** (`explainers`, D27): each calibration question whose `explain-<slug>` is
-  present draws its pill (absent: none); the band, opened on the first question that has one, disables the card's
-  primary while open and gives it back after Skip.
+  present draws its pill (absent: none), *Your idea* (S2) among them; on each stage's first question whose explainer
+  is present the band is opened: it disables the card's primary while open and gives it back after Skip.
 - **G11 the openers once per stage** (`openers`, D25): each present opener in the sheet at its stage's first open, Skip
   posting `{what: OPENER, stage}` once, 204; `openersSeen` fills in Vector order (PROBLEM, SOLUTION, COMMERCIAL) with
   exactly the present ones; no opener over any later corridor frame.
@@ -299,7 +299,9 @@ EXPLAINERS = {"problem.prevalence": "explain-prevalence", "problem.frequency": "
               "commercial.existing_sacrifice": "explain-existing-sacrifice", "commercial.price": "explain-price",
               "commercial.buyer_payer_alignment": "explain-buyer-and-payer",
               "commercial.purchase_friction": "explain-purchase-friction",
-              "commercial.commitment": "explain-commitment"}
+              "commercial.commitment": "explain-commitment",
+              # S2, the idea's screen (*Your idea*, not a dimension: the solution's first screen, 086 FR-5)
+              "idea": "explain-your-idea"}
 #: The pills' words (086 FR-4 / FR-10), the fallback where a pill carries no `data-clip`.
 PILL_WORDS = {"report-read": "How to read this", "report-fails": "When a line fails",
               "stage": "How to read these charts", "explain": "Hear this one"}
@@ -451,14 +453,15 @@ def explainer_under_every_question(r: dict) -> tuple[bool | None, Any]:
             present.append(key)
         if len(drawn) != (1 if q.get("present") else 0):
             faults.append({key: {"pills": q.get("pills"), "present": q.get("present")}})
-    band = x.get("band")
-    if band:
-        if not band.get("opened") or band.get("disabled_open") is not True or band.get("disabled_after") is not \
-                False or not band.get("closed"):
-            faults.append({"band": band})
+    bands = x.get("bands") or {}
+    for vector in x.get("owed_bands") or []:
+        band = bands.get(vector)
+        if not band or not band.get("opened") or band.get("disabled_open") is not True \
+                or band.get("disabled_after") is not False or not band.get("closed"):
+            faults.append({vector: band or "no band opened on the stage's first question"})
     if not present:
         return (NOT_APPLICABLE if not faults else False), {"absent": len(x.get("questions") or {}), "faults": faults}
-    return not faults, {"faults": faults, "present": present, "band": bool(band)}
+    return not faults, {"faults": faults, "present": present, "bands": sorted(bands)}
 
 
 def openers_once(r: dict) -> tuple[bool | None, Any]:

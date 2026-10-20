@@ -71,9 +71,10 @@ def stages(*, b2b: bool = False, present: bool = True) -> dict:
 def explainers(present: bool = True) -> dict:
     return {"questions": {k: {"clip": c, "present": present, "pills": [_pill(c)] if present else []}
                           for k, c in marks.EXPLAINERS.items()},
-            "band": {"dimension": "problem.prevalence", "clip": "explain-prevalence", "opened": True,
-                     "disabled_open": True, "closed": True, "requests": [], "disabled_after": False}
-            if present else None}
+            "bands": {"PROBLEM": {"dimension": "problem.prevalence", "clip": "explain-prevalence", "opened": True,
+                                  "disabled_open": True, "closed": True, "requests": [], "disabled_after": False}}
+            if present else {},
+            "owed_bands": ["PROBLEM"] if present else []}
 
 
 def openers(present: bool = True) -> dict:
@@ -269,10 +270,13 @@ def test_g9_pair_choice(b2b, played, ok):
 @pytest.mark.parametrize("fault", [
     lambda x: x["questions"]["problem.importance"].update(pills=[]),
     lambda x: x["questions"]["problem.importance"].update(pills=[_pill("explain-importance")] * 2),
-    lambda x: x["band"].update(disabled_open=False),
-    lambda x: x["band"].update(disabled_after=True),
-    lambda x: x["band"].update(closed=False),
-], ids=["missing pill", "two pills", "primary live while open", "primary dead after", "never closed"])
+    lambda x: x["bands"]["PROBLEM"].update(disabled_open=False),
+    lambda x: x["bands"]["PROBLEM"].update(disabled_after=True),
+    lambda x: x["bands"]["PROBLEM"].update(closed=False),
+    lambda x: x.update(bands={}),
+    lambda x: x["questions"]["idea"].update(pills=[]),
+], ids=["missing pill", "two pills", "primary live while open", "primary dead after", "never closed", "no band",
+        "no pill on Your idea"])
 def test_g10_explainer_faults(fault):
     record = full()
     fault(record["explainers"])
