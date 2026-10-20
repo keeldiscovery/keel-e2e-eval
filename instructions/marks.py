@@ -56,6 +56,14 @@ files, by sha256 (keel-cloud canon's own bytes at keel-cloud-docs `7e64f20`, equ
 `brief_facts` 101 of 101 (05-paidly *$50 a month or more · 5 of 8*), `report_overview` 49 of 49,
 `compare_correctness` 108 of 108, `spoken_form` 109 of 109.
 
+**Spec 057 (2026-10-20)**: keel-web 086 / keel-cloud 109 (contract 22, keel-cloud-docs `7b3cd84`) moved no screen
+schema, no instruction and no corpus file -- the teaching videos are clips and flags -- so v20 stands. The seven new
+rows are the journey ruler's (`evals/guide_marks.py`, `GUIDE_MARKS_VERSION` 2, its own changelog in that file), each
+with its design id (design §15): G6 the report sheet once (D44), G7 the Overview's two pills (D45), G8 two chapters on
+a stage band (D43, D46), G9 the money pair by kind (D47), G10 an explainer under every question (D27), G11 the openers
+once per stage (D25), G12 no project word in a caption or snippet (D42, D48); a mark whose clips are absent from the
+served manifest passes as not applicable.
+
 **`MARKS_VERSION` 19** (history since v20, never run; spec 042, 2026-10-14): the defects batch. The ruler follows keel-cloud 090 / 091 (keel-cloud-docs
 `c432c1d`; registry `VERSION` 4, document 20, `CONTRACT_VERSION` 14, routing v11, charge 7 -- the lock holds one job of
 35). No mark is born or retired and no number in `marks.toml` moved; four judgement calls moved under them, so the
