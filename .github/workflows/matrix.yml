@@ -314,6 +314,9 @@ jobs:
           ref: ${{ endsWith(needs.select.outputs.repo, 'keel-web') && needs.select.outputs.sha || 'master' }}
           token: ${{ secrets.KEEL_SIBLINGS_TOKEN || secrets.KEEL_SIBLINGS }}
           path: keel-web
+          # keel-web keeps its guide and interviewer clips on Git LFS (2026-10-21); without this the
+          # checkout holds pointer files and the web build serves them as the videos.
+          lfs: true
 
       - uses: actions/setup-java@v4
         with:
