@@ -72,6 +72,19 @@ and her hello plays inside the card to its end, 8 s or less, the still returns, 
 respondent hears her* (*Hear <name>* on the Let-them-choose intro plays her hello, the choice buttons enabled
 throughout).
 
+**Spec 059 (2026-10-20)**: keel-web 088 / keel-cloud 111 (contract 24, keel-cloud-docs `096cecc`) moved no screen
+schema, no instruction and no corpus file -- Interviews › Sent reworked is a page, a sheet and a flag -- so **v20
+stands** (spec 059 judgement call 3: the spec's FR-5 names `MARKS_VERSION` 21, but this file's rule bumps it only for a
+change to this rubric, and 057 / 058 kept v20 on the same ground; a bump would leave v20 with no run of record for a
+ruler that did not move). The new rows are the journey rulers' (each with its own changelog in its file):
+`evals/guide_marks.py` **`GUIDE_MARKS_VERSION` 3** -- G13 the Interviews sheet once (D44), G14 Sent's two-chapter pill in
+place and Contacts' one clip (D43, D46), G15 Sent's order with no *How it works* (D43; 088 FR-1), G16 the links table:
+search, the *Made* sort, the range and Next, the csv in the search row (088 FR-4), G17 the role counts (088 FR-3); G12
+reads the three page clips with the rest (29 in the manifest) -- and `evals/interviewer_marks.py`
+**`INTERVIEWER_MARKS_VERSION` 7** -- IM30 *the band's Hear <name>* (on Sent after the recording, `persona-hear` plays
+her hello in the who-asks band to its end, the still returns; absent for a retired face); the interviewer leg's W1
+replay reading retires with *How it works* (it was a leg step, never a row).
+
 **`MARKS_VERSION` 19** (history since v20, never run; spec 042, 2026-10-14): the defects batch. The ruler follows keel-cloud 090 / 091 (keel-cloud-docs
 `c432c1d`; registry `VERSION` 4, document 20, `CONTRACT_VERSION` 14, routing v11, charge 7 -- the lock holds one job of
 35). No mark is born or retired and no number in `marks.toml` moved; four judgement calls moved under them, so the

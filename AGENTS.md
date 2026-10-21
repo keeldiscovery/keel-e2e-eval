@@ -420,7 +420,18 @@ then silent to the seam's cap); the FOLLOW_UP clips and their backfill; the cons
 keel-cloud 106 (contract 20, keel-cloud-docs `7c4d9a9`)** right after the project (`leg_welcome`): once per project,
 Skip the one control at both sizes, `guide-seen {what: WELCOME}` 204 and idempotent, the revision unmoved; S-005 local
 walks the cues and replays it; G1-G5 in `evals/guide_marks.py` (`GUIDE_MARKS_VERSION` 1); every other journey passes it
-by (`MarketStep.start(welcome="pass")`). **Nothing generated is committed** -- the script, the
+by (`MarketStep.start(welcome="pass")`). **Since spec `059-sent-rework-marks` (2026-10-20) they hold keel-web 088's
+Interviews › Sent over keel-cloud 111 (contract 24, keel-cloud-docs `096cecc`)**: every open of Sent goes through one
+helper, `harness/interviews_screens.pass_interviews_sheet` (`Interviews.land`, `Contacts.go_to_send_more`,
+`interviewer_screens.Persona.sent`), which skips the first-open sheet (`guide-interviews`, a lazy chunk, 30 s) when it is
+drawn and keeps the pass in `j.guide["interviews"]`; only S-005 holds it up and judges it (`land(sheet="hold")`, G13).
+`register()` walks the TanStack table page by page with Next (never the search box) and puts it back on page 1; the row
+actions are *See answers, {name}* / *New link, {name}*; each role card's count is `role-count`. G13-G17 in
+`evals/guide_marks.py` (`GUIDE_MARKS_VERSION` 3): S-005 measures all five (the sheet once, Sent's pill's two chapters in
+place and no pill on the consumer Contacts card, the order, the table at 12 links, the counts before and after the
+answers); S-006 measures G14's Contacts pill and G16's paging (23 links). IM30 (`INTERVIEWER_MARKS_VERSION` 7): the
+who-asks band's *Hear <name> · 5 s* plays her hello in the band, on both legs; W1's replay reading retired with *How it
+works*. `MARKS_VERSION` stays 20 (spec 059 judgement call 3). **Nothing generated is committed** -- the script, the
 keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
 the end of every run.
 
