@@ -26,14 +26,16 @@ median 2).
 
 from __future__ import annotations
 
-from evals import contacts_leg, corpus_scenario, interviewer_leg
+from functools import partial
+
+from evals import contacts_leg, corpus_scenario, interviewer_leg, sample_export
 from harness import vectors_script as vs
 
 ENTRY_ID = "05-paidly"
 FLOOR = 5
 
 
-def _paidly_extras(j) -> None:
+def _paidly_extras(j, sample: sample_export.Pending | None = None) -> None:
     standings = {d["dimension"]: d for v in j.standings.get("vectors") or []
                  for d in v.get("dimensions") or []}
     deciders = [p for p in j.people if p.link == vs.LINK_B2B]
@@ -142,6 +144,10 @@ def _paidly_extras(j) -> None:
         assert frequency.get("status") == "HOLDING_UP" and frequency.get("n") == 9, frequency
         assert "3 months" in (j.framing["problem.frequency"][0].get("question") or ""), j.framing["problem.frequency"]
 
+    # Spec 060 (design §18.11): with KEEL_SAMPLE_EXPORT set, the finished project at its twenty answers -- before the two
+    # legs below add three more -- is exported as the landing's sample (`make sample`). Unset, nothing happens here.
+    if sample is not None:
+        sample.take(j)
     # Spec 043 (keel-cloud 093, contract 15): the decision-makers found through Contacts, on the wire, last -- its one
     # answer moves no standing this module holds above.
     contacts_leg.leg_contacts(j)
@@ -151,5 +157,9 @@ def _paidly_extras(j) -> None:
 
 
 def test_s006_paidly(stack, founder_one, browser, run_dir):
+    sample = sample_export.pending(run_dir)
     corpus_scenario.run(stack, founder_one, browser, run_dir,
-                        entry_id=ENTRY_ID, slug="s006-paidly", extra=_paidly_extras)
+                        entry_id=ENTRY_ID, slug="s006-paidly", extra=partial(_paidly_extras, sample=sample))
+    if sample is not None:
+        # spec 060 FR-3: a refused export fails the run once S-006's own marks are all scored
+        sample.settle()

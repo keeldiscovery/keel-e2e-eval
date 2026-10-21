@@ -431,7 +431,7 @@ actions are *See answers, {name}* / *New link, {name}*; each role card's count i
 place and no pill on the consumer Contacts card, the order, the table at 12 links, the counts before and after the
 answers); S-006 measures G14's Contacts pill and G16's paging (23 links). IM30 (`INTERVIEWER_MARKS_VERSION` 7): the
 who-asks band's *Hear <name> · 5 s* plays her hello in the band, on both legs; W1's replay reading retired with *How it
-works*. `MARKS_VERSION` stays 20 (spec 059 judgement call 3). **Nothing generated is committed** -- the script, the
+works*. `MARKS_VERSION` stays 20 (spec 059 judgement call 3). **Since spec `060-sample-snapshot` (2026-10-21) `make sample` runs S-006 with `KEEL_SAMPLE_EXPORT` set** (`evals/sample_export.py`): at its twenty answers, before the contacts leg, the founder's reads of the finished project (overview, plan, standings, roles, people, readings and every batch, invitations and every link) are written as static JSON with a `manifest.json` into keel-web's `public/sample/` (or the directory the variable names), names *Person 1* ... *Person n*, emails and the founder gone, tokens `withheld`; it refuses (exit 1, after S-006's own marks) unless the decision is `BUILD_BUT_CHANGE`, the three verdicts and every dimension's n are the entry's own, and the pilot and the price line are there. Unset, S-006 is unchanged; committing the snapshot is the operator's step, in keel-web. **Nothing generated is committed** -- the script, the
 keys table and the typed inputs go into the run bundle, and `Corpus.verify_unchanged()` is called at
 the end of every run.
 

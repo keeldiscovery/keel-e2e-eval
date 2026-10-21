@@ -4,7 +4,7 @@ PIP := $(VENV)/bin/pip
 PLAYWRIGHT := $(VENV)/bin/playwright
 
 .PHONY: up down eval eval-live eval-all report venv unit instruction-eval instruction-screen acceptance oidc-image \
-        matrix-check keels-ai
+        matrix-check keels-ai sample
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
 # venv already exists (pip/playwright no-op when nothing changed).
@@ -32,6 +32,21 @@ down: venv
 # (relay-design.md §12.5: two profiles never share ports, a database, or now a runtime home).
 eval: venv
 	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) $(PY) -m pytest evals -q -m "not live" $(if $(K),-k "$(K)",)
+
+# make sample (spec 060; keel-cloud `canon/designs/landing-page-design.md` §18.11) runs S-006 on the local stack with
+# the export on: the finished 05-paidly project at its twenty answers -- overview, plan, standings, roles, people,
+# readings and every batch, invitations and every link, names withheld -- written as static JSON with a manifest.json
+# into keel-web's `public/sample/` (the checkout stack.toml names) unless KEEL_SAMPLE_EXPORT names another directory.
+# It refuses (exit 1, the reason named) unless the verdict is the corpus's own. **It writes into a sibling checkout**
+# and commits nothing there: committing the snapshot is the operator's step, in keel-web. `make eval` never sets the
+# variable, so the eval cell is unchanged.
+#
+#   make sample                                         into keel-web/public/sample/
+#   make sample KEEL_SAMPLE_EXPORT=/tmp/sample          anywhere else
+sample: venv
+	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) \
+	KEEL_SAMPLE_EXPORT="$(if $(KEEL_SAMPLE_EXPORT),$(KEEL_SAMPLE_EXPORT),$$($(PY) -c 'from stack.config import load_config; print(load_config(validate=False).keel_web / "public" / "sample")'))" \
+	$(PY) -m pytest evals -q -m "not live" -k s006
 
 # make eval-live runs the scenarios marked `live` -- a real `claude`, real money (spec 008-stranger-
 # who-gives-orders). Opt-in only; never part of `make eval`/`make eval-all`. Needs a logged-in
