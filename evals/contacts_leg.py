@@ -202,6 +202,9 @@ def leg_contacts_not_b2b(j) -> dict:
         h.record_assert({"status": 422, "code": "NOT_B2B", "card": iv.CONTACTS_B2C_TITLE}, record["not_b2b"])
         assert body.get("code") == "NOT_B2B" and created_body.get("code") == "NOT_B2B", record["not_b2b"]
         assert drawn.get("card") == iv.CONTACTS_B2C_TITLE, drawn
+    if j.teach is not None:
+        # spec 059 G14: keel-web 088 call 11 -- the consumer card carries no page pill
+        corpus_scenario.contacts_pill(j, "consumer")
     _score(j, record, require=["CM14"])
     return record
 
@@ -323,7 +326,7 @@ def _dataset_id(url: str) -> str:
 
 def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str, run: str) -> None:
     fetched: set[str] = set()
-    sent = iv.Interviews(j.page, j.recorder, j.web_base, patience=j.patience)
+    sent = iv.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
 
     # ---- C1: the tabs and Keel's base query
     with j.recorder.step("contacts (C1): one tab per kind of people -- the translators and the agency project managers "
@@ -334,6 +337,8 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
         deciders = kinds.get(KIND) or {}
         base = (deciders.get("base") or {}).get("query") or {}
         drawn = contacts.open(j.project_id)
+        # spec 059 G14: keel-web 088 FR-5 -- the datasets view's pill opens its one clip
+        corpus_scenario.contacts_pill(j, "datasets")
         tab = contacts.tab(deciders.get("label") or "")
         # Spec 046 FM3 (keel-cloud 097 F5): the base query carries no industry, on any kind's tab.
         j.feedback["base_query"] = {k: (v.get("base") or {}).get("query") for k, v in kinds.items()}
@@ -494,7 +499,7 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
                          f"founder picks the {PICKS}, *Make {PICKS} links*: one batch as Text, each link handed back once "
                          "with the saved email, the batch's own .csv downloaded; Keel sends nothing; each LINK_MADE",
                          party="founder", kind="assert") as h:
-        contacts.go_to_send_more()
+        contacts.go_to_send_more(guide=j.guide)
         made = sent.send_from_dataset([name_of[f] for f in found], downloads=_downloads(j.page))
         batch = made["batch"] or {}
         links = batch.get("links") or []
@@ -593,6 +598,8 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
         assert iv.MAKE_A_NEW_LINK not in offers, offers
         assert kind_row.get("linksMade") == corpus_deciders + PICKS, kind_row
         assert kind_row.get("answered") == corpus_deciders + 1, kind_row
+    # spec 059 G16: the links table past ten -- the batch made more than ten links (keel-web 088 FR-4)
+    corpus_scenario.links_reading(j, "after the batch", sent)
 
     with j.recorder.step(f"contacts (D7): *Make a new link* for {other_link['personName']} on Sent -- the old link "
                          "answers 404, the new one opens, the same invitation; an answered link is refused "

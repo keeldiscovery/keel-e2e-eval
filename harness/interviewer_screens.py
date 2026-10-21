@@ -9,7 +9,8 @@ repository (*Selectors (for keel-e2e-eval 044)*) and 072's spec names (`ai-yes`,
 * `Persona`   -- Sent's persona line (`[data-testid=persona-line]`, `data-state`), its progress bar, *Change who asks* /
                  *Record the interviewer* and the popup (`[data-testid=change-face-popup]`, the carousel,
                  `[data-testid=change-face-confirm]`), the role cards' *Try it yourself*, Send more's format row read
-                 and cancelled, W1 replayed through *How it works*, L1 revisited.
+                 and cancelled, L1 revisited; since keel-web 088 the band's *Hear <name>* (`persona-hear`) and the
+                 absence of *How it works* (the replay of W1 is gone, spec 059).
 * `Player`    -- the AI interviewer's page for a stranger or the founder's dry run: the intros (072: *Test your mic*),
                  the stage (`data-phase`, the one `<video>`, the pills, End, the ship mark), the sheet (options, field,
                  escape, preview, heard, status, Back, *Yes, that's it*, *Save and next* for typed words, *Finish* on
@@ -51,6 +52,13 @@ plays it under *Hear <name>* (`intro-hear`). `HEAR_JS` listens for every `video`
 not bubble; a capture listener hears them) and polls the choice buttons while it plays; `hear_card` / `Player.hear`
 tap, wait for the clip's `ended` and the still's return, and return what was heard, for IM28 / IM29 to judge.
 
+Spec 059 (keel-web 088, contract 24): Sent's persona line is the **who-asks band** (`.ivband`): READY draws *Hear
+<name> · 5 s* (`persona-hear`, the name, never a pronoun; absent for a retired face), which plays the 087 hello in the
+band's circle (`video.pface-hello__clip`) while the band carries `data-hearing`; `HEAR_JS` tags an event inside the band
+`band`, and `Persona.hear_band` taps it and waits for the end. *How it works* is gone from Sent (the page's pill replaced
+it), so `walkthrough_again` retired with it -- `how_it_works()` counts the controls of that name (none). `Persona.sent`
+opens Sent through `interviews_screens.pass_interviews_sheet`, which skips 088's first-open sheet when drawn.
+
 Every write a press makes returns the response keel-web received, so the leg holds the wire the page was handed.
 """
 
@@ -60,6 +68,7 @@ import re
 
 from playwright.sync_api import Page
 
+from harness import interviews_screens as _iv
 from harness.browser import _BrowserStep, _safe_text
 
 # ---- keel-web d23895f `translate.ts`
@@ -74,6 +83,7 @@ SEND_FORMAT_RECORDED = "The interviewer is already recorded for this project."
 SEND_FORMAT_RECORDING = "The interviewer is still recording; Text only is ready now."
 CHANGE_FACE_TITLE = "Change who asks"
 RECORD_FACE_TITLE = "Record the interviewer"
+#: keel-web 068's replay of W1 on Sent's header, gone with keel-web 088 FR-1 (spec 059): never on Sent again.
 HOW_IT_WORKS = "How it works"
 WALKTHROUGH_GOT_IT = "Got it"
 MARK = "Keel · AI interviewer"
@@ -391,9 +401,11 @@ def _words(locator) -> str:
 
 # ------------------------------------------------------------------------------------- tap to hear (087)
 
-#: keel-web 087's test ids: the play glyph on an unpicked card, the intro's *Hear <name>*.
+#: keel-web 087's test ids: the play glyph on an unpicked card, the intro's *Hear <name>*; keel-web 088's twin on the
+#: who-asks band (`persona-hear`, *Hear Livia · 5 s*).
 FACE_HEAR = "face-hear"
 INTRO_HEAR = "intro-hear"
+PERSONA_HEAR = "persona-hear"
 #: keel-web 087 FR-5 `introHear(name, seconds)`: the intro's button starts *Hear <name>* (its seconds after a dot).
 HEAR_PREFIX = "Hear "
 
@@ -406,7 +418,9 @@ HEAR_JS = r"""() => {
     const snap = (v, type) => {
       const card = v.closest('[data-face]');
       log.events.push({type, t: performance.now(), face: card ? card.getAttribute('data-face') : null,
-                       intro: !!v.closest('[data-testid=ai-intro]'), muted: v.muted, paused: v.paused,
+                       intro: !!v.closest('[data-testid=ai-intro]'), band: !!v.closest('[data-testid=persona-line]'),
+                       hearing: (v.closest('[data-testid=persona-line]') || {getAttribute: () => null})
+                                  .getAttribute('data-hearing'), muted: v.muted, paused: v.paused,
                        currentTime: v.currentTime, duration: Number.isFinite(v.duration) ? v.duration : null,
                        src: v.currentSrc || v.src || '', error: v.error ? v.error.code : null});
     };
@@ -438,9 +452,10 @@ _SHOWING_JS = r"""(el) => {
   return {video: videos.some(shown), videos: videos.length, still: Array.from(el.querySelectorAll('[role=img]')).some(shown)};
 }"""
 
-#: The ended (or an error) of a clip in `where` -- a card's code, or "intro".
+#: The ended (or an error) of a clip in `where` -- a card's code, "intro", or "band" (088's who-asks band).
 _ENDED_JS = r"""(where) => (window.__keelHear ? window.__keelHear.events : []).some((e) =>
-  (e.type === 'ended' || e.type === 'error') && (where === 'intro' ? e.intro : e.face === where))"""
+  (e.type === 'ended' || e.type === 'error') && (where === 'intro' ? e.intro : where === 'band' ? e.band
+                                                  : e.face === where))"""
 
 
 def _showing(locator) -> dict:
@@ -500,16 +515,21 @@ def hear_card(page: Page, scope, face: str, *, wait_s: float) -> dict:
 # --------------------------------------------------------------------------------------------- the founder
 
 class Persona:
-    def __init__(self, page: Page, recorder, base_url: str, *, patience: float = 1.0):
+    def __init__(self, page: Page, recorder, base_url: str, *, patience: float = 1.0, guide: dict | None = None):
         self.page = page
         self.base = base_url.rstrip("/")
         self.patience = patience
         self._b = _BrowserStep(recorder, page, "founder")
+        self.recorder = recorder
+        #: Spec 059: the journey's guide record, where the Sent-open helper keeps each pass of 088's sheet.
+        self.guide = guide
 
     def sent(self, project_id: str) -> None:
+        """Sent, opened when not already on it, with keel-web 088's first-open sheet passed by (spec 059 FR-4)."""
         if not self.page.url.split("?")[0].endswith(f"/p/{project_id}/interviews/sent"):
             self.page.goto(f"{self.base}/p/{project_id}/interviews/sent", wait_until="load")
         self.page.locator(".sent__kinds").wait_for(state="visible", timeout=60_000 * self.patience)
+        _iv.pass_interviews_sheet(self.page, self.recorder, self.base, guide=self.guide)
 
     def line(self) -> dict:
         """The persona line as drawn: its state, words, bar and action."""
@@ -595,19 +615,37 @@ class Persona:
         dialog.wait_for(state="hidden", timeout=10_000)
         return out
 
-    def walkthrough_again(self) -> dict:
-        """*How it works* on Sent's header plays W1 again: its frames' titles (frame 2 is who asks), then *Got it*."""
-        with self._b.step("founder replays How it works: W1's four frames") as h:
-            self.page.get_by_role("button", name=HOW_IT_WORKS, exact=True).click()
-            strip = self.page.locator(".wtstrip")
-            strip.wait_for(state="visible", timeout=10_000)
-            frames = [_words(f.locator("b, h3, strong").first) or _words(f) for f in strip.locator(".wtframe").all()]
-            drawn = {"frames": frames, "texts": [_words(f) for f in strip.locator(".wtframe").all()],
-                     "intro": _words(self.page.locator(".corridor__intro").first)}
-            h.add_screenshot(self._b.screenshot("walkthrough-again"))
-            self.page.get_by_role("button", name=WALKTHROUGH_GOT_IT, exact=True).click()
-            self.page.locator(".sent__kinds").wait_for(state="visible", timeout=30_000)
-            return drawn
+    def how_it_works(self) -> int:
+        """Spec 059: the controls on Sent named *How it works* -- keel-web 088 removed the replay of W1 (none)."""
+        return self.page.get_by_role("button", name=HOW_IT_WORKS, exact=True).count() + \
+            self.page.get_by_role("link", name=HOW_IT_WORKS, exact=True).count()
+
+    def hear_band(self, *, wait_s: float) -> dict:
+        """keel-web 088 FR-2 (IM30): *Hear <name> · 5 s* on the who-asks band (`persona-hear`) -- its words, the clip
+        that played in the band's circle in place of the still, `data-hearing` while it played, and the band after the
+        end (the still back, no clip showing). `present` False (nothing pressed) where the band draws no button."""
+        band = self.page.get_by_test_id("persona-line")
+        band.wait_for(state="visible", timeout=10_000)
+        button = band.get_by_test_id(PERSONA_HEAR)
+        if not button.count():
+            return {"present": False, "state": band.get_attribute("data-state"), "text": _words(band)}
+        circle = band.locator(".pface-hello").first
+        before = {"words": _words(button), "label": button.get_attribute("aria-label"), **_showing(circle),
+                  "hearing": band.get_attribute("data-hearing")}
+        hearing: list = []
+
+        def tap() -> None:
+            button.click()
+            try:
+                self.page.locator('[data-testid=persona-line][data-hearing="true"]').wait_for(state="attached",
+                                                                                            timeout=2_000)
+                hearing.append(True)
+            except Exception:  # noqa: BLE001 - never marked: the mark's to read
+                hearing.append(False)
+        heard = _heard(self.page, "band", tap, wait_s=wait_s)
+        after = {**_still_back(circle, wait_s=5), "hearing": band.get_attribute("data-hearing")}
+        return {"present": True, "before": before, "hearing_while": bool(hearing and hearing[0]), **heard,
+                "after": after}
 
     def l1_again(self, project_id: str) -> dict:
         """L1 revisited on a locked project (the carousel, disabled; no button): its whole text, for the no-price rule."""

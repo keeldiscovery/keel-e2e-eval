@@ -732,12 +732,204 @@ def captions_read(j: Journey) -> None:
     if j.teach is None:
         return
     clips = {}
-    for key, row in sorted(j.teach.manifest().items()):
+    manifest = j.teach.manifest()
+    for key, row in sorted(manifest.items()):
         if row.get("present"):
             text = j.teach.vtt(key)
             clips[key] = {"served": text is not None, "words": guide_marks.project_words(text),
                           "cues": (text or "").count("-->")}
-    j.guide["captions"] = {"clips": clips, "snippets": list(j.guide.get("snippets") or [])}
+    # spec 059: the three page clips are read with the rest; `present` and `manifest` let G12 say none was skipped
+    j.guide["captions"] = {"clips": clips, "snippets": list(j.guide.get("snippets") or []),
+                           "present": sorted(k for k, row in manifest.items() if row.get("present")),
+                           "manifest": len(manifest)}
+
+
+# ------------------------------------------------------- spec 059: Interviews › Sent reworked (G13-G17)
+#
+# keel-web 088 / keel-cloud 111 (contract 24). The founder journey (S-005, `j.teach` set) holds the Interviews sheet up
+# at its first open of Sent and judges it; every other open of Sent, on every journey, passes it by
+# (`iv_screens.pass_interviews_sheet`, through `Interviews.land` / `Persona.sent`). The readings go into `j.guide`.
+
+def _downloads(page):
+    """A press that downloads a file, read back as text."""
+    def press(click) -> str:
+        from pathlib import Path                              # noqa: PLC0415
+        with page.expect_download(timeout=20_000) as got:
+            click()
+        return Path(got.value.path()).read_text(encoding="utf-8")
+    return press
+
+
+def _guide_on(j: Journey) -> bool:
+    """keel-web 088 `interviewsGuideOn`: the Interviews placements only on a contract-24 cloud."""
+    return "interviewsSeen" in _overview_guide(j)
+
+
+def interviews_sheet(j: Journey, sent) -> dict | None:
+    """G13 (spec 059 FR-1): the founder's first open of Sent, the sheet held up -- `page-interviews-first` read, Skip
+    pressed, the POST kept -- then the wire's `interviewsSeen` and the next open (none). Every later open of Sent is kept
+    by the Sent-open helper in the record's `later`. Returns what W1 drew (or None), as `Interviews.land` does."""
+    record = j.guide["interviews"] = {"judged": True, "applicable": j.teach.present(iv_screens.INTERVIEWS_CLIP),
+                                      "later": []}
+    sheet = vs_screens.GuideWelcome(j.page, j.recorder, j.web_base, sheet=iv_screens.GUIDE_INTERVIEWS)
+    wire = vs_screens.GuideWire(j.page).attach()
+    with _step(j, "Sent's first open plays page-interviews-first in the sheet; Skip posts {interviews: true} once, "
+                  "204, and the wire says interviewsSeen: true (keel-web 088 FR-0, keel-cloud 111)",
+               party="founder") as h:
+        try:
+            walked = sent.land(j.project_id, sheet="hold")
+            present = sheet.present(timeout_s=iv_screens.SHEET_WAIT_S if record["applicable"] else 3)
+            src = j.page.evaluate("(sel) => { const v = document.querySelector(sel); "
+                                  "return v ? (v.currentSrc || v.src || '') : null; }",
+                                  f"{iv_screens.GUIDE_INTERVIEWS} {vs_screens.GUIDE_FACE}")
+            received = next((o["guide"] for o in reversed(wire.overviews())
+                             if isinstance(o.get("guide"), dict) and "interviewsSeen" in o["guide"]), None)
+            record["first_open"] = {"present": present, "received": received, "src": src}
+            if present:
+                _snippet(j, iv_screens.GUIDE_INTERVIEWS)
+                record["press"] = sheet.skip()
+        finally:
+            wire.detach()
+        record["wire_after"] = _overview_guide(j)
+        record["next_open"] = sheet.absent(
+            after=lambda: j.page.goto(f"{j.web_base}/p/{j.project_id}/interviews/sent", wait_until="load"),
+            seen_key="interviewsSeen", screen=".sent__kinds")
+        h.record_assert({"present": True, "posted": guide_marks.INTERVIEWS, "interviewsSeen": True, "next open": 0},
+                        record)
+    return walked
+
+
+def sent_pill(j: Journey) -> None:
+    """G14's Sent half (keel-web 088 FR-1, D43): *How this page works* opens the band in the pill's place -- chapter 1
+    *Where to start* on `page-interviews-first`, through the seam (local) chapter 2 *This page* on `page-sent` -- and
+    Skip gives the pill back. Chapters absent: the pills read, nothing pressed."""
+    if j.teach is None:
+        return
+    one: dict = {"applicable": all(j.teach.present(k) for k in guide_marks.SENT_CHAPTERS) and _guide_on(j)}
+    j.guide.setdefault("page_pills", {})["sent"] = one
+    pills = lambda: [p for p in j.teach.pills() if p.get("testid") == "guide-pill-page"]  # noqa: E731
+    if not one["applicable"]:
+        one["pills"] = pills()
+        return
+    with _step(j, "Sent's pill How this page works opens the band in its own place: Chapter 1 of 2 · Where to start, "
+                  "then 2 of 2 · This page; Skip gives the pill back (keel-web 088 FR-1)", party="founder") as h:
+        one["pills"] = pills()
+        opened = j.teach.open_pill("page")
+        band = opened["band"]
+        one.update({"opened": opened["opened"], "chip_first": band.get("chip"), "src_first": band.get("src"),
+                    "seam": j.teach.seam(),
+                    "in_place": j.page.evaluate(
+                        "() => !!document.querySelector('.sent__guide [data-testid=guide-band]') && "
+                        "!document.querySelector('.sent__guide [data-testid=guide-pill-page]')")})
+        if band.get("snippet"):
+            j.guide["snippets"].append(band["snippet"])
+        if opened["opened"] and one["seam"]:
+            first = float((j.teach.manifest().get(guide_marks.SENT_CHAPTERS[0]) or {}).get("duration") or 0)
+            j.teach.seek(first + 0.05)
+            one["chip_second"] = j.teach.wait_chip("2 of 2")
+            one["src_second"] = j.teach.band().get("src")
+        elif not one["seam"]:
+            j.guide.setdefault("notes", {})["G14"] = guide_marks.REMOTE_SEAM_WHY
+        if opened["opened"]:
+            one.update(j.teach.band_skip())
+        one["pill_back"] = len(pills()) == 1
+        h.record_assert({"chips": list(guide_marks.SENT_CHIPS), "in place": True, "closed": True, "pill back": True},
+                        one)
+
+
+def contacts_pill(j: Journey, view: str) -> None:
+    """G14's Contacts half (keel-web 088 FR-5): on the datasets view the pill opens its one clip, `page-contacts`, with
+    no chapter chip, and Skip closes it; on the consumer card (or the credits line) no pill at all (088 call 11)."""
+    teach = j.teach or vs_screens.GuideTeaching(j.page, j.recorder, j.web_base)
+    one: dict = {"view": view, "applicable": teach.present(guide_marks.CONTACTS_CLIP) and _guide_on(j)}
+    j.guide.setdefault("page_pills", {})["contacts"] = one
+    pill = j.page.locator(f"{vs_screens.GUIDE_PILL}[data-testid='guide-pill-page']")
+    if one["applicable"] and view == "datasets":
+        try:
+            pill.first.wait_for(state="visible", timeout=10_000)
+        except Exception:  # noqa: BLE001 - its absence is the mark's to read
+            pass
+    one["pills"] = [p for p in teach.pills() if p.get("testid") == "guide-pill-page"]
+    if not (one["applicable"] and view == "datasets" and one["pills"]):
+        return
+    with _step(j, "Contacts' pill How this page works opens its one clip, page-contacts, with no chapter chip; Skip "
+                  "closes it (keel-web 088 FR-5)", party="founder") as h:
+        opened = teach.open_pill("page")
+        band = opened["band"]
+        one.update({"opened": opened["opened"], "src": band.get("src"), "chip": band.get("chip")})
+        if band.get("snippet"):
+            j.guide.setdefault("snippets", []).append(band["snippet"])
+        if opened["opened"]:
+            one.update(teach.band_skip())
+        h.record_assert({"clip": guide_marks.CONTACTS_CLIP, "chip": "", "closed": True}, one)
+
+
+def sent_reading(j: Journey, when: str, sent=None) -> None:
+    """G15 and G17 (keel-web 088 FR-1, FR-3), on the guide journey: Sent's regions top to bottom and every control
+    named *How it works*; each role card's count beside the wire's kinds and the register's own rows."""
+    if j.teach is None:
+        return
+    sent = sent or iv_screens.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
+    me = j.get("/v2/me") or {}
+    band_owed = me.get("aiPath") != "OWN"                # 088: an account on its own AI draws no who-asks band
+    if band_owed:
+        try:
+            j.page.get_by_test_id("persona-line").wait_for(state="visible", timeout=15_000)
+        except Exception:  # noqa: BLE001 - its absence is the mark's to read
+            pass
+    with _step(j, f"Sent {when}: top to bottom the kicker and total, the pill, the who-asks band, the role cards, the "
+                  "links, no How it works; each card's count in its action row as the register counts "
+                  "(keel-web 088 FR-1, FR-3)", party="founder") as h:
+        order = sent.order()
+        register = j.get(j.project("/invitations")) or {}
+        drawn = sent.register()
+        cards = sent.kinds()
+        pill_owed = any(j.teach.present(k) for k in guide_marks.SENT_CHAPTERS) and _guide_on(j)
+        x = j.guide.setdefault("sent_order", {"readings": [], "band_owed": False})
+        x["readings"].append({"when": when, **order, "pill_owed": pill_owed, "band_owed": band_owed})
+        x["band_owed"] = x["band_owed"] or band_owed
+        counts = {"when": when, "cards": cards, "drawn_rows": len(drawn),
+                  "kinds": [{k: kind.get(k) for k in ("label", "respondentType", "linksMade", "answered", "aim")}
+                            for kind in register.get("kinds") or []],
+                  "invitations": [{"respondentType": v.get("respondentType"), "status": v.get("status")}
+                                  for v in register.get("invitations") or []]}
+        j.guide.setdefault("role_counts", {"readings": []})["readings"].append(counts)
+        h.record_assert({"order": list(guide_marks.SENT_ORDER), "how it works": 0,
+                         "counts": {k["label"]: guide_marks.role_count_words(k) or "nothing sent yet"
+                                    for k in counts["kinds"]}},
+                        {"order": order, "cards": cards})
+
+
+def links_reading(j: Journey, when: str, sent=None) -> None:
+    """G16 (keel-web 088 FR-4): the links table over every link -- its frame (heading, range, Next, the search row),
+    Next once past ten, one row's name searched then cleared, *Made* sorted and sorted back, and the .csv downloaded."""
+    sent = sent or iv_screens.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
+    with _step(j, f"the links table {when}: one name searched and cleared, Made sorted both ways, the range and Next, "
+                  "Download (.csv) in the search row with every link (keel-web 088 FR-4)", party="founder") as h:
+        rows = sent.register()
+        n = len((j.get(j.project("/invitations")) or {}).get("invitations") or [])
+        frame = sent.links()
+        one: dict = {"when": when, "n": n, "drawn": len(rows), "frame": frame}
+        if n > guide_marks.PAGE_SIZE:
+            one["next_page"] = sent.go_next()
+        if frame.get("search"):
+            texts = {r.get("Who"): " ".join(str(r.get(k) or "") for k in ("Who", "Format", "Status")).lower()
+                     for r in rows}
+            term = next((w for w in frame.get("rows") or [] if w and
+                         sum(w.lower() in t for t in texts.values()) == 1), None)
+            if term:
+                found = sent.search(term)
+                cleared = sent.search("")
+                one["search"] = {"term": term, "found": found["rows"], "range": found["range"],
+                                 "cleared": {"rows": cleared["rows"], "range": cleared["range"]}}
+        sort = sent.sort("made")
+        one["sort"] = {**sort, "back": sent.sort("made")}
+        text = sent.download(_downloads(j.page))
+        one["csv"] = {"header": (text.splitlines() or [""])[0], "lines": guide_marks.csv_lines(text)}
+        j.guide.setdefault("links", {"readings": []})["readings"].append(one)
+        want, on = guide_marks.range_owed(n)
+        h.record_assert({"n": n, "range": want, "next": on, "csv lines": n + 1,
+                         "sort": ["descending", "ascending", "descending"]}, one)
 
 
 # ----------------------------------------------------------------------------- leg 2: interpret
@@ -1341,9 +1533,10 @@ def leg_invite(j: Journey) -> None:
     labels = {k.get("respondentType"): k.get("label") for k in register.get("kinds") or []}
     persona = j.get(j.project("/persona")) or {}
     primary = next(t for t in persona.get("respondentTypes") or [] if not t.get("commercialLink"))
-    sent = iv_screens.Interviews(j.page, j.recorder, j.web_base, patience=j.patience)
+    sent = iv_screens.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
     me_before = j.get("/v2/me") or {}
-    walked = sent.land(j.project_id)
+    # spec 059: the guide journey holds keel-web 088's Interviews sheet up at its first open and judges it (G13)
+    walked = interviews_sheet(j, sent) if j.teach is not None else sent.land(j.project_id)
     with _step(j, "Interviews (keel-web 068 FR-002 / FR-003): the side nav's group with its three sub-rows, Sent "
                   "current; the walkthrough played exactly when the account had never seen it, and Got it stamped it",
                party="founder") as h:
@@ -1390,6 +1583,11 @@ def leg_invite(j: Journey) -> None:
         assert [r.get("Who") for r in drawn] == [r.get("personName") for r in wire], drawn
         assert {r.get("Format") for r in drawn} == {"Text"}, drawn
         assert all((r.get("Status") or "").startswith(iv_screens.REGISTER_STATUS["SENT"]) for r in drawn), drawn
+    if j.teach is not None:
+        # spec 059: Sent's order and the role counts (G15, G17), the links table (G16), Sent's pill (G14)
+        sent_reading(j, "after the links", sent)
+        links_reading(j, "after the links", sent)
+        sent_pill(j)
     # keel-web 077 (spec 052 FR-7): before anyone finishes, the report is the too-few state (the pilot tile *None yet*).
     j.standings = j.get(j.project("/standings")) or {}
     report_sheet(j)
@@ -2365,6 +2563,16 @@ def guide_record(j: Journey) -> dict:
     """The guide marks' record (spec 054): what `leg_welcome` read, and every corridor frame the journey read after it
     (`Corridor.frame()["welcome"]`, the sheets over each -- G1's "never returns")."""
     record = {k: v for k, v in j.guide.items() if k != "snippets"}
+    # spec 059: a journey that only passed keel-web 088's Interviews sheet by carries no G13 subject (only S-005 judges
+    # it); the passes are kept beside the record, and every 059 mark it carries none of is unmeasured with the why
+    passed = record.get("interviews")
+    if passed is not None and not passed.get("judged"):
+        record.pop("interviews")
+        record["interviews_passed"] = passed.get("passed") or []
+    keys = {m: key for m, key, _ in guide_marks.MARKS}
+    absent = {m: guide_marks.SENT_ELSEWHERE_WHY for m in guide_marks.SENT_MARKS if keys[m] not in record}
+    if absent:
+        record["notes"] = {**absent, **(record.get("notes") or {})}
     frames = [(key, screen.get("frame") or {}) for key, seen in j.framing.items() for screen in seen
               if isinstance(screen, dict) and screen.get("frame")]
     if j.teach is not None:
@@ -2400,7 +2608,8 @@ def _score_guide(j: Journey) -> dict:
     (run_dir / "guide.json").write_text(json.dumps(record, indent=2, default=str) + "\n", encoding="utf-8")
     (run_dir / "guide-marks.json").write_text(json.dumps(card, indent=2, default=str) + "\n", encoding="utf-8")
     require = guide_marks.owed(record)
-    with _step(j, f"guide marks v{guide_marks.GUIDE_MARKS_VERSION} (specs 054, 057): {card['met']} of {card['measured']} "
+    with _step(j, f"guide marks v{guide_marks.GUIDE_MARKS_VERSION} (specs 054, 057, 059): {card['met']} of "
+                  f"{card['measured']} "
                   f"met ({', '.join(require) or 'none'} owed; {', '.join(card['unmeasured']) or 'none'} unmeasured; "
                   f"{', '.join(card['not_applicable']) or 'none'} not applicable)",
                party="stack") as h:

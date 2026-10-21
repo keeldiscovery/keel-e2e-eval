@@ -107,7 +107,8 @@ FOUNDERS_WORD = ("I started this because I spent years watching good people lose
 
 #: keel-web 069's page objects (`harness/interviewer_screens.py`), built in spec 044 once 069 merged at `d23895f`.
 WEB_069_FOLLOW_UP = (
-    "keel-web 069 (the AI interviewer's screens), DONE in spec 044: L1, W1 frame 2 (replayed), S1 / S2 / S3, the "
+    "keel-web 069 (the AI interviewer's screens), DONE in spec 044: L1, W1 frame 2 (replayed until keel-web 088), S1 / "
+    "S2 / S3, the "
     "persona line's popup, Try it yourself and the respondent's stage and sheet through window.__keelSpeech -- each "
     "held to the wire this leg holds.")
 READ_REASON = marks.READ_REASON
@@ -123,8 +124,14 @@ READ_REASON = marks.READ_REASON
 #: IM25's recorded window and IM27's backfill are the full leg's.
 #: Spec 058: IM28 (tap to hear) on the short form too -- it records from the same popup; IM29's Let-them-choose link is
 #: the full leg's.
+#: Spec 059: IM30 (the band's *Hear <name>*) on both -- each leg records, and Sent's band follows.
 SHORT_FORM = ["IM1", "IM3", "IM4", "IM5", "IM6", "IM7", "IM9", "IM13", "IM14", "IM15", "IM16", "IM17", "IM19",
-              "IM20", "IM21", "IM22", "IM23", "IM24", "IM26", "IM28"]
+              "IM20", "IM21", "IM22", "IM23", "IM24", "IM26", "IM28", "IM30"]
+#: Spec 059 FR-2: keel-web 088 removed *How it works* from Sent, so W1's replay -- the reading that held frame 2 to the
+#: recorded face -- has no control to press. The first-visit walkthrough is unchanged and stays `leg_invite`'s.
+W1_REPLAY_RETIRED = ("keel-web 088 FR-1 removed *How it works* from Sent (the page's pill *How this page works* "
+                     "replaced it), so the walkthrough is not replayed and W1's frame-2 reading on a replay retires "
+                     "(spec 059 FR-2); the first visit's W1 stays leg_invite's")
 
 
 class _Wire:
@@ -203,7 +210,7 @@ def _hello(record: dict, face: str) -> str | None:
 
 
 def _persona(j) -> ivs.Persona:
-    return ivs.Persona(j.page, j.recorder, j.web_base, patience=j.patience)
+    return ivs.Persona(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
 
 
 def _labels(j) -> dict[str, str]:
@@ -252,6 +259,7 @@ def _leg(j, *, short: bool) -> dict:
             _screens_recording(j, wire, record)
             _while_recording(j, wire, record)
         _ready(j, wire, record, FIRST_FACE, "the first recording")
+        _hear_the_band(j, record)
         if not short:
             _screens_ready(j, wire, record)
         _the_recording(j, wire, record)
@@ -287,7 +295,7 @@ def _leg(j, *, short: bool) -> dict:
     # spec 048: the answer path's five are owed on the full leg whatever the record carries -- a walk that never went
     # back is a walk that failed to, not a mark left unmeasured (spec 051: and the follow-up's five)
     answer_path = ["IM14", "IM15", "IM16", "IM17", "IM18", "IM19", "IM20", "IM21", "IM22", "IM23", "IM24", "IM25",
-                   "IM26", "IM27", "IM28", "IM29"]
+                   "IM26", "IM27", "IM28", "IM29", "IM30"]
     require = SHORT_FORM if short else [m for m, _, _ in marks.MARKS if m in _owed(record) or m in answer_path]
     _score(j, record, require=require)
     return record
@@ -571,12 +579,13 @@ def _screens_ready(j, wire: _Wire, record: dict) -> None:
         assert list(formats["rows"]) == [iv.ai_format_name(name), iv.TEXT_ONLY, iv.CHOICE_NAME], formats["rows"]
         assert not any(r["disabled"] for r in formats["rows"].values()), formats["rows"]
         assert formats["hint"] == ivs.SEND_FORMAT_RECORDED, formats
-    with j.recorder.step("interviewer (W1, FR-003): *How it works* replays the walkthrough's four frames, frame 2 "
-                         f"*{name} asks your questions*", party="founder", kind="assert") as h:
-        drawn = persona.walkthrough_again()
+    with j.recorder.step("interviewer (W1, spec 059 FR-2): the replay reading retires -- keel-web 088 removed *How it "
+                         "works* from Sent, and no control of that name is left on the page", party="founder",
+                         kind="assert") as h:
+        drawn = {"retired": W1_REPLAY_RETIRED, "how_it_works": persona.how_it_works()}
         record["screens_drawn"]["W1"] = drawn
-        h.record_assert({"frames": 4, "frame 2": ivs.walkthrough_asks_title(name)}, drawn)
-        assert len(drawn["texts"]) == 4 and ivs.walkthrough_asks_title(name) in drawn["texts"][1], drawn
+        h.record_assert({"how_it_works": 0}, drawn)
+        assert drawn["how_it_works"] == 0, drawn
     with j.recorder.step("interviewer (L1, FR-002): the lock's last screen revisited on Keel's door -- *Who asks the "
                          "questions*, the four faces, one checked -- and no price on it", party="founder",
                          kind="assert") as h:
@@ -593,6 +602,27 @@ def _screens_ready(j, wire: _Wire, record: dict) -> None:
         h.record_assert({"checked": [FIRST_FACE]}, {"checked on L1": l1["checked"]})
         assert l1["checked"] == [FIRST_FACE], l1["checked"]
     persona.sent(j.project_id)
+
+
+def _hear_the_band(j, record: dict) -> None:
+    """IM30 (keel-web 088 FR-2): on Sent, once the first recording is READY, the who-asks band's *Hear <name> · 5 s*
+    plays her hello in the band's circle to its end and the still returns (the wait 20 s locally, the 90 s navigation
+    timeout on the remote profile); on the guide journey Sent's order and counts are read again with the band drawn
+    (G15, G17)."""
+    from evals import corpus_scenario                         # noqa: PLC0415 - corpus_scenario reads this leg's record
+    persona = _persona(j)
+    with j.recorder.step(f"interviewer (IM30, keel-web 088 FR-2): the who-asks band's Hear "
+                         f"{fake.FACE_NAMES[FIRST_FACE]} · 5 s plays her hello in the band and the still returns",
+                         party="founder", kind="assert") as h:
+        persona.sent(j.project_id)
+        persona.wait_state("READY")
+        heard = persona.hear_band(wait_s=_hear_wait(j))
+        view = j.get(j.project("/interviewer")) or {}
+        record["hear_band"] = {**heard, "face": FIRST_FACE, "hello": (view.get("face") or {}).get("helloUrl"),
+                               "retired": FIRST_FACE in fake.RETIRED}
+        h.record_assert({"words": f"{ivs.HEAR_PREFIX}{fake.FACE_NAMES[FIRST_FACE]} · 5 s", "ended": True,
+                         "hello": fake.hello_path(FIRST_FACE), "still back": True}, record["hear_band"])
+    corpus_scenario.sent_reading(j, "after the first recording")
 
 
 def _ready(j, wire: _Wire, record: dict, face: str, what: str) -> dict:
@@ -977,7 +1007,7 @@ def _send_link(j, fmt: str, person: str) -> dict:
     persona = _persona(j)
     primary = next(t for t in (j.get(j.project("/persona")) or {}).get("respondentTypes") or []
                    if not t.get("commercialLink"))
-    sent = iv.Interviews(j.page, j.recorder, j.web_base, patience=j.patience)
+    sent = iv.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
     about = f"{primary.get('label')}, asked about one real time."
     persona.sent(j.project_id)
     made = sent.send_someone(j.project_id, _labels(j)[vs.LINK_PRIMARY], person, about, fmt=fmt)

@@ -9,7 +9,7 @@ section's own class names (`table.ppl--sent`, `.dsrow`, `.prow`, `.qchip__x`, `.
 
 * `Interviews` -- `/p/{id}/interviews/sent`: W1 the walkthrough (once per account), the side nav's group, the
                   register (newest first), the rows per kind, *Send more* (format -> who -> links) for someone the
-                  founder knows or for a dataset's people, and *Make a new link*.
+                  founder knows or for a dataset's people, and *Make a new link* (*New link* since keel-web 088).
 * `Contacts`   -- `/p/{id}/interviews/contacts`: the tabs per kind, Keel's base query (*Start from it*), C2's chips,
                   *Size it* / *Size it again* / *Show the first 25*, the page of names (`?view=names`) and *Save n
                   picked*, C3 (the saved people, *Find 25 more*, *Go to Sent -> Send more*), the *Not enough credits*
@@ -17,6 +17,17 @@ section's own class names (`table.ppl--sent`, `.dsrow`, `.prow`, `.qchip__x`, `.
 
 Every action that writes returns the response keel-web received for it, so the leg holds the wire the page was
 handed and the screen it drew from it.
+
+**Spec 059 (keel-web 088, contract 24): Sent reworked.** The links are a TanStack table (`[data-testid=links]`, rows
+`tr[data-invitation]`, pages of ten with `links-prev` / `links-range` *1–10 of 14* / `links-next`, drawn only past ten;
+`links-search` from six links; `links-download` at the right of that row; every heading `th button[data-sort]` with
+`aria-sort` on its `th`); `register()` walks every page with Next until it is disabled -- it never searches -- and
+puts the table back on its first page. The row's action is *See answers, {name}* / *New link, {name}* (no *Make a new
+link* in the status cell). Each role card's count is `role-count` in its action row. And **the Interviews first-open
+sheet** (`guide-interviews`, while `guide.interviewsSeen` is false): every way this module (and
+`harness/interviewer_screens.Persona`) opens Sent goes through `pass_interviews_sheet`, which skips it when drawn and
+records the pass in the journey's guide record (`guide["interviews"]`) -- only the guide journey holds it up to judge
+(`land(..., sheet="hold")`).
 """
 
 from __future__ import annotations
@@ -27,6 +38,44 @@ from playwright.sync_api import Page
 
 from harness.browser import _BrowserStep, _safe_all_texts, _safe_text
 
+# ---- keel-web 088 (spec 059): Sent's first-open sheet, the links table, the role counts (088 tasks.md, *Selectors*)
+GUIDE_INTERVIEWS = "[data-testid='guide-interviews']"
+#: The sheet's clip (`INTERVIEWS_FIRST`) -- also chapter 1 of Sent's pill; `page-sent` is chapter 2, Contacts' its own.
+INTERVIEWS_CLIP = "page-interviews-first"
+SENT_CHAPTERS = ("page-interviews-first", "page-sent")
+CONTACTS_CLIP = "page-contacts"
+#: 088 FR-0 / its e2e: the sheet is a lazy chunk -- 30 s for it on a cold dev server.
+SHEET_WAIT_S = 30
+GUIDE_PILL_PAGE = "How this page works"
+LINKS = "[data-testid='links']"
+LINK_ROWS = f"{LINKS} table.ppl tbody tr[data-invitation]"
+LINKS_SEARCH = "[data-testid='links-search']"
+LINKS_DOWNLOAD = "[data-testid='links-download']"
+LINKS_PREV = "[data-testid='links-prev']"
+LINKS_NEXT = "[data-testid='links-next']"
+LINKS_RANGE = "[data-testid='links-range']"
+ROLE_COUNT = "[data-testid='role-count']"
+#: 088 judgement calls 1 / 2 / 8: ten a page; the search box from six links; the pager only past ten.
+LINKS_PAGE_SIZE = 10
+LINKS_SEARCH_FROM = 6
+SEE_ANSWERS = "See answers"
+NEW_LINK = "New link"
+SENT_DOWNLOAD = "Download (.csv)"
+SENT_SEARCH_LABEL = "Search who, format, status"
+#: 088 `SENT_CSV_HEADER`: the register's .csv, one header line and one line a link (every link, not the page).
+SENT_CSV_HEADER = ["name", "kind", "from", "format", "link made", "status", "answered at"]
+HOW_IT_WORKS = "How it works"
+
+
+def row_action(action: str, name: str) -> str:
+    """088 `rowAction`: the row's action named with the person, the visible words first (*New link, Hannah Okafor*)."""
+    return f"{action}, {name}"
+
+
+def sent_range(start: int, end: int, total: int) -> str:
+    """088 `sentRange`: *1–10 of 14*."""
+    return f"{start}–{end} of {total}"
+
 # ---- keel-web 752a8c4 `translate.ts`
 NAV_INTERVIEWS = "Interviews"
 SUBPAGES = ["Sent", "Contacts", "Keel-managed"]
@@ -34,7 +83,9 @@ WALKTHROUGH_TITLE = "Your study is ready. Here is how the interviews happen."
 WALKTHROUGH_GOT_IT = "Got it"
 SEND_MORE = "Send more"
 SEND_THE_QUESTIONS = "Send the questions"
-MAKE_A_NEW_LINK = "Make a new link"
+#: keel-web 068's *Make a new link* in the status cell is keel-web 088's row action *New link* (named *New link,
+#: {name}*); the constant keeps its name for the legs that hold an answered row offers none.
+MAKE_A_NEW_LINK = "New link"
 RELINK_DONE = "Done"
 FORMAT_NOT_AVAILABLE = "Not available yet"             # keel-web 068, until 069
 FORMAT_NAMES = {"TEXT": "Text", "AI_INTERVIEWER": "AI interviewer", "CHOICE": "Let them choose"}   # the Continue words
@@ -84,7 +135,56 @@ def _cells(row) -> dict:
     out = {}
     for cell in row.locator("td").all():
         label = cell.get_attribute("data-label") or ""
+        if not label:                    # keel-web 088: the action column (*See answers* / *New link*) has none
+            continue
         out[label] = " ".join((cell.text_content() or "").split())
+    return out
+
+
+def _words(locator) -> str:
+    return " ".join((locator.first.text_content() or "").split()) if locator.count() else ""
+
+
+# ------------------------------------------------------------- spec 059: passing the Interviews sheet by
+
+def pass_interviews_sheet(page: Page, recorder, base: str, *, guide: dict | None = None,
+                          timeout_s: float = SHEET_WAIT_S) -> dict:
+    """Spec 059 FR-4: keel-web 088's first-open sheet over Sent, passed by as `vectors_screens.pass_teaching_sheet`
+    passes the report and opener sheets. Up already: skipped. Due (the clip present in the served manifest, the
+    project's contract-24 `guide.interviewsSeen` false, the page on Sent): waited for up to `timeout_s` (the lazy chunk)
+    and skipped, in one `note` step. Nothing due: no wait. Absence is never a failure. What happened goes into
+    `guide["interviews"]` -- on the guide journey (`judged`) every open after the judged one is kept in its `later`
+    (G13: none may draw the sheet again); elsewhere each pass is kept in `passed`."""
+    from harness import vectors_screens as vss                  # noqa: PLC0415 - vectors_screens imports this module's kin
+    base = (base or "").rstrip("/")
+    sheet = vss.GuideWelcome(page, recorder, base, sheet=GUIDE_INTERVIEWS)
+    out: dict = {"shown": False}
+    if sheet.count():
+        out["due"] = True
+    elif not re.search(r"/interviews/sent(?:[?#]|$)", page.url or ""):
+        out["why"] = "not on Sent"
+    else:
+        if base not in vss._MANIFESTS:
+            vss._MANIFESTS[base] = vss.GuideTeaching(page, recorder, base).manifest()
+        seen = vss._due_guide(page, base)
+        if not (vss._MANIFESTS[base].get(INTERVIEWS_CLIP) or {}).get("present"):
+            out["why"] = f"{INTERVIEWS_CLIP} absent from the manifest"
+        elif seen is None or "interviewsSeen" not in seen:
+            out["why"] = "no contract-24 guide"
+        else:
+            out["due"] = seen.get("interviewsSeen") is False
+    if out.get("due") and (sheet.count() or sheet.present(timeout_s=timeout_s)):
+        with recorder.step("keel-web 088's Interviews sheet opened over Sent; this open does not judge it and passes "
+                           "it by with Skip (spec 059)", party="founder", kind="note") as h:
+            out = {"shown": True, **sheet._close(sheet._press_skip)}
+            h.request = {"sheet": "guide-interviews", "url": page.url}
+            h.response = out
+    if guide is not None:
+        record = guide.setdefault("interviews", {"judged": False, "passed": []})
+        if record.get("judged"):
+            record.setdefault("later", []).append({"shown": out["shown"], "url": page.url})
+        elif out["shown"]:
+            record.setdefault("passed", []).append(out)
     return out
 
 
@@ -97,11 +197,18 @@ def _json(response) -> dict:
 
 
 class Interviews:
-    def __init__(self, page: Page, recorder, base_url: str, *, patience: float = 1.0):
+    def __init__(self, page: Page, recorder, base_url: str, *, patience: float = 1.0, guide: dict | None = None):
         self.page = page
         self.base = base_url.rstrip("/")
         self.patience = patience
         self._b = _BrowserStep(recorder, page, "founder")
+        self.recorder = recorder
+        #: Spec 059: the journey's guide record (`Journey.guide`), where the Sent-open helper keeps each pass.
+        self.guide = guide
+
+    def pass_sheet(self) -> dict:
+        """Spec 059 FR-4: keel-web 088's Interviews sheet, skipped when it is drawn over Sent (see the module helper)."""
+        return pass_interviews_sheet(self.page, self.recorder, self.base, guide=self.guide)
 
     # ------------------------------------------------------------------------------------- arriving
 
@@ -133,12 +240,16 @@ class Interviews:
             self.page.locator(".sent__kinds").wait_for(state="visible", timeout=30_000)
             return drawn
 
-    def land(self, project_id: str) -> dict | None:
-        """Sent, with W1 got through first when it plays; returns what W1 drew, or None."""
+    def land(self, project_id: str, *, sheet: str = "pass") -> dict | None:
+        """Sent, with W1 got through first when it plays; returns what W1 drew, or None. `sheet` (spec 059): "pass"
+        skips keel-web 088's first-open sheet when it comes (every journey), "hold" leaves it up for the guide journey
+        to judge (G13)."""
         seen = None
         if self.open(project_id) == "walkthrough":
             seen = self.walkthrough()
         self.page.locator(".sent__kinds").wait_for(state="visible", timeout=30_000 * self.patience)
+        if sheet == "pass":
+            self.pass_sheet()
         return seen
 
     def nav(self) -> dict:
@@ -153,20 +264,160 @@ class Interviews:
 
     # ------------------------------------------------------------------------------------- the register
 
+    def _range(self) -> str:
+        return _words(self.page.locator(LINKS_RANGE))
+
+    def _enabled(self, selector: str) -> bool | None:
+        found = self.page.locator(selector)
+        return found.first.is_enabled() if found.count() else None
+
+    def _turn(self, selector: str) -> bool:
+        """Previous or Next, when drawn and enabled; waits for the range to move. False when it could not be pressed."""
+        if not self._enabled(selector):
+            return False
+        before = self._range()
+        raw = self.page.locator(LINKS_RANGE).first.text_content()
+        self.page.locator(selector).first.click()
+        self.page.wait_for_function(
+            "([sel, was]) => { const el = document.querySelector(sel); return !el || el.textContent !== was; }",
+            arg=[LINKS_RANGE, raw], timeout=10_000)
+        return self._range() != before
+
+    def first_page(self) -> None:
+        for _ in range(50):
+            if not self._turn(LINKS_PREV):
+                return
+
+    def _footer_kind(self) -> str:
+        """088 judgement call 5: the *Kind · from* column folded into the footer when every link shares one value."""
+        return _words(self.page.locator(f"{LINKS} .lt-foot .hint"))
+
+    def page_rows(self) -> list[dict]:
+        """The rows of the page in view, by their headings; the footer's *Kind · from* where the column is folded."""
+        kind = self._footer_kind()
+        rows = [_cells(r) for r in self.page.locator(LINK_ROWS).all()]
+        if kind:
+            for row in rows:
+                row.setdefault("Kind · from", kind)
+        return rows
+
     def register(self) -> list[dict]:
-        """Every row of the Sent register as drawn, after *Show all* when the first six hide some."""
-        more = self.page.locator("table.ppl--sent tr.ppl__more button")
-        if more.count():
-            more.first.click()
-            self.page.locator("table.ppl--sent tr.ppl__more").wait_for(state="detached", timeout=10_000)
-        return [_cells(r) for r in self.page.locator("table.ppl--sent tbody tr:not(.ppl__more)").all()]
+        """Every row of the Sent register as drawn (spec 059 judgement call 1): from the first page, each page's rows,
+        Next pressed until it is disabled -- never the search box -- and then back to the first page."""
+        self.page.locator(f"{LINKS}, .sent__links").first.wait_for(state="visible", timeout=20_000)
+        if not self.page.locator(LINKS).count():
+            return []                                              # *No links yet.*: the empty register
+        self.first_page()
+        rows = self.page_rows()
+        for _ in range(50):
+            if not self._turn(LINKS_NEXT):
+                break
+            rows += self.page_rows()
+        self.first_page()
+        return rows
+
+    def _row(self, person: str):
+        """`person`'s row, paging forward from the first page until it is in view (the register is paged since 088)."""
+        self.page.locator(LINKS).first.wait_for(state="visible", timeout=20_000)
+        self.first_page()
+        row = self.page.locator(LINK_ROWS, has=self.page.locator("td b", has_text=person)).first
+        for _ in range(50):
+            if row.count() or not self._turn(LINKS_NEXT):
+                break
+        return row
 
     def kinds(self) -> list[dict]:
+        """Each role card: its label, the primary's words and (keel-web 088 FR-3) its own count in the action row."""
         out = []
         for card in self.page.locator(".sent__kinds .role").all():
             out.append({"label": _safe_text(lambda c=card: c.locator(".role__label").first.inner_text()),
                         "button": _safe_text(lambda c=card: c.locator(".btn.primary").first.inner_text()),
-                        "line": _safe_text(lambda c=card: c.locator(".actions .hint").first.inner_text())})
+                        "count": _words(card.locator(f".actions {ROLE_COUNT}")),
+                        # 088 FR-3: the duplicated count line under the buttons (`.actions .hint`) is gone
+                        "hints": card.locator(".actions .hint").count()})
+        return out
+
+    # ------------------------------------------------------------------------- spec 059: the page's reads
+
+    def order(self) -> dict:
+        """G15 (keel-web 088 FR-1): the top of each of Sent's regions, in page coordinates -- the kicker, the total
+        line, the pill's placement, the who-asks band, the role cards, the links -- None where it is not drawn; and
+        every control anywhere on the page named *How it works*."""
+        return self.page.evaluate(r"""(how) => {
+          const kinds = document.querySelector('.sent__kinds');
+          const root = kinds ? kinds.parentElement : null;
+          const top = (el) => el ? Math.round(el.getBoundingClientRect().top + window.scrollY) : null;
+          const q = (sel) => root ? root.querySelector(sel) : null;
+          const words = (el) => el ? (el.textContent || '').replace(/\s+/g, ' ').trim() : null;
+          const controls = Array.from(document.querySelectorAll('button, a, [role=button]'))
+            .filter((el) => (el.textContent || '').replace(/\s+/g, ' ').trim() === how);
+          return {regions: {kicker: top(q(':scope > .corridor__kicker')), total: top(q(':scope > .sent__counts')),
+                            pill: top(q(':scope > .sent__guide')), band: top(q(':scope > [data-testid=persona-line]')),
+                            cards: top(kinds), links: top(q(':scope > [data-testid=links], :scope > .sent__links'))},
+                  words: {kicker: words(q(':scope > .corridor__kicker')), total: words(q(':scope > .sent__counts')),
+                          pill: words(q(':scope > .sent__guide'))},
+                  how_it_works: controls.length};
+        }""", HOW_IT_WORKS)
+
+    def links(self) -> dict:
+        """The links table's frame as drawn: the heading, the search box and *Download (.csv)* (and whether they share
+        one row), the pager (its range, Previous and Next), the sort state of every heading and the rows in view."""
+        section = self.page.locator(LINKS).first
+        section.wait_for(state="visible", timeout=20_000)
+        tools = self.page.evaluate("""([search, download]) => {
+          const s = document.querySelector(search), d = document.querySelector(download);
+          return {same_row: !!(s && d && s.closest('.lt-tools') && s.closest('.lt-tools') === d.closest('.lt-tools')),
+                  download_row: !!(d && d.closest('.lt-tools'))}; }""", [LINKS_SEARCH, LINKS_DOWNLOAD])
+        sorts = {b.get_attribute("data-sort"): b.evaluate("(b) => b.closest('th').getAttribute('aria-sort')")
+                 for b in self.page.locator(f"{LINKS} th button[data-sort]").all()}
+        return {"heading": _words(section.locator(".lt-head")), "search": self.page.locator(LINKS_SEARCH).count() > 0,
+                "download": _words(self.page.locator(LINKS_DOWNLOAD)), **tools,
+                "range": self._range() or None, "prev": self._enabled(LINKS_PREV), "next": self._enabled(LINKS_NEXT),
+                "sorts": sorts, "rows": [r.get("Who") for r in self.page_rows()]}
+
+    def _rows_now(self) -> list:
+        return [r.get("Who") for r in self.page_rows()]
+
+    def _settle(self, before: list, *, timeout_s: float = 5.0) -> list:
+        """The rows in view once they have moved from `before` (or after `timeout_s` when they never do)."""
+        deadline = timeout_s * 1000
+        waited = 0
+        rows = self._rows_now()
+        while rows == before and waited < deadline:
+            self.page.wait_for_timeout(100)
+            waited += 100
+            rows = self._rows_now()
+        return rows
+
+    def search(self, term: str) -> dict:
+        """Types `term` into the search box; the rows and the range it leaves (088: search spans every link)."""
+        before = self._rows_now()
+        self.page.locator(LINKS_SEARCH).first.fill(term)
+        rows = self._settle(before)
+        return {"term": term, "rows": rows, "range": self._range() or None, "next": self._enabled(LINKS_NEXT)}
+
+    def sort(self, column: str) -> dict:
+        """A click on the `column` heading's button; its `th`'s `aria-sort` before and after, and the rows after."""
+        button = self.page.locator(f"{LINKS} th button[data-sort='{column}']").first
+        aria = lambda: button.evaluate("(b) => b.closest('th').getAttribute('aria-sort')")  # noqa: E731
+        before, rows = aria(), self._rows_now()
+        button.click()
+        self.page.wait_for_function(
+            "([sel, was]) => { const b = document.querySelector(sel); return b && "
+            "b.closest('th').getAttribute('aria-sort') !== was; }",
+            arg=[f"{LINKS} th button[data-sort='{column}']", before], timeout=5_000)
+        return {"column": column, "before": before, "after": aria(), "rows": self._settle(rows, timeout_s=1.0)}
+
+    def download(self, downloads) -> str:
+        """*Download (.csv)* pressed through `downloads` (a press -> the file's text)."""
+        return downloads(lambda: self.page.locator(LINKS_DOWNLOAD).first.click())
+
+    def go_next(self) -> dict:
+        """Next once (when it can be pressed): the range and the rows after, then back to the first page."""
+        moved = self._turn(LINKS_NEXT)
+        out = {"moved": moved, "range": self._range() or None, "rows": self._rows_now(),
+               "next": self._enabled(LINKS_NEXT), "prev": self._enabled(LINKS_PREV)}
+        self.first_page()
         return out
 
     def _kind_card(self, kind_label: str):
@@ -294,10 +545,10 @@ class Interviews:
                     "title": SEND_LINKS_TITLE}
 
     def make_new_link(self, person: str) -> dict:
-        """*Make a new link* in the status cell of `person`'s row: the relink keel-web received and the link drawn."""
+        """*New link, {person}* on `person`'s row (keel-web 088; *Make a new link* in the status cell before it), the
+        row paged to: the relink keel-web received and the link drawn."""
         with self._b.step(f"founder makes a new link for {person} on Sent") as h:
-            self.register()
-            row = self.page.locator("table.ppl--sent tbody tr", has=self.page.locator("td b", has_text=person)).first
+            row = self._row(person)
             # keel-cloud 104 (Discovered 5): right after a return the THEMES housekeeping can move the revision, so the
             # page's first relink may meet 409 and keel-web retries it once (`withOneRetry`, DRIFT #88's); every relink
             # response is kept and the one the dialog drew -- the last -- is the relink
@@ -310,7 +561,7 @@ class Interviews:
             try:
                 with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/relink"),
                                                timeout=30_000):
-                    row.get_by_role("button", name=MAKE_A_NEW_LINK, exact=True).click()
+                    row.get_by_role("button", name=row_action(NEW_LINK, person), exact=True).click()
                 dialog = self.page.get_by_role("dialog", name=f"A new link for {person}")
                 dialog.wait_for(state="visible", timeout=20_000)
             finally:
@@ -324,8 +575,11 @@ class Interviews:
                     "retried": [r.status for r in seen[:-1]]}
 
     def status_cell_offers(self, person: str) -> list[str]:
-        row = self.page.locator("table.ppl--sent tbody tr", has=self.page.locator("td b", has_text=person)).first
-        return _safe_all_texts(row, "td:last-child button")
+        """The words of the action on `person`'s row (keel-web 088: its own last column), the row paged to."""
+        row = self._row(person)
+        offers = _safe_all_texts(row, "td:last-child button")
+        self.first_page()
+        return offers
 
 
 class Contacts:
@@ -504,9 +758,10 @@ class Contacts:
         self.page.goto(f"{self.base}/p/{project_id}/interviews/contacts/{dataset_id}{view}", wait_until="load")
         self.page.locator(".dsopen__title, .dseditor").first.wait_for(state="visible", timeout=30_000)
 
-    def go_to_send_more(self) -> None:
+    def go_to_send_more(self, *, guide: dict | None = None) -> None:
         self.page.get_by_role("button", name=GO_TO_SEND_MORE, exact=True).click()
         self.page.wait_for_url(re.compile(r"/interviews/sent"), timeout=20_000)
+        pass_interviews_sheet(self.page, self._b.recorder, self.base, guide=guide)
 
     def credits_refusal(self) -> dict:
         """The *Not enough credits* popup: its title and sentence; closed with its one button."""

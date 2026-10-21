@@ -37,7 +37,10 @@ from harness import interviewer_fake as fake
 #: (tap to hear: a tap on an unpicked card picks it and her hello plays inside the card to its end, the still returns,
 #: the picked face is posted) and IM29 (the respondent hears her: *Hear <name>* on the Let-them-choose intro, the
 #: choice buttons enabled throughout) born.
-INTERVIEWER_MARKS_VERSION = 6
+#: v7 (spec 059, keel-web 088, contract 24): IM30 (the band's *Hear <name>*: on Sent after the recording, `persona-hear`
+#: plays her hello inside the who-asks band to its end, 8 s or less, the still returns; absent for a retired face) born;
+#: the leg's W1 replay reading retires with *How it works* (keel-web 088 FR-1) -- it was a leg step, never a row here.
+INTERVIEWER_MARKS_VERSION = 7
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
@@ -749,6 +752,27 @@ def the_respondent_hears_her(r: dict) -> tuple[bool, Any]:
                 "disabled_polls": sum(p != [True, True] for p in polls), "after": after}
 
 
+def the_band_hears_her(r: dict) -> tuple[bool, Any]:
+    """IM30 (keel-web 088 FR-2): on Sent after the recording, the who-asks band's *Hear <name> · 5 s* (`persona-hear`,
+    her name, never *her*) plays her hello inside the band -- sound on, the served `helloUrl`, to its end, `data-hearing`
+    while it plays -- and the still returns; a retired face (no hello) draws no such button."""
+    x = r["hear_band"]
+    face, before, after = x.get("face"), x.get("before") or {}, x.get("after") or {}
+    name = fake.FACE_NAMES.get(face or "", "")
+    if x.get("retired") or face in fake.RETIRED:
+        ok = x.get("present") is False and not x.get("hello")
+        return ok, {"face": face, "retired": True, "present": x.get("present")}
+    events = x.get("events") or []
+    clip = _clip_heard([e for e in events if e.get("band")], x.get("hello"))
+    outside = [e for e in events if not e.get("band") and e.get("type") in ("play", "playing")]
+    ok = (x.get("present") is True and bool(name) and x.get("hello") == fake.hello_path(face)
+          and (before.get("words") or "") == f"Hear {name} · 5 s" and before.get("still") is True
+          and before.get("video") is False and x.get("hearing_while") is True and clip["ok"] and not outside
+          and after.get("still") is True and after.get("video") is False and not after.get("hearing"))
+    return ok, {"face": face, "words": before.get("words"), "clip": clip, "hearing_while": x.get("hearing_while"),
+                "outside": len(outside), "after": after}
+
+
 #: (mark id, the record key it reads, the rule). Order is the leg's.
 MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("IM1", "ledger", one_recording_pair),
@@ -780,6 +804,7 @@ MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("IM27", "follow_up_clips", the_follow_up_clips),
     ("IM28", "hear_face", tap_to_hear),
     ("IM29", "hear_intro", the_respondent_hears_her),
+    ("IM30", "hear_band", the_band_hears_her),
 ]
 
 

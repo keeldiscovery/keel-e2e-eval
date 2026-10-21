@@ -8,6 +8,7 @@ from __future__ import annotations
 import copy
 import inspect
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -149,6 +150,19 @@ def _hear_intro() -> dict:
             "polls": [[True, True]] * 52, "elapsed_ms": 5_350,
             "after": {"still": True, "video": False, "videos": 0, "waited_ms": 0,
                       "buttons": {"choice-talk": True, "choice-write": True}}}
+
+
+def _hear_band() -> dict:
+    """Spec 059 IM30: *Hear Chukwu · 5 s* on Sent's who-asks band after the recording, her hello in the band's circle."""
+    src = "http://localhost:5173/interviewer/faces/chukwu.mp4"
+    return {"present": True, "face": "CHUKWU", "hello": fake.hello_path("CHUKWU"), "retired": False, "ended": True,
+            "before": {"words": "Hear Chukwu · 5 s", "label": None, "still": True, "video": False, "videos": 1,
+                       "hearing": None},
+            "hearing_while": True,
+            "events": [_media("play", 30, src=src) | {"band": True}, _media("playing", 95, src=src) | {"band": True},
+                       _media("ended", 5_310, current=5.2, src=src) | {"band": True}],
+            "polls": [], "elapsed_ms": 5_360,
+            "after": {"still": True, "video": False, "videos": 1, "waited_ms": 0, "hearing": None}}
 
 
 def good() -> dict:
@@ -297,6 +311,8 @@ def good() -> dict:
         "follow_up_clips": _follow_up_clips(),
         # spec 058: tap to hear (IM28) and the respondent hears her (IM29)
         "hear_face": _hear_face(), "hear_intro": _hear_intro(),
+        # spec 059: the band hears her (IM30)
+        "hear_band": _hear_band(),
         "arrivals": [{"invitationId": AI_INVITATION, "holds": [_reading("INTERPRET", f"read-on-arrival:{AI_INVITATION}")]},
                      {"invitationId": CHOICE_INVITATION,
                       "holds": [_reading("INTERPRET", f"read-on-arrival:{CHOICE_INVITATION}")]}],
@@ -311,9 +327,9 @@ def test_a_good_record_meets_every_mark():
     checks = _by_mark(good())
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
-    assert (card["measured"], card["met"], card["unmeasured"]) == (29, 29, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 6
-    assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 30)]
+    assert (card["measured"], card["met"], card["unmeasured"]) == (30, 30, [])
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 7
+    assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 31)]
 
 
 def test_the_story_ended_by_the_pause_meets_im22_with_nothing_pressed():
@@ -578,14 +594,58 @@ HEAR_INTRO_FAULTS = [
 ]
 SEEDED += [("IM28", path, value) for _, path, value in HEAR_FACE_FAULTS]
 SEEDED += [("IM29", path, value) for _, path, value in HEAR_INTRO_FAULTS]
+#: Spec 059 acceptance 1: IM30's table -- each fault fails IM30 alone.
+HEAR_BAND_FAULTS = [
+    ("no button on a current face", ["hear_band", "present"], False),
+    ("a pronoun", ["hear_band", "before", "words"], "Hear her · 5 s"),
+    ("another name", ["hear_band", "before", "words"], "Hear Livia · 5 s"),
+    ("no still before", ["hear_band", "before", "still"], False),
+    ("a clip showing before the tap", ["hear_band", "before", "video"], True),
+    ("never marked hearing", ["hear_band", "hearing_while"], False),
+    ("never ended", ["hear_band", "events"], lambda ev: ev[:2]),
+    ("never played", ["hear_band", "events"], lambda ev: [e for e in ev if e["type"] != "playing"]),
+    ("muted", ["hear_band", "events", 1, "muted"], True),
+    ("played outside the band", ["hear_band", "events"], lambda ev: [dict(e, band=False) for e in ev]),
+    ("another clip", ["hear_band", "events", 1, "src"], "http://localhost:5173/interviewer/faces/jia.mp4"),
+    ("over 8 s long", ["hear_band", "events", 2, "duration"], 8.5),
+    ("ended over 8 s after playing", ["hear_band", "events", 2, "ms"], 8_300),
+    ("stopped short of the end", ["hear_band", "events", 2, "currentTime"], 1.0),
+    ("a media error", ["hear_band", "events"], lambda ev: ev + [dict(ev[0], type="error", error=4)]),
+    ("the still never returned", ["hear_band", "after", "still"], False),
+    ("the clip still showing", ["hear_band", "after", "video"], True),
+    ("still marked hearing", ["hear_band", "after", "hearing"], "true"),
+    ("the hello not served", ["hear_band", "hello"], None),
+]
+SEEDED += [("IM30", path, value) for _, path, value in HEAR_BAND_FAULTS]
 
 
-@pytest.mark.parametrize("why,path,value", HEAR_FACE_FAULTS + HEAR_INTRO_FAULTS,
-                         ids=[w for w, _, _ in HEAR_FACE_FAULTS + HEAR_INTRO_FAULTS])
+@pytest.mark.parametrize("why,path,value", HEAR_FACE_FAULTS + HEAR_INTRO_FAULTS + HEAR_BAND_FAULTS,
+                         ids=[w for w, _, _ in HEAR_FACE_FAULTS + HEAR_INTRO_FAULTS + HEAR_BAND_FAULTS])
 def test_a_hear_fault_fails_its_mark_alone(why, path, value):
     checks = _by_mark(_seed(path, value))
     failed = {m for m, c in checks.items() if not c.ok}
-    assert failed == {"IM28" if path[0] == "hear_face" else "IM29"}, (why, failed)
+    assert failed == {{"hear_face": "IM28", "hear_intro": "IM29", "hear_band": "IM30"}[path[0]]}, (why, failed)
+
+
+def test_a_retired_face_meets_im30_by_drawing_no_hear_button():
+    """Spec 059 FR-2: absent for a retired face -- no journey can record one (keel-cloud 110 refuses it FACE_UNKNOWN),
+    so the branch is this table's: no button and no hello meets IM30; a button drawn for it fails."""
+    record = good()
+    record["hear_band"] = {"present": False, "face": "TITO", "hello": None, "retired": True, "state": "READY"}
+    assert _by_mark(record)["IM30"].ok, _by_mark(record)["IM30"].detail
+    record["hear_band"]["present"] = True
+    assert not _by_mark(record)["IM30"].ok
+
+
+def test_the_w1_replay_is_retired_and_says_why():
+    """Spec 059 FR-2: the leg's W1 replay reading retires with keel-web 088's *How it works*; no row of the marks
+    read it, and the leg's step says why."""
+    from evals import interviewer_leg                                     # noqa: PLC0415
+    assert "How it works" in interviewer_leg.W1_REPLAY_RETIRED and "088" in interviewer_leg.W1_REPLAY_RETIRED
+    source = Path(interviewer_leg.__file__).read_text(encoding="utf-8")
+    assert "walkthrough_again" not in source and "W1_REPLAY_RETIRED" in source
+    assert "IM30" in interviewer_leg.SHORT_FORM
+    assert not any(key == "W1" for _, key, _ in marks.MARKS)
 
 
 def test_the_hello_ended_by_the_still_alone_and_a_glyph_on_every_unpicked_card_meet_im28():

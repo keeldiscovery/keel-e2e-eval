@@ -144,7 +144,7 @@ def test_every_mark_not_applicable_when_nothing_is_rendered():
 
 
 def test_the_design_ids_name_every_new_mark():
-    assert set(marks.DESIGN_IDS) == {"G6", "G7", "G8", "G9", "G10", "G11", "G12"}
+    assert set(marks.DESIGN_IDS) == {"G6", "G7", "G8", "G9", "G10", "G11", "G12", "G13", "G14", "G15", "G16", "G17"}
 
 
 # ---------------------------------------------------------------------------------- G6: the sheet once
@@ -401,7 +401,8 @@ def test_every_present_clip_in_keel_webs_manifest_is_one_the_marks_know():
     keys = set(vs.normal_manifest(json.loads(path.read_text(encoding="utf-8"))))
     known = {"report-read", "report-fails", *marks.OPENERS.values(), *marks.EXPLAINERS.values(),
              *(k for pair in marks.STAGE_CHAPTERS.values() for k in pair),
-             *(k for pair in marks.MONEY_CHAPTERS.values() for k in pair), "explain-your-idea"}
+             *(k for pair in marks.MONEY_CHAPTERS.values() for k in pair), "explain-your-idea",
+             *marks.PAGE_CLIPS}                                       # spec 059: keel-web 088's three page clips
     assert keys and keys <= known | {"welcome", "interviewer-sample"}, sorted(keys - known)
 
 
