@@ -23,8 +23,13 @@ keel-cloud now, and this eval's loader reads revision 12 until spec 064 (judgeme
 The rename (FR-2): every string value of every exported file is passed through `Renamer.text` -- each `replaces`
 string of `instructions/gallery_names.toml`, whole word, matched without regard to case, written as the entry's `name`
 with the first letter's case kept -- and nothing else changes. Then the survivors grep reads the whole output back
-and refuses the export (nothing written) if any `replaces` string of any entry is left, outside the provenance fields
-FR-3 itself asks for (`manifest.json`'s `entry`, `run` and `renamed`; `index.json`'s `entry` and `run`).
+and refuses the export (nothing written) if any `replaces` string of any entry is left anywhere, any case.
+
+Provenance (FR-3, amended 2026-10-22: the real company names never reach `public/sample/`, which everyone is served):
+`<slug>/manifest.json` carries `cloud`, `web` and `exportedAt` only; `index.json` the SHAs; no entry
+id, run name, `renamed.from` or source path is written under OUT. The slug -> entry / run link goes once to
+`runs/gallery/provenance-<exportedAt>.json` (`[{slug, entry, run, cloud, web, renamed: {from, to}}]`), outside OUT.
+After writing, every byte under OUT is grepped once more, no file excluded.
 """
 
 from __future__ import annotations
@@ -33,6 +38,7 @@ import argparse
 import copy
 import json
 import re
+import shutil
 import sys
 import time
 import tomllib
@@ -54,10 +60,9 @@ LINK_ORDER = ("PRIMARY", "COMMERCIAL_B2B")
 #: FR-1's seven gallery words, in the spec's order.
 AXES = ("whoHasIt", "whoPays", "rhythm", "costMode", "priceShape", "firstStep", "kind")
 
-#: The fields FR-3 asks to carry the entry id and the run directory, which spell the old name by construction
-#: (`08-fresco`, `20261022T164045Z-backtest-08-fresco`, `renamed.from`); the survivors grep reads everything else.
-PROVENANCE_MANIFEST = ("entry", "run", "renamed")
-PROVENANCE_INDEX = ("entry", "run")
+#: FR-3 (amended 2026-10-22): the slug -> entry / run link is written here, once an export, and never under OUT
+#: (`runs/` is ignored by git, as every run file is).
+PROVENANCE_DIR = RUNS_DIR / "gallery"
 
 #: Keys never written into interview.json (FR-3a: tokens and ids withheld; the AI interviewer's forms are a later spec).
 _DROPPED = frozenset({"itemId", "optionId", "id", "token", "costItemId", "advantagesWhen", "spoken", "clip", "clips"})
@@ -435,12 +440,14 @@ class Slug:
     name: GalleryName
     run: Run
     reads: dict[str, Any]              # renamed and withheld, interview included -- what is written
-    manifest: dict                     # FR-3's extra fields (files and exportedAt are added by the writer)
+    manifest: dict                     # FR-3 (amended): cloud, web, exportedAt -- and nothing else
     row: dict                          # the index row
+    provenance: dict                   # the slug's row of runs/gallery/provenance-<exportedAt>.json, never under OUT
 
 
 def prepare(name: GalleryName, run: Run, renamer: Renamer, *, exported_at: str) -> Slug:
-    """One slug in memory: withhold again (060), rename (FR-2), the interview (FR-3a), the index row (FR-1)."""
+    """One slug in memory: withhold again (060), rename (FR-2), the interview (FR-3a), the index row (FR-1), and the
+    provenance row FR-3 keeps out of `OUT`."""
     done = se.withhold(run.reads, founder_name=bt.IDENTITY_NAME, founder_email=bt.IDENTITY_EMAIL)
     reads = renamer.value(done.reads)
     iv = renamer.value(interview(run))
@@ -448,31 +455,28 @@ def prepare(name: GalleryName, run: Run, renamer: Renamer, *, exported_at: str) 
     figures = se.card(reads)
     stack = run.record.get("stack") or {}
     entry = run.record.get("entry") or {}
-    manifest = {"entry": run.entry, "run": run.dir.name, "cloud": stack.get("keel-cloud"), "web": stack.get("keel-web"),
-                "corpus": run.corpus, "renamed": {"from": list(name.replaces), "to": name.name}}
+    shas = {"cloud": stack.get("keel-cloud"), "web": stack.get("keel-web")}
     row = {"slug": name.slug, "name": name.name,
            "oneLine": renamer.text(one_line(run.founder.get("project_name") or entry.get("title")) or ""),
            "problem": renamer.text(one_sentence(run.founder.get("problem_seed")) or ""),
            "decision": figures["decision"], "howSure": figures["howSure"],
-           "pilot": figures["pilot"], "price": figures["price"], "b2b": run.b2b,
-           "entry": run.entry, "run": run.dir.name, "cloud": stack.get("keel-cloud"), "web": stack.get("keel-web"),
+           "pilot": figures["pilot"], "price": figures["price"], "b2b": run.b2b, **shas,
            "axes": renamer.value(axes(run, name.axes)),
            "interview": {"links": [{"role": l["role"], "label": l["label"], "items": item_count(l)}
                                    for l in iv["links"]]}}
-    return Slug(name=name, run=run, reads=reads, manifest={**manifest, "exportedAt": exported_at}, row=row)
-
-
-def _without(d: dict, keys: Iterable[str]) -> dict:
-    return {k: v for k, v in d.items() if k not in keys}
+    provenance = {"slug": name.slug, "entry": run.entry, "run": run.dir.name, **shas,
+                  "renamed": {"from": list(name.replaces), "to": name.name}}
+    return Slug(name=name, run=run, reads=reads, manifest={**shas, "exportedAt": exported_at}, row=row,
+                provenance=provenance)
 
 
 def check(slugs: list[Slug], renamer: Renamer) -> list[str]:
-    """Every refusal reason over the whole output as it would be written: FR-2's survivors (any old name, any slug,
-    outside the provenance fields), 060's (an email, the back-test founder, a link), and an id in interview.json."""
+    """Every refusal reason over the whole output as it would be written -- every file, manifest and the index, no
+    field excluded (FR-3 amended): FR-2's survivors (any old name of any entry, any case), 060's (an email, the
+    back-test founder, a link), and an id in interview.json."""
     reasons = []
     for s in slugs:
-        written = "".join(se._dumps(v) for v in s.reads.values()) \
-            + se._dumps(_without(s.manifest, PROVENANCE_MANIFEST)) + se._dumps(_without(s.row, PROVENANCE_INDEX))
+        written = "".join(se._dumps(v) for v in s.reads.values()) + se._dumps(s.manifest) + se._dumps(s.row)
         left = renamer.survivors(written)
         if left:
             reasons.append(f"{s.name.slug}: {left} survive the rename")
@@ -483,6 +487,24 @@ def check(slugs: list[Slug], renamer: Renamer) -> list[str]:
         if ids:
             reasons.append(f"{s.name.slug}: interview.json carries {ids}")
     return reasons
+
+
+def survivors_under(out_dir: Path, renamer: Renamer, *, skip: Iterable[Path] = ()) -> list[str]:
+    """FR-3 (amended): every byte of every file under `out_dir` (but `skip`), any case, no exclusions -- the hits as
+    `<path>: [names]`, relative to `out_dir`. Empty is the pass."""
+    out_dir = Path(out_dir)
+    skip = [Path(p).resolve() for p in skip]
+    hits = []
+    if not out_dir.is_dir():
+        return hits
+    for path in sorted(p for p in out_dir.rglob("*") if p.is_file()):
+        resolved = path.resolve()
+        if any(resolved == s or s in resolved.parents for s in skip):
+            continue
+        left = renamer.survivors(path.read_bytes().decode("utf-8", errors="replace"))
+        if left:
+            hits.append(f"{path.relative_to(out_dir)}: {left}")
+    return hits
 
 
 def _keys(value: Any) -> Iterable[str]:
@@ -496,13 +518,18 @@ def _keys(value: Any) -> Iterable[str]:
 
 
 def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | None = None,
-           exported_at: str | None = None) -> dict:
-    """FR-1 to FR-3a: read every run, prepare every slug, check the whole output, and only then write
-    `<out_dir>/<slug>/...` and `<out_dir>/index.json`. Returns `{index, slugs: {slug: manifest}}`."""
+           exported_at: str | None = None, provenance_dir: Path = PROVENANCE_DIR) -> dict:
+    """FR-1 to FR-3a: read every run, prepare every slug, check the whole output and whatever else already sits under
+    `out_dir`, and only then write `<out_dir>/<slug>/...` (each slug's directory replaced whole) and
+    `<out_dir>/index.json`, then grep every byte under `out_dir` once more. The slug -> entry / run link goes to
+    `<provenance_dir>/provenance-<exportedAt>.json`, never under `out_dir`. Returns `{index, slugs: {slug: {cloud, web, exportedAt, written: [files]}}, dir, provenance}`."""
     names = load_names() if names is None else names
     by_entry = {n.entry: n for n in names}
     renamer = Renamer(names)
     exported_at = exported_at or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    out_dir, provenance_dir = Path(out_dir), Path(provenance_dir)
+    if provenance_dir.resolve() == out_dir.resolve() or out_dir.resolve() in provenance_dir.resolve().parents:
+        raise GalleryRefused([f"the provenance directory {provenance_dir} is under OUT {out_dir}"])
     runs, reasons = [], []
     for d in run_dirs:
         try:
@@ -520,21 +547,29 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
         raise GalleryRefused(reasons)
     slugs = [prepare(by_entry[r.entry], r, renamer, exported_at=exported_at) for r in runs]
     reasons = check(slugs, renamer)
+    replaced = [out_dir / s.name.slug for s in slugs] + [out_dir / INDEX]
+    reasons += [f"already under OUT: {hit}" for hit in survivors_under(out_dir, renamer, skip=replaced)]
     if reasons:
         raise GalleryRefused(reasons)
-    out_dir = Path(out_dir)
     manifests = {}
     for s in slugs:
         target = out_dir / s.name.slug
-        written = se.write(target, s.reads, entry_id=s.run.entry, corpus_revision=s.run.corpus,
-                           cloud=s.manifest["cloud"], exported_at=exported_at)
-        manifest = {**s.manifest, "files": written["files"]}
-        (target / se.MANIFEST).write_text(se._dumps(manifest), encoding="utf-8")
-        manifests[s.name.slug] = manifest
+        if target.is_dir():
+            shutil.rmtree(target)                    # the slug is the export's own: nothing stale survives
+        written = se.write(target, s.reads, entry_id="", corpus_revision=0, cloud=None, exported_at=exported_at)
+        (target / se.MANIFEST).write_text(se._dumps(s.manifest), encoding="utf-8")   # replaces 060's own
+        manifests[s.name.slug] = {**s.manifest, "written": written["files"]}
     index = gallery_order([s.row for s in slugs])
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / INDEX).write_text(se._dumps(index), encoding="utf-8")
-    return {"index": index, "slugs": manifests, "dir": str(out_dir)}
+    left = survivors_under(out_dir, renamer)
+    if left:                                         # unreachable after `check`; the last word is the bytes on disk
+        raise GalleryRefused([f"written under OUT and still carrying an old name: {hit}" for hit in left])
+    provenance_dir.mkdir(parents=True, exist_ok=True)
+    provenance = provenance_dir / f"provenance-{exported_at}.json"
+    by_slug = {s.name.slug: s.provenance for s in slugs}
+    provenance.write_text(se._dumps([by_slug[r["slug"]] for r in index]), encoding="utf-8")
+    return {"index": index, "slugs": manifests, "dir": str(out_dir), "provenance": str(provenance)}
 
 
 # ------------------------------------------------------------------------------------------------ make gallery
@@ -544,19 +579,23 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", required=True, help="where the slugs and index.json go (keel-web's public/sample/)")
     p.add_argument("--runs", default="", help="back-test run directories, comma-separated (default: newest per entry)")
     p.add_argument("--runs-dir", default=str(RUNS_DIR), help="where the default (and bare-named) runs are found")
+    p.add_argument("--provenance-dir", default=str(PROVENANCE_DIR),
+                   help="where provenance-<exportedAt>.json goes (never under --out)")
     a = p.parse_args(argv)
     try:
         names = load_names()
         run_dirs = resolve_runs(a.runs, Path(a.runs_dir)) if a.runs.strip() else newest_runs(names, Path(a.runs_dir))
-        result = export(run_dirs, Path(a.out), names=names)
+        result = export(run_dirs, Path(a.out), names=names, provenance_dir=Path(a.provenance_dir))
     except GalleryRefused as refusal:
         print(str(refusal), file=sys.stderr)
         return 1
     for row in result["index"]:
         m = result["slugs"][row["slug"]]
         print(f"gallery: {row['slug']:<13} {row['name']:<13} {'B2B' if row['b2b'] else 'B2C'}  {row['decision']:<17} "
-              f"{len(m['files'])} files  <- {row['run']} (cloud {row['cloud']}, web {row['web']})")
-    print(f"gallery: {len(result['index'])} slugs and {INDEX} under {result['dir']}; nothing committed anywhere")
+              f"{len(m['written'])} files  (cloud {row['cloud']}, web {row['web']})")
+    print(f"gallery: {len(result['index'])} slugs and {INDEX} under {result['dir']}; every byte grepped, no old name; "
+          f"nothing committed anywhere")
+    print(f"gallery: which run made which slug -> {result['provenance']} (outside OUT, not committed)")
     return 0
 
 

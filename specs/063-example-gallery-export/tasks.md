@@ -18,11 +18,11 @@ was at run time).
   A bare name in `RUNS` is looked up under `RUNS_DIR`.
 - [x] T002 `evals/gallery.py`: `read_run` (refuses a run with no `backtest.json`, `inputs.json` or
   `export/manifest.json`, one that did not pass, or a listed export file missing), `export` (reads every run, prepares
-  every slug in memory, checks the whole output, and only then writes -- a refusal writes nothing), `<OUT>/<slug>/` via
-  060's own `sample_export.write` (so a re-run removes what the last manifest listed and nothing else), and
-  `<OUT>/index.json`.
-- [x] T003 The index: `[{slug, name, oneLine, problem, decision, howSure, pilot, price, b2b, entry, run, cloud, web,
-  axes, interview}]` in the gallery's order (`gallery_order`: B2B and B2C alternating, B2B first, each side in the map's
+  every slug in memory, checks the whole output and whatever already sits under `OUT`, and only then writes -- a
+  refusal writes nothing), `<OUT>/<slug>/` (the slug's directory replaced whole, then written by 060's own
+  `sample_export.write`), `<OUT>/index.json`, a last grep of every byte under `OUT`, and the provenance file outside it.
+- [x] T003 The index: `[{slug, name, oneLine, problem, decision, howSure, pilot, price, b2b, cloud, web, axes,
+  interview}]` (no `entry` or `run` since the FR-3 amendment) in the gallery's order (`gallery_order`: B2B and B2C alternating, B2B first, each side in the map's
   order). `decision`, `howSure`, `pilot`, `price` are 060's `card()` over the renamed standings.
 - [x] T004 The seven `axes`, all derived (judgement call 6).
 - [x] T005 `make sample` and its root `public/sample/*.json` are unchanged; the gallery never touches a file at the root
@@ -44,9 +44,17 @@ was at run time).
 
 ## FR-3 Provenance
 
-- [x] T009 `<slug>/manifest.json`: `{entry, run, cloud, web, corpus, renamed: {from: [...], to}, exportedAt, files}`;
-  `cloud` and `web` are the run's `backtest.json` `stack` SHAs (seven characters, as the run recorded them). The index
-  repeats `cloud` and `web`.
+- [x] T009 (FR-3 as amended 2026-10-22, master `51b9f79`, cherry-picked) `<slug>/manifest.json` is `{cloud, web,
+  exportedAt}` and nothing else (060's own manifest, which `write` puts there first, is overwritten); `cloud` and `web`
+  are the run's `backtest.json` `stack` SHAs (seven characters, as the run recorded them), and the index repeats them.
+  No entry id, run name, `renamed.from` or source path is written under `OUT`.
+- [x] T009a The slug -> entry / run link is written once, outside `OUT`, to `runs/gallery/provenance-<exportedAt>.json`
+  (`--provenance-dir` / `PROVENANCE_DIR=` override it; one under `OUT` is refused): `[{slug, entry, run, cloud, web,
+  renamed: {from, to}}]` in the gallery's order. `runs/` is git-ignored.
+- [x] T009b The survivors grep covers every byte under `OUT`, any case, no file or field excluded: once over what is
+  about to be written (`check`) and over what is already there (`survivors_under`, skipping only the slug directories
+  and `index.json` the export replaces), refusing before anything is written; and once more over the whole of `OUT`
+  after writing.
 
 ## FR-3a interview.json
 
@@ -124,7 +132,7 @@ Every key above without "only when served" is always present. Text only: no `ite
 
 ## FR-4 Tests
 
-- [x] T013 `tests/test_gallery.py` (21): the map is the spec's; a malformed map refused by name; the rename over a
+- [x] T013 `tests/test_gallery.py` (21, then 24 with the FR-3 amendment): the map is the spec's; a malformed map refused by name; the rename over a
   fixture with the six names in mixed positions (start, middle, end, possessive, lowercase, all caps, quoted, nested)
   and the longer-word non-matches kept; the survivors grep in any case; a survivor (a name in a JSON key, where the
   rename never reaches) refuses and writes nothing; 060's withholding still refuses; nothing but the names changes; the
@@ -168,18 +176,18 @@ Every key above without "only when served" is always present. Text only: no `ite
    *consumer*. They are renamed like every other text (none carries a name today).
 7. **The index carries `web` beside `cloud`** (FR-3: "index.json repeats the SHAs" -- plural), and each link's
    `label` beside `role` and `items`.
-8. **The survivors grep excludes exactly the provenance FR-3 asks for**: `manifest.json`'s `entry`, `run` and
-   `renamed`, and the index's `entry` and `run`, which spell the old name by construction (`08-fresco`,
-   `…-backtest-08-fresco`, `renamed.from: ["Fresco"]`). Everything else is grepped. **The founder should know that
-   these files are served publicly from keel-web's `public/sample/`**: as the spec stands, `index.json` and every
-   `<slug>/manifest.json` tell a reader the real company behind each example. If that is not wanted, the smallest
-   change is a spec amendment that keeps the entry id and run only in a non-public place (or keel-web 100 copying only
-   the content files); not done here because FR-3 says otherwise.
+8. **Resolved by the FR-3 amendment (the coordinator, 2026-10-22, master `51b9f79`): provenance never reaches the
+   public files.** As first built, `index.json` and each `<slug>/manifest.json` carried the entry id, the run name and
+   `renamed.from`, and the grep excluded exactly those fields -- so the served files named the real company behind each
+   example. Now the manifest is `{cloud, web, exportedAt}`, the index has no `entry` / `run`, the link lives only in
+   `runs/gallery/provenance-<exportedAt>.json`, and the grep has no exclusions. The manifest no longer carries 060's
+   `files` list either ("only" the SHAs and the time); re-runs stay clean because each slug directory is replaced
+   whole.
 9. **The rename matches in any case**, the first letter's case kept (`FRESCO` would become `Daylog`). The cost is
    that a common-word use of a name (*transload* is also a freight verb) would be renamed too; none of the six runs'
    exports has a lower-case or all-caps occurrence, so nothing of the kind happened. Longer words (`Frescoes`,
    `Transloading`) are not touched and are not survivors.
-10. **`renamed.from` is the list of `replaces` strings** (`["Palus Finance", "Palus"]`), `to` the name.
+10. **`renamed.from` (in the provenance file only) is the list of `replaces` strings** (`["Palus Finance", "Palus"]`), `to` the name.
 11. **The default runs are the newest *finished* run per entry** (`passed` true and an export manifest), which on this
     machine are exactly the six the brief names. A run is refused, not skipped, when given explicitly and unfinished.
 12. **New module `evals/gallery.py`** rather than growing `evals/sample_export.py` (whose docstring and seam are
@@ -192,12 +200,13 @@ Every key above without "only when served" is always present. Text only: no `ite
 
 - Nothing was written into keel-web; the snapshot went to the scratchpad `OUT` the brief named. Committing it in
   keel-web is the operator's step, with keel-web 100.
-- The public-provenance question (call 8) is the founder's.
+- The provenance file is written in the checkout that runs `make gallery` (`runs/gallery/`); from this worktree it
+  is in the worktree, and goes when the worktree is pruned unless copied.
 - The AI-interviewer version of an example (clips, spoken forms) is a later spec, as FR-3a says.
 
 ## Measured (2026-10-22)
 
-**`make gallery`** over the six newest runs (`RUNS_DIR=` the main checkout's `runs/`), into the scratchpad: six slugs
+**`make gallery`** (first run, before the FR-3 amendment) over the six newest runs (`RUNS_DIR=` the main checkout's `runs/`), into the scratchpad: six slugs
 (37-45 files each with interview.json; 2.0 MB in all) and `index.json`, in the order daylog (B2B), dollarsafe (B2C),
 idlewell (B2B), talkleap (B2C), dockmeasure (B2B), captionglass (B2C). Survivors: 0 case-sensitive whole-word hits
 outside the manifests; a case-insensitive substring grep of everything hits only the provenance fields of call 8.
@@ -210,3 +219,12 @@ to corpus r13 and its registry since 062's 2,986, which spec 064 is for; the mai
 re-measured). **After: 2,855 passed / 39 failed / 169 skipped** -- +23: `tests/test_gallery.py`'s 21, and one case each
 in `test_page_object_calls_exist` and `test_scenarios_use_the_stack_addresses`, which are parametrised over every
 `evals/*.py` and now see `evals/gallery.py`. The 39 failures are the same 39, by name.
+
+**FR-3 amendment (2026-10-22, after the above).** `tests/test_gallery.py` + the two suites that scan every `evals/*.py`
+(`test_page_object_calls_exist`, `test_scenarios_use_the_stack_addresses`), not the whole `make unit`: **98 passed**
+(24 + 34 + 40). New: the manifest is exactly `{cloud, web, exportedAt}`; the provenance file outside `OUT`; every byte
+under `OUT` free of every old name (substring, any case) and of `08-fresco` / `backtest`; an old name already under
+`OUT` refuses with nothing written; a provenance directory under `OUT` refuses. `make gallery` re-run into the same
+scratchpad `OUT` (old slug directories and index deleted first): six slugs, `grep -rniE
+"fresco|karsa|palus|issen|transload|aircaps"` over all of `OUT` = **0 lines**; provenance at
+`runs/gallery/provenance-2026-10-22T23:05:37Z.json` in the worktree. No config change was needed for these runs.

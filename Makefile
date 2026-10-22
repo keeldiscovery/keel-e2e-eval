@@ -52,9 +52,11 @@ sample: venv
 # make gallery (spec 063) exports the example gallery: for each back-test run directory (RUNS=<dir>[,<dir>...], each a
 # path or a name under RUNS_DIR; default the newest finished `runs/*-backtest-<id>` of every entry in
 # instructions/gallery_names.toml), the 060 file set the run's export/ holds, renamed by that map (whole word, the first
-# letter's case kept), plus interview.json (the served interview per link, text only) and manifest.json (entry, run,
-# keel-cloud and keel-web SHAs, exportedAt, renamed), into OUT/<slug>/, and one OUT/index.json, B2B and B2C alternating.
-# It refuses, writing nothing, if any old name survives outside the provenance fields. No stack, no model, no money.
+# letter's case kept), plus interview.json (the served interview per link, text only) and manifest.json (the keel-cloud
+# and keel-web SHAs and exportedAt, nothing else), into OUT/<slug>/, and one OUT/index.json, B2B and B2C alternating.
+# Which run made which slug is written once OUTSIDE OUT, to runs/gallery/provenance-<exportedAt>.json (PROVENANCE_DIR=
+# overrides; never under OUT). It refuses, writing nothing, on one old name anywhere under OUT, any case, no file
+# excluded (spec 063 FR-3, amended 2026-10-22). No stack, no model, no money.
 # **It writes into a sibling checkout** when OUT is left out (keel-web's public/sample/, the checkout stack.toml names)
 # and commits nothing there: committing the snapshot is the operator's step, with keel-web 100. The root
 # public/sample/*.json of `make sample` is left as it is.
@@ -65,7 +67,8 @@ sample: venv
 gallery: venv
 	PYTHONPATH=. $(PY) -m evals.gallery \
 	  --out "$(if $(OUT),$(OUT),$$($(PY) -c 'from stack.config import load_config; print(load_config(validate=False).keel_web / "public" / "sample")'))" \
-	  $(if $(RUNS),--runs "$(RUNS)",) $(if $(RUNS_DIR),--runs-dir "$(RUNS_DIR)",)
+	  $(if $(RUNS),--runs "$(RUNS)",) $(if $(RUNS_DIR),--runs-dir "$(RUNS_DIR)",) \
+	  $(if $(PROVENANCE_DIR),--provenance-dir "$(PROVENANCE_DIR)",)
 
 # make backtest (spec 062) walks ONE BACK-TEST ENTRY -- a real founder's idea, written from public material in the
 # corpus schema with no golden expectations, in keel-cloud's `canon/designs/measured-beliefs/backtest/<ENTRY>.yaml` --

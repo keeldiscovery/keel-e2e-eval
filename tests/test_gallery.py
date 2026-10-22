@@ -9,6 +9,8 @@ pins FR-3a's interview.json on it.
 
 FR-4: the rename over a fixture with the six names in mixed positions, a survivor refusing; the index shape; the file
 set per slug, interview.json included and its shape pinned. 060/061's tests (`test_sample_export.py`) are untouched.
+FR-3 as amended 2026-10-22: no entry id, run name or `renamed.from` under OUT; the provenance file outside it; every
+byte under OUT grepped, any case, no exclusions.
 """
 
 from __future__ import annotations
@@ -44,7 +46,7 @@ def renamer(names):
 @pytest.fixture()
 def exported(tmp_path, names):
     out = tmp_path / "sample"
-    result = g.export([RUN], out, names=names, exported_at=AT)
+    result = g.export([RUN], out, names=names, exported_at=AT, provenance_dir=tmp_path / "runs" / "gallery")
     return out, result
 
 
@@ -115,9 +117,9 @@ def test_a_survivor_refuses_the_export_and_nothing_is_written(tmp_path, names):
     overview.write_text(json.dumps(payload), encoding="utf-8")
     out = tmp_path / "sample"
     with pytest.raises(g.GalleryRefused) as refused:
-        g.export([run], out, names=names, exported_at=AT)
+        g.export([run], out, names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
     assert refused.value.reasons == ["daylog: ['Fresco'] survive the rename"]
-    assert not out.exists()
+    assert not out.exists() and not (tmp_path / "prov").exists()
 
 
 def test_the_060_withholding_still_refuses(tmp_path, names):
@@ -128,7 +130,7 @@ def test_the_060_withholding_still_refuses(tmp_path, names):
     payload["Backtest Founder"] = 1                                     # the founder, where withholding can't reach
     people.write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(g.GalleryRefused) as refused:
-        g.export([run], tmp_path / "sample", names=names, exported_at=AT)
+        g.export([run], tmp_path / "sample", names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
     assert "survive the withholding" in refused.value.reasons[0]
 
 
@@ -152,7 +154,7 @@ def test_the_index_shape(exported):
     assert index == result["index"] and len(index) == 1
     row = index[0]
     assert list(row) == ["slug", "name", "oneLine", "problem", "decision", "howSure", "pilot", "price", "b2b",
-                         "entry", "run", "cloud", "web", "axes", "interview"]
+                         "cloud", "web", "axes", "interview"]
     assert row["slug"] == "daylog" and row["name"] == "Daylog" and row["b2b"] is True
     assert row["oneLine"] == "The scribe for construction superintendents"
     assert row["problem"].startswith("Construction superintendents spend up to 3 hours a day on documents")
@@ -160,7 +162,7 @@ def test_the_index_shape(exported):
     assert (row["decision"], row["howSure"]) == ("NOT_YET", "MEDIUM")
     assert row["pilot"] == {"optedIn": 6, "finished": 20, "percent": 30}
     assert row["price"] == {"edgeSaid": "$250 a month", "chose": 6, "n": 8}
-    assert (row["entry"], row["run"], row["cloud"], row["web"]) == ("08-fresco", RUN.name, "b2cf168", "9f3845a")
+    assert (row["cloud"], row["web"]) == ("b2cf168", "9f3845a")
     assert list(row["axes"]) == list(g.AXES)
     assert row["axes"] == {"whoHasIt": "construction superintendent", "whoPays": "contractor",
                            "rhythm": "every working day", "costMode": "time", "priceShape": "monthly",
@@ -197,20 +199,46 @@ def test_one_sentence_and_one_line():
 def test_the_file_set_per_slug(exported):
     out, result = exported
     listed = json.loads((RUN / "export" / se.MANIFEST).read_text(encoding="utf-8"))["files"]
-    manifest = json.loads((out / "daylog" / se.MANIFEST).read_text(encoding="utf-8"))
-    assert manifest["files"] == [*listed, "interview.json"]
-    on_disk = sorted(str(p.relative_to(out / "daylog")) for p in (out / "daylog").rglob("*.json"))
+    on_disk = sorted(str(p.relative_to(out / "daylog")) for p in (out / "daylog").rglob("*") if p.is_file())
     assert on_disk == sorted([*listed, "interview.json", se.MANIFEST])
     assert sorted(p.name for p in out.iterdir()) == ["daylog", "index.json"]
-    assert result["slugs"]["daylog"] == manifest
+    assert result["slugs"]["daylog"]["written"] == [*listed, "interview.json"]
 
 
-def test_the_manifest_carries_provenance(exported):
+def test_the_manifest_carries_only_the_shas_and_the_time(exported):
     out, _ = exported
     manifest = json.loads((out / "daylog" / se.MANIFEST).read_text(encoding="utf-8"))
-    assert {k: manifest[k] for k in ("entry", "run", "cloud", "web", "corpus", "exportedAt", "renamed")} == {
-        "entry": "08-fresco", "run": RUN.name, "cloud": "b2cf168", "web": "9f3845a", "corpus": 12,
-        "exportedAt": AT, "renamed": {"from": ["Fresco"], "to": "Daylog"}}
+    assert manifest == {"cloud": "b2cf168", "web": "9f3845a", "exportedAt": AT}
+
+
+def test_the_provenance_is_written_once_outside_out(exported, tmp_path):
+    out, result = exported
+    path = tmp_path / "runs" / "gallery" / f"provenance-{AT}.json"
+    assert result["provenance"] == str(path) and out not in path.parents
+    assert json.loads(path.read_text(encoding="utf-8")) == [{
+        "slug": "daylog", "entry": "08-fresco", "run": RUN.name, "cloud": "b2cf168", "web": "9f3845a",
+        "renamed": {"from": ["Fresco"], "to": "Daylog"}}]
+    assert (REPO / ".gitignore").read_text(encoding="utf-8").splitlines().count("runs/") == 1
+
+
+def test_every_byte_under_out_is_free_of_every_old_name(exported, renamer):
+    out, _ = exported
+    everything = b"".join(p.read_bytes() for p in sorted(out.rglob("*")) if p.is_file()).decode("utf-8").lower()
+    assert [w for w in OLD if w.lower() in everything] == []           # substring, any case: stricter than the grep
+    assert g.survivors_under(out, renamer) == []
+    assert "08-fresco" not in everything and "backtest" not in everything
+
+
+def test_an_old_name_already_under_out_refuses_and_nothing_is_written(tmp_path, names):
+    out = tmp_path / "sample"
+    out.mkdir()
+    (out / "notes.txt").write_text("left over from Karsa", encoding="utf-8")
+    with pytest.raises(g.GalleryRefused) as refused:
+        g.export([RUN], out, names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
+    assert refused.value.reasons == ["already under OUT: notes.txt: ['Karsa']"]
+    assert sorted(p.name for p in out.iterdir()) == ["notes.txt"] and not (tmp_path / "prov").exists()
+    with pytest.raises(g.GalleryRefused, match="is under OUT"):
+        g.export([RUN], out, names=names, exported_at=AT, provenance_dir=out / "gallery")
 
 
 def test_the_interview_is_pinned_on_one_run(exported):
@@ -246,13 +274,10 @@ def test_a_rerun_replaces_the_slug_and_keeps_the_root_files(tmp_path, names):
     out = tmp_path / "sample"
     out.mkdir()
     (out / "standings.json").write_text("{}", encoding="utf-8")     # `make sample`'s root files stay (FR-1)
-    g.export([RUN], out, names=names, exported_at=AT)
+    g.export([RUN], out, names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
     stale = out / "daylog" / "readings" / "gone.json"
     stale.write_text("{}", encoding="utf-8")
-    manifest = out / "daylog" / se.MANIFEST
-    payload = json.loads(manifest.read_text(encoding="utf-8"))
-    manifest.write_text(json.dumps({**payload, "files": [*payload["files"], "readings/gone.json"]}), encoding="utf-8")
-    g.export([RUN], out, names=names, exported_at=AT)
+    g.export([RUN], out, names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
     assert not stale.exists() and (out / "standings.json").read_text(encoding="utf-8") == "{}"
 
 
@@ -280,15 +305,18 @@ def test_the_default_is_the_newest_finished_run_per_entry(tmp_path, names):
 
 def test_an_unknown_entry_or_a_twice_given_one_is_refused(tmp_path, names):
     with pytest.raises(g.GalleryRefused, match="given twice"):
-        g.export([RUN, RUN], tmp_path / "out", names=names)
+        g.export([RUN, RUN], tmp_path / "out", names=names, provenance_dir=tmp_path / "prov")
     with pytest.raises(g.GalleryRefused, match="is not in gallery_names.toml"):
-        g.export([RUN], tmp_path / "out", names=[n for n in names if n.entry != "08-fresco"])
+        g.export([RUN], tmp_path / "out", names=[n for n in names if n.entry != "08-fresco"],
+                 provenance_dir=tmp_path / "prov")
     assert not (tmp_path / "out").exists()
 
 
 def test_the_command_line(tmp_path, capsys):
-    assert g.main(["--out", str(tmp_path / "out"), "--runs", str(RUN)]) == 0
-    assert "daylog" in capsys.readouterr().out and (tmp_path / "out" / "index.json").is_file()
+    assert g.main(["--out", str(tmp_path / "out"), "--runs", str(RUN), "--provenance-dir", str(tmp_path / "p")]) == 0
+    said = capsys.readouterr().out
+    assert "daylog" in said and "fresco" not in said.lower() and (tmp_path / "out" / "index.json").is_file()
+    assert len(list((tmp_path / "p").glob("provenance-*.json"))) == 1
     assert g.main(["--out", str(tmp_path / "out2"), "--runs-dir", str(tmp_path)]) == 1
     assert "no finished back-test run" in capsys.readouterr().err
 
