@@ -56,7 +56,8 @@ PATIENCE = 11.0
 #: How many failed model jobs (calibration questions, the questionnaire) the back-test retries as the founder's screen
 #: would, before the walk stops -- each one a finding in the transcript (the first paid run, 2026-10-22: PROBLEM's
 #: CALIBRATION_QUESTIONS came back RESULT_INVALID, an item of ten words against L2's nine).
-RETRIES = 3
+RETRIES = int(os.environ.get("KEEL_BACKTEST_RETRIES") or 3)  # KEEL_BACKTEST_RETRIES raises it for one run (062 follow-up, 2026-10-22: 09-karsa
+#: spent all three on SOLUTION calibration, which Keel's AI failed four times running; a founder would keep pressing)
 
 #: Where the run's own files go, under `runs/<run>/`.
 SCREENS_DIR = "screens"
