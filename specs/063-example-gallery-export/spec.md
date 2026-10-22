@@ -29,8 +29,16 @@ gallery` run on existing back-test run directories (no paid run in this spec).**
 - **FR-3 Provenance.** Each `<slug>/manifest.json` carries the entry id, the run directory name, the keel-cloud and
   keel-web SHAs of the run, `exportedAt`, and `renamed: {from, to}`; `index.json` repeats the SHAs so the gallery can say
   which build played the project.
+- **FR-3a The interview, playable (founder, 2026-10-22: "create the actual interview question so that founders can play
+  with it … this is what I am going to get if I buy this product").** Each `<slug>/` also carries `interview.json`:
+  for every link of the run (the primary, the decider's on B2B), the served interview exactly as the stranger's page
+  received it -- `kind`, `occasion`, `idea`, `gate` (question, the chips, `condition` when served), `parts[]` with each
+  item's `dimension`, `kicker`, `question`, `control`, `options[]` labels, `escape`, `valueBox` / `plan` / `whatYouGet`
+  where served, `storyPrompt`, the reveal and the follow-up stems that run's people were asked -- renamed by the same
+  map, tokens and ids withheld, in one stable shape keel-web 100 renders without a server. The index gains
+  `interview: {links: [{role, items}]}` counts per slug.
 - **FR-4 Tests.** Unit tests: the rename over a fixture with the six names in mixed positions (a survivor refuses);
-  the index shape; the file set per slug; nothing about the golden S-006 export moves (060/061's tests unchanged).
+  the index shape; the file set per slug (interview.json included, its shape pinned on one run); nothing about the golden S-006 export moves (060/061's tests unchanged).
 
 ## Acceptance
 
