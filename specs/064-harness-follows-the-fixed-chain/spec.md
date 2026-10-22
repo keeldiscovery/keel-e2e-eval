@@ -62,6 +62,14 @@ s007"` once on a fresh local stack of the finished masters; one `make backtest E
   the step costs nothing): `person_inputs` maps a corpus `yes_after_trying` pick onto the served conditional option when
   one is served and onto *probably not* when none is (a finding, not a silent drop, when a back-test person's pick has
   no rung). `report_marks` reads Commitment's headline as option 1 only and the friction lines in 118 FR-3's words.
+- **FR-7a What keel-cloud 118's build settled (contract 27; added 2026-10-22).** The conditional yes is the Commitment
+  list's second item (code `smaller_step`) and the served option carries `conditional: true`; Adoption friction's *"Yes,
+  if it was clearly worth it"* is `conditional` too. A Commitment option may run to eleven words ("Yes, I'd" plus a
+  nine-word step): the spoken-form check's nine-word cap allows that one shape, by rule, not by a widened cap. Purchase
+  friction keeps three bands (held = amber, not held = favourable, between = split; keel-cloud 118 judgement call 1) --
+  `report_marks` reads all three. Every Purchase friction answer is owed a follow-up; second stems ride as `<dimension>#also`
+  clips. The eval's copy of `executor-fixtures/THEMES/cases.json` is re-copied from keel-cloud's export (scenario C3's
+  people changed under the deciding-first order); `test_follow_up_ladder.py` re-pinned.
 - **FR-8 Insights and the decision (keel-cloud 119, 122; keel-web 095, 098).** `backtest.themes_settle` and the
   corpus scenario's wait read `standings.insights[].state` (`GROUPING | GROUPED | RAW`) and `standings.notAsked`; the
   record keeps `side`, `dissent`, every quote; the Insights view read expects no card for a dimension without words and
