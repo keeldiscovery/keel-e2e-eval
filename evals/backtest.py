@@ -510,17 +510,28 @@ def _labels(rows: list | None, key: str = "label") -> list:
     return [(r or {}).get(key) for r in rows or []]
 
 
+#: Spec 063 FR-3a: what an item carries beyond the six above, kept when served (ids never: `plan`'s options go as
+#: labels) so the gallery's interview.json can draw it -- the item's own kicker, the number and money controls, and
+#: spec 115's value box, plan and what-you-get.
+SERVED_EXTRAS = ("kicker", "advantagesPrompt", "scale", "numeric", "costTotal", "valueBox", "whatYouGet")
+
+
 def served_items(interview: dict) -> dict:
     """The interview as the respondent page fetched it: the idea, the gate, every item in order (wording, control,
-    every option label, the escape) and the reveal."""
+    every option label, the escape) and the reveal. Spec 063: and an item's `SERVED_EXTRAS` and `plan` when served."""
     parts = []
     for part in interview.get("parts") or []:
         items = []
         for item in part.get("items") or []:
-            items.append({"dimension": item.get("dimension"), "question": item.get("question"),
-                          "control": item.get("control"), "hint": item.get("hint"),
-                          "options": _labels(item.get("options")), "advantages": _labels(item.get("advantages")),
-                          "escape": (item.get("escape") or {}).get("label")})
+            row = {"dimension": item.get("dimension"), "question": item.get("question"),
+                   "control": item.get("control"), "hint": item.get("hint"),
+                   "options": _labels(item.get("options")), "advantages": _labels(item.get("advantages")),
+                   "escape": (item.get("escape") or {}).get("label")}
+            row.update({k: item[k] for k in SERVED_EXTRAS if item.get(k) not in (None, "", [], {})})
+            if item.get("plan"):
+                row["plan"] = {"question": item["plan"].get("question"),
+                               "options": _labels(item["plan"].get("options"))}
+            items.append(row)
         parts.append({"part": part.get("part"), "kicker": part.get("kicker"), "items": items})
     gate = interview.get("gate") or None
     return {"kind": interview.get("kind"), "occasion": interview.get("occasion"),
