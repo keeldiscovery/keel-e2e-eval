@@ -1,0 +1,13 @@
+{
+  "batchId": "5e27ea4f-c1be-40a0-93df-78b9b22da0b6",
+  "status": "DONE",
+  "done": 1,
+  "total": 1,
+  "invitationIds": [
+    "37c6127e-9191-4f9e-99f2-901679db076b"
+  ],
+  "current": null,
+  "failed": [],
+  "summary": "One answer read.",
+  "createdAt": "2026-10-22T16:47:34.762178Z"
+}

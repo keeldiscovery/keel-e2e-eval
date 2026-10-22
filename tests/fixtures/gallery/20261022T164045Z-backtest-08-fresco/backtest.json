@@ -1,0 +1,644 @@
+{
+  "spec": "062",
+  "run": "20261022T164045Z-backtest-08-fresco",
+  "passed": true,
+  "failed_step": null,
+  "entry": {
+    "id": "08-fresco",
+    "title": "Fresco — the scribe for construction superintendents",
+    "path": "/Users/athulrajeev/Documents/projects/keel-cloud-docs/canon/designs/measured-beliefs/backtest/08-fresco.yaml",
+    "sha256": "3c8810739626985066d36977a086ac34225cd1f315c04b4db3e5e837733776ba",
+    "idea_name": "Fresco",
+    "b2b": true
+  },
+  "stack": {
+    "keel-cloud": "b2cf168",
+    "keel-web": "9f3845a"
+  },
+  "respondents": {
+    "PRIMARY": {
+      "person": "Marcus Delgado",
+      "served": {
+        "kind": "FULL",
+        "occasion": "day",
+        "idea": null,
+        "gate": {
+          "itemId": "9c4bd51ab8b1",
+          "dimension": "problem.prevalence",
+          "question": "In the last 5 working days, did you put site walk photos and notes into the log afterward?",
+          "storyPrompt": "Think of the most recent time in the last 5 working days when site walks are done and photos and notes go into the log. Tell us briefly what happened: when it was, what you did first, and how it ended.",
+          "storyHint": "When it was, what you did first, how it ended.",
+          "chips": [
+            "CANT_RECALL"
+          ],
+          "exitText": "Thanks for telling us. That's all we need from you -- there's nothing more to answer.",
+          "kicker": "Part 1 of 2 · A recent time · 1 of 4 · the anchor",
+          "spoken": {
+            "anchor": null,
+            "stem": "In the last 5 working days, did you put site walk photos and notes into the log afterward?",
+            "countLine": null,
+            "optionsLine": "Yes or no.",
+            "escapeLine": null,
+            "transform": "none"
+          }
+        },
+        "parts": [
+          {
+            "part": 1,
+            "kicker": null,
+            "items": [
+              {
+                "dimension": "problem.frequency",
+                "question": "On how many of those 5 working days did you put site walk photos and notes into the log afterward?",
+                "control": "segmented_0_to_7",
+                "hint": null,
+                "options": [],
+                "advantages": [],
+                "escape": "I can't recall"
+              },
+              {
+                "dimension": "problem.importance",
+                "question": "Thinking about that last day, which two of these would you most like made easier?",
+                "control": "pick_two",
+                "hint": null,
+                "options": [
+                  "Getting subs to show up and finish",
+                  "Chasing RFIs and submittals",
+                  "Keeping the site safe",
+                  "Keeping an accurate record of the day's work",
+                  "Keeping the job on schedule"
+                ],
+                "advantages": [],
+                "escape": "None of these"
+              },
+              {
+                "dimension": "problem.current_solution_satisfaction",
+                "question": "Think of the last day. How well did your way of getting the day into the log work?",
+                "control": "single_choice_5",
+                "hint": null,
+                "options": [
+                  "It was done quickly, with no trouble",
+                  "It was done after a try or two",
+                  "It was done after a lot of effort",
+                  "It was barely done; much was left out",
+                  "It did not get done at all"
+                ],
+                "advantages": [],
+                "escape": "Someone else does the checking"
+              }
+            ]
+          },
+          {
+            "part": 2,
+            "kicker": null,
+            "items": [
+              {
+                "dimension": "solution.compatibility",
+                "question": "On your last day, you could have talked out loud over the noise on site?",
+                "control": "fixed_four",
+                "hint": null,
+                "options": [
+                  "Yes, easily",
+                  "Yes, with some steps",
+                  "Only with help or approval",
+                  "No"
+                ],
+                "advantages": [],
+                "escape": "I can't tell"
+              },
+              {
+                "dimension": "solution.relative_advantage",
+                "question": "On your last day, would Fresco have made things better, or not?",
+                "control": "benefit_with_advantages",
+                "hint": null,
+                "options": [
+                  "It would have made things better",
+                  "No difference",
+                  "It would have made things worse"
+                ],
+                "advantages": [
+                  "Hours back at the end of the day",
+                  "Action items to the crew the same day"
+                ],
+                "escape": "I can't tell"
+              },
+              {
+                "dimension": "solution.adoption_friction",
+                "question": "You would have to take short videos and talk over them as you go on your site walks. Would you do that, or not?",
+                "control": "fixed_four",
+                "hint": null,
+                "options": [
+                  "Yes",
+                  "Yes, if it was clearly worth it",
+                  "Probably not",
+                  "No"
+                ],
+                "advantages": [],
+                "escape": "I can't tell"
+              }
+            ]
+          }
+        ],
+        "reveal": {
+          "afterPart": 1,
+          "what": "Imagine Fresco.",
+          "how": "During the site walk, you take short videos and talk over them. The tool turns them into notes with photos, assignees and due dates, texts the crew their action items, and sends the notes to the project system on one click.",
+          "belief": "The people building it believe it would turn a site walk into notes and action items without typing them up.",
+          "formats": [
+            {
+              "format": "READ",
+              "available": true,
+              "label": "Read it"
+            }
+          ],
+          "bridge": "The next questions are about how this would or wouldn't have fitted the time you described.",
+          "kicker": "Part 2 of 2 · An idea to consider"
+        }
+      },
+      "drawn": [
+        {
+          "screen": "gate",
+          "kicker": "Part 1 of 2 · A recent time · 1 of 4 · the anchor",
+          "question": "In the last 5 working days, did you put site walk photos and notes into the log afterward?",
+          "chips": [
+            "I can't recall one particular day"
+          ]
+        },
+        {
+          "screen": "item",
+          "dimension": "problem.frequency",
+          "control": "segmented_0_to_7",
+          "kicker": "Part 1 of 2 · A recent time · 2 of 4",
+          "question": "On how many of those 5 working days did you put site walk photos and notes into the log afterward?",
+          "idea_card": "",
+          "hint": "",
+          "picked_line": "",
+          "rows": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5"
+          ],
+          "chips": [
+            "I can't recall"
+          ],
+          "order": [
+            "iv-kicker",
+            "iv-q",
+            "iv-control",
+            "taps iv-chips",
+            "iv-actions"
+          ]
+        },
+        {
+          "screen": "item",
+          "dimension": "problem.importance",
+          "control": "pick_two",
+          "kicker": "Part 1 of 2 · A recent time · 3 of 4",
+          "question": "Thinking about that last day, which two of these would you most like made easier?",
+          "idea_card": "",
+          "hint": "Pick two.",
+          "picked_line": "2 of 2 picked. Untick one to change.",
+          "rows": [
+            "Getting subs to show up and finish",
+            "Chasing RFIs and submittals",
+            "Keeping the site safe",
+            "Keeping an accurate record of the day's work",
+            "Keeping the job on schedule"
+          ],
+          "chips": [
+            "None of these"
+          ],
+          "order": [
+            "iv-kicker",
+            "iv-q",
+            "iv-note iv-tick",
+            "iv-control",
+            "iv-picked",
+            "taps iv-chips",
+            "iv-actions"
+          ]
+        },
+        {
+          "screen": "item",
+          "dimension": "problem.current_solution_satisfaction",
+          "control": "single_choice_5",
+          "kicker": "Part 1 of 2 · A recent time · 4 of 4",
+          "question": "Think of the last day. How well did your way of getting the day into the log work?",
+          "idea_card": "",
+          "hint": "Pick one.",
+          "picked_line": "",
+          "rows": [
+            "It was done quickly, with no trouble",
+            "It was done after a try or two",
+            "It was done after a lot of effort",
+            "It was barely done; much was left out",
+            "It did not get done at all"
+          ],
+          "chips": [
+            "Someone else does the checking"
+          ],
+          "order": [
+            "iv-kicker",
+            "iv-q",
+            "iv-note iv-tick",
+            "iv-control",
+            "taps iv-chips",
+            "iv-actions"
+          ]
+        },
+        {
+          "screen": "reveal",
+          "kicker": "Part 2 of 2 · An idea to consider",
+          "card": "Imagine Fresco.\n\nDuring the site walk, you take short videos and talk over them. The tool turns them into notes with photos, assignees and due dates, texts the crew their action items, and sends the notes to the project system on one click.\n\nThe people building it believe it would turn a site walk into notes and action items without typing them up."
+        },
+        {
+          "screen": "item",
+          "dimension": "solution.compatibility",
+          "control": "fixed_four",
+          "kicker": "Part 2 of 2 · An idea to consider · 1 of 3",
+          "question": "On your last day, you could have talked out loud over the noise on site?",
+          "idea_card": "Imagine Fresco.",
+          "hint": "Pick one.",
+          "picked_line": "",
+          "rows": [
+            "Yes, easily",
+            "Yes, with some steps",
+            "Only with help or approval",
+            "No"
+          ],
+          "chips": [
+            "I can't tell"
+          ],
+          "order": [
+            "iv-kicker",
+            "iv-ideacard",
+            "iv-q",
+            "iv-note iv-tick",
+            "iv-control",
+            "taps iv-chips",
+            "iv-actions"
+          ]
+        },
+        {
+          "screen": "item",
+          "dimension": "solution.relative_advantage",
+          "control": "benefit_with_advantages",
+          "kicker": "Part 2 of 2 · An idea to consider · 2 of 3",
+          "question": "On your last day, would Fresco have made things better, or not?",
+          "idea_card": "Imagine Fresco.",
+          "hint": "",
+          "picked_line": "",
+          "rows": [
+            "It would have made things better",
+            "Hours back at the end of the day",
+            "Action items to the crew the same day",
+            "No difference",
+            "It would have made things worse"
+          ],
+          "chips": [
+            "I can't tell"
+          ],
+          "order": [
+            "iv-kicker",
+            "iv-ideacard",
+            "iv-q",
+            "iv-control",
+            "taps iv-chips",
+            "iv-actions"
+          ]
+        },
+        {
+          "screen": "item",
+          "dimension": "solution.adoption_friction",
+          "control": "fixed_four",
+          "kicker": "Part 2 of 2 · An idea to consider · 3 of 3",
+          "question": "You would have to take short videos and talk over them as you go on your site walks. Would you do that, or not?",
+          "idea_card": "Imagine Fresco.",
+          "hint": "Pick one.",
+          "picked_line": "",
+          "rows": [
+            "Yes",
+            "Yes, if it was clearly worth it",
+            "Probably not",
+            "No"
+          ],
+          "chips": [
+            "I can't tell"
+          ],
+          "order": [
+            "iv-kicker",
+            "iv-ideacard",
+            "iv-q",
+            "iv-note iv-tick",
+            "iv-control",
+            "taps iv-chips",
+            "iv-actions"
+          ]
+        }
+      ],
+      "screens": [
+        "screens/respondent-primary-01-intro.png",
+        "screens/respondent-primary-02-gate.png",
+        "screens/respondent-primary-03-part1-problem.frequency.png",
+        "screens/respondent-primary-04-part1-problem.importance.png",
+        "screens/respondent-primary-05-part1-problem.current_solution_satisfaction.png",
+        "screens/respondent-primary-06-reveal.png",
+        "screens/respondent-primary-07-part2-solution.compatibility.png",
+        "screens/respondent-primary-08-part2-solution.relative_advantage.png",
+        "screens/respondent-primary-09-part2-solution.adoption_friction.png",
+        "screens/respondent-primary-10-done.png"
+      ]
+    },
+    "COMMERCIAL_B2B": {
+      "person": "Renee Castillo",
+      "served": {
+        "kind": "COMMERCIAL_LINK",
+        "occasion": "day",
+        "idea": {
+          "what": "Imagine Fresco.",
+          "how": "During the site walk, you take short videos and talk over them. The tool turns them into notes with photos, assignees and due dates, texts the crew their action items, and sends the notes to the project system on one click.",
+          "belief": "The people building it believe it would turn a site walk into notes and action items without typing them up.",
+          "kicker": "The buying decision · An idea to consider"
+        },
+        "gate": null,
+        "parts": [
+          {
+            "part": 3,
+            "kicker": null,
+            "items": [
+              {
+                "dimension": "commercial.existing_sacrifice",
+                "question": "Last month, what did it cost when site walks are done and photos and notes go into the log?",
+                "control": "cost_total",
+                "hint": null,
+                "options": [],
+                "advantages": [],
+                "escape": "I can't recall"
+              },
+              {
+                "dimension": "commercial.price",
+                "question": "What would a way out of end-of-day paperwork be worth to you a month?",
+                "control": "price_ladder",
+                "hint": null,
+                "options": [
+                  "Under $250",
+                  "$250 to $500",
+                  "$500 to $1,000",
+                  "$1,000 to $2,500",
+                  "Over $2,500",
+                  "I wouldn't pay for this"
+                ],
+                "advantages": [],
+                "escape": "I can't say"
+              },
+              {
+                "dimension": "commercial.ability_to_pay",
+                "question": "Think of the last tool your team paid for. Where did the money come from?",
+                "control": "single_choice",
+                "hint": null,
+                "options": [
+                  "A budget line we already had",
+                  "A new budget line someone signed off",
+                  "Taken from other spending",
+                  "There was no budget for it"
+                ],
+                "advantages": [],
+                "escape": "I can't recall one"
+              },
+              {
+                "dimension": "commercial.buyer_payer_alignment",
+                "question": "For that tool, did the CFO have to agree before it went through?",
+                "control": "fixed_four",
+                "hint": null,
+                "options": [
+                  "Yes, they had to agree",
+                  "No, I decided on my own",
+                  "No, someone else had to agree",
+                  "Someone else decided, not me"
+                ],
+                "advantages": [],
+                "escape": "I can't recall one"
+              },
+              {
+                "dimension": "commercial.purchase_friction",
+                "question": "For that tool, did it need a trial on one live job before it went through?",
+                "control": "fixed_three",
+                "hint": null,
+                "options": [
+                  "Yes, and it took a long time",
+                  "Yes, but it was quick",
+                  "No, it wasn't needed"
+                ],
+                "advantages": [],
+                "escape": "I can't recall"
+              },
+              {
+                "dimension": "commercial.commitment",
+                "question": "If it were ready today, would you start a paid pilot on one site, or not?",
+                "control": "fixed_four",
+                "hint": null,
+                "options": [
+                  "Yes, I'd start one",
+                  "Yes, after trying it first",
+                  "Probably not",
+                  "No"
+                ],
+                "advantages": [],
+                "escape": null
+              }
+            ]
+          }
+        ],
+        "reveal": null
+      },
+      "drawn": [
+        {
+          "screen": "idea",
+          "kicker": "The buying decision · An idea to consider",
+          "card": "Imagine Fresco.\n\nDuring the site walk, you take short videos and talk over them. The tool turns them into notes with photos, assignees and due dates, texts the crew their action items, and sends the notes to the project system on one click.\n\nThe people building it believe it would turn a site walk into notes and action items without typing them up.",
+          "question": ""
+        },
+        {
+          "screen": "item",
+          "dimension": "commercial.existing_sacrifice",
+          "control": "cost_total",
+          "kicker": "The buying decision · 1 of 6",
+          "question": "Last month, what did it cost when site walks are done and photos and notes go into the log?",
+          "idea_card": "",
+          "hint": "",
+          "picked_line": "",
+          "rows": [
+            "Amount",
+            "Hours"
+          ],
+          "chips": [
+            "I can't recall"
+          ],
+          "order": [
+            "iv-kicker",
+            "iv-q",
+            "iv-control",
+            "taps iv-chips",
+            "iv-actions"
+          ]
+        },
+        {
+          "screen": "item",
+          "dimension": "commercial.price",
+          "control": "price_ladder",
+          "kicker": "The buying decision · 2 of 6",
+          "question": "What would a way out of end-of-day paperwork be worth to you a month?",
+          "idea_card": "Imagine Fresco.",
+          "hint": "",
+          "picked_line": "",
+          "rows": [
+            "Under $250",
+            "$250 to $500",
+            "$500 to $1,000",
+            "$1,000 to $2,500",
+            "Over $2,500",
+            "I wouldn't pay for this"
+          ],
+          "chips": [
+            "I can't say"
+          ],
+          "order": [
+            "iv-kicker",
+            "iv-ideacard",
+            "iv-anchor",
+            "iv-q",
+            "iv-control",
+            "taps iv-chips",
+            "iv-actions"
+          ]
+        },
+        {
+          "screen": "item",
+          "dimension": "commercial.ability_to_pay",
+          "control": "single_choice",
+          "kicker": "The buying decision · 3 of 6",
+          "question": "Think of the last tool your team paid for. Where did the money come from?",
+          "idea_card": "",
+          "hint": "Pick one.",
+          "picked_line": "",
+          "rows": [
+            "A budget line we already had",
+            "A new budget line someone signed off",
+            "Taken from other spending",
+            "There was no budget for it"
+          ],
+          "chips": [
+            "I can't recall one"
+          ],
+          "order": [
+            "iv-kicker",
+            "iv-q",
+            "iv-note iv-tick",
+            "iv-control",
+            "taps iv-chips",
+            "iv-actions"
+          ]
+        },
+        {
+          "screen": "item",
+          "dimension": "commercial.buyer_payer_alignment",
+          "control": "fixed_four",
+          "kicker": "The buying decision · 4 of 6",
+          "question": "For that tool, did the CFO have to agree before it went through?",
+          "idea_card": "",
+          "hint": "Pick one.",
+          "picked_line": "",
+          "rows": [
+            "Yes, they had to agree",
+            "No, I decided on my own",
+            "No, someone else had to agree",
+            "Someone else decided, not me"
+          ],
+          "chips": [
+            "I can't recall one"
+          ],
+          "order": [
+            "iv-kicker",
+            "iv-q",
+            "iv-note iv-tick",
+            "iv-control",
+            "taps iv-chips",
+            "iv-actions"
+          ]
+        },
+        {
+          "screen": "item",
+          "dimension": "commercial.purchase_friction",
+          "control": "fixed_three",
+          "kicker": "The buying decision · 5 of 6",
+          "question": "For that tool, did it need a trial on one live job before it went through?",
+          "idea_card": "",
+          "hint": "Pick one.",
+          "picked_line": "",
+          "rows": [
+            "Yes, and it took a long time",
+            "Yes, but it was quick",
+            "No, it wasn't needed"
+          ],
+          "chips": [
+            "I can't recall"
+          ],
+          "order": [
+            "iv-kicker",
+            "iv-q",
+            "iv-note iv-tick",
+            "iv-control",
+            "taps iv-chips",
+            "iv-actions"
+          ]
+        },
+        {
+          "screen": "item",
+          "dimension": "commercial.commitment",
+          "control": "fixed_four",
+          "kicker": "The buying decision · 6 of 6",
+          "question": "If it were ready today, would you start a paid pilot on one site, or not?",
+          "idea_card": "Imagine Fresco.",
+          "hint": "Pick one.",
+          "picked_line": "",
+          "rows": [
+            "Yes, I'd start one",
+            "Yes, after trying it first",
+            "Probably not",
+            "No"
+          ],
+          "chips": [],
+          "order": [
+            "iv-kicker",
+            "iv-ideacard",
+            "iv-q",
+            "iv-note iv-tick",
+            "iv-control",
+            "iv-actions"
+          ]
+        },
+        {
+          "screen": "follow_up",
+          "kicker": "One last thing",
+          "question": "What would you start with instead?",
+          "note": "In your own words. A sentence or two is plenty."
+        }
+      ],
+      "screens": [
+        "screens/respondent-decision-maker-01-intro.png",
+        "screens/respondent-decision-maker-02-idea.png",
+        "screens/respondent-decision-maker-03-part3-commercial.existing_sacrifice.png",
+        "screens/respondent-decision-maker-04-part3-commercial.price.png",
+        "screens/respondent-decision-maker-05-part3-commercial.ability_to_pay.png",
+        "screens/respondent-decision-maker-06-part3-commercial.buyer_payer_alignment.png",
+        "screens/respondent-decision-maker-07-part3-commercial.purchase_friction.png",
+        "screens/respondent-decision-maker-08-part3-commercial.commitment.png",
+        "screens/respondent-decision-maker-09-follow-up.png",
+        "screens/respondent-decision-maker-10-done.png"
+      ]
+    }
+  }
+}

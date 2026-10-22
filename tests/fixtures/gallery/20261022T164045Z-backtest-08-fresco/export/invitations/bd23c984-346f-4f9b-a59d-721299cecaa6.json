@@ -1,0 +1,107 @@
+{
+  "invitationId": "bd23c984-346f-4f9b-a59d-721299cecaa6",
+  "personName": "Trevor McAllister",
+  "roleLabel": "Contractor",
+  "invitedAt": "2026-10-22T16:44:56.039096Z",
+  "status": "ANSWERED",
+  "about": "how tools for this get chosen and paid for",
+  "answeredAt": "2026-10-22T16:47:53.789730Z",
+  "interview": {
+    "respondedAt": "2026-10-22T16:47:53.789730Z",
+    "link": "COMMERCIAL_B2B",
+    "recency": null,
+    "story": null,
+    "anchorChip": null,
+    "anchoring": "ANCHORED",
+    "items": [
+      {
+        "dimension": "commercial.existing_sacrifice",
+        "name": "Existing sacrifice",
+        "question": "Last month, what did it cost when site walks are done and photos and notes go into the log?",
+        "answer": "$600 (last month)",
+        "codes": [],
+        "chip": null,
+        "value": 600,
+        "unit": null,
+        "mode": "AMOUNT",
+        "currency": "USD",
+        "period": "last month"
+      },
+      {
+        "dimension": "commercial.price",
+        "name": "Price",
+        "question": "What would a way out of end-of-day paperwork be worth to you a month?",
+        "answer": "$250 to $500 a month",
+        "codes": [
+          "band_250_500"
+        ],
+        "chip": null,
+        "value": null,
+        "unit": null,
+        "mode": null,
+        "currency": null,
+        "period": "a month"
+      },
+      {
+        "dimension": "commercial.ability_to_pay",
+        "name": "Ability to pay",
+        "question": "Think of the last tool your team paid for. Where did the money come from?",
+        "answer": "A budget line we already had",
+        "codes": [
+          "existing_line"
+        ],
+        "chip": null,
+        "value": null,
+        "unit": null,
+        "mode": null,
+        "currency": null,
+        "period": null
+      },
+      {
+        "dimension": "commercial.buyer_payer_alignment",
+        "name": "Buyer and payer",
+        "question": "For that tool, did the CFO have to agree before it went through?",
+        "answer": "No, I decided on my own",
+        "codes": [
+          "decided_alone"
+        ],
+        "chip": null,
+        "value": null,
+        "unit": null,
+        "mode": null,
+        "currency": null,
+        "period": null
+      },
+      {
+        "dimension": "commercial.purchase_friction",
+        "name": "Purchase friction",
+        "question": "For that tool, did it need a trial on one live job before it went through?",
+        "answer": "Yes, but it was quick",
+        "codes": [
+          "yes_quick"
+        ],
+        "chip": null,
+        "value": null,
+        "unit": null,
+        "mode": null,
+        "currency": null,
+        "period": null
+      },
+      {
+        "dimension": "commercial.commitment",
+        "name": "Commitment",
+        "question": "If it were ready today, would you start a paid pilot on one site, or not?",
+        "answer": "Probably not",
+        "codes": [
+          "probably_not"
+        ],
+        "chip": null,
+        "value": null,
+        "unit": null,
+        "mode": null,
+        "currency": null,
+        "period": null
+      }
+    ]
+  }
+}

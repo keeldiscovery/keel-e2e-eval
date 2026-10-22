@@ -1,0 +1,23 @@
+{
+  "revision": 191,
+  "roles": [
+    {
+      "roleId": "55823810-4ce2-4d25-8663-5e46c684a5cf",
+      "label": "Construction superintendents",
+      "aboutDefault": "what it is like when site walks are done and photos and notes go into the log",
+      "questionCount": 7,
+      "invitable": true,
+      "labelShort": "construction superintendents",
+      "about": "what it is like when site walks are done and photos and notes go into the log"
+    },
+    {
+      "roleId": "baf807a4-2262-4cf9-95cc-c3de2faf9b56",
+      "label": "Contractor",
+      "aboutDefault": "how tools for this get chosen and paid for",
+      "questionCount": 6,
+      "invitable": true,
+      "labelShort": "contractor",
+      "about": "how tools for this get chosen and paid for"
+    }
+  ]
+}

@@ -1,0 +1,377 @@
+{
+  "links": [
+    {
+      "role": "PRIMARY",
+      "label": "Construction superintendents",
+      "kind": "FULL",
+      "occasion": "day",
+      "idea": null,
+      "gate": {
+        "kicker": "Part 1 of 2 · A recent time · 1 of 4 · the anchor",
+        "question": "In the last 5 working days, did you put site walk photos and notes into the log afterward?",
+        "chips": [
+          {
+            "code": "CANT_RECALL",
+            "label": "I can't recall one particular day"
+          }
+        ],
+        "exitText": "Thanks for telling us. That's all we need from you -- there's nothing more to answer."
+      },
+      "storyPrompt": "Think of the most recent time in the last 5 working days when site walks are done and photos and notes go into the log. Tell us briefly what happened: when it was, what you did first, and how it ended.",
+      "storyHint": "When it was, what you did first, how it ended.",
+      "parts": [
+        {
+          "part": 1,
+          "items": [
+            {
+              "dimension": "problem.frequency",
+              "kicker": "Part 1 of 2 · A recent time · 2 of 4",
+              "question": "On how many of those 5 working days did you put site walk photos and notes into the log afterward?",
+              "control": "segmented_0_to_7",
+              "hint": null,
+              "options": [],
+              "advantages": [],
+              "escape": "I can't recall",
+              "shown": [
+                "0",
+                "1",
+                "2",
+                "3",
+                "4",
+                "5"
+              ]
+            },
+            {
+              "dimension": "problem.importance",
+              "kicker": "Part 1 of 2 · A recent time · 3 of 4",
+              "question": "Thinking about that last day, which two of these would you most like made easier?",
+              "control": "pick_two",
+              "hint": "Pick two.",
+              "options": [
+                "Getting subs to show up and finish",
+                "Chasing RFIs and submittals",
+                "Keeping the site safe",
+                "Keeping an accurate record of the day's work",
+                "Keeping the job on schedule"
+              ],
+              "advantages": [],
+              "escape": "None of these",
+              "shown": [
+                "Getting subs to show up and finish",
+                "Chasing RFIs and submittals",
+                "Keeping the site safe",
+                "Keeping an accurate record of the day's work",
+                "Keeping the job on schedule"
+              ]
+            },
+            {
+              "dimension": "problem.current_solution_satisfaction",
+              "kicker": "Part 1 of 2 · A recent time · 4 of 4",
+              "question": "Think of the last day. How well did your way of getting the day into the log work?",
+              "control": "single_choice_5",
+              "hint": "Pick one.",
+              "options": [
+                "It was done quickly, with no trouble",
+                "It was done after a try or two",
+                "It was done after a lot of effort",
+                "It was barely done; much was left out",
+                "It did not get done at all"
+              ],
+              "advantages": [],
+              "escape": "Someone else does the checking",
+              "shown": [
+                "It was done quickly, with no trouble",
+                "It was done after a try or two",
+                "It was done after a lot of effort",
+                "It was barely done; much was left out",
+                "It did not get done at all"
+              ]
+            }
+          ]
+        },
+        {
+          "part": 2,
+          "items": [
+            {
+              "dimension": "solution.compatibility",
+              "kicker": "Part 2 of 2 · An idea to consider · 1 of 3",
+              "question": "On your last day, you could have talked out loud over the noise on site?",
+              "control": "fixed_four",
+              "hint": "Pick one.",
+              "options": [
+                "Yes, easily",
+                "Yes, with some steps",
+                "Only with help or approval",
+                "No"
+              ],
+              "advantages": [],
+              "escape": "I can't tell",
+              "shown": [
+                "Yes, easily",
+                "Yes, with some steps",
+                "Only with help or approval",
+                "No"
+              ]
+            },
+            {
+              "dimension": "solution.relative_advantage",
+              "kicker": "Part 2 of 2 · An idea to consider · 2 of 3",
+              "question": "On your last day, would Daylog have made things better, or not?",
+              "control": "benefit_with_advantages",
+              "hint": null,
+              "options": [
+                "It would have made things better",
+                "No difference",
+                "It would have made things worse"
+              ],
+              "advantages": [
+                "Hours back at the end of the day",
+                "Action items to the crew the same day"
+              ],
+              "escape": "I can't tell",
+              "shown": [
+                "It would have made things better",
+                "Hours back at the end of the day",
+                "Action items to the crew the same day",
+                "No difference",
+                "It would have made things worse"
+              ]
+            },
+            {
+              "dimension": "solution.adoption_friction",
+              "kicker": "Part 2 of 2 · An idea to consider · 3 of 3",
+              "question": "You would have to take short videos and talk over them as you go on your site walks. Would you do that, or not?",
+              "control": "fixed_four",
+              "hint": "Pick one.",
+              "options": [
+                "Yes",
+                "Yes, if it was clearly worth it",
+                "Probably not",
+                "No"
+              ],
+              "advantages": [],
+              "escape": "I can't tell",
+              "shown": [
+                "Yes",
+                "Yes, if it was clearly worth it",
+                "Probably not",
+                "No"
+              ]
+            }
+          ]
+        }
+      ],
+      "reveal": {
+        "afterPart": 1,
+        "what": "Imagine Daylog.",
+        "how": "During the site walk, you take short videos and talk over them. The tool turns them into notes with photos, assignees and due dates, texts the crew their action items, and sends the notes to the project system on one click.",
+        "belief": "The people building it believe it would turn a site walk into notes and action items without typing them up.",
+        "formats": [
+          {
+            "format": "READ",
+            "available": true,
+            "label": "Read it"
+          }
+        ],
+        "bridge": "The next questions are about how this would or wouldn't have fitted the time you described.",
+        "kicker": "Part 2 of 2 · An idea to consider"
+      },
+      "followUp": {
+        "kicker": "One last thing",
+        "note": "In your own words. A sentence or two is plenty.",
+        "asked": [
+          {
+            "dimension": "problem.importance",
+            "question": "You picked keeping the job on schedule and getting subs to show up and finish over keeping an accurate record of the day's work. What makes those more pressing?"
+          },
+          {
+            "dimension": "problem.importance",
+            "question": "You picked getting subs to show up and finish and keeping the job on schedule over keeping an accurate record of the day's work. What makes those more pressing?"
+          },
+          {
+            "dimension": "problem.importance",
+            "question": "You picked keeping the job on schedule and keeping the site safe over keeping an accurate record of the day's work. What makes those more pressing?"
+          },
+          {
+            "dimension": "solution.compatibility",
+            "question": "You said they could talk over the noise on site would not work. What gets in the way?"
+          },
+          {
+            "dimension": "problem.importance",
+            "question": "You picked keeping the site safe and keeping the job on schedule over keeping an accurate record of the day's work. What makes those more pressing?"
+          },
+          {
+            "dimension": "problem.importance",
+            "question": "You picked chasing RFIs and submittals and keeping the job on schedule over keeping an accurate record of the day's work. What makes those more pressing?"
+          }
+        ]
+      }
+    },
+    {
+      "role": "COMMERCIAL_B2B",
+      "label": "Contractor",
+      "kind": "COMMERCIAL_LINK",
+      "occasion": "day",
+      "idea": {
+        "what": "Imagine Daylog.",
+        "how": "During the site walk, you take short videos and talk over them. The tool turns them into notes with photos, assignees and due dates, texts the crew their action items, and sends the notes to the project system on one click.",
+        "belief": "The people building it believe it would turn a site walk into notes and action items without typing them up.",
+        "kicker": "The buying decision · An idea to consider"
+      },
+      "gate": null,
+      "storyPrompt": null,
+      "storyHint": null,
+      "parts": [
+        {
+          "part": 3,
+          "items": [
+            {
+              "dimension": "commercial.existing_sacrifice",
+              "kicker": "The buying decision · 1 of 6",
+              "question": "Last month, what did it cost when site walks are done and photos and notes go into the log?",
+              "control": "cost_total",
+              "hint": null,
+              "options": [],
+              "advantages": [],
+              "escape": "I can't recall",
+              "shown": [
+                "Amount",
+                "Hours"
+              ]
+            },
+            {
+              "dimension": "commercial.price",
+              "kicker": "The buying decision · 2 of 6",
+              "question": "What would a way out of end-of-day paperwork be worth to you a month?",
+              "control": "price_ladder",
+              "hint": null,
+              "options": [
+                "Under $250",
+                "$250 to $500",
+                "$500 to $1,000",
+                "$1,000 to $2,500",
+                "Over $2,500",
+                "I wouldn't pay for this"
+              ],
+              "advantages": [],
+              "escape": "I can't say",
+              "shown": [
+                "Under $250",
+                "$250 to $500",
+                "$500 to $1,000",
+                "$1,000 to $2,500",
+                "Over $2,500",
+                "I wouldn't pay for this"
+              ]
+            },
+            {
+              "dimension": "commercial.ability_to_pay",
+              "kicker": "The buying decision · 3 of 6",
+              "question": "Think of the last tool your team paid for. Where did the money come from?",
+              "control": "single_choice",
+              "hint": "Pick one.",
+              "options": [
+                "A budget line we already had",
+                "A new budget line someone signed off",
+                "Taken from other spending",
+                "There was no budget for it"
+              ],
+              "advantages": [],
+              "escape": "I can't recall one",
+              "shown": [
+                "A budget line we already had",
+                "A new budget line someone signed off",
+                "Taken from other spending",
+                "There was no budget for it"
+              ]
+            },
+            {
+              "dimension": "commercial.buyer_payer_alignment",
+              "kicker": "The buying decision · 4 of 6",
+              "question": "For that tool, did the CFO have to agree before it went through?",
+              "control": "fixed_four",
+              "hint": "Pick one.",
+              "options": [
+                "Yes, they had to agree",
+                "No, I decided on my own",
+                "No, someone else had to agree",
+                "Someone else decided, not me"
+              ],
+              "advantages": [],
+              "escape": "I can't recall one",
+              "shown": [
+                "Yes, they had to agree",
+                "No, I decided on my own",
+                "No, someone else had to agree",
+                "Someone else decided, not me"
+              ]
+            },
+            {
+              "dimension": "commercial.purchase_friction",
+              "kicker": "The buying decision · 5 of 6",
+              "question": "For that tool, did it need a trial on one live job before it went through?",
+              "control": "fixed_three",
+              "hint": "Pick one.",
+              "options": [
+                "Yes, and it took a long time",
+                "Yes, but it was quick",
+                "No, it wasn't needed"
+              ],
+              "advantages": [],
+              "escape": "I can't recall",
+              "shown": [
+                "Yes, and it took a long time",
+                "Yes, but it was quick",
+                "No, it wasn't needed"
+              ]
+            },
+            {
+              "dimension": "commercial.commitment",
+              "kicker": "The buying decision · 6 of 6",
+              "question": "If it were ready today, would you start a paid pilot on one site, or not?",
+              "control": "fixed_four",
+              "hint": "Pick one.",
+              "options": [
+                "Yes, I'd start one",
+                "Yes, after trying it first",
+                "Probably not",
+                "No"
+              ],
+              "advantages": [],
+              "escape": null,
+              "shown": [
+                "Yes, I'd start one",
+                "Yes, after trying it first",
+                "Probably not",
+                "No"
+              ]
+            }
+          ]
+        }
+      ],
+      "reveal": null,
+      "followUp": {
+        "kicker": "One last thing",
+        "note": "In your own words. A sentence or two is plenty.",
+        "asked": [
+          {
+            "dimension": "commercial.commitment",
+            "question": "What would you start with instead?"
+          },
+          {
+            "dimension": "commercial.price",
+            "question": "You put it at $250 to $500. What would make it worth more?"
+          },
+          {
+            "dimension": "commercial.price",
+            "question": "You put it at under $250. What would make it worth more?"
+          },
+          {
+            "dimension": "commercial.price",
+            "question": "You put it at nothing. What would make it worth more?"
+          }
+        ]
+      }
+    }
+  ]
+}

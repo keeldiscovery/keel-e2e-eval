@@ -1,0 +1,2788 @@
+{
+  "asOf": "2026-10-22T16:48:07.452820Z",
+  "revision": 191,
+  "version": 1,
+  "name": "Fresco — the scribe for construction superintendents",
+  "contextUnderstands": "Construction superintendents at general contractors who keep an accurate record of work on site, when site walks are done and photos and notes go into the log, counting the last 5 working days.",
+  "people": {
+    "invited": 20,
+    "answered": 20,
+    "read": 18,
+    "anchored": 16,
+    "guessed": 2
+  },
+  "pilot": {
+    "optedIn": 6,
+    "finished": 20,
+    "percent": 30,
+    "perLink": [
+      {
+        "link": "PRIMARY",
+        "words": "people who have it",
+        "optedIn": 4,
+        "finished": 12
+      },
+      {
+        "link": "COMMERCIAL_B2B",
+        "words": "decision-makers",
+        "optedIn": 2,
+        "finished": 8
+      }
+    ]
+  },
+  "priceMedian": {
+    "edge": 250,
+    "edgeSaid": "$250 a month",
+    "chose": 6,
+    "n": 8
+  },
+  "pilotPeople": [
+    {
+      "invitationId": "3a0e62d7-b99c-47ae-ac64-c5f739553938",
+      "name": "Marcus Delgado",
+      "link": "PRIMARY",
+      "words": "people who have it",
+      "source": "KNOWN",
+      "datasetName": null,
+      "gate": true,
+      "story": "Tuesday. Two walks, about a hundred and forty photos on my phone. Back in the trailer at four, uploaded them to Procore and typed the daily log till six thirty. The owner's rep wants everything for the delay claim.",
+      "answers": [
+        {
+          "dimension": "problem.frequency",
+          "name": "Frequency",
+          "words": "5 working days out of 5"
+        },
+        {
+          "dimension": "problem.importance",
+          "name": "Importance",
+          "words": "Keeping an accurate record of the day's work, Keeping the job on schedule"
+        },
+        {
+          "dimension": "problem.current_solution_satisfaction",
+          "name": "Current solution",
+          "words": "It was done after a lot of effort"
+        },
+        {
+          "dimension": "solution.compatibility",
+          "name": "Compatibility",
+          "words": "Yes, easily"
+        },
+        {
+          "dimension": "solution.relative_advantage",
+          "name": "Relative advantage",
+          "words": "It would have made things better: Hours back at the end of the day"
+        },
+        {
+          "dimension": "solution.adoption_friction",
+          "name": "Adoption friction",
+          "words": "Yes"
+        }
+      ],
+      "followUp": null
+    },
+    {
+      "invitationId": "5d8d6f73-f32d-49c1-a405-44224bbcd321",
+      "name": "Tomasz Wierzbicki",
+      "link": "PRIMARY",
+      "words": "people who have it",
+      "source": "KNOWN",
+      "datasetName": null,
+      "gate": true,
+      "story": "Yesterday. Punch walk on the third floor of the school job with the architect. I wrote it on blue tape and a notepad, then two hours plus in the trailer matching photos to items and typing up the punch list.",
+      "answers": [
+        {
+          "dimension": "problem.frequency",
+          "name": "Frequency",
+          "words": "4 working days out of 5"
+        },
+        {
+          "dimension": "problem.importance",
+          "name": "Importance",
+          "words": "Keeping an accurate record of the day's work, Getting subs to show up and finish"
+        },
+        {
+          "dimension": "problem.current_solution_satisfaction",
+          "name": "Current solution",
+          "words": "It was done after a lot of effort"
+        },
+        {
+          "dimension": "solution.compatibility",
+          "name": "Compatibility",
+          "words": "Yes, with some steps"
+        },
+        {
+          "dimension": "solution.relative_advantage",
+          "name": "Relative advantage",
+          "words": "It would have made things better: Hours back at the end of the day"
+        },
+        {
+          "dimension": "solution.adoption_friction",
+          "name": "Adoption friction",
+          "words": "Yes, if it was clearly worth it"
+        }
+      ],
+      "followUp": null
+    },
+    {
+      "invitationId": "4e77b89b-714d-40ed-90e4-65bb4cbe0fb6",
+      "name": "Kwame Asante",
+      "link": "PRIMARY",
+      "words": "people who have it",
+      "source": "KNOWN",
+      "datasetName": null,
+      "gate": true,
+      "story": "Monday, the slab pour. I took maybe sixty photos and dropped them in the OneDrive folder by date, no captions. The log was five lines, enough to say we were there. If there's a fight about it later nobody's finding anything in that folder.",
+      "answers": [
+        {
+          "dimension": "problem.frequency",
+          "name": "Frequency",
+          "words": "5 working days out of 5"
+        },
+        {
+          "dimension": "problem.importance",
+          "name": "Importance",
+          "words": "Keeping the job on schedule, Keeping an accurate record of the day's work"
+        },
+        {
+          "dimension": "problem.current_solution_satisfaction",
+          "name": "Current solution",
+          "words": "It did not get done at all"
+        },
+        {
+          "dimension": "solution.compatibility",
+          "name": "Compatibility",
+          "words": "No"
+        },
+        {
+          "dimension": "solution.relative_advantage",
+          "name": "Relative advantage",
+          "words": "It would have made things better: Hours back at the end of the day"
+        },
+        {
+          "dimension": "solution.adoption_friction",
+          "name": "Adoption friction",
+          "words": "Yes"
+        }
+      ],
+      "followUp": {
+        "dimension": "solution.compatibility",
+        "text": "On a pour day with the pump and the trucks running, nobody's hearing a word I say into a phone."
+      }
+    },
+    {
+      "invitationId": "6f0d1b7e-a30d-4be6-b57c-1157223e1ba8",
+      "name": "Priya Raman",
+      "link": "PRIMARY",
+      "words": "people who have it",
+      "source": "KNOWN",
+      "datasetName": null,
+      "gate": true,
+      "story": "Wednesday. Walked it with the owner's PM, twenty-odd items. I texted each sub their items from the truck, then typed the whole list again into Procore for the office. Same notes, twice.",
+      "answers": [
+        {
+          "dimension": "problem.frequency",
+          "name": "Frequency",
+          "words": "4 working days out of 5"
+        },
+        {
+          "dimension": "problem.importance",
+          "name": "Importance",
+          "words": "Keeping an accurate record of the day's work, Chasing RFIs and submittals"
+        },
+        {
+          "dimension": "problem.current_solution_satisfaction",
+          "name": "Current solution",
+          "words": "It was done after a lot of effort"
+        },
+        {
+          "dimension": "solution.compatibility",
+          "name": "Compatibility",
+          "words": "Yes, with some steps"
+        },
+        {
+          "dimension": "solution.relative_advantage",
+          "name": "Relative advantage",
+          "words": "It would have made things better: Action items to the crew the same day"
+        },
+        {
+          "dimension": "solution.adoption_friction",
+          "name": "Adoption friction",
+          "words": "Yes"
+        }
+      ],
+      "followUp": null
+    },
+    {
+      "invitationId": "eae270c3-a711-4a48-b241-e318c1144946",
+      "name": "Renee Castillo",
+      "link": "COMMERCIAL_B2B",
+      "words": "decision-makers",
+      "source": "KNOWN",
+      "datasetName": null,
+      "gate": null,
+      "story": null,
+      "answers": [
+        {
+          "dimension": "commercial.existing_sacrifice",
+          "name": "Existing sacrifice",
+          "words": "60 hours (last month)"
+        },
+        {
+          "dimension": "commercial.price",
+          "name": "Price",
+          "words": "$500 to $1,000 a month"
+        },
+        {
+          "dimension": "commercial.ability_to_pay",
+          "name": "Ability to pay",
+          "words": "A budget line we already had"
+        },
+        {
+          "dimension": "commercial.buyer_payer_alignment",
+          "name": "Buyer and payer",
+          "words": "Yes, they had to agree"
+        },
+        {
+          "dimension": "commercial.purchase_friction",
+          "name": "Purchase friction",
+          "words": "Yes, but it was quick"
+        },
+        {
+          "dimension": "commercial.commitment",
+          "name": "Commitment",
+          "words": "Yes, after trying it first"
+        }
+      ],
+      "followUp": {
+        "dimension": "commercial.commitment",
+        "text": "Let one of our supers run it free on a single job for a month, then we'd talk about paying per site."
+      }
+    },
+    {
+      "invitationId": "8bee6914-82b9-4ef6-a017-db2192837ec5",
+      "name": "Gordon Achebe",
+      "link": "COMMERCIAL_B2B",
+      "words": "decision-makers",
+      "source": "KNOWN",
+      "datasetName": null,
+      "gate": null,
+      "story": null,
+      "answers": [
+        {
+          "dimension": "commercial.existing_sacrifice",
+          "name": "Existing sacrifice",
+          "words": "80 hours (last month)"
+        },
+        {
+          "dimension": "commercial.price",
+          "name": "Price",
+          "words": "$1,000 to $2,500 a month"
+        },
+        {
+          "dimension": "commercial.ability_to_pay",
+          "name": "Ability to pay",
+          "words": "A new budget line someone signed off"
+        },
+        {
+          "dimension": "commercial.buyer_payer_alignment",
+          "name": "Buyer and payer",
+          "words": "Yes, they had to agree"
+        },
+        {
+          "dimension": "commercial.purchase_friction",
+          "name": "Purchase friction",
+          "words": "Yes, and it took a long time"
+        },
+        {
+          "dimension": "commercial.commitment",
+          "name": "Commitment",
+          "words": "Yes, I'd start one"
+        }
+      ],
+      "followUp": null
+    }
+  ],
+  "vectors": [
+    {
+      "vector": "PROBLEM",
+      "statement": "Construction superintendents at general contractors walk their sites and take photos all day. Once the walks are done, they sit in the trailer sorting and uploading those photos and typing up daily logs and punch lists. It eats a large part of the day, often after everyone else has left. They do it mostly to protect themselves if the owner disputes the work or a liability claim comes up, so they keep doing it by hand.",
+      "verdict": "PEOPLE_DISAGREE",
+      "drift": "BOTH",
+      "headline": "People disagree · you said keeping an accurate record of the day's work",
+      "headlineTone": "warn",
+      "whatItMeasures": "Each belief is checked against what anchored people said about one real time; the verdict is the worst of all its dimensions.",
+      "counts": {
+        "holdingUp": 3,
+        "notHoldingUp": 0,
+        "peopleDisagree": 1,
+        "tooFewToCall": 0,
+        "notAskedYet": 0,
+        "leftOut": 0
+      },
+      "dimensionsHolding": 3,
+      "dimensionsTotal": 4,
+      "peopleAnswered": 20,
+      "dimensions": [
+        {
+          "dimension": "problem.prevalence",
+          "order": 1,
+          "name": "Prevalence",
+          "belief": "Nearly all of these construction superintendents had this at least once in the last 5 working days.",
+          "status": "HOLDING_UP",
+          "drift": "NONE",
+          "statusLine": "10 of 12 said yes",
+          "answersShape": "choice",
+          "compareRule": "proportion_from_gate",
+          "asked": {
+            "question": "In the last 5 working days, did you put site walk photos and notes into the log afterward?",
+            "anchor": "the most recent time it happened"
+          },
+          "founderSaid": "You said Nearly all.",
+          "floor": 5,
+          "n": 12,
+          "choice": {
+            "founderCodes": [
+              "p_80_100"
+            ],
+            "optionCounts": [],
+            "escaped": 0
+          },
+          "people": [
+            {
+              "invitationId": "3a0e62d7-b99c-47ae-ac64-c5f739553938",
+              "personName": "Marcus Delgado",
+              "anchoring": "ANCHORED",
+              "readAs": "said yes"
+            },
+            {
+              "invitationId": "5d8d6f73-f32d-49c1-a405-44224bbcd321",
+              "personName": "Tomasz Wierzbicki",
+              "anchoring": "ANCHORED",
+              "readAs": "said yes"
+            },
+            {
+              "invitationId": "06fbdf36-81ce-4626-a38e-d063f303788f",
+              "personName": "Denise Okafor",
+              "anchoring": "ANCHORED",
+              "readAs": "said yes"
+            },
+            {
+              "invitationId": "6c8f6bc2-338c-449b-b904-bcd281c2ac87",
+              "personName": "Ray Villanueva",
+              "anchoring": "ANCHORED",
+              "readAs": "said yes"
+            },
+            {
+              "invitationId": "80c97bf3-023c-4f6c-ba34-43b54770578b",
+              "personName": "Hank Sorensen",
+              "anchoring": "GUESSED",
+              "readAs": "said yes"
+            },
+            {
+              "invitationId": "63d663e5-1f84-46a0-bc06-f8964ed429ea",
+              "personName": "Luis Arreola",
+              "anchoring": "GUESSED",
+              "readAs": "said yes"
+            },
+            {
+              "invitationId": "4e77b89b-714d-40ed-90e4-65bb4cbe0fb6",
+              "personName": "Kwame Asante",
+              "anchoring": "ANCHORED",
+              "readAs": "said yes"
+            },
+            {
+              "invitationId": "8ea8c079-d354-464d-8611-b8c833bb6ace",
+              "personName": "Gary Lindqvist",
+              "anchoring": "ANCHORED",
+              "readAs": "said yes"
+            },
+            {
+              "invitationId": "6f0d1b7e-a30d-4be6-b57c-1157223e1ba8",
+              "personName": "Priya Raman",
+              "anchoring": "ANCHORED",
+              "readAs": "said yes"
+            },
+            {
+              "invitationId": "37c6127e-9191-4f9e-99f2-901679db076b",
+              "personName": "Dwayne Hollis",
+              "anchoring": "ANCHORED",
+              "readAs": "said yes"
+            }
+          ],
+          "chart": {
+            "prevalence": {
+              "founderBand": "p_80_100",
+              "founderLowPercent": 80,
+              "founderHighPercent": 100,
+              "yes": 10,
+              "n": 12,
+              "proportion": 0.83
+            }
+          }
+        },
+        {
+          "dimension": "problem.frequency",
+          "order": 2,
+          "name": "Frequency",
+          "belief": "Construction superintendents face this on 4 to 5 working days out of 5.",
+          "status": "HOLDING_UP",
+          "drift": "NONE",
+          "statusLine": "median 5 working days out of 5 · 8 of 8 inside what you said",
+          "answersShape": "interval",
+          "compareRule": "interval_contains_median",
+          "asked": {
+            "question": "On how many of those 5 working days did you put site walk photos and notes into the log afterward?",
+            "anchor": "the most recent time it happened"
+          },
+          "founderSaid": "You said 4 to 5 working days out of 5.",
+          "floor": 5,
+          "n": 8,
+          "interval": {
+            "unit": "working days out of 5",
+            "founderLow": 4,
+            "founderHigh": 5,
+            "median": 5,
+            "inside": 8,
+            "below": 0,
+            "above": 0,
+            "guessed": 2,
+            "escaped": 0
+          },
+          "people": [
+            {
+              "invitationId": "80c97bf3-023c-4f6c-ba34-43b54770578b",
+              "personName": "Hank Sorensen",
+              "anchoring": "GUESSED",
+              "readAs": "not counted · a guess"
+            },
+            {
+              "invitationId": "63d663e5-1f84-46a0-bc06-f8964ed429ea",
+              "personName": "Luis Arreola",
+              "anchoring": "GUESSED",
+              "readAs": "not counted · a guess"
+            },
+            {
+              "invitationId": "3a0e62d7-b99c-47ae-ac64-c5f739553938",
+              "personName": "Marcus Delgado",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "inside what you said",
+              "value": 5
+            },
+            {
+              "invitationId": "5d8d6f73-f32d-49c1-a405-44224bbcd321",
+              "personName": "Tomasz Wierzbicki",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "inside what you said",
+              "value": 4
+            },
+            {
+              "invitationId": "06fbdf36-81ce-4626-a38e-d063f303788f",
+              "personName": "Denise Okafor",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "inside what you said",
+              "value": 5
+            },
+            {
+              "invitationId": "6c8f6bc2-338c-449b-b904-bcd281c2ac87",
+              "personName": "Ray Villanueva",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "inside what you said",
+              "value": 5
+            },
+            {
+              "invitationId": "4e77b89b-714d-40ed-90e4-65bb4cbe0fb6",
+              "personName": "Kwame Asante",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "inside what you said",
+              "value": 5
+            },
+            {
+              "invitationId": "8ea8c079-d354-464d-8611-b8c833bb6ace",
+              "personName": "Gary Lindqvist",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "inside what you said",
+              "value": 5
+            },
+            {
+              "invitationId": "6f0d1b7e-a30d-4be6-b57c-1157223e1ba8",
+              "personName": "Priya Raman",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "inside what you said",
+              "value": 4
+            },
+            {
+              "invitationId": "37c6127e-9191-4f9e-99f2-901679db076b",
+              "personName": "Dwayne Hollis",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "inside what you said",
+              "value": 5
+            }
+          ],
+          "figure": "5 working days out of 5",
+          "chart": {
+            "window": {
+              "count": 5,
+              "unit": "working day",
+              "units": "working days"
+            }
+          }
+        },
+        {
+          "dimension": "problem.importance",
+          "order": 3,
+          "name": "Importance",
+          "belief": "When site walks are done and photos and notes go into the log, keeping an accurate record of the day's work is one of the two difficulties construction superintendents would most like made easier, out of five.",
+          "status": "PEOPLE_DISAGREE",
+          "drift": "BOTH",
+          "driftClause": "you said keeping an accurate record of the day's work · 4 of 8 put it in their two",
+          "statusLine": "4 of 8 put it in their two",
+          "answersShape": "choice",
+          "compareRule": "share_in_picks",
+          "asked": {
+            "question": "Thinking about that last day, which two of these would you most like made easier?",
+            "anchor": "the most recent time it happened"
+          },
+          "founderSaid": "You said keeping an accurate record of the day's work.",
+          "floor": 5,
+          "n": 8,
+          "choice": {
+            "founderCodes": [
+              "own"
+            ],
+            "optionCounts": [
+              {
+                "label": "Keeping an accurate record of the day's work",
+                "code": "own",
+                "count": 4,
+                "founderNamed": true
+              },
+              {
+                "label": "Keeping the job on schedule",
+                "code": "rival_1",
+                "count": 6,
+                "founderNamed": false
+              },
+              {
+                "label": "Getting subs to show up and finish",
+                "code": "rival_2",
+                "count": 3,
+                "founderNamed": false
+              },
+              {
+                "label": "Chasing RFIs and submittals",
+                "code": "rival_3",
+                "count": 2,
+                "founderNamed": false
+              },
+              {
+                "label": "Keeping the site safe",
+                "code": "rival_4",
+                "count": 1,
+                "founderNamed": false
+              }
+            ],
+            "escaped": 0
+          },
+          "people": [
+            {
+              "invitationId": "80c97bf3-023c-4f6c-ba34-43b54770578b",
+              "personName": "Hank Sorensen",
+              "anchoring": "GUESSED",
+              "readAs": "not counted · a guess",
+              "followUp": "Schedule and keeping my guys safe. The logs get done one way or another."
+            },
+            {
+              "invitationId": "63d663e5-1f84-46a0-bc06-f8964ed429ea",
+              "personName": "Luis Arreola",
+              "anchoring": "GUESSED",
+              "readAs": "not counted · a guess"
+            },
+            {
+              "invitationId": "3a0e62d7-b99c-47ae-ac64-c5f739553938",
+              "personName": "Marcus Delgado",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "put it in their two"
+            },
+            {
+              "invitationId": "5d8d6f73-f32d-49c1-a405-44224bbcd321",
+              "personName": "Tomasz Wierzbicki",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "put it in their two"
+            },
+            {
+              "invitationId": "06fbdf36-81ce-4626-a38e-d063f303788f",
+              "personName": "Denise Okafor",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "put two others first",
+              "followUp": "My log's done on the tablet before I leave the gate. Keeping the schedule and getting subs to show up is what eats my day."
+            },
+            {
+              "invitationId": "6c8f6bc2-338c-449b-b904-bcd281c2ac87",
+              "personName": "Ray Villanueva",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "put two others first",
+              "followUp": "When two subs don't show and the crane's down for wind, the schedule is slipping. The log can wait till morning, the deck can't."
+            },
+            {
+              "invitationId": "4e77b89b-714d-40ed-90e4-65bb4cbe0fb6",
+              "personName": "Kwame Asante",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "put it in their two"
+            },
+            {
+              "invitationId": "8ea8c079-d354-464d-8611-b8c833bb6ace",
+              "personName": "Gary Lindqvist",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "put two others first",
+              "followUp": "Safety and the schedule are the job. The log takes me forty minutes and I'd rather write it myself anyway, it's my name on it."
+            },
+            {
+              "invitationId": "6f0d1b7e-a30d-4be6-b57c-1157223e1ba8",
+              "personName": "Priya Raman",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "put it in their two"
+            },
+            {
+              "invitationId": "37c6127e-9191-4f9e-99f2-901679db076b",
+              "personName": "Dwayne Hollis",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "put two others first",
+              "followUp": "My assistant super writes the log, so it's not on my plate. Chasing RFIs and holding the schedule is."
+            }
+          ],
+          "insight": "a split: 4 support it, 4 do not"
+        },
+        {
+          "dimension": "problem.current_solution_satisfaction",
+          "order": 4,
+          "name": "Current solution",
+          "belief": "For most construction superintendents, their way of getting the day into the log falls short: it takes a lot of effort or lets errors through.",
+          "status": "HOLDING_UP",
+          "drift": "NONE",
+          "statusLine": "5 of 7 said today's way falls short",
+          "answersShape": "choice",
+          "compareRule": "below_line",
+          "asked": {
+            "question": "Think of the last day. How well did your way of getting the day into the log work?",
+            "anchor": "the most recent time it happened"
+          },
+          "founderSaid": "You said their way of getting the day into the log.",
+          "floor": 5,
+          "n": 7,
+          "choice": {
+            "founderCodes": [
+              "outcome_3",
+              "outcome_4",
+              "outcome_5"
+            ],
+            "optionCounts": [
+              {
+                "label": "It was done quickly, with no trouble",
+                "code": "outcome_1",
+                "count": 1,
+                "founderNamed": false
+              },
+              {
+                "label": "It was done after a try or two",
+                "code": "outcome_2",
+                "count": 1,
+                "founderNamed": false
+              },
+              {
+                "label": "It was done after a lot of effort",
+                "code": "outcome_3",
+                "count": 3,
+                "founderNamed": true
+              },
+              {
+                "label": "It was barely done; much was left out",
+                "code": "outcome_4",
+                "count": 1,
+                "founderNamed": true
+              },
+              {
+                "label": "It did not get done at all",
+                "code": "outcome_5",
+                "count": 1,
+                "founderNamed": true
+              }
+            ],
+            "escaped": 1
+          },
+          "people": [
+            {
+              "invitationId": "80c97bf3-023c-4f6c-ba34-43b54770578b",
+              "personName": "Hank Sorensen",
+              "anchoring": "GUESSED",
+              "readAs": "not counted · a guess"
+            },
+            {
+              "invitationId": "63d663e5-1f84-46a0-bc06-f8964ed429ea",
+              "personName": "Luis Arreola",
+              "anchoring": "GUESSED",
+              "readAs": "not counted · a guess"
+            },
+            {
+              "invitationId": "37c6127e-9191-4f9e-99f2-901679db076b",
+              "personName": "Dwayne Hollis",
+              "anchoring": "ANCHORED",
+              "readAs": "not counted · Someone else does the checking"
+            },
+            {
+              "invitationId": "3a0e62d7-b99c-47ae-ac64-c5f739553938",
+              "personName": "Marcus Delgado",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "It was done after a lot of effort"
+            },
+            {
+              "invitationId": "5d8d6f73-f32d-49c1-a405-44224bbcd321",
+              "personName": "Tomasz Wierzbicki",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "It was done after a lot of effort"
+            },
+            {
+              "invitationId": "06fbdf36-81ce-4626-a38e-d063f303788f",
+              "personName": "Denise Okafor",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "It was done quickly, with no trouble"
+            },
+            {
+              "invitationId": "6c8f6bc2-338c-449b-b904-bcd281c2ac87",
+              "personName": "Ray Villanueva",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "It was barely done; much was left out"
+            },
+            {
+              "invitationId": "4e77b89b-714d-40ed-90e4-65bb4cbe0fb6",
+              "personName": "Kwame Asante",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "It did not get done at all"
+            },
+            {
+              "invitationId": "8ea8c079-d354-464d-8611-b8c833bb6ace",
+              "personName": "Gary Lindqvist",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "It was done after a try or two"
+            },
+            {
+              "invitationId": "6f0d1b7e-a30d-4be6-b57c-1157223e1ba8",
+              "personName": "Priya Raman",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "It was done after a lot of effort"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vector": "SOLUTION",
+      "statement": "When the site walk is happening and the superintendent wants to capture what they see and say, the construction superintendent takes short videos during the walk and talks over them, and the tool turns them into notes with photos, assignees and due dates, texts the crew their action items, and sends the notes to the project system on one click and gets back written site notes with photos, assignees and due dates, and a text with action items sent to each crew member.",
+      "verdict": "PEOPLE_DISAGREE",
+      "drift": "BOTH",
+      "headline": "People disagree · you said it would have made their last time better",
+      "headlineTone": "warn",
+      "whatItMeasures": "Each belief is checked against what anchored people said about one real time; the verdict is the worst of all its dimensions.",
+      "counts": {
+        "holdingUp": 1,
+        "notHoldingUp": 0,
+        "peopleDisagree": 2,
+        "tooFewToCall": 0,
+        "notAskedYet": 0,
+        "leftOut": 0
+      },
+      "dimensionsHolding": 1,
+      "dimensionsTotal": 3,
+      "peopleAnswered": 20,
+      "dimensions": [
+        {
+          "dimension": "solution.compatibility",
+          "order": 1,
+          "name": "Compatibility",
+          "belief": "For most, on their last day, they could talk over the noise on site.",
+          "status": "HOLDING_UP",
+          "drift": "NONE",
+          "statusLine": "5 of 7 said yes, easily or with some steps",
+          "answersShape": "choice",
+          "compareRule": "fixed_last_two_against",
+          "asked": {
+            "question": "On your last day, you could have talked out loud over the noise on site?",
+            "anchor": "that same time, with the idea in mind"
+          },
+          "founderSaid": "You said they could talk over the noise on site.",
+          "floor": 5,
+          "n": 7,
+          "choice": {
+            "founderCodes": [
+              "yes_easily",
+              "yes_with_steps"
+            ],
+            "optionCounts": [
+              {
+                "label": "Yes, easily",
+                "code": "yes_easily",
+                "count": 3,
+                "founderNamed": true
+              },
+              {
+                "label": "Yes, with some steps",
+                "code": "yes_with_steps",
+                "count": 2,
+                "founderNamed": true
+              },
+              {
+                "label": "Only with help or approval",
+                "code": "only_with_help",
+                "count": 0,
+                "founderNamed": false
+              },
+              {
+                "label": "No",
+                "code": "no",
+                "count": 2,
+                "founderNamed": false
+              }
+            ],
+            "escaped": 1
+          },
+          "people": [
+            {
+              "invitationId": "80c97bf3-023c-4f6c-ba34-43b54770578b",
+              "personName": "Hank Sorensen",
+              "anchoring": "GUESSED",
+              "readAs": "not counted · a guess"
+            },
+            {
+              "invitationId": "63d663e5-1f84-46a0-bc06-f8964ed429ea",
+              "personName": "Luis Arreola",
+              "anchoring": "GUESSED",
+              "readAs": "not counted · a guess"
+            },
+            {
+              "invitationId": "37c6127e-9191-4f9e-99f2-901679db076b",
+              "personName": "Dwayne Hollis",
+              "anchoring": "ANCHORED",
+              "readAs": "not counted · I can't tell"
+            },
+            {
+              "invitationId": "3a0e62d7-b99c-47ae-ac64-c5f739553938",
+              "personName": "Marcus Delgado",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, easily"
+            },
+            {
+              "invitationId": "5d8d6f73-f32d-49c1-a405-44224bbcd321",
+              "personName": "Tomasz Wierzbicki",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, with some steps"
+            },
+            {
+              "invitationId": "06fbdf36-81ce-4626-a38e-d063f303788f",
+              "personName": "Denise Okafor",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, easily"
+            },
+            {
+              "invitationId": "6c8f6bc2-338c-449b-b904-bcd281c2ac87",
+              "personName": "Ray Villanueva",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "No"
+            },
+            {
+              "invitationId": "4e77b89b-714d-40ed-90e4-65bb4cbe0fb6",
+              "personName": "Kwame Asante",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "No",
+              "followUp": "On a pour day with the pump and the trucks running, nobody's hearing a word I say into a phone."
+            },
+            {
+              "invitationId": "8ea8c079-d354-464d-8611-b8c833bb6ace",
+              "personName": "Gary Lindqvist",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, easily"
+            },
+            {
+              "invitationId": "6f0d1b7e-a30d-4be6-b57c-1157223e1ba8",
+              "personName": "Priya Raman",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, with some steps"
+            }
+          ]
+        },
+        {
+          "dimension": "solution.relative_advantage",
+          "order": 2,
+          "name": "Relative advantage",
+          "belief": "For most, it would have made their last day better.",
+          "status": "PEOPLE_DISAGREE",
+          "drift": "BOTH",
+          "driftClause": "you said it would have made their last time better · 5 of the 8 said it would have made things better",
+          "statusLine": "5 of 8 said it would have been better",
+          "answersShape": "choice",
+          "compareRule": "benefit_first",
+          "asked": {
+            "question": "On your last day, would Fresco have made things better, or not?",
+            "anchor": "that same time, with the idea in mind"
+          },
+          "founderSaid": "You said hours back at the end of the day.",
+          "floor": 5,
+          "n": 8,
+          "choice": {
+            "founderCodes": [
+              "positive"
+            ],
+            "optionCounts": [
+              {
+                "label": "It would have made things better",
+                "code": "positive",
+                "count": 5,
+                "founderNamed": true
+              },
+              {
+                "label": "No difference",
+                "code": "neutral",
+                "count": 2,
+                "founderNamed": false
+              },
+              {
+                "label": "It would have made things worse",
+                "code": "negative",
+                "count": 1,
+                "founderNamed": false
+              }
+            ],
+            "escaped": 0
+          },
+          "people": [
+            {
+              "invitationId": "80c97bf3-023c-4f6c-ba34-43b54770578b",
+              "personName": "Hank Sorensen",
+              "anchoring": "GUESSED",
+              "readAs": "not counted · a guess"
+            },
+            {
+              "invitationId": "63d663e5-1f84-46a0-bc06-f8964ed429ea",
+              "personName": "Luis Arreola",
+              "anchoring": "GUESSED",
+              "readAs": "not counted · a guess"
+            },
+            {
+              "invitationId": "3a0e62d7-b99c-47ae-ac64-c5f739553938",
+              "personName": "Marcus Delgado",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "would have made things better"
+            },
+            {
+              "invitationId": "5d8d6f73-f32d-49c1-a405-44224bbcd321",
+              "personName": "Tomasz Wierzbicki",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "would have made things better"
+            },
+            {
+              "invitationId": "06fbdf36-81ce-4626-a38e-d063f303788f",
+              "personName": "Denise Okafor",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "no difference"
+            },
+            {
+              "invitationId": "6c8f6bc2-338c-449b-b904-bcd281c2ac87",
+              "personName": "Ray Villanueva",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "would have made things better"
+            },
+            {
+              "invitationId": "4e77b89b-714d-40ed-90e4-65bb4cbe0fb6",
+              "personName": "Kwame Asante",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "would have made things better"
+            },
+            {
+              "invitationId": "8ea8c079-d354-464d-8611-b8c833bb6ace",
+              "personName": "Gary Lindqvist",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "would have made things worse"
+            },
+            {
+              "invitationId": "6f0d1b7e-a30d-4be6-b57c-1157223e1ba8",
+              "personName": "Priya Raman",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "would have made things better"
+            },
+            {
+              "invitationId": "37c6127e-9191-4f9e-99f2-901679db076b",
+              "personName": "Dwayne Hollis",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "no difference"
+            }
+          ],
+          "chart": {
+            "benefit": {
+              "better": 5,
+              "noDifference": 2,
+              "worse": 1,
+              "n": 8,
+              "advantages": [
+                {
+                  "code": "benefit_1",
+                  "label": "Hours back at the end of the day",
+                  "count": 4
+                },
+                {
+                  "code": "benefit_2",
+                  "label": "Action items to the crew the same day",
+                  "count": 2
+                }
+              ]
+            }
+          },
+          "insight": "a split: 5 at or beyond what you said, 3 short of it"
+        },
+        {
+          "dimension": "solution.adoption_friction",
+          "order": 3,
+          "name": "Adoption friction",
+          "belief": "Most would take short videos and talk over them on walks.",
+          "status": "PEOPLE_DISAGREE",
+          "drift": "BOTH",
+          "driftClause": "you said most would take short videos and talk over them on walks · 5 of 8 would",
+          "statusLine": "5 of 8 would do it",
+          "answersShape": "choice",
+          "compareRule": "fixed_last_two_against",
+          "asked": {
+            "question": "You would have to take short videos and talk over them as you go on your site walks. Would you do that, or not?",
+            "anchor": "that same time, with the idea in mind"
+          },
+          "founderSaid": "You said take short videos and talk over them on walks.",
+          "floor": 5,
+          "n": 8,
+          "choice": {
+            "founderCodes": [
+              "yes",
+              "yes_if_worth_it"
+            ],
+            "optionCounts": [
+              {
+                "label": "Yes",
+                "code": "yes",
+                "count": 3,
+                "founderNamed": true
+              },
+              {
+                "label": "Yes, if it was clearly worth it",
+                "code": "yes_if_worth_it",
+                "count": 2,
+                "founderNamed": true
+              },
+              {
+                "label": "Probably not",
+                "code": "probably_not",
+                "count": 2,
+                "founderNamed": false
+              },
+              {
+                "label": "No",
+                "code": "no",
+                "count": 1,
+                "founderNamed": false
+              }
+            ],
+            "escaped": 0
+          },
+          "people": [
+            {
+              "invitationId": "80c97bf3-023c-4f6c-ba34-43b54770578b",
+              "personName": "Hank Sorensen",
+              "anchoring": "GUESSED",
+              "readAs": "not counted · a guess"
+            },
+            {
+              "invitationId": "63d663e5-1f84-46a0-bc06-f8964ed429ea",
+              "personName": "Luis Arreola",
+              "anchoring": "GUESSED",
+              "readAs": "not counted · a guess"
+            },
+            {
+              "invitationId": "3a0e62d7-b99c-47ae-ac64-c5f739553938",
+              "personName": "Marcus Delgado",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes"
+            },
+            {
+              "invitationId": "5d8d6f73-f32d-49c1-a405-44224bbcd321",
+              "personName": "Tomasz Wierzbicki",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, if it was clearly worth it · shown apart"
+            },
+            {
+              "invitationId": "06fbdf36-81ce-4626-a38e-d063f303788f",
+              "personName": "Denise Okafor",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "Probably not"
+            },
+            {
+              "invitationId": "6c8f6bc2-338c-449b-b904-bcd281c2ac87",
+              "personName": "Ray Villanueva",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, if it was clearly worth it · shown apart"
+            },
+            {
+              "invitationId": "4e77b89b-714d-40ed-90e4-65bb4cbe0fb6",
+              "personName": "Kwame Asante",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes"
+            },
+            {
+              "invitationId": "8ea8c079-d354-464d-8611-b8c833bb6ace",
+              "personName": "Gary Lindqvist",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "No"
+            },
+            {
+              "invitationId": "6f0d1b7e-a30d-4be6-b57c-1157223e1ba8",
+              "personName": "Priya Raman",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes"
+            },
+            {
+              "invitationId": "37c6127e-9191-4f9e-99f2-901679db076b",
+              "personName": "Dwayne Hollis",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "Probably not"
+            }
+          ],
+          "insight": "a split: 5 support it, 3 do not"
+        }
+      ]
+    },
+    {
+      "vector": "COMMERCIAL",
+      "statement": "Commercial evidence should come from contractors, not from the construction superintendents who feel the problem.",
+      "verdict": "NOT_HOLDING_UP",
+      "drift": "SHORT",
+      "headline": "Not holding up · lower than you think",
+      "headlineTone": "bad",
+      "whatItMeasures": "Each belief is checked against what anchored people said about one real time; the verdict is the worst of all its dimensions.",
+      "counts": {
+        "holdingUp": 2,
+        "notHoldingUp": 1,
+        "peopleDisagree": 3,
+        "tooFewToCall": 0,
+        "notAskedYet": 0,
+        "leftOut": 0
+      },
+      "dimensionsHolding": 2,
+      "dimensionsTotal": 6,
+      "peopleAnswered": 20,
+      "decisionMaker": "contractor",
+      "dimensions": [
+        {
+          "dimension": "commercial.existing_sacrifice",
+          "order": 1,
+          "name": "Existing sacrifice",
+          "belief": "The problem already costs the payer 30 to 60 hours a month, about $1,650 to $3,300.",
+          "status": "HOLDING_UP",
+          "drift": "NONE",
+          "statusLine": "median $2,200 a month · 5 of 7 inside or above what you said",
+          "answersShape": "interval",
+          "compareRule": "interval_contains_median",
+          "asked": {
+            "question": "Last month, what did it cost when site walks are done and photos and notes go into the log?",
+            "anchor": "the last thing they paid for to deal with it"
+          },
+          "founderSaid": "You said 30 to 60 hours a month, about $1,650 to $3,300.",
+          "floor": 5,
+          "n": 7,
+          "interval": {
+            "unit": "a month",
+            "founderLow": 1650,
+            "founderHigh": 3300,
+            "median": 2200.0,
+            "inside": 4,
+            "below": 2,
+            "above": 1,
+            "guessed": 0,
+            "escaped": 1,
+            "currency": "USD",
+            "currencySymbol": "$",
+            "period": "month"
+          },
+          "choice": {
+            "founderCodes": [],
+            "optionCounts": [],
+            "escaped": 1
+          },
+          "people": [
+            {
+              "invitationId": "59b9ae41-f8a1-4073-aa56-3ef3b347ae3e",
+              "personName": "Omar Haddadin",
+              "anchoring": "ANCHORED",
+              "readAs": "not counted · I can't recall"
+            },
+            {
+              "invitationId": "eae270c3-a711-4a48-b241-e318c1144946",
+              "personName": "Renee Castillo",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "$3,300 a month · inside what you said",
+              "value": 3300
+            },
+            {
+              "invitationId": "2df7fb36-1c16-4cf4-be1a-e342cc70bddc",
+              "personName": "Bill Ostrowski",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "$2,200 a month · inside what you said",
+              "value": 2200
+            },
+            {
+              "invitationId": "4297367d-21af-4227-b85a-3d081ce97647",
+              "personName": "Faith Nakamura",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "$0 a month · below what you said",
+              "value": 0
+            },
+            {
+              "invitationId": "8bee6914-82b9-4ef6-a017-db2192837ec5",
+              "personName": "Gordon Achebe",
+              "anchoring": "ANCHORED",
+              "placement": "BEYOND",
+              "readAs": "$4,400 a month · above what you said",
+              "value": 4400
+            },
+            {
+              "invitationId": "13040396-7d7b-4dd7-9e03-726fd2175eaa",
+              "personName": "Sandra Whitfield",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "$1,650 a month · inside what you said",
+              "value": 1650
+            },
+            {
+              "invitationId": "fca86a1f-64a6-47bc-8a90-3aed29483e73",
+              "personName": "Lena Brandt",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "$2,475 a month · inside what you said",
+              "value": 2475
+            },
+            {
+              "invitationId": "bd23c984-346f-4f9b-a59d-721299cecaa6",
+              "personName": "Trevor McAllister",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "$600 a month · below what you said",
+              "value": 600
+            }
+          ],
+          "figure": "a median $2,200 a month -- $300 in money plus 45 hours at $55 an hour",
+          "chart": {
+            "money": {
+              "currency": "USD",
+              "currencySymbol": "$",
+              "period": "month",
+              "periodWords": "a month",
+              "founderLow": 1650,
+              "founderHigh": 3300
+            }
+          }
+        },
+        {
+          "dimension": "commercial.price",
+          "order": 2,
+          "name": "Price",
+          "belief": "The payer would think it worth $800 to $1,000 a month.",
+          "status": "NOT_HOLDING_UP",
+          "drift": "SHORT",
+          "driftClause": "lower than you think · you said $800 to $1,000 a month · 2 of 8 said it was worth your band or more",
+          "statusLine": "2 of 8 said your band or more",
+          "answersShape": "choice",
+          "compareRule": "ordinal_band",
+          "asked": {
+            "question": "What would a way out of end-of-day paperwork be worth to you a month?",
+            "anchor": "the last thing they paid for to deal with it"
+          },
+          "founderSaid": "You said $800 to $1,000 a month.",
+          "floor": 5,
+          "n": 8,
+          "choice": {
+            "founderCodes": [
+              "band_500_1000",
+              "band_1000_2500",
+              "over_2500"
+            ],
+            "optionCounts": [
+              {
+                "label": "Under $250",
+                "code": "under_250",
+                "count": 1,
+                "founderNamed": false
+              },
+              {
+                "label": "$250 to $500",
+                "code": "band_250_500",
+                "count": 4,
+                "founderNamed": false
+              },
+              {
+                "label": "$500 to $1,000",
+                "code": "band_500_1000",
+                "count": 1,
+                "founderNamed": true
+              },
+              {
+                "label": "$1,000 to $2,500",
+                "code": "band_1000_2500",
+                "count": 1,
+                "founderNamed": true
+              },
+              {
+                "label": "Over $2,500",
+                "code": "over_2500",
+                "count": 0,
+                "founderNamed": true
+              },
+              {
+                "label": "I wouldn't pay for this",
+                "code": "would_not_pay",
+                "count": 1,
+                "founderNamed": false
+              }
+            ],
+            "escaped": 0
+          },
+          "people": [
+            {
+              "invitationId": "eae270c3-a711-4a48-b241-e318c1144946",
+              "personName": "Renee Castillo",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "your band"
+            },
+            {
+              "invitationId": "2df7fb36-1c16-4cf4-be1a-e342cc70bddc",
+              "personName": "Bill Ostrowski",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "below your band",
+              "followUp": "We already pay for project software on every job. A second fee per site that size is hard to justify when the logs get done either way."
+            },
+            {
+              "invitationId": "4297367d-21af-4227-b85a-3d081ce97647",
+              "personName": "Faith Nakamura",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "below your band",
+              "followUp": "Our supers don't lose much time on logs, so there's nothing to pay it out of. It's a nice extra, not a cost we carry."
+            },
+            {
+              "invitationId": "8bee6914-82b9-4ef6-a017-db2192837ec5",
+              "personName": "Gordon Achebe",
+              "anchoring": "ANCHORED",
+              "placement": "BEYOND",
+              "readAs": "above your band"
+            },
+            {
+              "invitationId": "13040396-7d7b-4dd7-9e03-726fd2175eaa",
+              "personName": "Sandra Whitfield",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "below your band",
+              "followUp": "I wouldn't put money on an app writing our legal record. If the notes are wrong in a dispute, that's on us, not the vendor."
+            },
+            {
+              "invitationId": "59b9ae41-f8a1-4073-aa56-3ef3b347ae3e",
+              "personName": "Omar Haddadin",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "below your band",
+              "followUp": "I can't tell you what the logs cost us now, so I can't justify a thousand a site. Show me the hours first."
+            },
+            {
+              "invitationId": "fca86a1f-64a6-47bc-8a90-3aed29483e73",
+              "personName": "Lena Brandt",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "below your band",
+              "followUp": "Across all our jobs a per-site fee adds up fast. If it were priced by the supers actually using it, I'd go higher."
+            },
+            {
+              "invitationId": "bd23c984-346f-4f9b-a59d-721299cecaa6",
+              "personName": "Trevor McAllister",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "below your band",
+              "followUp": "Cleaning up logs costs us about six hundred a month in overtime today, so paying more than that to fix it makes no sense."
+            }
+          ],
+          "figure": "2 of 8 said it would be worth $500 a month or more",
+          "chart": {
+            "price": {
+              "founderBand": "band_500_1000",
+              "atOrAbove": [
+                "band_500_1000",
+                "band_1000_2500",
+                "over_2500"
+              ],
+              "atOrAboveCount": 2,
+              "n": 8
+            }
+          },
+          "insight": "they value it below your price"
+        },
+        {
+          "dimension": "commercial.ability_to_pay",
+          "order": 3,
+          "name": "Ability to pay",
+          "belief": "Your price is 24% to 61% of what the problem costs them today: it could mostly be paid from what they already spend.",
+          "status": "HOLDING_UP",
+          "drift": "STRONGER",
+          "driftClause": "easier to pay than you think · you said 24% to 61% of what the problem costs them today: it could mostly be paid from what they already spend · 5 of 7 already spend your price or more",
+          "statusLine": "5 of 7 already spend your price or more",
+          "answersShape": "choice",
+          "compareRule": "cost_covers_price",
+          "asked": {
+            "question": "Think of the last tool your team paid for. Where did the money come from?",
+            "anchor": "the last thing they paid for to deal with it"
+          },
+          "founderSaid": "You said 24% to 61% of what the problem costs them today: it could mostly be paid from what they already spend.",
+          "floor": 5,
+          "n": 7,
+          "choice": {
+            "founderCodes": [],
+            "optionCounts": [
+              {
+                "label": "A budget line we already had",
+                "code": "existing_line",
+                "count": 3,
+                "founderNamed": false
+              },
+              {
+                "label": "A new budget line someone signed off",
+                "code": "new_line_signed_off",
+                "count": 2,
+                "founderNamed": false
+              },
+              {
+                "label": "Taken from other spending",
+                "code": "taken_from_other_spend",
+                "count": 1,
+                "founderNamed": false
+              },
+              {
+                "label": "There was no budget for it",
+                "code": "no_budget",
+                "count": 1,
+                "founderNamed": false
+              }
+            ],
+            "escaped": 1
+          },
+          "people": [
+            {
+              "invitationId": "59b9ae41-f8a1-4073-aa56-3ef3b347ae3e",
+              "personName": "Omar Haddadin",
+              "anchoring": "ANCHORED",
+              "readAs": "not counted · an answer this question does not take"
+            },
+            {
+              "invitationId": "eae270c3-a711-4a48-b241-e318c1144946",
+              "personName": "Renee Castillo",
+              "anchoring": "ANCHORED",
+              "placement": "BEYOND",
+              "readAs": "$3,300 a month · already spends your price or more",
+              "value": 3300
+            },
+            {
+              "invitationId": "2df7fb36-1c16-4cf4-be1a-e342cc70bddc",
+              "personName": "Bill Ostrowski",
+              "anchoring": "ANCHORED",
+              "placement": "BEYOND",
+              "readAs": "$2,200 a month · already spends your price or more",
+              "value": 2200
+            },
+            {
+              "invitationId": "4297367d-21af-4227-b85a-3d081ce97647",
+              "personName": "Faith Nakamura",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "$0 a month · spends less than your price",
+              "value": 0
+            },
+            {
+              "invitationId": "8bee6914-82b9-4ef6-a017-db2192837ec5",
+              "personName": "Gordon Achebe",
+              "anchoring": "ANCHORED",
+              "placement": "BEYOND",
+              "readAs": "$4,400 a month · already spends your price or more",
+              "value": 4400
+            },
+            {
+              "invitationId": "13040396-7d7b-4dd7-9e03-726fd2175eaa",
+              "personName": "Sandra Whitfield",
+              "anchoring": "ANCHORED",
+              "placement": "BEYOND",
+              "readAs": "$1,650 a month · already spends your price or more",
+              "value": 1650
+            },
+            {
+              "invitationId": "fca86a1f-64a6-47bc-8a90-3aed29483e73",
+              "personName": "Lena Brandt",
+              "anchoring": "ANCHORED",
+              "placement": "BEYOND",
+              "readAs": "$2,475 a month · already spends your price or more",
+              "value": 2475
+            },
+            {
+              "invitationId": "bd23c984-346f-4f9b-a59d-721299cecaa6",
+              "personName": "Trevor McAllister",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "$600 a month · spends less than your price",
+              "value": 600
+            }
+          ],
+          "figure": "5 of 7 already spend $800 a month or more",
+          "chart": {
+            "money": {
+              "currency": "USD",
+              "currencySymbol": "$",
+              "period": "month",
+              "periodWords": "a month",
+              "priceLow": 800,
+              "covering": 5,
+              "counted": 7
+            }
+          },
+          "insight": "more could pay from today's spend than you thought"
+        },
+        {
+          "dimension": "commercial.buyer_payer_alignment",
+          "order": 4,
+          "name": "Buyer and payer",
+          "belief": "The contractor decides, and the CFO has to agree.",
+          "status": "PEOPLE_DISAGREE",
+          "drift": "BOTH",
+          "driftClause": "you said the CFO has to agree · 4 of 8 said so",
+          "statusLine": "4 of 8 said it went as you said",
+          "answersShape": "choice",
+          "compareRule": "first_supports",
+          "asked": {
+            "question": "For that tool, did the CFO have to agree before it went through?",
+            "anchor": "the last thing they paid for to deal with it"
+          },
+          "founderSaid": "You said the CFO.",
+          "floor": 5,
+          "n": 8,
+          "choice": {
+            "founderCodes": [
+              "had_to_agree"
+            ],
+            "optionCounts": [
+              {
+                "label": "Yes, they had to agree",
+                "code": "had_to_agree",
+                "count": 4,
+                "founderNamed": true
+              },
+              {
+                "label": "No, I decided on my own",
+                "code": "decided_alone",
+                "count": 2,
+                "founderNamed": false
+              },
+              {
+                "label": "No, someone else had to agree",
+                "code": "someone_else_agreed",
+                "count": 1,
+                "founderNamed": false
+              },
+              {
+                "label": "Someone else decided, not me",
+                "code": "someone_else_decided",
+                "count": 1,
+                "founderNamed": false
+              }
+            ],
+            "escaped": 0
+          },
+          "people": [
+            {
+              "invitationId": "eae270c3-a711-4a48-b241-e318c1144946",
+              "personName": "Renee Castillo",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, they had to agree"
+            },
+            {
+              "invitationId": "2df7fb36-1c16-4cf4-be1a-e342cc70bddc",
+              "personName": "Bill Ostrowski",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "No, I decided on my own"
+            },
+            {
+              "invitationId": "4297367d-21af-4227-b85a-3d081ce97647",
+              "personName": "Faith Nakamura",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "Someone else decided, not me"
+            },
+            {
+              "invitationId": "8bee6914-82b9-4ef6-a017-db2192837ec5",
+              "personName": "Gordon Achebe",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, they had to agree"
+            },
+            {
+              "invitationId": "13040396-7d7b-4dd7-9e03-726fd2175eaa",
+              "personName": "Sandra Whitfield",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, they had to agree"
+            },
+            {
+              "invitationId": "59b9ae41-f8a1-4073-aa56-3ef3b347ae3e",
+              "personName": "Omar Haddadin",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, they had to agree"
+            },
+            {
+              "invitationId": "fca86a1f-64a6-47bc-8a90-3aed29483e73",
+              "personName": "Lena Brandt",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "No, someone else had to agree"
+            },
+            {
+              "invitationId": "bd23c984-346f-4f9b-a59d-721299cecaa6",
+              "personName": "Trevor McAllister",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "No, I decided on my own"
+            }
+          ],
+          "insight": "of the 4 against, 2 said \"No, I decided on my own\""
+        },
+        {
+          "dimension": "commercial.purchase_friction",
+          "order": 5,
+          "name": "Purchase friction",
+          "belief": "A trial on one live job slows the purchase most.",
+          "status": "PEOPLE_DISAGREE",
+          "drift": "BOTH",
+          "driftClause": "you said A trial on one live job slows it most · 5 of 8 said it was quick or not needed",
+          "statusLine": "5 of 8 said it was quick or not needed",
+          "answersShape": "choice",
+          "compareRule": "caution_turned",
+          "asked": {
+            "question": "For that tool, did it need a trial on one live job before it went through?",
+            "anchor": "the last thing they paid for to deal with it"
+          },
+          "founderSaid": "You said A trial on one live job.",
+          "floor": 5,
+          "n": 8,
+          "choice": {
+            "founderCodes": [
+              "yes_quick",
+              "not_needed"
+            ],
+            "optionCounts": [
+              {
+                "label": "Yes, and it took a long time",
+                "code": "yes_long",
+                "count": 3,
+                "founderNamed": false
+              },
+              {
+                "label": "Yes, but it was quick",
+                "code": "yes_quick",
+                "count": 3,
+                "founderNamed": true
+              },
+              {
+                "label": "No, it wasn't needed",
+                "code": "not_needed",
+                "count": 2,
+                "founderNamed": true
+              }
+            ],
+            "escaped": 0
+          },
+          "people": [
+            {
+              "invitationId": "eae270c3-a711-4a48-b241-e318c1144946",
+              "personName": "Renee Castillo",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, but it was quick"
+            },
+            {
+              "invitationId": "2df7fb36-1c16-4cf4-be1a-e342cc70bddc",
+              "personName": "Bill Ostrowski",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "Yes, and it took a long time"
+            },
+            {
+              "invitationId": "4297367d-21af-4227-b85a-3d081ce97647",
+              "personName": "Faith Nakamura",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "No, it wasn't needed"
+            },
+            {
+              "invitationId": "8bee6914-82b9-4ef6-a017-db2192837ec5",
+              "personName": "Gordon Achebe",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "Yes, and it took a long time"
+            },
+            {
+              "invitationId": "13040396-7d7b-4dd7-9e03-726fd2175eaa",
+              "personName": "Sandra Whitfield",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "No, it wasn't needed"
+            },
+            {
+              "invitationId": "59b9ae41-f8a1-4073-aa56-3ef3b347ae3e",
+              "personName": "Omar Haddadin",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, but it was quick"
+            },
+            {
+              "invitationId": "fca86a1f-64a6-47bc-8a90-3aed29483e73",
+              "personName": "Lena Brandt",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "Yes, and it took a long time"
+            },
+            {
+              "invitationId": "bd23c984-346f-4f9b-a59d-721299cecaa6",
+              "personName": "Trevor McAllister",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, but it was quick"
+            }
+          ],
+          "insight": "a split: 5 support it, 3 do not"
+        },
+        {
+          "dimension": "commercial.commitment",
+          "order": 6,
+          "name": "Commitment",
+          "belief": "Most are open to start a paid pilot on one site now.",
+          "status": "PEOPLE_DISAGREE",
+          "drift": "BOTH",
+          "driftClause": "you said most are open to start a paid pilot on one site · 3 of 8 are",
+          "statusLine": "3 of 8 are open to it",
+          "answersShape": "choice",
+          "compareRule": "fixed_last_two_against",
+          "asked": {
+            "question": "If it were ready today, would you start a paid pilot on one site, or not?",
+            "anchor": "the last thing they paid for to deal with it"
+          },
+          "founderSaid": "You said start a paid pilot on one site.",
+          "floor": 5,
+          "n": 8,
+          "choice": {
+            "founderCodes": [
+              "yes_start",
+              "yes_after_trying"
+            ],
+            "optionCounts": [
+              {
+                "label": "Yes, I'd start one",
+                "code": "yes_start",
+                "count": 1,
+                "founderNamed": true
+              },
+              {
+                "label": "Yes, after trying it first",
+                "code": "yes_after_trying",
+                "count": 2,
+                "founderNamed": true
+              },
+              {
+                "label": "Probably not",
+                "code": "probably_not",
+                "count": 3,
+                "founderNamed": false
+              },
+              {
+                "label": "No",
+                "code": "no",
+                "count": 2,
+                "founderNamed": false
+              }
+            ],
+            "escaped": 0
+          },
+          "people": [
+            {
+              "invitationId": "eae270c3-a711-4a48-b241-e318c1144946",
+              "personName": "Renee Castillo",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, after trying it first · shown apart",
+              "followUp": "Let one of our supers run it free on a single job for a month, then we'd talk about paying per site."
+            },
+            {
+              "invitationId": "2df7fb36-1c16-4cf4-be1a-e342cc70bddc",
+              "personName": "Bill Ostrowski",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "Probably not"
+            },
+            {
+              "invitationId": "4297367d-21af-4227-b85a-3d081ce97647",
+              "personName": "Faith Nakamura",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "No"
+            },
+            {
+              "invitationId": "8bee6914-82b9-4ef6-a017-db2192837ec5",
+              "personName": "Gordon Achebe",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, I'd start one"
+            },
+            {
+              "invitationId": "13040396-7d7b-4dd7-9e03-726fd2175eaa",
+              "personName": "Sandra Whitfield",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "No"
+            },
+            {
+              "invitationId": "59b9ae41-f8a1-4073-aa56-3ef3b347ae3e",
+              "personName": "Omar Haddadin",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "Probably not"
+            },
+            {
+              "invitationId": "fca86a1f-64a6-47bc-8a90-3aed29483e73",
+              "personName": "Lena Brandt",
+              "anchoring": "ANCHORED",
+              "placement": "AT",
+              "readAs": "Yes, after trying it first · shown apart"
+            },
+            {
+              "invitationId": "bd23c984-346f-4f9b-a59d-721299cecaa6",
+              "personName": "Trevor McAllister",
+              "anchoring": "ANCHORED",
+              "placement": "SHORT",
+              "readAs": "Probably not"
+            }
+          ],
+          "insight": "a split: 3 support it, 5 do not"
+        }
+      ]
+    }
+  ],
+  "facts": {
+    "header": {
+      "project": "Fresco — the scribe for construction superintendents",
+      "segment": "superintendents at general contractors",
+      "market": {
+        "country": "US",
+        "currency": "USD"
+      },
+      "people": [
+        {
+          "link": "PRIMARY",
+          "words": "people who have it",
+          "people": 12
+        },
+        {
+          "link": "COMMERCIAL_B2B",
+          "words": "decision-makers",
+          "people": 8
+        }
+      ],
+      "firstSubmitted": "2026-10-22",
+      "lastSubmitted": "2026-10-22"
+    },
+    "decision": {
+      "label": "NOT_YET",
+      "howSure": "MEDIUM",
+      "reason": "Smallest group: 7 people.",
+      "smallestN": 7,
+      "split": true,
+      "notTested": []
+    },
+    "vectors": [
+      {
+        "vector": "PROBLEM",
+        "verdict": "PEOPLE_DISAGREE",
+        "words": "People disagree"
+      },
+      {
+        "vector": "SOLUTION",
+        "verdict": "PEOPLE_DISAGREE",
+        "words": "People disagree"
+      },
+      {
+        "vector": "COMMERCIAL",
+        "verdict": "NOT_HOLDING_UP",
+        "words": "Not holding up"
+      }
+    ],
+    "money": {
+      "currency": "USD",
+      "currencySymbol": "$",
+      "period": "month",
+      "periodWords": "a month"
+    },
+    "pilot": {
+      "optedIn": 6,
+      "finished": 20,
+      "percent": 30,
+      "perLink": [
+        {
+          "link": "PRIMARY",
+          "words": "people who have it",
+          "optedIn": 4,
+          "finished": 12
+        },
+        {
+          "link": "COMMERCIAL_B2B",
+          "words": "decision-makers",
+          "optedIn": 2,
+          "finished": 8
+        }
+      ]
+    },
+    "cards": [
+      {
+        "key": "problem.prevalence",
+        "name": "Prevalence",
+        "number": "10 of 12",
+        "line": "had it in the last 5 working days",
+        "status": "HOLDING_UP",
+        "statusWords": "Holding up"
+      },
+      {
+        "key": "problem.frequency",
+        "name": "Frequency",
+        "number": "5 working days out of 5",
+        "line": "the middle answer",
+        "status": "HOLDING_UP",
+        "statusWords": "Holding up"
+      },
+      {
+        "key": "problem.importance",
+        "name": "Importance",
+        "number": "4 of 8",
+        "line": "put it in their top two",
+        "status": "PEOPLE_DISAGREE",
+        "statusWords": "People disagree · a split: 4 support it, 4 do not",
+        "keelBar": "holds if at least 2 in 3 put it in their two"
+      },
+      {
+        "key": "problem.current_solution_satisfaction",
+        "name": "Current solution",
+        "number": "5 of 7",
+        "line": "say today's way falls short",
+        "status": "HOLDING_UP",
+        "statusWords": "Holding up",
+        "keelBar": "holds if at least 2 in 3 say today's way falls short (answers 3 to 5)"
+      },
+      {
+        "key": "solution.compatibility",
+        "name": "Compatibility",
+        "number": "5 of 7",
+        "line": "could talk over the noise on site",
+        "status": "HOLDING_UP",
+        "statusWords": "Holding up"
+      },
+      {
+        "key": "solution.relative_advantage",
+        "name": "Relative advantage",
+        "number": "5 of 8",
+        "line": "said it would have made their last day better",
+        "status": "PEOPLE_DISAGREE",
+        "statusWords": "People disagree · a split: 5 at or beyond what you said, 3 short of it"
+      },
+      {
+        "key": "solution.adoption_friction",
+        "name": "Adoption friction",
+        "number": "5 of 8",
+        "line": "would take short videos and talk over them on walks",
+        "status": "PEOPLE_DISAGREE",
+        "statusWords": "People disagree · a split: 5 support it, 3 do not"
+      },
+      {
+        "key": "commercial.existing_sacrifice",
+        "name": "Existing sacrifice",
+        "number": "$2,200",
+        "line": "a month, what it costs them today",
+        "status": "HOLDING_UP",
+        "statusWords": "Holding up"
+      },
+      {
+        "key": "commercial.price",
+        "name": "Price",
+        "number": "2 of 8",
+        "line": "at your band or more",
+        "status": "NOT_HOLDING_UP",
+        "statusWords": "Not holding up · they value it below your price"
+      },
+      {
+        "key": "commercial.ability_to_pay",
+        "name": "Ability to pay",
+        "number": "5 of 7",
+        "line": "already lose your price or more",
+        "status": "HOLDING_UP",
+        "statusWords": "Holding up · more could pay from today's spend than you thought"
+      },
+      {
+        "key": "commercial.buyer_payer_alignment",
+        "name": "Buyer and payer",
+        "number": "4 of 8",
+        "line": "the CFO had to agree",
+        "status": "PEOPLE_DISAGREE",
+        "statusWords": "People disagree · of the 4 against, 2 said \"No, I decided on my own\""
+      },
+      {
+        "key": "commercial.purchase_friction",
+        "name": "Purchase friction",
+        "number": "5 of 8",
+        "line": "did not need a trial on one live job, or it was quick",
+        "status": "PEOPLE_DISAGREE",
+        "statusWords": "People disagree · a split: 5 support it, 3 do not"
+      },
+      {
+        "key": "commercial.commitment",
+        "name": "Commitment",
+        "number": "3 of 8",
+        "line": "open to start a paid pilot on one site",
+        "status": "PEOPLE_DISAGREE",
+        "statusWords": "People disagree · a split: 3 support it, 5 do not"
+      }
+    ],
+    "problem": {
+      "broke": {
+        "key": "problem.importance",
+        "name": "Importance",
+        "status": "PEOPLE_DISAGREE",
+        "statusWords": "People disagree · a split: 4 support it, 4 do not",
+        "tested": "Keeping an accurate record of the day's work",
+        "number": "4 of 8",
+        "line": "put it in their top two",
+        "answers": [
+          {
+            "code": "own",
+            "label": "Keeping an accurate record of the day's work",
+            "count": 4
+          },
+          {
+            "code": "rival_1",
+            "label": "Keeping the job on schedule",
+            "count": 6
+          },
+          {
+            "code": "rival_2",
+            "label": "Getting subs to show up and finish",
+            "count": 3
+          },
+          {
+            "code": "rival_3",
+            "label": "Chasing RFIs and submittals",
+            "count": 2
+          },
+          {
+            "code": "rival_4",
+            "label": "Keeping the site safe",
+            "count": 1
+          }
+        ]
+      },
+      "notAsked": [],
+      "prevalence": {
+        "yes": 10,
+        "n": 12,
+        "window": "the last 5 working days"
+      },
+      "frequency": {
+        "median": 5,
+        "middle": "5 working days out of 5",
+        "n": 8
+      },
+      "importance": {
+        "own": "Keeping an accurate record of the day's work",
+        "ownTicks": 4,
+        "n": 8,
+        "noneOfThese": 0,
+        "ticks": [
+          {
+            "code": "own",
+            "label": "Keeping an accurate record of the day's work",
+            "count": 4
+          },
+          {
+            "code": "rival_1",
+            "label": "Keeping the job on schedule",
+            "count": 6
+          },
+          {
+            "code": "rival_2",
+            "label": "Getting subs to show up and finish",
+            "count": 3
+          },
+          {
+            "code": "rival_3",
+            "label": "Chasing RFIs and submittals",
+            "count": 2
+          },
+          {
+            "code": "rival_4",
+            "label": "Keeping the site safe",
+            "count": 1
+          }
+        ]
+      },
+      "currentSolution": {
+        "phrase": "your way of getting the day into the log",
+        "answers": [
+          {
+            "code": "outcome_1",
+            "label": "It was done quickly, with no trouble",
+            "count": 1
+          },
+          {
+            "code": "outcome_2",
+            "label": "It was done after a try or two",
+            "count": 1
+          },
+          {
+            "code": "outcome_3",
+            "label": "It was done after a lot of effort",
+            "count": 3
+          },
+          {
+            "code": "outcome_4",
+            "label": "It was barely done; much was left out",
+            "count": 1
+          },
+          {
+            "code": "outcome_5",
+            "label": "It did not get done at all",
+            "count": 1
+          }
+        ],
+        "line": 2,
+        "fallShort": 5,
+        "n": 7
+      }
+    },
+    "solution": {
+      "broke": {
+        "key": "solution.relative_advantage",
+        "name": "Relative advantage",
+        "status": "PEOPLE_DISAGREE",
+        "statusWords": "People disagree · a split: 5 at or beyond what you said, 3 short of it",
+        "number": "5 of 8",
+        "line": "said it would have made their last day better",
+        "answers": [
+          {
+            "code": "positive",
+            "label": "It would have made things better",
+            "count": 5
+          },
+          {
+            "code": "neutral",
+            "label": "No difference",
+            "count": 2
+          },
+          {
+            "code": "negative",
+            "label": "It would have made things worse",
+            "count": 1
+          }
+        ]
+      },
+      "notAsked": [],
+      "rows": [
+        {
+          "key": "solution.compatibility",
+          "name": "Compatibility",
+          "tested": "They could talk over the noise on site",
+          "notTested": [
+            "They had their phone out on the walk",
+            "The job kept its logs in Procore or ACC"
+          ],
+          "answers": [
+            {
+              "code": "yes_easily",
+              "label": "Yes, easily",
+              "count": 3
+            },
+            {
+              "code": "yes_with_steps",
+              "label": "Yes, with some steps",
+              "count": 2
+            },
+            {
+              "code": "only_with_help",
+              "label": "Only with help or approval",
+              "count": 0
+            },
+            {
+              "code": "no",
+              "label": "No",
+              "count": 2
+            }
+          ],
+          "supports": 5,
+          "escaped": 1,
+          "n": 7,
+          "status": "HOLDING_UP",
+          "statusWords": "Holding up"
+        },
+        {
+          "key": "solution.relative_advantage",
+          "name": "Relative advantage",
+          "notTested": [],
+          "answers": [
+            {
+              "code": "positive",
+              "label": "It would have made things better",
+              "count": 5
+            },
+            {
+              "code": "neutral",
+              "label": "No difference",
+              "count": 2
+            },
+            {
+              "code": "negative",
+              "label": "It would have made things worse",
+              "count": 1
+            }
+          ],
+          "supports": 5,
+          "escaped": 0,
+          "n": 8,
+          "status": "PEOPLE_DISAGREE",
+          "statusWords": "People disagree · a split: 5 at or beyond what you said, 3 short of it"
+        },
+        {
+          "key": "solution.adoption_friction",
+          "name": "Adoption friction",
+          "tested": "Take short videos and talk over them on walks",
+          "notTested": [
+            "Check and fix the notes before they go out"
+          ],
+          "answers": [
+            {
+              "code": "yes",
+              "label": "Yes",
+              "count": 3
+            },
+            {
+              "code": "yes_if_worth_it",
+              "label": "Yes, if it was clearly worth it",
+              "count": 2
+            },
+            {
+              "code": "probably_not",
+              "label": "Probably not",
+              "count": 2
+            },
+            {
+              "code": "no",
+              "label": "No",
+              "count": 1
+            }
+          ],
+          "supports": 5,
+          "apart": 2,
+          "escaped": 0,
+          "n": 8,
+          "status": "PEOPLE_DISAGREE",
+          "statusWords": "People disagree · a split: 5 support it, 3 do not"
+        }
+      ],
+      "benefit": {
+        "better": 5,
+        "noDifference": 2,
+        "worse": 1,
+        "n": 8,
+        "advantages": [
+          {
+            "code": "benefit_1",
+            "label": "Hours back at the end of the day",
+            "count": 4
+          },
+          {
+            "code": "benefit_2",
+            "label": "Action items to the crew the same day",
+            "count": 2
+          }
+        ]
+      }
+    },
+    "commercial": {
+      "broke": {
+        "key": "commercial.price",
+        "name": "Price",
+        "status": "NOT_HOLDING_UP",
+        "statusWords": "Not holding up · they value it below your price",
+        "number": "2 of 8",
+        "line": "at your band or more",
+        "answers": [
+          {
+            "code": "under_250",
+            "label": "Under $250",
+            "count": 1
+          },
+          {
+            "code": "band_250_500",
+            "label": "$250 to $500",
+            "count": 4
+          },
+          {
+            "code": "band_500_1000",
+            "label": "$500 to $1,000",
+            "count": 1
+          },
+          {
+            "code": "band_1000_2500",
+            "label": "$1,000 to $2,500",
+            "count": 1
+          },
+          {
+            "code": "over_2500",
+            "label": "Over $2,500",
+            "count": 0
+          },
+          {
+            "code": "would_not_pay",
+            "label": "I wouldn't pay for this",
+            "count": 1
+          }
+        ]
+      },
+      "notAsked": [],
+      "sacrifice": {
+        "median": 2200.0,
+        "medianSaid": "$2,200 a month",
+        "low": 0,
+        "high": 4400,
+        "rangeSaid": "$0 to $4,400 a month",
+        "counted": 7,
+        "founderSaid": "30 to 60 hours a month, about $1,650 to $3,300",
+        "status": "HOLDING_UP",
+        "statusWords": "Holding up"
+      },
+      "price": {
+        "atOrAbove": 2,
+        "n": 8,
+        "founderBand": "$500 to $1,000",
+        "founderSaid": "$800 to $1,000 a month",
+        "status": "NOT_HOLDING_UP",
+        "statusWords": "Not holding up · they value it below your price"
+      },
+      "ability": {
+        "covering": 5,
+        "counted": 7,
+        "priceLow": 800,
+        "priceLowSaid": "$800 a month",
+        "status": "HOLDING_UP",
+        "statusWords": "Holding up · more could pay from today's spend than you thought"
+      },
+      "priceTable": {
+        "rows": [
+          {
+            "edge": 250,
+            "edgeSaid": "$250 a month",
+            "lose": 6,
+            "chose": 6,
+            "startHere": true,
+            "testThis": false
+          },
+          {
+            "edge": 500,
+            "edgeSaid": "$500 a month",
+            "lose": 6,
+            "chose": 2,
+            "startHere": false,
+            "testThis": true
+          },
+          {
+            "edge": 1000,
+            "edgeSaid": "$1,000 a month",
+            "lose": 5,
+            "chose": 1,
+            "startHere": false,
+            "testThis": false
+          },
+          {
+            "edge": 2500,
+            "edgeSaid": "$2,500 a month",
+            "lose": 2,
+            "chose": 0,
+            "startHere": false,
+            "testThis": false
+          }
+        ],
+        "counted": 7,
+        "n": 8,
+        "start": 250,
+        "startSaid": "$250 a month",
+        "test": 500,
+        "testSaid": "$500 a month",
+        "qualifies": true
+      },
+      "priceMedian": {
+        "edge": 250,
+        "edgeSaid": "$250 a month",
+        "chose": 6,
+        "n": 8
+      },
+      "buyer": {
+        "key": "commercial.buyer_payer_alignment",
+        "name": "Buyer and payer",
+        "tested": "The CFO",
+        "notTested": [
+          "The project executive"
+        ],
+        "answers": [
+          {
+            "code": "had_to_agree",
+            "label": "Yes, they had to agree",
+            "count": 4
+          },
+          {
+            "code": "decided_alone",
+            "label": "No, I decided on my own",
+            "count": 2
+          },
+          {
+            "code": "someone_else_agreed",
+            "label": "No, someone else had to agree",
+            "count": 1
+          },
+          {
+            "code": "someone_else_decided",
+            "label": "Someone else decided, not me",
+            "count": 1
+          }
+        ],
+        "supports": 4,
+        "escaped": 0,
+        "n": 8,
+        "status": "PEOPLE_DISAGREE",
+        "statusWords": "People disagree · of the 4 against, 2 said \"No, I decided on my own\""
+      },
+      "purchaseFriction": {
+        "key": "commercial.purchase_friction",
+        "name": "Purchase friction",
+        "tested": "A trial on one live job",
+        "notTested": [
+          "A check that it works with Procore",
+          "A security review"
+        ],
+        "answers": [
+          {
+            "code": "yes_long",
+            "label": "Yes, and it took a long time",
+            "count": 3
+          },
+          {
+            "code": "yes_quick",
+            "label": "Yes, but it was quick",
+            "count": 3
+          },
+          {
+            "code": "not_needed",
+            "label": "No, it wasn't needed",
+            "count": 2
+          }
+        ],
+        "supports": 5,
+        "escaped": 0,
+        "n": 8,
+        "status": "PEOPLE_DISAGREE",
+        "statusWords": "People disagree · a split: 5 support it, 3 do not"
+      },
+      "commitment": {
+        "key": "commercial.commitment",
+        "name": "Commitment",
+        "tested": "start a paid pilot on one site",
+        "notTested": [],
+        "answers": [
+          {
+            "code": "yes_start",
+            "label": "Yes, I'd start one",
+            "count": 1
+          },
+          {
+            "code": "yes_after_trying",
+            "label": "Yes, after trying it first",
+            "count": 2
+          },
+          {
+            "code": "probably_not",
+            "label": "Probably not",
+            "count": 3
+          },
+          {
+            "code": "no",
+            "label": "No",
+            "count": 2
+          }
+        ],
+        "supports": 3,
+        "apart": 2,
+        "escaped": 0,
+        "n": 8,
+        "status": "PEOPLE_DISAGREE",
+        "statusWords": "People disagree · a split: 3 support it, 5 do not"
+      },
+      "budgetSource": [
+        {
+          "code": "existing_line",
+          "label": "A budget line we already had",
+          "count": 3
+        },
+        {
+          "code": "new_line_signed_off",
+          "label": "A new budget line someone signed off",
+          "count": 2
+        },
+        {
+          "code": "taken_from_other_spend",
+          "label": "Taken from other spending",
+          "count": 1
+        },
+        {
+          "code": "no_budget",
+          "label": "There was no budget for it",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "insights": [
+    {
+      "dimension": "commercial.price",
+      "name": "Price",
+      "status": "NOT_HOLDING_UP",
+      "rungHeading": "What would make it worth more",
+      "noQuestionWhy": null,
+      "against": 6,
+      "asked": 6,
+      "answered": 6,
+      "skipped": 0,
+      "tookBy": [],
+      "themes": [],
+      "raw": true,
+      "rawQuotes": [
+        {
+          "invitationId": "59b9ae41-f8a1-4073-aa56-3ef3b347ae3e",
+          "name": "Omar Haddadin",
+          "text": "I can't tell you what the logs cost us now, so I can't justify a thousand a site. Show me the hours first."
+        },
+        {
+          "invitationId": "fca86a1f-64a6-47bc-8a90-3aed29483e73",
+          "name": "Lena Brandt",
+          "text": "Across all our jobs a per-site fee adds up fast. If it were priced by the supers actually using it, I'd go higher."
+        },
+        {
+          "invitationId": "4297367d-21af-4227-b85a-3d081ce97647",
+          "name": "Faith Nakamura",
+          "text": "Our supers don't lose much time on logs, so there's nothing to pay it out of. It's a nice extra, not a cost we carry."
+        }
+      ]
+    },
+    {
+      "dimension": "problem.importance",
+      "name": "Importance",
+      "status": "PEOPLE_DISAGREE",
+      "rungHeading": "Why other things come first",
+      "noQuestionWhy": null,
+      "against": 4,
+      "asked": 4,
+      "answered": 4,
+      "skipped": 0,
+      "tookBy": [],
+      "themes": [
+        {
+          "label": "Keeping the schedule on track comes first",
+          "count": 4,
+          "quotes": [
+            {
+              "invitationId": "37c6127e-9191-4f9e-99f2-901679db076b",
+              "name": "Dwayne Hollis",
+              "text": "My assistant super writes the log, so it's not on my plate. Chasing RFIs and holding the schedule is."
+            },
+            {
+              "invitationId": "06fbdf36-81ce-4626-a38e-d063f303788f",
+              "name": "Denise Okafor",
+              "text": "My log's done on the tablet before I leave the gate. Keeping the schedule and getting subs to show up is what eats my day."
+            },
+            {
+              "invitationId": "8ea8c079-d354-464d-8611-b8c833bb6ace",
+              "name": "Gary Lindqvist",
+              "text": "Safety and the schedule are the job. The log takes me forty minutes and I'd rather write it myself anyway, it's my name on it."
+            }
+          ]
+        }
+      ],
+      "raw": false,
+      "rawQuotes": []
+    },
+    {
+      "dimension": "solution.relative_advantage",
+      "name": "Relative advantage",
+      "status": "PEOPLE_DISAGREE",
+      "rungHeading": "What would have made a difference",
+      "noQuestionWhy": null,
+      "against": 3,
+      "asked": 0,
+      "answered": 0,
+      "skipped": 0,
+      "tookBy": [
+        {
+          "rung": "problem.importance",
+          "name": "Importance",
+          "count": 3
+        }
+      ],
+      "themes": [],
+      "raw": false,
+      "rawQuotes": []
+    },
+    {
+      "dimension": "solution.adoption_friction",
+      "name": "Adoption friction",
+      "status": "PEOPLE_DISAGREE",
+      "rungHeading": "What makes it too much",
+      "noQuestionWhy": null,
+      "against": 3,
+      "asked": 0,
+      "answered": 0,
+      "skipped": 0,
+      "tookBy": [
+        {
+          "rung": "problem.importance",
+          "name": "Importance",
+          "count": 3
+        }
+      ],
+      "themes": [],
+      "raw": false,
+      "rawQuotes": []
+    },
+    {
+      "dimension": "commercial.buyer_payer_alignment",
+      "name": "Buyer and payer",
+      "status": "PEOPLE_DISAGREE",
+      "rungHeading": "Who had to agree",
+      "noQuestionWhy": null,
+      "against": 4,
+      "asked": 0,
+      "answered": 0,
+      "skipped": 0,
+      "tookBy": [
+        {
+          "rung": "commercial.price",
+          "name": "Price",
+          "count": 4
+        }
+      ],
+      "themes": [],
+      "raw": false,
+      "rawQuotes": []
+    },
+    {
+      "dimension": "commercial.purchase_friction",
+      "name": "Purchase friction",
+      "status": "PEOPLE_DISAGREE",
+      "rungHeading": null,
+      "noQuestionWhy": "“needed approval and it took a long time” is the reason itself",
+      "against": 3,
+      "asked": 0,
+      "answered": 0,
+      "skipped": 0,
+      "tookBy": [],
+      "themes": [],
+      "raw": false,
+      "rawQuotes": []
+    },
+    {
+      "dimension": "commercial.commitment",
+      "name": "Commitment",
+      "status": "PEOPLE_DISAGREE",
+      "rungHeading": "What they would start with",
+      "noQuestionWhy": null,
+      "against": 5,
+      "asked": 0,
+      "answered": 0,
+      "skipped": 0,
+      "tookBy": [
+        {
+          "rung": "commercial.price",
+          "name": "Price",
+          "count": 5
+        }
+      ],
+      "themes": [],
+      "raw": false,
+      "rawQuotes": []
+    }
+  ]
+}

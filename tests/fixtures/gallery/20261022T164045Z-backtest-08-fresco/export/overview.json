@@ -1,0 +1,27 @@
+{
+  "revision": 191,
+  "name": "Fresco — the scribe for construction superintendents",
+  "state": "OPEN",
+  "awaitingInterpretation": 0,
+  "openSteps": 0,
+  "market": {
+    "country": "US",
+    "language": "en-US",
+    "described": "So the questions will be in American English, in dollars and cents, miles, feet and working days.",
+    "currency": "USD",
+    "currencySymbol": "$"
+  },
+  "questionsState": "READY",
+  "study": "VECTORS",
+  "guide": {
+    "welcomeSeen": true,
+    "openersSeen": [
+      "PROBLEM",
+      "SOLUTION",
+      "COMMERCIAL"
+    ],
+    "reportSeen": true,
+    "lineFailedSeen": false,
+    "interviewsSeen": true
+  }
+}

@@ -1,0 +1,119 @@
+[
+  {
+    "batchId": "5e27ea4f-c1be-40a0-93df-78b9b22da0b6",
+    "status": "DONE",
+    "done": 1,
+    "total": 1,
+    "invitationIds": [
+      "37c6127e-9191-4f9e-99f2-901679db076b"
+    ],
+    "current": null,
+    "failed": [],
+    "summary": "One answer read.",
+    "createdAt": "2026-10-22T16:47:34.762178Z"
+  },
+  {
+    "batchId": "f09e3bf5-a895-488f-b0be-6e4fbb73ba30",
+    "status": "DONE",
+    "done": 1,
+    "total": 1,
+    "invitationIds": [
+      "6f0d1b7e-a30d-4be6-b57c-1157223e1ba8"
+    ],
+    "current": null,
+    "failed": [],
+    "summary": "One answer read.",
+    "createdAt": "2026-10-22T16:47:11.094866Z"
+  },
+  {
+    "batchId": "8554ddd1-7ee8-4694-9b0c-e1a9e959881b",
+    "status": "DONE",
+    "done": 1,
+    "total": 1,
+    "invitationIds": [
+      "8ea8c079-d354-464d-8611-b8c833bb6ace"
+    ],
+    "current": null,
+    "failed": [],
+    "summary": "One answer read.",
+    "createdAt": "2026-10-22T16:46:58.721117Z"
+  },
+  {
+    "batchId": "952106fe-4ca8-4059-98f1-c413b020067c",
+    "status": "DONE",
+    "done": 1,
+    "total": 1,
+    "invitationIds": [
+      "4e77b89b-714d-40ed-90e4-65bb4cbe0fb6"
+    ],
+    "current": null,
+    "failed": [],
+    "summary": "One answer read.",
+    "createdAt": "2026-10-22T16:46:29.869810Z"
+  },
+  {
+    "batchId": "05eb33de-c2d5-43ad-96e1-5d0398f5d2f6",
+    "status": "DONE",
+    "done": 1,
+    "total": 1,
+    "invitationIds": [
+      "63d663e5-1f84-46a0-bc06-f8964ed429ea"
+    ],
+    "current": null,
+    "failed": [],
+    "summary": "One answer read.",
+    "createdAt": "2026-10-22T16:46:16.602323Z"
+  },
+  {
+    "batchId": "b4ce4208-ee4c-4afd-b541-1df6621b3c0a",
+    "status": "DONE",
+    "done": 1,
+    "total": 1,
+    "invitationIds": [
+      "6c8f6bc2-338c-449b-b904-bcd281c2ac87"
+    ],
+    "current": null,
+    "failed": [],
+    "summary": "One answer read.",
+    "createdAt": "2026-10-22T16:46:06.671480Z"
+  },
+  {
+    "batchId": "1e9bebea-7c44-49b3-b3f7-faf411572951",
+    "status": "DONE",
+    "done": 1,
+    "total": 1,
+    "invitationIds": [
+      "06fbdf36-81ce-4626-a38e-d063f303788f"
+    ],
+    "current": null,
+    "failed": [],
+    "summary": "One answer read.",
+    "createdAt": "2026-10-22T16:45:56.321145Z"
+  },
+  {
+    "batchId": "ac06a32c-a281-4a64-96bf-08480a20d5e0",
+    "status": "DONE",
+    "done": 1,
+    "total": 1,
+    "invitationIds": [
+      "5d8d6f73-f32d-49c1-a405-44224bbcd321"
+    ],
+    "current": null,
+    "failed": [],
+    "summary": "One answer read.",
+    "createdAt": "2026-10-22T16:45:34.673604Z"
+  },
+  {
+    "batchId": "bbf0eb16-2461-47e7-985c-abd46101e868",
+    "status": "DONE",
+    "done": 1,
+    "total": 1,
+    "invitationIds": [
+      "3a0e62d7-b99c-47ae-ac64-c5f739553938"
+    ],
+    "current": null,
+    "failed": [],
+    "summary": "One answer read.",
+    "createdAt": "2026-10-22T16:44:58.607240Z"
+  }
+]

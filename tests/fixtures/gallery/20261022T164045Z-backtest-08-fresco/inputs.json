@@ -1,0 +1,217 @@
+{
+  "_entry_id": "08-fresco",
+  "founder": {
+    "project_name": "Fresco — the scribe for construction superintendents",
+    "country": "US",
+    "region": null,
+    "language": "en-US",
+    "context_fields": {
+      "actor": "construction superintendent",
+      "job": "keep an accurate record of the day's work on site",
+      "circumstance": "the day's site walks are done and the photos and notes still have to go into the daily log",
+      "segment": "superintendents at US general contractors whose jobs run on Procore or ACC"
+    },
+    "window": {
+      "count": 5,
+      "unit": "WORKING_DAYS"
+    },
+    "problem_seed": "Construction superintendents spend up to 3 hours a day on documents — they take 30-200 photos a day on their site walks, then spend hours at the end of the day in the trailer uploading them to Procore or OneDrive and typing daily logs and punch lists, mostly for liability or a dispute with the owner; based on our weekends talking to superintendents on job sites in Napa, the South Bay and San Francisco.",
+    "solution_seed": "An AI scribe: during the site walk the superintendent takes short videos and talks over them, and Fresco turns them into notes with photos, assignees and due dates, texts the crew their action items and sends the notes to Procore or ACC in one click.",
+    "decider": {
+      "kind": "SOMEONE_ELSE",
+      "role": "contractor"
+    },
+    "calibration": {
+      "PROBLEM": [
+        {
+          "dimension": "problem.prevalence",
+          "codes": [
+            "p_80_100"
+          ]
+        },
+        {
+          "dimension": "problem.frequency",
+          "interval": {
+            "low": 4,
+            "high": 5,
+            "unit": "working days out of 5"
+          }
+        },
+        {
+          "dimension": "problem.importance",
+          "list": {
+            "items": [
+              {
+                "label": "Getting the daily log and photos done"
+              },
+              {
+                "label": "Keeping the job on schedule"
+              },
+              {
+                "label": "Getting subs to show up and finish"
+              },
+              {
+                "label": "Chasing RFIs and submittals"
+              },
+              {
+                "label": "Keeping the site safe"
+              }
+            ],
+            "pickedIndex": null
+          },
+          "_answer": "Keeping the job on schedule; Getting subs to show up and finish; Chasing RFIs and submittals; Keeping the site safe"
+        },
+        {
+          "dimension": "problem.current_solution_satisfaction",
+          "list": {
+            "items": [
+              {
+                "label": "Log done on site"
+              },
+              {
+                "label": "Done in the trailer in under an hour"
+              },
+              {
+                "label": "Took a couple of hours after the walk"
+              },
+              {
+                "label": "Finished at home or the next morning"
+              },
+              {
+                "label": "Never got written up properly"
+              }
+            ],
+            "pickedIndex": null,
+            "phrase": "your way of getting the day into the log"
+          },
+          "_answer": "your way of getting the day into the log; Log done on site; Done in the trailer in under an hour"
+        }
+      ],
+      "SOLUTION": [
+        {
+          "dimension": "solution.compatibility",
+          "list": {
+            "items": [
+              {
+                "label": "They had their phone out on the walk",
+                "asked": "did you have your phone in your hand during that site walk"
+              },
+              {
+                "label": "They could talk over the noise on site",
+                "asked": "could you have spoken into your phone over the noise on that walk"
+              },
+              {
+                "label": "The job kept its logs in Procore or ACC",
+                "asked": "was your job already keeping its daily logs in Procore or ACC"
+              }
+            ],
+            "pickedIndex": 1
+          },
+          "_answer": "They had their phone out on the walk; They could talk over the noise on site; The job kept its logs in Procore or ACC"
+        },
+        {
+          "dimension": "solution.relative_advantage",
+          "list": {
+            "items": [
+              {
+                "label": "Hours back at the end of the day"
+              },
+              {
+                "label": "Action items to the crew the same day"
+              }
+            ],
+            "pickedIndex": null
+          },
+          "_answer": "Hours back at the end of the day; Action items to the crew the same day"
+        },
+        {
+          "dimension": "solution.adoption_friction",
+          "list": {
+            "items": [
+              {
+                "label": "Take short videos and talk over them on walks",
+                "asked": "you'd take short videos and talk over them as you walk your site"
+              },
+              {
+                "label": "Check and fix the notes before they go out",
+                "asked": "you'd check and fix the written notes before they go to Procore or your crew"
+              }
+            ],
+            "pickedIndex": 0
+          },
+          "_answer": "Take short videos and talk over them on walks; Check and fix the notes before they go out"
+        }
+      ],
+      "COMMERCIAL": [
+        {
+          "dimension": "commercial.existing_sacrifice",
+          "cost": {
+            "mode": "HOURS",
+            "low": 30,
+            "high": 60,
+            "period": "month",
+            "rate": 55
+          }
+        },
+        {
+          "dimension": "commercial.price",
+          "price": {
+            "low": 800,
+            "high": 1000,
+            "period": "month"
+          }
+        },
+        {
+          "dimension": "commercial.buyer_payer_alignment",
+          "list": {
+            "items": [
+              {
+                "label": "Nobody else"
+              },
+              {
+                "label": "The CFO"
+              },
+              {
+                "label": "The project executive"
+              }
+            ],
+            "pickedIndex": 1
+          },
+          "_answer": "The CFO; The project executive"
+        },
+        {
+          "dimension": "commercial.purchase_friction",
+          "list": {
+            "items": [
+              {
+                "label": "A trial on one live job"
+              },
+              {
+                "label": "A check that it works with Procore"
+              },
+              {
+                "label": "A security review"
+              }
+            ],
+            "pickedIndex": 0
+          },
+          "_answer": "A trial on one live job; A check that it works with Procore; A security review"
+        },
+        {
+          "dimension": "commercial.commitment",
+          "list": {
+            "items": [
+              {
+                "label": "start a paid pilot on one site"
+              }
+            ],
+            "pickedIndex": null
+          },
+          "_answer": "start a paid pilot on one site"
+        }
+      ]
+    },
+    "hourly_rate": 55,
+    "idea_name": "Fresco"
+  }
+}

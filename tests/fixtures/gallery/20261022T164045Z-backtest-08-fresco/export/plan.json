@@ -1,0 +1,419 @@
+{
+  "revision": 191,
+  "locked": true,
+  "version": 1,
+  "lockedAt": "2026-10-22T16:44:48.043336Z",
+  "contextUnderstands": "Construction superintendents at general contractors who keep an accurate record of work on site, when site walks are done and photos and notes go into the log, counting the last 5 working days.",
+  "vectors": [
+    {
+      "vector": "PROBLEM",
+      "dimensions": 4,
+      "beliefs": 4,
+      "leftOut": [],
+      "complete": true
+    },
+    {
+      "vector": "SOLUTION",
+      "dimensions": 3,
+      "beliefs": 3,
+      "leftOut": [],
+      "complete": true
+    },
+    {
+      "vector": "COMMERCIAL",
+      "dimensions": 6,
+      "beliefs": 6,
+      "leftOut": [],
+      "complete": true
+    }
+  ],
+  "respondentTypes": [
+    {
+      "roleId": "55823810-4ce2-4d25-8663-5e46c684a5cf",
+      "label": "Construction superintendents",
+      "vectors": [
+        "PROBLEM",
+        "SOLUTION"
+      ],
+      "parts": [
+        1,
+        2
+      ],
+      "commercialLink": false,
+      "minutes": 7
+    },
+    {
+      "roleId": "baf807a4-2262-4cf9-95cc-c3de2faf9b56",
+      "label": "Contractor",
+      "vectors": [
+        "COMMERCIAL"
+      ],
+      "parts": [
+        3
+      ],
+      "commercialLink": true,
+      "minutes": 5
+    }
+  ],
+  "parts": [
+    {
+      "part": 1,
+      "vector": "PROBLEM",
+      "title": "A recent time",
+      "subtitle": "4 questions · the idea is not shown",
+      "respondentRoleId": "55823810-4ce2-4d25-8663-5e46c684a5cf",
+      "anchor": "that_night",
+      "items": [
+        {
+          "dimension": "problem.prevalence",
+          "name": "Prevalence",
+          "leftOut": false,
+          "belief": "Nearly all of these construction superintendents had this at least once in the last 5 working days.",
+          "ask": {
+            "control": "gate_yes_no",
+            "anchor": "that_night",
+            "summary": "Keel will ask about the most recent time it happened, as a yes or no: This item IS the gate: \"In the last 5 working days, did [the circumstance] happen to you?\" Yes / No. Explicit, never inferred from the story. No → graceful exit; the person still counts in the denominator. Yes → the story prompt (the anchor test), then the rest of Part 1. Never names the idea, the app or the mechanism.",
+            "question": "In the last 5 working days, did you put site walk photos and notes into the log afterward?"
+          }
+        },
+        {
+          "dimension": "problem.frequency",
+          "name": "Frequency",
+          "leftOut": false,
+          "belief": "Construction superintendents face this on 4 to 5 working days out of 5.",
+          "ask": {
+            "control": "segmented_0_to_7",
+            "anchor": "that_night",
+            "summary": "Keel will ask about the most recent time it happened, as a count from 0 to 5: Count how many working days out of 5 it happened on, not how many times it happened. Never shows the founder's range.",
+            "question": "On how many of those 5 working days did you put site walk photos and notes into the log afterward?"
+          }
+        },
+        {
+          "dimension": "problem.importance",
+          "name": "Importance",
+          "leftOut": false,
+          "belief": "When site walks are done and photos and notes go into the log, keeping an accurate record of the day's work is one of the two difficulties construction superintendents would most like made easier, out of five.",
+          "ask": {
+            "control": "pick_two",
+            "anchor": "that_night",
+            "summary": "Keel will ask about the most recent time it happened, as two of your five, the one they would most like made easier first: 'Thinking about that last day, which two of these would you most like made easier?' Your difficulty and the others you named, shuffled per study, yours never first. Never names the idea.",
+            "question": "Thinking about that last day, which two of these would you most like made easier?"
+          }
+        },
+        {
+          "dimension": "problem.current_solution_satisfaction",
+          "name": "Current solution",
+          "leftOut": false,
+          "belief": "For most construction superintendents, their way of getting the day into the log falls short: it takes a lot of effort or lets errors through.",
+          "ask": {
+            "control": "single_choice_5",
+            "anchor": "that_night",
+            "summary": "Keel will ask about the most recent time it happened, as your five outcomes, in order: 'Think of the last day. How well did' today's way, in your words, 'work?' Your five outcomes, in order. Never names the idea.",
+            "question": "Think of the last day. How well did your way of getting the day into the log work?"
+          }
+        }
+      ]
+    },
+    {
+      "part": 2,
+      "vector": "SOLUTION",
+      "title": "An idea to consider",
+      "subtitle": "3 questions",
+      "respondentRoleId": "55823810-4ce2-4d25-8663-5e46c684a5cf",
+      "anchor": "the_reveal",
+      "items": [
+        {
+          "dimension": "solution.compatibility",
+          "name": "Compatibility",
+          "leftOut": false,
+          "belief": "For most, on their last day, they could talk over the noise on site.",
+          "ask": {
+            "control": "fixed_four",
+            "anchor": "the_reveal",
+            "summary": "Keel will ask about that same time, with the idea in mind, as one of four fixed answers about the one item you chose: 'On your last day,' the condition you picked, asked as a question: would you have been able to? Yes, easily · Yes, with some steps · Only with help or approval · No.",
+            "question": "On your last day, you could have talked out loud over the noise on site?"
+          }
+        },
+        {
+          "dimension": "solution.relative_advantage",
+          "name": "Relative advantage",
+          "leftOut": false,
+          "belief": "For most, it would have made their last day better.",
+          "ask": {
+            "control": "benefit_with_advantages",
+            "anchor": "the_reveal",
+            "summary": "Keel will ask about that same time, with the idea in mind, as better, no difference or worse, and under better which of your advantages: 'On your last day, would' your idea, by its short name, 'have made things better, or not?' Those who say better tick which of your benefits would have been better.",
+            "question": "On your last day, would Fresco have made things better, or not?"
+          }
+        },
+        {
+          "dimension": "solution.adoption_friction",
+          "name": "Adoption friction",
+          "leftOut": false,
+          "belief": "Most would take short videos and talk over them on walks.",
+          "ask": {
+            "control": "fixed_four",
+            "anchor": "the_reveal",
+            "summary": "Keel will ask about that same time, with the idea in mind, as one of four fixed answers about the one item you chose: The effort you picked, said to them, then 'Would you do that, or not?' Yes · Yes, if it was clearly worth it · Probably not · No.",
+            "question": "You would have to take short videos and talk over them as you go on your site walks. Would you do that, or not?"
+          }
+        }
+      ]
+    },
+    {
+      "part": 3,
+      "vector": "COMMERCIAL",
+      "title": "What you do today",
+      "subtitle": "6 questions",
+      "respondentRoleId": "baf807a4-2262-4cf9-95cc-c3de2faf9b56",
+      "anchor": "last_cycle",
+      "items": [
+        {
+          "dimension": "commercial.existing_sacrifice",
+          "name": "Existing sacrifice",
+          "leftOut": false,
+          "belief": "The problem already costs the payer 30 to 60 hours a month, about $1,650 to $3,300.",
+          "ask": {
+            "control": "cost_total",
+            "anchor": "last_cycle",
+            "summary": "Keel will ask about the last cycle, as what it cost them in all, one amount or a number of hours: One total, all code's: what it cost the team over last month when site walks are done and photos and notes go into the log -- an amount or a number of the team's hours (priced at the project's rate by code, never shown). The decision-maker sees no context card and nothing of what the specialists said.",
+            "question": "Last month, what did it cost when site walks are done and photos and notes go into the log?"
+          }
+        },
+        {
+          "dimension": "commercial.price",
+          "name": "Price",
+          "leftOut": false,
+          "belief": "The payer would think it worth $800 to $1,000 a month.",
+          "ask": {
+            "control": "price_ladder",
+            "anchor": "last_purchase",
+            "summary": "Keel will ask about the last thing they paid for to deal with it, as what it would be worth to them, on a fixed price ladder: The same item on the decision-maker's link: the anchor line names money and hours (hours are the team's time); the question and the bands are code's.",
+            "question": "What would a way out of end-of-day paperwork be worth to you a month?"
+          }
+        },
+        {
+          "dimension": "commercial.ability_to_pay",
+          "name": "Ability to pay",
+          "leftOut": false,
+          "belief": "Your price is 24% to 61% of what the problem costs them today: it could mostly be paid from what they already spend.",
+          "ask": {
+            "control": "single_choice",
+            "anchor": "last_purchase",
+            "summary": "Keel will ask about the last thing they paid for to deal with it, as one pick: 'Think of the last tool your team paid for. Where did the money come from?' Four budget sources, easiest to hardest; its first sentence is the part's one anchor.",
+            "question": "Think of the last tool your team paid for. Where did the money come from?"
+          }
+        },
+        {
+          "dimension": "commercial.buyer_payer_alignment",
+          "name": "Buyer and payer",
+          "leftOut": false,
+          "belief": "The contractor decides, and the CFO has to agree.",
+          "ask": {
+            "control": "fixed_four",
+            "anchor": "last_purchase",
+            "summary": "Keel will ask about the last thing they paid for to deal with it, as one of four fixed answers about the one item you chose: For the last tool the team paid for: did the tested role have to agree before it went through; the fixed four.",
+            "question": "For that tool, did the CFO have to agree before it went through?"
+          }
+        },
+        {
+          "dimension": "commercial.purchase_friction",
+          "name": "Purchase friction",
+          "leftOut": false,
+          "belief": "A trial on one live job slows the purchase most.",
+          "ask": {
+            "control": "fixed_three",
+            "anchor": "last_purchase",
+            "summary": "Keel will ask about the last thing they paid for to deal with it, as one of three fixed answers about the step you chose: For the last tool the team paid for: did it need the tested step before it went through; the fixed three.",
+            "question": "For that tool, did it need a trial on one live job before it went through?"
+          }
+        },
+        {
+          "dimension": "commercial.commitment",
+          "name": "Commitment",
+          "leftOut": false,
+          "belief": "Most are open to start a paid pilot on one site now.",
+          "ask": {
+            "control": "fixed_four",
+            "anchor": "last_cycle",
+            "summary": "Keel will ask about the last cycle, as one of four fixed answers about the one item you chose: The same item on the decision-maker's link: if it were ready today, would you take the founder's step; the fixed four.",
+            "question": "If it were ready today, would you start a paid pilot on one site, or not?"
+          }
+        }
+      ]
+    }
+  ],
+  "reveal": {
+    "statement": "When the site walk is happening and the superintendent wants to capture what they see and say, the construction superintendent takes short videos during the walk and talks over them, and the tool turns them into notes with photos, assignees and due dates, texts the crew their action items, and sends the notes to the project system on one click and gets back written site notes with photos, assignees and due dates, and a text with action items sent to each crew member.",
+    "text": [
+      "Imagine Fresco.",
+      "During the site walk, you take short videos and talk over them. The tool turns them into notes with photos, assignees and due dates, texts the crew their action items, and sends the notes to the project system on one click.",
+      "The people building it believe it would turn a site walk into notes and action items without typing them up."
+    ]
+  },
+  "beliefs": 13,
+  "questions": {
+    "state": "READY"
+  },
+  "word": {
+    "revision": 191,
+    "pitch": null,
+    "incentive": null,
+    "pilotEnabled": true
+  },
+  "complete": true,
+  "idea": {
+    "revision": 191,
+    "what": "Fresco",
+    "how": "During the site walk, you take short videos and talk over them. The tool turns them into notes with photos, assignees and due dates, texts the crew their action items, and sends the notes to the project system on one click.",
+    "belief": "The people building it believe it would turn a site walk into notes and action items without typing them up.",
+    "approved": true,
+    "shortName": "Fresco",
+    "beliefFrame": "The people building it believe it would ",
+    "limits": {
+      "what": 80,
+      "how": 300,
+      "belief": 200
+    }
+  },
+  "lists": {
+    "problem.importance": {
+      "items": [
+        {
+          "code": "own",
+          "label": "Keeping an accurate record of the day's work"
+        },
+        {
+          "code": "rival_1",
+          "label": "Keeping the job on schedule"
+        },
+        {
+          "code": "rival_2",
+          "label": "Getting subs to show up and finish"
+        },
+        {
+          "code": "rival_3",
+          "label": "Chasing RFIs and submittals"
+        },
+        {
+          "code": "rival_4",
+          "label": "Keeping the site safe"
+        }
+      ]
+    },
+    "problem.current_solution_satisfaction": {
+      "items": [
+        {
+          "code": "outcome_1",
+          "label": "It was done quickly, with no trouble"
+        },
+        {
+          "code": "outcome_2",
+          "label": "It was done after a try or two"
+        },
+        {
+          "code": "outcome_3",
+          "label": "It was done after a lot of effort"
+        },
+        {
+          "code": "outcome_4",
+          "label": "It was barely done; much was left out"
+        },
+        {
+          "code": "outcome_5",
+          "label": "It did not get done at all"
+        }
+      ],
+      "phrase": "your way of getting the day into the log"
+    },
+    "solution.compatibility": {
+      "items": [
+        {
+          "code": "item_1",
+          "label": "They had their phone out on the walk",
+          "asked": "you had your phone out during the site walk"
+        },
+        {
+          "code": "item_2",
+          "label": "They could talk over the noise on site",
+          "asked": "you could have talked out loud over the noise on site"
+        },
+        {
+          "code": "item_3",
+          "label": "The job kept its logs in Procore or ACC",
+          "asked": "your job kept its logs in Procore or ACC"
+        }
+      ],
+      "pickedIndex": 1
+    },
+    "solution.relative_advantage": {
+      "items": [
+        {
+          "code": "benefit_1",
+          "label": "Hours back at the end of the day"
+        },
+        {
+          "code": "benefit_2",
+          "label": "Action items to the crew the same day"
+        }
+      ]
+    },
+    "solution.adoption_friction": {
+      "items": [
+        {
+          "code": "item_1",
+          "label": "Take short videos and talk over them on walks",
+          "asked": "you would have to take short videos and talk over them as you go on your site walks"
+        },
+        {
+          "code": "item_2",
+          "label": "Check and fix the notes before they go out",
+          "asked": "you would have to check and fix the notes before they went out to your crew"
+        }
+      ],
+      "pickedIndex": 0
+    },
+    "commercial.buyer_payer_alignment": {
+      "items": [
+        {
+          "code": "nobody_else",
+          "label": "Nobody else"
+        },
+        {
+          "code": "role_1",
+          "label": "The CFO"
+        },
+        {
+          "code": "role_2",
+          "label": "The project executive"
+        }
+      ],
+      "pickedIndex": 1
+    },
+    "commercial.purchase_friction": {
+      "items": [
+        {
+          "code": "item_1",
+          "label": "A trial on one live job"
+        },
+        {
+          "code": "item_2",
+          "label": "A check that it works with Procore"
+        },
+        {
+          "code": "item_3",
+          "label": "A security review"
+        }
+      ],
+      "pickedIndex": 0
+    },
+    "commercial.commitment": {
+      "items": [
+        {
+          "code": "step",
+          "label": "start a paid pilot on one site"
+        }
+      ]
+    }
+  }
+}

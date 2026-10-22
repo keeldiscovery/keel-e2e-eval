@@ -1,0 +1,17 @@
+{
+  "entry": "08-fresco",
+  "corpus": 12,
+  "exportedAt": "2026-10-22T16:48:07Z",
+  "cloud": "b2cf168a8c4cbb421f8b008530215991f7043419",
+  "files": [
+    "overview.json",
+    "plan.json",
+    "standings.json",
+    "roles.json",
+    "people.json",
+    "readings.json",
+    "invitations.json",
+    "readings/5e27ea4f-c1be-40a0-93df-78b9b22da0b6.json",
+    "invitations/bd23c984-346f-4f9b-a59d-721299cecaa6.json"
+  ]
+}
