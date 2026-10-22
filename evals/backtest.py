@@ -233,6 +233,7 @@ class Backtest:
     me_at_signup: dict = field(default_factory=dict)
     export: dict | None = None
     cam: Camera | None = None
+    themes_settled: dict | None = None
 
     # ---------------------------------------------------------------------------------------- 2. the founder
 
@@ -309,8 +310,13 @@ class Backtest:
 
     def after(self, j) -> None:
         """FR-3: the 060/061 export at the last answer into `runs/<run>/export/`, names kept, no verdict gate. A
-        refusal (a survivor of the withholding) is recorded, never raised: the transcript is the run's product."""
+        refusal (a survivor of the withholding) is recorded, never raised: the transcript is the run's product.
+
+        First the THEMES jobs are given time to land (062 follow-up, 2026-10-22): on the run of record (08-fresco) two
+        were still QUEUED / RUNNING when the transcript was written, so the insights carried raw quotes and no
+        grouping, which is the very classification the back-test judges. Up to `THEMES_WAIT_S`, never asserted."""
         from evals import sample_export                           # noqa: PLC0415
+        self.themes_settled = _safe(lambda: themes_settle(j), None)
         try:
             result = sample_export.export_sample(j, Path(self.run_dir) / EXPORT_DIR, run_dir=self.run_dir, gated=False)
             self.export = {k: result[k] for k in ("card", "size", "dir", "people") if k in result}
@@ -337,6 +343,28 @@ class Backtest:
         except Exception as broke:  # noqa: BLE001
             (Path(self.run_dir) / "backtest_error.txt").write_text(repr(broke), encoding="utf-8")
         return record
+
+
+#: keel-cloud `InteractionStatus` values of a job still to land (as `corpus_scenario.OPEN_STATUSES`).
+_OPEN = {"PENDING", "CLAIMED", "RUNNING", "QUEUED", "DRAFT", "NEEDS_INPUT"}
+THEMES_WAIT_S = 150
+
+
+def themes_settle(j, *, timeout_s: float = THEMES_WAIT_S) -> dict:
+    """Waits until no THEMES interaction of the project is open, or the timeout; returns what it saw (recorded in the
+    transcript's `cost`.`not settled` either way). A founder read of the overview first, so keel-cloud 104's
+    themes-on-return starts whatever is still due."""
+    _safe(lambda: j.get(j.project("/overview")), None)
+    deadline = time.monotonic() + timeout_s
+    waited = 0.0
+    while True:
+        themes = [i for i in (j.get(f"/v2/inference-interactions?project_id={j.project_id}") or [])
+                  if i.get("screen") == "THEMES"]
+        open_ = [t.get("status") for t in themes if t.get("status") in _OPEN]
+        if not open_ or time.monotonic() > deadline:
+            return {"themes": len(themes), "open": open_, "waited_s": round(waited, 1)}
+        time.sleep(2)
+        waited += 2
 
 
 def _step_name(step: Any) -> str | None:
@@ -605,6 +633,7 @@ def transcript(j, bt: Backtest) -> dict:
         "readings": _safe(lambda: readings(j, wire.get("invitations") or {}), []),
         "cost": _safe(lambda: cost(j)),
         "export": bt.export,
+        "themes_settled": bt.themes_settled,
         "findings": list(getattr(j, "findings", []) or []),
         "screenshots": {"founder": len(bt.cam.founder_shots) if bt.cam else 0,
                         "respondent": {link: len(v.get("shots") or [])
@@ -642,6 +671,7 @@ def markdown(r: dict) -> str:
              f"- Wall time: {r.get('wall_s')} s; screenshots: {shots.get('founder')} founder, "
              f"{_q(shots.get('respondent'))} respondent",
              f"- Export: {_q(r.get('export'))}",
+             f"- THEMES settled before the export: {_q(r.get('themes_settled'))}",
              f"- Keel's AI refused and retried (findings): {len(r.get('findings') or [])}"
              + "".join(f"\n  - {f.get('what')}: {f.get('refused') or f.get('batch')}" for f in r.get("findings") or []),
              "", "Nothing here is asserted: the model's words are the finding (spec 062 FR-4).", ""]
