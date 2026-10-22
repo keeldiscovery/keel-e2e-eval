@@ -14,7 +14,9 @@ gallery` run on existing back-test run directories (no paid run in this spec).**
 - **FR-1 `make gallery RUNS=<dir>[,<dir>…]`.** Takes one or more back-test run directories (the newest `runs/*backtest-<id>`
   for each of the six ids when `RUNS` is omitted) and writes, for each, the 060 file set into
   `<keel_web>/public/sample/<slug>/` (names kept as 061, tokens and emails withheld as 060), plus one
-  `public/sample/index.json`: `[{slug, name, oneLine, decision, howSure, pilot, price, b2b, entry, run, cloud}]` in the
+  `public/sample/index.json`: `[{slug, name, oneLine, problem, decision, howSure, pilot, price, b2b, entry, run, cloud, axes}]`
+  (`problem` the renamed problem statement in one sentence; `axes` the seven gallery words -- who has it, who pays, rhythm,
+  cost mode, price shape, first step, kind -- read from the entry and the run, in plain words, for keel-web 101's matcher) in the
   gallery's order (B2B and B2C alternating, the founder's call later). The single-run `make sample` and `public/sample/*.json`
   at the root stay as they are until keel-web 100 switches the home page over, after which the root files are removed by
   the operator.
