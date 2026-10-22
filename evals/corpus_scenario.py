@@ -1599,8 +1599,16 @@ def _lock_lands(j: Journey) -> None:
                         {"receipt": j.receipt, "jobs": [{k: i.get(k) for k in ("interaction_id", "status", "job")}
                                                          for i in respondent]})
         assert len(ids) == 1, j.receipt
-        assert [i.get("interaction_id") for i in respondent] == ids, (ids, respondent)
-        assert respondent[0].get("status") == "APPLIED", respondent[0]
+        retried = any(f.get("what") == "the questionnaire" for f in getattr(j, "findings", None) or [])
+        if retried and len(respondent) > 1:
+            # spec 062 follow-up (2026-10-22): on the back-test a questionnaire Keel's AI failed was retried the way the
+            # founder's screen retries it (`_lock_lands`), so the project holds the refused job and the retried one;
+            # the receipt's is among them and the last one landed -- recorded above, the retry is a finding already
+            assert ids[0] in [i.get("interaction_id") for i in respondent], (ids, respondent)
+            assert any(i.get("status") == "APPLIED" for i in respondent), respondent
+        else:
+            assert [i.get("interaction_id") for i in respondent] == ids, (ids, respondent)
+            assert respondent[0].get("status") == "APPLIED", respondent[0]
     with _step(j, "the study is version 1, the three parts' questions are written, READY, and the lock "
                   "holds every saved list and its picked index (D7)") as h:
         plan = j.get(j.project("/plan")) or {}
