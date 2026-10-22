@@ -1977,6 +1977,16 @@ def _hold_the_follow_up(j: Journey, person, interview: dict, walked: dict, owed:
         if not asked:
             assert not route and not seen and sent is None, record
             return
+        if getattr(j, "camera", None) is not None and bool(owed) != (route.get("status") == 200):
+            # spec 062 follow-up (2026-10-22): on the back-test Keel's own drafted lists are served, so the rung the
+            # product owes a follow-up on can differ from the harness's own walk (`first_rung`, computed on the
+            # file's lists); what the product asked is the finding, and the person's page answered it (typed their
+            # own line, or skipped where none was written for that rung)
+            j.findings.append({"what": f"{person.person}: follow-up {'asked' if route.get('status') == 200 else 'not asked'}"
+                                       f" where the harness owed {'one on ' + str(want_rung) if owed else 'none'}",
+                               "refused": json.dumps({"route": body.get("dimension"), "text": body.get("text"),
+                                                      "sent": sent})[:400]})
+            return
         assert route.get("status") == (200 if owed else 204), route
         assert sent == _want_follow_up(owed, person.follow_up), {"sent": sent, "want": _want_follow_up(
             owed, person.follow_up)}
