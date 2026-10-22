@@ -2857,7 +2857,14 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
 
         with recorder.step("the corpus hashes exactly as it did when the run began",
                            party="stack", kind="assert") as h:
-            corpus.verify_unchanged()
+            try:
+                corpus.verify_unchanged()
+            except Exception as moved:  # noqa: BLE001
+                # spec 062 follow-up (2026-10-22): on the back-test an entry edited under a run (an author at work
+                # while the money is spent) is a finding, not the end -- the walk and its transcript are untouched
+                if backtest is None:
+                    raise
+                journey.findings.append({"what": "a back-test entry changed under the run", "refused": str(moved)[:400]})
             h.record_assert(hashes_before, dict(corpus.hashes))
         passed = True
     finally:
