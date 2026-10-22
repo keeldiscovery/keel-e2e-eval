@@ -1272,7 +1272,10 @@ def leg_calibrate(j: Journey, vector: str) -> None:
 
     if vector == "COMMERCIAL" and j.founder.hourly_rate is not None:
         _hourly_rate(j)
-    if vector == "PROBLEM" and not answers["problem.importance"].unsure:
+    # the 097 F9 probe writes the entry's own Importance labels over Keel's draft through the API; on the back-test
+    # (spec 062, `retries` set) what Keel drafted is the finding, so the probe is skipped (062 follow-up, 2026-10-22:
+    # the 08-fresco and 10-palus judges saw the founder approve one list and strangers served another)
+    if vector == "PROBLEM" and not answers["problem.importance"].unsure and not getattr(j, "retries", 0):
         _importance_needs_three(j)
     stored = _wait_calibration(j, vector)
     with _step(j, f"{vector.lower()}: every list is stored as the founder saved it -- code's positional codes, "
