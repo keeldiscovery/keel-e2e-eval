@@ -950,7 +950,8 @@ def links_reading(j: Journey, when: str, sent=None) -> None:
 def leg_interpret_problem(j: Journey) -> None:
     """The problem seed typed into the chat (the entry's own problem statement), PROBLEM_INTERPRET's
     card, and *Yes, that's the problem* -- which chains the PROBLEM calibration questions."""
-    card = j.corridor.seed(j.project_id, "PROBLEM", j.founder.problem_seed)
+    card = j.corridor.seed(j.project_id, "PROBLEM", j.founder.problem_seed, resend=getattr(j, "retries", 0))
+    _resent(j)
     want = vs.problem_result(j.entry)
     with _step(j, "the problem card is the entry's own interpretation", party="founder") as h:
         h.record_assert(want["statement"] if j.strict else "a statement", card["claim"])
@@ -964,12 +965,22 @@ def leg_interpret_problem(j: Journey) -> None:
         assert review.get("statement") == card["claim"], review.get("statement")
 
 
+def _resent(j: Journey) -> None:
+    """Spec 062: each time the back-test's founder sent a seed again (the chat refused the model's answer or asked),
+    a finding."""
+    for row in getattr(j.corridor, "resent", None) or []:
+        j.findings.append({"what": f"{row['vector']} seed sent again", "refused": row["chat said"]})
+    if getattr(j.corridor, "resent", None):
+        j.corridor.resent = []
+
+
 def leg_interpret_solution(j: Journey) -> None:
     """The solution seed, SOLUTION_MECHANISM's card and *Looks right* (which chains the SOLUTION
     calibration), and then **the idea as the solution's first question** (keel-web 063 S2): the three lines
     the mechanism drafted, read on the Check screen under *Solution · 1 of n*, saved untouched -- Save is the
     approval the lock and every invitation wait on."""
-    card = j.corridor.seed(j.project_id, "SOLUTION", j.founder.solution_seed)
+    card = j.corridor.seed(j.project_id, "SOLUTION", j.founder.solution_seed, resend=getattr(j, "retries", 0))
+    _resent(j)
     m = j.entry.solution_mechanism
     with _step(j, "the mechanism card draws the entry's own actor, trigger, mechanism and output",
                party="founder") as h:

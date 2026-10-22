@@ -895,6 +895,7 @@ class Corridor:
         self._b = _BrowserStep(recorder, page, "founder")
         self.conflicts = []
         self.saves = []
+        self.resent = []
         #: Spec 062 FR-3: the back-test's camera, called with a slug on every founder screen as it is about to be
         #: answered (`evals/backtest.Camera`); None on every other journey, where `_shot` does nothing.
         self.camera = None
@@ -1022,8 +1023,13 @@ class Corridor:
 
     # --------------------------------------------------------------------- steps 2-3: the seeds
 
-    def seed(self, project_id: str, vector: str, text: str) -> dict:
-        """Types the seed into the chat and waits for the card. Returns what the card draws."""
+    def seed(self, project_id: str, vector: str, text: str, *, resend: int = 0) -> dict:
+        """Types the seed into the chat and waits for the card. Returns what the card draws.
+
+        `resend` (spec 062, the back-test only; 0 everywhere else, where nothing below the send changes): when the chat
+        opens its composer again instead of drawing the card -- the model's answer refused (*came back in a shape this
+        step can't use ... Start the step again*) or a clarifying question asked -- the founder sends the seed again,
+        up to `resend` times, and each time the chat's last words are kept in `self.resent`."""
         slug = vector.lower()
         kicker = KICKER_INTERPRETATION if vector == "PROBLEM" else KICKER_MECHANISM
         with self._b.step(f"founder types the {slug} seed and sends it") as h:
@@ -1035,8 +1041,20 @@ class Corridor:
             self._shot(f"{slug}-seed")
             box.fill(text)
             _button(self.page, SEED_SEND).click()
-            self.page.get_by_text(kicker).first.wait_for(state="visible",
-                                                         timeout=60_000 * self.patience)
+            for attempt in range(resend + 1):
+                if not resend:
+                    self.page.get_by_text(kicker).first.wait_for(state="visible",
+                                                                 timeout=60_000 * self.patience)
+                    break
+                if self._card_or_composer(kicker, box) == "card":
+                    break
+                said = _text(self.page)[-600:]
+                self._shot(f"{slug}-seed-again")
+                self.resent.append({"vector": vector, "chat said": said})
+                if attempt == resend:
+                    raise AssertionError(f"the {slug} seed drew no card after {resend} resends: {said}")
+                box.fill(text)
+                _button(self.page, SEED_SEND).click()
             h.add_screenshot(self._b.screenshot(f"{slug}-card"))
             self._shot(f"{slug}-card")
             claim = _first_text(self.page, ".understood__claim")
@@ -1046,6 +1064,25 @@ class Corridor:
                 rows[label] = _safe_text(lambda: row.inner_text())
             h.capture_text("stage_screen", _text(self.page))
             return {"claim": claim, "rows": rows, "text": _text(self.page)}
+
+    #: Spec 062: what the chat said each time the back-test sent a seed again (`seed(..., resend=n)`).
+    resent: list
+
+    def _card_or_composer(self, kicker: str, box) -> str:
+        """After a send: "card" once the card's kicker is drawn, "composer" once the composer opened again (the send
+        settled with no card), waited for as long as the card is."""
+        try:
+            box.wait_for(state="hidden", timeout=15_000)          # the composer closes while the step runs
+        except Exception:  # noqa: BLE001 - a step quick enough never shows it closed
+            pass
+        deadline = time.monotonic() + 60 * self.patience
+        while time.monotonic() < deadline:
+            if self.page.get_by_text(kicker).first.is_visible():
+                return "card"
+            if box.is_visible() and box.is_enabled():
+                return "composer"
+            self.page.wait_for_timeout(1_000)
+        raise AssertionError(f"neither the card ({kicker!r}) nor the composer came back")
 
     def confirm_seed(self, vector: str) -> None:
         """The card confirmed: the problem's opens Prevalence; the solution's is the idea's Answer (keel-web
