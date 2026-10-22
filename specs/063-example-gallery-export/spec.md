@@ -35,7 +35,8 @@ gallery` run on existing back-test run directories (no paid run in this spec).**
   received it -- `kind`, `occasion`, `idea`, `gate` (question, the chips, `condition` when served), `parts[]` with each
   item's `dimension`, `kicker`, `question`, `control`, `options[]` labels, `escape`, `valueBox` / `plan` / `whatYouGet`
   where served, `storyPrompt`, the reveal and the follow-up stems that run's people were asked -- renamed by the same
-  map, tokens and ids withheld, in one stable shape keel-web 100 renders without a server. The index gains
+  map, tokens and ids withheld, in one stable shape keel-web 100 renders without a server. Text only: no interviewer clips, faces or recordings are
+  exported (the AI-interviewer version of an example is a later spec on the founder's word). The index gains
   `interview: {links: [{role, items}]}` counts per slug.
 - **FR-4 Tests.** Unit tests: the rename over a fixture with the six names in mixed positions (a survivor refuses);
   the index shape; the file set per slug (interview.json included, its shape pinned on one run); nothing about the golden S-006 export moves (060/061's tests unchanged).
