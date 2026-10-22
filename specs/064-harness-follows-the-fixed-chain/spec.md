@@ -53,6 +53,15 @@ s007"` once on a fresh local stack of the finished masters; one `make backtest E
   walker records it and `report_marks` reads *"had <clause> in the last <window>"* on the Prevalence card; the story
   chips include `RATHER_NOT_SAY` where served. A back-test `Person` may carry `in_segment: false` (loader, 124 FR-1's
   reading of the yaml, optional).
+- **FR-4a What keel-cloud 116's build settled (no contract change; added 2026-10-23).** The gate is written by the part-1
+  RESPONDENT_QUESTIONS job from the founder's Prevalence clause (job context key `problem`), framed by code as *did
+  {clause}* when the clause starts with "you"/"your", else *did you {clause}*; `storyPrompt` keeps the circumstance.
+  With today's script (`vectors_script.py` founder clause *had a time when {circumstance}*, gate `GATE_EVENTS` / *have a
+  time when {circumstance}*) no golden gate text moves. This spec scripts a problem-led founder Prevalence clause per
+  golden entry (keel-cloud `specs/116-gate-asks-the-problem/tasks.md` lists a proposed one per entry, each ≤ 20 words
+  framed with no time words -- e.g. 01-countly *"did you have to recount stock by hand after a mismatched delivery?"*)
+  and reads the served gate against it; the Prevalence card's brief line is `<clause> in <window>`. No golden number
+  reads the gate's words, so MARKS_VERSION stays unless a mark pins the old gate text (then FR-10 applies).
 - **FR-5 The founder's lists (keel-cloud 117, 121; keel-web 097).** The Current-solution Check assertion (`_corpus_list`
   vs the rows) expects the founder's rungs verbatim and first and Keel's appended rungs below to five; the Choose screen
   reads `choose.prompt` (*"Which of these is most likely to be missing?"*) and the `suggested` radio, and picks the
