@@ -1393,7 +1393,11 @@ def person_inputs(entry) -> list[PersonInputs]:
     import dataclasses                                                 # noqa: PLC0415
 
     lines = follow_up_lines(entry, people)
-    return [dataclasses.replace(p, follow_up=lines.get(p.person)) for p in people]
+    # spec 062 follow-up (2026-10-22): a back-test person who is owed a follow-up answers in their own words
+    # (`Person.follow_up` in the file) where the file has them; the pooled line otherwise, as every golden entry does
+    own = {p.person: p.follow_up for p in entry.people() if getattr(p, "follow_up", None)}
+    return [dataclasses.replace(p, follow_up=(own.get(p.person) if p.person in lines and own.get(p.person)
+                                              else lines.get(p.person))) for p in people]
 
 
 def people_to_invite(entry, count: int) -> tuple[list[PersonInputs], list[str]]:

@@ -250,6 +250,9 @@ class Person:
     picks: dict
     pilot_opt_in: bool = False
     link: str = LINK_PRIMARY
+    #: Spec 062 follow-up (2026-10-22): a back-test person's own words for the one follow-up question the interview
+    #: owes them, in place of the harness's pooled lines (`vectors_script.FOLLOW_UP_LINES`); golden entries carry none.
+    follow_up: str | None = None
 
     @property
     def gate_yes(self) -> bool:
@@ -1104,7 +1107,8 @@ def _person(raw: dict) -> Person:
                   story=raw.get("story") or None, chip=raw.get("chip"),
                   anchoring=raw.get("anchoring"), picks=dict(raw.get("picks") or {}),
                   pilot_opt_in=bool(raw.get("pilot_opt_in")),
-                  link=raw.get("link", LINK_PRIMARY))
+                  link=raw.get("link", LINK_PRIMARY),
+                  follow_up=(str(raw.get("follow_up")).strip() or None) if raw.get("follow_up") else None)
 
 
 def _check_backtest(raw: dict, path: Path, backtest: bool) -> None:

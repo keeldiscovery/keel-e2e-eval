@@ -92,6 +92,32 @@ def test_a_good_entry_loads_with_no_expected_and_its_idea_name(tmp_path):
     assert vs.founder_idea_name(golden) == vs.short_name(golden)
 
 
+def test_a_person_s_own_follow_up_replaces_the_pooled_line_and_golden_entries_keep_the_pool(tmp_path):
+    """062 follow-up (2026-10-22): `follow_up:` on a person is their own answer to the one follow-up the interview owes
+    them; a person owed none keeps None, a person without the key keeps the harness's pooled line; golden unchanged."""
+    raw = _good_raw()
+    owed_before = {p.person: p.follow_up for p in vs.person_inputs(
+        corpus_mod.load_file(_write(tmp_path, raw), registry=fx.registry(), backtest=True)) if p.follow_up}
+    assert owed_before, "the fixture owes at least one follow-up"
+    first, *rest = sorted(owed_before)
+    for person in raw["answers"]:
+        if person["person"] == first:
+            person["follow_up"] = "Mine, in my own words."
+    entry = corpus_mod.load_file(_write(tmp_path, raw), registry=fx.registry(), backtest=True)
+    after = {p.person: p.follow_up for p in vs.person_inputs(entry)}
+    assert after[first] == "Mine, in my own words."
+    assert all(after[name] == owed_before[name] for name in rest)
+    not_owed = [p.person for p in vs.person_inputs(entry) if not p.follow_up]
+    if not_owed:
+        for person in raw["answers"]:
+            if person["person"] == not_owed[0]:
+                person["follow_up"] = "Never asked, never typed."
+        entry = corpus_mod.load_file(_write(tmp_path, raw), registry=fx.registry(), backtest=True)
+        assert {p.person: p.follow_up for p in vs.person_inputs(entry)}[not_owed[0]] is None
+    golden = fx.entry(fx.ENTRY_B2B)
+    assert all(p.follow_up is None for p in golden.people())
+
+
 def test_a_backtest_entry_carries_no_golden_expectations(tmp_path):
     raw = _good_raw()
     raw["expected"] = fx.raw_entry(fx.ENTRY_B2B)["expected"]
