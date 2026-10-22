@@ -1,0 +1,49 @@
+# Spec 063 FR-2: the example gallery's rename map -- the one place a back-test idea's real company name becomes the
+# gallery's. The founder may overrule any name here, in one line (2026-10-22: "we cannot use the same company name,
+# but we can exactly use the same problem statement, just name the company to something else").
+#
+# One [[gallery]] table an entry, in the order the gallery reads before FR-1's B2B / B2C alternation:
+#   entry    -- the back-test entry id (keel-cloud `canon/designs/measured-beliefs/backtest/<entry>.yaml`)
+#   slug     -- the directory under public/sample/ (lowercase letters and digits)
+#   name     -- what every exported text field says instead
+#   replaces -- the strings `evals/gallery.py` replaces, whole word, the first letter's case kept; longest first, so
+#               "Palus Finance" goes before "Palus". The survivors grep refuses the export if any of them remains.
+#   axes     -- optional: any of the seven gallery words (whoHasIt, whoPays, rhythm, costMode, priceShape, firstStep,
+#               kind) written here wins over the one read from the entry and the run. None is written today: all
+#               seven are derived (spec 063 tasks.md, judgement call 6).
+
+[[gallery]]
+entry = "08-fresco"
+slug = "daylog"
+name = "Daylog"
+replaces = ["Fresco"]
+
+[[gallery]]
+entry = "09-karsa"
+slug = "dollarsafe"
+name = "Dollarsafe"
+replaces = ["Karsa"]
+
+[[gallery]]
+entry = "10-palus"
+slug = "idlewell"
+name = "Idlewell"
+replaces = ["Palus Finance", "Palus"]
+
+[[gallery]]
+entry = "11-issen"
+slug = "talkleap"
+name = "Talkleap"
+replaces = ["Issen"]
+
+[[gallery]]
+entry = "12-transload"
+slug = "dockmeasure"
+name = "Dockmeasure"
+replaces = ["Transload"]
+
+[[gallery]]
+entry = "13-aircaps"
+slug = "captionglass"
+name = "Captionglass"
+replaces = ["AirCaps"]
