@@ -116,7 +116,7 @@ def stage_from_overview(overview_body: dict, stage_type: str) -> dict:
 
 
 def create_project(page: Page, recorder: Recorder, web_base: str,
-                   founder: corpus_script.FounderInputs, *, welcome: str = "pass") -> str:
+                   founder: corpus_script.FounderInputs, *, welcome: str = "pass", camera=None) -> str:
     """Name -> market -> start. Returns the new project id.
 
     The market's `language` is never typed: `CreateProjectRequest.market` carries only
@@ -130,8 +130,12 @@ def create_project(page: Page, recorder: Recorder, web_base: str,
     landing.visit()
     if page.locator(".guided-step").count() == 0:
         landing.start_new_project()
+    if camera is not None:                     # spec 062 FR-3: the back-test's camera, before each is answered
+        camera("name")
     landing.name_project(founder.project_name)
     market = MarketStep(page, recorder, web_base)
+    if camera is not None:
+        camera("market")
     market.fill(founder.market.country, founder.market.region)
     return market.start(welcome=welcome)
 

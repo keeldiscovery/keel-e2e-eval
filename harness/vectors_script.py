@@ -134,14 +134,21 @@ def option_id(token: str, dimension: str, code: str) -> str:
 
 # ------------------------------------------------------------------------------- reading in
 
-def load(keel_cloud) -> corpus_reader.Corpus:
-    """The corpus, through `instructions/corpus.py` and nothing else: revision 10 or a refusal."""
-    return corpus_reader.load(keel_cloud)
+def load(keel_cloud, *, backtest: bool = False) -> corpus_reader.Corpus:
+    """The corpus, through `instructions/corpus.py` and nothing else: revision 10 or a refusal. `backtest` (spec 062):
+    the back-test directory beside it, read the same way."""
+    return corpus_reader.load(keel_cloud, backtest=backtest)
 
 
-def entry_for(keel_cloud, entry_id: str):
-    corpus = load(keel_cloud)
+def entry_for(keel_cloud, entry_id: str, *, backtest: bool = False):
+    """`(corpus, entry)` for one id -- the golden corpus's, or with `backtest` (spec 062 FR-1) the back-test
+    directory's. An id the directory does not hold is refused by name."""
+    corpus = load(keel_cloud, backtest=backtest)
     entry = corpus.by_id(entry_id)
+    if entry is None and backtest:
+        raise VectorsScriptError(
+            f"no back-test entry {entry_id!r} in {corpus.directory} "
+            f"(it holds {', '.join(e.id for e in corpus.entries) or 'nothing'})")
     if entry is None:
         raise VectorsScriptError(
             f"no corpus entry {entry_id!r} in {corpus.directory} "
@@ -418,8 +425,8 @@ def benefit_question(occasion_word: str, name: str) -> str:
 
 def founder_idea_name(entry) -> str:
     """What the founder types as the idea's name on S2 (keel-cloud 097 F7: every founder names it) -- the entry's own
-    (`IDEA_NAMES`) or its short name."""
-    return IDEA_NAMES.get(entry.id) or short_name(entry)
+    (`IDEA_NAMES`; on a back-test entry its top-level `idea_name`, spec 062 FR-1) or its short name."""
+    return IDEA_NAMES.get(entry.id) or getattr(entry, "idea_name", None) or short_name(entry)
 
 
 def idea_name(entry) -> str:

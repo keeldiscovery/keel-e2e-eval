@@ -182,6 +182,13 @@ class Journey:
     #: Spec 057: keel-web 086's teaching videos (`vs_screens.GuideTeaching`), set by `run()` after the welcome; None
     #: elsewhere (S-012, the preludes), where every teaching read below is skipped.
     teach: Any = None
+    #: Spec 062 FR-3: the back-test's camera (`evals/backtest.Camera`) -- a full-page screenshot of every founder screen
+    #: as it is about to be answered and of every respondent screen on one person a link. None everywhere else.
+    camera: Any = None
+    #: Spec 062 FR-2: True when the founder signed up through keel-web's /signup and every job runs on Keel's AI (the
+    #: back-test). The few own-door facts the corridor legs assert -- L1's one line, the greyed formats -- are read as
+    #: Keel's door draws them instead. False on every other journey that calls these legs.
+    keels_door: bool = False
 
     # --------------------------------------------------------------------------- the wire
 
@@ -251,7 +258,8 @@ def leg_project(j: Journey) -> None:
     if j.hold_welcome:
         j.guide_wire = vs_screens.GuideWire(j.page).attach()
     j.project_id = create_project(j.page, j.recorder, j.web_base, _market_inputs(founder),
-                                  welcome="hold" if j.hold_welcome else "pass")
+                                  welcome="hold" if j.hold_welcome else "pass",
+                                  camera=j.camera.founder if getattr(j, "camera", None) is not None else None)
     with _step(j, f"{j.entry.id}: the market is the one the entry names") as h:
         market = (j.get(j.project("/overview")) or {}).get("market") or {}
         h.record_assert({"country": founder.country, "region": founder.region,
@@ -1458,6 +1466,29 @@ def leg_lock(j: Journey) -> None:
     drawn = j.corridor.word_pilot_and_lock()
     j.receipt = drawn.get("receipt") or {}
     j.screens["L1"] = drawn.get("l1") or {}
+    if getattr(j, "keels_door", False):
+        _keels_door_l1(j, drawn)
+    else:
+        _own_door_l1(j, drawn)
+    _lock_lands(j)
+
+
+def _keels_door_l1(j: Journey, drawn: dict) -> None:
+    """Spec 062 (Keel's door, keel-web 069): L1 draws the faces' carousel with one preselected and *Lock and record the
+    interviewer*; the lock records that face (fake renders on the local stack). Held: the three counters and the title;
+    the rest recorded."""
+    with _step(j, "step 5 is three screens -- 1 of 3, 2 of 3 and L1 *Who asks the questions* 3 of 3, which on Keel's "
+                  "door is the faces' carousel and *Lock and record the interviewer* (keel-web 069; spec 062)",
+               party="founder") as h:
+        l1 = drawn.get("l1") or {}
+        h.record_assert({"counters": ["1 of 3", "2 of 3", "3 of 3"], "title": vs_screens.L1_TITLE,
+                         "button": vs_screens.BEFORE_LOCK_RECORD},
+                        {**l1, "counters": drawn["counters"], "receipt": j.receipt})
+        assert drawn["counters"] == ["1 of 3", "2 of 3", "3 of 3"], drawn
+        assert l1.get("title") == vs_screens.L1_TITLE, l1
+
+
+def _own_door_l1(j: Journey, drawn: dict) -> None:
     with _step(j, "step 5 is three screens since keel-web 069 -- 1 of 3, 2 of 3 and L1 *Who asks the questions* 3 "
                   "of 3, which on an account on its own AI is one line and *Lock and approve*, no carousel; the "
                   "lock's receipt carries no interviewer (contract 16)", party="founder") as h:
@@ -1471,6 +1502,9 @@ def leg_lock(j: Journey) -> None:
         assert l1.get("sub") == vs_screens.BEFORE_INTERVIEWER_OWN, l1
         assert l1.get("button") == vs_screens.BEFORE_LOCK_APPROVE, l1
         assert "interviewer" not in j.receipt, j.receipt
+
+
+def _lock_lands(j: Journey) -> None:
     deadline = time.monotonic() + 120 * j.patience
     state = None
     while time.monotonic() < deadline:
@@ -1534,6 +1568,8 @@ def leg_invite(j: Journey) -> None:
     persona = j.get(j.project("/persona")) or {}
     primary = next(t for t in persona.get("respondentTypes") or [] if not t.get("commercialLink"))
     sent = iv_screens.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
+    if getattr(j, "camera", None) is not None:
+        sent.camera = j.camera.founder
     me_before = j.get("/v2/me") or {}
     # spec 059: the guide journey holds keel-web 088's Interviews sheet up at its first open and judges it (G13)
     walked = interviews_sheet(j, sent) if j.teach is not None else sent.land(j.project_id)
@@ -1567,8 +1603,9 @@ def leg_invite(j: Journey) -> None:
             assert made["url"] == link.get("url") and link.get("personName") == person.person, made
             # keel-web 069: *Text only*; on their own AI the other two greyed *needs Keel's credits*
             assert made["formats"].get(iv_screens.TEXT_ONLY, {}).get("checked") is True, made["formats"]
-            assert all(f["disabled"] and f["word"] == iv_screens.FORMAT_NEEDS_CREDITS
-                       for name, f in made["formats"].items() if name != iv_screens.TEXT_ONLY), made["formats"]
+            if not getattr(j, "keels_door", False):  # spec 062: on Keel's door the other two are offered, and not picked
+                assert all(f["disabled"] and f["word"] == iv_screens.FORMAT_NEEDS_CREDITS
+                           for name, f in made["formats"].items() if name != iv_screens.TEXT_ONLY), made["formats"]
         j.links[person.person] = made["url"]
         j.tokens[person.person] = made["url"].rstrip("/").rsplit("/", 1)[-1]
     with _step(j, "every corpus person has a link of their own; the Sent register draws one row a person, newest "
@@ -1701,6 +1738,8 @@ def _answer_one(j: Journey, person, token: str) -> None:
             if (person.link == vs.LINK_B2B or person.recency) else None
         page = stranger.new_page()
         screens = vs_screens.Interview(page, j.recorder)
+        if getattr(j, "camera", None) is not None:
+            screens.camera = j.camera.respondent(person, page)
         screens.open(j.links[person.person])
         walked = screens.walk(person, interview, by_item, follow_up=person.follow_up, speak=speak)
         j.walked[person.person] = walked
@@ -2624,21 +2663,28 @@ def _score_guide(j: Journey) -> dict:
 
 def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         extra: Callable[[Journey], None] | None = None, entry_from: Callable | None = None,
-        welcome_walk: bool = False, teaching: bool = False) -> None:
+        welcome_walk: bool = False, teaching: bool = False, backtest: Any = None) -> None:
     """The whole scenario. `entry_id` is the only argument that differs between S-005, S-006 and
     S-007. `extra` is the one seam: the thing only *its* entry can say, handed the `Journey`. `entry_from` is S-014's
     (spec 052 FR-7): the entry the journey walks, built from the canon one (`preludes.healthy_entry`) -- the canon's
     bytes are hashed and held unchanged as on every journey. `welcome_walk` is S-005's (spec 054 FR-3): on the local
     profile the welcome's twelve cues are walked through the seam and *Play the welcome again* pressed twice.
     `teaching` is S-005's too (spec 057): it measures G6-G12; every other journey passes keel-web 086's opener and
-    report sheets by (`vs_screens.pass_teaching_sheet`, in the corridor and the report's page objects)."""
+    report sheets by (`vs_screens.pass_teaching_sheet`, in the corridor and the report's page objects).
+
+    `backtest` is spec 062's (`evals/backtest.Backtest`, `make backtest`): the entry is read from the back-test
+    directory and walked with `strict=False` (S-012's mode) by a founder who signs up through keel-web's /signup, so
+    every job runs on Keel's AI on the local stack -- no runtime, no script. Its camera takes the founder's and one
+    person a link's screens, the export runs at the last answer with no verdict gate, the guide and feedback marks
+    (S-005/6/7's regressions) are not scored, and `backtest.md` / `backtest.json` are written whatever happens."""
     recorder = Recorder(run_dir)
     web_base = stack.web_base_url
-    cell_label = (f"{remote.cell_name()} · corpus {slug} · "
-                  f"{time.strftime('%Y-%m-%d', time.gmtime())}")
-    founder_one = remote.identity_to_sign_in_as(stack, cell_label, fallback=founder_one)
+    if backtest is None:
+        cell_label = (f"{remote.cell_name()} · corpus {slug} · "
+                      f"{time.strftime('%Y-%m-%d', time.gmtime())}")
+        founder_one = remote.identity_to_sign_in_as(stack, cell_label, fallback=founder_one)
     try:
-        corpus, entry = vs.entry_for(stack.keel_cloud, entry_id)
+        corpus, entry = vs.entry_for(stack.keel_cloud, entry_id, backtest=backtest is not None)
     except (vs.VectorsScriptError, vs.corpus_reader.CorpusError) as refusal:
         import pytest                                       # noqa: PLC0415
         pytest.fail(f"{entry_id}: {refusal}", pytrace=False)
@@ -2648,12 +2694,15 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
     passed = False
     context = browser.new_context()
     hashes_before = dict(corpus.hashes)
-    script = vs.generate(entry)
+    script = vs.generate(entry) if backtest is None else None
     founder = vs.founder_inputs(entry)
     people = vs.person_inputs(entry)
-    write_generated(run_dir, script=script.to_json(), inputs=vs.inputs_json(entry, founder, people))
+    write_generated(run_dir, script=script.to_json() if script is not None else None,
+                    inputs=vs.inputs_json(entry, founder, people))
+    journey = None
     try:
-        exported = contract_mod.export(stack.keel_cloud, run_dir / "export")
+        exported = contract_mod.export(stack.keel_cloud,
+                                       run_dir / ("export" if backtest is None else backtest.contract_dir))
         keys_path = run_dir / "context-keys.json"
         keys_path.write_text(json.dumps(vs.context_keys_for(exported.context_keys), indent=2) + "\n",
                              encoding="utf-8")
@@ -2663,41 +2712,73 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
             # has current data); 30 s is not enough on a slow link, and nothing the founder sees waits on it.
             page.set_default_navigation_timeout(90_000)
         journey = open_journey(recorder, page, context, browser, stack, entry, founder, people,
-                               script=script, registry=exported.registry)
+                               script=script, registry=exported.registry, strict=backtest is None,
+                               patience=1.0 if backtest is None else backtest.patience)
         journey.stack, journey.founder_identity = stack, founder_one
-        journey.hold_welcome = True
-        user_code = _connect(stack, recorder, page, founder_one, web_base, run_dir, keys_path)
-        own_ai_door(page, recorder, stack, journey.get, through_the_code_story=bool(user_code))
+        if backtest is None:
+            journey.hold_welcome = True
+            user_code = _connect(stack, recorder, page, founder_one, web_base, run_dir, keys_path)
+            own_ai_door(page, recorder, stack, journey.get, through_the_code_story=bool(user_code))
+            lap = _no_lap
+        else:
+            # spec 062 FR-2: signed up through /signup as the back-test founder (outside `fake-for`): Keel's AI
+            journey.founder_identity = backtest.sign_in(journey)
+            journey.keels_door = True
+            journey.camera = backtest.camera(journey)
+            journey.corridor.camera = journey.camera.founder
+            lap = backtest.lap
 
         leg_project(journey)
-        leg_welcome(journey, walk=welcome_walk)
+        lap("leg_project")
+        if backtest is None:
+            leg_welcome(journey, walk=welcome_walk)
+        else:
+            backtest.pass_welcome(journey)
         if teaching:
             teaching_start(journey)
         else:
             # spec 057: G6-G12 are S-005's (the founder journey); here the corridor and the report pass the sheets by
             journey.guide.setdefault("notes", {}).update({m: guide_marks.TEACHING_ELSEWHERE_WHY
                                                           for m in guide_marks.TEACHING_MARKS})
+        lap("teaching")
         leg_context(journey)
+        lap("leg_context")
         opener(journey, "PROBLEM")
         leg_interpret_problem(journey)
+        lap("leg_interpret_problem")
         leg_calibrate(journey, "PROBLEM")
+        lap("leg_calibrate PROBLEM")
         opener(journey, "SOLUTION")
         leg_interpret_solution(journey)
+        lap("leg_interpret_solution")
         leg_calibrate(journey, "SOLUTION")
+        lap("leg_calibrate SOLUTION")
         opener(journey, "COMMERCIAL")
         leg_persona(journey)
+        lap("leg_persona")
         leg_calibrate(journey, "COMMERCIAL")
+        lap("leg_calibrate COMMERCIAL")
         openers_final(journey)
         leg_lock(journey)
+        lap("leg_lock")
         leg_invite(journey)
+        lap("leg_invite")
         leg_interview(journey)
+        lap("leg_interview")
         leg_standings(journey)
+        lap("leg_standings")
         leg_report(journey)
         leg_one_currency(journey)
+        lap("leg_report and leg_one_currency")
         if extra is not None:
             extra(journey)
-        score_feedback(journey)
-        _score_guide(journey)
+        if backtest is None:
+            score_feedback(journey)
+            _score_guide(journey)
+        else:
+            # spec 062 FR-3: the export at the last answer, names kept, no verdict gate (060 FR-3 is golden-only)
+            backtest.after(journey)
+            lap("export")
 
         with recorder.step("the corpus hashes exactly as it did when the run began",
                            party="stack", kind="assert") as h:
@@ -2705,11 +2786,18 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
             h.record_assert(hashes_before, dict(corpus.hashes))
         passed = True
     finally:
+        if backtest is not None:
+            # spec 062 FR-4: the transcript, from the recorder's captures and the wire, before the session closes
+            backtest.finish(journey, passed=passed, failed_step=recorder.failed_step)
         context.close()
         finalize_run(run_dir, slug=slug, facts=corpus_facts.vectors_facts_for(entry),
                      passed=passed, failed_step=recorder.failed_step,
                      duration_s=time.monotonic() - started)
         print(f"\nrun bundle: {run_dir}")
+
+
+def _no_lap(_name: str) -> None:
+    """`run()`'s lap on every journey but the back-test's, which records each leg's wall time (spec 062 FR-4.5)."""
 
 
 def _connect(stack, recorder, page, founder_one, web_base, run_dir, keys_path) -> str | None:

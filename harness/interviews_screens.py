@@ -205,6 +205,12 @@ class Interviews:
         self.recorder = recorder
         #: Spec 059: the journey's guide record (`Journey.guide`), where the Sent-open helper keeps each pass.
         self.guide = guide
+        #: Spec 062 FR-3: the back-test's camera on the send screen (`evals/backtest.Camera`), or None.
+        self.camera = None
+
+    def _shot(self, slug: str) -> None:
+        if self.camera is not None:
+            self.camera(slug)
 
     def pass_sheet(self) -> dict:
         """Spec 059 FR-4: keel-web 088's Interviews sheet, skipped when it is drawn over Sent (see the module helper)."""
@@ -440,6 +446,7 @@ class Interviews:
         """Step 1: the formats as drawn, then `fmt` picked (keel-web 069: Text only, the AI interviewer, Let them
         choose) and *Continue · {format}*."""
         dialog.locator("[role=radiogroup] [role=radio]").first.wait_for(state="visible", timeout=10_000)
+        self._shot("send-format")
         formats = self._formats(dialog)
         # keel-web 069 checks the AI interviewer first once it is recorded: the asked format is always pressed
         pattern = {"AI_INTERVIEWER": re.compile(r"^AI interviewer"), "CHOICE": re.compile(rf"^{CHOICE_NAME}"),
@@ -463,6 +470,7 @@ class Interviews:
             card.locator(".btn.primary").click()
             dialog = self.page.get_by_role("dialog")
             formats = self._step_one(dialog, fmt)
+            self._shot("send-who")
             dialog.get_by_role("radio", name=re.compile(rf"^{WHO_OWN}")).click()
             dialog.locator("#send-name").fill(person)
             if about is not None and dialog.locator("#send-about").count():

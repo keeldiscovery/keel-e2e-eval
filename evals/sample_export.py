@@ -361,10 +361,14 @@ def size_of(out_dir: Path, manifest: dict) -> int:
 
 # ---------------------------------------------------------------------------------------------- the one step
 
-def export_sample(j, out_dir: Path, *, run_dir: Path | None = None) -> dict:
+def export_sample(j, out_dir: Path, *, run_dir: Path | None = None, gated: bool = True) -> dict:
     """FR-1 to FR-4 on a journey: capture the founder's reads, withhold, gate, write. Raises `SampleRefused` (nothing
     written) when the gate refuses or a name, email or token survives; returns `{manifest, size, card, ...}`. The
-    reads as received go into the run bundle (`run_dir`, gitignored) and nowhere else."""
+    reads as received go into the run bundle (`run_dir`, gitignored) and nowhere else.
+
+    `gated=False` is spec 062's (the back-test: FR-3, *no verdict gate* -- 060 FR-3 is golden-only, and there the
+    verdict is the finding): the gate's reading is recorded as a note, what a golden gate would have said beside it, and
+    never refuses. The withholding and its grep are unchanged."""
     out_dir = Path(out_dir)
     founder = getattr(j, "founder_identity", None)
     founder_name = getattr(founder, "name", "") or ""
@@ -381,15 +385,23 @@ def export_sample(j, out_dir: Path, *, run_dir: Path | None = None) -> dict:
         assert not missing, missing
     if run_dir is not None:
         (Path(run_dir) / "sample-reads.json").write_text(_dumps(reads), encoding="utf-8")
-    with j.recorder.step("sample (FR-3): the verdict the corpus expects -- Build, but change it; PROBLEM and SOLUTION "
-                         "holding up, COMMERCIAL not; every asked dimension at the entry's own n; the pilot count and "
-                         "the price line the landing's card draws", party="stack", kind="assert") as h:
-        reasons, measured = gate(reads, j.entry.expected)
-        h.record_assert({"decision": DECISION_LABEL,
-                         "verdicts": {v: (w or {}).get("verdict")
-                                      for v, w in (j.entry.expected.get("vector_verdicts") or {}).items()},
-                         "pilot": "present", "price": "present", "reasons": []},
-                        {**measured, "reasons": reasons})
+    if not gated:
+        with j.recorder.step("sample (spec 062 FR-3): no verdict gate on a back-test -- the card as the wire reads it, "
+                             "recorded; the verdict is the finding", party="stack", kind="note") as h:
+            reasons, measured = gate(reads, j.entry.expected)
+            h.record_wire({"gated": False}, {**measured, "what a golden gate would have said": reasons})
+        reasons = []
+    else:
+        with j.recorder.step("sample (FR-3): the verdict the corpus expects -- Build, but change it; PROBLEM and "
+                             "SOLUTION holding up, COMMERCIAL not; every asked dimension at the entry's own n; the "
+                             "pilot count and the price line the landing's card draws", party="stack",
+                             kind="assert") as h:
+            reasons, measured = gate(reads, j.entry.expected)
+            h.record_assert({"decision": DECISION_LABEL,
+                             "verdicts": {v: (w or {}).get("verdict")
+                                          for v, w in (j.entry.expected.get("vector_verdicts") or {}).items()},
+                             "pilot": "present", "price": "present", "reasons": []},
+                            {**measured, "reasons": reasons})
     if reasons:
         raise SampleRefused(reasons)
     with j.recorder.step("sample (FR-2, spec 061): the people's names kept as served; emails, the founder's name and "

@@ -895,6 +895,13 @@ class Corridor:
         self._b = _BrowserStep(recorder, page, "founder")
         self.conflicts = []
         self.saves = []
+        #: Spec 062 FR-3: the back-test's camera, called with a slug on every founder screen as it is about to be
+        #: answered (`evals/backtest.Camera`); None on every other journey, where `_shot` does nothing.
+        self.camera = None
+
+    def _shot(self, slug: str) -> None:
+        if self.camera is not None:
+            self.camera(slug)
 
     # ------------------------------------------------------------------------ every screen's frame
 
@@ -970,6 +977,7 @@ class Corridor:
                           f"recall window ({window['count']} {window['unit']})") as h:
             self.page.goto(f"{self.base}/p/{project_id}/define/context", wait_until="load")
             self.page.locator("#context-actor").wait_for(state="visible", timeout=20_000)
+            self._shot("context")
             for key in ("actor", "job", "circumstance", "segment"):
                 self.page.locator(f"#context-{key}").fill(fields[key])
             self.page.locator("input.cwindow__count").fill(str(window["count"]))
@@ -986,6 +994,7 @@ class Corridor:
                                                              timeout=60_000 * self.patience)
             h.capture_text("stage_screen", _screen_text(self.page, ".ccard"))
             h.add_screenshot(self._b.screenshot("context-card"))
+            self._shot("context-card")
             return _first_text(self.page, ".understands__big")
 
     #: Every context Save's answer as the page received it (`PUT /v2/projects/{id}/context`): method, path, status.
@@ -1023,11 +1032,13 @@ class Corridor:
             box = self.page.get_by_role("textbox", name=SEED_SEND)
             box.wait_for(state="visible", timeout=20_000)
             pass_teaching_sheet(self.page, self._b.recorder, self.base, "opener", vector)
+            self._shot(f"{slug}-seed")
             box.fill(text)
             _button(self.page, SEED_SEND).click()
             self.page.get_by_text(kicker).first.wait_for(state="visible",
                                                          timeout=60_000 * self.patience)
             h.add_screenshot(self._b.screenshot(f"{slug}-card"))
+            self._shot(f"{slug}-card")
             claim = _first_text(self.page, ".understood__claim")
             rows = {}
             for row in self.page.locator(".mrow").all():
@@ -1076,6 +1087,7 @@ class Corridor:
             counter = {"drawn": self._name_counter()}
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot("idea-check"))
+            self._shot("idea")
             if name:
                 # keel-web 066 (D14): the counter is live and Save is off over five words -- typed once one word past
                 # five, read, then the name itself.
@@ -1120,6 +1132,7 @@ class Corridor:
         name = question.get("dimension")
         with self._b.step(f"founder answers {name}") as h:
             self.page.locator("h1.calib__q").first.wait_for(state="visible", timeout=30_000)
+            self._shot(f"q-{name}")
             control = question.get("control")
             labels = {o.get("normalized"): o.get("label") for o in question.get("options") or []}
             if answer.get("unsure"):
@@ -1169,6 +1182,7 @@ class Corridor:
         with self._b.step(f"founder answers {name} in their own words" if text else
                           f"founder leaves {name} out of the study") as h:
             self.page.locator("textarea.calib__answerbox").first.wait_for(state="visible", timeout=30_000)
+            self._shot(f"answer-{name}")
             seen = {"screen": "answer", "frame": self.frame(), "question": _first_text(self.page, "h1.calib__q"),
                     "hint": _first_text(self.page, ".calib__hint"),
                     "derived": _first_text(self.page, ".calib__derived")}
@@ -1251,6 +1265,7 @@ class Corridor:
             drafting = self.page.locator(".calib__drafting")
             if drafting.count():
                 drafting.first.wait_for(state="detached", timeout=timeout_s * 1000 * self.patience)
+            self._shot(f"check-{name}")
             seen = {"screen": "check", "frame": self.frame(), **self._list_rows(), "test": self._keel_test()}
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot(f"check-{name}"))
@@ -1271,6 +1286,7 @@ class Corridor:
             _wait_url(self.page, r"/choose")
             group = self.page.locator(".listcheck [role=radiogroup]").first
             group.wait_for(state="visible", timeout=20_000)
+            self._shot(f"choose-{name}")
             radios = group.get_by_role("radio")
             before = [radios.nth(i).get_attribute("aria-checked") for i in range(radios.count())]
             options = [_safe_text(lambda r=radios.nth(i): r.inner_text()).strip() for i in range(radios.count())]
@@ -1293,6 +1309,7 @@ class Corridor:
             group = self.page.get_by_role("radiogroup", name=PERSONA_QUESTION, exact=True)
             group.wait_for(state="visible", timeout=20_000)
             pass_teaching_sheet(self.page, self._b.recorder, self.base, "opener", "COMMERCIAL")
+            self._shot("persona")
             if decider["kind"] == "SAME_PERSON":
                 group.get_by_role("radio", name=PERSONA_SAME, exact=True).click()
             else:
@@ -1302,6 +1319,7 @@ class Corridor:
             self.page.get_by_text(KICKER_CONTEXT).first.wait_for(state="visible", timeout=20_000)
             text = _text(self.page)
             h.add_screenshot(self._b.screenshot("persona-set"))
+            self._shot("persona-who-answers")
             _button(self.page, CONTINUE).click()
             _wait_url(self.page, r"/define/commercial/q/1")
             return {"text": text}
@@ -1317,6 +1335,7 @@ class Corridor:
             _wait_url(self.page, r"/define/ready")
             counter = self.page.get_by_test_id("before-counter")
             counter.wait_for(state="visible", timeout=20_000)
+            self._shot("ready-word")
             # The DOM's words, not the CSS's capitals (`text-transform`).
             first = counter.text_content() or ""
             _button(self.page, BEFORE_CONTINUE).click()
@@ -1324,6 +1343,7 @@ class Corridor:
             self.page.locator("[data-testid=before-counter]", has_text=re.compile(r"^2 of")).wait_for(timeout=10_000)
             second = counter.text_content() or ""
             h.add_screenshot(self._b.screenshot("pilot"))
+            self._shot("ready-pilot")
             counters = [first.strip(), second.strip()]
             l1: dict = {}
             if self.page.get_by_test_id("lock-and-record").count() == 0:          # keel-web 069: a third screen
@@ -1331,6 +1351,7 @@ class Corridor:
                 _wait_url(self.page, r"/define/ready/interviewer")
                 self.page.locator("[data-testid=before-counter]", has_text="3 of 3").wait_for(timeout=10_000)
                 counters.append((counter.text_content() or "").strip())
+                self._shot("ready-interviewer")
                 l1 = self.l1(face)
             with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/lock"),
                                            timeout=30_000) as locked:
@@ -1460,6 +1481,12 @@ class Interview:
         self._b = _BrowserStep(recorder, page, "participant")
         self.seen: list[str] = []
         self.screens: list[dict] = []
+        #: Spec 062 FR-3: the back-test's camera for this person's screens (one person a link), or None.
+        self.camera = None
+
+    def _shot(self, slug: str) -> None:
+        if self.camera is not None:
+            self.camera(slug)
 
     def _keep(self) -> None:
         text = _screen_text(self.page, "div.iv-page") or _screen_text(self.page, "body")
@@ -1475,6 +1502,7 @@ class Interview:
             _button(self.page, IV_BEGIN).wait_for(state="visible", timeout=20_000)
             self._keep()
             h.add_screenshot(self._b.screenshot("interview-intro"))
+            self._shot("intro")
 
     def walk(self, person, interview: dict, wire_answers: dict, *, follow_up: str | None = None,
              speak: str | None = None) -> dict:
@@ -1519,6 +1547,7 @@ class Interview:
             self._keep()
             heading = _safe_text(lambda: page.get_by_role("heading", level=1).first.inner_text())
             h.add_screenshot(self._b.screenshot(f"interview-done-{person.person.split()[0]}"))
+            self._shot("done")
             page.remove_listener("response", self._keep_transcribe)
             return {"body": body, "status": status, "done": heading, "seen": list(self.seen),
                     "screens": list(self.screens), "follow_up_route": self.route, "follow_up": self.follow_up_seen,
@@ -1551,6 +1580,7 @@ class Interview:
         screen = page.get_by_test_id("iv-follow-up")
         screen.wait_for(state="visible", timeout=20_000)
         self._keep()
+        self._shot("follow-up")
         box = ivs.SpeakBox(page, "[data-testid=iv-follow-up]")
         cont = _button(page, IV_CONTINUE)
         drawn = {"kicker": _first_text(screen, ".iv-kicker"), "question": _first_text(screen, "h1.iv-q"),
@@ -1587,6 +1617,7 @@ class Interview:
         page = self.page
         _button(page, IV_CONTINUE).wait_for(state="visible", timeout=20_000)
         self._keep()
+        self._shot("idea")
         self.screens.append({"screen": "idea", "kicker": _first_text(page, ".iv-kicker"),
                              "card": _first_text(page, ".iv-card"),
                              "question": _first_text(page, "h1.iv-q")})
@@ -1597,6 +1628,7 @@ class Interview:
         group = page.get_by_role("radiogroup", name=gate["question"], exact=True)
         group.wait_for(state="visible", timeout=20_000)
         self._keep()
+        self._shot("gate")
         group.get_by_role("radio", name=IV_YES if person.recency else IV_NO, exact=True).click()
         chips = []
         if person.recency:
@@ -1674,6 +1706,7 @@ class Interview:
             for i_index, item in enumerate(items):
                 page.locator("h1.iv-q").first.wait_for(state="visible", timeout=20_000)
                 self._keep()
+                self._shot(f"part{part.get('part')}-{item.get('dimension')}")
                 answer = wire_answers.get(item.get("itemId"))
                 if answer is not None:
                     self._answer(item, answer)
@@ -1694,6 +1727,7 @@ class Interview:
                     and p_index < len(parts) - 1:
                 _button(page, IV_CONTINUE).wait_for(state="visible", timeout=20_000)
                 self._keep()
+                self._shot("reveal")
                 self.screens.append({"screen": "reveal", "kicker": _first_text(page, ".iv-kicker"),
                                      "card": _first_text(page, ".iv-card")})
                 _button(page, IV_CONTINUE).click()

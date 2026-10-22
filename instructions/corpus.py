@@ -282,6 +282,11 @@ class Entry:
     registry: object = None
     #: The entry's top-level `hourly_rate` (`{value, currency}`) on a B2B entry; `None` on B2C (call 60).
     raw_rate: object = None
+    #: Spec 062 FR-1: a back-test entry's top-level `idea_name` (what `harness/vectors_script.IDEA_NAMES` carries for a
+    #: golden entry -- the name its founder types on S2); `None` on every golden entry.
+    idea_name: str | None = None
+    #: Spec 062 FR-1: True when the entry was read from the back-test directory (`load(..., backtest=True)`).
+    backtest: bool = False
 
     # ------------------------------------------------------------------ the people
 
@@ -515,31 +520,52 @@ def source_dir(keel_cloud: Path) -> Path:
     return corpus_dir(keel_cloud)
 
 
-def load(keel_cloud: Path, *, registry=None) -> Corpus:
+def backtest_dir(keel_cloud: Path) -> Path:
+    """Spec 062 FR-1: the back-test entries, beside the golden corpus -- real founders' ideas written from public
+    material in the corpus schema, with no golden expectations. Read by `make backtest` alone."""
+    return Path(keel_cloud) / "canon" / "designs" / "measured-beliefs" / "backtest"
+
+
+#: Spec 062 FR-1: the two top-level keys a back-test entry may carry and a golden entry never does.
+BACKTEST_KEYS = ("idea_name", "sources")
+#: keel-cloud `IdeaLines.NAME_MAX_WORDS` (L5): the founder's name for the idea on S2 is at most five words.
+IDEA_NAME_MAX_WORDS = 5
+
+
+def load(keel_cloud: Path, *, registry=None, directory: Path | None = None, backtest: bool = False) -> Corpus:
     """Every `NN-name.yaml` in keel-cloud's corpus directory, in filename order, each at revision
-    5 -- one file at another revision refuses the whole corpus, by entry and by key (calls 49, 51)."""
-    directory = source_dir(keel_cloud)
-    if not directory.is_dir():
-        raise CorpusError(
-            f"no corpus at {directory} -- this eval reads keel-cloud's own golden set, and "
-            "cannot invent one")
-    files = sorted(p for p in directory.glob("*.yaml"))
-    if not files:
-        raise CorpusError(f"{directory} holds no *.yaml entries")
+    5 -- one file at another revision refuses the whole corpus, by entry and by key (calls 49, 51).
+
+    Spec 062: `backtest=True` reads the back-test directory (`backtest_dir`, or `directory` when given) instead, every
+    file through the same refusals plus FR-1's three differences (`_check_backtest`); an empty or absent back-test
+    directory is an empty corpus, never a refusal. A golden load never reads that directory."""
+    if backtest:
+        directory = Path(directory) if directory is not None else backtest_dir(keel_cloud)
+        files = sorted(p for p in directory.glob("*.yaml")) if directory.is_dir() else []
+    else:
+        directory = Path(directory) if directory is not None else source_dir(keel_cloud)
+        if not directory.is_dir():
+            raise CorpusError(
+                f"no corpus at {directory} -- this eval reads keel-cloud's own golden set, and "
+                "cannot invent one")
+        files = sorted(p for p in directory.glob("*.yaml"))
+        if not files:
+            raise CorpusError(f"{directory} holds no *.yaml entries")
     entries, hashes = [], {}
     for path in files:
-        entry = load_file(path, registry=registry)
+        entry = load_file(path, registry=registry, backtest=backtest)
         hashes[str(path)] = entry.sha256
         entries.append(entry)
     return Corpus(entries=entries, directory=directory, hashes=hashes)
 
 
-def load_file(path, *, registry=None) -> Entry:
-    """One revision-5 file, checked; bound to `registry` (and checked against it) when given."""
+def load_file(path, *, registry=None, backtest: bool = False) -> Entry:
+    """One revision-5 file, checked; bound to `registry` (and checked against it) when given. `backtest` (spec 062):
+    a back-test entry -- `expected` absent or empty, `idea_name` required, `sources` ignored."""
     path = Path(path)
     digest = _sha256(path)
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    entry = _entry(raw, path, digest)
+    entry = _entry(raw, path, digest, backtest=backtest)
     if registry is not None:
         _check_keys(entry, registry)
         entry = replace(entry, registry=registry)
@@ -1081,10 +1107,35 @@ def _person(raw: dict) -> Person:
                   link=raw.get("link", LINK_PRIMARY))
 
 
-def _entry(raw: dict, path: Path, digest: str) -> Entry:
+def _check_backtest(raw: dict, path: Path, backtest: bool) -> None:
+    """Spec 062 FR-1, the only differences between a back-test entry and a golden one: `expected` absent or empty,
+    a top-level `idea_name` (the founder's name for the idea, at most five words), and `sources` (ignored). A golden
+    entry carries neither key; a back-test entry carries no golden expectations."""
+    entry_id = raw.get("id") or path.name
+    if not backtest:
+        for key in BACKTEST_KEYS:
+            if key in raw:
+                raise _refuse(entry_id, f"carries `{key}`, a back-test key (spec 062); a golden entry names its "
+                                        "idea through IDEA_NAMES and carries no sources", path)
+        return
+    expected = raw.get("expected")
+    if expected not in (None, {}):
+        raise _refuse(entry_id, "carries `expected`; a back-test entry has no golden expectations (spec 062 FR-1: "
+                                "the verdict is the finding) -- remove the block or leave it empty", path)
+    name = raw.get("idea_name")
+    if not isinstance(name, str) or not name.strip():
+        raise _refuse(entry_id, f"idea_name is {name!r}; a back-test entry names its idea as the founder types it "
+                                "on S2 (spec 062 FR-1)", path)
+    if len(name.split()) > IDEA_NAME_MAX_WORDS:
+        raise _refuse(entry_id, f"idea_name {name!r} is {len(name.split())} words; the founder's name for the idea "
+                                f"is at most {IDEA_NAME_MAX_WORDS} (keel-cloud IdeaLines L5)", path)
+
+
+def _entry(raw: dict, path: Path, digest: str, *, backtest: bool = False) -> Entry:
     if not isinstance(raw, dict):
         raise CorpusError(f"{path} is not a corpus entry")
     _check_revision(raw, path)
+    _check_backtest(raw, path, backtest)
     _check_shape(raw, path)
     return Entry(
         id=raw["id"],
@@ -1104,4 +1155,6 @@ def _entry(raw: dict, path: Path, digest: str) -> Entry:
         path=path,
         sha256=digest,
         raw_rate=raw.get("hourly_rate"),
+        idea_name=(raw.get("idea_name").strip() if backtest else None),
+        backtest=backtest,
     )

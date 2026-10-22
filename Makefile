@@ -4,7 +4,7 @@ PIP := $(VENV)/bin/pip
 PLAYWRIGHT := $(VENV)/bin/playwright
 
 .PHONY: up down eval eval-live eval-all report venv unit instruction-eval instruction-screen acceptance oidc-image \
-        matrix-check keels-ai sample
+        matrix-check keels-ai sample backtest
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
 # venv already exists (pip/playwright no-op when nothing changed).
@@ -48,6 +48,27 @@ sample: venv
 	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) \
 	KEEL_SAMPLE_EXPORT="$(if $(KEEL_SAMPLE_EXPORT),$(KEEL_SAMPLE_EXPORT),$$($(PY) -c 'from stack.config import load_config; print(load_config(validate=False).keel_web / "public" / "sample")'))" \
 	$(PY) -m pytest evals -q -m "not live" -k s006
+
+# make backtest (spec 062) walks ONE BACK-TEST ENTRY -- a real founder's idea, written from public material in the
+# corpus schema with no golden expectations, in keel-cloud's `canon/designs/measured-beliefs/backtest/<ENTRY>.yaml` --
+# through `corpus_scenario.run` with `strict=False` (S-012's mode: nothing held to the file) ON KEEL'S AI, locally. The
+# founder (*Backtest Founder*, backtest@keel-backtest.test, outside keel-cloud's `fake-for`) signs up through /signup;
+# contacts, renders and the transcriber stay the stack's fakes, so nothing but model calls leaves the machine.
+# It writes `runs/<stamp>-backtest-<ENTRY>/`: `backtest.md` and `backtest.json` (every founder screen, every served
+# respondent question per link, the brief, the readings beside the file's anchoring, cost and time), `screens/`
+# (founder-NN-*.png, respondent-<link>-NN-*.png) and `export/` (060/061's snapshot, names kept, no verdict gate).
+#
+# IT SPENDS MONEY: Keel's own Anthropic key, read into this one command's environment and never written anywhere --
+# about $COST_TBD for a twenty-person entry (the smoke run of spec 062). It REFUSES without the key, and
+# refuses a stack already up (`make down` first): it boots its own, so keel-cloud inherits the key, and tears it down.
+# Never in `make eval`, `make unit`, the matrix or a schedule (`evals/run_backtest.py` is no `test_*.py` file).
+#
+#   KEEL_ANTHROPIC_API_KEY="$$(...)" make backtest ENTRY=08-fresco
+backtest:
+	@if [ -z "$$KEEL_ANTHROPIC_API_KEY" ]; then echo "make backtest refuses: KEEL_ANTHROPIC_API_KEY is not set in this shell -- the local stack passes it to keel-cloud, which answers every job of the back-test on Keel's AI (spec 062 FR-2); it is never logged, echoed or written"; exit 2; fi
+	@if [ -z "$(ENTRY)" ]; then echo "make backtest refuses: no ENTRY -- name a back-test entry, \`make backtest ENTRY=<id>\` (keel-cloud canon/designs/measured-beliefs/backtest/<id>.yaml)"; exit 2; fi
+	@$(MAKE) --no-print-directory venv
+	KEEL_EVAL_PROFILE=eval KEEL_BACKTEST_ENTRY=$(ENTRY) $(PY) -m pytest evals/run_backtest.py -q -rs -l
 
 # make eval-live runs the scenarios marked `live` -- a real `claude`, real money (spec 008-stranger-
 # who-gives-orders). Opt-in only; never part of `make eval`/`make eval-all`. Needs a logged-in

@@ -236,6 +236,22 @@ added to this line rather than quietly written — which is exactly how the thir
   is shorter. A `test_s013_short_journey.py` would have been a fourth named place and would have
   had to be argued for; this is not one.
 
+  **And the back-test widens it once more, locally** (spec 062, `make backtest ENTRY=<id>`, 2026-10-22). The founder
+  asked to *emulate* real funded founders and read what Keel's AI asks them and their people: so a **back-test entry**
+  (keel-cloud `canon/designs/measured-beliefs/backtest/NN-slug.yaml`, the corpus schema with no `expected`, a top-level
+  `idea_name`, an optional `sources`; `instructions/corpus.load(..., backtest=True)`, the golden refusals all kept) is
+  walked by `corpus_scenario.run(..., backtest=evals.backtest.Backtest)` with `strict=False` -- S-012's mode, nothing
+  held to the file -- by *Backtest Founder* (`backtest@keel-backtest.test`, outside keel-cloud's `fake-for`) signed up
+  through `/signup`, so every job runs on Keel's AI with the routing file's own models, on the local stack, contacts,
+  renders and transcriber fakes. It writes `backtest.md` / `backtest.json` (founder screens, served respondent
+  questions per link, the brief as served, the readings beside the file's anchoring, cost and time), one full-page
+  screenshot a founder screen and a respondent screen (`screens/`), and 060/061's export ungated (`export/`). **It is
+  the fourth paid command** beside `instruction-eval`, `eval-live` and `keels-ai`: Keel's own Anthropic key read into
+  that one command's environment (`KEEL_ANTHROPIC_API_KEY`; refused by one sentence without it; never logged or
+  written), about COST_TBD for a twenty-person entry, run on the founder's word only and never by a schedule, a cell
+  or `make eval` / `make unit` (`evals/run_backtest.py` is no `test_*.py`; `matrix/cells.py` never names it). A
+  widening of this place, not a fifth: the subject is the same journey on the same model door.
+
 - **The live classifier check** (`evals/test_classifier_live.py`, spec 048 FR-2) -- the fourth, argued here as the
   rule asks. keel-cloud 099 makes a model (Keel's AI, the light tier) decide what a respondent's spoken answer means,
   and the only way to know whether it gives a confident wrong answer on real items is to ask it: the FakeClassifier

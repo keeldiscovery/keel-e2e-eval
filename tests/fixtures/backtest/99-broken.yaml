@@ -1,0 +1,536 @@
+# Spec 062 Acceptance 1: a BROKEN back-test entry. 10-fixture-b2b.yaml with `expected` removed and the two
+# back-test keys added (`idea_name`, `sources`) -- a well-formed back-test entry but for one golden shape rule:
+# context.occasion is five words, where revision 10 records one to four. The loader in back-test mode refuses
+# it with the sentence a golden author gets. Not a back-test entry; values invented.
+id: 99-broken
+title: Fixture — the keys you cannot find, bought by the office
+revision: 12
+idea_name: Whistle key tag
+sources: 99-broken.sources.md
+market:
+  country: GB
+  region: null
+  language: en-GB
+statements:
+  problem: Commuters who cycle lose ten minutes most mornings looking for their keys.
+  solution: A tag on the key ring that listens for a whistle and beeps back, so the owner can follow the sound.
+  commercial: £3 a month, paid by the commuter.
+roles:
+- id: commuter
+  label: Commuters who cycle
+  roleType: CONSUMER
+  about: someone who cycles to work
+- id: buyer
+  label: Office managers
+  roleType: BUYER
+  about: the office manager who buys for the team
+context:
+  actor: commuter
+  actor_plural: commuters who cycle
+  job: get out of the door on time
+  circumstance: the morning they cannot find their keys
+  occasion: the cold wet winter morning
+  segment: commuters in Leeds who cycle to work
+  understood: 'Keel understands: commuters who cycle, on the morning they cannot find their keys, trying to get out of the
+    door on time.'
+  recall_window:
+    count: 7
+    unit: NIGHTS
+interpretations:
+  problem: Commuters who cycle lose time on the mornings they cannot find their keys, and are late because of it.
+  offer_name: a fix for lost keys
+solution_mechanism:
+  actor: the commuter
+  trigger: when the keys are not where they were left
+  mechanism: whistles once and the tag on the ring listens for it
+  output: a beep from the tag, loud enough to follow
+  not_assumed:
+  - the keys are always found
+  mechanism_terms:
+  - tag
+  - whistle
+  - beep
+  - key ring
+  short_name: a tag that beeps back
+persona:
+  decision_maker:
+    role: buyer
+hourly_rate:
+  value: 20
+  currency: GBP
+founder_calibration:
+  problem.prevalence:
+    answer: p_60_80
+    belief_phrase: Most
+    belief_sentence: Most of these commuters who cycle had this at least once in the last 7 nights.
+  problem.frequency:
+    answer:
+      lower: 2
+      upper: 4
+      unit: nights out of 7
+    belief_phrase: 2 to 4 nights out of 7
+    belief_sentence: Commuters who cycle face this on 2 to 4 nights out of 7.
+  problem.importance:
+    answer:
+      items:
+      - code: finding_keys
+        label: Finding the keys on the way out
+      - code: the_traffic
+        label: Getting through the morning traffic
+      - code: the_weather
+        label: Riding in wet weather
+      - code: a_flat_tyre
+        label: Fixing a flat tyre on the way
+      - code: bike_parking
+        label: Finding somewhere safe to park
+    belief_sentence: When the morning they cannot find their keys, finding the keys on the way out is one of the two difficulties
+      commuters who cycle would most like made easier, out of five.
+  problem.current_solution_satisfaction:
+    answer:
+      phrase: your way of finding them
+      items:
+      - code: works_well
+        label: Found them straight away
+      - code: mostly_works
+        label: Found them after a quick look
+      - code: hit_and_miss
+        label: It took a full search of the flat
+      - code: works_poorly
+        label: Found them only after being late
+      - code: no_reliable_way
+        label: Never found them that morning
+    belief_sentence: 'For most commuters who cycle, their way of finding them falls short: it takes a lot of effort or lets
+      errors through.'
+  solution.compatibility:
+    answer:
+      items:
+      - code: phone_to_hand
+        label: They had a phone to hand
+        asked: did you have your phone to hand
+      - code: keys_on_ring
+        label: Their keys were on one ring
+        asked: were your keys all on one ring
+      picked: 0
+    belief_sentence: For most, on their last morning, they had a phone to hand.
+  solution.relative_advantage:
+    answer:
+      items:
+      - code: shorter_time
+        label: A shorter search
+    belief_phrase: a shorter search
+    belief_sentence: For most, it would have made their last morning better.
+  solution.adoption_friction:
+    answer:
+      items:
+      - code: clip_the_tag
+        label: Clip a tag to the key ring
+        asked: you'd clip a tag to your key ring, once
+      picked: 0
+    belief_sentence: Most would clip a tag to the key ring.
+  commercial.existing_sacrifice:
+    answer:
+      mode: HOURS
+      low: 1
+      high: 3
+      rate: 20
+      period: month
+      currency: GBP
+    belief_phrase: 1 to 3 hours a month, about £20 to £60
+    belief_sentence: The problem already costs the payer 1 to 3 hours a month, about £20 to £60.
+  commercial.price:
+    answer:
+      low: 3
+      high: 5
+      period: month
+      currency: GBP
+    belief_phrase: £3 to £5 a month
+    belief_sentence: The payer would think it worth £3 to £5 a month.
+  commercial.ability_to_pay:
+    answer:
+      ratio_low: 5
+      ratio_high: 25
+      band: small_share
+    belief_phrase: '5% to 25% of what the problem costs them today: a small share of what the problem costs them'
+    belief_sentence: 'Your price is 5% to 25% of what the problem costs them today: a small share of what the problem costs
+      them.'
+  commercial.buyer_payer_alignment:
+    unsure: true
+    belief_sentence: 'Left out: you weren''t sure.'
+  commercial.purchase_friction:
+    answer:
+      items:
+      - code: manager_sign_off
+        label: The office manager's sign-off
+      - code: security_check
+        label: A security check
+      picked: 0
+    belief_sentence: The office manager's sign-off slows the purchase most.
+  commercial.commitment:
+    answer:
+      items:
+      - code: step
+        label: install the app
+    belief_sentence: Most are open to install the app now.
+respondent_questions:
+  problem.prevalence:
+    part: 1
+    control: gate_yes_no
+    codes:
+    - 'yes'
+    - 'no'
+  problem.frequency:
+    part: 1
+    control: segmented_0_to_7
+    escape: cant_recall
+  problem.importance:
+    part: 1
+    control: pick_two
+    own_item: finding_keys
+    codes:
+    - the_traffic
+    - finding_keys
+    - the_weather
+    - a_flat_tyre
+    - bike_parking
+    escape: none_of_these
+  problem.current_solution_satisfaction:
+    part: 1
+    control: single_choice_5
+    codes:
+    - works_well
+    - mostly_works
+    - hit_and_miss
+    - works_poorly
+    - no_reliable_way
+    escape: someone_else_checks
+  solution.compatibility:
+    part: 2
+    control: fixed_four
+    codes:
+    - yes_easily
+    - yes_with_steps
+    - only_with_help
+    - 'no'
+    escape: cant_tell
+  solution.relative_advantage:
+    part: 2
+    control: benefit_with_advantages
+    codes:
+    - positive
+    - neutral
+    - negative
+    escape: cant_tell
+  solution.adoption_friction:
+    part: 2
+    control: fixed_four
+    codes:
+    - 'yes'
+    - yes_if_worth_it
+    - probably_not
+    - 'no'
+    escape: cant_tell
+  commercial.existing_sacrifice:
+    part: 3
+    control: cost_total
+    escape: cant_recall
+  commercial.price:
+    part: 3
+    control: price_ladder
+    codes:
+    - under_1
+    - band_1_2
+    - band_2_5
+    - band_5_10
+    - over_10
+    - would_not_pay
+    escape: cant_say
+  commercial.ability_to_pay:
+    part: 3
+    control: single_choice
+    codes:
+    - existing_line
+    - new_line_signed_off
+    - taken_from_other_spend
+    - no_budget
+    escape: cant_recall_one
+  commercial.purchase_friction:
+    part: 3
+    control: fixed_three
+    codes:
+    - yes_long
+    - yes_quick
+    - not_needed
+    escape: cant_recall
+  commercial.commitment:
+    part: 3
+    control: fixed_four
+    codes:
+    - yes_start
+    - yes_after_trying
+    - probably_not
+    - 'no'
+answers:
+- person: Ann Abbott
+  recency: 'yes'
+  story: Tuesday. They were in my coat from the night before. Ten minutes, late for the train.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 3
+    problem.importance:
+    - finding_keys
+    - the_traffic
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: yes_easily
+    solution.relative_advantage:
+      answer: positive
+      advantages:
+      - shorter_time
+    solution.adoption_friction: 'yes'
+  pilot_opt_in: true
+- person: Bo Brand
+  recency: 'yes'
+  story: Yesterday, under the post on the mat. I listened for the jangle and heard nothing.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.importance:
+    - the_traffic
+    - finding_keys
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: yes_easily
+    solution.relative_advantage:
+      answer: positive
+      advantages:
+      - shorter_time
+    solution.adoption_friction: 'yes'
+  pilot_opt_in: false
+- person: Cy Cole
+  recency: 'yes'
+  story: This morning, in the bike bag. Five minutes.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 4
+    problem.importance:
+    - finding_keys
+    - the_weather
+    problem.current_solution_satisfaction: mostly_works
+    solution.compatibility: yes_with_steps
+    solution.relative_advantage:
+      answer: positive
+      advantages:
+      - shorter_time
+    solution.adoption_friction: yes_if_worth_it
+  pilot_opt_in: false
+- person: Di Dunn
+  recency: 'yes'
+  story: Monday, on the kitchen shelf behind the kettle. Twenty minutes.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.importance:
+    - the_weather
+    - a_flat_tyre
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: 'no'
+    solution.relative_advantage:
+      answer: positive
+      advantages:
+      - shorter_time
+    solution.adoption_friction: 'no'
+  pilot_opt_in: true
+- person: Ed Eze
+  recency: 'yes'
+  story: Last Thursday, in yesterday's jeans. Took a while.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 1
+    problem.importance:
+    - finding_keys
+    - bike_parking
+    problem.current_solution_satisfaction: no_reliable_way
+    solution.compatibility: yes_easily
+    solution.relative_advantage:
+      answer: positive
+      advantages:
+      - shorter_time
+    solution.adoption_friction: 'yes'
+  pilot_opt_in: false
+- person: Flo Fay
+  recency: 'yes'
+  story: Friday, my housemate had moved them to the hook. Eight minutes.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 3
+    problem.importance:
+      chip: none_of_these
+    problem.current_solution_satisfaction: works_well
+    solution.compatibility: only_with_help
+    solution.relative_advantage:
+      answer: positive
+      advantages:
+      - shorter_time
+    solution.adoption_friction: 'yes'
+  pilot_opt_in: false
+- person: Gus Gale
+  recency: 'yes'
+  story: Wednesday, in the front door, outside. Two minutes of panic.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 2
+    problem.importance:
+    - finding_keys
+    - the_traffic
+    problem.current_solution_satisfaction:
+      chip: someone_else_checks
+    solution.compatibility:
+      chip: cant_tell
+    solution.relative_advantage:
+      answer: neutral
+    solution.adoption_friction: probably_not
+  pilot_opt_in: false
+- person: Hal Hart
+  recency: 'yes'
+  story: Saturday, at the bottom of the gym bag. Twelve minutes.
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    problem.frequency: 4
+    problem.importance:
+    - a_flat_tyre
+    - finding_keys
+    problem.current_solution_satisfaction: hit_and_miss
+    solution.compatibility: yes_with_steps
+    solution.relative_advantage:
+      answer: neutral
+    solution.adoption_friction: 'yes'
+  pilot_opt_in: true
+- person: Ivy Ives
+  recency: 'yes'
+  story: It happens a lot, they turn up somewhere eventually.
+  chip: null
+  anchoring: GUESSED
+  picks:
+    problem.frequency: 5
+    problem.importance:
+    - finding_keys
+    - the_traffic
+    problem.current_solution_satisfaction: works_poorly
+    solution.compatibility: yes_easily
+    solution.relative_advantage:
+      answer: positive
+      advantages:
+      - shorter_time
+    solution.adoption_friction: 'yes'
+  pilot_opt_in: false
+- person: Jo Judd
+  recency: 'yes'
+  story: Most weeks. I couldn't tell you the last one.
+  chip: cant_recall
+  anchoring: GUESSED
+  picks:
+    problem.frequency: 3
+  pilot_opt_in: false
+- person: Kit Kerr
+  recency: 'no'
+  story: null
+  chip: null
+  anchoring: null
+  picks: {}
+  pilot_opt_in: false
+- person: Lu Lam
+  recency: 'no'
+  story: null
+  chip: null
+  anchoring: null
+  picks: {}
+  pilot_opt_in: false
+- person: Max Moss
+  link: COMMERCIAL_B2B
+  recency: null
+  story: null
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      mode: HOURS
+      value: 2
+      currency: GBP
+      period: month
+    commercial.price: band_2_5
+    commercial.ability_to_pay: existing_line
+    commercial.purchase_friction: yes_quick
+    commercial.commitment: yes_start
+  pilot_opt_in: true
+- person: Nia Noor
+  link: COMMERCIAL_B2B
+  recency: null
+  story: null
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      mode: AMOUNT
+      value: 30
+      currency: GBP
+      period: month
+    commercial.price: band_5_10
+    commercial.ability_to_pay: new_line_signed_off
+    commercial.purchase_friction: yes_long
+    commercial.commitment: yes_after_trying
+  pilot_opt_in: false
+- person: Oz Oduya
+  link: COMMERCIAL_B2B
+  recency: null
+  story: null
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      mode: HOURS
+      value: 1
+      currency: GBP
+      period: month
+    commercial.price: band_2_5
+    commercial.ability_to_pay: existing_line
+    commercial.purchase_friction: not_needed
+    commercial.commitment: yes_start
+  pilot_opt_in: false
+- person: Pip Penn
+  link: COMMERCIAL_B2B
+  recency: null
+  story: null
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      chip: cant_recall
+    commercial.price: would_not_pay
+    commercial.ability_to_pay:
+      chip: cant_recall_one
+    commercial.purchase_friction: yes_long
+    commercial.commitment: 'no'
+  pilot_opt_in: false
+- person: Quin Qadir
+  link: COMMERCIAL_B2B
+  recency: null
+  story: null
+  chip: null
+  anchoring: ANCHORED
+  picks:
+    commercial.existing_sacrifice:
+      mode: AMOUNT
+      value: 60
+      currency: GBP
+      period: month
+    commercial.price: band_2_5
+    commercial.ability_to_pay: taken_from_other_spend
+    commercial.purchase_friction: yes_quick
+    commercial.commitment: probably_not
+  pilot_opt_in: false
