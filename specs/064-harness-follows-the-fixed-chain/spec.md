@@ -1,0 +1,88 @@
+# Spec 064 -- The harness follows the fixed chain: corpus revision 13, the chain's screens, the new gate, the follow-up that names the blocker, insights with a state
+
+After the back-test of 2026-10-22 the founder agreed ten fixes, built as keel-cloud 114–124 and keel-web 093–100. This
+spec moves keel-e2e-eval to read that build so the six back-test ideas can be walked once more on it (the founder,
+2026-10-22: *"after fixes, you would again run the same six once and see whether it has any issues, right?"* -- yes) and
+the golden journeys keep measuring. **Scope: keel-e2e-eval only. Lands after keel-cloud 124 (corpus r13) and keel-web
+094/095/096/097/098/099 are on their masters; read their `tasks.md` (selectors, judgement calls) before touching a
+locator. No golden number is re-typed: a standing, count or verdict that moves under the new build is a finding for the
+operator, named in tasks.md, never edited into a file. Build lean: `make unit` once; `make eval K="s005 or s006 or
+s007"` once on a fresh local stack of the finished masters; one `make backtest ENTRY=08-fresco` the operator runs.**
+
+## Rules
+
+- **FR-1 Revision 13 (keel-cloud 124).** `instructions/corpus.py`: docstring opens on **Revision 13 only**; `REVISION =
+  13`; `_REVISION_OF` gains `12: "MARKS_VERSION 20's corpus, before the commercial chain (keel-cloud 115: a cost with no
+  unit, a price with no shape)"`; the refusal keeps its code. The loader accepts, where present, the chain's shapes of
+  124 FR-1 (founder cost `measure/base/unit/lossPhrase`, modes MONEY | HOURS | RATE, the six periods with `each`; price
+  `shape/shareBase/upfrontLow/upfrontHigh/thenNothing` with no `period`; `control: value_box`; value-box picks `{low,
+  high}`, `{nothing}`, `{chip: dont_know | rather_not_say}`; a two-code price pick; the consumer budget codes) and
+  refuses what 124's rule C refuses, in the same sentences; a cost with no unit and a price with no shape are read as
+  r12. `price_ladder_codes(low)` learns the chain ladder (1-2-5 points, the founder's low as one edge; spec 115
+  judgement call 6) beside spec 073's, chosen by the price's shape. Tests: `test_corpus_r11_shape.py` → revision 13
+  (the seven at 13; an r12 file refused by name; a chain fixture entry accepted; each rule-C refusal); the back-test
+  loader test loads the six chain entries. `tests/fixtures/corpus/09-fixture.yaml` / `10-fixture-b2b.yaml` move to
+  `revision: 13` unchanged otherwise (GB on purpose, as 053 FR-4).
+- **FR-2 The founder's chain screens (keel-web 094).** `harness/vectors_script.calibration_answers`: a chain cost posts
+  every field the entry carries; a chain price posts `shape` and its numbers and no `period`. `Corridor.single`: on
+  `cost_estimate` with a chain answer, the three chips (*Money they spend* / *Time it takes* / *A rate they lose*), the
+  unit box, the period chip, the base box on RATE, the numbers, the rate box on HOURS/B2B, then the equation line read
+  back (`seen["equation"]`); on `price_range` with a chain answer, the shape pill, the numbers per shape (the share's
+  sub-choice; up front + plan; *then nothing*), and the locked words read back (`seen["locked"]`, held to the cost's
+  unit and period). Old-shape answers drive the screens exactly as today. Selectors from 094's tasks.md *Selectors (for
+  keel-e2e-eval 064)*; none invented. `_hourly_rate` runs only where the entry's cost is HOURS at a rate.
+- **FR-3 The stranger's chain items (keel-web 094, keel-cloud 115).** `Pick` gains `interval {low, high}`, `budget`
+  (the consumer budget code) and a two-code price; `Pick.as_wire` sends `interval` for a value box (one number as both),
+  `optionIds` of two for `UPFRONT_THEN`, `chip` `NOTHING | DONT_KNOW | RATHER_NOT_SAY` as the item serves them
+  (`valueBox.nothing` / `valueBox.chips`), and `asked_over` is not applied to an interval (the box is in the founder's
+  period; the r13 pick already is). `Interview._answer`: the value box's two inputs, its chips, the plan's second screen,
+  the budget single choice; the walker records `valueBox.label`, `whatYouGet`, the plan question and each band label as
+  served in `screens`. `plan_keys` / `EvidencePlan`: FREE asks no price item; the budget item is asked on a same-person
+  chain study whose cost and price share no base, in Ability to pay's place; part 3 goes to the decider as today.
+- **FR-4 The gate (keel-cloud 116, 120; keel-web 096, 099).** `_gate` answers `gate.condition` first when served (the
+  person's `in_segment` from the entry, default yes; `outsideSegment` people are thanked and recorded, never walked
+  further) and records the chip question; the gate's question is no longer asserted to carry the circumstance -- the
+  walker records it and `report_marks` reads *"had <clause> in the last <window>"* on the Prevalence card; the story
+  chips include `RATHER_NOT_SAY` where served. A back-test `Person` may carry `in_segment: false` (loader, 124 FR-1's
+  reading of the yaml, optional).
+- **FR-5 The founder's lists (keel-cloud 117, 121; keel-web 097).** The Current-solution Check assertion (`_corpus_list`
+  vs the rows) expects the founder's rungs verbatim and first and Keel's appended rungs below to five; the Choose screen
+  reads `choose.prompt` (*"Which of these is most likely to be missing?"*) and the `suggested` radio, and picks the
+  entry's tested item as today; `outcomeNotDifference` and jargon notes are recorded, not asserted.
+- **FR-6 The persona step (keel-cloud 123 FR-10; keel-web 099).** `Corridor.persona` fills *"What is their job title?"*
+  from the entry's `persona.decision_maker.title` (the loader accepts it, optional, 1–5 words; the six back-test entries
+  and `10-fixture-b2b` carry one; golden entries without one get the role word, recorded); `leg_persona` asserts
+  `deciderTitle` when sent; the stage-page banner read (`decider_banner`) accepts the title or the role.
+- **FR-7 The follow-up ladder (keel-cloud 118).** `harness/interviewer_fake.LADDER` follows 118 FR-4: Purchase friction
+  leaves `NO_FOLLOW_UP` (*took a long time* → *"What took the time?"*; *quick* / *not needed* → *"What did slow it down,
+  if anything?"*); Adoption friction's two stems; Commitment's *after <smaller step> first* → *"What would the <smaller
+  step> have to show you?"*, *probably not* / *no* → *"What would you start with instead?"*; `first_rung` takes the
+  stage's deciding line first, then registry order; `LADDER_SHA` re-pinned to keel-cloud's `Ladder.java`; `RUNG_HEADINGS`
+  the stems asked. Commitment's served options carry `conditional: true` on the second yes (`fixed_four` of three where
+  the step costs nothing): `person_inputs` maps a corpus `yes_after_trying` pick onto the served conditional option when
+  one is served and onto *probably not* when none is (a finding, not a silent drop, when a back-test person's pick has
+  no rung). `report_marks` reads Commitment's headline as option 1 only and the friction lines in 118 FR-3's words.
+- **FR-8 Insights and the decision (keel-cloud 119, 122; keel-web 095, 098).** `backtest.themes_settle` and the
+  corpus scenario's wait read `standings.insights[].state` (`GROUPING | GROUPED | RAW`) and `standings.notAsked`; the
+  record keeps `side`, `dissent`, every quote; the Insights view read expects no card for a dimension without words and
+  the *"Keel is grouping…"* line while GROUPING; `brief()` records `facts.decision.change` and `contextUnderstands`
+  and the overview read takes the change sentence in place of the reason line. The commercial lines' words follow 115
+  judgement call 14 (`report_marks` / `instructions/brief_facts.py` read the unit as served; the median only where
+  served; *asked against: <claim>* under Price).
+- **FR-9 The back-test runner (062, 063).** `backtest.md` adds the equation and locked lines the founder saw, the value
+  box label and bands each stranger saw, the gate chip question, the decider's title, each insight's state; the markdown
+  anchor for a refused step stays *"Keel couldn't finish this step"* (093). `make backtest` on an r13 entry drives the
+  chain; the harness artefacts of the first round (pooled follow-up lines, the Importance probe, the hourly rate by API,
+  quarterly ÷ 3) stay fixed as they are.
+- **FR-10 Marks.** `MARKS_VERSION` stays 20 unless a mark's field list or golden number must move; if one must, say which
+  and why in tasks.md and stop there -- the operator decides the bump. `instructions/marks.py` gains a Spec 064 paragraph
+  (r13 by sha256 of the seven files at the 124 merge).
+
+## Acceptance
+
+1. `make unit` green with the new tests (count before/after in tasks.md).
+2. `make eval K="s005 or s006 or s007"` on a fresh local stack of the finished masters: green, or every red named with
+   the served text beside the expected one (a golden number that moved is reported, not re-typed); durations recorded.
+3. The operator's `make backtest ENTRY=08-fresco` on the same stack walks the chain end to end (the equation, the locked
+   price words, the value box, the plan where the entry has one, the gate chip where served, the title, the new stems,
+   the insight states) and records it; no mark or version moved by this spec.
