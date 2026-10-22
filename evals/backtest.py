@@ -53,6 +53,11 @@ IDENTITY_EMAIL = "backtest@keel-backtest.test"
 #: (`agent_host` `keels_ai_job_wait_s` 660 s over the scripted 60 s).
 PATIENCE = 11.0
 
+#: How many failed model jobs (calibration questions, the questionnaire) the back-test retries as the founder's screen
+#: would, before the walk stops -- each one a finding in the transcript (the first paid run, 2026-10-22: PROBLEM's
+#: CALIBRATION_QUESTIONS came back RESULT_INVALID, an item of ten words against L2's nine).
+RETRIES = 3
+
 #: Where the run's own files go, under `runs/<run>/`.
 SCREENS_DIR = "screens"
 EXPORT_DIR = "export"
@@ -288,6 +293,9 @@ class Backtest:
         return {"shown": True, **sheet.skip()}
 
     def camera(self, j) -> Camera:
+        """The camera -- and, set here because it is the back-test's alone, the retries a founder would press
+        (`Journey.retries`, `RETRIES`): a refused model result is a finding, recorded, and the walk goes on."""
+        j.retries = RETRIES
         self.cam = Camera(run_dir=self.run_dir, page=j.page, watched=watched_people(j.people))
         return self.cam
 
@@ -597,6 +605,7 @@ def transcript(j, bt: Backtest) -> dict:
         "readings": _safe(lambda: readings(j, wire.get("invitations") or {}), []),
         "cost": _safe(lambda: cost(j)),
         "export": bt.export,
+        "findings": list(getattr(j, "findings", []) or []),
         "screenshots": {"founder": len(bt.cam.founder_shots) if bt.cam else 0,
                         "respondent": {link: len(v.get("shots") or [])
                                        for link, v in (bt.cam.respondent_shots if bt.cam else {}).items()}},
@@ -633,6 +642,8 @@ def markdown(r: dict) -> str:
              f"- Wall time: {r.get('wall_s')} s; screenshots: {shots.get('founder')} founder, "
              f"{_q(shots.get('respondent'))} respondent",
              f"- Export: {_q(r.get('export'))}",
+             f"- Keel's AI refused and retried (findings): {len(r.get('findings') or [])}"
+             + "".join(f"\n  - {f.get('what')}: {f.get('refused') or f.get('batch')}" for f in r.get("findings") or []),
              "", "Nothing here is asserted: the model's words are the finding (spec 062 FR-4).", ""]
     lines += ["## 1. Founder screens, in order", ""]
     for s in r.get("founder_screens") or []:

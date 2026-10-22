@@ -189,6 +189,11 @@ class Journey:
     #: back-test). The few own-door facts the corridor legs assert -- L1's one line, the greyed formats -- are read as
     #: Keel's door draws them instead. False on every other journey that calls these legs.
     keels_door: bool = False
+    #: Spec 062: how many times a failed model job may be retried the way the founder's screen retries it (`POST
+    #: calibration/{vector}/retry`, `POST questionnaire/retry`) -- 0 everywhere but the back-test, where a live model's
+    #: refused result is a finding to record and step past, not the end of the walk. Every one is kept in `findings`.
+    retries: int = 0
+    findings: list = field(default_factory=list)
 
     # --------------------------------------------------------------------------- the wire
 
@@ -1432,10 +1437,32 @@ def _wait_calibration(j: Journey, vector: str, *, timeout_s: float = 90) -> dict
             return view
         if view.get("state") == "FAILED":
             why = j.get(f"/v2/inference-interactions/{view.get('interactionId')}") or {}
-            raise AssertionError(f"{vector}'s calibration questions FAILED: "
-                                 f"{why.get('status')}: {why.get('diagnostic') or why.get('refusal')}")
+            said = f"{why.get('status')}: {why.get('diagnostic') or why.get('refusal')}"
+            if _retried(j, f"{vector} calibration", said, j.project(f"/calibration/{vector}/retry")):
+                deadline = time.monotonic() + timeout_s * j.patience
+                continue
+            raise AssertionError(f"{vector}'s calibration questions FAILED: {said}")
         time.sleep(0.5)
     raise AssertionError(f"{vector}'s calibration questions never became READY: {view}")
+
+
+def _retried(j: Journey, what: str, said: str, retry_path: str) -> bool:
+    """Spec 062: a failed model job retried as the founder's screen retries it, while the journey has retries left
+    (`Journey.retries`, 0 but on the back-test); the failure is a finding, recorded with the screen as it stood."""
+    if getattr(j, "retries", 0) <= 0:
+        return False
+    j.retries -= 1
+    camera = getattr(j, "camera", None)
+    if camera is not None:
+        camera.founder(f"failed-{what.replace(' ', '-').lower()}")
+    with _step(j, f"{what}: Keel's AI's result was refused, and the founder retries it (spec 062: a finding, recorded)",
+               party="founder", kind="note") as h:
+        status, body = j.call("POST", retry_path, {}, ok=(200, 201, 202, 204, 409, 422))
+        j.findings.append({"what": what, "refused": said, "retry": {"path": retry_path, "status": status}})
+        h.record_wire({"POST": retry_path, "because": said}, {"status": status, "body": body})
+        # the screen is reloaded on the retried job, the way a founder pressing Try again sees it start over
+        j.page.reload(wait_until="load")
+    return status in (200, 201, 202, 204)
 
 
 def leg_persona(j: Journey) -> None:
@@ -1509,6 +1536,10 @@ def _lock_lands(j: Journey) -> None:
     state = None
     while time.monotonic() < deadline:
         state = (j.get(j.project("/overview")) or {}).get("questionsState")
+        if state == "FAILED" and _retried(j, "the questionnaire", "questionsState FAILED after the lock",
+                                          j.project("/questionnaire/retry")):
+            deadline = time.monotonic() + 120 * j.patience
+            continue
         if state in ("READY", "FAILED"):
             break
         time.sleep(0.5)
@@ -1692,6 +1723,10 @@ def _themes_on_return(j: Journey, *, timeout_s: float = 90) -> None:
         assert not any(t.get("status") in OPEN_STATUSES for t in after), after
         assert len(opened) <= len(failing), (opened, failing)
         bad = [t for t in after if t.get("status") in TERMINAL_BAD and t.get("status") != "STATE_CONFLICT"]
+        if bad and getattr(j, "retries", 0):
+            # spec 062: on the back-test an insight Keel's AI could not group is a finding, recorded, not the end
+            j.findings.extend({"what": "THEMES", "refused": f"{t.get('status')}: {t.get('diagnostic')}"} for t in bad)
+            bad = []
         assert not bad, bad
 
 
@@ -2119,7 +2154,11 @@ def _read_on_arrival(j: Journey, person) -> None:
         h.record_assert({"status": "DONE", "failed": [], "POST readings": [409, "READING_IN_PROGRESS",
                                                                            "NOTHING_TO_READ"]},
                         {"batch": batch, "POST readings": [status, _refusal(refused)]})
-        assert batch.get("status") == "DONE" and not batch.get("failed"), batch
+        if getattr(j, "retries", 0) and (batch.get("status") != "DONE" or batch.get("failed")):
+            # spec 062: on the back-test a reading Keel's AI could not land is a finding, recorded, not the end
+            j.findings.append({"what": f"{person.person}'s reading", "batch": batch})
+        else:
+            assert batch.get("status") == "DONE" and not batch.get("failed"), batch
         assert _refusal(refused) in ("READING_IN_PROGRESS", "NOTHING_TO_READ"), refused
 
 
