@@ -69,3 +69,7 @@ group 8), pilot **2 of 20, 10%**, price **$50 a month** (5 of 8). `grep -c "Nadi
 
 **For the operator**: keel-web `public/sample/` is left as the export wrote it, uncommitted: 7 modified, 30 deleted
 (060's batch and invitation ids) and 30 untracked (this run's) -- commit it with keel-web spec 092.
+
+## Follow-up (operator, 2026-10-22)
+
+- The DRIFT above closed on master: `tests/test_guide_teaching_marks.py` now admits keel-web 090's two landing clips (`landing-intro`, `sample-question`), which no mark reads. `make unit` back to 0 failed.
