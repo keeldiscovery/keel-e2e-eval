@@ -35,8 +35,9 @@ eval: venv
 
 # make sample (spec 060; keel-cloud `canon/designs/landing-page-design.md` §18.11) runs S-006 on the local stack with
 # the export on: the finished 05-paidly project at its twenty answers -- overview, plan, standings, roles, people,
-# readings and every batch, invitations and every link, names withheld -- written as static JSON with a manifest.json
-# into keel-web's `public/sample/` (the checkout stack.toml names) unless KEEL_SAMPLE_EXPORT names another directory.
+# readings and every batch, invitations and every link, names kept (spec 061), emails, the founder and tokens
+# withheld -- written as static JSON with a manifest.json into keel-web's `public/sample/` (the checkout stack.toml
+# names) unless KEEL_SAMPLE_EXPORT names another directory.
 # It refuses (exit 1, the reason named) unless the verdict is the corpus's own. **It writes into a sibling checkout**
 # and commits nothing there: committing the snapshot is the operator's step, in keel-web. `make eval` never sets the
 # variable, so the eval cell is unchanged.

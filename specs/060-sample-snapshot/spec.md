@@ -28,6 +28,8 @@ public API, no flag and no copy of a database. A re-run refreshes it. The respon
   order (first appearance in `people.json`); emails are removed; the founder's own name and email are removed from
   every file; invitation tokens and links are replaced by `withheld`. A unit test over a fixture asserts no original
   name, email or token survives (grep of the whole output against the entry's people and founder).
+  *The Person n aliasing and the names in the grep: superseded by 061, 2026-10-22 (names kept as served; emails, the
+  founder and tokens still withheld).*
 - **FR-3 Verdict as the corpus expects.** The export refuses (exit 1, the reason named) unless the finished project's
   decision label is `BUILD_BUT_CHANGE`, every dimension has n ≥ 10, and the pilot count and the price line are present
   in `overview.json`, because the landing's card draws exactly those three (§18.8). The expected values are

@@ -11,9 +11,9 @@ What it does, in order:
    every batch `readings` lists, `invitations`, and one `invitations/<id>` for every row the register lists. The key is
    the path under `/v2/projects/{id}/` with the id removed (`FounderReadController`, `VectorsController`), so keel-web's
    sample route maps `/v2/projects/sample/<key>` -> `/sample/<key>.json` one to one.
-2. `withhold` -- FR-2: every person's name becomes *Person 1* ... *Person n* in a stable order (first appearance in
-   `people`, then anyone else in file order), every `email` key goes and any address left in a text, the founder's own
-   name and email go from every file, and invitation tokens and links read `withheld`.
+2. `withhold` -- FR-2: every person's name is kept as the founder API served it (spec 061 FR-1: the entry's people are
+   scripted and fictional), every `email` key goes and any address left in a text, the founder's own name and email go
+   from every file, and invitation tokens and links read `withheld`.
 3. `gate` -- FR-3: the finished project's decision label is `BUILD_BUT_CHANGE`, the three stages' verdicts are the
    entry's `expected.vector_verdicts`, every asked dimension carries its n (judgement call 1 in `tasks.md`: the
    entry's own n, since 05-paidly's commercial stage is eight decision-makers and no dimension of it can reach ten),
@@ -24,6 +24,9 @@ What it does, in order:
 
 It lives in `evals/` and not in `harness/` because it refuses -- the gate is an assertion about the product's
 answer, which `harness/` never makes.
+
+Spec 060 FR-2's *Person 1* ... *Person n* aliasing: superseded by 061, 2026-10-22 (the founder's word: the sample keeps
+its people's real-looking names; emails, the founder and tokens are still withheld).
 """
 
 from __future__ import annotations
@@ -44,8 +47,7 @@ EXPORT_VAR = "KEEL_SAMPLE_EXPORT"
 #: FR-1's reads, in the order they are taken and listed: the path under `/v2/projects/{id}/`.
 TOP_READS = ("overview", "plan", "standings", "roles", "people", "readings", "invitations")
 
-#: FR-2's words.
-PERSON_WORD = "Person"
+#: FR-2's word for a token or a link.
 WITHHELD = "withheld"
 
 #: FR-3 (the corpus's verdicts, read off the entry) and the card's three figures (§18.8).
@@ -119,10 +121,9 @@ def expected_keys(reads: dict[str, Any]) -> list[str]:
 
 @dataclass
 class Withheld:
-    """FR-2's result: the reads with names, emails and tokens gone, and what was taken out (for the run bundle only;
-    never written beside the snapshot)."""
+    """FR-2's result: the reads with emails, the founder and tokens gone (the people's names kept, spec 061 FR-1), and
+    what was taken out (for the run bundle only; never written beside the snapshot)."""
     reads: dict[str, Any]
-    names: dict[str, str]                       # original -> "Person k"
     emails: list[str] = field(default_factory=list)
     tokens: list[str] = field(default_factory=list)
 
@@ -143,44 +144,6 @@ def _walk_strings(value: Any) -> Iterable[tuple[str | None, str]]:
                 yield from _walk_strings(v)
 
 
-def people_order(reads: dict[str, Any], extra_names: Iterable[str] = ()) -> list[str]:
-    """FR-2's stable order: every `personName` / `name` of a person in `people` first (roles, then their links, as
-    served), then every other person's name the files carry in file order (`invitations`, the pilot's people, a
-    reading's current person), then any name of `extra_names` (the entry's own people) found nowhere on the wire."""
-    order: list[str] = []
-
-    def add(name: Any) -> None:
-        if isinstance(name, str) and name.strip() and name not in order:
-            order.append(name)
-
-    for role in (reads.get("people") or {}).get("roles") or []:
-        for row in role.get("invitations") or []:
-            add(row.get("personName"))
-    for key in reads:
-        for k, v in _walk_strings(reads[key]):
-            if k == "personName":
-                add(v)
-        for person in _people_rows(reads[key]):
-            add(person.get("name"))
-    for name in extra_names:
-        add(name)
-    return order
-
-
-def _people_rows(value: Any) -> Iterable[dict]:
-    """The rows that name a person under `name` (the standings' `pilotPeople`, a dimension's per-person `people`
-    rows) -- recognised by carrying an `invitationId` beside the `name`, so a dimension's or a stage's `name` is
-    never taken for a person's."""
-    if isinstance(value, dict):
-        if isinstance(value.get("name"), str) and value.get("invitationId"):
-            yield value
-        for v in value.values():
-            yield from _people_rows(v)
-    elif isinstance(value, list):
-        for v in value:
-            yield from _people_rows(v)
-
-
 def _tokens_in(reads: dict[str, Any], known: Iterable[str]) -> list[str]:
     """The invitation tokens to withhold: those the journey made (`known`) and any a link on the wire carries."""
     found = [t for t in known if t]
@@ -193,16 +156,11 @@ def _tokens_in(reads: dict[str, Any], known: Iterable[str]) -> list[str]:
     return sorted(set(found), key=found.index)
 
 
-def withhold(reads: dict[str, Any], *, people: Iterable[str] = (), founder_name: str = "",
-             founder_email: str = "", tokens: Iterable[str] = ()) -> Withheld:
-    """FR-2 over a deep copy of `reads`. `people` is the entry's own people (so a name the wire spelled nowhere is
-    still caught), `tokens` the tokens the journey made."""
+def withhold(reads: dict[str, Any], *, founder_name: str = "", founder_email: str = "",
+             tokens: Iterable[str] = ()) -> Withheld:
+    """FR-2 over a deep copy of `reads`; `tokens` are the tokens the journey made. No person's name is touched
+    (spec 061 FR-1)."""
     out = copy.deepcopy(reads)
-    order = people_order(out, people)
-    names = {name: f"{PERSON_WORD} {i}" for i, name in enumerate(order, start=1)}
-    # longest first, whole words only: "Uma Elm" never eats into "Uma Elmore"
-    name_res = [(re.compile(rf"(?<!\w){re.escape(n)}(?!\w)"), names[n])
-                for n in sorted(names, key=len, reverse=True)]
     withheld_tokens = _tokens_in(out, tokens)
     token_res = [re.compile(re.escape(t)) for t in sorted(withheld_tokens, key=len, reverse=True)]
     founder_res = [re.compile(rf"(?<!\w){re.escape(s)}(?!\w)") for s in (founder_email, founder_name) if s]
@@ -224,8 +182,6 @@ def withhold(reads: dict[str, Any], *, people: Iterable[str] = (), founder_name:
         for found in _EMAIL.findall(value):
             emails.append(found)
         value = _EMAIL.sub("", value)
-        for rx, word in name_res:
-            value = rx.sub(word, value)
         return value
 
     def walk(value: Any) -> Any:
@@ -256,20 +212,29 @@ def withhold(reads: dict[str, Any], *, people: Iterable[str] = (), founder_name:
             return items
         return value
 
-    return Withheld(reads={k: walk(v) for k, v in out.items()}, names=names,
-                    emails=sorted(set(emails)), tokens=withheld_tokens)
+    return Withheld(reads={k: walk(v) for k, v in out.items()}, emails=sorted(set(emails)), tokens=withheld_tokens)
 
 
-def survivors(written: str, *, people: Iterable[str], founder_name: str, founder_email: str,
+def _hits(written: str, words: Iterable[str]) -> list[str]:
+    """The words of `words` that `written` carries, whole words only."""
+    return sorted({w for w in words if w and re.search(rf"(?<!\w){re.escape(w)}(?!\w)", written)})
+
+
+def survivors(written: str, *, founder_name: str, founder_email: str,
               emails: Iterable[str] = (), tokens: Iterable[str] = ()) -> dict[str, list[str]]:
-    """FR-2's grep: every original name, email, founder word and token still in `written` (the whole output, read
-    back). Empty is the pass."""
-    def hits(words: Iterable[str]) -> list[str]:
-        return sorted({w for w in words if w and re.search(rf"(?<!\w){re.escape(w)}(?!\w)", written)})
+    """FR-2's grep: every email, founder word and token still in `written` (the whole output, read back). Empty is
+    the pass. The people's names are not checked (spec 061 FR-2): they are kept."""
     return {k: v for k, v in {
-        "names": hits(people), "emails": hits(emails) + (["an address"] if _EMAIL.search(written) else []),
-        "founder": hits([founder_name, founder_email]), "tokens": hits(tokens),
+        "emails": _hits(written, emails) + (["an address"] if _EMAIL.search(written) else []),
+        "founder": _hits(written, [founder_name, founder_email]), "tokens": _hits(written, tokens),
     }.items() if v}
+
+
+def names_kept(written: str, people: Iterable[str]) -> list[str]:
+    """Spec 061 FR-2: the entry's people whose names `written` carries, in the entry's order. Measured and recorded,
+    never gating (060 FR-3's gate is unchanged)."""
+    found = set(_hits(written, people))
+    return [p for p in people if p in found]
 
 
 # --------------------------------------------------------------------------------------------------- 3. gate
@@ -427,17 +392,18 @@ def export_sample(j, out_dir: Path, *, run_dir: Path | None = None) -> dict:
                         {**measured, "reasons": reasons})
     if reasons:
         raise SampleRefused(reasons)
-    with j.recorder.step("sample (FR-2): names become Person 1 ... Person n in people.json's order; emails, the "
-                         "founder's name and email gone; tokens and links read withheld -- and none survives a grep "
-                         "of the whole output", party="stack", kind="assert") as h:
-        done = withhold(reads, people=people, founder_name=founder_name, founder_email=founder_email,
+    with j.recorder.step("sample (FR-2, spec 061): the people's names kept as served; emails, the founder's name and "
+                         "email gone; tokens and links read withheld -- and none of those survives a grep of the "
+                         "whole output", party="stack", kind="assert") as h:
+        done = withhold(reads, founder_name=founder_name, founder_email=founder_email,
                         tokens=[*(getattr(j, "tokens", {}) or {}).values()])
         written = "".join(_dumps(v) for v in done.reads.values())
-        left = survivors(written, people=[*people, *done.names], founder_name=founder_name,
-                         founder_email=founder_email, emails=done.emails, tokens=done.tokens)
+        left = survivors(written, founder_name=founder_name, founder_email=founder_email, emails=done.emails,
+                         tokens=done.tokens)
+        kept = names_kept(written, people)
         h.record_assert({"survivors": {}},
-                        {"survivors": left, "people": len(done.names), "emails removed": len(done.emails),
-                         "tokens withheld": len(done.tokens)})
+                        {"survivors": left, "names kept": f"{len(kept)} of {len(people)}",
+                         "emails removed": len(done.emails), "tokens withheld": len(done.tokens)})
     if left:
         raise SampleRefused([f"FR-2: {k} survive the withholding: {v}" for k, v in left.items()])
     with j.recorder.step(f"sample (FR-4): the snapshot written under {out_dir} with manifest.json",
@@ -449,7 +415,7 @@ def export_sample(j, out_dir: Path, *, run_dir: Path | None = None) -> dict:
                       {"files": len(manifest["files"]), "bytes": size, "manifest": {
                           k: v for k, v in manifest.items() if k != "files"}, "card": measured["card"]})
     return {"manifest": manifest, "size": size, "card": measured["card"], "dir": str(out_dir),
-            f"under {SPEC_MIN_N}": measured[f"under {SPEC_MIN_N}"], "people": len(done.names)}
+            f"under {SPEC_MIN_N}": measured[f"under {SPEC_MIN_N}"], "people": len(kept)}
 
 
 # ------------------------------------------------------------------------------------------ S-006's one seam

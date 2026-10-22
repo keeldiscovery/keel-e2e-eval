@@ -5,8 +5,8 @@ its twenty answers on the local stack (`runs/<id>-s006-paidly/sample-reads.json`
 spec 060's tasks.md names), unedited but for one seeded link and one seeded address (`_seeded`) -- the wire carries
 neither on these routes today, and FR-2 must still hold if a later contract adds one.
 
-Acceptance 1: the withholding test (FR-2: a grep of the whole output against the entry's people and the founder) and a
-shape test (every file FR-1 names is written). Then the gate (FR-3) green on the fixture and red on each seeded fault
+Acceptance 1: the withholding test (FR-2: a grep of the whole output against the founder, emails and tokens; since spec
+061 the entry's twenty people's names must be there, as served) and a shape test (every file FR-1 names is written). Then the gate (FR-3) green on the fixture and red on each seeded fault
 with its reason named and nothing written, the manifest (FR-4), and FR-5's two invariants.
 """
 
@@ -33,6 +33,10 @@ KEEL_CLOUD = Path(load_config(validate=False).keel_cloud)
 PROJECT = "00000000-0000-0000-0000-000000000060"
 TOKEN = "seededToken0060abcdef"
 SEEDED_EMAIL = "seeded.person@example.com"
+#: Spec 061: 05-paidly's twenty scripted people, as the spec names them -- the translators, then the agencies.
+TWENTY = ("Nadia Petrova", "Omar Farouk", "Petra Novak", "Quentin Roux", "Rosa Alvarez", "Sven Larsen",
+          "Talia Ben-David", "Umar Siddiqui", "Vera Kowalski", "Wen Zhang", "Xavier Dubois", "Yara Haddad",
+          "Kate Alder", "Mo Birch", "Sara Cedar", "Tariq Dune", "Uma Elm", "Viktor Fern", "Wanda Gorse", "Yusuf Hazel")
 
 
 @pytest.fixture(scope="module")
@@ -136,17 +140,20 @@ def test_a_rerun_removes_what_the_last_manifest_listed_and_nothing_else(tmp_path
 
 # --------------------------------------------------------------------------------------------- FR-2 withheld
 
-def test_no_name_email_or_token_survives(tmp_path, reads, entry):
-    """FR-2's acceptance: a grep of the whole output against the entry's people and the founder."""
+def test_names_kept_and_no_email_founder_or_token_survives(tmp_path, reads, entry):
+    """FR-2's acceptance (spec 061 FR-2): every one of the entry's twenty names IS in the whole output, and no email,
+    founder word or token is."""
     out = tmp_path / "sample"
-    se.export_sample(_journey(tmp_path, reads, entry), out)
+    result = se.export_sample(_journey(tmp_path, reads, entry), out)
     written = _output(out)
     raw = json.dumps(reads, ensure_ascii=False)
     people = _people(entry)
-    assert any(name in raw for name in people), "the fixture carries no name to withhold"
+    assert sorted(people) == sorted(TWENTY), "the entry's people are not the twenty spec 061 names"
     assert TOKEN in raw and SEEDED_EMAIL in raw
-    for name in people:
-        assert not re.search(rf"(?<!\w){re.escape(name)}(?!\w)", written), name
+    for name in TWENTY:
+        assert re.search(rf"(?<!\w){re.escape(name)}(?!\w)", written), name
+    assert not re.search(r"Person \d+", written)
+    assert result["people"] == 20
     for word in (FOUNDER_A.name, FOUNDER_A.email, TOKEN, SEEDED_EMAIL):
         assert word not in written, word
     assert not re.search(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}", written)
@@ -155,28 +162,29 @@ def test_no_name_email_or_token_survives(tmp_path, reads, entry):
     assert se.WITHHELD in written
 
 
-def test_people_are_numbered_in_their_order_in_people_json(reads, entry):
-    done = se.withhold(reads, people=_people(entry))
+def test_people_json_keeps_every_name_in_its_order(reads, entry):
+    done = se.withhold(reads)
     on_people = [row["personName"] for role in reads["people"]["roles"] for row in role["invitations"]]
-    assert list(done.names)[:len(on_people)] == on_people
-    assert list(done.names.values()) == [f"Person {i}" for i in range(1, len(done.names) + 1)]
-    renamed = [row["personName"] for role in done.reads["people"]["roles"] for row in role["invitations"]]
-    assert renamed == [f"Person {i}" for i in range(1, len(on_people) + 1)]
-    # stable: the same reads give the same numbering
-    assert se.withhold(reads, people=_people(entry)).names == done.names
+    assert sorted(on_people) == sorted(TWENTY)
+    kept = [row["personName"] for role in done.reads["people"]["roles"] for row in role["invitations"]]
+    assert kept == on_people
+    # stable: the same reads give the same output
+    assert se.withhold(reads).reads == done.reads
 
 
-def test_one_person_is_one_number_in_every_file(reads, entry):
-    done = se.withhold(reads, people=_people(entry))
+def test_one_person_is_one_name_in_every_file(reads, entry):
+    done = se.withhold(reads)
     for invitation in se.invitation_ids(reads["invitations"]):
         original = reads[f"invitations/{invitation}"]["personName"]
-        assert done.reads[f"invitations/{invitation}"]["personName"] == done.names[original]
-    for row in done.reads["standings"].get("pilotPeople") or []:
-        assert re.fullmatch(r"Person \d+", row["name"]), row["name"]
+        assert done.reads[f"invitations/{invitation}"]["personName"] == original
+    pilot = done.reads["standings"].get("pilotPeople") or []
+    assert [row["name"] for row in pilot] == [row["name"] for row in reads["standings"].get("pilotPeople") or []]
+    for row in pilot:
+        assert row["name"] in TWENTY, row["name"]
 
 
 def test_withholding_leaves_everything_else_as_served(reads, entry):
-    done = se.withhold(reads, people=_people(entry))
+    done = se.withhold(reads)
     assert done.reads["standings"]["vectors"][0]["vector"] == reads["standings"]["vectors"][0]["vector"]
     assert done.reads["standings"]["facts"]["decision"] == reads["standings"]["facts"]["decision"]
     assert done.reads["standings"]["priceMedian"] == reads["standings"]["priceMedian"]
@@ -184,20 +192,22 @@ def test_withholding_leaves_everything_else_as_served(reads, entry):
     assert done.reads["overview"] == reads["overview"]
 
 
-def test_whole_words_only_and_the_founder_dropped():
+def test_names_untouched_and_the_founder_dropped():
     reads = {"people": {"roles": [{"invitations": [{"personName": "Uma Elm"}]}]},
              "x": {"story": "Uma Elmore met Uma Elm; Eval Founder said so.", "owner": "Eval Founder",
                    "contact": "eval-founder@keel-e2e-eval.test", "token": "abc"}}
     done = se.withhold(reads, founder_name="Eval Founder", founder_email="eval-founder@keel-e2e-eval.test")
-    assert done.reads["x"]["story"] == "Uma Elmore met Person 1;  said so."
+    assert done.reads["x"]["story"] == "Uma Elmore met Uma Elm;  said so."
+    assert done.reads["people"] == reads["people"]
     assert "owner" not in done.reads["x"] and "contact" not in done.reads["x"]
     assert done.reads["x"]["token"] == se.WITHHELD
 
 
-def test_survivors_finds_each_kind():
-    left = se.survivors('{"a": "Kate Alder", "b": "x@y.io", "c": "tok123456789"}', people=["Kate Alder"],
+def test_survivors_finds_each_kind_and_never_a_name():
+    left = se.survivors('{"a": "Kate Alder", "b": "x@y.io", "c": "tok123456789", "d": "Eval Founder"}',
                         founder_name="Eval Founder", founder_email="e@f.test", tokens=["tok123456789"])
-    assert set(left) == {"names", "emails", "tokens"}
+    assert set(left) == {"emails", "tokens", "founder"}
+    assert se.names_kept('{"a": "Kate Alder", "b": "Uma Elmore"}', ["Kate Alder", "Uma Elm"]) == ["Kate Alder"]
 
 
 # ----------------------------------------------------------------------------------------------- FR-3 gate
