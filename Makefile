@@ -4,7 +4,7 @@ PIP := $(VENV)/bin/pip
 PLAYWRIGHT := $(VENV)/bin/playwright
 
 .PHONY: up down eval eval-live eval-all report venv unit instruction-eval instruction-screen acceptance oidc-image \
-        matrix-check keels-ai sample backtest
+        matrix-check keels-ai sample backtest gallery
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
 # venv already exists (pip/playwright no-op when nothing changed).
@@ -48,6 +48,24 @@ sample: venv
 	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) \
 	KEEL_SAMPLE_EXPORT="$(if $(KEEL_SAMPLE_EXPORT),$(KEEL_SAMPLE_EXPORT),$$($(PY) -c 'from stack.config import load_config; print(load_config(validate=False).keel_web / "public" / "sample")'))" \
 	$(PY) -m pytest evals -q -m "not live" -k s006
+
+# make gallery (spec 063) exports the example gallery: for each back-test run directory (RUNS=<dir>[,<dir>...], each a
+# path or a name under RUNS_DIR; default the newest finished `runs/*-backtest-<id>` of every entry in
+# instructions/gallery_names.toml), the 060 file set the run's export/ holds, renamed by that map (whole word, the first
+# letter's case kept), plus interview.json (the served interview per link, text only) and manifest.json (entry, run,
+# keel-cloud and keel-web SHAs, exportedAt, renamed), into OUT/<slug>/, and one OUT/index.json, B2B and B2C alternating.
+# It refuses, writing nothing, if any old name survives outside the provenance fields. No stack, no model, no money.
+# **It writes into a sibling checkout** when OUT is left out (keel-web's public/sample/, the checkout stack.toml names)
+# and commits nothing there: committing the snapshot is the operator's step, with keel-web 100. The root
+# public/sample/*.json of `make sample` is left as it is.
+#
+#   make gallery                                                  newest runs, into keel-web/public/sample/
+#   make gallery RUNS=runs/<a>,runs/<b> OUT=/tmp/sample           those runs, anywhere else
+#   make gallery RUNS_DIR=/path/to/keel-e2e-eval/runs OUT=...      the newest runs of another checkout
+gallery: venv
+	PYTHONPATH=. $(PY) -m evals.gallery \
+	  --out "$(if $(OUT),$(OUT),$$($(PY) -c 'from stack.config import load_config; print(load_config(validate=False).keel_web / "public" / "sample")'))" \
+	  $(if $(RUNS),--runs "$(RUNS)",) $(if $(RUNS_DIR),--runs-dir "$(RUNS_DIR)",)
 
 # make backtest (spec 062) walks ONE BACK-TEST ENTRY -- a real founder's idea, written from public material in the
 # corpus schema with no golden expectations, in keel-cloud's `canon/designs/measured-beliefs/backtest/<ENTRY>.yaml` --
