@@ -23,6 +23,14 @@ s007"` once on a fresh local stack of the finished masters; one `make backtest E
   (the seven at 13; an r12 file refused by name; a chain fixture entry accepted; each rule-C refusal); the back-test
   loader test loads the six chain entries. `tests/fixtures/corpus/09-fixture.yaml` / `10-fixture-b2b.yaml` move to
   `revision: 13` unchanged otherwise (GB on purpose, as 053 FR-4).
+- **FR-1a What keel-cloud 124's build settled (added 2026-10-22).** The consumer budget codes are the engine's `from_spend |
+  new_money | could_not` (escape `cant_say`); the readings are the engine's (`CommercialChain.reading`): Palus and Karsa
+  `out_of_gain`, Fresco, Transload, Issen and AirCaps `budget`; the B2B budget item is still served on the decider's
+  link on every reading (so the picks stay and are answered); AirCaps' `respondent_questions[commercial.price].codes` is
+  one list of twelve (the one-off's six, then the plan's six) and its picks are `[<one-off>, <plan>]`; Issen's cost is
+  8–16 hours a month (a chain price takes the cost's period); a value-box pick is `{low, high, currency, period}` in the
+  founder's unit and period and is sent as is, never re-expressed; `dont_know` replaces `cant_recall` on the cost item.
+  The loader's rule-C sentences and the back-test loader test follow `sim/check_corpus_r13.py` as built.
 - **FR-2 The founder's chain screens (keel-web 094).** `harness/vectors_script.calibration_answers`: a chain cost posts
   every field the entry carries; a chain price posts `shape` and its numbers and no `period`. `Corridor.single`: on
   `cost_estimate` with a chain answer, the three chips (*Money they spend* / *Time it takes* / *A rate they lose*), the
