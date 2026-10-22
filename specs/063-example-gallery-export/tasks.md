@@ -1,0 +1,212 @@
+# Tasks 063
+
+Built on keel-e2e-eval master `83cd548`, against keel-cloud-docs `9bfa977` and keel-web `8841524` (the sibling
+checkouts when the build ran; neither was written to), `MARKS_VERSION` 20 (unchanged). No stack, no model, no paid run.
+
+**The back-test entries were not loaded through `instructions.corpus.load`.** They are corpus revision 13 in
+keel-cloud-docs (`canon/designs/measured-beliefs/backtest/`), and this eval's loader reads revision 12 until spec 064
+is built. Everything the export needs is read from the run directory instead: the idea name, `b2b` and the entry id
+from `backtest.json`'s `entry`; the project name, the problem statement, the four context fields, the window, the
+decider and the calibration answers from `inputs.json`'s `founder` (what the run's founder typed, from the entry as it
+was at run time).
+
+## FR-1 `make gallery`
+
+- [x] T001 `make gallery RUNS=<dir>[,<dir>...] OUT=<dir> RUNS_DIR=<dir>` (Makefile, header comment, `.PHONY`) runs
+  `python -m evals.gallery`. `OUT` defaults to `<keel_web>/public/sample` (as `make sample` finds it); `RUNS` defaults
+  to the newest finished `*-backtest-<entry>` directory under `RUNS_DIR` (default `runs/`) for each entry of the map.
+  A bare name in `RUNS` is looked up under `RUNS_DIR`.
+- [x] T002 `evals/gallery.py`: `read_run` (refuses a run with no `backtest.json`, `inputs.json` or
+  `export/manifest.json`, one that did not pass, or a listed export file missing), `export` (reads every run, prepares
+  every slug in memory, checks the whole output, and only then writes -- a refusal writes nothing), `<OUT>/<slug>/` via
+  060's own `sample_export.write` (so a re-run removes what the last manifest listed and nothing else), and
+  `<OUT>/index.json`.
+- [x] T003 The index: `[{slug, name, oneLine, problem, decision, howSure, pilot, price, b2b, entry, run, cloud, web,
+  axes, interview}]` in the gallery's order (`gallery_order`: B2B and B2C alternating, B2B first, each side in the map's
+  order). `decision`, `howSure`, `pilot`, `price` are 060's `card()` over the renamed standings.
+- [x] T004 The seven `axes`, all derived (judgement call 6).
+- [x] T005 `make sample` and its root `public/sample/*.json` are unchanged; the gallery never touches a file at the root
+  of `OUT` other than `index.json`.
+
+## FR-2 The rename map
+
+- [x] T006 `instructions/gallery_names.toml`: six `[[gallery]]` tables (`entry`, `slug`, `name`, `replaces`, optional
+  `axes`), the spec's six names. `load_names` refuses a bad slug, an empty `replaces`, an unknown axis word or a
+  repeated entry / slug / name, by name.
+- [x] T007 `Renamer`: one pattern over every `replaces` string of every entry (longest first: `Palus Finance` before
+  `Palus`), whole word (`(?<!\w)…(?!\w)`), any case, written as the entry's `name` with the matched first letter's
+  case. Applied to every string value of every exported file (060 set, interview.json, the index's text); keys and
+  non-strings are kept. On the six runs the only lines that change are the ones carrying a name (checked line by line
+  during the build: 18-26 lines a slug, zero other differences).
+- [x] T008 The survivors grep (`check`): the whole output read back, every slug against all six entries' strings, any
+  case, whole word -- plus 060's grep (an email, the back-test founder's name or address, a link) and a check that
+  interview.json carries no id key. Any hit refuses the export, nothing written.
+
+## FR-3 Provenance
+
+- [x] T009 `<slug>/manifest.json`: `{entry, run, cloud, web, corpus, renamed: {from: [...], to}, exportedAt, files}`;
+  `cloud` and `web` are the run's `backtest.json` `stack` SHAs (seven characters, as the run recorded them). The index
+  repeats `cloud` and `web`.
+
+## FR-3a interview.json
+
+- [x] T010 `interview(run)`: one entry per link the run served (`PRIMARY` first, `COMMERCIAL_B2B` after it on B2B),
+  built from `backtest.json` `respondents[link].served` (the interview the respondent page fetched), with what only the
+  page drew filled from `respondents[link].drawn` (the item kickers, the gate's chip labels, the rows drawn), and the
+  follow-up stems from `transcript.jsonl` (every `<person>: the one follow-up -- …` step whose route answered 200 with
+  a filled `text`, grouped by the step's `link`, de-duplicated, in order). Renamed; ids, tokens and the AI
+  interviewer's spoken forms dropped (`_DROPPED`); no clip, face or recording is read or written.
+- [x] T011 `evals/backtest.served_items` keeps, from now on, an item's own `kicker`, `advantagesPrompt`, `scale`,
+  `numeric`, `costTotal`, `valueBox`, `whatYouGet` and `plan` (its options as labels) when served (judgement call 3).
+- [x] T012 The index's `interview: {links: [{role, label, items}]}` (`items` = the gate plus every part's items, which
+  equals the role's `questionCount` in `roles.json`; the follow-up is not counted).
+
+### The shape (for keel-web 100)
+
+```jsonc
+// <slug>/interview.json
+{
+  "links": [
+    {
+      "role": "PRIMARY" | "COMMERCIAL_B2B",       // the link; the decision-makers' only on B2B
+      "label": "Construction superintendents",     // the role's label (plan.json respondentTypes)
+      "kind": "FULL" | "COMMERCIAL_LINK",
+      "occasion": "day",                           // the noun the story chip completes
+      "idea": null | {"what", "how", "belief", "kicker"},          // the decision-maker's link opens with it
+      "gate": null | {
+        "kicker": "Part 1 of 2 · A recent time · 1 of 4 · the anchor",
+        "question": "In the last 5 working days, did you …?",
+        "chips": [{"code": "CANT_RECALL", "label": "I can't recall one particular day"}],
+        "exitText": "Thanks for telling us. …",
+        "condition": { … }                         // only when the wire serves one (none of the six runs does)
+      },
+      "storyPrompt": null | "Think of the most recent time …",
+      "storyHint": null | "When it was, what you did first, how it ended.",
+      "parts": [
+        {
+          "part": 1,
+          "title": "…",                            // only when served (none of the six runs carries it)
+          "items": [
+            {
+              "dimension": "problem.frequency",
+              "kicker": "Part 1 of 2 · A recent time · 2 of 4",
+              "question": "On how many of those 5 working days …?",
+              "control": "segmented_0_to_7" | "pick_two" | "single_choice_5" | "single_choice" | "fixed_four"
+                         | "fixed_three" | "benefit_with_advantages" | "cost_total" | "price_ladder" | "value_box" | …,
+              "hint": null | "Pick one.",           // served, else the line the page drew
+              "options": ["…"],                    // labels, in the order shown; [] where the control has none
+              "advantages": ["…"],                 // benefit_with_advantages' founder benefits; [] elsewhere
+              "escape": null | "I can't recall",   // the item's one way out; null on Commitment
+              "shown": ["0", "1", "…"],            // the rows the page drew for the run's watched person
+              // only where served:
+              "advantagesPrompt": "…", "scale": {"min", "max", …}, "numeric": {…}, "costTotal": {…},
+              "valueBox": {"measure", "label", "currency", "currencySymbol", "nothing": {"code", "label"},
+                           "chips": [{"code", "label"}]},
+              "plan": {"question": "…", "options": ["…"]},
+              "whatYouGet": "a, b and c"
+            }
+          ]
+        }
+      ],
+      "reveal": null | {"afterPart", "kicker", "what", "how", "belief", "bridge", "formats": [{"format", "available", "label"}]},
+      "followUp": null | {
+        "kicker": "One last thing",
+        "note": "In your own words. A sentence or two is plenty.",
+        "asked": [{"dimension": "problem.importance", "question": "You picked … What makes those more pressing?"}]
+      }
+    }
+  ]
+}
+```
+
+Every key above without "only when served" is always present. Text only: no `itemId`, `optionId`, `id`, `token`,
+`costItemId`, `advantagesWhen`, `spoken`, `clip` or `clips` anywhere in the file (the test asserts it).
+
+## FR-4 Tests
+
+- [x] T013 `tests/test_gallery.py` (21): the map is the spec's; a malformed map refused by name; the rename over a
+  fixture with the six names in mixed positions (start, middle, end, possessive, lowercase, all caps, quoted, nested)
+  and the longer-word non-matches kept; the survivors grep in any case; a survivor (a name in a JSON key, where the
+  rename never reaches) refuses and writes nothing; 060's withholding still refuses; nothing but the names changes; the
+  index shape (keys, order, values, axes, interview counts = `questionCount`); B2B / B2C alternation; the consumer axes
+  and the map's override; `one_sentence` / `one_line`; the file set per slug (the run's export files + interview.json +
+  manifest.json); the manifest's provenance; interview.json pinned on one run
+  (`tests/fixtures/gallery/expected-interview-daylog.json`); no id, token or media in it; a re-run; the default runs;
+  an unknown or twice-given entry; the command line; `served_items`' extras; the Makefile.
+- [x] T014 The fixture `tests/fixtures/gallery/20261022T164045Z-backtest-08-fresco/` (200 KB): the run of record for
+  08-fresco cut to what the export reads (see the test module's docstring). `test_sample_export.py` (060/061) and its
+  fixture are untouched.
+
+## Judgement calls
+
+1. **The run directory, not the corpus loader, is the source** (the brief: the entries are r13, the loader r12 until
+   064). The idea name, b2b and id come from `backtest.json`'s `entry`; the problem statement, the context fields, the
+   window, the decider and the calibration from `inputs.json`'s `founder`.
+2. **The 060 file set is the run's own `export/`** (spec 062 FR-3 wrote it with names kept and emails, the founder and
+   tokens withheld), read back file by file from its manifest, withheld again (a no-op on all six runs, verified) and
+   renamed -- rather than re-withholding the raw `sample-reads.json`, which carries the tokens. The run's export
+   manifest's `corpus` (12) is carried into the slug's manifest.
+3. **interview.json comes from `backtest.json`'s `served` + `drawn` + the transcript's follow-up steps**; no run
+   directory holds the raw `GET /v2/i/<token>` body. `served` (spec 062 FR-4.2) had dropped the item kicker and spec
+   115's `valueBox` / `plan` / `whatYouGet`; the kicker is taken from `drawn` for these six runs, and
+   `served_items` now keeps all of them for future runs. None of the six runs was served a value box, a plan or
+   what-you-get (their controls are `cost_total` and `price_ladder`, keel-cloud before 115), so those keys are absent
+   today and pass through when a later run carries them. The gate has no `condition` on the wire (contract 19's
+   `GateItem`); it passes through if one appears. The `shown` rows (what the page drew) are the run's one watched
+   person's, so a number control's range and the cost-total toggles can be drawn without a server.
+4. **`problem` is one sentence of the founder's problem statement, word for word**: the words before the `; based on
+   …` clause (the founder's own evidence -- on 12-transload it names a founder, *Jago*, which the gallery should not
+   carry), to the first full stop. All six keep their own words; five were one sentence already, and 12-transload keeps the first of its two.
+5. **`oneLine` is the project name's own tag line** (after its dash: *Fresco — the scribe for construction
+   superintendents* → *The scribe for construction superintendents*), its first letter raised.
+6. **All seven axes are derived; none is written in `gallery_names.toml`** (the map takes an optional `axes` table
+   that wins, for the founder's later word). `whoHasIt` = the context's actor; `whoPays` = *themselves* when the
+   decider is the same person, else the decider's role as the founder typed it (*contractor*, *founder*, *manager*);
+   `rhythm` = the recall window's unit in a word (*every working day*, *daily*, *weekly*, *monthly*, *nightly*);
+   `costMode` = Existing sacrifice's mode (*time* for hours, *money* for an amount); `priceShape` = the price's period
+   (*monthly*, *yearly*; *one-off* when a price has no period); `firstStep` = Commitment's step; `kind` = *business* /
+   *consumer*. They are renamed like every other text (none carries a name today).
+7. **The index carries `web` beside `cloud`** (FR-3: "index.json repeats the SHAs" -- plural), and each link's
+   `label` beside `role` and `items`.
+8. **The survivors grep excludes exactly the provenance FR-3 asks for**: `manifest.json`'s `entry`, `run` and
+   `renamed`, and the index's `entry` and `run`, which spell the old name by construction (`08-fresco`,
+   `…-backtest-08-fresco`, `renamed.from: ["Fresco"]`). Everything else is grepped. **The founder should know that
+   these files are served publicly from keel-web's `public/sample/`**: as the spec stands, `index.json` and every
+   `<slug>/manifest.json` tell a reader the real company behind each example. If that is not wanted, the smallest
+   change is a spec amendment that keeps the entry id and run only in a non-public place (or keel-web 100 copying only
+   the content files); not done here because FR-3 says otherwise.
+9. **The rename matches in any case**, the first letter's case kept (`FRESCO` would become `Daylog`). The cost is
+   that a common-word use of a name (*transload* is also a freight verb) would be renamed too; none of the six runs'
+   exports has a lower-case or all-caps occurrence, so nothing of the kind happened. Longer words (`Frescoes`,
+   `Transloading`) are not touched and are not survivors.
+10. **`renamed.from` is the list of `replaces` strings** (`["Palus Finance", "Palus"]`), `to` the name.
+11. **The default runs are the newest *finished* run per entry** (`passed` true and an export manifest), which on this
+    machine are exactly the six the brief names. A run is refused, not skipped, when given explicitly and unfinished.
+12. **New module `evals/gallery.py`** rather than growing `evals/sample_export.py` (whose docstring and seam are
+    S-006's); it reuses 060's `withhold`, `survivors`, `card`, `write` and `_dumps` unchanged.
+13. **`stack.toml`'s four `[paths]` lines read `../../…` under `git update-index --skip-worktree`** for `make unit` in
+    the worktree, as 061/062 did, and were put back byte for byte (sha256 `f6986f68…`), the flag cleared. `make gallery`
+    itself needed no config change: it ran with `OUT=` given.
+
+## Not done / open
+
+- Nothing was written into keel-web; the snapshot went to the scratchpad `OUT` the brief named. Committing it in
+  keel-web is the operator's step, with keel-web 100.
+- The public-provenance question (call 8) is the founder's.
+- The AI-interviewer version of an example (clips, spoken forms) is a later spec, as FR-3a says.
+
+## Measured (2026-10-22)
+
+**`make gallery`** over the six newest runs (`RUNS_DIR=` the main checkout's `runs/`), into the scratchpad: six slugs
+(37-45 files each with interview.json; 2.0 MB in all) and `index.json`, in the order daylog (B2B), dollarsafe (B2C),
+idlewell (B2B), talkleap (B2C), dockmeasure (B2B), captionglass (B2C). Survivors: 0 case-sensitive whole-word hits
+outside the manifests; a case-insensitive substring grep of everything hits only the provenance fields of call 8.
+
+**`make unit`** (`PY=` the main checkout's venv, from the worktree with call 13's paths): before, on master `83cd548` (the worktree itself, and again a clean `git archive` copy: same counts)
+against keel-cloud-docs `9bfa977`: **2,832 passed / 39 failed / 169 skipped** (the 39 are pre-existing and none is
+this spec's: `test_vectors_journey` 27, `test_follow_up_ladder` 6, `test_journey_through_a_host` 4,
+`test_backtest::test_every_backtest_entry_loads_in_backtest_mode` 1, `test_report_marks` 1 -- keel-cloud-docs moved
+to corpus r13 and its registry since 062's 2,986, which spec 064 is for; the main checkout's count was not
+re-measured). **After: 2,855 passed / 39 failed / 169 skipped** -- +23: `tests/test_gallery.py`'s 21, and one case each
+in `test_page_object_calls_exist` and `test_scenarios_use_the_stack_addresses`, which are parametrised over every
+`evals/*.py` and now see `evals/gallery.py`. The 39 failures are the same 39, by name.
