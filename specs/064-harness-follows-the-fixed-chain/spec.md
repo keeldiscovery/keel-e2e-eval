@@ -85,6 +85,14 @@ s007"` once on a fresh local stack of the finished masters; one `make backtest E
   and the overview read takes the change sentence in place of the reason line. The commercial lines' words follow 115
   judgement call 14 (`report_marks` / `instructions/brief_facts.py` read the unit as served; the median only where
   served; *asked against: <claim>* under Price).
+- **FR-8a What keel-cloud 119's build settled (contract 28, response contract 20; added 2026-10-22).** `standings.notAsked[]`
+  is `{dimension, name, why}`; `insights[]` entries exist only with words and carry `state`, `note` (RAW only),
+  `dissent` + `frame`, `quotes[] {invitationId, name, text, option, side, heading}`, `themes[] {label, count, quotes[],
+  quoteIds[]}` with up to three themes then `ON_THEIR_OWN` last, `rawQuotes[]` shortest first when not GROUPED;
+  `noQuestionWhy` is always null. The eval's THEMES fake (`harness/interviewer_fake.py themes`) puts leftovers in one
+  last `ON_THEIR_OWN` group; `executor-fixtures/THEMES/cases.json` re-copied (`maxItems` 4); `report_insights` /
+  `report_marks` read the new shape; a dimension with one answer is grouped by code (no job) -- the scenario's job
+  counts follow; C5 has no entry (no words).
 - **FR-9 The back-test runner (062, 063).** `backtest.md` adds the equation and locked lines the founder saw, the value
   box label and bands each stranger saw, the gate chip question, the decider's title, each insight's state; the markdown
   anchor for a refused step stays *"Keel couldn't finish this step"* (093). `make backtest` on an r13 entry drives the
