@@ -28,9 +28,13 @@ gallery` run on existing back-test run directories (no paid run in this spec).**
   text field (project name, idea name, statements, the reveal, questions, insights, people's follow-up words) with
   `name`, case-preserved for the first letter, and nothing else: problem statements, solutions, people and answers stay
   word for word. A survivors grep refuses the export if any `replaces` string remains.
-- **FR-3 Provenance.** Each `<slug>/manifest.json` carries the entry id, the run directory name, the keel-cloud and
-  keel-web SHAs of the run, `exportedAt`, and `renamed: {from, to}`; `index.json` repeats the SHAs so the gallery can say
-  which build played the project.
+- **FR-3 Provenance, kept out of the public files (amended 2026-10-22: the founder's rule is that the real company
+  names never appear; `public/sample/` is served to everyone).** `<slug>/manifest.json` and `index.json` carry only the
+  keel-cloud and keel-web SHAs of the run and `exportedAt` -- no entry id, no run directory name, no `renamed.from`, no
+  source path. The link from slug to entry and run is written once, outside `OUT`, to `<keel_e2e_eval>/runs/gallery/
+  provenance-<exportedAt>.json` (`[{slug, entry, run, cloud, web, renamed: {from, to}}]`), ignored by git as every run
+  file is. The survivors grep then covers EVERY byte under `OUT` with no exclusions, case-insensitive, and refuses on
+  one hit.
 - **FR-3a The interview, playable (founder, 2026-10-22: "create the actual interview question so that founders can play
   with it … this is what I am going to get if I buy this product").** Each `<slug>/` also carries `interview.json`:
   for every link of the run (the primary, the decider's on B2B), the served interview exactly as the stranger's page
