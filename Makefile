@@ -59,7 +59,7 @@ sample: venv
 # (founder-NN-*.png, respondent-<link>-NN-*.png) and `export/` (060/061's snapshot, names kept, no verdict gate).
 #
 # IT SPENDS MONEY: Keel's own Anthropic key, read into this one command's environment and never written anywhere --
-# about $COST_TBD for a twenty-person entry (the smoke run of spec 062). It REFUSES without the key, and
+# about $0.50 of inference and 1,700 credits for a twenty-person entry (08-fresco, 30 jobs, 6.5 minutes, spec 062). It REFUSES without the key, and
 # refuses a stack already up (`make down` first): it boots its own, so keel-cloud inherits the key, and tears it down.
 # Never in `make eval`, `make unit`, the matrix or a schedule (`evals/run_backtest.py` is no `test_*.py` file).
 #

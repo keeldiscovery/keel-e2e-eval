@@ -248,7 +248,8 @@ added to this line rather than quietly written — which is exactly how the thir
   screenshot a founder screen and a respondent screen (`screens/`), and 060/061's export ungated (`export/`). **It is
   the fourth paid command** beside `instruction-eval`, `eval-live` and `keels-ai`: Keel's own Anthropic key read into
   that one command's environment (`KEEL_ANTHROPIC_API_KEY`; refused by one sentence without it; never logged or
-  written), about COST_TBD for a twenty-person entry, run on the founder's word only and never by a schedule, a cell
+  written), about $0.50 of inference (and 1,700 of the account's credits, 400 of them the recorded interviewer) for a
+  twenty-person entry -- `08-fresco`, 30 jobs on Sonnet 5.5 and Haiku 4.5, 6.5 minutes -- run on the founder's word only and never by a schedule, a cell
   or `make eval` / `make unit` (`evals/run_backtest.py` is no `test_*.py`; `matrix/cells.py` never names it). A
   widening of this place, not a fifth: the subject is the same journey on the same model door.
 
