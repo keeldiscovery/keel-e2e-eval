@@ -434,3 +434,22 @@ def test_the_changed_screens_are_read_as_findings_on_a_back_test():
     assert [r["key"] for r in got["people_disagree_on_a_bar_line"]] == ["solution.compatibility"]
     assert "*per person*" in bt.markdown({"changed_screens": got, "respondents": {}, "founder_screens": []})
 
+
+# ------------------------------------------------------------------------------- the register's Re-run column
+
+def test_the_rerun_row_carries_the_run_and_the_registers_last_score():
+    """Spec 067 (keel-cloud 128 acceptance 4): the row a re-run adds -- read, never written -- names the run, the door,
+    the decision, the score (to be judged) and the score of the entry's last row in the register."""
+    from evals import backtest as bt                                    # noqa: PLC0415
+    register = ("| Entry | Judged | Run | Door | Decision | Score | Zeros | What went wrong (top three) | Fixed by |\n"
+                "|---|---|---|---|---|---|---|---|---|\n"
+                "| 09-karsa | 2026-10-23 | 20261023T115825Z | host | BUILD_BUT_CHANGE · MEDIUM | 60% (94/156) | 11 | a | b |\n"
+                "| 10-palus | 2026-10-23 | 20261023T121135Z | host | NOT_YET · MEDIUM | 60% (82/136) | 10 | c | d |\n")
+    assert bt.register_scores(register, "09-karsa") == ["60% (94/156)"]
+    row = {"id": "09-karsa", "run": "20261024T010000Z", "door": "host", "decision": "NOT_YET", "score": None}
+    assert bt.rerun_row(row, register) == ("re-run row: | 09-karsa | (judged: to fill) | 20261024T010000Z | host | "
+                                           "NOT_YET | to be judged | Re-run: after 128 · was 60% (94/156) |")
+    assert bt.rerun_row(dict(row, id="11-issen"), register).endswith("was no earlier row |")
+    real = bt._register_text()
+    if real:                                                            # keel-cloud's own register, read as data
+        assert bt.register_scores(real, "09-karsa"), "the register's Karsa row"

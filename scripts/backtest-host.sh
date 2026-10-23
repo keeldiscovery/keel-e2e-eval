@@ -5,7 +5,7 @@
 #
 # For each id: waits while any `pytest evals` runs (one eval stack on this machine at a time), `make down`, then
 # `make backtest DOOR=host ENTRY=<id>` into runs/backtest-host/<id>.log, and prints one line -- the id, the run
-# directory, steps, bad, the decision label. A run whose backtest.md says *stopped by the plan's limit at <time>* is
+# directory, steps, bad, the decision label -- and (spec 067) the register's re-run row beneath it. A run whose backtest.md says *stopped by the plan's limit at <time>* is
 # rerun after that time (or 30 minutes when it names none), at most three times, before the runner moves on.
 #
 # It prints only that line and its own waits: never the environment, a key, a token or the CLI's login.

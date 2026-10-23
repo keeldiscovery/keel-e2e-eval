@@ -374,8 +374,11 @@ def test_the_runner_s_line_and_its_wait_come_from_the_run(tmp_path, capsys):
     row = bt.summary(run, "08-fresco")
     assert (row["steps"], row["bad"], row["decision"], row["limit_stop"]) == (4, 1, "NOT_YET", "2099-01-01T00:00:00Z")
     assert bt.main(["summary", str(log), "08-fresco"]) == 0
-    line = capsys.readouterr().out.strip()
+    printed = capsys.readouterr().out.strip().splitlines()
+    line = printed[0]
     assert line.split("\t")[:5] == ["08-fresco", str(run), "steps 4", "bad 1", "NOT_YET"]
+    # spec 067: the register's re-run row, the previous score read from keel-cloud's register when it has the entry
+    assert printed[1].startswith("re-run row: | 08-fresco | (judged: to fill) | ") and "| to be judged |" in printed[1]
     assert bt.main(["resume", str(log), "08-fresco"]) == 0 and int(capsys.readouterr().out) > 86_400
     clean = _run_dir(tmp_path / "b", _record())
     log.write_text(f"run bundle: {clean}\n")
@@ -406,7 +409,9 @@ def test_the_runner_script_waits_alone_logs_each_entry_and_prints_one_line(tmp_p
                          encoding="utf-8", timeout=60,
                          env={"PATH": f"{bin_dir}:{os.environ['PATH']}", "HOME": str(tmp_path), "PY": sys.executable})
     assert out.returncode == 0, out.stderr
-    assert out.stdout.strip().split("\t")[:5] == ["08-fresco", str(run), "steps 4", "bad 1", "NOT_YET"]
+    lines = out.stdout.strip().splitlines()
+    assert lines[0].split("\t")[:5] == ["08-fresco", str(run), "steps 4", "bad 1", "NOT_YET"]
+    assert len(lines) == 2 and lines[1].startswith("re-run row: | 08-fresco |"), lines   # spec 067: the register's row
     calls = (tmp_path / "make.calls").read_text().splitlines()
     assert "down" in calls[0] and "backtest DOOR=host ENTRY=08-fresco" in calls[1] and len(calls) == 2
     assert (repo / "runs" / "backtest-host" / "08-fresco.log").is_file()

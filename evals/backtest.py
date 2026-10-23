@@ -1556,9 +1556,14 @@ def summary(run_dir: Path | None, entry_id: str) -> dict:
         out["steps"], out["bad"] = steps, bad
     except (OSError, ValueError):
         pass
+    out.update(run=Path(run_dir).name, door="KEEL", score=None)
     try:
         record = json.loads((Path(run_dir) / RECORD).read_text(encoding="utf-8"))
         out["decision"] = (((record.get("brief") or {}).get("decision")) or {}).get("label")
+        out["run"] = record.get("run") or out["run"]
+        out["door"] = "host" if (record.get("door") or {}).get("door") == "host" or record.get("spec") == "062+066" \
+            else "KEEL"
+        out["score"] = record.get("score")             # a judge's; a run's own record carries none today
     except (OSError, ValueError, AttributeError):
         pass
     try:
@@ -1568,8 +1573,45 @@ def summary(run_dir: Path | None, entry_id: str) -> dict:
     return out
 
 
+#: Spec 067 (keel-cloud 128 acceptance 4): the judgement register, keel-cloud's -- read here, never written.
+REGISTER = Path("canon") / "designs" / "measured-beliefs" / "backtest" / "judgements" / "README.md"
+
+
+def register_scores(text: str, entry_id: str) -> list[str]:
+    """The *Score* cells of the register's rows for `entry_id`, in the table's order (the header names the column)."""
+    header, scores = None, []
+    for line in (text or "").splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if header is None and "Entry" in cells and "Score" in cells:
+            header = cells
+            continue
+        if header and cells and cells[0] == entry_id and len(cells) == len(header):
+            scores.append(cells[header.index("Score")])
+    return scores
+
+
+def rerun_row(row: dict, register_text: str) -> str:
+    """Spec 067 (the register's *Re-run* column): the row a re-run on the 128 build adds -- entry, run id, door,
+    decision, the score the run's record carries (none until judged), and the previous row's score for the entry read
+    from the register. The parent session fills *Judged* and the judge's score and adds the row; nothing is written."""
+    was = (register_scores(register_text, row["id"]) or [None])[-1]
+    return (f"re-run row: | {row['id']} | (judged: to fill) | {row.get('run') or '--'} | {row.get('door') or '--'} | "
+            f"{row.get('decision') or '--'} | {row.get('score') or 'to be judged'} | Re-run: after 128 · was "
+            f"{was or 'no earlier row'} |")
+
+
+def _register_text() -> str:
+    try:
+        from stack.config import load_config                           # noqa: PLC0415
+        return (Path(load_config(validate=False).keel_cloud) / REGISTER).read_text(encoding="utf-8")
+    except Exception:  # noqa: BLE001 - no register to read is a line that says so, never a failed summary
+        return ""
+
+
 def main(argv: list[str] | None = None) -> int:
-    """`python -m evals.backtest summary <log> <id>` prints FR-6's line; `... resume <log> <id>` prints the seconds to
+    """`python -m evals.backtest summary <log> <id>` prints FR-6's line (and, spec 067, the register's re-run row); `... resume <log> <id>` prints the seconds to
     wait before a rerun when the run stopped on the plan's limit, and nothing when it did not. Reads run files only --
     never an environment, a key or a login."""
     argv = sys.argv[1:] if argv is None else argv
@@ -1586,6 +1628,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{row['id']}\t{row['run_dir'] or '(no run directory)'}\tsteps {row['steps']}\tbad {row['bad']}\t"
               f"{row['decision'] or '--'}" + (f"\tstopped by the plan's limit at {row['limit_stop'] or 'an unnamed time'}"
                                              if row["limit_stop"] is not None else ""))
+        if row["run_dir"]:
+            print(rerun_row(row, _register_text()))
     elif row["limit_stop"] is not None:
         print(int(max(60.0, resume_epoch(row["limit_stop"] or None) - time.time())))
     return 0

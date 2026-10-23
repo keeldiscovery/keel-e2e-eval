@@ -138,7 +138,7 @@ the canon-reading tests the revision refusal had skipped.
 
 ## The register's Re-run column
 
-- [ ] T080 `python -m evals.backtest summary <log> <id>` (and so `scripts/backtest-host.sh`) prints, after FR-6's
+- [x] T080 `python -m evals.backtest summary <log> <id>` (and so `scripts/backtest-host.sh`) prints, after FR-6's
   line, the **re-run row** the register needs: `entry · judged (to fill) · run id · door · decision · score · was`,
   the score the run's `backtest.json` carries (none today: a score is a judge's, so it reads *to be judged*) and *was*
   the previous row's score for that entry read from keel-cloud-docs
@@ -148,6 +148,12 @@ the canon-reading tests the revision refusal had skipped.
   The column's shape (for the parent session, who adds the rows): the register keeps its columns and gains **Re-run**
   between *Score* and *Zeros*; a re-run is a new row (rows are never rewritten) whose *Re-run* cell reads
   `after 128 · was <old score>` (e.g. `after 128 · was 60% (94/156)`), and the original rows' *Re-run* cells are empty.
+- [x] T081 as built: `backtest.summary` gains `run`, `door` (host where the record's door says so, else KEEL) and
+  `score`; `backtest.register_scores` reads the register's *Score* cells by its header, `backtest.rerun_row` prints
+  `re-run row: | <id> | (judged: to fill) | <run> | <door> | <decision> | <score or to be judged> | Re-run: after 128 ·
+  was <last score or no earlier row> |` under the summary line (so under each entry in `scripts/backtest-host.sh`).
+  The register is read from the configured keel-cloud checkout and never written. Unit: 3,127 passed, 53 skipped, 0
+  failed.
 
 ## Acceptance
 
