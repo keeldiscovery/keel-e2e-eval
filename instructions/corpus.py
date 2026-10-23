@@ -309,6 +309,9 @@ class Person:
     #: condition chip -- `YES` (inside) or `NO` (outside: `in_segment` False) -- where the entry's context records a
     #: condition; None where it records none. 11-issen and 18-careforce carry it.
     condition: str | None = None
+    #: Spec 067 FR-3 (keel-cloud 128 FR-14): the rung `follow_up` was written for, where the entry says so
+    #: (`follow_up: {dimension, text}`); None for a bare line (judgement call 3: still read at revision 15).
+    follow_up_dimension: str | None = None
 
     @property
     def gate_yes(self) -> bool:
@@ -1469,13 +1472,41 @@ def _check_keys(entry: Entry, registry) -> None:
 def _person(raw: dict) -> Person:
     condition = raw.get("condition")
     inside = raw.get("in_segment") is not False if condition is None else condition == "YES"
+    follow_up, dimension = raw.get("follow_up"), None
+    if isinstance(follow_up, dict):
+        follow_up, dimension = follow_up.get("text"), follow_up.get("dimension")
     return Person(person=raw.get("person"), recency=raw.get("recency"),
                   story=raw.get("story") or None, chip=raw.get("chip"),
                   anchoring=raw.get("anchoring"), picks=dict(raw.get("picks") or {}),
                   pilot_opt_in=bool(raw.get("pilot_opt_in")),
                   link=raw.get("link", LINK_PRIMARY),
-                  follow_up=(str(raw.get("follow_up")).strip() or None) if raw.get("follow_up") else None,
-                  in_segment=inside, condition=condition)
+                  follow_up=(str(follow_up).strip() or None) if follow_up else None,
+                  in_segment=inside, condition=condition, follow_up_dimension=dimension)
+
+
+#: Spec 067 FR-3: the rungs a follow-up is asked on (keel-cloud 118's ladder, `interviewer_fake.RUNGS`), so the rung a
+#: person's line names is one of them.
+FOLLOW_UP_RUNGS = ("problem.importance", "problem.current_solution_satisfaction", "solution.compatibility",
+                   "solution.relative_advantage", "solution.adoption_friction", "commercial.price",
+                   "commercial.buyer_payer_alignment", "commercial.purchase_friction", "commercial.commitment")
+
+
+def _check_follow_up(raw: dict, path: Path) -> None:
+    """Spec 067 FR-3 (keel-cloud 128 FR-14): a person's `follow_up` is `{dimension, text}` -- the rung it answers, one of
+    the ladder's, and the words, non-empty -- or (judgement call 3, revision 15) a bare line; anything else is refused."""
+    entry_id = raw.get("id") or path.name
+    for person in raw.get("answers") or []:
+        value = (person or {}).get("follow_up") if isinstance(person, dict) else None
+        if value is None or isinstance(value, str):
+            continue
+        who = person.get("person")
+        if not isinstance(value, dict) or set(value) != {"dimension", "text"}:
+            raise _refuse(entry_id, f"{who}'s follow_up is {value!r}; it is {{dimension, text}} (spec 067 FR-3)", path)
+        if value["dimension"] not in FOLLOW_UP_RUNGS:
+            raise _refuse(entry_id, f"{who}'s follow_up names {value['dimension']!r}, which is asked no follow-up "
+                                    f"(the ladder's rungs: {', '.join(FOLLOW_UP_RUNGS)}; spec 067 FR-3)", path)
+        if not isinstance(value["text"], str) or not value["text"].strip():
+            raise _refuse(entry_id, f"{who}'s follow_up on {value['dimension']} carries no words (spec 067 FR-3)", path)
 
 
 def _check_condition(raw: dict, path: Path) -> None:
@@ -1531,6 +1562,7 @@ def _entry(raw: dict, path: Path, digest: str, *, backtest: bool = False) -> Ent
     _check_backtest(raw, path, backtest)
     _check_shape(raw, path)
     _check_condition(raw, path)
+    _check_follow_up(raw, path)
     return Entry(
         id=raw["id"],
         title=raw.get("title", ""),

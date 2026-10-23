@@ -1938,6 +1938,11 @@ def _typing(person, line: str | None):
     return person
 
 
+def _typed(walked: dict) -> bool:
+    """Whether the walk typed the person's line on the follow-up screen (`Interview._follow_up`'s `did`)."""
+    return (walked.get("follow_up") or {}).get("did") == "typed"
+
+
 def _served_options(j: Journey, person, items: dict):
     """Spec 064 FR-7: a corpus *yes, after trying it first* the script put on *probably not* (no smaller step on the
     founder's list, so keel-cloud 118 serves no conditional yes) goes back to the conditional option where the
@@ -2018,13 +2023,19 @@ def _answer_one(j: Journey, person, token: str) -> None:
         if owed is not None:
             owed["deciding"] = deciding
             person = _typing(person, vs.follow_up_line(j.entry, person, owed))
+        # spec 067 FR-3 (keel-cloud 128 FR-14): a line the entry wrote for one rung is typed on that rung alone -- the
+        # walk is handed the person's own rung, so the page types it only where the server asks that rung
+        own_rung = getattr(person, "follow_up_dimension", None)
+        if own_rung and not j.strict and (person.link == vs.LINK_B2B or (person.recency and inside)):
+            mine = next((p for p in j.entry.people() if p.person == person.person), None)
+            person = _typing(person, getattr(mine, "follow_up", None))
         page = stranger.new_page()
         screens = vs_screens.Interview(page, j.recorder)
         if getattr(j, "camera", None) is not None:
             screens.camera = j.camera.respondent(person, page)
         screens.open(j.links[person.person])
         walked = screens.walk(person, interview, by_item, follow_up=person.follow_up, speak=speak,
-                              follow_up_rung=(owed or {}).get("dimension"))
+                              follow_up_rung=(own_rung if own_rung and not j.strict else (owed or {}).get("dimension")))
         j.walked[person.person] = walked
         # keel-cloud 118 FR-4: the server composes the follow-up with this person's own answers already counted, so a
         # deciding line can move between the read above and the route's reply (16-pairio, Walter Brandt: the SOLUTION
@@ -2040,7 +2051,7 @@ def _answer_one(j: Journey, person, token: str) -> None:
                                            f"follow-up is on {served_rung}, not {owed.get('dimension')} (118 FR-4)",
                                    "served": {"before": owed.get("deciding"), "after": later}})
                 owed = again
-                person = _typing(person, None)          # the walk skipped: the line was for the earlier rung
+                person = _typing(person, person.follow_up if _typed(walked) else None)
             elif not j.strict:
                 # a back-test (19-veles, Connor Walsh): the server's rung is not the harness's ladder's even on the
                 # standings as they stand -- the harness's own ordering (the saved list's item 0 as the founder's own,
@@ -2053,7 +2064,12 @@ def _answer_one(j: Journey, person, token: str) -> None:
                                    "served": {"harness": owed, "server": {k: body.get(k) for k in ("dimension", "text", "spoken")}}})
                 owed = {**owed, "dimension": served_rung, "text": body.get("text"), "spoken": body.get("spoken"),
                         "deciding": later}
-                person = _typing(person, None)          # the line was for the harness's rung: the walk skipped
+                person = _typing(person, person.follow_up if _typed(walked) else None)
+        if own_rung and not j.strict and (walked.get("follow_up") or {}).get("line_for"):
+            # spec 067 FR-3: the server asked another rung than the one this person's line was written for -- skipped
+            j.findings.append({"what": f"{person.person}: their follow-up line was written for {own_rung}; the server "
+                                       f"asked {served_rung}, so they skipped it (spec 067 FR-3)"})
+            person = _typing(person, None)
         _hold_the_screens(j, person, interview, walked)
         _hold_the_consent(j, person, walked)
         if speak:

@@ -251,3 +251,40 @@ def test_the_rungs_the_draft_left_out_are_typed_and_past_the_screen_they_stop():
     typed, cannot = vs.rungs_to_type(entry, drawn + ["Keel's own rung"], 5)
     assert typed == rungs[2:4] and cannot == [rungs[4]]
     assert vs.rungs_to_type(entry, rungs, 5) == ([], [])
+
+
+# ------------------------------------------------------------------------------- FR-3: a line belongs to a rung
+
+def _with_follow_up(value) -> dict:
+    raw = fx.raw_entry(fx.ENTRY_B2B)
+    raw.pop("expected", None)
+    raw.update(id="96-rung", idea_name="Whistle key tag", sources="96-rung.sources.md")
+    who = next(i for i, p in enumerate(raw["answers"]) if p.get("recency") == "yes")
+    raw["answers"][who] = dict(raw["answers"][who], follow_up=value)
+    return raw, raw["answers"][who]["person"]
+
+
+def test_a_follow_up_names_its_rung_and_the_reader_keeps_it(tmp_path):
+    raw, who = _with_follow_up({"dimension": "commercial.commitment", "text": "We'd start with one site first."})
+    entry = corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="96-rung.yaml"), registry=fx.registry(),
+                                 backtest=True)
+    person = entry.person(who)
+    assert (person.follow_up, person.follow_up_dimension) == ("We'd start with one site first.", "commercial.commitment")
+    inputs = next(p for p in vs.person_inputs(entry) if p.person == who)
+    assert inputs.follow_up_dimension == "commercial.commitment"
+    # a bare line is still read at revision 15 (judgement call 3): no rung
+    raw, who = _with_follow_up("A bare line, as every r15 entry writes it.")
+    entry = corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="96-rung.yaml"), registry=fx.registry(),
+                                 backtest=True)
+    assert entry.person(who).follow_up_dimension is None and entry.person(who).follow_up
+
+
+@pytest.mark.parametrize("value, why", [
+    ({"dimension": "problem.frequency", "text": "Twice a week."}, "which is asked no follow-up"),
+    ({"dimension": "commercial.commitment", "text": "  "}, "carries no words"),
+    ({"dimension": "commercial.commitment"}, "it is {dimension, text}"),
+    (["a list"], "it is {dimension, text}"),
+])
+def test_a_follow_up_off_its_shape_is_refused(tmp_path, value, why):
+    raw, _ = _with_follow_up(value)
+    assert why in _refused(tmp_path, raw)

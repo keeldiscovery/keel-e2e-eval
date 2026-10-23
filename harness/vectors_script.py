@@ -1421,6 +1421,8 @@ class PersonInputs:
     #: Spec 064 FR-4 (keel-cloud 120): inside the segment's condition -- the chip answered inside; False is thanked at
     #: the chip and posts `{"outsideSegment": true, "answers": []}`.
     in_segment: bool = True
+    #: Spec 067 FR-3: the rung this person's own line was written for (`follow_up: {dimension, text}`), or None.
+    follow_up_dimension: str | None = None
     #: Spec 064 FR-7: a corpus pick the served options cannot carry, re-expressed (`(dimension, corpus, sent)`) -- a
     #: finding, never a silent drop (Commitment's *yes, after trying it first* where no smaller step is served).
     remapped: tuple = ()
@@ -1605,8 +1607,12 @@ def follow_up_line(entry, person, owed: dict | None) -> str | None:
     skipper or where nothing is owed; a back-test person's own words where the file has them; else that rung's line."""
     if not owed or person.person in FOLLOW_UP_SKIPS.get(entry.id, ()):
         return None
-    own = next((p.follow_up for p in entry.people() if p.person == person.person and getattr(p, "follow_up", None)),
-               None)
+    mine = next((p for p in entry.people() if p.person == person.person), None)
+    own = getattr(mine, "follow_up", None)
+    if own and getattr(mine, "follow_up_dimension", None) and mine.follow_up_dimension != owed.get("dimension") \
+            and not getattr(entry, "backtest", False):
+        # spec 067 FR-3: a line written for one rung is never typed on another (golden entries carry none)
+        return None
     if own is None and getattr(entry, "backtest", False):
         # a back-test person says only what the file gives them: with no words of their own on the rung actually
         # asked, they skip -- the pooled line is the golden journeys' (its insights would otherwise rest on filler;
@@ -1762,8 +1768,10 @@ def person_inputs(entry) -> list[PersonInputs]:
     # spec 062 follow-up (2026-10-22): a back-test person who is owed a follow-up answers in their own words
     # (`Person.follow_up` in the file) where the file has them; the pooled line otherwise, as every golden entry does
     own = {p.person: p.follow_up for p in entry.people() if getattr(p, "follow_up", None)}
+    rung_of = {p.person: p.follow_up_dimension for p in entry.people() if getattr(p, "follow_up_dimension", None)}
     return [dataclasses.replace(p, follow_up=(own.get(p.person) if p.person in lines and own.get(p.person)
-                                              else lines.get(p.person))) for p in people]
+                                              else lines.get(p.person)),
+                                follow_up_dimension=rung_of.get(p.person)) for p in people]
 
 
 def inside_inputs(entry, name: str) -> "PersonInputs":

@@ -75,9 +75,14 @@ the canon-reading tests the revision refusal had skipped.
 
 ## FR-3 -- a follow-up line belongs to a rung
 
-- [ ] T030 the reader takes `follow_up: {dimension, text}` (dimension a registry key a follow-up is asked on, text
+- [x] T030 the reader takes `follow_up: {dimension, text}` (dimension a registry key a follow-up is asked on, text
   non-empty) and keeps `Person.follow_up_dimension`; the walk types the line only when the served rung is that
   dimension, else skips and records it. Judgement call 3: a bare string is still read on revision 15.
+- [x] T031 as built: `corpus._check_follow_up` (the rung one of the ladder's nine, the words non-empty, nothing else
+  in the mapping); `Person` / `PersonInputs.follow_up_dimension`; on a back-test the walk is handed the person's own
+  rung, so `Interview._follow_up` types the line exactly where the server asks that rung and skips (a finding)
+  elsewhere -- the post-walk reconciliation keeps the line only where the walk typed it (`_typed`). Golden entries
+  carry no line and walk as before. Unit: 3,120 passed, 53 skipped, 0 failed.
 
 ## FR-4 -- for/against from the served bar
 
