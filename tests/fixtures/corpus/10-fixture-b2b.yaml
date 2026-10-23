@@ -172,6 +172,8 @@ founder_calibration:
       items:
       - code: step
         label: install the app
+      - code: smaller_step
+        label: a look at it on a demo
     belief_sentence: Most are open to install the app now.
 respondent_questions:
   problem.prevalence:
