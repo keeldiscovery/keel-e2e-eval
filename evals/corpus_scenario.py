@@ -2029,6 +2029,11 @@ def _answer_one(j: Journey, person, token: str) -> None:
         if speak:
             expected = _hold_the_box(j, person, interview, walked, expected, speak)
         _hold_the_follow_up(j, person, interview, walked, owed)
+        for u in walked.get("unanswered") or []:
+            # the walk took the escape on an item the file left unanswered (13-aircaps, Naomi Adler on Ability to pay):
+            # the wire carries that escape, so the expected body does too; the gap is already a finding
+            if u.get("itemId") and u.get("code") and not any(a.get("itemId") == u["itemId"] for a in expected.get("answers") or []):
+                expected = {**expected, "answers": list(expected.get("answers") or []) + [{"itemId": u["itemId"], "chip": u["code"]}]}
         with _step(j, f"{person.person}: the page sent exactly this person's answers",
                    party="participant") as h:
             sent = walked["body"] or {}

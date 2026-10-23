@@ -1889,7 +1889,9 @@ class Interview:
                     # Ability to pay): the page cannot move on unanswered, so they take the item's escape, and the walk
                     # names it -- the entry's author sees it in the findings rather than the run stopping here
                     self._answer(item, {"chip": str((item.get("escape") or {}).get("code") or "").upper()})
-                    self.unanswered.append({"dimension": item.get("dimension"), "took": (item.get("escape") or {}).get("label")})
+                    self.unanswered.append({"dimension": item.get("dimension"), "took": (item.get("escape") or {}).get("label"),
+                                            "code": str((item.get("escape") or {}).get("code") or "").upper(),
+                                            "itemId": item.get("itemId")})
                 self.screens.append(self._item_screen(item))
                 last = p_index == len(parts) - 1 and i_index == len(items) - 1
                 if last:
