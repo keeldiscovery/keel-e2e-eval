@@ -1333,8 +1333,14 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                 want = vs.saved_list(j.entry, key)
                 if have != want:
                     mismatches.append({"dimension": key, "wire": have, "corpus": want})
-            elif [i.get("code") for i in items] != [vs.wire_code(key, n) for n in range(len(items))]:
-                mismatches.append({"dimension": key, "wire": have, "want": "code's positional codes"})
+            else:
+                codes = [i.get("code") for i in items]
+                want_codes = [vs.wire_code(key, n) for n in range(len(items))]
+                if key == "commercial.commitment" and len(codes) == 2 and codes[1] == "smaller_step":
+                    # spec 064 FR-7a (keel-cloud 118 FR-1): the conditional yes is stored as the list's second item
+                    want_codes = [want_codes[0], "smaller_step"]
+                if codes != want_codes:
+                    mismatches.append({"dimension": key, "wire": have, "want": "code's positional codes"})
         h.record_assert([], mismatches)
         assert not mismatches, json.dumps(mismatches, indent=2)
 
