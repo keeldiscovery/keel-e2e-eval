@@ -68,8 +68,16 @@ def test_the_map_is_the_amendments(names):
     for n in names:
         assert n.inspired_by == {"name": n.name, "batch": n.inspired_by["batch"],
                                  "ycUrl": f"https://www.ycombinator.com/companies/{n.slug}"}
-        assert n.public_description["url"] == n.inspired_by["ycUrl"] and n.public_description["date"] == "2026-10-22"
-        assert n.public_description["text"].strip() and not n.axes
+        # launch-era (1d42c51): the Launch YC post's own title, its URL and its date
+        assert n.public_description["url"].startswith("https://www.ycombinator.com/launches/")
+        assert n.public_description["date"] < "2026-10-22" and n.public_description["text"].strip() and not n.axes
+        if n.status_today:                                              # today's one-liner, where it differs
+            assert n.status_today["url"] == n.inspired_by["ycUrl"] and n.status_today["date"] == "2026-10-22"
+            assert n.status_today["text"] != n.public_description["text"]
+    assert [n.slug for n in names if not n.status_today] == ["aircaps"]
+    assert names[0].public_description == {
+        "text": "Fresco: The scribe for construction",
+        "url": "https://www.ycombinator.com/launches/M73-fresco-the-scribe-for-construction", "date": "2024-10-23"}
 
 
 def test_a_malformed_map_is_refused_by_name(tmp_path):
@@ -95,11 +103,14 @@ def test_the_disclaimer_is_the_fixed_sentence(names):
 
 def test_the_attribution_in_the_index_and_the_manifest(exported):
     out, _ = exported
-    row = json.loads((out / g.INDEX).read_text(encoding="utf-8"))[0]
+    row = json.loads((out / g.INDEX).read_text(encoding="utf-8"))["examples"][0]
     manifest = json.loads((out / "fresco" / se.MANIFEST).read_text(encoding="utf-8"))
     want = {"inspiredBy": {"name": "Fresco", "batch": "Fall 2024", "ycUrl": "https://www.ycombinator.com/companies/fresco"},
-            "publicDescription": {"text": "AI copilot for construction estimators",
-                                  "url": "https://www.ycombinator.com/companies/fresco", "date": "2026-10-22"},
+            "publicDescription": {"text": "Fresco: The scribe for construction",
+                                  "url": "https://www.ycombinator.com/launches/M73-fresco-the-scribe-for-construction",
+                                  "date": "2024-10-23"},
+            "statusToday": {"text": "AI copilot for construction estimators",
+                            "url": "https://www.ycombinator.com/companies/fresco", "date": "2026-10-22"},
             "simulated": True, "disclaimer": FRESCO_DISCLAIMER}
     for block in (row, manifest):
         assert {k: block[k] for k in want} == want
@@ -121,6 +132,10 @@ def test_the_attribution_in_the_index_and_the_manifest(exported):
     ({"public_description": {"text": "x", "url": "https://www.ycombinator.com/companies/fresco", "date": "October"}},
      "publicDescription url"),
     ({"public_description": {}}, "publicDescription needs text, url and date"),
+    ({"status_today": {"text": "AI copilot for construction estimators", "url": "", "date": "2026-10-22"}},
+     "statusToday needs text, url and date"),
+    ({"status_today": {"text": "x", "url": "https://www.ycombinator.com/companies/fresco", "date": "today"}},
+     "statusToday url"),
 ])
 def test_a_slug_missing_its_attribution_is_refused_and_nothing_is_written(tmp_path, names, change, said):
     out = tmp_path / "sample"
@@ -130,6 +145,51 @@ def test_a_slug_missing_its_attribution_is_refused_and_nothing_is_written(tmp_pa
     assert any(said in r for r in refused.value.reasons), refused.value.reasons
     assert all(r.startswith("fresco: ") for r in refused.value.reasons)
     assert not out.exists() and not (tmp_path / "prov").exists()
+
+
+def test_the_clusters_are_the_diversity_researchs(names):
+    assert [(n.slug, n.cluster["id"], n.cluster["label"]) for n in names] == [
+        ("fresco", 4, "Construction and real estate"),
+        ("karsa", 27, "Payments, banking, lending, stablecoins"),
+        ("palus-finance", 27, "Payments, banking, lending, stablecoins"),
+        ("issen", 29, "Education and tutoring"),
+        ("transload", 16, "Supply chain, logistics, freight"),
+        ("aircaps", 6, "Consumer video, media and creators")]
+
+
+def test_keywords_are_derived_when_the_map_writes_none(names):
+    run = g.read_run(RUN)
+    words = g.keywords(run, dataclasses.replace(names[0], keywords=()), occasion="day")
+    assert g.KEYWORDS_MIN <= len(words) <= g.KEYWORDS_MAX and words[:2] == ["construction superintendent", "day"]
+    assert all(w == w.lower() and w.strip() for w in words) and not any("fresco" in w for w in words)
+    assert not set(words[2:]) & g._STOP                  # the actor and the occasion are taken as served
+    for n in names:                                       # the map's lists: 5 to 12, lower case, no company name
+        assert g.KEYWORDS_MIN <= len(n.keywords) <= g.KEYWORDS_MAX
+        assert all(k == k.lower() and n.name.lower() not in k for k in n.keywords)
+
+
+@pytest.mark.parametrize("change, said", [
+    ({"cluster": {}}, "cluster needs an integer id and a label"),
+    ({"cluster": {"id": "4", "label": "Construction and real estate"}}, "cluster needs an integer id"),
+    ({"keywords": ("site", "photos", "logs", "trailer")}, "4 keywords, not 5 to 12"),
+    ({"keywords": (" ", "photos", "logs", "trailer", "dispute")}, "not plain lower-case"),
+    ({"keywords": ("fresco app", "photos", "logs", "trailer", "dispute")}, "a keyword names the company"),
+])
+def test_a_slug_without_its_cluster_or_keywords_is_refused(tmp_path, names, change, said):
+    with pytest.raises(g.GalleryRefused) as refused:
+        g.export([RUN], tmp_path / "sample", names=_with(names, "08-fresco", **change), exported_at=AT,
+                 provenance_dir=tmp_path / "prov")
+    assert any(said in r for r in refused.value.reasons), refused.value.reasons
+    assert not (tmp_path / "sample").exists()
+
+
+def test_status_today_is_optional(tmp_path, names):
+    out = tmp_path / "sample"
+    g.export([RUN], out, names=_with(names, "08-fresco", status_today={}), exported_at=AT,
+             provenance_dir=tmp_path / "prov")
+    row = json.loads((out / g.INDEX).read_text(encoding="utf-8"))["examples"][0]
+    manifest = json.loads((out / "fresco" / se.MANIFEST).read_text(encoding="utf-8"))
+    assert "statusToday" not in row and "statusToday" not in manifest and row["publicDescription"]["text"]
 
 
 def test_a_missing_disclaimer_simulated_or_assumptions_is_refused(names):
@@ -180,12 +240,13 @@ def test_nothing_is_renamed(exported):
 
 def test_the_index_shape(exported):
     out, result = exported
-    index = json.loads((out / g.INDEX).read_text(encoding="utf-8"))
-    assert index == result["index"] and len(index) == 1
-    row = index[0]
-    assert list(row) == ["slug", "name", "inspiredBy", "publicDescription", "simulated", "disclaimer", "oneLine",
+    written = json.loads((out / g.INDEX).read_text(encoding="utf-8"))
+    assert written == {"generatedAt": AT, "count": 1, "examples": result["index"]}      # a35af52's envelope
+    row = written["examples"][0]
+    assert list(row) == ["slug", "name", "inspiredBy", "publicDescription", "statusToday", "simulated", "disclaimer",
+                         "oneLine",
                          "problem", "assumptions", "decision", "howSure", "pilot", "price", "b2b", "cloud", "web",
-                         "axes", "interview"]
+                         "axes", "cluster", "keywords", "interview"]
     assert row["slug"] == "fresco" and row["name"] == "Fresco" and row["b2b"] is True
     assert row["oneLine"] == "The scribe for construction superintendents"
     assert row["problem"].startswith("Construction superintendents spend up to 3 hours a day on documents")
@@ -200,6 +261,9 @@ def test_the_index_shape(exported):
                            "firstStep": "start a paid pilot on one site", "kind": "business"}
     assert row["interview"] == {"links": [{"role": "PRIMARY", "label": "Construction superintendents", "items": 7},
                                           {"role": "COMMERCIAL_B2B", "label": "Contractor", "items": 6}]}
+    assert row["cluster"] == {"id": 4, "label": "Construction and real estate"}
+    assert row["keywords"] == ["construction superintendent", "site walks", "daily logs", "photos", "punch lists",
+                               "documents", "trailer", "liability", "dispute", "general contractors"]
     roles = json.loads((out / "fresco" / "roles.json").read_text(encoding="utf-8"))["roles"]
     assert [l["items"] for l in row["interview"]["links"]] == [r["questionCount"] for r in roles]
 
@@ -239,8 +303,8 @@ def test_the_file_set_per_slug(exported):
 def test_the_manifest_shape(exported):
     out, _ = exported
     manifest = json.loads((out / "fresco" / se.MANIFEST).read_text(encoding="utf-8"))
-    assert list(manifest) == ["cloud", "web", "exportedAt", "inspiredBy", "publicDescription", "simulated",
-                              "disclaimer", "assumptions"]
+    assert list(manifest) == ["cloud", "web", "exportedAt", "inspiredBy", "publicDescription", "statusToday",
+                              "simulated", "disclaimer", "assumptions"]
     assert (manifest["cloud"], manifest["web"], manifest["exportedAt"]) == ("b2cf168", "9f3845a", AT)
 
 

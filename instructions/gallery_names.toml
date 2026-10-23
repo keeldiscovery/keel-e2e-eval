@@ -10,9 +10,23 @@
 #   replaces           -- [] since 2026-10-23 (the rename map went)
 #   inspired_by        -- {name, batch, ycUrl}: the YC batch as the YC company page names it, and that page (the
 #                         `sources` file's YC company page line)
-#   public_description -- {text, url, date}: the company's own one-liner, verbatim -- the `one_liner` the YC company
-#                         page served -- with the page and the date it was read (2026-10-22, the saved copies the
-#                         back-test was written from; spec 063 tasks.md, the amendment's calls)
+#   public_description -- {text, url, date}: the company's own words for the idea the example studies, verbatim, from
+#                         the LAUNCH-ERA source (spec 063, amended 1d42c51; gap 11: every example is pinned to the idea
+#                         as launched) -- the Launch YC post's title, its URL (the `sources` file's Launch YC line) and
+#                         the post's date. The sources files only paraphrase the titles, so the words are from the
+#                         post as the saved YC pages of 2026-10-22 carry it (tasks.md, the amendment's calls).
+#   status_today       -- optional, the same shape: the company's current YC one-liner, verbatim, its company page and
+#                         the date it was read -- written only where it differs from the launch-era words (AirCaps'
+#                         is the same, so it has none).
+#   cluster            -- {id, label}: the topic cluster of the diversity research (scratchpad
+#                         backtest/diversity/clusters_k30.json, K 30, seed 11; the label as its page names cluster `id`).
+#                         Palus Finance and AirCaps are placed by the coordinator's call (27, 6), not by the k-means
+#                         assignment in that file (21, 13) -- tasks.md, the amendment's calls.
+#   keywords           -- optional: 5 to 12 lower-case words or short phrases; when written they replace the ones
+#                         `evals/gallery.keywords` derives from the run. Written for all six (2026-10-23): the
+#                         derived lists carry verbs and other companies' names (Procore, OneDrive), so these are
+#                         picked by hand from the same words -- the problem statement, the actor, the occasion and
+#                         the context fields, as the founder entered them -- and no company name.
 #   axes               -- optional: any of the seven gallery words written here wins over the one derived from the run.
 
 [[gallery]]
@@ -21,7 +35,10 @@ slug = "fresco"
 name = "Fresco"
 replaces = []
 inspired_by = { name = "Fresco", batch = "Fall 2024", ycUrl = "https://www.ycombinator.com/companies/fresco" }
-public_description = { text = "AI copilot for construction estimators", url = "https://www.ycombinator.com/companies/fresco", date = "2026-10-22" }
+cluster = { id = 4, label = "Construction and real estate" }
+keywords = ["construction superintendent", "site walks", "daily logs", "photos", "punch lists", "documents", "trailer", "liability", "dispute", "general contractors"]
+public_description = { text = "Fresco: The scribe for construction", url = "https://www.ycombinator.com/launches/M73-fresco-the-scribe-for-construction", date = "2024-10-23" }
+status_today = { text = "AI copilot for construction estimators", url = "https://www.ycombinator.com/companies/fresco", date = "2026-10-22" }
 
 [[gallery]]
 entry = "09-karsa"
@@ -29,7 +46,10 @@ slug = "karsa"
 name = "Karsa"
 replaces = []
 inspired_by = { name = "Karsa", batch = "Winter 2025", ycUrl = "https://www.ycombinator.com/companies/karsa" }
-public_description = { text = "Stablecoin neobank for emerging markets", url = "https://www.ycombinator.com/companies/karsa", date = "2026-10-22" }
+cluster = { id = 27, label = "Payments, banking, lending, stablecoins" }
+keywords = ["saver", "savings", "inflation", "rupees", "dollars", "foreign currency account", "exchange companies", "pakistan", "conversion"]
+public_description = { text = "Karsa 💸 - The Global Dollar Account", url = "https://www.ycombinator.com/launches/MgV-karsa-the-global-dollar-account", date = "2025-01-27" }
+status_today = { text = "Stablecoin neobank for emerging markets", url = "https://www.ycombinator.com/companies/karsa", date = "2026-10-22" }
 
 [[gallery]]
 entry = "10-palus"
@@ -37,7 +57,10 @@ slug = "palus-finance"
 name = "Palus Finance"
 replaces = []
 inspired_by = { name = "Palus Finance", batch = "Winter 2026", ycUrl = "https://www.ycombinator.com/companies/palus-finance" }
-public_description = { text = "Your startup's financial advisor", url = "https://www.ycombinator.com/companies/palus-finance", date = "2026-10-22" }
+cluster = { id = 27, label = "Payments, banking, lending, stablecoins" }
+keywords = ["finance lead", "startups", "raise", "runway", "cash", "treasury product", "money market fund", "fee"]
+public_description = { text = "Palus Finance - Better yields on idle cash for startups and SMBs", url = "https://www.ycombinator.com/launches/PfC-palus-finance-better-yields-on-idle-cash-for-startups-and-smbs", date = "2026-03-10" }
+status_today = { text = "Your startup's financial advisor", url = "https://www.ycombinator.com/companies/palus-finance", date = "2026-10-22" }
 
 [[gallery]]
 entry = "11-issen"
@@ -45,7 +68,10 @@ slug = "issen"
 name = "Issen"
 replaces = []
 inspired_by = { name = "Issen", batch = "Fall 2024", ycUrl = "https://www.ycombinator.com/companies/issen" }
-public_description = { text = "AI realtime voice companion for language learning", url = "https://www.ycombinator.com/companies/issen", date = "2026-10-22" }
+cluster = { id = 29, label = "Education and tutoring" }
+keywords = ["language learner", "practice session", "speaking practice", "foreign language", "tutor", "conversation", "intermediate", "schedule", "apps", "streaks"]
+public_description = { text = "ISSEN - your personalized AI voice language tutor", url = "https://www.ycombinator.com/launches/MIn-issen-your-personalized-ai-voice-language-tutor", date = "2024-11-20" }
+status_today = { text = "AI realtime voice companion for language learning", url = "https://www.ycombinator.com/companies/issen", date = "2026-10-22" }
 
 [[gallery]]
 entry = "12-transload"
@@ -53,7 +79,10 @@ slug = "transload"
 name = "Transload"
 replaces = []
 inspired_by = { name = "Transload", batch = "Spring 2026", ycUrl = "https://www.ycombinator.com/companies/transload" }
-public_description = { text = "Measure freight with security cameras", url = "https://www.ycombinator.com/companies/transload", date = "2026-10-22" }
+cluster = { id = 16, label = "Supply chain, logistics, freight" }
+keywords = ["dock supervisor", "shipment", "ltl carriers", "shipper", "paperwork", "freight", "undercharges", "trailer space", "cross-dock terminals", "dimensioning"]
+public_description = { text = "transload – we measure freight with security cameras", url = "https://www.ycombinator.com/launches/QP2-transload-we-measure-freight-with-security-cameras", date = "2026-05-18" }
+status_today = { text = "Measure freight with security cameras", url = "https://www.ycombinator.com/companies/transload", date = "2026-10-22" }
 
 [[gallery]]
 entry = "13-aircaps"
@@ -61,4 +90,6 @@ slug = "aircaps"
 name = "AirCaps"
 replaces = []
 inspired_by = { name = "AirCaps", batch = "Fall 2025", ycUrl = "https://www.ycombinator.com/companies/aircaps" }
-public_description = { text = "The AI copilot for in-person conversations.", url = "https://www.ycombinator.com/companies/aircaps", date = "2026-10-22" }
+cluster = { id = 6, label = "Consumer video, media and creators" }
+keywords = ["deaf or hard-of-hearing adult", "conversation", "hearing aids", "background noise", "captions", "restaurant", "family meal", "meeting", "theatre", "groups"]
+public_description = { text = "AirCaps - The AI copilot for in-person conversations.", url = "https://www.ycombinator.com/launches/Olk-aircaps-the-ai-copilot-for-in-person-conversations", date = "2025-11-05" }

@@ -49,7 +49,7 @@ section overrides FR-2's rename and FR-3's survivors grep below wherever they co
 
 ### The amendment's judgement calls
 
-1. **`publicDescription.text` is the `one_liner` field of the YC company page, verbatim, from the saved copies of
+1. *(Superseded by 1d42c51, see B001-B005: this is now `statusToday`.)* **`publicDescription.text` was the `one_liner` field of the YC company page, verbatim, from the saved copies of
    2026-10-22** (`scratchpad/backtest/yc/<slug>.html`, saved 09:14 local; date 2026-10-22). The `.sources.md` files record
    each YC company page URL (used for `ycUrl` and `publicDescription.url`) but not its one-liner:
    - 08-fresco's sources file quotes the page's long description ("AI-powered takeoff and estimating for Division 8
@@ -58,7 +58,7 @@ section overrides FR-2's rename and FR-3's survivors grep below wherever they co
    - The other four quote nothing from the company page.
 
    So the saved page was the source for all six; nothing was fetched.
-2. **Three one-liners describe a later product than the one the back-test studied**, because the companies have
+2. *(Resolved by 1d42c51: `publicDescription` is the launch-era title, today's words are `statusToday`.)* **Three one-liners describe a later product than the one the back-test studied**, because the companies have
    moved on:
    - Fresco: "AI copilot for construction estimators", where the study is the superintendents' scribe.
    - Karsa: "Stablecoin neobank for emerging markets", where the study is the dollar account.
@@ -76,6 +76,58 @@ section overrides FR-2's rename and FR-3's survivors grep below wherever they co
    line ("Your price is 24% to 61% of what the problem costs them today: …").
 6. **The disclaimer's "twenty participants" is checked against the run** (each run invited twenty) rather than
    trusted.
+
+## Amendments 1d42c51 and a35af52, 2026-10-23 (same branch, cherry-picked)
+
+**1d42c51: launch-era `publicDescription`, plus `statusToday`.** This resolves the amendment's call 2 below (three
+one-liners describe a later product). The founder's gap-11 rule is that every example is pinned to the idea as it was
+launched.
+- [x] B001 `public_description` in the map is now the company's own words for the studied idea: the **Launch YC post's
+  title**, verbatim, with the post's URL (the `sources` file's Launch YC line) and the post's date (`created_at`, UTC).
+- [x] B002 The sources files only paraphrase those titles. Fresco's reads "Launch YC: Fresco, the scribe for
+  construction" against the real "Fresco: The scribe for construction"; Karsa's reads "Karsa, the global dollar
+  account" against "Karsa 💸 - The Global Dollar Account"; the other four give only the URL. So each title was read from
+  the saved YC company pages of 2026-10-22, whose data carries every launch post's title, tagline, URL and date. For
+  Fresco, Transload and AirCaps the saved launch pages under `scratchpad/backtest/launch/` agree word for word. Nothing
+  was fetched.
+- [x] B003 `status_today` is the current YC one-liner (company page, 2026-10-22), written only where it differs from the
+  launch-era words. AirCaps' launch title is "AirCaps - The AI copilot for in-person conversations." and today's
+  one-liner is "The AI copilot for in-person conversations.", the same words, so AirCaps has none. Transload's differ
+  only as "we measure" against "Measure" and are kept, since the strings are not identical.
+- [x] B004 `statusToday` is optional in the attribution check; where present it has `publicDescription`'s shape rules
+  (text, an https URL, an ISO date). Index row and manifest order: `…, publicDescription, statusToday, simulated, …`.
+- [x] B005 Spellings: the map's names stay Issen and Transload. The launch-era text is verbatim, so it says "ISSEN - …"
+  and "transload – …".
+
+**a35af52: `cluster`, `keywords` and the index envelope.**
+- [x] B006 Each index row carries `cluster {id, label}`, taken from the map's `cluster`.
+  - The source is the diversity research's topic clusters: `scratchpad/backtest/diversity/clusters_k30.json`, K 30,
+    seed 11, with the labels as `diversity-page.html` names each cluster `k`.
+  - The ids differ from the coordinator's list, so they were read from the file: Fresco 4 *Construction and real
+    estate*, Karsa 27 *Payments, banking, lending, stablecoins*, Palus Finance 27 (same), Issen 29 *Education and
+    tutoring*, Transload 16 *Supply chain, logistics, freight*, AirCaps 6 *Consumer video, media and creators*.
+  - The file's own k-means assignment puts `palus-finance` in 21 (*Trading, markets and financial analytics*) and
+    `aircaps` in 13 (*Personal and work assistants*). The map follows the coordinator's labels; the founder may move
+    either.
+- [x] B007 `keywords[]`, 5 to 12 lower-case words or short phrases.
+  - `evals/gallery.keywords` derives them: the actor, the occasion, then the content words of the one-sentence problem
+    statement and the four context fields, the most repeated first, with stop words, verbs and the company's own name
+    left out.
+  - The map's `keywords` list overrides the derivation, and is written for all six. The derived lists still carried
+    verbs and other companies' names (Procore, OneDrive), so the six lists were picked by hand from the same words.
+    Every phrase occurs verbatim in that run's problem statement, context fields or occasion (checked), and none is a
+    company name.
+- [x] B008 `index.json` is now `{generatedAt, count, examples: [...]}`, with `generatedAt` the export's `exportedAt`.
+  The rows sit in `examples`, in the gallery's order. keel-web 100 reads `examples`.
+- [x] B009 The attribution check also requires `cluster` (an integer id and a label) and 5 to 12 keywords, each lower
+  case, non-empty and not naming the company. Index row order: `…, axes, cluster, keywords, interview`.
+- [x] B010 Tests: `tests/test_gallery.py` is now 40 tests (added: the clusters, the keyword derivation and the map's
+  lists, five cluster or keyword refusals, `statusToday` optional, two `statusToday` shape refusals, and the envelope
+  and launch-era expectations). Run with the two suites that scan every `evals/*.py`: **114 passed** (40 + 34 + 40).
+- [x] B011 `make gallery` was re-run into `scratchpad/gallery-snapshot-v2/public/sample`, with the directory replaced
+  whole: six slugs plus `index.json`, and 0 files carrying an entry id, run name, `backtest` or `/Users/`. Provenance:
+  `runs/gallery/provenance-2026-10-23T00:18:10Z.json`, also copied to the main checkout's `runs/gallery/` (git-ignored
+  there).
 
 ## FR-1 `make gallery`
 

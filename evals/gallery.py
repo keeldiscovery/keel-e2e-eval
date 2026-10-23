@@ -23,7 +23,8 @@ keel-cloud now, and this eval's loader reads revision 12 until spec 064 (judgeme
 
 Attribution (the amendment of record, 2026-10-23, over FR-2 and FR-3): the real company name is the example's
 attribution, everywhere, so nothing is renamed. Each index row and `<slug>/manifest.json` carry `inspiredBy {name,
-batch, ycUrl}` and `publicDescription {text, url, date}` (from `instructions/gallery_names.toml`), `assumptions[]` (the
+batch, ycUrl}`, `publicDescription {text, url, date}` -- the launch-era words for the studied idea -- and, where today's
+one-liner differs, `statusToday {text, url, date}` (from `instructions/gallery_names.toml`), `assumptions[]` (the
 founder's belief sentences the run tested, as the standings served them), `simulated: true` and the fixed
 `disclaimer`. The attribution check refuses a slug missing any of them, or whose disclaimer is not the fixed sentence.
 
@@ -58,7 +59,7 @@ INTERVIEW = "interview"            # the read key; written as interview.json bes
 LINK_ORDER = ("PRIMARY", "COMMERCIAL_B2B")
 
 #: The amendment of record's attribution, alike in every index row and its slug's manifest.
-ATTRIBUTION = ("inspiredBy", "publicDescription", "simulated", "disclaimer", "assumptions")
+ATTRIBUTION = ("inspiredBy", "publicDescription", "statusToday", "simulated", "disclaimer", "assumptions")
 
 #: FR-1's seven gallery words, in the spec's order.
 AXES = ("whoHasIt", "whoPays", "rhythm", "costMode", "priceShape", "firstStep", "kind")
@@ -102,7 +103,10 @@ class GalleryName:
     name: str
     replaces: tuple[str, ...]          # () since 2026-10-23: the rename map went
     inspired_by: dict = field(default_factory=dict, hash=False, compare=False)
-    public_description: dict = field(default_factory=dict, hash=False, compare=False)
+    public_description: dict = field(default_factory=dict, hash=False, compare=False)   # launch-era (1d42c51)
+    status_today: dict = field(default_factory=dict, hash=False, compare=False)         # optional: what they say now
+    cluster: dict = field(default_factory=dict, hash=False, compare=False)              # {id, label} (a35af52)
+    keywords: tuple[str, ...] = ()                     # optional: overrides the derived keywords
     axes: dict = field(default_factory=dict, hash=False, compare=False)
 
     def disclaimer(self) -> str | None:
@@ -134,7 +138,10 @@ def load_names(path: Path = NAMES_FILE) -> list[GalleryName]:
             problems.append(f"{entry}: axes {unknown} are not among {list(AXES)}")
         out.append(GalleryName(entry=entry, slug=slug or "", name=name or "", replaces=tuple(replaces),
                                inspired_by=dict(row.get("inspired_by") or {}),
-                               public_description=dict(row.get("public_description") or {}), axes=dict(axes)))
+                               public_description=dict(row.get("public_description") or {}),
+                               status_today=dict(row.get("status_today") or {}),
+                               cluster=dict(row.get("cluster") or {}), keywords=tuple(row.get("keywords") or ()),
+                               axes=dict(axes)))
     for what in ("entry", "slug", "name"):
         seen = [getattr(n, what) for n in out]
         dupes = sorted({v for v in seen if seen.count(v) > 1})
@@ -404,6 +411,56 @@ def axes(run: Run, override: dict | None = None) -> dict:
     return out
 
 
+#: Words that carry no search meaning on their own: function words and the common verbs and adjectives the founders'
+#: sentences are built from (a keyword is a thing to search for, so nouns are what survive).
+_STOP = frozenset("""a able about accurate across actual after again all almost also always an and another any are
+around as at away back based be because become been before being best better between big both bring but by can
+cannot come comes could day days decide decides did do does doing done down during each easily easy else end enough
+even ever every fast faster few find first for from full get gets give given go goes going good got great had happen
+happens hard has have having help here high hold hours how however if in into is it its just keep keeps kind know
+last least left less like little long lose loses losing lot low made make makes many may means more most much must
+need needed needs never new next no nor not now of off often old on once one only or other our out over own part
+people per real really right run same says see set should since six slow slowing small so some something sometimes
+spend spends still such sure take takes than that the their them then there these they thing things think this
+those three through time times to too true try turn two under until up upon use used uses using very want wants was
+way week weeks well were what when where which while who whom why will with within without work works would year
+years yet you your""".split())
+KEYWORDS_MIN, KEYWORDS_MAX = 5, 12
+
+
+def keywords(run: Run, name: GalleryName, *, occasion: str | None) -> list[str]:
+    """5 to 12 plain lower-case words or short phrases for search and the radar's mail, drawn from what the founder
+    entered and the run served: the actor and the occasion first, then the content words of the one-sentence problem
+    statement and the four context fields together, the most repeated first (ties in reading order, the problem
+    statement read first), no stop words, numbers or company names; a word is skipped when a phrase already carries it
+    or when it is the plural of one taken. The map's `keywords` list, when written, is used instead."""
+    if name.keywords:
+        return [k.strip().lower() for k in name.keywords][:KEYWORDS_MAX]
+    context = run.founder.get("context_fields") or {}
+    banned = {w.lower() for w in (name.name, (name.inspired_by or {}).get("name") or "") if w}
+    banned |= {part for w in banned for part in w.split()}
+    out: list[str] = []
+
+    def taken(word: str) -> bool:
+        have = set(" ".join(out).split())
+        return word in have or word.rstrip("s") in have or f"{word}s" in have
+
+    for phrase in (context.get("actor"), occasion):
+        phrase = " ".join((phrase or "").lower().split())
+        if phrase and phrase not in out and phrase not in banned:
+            out.append(phrase)
+    text = " ".join(t or "" for t in (one_sentence(run.founder.get("problem_seed")), context.get("segment"),
+                                      context.get("job"), context.get("circumstance")))
+    words = [w.strip("'-") for w in re.findall(r"[a-z][a-z'-]+", text.lower())]
+    words = [w for w in words if w not in _STOP and w not in banned and len(w) > 3 and not w.endswith("'s")]
+    for w in sorted(dict.fromkeys(words), key=lambda w: (-words.count(w), words.index(w))):
+        if len(out) >= KEYWORDS_MAX:
+            break
+        if not taken(w):
+            out.append(w)
+    return out
+
+
 def gallery_order(rows: list[dict]) -> list[dict]:
     """B2B and B2C alternating, B2B first, each side in the map's order; the longer side's rest at the end."""
     b2b = [r for r in rows if r.get("b2b")]
@@ -444,9 +501,13 @@ def participants(reads: dict[str, Any]) -> int:
 
 
 def attribution(name: GalleryName, reads: dict[str, Any]) -> dict:
-    """The amendment of record's five fields, in the order written."""
-    return {"inspiredBy": {k: (name.inspired_by or {}).get(k) for k in ("name", "batch", "ycUrl")},
-            "publicDescription": {k: (name.public_description or {}).get(k) for k in ("text", "url", "date")},
+    """The amendment of record's fields, in the order written: `statusToday` only where the map has one (the company's
+    current one-liner, where it differs from the launch-era `publicDescription`)."""
+    out = {"inspiredBy": {k: (name.inspired_by or {}).get(k) for k in ("name", "batch", "ycUrl")},
+           "publicDescription": {k: (name.public_description or {}).get(k) for k in ("text", "url", "date")}}
+    if name.status_today:
+        out["statusToday"] = {k: name.status_today.get(k) for k in ("text", "url", "date")}
+    return {**out,
             "simulated": True,
             "disclaimer": name.disclaimer(),
             "assumptions": assumptions(reads)}
@@ -463,14 +524,15 @@ def prepare(name: GalleryName, run: Run, *, exported_at: str) -> Slug:
     entry = run.record.get("entry") or {}
     shas = {"cloud": stack.get("keel-cloud"), "web": stack.get("keel-web")}
     credit = attribution(name, reads)
-    row = {"slug": name.slug, "name": name.name, **{k: credit[k] for k in ("inspiredBy", "publicDescription",
-                                                                          "simulated", "disclaimer")},
+    row = {"slug": name.slug, "name": name.name, **{k: v for k, v in credit.items() if k != "assumptions"},
            "oneLine": one_line(run.founder.get("project_name") or entry.get("title")),
            "problem": one_sentence(run.founder.get("problem_seed")),
            "assumptions": credit["assumptions"],
            "decision": figures["decision"], "howSure": figures["howSure"],
            "pilot": figures["pilot"], "price": figures["price"], "b2b": run.b2b, **shas,
            "axes": axes(run, name.axes),
+           "cluster": {k: (name.cluster or {}).get(k) for k in ("id", "label")},
+           "keywords": keywords(run, name, occasion=(iv["links"][0] if iv["links"] else {}).get("occasion")),
            "interview": {"links": [{"role": l["role"], "label": l["label"], "items": item_count(l)}
                                    for l in iv["links"]]}}
     provenance = {"slug": name.slug, "entry": run.entry, "run": run.dir.name, **shas,
@@ -479,9 +541,15 @@ def prepare(name: GalleryName, run: Run, *, exported_at: str) -> Slug:
                 provenance=provenance)
 
 
+def index_file(examples: list[dict], generated_at: str) -> dict:
+    """`index.json` as written since spec 063's a35af52: `{generatedAt, count, examples}`."""
+    return {"generatedAt": generated_at, "count": len(examples), "examples": examples}
+
+
 def attribution_reasons(s: Slug) -> list[str]:
     """The attribution check (replaces FR-2's survivors grep): `inspiredBy` (name, batch, a YC company page),
-    `publicDescription` (text, an https URL, an ISO date), `simulated`, the fixed disclaimer filled with this name
+    `publicDescription` (text, an https URL, an ISO date; the launch-era words), `statusToday` when present (the same
+    shape), `simulated`, the fixed disclaimer filled with this name
     and batch, at least one assumption -- each present, alike in the index row and the manifest; and the run's
     people the twenty the disclaimer says."""
     why = []
@@ -493,11 +561,14 @@ def attribution_reasons(s: Slug) -> list[str]:
             why.append(f"{where}: inspiredBy.ycUrl {inspired['ycUrl']!r} is not a YC company page")
         elif inspired["name"] != s.name.name:
             why.append(f"{where}: inspiredBy.name {inspired['name']!r} is not the example's name {s.name.name!r}")
-        described = block.get("publicDescription") or {}
-        if not all(isinstance(described.get(k), str) and described[k].strip() for k in ("text", "url", "date")):
-            why.append(f"{where}: publicDescription needs text, url and date ({described})")
-        elif not described["url"].startswith("https://") or not _DATE.match(described["date"]):
-            why.append(f"{where}: publicDescription url {described['url']!r} / date {described['date']!r}")
+        for key in ("publicDescription", "statusToday"):
+            if key == "statusToday" and key not in block:
+                continue                             # optional: only where today's words differ
+            described = block.get(key) or {}
+            if not all(isinstance(described.get(k), str) and described[k].strip() for k in ("text", "url", "date")):
+                why.append(f"{where}: {key} needs text, url and date ({described})")
+            elif not described["url"].startswith("https://") or not _DATE.match(described["date"]):
+                why.append(f"{where}: {key} url {described['url']!r} / date {described['date']!r}")
         if block.get("simulated") is not True:
             why.append(f"{where}: simulated is not true")
         if not block.get("disclaimer") or block.get("disclaimer") != s.name.disclaimer():
@@ -506,6 +577,16 @@ def attribution_reasons(s: Slug) -> list[str]:
             why.append(f"{where}: no assumptions")
     if {k: s.row.get(k) for k in ATTRIBUTION} != {k: s.manifest.get(k) for k in ATTRIBUTION}:
         why.append("the index row and the manifest attribute it differently")
+    cluster = s.row.get("cluster") or {}
+    if not (isinstance(cluster.get("id"), int) and isinstance(cluster.get("label"), str) and cluster["label"].strip()):
+        why.append(f"index: cluster needs an integer id and a label ({cluster})")
+    words = s.row.get("keywords") or []
+    if not (KEYWORDS_MIN <= len(words) <= KEYWORDS_MAX):
+        why.append(f"index: {len(words)} keywords, not {KEYWORDS_MIN} to {KEYWORDS_MAX}")
+    elif any(not isinstance(w, str) or w != w.lower() or not w.strip() for w in words):
+        why.append(f"index: keywords are not plain lower-case words ({words})")
+    elif any(s.name.name.lower() in w for w in words):
+        why.append(f"index: a keyword names the company ({words})")
     people = participants(s.reads)
     if people != PARTICIPANTS:
         why.append(f"the run invited {people} people; the disclaimer says twenty")
@@ -613,7 +694,7 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
         manifests[s.name.slug] = {**s.manifest, "written": written["files"]}
     index = gallery_order([s.row for s in slugs])
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / INDEX).write_text(se._dumps(index), encoding="utf-8")
+    (out_dir / INDEX).write_text(se._dumps(index_file(index, exported_at)), encoding="utf-8")
     left = provenance_under(out_dir, needles)
     if left:                                         # unreachable after `check`; the last word is the bytes on disk
         raise GalleryRefused([f"written under OUT and carrying provenance: {hit}" for hit in left])
