@@ -15,15 +15,18 @@ Per composed item (§2, §3, §4, §5):
   spec 040's 25-word allowance);
 - `S2` the anchor, where there is one, and the stem are the screen's question, and a part sets one anchor at most;
 - `S3` at most **five** options (Price's ladder **six**); none on a number (Frequency, Existing sacrifice);
-- `S4` every option at most **nine** words, and the founder-written ones (Importance's five, Current solution's
-  five) at least **three** -- the three-word floor is not asked of the registry's fixed answers or the ladder
-  (keel-cloud 088 judgement call 14: *Yes*, *No*, *Yes, easily* are the record);
+- `S4` every option at most **nine** words (Commitment's **eleven**: its options carry the founder's step whole, a
+  step of at most nine behind *Yes, I'd* -- keel-cloud 118, the guidelines' §10, `SpokenForm.STEP_OPTION_MAX_WORDS`),
+  and the founder-written ones (Importance's five, Current solution's five) at least **three** -- the three-word floor
+  is not asked of the registry's fixed answers or the ladder (keel-cloud 088 judgement call 14: *Yes*, *No*, *Yes,
+  easily* are the record);
 - `S5` the options are **parallel and exclusive**: never a sentence (no closing `.`, `?` or `!`), no two the same
   once case and punctuation are set aside, and the escape never among them;
-- `S6` **one escape, said last**: the guidelines' §5 escape for the dimension (none on Commitment), and the spoken
-  block's last line *Or say {escape}.*;
-- `S7` the count line is §3's *I'll read {N} options[; pick two].*, N the options said (four on Price's first step),
-  *pick two* exactly on Importance; none on a number;
+- `S6` **one escape, said last**: the registry's escape for the dimension (none on Commitment) named on the item, and
+  the spoken block's last line *Or say {escape}.* with the escape the item is **served** with (spec 065 FR-1: the
+  registry's, read by the side it is served by -- keel-cloud `CommercialChain.side`);
+- `S7` the count line is §3's *I'll read {N} options[; pick two].*, N the served options said (four on Price's first
+  step), *pick two* exactly on Importance; none on a number;
 - `S8` the options line is §3's *a; b; ...; or z.* -- the options in the screen's order, said to the person
   (first person turned, keel-cloud 088 judgement call 5); Price's first step is *Under {low}; {the middle band};
   over {high}; or {the last}* (§4);
@@ -42,6 +45,32 @@ function marks the model's faces on the `ASKED` screen (`score.score_asked`).
 left them out of the denominator; keel-cloud 091's corpus revision 11 rewrote all five (DRIFT #77, closed), so `KNOWN`
 is empty, every item and face is counted, and the ledger's own fault -- a known item no longer found -- has nothing
 left to fire on. The machinery stays for the day a revision is again known to be short of a rule.
+
+**The record reads the registry, not a table** (spec 065 FR-1, FR-2). Until spec 065 the escapes were a fixed copy
+of the guidelines' §5 and the labels an option list was read back with were the eval's fixture registry's, so when
+keel-cloud changed them on purpose the guard counted 34 faults on a record that had followed its own registry. Five
+changes, all on purpose, all keel-cloud's (registry revision 13 at keel-cloud-docs master):
+
+1. Current solution's escape reads *Someone else did it*, not *Someone else does the checking* (123 FR-3);
+2. Existing sacrifice's registry escape is *I don't know*, not *I can't recall* (115 / 123's escapes, registry
+   decision 24's value box) -- while a cost stated before the chain, every golden entry's, is still **served** spec
+   077's cost total and its *I can't recall* (`CommercialChain.side`, mirrored by `served_escape`), which is what the
+   record says aloud;
+3. Compatibility's four are drafted to the condition's verb: an ability reads *Yes, easily · Yes, mostly · Only
+   sometimes · No* on the registry's four codes (123 FR-8, `ABILITY_ANSWERS`), a permission keeps the registry's;
+4. Buyer and payer's four are the registry's revised four (*Someone else had to agree instead* · *No, someone else
+   decided for me*, 123 FR-5);
+5. Commitment's options are written from the founder's step -- *Yes, I'd {step}*, *Yes, after {smaller step} first*
+   only when the list carries one, *Probably not*, *No* -- so a free step is three bands, not four (118 FR-1 / FR-2);
+   and since they carry the step whole they are held to eleven words, not nine (118, the guidelines' §10 amendment:
+   03-lullaby's *Yes, I'd allow it to use the microphone at night* is ten -- read back whole for the first time here,
+   it had been split at its comma and never measured).
+
+So the escape an item names is the registry's (`registry_escape`), the escape it says is the one it is served with
+(`served_escape`), and the labels an option list is read back with are the ones the registry says the item may carry
+(`served_labels`, used by `cloud_corpus.known_labels_for`). The rules keep their meaning: a stem over 20 words, a
+missing *or*, a count line that disagrees with the options drawn are still faults; a registry change moves the record
+and the test together. `KNOWN` stays empty.
 """
 
 from __future__ import annotations
@@ -49,8 +78,9 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from .registry import (ADOPTION_KEY, BENEFIT_KEY, COMMITMENT_KEY, COMPATIBILITY_KEY, CURRENT_SOLUTION_KEY,
-                       FREQUENCY_KEY, IMPORTANCE_KEY, PRICE_KEY, SACRIFICE_KEY, words)
+from .registry import (ABILITY_KEY, ADOPTION_KEY, BENEFIT_KEY, COMMITMENT_KEY, COMPATIBILITY_KEY,
+                       CURRENT_SOLUTION_KEY, FREQUENCY_KEY, IMPORTANCE_KEY, PRICE_KEY, SACRIFICE_KEY,
+                       VALUE_BOX_CONTROL, words)
 
 #: §2: a stem is at most 20 words, every dimension's (keel-cloud 091 FR-E; spec 042 call 111).
 STEM_MAX_WORDS = 20
@@ -58,27 +88,72 @@ STEM_MAX_WORDS = 20
 MAX_OPTIONS = 5
 PRICE_MAX_OPTIONS = 6
 OPTION_MAX_WORDS = 9
+#: keel-cloud 118 (`SpokenForm.STEP_OPTION_MAX_WORDS`, the guidelines' §10): Commitment's options carry the step
+#: whole, so they are held to eleven.
+STEP_OPTION_MAX_WORDS = 11
 OPTION_MIN_WORDS = 3
 #: The options the founder wrote, held to the three-word floor (call 80).
 FOUNDER_WORDED = (IMPORTANCE_KEY, CURRENT_SOLUTION_KEY)
 #: The items asked as a number: no options, no count line.
 NUMERIC = (FREQUENCY_KEY, SACRIFICE_KEY)
 
-#: §5, the one escape per dimension, by its label (the gate is never composed here; Commitment has none).
-ESCAPES = {
-    "problem.frequency": "I can't recall",
-    "problem.importance": "None of these",
-    "problem.current_solution_satisfaction": "Someone else does the checking",
-    "solution.compatibility": "I can't tell",
-    "solution.relative_advantage": "I can't tell",
-    "solution.adoption_friction": "I can't tell",
-    "commercial.existing_sacrifice": "I can't recall",
-    "commercial.price": "I can't say",
-    "commercial.ability_to_pay": "I can't recall one",
-    "commercial.buyer_payer_alignment": "I can't recall one",
-    "commercial.purchase_friction": "I can't recall",
-    "commercial.commitment": None,
-}
+#: keel-cloud `CommercialChain.side`: the escape an item is served with where its side is not the registry's row --
+#: Existing sacrifice on a cost stated before the chain keeps spec 077's cost total (registry decision 24), Ability to
+#: pay on a consumer link is the consumer budget item.
+OFF_CHAIN_COST_ESCAPE = "I can't recall"
+CONSUMER_BUDGET_ESCAPE = "I can't say"
+
+#: keel-cloud 123 FR-8 (`ItemFrames.ABILITY_LABELS`, the registry's Compatibility guidance): the four answers to a
+#: condition of ability, on the registry's own four codes; a condition of permission keeps the registry's labels.
+ABILITY_ANSWERS = {"yes_easily": "Yes, easily", "yes_with_steps": "Yes, mostly", "only_with_help": "Only sometimes",
+                   "no": "No"}
+
+
+def _lower(label: str) -> str:
+    """`BeliefSentence.lower`: the first letter lowered unless the second is a capital (an acronym)."""
+    label = str(label or "")
+    if len(label) > 1 and label[1].isupper():
+        return label
+    return label[:1].lower() + label[1:]
+
+
+def registry_escape(registry, key: str):
+    """The escape label the registry's row names for `key` (`None` where the row has none); `KeyError` off the
+    registry."""
+    escape = registry.by_key(key).escape
+    return escape.get("label") if escape else None
+
+
+def served_escape(registry, key: str, entry=None):
+    """The escape the item is served (and said) with: the registry's, read by the side keel-cloud serves it by
+    (`CommercialChain.side`)."""
+    dimension = registry.by_key(key)
+    if entry is not None:
+        if key == SACRIFICE_KEY and dimension.respondent_control == VALUE_BOX_CONTROL and not entry.chain():
+            return OFF_CHAIN_COST_ESCAPE
+        if key == ABILITY_KEY and not entry.b2b():
+            return CONSUMER_BUDGET_ESCAPE
+    return registry_escape(registry, key)
+
+
+def served_labels(registry, key: str, entry=None) -> list:
+    """Every label the registry says `key`'s item may be served with: its fixed answers; Compatibility's ability four
+    beside them (123 FR-8); Commitment's options written from the entry's step (118 FR-1)."""
+    if registry is None or not registry.has(key):
+        return []
+    dimension = registry.by_key(key)
+    labels = [a.get("label") for a in dimension.fixed_answers]
+    if key == COMPATIBILITY_KEY:
+        labels += [ABILITY_ANSWERS.get(code, label) for code, label in
+                   zip(dimension.fixed_answer_codes, labels)]
+    if key == COMMITMENT_KEY and entry is not None:
+        steps = [i.get("label") for i in ((entry.founder_list(key) or {}).get("items") or []) if i.get("label")]
+        if steps:
+            labels.append("Yes, I'd " + _lower(steps[0].strip()))
+        if len(steps) > 1:
+            labels.append("Yes, after " + _lower(steps[1].strip()) + " first")
+    return labels
+
 
 #: §4: the three transforms, by dimension; every other item is `none`.
 TRANSFORMS = {IMPORTANCE_KEY: "one_then_one_more", BENEFIT_KEY: "yes_no_per_benefit", PRICE_KEY: "two_steps"}
@@ -130,8 +205,9 @@ def stem_limit(key: str) -> int:
     return STEM_MAX_WORDS
 
 
-def item_faults(item) -> list:
-    """Every `S` fault of one composed item (a `cloud_corpus.ComposedItem`), `[]` when it keeps the record."""
+def item_faults(item, registry, entry=None) -> list:
+    """Every `S` fault of one composed item (a `cloud_corpus.ComposedItem`) against the registry it was served from
+    (and its corpus entry, for the side an item is served by), `[]` when it keeps the record."""
     faults = []
     key = item.key
     # S1: one question, at most 20 words (call 111).
@@ -153,10 +229,11 @@ def item_faults(item) -> list:
         most = PRICE_MAX_OPTIONS if key == PRICE_KEY else MAX_OPTIONS
         if not options or len(options) > most:
             faults.append(f"S3: {len(options)} options; at most {most}")
+    longest = STEP_OPTION_MAX_WORDS if key == COMMITMENT_KEY else OPTION_MAX_WORDS
     for label in options:
         n = words(label)
-        if n > OPTION_MAX_WORDS:
-            faults.append(f"S4: the option {label!r} is {n} words; at most {OPTION_MAX_WORDS}")
+        if n > longest:
+            faults.append(f"S4: the option {label!r} is {n} words; at most {longest}")
         if key in FOUNDER_WORDED and n < OPTION_MIN_WORDS:
             faults.append(f"S4: the option {label!r} is {n} words; a founder's option is at least "
                           f"{OPTION_MIN_WORDS}")
@@ -166,20 +243,23 @@ def item_faults(item) -> list:
     twice = sorted({f for f in forms if forms.count(f) > 1})
     if twice:
         faults.append(f"S5: the options {twice} are not exclusive (said twice)")
-    # S6: one escape, the guidelines' own, said last.
-    want = ESCAPES.get(key, "absent")
-    if want == "absent":
-        faults.append(f"S6: {key} has no escape in the guidelines' §5 table")
-    elif item.escape != want:
-        faults.append(f"S6: the escape is {item.escape!r}; §5's is {want!r}")
-    if item.escape is not None:
-        if _form(item.escape) in forms:
-            faults.append(f"S6: the escape {item.escape!r} is also an option")
-        match = re.match(r"^Or say (.+)\.$", item.escape_line or "")
-        if not match or said(match.group(1)) != said(item.escape):
-            faults.append(f"S6: the escape line is {item.escape_line!r}; §3 says 'Or say {{escape}}.' last")
-    elif item.escape_line is not None:
-        faults.append(f"S6: an escape line {item.escape_line!r} on an item with no escape")
+    # S6: one escape, the registry's, said last -- the one the item is served with (spec 065 FR-1).
+    if registry is None or not registry.has(key):
+        faults.append(f"S6: {key} is not in the registry, so it has no escape of record")
+    else:
+        named, spoken = registry_escape(registry, key), served_escape(registry, key, entry)
+        if item.escape != named:
+            faults.append(f"S6: the escape is {item.escape!r}; the registry's is {named!r}")
+        for escape in {item.escape, spoken} - {None}:
+            if _form(escape) in forms:
+                faults.append(f"S6: the escape {escape!r} is also an option")
+        if spoken is not None:
+            match = re.match(r"^Or say (.+)\.$", item.escape_line or "")
+            if not match or said(match.group(1)) != said(spoken):
+                faults.append(f"S6: the escape line is {item.escape_line!r}; §3 says 'Or say {{escape}}.' last, "
+                              f"the escape served {spoken!r}")
+        elif item.escape_line is not None:
+            faults.append(f"S6: an escape line {item.escape_line!r} on an item with no escape")
     # S7 / S8: the template's count and options lines.
     transform = TRANSFORMS.get(key, "none")
     if key in NUMERIC:
@@ -280,8 +360,9 @@ def _known(entry_id: str, key: str, rule: str, code) -> bool:
     return (entry_id, key, rule, code) in KNOWN
 
 
-def score(cloud, corpus, *, entry_ids=None) -> SpokenScore:
-    """Every composed item and every corpus `asked` face of the entries asked for (all by default)."""
+def score(cloud, corpus, *, entry_ids=None, registry=None) -> SpokenScore:
+    """Every composed item and every corpus `asked` face of the entries asked for (all by default), each item held to
+    `registry` -- by default the one the entry is bound to (`Corpus.bind`, the export's or keel-cloud's of record)."""
     result = SpokenScore(measured=True)
     found_known = set()
     for entry in corpus.entries:
@@ -301,7 +382,7 @@ def score(cloud, corpus, *, entry_ids=None) -> SpokenScore:
             if item.anchor:
                 anchors[item.part] = anchors.get(item.part, 0) + 1
         for item in items:
-            faults = item_faults(item)
+            faults = item_faults(item, registry if registry is not None else entry.registry, entry)
             if anchors.get(item.part, 0) > 1 and item.anchor:
                 faults.append(f"S2: part {item.part} sets {anchors[item.part]} anchors; one per part")
             unit_known = [f for f in faults if _known(entry.id, item.key, f.split(":")[0], None)]

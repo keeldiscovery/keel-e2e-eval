@@ -32,10 +32,15 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import registry as registry_mod
+from .spoken import served_labels
+
 #: The two keel-cloud corpus tests whose files are read (088, 089).
 TESTS = ("com.keeldiscovery.cloud.corpus.SpokenGuidelinesCorpusTest",
          "com.keeldiscovery.cloud.corpus.BriefFactsCorpusTest")
 SPOKEN_FILE = Path("build") / "spoken-corpus.txt"
+#: keel-cloud's dimension registry of record (spec 065 FR-1): what the record's options and escapes are read against.
+REGISTRY_FILE = Path("src") / "main" / "resources" / "keel" / "dimension-registry.json"
 FACTS_DIR = Path("build") / "brief-facts"
 
 PREREQUISITE = ("keel-cloud 088's SpokenGuidelinesCorpusTest (build/spoken-corpus.txt) and 089's "
@@ -139,17 +144,22 @@ def parse_spoken(text: str, known_labels=None) -> dict:
 
 
 def known_labels_for(corpus, registry):
-    """The labels an entry's item can carry: the registry's fixed answers, Relative advantage's three, the
-    entry's own list labels."""
+    """The labels an entry's item can carry: the ones the registry says it may be served with (`spoken.served_labels`
+    -- the fixed answers, Compatibility's ability four, Commitment's options from the entry's step; spec 065 FR-1),
+    and the entry's own list labels."""
     def known(entry_id, key):
-        labels = []
-        if registry is not None and registry.has(key):
-            labels += [a.get("label") for a in registry.by_key(key).fixed_answers]
         entry = corpus.by_id(entry_id) if corpus is not None else None
+        labels = served_labels(registry, key, entry)
         saved = entry.founder_list(key) if entry is not None else None
         labels += [i.get("label") for i in (saved or {}).get("items") or []]
         return labels
     return known
+
+
+def registry_of_record(keel_cloud: Path):
+    """keel-cloud's `dimension-registry.json` (spec 065 FR-1), read whole and checked -- the registry the record was
+    served from; `RegistryUnavailable` when the checkout carries none."""
+    return registry_mod.load(Path(keel_cloud) / REGISTRY_FILE)
 
 
 def read(keel_cloud: Path, *, corpus=None, registry=None, entry_ids=None) -> CloudCorpus:
