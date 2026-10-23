@@ -25,6 +25,8 @@ from matrix import cells as matrix_cells
 
 REPO = Path(__file__).resolve().parent.parent
 SCENARIO = (REPO / "evals" / "test_s012_journey_through_a_host.py").read_text(encoding="utf-8")
+#: Spec 066: the code story's two steps (the sign-in with the code, the approval at /connect) live here, shared.
+PRELUDES = (REPO / "evals" / "preludes.py").read_text(encoding="utf-8")
 MAKEFILE = (REPO / "Makefile").read_text(encoding="utf-8")
 WORKFLOW = (REPO / ".github" / "workflows" / "matrix.yml").read_text(encoding="utf-8")
 
@@ -265,7 +267,9 @@ def test_the_founder_signs_up_at_the_signup_door_and_in_with_a_code_at_the_other
     could. **The plain `/login` appears in this scenario nowhere at all**, on any door: it is the
     one door that makes the wrong account for both of them."""
     assert "auth.sign_up(founder_one)" in SCENARIO
-    assert "auth.sign_in_with_code(founder_one, user_code)" in SCENARIO
+    # spec 066: the code story's sign-in is preludes' (shared with the back-test's host door), and it is the code story
+    assert "sign_in_with_the_code(auth, recorder, founder_one, user_code)" in SCENARIO
+    assert "auth.sign_in_with_code(founder, user_code)" in PRELUDES
     assert "auth.sign_in(founder_one)" not in SCENARIO, (
         "a bare `/login` sign-in is back in S-012; on a CLI door it creates a KEEL account with a "
         "2,000-credit grant (keel-cloud spec 044 FR-014; 098)")
@@ -454,10 +458,11 @@ def test_the_cli_doors_sign_in_only_after_the_runtime_has_printed_a_code():
     install_at = SCENARIO.index("host.install_plugin()")
     said_at = SCENARIO.index('host.say(THE_FOUNDER_SAYS, slug="connect-1")')
     code_at = SCENARIO.index("user_code = agent_host.user_code_in(log_text)")
-    signed_at = SCENARIO.index("auth.sign_in_with_code(founder_one, user_code)")
-    approved_at = SCENARIO.index("connect.approve()")
+    signed_at = SCENARIO.index("sign_in_with_the_code(auth, recorder, founder_one, user_code)")
+    approved_at = SCENARIO.index("approve_at_connect(page, recorder, user_code, verification_uri")
     assert install_at < said_at < code_at < signed_at < approved_at, (
         "the legs are back in the order that made every CLI cell a KEEL account")
+    assert "connect.approve()" in PRELUDES.split("def approve_at_connect(", 1)[1].split("\ndef ", 1)[0]
 
 
 def test_the_keel_door_still_signs_up_before_anything_because_it_has_nothing_to_wait_for():
@@ -475,7 +480,7 @@ def test_the_half_of_the_first_assertion_that_needs_no_session_moved_earlier_not
     empty_at = SCENARIO.index("this run's own homes are empty before a word is said")
     install_at = SCENARIO.index("host.install_plugin()")
     agent_line_at = SCENARIO.index("the landing reads no agent connected -- the runtime is")
-    signed_at = SCENARIO.index("auth.sign_in_with_code(founder_one, user_code)")
+    signed_at = SCENARIO.index("sign_in_with_the_code(auth, recorder, founder_one, user_code)")
     assert empty_at < install_at
     assert signed_at < agent_line_at
 
@@ -485,7 +490,7 @@ def test_the_code_read_that_needs_a_session_is_after_the_sign_in_and_says_why():
     (spec 023 FR-001) -- the two POSTs on the same base path are `permitAll`, the GET is not. So
     *"is this a code this Keel issued"* cannot be asked before the sign-in, and the scenario says
     so where it asks it rather than leaving the next reader to rediscover it."""
-    signed_at = SCENARIO.index("auth.sign_in_with_code(founder_one, user_code)")
+    signed_at = SCENARIO.index("sign_in_with_the_code(auth, recorder, founder_one, user_code)")
     # The call site, not the docstring's mention of it.
     wire_at = SCENARIO.index('f"{cloud_base}/v2/device-authorizations?user_code={user_code}"')
     assert signed_at < wire_at
@@ -496,7 +501,9 @@ def test_the_code_is_asserted_to_have_survived_the_login():
     """keel-cloud stores the `return_to` at `start` and brings the founder back to it
     (google-sign-in-design.md §10.6). A landing anywhere else means the code did not travel -- and
     that the account was made on the wrong side of `doorOf`."""
-    assert '"/connect" in landed["landed"] and user_code in landed["landed"]' in SCENARIO
+    # spec 066: the assertion lives in the step S-012 and the back-test's host door share (`preludes`)
+    assert "sign_in_with_the_code(auth, recorder, founder_one, user_code)" in SCENARIO
+    assert '"/connect" in landed["landed"] and user_code in landed["landed"]' in PRELUDES
 
 
 def test_one_reader_says_which_door_an_account_was_made_on():
