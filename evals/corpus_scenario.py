@@ -425,6 +425,13 @@ def leg_welcome(j: Journey, *, walk: bool = False) -> None:
                   f"the video carries a captions track ending {vs_screens.WELCOME_CAPTIONS}", party="founder") as h:
         face = record["face"] = guide.face()
         playing, how = _playing(face)
+        if not playing and how.startswith("the face has decoded enough"):
+            # a decoded face whose clock stood still over the 600 ms: the media clock of a headless Chromium under load
+            # (builders and gradle beside the run) starts late -- read it once more after 1.5 s before calling it stalled
+            j.page.wait_for_timeout(1500)
+            face = record["face"] = guide.face()
+            record["face"]["second_read"] = True
+            playing, how = _playing(face)
         caption = guide.caption()
         nudged = None
         if not caption and guide.seam():
