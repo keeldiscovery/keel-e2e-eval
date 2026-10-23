@@ -123,7 +123,12 @@ def tiles(facts: dict, price_median: dict | None) -> dict:
     else:
         pilot_tile = [PILOT_TILE_LABEL, pilot_signed_up(pilot.get("optedIn"), pilot.get("finished")),
                       f"{pilot.get('percent')}% · {pilot_link_line(pilot.get('perLink'))}"]
-    if price_median:
+    if price_median and price_median.get("below"):
+        # keel-web 102 FR-1 (keel-cloud 126 FR-3, contract 35): a median under the ladder is no floor --
+        # *Most said under $10 per person a month (10 of 15)*, one line
+        price_tile = [PRICE_TILE_LABEL,
+                      f"Most said {price_median.get('edgeSaid')} ({price_median.get('chose')} of {price_median.get('n')})"]
+    elif price_median:
         price_tile = [PRICE_TILE_LABEL, f"{price_median.get('edgeSaid')} or more",
                       price_tile_line(price_median.get("chose"), price_median.get("n"))]
     else:
