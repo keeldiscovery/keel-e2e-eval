@@ -2020,9 +2020,11 @@ def _beats_seen(interview: dict, beats: list[dict], starts: dict) -> dict:
         # inside the beat: from its first tick up to, not including, its last -- the next clip's recogniser starts on
         # the tick the beat ends (ms 2001 of a 2000 ms beat), which is after it, not in it
         inside = (lambda ts: sum(1 for t in ts or [] if t0 is not None and t >= t0 and (t1 is None or t < t1)))
+        at = (lambda ts: [round(t - t0) for t in ts or [] if t0 is not None and t >= t0 and (t1 is None or t < t1)])
         out.append({**b, "after_kind": kinds.get(b.get("after")),
                     "ms": round(t1 - t0) if t0 is not None and t1 is not None else None,
-                    "starts_in": inside(starts.get("speech")), "recordings_in": inside(starts.get("record"))})
+                    "starts_in": inside(starts.get("speech")), "recordings_in": inside(starts.get("record")),
+                    "starts_at_ms": at(starts.get("speech")), "recordings_at_ms": at(starts.get("record"))})
     return {"beats": out, "expected": [k.upper() for k in ("problem", "solution") if clips.get(k)],
             "beat_ms": ivs.BEAT_MS}
 

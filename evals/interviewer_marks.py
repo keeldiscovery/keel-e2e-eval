@@ -495,7 +495,8 @@ def a_beat_after_the_passages(r: dict) -> tuple[bool, Any]:
     ok = bool(expected) and after == expected and not bad and least > 0
     return ok, {"expected after": expected, "after": after, "ms": [b.get("ms") for b in beats],
                 "off": [{k: b.get(k) for k in ("after_kind", "ms", "statuses", "pills", "micOn", "question",
-                                               "options", "buttons", "starts_in", "recordings_in", "next")}
+                                               "options", "buttons", "starts_in", "recordings_in", "starts_at_ms",
+                                               "recordings_at_ms", "next")}
                         for b in bad]}
 
 
