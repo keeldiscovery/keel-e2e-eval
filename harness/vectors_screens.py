@@ -1403,6 +1403,24 @@ class Corridor:
             h.add_screenshot(self._b.screenshot(f"check-{name}-named"))
         return out
 
+    def edit_rows(self, edits: list[tuple[int, str]], name: str = "list") -> dict:
+        """Spec 067 FR-2: the founder's rung typed over Keel's redraft in the same row (the rows are positional), each
+        `(row index, label)` into that row's `textarea.listrow__ed`; a row that is not there stops the walk by name."""
+        rows = self.page.locator(".listcheck ul.listrows li.listrow textarea.listrow__ed")
+        out: dict = {"edited": [], "before": [r.get("text") for r in self._list_rows()["rows"]]}
+        with self._b.step(f"founder types {len(edits)} of their own rung{'s' if len(edits) != 1 else ''} over "
+                          "Keel's redraft") as h:
+            for index, label in edits:
+                if index >= rows.count():
+                    raise AssertionError(f"the Check screen has no row {index} for the founder's rung {label!r} "
+                                         f"(spec 067 FR-2); edited so far: {out['edited']}")
+                rows.nth(index).fill(label)
+                out["edited"].append({"row": index, "was": out["before"][index] if index < len(out["before"]) else None,
+                                      "now": label})
+            out["after"] = [r.get("text") for r in self._list_rows()["rows"]]
+            h.add_screenshot(self._b.screenshot(f"check-{name}-rungs-edited"))
+        return out
+
     def add_rows(self, labels: list[str], name: str = "list") -> dict:
         """Spec 067 FR-2: the founder's own rungs the draft left out, each typed into a new row (*+ add*, the Check
         screen's `.listcheck__add`). The control gone before every label is typed stops the walk naming the rung."""
@@ -1449,10 +1467,14 @@ class Corridor:
             seen["after"] = self._list_rows()
             seen["test_after"] = self._keel_test()
         if add_rungs is not None:
-            # spec 067 FR-2: `add_rungs(seen)` -> the rungs to type, or raises naming the ones the screen cannot hold
-            labels = add_rungs(seen)
-            if labels:
-                seen["rungs"] = self.add_rows(labels, name=name)
+            # spec 067 FR-2: `add_rungs(seen)` -> the plan (rows to edit over, rungs to add), or raises naming the
+            # rungs the screen cannot hold
+            plan = add_rungs(seen) or {}
+            if plan.get("edit"):
+                seen["rungs_edited"] = self.edit_rows(plan["edit"], name=name)
+            if plan.get("add"):
+                seen["rungs"] = self.add_rows(plan["add"], name=name)
+            if plan.get("edit") or plan.get("add"):
                 seen["after"] = self._list_rows()
                 seen["test_after"] = self._keel_test()
         with self._b.step(f"founder saves {name}") as h:

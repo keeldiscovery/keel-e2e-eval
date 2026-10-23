@@ -759,14 +759,24 @@ def _same_words(a: str | None, b: str | None) -> bool:
     return " ".join(str(a or "").lower().split()).rstrip(".") == " ".join(str(b or "").lower().split()).rstrip(".")
 
 
-def rungs_to_type(entry, drawn: list[str], max_items: int) -> tuple[list[str], list[str]]:
-    """Spec 067 FR-2 (keel-cloud 128 FR-16; Pairio typed two of five): Current solution's rungs the founder types on the
-    Check screen -- every entry rung the drawn rows do not carry word for word, in the entry's order -- and those the
-    screen cannot hold (`max_items` rows), which stop the walk by name. `([], [])` where the drawn list carries them all."""
+def rungs_plan(entry, drawn: list[str], max_items: int) -> dict:
+    """Spec 067 FR-2 (keel-cloud 128 FR-16; Pairio typed two of five): what the founder does to Keel's draft on the
+    Check screen so that every one of the entry's Current-solution rungs is served, in the entry's order. The rungs are
+    positional (code's positional codes, `single_choice_5`), so the founder's rung i goes in row i: a drawn row that
+    does not carry it word for word is **edited** over (`edit`: (row index, label) -- Karsa, 2026-10-23: Keel redrafted
+    three of five and the walk stopped for want of room), a rung past the drawn rows is typed into a new row (`add`)
+    while the screen's `max_items` has room, and a rung past that stops the walk by name (`cannot`)."""
     labels = [i["label"] for i in founder_list(entry, "problem.current_solution_satisfaction")["items"]]
-    missing = [label for label in labels if not any(_same_words(label, row) for row in drawn)]
-    room = max(0, int(max_items) - len(drawn))
-    return missing[:room], missing[room:]
+    plan = {"edit": [], "add": [], "cannot": []}
+    for i, label in enumerate(labels):
+        if i < len(drawn):
+            if not _same_words(label, drawn[i]):
+                plan["edit"].append((i, label))
+        elif i < int(max_items):
+            plan["add"].append(label)
+        else:
+            plan["cannot"].append(label)
+    return plan
 
 
 def saved_list(entry, key: str) -> dict:

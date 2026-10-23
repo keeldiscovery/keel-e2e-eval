@@ -1455,24 +1455,32 @@ def leg_calibrate(j: Journey, vector: str) -> None:
         assert not mismatches, json.dumps(mismatches, indent=2)
 
 
-def _rungs_to_type(j: Journey, question: dict, drawn: dict) -> list[str]:
+def _rungs_to_type(j: Journey, question: dict, drawn: dict) -> dict:
     """Spec 067 FR-2 (keel-cloud 128 FR-16): on a back-test the founder's Answer types the rungs that fit its 25 words
-    and Keel drafts the list from it, so the rest of the entry's rungs are typed on the Check screen -- every one, in the
-    entry's order (Pairio typed two of five and lost *Waited for the one person who knew*). Rungs past the screen's
-    `saves.maxItems` stop the walk here, by name; each typed rung is a finding (the founder's own words, typed late)."""
+    and Keel drafts the list from it, so on the Check screen the founder puts every one of the entry's rungs back, in
+    the entry's order -- typed over a redrafted row (the rows are positional; Karsa 2026-10-23: three of five redrafted)
+    or into a new row past the drawn ones (Pairio typed two of five and lost *Waited for the one person who knew*).
+    Rungs past the screen's `saves.maxItems` stop the walk here, by name; every edit and every added rung is a finding
+    (the founder's own words, typed late)."""
     rows = [r.get("text") for r in drawn.get("rows") or [] if not r.get("locked")]
     most = int(((question.get("saves") or {}).get("maxItems")) or 5)
-    to_type, cannot = vs.rungs_to_type(j.entry, rows, most)
+    plan = vs.rungs_plan(j.entry, rows, most)
     with _step(j, "Current solution's Check screen carries every one of the founder's rungs (spec 067 FR-2)",
                party="founder", kind="note") as h:
-        h.record_assert({"drawn": rows, "type": to_type, "cannot hold": []},
-                        {"drawn": rows, "type": to_type, "cannot hold": cannot, "max_items": most})
-        assert not cannot, (f"the Check screen holds {most} rows and the founder's rungs "
-                            f"{', '.join(repr(c) for c in cannot)} have no room (spec 067 FR-2)")
-    if to_type:
-        j.findings.append({"what": f"Current solution: Keel's draft left out {len(to_type)} of the founder's rungs; "
-                                   "typed on the Check screen", "served": {"drawn": rows, "typed": to_type}})
-    return to_type
+        h.record_assert({"drawn": rows, "edit": plan["edit"], "add": plan["add"], "cannot hold": []},
+                        {"drawn": rows, "edit": plan["edit"], "add": plan["add"], "cannot hold": plan["cannot"],
+                         "max_items": most})
+        assert not plan["cannot"], (f"the Check screen holds {most} rows and the founder's rungs "
+                                    f"{', '.join(repr(c) for c in plan['cannot'])} have no room (spec 067 FR-2)")
+    if plan["edit"]:
+        j.findings.append({"what": f"Current solution: Keel's draft reworded {len(plan['edit'])} of the founder's rungs; "
+                                   "typed back over on the Check screen",
+                           "served": {"drawn": rows, "edited": [{"row": i, "was": rows[i], "now": l}
+                                                                for i, l in plan["edit"]]}})
+    if plan["add"]:
+        j.findings.append({"what": f"Current solution: Keel's draft left out {len(plan['add'])} of the founder's rungs; "
+                                   "typed on the Check screen", "served": {"drawn": rows, "typed": plan["add"]}})
+    return plan
 
 
 def _capital(text: str) -> str:

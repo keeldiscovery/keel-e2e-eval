@@ -237,8 +237,9 @@ def test_a_list_label_past_the_answer_box_stops_at_load(tmp_path):
 
 def test_the_rungs_the_draft_left_out_are_typed_and_past_the_screen_they_stop():
     """Spec 067 FR-2 (keel-cloud 128 FR-16): 16-pairio's founder has five rungs; the Answer's 25 words carry the first
-    few and Keel's draft carries what it was given -- every other rung is typed on the Check screen, in the entry's
-    order; with no room left the walk stops naming the rung."""
+    few and Keel's draft carries what it was given -- a redrafted row is typed over (the rows are positional), a rung
+    past the drawn rows is typed into a new row, in the entry's order; past the screen's rows the walk stops naming
+    the rung."""
     path = corpus_mod.backtest_dir(KEEL_CLOUD) / "16-pairio.yaml"
     if not path.is_file():
         pytest.skip("no 16-pairio")
@@ -246,11 +247,13 @@ def test_the_rungs_the_draft_left_out_are_typed_and_past_the_screen_they_stop():
     rungs = [i["label"] for i in vs.founder_list(entry, "problem.current_solution_satisfaction")["items"]]
     assert len(rungs) == 5
     drawn = [rungs[0], rungs[1].upper() + "."]                       # case and a full stop are no difference
-    typed, cannot = vs.rungs_to_type(entry, drawn, 5)
-    assert typed == rungs[2:] and cannot == []
-    typed, cannot = vs.rungs_to_type(entry, drawn + ["Keel's own rung"], 5)
-    assert typed == rungs[2:4] and cannot == [rungs[4]]
-    assert vs.rungs_to_type(entry, rungs, 5) == ([], [])
+    assert vs.rungs_plan(entry, drawn, 5) == {"edit": [], "add": rungs[2:], "cannot": []}
+    # Keel redrafted the third row (Karsa, 2026-10-23): typed over, not added
+    assert vs.rungs_plan(entry, drawn + ["Keel's own rung"], 5) == {"edit": [(2, rungs[2])], "add": rungs[3:],
+                                                                   "cannot": []}
+    assert vs.rungs_plan(entry, rungs, 5) == {"edit": [], "add": [], "cannot": []}
+    # a screen of four rows cannot hold the fifth rung
+    assert vs.rungs_plan(entry, rungs[:4], 4) == {"edit": [], "add": [], "cannot": [rungs[4]]}
 
 
 # ------------------------------------------------------------------------------- FR-3: a line belongs to a rung
