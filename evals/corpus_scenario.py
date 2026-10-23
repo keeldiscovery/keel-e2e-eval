@@ -1127,7 +1127,13 @@ def leg_interpret_solution(j: Journey) -> None:
                       "to five words*, 0 / 5 words and Save off, until the founder typed one", party="founder") as h:
             want = {"value": "", "placeholder": feedback_marks.NAME_PLACEHOLDER, "save_enabled": False}
             h.record_assert(want, seen["unnamed"])
-            assert seen["unnamed"] == want, seen["unnamed"]
+            if not j.strict and (j.feedback.get("idea") or {}).get("served"):
+                # a back-test idea that arrived named (14-code-four): the box opened on the served name; the empty-box
+                # demand is recorded, not held (the name itself is already a finding)
+                j.findings.append({"what": f"{j.entry.id}: S2 opened on the served name {seen['unnamed'].get('value')!r}; "
+                                           "the empty-box demand (keel-web 070 F7) was not held", "seen": seen["unnamed"]})
+            else:
+                assert seen["unnamed"] == want, seen["unnamed"]
     if typed != m["short_name"]:
         with _step(j, f"{j.entry.id}: the founder named the idea {typed!r} on S2, not the mechanism card's "
                       f"{m['short_name']!r} (keel-cloud 090, D14)", party="founder") as h:
