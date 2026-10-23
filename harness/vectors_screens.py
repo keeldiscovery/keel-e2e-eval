@@ -51,6 +51,8 @@ SOMEONE_ELSE_USES = ("Someone else would use it", "Who would use it instead?")
 KICKER_INTERPRETATION = "Here's what Keel understood"
 KICKER_MECHANISM = "Here's the mechanism Keel understood"
 KICKER_CONTEXT = "Keel understands"
+#: keel-web 093 FR-2 (`REFUSED_LEAD`): a refused step's lead on Keel's door -- the back-test markdown's anchor.
+REFUSED_LEAD = "Keel couldn't finish this step"
 CONTINUE = "Continue"
 SAVE = "Save"
 #: `STAGE_EXIT_LABEL`: a stage's last screen names where it goes next (design §4: P6, S10, C11).
@@ -62,11 +64,18 @@ PRICE_NONE_CHIP = "No price yet"
 LEAVE_OUT_CHIP = "Leave this out of the study"
 LIST_DRAFTING = "Keel is writing this from your answer."
 COST_MODE_GROUP = "Measured as"
+#: keel-web 094 FR-1 (spec 064 FR-2): the chain's cost step -- the three ways, by their pills.
+CHAIN_COST_HOW = "How would you put what it costs them?"
+CHAIN_MODE_WORD = {"MONEY": "Money they spend", "HOURS": "Time it takes", "RATE": "A rate they lose"}
+#: keel-web 094 FR-2: the chain's price step.
+CHAIN_SHAPE_GROUP = "The shape of your price"
 COST_MODE_WORD = {"AMOUNT": "Fixed amount", "HOURS": "Hours"}
 PERSONA_QUESTION = "Who makes the buying decision?"
 PERSONA_SAME = "The same person would decide to pay"
 PERSONA_SOMEONE_ELSE = "Someone else would decide"
 PERSONA_ROLE = "If someone else, what role would that person typically have?"
+#: keel-web 099 FR-6 (`PERSONA_TITLE_LABEL`): the decider's job title, one to five words; Continue waits for it.
+PERSONA_TITLE = "What is their job title?"
 BEFORE_CONTINUE = "Continue"
 BEFORE_LOCK = "Lock and write the questions"           # until keel-web 069
 #: keel-web 069 `translate.ts`: L1, the third screen of step 5.
@@ -90,6 +99,10 @@ IV_NO = "No"
 IV_COST_MODE_GROUP = "Measured as"
 IV_COST_MODE_WORD = {"AMOUNT": "Amount", "HOURS": "Hours"}
 IV_PICK_TWO = "Pick two."
+#: keel-web 099 FR-6 (`GATE_RATHER_NOT_SAY`): the gate story's second chip, after the occasion's.
+GATE_RATHER_NOT_SAY = "I'd rather not say"
+#: keel-web 096: the segment chip's answers are the gate's own Yes / No.
+IV_CHIP_WORD = {"YES": "Yes", "NO": "No"}
 IV_TWO_PICKED = "2 of 2 picked. Untick one to change."
 
 
@@ -1015,6 +1028,16 @@ class Corridor:
     def context_window_line(self) -> str:
         return _first_text(self.page, ".understands__window")
 
+    def context_lines(self) -> dict:
+        """keel-web 096 FR-2 (spec 064 FR-4c): the card's two muted lines -- *I'll ask about: <stem>.* (absent with no
+        stem) and *Only people who: <condition>.* (absent with no condition) -- and the proposed window's line."""
+        out = {}
+        for key, testid in (("ask_about", "context-ask-about"), ("only_people_who", "context-only-people-who"),
+                            ("window_proposed_from", "window-proposed-from")):
+            node = self.page.get_by_test_id(testid)
+            out[key] = " ".join((node.first.text_content() or "").split()) if node.count() else None
+        return out
+
     def confirm_context(self) -> None:
         with self._b.step("founder confirms: Yes, that's it") as h:
             _button(self.page, CONTEXT_YES).click()
@@ -1172,6 +1195,7 @@ class Corridor:
             self._shot(f"q-{name}")
             control = question.get("control")
             labels = {o.get("normalized"): o.get("label") for o in question.get("options") or []}
+            seen_chain: dict = {}
             if answer.get("unsure"):
                 chip = PRICE_NONE_CHIP if control == "price_range" else UNSURE_CHIP
                 self.page.locator("button.calib__chip", has_text=chip).first.click()
@@ -1186,6 +1210,10 @@ class Corridor:
                 unit = self.page.locator("select.calib__unit")
                 if unit.count() and unit.first.locator(f"option[value='{interval['unit']}']").count():
                     unit.first.select_option(interval["unit"])
+            elif control == "cost_estimate" and self.page.get_by_test_id("chain-cost").count():
+                seen_chain = self._chain_cost(answer["cost"])
+            elif control == "price_range" and self.page.get_by_test_id("chain-price").count():
+                seen_chain = self._chain_price(answer["price"])
             elif control == "cost_estimate":
                 cost = answer["cost"]
                 modes = self.page.get_by_role("radiogroup", name=COST_MODE_GROUP, exact=True)
@@ -1203,11 +1231,68 @@ class Corridor:
             else:
                 raise AssertionError(f"no single screen for the calibration control {control!r} ({name})")
             seen = {"screen": "single", "frame": self.frame(), "question": _first_text(self.page, "h1.calib__q"),
-                    "belief": _first_text(self.page, ".calib__belief-text")}
+                    "belief": _first_text(self.page, ".calib__belief-text"), **seen_chain}
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot(f"calibration-{name}"))
             seen["primary"] = self._press_primary()
             return seen
+
+    def chain_screen(self, control: str) -> bool:
+        """Whether keel-web 094 draws the commercial chain's screen for this control (a fresh project, or one whose
+        stored answer is the chain's), rather than spec 074's controls (an answer stored before the chain)."""
+        testid = "chain-cost" if control == "cost_estimate" else "chain-price"
+        try:
+            self.page.locator("h1.calib__q").first.wait_for(state="visible", timeout=30_000)
+        except Exception:  # noqa: BLE001 - the screen's own read below says what it drew
+            pass
+        return self.page.get_by_test_id(testid).count() > 0
+
+    def _chain_cost(self, cost: dict) -> dict:
+        """keel-web 094 FR-1 (spec 064 FR-2): the chain's cost step -- the way (*Money they spend* / *Time it takes* /
+        *A rate they lose*), the unit box, the period pill, then on the equation a rate's measure (% or a count word)
+        and its "of what they lose" box, the two numbers, the hourly rate on time at a B2B study; the equation line
+        read back (`equation`, its words after the boxes `per`). A base on money or time is drawn read-only only where
+        a stored answer carries one (094 judgement call 4): none is typed."""
+        page = self.page
+        page.get_by_test_id(f"chain-mode-{'MONEY' if cost['mode'] == 'AMOUNT' else cost['mode']}").click()
+        page.get_by_test_id("chain-unit").fill(str(cost.get("unit") or ""))
+        page.get_by_test_id(f"chain-period-{cost['period']}").click()
+        page.get_by_test_id("chain-equation").wait_for(state="visible", timeout=10_000)
+        if cost["mode"] == "RATE":
+            if (cost.get("measure") or "%") == "%":
+                page.get_by_test_id("chain-measure-percent").click()
+            else:
+                page.get_by_test_id("chain-measure-count").click()
+                page.get_by_test_id("chain-count").fill(str(cost.get("measure")))
+            page.get_by_test_id("chain-base").fill(str(cost.get("base") or ""))
+        page.get_by_test_id("chain-low").fill(_number(cost["low"]))
+        page.get_by_test_id("chain-high").fill(_number(cost["high"]))
+        rate = page.get_by_test_id("chain-rate")
+        if cost["mode"] == "HOURS" and cost.get("rate") is not None and rate.count():
+            rate.fill(_number(cost["rate"]))
+        return {"chain": True, "equation": _first_text(page, "[data-testid=chain-equation]"),
+                "per": _first_text(page, "[data-testid=chain-per]")}
+
+    def _chain_price(self, price: dict) -> dict:
+        """keel-web 094 FR-2: the chain's price step -- the shape pill, then its numbers (an amount a period's range;
+        a share's sub-choice and its one percent; up front and the plan, or *then nothing*; nothing for free), the
+        locked words read back (`locked`: the cost's unit and period, never typed or sent)."""
+        page = self.page
+        shape = price["shape"]
+        page.get_by_test_id(f"chain-shape-{shape}").click()
+        if shape == "AMOUNT_PERIOD":
+            page.get_by_test_id("chain-price-low").fill(_number(price["low"]))
+            page.get_by_test_id("chain-price-high").fill(_number(price["high"]))
+        elif shape == "SHARE":
+            page.get_by_test_id(f"chain-share-{price.get('shareBase') or 'COST_BASE'}").click()
+            page.get_by_test_id("chain-share").fill(_number(price["low"]))
+        elif shape == "UPFRONT_THEN":
+            page.get_by_test_id("chain-upfront").fill(_number(price["upfrontLow"]))
+            if price.get("thenNothing"):
+                page.get_by_test_id("chain-then-nothing").click()
+            else:
+                page.get_by_test_id("chain-plan").fill(_number(price["low"]))
+        return {"chain": True, "locked": _first_text(page, "[data-testid=chain-locked]")}
 
     # ------------------------------------------- calibration: a list's Answer, Check and save, Choose
 
@@ -1352,6 +1437,10 @@ class Corridor:
             else:
                 group.get_by_role("radio", name=PERSONA_SOMEONE_ELSE, exact=True).click()
                 self.page.get_by_label(PERSONA_ROLE, exact=True).fill(decider["role"])
+                title = self.page.get_by_label(PERSONA_TITLE, exact=True)
+                if decider.get("title") and title.count():
+                    # spec 064 FR-6 (keel-web 099): one to five words; the entry's own, else the role word
+                    title.fill(decider["title"])
             _button(self.page, CONTINUE).click()
             self.page.get_by_text(KICKER_CONTEXT).first.wait_for(state="visible", timeout=20_000)
             text = _text(self.page)
@@ -1575,7 +1664,7 @@ class Interview:
                 gate = interview.get("gate")
                 if gate:
                     self._gate(person, gate, interview.get("occasion"), speak=speak)
-                if gate is None or person.recency:
+                if gate is None or (person.recency and getattr(person, "in_segment", True)):
                     self._items(interview, wire_answers)
                     self._follow_up(follow_up)
             body = answered.value.request.post_data_json
@@ -1661,23 +1750,51 @@ class Interview:
         _button(page, IV_CONTINUE).click()
 
     def _gate(self, person, gate: dict, occasion: str | None, *, speak: str | None = None) -> None:
+        """The gate (keel-web 064; spec 064 FR-4 / 4c, keel-web 096 / 099): the segment chip first where the gate serves
+        `condition` (`[data-testid=segment-chip]`, a radiogroup named by its question, Yes / No) -- answered inside
+        for a person in the segment, else the other answer, which hides the gate and sends `outsideSegment` on
+        Continue; then the gate's Yes / No (the No reads the served `noLabel`), and on a Yes the story, its chip (*I
+        can't recall one particular {occasion}*, or *I'd rather not say*) or the box. What the screen drew is kept."""
         page = self.page
+        condition = gate.get("condition") or None
+        chip_seen = None
+        if condition:
+            chip = page.get_by_test_id("segment-chip").first
+            chip.wait_for(state="visible", timeout=20_000)
+            inside = list(condition.get("inCodes") or [])
+            code = inside[0] if getattr(person, "in_segment", True) else next(
+                c for c in ("YES", "NO") if c not in inside)
+            group = page.get_by_role("radiogroup", name=condition.get("question"), exact=True)
+            chip_seen = {"question": _first_text(chip, "h2.iv-q"), "answered": code,
+                         "options": _safe_all_texts(chip, "[role=radio]")}
+            self._keep()
+            self._shot("segment-chip")
+            group.get_by_role("radio", name=IV_CHIP_WORD[code], exact=True).click()
+            if not getattr(person, "in_segment", True):
+                self.screens.append({"screen": "gate", "kicker": _first_text(page, ".iv-kicker"), "chip": chip_seen,
+                                     "question": None, "chips": [], "outside": True})
+                _button(page, IV_CONTINUE).click()
+                return
         group = page.get_by_role("radiogroup", name=gate["question"], exact=True)
         group.wait_for(state="visible", timeout=20_000)
         self._keep()
         self._shot("gate")
-        group.get_by_role("radio", name=IV_YES if person.recency else IV_NO, exact=True).click()
+        no = gate.get("noLabel") or IV_NO
+        group.get_by_role("radio", name=IV_YES if person.recency else no, exact=True).click()
         chips = []
         if person.recency:
             chips = _safe_all_texts(page, ".iv-story .iv-chips button")
-            if person.anchor_chip:
+            if person.anchor_chip == "RATHER_NOT_SAY" and GATE_RATHER_NOT_SAY in [c.strip() for c in chips]:
+                _button(page, GATE_RATHER_NOT_SAY).click()
+            elif person.anchor_chip:
                 _button(page, gate_chip_word(occasion)).click()
             elif person.story and speak:
                 self._speak_story(person.story, speak)
             elif person.story:
                 page.locator("textarea").first.fill(person.story)
         self.screens.append({"screen": "gate", "kicker": _first_text(page, ".iv-kicker"),
-                             "question": _first_text(page, "h1.iv-q"), "chips": chips})
+                             "question": _first_text(page, "h1.iv-q"), "chips": chips, "chip": chip_seen,
+                             "options": _safe_all_texts(group, "[role=radio]")})
         _button(page, IV_CONTINUE).click()
 
     def _speak_story(self, story: str, how: str) -> None:
@@ -1772,29 +1889,58 @@ class Interview:
     def _item_screen(self, item: dict) -> dict:
         """What one item's screen drew, in the order drawn: the kicker, the idea card, the stem, the hint,
         the control's rows, the escape chips (and whether the escape is the last control before the
-        buttons)."""
+        buttons). Spec 064 FR-4c (keel-web 096): a question opening with the occasion's anchor sentence is drawn as
+        `p.iv-stem[data-testid=item-stem]` before `h1.iv-q`, which then holds the rest -- `question` is the two joined
+        (what the wire served) and `stem` / `asked` are kept apart. FR-3 (keel-web 094): the value box's label after the
+        box, *What you'd get*, and an up-front-then price's plan screen (`plan`, recorded by `_answer`)."""
         page = self.page
         main = self._main()
         rows = _safe_all_texts(page, ".iv-control [role=radio], .iv-control [role=checkbox]")
         chips = _safe_all_texts(page, ".iv-chips button")
         order = main.evaluate(
             "(m) => Array.from(m.children).map((c) => c.className || c.tagName)") if main.count() else []
-        return {"screen": "item", "dimension": item.get("dimension"), "control": item.get("control"),
-                "kicker": _first_text(page, ".iv-kicker"), "question": _first_text(page, "h1.iv-q"),
-                "idea_card": _first_text(page, ".iv-ideacard__what"),
-                "hint": _first_text(page, ".iv-tick"), "picked_line": _first_text(page, ".iv-picked"),
-                "rows": [r.strip() for r in rows], "chips": [c.strip() for c in chips], "order": order}
+        stem = _first_text(page, "[data-testid=item-stem]")
+        asked = _first_text(page, "h1.iv-q")
+        out = {"screen": "item", "dimension": item.get("dimension"), "control": item.get("control"),
+               "kicker": _first_text(page, ".iv-kicker"), "question": f"{stem} {asked}" if stem else asked,
+               "stem": stem or None, "asked": asked,
+               "idea_card": _first_text(page, ".iv-ideacard__what"),
+               "hint": _first_text(page, ".iv-tick"), "picked_line": _first_text(page, ".iv-picked"),
+               "rows": [r.strip() for r in rows], "chips": [c.strip() for c in chips], "order": order}
+        if item.get("control") == "value_box":
+            out["value_box_label"] = _first_text(page, "[data-testid=value-box-label]")
+        if item.get("whatYouGet"):
+            out["what_you_get"] = _first_text(page, "[data-testid=what-you-get]")
+        if self._plan_seen is not None:
+            out["plan"], self._plan_seen = self._plan_seen, None
+        return out
+
+    #: The plan screen an up-front-then price drew (spec 064 FR-3), read by `_item_screen` once.
+    _plan_seen: dict | None = None
 
     def _answer(self, item: dict, answer: dict) -> None:
         main = self._main()
         options = {o.get("optionId"): o.get("label") for o in item.get("options") or []}
+        plan = item.get("plan") or {}
+        options.update({o.get("optionId"): o.get("label") for o in plan.get("options") or []})
         advantages = {a.get("id"): a.get("label") for a in item.get("advantages") or []}
         if answer.get("chip"):
-            escape = item.get("escape") or {}
-            main.locator(".iv-chips").get_by_role("button", name=escape.get("label"), exact=True).click()
+            # an item's one escape, or (keel-web 094) the value box's chips -- *Nothing*, *I don't know*, *I'd rather
+            # not say* -- each by its served label
+            box = item.get("valueBox") or {}
+            served = [item.get("escape") or {}, box.get("nothing") or {}] + list(box.get("chips") or [])
+            label = next((e.get("label") for e in served if str(e.get("code") or e.get("chip") or "").upper()
+                          == answer["chip"]), (item.get("escape") or {}).get("label"))
+            main.locator(".iv-chips").get_by_role("button", name=label, exact=True).first.click()
             return
         if "scale" in answer:
             main.get_by_role("radio", name=str(answer["scale"]), exact=True).click()
+            return
+        if "interval" in answer:
+            # keel-web 094 FR-3: *Between* [box] *and* [box] in the founder's own unit and period
+            interval = answer["interval"]
+            main.get_by_test_id("value-box-low").fill(_number(interval["low"]))
+            main.get_by_test_id("value-box-high").fill(_number(interval.get("high", interval["low"])))
             return
         if "costTotal" in answer:
             cost = answer["costTotal"]
@@ -1806,7 +1952,19 @@ class Interview:
             main.locator(".iv-num input").first.fill(_number(cost["value"]))
             return
         role = "checkbox" if item.get("control") == "pick_two" else "radio"
-        for option_id in answer.get("optionIds") or []:
+        ids = list(answer.get("optionIds") or [])
+        if plan and len(ids) == 2:
+            # keel-web 094 FR-4: up front, then a plan -- the thing's band, Next, then the plan's own screen
+            main.locator(".iv-control").get_by_role(role, name=options[ids[0]], exact=True).first.click()
+            _button(self.page, IV_NEXT).click()
+            self.page.locator("h1.iv-q", has_text=plan.get("question") or "").first.wait_for(
+                state="visible", timeout=20_000)
+            self._keep()
+            self._shot(f"plan-{item.get('dimension')}")
+            self._plan_seen = {"question": _first_text(self.page, "h1.iv-q"),
+                               "rows": [r.strip() for r in _safe_all_texts(self.page, ".iv-control [role=radio]")]}
+            ids = ids[1:]
+        for option_id in ids:
             main.locator(".iv-control").get_by_role(role, name=options[option_id], exact=True).first.click()
         for advantage_id in answer.get("advantageIds") or []:
             main.get_by_role("checkbox", name=advantages[advantage_id], exact=True).click()
@@ -1912,42 +2070,67 @@ class Answers:
             }
 
     def insights(self, project_id: str) -> dict:
-        """The Insights view (keel-web 077 FR-3, as built, `report-insights`): per box (`section.rp-ibox[data-dim]`)
-        its head (`.rp-ihead`: the name and the pill), its whole text, `.rp-concern`, `.rp-tookby`, `.rp-nofollow`, the
-        split line, the themes (`ol.rp-themes > li`: the label, `.rp-themes__n`, the `p.rp-quote`s), the raw quotes
-        (`.rp-raw`); the empty state (`.rp-inone`); every quote and the view's own *said why* / *Only k of the n* lines
-        (what `report_no_repeat` takes out)."""
+        """The Insights view (keel-web 077 FR-3; keel-web 095, spec 064 FR-8b): per box (`section.rp-ibox[data-dim]
+        [data-status][data-state]`, `[data-dissent=true]` on a held line) its head (`.rp-ihead`), its whole text, the
+        rung heading alone (`.rp-concern`), the dissent frame (`.rp-frame`), `.rp-tookby`, the split line, the themes
+        (`ol.rp-themes > li`: `span.rp-themes__label`, `.rp-themes__n`, `li[data-own]` for *On their own*, each quote
+        `p.rp-quote` with its `div.rp-iq > p.rp-pick` -- `.rp-opt` and `.rp-side[data-side]`), the GROUPING list
+        (`[data-testid=insights-grouping]`), the RAW list (`.rp-raw`, its `.rp-raw__note`); a folded group is opened
+        (`[data-testid=insights-more]`) before it is read; the `notAsked` lines (`[data-testid=insights-not-asked]
+        li[data-dim]`); the empty state (`.rp-inone`); every quote and the view's own lines (the heading, the frame,
+        *Only k of the n*: what `report_no_repeat` takes out)."""
         from harness import interviewer_fake as fake                    # noqa: PLC0415
         with self._b.step("founder opens the report's insights") as h:
             self._report(project_id, "insights")
             view = self.page.get_by_test_id("report-insights").first
             view.wait_for(state="visible", timeout=30_000)
+            for more in view.get_by_test_id("insights-more").all():
+                try:
+                    more.click()
+                except Exception:  # noqa: BLE001 - a fold already open is read as it stands
+                    pass
             boxes, own_lines = [], []
             for box in view.locator("section.rp-ibox").all():
                 text = _words(box)
+
+                def picks_of(scope):
+                    out = []
+                    for iq in scope.locator(".rp-iq").all():
+                        side = iq.locator(".rp-side")
+                        out.append({"quote": _tc(iq.locator(".rp-quote")), "option": _tc(iq.locator(".rp-opt")) or None,
+                                    "side": side.first.get_attribute("data-side") if side.count() else None})
+                    return out
                 themes = []
                 for li in box.locator("ol.rp-themes > li").all():
                     quotes = [_tc(q) for q in li.locator(".rp-quote").all()]
                     n = _tc(li.locator(".rp-themes__n"))
-                    rest = _tc(li)
-                    for cut in quotes + [n]:
-                        rest = rest.replace(cut, " ") if cut else rest
                     count = n.strip("()")
-                    themes.append({"label": " ".join(rest.split()), "count": int(count) if count.isdigit() else None,
-                                   "quotes": quotes})
+                    themes.append({"label": _tc(li.locator(".rp-themes__label")),
+                                   "own": li.get_attribute("data-own") == "true",
+                                   "count": int(count) if count.isdigit() else None, "quotes": quotes,
+                                   "picks": picks_of(li)})
                 concern = _tc(box.locator(".rp-concern"))
+                frame = _tc(box.locator(".rp-frame"))
                 took = _tc(box.locator(".rp-tookby"))
-                own_lines += [x for x in (concern, took) if x]
+                own_lines += [x for x in (concern, frame, took) if x]
+                grouping = box.get_by_test_id("insights-grouping")
                 boxes.append({
                     "key": box.get_attribute("data-dim"), "status": box.get_attribute("data-status"),
-                    "head": _tc(box.locator(".rp-ihead")), "concern": concern, "themes": themes, "text": text,
+                    "state": box.get_attribute("data-state"), "dissent": box.get_attribute("data-dissent") == "true",
+                    "head": _tc(box.locator(".rp-ihead")), "concern": concern, "frame": frame or None,
+                    "themes": themes, "text": text,
                     "split": fake.SPLIT_NOTE if fake.SPLIT_NOTE in text else None,
-                    "took_by": took or None, "no_follow_up": _tc(box.locator(".rp-nofollow")) or None,
-                    "raw": [_tc(q) for q in box.locator(".rp-raw .rp-quote").all()]})
+                    "took_by": took or None,
+                    "grouping": [_tc(q) for q in grouping.locator(".rp-quote").all()] if grouping.count() else None,
+                    "raw": [_tc(q) for q in box.locator(".rp-raw .rp-quote").all()],
+                    "raw_note": _tc(box.locator(".rp-raw__note")) or None,
+                    "picks": picks_of(box)})
+            not_asked = [{"key": li.get_attribute("data-dim"), "text": _tc(li)}
+                         for li in view.locator("[data-testid=insights-not-asked] li[data-dim]").all()]
             text = _words(view)
             h.capture_text("stage_screen", text)
             h.add_screenshot(self._b.screenshot("report-insights"))
-            return {"boxes": boxes, "empty": _tc(view.locator(".rp-inone")) or None,
+            return {"boxes": boxes, "empty": _tc(view.locator(".rp-inone")) or None, "not_asked": not_asked,
                     "quotes": [_tc(q) for q in view.locator(".rp-quote").all()], "own_lines": own_lines,
                     "text": text}
 

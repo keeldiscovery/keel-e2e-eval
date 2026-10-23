@@ -272,3 +272,59 @@ def test_the_paid_command_is_documented_and_marks_version_stays_20():
     agents = (REPO / "AGENTS.md").read_text(encoding="utf-8")
     assert "make backtest" in agents and "spec 062" in agents
     assert instruction_marks.MARKS_VERSION == 20
+
+
+# ------------------------------------------------------------------- spec 064 FR-2 / FR-3: the chain on the wire
+
+def _bt(entry_id: str):
+    path = corpus_mod.backtest_dir(KEEL_CLOUD) / f"{entry_id}.yaml"
+    if not path.is_file():
+        pytest.skip(f"no back-test entry {path}")
+    return corpus_mod.load_file(path, registry=fx.registry(), backtest=True)
+
+
+def test_a_chain_founder_posts_every_field_and_a_chain_price_no_period():
+    """FR-2: a chain cost posts every field the entry carries; a chain price its shape and numbers, no period."""
+    founder = vs.founder_inputs(_bt("13-aircaps"))
+    body = {a.dimension: a.as_wire() for a in founder.calibration["COMMERCIAL"]}
+    cost, price = body["commercial.existing_sacrifice"]["cost"], body["commercial.price"]["price"]
+    assert cost["mode"] == "RATE" and cost["unit"] == "person" and cost["measure"] == "conversations"
+    assert cost["base"] and cost["lossPhrase"] and cost["period"] == "month"
+    assert price["shape"] == "UPFRONT_THEN" and "period" not in price and price["upfrontLow"] == 599
+
+
+def test_the_strangers_chain_items_on_the_wire():
+    """FR-3: a value box sends `interval` (never re-expressed over a recall period), Nothing the chip NOTHING, an
+    up-front-then price two option ids, the consumer budget item a code -- asked on the primary link of a same-person
+    budget study, in Ability to pay's place."""
+    entry = _bt("13-aircaps")
+    assert entry.consumer_budget() and "commercial.ability_to_pay" in vs.plan_keys(entry, 3, vs.LINK_PRIMARY)
+    karsa = _bt("09-karsa")
+    assert not karsa.consumer_budget() and "commercial.ability_to_pay" not in vs.plan_keys(karsa, 3, vs.LINK_PRIMARY)
+    people = vs.person_inputs(entry)
+    picks = [p for person in people for p in person.picks]
+    box = next(p for p in picks if p.dimension == "commercial.existing_sacrifice" and p.interval)
+    wire = box.asked_over("quarter").as_wire("tok")
+    assert set(wire) == {"itemId", "interval"} and wire["interval"]["low"] == box.interval["low"]
+    nothing = next(p for p in picks if p.dimension == "commercial.existing_sacrifice" and p.chip == "NOTHING")
+    assert nothing.as_wire("tok")["chip"] == "NOTHING"
+    two = next(p for p in picks if p.dimension == "commercial.price" and len(p.codes) == 2)
+    assert len(two.as_wire("tok")["optionIds"]) == 2 and two.codes[0].startswith("upfront.")
+    budget = next(p for p in picks if p.dimension == "commercial.ability_to_pay")
+    assert budget.codes[0] in ("from_spend", "new_money", "could_not")
+
+
+def test_a_person_outside_the_segment_posts_outside_alone():
+    """FR-4 (keel-cloud 120): a person `in_segment: false` answers nothing and posts `{outsideSegment: true, answers:
+    []}`; they are in no gate-Yes count."""
+    raw = _good_raw()
+    person = next(p for p in raw["answers"] if p.get("link", "PRIMARY") == "PRIMARY" and p.get("recency") == "yes")
+    for key in ("recency", "story", "chip", "anchoring", "picks"):
+        person.pop(key, None)
+    person["in_segment"] = False
+    import tempfile                                                    # noqa: PLC0415
+    with tempfile.TemporaryDirectory() as tmp:
+        entry = corpus_mod.load_file(_write(Path(tmp), raw), registry=fx.registry(), backtest=True)
+    outside = next(p for p in vs.person_inputs(entry) if p.person == person["person"])
+    assert outside.response("tok") == {"outsideSegment": True, "answers": []} and outside.picks == []
+    assert person["person"] not in {p.person for p in entry.gate_yes()}

@@ -57,6 +57,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 
+from instructions import chain as chain_mod
 from instructions import corpus as corpus_reader
 
 VECTORS = ("PROBLEM", "SOLUTION", "COMMERCIAL")
@@ -247,8 +248,29 @@ def occasion(entry) -> str:
     return entry.occasion() or "time"
 
 
+#: Spec 064 FR-4a (keel-cloud 116, *Proposed after* in its tasks.md): the founder's Prevalence clause names the problem,
+#: not the routine -- `(founder's clause, past tense, their words; the gate's clause, base form, said to the stranger)`,
+#: each framed by code within E4's 20 words and with no time word (COMPOSED). 116 frames the gate *did {clause}* when the
+#: clause opens *you* / *your*, else *did you {clause}*; none of these does.
+PROBLEM_CLAUSES = {
+    "01-countly": ("had to recount stock by hand after a mismatched delivery",
+                   "have to recount stock by hand after a mismatched delivery"),
+    "02-compliancelog": ("had to pull training completions into a spreadsheet by hand",
+                         "have to pull training completions into a spreadsheet by hand"),
+    "03-lullaby": ("had to work out why their baby was crying", "have to work out why your baby was crying"),
+    "04-linerly": ("lost time to a puncture riding to or from work", "lose time to a puncture riding to or from work"),
+    "05-paidly": ("waited beyond agreed terms to be paid for an approved invoice",
+                  "wait beyond agreed terms to be paid for an approved invoice"),
+    "06-repeatline": ("had to type a refill request in by hand", "have to type a refill request in by hand"),
+    "07-mulchrun": ("waited at the supply yard for mulch for a job", "wait at the supply yard for mulch for a job"),
+}
+
+
 def event_past(entry) -> str:
-    """Prevalence's clause for the founder (rules E1-E3): what happened, past tense, no time word."""
+    """Prevalence's clause for the founder (rules E1-E3): what happened, past tense, no time word -- since spec 064 the
+    problem the founder counted (`PROBLEM_CLAUSES`), which keel-cloud 116 hands the gate's job as `problem`."""
+    if entry.id in PROBLEM_CLAUSES:
+        return PROBLEM_CLAUSES[entry.id][0]
     return f"had a time when {_ctx(entry)['circumstance']}"
 
 
@@ -278,7 +300,8 @@ def frequency_question(window: Window, event: str) -> str:
 
 def event_base(entry) -> str:
     """The gate's clause for the respondent: base form, second person, framed within E4's 20 words."""
-    event = GATE_EVENTS.get(entry.id) or f"have a time when {_ctx(entry)['circumstance']}"
+    event = (PROBLEM_CLAUSES.get(entry.id) or (None, None))[1] or GATE_EVENTS.get(entry.id) \
+        or f"have a time when {_ctx(entry)['circumstance']}"
     window = window_of(entry)
     longest = max(_words(gate_question(window, event)), _words(frequency_question(window, event)))
     if longest > STEM_MAX_WORDS:
@@ -287,11 +310,85 @@ def event_base(entry) -> str:
     return event
 
 
+#: Spec 064 FR-4 / 4b (keel-cloud 120's golden table): the segment's core and the condition the gate's chip asks, by entry
+#: -- `(core, condition, chip question, the code inside)`; a condition completes *Only people who ...* (X6). 06 and 07
+#: have none (a place, a role or a season is the core). The occasion stays the plain noun (no stem scripted: 120 says
+#: 064 may keep it, and a stem would move every golden Importance, Current solution, Compatibility and Relative
+#: advantage question's words -- judgement call).
+SEGMENTS = {
+    "01-countly": ("independent restaurant managers in the US", "run one or two sites", "Do you run one or two sites?",
+                   "YES"),
+    "02-compliancelog": ("HR managers at US firms", "work at a firm of 200 to 500 people",
+                         "Does your firm have 200 to 500 people?", "YES"),
+    "03-lullaby": ("first-time parents in the US", "have a baby under six months", "Is your baby under six months old?",
+                   "YES"),
+    "04-linerly": ("commuter cyclists in Portland", "ride thirty miles a week or more",
+                   "Do you ride thirty miles a week or more?", "YES"),
+    "05-paidly": ("freelance translators in the US", "work mostly for agencies", "Do you work mostly for agencies?",
+                  "YES"),
+}
+
+
+def segment_of(entry) -> dict:
+    """`{core, condition}` as the scripted CONTEXT_INTERPRET writes it (keel-cloud 120 FR-2): the entry's own segment as
+    the core with no condition where `SEGMENTS` names none."""
+    if entry.id in SEGMENTS:
+        core, condition, _, _ = SEGMENTS[entry.id]
+        return {"core": core, "condition": condition}
+    return {"core": _ctx(entry)["segment"], "condition": None}
+
+
+def segment_line(entry) -> str:
+    """`ContextSlots.segmentLine()`: the core, then *, who {condition}* -- what the brief's header and every job read."""
+    seg = segment_of(entry)
+    return seg["core"] if not seg["condition"] else f"{seg['core'].strip()}, who {seg['condition']}"
+
+
+def chip_of(entry) -> dict | None:
+    """The gate's segment chip the scripted part-1 job writes (`condition: {question, inside}`), or None."""
+    if entry.id not in SEGMENTS:
+        return None
+    _, _, question, inside = SEGMENTS[entry.id]
+    return {"question": question, "inside": inside}
+
+
+_RELATIVE = re.compile(r"(?i)\bwho\b")
+
+
+def _phrase(text) -> str:
+    out = " ".join(str(text or "").split())
+    while out and out[-1] in ".,;:":
+        out = out[:-1].strip()
+    return out
+
+
+def read_back(entry) -> str | None:
+    """keel-cloud 122 `ReadBack.sentence` over the scripted slots: *"<Segment>, when <when>, <what>, counting the last
+    <window>."* -- the core capitalised, the condition after *, who* (or * and* where the core has its own *who*), the
+    circumstance, the job, the window's words. What the context card serves since 122; never the model's line."""
+    seg = segment_of(entry)
+    segment, when, what = _phrase(seg["core"]), _phrase(_ctx(entry).get("circumstance")), _phrase(_ctx(entry).get("job"))
+    if when.lower().startswith("when "):
+        when = when[5:].strip()
+    if not (segment and when and what):
+        return None
+    who = _phrase(seg["condition"])
+    if who.lower().startswith("who "):
+        who = who[4:].strip()
+    out = segment[:1].upper() + segment[1:]
+    if who:
+        out += (" and " if _RELATIVE.search(segment) else ", who ") + who
+    out += f", when {when}, {what}, counting the last {window_words(window_of(entry))}."
+    return out
+
+
 def context_result(entry) -> dict:
+    """CONTEXT_INTERPRET's result (screen response contract 23): the slots, `segment` as `{core, condition}` (keel-cloud
+    120), the plain occasion noun, `window.proposed` null; no `understands` -- the sentence is code's since 122."""
     ctx = _ctx(entry)
-    return {"understands": ctx["understood"], "actor": ctx["actor"],
-            "actor_plural": ctx["actor_plural"], "job": ctx["job"],
-            "circumstance": ctx["circumstance"], "segment": ctx["segment"], "occasion": occasion(entry)}
+    return {"actor": ctx["actor"], "actor_plural": ctx["actor_plural"], "job": ctx["job"],
+            "circumstance": ctx["circumstance"], "segment": segment_of(entry), "occasion": occasion(entry),
+            "window": {"proposed": None}}
 
 
 def problem_result(entry) -> dict:
@@ -434,6 +531,32 @@ def idea_name(entry) -> str:
     return idea_name_of(founder_idea_name(entry))
 
 
+#: keel-cloud 121 `Vocabulary.JARGON_WORDS` (T001): the words `J1` notes on the idea's lines (a note, never a refusal).
+JARGON_WORDS = ("escrow", "stablecoin", "stablecoins", "api", "apis", "on-chain", "blockchain", "ledger", "ledgers",
+                "saas", "workflow", "workflows", "orchestration", "platform", "integration", "integrations", "custody",
+                "custodian", "kyc", "aml", "sdk", "webhook", "webhooks", "middleware", "tokenized", "tokenised",
+                "smart contract", "fiat")
+
+
+def jargon(text: str) -> list[str]:
+    """`Vocabulary.jargon`: every jargon word `text` carries, as it spells it, in order, whole-word (a hyphen joins)."""
+    out = []
+    for m in re.finditer(r"[A-Za-z]+(?:-[A-Za-z]+)*(?:\s+contract)?", text or ""):
+        word = m.group(0)
+        for candidate in (word, word.split()[0]):
+            if candidate.lower() in JARGON_WORDS and candidate not in out:
+                out.append(candidate)
+                break
+    return out
+
+
+def expected_j1(entry) -> list[str]:
+    """Spec 064 FR-5b (keel-cloud 121): the J1 notes the scripted idea's how and belief draw -- 05-paidly's
+    *platform* -- the words, in order (the idea's `notes[].word`)."""
+    lines = idea_lines(entry)
+    return jargon(lines["how"]) + [w for w in jargon(lines["belief"]) if w not in jargon(lines["how"])]
+
+
 def mechanism_result(entry) -> dict:
     m = entry.solution_mechanism or {}
     terms = list(m.get("mechanism_terms") or [])
@@ -498,9 +621,15 @@ ASKED_FACES = {"solution.compatibility", "solution.adoption_friction"}
 #: Buyer and payer's fixed first item, code's (keel-cloud `SavedList.NOBODY_ELSE`).
 NOBODY_ELSE = ("nobody_else", "Nobody else")
 #: Every escape the registry gives an item (registry 4 `respondent.escape.code`).
-ESCAPES = {"cant_recall", "cant_tell", "cant_say", "cant_recall_one", "none_of_these", "someone_else_checks"}
-#: The gate story's one chip since contract 13 (keel-cloud 088: RATHER_NOT_SAY gone; spec 041 D-4, still r11's).
-STORY_CHIPS = {"cant_recall": "CANT_RECALL", "rather_not_say": "CANT_RECALL"}
+ESCAPES = {"cant_recall", "cant_tell", "cant_say", "cant_recall_one", "none_of_these", "someone_else_checks",
+           "dont_know", "rather_not_say"}
+#: keel-cloud 115's value box: *Nothing* (the number 0, counted), *I don't know* (the escape, apart), *I'd rather not
+#: say* (apart, a consumer link) -- sent as `chip`.
+VALUE_BOX_CHIPS = {"nothing": "NOTHING", "dont_know": "DONT_KNOW", "rather_not_say": "RATHER_NOT_SAY"}
+#: The gate story's chips (spec 064 FR-4 / 6a: keel-cloud 123 FR-3 serves RATHER_NOT_SAY again beside CANT_RECALL).
+STORY_CHIPS = {"cant_recall": "CANT_RECALL", "rather_not_say": "RATHER_NOT_SAY"}
+#: Contract 33's `GateItem.chips`, in the order drawn.
+GATE_CHIPS = ("CANT_RECALL", "RATHER_NOT_SAY")
 
 #: Registry 4's dimension names (`name`), for the referee's brief words only.
 NAMES = {"problem.prevalence": "Prevalence", "problem.frequency": "Frequency",
@@ -575,12 +704,14 @@ def _chosen_codes(entry, key: str) -> list[str]:
 #: Prevalence's five fifths (keel-cloud's `single_choice` codes, by position) in a register that names no
 #: product, mechanism, claim word or money (rules X1, C5, C6, W9); the founder's chosen code's phrase is the
 #: corpus's own `belief_phrase`, so the belief sentence keel-cloud writes is the corpus's.
+#: Spec 064 FR-6a (keel-cloud 123 FR-6): the labels are code's now (`PrevalenceBins`, written over the model's) and share
+#: no edge; the script writes the same five so the draft reads as served.
 PREVALENCE_OPTIONS = [
     ("Fewer than 2 in 10", "p_0_20", "Only a few"),
-    ("2 to 4 in 10", "p_20_40", "A minority"),
-    ("4 to 6 in 10", "p_40_60", "Around half"),
-    ("6 to 8 in 10", "p_60_80", "Most"),
-    ("8 to 10 in 10", "p_80_100", "Nearly all"),
+    ("2 or 3 in 10", "p_20_40", "A minority"),
+    ("4 or 5 in 10", "p_40_60", "Around half"),
+    ("6 or 7 in 10", "p_60_80", "Most"),
+    ("8 or more in 10", "p_80_100", "Nearly all"),
 ]
 
 
@@ -606,7 +737,22 @@ def drafted_list(entry, key: str) -> dict:
         if not saved.get("phrase"):
             raise VectorsScriptError(f"{entry.id}: {key} carries no second-person phrase (L1)")
         draft["phrase"] = saved["phrase"]
+        # spec 064 FR-5a (keel-cloud 117): the leading rungs the founder typed, kept verbatim, and the line after D4's 2
+        rungs = founder_rungs(entry)
+        if rungs:
+            draft["founder_rungs"] = rungs
+            draft["line"] = min(2, rungs)
     return draft
+
+
+def founder_rungs(entry) -> int:
+    """How many of Current solution's outcomes the founder's Answer types (`answer_text`: the phrase, then as many whole
+    labels as fit in 25 words) -- keel-cloud 117's `founder_rungs` (2 or 3 on every golden entry)."""
+    key = "problem.current_solution_satisfaction"
+    saved = founder_list(entry, key)
+    labels = [i["label"] for i in saved["items"]]
+    text = answer_text(entry, key)
+    return sum(1 for label in labels if label in text.split("; "))
 
 
 def saved_list(entry, key: str) -> dict:
@@ -828,10 +974,16 @@ def calibration_answers(entry, vector: str) -> list[CalibrationAnswer]:
                 window = window_of(entry)
                 body["interval"] = {"low": answer["lower"], "high": answer["upper"],
                                     "unit": f"{_UNIT_WORDS[window.unit][1]} out of {window.count}"}
+        elif key == "commercial.existing_sacrifice" and chain_mod.cost_in_chain(answer):
+            # spec 064 FR-2 (keel-cloud 115): a chain cost posts every field the entry carries
+            body["cost"] = {k: answer[k] for k in sorted(chain_mod.CHAIN_FIELDS_COST) if answer.get(k) is not None}
         elif key == "commercial.existing_sacrifice":
             body["cost"] = {k: answer[k] for k in ("mode", "low", "high", "period") if k in answer}
             if answer.get("rate") is not None:
                 body["cost"]["rate"] = answer["rate"]
+        elif key == "commercial.price" and chain_mod.price_in_chain(answer):
+            # a chain price posts its shape and its numbers, and no period (it is the cost's)
+            body["price"] = {k: answer[k] for k in sorted(chain_mod.CHAIN_FIELDS_PRICE) if answer.get(k) is not None}
         elif key == "commercial.price":
             body["price"] = {k: answer[k] for k in ("low", "high", "period")}
         elif is_list(key):
@@ -880,8 +1032,13 @@ def plan_keys(entry, part: int, link: str) -> list[str]:
                 "commercial.buyer_payer_alignment", "commercial.purchase_friction",
                 "commercial.commitment"]}[part]
     if part == 3 and link != LINK_B2B:
-        keys = [k for k in keys if k not in ("commercial.ability_to_pay",
-                                              "commercial.purchase_friction")]
+        # spec 064 FR-3 (keel-cloud 115 FR-5): a same-person chain study whose cost and price share no base asks the
+        # consumer budget item on the primary link, in Ability to pay's place
+        drop = ("commercial.purchase_friction",) if entry.consumer_budget() else \
+            ("commercial.ability_to_pay", "commercial.purchase_friction")
+        keys = [k for k in keys if k not in drop]
+    if entry.chain() and (entry.price() or {}).get("shape") == "FREE":
+        left_out.add("commercial.price")             # 115 judgement call 9: free to them asks no price item
     return [k for k in keys if k not in left_out]
 
 
@@ -900,8 +1057,14 @@ def respondent_item(entry, key: str) -> dict:
 
 
 def respondent_result(entry, part: int, link: str) -> dict:
-    return {"part": part, "link": link,
-            "items": [respondent_item(entry, key) for key in plan_keys(entry, part, link)]}
+    """RESPONDENT_QUESTIONS' result: the items, and on part 1 of the primary link the segment's chip (`condition:
+    {question, inside}`, keel-cloud 120 FR-2 -- required, E5, where the job is handed a condition)."""
+    out = {"part": part, "link": link,
+           "items": [respondent_item(entry, key) for key in plan_keys(entry, part, link)]}
+    chip = chip_of(entry)
+    if chip and part == 1 and link == LINK_PRIMARY:
+        out["condition"] = chip
+    return out
 
 
 # ------------------------------------------------------------------------- the readings, the brief
@@ -1005,34 +1168,25 @@ def failing_keys(entry) -> list[str]:
 
 
 def walked_follow_ups(entry, people) -> list[tuple[str, str]]:
-    """`[(rung, text)]`, one a person who types a follow-up, in the walks' (the entry's) order: the line the person
-    posts (`PersonInputs.follow_up`, spec 051's `FOLLOW_UP_LINES`) on the rung `follow_up_lines` gave it -- the first
-    rung their own picks go against (`interviewer_fake.first_rung` over `founder_side(entry)`). A skipper (`None`)
-    posts no text and is not themed."""
+    """`[(rung, text)]` the script groups (spec 064 FR-7): every rung's one line (`FOLLOW_UP_LINES`) -- since keel-cloud
+    118 the rung a person is asked on is the walk's at answer time, so the script cannot know who lands where, only that
+    whoever does types that rung's line."""
     from harness import interviewer_fake as fake                       # noqa: PLC0415
-    founder = founder_side(entry)
-    out = []
-    for person in people:
-        if not person.follow_up:
-            continue
-        rung = fake.first_rung(person.picks, founder, person.link, b2b=is_b2b(entry))
-        if rung:
-            out.append((rung, person.follow_up))
-    return out
+    return [(rung, FOLLOW_UP_LINES[rung][0]) for rung in fake.RUNGS]
 
 
 def themes_entries(entry, follow_ups) -> list[dict]:
-    """The script's THEMES entries (keel-runtime 012's shape): for each dimension the entry leaves failing (registry
-    order) that the walks give follow-up answers on, `{dimension, outcome: COMPLETED, result: {themes: [{label,
-    answers}]}}` -- the fake's piles (`interviewer_fake.themes`, keel-cloud's `FakeThemes`) of those answers, each
-    pile's texts verbatim, once each, in the order the walks post them (a text two people typed resolves to both their
-    ids) -- then the catch-all, `{outcome: COMPLETED, result: {themes: []}}`, last."""
+    """The script's THEMES entries (keel-runtime 012's shape): for each dimension the walks can give follow-up answers
+    on (registry order, any status -- keel-cloud 119 groups held lines too), `{dimension, outcome: COMPLETED, result:
+    {themes: [{label, answers}]}}` -- the fake's piles (`interviewer_fake.themes`, keel-cloud's `FakeThemes`, the
+    leftovers ON_THEIR_OWN) of those answers, each pile's texts verbatim, once each -- then the catch-all, `{outcome:
+    COMPLETED, result: {themes: []}}`, last."""
     from harness import interviewer_fake as fake                       # noqa: PLC0415
     by_rung: dict[str, list[str]] = {}
     for rung, text in follow_ups:
         by_rung.setdefault(rung, []).append(text)
     out = []
-    for key in failing_keys(entry):
+    for key in NAMES:
         texts = by_rung.get(key)
         if not texts:
             continue
@@ -1118,7 +1272,10 @@ def founder_inputs(entry) -> FounderInputs:
         # Spec 041 call 93: the persona's role as r10 records it (`persona.decision_maker.role`: *agency*,
         # *owner*), the word keel-cloud 087 read it as ("a B2B decider is the persona's role, 'the agency'"), so
         # Buyer and payer's belief -- "The agency decides, ..." -- is the corpus's; not the role's `label`.
-        decider = {"kind": "SOMEONE_ELSE", "role": entry.decision_maker_role()}
+        # spec 064 FR-6 / 6a (keel-cloud 123 FR-10, keel-web 099): a title for every B2B entry -- the entry's
+        # `persona.decision_maker.title`, else the role word (keel-web holds Continue until one is typed)
+        decider = {"kind": "SOMEONE_ELSE", "role": entry.decision_maker_role(),
+                   "title": entry.decider_title() or entry.decision_maker_role()}
     else:
         decider = {"kind": "SAME_PERSON"}
     return FounderInputs(
@@ -1149,11 +1306,17 @@ class Pick:
     chip: str | None = None
     #: The recall period the corpus recorded a cost total over (`quarter` throughout r10 and r11).
     cost_period: str | None = None
+    #: Spec 064 FR-3 (keel-cloud 115): a value box's answer, `{low, high}` in the founder's own unit and period (one
+    #: number is both ends) -- sent as `interval`, never re-expressed.
+    interval: dict | None = None
 
     def asked_over(self, period: str | None) -> "Pick":
         """This cost total re-expressed over `period`, the recall period keel-cloud asks it over
         (`InterviewItem.costTotal.recallPeriod`), by keel-cloud's own `Period` days -- so the cost the
-        engine normalises to the founder's period is the corpus's to the last digit (spec 039 D-3)."""
+        engine normalises to the founder's period is the corpus's to the last digit (spec 039 D-3). A value box's
+        interval is never re-expressed: it is asked in the founder's period, and the r13 pick already is."""
+        if self.interval is not None:
+            return self
         if self.cost is None or not self.cost.get("value") or not period or not self.cost_period \
                 or period == self.cost_period:
             return self
@@ -1172,6 +1335,9 @@ class Pick:
             return out
         if self.cost is not None:
             out["costTotal"] = dict(self.cost)
+            return out
+        if self.interval is not None:
+            out["interval"] = {"low": self.interval["low"], "high": self.interval.get("high", self.interval["low"])}
             return out
         out["optionIds"] = [option_id(token, self.dimension, c) for c in self.codes]
         if self.advantages:
@@ -1192,6 +1358,12 @@ class PersonInputs:
     #: Spec 051 (keel-cloud 103): what this person types on the one follow-up when one is asked of them -- one
     #: composed sentence (`FOLLOW_UP_LINES`), no name, no digit; None presses *Skip this one*.
     follow_up: str | None = None
+    #: Spec 064 FR-4 (keel-cloud 120): inside the segment's condition -- the chip answered inside; False is thanked at
+    #: the chip and posts `{"outsideSegment": true, "answers": []}`.
+    in_segment: bool = True
+    #: Spec 064 FR-7: a corpus pick the served options cannot carry, re-expressed (`(dimension, corpus, sent)`) -- a
+    #: finding, never a silent drop (Commitment's *yes, after trying it first* where no smaller step is served).
+    remapped: tuple = ()
 
     def response(self, token: str, recall_period: str | None = None) -> dict:
         """The one `POST /v2/i/{token}/interview/response` body; a cost total re-expressed over
@@ -1199,6 +1371,8 @@ class PersonInputs:
         answers = [p.asked_over(recall_period).as_wire(token) for p in self.picks]
         if self.link == LINK_B2B:
             return {"answers": answers}
+        if not self.in_segment:
+            return {"outsideSegment": True, "answers": []}
         if not self.recency:
             return {"recency": False, "answers": []}
         body: dict = {"recency": True, "answers": answers}
@@ -1219,6 +1393,14 @@ def _pick(entry, key: str, raw) -> Pick:
         if chip not in ESCAPES:
             raise VectorsScriptError(f"{entry.id}: {key}'s chip {chip!r} is not an escape at contract 14")
         return Pick(dimension=key, chip=chip.upper())
+    if key == "commercial.existing_sacrifice" and entry.chain():
+        # spec 064 FR-3 (keel-cloud 115 FR-2): the value box, in the founder's unit and period as the r13 pick is
+        if not isinstance(raw, dict):
+            raise VectorsScriptError(f"{entry.id}: {key} pick {raw!r} is not a value box")
+        if raw.get("nothing"):
+            return Pick(dimension=key, chip=VALUE_BOX_CHIPS["nothing"])
+        return Pick(dimension=key, interval={"low": raw["low"], "high": raw.get("high", raw["low"])},
+                    cost_period=raw.get("period"))
     if key == "commercial.existing_sacrifice":
         if not isinstance(raw, dict):
             raise VectorsScriptError(f"{entry.id}: {key} pick {raw!r} is not a cost total")
@@ -1249,13 +1431,18 @@ def founder_side(entry):
     importance = entry.founder_list("problem.importance")
     price = (_founder(entry, "commercial.price") or {}).get("answer")
     low = float(price["low"]) if isinstance(price, dict) and price.get("low") is not None else None
+    chain = entry.chain()
+    if chain:
+        # keel-cloud 115 `Ladder.Founder.of`: held to its own rung edge -- the one-off on up front then nothing; free none
+        low = None if price.get("shape") == "FREE" else float(
+            price["upfrontLow"] if chain_mod.once(price) else price["low"])
     buyer = entry.founder_list("commercial.buyer_payer_alignment")
     supports = None
     if buyer and buyer["items"]:
         tested = entry.tested("commercial.buyer_payer_alignment") or {}
         supports = (fake.BUYER_ALONE,) if tested.get("code") == NOBODY_ELSE[0] else fake.BUYER_SUPPORTS
     return fake.Founder(importance_item=wire_code("problem.importance", 0) if importance and importance["items"]
-                        else None, price_low=low, buyer_supports=supports)
+                        else None, price_low=low, buyer_supports=supports, chain_price=chain)
 
 
 def founder_follow_up_words(entry) -> dict[str, str | None]:
@@ -1265,42 +1452,23 @@ def founder_follow_up_words(entry) -> dict[str, str | None]:
             "{effort}": (entry.tested("solution.adoption_friction") or {}).get("label")}
 
 
-#: Spec 051 FR-11: the follow-up lines the corpus people type -- composed here (r11 records none), one sentence each, no
-#: name and no digit, three a rung so the people on one rung say different things (the themes job groups them, spec
-#: 052). A person on the rung types the line of their place among that rung's people in the entry, cycling.
+#: Spec 051 FR-11: the follow-up lines the corpus people type -- composed here (r11 records none), one sentence, no name
+#: and no digit. **Spec 064 FR-7: one line a rung** (judgement call): since keel-cloud 118 the rung a person is asked on
+#: depends on the deciding lines of the standings at that moment (read off the served standings at walk time), and
+#: since 119 a THEMES job starts at the end of every reading batch over the answers so far -- while the scripted runtime
+#: resolves a theme's texts verbatim and refuses one the context does not carry. One line a rung makes every partial
+#: context resolve to the one theme of that line, whoever was asked there. (The first of each rung's three spec 051
+#: lines is kept; Purchase friction, a rung since 118, gains its own.)
 FOLLOW_UP_LINES = {
-    "problem.importance": (
-        "The other two land on me every single week, so they come first.",
-        "Those two cost real money when they go wrong, this one only costs time.",
-        "Customers notice those two straight away and nobody notices this one."),
-    "problem.current_solution_satisfaction": (
-        "A quick check at the end of the day usually catches it.",
-        "Habit mostly, a short list that I tick off before anything goes out.",
-        "Someone on the team double checks it before it matters."),
-    "solution.compatibility": (
-        "Approval sits with someone else and they are rarely around.",
-        "Our setup does not let me add a new tool without help.",
-        "The people involved are never in the same place at once."),
-    "solution.relative_advantage": (
-        "Fewer emails back and forth would have helped far more.",
-        "Only a faster answer from the other side would have.",
-        "A clear record of what was agreed would have."),
-    "solution.adoption_friction": (
-        "Another step on a busy day is one step too many.",
-        "Learning a new app is the part I never have time for.",
-        "My team would push back on anything extra to do."),
-    "commercial.price": (
-        "Proof that it saves time every month would make it worth more.",
-        "Seeing it work with our own clients first would.",
-        "A trial period where the difference is obvious."),
-    "commercial.buyer_payer_alignment": (
-        "My manager had to sign it off and wanted to see the cost.",
-        "Finance needed a written quote before anything was agreed.",
-        "The owner wanted to hear from someone like us who uses it."),
-    "commercial.commitment": (
-        "A free trial on one small job first.",
-        "A short demo with our own numbers in it.",
-        "Just a look at it before committing to anything."),
+    "problem.importance": ("The other two land on me every single week, so they come first.",),
+    "problem.current_solution_satisfaction": ("A quick check at the end of the day usually catches it.",),
+    "solution.compatibility": ("Approval sits with someone else and they are rarely around.",),
+    "solution.relative_advantage": ("Fewer emails back and forth would have helped far more.",),
+    "solution.adoption_friction": ("Another step on a busy day is one step too many.",),
+    "commercial.price": ("Proof that it saves time every month would make it worth more.",),
+    "commercial.buyer_payer_alignment": ("My manager had to sign it off and wanted to see the cost.",),
+    "commercial.purchase_friction": ("Finance wanted written quotes before anyone signed.",),
+    "commercial.commitment": ("A free trial on one small job first.",),
 }
 #: Spec 051 FR-4: who presses *Skip this one* instead (one a scenario, on a rung others on it type for).
 FOLLOW_UP_SKIPS = {"01-countly": ("Lena Fischer",), "05-paidly": ("Viktor Fern",), "07-mulchrun": ("Jamal Washington",)}
@@ -1312,12 +1480,12 @@ STORY_SPOKEN = {"01-countly": {"Priya Natarajan": "quiet", "Hana Yoshida": "refu
 
 
 def follow_up_lines(entry, people: list) -> dict[str, str | None]:
-    """`{person: line}` for every person a follow-up is owed (by the harness's own walk, `first_rung`), the skippers'
-    `None`; nobody else is in it."""
+    """`{person: line}` for every person a follow-up is owed by the harness's walk before anyone answered (registry
+    order, no deciding line yet), the skippers' `None`; nobody else is in it. The walk at answer time may ask another
+    rung (`follow_up_line` then types that rung's line)."""
     from harness import interviewer_fake as fake                       # noqa: PLC0415
 
     founder = founder_side(entry)
-    seen: dict[str, int] = {}
     out: dict[str, str | None] = {}
     for person in people:
         if person.link != LINK_B2B and not person.recency:
@@ -1325,31 +1493,43 @@ def follow_up_lines(entry, people: list) -> dict[str, str | None]:
         rung = fake.first_rung(person.picks, founder, person.link, b2b=is_b2b(entry))
         if rung is None:
             continue
-        n = seen.get(rung, 0)
-        seen[rung] = n + 1
-        lines = FOLLOW_UP_LINES[rung]
-        out[person.person] = None if person.person in FOLLOW_UP_SKIPS.get(entry.id, ()) else lines[n % len(lines)]
+        out[person.person] = None if person.person in FOLLOW_UP_SKIPS.get(entry.id, ()) else FOLLOW_UP_LINES[rung][0]
     return out
 
 
-def follow_up_question(entry, picks: list, link: str, interview: dict, token: str) -> dict | None:
-    """Spec 051 FR-2 / judgement call 1: the one follow-up the cloud owes these picks on this link -- the rung by the
-    harness's own walk and its text filled the way `FollowUpComposer` fills it, from the served labels (`interview`,
+def follow_up_line(entry, person, owed: dict | None) -> str | None:
+    """What `person` types on the follow-up they are actually asked (`owed`, the walk at answer time): None for a
+    skipper or where nothing is owed; a back-test person's own words where the file has them; else that rung's line."""
+    if not owed or person.person in FOLLOW_UP_SKIPS.get(entry.id, ()):
+        return None
+    own = next((p.follow_up for p in entry.people() if p.person == person.person and getattr(p, "follow_up", None)),
+               None)
+    return own or FOLLOW_UP_LINES[owed["dimension"]][0]
+
+
+def follow_up_question(entry, picks: list, link: str, interview: dict, token: str, first=()) -> dict | None:
+    """Spec 051 FR-2 / judgement call 1: the one follow-up the cloud owes these picks on this link -- the stem by the
+    harness's own walk (spec 064 FR-7, keel-cloud 118: the deciding lines `first` taken first, an answer a second stem
+    is asked on owed too) and its text filled the way `FollowUpComposer` fills it, from the served labels (`interview`,
     the person's own link) and the founder's own words -- or None. The walk holds the route's answer and the screen to
     it."""
     from harness import interviewer_fake as fake                       # noqa: PLC0415
 
     served = {i.get("dimension"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
-    rung = fake.first_rung(picks, founder_side(entry), link, b2b=is_b2b(entry), served=set(served))
-    if rung is None:
+    stem = fake.first_stem(picks, founder_side(entry), link, b2b=is_b2b(entry), served=set(served), first=first)
+    if stem is None:
         return None
+    rung, also = stem
     item = served.get(rung) or {}
     labels = {o.get("optionId"): o.get("label") for o in item.get("options") or []}
     label = lambda code: labels.get(option_id(token, rung, code))  # noqa: E731
     pick = next((p for p in picks if p.dimension == rung), None)
     codes = list(pick.codes) if pick else []
     values: dict[str, str | None] = {"{occasion}": interview.get("occasion")}
-    if rung == "problem.importance":
+    if also:
+        step = smaller_step(entry)
+        values["{smaller_step}"] = the_step(step) if step else None
+    elif rung == "problem.importance":
         values["{their_picks}"] = fake.joined([label(c) for c in codes], "and")
         values["{founder_item}"] = fake.lower(label(founder_side(entry).importance_item))
     elif rung == "problem.current_solution_satisfaction":
@@ -1364,7 +1544,18 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
     elif rung == "commercial.price":
         values["{band}"] = fake.WOULD_NOT_PAY_BAND if codes[:1] == [fake.WOULD_NOT_PAY] else \
             fake.lower(label(codes[0]) if codes else None)
-    return {"dimension": rung, "text": fake.fill(rung, values), "spoken": fake.rung(rung)[3]}
+    return {"dimension": rung, "text": fake.fill(rung, values, also=also), "spoken": fake.spoken_of(rung, also=also),
+            "also": also}
+
+
+def the_step(step: str) -> str:
+    """keel-cloud 118 `ItemFrames.theStep`: *the free trial* for *a free trial*; a step with its own article kept."""
+    low = step.lower()
+    if low.startswith("a "):
+        return "the " + step[2:]
+    if low.startswith("an "):
+        return "the " + step[3:]
+    return step if low.startswith(("the ", "your ", "their ", "my ")) else "the " + step
 
 
 def with_pick(person: "PersonInputs", dimension: str, codes: list[str]) -> "PersonInputs":
@@ -1373,6 +1564,44 @@ def with_pick(person: "PersonInputs", dimension: str, codes: list[str]) -> "Pers
 
     picks = [dataclasses.replace(p, codes=list(codes)) if p.dimension == dimension else p for p in person.picks]
     return dataclasses.replace(person, picks=picks)
+
+
+#: keel-cloud 118 FR-1: the conditional yes is served only where the founder's Commitment list carries a smaller step.
+CONDITIONAL_YES = "yes_after_trying"
+NOT_SERVED_YES = "probably_not"
+
+
+def smaller_step(entry) -> str | None:
+    """keel-cloud 118 `ItemFrames.smallerStep`: the Commitment list's second item, lower-cased, or None (none served)."""
+    saved = entry.founder_list("commercial.commitment")
+    items = (saved or {}).get("items") or []
+    label = items[1].get("label") if len(items) > 1 else None
+    return fake_lower(label) if label and label.strip() else None
+
+
+def fake_lower(label: str | None) -> str | None:
+    if label is None:
+        return None
+    label = label.strip()
+    return label if len(label) > 1 and label[1].isupper() else label[:1].lower() + label[1:]
+
+
+def _served_commitment(entry, picks: list) -> tuple[list, tuple]:
+    """Spec 064 FR-7 (keel-cloud 118 FR-1): Commitment's options are written from the founder's step -- *Yes, I'd
+    {step}*, *Yes, after {smaller step} first* (`conditional: true`) only where the list carries a smaller step, then
+    *Probably not*, *No*. A corpus `yes_after_trying` rides on the served conditional option where one is served, and
+    on *probably not* where none is: the remap is returned, so the journey names it (a finding, not a silent drop)."""
+    if smaller_step(entry) is not None:
+        return picks, ()
+    out, remapped = [], []
+    import dataclasses                                                 # noqa: PLC0415
+    for pick in picks:
+        if pick.dimension == "commercial.commitment" and pick.codes == [CONDITIONAL_YES]:
+            out.append(dataclasses.replace(pick, codes=[NOT_SERVED_YES]))
+            remapped.append(("commercial.commitment", CONDITIONAL_YES, NOT_SERVED_YES))
+        else:
+            out.append(pick)
+    return out, tuple(remapped)
 
 
 def person_inputs(entry) -> list[PersonInputs]:
@@ -1385,11 +1614,13 @@ def person_inputs(entry) -> list[PersonInputs]:
             asked -= set(plan_keys(entry, 3, LINK_PRIMARY))
         asked.discard("problem.prevalence")
         picks = [_pick(entry, key, raw) for key, raw in (person.picks or {}).items() if key in asked]
+        picks, remapped = _served_commitment(entry, picks)
         people.append(PersonInputs(
             person=person.person, link=person.link,
-            recency=None if person.link == LINK_B2B else person.recency == "yes",
+            recency=None if person.link == LINK_B2B or not person.in_segment else person.recency == "yes",
             story=person.story, anchor_chip=STORY_CHIPS.get(person.chip) if person.chip else None,
-            picks=picks, pilot_opt_in=person.pilot_opt_in, anchoring=person.anchoring))
+            picks=picks if person.in_segment else [], pilot_opt_in=person.pilot_opt_in and person.in_segment,
+            anchoring=person.anchoring, in_segment=person.in_segment, remapped=remapped))
     import dataclasses                                                 # noqa: PLC0415
 
     lines = follow_up_lines(entry, people)

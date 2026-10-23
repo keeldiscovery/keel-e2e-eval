@@ -104,8 +104,11 @@ def test_the_script_answers_every_corridor_screen_from_the_entry(entry_id):
     assert [e["result"]["anchoring"] for e in screens[vs.INTERPRET_SCREEN]] == [
         p.anchoring for p in vs.readable_people(entry)]
     context = screens[vs.CONTEXT_SCREEN][0]["result"]
-    assert context["understands"] == entry.context["understood"]
-    assert context["occasion"] == entry.context["occasion"]
+    # spec 064 FR-8c (keel-cloud 122): no `understands` -- the read-back is code's; FR-4 (120): the segment an object
+    assert "understands" not in context and context["window"] == {"proposed": None}
+    assert context["segment"] == vs.segment_of(entry) and context["occasion"] == entry.context["occasion"]
+    part1 = screens[vs.RESPONDENT_SCREEN][0]["result"]
+    assert part1.get("condition") == vs.chip_of(entry)
     assert screens[vs.PROBLEM_SCREEN][0]["result"]["statement"] == entry.interpretations["problem"]
     mechanism = screens[vs.MECHANISM_SCREEN][0]["result"]
     assert "idea_what" not in mechanism, "keel-cloud 097 F7: the idea's name is never the model's"
@@ -375,7 +378,9 @@ def test_the_founder_answers_on_the_wires_own_shapes(entry_id):
     price = commercial["commercial.price"]
     assert price.get("unsure") or set(price["price"]) == {"low", "high", "period"}
     if vs.is_b2b(entry):
-        assert founder.decider == {"kind": "SOMEONE_ELSE", "role": entry.decision_maker_role()}
+        # spec 064 FR-6 (keel-cloud 123 FR-10, keel-web 099): a title for every B2B entry, else the role word
+        assert founder.decider == {"kind": "SOMEONE_ELSE", "role": entry.decision_maker_role(),
+                                   "title": entry.decider_title() or entry.decision_maker_role()}
     else:
         assert founder.decider == {"kind": "SAME_PERSON"}
     assert founder.window.as_wire() == entry.context["recall_window"]
@@ -410,15 +415,16 @@ def test_a_cost_total_is_re_expressed_over_the_period_it_is_asked_over():
     assert nothing.asked_over("month") is nothing
 
 
-def test_nothing_is_typed_as_zero_and_the_gate_story_chip_is_cant_recall_alone():
+def test_nothing_is_typed_as_zero_and_the_gate_story_chip_is_rather_not_say_again():
     """D8 / keel-web 064: Paidly's two decision-makers who lost nothing send `{AMOUNT, 0}`; Xavier Dubois's
-    r10 `rather_not_say` story chip is gone from contract 13 and travels as CANT_RECALL (spec 041 D-4)."""
+    `rather_not_say` story chip travels as RATHER_NOT_SAY again (spec 064 FR-4: keel-cloud 123 FR-3, contract 33)."""
     entry = _entry("05-paidly")
     people = {p.person: p for p in vs.person_inputs(entry)}
     for name in ("Sara Cedar", "Wanda Gorse"):
         cost = next(p for p in people[name].picks if p.dimension == "commercial.existing_sacrifice")
         assert cost.as_wire("t")["costTotal"] == {"mode": "AMOUNT", "value": 0}
-    assert people["Xavier Dubois"].anchor_chip == "CANT_RECALL"
+    assert people["Xavier Dubois"].anchor_chip == "RATHER_NOT_SAY" and vs.GATE_CHIPS == ("CANT_RECALL",
+                                                                                        "RATHER_NOT_SAY")
 
 
 def test_each_link_carries_only_its_own_parts():
@@ -462,7 +468,7 @@ def test_the_scenario_is_one_function_per_leg_in_the_corridors_order():
 def test_the_scenario_carries_no_classic_reader_no_model_and_no_drift_74_step():
     source = (REPO / "evals" / "corpus_scenario.py").read_text(encoding="utf-8")
     for classic in ("corpus_script", "walk_stage", "ReviewCard", "OpenedCard", "expected.buckets",
-                    "SUPPORTED", "CONTRADICTED", "DRIFT #74", "somethingElse", "RATHER_NOT_SAY"):
+                    "SUPPORTED", "CONTRADICTED", "DRIFT #74", "somethingElse"):
         assert classic not in source, classic
     assert "KEEL_SCRIPT" in source and "KEEL_CONTEXT_KEYS" in source, (
         "every job is answered by the scripted executor, through the derived keys table")
@@ -587,3 +593,48 @@ def test_the_pilot_tile_is_worded_as_keel_web_077_words_it():
         "Pilot", "2 of 20 signed up", "10% · 2 of 12 people who have it · 0 of 8 decision-makers"]
     assert ov.tiles({"pilot": {"finished": 0}}, None)["pilot"] == ["Pilot", "None yet", "fills as people finish"]
     assert not hasattr(corpus_scenario, "pilot_words") and not hasattr(corpus_scenario, "PAGE_ONE_BANS")
+
+
+# ------------------------------------------------------------------------------- spec 064: the fixed chain's script
+
+
+def test_the_founder_clause_names_the_problem_and_the_gate_frames_it_within_twenty_words():
+    """FR-4a (keel-cloud 116, *Proposed after*): every golden founder's Prevalence clause names the problem, and the gate
+    framed from it (*did you {clause}*) and Frequency stay within E4's 20 words."""
+    for entry_id, (past, base) in vs.PROBLEM_CLAUSES.items():
+        entry = _entry(entry_id)
+        assert vs.event_past(entry) == past and vs.event_base(entry) == base
+        window = vs.window_of(entry)
+        assert len(vs.gate_question(window, base).split()) <= vs.STEM_MAX_WORDS, entry_id
+
+
+def test_the_read_back_is_keel_clouds_assembled_sentence():
+    """FR-8c (keel-cloud 122 `ReadBack.sentence`): with no condition scripted the golden read-backs are 122's table word
+    for word (06, 07); with the condition (FR-4) it follows the core after *, who*."""
+    assert vs.read_back(_entry("07-mulchrun")) == (
+        "Landscaping crew leads in the Dallas-Fort Worth suburbs, spring season, when a job needs mulch and the crew has "
+        "to fetch it from the supply yard, get the mulch onto the beds and the crew onto the next job, counting the last "
+        "2 weeks.")
+    assert vs.read_back(_entry("01-countly")) == (
+        "Independent restaurant managers in the US, who run one or two sites, when a delivery does not match its "
+        "invoice, keep the stock records matching what is on the shelves, counting the last 4 weeks.")
+    assert vs.segment_line(_entry("05-paidly")) == "freelance translators in the US, who work mostly for agencies"
+
+
+def test_the_current_solution_draft_carries_the_founders_rungs_and_the_line():
+    """FR-5a (keel-cloud 117's golden table): 2 or 3 rungs typed, the line D4's 2."""
+    want = {"01-countly": 2, "05-paidly": 3, "07-mulchrun": 2}
+    for entry_id, rungs in want.items():
+        draft = vs.drafted_list(_entry(entry_id), "problem.current_solution_satisfaction")
+        assert (draft["founder_rungs"], draft["line"]) == (rungs, 2), entry_id
+
+
+def test_a_conditional_yes_the_founders_list_cannot_carry_goes_on_probably_not_and_is_named():
+    """FR-7 (keel-cloud 118 FR-1): no golden Commitment list carries a smaller step, so its *yes, after trying it first*
+    is sent as *probably not* -- and each remap is kept on the person (a finding)."""
+    entry = _entry("05-paidly")
+    moved = [p for p in vs.person_inputs(entry) if p.remapped]
+    assert [p.person for p in moved] == ["Mo Birch", "Uma Elm", "Yusuf Hazel"]
+    for person in moved:
+        pick = next(x for x in person.picks if x.dimension == "commercial.commitment")
+        assert pick.codes == ["probably_not"]
