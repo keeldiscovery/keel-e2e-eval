@@ -20,8 +20,10 @@ if [ "$#" -lt 1 ]; then
   exit 2
 fi
 
+# A `pytest evals` run is a python `-m pytest evals...` process. The bracket keeps this pattern from matching a waiting
+# shell's own command line (a loop whose text says `pgrep -f "pytest evals"` would otherwise wait on itself forever).
 alone() {
-  while pgrep -f "pytest evals" >/dev/null 2>&1; do sleep 30; done
+  while pgrep -f -- "-m [p]ytest evals" >/dev/null 2>&1; do sleep 30; done
 }
 
 for id in "$@"; do

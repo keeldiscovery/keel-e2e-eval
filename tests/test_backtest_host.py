@@ -385,7 +385,7 @@ def test_the_runner_s_line_and_its_wait_come_from_the_run(tmp_path, capsys):
 def test_the_runner_script_waits_alone_logs_each_entry_and_prints_one_line(tmp_path):
     script = REPO / "scripts" / "backtest-host.sh"
     body = script.read_text(encoding="utf-8")
-    assert 'pgrep -f "pytest evals"' in body and "RERUNS=3" in body and "runs/backtest-host" in body
+    assert 'pgrep -f -- "-m [p]ytest evals"' in body and "RERUNS=3" in body and "runs/backtest-host" in body
     assert body.index("--no-print-directory down") < body.index("--no-print-directory backtest DOOR=host")
     for leak in ("set -x", "printenv", "env |", "auth status", "TOKEN", "KEY"):
         assert leak not in body, leak
