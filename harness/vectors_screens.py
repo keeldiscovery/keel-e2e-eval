@@ -1438,9 +1438,9 @@ class Corridor:
                 group.get_by_role("radio", name=PERSONA_SOMEONE_ELSE, exact=True).click()
                 self.page.get_by_label(PERSONA_ROLE, exact=True).fill(decider["role"])
                 title = self.page.get_by_label(PERSONA_TITLE, exact=True)
-                if decider.get("title") and title.count():
+                if title.count():
                     # spec 064 FR-6 (keel-web 099): one to five words; the entry's own, else the role word
-                    title.fill(decider["title"])
+                    title.fill(decider.get("title") or decider["role"])
             _button(self.page, CONTINUE).click()
             self.page.get_by_text(KICKER_CONTEXT).first.wait_for(state="visible", timeout=20_000)
             text = _text(self.page)

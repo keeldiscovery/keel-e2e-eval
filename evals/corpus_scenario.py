@@ -2500,7 +2500,12 @@ def _too_few_answered(j: Journey, n: int) -> None:
                          "thin": report_marks.thin(j.standings)})
         assert not faults, json.dumps(faults, indent=2, default=str)
         assert board["hero"]["verdict"] == TOO_FEW_WORDS[0], board["hero"]
-        assert TOO_FEW_WORDS[1] in (insights.get("empty") or ""), insights.get("empty")
+        # spec 064 FR-8a (keel-cloud 119 / keel-web 095): a typed follow-up draws its card even with too few answers
+        # to call, so the empty state is required only when nobody has typed a word yet
+        if insights.get("boxes"):
+            assert all(b.get("concern") or b.get("head") for b in insights["boxes"]), insights["boxes"]
+        else:
+            assert TOO_FEW_WORDS[1] in (insights.get("empty") or ""), insights.get("empty")
 
 
 def _too_few(j: Journey, when: str) -> None:
