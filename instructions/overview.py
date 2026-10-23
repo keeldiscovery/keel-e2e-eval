@@ -105,7 +105,12 @@ def card_words(card: dict) -> str:
     number = card.get("number")
     if number:
         return f"{number} {card.get('line')}"
-    return card.get("line") if card.get("status") == "LEFT_OUT" else NOBODY_YET
+    # keel-cloud 126 FR-6c: a derived Ability card carries its count inside the line and no number ("the price is
+    # below what it costs them today for 6 of 7"); a card with a real status draws its line, only one with none draws
+    # *nobody has answered this yet*
+    if card.get("status") == "LEFT_OUT" or (card.get("line") and card.get("status") not in (None, "NOT_ASKED_YET")):
+        return card.get("line")
+    return NOBODY_YET
 
 
 def tiles(facts: dict, price_median: dict | None) -> dict:
