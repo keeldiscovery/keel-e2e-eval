@@ -139,6 +139,17 @@ s007"` once on a fresh local stack of the finished masters; one `make backtest E
   `.rp-side[data-side]`; `[data-testid=insights-more]` folds at six quotes. `.rp-quote` text is unchanged. Copy moved:
   *In their own words*, *Keel is grouping what they said…*, *On their own*, the side marks for / against / apart;
   *said why* and *No follow-up on this rung* are gone.
+- **FR-8c What keel-cloud 122's build settled (contract 32, response contract 23, routing v12; added 2026-10-23).** The
+  *Keel understands* read-back is assembled by code: *"<Segment>, when <when>, <what>, counting the last <window>."* (the
+  condition joined with ", who" or " and"); the harness's read of the context sentence compares against the assembled
+  golden sentences in keel-cloud `specs/122-…/tasks.md`, never a scripted model line. `facts.decision.change {line,
+  sentence, also?}` on BUILD_BUT_CHANGE and NOT_YET; the old semicolon reason list was `instructions/overview.py`'s own
+  join -- delete it and read `change` (the golden decision sentences before/after are in 122's tasks.md; `report_marks`
+  reads `change.sentence`). `GET /v2/markets` serves `{markets[], other{…}}`; the S2 market write sends `market.kind`
+  (`"OTHER"` with `country` and `currency` for a non-listed country; the eight existing markets unchanged); PKR prints
+  "Rs 2,500". Context, frame and calibration job payloads carry `sampling` (the eval's executor fakes accept and ignore
+  it). On Keel's AI the context job runs on the light model at temperature 0 (routing v12; the back-test runs will show
+  whether the read-backs hold).
 - **FR-9 The back-test runner (062, 063).** `backtest.md` adds the equation and locked lines the founder saw, the value
   box label and bands each stranger saw, the gate chip question, the decider's title, each insight's state; the markdown
   anchor for a refused step stays *"Keel couldn't finish this step"* (093). `make backtest` on an r13 entry drives the
