@@ -2273,7 +2273,9 @@ def _follow_up_on_the_ai_link(j, record: dict) -> None:
     x = record["follow_up_ai"]
     owed = x["owed"]
     clips = x.get("clips") or {}
-    want_clip = (clips.get(owed["dimension"]) or {}).get("clipId")
+    # keel-cloud 118: a conditional yes owes the rung's *#also* stem, served under its own clip key
+    clip_key = owed["dimension"] + ("#also" if owed.get("also") else "")
+    want_clip = (clips.get(clip_key) or clips.get(owed["dimension"]) or {}).get("clipId")
     routes = [a for a in x.get("asked") or [] if a["route"] == "follow-up"]
     windows = (x.get("walk") or {}).get("windows") or []
     with j.recorder.step(f"interviewer (keel-cloud 103, keel-web 076): the AI link's follow-up on {owed['dimension']} "
