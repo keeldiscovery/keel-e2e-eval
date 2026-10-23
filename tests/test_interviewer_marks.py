@@ -683,7 +683,7 @@ def test_the_price_word_finds_a_price_and_leaves_plain_words_alone():
 # ------------------------------------------------------------------------------- the fake and charge v9, restated
 
 def test_charge_v9_and_the_fixed_lines():
-    assert (fake.PRICE_VERSION, fake.CREDITS, fake.COST_MICRO_USD, fake.CHANGE_PRICE) == (10, 400, 2_000_000, 400)
+    assert (fake.PRICE_VERSION, fake.CREDITS, fake.COST_MICRO_USD, fake.CHANGE_PRICE) == (11, 400, 2_000_000, 400)
     assert fake.FACES == ("LIVIA", "JIA", "MARIEKE", "CHUKWU") and fake.PRESELECTED == "LIVIA"
     assert fake.RETIRED == ("JUDY", "JIN", "ANNA", "DAPHNE", "TITO") and not set(fake.RETIRED) & set(fake.FACES)
     assert fake.preview_path("CHUKWU") == "/interviewer/faces/chukwu.webp"
