@@ -1868,6 +1868,12 @@ class Interview:
                 answer = wire_answers.get(item.get("itemId"))
                 if answer is not None:
                     self._answer(item, answer)
+                elif item.get("escape"):
+                    # a back-test person whose file says nothing on an item the link asks (13-aircaps, Naomi Adler on
+                    # Ability to pay): the page cannot move on unanswered, so they take the item's escape, and the walk
+                    # names it -- the entry's author sees it in the findings rather than the run stopping here
+                    self._answer(item, {"chip": str((item.get("escape") or {}).get("code") or "").upper()})
+                    self.unanswered.append({"dimension": item.get("dimension"), "took": (item.get("escape") or {}).get("label")})
                 self.screens.append(self._item_screen(item))
                 last = p_index == len(parts) - 1 and i_index == len(items) - 1
                 if last:
@@ -1921,6 +1927,8 @@ class Interview:
 
     #: The plan screen an up-front-then price drew (spec 064 FR-3), read by `_item_screen` once.
     _plan_seen: dict | None = None
+    #: Items the person's file left unanswered and the walk escaped (a back-test finding), `[{dimension, took}]`.
+    unanswered: list
 
     def _answer(self, item: dict, answer: dict) -> None:
         main = self._main()
