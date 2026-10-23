@@ -1991,6 +1991,18 @@ def _answer_one(j: Journey, person, token: str) -> None:
                                            f"follow-up is on {served_rung}, not {owed.get('dimension')} (118 FR-4)",
                                    "served": {"before": owed.get("deciding"), "after": later}})
                 owed = again
+            elif not j.strict:
+                # a back-test (19-veles, Connor Walsh): the server's rung is not the harness's ladder's even on the
+                # standings as they stand -- the harness's own ordering (the saved list's item 0 as the founder's own,
+                # the registry order) is the approximation, the server's composer the rule; the walk goes on with the
+                # served rung, the person's own words typed on it, and the disagreement is named for the judge
+                body = (walked.get("follow_up_route") or {}).get("body") or {}
+                j.findings.append({"what": f"{person.person}: the harness owed the follow-up on {owed.get('dimension')} "
+                                           f"and the server asked it on {served_rung} (the harness's rung order, not the "
+                                           "server's); walked on the served rung",
+                                   "served": {"harness": owed, "server": {k: body.get(k) for k in ("dimension", "text", "spoken")}}})
+                owed = {**owed, "dimension": served_rung, "text": body.get("text"), "spoken": body.get("spoken"),
+                        "deciding": later}
         _hold_the_screens(j, person, interview, walked)
         _hold_the_consent(j, person, walked)
         if speak:
