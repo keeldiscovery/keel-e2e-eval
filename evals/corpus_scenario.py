@@ -1144,11 +1144,18 @@ def _idea_unnamed(j: Journey, typed: str) -> None:
                   "422 IDEA_NAME_REQUIRED, and nothing is written", party="founder", kind="assert") as h:
         idea = j.get(j.project("/idea")) or {}
         revision = j.revision()
-        approve, approve_body = j.call("POST", j.project("/idea/approve"), {"expectedRevision": revision},
-                                       ok=(200, 422))
-        empty, empty_body = j.call("PUT", j.project("/idea"), {
-            "expectedRevision": revision, "what": "", "how": idea.get("how"), "belief": idea.get("belief")},
-            ok=(200, 422))
+        named_on_arrival = not j.strict and (seed_name is not None or idea.get("what"))
+        if named_on_arrival:
+            # the two refusal probes are for an unnamed idea; on a named one they would write (a back-test seed that
+            # names its product), so they are not sent
+            approve = empty = None
+            approve_body = empty_body = {}
+        else:
+            approve, approve_body = j.call("POST", j.project("/idea/approve"), {"expectedRevision": revision},
+                                           ok=(200, 422))
+            empty, empty_body = j.call("PUT", j.project("/idea"), {
+                "expectedRevision": revision, "what": "", "how": idea.get("how"), "belief": idea.get("belief")},
+                ok=(200, 422))
         after = j.get(j.project("/idea")) or {}
         refusals = {"approve": {"status": approve, "code": _refusal(approve_body)},
                     "empty": {"status": empty, "code": _refusal(empty_body)}}
@@ -1158,7 +1165,7 @@ def _idea_unnamed(j: Journey, typed: str) -> None:
                          "empty": [422, feedback_marks.IDEA_NAME_REQUIRED], "revision": revision},
                         {"seed name": seed_name, "idea": idea, "refusals": refusals, "after": after,
                          "bodies": [approve_body, empty_body]})
-        if not j.strict and (seed_name is not None or idea.get("what")):
+        if named_on_arrival:
             # a back-test seed may name the product (14-code-four's does, in every sentence); 097 F7 is a rule for
             # Keel's drafting, not for the founder's words -- what the wire served is recorded as a finding for the
             # judge (did Keel copy the seed's name into `what`?) and the walk goes on, naming it as the founder would
@@ -1170,7 +1177,7 @@ def _idea_unnamed(j: Journey, typed: str) -> None:
             assert idea.get("what") is None and idea.get("approved") is False, idea
             for refusal in refusals.values():
                 assert (refusal["status"], refusal["code"]) == (422, feedback_marks.IDEA_NAME_REQUIRED), refusals
-        assert after.get("revision") == revision and after.get("approved") is False, after
+        assert after.get("approved") is False and (named_on_arrival or after.get("revision") == revision), after
     if not NAME_ON_THE_WIRE:
         return
     with _step(j, f"the journey names the idea {vs.short_name(j.entry)!r} on the wire (PUT idea, spec 046 T004 until "
