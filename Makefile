@@ -51,12 +51,13 @@ sample: venv
 
 # make gallery (spec 063) exports the example gallery: for each back-test run directory (RUNS=<dir>[,<dir>...], each a
 # path or a name under RUNS_DIR; default the newest finished `runs/*-backtest-<id>` of every entry in
-# instructions/gallery_names.toml), the 060 file set the run's export/ holds, renamed by that map (whole word, the first
-# letter's case kept), plus interview.json (the served interview per link, text only) and manifest.json (the keel-cloud
-# and keel-web SHAs and exportedAt, nothing else), into OUT/<slug>/, and one OUT/index.json, B2B and B2C alternating.
-# Which run made which slug is written once OUTSIDE OUT, to runs/gallery/provenance-<exportedAt>.json (PROVENANCE_DIR=
-# overrides; never under OUT). It refuses, writing nothing, on one old name anywhere under OUT, any case, no file
-# excluded (spec 063 FR-3, amended 2026-10-22). No stack, no model, no money.
+# instructions/gallery_names.toml), the 060 file set the run's export/ holds, plus interview.json (the served interview
+# per link, text only) and manifest.json, into OUT/<slug>/, and one OUT/index.json, B2B and B2C alternating. Since the
+# amendment of record (2026-10-23) each example is a SIMULATED study attributed to the real company: nothing is renamed,
+# and every index row and manifest carry inspiredBy, publicDescription (with URL and date), assumptions, simulated and
+# the fixed disclaimer -- a slug missing any of them is refused, nothing written. Which run made which slug is written
+# once OUTSIDE OUT, to runs/gallery/provenance-<exportedAt>.json (PROVENANCE_DIR= overrides; never under OUT), and no
+# entry id or run name may appear in any byte under OUT. No stack, no model, no money.
 # **It writes into a sibling checkout** when OUT is left out (keel-web's public/sample/, the checkout stack.toml names)
 # and commits nothing there: committing the snapshot is the operator's step, with keel-web 100. The root
 # public/sample/*.json of `make sample` is left as it is.

@@ -1,4 +1,5 @@
-"""Spec 063: the example gallery export -- the six back-test ideas' briefs, renamed, into the sample snapshot.
+"""Spec 063: the example gallery export -- the six back-test ideas' briefs into the sample snapshot, each a simulated
+study inspired by a named company (amendment of record, 2026-10-23).
 
 `make gallery RUNS=<dir>[,<dir>...] OUT=<dir>` (FR-1) reads finished `make backtest` run directories (spec 062) and
 writes, for each, the 060 file set under `<OUT>/<slug>/` plus `<slug>/interview.json` (FR-3a) and `<slug>/manifest.json`
@@ -8,7 +9,7 @@ What a run directory gives, and what is read from where (tasks.md, judgement cal
 
 - `export/` -- spec 062 FR-3's ungated 060/061 snapshot of the founder's reads (names kept, emails, the founder and
   tokens withheld), its `manifest.json` listing every file. That IS the 060 file set; it is read back, withheld again
-  (a no-op on a good run, a guard on a bad one) and renamed.
+  (a no-op on a good run, a guard on a bad one).
 - `backtest.json` -- the entry (`id`, `b2b`, `idea_name`), the stack's SHAs (`stack`), and per link
   `respondents[link].served` (the interview the stranger's page fetched, spec 062 FR-4.2) and `.drawn` (what the
   page drew for the run's one watched person: the kickers, the gate's chip labels, the follow-up screen).
@@ -20,16 +21,15 @@ What a run directory gives, and what is read from where (tasks.md, judgement cal
 The back-test entries themselves are NOT loaded through `instructions.corpus.load`: they are corpus revision 13 in
 keel-cloud now, and this eval's loader reads revision 12 until spec 064 (judgement call 1).
 
-The rename (FR-2): every string value of every exported file is passed through `Renamer.text` -- each `replaces`
-string of `instructions/gallery_names.toml`, whole word, matched without regard to case, written as the entry's `name`
-with the first letter's case kept -- and nothing else changes. Then the survivors grep reads the whole output back
-and refuses the export (nothing written) if any `replaces` string of any entry is left anywhere, any case.
+Attribution (the amendment of record, 2026-10-23, over FR-2 and FR-3): the real company name is the example's
+attribution, everywhere, so nothing is renamed. Each index row and `<slug>/manifest.json` carry `inspiredBy {name,
+batch, ycUrl}` and `publicDescription {text, url, date}` (from `instructions/gallery_names.toml`), `assumptions[]` (the
+founder's belief sentences the run tested, as the standings served them), `simulated: true` and the fixed
+`disclaimer`. The attribution check refuses a slug missing any of them, or whose disclaimer is not the fixed sentence.
 
-Provenance (FR-3, amended 2026-10-22: the real company names never reach `public/sample/`, which everyone is served):
-`<slug>/manifest.json` carries `cloud`, `web` and `exportedAt` only; `index.json` the SHAs; no entry
-id, run name, `renamed.from` or source path is written under OUT. The slug -> entry / run link goes once to
+Provenance stays private (FR-3, amended 2026-10-22): no entry id, run name or source path is written under OUT -- the
+check greps every byte under OUT for them -- and the slug -> entry / run link goes once to
 `runs/gallery/provenance-<exportedAt>.json` (`[{slug, entry, run, cloud, web, renamed: {from, to}}]`), outside OUT.
-After writing, every byte under OUT is grepped once more, no file excluded.
 """
 
 from __future__ import annotations
@@ -57,6 +57,9 @@ INDEX = "index.json"
 INTERVIEW = "interview"            # the read key; written as interview.json beside the 060 files
 LINK_ORDER = ("PRIMARY", "COMMERCIAL_B2B")
 
+#: The amendment of record's attribution, alike in every index row and its slug's manifest.
+ATTRIBUTION = ("inspiredBy", "publicDescription", "simulated", "disclaimer", "assumptions")
+
 #: FR-1's seven gallery words, in the spec's order.
 AXES = ("whoHasIt", "whoPays", "rhythm", "costMode", "priceShape", "firstStep", "kind")
 
@@ -70,7 +73,16 @@ _DROPPED = frozenset({"itemId", "optionId", "id", "token", "costItemId", "advant
 _RHYTHM = {"NIGHTS": "nightly", "DAYS": "daily", "WORKING_DAYS": "every working day", "WEEKS": "weekly",
            "MONTHS": "monthly"}
 _PERIODLY = {"day": "daily", "week": "weekly", "month": "monthly", "quarter": "quarterly", "year": "yearly"}
-_SLUG = re.compile(r"^[a-z][a-z0-9]*$")
+_SLUG = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_YC = "https://www.ycombinator.com/companies/"
+
+#: The amendment of record's fixed sentence, `name` and `batch` filled from `inspiredBy`.
+DISCLAIMER = ("A simulated study inspired by {name} (Y Combinator {batch}). The founder's answers, the twenty "
+              "participants and everything they said are fictional, written from {name}'s public material to show "
+              "what Keel does. Not customer research about {name}; not affiliated with {name} or Y Combinator.")
+#: The disclaimer says "the twenty participants": a run with another number is refused rather than mis-described.
+PARTICIPANTS = 20
 
 
 class GalleryRefused(AssertionError):
@@ -88,8 +100,14 @@ class GalleryName:
     entry: str
     slug: str
     name: str
-    replaces: tuple[str, ...]
+    replaces: tuple[str, ...]          # () since 2026-10-23: the rename map went
+    inspired_by: dict = field(default_factory=dict, hash=False, compare=False)
+    public_description: dict = field(default_factory=dict, hash=False, compare=False)
     axes: dict = field(default_factory=dict, hash=False, compare=False)
+
+    def disclaimer(self) -> str | None:
+        name, batch = (self.inspired_by or {}).get("name"), (self.inspired_by or {}).get("batch")
+        return DISCLAIMER.format(name=name, batch=batch) if name and batch else None
 
 
 def load_names(path: Path = NAMES_FILE) -> list[GalleryName]:
@@ -104,17 +122,19 @@ def load_names(path: Path = NAMES_FILE) -> list[GalleryName]:
             problems.append(f"gallery[{i}] has no entry")
             continue
         if not (isinstance(slug, str) and _SLUG.match(slug)):
-            problems.append(f"{entry}: slug {slug!r} is not lowercase letters and digits")
+            problems.append(f"{entry}: slug {slug!r} is not lowercase letters, digits and hyphens")
         if not (isinstance(name, str) and name.strip()):
             problems.append(f"{entry}: no name")
-        if not (isinstance(replaces, list) and replaces and all(isinstance(r, str) and r.strip() for r in replaces)):
-            problems.append(f"{entry}: replaces must be a list of one or more strings")
-            replaces = []
+        if replaces not in (None, []):
+            problems.append(f"{entry}: replaces must be [] -- the rename map went (spec 063, 2026-10-23)")
+        replaces = []
         axes = row.get("axes") or {}
         unknown = sorted(set(axes) - set(AXES))
         if unknown:
             problems.append(f"{entry}: axes {unknown} are not among {list(AXES)}")
-        out.append(GalleryName(entry=entry, slug=slug or "", name=name or "", replaces=tuple(replaces), axes=dict(axes)))
+        out.append(GalleryName(entry=entry, slug=slug or "", name=name or "", replaces=tuple(replaces),
+                               inspired_by=dict(row.get("inspired_by") or {}),
+                               public_description=dict(row.get("public_description") or {}), axes=dict(axes)))
     for what in ("entry", "slug", "name"):
         seen = [getattr(n, what) for n in out]
         dupes = sorted({v for v in seen if seen.count(v) > 1})
@@ -123,45 +143,6 @@ def load_names(path: Path = NAMES_FILE) -> list[GalleryName]:
     if problems:
         raise GalleryRefused([f"{path.name}: {p}" for p in problems])
     return out
-
-
-class Renamer:
-    """FR-2: every whole-word occurrence of every `replaces` string, any case, becomes its `name` with the first
-    letter's case kept (`Fresco` -> `Daylog`, `fresco` -> `daylog`). Longest first, so `Palus Finance` is one
-    replacement and never `Idlewell Finance`."""
-
-    def __init__(self, names: Iterable[GalleryName]):
-        self.names = list(names)
-        self._to: dict[str, str] = {}
-        for n in self.names:
-            for r in n.replaces:
-                self._to[r.casefold()] = n.name
-        words = sorted(self._to, key=len, reverse=True)
-        self._rx = (re.compile(r"(?<!\w)(?:" + "|".join(re.escape(w) for w in words) + r")(?!\w)", re.IGNORECASE)
-                    if words else None)
-        self.old = [r for n in self.names for r in n.replaces]
-
-    def _one(self, m: re.Match) -> str:
-        found = m.group(0)
-        new = self._to[found.casefold()]
-        return (new[0].upper() if found[0].isupper() else new[0].lower()) + new[1:]
-
-    def text(self, value: str) -> str:
-        return self._rx.sub(self._one, value) if self._rx is not None else value
-
-    def value(self, value: Any) -> Any:
-        """A deep copy of a JSON value with every string value renamed; keys and every non-string kept."""
-        if isinstance(value, str):
-            return self.text(value)
-        if isinstance(value, dict):
-            return {k: self.value(v) for k, v in value.items()}
-        if isinstance(value, list):
-            return [self.value(v) for v in value]
-        return value
-
-    def survivors(self, written: str) -> list[str]:
-        """The `replaces` strings `written` still carries, whole word, any case. Empty is the pass."""
-        return sorted({r for r in self.old if re.search(rf"(?<!\w){re.escape(r)}(?!\w)", written, re.IGNORECASE)})
 
 
 # --------------------------------------------------------------------------------------------- the run directory
@@ -439,61 +420,130 @@ def gallery_order(rows: list[dict]) -> list[dict]:
 class Slug:
     name: GalleryName
     run: Run
-    reads: dict[str, Any]              # renamed and withheld, interview included -- what is written
-    manifest: dict                     # FR-3 (amended): cloud, web, exportedAt -- and nothing else
+    reads: dict[str, Any]              # withheld, interview included -- what is written
+    manifest: dict                     # cloud, web, exportedAt and the attribution
     row: dict                          # the index row
     provenance: dict                   # the slug's row of runs/gallery/provenance-<exportedAt>.json, never under OUT
 
 
-def prepare(name: GalleryName, run: Run, renamer: Renamer, *, exported_at: str) -> Slug:
-    """One slug in memory: withhold again (060), rename (FR-2), the interview (FR-3a), the index row (FR-1), and the
-    provenance row FR-3 keeps out of `OUT`."""
-    done = se.withhold(run.reads, founder_name=bt.IDENTITY_NAME, founder_email=bt.IDENTITY_EMAIL)
-    reads = renamer.value(done.reads)
-    iv = renamer.value(interview(run))
+def assumptions(reads: dict[str, Any]) -> list[str]:
+    """The founder's belief sentences the run tested, as the standings served them, stage by stage: every dimension
+    asked (not left out, not yet asked) that carries a `belief`."""
+    out = []
+    for vector in (reads.get("standings") or {}).get("vectors") or []:
+        for d in vector.get("dimensions") or []:
+            text = (d.get("belief") or "").strip()
+            if text and d.get("status") not in se.NOT_ASKED and text not in out:
+                out.append(text)
+    return out
+
+
+def participants(reads: dict[str, Any]) -> int:
+    """The people the run invited (the founder's invitation register)."""
+    return len(se.invitation_ids(reads.get("invitations")))
+
+
+def attribution(name: GalleryName, reads: dict[str, Any]) -> dict:
+    """The amendment of record's five fields, in the order written."""
+    return {"inspiredBy": {k: (name.inspired_by or {}).get(k) for k in ("name", "batch", "ycUrl")},
+            "publicDescription": {k: (name.public_description or {}).get(k) for k in ("text", "url", "date")},
+            "simulated": True,
+            "disclaimer": name.disclaimer(),
+            "assumptions": assumptions(reads)}
+
+
+def prepare(name: GalleryName, run: Run, *, exported_at: str) -> Slug:
+    """One slug in memory: withhold again (060), the interview (FR-3a), the attribution (the amendment of record), the
+    index row (FR-1), and the provenance row that is never written under OUT. Nothing is renamed (2026-10-23)."""
+    reads = se.withhold(run.reads, founder_name=bt.IDENTITY_NAME, founder_email=bt.IDENTITY_EMAIL).reads
+    iv = interview(run)
     reads[INTERVIEW] = iv
     figures = se.card(reads)
     stack = run.record.get("stack") or {}
     entry = run.record.get("entry") or {}
     shas = {"cloud": stack.get("keel-cloud"), "web": stack.get("keel-web")}
-    row = {"slug": name.slug, "name": name.name,
-           "oneLine": renamer.text(one_line(run.founder.get("project_name") or entry.get("title")) or ""),
-           "problem": renamer.text(one_sentence(run.founder.get("problem_seed")) or ""),
+    credit = attribution(name, reads)
+    row = {"slug": name.slug, "name": name.name, **{k: credit[k] for k in ("inspiredBy", "publicDescription",
+                                                                          "simulated", "disclaimer")},
+           "oneLine": one_line(run.founder.get("project_name") or entry.get("title")),
+           "problem": one_sentence(run.founder.get("problem_seed")),
+           "assumptions": credit["assumptions"],
            "decision": figures["decision"], "howSure": figures["howSure"],
            "pilot": figures["pilot"], "price": figures["price"], "b2b": run.b2b, **shas,
-           "axes": renamer.value(axes(run, name.axes)),
+           "axes": axes(run, name.axes),
            "interview": {"links": [{"role": l["role"], "label": l["label"], "items": item_count(l)}
                                    for l in iv["links"]]}}
     provenance = {"slug": name.slug, "entry": run.entry, "run": run.dir.name, **shas,
                   "renamed": {"from": list(name.replaces), "to": name.name}}
-    return Slug(name=name, run=run, reads=reads, manifest={**shas, "exportedAt": exported_at}, row=row,
+    return Slug(name=name, run=run, reads=reads, manifest={**shas, "exportedAt": exported_at, **credit}, row=row,
                 provenance=provenance)
 
 
-def check(slugs: list[Slug], renamer: Renamer) -> list[str]:
-    """Every refusal reason over the whole output as it would be written -- every file, manifest and the index, no
-    field excluded (FR-3 amended): FR-2's survivors (any old name of any entry, any case), 060's (an email, the
-    back-test founder, a link), and an id in interview.json."""
+def attribution_reasons(s: Slug) -> list[str]:
+    """The attribution check (replaces FR-2's survivors grep): `inspiredBy` (name, batch, a YC company page),
+    `publicDescription` (text, an https URL, an ISO date), `simulated`, the fixed disclaimer filled with this name
+    and batch, at least one assumption -- each present, alike in the index row and the manifest; and the run's
+    people the twenty the disclaimer says."""
+    why = []
+    for where, block in (("index", s.row), ("manifest", s.manifest)):
+        inspired = block.get("inspiredBy") or {}
+        if not all(isinstance(inspired.get(k), str) and inspired[k].strip() for k in ("name", "batch", "ycUrl")):
+            why.append(f"{where}: inspiredBy needs name, batch and ycUrl ({inspired})")
+        elif not inspired["ycUrl"].startswith(_YC):
+            why.append(f"{where}: inspiredBy.ycUrl {inspired['ycUrl']!r} is not a YC company page")
+        elif inspired["name"] != s.name.name:
+            why.append(f"{where}: inspiredBy.name {inspired['name']!r} is not the example's name {s.name.name!r}")
+        described = block.get("publicDescription") or {}
+        if not all(isinstance(described.get(k), str) and described[k].strip() for k in ("text", "url", "date")):
+            why.append(f"{where}: publicDescription needs text, url and date ({described})")
+        elif not described["url"].startswith("https://") or not _DATE.match(described["date"]):
+            why.append(f"{where}: publicDescription url {described['url']!r} / date {described['date']!r}")
+        if block.get("simulated") is not True:
+            why.append(f"{where}: simulated is not true")
+        if not block.get("disclaimer") or block.get("disclaimer") != s.name.disclaimer():
+            why.append(f"{where}: the disclaimer is missing or not the fixed sentence")
+        if not block.get("assumptions"):
+            why.append(f"{where}: no assumptions")
+    if {k: s.row.get(k) for k in ATTRIBUTION} != {k: s.manifest.get(k) for k in ATTRIBUTION}:
+        why.append("the index row and the manifest attribute it differently")
+    people = participants(s.reads)
+    if people != PARTICIPANTS:
+        why.append(f"the run invited {people} people; the disclaimer says twenty")
+    return [f"{s.name.slug}: {w}" for w in why]
+
+
+def check(slugs: list[Slug]) -> list[str]:
+    """Every refusal reason over the whole output as it would be written: the attribution check, 060's grep (an
+    email, the back-test founder, a link), an id in interview.json, and any provenance (an entry id, a run name, a
+    source path) in what is about to go under OUT."""
     reasons = []
+    needles = provenance_needles(slugs)
     for s in slugs:
+        reasons += attribution_reasons(s)
         written = "".join(se._dumps(v) for v in s.reads.values()) + se._dumps(s.manifest) + se._dumps(s.row)
-        left = renamer.survivors(written)
-        if left:
-            reasons.append(f"{s.name.slug}: {left} survive the rename")
         held = se.survivors(written, founder_name=bt.IDENTITY_NAME, founder_email=bt.IDENTITY_EMAIL)
         if held:
             reasons.append(f"{s.name.slug}: {held} survive the withholding")
         ids = sorted({k for k in _keys(s.reads[INTERVIEW]) if k in _DROPPED})
         if ids:
             reasons.append(f"{s.name.slug}: interview.json carries {ids}")
+        found = sorted(n for n in needles if n.lower() in written.lower())
+        if found:
+            reasons.append(f"{s.name.slug}: provenance in the public files: {found}")
     return reasons
 
 
-def survivors_under(out_dir: Path, renamer: Renamer, *, skip: Iterable[Path] = ()) -> list[str]:
-    """FR-3 (amended): every byte of every file under `out_dir` (but `skip`), any case, no exclusions -- the hits as
-    `<path>: [names]`, relative to `out_dir`. Empty is the pass."""
+def provenance_needles(slugs: list[Slug]) -> list[str]:
+    """What must never be written under OUT: each run's entry id and directory name, and the run-file words."""
+    return sorted({x for s in slugs for x in (s.run.entry, s.run.dir.name)} | {"-backtest-", "/Users/"})
+
+
+def provenance_under(out_dir: Path, needles: Iterable[str], *, skip: Iterable[Path] = ()) -> list[str]:
+    """Every byte of every file under `out_dir` (but `skip`), any case, no exclusions: the hits as `<path>: [...]`.
+    Empty is the pass."""
     out_dir = Path(out_dir)
     skip = [Path(p).resolve() for p in skip]
+    needles = [n.lower() for n in needles]
     hits = []
     if not out_dir.is_dir():
         return hits
@@ -501,9 +551,10 @@ def survivors_under(out_dir: Path, renamer: Renamer, *, skip: Iterable[Path] = (
         resolved = path.resolve()
         if any(resolved == s or s in resolved.parents for s in skip):
             continue
-        left = renamer.survivors(path.read_bytes().decode("utf-8", errors="replace"))
-        if left:
-            hits.append(f"{path.relative_to(out_dir)}: {left}")
+        text = path.read_bytes().decode("utf-8", errors="replace").lower()
+        found = sorted(n for n in needles if n in text)
+        if found:
+            hits.append(f"{path.relative_to(out_dir)}: {found}")
     return hits
 
 
@@ -522,10 +573,10 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
     """FR-1 to FR-3a: read every run, prepare every slug, check the whole output and whatever else already sits under
     `out_dir`, and only then write `<out_dir>/<slug>/...` (each slug's directory replaced whole) and
     `<out_dir>/index.json`, then grep every byte under `out_dir` once more. The slug -> entry / run link goes to
-    `<provenance_dir>/provenance-<exportedAt>.json`, never under `out_dir`. Returns `{index, slugs: {slug: {cloud, web, exportedAt, written: [files]}}, dir, provenance}`."""
+    `<provenance_dir>/provenance-<exportedAt>.json`, never under `out_dir`. Returns `{index, slugs: {slug: manifest +
+    written}, dir, provenance}`."""
     names = load_names() if names is None else names
     by_entry = {n.entry: n for n in names}
-    renamer = Renamer(names)
     exported_at = exported_at or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     out_dir, provenance_dir = Path(out_dir), Path(provenance_dir)
     if provenance_dir.resolve() == out_dir.resolve() or out_dir.resolve() in provenance_dir.resolve().parents:
@@ -545,10 +596,11 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
         seen.setdefault(r.entry, r.dir.name)
     if reasons:
         raise GalleryRefused(reasons)
-    slugs = [prepare(by_entry[r.entry], r, renamer, exported_at=exported_at) for r in runs]
-    reasons = check(slugs, renamer)
+    slugs = [prepare(by_entry[r.entry], r, exported_at=exported_at) for r in runs]
+    reasons = check(slugs)
+    needles = provenance_needles(slugs)
     replaced = [out_dir / s.name.slug for s in slugs] + [out_dir / INDEX]
-    reasons += [f"already under OUT: {hit}" for hit in survivors_under(out_dir, renamer, skip=replaced)]
+    reasons += [f"already under OUT: {hit}" for hit in provenance_under(out_dir, needles, skip=replaced)]
     if reasons:
         raise GalleryRefused(reasons)
     manifests = {}
@@ -562,9 +614,9 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
     index = gallery_order([s.row for s in slugs])
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / INDEX).write_text(se._dumps(index), encoding="utf-8")
-    left = survivors_under(out_dir, renamer)
+    left = provenance_under(out_dir, needles)
     if left:                                         # unreachable after `check`; the last word is the bytes on disk
-        raise GalleryRefused([f"written under OUT and still carrying an old name: {hit}" for hit in left])
+        raise GalleryRefused([f"written under OUT and carrying provenance: {hit}" for hit in left])
     provenance_dir.mkdir(parents=True, exist_ok=True)
     provenance = provenance_dir / f"provenance-{exported_at}.json"
     by_slug = {s.name.slug: s.provenance for s in slugs}
@@ -593,7 +645,7 @@ def main(argv: list[str] | None = None) -> int:
         m = result["slugs"][row["slug"]]
         print(f"gallery: {row['slug']:<13} {row['name']:<13} {'B2B' if row['b2b'] else 'B2C'}  {row['decision']:<17} "
               f"{len(m['written'])} files  (cloud {row['cloud']}, web {row['web']})")
-    print(f"gallery: {len(result['index'])} slugs and {INDEX} under {result['dir']}; every byte grepped, no old name; "
+    print(f"gallery: {len(result['index'])} slugs and {INDEX} under {result['dir']}; attributed, simulated, no provenance; "
           f"nothing committed anywhere")
     print(f"gallery: which run made which slug -> {result['provenance']} (outside OUT, not committed)")
     return 0

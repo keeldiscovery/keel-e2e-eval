@@ -4,17 +4,19 @@
 `runs/20261022T164045Z-backtest-08-fresco`), cut down to what the export reads: `backtest.json`'s `spec`, `run`,
 `passed`, `failed_step`, `entry`, `stack` and `respondents`; `inputs.json`'s `founder`; `export/` with the seven top
 reads, one batch and one invitation (its manifest listing those nine); and `transcript.jsonl`'s follow-up steps (every
-200, one 204), each cut to `name`, `request` and the response's `person` and `link`. `expected-interview-daylog.json`
+200, one 204), each cut to `name`, `request` and the response's `person` and `link`. `expected-interview-fresco.json`
 pins FR-3a's interview.json on it.
 
-FR-4: the rename over a fixture with the six names in mixed positions, a survivor refusing; the index shape; the file
-set per slug, interview.json included and its shape pinned. 060/061's tests (`test_sample_export.py`) are untouched.
-FR-3 as amended 2026-10-22: no entry id, run name or `renamed.from` under OUT; the provenance file outside it; every
-byte under OUT grepped, any case, no exclusions.
+FR-4 as the amendment of record (2026-10-23) leaves it: the attribution check (it replaces the rename and its
+survivors grep) -- `inspiredBy`, `publicDescription` with URL and date, `simulated`, the fixed disclaimer and the
+assumptions, alike in the index row and the manifest, each refusing when missing; the index shape; the file set per
+slug, interview.json included and its shape pinned; provenance kept out of every byte under OUT (FR-3, 2026-10-22).
+060/061's tests (`test_sample_export.py`) are untouched.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import shutil
 from pathlib import Path
@@ -28,19 +30,17 @@ from evals import sample_export as se
 REPO = Path(__file__).resolve().parent.parent
 FIXTURES = REPO / "tests" / "fixtures" / "gallery"
 RUN = FIXTURES / "20261022T164045Z-backtest-08-fresco"
-PINNED = FIXTURES / "expected-interview-daylog.json"
-OLD = ("Fresco", "Karsa", "Palus Finance", "Palus", "Issen", "Transload", "AirCaps")
+PINNED = FIXTURES / "expected-interview-fresco.json"
 AT = "2026-10-22T20:00:00Z"
+FRESCO_DISCLAIMER = ("A simulated study inspired by Fresco (Y Combinator Fall 2024). The founder's answers, the twenty "
+                     "participants and everything they said are fictional, written from Fresco's public material to "
+                     "show what Keel does. Not customer research about Fresco; not affiliated with Fresco or Y "
+                     "Combinator.")
 
 
 @pytest.fixture(scope="module")
 def names():
     return g.load_names()
-
-
-@pytest.fixture(scope="module")
-def renamer(names):
-    return g.Renamer(names)
 
 
 @pytest.fixture()
@@ -50,76 +50,110 @@ def exported(tmp_path, names):
     return out, result
 
 
-# ------------------------------------------------------------------------------------------------ FR-2 the map
+def _with(names, entry, **changes):
+    return [dataclasses.replace(n, **changes) if n.entry == entry else n for n in names]
 
-def test_the_map_is_the_spec(names):
-    assert [(n.entry, n.slug, n.name, n.replaces) for n in names] == [
-        ("08-fresco", "daylog", "Daylog", ("Fresco",)),
-        ("09-karsa", "dollarsafe", "Dollarsafe", ("Karsa",)),
-        ("10-palus", "idlewell", "Idlewell", ("Palus Finance", "Palus")),
-        ("11-issen", "talkleap", "Talkleap", ("Issen",)),
-        ("12-transload", "dockmeasure", "Dockmeasure", ("Transload",)),
-        ("13-aircaps", "captionglass", "Captionglass", ("AirCaps",)),
+
+# ------------------------------------------------------------------------------------------ the map (2026-10-23)
+
+def test_the_map_is_the_amendments(names):
+    assert [(n.entry, n.slug, n.name, n.replaces, n.inspired_by["batch"]) for n in names] == [
+        ("08-fresco", "fresco", "Fresco", (), "Fall 2024"),
+        ("09-karsa", "karsa", "Karsa", (), "Winter 2025"),
+        ("10-palus", "palus-finance", "Palus Finance", (), "Winter 2026"),
+        ("11-issen", "issen", "Issen", (), "Fall 2024"),
+        ("12-transload", "transload", "Transload", (), "Spring 2026"),
+        ("13-aircaps", "aircaps", "AirCaps", (), "Fall 2025"),
     ]
-    assert all(not n.axes for n in names)          # all seven axes are derived today (judgement call 6)
+    for n in names:
+        assert n.inspired_by == {"name": n.name, "batch": n.inspired_by["batch"],
+                                 "ycUrl": f"https://www.ycombinator.com/companies/{n.slug}"}
+        assert n.public_description["url"] == n.inspired_by["ycUrl"] and n.public_description["date"] == "2026-10-22"
+        assert n.public_description["text"].strip() and not n.axes
 
 
 def test_a_malformed_map_is_refused_by_name(tmp_path):
     bad = tmp_path / "names.toml"
-    bad.write_text('[[gallery]]\nentry = "08-fresco"\nslug = "Day Log"\nname = "Daylog"\nreplaces = []\n'
-                   '[[gallery]]\nentry = "08-fresco"\nslug = "daylog"\nname = "Daylog"\nreplaces = ["Fresco"]\n'
+    bad.write_text('[[gallery]]\nentry = "08-fresco"\nslug = "Fres Co"\nname = "Fresco"\nreplaces = ["Fresco"]\n'
+                   '[[gallery]]\nentry = "08-fresco"\nslug = "fresco"\nname = "Fresco"\nreplaces = []\n'
                    'axes = {mood = "calm"}\n', encoding="utf-8")
     with pytest.raises(g.GalleryRefused) as refused:
         g.load_names(bad)
     said = " ".join(refused.value.reasons)
-    assert "slug 'Day Log'" in said and "replaces must be" in said and "['mood']" in said
+    assert "slug 'Fres Co'" in said and "replaces must be []" in said and "['mood']" in said
     assert "entry repeated" in said and "name repeated" in said
 
 
-MIXED = {
-    "name": "Fresco",
-    "statements": ["Fresco turns a site walk into notes.", "With Karsa, savers hold dollars; Karsa's fee is low.",
-                   "Ask Palus Finance (or just Palus) where the reserve sits.", "Practise with Issen.",
-                   "Transload: measure every shipment.", "The AirCaps glasses, paired.",
-                   "a lowercase fresco, karsa, issen, transload and aircaps", "\"AirCaps\"-style quotes and FRESCO caps"],
-    "nested": [{"reveal": {"what": "Imagine Transload.", "how": "Issen listens; AirCaps captions."}}],
-    "kept": ["Frescoes", "Palusian", "Issenberg", "Transloading", "AirCapsule", 7, None, True],
-}
+def test_the_disclaimer_is_the_fixed_sentence(names):
+    assert names[0].disclaimer() == FRESCO_DISCLAIMER
+    palus = next(n for n in names if n.entry == "10-palus")
+    assert palus.disclaimer().startswith("A simulated study inspired by Palus Finance (Y Combinator Winter 2026).")
+    assert "written from Palus Finance's public material" in palus.disclaimer()
 
 
-def test_the_rename_over_the_six_names_in_mixed_positions(renamer):
-    out = renamer.value(MIXED)
-    assert out["name"] == "Daylog"
-    assert out["statements"] == [
-        "Daylog turns a site walk into notes.", "With Dollarsafe, savers hold dollars; Dollarsafe's fee is low.",
-        "Ask Idlewell (or just Idlewell) where the reserve sits.", "Practise with Talkleap.",
-        "Dockmeasure: measure every shipment.", "The Captionglass glasses, paired.",
-        "a lowercase daylog, dollarsafe, talkleap, dockmeasure and captionglass",
-        "\"Captionglass\"-style quotes and Daylog caps"]
-    assert out["nested"] == [{"reveal": {"what": "Imagine Dockmeasure.", "how": "Talkleap listens; Captionglass captions."}}]
-    assert out["kept"] == MIXED["kept"]               # whole words only; nothing else touched
-    assert renamer.survivors(json.dumps(out)) == []
-    assert "Idlewell Finance" not in json.dumps(out)  # the longer string first
+# ---------------------------------------------------------------------------------- the attribution check
+
+def test_the_attribution_in_the_index_and_the_manifest(exported):
+    out, _ = exported
+    row = json.loads((out / g.INDEX).read_text(encoding="utf-8"))[0]
+    manifest = json.loads((out / "fresco" / se.MANIFEST).read_text(encoding="utf-8"))
+    want = {"inspiredBy": {"name": "Fresco", "batch": "Fall 2024", "ycUrl": "https://www.ycombinator.com/companies/fresco"},
+            "publicDescription": {"text": "AI copilot for construction estimators",
+                                  "url": "https://www.ycombinator.com/companies/fresco", "date": "2026-10-22"},
+            "simulated": True, "disclaimer": FRESCO_DISCLAIMER}
+    for block in (row, manifest):
+        assert {k: block[k] for k in want} == want
+        assert block["assumptions"][0] == ("Nearly all of these construction superintendents had this at least once "
+                                           "in the last 5 working days.")
+        assert block["assumptions"][-1] == "Most are open to start a paid pilot on one site now."
+        assert len(block["assumptions"]) == 13 and all(isinstance(a, str) for a in block["assumptions"])
+    standings = json.loads((RUN / "export" / "standings.json").read_text(encoding="utf-8"))
+    beliefs = [d["belief"] for v in standings["vectors"] for d in v["dimensions"] if d.get("belief")]
+    assert row["assumptions"] == beliefs                              # as the run served them
 
 
-def test_the_survivors_grep_finds_every_old_name_in_any_case(renamer):
-    assert renamer.survivors(json.dumps(MIXED)) == sorted(OLD)
-    assert renamer.survivors("an AIRCAPS key") == ["AirCaps"]
-    assert renamer.survivors("Frescoes and Palusian") == []
-
-
-def test_a_survivor_refuses_the_export_and_nothing_is_written(tmp_path, names):
-    run = tmp_path / RUN.name
-    shutil.copytree(RUN, run)
-    overview = run / "export" / "overview.json"
-    payload = json.loads(overview.read_text(encoding="utf-8"))
-    payload["Fresco notes"] = "a key the rename never touches"       # keys are not text fields
-    overview.write_text(json.dumps(payload), encoding="utf-8")
+@pytest.mark.parametrize("change, said", [
+    ({"inspired_by": {}}, "inspiredBy needs name, batch and ycUrl"),
+    ({"inspired_by": {"name": "Fresco", "batch": "Fall 2024", "ycUrl": "https://fresco-ai.com/"}},
+     "is not a YC company page"),
+    ({"public_description": {"text": "AI copilot for construction estimators", "url": "", "date": "2026-10-22"}},
+     "publicDescription needs text, url and date"),
+    ({"public_description": {"text": "x", "url": "https://www.ycombinator.com/companies/fresco", "date": "October"}},
+     "publicDescription url"),
+    ({"public_description": {}}, "publicDescription needs text, url and date"),
+])
+def test_a_slug_missing_its_attribution_is_refused_and_nothing_is_written(tmp_path, names, change, said):
     out = tmp_path / "sample"
     with pytest.raises(g.GalleryRefused) as refused:
-        g.export([run], out, names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
-    assert refused.value.reasons == ["daylog: ['Fresco'] survive the rename"]
+        g.export([RUN], out, names=_with(names, "08-fresco", **change), exported_at=AT,
+                 provenance_dir=tmp_path / "prov")
+    assert any(said in r for r in refused.value.reasons), refused.value.reasons
+    assert all(r.startswith("fresco: ") for r in refused.value.reasons)
     assert not out.exists() and not (tmp_path / "prov").exists()
+
+
+def test_a_missing_disclaimer_simulated_or_assumptions_is_refused(names):
+    run = g.read_run(RUN)
+    s = g.prepare(names[0], run, exported_at=AT)
+    assert g.attribution_reasons(s) == []
+    for key, value, said in (("disclaimer", None, "the disclaimer is missing"),
+                             ("disclaimer", "A simulated study.", "not the fixed sentence"),
+                             ("simulated", False, "simulated is not true"),
+                             ("assumptions", [], "no assumptions")):
+        broken = dataclasses.replace(s, row={**s.row, key: value})
+        reasons = g.attribution_reasons(broken)
+        assert any(said in r for r in reasons) and any("differently" in r for r in reasons), reasons
+
+
+def test_a_run_without_twenty_people_is_refused(tmp_path, names):
+    run = tmp_path / RUN.name
+    shutil.copytree(RUN, run)
+    path = run / "export" / "invitations.json"
+    register = json.loads(path.read_text(encoding="utf-8"))
+    register["invitations"] = register["invitations"][:19]
+    path.write_text(json.dumps(register), encoding="utf-8")
+    with pytest.raises(g.GalleryRefused, match="invited 19 people; the disclaimer says twenty"):
+        g.export([run], tmp_path / "sample", names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
 
 
 def test_the_060_withholding_still_refuses(tmp_path, names):
@@ -131,19 +165,15 @@ def test_the_060_withholding_still_refuses(tmp_path, names):
     people.write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(g.GalleryRefused) as refused:
         g.export([run], tmp_path / "sample", names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
-    assert "survive the withholding" in refused.value.reasons[0]
+    assert any("survive the withholding" in r for r in refused.value.reasons)
 
 
-def test_nothing_but_the_names_changes(exported, renamer):
+def test_nothing_is_renamed(exported):
     out, _ = exported
     run = g.read_run(RUN)
-    changed = 0
     for key, payload in run.reads.items():
-        written = json.loads((out / "daylog" / f"{key}.json").read_text(encoding="utf-8"))
-        assert written == renamer.value(payload)
-        changed += written != payload
-    assert changed >= 3                                  # overview's name, plan's questions, standings' insights
-    assert "Daylog" in (out / "daylog" / "overview.json").read_text(encoding="utf-8")
+        assert json.loads((out / "fresco" / f"{key}.json").read_text(encoding="utf-8")) == payload
+    assert "Fresco" in (out / "fresco" / "overview.json").read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------------------------- FR-1 the index
@@ -153,9 +183,10 @@ def test_the_index_shape(exported):
     index = json.loads((out / g.INDEX).read_text(encoding="utf-8"))
     assert index == result["index"] and len(index) == 1
     row = index[0]
-    assert list(row) == ["slug", "name", "oneLine", "problem", "decision", "howSure", "pilot", "price", "b2b",
-                         "cloud", "web", "axes", "interview"]
-    assert row["slug"] == "daylog" and row["name"] == "Daylog" and row["b2b"] is True
+    assert list(row) == ["slug", "name", "inspiredBy", "publicDescription", "simulated", "disclaimer", "oneLine",
+                         "problem", "assumptions", "decision", "howSure", "pilot", "price", "b2b", "cloud", "web",
+                         "axes", "interview"]
+    assert row["slug"] == "fresco" and row["name"] == "Fresco" and row["b2b"] is True
     assert row["oneLine"] == "The scribe for construction superintendents"
     assert row["problem"].startswith("Construction superintendents spend up to 3 hours a day on documents")
     assert row["problem"].endswith("a dispute with the owner.") and "based on" not in row["problem"]
@@ -169,7 +200,7 @@ def test_the_index_shape(exported):
                            "firstStep": "start a paid pilot on one site", "kind": "business"}
     assert row["interview"] == {"links": [{"role": "PRIMARY", "label": "Construction superintendents", "items": 7},
                                           {"role": "COMMERCIAL_B2B", "label": "Contractor", "items": 6}]}
-    roles = json.loads((out / "daylog" / "roles.json").read_text(encoding="utf-8"))["roles"]
+    roles = json.loads((out / "fresco" / "roles.json").read_text(encoding="utf-8"))["roles"]
     assert [l["items"] for l in row["interview"]["links"]] == [r["questionCount"] for r in roles]
 
 
@@ -199,16 +230,18 @@ def test_one_sentence_and_one_line():
 def test_the_file_set_per_slug(exported):
     out, result = exported
     listed = json.loads((RUN / "export" / se.MANIFEST).read_text(encoding="utf-8"))["files"]
-    on_disk = sorted(str(p.relative_to(out / "daylog")) for p in (out / "daylog").rglob("*") if p.is_file())
+    on_disk = sorted(str(p.relative_to(out / "fresco")) for p in (out / "fresco").rglob("*") if p.is_file())
     assert on_disk == sorted([*listed, "interview.json", se.MANIFEST])
-    assert sorted(p.name for p in out.iterdir()) == ["daylog", "index.json"]
-    assert result["slugs"]["daylog"]["written"] == [*listed, "interview.json"]
+    assert sorted(p.name for p in out.iterdir()) == ["fresco", "index.json"]
+    assert result["slugs"]["fresco"]["written"] == [*listed, "interview.json"]
 
 
-def test_the_manifest_carries_only_the_shas_and_the_time(exported):
+def test_the_manifest_shape(exported):
     out, _ = exported
-    manifest = json.loads((out / "daylog" / se.MANIFEST).read_text(encoding="utf-8"))
-    assert manifest == {"cloud": "b2cf168", "web": "9f3845a", "exportedAt": AT}
+    manifest = json.loads((out / "fresco" / se.MANIFEST).read_text(encoding="utf-8"))
+    assert list(manifest) == ["cloud", "web", "exportedAt", "inspiredBy", "publicDescription", "simulated",
+                              "disclaimer", "assumptions"]
+    assert (manifest["cloud"], manifest["web"], manifest["exportedAt"]) == ("b2cf168", "9f3845a", AT)
 
 
 def test_the_provenance_is_written_once_outside_out(exported, tmp_path):
@@ -216,26 +249,26 @@ def test_the_provenance_is_written_once_outside_out(exported, tmp_path):
     path = tmp_path / "runs" / "gallery" / f"provenance-{AT}.json"
     assert result["provenance"] == str(path) and out not in path.parents
     assert json.loads(path.read_text(encoding="utf-8")) == [{
-        "slug": "daylog", "entry": "08-fresco", "run": RUN.name, "cloud": "b2cf168", "web": "9f3845a",
-        "renamed": {"from": ["Fresco"], "to": "Daylog"}}]
+        "slug": "fresco", "entry": "08-fresco", "run": RUN.name, "cloud": "b2cf168", "web": "9f3845a",
+        "renamed": {"from": [], "to": "Fresco"}}]
     assert (REPO / ".gitignore").read_text(encoding="utf-8").splitlines().count("runs/") == 1
 
 
-def test_every_byte_under_out_is_free_of_every_old_name(exported, renamer):
+def test_no_byte_under_out_carries_provenance(exported, names):
     out, _ = exported
     everything = b"".join(p.read_bytes() for p in sorted(out.rglob("*")) if p.is_file()).decode("utf-8").lower()
-    assert [w for w in OLD if w.lower() in everything] == []           # substring, any case: stricter than the grep
-    assert g.survivors_under(out, renamer) == []
-    assert "08-fresco" not in everything and "backtest" not in everything
+    for needle in ("08-fresco", RUN.name.lower(), "backtest", "/users/", "renamed"):
+        assert needle not in everything, needle
+    assert g.provenance_under(out, ["08-fresco", RUN.name, "-backtest-"]) == []
 
 
-def test_an_old_name_already_under_out_refuses_and_nothing_is_written(tmp_path, names):
+def test_provenance_already_under_out_refuses_and_nothing_is_written(tmp_path, names):
     out = tmp_path / "sample"
     out.mkdir()
-    (out / "notes.txt").write_text("left over from Karsa", encoding="utf-8")
+    (out / "notes.txt").write_text("made from 08-fresco", encoding="utf-8")
     with pytest.raises(g.GalleryRefused) as refused:
         g.export([RUN], out, names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
-    assert refused.value.reasons == ["already under OUT: notes.txt: ['Karsa']"]
+    assert refused.value.reasons == ["already under OUT: notes.txt: ['08-fresco']"]
     assert sorted(p.name for p in out.iterdir()) == ["notes.txt"] and not (tmp_path / "prov").exists()
     with pytest.raises(g.GalleryRefused, match="is under OUT"):
         g.export([RUN], out, names=names, exported_at=AT, provenance_dir=out / "gallery")
@@ -243,18 +276,18 @@ def test_an_old_name_already_under_out_refuses_and_nothing_is_written(tmp_path, 
 
 def test_the_interview_is_pinned_on_one_run(exported):
     out, _ = exported
-    written = json.loads((out / "daylog" / "interview.json").read_text(encoding="utf-8"))
+    written = json.loads((out / "fresco" / "interview.json").read_text(encoding="utf-8"))
     assert written == json.loads(PINNED.read_text(encoding="utf-8"))
     primary, decider = written["links"]
     assert list(primary) == ["role", "label", "kind", "occasion", "idea", "gate", "storyPrompt", "storyHint", "parts",
                              "reveal", "followUp"]
     assert (primary["kind"], decider["kind"]) == ("FULL", "COMMERCIAL_LINK")
     assert primary["gate"]["chips"] == [{"code": "CANT_RECALL", "label": "I can't recall one particular day"}]
-    assert primary["reveal"]["what"] == "Imagine Daylog." and decider["idea"]["what"] == "Imagine Daylog."
+    assert primary["reveal"]["what"] == "Imagine Fresco." and decider["idea"]["what"] == "Imagine Fresco."
     item = primary["parts"][1]["items"][1]
     assert list(item)[:9] == ["dimension", "kicker", "question", "control", "hint", "options", "advantages", "escape",
                               "shown"]
-    assert item["question"] == "On your last day, would Daylog have made things better, or not?"
+    assert item["question"] == "On your last day, would Fresco have made things better, or not?"
     assert item["kicker"] == "Part 2 of 2 · An idea to consider · 2 of 3"
     assert decider["followUp"]["asked"][0] == {"dimension": "commercial.commitment",
                                                "question": "What would you start with instead?"}
@@ -262,12 +295,11 @@ def test_the_interview_is_pinned_on_one_run(exported):
 
 def test_the_interview_withholds_ids_tokens_and_media(exported):
     out, _ = exported
-    text = (out / "daylog" / "interview.json").read_text(encoding="utf-8")
+    text = (out / "fresco" / "interview.json").read_text(encoding="utf-8")
     keys = set(g._keys(json.loads(text)))
     assert not keys & g._DROPPED
     assert "withheld" not in text and "/i/" not in text and "@" not in text
     assert not any(w in text.lower() for w in (".mp4", ".webm", "clip", "face", "recording"))
-    assert g.Renamer(g.load_names()).survivors(text) == []
 
 
 def test_a_rerun_replaces_the_slug_and_keeps_the_root_files(tmp_path, names):
@@ -275,7 +307,7 @@ def test_a_rerun_replaces_the_slug_and_keeps_the_root_files(tmp_path, names):
     out.mkdir()
     (out / "standings.json").write_text("{}", encoding="utf-8")     # `make sample`'s root files stay (FR-1)
     g.export([RUN], out, names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
-    stale = out / "daylog" / "readings" / "gone.json"
+    stale = out / "fresco" / "readings" / "gone.json"
     stale.write_text("{}", encoding="utf-8")
     g.export([RUN], out, names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
     assert not stale.exists() and (out / "standings.json").read_text(encoding="utf-8") == "{}"
@@ -315,7 +347,7 @@ def test_an_unknown_entry_or_a_twice_given_one_is_refused(tmp_path, names):
 def test_the_command_line(tmp_path, capsys):
     assert g.main(["--out", str(tmp_path / "out"), "--runs", str(RUN), "--provenance-dir", str(tmp_path / "p")]) == 0
     said = capsys.readouterr().out
-    assert "daylog" in said and "fresco" not in said.lower() and (tmp_path / "out" / "index.json").is_file()
+    assert "fresco" in said and "08-fresco" not in said and (tmp_path / "out" / "index.json").is_file()
     assert len(list((tmp_path / "p").glob("provenance-*.json"))) == 1
     assert g.main(["--out", str(tmp_path / "out2"), "--runs-dir", str(tmp_path)]) == 1
     assert "no finished back-test run" in capsys.readouterr().err

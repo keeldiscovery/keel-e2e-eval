@@ -116,7 +116,7 @@
             {
               "dimension": "solution.relative_advantage",
               "kicker": "Part 2 of 2 · An idea to consider · 2 of 3",
-              "question": "On your last day, would Daylog have made things better, or not?",
+              "question": "On your last day, would Fresco have made things better, or not?",
               "control": "benefit_with_advantages",
               "hint": null,
               "options": [
@@ -163,7 +163,7 @@
       ],
       "reveal": {
         "afterPart": 1,
-        "what": "Imagine Daylog.",
+        "what": "Imagine Fresco.",
         "how": "During the site walk, you take short videos and talk over them. The tool turns them into notes with photos, assignees and due dates, texts the crew their action items, and sends the notes to the project system on one click.",
         "belief": "The people building it believe it would turn a site walk into notes and action items without typing them up.",
         "formats": [
@@ -213,7 +213,7 @@
       "kind": "COMMERCIAL_LINK",
       "occasion": "day",
       "idea": {
-        "what": "Imagine Daylog.",
+        "what": "Imagine Fresco.",
         "how": "During the site walk, you take short videos and talk over them. The tool turns them into notes with photos, assignees and due dates, texts the crew their action items, and sends the notes to the project system on one click.",
         "belief": "The people building it believe it would turn a site walk into notes and action items without typing them up.",
         "kicker": "The buying decision · An idea to consider"

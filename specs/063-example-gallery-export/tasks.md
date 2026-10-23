@@ -10,6 +10,73 @@ from `backtest.json`'s `entry`; the project name, the problem statement, the fou
 decider and the calibration answers from `inputs.json`'s `founder` (what the run's founder typed, from the entry as it
 was at run time).
 
+## Amendment of record, 2026-10-23 (built on branch `063-attribution`, over master `d9e50bf`)
+
+The real company name is the example's attribution, everywhere; each example is labelled a simulated study. This
+section overrides FR-2's rename and FR-3's survivors grep below wherever they conflict.
+
+- [x] A001 `instructions/gallery_names.toml`: `slug` and `name` are the real ones -- `fresco` Fresco, `karsa` Karsa,
+  `palus-finance` Palus Finance, `issen` Issen, `transload` Transload, `aircaps` AirCaps -- with `replaces = []`
+  (anything else is refused by name), plus `inspired_by = {name, batch, ycUrl}` and `public_description = {text, url,
+  date}` per entry. Slugs may now carry hyphens.
+- [x] A002 The rename is gone (`Renamer` removed): every exported file is the run's export, withheld again, unchanged
+  (a test checks byte-equal JSON). The interview.json golden is the old one with *Daylog* back to *Fresco*, nothing else
+  (checked when it was regenerated, now `tests/fixtures/gallery/expected-interview-fresco.json`).
+- [x] A003 Every index row and `<slug>/manifest.json` carry `inspiredBy {name, batch, ycUrl}`, `publicDescription
+  {text, url, date}`, `simulated: true`, `disclaimer` (the amendment's fixed sentence, `name` and `batch` filled) and
+  `assumptions[]`. The index row's order is `slug, name, inspiredBy, publicDescription, simulated, disclaimer, oneLine,
+  problem, assumptions, decision, howSure, pilot, price, b2b, cloud, web, axes, interview`; the manifest is `cloud,
+  web, exportedAt, inspiredBy, publicDescription, simulated, disclaimer, assumptions`.
+- [x] A004 The attribution check (`attribution_reasons`, replacing the survivors grep) refuses a slug, writing nothing,
+  when any of these holds: `inspiredBy` lacks name, batch or ycUrl; ycUrl is not a `https://www.ycombinator.com/companies/` page;
+  the name differs from the example's; `publicDescription` lacks text, url or date, the url is not https, or the date is
+  not ISO; `simulated` is not true; the disclaimer is missing or not the fixed sentence; there are no assumptions; the
+  index row and the manifest disagree; or the run did not invite exactly twenty people (the disclaimer says "the
+  twenty participants"). 060's grep (emails, the back-test founder, links) and the interview's no-id check stay.
+- [x] A005 Provenance stays private, as built on 2026-10-22: `runs/gallery/provenance-<exportedAt>.json`
+  (`renamed: {from: [], to: <name>}` now). In place of the old-name grep, every byte under `OUT` is grepped, any case,
+  for each run's entry id and directory name, `-backtest-` and `/Users/`. This runs before writing (over the new output
+  and anything already under OUT) and once more after writing.
+- [x] A006 Tests: `tests/test_gallery.py` is now 30 tests (the rename and survivors tests replaced by the attribution
+  tests: the map, the fixed sentence, the attribution in the index and the manifest, five missing or bad attribution
+  cases, missing disclaimer / simulated / assumptions, the twenty people, nothing renamed, the index and manifest shapes,
+  no provenance under OUT). Run with the two suites that scan every `evals/*.py`: **104 passed** (30 + 34 + 40). The
+  whole `make unit` was not re-run.
+- [x] A007 `make gallery` with `RUNS_DIR=` the main checkout's `runs/` into the scratchpad's
+  `gallery-snapshot-v2/public/sample`: six slugs (fresco, karsa, palus-finance, issen, transload, aircaps, B2B / B2C
+  alternating) and `index.json`. No entry id, run name, `backtest` or `/Users/` in any file. Provenance went to
+  `runs/gallery/provenance-2026-10-23T00:11:51Z.json` in this worktree.
+
+### The amendment's judgement calls
+
+1. **`publicDescription.text` is the `one_liner` field of the YC company page, verbatim, from the saved copies of
+   2026-10-22** (`scratchpad/backtest/yc/<slug>.html`, saved 09:14 local; date 2026-10-22). The `.sources.md` files record
+   each YC company page URL (used for `ycUrl` and `publicDescription.url`) but not its one-liner:
+   - 08-fresco's sources file quotes the page's long description ("AI-powered takeoff and estimating for Division 8
+     construction").
+   - 09-karsa's quotes a paraphrase ("a stablecoin neobank").
+   - The other four quote nothing from the company page.
+
+   So the saved page was the source for all six; nothing was fetched.
+2. **Three one-liners describe a later product than the one the back-test studied**, because the companies have
+   moved on:
+   - Fresco: "AI copilot for construction estimators", where the study is the superintendents' scribe.
+   - Karsa: "Stablecoin neobank for emerging markets", where the study is the dollar account.
+   - Palus Finance: "Your startup's financial advisor", where the study is yield on idle cash.
+
+   Issen ("AI realtime voice companion for language learning"), Transload ("Measure freight with security cameras") and
+   AirCaps ("The AI copilot for in-person conversations.") match. Verbatim was the rule, so they are as served; the
+   founder may want the launch post's title instead (the sources' `[LYC]` / `YCL` lines, e.g. *Fresco, the scribe for
+   construction*).
+3. **Names as the coordinator gave them, not as YC spells them**: YC's page writes *ISSEN* and *transload*; the map
+   writes Issen and Transload (the disclaimer and `inspiredBy.name` use the map's).
+4. **Batches** are as the coordinator listed, and equal the pages' `batch_name` for all six.
+5. **`assumptions[]` are the standings' `belief` sentences**, one per asked dimension, stage by stage, de-duplicated:
+   13 on B2B, 12 on B2C. They equal plan.json's. Plain strings, as served, including code's derived Ability to pay
+   line ("Your price is 24% to 61% of what the problem costs them today: …").
+6. **The disclaimer's "twenty participants" is checked against the run** (each run invited twenty) rather than
+   trusted.
+
 ## FR-1 `make gallery`
 
 - [x] T001 `make gallery RUNS=<dir>[,<dir>...] OUT=<dir> RUNS_DIR=<dir>` (Makefile, header comment, `.PHONY`) runs
