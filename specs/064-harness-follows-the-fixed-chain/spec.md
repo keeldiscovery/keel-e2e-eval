@@ -109,6 +109,15 @@ s007"` once on a fresh local stack of the finished masters; one `make backtest E
   last `ON_THEIR_OWN` group; `executor-fixtures/THEMES/cases.json` re-copied (`maxItems` 4); `report_insights` /
   `report_marks` read the new shape; a dimension with one answer is grouped by code (no job) -- the scenario's job
   counts follow; C5 has no entry (no words).
+- **FR-8b What keel-web 095's build settled (added 2026-10-23; the full selector table is in keel-web
+  `specs/095-insights-tab-from-every-word/tasks.md`).** `.rp-concern` is the rung heading alone (`.rp-concern__n` gone);
+  `.rp-nofollow` is gone, the reasons are `[data-testid=insights-not-asked] li[data-dim]`; `.rp-raw` only on RAW with
+  `.rp-raw__note`; `[data-testid=insights-grouping]` while GROUPING (the page re-reads every 10 s); theme labels in
+  `span.rp-themes__label`; `li[data-own]` for *On their own*; `section.rp-ibox[data-state]`; `[data-dissent=true]` with
+  `.rp-frame` (which `report_no_repeat` must treat as the view's own line); `div.rp-iq > p.rp-pick` with `.rp-opt` and
+  `.rp-side[data-side]`; `[data-testid=insights-more]` folds at six quotes. `.rp-quote` text is unchanged. Copy moved:
+  *In their own words*, *Keel is grouping what they said…*, *On their own*, the side marks for / against / apart;
+  *said why* and *No follow-up on this rung* are gone.
 - **FR-9 The back-test runner (062, 063).** `backtest.md` adds the equation and locked lines the founder saw, the value
   box label and bands each stranger saw, the gate chip question, the decider's title, each insight's state; the markdown
   anchor for a refused step stays *"Keel couldn't finish this step"* (093). `make backtest` on an r13 entry drives the
