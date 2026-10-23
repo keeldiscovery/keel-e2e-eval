@@ -1104,6 +1104,46 @@ def respondent_questions(j, cam: Camera | None) -> dict:
     return out
 
 
+# ---------------------------------------------------------------------------------------- spec 067 FR-8: spoken
+
+def spoken_guard(j) -> dict:
+    """Spec 067 FR-8 (keel-cloud 128 FR-10): every served item of every link, as the page fetched it, read back through
+    the spoken-form rules (`instructions.spoken.item_faults`, S1-S10) with its stem's length -- a stem past 20 words, or
+    any fault, is a red line in the transcript, never a note. One row a distinct item a link (people share a link's
+    words). Recorded, never asserted: the back-test is a reading."""
+    from instructions import cloud_corpus                              # noqa: PLC0415
+    from instructions import spoken as spoken_mod                      # noqa: PLC0415
+    entry = j.entry
+    registry = getattr(j, "registry", None) or getattr(entry, "registry", None)
+    rows, seen = [], set()
+    for person, interview in (getattr(j, "interviews", None) or {}).items():
+        for part in (interview or {}).get("parts") or []:
+            for item in part.get("items") or []:
+                said = item.get("spoken") or {}
+                key = (interview.get("kind"), item.get("dimension"), item.get("question"), said.get("optionsLine"))
+                if key in seen:
+                    continue
+                seen.add(key)
+                composed = cloud_corpus.ComposedItem(
+                    entry=entry.id, key=item.get("dimension"), part=part.get("part"), question=item.get("question") or "",
+                    options=tuple(o.get("label") for o in item.get("options") or []),
+                    escape=(item.get("escape") or {}).get("label"), anchor=said.get("anchor"),
+                    stem=said.get("stem") or "", count_line=said.get("countLine"),
+                    options_line=said.get("optionsLine") or "", escape_line=said.get("escapeLine"),
+                    transform=said.get("transform") or "none")
+                try:
+                    faults = spoken_mod.item_faults(composed, registry, entry)
+                except Exception as broke:  # noqa: BLE001 - a reading: one unreadable item never hides the rest
+                    faults = [f"unread: {broke!r}"[:200]]
+                stem_words = spoken_mod.words(composed.stem)
+                rows.append({"link": interview.get("kind"), "person": person, "dimension": item.get("dimension"),
+                             "stem": composed.stem, "stem_words": stem_words, "faults": faults,
+                             "red": stem_words > spoken_mod.STEM_MAX_WORDS or bool(faults)})
+    return {"items": len(rows), "clean": sum(1 for r in rows if not r["red"]),
+            "longest_stem": max((r["stem_words"] for r in rows), default=0),
+            "red": [r for r in rows if r["red"]], "rows": rows}
+
+
 # ------------------------------------------------------------------------------------------- FR-4.3 the brief
 
 def brief(standings: dict) -> dict:
@@ -1233,6 +1273,7 @@ def transcript(j, bt: Backtest) -> dict:
         **({"door": bt.door_facts} if bt.door == "host" else {}),
         "founder_screens": founder_screens(j, bt.cam, wire),
         "respondents": respondent_questions(j, bt.cam),
+        "spoken_guard": _safe(lambda: spoken_guard(j)),
         "brief": _safe(lambda: brief(standings)),
         "readings": _safe(lambda: readings(j, wire.get("invitations") or {}), []),
         "cost": _safe(lambda: cost(j, bt)),
@@ -1352,6 +1393,15 @@ def markdown(r: dict) -> str:
         if served.get("reveal"):
             lines.append(f"- Reveal: {_q(served['reveal'])}")
         lines.append("- Screens: " + ", ".join(f"`{f}`" for f in v.get("screens") or []))
+        lines.append("")
+    guard = r.get("spoken_guard") or {}
+    if guard:
+        lines += ["### The spoken guard (spec 067 FR-8: S1-S10 on every served item, the stem at most 20 words)", "",
+                  f"- {guard.get('clean')} of {guard.get('items')} items clean; the longest stem "
+                  f"{guard.get('longest_stem')} words"]
+        for row in guard.get("red") or []:
+            lines.append(f"- **RED** {row.get('link')} · {row.get('dimension')} · stem {row.get('stem_words')} words: "
+                         f"*{row.get('stem')}* -- " + ("; ".join(row.get("faults") or []) or "past 20 words"))
         lines.append("")
     change = decision.get("change") or {}
     lines += ["## 3. The brief", "", f"- Decision: {_q(decision)}", f"- Verdicts: {_q(b.get('verdicts'))}"]

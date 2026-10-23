@@ -367,3 +367,39 @@ def test_a_needs_input_is_answered_once_from_the_entrys_fields_and_a_second_ask_
     cs._needs_input(quiet, "iid", {})
     cs._needs_input(quiet, None, {})
     assert not quiet.posted and not quiet.findings
+
+
+# ------------------------------------------------------------------------------- FR-8: the spoken guard
+
+def test_the_backtest_record_holds_every_served_item_to_the_spoken_form():
+    """Spec 067 FR-8 (keel-cloud 128 FR-10): each served item, as the page fetched it, read back through S1-S10 with its
+    stem's length; keel-cloud's own composed Lullaby items are clean, and a 21-word stem is a red line, not a note."""
+    from types import SimpleNamespace                                   # noqa: PLC0415
+    from evals import backtest as bt                                    # noqa: PLC0415
+    from instructions import cloud_corpus as cloud_mod                  # noqa: PLC0415
+    try:
+        registry = cloud_mod.registry_of_record(KEEL_CLOUD)
+        corpus = corpus_mod.load(KEEL_CLOUD).bind(registry)
+        cloud = cloud_mod.read(KEEL_CLOUD, corpus=corpus, registry=registry)
+    except Exception as missing:                                        # noqa: BLE001
+        pytest.skip(f"no keel-cloud record: {missing}")
+    lullaby = corpus.by_id("03-lullaby")
+    items = cloud.items_of("03-lullaby")
+
+    def served(ci, stem=None):
+        return {"dimension": ci.key, "question": ci.question if stem is None else stem,
+                "options": [{"optionId": str(n), "label": o} for n, o in enumerate(ci.options)],
+                "escape": {"code": "X", "label": ci.escape} if ci.escape else None,
+                "spoken": {"anchor": ci.anchor, "stem": ci.stem if stem is None else stem, "countLine": ci.count_line,
+                           "optionsLine": ci.options_line, "escapeLine": ci.escape_line, "transform": ci.transform}}
+    long = " ".join(["word"] * 20) + " too?"
+    interview = {"kind": "FULL", "parts": [{"part": 1, "items": [served(ci) for ci in items]
+                                            + [dict(served(items[0], stem=long), dimension=items[0].key)]}]}
+    j = SimpleNamespace(entry=lullaby, registry=registry, interviews={"Amira Saleh": interview, "Twin": interview})
+    guard = bt.spoken_guard(j)
+    assert guard["items"] == len(items) + 1                             # the second person's same words are one row
+    assert guard["clean"] == len(items) and guard["longest_stem"] == 21
+    red = guard["red"][0]
+    assert red["stem_words"] == 21 and any(f.startswith("S1") for f in red["faults"])
+    md = bt.markdown({"spoken_guard": guard, "respondents": {}, "founder_screens": []})
+    assert "**RED**" in md and f"{len(items)} of {len(items) + 1} items clean" in md

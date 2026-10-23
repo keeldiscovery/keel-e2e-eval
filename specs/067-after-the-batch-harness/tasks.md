@@ -113,9 +113,13 @@ the canon-reading tests the revision refusal had skipped.
 
 ## FR-8 -- the spoken guard on the served record
 
-- [ ] T060 on a back-test every served item of every link watched is read back through `spoken.item_faults` (S1-S10)
+- [x] T060 on a back-test every served item of every link watched is read back through `spoken.item_faults` (S1-S10)
   into `backtest.json` / `backtest.md` with each stem's word count; a stem over 20 words is a red line in the
   transcript, not a note. `instructions/spoken.py` untouched; its 109 of 109 guard still passes.
+- [x] T061 as built: `backtest.spoken_guard(j)` (one row a distinct item a link; `backtest.json` `spoken_guard`, a
+  *The spoken guard* block in `backtest.md` with each red line's stem and faults). `instructions/spoken.py` was
+  touched once, in FR-6 (128's label sets for reading the record back, no rule moved); `spoken_form` 109 of 109.
+  Unit: 3,125 passed, 53 skipped, 0 failed.
 
 ## FR-7 -- the walks of the changed screens
 
