@@ -331,10 +331,10 @@ def test_the_refusal_mark_is_a_rate_over_the_answers_judged():
     assert marks_mod.judge(totals, marks_mod.load())["refusals"]["met"] is False
 
 
-def test_the_header_names_the_seven_r12_digests_and_keeps_v13s_counted_denominators():
-    """Spec 053 (spec 042's call 110 before it): the Spec 053 paragraph names the seven revision-12 files by their canon
-    bytes (skipped by name when the configured keel-cloud is not at revision 12), and v19's paragraph keeps r11's as
-    history; v13's dated paragraph and its counted denominators stay below it as history."""
+def test_the_header_names_the_seven_r13_digests_and_keeps_v13s_counted_denominators():
+    """Spec 064 FR-10 (spec 053's before it): the Spec 064 paragraph names the seven revision-13 files by their canon
+    bytes (skipped by name when the configured keel-cloud is not at revision 13), Spec 053's keeps r12's and v19's
+    r11's as history; v13's dated paragraph and its counted denominators stay below it as history."""
     import hashlib                                                          # noqa: PLC0415
     from tests import v9_fixtures as fx                                     # noqa: PLC0415
     doc = marks_mod.__doc__
@@ -345,6 +345,7 @@ def test_the_header_names_the_seven_r12_digests_and_keeps_v13s_counted_denominat
         path = fx.canon_entry(f"{name}.yaml")
         assert hashlib.sha256(path.read_bytes()).hexdigest() in header, name
     assert "The seven revision-12\nfiles, by sha256" in header and "The seven revision-11 files, by sha256" in header
+    assert "The seven revision-13 files, by sha256" in header and "**v20 stands**: this spec bumps nothing" in header
     assert "65 reads at N=1" in header
     assert "135 model cases at N=1" in header and "**108**" in header and "**80**" in header
     assert "The corpus v13 judges, recorded 2026-10-10" in header

@@ -85,6 +85,28 @@ reads the three page clips with the rest (29 in the manifest) -- and `evals/inte
 her hello in the who-asks band to its end, the still returns; absent for a retired face); the interviewer leg's W1
 replay reading retires with *How it works* (it was a leg step, never a row).
 
+**Spec 064 (2026-10-23)**: keel-cloud 114-124 / keel-web 093-100 (contract 33, screen response contract 23, routing v12,
+corpus **revision 13** at keel-cloud-docs `7915eef`; registry decision 24's value box, the six periods and the chain's
+three modes taken by `instructions/registry.py`) -- the reader reads **revision 13** and refuses a revision-12 file by
+name as v20's, before the chain. The seven golden entries state no chain and moved only by their revision line, so
+every standing, count and verdict the corpus pins reads as it did; the commercial chain (rule C, `instructions/chain.py`)
+is read on the back-test entries alone. **v20 stands**: this spec bumps nothing (FR-10). It names, for the operator, the
+marks whose words or golden numbers moved under the builds -- each in `specs/064-harness-follows-the-fixed-chain/
+tasks.md`'s findings, the served beside the expected: `brief_facts` (the Prevalence line is the founder's clause,
+keel-cloud 116; Current solution's and Purchase friction's Keel bars, 117 / 118; Adoption friction's and Commitment's
+numbers count the plain yes, Purchase friction's the fear held, 118; the pilot counts the gate's Yes alone, 123 FR-4 --
+"2 of 12" -> "2 of 10"), `report_overview` (the decision's named change in place of the semicolon list, 122 FR-3),
+`report_insights` (a box a dimension with words, any status, its state; the `notAsked` lines, 119 / 095) and
+`spoken_form` on keel-cloud's spoken record (the old cost item's escape label). The seven revision-13 files, by sha256
+(keel-cloud canon's own bytes at keel-cloud-docs `7915eef`, equal to `src/test/resources/keel/corpus-r13/`):
+`01-countly.yaml` `9c50aeca73d47a839c05614645e37840d3c41787408204d7b31781c75613b77e`; `02-compliancelog.yaml`
+`52410aeda42507cbcd78329319c8fcd54a0e135be8b3ef7587777cf4c8b364b0`; `03-lullaby.yaml`
+`374a5bf1074e6a3ce76628cfb22dd3612d4ab75e5cf56d3b5776c419c88c1287`; `04-linerly.yaml`
+`a49c2219024c5ad6bd9087dca6bb48e7692f4e3dad9e95b428efb486ad485813`; `05-paidly.yaml`
+`7162278e7f07f59ea7ae4ab4aaebae8abb977d57af1396ff1e1fb45b326cfbb7`; `06-repeatline.yaml`
+`fdc7c70c800acdb84011fdf0f65303f7df9fcd7a381c5ec92f327e605663d575`; `07-mulchrun.yaml`
+`f12d0abb2dc7b695d1033025c1244408e89d115f8d78617d49df823658c352c6`.
+
 **`MARKS_VERSION` 19** (history since v20, never run; spec 042, 2026-10-14): the defects batch. The ruler follows keel-cloud 090 / 091 (keel-cloud-docs
 `c432c1d`; registry `VERSION` 4, document 20, `CONTRACT_VERSION` 14, routing v11, charge 7 -- the lock holds one job of
 35). No mark is born or retired and no number in `marks.toml` moved; four judgement calls moved under them, so the
