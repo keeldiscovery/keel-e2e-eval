@@ -1980,7 +1980,7 @@ def _answer_one(j: Journey, person, token: str) -> None:
         recall = ((items.get("commercial.existing_sacrifice") or {}).get("costTotal") or {}).get("recallPeriod")
         expected = person.response(token, recall)
         if unoffered:
-            expected = _on_the_offered_options(expected, items)
+            expected = _without_the_unoffered(j, person, expected, items, token)
         by_item = {a["itemId"]: a for a in expected.get("answers") or []}
         # spec 051 FR-5: one person a scenario speaks the story through the box (the text page's seam), one under a
         # refused microphone; everyone else's page runs with no seam at all -- and on the remote profile no page does
@@ -2363,23 +2363,48 @@ def _hold_the_idea_name(j: Journey, person, interview: dict, walked: dict) -> No
         assert not faults, json.dumps(faults, indent=2)
 
 
-def _on_the_offered_options(body: dict, items: dict) -> dict:
-    """A live journey's answer on the options the model's lists made: an option id the item does not
-    offer (a benefit the model's list has no place for) becomes the item's first options, as many as the
-    person picked. Never reached on a scripted journey."""
+#: keel-web `interviewAnswers.ts`: how many options a control's answer carries (pick_two exactly two; any other one or
+#: more).
+PICKS_NEEDED = {"pick_two": 2}
+
+
+def _without_the_unoffered(j: Journey, person, body: dict, items: dict, token: str) -> dict:
+    """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): a pick the page does not offer is a finding, never a swap -- the
+    walk used to put such an answer on the item's first options (`_on_the_offered_options`, retired), so Lakisha and
+    Priya were sent a difficulty they never chose. The unoffered option (or advantage) is dropped and named; the item's
+    other picks are kept where the control can carry them, and an item left short of its control (pick_two needs two)
+    is left unanswered, which the walk answers with the item's escape and names (`Interview.unanswered`). Never reached
+    on a scripted journey (`j.strict` asserts nothing is unoffered)."""
     by_id = {i.get("itemId"): i for i in items.values()}
     answers = []
     for answer in body.get("answers") or []:
         item = by_id.get(answer.get("itemId")) or {}
-        offered = [o.get("optionId") for o in item.get("options") or []]
-        picked = answer.get("optionIds")
-        if picked and not all(p in offered for p in picked):
-            answer = {**answer, "optionIds": offered[:len(picked)]}
-        advantages = [a.get("id") for a in item.get("advantages") or []]
-        ticked = answer.get("advantageIds")
-        if ticked and not all(a in advantages for a in ticked):
-            answer = {**answer, "advantageIds": advantages[:len(ticked)]}
-        answers.append(answer)
+        offered = {o.get("optionId") for o in item.get("options") or []}
+        offered |= {o.get("optionId") for o in (item.get("plan") or {}).get("options") or []}
+        labels = {o.get("optionId"): o.get("label") for o in item.get("options") or []}
+        kept, lost = dict(answer), []
+        for key, served in (("optionIds", offered), ("advantageIds", {a.get("id") for a in item.get("advantages")
+                                                                       or []})):
+            ids = answer.get(key)
+            if ids and not all(i in served for i in ids):
+                lost += [i for i in ids if i not in served]
+                kept[key] = [i for i in ids if i in served]
+        if not lost:
+            answers.append(answer)
+            continue
+        dimension = item.get("dimension")
+        pick = next((p for p in person.picks if p.dimension == dimension), None)
+        codes = [c for c in (list(pick.codes) + list(pick.advantages) if pick else [])
+                 if vs.option_id(token, dimension, c) in lost or c in lost]
+        short = len(kept.get("optionIds") or []) < PICKS_NEEDED.get(item.get("control"), 1) \
+            if "optionIds" in answer else not kept.get("advantageIds")
+        j.findings.append({"what": f"{person.person}: {dimension} -- the entry's pick {', '.join(map(str, codes)) or lost} "
+                                   "is not offered on the page; sent as written without it, never swapped "
+                                   + ("(the item is left to its escape: the control cannot carry what remains)"
+                                      if short else "(the other picks kept)"),
+                           "served": [labels.get(o.get("optionId")) for o in item.get("options") or []]})
+        if not short:
+            answers.append(kept)
     return {**body, "answers": answers}
 
 

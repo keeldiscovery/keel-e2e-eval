@@ -219,25 +219,35 @@ def test_the_one_person_is_the_entrys_first_and_brings_their_own_story():
     assert person.recency is True and person.story.startswith("Last night. Up at one")
 
 
-def test_a_live_answer_falls_back_to_the_options_the_model_wrote():
-    """On a live run the model drafts the founder's lists, so an option id the corpus's place names may not
-    be offered (a benefit the model's list has no place for): the person then picks as many of the item's own
-    first options -- and advantages -- as they picked. Contract 13 has no *Something else* (keel-cloud 088).
-    Which happened is in the bundle; it is never asserted (FR-007)."""
-    from evals.corpus_scenario import _on_the_offered_options
-    items = {"problem.importance": {"itemId": "i1", "options": [
-        {"optionId": "a", "label": "A"}, {"optionId": "b", "label": "B"}, {"optionId": "c", "label": "C"}]},
-        "solution.relative_advantage": {"itemId": "i2", "options": [{"optionId": "p", "label": "Better"}],
-                                        "advantages": [{"id": "x", "label": "X"}]}}
+def test_a_pick_the_page_does_not_offer_is_named_never_swapped():
+    """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): on a live run the model drafts the founder's lists, so an option the
+    entry names may not be offered. Until 067 the person was moved onto the item's first options (Lakisha and Priya sent
+    a difficulty they never chose); now the unoffered pick is dropped and named, the other picks kept where the control
+    carries them, and an item left short (pick_two with one) is left to the walk's escape."""
+    from types import SimpleNamespace                                   # noqa: PLC0415
+    from evals.corpus_scenario import _without_the_unoffered            # noqa: PLC0415
+    items = {"problem.importance": {"itemId": "i1", "dimension": "problem.importance", "control": "pick_two",
+                                    "options": [{"optionId": "a", "label": "A"}, {"optionId": "b", "label": "B"},
+                                                {"optionId": "c", "label": "C"}]},
+             "solution.relative_advantage": {"itemId": "i2", "dimension": "solution.relative_advantage",
+                                             "control": "benefit_with_advantages",
+                                             "options": [{"optionId": "p", "label": "Better"}],
+                                             "advantages": [{"id": "x", "label": "X"}, {"id": "y", "label": "Y"}]}}
+    j = SimpleNamespace(findings=[])
+    person = SimpleNamespace(person="Lakisha", picks=[])
     body = {"recency": True, "answers": [{"itemId": "i1", "optionIds": ["nope", "b"]},
-                                         {"itemId": "i2", "optionIds": ["p"], "advantageIds": ["gone"]},
+                                         {"itemId": "i2", "optionIds": ["p"], "advantageIds": ["gone", "y"]},
                                          {"itemId": "i9", "scale": 3}]}
-    out = _on_the_offered_options(body, items)
-    assert out["answers"][0] == {"itemId": "i1", "optionIds": ["a", "b"]}
-    assert out["answers"][1] == {"itemId": "i2", "optionIds": ["p"], "advantageIds": ["x"]}
-    assert out["answers"][2] == {"itemId": "i9", "scale": 3}
-    kept = _on_the_offered_options({"answers": [{"itemId": "i1", "optionIds": ["b"]}]}, items)
-    assert kept["answers"][0]["optionIds"] == ["b"]
+    out = _without_the_unoffered(j, person, body, items, "tok")
+    # Importance: one of two left -- pick_two cannot carry it, so the item goes to its escape; never ["a", "b"]
+    assert [a["itemId"] for a in out["answers"]] == ["i2", "i9"]
+    assert out["answers"][0] == {"itemId": "i2", "optionIds": ["p"], "advantageIds": ["y"]}
+    assert out["answers"][1] == {"itemId": "i9", "scale": 3}
+    assert len(j.findings) == 2 and "never swapped" in j.findings[0]["what"]
+    assert "left to its escape" in j.findings[0]["what"] and "other picks kept" in j.findings[1]["what"]
+    kept = _without_the_unoffered(SimpleNamespace(findings=[]), person,
+                                  {"answers": [{"itemId": "i1", "optionIds": ["b", "c"]}]}, items, "tok")
+    assert kept["answers"][0]["optionIds"] == ["b", "c"]
 
 
 def test_the_bundle_says_whose_founder_and_how_far():

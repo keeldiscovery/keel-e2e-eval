@@ -201,3 +201,33 @@ def test_a_person_outside_is_walked_inside_where_the_page_serves_no_chip():
     nikos = vs.inside_inputs(entry, "Nikos Ferrante")
     assert nikos.in_segment and nikos.recency is True and nikos.picks and nikos.story
     assert nikos.response("t")["recency"] is True
+
+
+# ------------------------------------------------------------------------------- FR-1: the Answer box at load
+
+def test_every_entry_fits_the_answer_box_and_revision_14s_transload_stops_at_load(tmp_path):
+    """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): all 35 revision-15 entries name every Importance item inside the
+    25-word Answer; revision 14's 12-transload (*Running the shift with too few workers*) did not, and the harness
+    then lost *Finding freight sitting at the wrong door* -- read at revision 15, it stops at load naming the label."""
+    _need_mirrors()
+    for path, _, backtest in _pairs():
+        vs.check_answer_box(corpus_mod.load_file(path, registry=fx.registry(), backtest=backtest))
+    raw = yaml.safe_load((MIRROR / "backtest-r14" / "12-transload.yaml").read_text(encoding="utf-8"))
+    raw["revision"] = corpus_mod.REVISION
+    entry = corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="12-transload.yaml"), registry=fx.registry(),
+                                 backtest=True)
+    with pytest.raises(vs.VectorsScriptError) as stopped:
+        vs.founder_inputs(entry)
+    assert "'Finding freight sitting at the wrong door' would be dropped" in str(stopped.value), str(stopped.value)
+    assert vs.answer_drops(entry, "problem.importance") == ["Finding freight sitting at the wrong door"]
+
+
+def test_a_list_label_past_the_answer_box_stops_at_load(tmp_path):
+    """Bound to the registry a label is held to its `saves.max_words` (nine) first; read unbound, the harness's own
+    stop names it."""
+    raw = fx.raw_entry(fx.ENTRY)
+    items = raw["founder_calibration"]["problem.importance"]["answer"]["items"]
+    items[1]["label"] = " ".join(["word"] * 26)
+    entry = corpus_mod.load_file(fx.write_entry(tmp_path, raw))
+    with pytest.raises(vs.VectorsScriptError, match="is 26 words; the Answer box takes 25"):
+        vs.check_answer_box(entry)

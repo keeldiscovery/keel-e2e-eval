@@ -771,6 +771,51 @@ def saved_list(entry, key: str) -> dict:
             "phrase": saved.get("phrase") if key == "problem.current_solution_satisfaction" else None}
 
 
+#: keel-web's Answer box on a list dimension: *Up to 25 words* (the founder's words Keel drafts the list from).
+ANSWER_MAX_WORDS = 25
+
+
+def answer_drops(entry, key: str) -> list[str]:
+    """The labels `answer_text` cannot fit in the Answer box -- what the founder would never type, so Keel would never
+    draft (spec 067 FR-1: the judges of Palus, Transload, Expanse, Veles and Codyco found one dropped)."""
+    if not (entry.founder_list(key) or {}).get("items"):
+        return []
+    labels = _answer_labels(entry, key)
+    typed = answer_text(entry, key).split("; ")
+    return [label for label in labels if label not in typed]
+
+
+def check_answer_box(entry) -> None:
+    """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): at load, no list label is over the Answer box's 25 words, and
+    Importance's Answer names every difficulty it is to name inside it (Current solution's rungs past the box are typed
+    on the Check screen instead, FR-2) -- else the run stops here, naming the label, never after a paid walk."""
+    for key in (k for k in LIST_CONTROLS if (entry.founder_list(k) or {}).get("items")):
+        for item in entry.founder_list(key)["items"]:
+            if _words(item.get("label")) > ANSWER_MAX_WORDS:
+                raise VectorsScriptError(f"{entry.id}: {key}'s item {item['label']!r} is {_words(item['label'])} words; "
+                                         f"the Answer box takes {ANSWER_MAX_WORDS} (spec 067 FR-1)")
+    importance = "problem.importance"
+    if (entry.founder_list(importance) or {}).get("items") and not entry.unsure(importance):
+        dropped = answer_drops(entry, importance)
+        if dropped:
+            raise VectorsScriptError(
+                f"{entry.id}: problem.importance's Answer takes {ANSWER_MAX_WORDS} words and the founder's items need "
+                f"{_words('; '.join(_answer_labels(entry, importance)))} -- {', '.join(repr(d) for d in dropped)} would "
+                "be dropped, so Keel would never draft it and strangers never be offered it (spec 067 FR-1; keel-cloud "
+                "128 FR-17, FR-20)")
+
+
+def _answer_labels(entry, key: str) -> list[str]:
+    """The labels the founder's Answer on `key` names, in order, before the box's cap."""
+    saved = founder_list(entry, key)
+    labels = [i["label"] for i in saved["items"] if i.get("code") != NOBODY_ELSE[0]]
+    if key == "problem.importance":
+        labels = importance_named(entry)
+    if key == "problem.current_solution_satisfaction" and saved.get("phrase"):
+        labels = [saved["phrase"]] + labels
+    return labels
+
+
 def answer_text(entry, key: str) -> str:
     """The founder's words on a list dimension's Answer screen (at most 25): the list's own labels, joined,
     as many whole ones as fit -- r10 records the list the Answer was drafted from, not the Answer (COMPOSED).
@@ -789,7 +834,7 @@ def answer_text(entry, key: str) -> str:
     text = labels[0]
     for label in labels[1:]:
         candidate = f"{text}; {label}"
-        if _words(candidate) > 25:
+        if _words(candidate) > ANSWER_MAX_WORDS:
             break
         text = candidate
     return text
@@ -1262,6 +1307,7 @@ class FounderInputs:
 
 
 def founder_inputs(entry) -> FounderInputs:
+    check_answer_box(entry)
     ctx = _ctx(entry)
     market = entry.market or {}
     statements = entry.statements or {}

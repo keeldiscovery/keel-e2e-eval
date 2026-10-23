@@ -49,13 +49,18 @@ the canon-reading tests the revision refusal had skipped.
 
 ## FR-1 -- picks are sent as written
 
-- [ ] T010 at load, on a back-test entry: Importance's Answer (`vs.answer_text`) names every founder item within the
+- [x] T010 at load, on a back-test entry: Importance's Answer (`vs.answer_text`) names every founder item within the
   25-word box, or `vs.founder_inputs` stops with the label(s) the box drops named; any single list label over 25 words
   stops likewise. All 28 revision-15 entries pass (128 shortened six entries' rivals).
-- [ ] T011 the walk never swaps a pick: on a non-strict walk an option the page does not offer is dropped from the
+- [x] T011 the walk never swaps a pick: on a non-strict walk an option the page does not offer is dropped from the
   answer (the item's other picks kept; an item left with none is answered by its escape, as the unanswered item
   already is), and each such pick is a finding naming the dimension, the entry's label and what was served.
   `_on_the_offered_options` (the swap onto the item's first options) is deleted.
+- [x] T012 as built: `vs.check_answer_box` runs first in `vs.founder_inputs` on every entry (golden too: 01-countly's and
+  05-paidly's named sublists fit), so `test_every_backtest_entry_loads_in_backtest_mode` holds it; revision 14's
+  12-transload read at 15 stops naming *Finding freight sitting at the wrong door*. Judgement call 7: pick_two needs
+  exactly two (keel-web `interviewAnswers.ts`), so an Importance answer left with one is the item's escape, named.
+  Unit: 3,114 passed, 53 skipped, 0 failed.
 
 ## FR-2 -- every founder rung is typed
 
@@ -139,6 +144,9 @@ the canon-reading tests the revision refusal had skipped.
 5. **The Re-run column is printed, not written** (the register is the cloud repo's, the parent's instruction).
 6. **FR-7 waits for keel-web 106's build** for every screen that build adds; this build reads what the wire and the
    existing screens already show.
+
+7. **An item the control cannot carry after the drop goes to its escape.** The alternative -- a neighbour -- is the
+   swap FR-1 forbids; stopping the run loses a paid walk for one pick. The escape is named beside the dropped pick.
 
 ## Left open
 
