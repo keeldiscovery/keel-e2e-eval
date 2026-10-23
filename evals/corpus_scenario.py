@@ -2239,8 +2239,11 @@ def _hold_the_idea_name(j: Journey, person, interview: dict, walked: dict) -> No
         for kind, lines in served:
             if lines and lines.get("what") != card:
                 faults.append({kind: lines.get("what"), "want": card})
-        if advantage is not None and advantage.get("question") != want_question:
-            faults.append({"question": advantage.get("question"), "want": want_question})
+        served_q = (advantage or {}).get("question") or ""
+        if advantage is not None and (served_q != want_question if j.strict else name not in served_q):
+            # on the back-test the stem and the question are the model's (keel-cloud 120 opens the question with the
+            # occasion stem); only the idea's current name is held there
+            faults.append({"question": served_q, "want": want_question if j.strict else f"names {name!r}"})
         if j.strict and occasion != vs.occasion(j.entry):
             faults.append({"occasion": occasion, "corpus": vs.occasion(j.entry)})
         for drawn in walked["screens"]:
