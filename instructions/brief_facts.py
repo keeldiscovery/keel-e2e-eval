@@ -80,37 +80,42 @@ def prevalence_line(clause: str | None, window_words: str) -> str:
 #: keel-cloud 122 FR-3 (`facts.decision.change`, `DecisionChangeCorpusTest`): the seven golden decisions' named change,
 #: copied from keel-cloud's `specs/122-.../tasks.md` table (*After*); `instructions/overview.py` draws it in place of the
 #: semicolon list it used to join (spec 064 FR-8c). Read on the corpus reading only; a journey reads the served change.
+#: Spec 067 (keel-cloud 128 FR-8, `ChangeSentences.namedAgainst`): each count names the side against the founder --
+#: *only k of n ..., and n - k did not* -- copied from keel-cloud's `build/brief-facts/` at keel-cloud-docs `423f0983`.
 DECISION_CHANGE = {
     "01-countly": {"line": CURRENT_SOLUTION_KEY,
-                   "sentence": "Not yet: Current solution split them, 5 of 8 say today's way falls short."},
+                   "sentence": "Not yet: Current solution split them, only 5 of 8 say today's way falls short, and 3 did not."},
     "02-compliancelog": {"line": "solution.relative_advantage",
-                         "sentence": "Build, but change what it does better: 4 of 9 said it would have made their last "
-                                     "compliance report better.",
+                         "sentence": "Build, but change what it does better: only 4 of 9 said it would have made their "
+                                     "last compliance report better, and 5 did not.",
                          "also": {"line": PRICE_KEY,
                                   "sentence": "Change the price too: 7 of 9 put it below your $250 to $350 a month."}},
     "03-lullaby": {"line": CURRENT_SOLUTION_KEY,
-                   "sentence": "Not yet: Current solution did not hold, 2 of 8 say today's way falls short.",
+                   "sentence": "Not yet: Current solution did not hold, only 2 of 8 say today's way falls short, and 6 did "
+                               "not.",
                    "also": {"line": IMPORTANCE_KEY,
-                            "sentence": "Importance split them too, 3 of 8 put it in their top two."}},
-    "04-linerly": {"line": IMPORTANCE_KEY, "sentence": "Not yet: Importance split them, 3 of 8 put it in their top two.",
+                            "sentence": "Importance split them too, only 3 of 8 put it in their top two, and 5 did not."}},
+    "04-linerly": {"line": IMPORTANCE_KEY, "sentence": "Not yet: Importance split them, only 3 of 8 put it in their top two, and 5 "
+                                                            "did not.",
                    "also": {"line": CURRENT_SOLUTION_KEY,
-                            "sentence": "Current solution split them too, 3 of 8 say today's way falls short."}},
+                            "sentence": "Current solution split them too, only 3 of 8 say today's way falls short, and 5 did "
+                                        "not."}},
     "05-paidly": {"line": SACRIFICE_KEY,
                   "sentence": "Build, but change the cost you put on the problem: the middle cost was $58.33 a month "
                               "against your $100 to $300 a month.",
                   "also": {"line": PRICE_KEY,
                            "sentence": "Change the price too: 3 of 8 put it below your $60 to $100 a month."}},
     "06-repeatline": {"line": "solution.relative_advantage",
-                      "sentence": "Build, but change what it does better: 3 of 9 said it would have made their last "
-                                  "shift on the phones better.",
+                      "sentence": "Build, but change what it does better: only 3 of 9 said it would have made their "
+                                  "last shift on the phones better, and 6 did not.",
                       "also": {"line": COMMITMENT_KEY,
-                               "sentence": "Change the first step you ask for too: 2 of 7 would introduce us to the "
-                                           "practice's IT supplier."}},
+                               "sentence": "Change the first step you ask for too: only 2 of 7 would introduce us to the "
+                                           "practice's IT supplier, and 5 did not."}},
     "07-mulchrun": {"line": GATE_KEY,
                     "sentence": "Not yet: Prevalence did not hold, 9 of 12 had it in the last 2 weeks against your "
                                 "nearly all.",
                     "also": {"line": IMPORTANCE_KEY,
-                             "sentence": "Importance split them too, 4 of 7 put it in their top two."}},
+                             "sentence": "Importance split them too, only 4 of 7 put it in their top two, and 3 did not."}},
 }
 #: What a card's compare reads; `statusWords` is compared on its verdict half (call 82); `keelBar` since 091 (call 114).
 CARD_FIELDS = ("key", "name", "number", "line", "status", "keelBar")
@@ -173,6 +178,25 @@ def _split(supports: int, n: int) -> str:
     if supports * 3 <= n:
         return "NOT_HOLDING_UP"
     return "PEOPLE_DISAGREE"
+
+
+#: keel-cloud 128 FR-8 (`BriefFacts.BAR_LINES`): the lines the founder sets a bar on, where the bar decides first.
+BAR_LINES = (COMPATIBILITY_KEY, "solution.relative_advantage", ADOPTION_KEY, PURCHASE_FRICTION_KEY, COMMITMENT_KEY)
+#: keel-cloud 128 FR-8 (`BriefFacts.DID_NOT_HOLD`): a bar line past its bar.
+DID_NOT_HOLD = "Did not hold"
+
+
+def bar_words(key: str, standing: dict) -> str:
+    """keel-cloud 128 FR-8 (`BriefFacts.barWords`, spec 067): a status's words -- on a line with a founder's bar the
+    engine's amber is never said *People disagree*: past the bar it *Did not hold*, and Purchase friction's fear that held
+    (`yes_long` at two in three or more) is *Holding up*. The status and every count are the engine's, unchanged."""
+    status = standing.get("status")
+    if status != "PEOPLE_DISAGREE" or key not in BAR_LINES:
+        return VERDICT_WORDS.get(status, status)
+    if key == PURCHASE_FRICTION_KEY and standing.get("n") \
+            and _split(_option_count(standing, "yes_long"), int(standing["n"])) == "HOLDING_UP":
+        return VERDICT_WORDS["HOLDING_UP"]
+    return DID_NOT_HOLD
 
 
 def friction_words(key: str, standing: dict, tested: str | None, words: str) -> str:
@@ -258,7 +282,7 @@ def card(entry, dimension, standing: dict, *, clause: str | None = None) -> dict
                    line=f"would {(entry.tested(key) or {}).get('label') or 'take the step'}"
                         + (f" · {apart} more {'after ' + second + ' first' if second else 'after trying it first'}"
                            if apart else ""))
-    out.update(status=status, statusWords=VERDICT_WORDS.get(status, status))
+    out.update(status=status, statusWords=bar_words(key, standing))
     if key in (ADOPTION_KEY, PURCHASE_FRICTION_KEY) and standing.get("n"):
         out["statusWords"] = friction_words(key, standing, (entry.tested(key) or {}).get("label"), out["statusWords"])
     if key in KEEL_BAR and status != "LEFT_OUT":

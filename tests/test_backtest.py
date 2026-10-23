@@ -301,7 +301,11 @@ def test_the_strangers_chain_items_on_the_wire():
     box = next(p for p in picks if p.dimension == "commercial.existing_sacrifice" and p.interval)
     wire = box.asked_over("quarter").as_wire("tok")
     assert set(wire) == {"itemId", "interval"} and wire["interval"]["low"] == box.interval["low"]
-    nothing = next(p for p in picks if p.dimension == "commercial.existing_sacrifice" and p.chip == "NOTHING")
+    # corpus revision 15 (keel-cloud 128 FR-21): AirCaps's cost picks are conversations lost, none Nothing (the r13
+    # *Nothing stays nothing* rule retired); Issen's Patrick Sorensen misses no practice, so Nothing is read there
+    assert not [p for p in picks if p.dimension == "commercial.existing_sacrifice" and p.chip == "NOTHING"]
+    nothing = next(p for person in vs.person_inputs(_bt("11-issen")) for p in person.picks
+                   if p.dimension == "commercial.existing_sacrifice" and p.chip == "NOTHING")
     assert nothing.as_wire("tok")["chip"] == "NOTHING"
     two = next(p for p in picks if p.dimension == "commercial.price" and len(p.codes) == 2)
     assert len(two.as_wire("tok")["optionIds"]) == 2 and two.codes[0].startswith("upfront.")

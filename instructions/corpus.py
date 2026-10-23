@@ -84,7 +84,7 @@ from .registry import (ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTRO
                        FREQUENCY_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY,
                        PRICE_PERIODS, SACRIFICE_KEY, VECTORS, RecallWindow, words)
 
-REVISION = 14
+REVISION = 15
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51, 78).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
@@ -106,7 +106,13 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 12: "MARKS_VERSION 20's corpus, before the commercial chain (keel-cloud 115: a cost with no "
                     "unit, a price with no shape)",
                 13: "MARKS_VERSION 20's corpus on the chain, before Commitment's smaller step in the golden lists "
-                    "(keel-cloud 127: a yes_after_trying answer where the list serves no second yes)"}
+                    "(keel-cloud 127: a yes_after_trying answer where the list serves no second yes)",
+                14: "MARKS_VERSION 20's corpus before keel-cloud 128 (11-issen's cost picks inverted, six entries' "
+                    "Importance rivals past the 25-word box, no per-person answer to the segment's condition)"}
+
+#: Spec 067 FR-6 (keel-cloud 128 FR-11, `check_corpus_r15.py`'s rule Q): a person's answer to the segment's condition
+#: chip -- inside or outside -- where the entry's context records a condition; on the primary link only.
+CONDITION_ANSWERS = ("YES", "NO")
 
 #: `sim/check_corpus_r5.py`'s `CURRENCY` (keel-cloud `Market.currency`'s table, the corpus's markets):
 #: a founder price is in its market's currency, never another.
@@ -299,6 +305,10 @@ class Person:
     #: inside (default yes: every golden person is the segment by the corpus's own account); `False` is a person
     #: thanked at the chip and recorded apart (`outsideSegment`), never walked further. Optional, primary link only.
     in_segment: bool = True
+    #: Spec 067 FR-6 (corpus revision 15, keel-cloud 128 FR-11 / FR-14, rule Q): the person's own answer to the segment's
+    #: condition chip -- `YES` (inside) or `NO` (outside: `in_segment` False) -- where the entry's context records a
+    #: condition; None where it records none. 11-issen and 18-careforce carry it.
+    condition: str | None = None
 
     @property
     def gate_yes(self) -> bool:
@@ -1457,13 +1467,37 @@ def _check_keys(entry: Entry, registry) -> None:
 
 
 def _person(raw: dict) -> Person:
+    condition = raw.get("condition")
+    inside = raw.get("in_segment") is not False if condition is None else condition == "YES"
     return Person(person=raw.get("person"), recency=raw.get("recency"),
                   story=raw.get("story") or None, chip=raw.get("chip"),
                   anchoring=raw.get("anchoring"), picks=dict(raw.get("picks") or {}),
                   pilot_opt_in=bool(raw.get("pilot_opt_in")),
                   link=raw.get("link", LINK_PRIMARY),
                   follow_up=(str(raw.get("follow_up")).strip() or None) if raw.get("follow_up") else None,
-                  in_segment=raw.get("in_segment") is not False)
+                  in_segment=inside, condition=condition)
+
+
+def _check_condition(raw: dict, path: Path) -> None:
+    """Rule Q of `check_corpus_r15.py` (spec 067 FR-6, keel-cloud 128 FR-11): a person's `condition` is `YES` or `NO`, on
+    the primary link only, and only where the entry's context records `condition`. The older `in_segment` (spec 064
+    FR-4) says the same fact; a person carrying both that disagree is refused."""
+    entry_id = raw.get("id") or path.name
+    has = bool((raw.get("context") or {}).get("condition"))
+    for person in raw.get("answers") or []:
+        if not isinstance(person, dict) or "condition" not in person:
+            continue
+        who = person.get("person")
+        if not has:
+            raise _refuse(entry_id, f"{who} carries a condition answer where the context records no condition "
+                                    "(rule Q)", path)
+        if person.get("link", LINK_PRIMARY) != LINK_PRIMARY:
+            raise _refuse(entry_id, f"{who}: the condition chip is asked on the primary link only (rule Q)", path)
+        if person.get("condition") not in CONDITION_ANSWERS:
+            raise _refuse(entry_id, f"{who}: condition {person.get('condition')!r} is not YES or NO (rule Q)", path)
+        if "in_segment" in person and (person["in_segment"] is not False) != (person["condition"] == "YES"):
+            raise _refuse(entry_id, f"{who}: in_segment {person['in_segment']!r} disagrees with condition "
+                                    f"{person['condition']!r} -- one fact, said once (spec 067 FR-6)", path)
 
 
 def _check_backtest(raw: dict, path: Path, backtest: bool) -> None:
@@ -1496,6 +1530,7 @@ def _entry(raw: dict, path: Path, digest: str, *, backtest: bool = False) -> Ent
     _check_revision(raw, path)
     _check_backtest(raw, path, backtest)
     _check_shape(raw, path)
+    _check_condition(raw, path)
     return Entry(
         id=raw["id"],
         title=raw.get("title", ""),

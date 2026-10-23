@@ -1706,6 +1706,16 @@ def person_inputs(entry) -> list[PersonInputs]:
                                               else lines.get(p.person))) for p in people]
 
 
+def inside_inputs(entry, name: str) -> "PersonInputs":
+    """Spec 067 FR-6: `name`'s inputs as a person inside the segment -- their recorded gate answer, story and picks --
+    for a back-test page that serves no segment chip although the entry answers it NO (the chip is the model's to write,
+    keel-cloud 120 FR-2): the walk goes on as the person the page can ask, and the difference is the journey's finding."""
+    import dataclasses                                                 # noqa: PLC0415
+    answers = [{k: v for k, v in raw.items() if k not in ("condition", "in_segment")} if raw.get("person") == name
+               else raw for raw in entry.answers]
+    return next(p for p in person_inputs(dataclasses.replace(entry, answers=answers)) if p.person == name)
+
+
 def people_to_invite(entry, count: int) -> tuple[list[PersonInputs], list[str]]:
     """S-012's people: the first `count` of the entry's people, in corpus order, whose answer a
     reading can be taken from -- a gate yes with a story typed -- and on a B2B entry the first `count`

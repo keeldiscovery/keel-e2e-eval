@@ -444,11 +444,15 @@ def test_the_record_follows_registry_revision_13s_five_changes(real):
     sacrifice = lullaby("commercial.existing_sacrifice")
     assert (sacrifice.escape, sacrifice.escape_line) == ("I don't know", "Or say you can't recall.")
     assert spoken_mod.served_escape(registry, sacrifice.key, corpus.by_id("03-lullaby")) == "I can't recall"
-    assert lullaby("solution.compatibility").options == tuple(spoken_mod.ABILITY_ANSWERS.values())
+    # keel-cloud 128 FR-13b (corpus revision 15): Lullaby's *your phone was within reach* is a fact, so a fact's four
+    assert lullaby("solution.compatibility").options == tuple(spoken_mod.FACT_ANSWERS.values())
     assert items[("05-paidly", "solution.compatibility")].options == tuple(
         a["label"] for a in registry.by_key("solution.compatibility").fixed_answers), "a permission keeps the four"
-    assert lullaby("commercial.buyer_payer_alignment").options[2:] == ("Someone else had to agree instead",
-                                                                      "No, someone else decided for me")
+    # keel-cloud 128 FR-5 / FR-18: with no role named, the four are distinct answers
+    assert lullaby("commercial.buyer_payer_alignment").options == ("Yes, someone else had to agree",
+                                                                  "No, I decided on my own",
+                                                                  "Yes, several people had to agree",
+                                                                  "No, someone else decided for me")
     commitment = lullaby("commercial.commitment")
     # corpus revision 14 (keel-cloud 127): Lullaby's list carries its smaller step, so the second yes is served
     assert commitment.options == ("Yes, I'd allow it to use the microphone at night",

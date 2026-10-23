@@ -11,26 +11,41 @@ skipped** -- every failure the revision refusal (*"revision is 15; this eval rea
 
 ## FR-6 -- entries revision 15 and the new fields (first: it unblocks every load)
 
-- [ ] T001 `instructions/corpus.py`: `REVISION = 15`; `_REVISION_OF[14]` names revision 14 as *before keel-cloud 128*
+- [x] T001 `instructions/corpus.py`: `REVISION = 15`; `_REVISION_OF[14]` names revision 14 as *before keel-cloud 128*
   (Issen's cost inverted, the Importance rivals over the 25-word box, no per-person segment answer).
-- [ ] T002 the per-person `condition` (rule Q of `check_corpus_r15.py`, mirrored in the reader): `YES` or `NO`, on the
+- [x] T002 the per-person `condition` (rule Q of `check_corpus_r15.py`, mirrored in the reader): `YES` or `NO`, on the
   primary link only, and only where `context.condition` is recorded; `Person.condition` kept; `NO` is a person outside
   the segment (`in_segment` False, thanked at the chip and recorded apart), `YES` inside. An entry carrying both
   `condition` and the older `in_segment` that disagree is refused by name.
-- [ ] T003 the pilot opt-ins read as before (`pilot_opt_in`), now true on 12-transload's Nadine Fournier and Oluwaseun
+- [x] T003 the pilot opt-ins read as before (`pilot_opt_in`), now true on 12-transload's Nadine Fournier and Oluwaseun
   Adebayo (decision-maker link); a person whose entry opts in and whose done screen serves no pilot is a finding, not
   a silent pass.
-- [ ] T004 fixtures (`tests/fixtures/corpus/09-fixture.yaml`, `10-fixture-b2b.yaml`, `tests/fixtures/backtest/99-broken.yaml`)
+- [x] T004 fixtures (`tests/fixtures/corpus/09-fixture.yaml`, `10-fixture-b2b.yaml`, `tests/fixtures/backtest/99-broken.yaml`)
   at revision 15; the registry slice unchanged (128 moved no registry json or yaml -- the slice is named here so the
   next reader does not look for an edit).
-- [ ] T005 `instructions/marks.py`'s header: a *Corpus revision 15* paragraph naming the seven golden files by sha256
+- [x] T005 `instructions/marks.py`'s header: a *Corpus revision 15* paragraph naming the seven golden files by sha256
   (canon bytes at `423f0983`, equal to `src/test/resources/keel/corpus-r15/`); v20 stands; the test reads the seven.
-- [ ] T006 D15 and Q mirrored: `tests/test_corpus_r15.py` -- the reader's Q refusals; the eval's own diff of every entry
+- [x] T006 D15 and Q mirrored: `tests/test_corpus_r15.py` -- the reader's Q refusals; the eval's own diff of every entry
   against the cloud's revision-14 mirrors (`corpus-r14/`, `backtest-r14/`) equals 128 tasks.md's listing exactly
   (10-palus 3, 11-issen 64, 12-transload 4, 13-aircaps 45, 17-expanse 3, 18-careforce 14, 19-veles 2, 21-codyco 2,
   25-bidflow 2, every other entry 1); and the cloud's own `check_corpus_r15.py` prints OK on all 35 (skipped by name
   where keel-cloud's checkout lacks it).
-- [ ] T007 the tests that read fourteen read fifteen.
+- [x] T007 the tests that read fourteen read fifteen; 13-aircaps carries no *Nothing* any more (128 FR-21), so the
+  value box's NOTHING chip is read on 11-issen's Patrick Sorensen.
+- [x] T008 the zero-spend rows held on the 128 build, which the bump un-skipped (they skip while the reader refuses the
+  canon): 128 moved words, not numbers, and the eval's reading follows -- `brief_facts.bar_words` (128 FR-8
+  `BriefFacts.barWords`: a bar line's amber is *Did not hold*, Purchase friction's held fear *Holding up*), the seven
+  golden decisions' change sentences in 128's *only k of n ..., and m did not* (`ChangeSentences.namedAgainst`),
+  and `spoken.served_labels` knowing 128's label sets (a fact's *Yes · Mostly · Partly · No*, Purchase friction for
+  this purchase, Buyer and payer's distinct four). `brief_facts` 101 of 101, `report_overview` 49 of 49,
+  `spoken_form` 109 of 109 -- as on master; no number moved.
+- [x] T009 a person the entry answers NO whose page serves no segment chip (the chip is the model's to write) is walked
+  inside on their recorded answers (`vs.inside_inputs`) and named as a finding.
+- [x] T010a 123 T019's bins-edge property: 18-careforce sits on the 0.8 edge at revision 15 (Olga and Miguel outside,
+  8 of 10) -- a back-test entry, no golden standing to move; named in the test, never a golden entry.
+
+Measured: **3,112 passed, 53 skipped, 0 failed** (was 42 failed, 2,921 passed, 195 skipped); the 142 un-skipped are
+the canon-reading tests the revision refusal had skipped.
 
 ## FR-1 -- picks are sent as written
 

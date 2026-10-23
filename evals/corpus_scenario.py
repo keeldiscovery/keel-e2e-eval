@@ -1944,6 +1944,14 @@ def _answer_one(j: Journey, person, token: str) -> None:
         j.interviews[person.person] = interview
         items = {i.get("dimension"): i for part in interview.get("parts") or []
                  for i in part.get("items") or []}
+        if not getattr(person, "in_segment", True) and not ((interview.get("gate") or {}).get("condition")) \
+                and not j.strict:
+            # spec 067 FR-6 (corpus revision 15): the entry answers the segment's chip NO, but the page serves no chip
+            # (the model wrote no condition for the gate) -- the person is walked as the page can ask them, and named
+            j.findings.append({"what": f"{person.person}: the entry answers the segment's condition NO, but the page "
+                                       "served no segment chip; walked inside, on their recorded answers",
+                               "served": {"gate": interview.get("gate")}})
+            person = vs.inside_inputs(j.entry, person.person)
         kind = "COMMERCIAL_LINK" if person.link == vs.LINK_B2B else "FULL"
         with _step(j, f"{person.person}: the {kind} interview carries every item this person "
                       "answers, and every option they pick", party="participant") as h:
@@ -2042,6 +2050,11 @@ def _answer_one(j: Journey, person, token: str) -> None:
             assert _normal_body(sent) == _normal_body(expected), (sent, expected)
             h.capture_text("participant_page", "\n\n".join(walked["seen"]))
         if person.pilot_opt_in:
+            if not ((interview.get("done") or {}).get("pilot") or {}).get("label") and not j.strict:
+                # spec 067 FR-6 (corpus revision 15: 12-transload's two managers opt in): an opt-in the done screen
+                # cannot take is named, never passed over in silence
+                j.findings.append({"what": f"{person.person}: the entry opts in to the pilot, but the done screen "
+                                           "served no pilot to tick", "served": {"done": interview.get("done")}})
             screens.opt_in_to_pilot(interview)
     finally:
         stranger.close()

@@ -85,6 +85,21 @@ reads the three page clips with the rest (29 in the manifest) -- and `evals/inte
 her hello in the who-asks band to its end, the still returns; absent for a retired face); the interviewer leg's W1
 replay reading retires with *How it works* (it was a leg step, never a row).
 
+**Corpus revision 15 (2026-10-23, keel-cloud 128; eval 067, the harness half)**: the golden seven move by their revision
+line alone (128 FR-11); the back-test entries gain each person's answer to the segment's condition (`condition`, YES or
+NO, rule Q -- 11-issen, 18-careforce), 12-transload's two managers' pilot opt-ins, 11-issen's and 13-aircaps's cost picks
+as each person's own loss, and six entries' Importance rivals shortened to fit the founder's 25-word box. The reader
+reads **revision 15** and refuses a revision-14 file by name. **v20 stands**: this revision bumps nothing. The seven
+revision-15 files, by sha256 (keel-cloud canon's own bytes at keel-cloud-docs `423f0983`, equal to
+`src/test/resources/keel/corpus-r15/`): `01-countly.yaml`
+`9ee028f1902888732e4580a4daa635464ec96b6e2befbf1b44f9de8fa3c0c303`; `02-compliancelog.yaml`
+`e2f2d3345e4bd556044a284abc19e405847340c7042207b5742bbdfca20cd174`; `03-lullaby.yaml`
+`33387261056a5d50e9916db854e2240fc44686c592ec9e06339fb4c5aeeeede6`; `04-linerly.yaml`
+`72f10800bc24d191296c87cd2a3926f4a8268cceab3ee97a059d52acc20763a4`; `05-paidly.yaml`
+`05af06ddb9d23b04e024c4ac0d31f333fb87636e61a99f3cc0412874c7b9d812`; `06-repeatline.yaml`
+`a646d30e02117a1cf3fd86c565b30d66a4041c3733f5b39c235b327cc0717d84`; `07-mulchrun.yaml`
+`af800e2e46981487d116288aadf890285d42a8a440962b8b1b849460620ab1c3`.
+
 **Corpus revision 14 (2026-10-23, keel-cloud 127; eval 065 and the 064 harness after the fixed chain)**: Commitment's
 second yes lives in the golden founders' lists where the step costs data or a signature (02, 03, 06 gain
 `smaller_step`), and where it costs nothing (01, 05) *trying it* is the step, so their four `yes_after_trying` answers

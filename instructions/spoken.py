@@ -66,6 +66,12 @@ changes, all on purpose, all keel-cloud's (registry revision 13 at keel-cloud-do
    03-lullaby's *Yes, I'd allow it to use the microphone at night* is ten -- read back whole for the first time here,
    it had been split at its comma and never measured).
 
+Spec 067 (keel-cloud 128, corpus revision 15) adds three more, all keel-cloud's code and none a registry change: a
+Compatibility condition read as a **fact** is answered *Yes · Mostly · Partly · No* on the same four codes (128 FR-13b,
+`FACT_ANSWERS`); Purchase friction is asked of **this** purchase, *Yes, and it would take a long time · Yes, but it would
+be quick · No, it wouldn't be needed* (128 FR-12, `PURCHASE_ANSWERS`); Buyer and payer's four are distinct answers, the
+consumer's past ones and the decision-maker's at the founder's price (128 FR-5, FR-18, FR-19, `buyer_answers`).
+
 So the escape an item names is the registry's (`registry_escape`), the escape it says is the one it is served with
 (`served_escape`), and the labels an option list is read back with are the ones the registry says the item may carry
 (`served_labels`, used by `cloud_corpus.known_labels_for`). The rules keep their meaning: a stem over 20 words, a
@@ -78,7 +84,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from .registry import (ABILITY_KEY, ADOPTION_KEY, BENEFIT_KEY, COMMITMENT_KEY, COMPATIBILITY_KEY,
+from .registry import (ABILITY_KEY, ADOPTION_KEY, BENEFIT_KEY, BUYER_KEY, COMMITMENT_KEY, COMPATIBILITY_KEY,
+                       PURCHASE_FRICTION_KEY,
                        CURRENT_SOLUTION_KEY, FREQUENCY_KEY, IMPORTANCE_KEY, PRICE_KEY, SACRIFICE_KEY,
                        VALUE_BOX_CONTROL, words)
 
@@ -107,6 +114,27 @@ CONSUMER_BUDGET_ESCAPE = "I can't say"
 #: condition of ability, on the registry's own four codes; a condition of permission keeps the registry's labels.
 ABILITY_ANSWERS = {"yes_easily": "Yes, easily", "yes_with_steps": "Yes, mostly", "only_with_help": "Only sometimes",
                    "no": "No"}
+
+
+#: keel-cloud 128 FR-13b (`ItemFrames.FACT_LABELS`, spec 067): a Compatibility condition read as a fact is answered as
+#: a fact, on the same four codes.
+FACT_ANSWERS = {"yes_easily": "Yes", "yes_with_steps": "Mostly", "only_with_help": "Partly", "no": "No"}
+#: keel-cloud 128 FR-12 (`ItemFrames.PURCHASE_LABELS`): Purchase friction's three, reread for this purchase.
+PURCHASE_ANSWERS = {"yes_long": "Yes, and it would take a long time", "yes_quick": "Yes, but it would be quick",
+                    "not_needed": "No, it wouldn't be needed"}
+
+
+def buyer_answers(role: str | None) -> list:
+    """keel-cloud 128 FR-5 / FR-18 / FR-19 (`ItemFrames.buyerPayerLabel`, `buyerPayerAtPriceLabel`): Buyer and payer's
+    labels beside the registry's -- the consumer link's past answers and the decision-maker's for this purchase at the
+    founder's price -- with the role the founder named (`None`: *Nobody else* tested)."""
+    past_who = None if role is None else re.sub(r"^their ", "my ", _lower(role.strip()))
+    who = None if role is None else _lower(role.strip())
+    return ["Yes, someone else had to agree" if past_who is None else f"Yes, {past_who} had to agree",
+            "Yes, several people had to agree",
+            "No, someone else would have to agree" if who is None else f"No, {who} would have to agree",
+            "Yes, I could sign off on it myself", "No, several people would have to agree",
+            "No, someone else would have to agree instead", "No, it would be someone else's decision"]
 
 
 def _lower(label: str) -> str:
@@ -144,8 +172,16 @@ def served_labels(registry, key: str, entry=None) -> list:
     dimension = registry.by_key(key)
     labels = [a.get("label") for a in dimension.fixed_answers]
     if key == COMPATIBILITY_KEY:
-        labels += [ABILITY_ANSWERS.get(code, label) for code, label in
-                   zip(dimension.fixed_answer_codes, labels)]
+        fixed = list(labels)
+        labels += [ABILITY_ANSWERS.get(code, label) for code, label in zip(dimension.fixed_answer_codes, fixed)]
+        labels += [FACT_ANSWERS.get(code, label) for code, label in zip(dimension.fixed_answer_codes, fixed)]
+    if key == PURCHASE_FRICTION_KEY:
+        labels += list(PURCHASE_ANSWERS.values())
+    if key == BUYER_KEY:
+        roles = [i.get("label") for i in (((entry.founder_list(key) or {}).get("items") or []) if entry else [])
+                 if i.get("label") and i.get("code") != "nobody_else"]
+        for role in roles + [None]:
+            labels += buyer_answers(role)
     if key == COMMITMENT_KEY and entry is not None:
         steps = [i.get("label") for i in ((entry.founder_list(key) or {}).get("items") or []) if i.get("label")]
         if steps:
