@@ -1874,6 +1874,12 @@ class Interview:
                 self._keep()
                 self._shot(f"part{part.get('part')}-{item.get('dimension')}")
                 answer = wire_answers.get(item.get("itemId"))
+                stem = _first_text(page, "h1.iv-q") or ""
+                if item.get("text") and stem.strip() and stem.strip() != str(item.get("text")).strip():
+                    # the page is not on the item the walk is about to answer: name both, instead of a click that
+                    # times out on a chip or radio the screen never drew
+                    raise AssertionError(json.dumps({"walk_item": item.get("dimension"), "walk_stem": item.get("text"),
+                                                     "page_stem": stem, "url": page.url}))
                 if answer is not None:
                     self._answer(item, answer)
                 elif item.get("escape"):
@@ -1951,7 +1957,15 @@ class Interview:
             served = [item.get("escape") or {}, box.get("nothing") or {}] + list(box.get("chips") or [])
             label = next((e.get("label") for e in served if str(e.get("code") or e.get("chip") or "").upper()
                           == answer["chip"]), (item.get("escape") or {}).get("label"))
-            main.locator(".iv-chips").get_by_role("button", name=label, exact=True).first.click()
+            chip = main.locator(".iv-chips").get_by_role("button", name=label, exact=True).first
+            if chip.count() == 0:
+                # the screen does not draw the chip the served item names (13-aircaps, Naomi Adler): say what it does
+                # draw, so the stop can be read without a rerun
+                drawn = [c.strip() for c in main.locator(".iv-chips button").all_inner_texts()]
+                raise AssertionError(json.dumps({"item": item.get("dimension"), "chip": answer["chip"], "wanted": label,
+                                                 "stem": _first_text(self.page, "h1.iv-q"), "chips_drawn": drawn,
+                                                 "url": self.page.url}))
+            chip.click()
             return
         if "scale" in answer:
             main.get_by_role("radio", name=str(answer["scale"]), exact=True).click()
