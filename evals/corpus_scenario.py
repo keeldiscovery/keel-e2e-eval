@@ -1975,7 +1975,8 @@ def _answer_one(j: Journey, person, token: str) -> None:
         if getattr(j, "camera", None) is not None:
             screens.camera = j.camera.respondent(person, page)
         screens.open(j.links[person.person])
-        walked = screens.walk(person, interview, by_item, follow_up=person.follow_up, speak=speak)
+        walked = screens.walk(person, interview, by_item, follow_up=person.follow_up, speak=speak,
+                              follow_up_rung=(owed or {}).get("dimension"))
         j.walked[person.person] = walked
         # keel-cloud 118 FR-4: the server composes the follow-up with this person's own answers already counted, so a
         # deciding line can move between the read above and the route's reply (16-pairio, Walter Brandt: the SOLUTION
@@ -1991,6 +1992,7 @@ def _answer_one(j: Journey, person, token: str) -> None:
                                            f"follow-up is on {served_rung}, not {owed.get('dimension')} (118 FR-4)",
                                    "served": {"before": owed.get("deciding"), "after": later}})
                 owed = again
+                person = _typing(person, None)          # the walk skipped: the line was for the earlier rung
             elif not j.strict:
                 # a back-test (19-veles, Connor Walsh): the server's rung is not the harness's ladder's even on the
                 # standings as they stand -- the harness's own ordering (the saved list's item 0 as the founder's own,
@@ -2003,6 +2005,7 @@ def _answer_one(j: Journey, person, token: str) -> None:
                                    "served": {"harness": owed, "server": {k: body.get(k) for k in ("dimension", "text", "spoken")}}})
                 owed = {**owed, "dimension": served_rung, "text": body.get("text"), "spoken": body.get("spoken"),
                         "deciding": later}
+                person = _typing(person, None)          # the line was for the harness's rung: the walk skipped
         _hold_the_screens(j, person, interview, walked)
         _hold_the_consent(j, person, walked)
         if speak:

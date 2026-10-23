@@ -1636,7 +1636,7 @@ class Interview:
             self._shot("intro")
 
     def walk(self, person, interview: dict, wire_answers: dict, *, follow_up: str | None = None,
-             speak: str | None = None) -> dict:
+             speak: str | None = None, follow_up_rung: str | None = None) -> dict:
         """Begin, the decision-maker's idea screen, the gate, every item and the reveal, *Send my
         answers*; returns the body the page POSTed, the done screen's heading and what every screen drew.
         `wire_answers` is `{itemId: ItemAnswer}` -- what this person answers, already re-expressed as the
@@ -1671,7 +1671,7 @@ class Interview:
                     self._gate(person, gate, interview.get("occasion"), speak=speak)
                 if gate is None or (person.recency and getattr(person, "in_segment", True)):
                     self._items(interview, wire_answers)
-                    self._follow_up(follow_up)
+                    self._follow_up(follow_up, rung=follow_up_rung)
             body = answered.value.request.post_data_json
             status = answered.value.status
             page.get_by_role("heading", level=1).first.wait_for(state="visible", timeout=20_000)
@@ -1700,7 +1700,7 @@ class Interview:
                         "status": response.status, "text": got.get("text")})
         return out
 
-    def _follow_up(self, line: str | None) -> None:
+    def _follow_up(self, line: str | None, *, rung: str | None = None) -> None:
         """Spec 051 FR-4 (keel-web 076 FR-3): the route's answer to the last item's *Send my answers* -- 200 opens *One
         last thing* (the kicker, the cloud's question as `h1.iv-q`, the note, the box, *Continue* off while empty, *Skip
         this one*), where `line` is typed and *Continue* pressed, or (no line) *Skip this one*; 204 sends at once."""
@@ -1720,6 +1720,13 @@ class Interview:
                  "skip": _tc(screen.get_by_test_id("iv-follow-up-skip")),
                  "textarea_label": screen.locator("textarea").first.get_attribute("aria-label")}
         self.screens.append({"screen": "follow_up", **{k: drawn[k] for k in ("kicker", "question", "note")}})
+        # a person's line was written for one rung (the entry's own words on the harness's owed question); when the
+        # route asked another rung, the line would answer a question it was not written for -- skipped instead, and
+        # the record says so (the judges of 18-careforce found Commitment answers filed under Purchase friction)
+        served_rung = (route.get("body") or {}).get("dimension")
+        if line and rung and served_rung and served_rung != rung:
+            drawn["line_for"] = rung
+            line = None
         if line:
             screen.locator("textarea").first.fill(line)
             drawn["continue_enabled_typed"] = cont.is_enabled()

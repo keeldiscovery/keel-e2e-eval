@@ -416,7 +416,7 @@ def _answer_priya(monkeypatch, stack):
         def open(self, link):
             pass
 
-        def walk(self, person, interview, by_item, *, follow_up=None, speak=None):
+        def walk(self, person, interview, by_item, *, follow_up=None, speak=None, follow_up_rung=None):
             seen["speak"] = speak
             raise _Walked
 
