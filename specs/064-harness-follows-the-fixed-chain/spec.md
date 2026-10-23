@@ -84,6 +84,16 @@ s007"` once on a fresh local stack of the finished masters; one `make backtest E
   to 2 capped at the founder's count, so the golden ladders reproduce unchanged (keel-cloud's `src/test/resources/ladders/`
   holds all seven). The Check-screen and brief bar strings change (*"holds if at least 2 in 3 land below '<rung>'"*):
   `report_marks` reads the served `keelBar`, never a fixed string. L9/L10 notes are recorded, not asserted.
+- **FR-5b What keel-cloud 121's build settled (contract 31, response contract 22, document version 29; added
+  2026-10-23).** `IdeaLines.how` stays the primary string; `howDecider`, `audienceWords[]` and `notes[{rule, line, word,
+  note}]` are always served; `PUT /v2/projects/{id}/idea/audience-words {expectedRevision, words[]}`; the decider's link
+  serves `Idea.how` = `howDecider`; draft items may carry `suggested` + `suggestedWhy` (Compatibility) and
+  `outcomeNotDifference` + `outcomeNote`; `choose.prompt` on Compatibility reads *"Which of these is most likely to be
+  missing?"* -- the Choose step picks the entry's tested item by label as today, never the suggested radio. The model may
+  return `idea_how {primary, decider}` (a plain string still read); the mechanism context gains `audience_words`, the
+  SOLUTION calibration `interpretation` gains `current_way {phrase, outcomes, line}`. With today's script no golden number
+  moves; 05-paidly's scripted reveal says "platform", so its mechanism draft now carries a J1 `founderNote` (a string, no
+  repair turn): the harness's check that the card's note is null on 05 is updated to expect J1 there.
 - **FR-6 The persona step (keel-cloud 123 FR-10; keel-web 099).** `Corridor.persona` fills *"What is their job title?"*
   from the entry's `persona.decision_maker.title` (the loader accepts it, optional, 1–5 words; the six back-test entries
   and `10-fixture-b2b` carry one; golden entries without one get the role word, recorded); `leg_persona` asserts
