@@ -1977,6 +1977,20 @@ def _answer_one(j: Journey, person, token: str) -> None:
         screens.open(j.links[person.person])
         walked = screens.walk(person, interview, by_item, follow_up=person.follow_up, speak=speak)
         j.walked[person.person] = walked
+        # keel-cloud 118 FR-4: the server composes the follow-up with this person's own answers already counted, so a
+        # deciding line can move between the read above and the route's reply (16-pairio, Walter Brandt: the SOLUTION
+        # stage was called by his answers and Relative advantage came first). Where the route's rung differs, the owed
+        # rung is read again off the standings as they stand now; it is accepted only where the walk itself owes it.
+        served_rung = ((walked.get("follow_up_route") or {}).get("body") or {}).get("dimension")
+        if owed is not None and served_rung and served_rung != owed.get("dimension"):
+            later = _deciding_now(j)
+            again = vs.follow_up_question(j.entry, person.picks, person.link, interview, token, first=later)
+            if again is not None and again.get("dimension") == served_rung:
+                again["deciding"] = later
+                j.findings.append({"what": f"{person.person}: the deciding line moved with their own answers -- the "
+                                           f"follow-up is on {served_rung}, not {owed.get('dimension')} (118 FR-4)",
+                                   "served": {"before": owed.get("deciding"), "after": later}})
+                owed = again
         _hold_the_screens(j, person, interview, walked)
         _hold_the_consent(j, person, walked)
         if speak:
