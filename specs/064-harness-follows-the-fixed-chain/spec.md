@@ -62,6 +62,17 @@ s007"` once on a fresh local stack of the finished masters; one `make backtest E
   framed with no time words -- e.g. 01-countly *"did you have to recount stock by hand after a mismatched delivery?"*)
   and reads the served gate against it; the Prevalence card's brief line is `<clause> in <window>`. No golden number
   reads the gate's words, so MARKS_VERSION stays unless a mark pins the old gate text (then FR-10 applies).
+- **FR-4b What keel-cloud 120's build settled (contract 30, response contract 21, document version 28; added
+  2026-10-23).** The context card serves `occasion {noun, stem, rhythm}`, `segment {core, condition}` and `window.proposed
+  {count, unit, from} | null`; the stem is served as its own opening sentence before Importance, Current solution,
+  Compatibility and Relative advantage (the walker records it; the eval's 20-word framing check reads the question
+  alone); the gate serves `condition {question, inCodes}` and `noLabel` ("I didn't get to") when they apply; a person
+  outside posts `{"outsideSegment": true, "answers": []}` and is final; `StandingsView.outsideSegment` is always present;
+  rhythm is code's from the window; the new rules X4–X7 and E5 are notes. For the golden entries: with today's script
+  nothing moves; once this spec scripts a condition per entry, FIVE golden gates gain a chip (01, 02, 03, 04, 05 per
+  keel-cloud `specs/120-…/tasks.md`'s table) -- the harness answers the chip inside for every golden person (no number
+  moves) and records the chip question; the Sent register's per-kind count still includes outside people while the
+  People page's aim leaves them out (120 judgement call 10).
 - **FR-5 The founder's lists (keel-cloud 117, 121; keel-web 097).** The Current-solution Check assertion (`_corpus_list`
   vs the rows) expects the founder's rungs verbatim and first and Keel's appended rungs below to five; the Choose screen
   reads `choose.prompt` (*"Which of these is most likely to be missing?"*) and the `suggested` radio, and picks the
