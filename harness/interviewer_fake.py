@@ -642,8 +642,16 @@ def took_by(asked: int, against: int, rungs) -> str:
     """keel-web 077 `TOOK_BY`: *Only {asked} of the {against} were asked here: {k} had already been asked about {Rung}
     [and {k} about {Rung}], the first rung they failed.* (`tookBy[]`, in the served order; 077 call 12)."""
     rungs = list(rungs or [])
-    if not rungs:
-        return ""
+    if not rungs or asked >= against:
+        return ""                                         # keel-web 102 FR-2: everyone asked here draws no line
+    if asked <= 0:
+        # keel-web 102 FR-2 (`TOOK_BY`): *None of the 3 were asked here: all 3 had already been asked about
+        # Importance.* -- one earlier rung that took them all reads *all n*; several read their counts
+        first = rungs[0]
+        count = f"all {first.get('count')}" if len(rungs) == 1 and first.get("count") == against else f"{first.get('count')}"
+        earlier = " and ".join([f"{count} had already been asked about {first.get('name')}"]
+                               + [f"{r.get('count')} about {r.get('name')}" for r in rungs[1:]])
+        return f"None of the {against} were asked here: {earlier}."
     earlier = " and ".join([f"{rungs[0].get('count')} had already been asked about {rungs[0].get('name')}"]
                            + [f"{r.get('count')} about {r.get('name')}" for r in rungs[1:]])
     return f"Only {asked} of the {against} were asked here: {earlier}, the first rung they failed."
