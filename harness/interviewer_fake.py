@@ -217,12 +217,13 @@ def fake_seconds(script: str) -> float:
 #: The registry's word for a rung whose against set is the founder's lock, read as `Compare` scores it (Price's
 #: `ordinal_band`, Buyer and payer's `first_supports`): `FollowUpBlock.LOCK_RULE`.
 LOCK_RULE = "lock_rule"
-#: The cloud-docs commit the copy below was taken from (`dimension-registry.yaml`'s `follow_up` blocks, registry
-#: decision 22, invariant 9; `tests/test_interviewer_marks.py` holds it to the registry export the stack runs).
-LADDER_SHA = "4cda99a"
-#: Design §2, as the registry carries it: `(dimension, against, text template, spoken wording)`, in interview order.
-#: Importance's `against` names its one escape that counts against; the rung's own rule is the founder's item absent
-#: from the two picks. The two lock-rule rungs carry the word, not a list.
+#: The keel-cloud commit of `Ladder.java` the copy below follows (spec 064 FR-7: keel-cloud 118's ladder, the
+#: registry's `follow_up` blocks with their `also` stems; `tests/test_follow_up_ladder.py` holds it to the registry export
+#: the stack runs).
+LADDER_SHA = "f280c5ae"
+#: Design §2, as the registry carries it since keel-cloud 118: `(dimension, against, text template, spoken wording)`, in
+#: registry order. Purchase friction is a rung now (its quick / not-needed answers are against the fear); Adoption
+#: friction's and Commitment's stems are the plain questions of 118 FR-4.
 LADDER: tuple[tuple[str, tuple[str, ...] | str, str, str], ...] = (
     ("problem.importance", ("none_of_these",),
      "You picked {their_picks} over {founder_item}. What makes those more pressing?",
@@ -237,22 +238,35 @@ LADDER: tuple[tuple[str, tuple[str, ...] | str, str, str], ...] = (
      "You said {benefit} would have made no difference to your last {occasion}. What would have?",
      "You said it would not have made much difference. What would have?"),
     ("solution.adoption_friction", ("probably_not", "no"),
-     "You said you probably would not {effort}. What makes it too much?",
-     "You said that would be too much to do. What makes it too much?"),
+     "What makes that too much?",
+     "What makes that too much?"),
     ("commercial.price", LOCK_RULE,
      "You put it at {band}. What would make it worth more?",
      "You put it below what we asked. What would make it worth more?"),
     ("commercial.buyer_payer_alignment", LOCK_RULE,
      "Who had to agree, and what did they need to see?",
      "Who had to agree, and what did they need to see?"),
-    ("commercial.commitment", ("yes_after_trying", "probably_not", "no"),
+    ("commercial.purchase_friction", ("yes_quick", "not_needed"),
+     "What did slow it down, if anything?",
+     "What did slow it down, if anything?"),
+    ("commercial.commitment", ("probably_not", "no"),
      "What would you start with instead?",
      "What would you start with instead?"),
 )
 RUNGS = tuple(r[0] for r in LADDER)
-#: Design §2's rungs with no question (a gate No ends the interview; a number has no why; derived; the reason itself).
-NO_FOLLOW_UP = ("problem.prevalence", "problem.frequency", "commercial.existing_sacrifice", "commercial.ability_to_pay",
-                "commercial.purchase_friction")
+#: Keel-cloud 118 FR-4 (`FollowUpBlock.Also`): a rung's second stem, asked on the answers it names (the conditional yes,
+#: the long purchase) -- `{dimension: (on, text template, spoken wording, heading)}`.
+ALSO: dict[str, tuple[tuple[str, ...], str, str, str]] = {
+    "solution.adoption_friction": (("yes_if_worth_it",), "What would make it clearly worth it to you?",
+                                   "What would make it clearly worth it to you?", "What would make it clearly worth it?"),
+    "commercial.purchase_friction": (("yes_long",), "What took the time?", "What took the time?",
+                                     "What took the time?"),
+    "commercial.commitment": (("yes_after_trying",), "What would {smaller_step} have to show you?",
+                              "What would that first step have to show you?",
+                              "What would the first step have to show?"),
+}
+#: Design §2's rungs with no question since keel-cloud 118 (a gate No ends the interview; a number has no why; derived).
+NO_FOLLOW_UP = ("problem.prevalence", "problem.frequency", "commercial.existing_sacrifice", "commercial.ability_to_pay")
 #: `PassageComposer.ONE_LAST_THING`: the FOLLOW_UP clip opens on it; the screens' kicker is *One last thing*.
 ONE_LAST_THING = "One last thing."
 FOLLOW_UP_KICKER = "One last thing"
@@ -267,7 +281,8 @@ WOULD_NOT_PAY = "would_not_pay"
 #: `FollowUpComposer.DEFAULTS` / `WOULD_NOT_PAY_BAND`: what a placeholder says when its words are missing.
 FILL_DEFAULTS = {"{their_picks}": "other difficulties", "{founder_item}": "this one",
                  "{their_answer}": "today's way works", "{condition}": "that step", "{would}": "be hard",
-                 "{benefit}": "it", "{occasion}": "time", "{effort}": "do that", "{band}": "less than we asked"}
+                 "{benefit}": "it", "{occasion}": "time", "{effort}": "do that", "{band}": "less than we asked",
+                 "{smaller_step}": "that first step"}
 WOULD_NOT_PAY_BAND = "nothing"
 
 
@@ -288,6 +303,10 @@ class Founder:
     importance_item: str | None = "own"
     price_low: float | None = None
     buyer_supports: tuple[str, ...] | None = None
+    #: Spec 064 FR-7 (keel-cloud 115 `Ladder.Founder.chainPrice`): a chain price is held to its own rung edge -- a pick
+    #: at the founder's low or above (`CommercialChain.atOrAbove`), not spec 073's ladder floor; a two-step pick has no
+    #: rung (115 judgement call 8).
+    chain_price: bool = False
 
 
 def _founder_floor(low: float) -> float:
@@ -299,7 +318,9 @@ def _founder_floor(low: float) -> float:
 
 def price_floor(code: str | None) -> float | None:
     """`PriceLadder.floorOf`: 0 for "under", the low for a band or "over", None otherwise (`would_not_pay`)."""
-    parts = (code or "").split("_")
+    code = (code or "")
+    code = code[len("upfront."):] if code.startswith("upfront.") else code
+    parts = code.split("_")
     if parts[0] == "under":
         return 0.0
     if parts[0] in ("band", "over") and len(parts) > 1:
@@ -338,6 +359,8 @@ def against(dimension: str, pick, founder: Founder) -> bool:
             return False
         if dimension == "commercial.price":
             floor = price_floor(codes[0])
+            if founder.chain_price:
+                return not (floor is not None and floor >= float(founder.price_low))
             return not (floor is not None and floor >= _founder_floor(float(founder.price_low)))
         supports = founder.buyer_supports
         return supports is not None and codes[0] in BUYER_ANSWERS and codes[0] not in supports
@@ -356,18 +379,68 @@ def walks(link: str, b2b: bool) -> tuple[str, ...]:
     return RUNGS
 
 
-def first_rung(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False,
-               served: set[str] | None = None) -> str | None:
-    """The first rung, in ladder order, whose own answer is against the founder -- or None (nothing owed). Only the
-    rungs the link walks and, when given, the dimensions its interview serves are read."""
+def ordered(rungs, first=()) -> tuple[str, ...]:
+    """`Ladder.ordered(first)` (keel-cloud 118 FR-4): the deciding lines `first` (each called stage's, in the stages'
+    order) first, then every other rung in registry order."""
+    out = [d for d in (first or ()) if d in rungs]
+    out = list(dict.fromkeys(out))
+    return tuple(out + [r for r in rungs if r not in out])
+
+
+def apart(dimension: str, pick) -> bool:
+    """`Ladder.apart`: the answer is one a rung's second stem is asked on (the conditional yes, the long purchase)."""
+    also = ALSO.get(dimension)
+    v = _value(pick)
+    return also is not None and not v["chip"] and len(v["codes"]) == 1 and v["codes"][0] in also[0]
+
+
+def owed(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False, served: set[str] | None = None,
+         first=()) -> list[tuple[str, bool]]:
+    """`Ladder.owed` (keel-cloud 118): every question these answers are owed, `(dimension, apart)`, in the walk's order
+    -- the deciding lines first, then registry order -- on the rungs the link walks (and, given, the interview serves)."""
     by_dimension = {_value(p)["dimension"]: p for p in picks}
-    for dimension in walks(link, b2b):
+    out = []
+    for dimension in ordered(walks(link, b2b), first):
         if served is not None and dimension not in served:
             continue
         pick = by_dimension.get(dimension)
-        if pick is not None and against(dimension, pick, founder):
-            return dimension
-    return None
+        if pick is None:
+            continue
+        if against(dimension, pick, founder):
+            out.append((dimension, False))
+        elif apart(dimension, pick):
+            out.append((dimension, True))
+    return out
+
+
+def first_stem(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False,
+               served: set[str] | None = None, first=()) -> tuple[str, bool] | None:
+    """`Ladder.stemOf`: the one question asked -- the first owed -- or None."""
+    stems = owed(picks, founder, link, b2b=b2b, served=served, first=first)
+    return stems[0] if stems else None
+
+
+def first_rung(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False,
+               served: set[str] | None = None, first=()) -> str | None:
+    """The rung of the one question owed (`first_stem`), or None (nothing owed). Since keel-cloud 118 the deciding lines
+    (`first`) are walked first, and an answer a second stem is asked on is owed too."""
+    stem = first_stem(picks, founder, link, b2b=b2b, served=served, first=first)
+    return stem[0] if stem else None
+
+
+def deciding_lines(standings: dict | None) -> list[str]:
+    """`FollowUpComposer.deciding` read off the served standings (no arithmetic of the eval's own): each stage whose
+    verdict is called -- not holding up, or people disagree -- gives the first of its dimensions, in registry order,
+    whose status is the verdict (the engine's rule: the worst status, the first on a tie), in the stages' order."""
+    out = []
+    for vector in (standings or {}).get("vectors") or []:
+        verdict = vector.get("verdict")
+        if verdict not in ("NOT_HOLDING_UP", "PEOPLE_DISAGREE"):
+            continue
+        hit = next((d.get("dimension") for d in vector.get("dimensions") or [] if d.get("status") == verdict), None)
+        if hit:
+            out.append(hit)
+    return out
 
 
 def lower(label: str | None) -> str | None:
@@ -389,13 +462,19 @@ def joined(labels: list[str | None], word: str) -> str | None:
     return kept[0] if len(kept) == 1 else ", ".join(kept[:-1]) + f" {word} " + kept[-1]
 
 
-def fill(dimension: str, values: dict[str, str | None]) -> str:
-    """`FollowUpComposer.fill`: the rung's text with each placeholder replaced, a missing value its plain default."""
-    text = rung(dimension)[2]
+def fill(dimension: str, values: dict[str, str | None], *, also: bool = False) -> str:
+    """`FollowUpComposer.fill`: the stem's text (the rung's, or its second `also`) with each placeholder replaced, a
+    missing value its plain default."""
+    text = ALSO[dimension][1] if also else rung(dimension)[2]
     for placeholder in re.findall(r"\{[a-z_]+\}", text):
         value = values.get(placeholder)
         text = text.replace(placeholder, value if value and value.strip() else FILL_DEFAULTS[placeholder])
     return text
+
+
+def spoken_of(dimension: str, *, also: bool = False) -> str:
+    """The stem's spoken wording (the rung's, or its second stem's)."""
+    return ALSO[dimension][2] if also else rung(dimension)[3]
 
 
 def role_sets(recording: dict) -> dict[str, list[dict]]:
@@ -476,31 +555,40 @@ def first_noun(text: str, name_words=frozenset()) -> str | None:
     return None
 
 
+#: keel-cloud 119 (`Insight.ON_THEIR_OWN`): the leftovers' group, last; keel-web says it *On their own*.
+ON_THEIR_OWN = "ON_THEIR_OWN"
+
+
 def themes(answers, name: str = "") -> dict:
     """`FakeThemes.themes(name, answers)`: `answers` is `[{id, text}]` in the job's order; the result is
     `{themes: [{label, answerIds}]}` -- piles by first noun, by size descending, ties by first appearance, the first
-    three; an answer with no such word, or in a smaller pile, is left out."""
+    three; since keel-cloud 119 every other answer, in the order handed, in one last `ON_THEIR_OWN` group, so every
+    answer is in exactly one group."""
     name_words = frozenset(_theme_words(name))
     piles: dict[str, list[str]] = {}
     for answer in answers or []:
         noun = first_noun(answer.get("text"), name_words)
         if noun is not None:
             piles.setdefault(noun, []).append(answer.get("id"))
-    ordered = sorted(piles.items(), key=lambda pile: -len(pile[1]))       # stable: first pile first on a tie
-    return {"themes": [{"label": label, "answerIds": list(ids)} for label, ids in ordered[:THEMES_MAX]]}
+    ordered_piles = sorted(piles.items(), key=lambda pile: -len(pile[1]))  # stable: first pile first on a tie
+    out = [{"label": label, "answerIds": list(ids)} for label, ids in ordered_piles[:THEMES_MAX]]
+    grouped = {i for t in out for i in t["answerIds"]}
+    leftovers = [a.get("id") for a in answers or [] if a.get("id") not in grouped]
+    if leftovers:
+        out.append({"label": ON_THEIR_OWN, "answerIds": leftovers})
+    return {"themes": out}
 
 
-#: keel-cloud 104 `Insights`: a theme serves at most three quotes, shortest first (design §7: "top three per theme by
-#: length ascending, so short ones first"); the raw fallback likewise at most three.
-QUOTES_MAX = 3
+#: keel-cloud 104 capped a theme at three quotes; keel-cloud 119 serves every quote (uncapped), shortest first.
+QUOTES_MAX = None
 
 
 def served_quotes(ids, by_id: dict) -> list[dict]:
-    """A theme's quotes as the standings serve them: `[{invitationId, name, text}]`, by length ascending (the job's
-    order on a tie), at most three. `by_id` is `{invitationId: {name, text}}`."""
+    """A theme's quotes as the standings serve them since keel-cloud 119: `[{invitationId, name, text}]`, every one, by
+    length ascending (the job's order on a tie). `by_id` is `{invitationId: {name, text}}`."""
     rows = [{"invitationId": i, "name": (by_id.get(i) or {}).get("name"), "text": (by_id.get(i) or {}).get("text")}
             for i in ids if i in by_id]
-    return sorted(rows, key=lambda q: len(q["text"] or ""))[:QUOTES_MAX]
+    return sorted(rows, key=lambda q: len(q["text"] or ""))
 
 
 # ---------------------------------------------------------------- the Insights view's words (spec 052 FR-4)
@@ -510,45 +598,43 @@ def served_quotes(ids, by_id: dict) -> list[dict]:
 # test; the view's own strings are keel-web 077's (`InsightsView.tsx`, as 077's spec words them), held to its source
 # by a source check once 077 is on master.
 
-#: Design §4.2: the rung's heading over its themes, one a dimension with a question (`follow_up.heading`).
+#: Design §4.2 (registry `follow_up.heading`; keel-cloud 118: the stem asked on the three friction / commitment rungs):
+#: the rung's heading over its quotes, one a dimension with a question.
 RUNG_HEADINGS = {
     "problem.importance": "Why other things come first",
     "problem.current_solution_satisfaction": "What makes today's way work for them",
     "solution.compatibility": "What gets in the way",
     "solution.relative_advantage": "What would have made a difference",
-    "solution.adoption_friction": "What makes it too much",
+    "solution.adoption_friction": "What makes that too much?",
     "commercial.price": "What would make it worth more",
     "commercial.buyer_payer_alignment": "Who had to agree",
-    "commercial.commitment": "What they would start with",
+    "commercial.purchase_friction": "What did slow it down?",
+    "commercial.commitment": "What would you start with instead?",
 }
-#: Design §2 *Rungs with no question*: why a dimension asks no follow-up (`no_follow_up`).
+#: Design §2 *Rungs with no question* (`no_follow_up`), as the registry carries them since keel-cloud 118 / 115.
 NO_FOLLOW_UP_WHY = {
     "problem.prevalence": "a No at the gate ends the interview",
     "problem.frequency": "a number has no why worth a question",
     "commercial.existing_sacrifice": "a number has no why worth a question",
-    "commercial.ability_to_pay": "it is derived from the cost and the price, never asked",
-    "commercial.purchase_friction": "“needed approval and it took a long time” is the reason itself",
+    "commercial.ability_to_pay": "it is read from the cost and the price (or the budget item), never asked of the "
+                                 "founder",
 }
 SPLIT_NOTE = "A split, not a no: it fits one group and not the other."
-IN_THEIR_WORDS = "In their words"
+#: keel-web 095 (spec 064 FR-8b): *In their words* became *In their own words* (RAW only, with the served note);
+#: *Keel is grouping what they said…* while GROUPING; *On their own* for the leftovers; the side marks.
+IN_THEIR_WORDS = "In their own words"
+GROUPING_LINE = "Keel is grouping what they said\u2026"
+ON_THEIR_OWN_WORDS = "On their own"
+SIDE_WORDS = {"FOR": "for", "AGAINST": "against", "APART": "apart"}
 NOTHING_TO_READ_YET = "Nothing to read into yet"
 NOTHING_FAILING = "Nothing is failing"
 NOTHING_FAILING_LINE = "Every dimension holds on 10 or more people. There is nothing to add to the overview."
+NO_WORDS_LINE = "No follow-up answer landed on the lines that did not hold:"
 
 
 def nothing_to_read_line(n: int) -> str:
     return (f"{n} {'person has' if n == 1 else 'people have'} answered. A card needs 5 to say anything and 10 to be "
             "sure. The follow-up answers are kept and appear here once a card is called.")
-
-
-def said_why_tail(answered: int, against: int) -> str:
-    """keel-web 077 `saidWhy`: the heading's tail, *· 6 of the 8 said why*."""
-    return f"· {answered} of the {against} said why"
-
-
-def said_why(heading: str, answered: int, against: int) -> str:
-    """The rung's heading line: *What gets in the way · 6 of the 8 said why*."""
-    return f"{heading} {said_why_tail(answered, against)}"
 
 
 def took_by(asked: int, against: int, rungs) -> str:
@@ -562,9 +648,9 @@ def took_by(asked: int, against: int, rungs) -> str:
     return f"Only {asked} of the {against} were asked here: {earlier}, the first rung they failed."
 
 
-def no_follow_up(why: str) -> str:
-    """keel-web 077 `NO_FOLLOW_UP`: the served reason with one closing full stop."""
-    return f"No follow-up on this rung: {str(why or '').rstrip('.')}."
+def not_asked_line(entry: dict) -> str:
+    """keel-web 095: one muted line per `notAsked` entry -- *<Name>: <why>.*"""
+    return f"{entry.get('name')}: {str(entry.get('why') or '').rstrip('.')}."
 
 
 def quote_words(quote: dict) -> str:

@@ -114,8 +114,9 @@ def _p(dimension: str, *codes: str, chip: str | None = None) -> dict:
 #: Everything supporting the founder (a B2C link that answers all eight rungs, "Nobody else" tested, a £30 low).
 CLEAR = [_p("problem.importance", "rival_1", "own"), _p("problem.current_solution_satisfaction", "outcome_3"),
          _p("solution.compatibility", "yes_easily"), _p("solution.relative_advantage", "positive"),
-         _p("solution.adoption_friction", "yes_if_worth_it"), _p("commercial.price", "band_20_50"),
-         _p("commercial.buyer_payer_alignment", "decided_alone"), _p("commercial.commitment", "yes_start")]
+         _p("solution.adoption_friction", "yes"), _p("commercial.price", "band_20_50"),
+         _p("commercial.buyer_payer_alignment", "decided_alone"), _p("commercial.purchase_friction", "yes_long"),
+         _p("commercial.commitment", "yes_start")]
 
 
 def _with(*changed: dict) -> list[dict]:
@@ -158,8 +159,13 @@ TABLE = [
     ("Buyer and payer, a role tested: decided alone is against",
      [_p("commercial.buyer_payer_alignment", "decided_alone")], NAMED, "COMMERCIAL_B2B", True,
      "commercial.buyer_payer_alignment"),
-    ("Commitment: yes, after trying it first (asked too)", _with(_p("commercial.commitment", "yes_after_trying")),
-     NOBODY, "PRIMARY", False, "commercial.commitment"),
+    ("Commitment: yes, after trying it first (its second stem, keel-cloud 118)",
+     _with(_p("commercial.commitment", "yes_after_trying"), _p("commercial.purchase_friction", "yes_long")),
+     NOBODY, "PRIMARY", False, None),
+    ("Commitment: probably not", _with(_p("commercial.commitment", "probably_not")), NOBODY, "PRIMARY", False,
+     "commercial.commitment"),
+    ("Purchase friction: quick is against the fear (a rung since keel-cloud 118)",
+     _with(_p("commercial.purchase_friction", "yes_quick")), NOBODY, "PRIMARY", False, "commercial.purchase_friction"),
     ("the first rung wins", _with(_p("solution.compatibility", "no"), _p("commercial.commitment", "no")), NOBODY,
      "PRIMARY", False, "solution.compatibility"),
     ("a B2B practitioner's link walks no commercial rung", _with(_p("commercial.commitment", "no")), NOBODY, "PRIMARY",
@@ -172,13 +178,49 @@ TABLE = [
 
 @pytest.mark.parametrize("name,picks,founder,link,b2b,want", TABLE, ids=[t[0] for t in TABLE])
 def test_first_rung_by_hand(name, picks, founder, link, b2b, want):
-    assert fake.first_rung(picks, founder, link, b2b=b2b) == want
+    """The against walk (spec 064 FR-7: keel-cloud 118's ladder); the second stems are `test_the_second_stems`."""
+    stems = [d for d, apart in fake.owed(picks, founder, link, b2b=b2b) if not apart]
+    assert (stems[0] if stems else None) == want
+
+
+def test_the_second_stems_and_the_deciding_line_first():
+    """keel-cloud 118 FR-4: an answer a rung's `also` names is owed its second stem (the conditional yes, the long
+    purchase); the deciding lines are walked first, then registry order."""
+    assert fake.first_stem(CLEAR, NOBODY) == ("commercial.purchase_friction", True)
+    assert fake.first_stem(_with(_p("commercial.commitment", "yes_after_trying")), NOBODY, "COMMERCIAL_B2B",
+                           b2b=True) == ("commercial.purchase_friction", True)
+    both = _with(_p("problem.importance", "rival_1", "rival_2"), _p("problem.current_solution_satisfaction",
+                                                                   "outcome_1"))
+    assert fake.first_rung(both, NOBODY) == "problem.importance"
+    assert fake.first_rung(both, NOBODY, first=["problem.current_solution_satisfaction"]) == \
+        "problem.current_solution_satisfaction"
+    assert fake.ordered(fake.RUNGS, ["commercial.commitment", "commercial.commitment"])[:2] == (
+        "commercial.commitment", "problem.importance")
+    standings = {"vectors": [
+        {"vector": "PROBLEM", "verdict": "PEOPLE_DISAGREE", "dimensions": [
+            {"dimension": "problem.prevalence", "status": "HOLDING_UP"},
+            {"dimension": "problem.importance", "status": "PEOPLE_DISAGREE"},
+            {"dimension": "problem.current_solution_satisfaction", "status": "PEOPLE_DISAGREE"}]},
+        {"vector": "SOLUTION", "verdict": "TOO_FEW_TO_CALL", "dimensions": []},
+        {"vector": "COMMERCIAL", "verdict": "NOT_HOLDING_UP", "dimensions": [
+            {"dimension": "commercial.price", "status": "PEOPLE_DISAGREE"},
+            {"dimension": "commercial.commitment", "status": "NOT_HOLDING_UP"}]}]}
+    assert fake.deciding_lines(standings) == ["problem.importance", "commercial.commitment"]
+    assert fake.fill("commercial.commitment", {"{smaller_step}": "the free trial"}, also=True) == \
+        "What would the free trial have to show you?"
+    assert fake.spoken_of("commercial.purchase_friction", also=True) == "What took the time?"
+    chain = fake.Founder(importance_item="own", price_low=1.0, chain_price=True)
+    assert fake.first_rung([_p("commercial.price", "band_0.5_1")], chain, "COMMERCIAL_B2B", b2b=True) == \
+        "commercial.price"
+    assert fake.first_rung([_p("commercial.price", "band_1_2")], chain, "COMMERCIAL_B2B", b2b=True) is None
+    assert fake.first_rung([_p("commercial.price", "upfront.band_250_599", "band_10_20")], chain, "COMMERCIAL_B2B",
+                           b2b=True) is None, "a two-step price has no rung (keel-cloud 115 judgement call 8)"
 
 
 def test_first_rung_reads_only_what_the_link_serves():
     picks = _with(_p("problem.importance", "rival_1", "rival_2"), _p("commercial.commitment", "no"))
     served = {p["dimension"] for p in CLEAR} - {"problem.importance"}
-    assert fake.first_rung(picks, NOBODY, served=served) == "commercial.commitment"
+    assert fake.first_rung(picks, NOBODY, served=served - {"commercial.purchase_friction"}) == "commercial.commitment"
 
 
 def test_every_rung_is_a_case_of_the_table():
@@ -207,8 +249,8 @@ def test_the_fakes_follow_up_lines():
     assert fake.follow_up_script(fake.rung("problem.importance")[3]) == (
         "One last thing. You put other difficulties ahead of this one. What makes those more pressing?")
     assert fake.walks("COMMERCIAL_B2B", True) == ("commercial.price", "commercial.buyer_payer_alignment",
-                                                  "commercial.commitment")
-    assert len(fake.walks("PRIMARY", True)) == 5 and len(fake.walks("PRIMARY", False)) == 8
+                                                  "commercial.purchase_friction", "commercial.commitment")
+    assert len(fake.walks("PRIMARY", True)) == 5 and len(fake.walks("PRIMARY", False)) == 9
     assert all(fake.fake_seconds(fake.follow_up_script(r[3])) >= 1.0 for r in fake.LADDER)
 
 
