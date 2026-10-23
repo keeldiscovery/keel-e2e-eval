@@ -1996,6 +1996,25 @@ class Interview:
                                                  "stem": _first_text(self.page, "h1.iv-q"), "chips_drawn": drawn,
                                                  "url": self.page.url}))
             chip.click()
+            if plan:
+                # keel-web 094 FR-4: an up-front-then price escaped still opens the plan's own screen on Next (13-aircaps,
+                # Naomi Adler: the walk went one screen ahead of the page) -- the plan screen is drawn, recorded, and
+                # escaped with its own chip; the loop's Next then leaves it
+                _button(self.page, IV_NEXT).click()
+                self.page.locator("h1.iv-q", has_text=plan.get("question") or "").first.wait_for(
+                    state="visible", timeout=20_000)
+                self._keep()
+                self._shot(f"plan-{item.get('dimension')}")
+                self._plan_seen = {"question": _first_text(self.page, "h1.iv-q"),
+                                   "rows": [r.strip() for r in _safe_all_texts(self.page, ".iv-control [role=radio]")],
+                                   "escaped": True}
+                plan_label = (plan.get("escape") or {}).get("label") or label
+                plan_chip = main.locator(".iv-chips").get_by_role("button", name=plan_label, exact=True).first
+                if plan_chip.count() == 0:
+                    raise AssertionError(json.dumps({"plan_of": item.get("dimension"), "wanted": plan_label,
+                                                     "chips_drawn": [c.strip() for c in main.locator(".iv-chips button").all_inner_texts()],
+                                                     "stem": _first_text(self.page, "h1.iv-q")}))
+                plan_chip.click()
             return
         if "scale" in answer:
             main.get_by_role("radio", name=str(answer["scale"]), exact=True).click()
