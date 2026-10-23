@@ -86,11 +86,23 @@ gallery: venv
 # Never in `make eval`, `make unit`, the matrix or a schedule (`evals/run_backtest.py` is no `test_*.py` file).
 #
 #   KEEL_ANTHROPIC_API_KEY="$$(...)" make backtest ENTRY=08-fresco
+#
+# **DOOR={keel,host}** (spec 066), default `keel`, which is the above byte for byte. `DOOR=host` asks for no key: the
+# back-test starts keel-connect-skill's runtime itself (`python -m keel_runtime connect --executor claude --host claude
+# --home <run>/keel_home --no-browser`, stdout to keel_home/launch.log), the founder signs in with its device code and
+# approves it at /connect, and EVERY JOB IS ANSWERED BY THE FOUNDER'S OWN CLAUDE CODE LOGIN (CLAUDE_CONFIG_DIR as the
+# shell has it, or CLAUDE_CODE_OAUTH_TOKEN) -- it spends the founder's plan, not Keel's account. `HOST=claude` is the
+# one host built (another is refused by name); `MODEL=` is refused (the runtime has no session-wide pin since
+# keel-runtime spec 009: each job carries keel-cloud's routing table's model). `scripts/backtest-host.sh <id>...` runs
+# entries one after another and waits out the plan's limit.
+#
+#   make backtest DOOR=host ENTRY=08-fresco
 backtest:
-	@if [ -z "$$KEEL_ANTHROPIC_API_KEY" ]; then echo "make backtest refuses: KEEL_ANTHROPIC_API_KEY is not set in this shell -- the local stack passes it to keel-cloud, which answers every job of the back-test on Keel's AI (spec 062 FR-2); it is never logged, echoed or written"; exit 2; fi
+	@if [ -n "$(DOOR)" ] && [ "$(DOOR)" != "keel" ] && [ "$(DOOR)" != "host" ]; then echo "make backtest refuses: DOOR=$(DOOR) is not a door -- \`DOOR=keel\` (Keel's AI, spec 062) or \`DOOR=host\` (the founder's own Claude Code through the runtime, spec 066)"; exit 2; fi
+	@if [ "$(DOOR)" != "host" ] && [ -z "$$KEEL_ANTHROPIC_API_KEY" ]; then echo "make backtest refuses: KEEL_ANTHROPIC_API_KEY is not set in this shell -- the local stack passes it to keel-cloud, which answers every job of the back-test on Keel's AI (spec 062 FR-2); it is never logged, echoed or written"; exit 2; fi
 	@if [ -z "$(ENTRY)" ]; then echo "make backtest refuses: no ENTRY -- name a back-test entry, \`make backtest ENTRY=<id>\` (keel-cloud canon/designs/measured-beliefs/backtest/<id>.yaml)"; exit 2; fi
 	@$(MAKE) --no-print-directory venv
-	KEEL_EVAL_PROFILE=eval KEEL_BACKTEST_ENTRY=$(ENTRY) $(PY) -m pytest evals/run_backtest.py -q -rs -l
+	KEEL_EVAL_PROFILE=eval KEEL_BACKTEST_ENTRY=$(ENTRY) $(if $(filter host,$(DOOR)),KEEL_BACKTEST_DOOR=host KEEL_BACKTEST_HOST=$(if $(HOST),$(HOST),claude) $(if $(MODEL),KEEL_BACKTEST_MODEL=$(MODEL) ,),)$(PY) -m pytest evals/run_backtest.py -q -rs -l
 
 # make eval-live runs the scenarios marked `live` -- a real `claude`, real money (spec 008-stranger-
 # who-gives-orders). Opt-in only; never part of `make eval`/`make eval-all`. Needs a logged-in
