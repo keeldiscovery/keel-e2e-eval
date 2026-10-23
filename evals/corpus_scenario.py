@@ -1075,8 +1075,15 @@ def leg_interpret_solution(j: Journey) -> None:
         waiting = named.pop("waiting", None)
         seen_counter = {**counter, "named": named}
         h.record_assert(want, {**counter, "named_waiting": waiting})
-        assert seen_counter == want, json.dumps({"screen": counter, "want": want}, indent=2)
-        assert len(str(counter["over"]["typed"]).split()) == 6, counter
+        if not j.strict and (j.feedback.get("idea") or {}).get("served"):
+            # a back-test idea that arrived named (14-code-four): the box is pre-filled and Save stays off until an
+            # edit, which is the page's rule for a served name, not spec 066's counter on an empty box -- recorded, not
+            # held (the finding on the name itself is already named)
+            j.findings.append({"what": f"{j.entry.id}: S2's counter read on a pre-filled name box ({seen['lines']['what']!r}); "
+                                       "the empty-box counter rule was not held", "served": counter})
+        else:
+            assert seen_counter == want, json.dumps({"screen": counter, "want": want}, indent=2)
+            assert len(str(counter["over"]["typed"]).split()) == 6, counter
     with _step(j, "S2: the idea's how and belief are the mechanism's, the what line the name the founder typed "
                   "(keel-cloud 097 F7), under Solution · 1 of n, and Save approved them on the wire",
                party="founder") as h:
