@@ -2016,7 +2016,10 @@ class Interview:
                     raise AssertionError(json.dumps({"plan_of": item.get("dimension"), "wanted": plan_label,
                                                      "chips_drawn": [c.strip() for c in main.locator(".iv-chips button").all_inner_texts()],
                                                      "stem": _first_text(self.page, "h1.iv-q")}))
-                plan_chip.click()
+                # the plan screen is the same item: its escape is already pressed from the price screen, and a chip
+                # pressed again is released (ChipRow) -- so the chip is pressed only where the screen shows it off
+                if plan_chip.get_attribute("aria-pressed") != "true":
+                    plan_chip.click()
             return
         if "scale" in answer:
             main.get_by_role("radio", name=str(answer["scale"]), exact=True).click()
