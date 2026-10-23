@@ -1771,6 +1771,13 @@ class StageCard:
 MARKET_GROUPS = ("North America",)
 
 
+#: keel-web 098's *Another country* path: the English name the datalist offers and the currency to pick, for the
+#: countries the back-test entries sell in that keel-cloud's markets table does not list.
+OTHER_COUNTRIES = {"DE": ("Germany", "EUR"), "NL": ("Netherlands", "EUR"), "ES": ("Spain", "EUR"), "IT": ("Italy", "EUR"),
+                   "PK": ("Pakistan", "PKR"), "SG": ("Singapore", "SGD"), "BR": ("Brazil", "BRL"), "MX": ("Mexico", "MXN"),
+                   "JP": ("Japan", "JPY"), "KE": ("Kenya", "KES"), "NG": ("Nigeria", "NGN"), "ZA": ("South Africa", "ZAR")}
+
+
 class MarketStep:
     """The market step (`components/MarketStep.tsx`), an inline frame of `/` between naming the
     project and starting it (design §3.8: the market is what decides units, register and currency,
@@ -1855,7 +1862,20 @@ class MarketStep:
             with self._bstep.step(
                     f"founder says where this sells first: {country}"
                     + (f", {region}" if region else " (no region)")) as h:
-                self._country_select().select_option(country)
+                select = self._country_select()
+                listed = select.evaluate("(s) => Array.from(s.options).map((o) => o.value)")
+                if country in listed:
+                    select.select_option(country)
+                else:
+                    # keel-web 098 FR-1 (keel-cloud 122 FR-4): a country the markets table has not met -- *Another
+                    # country*, its English name typed into the country box (a datalist of every country), its
+                    # currency picked (21-codyco sells first in Germany)
+                    select.select_option("OTHER")
+                    name, currency = OTHER_COUNTRIES.get(country, (country, ""))
+                    self.page.get_by_test_id("market-other-country").fill(name)
+                    if currency:
+                        self.page.get_by_test_id("market-other-currency").select_option(currency)
+                    h.record_wire({"country": country}, {"other": name, "currency": currency})
                 if region:
                     self._region_input().fill(region)
                 h.capture_text("screen", "market")
