@@ -288,3 +288,37 @@ def test_a_follow_up_names_its_rung_and_the_reader_keeps_it(tmp_path):
 def test_a_follow_up_off_its_shape_is_refused(tmp_path, value, why):
     raw, _ = _with_follow_up(value)
     assert why in _refused(tmp_path, raw)
+
+
+# ------------------------------------------------------------------------------- FR-4: the served bar
+
+def test_current_solution_is_counted_against_by_the_served_line():
+    """Spec 067 FR-4 (keel-cloud 117 FR-3 / 128 FR-16, Pairio's Walter): with the served line at 1 only `outcome_1` is
+    against; the registry's `outcome_1, outcome_2` stand only where no line is served (D4's 2, every golden entry)."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415
+    walter = {"dimension": "problem.current_solution_satisfaction", "codes": ["outcome_2"], "chip": None}
+    key = "problem.current_solution_satisfaction"
+    assert fake.against(key, walter, fake.Founder()) is True
+    assert fake.against(key, walter, fake.Founder(current_line=1)) is False
+    assert fake.against(key, dict(walter, codes=["outcome_1"]), fake.Founder(current_line=1)) is True
+    assert fake.against(key, dict(walter, codes=["outcome_3"]), fake.Founder(current_line=3)) is True
+    assert fake.against(key, dict(walter, codes=["outcome_4"]), fake.Founder(current_line=3)) is False
+
+
+def test_a_two_step_price_below_on_either_step_is_against():
+    """keel-cloud 128 FR-21 (`Ladder.against`, AirCaps's Diego and Amaka): up front then a plan, held on both steps."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415
+    founder = fake.Founder(price_low=20.0, upfront_low=100.0, chain_price=True)
+    pick = lambda *codes: {"dimension": "commercial.price", "codes": list(codes), "chip": None}  # noqa: E731
+    assert fake.against("commercial.price", pick("upfront.band_50_100", "band_20_50"), founder) is True
+    assert fake.against("commercial.price", pick("upfront.band_100_250", "band_10_20"), founder) is True
+    assert fake.against("commercial.price", pick("upfront.band_100_250", "band_20_50"), founder) is False
+
+
+def test_the_composer_says_a_fact_back_as_the_fact_and_quotes_worse():
+    """keel-cloud 128 FR-13b / FR-16 (`FollowUpComposer`): a fact answered No reads *You said no to this: {the fact}.
+    What got in the way?* and is said as it reads; Relative advantage's worse is quoted."""
+    assert vs.fact_said("Their phone was within reach of the cot.") == "your phone was within reach of the cot"
+    assert vs.from_served("Think of your last shift. Did the list come straight out of the EMR?", "No") == \
+        "You said no to this: did the list come straight out of the EMR? What got in the way?"
+    assert vs.served_idea_name({"reveal": {"what": "Imagine Pairio."}}) == "Pairio"

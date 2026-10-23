@@ -308,6 +308,13 @@ class Founder:
     #: at the founder's low or above (`CommercialChain.atOrAbove`), not spec 073's ladder floor; a two-step pick has no
     #: rung (115 judgement call 8).
     chain_price: bool = False
+    #: Spec 067 FR-4 (keel-cloud 117 FR-3, `Ladder.Founder.of`): Current solution's line on the founder's saved list as
+    #: served -- the outcomes above it (`outcome_1` .. `outcome_{line}`) are against; None keeps the registry's
+    #: `outcome_1, outcome_2` (D4's line, 2 on every golden entry).
+    current_line: int | None = None
+    #: keel-cloud 128 FR-21 (`Ladder.Founder.upfrontLow`): an up-front-then price's up-front low, so a two-step pick
+    #: below the founder's price on either step is against; None off that shape.
+    upfront_low: float | None = None
 
 
 def _founder_floor(low: float) -> float:
@@ -355,6 +362,20 @@ def against(dimension: str, pick, founder: Founder) -> bool:
     if v["chip"]:
         return codes_against != LOCK_RULE and str(v["chip"]).lower() in codes_against
     codes = v["codes"]
+    if dimension == "commercial.price" and founder.chain_price and len(codes) == 2:
+        # keel-cloud 128 FR-21: up front then a plan -- below the founder's price on either step is against, as on one
+        # ladder (AirCaps: Diego and Amaka, under the price, were owed no follow-up)
+        def below(code: str, low) -> bool:
+            floor = price_floor(code)
+            return low is not None and not (floor is not None and floor >= float(low))
+        return any(below(c, founder.upfront_low) if c.startswith("upfront.") else below(c, founder.price_low)
+                   for c in codes)
+    if dimension == "problem.current_solution_satisfaction" and founder.current_line is not None:
+        # keel-cloud 117 FR-3 / spec 067 FR-4: an outcome above the founder's own line is against; below it, or no
+        # outcome, is not -- read off the served bar, never the registry's two codes
+        code = codes[0] if len(codes) == 1 else ""
+        return code.startswith("outcome_") and code[len("outcome_"):].isdigit() \
+            and int(code[len("outcome_"):]) <= int(founder.current_line)
     if codes_against == LOCK_RULE:
         if len(codes) != 1:
             return False
@@ -395,6 +416,13 @@ def apart(dimension: str, pick) -> bool:
     return also is not None and not v["chip"] and len(v["codes"]) == 1 and v["codes"][0] in also[0]
 
 
+def closes(dimension: str, pick) -> bool:
+    """keel-cloud 128 FR-20 (`FollowUpComposer.closes`): a pick that closes its line owes no follow-up -- Buyer and
+    payer's *No, I decided on my own* was asked *Who had to agree ...?* (Codyco): nobody had to."""
+    v = _value(pick)
+    return dimension == "commercial.buyer_payer_alignment" and v["codes"][:1] == [BUYER_ALONE] and not v["chip"]
+
+
 def owed(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False, served: set[str] | None = None,
          first=()) -> list[tuple[str, bool]]:
     """`Ladder.owed` (keel-cloud 118): every question these answers are owed, `(dimension, apart)`, in the walk's order
@@ -405,7 +433,7 @@ def owed(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False, s
         if served is not None and dimension not in served:
             continue
         pick = by_dimension.get(dimension)
-        if pick is None:
+        if pick is None or closes(dimension, pick):
             continue
         if against(dimension, pick, founder):
             out.append((dimension, False))

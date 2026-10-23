@@ -1483,7 +1483,7 @@ def _pick(entry, key: str, raw) -> Pick:
 
 # ---------------------------------------------------------------- spec 051: the founder's side of the ladder
 
-def founder_side(entry):
+def founder_side(entry, *, line: int | None = None):
     """The founder's side of the follow-up's walk (keel-cloud 103 `Ladder.Founder.of`, judgement call 2), read off the
     entry's own founder answers -- what the corridor locks: Importance's own item (`own`, the saved list's item 0; none
     when the list is absent), the price's low (none when the founder gave no price), and Buyer and payer's supporting
@@ -1503,8 +1503,12 @@ def founder_side(entry):
     if buyer and buyer["items"]:
         tested = entry.tested("commercial.buyer_payer_alignment") or {}
         supports = (fake.BUYER_ALONE,) if tested.get("code") == NOBODY_ELSE[0] else fake.BUYER_SUPPORTS
+    # keel-cloud 128 FR-21: an up-front-then price is held on both steps -- the up front's own low as well
+    upfront = float(price["upfrontLow"]) if chain and chain_mod.two_steps(price) and price.get("upfrontLow") is not None \
+        else None
     return fake.Founder(importance_item=wire_code("problem.importance", 0) if importance and importance["items"]
-                        else None, price_low=low, buyer_supports=supports, chain_price=chain)
+                        else None, price_low=low, buyer_supports=supports, chain_price=chain, current_line=line,
+                        upfront_low=upfront)
 
 
 _THIRD = re.compile(r"\b(they're|they've|they'd|they'll|theirs|their|themselves|they)\b", re.IGNORECASE)
@@ -1621,7 +1625,50 @@ def follow_up_line(entry, person, owed: dict | None) -> str | None:
     return own or FOLLOW_UP_LINES[owed["dimension"]][0]
 
 
-def follow_up_question(entry, picks: list, link: str, interview: dict, token: str, first=()) -> dict | None:
+def fact_said(label: str | None) -> str | None:
+    """keel-cloud 128 FR-13b (`FollowUpComposer.factSaid`): the tested fact as a statement said to the stranger -- the
+    founder's label in the second person, no closing full stop, its first letter lowered."""
+    text = (label or "").strip()
+    if not text:
+        return None
+
+    def person(m):
+        w = m.group(1)
+        out = {"they're": "you're", "they've": "you've", "they'd": "you'd", "they'll": "you'll", "their": "your",
+               "theirs": "yours", "themselves": "yourself"}.get(w.lower(), "you")
+        return out[:1].upper() + out[1:] if w[:1].isupper() else out
+    text = _THIRD.sub(person, text)
+    while text.endswith("."):
+        text = text[:-1]
+    return fake_lower(text)
+
+
+def from_served(question: str | None, pick: str | None) -> str | None:
+    """keel-cloud 128 FR-14 (`FollowUpComposer.fromServed`): Compatibility's follow-up from the served question where the
+    condition gives no clause -- *You said no to this: did the list come straight out of the EMR? What got in the way?*"""
+    asked = (question or "").strip()
+    if not asked:
+        return None
+    at = asked.find(". ")
+    if asked.startswith("Think ") and at > 0:
+        asked = asked[at + 2:].strip()
+    asked = re.sub(r"^On your last [^,]+, ", "", asked)
+    if not asked:
+        return None
+    said = "no" if pick is None else fake_lower(pick.strip())
+    return f"You said {said} to this: {asked[:1].lower() + asked[1:]} What got in the way?"
+
+
+def served_idea_name(interview: dict) -> str | None:
+    """The idea's name as the interview serves it (`Reveal.what`, *Imagine {name}.*: keel-cloud 090) -- the
+    corridor's `ideaName` the composer says."""
+    what = ((interview.get("reveal") or {}).get("what") or "").strip()
+    m = re.match(r"^Imagine (.+?)\.?$", what)
+    return m.group(1).strip() if m else None
+
+
+def follow_up_question(entry, picks: list, link: str, interview: dict, token: str, first=(), *,
+                       line: int | None = None) -> dict | None:
     """Spec 051 FR-2 / judgement call 1: the one follow-up the cloud owes these picks on this link -- the stem by the
     harness's own walk (spec 064 FR-7, keel-cloud 118: the deciding lines `first` taken first, an answer a second stem
     is asked on owed too) and its text filled the way `FollowUpComposer` fills it, from the served labels (`interview`,
@@ -1630,7 +1677,8 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
     from harness import interviewer_fake as fake                       # noqa: PLC0415
 
     served = {i.get("dimension"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
-    stem = fake.first_stem(picks, founder_side(entry), link, b2b=is_b2b(entry), served=set(served), first=first)
+    stem = fake.first_stem(picks, founder_side(entry, line=line), link, b2b=is_b2b(entry), served=set(served),
+                           first=first)
     if stem is None:
         return None
     rung, also = stem
@@ -1662,18 +1710,51 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
         values["{condition}"] = condition
         values["{would}"] = ("only work sometimes" if picked.startswith("only sometimes")
                              else "only work with help" if picked.startswith("only with help") else "not work")
+        # keel-cloud 128 FR-13b: a fact answered No or Partly is said back as the fact, never "you couldn't ..."
+        code = codes[0] if codes else None
+        if label(code) == "Partly" or (label(code) == "No" and label("only_with_help") == "Partly"):
+            said = fact_said(tested.get("label"))
+            if said:
+                values[WHOLE_TEXT] = ("You said only partly to this: " if code == "only_with_help"
+                                      else "You said no to this: ") + said + ". What got in the way?"
+        # keel-cloud 128 FR-14: with no clause to say "you couldn't" of, the served question is quoted
+        if values["{condition}"] is None and WHOLE_TEXT not in values and item:
+            quoted = from_served(item.get("question") or item.get("text"), label(code))
+            if quoted:
+                values[WHOLE_TEXT] = quoted
     elif rung == "solution.relative_advantage":
         values["{benefit}"] = fake.joined([a.get("label") for a in item.get("advantages") or []], "or")
+        if codes[:1] == ["negative"]:
+            # keel-cloud 128 FR-16: the follow-up quotes the pick that was made (Walter picked worse)
+            values[WHOLE_TEXT] = (f"You said {served_idea_name(interview) or 'it'} would have made things worse. "
+                                  "What would have helped instead?")
+    elif rung == "commercial.buyer_payer_alignment":
+        # keel-cloud 128 FR-19: asked about this purchase at the founder's price, followed up in its tense
+        if str(item.get("question") or item.get("text") or "").startswith("Could you sign off on "):
+            values[WHOLE_TEXT] = "Who would have to agree, and what would they need to see?"
+    elif rung == "commercial.purchase_friction":
+        # keel-cloud 128 FR-12: asked about this purchase, followed up in its tense
+        if str(item.get("question") or item.get("text") or "").startswith("If you bought ") and codes:
+            values[WHOLE_TEXT] = "What would take the time?" if codes[0] == "yes_long" \
+                else "What would slow it down, if anything?"
     elif rung == "solution.adoption_friction":
         values["{effort}"] = fake.lower(founder_follow_up_words(entry)["{effort}"])
     elif rung == "commercial.price":
         values["{band}"] = fake.WOULD_NOT_PAY_BAND if codes[:1] == [fake.WOULD_NOT_PAY] else \
             fake.lower(label(codes[0]) if codes else None)
-    text = fake.fill(rung, values, also=also)
+    whole = values.pop(WHOLE_TEXT, None)
+    text = whole if whole is not None else fake.fill(rung, values, also=also)
     if rung == "commercial.price" and codes[:1] == [fake.WOULD_NOT_PAY] and not also:
         # keel-cloud 126 FR-6a (`FollowUpComposer.WOULD_NOT_PAY_TEXT`): the would-not-pay follow-up has its own sentence
         text = "You said you wouldn't pay for this. What would change that?"
-    return {"dimension": rung, "text": text, "spoken": fake.spoken_of(rung, also=also), "also": also}
+    # keel-cloud 128 FR-12: a follow-up composed whole for the answer given is said as it reads
+    spoken = text if whole is not None else fake.spoken_of(rung, also=also)
+    return {"dimension": rung, "text": text, "spoken": spoken, "also": also}
+
+
+#: keel-cloud 128 (`FollowUpComposer.WHOLE_TEXT`): the values key a follow-up composed whole for the answer is carried
+#: under -- said as it reads.
+WHOLE_TEXT = "{whole_text}"
 
 
 def the_step(step: str) -> str:

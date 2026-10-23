@@ -1938,6 +1938,28 @@ def _typing(person, line: str | None):
     return person
 
 
+def _served_line(j: Journey) -> int | None:
+    """Spec 067 FR-4 (keel-cloud 117 FR-3, 128 FR-16): on a back-test, Current solution's line on the founder's saved
+    list as the cloud stores it (`GET calibration/PROBLEM`, `answer.list.line`) -- the bar the ladder counts against
+    with, Keel's own draft's, never the entry's codes (Pairio: *Found it, logged a line or two* sat below the served
+    line and was counted against). Read once; None on a golden walk, where the line is D4's 2 and the entry's own."""
+    if j.strict:
+        return None
+    if "current_line" not in j.screens:
+        line = None
+        try:
+            view = j.get(j.project("/calibration/PROBLEM")) or {}
+            for q in view.get("questions") or []:
+                if q.get("dimension") == "problem.current_solution_satisfaction":
+                    line = (((q.get("answer") or {}).get("list")) or {}).get("line")
+        except Exception:  # noqa: BLE001 - a read that fails leaves the registry's line, named below
+            line = None
+        j.screens["current_line"] = line
+        j.findings.append({"what": f"Current solution's served line is {line if line is not None else 'not read'}; "
+                                   "the follow-up walk counts against with it (spec 067 FR-4)"})
+    return j.screens.get("current_line")
+
+
 def _typed(walked: dict) -> bool:
     """Whether the walk typed the person's line on the follow-up screen (`Interview._follow_up`'s `did`)."""
     return (walked.get("follow_up") or {}).get("did") == "typed"
@@ -2018,7 +2040,8 @@ def _answer_one(j: Journey, person, token: str) -> None:
         # first -- read off the served standings (`interviewer_fake.deciding_lines`), never recounted here
         inside = getattr(person, "in_segment", True)
         deciding = _deciding_now(j) if (person.link == vs.LINK_B2B or (person.recency and inside)) else []
-        owed = vs.follow_up_question(j.entry, person.picks, person.link, interview, token, first=deciding) \
+        owed = vs.follow_up_question(j.entry, person.picks, person.link, interview, token, first=deciding,
+                                     line=_served_line(j)) \
             if (person.link == vs.LINK_B2B or (person.recency and inside)) else None
         if owed is not None:
             owed["deciding"] = deciding
@@ -2044,7 +2067,8 @@ def _answer_one(j: Journey, person, token: str) -> None:
         served_rung = ((walked.get("follow_up_route") or {}).get("body") or {}).get("dimension")
         if owed is not None and served_rung and served_rung != owed.get("dimension"):
             later = _deciding_now(j)
-            again = vs.follow_up_question(j.entry, person.picks, person.link, interview, token, first=later)
+            again = vs.follow_up_question(j.entry, person.picks, person.link, interview, token, first=later,
+                                       line=_served_line(j))
             if again is not None and again.get("dimension") == served_rung:
                 again["deciding"] = later
                 j.findings.append({"what": f"{person.person}: the deciding line moved with their own answers -- the "

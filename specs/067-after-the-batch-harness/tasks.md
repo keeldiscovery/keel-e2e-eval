@@ -86,10 +86,19 @@ the canon-reading tests the revision refusal had skipped.
 
 ## FR-4 -- for/against from the served bar
 
-- [ ] T040 `interviewer_fake.Founder.current_line` (keel-cloud `Ladder`, spec 117 FR-3: an outcome above the
+- [x] T040 `interviewer_fake.Founder.current_line` (keel-cloud `Ladder`, spec 117 FR-3: an outcome above the
   founder's list's `line` is against); on a back-test the walk reads the stored Current-solution list's `line` off
   `GET calibration/PROBLEM` and the owed follow-up is computed on it; golden walks keep the registry's
   `outcome_1, outcome_2` (D4's line, 2 on every golden entry).
+- [x] T041 the ladder and composer of 128 mirrored where the harness composes the owed follow-up (judgement call 8):
+  `Ladder.against` holds a two-step chain price on both steps (`Founder.upfront_low`, FR-21); a Buyer and payer
+  *decided alone* closes its line and owes nothing (`interviewer_fake.closes`, FR-20); `FollowUpComposer`'s whole
+  texts -- a fact answered No / Partly said back as the fact (FR-13b), the served question quoted where the
+  condition gives no clause (FR-14), Relative advantage's *worse* quoted with the served idea name (FR-16), Buyer and
+  payer at the founder's price and Purchase friction of this purchase followed up in their tense (FR-19, FR-12) --
+  each said as it reads (`spoken` = `text`). Not mirrored: the grammar check's fallback to the registry's spoken
+  line (`StrangerGrammar.grammar`; a fallback on a broken fill, which no golden fill is). Unit: 3,123 passed,
+  53 skipped, 0 failed.
 
 ## FR-5 -- a needs-input question is answered once
 
@@ -158,8 +167,15 @@ the canon-reading tests the revision refusal had skipped.
 7. **An item the control cannot carry after the drop goes to its escape.** The alternative -- a neighbour -- is the
    swap FR-1 forbids; stopping the run loses a paid walk for one pick. The escape is named beside the dropped pick.
 
+8. **128's ladder and composer are mirrored in this build.** They are not in FR-1 to FR-8, but the golden journeys
+   hold the follow-up's text and spoken line to the harness's own composition (`_hold_the_follow_up`, strict), and
+   128 moved them on 03-lullaby, 04-linerly and 07-mulchrun (a fact) and on every decided-alone decision-maker; left
+   alone, the golden walks would fail on the 128 build. Measured by unit tests only: no stack ran.
+
 ## Left open
 
 - FR-7's holds on the golden seven and on 13-aircaps, 16-pairio, 21-codyco for web 106's screens (no selectors).
+- The golden journeys (S-005 / S-006 / S-007, `make eval`) on the 128 build: not run here (no stack); 128's ladder
+  and composer mirror (T041) and the walk changes are held by unit tests only.
 - Acceptance 2 (the host-door re-runs and the register rows): the parent's.
 - The refusal of a bare `follow_up` string (judgement call 3): the revision that writes `{dimension, text}`.

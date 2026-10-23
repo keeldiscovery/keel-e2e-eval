@@ -156,9 +156,10 @@ TABLE = [
      "commercial.buyer_payer_alignment"),
     ("Buyer and payer, a role tested: had to agree supports", _with(_p("commercial.buyer_payer_alignment",
                                                                        "had_to_agree")), NAMED, "PRIMARY", False, None),
-    ("Buyer and payer, a role tested: decided alone is against",
-     [_p("commercial.buyer_payer_alignment", "decided_alone")], NAMED, "COMMERCIAL_B2B", True,
-     "commercial.buyer_payer_alignment"),
+    # keel-cloud 128 FR-20 (`FollowUpComposer.closes`): decided alone is against a named role, but the pick closes the
+    # line -- nobody had to agree -- so it owes no follow-up (Codyco)
+    ("Buyer and payer, a role tested: decided alone closes the line",
+     [_p("commercial.buyer_payer_alignment", "decided_alone")], NAMED, "COMMERCIAL_B2B", True, None),
     ("Commitment: yes, after trying it first (its second stem, keel-cloud 118)",
      _with(_p("commercial.commitment", "yes_after_trying"), _p("commercial.purchase_friction", "yes_long")),
      NOBODY, "PRIMARY", False, None),
