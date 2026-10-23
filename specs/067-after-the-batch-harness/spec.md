@@ -41,3 +41,16 @@ named-idea tolerances, the price tile under the ladder.
 2. `make backtest DOOR=host ENTRY=…` for 09-karsa, 10-palus, 11-issen, 12-transload, 16-pairio, 21-codyco and
    13-aircaps completes with no harness stop; each judgement's re-run row written.
 3. No queued chain whose command line carries the words `pytest evals` (the runner's own wait pattern self-matches).
+
+## From the cloud build (keel-cloud 128 at 423f0983, 2026-10-23)
+
+The cloud half landed with these owed to this spec, past the rules above:
+
+- **Revision 15 fields.** Every entry now carries, per person, a `condition` answer (the segment's condition: Yes ·
+  Mostly · Partly · No, the four the cloud serves for a fact) and, on Transload, two managers' pilot opt-ins. The
+  walk answers the Compatibility fact from `condition` and presses the pilot opt-in for a person whose entry says so.
+  Issen's cost picks are now practice missed and AirCaps's conversations lost; the walk sends them as written (FR-1).
+- **The ruler wording follows web 102** (the price tile under the ladder, *Most said {edgeSaid} ({chose} of {n})*,
+  as `instructions/overview.py` already mirrors).
+- **Acceptance 3's re-runs** are Karsa, Palus, Issen and Transload, then one B2B and Codyco, through the host door;
+  each gets a new row in the register with the old score beside it (the Re-run column).
