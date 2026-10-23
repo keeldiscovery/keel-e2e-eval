@@ -433,3 +433,23 @@ def test_each_job_s_result_event_usage_is_recorded_and_summed_into_the_markdown(
     record["cost"]["cli"] = cli
     md = bt.markdown(record)
     assert "The result events' usage, summed" in md and "PROBLEM_FRAME `j1`: $0.01, in 3 / out 7" in md
+
+
+def test_a_green_run_s_directory_is_found_without_the_bundle_line(tmp_path):
+    """pytest -q prints no captured stdout on a pass, so the log has no `run bundle:`; the newest run written while the
+    log was being written is the run. An older run of the same entry, or a run that never made its directory, is not."""
+    import os, time
+    runs = tmp_path / "runs"
+    old = _run_dir(runs, _record()); old = old.rename(runs / "20260101T000000Z-backtest-08-fresco")
+    past = time.time() - 3600
+    os.utime(old / bt.RECORD, (past, past))
+    log = tmp_path / "08-fresco.log"
+    log.write_text(".\n1 passed in 700s\n")
+    assert bt.run_dir_in(log.read_text()) is None
+    assert bt.latest_run_dir("08-fresco", log, runs=runs) is None            # the old run is not this log's
+    new = _run_dir(runs, _record()); new = new.rename(runs / "20260102T000000Z-backtest-08-fresco")
+    log.write_text(".\n1 passed in 700s\n")
+    assert bt.latest_run_dir("08-fresco", log, runs=runs) == new
+    assert bt.latest_run_dir("08-fresco", None, runs=runs) == new
+    assert bt.latest_run_dir("09-karsa", log, runs=runs) is None
+

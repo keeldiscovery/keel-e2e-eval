@@ -1540,6 +1540,24 @@ def run_dir_in(log_text: str) -> Path | None:
     return Path(found[-1]) if found else None
 
 
+def latest_run_dir(entry_id: str, log_path: Path | None = None, runs: Path | None = None) -> Path | None:
+    """The run directory of a `make backtest` that passed: pytest -q prints no captured stdout for a green test, so the
+    log names no `run bundle:` (2026-10-23: every clean host-door run printed `(no run directory)`). The newest
+    `runs/<ts>-backtest-<id>` whose record was written while the log was being written (between the log file's birth and
+    its last write); a run that stopped before its directory existed (a load refusal) matches nothing, and `None` says so."""
+    root = Path(runs) if runs is not None else Path(__file__).resolve().parents[1] / "runs"
+    found = sorted(d for d in root.glob(f"*-backtest-{entry_id}") if d.is_dir() and (d / RECORD).is_file())
+    if not found:
+        return None
+    if log_path is None or not Path(log_path).is_file():
+        return found[-1]
+    st = Path(log_path).stat()
+    start = getattr(st, "st_birthtime", None)
+    fits = [d for d in found
+            if (start is None or (d / RECORD).stat().st_mtime >= start - 5) and (d / RECORD).stat().st_mtime <= st.st_mtime + 5]
+    return fits[-1] if fits else None
+
+
 def summary(run_dir: Path | None, entry_id: str) -> dict:
     """FR-6's one line, as data: the id, the run directory, the steps and the bad ones (the transcript's `ok: false`),
     the decision label, and -- when `backtest.md` says the run stopped on the plan's limit -- that time."""
@@ -1623,7 +1641,7 @@ def main(argv: list[str] | None = None) -> int:
         log_text = Path(log).read_text(encoding="utf-8", errors="replace")
     except OSError:
         log_text = ""
-    row = summary(run_dir_in(log_text), entry_id)
+    row = summary(run_dir_in(log_text) or latest_run_dir(entry_id, Path(log)), entry_id)
     if what == "summary":
         print(f"{row['id']}\t{row['run_dir'] or '(no run directory)'}\tsteps {row['steps']}\tbad {row['bad']}\t"
               f"{row['decision'] or '--'}" + (f"\tstopped by the plan's limit at {row['limit_stop'] or 'an unnamed time'}"
