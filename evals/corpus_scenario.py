@@ -2401,6 +2401,13 @@ def leg_standings(j: Journey) -> None:
     """`GET standings` against the entry, dimension by dimension -- status, drift, n and every count
     the entry records, each `optionCounts` code on the wire's own code -- and every vector's verdict and
     deciding dimension; then the board and the three stage pages, one row's per-person list among them."""
+    # the last answer settles a moment after its 2xx (keel-cloud 096: the brief on return): wait until the wire
+    # counts every invited person as answered before anything is read, so the eyebrow's count is the final one
+    for _ in range(30):
+        people = (j.get(j.project("/standings")) or {}).get("people") or {}
+        if not people.get("invited") or people.get("answered") == people.get("invited"):
+            break
+        time.sleep(2)
     j.standings = j.get(j.project("/standings")) or {}
     dims = {d.get("dimension"): d for v in j.standings.get("vectors") or []
             for d in v.get("dimensions") or []}

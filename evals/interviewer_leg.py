@@ -1457,6 +1457,12 @@ class _Walk:
             if stage["where"] == ivs.FOLLOW_UP_KICKER:
                 self.follow_up(entry)
                 continue
+            condition = (self.gate or {}).get("condition") or {}
+            if condition and q == condition.get("question"):
+                # keel-cloud 120 (FR-2): the segment chip, asked before the gate question; the golden people are
+                # inside the segment, so the answer is the first code the study lets in (YES / NO)
+                self.held(entry, "yes" if (condition.get("inCodes") or ["YES"])[0] == "YES" else "no")
+                continue
             if self.gate and q == self.gate.get("question"):
                 self.held(entry, "yes" if self.expected.get("recency", True) is not False else "no")
                 self.how[self.gate.get("itemId")] = "SPOKEN"
