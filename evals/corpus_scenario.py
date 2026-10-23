@@ -2174,6 +2174,9 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
     {occasion}* alone; every item draws its served kicker and stem, its served options as rows, *Pick two.*
     on Importance, and its ONE escape -- the served label, after the control and before the buttons, none
     on Commitment."""
+    for u in walked.get("unanswered") or []:
+        j.findings.append({"what": f"{person.person}: the file has no pick on {u.get('dimension')}, which the link "
+                                   f"asks; the walk took the escape {u.get('took')!r} (entry gap)", "served": u})
     with _step(j, f"{person.person}: every screen draws what the wire served -- the kicker, the stem, the "
                   "options, one escape last", party="participant") as h:
         faults = []

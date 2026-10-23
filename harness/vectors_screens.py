@@ -1611,6 +1611,7 @@ class Interview:
         self._b = _BrowserStep(recorder, page, "participant")
         self.seen: list[str] = []
         self.screens: list[dict] = []
+        self.unanswered: list[dict] = []
         #: Spec 062 FR-3: the back-test's camera for this person's screens (one person a link), or None.
         self.camera = None
 
@@ -1680,7 +1681,7 @@ class Interview:
             self._shot("done")
             page.remove_listener("response", self._keep_transcribe)
             return {"body": body, "status": status, "done": heading, "seen": list(self.seen),
-                    "screens": list(self.screens), "follow_up_route": self.route, "follow_up": self.follow_up_seen,
+                    "screens": list(self.screens), "unanswered": list(self.unanswered), "follow_up_route": self.route, "follow_up": self.follow_up_seen,
                     "speak": self.speak_seen, "transcribed": self._transcribed(), "consent": self.consent}
 
     def _keep_transcribe(self, response) -> None:
