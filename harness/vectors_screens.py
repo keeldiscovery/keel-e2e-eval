@@ -1265,6 +1265,10 @@ class Corridor:
                 page.get_by_test_id("chain-measure-count").click()
                 page.get_by_test_id("chain-count").fill(str(cost.get("measure")))
             page.get_by_test_id("chain-base").fill(str(cost.get("base") or ""))
+        elif cost["mode"] == "HOURS" and cost.get("base") and page.get_by_test_id("chain-base").count():
+            # keel-web 102 FR-3c (keel-cloud 126 FR-2): on hours the founder says what the hours are spent on, so the
+            # strangers' question names it ("how many hours did the daily log take your team?"); typed where the box is
+            page.get_by_test_id("chain-base").fill(str(cost.get("base")))
         page.get_by_test_id("chain-low").fill(_number(cost["low"]))
         page.get_by_test_id("chain-high").fill(_number(cost["high"]))
         rate = page.get_by_test_id("chain-rate")
