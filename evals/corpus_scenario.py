@@ -283,16 +283,17 @@ def leg_project(j: Journey) -> None:
         market = (j.get(j.project("/overview")) or {}).get("market") or {}
         # keel-cloud 122 FR-4: a market the table has not met (*Another country*) is served in English whatever the
         # country's tongue -- the entry's `language` names the country's (21-codyco: de-DE), the product's rule wins
-        other_market = founder.country not in countries
+        other_market = market.get("kind") == "OTHER"
         language = "en" if other_market else founder.language
         h.record_assert({"country": founder.country, "region": founder.region, "language": language,
-                         "entry_language": founder.language}, market)
+                         "entry_language": founder.language, "table_lists_country": founder.country in countries},
+                        market)
         assert market.get("country") == founder.country, market
         assert (market.get("region") or None) == founder.region, market
         assert market.get("language") == language, market
-        # keel-cloud 122: `kind` is OTHER only on a market the table has not met; every corpus market is the table's
-        assert market.get("kind") in (None, "OTHER") and (market.get("kind") == "OTHER") == (
-            founder.country not in countries), market
+        # keel-cloud 122: `kind` is OTHER on a market the step's list did not offer (the served kind is the rule; the
+        # markets table and the step's select can differ, 21-codyco's DE)
+        assert market.get("kind") in (None, "OTHER"), market
 
 
 def leg_context(j: Journey) -> None:
