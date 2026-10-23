@@ -231,3 +231,23 @@ def test_a_list_label_past_the_answer_box_stops_at_load(tmp_path):
     entry = corpus_mod.load_file(fx.write_entry(tmp_path, raw))
     with pytest.raises(vs.VectorsScriptError, match="is 26 words; the Answer box takes 25"):
         vs.check_answer_box(entry)
+
+
+# ------------------------------------------------------------------------------- FR-2: every founder rung typed
+
+def test_the_rungs_the_draft_left_out_are_typed_and_past_the_screen_they_stop():
+    """Spec 067 FR-2 (keel-cloud 128 FR-16): 16-pairio's founder has five rungs; the Answer's 25 words carry the first
+    few and Keel's draft carries what it was given -- every other rung is typed on the Check screen, in the entry's
+    order; with no room left the walk stops naming the rung."""
+    path = corpus_mod.backtest_dir(KEEL_CLOUD) / "16-pairio.yaml"
+    if not path.is_file():
+        pytest.skip("no 16-pairio")
+    entry = corpus_mod.load_file(path, registry=fx.registry(), backtest=True)
+    rungs = [i["label"] for i in vs.founder_list(entry, "problem.current_solution_satisfaction")["items"]]
+    assert len(rungs) == 5
+    drawn = [rungs[0], rungs[1].upper() + "."]                       # case and a full stop are no difference
+    typed, cannot = vs.rungs_to_type(entry, drawn, 5)
+    assert typed == rungs[2:] and cannot == []
+    typed, cannot = vs.rungs_to_type(entry, drawn + ["Keel's own rung"], 5)
+    assert typed == rungs[2:4] and cannot == [rungs[4]]
+    assert vs.rungs_to_type(entry, rungs, 5) == ([], [])

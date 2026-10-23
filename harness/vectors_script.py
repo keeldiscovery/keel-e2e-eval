@@ -755,6 +755,20 @@ def founder_rungs(entry) -> int:
     return sum(1 for label in labels if label in text.split("; "))
 
 
+def _same_words(a: str | None, b: str | None) -> bool:
+    return " ".join(str(a or "").lower().split()).rstrip(".") == " ".join(str(b or "").lower().split()).rstrip(".")
+
+
+def rungs_to_type(entry, drawn: list[str], max_items: int) -> tuple[list[str], list[str]]:
+    """Spec 067 FR-2 (keel-cloud 128 FR-16; Pairio typed two of five): Current solution's rungs the founder types on the
+    Check screen -- every entry rung the drawn rows do not carry word for word, in the entry's order -- and those the
+    screen cannot hold (`max_items` rows), which stop the walk by name. `([], [])` where the drawn list carries them all."""
+    labels = [i["label"] for i in founder_list(entry, "problem.current_solution_satisfaction")["items"]]
+    missing = [label for label in labels if not any(_same_words(label, row) for row in drawn)]
+    room = max(0, int(max_items) - len(drawn))
+    return missing[:room], missing[room:]
+
+
 def saved_list(entry, key: str) -> dict:
     """The list as the founder saves it and the wire stores it (keel-cloud `SavedList`): every item, in
     order, with code's positional codes, `asked` where the dimension carries faces, `pickedIndex` where it

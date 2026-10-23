@@ -1378,8 +1378,31 @@ class Corridor:
             h.add_screenshot(self._b.screenshot(f"check-{name}-named"))
         return out
 
+    def add_rows(self, labels: list[str], name: str = "list") -> dict:
+        """Spec 067 FR-2: the founder's own rungs the draft left out, each typed into a new row (*+ add*, the Check
+        screen's `.listcheck__add`). The control gone before every label is typed stops the walk naming the rung."""
+        rows = self.page.locator(".listcheck ul.listrows li.listrow textarea.listrow__ed")
+        out: dict = {"added": [], "before": [r.get("text") for r in self._list_rows()["rows"]]}
+        with self._b.step(f"founder types {len(labels)} of their own rung{'s' if len(labels) != 1 else ''} the draft "
+                          "left out") as h:
+            for label in labels:
+                add = self.page.locator(".listcheck__add")
+                if not add.count():
+                    raise AssertionError(f"the Check screen offers no row for the founder's rung {label!r} "
+                                         f"(spec 067 FR-2); typed so far: {out['added']}")
+                before = rows.count()
+                add.first.click()
+                self.page.wait_for_function("(n) => document.querySelectorAll("
+                                            "'.listcheck ul.listrows li.listrow textarea.listrow__ed').length > n",
+                                            arg=before, timeout=10_000)
+                rows.nth(rows.count() - 1).fill(label)
+                out["added"].append(label)
+            out["after"] = [r.get("text") for r in self._list_rows()["rows"]]
+            h.add_screenshot(self._b.screenshot(f"check-{name}-rungs-typed"))
+        return out
+
     def list_check(self, question: dict, *, timeout_s: float = 60, add: list[str] | None = None,
-                   one_more: bool = False) -> dict:
+                   one_more: bool = False, add_rungs=None) -> dict:
         """*Check and save* (FR-005): waits out *Keel is writing this from your answer.*, reads the drafted
         list as drawn -- every row, the locked ones (*yours*, *context*, *who decides*), the phrase or the
         step, the *Keel will test* box -- and saves it untouched with the primary (*Save*, or the stage's
@@ -1400,6 +1423,13 @@ class Corridor:
             seen["importance"] = self.importance_rows(add, one_more=one_more)
             seen["after"] = self._list_rows()
             seen["test_after"] = self._keel_test()
+        if add_rungs is not None:
+            # spec 067 FR-2: `add_rungs(seen)` -> the rungs to type, or raises naming the ones the screen cannot hold
+            labels = add_rungs(seen)
+            if labels:
+                seen["rungs"] = self.add_rows(labels, name=name)
+                seen["after"] = self._list_rows()
+                seen["test_after"] = self._keel_test()
         with self._b.step(f"founder saves {name}") as h:
             seen["primary"] = self._press_primary()
             h.add_screenshot(self._b.screenshot(f"check-{name}-saved"))

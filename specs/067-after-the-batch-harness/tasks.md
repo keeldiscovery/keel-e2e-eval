@@ -64,9 +64,14 @@ the canon-reading tests the revision refusal had skipped.
 
 ## FR-2 -- every founder rung is typed
 
-- [ ] T020 on a back-test, Current solution's Check screen: every entry rung the drawn list does not carry is typed
+- [x] T020 on a back-test, Current solution's Check screen: every entry rung the drawn list does not carry is typed
   into a new row (*+ add*), in the entry's order; where the screen cannot hold them (the registry's `max_items`, or
   the add control gone) the walk stops naming the rung. `vs.rungs_to_type(entry, drawn, max_items)` is the pure rule.
+- [x] T021 as built: `Corridor.list_check(add_rungs=...)` reads the drawn rows, `_rungs_to_type` (the question's own
+  `saves.maxItems`, else 5) names what to type or stops, `Corridor.add_rows` types each into `.listcheck__add`'s new
+  row (keel-web `ListQuestion.tsx`: the add shows while rows < maxItems); a rung typed late is a finding. Matched word
+  for word, case and a closing full stop aside. Golden walks unchanged (strict: the draft is the entry's own).
+  Unit: 3,115 passed, 53 skipped, 0 failed. The screen walk itself is exercised by the parent's host-door re-runs.
 
 ## FR-3 -- a follow-up line belongs to a rung
 
