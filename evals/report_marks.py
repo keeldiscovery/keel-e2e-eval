@@ -172,8 +172,9 @@ def expected_overview(standings: dict) -> dict:
     facts = standings.get("facts") or {}
     served = {v.get("vector"): {k: v[k] for k in ("dimensionsHolding", "dimensionsTotal", "peopleAnswered") if k in v}
               for v in standings.get("vectors") or []}
+    people = standings.get("people") or {}
     return ov.overview(facts, price_median=standings.get("priceMedian"), n_of=n_of(standings),
-                       use_facts_median=False, served=served)
+                       use_facts_median=False, served=served, answered=people.get("answered"))
 
 
 def _label_class(label: str) -> set:
