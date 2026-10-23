@@ -17,8 +17,10 @@ what people said about it, but the key thing is that you have to clearly say tha
 be clearly highlighted."* So: **the real company name is the example's attribution, everywhere**; the rename map goes
 (`gallery_names.toml` keeps `slug` and `name` per entry, now the real name and a slug from it, with `replaces: []`;
 the survivors grep is replaced by an attribution check). Each `index.json` row and `<slug>/manifest.json` carry
-`inspiredBy: {name, batch, ycUrl}` (from the entry's `sources` file: the YC page), `publicDescription` (the company's
-own one-liner, verbatim from the YC page, with its URL and date), `assumptions[]` (the founder's belief sentences Keel
+`inspiredBy: {name, batch, ycUrl}` (from the entry's `sources` file: the YC page), `publicDescription` (the company's own words for the idea the example studies, verbatim from the LAUNCH-ERA source --
+the Launch YC / Launch HN post's title or first line, or the YC one-liner of that time -- with its URL and date; gap 11's
+rule: the example is pinned to the idea as launched) and `statusToday` ({text, url, date}, optional: the company's current
+one-liner when it differs, so the page can say what they do now), `assumptions[]` (the founder's belief sentences Keel
 tested, as the run served them, plain text), `simulated: true` and `disclaimer`: the fixed sentence *"A simulated
 study inspired by <Name> (Y Combinator <batch>). The founder's answers, the twenty participants and everything they
 said are fictional, written from <Name>'s public material to show what Keel does. Not customer research about <Name>;
