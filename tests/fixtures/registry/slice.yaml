@@ -626,7 +626,7 @@ dimensions:
     unsure_allowed: true
     saves:
       min_items: 1
-      max_items: 1
+      max_items: 2  # keel-cloud 118 FR-1: the step and its smaller step (corpus revision 14)
       max_words: 9
       picked: false
   respondent:

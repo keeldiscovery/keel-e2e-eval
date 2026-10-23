@@ -629,12 +629,17 @@ def test_the_current_solution_draft_carries_the_founders_rungs_and_the_line():
         assert (draft["founder_rungs"], draft["line"]) == (rungs, 2), entry_id
 
 
-def test_a_conditional_yes_the_founders_list_cannot_carry_goes_on_probably_not_and_is_named():
-    """FR-7 (keel-cloud 118 FR-1): no golden Commitment list carries a smaller step, so its *yes, after trying it first*
-    is sent as *probably not* -- and each remap is kept on the person (a finding)."""
+def test_a_conditional_yes_the_founders_list_cannot_carry_is_refused_and_r14_has_none():
+    """Corpus revision 14 (keel-cloud 127, rule T; was FR-7's remap to *probably not*): 05-paidly's three *yes, after
+    trying it first* answers are *yes_start* now (a read-only trial is the step), so nobody is remapped; an entry that
+    still asks for the conditional yes with no smaller step on its list is refused."""
+    import pytest                                                      # noqa: PLC0415
     entry = _entry("05-paidly")
-    moved = [p for p in vs.person_inputs(entry) if p.remapped]
-    assert [p.person for p in moved] == ["Mo Birch", "Uma Elm", "Yusuf Hazel"]
-    for person in moved:
-        pick = next(x for x in person.picks if x.dimension == "commercial.commitment")
-        assert pick.codes == ["probably_not"]
+    people = vs.person_inputs(entry)
+    assert not [p for p in people if p.remapped]
+    assert sum(1 for p in people for x in p.picks if x.dimension == "commercial.commitment"
+               and x.codes == ["yes_start"]) == 6
+    decider = next(p for p in people if p.link == vs.LINK_B2B)        # Commitment is the decision-maker's rung on B2B
+    stale = vs.with_pick(decider, "commercial.commitment", ["yes_after_trying"])
+    with pytest.raises(vs.VectorsScriptError):
+        vs._served_commitment(entry, stale.picks)

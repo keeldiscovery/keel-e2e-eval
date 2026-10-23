@@ -1597,8 +1597,21 @@ def _served_commitment(entry, picks: list) -> tuple[list, tuple]:
     on *probably not* where none is: the remap is returned, so the journey names it (a finding, not a silent drop)."""
     if smaller_step(entry) is not None:
         return picks, ()
-    out, remapped = [], []
+    # corpus revision 14 (keel-cloud 127, rule T): a yes_after_trying answer exists only where the founder's list
+    # carries a smaller step -- the remap to probably_not (spec 064 FR-7) is retired; an entry that still asks for it
+    # is refused, never quietly re-read
+    unserved = [pick for pick in picks if pick.dimension == "commercial.commitment" and pick.codes == [CONDITIONAL_YES]]
+    if not unserved:
+        return picks, ()
+    if not entry.backtest:
+        raise VectorsScriptError(f"{entry.id}: a yes_after_trying answer on commercial.commitment, but the founder's list "
+                                 "carries no smaller step (keel-cloud 118 FR-1 serves no second yes; corpus revision 14 "
+                                 "rule T)")
+    # a back-test entry runs on Keel's AI, which may draft the smaller step itself (118 FR-1): the pick rides on
+    # *probably not* for the script and goes back onto the served conditional option where one is served
+    # (`corpus_scenario._served_options`), every remap left standing named as a finding
     import dataclasses                                                 # noqa: PLC0415
+    out, remapped = [], []
     for pick in picks:
         if pick.dimension == "commercial.commitment" and pick.codes == [CONDITIONAL_YES]:
             out.append(dataclasses.replace(pick, codes=[NOT_SERVED_YES]))

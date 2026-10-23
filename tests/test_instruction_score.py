@@ -248,8 +248,8 @@ def _set(key, index, field, value):
         "options", [{"label": "Clip it", "belief_phrase": "clip"}]), "never options"),
     ("five conditions", "SOLUTION", lambda r: _items(r, COMPAT).extend(
         copy.deepcopy(_items(r, COMPAT)[:1]) * 3), "takes 2 to 4 items"),
-    ("two steps", "COMMERCIAL", lambda r: _items(r, "commercial.commitment").append({"label": "pay for it"}),
-     "takes exactly 1 items"),
+    ("three steps", "COMMERCIAL", lambda r: _items(r, "commercial.commitment").extend(
+        [{"label": "pay for it"}, {"label": "sign for it"}]), "takes 1 to 2 items"),
     ("three roles", "COMMERCIAL", lambda r: _items(r, "commercial.buyer_payer_alignment").extend(
         [{"label": "The owner"}, {"label": "Finance"}]), "takes 0 to 2 items besides Nobody else"),
     # L2: words an item (roles four)

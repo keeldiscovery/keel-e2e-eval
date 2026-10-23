@@ -450,8 +450,10 @@ def test_the_record_follows_registry_revision_13s_five_changes(real):
     assert lullaby("commercial.buyer_payer_alignment").options[2:] == ("Someone else had to agree instead",
                                                                       "No, someone else decided for me")
     commitment = lullaby("commercial.commitment")
-    assert commitment.options == ("Yes, I'd allow it to use the microphone at night", "Probably not", "No")
-    assert commitment.count_line == "I'll read three options."
+    # corpus revision 14 (keel-cloud 127): Lullaby's list carries its smaller step, so the second yes is served
+    assert commitment.options == ("Yes, I'd allow it to use the microphone at night",
+                                  "Yes, after a look at how it listens first", "Probably not", "No")
+    assert commitment.count_line == "I'll read four options."
     assert not hasattr(spoken_mod, "ESCAPES"), "the escapes are the registry's, never a table"
 
 

@@ -85,6 +85,22 @@ reads the three page clips with the rest (29 in the manifest) -- and `evals/inte
 her hello in the who-asks band to its end, the still returns; absent for a retired face); the interviewer leg's W1
 replay reading retires with *How it works* (it was a leg step, never a row).
 
+**Corpus revision 14 (2026-10-23, keel-cloud 127; eval 065 and the 064 harness after the fixed chain)**: Commitment's
+second yes lives in the golden founders' lists where the step costs data or a signature (02, 03, 06 gain
+`smaller_step`), and where it costs nothing (01, 05) *trying it* is the step, so their four `yes_after_trying` answers
+read `yes_start` (01's headline 6 -> 7 of 8, 05's 3 -> 6 of 8; no status, drift, median or verdict moved). The reader
+reads **revision 14** and refuses a revision-13 file by name; the harness's remap of an unserved conditional yes onto
+*probably not* is retired for golden entries (a refusal, rule T) and kept for back-test entries on Keel's AI. **v20
+stands**: this cut bumps nothing. The seven revision-14 files, by sha256 (keel-cloud canon's own bytes at
+keel-cloud-docs `720f67ca`, equal to `src/test/resources/keel/corpus-r14/`): `01-countly.yaml`
+`55266145b892c6571419d795b1a4f37cd4228690c0f72c82e17453d3b8989518`; `02-compliancelog.yaml`
+`5c9b7d7e7a4718bed17029ca6471e8b5de7dc1630bccf058f6e760e7787a361d`; `03-lullaby.yaml`
+`9ed2936f3efe2633bcc9aa92cbd66ce80540806952f7b666f088cc190e11b6ad`; `04-linerly.yaml`
+`b58328714db1fffc38c410878a201e0ca405481187a2e24498d0340acc2225c8`; `05-paidly.yaml`
+`bd653d968034724b45f58545f2a0e9708c579a824d6767d9709f37f7acd666f1`; `06-repeatline.yaml`
+`a20b48e97d92ce972387c93ea9314acf5313682290b470535575c2fe1b3d68b8`; `07-mulchrun.yaml`
+`ef57f0904cda60fd70700220b8c4bc59a20a398fca1121725772f44b87a555a4`.
+
 **Spec 064 (2026-10-23)**: keel-cloud 114-124 / keel-web 093-100 (contract 33, screen response contract 23, routing v12,
 corpus **revision 13** at keel-cloud-docs `7915eef`; registry decision 24's value box, the six periods and the chain's
 three modes taken by `instructions/registry.py`) -- the reader reads **revision 13** and refuses a revision-12 file by

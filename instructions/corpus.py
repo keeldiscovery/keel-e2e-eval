@@ -84,7 +84,7 @@ from .registry import (ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTRO
                        FREQUENCY_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY,
                        PRICE_PERIODS, SACRIFICE_KEY, VECTORS, RecallWindow, words)
 
-REVISION = 13
+REVISION = 14
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51, 78).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
@@ -104,7 +104,9 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 11: "MARKS_VERSION 19's and 20's corpus, in pounds (six GB entries, before keel-cloud 105: "
                     "'the currency amount should be dollars')",
                 12: "MARKS_VERSION 20's corpus, before the commercial chain (keel-cloud 115: a cost with no "
-                    "unit, a price with no shape)"}
+                    "unit, a price with no shape)",
+                13: "MARKS_VERSION 20's corpus on the chain, before Commitment's smaller step in the golden lists "
+                    "(keel-cloud 127: a yes_after_trying answer where the list serves no second yes)"}
 
 #: `sim/check_corpus_r5.py`'s `CURRENCY` (keel-cloud `Market.currency`'s table, the corpus's markets):
 #: a founder price is in its market's currency, never another.
