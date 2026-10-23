@@ -389,13 +389,21 @@ def host_door_refusal(me: dict | None) -> str | None:
 
 
 def host_door_jobs(per_job: list[dict], host_name: str = "claude") -> dict:
-    """FR-3: every job that landed (anything not still open) carries `execution.host` = the host and a named model
-    (`model_used`, else `model_requested`); returns `{"jobs", "landed", "open", "bad"}` -- `bad` empty when it holds."""
+    """FR-3: every job that was answered carries `execution.host` = the host and a named model (`model_used`, else
+    `model_requested`): a COMPLETED job without both is bad, and so is any job whose execution names another host. A
+    job that failed or was cancelled with no execution at all (nothing answered it) is listed apart, never bad.
+    Returns `{"jobs", "landed", "completed", "open", "no execution", "bad"}` -- `bad` empty when it holds."""
+    keys = ("screen", "status", "host", "model_used", "model_requested", "job_id")
     landed = [r for r in per_job if r.get("status") not in _OPEN]
-    bad = [{k: r.get(k) for k in ("screen", "status", "host", "model_used", "model_requested", "job_id")}
-           for r in landed if r.get("host") != host_name or not (r.get("model_used") or r.get("model_requested"))]
-    return {"jobs": len(per_job), "landed": len(landed),
+    completed = [r for r in landed if r.get("status") == "COMPLETED"]
+    bad = [{k: r.get(k) for k in keys} for r in landed
+           if (r.get("status") == "COMPLETED"
+               and (r.get("host") != host_name or not (r.get("model_used") or r.get("model_requested"))))
+           or (r.get("host") not in (None, host_name))]
+    return {"jobs": len(per_job), "landed": len(landed), "completed": len(completed),
             "open": [{k: r.get(k) for k in ("screen", "status")} for r in per_job if r.get("status") in _OPEN],
+            "no execution": [{k: r.get(k) for k in ("screen", "status")} for r in landed
+                             if r.get("status") != "COMPLETED" and r.get("host") is None],
             "bad": bad}
 
 
@@ -795,7 +803,7 @@ class Backtest:
             per_job = keel_host.jobs_with_their_execution(j.get, interactions)
             self.jobs_on_the_host = host_door_jobs(per_job, self.host)
             h.record_assert({"host": self.host, "model": "named", "bad": []}, self.jobs_on_the_host)
-            assert self.jobs_on_the_host["landed"] > 0, self.jobs_on_the_host
+            assert self.jobs_on_the_host["completed"] > 0, self.jobs_on_the_host
             assert not self.jobs_on_the_host["bad"], self.jobs_on_the_host["bad"]
 
     def pass_welcome(self, j, *, timeout_s: float = 30.0) -> dict:
@@ -1271,7 +1279,7 @@ def markdown(r: dict) -> str:
                  f"login {_q((door_.get('cli') or {}).get('authMethod'))}; keel-connect-skill "
                  f"{_q(skill.get('VERSION'))}, runtime {_q(skill.get('RUNTIME_VERSION'))}",
                  f"- Model: {_q(door_.get('model'))}",
-                 f"- Jobs on the host: {_q({k: hosted.get(k) for k in ('jobs', 'landed', 'open', 'bad')})}",
+                 f"- Jobs on the host: {_q({k: hosted.get(k) for k in ('jobs', 'completed', 'open', 'no execution', 'bad')})}",
                  f"- Runtime teardown: {_q({k: (r.get('runtime') or {}).get(k) for k in ('signal', 'exit code', 'alive after', 'credential removed')})}"]
         if r.get("limit_stop") is not None:
             extra.append(f"- Finding: *{LIMIT_FINDING} {r.get('limit_stop') or 'an unnamed time'}* "

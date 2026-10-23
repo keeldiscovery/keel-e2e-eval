@@ -277,11 +277,14 @@ def test_every_landed_job_must_name_the_host_and_its_model():
     per_job = [{"screen": "CONTEXT", "status": "COMPLETED", "host": "claude", "model_used": "claude-haiku-4-5"},
                {"screen": "FRAME", "status": "FAILED", "host": "claude", "model_requested": "claude-sonnet-5-5"},
                {"screen": "THEMES", "status": "QUEUED", "host": None}]
-    got = bt.host_door_jobs(per_job)
-    assert got["landed"] == 2 and got["bad"] == [] and got["open"] == [{"screen": "THEMES", "status": "QUEUED"}]
+    got = bt.host_door_jobs(per_job + [{"screen": "R", "status": "CANCELLED", "host": None}])
+    assert got["landed"] == 3 and got["completed"] == 1 and got["bad"] == []
+    assert got["open"] == [{"screen": "THEMES", "status": "QUEUED"}]
+    assert got["no execution"] == [{"screen": "R", "status": "CANCELLED"}]
     got = bt.host_door_jobs(per_job + [{"screen": "BRIEF", "status": "COMPLETED", "host": "api", "model_used": "m"},
-                                       {"screen": "X", "status": "COMPLETED", "host": "claude"}])
-    assert [b["screen"] for b in got["bad"]] == ["BRIEF", "X"]
+                                       {"screen": "X", "status": "COMPLETED", "host": "claude"},
+                                       {"screen": "Y", "status": "FAILED", "host": "api"}])
+    assert [b["screen"] for b in got["bad"]] == ["BRIEF", "X", "Y"]
 
 
 def test_the_cost_reads_the_cli_s_own_usage_else_says_not_priced(tmp_path):
