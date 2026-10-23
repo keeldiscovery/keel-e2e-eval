@@ -1,6 +1,12 @@
-"""Corpus revision 12, the real seven files, through the one reader (spec 053; revision 11's by spec 042 call 110;
+"""Corpus revision 13, the real seven files, through the one reader (spec 064; revision 12's by spec 053; revision 11's
+by spec 042 call 110;
 revision 10's by spec 040 FR-002, T004, judgement call 78; revision 9's by spec 038, first written for revision 3 by
 spec 029 T047). The file keeps its r11 name (history).
+
+Revision 13 (keel-cloud 124) is revision 12 with the commercial chain of keel-cloud 115 allowed where an entry states
+it (rule C, `instructions/chain.py`); the seven state none and moved only by their revision line, so every fact held
+here is r12's. The chain is held on keel-cloud's back-test entries, which state it: one of each shape is accepted, and
+each of rule C's refusals is made to happen once from a one-line change to one of them.
 
 Revision 12 (keel-cloud 105) is revision 11 with the six GB entries in the US and in dollars -- the same digits, `$`
 and `USD`, a few words in the US register; no standing, count or verdict moved -- so every fact held here is r11's,
@@ -17,7 +23,7 @@ verdicts and 21 standings 087's table moved, the two re-windowed entries (D13), 
 list against the registry's `saves`, every pick's shape, the founder cost and the derived Ability to pay, the price
 ladder, the recall periods, and the B2B entries' decision-makers.
 
-When `stack.toml`'s keel-cloud is not at revision 12 every test here skips **by name**, with the reason -- never a
+When `stack.toml`'s keel-cloud is not at revision 13 every test here skips **by name**, with the reason -- never a
 fixture copy, which would be a second frozen corpus in all but name.
 """
 
@@ -42,14 +48,15 @@ B2B = ("05-paidly", "06-repeatline", "07-mulchrun")
 def corpus():
     keel_cloud = load_config(validate=False).keel_cloud
     for name in ENTRIES:
-        fx.canon_entry(f"{name}.yaml")                 # skips, by name, when canon is not r12
+        fx.canon_entry(f"{name}.yaml")                 # skips, by name, when canon is not r13
     return corpus_mod.load(keel_cloud, registry=fx.registry())
 
 
-def test_the_seven_entries_are_all_at_revision_twelve(corpus):
+def test_the_seven_entries_are_all_at_revision_thirteen_and_none_states_the_chain(corpus):
     assert [e.id for e in corpus.entries] == list(ENTRIES)
     for entry in corpus.entries:
-        assert entry.revision == 12, entry.id
+        assert entry.revision == 13, entry.id
+        assert not entry.chain() and entry.reading() is None, entry.id      # read as r12 (keel-cloud 124 T001)
     assert Path(corpus.directory) == fx.canon_dir()
 
 
@@ -386,7 +393,8 @@ def test_the_fixture_fallback_is_gone():
     assert not hasattr(corpus_mod, "FIXTURE_DIR")
 
 
-@pytest.mark.parametrize("revision, rubric", [(11, "MARKS_VERSION 19"), (9, "MARKS_VERSION 17"),
+@pytest.mark.parametrize("revision, rubric", [(12, "MARKS_VERSION 20"), (11, "MARKS_VERSION 19"),
+                                              (9, "MARKS_VERSION 17"),
                                               (8, "MARKS_VERSION 15"), (6, "MARKS_VERSION 12"),
                                               (3, "MARKS_VERSION 9")])
 def test_a_corpus_directory_holding_an_older_file_refuses_by_name(tmp_path, revision, rubric):
@@ -419,7 +427,7 @@ def test_the_corpus_reads_the_same_through_the_exported_registry(corpus):
     exported = registry_mod.load(path)
     for entry in corpus.entries:
         corpus_mod.load_file(entry.path, registry=exported)
-    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 12
+    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 13
 
 
 #: 105 FR-1's market lines: every entry the US, two with a state.
@@ -507,3 +515,148 @@ def test_revision_eleven_fixed_drift_77s_five_words_and_paidlys_frequency_unit(c
     row = paidly.expected["standings"]["problem.frequency"]
     assert {k: row[k] for k in ("status", "drift", "n", "inside", "outside", "median")} == {
         "status": "HOLDING_UP", "drift": "none", "n": 9, "inside": 7, "outside": 2, "median": 2}, row
+
+
+# --------------------------------------------------------------------------- spec 064 FR-1: rule C, the chain
+
+def _backtest_raw(name: str) -> dict:
+    path = corpus_mod.backtest_dir(load_config(validate=False).keel_cloud) / f"{name}.yaml"
+    if not path.is_file():
+        pytest.skip(f"no back-test entry {path}")
+    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if raw.get("revision") != corpus_mod.REVISION:
+        pytest.skip(fx.CANON_NOT_R13)
+    return raw
+
+
+@pytest.mark.parametrize("name, reading, shape", [("08-fresco", "budget", "AMOUNT_PERIOD"),
+                                                  ("09-karsa", "out_of_gain", "SHARE"),
+                                                  ("13-aircaps", "budget", "UPFRONT_THEN")])
+def test_a_chain_entry_is_accepted_with_the_engines_reading(tmp_path, name, reading, shape):
+    """keel-cloud 124's entries in the chain load through the r13 reader bound to the registry: the reading is the
+    engine's (FR-1a), the rows the chain's (the value box, the chain ladder), and the consumer budget item on a
+    same-person budget study."""
+    entry = corpus_mod.load_file(fx.write_entry(tmp_path, _backtest_raw(name), f"{name}.yaml"),
+                                 registry=fx.registry(), backtest=True)
+    assert entry.chain() and entry.reading() == reading and entry.price()["shape"] == shape
+    rows = entry.respondent_questions
+    assert rows["commercial.existing_sacrifice"]["control"] == "value_box"
+    assert rows["commercial.price"]["codes"] == corpus_mod.price_ladder_codes(None, entry.price())
+    assert entry.consumer_budget() == (not entry.b2b() and reading == "budget")
+    plan3 = entry.plan(fx.registry())[3]
+    assert ("commercial.ability_to_pay" in plan3) == (entry.b2b() or entry.consumer_budget())
+
+
+def _set(path, value):
+    def mutate(raw):
+        node = raw
+        for key in path[:-1]:
+            node = node[key]
+        node[path[-1]] = value
+    return mutate
+
+
+def _pick(name, key, value):
+    def mutate(raw):
+        person = next(p for p in raw["answers"] if p["person"] == name)
+        person.setdefault("picks", {})[key] = value
+    return mutate
+
+
+_COST = ("founder_calibration", "commercial.existing_sacrifice", "answer")
+_PRICE = ("founder_calibration", "commercial.price", "answer")
+
+#: Each of rule C's refusals, once, from a one-line change to one entry: `(entry, change, the checker's words)`.
+RULE_C = {
+    "half a chain": ("13-aircaps", lambda r: r["founder_calibration"]["commercial.price"]["answer"].pop("shape"),
+                     "C: the cost and the price are the chain's together or not at all (cost in the chain, price not "
+                     "in)"),
+    "an unknown cost field": ("13-aircaps", _set(_COST + ("per",), "x"), "unknown field 'per'"),
+    "a percent past 100": ("09-karsa", _set(_COST + ("high",), 140),
+                           "a percent goes no higher than 100, was 140"),
+    "a seventh period": ("13-aircaps", _set(_COST + ("period",), "fortnight"), "period 'fortnight' is not one of"),
+    "a unit with digits": ("13-aircaps", _set(_COST + ("unit",), "person 2"),
+                           "takes its unit in words with no digits ('person 2')"),
+    "a rate with no loss": ("13-aircaps", lambda r: r["founder_calibration"]["commercial.existing_sacrifice"]
+                            ["answer"].pop("lossPhrase"), "needs its lossPhrase in the founder's own words (required "
+                                                         "on RATE)"),
+    "a consumer's hours at a rate": ("11-issen", _set(_COST + ("rate",), 30),
+                                     "HOURS at a rate on a consumer entry -- a consumer's time is never priced"),
+    "the cost's sentence not the engine's": ("08-fresco", _set(("founder_calibration",
+                                                                "commercial.existing_sacrifice", "belief_sentence"),
+                                                               "It costs them a lot."),
+                                             "belief sentence 'It costs them a lot.', the engine's"),
+    "a price with its own period": ("08-fresco", _set(_PRICE + ("period",), "month"),
+                                    "field 'period' -- a chain price's period, base and unit are the cost's"),
+    "a share past 100": ("09-karsa", _set(_PRICE + ("high",), 100), "a share is 0.01 to under 100"),
+    "free to a consumer": ("11-issen", lambda r: r["founder_calibration"]["commercial.price"].__setitem__(
+        "answer", {"shape": "FREE", "currency": "USD"}), "free to them needs someone else to pay (FREE_NEEDS_A_PAYER)"),
+    "Ability to pay derived": ("13-aircaps", _set(("founder_calibration", "commercial.ability_to_pay", "answer"),
+                                                  {"ratio_low": 40, "ratio_high": 420, "band": "some_from_spend"}),
+                               "the engine's reading {'ratio_low': None, 'ratio_high': None, 'band': 'budget'}"),
+    "the cost row not the value box": ("13-aircaps", _set(("respondent_questions", "commercial.existing_sacrifice",
+                                                           "control"), "cost_total"),
+                                       "C R commercial.existing_sacrifice: control is 'cost_total', not 'value_box'"),
+    "the price row not the chain ladder": ("08-fresco", _set(("respondent_questions", "commercial.price", "codes"),
+                                                             ["under_500", "band_500_1000", "band_1000_2500",
+                                                              "band_2500_5000", "over_5000", "would_not_pay"]),
+                                           "C R commercial.price: codes is"),
+    "a value box off the founder's period": ("13-aircaps", _pick("Harriet Coleman", "commercial.existing_sacrifice",
+                                                                 {"low": 3, "high": 3, "currency": "USD",
+                                                                  "period": "year"}),
+                                             "period 'year' is not the founder's 'month'"),
+    "a value box high first": ("13-aircaps", _pick("Harriet Coleman", "commercial.existing_sacrifice",
+                                                   {"low": 9, "high": 3, "currency": "USD", "period": "month"}),
+                               "the value box's low is at most its high"),
+    "one code on two ladders": ("13-aircaps", _pick("Harriet Coleman", "commercial.price", "upfront.band_250_599"),
+                                "is not [<one-off code>, <plan code>] of the two ladders"),
+    "a price pick off the ladder": ("08-fresco", lambda r: next(
+        p for p in r["answers"] if p.get("link") == "COMMERCIAL_B2B")["picks"].__setitem__("commercial.price",
+                                                                                          "band_500_1000"),
+                                    "is not one code of the chain ladder"),
+    "a budget pick off its codes": ("13-aircaps", _pick("Harriet Coleman", "commercial.ability_to_pay", "no_budget"),
+                                    "commercial.ability_to_pay pick 'no_budget' is not one of"),
+    "a budget pick off a budget reading": ("09-karsa", _pick(None, "commercial.ability_to_pay", "from_spend"),
+                                           "a consumer budget pick, and this entry's reading is 'out_of_gain'"),
+}
+
+
+@pytest.mark.parametrize("case", sorted(RULE_C))
+def test_every_rule_c_refusal_names_the_entry_in_the_checkers_words(tmp_path, case):
+    name, change, words = RULE_C[case]
+    raw = _backtest_raw(name)
+    if case == "a budget pick off a budget reading":
+        first = next(p for p in raw["answers"] if (p.get("picks") or {}).get("commercial.price"))
+        change = _pick(first["person"], "commercial.ability_to_pay", "from_spend")
+    change(raw)
+    path = fx.write_entry(tmp_path, raw, f"{name}.yaml")
+    with pytest.raises(corpus_mod.CorpusError) as refusal:
+        corpus_mod.load_file(path, registry=fx.registry(), backtest=True)
+    said = str(refusal.value)
+    assert said.startswith(f"{raw['id']}: "), said
+    assert words in said, said
+
+
+def test_a_prevalence_share_at_a_bins_top_edge_belongs_to_the_next_bin():
+    """keel-cloud 123 FR-6 (`PrevalenceBins`): the five bins share no edge -- a share at a bin's high edge is the next
+    bin's, nothing is above the top one; the reader's recount mirrors it (`corpus.prevalence_bin`)."""
+    assert corpus_mod.prevalence_bin(0.8) == "p_80_100" and corpus_mod.prevalence_bin(0.79) == "p_60_80"
+    assert corpus_mod.prevalence_bin(0.2) == "p_20_40" and corpus_mod.prevalence_bin(0.0) == "p_0_20"
+    assert corpus_mod.prevalence_bin(1.0) == "p_80_100"
+    assert [label for _, label in corpus_mod.PREVALENCE_BINS] == [
+        "Fewer than 2 in 10", "2 or 3 in 10", "4 or 5 in 10", "6 or 7 in 10", "8 or more in 10"]
+
+
+def test_no_golden_or_back_test_entry_sits_on_a_bins_edge(corpus):
+    """123 T019: no entry's gate-yes share sits on its founder bin's edge, so the half-open bin moves no standing."""
+    keel_cloud = load_config(validate=False).keel_cloud
+    entries = list(corpus.entries) + list(corpus_mod.load(keel_cloud, backtest=True).entries)
+    on_edge = []
+    for entry in entries:
+        primary = [p for p in entry.people() if p.link == "PRIMARY" and p.in_segment]
+        if not primary:
+            continue
+        share = sum(p.recency == "yes" for p in primary) / len(primary)
+        if any(abs(share - edge) < 1e-9 for edge in (0.2, 0.4, 0.6, 0.8)):
+            on_edge.append((entry.id, share))
+    assert on_edge == []

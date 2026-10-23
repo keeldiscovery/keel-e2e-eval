@@ -75,7 +75,10 @@ COMMITMENT_KEY = "commercial.commitment"
 #: one total (keel-cloud 077).
 NUMERIC_RESPONDENT_CONTROLS = ("segmented_0_to_7", "number_with_unit")
 COST_TOTAL_CONTROL = "cost_total"
-NUMBER_YIELDING_CONTROLS = NUMERIC_RESPONDENT_CONTROLS + (COST_TOTAL_CONTROL,)
+#: Registry decision 24 (keel-cloud 115, spec 064 FR-1): the stranger's cost is one value box in the founder's own unit
+#: and period (`interval`); a project whose cost was stated before the chain keeps `cost_total`.
+VALUE_BOX_CONTROL = "value_box"
+NUMBER_YIELDING_CONTROLS = NUMERIC_RESPONDENT_CONTROLS + (COST_TOTAL_CONTROL, VALUE_BOX_CONTROL)
 
 #: keel-cloud 087's `FounderControl`: the founder lists (D4, D5, D7) beside the five unchanged controls.
 LIST_FOUNDER_CONTROLS = ("rival_list", "scale_lines", "item_list", "benefit_list", "role_list", "one_step")
@@ -84,7 +87,7 @@ FOUNDER_CONTROLS = ("single_choice", "numeric_interval") + LIST_FOUNDER_CONTROLS
 #: keel-cloud 087's `RespondentControl`.
 RESPONDENT_CONTROLS = ("gate_yes_no", "segmented_0_to_7", "number_with_unit", "single_choice",
                        "single_choice_5", "pick_two", "fixed_four", "fixed_three", "cost_total",
-                       "price_ladder", "benefit_with_advantages")
+                       "price_ladder", "benefit_with_advantages", "value_box")
 #: The controls whose answers are the registry's fixed set (`respondent.fixed_answers`).
 FIXED_ANSWER_CONTROLS = ("fixed_four", "fixed_three")
 #: keel-cloud 087's `CompareRule`.
@@ -108,9 +111,13 @@ PRICE_FOUNDER_CONTROL = "price_range"
 #: keel-cloud 074's `Period.wires()`: the five periods a cost is stated over, and a price is fixed to.
 PERIODS = ("day", "week", "month", "quarter", "year")
 PRICE_PERIODS = PERIODS
+#: keel-cloud 115 (registry decision 24): the chain's six periods -- the five and `each` -- on the cost and the price.
+CHAIN_PERIODS = PERIODS + ("each",)
 #: The cost estimate (074): the founder's control on Existing sacrifice, its modes.
 COST_FOUNDER_CONTROL = "cost_estimate"
 COST_MODES = ("AMOUNT", "HOURS")
+#: keel-cloud 115 (registry decision 24): the chain's three ways a cost is put -- money, time, a rate.
+CHAIN_COST_MODES = ("MONEY", "HOURS", "RATE")
 #: Ability to pay (074): derived by code from the cost and the price, read by `cost_covers_price`.
 ABILITY_KEY = "commercial.ability_to_pay"
 DERIVED_FOUNDER_CONTROL = "derived"
@@ -409,13 +416,33 @@ class Registry:
     def plan_keys(self, part: int, founder_calibration: dict, link: str = LINK_PRIMARY,
                   b2b: bool = False) -> list[str]:
         """The respondent items of one part on one link (calls 30, 47): asked on that link, in this
-        part, and not left out by the founder -- in vector order, then `order`."""
+        part, and not left out by the founder -- in vector order, then `order`.
+
+        Spec 064 FR-3 (keel-cloud 115 `EvidencePlan.asked`): on a study in the commercial chain a price FREE to them
+        asks no price item, and a same-person study whose cost and price share no base (the `budget` reading) asks the
+        consumer budget item on the primary link, in Ability to pay's registry place; part 3 of a B2B study stays the
+        decision-maker's link as before."""
+        from . import chain as chain_mod                                    # noqa: PLC0415
+        calibration = founder_calibration or {}
+        cost = None if (calibration.get(SACRIFICE_KEY) or {}).get("unsure") else \
+            (calibration.get(SACRIFICE_KEY) or {}).get("answer")
+        price = None if (calibration.get(PRICE_KEY) or {}).get("unsure") else \
+            (calibration.get(PRICE_KEY) or {}).get("answer")
+        in_chain = chain_mod.cost_in_chain(cost) and chain_mod.price_in_chain(price)
+        consumer_budget = in_chain and not b2b and link == LINK_PRIMARY \
+            and chain_mod.reading(cost, price) == "budget"
+        dims = self.asked(link, b2b)
+        if consumer_budget:
+            dims = [d for vector in VECTORS for d in self.slice(vector)
+                    if not d.b2b_only and (not d.b2b_link_only or d.key == ABILITY_KEY)]
         out = []
-        for d in self.asked(link, b2b):
+        for d in dims:
             if d.part != part:
                 continue
-            answer = (founder_calibration or {}).get(d.key) or {}
+            answer = calibration.get(d.key) or {}
             if answer.get("unsure"):
+                continue
+            if d.key == PRICE_KEY and in_chain and (price or {}).get("shape") == "FREE":
                 continue
             out.append(d.key)
         return out
@@ -669,23 +696,24 @@ def check_invariants(registry: Registry) -> list[str]:
                               "not one of its supports")
         if d.normalized.get("kind") == PRICE_FOUNDER_CONTROL or d.founder_price:
             periods = d.normalized.get("periods")
-            if list(periods or []) != list(PRICE_PERIODS):
+            if list(periods or []) not in (list(PRICE_PERIODS), list(CHAIN_PERIODS)):
                 faults.append(f"invariant 5 (price periods): {d.key}'s periods are {periods!r}, not "
-                              f"{list(PRICE_PERIODS)}")
+                              f"{list(PRICE_PERIODS)} (nor the chain's {list(CHAIN_PERIODS)}, keel-cloud 115)")
         if d.normalized.get("kind") == "cost" or d.founder_cost:
             periods, modes = d.normalized.get("periods"), d.normalized.get("modes")
-            if list(periods or []) != list(PERIODS):
+            if list(periods or []) not in (list(PERIODS), list(CHAIN_PERIODS)):
                 faults.append(f"invariant 5 (cost periods): {d.key}'s periods are {periods!r}, not "
-                              f"{list(PERIODS)}")
-            if list(modes or []) != list(COST_MODES):
+                              f"{list(PERIODS)} (nor the chain's {list(CHAIN_PERIODS)}, keel-cloud 115)")
+            if list(modes or []) not in (list(COST_MODES), list(CHAIN_COST_MODES)):
                 faults.append(f"invariant 5 (cost modes): {d.key}'s modes are {modes!r}, not "
-                              f"{list(COST_MODES)}")
+                              f"{list(COST_MODES)} (nor the chain's {list(CHAIN_COST_MODES)}, keel-cloud 115)")
             if "code_rule" in d.normalized:        # keel-cloud 077: no kinds of cost anywhere
                 faults.append(f"invariant 5 (a cost has no kinds): {d.key} carries a code_rule; "
                               "keel-cloud 077 removed the respondent's kinds")
-            if d.respondent_control != COST_TOTAL_CONTROL:
+            if d.respondent_control not in (COST_TOTAL_CONTROL, VALUE_BOX_CONTROL):
                 faults.append(f"invariant 5 (one total): {d.key}'s respondent control is "
-                              f"{d.respondent_control!r}, not {COST_TOTAL_CONTROL!r}")
+                              f"{d.respondent_control!r}, not {COST_TOTAL_CONTROL!r} nor keel-cloud 115's "
+                              f"{VALUE_BOX_CONTROL!r}")
         derived_kind = d.normalized.get("kind") == "price_cost_ratio"
         if derived_kind != d.derived:
             faults.append(f"invariant 5 (derived on both sides): {d.key} is derived on one side only: "

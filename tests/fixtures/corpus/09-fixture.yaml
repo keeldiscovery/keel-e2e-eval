@@ -13,7 +13,7 @@
 # `check_corpus_r12.py`'s rule U would refuse this file, and the reader does not mirror that rule (the canon test does).
 id: 09-fixture
 title: Fixture — the keys you cannot find
-revision: 12
+revision: 13
 market:
   country: GB
   region: null

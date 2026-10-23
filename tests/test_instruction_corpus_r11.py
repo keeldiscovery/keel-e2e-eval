@@ -1,4 +1,5 @@
-"""`instructions/corpus.py` at revision 12: the loader on a hand-sized entry (spec 029 FR-006, data-model
+"""`instructions/corpus.py` at revision 13 (spec 064: r12's rules and the commercial chain, rule C, where an entry
+states it -- the fixture states none, so it reads as r12): the loader on a hand-sized entry (spec 029 FR-006, data-model
 §2-§3; T012; at revision 10 by spec 040 T004, judgement call 78; at revision 11 by spec 042, call 110 -- revision
 10's rules and r11's K3 / S10 in L; at revision 12 by spec 053 -- r11's rules, the canon in dollars, the fixture
 kept GB; earlier revisions by specs 030-038). The file keeps its r11 name (history).
@@ -146,7 +147,7 @@ def _items(raw, key):
 
 def _revision(n, words):
     return (lambda r: r.__setitem__("revision", n),
-            f"revision is {n}; this eval reads revision 12 only -- revision {n} is {words}")
+            f"revision is {n}; this eval reads revision 13 only -- revision {n} is {words}")
 
 
 #: The registry-free refusals: the file alone is refused.
@@ -165,6 +166,9 @@ MUTATIONS = {
     # spec 053: revision 11 refused by name, in pounds
     "revision 11": _revision(11, "MARKS_VERSION 19's and 20's corpus, in pounds (six GB entries, before keel-cloud "
                                  "105: 'the currency amount should be dollars')"),
+    # spec 064 FR-1: revision 12 refused by name, before the commercial chain
+    "revision 12": _revision(12, "MARKS_VERSION 20's corpus, before the commercial chain (keel-cloud 115: a cost "
+                                 "with no unit, a price with no shape)"),
     # r11's two rules in L (keel-cloud 091 FR-G, DRIFT #77): K3 on a face, S10 on Commitment's step
     "a face with no you": (lambda r: _items(r, "solution.compatibility")[0].__setitem__(
         "asked", "was the phone to hand"), "is said to the stranger and carries no 'you' or 'your' (rule L, K3)"),

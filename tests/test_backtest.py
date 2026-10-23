@@ -55,17 +55,32 @@ def _refusal(path: Path, *, backtest: bool = True) -> str:
 
 def test_every_backtest_entry_loads_in_backtest_mode():
     """FR-1's test: every `*.yaml` in `<keel_cloud>/canon/designs/measured-beliefs/backtest/`, through the back-test
-    loader bound to the registry, and through the harness readers a run calls first -- trivially green when empty."""
+    loader bound to the registry, and through the harness readers a run calls first -- trivially green when empty.
+
+    Spec 064 FR-1: at revision 13 (keel-cloud 124), the folder's every entry -- 28 when this was written, the six of 124
+    and the 22 after them -- each in the commercial chain but the two that leave the cost out (keel-cloud 123 FR-13:
+    30-realroots, 35-candle, the price asked on its own in spec 073's shape)."""
     directory = corpus_mod.backtest_dir(KEEL_CLOUD)
-    refused = {}
-    for path in sorted(directory.glob("*.yaml")) if directory.is_dir() else []:
+    refused, chain, no_cost = {}, [], []
+    paths = sorted(directory.glob("*.yaml")) if directory.is_dir() else []
+    for path in paths:
         try:
             entry = corpus_mod.load_file(path, registry=fx.registry(), backtest=True)
             vs.founder_inputs(entry)
             vs.person_inputs(entry)
         except (corpus_mod.CorpusError, vs.VectorsScriptError) as refusal:
             refused[path.name] = str(refusal)
+            continue
+        assert entry.revision == corpus_mod.REVISION, entry.id
+        (chain if entry.chain() else no_cost).append(entry.id)
     assert not refused, json.dumps(refused, indent=2)
+    for entry_id in no_cost:
+        entry = corpus_mod.load_file(directory / f"{entry_id}.yaml", backtest=True)
+        assert entry.unsure("commercial.existing_sacrifice") and entry.unsure("commercial.ability_to_pay"), entry_id
+        assert "shape" not in (entry.price() or {}) and (entry.price() or {}).get("period"), entry_id
+    if paths:
+        assert len(paths) >= 6 and {"08-fresco", "09-karsa", "10-palus", "11-issen", "12-transload",
+                                    "13-aircaps"} <= set(chain), (chain, no_cost)
 
 
 def test_the_broken_fixture_is_refused_with_the_golden_sentence(tmp_path):

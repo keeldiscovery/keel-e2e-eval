@@ -1,8 +1,24 @@
-"""The golden corpus at revision 12, read and never written (spec 029 FR-006/FR-012, data-model §2;
+"""The golden corpus at revision 13, read and never written (spec 029 FR-006/FR-012, data-model §2;
 spec 030 FR-002, judgement call 49; ...; spec 038 FR-001, call 81; spec 040 FR-002, call 78; spec 042 call 110;
-spec 053 FR-1).
+spec 053 FR-1; spec 064 FR-1).
 
-**Revision 12 only** (spec 053; keel-cloud 105): revision 11's rules, and the six GB entries in the US and in dollars
+**Revision 13 only** (spec 064; keel-cloud 124): revision 12's rules, and the commercial chain of keel-cloud 115 where
+an entry states it -- a founder cost with a `unit` (or of mode MONEY | RATE: `{mode MONEY | HOURS | RATE, low, high,
+measure, base, unit, period (the six, each among them), currency, rate?, lossPhrase?}`) and a price with a `shape`
+(`{shape AMOUNT_PERIOD | SHARE | UPFRONT_THEN | FREE, low, high, upfrontLow, upfrontHigh, thenNothing, shareBase,
+currency}`, no `period` of its own: it is the cost's), Ability to pay the engine's reading of the two
+(`chain.derive`), the stranger's cost a `value_box` row (`dont_know`) answered `{low, high, currency, period}` in the
+founder's unit and period, `{nothing: true, currency, period}` or `{chip: dont_know | rather_not_say}`, the price row
+the chain ladder's codes (`chain.codes`: 1-2-5 points, the founder's low one edge; on UPFRONT_THEN the one-off's six
+then the plan's six, a pick `[<one-off>, <plan>]`), and the consumer budget item (`from_spend | new_money | could_not`,
+escape `cant_say`) on a same-person study whose reading is `budget`. The cost and the price are the chain's together or
+not at all; every word is held to the engine's (`instructions/chain.py`, ports of keel-cloud's `CommercialChain` as
+`sim/check_corpus_r13.py` ports them -- its rule C, in its sentences). **A cost with no unit and a price with no shape
+are read exactly as revision 12** -- the seven golden entries state no chain and moved only by their revision line. A
+back-test entry may leave the cost out (keel-cloud 123 FR-13: Existing sacrifice and Ability to pay `unsure`, the price
+in spec 073's shape with its own period). A revision-12 file is refused by name as MARKS_VERSION 20's. What follows is
+revision 12's account, which r13 keeps:
+**Revision 12** (spec 053; keel-cloud 105): revision 11's rules, and the six GB entries in the US and in dollars
 -- *"the currency amount should be dollars, because we are primarily targeting US markets"* (the founder, 2026-10-17):
 `market: {country: US, region: <a state or null>, language: en-US}`, every money node `currency: USD` with the same
 digits, a few words in the US register; no standing, count or verdict moved. A revision-11 file is refused by name as
@@ -61,13 +77,14 @@ from pathlib import Path
 
 import yaml
 
+from . import chain as chain_mod
 from . import text as text_mod
 from .registry import (ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTROL, BENEFIT_KEY,
                        BENEFIT_MAX_TICKS, COMMITMENT_KEY, COST_MODES, COST_TOTAL_CONTROL,
                        FREQUENCY_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY,
                        PRICE_PERIODS, SACRIFICE_KEY, VECTORS, RecallWindow, words)
 
-REVISION = 12
+REVISION = 13
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51, 78).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
@@ -85,7 +102,9 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 10: "MARKS_VERSION 18's corpus, before keel-cloud 091 (four Compatibility faces with no 'you', "
                     "06-repeatline's 'introduce you to', 05-paidly's Frequency in invoices out of 7)",
                 11: "MARKS_VERSION 19's and 20's corpus, in pounds (six GB entries, before keel-cloud 105: "
-                    "'the currency amount should be dollars')"}
+                    "'the currency amount should be dollars')",
+                12: "MARKS_VERSION 20's corpus, before the commercial chain (keel-cloud 115: a cost with no "
+                    "unit, a price with no shape)"}
 
 #: `sim/check_corpus_r5.py`'s `CURRENCY` (keel-cloud `Market.currency`'s table, the corpus's markets):
 #: a founder price is in its market's currency, never another.
@@ -108,9 +127,15 @@ def price_floor(low):
     return next(p for p in reversed(LADDER_POINTS[:-1]) if low >= p) if low >= 1 else LADDER_POINTS[0]
 
 
-def price_ladder_codes(low) -> list:
+def price_ladder_codes(low, price: dict | None = None) -> list:
     """`PriceLadder.bands`' codes: five consecutive bands with the founder's in the middle three
-    (clamped at the ladder's ends), then `would_not_pay` -- what a Price plan row must hold."""
+    (clamped at the ladder's ends), then `would_not_pay` -- what a Price plan row must hold.
+
+    Spec 064 FR-1: chosen by the price's shape -- a price in the commercial chain (`price` with a `shape`) is served the
+    chain ladder (`chain.codes`: 1-2-5 points, the founder's low one rung edge, keel-cloud 115 judgement call 6; on
+    UPFRONT_THEN the one-off's six then the plan's six; FREE none); a price with no shape keeps spec 073's ladder."""
+    if chain_mod.price_in_chain(price):
+        return chain_mod.codes(price)
     if not price_placeable(low):
         raise ValueError(f"a founder's low of {low!r} is off the ladder (1 to under 10,000)")
     f = LADDER_POINTS.index(price_floor(low))
@@ -193,6 +218,19 @@ def ability_value(derived: dict) -> str:
         f"{derived['ratio_low']}% to {derived['ratio_high']}%"
     return f"{ratio} of what the problem costs them today: {_BAND_WORDS[derived['band']]}"
 
+#: keel-cloud 123 FR-6 (`PrevalenceBins`): the founder's five Prevalence bins by code, sharing no edge -- each from its
+#: low edge up to, not including, its high edge (the next bin's); nothing is above the top one.
+PREVALENCE_BINS = (("p_0_20", "Fewer than 2 in 10"), ("p_20_40", "2 or 3 in 10"), ("p_40_60", "4 or 5 in 10"),
+                   ("p_60_80", "6 or 7 in 10"), ("p_80_100", "8 or more in 10"))
+_PREVALENCE_EDGES = (0.2, 0.4, 0.6, 0.8)
+
+
+def prevalence_bin(share: float) -> str:
+    """The bin a gate-yes share falls in, as `PrevalenceBins` reads it (spec 064 FR-6a: the reader's recount mirrors the
+    half-open edge -- a share of exactly 0.8 is *8 or more in 10*)."""
+    index = sum(1 for edge in _PREVALENCE_EDGES if share >= edge - 1e-12)
+    return PREVALENCE_BINS[index][0]
+
 #: The six `Status` words (keel-cloud 071; registry-schema; marks §2.5).
 STATUSES = ("HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE", "TOO_FEW_TO_CALL", "NOT_ASKED_YET",
             "LEFT_OUT")
@@ -220,6 +258,8 @@ RESHAPED = ("problem.importance", "problem.current_solution_satisfaction", "solu
             "commercial.purchase_friction", "commercial.commitment")
 #: The words a list label may never be (`check_corpus_r11.py`'s NOT_SURE).
 NOT_SURE = ("not sure", "unsure", "don't know", "dont know", "no idea")
+#: keel-cloud 123 FR-10: the decision-maker's job title is one to five words.
+DECIDER_TITLE_MAX_WORDS = 5
 #: A `context.occasion` is a noun of one to four words (rule W).
 OCCASION_MAX_WORDS = 4
 #: An `asked` clause is at most twenty words and asks nothing (design §4; rule L).
@@ -253,10 +293,19 @@ class Person:
     #: Spec 062 follow-up (2026-10-22): a back-test person's own words for the one follow-up question the interview
     #: owes them, in place of the harness's pooled lines (`vectors_script.FOLLOW_UP_LINES`); golden entries carry none.
     follow_up: str | None = None
+    #: Spec 064 FR-4 (keel-cloud 120): whether the person is inside the segment's condition -- the gate's chip answered
+    #: inside (default yes: every golden person is the segment by the corpus's own account); `False` is a person
+    #: thanked at the chip and recorded apart (`outsideSegment`), never walked further. Optional, primary link only.
+    in_segment: bool = True
 
     @property
     def gate_yes(self) -> bool:
-        return self.link == LINK_PRIMARY and self.recency == "yes"
+        return self.link == LINK_PRIMARY and self.recency == "yes" and self.in_segment
+
+    @property
+    def outside(self) -> bool:
+        """Spec 064 FR-4: thanked at the segment's chip (keel-cloud 120) -- no gate answer, no story, no pick."""
+        return self.link == LINK_PRIMARY and not self.in_segment
 
     @property
     def readable(self) -> bool:
@@ -332,9 +381,34 @@ class Entry:
         return answer if isinstance(answer, dict) else None
 
     def cost(self) -> dict | None:
-        """The founder's cost estimate, `{mode, low, high, rate?, period, currency}`, or `None`."""
+        """The founder's cost estimate, `{mode, low, high, rate?, period, currency}` -- in the chain (spec 064) also
+        `measure`, `base`, `unit`, `lossPhrase` -- or `None`."""
+        if self.unsure(SACRIFICE_KEY):
+            return None
         answer = (self.founder_calibration.get(SACRIFICE_KEY) or {}).get("answer")
         return answer if isinstance(answer, dict) else None
+
+    def chain(self) -> bool:
+        """Spec 064 FR-1: the entry states the commercial chain (keel-cloud 115) -- a cost with a unit (or of mode MONEY
+        | RATE) and a price with a shape, together. A golden entry never does: it is read as revision 12."""
+        price = None if self.unsure(PRICE_KEY) else self.price()
+        return chain_mod.cost_in_chain(self.cost()) and chain_mod.price_in_chain(price)
+
+    def reading(self) -> str | None:
+        """`CommercialChain.reading` of the founder's cost and price (compare, out_of_gain, from_what_comes_back, free,
+        budget), or `None` off the chain."""
+        return chain_mod.reading(self.cost(), self.price()) if self.chain() else None
+
+    def consumer_budget(self) -> bool:
+        """keel-cloud 115 FR-5: a same-person chain study whose cost and price share no base asks the consumer budget
+        item (`from_spend | new_money | could_not`) on the primary link, in Ability to pay's place."""
+        return self.chain() and not self.b2b() and self.reading() == "budget"
+
+    def decider_title(self) -> str | None:
+        """Spec 064 FR-6 (keel-cloud 123 FR-10): `persona.decision_maker.title`, one to five words, or `None`."""
+        maker = (self.persona or {}).get("decision_maker")
+        title = maker.get("title") if isinstance(maker, dict) else None
+        return title.strip() if isinstance(title, str) and title.strip() else None
 
     def hourly_rate(self) -> float | None:
         """The B2B entry's top-level `hourly_rate.value` (call 60), else `None`."""
@@ -690,6 +764,18 @@ def _check_shape(raw: dict, path: Path) -> None:
                                         "deleted (D2)", path)
         if link not in (LINK_PRIMARY, LINK_B2B):
             raise _refuse(entry_id, f"{name}'s link is {link!r}", path)
+        segment = person.get("in_segment")
+        if segment is not None and not isinstance(segment, bool):
+            raise _refuse(entry_id, f"{name}'s in_segment is {segment!r}; it is true or false (spec 064 FR-4)", path)
+        if segment is not None and link == LINK_B2B:
+            raise _refuse(entry_id, f"{name} answers on the B2B link and carries `in_segment`; the decision-maker's "
+                                    "link asks no segment chip (keel-cloud 120)", path)
+        if segment is False:
+            for key in ("recency", "story", "chip", "anchoring", "picks"):
+                if person.get(key) not in (None, "", {}):
+                    raise _refuse(entry_id, f"{name} is outside the segment and carries `{key}`; a person outside "
+                                            "is thanked at the chip and answers nothing more (keel-cloud 120)", path)
+            continue
         if link == LINK_B2B:
             if not b2b:
                 raise _refuse(entry_id, f"{name} answers on the B2B link of an entry whose "
@@ -738,7 +824,8 @@ def _check_shape(raw: dict, path: Path) -> None:
                 or (most is not None and not 0 <= frequency <= most)):
             raise _refuse(entry_id, f"{name}'s {FREQUENCY_KEY} pick is {frequency!r}; a whole number from 0 "
                                     f"to the founder's out of {most} (rule A)", path)
-    _check_price_and_total(raw, entry_id, path)
+    in_chain = _check_chain(raw, entry_id, path)
+    _check_price_and_total(raw, entry_id, path, in_chain)
     maker = (raw.get("persona") or {}).get("decision_maker")
     if isinstance(maker, dict):
         role_ids = {r.get("id") for r in raw.get("roles") or []}
@@ -746,10 +833,14 @@ def _check_shape(raw: dict, path: Path) -> None:
             raise _refuse(entry_id, f"persona.decision_maker names the role {maker.get('role')!r}, "
                                     f"which is not in roles ({', '.join(sorted(map(str, role_ids)))})",
                           path)
+        title = maker.get("title")
+        if title is not None and (not isinstance(title, str) or not 1 <= words(title) <= DECIDER_TITLE_MAX_WORDS):
+            raise _refuse(entry_id, f"persona.decision_maker.title is {title!r}; a job title is one to "
+                                    f"{DECIDER_TITLE_MAX_WORDS} words (keel-cloud 123 FR-10)", path)
     elif maker != "same_person":
         raise _refuse(entry_id, f"persona.decision_maker is {maker!r}; it is same_person or "
                                 "{role: <id>}", path)
-    _check_cost_first(raw, entry_id, path)
+    _check_cost_first(raw, entry_id, path, in_chain)
     _check_benefit_first(raw, entry_id, path)
     expected = raw.get("expected") or {}
     for key, standing in (expected.get("standings") or {}).items():
@@ -812,7 +903,7 @@ def _check_benefit_first(raw: dict, entry_id, path: Path) -> None:
                                     f"a non-empty subset of the founder's {ticks} exactly under positive", path)
 
 
-def _check_price_and_total(raw: dict, entry_id, path: Path) -> None:
+def _check_price_and_total(raw: dict, entry_id, path: Path, in_chain: bool = False) -> None:
     """Revision 5's Price checks (call 51; `check_corpus_r5.py`'s P): the founder's Price on the ladder
     in the market's currency, its plan row the ladder's codes, every price pick a row code; and revision
     7's Existing sacrifice (call 68; `check_corpus_r7.py`'s O): no kinds, `cost_total`, one total a pick."""
@@ -820,7 +911,7 @@ def _check_price_and_total(raw: dict, entry_id, path: Path) -> None:
     plan = raw.get("respondent_questions") or {}
     country = (raw.get("market") or {}).get("country")
     price = calibration.get(PRICE_KEY)
-    if isinstance(price, dict) and not price.get("unsure"):
+    if isinstance(price, dict) and not price.get("unsure") and not in_chain:
         answer = price.get("answer")
         if not isinstance(answer, dict):
             raise _refuse(entry_id, f"founder_calibration[{PRICE_KEY}].answer is {answer!r}; a "
@@ -842,6 +933,8 @@ def _check_price_and_total(raw: dict, entry_id, path: Path) -> None:
             raise _refuse(entry_id, f"respondent_questions[{PRICE_KEY}].codes are {codes}; the "
                                     f"ladder around a low of {low:g} is {price_ladder_codes(low)}",
                           path)
+    if in_chain:
+        return                                   # rule C read the chain's rows and picks (`_check_chain`)
     row = plan.get(SACRIFICE_KEY)
     if row is not None and (row.get("control") != COST_TOTAL_CONTROL or row.get("codes")
                             or row.get("units")):
@@ -869,7 +962,7 @@ def _check_price_and_total(raw: dict, entry_id, path: Path) -> None:
                                     f"ladder's {price_codes}", path)
 
 
-def _check_cost_first(raw: dict, entry_id, path: Path) -> None:
+def _check_cost_first(raw: dict, entry_id, path: Path, in_chain: bool = False) -> None:
     """Revision 6's own checks (call 60; `check_corpus_r6.py`'s K, D and U): the founder's cost estimate
     and its sentence, Price on the cost's period, Ability to pay recomputed, every Existing sacrifice
     pick with its recall period, the B2B entry's hourly rate."""
@@ -884,6 +977,8 @@ def _check_cost_first(raw: dict, entry_id, path: Path) -> None:
         if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
             raise _refuse(entry_id, "a B2B entry records `hourly_rate` {value above 0, currency} "
                                     "(since revision 6)", path)
+    if in_chain:
+        return                                   # rule C read the chain's cost, price and reading (`_check_chain`)
     cost = None
     if not sacrifice.get("unsure"):
         cost = sacrifice.get("answer")
@@ -948,6 +1043,236 @@ def _check_cost_first(raw: dict, entry_id, path: Path) -> None:
                                     f"was asked over, one of {RECALL_PERIODS}", path)
 
 
+# ------------------------------------------------------------------- revision 13: the chain (rule C)
+
+#: The B2B budget item's codes (the registry's four budget sources, asked on the decision-maker's link on every reading).
+B2B_BUDGET_CODES = ("existing_line", "new_line_signed_off", "taken_from_other_spend", "no_budget")
+
+
+def _chain_answers(raw: dict, path=None) -> tuple:
+    """`(cost, price, in_chain)`: the founder's cost and price where not left out, and whether the entry states the
+    chain (both in it). Refuses a half chain, in the checker's words (rule C: together or not at all)."""
+    calibration = raw.get("founder_calibration") or {}
+    cost = None if (calibration.get(SACRIFICE_KEY) or {}).get("unsure") else \
+        (calibration.get(SACRIFICE_KEY) or {}).get("answer")
+    price = None if (calibration.get(PRICE_KEY) or {}).get("unsure") else (calibration.get(PRICE_KEY) or {}).get("answer")
+    chain_cost, chain_price = chain_mod.cost_in_chain(cost), chain_mod.price_in_chain(price)
+    if (chain_cost or chain_price) and not (chain_cost and chain_price):
+        raise _refuse(raw.get("id"), "C: the cost and the price are the chain's together or not at all "
+                                     f"(cost {'in' if chain_cost else 'not in'} the chain, price "
+                                     f"{'in' if chain_price else 'not in'})", path)
+    return cost, price, chain_cost and chain_price
+
+
+def _check_chain(raw: dict, entry_id, path: Path) -> bool:
+    """Rule C (spec 064 FR-1; `sim/check_corpus_r13.py` as built, keel-cloud 124): where the entry states the chain,
+    the founder's cost, price and Ability to pay as the engine reads and words them, the three rows the chain serves,
+    and every person's chain pick -- each refusal in the checker's own sentence. Returns whether the entry is in the
+    chain (False: everything commercial is read exactly as revision 12)."""
+    cost, price, in_chain = _chain_answers(raw, path)
+    if not in_chain:
+        return False
+    calibration = raw.get("founder_calibration") or {}
+    ctx = raw.get("context") or {}
+    country = (raw.get("market") or {}).get("country")
+    maker = (raw.get("persona") or {}).get("decision_maker")
+    b2b = isinstance(maker, dict)
+    decider = maker.get("role") if b2b else None
+    role_word = decider or ctx.get("actor")
+    actor_plural = ctx.get("actor_plural")
+    occasion = ctx.get("occasion") if isinstance(ctx.get("occasion"), str) else ""
+    rate = (raw.get("hourly_rate") or {}).get("value") if isinstance(raw.get("hourly_rate"), dict) else None
+    sacrifice = calibration.get(SACRIFICE_KEY) or {}
+    price_cal = calibration.get(PRICE_KEY) or {}
+
+    def fault(message):
+        return _refuse(entry_id, message, path)
+
+    # the cost
+    where = f"C {SACRIFICE_KEY}"
+    for k in sorted(set(cost) - chain_mod.CHAIN_FIELDS_COST):
+        raise fault(f"{where}: unknown field '{k}'")
+    mode = cost.get("mode")
+    if mode not in chain_mod.CHAIN_COST_MODES:
+        raise fault(f"{where}: mode {mode!r} is not one of MONEY | HOURS | RATE")
+    lo, hi = cost.get("low"), cost.get("high")
+    if not (_number(lo) and lo > 0 and _number(hi) and hi >= lo):
+        raise fault(f"{where}: the range {lo}..{hi} -- a low above 0 and a high at or above it")
+    if chain_mod.is_percent(cost) and hi > 100:
+        raise fault(f"{where}: a percent goes no higher than 100, was {hi}")
+    if cost.get("period") not in chain_mod.CHAIN_PERIODS:
+        raise fault(f"{where}: period {cost.get('period')!r} is not one of {list(chain_mod.CHAIN_PERIODS)}")
+    if country in MARKET_CURRENCY and cost.get("currency") not in (None, MARKET_CURRENCY[country]):
+        raise fault(f"{where}: currency {cost.get('currency')} is not the market's")
+    for field_, required, most in (("unit", True, 8), ("base", mode == "RATE", 8)):
+        why = chain_mod.words_fault(field_, cost.get(field_), required, most)
+        if why:
+            raise fault(f"{where}: {why}")
+    measure = cost.get("measure")
+    if mode == "RATE":
+        if measure != "%":
+            why = chain_mod.words_fault("measure", measure, True, 3)
+            if why:
+                raise fault(f"{where}: {why} (a rate's measure is % or a count word)")
+        why = chain_mod.words_fault("lossPhrase", cost.get("lossPhrase"), True, 20)
+        if why:
+            raise fault(f"{where}: {why} (required on RATE)")
+    else:
+        want_measure = "hours" if mode == "HOURS" else "$"
+        if measure not in (None, "", want_measure):
+            raise fault(f"{where}: measured in {want_measure!r} in {mode} mode, not {measure!r}")
+        why = chain_mod.words_fault("lossPhrase", cost.get("lossPhrase"), False, 20)
+        if why:
+            raise fault(f"{where}: {why}")
+    if mode == "HOURS":
+        if cost.get("rate") is not None and not b2b:
+            raise fault(f"{where}: HOURS at a rate on a consumer entry -- a consumer's time is never priced")
+        if b2b and not (cost.get("rate") or rate):
+            raise fault(f"{where}: HOURS on a B2B entry is at a rate, and neither the cost nor the entry gives one")
+    elif cost.get("rate") is not None:
+        raise fault(f"{where}: a rate belongs to HOURS only")
+    want = chain_mod.cost_belief(cost, actor_plural, occasion, role_word)
+    if sacrifice.get("belief_sentence") != want:
+        raise fault(f"{where}: belief sentence {sacrifice.get('belief_sentence')!r}, the engine's {want!r}")
+    want = chain_mod.cost_said(cost, occasion, role_word)
+    if sacrifice.get("belief_phrase") != want:
+        raise fault(f"{where}: belief phrase {sacrifice.get('belief_phrase')!r}, the engine's {want!r}")
+
+    # the price
+    where = f"C {PRICE_KEY}"
+    for k in sorted(set(price) - chain_mod.CHAIN_FIELDS_PRICE):
+        raise fault(f"{where}: field '{k}' -- a chain price's period, base and unit are the cost's, never its own"
+                    if k in ("period", "base", "unit") else f"{where}: unknown field '{k}'")
+    shape = price.get("shape")
+    if shape not in chain_mod.PRICE_SHAPES:
+        raise fault(f"{where}: shape {shape!r} is not one of {list(chain_mod.PRICE_SHAPES)}")
+    if country in MARKET_CURRENCY and price.get("currency") not in (None, MARKET_CURRENCY[country]):
+        raise fault(f"{where}: currency {price.get('currency')} is not the market's")
+
+    def amount(lo_key, hi_key, percent):
+        low, high = price.get(lo_key), price.get(hi_key)
+        top = chain_mod.SHARE_TOP if percent else chain_mod.AMOUNT_TOP
+        if not (_number(low) and _number(high) and 0.01 <= low <= high < top):
+            raise fault(f"{where}: {lo_key}..{hi_key} {low}..{high} -- "
+                        f"{'a share is 0.01 to under 100' if percent else 'an amount is 0.01 to under 1,000,000'}, "
+                        "low first")
+    if shape == "SHARE":
+        amount("low", "high", True)
+        if price.get("shareBase") not in chain_mod.SHARE_BASES:
+            raise fault(f"{where}: shareBase {price.get('shareBase')!r} is COST_BASE or RECOVERED")
+    elif shape == "AMOUNT_PERIOD":
+        amount("low", "high", False)
+    elif shape == "UPFRONT_THEN":
+        amount("upfrontLow", "upfrontHigh", False)
+        if not chain_mod.once(price):
+            amount("low", "high", False)
+    elif shape == "FREE":
+        if any(price.get(k) is not None for k in ("low", "high", "upfrontLow", "upfrontHigh")):
+            raise fault(f"{where}: free to them carries no amount")
+        if not b2b:
+            raise fault(f"{where}: free to them needs someone else to pay (FREE_NEEDS_A_PAYER)")
+    if shape != "SHARE" and price.get("shareBase") is not None:
+        raise fault(f"{where}: shareBase belongs to SHARE only")
+    want = chain_mod.price_belief(price, cost, actor_plural, occasion, role_word, decider)
+    if price_cal.get("belief_sentence") != want:
+        raise fault(f"{where}: belief sentence {price_cal.get('belief_sentence')!r}, the engine's {want!r}")
+    want = chain_mod.free_line(actor_plural, decider) if shape == "FREE" else \
+        chain_mod.price_said(price, cost, occasion, role_word)
+    if price_cal.get("belief_phrase") != want:
+        raise fault(f"{where}: belief phrase {price_cal.get('belief_phrase')!r}, the engine's {want!r}")
+
+    # Ability to pay: the engine's reading
+    ability = calibration.get(ABILITY_KEY)
+    if ability is None:
+        raise fault(f"founder_calibration lacks {ABILITY_KEY}; it is derived and calibrated on every entry (since "
+                    "revision 6)")
+    where = f"C {ABILITY_KEY}"
+    derived = chain_mod.derive(cost, price)
+    if ability.get("answer") != derived:
+        raise fault(f"{where}: answer {ability.get('answer')!r}, the engine's reading {derived!r}")
+    want = chain_mod.ability_belief(derived, actor_plural, decider)
+    if ability.get("belief_sentence") != want:
+        raise fault(f"{where}: belief sentence {ability.get('belief_sentence')!r}, the engine's {want!r}")
+    want = chain_mod.ability_phrase(derived, actor_plural, decider)
+    if ability.get("belief_phrase") != want:
+        raise fault(f"{where}: belief phrase {ability.get('belief_phrase')!r}, the engine's {want!r}")
+
+    # the rows the chain serves
+    read = chain_mod.reading(cost, price)
+    consumer_budget = not b2b and read == "budget"
+    rows = {SACRIFICE_KEY: {"part": 3, "control": chain_mod.VALUE_BOX_CONTROL, "escape": chain_mod.VALUE_BOX_ESCAPE}}
+    if shape != "FREE":
+        rows[PRICE_KEY] = {"part": 3, "control": "price_ladder", "codes": chain_mod.codes(price), "escape": "cant_say"}
+    if consumer_budget:
+        rows[ABILITY_KEY] = {"part": 3, "control": "single_choice", "codes": list(chain_mod.CONSUMER_BUDGET),
+                             "escape": chain_mod.CONSUMER_BUDGET_ESCAPE}
+    plan = raw.get("respondent_questions") or {}
+    for key, wanted in rows.items():
+        row = plan.get(key)
+        if row is None:
+            continue
+        for k, v in wanted.items():
+            if row.get(k) != v:
+                raise fault(f"C R {key}: {k} is {row.get(k)!r}, not {v!r}")
+        extra = sorted(k for k in row if k not in wanted and k != "question")
+        if extra:
+            raise fault(f"C R {key}: unexpected keys {extra}")
+    if shape == "FREE" and PRICE_KEY in plan:
+        raise fault(f"C R {PRICE_KEY}: free to them asks no price item of anyone (keel-cloud 115 judgement call 9)")
+
+    # the picks
+    period = cost.get("period")
+    ladder = rows.get(PRICE_KEY, {}).get("codes") or []
+    for person in raw.get("answers") or []:
+        who = person.get("person")
+        consumer_link = person.get("link", LINK_PRIMARY) == LINK_PRIMARY and not b2b
+        picks = person.get("picks") or {}
+        if ABILITY_KEY in picks and not b2b and not consumer_budget:
+            raise fault(f"C {who}: a consumer budget pick, and this entry's reading is {read!r} (asked only on a "
+                        "same-person entry whose cost and price share no base)")
+        for key in (SACRIFICE_KEY, PRICE_KEY) + ((ABILITY_KEY,) if consumer_budget else ()):
+            if key not in picks:
+                continue
+            value = picks[key]
+            if isinstance(value, dict) and "chip" in value:
+                allowed = [rows.get(key, {}).get("escape")] + (
+                    ["rather_not_say"] if key == SACRIFICE_KEY and consumer_link else [])
+                if value.get("chip") not in allowed or set(value) != {"chip"}:
+                    raise fault(f"C {who}: {key} chip {value!r} is not one of {allowed}")
+                continue
+            if key == SACRIFICE_KEY:
+                if not isinstance(value, dict):
+                    raise fault(f"C {who}: {key} is a value box, not {value!r}")
+                if value.get("nothing"):
+                    if set(value) - {"nothing", "currency", "period"} or value.get("period") != period:
+                        raise fault(f"C {who}: {key} {value!r} -- nothing is {{nothing: true, currency, period: "
+                                    f"{period}}}")
+                elif set(value) - {"low", "high", "currency", "period"} or "low" not in value:
+                    raise fault(f"C {who}: {key} {value!r} is not {{low, high, currency, period}}")
+                else:
+                    low_v, high_v = value.get("low"), value.get("high", value.get("low"))
+                    if not (_number(low_v) and _number(high_v) and 0 <= low_v <= high_v):
+                        raise fault(f"C {who}: {key} {value!r} -- the value box's low is at most its high, and not "
+                                    "below 0")
+                    if value.get("period") != period:
+                        raise fault(f"C {who}: {key} period {value.get('period')!r} is not the founder's {period!r}")
+            elif key == PRICE_KEY:
+                if chain_mod.two_steps(price):
+                    if not (isinstance(value, list) and len(value) == 2 and value[0] in ladder[:6]
+                            and value[1] in ladder[6:]):
+                        raise fault(f"C {who}: {key} {value!r} is not [<one-off code>, <plan code>] of the two "
+                                    "ladders")
+                elif not isinstance(value, str) or value not in ladder:
+                    raise fault(f"C {who}: {key} pick {value!r} is not one code of the chain ladder")
+            elif not isinstance(value, str) or value not in chain_mod.CONSUMER_BUDGET:
+                raise fault(f"C {who}: {key} pick {value!r} is not one of {list(chain_mod.CONSUMER_BUDGET)}")
+    return True
+
+
+def _number(x) -> bool:
+    return isinstance(x, (int, float)) and not isinstance(x, bool)
+
+
 def _check_list(entry: Entry, registry, key: str) -> None:
     """Rule L, against the registry's `founder.saves` (087 FR-007): the count (a fixed first item -- Buyer and
     payer's `Nobody else` -- among it), the words an item, `picked` exactly where the registry picks one and in
@@ -995,10 +1320,12 @@ def _check_row(entry: Entry, registry, key: str, row: dict) -> None:
     answer set is the registry's codes in order; Importance's codes are the founder's five with `own_item` its item 0;
     Current solution's the founder's five outcomes in order."""
     dimension = registry.by_key(key)
-    if row.get("control") != dimension.respondent_control:
+    if _chain_row(entry, key):
+        return                                   # rule C held it (`_check_chain`): the chain's row, not the registry's
+    control, escape = _registry_row(entry, dimension)
+    if row.get("control") != control:
         raise _refuse(entry.id, f"respondent_questions[{key}].control is {row.get('control')!r}; the registry's is "
-                                f"{dimension.respondent_control!r}", entry.path)
-    escape = (dimension.escape or {}).get("code")
+                                f"{control!r}", entry.path)
     if row.get("escape") != escape:
         raise _refuse(entry.id, f"respondent_questions[{key}].escape is {row.get('escape')!r}; the registry's one "
                                 f"escape is {escape!r}", entry.path)
@@ -1019,14 +1346,39 @@ def _check_row(entry: Entry, registry, key: str, row: dict) -> None:
                                 f"order are {[i.get('code') for i in saved['items']]}", entry.path)
 
 
+def _chain_row(entry: Entry, key: str) -> bool:
+    """Spec 064 FR-1: a row the commercial chain serves -- the value box, the chain ladder, the consumer budget item --
+    which rule C holds (`_check_chain`), never the registry's row."""
+    if not entry.chain():
+        return False
+    return key in (SACRIFICE_KEY, PRICE_KEY) or (key == ABILITY_KEY and entry.consumer_budget())
+
+
+#: keel-cloud 115's registry guidance: "A project whose cost was stated before the chain keeps spec 077's cost_total
+#: (one total over {cost_period}, escape 'I can't recall')" -- what a revision-12-shape entry's row is under it.
+OLD_COST_ROW = (COST_TOTAL_CONTROL, "cant_recall")
+
+
+def _registry_row(entry: Entry, dimension) -> tuple:
+    """`(control, escape code)` the registry serves this entry: its own, but Existing sacrifice off the chain keeps
+    spec 077's cost total under a registry whose control is keel-cloud 115's value box (registry decision 24)."""
+    escape = (dimension.escape or {}).get("code")
+    if dimension.key == SACRIFICE_KEY and dimension.respondent_control == chain_mod.VALUE_BOX_CONTROL \
+            and not entry.chain():
+        return OLD_COST_ROW
+    return dimension.respondent_control, escape
+
+
 def _check_pick(entry: Entry, registry, person: dict, key: str, pick) -> None:
     """Rule A's pick shapes (087 FR-004, D2, D8): an escape is exactly `{chip: <the row's escape>}` (Commitment has
     none); Importance two distinct codes of its row; a fixed answer, a Current solution outcome or a Price band one
     code of its row."""
     row = (entry.respondent_questions or {}).get(key) or {}
     name = person.get("person")
+    if _chain_row(entry, key):
+        return                                   # rule C held it (`_check_chain`)
     if isinstance(pick, dict) and "chip" in pick:
-        escape = (registry.by_key(key).escape or {}).get("code")
+        _, escape = _registry_row(entry, registry.by_key(key))
         if escape is None or pick.get("chip") != escape or set(pick) != {"chip"}:
             raise _refuse(entry.id, f"{name}'s {key} pick is {pick!r}; its one escape is {escape!r}"
                                     + (" (Commitment has none)" if key == COMMITMENT_KEY else ""), entry.path)
@@ -1108,7 +1460,8 @@ def _person(raw: dict) -> Person:
                   anchoring=raw.get("anchoring"), picks=dict(raw.get("picks") or {}),
                   pilot_opt_in=bool(raw.get("pilot_opt_in")),
                   link=raw.get("link", LINK_PRIMARY),
-                  follow_up=(str(raw.get("follow_up")).strip() or None) if raw.get("follow_up") else None)
+                  follow_up=(str(raw.get("follow_up")).strip() or None) if raw.get("follow_up") else None,
+                  in_segment=raw.get("in_segment") is not False)
 
 
 def _check_backtest(raw: dict, path: Path, backtest: bool) -> None:
