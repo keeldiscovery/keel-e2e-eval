@@ -2017,10 +2017,13 @@ def _beats_seen(interview: dict, beats: list[dict], starts: dict) -> dict:
     out = []
     for b in beats:
         t0, t1 = b.get("t0"), b.get("t1")
-        # inside the beat: from its first tick up to, not including, its last -- the next clip's recogniser starts on
-        # the tick the beat ends (ms 2001 of a 2000 ms beat), which is after it, not in it
-        inside = (lambda ts: sum(1 for t in ts or [] if t0 is not None and t >= t0 and (t1 is None or t < t1)))
-        at = (lambda ts: [round(t - t0) for t in ts or [] if t0 is not None and t >= t0 and (t1 is None or t < t1)])
+        # inside the beat: its `beatMs` from the first tick. The beat is over when its timer fires; a step with no clip
+        # after it (keel-web 096: the gate's segment question) opens its window on that very tick, a millisecond before
+        # the page's phase attribute flips (measured 2026-10-23: a start at 2006 ms of a 2007 ms beat), so a start at or
+        # past `beatMs` is after the beat, not in it
+        end = None if t0 is None else t0 + float(ivs.BEAT_MS) if t1 is None else min(t1, t0 + float(ivs.BEAT_MS))
+        inside = (lambda ts: sum(1 for t in ts or [] if t0 is not None and t >= t0 and t < end))
+        at = (lambda ts: [round(t - t0) for t in ts or [] if t0 is not None and t >= t0 and t < end])
         out.append({**b, "after_kind": kinds.get(b.get("after")),
                     "ms": round(t1 - t0) if t0 is not None and t1 is not None else None,
                     "starts_in": inside(starts.get("speech")), "recordings_in": inside(starts.get("record")),
