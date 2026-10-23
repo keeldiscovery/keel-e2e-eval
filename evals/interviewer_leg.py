@@ -2275,7 +2275,12 @@ def _follow_up_on_the_ai_link(j, record: dict) -> None:
     clips = x.get("clips") or {}
     # keel-cloud 118: a conditional yes owes the rung's *#also* stem, served under its own clip key
     clip_key = owed["dimension"] + ("#also" if owed.get("also") else "")
-    want_clip = (clips.get(clip_key) or clips.get(owed["dimension"]) or {}).get("clipId")
+    # the served `clips.followUp` map is keyed by dimension alone (no #also entry -- a wire gap noted in tasks.md), so
+    # the #also clip is looked up in the stored recording by its item id; the route still serves it
+    stored = {c.get("itemId"): c.get("clipId") or c.get("id")
+              for c in ((record.get("recording") or {}).get("clips") or []) if isinstance(c, dict)}
+    want_clip = (clips.get(clip_key) or {}).get("clipId") or stored.get(clip_key) \
+        or (clips.get(owed["dimension"]) or {}).get("clipId")
     routes = [a for a in x.get("asked") or [] if a["route"] == "follow-up"]
     windows = (x.get("walk") or {}).get("windows") or []
     with j.recorder.step(f"interviewer (keel-cloud 103, keel-web 076): the AI link's follow-up on {owed['dimension']} "

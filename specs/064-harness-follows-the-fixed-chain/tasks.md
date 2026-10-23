@@ -224,6 +224,7 @@ its source; none of these was observed on a stack (the run stopped at sign-in).
 | F-12 | Adoption friction's card | 01 *7 of 8 · would ...*; 05 *7 of 9*; 07 *6 of 7* | 01 *6 of 8 · would ... · 1 more if it was clearly worth it*; 05 *6 of 9 · ... · 1 more ...*; 07 *5 of 7 · ... · 1 more ...* | keel-cloud 118 FR-2 |
 | F-13 | S-014's green project (not run here) | nobody owed a follow-up | every decision-maker is owed one on Purchase friction (*quick* is against the fear, *a long time* its second stem: keel-cloud 118 judgement call 9) -- `test_the_healthy_answers_are_against_on_no_rung` now excludes that rung, by name | keel-cloud 118 |
 | F-14 | keel-web master `8b8eb9d` | the stack serves the app | `src/styles/app.css:11686` unclosed `@media` block since keel-web 096 `d759a81`; every journey stops at sign-in | keel-web, not this repository |
+| F-15 | `_answer_ai_on_screen`, the follow-up's clip (2026-10-23, golden S-005 on the AI link) | the route's `clip` is `clips.followUp[dimension]` | where the owed stem is a rung's `#also` (keel-cloud 118: 01-countly's last reader answers Adoption friction's conditional yes), the route serves the `#also` clip, which `interviewer.clips.followUp` does not list -- the map is keyed by dimension alone; the harness reads the id off the stored recording (`itemId` `solution.adoption_friction#also`). For keel-cloud: the served map could carry `dimension#also` too, so a page can preload it | run 20261023T090033Z-s005-countly |
 
 ## Judgement calls
 
