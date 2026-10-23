@@ -73,6 +73,16 @@ s007"` once on a fresh local stack of the finished masters; one `make backtest E
   keel-cloud `specs/120-…/tasks.md`'s table) -- the harness answers the chip inside for every golden person (no number
   moves) and records the chip question; the Sent register's per-kind count still includes outside people while the
   People page's aim leaves them out (120 judgement call 10).
+- **FR-4c What keel-web 096's build settled (added 2026-10-23; full table in keel-web `specs/096-…/tasks.md`).** Card
+  lines `[data-testid=context-ask-about]` / `[data-testid=context-only-people-who]`; the proposed window pre-fills the
+  card's window field with `[data-testid=window-proposed-from]` and the primary reads *Save and continue* while the
+  field differs from the card's window; the segment chip `[data-testid=segment-chip]` (`div.iv-cond`, an `h2.iv-q` and a
+  radiogroup named by its question, Yes / No) sits between the kicker and `h1.iv-q`; an outside answer hides the gate
+  and Continue posts `{"outsideSegment": true, "answers": []}`; the gate's No reads the served `noLabel`; the stem is
+  drawn as `p.iv-stem[data-testid=item-stem]` before `h1.iv-q`, and `h1.iv-q` then holds only the question after the
+  stem -- the walker joins `item-stem + " " + h1` to compare with the served question; outside people are marked
+  `td span.lt-outside[data-testid=outside-segment]` on the Sent register and `[data-testid=outside-segment]` in the
+  answers popup. `p.iv-kicker`, `p.iv-n`, the part counters and `.iv-done` are unchanged.
 - **FR-5 The founder's lists (keel-cloud 117, 121; keel-web 097).** The Current-solution Check assertion (`_corpus_list`
   vs the rows) expects the founder's rungs verbatim and first and Keel's appended rungs below to five; the Choose screen
   reads `choose.prompt` (*"Which of these is most likely to be missing?"*) and the `suggested` radio, and picks the
