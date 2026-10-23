@@ -1613,6 +1613,7 @@ class Interview:
         self.seen: list[str] = []
         self.screens: list[dict] = []
         self.unanswered: list[dict] = []
+        self.retried: list[dict] = []
         #: Spec 062 FR-3: the back-test's camera for this person's screens (one person a link), or None.
         self.camera = None
 
@@ -1682,7 +1683,7 @@ class Interview:
             self._shot("done")
             page.remove_listener("response", self._keep_transcribe)
             return {"body": body, "status": status, "done": heading, "seen": list(self.seen),
-                    "screens": list(self.screens), "unanswered": list(self.unanswered), "follow_up_route": self.route, "follow_up": self.follow_up_seen,
+                    "screens": list(self.screens), "unanswered": list(self.unanswered), "retried": list(self.retried), "follow_up_route": self.route, "follow_up": self.follow_up_seen,
                     "speak": self.speak_seen, "transcribed": self._transcribed(), "consent": self.consent}
 
     def _keep_transcribe(self, response) -> None:
@@ -1901,7 +1902,22 @@ class Interview:
                                   if asked.value.status == 200 else {},
                                   "sent": asked.value.request.post_data_json}
                 else:
+                    before = _first_text(page, "h1.iv-q") or ""
                     _button(page, IV_NEXT).click()
+                    if not self._screen_moved(before):
+                        # the page stayed on the item after Next (13-aircaps, Naomi Adler on Ability to pay: the walk
+                        # went one item ahead of the page) -- the answer is put again once, Next pressed again, and the
+                        # retry is recorded as a finding; a second stay stops the walk with the page's words
+                        taken = answer if answer is not None else {"chip": str((item.get("escape") or {}).get("code") or "").upper()}
+                        self.retried.append({"dimension": item.get("dimension"), "stem": before, "answer": taken})
+                        self._answer(item, taken)
+                        _button(page, IV_NEXT).click()
+                        if not self._screen_moved(before):
+                            raise AssertionError(json.dumps({
+                                "stayed_on": item.get("dimension"), "stem": before, "answer": taken,
+                                "chips_drawn": [c.strip() for c in self._main().locator(".iv-chips button").all_inner_texts()],
+                                "rows": _safe_all_texts(page, ".iv-control [role=radio], .iv-control [role=checkbox]"),
+                                "url": page.url}))
             if interview.get("kind") == "FULL" and reveal and reveal.get("afterPart") == part.get("part") \
                     and p_index < len(parts) - 1:
                 _button(page, IV_CONTINUE).wait_for(state="visible", timeout=20_000)
@@ -1910,6 +1926,19 @@ class Interview:
                 self.screens.append({"screen": "reveal", "kicker": _first_text(page, ".iv-kicker"),
                                      "card": _first_text(page, ".iv-card")})
                 _button(page, IV_CONTINUE).click()
+
+    def _screen_moved(self, before: str, *, timeout_s: float = 10) -> bool:
+        """True once the page draws another question (or the reveal, the follow-up, the done screen) than `before`."""
+        page = self.page
+        end = time.monotonic() + timeout_s
+        while time.monotonic() < end:
+            now = _first_text(page, "h1.iv-q") or ""
+            if now.strip() != before.strip():
+                return True
+            if page.locator("h1.iv-q").count() == 0:
+                return True
+            page.wait_for_timeout(200)
+        return False
 
     def _item_screen(self, item: dict) -> dict:
         """What one item's screen drew, in the order drawn: the kicker, the idea card, the stem, the hint,
