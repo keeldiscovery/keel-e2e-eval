@@ -2497,6 +2497,9 @@ def _board(j: Journey) -> None:
     nothing of the old deck). `report_overview` scores the same read again in `leg_report`."""
     board = j.screens["board"] = j.answers.board(j.project_id)
     overview_read(j, "board", board)
+    # the page read the standings a moment ago; on the host door a late job (THEMES, a last reading) can settle between
+    # the leg's earlier read and the page's, so the expectation is drawn from the standings as they are now
+    j.standings = j.get(j.project("/standings")) or j.standings
     with _step(j, "the overview: the verdict, the two tiles and every stage's rows are the wire's cards, drawn "
                   "(keel-web 077)", party="founder") as h:
         want = report_marks.expected_overview(j.standings)
