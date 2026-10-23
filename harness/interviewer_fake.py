@@ -31,9 +31,10 @@ from pathlib import Path
 
 # ------------------------------------------------------------------------------------- charge v9 (FR-F)
 
-#: keel-cloud `InferenceCharge.VERSION`, which every HOLD written carries: 9 since 094, **10** since 104 (BRIEF out,
-#: THEMES in; spec 052 -- the interviewer's two rows did not move).
-PRICE_VERSION = 10
+#: keel-cloud `InferenceCharge.VERSION`, which every HOLD written carries: 9 since 094, 10 since 104 (BRIEF out,
+#: THEMES in; spec 052 -- the interviewer's two rows did not move), **11** since 125 (EXAMPLE_MATCH at 0, never held;
+#: no price moved).
+PRICE_VERSION = 11
 #: The first recording, written at lock (or, on a project with none, at the first face chosen) -- and the change.
 RECORDING = "INTERVIEWER_RECORDING"
 CHANGE = "INTERVIEWER_CHANGE"

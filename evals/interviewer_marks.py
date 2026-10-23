@@ -143,7 +143,7 @@ def _coverage(line: str, script: str) -> float:
 # ------------------------------------------------------------------------------------------------ the marks
 
 def one_recording_pair(r: dict) -> tuple[bool, Any]:
-    """IM1: the first recording is ONE `INTERVIEWER_RECORDING` HOLD of -400 (price_version 9, no job, this project) and
+    """IM1: the first recording is ONE `INTERVIEWER_RECORDING` HOLD of -400 (the price version of record, no job, this project) and
     its SPEND of 0 carrying 400 and 2,000,000 µUSD -- never a second for a retry, a change or a re-read."""
     mine, faults = _pairs(r["ledger"], fake.RECORDING, r["project_id"])
     kinds = sorted(x.get("kind") for x in mine)
@@ -541,7 +541,8 @@ def _ai_asked_right(ai: dict) -> bool:
     """The AI link's follow-up as IM23 holds it: every ask of the route on the harness's rung with its text and the
     rung's clip, every window opened on that clip with that text (`followUp` step), the response naming the rung."""
     owed = ai.get("owed") or {}
-    want_clip = ((ai.get("clips") or {}).get(owed.get("dimension")) or {}).get("clipId")
+    # keel-cloud 118: the rung's #also clip where the owed stem is one (the leg names it as `want_clip`)
+    want_clip = ai.get("want_clip") or ((ai.get("clips") or {}).get(owed.get("dimension")) or {}).get("clipId")
     routes = [a for a in ai.get("asked") or [] if a.get("route") == "follow-up"]
     windows = (ai.get("walk") or {}).get("windows") or []
     return (bool(owed) and bool(want_clip) and bool(routes) and bool(windows)

@@ -2017,7 +2017,9 @@ def _beats_seen(interview: dict, beats: list[dict], starts: dict) -> dict:
     out = []
     for b in beats:
         t0, t1 = b.get("t0"), b.get("t1")
-        inside = (lambda ts: sum(1 for t in ts or [] if t0 is not None and t >= t0 and (t1 is None or t <= t1)))
+        # inside the beat: from its first tick up to, not including, its last -- the next clip's recogniser starts on
+        # the tick the beat ends (ms 2001 of a 2000 ms beat), which is after it, not in it
+        inside = (lambda ts: sum(1 for t in ts or [] if t0 is not None and t >= t0 and (t1 is None or t < t1)))
         out.append({**b, "after_kind": kinds.get(b.get("after")),
                     "ms": round(t1 - t0) if t0 is not None and t1 is not None else None,
                     "starts_in": inside(starts.get("speech")), "recordings_in": inside(starts.get("record"))})
@@ -2109,9 +2111,16 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
         stranger.close()
     record["mic_test"] = {**mic, "intro": intro}
     _consent_on_the_intro(j, interview, intro, "the AI link's")
+    fu_clips = ((interview.get("interviewer") or {}).get("clips") or {}).get("followUp") or {}
+    # keel-cloud 118: a conditional yes owes the rung's #also stem, whose clip the served map (keyed by dimension alone)
+    # does not list -- it is read off the stored recording by its item id (finding F-15)
+    stored = {c.get("itemId"): c.get("clipId") or c.get("id")
+              for c in ((record.get("recording") or {}).get("clips") or []) if isinstance(c, dict)}
+    clip_key = owed["dimension"] + ("#also" if owed.get("also") else "")
+    want_clip = (fu_clips.get(clip_key) or {}).get("clipId") or stored.get(clip_key) \
+        or (fu_clips.get(owed["dimension"]) or {}).get("clipId")
     record["follow_up_ai"] = {"owed": owed, "line": line, "by": by, "asked": asked, "walk": walk.follow_up_seen,
-                              "clips": ((interview.get("interviewer") or {}).get("clips") or {}).get("followUp"),
-                              "followUps": interview.get("followUps")}
+                              "clips": fu_clips, "want_clip": want_clip, "followUps": interview.get("followUps")}
     record["beat"] = _beats_seen(interview, beats, starts)
     if walk.story_seen:
         record["story"] = walk.story_seen
@@ -2279,7 +2288,7 @@ def _follow_up_on_the_ai_link(j, record: dict) -> None:
     # the #also clip is looked up in the stored recording by its item id; the route still serves it
     stored = {c.get("itemId"): c.get("clipId") or c.get("id")
               for c in ((record.get("recording") or {}).get("clips") or []) if isinstance(c, dict)}
-    want_clip = (clips.get(clip_key) or {}).get("clipId") or stored.get(clip_key) \
+    want_clip = x.get("want_clip") or (clips.get(clip_key) or {}).get("clipId") or stored.get(clip_key) \
         or (clips.get(owed["dimension"]) or {}).get("clipId")
     routes = [a for a in x.get("asked") or [] if a["route"] == "follow-up"]
     windows = (x.get("walk") or {}).get("windows") or []
