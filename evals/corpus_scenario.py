@@ -2190,6 +2190,14 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
             item = by_dimension.get(drawn["dimension"]) or {}
             escape = item.get("escape")
             want = {"kicker": item.get("kicker"), "chips": [escape["label"]] if escape else []}
+            box = item.get("valueBox")
+            if box:
+                # spec 064 FR-3 (keel-cloud 115): the value box draws its Nothing chip, then the chips recorded apart;
+                # the registry's one escape (I don't know) is among them, never drawn twice
+                want["chips"] = []
+                for c in [box.get("nothing")] + list(box.get("chips") or []) + ([escape] if escape else []):
+                    if c and c.get("label") and c["label"] not in want["chips"]:
+                        want["chips"].append(c["label"])
             if item.get("control") in ROW_CONTROLS:
                 want["rows"] = [o.get("label") for o in item.get("options") or []]
             if item.get("control") == "pick_two":
