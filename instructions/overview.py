@@ -222,6 +222,19 @@ def in_order(text: str, wanted) -> list:
         if not needle:
             continue
         found = hay.find(needle, at)
+        if found < 0 and " · " in needle:
+            # spec 064 FR-7a (keel-web 098 FR-4c): a count shown apart ("· 2 more after a free trial first") is drawn
+            # in its own element, so the page's text carries the pieces in order without the separator
+            pieces, at2, ok = [q.strip() for q in needle.split(" · ") if q.strip()], at, True
+            for piece in pieces:
+                f2 = hay.find(piece, at2)
+                if f2 < 0:
+                    ok = False
+                    break
+                at2 = f2 + len(piece)
+            if ok:
+                at = at2
+                continue
         if found < 0:
             missing.append(part)
         else:
