@@ -2815,6 +2815,9 @@ def leg_one_currency(j: Journey) -> None:
     with _step(j, f"{j.entry.id}: the project's market is the entry's own -- {want['country']}, "
                   f"{want['language']}, region {want['region'] or 'none'}") as h:
         market = (j.get(j.project("/overview")) or {}).get("market") or {}
+        if market.get("kind") == "OTHER":
+            # keel-cloud 122 FR-4: a country the markets table has not met is served in English (21-codyco, DE)
+            want = {**want, "language": "en"}
         have = {"country": market.get("country"), "region": market.get("region") or None,
                 "language": market.get("language")}
         h.record_assert(want, have)
