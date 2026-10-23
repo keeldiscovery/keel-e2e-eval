@@ -1536,7 +1536,11 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
         values["{their_answer}"] = fake.lower(label(codes[0]) if codes else None)
     elif rung == "solution.compatibility":
         values["{condition}"] = fake.lower(founder_follow_up_words(entry)["{condition}"])
-        values["{would}"] = "only work with help" if codes[:1] == ["only_with_help"] else "not work"
+        # spec 064 FR-6a (keel-cloud 123 FR-8): the ability wording serves "Only sometimes" where the permission wording
+        # serves "Only with help or approval"; the route's clause follows the served label
+        picked = (label(codes[0]) or "").lower() if codes else ""
+        values["{would}"] = ("only work sometimes" if picked.startswith("only sometimes")
+                             else "only work with help" if picked.startswith("only with help") else "not work")
     elif rung == "solution.relative_advantage":
         values["{benefit}"] = fake.joined([a.get("label") for a in item.get("advantages") or []], "or")
     elif rung == "solution.adoption_friction":
