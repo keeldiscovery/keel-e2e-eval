@@ -1397,7 +1397,7 @@ def markdown(r: dict) -> str:
         for row in cli.get("per_job") or []:
             u = row.get("usage") or {}
             lines.append(f"  - {row.get('screen') or '?'} `{row.get('job_id')}`: "
-                         f"${row.get('usd')}, in {u.get('input_tokens')} / out {u.get('output_tokens')} / cache read "
+                         f"${round(row['usd'], 4) if isinstance(row.get('usd'), (int, float)) else '--'}, in {u.get('input_tokens')} / out {u.get('output_tokens')} / cache read "
                          f"{u.get('cache_read_input_tokens')} / cache write {u.get('cache_creation_input_tokens')}, "
                          f"{_q(row.get('models'))}, {row.get('num_turns')} turns"
                          + (" (error)" if row.get("is_error") else ""))
