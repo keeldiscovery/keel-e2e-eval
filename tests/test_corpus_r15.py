@@ -403,3 +403,34 @@ def test_the_backtest_record_holds_every_served_item_to_the_spoken_form():
     assert red["stem_words"] == 21 and any(f.startswith("S1") for f in red["faults"])
     md = bt.markdown({"spoken_guard": guard, "respondents": {}, "founder_screens": []})
     assert "**RED**" in md and f"{len(items)} of {len(items) + 1} items clean" in md
+
+
+# ------------------------------------------------------------------------------- FR-7: the changed screens, read
+
+def test_the_changed_screens_are_read_as_findings_on_a_back_test():
+    """Spec 067 FR-7 (judgement call 6): a consumer link saying *per person*, a plan drawn after *I wouldn't pay for
+    this*, *People disagree* on a bar line -- each recorded; a B2B study's own words are not consumer words."""
+    from types import SimpleNamespace                                   # noqa: PLC0415
+    from evals import backtest as bt                                    # noqa: PLC0415
+    path = corpus_mod.backtest_dir(KEEL_CLOUD) / "13-aircaps.yaml"
+    if not path.is_file():
+        pytest.skip("no 13-aircaps")
+    entry = corpus_mod.load_file(path, registry=fx.registry(), backtest=True)
+    andrea = next(p.person for p in entry.people() if (p.picks or {}).get("commercial.price")
+                  and bt._closed_price(p.picks["commercial.price"]) and isinstance(p.picks["commercial.price"], list))
+    assert andrea == "Andrea Whitlock"
+    interview = {"kind": "FULL", "parts": [{"part": 3, "items": [
+        {"dimension": "commercial.price", "question": "What would AirCaps be worth to you a month, per person?",
+         "options": [{"optionId": "o", "label": "Under $10"}]}]}]}
+    standings = {"facts": {"cards": [{"key": "solution.compatibility", "number": "3 of 7",
+                                      "statusWords": "People disagree"},
+                                     {"key": "problem.importance", "number": "4 of 7",
+                                      "statusWords": "People disagree"}]}}
+    walked = {andrea: {"screens": [{"dimension": "commercial.price", "plan": {"question": "And after that ..."}}]}}
+    j = SimpleNamespace(entry=entry, interviews={andrea: interview}, walked=walked)
+    got = bt.changed_screens(j, standings)
+    assert [r["word"] for r in got["consumer_words"]] == ["per person"]
+    assert [r["person"] for r in got["plan_after_closed_price"]] == [andrea]
+    assert [r["key"] for r in got["people_disagree_on_a_bar_line"]] == ["solution.compatibility"]
+    assert "*per person*" in bt.markdown({"changed_screens": got, "respondents": {}, "founder_screens": []})
+

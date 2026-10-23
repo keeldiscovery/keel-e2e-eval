@@ -123,13 +123,18 @@ the canon-reading tests the revision refusal had skipped.
 
 ## FR-7 -- the walks of the changed screens
 
-- [ ] T070 judgement call 6: keel-web 106 is a spec only (keel-web master `bec3836`), so the context occasion field,
+- [x] T070 judgement call 6: keel-web 106 is a spec only (keel-web master `bec3836`), so the context occasion field,
   the seed-name suggestion, the needs-input screen, the market step's *Another country* line, the friction row at
   phone width and the Insights footers have no selectors yet. What the harness can read without them is read on
   every back-test and recorded as findings: the consumer vocabulary (*decision-makers*, *the payer*, *per person*,
   *per company*, *your team*, *new money*) on a consumer study's served items; a plan screen after a closed price (an
   escape or *I wouldn't pay*); *People disagree* at or past a founder's bar in the brief's cards. Holding these on the
   golden seven and on 13-aircaps, 16-pairio, 21-codyco waits for web 106's build (left open below).
+- [x] T071 as built: `backtest.changed_screens(j, standings)` into `backtest.json` (`changed_screens`) and a block in
+  `backtest.md`: `consumer_words` (a FULL link's served question, options, *What you'd get*, value-box label and plan
+  question on a study with no decision-maker), `plan_after_closed_price` (a walked price screen that recorded a plan
+  for a person whose entry escapes the price or says *I wouldn't pay*), `people_disagree_on_a_bar_line` (the brief's
+  cards on 128's five bar lines). Unit: 3,126 passed, 53 skipped, 0 failed.
 
 ## The register's Re-run column
 

@@ -1144,6 +1144,63 @@ def spoken_guard(j) -> dict:
             "red": [r for r in rows if r["red"]], "rows": rows}
 
 
+# ----------------------------------------------------------------------------- spec 067 FR-7: the changed screens
+
+#: keel-cloud 128 FR-5 / FR-21 (keel-web 106 FR-2): words a consumer link never says.
+CONSUMER_BANNED = ("decision-makers", "decision-maker", "the payer", "per person", "per company", "your team",
+                   "new money")
+#: keel-cloud 128 FR-8 (`BriefFacts.BAR_LINES`): the lines whose amber is never said *People disagree*.
+BAR_LINES = ("solution.compatibility", "solution.relative_advantage", "solution.adoption_friction",
+             "commercial.purchase_friction", "commercial.commitment")
+
+
+def _closed_price(raw) -> bool:
+    """An entry's price pick that closes the item: an escape chip, or *I wouldn't pay for this* (128 FR-21)."""
+    if isinstance(raw, dict):
+        return bool(raw.get("chip"))
+    codes = raw if isinstance(raw, list) else [raw]
+    return any(str(c).endswith("would_not_pay") for c in codes)
+
+
+def changed_screens(j, standings: dict | None = None) -> dict:
+    """Spec 067 FR-7 (judgement call 6): what the wire and today's screens already show of keel-cloud 128's changed
+    screens, read on every back-test and recorded as findings -- the consumer vocabulary on a consumer study's served
+    items (128 FR-5), a plan screen drawn after a closed price (128 FR-21; keel-web 106 FR-9 skips it), and *People
+    disagree* on a bar line in the brief's cards (128 FR-8). keel-web 106's own screens (the occasion field, the seed
+    name, the needs-input screen, the market line, the friction row at phone width, the Insights footers) wait for its
+    build. Nothing here is asserted."""
+    entry = j.entry
+    out: dict = {"consumer_words": [], "plan_after_closed_price": [], "people_disagree_on_a_bar_line": []}
+    if not entry.b2b():
+        seen = set()
+        for person, interview in (getattr(j, "interviews", None) or {}).items():
+            if (interview or {}).get("kind") != "FULL":
+                continue
+            for part in interview.get("parts") or []:
+                for item in part.get("items") or []:
+                    texts = [item.get("question"), item.get("whatYouGet"), (item.get("valueBox") or {}).get("label"),
+                             (item.get("plan") or {}).get("question")]
+                    texts += [o.get("label") for o in item.get("options") or []]
+                    for text in (t for t in texts if t):
+                        for word in CONSUMER_BANNED:
+                            if word in text.lower() and (item.get("dimension"), word, text) not in seen:
+                                seen.add((item.get("dimension"), word, text))
+                                out["consumer_words"].append({"dimension": item.get("dimension"), "word": word,
+                                                              "said": text})
+    for person, walked in (getattr(j, "walked", None) or {}).items():
+        mine = entry.person(person)
+        if mine is None or not _closed_price((mine.picks or {}).get("commercial.price")):
+            continue
+        for screen in (walked or {}).get("screens") or []:
+            if screen.get("dimension") == "commercial.price" and screen.get("plan"):
+                out["plan_after_closed_price"].append({"person": person, "plan": screen.get("plan")})
+    facts = (standings or {}).get("facts") or {}
+    for card in facts.get("cards") or []:
+        if card.get("key") in BAR_LINES and str(card.get("statusWords") or "").startswith("People disagree"):
+            out["people_disagree_on_a_bar_line"].append({k: card.get(k) for k in ("key", "number", "statusWords")})
+    return out
+
+
 # ------------------------------------------------------------------------------------------- FR-4.3 the brief
 
 def brief(standings: dict) -> dict:
@@ -1274,6 +1331,7 @@ def transcript(j, bt: Backtest) -> dict:
         "founder_screens": founder_screens(j, bt.cam, wire),
         "respondents": respondent_questions(j, bt.cam),
         "spoken_guard": _safe(lambda: spoken_guard(j)),
+        "changed_screens": _safe(lambda: changed_screens(j, standings)),
         "brief": _safe(lambda: brief(standings)),
         "readings": _safe(lambda: readings(j, wire.get("invitations") or {}), []),
         "cost": _safe(lambda: cost(j, bt)),
@@ -1402,6 +1460,16 @@ def markdown(r: dict) -> str:
         for row in guard.get("red") or []:
             lines.append(f"- **RED** {row.get('link')} · {row.get('dimension')} · stem {row.get('stem_words')} words: "
                          f"*{row.get('stem')}* -- " + ("; ".join(row.get("faults") or []) or "past 20 words"))
+        lines.append("")
+    changed = r.get("changed_screens") or {}
+    if any(changed.values()):
+        lines += ["### keel-cloud 128's changed screens, as read (spec 067 FR-7)", ""]
+        for row in changed.get("consumer_words") or []:
+            lines.append(f"- consumer link says *{row.get('word')}* ({row.get('dimension')}): {row.get('said')}")
+        for row in changed.get("plan_after_closed_price") or []:
+            lines.append(f"- {row.get('person')} closed the price and was shown the plan: {_q(row.get('plan'))}")
+        for row in changed.get("people_disagree_on_a_bar_line") or []:
+            lines.append(f"- *People disagree* on a bar line: {row.get('key')} {row.get('number')}")
         lines.append("")
     change = decision.get("change") or {}
     lines += ["## 3. The brief", "", f"- Decision: {_q(decision)}", f"- Verdicts: {_q(b.get('verdicts'))}"]
