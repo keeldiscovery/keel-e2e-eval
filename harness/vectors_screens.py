@@ -895,6 +895,10 @@ def pass_teaching_sheet(page: Page, recorder: Recorder, base: str, kind: str, st
 
 # --------------------------------------------------------------------------------------- Corridor
 
+#: Spec 067 FR-5: how often the context card's wait looks at the CONTEXT_INTERPRET job (ms).
+CONTEXT_POLL_MS = 5_000
+
+
 class Corridor:
     """The founder's corridor screens. One instance per founder page.
 
@@ -985,9 +989,15 @@ class Corridor:
 
     # ------------------------------------------------------------------------ step 1: context
 
-    def context(self, project_id: str, fields: dict, window: dict) -> str:
+    def context(self, project_id: str, fields: dict, window: dict, *,
+                on_wait: Callable[[str | None], None] | None = None) -> str:
         """Types the four fields and the window, saves, and waits for the *Keel understands* card.
-        Returns the card's sentence as drawn."""
+        Returns the card's sentence as drawn.
+
+        Spec 067 FR-5 (keel-cloud 128 FR-15): while the card is awaited, `on_wait(interaction_id)` is called every few
+        seconds -- the CONTEXT_INTERPRET interaction the Save started, read off its response -- so the journey can see
+        a `NEEDS_INPUT` the page draws no screen for (keel-web 106 FR-7 is unbuilt) and answer it, or stop, instead of
+        waiting out the card's 660 s."""
         with self._b.step("founder fills the context step: who, what, when, which people, and the "
                           f"recall window ({window['count']} {window['unit']})") as h:
             self.page.goto(f"{self.base}/p/{project_id}/define/context", wait_until="load")
@@ -1005,8 +1015,19 @@ class Corridor:
                 # `saves` and names what refused it rather than a minute's timeout (spec 054 FR-2 d).
                 h.capture_text("stage_screen", _screen_text(self.page, ".ccard"))
                 return ""
-            self.page.locator(".understands").first.wait_for(state="visible",
-                                                             timeout=60_000 * self.patience)
+            card = self.page.locator(".understands").first
+            if on_wait is None:
+                card.wait_for(state="visible", timeout=60_000 * self.patience)
+            else:
+                deadline = time.monotonic() + 60 * self.patience
+                while True:
+                    try:
+                        card.wait_for(state="visible", timeout=CONTEXT_POLL_MS)
+                        break
+                    except Exception:  # noqa: BLE001 - Playwright's timeout: look at the job, then wait again
+                        if time.monotonic() > deadline:
+                            raise
+                        on_wait(saved.get("interaction_id"))
             h.capture_text("stage_screen", _screen_text(self.page, ".ccard"))
             h.add_screenshot(self._b.screenshot("context-card"))
             self._shot("context-card")
@@ -1021,8 +1042,12 @@ class Corridor:
                                            and r.url.split("?")[0].endswith("/context"), timeout=20_000) as got:
                 _button(self.page, CONTEXT_SAVE).click()
             response = got.value
+            body = _json_body(response)
             return {"method": "PUT", "path": response.url.split("?")[0], "status": response.status,
-                    "body": _json_body(response) if response.status >= 400 else None}
+                    "body": body if response.status >= 400 else None,
+                    # spec 067 FR-5: the CONTEXT_INTERPRET interaction this Save started (`InteractionView`)
+                    "interaction_id": (body or {}).get("interaction_id") if response.status < 400
+                    and isinstance(body, dict) else None}
         except Exception as missing:  # noqa: BLE001 - recorded: no Save reached the wire
             return {"method": "PUT", "path": None, "status": None, "error": repr(missing)}
 

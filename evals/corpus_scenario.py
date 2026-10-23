@@ -302,7 +302,9 @@ def leg_context(j: Journey) -> None:
     (the entry's own `context.understood` on a scripted journey), and the four fields and the window
     the founder typed -- a window of at least two units (D13)."""
     founder = j.founder
-    drawn = j.corridor.context(j.project_id, founder.context_fields, founder.window.as_wire())
+    asked: dict = {}
+    drawn = j.corridor.context(j.project_id, founder.context_fields, founder.window.as_wire(),
+                               on_wait=lambda interaction_id: _needs_input(j, interaction_id, asked))
     if j.guide_wire is not None:
         _next_write_after_the_welcome(j)
     with _step(j, "the card says what Keel understood -- code's sentence since keel-cloud 122, assembled from the slots "
@@ -334,6 +336,50 @@ def leg_context(j: Journey) -> None:
         assert int((fields.get("recallWindow") or {}).get("count") or 0) >= 2, fields
         for key, value in founder.context_fields.items():
             assert fields.get(key) == value, (key, fields)
+
+
+def needs_input_answer(entry, founder) -> str:
+    """Spec 067 FR-5 (keel-cloud 128 FR-15): the one answer a back-test founder gives a context `NEEDS_INPUT` -- the
+    entry's own fields said again, with the occasion and the window the entry records (what the interpret most often
+    lacks). Never invented: every word is the entry's."""
+    fields = founder.context_fields
+    occasion = (entry.context or {}).get("occasion")
+    parts = [f"Who has it: {fields['actor']}.", f"What they are trying to do: {fields['job']}.",
+             f"When it comes up: {fields['circumstance']}.", f"The people I am building this for: {fields['segment']}."]
+    if occasion:
+        parts.append(f"The occasion: {occasion}.")
+    parts.append(f"Counting the last {vs.window_words(founder.window)}.")
+    return " ".join(" ".join(p.split()) for p in parts)
+
+
+def _needs_input(j: Journey, interaction_id: str | None, asked: dict) -> None:
+    """Spec 067 FR-5 (keel-cloud 128 FR-15; Lemma, host door: the four fields re-asked whole, a 660 s wait on a card that
+    never came): while the context card is awaited, the CONTEXT_INTERPRET interaction is read. On `AWAITING_INPUT` a
+    back-test answers ONCE from the entry's own fields (`POST inference-interactions/{id}/answers`) and the question is a
+    finding; a second ask -- or any ask on a golden walk, whose scripted interpret never asks -- stops the walk at once,
+    naming the question."""
+    if not interaction_id:
+        return
+    view = j.get(f"/v2/inference-interactions/{interaction_id}") or {}
+    if view.get("status") != "AWAITING_INPUT":
+        return
+    questions = [q.get("question") for q in view.get("questions") or [] if q.get("question")]
+    turn = len(view.get("turns") or [])
+    if asked.get("turn") == turn:
+        return                                          # our answer is still on its way to the next turn
+    if j.strict or asked:
+        raise AssertionError(f"CONTEXT_INTERPRET asked the founder back{' again' if asked else ''} (NEEDS_INPUT): "
+                             f"{questions} -- spec 067 FR-5: answered once on a back-test, never waited on")
+    content = needs_input_answer(j.entry, j.founder)
+    with _step(j, "the context interpret asked back (NEEDS_INPUT): answered once from the entry's own fields "
+                  "(spec 067 FR-5; keel-cloud 128 FR-15)", party="founder", kind="note") as h:
+        status, body = j.call("POST", f"/v2/inference-interactions/{interaction_id}/answers", {"content": content},
+                              ok=(200, 201, 202))
+        h.record_wire({"questions": questions, "content": content}, {"status": status, "body": body})
+    asked.update(turn=turn, questions=questions)
+    j.findings.append({"what": "the context interpret asked back for what the founder had typed (NEEDS_INPUT); "
+                               "answered once from the entry's fields", "served": {"questions": questions,
+                                                                                   "answered": content}})
 
 
 def _market_inputs(founder: vs.FounderInputs):

@@ -322,3 +322,48 @@ def test_the_composer_says_a_fact_back_as_the_fact_and_quotes_worse():
     assert vs.from_served("Think of your last shift. Did the list come straight out of the EMR?", "No") == \
         "You said no to this: did the list come straight out of the EMR? What got in the way?"
     assert vs.served_idea_name({"reveal": {"what": "Imagine Pairio."}}) == "Pairio"
+
+
+# ------------------------------------------------------------------------------- FR-5: needs-input answered once
+
+def _asking_journey(view: dict, *, strict: bool = False):
+    from types import SimpleNamespace                                   # noqa: PLC0415
+    path = corpus_mod.backtest_dir(KEEL_CLOUD) / "20-lemma.yaml"
+    if not path.is_file():
+        pytest.skip("no 20-lemma")
+    entry = corpus_mod.load_file(path, registry=fx.registry(), backtest=True)
+    posted = []
+    j = SimpleNamespace(strict=strict, entry=entry, founder=vs.founder_inputs(entry), findings=[], posted=posted,
+                        get=lambda path: view,
+                        call=lambda method, path, body=None, ok=(): posted.append((method, path, body)) or (201, {}))
+    return j
+
+
+def test_a_needs_input_is_answered_once_from_the_entrys_fields_and_a_second_ask_stops(monkeypatch):
+    """Spec 067 FR-5 (keel-cloud 128 FR-15, Lemma): AWAITING_INPUT is answered once with the entry's own words, the
+    question a finding; asked again it stops at once, never a 660 s wait; a golden walk stops at the first ask."""
+    import contextlib                                                   # noqa: PLC0415
+    from types import SimpleNamespace                                   # noqa: PLC0415
+    from evals import corpus_scenario as cs                             # noqa: PLC0415
+    monkeypatch.setattr(cs, "_step", lambda *a, **k: contextlib.nullcontext(SimpleNamespace(
+        record_wire=lambda *x: None)))
+    view = {"status": "AWAITING_INPUT", "turns": [{"turnNumber": 1}],
+            "questions": [{"id": "q1", "question": "In your own words: who has this problem?"}]}
+    j = _asking_journey(view)
+    asked: dict = {}
+    cs._needs_input(j, "iid", asked)
+    assert len(j.posted) == 1 and j.posted[0][1] == "/v2/inference-interactions/iid/answers"
+    content = j.posted[0][2]["content"]
+    assert j.founder.context_fields["actor"] in content and j.founder.context_fields["segment"] in content
+    assert j.findings and "answered once" in j.findings[0]["what"]
+    cs._needs_input(j, "iid", asked)                                    # the same turn, still on its way: nothing
+    assert len(j.posted) == 1
+    view["turns"].append({"turnNumber": 2})                             # asked again
+    with pytest.raises(AssertionError, match="asked the founder back again"):
+        cs._needs_input(j, "iid", asked)
+    with pytest.raises(AssertionError, match="spec 067 FR-5"):
+        cs._needs_input(_asking_journey(dict(view), strict=True), "iid", {})
+    quiet = _asking_journey({"status": "PENDING"})
+    cs._needs_input(quiet, "iid", {})
+    cs._needs_input(quiet, None, {})
+    assert not quiet.posted and not quiet.findings

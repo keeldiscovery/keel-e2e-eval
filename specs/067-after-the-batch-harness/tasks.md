@@ -102,10 +102,14 @@ the canon-reading tests the revision refusal had skipped.
 
 ## FR-5 -- a needs-input question is answered once
 
-- [ ] T050 the context step: while the card is awaited, the CONTEXT_INTERPRET interaction is read; on `AWAITING_INPUT`
+- [x] T050 the context step: while the card is awaited, the CONTEXT_INTERPRET interaction is read; on `AWAITING_INPUT`
   a back-test answers once from the entry's own fields (`POST inference-interactions/{id}/answers`) and records a
   finding with the question asked; a second ask, or any ask on a golden walk, stops at once naming the question --
   never a 660 s wait.
+- [x] T051 as built: `Corridor.context(on_wait=...)` waits for the card in 5 s slices (`CONTEXT_POLL_MS`) up to the
+  same 60 s x patience, reading the interaction the Save's `PUT /context` answered with (`interaction_id`, now kept);
+  `corpus_scenario._needs_input` answers with `needs_input_answer` -- the four fields, the occasion and the window,
+  every word the entry's -- and stops on a second ask or on any golden ask. Unit: 3,124 passed, 53 skipped, 0 failed.
 
 ## FR-8 -- the spoken guard on the served record
 
