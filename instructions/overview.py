@@ -185,14 +185,16 @@ def panels(facts: dict, n_of: dict | None = None, served: dict | None = None) ->
 
 
 def overview(facts: dict, *, price_median=None, n_of: dict | None = None, use_facts_median: bool = True,
-             served: dict | None = None) -> dict:
+             served: dict | None = None, answered: int | None = None) -> dict:
     """The whole Overview from one `BriefFacts`. `price_median` defaults to `facts.commercial.priceMedian` (keel-cloud
     104 serves it there and at `StandingsView.priceMedian`, equal); `n_of` is each dimension's `n`, the too-few lead's
     count."""
     if price_median is None and use_facts_median:
         price_median = (facts.get("commercial") or {}).get("priceMedian")
     pilot = facts.get("pilot") or {}
-    n = int(pilot.get("finished") or 0)
+    # keel-web 102 FR-3a: the eyebrow and the foot count every answer (`StandingsView.people.answered`; a gate No is an
+    # answer); the pilot tile keeps 123 FR-4's `finished`. A caller with no people count reads `finished` as before.
+    n = int(answered if answered is not None else (pilot.get("finished") or 0))
     return {"eyebrow": eyebrow(n), "hero": hero(facts), "tiles": tiles(facts, price_median),
             "panels": panels(facts, n_of, served),
             "foot": [EVERY_ROW_OPENS, f"{n} answered · {people_by_link(pilot.get('perLink'))}"]}
