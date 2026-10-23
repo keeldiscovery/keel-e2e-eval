@@ -1472,7 +1472,7 @@ def could_not(asked: str | None) -> str | None:
         text = text[:-1].strip()
     if not text:
         return None
-    text = fake.lower(text) or text
+    text = fake_lower(text) or text
 
     def person(m):
         w = m.group(1).lower()
