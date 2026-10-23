@@ -1158,10 +1158,18 @@ def _idea_unnamed(j: Journey, typed: str) -> None:
                          "empty": [422, feedback_marks.IDEA_NAME_REQUIRED], "revision": revision},
                         {"seed name": seed_name, "idea": idea, "refusals": refusals, "after": after,
                          "bodies": [approve_body, empty_body]})
-        assert seed_name is None, seed_name
-        assert idea.get("what") is None and idea.get("approved") is False, idea
-        for refusal in refusals.values():
-            assert (refusal["status"], refusal["code"]) == (422, feedback_marks.IDEA_NAME_REQUIRED), refusals
+        if not j.strict and (seed_name is not None or idea.get("what")):
+            # a back-test seed may name the product (14-code-four's does, in every sentence); 097 F7 is a rule for
+            # Keel's drafting, not for the founder's words -- what the wire served is recorded as a finding for the
+            # judge (did Keel copy the seed's name into `what`?) and the walk goes on, naming it as the founder would
+            j.findings.append({"what": "the idea arrived named (keel-cloud 097 F7 says Keel drafts no name): the seed "
+                                       f"names {seed_name!r}, the wire served what={idea.get('what')!r}",
+                               "served": {k: idea.get(k) for k in ("what", "approved", "shortName")}})
+        else:
+            assert seed_name is None, seed_name
+            assert idea.get("what") is None and idea.get("approved") is False, idea
+            for refusal in refusals.values():
+                assert (refusal["status"], refusal["code"]) == (422, feedback_marks.IDEA_NAME_REQUIRED), refusals
         assert after.get("revision") == revision and after.get("approved") is False, after
     if not NAME_ON_THE_WIRE:
         return
@@ -2205,12 +2213,17 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
                 for c in [box.get("nothing")] + list(box.get("chips") or []) + ([escape] if escape else []):
                     if c and c.get("label") and c["label"] not in want["chips"]:
                         want["chips"].append(c["label"])
+            # keel-cloud 115 FR-4: an up-front-then price is one item drawn as two screens -- the up-front ladder, then
+            # the plan's ("And after that, what would it be worth to you a month, per person?" with its own six rungs);
+            # a drawn screen whose stem is the plan's is held to the plan's rows and question
+            plan = item.get("plan") or {}
+            on_plan = bool(plan) and drawn.get("question") == plan.get("question")
             if item.get("control") in ROW_CONTROLS:
-                want["rows"] = [o.get("label") for o in item.get("options") or []]
+                want["rows"] = [o.get("label") for o in (plan.get("options") if on_plan else item.get("options")) or []]
             if item.get("control") == "pick_two":
                 want["hint"] = vs_screens.IV_PICK_TWO
             if not item.get("priceAnchor"):
-                want["question"] = item.get("question")
+                want["question"] = plan.get("question") if on_plan else item.get("question")
             have = {k: drawn.get(k) for k in want}
             if have != want:
                 faults.append({"dimension": drawn["dimension"], "screen": have, "wire": want})
