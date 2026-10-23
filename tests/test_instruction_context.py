@@ -212,7 +212,7 @@ def test_no_screen_builds_a_brief_context_since_keel_cloud_104(entry, registry):
                                  "notTested": []}
     assert facts["money"] == {"currency": "GBP", "currencySymbol": "\u00a3", "period": "month",
                               "periodWords": "a month"}
-    assert facts["pilot"]["optedIn"] == 3 and facts["pilot"]["finished"] == 12
+    assert facts["pilot"]["optedIn"] == 3 and facts["pilot"]["finished"] == 10      # spec 064 FR-6a: gate Yes alone
     assert [c["key"] for c in facts["cards"]] == registry.calibrated_keys(False)
     assert facts["cards"][0]["number"] == "10 of 12" and facts["cards"][0]["line"] == "had it in the last 7 nights"
     assert facts["commercial"]["broke"]["key"] == "commercial.existing_sacrifice"

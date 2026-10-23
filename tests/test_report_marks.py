@@ -44,9 +44,18 @@ def _n(card: dict) -> int:
     return int(number.split(" of ")[1]) if " of " in number else 4
 
 
+#: A held line's one follow-up (spec 064 FR-8a, keel-cloud 119: a dissent box; one answer is its own group).
+DISSENT = ("inv-ann", "Ann Abbott", "Another app to open is too much on a busy morning.")
+
+
+def _quote(i: str, n: str, t: str, *, option: str, side: str, heading: str) -> dict:
+    return {"invitationId": i, "name": n, "text": t, "option": option, "side": side, "heading": heading}
+
+
 def standings() -> dict:
-    """A contract-19 `StandingsView` over the B2B fixture: Purchase friction split (a rung with no question) and
-    Commitment split (three follow-ups, grouped by the fake); two pilot people, one a dataset's with an email."""
+    """A contract-28 `StandingsView` over the B2B fixture (spec 064 FR-8a, keel-cloud 119): Commitment split with three
+    follow-ups (GROUPED by the fake), Adoption friction held with one (a dissent box, its own group), Purchase friction
+    split with no words (a `notAsked` line); two pilot people, one a dataset's with an email."""
     facts = bf.facts_for(fx.entry(fx.ENTRY_B2B), fx.registry())
     cards = facts["cards"]
     names = {c["key"]: c["name"] for c in cards}
@@ -62,24 +71,35 @@ def standings() -> dict:
                 row["people"] = [{"invitationId": i, "personName": n, "readAs": "said no", "followUp": t}
                                  for i, n, t in FOLLOW_UPS] + [{"invitationId": "inv-max", "personName": "Max Moss",
                                                                 "readAs": "said yes"}]
+            if card["key"] == "solution.adoption_friction":
+                row["people"] = [{"invitationId": DISSENT[0], "personName": DISSENT[1], "readAs": "said no",
+                                  "followUp": DISSENT[2]}]
             dims.append(row)
         verdict = next(v["verdict"] for v in facts["vectors"] if v["vector"] == vector)
         vectors.append({"vector": vector, "verdict": verdict, "dimensions": dims})
-    answers = [{"id": i, "text": t} for i, _n_, t in FOLLOW_UPS]
-    by_id = {i: {"name": n, "text": t} for i, n, t in FOLLOW_UPS}
-    grouped = fake.themes(answers, "Commitment")["themes"]
+    heading = fake.RUNG_HEADINGS["commercial.commitment"]
+    quotes = [_quote(i, n, t, option="No", side="AGAINST", heading=heading) for i, n, t in FOLLOW_UPS]
+    by_id = {q["invitationId"]: q for q in quotes}
+    grouped = fake.themes([{"id": q["invitationId"], "text": q["text"]} for q in quotes], "Commitment")["themes"]
+    dissent = _quote(*DISSENT, option="No", side="AGAINST", heading=fake.RUNG_HEADINGS["solution.adoption_friction"])
     insights = [
-        {"dimension": "commercial.purchase_friction", "name": names["commercial.purchase_friction"],
-         "status": "PEOPLE_DISAGREE", "rungHeading": None,
-         "noQuestionWhy": fake.NO_FOLLOW_UP_WHY["commercial.purchase_friction"], "against": 2, "asked": 0,
-         "answered": 0, "skipped": 0, "tookBy": [], "themes": [], "raw": False, "rawQuotes": []},
         {"dimension": "commercial.commitment", "name": "Commitment", "status": "PEOPLE_DISAGREE",
-         "rungHeading": fake.RUNG_HEADINGS["commercial.commitment"], "noQuestionWhy": None, "against": 3,
-         "asked": 3, "answered": 3, "skipped": 0, "tookBy": [],
+         "rungHeading": heading, "noQuestionWhy": None, "against": 3, "asked": 3, "answered": 3, "skipped": 0,
+         "tookBy": [], "state": "GROUPED", "note": None, "dissent": False, "frame": None, "quotes": quotes,
          "themes": [{"label": t["label"], "count": len(t["answerIds"]),
-                     "quotes": fake.served_quotes(t["answerIds"], by_id)} for t in grouped],
+                     "quotes": sorted((by_id[i] for i in t["answerIds"]), key=lambda q: len(q["text"])),
+                     "quoteIds": list(t["answerIds"])} for t in grouped],
+         "raw": False, "rawQuotes": []},
+        {"dimension": "solution.adoption_friction", "name": names["solution.adoption_friction"],
+         "status": "HOLDING_UP", "rungHeading": fake.RUNG_HEADINGS["solution.adoption_friction"],
+         "noQuestionWhy": None, "against": 1, "asked": 1, "answered": 1, "skipped": 0, "tookBy": [],
+         "state": "GROUPED", "note": None, "dissent": True,
+         "frame": "Adoption friction held, 7 of 8; the 1 who said no:", "quotes": [dissent],
+         "themes": [{"label": fake.ON_THEIR_OWN, "count": 1, "quotes": [dissent], "quoteIds": [DISSENT[0]]}],
          "raw": False, "rawQuotes": []},
     ]
+    not_asked = [{"dimension": "commercial.purchase_friction", "name": names["commercial.purchase_friction"],
+                  "why": "nobody's follow-up landed here"}]
     people = [
         {"invitationId": "inv-ann", "name": "Ann Abbott", "link": "PRIMARY", "words": "people who have it",
          "source": "KNOWN", "datasetName": None, "email": None, "gate": True, "story": "I could not find my keys.",
@@ -92,7 +112,7 @@ def standings() -> dict:
     ]
     return {"asOf": "2026-10-17T00:00:00Z", "revision": 9, "version": 25, "name": PROJECT, "people": {},
             "pilot": facts["pilot"], "priceMedian": facts["commercial"]["priceMedian"], "pilotPeople": people,
-            "vectors": vectors, "facts": facts, "insights": insights}
+            "vectors": vectors, "facts": facts, "insights": insights, "notAsked": not_asked, "outsideSegment": 0}
 
 
 # ---------------------------------------------------------------------- what a faithful page draws
@@ -127,25 +147,35 @@ def board(st: dict) -> dict:
 
 
 def insights_page(st: dict) -> dict:
+    """What keel-web 095 draws from the standings: the boxes (dissent last), each by its state; the notAsked lines."""
+    served = st.get("insights") or []
+    order = [i for i in served if not i.get("dissent")] + [i for i in served if i.get("dissent")]
     boxes, quotes, own = [], [], []
-    for key in rm.failing_dimensions(st):
-        insight = next(i for i in st["insights"] if i["dimension"] == key)
+    for insight in order:
         w = rm.expected_box(insight)
         themes = [{"label": t["label"], "count": t["count"], "quotes": list(t["quotes"])} for t in w["themes"]]
         theme_text = [_join(f"{t['label']} ({t['count']})", *t["quotes"]) for t in themes]
-        text = _join(*w["head"], w["split"], w["concern"], *theme_text, w["took_by"], w["no_follow_up"],
-                     *([fake.IN_THEIR_WORDS] + w["raw"] if w["raw"] else []))
-        quotes += [q for t in themes for q in t["quotes"]] + list(w["raw"] or [])
-        own += [x for x in (w["concern"], w["took_by"]) if x]
-        boxes.append({"key": key, "head": _join(*w["head"]), "concern": w["concern"] or "", "themes": themes,
-                      "text": text, "split": w["split"], "took_by": w["took_by"], "no_follow_up": w["no_follow_up"]})
+        loose = w["grouping"] or w["raw"] or []
+        lead = [fake.GROUPING_LINE] if w["grouping"] else ([fake.IN_THEIR_WORDS] + ([w["note"]] if w["note"] else [])
+                                                           if w["raw"] else [])
+        text = _join(*w["head"], w["split"], w["concern"], w["frame"], *theme_text, w["took_by"], *lead, *loose)
+        quotes += [q for t in themes for q in t["quotes"]] + list(loose)
+        own += [x for x in (w["concern"], w["frame"], w["took_by"]) if x]
+        boxes.append({"key": w["key"], "state": w["state"], "dissent": w["dissent"], "head": _join(*w["head"]),
+                      "concern": w["concern"] or "", "frame": w["frame"], "themes": themes, "text": text,
+                      "split": w["split"], "took_by": w["took_by"], "grouping": w["grouping"], "raw": w["raw"] or [],
+                      "raw_note": w["note"]})
+    not_asked = [{"key": n["dimension"], "text": fake.not_asked_line(n)} for n in st.get("notAsked") or []]
     empty = None
     if not boxes:
         n = st["facts"]["pilot"]["finished"]
-        empty = _join(fake.NOTHING_TO_READ_YET, fake.nothing_to_read_line(n)) if rm.thin(st) else \
-            _join(fake.NOTHING_FAILING, fake.NOTHING_FAILING_LINE)
-    return {"boxes": boxes, "empty": empty, "quotes": quotes, "own_lines": own,
-            "text": _join(*(b["text"] for b in boxes), empty)}
+        if not_asked:
+            empty = _join(fake.NOTHING_TO_READ_YET, fake.NO_WORDS_LINE)
+        else:
+            empty = _join(fake.NOTHING_TO_READ_YET, fake.nothing_to_read_line(n)) if rm.thin(st) else \
+                _join(fake.NOTHING_FAILING, fake.NOTHING_FAILING_LINE)
+    return {"boxes": boxes, "empty": empty, "not_asked": not_asked, "quotes": quotes, "own_lines": own,
+            "text": _join(*(b["text"] for b in boxes), *(n["text"] for n in not_asked), empty)}
 
 
 def pilot_page(st: dict) -> dict:
@@ -285,8 +315,8 @@ def test_the_lead_lines_follow_the_stage_status():
     drawn = rm.expected_overview(st)["panels"]
     assert drawn["PROBLEM"]["lead"] == ["4 of 4 holding."]
     assert drawn["COMMERCIAL"]["lead"] == [
-        "Purchase friction · 3 of 5 did not need the office manager's sign-off, or it was quick",
-        "Commitment · 3 of 5 open to install the app"]
+        "Purchase friction · 2 of 5 needed the office manager's sign-off, and it took a long time",
+        "Commitment · 2 of 5 would install the app · 1 more after trying it first"]
     facts = copy.deepcopy(st["facts"])
     facts["vectors"][2]["verdict"] = "TOO_FEW_TO_CALL"
     for c in facts["cards"]:
@@ -347,23 +377,29 @@ def test_keel_clouds_facts_draw_the_corpus_overview_on_all_seven_entries():
 # ----------------------------------------------------------------------------- report_insights
 
 @pytest.mark.parametrize("fault, why", [
-    (lambda r: r["insights"]["boxes"].reverse(), "the boxes out of worst-first order"),
-    (lambda r: r["insights"]["boxes"].pop(), "a failing dimension with no box"),
-    (lambda r: r["insights"]["boxes"][1]["themes"][0].update(count=3), "a theme's count not the wire's"),
-    (lambda r: r["insights"]["boxes"][1]["themes"][0]["quotes"].reverse(), "the quotes out of order"),
-    (lambda r: r["insights"]["boxes"][1].update(text=r["insights"]["boxes"][1]["text"].replace(" said why", "")),
-     "the rung's heading line without its said-why"),
-    (lambda r: r["insights"]["boxes"][0].update(text="Purchase friction People disagree"),
-     "the no-follow-up reason not drawn"),
+    (lambda r: r["insights"]["boxes"].reverse(), "the dissent box before the failing one"),
+    (lambda r: r["insights"]["boxes"].pop(), "a dimension with words and no box"),
+    (lambda r: r["insights"]["boxes"][0]["themes"][0].update(count=3), "a theme's count not the wire's"),
+    (lambda r: r["insights"]["boxes"][0]["themes"][0]["quotes"].reverse(), "the quotes out of order"),
+    (lambda r: r["insights"]["boxes"][0].update(concern="What they would start with"),
+     "the rung's heading not the served stem"),
+    (lambda r: r["insights"].update(not_asked=[]), "the notAsked line not drawn"),
     (lambda r: r["insights"]["boxes"][0].update(took_by="Only 1 of the 2 were asked here: ..."),
      "a took-by line the wire has none of"),
-    (lambda r: r["standings"]["insights"][1]["themes"][0].update(label="office"), "the served themes not the fake's"),
-    (lambda r: r["standings"]["insights"][1]["themes"][0]["quotes"][0].update(name="Somebody Else"),
+    (lambda r: r["insights"]["boxes"][1].update(text="Adoption friction Holding up"), "the dissent frame not drawn"),
+    (lambda r: r["standings"]["insights"][0]["themes"][0].update(label="office"), "the served themes not the fake's"),
+    (lambda r: r["standings"]["insights"][0]["quotes"][0].update(name="Somebody Else"),
      "a quote under a name the invitation does not carry"),
-    (lambda r: r["standings"]["insights"][1]["themes"][0]["quotes"][0].update(text="Words nobody said."),
+    (lambda r: r["standings"]["insights"][0]["quotes"][0].update(text="Words nobody said."),
      "a quote nobody wrote"),
-    (lambda r: r["standings"]["insights"][1].update(asked=2), "asked + took by != against"),
-    (lambda r: r["standings"]["insights"].pop(0), "insights[] missing a failing dimension"),
+    (lambda r: r["standings"]["insights"][0].update(asked=2), "asked + took by != against"),
+    (lambda r: r["standings"]["insights"].pop(0), "insights[] missing a dimension with words"),
+    (lambda r: r["standings"]["insights"][0].update(state="GROUPING"), "not grouped on the scripted stack"),
+    (lambda r: r["standings"]["insights"][0].update(answered=2), "answered is not the quotes'"),
+    (lambda r: r["standings"]["insights"][0]["themes"].insert(0, {"label": fake.ON_THEIR_OWN, "count": 0,
+                                                                  "quotes": []}), "ON_THEIR_OWN not last"),
+    (lambda r: r["standings"]["notAsked"].append({"dimension": "commercial.commitment", "name": "Commitment",
+                                                  "why": "x"}), "notAsked names a line with words"),
     (lambda r: r["insights"].update(empty="Nothing is failing"), "an empty state beside the boxes"),
 ])
 def test_report_insights_fails_on_each_seeded_fault(fault, why):
@@ -382,7 +418,10 @@ def test_the_insights_empty_states_are_the_right_one_of_the_two():
         for d in v["dimensions"]:
             d["status"] = "HOLDING_UP"
     st["facts"]["decision"]["label"] = "BUILD"
-    st["insights"] = []
+    st["insights"], st["notAsked"] = [], []
+    for v in st["vectors"]:
+        for d in v["dimensions"]:
+            d["people"] = []
     r = record(st)
     assert "Nothing is failing" in r["insights"]["empty"] and _card(r)["report_insights"].ok
     r["insights"]["empty"] = _join(fake.NOTHING_TO_READ_YET, fake.nothing_to_read_line(17))
@@ -406,8 +445,8 @@ def test_the_insights_empty_states_are_the_right_one_of_the_two():
 def test_off_the_stack_the_themes_are_held_for_shape_only():
     """FR-9: on a live cell the labels are the model's -- a label the fake would not write is not a fault there."""
     r = record()
-    r["standings"]["insights"][1]["themes"][0]["label"] = "rollout"
-    r["insights"]["boxes"][1]["themes"][0]["label"] = "rollout"
+    r["standings"]["insights"][0]["themes"][0]["label"] = "rollout"
+    r["insights"]["boxes"][0]["themes"][0]["label"] = "rollout"
     assert not _card(r)["report_insights"].ok
     r["strict"] = False
     assert _card(r)["report_insights"].ok
@@ -417,8 +456,13 @@ def test_off_the_stack_the_themes_are_held_for_shape_only():
 
 def test_report_no_repeat_holds_on_the_faithful_view_and_inside_a_quote():
     r = record()
-    r["standings"]["insights"][1]["themes"][0]["quotes"][0]["text"] = "We tried 3 of 5 desks for £20."
-    r["standings"]["vectors"][2]["dimensions"][-1]["people"][0]["followUp"] = "We tried 3 of 5 desks for £20."
+    quote = r["standings"]["insights"][0]["themes"][0]["quotes"][0]
+    quote["text"] = "We tried 3 of 5 desks for £20."
+    for q in r["standings"]["insights"][0]["quotes"]:
+        if q["invitationId"] == quote["invitationId"]:
+            q["text"] = quote["text"]
+    row = r["standings"]["vectors"][2]["dimensions"][-1]["people"]
+    next(p for p in row if p["invitationId"] == quote["invitationId"])["followUp"] = "We tried 3 of 5 desks for £20."
     r["insights"] = insights_page(r["standings"])
     assert "3 of 5" in r["insights"]["text"]
     assert _card(r)["report_no_repeat"].ok, "a quote is the person's own words"
@@ -498,14 +542,14 @@ def test_report_binding_fails_on_each_seeded_fault(fault, why):
 
 def test_a_healthy_projects_sheet_carries_no_in_their_words():
     st = standings()
-    st["insights"] = []
+    st["insights"], st["notAsked"] = [], []
     for v in st["vectors"]:
         for d in v["dimensions"]:
-            d["status"] = "HOLDING_UP"
+            d["status"], d["people"] = "HOLDING_UP", []
     r = record(st)
     assert _card(r)["report_binding"].ok
-    r["binding"]["pages"][1]["text"] += " In their words"
-    r["insights"]["text"] += " In their words"
+    r["binding"]["pages"][1]["text"] += " " + fake.IN_THEIR_WORDS
+    r["insights"]["text"] += " " + fake.IN_THEIR_WORDS
     assert not _card(r)["report_binding"].ok, "D9: no In their words on a healthy project"
 
 
@@ -531,8 +575,9 @@ def test_the_themes_fake_is_held_to_keel_clouds_cases():
         assert fake.themes(case["answers"], case["name"]) == case["result"], case["case_id"]
         assert case["rungHeading"] == fake.RUNG_HEADINGS[case["dimension"]]
     labels = {c["dimension"]: [t["label"] for t in c["result"]["themes"]] for c in exported["cases"]}
-    assert labels == {"problem.importance": ["work", "rates", "deadlines"],
-                      "solution.compatibility": ["portal", "owner", "finance"]}
+    # keel-cloud 119 (FR-3): every other answer in one last ON_THEIR_OWN group
+    assert labels == {"problem.importance": ["work", "rates", "deadlines", fake.ON_THEIR_OWN],
+                      "solution.compatibility": ["portal", "owner", "finance", fake.ON_THEIR_OWN]}
 
 
 def test_the_first_noun_skips_stop_words_short_words_and_the_dimensions_name():
@@ -545,22 +590,26 @@ def test_the_first_noun_skips_stop_words_short_words_and_the_dimensions_name():
     assert fake.first_noun("2024 rates") == "rates", "a digit is not a letter"
 
 
-def test_the_fake_piles_by_size_ties_by_first_appearance_three_at_most():
+def test_the_fake_piles_by_size_ties_by_first_appearance_three_then_on_their_own():
     answers = [{"id": str(i), "text": t} for i, t in enumerate(
         ["Paper first.", "Pilot one office.", "Pilot two desks.", "Desks are small.", "Budget is tight.",
          "Desks again.", "Phone only.", "Nothing."])]
     assert fake.themes(answers) == {"themes": [{"label": "pilot", "answerIds": ["1", "2"]},
                                                {"label": "desks", "answerIds": ["3", "5"]},
-                                               {"label": "paper", "answerIds": ["0"]}]}
+                                               {"label": "paper", "answerIds": ["0"]},
+                                               {"label": fake.ON_THEIR_OWN, "answerIds": ["4", "6", "7"]}]}
 
 
-def test_served_quotes_are_the_shortest_three():
+def test_served_quotes_are_every_quote_shortest_first():
+    """keel-cloud 119 FR-2: the quote caps are gone -- every quote, the shortest first."""
     by_id = {str(i): {"name": f"P{i}", "text": "x" * (10 - i)} for i in range(5)}
-    assert [q["invitationId"] for q in fake.served_quotes(["0", "1", "2", "3", "4"], by_id)] == ["4", "3", "2"]
+    assert [q["invitationId"] for q in fake.served_quotes(["0", "1", "2", "3", "4"], by_id)] == ["4", "3", "2", "1",
+                                                                                                "0"]
 
 
 def test_the_rung_headings_and_no_question_reasons_are_the_registrys():
-    """Registry decision 23 (keel-cloud 104): `follow_up.heading` on the eight rungs, `no_follow_up` on the five."""
+    """Registry decision 23 (keel-cloud 104), moved by 118: `follow_up.heading` on the nine rungs, `no_follow_up` on the
+    four."""
     if not REGISTRY_JSON.is_file():
         pytest.skip(f"no registry export at {REGISTRY_JSON}")
     dims = json.loads(REGISTRY_JSON.read_text(encoding="utf-8"))["dimensions"]
@@ -618,6 +667,11 @@ def test_the_healthy_answers_are_against_on_no_rung():
         for dim in json.loads(REGISTRY_JSON.read_text(encoding="utf-8"))["dimensions"]:
             against = (dim.get("follow_up") or {}).get("against")
             pick = picks.get(dim["key"])
+            if dim["key"] == "commercial.purchase_friction":
+                # keel-cloud 118 judgement call 9: every Purchase friction answer is owed a question (quick is against
+                # the fear, the long purchase its second stem) -- no green project is owed nothing on that link
+                assert pick in against + list((dim["follow_up"].get("also") or {}).get("on") or []), pick
+                continue
             if isinstance(against, list) and isinstance(pick, str):
                 assert pick not in against, dim["key"]
             if isinstance(pick, dict) and "answer" in pick:
@@ -662,8 +716,8 @@ def _job(executor_mod, dimension, name, answers):
 
 def test_the_scripted_themes_resolve_on_the_runtime_to_the_fakes_grouping_of_the_same_texts():
     """C3-like (Compatibility) and S03-like (Importance): the script's entries, written from the answers' texts alone,
-    resolved by keel-runtime 012 against the job's context, are exactly `FakeThemes`' result on that context -- whichever
-    job arrives first, and the same when asked twice."""
+    resolved by keel-runtime 012 against the job's context, are exactly `FakeThemes`' result on that context (with
+    keel-cloud 119's ON_THEIR_OWN last) -- whichever job arrives first, and the same when asked twice."""
     from harness import vectors_script as vs                               # noqa: PLC0415
     if not THEMES_CASES.is_file():
         pytest.skip(f"no themes cases at {THEMES_CASES}")
@@ -673,7 +727,7 @@ def test_the_scripted_themes_resolve_on_the_runtime_to_the_fakes_grouping_of_the
     follow_ups = [(c["dimension"], a["text"]) for c in cases for a in c["answers"]]
     entries = vs.themes_entries(entry, follow_ups)
     assert [e.get("dimension") for e in entries] == [k for k in vs.NAMES if k in {c["dimension"] for c in cases}] \
-        + [None], "one entry a failing dimension, in registry order, then the catch-all"
+        + [None], "one entry a dimension the walks post on, in registry order, then the catch-all"
     executor = runtime.ScriptedExecutor({"THEMES": entries})
     for case in reversed(cases + cases):
         got = executor.execute(_job(executor_mod, case["dimension"], case["name"], case["answers"]))
@@ -692,56 +746,43 @@ def test_a_dimension_nobody_scripted_gets_the_catch_alls_empty_themes():
     assert vs.themes_entries(_failing(), []) == [{"outcome": "COMPLETED", "result": {"themes": []}}]
 
 
-def test_a_text_two_people_typed_is_scripted_once_and_a_dimension_not_failing_is_not_scripted():
+def test_a_text_two_people_typed_is_scripted_once():
     from harness import vectors_script as vs                               # noqa: PLC0415
     entries = vs.themes_entries(_failing("commercial.commitment"), [
         ("commercial.commitment", "A free trial on one small job first."),
         ("commercial.commitment", "A short demo with our own numbers in it."),
         ("commercial.commitment", "A free trial on one small job first."),
         ("commercial.price", "Seeing it work with our own clients first would.")])
-    assert entries[0] == {"dimension": "commercial.commitment", "outcome": "COMPLETED", "result": {"themes": [
+    assert entries[1] == {"dimension": "commercial.commitment", "outcome": "COMPLETED", "result": {"themes": [
         {"label": "free", "answers": ["A free trial on one small job first."]},
         {"label": "short", "answers": ["A short demo with our own numbers in it."]}]}}
-    assert [e.get("dimension") for e in entries] == ["commercial.commitment", None], "Price holds on this entry"
+    assert [e.get("dimension") for e in entries] == ["commercial.price", "commercial.commitment", None], (
+        "keel-cloud 119 groups held lines too: every dimension the walks post on, in registry order")
 
 
-#: The THEMES entries each scenario's script carries (spec 051's lines on the entry's failing rungs), then the catch-all.
-SCRIPTED_THEMES = {"01-countly.yaml": ["problem.current_solution_satisfaction"],
-                   "05-paidly.yaml": ["commercial.price", "commercial.buyer_payer_alignment"],
-                   "07-mulchrun.yaml": ["problem.importance", "commercial.commitment"]}
-
-
-@pytest.mark.parametrize("name", sorted(SCRIPTED_THEMES))
-def test_every_scripted_text_is_a_line_the_walk_posts(name):
-    """The texts resolve only if they are the strings the walks post: every THEMES text of a scenario's script is a
-    person's `follow_up` line (spec 051's `FOLLOW_UP_LINES`) on a dimension the entry leaves failing, the rung that
-    person's picks go against first; each entry is the fake's grouping of exactly those lines; the catch-all last."""
+@pytest.mark.parametrize("name", ["01-countly.yaml", "05-paidly.yaml", "07-mulchrun.yaml"])
+def test_every_rung_scripts_its_one_line_and_any_partial_context_resolves(name):
+    """Spec 064 FR-7 (judgement call): one line a rung, so whoever the walk asks there -- the deciding line first,
+    read at answer time -- types that line, and a THEMES job over any of the answers so far (keel-cloud 119 starts one
+    at every batch's end) resolves on the runtime to the one theme of that line."""
     from harness import vectors_script as vs                               # noqa: PLC0415
+    runtime, executor_mod = _runtime()
     entry = _canon(name)
-    people = vs.person_inputs(entry)
-    founder = vs.founder_side(entry)
-    posted: dict[str, list[str]] = {}
-    for p in people:
-        if p.follow_up:
-            posted.setdefault(fake.first_rung(p.picks, founder, p.link, b2b=vs.is_b2b(entry)), []).append(p.follow_up)
     entries = vs.generate(entry).screens[vs.THEMES_SCREEN]
-    assert [e.get("dimension") for e in entries] == SCRIPTED_THEMES[name] + [None], name
-    assert entries[-1] == {"outcome": "COMPLETED", "result": {"themes": []}}
-    for e in entries[:-1]:
-        key = e["dimension"]
-        assert key in vs.failing_keys(entry), key
-        texts = [t for th in e["result"]["themes"] for t in th["answers"]]
-        assert set(texts) == set(posted[key]) and all(t in vs.FOLLOW_UP_LINES[key] for t in texts), key
-        ids = {t: [str(i) for i, x in enumerate(posted[key]) if x == t] for t in texts}
-        want = fake.themes([{"id": str(i), "text": t} for i, t in enumerate(posted[key])], vs.NAMES[key])["themes"]
-        assert [{"label": th["label"], "answerIds": sorted({i for t in th["answers"] for i in ids[t]}, key=int)}
-                for th in e["result"]["themes"]] == want, key
-    unscripted = set(posted) - set(SCRIPTED_THEMES[name])
-    assert not unscripted & set(vs.failing_keys(entry)), "a failing rung with follow-ups and no entry of its own"
+    assert [e.get("dimension") for e in entries] == list(fake.RUNGS) + [None]
+    executor = runtime.ScriptedExecutor({"THEMES": entries})
+    for rung in fake.RUNGS:
+        line = vs.FOLLOW_UP_LINES[rung][0]
+        for n in (2, 3, 5):
+            answers = [{"id": f"i{k}", "text": line} for k in range(n)]
+            got = executor.execute(_job(executor_mod, rung, vs.NAMES[rung], answers))
+            assert got["result"] == fake.themes(answers, vs.NAMES[rung]), (rung, n)
+            assert got["result"]["themes"][-1]["label"] != fake.ON_THEIR_OWN, (rung, n)
 
 
 def test_the_healthy_project_scripts_the_catch_all_alone():
     from harness import vectors_script as vs                               # noqa: PLC0415
     healthy = preludes.healthy_entry(_canon("05-paidly.yaml"))
     assert vs.failing_keys(healthy) == []
-    assert vs.generate(healthy).screens[vs.THEMES_SCREEN] == [{"outcome": "COMPLETED", "result": {"themes": []}}]
+    # keel-cloud 119: held lines are grouped too -- every rung's one line is scripted on every project
+    assert [e.get("dimension") for e in vs.generate(healthy).screens[vs.THEMES_SCREEN]] == list(fake.RUNGS) + [None]

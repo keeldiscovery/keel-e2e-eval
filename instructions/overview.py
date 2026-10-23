@@ -134,9 +134,14 @@ def hero(facts: dict) -> dict:
     if label == "KEEP_INTERVIEWING":
         why = [people_answered(n), CARD_NEEDS, SEND_TO_MORE]
     else:
-        tail = [f"{c.get('name')} is {_lower(head(c.get('statusWords')))}" for c in failing(facts)]
+        # spec 064 FR-8 / 8c (keel-cloud 122 FR-3, keel-web 098 FR-2): the reason line, then the decision's named change
+        # -- `decision.change.sentence` and, where a second line broke, `change.also.sentence` -- in place of the
+        # semicolon list of the failing cards this module used to join ("{Dimension} is {status}; ..."), deleted
         why = [f"{HOW_SURE_WORDS.get(decision.get('howSure'), decision.get('howSure'))}.", decision.get("reason")]
-        why += ["; ".join(tail)] if tail else [EVERY_DIMENSION_HOLDS]
+        change = decision.get("change") or {}
+        why += [x for x in (change.get("sentence"), (change.get("also") or {}).get("sentence")) if x]
+        if label == "BUILD" or (not change and not failing(facts)):
+            why.append(EVERY_DIMENSION_HOLDS)
     return {"kicker": SHOULD_YOU_BUILD_IT, "label": label, "verdict": DECISION_WORDS.get(label, label),
             "why": why, "send_more": label == "KEEP_INTERVIEWING",
             "caption": [STAGE_NAME[v] for v in VECTORS]}

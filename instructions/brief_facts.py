@@ -54,7 +54,64 @@ NOT_ASKED_WHY = {ABILITY_KEY: "it is derived from what they lose today and your 
 DERIVED_ABILITY_LINE = "derived from cost and price: already lose your price or more"
 #: keel-cloud 091 FR-F1 (`BriefFacts.Card.keelBar`): Keel's bar where Keel sets it, the words after "Keel's bar: ".
 KEEL_BAR = {IMPORTANCE_KEY: "holds if at least 2 in 3 put it in their two",
-            CURRENT_SOLUTION_KEY: "holds if at least 2 in 3 say today's way falls short (answers 3 to 5)"}
+            CURRENT_SOLUTION_KEY: "holds if at least 2 in 3 say today's way falls short (answers 3 to 5)",
+            # spec 064 FR-7 (keel-cloud 118 FR-3): the fear's bar
+            PURCHASE_FRICTION_KEY: "holds if at least 2 in 3 say it was needed last time and took a long time"}
+
+
+def current_solution_bar(rung: str) -> str:
+    """Spec 064 FR-5a (keel-cloud 117 FR-3, `BriefFacts.currentSolutionBar`): Current solution's bar names the
+    founder's worst acceptable rung -- the outcome just above the list's line (D4's 2 where the list carries none)."""
+    return f"holds if at least 2 in 3 land below '{rung.strip()}'"
+
+
+def prevalence_line(clause: str | None, window_words: str) -> str:
+    """Spec 064 FR-4a (keel-cloud 116 FR-3, `BriefFacts.prevalenceLine`): the founder's own clause in the window --
+    *had to recount stock by hand after a mismatched delivery in the last 4 weeks* -- the clause's own past verb is the
+    line's *had*; *had it in {window}* where no clause can be read (a corpus entry records none)."""
+    text = " ".join(str(clause or "").split())
+    while text.endswith("."):
+        text = text[:-1].strip()
+    if len(text) > 1 and text[0].isupper() and not text[1].isupper():
+        text = text[0].lower() + text[1:]
+    return f"{text} in {window_words}" if text else f"had it in {window_words}"
+
+
+#: keel-cloud 122 FR-3 (`facts.decision.change`, `DecisionChangeCorpusTest`): the seven golden decisions' named change,
+#: copied from keel-cloud's `specs/122-.../tasks.md` table (*After*); `instructions/overview.py` draws it in place of the
+#: semicolon list it used to join (spec 064 FR-8c). Read on the corpus reading only; a journey reads the served change.
+DECISION_CHANGE = {
+    "01-countly": {"line": CURRENT_SOLUTION_KEY,
+                   "sentence": "Not yet: Current solution split them, 5 of 8 say today's way falls short."},
+    "02-compliancelog": {"line": "solution.relative_advantage",
+                         "sentence": "Build, but change what it does better: 4 of 9 said it would have made their last "
+                                     "compliance report better.",
+                         "also": {"line": PRICE_KEY,
+                                  "sentence": "Change the price too: 7 of 9 put it below your $250 to $350 a month."}},
+    "03-lullaby": {"line": CURRENT_SOLUTION_KEY,
+                   "sentence": "Not yet: Current solution did not hold, 2 of 8 say today's way falls short.",
+                   "also": {"line": IMPORTANCE_KEY,
+                            "sentence": "Importance split them too, 3 of 8 put it in their top two."}},
+    "04-linerly": {"line": IMPORTANCE_KEY, "sentence": "Not yet: Importance split them, 3 of 8 put it in their top two.",
+                   "also": {"line": CURRENT_SOLUTION_KEY,
+                            "sentence": "Current solution split them too, 3 of 8 say today's way falls short."}},
+    "05-paidly": {"line": SACRIFICE_KEY,
+                  "sentence": "Build, but change the cost you put on the problem: the middle cost was $58.33 a month "
+                              "against your $100 to $300 a month.",
+                  "also": {"line": PRICE_KEY,
+                           "sentence": "Change the price too: 3 of 8 put it below your $60 to $100 a month."}},
+    "06-repeatline": {"line": "solution.relative_advantage",
+                      "sentence": "Build, but change what it does better: 3 of 9 said it would have made their last "
+                                  "shift on the phones better.",
+                      "also": {"line": COMMITMENT_KEY,
+                               "sentence": "Change the first step you ask for too: 2 of 7 would introduce us to the "
+                                           "practice's IT supplier."}},
+    "07-mulchrun": {"line": GATE_KEY,
+                    "sentence": "Not yet: Prevalence did not hold, 9 of 12 had it in the last 2 weeks against your "
+                                "nearly all.",
+                    "also": {"line": IMPORTANCE_KEY,
+                             "sentence": "Importance split them too, 4 of 7 put it in their top two."}},
+}
 #: What a card's compare reads; `statusWords` is compared on its verdict half (call 82); `keelBar` since 091 (call 114).
 CARD_FIELDS = ("key", "name", "number", "line", "status", "keelBar")
 PILOT_FIELDS = ("optedIn", "finished", "percent", "perLink")
@@ -107,8 +164,45 @@ def _option_count(standing: dict, code: str) -> int:
     return 0
 
 
-def card(entry, dimension, standing: dict) -> dict:
-    """One `BriefFacts.Card` (design §7.2, 089 FR-001): every word code's."""
+def _split(supports: int, n: int) -> str:
+    """keel-cloud `Compare.split`: at least 2 in 3 holds, at most 1 in 3 does not, else a split (n under 5 too few)."""
+    if n < 5:
+        return "TOO_FEW_TO_CALL"
+    if supports * 3 >= 2 * n:
+        return "HOLDING_UP"
+    if supports * 3 <= n:
+        return "NOT_HOLDING_UP"
+    return "PEOPLE_DISAGREE"
+
+
+def friction_words(key: str, standing: dict, tested: str | None, words: str) -> str:
+    """Spec 064 FR-7 (keel-cloud 118 FR-3, `BriefFacts.frictionWords`): a friction line's words -- Purchase friction (a
+    fear) held *Yes, {step} slows it. Plan for it.*, not held *Your fear was {step}. k of n said it was quick or not
+    needed. Not the blocker you expected.*; Adoption friction (an effort) not held *{Effort} is too much for k of n*;
+    a split and anything else keep the status words."""
+    status = standing.get("status")
+    n = int(standing.get("n") or 0)
+    if status not in ("HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE") or not tested or not n:
+        return words
+    step = lower(tested.strip())
+    if key == PURCHASE_FRICTION_KEY:
+        held = _option_count(standing, "yes_long")
+        belief = _split(held, n)
+        if belief == "HOLDING_UP":
+            return f"Yes, {step} slows it. Plan for it."
+        if belief == "NOT_HOLDING_UP":
+            return (f"Your fear was {step}. {n - held} of {n} said it was quick or not needed. Not the blocker you "
+                    "expected.")
+        return words
+    against = _option_count(standing, "probably_not") + _option_count(standing, "no")
+    if _split(n - against, n) == "NOT_HOLDING_UP":
+        return f"{step[:1].upper() + step[1:]} is too much for {against} of {n}"
+    return words
+
+
+def card(entry, dimension, standing: dict, *, clause: str | None = None) -> dict:
+    """One `BriefFacts.Card` (design §7.2, 089 FR-001): every word code's. `clause` (spec 064 FR-4a): the founder's
+    Prevalence clause the study carries (a journey's scripted one), else none -- a corpus entry records none."""
     key = dimension.key
     status = standing.get("status")
     out = {"key": key, "name": dimension.name}
@@ -117,7 +211,8 @@ def card(entry, dimension, standing: dict) -> dict:
     elif not standing.get("n"):
         out.update(line=NOBODY_LINE)
     elif key == GATE_KEY:
-        out.update(number=f"{standing.get('yes')} of {standing.get('n')}", line=f"had it in {entry.window().words()}")
+        out.update(number=f"{standing.get('yes')} of {standing.get('n')}",
+                   line=prevalence_line(clause, entry.window().words()))
     elif key == FREQUENCY_KEY:
         unit = ((entry.founder_calibration.get(key) or {}).get("answer") or {}).get("unit")
         out.update(number=f"{_plain(standing.get('median'))} {unit}", line="the middle answer")
@@ -130,7 +225,11 @@ def card(entry, dimension, standing: dict) -> dict:
     elif key == "solution.relative_advantage":
         out.update(number=_count(standing), line=f"said it would have made their last {entry.occasion()} better")
     elif key == ADOPTION_KEY:
-        out.update(number=_count(standing), line=f"would {lower((entry.tested(key) or {}).get('label'))}")
+        # keel-cloud 118 FR-2: the effort as asked -- the plain yes; "if it was clearly worth it" apart, after it
+        apart = _option_count(standing, "yes_if_worth_it")
+        out.update(number=f"{_option_count(standing, 'yes')} of {standing.get('n')}",
+                   line=f"would {lower((entry.tested(key) or {}).get('label'))}"
+                        + (f" · {apart} more if it was clearly worth it" if apart else ""))
     elif key == SACRIFICE_KEY:
         cost = entry.cost() or {}
         out.update(number=corpus_mod.money_text(standing.get("median"), cost.get("currency")),
@@ -146,16 +245,29 @@ def card(entry, dimension, standing: dict) -> dict:
             else f"{lower(tested.get('label'))} had to agree"
         out.update(number=_count(standing), line=line)
     elif key == PURCHASE_FRICTION_KEY:
-        # keel-cloud 103 FR-9 (design §3): the supporters -- quick or not needed -- so it falls when the bet fails
-        supporters = _option_count(standing, "yes_quick") + _option_count(standing, "not_needed")
+        # keel-cloud 118 FR-3: the fear's supporters -- needed, and it took a long time
         step = (entry.tested(key) or {}).get("label")
-        out.update(number=f"{supporters} of {standing.get('n')}",
-                   line=f"did not need {lower(step) if step else 'the step'}, or it was quick")
+        out.update(number=f"{_option_count(standing, 'yes_long')} of {standing.get('n')}",
+                   line=f"needed {lower(step) if step else 'the step'}, and it took a long time")
     elif key == COMMITMENT_KEY:
-        out.update(number=_count(standing), line=f"open to {(entry.tested(key) or {}).get('label')}")
+        # keel-cloud 118 FR-2: the step as asked is the number; the second yes beside it, apart
+        apart = _option_count(standing, "yes_after_trying")
+        smaller = (entry.founder_list(key) or {}).get("items") or []
+        second = lower(smaller[1]["label"]) if len(smaller) > 1 else None
+        out.update(number=f"{_option_count(standing, 'yes_start')} of {standing.get('n')}",
+                   line=f"would {(entry.tested(key) or {}).get('label') or 'take the step'}"
+                        + (f" · {apart} more {'after ' + second + ' first' if second else 'after trying it first'}"
+                           if apart else ""))
     out.update(status=status, statusWords=VERDICT_WORDS.get(status, status))
+    if key in (ADOPTION_KEY, PURCHASE_FRICTION_KEY) and standing.get("n"):
+        out["statusWords"] = friction_words(key, standing, (entry.tested(key) or {}).get("label"), out["statusWords"])
     if key in KEEL_BAR and status != "LEFT_OUT":
         out["keelBar"] = KEEL_BAR[key]
+        if key == CURRENT_SOLUTION_KEY:
+            saved = entry.founder_list(key) or {}
+            items = saved.get("items") or []
+            if len(items) >= 2:
+                out["keelBar"] = current_solution_bar(items[1]["label"])
     return out
 
 
@@ -165,15 +277,34 @@ def cards_for(entry, registry) -> list:
     return [card(entry, d, standings.get(d.key) or {}) for d in registry.calibrated(entry.b2b())]
 
 
+def not_counted(gate_no: int, outside: int) -> str | None:
+    """keel-cloud 123 FR-4 (`BriefFacts.notCounted`): the pilot tile's small line, or None when nobody is left out."""
+    parts = ([f"{gate_no} who did not have it"] if gate_no else []) + (
+        [f"{outside} outside who the study is for"] if outside else [])
+    return f"Not counted: {' and '.join(parts)}." if parts else None
+
+
 def pilot_for(entry) -> dict:
-    """`BriefPilot` (089 FR-005): finished = every interview with a response on either link (a gate No too),
-    opted in = those who ticked the box; percent whole, half up; per link in the header's words."""
+    """`BriefPilot` (089 FR-005): opted in = those who ticked the box; percent whole, half up; per link in the header's
+    words. Spec 064 FR-6a (keel-cloud 123 FR-4): on the primary link `finished` counts the people who have it -- a gate
+    Yes -- alone; a gate No and a person outside the segment are named in `notCounted` and counted nowhere else (the
+    decision-maker's link unchanged)."""
     per = []
     links = [LINK_PRIMARY] + ([LINK_B2B] if entry.b2b() else [])
     for link in links:
         people = [p for p in entry.people() if p.link == link]
-        per.append({"link": link, "words": LINK_WORDS[link], "optedIn": sum(1 for p in people if p.pilot_opt_in),
-                    "finished": len(people)})
+        row = {"link": link, "words": LINK_WORDS[link]}
+        if link == LINK_PRIMARY:
+            has_it = [p for p in people if p.gate_yes]
+            gate_no = sum(1 for p in people if p.in_segment and p.recency != "yes")
+            outside = sum(1 for p in people if not p.in_segment)
+            row.update(optedIn=sum(1 for p in has_it if p.pilot_opt_in), finished=len(has_it))
+            line = not_counted(gate_no, outside)
+            if line:
+                row["notCounted"] = line
+        else:
+            row.update(optedIn=sum(1 for p in people if p.pilot_opt_in), finished=len(people))
+        per.append(row)
     opted = sum(p["optedIn"] for p in per)
     finished = sum(p["finished"] for p in per)
     return {"optedIn": opted, "finished": finished,
@@ -294,8 +425,11 @@ def decision(entry, registry) -> dict:
     how = "LOW" if smallest < 5 or too_few else "MEDIUM" if smallest < 10 or disagree else "FAIRLY_SURE"
     who = ("decision-maker" if smallest == 1 else "decision-makers") if entry.b2b() and vector == "COMMERCIAL" \
         else ("person" if smallest == 1 else "people")
-    return {"label": label, "howSure": how, "reason": f"Smallest group: {smallest} {who}.", "smallestN": smallest,
-            "split": split, "notTested": not_tested}
+    out = {"label": label, "howSure": how, "reason": f"Smallest group: {smallest} {who}.", "smallestN": smallest,
+           "split": split, "notTested": not_tested}
+    if label in ("BUILD_BUT_CHANGE", "NOT_YET") and entry.id in DECISION_CHANGE:
+        out["change"] = DECISION_CHANGE[entry.id]
+    return out
 
 
 def broke_of(entry, cards: list, vector: str) -> dict | None:

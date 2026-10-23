@@ -55,23 +55,40 @@ def test_one_card_a_calibrated_dimension_in_registry_order(entry, b2b):
     assert by_key["problem.importance"]["line"] == "put it in their top two"
     assert by_key["solution.compatibility"]["line"] == "said they had a phone to hand"
     assert by_key["solution.relative_advantage"]["line"] == "said it would have made their last morning better"
-    assert by_key["solution.adoption_friction"]["line"] == "would clip a tag to the key ring"
+    # spec 064 FR-7 (keel-cloud 118 FR-2): the plain yes is the number, the conditional yes beside it, apart
+    assert (by_key["solution.adoption_friction"]["number"], by_key["solution.adoption_friction"]["line"]) == (
+        "5 of 8", "would clip a tag to the key ring · 1 more if it was clearly worth it")
     assert by_key["commercial.existing_sacrifice"]["line"] == "a month, what it costs them today"
-    assert by_key["commercial.commitment"]["line"] == "open to install the app"
+    assert (by_key["commercial.commitment"]["number"], by_key["commercial.commitment"]["line"]) == (
+        "4 of 8", "would install the app · 2 more after trying it first")
+    # spec 064 FR-5a (keel-cloud 117 FR-3): Current solution's bar names the rung above the line
+    assert by_key["problem.current_solution_satisfaction"]["keelBar"] == \
+        "holds if at least 2 in 3 land below 'Found them after a quick look'"
+    # spec 064 FR-4a (keel-cloud 116 FR-3): the founder's clause in the window, where the study carries one
+    clause = bf.card(entry, registry.by_key("problem.prevalence"),
+                     entry.expected["standings"]["problem.prevalence"], clause="Had to search for the keys.")
+    assert clause["line"] == "had to search for the keys in the last 7 nights"
     left = by_key["commercial.buyer_payer_alignment"]
     assert left["status"] == "LEFT_OUT" and "number" not in left and left["line"] == bf.LEFT_OUT_LINE
     assert all(c["statusWords"] == bf.VERDICT_WORDS[c["status"]] for c in cards)
 
 
-def test_purchase_friction_counts_the_supporters(b2b):
-    """keel-cloud 103 FR-9 (design §3, overturning 089 call 7): the card counts the supporters -- quick or not needed
-    -- so it falls when the bet fails like every other card."""
+def test_purchase_friction_counts_the_fear_held(b2b):
+    """Spec 064 FR-7 (keel-cloud 118 FR-3, overturning 103 FR-9): Purchase friction is a fear -- the card counts the
+    people who said it was needed and took a long time, and carries the fear's Keel bar."""
     card = next(c for c in bf.cards_for(b2b, fx.registry()) if c["key"] == "commercial.purchase_friction")
     standing = b2b.expected["standings"]["commercial.purchase_friction"]
-    supporters = bf._option_count(standing, "yes_quick") + bf._option_count(standing, "not_needed")
-    assert (supporters, standing["n"]) == (3, 5)
-    assert card["number"] == "3 of 5"
-    assert card["line"] == "did not need the office manager's sign-off, or it was quick"
+    assert (bf._option_count(standing, "yes_long"), standing["n"]) == (2, 5)
+    assert card["number"] == "2 of 5"
+    assert card["line"] == "needed the office manager's sign-off, and it took a long time"
+    assert card["keelBar"] == bf.KEEL_BAR["commercial.purchase_friction"]
+    held = dict(standing, optionCounts="yes_long=4, yes_quick=1, not_needed=0")
+    assert bf.friction_words("commercial.purchase_friction", held, "The office manager's sign-off", "x") == \
+        "Yes, the office manager's sign-off slows it. Plan for it."
+    gone = dict(standing, optionCounts="yes_long=0, yes_quick=3, not_needed=2")
+    assert bf.friction_words("commercial.purchase_friction", gone, "The office manager's sign-off", "x") == (
+        "Your fear was the office manager's sign-off. 5 of 5 said it was quick or not needed. Not the blocker you "
+        "expected.")
 
 
 # ------------------------------------------------------------------------- the price median (spec 052 FR-1)
@@ -115,14 +132,19 @@ def test_the_entrys_price_median_reads_its_own_price_standing(entry, b2b):
     assert bf.price_median_for(dataclasses.replace(entry, expected=nobody)) is None
 
 
-def test_the_pilot_counts_every_finished_interview_on_either_link(entry, b2b):
+def test_the_pilot_counts_the_people_who_have_it_and_every_decision_maker(entry, b2b):
+    """Spec 064 FR-6a (keel-cloud 123 FR-4): on the primary link the gate's Yes alone -- the two No's are named in
+    `notCounted`; the decision-maker's link as before (12 -> 10, 17 -> 15)."""
     pilot = bf.pilot_for(entry)
-    assert pilot["finished"] == 12 and pilot["optedIn"] == sum(p.pilot_opt_in for p in entry.people())
-    assert pilot["percent"] == round(pilot["optedIn"] * 100 / 12)
+    assert pilot["finished"] == 10 and pilot["optedIn"] == sum(p.pilot_opt_in for p in entry.people())
+    assert pilot["percent"] == round(pilot["optedIn"] * 100 / 10)
     assert [p["link"] for p in pilot["perLink"]] == ["PRIMARY"]
+    assert pilot["perLink"][0]["notCounted"] == "Not counted: 2 who did not have it."
     two = bf.pilot_for(b2b)
     assert [p["words"] for p in two["perLink"]] == ["people who have it", "decision-makers"]
-    assert two["finished"] == 17
+    assert two["finished"] == 15 and "notCounted" not in two["perLink"][1]
+    assert bf.not_counted(0, 0) is None and bf.not_counted(2, 1) == \
+        "Not counted: 2 who did not have it and 1 outside who the study is for."
 
 
 def _with_verdicts(entry, **verdicts):

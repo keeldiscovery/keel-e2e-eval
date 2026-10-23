@@ -248,6 +248,9 @@ def report_overview(r: dict) -> tuple[bool, Any]:
 # --------------------------------------------------------------------------------------- the Insights
 
 _RANK = {"NOT_HOLDING_UP": 0, "PEOPLE_DISAGREE": 1}
+#: keel-cloud 119: `insights[]` worst status first, the vectors' order within a status.
+_INSIGHT_RANK = {"NOT_HOLDING_UP": 0, "PEOPLE_DISAGREE": 1, "TOO_FEW_TO_CALL": 2, "NOT_ASKED_YET": 3, "HOLDING_UP": 4,
+                 "LEFT_OUT": 5}
 
 
 def failing_dimensions(standings: dict) -> list[str]:
@@ -255,6 +258,15 @@ def failing_dimensions(standings: dict) -> list[str]:
     order = {k: i for i, k in enumerate(card_order(standings))}
     rows = [d for d in _dims(standings) if d.get("status") in BROKE_ON]
     rows.sort(key=lambda d: (_RANK[d.get("status")], order.get(d.get("dimension"), 99)))
+    return [d.get("dimension") for d in rows]
+
+
+def worded_dimensions(standings: dict) -> list[str]:
+    """Spec 064 FR-8a (keel-cloud 119 FR-1): a box for every dimension on which at least one follow-up with words is
+    stored, any status -- worst status first, the registry's order within one."""
+    order = {k: i for i, k in enumerate(card_order(standings))}
+    rows = [d for d in _dims(standings) if follow_up_answers(standings, d.get("dimension"))]
+    rows.sort(key=lambda d: (_INSIGHT_RANK.get(d.get("status"), 9), order.get(d.get("dimension"), 99)))
     return [d.get("dimension") for d in rows]
 
 
@@ -271,67 +283,114 @@ def thin(standings: dict) -> bool:
     return any(c.get("status") == "TOO_FEW_TO_CALL" for c in facts.get("cards") or [])
 
 
+def _theme_label(theme: dict) -> str:
+    return fake.ON_THEIR_OWN_WORDS if theme.get("label") == fake.ON_THEIR_OWN else str(theme.get("label") or "")
+
+
 def expected_box(insight: dict) -> dict:
-    """One box's words, from its served `insights[]` entry."""
-    themes = [{"label": t.get("label"), "count": t.get("count"),
-               "quotes": [fake.quote_words(q) for q in t.get("quotes") or []]} for t in insight.get("themes") or []]
-    heading = insight.get("rungHeading")
+    """One box's words, from its served `insights[]` entry (contract 28, keel-web 095): the name and pill, the split
+    line, the rung heading alone, the dissent frame, *Only k of the n*, then by state -- GROUPED the themes (*On their
+    own* last), GROUPING *Keel is grouping what they said…* and the quotes, RAW *In their own words*, the note and the
+    quotes."""
+    state = insight.get("state") or ("RAW" if insight.get("raw") else "GROUPED")
+    themes = [{"label": _theme_label(t), "count": t.get("count"),
+               "quotes": [fake.quote_words(q) for q in t.get("quotes") or []]}
+              for t in insight.get("themes") or []] if state == "GROUPED" else []
+    loose = [fake.quote_words(q) for q in (insight.get("rawQuotes") or insight.get("quotes") or [])]
     return {
-        "key": insight.get("dimension"),
+        "key": insight.get("dimension"), "state": state, "dissent": bool(insight.get("dissent")),
         "head": [insight.get("name"), VERDICT_WORDS.get(insight.get("status"), insight.get("status"))],
         "split": fake.SPLIT_NOTE if insight.get("status") == "PEOPLE_DISAGREE" else None,
-        "concern": [heading, fake.said_why_tail(insight.get("answered"), insight.get("against"))] if heading else None,
+        "concern": insight.get("rungHeading") or None,
+        "frame": insight.get("frame") if insight.get("dissent") else None,
         "themes": themes,
         "took_by": fake.took_by(insight.get("asked"), insight.get("against"), insight.get("tookBy"))
         if insight.get("tookBy") else None,
-        "no_follow_up": fake.no_follow_up(insight.get("noQuestionWhy"))
-        if not heading and insight.get("noQuestionWhy") else None,
-        "raw": [fake.quote_words(q) for q in insight.get("rawQuotes") or []] if insight.get("raw") else None,
+        "grouping": loose if state == "GROUPING" else None,
+        "raw": loose if state == "RAW" else None,
+        "note": insight.get("note") if state == "RAW" else None,
     }
 
 
 def predicted_themes(standings: dict, insight: dict) -> list[dict]:
-    """The fake's grouping of the rung's follow-up answers, served as the standings serve themes."""
-    answers = follow_up_answers(standings, insight.get("dimension"))
-    by_id = {a["id"]: {"name": a["name"], "text": a["text"]} for a in answers}
-    grouped = fake.themes([{"id": a["id"], "text": a["text"]} for a in answers], insight.get("name") or "")
+    """The fake's grouping (`interviewer_fake.themes`, keel-cloud 119's `FakeThemes`: up to three, then ON_THEIR_OWN)
+    of the dimension's quotes, in answer order -- served as the standings serve themes: each its count and every quote,
+    shortest first."""
+    quotes = insight.get("quotes") or []
+    by_id = {q.get("invitationId"): {"name": q.get("name"), "text": q.get("text")} for q in quotes}
+    if len(quotes) == 1:
+        # keel-cloud 119 judgement call 4: one answer is its own group, with no call -- GROUPED, ON_THEIR_OWN
+        return [{"label": fake.ON_THEIR_OWN, "count": 1, "quotes": fake.served_quotes(list(by_id), by_id)}]
+    grouped = fake.themes([{"id": q.get("invitationId"), "text": q.get("text")} for q in quotes],
+                          insight.get("name") or "")
     return [{"label": t["label"], "count": len(t["answerIds"]), "quotes": fake.served_quotes(t["answerIds"], by_id)}
             for t in grouped["themes"]]
 
 
 def insight_faults(standings: dict, page: dict, *, strict: bool, names: dict) -> list:
+    """Spec 064 FR-8 / 8a / 8b (keel-cloud 119, keel-web 095): one box per dimension with words, any status, worst
+    first and the held lines' dissent boxes after the rest; every quote a named person's own follow-up, the themes
+    covering each once (at most three, then *On their own*), `answered` the quotes'; the failing lines with no words
+    as `notAsked` lines; GROUPED on the scripted stack, its themes the fake's grouping."""
     faults = []
-    want_dims = failing_dimensions(standings)
+    want_dims = worded_dimensions(standings)
     served = {i.get("dimension"): i for i in standings.get("insights") or []}
     if sorted(served) != sorted(want_dims):
-        faults.append({"insights[] dimensions": sorted(served), "failing": sorted(want_dims)})
+        faults.append({"insights[] dimensions": sorted(served), "with words": sorted(want_dims)})
+    order = [i.get("dimension") for i in standings.get("insights") or []]
+    drawn_order = [k for k in order if not (served.get(k) or {}).get("dissent")] + \
+        [k for k in order if (served.get(k) or {}).get("dissent")]
     boxes = page.get("boxes") or []
-    if [b.get("key") for b in boxes] != want_dims:
-        faults.append({"boxes": [b.get("key") for b in boxes], "want": want_dims})
+    if [b.get("key") for b in boxes] != drawn_order:
+        faults.append({"boxes": [b.get("key") for b in boxes], "want": drawn_order})
     for key, insight in served.items():
+        quotes = insight.get("quotes") or []
+        if int(insight.get("answered") or 0) != len(quotes) or not quotes:
+            faults.append({key: "answered is not the quotes'", "answered": insight.get("answered"), "quotes": len(quotes)})
+        if insight.get("noQuestionWhy") is not None:
+            faults.append({key: "noQuestionWhy is served (keel-cloud 119: always null)", "insight": insight})
         heading = insight.get("rungHeading")
-        if heading and int(insight.get("asked") or 0) + sum(int(t.get("count") or 0) for t in insight.get("tookBy")
-                                                             or []) != int(insight.get("against") or 0):
+        if heading and insight.get("tookBy") is not None and int(insight.get("asked") or 0) + sum(
+                int(t.get("count") or 0) for t in insight.get("tookBy") or []) != int(insight.get("against") or 0):
             faults.append({key: "asked + tookBy != against", "insight": insight})
         themes = insight.get("themes") or []
-        if len(themes) > fake.THEMES_MAX or any(len(t.get("quotes") or []) > fake.QUOTES_MAX for t in themes) \
-                or len(insight.get("rawQuotes") or []) > fake.QUOTES_MAX:
-            faults.append({key: "more than three themes or quotes", "insight": insight})
-        if sum(int(t.get("count") or 0) for t in themes) > int(insight.get("answered") or 0):
-            faults.append({key: "themes count past answered", "insight": insight})
-        said = {a["id"]: a["text"] for a in follow_up_answers(standings, key)}
-        for q in [q for t in themes for q in t.get("quotes") or []] + list(insight.get("rawQuotes") or []):
-            if said.get(q.get("invitationId")) != q.get("text") or names.get(q.get("invitationId")) != q.get("name"):
+        state = insight.get("state")
+        if state not in ("GROUPING", "GROUPED", "RAW"):
+            faults.append({key: "state", "served": state})
+        if themes and state != "GROUPED":
+            faults.append({key: "themes served while not GROUPED", "state": state})
+        if state == "GROUPED":
+            own = [t for t in themes if t.get("label") == fake.ON_THEIR_OWN]
+            named = [t for t in themes if t.get("label") != fake.ON_THEIR_OWN]
+            if len(named) > fake.THEMES_MAX or len(own) > 1 or (own and themes[-1] is not own[0]):
+                faults.append({key: "at most three themes, then ON_THEIR_OWN last", "themes": themes})
+            ids = [q.get("invitationId") for t in themes for q in t.get("quotes") or []]
+            if sorted(map(str, ids)) != sorted(str(q.get("invitationId")) for q in quotes):
+                faults.append({key: "the themes do not cover every quote once", "themes": ids,
+                               "quotes": [q.get("invitationId") for q in quotes]})
+            for t in themes:
+                if int(t.get("count") or 0) != len(t.get("quotes") or []):
+                    faults.append({key: "a theme's count is not its quotes'", "theme": t})
+        said = {}
+        for a in follow_up_answers(standings, key):
+            said.setdefault(a["id"], set()).add(a["text"])
+        for q in quotes + [q for t in themes for q in t.get("quotes") or []] + list(insight.get("rawQuotes") or []):
+            if q.get("text") not in said.get(q.get("invitationId"), set()) or names.get(q.get("invitationId")) != q.get("name"):
                 faults.append({key: "a quote not a named person's own follow-up", "quote": q,
-                               "said": said.get(q.get("invitationId")), "name": names.get(q.get("invitationId"))})
-        if strict and heading and not insight.get("raw"):
+                               "said": sorted(said.get(q.get("invitationId"), set())),
+                               "name": names.get(q.get("invitationId"))})
+            if q in quotes and q.get("side") not in ("FOR", "AGAINST", "APART"):
+                faults.append({key: "a quote's side", "quote": q})
+        if strict and state != "GROUPED":
+            faults.append({key: "not GROUPED on the scripted stack", "state": state, "note": insight.get("note")})
+        if strict and state == "GROUPED":
             want = predicted_themes(standings, insight)
             have = [{"label": t.get("label"), "count": t.get("count"),
                      "quotes": [{k: q.get(k) for k in ("invitationId", "name", "text")} for q in t.get("quotes") or []]}
                     for t in themes]
             if have != want:
                 faults.append({key: "themes are not the fake's grouping", "served": have, "fake": want})
-        if heading and heading != fake.RUNG_HEADINGS.get(key):
+        if heading and heading not in (fake.RUNG_HEADINGS.get(key), (fake.ALSO.get(key) or (None,) * 4)[3]):
             faults.append({key: "rung heading", "served": heading, "registry": fake.RUNG_HEADINGS.get(key)})
     by_key = {b.get("key"): b for b in boxes}
     for key in want_dims:
@@ -339,11 +398,16 @@ def insight_faults(standings: dict, page: dict, *, strict: bool, names: dict) ->
             continue
         want, got = expected_box(served[key]), by_key[key]
         missing = ov.in_order(got.get("head"), want["head"])
-        for part in ("split", "concern", "took_by", "no_follow_up"):
+        if got.get("state") != want["state"] or bool(got.get("dissent")) != want["dissent"]:
+            faults.append({key: "the box's state", "drawn": [got.get("state"), got.get("dissent")],
+                           "wire": [want["state"], want["dissent"]]})
+        for part in ("split", "took_by", "frame"):
             if want[part] is not None:
-                missing += ov.in_order(got.get("text"), want[part] if isinstance(want[part], list) else [want[part]])
-            elif part in ("split", "took_by", "no_follow_up") and got.get(part):
+                missing += ov.in_order(got.get("text"), [want[part]])
+            elif got.get(part):
                 faults.append({key: f"{part} drawn where the wire has none", "drawn": got.get(part)})
+        if want["concern"] is not None and ov.norm(got.get("concern")) != ov.norm(want["concern"]):
+            faults.append({key: "the rung heading drawn", "drawn": got.get("concern"), "wire": want["concern"]})
         drawn = got.get("themes") or []
         if [(ov.norm(t.get("label")), t.get("count")) for t in drawn] != \
                 [(ov.norm(t["label"]), t["count"]) for t in want["themes"]]:
@@ -352,14 +416,30 @@ def insight_faults(standings: dict, page: dict, *, strict: bool, names: dict) ->
             for wt, gt in zip(want["themes"], drawn):
                 if [ov.norm(q) for q in gt.get("quotes") or []] != [ov.norm(q) for q in wt["quotes"]]:
                     faults.append({key: f"quotes of {wt['label']}", "drawn": gt.get("quotes"), "wire": wt["quotes"]})
+        if want["grouping"] is not None:
+            missing += ov.in_order(got.get("text"), [fake.GROUPING_LINE] + want["grouping"])
         if want["raw"] is not None:
-            missing += ov.in_order(got.get("text"), [fake.IN_THEIR_WORDS] + want["raw"])
+            missing += ov.in_order(got.get("text"), [fake.IN_THEIR_WORDS] + ([want["note"]] if want["note"] else [])
+                                   + want["raw"])
         if missing:
             faults.append({key: got.get("text"), "missing": missing})
+    not_asked = standings.get("notAsked") or []
+    worded = set(want_dims)
+    for n in not_asked:
+        if n.get("dimension") in worded:
+            faults.append({"notAsked names a line with words": n})
+    drawn_na = [(n.get("key"), ov.norm(n.get("text"))) for n in page.get("not_asked") or []]
+    want_na = [(n.get("dimension"), ov.norm(fake.not_asked_line(n))) for n in not_asked]
+    if drawn_na != want_na:
+        faults.append({"notAsked lines": drawn_na, "wire": want_na})
     if not want_dims:
         n = int(((standings.get("facts") or {}).get("pilot") or {}).get("finished") or 0)
-        want_empty = [fake.NOTHING_TO_READ_YET, fake.nothing_to_read_line(n)] if thin(standings) \
-            else [fake.NOTHING_FAILING, fake.NOTHING_FAILING_LINE]
+        if not_asked:
+            want_empty = [fake.NOTHING_TO_READ_YET, fake.NO_WORDS_LINE]
+        elif thin(standings):
+            want_empty = [fake.NOTHING_TO_READ_YET, fake.nothing_to_read_line(n)]
+        else:
+            want_empty = [fake.NOTHING_FAILING, fake.NOTHING_FAILING_LINE]
         missing = ov.in_order(page.get("empty"), want_empty)
         if missing or boxes:
             faults.append({"empty state": page.get("empty"), "want": want_empty, "boxes": len(boxes)})
@@ -369,8 +449,9 @@ def insight_faults(standings: dict, page: dict, *, strict: bool, names: dict) ->
 
 
 def report_insights(r: dict) -> tuple[bool, Any]:
-    """One box a failing dimension, worst first, its served words; the themes the fake's on the stack; else the right
-    empty state."""
+    """One box a dimension with words, worst first (spec 064 FR-8: keel-cloud 119, keel-web 095), its served words;
+    the themes the fake's on the stack; the failing lines with none as one muted line each; else the right empty
+    state."""
     standings = r["standings"]
     faults = insight_faults(standings, r["insights"], strict=bool(r.get("strict")), names=names_of(standings, r))
     return not faults, {"faults": faults, "strict": bool(r.get("strict"))}
@@ -401,7 +482,11 @@ def window_words(standings: dict) -> str | None:
     card = next((c for c in (standings.get("facts") or {}).get("cards") or []
                  if c.get("key") == "problem.prevalence"), None) or {}
     line = str(card.get("line") or "")
-    return line[len("had it in "):] if line.startswith("had it in ") else None
+    # spec 064 FR-4a (keel-cloud 116): "<the founder's clause> in the last <window>", or "had it in <window>"
+    if line.startswith("had it in "):
+        return line[len("had it in "):]
+    head, sep, tail = line.rpartition(" in the last ")
+    return f"the last {tail}" if sep else None
 
 
 def expected_person(standings: dict, person: dict) -> dict:
