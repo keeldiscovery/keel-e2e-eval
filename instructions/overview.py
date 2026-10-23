@@ -108,7 +108,10 @@ def card_words(card: dict) -> str:
     # keel-cloud 126 FR-6c: a derived Ability card carries its count inside the line and no number ("the price is
     # below what it costs them today for 6 of 7"); a card with a real status draws its line, only one with none draws
     # *nobody has answered this yet*
-    if card.get("status") == "LEFT_OUT" or (card.get("line") and card.get("status") not in (None, "NOT_ASKED_YET")):
+    # keel-web OverviewView: a card with no number draws its line when it is LEFT_OUT or CALLED (a verdict with a
+    # count inside the line, 126 FR-6c's derived Ability), and *nobody has answered this yet* otherwise (TOO_FEW_TO_CALL,
+    # NOT_ASKED_YET)
+    if card.get("status") in ("LEFT_OUT", "HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE"):
         return card.get("line")
     return NOBODY_YET
 
