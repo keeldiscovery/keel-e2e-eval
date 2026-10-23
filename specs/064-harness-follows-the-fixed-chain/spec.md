@@ -66,6 +66,13 @@ s007"` once on a fresh local stack of the finished masters; one `make backtest E
   vs the rows) expects the founder's rungs verbatim and first and Keel's appended rungs below to five; the Choose screen
   reads `choose.prompt` (*"Which of these is most likely to be missing?"*) and the `suggested` radio, and picks the
   entry's tested item as today; `outcomeNotDifference` and jargon notes are recorded, not asserted.
+- **FR-5a What keel-cloud 117's build settled (contract 29, document version 27; added 2026-10-23).** The draft of
+  `problem.current_solution_satisfaction` carries optional `founder_rungs`, `line`, `reason`, `past_five`; the saved list
+  and the lock serve `SavedList.line` (2 on lists saved before 117). The eval's scripted draft adds `founder_rungs` (the
+  count of the entry's typed rungs) and `line`; without them code counts the leading verbatim rungs and defaults the line
+  to 2 capped at the founder's count, so the golden ladders reproduce unchanged (keel-cloud's `src/test/resources/ladders/`
+  holds all seven). The Check-screen and brief bar strings change (*"holds if at least 2 in 3 land below '<rung>'"*):
+  `report_marks` reads the served `keelBar`, never a fixed string. L9/L10 notes are recorded, not asserted.
 - **FR-6 The persona step (keel-cloud 123 FR-10; keel-web 099).** `Corridor.persona` fills *"What is their job title?"*
   from the entry's `persona.decision_maker.title` (the loader accepts it, optional, 1–5 words; the six back-test entries
   and `10-fixture-b2b` carry one; golden entries without one get the role word, recorded); `leg_persona` asserts
