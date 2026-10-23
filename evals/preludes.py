@@ -12,6 +12,8 @@ copies of "approve a stage" is how two scenarios quietly stop meaning the same t
   that still call them. The corpus journeys (S-005, S-006, S-007) are vectors journeys since spec
   039 and walk `evals/corpus_scenario.py`'s own legs; of this module they use `create_project` and
   `own_ai_door` only.
+- `sign_in_with_the_code` / `approve_at_connect` -- the device-code door's two steps, S-012's leg one and the
+  back-test's host door (spec 066) alike.
 
 `approved_project_with_one_read` is S-002's own prelude and is unchanged in purpose.
 """
@@ -28,7 +30,7 @@ from playwright.sync_api import Page
 from evals import corpus_facts
 from harness import corpus_script
 from harness import agent_host
-from harness.browser import (WAIT_PHASES, Chat, Landing, MarketStep, Overview, ParticipantPage,
+from harness.browser import (WAIT_PHASES, Chat, Connect, Landing, MarketStep, Overview, ParticipantPage,
                               People, ReviewCard, Shell)
 from harness.steps import Recorder
 
@@ -109,6 +111,45 @@ def own_ai_door(page: Page, recorder: Recorder, stack, get_json: Callable[[str],
             "spec 024 FR-011 renders exactly one of the two, and this road gets the agent line")
 
 GetJson = Callable[[str], dict]
+
+
+def sign_in_with_the_code(auth, recorder: Recorder, founder, user_code: str) -> dict:
+    """**The code story's sign-in, and its one assertion** (keel-cloud `google-sign-in-design.md` §10.6; spec 024).
+
+    The founder takes the code their runtime printed to `/login?user_code=...` (`Auth.sign_in_with_code`), carrying
+    `/connect?user_code=...` as the `return_to`, and comes back to the approval screen -- the only door keel-cloud makes
+    an `OWN` account through. Shared by S-012 (spec 019) and the back-test's host door (spec 066 FR-3), so the two
+    cannot quietly stop meaning the same thing by *signed in with the code*."""
+    landed = auth.sign_in_with_code(founder, user_code)
+    with recorder.step("§10.6: the code survived the login -- the founder comes back to "
+                       "the approval screen, not to the project list",
+                       party="founder", kind="assert") as h:
+        h.record_assert({"landed on": f"/connect?user_code={user_code}"}, landed)
+        assert "/connect" in landed["landed"] and user_code in landed["landed"], (
+            f"the sign-in that carried {user_code!r} came back to {landed['landed']!r}. "
+            f"keel-cloud stores the `return_to` at `start` and brings the founder back to "
+            f"it, so a landing anywhere else means the code did not travel -- and the "
+            f"account this run just created is on the wrong side of `GoogleSignIn.doorOf`.")
+    return landed
+
+
+def approve_at_connect(page: Page, recorder: Recorder, user_code: str, verification_uri: str, *,
+                       label: str = "leg one", timeout_s: float = 60) -> Connect:
+    """**The device approved at `/connect`**: the runtime's own verification URI opens frame B, the screen shows the
+    code the launch log printed, *Approve*, and the screen reaches its connected state. S-012's leg one and the
+    back-test's host door (spec 066 FR-3) both walk exactly this; `label` is the step names' prefix."""
+    connect = Connect(page, recorder)
+    frame = connect.open(verification_uri)
+    with recorder.step(f"{label}: the verification URI opens the device-decision frame",
+                       party="founder", kind="assert") as h:
+        h.record_assert("B", frame)
+        assert frame == "B", f"expected the device-decision frame B, got {frame!r}"
+        on_screen = connect.user_code()
+        assert user_code in on_screen, (
+            f"the screen shows {on_screen!r} where the launch log said {user_code!r}")
+    connect.approve()
+    connect.wait_for_connected(timeout_s=timeout_s)
+    return connect
 
 
 def stage_from_overview(overview_body: dict, stage_type: str) -> dict:

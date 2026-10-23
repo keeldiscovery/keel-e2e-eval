@@ -473,8 +473,10 @@ def read_heartbeat(keel_home: Path) -> dict | None:
         return None
 
 
-def read_launch_log(keel_home: Path) -> str:
-    path = Path(keel_home) / LAUNCH_LOG_FILENAME
+def read_launch_log(keel_home: Path, filename: str = LAUNCH_LOG_FILENAME) -> str:
+    """The skill's launch log under `keel_home` -- or, named, another log the runtime's stdout went to (the back-test's
+    host door writes `launch.log` itself, spec 066 FR-2)."""
+    path = Path(keel_home) / filename
     return path.read_text() if path.is_file() else ""
 
 

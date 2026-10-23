@@ -99,11 +99,11 @@ import time
 import pytest
 
 from evals import corpus_scenario
-from evals.preludes import own_ai_door
+from evals.preludes import approve_at_connect, own_ai_door, sign_in_with_the_code
 from harness import (agent_host, canary as canary_mod, keel_host as keels_ai, refusals,
                      vectors_script)
 from stack import remote
-from harness.browser import Auth, Chat, Connect, Landing, Shell
+from harness.browser import Auth, Chat, Landing, Shell
 from harness.evidence import finalize_run, write_block, write_generated, write_host
 from harness.steps import Recorder
 from instructions import models as models_mod
@@ -818,16 +818,7 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
             # they take it to `/login?user_code=...` -- the code story, *Continue with Google*,
             # which keel-web spec 024 FR-005 leaves byte for byte alone -- carrying
             # `/connect?user_code=...` as the `return_to`.
-            landed = auth.sign_in_with_code(founder_one, user_code)
-            with recorder.step("§10.6: the code survived the login -- the founder comes back to "
-                                "the approval screen, not to the project list",
-                                party="founder", kind="assert") as h:
-                h.record_assert({"landed on": f"/connect?user_code={user_code}"}, landed)
-                assert "/connect" in landed["landed"] and user_code in landed["landed"], (
-                    f"the sign-in that carried {user_code!r} came back to {landed['landed']!r}. "
-                    f"keel-cloud stores the `return_to` at `start` and brings the founder back to "
-                    f"it, so a landing anywhere else means the code did not travel -- and the "
-                    f"account this run just created is on the wrong side of `GoogleSignIn.doorOf`.")
+            sign_in_with_the_code(auth, recorder, founder_one, user_code)
 
             arrival = landing.visit()
             with recorder.step("§1.0: the landing reads no agent connected -- the runtime is "
@@ -866,17 +857,7 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                 assert not body.get("approved"), (
                     f"the code was already approved before the founder touched it: {body}")
 
-            connect = Connect(page, recorder)
-            frame = connect.open(verification_uri)
-            with recorder.step("leg one: the verification URI opens the device-decision frame",
-                                party="founder", kind="assert") as h:
-                h.record_assert("B", frame)
-                assert frame == "B", f"expected the device-decision frame B, got {frame!r}"
-                on_screen = connect.user_code()
-                assert user_code in on_screen, (
-                    f"the screen shows {on_screen!r} where the launch log said {user_code!r}")
-            connect.approve()
-            connect.wait_for_connected(timeout_s=60)
+            approve_at_connect(page, recorder, user_code, verification_uri, label="leg one", timeout_s=60)
 
             with recorder.step('leg one: the founder says "keel connect" a second time -- the skill\'s '
                                 "`already_connected`", party="founder", kind="protocol") as h:
