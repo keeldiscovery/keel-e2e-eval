@@ -108,6 +108,29 @@ s007"` once on a fresh local stack of the finished masters; one `make backtest E
   from the entry's `persona.decision_maker.title` (the loader accepts it, optional, 1–5 words; the six back-test entries
   and `10-fixture-b2b` carry one; golden entries without one get the role word, recorded); `leg_persona` asserts
   `deciderTitle` when sent; the stage-page banner read (`decider_banner`) accepts the title or the role.
+- **FR-5c What keel-web 097's build settled (added 2026-10-23; full table in keel-web `specs/097-…/tasks.md`).**
+  Compatibility's Choose prompt is the served *"Which of these is most likely to be missing?"* (other Choose screens
+  unchanged); radios are still found by the label alone; the suggested radio carries `data-suggested="true"` with
+  `[data-testid=choose-suggestion]` beside it; nothing is preselected (spec 097 FR-4) -- the harness picks the entry's
+  tested item as today. The solution card: `textarea#idea-howDecider`, notes `[data-testid=idea-note][data-line]
+  [data-word]` with `[data-testid=idea-note-mark]`, the marked words `[data-testid=idea-audience-words]`; the benefit
+  flag `[data-testid=benefit-outcome-flag]`. 05-paidly's J1 note on *platform* is drawn on the card; `idea-save` is
+  unchanged and notes never block a save.
+- **FR-6a What keel-cloud 123's build settled (contract 33, document version 30; added 2026-10-23; the tables are in
+  keel-cloud `specs/123-polish-after-the-back-test/tasks.md`).** The gate's chips and `anchorChip` take `RATHER_NOT_SAY`;
+  `PersonaInput.decider.title` is accepted absent on the server (≤ 5 words, 422 VALUE_OUT_OF_SHAPE otherwise) but
+  keel-web 099 requires it on the page, so the harness sends a title for every B2B entry (the entry's
+  `persona.decision_maker.title`, else the role word); `PersonaView.deciderTitle`; sentences use the title, the role stays
+  on the hourly-rate band, the people search and the respondent type's label; `InterviewerFaces.recordOnSend` /
+  `LockBody.interviewer.recordOnSend` (the eval's lock step keeps sending today's body); `BriefPilot.perLink[].notCounted`
+  and the pilot tile's denominators now count gate-Yes people only (`BriefFactsCorpusTest` pins moved, e.g. "2 of 12" →
+  "2 of 10": `report_marks` reads the served denominators). The founder's Prevalence bins read *fewer than 2 in 10 · 2 or
+  3 in 10 · 4 or 5 in 10 · 6 or 7 in 10 · 8 or more in 10* (a share at a bin's top edge belongs to the next bin -- the
+  loader's recount mirrors `PrevalenceBins`); Compatibility's fixed four read the ability wording (*Yes, easily · Yes,
+  mostly · Only sometimes · No*) on six golden entries and the permission wording on 05-paidly; Buyer and payer's options
+  read *Someone else had to agree instead* / *No, someone else decided for me*; the current-solution escape reads
+  *Someone else did it*; the gate kicker reads *… · a recent time*; pasted clauses are turned by code (`StrangerGrammar`,
+  notes only) -- the golden option words before/after per entry are in 123's tasks.md and the scripted labels follow them.
 - **FR-7 The follow-up ladder (keel-cloud 118).** `harness/interviewer_fake.LADDER` follows 118 FR-4: Purchase friction
   leaves `NO_FOLLOW_UP` (*took a long time* → *"What took the time?"*; *quick* / *not needed* → *"What did slow it down,
   if anything?"*); Adoption friction's two stems; Commitment's *after <smaller step> first* → *"What would the <smaller
