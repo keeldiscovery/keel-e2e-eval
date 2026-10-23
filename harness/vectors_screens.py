@@ -1437,7 +1437,7 @@ class Corridor:
             else:
                 group.get_by_role("radio", name=PERSONA_SOMEONE_ELSE, exact=True).click()
                 self.page.get_by_label(PERSONA_ROLE, exact=True).fill(decider["role"])
-                title = self.page.get_by_label(PERSONA_TITLE, exact=True)
+                title = self.page.get_by_label(PERSONA_TITLE)  # the label carries a hint span (One to five words.), so no exact match
                 if title.count():
                     # spec 064 FR-6 (keel-web 099): one to five words; the entry's own, else the role word
                     title.fill(decider.get("title") or decider["role"])
