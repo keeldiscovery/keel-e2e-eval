@@ -1,4 +1,4 @@
-# Spec 063 -- The example gallery export: six back-test briefs, renamed, into the sample snapshot
+# Spec 063 -- The example gallery export: six back-test briefs into the sample snapshot, each a simulated study inspired by a named company
 
 The founder, 2026-10-22: *"when you click on example, I want all these use cases to be like four boxes with this use case
 name. And when they click on it, they see this brief … Now we cannot use the same company name, but we can exactly use
@@ -8,6 +8,26 @@ run (S-006, 05-paidly) into keel-web's `public/sample/`. This spec exports the s
 draws the gallery. **Scope: keel-e2e-eval only (`evals/sample_export.py`, a rename map, the Makefile); nothing in
 keel-cloud or keel-web changes here; no mark moves; MARKS_VERSION stays. Build lean: `make unit` once, one `make
 gallery` run on existing back-test run directories (no paid run in this spec).**
+
+## Amendment of record, 2026-10-23 (overrides FR-2 and FR-3 below where they conflict)
+
+The founder, 2026-10-23, from two mock-ups (*Public.png*, *Idea Matching.png*): *"it's okay to give the actual company
+name, in fact reference it, but we should be very careful to say that this is a simulated report … it's okay to have
+what people said about it, but the key thing is that you have to clearly say that it's a simulated one, and that should
+be clearly highlighted."* So: **the real company name is the example's attribution, everywhere**; the rename map goes
+(`gallery_names.toml` keeps `slug` and `name` per entry, now the real name and a slug from it, with `replaces: []`;
+the survivors grep is replaced by an attribution check). Each `index.json` row and `<slug>/manifest.json` carry
+`inspiredBy: {name, batch, ycUrl}` (from the entry's `sources` file: the YC page), `publicDescription` (the company's
+own one-liner, verbatim from the YC page, with its URL and date), `assumptions[]` (the founder's belief sentences Keel
+tested, as the run served them, plain text), `simulated: true` and `disclaimer`: the fixed sentence *"A simulated
+study inspired by <Name> (Y Combinator <batch>). The founder's answers, the twenty participants and everything they
+said are fictional, written from <Name>'s public material to show what Keel does. Not customer research about <Name>;
+not affiliated with <Name> or Y Combinator."* The export refuses a slug whose `inspiredBy`, `publicDescription`
+(with URL and date) or `disclaimer` is missing. Provenance (entry id, run directory) stays in the private
+`runs/gallery/provenance-*.json`; the public files carry the attribution, not the run. keel-web 100 draws the
+disclaimer as a band on every screen of an example; keel-web 101 / keel-cloud 125 send `inspiredBy` and
+`publicDescription` with the candidates and the match returns the one-line assumption worth testing (for the page and
+for the outreach email of the radar, a later spec).
 
 ## Rules
 
