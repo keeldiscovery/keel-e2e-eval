@@ -2825,6 +2825,12 @@ def leg_one_currency(j: Journey) -> None:
     with _step(j, "no pound or euro reaches any page the founder reads, the report's three views and its binding "
                   "included (design D19)", party="founder") as h:
         leaks = currency_leaks(j.screens)
+        own = ((j.get(j.project("/overview")) or {}).get("market") or {}).get("currencySymbol")
+        if own and own != "$":
+            # keel-cloud 122 FR-4: an *Another country* market is served in its own currency (21-codyco, euros); D19's
+            # rule is that no OTHER currency reaches the founder, so the market's own symbol is not a leak
+            leaks = {name: [s for s in symbols if s != own] for name, symbols in leaks.items()}
+            leaks = {name: symbols for name, symbols in leaks.items() if symbols}
         read = sorted(name for name, drawn in j.screens.items()
                       if isinstance(drawn, dict) and (drawn.get("text") or "").strip())
         h.record_assert({"leaks": {}, "read": list(REPORT_VIEWS)}, {"leaks": leaks, "read": read})
