@@ -362,8 +362,13 @@ def themes_settle(j, *, timeout_s: float = THEMES_WAIT_S) -> dict:
         themes = [i for i in (j.get(f"/v2/inference-interactions?project_id={j.project_id}") or [])
                   if i.get("screen") == "THEMES"]
         open_ = [t.get("status") for t in themes if t.get("status") in _OPEN]
-        if not open_ or time.monotonic() > deadline:
-            return {"themes": len(themes), "open": open_, "waited_s": round(waited, 1)}
+        # spec 064 FR-8 (keel-cloud 119 FR-4): and no insight still GROUPING
+        standings = _safe(lambda: j.get(j.project("/standings")), {}) or {}
+        grouping = [i.get("dimension") for i in standings.get("insights") or [] if i.get("state") == "GROUPING"]
+        if (not open_ and not grouping) or time.monotonic() > deadline:
+            return {"themes": len(themes), "open": open_, "grouping": grouping,
+                    "notAsked": [n.get("dimension") for n in standings.get("notAsked") or []],
+                    "waited_s": round(waited, 1)}
         time.sleep(2)
         waited += 2
 
@@ -463,7 +468,8 @@ def read_back(j, slug: str, wire: dict) -> Any:
     if slug in ("persona", "persona-who-answers"):
         persona = wire.get("persona") or {}
         return {"respondentTypes": [{k: t.get(k) for k in ("label", "commercialLink")}
-                                    for t in persona.get("respondentTypes") or []], "decider": persona.get("decider")}
+                                    for t in persona.get("respondentTypes") or []], "decider": persona.get("decider"),
+                "deciderTitle": persona.get("deciderTitle")}
     _, _, key = slug.partition("-")
     if "." not in key:
         return None
@@ -476,6 +482,10 @@ def read_back(j, slug: str, wire: dict) -> Any:
            "frame": (drawn.get("frame") or {}).get("progress")}
     if drawn.get("belief"):
         out["belief line on screen"] = drawn.get("belief")
+    # spec 064 FR-9 (keel-web 094): the chain's equation line and the price's locked words, as the founder saw them
+    for name, field_ in (("equation", "equation"), ("per", "per"), ("locked words", "locked")):
+        if drawn.get(field_):
+            out[name] = drawn.get(field_)
     test = drawn.get("test_after") or drawn.get("test")
     if test:
         out["keel will test"] = test.get("belief")
@@ -567,8 +577,15 @@ def brief(standings: dict) -> dict:
                                                   for q in t.get("quotes") or []]}
                                     for t in i.get("themes") or []],
                          "raw": i.get("raw"), "rawQuotes": [{"name": q.get("name"), "text": q.get("text")}
-                                                           for q in i.get("rawQuotes") or []]})
-    return {"decision": {k: decision.get(k) for k in ("label", "howSure", "reason", "smallestN", "split", "notTested")},
+                                                           for q in i.get("rawQuotes") or []],
+                         # spec 064 FR-8a / FR-9 (keel-cloud 119): the state, the dissent frame, every quote's side
+                         "state": i.get("state"), "note": i.get("note"), "dissent": i.get("dissent"),
+                         "frame": i.get("frame"),
+                         "quotes": [{k: q.get(k) for k in ("name", "text", "option", "side", "heading")}
+                                    for q in i.get("quotes") or []]})
+    return {"decision": {k: decision.get(k) for k in ("label", "howSure", "reason", "smallestN", "split", "notTested",
+                                                      "change")},
+            "notAsked": standings.get("notAsked"), "outsideSegment": standings.get("outsideSegment"),
             "verdicts": {v.get("vector"): v.get("words") or v.get("verdict") for v in facts.get("vectors") or []},
             "cards": [{k: c.get(k) for k in ("key", "name", "number", "line", "status", "statusWords", "keelBar")}
                       for c in facts.get("cards") or []],
@@ -685,7 +702,9 @@ def markdown(r: dict) -> str:
              f"- Export: {_q(r.get('export'))}",
              f"- THEMES settled before the export: {_q(r.get('themes_settled'))}",
              f"- Keel's AI refused and retried (findings): {len(r.get('findings') or [])}"
-             + "".join(f"\n  - {f.get('what')}: {f.get('refused') or f.get('batch')}" for f in r.get("findings") or []),
+             + "".join(f"\n  - {f.get('what')}: "
+                       + (f"*{f['anchor']}* -- " if f.get("anchor") else "")
+                       + f"{f.get('refused') or f.get('batch')}" for f in r.get("findings") or []),
              "", "Nothing here is asserted: the model's words are the finding (spec 062 FR-4).", ""]
     lines += ["## 1. Founder screens, in order", ""]
     for s in r.get("founder_screens") or []:
@@ -709,7 +728,11 @@ def markdown(r: dict) -> str:
         if served.get("idea"):
             lines.append(f"- Idea: {_q(served['idea'])}")
         if served.get("gate"):
-            lines.append(f"- Gate: {_q(served['gate'])}")
+            gate = served["gate"]
+            if gate.get("condition"):
+                lines.append(f"- Gate chip (asked first): **{(gate['condition'] or {}).get('question')}** "
+                             f"(inside: {_q((gate['condition'] or {}).get('inCodes'))})")
+            lines.append(f"- Gate: {_q(gate)}")
         for part in served.get("parts") or []:
             lines.append(f"- Part {part.get('part')}:")
             for n, item in enumerate(part.get("items") or [], start=1):
@@ -719,11 +742,26 @@ def markdown(r: dict) -> str:
                     lines.append("     options: " + " | ".join(str(o) for o in opts))
                 if item.get("escape"):
                     lines.append(f"     escape: {item['escape']}")
+                if item.get("valueBox"):
+                    box = item["valueBox"]
+                    lines.append(f"     value box: between __ and __ {box.get('label')} (chips: "
+                                 + " | ".join(str((c or {}).get("label")) for c in [box.get("nothing")]
+                                              + list(box.get("chips") or [])) + ")")
+                if item.get("whatYouGet"):
+                    lines.append(f"     what you'd get: {item['whatYouGet']}")
+                if item.get("plan"):
+                    lines.append(f"     then: **{item['plan'].get('question')}** -- "
+                                 + " | ".join(str(o) for o in item["plan"].get("options") or []))
         if served.get("reveal"):
             lines.append(f"- Reveal: {_q(served['reveal'])}")
         lines.append("- Screens: " + ", ".join(f"`{f}`" for f in v.get("screens") or []))
         lines.append("")
-    lines += ["## 3. The brief", "", f"- Decision: {_q(decision)}", f"- Verdicts: {_q(b.get('verdicts'))}", ""]
+    change = decision.get("change") or {}
+    lines += ["## 3. The brief", "", f"- Decision: {_q(decision)}", f"- Verdicts: {_q(b.get('verdicts'))}"]
+    for sentence in (change.get("sentence"), (change.get("also") or {}).get("sentence")):
+        if sentence:
+            lines.append(f"- The change: {sentence}")
+    lines += [f"- Outside the people described: {_q(b.get('outsideSegment'))}", ""]
     for card in b.get("cards") or []:
         lines.append(f"- **{card.get('name')}** {card.get('number')} -- {card.get('line')} -- {card.get('statusWords')}"
                      + (f" (Keel's bar: {card['keelBar']})" if card.get("keelBar") else ""))
@@ -732,14 +770,18 @@ def markdown(r: dict) -> str:
         lines.append(f"- {vector}: broke {_q(stage.get('broke'))}; not asked {_q(stage.get('notAsked'))}")
     lines += ["", "### Insights", ""]
     for i in b.get("insights") or []:
-        lines.append(f"- **{i.get('name')}** ({i.get('status')}; against {i.get('against')}, asked {i.get('asked')}, "
-                     f"answered {i.get('answered')}) {i.get('rungHeading') or i.get('noQuestionWhy') or ''}")
+        lines.append(f"- **{i.get('name')}** ({i.get('status')}, {i.get('state')}; against {i.get('against')}, asked "
+                     f"{i.get('asked')}, answered {i.get('answered')}) {i.get('rungHeading') or ''}"
+                     + (f" -- {i.get('frame')}" if i.get("dissent") else "")
+                     + (f" -- {i.get('note')}" if i.get("note") else ""))
         for t in i.get("themes") or []:
             lines.append(f"  - {t.get('label')} ({t.get('count')})")
             for q in t.get("evidence") or []:
                 lines.append(f"    - {q.get('name')}: \"{q.get('text')}\"")
         for q in i.get("rawQuotes") or []:
             lines.append(f"  - (raw) {q.get('name')}: \"{q.get('text')}\"")
+    for n in b.get("notAsked") or []:
+        lines.append(f"- {n.get('name')}: {n.get('why')}.")
     lines += ["", f"- Pilot: {_q(b.get('pilot'))}", f"- Price: {_q(b.get('price'))}", ""]
     lines += ["## 4. Readings: the model's anchoring beside the file's", "",
               "| Person | Link | Gate | File | Model | Same |", "|---|---|---|---|---|---|"]
