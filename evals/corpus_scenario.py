@@ -71,6 +71,7 @@ from evals import feedback_marks
 from evals import guide_marks
 from evals import report_marks
 from evals.preludes import create_project, own_ai_door
+from harness import interviewer_fake as fake
 from harness import vectors_script as vs
 from harness import interviewer_screens as ivs
 from harness import interviews_screens as iv_screens
@@ -79,6 +80,7 @@ from harness.browser import Auth, Connect, Landing
 from harness.connect import start_runtime_via_skill, stop_runtime
 from harness.evidence import finalize_run, write_generated
 from harness.steps import Recorder
+from instructions import chain as chain_mod
 from instructions import brief_facts as brief_facts_mod
 from instructions import contract as contract_mod
 from stack import remote
@@ -194,6 +196,10 @@ class Journey:
     #: refused result is a finding to record and step past, not the end of the walk. Every one is kept in `findings`.
     retries: int = 0
     findings: list = field(default_factory=list)
+    #: Spec 064 (judgement call): a golden number the new build moved -- a standing, a count, a verdict, a card -- is
+    #: a finding named with the served words beside the corpus's; it is recorded where it is read and the journey goes
+    #: on, so one run names every one; `run` fails at the end on any (`deferred`).
+    deferred: list = field(default_factory=list)
 
     # --------------------------------------------------------------------------- the wire
 
@@ -265,6 +271,14 @@ def leg_project(j: Journey) -> None:
     j.project_id = create_project(j.page, j.recorder, j.web_base, _market_inputs(founder),
                                   welcome="hold" if j.hold_welcome else "pass",
                                   camera=j.camera.founder if getattr(j, "camera", None) is not None else None)
+    with _step(j, "the market step's list is keel-cloud's (122 FR-4, `GET /v2/markets`): the entry's country is one "
+                  "of `markets` -- or, for a country the table has not met, `other` offers it with its currency") as h:
+        listed = j.get("/v2/markets") or {}
+        countries = [m.get("country") for m in listed.get("markets") or []]
+        other = [c.get("code") for c in (listed.get("other") or {}).get("countries") or []]
+        h.record_wire({"GET": "/v2/markets", "country": founder.country},
+                      {"markets": countries, "other": len(other), "kind": (listed.get("other") or {}).get("kind")})
+        assert founder.country in countries or founder.country in other, (founder.country, countries)
     with _step(j, f"{j.entry.id}: the market is the one the entry names") as h:
         market = (j.get(j.project("/overview")) or {}).get("market") or {}
         h.record_assert({"country": founder.country, "region": founder.region,
@@ -272,6 +286,9 @@ def leg_project(j: Journey) -> None:
         assert market.get("country") == founder.country, market
         assert (market.get("region") or None) == founder.region, market
         assert market.get("language") == founder.language, market
+        # keel-cloud 122: `kind` is OTHER only on a market the table has not met; every corpus market is the table's
+        assert market.get("kind") in (None, "OTHER") and (market.get("kind") == "OTHER") == (
+            founder.country not in countries), market
 
 
 def leg_context(j: Journey) -> None:
@@ -283,16 +300,22 @@ def leg_context(j: Journey) -> None:
     drawn = j.corridor.context(j.project_id, founder.context_fields, founder.window.as_wire())
     if j.guide_wire is not None:
         _next_write_after_the_welcome(j)
-    with _step(j, "the card says what Keel understood, in the entry's own sentence, over the "
-                  "entry's own window", party="founder") as h:
-        want = j.entry.context["understood"] if j.strict else "a sentence"
+    with _step(j, "the card says what Keel understood -- code's sentence since keel-cloud 122, assembled from the slots "
+                  "(the segment and its condition, the circumstance, the job, the window) -- and, where the segment "
+                  "carries a condition, *Only people who: ...* (keel-web 096)", party="founder") as h:
+        want = vs.read_back(j.entry) if j.strict else "a sentence"
         window_line = j.corridor.context_window_line()
-        h.record_assert({"understands": want, "window": vs.window_words(founder.window)},
-                        {"understands": drawn, "window": window_line})
+        lines = j.corridor.context_lines()
+        condition = vs.segment_of(j.entry)["condition"]
+        want_lines = {"only_people_who": f"Only people who: {condition}." if condition else None}
+        h.record_assert({"understands": want, "window": vs.window_words(founder.window), **want_lines},
+                        {"understands": drawn, "window": window_line, **lines})
         assert drawn.strip(), "the context card drew no sentence"
         if j.strict:
-            assert drawn == want, drawn
+            assert drawn == want, {"served": drawn, "assembled": want}
+            assert lines.get("only_people_who") == want_lines["only_people_who"], lines
         assert vs.window_words(founder.window) in window_line, window_line
+        j.screens["context_card"] = {"understands": drawn, **lines}
     j.corridor.confirm_context()
     with _step(j, "the context is confirmed on the wire: the four fields, the sentence, the window "
                   "of at least two (D13)") as h:
@@ -987,6 +1010,9 @@ def _resent(j: Journey, vector: str | None = None) -> None:
                    and r.get("status") in TERMINAL_BAD | {"RESULT_INVALID"}]
     for n, row in enumerate(resent):
         finding = {"what": f"{row['vector']} seed sent again", "refused": row["chat said"]}
+        # spec 064 FR-9 (keel-web 093): a refusal on Keel's door leads with the web's own words -- the anchor kept
+        if vs_screens.REFUSED_LEAD in str(row["chat said"]):
+            finding["anchor"] = vs_screens.REFUSED_LEAD
         if n < len(refused):
             finding["diagnostic"] = refused[n]
         j.findings.append(finding)
@@ -1067,6 +1093,13 @@ def leg_interpret_solution(j: Journey) -> None:
                 seen["lines"], want)
             assert idea.get("shortName") == vs.idea_name(j.entry), (idea, vs.idea_name(j.entry))
         j.idea_name = str(idea.get("shortName") or "")
+        # spec 064 FR-5b (keel-cloud 121 J1, keel-web 097): the idea's notes are recomputed on every read and never
+        # refuse -- 05-paidly's scripted how says *platform*, so its card carries the J1 note; every other none
+        j.feedback.setdefault("idea_notes", idea.get("notes"))
+        if j.strict:
+            words = [n.get("word") for n in idea.get("notes") or [] if n.get("rule") == "J1"]
+            assert [w.lower() for w in words] == [w.lower() for w in vs.expected_j1(j.entry)], (
+                idea.get("notes"), vs.expected_j1(j.entry))
         named = j.feedback.setdefault("idea", {})
         named.update({"stored": idea.get("what"), "approved": idea.get("approved"), "typed_name": name})
         if not NAME_ON_THE_WIRE:
@@ -1188,7 +1221,11 @@ def leg_calibrate(j: Journey, vector: str) -> None:
         key = question["dimension"]
         answer = answers[key]
         if not vs.is_list(key):
+            if key == "commercial.existing_sacrifice" and not answer.unsure:
+                _old_cost_on_the_wire(j, question, answer)
             j.framing[key] = [j.corridor.single(question, answer.as_wire())]
+            if key in ("commercial.existing_sacrifice", "commercial.price") and j.framing[key][0].get("chain"):
+                _hold_the_chain_screen(j, key, j.framing[key][0])
             continue
         _keep_draft(j, question, "first", None)
         if answer.unsure:
@@ -1270,7 +1307,10 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                             {"screen": [r["keel will test"] for r in lower_case]})
             raise AssertionError(f"DRIFT #79 came back: {json.dumps(lower_case)}")
 
-    if vector == "COMMERCIAL" and j.founder.hourly_rate is not None:
+    cost = j.entry.cost() or {}
+    if vector == "COMMERCIAL" and j.founder.hourly_rate is not None and (not j.entry.chain()
+                                                                          or cost.get("mode") == "HOURS"):
+        # spec 064 FR-2: on the chain only an HOURS cost is priced at a rate; off it, every B2B entry as before
         _hourly_rate(j)
     # the 097 F9 probe writes the entry's own Importance labels over Keel's draft through the API; on the back-test
     # (spec 062, `retries` set) what Keel drafted is the finding, so the probe is skipped (062 follow-up, 2026-10-22:
@@ -1446,6 +1486,43 @@ def _corpus_list(entry, key: str) -> dict:
     return out
 
 
+def _old_cost_on_the_wire(j: Journey, question: dict, answer) -> None:
+    """Spec 064 FR-2 (judgement call): keel-web 094 draws the commercial chain's cost step on a fresh project, where a
+    cost needs a unit and a way that are the chain's -- so a corpus cost stated before the chain (AMOUNT or HOURS, no
+    unit: every golden entry's, read as revision 12) cannot be typed there. It is written on the wire as the entry
+    states it (`PUT calibration/COMMERCIAL`), and the page reloaded: keel-web then draws spec 074's controls for it
+    (094 judgement call 1), which the founder answers exactly as before -- and keel-cloud keeps spec 077's cost total
+    and spec 073's ladder for the strangers. A chain answer is typed on the chain's screens instead (no write here)."""
+    body = answer.as_wire()
+    if chain_mod.cost_in_chain(body.get("cost")) or not j.corridor.chain_screen("cost_estimate"):
+        return
+    with _step(j, "the corpus's cost is r12's (no unit): keel-web 094 draws the chain's step on a fresh project, so the "
+                  "cost is written on the wire as the entry states it and the page reloaded onto spec 074's controls",
+               party="founder", kind="protocol") as h:
+        view = j.get(j.project("/calibration/COMMERCIAL")) or {}
+        put = {"expectedRevision": view.get("revision"), "answers": [body]}
+        status, saved = j.call("PUT", j.project("/calibration/COMMERCIAL"), put)
+        j.page.reload(wait_until="load")
+        drawn = j.corridor.chain_screen("cost_estimate")
+        h.record_wire(put, {"status": status, "saved": saved, "chain screen after": drawn})
+        assert not drawn, "keel-web still draws the chain's cost step over a stored cost from before the chain"
+
+
+def _hold_the_chain_screen(j: Journey, key: str, seen: dict) -> None:
+    """Spec 064 FR-2 (keel-web 094): the chain's cost step reads its equation back -- the founder's unit and period
+    after the boxes (*· per site · a month*) -- and the price step its locked words, held to the cost's unit and
+    period (never typed, never sent)."""
+    cost = j.entry.cost() or {}
+    period_words = chain_mod.CHAIN_PERIOD_WORDS.get(cost.get("period"), "")
+    with _step(j, f"{key}: the chain's screen reads back the founder's unit and period (keel-web 094)",
+               party="founder") as h:
+        drawn = seen.get("per") if key == "commercial.existing_sacrifice" else seen.get("locked")
+        want = [f"per {str(cost.get('unit') or '').strip()}", period_words]
+        h.record_assert(want, seen)
+        missing = [w for w in want if w and w not in (drawn or "")]
+        assert not missing, {"drawn": drawn, "missing": missing}
+
+
 def _hourly_rate(j: Journey) -> None:
     """A B2B entry records the hourly rate its brief prices hours at. keel-web draws the rate only
     under an HOURS cost estimate, and every corpus estimate is an AMOUNT, so where keel-cloud's
@@ -1515,6 +1592,8 @@ def leg_persona(j: Journey) -> None:
         if vs.is_b2b(j.entry):
             assert sum(1 for t in types if t.get("commercialLink")) == 1, types
             assert (view.get("decider") or {}).get("role") == j.founder.decider["role"], view
+            # spec 064 FR-6 (keel-cloud 123 FR-10): the title sent is the one served
+            assert view.get("deciderTitle") == j.founder.decider.get("title"), view
 
 
 # ---------------------------------------------------------------------------------- leg 4: lock
@@ -1749,8 +1828,8 @@ def _themes_on_return(j: Journey, *, timeout_s: float = 90) -> None:
         while True:
             after = _themes(j)
             standings = j.get(j.project("/standings")) or {}
-            settled = all((i.get("themes") or i.get("raw") or not int(i.get("answered") or 0))
-                          for i in standings.get("insights") or [])
+            # keel-cloud 119 (FR-4): every insight GROUPED or RAW -- GROUPING is still being grouped
+            settled = all(i.get("state") in ("GROUPED", "RAW") for i in standings.get("insights") or [])
             if (settled and not any(t.get("status") in OPEN_STATUSES for t in after)) or time.monotonic() > deadline:
                 break
             time.sleep(1)
@@ -1761,7 +1840,7 @@ def _themes_on_return(j: Journey, *, timeout_s: float = 90) -> None:
                          "open": 0},
                         {"before": [(t.get("status"), t.get("interaction_id")) for t in before],
                          "after": [(t.get("status"), t.get("interaction_id")) for t in after],
-                         "insights": [{k: i.get(k) for k in ("dimension", "answered", "raw")}
+                         "insights": [{k: i.get(k) for k in ("dimension", "answered", "state", "raw")}
                                       | {"themes": len(i.get("themes") or [])}
                                       for i in standings.get("insights") or []]})
         assert not any(t.get("status") in OPEN_STATUSES for t in after), after
@@ -1772,6 +1851,43 @@ def _themes_on_return(j: Journey, *, timeout_s: float = 90) -> None:
             j.findings.extend({"what": "THEMES", "refused": f"{t.get('status')}: {t.get('diagnostic')}"} for t in bad)
             bad = []
         assert not bad, bad
+
+
+def _deciding_now(j: Journey) -> list[str]:
+    """The called stages' deciding lines of the standings as they stand (keel-cloud 118 `FollowUpComposer.deciding`),
+    read off the wire; none where no project is read (a stub)."""
+    if not hasattr(j, "get") or not hasattr(j, "project"):
+        return []
+    return fake.deciding_lines(j.get(j.project("/standings")) or {})
+
+
+def _typing(person, line: str | None):
+    """`person` typing `line` on the follow-up they are asked (`vs.follow_up_line`)."""
+    import dataclasses                                                 # noqa: PLC0415
+    if dataclasses.is_dataclass(person):
+        return dataclasses.replace(person, follow_up=line)
+    person.follow_up = line
+    return person
+
+
+def _served_options(j: Journey, person, items: dict):
+    """Spec 064 FR-7: a corpus *yes, after trying it first* the script put on *probably not* (no smaller step on the
+    founder's list, so keel-cloud 118 serves no conditional yes) goes back to the conditional option where the
+    interview serves one (`conditional: true`, a model-drafted smaller step on Keel's AI); every remap left standing is
+    a finding, named with what was served."""
+    import dataclasses                                                 # noqa: PLC0415
+    if not getattr(person, "remapped", ()):
+        return person
+    item = items.get("commercial.commitment") or {}
+    conditional = any(o.get("conditional") for o in item.get("options") or [])
+    if conditional:
+        picks = [dataclasses.replace(p, codes=[vs.CONDITIONAL_YES]) if p.dimension == "commercial.commitment"
+                 and p.codes == [vs.NOT_SERVED_YES] else p for p in person.picks]
+        return dataclasses.replace(person, picks=picks, remapped=())
+    j.findings.append({"what": f"{person.person}: Commitment's corpus pick yes_after_trying has no served option "
+                               "(keel-cloud 118: no smaller step on the founder's list); sent as probably_not",
+                       "served": [o.get("label") for o in item.get("options") or []]})
+    return person
 
 
 def _answer_one(j: Journey, person, token: str) -> None:
@@ -1790,11 +1906,14 @@ def _answer_one(j: Journey, person, token: str) -> None:
             for pick in person.picks:
                 item = items.get(pick.dimension) or {}
                 offered = {o.get("optionId") for o in item.get("options") or []}
+                offered |= {o.get("optionId") for o in (item.get("plan") or {}).get("options") or []}
                 offered |= {a.get("id") for a in item.get("advantages") or []}
                 unoffered += [(pick.dimension, code) for code in pick.codes + pick.advantages
                               if vs.option_id(token, pick.dimension, code) not in offered]
-                escape = (item.get("escape") or {}).get("code")
-                if pick.chip and pick.chip != escape:
+                box = item.get("valueBox") or {}
+                chips = {(item.get("escape") or {}).get("code"), (box.get("nothing") or {}).get("code")}
+                chips |= {c.get("code") for c in box.get("chips") or []}
+                if pick.chip and pick.chip not in chips:
                     unoffered.append((pick.dimension, pick.chip))
             h.record_assert({"kind": kind, "missing": [], "unoffered": []},
                             {"kind": interview.get("kind"), "missing": missing,
@@ -1803,6 +1922,7 @@ def _answer_one(j: Journey, person, token: str) -> None:
             assert not missing, missing
             if j.strict:
                 assert not unoffered, unoffered
+        person = _served_options(j, person, items)
         recall = ((items.get("commercial.existing_sacrifice") or {}).get("costTotal") or {}).get("recallPeriod")
         expected = person.response(token, recall)
         if unoffered:
@@ -1813,8 +1933,15 @@ def _answer_one(j: Journey, person, token: str) -> None:
         speak = _speak_for(j, person)
         if speak:
             stranger.add_init_script(ivs.text_seam(refused=speak == "refused"))
-        owed = vs.follow_up_question(j.entry, person.picks, person.link, interview, token) \
-            if (person.link == vs.LINK_B2B or person.recency) else None
+        # spec 064 FR-7 (keel-cloud 118 FR-4): the deciding lines of the standings this person answers into are walked
+        # first -- read off the served standings (`interviewer_fake.deciding_lines`), never recounted here
+        inside = getattr(person, "in_segment", True)
+        deciding = _deciding_now(j) if (person.link == vs.LINK_B2B or (person.recency and inside)) else []
+        owed = vs.follow_up_question(j.entry, person.picks, person.link, interview, token, first=deciding) \
+            if (person.link == vs.LINK_B2B or (person.recency and inside)) else None
+        if owed is not None:
+            owed["deciding"] = deciding
+            person = _typing(person, vs.follow_up_line(j.entry, person, owed))
         page = stranger.new_page()
         screens = vs_screens.Interview(page, j.recorder)
         if getattr(j, "camera", None) is not None:
@@ -2037,10 +2164,21 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
                     or (idea.get("what") or "") not in (first.get("card") or ""):
                 faults.append({"idea screen": first, "served": idea})
         gate = next((s for s in screens if s.get("screen") == "gate"), None)
+        served_gate = interview.get("gate") or {}
         if gate is not None and person.recency:
-            want = [vs_screens.gate_chip_word(interview.get("occasion"))]
-            if gate["chips"] != want:
+            # keel-cloud 123 FR-3 / keel-web 099: the occasion's chip, then *I'd rather not say* where served
+            want = [vs_screens.gate_chip_word(interview.get("occasion"))] + (
+                [vs_screens.GATE_RATHER_NOT_SAY] if "RATHER_NOT_SAY" in (served_gate.get("chips") or []) else [])
+            if [c.strip() for c in gate["chips"]] != want:
                 faults.append({"gate chips": gate["chips"], "want": want})
+        condition = served_gate.get("condition")
+        if gate is not None and condition:
+            # keel-cloud 120 / keel-web 096: the segment's chip before the gate, its question as served
+            if (gate.get("chip") or {}).get("question") != condition.get("question"):
+                faults.append({"segment chip": gate.get("chip"), "served": condition})
+        if gate is not None and j.strict and interview.get("kind") == "FULL" and gate.get("question") is not None \
+                and gate["question"] != served_gate.get("question"):
+            faults.append({"gate": gate["question"], "served": served_gate.get("question")})
         by_dimension = {i.get("dimension"): i for p in interview.get("parts") or [] for i in p.get("items") or []}
         for drawn in (s for s in screens if s.get("screen") == "item"):
             item = by_dimension.get(drawn["dimension"]) or {}
@@ -2294,7 +2432,7 @@ def leg_standings(j: Journey) -> None:
             if len(row) > 1:
                 mismatches.append(row)
         h.record_assert([], mismatches)
-        assert not mismatches, json.dumps(mismatches, indent=2)
+        _defer(j, "standings", mismatches)
 
     with _step(j, "every vector's verdict is the worst of its dimensions, the deciding one's, as the "
                   "entry says (D3: all thirteen decide)") as h:
@@ -2307,11 +2445,18 @@ def leg_standings(j: Journey) -> None:
                 mismatches.append({"vector": vector, "wire": got.get("verdict"),
                                    "deciding on the wire": deciding, "corpus": want})
         h.record_assert([], mismatches)
-        assert not mismatches, json.dumps(mismatches, indent=2)
+        _defer(j, "verdicts", mismatches)
 
     _board(j)
     for vector in VECTORS:
         _vector_page(j, vector)
+
+
+def _defer(j: Journey, what: str, mismatches: list) -> None:
+    """A golden number the build moved (spec 064): recorded on its step (the served beside the corpus's) and kept for
+    the end of the journey (`Journey.deferred`), so the legs after it still run and name theirs."""
+    if mismatches:
+        j.deferred.append({"what": what, "mismatches": mismatches})
 
 
 def _board(j: Journey) -> None:
@@ -2429,8 +2574,9 @@ def _vector_page(j: Journey, vector: str) -> None:
         if opened is not None:
             assert people, opened
         if vector == "COMMERCIAL" and vs.is_b2b(j.entry):
-            role = j.founder.decider["role"].lower()
-            assert role in page["decider_banner"].lower(), page["decider_banner"]
+            # spec 064 FR-6 (keel-cloud 123 FR-10): the banner says the decider's title, the role where none was sent
+            words = {str(j.founder.decider.get(k) or "").lower() for k in ("title", "role")} - {""}
+            assert any(w in page["decider_banner"].lower() for w in words), (page["decider_banner"], words)
     stage_band(j, vector)
     if rungs:
         with _step(j, f"the {vector.lower()} page: every person who answered the follow-up shows it under their name, "
@@ -2465,7 +2611,8 @@ def expected_cards(j: Journey) -> list[dict]:
         standing = standings.get(dimension.key) or {}
         if expected_status(j.entry, dimension.key) == "LEFT_OUT":
             standing = {"status": "LEFT_OUT"}
-        cards.append(brief_facts_mod.card(j.entry, dimension, standing))
+        # spec 064 FR-4a (keel-cloud 116): Prevalence's line is the founder's clause the journey scripted, in the window
+        cards.append(brief_facts_mod.card(j.entry, dimension, standing, clause=vs.event_past(j.entry)))
     return cards
 
 
@@ -2495,13 +2642,15 @@ def leg_report(j: Journey, *, timeout_s: float = 60) -> None:
             want_cards = [_card(c) for c in expected_cards(j)]
             have_cards = [_card(c) for c in facts.get("cards") or []]
             h.record_assert(want_cards, facts.get("cards"))
-            assert have_cards == want_cards, json.dumps({"wire": have_cards, "corpus": want_cards}, indent=2)
+            _defer(j, "cards", [{"wire": w, "corpus": c} for w, c in zip(have_cards, want_cards) if w != c]
+                   + ([{"wire": len(have_cards), "corpus": len(want_cards)}] if len(have_cards) != len(want_cards)
+                      else []))
         with _step(j, "each stage broke where the entry's verdict is a called failure, on its deciding "
                       "dimension") as h:
             want_broke = {v: vs.broke_key(j.entry, v) for v in VECTORS}
             have_broke = {v: ((facts.get(v.lower()) or {}).get("broke") or {}).get("key") for v in VECTORS}
             h.record_assert(want_broke, have_broke)
-            assert have_broke == want_broke, (have_broke, want_broke)
+            _defer(j, "broke", [] if have_broke == want_broke else [{"wire": have_broke, "corpus": want_broke}])
         with _step(j, "each stage's notAsked is the entry's, in keel-cloud 091's one house style (FR-F3)") as h:
             want_not = {v: expected_not_asked(j, v) for v in VECTORS}
             have_not = {v: [{k: n.get(k) for k in ("key", "name", "why")}
@@ -2512,8 +2661,8 @@ def leg_report(j: Journey, *, timeout_s: float = 60) -> None:
                       "the standings") as h:
             want_pilot = brief_facts_mod.pilot_for(j.entry)
             h.record_assert(want_pilot, {"facts": facts.get("pilot"), "standings": standings.get("pilot")})
-            assert facts.get("pilot") == want_pilot, (facts.get("pilot"), want_pilot)
-            assert standings.get("pilot") == want_pilot, (standings.get("pilot"), want_pilot)
+            _defer(j, "pilot", [] if facts.get("pilot") == want_pilot == standings.get("pilot") else [
+                {"facts": facts.get("pilot"), "standings": standings.get("pilot"), "corpus": want_pilot}])
         with _step(j, "what they would pay: the entry's price median -- the highest edge half or more chose at or "
                       "above (keel-cloud 104 FR-1) -- at StandingsView.priceMedian and facts.commercial alike") as h:
             want = brief_facts_mod.price_median_for(j.entry)
@@ -2865,6 +3014,11 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         lap("leg_report and leg_one_currency")
         if extra is not None:
             extra(journey)
+        if journey.deferred:
+            with recorder.step(f"spec 064: {len(journey.deferred)} golden reading(s) the build moved -- each named on its "
+                               "step, the served beside the corpus's", party="stack", kind="assert") as h:
+                h.record_assert([], journey.deferred)
+                raise AssertionError(json.dumps(journey.deferred, indent=2, default=str)[:20000])
         if backtest is None:
             score_feedback(journey)
             _score_guide(journey)

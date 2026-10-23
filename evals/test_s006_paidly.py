@@ -81,8 +81,9 @@ def _paidly_extras(j, sample: sample_export.Pending | None = None) -> None:
                       if k.startswith("commercial.") and v.get("status") != "LEFT_OUT"}
         h.record_assert({k: len(deciders) for k in commercial}, commercial)
         assert all(n == len(deciders) for n in commercial.values()), commercial
-        assert j.founder.decider["role"].lower() in j.screens["COMMERCIAL"]["decider_banner"].lower(), (
-            j.screens["COMMERCIAL"]["decider_banner"])
+        # spec 064 FR-6: the title (05-paidly carries none, so the role word is sent as it) or the role
+        assert any(str(j.founder.decider.get(k) or "").lower() in j.screens["COMMERCIAL"]["decider_banner"].lower()
+                   for k in ("title", "role") if j.founder.decider.get(k)), j.screens["COMMERCIAL"]["decider_banner"]
 
     with j.recorder.step(f"S-006: the floor is {FLOOR} on every dimension, and every paidly "
                          "dimension clears it with a real status", party="stack", kind="assert") as h:
