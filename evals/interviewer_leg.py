@@ -2220,7 +2220,14 @@ def _ai_person(j, interview: dict, token: str):
     person = _person_for_the_link(j)
     owed = vs.follow_up_question(j.entry, person.picks, vs.LINK_PRIMARY, interview, token)
     if owed is None:
-        person = vs.with_pick(person, "commercial.commitment", ["yes_after_trying"])
+        # keel-cloud 118 (FR-1): the conditional yes is served only where the founder's list carries a smaller step
+        # (01-countly's does not, so *Yes, after ... first* is not on the sheet); the other conditional yes, Adoption
+        # friction's *Yes, if it was clearly worth it*, is a support as well (`Compare.supportingCodes`) and owes its
+        # #also follow-up -- so no standing moves either way
+        if vs.smaller_step(j.entry) is not None:
+            person = vs.with_pick(person, "commercial.commitment", ["yes_after_trying"])
+        else:
+            person = vs.with_pick(person, "solution.adoption_friction", ["yes_if_worth_it"])
         owed = vs.follow_up_question(j.entry, person.picks, vs.LINK_PRIMARY, interview, token)
     assert owed is not None, {"no follow-up owed on the AI link": person.person}
     line = person.follow_up or vs.FOLLOW_UP_LINES[owed["dimension"]][0]
