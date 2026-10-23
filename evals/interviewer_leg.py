@@ -736,9 +736,15 @@ def _follow_up_clips(j, record: dict, tries: dict) -> None:
         h.record_assert({link: {"rungs": r["want"], "script": "One last thing. {spoken}"} for link, r in roles.items()},
                         roles)
         for link, r in roles.items():
-            assert r["want"] and [c["itemId"] for c in r["clips"]] == r["want"], (link, r)
+            # keel-cloud 118: a rung may carry a second *#also* clip (its deciding line's other half); it rides beside
+            # the rung's own clip, on a rung the link walks, DONE -- and is not a rung of its own.
+            rung_clips = [c for c in r["clips"] if "#also" not in (c["itemId"] or "")]
+            also = [c for c in r["clips"] if "#also" in (c["itemId"] or "")]
+            assert r["want"] and [c["itemId"] for c in rung_clips] == r["want"], (link, r)
             assert all(c["script"] == fake.follow_up_script(fake.rung(c["itemId"])[3]) and c["status"] == "DONE"
-                       for c in r["clips"]), (link, r["clips"])
+                       for c in rung_clips), (link, r["clips"])
+            assert all(c["itemId"].split("#")[0] in r["want"] and c["status"] == "DONE"
+                       and c["script"].startswith("One last thing.") for c in also), (link, also)
             assert all(r["spoken"][d] == fake.rung(d)[3] for d in r["want"]), (link, r["spoken"])
             assert r["served"] == sorted(r["want"]), (link, r["served"])
 

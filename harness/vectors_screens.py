@@ -2078,7 +2078,8 @@ class Answers:
         (`[data-testid=insights-grouping]`), the RAW list (`.rp-raw`, its `.rp-raw__note`); a folded group is opened
         (`[data-testid=insights-more]`) before it is read; the `notAsked` lines (`[data-testid=insights-not-asked]
         li[data-dim]`); the empty state (`.rp-inone`); every quote and the view's own lines (the heading, the frame,
-        *Only k of the n*: what `report_no_repeat` takes out)."""
+        *Only k of the n*: what `report_no_repeat` takes out; a quote's own pick line, `p.rp-pick` -- *Under $500 per
+        site a month* -- is the person's answer, read into `quotes` with the quote, so D6 never counts it twice)."""
         from harness import interviewer_fake as fake                    # noqa: PLC0415
         with self._b.step("founder opens the report's insights") as h:
             self._report(project_id, "insights")
@@ -2131,7 +2132,7 @@ class Answers:
             h.capture_text("stage_screen", text)
             h.add_screenshot(self._b.screenshot("report-insights"))
             return {"boxes": boxes, "empty": _tc(view.locator(".rp-inone")) or None, "not_asked": not_asked,
-                    "quotes": [_tc(q) for q in view.locator(".rp-quote").all()], "own_lines": own_lines,
+                    "quotes": [_tc(q) for q in view.locator(".rp-quote, .rp-pick").all()], "own_lines": own_lines,
                     "text": text}
 
     def pilot(self, project_id: str) -> dict:

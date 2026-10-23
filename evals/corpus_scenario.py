@@ -315,7 +315,7 @@ def leg_context(j: Journey) -> None:
             assert drawn == want, {"served": drawn, "assembled": want}
             assert lines.get("only_people_who") == want_lines["only_people_who"], lines
         assert vs.window_words(founder.window) in window_line, window_line
-        j.screens["context_card"] = {"understands": drawn, **lines}
+        j.screens["context_card"] = {"understands": drawn, "text": drawn, **lines}
     j.corridor.confirm_context()
     with _step(j, "the context is confirmed on the wire: the four fields, the sentence, the window "
                   "of at least two (D13)") as h:
