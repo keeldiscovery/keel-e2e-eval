@@ -1534,7 +1534,9 @@ def follow_up_lines(entry, people: list) -> dict[str, str | None]:
         rung = fake.first_rung(person.picks, founder, person.link, b2b=is_b2b(entry))
         if rung is None:
             continue
-        out[person.person] = None if person.person in FOLLOW_UP_SKIPS.get(entry.id, ()) else FOLLOW_UP_LINES[rung][0]
+        own = getattr(person, "follow_up", None)
+        out[person.person] = None if person.person in FOLLOW_UP_SKIPS.get(entry.id, ()) \
+            or (own is None and getattr(entry, "backtest", False)) else (own or FOLLOW_UP_LINES[rung][0])
     return out
 
 
@@ -1545,6 +1547,11 @@ def follow_up_line(entry, person, owed: dict | None) -> str | None:
         return None
     own = next((p.follow_up for p in entry.people() if p.person == person.person and getattr(p, "follow_up", None)),
                None)
+    if own is None and getattr(entry, "backtest", False):
+        # a back-test person says only what the file gives them: with no words of their own on the rung actually
+        # asked, they skip -- the pooled line is the golden journeys' (its insights would otherwise rest on filler;
+        # the judges of 10-palus and 12-transload named three such boxes)
+        return None
     return own or FOLLOW_UP_LINES[owed["dimension"]][0]
 
 
@@ -1596,8 +1603,11 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
     elif rung == "commercial.price":
         values["{band}"] = fake.WOULD_NOT_PAY_BAND if codes[:1] == [fake.WOULD_NOT_PAY] else \
             fake.lower(label(codes[0]) if codes else None)
-    return {"dimension": rung, "text": fake.fill(rung, values, also=also), "spoken": fake.spoken_of(rung, also=also),
-            "also": also}
+    text = fake.fill(rung, values, also=also)
+    if rung == "commercial.price" and codes[:1] == [fake.WOULD_NOT_PAY] and not also:
+        # keel-cloud 126 FR-6a (`FollowUpComposer.WOULD_NOT_PAY_TEXT`): the would-not-pay follow-up has its own sentence
+        text = "You said you wouldn't pay for this. What would change that?"
+    return {"dimension": rung, "text": text, "spoken": fake.spoken_of(rung, also=also), "also": also}
 
 
 def the_step(step: str) -> str:
