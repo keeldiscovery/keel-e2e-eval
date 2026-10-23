@@ -1445,6 +1445,47 @@ def founder_side(entry):
                         else None, price_low=low, buyer_supports=supports, chain_price=chain)
 
 
+_THIRD = re.compile(r"\b(they're|they've|they'd|they'll|theirs|their|themselves|they)\b", re.IGNORECASE)
+_COULD_NOT_SHAPES = (
+    (r"^(?:could|would|can|will) you (?:have been|be) (?:allowed|able|permitted) to (.+)$", r"\1"),
+    (r"^you (?:could|would|can|will)(?: have been| be) (?:allowed|able|permitted) to (.+)$", r"\1"),
+    (r"^you (?:were|are) (?:allowed|able|permitted) to (.+)$", r"\1"),
+    (r"^(?:could|can) you (.+)$", r"\1"),
+    (r"^you (?:could|can) (.+)$", r"\1"),
+    (r"^(?:would|will) you (.+)$", r"\1"),
+    (r"^you (?:would|will) (.+)$", r"\1"),
+    (r"^did you (.+)$", r"\1"),
+    (r"^you had (.+)$", r"have \1"),
+    (r"^(?:were|are) you (.+)$", r"be \1"),
+    (r"^you (?:were|are) (.+)$", r"be \1"),
+    (r"^(?:was|is) your (\S+) (.+)$", r"have your \1 \2"),
+    (r"^your (\S+) (?:was|is) (.+)$", r"have your \1 \2"),
+)
+
+
+def could_not(asked: str | None) -> str | None:
+    """keel-cloud 126 `ItemFrames.couldNot`, mirrored: the condition's stranger face as the verb phrase after *You said
+    you couldn't* -- the clause lower-cased and shorn of its *?*, every *they* / *their* the stranger's own, then one
+    of the thirteen shapes; None where the face is none of them (the composer then says *do that*)."""
+    text = (asked or "").strip()
+    while text.endswith("?") or text.endswith("."):
+        text = text[:-1].strip()
+    if not text:
+        return None
+    text = fake.lower(text) or text
+
+    def person(m):
+        w = m.group(1).lower()
+        return {"they're": "you're", "they've": "you've", "they'd": "you'd", "they'll": "you'll", "their": "your",
+                "theirs": "yours", "themselves": "yourself"}.get(w, "you")
+    text = _THIRD.sub(person, text)
+    for pattern, out in _COULD_NOT_SHAPES:
+        m = re.match(pattern, text)
+        if m:
+            return m.expand(out).strip()
+    return None
+
+
 def founder_follow_up_words(entry) -> dict[str, str | None]:
     """The founder's words a follow-up's text says (`FollowUpComposer.values`): the tested Compatibility condition and
     Adoption friction effort, each its saved list item's label as the founder wrote it."""
@@ -1535,10 +1576,17 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
     elif rung == "problem.current_solution_satisfaction":
         values["{their_answer}"] = fake.lower(label(codes[0]) if codes else None)
     elif rung == "solution.compatibility":
-        values["{condition}"] = fake.lower(founder_follow_up_words(entry)["{condition}"])
-        # spec 064 FR-6a (keel-cloud 123 FR-8): the ability wording serves "Only sometimes" where the permission wording
-        # serves "Only with help or approval"; the route's clause follows the served label
+        # keel-cloud 126 (FR-5b, `ItemFrames.couldNot`): "You said you couldn't {condition}" -- the tested item's
+        # stranger face (`asked`, else its label) as the verb phrase after "couldn't"; "always ..." where they read
+        # Only sometimes (123 FR-8), "... without help or approval" where they read Only with help or approval; the
+        # composer's "do that" where the face has none of the shapes
+        tested = entry.tested("solution.compatibility") or {}
+        condition = could_not(tested.get("asked") or tested.get("label"))
         picked = (label(codes[0]) or "").lower() if codes else ""
+        if condition is not None and codes and codes[0] == "only_with_help":
+            condition = "always " + condition if picked.startswith("only sometimes") \
+                else condition + " without help or approval"
+        values["{condition}"] = condition
         values["{would}"] = ("only work sometimes" if picked.startswith("only sometimes")
                              else "only work with help" if picked.startswith("only with help") else "not work")
     elif rung == "solution.relative_advantage":
