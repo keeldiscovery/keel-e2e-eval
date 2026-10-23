@@ -407,6 +407,10 @@ def host_door_jobs(per_job: list[dict], host_name: str = "claude") -> dict:
             "bad": bad}
 
 
+#: Claude Code's `result` event `usage` keys summed per job and in all (spec 066 FR-3; the founder's plan consumption).
+USAGE_KEYS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
+
+
 def cli_usage(keel_home: Path, job_ids: list[str] | None = None) -> dict:
     """FR-3: the cost section's own figure on the host door -- what the CLI itself reported per job, read off the
     runtime's `jobs/<id>/envelope.json` (Claude Code's `result` event): `total_cost_usd` and the token counts of
@@ -429,17 +433,25 @@ def cli_usage(keel_home: Path, job_ids: list[str] | None = None) -> dict:
                 if isinstance((usage or {}).get(key), (int, float)):
                     tokens[key] = tokens.get(key, 0) + usage[key]
         cost_usd = body.get("total_cost_usd")
+        # the result event's own `usage` (snake_case: input_tokens, output_tokens, cache_*_input_tokens)
+        usage = {k: v for k, v in (body.get("usage") or {}).items() if k in USAGE_KEYS and isinstance(v, (int, float))}
+        per_model_cost = {m: (u or {}).get("costUSD") for m, u in (body.get("modelUsage") or {}).items()
+                          if isinstance((u or {}).get("costUSD"), (int, float))}
         rows.append({"job_id": job_id, "usd": cost_usd if isinstance(cost_usd, (int, float)) else None,
-                     "models": sorted(body.get("modelUsage") or {}), "tokens": tokens,
+                     "models": sorted(body.get("modelUsage") or {}), "tokens": tokens, "usage": usage,
+                     "costUSD by model": per_model_cost, "duration_ms": body.get("duration_ms"),
                      "is_error": body.get("is_error"), "num_turns": body.get("num_turns")})
     priced = [r for r in rows if r["usd"] is not None]
     total_tokens: dict = {}
+    total_usage: dict = {}
     for r in rows:
         for key, value in r["tokens"].items():
             total_tokens[key] = total_tokens.get(key, 0) + value
+        for key, value in r["usage"].items():
+            total_usage[key] = total_usage.get(key, 0) + value
     return {"envelopes": len(rows), "priced": len(priced),
             "usd": round(sum(r["usd"] for r in priced), 4) if priced else None,
-            "tokens": total_tokens, "words": ("the CLI's own total_cost_usd, a list-price equivalent the founder's "
+            "tokens": total_tokens, "usage": total_usage, "words": ("the CLI's own total_cost_usd, a list-price equivalent the founder's "
                                               "plan covers -- not billed" if priced else NOT_PRICED),
             "per_job": rows}
 
@@ -1170,6 +1182,9 @@ def cost(j, bt: Backtest | None = None) -> dict:
     if on_host:
         # spec 066 FR-3: keel-cloud prices nothing on the host door; the CLI's own report, where it gives one
         host_side = {"door": "host", "cli": cli_usage(bt.keel_home, [r.get("job_id") for r in per_job])}
+        screen_of = {r.get("job_id"): r.get("screen") for r in per_job}
+        for row in host_side["cli"]["per_job"]:
+            row["screen"] = screen_of.get(row["job_id"])
     return {**host_side, "jobs": len(per_job), "micro_usd": total, "usd": round(total / 1_000_000, 4),
             "by_class": by_class, "models": sorted({r.get("model_used") for r in per_job if r.get("model_used")}),
             "hosts": sorted({str(r.get("host")) for r in per_job}),
@@ -1377,7 +1392,15 @@ def markdown(r: dict) -> str:
         lines += [f"- The CLI's own usage: {cli.get('words') or NOT_PRICED} -- "
                   f"{('$' + str(cli.get('usd'))) if cli.get('usd') is not None else '--'} over {cli.get('priced')} of "
                   f"{cli.get('envelopes')} envelopes; tokens {_q(cli.get('tokens'))}",
+                  f"- The result events' usage, summed: {_q(cli.get('usage'))}",
                   "- keel-cloud priced nothing: on the host door the founder's own plan answers every job"]
+        for row in cli.get("per_job") or []:
+            u = row.get("usage") or {}
+            lines.append(f"  - {row.get('screen') or '?'} `{row.get('job_id')}`: "
+                         f"${row.get('usd')}, in {u.get('input_tokens')} / out {u.get('output_tokens')} / cache read "
+                         f"{u.get('cache_read_input_tokens')} / cache write {u.get('cache_creation_input_tokens')}, "
+                         f"{_q(row.get('models'))}, {row.get('num_turns')} turns"
+                         + (" (error)" if row.get("is_error") else ""))
     for name, k in (c.get("by_class") or {}).items():
         lines.append(f"- {name}: {k.get('jobs')} jobs, ${k.get('usd')}, {_q(k.get('models'))}")
     if c.get("not settled"):

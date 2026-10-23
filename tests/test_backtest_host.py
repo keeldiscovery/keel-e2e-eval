@@ -410,3 +410,21 @@ def test_the_runner_script_waits_alone_logs_each_entry_and_prints_one_line(tmp_p
     calls = (tmp_path / "make.calls").read_text().splitlines()
     assert "down" in calls[0] and "backtest DOOR=host ENTRY=08-fresco" in calls[1] and len(calls) == 2
     assert (repo / "runs" / "backtest-host" / "08-fresco.log").is_file()
+
+
+def test_each_job_s_result_event_usage_is_recorded_and_summed_into_the_markdown(tmp_path):
+    (tmp_path / "jobs" / "j1").mkdir(parents=True)
+    (tmp_path / "jobs" / "j1" / "envelope.json").write_text(json.dumps({
+        "type": "result", "total_cost_usd": 0.01, "num_turns": 1, "duration_ms": 900,
+        "usage": {"input_tokens": 3, "output_tokens": 7, "cache_read_input_tokens": 100,
+                  "cache_creation_input_tokens": 5, "service_tier": "standard"},
+        "modelUsage": {"claude-sonnet-5-5": {"inputTokens": 3, "outputTokens": 7, "costUSD": 0.01}}}))
+    cli = bt.cli_usage(tmp_path)
+    assert cli["usage"] == {"input_tokens": 3, "output_tokens": 7, "cache_read_input_tokens": 100,
+                            "cache_creation_input_tokens": 5}
+    assert cli["per_job"][0]["costUSD by model"] == {"claude-sonnet-5-5": 0.01}
+    cli["per_job"][0]["screen"] = "PROBLEM_FRAME"
+    record = _record()
+    record["cost"]["cli"] = cli
+    md = bt.markdown(record)
+    assert "The result events' usage, summed" in md and "PROBLEM_FRAME `j1`: $0.01, in 3 / out 7" in md
