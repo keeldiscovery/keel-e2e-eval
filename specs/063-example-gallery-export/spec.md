@@ -26,7 +26,9 @@ study inspired by <Name> (Y Combinator <batch>). The founder's answers, the twen
 said are fictional, written from <Name>'s public material to show what Keel does. Not customer research about <Name>;
 not affiliated with <Name> or Y Combinator."* The export refuses a slug whose `inspiredBy`, `publicDescription`
 (with URL and date) or `disclaimer` is missing. Provenance (entry id, run directory) stays in the private
-`runs/gallery/provenance-*.json`; the public files carry the attribution, not the run. keel-web 100 draws the
+`runs/gallery/provenance-*.json`; the public files carry the attribution, not the run. Each row also carries `cluster {id, label}` (the topic cluster of the diversity research, from the toml) and
+`keywords[]` (5–12 plain words from the problem statement, the actor and the occasion, for search and for the
+radar's mail), and the index file carries a top-level `generatedAt` and `count`. keel-web 100 draws the
 disclaimer as a band on every screen of an example; keel-web 101 / keel-cloud 125 send `inspiredBy` and
 `publicDescription` with the candidates and the match returns the one-line assumption worth testing (for the page and
 for the outreach email of the radar, a later spec).
