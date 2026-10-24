@@ -93,3 +93,88 @@ inspired_by = { name = "AirCaps", batch = "Fall 2025", ycUrl = "https://www.ycom
 cluster = { id = 6, label = "Consumer video, media and creators" }
 keywords = ["deaf or hard-of-hearing adult", "conversation", "hearing aids", "background noise", "captions", "restaurant", "family meal", "meeting", "theatre", "groups"]
 public_description = { text = "AirCaps - The AI copilot for in-person conversations.", url = "https://www.ycombinator.com/launches/Olk-aircaps-the-ai-copilot-for-in-person-conversations", date = "2025-11-05" }
+
+# The eight entries added 2026-10-25 (the founder, looking at staging: "Why do I see only 6 under examples"). Rows from
+# each entry's sources file (the Launch YC title, URL and created_at; the YC company page and batch). status_today left
+# out until each company's current one-liner has been read (the field is optional). Clusters by the coordinator's call
+# where the k-means assignment (clusters_k30.json) put the entry in an unrelated topic (Pairio 1, Expanse 10).
+
+[[gallery]]
+entry = "14-code-four"
+slug = "code-four"
+name = "Code Four"
+replaces = []
+inspired_by = { name = "Code Four", batch = "Spring 2025", ycUrl = "https://www.ycombinator.com/companies/code-four" }
+cluster = { id = 9, label = "Legal, law and government" }
+keywords = ["patrol officer", "body-cam footage", "incident reports", "police department", "end of shift", "records system", "court", "police chief"]
+public_description = { text = "Code Four – Bringing Our Cops Home", url = "https://www.ycombinator.com/launches/Nam-code-four-bringing-our-cops-home", date = "2025-05-23" }
+
+[[gallery]]
+entry = "15-voltair"
+slug = "voltair"
+name = "Voltair"
+replaces = []
+inspired_by = { name = "Voltair", batch = "Winter 2026", ycUrl = "https://www.ycombinator.com/companies/voltair" }
+cluster = { id = 3, label = "Defense, drones, space and aviation" }
+keywords = ["lineman", "power utility", "pole inspection", "circuit", "storm", "drones", "charging pads", "feeder", "co-op", "inspection manager"]
+public_description = { text = "Voltair: Drones that Charge on Power Lines", url = "https://www.ycombinator.com/launches/PG8-voltair-drones-that-charge-on-power-lines", date = "2026-01-23" }
+
+[[gallery]]
+entry = "16-pairio"
+slug = "pairio"
+name = "Pairio"
+replaces = []
+inspired_by = { name = "Pairio", batch = "Spring 2026", ycUrl = "https://www.ycombinator.com/companies/pairio" }
+cluster = { id = 26, label = "Robotics, manufacturing and factories" }
+keywords = ["maintenance technician", "machine breakdown", "production line", "manuals", "wiring diagrams", "fault report", "spare parts", "plant manager", "maintenance manager"]
+public_description = { text = "Pairio – Fix broken equipment in factories faster", url = "https://www.ycombinator.com/launches/Q18-pairio-fix-broken-equipment-in-factories-faster", date = "2026-04-21" }
+
+[[gallery]]
+entry = "17-expanse"
+slug = "expanse"
+name = "Expanse"
+replaces = []
+inspired_by = { name = "Expanse", batch = "Spring 2026", ycUrl = "https://www.ycombinator.com/companies/expanse" }
+cluster = { id = 23, label = "Developer infrastructure and cloud" }
+keywords = ["ML researcher", "GPU cluster", "training jobs", "idle capacity", "queue", "source code", "cloud bill", "infrastructure lead"]
+public_description = { text = "Expanse - Unlock wasted GPU capacity", url = "https://www.ycombinator.com/launches/QCF-expanse-unlock-wasted-gpu-capacity", date = "2026-05-04" }
+
+[[gallery]]
+entry = "18-careforce"
+slug = "careforce"
+name = "Careforce"
+replaces = []
+inspired_by = { name = "Careforce", batch = "Fall 2024", ycUrl = "https://www.ycombinator.com/companies/careforce" }
+cluster = { id = 0, label = "Healthcare and patient care" }
+keywords = ["medical assistant", "clinic", "patient calls", "renewals", "EMR", "front desk", "call list", "practice manager", "healthcare admin"]
+public_description = { text = "Careforce - Must-have AI agents for Healthcare admin", url = "https://www.ycombinator.com/launches/MJj-careforce-must-have-ai-agents-for-healthcare-admin", date = "2024-11-22" }
+
+[[gallery]]
+entry = "19-veles"
+slug = "veles"
+name = "Veles"
+replaces = []
+inspired_by = { name = "Veles", batch = "Winter 2024", ycUrl = "https://www.ycombinator.com/companies/veles" }
+cluster = { id = 22, label = "Sales, CRM and lead generation" }
+keywords = ["account executive", "enterprise sales", "pricing", "quotes", "deal desk", "discounts", "CRM", "sales leader", "quarter"]
+public_description = { text = "Veles - Your copilot for enterprise sales", url = "https://www.ycombinator.com/launches/KTD-veles-your-copilot-for-enterprise-sales", date = "2024-02-23" }
+
+[[gallery]]
+entry = "20-lemma"
+slug = "lemma"
+name = "Lemma"
+replaces = []
+inspired_by = { name = "Lemma", batch = "Fall 2025", ycUrl = "https://www.ycombinator.com/companies/uselemma" }
+cluster = { id = 24, label = "Software engineering and developer tools" }
+keywords = ["AI engineer", "LLM agents", "production", "real inputs", "incident", "traces", "prompts", "pull request", "startup CTO"]
+public_description = { text = "Lemma: Continuous Learning for AI Agents", url = "https://www.ycombinator.com/launches/Oln-lemma-continuous-learning-for-ai-agents", date = "2025-11-05" }
+
+[[gallery]]
+entry = "21-codyco"
+slug = "codyco"
+name = "Codyco"
+replaces = []
+inspired_by = { name = "Codyco", batch = "Fall 2025", ycUrl = "https://www.ycombinator.com/companies/codyco" }
+cluster = { id = 12, label = "Business operations and hospitality" }
+keywords = ["reservation agent", "hotel group", "booking calls", "call center", "missed calls", "guests", "front desk", "revenue director", "Germany"]
+public_description = { text = "Codyco: AI Receptionists for Hotel Groups", url = "https://www.ycombinator.com/launches/Oe7-codyco-ai-receptionists-for-hotel-groups", date = "2025-10-19" }

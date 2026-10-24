@@ -403,7 +403,11 @@ def axes(run: Run, override: dict | None = None) -> dict:
     out = {"whoHasIt": (f.get("context_fields") or {}).get("actor"),
            "whoPays": who_pays,
            "rhythm": _RHYTHM.get(window.get("unit")),
-           "costMode": {"HOURS": "time", "AMOUNT": "money"}.get(cost.get("mode")),
+           # The cost's mode as the calibration has carried it since keel-cloud's cost-first design (2026-10-10): HOURS
+           # (time lost), MONEY (an amount, once AMOUNT), RATE (a share of a base, "1.5% of the rupees they move"),
+           # COUNT (things missed). A mode this map does not know is written as it is, lower-cased, never left null.
+           "costMode": {"HOURS": "time", "AMOUNT": "money", "MONEY": "money", "RATE": "share", "COUNT": "count"}.get(
+               cost.get("mode"), (cost.get("mode") or "").lower() or None),
            "priceShape": _PERIODLY.get(price.get("period"), "one-off" if price and not price.get("period") else None),
            "firstStep": step,
            "kind": "business" if run.b2b else "consumer"}
