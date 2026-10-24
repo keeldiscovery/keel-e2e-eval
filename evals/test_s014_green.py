@@ -26,6 +26,12 @@ from evals import report_marks
 ENTRY_ID = preludes.HEALTHY_FROM
 
 
+#: Spec 070 FR-3 (spec 064 F-13, keel-cloud 118 judgement call 9): on the healthy project every decision-maker answers
+#: Purchase friction *quick*, which is against the fear and owed its follow-up -- so the one box the view carries is that
+#: held line's dissent box, never a failing one.
+HELD_WITH_WORDS = ("commercial.purchase_friction",)
+
+
 def _green_extras(j) -> None:
     dims = [d for v in j.standings.get("vectors") or [] for d in v.get("dimensions") or []]
     with j.recorder.step("S-014: every dimension holds up on ten or more and nobody is owed a follow-up -- no insight, "
@@ -33,12 +39,15 @@ def _green_extras(j) -> None:
         weak = [(d.get("dimension"), d.get("status"), d.get("n")) for d in dims
                 if d.get("status") != "HOLDING_UP" or int(d.get("n") or 0) < preludes.HEALTHY_N]
         followed = [(d.get("dimension"), p.get("personName")) for d in dims for p in d.get("people") or []
-                    if p.get("followUp")]
-        h.record_assert({"weak": [], "insights": [], "follow-ups": []},
+                    if p.get("followUp") and d.get("dimension") not in HELD_WITH_WORDS]
+        failing = [(i.get("dimension"), i.get("status"), i.get("dissent")) for i in j.standings.get("insights") or []
+                   if not (i.get("dissent") and i.get("status") == "HOLDING_UP"
+                           and i.get("dimension") in HELD_WITH_WORDS)]
+        h.record_assert({"weak": [], "insights other than a held line's dissent": [], "follow-ups": []},
                         {"weak": weak, "insights": j.standings.get("insights"), "follow-ups": followed,
                          "decision": ((j.standings.get("facts") or {}).get("decision") or {}).get("label")})
         assert not weak, weak
-        assert j.standings.get("insights") == [], j.standings.get("insights")
+        assert not failing, j.standings.get("insights")
         assert not followed, followed
         assert ((j.standings.get("facts") or {}).get("decision") or {}).get("label") == "BUILD"
     with j.recorder.step("S-014: the report says nothing more -- Nothing is failing, the sign-ups listed, the binding "
@@ -53,7 +62,8 @@ def _green_extras(j) -> None:
                         {"marks": {m: (c["measured"], c["ok"]) for m, c in checks.items()},
                          "empty": insights.get("empty"), "pages": pages})
         assert all(checks.get(m, {}).get("measured") and checks[m]["ok"] for m in report_marks.MARK_NAMES), checks
-        assert "Nothing is failing" in (insights.get("empty") or ""), insights.get("empty")
+        if not j.standings.get("insights"):
+            assert "Nothing is failing" in (insights.get("empty") or ""), insights.get("empty")
         assert pages[:3] == [1, 2, 3] and len(pages) >= 4, pages
 
 

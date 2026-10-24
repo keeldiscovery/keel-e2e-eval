@@ -66,13 +66,14 @@ Unit suite on `ae1b390` before any change: **3,160 passed, 53 skipped, 0 failed,
 
 ## FR-3 -- the report_insights mark reads the fear-held head
 
-- [ ] T020 `evals/report_marks.expected_box`: the box's pill is the line's served word as keel-web's `lineWordOf`
+- [x] T020 `evals/report_marks.expected_box`: the box's pill is the line's served word as keel-web's `lineWordOf`
   draws it -- the card's `statusWords` head where the card's status is the insight's (S-014: *Your fear was the
   agency owner's approval. 10 of 10 said it was quick or not needed. Not the blocker you expected.* over *What did slow
   it down?*), else 106 FR-3's bar word; `report_no_repeat` takes that pill out as the view's own line (the card's own
   words, not a number repeated). S-014's extras allow the one held-line dissent box Purchase friction carries since
   keel-cloud 118 (every decision-maker answering *quick* is owed a follow-up, spec 064 F-13) and no failing box.
-  Unit: `tests/test_after_131.py` (S-014's served box).
+  Unit: `tests/test_after_131.py` (S-014's served box). The 130-build S-014 record (run `20261024T161428Z`, read
+  only) re-scored by the mark: 5 of 5 met (was 3 of 5). Unit: **3,181 passed, 53 skipped, 0 failed**; the grep clean.
 
 ## FR-4 -- nothing else moves
 

@@ -348,3 +348,55 @@ def test_cloud_131_reads_the_served_words_beside_the_mirror_as_findings():
     clean = SimpleNamespace(entry=codyco, interviews={"Aylin": {"gate": {"question": got["gate"][0]["mirror"]},
                                                                "parts": []}}, findings=[], changed={})
     assert backtest.cloud_131(clean) == {} and clean.findings == []
+
+
+# ------------------------------------------------------------------------------- FR-3: the fear-held head
+
+FEAR = ("Your fear was the agency owner's approval. 10 of 10 said it was quick or not needed. Not the blocker you "
+        "expected.")
+
+
+def _s014_standings() -> dict:
+    """S-014's served box on the 130 build (run 20261024T161428Z): Purchase friction HOLDING_UP, a held line's dissent,
+    its card's statusWords the friction line keel-web draws as the pill."""
+    key = "commercial.purchase_friction"
+    return {"facts": {"cards": [{"key": key, "status": "HOLDING_UP", "statusWords": FEAR, "number": "10 of 10"},
+                                {"key": "problem.prevalence", "status": "HOLDING_UP", "statusWords": "Holding up",
+                                 "number": "0 of 10"}]},
+            "vectors": [{"dimensions": [{"dimension": key, "status": "HOLDING_UP", "n": 10,
+                                         "choice": {"optionCounts": [{"code": "yes_quick", "count": 10}]}}]}],
+            "insights": [{"dimension": key, "name": "Purchase friction", "status": "HOLDING_UP", "dissent": True,
+                          "frame": "Purchase friction held, 0 of 10; the 10 who said no:",
+                          "rungHeading": "What did slow it down?"}]}
+
+
+def test_the_box_pill_is_the_cards_served_word():
+    """keel-web `lineWordOf`: the card's served word where its status is the box's -- the fear that did not hold reads
+    the card's own line, not *Holding up*; a bar line's served *People disagree* is still *Did not hold*; no card, the
+    status's word."""
+    from evals import report_marks as rm                                # noqa: PLC0415
+    standings = _s014_standings()
+    key = "commercial.purchase_friction"
+    card, row = standings["facts"]["cards"][0], standings["vectors"][0]["dimensions"][0]
+    assert rm.line_word(key, "HOLDING_UP", row, card) == FEAR
+    assert rm.expected_box(standings["insights"][0], row, frozenset(), card)["head"] == ["Purchase friction", FEAR]
+    assert rm.line_word(key, "HOLDING_UP", row, None) == "Holding up"
+    assert rm.line_word(key, "HOLDING_UP", row, {**card, "status": "PEOPLE_DISAGREE"}) == "Holding up"
+    split = {"key": "solution.compatibility", "status": "PEOPLE_DISAGREE", "statusWords": "People disagree · a split"}
+    assert rm.line_word("solution.compatibility", "PEOPLE_DISAGREE", {"n": 9}, split) == "Did not hold"
+    assert rm.pill_words(standings) == [FEAR]
+
+
+def test_the_pill_is_the_views_own_words_for_d6():
+    """D6 on S-014's view: the pill's *10 of 10* is the card's own line drawn again, as the frame's *0 of 10* is the
+    view's own line -- no number repeated; a count outside them still is."""
+    from evals import report_marks as rm                                # noqa: PLC0415
+    standings = _s014_standings()
+    text = (f"Purchase friction {FEAR} What did slow it down? Purchase friction held, 0 of 10; the 10 who said no: "
+            "finance (9) “Finance wanted written quotes.” — Kate Alder Yes, but it would be quick")
+    page = {"text": text, "quotes": ["“Finance wanted written quotes.” — Kate Alder",
+                                     "Yes, but it would be quick"],
+            "own_lines": ["What did slow it down?", "Purchase friction held, 0 of 10; the 10 who said no:"]}
+    assert rm.report_no_repeat({"standings": standings, "insights": page}) == (True, {"repeated": []})
+    page["text"] += " 3 of 10 said more"
+    assert rm.report_no_repeat({"standings": standings, "insights": page})[0] is False

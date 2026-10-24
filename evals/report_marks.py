@@ -49,7 +49,7 @@ from typing import Any
 
 from harness import interviewer_fake as fake
 from instructions import overview as ov
-from instructions.brief_facts import BROKE_ON, DID_NOT_HOLD, _plain, bar_words
+from instructions.brief_facts import BAR_LINES, BROKE_ON, DID_NOT_HOLD, _plain, bar_words
 
 #: Bumped whenever a mark is born, retired, or reads its record differently.
 REPORT_MARKS_VERSION = 1
@@ -324,7 +324,35 @@ def guessed_of(standings: dict) -> frozenset:
                      if p.get("anchoring") == "GUESSED" and p.get("invitationId") is not None)
 
 
-def expected_box(insight: dict, standing: dict | None = None, guessed: frozenset = frozenset()) -> dict:
+_SPLIT_WORD = re.compile(r"(?i)^people disagree$")
+
+
+def line_word(key: str | None, status: str | None, standing: dict | None = None, card: dict | None = None) -> str:
+    """Spec 070 FR-3 (keel-web `lineWordOf` over `barWord`, spec 106 FR-3): the box's pill as keel-web draws it -- the
+    card's served word (its `statusWords` before ` · `) where the card's status is the box's, so a Purchase friction fear
+    that did not hold reads the card's own *Your fear was ... Not the blocker you expected.* (S-014 on the 130 build);
+    on a bar line's amber never *People disagree* (`bar_words`); else the status's word."""
+    served = ov.head((card or {}).get("statusWords")) if card and card.get("status") == status \
+        and (card or {}).get("statusWords") else None
+    engine = served or bar_words(key, {**(standing or {}), "status": status})
+    if status != "PEOPLE_DISAGREE" or key not in BAR_LINES:
+        return engine
+    if served and not _SPLIT_WORD.match(served.strip()):
+        return served
+    return bar_words(key, {**(standing or {}), "status": status})
+
+
+def pill_words(standings: dict) -> list[str]:
+    """Spec 070 FR-3: every served box's pill (`line_word`) -- the card's own line drawn again, the view's own words for
+    D6 as the frame and the heading are."""
+    cards = {c.get("key"): c for c in ((standings or {}).get("facts") or {}).get("cards") or []}
+    rows = {d.get("dimension"): d for v in (standings or {}).get("vectors") or [] for d in v.get("dimensions") or []}
+    return [line_word(i.get("dimension"), i.get("status"), rows.get(i.get("dimension")), cards.get(i.get("dimension")))
+            for i in (standings or {}).get("insights") or []]
+
+
+def expected_box(insight: dict, standing: dict | None = None, guessed: frozenset = frozenset(),
+                 card: dict | None = None) -> dict:
     """One box's words, from its served `insights[]` entry (contract 28, keel-web 095): the name and pill, the split
     line, the rung heading alone, the dissent frame, *Only k of the n*, then by state -- GROUPED the themes (*On their
     own* last), GROUPING *Keel is grouping what they said…* and the quotes, RAW *In their own words*, the note and the
@@ -339,7 +367,7 @@ def expected_box(insight: dict, standing: dict | None = None, guessed: frozenset
     loose = [fake.quote_words(q) for q in (insight.get("rawQuotes") or insight.get("quotes") or []) if said(q)]
     # keel-web 106 FR-3 (keel-cloud 128 FR-8, spec 068 FR-4): a bar line's amber is *Did not hold* past the bar, with no
     # split note (Purchase friction's held fear *Holding up*); the standing's counts decide it, the insight's status else
-    word = bar_words(insight.get("dimension"), {**(standing or {}), "status": insight.get("status")})
+    word = line_word(insight.get("dimension"), insight.get("status"), standing, card)
     return {
         "key": insight.get("dimension"), "state": state, "dissent": bool(insight.get("dissent")),
         "head": [insight.get("name"), word],
@@ -442,7 +470,8 @@ def insight_faults(standings: dict, page: dict, *, strict: bool, names: dict) ->
             continue
         standing = next((d for v in standings.get("vectors") or [] for d in v.get("dimensions") or []
                          if d.get("dimension") == key), None)
-        want, got = expected_box(served[key], standing, guessed_of(standings)), by_key[key]
+        card = next((c for c in ((standings.get("facts") or {}).get("cards") or []) if c.get("key") == key), None)
+        want, got = expected_box(served[key], standing, guessed_of(standings), card), by_key[key]
         if sorted(ov.norm(q) for q in got.get("guessed") or []) != sorted(ov.norm(q) for q in want["guessed"]):
             faults.append({key: "the GUESSED words apart (keel-web 106 FR-4)", "drawn": got.get("guessed"),
                            "wire": want["guessed"]})
@@ -521,7 +550,9 @@ def report_no_repeat(r: dict) -> tuple[bool, Any]:
     """D6: the Insights view repeats no number the Overview shows (quotes and its own said-why lines apart)."""
     page = r["insights"]
     numbers = [c.get("number") for c in (r["standings"].get("facts") or {}).get("cards") or [] if c.get("number")]
-    found = repeats(page.get("text"), page.get("quotes"), page.get("own_lines"), numbers)
+    # spec 070 FR-3: each box's pill is the card's own line drawn again (keel-web `lineWordOf`) -- the view's own words
+    own = list(page.get("own_lines") or []) + [w for w in pill_words(r["standings"]) if w]
+    found = repeats(page.get("text"), page.get("quotes"), own, numbers)
     return not found, {"repeated": found}
 
 
