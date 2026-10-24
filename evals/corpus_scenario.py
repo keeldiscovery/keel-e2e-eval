@@ -1659,6 +1659,25 @@ def _keep_draft(j: Journey, question: dict, draft: str, answer: str | None) -> N
              for i in listed.get("items") or []]
     j.feedback.setdefault("lists", []).append({"dimension": key, "draft": draft, "items": items,
                                                "phrase": listed.get("phrase"), "answer": answer})
+    _replaced_rows(j, key, listed)
+
+
+def _replaced_rows(j: Journey, key: str | None, listed: dict) -> list[dict]:
+    """Spec 069 FR-2 (contract 37, keel-cloud 130 FR-1 / L21): a drafted item's optional `replaces` -- the founder's own
+    words (a Compatibility condition their Answer typed) Keel's draft took the place of, a draft's only -- read off the
+    Check screen's draft as `GET calibration/{vector}` served it and recorded (`j.changed["replaced"]`); a back-test
+    names each as a finding. Never asserted, and never looked for on Save (the cloud drops it there)."""
+    rows = [{"dimension": key, "label": i.get("label"), "replaces": i.get("replaces")}
+            for i in (listed or {}).get("items") or [] if isinstance(i, dict) and i.get("replaces")]
+    known = j.changed.setdefault("replaced", [])
+    for row in rows:
+        if row in known:
+            continue
+        known.append(row)
+        if not j.strict:
+            _found(j, f"{key}: Keel's draft puts {row['label']!r} in place of the founder's own {row['replaces']!r} "
+                      "(keel-cloud 130 L21, contract 37 `replaces`)", row)
+    return rows
 
 
 def _importance_needs_three(j: Journey) -> None:

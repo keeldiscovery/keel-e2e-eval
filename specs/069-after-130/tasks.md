@@ -51,12 +51,13 @@ Unit suite on `14a0c0e` before any change: **3,149 passed, 53 skipped, 0 failed,
 
 ## FR-2 -- contract 37
 
-- [ ] T010 the Check screen's draft as `GET calibration/{vector}` serves it (`corpus_scenario._keep_draft`): an item's
+- [x] T010 the Check screen's draft as `GET calibration/{vector}` serves it (`corpus_scenario._keep_draft`): an item's
   optional `replaces` (contract 37, `SavedList.items[].replaces`, a draft's only) is read and recorded
   (`j.changed["replaced"]`: the dimension, the drafted label, the founder's words), and on a back-test named as a
   finding; never asserted, and never looked for on Save (it is dropped there by the cloud). Nothing in this repository
   names the contract version as a number to bump (068 T010's search, repeated: the `CONTRACT_VERSION` lines in
-  `instructions/marks.py` / `marks.toml` are history), so none moved.
+  `instructions/marks.py` / `marks.toml` are history), so none moved. `j.feedback`'s lists (FM1 / FM2's record) are
+  left as they were. Unit: `tests/test_after_130.py`; **3,159 passed, 53 skipped, 0 failed**; the grep clean.
 
 ## FR-3 -- the lock-time notes
 

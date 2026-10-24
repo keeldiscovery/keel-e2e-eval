@@ -209,3 +209,29 @@ def test_the_back_test_reads_130s_words_beside_the_mirror_as_findings():
     assert bt.cloud_130(clean, lines) == {} and clean.findings == []
     # a stub with no wire (the 067 test's) reads nothing and raises nothing
     assert bt.cloud_130(SimpleNamespace(entry=codyco, interviews={}), None) == {}
+
+
+# ------------------------------------------------------------------------------- FR-2: contract 37
+
+def test_a_replaced_condition_on_the_check_screens_draft_is_recorded_and_named_on_a_back_test():
+    """Contract 37 (`SavedList.items[].replaces`, a draft's only): Karsa's *They could pay a seller by bank transfer*
+    redrafted -- recorded once on any walk, a finding only on a back-test; a draft without it records nothing."""
+    from evals import corpus_scenario as cs                            # noqa: PLC0415
+    listed = {"items": [{"code": "c1", "label": "They would have a bank account or wallet",
+                         "replaces": "They could pay a seller by bank transfer"},
+                        {"code": "c2", "label": "They could reach a seller online"}]}
+    golden = SimpleNamespace(changed={}, findings=[], strict=True, feedback={})
+    question = {"dimension": "solution.compatibility", "draft": listed}
+    cs._keep_draft(golden, question, "answer", "They could pay a seller by bank transfer")
+    cs._keep_draft(golden, question, "answer", "They could pay a seller by bank transfer")
+    assert golden.changed["replaced"] == [{"dimension": "solution.compatibility",
+                                           "label": "They would have a bank account or wallet",
+                                           "replaces": "They could pay a seller by bank transfer"}]
+    assert golden.findings == []
+    assert "replaces" not in golden.feedback["lists"][0]["items"][0]          # FM1 / FM2's record unchanged
+    live = SimpleNamespace(changed={}, findings=[], strict=False, feedback={})
+    cs._keep_draft(live, question, "answer", None)
+    assert len(live.findings) == 1 and "L21" in live.findings[0]["what"]
+    plain = SimpleNamespace(changed={}, findings=[], strict=False, feedback={})
+    cs._keep_draft(plain, {"dimension": "solution.compatibility", "draft": {"items": [{"label": "x"}]}}, "first", None)
+    assert plain.changed["replaced"] == [] and plain.findings == []
