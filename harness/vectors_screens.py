@@ -1527,10 +1527,33 @@ class Corridor:
                 seen["after"] = self._list_rows()
                 seen["test_after"] = self._keel_test()
         seen["smaller_step_removed"] = self._remove_over_cap_smaller_step(name)
+        seen["rows_cut_to_fit"] = self._cut_over_cap_rows(name)
         with self._b.step(f"founder saves {name}") as h:
             seen["primary"] = self._press_primary()
             h.add_screenshot(self._b.screenshot(f"check-{name}-saved"))
             return seen
+
+    def _cut_over_cap_rows(self, name: str) -> list[dict]:
+        """A Check screen whose drafted row is over its word cap keeps *Save* disabled (09-karsa, 2026-10-24: Keel drafted
+        the Compatibility condition *"They would have a bank account or wallet in their name"*, 11 / 9 words). A founder
+        would cut it; this cuts each over-cap row to its first nine words, named as a step so the judge sees Keel's
+        draft (a product fault, keel-cloud 130 FR-5). Nothing is touched when the primary is enabled."""
+        rows = self.page.locator(".listcheck ul.listrows li.listrow")
+        over = [i for i in range(rows.count()) if rows.nth(i).locator(".listrow__wc--over").count()]
+        if not over or not self._primary().is_disabled():
+            return []
+        out = []
+        with self._b.step(f"founder cuts {len(over)} of Keel's drafted rows over the word cap on {name}") as h:
+            for i in over:
+                box = rows.nth(i).locator("textarea.listrow__ed").first
+                was = _value(box)
+                now = " ".join(str(was or "").split()[:9])
+                box.fill(now)
+                out.append({"row": i, "was": was, "now": now})
+            self.page.wait_for_function("() => !document.querySelector('.listcheck ul.listrows .listrow__wc--over')",
+                                        timeout=10_000)
+            h.add_screenshot(self._b.screenshot(f"check-{name}-rows-cut"))
+        return out
 
     def _remove_over_cap_smaller_step(self, name: str) -> str | None:
         """Commitment's Check screen (keel-web 098 FR-4): Keel's drafted smaller step over the 9-word cap keeps *Save*

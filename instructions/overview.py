@@ -44,6 +44,15 @@ PILOT_FILLS = "fills as people finish"
 PRICE_TILE_LABEL = "What they would pay"
 PRICE_NOT_ASKED = "Not asked yet"
 PRICE_NOT_ASKED_LINE = "no decision-maker has answered the money questions"
+#: keel-web 106 FR-2: on a consumer study (no link, row or stage names a decision-maker) the same tile says *nobody*.
+PRICE_NOT_ASKED_LINE_CONSUMER = "nobody has answered the money questions"
+
+
+def is_consumer(facts: dict) -> bool:
+    """keel-web 106 FR-2's test, mirrored: a study is consumer when no pilot link's words name decision-makers (the
+    B2B link's words are *decision-makers*; a consumer study's one link reads *people who have it*)."""
+    links = ((facts.get("pilot") or {}).get("perLink") or [])
+    return bool(links) and not any("decision" in str(l.get("words") or "") for l in links)
 NOBODY_YET = "nobody has answered this yet"
 NOT_ASKED_LEAD = "Nobody has answered the money questions yet."
 EVERY_ROW_OPENS = "Every row opens its stage page, with every answer named."
@@ -132,7 +141,8 @@ def tiles(facts: dict, price_median: dict | None) -> dict:
         price_tile = [PRICE_TILE_LABEL, f"{price_median.get('edgeSaid')} or more",
                       price_tile_line(price_median.get("chose"), price_median.get("n"))]
     else:
-        price_tile = [PRICE_TILE_LABEL, PRICE_NOT_ASKED, PRICE_NOT_ASKED_LINE]
+        price_tile = [PRICE_TILE_LABEL, PRICE_NOT_ASKED,
+                      PRICE_NOT_ASKED_LINE_CONSUMER if is_consumer(facts) else PRICE_NOT_ASKED_LINE]
     return {"pilot": pilot_tile, "price": price_tile}
 
 
