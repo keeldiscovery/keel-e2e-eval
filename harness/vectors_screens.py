@@ -1477,10 +1477,30 @@ class Corridor:
             if plan.get("edit") or plan.get("add"):
                 seen["after"] = self._list_rows()
                 seen["test_after"] = self._keel_test()
+        seen["smaller_step_removed"] = self._remove_over_cap_smaller_step(name)
         with self._b.step(f"founder saves {name}") as h:
             seen["primary"] = self._press_primary()
             h.add_screenshot(self._b.screenshot(f"check-{name}-saved"))
             return seen
+
+    def _remove_over_cap_smaller_step(self, name: str) -> str | None:
+        """Commitment's Check screen (keel-web 098 FR-4): Keel's drafted smaller step over the 9-word cap keeps *Save*
+        disabled (10-palus, 2026-10-23: *"Yes, after a look at how it works with no money moved first"*, 10 / 9 words).
+        A founder would strike a step they never gave: this presses its × and names the step, so the walk goes on and
+        the judge sees it. Nothing is pressed when the primary is enabled or no smaller step is over the cap."""
+        smaller = self.page.locator(".listcheck__smaller")
+        if not smaller.count():
+            return None
+        over = smaller.locator(".listrow__wc--over")
+        if not over.count() or not self._primary().is_disabled():
+            return None
+        label = _value(smaller.locator("textarea").first)
+        with self._b.step(f"founder removes Keel's smaller step over the word cap on {name}: {label!r}") as h:
+            smaller.get_by_test_id("commitment-smaller-step-remove").click()
+            self.page.wait_for_function("() => !document.querySelector('.listcheck__smaller .listrow__wc--over')",
+                                        timeout=10_000)
+            h.add_screenshot(self._b.screenshot(f"check-{name}-smaller-step-removed"))
+        return label
 
     def list_choose(self, question: dict, label: str) -> dict:
         """*Choose* (FR-006): none pre-picked; the radio named `label` picked; the *Keel will test* box

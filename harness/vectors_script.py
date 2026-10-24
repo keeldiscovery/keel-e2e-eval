@@ -1744,7 +1744,8 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
             values[WHOLE_TEXT] = "Who would have to agree, and what would they need to see?"
     elif rung == "commercial.purchase_friction":
         # keel-cloud 128 FR-12: asked about this purchase, followed up in its tense
-        if str(item.get("question") or item.get("text") or "").startswith("If you bought ") and codes:
+        stem = str(item.get("question") or item.get("text") or "")
+        if stem.startswith("If ") and " bought " in stem and codes:   # "If you bought …", "If your terminal bought …"
             values[WHOLE_TEXT] = "What would take the time?" if codes[0] == "yes_long" \
                 else "What would slow it down, if anything?"
     elif rung == "solution.adoption_friction":

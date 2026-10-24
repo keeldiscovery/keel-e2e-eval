@@ -2329,7 +2329,17 @@ def _hold_the_follow_up(j: Journey, person, interview: dict, walked: dict, owed:
         if not owed:
             assert not seen, seen
             return
-        assert body.get("dimension") == want_rung and body.get("spoken") == owed["spoken"], body
+        assert body.get("dimension") == want_rung, body
+        if getattr(j, "camera", None) is not None and body.get("spoken") != owed["spoken"]:
+            # spec 062 FR-4 on the back-test: the product's follow-up wording is the finding, not a stop (2026-10-23:
+            # 128 FR-12's conditional "What would take the time?" and the Compatibility fill "You said that step would
+            # be hard in your setup." stopped three re-runs against the harness's own composition)
+            j.findings.append({"what": f"{person.person}: the {want_rung} follow-up's words are the product's, not the "
+                                       "harness's composition",
+                               "served": {"route": body.get("text"), "spoken": body.get("spoken"),
+                                          "harness": owed["text"]}})
+        else:
+            assert body.get("spoken") == owed["spoken"], body
         assert body.get("itemId") and "clip" not in body, body                      # a text link plays nothing
         if j.strict:
             assert body.get("text") == owed["text"], {"route": body.get("text"), "harness": owed["text"]}
