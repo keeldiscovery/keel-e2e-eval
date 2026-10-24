@@ -2158,6 +2158,17 @@ def _answer_one(j: Journey, person, token: str) -> None:
             # the wire carries that escape, so the expected body does too; the gap is already a finding
             if u.get("itemId") and u.get("code") and not any(a.get("itemId") == u["itemId"] for a in expected.get("answers") or []):
                 expected = {**expected, "answers": list(expected.get("answers") or []) + [{"itemId": u["itemId"], "chip": u["code"]}]}
+        for c in walked.get("closed_price") or []:
+            # keel-web 106 FR-9 (keel-cloud 128 FR-21): a closed up-front-then price sends one option or one chip; the
+            # file's plan pick, where it has one, is dropped and named (21-codyco, Hannes Moser)
+            answers = list(expected.get("answers") or [])
+            for n, a in enumerate(answers):
+                if a.get("itemId") == c.get("itemId") and len(a.get("optionIds") or []) == 2:
+                    answers[n] = {"itemId": a["itemId"], "optionIds": [a["optionIds"][0]]}
+                    j.findings.append({"what": f"{person.person}: {c.get('dimension')} closed on \"I wouldn't pay for this\"; "
+                                               "the file's plan pick was not sent (no plan screen, keel-web 106 FR-9)",
+                                       "served": c})
+            expected = {**expected, "answers": answers}
         with _step(j, f"{person.person}: the page sent exactly this person's answers",
                    party="participant") as h:
             sent = walked["body"] or {}

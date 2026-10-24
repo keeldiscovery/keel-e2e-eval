@@ -1710,6 +1710,7 @@ class Interview:
         self.seen: list[str] = []
         self.screens: list[dict] = []
         self.unanswered: list[dict] = []
+        self.closed_price: list[dict] = []   # keel-web 106 FR-9: up-front-then prices closed on the first screen
         self.retried: list[dict] = []
         #: Spec 062 FR-3: the back-test's camera for this person's screens (one person a link), or None.
         self.camera = None
@@ -1780,7 +1781,7 @@ class Interview:
             self._shot("done")
             page.remove_listener("response", self._keep_transcribe)
             return {"body": body, "status": status, "done": heading, "seen": list(self.seen),
-                    "screens": list(self.screens), "unanswered": list(self.unanswered), "retried": list(self.retried), "follow_up_route": self.route, "follow_up": self.follow_up_seen,
+                    "screens": list(self.screens), "unanswered": list(self.unanswered), "closed_price": list(self.closed_price), "retried": list(self.retried), "follow_up_route": self.route, "follow_up": self.follow_up_seen,
                     "speak": self.speak_seen, "transcribed": self._transcribed(), "consent": self.consent}
 
     def _keep_transcribe(self, response) -> None:
@@ -2096,27 +2097,11 @@ class Interview:
                                                  "url": self.page.url}))
             chip.click()
             if plan:
-                # keel-web 094 FR-4: an up-front-then price escaped still opens the plan's own screen on Next (13-aircaps,
-                # Naomi Adler: the walk went one screen ahead of the page) -- the plan screen is drawn, recorded, and
-                # escaped with its own chip; the loop's Next then leaves it
-                _button(self.page, IV_NEXT).click()
-                self.page.locator("h1.iv-q", has_text=plan.get("question") or "").first.wait_for(
-                    state="visible", timeout=20_000)
-                self._keep()
-                self._shot(f"plan-{item.get('dimension')}")
-                self._plan_seen = {"question": _first_text(self.page, "h1.iv-q"),
-                                   "rows": [r.strip() for r in _safe_all_texts(self.page, ".iv-control [role=radio]")],
-                                   "escaped": True}
-                plan_label = (plan.get("escape") or {}).get("label") or label
-                plan_chip = main.locator(".iv-chips").get_by_role("button", name=plan_label, exact=True).first
-                if plan_chip.count() == 0:
-                    raise AssertionError(json.dumps({"plan_of": item.get("dimension"), "wanted": plan_label,
-                                                     "chips_drawn": [c.strip() for c in main.locator(".iv-chips button").all_inner_texts()],
-                                                     "stem": _first_text(self.page, "h1.iv-q")}))
-                # the plan screen is the same item: its escape is already pressed from the price screen, and a chip
-                # pressed again is released (ChipRow) -- so the chip is pressed only where the screen shows it off
-                if plan_chip.get_attribute("aria-pressed") != "true":
-                    plan_chip.click()
+                # keel-web 106 FR-9 (keel-cloud 128 FR-21): a closed price (its escape) shows no plan screen -- the loop's
+                # Next goes to the next item; recorded so the judge sees the plan was never drawn (before 106, keel-web
+                # 094 FR-4 still opened the plan's own screen: 13-aircaps, Naomi Adler)
+                self._plan_seen = {"question": plan.get("question"), "skipped": True, "escaped": True}
+                self.closed_price.append({"itemId": item.get("itemId"), "dimension": item.get("dimension"), "chip": answer["chip"]})
             return
         if "scale" in answer:
             main.get_by_role("radio", name=str(answer["scale"]), exact=True).click()
@@ -2138,6 +2123,14 @@ class Interview:
             return
         role = "checkbox" if item.get("control") == "pick_two" else "radio"
         ids = list(answer.get("optionIds") or [])
+        if plan and len(ids) == 2 and _is_would_not_pay(options.get(ids[0])):
+            # keel-web 106 FR-9 (keel-cloud 128 FR-21): "I wouldn't pay for this" closes the price item -- one option is
+            # sent, the plan screen is not drawn, and the file's second pick is dropped and named (21-codyco, Hannes Moser)
+            main.locator(".iv-control").get_by_role(role, name=options[ids[0]], exact=True).first.click()
+            self._plan_seen = {"question": plan.get("question"), "skipped": True, "would_not_pay": True}
+            self.closed_price.append({"itemId": item.get("itemId"), "dimension": item.get("dimension"),
+                                      "optionId": ids[0], "dropped": ids[1]})
+            return
         if plan and len(ids) == 2:
             # keel-web 094 FR-4: up front, then a plan -- the thing's band, Next, then the plan's own screen
             main.locator(".iv-control").get_by_role(role, name=options[ids[0]], exact=True).first.click()
@@ -2153,6 +2146,11 @@ class Interview:
             main.locator(".iv-control").get_by_role(role, name=options[option_id], exact=True).first.click()
         for advantage_id in answer.get("advantageIds") or []:
             main.get_by_role("checkbox", name=advantages[advantage_id], exact=True).click()
+
+
+def _is_would_not_pay(label: str | None) -> bool:
+    """keel-web 106 FR-9 reads the up-front ladder's refusal by its words, as the wire gives it no code."""
+    return " ".join(str(label or "").lower().split()).rstrip(".") in ("i wouldn't pay for this", "i would not pay for this")
 
 
 # ----------------------------------------------------------------------------------------- Answers
