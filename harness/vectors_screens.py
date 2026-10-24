@@ -1043,8 +1043,16 @@ class Corridor:
                 _button(self.page, CONTEXT_SAVE).click()
             response = got.value
             body = _json_body(response)
+            try:
+                sent = response.request.post_data_json
+            except Exception:  # noqa: BLE001 - a body the page did not send as JSON is recorded as none
+                sent = None
             return {"method": "PUT", "path": response.url.split("?")[0], "status": response.status,
                     "body": body if response.status >= 400 else None,
+                    # spec 068 FR-5 (contract 36, keel-cloud 129 FR-11): the fields the page sent -- the four, the
+                    # window and, once the founder's occasion field holds one, `occasion`
+                    "sent": sent if isinstance(sent, dict) else None,
+                    "occasion": sent.get("occasion") if isinstance(sent, dict) else None,
                     # spec 067 FR-5: the CONTEXT_INTERPRET interaction this Save started (`InteractionView`)
                     "interaction_id": (body or {}).get("interaction_id") if response.status < 400
                     and isinstance(body, dict) else None}

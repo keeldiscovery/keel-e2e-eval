@@ -336,6 +336,11 @@ def leg_context(j: Journey) -> None:
         assert int((fields.get("recallWindow") or {}).get("count") or 0) >= 2, fields
         for key, value in founder.context_fields.items():
             assert fields.get(key) == value, (key, fields)
+        # spec 068 FR-5 (contract 36, keel-cloud 129 FR-11): `ContextFields.occasion` -- the founder's where they typed
+        # one, else the noun the context job derived, absent for none or *time*; every PUT the page sent recorded
+        j.screens["context_wire"] = {"occasion": fields.get("occasion"),
+                                     "puts": [{"status": s.get("status"), "occasion": s.get("occasion")}
+                                              for s in j.corridor.saves]}
 
 
 def needs_input_answer(entry, founder) -> str:

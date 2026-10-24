@@ -38,10 +38,13 @@ Measured: **3,131 passed, 53 skipped, 0 failed, 0 errors**; the grep clean. (The
 
 ## FR-5 -- contract 36
 
-- [ ] T010 wherever this repository names the contract version or reads `ContextFields`: the context step's PUT
-  (`harness/vectors_screens.Corridor.context`) records the body the page sent and reads `occasion` off it; the
-  context read (`GET context`) is read with `fields.occasion`; any `contract 35` naming that describes the wire today
-  reads 36. (The vendored contract copy is the parent's re-vendor; this repository keeps none to bump.)
+- [x] T010 wherever this repository reads `ContextFields`: the context Save's PUT (`Corridor._save_context`) records
+  the fields the page sent (`sent`) and `occasion` apart (contract 36: present once the founder's field holds one; a
+  422 `TEXT_REFUSED` past eight words keeps its body); the confirmed context's GET is read with `fields.occasion` (the
+  founder's, else the noun the job derived, absent for none or *time*) into `j.screens["context_wire"]` with every PUT's
+  occasion. Nothing in this repository names the contract version as a number to bump (no vendored openapi copy; the
+  `contract 33` / `contract 35` comments name where a rule came from, not the wire today), so none moved.
+  `tests/test_revision_16_walk.py` (stub page). Unit: 3,132 passed, 53 skipped, 0 failed.
 
 ## FR-2 -- the spoken mirror follows the served escapes
 
