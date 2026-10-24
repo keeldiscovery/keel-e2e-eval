@@ -62,6 +62,7 @@ It lives in `evals/` and not in `harness/` because it asserts. `harness/` is mac
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -1872,6 +1873,8 @@ def leg_lock(j: Journey) -> None:
     the lock's own commit), READY before anyone is invited, and the lock storing every saved list with its picked
     index (design §6, D7)."""
     drawn = j.corridor.word_pilot_and_lock()
+    if (drawn.get("status") or 200) >= 400:
+        drawn = {**drawn, **_answer_the_refused_lock(j, drawn)}
     j.receipt = drawn.get("receipt") or {}
     j.screens["L1"] = drawn.get("l1") or {}
     if getattr(j, "keels_door", False):
@@ -1879,6 +1882,116 @@ def leg_lock(j: Journey) -> None:
     else:
         _own_door_l1(j, drawn)
     _lock_lands(j)
+
+
+# ------------------------------------------------- spec 070 FR-1: a refused lock, answered on the idea card
+
+_LOCK_LINE = re.compile(r"the idea card's (how|belief) line")
+_LOCK_WORD = re.compile(r"still says '(.+?)', which")
+
+
+def lock_refusal(status: int | None, body) -> dict | None:
+    """Spec 070 FR-1 (keel-cloud 131 FR-5, `Project.lock`): a refused lock read off its 422 -- `{code, rule, problem,
+    fix, line, word}`, the fix the wire's `remedy` (or a `fix`), the line and the word named in the problem (*the idea
+    card's how line still says 'PMS', which ...*); None for any other answer. A decision-maker's how line is named *how*
+    by the cloud too."""
+    body = body if isinstance(body, dict) else {}
+    if status != 422 or body.get("code") != "TEXT_REFUSED":
+        return None
+    problem = str(body.get("problem") or "")
+    line, word = _LOCK_LINE.search(problem), _LOCK_WORD.search(problem)
+    return {"code": body.get("code"), "rule": body.get("rule"), "problem": problem,
+            "fix": body.get("fix") or body.get("remedy"), "line": line.group(1) if line else None,
+            "word": word.group(1) if word else None}
+
+
+#: Spec 070 FR-1: the lines the founder edits for a refusal that names one -- *how* is the decision-maker's how line too.
+LOCK_EDITS = {"how": ("how", "howDecider"), "belief": ("belief",)}
+
+
+def answer_refused_lock(refused: dict, *, entry, read_lines: Callable[[], dict], edit: Callable[[dict], dict],
+                        relock: Callable[[], dict], audience_words=(), most: int = 4) -> dict:
+    """Spec 070 FR-1: a refused lock answered the way a founder answers it -- the refusal's `problem` and `fix` read,
+    the named line edited on the idea card (`instructions.corpus.plain_line`: the entry's own plain words, the fix's
+    suggestion, the names in parentheses dropped, a design-note belief the entry's first benefit), the lock pressed
+    again; each refusal a `lock_refused` finding with the words before and after. Stops (`AssertionError`, the line and
+    the words named) on a second refusal of a line already edited, on a refusal naming no line, or where no edit moves
+    the word. Returns `{status, receipt, findings, passes}` once the lock lands."""
+    from instructions import corpus as corpus_mod                   # noqa: PLC0415
+    findings, edited, passes = [], set(), 0
+    current = refused
+    while True:
+        line = current.get("line")
+        if line not in LOCK_EDITS:
+            raise AssertionError(f"the lock was refused naming no idea-card line: {current}")
+        if line in edited:
+            findings.append({"what": "lock_refused", **current, "edited": False,
+                             "stopped": "a second refusal of a line already edited"})
+            raise AssertionError(f"the lock refused the idea card's {line} line again after its edit: "
+                                 f"{current.get('problem')!r} (fix: {current.get('fix')!r}); findings {findings}")
+        lines = read_lines() or {}
+        edits = {}
+        for name in LOCK_EDITS[line]:
+            before = lines.get(name)
+            after = corpus_mod.plain_line(entry, name, before, current.get("word"), current.get("fix"),
+                                          audience_words) if before else None
+            if after:
+                edits[name] = after
+        row = {"what": "lock_refused", **current,
+               "before": {k: lines.get(k) for k in LOCK_EDITS[line] if lines.get(k)}, "after": dict(edits),
+               "edited": bool(edits)}
+        findings.append(row)
+        if not edits:
+            raise AssertionError(f"the lock refused the idea card's {line} line on {current.get('word')!r} and no plain "
+                                 f"edit moves it (no entry word, no suggestion in the fix): {current.get('problem')!r}")
+        edit(edits)
+        edited.add(line)
+        passes += 1
+        locked = relock() or {}
+        status = locked.get("status")
+        if status is not None and status < 400:
+            return {"status": status, "receipt": locked.get("receipt") or {}, "findings": findings, "passes": passes,
+                    "sent": locked.get("sent")}
+        nxt = lock_refusal(status, locked.get("receipt"))
+        if nxt is None:
+            raise AssertionError(f"the lock answered {status} after the idea card's edit: {locked.get('receipt')}")
+        if passes >= most:
+            raise AssertionError(f"the lock was refused {passes + 1} times: {findings}")
+        current = nxt
+
+
+def _answer_the_refused_lock(j: Journey, drawn: dict) -> dict:
+    """`leg_lock`'s half of FR-1: on a back-test the refusal is answered on the idea card (each refusal a finding,
+    `j.changed["lock_refused"]`); a golden walk never meets one (no golden reveal trips M5) and fails on it, the body
+    named."""
+    refused = lock_refusal(drawn.get("status"), drawn.get("receipt"))
+    with _step(j, "the lock is answered, not a stop: a refusal (keel-cloud 131 FR-5, TEXT_REFUSED on an M5 word the "
+                  "repair turn did not move) is met by editing the idea card's line and locking again",
+               party="founder") as h:
+        if j.strict or refused is None:
+            h.record_assert({"status": 200}, {"status": drawn.get("status"), "body": drawn.get("receipt")})
+            raise AssertionError(f"the lock was refused {drawn.get('status')}: {drawn.get('receipt')}")
+        idea = j.get(j.project("/idea")) or {}
+
+        def read_lines() -> dict:
+            now = j.get(j.project("/idea")) or {}
+            return {k: now.get(k) for k in ("how", "howDecider", "belief")}
+
+        edits_seen: list = []
+
+        def edit(edits: dict) -> dict:
+            seen = j.corridor.edit_idea_lines(j.project_id, edits)
+            edits_seen.append(seen)
+            return seen
+
+        answered = answer_refused_lock(refused, entry=j.entry, read_lines=read_lines, edit=edit,
+                                       relock=lambda: j.corridor.relock(j.project_id),
+                                       audience_words=idea.get("audienceWords") or ())
+        j.findings.extend(answered["findings"])
+        j.changed.setdefault("lock_refused", []).extend(answered["findings"])
+        h.record_assert({"status": "2xx after the edit"}, {"refusal": refused, "answered": answered,
+                                                           "screens": edits_seen})
+    return {"receipt": answered["receipt"], "status": answered["status"]}
 
 
 def _keels_door_l1(j: Journey, drawn: dict) -> None:

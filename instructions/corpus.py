@@ -564,6 +564,13 @@ class Entry:
                 out[stem] = {"mechanism": sorted(spellings), "problem": sorted(problem[stem])}
         return out
 
+    def first_benefit(self) -> str | None:
+        """Spec 070 FR-1: the founder's first Relative advantage benefit as they wrote it (*Every pole checked without
+        walking the line*) -- what a design-note belief is replaced by when the lock refuses it; None where none."""
+        items = (self.founder_list("solution.relative_advantage") or {}).get("items") or []
+        label = str((items[0] or {}).get("label") or "").strip() if items else ""
+        return label or None
+
     def mechanism_one_liner(self) -> str:
         """The judge's clause (marks §2.3), composed by code from the golden mechanism's four
         fields -- never from a live `SOLUTION_MECHANISM` answer (call 32)."""
@@ -1622,3 +1629,149 @@ def _entry(raw: dict, path: Path, digest: str, *, backtest: bool = False) -> Ent
         idea_name=(raw.get("idea_name").strip() if backtest else None),
         backtest=backtest,
     )
+
+
+# ------------------------------------------------------- spec 070 FR-1: a refused lock, answered on the idea card
+
+#: keel-cloud `IdeaLines.BELIEF_FRAME`: the belief line opens on it, and the founder's edit keeps it.
+BELIEF_FRAME = "The people building it believe it would "
+
+#: keel-cloud 131 `RevealWords.M5_WORDS` (130 FR-9, 131 FR-5): the trade words a reveal line is refused for at the lock.
+M5_WORDS = ("escrow", "stablecoin", "stablecoins", "spaced-repetition", "spaced repetition", "curriculum", "curricula",
+            "pms", "api", "apis", "workflow", "workflows", "3d box", "short-duration", "floating-rate", "mortgage bonds",
+            "mortgage-backed", "basis points", "money market", "sweep account", "t-bills", "erp", "wms", "tms", "cmms",
+            "sku", "skus", "sla", "slas", "dimensioner", "check words", "check word")
+
+#: keel-cloud 131 `RevealWords.DESIGN_NOTE` (FR-5): a belief that says how it is built, not what the person gets.
+DESIGN_NOTE = re.compile(
+    r"(?i)\b(?:no|without|free of|zero) jargon\b|\bjargon[- ]free\b|\badapts? to\b"
+    r"|(?:^|(?<=\bwould ))(?:use|uses|run on|runs on|plug into|plugs into|connect to|connects to|sit on|sits on"
+    r"|be built|be installed|work with your existing|integrate with)\b"
+    r"|\bwithout (?:an? |any )?(?:[a-z-]+ )?(?:integration|install|installation|setup|set-up|engineering|coding"
+    r"|IT) ?(?:project|work|team)?\b"
+    r"|\b(?:needs?|requires?) no (?:change|changes|integration|setup|install|new (?:hardware|software|system))\b"
+    r"|\bno change to\b")
+
+#: keel-cloud 131 `RevealWords.NAMES_IN_PARENTHESES`: a parenthesis of capitalised names (*(OPERA Cloud, Sihot, Apaleo)*).
+NAMES_IN_PARENTHESES = re.compile(r"\(\s*[A-Z][^()]*\)")
+
+_IDEA_LINES = ("how", "howDecider", "belief")
+
+
+def _word_pattern(word: str) -> re.Pattern:
+    return re.compile(r"(?<![\w-])" + re.escape(word.lower()) + r"(?![\w-])")
+
+
+def m5_faults(lines: dict, audience_words=()) -> list[dict]:
+    """keel-cloud 131 `RevealWords.m5`, mirrored: per line (how, howDecider, belief, in that order) each M5 word it
+    carries (the founder's audience words exempt), a parenthesis of names, and on the belief a design note -- `{line,
+    word, fault}` in the cloud's order, whose first the lock's `TEXT_REFUSED` names."""
+    exempt = {str(w).strip().lower() for w in audience_words or () if w}
+    out = []
+    for line in _IDEA_LINES:
+        text = str((lines or {}).get(line) or "")
+        if not text.strip():
+            continue
+        lower = text.lower()
+        for word in M5_WORDS:
+            m = _word_pattern(word).search(lower)
+            if m and word not in exempt:
+                out.append({"line": line, "word": text[m.start():m.end()], "fault": "trade word"})
+        names = NAMES_IN_PARENTHESES.search(text)
+        if names:
+            out.append({"line": line, "word": names.group(), "fault": "names in parentheses"})
+        if line == "belief":
+            note = DESIGN_NOTE.search(text)
+            if note:
+                out.append({"line": line, "word": note.group(), "fault": "design note"})
+    return out
+
+
+#: Spec 070 FR-1: each back-test entry's own plain words for a word the lock refuses, as its founder would type them
+#: on the Check screen -- the judges' words of the 2026-10-24 re-runs (keel-cloud-docs `judgements/*-rerun-130.md` §4)
+#: and 131 FR-5's. Applied in the order listed (the longest phrase first); a value that opens on an article takes the
+#: article before the word with it (*into the PMS* -> *into the hotel's booking system*).
+LOCK_PLAIN_WORDS: dict[str, tuple[tuple[str, str], ...]] = {
+    "21-codyco": (("PMS", "the hotel's booking system"),),
+    "12-transload": (("fits a 3D box to it", "measures the freight from the video"),
+                     ("3D box", "the freight's size")),
+    "14-code-four": (("check words for you to catch", "a few planted mistakes for you to catch"),
+                     ("check words", "a few planted mistakes to catch"),
+                     ("check word", "a planted mistake to catch")),
+    "10-palus": (("short-duration, floating-rate, government-backed mortgage bonds", "short-term government-backed bonds"),
+                 ("short-term, government-backed mortgage bonds", "short-term government-backed bonds"),
+                 ("government-backed mortgage bonds", "government-backed bonds"),
+                 ("mortgage-backed bonds", "government-backed bonds"),
+                 ("short-duration", "short-term"), ("floating-rate", "")),
+    "11-issen": (("spaced-repetition flashcards", "flashcards that come back for review"),
+                 ("custom curriculum", "a lesson plan built for you"), ("curriculum", "a lesson plan built for you")),
+    "16-pairio": (("CMMS", "the maintenance system"), ("ERP", "the plant's business system")),
+}
+
+#: Spec 070 FR-1, the generic fallback: an M5 word no entry maps, said in plain words (an empty value drops it).
+PLAIN_FALLBACK = {"escrow": "safekeeping", "stablecoin": "digital dollar", "stablecoins": "digital dollars",
+                  "spaced-repetition": "", "spaced repetition": "", "curriculum": "a lesson plan",
+                  "curricula": "lesson plans", "pms": "the booking system", "api": "a connection",
+                  "apis": "connections", "workflow": "routine", "workflows": "routines", "3d box": "size",
+                  "short-duration": "short-term", "floating-rate": "", "mortgage bonds": "bonds",
+                  "mortgage-backed": "", "basis points": "hundredths of a percent", "money market": "savings",
+                  "sweep account": "savings account", "t-bills": "government bills", "erp": "the business system",
+                  "wms": "the warehouse system", "tms": "the transport system", "cmms": "the maintenance system",
+                  "sku": "product", "skus": "products", "sla": "agreed response time",
+                  "slas": "agreed response times", "dimensioner": "measuring station",
+                  "check words": "a few planted mistakes to catch", "check word": "a planted mistake to catch"}
+
+_ARTICLE = re.compile(r"(?i)^(?:the|a|an)\s")
+_SUGGESTION = re.compile(r"\"([^\"]{2,80})\"|\u201c([^\u201d]{2,80})\u201d|'([^']{2,80})'")
+
+
+def fix_suggestion(fix: str | None, word: str | None = None) -> str | None:
+    """Spec 070 FR-1: the plain words a refusal's fix offers for the word (*say "the hotel's booking system"*), where
+    it offers any -- the first quoted phrase that is not the word itself; None for 131's fix, which offers none."""
+    for m in _SUGGESTION.finditer(fix or ""):
+        said = next(g for g in m.groups() if g)
+        if word is None or said.strip().lower() != str(word).strip().lower():
+            return said.strip()
+    return None
+
+
+def _replace(text: str, phrase: str, plain: str) -> str:
+    lead = r"(?:\b(?:the|a|an|its|your|their|our)\s+)?" if _ARTICLE.match(plain) else ""
+    pattern = re.compile(lead + r"(?<![\w-])" + re.escape(phrase) + r"(?![\w-])", re.IGNORECASE)
+    return pattern.sub(lambda _m: plain, text)
+
+
+def _tidy(text: str) -> str:
+    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"\s+([,.;:])", r"\1", text)
+    text = re.sub(r",\s*,", ",", text)
+    text = re.sub(r"\(\s*\)", "", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def plain_line(entry, line: str, text: str | None, word: str | None = None, fix: str | None = None,
+               audience_words=()) -> str | None:
+    """Spec 070 FR-1 (keel-cloud 131 FR-5): the idea card's line as the founder edits it after the lock refused it --
+    every M5 fault the line carries moved in one edit: the entry's own plain words (`LOCK_PLAIN_WORDS`), then the
+    refusal's own suggestion for its word where the fix offers one, a parenthesised list of names dropped, any M5
+    word left by `PLAIN_FALLBACK`, and a design-note belief replaced by the entry's first benefit (*get {benefit}*)
+    under the belief's frame. None where the edit would not move the line."""
+    before = str(text or "")
+    out = before
+    for phrase, plain in LOCK_PLAIN_WORDS.get(getattr(entry, "id", None) or "", ()):
+        out = _replace(out, phrase, plain)
+    offered = fix_suggestion(fix, word)
+    if offered and word and _word_pattern(str(word)).search(out.lower()):
+        out = _replace(out, str(word), offered)
+    out = NAMES_IN_PARENTHESES.sub("", out)
+    exempt = {str(w).strip().lower() for w in audience_words or () if w}
+    for m5 in M5_WORDS:
+        if m5 not in exempt and _word_pattern(m5).search(out.lower()):
+            out = _replace(out, m5, PLAIN_FALLBACK.get(m5, ""))
+    out = _tidy(out)
+    if line == "belief" and DESIGN_NOTE.search(out):
+        benefit = entry.first_benefit() if entry is not None and hasattr(entry, "first_benefit") else None
+        if benefit:
+            said = benefit[:1].lower() + benefit[1:] if not (len(benefit) > 1 and benefit[1].isupper()) else benefit
+            out = BELIEF_FRAME + "get " + said.rstrip(".") + "."
+    return out if out != before else None

@@ -20,7 +20,7 @@ Unit suite on `ae1b390` before any change: **3,160 passed, 53 skipped, 0 failed,
 
 ## FR-1 -- a refused lock is answered, not a stop
 
-- [ ] T001 `instructions/corpus.py`: the M5 mirror (`M5_WORDS`, `m5_faults(lines)`: a trade word on how / howDecider /
+- [x] T001 `instructions/corpus.py`: the M5 mirror (`M5_WORDS`, `m5_faults(lines)`: a trade word on how / howDecider /
   belief, a parenthesis of capitalised names, a design-note belief -- the cloud's order, the audience words exempt) and
   the founder's plain edit: `LOCK_PLAIN_WORDS` keyed by entry id (21-codyco *PMS* -> *the hotel's booking system*,
   12-transload *fits a 3D box to it* -> *measures the freight from the video*, 14-code-four *check words* -> *a few
@@ -30,12 +30,12 @@ Unit suite on `ae1b390` before any change: **3,160 passed, 53 skipped, 0 failed,
   when its fix offers one), and a design-note belief replaced by the entry's first benefit (*get {benefit}*,
   `Entry.first_benefit`) under `IdeaLines.BELIEF_FRAME`; `plain_line(entry, line, text, word, fix)` applies every
   fix the line needs in one edit, or None where no edit moves the word.
-- [ ] T002 `harness/vectors_screens.Corridor`: `word_pilot_and_lock` reads the lock's status and, on a refusal, keeps
+- [x] T002 `harness/vectors_screens.Corridor`: `word_pilot_and_lock` reads the lock's status and, on a refusal, keeps
   the body and stays on the screen (no wait for *Sent*); `edit_idea_lines(project_id, edits)` opens the idea's Check
   screen, types each line's new words into its box (`#idea-how`, `#idea-howDecider`, `#idea-belief`) and presses Save
   (edit then approve, keel-web `IdeaCheck`); `relock(project_id)` opens L1 (`define/ready/interviewer`) and presses
   the lock again.
-- [ ] T003 `evals/corpus_scenario`: `lock_refusal(status, body)` reads a 422 `TEXT_REFUSED` -- `rule`, `problem`,
+- [x] T003 `evals/corpus_scenario`: `lock_refusal(status, body)` reads a 422 `TEXT_REFUSED` -- `rule`, `problem`,
   `fix` (the wire's `remedy`, or `fix`), the line (*the idea card's how / belief line*) and the word (*still says
   '...'*); `answer_refused_lock(...)` (callables stubbed in the tests): edit the named line (how also edits the
   decider's how, which the cloud's problem names *how* too), lock again, record a `lock_refused` finding per refusal
@@ -44,6 +44,7 @@ Unit suite on `ae1b390` before any change: **3,160 passed, 53 skipped, 0 failed,
   `leg_lock` answers it on a back-test; a golden walk never meets it (unit: no golden reveal trips the M5 mirror) and
   fails on one with the body named. Unit: `tests/test_after_131.py` (a stubbed 422, a stubbed second-pass 200, a
   second refusal on the same line, the Codyco / Transload / Code Four / Palus / Voltair / Issen / Careforce edits).
+  Unit: **3,171 passed, 53 skipped, 0 failed**; the grep clean.
 
 ## FR-2 -- the spoken mirror follows 131
 

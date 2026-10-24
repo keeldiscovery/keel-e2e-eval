@@ -1661,9 +1661,68 @@ class Corridor:
             except Exception:  # noqa: BLE001 - a refused lock's body is the leg's to report
                 receipt = {"status": locked.value.status, "text": _safe_text(lambda: locked.value.text())}
             l1["sent"] = locked.value.request.post_data_json
+            status = locked.value.status
+            if status >= 400:
+                # spec 070 FR-1 (keel-cloud 131 FR-5): a refused lock (422 TEXT_REFUSED on an M5 word the repair turn did
+                # not move) leaves the screen where it is; the leg reads the body and edits the idea card
+                h.add_screenshot(self._b.screenshot("lock-refused"))
+                return {"counters": counters, "receipt": receipt, "l1": l1, "status": status}
             _wait_url(self.page, r"/interviews/sent|/people", timeout_s=60)       # keel-web 068: Sent
             h.add_screenshot(self._b.screenshot("locked-people"))
-            return {"counters": counters, "receipt": receipt, "l1": l1}
+            return {"counters": counters, "receipt": receipt, "l1": l1, "status": status}
+
+    #: Spec 070 FR-1: the idea card's boxes on the Check screen (keel-web `IdeaCheck`: `idea-{line}`).
+    IDEA_BOXES = {"how": "#idea-how", "howDecider": "#idea-howDecider", "belief": "#idea-belief"}
+
+    def edit_idea_lines(self, project_id: str, edits: dict) -> dict:
+        """Spec 070 FR-1 (keel-cloud 131 FR-5): after a refused lock, the founder opens the idea's Check screen
+        (`define/solution/idea`), types each line's new words into its box (`edits`: {how | howDecider | belief: words};
+        a box the screen does not draw is skipped and named) and presses Save -- the edit and the approval keel-web's
+        `IdeaCheck` sends -- and the page moves on to the solution's first question. Returns the lines as drawn before
+        the edit, what was typed, the boxes not drawn and the primary's label."""
+        with self._b.step(f"founder edits the idea card's {', '.join(edits)} line after the lock was refused") as h:
+            self.page.goto(f"{self.base}/p/{project_id}/define/solution/idea", wait_until="load")
+            self.page.locator("#idea-how").wait_for(state="visible", timeout=20_000)
+            self.page.wait_for_function("() => (document.querySelector('#idea-how')?.value || '') !== ''",
+                                        timeout=20_000)
+            before = {line: _value(self.page.locator(box)) if self.page.locator(box).count() else None
+                      for line, box in self.IDEA_BOXES.items()}
+            typed, absent = {}, []
+            for line, words in edits.items():
+                box = self.page.locator(self.IDEA_BOXES[line])
+                if not box.count():
+                    absent.append(line)
+                    continue
+                box.fill(words)
+                typed[line] = words
+            h.capture_text("stage_screen", _text(self.page))
+            h.add_screenshot(self._b.screenshot("idea-edited"))
+            label = self._press_primary(SAVE)
+            _wait_url(self.page, r"/define/solution/q/\d+$")
+            return {"before": before, "typed": typed, "absent": absent, "primary": label}
+
+    def relock(self, project_id: str) -> dict:
+        """Spec 070 FR-1: the lock pressed again, on L1 (`define/ready/interviewer`, the screen it was refused on), after
+        the idea card's edit. Returns the status and the receipt (or the refusal's body), waiting for *Sent* on a 2xx."""
+        with self._b.step("founder locks again after editing the idea card") as h:
+            self.page.goto(f"{self.base}/p/{project_id}/define/ready/interviewer", wait_until="load")
+            button = self.page.get_by_test_id("lock-and-record")
+            button.wait_for(state="visible", timeout=20_000)
+            self.page.wait_for_function("(b) => !b.disabled", arg=button.element_handle(), timeout=30_000)
+            with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/lock"),
+                                           timeout=30_000) as locked:
+                button.click()
+            try:
+                receipt = locked.value.json()
+            except Exception:  # noqa: BLE001 - a refused lock's body is the leg's to report
+                receipt = {"status": locked.value.status, "text": _safe_text(lambda: locked.value.text())}
+            status = locked.value.status
+            if status < 400:
+                _wait_url(self.page, r"/interviews/sent|/people", timeout_s=60)
+                h.add_screenshot(self._b.screenshot("locked-people"))
+            else:
+                h.add_screenshot(self._b.screenshot("lock-refused-again"))
+            return {"status": status, "receipt": receipt, "sent": locked.value.request.post_data_json}
 
     def l1(self, face: str | None = None) -> dict:
         """L1 as drawn (keel-web 069 FR-002): the title, the lead or the own-AI line, the carousel's faces and which is
