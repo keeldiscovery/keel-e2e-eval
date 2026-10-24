@@ -162,6 +162,11 @@ def _count(standing: dict, name: str = "inside") -> str:
 
 
 def _option_count(standing: dict, code: str) -> int:
+    # the wire's `DimensionStanding.choice.optionCounts` (`[{code, count}]`, keel-web 106's `barWords` reads it), else
+    # the corpus's `optionCounts` string
+    served = ((standing.get("choice") or {}) if isinstance(standing.get("choice"), dict) else {}).get("optionCounts")
+    if isinstance(served, list):
+        return int(next((o.get("count") or 0 for o in served if isinstance(o, dict) and o.get("code") == code), 0))
     for part in str(standing.get("optionCounts") or "").split(","):
         name, _, value = part.strip().partition("=")
         if name == code:
@@ -239,7 +244,11 @@ def card(entry, dimension, standing: dict, *, clause: str | None = None) -> dict
                    line=prevalence_line(clause, entry.window().words()))
     elif key == FREQUENCY_KEY:
         unit = ((entry.founder_calibration.get(key) or {}).get("answer") or {}).get("unit")
-        out.update(number=f"{_plain(standing.get('median'))} {unit}", line="the middle answer")
+        # keel-cloud 129 FR-1 (`BriefFacts.card`, T003): where the study stores a gate (a journey's scripted one), the
+        # days counted are the served gate's -- *the middle answer · days they {clause}* -- the corpus's line alone
+        # otherwise. (*days* is code's word whatever the window's unit: 05-paidly's months read it too.)
+        out.update(number=f"{_plain(standing.get('median'))} {unit}",
+                   line="the middle answer" if clause is None else f"the middle answer · days they {clause}")
     elif key == IMPORTANCE_KEY:
         out.update(number=_count(standing, "own_item_picks"), line="put it in their top two")
     elif key == CURRENT_SOLUTION_KEY:

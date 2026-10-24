@@ -79,14 +79,43 @@ Measured: **3,131 passed, 53 skipped, 0 failed, 0 errors**; the grep clean. (The
 
 ## FR-4 -- the walks of keel-web 106's screens
 
-- [ ] T040 the reads (106's selectors): the occasion field (`context-occasion`) drawn from `occasion.noun` and sent on
-  the PUT; the gate's No label (*I didn't* where served); the idea-name box empty with `idea-name-suggestion`; the
-  needs-input screen (`context-needs-input`) answered once through the page; the *Another country* line
-  (`market-other-line`) and the currency list opening on the country's own (`market-other-currency`); the Overview's
-  row words (`a.rp-row[data-dim] .rp-rs`) and price tile, the Insights footers (`.rp-tookby`) and GUESSED words
-  (`insights-guessed`); the friction row's status column at 390 (`.rp-rv` / `.rp-rs` never overlapping).
-- [ ] T041 the holds: on the golden seven (strict) what 106 must draw is held; on the back-tests each read is a
-  finding into `backtest.json` / `backtest.md` (`changed_screens`), never a stop.
+- [x] T040 the reads, on 106's selectors: the occasion field (`Corridor.context_occasion`: `context-occasion`,
+  `input#context-occasion`) and, after the confirm, `fields.occasion` beside every PUT's (FR-5); the gate's No as served
+  (`noLabel`, *I didn't* where the gate asks a want); the name box and `idea-name-suggestion` (`idea_check`'s
+  `suggestion`); the needs-input screen answered once on the page (`Corridor.needs_input`: `context-needs-input`,
+  `.cneeds__q`, its box, `context-needs-input-send`; `context-reasked` read; the wire only where the page draws
+  neither); the Another-country fields (`MarketStep.other`: `market-other-currency`'s first option, `market-other-line`,
+  handed out by `create_project(seen=...)`); the stage pages' and the Insights boxes' bar words (`brief_facts.bar_words`,
+  the wire's `choice.optionCounts` read too) with no split note past the bar; the GUESSED words apart
+  (`insights-guessed`, `report_marks.guessed_of`; a theme's count unchanged, its quotes the said ones); the Purchase
+  friction row at 390 (`Answers.friction_row_at_phone`, `boxes_overlap`); the consumer report's own words
+  (`report_marks.consumer_report_words`: tiles, leads, rows, the boxes' heads, headings, frames, theme labels, footers,
+  the not-asked lines; never a quote). The plan screen after a closed price stays 067's read (`plan_after_closed_price`).
+- [x] T041 the holds: on a golden walk each is asserted where the study carries it (the occasion field drawn with the
+  entry's occasion and the confirmed `fields.occasion` the same; no suggestion where the seed names nothing; the gate's
+  served No drawn; the bar words; the GUESSED words apart; the friction row on a B2B study; the consumer words on a
+  consumer one); on a back-test each is a finding, and `backtest.changed_screens` carries them (`web_106`) into
+  `backtest.json` / `backtest.md`. Unit: `tests/test_revision_16_walk.py`.
+
+## From the golden journeys (run on the 129 build, keel-web master with contract 36 vendored)
+
+S-006 and S-007 had not been run since before keel-cloud 125; on the 129 build they failed, one fault after another,
+each the harness's reading behind the product (no product fault among them), each fixed where it was met:
+
+- [x] T050 `contacts_fake.PRICE_VERSION` 10 -> 11 (`InferenceCharge.VERSION` since keel-cloud 125; no price moved): CM2.
+- [x] T051 the backfill's served follow-up map is keyed by rung alone (118's `#also` clips stored beside the rung,
+  read by item id, F-15), and IM27 holds an `#also` clip beside its rung as the leg already did (the record's meaning
+  unchanged, `INTERVIEWER_MARKS_VERSION` stays 7).
+- [x] T052 the dry run's first ask is the segment chip where the gate serves one (05-paidly: *Do you work mostly for
+  agencies?*), read by the page itself (keel-web 096 FR-3), so the founder's classify route is required only where
+  the first ask is an item.
+- [x] T053 Frequency's card on a stored gate (129 FR-1, T003): *the middle answer · days they {the gate's clause}*
+  (`brief_facts.card(clause=...)`, the journey's scripted clause); the corpus's reading (no gate) unchanged. 129 says
+  *days* whatever the window's unit (05-paidly's *2 months out of 3* reads *days they waited ...*): mirrored, named
+  open below.
+
+Measured: unit **3,149 passed, 53 skipped, 0 failed**; S-006 and S-007 **2 passed** (467 s) on the local stack with the
+fake interviewer; S-005 stops before anything this spec touches (below).
 
 ## Judgement calls
 
@@ -99,6 +128,23 @@ Measured: **3,131 passed, 53 skipped, 0 failed, 0 errors**; the grep clean. (The
 2. **129's composer is mirrored in this build.** Not in FR-1 to FR-5, but the golden journeys hold the follow-up's text
    and spoken line to the harness's own composition (`_hold_the_follow_up`, strict), and 129 moved them (FR-3) -- left
    alone, S-006 and S-007 fail on the 129 build, as they did when first run here.
+
+3. **106's screens are held where a golden study carries them.** A golden walk asserts what 106 must draw for that
+   study (the friction row only on a B2B study, the consumer words only on a consumer one, the Another-country fields
+   on no golden study -- all seven are US); a back-test records each as a finding, never a stop.
+4. **The journey fixes ride in FR-4's commit.** They are not FR-4's rules, but acceptance 1 is the golden journeys
+   green, and each was the harness reading the product behind its build (T050-T053).
+
+## Left open
+
+- **S-005 (01-countly) is red, before any leg this spec moved**: keel-cloud 128 FR-14's L16 refuses the golden
+  Compatibility condition *Staff could scan the delivery as it arrived* as the idea's own job (Countly's mechanism
+  *scans each delivery on arrival ...*), the applier asks a repair turn, and keel-runtime 0.8.0's scripted executor has
+  no screen for CALIBRATION_QUESTIONS' context with `repair` (*cannot infer a screen from context keys [..., repair,
+  ...]*), so SOLUTION's calibration job fails. A golden entry the cloud's own rule refuses is the cloud's or the
+  corpus's to settle (never the corpus here); the runtime's repair key set is keel-runtime's. Not fixed here.
+- 129's Frequency line says *days* on a month window (05-paidly): the cloud's wording, mirrored.
+- The host-door re-runs (acceptance 3 of 129) and the register rows: the parent's.
 
 ## Acceptance
 

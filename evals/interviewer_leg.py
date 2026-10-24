@@ -858,7 +858,9 @@ def _backfill(j, wire: _Wire, record: dict) -> None:
                      for link, v in served_before.items()}
         fu_after = {link: sorted((((v.get("interviewer") or {}).get("clips") or {}).get("followUp") or {}))
                     for link, v in served_after.items()}
-        fu_want = {link: sorted(d for r, d in follow if r == link) for link in roles}
+        # the served map is keyed by rung alone (keel-cloud 118: a rung's #also clip is stored beside it, served by its
+        # item id off the recording -- finding F-15), so the backfill serves the rungs and stores the #also clips again
+        fu_want = {link: sorted(d for r, d in follow if r == link and "#also" not in (d or "")) for link in roles}
         record["backfill"] = {"seeded": len(old), "swapped": swapped, "statuses": sorted(set(statuses)),
                               "waited_s": waited, "served_before": refs_before, "served_after": refs,
                               "ledger_rows_added": _rows(j, record) - rows_before,
@@ -923,8 +925,13 @@ def _dry_run(j, wire: _Wire, record: dict) -> None:
         # keel-web 075 FR-4: End's screen says the microphone is off, and nothing listens
         assert drawn["mic_off"]["shown"] and drawn["mic_off"]["text"] == ivs.MIC_OFF, drawn["mic_off"]
         assert drawn["mic_off"]["listening"] is False, drawn["mic_off"]
-        assert any(r["url"].endswith(f"/v2/projects/{j.project_id}/interviewer/classify") for r in drawn["reads"]), \
-            drawn["reads"]
+        # keel-web 096 FR-3: where the gate serves the segment's chip it is asked first and read by the page itself
+        # (`readWords`: the cloud's reader knows the gate's question, not the chip's) -- so the founder's classify route
+        # is read only where the first ask is an item (05-paidly on the 129 build: *Do you work mostly for agencies?*)
+        chip = ((served.get("gate") or {}).get("condition") or {}).get("question")
+        if not (chip and drawn["first"]["question"] == chip):
+            assert any(r["url"].endswith(f"/v2/projects/{j.project_id}/interviewer/classify")
+                       for r in drawn["reads"]), drawn["reads"]
     _dry_run_guard(j, wire, record, served)
 
 

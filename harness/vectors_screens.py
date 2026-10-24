@@ -166,6 +166,13 @@ def _value(locator) -> str:
         return ""
 
 
+def boxes_overlap(a: dict | None, b: dict | None) -> bool:
+    """Whether two bounding boxes (`{x, y, width, height}`) share any area -- keel-web 106 FR-5's friction row: the
+    value and the status columns side by side, or wrapped one under the other, never over each other."""
+    return bool(a and b and a["x"] < b["x"] + b["width"] and b["x"] < a["x"] + a["width"]
+                and a["y"] < b["y"] + b["height"] and b["y"] < a["y"] + a["height"])
+
+
 def _json_body(response) -> dict:
     try:
         body = response.json()
@@ -1059,6 +1066,37 @@ class Corridor:
         except Exception as missing:  # noqa: BLE001 - recorded: no Save reached the wire
             return {"method": "PUT", "path": None, "status": None, "error": repr(missing)}
 
+    def context_occasion(self) -> dict:
+        """keel-web 106 FR-1 (contract 36, keel-cloud 129 FR-11; spec 068 FR-4): the context card's *occasion* field
+        (`[data-testid=context-occasion]`, the input `#context-occasion`, a paragraph once confirmed), pre-filled with the
+        noun Keel found in its read-back (`occasion.noun`); absent on a contract without it."""
+        node = self.page.get_by_test_id("context-occasion")
+        if not node.count():
+            return {"drawn": False, "value": None}
+        field = self.page.locator("input#context-occasion")
+        value = _value(field.first) if field.count() else _first_text(self.page, "#context-occasion")
+        return {"drawn": True, "value": " ".join((value or "").split()) or None,
+                "refused": _first_text(self.page, "#context-occasion-refused") or None}
+
+    def needs_input(self, content: str) -> dict | None:
+        """keel-web 106 FR-7 (spec 068 FR-4): the needs-input screen -- the one question the interpret asked
+        (`[data-testid=context-needs-input]`, `.cneeds__q`), answered once in its box and sent
+        (`context-needs-input-send`); the re-ask line (`context-reasked`) read where the page reopened the fields
+        instead. None where the page draws neither (the caller answers on the wire)."""
+        screen = self.page.get_by_test_id("context-needs-input")
+        if screen.count() and screen.first.is_visible():
+            question = _first_text(screen.first, ".cneeds__q")
+            with self._b.step("founder answers the one thing the context read-back asked, once, on the page "
+                              "(keel-web 106 FR-7)") as h:
+                screen.first.locator("textarea").first.fill(content)
+                h.add_screenshot(self._b.screenshot("context-needs-input"))
+                self.page.get_by_test_id("context-needs-input-send").first.click()
+            return {"via": "page", "question": question or None}
+        reasked = self.page.get_by_test_id("context-reasked")
+        if reasked.count() and reasked.first.is_visible():
+            return {"via": "reasked", "line": _tc(reasked)}
+        return None
+
     def context_window_line(self) -> str:
         return _first_text(self.page, ".understands__window")
 
@@ -1177,6 +1215,9 @@ class Corridor:
             what = self.page.locator("#idea-what")
             unnamed = {"value": lines["what"], "placeholder": what.get_attribute("placeholder") or "",
                        "save_enabled": self._primary().is_enabled()}
+            # keel-web 106 FR-6 (spec 068 FR-4): the box opens empty and the seed's name is offered under it
+            hint = self.page.locator("[data-testid=idea-name-suggestion] button")
+            suggestion = _tc(hint) if hint.count() else None
             frame = self.frame()
             counter = {"drawn": self._name_counter()}
             h.capture_text("stage_screen", _text(self.page))
@@ -1203,7 +1244,7 @@ class Corridor:
             label = self._press_primary(SAVE)
             _wait_url(self.page, r"/define/solution/q/\d+$")
             return {"lines": lines, "unnamed": unnamed, "typed": name, "frame": frame, "primary": label,
-                    "reloaded": reloaded, "counter": counter}
+                    "reloaded": reloaded, "counter": counter, "suggestion": suggestion or None}
 
     def _name_counter(self) -> dict:
         """keel-web 066's S2 counter under *What it is* (`[data-testid=idea-name-words]`, *n / 5 words*), whether it
@@ -2260,6 +2301,32 @@ class Answers:
                 "text": text,
             }
 
+    def friction_row_at_phone(self, project_id: str) -> dict:
+        """keel-web 106 FR-5 (spec 068 FR-4): the Overview's Purchase-friction row at 390 x 844 -- its value column
+        (`.rp-rv`) and status column (`.rp-rs`) never overlap, the status words wrapping inside their own column. The
+        viewport is put back after the read."""
+        before = self.page.viewport_size
+        try:
+            self.page.set_viewport_size({"width": 390, "height": 844})
+            with self._b.step("founder reads the Overview's Purchase friction row on a phone (390 wide)") as h:
+                self._report(project_id, "overview")
+                self.page.get_by_test_id("report-hero").first.wait_for(state="visible", timeout=30_000)
+                row = self.page.locator("a.rp-row[data-dim='commercial.purchase_friction']")
+                if not row.count():
+                    return {"present": False}
+                row.first.scroll_into_view_if_needed()
+                value = row.first.locator(".rp-rv").first
+                status = row.first.locator(".rp-rs").first
+                a = value.bounding_box() if row.first.locator(".rp-rv").count() else None
+                b = status.bounding_box() if row.first.locator(".rp-rs").count() else None
+                overlap = boxes_overlap(a, b)
+                h.add_screenshot(self._b.screenshot("report-friction-row-phone"))
+                return {"present": True, "value": a, "status": b, "overlap": overlap,
+                        "status_words": _tc(status) if b else None}
+        finally:
+            if before:
+                self.page.set_viewport_size(before)
+
     def insights(self, project_id: str) -> dict:
         """The Insights view (keel-web 077 FR-3; keel-web 095, spec 064 FR-8b): per box (`section.rp-ibox[data-dim]
         [data-status][data-state]`, `[data-dissent=true]` on a held line) its head (`.rp-ihead`), its whole text, the
@@ -2317,6 +2384,9 @@ class Answers:
                     "grouping": [_tc(q) for q in grouping.locator(".rp-quote").all()] if grouping.count() else None,
                     "raw": [_tc(q) for q in box.locator(".rp-raw .rp-quote").all()],
                     "raw_note": _tc(box.locator(".rp-raw__note")) or None,
+                    # keel-web 106 FR-4: a GUESSED person's words, drawn apart at the box's foot under their own line
+                    "guessed": [_tc(q) for q in box.get_by_test_id("insights-guessed").locator(".rp-quote").all()],
+                    "guessed_head": _tc(box.locator(".rp-guessed__head")) or None,
                     "picks": picks_of(box)})
             not_asked = [{"key": li.get_attribute("data-dim"), "text": _tc(li)}
                          for li in view.locator("[data-testid=insights-not-asked] li[data-dim]").all()]

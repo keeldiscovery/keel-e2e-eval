@@ -204,3 +204,157 @@ def test_paidlys_owed_relative_advantage_follow_up_reads_as_the_route_serves_it(
     worse = vs.follow_up_question(paidly, [vs.Pick(dimension="solution.relative_advantage", codes=["negative"])],
                                   vs.LINK_PRIMARY, dict(interview, reveal={"what": "Imagine Paidly."}), "tok")
     assert worse["text"] == worse["spoken"] == "You said Paidly would have made things worse. What would have helped instead?"
+
+
+# ------------------------------------------------------------------------------- FR-4: keel-web 106's screens
+
+def test_a_consumer_reports_own_words_never_say_the_b2b_vocabulary_and_quotes_are_not_read():
+    """keel-web 106 FR-2: tiles, leads, rows, the Insights boxes' words and the not-asked lines -- never a quote."""
+    from evals import report_marks as rm                                # noqa: PLC0415
+    board = {"tiles": {"price": {"text": "half or more said so · 9 of 13 decision-makers"}},
+             "panels": {"COMMERCIAL": {"lead": "the payer would think it worth $20", "rows": [
+                 {"key": "commercial.price", "text": "Price $20 to $29 a month per person"}]}}}
+    insights = {"boxes": [{"key": "commercial.ability_to_pay", "head": "Ability to pay Did not hold",
+                           "themes": [{"label": "would need new money", "quotes": ["“the payer is me” — Ann"]}]}],
+                "not_asked": [{"key": "commercial.buyer_payer_alignment", "text": "No decision-maker was asked."}]}
+    hits = rm.consumer_report_words(board, insights)
+    assert sorted((h["where"], h["word"]) for h in hits) == [
+        ("insight:commercial.ability_to_pay:theme", "new money"), ("lead:COMMERCIAL", "the payer"),
+        ("not_asked:commercial.buyer_payer_alignment", "decision-maker"), ("row:commercial.price", "per person"),
+        ("tile:price", "decision-makers")]
+    assert rm.consumer_report_words({"tiles": {"price": {"text": "9 of 13 people"}}}, {}) == []
+
+
+def test_a_bar_line_past_its_bar_reads_did_not_hold_with_no_split_and_guessed_words_are_apart():
+    """keel-web 106 FR-3 / FR-4 on the Insights box (S-006 on the 129 build: Xavier Dubois, GUESSED, drawn apart)."""
+    from evals import report_marks as rm                                # noqa: PLC0415
+    from harness import interviewer_fake as fake                        # noqa: PLC0415
+    quote = lambda who, iid: {"invitationId": iid, "name": who, "text": "One step too many."}  # noqa: E731
+    insight = {"dimension": "solution.adoption_friction", "name": "Adoption friction", "status": "PEOPLE_DISAGREE",
+               "state": "GROUPED", "themes": [{"label": "step", "count": 2,
+                                               "quotes": [quote("Xavier Dubois", "x"), quote("Rosa Alvarez", "r")]}]}
+    standings = {"vectors": [{"dimensions": [{"dimension": "solution.adoption_friction", "people": [
+        {"invitationId": "x", "anchoring": "GUESSED"}, {"invitationId": "r", "anchoring": "ANCHORED"}]}]}]}
+    guessed = rm.guessed_of(standings)
+    assert guessed == frozenset({"x"})
+    box = rm.expected_box(insight, {"n": 7}, guessed)
+    assert box["head"] == ["Adoption friction", "Did not hold"] and box["split"] is None
+    assert box["themes"][0]["count"] == 2 and len(box["themes"][0]["quotes"]) == 1
+    assert box["guessed"] == [fake.quote_words(quote("Xavier Dubois", "x"))]
+    held = dict(insight, dimension="commercial.purchase_friction", name="Purchase friction")
+    fear = {"n": 6, "choice": {"optionCounts": [{"code": "yes_long", "count": 4}]}}
+    assert rm.expected_box(held, fear)["head"][1] == "Holding up"
+    assert rm.expected_box(dict(insight, dimension="problem.importance"))["split"] == fake.SPLIT_NOTE
+
+
+def test_frequencys_card_counts_the_served_gates_days_where_a_gate_is_stored():
+    """keel-cloud 129 FR-1 (`BriefFacts.card`, T003): S-006 on the 129 build read *the middle answer · days they waited
+    beyond agreed terms to be paid for an approved invoice*; the corpus's reading (no stored gate) is unchanged."""
+    from pathlib import Path                                            # noqa: PLC0415
+    from harness import vectors_script as vs                            # noqa: PLC0415
+    from instructions import brief_facts as bf                          # noqa: PLC0415
+    from instructions import corpus as corpus_mod                       # noqa: PLC0415
+    from stack.config import load_config                                # noqa: PLC0415
+    from tests import v9_fixtures as fx                                 # noqa: PLC0415
+    registry = fx.registry()
+    paidly = corpus_mod.load_file(corpus_mod.corpus_dir(Path(load_config(validate=False).keel_cloud)) / "05-paidly.yaml",
+                                  registry=registry)
+    frequency = registry.by_key("problem.frequency")
+    standing = {"status": "HOLDING_UP", "n": 10, "median": 2}
+    assert bf.card(paidly, frequency, standing)["line"] == "the middle answer"
+    assert bf.card(paidly, frequency, standing, clause=vs.event_past(paidly))["line"] == \
+        "the middle answer · days they " + vs.event_past(paidly)
+
+
+def test_the_follow_up_clips_may_carry_an_also_clip_beside_the_rung():
+    """keel-cloud 118's #also clip (a rung's second stem) is not a rung: IM27 holds it beside the rung, DONE, and the
+    backfill takes it out and stores it again (S-006 on the 129 build: six clips a role for five and four rungs)."""
+    from evals import interviewer_marks as im                           # noqa: PLC0415
+    from harness import interviewer_fake as fake                        # noqa: PLC0415
+    want = ["solution.adoption_friction"]
+    clip = {"itemId": "solution.adoption_friction", "status": "DONE",
+            "script": fake.follow_up_script(fake.rung("solution.adoption_friction")[3])}
+    also = {"itemId": "solution.adoption_friction#also", "status": "DONE",
+            "script": "One last thing. What would make it clearly worth it to you?"}
+    record = {"follow_up_clips": {"full": False, "roles": {"PRIMARY": {"want": want, "clips": [clip, also],
+                                                                      "served": want}}}}
+    ok, detail = im.the_follow_up_clips(record)
+    assert ok, detail
+    record["follow_up_clips"]["roles"]["PRIMARY"]["clips"] = [clip, dict(also, itemId="commercial.price#also")]
+    assert not im.the_follow_up_clips(record)[0]
+
+
+def test_the_name_box_opens_empty_with_no_suggestion_on_a_golden_walk_and_a_back_test_records_it():
+    import pytest                                                       # noqa: PLC0415
+    from evals import corpus_scenario as cs                             # noqa: PLC0415
+    from harness.steps import Recorder                                  # noqa: PLC0415
+    import tempfile                                                     # noqa: PLC0415
+    recorder = Recorder(__import__("pathlib").Path(tempfile.mkdtemp()))
+    founder = SimpleNamespace(solution_seed="A tag that whistles when you clap.")
+    golden = SimpleNamespace(strict=True, entry=SimpleNamespace(id="03-lullaby"), founder=founder, recorder=recorder,
+                             changed={}, findings=[])
+    cs._hold_the_name_suggestion(golden, {"unnamed": {"value": ""}, "suggestion": None, "typed": "Whistle tag"})
+    with pytest.raises(AssertionError):
+        cs._hold_the_name_suggestion(golden, {"unnamed": {"value": ""}, "suggestion": "Use “Whistle”",
+                                              "typed": "Whistle tag"})
+    back = SimpleNamespace(strict=False, entry=SimpleNamespace(id="14-code-four"), founder=founder, recorder=recorder,
+                           changed={}, findings=[])
+    cs._hold_the_name_suggestion(back, {"unnamed": {"value": ""}, "suggestion": "Code Four", "typed": "Code Four"})
+    assert back.changed["idea_name"]["suggestion"] == "Code Four" and "keel-web 106 FR-6" in back.findings[0]["what"]
+
+
+def test_another_country_opens_on_its_own_currency_and_draws_the_served_line():
+    import tempfile                                                     # noqa: PLC0415
+    from pathlib import Path                                            # noqa: PLC0415
+    from evals import corpus_scenario as cs                             # noqa: PLC0415
+    from harness.steps import Recorder                                  # noqa: PLC0415
+    line = "So the questions will be in English, in euros and cents, kilometres, metres and working days."
+    j = SimpleNamespace(strict=False, entry=SimpleNamespace(id="21-codyco"), recorder=Recorder(Path(tempfile.mkdtemp())),
+                        findings=[], changed={"market_other": {"country": "DE", "first_currency": "EUR", "line": line}})
+    cs._hold_the_other_market(j)
+    assert j.findings == []
+    j.changed["market_other"] = {"country": "DE", "first_currency": "USD", "line": None}
+    cs._hold_the_other_market(j)
+    assert j.findings and "keel-web 106 FR-8" in j.findings[0]["what"]
+    j.findings.clear()
+    j.changed = {}
+    cs._hold_the_other_market(j)
+    assert j.findings == []
+
+
+def test_the_friction_rows_columns_never_overlap():
+    value = {"x": 16, "y": 100, "width": 180, "height": 40}
+    assert not vsc.boxes_overlap(value, {"x": 200, "y": 100, "width": 150, "height": 60})
+    assert not vsc.boxes_overlap(value, {"x": 16, "y": 140, "width": 300, "height": 20})   # wrapped under it
+    assert vsc.boxes_overlap(value, {"x": 150, "y": 110, "width": 150, "height": 20})
+    assert not vsc.boxes_overlap(None, value)
+
+
+class _FieldPage:
+    """A page with the context card's occasion field (or none), for `Corridor.context_occasion`."""
+
+    def __init__(self, value: str | None):
+        self.value = value
+
+    def get_by_test_id(self, testid):
+        return SimpleNamespace(count=lambda: int(self.value is not None and testid == "context-occasion"))
+
+    def locator(self, selector):
+        there = self.value is not None and selector == "input#context-occasion"
+        node = SimpleNamespace(input_value=lambda: self.value)
+        return SimpleNamespace(count=lambda: int(there), first=node)
+
+
+def test_the_occasion_field_is_read_off_the_card():
+    corridor = _corridor(_FieldPage("delivery"))
+    assert corridor.context_occasion()["drawn"] is True and corridor.context_occasion()["value"] == "delivery"
+    assert _corridor(_FieldPage(None)).context_occasion() == {"drawn": False, "value": None}
+
+
+def test_the_gates_no_is_the_served_no_label():
+    """keel-cloud 129 FR-1 (`OccasionStem.noLabel`): where the gate asks a want the No reads *I didn't*; a gate drawn
+    without the served No is a screen fault."""
+    import inspect                                                      # noqa: PLC0415
+    from evals import corpus_scenario as cs                             # noqa: PLC0415
+    source = inspect.getsource(cs._hold_the_screens)
+    assert 'served_gate.get("noLabel")' in source and '"gate No"' in source

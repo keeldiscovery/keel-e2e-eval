@@ -167,6 +167,10 @@ class Journey:
     founder_identity: Any = None
     #: Spec 046: the record `evals/feedback_marks.py` scores at the end of the journey (FM1-FM6).
     feedback: dict = field(default_factory=dict)
+    #: Spec 068 FR-4 / FR-5: keel-web 106's changed screens and contract 36's wire, as the walk read them (the occasion
+    #: field and the PUT, the idea-name suggestion, the needs-input screen, the Another-country line, the friction row
+    #: at 390, the consumer words) -- held on a golden walk, findings on a back-test (`evals/backtest.changed_screens`).
+    changed: dict = field(default_factory=dict)
     #: Spec 052: the report marks' scorecard `_score_report` wrote (`report-marks.json`).
     report_card: dict = field(default_factory=dict)
     #: Spec 051: each text walk's follow-up (the harness's own rung, the route's answer, the screen, what was sent) and
@@ -270,7 +274,9 @@ def leg_project(j: Journey) -> None:
         j.guide_wire = vs_screens.GuideWire(j.page).attach()
     j.project_id = create_project(j.page, j.recorder, j.web_base, _market_inputs(founder),
                                   welcome="hold" if j.hold_welcome else "pass",
-                                  camera=j.camera.founder if getattr(j, "camera", None) is not None else None)
+                                  camera=j.camera.founder if getattr(j, "camera", None) is not None else None,
+                                  seen=j.changed)
+    _hold_the_other_market(j)
     with _step(j, "the market step's list is keel-cloud's (122 FR-4, `GET /v2/markets`): the entry's country is one "
                   "of `markets` -- or, for a country the table has not met, `other` offers it with its currency") as h:
         listed = j.get("/v2/markets") or {}
@@ -323,6 +329,7 @@ def leg_context(j: Journey) -> None:
             assert lines.get("only_people_who") == want_lines["only_people_who"], lines
         assert vs.window_words(founder.window) in window_line, window_line
         j.screens["context_card"] = {"understands": drawn, "text": drawn, **lines}
+    _hold_the_occasion_field(j)
     j.corridor.confirm_context()
     with _step(j, "the context is confirmed on the wire: the four fields, the sentence, the window "
                   "of at least two (D13)") as h:
@@ -338,9 +345,111 @@ def leg_context(j: Journey) -> None:
             assert fields.get(key) == value, (key, fields)
         # spec 068 FR-5 (contract 36, keel-cloud 129 FR-11): `ContextFields.occasion` -- the founder's where they typed
         # one, else the noun the context job derived, absent for none or *time*; every PUT the page sent recorded
-        j.screens["context_wire"] = {"occasion": fields.get("occasion"),
+        j.changed["context_wire"] = {"occasion": fields.get("occasion"),
                                      "puts": [{"status": s.get("status"), "occasion": s.get("occasion")}
                                               for s in j.corridor.saves]}
+        drawn_occasion = (j.changed.get("occasion_field") or {}).get("value")
+        if drawn_occasion and fields.get("occasion") != drawn_occasion:
+            if j.strict:
+                raise AssertionError({"GET context fields.occasion": fields.get("occasion"),
+                                      "the card's occasion field": drawn_occasion})
+            j.findings.append({"what": "the confirmed context's occasion is not the one the card's field drew "
+                                       "(contract 36, spec 068 FR-5)",
+                               "served": {"fields.occasion": fields.get("occasion"), "field": drawn_occasion}})
+
+
+# --------------------------------------------------------------- spec 068 FR-4: keel-web 106's screens, held
+
+def _found(j: Journey, what: str, served) -> None:
+    """A back-test's reading of one of 106's screens: a finding, never a stop."""
+    j.findings.append({"what": what, "served": served})
+
+
+def _hold_the_other_market(j: Journey) -> None:
+    """keel-web 106 FR-8: for a country under *Another country*, the currency list opens on the country's own currency
+    and the served line (*So the questions will be in English, in euros ...*) is drawn -- never the United States'."""
+    other = j.changed.get("market_other")
+    if not other:
+        return
+    from harness.browser import OTHER_COUNTRIES                         # noqa: PLC0415
+    own = OTHER_COUNTRIES.get(other.get("country"), (None, None))[1]
+    faults = []
+    if own and other.get("first_currency") != own:
+        faults.append({"currency list opens on": other.get("first_currency"), "the country's own": own})
+    line = other.get("line") or ""
+    if "the questions will be" not in line.lower() or "dollars" in line.lower() and own != "USD":
+        faults.append({"line": line or None})
+    with _step(j, "the market step for Another country: the currency list opens on the country's own and the served "
+                  "line is drawn (keel-web 106 FR-8)", party="founder", kind="assert" if j.strict else "note") as h:
+        h.record_assert({"first_currency": own, "line": "So the questions will be ..."}, other)
+        if faults and j.strict:
+            raise AssertionError(faults)
+    if faults:
+        _found(j, f"{j.entry.id}: the Another-country fields (keel-web 106 FR-8)", faults)
+
+
+def _hold_the_occasion_field(j: Journey) -> None:
+    """keel-web 106 FR-1 (contract 36): under the four fields the card draws one *occasion* field pre-filled with the
+    noun Keel found (`occasion.noun`) -- on a scripted walk the entry's own occasion."""
+    drawn = j.changed["occasion_field"] = j.corridor.context_occasion()
+    want = vs.occasion(j.entry)
+    with _step(j, "the context card draws the occasion field, pre-filled with the noun Keel found (keel-web 106 FR-1, "
+                  "contract 36)", party="founder", kind="assert" if j.strict else "note") as h:
+        h.record_assert({"drawn": True, "value": want if j.strict else "the noun Keel found"}, drawn)
+        if j.strict:
+            assert drawn.get("drawn") and drawn.get("value") == want, (drawn, want)
+    if not j.strict and not drawn.get("drawn"):
+        _found(j, f"{j.entry.id}: the context card drew no occasion field (keel-web 106 FR-1)", drawn)
+    elif not j.strict and drawn.get("value") != want:
+        _found(j, f"{j.entry.id}: the occasion field reads {drawn.get('value')!r}; the entry's occasion is {want!r} "
+                  "(the founder may edit it; the walk keeps Keel's)", drawn)
+
+
+def _hold_the_name_suggestion(j: Journey, seen: dict) -> None:
+    """keel-web 106 FR-6: the name box opens empty, and the seed's own name, where it carries one, is offered under it
+    as a tap-to-use suggestion (`idea-name-suggestion`); a seed with no name offers none."""
+    seed_name = vs.seed_idea_name(j.founder.solution_seed)
+    suggestion = seen.get("suggestion")
+    j.changed["idea_name"] = {"box": (seen.get("unnamed") or {}).get("value"), "suggestion": suggestion,
+                              "seed_name": seed_name}
+    if j.strict:
+        with _step(j, "S2: the name box opens empty, with no suggestion where the seed names nothing (keel-web 106 "
+                      "FR-6)", party="founder") as h:
+            h.record_assert({"box": "", "suggestion": None}, j.changed["idea_name"])
+            assert not (seen.get("unnamed") or {}).get("value") and suggestion is None, j.changed["idea_name"]
+    elif suggestion or (seen.get("unnamed") or {}).get("value"):
+        _found(j, f"{j.entry.id}: S2 offered {suggestion!r} as the idea's name (box {(seen.get('unnamed') or {}).get('value')!r}); "
+                  f"the founder typed {seen.get('typed')!r} (keel-web 106 FR-6)", j.changed["idea_name"])
+
+
+def _hold_the_friction_row(j: Journey) -> None:
+    """keel-web 106 FR-5: on a phone (390 wide) the Purchase-friction row's status words wrap inside their own column,
+    never over the value -- read where the study carries the row (a B2B entry)."""
+    if not j.entry.b2b():
+        return
+    read = j.changed["friction_row"] = j.answers.friction_row_at_phone(j.project_id)
+    with _step(j, "the Overview's Purchase friction row at 390: the status column never overlaps the value (keel-web "
+                  "106 FR-5)", party="founder", kind="assert" if j.strict else "note") as h:
+        h.record_assert({"present": True, "overlap": False}, read)
+        if j.strict:
+            assert read.get("present") and not read.get("overlap"), read
+    if not j.strict and read.get("overlap"):
+        _found(j, f"{j.entry.id}: the Purchase friction row's status overlaps its value at 390 (keel-web 106 FR-5)", read)
+
+
+def _hold_the_consumer_words(j: Journey, board: dict | None, insights: dict | None) -> None:
+    """keel-web 106 FR-2 (keel-cloud 128 FR-5): a consumer study's report speaks of one person -- no *decision-makers*,
+    *the payer*, *per person* or *new money* in its own words (a quote is the person's, never read)."""
+    if j.entry.b2b():
+        return
+    hits = j.changed["consumer_words"] = report_marks.consumer_report_words(board, insights)
+    with _step(j, "a consumer study's report says none of decision-makers, the payer, per person, new money "
+                  "(keel-web 106 FR-2)", party="founder", kind="assert" if j.strict else "note") as h:
+        h.record_assert([], hits)
+        if j.strict:
+            assert not hits, hits
+    if hits and not j.strict:
+        _found(j, f"{j.entry.id}: the consumer report says {sorted({x['word'] for x in hits})} (keel-web 106 FR-2)", hits)
 
 
 def needs_input_answer(entry, founder) -> str:
@@ -376,11 +485,21 @@ def _needs_input(j: Journey, interaction_id: str | None, asked: dict) -> None:
         raise AssertionError(f"CONTEXT_INTERPRET asked the founder back{' again' if asked else ''} (NEEDS_INPUT): "
                              f"{questions} -- spec 067 FR-5: answered once on a back-test, never waited on")
     content = needs_input_answer(j.entry, j.founder)
+    # keel-web 106 FR-7 (spec 068 FR-4): the page draws the one question with its box -- answered there, once; the wire
+    # only where the page draws none (a re-ask reopens the fields: named, then the wire)
+    on_page = getattr(j, "corridor", None) and j.corridor.needs_input(content)
     with _step(j, "the context interpret asked back (NEEDS_INPUT): answered once from the entry's own fields "
                   "(spec 067 FR-5; keel-cloud 128 FR-15)", party="founder", kind="note") as h:
-        status, body = j.call("POST", f"/v2/inference-interactions/{interaction_id}/answers", {"content": content},
-                              ok=(200, 201, 202))
-        h.record_wire({"questions": questions, "content": content}, {"status": status, "body": body})
+        if on_page and on_page.get("via") == "page":
+            status, body = None, None
+            h.record_wire({"questions": questions, "content": content}, on_page)
+        else:
+            status, body = j.call("POST", f"/v2/inference-interactions/{interaction_id}/answers", {"content": content},
+                                  ok=(200, 201, 202))
+            h.record_wire({"questions": questions, "content": content, "page": on_page},
+                          {"status": status, "body": body})
+    if hasattr(j, "changed"):
+        j.changed["needs_input"] = {"questions": questions, "page": on_page or None}
     asked.update(turn=turn, questions=questions)
     j.findings.append({"what": "the context interpret asked back for what the founder had typed (NEEDS_INPUT); "
                                "answered once from the entry's fields", "served": {"questions": questions,
@@ -1111,6 +1230,7 @@ def leg_interpret_solution(j: Journey) -> None:
     _idea_unnamed(j, typed)
     seen = j.corridor.idea_check(typed)
     j.framing["idea"] = [seen]
+    _hold_the_name_suggestion(j, seen)
     if seen["reloaded"]:
         # runs/DRIFT.md #78, closed by keel-web 066 (IdeaCheck refills from the served idea): spec 041 reloaded the page
         # once. The page object still reloads (so the bundle shows what followed), and the journey fails here.
@@ -2439,6 +2559,13 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
                 [vs_screens.GATE_RATHER_NOT_SAY] if "RATHER_NOT_SAY" in (served_gate.get("chips") or []) else [])
             if [c.strip() for c in gate["chips"]] != want:
                 faults.append({"gate chips": gate["chips"], "want": want})
+        # keel-web 106 / keel-cloud 129 FR-1 (spec 068 FR-4): the gate's No is the served `noLabel` -- *I didn't* where
+        # the gate asks a want, *I didn't get to* where it asks the attempt -- and the page draws it as the No
+        if gate is not None and gate.get("question") is not None and served_gate.get("noLabel") \
+                and served_gate["noLabel"] not in [o.strip() for o in gate.get("options") or []]:
+            faults.append({"gate No": gate.get("options"), "served noLabel": served_gate.get("noLabel")})
+        if gate is not None and served_gate.get("noLabel") and hasattr(j, "changed"):
+            j.changed.setdefault("gate_no", {})[interview.get("kind") or "FULL"] = served_gate.get("noLabel")
         condition = served_gate.get("condition")
         if gate is not None and condition:
             # keel-cloud 120 / keel-web 096: the segment's chip before the gate, its question as served
@@ -2793,6 +2920,7 @@ def _board(j: Journey) -> None:
                         {"faults": faults, "hero": board["hero"], "tiles": board["tiles"],
                          "panels": {v: {k: p.get(k) for k in ("head", "lead")} for v, p in board["panels"].items()}})
         assert not faults, json.dumps(faults, indent=2, default=str)
+    _hold_the_friction_row(j)
     watch_line_failed(j)
 
 
@@ -2881,7 +3009,9 @@ def _vector_page(j: Journey, vector: str) -> None:
         for d in rows:
             key = d.get("dimension")
             row = page["rows"].get(key) or {}
-            word = STATUS_WORD[d.get("status")]
+            # keel-web 106 FR-3 (keel-cloud 128 FR-8, spec 068 FR-4): a bar line's amber reads *Did not hold* past the
+            # bar (Purchase friction's held fear *Holding up*), never *People disagree*
+            word = brief_facts_mod.bar_words(key, d)
             if not row.get("status", "").startswith(word):
                 mismatches.append({"dimension": key, "screen": row.get("status"), "want": word})
             if d.get("status") == "LEFT_OUT" and not row.get("amber"):
@@ -3085,6 +3215,7 @@ def _score_report(j: Journey) -> dict:
     `report-marks.json`); the journey fails on any owed mark unmet."""
     from pathlib import Path                                  # noqa: PLC0415
     record = report_record(j)
+    _hold_the_consumer_words(j, record.get("overview"), record.get("insights"))
     card = j.report_card = report_marks.scorecard(record)
     run_dir = Path(j.recorder.run_dir)
     (run_dir / "report.json").write_text(json.dumps(record, indent=2, default=str) + "\n", encoding="utf-8")

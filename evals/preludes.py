@@ -157,7 +157,8 @@ def stage_from_overview(overview_body: dict, stage_type: str) -> dict:
 
 
 def create_project(page: Page, recorder: Recorder, web_base: str,
-                   founder: corpus_script.FounderInputs, *, welcome: str = "pass", camera=None) -> str:
+                   founder: corpus_script.FounderInputs, *, welcome: str = "pass", camera=None,
+                   seen: dict | None = None) -> str:
     """Name -> market -> start. Returns the new project id.
 
     The market's `language` is never typed: `CreateProjectRequest.market` carries only
@@ -178,6 +179,8 @@ def create_project(page: Page, recorder: Recorder, web_base: str,
     if camera is not None:
         camera("market")
     market.fill(founder.market.country, founder.market.region)
+    if seen is not None and market.other is not None:
+        seen["market_other"] = market.other            # spec 068 FR-4: keel-web 106 FR-8's Another-country fields
     return market.start(welcome=welcome)
 
 

@@ -683,14 +683,20 @@ def the_follow_up_clips(r: dict) -> tuple[bool, Any]:
     bad = {}
     for link, role in roles.items():
         want = role.get("want") or []
-        clips = role.get("clips") or []
+        # keel-cloud 118: a rung may carry a second *#also* clip (its other stem) beside its own -- not a rung of its
+        # own, never served by rung (read by its item id); held as the leg holds it (spec 068: S-006 on the 129 build)
+        every = role.get("clips") or []
+        clips = [c for c in every if "#also" not in (c.get("itemId") or "")]
+        also = [c for c in every if "#also" in (c.get("itemId") or "")]
         if not (want and [c.get("itemId") for c in clips] == want and role.get("served") == sorted(want)
                 and all(fake.rung(c.get("itemId")) and c.get("status") == "DONE"
-                        and c.get("script") == fake.follow_up_script(fake.rung(c["itemId"])[3]) for c in clips)):
+                        and c.get("script") == fake.follow_up_script(fake.rung(c["itemId"])[3]) for c in clips)
+                and all(c["itemId"].split("#")[0] in want and c.get("status") == "DONE"
+                        and str(c.get("script") or "").startswith(fake.ONE_LAST_THING) for c in also)):
             bad[link] = role
     back = x.get("backfill")
     back_ok = back is None and not x.get("full") or (
-        back is not None and back.get("taken_out") == sum(len(r_.get("want") or []) for r_ in roles.values())
+        back is not None and back.get("taken_out") == sum(len(r_.get("clips") or []) for r_ in roles.values())
         and all(v.get("ok") for v in (back.get("stored") or {}).values()) and bool(back.get("stored"))
         and all(v == [] for v in (back.get("served_before") or {}).values())
         and back.get("served_after") == back.get("want") and back.get("statuses") == ["READY"]

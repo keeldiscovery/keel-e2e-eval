@@ -1852,6 +1852,30 @@ class MarketStep:
     def is_visible(self) -> bool:
         return self._country_select().count() > 0
 
+    #: Spec 068 FR-4: what the Another-country fields drew (None where the market is in the table).
+    other: dict | None = None
+
+    def _other_currencies(self) -> list:
+        """`[data-testid=market-other-currency]`'s option values after the placeholder, in the order drawn."""
+        try:
+            values = self.page.get_by_test_id("market-other-currency").first.evaluate(
+                "(s) => Array.from(s.options).map((o) => o.value)")
+        except Exception:  # noqa: BLE001 - a read
+            return []
+        return [v for v in values or [] if v]
+
+    def _other_line(self, *, timeout_s: float = 10) -> str | None:
+        """`[data-testid=market-other-line]`: the served sentence for the country typed, once its read lands."""
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            node = self.page.get_by_test_id("market-other-line")
+            text = _safe_text(lambda: node.first.inner_text()) if node.count() else ""
+            if "the questions will be" in (text or "").casefold():
+                return " ".join(text.split())
+            self.page.wait_for_timeout(250)
+        node = self.page.get_by_test_id("market-other-line")
+        return (" ".join((_safe_text(lambda: node.first.inner_text()) or "").split()) or None) if node.count() else None
+
     # ----------------------------------------------------------------------------------- actions
 
     def fill(self, country: str, region: str | None = None) -> None:
@@ -1873,9 +1897,16 @@ class MarketStep:
                     select.select_option("OTHER")
                     name, currency = OTHER_COUNTRIES.get(country, (country, ""))
                     self.page.get_by_test_id("market-other-country").fill(name)
+                    # keel-web 106 FR-8 (spec 068 FR-4): the currency list opens on the country's own currency, and
+                    # the served line (`Market.described`) is drawn while the chosen currency is the read's
+                    listed_currencies = self._other_currencies()
                     if currency:
                         self.page.get_by_test_id("market-other-currency").select_option(currency)
-                    h.record_wire({"country": country}, {"other": name, "currency": currency})
+                    line = self._other_line()
+                    self.other = {"country": country, "name": name, "currency": currency,
+                                  "first_currency": listed_currencies[0] if listed_currencies else None,
+                                  "currencies": listed_currencies[:5], "line": line}
+                    h.record_wire({"country": country}, {"other": name, "currency": currency, **self.other})
                 if region:
                     self._region_input().fill(region)
                 h.capture_text("screen", "market")

@@ -1198,6 +1198,10 @@ def changed_screens(j, standings: dict | None = None) -> dict:
     for card in facts.get("cards") or []:
         if card.get("key") in BAR_LINES and str(card.get("statusWords") or "").startswith("People disagree"):
             out["people_disagree_on_a_bar_line"].append({k: card.get(k) for k in ("key", "number", "statusWords")})
+    # spec 068 FR-4: keel-web 106's own screens, as the walk read them (`Journey.changed`)
+    read = getattr(j, "changed", None) or {}
+    out["web_106"] = {k: read[k] for k in ("occasion_field", "context_wire", "idea_name", "needs_input",
+                                           "market_other", "friction_row", "consumer_words", "gate_no") if k in read}
     return out
 
 
@@ -1470,6 +1474,15 @@ def markdown(r: dict) -> str:
             lines.append(f"- {row.get('person')} closed the price and was shown the plan: {_q(row.get('plan'))}")
         for row in changed.get("people_disagree_on_a_bar_line") or []:
             lines.append(f"- *People disagree* on a bar line: {row.get('key')} {row.get('number')}")
+        web = changed.get("web_106") or {}
+        if web:
+            lines.append("- keel-web 106's screens (spec 068 FR-4):")
+            for key in ("occasion_field", "context_wire", "idea_name", "needs_input", "market_other", "friction_row",
+                        "gate_no"):
+                if key in web:
+                    lines.append(f"  - {key}: {_q(web[key])}")
+            for row in web.get("consumer_words") or []:
+                lines.append(f"  - the consumer report says *{row.get('word')}* ({row.get('where')}): {row.get('text')}")
         lines.append("")
     change = decision.get("change") or {}
     lines += ["## 3. The brief", "", f"- Decision: {_q(decision)}", f"- Verdicts: {_q(b.get('verdicts'))}"]

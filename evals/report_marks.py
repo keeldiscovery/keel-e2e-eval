@@ -49,7 +49,7 @@ from typing import Any
 
 from harness import interviewer_fake as fake
 from instructions import overview as ov
-from instructions.brief_facts import BROKE_ON, VERDICT_WORDS, _plain
+from instructions.brief_facts import BROKE_ON, DID_NOT_HOLD, _plain, bar_words
 
 #: Bumped whenever a mark is born, retired, or reads its record differently.
 REPORT_MARKS_VERSION = 1
@@ -288,20 +288,62 @@ def _theme_label(theme: dict) -> str:
     return fake.ON_THEIR_OWN_WORDS if theme.get("label") == fake.ON_THEIR_OWN else str(theme.get("label") or "")
 
 
-def expected_box(insight: dict) -> dict:
+#: keel-web 106 FR-2 (`CONSUMER_WORDS`, keel-cloud 128 FR-5): the words a consumer study's report never says.
+CONSUMER_REPORT_WORDS = ("decision-makers", "decision-maker", "the payer", "per person", "new money")
+
+
+def consumer_report_words(board: dict | None, insights: dict | None) -> list:
+    """Spec 068 FR-4 (keel-web 106 FR-2): every place a consumer study's report says one of `CONSUMER_REPORT_WORDS` in
+    its own words -- the Overview's tiles, panel leads and rows, the Insights boxes' heads, rung headings, frames, theme
+    labels, footers and the not-asked lines; never a person's quote. `[{where, word, text}]`, empty when clean."""
+    places = []
+    for name, tile in ((board or {}).get("tiles") or {}).items():
+        places.append((f"tile:{name}", tile.get("text")))
+    for vector, panel in ((board or {}).get("panels") or {}).items():
+        places.append((f"lead:{vector}", panel.get("lead")))
+        places += [(f"row:{r.get('key')}", r.get("text")) for r in panel.get("rows") or []]
+    for box in (insights or {}).get("boxes") or []:
+        key = box.get("key")
+        places += [(f"insight:{key}:{part}", box.get(part)) for part in ("head", "concern", "frame", "took_by")]
+        places += [(f"insight:{key}:theme", t.get("label")) for t in box.get("themes") or []]
+    places += [(f"not_asked:{n.get('key')}", n.get("text")) for n in (insights or {}).get("not_asked") or []]
+    out = []
+    for where, text in places:
+        low = " ".join(str(text or "").split()).lower()
+        for word in CONSUMER_REPORT_WORDS:
+            if re.search(r"(?<![\w-])" + re.escape(word) + r"(?![\w-])", low):
+                out.append({"where": where, "word": word, "text": text})
+    return out
+
+
+def guessed_of(standings: dict) -> frozenset:
+    """keel-web 106 FR-4 (`insightFooter.guessedOf`, keel-cloud 128 FR-17; spec 068 FR-4): the invitations whose story
+    was read GUESSED -- their words are never quoted as a said answer, but drawn apart at the box's foot."""
+    return frozenset(str(p.get("invitationId")) for v in standings.get("vectors") or []
+                     for d in v.get("dimensions") or [] for p in d.get("people") or []
+                     if p.get("anchoring") == "GUESSED" and p.get("invitationId") is not None)
+
+
+def expected_box(insight: dict, standing: dict | None = None, guessed: frozenset = frozenset()) -> dict:
     """One box's words, from its served `insights[]` entry (contract 28, keel-web 095): the name and pill, the split
     line, the rung heading alone, the dissent frame, *Only k of the n*, then by state -- GROUPED the themes (*On their
     own* last), GROUPING *Keel is grouping what they said…* and the quotes, RAW *In their own words*, the note and the
     quotes."""
     state = insight.get("state") or ("RAW" if insight.get("raw") else "GROUPED")
+    said = lambda q: str(q.get("invitationId")) not in guessed  # noqa: E731 - keel-web 106 FR-4: GUESSED drawn apart
     themes = [{"label": _theme_label(t), "count": t.get("count"),
-               "quotes": [fake.quote_words(q) for q in t.get("quotes") or []]}
+               "quotes": [fake.quote_words(q) for q in t.get("quotes") or [] if said(q)]}
               for t in insight.get("themes") or []] if state == "GROUPED" else []
-    loose = [fake.quote_words(q) for q in (insight.get("rawQuotes") or insight.get("quotes") or [])]
+    every = [q for t in insight.get("themes") or [] for q in t.get("quotes") or []] if state == "GROUPED" else \
+        list(insight.get("rawQuotes") or insight.get("quotes") or [])
+    loose = [fake.quote_words(q) for q in (insight.get("rawQuotes") or insight.get("quotes") or []) if said(q)]
+    # keel-web 106 FR-3 (keel-cloud 128 FR-8, spec 068 FR-4): a bar line's amber is *Did not hold* past the bar, with no
+    # split note (Purchase friction's held fear *Holding up*); the standing's counts decide it, the insight's status else
+    word = bar_words(insight.get("dimension"), {**(standing or {}), "status": insight.get("status")})
     return {
         "key": insight.get("dimension"), "state": state, "dissent": bool(insight.get("dissent")),
-        "head": [insight.get("name"), VERDICT_WORDS.get(insight.get("status"), insight.get("status"))],
-        "split": fake.SPLIT_NOTE if insight.get("status") == "PEOPLE_DISAGREE" else None,
+        "head": [insight.get("name"), word],
+        "split": fake.SPLIT_NOTE if insight.get("status") == "PEOPLE_DISAGREE" and word != DID_NOT_HOLD else None,
         "concern": insight.get("rungHeading") or None,
         "frame": insight.get("frame") if insight.get("dissent") else None,
         "themes": themes,
@@ -310,6 +352,7 @@ def expected_box(insight: dict) -> dict:
         "grouping": loose if state == "GROUPING" else None,
         "raw": loose if state == "RAW" else None,
         "note": insight.get("note") if state == "RAW" else None,
+        "guessed": [fake.quote_words(q) for q in every if not said(q)],
     }
 
 
@@ -397,7 +440,12 @@ def insight_faults(standings: dict, page: dict, *, strict: bool, names: dict) ->
     for key in want_dims:
         if key not in served or key not in by_key:
             continue
-        want, got = expected_box(served[key]), by_key[key]
+        standing = next((d for v in standings.get("vectors") or [] for d in v.get("dimensions") or []
+                         if d.get("dimension") == key), None)
+        want, got = expected_box(served[key], standing, guessed_of(standings)), by_key[key]
+        if sorted(ov.norm(q) for q in got.get("guessed") or []) != sorted(ov.norm(q) for q in want["guessed"]):
+            faults.append({key: "the GUESSED words apart (keel-web 106 FR-4)", "drawn": got.get("guessed"),
+                           "wire": want["guessed"]})
         missing = ov.in_order(got.get("head"), want["head"])
         if got.get("state") != want["state"] or bool(got.get("dissent")) != want["dissent"]:
             faults.append({key: "the box's state", "drawn": [got.get("state"), got.get("dissent")],
