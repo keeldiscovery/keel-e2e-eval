@@ -14,24 +14,27 @@ the marks header's digests at r15, and the spoken record read with 128's Commitm
 
 ## FR-1 -- revision 16 (first: it unblocks every load)
 
-- [ ] T001 `instructions/corpus.py`: `REVISION = 16`; `_REVISION_OF[15]` names revision 15 as *before keel-cloud 129*
+- [x] T001 `instructions/corpus.py`: `REVISION = 16`; `_REVISION_OF[15]` names revision 15 as *before keel-cloud 129*
   (112 back-test Commitment picks `yes_after_trying` on a step-alone list); the module's account gains revision 16.
-- [ ] T002 fixtures (`tests/fixtures/corpus/09-fixture.yaml`, `10-fixture-b2b.yaml`, `tests/fixtures/backtest/99-broken.yaml`)
+- [x] T002 fixtures (`tests/fixtures/corpus/09-fixture.yaml`, `10-fixture-b2b.yaml`, `tests/fixtures/backtest/99-broken.yaml`)
   at revision 16; the registry slice (`tests/fixtures/registry/slice.yaml`) unchanged -- 129 moved no registry json or
   yaml (`git diff 423f0983 efdd37bf` names none), named here so the next reader does not look for an edit.
-- [ ] T003 `instructions/marks.py`'s header: a *Corpus revision 16* paragraph naming the seven golden files by sha256
+- [x] T003 `instructions/marks.py`'s header: a *Corpus revision 16* paragraph naming the seven golden files by sha256
   (canon bytes at `efdd37bf`, equal to `corpus-r16/`); v20 stands; the two cut Commitment options named as served words.
-- [ ] T004 the golden mirrors: `spoken.served_labels` writes Commitment's options as 129 does (`ItemFrames.firstYes` /
+- [x] T004 the golden mirrors: `spoken.served_labels` writes Commitment's options as 129 does (`ItemFrames.firstYes` /
   `secondYes` / `cutToFit`, FR-15: the step cut by its trailing phrase to its share of nine; FR-9: never *first first*),
   so the record is read back whole -- 03-lullaby's *Yes, I'd allow it to use the microphone* and 02-compliancelog's
   *Yes, after a look at it first* (word changes only).
-- [ ] T005 `tests/test_corpus_r15.py` becomes `tests/test_corpus_r16.py`: D16 mirrored -- every entry beside the cloud's
+- [x] T005 `tests/test_corpus_r15.py` becomes `tests/test_corpus_r16.py`: D16 mirrored -- every entry beside the cloud's
   r15 mirrors, every difference the revision line or a step-alone back-test entry's `yes_after_trying` -> `yes_start`,
   the moved picks per entry exactly 129 T028's listing (112, Issen's seven by name), nothing else; the cloud's
   `check_corpus_r16.py` prints OK on all 35; all 35 load at 16 (the 28 in back-test mode) and r15's 11-issen is refused
   by name; 067's rule-Q, answer-box, rung, follow-up, needs-input, spoken-guard, changed-screen and register tests kept.
-- [ ] T006 the tests that read fifteen read sixteen (`test_corpus_r11_shape`, `test_instruction_corpus_r11`'s refusal
+- [x] T006 the tests that read fifteen read sixteen (`test_corpus_r11_shape`, `test_instruction_corpus_r11`'s refusal
   table gains revision 15, `test_instruction_marks`, `test_instruction_spoken`'s Lullaby Commitment).
+
+Measured: **3,131 passed, 53 skipped, 0 failed, 0 errors**; the grep clean. (The rename of `test_corpus_r15.py` to
+`test_corpus_r16.py` rode in the tasks.md commit, content unchanged there; its D16 content is this section's.)
 
 ## FR-5 -- contract 36
 

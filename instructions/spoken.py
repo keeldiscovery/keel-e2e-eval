@@ -185,10 +185,42 @@ def served_labels(registry, key: str, entry=None) -> list:
     if key == COMMITMENT_KEY and entry is not None:
         steps = [i.get("label") for i in ((entry.founder_list(key) or {}).get("items") or []) if i.get("label")]
         if steps:
-            labels.append("Yes, I'd " + _lower(steps[0].strip()))
+            labels.append(first_yes(steps[0]))
         if len(steps) > 1:
-            labels.append("Yes, after " + _lower(steps[1].strip()) + " first")
+            labels.append(second_yes(steps[1]))
     return labels
+
+
+_PREPOSITIONS = r"(?:with|on|at|for|in|from|after|before|by|during|over|across|within)"
+_TRAILING = re.compile(r"^(.+?)\s+" + _PREPOSITIONS + r"\s+\S.*$")
+_LAST_TRAILING = re.compile(r"^(.+)\s+" + _PREPOSITIONS + r"\s+\S.*$")
+
+
+def cut_to_fit(step: str, most: int) -> str:
+    """keel-cloud 129 FR-15 (`ItemFrames.cutToFit`): a step cut to `most` words by its trailing phrases, the last one
+    opening on a preposition first (*allow it to use the microphone at night* -> *allow it to use the microphone*); a
+    step that fits, or one with no such phrase left, as it is."""
+    text = str(step or "").strip()
+    while words(text) > most:
+        last = _LAST_TRAILING.fullmatch(text)
+        if not last or words(last.group(1)) < 2 or not _TRAILING.fullmatch(text):
+            break
+        text = last.group(1).strip()
+    return text
+
+
+def first_yes(step: str) -> str:
+    """`ItemFrames.firstYes`: *Yes, I'd {step}*, the step cut to its share of the option's nine (129 FR-15)."""
+    return "Yes, I'd " + cut_to_fit(_lower(str(step).strip()), OPTION_MAX_WORDS - 2)
+
+
+def second_yes(smaller_step: str) -> str:
+    """`ItemFrames.secondYes`: *Yes, after {smaller step} first*, cut to fit nine, never *first first* (129 FR-9,
+    FR-15)."""
+    said_step = _lower(str(smaller_step).strip())
+    first = re.search(r"\bfirst$", said_step, re.IGNORECASE) is not None
+    step = cut_to_fit(said_step, OPTION_MAX_WORDS - (2 if first else 3))
+    return "Yes, after " + step + ("" if re.search(r"\bfirst$", step, re.IGNORECASE) else " first")
 
 
 #: §4: the three transforms, by dimension; every other item is `none`.

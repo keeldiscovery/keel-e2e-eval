@@ -85,6 +85,22 @@ reads the three page clips with the rest (29 in the manifest) -- and `evals/inte
 her hello in the who-asks band to its end, the still returns; absent for a retired face); the interviewer leg's W1
 replay reading retires with *How it works* (it was a leg step, never a row).
 
+**Corpus revision 16 (2026-10-23, keel-cloud 129; eval 068, the harness half)**: the golden seven move by their revision
+line alone (129 FR-12); every back-test founder's Commitment list is the step alone, so the 112 `yes_after_trying`
+picks across the 28 back-test entries become `yes_start` (Keel adds no smaller step the founder did not give, 129 FR-9).
+Two golden Commitment options are cut to the whole option's nine words (129 FR-15: 03-lullaby's *Yes, I'd allow it to
+use the microphone*, 02-compliancelog's *Yes, after a look at it first*) -- served words, no corpus byte, no code, count,
+status or decision moved. The reader reads **revision 16** and refuses a revision-15 file by name. **v20 stands**: this
+revision bumps nothing. The seven revision-16 files, by sha256 (keel-cloud canon's own bytes at keel-cloud-docs
+`efdd37bf`, equal to `src/test/resources/keel/corpus-r16/`): `01-countly.yaml`
+`131907158493f948b7ac0e71ec4a510cfbe8832c15e32793ffcc661481194c84`; `02-compliancelog.yaml`
+`37c3fb2ce7081dc15ae7be93afc91d59f1020af94e3bde143734be27e0f54533`; `03-lullaby.yaml`
+`68e13ba3ef624b0ee8bb3a229da2a3e3ca47bc65c3cebbd301c625c812fd55f3`; `04-linerly.yaml`
+`514306c4de9abfbbf147d4b74023bf1c104b52bcc90bdaddc11123d0f1890a7c`; `05-paidly.yaml`
+`55fd2cb155e108799c17148023c115784503d948e77d8ef696bdd7e2b061452d`; `06-repeatline.yaml`
+`075537dabde534a04f4f7d4b8969578fb5973cf6e95f394261857d9a3030bcc7`; `07-mulchrun.yaml`
+`a9176347d647dd46c9e599803c4c0eb7b1af165afe672a85a7421c41f6d91dab`.
+
 **Corpus revision 15 (2026-10-23, keel-cloud 128; eval 067, the harness half)**: the golden seven move by their revision
 line alone (128 FR-11); the back-test entries gain each person's answer to the segment's condition (`condition`, YES or
 NO, rule Q -- 11-issen, 18-careforce), 12-transload's two managers' pilot opt-ins, 11-issen's and 13-aircaps's cost picks

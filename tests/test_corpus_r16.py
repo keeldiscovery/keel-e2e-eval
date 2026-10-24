@@ -1,11 +1,14 @@
-"""Spec 067 FR-6: corpus revision 15 (keel-cloud 128 FR-11, keel-cloud-docs `423f0983`), stackless.
+"""Spec 068 FR-1: corpus revision 16 (keel-cloud 129 FR-12, keel-cloud-docs `efdd37bf`), stackless; and what spec 067
+built on revision 15, held at 16.
 
-Three things are held here. **Rule Q** (`check_corpus_r15.py`'s, mirrored by the reader): a person's `condition` is
-YES or NO, on the primary link only, and only where the context records a condition -- and NO is a person outside the
-segment. **Rule D15**, the eval's own diff: every entry read beside its revision-14 record (keel-cloud's test mirrors
-`corpus-r14/` and `backtest-r14/`), every leaf difference one of 128's edits, and the count per entry exactly the
-listing 128's tasks.md prints. And **the cloud's own checker** prints OK on all 35 entries. The mirrors and the
-checker are keel-cloud's; where its checkout lacks them the tests skip by name (judgement call 4 of 067's tasks.md).
+**Rule D16**, the eval's own diff: every entry read beside its revision-15 record (keel-cloud's test mirrors
+`corpus-r15/` and `backtest-r15/`), every leaf difference one of 129's edits -- the revision line, and on a back-test
+entry whose founder Commitment list is the step alone each `commercial.commitment: yes_after_trying` moved to
+`yes_start` -- and the picks per entry exactly the listing 129's tasks.md prints (112 across the 28). The golden seven
+move by their revision line alone (129's two cut Commitment options are served words, not corpus bytes). And **the
+cloud's own checker** prints OK on all 35. **Rule Q** (`check_corpus_r15.py`'s, mirrored by the reader) still holds:
+a person's `condition` is YES or NO, on the primary link only, where the context records a condition. The mirrors and
+the checker are keel-cloud's; where its checkout lacks them the tests skip by name (judgement call 4 of 067's tasks.md).
 """
 
 from __future__ import annotations
@@ -24,22 +27,28 @@ from tests import v9_fixtures as fx
 
 KEEL_CLOUD = Path(load_config(validate=False).keel_cloud)
 MIRROR = KEEL_CLOUD / "src" / "test" / "resources" / "keel"
-SIM = KEEL_CLOUD / "canon" / "designs" / "measured-beliefs" / "sim" / "check_corpus_r15.py"
+SIM = KEEL_CLOUD / "canon" / "designs" / "measured-beliefs" / "sim" / "check_corpus_r16.py"
 
-#: keel-cloud 128 tasks.md, *The checker's diff, entry by entry* (leaf paths): every other entry moves by its revision.
-DIFF_COUNTS = {"10-palus": 3, "11-issen": 64, "12-transload": 4, "13-aircaps": 45, "17-expanse": 3,
-               "18-careforce": 14, "19-veles": 2, "21-codyco": 2, "25-bidflow": 2}
-#: 128 FR-11 / FR-14: the entries whose context gains the segment's condition, and who answers it NO.
+#: keel-cloud 129 tasks.md T028 (FR-12): the `yes_after_trying` -> `yes_start` picks per back-test entry, 112 in all.
+MOVED_PICKS = {"08-fresco": 2, "09-karsa": 6, "10-palus": 2, "11-issen": 7, "12-transload": 2, "13-aircaps": 8,
+               "14-code-four": 2, "15-voltair": 2, "16-pairio": 2, "17-expanse": 1, "18-careforce": 3, "19-veles": 3,
+               "20-lemma": 2, "21-codyco": 3, "22-andy-ai": 3, "23-taiga": 6, "24-probo": 6, "25-bidflow": 2,
+               "26-cubic": 2, "27-blacksmith": 2, "28-relvy-ai": 2, "29-risklytics": 6, "30-realroots": 6,
+               "31-understood-care": 6, "32-frizzle": 7, "33-cardboard": 6, "34-wideframe": 7, "35-candle": 6}
+#: 129 FR-12: Issen's seven, named.
+ISSEN_SEVEN = {"Caleb Nguyen", "Jin-ho Park", "Farida Haque", "Imani Brooks", "Arjun Kapoor", "Tobias Wren",
+               "Priya Natarajan"}
+#: 128 FR-11 / FR-14: the entries whose context records the segment's condition, and who answers it NO (r15, kept).
 CONDITIONS = {"11-issen": ("are past the beginner stage", {"Nikos Ferrante"}),
               "18-careforce": ("work outreach lists by phone", {"Olga Petrenko", "Miguel Ferreira"})}
 #: 128 FR-11: 12-transload's two managers who opt in to the pilot.
 PILOTS = {"12-transload": {"Nadine Fournier", "Oluwaseun Adebayo"}}
-COST = "commercial.existing_sacrifice"
+COMMITMENT = "commercial.commitment"
 _ABSENT = object()
 
 
 def _walk(before, after, path, out):
-    """`check_corpus_r15.py`'s `_walk`: every leaf that differs, a key or index absent on one side named `_ABSENT`."""
+    """`check_corpus_r16.py`'s `_walk`: every leaf that differs, a key or index absent on one side named `_ABSENT`."""
     if isinstance(before, dict) and isinstance(after, dict):
         for k in list(before) + [k for k in after if k not in before]:
             _walk(before.get(k, _ABSENT), after.get(k, _ABSENT), path + (k,), out)
@@ -51,49 +60,46 @@ def _walk(before, after, path, out):
         out.append((path, before, after))
 
 
+def _step_alone(doc: dict) -> bool:
+    """`check_corpus_r16.py`'s `_step_alone`: the founder's Commitment list is one item, the step."""
+    items = (((doc.get("founder_calibration") or {}).get(COMMITMENT) or {}).get("answer") or {}).get("items") or []
+    return len(items) == 1
+
+
 def _kind(path: tuple, doc: dict) -> str | None:
-    """Which of 128's edits one difference is (`check_corpus_r15.py`'s D15 classes), or None: not one of them."""
-    entry = doc.get("id")
+    """Which of 129's edits one difference is (`check_corpus_r16.py`'s D16 classes), or None: not one of them."""
     if path == ("revision",):
         return "revision"
-    if path == ("context", "condition") and entry in CONDITIONS:
-        return "condition"
-    if len(path) >= 3 and path[0] == "answers" and isinstance(path[1], int):
-        who = doc["answers"][path[1]].get("person")
-        if path[2] == "condition" and entry in CONDITIONS:
-            return "chip"
-        if path[2] == "pilot_opt_in" and who in PILOTS.get(entry, set()):
-            return "pilot"
-        if path[2:4] == ("picks", COST) and entry in ("11-issen", "13-aircaps"):
-            return "cost"
-    if path[:4] == ("founder_calibration", "problem.importance", "answer", "items") and path[-1] == "label":
-        return "label"
+    if len(path) == 4 and path[0] == "answers" and isinstance(path[1], int) and path[2:4] == ("picks", COMMITMENT):
+        return "commitment"
     return None
 
 
 def _pairs():
     out = []
-    for directory, mirror, backtest in ((corpus_mod.corpus_dir(KEEL_CLOUD), MIRROR / "corpus-r14", False),
-                                        (corpus_mod.backtest_dir(KEEL_CLOUD), MIRROR / "backtest-r14", True)):
+    for directory, mirror, backtest in ((corpus_mod.corpus_dir(KEEL_CLOUD), MIRROR / "corpus-r15", False),
+                                        (corpus_mod.backtest_dir(KEEL_CLOUD), MIRROR / "backtest-r15", True)):
         for path in sorted(directory.glob("*.yaml")) if directory.is_dir() else []:
             out.append((path, mirror / path.name, backtest))
     return out
 
 
 def _need_mirrors():
-    if not (MIRROR / "corpus-r14").is_dir() or not (MIRROR / "backtest-r14").is_dir():
-        pytest.skip(f"keel-cloud at {KEEL_CLOUD} carries no revision-14 mirrors (128 T041's corpus-r14/, backtest-r14/)")
+    if not (MIRROR / "corpus-r15").is_dir() or not (MIRROR / "backtest-r15").is_dir():
+        pytest.skip(f"keel-cloud at {KEEL_CLOUD} carries no revision-15 mirrors (129 T028's corpus-r15/, backtest-r15/)")
 
 
-# ------------------------------------------------------------------------------------------------ rule D15
+# ------------------------------------------------------------------------------------------------ rule D16
 
-def test_every_entry_moves_by_exactly_128s_edits():
-    """D15, the eval's own: 35 entries, each beside its revision-14 record; every difference one of 128's edits, the
-    count per entry 128's listing, the golden seven by their revision line alone."""
+def test_every_entry_moves_by_exactly_129s_edits():
+    """D16, the eval's own: 35 entries, each beside its revision-15 record; every difference the revision line or a
+    step-alone back-test entry's `yes_after_trying` moved to `yes_start`, every such r15 pick moved, the picks per
+    entry 129's listing (112), the golden seven by their revision line alone."""
     _need_mirrors()
     pairs = _pairs()
     assert len(pairs) == 35, [p.name for p, _, _ in pairs]
-    counts, strays = {}, []
+    assert sum(MOVED_PICKS.values()) == 112 and len(MOVED_PICKS) == 28
+    counts, moved, strays = {}, {}, []
     for path, before_path, backtest in pairs:
         after = yaml.safe_load(path.read_text(encoding="utf-8"))
         before = yaml.safe_load(before_path.read_text(encoding="utf-8"))
@@ -102,24 +108,39 @@ def test_every_entry_moves_by_exactly_128s_edits():
         counts[after["id"]] = len(out)
         for p, old, new in out:
             kind = _kind(p, after)
-            if kind is None or (kind != "revision" and not backtest):
+            if kind is None or (kind != "revision" and not (backtest and _step_alone(before))):
                 strays.append((after["id"], p, old, new))
-            if kind == "revision":
-                assert (old, new) == (14, 15), (after["id"], old, new)
-            if kind == "pilot":
-                assert (old, new) == (False, True), (after["id"], p)
-            if kind == "chip":
-                who = after["answers"][p[1]]["person"]
-                assert old is _ABSENT and new == ("NO" if who in CONDITIONS[after["id"]][1] else "YES"), (who, new)
-            if kind == "condition":
-                assert old is _ABSENT and new == CONDITIONS[after["id"]][0], new
+            elif kind == "revision":
+                assert (old, new) == (15, 16), (after["id"], old, new)
+            else:
+                assert (old, new) == ("yes_after_trying", "yes_start"), (after["id"], p, old, new)
+                moved.setdefault(after["id"], set()).add(after["answers"][p[1]]["person"])
+        if backtest and _step_alone(after):
+            left = [a["person"] for a in after.get("answers") or []
+                    if (a.get("picks") or {}).get(COMMITMENT) == "yes_after_trying"]
+            assert not left, (after["id"], left)
+        if backtest:
+            was = {a["person"] for a in before.get("answers") or []
+                   if (a.get("picks") or {}).get(COMMITMENT) == "yes_after_trying"}
+            assert moved.get(after["id"], set()) == was, (after["id"], was)
     assert not strays, strays
-    want = {entry: DIFF_COUNTS.get(entry, 1) for entry in counts}
-    assert counts == want
+    assert {k: len(v) for k, v in moved.items()} == MOVED_PICKS
+    assert moved["11-issen"] == ISSEN_SEVEN
+    assert counts == {entry: 1 + MOVED_PICKS.get(entry, 0) for entry in counts}
+
+
+def test_no_golden_entry_answers_yes_after_trying_without_the_smaller_step():
+    """129 FR-12 / r14 rule T: the golden seven moved by their revision line only, and their second yes sits only where
+    the founder's list carries the smaller step (02, 03, 06)."""
+    for path in sorted(corpus_mod.corpus_dir(KEEL_CLOUD).glob("*.yaml")):
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        trying = [a["person"] for a in doc.get("answers") or []
+                  if (a.get("picks") or {}).get(COMMITMENT) == "yes_after_trying"]
+        assert not trying or not _step_alone(doc), (doc["id"], trying)
 
 
 def test_the_cloud_checker_prints_ok_on_every_entry():
-    """`check_corpus_r15.py` itself (the cloud's D15 and Q, with every older rule) over the 35 entries."""
+    """`check_corpus_r16.py` itself (the cloud's D16 and Q, with every older rule) over the 35 entries."""
     _need_mirrors()
     if not SIM.is_file():
         pytest.skip(f"keel-cloud at {KEEL_CLOUD} carries no {SIM.name}")
@@ -131,6 +152,19 @@ def test_the_cloud_checker_prints_ok_on_every_entry():
         if run.returncode != 0 or not last.startswith("OK "):
             failed[path.name] = run.stdout[-800:] + run.stderr[-400:]
     assert not failed, failed
+
+
+def test_every_revision_16_entry_loads_in_its_mode_and_a_revision_15_file_is_refused_by_name(tmp_path):
+    """Acceptance 2: every one of the 35 loads at 16 (the 28 in back-test mode); r15's 11-issen is refused by name."""
+    _need_mirrors()
+    for path, _, backtest in _pairs():
+        entry = corpus_mod.load_file(path, registry=fx.registry(), backtest=backtest)
+        assert entry.revision == 16, entry.id
+    raw = yaml.safe_load((MIRROR / "backtest-r15" / "11-issen.yaml").read_text(encoding="utf-8"))
+    with pytest.raises(corpus_mod.CorpusError, match="revision is 15; this eval reads revision 16 only -- revision 15 "
+                                                     "is MARKS_VERSION 20's corpus before keel-cloud 129"):
+        corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="11-issen.yaml"), registry=fx.registry(),
+                             backtest=True)
 
 
 # ------------------------------------------------------------------------------------------------- rule Q
@@ -206,12 +240,14 @@ def test_a_person_outside_is_walked_inside_where_the_page_serves_no_chip():
 # ------------------------------------------------------------------------------- FR-1: the Answer box at load
 
 def test_every_entry_fits_the_answer_box_and_revision_14s_transload_stops_at_load(tmp_path):
-    """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): all 35 revision-15 entries name every Importance item inside the
+    """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): all 35 revision-16 entries name every Importance item inside the
     25-word Answer; revision 14's 12-transload (*Running the shift with too few workers*) did not, and the harness
     then lost *Finding freight sitting at the wrong door* -- read at revision 15, it stops at load naming the label."""
     _need_mirrors()
     for path, _, backtest in _pairs():
         vs.check_answer_box(corpus_mod.load_file(path, registry=fx.registry(), backtest=backtest))
+    if not (MIRROR / "backtest-r14").is_dir():
+        pytest.skip(f"keel-cloud at {KEEL_CLOUD} carries no revision-14 back-test mirror")
     raw = yaml.safe_load((MIRROR / "backtest-r14" / "12-transload.yaml").read_text(encoding="utf-8"))
     raw["revision"] = corpus_mod.REVISION
     entry = corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="12-transload.yaml"), registry=fx.registry(),

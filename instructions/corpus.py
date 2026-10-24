@@ -2,6 +2,11 @@
 spec 030 FR-002, judgement call 49; ...; spec 038 FR-001, call 81; spec 040 FR-002, call 78; spec 042 call 110;
 spec 053 FR-1; spec 064 FR-1).
 
+**Revision 16 read** (spec 068 FR-1; keel-cloud 129 FR-12, keel-cloud-docs `efdd37bf`): revision 15's rules (13's chain,
+14's smaller step, 15's per-person condition, below) with no new shape -- every back-test founder's Commitment list is the
+step alone, so its 112 `yes_after_trying` picks read `yes_start`, and the golden seven move by their revision line. A
+revision-15 file is refused by name (`_REVISION_OF`).
+
 **Revision 13 only** (spec 064; keel-cloud 124): revision 12's rules, and the commercial chain of keel-cloud 115 where
 an entry states it -- a founder cost with a `unit` (or of mode MONEY | RATE: `{mode MONEY | HOURS | RATE, low, high,
 measure, base, unit, period (the six, each among them), currency, rate?, lossPhrase?}`) and a price with a `shape`
@@ -84,7 +89,7 @@ from .registry import (ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTRO
                        FREQUENCY_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY,
                        PRICE_PERIODS, SACRIFICE_KEY, VECTORS, RecallWindow, words)
 
-REVISION = 15
+REVISION = 16
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51, 78).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
@@ -108,7 +113,9 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 13: "MARKS_VERSION 20's corpus on the chain, before Commitment's smaller step in the golden lists "
                     "(keel-cloud 127: a yes_after_trying answer where the list serves no second yes)",
                 14: "MARKS_VERSION 20's corpus before keel-cloud 128 (11-issen's cost picks inverted, six entries' "
-                    "Importance rivals past the 25-word box, no per-person answer to the segment's condition)"}
+                    "Importance rivals past the 25-word box, no per-person answer to the segment's condition)",
+                15: "MARKS_VERSION 20's corpus before keel-cloud 129 (112 back-test Commitment picks `yes_after_trying` "
+                    "where the founder's list is the step alone and Keel serves no second yes)"}
 
 #: Spec 067 FR-6 (keel-cloud 128 FR-11, `check_corpus_r15.py`'s rule Q): a person's answer to the segment's condition
 #: chip -- inside or outside -- where the entry's context records a condition; on the primary link only.
