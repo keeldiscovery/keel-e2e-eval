@@ -204,6 +204,9 @@ def panels(facts: dict, n_of: dict | None = None, served: dict | None = None) ->
     n_of = n_of or {}
     served = served or {}
     verdicts = {v.get("vector"): v.get("verdict") for v in facts.get("vectors") or []}
+    # keel-web 106 FR-2: a consumer study's rows and leads are said in the consumer's words (the wire's lines carry
+    # the founder's unit, "per person", and "new money")
+    said = consumer_words if is_consumer(facts) else (lambda t: t)
     out = {}
     for vector in VECTORS:
         cards = [c for c in facts.get("cards") or [] if stage_of(c.get("key")) == vector]
@@ -213,7 +216,7 @@ def panels(facts: dict, n_of: dict | None = None, served: dict | None = None) ->
         total = mine.get("dimensionsTotal", holding)
         failing_cards = [c for c in cards if c.get("status") in BROKE_ON]
         if verdict in BROKE_ON and failing_cards:
-            lead = [f"{c.get('name')} · {' '.join(x for x in (c.get('number'), c.get('line')) if x)}"
+            lead = [said(f"{c.get('name')} · {' '.join(x for x in (c.get('number'), c.get('line')) if x)}")
                     for c in failing_cards]
         elif verdict == "TOO_FEW_TO_CALL":
             if "peopleAnswered" in mine:
@@ -227,8 +230,8 @@ def panels(facts: dict, n_of: dict | None = None, served: dict | None = None) ->
         else:
             lead = [f"{holding} of {total} holding."]
         out[vector] = {"name": STAGE_NAME[vector], "pill": VERDICT_WORDS.get(verdict, verdict), "lead": lead,
-                       "rows": [{"key": c.get("key"), "parts": [c.get("name"), head(c.get("statusWords")),
-                                                                card_words(c)],
+                       "rows": [{"key": c.get("key"), "parts": [c.get("name"), said(head(c.get("statusWords"))),
+                                                                said(card_words(c))],
                                  "href": f"/s/{vector}#{c.get('key')}"} for c in cards]}
     return out
 
