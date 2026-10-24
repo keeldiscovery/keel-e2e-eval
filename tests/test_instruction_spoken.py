@@ -14,7 +14,7 @@ else did it* (123 FR-3); Existing sacrifice's registry escape *I don't know* (11
 recall* on a cost stated before the chain (spec 077's cost total, `CommercialChain.side`); Compatibility's four to the
 condition's verb, *Yes, easily · Yes, mostly · Only sometimes · No* on an ability (123 FR-8); Buyer and payer's revised
 four (123 FR-5); Commitment's options from the founder's step, three bands on a free step (118 FR-1 / FR-2), held to
-eleven words (118, the guidelines' §10). `spoken.KNOWN` stays empty.
+nine words, counted whole (129 FR-15, spec 068 FR-2). `spoken.KNOWN` stays empty.
 """
 
 from __future__ import annotations
@@ -262,21 +262,39 @@ def test_a_count_line_disagreeing_with_the_served_options_is_still_a_fault():
     assert _rules(dataclasses.replace(ability, count_line="I'll read five options.")) == ["S7"]
 
 
-def test_commitments_options_carry_the_step_whole_and_are_held_to_eleven_words():
-    """118 (the guidelines' §10, `SpokenForm.STEP_OPTION_MAX_WORDS`): *Yes, I'd {step}*, a step of at most nine, is
-    held to eleven; every other dimension's option to nine."""
+def test_commitments_options_are_counted_whole_and_held_to_nine_words():
+    """Spec 068 FR-2 (keel-cloud 129 FR-15, `SpokenForm.STEP_OPTION_MAX_WORDS` 11 -> 9): *Yes, I'd* and the step together
+    are the option, held to nine like every other dimension's -- Code Four's *Yes, I'd run a free pilot with a few
+    officers* (ten) is a fault; 129 serves Lullaby's step cut to *Yes, I'd allow it to use the microphone* (eight)."""
     stem = "If it were ready today, would you allow it to use the microphone at night, or not?"
-    ten = "Yes, I'd allow it to use the microphone at night"
+    eight = "Yes, I'd allow it to use the microphone"
     commitment = _item(key="commercial.commitment", part=3, question=stem, stem=stem,
-                       options=(ten, "Probably not", "No"), escape=None, count_line="I'll read three options.",
-                       options_line="Yes, you'd allow it to use the microphone at night; probably not; or no.",
+                       options=(eight, "Probably not", "No"), escape=None, count_line="I'll read three options.",
+                       options_line="Yes, you'd allow it to use the microphone; probably not; or no.",
                        escape_line=None)
-    assert len(ten.split()) == 10 and _faults(commitment) == []
-    twelve = "Yes, I'd allow it to use the microphone on every single night"
-    assert len(twelve.split()) == 12
-    assert "S4" in _rules(dataclasses.replace(commitment, options=(twelve, "Probably not", "No")))
+    assert len(eight.split()) == 8 and _faults(commitment) == []
+    ten = "Yes, I'd run a free pilot with a few officers"
+    assert len(ten.split()) == 10 and spoken_mod.STEP_OPTION_MAX_WORDS == spoken_mod.OPTION_MAX_WORDS == 9
+    assert "S4" in _rules(dataclasses.replace(commitment, options=(ten, "Probably not", "No"),
+                                              options_line="Yes, you'd run a free pilot with a few officers; "
+                                                           "probably not; or no."))
+    assert spoken_mod.first_yes("Run a free pilot with a few officers") == "Yes, I'd run a free pilot"
     long_option = "Yes, easily and with no help from the front office"
     assert len(long_option.split()) == 10 and "S4" in _rules(_item(options=(long_option, "No")))
+
+
+def test_commitment_names_no_escape_and_a_served_one_is_a_fault():
+    """Spec 068 FR-2 (129 FR-9's escape open, T025 there): Commitment's escape is none in the registry and on the item;
+    an item served with one names an escape the registry does not give."""
+    assert spoken_mod.registry_escape(REG, "commercial.commitment") is None
+    assert spoken_mod.item_escape(REG, "commercial.commitment") is None
+    stem = "If it were ready today, would you start a paid pilot, or not?"
+    commitment = _item(key="commercial.commitment", part=3, question=stem, stem=stem,
+                       options=("Yes, I'd start a paid pilot", "Probably not", "No"), escape="I can't say",
+                       count_line="I'll read three options.",
+                       options_line="Yes, you'd start a paid pilot; probably not; or no.",
+                       escape_line="Or say you can't say.")
+    assert "S6" in _rules(commitment)
 
 
 def test_the_labels_an_item_may_be_served_with_are_the_registrys():

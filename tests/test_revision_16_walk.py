@@ -66,3 +66,30 @@ def test_the_context_put_is_recorded_with_the_occasion_it_carried():
     assert saved["occasion"] is None and saved["sent"] == older
     refused = _corridor(_SavePage(_Response(url, 422, sent, {"code": "TEXT_REFUSED"})))._save_context()
     assert refused["status"] == 422 and refused["body"] == {"code": "TEXT_REFUSED"} and refused["occasion"] == "delivery"
+
+
+# ------------------------------------------------------------------------------- FR-2: the served escapes
+
+def test_issens_consumer_ability_item_names_the_served_escape_and_is_clean():
+    """Spec 068 FR-2 (keel-cloud 129's owed list): Issen's 2026-10-23 host-door run served Ability to pay as the
+    consumer budget item with *I can't say*; the guard read the registry's *I can't recall one* and called it RED.
+    The escape a consumer Ability item names is the served one; the same item on a B2B link keeps the registry's."""
+    from instructions import spoken as sp                               # noqa: PLC0415
+    from instructions.cloud_corpus import ComposedItem                  # noqa: PLC0415
+    from tests import v9_fixtures as fx                                 # noqa: PLC0415
+    registry = fx.registry()
+    stem = "Could you pay about $20 a month for this from money you already spend, or not?"
+    item = ComposedItem(entry="11-issen", key="commercial.ability_to_pay", part=3, question=stem,
+                        options=("From money I already spend on this", "From other money I'd set aside",
+                                 "I couldn't pay it"),
+                        escape="I can't say", anchor=None, stem=stem, count_line="I'll read three options.",
+                        options_line="From money you already spend on this; from other money you'd set aside; or "
+                                     "you couldn't pay it.",
+                        escape_line="Or say you can't say.", transform="none")
+    consumer = SimpleNamespace(chain=lambda: True, b2b=lambda: False, founder_list=lambda key: None)
+    business = SimpleNamespace(chain=lambda: True, b2b=lambda: True, founder_list=lambda key: None)
+    assert sp.item_escape(registry, "commercial.ability_to_pay", consumer) == "I can't say"
+    assert sp.item_faults(item, registry, consumer) == []
+    assert sp.item_escape(registry, "commercial.ability_to_pay", business) == \
+        sp.registry_escape(registry, "commercial.ability_to_pay") == "I can't recall one"
+    assert any(f.startswith("S6") for f in sp.item_faults(item, registry, business))

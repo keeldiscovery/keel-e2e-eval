@@ -15,16 +15,19 @@ Per composed item (§2, §3, §4, §5):
   spec 040's 25-word allowance);
 - `S2` the anchor, where there is one, and the stem are the screen's question, and a part sets one anchor at most;
 - `S3` at most **five** options (Price's ladder **six**); none on a number (Frequency, Existing sacrifice);
-- `S4` every option at most **nine** words (Commitment's **eleven**: its options carry the founder's step whole, a
-  step of at most nine behind *Yes, I'd* -- keel-cloud 118, the guidelines' §10, `SpokenForm.STEP_OPTION_MAX_WORDS`),
+- `S4` every option at most **nine** words, Commitment's counted whole (*Yes, I'd* and the step together are the
+  option: keel-cloud 129 FR-15 took `SpokenForm.STEP_OPTION_MAX_WORDS` from 118's eleven to nine and cuts the step to
+  its share; spec 068 FR-2),
   and the founder-written ones (Importance's five, Current solution's five) at least **three** -- the three-word floor
   is not asked of the registry's fixed answers or the ladder (keel-cloud 088 judgement call 14: *Yes*, *No*, *Yes,
   easily* are the record);
 - `S5` the options are **parallel and exclusive**: never a sentence (no closing `.`, `?` or `!`), no two the same
   once case and punctuation are set aside, and the escape never among them;
-- `S6` **one escape, said last**: the registry's escape for the dimension (none on Commitment) named on the item, and
-  the spoken block's last line *Or say {escape}.* with the escape the item is **served** with (spec 065 FR-1: the
-  registry's, read by the side it is served by -- keel-cloud `CommercialChain.side`);
+- `S6` **one escape, said last**: the escape the item names -- the registry's for the dimension, except where the side
+  is served apart (Ability to pay on a consumer link is the budget item, *I can't say*: spec 068 FR-2), and none on
+  Commitment (129 FR-9's escape is open) -- and the spoken block's last line *Or say {escape}.* with the escape the item
+  is **served** with (spec 065 FR-1: the registry's, read by the side it is served by -- keel-cloud
+  `CommercialChain.side`);
 - `S7` the count line is §3's *I'll read {N} options[; pick two].*, N the served options said (four on Price's first
   step), *pick two* exactly on Importance; none on a number;
 - `S8` the options line is §3's *a; b; ...; or z.* -- the options in the screen's order, said to the person
@@ -95,9 +98,9 @@ STEM_MAX_WORDS = 20
 MAX_OPTIONS = 5
 PRICE_MAX_OPTIONS = 6
 OPTION_MAX_WORDS = 9
-#: keel-cloud 118 (`SpokenForm.STEP_OPTION_MAX_WORDS`, the guidelines' §10): Commitment's options carry the step
-#: whole, so they are held to eleven.
-STEP_OPTION_MAX_WORDS = 11
+#: keel-cloud 129 FR-15 (`SpokenForm.STEP_OPTION_MAX_WORDS`, 118's eleven): Commitment's option is *Yes, I'd* and the
+#: step together, counted whole at nine like every other option (spec 068 FR-2).
+STEP_OPTION_MAX_WORDS = 9
 OPTION_MIN_WORDS = 3
 #: The options the founder wrote, held to the three-word floor (call 80).
 FOUNDER_WORDED = (IMPORTANCE_KEY, CURRENT_SOLUTION_KEY)
@@ -149,6 +152,18 @@ def registry_escape(registry, key: str):
     """The escape label the registry's row names for `key` (`None` where the row has none); `KeyError` off the
     registry."""
     escape = registry.by_key(key).escape
+    return escape.get("label") if escape else None
+
+
+def item_escape(registry, key: str, entry=None):
+    """The escape an item **names** (spec 068 FR-2, keel-cloud 129's owed list): the registry's row, except Ability to
+    pay on a consumer link, which is served as the consumer budget item with its own escape, *I can't say* (the guard
+    called Issen's clean run RED on the registry's *I can't recall one*). Commitment's is none (129 FR-9's escape open).
+    Existing sacrifice off the chain names the registry's and says spec 077's (`served_escape`), as the record does."""
+    dimension = registry.by_key(key)
+    if entry is not None and key == ABILITY_KEY and not entry.b2b():
+        return CONSUMER_BUDGET_ESCAPE
+    escape = dimension.escape
     return escape.get("label") if escape else None
 
 
@@ -315,9 +330,10 @@ def item_faults(item, registry, entry=None) -> list:
     if registry is None or not registry.has(key):
         faults.append(f"S6: {key} is not in the registry, so it has no escape of record")
     else:
-        named, spoken = registry_escape(registry, key), served_escape(registry, key, entry)
+        named, spoken = item_escape(registry, key, entry), served_escape(registry, key, entry)
         if item.escape != named:
-            faults.append(f"S6: the escape is {item.escape!r}; the registry's is {named!r}")
+            faults.append(f"S6: the escape is {item.escape!r}; the registry's is {named!r}"
+                          + (" (served apart on this link)" if named != registry_escape(registry, key) else ""))
         for escape in {item.escape, spoken} - {None}:
             if _form(escape) in forms:
                 faults.append(f"S6: the escape {escape!r} is also an option")

@@ -48,12 +48,14 @@ Measured: **3,131 passed, 53 skipped, 0 failed, 0 errors**; the grep clean. (The
 
 ## FR-2 -- the spoken mirror follows the served escapes
 
-- [ ] T020 `instructions/spoken.py`: the escape an item names is the served one where the side is served apart --
-  Ability to pay on a consumer link is the budget item, *I can't say* (the guard called Issen's clean run RED on the
-  registry's *I can't recall one*); Commitment's is none (129 FR-9's escape open, T025 there), an escape served on it a
-  fault.
-- [ ] T021 S4 counts Commitment's options whole at nine (`STEP_OPTION_MAX_WORDS` 11 -> 9, 129 FR-15); `spoken_form`
-  stays 109 of 109 on the golden corpus.
+- [x] T020 `instructions/spoken.py`: `item_escape(registry, key, entry)` -- the escape an item names is the registry's,
+  except Ability to pay on a consumer link, served as the budget item with *I can't say* (Issen's 2026-10-23 run: the
+  guard read the registry's *I can't recall one* and called the clean item RED); Commitment's is none (129 FR-9's escape
+  open), an escape served on it an S6 fault. S6 reads `item_escape`; Existing sacrifice off the chain still names the
+  registry's *I don't know* and says spec 077's *I can't recall* (`served_escape`), as the record does.
+- [x] T021 S4 counts Commitment's options whole at nine (`STEP_OPTION_MAX_WORDS` 11 -> 9, 129 FR-15; the eleven-word
+  test is now the nine-word one, Code Four's *Yes, I'd run a free pilot with a few officers* a fault). `spoken_form`
+  109 of 109 on the golden record (`build/spoken-corpus.txt` at `efdd37bf`). Unit: 3,134 passed, 53 skipped, 0 failed.
 
 ## FR-3 -- the moved people's lines
 
