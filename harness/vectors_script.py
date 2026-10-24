@@ -1563,6 +1563,19 @@ def could_not(asked: str | None) -> str | None:
     return None
 
 
+_THING_COULD_NOT = re.compile(
+    r"(?i)^(?:could|can|would)\s+(?!you\b)(?:[a-z'-]+\s+){1,5}?have\s+([a-z]+(?:ed|en|wn|ne|ght|ld))\b(.*)$")
+
+
+def thing_could_not(asked: str | None) -> str | None:
+    """keel-cloud 131 FR-10 (`FollowUpComposer.thingCouldNot`): a condition of their thing, *could your hotel's phone
+    system have forwarded unanswered calls to another number*, as the verb phrase after *You said you couldn't* --
+    *have forwarded unanswered calls to another number*; None for any other shape."""
+    text = re.sub(r"[?.]+$", "", (asked or "").strip())
+    m = _THING_COULD_NOT.match(text) if text else None
+    return f"have {m.group(1).lower()}{m.group(2)}" if m else None
+
+
 def founder_follow_up_words(entry) -> dict[str, str | None]:
     """The founder's words a follow-up's text says (`FollowUpComposer.values`): the tested Compatibility condition and
     Adoption friction effort, each its saved list item's label as the founder wrote it."""
@@ -1648,7 +1661,11 @@ def fact_said(label: str | None) -> str | None:
         out = {"they're": "you're", "they've": "you've", "they'd": "you'd", "they'll": "you'll", "their": "your",
                "theirs": "yours", "themselves": "yourself"}.get(w.lower(), "you")
         return out[:1].upper() + out[1:] if w[:1].isupper() else out
+    about_them = bool(re.match(r"(?i)^(?:their|they)\b", text))
     text = _THIRD.sub(person, text)
+    if about_them:
+        # keel-cloud 131 FR-3: a label about them (*Their phone was with them and online*) said to the person whole
+        text = re.sub(r"\bthem\b", "you", text)
     while text.endswith("."):
         text = text[:-1]
     return fake_lower(text)
@@ -1670,12 +1687,19 @@ def had_no(condition: str | None) -> str | None:
     if not match:
         return None
     thing = re.sub(r"\s+(?:that|which)\s+you\s+.*$", "", match.group(1)).strip()
+    if re.match(r"(?i)^(?:your|my|their|his|her|its|our)\s", thing):
+        # keel-cloud 131 FR-3 (`ItemFrames.hadNo`): a thing that is someone's -- *You said you didn't have your phone with
+        # you*, never *you had no your phone ...* (AirCaps)
+        own = re.sub(r"(?i)\s+(?:and|during|when|while|whenever)\s+.*$", "", thing).strip()
+        return f"You said you didn't have {own}. What do you use instead?"
     return f"You said you had no {thing}. What do you use instead?" if thing else None
 
 
 #: keel-cloud 129 FR-3 (`FollowUpComposer.SAID_AS_SPOKEN`): the rungs whose text is their spoken line where the filled
 #: text would paste the pick or the benefit labels -- a follow-up composed whole for the answer keeps its words.
-SAID_AS_SPOKEN = ("problem.current_solution_satisfaction", "solution.relative_advantage")
+SAID_AS_SPOKEN = ("problem.current_solution_satisfaction", "solution.relative_advantage",
+                  # keel-cloud 131 FR-7: Importance's text pasted the picks and the own item -- it is its spoken line
+                  "problem.importance")
 
 
 def from_served(question: str | None, pick: str | None) -> str | None:
@@ -1738,6 +1762,9 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
         # composer's "do that" where the face has none of the shapes
         tested = entry.tested("solution.compatibility") or {}
         condition = could_not(tested.get("asked") or tested.get("label"))
+        if condition is None:
+            # keel-cloud 131 FR-10: a condition of their thing said back as the person's
+            condition = thing_could_not(tested.get("asked") or tested.get("label"))
         picked = (label(codes[0]) or "").lower() if codes else ""
         if condition is not None and codes and codes[0] == "only_with_help":
             condition = "always " + condition if picked.startswith("only sometimes") \
@@ -1800,7 +1827,11 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
         # keel-cloud 126 FR-6a (`FollowUpComposer.WOULD_NOT_PAY_TEXT`): the would-not-pay follow-up has its own sentence
         text = "You said you wouldn't pay for this. What would change that?"
     # keel-cloud 128 FR-12: a follow-up composed whole for the answer given is said as it reads (129: and the would-not-pay)
-    spoken = text if whole is not None or would_not_pay else fake.spoken_of(rung, also=also)
+    # keel-cloud 131 FR-10 (`FollowUpComposer.ask`'s `saidBack`): a Compatibility follow-up that says its condition
+    # back is spoken as it reads, on every path (ability, fact, partly, no) -- not the registry's *that step would be hard*
+    said_back = rung == "solution.compatibility" and not also and text != fake.spoken_of(rung) \
+        and fake.FILL_DEFAULTS["{condition}"] not in text
+    spoken = text if whole is not None or would_not_pay or said_back else fake.spoken_of(rung, also=also)
     return {"dimension": rung, "text": text, "spoken": spoken, "also": also}
 
 
@@ -1836,28 +1867,80 @@ def _trim_end(text: str | None) -> str:
     return out
 
 
+#: keel-cloud 131 FR-4 (`SpokenCap.STEP_VERBS` beside a few of `StrangerGrammar.presentVerb`'s): verbs a step joins
+#: with *and*, turned to -ing with the head.
+STEP_VERBS = frozenset(("correct", "merge", "approve", "sign", "edit", "record", "speak", "share", "submit", "test",
+                        "deploy", "delete", "remove", "keep", "fix", "talk", "narrate", "photograph", "film", "scan",
+                        "label", "tag", "confirm", "check", "send", "save", "upload", "take", "read", "review", "open",
+                        "run", "walk", "write", "wear", "pay", "use", "call", "book", "answer", "watch", "go", "make"))
+#: The few irregular pasts a step is stored in (`StrangerGrammar.baseOfPast`, narrowly).
+_PAST = {"wore": "wear", "took": "take", "spoke": "speak", "went": "go", "made": "make", "saw": "see", "got": "get",
+         "wrote": "write", "ran": "run", "gave": "give", "sent": "send", "kept": "keep", "came": "come",
+         "brought": "bring", "bought": "buy", "paid": "pay", "found": "find", "held": "hold", "left": "leave"}
+
+
+def _base_of_past(word: str) -> str | None:
+    """`StrangerGrammar.baseOfPastLoose`, narrowly: an irregular past by name, a regular one shorn of its *-ed*."""
+    low = word.lower()
+    if low in _PAST:
+        return _PAST[low]
+    if low.endswith("ied") and len(low) > 4:
+        return low[:-3] + "y"
+    if low.endswith("ed") and len(low) > 4:
+        stem = low[:-2]
+        if len(stem) > 2 and stem[-1] == stem[-2] and stem[-1] not in "lsz":
+            return stem[:-1]                                         # stopped -> stop
+        if stem.endswith(("at", "ur", "ar", "id", "ov", "iv", "ag", "rg", "ng", "us", "as", "ad", "ok")) \
+                or stem.endswith(("rc", "dg", "rs", "nc", "ys", "ud", "ac")):
+            return stem + "e" if not stem.endswith(("ng", "ok", "ys")) else stem
+        return stem
+    return None
+
+
+def _ing(verb: str) -> str:
+    """`SpokenCap.ing`: *take* -> *taking*, *run* -> *running*, *wore* -> *wearing* (a past to its base first)."""
+    lower = verb.lower()
+    if lower in _PAST:
+        lower = _PAST[lower]
+    if lower.endswith("ing") and len(lower) > 4:
+        return lower
+    if lower.endswith("ie"):
+        return lower[:-2] + "ying"
+    if lower.endswith("e") and not lower.endswith(("ee", "ye", "oe")) and len(lower) > 2:
+        return lower[:-1] + "ing"
+    if re.fullmatch(r"[^aeiou]*[aeiou][bdgmnprt]", lower) and len(lower) <= 4:
+        return lower + lower[-1] + "ing"
+    return lower + "ing"
+
+
 def gerund(step: str) -> str:
-    """keel-cloud 129 FR-2 (`SpokenCap.gerund`): the founder's step as it follows *{Name} means* -- *Pay a verified seller
-    they have never met* reads *paying a verified seller you have never met*, *you'd upload your ID card* *uploading
-    your ID card*."""
+    """keel-cloud 129 FR-2 / 131 FR-4 (`SpokenCap.gerund`): the founder's step as it follows *{Name} means* -- *Pay a
+    verified seller they have never met* reads *paying a verified seller you have never met*; every verb joined by
+    *and* in -ing (*taking short videos and talking over them*, *reading and correcting every draft*); a step stored as a
+    question (*Would you speak the fix ...*) or a past statement (*you wore the glasses ... whenever you talked*) read
+    as the step (*wearing the glasses ... whenever you talk*)."""
     text = _second_person(_trim_end(step))
+    text = re.sub(r"(?i)^(?:would|will|could|can) you\s+", "", text, count=1)
     text = re.sub(r"(?i)^(you'd|you would|you will|you'll)\s+(have to\s+)?", "", text, count=1)
     text = re.sub(r"(?i)^(you\s+)?(have to|need to|had to|would have to)\s+", "", text, count=1)
-    words = text.split(None, 1)
+    you = re.match(r"(?i)^you\s+([a-z]+)\b", text)
+    if you and (you.group(1).lower() in _PAST or you.group(1).lower().endswith("ed")
+                or you.group(1).lower() in STEP_VERBS):
+        text = text[4:].strip()
+    words = text.split()
     if not words:
         return text
-    lower = words[0].lower()
-    if lower.endswith("ing") and len(lower) > 4:
-        ing = lower
-    elif lower.endswith("ie"):
-        ing = lower[:-2] + "ying"
-    elif lower.endswith("e") and not lower.endswith(("ee", "ye", "oe")) and len(lower) > 2:
-        ing = lower[:-1] + "ing"
-    elif re.fullmatch(r"[^aeiou]*[aeiou][bdgmnprt]", lower) and len(lower) <= 4:
-        ing = lower + lower[-1] + "ing"
-    else:
-        ing = lower + "ing"
-    return ing + (" " + words[1] if len(words) > 1 else "")
+    out = [_ing(words[0])]
+    for i in range(1, len(words)):
+        word, lower, before = words[i], words[i].lower(), words[i - 1].lower()
+        turned = word
+        if before == "and" and (i == 2 or lower in STEP_VERBS or lower in _PAST) and not lower.endswith("ing"):
+            turned = _ing(lower)
+        elif before in ("you", "they") and lower != "had" and (lower.endswith("ed") or lower in _PAST) \
+                and _base_of_past(lower):
+            turned = _base_of_past(lower)
+        out.append(turned)
+    return " ".join(out)
 
 
 def adoption_statement(asked: str | None, name: str | None) -> str | None:
@@ -1869,8 +1952,12 @@ def adoption_statement(asked: str | None, name: str | None) -> str | None:
     idea = (name or "").strip()
     if not idea or not thing:
         return None
-    named = f"{idea[:1].upper() + idea[1:]} means {gerund(thing)}. Would you do that, or not?"
-    return named if _words(named) <= STEM_MAX_WORDS else None
+    # keel-cloud 131 FR-4: one past the cap drops a phrase set off by commas (*, paired to your phone,*) before giving way
+    for step in (thing, re.sub(r",\s+[^,]+,\s+", " ", thing, count=1)):
+        named = f"{idea[:1].upper() + idea[1:]} means {gerund(step)}. Would you do that, or not?"
+        if _words(named) <= STEM_MAX_WORDS:
+            return named
+    return None
 
 
 #: keel-cloud 130 FR-10 (`ItemFrames.NAMED_STEP`): what a founder's step may name, with *the*, that the card has to have
@@ -1952,6 +2039,161 @@ def without_negative_clause(circumstance: str | None) -> str | None:
         return None
     cut = _NEGATIVE_TAIL.fullmatch(circumstance.strip())
     return cut.group(1).strip() if cut and _words(cut.group(1)) >= 3 else None
+
+
+#: keel-cloud 131 FR-1 (`RespondentQuestionsRules.ORGANISATION`): a subject that is the person's organisation, said *you*.
+_ORGANISATION = re.compile(r"^(?:the|your|their|our|a|an)\s+(?:[a-z-]+\s+)?(?:company|team|business|startup|firm|hotel|"
+                           r"organisation|organization|department|plant|agency|practice|clinic|school|shop|store|group|"
+                           r"terminal|site|contractor|utility|lab|office|restaurant|venue|employer)$")
+_SUBJECT_ADVERBS = ("still", "already", "just", "often", "always", "usually", "sometimes", "again")
+#: The present verbs a back-test circumstance opens its event on (narrowly: `StrangerGrammar.presentVerb`'s list is not
+#: mirrored), by their base.
+_EVENT_VERBS = frozenset(("come", "go", "decide", "start", "arrive", "break", "fail", "ring", "sit", "land", "need",
+                          "run", "open", "close", "stop", "crash", "show", "happen", "get", "send", "ship", "call",
+                          "book", "drop", "miss", "turn", "end", "finish", "walk", "pay", "move", "raise", "hit"))
+_STOPS = ("and", "but", "until", "because", "unless", "that", "which", "who", "so", "or")
+
+
+def _present_base(word: str) -> str | None:
+    """`RespondentQuestionsRules.presentBase`, narrowly: *decides* -> *decide*, *goes* -> *go*, *starts* -> *start*."""
+    low = word.lower()
+    if low.endswith("oes") and low[:-2] in _EVENT_VERBS:
+        return low[:-2]
+    if low.endswith("ies") and low[:-3] + "y" in _EVENT_VERBS:
+        return low[:-3] + "y"
+    if low.endswith("es") and low[:-2] in _EVENT_VERBS:
+        return low[:-2]
+    if low.endswith("s") and low[:-1] in _EVENT_VERBS:
+        return low[:-1]
+    return None
+
+
+def first_verb_phrase(clause: str, keep: int) -> str:
+    """keel-cloud 131 FR-1 (`RespondentQuestionsRules.firstVerbPhrase`): the clause cut at its first verb phrase -- a
+    comma, a second clause, *until*, *because*, a relative *that* / *which* / *who* -- after its first `keep` words."""
+    out = []
+    for i, word in enumerate(clause.strip().split()):
+        if i >= keep and word.lower() in _STOPS:
+            break
+        if i >= keep - 1 and word.endswith(","):
+            out.append(word[:-1])
+            break
+        out.append(word)
+    return re.sub(r"[,;:]$", "", " ".join(out)).strip()
+
+
+def circumstance_event(circumstance: str | None) -> str | None:
+    """keel-cloud 131 FR-1 (`RespondentQuestionsRules.circumstanceEvent`), narrowly: the founder's circumstance as the
+    occasion's event said to the person -- the trailing negative cut, a compound on the occasion's state giving its
+    second clause (*a call's body-cam footage*), the subject and its verb read, the clause cut at its first verb
+    phrase; an organisation said *you* (*decide where cash from a raise would sit*), a thing kept with *the* said
+    *your* (*your agent in production start failing on real inputs*, *a machine on your line go down*), a bare plural
+    *a* {one} (*a booking call come in on your shift*), *every* {noun} *your* {noun}. None where no subject and event
+    verb are read (a state: *is too fast*, *are due*) -- the mirror knows only `_EVENT_VERBS`."""
+    if not circumstance or not circumstance.strip():
+        return None
+    text = re.sub(r"(?i)^when\s+", "", circumstance.strip().rstrip("."))
+    cut = without_negative_clause(text)
+    text = cut or text
+    possessor = None
+    state = re.match(r"(?i)^(.+?)\s+(?:is|are)\s+(?:over|done|finished|complete|ended)\s*,?\s+and\s+(.+)$", text)
+    if state:
+        possessor, text = state.group(1).strip(), state.group(2).strip()
+    tokens = text.split()
+    if len(tokens) < 2:
+        return None
+    verb_at, plural = -1, False
+    if tokens[0].lower() in ("they", "you"):
+        verb_at = 1
+    else:
+        for i in range(1, len(tokens)):
+            word = re.sub(r"[,.;:]$", "", tokens[i].lower())
+            if word in _SUBJECT_ADVERBS:
+                continue
+            if word in ("has", "have", "is", "are"):
+                verb_at, plural = i, word in ("have", "are")
+                break
+            nxt = tokens[i + 1].lower() if i + 1 < len(tokens) else ""
+            if _present_base(word) and not (nxt in _EVENT_VERBS):
+                verb_at = i
+                break
+            if word in _EVENT_VERBS and tokens[i - 1].lower().endswith("s") and not tokens[i - 1].lower().endswith("ss"):
+                verb_at, plural = i, True
+                break
+    if verb_at < 1:
+        return None
+    subject = " ".join(t for t in tokens[:verb_at] if t.lower() not in _SUBJECT_ADVERBS)
+    verb = tokens[verb_at].lower()
+    rest = " ".join(tokens[verb_at + 1:])
+    low_subject = subject.lower()
+    person = low_subject in ("they", "you") or bool(_ORGANISATION.match(low_subject))
+    passive = re.match(r"(?i)^to be ([a-z]+)\b\s*(.*)$", rest)
+    if verb in ("has", "have") and passive:
+        base = _base_of_past(passive.group(1))
+        if base is None or person:
+            return None
+        thing = subject
+        if possessor:
+            owner = possessor + ("'" if possessor.endswith("s") else "'s")
+            thing = re.sub(r"(?i)^(its|their)\s+", owner + " ", thing)
+        thing = re.sub(r"(?i)^their\s+", "your ", thing)
+        said = f"have to {base} {thing}" + (f" {passive.group(2).strip()}" if passive.group(2).strip() else "")
+        return first_verb_phrase(said, 3 + len(thing.split()))
+    if verb in ("is", "are", "has", "have"):
+        return None
+    base = verb if (person and verb_at == 1 and tokens[0].lower() in ("they", "you")) or plural else _present_base(verb)
+    if base is None:
+        return None
+    wh = re.search(r"(?i)\b(where|what|whether|which|how|when)\b((?:\s+[a-z'-]+){1,6}?)\s+([a-z]+s)\b", rest)
+    if wh and _present_base(wh.group(3)):
+        rest = rest[:wh.start(3)] + "would " + _present_base(wh.group(3)) + rest[wh.end(3):]
+    rest = re.sub(r"(?i)\bevery\s+(?=[a-z])", "your ", rest)
+    rest = re.sub(r"\bcan\b", "could", re.sub(r"\bwill\b", "would", rest))
+    if person:
+        return first_verb_phrase(_second_person(base + (f" {rest}" if rest else "")), 1)
+    if low_subject.startswith("the "):
+        thing = "your " + subject[4:]
+    elif not re.match(r"^(a|an|your|their|our|its|this|that|one)\s", low_subject) and low_subject.endswith("s") \
+            and not low_subject.endswith("ss"):
+        one = subject[:-3] + "y" if subject.endswith("ies") else subject[:-1]
+        thing = with_article(one)
+    else:
+        thing = subject
+    thing = re.sub(r"(?i)\s(on|in|at|of|from)\s+the\s+", r" \1 your ", thing)
+    thing = re.sub(r"(?i)^their\s+", "your ", thing)
+    return first_verb_phrase(f"{thing} {base}" + (f" {rest}" if rest else ""), len(thing.split()) + 1)
+
+
+_SUBJECT_LED = ("the", "a", "an", "their", "our", "its", "every", "each", "your")
+
+
+def subject_led(clause: str) -> str:
+    """`WindowFrame.subjectLed`, narrowly (131 FR-1 T003): a clause opening on a determiner has a subject of its own and
+    is framed *did {clause}*; else *did you {clause}*."""
+    words = clause.split()
+    return clause if len(words) > 2 and words[0].lower() in _SUBJECT_LED else f"you {clause}"
+
+
+def gate_from_circumstance(window: Window, circumstance: str | None) -> str | None:
+    """keel-cloud 131 FR-1's gate on the circumstance's event (`WindowFrame.gate` over `circumstanceEvent`), or None."""
+    clause = circumstance_event(circumstance)
+    return f"In the last {window_words(window)}, did {subject_led(clause)}?" if clause else None
+
+
+def frequency_held(window: Window, clause: str) -> str:
+    """keel-cloud 131 FR-2 (`WindowFrame.frequencyHeld`): *On how many of those {n} {unit} did ...?* counted with its
+    clause; past 20 words the clause cut by its trailing phrases (the rightmost preposition first), else *... did that
+    happen?* (the grammar check is not mirrored)."""
+    from instructions import spoken as spoken_mod                     # noqa: PLC0415
+    lead = f"On how many of those {window_words(window)} did "
+    whole = f"{lead}{subject_led(clause)}?"
+    if _words(whole) <= STEM_MAX_WORDS:
+        return whole
+    frame = _words(whole) - _words(clause)
+    cut = spoken_mod.cut_to_fit(clause, STEM_MAX_WORDS - frame)
+    held = f"{lead}{subject_led(cut)}?"
+    return held if cut != clause and _words(held) <= STEM_MAX_WORDS else \
+        f"On how many of those {window_words(window)} did that happen?"
 
 
 def gate_asks_the_job(entry, gate_question: str | None) -> bool:

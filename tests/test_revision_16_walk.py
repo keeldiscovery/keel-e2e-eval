@@ -178,7 +178,9 @@ def test_the_follow_up_text_is_its_spoken_line_on_current_solution_and_relative_
     from harness import vectors_script as vs                            # noqa: PLC0415
     assert fake.spoken_of("solution.relative_advantage", also=False) == \
         "You said it would not have made much difference. What would have?"
-    assert set(vs.SAID_AS_SPOKEN) == {"problem.current_solution_satisfaction", "solution.relative_advantage"}
+    # keel-cloud 131 FR-7 (spec 070 FR-2): Importance's text is its spoken line too
+    assert set(vs.SAID_AS_SPOKEN) == {"problem.current_solution_satisfaction", "solution.relative_advantage",
+                                      "problem.importance"}
     assert vs.had_no("Did you have a bank account in your own name that you could use?") == \
         "You said you had no bank account in your own name. What do you use instead?"
     assert vs.had_no("Was your phone within reach when the baby started crying?") is None

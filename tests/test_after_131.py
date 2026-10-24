@@ -208,3 +208,143 @@ def test_a_word_no_edit_moves_stops_before_any_edit():
         cs.answer_refused_lock(cs.lock_refusal(422, _refusal_body("how", "LiDAR")), entry=entry,
                                read_lines=card.read, edit=card.edit, relock=card.relock)
     assert card.edits == []
+
+
+# ------------------------------------------------------------------------------- FR-2: the follow-up mirror
+
+def _golden(entry_id: str):
+    return corpus_mod.load_file(corpus_mod.corpus_dir(KEEL_CLOUD) / f"{entry_id}.yaml", registry=fx.registry())
+
+
+def _interview(rung: str, labels: dict, question: str = "q", token: str = "tok", part: int = 2) -> dict:
+    item = {"dimension": rung, "question": question,
+            "options": [{"optionId": vs.option_id(token, rung, code), "label": label} for code, label in labels.items()]}
+    return {"occasion": "shift", "parts": [{"part": part, "items": [item]}]}
+
+
+def test_importances_follow_up_text_is_its_spoken_line():
+    """131 FR-7 (`SAID_AS_SPOKEN`): never the picks and the own item pasted (Codyco's 28 words)."""
+    lullaby = _golden("03-lullaby")
+    rung = "problem.importance"
+    codes = [vs.wire_code(rung, i) for i in range(5)]
+    owed = vs.follow_up_question(lullaby, [vs.Pick(dimension=rung, codes=codes[1:3])], vs.LINK_PRIMARY,
+                                 _interview(rung, {c: f"Label {c}" for c in codes}, part=1), "tok")
+    assert owed["text"] == owed["spoken"] == \
+        "You put other difficulties ahead of this one. What makes those more pressing?"
+
+
+def test_compatibility_says_a_thing_condition_back_and_is_spoken_as_it_reads():
+    """131 FR-10 (`thingCouldNot`, `saidBack`): Aylin's *Only sometimes* on Codyco's saved condition -- *You said you
+    couldn't always have forwarded unanswered calls to another number. What got in the way?* (131's words), spoken the
+    same; and No."""
+    codyco = _backtest("21-codyco")
+    rung = "solution.compatibility"
+    labels = {"yes_easily": "Yes, easily", "yes_with_steps": "Yes, mostly", "only_with_help": "Only sometimes",
+              "no": "No"}
+    question = ("Think of your last reservation shift. Could your hotel's phone system have forwarded unanswered "
+                "calls to another number?")
+    sometimes = vs.follow_up_question(codyco, [vs.Pick(dimension=rung, codes=["only_with_help"])], vs.LINK_PRIMARY,
+                                      _interview(rung, labels, question), "tok")
+    assert sometimes["text"] == sometimes["spoken"] == ("You said you couldn't always have forwarded unanswered calls "
+                                                        "to another number. What got in the way?")
+    no = vs.follow_up_question(codyco, [vs.Pick(dimension=rung, codes=["no"])], vs.LINK_PRIMARY,
+                               _interview(rung, labels, question), "tok")
+    assert no["text"] == no["spoken"] == \
+        "You said you couldn't have forwarded unanswered calls to another number. What got in the way?"
+    assert vs.thing_could_not("could your hotel's phone system have forwarded unanswered calls to another number") == \
+        "have forwarded unanswered calls to another number"
+    assert vs.thing_could_not("could you scan it") is None
+
+
+def test_a_fact_about_them_is_said_to_the_person_whole():
+    """131 FR-3 (`factSaid`, `hadNo`, AirCaps): *your phone was with you and online*; *You said you didn't have your
+    phone with you*, never *you had no your phone ...*."""
+    assert vs.fact_said("Their phone was with them and online") == "your phone was with you and online"
+    assert vs.had_no("did you have your phone with you and online during the conversation") == \
+        "You said you didn't have your phone with you. What do you use instead?"
+    assert vs.had_no("did you have a bank account in your own name") == \
+        "You said you had no bank account in your own name. What do you use instead?"
+
+
+# ------------------------------------------------------------------------------- FR-2: the narrow mirrors
+
+def test_the_gate_on_the_circumstances_event_for_the_five_seeds():
+    """131 FR-1 (T004), each seed's circumstance as its yaml states it: the five gates and Code Four's 20-word
+    Frequency; a state gives none (AirCaps, Voltair)."""
+    want = {"21-codyco": "In the last 7 days, did a booking call come in on your shift?",
+            "10-palus": "did you decide where cash from a raise would sit?",
+            "16-pairio": "did a machine on your line go down?",
+            "20-lemma": "did your agent in production start failing on real inputs?",
+            "14-code-four": "In the last 7 days, did you have to turn a call's body-cam footage into a written report?"}
+    for entry_id, gate in want.items():
+        entry = _backtest(entry_id)
+        served = vs.gate_from_circumstance(vs.window_of(entry), entry.context["circumstance"])
+        assert served.endswith(gate), (entry_id, served)
+        assert len(served.split()) <= vs.STEM_MAX_WORDS, served
+    code_four = _backtest("14-code-four")
+    frequency = vs.frequency_held(vs.window_of(code_four), vs.circumstance_event(code_four.context["circumstance"]))
+    assert frequency == ("On how many of those 7 days did you have to turn a call's body-cam footage into a written "
+                         "report?") and len(frequency.split()) == 20
+    for entry_id in ("13-aircaps", "15-voltair"):
+        assert vs.circumstance_event(_backtest(entry_id).context["circumstance"]) is None, entry_id
+
+
+def test_frequency_is_held_under_the_cap():
+    """131 FR-2 (Fresco): 21 words cut by the trailing phrase to 17; a clause no cut fits asks *did that happen?*."""
+    window = vs.Window(5, "WORKING_DAYS")
+    assert vs.frequency_held(window, "type up the daily log by hand after the site walks") == \
+        "On how many of those 5 working days did you type up the daily log by hand?"
+    assert vs.frequency_held(window, "type it up") == "On how many of those 5 working days did you type it up?"
+    assert vs.frequency_held(window, "reconcile every single supplier delivery note against its matching invoice "
+                                     "line") == "On how many of those 5 working days did that happen?"
+
+
+def test_the_adoption_frame_whole():
+    """131 FR-4 (T013), through the named frame: every verb in -ing, a step stored as a question, a past statement, a
+    phrase set off by commas dropped past the cap (AirCaps)."""
+    assert vs.adoption_statement("take short videos and talk over them as you walk the site", "Fresco") == \
+        "Fresco means taking short videos and talking over them as you walk the site. Would you do that, or not?"
+    assert vs.adoption_statement("read and correct every draft before you sign it", "Code Four") == \
+        "Code Four means reading and correcting every draft before you sign it. Would you do that, or not?"
+    assert vs.adoption_statement("review and merge the prompt changes it opens in your codebase", "Lemma") == \
+        "Lemma means reviewing and merging the prompt changes it opens in your codebase. Would you do that, or not?"
+    assert vs.adoption_statement("Would you speak the fix into your phone when the job is done.", "Pairio") == \
+        "Pairio means speaking the fix into your phone when the job is done. Would you do that, or not?"
+    assert vs.adoption_statement("you wore the glasses, paired to your phone, whenever you talked with hearing people",
+                                 "AirCaps") == \
+        "AirCaps means wearing the glasses whenever you talk with hearing people. Would you do that, or not?"
+
+
+def test_the_buyer_set_never_says_someone_else_instead():
+    """131 FR-13: *No, the CFO would have to agree · Yes, I could sign off on it myself · No, several people would have
+    to agree · No, it would be someone else's decision*."""
+    from instructions import spoken as sp                               # noqa: PLC0415
+    labels = sp.buyer_answers("the CFO")
+    assert "No, someone else would have to agree instead" not in labels
+    assert labels[2:] == ["No, the CFO would have to agree", "Yes, I could sign off on it myself",
+                          "No, several people would have to agree", "No, it would be someone else's decision"]
+
+
+def test_cloud_131_reads_the_served_words_beside_the_mirror_as_findings():
+    """On a back-test the 131 words read beside the wire, each a finding, never a stop: the job asked by the gate, a
+    21-word Frequency, *per pole, each*, *your officers get ...*, *... instead*; the lock's edits carried."""
+    from types import SimpleNamespace                                   # noqa: PLC0415
+    from evals import backtest                                          # noqa: PLC0415
+    codyco = _backtest("21-codyco")
+    items = [{"dimension": "problem.frequency", "question": " ".join(["word"] * 21) + "?"},
+             {"dimension": "commercial.price", "question": "What would Codyco be worth to you per pole, each?",
+              "whatYouGet": "your officers get the report done in minutes"},
+             {"dimension": "commercial.buyer_payer_alignment", "question": "Could you sign off?",
+              "options": [{"label": "No, someone else would have to agree instead"}]}]
+    interview = {"gate": {"question": "In the last 7 days, did you turn every guest who calls into a booking?"},
+                 "parts": [{"part": 1, "items": items}]}
+    j = SimpleNamespace(entry=codyco, interviews={"Aylin": interview}, findings=[],
+                        changed={"lock_refused": [{"what": "lock_refused", "line": "how", "word": "PMS"}]})
+    got = backtest.cloud_131(j)
+    assert got["gate"][0]["mirror"] == "In the last 7 days, did a booking call come in on your shift?"
+    assert [len(got[k]) for k in ("frequency_over_the_cap", "per_each", "people_get", "buyer_instead")] == [1, 1, 1, 1]
+    assert got["lock_refused"][0]["word"] == "PMS"
+    assert len(j.findings) == 5
+    clean = SimpleNamespace(entry=codyco, interviews={"Aylin": {"gate": {"question": got["gate"][0]["mirror"]},
+                                                               "parts": []}}, findings=[], changed={})
+    assert backtest.cloud_131(clean) == {} and clean.findings == []

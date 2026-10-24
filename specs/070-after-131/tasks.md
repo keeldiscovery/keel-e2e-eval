@@ -48,12 +48,12 @@ Unit suite on `ae1b390` before any change: **3,160 passed, 53 skipped, 0 failed,
 
 ## FR-2 -- the spoken mirror follows 131
 
-- [ ] T010 the follow-up composer (`vs.follow_up_question`, held strictly on the golden walk): Importance's text is its
+- [x] T010 the follow-up composer (`vs.follow_up_question`, held strictly on the golden walk): Importance's text is its
   spoken line (131 FR-7, `SAID_AS_SPOKEN`); Compatibility's follow-up that says its condition back is spoken as it reads
   on every path (ability, fact, partly, no -- 131 FR-10's `saidBack`), `vs.thing_could_not` (*could your hotel's phone
   system have forwarded ...* -> *have forwarded ...*); `vs.fact_said` says a label about them to the person whole
   (*with them* -> *with you*), `vs.had_no` a thing that is someone's *You said you didn't have your phone with you*.
-- [ ] T011 the narrow mirrors read beside the wire (131 FR-1, FR-2, FR-4, FR-8, FR-9, FR-13):
+- [x] T011 the narrow mirrors read beside the wire (131 FR-1, FR-2, FR-4, FR-8, FR-9, FR-13):
   `vs.circumstance_event(circumstance)` and `vs.gate_from_circumstance(window, circumstance)` (Codyco, Palus, Pairio,
   Lemma, Code Four's words), `vs.frequency_held(window, clause)` (under 20, the clause cut by its trailing phrases, else
   *did that happen?*), `vs.gerund` inflecting every verb of a step joined by *and* and a step stored as a question or a
@@ -61,7 +61,8 @@ Unit suite on `ae1b390` before any change: **3,160 passed, 53 skipped, 0 failed,
   third option *No, several people would have to agree* with a named party too, and the reads
   `backtest.cloud_131`: the served gate beside the circumstance's, a Frequency stem over 20, *per {unit}, each* on a
   served stem, label or rung, a price card's *your {people} get*, the Buyer set's *... instead*, each a finding,
-  never a stop. Unit: `tests/test_after_131.py`.
+  never a stop. Unit: `tests/test_after_131.py`. The 068 pin of `SAID_AS_SPOKEN` (`test_revision_16_walk`)
+  reads Importance too. Unit: **3,179 passed, 53 skipped, 0 failed**; the grep clean.
 
 ## FR-3 -- the report_insights mark reads the fear-held head
 

@@ -137,7 +137,9 @@ def buyer_answers(role: str | None) -> list:
             "Yes, several people had to agree",
             "No, someone else would have to agree" if who is None else f"No, {who} would have to agree",
             "Yes, I could sign off on it myself", "No, several people would have to agree",
-            "No, someone else would have to agree instead", "No, it would be someone else's decision"]
+            # keel-cloud 131 FR-13: *No, someone else would have to agree instead* overlapped a named party and is
+            # served no more -- *several people* is the third option either way
+            "No, it would be someone else's decision"]
 
 
 def _lower(label: str) -> str:

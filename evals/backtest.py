@@ -1204,6 +1204,8 @@ def changed_screens(j, standings: dict | None = None) -> dict:
                                            "market_other", "friction_row", "consumer_words", "gate_no") if k in read}
     # spec 069 FR-1 / FR-2: keel-cloud 130's served words beside the harness's mirror, and contract 37's replaced rows
     out["cloud_130"] = cloud_130(j, standings)
+    # spec 070 FR-2: keel-cloud 131's served words beside the harness's mirror, and the refused lock's edits (FR-1)
+    out["cloud_131"] = cloud_131(j)
     return out
 
 
@@ -1289,6 +1291,70 @@ def cloud_130(j, standings: dict | None = None) -> dict:
         for row in out["brief_lines"]:
             findings.append({"what": f"{row['key']}: the brief's line is not the served gate's ({row['rule']})",
                              "served": row})
+    return {k: v for k, v in out.items() if v}
+
+
+_EACH_AFTER_PER = re.compile(r"(?i)\bper [a-z][a-z' -]{0,30}?, each\b")
+_PEOPLE_GET = re.compile(r"(?i)\byour [a-z-]+(?: [a-z-]+)? get\b")
+
+
+def _item_texts(item: dict) -> list[str]:
+    """Every word an item is served with: its stem, the price card's line, the box's label, the plan's stem, the
+    options and the ladder's rungs."""
+    texts = [item.get("question"), item.get("whatYouGet"), (item.get("valueBox") or {}).get("label"),
+             (item.get("plan") or {}).get("question")]
+    texts += [o.get("label") for o in item.get("options") or []]
+    texts += [o.get("label") for o in (item.get("plan") or {}).get("options") or []]
+    return [t for t in texts if isinstance(t, str) and t]
+
+
+def cloud_131(j) -> dict:
+    """Spec 070 FR-2 (keel-cloud 131 FR-1, FR-2, FR-8, FR-9, FR-13): on a back-test, the served gate beside the gate on
+    the circumstance's event (`vs.gate_from_circumstance`), a Frequency stem past the spoken cap (`vs.frequency_held`),
+    *per {unit}, each* said on any served item, the price card's *your {people} get*, the Buyer set's *... instead* --
+    each a finding, never a stop; and FR-1's `lock_refused` edits as the walk made them. Empty keys left out."""
+    from harness import vectors_script as vs                       # noqa: PLC0415
+    entry = j.entry
+    out: dict = {"gate": [], "frequency_over_the_cap": [], "per_each": [], "people_get": [], "buyer_instead": [],
+                 "lock_refused": list((getattr(j, "changed", None) or {}).get("lock_refused") or [])}
+    window = _safe(lambda: vs.window_of(entry))
+    mirror = _safe(lambda: vs.gate_from_circumstance(window, (entry.context or {}).get("circumstance"))) \
+        if window is not None else None
+    seen: set = set()
+    for person, interview in (getattr(j, "interviews", None) or {}).items():
+        gate = ((interview or {}).get("gate") or {}).get("question")
+        if gate and mirror and gate != mirror and ("gate", gate) not in seen:
+            seen.add(("gate", gate))
+            out["gate"].append({"rule": "131 FR-1", "served": gate, "mirror": mirror})
+        for part in (interview or {}).get("parts") or []:
+            for item in part.get("items") or []:
+                key = item.get("dimension")
+                stem = str(item.get("question") or "")
+                if key == "problem.frequency" and len(stem.split()) > vs.STEM_MAX_WORDS and ("f", stem) not in seen:
+                    seen.add(("f", stem))
+                    out["frequency_over_the_cap"].append({"rule": "131 FR-2", "served": stem,
+                                                          "words": len(stem.split())})
+                for text in _item_texts(item):
+                    if _EACH_AFTER_PER.search(text) and ("e", text) not in seen:
+                        seen.add(("e", text))
+                        out["per_each"].append({"rule": "131 FR-8", "dimension": key, "said": text})
+                    if key == "commercial.price" and text == item.get("whatYouGet") and _PEOPLE_GET.search(text) \
+                            and ("g", text) not in seen:
+                        seen.add(("g", text))
+                        out["people_get"].append({"rule": "131 FR-9", "said": text})
+                    if key == "commercial.buyer_payer_alignment" and "agree instead" in text and ("b", text) not in seen:
+                        seen.add(("b", text))
+                        out["buyer_instead"].append({"rule": "131 FR-13", "said": text})
+    findings = getattr(j, "findings", None)
+    if isinstance(findings, list):
+        words = {"gate": "the served gate is not the circumstance's event as the harness mirrors 131 FR-1",
+                 "frequency_over_the_cap": "Frequency served over the 20-word cap (131 FR-2)",
+                 "per_each": "a unit said twice, *per {unit}, each* (131 FR-8)",
+                 "people_get": "the price card pastes a benefit after *your {people} get* (131 FR-9)",
+                 "buyer_instead": "the Buyer set's *someone else would have to agree instead* (131 FR-13)"}
+        for key, what in words.items():
+            for row in out[key]:
+                findings.append({"what": what, "served": row})
     return {k: v for k, v in out.items() if v}
 
 
@@ -1628,6 +1694,18 @@ def markdown(r: dict) -> str:
             for row in cloud.get("replaced") or []:
                 lines.append(f"  - replaced on {row.get('dimension')} (L21, contract 37): *{row.get('label')}* in "
                              f"place of the founder's *{row.get('replaces')}*")
+        cloud = changed.get("cloud_131") or {}
+        if cloud:
+            lines.append("- keel-cloud 131's words beside the harness's mirror (spec 070 FR-1, FR-2):")
+            for row in cloud.get("lock_refused") or []:
+                lines.append(f"  - the lock refused the {row.get('line')} line on *{row.get('word')}* ({row.get('rule')}, "
+                             f"{row.get('code')}): before *{_q(row.get('before'))}*; after *{_q(row.get('after'))}*")
+            for row in cloud.get("gate") or []:
+                lines.append(f"  - the gate ({row.get('rule')}): served *{row.get('served')}*; mirror "
+                             f"*{row.get('mirror')}*")
+            for key in ("frequency_over_the_cap", "per_each", "people_get", "buyer_instead"):
+                for row in cloud.get(key) or []:
+                    lines.append(f"  - {key} ({row.get('rule')}): *{row.get('served') or row.get('said')}*")
         web = changed.get("web_106") or {}
         if web:
             lines.append("- keel-web 106's screens (spec 068 FR-4):")
