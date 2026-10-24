@@ -77,9 +77,58 @@ Unit suite on `ae1b390` before any change: **3,160 passed, 53 skipped, 0 failed,
 
 ## FR-4 -- nothing else moves
 
-- [ ] T030 REVISION stays 16, `MARKS_VERSION` 20, contract 37; the golden seven's numbers held by the unit tests,
-  unmoved; no fixture, corpus or registry edit.
+- [x] T030 REVISION stays 16 (`instructions/corpus.py`), `MARKS_VERSION` 20 stands, contract 37 (nothing here names it
+  as a number to bump); the golden seven's numbers and marks held by the unit tests, unmoved; no fixture, corpus or
+  registry edit (`git diff --stat ae1b390` names none). Unit: **3,181 passed, 53 skipped, 0 failed**; the grep clean.
+
+## The golden journeys (run here, on the 131 build)
+
+The stack was idle (no `pytest evals`, no `evals.run_backtest`), so it was booted here once (`stack.cli up eval`:
+keel-cloud-docs `6a49d1b7`, keel-web `a3b2579`, keel-runtime 0.8.0+3988131), the four journeys run one by one in the
+foreground on the fake interviewer, and the stack torn down after: **S-005 passed (301 s), S-006 passed (304 s),
+S-007 passed (131 s), S-014 passed (133 s)**, on `865f6a4`. No golden lock was refused (FR-1 never met), the owed
+follow-ups held to 131's words (FR-2), all five report marks met on S-014 (FR-3).
 
 ## Judgement calls
 
+1. **One edit moves every fault on the line.** The cloud's refusal names only the first M5 fault (Codyco's *PMS*
+   before its *(OPERA Cloud, Sihot, Apaleo)*), and FR-1 stops on a second refusal of the same line; so the founder's
+   edit moves every fault the line carries at once (the entry's words, the names dropped, the fallback's), and a
+   second refusal of an edited line is the edit's own failure, named.
+2. **How is the decider's how too.** `Project.lock` names a fault on `howDecider` *the idea card's how line*; an edit
+   of how alone would meet a second refusal on the same name. A how refusal edits both boxes where the card draws
+   the decider's line (Palus's B2B card carries the reveal's words on both).
+3. **The map is the judges' words, the belief is the first benefit.** `LOCK_PLAIN_WORDS` carries 21-codyco, 12-transload,
+   14-code-four, 10-palus, 11-issen and 16-pairio (the judges' and 131 FR-5's plain phrases); a design-note belief is
+   *get {the founder's first Relative advantage benefit}* under the frame, as the spec says, even where a judge chose
+   another benefit (Careforce's judge: *every patient on the list called the same day*, its second; Transload's judge:
+   *every oversized shipment caught before it is billed*): the founder's own first words, never authored here.
+4. **A generic fallback beyond the spec's two.** Besides the parenthesised list and the fix's suggestion (131's fix
+   offers none -- *edit that line ... in plain words (or mark the word as the audience's own)*), each M5 word has
+   plain words in `PLAIN_FALLBACK`, so an entry with no map is not stopped by a word the list names. The audience
+   words are never marked by the harness: marking would let a stranger hear the jargon the back-test is measuring.
+5. **The wire's field is `remedy`.** `VectorRefusalBody` serves `{rule, problem, remedy, code}`; the finding calls it
+   `fix` (the spec's word) and reads `fix` too where a later build names it so.
+6. **The narrow mirrors are findings, not holds** (069 judgement call 1, kept): the gate on the circumstance's event,
+   Frequency held, *per {unit}, each*, *your {people} get*, the Buyer *instead* are read beside the wire on a back-test
+   (`backtest.cloud_131`); the follow-up (strict on the golden walk) is the one composition held. The gate mirror knows
+   a short list of event verbs (`_EVENT_VERBS`), not `StrangerGrammar.presentVerb`; it gives 131 T004's words on the
+   five seeds and none on a state.
+7. **The pill is the card's word, and D6 reads it as the view's own.** keel-web draws a box's pill from the card's
+   served `statusWords` (`lineWordOf`), which on Purchase friction's fear-not-held carries the card's *10 of 10*; the mark
+   holds the pill to that word and D6 takes it out as the view's own line, as it does the frame. Whether the Insights
+   pill should repeat the card's count is the product's question (below), not the mark's.
+8. **S-014 carries one box.** Since keel-cloud 118 (spec 064 F-13) the healthy project's decision-makers answer
+   Purchase friction *quick* and are owed its follow-up, so the view holds that held line's dissent box; S-014's
+   extras allow it by name (`HELD_WITH_WORDS`) and still refuse any failing box, any other follow-up and the decision
+   off BUILD; *Nothing is failing* is held only where the view is empty.
+
 ## Left open
+
+- The host-door re-runs of the eight entries (Codyco first: `make backtest DOOR=host ENTRY=21-codyco` should reach the
+  interviews past a refused lock) and their register rows: the parent's.
+- keel-web's lock-refusal screen (131 *Owed*: show the problem and fix, lead to the idea card's line) is not built; the
+  harness reads the 422 off the wire and opens the Check screen itself.
+- The Insights pill repeating the Overview card's count (*10 of 10* on S-014) passes D6 by judgement call 7; keel-web
+  may want the bare status word there.
+- 131 FR-11 / FR-12 (revision 17) move nothing here; REVISION stays 16.
