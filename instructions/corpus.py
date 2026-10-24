@@ -1714,7 +1714,7 @@ LOCK_PLAIN_WORDS: dict[str, tuple[tuple[str, str], ...]] = {
 #: keel-cloud 132 FR-3 (`RevealWords.NAMES_IN_A_LIST`): three or more capitalised names joined by commas and *or* / *and*
 #: on a how or belief line (*SAP, Maximo or SharePoint*). The lock's own remedy offers "keep one name", so the generic
 #: edit keeps the first (*connected to SAP*) where no entry row says the kind of thing in the person's words.
-NAMES_IN_A_LIST = re.compile(r"\b([A-Z][\w.-]*(?: [A-Z][\w.-]*)?)(?:, [A-Z][\w.-]*(?: [A-Z][\w.-]*)?)+,? (?:or|and) [A-Z][\w.-]*(?: [A-Z][\w.-]*)?\b")
+NAMES_IN_A_LIST = re.compile(r"\b([A-Z][\w-]*(?: [A-Z][\w-]*)?)(?:, [A-Z][\w-]*(?: [A-Z][\w-]*)?)+,? (?:or|and) [A-Z][\w-]*(?: [A-Z][\w-]*)?\b")
 
 #: Spec 070 FR-1, the generic fallback: an M5 word no entry maps, said in plain words (an empty value drops it).
 PLAIN_FALLBACK = {"escrow": "safekeeping", "stablecoin": "digital dollar", "stablecoins": "digital dollars",
