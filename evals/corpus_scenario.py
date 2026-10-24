@@ -2019,6 +2019,29 @@ def _served_line(j: Journey) -> int | None:
     return j.screens.get("current_line")
 
 
+def _moved_line(j: Journey, person, own_rung: str | None, walked: dict, served_rung: str | None) -> dict | None:
+    """Spec 068 FR-3 (keel-cloud 129 FR-12): what became of the line of one of the people a revision-16 back-test entry
+    names under *Changed:* (their Commitment `yes_after_trying` is `yes_start` now) -- a finding, never a stop. A line
+    the r15 walk owed on Commitment (the second yes) has Commitment's rung: not typed unless the served follow-up is
+    Commitment's, which a `yes_start` is never owed; a line the r15 walk owed elsewhere is typed where it was, named."""
+    if j.strict or person.person not in getattr(j.entry, "commitment_moved", ()):
+        return None
+    mine = next((p for p in j.entry.people() if p.person == person.person), None)
+    if not getattr(mine, "follow_up", None):
+        return None
+    if own_rung == vs.COMMITMENT_KEY and not _typed(walked):
+        # (a skip on another rung is already 067 FR-3's finding; this one names the revision and an unasked line too)
+        return {"what": f"{person.person}: their line was written for the second yes on Commitment, whose pick is "
+                        f"yes_start at revision 16 (keel-cloud 129 FR-12); "
+                        + (f"the server asked {served_rung}, so " if served_rung else "no follow-up was asked, so ")
+                        + "it was not typed, on any rung (spec 068 FR-3)", "served": {"rung": served_rung}}
+    if _typed(walked) and served_rung and served_rung != vs.COMMITMENT_KEY:
+        return {"what": f"{person.person}: Commitment moved to yes_start at revision 16; their line, owed first on "
+                        f"{served_rung} by the r15 walk too, was typed there (spec 068 FR-3)",
+                "served": {"rung": served_rung}}
+    return None
+
+
 def _typed(walked: dict) -> bool:
     """Whether the walk typed the person's line on the follow-up screen (`Interview._follow_up`'s `did`)."""
     return (walked.get("follow_up") or {}).get("did") == "typed"
@@ -2153,6 +2176,9 @@ def _answer_one(j: Journey, person, token: str) -> None:
             j.findings.append({"what": f"{person.person}: their follow-up line was written for {own_rung}; the server "
                                        f"asked {served_rung}, so they skipped it (spec 067 FR-3)"})
             person = _typing(person, None)
+        moved = _moved_line(j, person, own_rung, walked, served_rung)
+        if moved:
+            j.findings.append(moved)
         _hold_the_screens(j, person, interview, walked)
         _hold_the_consent(j, person, walked)
         if speak:

@@ -361,6 +361,10 @@ class Entry:
     idea_name: str | None = None
     #: Spec 062 FR-1: True when the entry was read from the back-test directory (`load(..., backtest=True)`).
     backtest: bool = False
+    #: Spec 068 FR-3 (keel-cloud 129 FR-12): the people a revision-16 back-test entry's own header names under
+    #: *Changed:* -- those whose Commitment pick moved `yes_after_trying` -> `yes_start` (the step the founder gave); `()`
+    #: on a golden entry and on a back-test entry whose header names none.
+    commitment_moved: tuple = ()
 
     # ------------------------------------------------------------------ the people
 
@@ -663,8 +667,11 @@ def load_file(path, *, registry=None, backtest: bool = False) -> Entry:
     a back-test entry -- `expected` absent or empty, `idea_name` required, `sources` ignored."""
     path = Path(path)
     digest = _sha256(path)
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    text = path.read_text(encoding="utf-8")
+    raw = yaml.safe_load(text)
     entry = _entry(raw, path, digest, backtest=backtest)
+    if backtest:
+        entry = replace(entry, commitment_moved=_commitment_moved(raw, text, path))
     if registry is not None:
         _check_keys(entry, registry)
         entry = replace(entry, registry=registry)
@@ -1560,6 +1567,30 @@ def _check_backtest(raw: dict, path: Path, backtest: bool) -> None:
     if len(name.split()) > IDEA_NAME_MAX_WORDS:
         raise _refuse(entry_id, f"idea_name {name!r} is {len(name.split())} words; the founder's name for the idea "
                                 f"is at most {IDEA_NAME_MAX_WORDS} (keel-cloud IdeaLines L5)", path)
+
+
+#: keel-cloud 129 FR-12: a revision-16 back-test entry's header, *# REVISION 16 ... Changed: a, b, c.* -- the comment
+#: block that opens the file, read to the full stop that closes the names.
+_CHANGED = re.compile(r"\A(?:#[^\n]*\n)*?#\s*REVISION 16\b(?:[^\n]*\n#)*?[^\n]*?Changed:\s*(?P<names>[^\n]*?)\.\s*\n")
+
+
+def _commitment_moved(raw: dict, text: str, path: Path) -> tuple:
+    """Spec 068 FR-3: the people the entry's revision-16 header names under *Changed:* (129 FR-12's 112 across the 28),
+    each one of the entry's people whose Commitment pick reads `yes_start` -- else refused by name. An entry whose header
+    names none moved nobody."""
+    match = _CHANGED.search(text)
+    if not match:
+        return ()
+    names = tuple(n.strip() for n in match.group("names").split(",") if n.strip())
+    picks = {p.get("person"): (p.get("picks") or {}).get(COMMITMENT_KEY) for p in raw.get("answers") or []}
+    for name in names:
+        if name not in picks:
+            raise _refuse(raw.get("id"), f"the revision-16 header names {name!r} under Changed:, who is not one of its "
+                                         "people (spec 068 FR-3)", path)
+        if picks[name] != "yes_start":
+            raise _refuse(raw.get("id"), f"the revision-16 header names {name!r} under Changed:, whose Commitment pick "
+                                         f"is {picks[name]!r}, not yes_start (keel-cloud 129 FR-12)", path)
+    return names
 
 
 def _entry(raw: dict, path: Path, digest: str, *, backtest: bool = False) -> Entry:

@@ -59,12 +59,23 @@ Measured: **3,131 passed, 53 skipped, 0 failed, 0 errors**; the grep clean. (The
 
 ## FR-3 -- the moved people's lines
 
-- [ ] T030 the reader keeps each revision-16 back-test entry's *Changed:* people (the entry's own header: the 112
-  whose Commitment pick moved), refusing a named person who is not in the entry or whose pick is not `yes_start`.
-- [ ] T031 a moved person's bare line written for the second yes -- the line the r15 walk owed on Commitment (their
-  picks read with the r15 answer, which no served option carried) -- belongs to Commitment's rung: typed only where the
-  served follow-up lands on Commitment (their *yes_start*), otherwise skipped with a finding (067 FR-3's machinery),
-  never typed on another rung. A moved person whose line the r15 walk owed elsewhere keeps their line as before.
+- [x] T030 the reader keeps each revision-16 back-test entry's *Changed:* people (`Entry.commitment_moved`, read off the
+  entry's own header -- the 112 across the 28, Issen's seven), refusing a named person who is not in the entry or whose
+  Commitment pick is not `yes_start`.
+- [x] T031 a moved person's bare line written for the second yes -- the line the r15 walk owed first on Commitment
+  (`vs.moved_line_for_the_second_yes`: their picks with Commitment read as r15 served it on a step-alone list, *probably
+  not*, on the static ladder) -- takes Commitment's rung (`follow_up_dimension`), so 067 FR-3's machinery types it only
+  where the served follow-up is Commitment's, which a `yes_start` is never owed: it is skipped, on any rung, and the walk
+  names it (`corpus_scenario._moved_line`: *no follow-up was asked* / *the server asked X*). Six of the 112 are such
+  lines (Issen's Farida Haque, Imani Brooks, Tobias Wren; Taiga's Sofia Alvarez; RealRoots' Chloe Dubois; Frizzle's
+  Jordan Whitaker); a moved person whose line the r15 walk owed on an earlier rung keeps it there, named when typed
+  (judgement call 1).
+- [x] T032 129's composer mirrored where the harness composes the owed follow-up (the golden journeys hold the route to
+  it; judgement call 2): Current solution's and Relative advantage's text is their spoken line (129 FR-3,
+  `SAID_AS_SPOKEN`; S-006 and S-007 met *You said it would not have made much difference. What would have?*), a
+  have-fact answered No is said back as the fact (129 FR-6, `vs.had_no`), the would-not-pay text said as it reads, and
+  Purchase friction's this-purchase words on the long purchase's second stem too (*What would take the time?*, S-006 /
+  S-007). Unit: 3,140 passed, 53 skipped, 0 failed.
 
 ## FR-4 -- the walks of keel-web 106's screens
 
@@ -76,6 +87,18 @@ Measured: **3,131 passed, 53 skipped, 0 failed, 0 errors**; the grep clean. (The
   (`insights-guessed`); the friction row's status column at 390 (`.rp-rv` / `.rp-rs` never overlapping).
 - [ ] T041 the holds: on the golden seven (strict) what 106 must draw is held; on the back-tests each read is a
   finding into `backtest.json` / `backtest.md` (`changed_screens`), never a stop.
+
+## Judgement calls
+
+1. **Which of the 112 lines were written for the second yes.** A bare line names no rung, and the file's words are
+   not read for intent. The rung the revision-15 walk owed first is the record: where it was Commitment (their
+   `yes_after_trying`, served as *probably not* on a step-alone list, the first answer against), the line answered the
+   second yes and is Commitment's now; where an earlier rung was owed, the line was typed there at 15 and revision 16
+   does not move it (Commitment is the ladder's last rung). Lines whose words speak of trying first but were owed an
+   earlier rung (Karsa's Rubina Gill, Palus's Felix Brandt, ...) are typed where they were, named by the walk.
+2. **129's composer is mirrored in this build.** Not in FR-1 to FR-5, but the golden journeys hold the follow-up's text
+   and spoken line to the harness's own composition (`_hold_the_follow_up`, strict), and 129 moved them (FR-3) -- left
+   alone, S-006 and S-007 fail on the 129 build, as they did when first run here.
 
 ## Acceptance
 

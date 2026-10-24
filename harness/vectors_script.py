@@ -59,6 +59,7 @@ from datetime import datetime, timezone
 
 from instructions import chain as chain_mod
 from instructions import corpus as corpus_reader
+from instructions.registry import COMMITMENT_KEY
 
 VECTORS = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 
@@ -1653,6 +1654,30 @@ def fact_said(label: str | None) -> str | None:
     return fake_lower(text)
 
 
+_HAD = re.compile(r"^(?:did you have|you had|you have|do you have)\s+(?:(?:a|an|any|the)\s+)?(.+)$")
+
+
+def had_no(condition: str | None) -> str | None:
+    """keel-cloud 129 FR-6 (`ItemFrames.hadNo`): a have-fact answered No said back as the fact -- *You said you had no
+    bank account in your own name. What do you use instead?* -- or None where the condition is no have-fact."""
+    text = (condition or "").strip()
+    while text.endswith(("?", ".")):
+        text = text[:-1].strip()
+    if not text:
+        return None
+    text = fact_said(text) or ""
+    match = _HAD.fullmatch(text)
+    if not match:
+        return None
+    thing = re.sub(r"\s+(?:that|which)\s+you\s+.*$", "", match.group(1)).strip()
+    return f"You said you had no {thing}. What do you use instead?" if thing else None
+
+
+#: keel-cloud 129 FR-3 (`FollowUpComposer.SAID_AS_SPOKEN`): the rungs whose text is their spoken line where the filled
+#: text would paste the pick or the benefit labels -- a follow-up composed whole for the answer keeps its words.
+SAID_AS_SPOKEN = ("problem.current_solution_satisfaction", "solution.relative_advantage")
+
+
 def from_served(question: str | None, pick: str | None) -> str | None:
     """keel-cloud 128 FR-14 (`FollowUpComposer.fromServed`): Compatibility's follow-up from the served question where the
     condition gives no clause -- *You said no to this: did the list come straight out of the EMR? What got in the way?*"""
@@ -1727,6 +1752,11 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
             if said:
                 values[WHOLE_TEXT] = ("You said only partly to this: " if code == "only_with_help"
                                       else "You said no to this: ") + said + ". What got in the way?"
+        # keel-cloud 129 FR-6: a have-fact answered No is said back as the fact (Karsa's bank account)
+        if label(code) == "No" and label("only_with_help") == "Partly":
+            had = had_no(tested.get("asked") or tested.get("label"))
+            if had:
+                values[WHOLE_TEXT] = had
         # keel-cloud 128 FR-14: with no clause to say "you couldn't" of, the served question is quoted
         if values["{condition}"] is None and WHOLE_TEXT not in values and item:
             quoted = from_served(item.get("question") or item.get("text"), label(code))
@@ -1742,24 +1772,31 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
         # keel-cloud 128 FR-19: asked about this purchase at the founder's price, followed up in its tense
         if str(item.get("question") or item.get("text") or "").startswith("Could you sign off on "):
             values[WHOLE_TEXT] = "Who would have to agree, and what would they need to see?"
-    elif rung == "commercial.purchase_friction":
-        # keel-cloud 128 FR-12: asked about this purchase, followed up in its tense
-        stem = str(item.get("question") or item.get("text") or "")
-        if stem.startswith("If ") and " bought " in stem and codes:   # "If you bought …", "If your terminal bought …"
-            values[WHOLE_TEXT] = "What would take the time?" if codes[0] == "yes_long" \
-                else "What would slow it down, if anything?"
     elif rung == "solution.adoption_friction":
         values["{effort}"] = fake.lower(founder_follow_up_words(entry)["{effort}"])
     elif rung == "commercial.price":
         values["{band}"] = fake.WOULD_NOT_PAY_BAND if codes[:1] == [fake.WOULD_NOT_PAY] else \
             fake.lower(label(codes[0]) if codes else None)
+    if rung == "commercial.purchase_friction":
+        # keel-cloud 128 FR-12: asked about this purchase, followed up in its tense -- on the long purchase's second
+        # stem too (`FollowUpComposer.values` runs for either stem; S-006 and S-007 on the 129 build: *What would take the
+        # time?*, said as it reads)
+        stem = str(item.get("question") or item.get("text") or "")
+        if stem.startswith("If ") and " bought " in stem and codes:   # "If you bought …", "If your terminal bought …"
+            values[WHOLE_TEXT] = "What would take the time?" if codes[0] == "yes_long" \
+                else "What would slow it down, if anything?"
     whole = values.pop(WHOLE_TEXT, None)
     text = whole if whole is not None else fake.fill(rung, values, also=also)
-    if rung == "commercial.price" and codes[:1] == [fake.WOULD_NOT_PAY] and not also:
+    # keel-cloud 129 FR-3: Current solution's and Relative advantage's text is their spoken line (the filled text pasted
+    # the pick or the benefit labels); a text composed whole keeps its words
+    if whole is None and not also and rung in SAID_AS_SPOKEN:
+        text = fake.spoken_of(rung, also=also)
+    would_not_pay = rung == "commercial.price" and codes[:1] == [fake.WOULD_NOT_PAY] and not also
+    if would_not_pay:
         # keel-cloud 126 FR-6a (`FollowUpComposer.WOULD_NOT_PAY_TEXT`): the would-not-pay follow-up has its own sentence
         text = "You said you wouldn't pay for this. What would change that?"
-    # keel-cloud 128 FR-12: a follow-up composed whole for the answer given is said as it reads
-    spoken = text if whole is not None else fake.spoken_of(rung, also=also)
+    # keel-cloud 128 FR-12: a follow-up composed whole for the answer given is said as it reads (129: and the would-not-pay)
+    spoken = text if whole is not None or would_not_pay else fake.spoken_of(rung, also=also)
     return {"dimension": rung, "text": text, "spoken": spoken, "also": also}
 
 
@@ -1861,9 +1898,29 @@ def person_inputs(entry) -> list[PersonInputs]:
     # (`Person.follow_up` in the file) where the file has them; the pooled line otherwise, as every golden entry does
     own = {p.person: p.follow_up for p in entry.people() if getattr(p, "follow_up", None)}
     rung_of = {p.person: p.follow_up_dimension for p in entry.people() if getattr(p, "follow_up_dimension", None)}
+    # spec 068 FR-3 (keel-cloud 129 FR-12): a moved person's bare line written for the second yes belongs to Commitment
+    rung_of.update({p.person: COMMITMENT_KEY for p in people if p.person not in rung_of
+                    and moved_line_for_the_second_yes(entry, p) and own.get(p.person)})
     return [dataclasses.replace(p, follow_up=(own.get(p.person) if p.person in lines and own.get(p.person)
                                               else lines.get(p.person)),
                                 follow_up_dimension=rung_of.get(p.person)) for p in people]
+
+
+def moved_line_for_the_second_yes(entry, person) -> bool:
+    """Spec 068 FR-3 (keel-cloud 129 FR-12): whether `person` is one of the people the revision-16 entry's header names
+    (their Commitment `yes_after_trying` moved to `yes_start`) and the follow-up their file line was written for was
+    the second yes -- the rung the revision-15 walk owed them first: their picks with Commitment read as r15 served it on
+    a step-alone list (no conditional option, so *probably not*: `_served_commitment`), the static ladder. Such a line
+    is Commitment's: typed only where the served follow-up lands on Commitment, never on another rung."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415
+    import dataclasses                                                 # noqa: PLC0415
+    if person.person not in getattr(entry, "commitment_moved", ()) or not getattr(person, "in_segment", True):
+        return False
+    if person.link != LINK_B2B and not person.recency:
+        return False
+    was = [dataclasses.replace(pick, codes=[NOT_SERVED_YES]) if pick.dimension == COMMITMENT_KEY else pick
+           for pick in person.picks]
+    return fake.first_rung(was, founder_side(entry), person.link, b2b=is_b2b(entry)) == COMMITMENT_KEY
 
 
 def inside_inputs(entry, name: str) -> "PersonInputs":
