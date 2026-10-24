@@ -1705,8 +1705,16 @@ LOCK_PLAIN_WORDS: dict[str, tuple[tuple[str, str], ...]] = {
                  ("short-duration", "short-term"), ("floating-rate", "")),
     "11-issen": (("spaced-repetition flashcards", "flashcards that come back for review"),
                  ("custom curriculum", "a lesson plan built for you"), ("curriculum", "a lesson plan built for you")),
-    "16-pairio": (("CMMS", "the maintenance system"), ("ERP", "the plant's business system")),
+    "16-pairio": (("connected to SAP, Maximo or SharePoint", "connected to your maintenance system"),
+                  ("to SAP, Maximo or SharePoint", "to the maintenance system"),
+                  ("SAP, Maximo or SharePoint", "the maintenance system"),
+                  ("CMMS", "the maintenance system"), ("ERP", "the plant's business system")),
 }
+
+#: keel-cloud 132 FR-3 (`RevealWords.NAMES_IN_A_LIST`): three or more capitalised names joined by commas and *or* / *and*
+#: on a how or belief line (*SAP, Maximo or SharePoint*). The lock's own remedy offers "keep one name", so the generic
+#: edit keeps the first (*connected to SAP*) where no entry row says the kind of thing in the person's words.
+NAMES_IN_A_LIST = re.compile(r"\b([A-Z][\w.-]*(?: [A-Z][\w.-]*)?)(?:, [A-Z][\w.-]*(?: [A-Z][\w.-]*)?)+,? (?:or|and) [A-Z][\w.-]*(?: [A-Z][\w.-]*)?\b")
 
 #: Spec 070 FR-1, the generic fallback: an M5 word no entry maps, said in plain words (an empty value drops it).
 PLAIN_FALLBACK = {"escrow": "safekeeping", "stablecoin": "digital dollar", "stablecoins": "digital dollars",
@@ -1753,7 +1761,8 @@ def plain_line(entry, line: str, text: str | None, word: str | None = None, fix:
                audience_words=()) -> str | None:
     """Spec 070 FR-1 (keel-cloud 131 FR-5): the idea card's line as the founder edits it after the lock refused it --
     every M5 fault the line carries moved in one edit: the entry's own plain words (`LOCK_PLAIN_WORDS`), then the
-    refusal's own suggestion for its word where the fix offers one, a parenthesised list of names dropped, any M5
+    refusal's own suggestion for its word where the fix offers one, a parenthesised list of names dropped, a bare
+    list of three or more names cut to its first (keel-cloud 132 FR-3), any M5
     word left by `PLAIN_FALLBACK`, and a design-note belief replaced by the entry's first benefit (*get {benefit}*)
     under the belief's frame. None where the edit would not move the line."""
     before = str(text or "")
@@ -1764,6 +1773,7 @@ def plain_line(entry, line: str, text: str | None, word: str | None = None, fix:
     if offered and word and _word_pattern(str(word)).search(out.lower()):
         out = _replace(out, str(word), offered)
     out = NAMES_IN_PARENTHESES.sub("", out)
+    out = NAMES_IN_A_LIST.sub(lambda m: m.group(1), out)
     exempt = {str(w).strip().lower() for w in audience_words or () if w}
     for m5 in M5_WORDS:
         if m5 not in exempt and _word_pattern(m5).search(out.lower()):
