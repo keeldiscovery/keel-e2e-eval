@@ -48,6 +48,30 @@ PRICE_NOT_ASKED_LINE = "no decision-maker has answered the money questions"
 PRICE_NOT_ASKED_LINE_CONSUMER = "nobody has answered the money questions"
 
 
+#: keel-web 106 FR-2 (`translate.ts` CONSUMER_WORDS), mirrored in order: a consumer study's report never says
+#: decision-maker, the payer, per person or new money.
+import re as _re
+CONSUMER_WORDS = [
+    (_re.compile(r"\bno decision-maker has\b"), "nobody has"),
+    (_re.compile(r"\bDecision-makers\b"), "People"), (_re.compile(r"\bdecision-makers\b"), "people"),
+    (_re.compile(r"\bDecision-maker\b"), "Person"), (_re.compile(r"\bdecision-maker\b"), "person"),
+    (_re.compile(r"\bThe payer's\b"), "Their"), (_re.compile(r"\bthe payer's\b"), "their"),
+    (_re.compile(r"\bThe payer (?=(?:would|will|is|has|had|pays|paid|could|can|needs|thinks|spends|\w+ed)\b)"), "They "),
+    (_re.compile(r"\bthe payer (?=(?:would|will|is|has|had|pays|paid|could|can|needs|thinks|spends|\w+ed)\b)"), "they "),
+    (_re.compile(r"\bThe payer\b"), "They"), (_re.compile(r"\bthe payer\b"), "them"),
+    (_re.compile(r" ?\bper person\b", _re.I), ""),
+    (_re.compile(r"\bNew money\b"), "Other money"), (_re.compile(r"\bnew money\b"), "other money"),
+]
+
+
+def consumer_words(text) -> str:
+    """keel-web 106 FR-2's `consumerWords`: the line in a consumer study's words."""
+    line = str(text or "")
+    for pattern, to in CONSUMER_WORDS:
+        line = pattern.sub(to, line)
+    return line if text and str(text)[:1].isspace() else line.lstrip()
+
+
 def is_consumer(facts: dict) -> bool:
     """keel-web 106 FR-2's test, mirrored: a study is consumer when no pilot link's words name decision-makers (the
     B2B link's words are *decision-makers*; a consumer study's one link reads *people who have it*)."""
@@ -132,17 +156,19 @@ def tiles(facts: dict, price_median: dict | None) -> dict:
     else:
         pilot_tile = [PILOT_TILE_LABEL, pilot_signed_up(pilot.get("optedIn"), pilot.get("finished")),
                       f"{pilot.get('percent')}% · {pilot_link_line(pilot.get('perLink'))}"]
+    # keel-web 106 FR-2: on a consumer study every tile line is said in the consumer's words (no "per person", "people"
+    # for "decision-makers"); the wire's edgeSaid still carries the founder's unit
+    said = consumer_words if is_consumer(facts) else (lambda t: str(t or ""))
     if price_median and price_median.get("below"):
         # keel-web 102 FR-1 (keel-cloud 126 FR-3, contract 35): a median under the ladder is no floor --
         # *Most said under $10 per person a month (10 of 15)*, one line
         price_tile = [PRICE_TILE_LABEL,
-                      f"Most said {price_median.get('edgeSaid')} ({price_median.get('chose')} of {price_median.get('n')})"]
+                      said(f"Most said {price_median.get('edgeSaid')} ({price_median.get('chose')} of {price_median.get('n')})")]
     elif price_median:
-        price_tile = [PRICE_TILE_LABEL, f"{price_median.get('edgeSaid')} or more",
-                      price_tile_line(price_median.get("chose"), price_median.get("n"))]
+        price_tile = [PRICE_TILE_LABEL, said(f"{price_median.get('edgeSaid')} or more"),
+                      said(price_tile_line(price_median.get("chose"), price_median.get("n")))]
     else:
-        price_tile = [PRICE_TILE_LABEL, PRICE_NOT_ASKED,
-                      PRICE_NOT_ASKED_LINE_CONSUMER if is_consumer(facts) else PRICE_NOT_ASKED_LINE]
+        price_tile = [PRICE_TILE_LABEL, PRICE_NOT_ASKED, said(PRICE_NOT_ASKED_LINE)]
     return {"pilot": pilot_tile, "price": price_tile}
 
 
