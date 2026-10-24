@@ -235,3 +235,42 @@ def test_a_replaced_condition_on_the_check_screens_draft_is_recorded_and_named_o
     plain = SimpleNamespace(changed={}, findings=[], strict=False, feedback={})
     cs._keep_draft(plain, {"dimension": "solution.compatibility", "draft": {"items": [{"label": "x"}]}}, "first", None)
     assert plain.changed["replaced"] == [] and plain.findings == []
+
+
+# ------------------------------------------------------------------------------- FR-3: the lock-time notes
+
+def test_130s_lock_notes_are_found_by_name_in_the_interactions_once_each():
+    """Spec 069 FR-3: S13 on the lock, L21 on a drafted list, M5 in a repair turn and past it, X12 on the context --
+    each found by name, once; a row with no such note (J1's, an L2 cut) reads none; and a stub reads nothing."""
+    from evals import backtest as bt                                    # noqa: PLC0415
+    rows = [
+        {"screen": "RESPONDENT_QUESTIONS", "detail": "breach lock.lists.solution.compatibility: S13: 'They would have "
+                                                     "a bank account or wallet in their name' is 11 words; a row of "
+                                                     "this screen is at most 9"},
+        {"screen": "CALIBRATION_QUESTIONS", "detail": "breach result.answers[0].list.items[1].label: L21: 'They would "
+                                                      "have spare rupees ready' takes the place of the founder's own "
+                                                      "condition 'They could pay a seller by bank transfer'; the Check "
+                                                      "screen shows it as a change for the founder to keep or undo",
+         "founderNote": "Keel changed one of your conditions."},
+        {"screen": "SOLUTION_MECHANISM", "turns": [
+            {"turnNumber": 1, "content": "{...}"},
+            {"turnNumber": 2, "content": "Repair: M5: 'escrow' is a trade word a stranger may not know; say what it "
+                                         "does for them in plain words"}],
+         "detail": "breach result.how: M5: 'escrow' is a trade word a stranger may not know; say what it does for "
+                   "them in plain words"},
+        {"screen": "CONTEXT_INTERPRET", "detail": "breach result.segment.condition: X12: the result wrote no condition "
+                                                  "for \"adults ... not starting from zero\"; code drew 'are past the "
+                                                  "beginner stage' from the founder's words"},
+        {"screen": "SOLUTION_MECHANISM", "detail": "breach result.how: J1: 'platform' may be jargon"},
+        {"screen": "CALIBRATION_QUESTIONS", "detail": "breach x.label: L2: 'a' cut to 'b', the screen's 9 words"},
+    ]
+    notes = bt.lock_notes(None, rows)
+    assert [(n["rule"], n["screen"]) for n in notes] == [("S13", "RESPONDENT_QUESTIONS"),
+                                                         ("L21", "CALIBRATION_QUESTIONS"),
+                                                         ("M5", "SOLUTION_MECHANISM"), ("X12", "CONTEXT_INTERPRET")]
+    assert notes[2]["said"].startswith("M5: 'escrow'")
+    j = SimpleNamespace(project_id="p1", get=lambda path: rows if path.endswith("project_id=p1") else None)
+    assert bt.lock_notes(j) == notes
+    assert bt.lock_notes(SimpleNamespace(entry=None)) == []
+    md = bt.markdown({"lock_notes": notes, "respondents": {}, "founder_screens": []})
+    assert "keel-cloud 130's notes, by name" in md and "**S13** on RESPONDENT_QUESTIONS" in md

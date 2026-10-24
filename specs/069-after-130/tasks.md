@@ -61,12 +61,13 @@ Unit suite on `14a0c0e` before any change: **3,149 passed, 53 skipped, 0 failed,
 
 ## FR-3 -- the lock-time notes
 
-- [ ] T020 `backtest.lock_notes(j)`: the project's interactions (`GET /v2/inference-interactions?project_id=`) read
+- [x] T020 `backtest.lock_notes(j)`: the project's interactions (`GET /v2/inference-interactions?project_id=`) read
   once at the transcript -- each row's `detail`, `founderNote`, `diagnostic` and its turns' `content` -- for 130's new
   notes by name: `S13` (a saved row over its screen's cap, at the lock), `L21` (a drafted condition in place of the
   founder's own), `M5` (a trade word or a design note in the reveal); each found once, a finding naming the rule, the
   screen and the words; recorded in `backtest.json` (`lock_notes`) and `backtest.md`. X12's note is read beside them
-  (FR-1's draw, named). Unit: stub interactions.
+  (FR-1's draw, named). Each note is also a finding (`j.findings`, read before the transcript lists them). Unit: stub
+  interactions (`tests/test_after_130.py`); **3,160 passed, 53 skipped, 0 failed**; the grep clean.
 
 ## FR-4 -- nothing else moves
 

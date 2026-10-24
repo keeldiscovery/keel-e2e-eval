@@ -1292,6 +1292,46 @@ def cloud_130(j, standings: dict | None = None) -> dict:
     return {k: v for k, v in out.items() if v}
 
 
+# ------------------------------------------------------------------------- spec 069 FR-3: the lock-time notes
+
+#: keel-cloud 130's new notes, by name: S13 a saved row over its screen's cap (at the lock, FR-5), L21 a drafted
+#: condition in place of the founder's own (FR-1), M5 a trade word or a design note in the reveal (FR-9); X12 the
+#: condition code drew for a qualified people (FR-8), read beside them.
+LOCK_NOTES = {"S13": "a saved row over its screen's word cap (keel-cloud 130 FR-5)",
+              "L21": "a drafted condition in place of the founder's own (keel-cloud 130 FR-1)",
+              "M5": "a trade word or a design note in the reveal (keel-cloud 130 FR-9)",
+              "X12": "a condition code drew from the founder's people (keel-cloud 130 FR-8)"}
+_NOTE = re.compile(r"\b(" + "|".join(LOCK_NOTES) + r"): ([^\n]{1,400})")
+
+
+def lock_notes(j, interactions: list | None = None) -> list[dict]:
+    """Spec 069 FR-3: the project's interactions (`GET /v2/inference-interactions?project_id=`), read once at the
+    transcript -- each row's `detail` (*breach <path>: <why>*, the first note of a row applied over a word rule),
+    `founderNote`, `diagnostic` and its turns' `content` (a repair turn names the rule it repairs) -- for keel-cloud 130's
+    notes by name (`LOCK_NOTES`); each found once, `{rule, means, screen, said}`. A reading, never asserted."""
+    if interactions is None:
+        project_id = getattr(j, "project_id", None)
+        if not project_id or not callable(getattr(j, "get", None)):
+            return []
+        interactions = _safe(lambda: j.get(f"/v2/inference-interactions?project_id={project_id}"), []) or []
+    out, seen = [], set()
+    for row in interactions if isinstance(interactions, list) else []:
+        texts = [row.get(k) for k in ("detail", "founderNote", "diagnostic")]
+        texts += [(t or {}).get("content") for t in row.get("turns") or [] if isinstance(t, dict)]
+        for text in texts:
+            if not isinstance(text, str):
+                continue
+            for m in _NOTE.finditer(text):
+                said = m.group(2).strip()
+                key = (m.group(1), said[:160])
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append({"rule": m.group(1), "means": LOCK_NOTES[m.group(1)], "screen": row.get("screen"),
+                            "said": f"{m.group(1)}: {said}"})
+    return out
+
+
 # ------------------------------------------------------------------------------------------- FR-4.3 the brief
 
 def brief(standings: dict) -> dict:
@@ -1413,6 +1453,11 @@ def transcript(j, bt: Backtest) -> dict:
     me = _safe(lambda: j.get("/v2/me"), {})
     # read before the findings are listed: these readings add their own (spec 067 FR-7, spec 069 FR-1)
     changed = _safe(lambda: changed_screens(j, standings))
+    notes = _safe(lambda: lock_notes(j), []) or []
+    findings = getattr(j, "findings", None)
+    if isinstance(findings, list):
+        findings.extend({"what": f"{n['rule']} on {n['screen']}: {n['means']} (spec 069 FR-3)", "served": n["said"]}
+                        for n in notes)
     return {
         "entry": {"id": entry.id, "title": entry.title, "path": str(entry.path), "sha256": entry.sha256,
                   "idea_name": getattr(entry, "idea_name", None), "b2b": entry.b2b()},
@@ -1425,6 +1470,7 @@ def transcript(j, bt: Backtest) -> dict:
         "respondents": respondent_questions(j, bt.cam),
         "spoken_guard": _safe(lambda: spoken_guard(j)),
         "changed_screens": changed,
+        "lock_notes": notes,
         "brief": _safe(lambda: brief(standings)),
         "readings": _safe(lambda: readings(j, wire.get("invitations") or {}), []),
         "cost": _safe(lambda: cost(j, bt)),
@@ -1553,6 +1599,11 @@ def markdown(r: dict) -> str:
         for row in guard.get("red") or []:
             lines.append(f"- **RED** {row.get('link')} · {row.get('dimension')} · stem {row.get('stem_words')} words: "
                          f"*{row.get('stem')}* -- " + ("; ".join(row.get("faults") or []) or "past 20 words"))
+        lines.append("")
+    notes = r.get("lock_notes") or []
+    if notes:
+        lines += ["### keel-cloud 130's notes, by name (spec 069 FR-3)", ""]
+        lines += [f"- **{n.get('rule')}** on {n.get('screen')} ({n.get('means')}): {n.get('said')}" for n in notes]
         lines.append("")
     changed = r.get("changed_screens") or {}
     if any(changed.values()):
