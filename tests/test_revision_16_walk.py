@@ -247,9 +247,10 @@ def test_a_bar_line_past_its_bar_reads_did_not_hold_with_no_split_and_guessed_wo
     assert rm.expected_box(dict(insight, dimension="problem.importance"))["split"] == fake.SPLIT_NOTE
 
 
-def test_frequencys_card_counts_the_served_gates_days_where_a_gate_is_stored():
+def test_frequencys_card_counts_the_served_gates_units_where_a_gate_is_stored():
     """keel-cloud 129 FR-1 (`BriefFacts.card`, T003): S-006 on the 129 build read *the middle answer · days they waited
-    beyond agreed terms to be paid for an approved invoice*; the corpus's reading (no stored gate) is unchanged."""
+    beyond agreed terms to be paid for an approved invoice*; keel-cloud 130 FR-2 says it in the window's unit, *months*
+    on Paidly's 3-month window (spec 069 FR-1); the corpus's reading (no stored gate) is unchanged."""
     from pathlib import Path                                            # noqa: PLC0415
     from harness import vectors_script as vs                            # noqa: PLC0415
     from instructions import brief_facts as bf                          # noqa: PLC0415
@@ -263,7 +264,7 @@ def test_frequencys_card_counts_the_served_gates_days_where_a_gate_is_stored():
     standing = {"status": "HOLDING_UP", "n": 10, "median": 2}
     assert bf.card(paidly, frequency, standing)["line"] == "the middle answer"
     assert bf.card(paidly, frequency, standing, clause=vs.event_past(paidly))["line"] == \
-        "the middle answer · days they " + vs.event_past(paidly)
+        "the middle answer · months they " + vs.event_past(paidly)
 
 
 def test_the_follow_up_clips_may_carry_an_also_clip_beside_the_rung():

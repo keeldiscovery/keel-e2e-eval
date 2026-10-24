@@ -285,6 +285,22 @@ FILL_DEFAULTS = {"{their_picks}": "other difficulties", "{founder_item}": "this 
                  "{benefit}": "it", "{occasion}": "time", "{effort}": "do that", "{band}": "less than we asked",
                  "{smaller_step}": "that first step"}
 WOULD_NOT_PAY_BAND = "nothing"
+#: keel-cloud 130 FR-7 (`FollowUpComposer.WORTH_MORE`): Price's follow-up question after its said-back pick.
+WORTH_MORE = "What would make it worth more?"
+_SHOWN_PRICE = re.compile(r"[$\u20ac\u00a3\u00a5\u20b9]\s?\d[\d,]*(?:\.\d+)?")
+
+
+def price_said_back(question: str | None, band: str | None) -> str:
+    """keel-cloud 130 FR-7 (`FollowUpComposer.priceSaidBack`): Price's follow-up composed whole, text and spoken alike --
+    *You put it below €3,000.* where the served stem showed a price (its first figure), *You put it at {band}.* where a
+    band was picked, *You put it low.* otherwise -- never *less than we asked* where no price was shown. The registry's
+    `follow_up` words (`LADDER`) are unchanged (130 judgement call 6)."""
+    shown = _SHOWN_PRICE.search(question or "")
+    if shown:
+        return f"You put it below {shown.group()}. {WORTH_MORE}"
+    if band and band.strip() and band != WOULD_NOT_PAY_BAND:
+        return f"You put it at {band}. {WORTH_MORE}"
+    return f"You put it low. {WORTH_MORE}"
 
 
 def follow_up_script(spoken_words: str) -> str:

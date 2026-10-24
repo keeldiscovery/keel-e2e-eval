@@ -1777,6 +1777,10 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
     elif rung == "commercial.price":
         values["{band}"] = fake.WOULD_NOT_PAY_BAND if codes[:1] == [fake.WOULD_NOT_PAY] else \
             fake.lower(label(codes[0]) if codes else None)
+        # keel-cloud 130 FR-7 (`FollowUpComposer.priceSaidBack`): composed whole, so text and spoken line are one
+        # wording -- *below {the price shown}*, the band said back (the chain's up-front pick first), else *low*; never
+        # the registry's *below what we asked* where no price was shown (the would-not-pay sentence still comes first)
+        values[WHOLE_TEXT] = fake.price_said_back(item.get("question") or item.get("text"), values["{band}"])
     if rung == "commercial.purchase_friction":
         # keel-cloud 128 FR-12: asked about this purchase, followed up in its tense -- on the long purchase's second
         # stem too (`FollowUpComposer.values` runs for either stem; S-006 and S-007 on the 129 build: *What would take the
@@ -1813,6 +1817,206 @@ def the_step(step: str) -> str:
     if low.startswith("an "):
         return "the " + step[3:]
     return step if low.startswith(("the ", "your ", "their ", "my ")) else "the " + step
+
+
+def _second_person(text: str) -> str:
+    """`StrangerGrammar.secondPerson(text, false)`, narrowly: every *they* / *their* the stranger's own, case kept."""
+    def person(m):
+        w = m.group(1)
+        out = {"they're": "you're", "they've": "you've", "they'd": "you'd", "they'll": "you'll", "their": "your",
+               "theirs": "yours", "themselves": "yourself"}.get(w.lower(), "you")
+        return out[:1].upper() + out[1:] if w[:1].isupper() else out
+    return _THIRD.sub(person, text)
+
+
+def _trim_end(text: str | None) -> str:
+    out = str(text or "").strip()
+    while out.endswith((".", "?")):
+        out = out[:-1].strip()
+    return out
+
+
+def gerund(step: str) -> str:
+    """keel-cloud 129 FR-2 (`SpokenCap.gerund`): the founder's step as it follows *{Name} means* -- *Pay a verified seller
+    they have never met* reads *paying a verified seller you have never met*, *you'd upload your ID card* *uploading
+    your ID card*."""
+    text = _second_person(_trim_end(step))
+    text = re.sub(r"(?i)^(you'd|you would|you will|you'll)\s+(have to\s+)?", "", text, count=1)
+    text = re.sub(r"(?i)^(you\s+)?(have to|need to|had to|would have to)\s+", "", text, count=1)
+    words = text.split(None, 1)
+    if not words:
+        return text
+    lower = words[0].lower()
+    if lower.endswith("ing") and len(lower) > 4:
+        ing = lower
+    elif lower.endswith("ie"):
+        ing = lower[:-2] + "ying"
+    elif lower.endswith("e") and not lower.endswith(("ee", "ye", "oe")) and len(lower) > 2:
+        ing = lower[:-1] + "ing"
+    elif re.fullmatch(r"[^aeiou]*[aeiou][bdgmnprt]", lower) and len(lower) <= 4:
+        ing = lower + lower[-1] + "ing"
+    else:
+        ing = lower + "ing"
+    return ing + (" " + words[1] if len(words) > 1 else "")
+
+
+def adoption_statement(asked: str | None, name: str | None) -> str | None:
+    """keel-cloud 130 FR-11 (`ItemFrames.adoptionFriction(asked, name)` over `SpokenCap.plain`): the statement frame names
+    the idea -- *Karsa means paying a verified seller you have never met. Would you do that, or not?* -- wherever the
+    name is known and the frame fits the 20 words; None where it does not (the statement as before, which the harness
+    reads off the wire: `StrangerGrammar.wouldDo` and the grammar check are not mirrored)."""
+    thing = _trim_end(asked)
+    idea = (name or "").strip()
+    if not idea or not thing:
+        return None
+    named = f"{idea[:1].upper() + idea[1:]} means {gerund(thing)}. Would you do that, or not?"
+    return named if _words(named) <= STEM_MAX_WORDS else None
+
+
+#: keel-cloud 130 FR-10 (`ItemFrames.NAMED_STEP`): what a founder's step may name, with *the*, that the card has to have
+#: introduced first.
+_NAMED_STEP = re.compile(r"(?i)\bthe ((?:free |paid |first |money-back )?(?:trial|pilot|walkthrough|demo|session|"
+                         r"onboarding call|setup call|test run|course|programme|program))\b")
+
+
+def with_article(thing: str) -> str:
+    """`WindowFrame.withArticle`: *a trial*, *an onboarding call*; a thing with its own article kept."""
+    text = (thing or "").strip()
+    low = text.lower()
+    if low.startswith(("a ", "an ", "the ")):
+        return text
+    vowel = bool(low) and low[0] in "aeiou" and not low.startswith(("uni", "use", "usu", "eu", "one"))
+    if low.startswith(("hour", "honest", "heir")):
+        vowel = True
+    return ("an " if vowel else "a ") + text
+
+
+def commitment_plain(step: str) -> str:
+    """`ItemFrames.commitment(step)`: *If it were ready today, would you {step}, or not?*"""
+    return f"If it were ready today, would you {fake_lower(step.strip())}, or not?"
+
+
+def commitment_stem(step: str | None, name: str | None, card: str | None) -> str | None:
+    """keel-cloud 130 FR-10 (`ItemFrames.commitment(step, name, card)`): the step is named before it is asked -- a step
+    naming *the trial* (a pilot, a walkthrough, ...) the card does not name opens on one clause introducing it, *Issen
+    starts with a trial. Would you pay for one month after the trial, or not?* (the *If it were ready today* opener goes
+    where the two would pass 20 words); a step that introduces its own (*a money-back pilot*), one the card names, or no
+    card asks the plain stem."""
+    if step is None or not step.strip():
+        return None
+    plain = commitment_plain(step)
+    if not card or not card.strip():
+        return plain
+    named = _NAMED_STEP.search(step)
+    if not named:
+        return plain
+    thing = named.group(1).lower()
+    head = re.sub(r"^(?:free|paid|first|money-back) ", "", thing)
+    if re.search(r"\b" + re.escape(head) + r"\b", card.lower()):
+        return plain
+    idea = (name or "").strip() or "It"
+    bridge = f"{idea} starts with {with_article(thing)}."
+    for asked in (plain, f"Would you {fake_lower(step.strip())}, or not?"):
+        stem = f"{bridge} {asked}"
+        if _words(stem) <= STEM_MAX_WORDS:
+            return stem
+    return plain
+
+
+#: keel-cloud 130 FR-6 (`RespondentQuestionsRules.withoutNegativeClause`).
+_NEGATIVE_TAIL = re.compile(r"(?i)^(.+?),?\s+(?:and|but)\s+(?:not|no|never|nobody|nothing|none)\b.*$")
+_DETERMINERS = ("the", "a", "an", "their", "our", "its")
+
+
+def own_subject_event(asked: str | None) -> str | None:
+    """keel-cloud 130 FR-6 (`RespondentQuestionsRules.ownSubjectEvent`): an occasion clause in question order with a
+    subject of its own -- *did a booking call come in on your shift* -- as the gate's clause, *a booking call come in on
+    your shift*, the person's own time kept (130 judgement call 1); None for *did you ...* or any other shape. Narrowly:
+    the subject is read as a determiner and a noun before the verb (`WindowFrame.subjectLed`'s present-verb list is not
+    mirrored)."""
+    text = str(asked or "").strip()
+    low = text.lower()
+    if not low.startswith("did ") or low.startswith("did you "):
+        return None
+    clause = text[4:].strip()
+    words = clause.lower().split()
+    return clause if len(words) > 2 and words[0] in _DETERMINERS else None
+
+
+def without_negative_clause(circumstance: str | None) -> str | None:
+    """keel-cloud 130 FR-6 (`RespondentQuestionsRules.withoutNegativeClause`): the circumstance cut before the negative
+    clause it ends on -- Codyco's *booking calls come in on every shift, after hours, at peak and on holidays, and not
+    every one gets answered* reads *booking calls come in on every shift, after hours, at peak and on holidays*; None
+    where there is none, or fewer than three words stand before it."""
+    if circumstance is None:
+        return None
+    cut = _NEGATIVE_TAIL.fullmatch(circumstance.strip())
+    return cut.group(1).strip() if cut and _words(cut.group(1)) >= 3 else None
+
+
+def gate_asks_the_job(entry, gate_question: str | None) -> bool:
+    """keel-cloud 130 FR-6's fault, read on the wire: the gate fell to the job (*In the last 7 days, did you turn every
+    guest who calls into a booking?*), which inverts the count -- the event comes first now."""
+    job = _phrase(_ctx(entry).get("job"))
+    if not job or not gate_question:
+        return False
+    job = job[:1].lower() + job[1:] if len(job) > 1 and not job[1].isupper() else job
+    return gate_question.strip() == f"In {entry.window().words()}, did you {job}?"
+
+
+#: keel-cloud 130 FR-8 (`ScreenResultApplier.QUALIFIER`): the parts of the founder's WHICH PEOPLE that qualify them.
+QUALIFIER = re.compile(r"(?i)\b(not starting|or above|or more|at least|with no|without|already|beyond the|past the|"
+                       r"no longer|level)\b|\b\d[\d,]*\s*(?:to|-|\u2013)\s*\d[\d,]*\b|"
+                       r"\b(?:bank|banks|banking|run|runs|work|works) (?:with|on)\b")
+_NEGATIVE_QUALIFIER = re.compile(r"(?i)\bnot (?:starting|beginning) (?:from|at) (?:zero|scratch)\b|"
+                                 r"\bnot (?:complete |total |absolute )?beginners?\b")
+
+
+def condition_from(part: str | None) -> str | None:
+    """keel-cloud 130 FR-8 (`ScreenResultApplier.conditionFrom`, X12): one qualifier of the founder's people as a
+    condition completing *Only people who ...* -- *not starting from zero* -> *are past the beginner stage*, *with no X*
+    -> *have no X*, *departments of 10 to 200 officers* -> *work at a department with 10 to 200 officers*, *that bank
+    with Mercury or Brex* -> *bank with Mercury or Brex*, *at intermediate level or above* -> *are at intermediate level
+    or above*; None otherwise (the cloud's last branch, a part opening on a present verb, is not mirrored)."""
+    if part is None or not part.strip():
+        return None
+    text = re.sub(r"(?i)^(?:who|that|which)\s+", "", part.strip(), count=1)
+    if _NEGATIVE_QUALIFIER.search(text):
+        return "are past the beginner stage"
+    without = re.search(r"(?i)\b(?:with no|without)\s+(.+)$", text)
+    if without:
+        return "have no " + without.group(1).strip()
+    size = re.search(r"(?i)\b([a-z]+?)s\s+(?:of|with)\s+(\d[\d,]*\s*(?:to|-|\u2013)\s*\d[\d,]*\s+[a-z]+)", text)
+    if size:
+        return f"work at a {size.group(1).lower()} with {size.group(2).strip()}"
+    tool = re.search(r"(?i)\b((?:bank|banks|run|runs|work|works) (?:with|on) .+)$", text)
+    if tool:
+        out = tool.group(1).strip()
+        for plural, one in (("banks", "bank"), ("runs", "run"), ("works", "work")):
+            out = re.sub(rf"(?i)^{plural}\b", one, out, count=1)
+        return out
+    level = re.search(r"(?i)\b(at (?:an? )?[a-z -]*?level(?: or (?:above|higher|more))?|at least .+|past the .+)$", text)
+    if level:
+        return "are " + level.group(1).strip()
+    return None
+
+
+def drawn_condition(which_people: str | None, segment: str | None = None) -> str | None:
+    """keel-cloud 130 FR-8 (`ScreenResultApplier.drawnCondition`, X12): the condition code draws, past the repair turn,
+    where the result writes none and the founder's people are qualified -- a negative qualifier first (the one the
+    read-back loses), else the first qualifier that gives one; None where none does. Issen's *adults ... at intermediate
+    level or above, not starting from zero* draws *are past the beginner stage*."""
+    parts: list[str] = []
+    for text in (which_people, segment):
+        for part in re.split(r"[,;]|\band\b", text or ""):
+            if QUALIFIER.search(part):
+                parts.append(part.strip())
+    parts.sort(key=lambda p: 0 if re.search(r"(?i)\b(not|no|without|never|no longer)\b", p) else 1)
+    for part in parts:
+        drawn = condition_from(part)
+        if drawn is not None:
+            return drawn
+    return None
 
 
 def with_pick(person: "PersonInputs", dimension: str, codes: list[str]) -> "PersonInputs":

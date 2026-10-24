@@ -373,7 +373,9 @@ def item_faults(item, registry, entry=None) -> list:
         faults.append(f"S9: the transform is {item.transform!r}; §4 names {transform!r} for {key}")
     # S10: Commitment's step said once to the stranger.
     if key == COMMITMENT_KEY:
-        step = item.stem.split("would you ", 1)[1] if "would you " in item.stem else ""
+        # keel-cloud 130 FR-10: an introduced step past 20 words opens its question *Would you* (spec 069 FR-1)
+        halves = re.split(r"(?i)\bwould you ", item.stem, maxsplit=1)
+        step = halves[1] if len(halves) > 1 else ""
         if re.search(r"\byou\b", step, re.IGNORECASE):
             faults.append(f"S10: the step reads {item.stem!r}; 'would you {{step}}' says 'you' twice -- the step "
                           "is the stranger's, in base form, with no second 'you'")

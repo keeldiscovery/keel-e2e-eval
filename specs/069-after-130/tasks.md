@@ -14,38 +14,40 @@ Unit suite on `14a0c0e` before any change: **3,149 passed, 53 skipped, 0 failed,
 
 ## FR-1 -- the follow-up mirror follows 130
 
-- [ ] T001 `harness/interviewer_fake.py`: `WORTH_MORE` and `price_said_back(question, band)` -- 130 FR-7's
+- [x] T001 `harness/interviewer_fake.py`: `WORTH_MORE` and `price_said_back(question, band)` -- 130 FR-7's
   `FollowUpComposer.priceSaidBack`: *You put it below €3,000.* where the served stem shows a price (the first currency
   figure in it), *You put it at {band}.* where a band was picked, *You put it low.* otherwise, each with *What would
   make it worth more?*. The registry's `follow_up` text and spoken (the `LADDER` copy) are unchanged (130 judgement call
   6), so IM27's pre-rendered FOLLOW_UP clips keep the registry's words.
-- [ ] T002 `harness/vectors_script.follow_up_question`: Price's follow-up composed whole (`WHOLE_TEXT`), so its text and
+- [x] T002 `harness/vectors_script.follow_up_question`: Price's follow-up composed whole (`WHOLE_TEXT`), so its text and
   spoken line are one wording on every journey -- the golden seven show no price in the stem, so their text stays
   *You put it at {band}. ...* and their spoken line moves from the registry's *You put it below what we asked. ...* to
   the text; the would-not-pay sentence still comes first (126 FR-6a); the chain's two codes say back the up-front pick.
-- [ ] T003 `vs.gerund`, `vs.adoption_statement(asked, name)` (130 FR-11, `ItemFrames.adoptionFriction(asked, name)` over
+- [x] T003 `vs.gerund`, `vs.adoption_statement(asked, name)` (130 FR-11, `ItemFrames.adoptionFriction(asked, name)` over
   `SpokenCap.plain`): *{Name} means {step's gerund}. Would you do that, or not?* where the name is known and the frame
   fits 20 words, else the statement as before; `vs.commitment_stem(step, name, card)` (130 FR-10): a step naming *the*
   trial / pilot / walkthrough / demo / session / onboarding or setup call / test run / course / programme that the card
   does not name opens on *{Name} starts with {a thing}.* before the plain stem, or before *Would you {step}, or not?*
   where the opener would pass 20, else the plain stem.
-- [ ] T004 the gate's event (130 FR-6): `vs.own_subject_event(asked)` (`ownSubjectEvent`, *did a booking call come in on
+- [x] T004 the gate's event (130 FR-6): `vs.own_subject_event(asked)` (`ownSubjectEvent`, *did a booking call come in on
   your shift* -> *a booking call come in on your shift*, the person's own time kept) and
   `vs.without_negative_clause(circumstance)` (the circumstance cut before *, and not ...*); the brief's line said of
   them, `brief_facts.gate_clause_of_them(gate, window)` (`servedGateClause`'s new branch: a gate whose clause names its
   own subject reads *had {clause}*, *your* as *their*; None where code says a *you* clause in its own past tense, which
   the harness does not mirror).
-- [ ] T005 Frequency's line in the window's unit (130 FR-2): `brief_facts.frequency_line(clause, window)` and
+- [x] T005 Frequency's line in the window's unit (130 FR-2): `brief_facts.frequency_line(clause, window)` and
   `brief_facts.card(clause=...)` read *the middle answer · {unit plural} they {clause}* -- 05-paidly's *months they
   waited ...* on the golden walk (the 068 test pinned *days*); the corpus's reading (no gate) unchanged.
-- [ ] T006 X12 (130 FR-8): `vs.condition_from(part)` / `vs.drawn_condition(which_people, segment)` -- *not starting
+- [x] T006 X12 (130 FR-8): `vs.condition_from(part)` / `vs.drawn_condition(which_people, segment)` -- *not starting
   from zero* -> *are past the beginner stage*, *with no X* -> *have no X*, a size, a tool or bank, a level.
-- [ ] T007 the reads: on a back-test `backtest.changed_screens` gains `cloud_130` -- the served Adoption and Commitment
+- [x] T007 the reads: on a back-test `backtest.changed_screens` gains `cloud_130` -- the served Adoption and Commitment
   stems beside the mirror's (the plan's tested face and step, the served idea name and reveal), the served gate when it
   asks the job (*did you turn every guest who calls into a booking?*), the brief's Prevalence and Frequency lines beside
   the served gate's (and Frequency's unit), each a finding where they differ, never a stop; the walk's
   served-no-chip finding names the condition X12 would draw. `instructions/spoken.py` S10 reads *Would you* as it reads
   *would you* (an introduced step past 20 words opens its question with a capital). Unit: `tests/test_after_130.py`.
+  The 068 pin of Frequency's *days* on Paidly (`test_revision_16_walk`) reads *months*. Unit: **3,158 passed, 53
+  skipped, 0 failed**; the grep clean.
 
 ## FR-2 -- contract 37
 

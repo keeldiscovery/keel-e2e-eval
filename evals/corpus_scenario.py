@@ -2199,8 +2199,13 @@ def _answer_one(j: Journey, person, token: str) -> None:
                 and not j.strict:
             # spec 067 FR-6 (corpus revision 15): the entry answers the segment's chip NO, but the page serves no chip
             # (the model wrote no condition for the gate) -- the person is walked as the page can ask them, and named
+            # spec 069 FR-1 (keel-cloud 130 FR-8): X12 draws a condition past the repair turn where the founder's
+            # people are qualified -- named, so the finding says what the chip would have asked
+            drawn = vs.drawn_condition(j.founder.context_fields.get("segment"))
             j.findings.append({"what": f"{person.person}: the entry answers the segment's condition NO, but the page "
-                                       "served no segment chip; walked inside, on their recorded answers",
+                                       "served no segment chip; walked inside, on their recorded answers"
+                                       + (f" (keel-cloud 130's X12 would draw '{drawn}' from the founder's people)"
+                                          if drawn else ""),
                                "served": {"gate": interview.get("gate")}})
             person = vs.inside_inputs(j.entry, person.person)
         kind = "COMMERCIAL_LINK" if person.link == vs.LINK_B2B else "FULL"

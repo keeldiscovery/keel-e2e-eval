@@ -27,6 +27,7 @@ deleted), what `instructions/overview.py` draws the corpus's Overview from (spec
 
 from __future__ import annotations
 
+import re
 from decimal import ROUND_HALF_UP, Decimal
 
 from . import corpus as corpus_mod
@@ -75,6 +76,33 @@ def prevalence_line(clause: str | None, window_words: str) -> str:
     if len(text) > 1 and text[0].isupper() and not text[1].isupper():
         text = text[0].lower() + text[1:]
     return f"{text} in {window_words}" if text else f"had it in {window_words}"
+
+
+def frequency_line(clause: str | None, window) -> str:
+    """keel-cloud 130 FR-2 (`BriefFacts.frequencyLine`): *the middle answer · {the window's unit, plural} they {the served
+    gate's clause}* -- *months they had rupees left over ...* on a month window, *days* only on a day window; *the
+    middle answer* where no gate is stored (a corpus entry). `window` is a `registry.RecallWindow`."""
+    return "the middle answer" if clause is None else f"the middle answer · {window.plural} they {clause}"
+
+
+def gate_clause_of_them(gate_question: str | None, window) -> str | None:
+    """keel-cloud 130 FR-6 (`BriefFacts.servedGateClause`'s new branch): a served gate whose clause names its own subject
+    (*In the last 7 days, did a booking call come in on your shift?*) is said of the people as what they had happen --
+    *had a booking call come in on their shift* -- the Prevalence and Frequency lines' clause. Read off the gate's own
+    frame (`WindowFrame.eventFromGate`): code frames *did you {clause}* or *did your ...* for a clause of the person's,
+    *did {clause}* only for one with a subject of its own, so the frame tells the two apart. None for the person's own
+    clause (code says it in its own past tense, `StrangerGrammar.saidOfThem`, not mirrored here) or a gate not in code's
+    frame."""
+    prefix = f"In {window.words()}, did "
+    text = str(gate_question or "").strip()
+    if not text.startswith(prefix) or not text.endswith("?"):
+        return None
+    event = text[len(prefix):-1].strip()
+    low = event.lower()
+    if not event or low == "you" or low.startswith(("you ", "your ")):
+        return None
+    return "had " + re.sub(r"\byour\b", "their", re.sub(r"\byours\b", "theirs",
+                                                          re.sub(r"\byourself\b", "themselves", event)))
 
 
 #: keel-cloud 122 FR-3 (`facts.decision.change`, `DecisionChangeCorpusTest`): the seven golden decisions' named change,
@@ -245,10 +273,9 @@ def card(entry, dimension, standing: dict, *, clause: str | None = None) -> dict
     elif key == FREQUENCY_KEY:
         unit = ((entry.founder_calibration.get(key) or {}).get("answer") or {}).get("unit")
         # keel-cloud 129 FR-1 (`BriefFacts.card`, T003): where the study stores a gate (a journey's scripted one), the
-        # days counted are the served gate's -- *the middle answer · days they {clause}* -- the corpus's line alone
-        # otherwise. (*days* is code's word whatever the window's unit: 05-paidly's months read it too.)
-        out.update(number=f"{_plain(standing.get('median'))} {unit}",
-                   line="the middle answer" if clause is None else f"the middle answer · days they {clause}")
+        # units counted are the served gate's -- the corpus's line alone otherwise; keel-cloud 130 FR-2
+        # (`BriefFacts.frequencyLine`): in the window's unit, 05-paidly's *months they waited ...*, never *days*
+        out.update(number=f"{_plain(standing.get('median'))} {unit}", line=frequency_line(clause, entry.window()))
     elif key == IMPORTANCE_KEY:
         out.update(number=_count(standing, "own_item_picks"), line="put it in their top two")
     elif key == CURRENT_SOLUTION_KEY:

@@ -1202,7 +1202,94 @@ def changed_screens(j, standings: dict | None = None) -> dict:
     read = getattr(j, "changed", None) or {}
     out["web_106"] = {k: read[k] for k in ("occasion_field", "context_wire", "idea_name", "needs_input",
                                            "market_other", "friction_row", "consumer_words", "gate_no") if k in read}
+    # spec 069 FR-1 / FR-2: keel-cloud 130's served words beside the harness's mirror, and contract 37's replaced rows
+    out["cloud_130"] = cloud_130(j, standings)
     return out
+
+
+def _tested_item(listed: dict | None) -> dict:
+    items = (listed or {}).get("items") or []
+    at = (listed or {}).get("pickedIndex") or 0
+    return items[at] if 0 <= at < len(items) else (items[0] if items else {})
+
+
+def _reveal_text(interview: dict) -> str | None:
+    """`VectorCorridor.revealText`, as the page was served it: the idea's lines joined (the reveal, else the idea)."""
+    lines = (interview or {}).get("reveal") or (interview or {}).get("idea") or {}
+    said = [str(lines.get(k) or "").strip() for k in ("what", "how", "howDecider", "belief")]
+    return " ".join(t for t in said if t) or None
+
+
+def cloud_130(j, standings: dict | None = None) -> dict:
+    """Spec 069 FR-1 (keel-cloud 130 FR-11, FR-10, FR-6, FR-2): on a back-test, the served Adoption statement and
+    Commitment stem beside the harness's mirror of 130's composer (`vs.adoption_statement`, `vs.commitment_stem`, from
+    the lock's tested face and step, the served idea name and reveal), a gate that asks the job, and the brief's
+    Prevalence and Frequency lines beside the served gate's clause and the window's unit -- each difference a finding,
+    never a stop. FR-2: the Check screen's replaced rows (contract 37), as the walk read them. Empty keys left out."""
+    from harness import vectors_script as vs                       # noqa: PLC0415
+    from instructions import brief_facts as bf                     # noqa: PLC0415
+    entry = j.entry
+    out: dict = {"stems": [], "gate_asks_the_job": [], "brief_lines": [], "replaced": []}
+    project = getattr(j, "project", None)
+    plan = _safe(lambda: j.get(project("/plan")), {}) if callable(getattr(j, "get", None)) and callable(project) \
+        else {}
+    lists = (plan or {}).get("lists") or {}
+    tested = _tested_item(lists.get("solution.adoption_friction"))
+    steps = ((lists.get("commercial.commitment") or {}).get("items") or [])
+    step = (steps[0] or {}).get("label") if steps else None
+    gates = set()
+    for person, interview in (getattr(j, "interviews", None) or {}).items():
+        items = {i.get("dimension"): i for part in (interview or {}).get("parts") or [] for i in part.get("items") or []}
+        name = vs.served_idea_name(interview or {})
+        adoption = items.get("solution.adoption_friction")
+        want = vs.adoption_statement(tested.get("asked") or tested.get("label"), name) if adoption else None
+        if adoption and want and adoption.get("question") != want:
+            out["stems"].append({"person": person, "dimension": "solution.adoption_friction", "rule": "130 FR-11",
+                                 "served": adoption.get("question"), "mirror": want})
+        commitment = items.get("commercial.commitment")
+        want = vs.commitment_stem(step, name, _reveal_text(interview)) if commitment and step else None
+        if commitment and want and commitment.get("question") != want:
+            out["stems"].append({"person": person, "dimension": "commercial.commitment", "rule": "130 FR-10",
+                                 "served": commitment.get("question"), "mirror": want})
+        gate = ((interview or {}).get("gate") or {}).get("question")
+        if gate:
+            gates.add(gate)
+    seen = set()
+    out["stems"] = [r for r in out["stems"] if (r["dimension"], r["served"]) not in seen
+                    and not seen.add((r["dimension"], r["served"]))]
+    window = _safe(lambda: entry.window())
+    for gate in sorted(gates):
+        if _safe(lambda g=gate: vs.gate_asks_the_job(entry, g), False):
+            out["gate_asks_the_job"].append({"gate": gate, "rule": "130 FR-6",
+                                             "circumstance before its negative": vs.without_negative_clause(
+                                                 (entry.context or {}).get("circumstance"))})
+    cards = {c.get("key"): c for c in ((standings or {}).get("facts") or {}).get("cards") or []}
+    if window is not None and len(gates) == 1:
+        clause = bf.gate_clause_of_them(next(iter(gates)), window)
+        prevalence, frequency = cards.get("problem.prevalence") or {}, cards.get("problem.frequency") or {}
+        if clause and prevalence.get("line") and prevalence["line"] != bf.prevalence_line(clause, window.words()):
+            out["brief_lines"].append({"key": "problem.prevalence", "rule": "130 FR-6", "line": prevalence["line"],
+                                       "mirror": bf.prevalence_line(clause, window.words())})
+        line = str(frequency.get("line") or "")
+        if clause and " · " in line and line != bf.frequency_line(clause, window):
+            out["brief_lines"].append({"key": "problem.frequency", "rule": "130 FR-6", "line": line,
+                                       "mirror": bf.frequency_line(clause, window)})
+        elif " · " in line and not line.startswith(f"the middle answer · {window.plural} they "):
+            out["brief_lines"].append({"key": "problem.frequency", "rule": "130 FR-2", "line": line,
+                                       "mirror": f"the middle answer · {window.plural} they ..."})
+    out["replaced"] = list((getattr(j, "changed", None) or {}).get("replaced") or [])
+    findings = getattr(j, "findings", None)
+    if isinstance(findings, list):
+        for row in out["stems"]:
+            findings.append({"what": f"{row['dimension']}: the served stem is not keel-cloud {row['rule']}'s "
+                                     "composition as the harness mirrors it (spec 069 FR-1)", "served": row})
+        for row in out["gate_asks_the_job"]:
+            findings.append({"what": "the gate asks the job, not the occasion's event (keel-cloud 130 FR-6)",
+                             "served": row})
+        for row in out["brief_lines"]:
+            findings.append({"what": f"{row['key']}: the brief's line is not the served gate's ({row['rule']})",
+                             "served": row})
+    return {k: v for k, v in out.items() if v}
 
 
 # ------------------------------------------------------------------------------------------- FR-4.3 the brief
@@ -1324,6 +1411,8 @@ def transcript(j, bt: Backtest) -> dict:
     wire = _wire(j)
     standings = wire.get("standings") or j.standings or {}
     me = _safe(lambda: j.get("/v2/me"), {})
+    # read before the findings are listed: these readings add their own (spec 067 FR-7, spec 069 FR-1)
+    changed = _safe(lambda: changed_screens(j, standings))
     return {
         "entry": {"id": entry.id, "title": entry.title, "path": str(entry.path), "sha256": entry.sha256,
                   "idea_name": getattr(entry, "idea_name", None), "b2b": entry.b2b()},
@@ -1335,7 +1424,7 @@ def transcript(j, bt: Backtest) -> dict:
         "founder_screens": founder_screens(j, bt.cam, wire),
         "respondents": respondent_questions(j, bt.cam),
         "spoken_guard": _safe(lambda: spoken_guard(j)),
-        "changed_screens": _safe(lambda: changed_screens(j, standings)),
+        "changed_screens": changed,
         "brief": _safe(lambda: brief(standings)),
         "readings": _safe(lambda: readings(j, wire.get("invitations") or {}), []),
         "cost": _safe(lambda: cost(j, bt)),
@@ -1474,6 +1563,20 @@ def markdown(r: dict) -> str:
             lines.append(f"- {row.get('person')} closed the price and was shown the plan: {_q(row.get('plan'))}")
         for row in changed.get("people_disagree_on_a_bar_line") or []:
             lines.append(f"- *People disagree* on a bar line: {row.get('key')} {row.get('number')}")
+        cloud = changed.get("cloud_130") or {}
+        if cloud:
+            lines.append("- keel-cloud 130's words beside the harness's mirror (spec 069 FR-1, FR-2):")
+            for row in cloud.get("stems") or []:
+                lines.append(f"  - {row.get('dimension')} ({row.get('rule')}): served *{row.get('served')}*; "
+                             f"mirror *{row.get('mirror')}*")
+            for row in cloud.get("gate_asks_the_job") or []:
+                lines.append(f"  - the gate asks the job ({row.get('rule')}): *{row.get('gate')}*")
+            for row in cloud.get("brief_lines") or []:
+                lines.append(f"  - {row.get('key')} ({row.get('rule')}): *{row.get('line')}*; mirror "
+                             f"*{row.get('mirror')}*")
+            for row in cloud.get("replaced") or []:
+                lines.append(f"  - replaced on {row.get('dimension')} (L21, contract 37): *{row.get('label')}* in "
+                             f"place of the founder's *{row.get('replaces')}*")
         web = changed.get("web_106") or {}
         if web:
             lines.append("- keel-web 106's screens (spec 068 FR-4):")
