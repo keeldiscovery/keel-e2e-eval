@@ -2563,8 +2563,9 @@ class Answers:
                          "href": r.get_attribute("href"), "text": _tc(r)}
                         for r in panel.locator("a.rp-row").all()]
                 head = " ".join(x for x in (_tc(panel.locator(".rp-pname")), _tc(panel.locator(".rp-pill"))) if x)
+                # keel-web 113 FR-4 (spec 073 FR-3): the full Overview draws no panel lead -- read so its absence is held
                 panels[stage] = {"present": panel.count() > 0, "head": head, "lead": _tc(panel.locator(".rp-plead")),
-                                 "rows": rows, "text": _tc(panel)}
+                                 "leads": panel.locator(".rp-plead").count(), "rows": rows, "text": _tc(panel)}
             bands, seen = [], set()
             for band in hero.locator("[data-stage]").all():
                 stage = band.get_attribute("data-stage")
@@ -2782,7 +2783,8 @@ class Answers:
         """*Download the brief* -- the binding (keel-web 077 FR-5, `/p/{id}/print`, `report-binding`): the tab's title
         (the file name), whether *Preparing your brief…* was drawn first (a mutation observer installed before the
         page loads), and each `article.page[data-page]` -- its kicker, title, meta line and foot (the page frame), its
-        whole text, and how many Overview rows it drew (page 1 draws the lead lines only). `window.print` is stubbed
+        whole text, how many Overview rows it drew (page 1 draws the lead lines only) and each panel's lead lines
+        (`leads`, keel-web 113 FR-4: page one keeps them, the full Overview does not). `window.print` is stubbed
         (050's), so nothing opens a dialog. `printed=False` is refused: the brief has no on-screen page any more
         (keel-web 077 FR-6 sends `/p/{id}/brief` to the Insights view)."""
         if not printed:
@@ -2807,6 +2809,10 @@ class Answers:
                               "foot": _words(page.locator(".rp-pfoot")),
                               "block169": page.locator(".rp-block169").count(),
                               "rows": page.locator("a.rp-row").count(),
+                              # keel-web 113 FR-4 (spec 073 FR-3): the panels' lead lines, kept on page one alone
+                              "leads": {stage: _tc(page.locator(f"[data-testid='report-stage-{stage}'] .rp-plead"))
+                                        for stage in ("PROBLEM", "SOLUTION", "COMMERCIAL")
+                                        if page.locator(f"[data-testid='report-stage-{stage}']").count()},
                               "text": _words(page)})
             text = _screen_text(self.page, "[data-testid='report-binding']")
             h.capture_text("download", text)

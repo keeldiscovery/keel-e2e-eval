@@ -127,13 +127,14 @@ def board(st: dict) -> dict:
     panels = {}
     for vector in ov.VECTORS:
         w = want["panels"][vector]
-        panels[vector] = {"present": True, "head": _join(w["name"], w["pill"]), "lead": _join(*w["lead"]),
+        # keel-web 113 FR-4 (spec 073 FR-3): the full Overview draws no panel lead
+        panels[vector] = {"present": True, "head": _join(w["name"], w["pill"]), "lead": "", "leads": 0,
                           "rows": [{"key": r["key"], "href": f"/p/x{r['href']}", "text": _join(*r["parts"])}
                                    for r in w["rows"]]}
     tiles = {k: {"present": True, "text": _join(*v)} for k, v in want["tiles"].items()}
     text = _join(want["eyebrow"], hero["kicker"], hero["verdict"], *hero["why"], *hero["caption"],
                  *(t["text"] for t in tiles.values()),
-                 *(_join(p["head"], p["lead"], *(r["text"] for r in p["rows"])) for p in panels.values()),
+                 *(_join(p["head"], *(r["text"] for r in p["rows"])) for p in panels.values()),
                  *want["foot"])
     return {"views": ["Overview", "Insights", "Pilot"], "eyebrow": want["eyebrow"],
             "hero": {"label": hero["label"], "class": f"rp-verdict l-{hero['label']}", "verdict": hero["verdict"],
@@ -209,6 +210,7 @@ def binding(st: dict, views: dict) -> dict:
     one = frame(1, "Keel brief · the overview", PROJECT)
     one["text"] = _join(rm.frame_text(one), want["hero"]["verdict"], *want["hero"]["why"],
                         *(_join(*t) for t in want["tiles"].values()), *leads)
+    one["leads"] = {v: _join(*want["panels"][v]["lead"]) for v in ov.VECTORS}      # spec 073 FR-3: page one keeps them
     two = frame(2, "Keel brief · the insights", rm.INSIGHTS_PAGE_TITLE)
     two["text"] = _join(rm.frame_text(two), views["insights"]["text"])
     three = frame(3, "Keel brief · the pilot", "4 of 17 signed up")
@@ -532,12 +534,36 @@ def test_nobody_signed_up_is_its_own_line():
     (lambda r: r["binding"]["pages"].pop(), "no breakdown"),
     (lambda r: r["binding"].update(title="Keel brief"), "the title is not the file name"),
     (lambda r: r["binding"].update(preparing_seen=False), "no Preparing your brief"),
+    (lambda r: r["binding"]["pages"][0].update(leads={}), "page 1 drew no lead line (keel-web 113 FR-4)"),
+    (lambda r: r["binding"]["pages"][0]["leads"].update(PROBLEM="1 of 4 holding."), "page 1's lead not the wire's"),
 ])
 def test_report_binding_fails_on_each_seeded_fault(fault, why):
     r = record()
     fault(r)
     check = _card(r)["report_binding"]
     assert check.measured and not check.ok, why
+
+
+def test_v2_the_full_overview_draws_no_lead_and_page_one_keeps_it():
+    """Spec 073 FR-3 (keel-web 113 FR-4): a lead line on the full Overview is report_overview's fault; on page one the
+    lead lines are the sheet's own words (113 J-13), so none of them is a word no view shows."""
+    assert rm.REPORT_MARKS_VERSION == 2
+    r = record()
+    assert _card(r)["report_overview"].ok and _card(r)["report_binding"].ok
+    one = r["binding"]["pages"][0]
+    lead = one["leads"]["PROBLEM"]
+    assert lead
+    # a word only page one's lead carries is the sheet's own; the same word anywhere else on page one is not
+    own = copy.deepcopy(r)
+    own["binding"]["pages"][0].update(text=one["text"] + " Holdouts")
+    own["binding"]["pages"][0]["leads"]["PROBLEM"] = lead + " Holdouts"
+    assert _card(own)["report_binding"].ok, _card(own)["report_binding"].detail
+    stray = copy.deepcopy(r)
+    stray["binding"]["pages"][0].update(text=one["text"] + " Holdouts")
+    assert not _card(stray)["report_binding"].ok
+    r["overview"]["panels"]["PROBLEM"].update(lead=lead, leads=1)
+    check = _card(r)["report_overview"]
+    assert not check.ok and any("panel:PROBLEM" in f for f in check.detail["faults"]), check.detail
 
 
 def test_a_healthy_projects_sheet_carries_no_in_their_words():

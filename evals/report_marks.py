@@ -12,8 +12,9 @@ four read a page and are this module's alone (call 120).
 - **`report_overview`**: the page's Overview equals the one `instructions/overview.py` draws from the wire's
   `StandingsView` -- the verdict's label and words, its line (*{How sure}. {reason}* and each failing dimension, or on
   KEEP_INTERVIEWING *{n} people have answered.* with the link to Interviews), the ship's three bands, the two tiles,
-  per stage the name, the pill, the lead lines and every row (name, status word, card or *nobody has answered this
-  yet*, its link to the stage page) in the registry's order, the foot; `StandingsView.priceMedian` equals
+  per stage the name, the pill, no lead line (v2: keel-web 113 FR-4 keeps it on the brief's page one) and every row
+  (name, status word, card or *nobody has answered this yet*, its link to the stage page) in the registry's order, the
+  foot; `StandingsView.priceMedian` equals
   `facts.commercial.priceMedian`; and nothing of the old deck (no `p.overall`, people tile, `.snaprow`,
   `.panel__count`, *A band opens its stage*, disabled download).
 - **`report_insights`**: one box per dimension not holding up or split, worst first, each the served `insights[]`
@@ -32,7 +33,8 @@ four read a page and are this module's alone (call 120).
   any; *Keel never emails on your behalf…* present.
 - **`report_binding`** (D10, tokens: call 2): the print route's pages 1-3 carry no word of four letters or more and no
   number that the Overview, the Insights and the Pilot views do not (their page frame apart: kicker, title, meta,
-  foot); page 1 draws no row; the breakdown's tokens are the stage pages' and the standings' (every number on it a
+  foot); page 1 draws no row, and every panel's lead lines as `instructions/overview.py` draws them from the wire (v2:
+  the sheet's own words, as its frame is); the breakdown's tokens are the stage pages' and the standings' (every number on it a
   number `StandingsView` carries); no *What to do next* anywhere, no old headline, and on a healthy project no *In
   their words*; the tab's title is *{project} — Keel brief — {date}* and *Preparing your brief…* came first.
 
@@ -52,7 +54,10 @@ from instructions import overview as ov
 from instructions.brief_facts import BAR_LINES, BROKE_ON, DID_NOT_HOLD, _plain, bar_words
 
 #: Bumped whenever a mark is born, retired, or reads its record differently.
-REPORT_MARKS_VERSION = 1
+#: v1 (spec 052): the five born. v2 (spec 073 FR-3, keel-web 113 FR-4): the panel lead line leaves the full Overview --
+#: `report_overview` holds it absent there (the rows carry the state as before) and `report_binding` holds it on page one,
+#: counted as the sheet's own words (113 J-13).
+REPORT_MARKS_VERSION = 2
 
 # ------------------------------------------------------------------------- the Pilot view's words (as 077)
 
@@ -215,9 +220,14 @@ def overview_faults(standings: dict, page: dict) -> list:
             faults.append({f"tile:{name}": tile.get("text"), "missing": missing})
     for vector in ov.VECTORS:
         w, g = want["panels"][vector], (page.get("panels") or {}).get(vector) or {}
-        missing = ov.in_order(g.get("head"), [w["name"], w["pill"]]) + ov.in_order(g.get("lead"), w["lead"])
+        missing = ov.in_order(g.get("head"), [w["name"], w["pill"]])
         if missing:
-            faults.append({f"panel:{vector}": {"head": g.get("head"), "lead": g.get("lead")}, "missing": missing})
+            faults.append({f"panel:{vector}": {"head": g.get("head")}, "missing": missing})
+        # keel-web 113 FR-4 (spec 073 FR-3): the full Overview's panels draw no lead line -- the rows carry the detail;
+        # the lead is held on the brief's page one (`binding_faults`)
+        if g.get("lead") or g.get("leads"):
+            faults.append({f"panel:{vector}": {"lead": g.get("lead"), "leads": g.get("leads")},
+                           "want": "no lead line on the full Overview"})
         rows = g.get("rows") or []
         if [r.get("key") for r in rows] != [r["key"] for r in w["rows"]]:
             faults.append({f"rows:{vector}": [r.get("key") for r in rows], "want": [r["key"] for r in w["rows"]]})
@@ -655,9 +665,19 @@ def binding_faults(r: dict) -> list:
         faults.append({"pages": numbered, "want": "1, 2, 3, then the breakdown"})
     views = {1: (r.get("overview") or {}).get("text"), 2: (r.get("insights") or {}).get("text"),
              3: (r.get("pilot") or {}).get("text")}
+    want_leads = {v: p["lead"] for v, p in expected_overview(standings)["panels"].items()}
     for page in pages:
         n = page.get("page")
         own = tokens(page.get("text")) - tokens(frame_text(page))
+        if n == 1:
+            # keel-web 113 FR-4 (spec 073 FR-3): page one keeps every panel's lead lines, the wire's drawing, and they
+            # are the sheet's own words (113 J-13: D10 counts them as it counts the frame)
+            leads = page.get("leads") or {}
+            for vector in ov.VECTORS:
+                missing = ov.in_order(leads.get(vector), want_leads[vector])
+                if missing:
+                    faults.append({f"page 1 lead:{vector}": leads.get(vector), "missing": missing})
+            own -= tokens(" ".join(str(x or "") for x in leads.values()))
         if n in views:
             extra = own - tokens(views[n])
             if extra:
