@@ -399,6 +399,7 @@ def leg_context(j: Journey) -> None:
         j.screens["context_card"] = {"understands": drawn, "text": drawn, **lines}
     if not windowed:
         _drift_96_guard(j, drawn, window_line)          # spec 072 FR-2: DRIFT #96 closed
+    _hold_the_context_states(j, drawn)
     _hold_the_occasion_field(j)
     j.corridor.confirm_context()
     with _step(j, "the context is confirmed on the wire: the four fields, the sentence, the window "
@@ -431,6 +432,75 @@ def leg_context(j: Journey) -> None:
             j.findings.append({"what": "the confirmed context's occasion is not the one the card's field drew "
                                        "(contract 36, spec 068 FR-5)",
                                "served": {"fields.occasion": fields.get("occasion"), "field": drawn_occasion}})
+
+
+def context_states_faults(states: list[dict], drawn: str) -> list:
+    """Spec 073 FR-1 (keel-web 113 FR-1): one Save's states as the step's root named them -- the form (four boxes and
+    Save), then the wait in its place (*Keel is reading your four answers.*, the counter, the phase bar and the truth
+    card; no field, no Save), then the card in the wait's place (the sentence drawn, *Yes, that's it* and *Edit*, none of
+    the four boxes). `[]` when every state was what it should be."""
+    order = [s.get("state") for s in states]
+    faults = []
+    if order != ["form", "wait", "card"]:
+        faults.append({"states": order, "want": ["form", "wait", "card"]})
+    by = {s.get("state"): s for s in states}
+    form, wait, card = by.get("form") or {}, by.get("wait") or {}, by.get("card") or {}
+    if form and (form.get("boxes") != 4 or form.get("save") != 1):
+        faults.append({"form": form, "want": "the four boxes and Save"})
+    if wait and (wait.get("status") != vs_screens.CONTEXT_READING or not (wait.get("elapsed") and wait.get("phasebar")
+                                                                         and wait.get("truth"))
+                 or wait.get("fields") or wait.get("save")):
+        faults.append({"wait": wait, "want": f"{vs_screens.CONTEXT_READING!r}, the counter, the phase bar and the truth "
+                                             "card; no field, no Save"})
+    if card and (card.get("big") != drawn or card.get("yes") != vs_screens.CONTEXT_YES
+                 or card.get("edit") != vs_screens.CONTEXT_EDIT or card.get("boxes")):
+        faults.append({"card": card, "want": {"big": drawn, "yes": vs_screens.CONTEXT_YES,
+                                              "edit": vs_screens.CONTEXT_EDIT, "boxes": 0}})
+    return faults
+
+
+def _hold_the_context_states(j: Journey, drawn: str) -> None:
+    """Spec 073 FR-1: Save, the wait held in the form's place, and the card in the wait's place (keel-web 113 FR-1)."""
+    states = (j.corridor.context_states or [[]])[-1]
+    faults = context_states_faults(states, drawn)
+    j.changed["context_states"] = states
+    with _step(j, "the context step is one state at a time: the form, Save, the wait in its place (the counter, the "
+                  "phase bar, the truth card), then the card in the wait's place with Edit (keel-web 113 FR-1)",
+               party="founder", kind="assert" if j.strict else "note") as h:
+        h.record_assert({"states": ["form", "wait", "card"], "faults": []}, {"states": states, "faults": faults})
+        if j.strict:
+            assert not faults, faults
+    if faults and not j.strict:
+        _found(j, f"{j.entry.id}: the context step's states (keel-web 113 FR-1)", faults)
+
+
+def context_reopened(j: Journey) -> None:
+    """Spec 073 FR-1, the fourth state (S-005): the confirmed context re-opened -- its sentence the card's, *Continue to
+    the problem* and *Edit*, no box -- and *Edit*: the form again, filled with what was confirmed (the four fields, the
+    window, the occasion). Nothing is saved: the next leg opens the problem from its own address."""
+    founder = j.founder
+    windowed = vs.serves_gate(j.entry)
+    seen = j.changed["context_reopened"] = j.corridor.context_confirmed(j.project_id)
+    confirmed = (j.get(j.project("/context")) or {}).get("fields") or {}
+    want = {"state": "confirmed", "understands": j.screens["context_card"]["understands"],
+            "continue": vs_screens.CONTEXT_CONTINUE, "edit": vs_screens.CONTEXT_EDIT, "boxes": 0,
+            "edited": {"state": "form", "fields": founder.context_fields,
+                       "window": founder.window.as_wire() if windowed else None,
+                       "occasion": confirmed.get("occasion"), "save": vs_screens.CONTEXT_SAVE}}
+    with _step(j, "the confirmed context re-opened: the sentence, Continue to the problem and Edit; Edit brings the "
+                  "form back filled with what was confirmed, and nothing is saved (keel-web 113 FR-1)",
+               party="founder") as h:
+        h.record_assert(want, seen)
+        assert {k: seen.get(k) for k in ("state", "understands", "continue", "edit", "boxes")} == \
+            {k: want[k] for k in ("state", "understands", "continue", "edit", "boxes")}, seen
+        edited = seen.get("edited") or {}
+        assert edited.get("state") == "form" and edited.get("fields") == founder.context_fields, edited
+        assert edited.get("window") == want["edited"]["window"], edited
+        assert edited.get("save") == vs_screens.CONTEXT_SAVE, edited
+        if confirmed.get("occasion"):
+            assert edited.get("occasion") == confirmed["occasion"], (edited, confirmed)
+        view = j.get(j.project("/context")) or {}
+        assert view.get("state") == "CONFIRMED" and view.get("understands") == want["understands"], view
 
 
 # --------------------------------------------------------------- spec 068 FR-4: keel-web 106's screens, held
@@ -3677,7 +3747,8 @@ def _score_guide(j: Journey) -> dict:
 
 def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         extra: Callable[[Journey], None] | None = None, entry_from: Callable | None = None,
-        welcome_walk: bool = False, teaching: bool = False, backtest: Any = None) -> None:
+        welcome_walk: bool = False, teaching: bool = False, backtest: Any = None,
+        context_edit: bool = False) -> None:
     """The whole scenario. `entry_id` is the only argument that differs between S-005, S-006 and
     S-007. `extra` is the one seam: the thing only *its* entry can say, handed the `Journey`. `entry_from` is S-014's
     (spec 052 FR-7): the entry the journey walks, built from the canon one (`preludes.healthy_entry`) -- the canon's
@@ -3685,6 +3756,8 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
     profile the welcome's twelve cues are walked through the seam and *Play the welcome again* pressed twice.
     `teaching` is S-005's too (spec 057): it measures G6-G12; every other journey passes keel-web 086's opener and
     report sheets by (`vs_screens.pass_teaching_sheet`, in the corridor and the report's page objects).
+    `context_edit` is S-005's too (spec 073 FR-1): the confirmed context re-opened and *Edit* pressed, the fourth of
+    keel-web 113's context states (`context_reopened`), after the problem's opener and before its chat.
 
     `backtest` is spec 062's (`evals/backtest.Backtest`, `make backtest`): the entry is read from the back-test
     directory and walked with `strict=False` (S-012's mode) by a founder who signs up through keel-web's /signup, so
@@ -3771,6 +3844,8 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
             leg_context(journey)
             lap("leg_context")
             opener(journey, "PROBLEM")
+            if context_edit:
+                context_reopened(journey)
             leg_interpret_problem(journey)
             lap("leg_interpret_problem")
             leg_calibrate(journey, "PROBLEM")

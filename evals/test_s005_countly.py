@@ -77,5 +77,7 @@ def _countly_extras(j) -> None:
 
 def test_s005_countly(stack, founder_one, browser, run_dir):
     # Spec 054 FR-3: once per matrix, the welcome's cue walk and its two replays (local profile only; Escape closes it).
+    # Spec 073 FR-1: the confirmed context re-opened and Edit pressed -- keel-web 113's fourth context state.
     corpus_scenario.run(stack, founder_one, browser, run_dir,
-                        entry_id=ENTRY_ID, slug="s005-countly", extra=_countly_extras, welcome_walk=True, teaching=True)
+                        entry_id=ENTRY_ID, slug="s005-countly", extra=_countly_extras, welcome_walk=True, teaching=True,
+                        context_edit=True)

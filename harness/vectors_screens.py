@@ -52,6 +52,15 @@ SOMEONE_ELSE_USES = ("Someone else would use it", "Who would use it instead?")
 KICKER_INTERPRETATION = "Here's what Keel understood"
 KICKER_MECHANISM = "Here's the mechanism Keel understood"
 KICKER_CONTEXT = "Keel understands"
+#: keel-web 113 FR-1 (its *Selectors for keel-e2e-eval*): the context step draws one state at a time, named on its root
+#: -- the form, the wait (Save pressed: `WaitCompany`'s counter, phase bar and truth card in the form's place), the card
+#: (*Keel understands*, *Edit* back to the form) and, re-opened once confirmed, the confirmed sentence.
+CONTEXT_STEP = "[data-testid=context-step]"
+CONTEXT_STATES = ("form", "wait", "card", "confirmed")
+#: keel-web `CONTEXT_READING`, `CONTEXT_CONTINUE_LABEL` and `CARD_EDIT` (the card's and the confirmed state's *Edit*).
+CONTEXT_READING = "Keel is reading your four answers."
+CONTEXT_CONTINUE = "Continue to the problem"
+CONTEXT_EDIT = "Edit"
 #: keel-web 093 FR-2 (`REFUSED_LEAD`): a refused step's lead on Keel's door -- the back-test markdown's anchor.
 REFUSED_LEAD = "Keel couldn't finish this step"
 CONTINUE = "Continue"
@@ -943,6 +952,64 @@ def pass_teaching_sheet(page: Page, recorder: Recorder, base: str, kind: str, st
 
 # --------------------------------------------------------------------------------------- Corridor
 
+#: Spec 073 FR-1 (keel-web 113 FR-1): every state the context step's root names from the moment it is installed, one
+#: row a state as it is entered (`data-context-state`), with what that state draws -- the wait's status line, counter,
+#: phase bar and truth card, and no field or Save; the card's sentence, its two buttons and no box; the form's four
+#: boxes and Save. A MutationObserver, so a wait that lasts one render is still seen; a state's booleans and counts are
+#: merged over its whole stay (the counter mounts with the block).
+_CONTEXT_STATES_JS = """() => {
+  const words = (el) => el ? (el.textContent || '').replace(/\\s+/g, ' ').trim() : null;
+  const read = () => {
+    const root = document.querySelector('[data-testid=context-step]');
+    if (!root) return null;
+    const state = root.getAttribute('data-context-state');
+    const out = {state};
+    if (state === 'wait') {
+      const block = root.querySelector('.waitco-block');
+      out.status = words(block && block.querySelector('p.cnote[role=status]'));
+      out.elapsed = !!root.querySelector('.waitco .waitco__elapsed');
+      out.phasebar = !!root.querySelector('.waitco .phasebar');
+      out.truth = !!root.querySelector('.waitco .truth');
+      out.fields = root.querySelectorAll('.cfield').length;
+      out.save = root.querySelectorAll('[data-testid=context-save]').length;
+    } else if (state === 'card') {
+      const card = root.querySelector('.understands');
+      out.big = words(card && card.querySelector('.understands__big'));
+      out.yes = words(card && card.querySelector('.actions .btn.primary'));
+      out.edit = words(card && card.querySelector('.actions .btn:not(.primary)'));
+      out.boxes = root.querySelectorAll('textarea.cfield__input').length;
+    } else {
+      out.boxes = root.querySelectorAll('textarea.cfield__input').length;
+      out.save = root.querySelectorAll('[data-testid=context-save]').length;
+    }
+    return out;
+  };
+  const seen = window.__keelContextStates = [];
+  const keep = () => {
+    const r = read();
+    if (!r) return;
+    const last = seen[seen.length - 1];
+    if (!last || last.state !== r.state) { seen.push(r); return; }
+    for (const [k, v] of Object.entries(r)) {
+      if (typeof v === 'boolean') last[k] = last[k] || v;
+      else if (typeof v === 'number') last[k] = Math.max(last[k] || 0, v);
+      else if (v && !last[k]) last[k] = v;
+    }
+  };
+  window.__keelContextKeep = keep;
+  if (window.__keelContextObserver) window.__keelContextObserver.disconnect();
+  window.__keelContextObserver = new MutationObserver(keep);
+  window.__keelContextObserver.observe(document.body, {subtree: true, childList: true, characterData: true,
+                                                       attributes: true});
+  keep();
+  return seen.length;
+}"""
+_CONTEXT_STATES_READ_JS = """() => {
+  if (window.__keelContextKeep) window.__keelContextKeep();
+  if (window.__keelContextObserver) window.__keelContextObserver.disconnect();
+  return window.__keelContextStates || [];
+}"""
+
 #: Spec 067 FR-5: how often the context card's wait looks at the CONTEXT_INTERPRET job (ms).
 CONTEXT_POLL_MS = 5_000
 
@@ -961,6 +1028,8 @@ class Corridor:
         self._b = _BrowserStep(recorder, page, "founder")
         self.conflicts = []
         self.saves = []
+        #: Spec 073 FR-1: each context Save's states as the step's root named them (`_CONTEXT_STATES_JS`).
+        self.context_states = []
         self.resent = []
         #: Spec 071: whether the context step drew the recall window (none on money alone, keel-web 109 FR-3).
         self.window_drawn = None
@@ -1062,6 +1131,7 @@ class Corridor:
             # spec 071 (keel-web 109 FR-3): money alone draws no recall window -- `window` None, and none is typed
             self.window_drawn = self.page.locator("input.cwindow__count").count() > 0
             h.add_screenshot(self._b.screenshot("context-filled"))
+            self.page.evaluate(_CONTEXT_STATES_JS)
             saved = self._save_context()
             self.saves.append(saved)
             if isinstance(saved.get("status"), int) and saved["status"] >= 400:
@@ -1082,6 +1152,7 @@ class Corridor:
                         if time.monotonic() > deadline:
                             raise
                         on_wait(saved.get("interaction_id"))
+            self.context_states.append(self.page.evaluate(_CONTEXT_STATES_READ_JS))
             h.capture_text("stage_screen", _screen_text(self.page, ".ccard"))
             h.add_screenshot(self._b.screenshot("context-card"))
             self._shot("context-card")
@@ -1156,6 +1227,43 @@ class Corridor:
             node = self.page.get_by_test_id(testid)
             out[key] = " ".join((node.first.text_content() or "").split()) if node.count() else None
         return out
+
+    def context_confirmed(self, project_id: str) -> dict:
+        """keel-web 113 FR-1 (spec 073 FR-1): the context step re-opened once confirmed -- the confirmed state (the
+        sentence, the window line, *Continue to the problem* and *Edit*, no box) -- then *Edit*: the form again, its
+        four boxes, the occasion and the window filled with what was confirmed. Nothing is saved; the walk goes on
+        from another address."""
+        with self._b.step("founder re-opens the confirmed context and presses Edit: the form comes back filled "
+                          "(keel-web 113 FR-1)") as h:
+            self.page.goto(f"{self.base}/p/{project_id}/define/context", wait_until="load")
+            root = self.page.locator(f"{CONTEXT_STEP}[data-context-state=confirmed]").first
+            root.wait_for(state="visible", timeout=20_000)
+            understood = root.locator("[data-testid=context-understood]")
+            edit = self.page.get_by_test_id("context-edit")
+            out = {"state": root.get_attribute("data-context-state"),
+                   "understands": _tc(understood.locator(".understands__big")),
+                   "window": _tc(understood.locator(".understands__window")) or None,
+                   "continue": _tc(root.locator(".ccard__foot .btn.primary")),
+                   "edit": _tc(edit), "boxes": root.locator("textarea.cfield__input").count()}
+            h.capture_text("stage_screen", _screen_text(self.page, ".ccard"))
+            h.add_screenshot(self._b.screenshot("context-confirmed-reopened"))
+            edit.first.click()
+            form = self.page.locator(f"{CONTEXT_STEP}[data-context-state=form]").first
+            form.wait_for(state="visible", timeout=10_000)
+            count = form.locator("input.cwindow__count")
+            unit = form.locator("select.cwindow__unit")
+            occasion = form.locator("input#context-occasion")
+            raw = _value(count.first) if count.count() else None
+            out["edited"] = {
+                "state": form.get_attribute("data-context-state"),
+                "fields": {k: _value(form.locator(f"textarea#context-{k}").first)
+                           for k in ("actor", "job", "circumstance", "segment")},
+                "window": {"count": int(raw) if raw and raw.isdigit() else raw, "unit": _value(unit.first)}
+                if raw is not None else None,
+                "occasion": _value(occasion.first) if occasion.count() else None,
+                "save": _tc(self.page.get_by_test_id("context-save"))}
+            h.add_screenshot(self._b.screenshot("context-edit-filled"))
+            return out
 
     def confirm_context(self) -> None:
         with self._b.step("founder confirms: Yes, that's it") as h:
