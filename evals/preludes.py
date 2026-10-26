@@ -186,7 +186,10 @@ def create_project(page: Page, recorder: Recorder, web_base: str,
     market.fill(founder.market.country, founder.market.region)
     if seen is not None and market.other is not None:
         seen["market_other"] = market.other            # spec 068 FR-4: keel-web 106 FR-8's Another-country fields
-    return market.start(welcome=welcome)
+    project_id = market.start(welcome=welcome)
+    if seen is not None and getattr(market, "welcome", None) is not None:
+        seen["welcome_pass"] = market.welcome          # spec 073 FR-4: the welcome passed by, its clip key per scope
+    return project_id
 
 
 def walk_stage(page: Page, recorder: Recorder, get_json: GetJson, project_id: str, stage_type: str,

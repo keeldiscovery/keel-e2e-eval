@@ -407,6 +407,20 @@ class GuideWelcome:
     def count(self) -> int:
         return self.page.locator(self.sheet).count()
 
+    def clip(self) -> dict:
+        """keel-web 114 FR-1 (spec 073 FR-4): the sheet's clip key (`data-clip`) and the face's files -- the video's
+        `src` and `poster` and its captions track's `src` -- as drawn."""
+        none = {"clip": None, "src": None, "poster": None, "track": None}
+        try:
+            return self.page.evaluate("""([sheet, face]) => {
+              const s = document.querySelector(sheet); const v = document.querySelector(face);
+              const t = v && v.querySelector('track');
+              return {clip: s ? s.getAttribute('data-clip') : null, src: v ? v.getAttribute('src') : null,
+                      poster: v ? v.getAttribute('poster') : null, track: t ? t.getAttribute('src') : null};
+            }""", [self.sheet, GUIDE_FACE]) or none
+        except Exception:  # noqa: BLE001 - a read
+            return none
+
     def absent(self, after: Callable[[], Any] | None = None, *, timeout_s: float = 15,
                grace_s: float = 5, seen_key: str = "welcomeSeen", screen: str = "") -> dict:
         """The sheet's count, read only once the page has received the overview that carries `guide` and drawn the
@@ -640,7 +654,8 @@ class GuideWelcome:
         with self.recorder.step("the guide's welcome opened over the project's first screen; this journey does not "
                                 "judge it and passes it by with Skip (spec 054 FR-6)",
                                 party="founder", kind="note") as h:
-            out = {"shown": True, "received": received, **self._close(self._press_skip)}
+            drawn = self.clip()                     # spec 073 FR-4: the clip per scope, read before Skip
+            out = {"shown": True, "received": received, **drawn, **self._close(self._press_skip)}
             h.request = {"received": received}
             h.response = out
         return out

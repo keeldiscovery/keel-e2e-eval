@@ -411,6 +411,9 @@ def test_every_present_clip_in_keel_webs_manifest_is_one_the_marks_know():
     public = {"welcome", "interviewer-sample", "landing-intro", "sample-question", "home-intro",
               "sample-question-solution", "sample-question-money"}
     scoped = {"report-read-problem", "report-read-solution", "report-read-solution-money", "report-read-money"}
+    # keel-web 114 (spec 073 FR-4): the welcome per scope -- four more keys, each the sheet's clip on a study of one
+    # scope; no teaching mark's, and G12 reads their captions with every other present clip.
+    scoped |= {marks.welcome_clip(s) for s in ("PROBLEM", "SOLUTION", "SOLUTION_COMMERCIAL", "COMMERCIAL")}
     assert keys and keys <= known | public | scoped, sorted(keys - known - public - scoped)
 
 

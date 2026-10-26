@@ -82,7 +82,8 @@ that sends a batch of links (S-006, its contacts leg). Every other open of Sent 
   more*, *... · enough for now* once the server's aim is met, or *nothing sent yet · invite about <k>* -- the numbers
   the wire's kinds and the register's own rows agree on; no count line under the buttons.
 
-G12's word guard covers the three page clips with the rest (29 in the manifest).
+G12's word guard covers the three page clips with the rest (29 in the manifest at keel-web 088; 42 at 114, the
+four scoped welcomes among them -- spec 073 FR-4).
 
 G4 and G5 are measured once per matrix, on S-005's local journey; every other journey and the remote profile carry no
 `replay` or `walk`, so the card reports them **unmeasured** and the record's `notes` say why (`REMOTE_WHY` /
@@ -131,6 +132,16 @@ GONE_MS = 1_000
 #: FR-3 d: *Play again* starts the video near 0 s.
 REPLAY_NEAR_S = 1.0
 WELCOME = {"what": "WELCOME"}
+#: keel-web 114 FR-1 (`welcomeClipOf`, spec 073 FR-4): the welcome sheet's clip key per project scope, drawn as the
+#: sheet's `data-clip` -- the whole study (ALL, and a scope the overview does not carry) keeps `welcome`; the four
+#: scoped clips are four more keys in the manifest (42 at keel-web 114), read by G12 with every other present clip.
+WELCOME_CLIPS = {"ALL": "welcome", "PROBLEM": "welcome-problem", "SOLUTION": "welcome-solution",
+                 "SOLUTION_COMMERCIAL": "welcome-solution-money", "COMMERCIAL": "welcome-money"}
+
+
+def welcome_clip(scope: str | None) -> str:
+    """The welcome's clip key for a project of `scope` (keel-web 114 `welcomeClipOf`)."""
+    return WELCOME_CLIPS.get(scope or "ALL", WELCOME_CLIPS["ALL"])
 #: Why G4 / G5 are unmeasured where they are (the `REMOTE_TYPES` precedent, `evals/corpus_scenario.py`).
 REMOTE_WHY = ("keel-web reads window.__keelGuide only in its test build and staging serves the production build, so "
               "the cue walk and the replays (G4, G5) are not run on the remote profile")

@@ -349,6 +349,7 @@ def run(stack, founder_one, browser, run_dir, *, scope: str, entry_from, slug: s
         user_code = cs._connect(stack, recorder, page, founder_one, web_base, run_dir, keys_path)
         own_ai_door(page, recorder, stack, j.get, through_the_code_story=bool(user_code))
         cs.leg_project(j)
+        cs.hold_the_welcome_clip(j)             # spec 073 FR-4: the welcome per scope (keel-web 114)
         walk(j)
         if j.deferred:
             with recorder.step(f"spec 064: {len(j.deferred)} golden reading(s) the build moved", party="stack",

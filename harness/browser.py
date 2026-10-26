@@ -2002,6 +2002,9 @@ class MarketStep:
 
     #: Spec 068 FR-4: what the Another-country fields drew (None where the market is in the table).
     other: dict | None = None
+    #: Spec 073 FR-4: what `start(welcome="pass")`'s pass read (`GuideWelcome.pass_by`: the clip key per scope), None
+    #: until then or where the welcome is held.
+    welcome: dict | None = None
 
     def _other_currencies(self) -> list:
         """`[data-testid=market-other-currency]`'s option values after the placeholder, in the order drawn."""
@@ -2097,7 +2100,8 @@ class MarketStep:
             if not match:
                 raise AssertionError(f"starting the project did not land on a project shell: {self.page.url}")
             if wire is not None:
-                GuideWelcome(self.page, self._bstep.recorder).pass_by(wire, timeout_s=5.0)
+                # spec 073 FR-4: what the pass read (the clip key per scope) is kept for the scoped journeys to hold
+                self.welcome = GuideWelcome(self.page, self._bstep.recorder).pass_by(wire, timeout_s=5.0)
         finally:
             if wire is not None:
                 wire.detach()

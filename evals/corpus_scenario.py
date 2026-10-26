@@ -649,9 +649,14 @@ def leg_welcome(j: Journey, *, walk: bool = False) -> None:
         record["first_frame"] = {"cues_fired": guide.cues_fired(), "current_time": guide.clock()}
         record["first_open"] = {"present": present, "received": wire.received() if wire else None,
                                 "url": j.page.url}
-        h.record_assert({"present": True, "received": {"welcomeSeen": False, "openersSeen": []}},
-                        record["first_open"])
+        # spec 073 FR-4 (keel-web 114 FR-1): the clip per scope -- `welcome` under ALL, its four files the same key's
+        record["clip"] = guide.clip()
+        clip = guide_marks.welcome_clip(j.scope)
+        h.record_assert({"present": True, "received": {"welcomeSeen": False, "openersSeen": []},
+                         "clip": {"clip": clip, "src": f"/guide/{clip}.mp4"}},
+                        {**record["first_open"], "clip": record["clip"]})
         assert present, f"G1: no guide-welcome at the first open ({j.page.url})"
+        assert record["clip"].get("clip") == clip and record["clip"].get("src") == f"/guide/{clip}.mp4", record["clip"]
     revision_before = j.revision()
 
     with _step(j, "Skip is visible, enabled and in view at 1280 x 720 and at 390 x 844, and the sheet's only "
@@ -756,6 +761,21 @@ def leg_welcome(j: Journey, *, walk: bool = False) -> None:
 
     if walk:
         _replay_twice(j, guide)
+
+
+def hold_the_welcome_clip(j: Journey) -> None:
+    """Spec 073 FR-4 (keel-web 114 FR-1): on a study of one scope the welcome the project opened under -- passed by with
+    Skip, as on every journey that does not judge it -- is that scope's clip (`data-clip`), its face, poster and
+    captions the same key's files."""
+    passed = j.changed.get("welcome_pass") or {}
+    clip = guide_marks.welcome_clip(j.scope)
+    want = {"shown": True, "clip": clip, "src": f"/guide/{clip}.mp4", "poster": f"/guide/{clip}.jpg",
+            "track": f"/guide/{clip}.vtt"}
+    with _step(j, f"{j.scope}: the welcome is the scope's own clip, {clip} -- its face, poster and captions "
+                  "(keel-web 114 FR-1)", party="founder") as h:
+        drawn = {k: passed.get(k) for k in want}
+        h.record_assert(want, passed)
+        assert drawn == want, drawn
 
 
 def _walk_the_cues(j: Journey, guide) -> None:
