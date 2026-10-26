@@ -136,6 +136,11 @@ HOST_VAR = "KEEL_BACKTEST_HOST"
 HOSTS = ("claude",)
 #: FR-2: `MODEL=` -- read, and refused by name: the runtime has no session-wide `--model` (judgement call 2).
 MODEL_VAR = "KEEL_BACKTEST_MODEL"
+#: Spec 071 FR-4: `make backtest SCOPE=` / `scripts/backtest-host.sh --scope` -- the study's scope the entry is walked
+#: under (keel-cloud 133, contract 38), ALL (the harness's, every entry as written) when unsaid.
+SCOPE_VAR = "KEEL_BACKTEST_SCOPE"
+SCOPES = ("PROBLEM", "SOLUTION", "SOLUTION_COMMERCIAL", "COMMERCIAL", "ALL")
+DEFAULT_SCOPE = "ALL"
 
 #: FR-2: the runtime's home inside the run, and the log its stdout and stderr go to.
 KEEL_HOME_DIR = "keel_home"
@@ -186,10 +191,25 @@ def host(env: dict | None = None) -> str:
     return raw
 
 
+def scope(env: dict | None = None) -> str:
+    """Spec 071 FR-4: `SCOPE=` (`--scope` on the host runner), ALL when unsaid; anything but a contract-38 `StudyScope`
+    refused by name, never a fallback (a typo that walked ALL would spend a whole study's jobs)."""
+    env = os.environ if env is None else env
+    raw = (env.get(SCOPE_VAR) or "").strip().upper()
+    if not raw:
+        return DEFAULT_SCOPE
+    if raw not in SCOPES:
+        raise UnknownDoor(f"make backtest refuses: SCOPE={raw!r} is not a study scope -- one of {', '.join(SCOPES)} "
+                          "(keel-cloud 133, contract 38; ALL when unsaid)")
+    return raw
+
+
 def door_refusal(env: dict | None = None) -> str | None:
-    """FR-1 / FR-2: the one sentence for a door, host or model the back-test will not run, else `None`."""
+    """FR-1 / FR-2: the one sentence for a door, host, model or (spec 071) scope the back-test will not run, else
+    `None`."""
     env = os.environ if env is None else env
     try:
+        scope(env)
         if door(env) != "host":
             return None
         host(env)
@@ -655,6 +675,8 @@ class Backtest:
     #: Spec 066 FR-1: which door the founder came through -- `keel` (spec 062) or `host` (the founder's own CLI).
     door: str = DEFAULT_DOOR
     host: str | None = None
+    #: Spec 071 FR-4: the study's scope the entry is walked under -- ALL unless `--scope` / `SCOPE=` named another.
+    scope: str = DEFAULT_SCOPE
     #: Spec 066 FR-2: the runtime the back-test started on the host door, and what the door read.
     runtime: HostRuntime | None = None
     door_facts: dict = field(default_factory=dict)
@@ -1527,6 +1549,8 @@ def transcript(j, bt: Backtest) -> dict:
     return {
         "entry": {"id": entry.id, "title": entry.title, "path": str(entry.path), "sha256": entry.sha256,
                   "idea_name": getattr(entry, "idea_name", None), "b2b": entry.b2b()},
+        # spec 071 FR-4: the scope the project was created with (keel-cloud 133), as the overview served it
+        "scope": bt.scope,
         "stack": {"keel-cloud": _sha(getattr(j.stack, "keel_cloud", None)),
                   "keel-web": _sha(getattr(j.stack, "keel_web", None))},
         "founder": {"identity": IDENTITY_EMAIL, "at sign-up": bt.me_at_signup,
@@ -1573,7 +1597,9 @@ def markdown(r: dict) -> str:
              f"- Entry: `{entry.get('id')}` ({entry.get('path')}), the founder's idea name *{entry.get('idea_name')}*",
              f"- Run: `{r.get('run')}` -- {'walked to the end' if r.get('passed') else 'stopped at: ' + _q(r.get('failed_step'))}",
              f"- Stack: keel-cloud `{(r.get('stack') or {}).get('keel-cloud')}`, keel-web "
-             f"`{(r.get('stack') or {}).get('keel-web')}`, {answered_by}, founder `{IDENTITY_EMAIL}`",
+             f"`{(r.get('stack') or {}).get('keel-web')}`, {answered_by}, founder `{IDENTITY_EMAIL}`"
+             # spec 071 FR-4: the study's scope beside the stack, where it is not the whole study
+             + ("" if (r.get("scope") or DEFAULT_SCOPE) == DEFAULT_SCOPE else f", scope **{r.get('scope')}**"),
              f"- Decision: **{decision.get('label')}** ({decision.get('howSure')}; {decision.get('reason')})",
              f"- Verdicts: {_q(b.get('verdicts'))}",
              f"- Pilot: {_q(b.get('pilot', {}) and {k: (b.get('pilot') or {}).get(k) for k in ('optedIn', 'finished', 'percent')})}"
@@ -1819,7 +1845,7 @@ def summary(run_dir: Path | None, entry_id: str) -> dict:
         out["steps"], out["bad"] = steps, bad
     except (OSError, ValueError):
         pass
-    out.update(run=Path(run_dir).name, door="KEEL", score=None)
+    out.update(run=Path(run_dir).name, door="KEEL", score=None, scope=DEFAULT_SCOPE)
     try:
         record = json.loads((Path(run_dir) / RECORD).read_text(encoding="utf-8"))
         out["decision"] = (((record.get("brief") or {}).get("decision")) or {}).get("label")
@@ -1827,6 +1853,7 @@ def summary(run_dir: Path | None, entry_id: str) -> dict:
         out["door"] = "host" if (record.get("door") or {}).get("door") == "host" or record.get("spec") == "062+066" \
             else "KEEL"
         out["score"] = record.get("score")             # a judge's; a run's own record carries none today
+        out["scope"] = record.get("scope") or DEFAULT_SCOPE     # spec 071 FR-4; a record from before it is ALL
     except (OSError, ValueError, AttributeError):
         pass
     try:
@@ -1860,7 +1887,12 @@ def rerun_row(row: dict, register_text: str) -> str:
     decision, the score the run's record carries (none until judged), and the previous row's score for the entry read
     from the register. The parent session fills *Judged* and the judge's score and adds the row; nothing is written."""
     was = (register_scores(register_text, row["id"]) or [None])[-1]
-    return (f"re-run row: | {row['id']} | (judged: to fill) | {row.get('run') or '--'} | {row.get('door') or '--'} | "
+    # spec 071 FR-4: the register names the stack a run walked in its Door column (KEEL / host); a study walked under a
+    # scope other than ALL says so there, so a row is never read as the whole study's
+    stack = row.get("door") or "--"
+    if (row.get("scope") or DEFAULT_SCOPE) != DEFAULT_SCOPE:
+        stack = f"{stack} · {row['scope']}"
+    return (f"re-run row: | {row['id']} | (judged: to fill) | {row.get('run') or '--'} | {stack} | "
             f"{row.get('decision') or '--'} | {row.get('score') or 'to be judged'} | Re-run: after 128 · was "
             f"{was or 'no earlier row'} |")
 

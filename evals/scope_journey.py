@@ -167,7 +167,7 @@ def leg_idea_card(j: cs.Journey) -> None:
     m = j.entry.solution_mechanism
     with cs._step(j, "money alone: the mechanism card draws the entry's own trigger, mechanism and output",
                   party="founder") as h:
-        want = [m["trigger"], m["mechanism"], m["output"]]
+        want = [m["trigger"], m["mechanism"], m["output"]] if j.strict else []
         missing = [part for part in want if part not in card["text"]]
         h.record_assert(want, card)
         assert not missing, missing
@@ -183,7 +183,8 @@ def leg_idea_card(j: cs.Journey) -> None:
         h.record_assert({"how": want["how"], "belief": want["belief"], "what": name, "approved": True,
                          "kicker": "Step 3 of 5 · Your idea"}, {"screen": seen, "wire": idea})
         assert {k: idea.get(k) for k in ("how", "belief")} == {k: seen["lines"][k] for k in ("how", "belief")}, idea
-        assert {k: seen["lines"][k] for k in ("how", "belief")} == {k: want[k] for k in ("how", "belief")}, seen
+        if j.strict:
+            assert {k: seen["lines"][k] for k in ("how", "belief")} == {k: want[k] for k in ("how", "belief")}, seen
         assert idea.get("what") == name and idea.get("approved") is True, idea
         assert (seen["frame"].get("kicker") or "").lower().startswith("step 3 of 5 · your idea"), seen["frame"]
         j.idea_name = str(idea.get("shortName") or idea.get("what") or "")
@@ -256,10 +257,53 @@ def leg_scoped_report(j: cs.Journey) -> dict:
     card = scope_marks.score(record)
     (j.recorder.run_dir / "scope-marks.json").write_text(json.dumps(card, indent=2, default=str) + "\n",
                                                          encoding="utf-8")
+    if not j.strict:
+        # spec 071 FR-4: a back-test walked under a scope -- every mark not met is a finding for the judge, never a stop
+        j.findings.extend({"what": f"{c['mark']} not met on the {j.scope} study", "faults": c["faults"]}
+                          for c in card["checks"] if not c["ok"])
+        return card
     with cs._step(j, f"{j.scope}: the study-scope marks SC1-SC7 (SCOPE_MARKS_VERSION {scope_marks.SCOPE_MARKS_VERSION}) "
                      "-- every one measured and met", party="founder") as h:
         h.record_assert({m: True for m in scope_marks.MARKS}, {c["mark"]: c for c in card["checks"]})
         assert card["met"] == card["of"] == len(scope_marks.MARKS), json.dumps(card["checks"], indent=2, default=str)
+    return card
+
+
+def walk(j: cs.Journey, *, lap=None) -> dict:
+    """A study of one scope from the context step to the scored Overview (the project already created on the choose
+    screen with `j.scope`): the problem chat in every scope; the problem's calibrations where the problem is in scope;
+    the solution's seed, idea card and calibrations where the solution is, the idea card alone on money alone; who
+    decides and the money's calibrations where the money is; the lock, the links, the interviews, the scoped reading.
+    S-015 / S-016 walk it strict; a back-test under `--scope` (spec 071 FR-4) walks it with `strict=False`."""
+    lap = lap or (lambda _name: None)
+    vectors = vs.scope_vectors(j.entry)
+    cs.leg_context(j)
+    lap("leg_context")
+    cs.leg_interpret_problem(j)
+    lap("leg_interpret_problem")
+    if "PROBLEM" in vectors:
+        cs.leg_calibrate(j, "PROBLEM")
+        lap("leg_calibrate PROBLEM")
+    if "SOLUTION" in vectors:
+        cs.leg_interpret_solution(j)
+        cs.leg_calibrate(j, "SOLUTION")
+        lap("leg_calibrate SOLUTION")
+    elif "COMMERCIAL" in vectors:
+        leg_idea_card(j)
+        lap("leg_idea_card")
+    if "COMMERCIAL" in vectors:
+        cs.leg_persona(j)
+        cs.leg_calibrate(j, "COMMERCIAL")
+        lap("leg_calibrate COMMERCIAL")
+    drift_97(j)
+    cs.leg_lock(j)
+    lap("leg_lock")
+    cs.leg_invite(j)
+    lap("leg_invite")
+    cs.leg_interview(j)
+    lap("leg_interview")
+    card = leg_scoped_report(j)
+    lap("leg_scoped_report")
     return card
 
 
@@ -299,19 +343,7 @@ def run(stack, founder_one, browser, run_dir, *, scope: str, entry_from, slug: s
         user_code = cs._connect(stack, recorder, page, founder_one, web_base, run_dir, keys_path)
         own_ai_door(page, recorder, stack, j.get, through_the_code_story=bool(user_code))
         cs.leg_project(j)
-        cs.leg_context(j)
-        cs.leg_interpret_problem(j)
-        if scope == "PROBLEM":
-            cs.leg_calibrate(j, "PROBLEM")
-        else:
-            leg_idea_card(j)
-            cs.leg_persona(j)
-            cs.leg_calibrate(j, "COMMERCIAL")
-        drift_97(j)
-        cs.leg_lock(j)
-        cs.leg_invite(j)
-        cs.leg_interview(j)
-        leg_scoped_report(j)
+        walk(j)
         if j.deferred:
             with recorder.step(f"spec 064: {len(j.deferred)} golden reading(s) the build moved", party="stack",
                                kind="assert") as h:

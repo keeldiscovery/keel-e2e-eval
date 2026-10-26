@@ -494,7 +494,8 @@ def test_the_three_corpus_extras_name_only_what_survived():
     scenario = (REPO / "evals" / "corpus_scenario.py").read_text(encoding="utf-8")
     assert corpus_scenario.OTHER_CURRENCIES == ("\N{POUND SIGN}", "€", "GBP", "EUR")
     assert "OTHER_CURRENCIES" in scenario
-    assert "        leg_report(journey)\n        leg_one_currency(journey)\n" in scenario
+    # spec 071 FR-4: the whole study's legs sit one level in (a back-test under a scope walks its own), order unchanged
+    assert "            leg_report(journey)\n            leg_one_currency(journey)\n" in scenario
     for body in (s005, s006, s007):
         assert "buckets" not in body and "MOCKUP" not in body and "one-unit window" not in body
 

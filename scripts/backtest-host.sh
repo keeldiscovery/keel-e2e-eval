@@ -2,6 +2,7 @@
 # Spec 066 FR-6: back-test entries through the HOST door, one after another, on the founder's own Claude Code.
 #
 #   scripts/backtest-host.sh 08-fresco 09-karsa ...
+#   scripts/backtest-host.sh --scope PROBLEM 08-fresco ...      (spec 071 FR-4: the study's scope, ALL when unsaid)
 #
 # For each id: waits while any `pytest evals` runs (one eval stack on this machine at a time), `make down`, then
 # `make backtest DOOR=host ENTRY=<id>` into runs/backtest-host/<id>.log, and prints one line -- the id, the run
@@ -15,8 +16,17 @@ PY="${PY:-$REPO/.venv/bin/python}"
 LOGS="$REPO/runs/backtest-host"
 RERUNS=3
 mkdir -p "$LOGS"
+SCOPE=ALL
+case "${1:-}" in
+  --scope) SCOPE="${2:-}"; shift 2 || { echo "usage: scripts/backtest-host.sh [--scope <scope>] <entry id>..." >&2; exit 2; } ;;
+  --scope=*) SCOPE="${1#--scope=}"; shift ;;
+esac
+case "$SCOPE" in
+  PROBLEM|SOLUTION|SOLUTION_COMMERCIAL|COMMERCIAL|ALL) ;;
+  *) echo "scripts/backtest-host.sh refuses: --scope $SCOPE is not a study scope -- PROBLEM, SOLUTION, SOLUTION_COMMERCIAL, COMMERCIAL or ALL" >&2; exit 2 ;;
+esac
 if [ "$#" -lt 1 ]; then
-  echo "usage: scripts/backtest-host.sh <entry id>..." >&2
+  echo "usage: scripts/backtest-host.sh [--scope <scope>] <entry id>..." >&2
   exit 2
 fi
 
@@ -32,7 +42,7 @@ for id in "$@"; do
     alone
     make -C "$REPO" --no-print-directory down >/dev/null 2>&1
     alone
-    make -C "$REPO" --no-print-directory backtest DOOR=host ENTRY="$id" >"$LOGS/$id.log" 2>&1
+    make -C "$REPO" --no-print-directory backtest DOOR=host ENTRY="$id" SCOPE="$SCOPE" >"$LOGS/$id.log" 2>&1
     (cd "$REPO" && PYTHONPATH=. "$PY" -m evals.backtest summary "$LOGS/$id.log" "$id")
     wait_s="$(cd "$REPO" && PYTHONPATH=. "$PY" -m evals.backtest resume "$LOGS/$id.log" "$id")"
     if [ -z "$wait_s" ] || [ "$reruns" -ge "$RERUNS" ]; then

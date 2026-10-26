@@ -112,7 +112,8 @@ def test_door_keel_is_spec_062_byte_for_byte_and_door_host_asks_for_no_key():
 def test_the_runner_reads_the_door_and_the_keel_door_still_refuses_on_a_missing_key():
     source = (REPO / "evals" / "run_backtest.py").read_text(encoding="utf-8")
     assert "backtest.door_refusal()" in source and "backtest.refusal() or backtest.entry_refusal()" in source
-    assert "backtest=backtest.Backtest(run_dir=run_dir, stack=stack))" in source, "the KEEL door's call is unchanged"
+    # spec 071 FR-4: the KEEL door's call is unchanged but for the study's scope (ALL when unsaid)
+    assert "backtest=backtest.Backtest(run_dir=run_dir, stack=stack, scope=backtest.scope()))" in source
     assert "bt.stop_runtime()" in source
 
 

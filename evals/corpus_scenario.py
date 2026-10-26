@@ -61,6 +61,7 @@ It lives in `evals/` and not in `harness/` because it asserts. `harness/` is mac
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import re
 import time
@@ -3665,6 +3666,10 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         pytest.fail(f"{entry_id}: {refusal}", pytrace=False)
     if entry_from is not None:
         entry = entry_from(entry)
+    # spec 071 FR-4: a back-test walked under `--scope` (keel-cloud 133) -- the entry as written is the whole study (ALL)
+    scope = getattr(backtest, "scope", None) or "ALL"
+    if scope != "ALL":
+        entry = dataclasses.replace(entry, scope=scope)
     started = time.monotonic()
     passed = False
     context = browser.new_context()
@@ -3690,6 +3695,7 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
                                script=script, registry=exported.registry, strict=backtest is None,
                                patience=1.0 if backtest is None else backtest.patience)
         journey.stack, journey.founder_identity = stack, founder_one
+        journey.scope = scope
         if backtest is None:
             journey.hold_welcome = True
             user_code = _connect(stack, recorder, page, founder_one, web_base, run_dir, keys_path)
@@ -3716,49 +3722,57 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
             journey.guide.setdefault("notes", {}).update({m: guide_marks.TEACHING_ELSEWHERE_WHY
                                                           for m in guide_marks.TEACHING_MARKS})
         lap("teaching")
-        leg_context(journey)
-        lap("leg_context")
-        opener(journey, "PROBLEM")
-        leg_interpret_problem(journey)
-        lap("leg_interpret_problem")
-        leg_calibrate(journey, "PROBLEM")
-        lap("leg_calibrate PROBLEM")
-        opener(journey, "SOLUTION")
-        leg_interpret_solution(journey)
-        lap("leg_interpret_solution")
-        leg_calibrate(journey, "SOLUTION")
-        lap("leg_calibrate SOLUTION")
-        opener(journey, "COMMERCIAL")
-        leg_persona(journey)
-        lap("leg_persona")
-        leg_calibrate(journey, "COMMERCIAL")
-        lap("leg_calibrate COMMERCIAL")
-        openers_final(journey)
-        leg_lock(journey)
-        lap("leg_lock")
-        leg_invite(journey)
-        lap("leg_invite")
-        leg_interview(journey)
-        lap("leg_interview")
-        leg_standings(journey)
-        lap("leg_standings")
-        leg_report(journey)
-        leg_one_currency(journey)
-        lap("leg_report and leg_one_currency")
-        if extra is not None:
-            extra(journey)
-        if journey.deferred:
-            with recorder.step(f"spec 064: {len(journey.deferred)} golden reading(s) the build moved -- each named on its "
-                               "step, the served beside the corpus's", party="stack", kind="assert") as h:
-                h.record_assert([], journey.deferred)
-                raise AssertionError(json.dumps(journey.deferred, indent=2, default=str)[:20000])
-        if backtest is None:
-            score_feedback(journey)
-            _score_guide(journey)
-        else:
-            # spec 062 FR-3: the export at the last answer, names kept, no verdict gate (060 FR-3 is golden-only)
+        if scope != "ALL":
+            # spec 071 FR-4: a study of one scope walks its own corridor and reading (`evals/scope_journey.walk`), then
+            # the export as every back-test does; nothing of the whole study's report is read
+            from evals import scope_journey                     # noqa: PLC0415 - it imports this module
+            scope_journey.walk(journey, lap=lap)
             backtest.after(journey)
             lap("export")
+        else:
+            leg_context(journey)
+            lap("leg_context")
+            opener(journey, "PROBLEM")
+            leg_interpret_problem(journey)
+            lap("leg_interpret_problem")
+            leg_calibrate(journey, "PROBLEM")
+            lap("leg_calibrate PROBLEM")
+            opener(journey, "SOLUTION")
+            leg_interpret_solution(journey)
+            lap("leg_interpret_solution")
+            leg_calibrate(journey, "SOLUTION")
+            lap("leg_calibrate SOLUTION")
+            opener(journey, "COMMERCIAL")
+            leg_persona(journey)
+            lap("leg_persona")
+            leg_calibrate(journey, "COMMERCIAL")
+            lap("leg_calibrate COMMERCIAL")
+            openers_final(journey)
+            leg_lock(journey)
+            lap("leg_lock")
+            leg_invite(journey)
+            lap("leg_invite")
+            leg_interview(journey)
+            lap("leg_interview")
+            leg_standings(journey)
+            lap("leg_standings")
+            leg_report(journey)
+            leg_one_currency(journey)
+            lap("leg_report and leg_one_currency")
+            if extra is not None:
+                extra(journey)
+            if journey.deferred:
+                with recorder.step(f"spec 064: {len(journey.deferred)} golden reading(s) the build moved -- each named on its "
+                                   "step, the served beside the corpus's", party="stack", kind="assert") as h:
+                    h.record_assert([], journey.deferred)
+                    raise AssertionError(json.dumps(journey.deferred, indent=2, default=str)[:20000])
+            if backtest is None:
+                score_feedback(journey)
+                _score_guide(journey)
+            else:
+                # spec 062 FR-3: the export at the last answer, names kept, no verdict gate (060 FR-3 is golden-only)
+                backtest.after(journey)
+                lap("export")
 
         with recorder.step("the corpus hashes exactly as it did when the run began",
                            party="stack", kind="assert") as h:

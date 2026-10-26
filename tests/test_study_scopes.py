@@ -376,3 +376,95 @@ def test_each_money_mark_fails_on_its_own_fault(mark, change):
     change(record)
     checks = {c["mark"]: c for c in sm.score(record)["checks"]}
     assert not checks[mark]["ok"], checks[mark]
+
+
+# ------------------------------------------------------------------------- FR-4: the back-test host door's scope
+
+import os                                                                     # noqa: E402
+import shutil                                                                 # noqa: E402
+import subprocess                                                             # noqa: E402
+import sys                                                                    # noqa: E402
+from pathlib import Path                                                      # noqa: E402
+
+from evals import backtest as bt                                              # noqa: E402
+
+REPO = Path(__file__).resolve().parents[1]
+
+
+def test_the_back_test_s_scope_is_all_unless_named():
+    assert bt.SCOPES == browser.SCOPES and bt.DEFAULT_SCOPE == "ALL"
+    assert bt.scope({}) == "ALL" and bt.scope({bt.SCOPE_VAR: " problem "}) == "PROBLEM"
+    assert bt.Backtest(run_dir=Path("."), stack=None).scope == "ALL"
+    with pytest.raises(bt.UnknownDoor, match="not a study scope"):
+        bt.scope({bt.SCOPE_VAR: "money"})
+
+
+@pytest.mark.parametrize("door", ["keel", "host"])
+def test_an_unknown_scope_is_refused_on_either_door(door):
+    said = bt.door_refusal({bt.DOOR_VAR: door, bt.SCOPE_VAR: "SOLUTION+MONEY"})
+    assert said and "is not a study scope" in said and "COMMERCIAL" in said
+    assert bt.door_refusal({bt.DOOR_VAR: "keel", bt.SCOPE_VAR: "COMMERCIAL"}) is None
+
+
+def test_the_runner_hands_the_scope_to_both_doors():
+    source = (REPO / "evals" / "run_backtest.py").read_text(encoding="utf-8")
+    assert source.count("scope=backtest.scope()") == 2
+    makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+    assert "$(if $(SCOPE),KEEL_BACKTEST_SCOPE=$(SCOPE) ,)" in makefile
+
+
+def _scoped_run(tmp_path, scope):
+    run = tmp_path / f"20261026T000000Z-backtest-08-fresco-{scope.lower()}"
+    run.mkdir(parents=True)
+    (run / "transcript.jsonl").write_text(json.dumps({"seq": 1, "ok": True}) + "\n")
+    record = {"run": run.name, "passed": True, "entry": {"id": "08-fresco", "title": "Fresco"},
+              "brief": {"decision": {"label": "BUILD"}}, "door": {"door": "host"}, "scope": scope}
+    (run / bt.RECORD).write_text(json.dumps(record))
+    (run / bt.MARKDOWN).write_text(bt.markdown(record))
+    return run
+
+
+def test_the_record_and_the_register_row_carry_the_scope(tmp_path):
+    problem = bt.summary(_scoped_run(tmp_path, "PROBLEM"), "08-fresco")
+    assert problem["scope"] == "PROBLEM" and problem["door"] == "host"
+    row = bt.rerun_row(problem, "")
+    assert row.split(" | ")[4] == "host · PROBLEM", row
+    whole = bt.summary(_scoped_run(tmp_path, "ALL"), "08-fresco")
+    assert bt.rerun_row(whole, "").split(" | ")[4] == "host"           # the whole study's row is as before
+    assert ", scope **PROBLEM**" in (tmp_path / problem["run"] / bt.MARKDOWN).read_text()
+    assert "scope **" not in (tmp_path / whole["run"] / bt.MARKDOWN).read_text()
+    old = tmp_path / "old"
+    old.mkdir()
+    (old / bt.RECORD).write_text(json.dumps({"run": "old", "door": {"door": "host"}}))
+    assert bt.summary(old, "08-fresco")["scope"] == "ALL"                 # a record from before spec 071
+
+
+def test_the_host_runner_takes_scope_and_refuses_one_it_does_not_know(tmp_path):
+    script = REPO / "scripts" / "backtest-host.sh"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "make").write_text(f'#!/bin/sh\necho "$@" >> {tmp_path}/make.calls\n')
+    (bin_dir / "pgrep").write_text("#!/bin/sh\nexit 1\n")
+    for f in bin_dir.iterdir():
+        f.chmod(0o755)
+    repo = tmp_path / "repo"
+    (repo / "scripts").mkdir(parents=True)
+    shutil.copy(script, repo / "scripts" / script.name)
+    (repo / "evals").symlink_to(REPO / "evals")
+    (repo / "harness").symlink_to(REPO / "harness")
+    env = {"PATH": f"{bin_dir}:{os.environ['PATH']}", "HOME": str(tmp_path), "PY": sys.executable}
+
+    def runner(*args):
+        return subprocess.run(["bash", str(repo / "scripts" / script.name), *args], capture_output=True,
+                              encoding="utf-8", timeout=60, env=env)
+
+    refused = runner("--scope", "MONEY", "08-fresco")
+    assert refused.returncode == 2 and "is not a study scope" in refused.stderr
+    assert not (tmp_path / "make.calls").exists()                     # nothing ran
+    assert runner("--scope", "PROBLEM", "08-fresco").returncode == 0
+    assert runner("--scope=COMMERCIAL", "09-karsa").returncode == 0
+    assert runner("10-palus").returncode == 0
+    calls = [c.split("--no-print-directory ", 1)[-1] for c in (tmp_path / "make.calls").read_text().splitlines()
+             if "backtest" in c]
+    assert calls == ["backtest DOOR=host ENTRY=08-fresco SCOPE=PROBLEM", "backtest DOOR=host ENTRY=09-karsa SCOPE=COMMERCIAL",
+                     "backtest DOOR=host ENTRY=10-palus SCOPE=ALL"], calls

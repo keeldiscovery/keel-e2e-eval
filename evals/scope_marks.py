@@ -133,9 +133,24 @@ def sc2(record: dict) -> dict:
     return _mark("SC2", faults)
 
 
+#: keel-cloud 133 FR-5: the uncounted gate's fact line in the solution studies alone.
+GATE_FACT = ("SOLUTION", "SOLUTION_COMMERCIAL")
+
+
+def links_of(scope: str, b2b: bool) -> set:
+    """keel-cloud 133 FR-4: the kinds of link a scope issues -- the person's (FULL) wherever anyone with the problem is
+    asked (not on B2B money alone), the decision-maker's (COMMERCIAL_LINK) on a B2B study with the money in scope."""
+    out = set()
+    if not (scope == "COMMERCIAL" and b2b):
+        out.add("FULL")
+    if b2b and "COMMERCIAL" in SCOPE_VECTORS[scope]:
+        out.add("COMMERCIAL_LINK")
+    return out
+
+
 def sc3(record: dict) -> dict:
     scope, b2b = record["scope"], record.get("b2b")
-    want = {"COMMERCIAL_LINK"} if (scope == "COMMERCIAL" and b2b) else {"FULL"}
+    want = links_of(scope, bool(b2b))
     kinds = set(record.get("kinds") or [])
     faults = [] if kinds == want and record.get("links") == record.get("people") else [
         {"kinds": sorted(kinds), "want": sorted(want), "links": record.get("links"), "people": record.get("people")}]
@@ -207,8 +222,8 @@ def sc5(record: dict) -> dict:
     ship = [(p.get("vector"), p.get("verdict")) for p in standings.get("ship") or []]
     if ship != [(v, verdicts.get(v)) for v in SCOPE_VECTORS[scope]]:
         faults.append({"ship": standings.get("ship"), "want": list(SCOPE_VECTORS[scope])})
-    if standings.get("gateFact"):
-        faults.append({"gateFact": standings.get("gateFact"), "want": None})
+    if bool(standings.get("gateFact")) != (scope in GATE_FACT):
+        faults.append({"gateFact": standings.get("gateFact"), "want": "a fact line" if scope in GATE_FACT else None})
     return _mark("SC5", faults)
 
 
@@ -240,8 +255,9 @@ def sc7(record: dict) -> dict:
         faults.append({"question": seen.get("question"), "want": QUESTION[scope]})
     if seen.get("panels") != vectors:
         faults.append({"cards": seen.get("panels"), "want": vectors})
-    if len(vectors) == 1 and "rp-stages--one" not in (seen.get("stages_class") or ""):
-        faults.append({"stages": seen.get("stages_class"), "want": "rp-stages--one"})
+    piece = {1: "rp-stages--one", 2: "rp-stages--two"}.get(len(vectors))
+    if piece and piece not in (seen.get("stages_class") or ""):
+        faults.append({"stages": seen.get("stages_class"), "want": piece})
     if seen.get("ship") != vectors:
         faults.append({"ship": seen.get("ship"), "want": vectors})
     tiles = seen.get("tiles") or {}
@@ -252,12 +268,16 @@ def sc7(record: dict) -> dict:
         if "pilot" in tabs:
             faults.append({"tabs": tabs, "want": "no Pilot tab"})
     else:
-        if tiles.get("names") != ["pilot", "price"] or "rp-tiles--one" in (tiles.get("class") or ""):
-            faults.append({"tiles": tiles, "want": ["pilot", "price"]})
+        want = ["pilot", "price"] if "COMMERCIAL" in vectors else ["pilot"]
+        one = len(want) == 1
+        if tiles.get("names") != want or ("rp-tiles--one" in (tiles.get("class") or "")) != one:
+            faults.append({"tiles": tiles, "want": want})
         if "pilot" not in tabs:
             faults.append({"tabs": tabs, "want": "a Pilot tab"})
-    if seen.get("gatefact"):
-        faults.append({"gate fact": seen.get("gatefact"), "want": None})
+    if bool(seen.get("gatefact")) != (scope in GATE_FACT):
+        faults.append({"gate fact": seen.get("gatefact"), "want": "drawn" if scope in GATE_FACT else None})
+    elif seen.get("gatefact") and seen.get("gatefact") != (record.get("standings") or {}).get("gateFact"):
+        faults.append({"gate fact": seen.get("gatefact"), "served": (record.get("standings") or {}).get("gateFact")})
     return _mark("SC7", faults)
 
 

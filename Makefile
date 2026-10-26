@@ -97,12 +97,15 @@ gallery: venv
 # entries one after another and waits out the plan's limit.
 #
 #   make backtest DOOR=host ENTRY=08-fresco
+# Spec 071 FR-4: SCOPE=PROBLEM|SOLUTION|SOLUTION_COMMERCIAL|COMMERCIAL walks the entry as a study of that scope (keel-cloud
+# 133; ALL, the whole study, when unsaid) and records it in backtest.json; scripts/backtest-host.sh takes --scope.
+#   make backtest DOOR=host ENTRY=08-fresco SCOPE=PROBLEM
 backtest:
 	@if [ -n "$(DOOR)" ] && [ "$(DOOR)" != "keel" ] && [ "$(DOOR)" != "host" ]; then echo "make backtest refuses: DOOR=$(DOOR) is not a door -- \`DOOR=keel\` (Keel's AI, spec 062) or \`DOOR=host\` (the founder's own Claude Code through the runtime, spec 066)"; exit 2; fi
 	@if [ "$(DOOR)" != "host" ] && [ -z "$$KEEL_ANTHROPIC_API_KEY" ]; then echo "make backtest refuses: KEEL_ANTHROPIC_API_KEY is not set in this shell -- the local stack passes it to keel-cloud, which answers every job of the back-test on Keel's AI (spec 062 FR-2); it is never logged, echoed or written"; exit 2; fi
 	@if [ -z "$(ENTRY)" ]; then echo "make backtest refuses: no ENTRY -- name a back-test entry, \`make backtest ENTRY=<id>\` (keel-cloud canon/designs/measured-beliefs/backtest/<id>.yaml)"; exit 2; fi
 	@$(MAKE) --no-print-directory venv
-	KEEL_EVAL_PROFILE=eval KEEL_BACKTEST_ENTRY=$(ENTRY) $(if $(filter host,$(DOOR)),KEEL_BACKTEST_DOOR=host KEEL_BACKTEST_HOST=$(if $(HOST),$(HOST),claude) $(if $(MODEL),KEEL_BACKTEST_MODEL=$(MODEL) ,),)$(PY) -m pytest evals/run_backtest.py -q -rs -l
+	KEEL_EVAL_PROFILE=eval KEEL_BACKTEST_ENTRY=$(ENTRY) $(if $(SCOPE),KEEL_BACKTEST_SCOPE=$(SCOPE) ,)$(if $(filter host,$(DOOR)),KEEL_BACKTEST_DOOR=host KEEL_BACKTEST_HOST=$(if $(HOST),$(HOST),claude) $(if $(MODEL),KEEL_BACKTEST_MODEL=$(MODEL) ,),)$(PY) -m pytest evals/run_backtest.py -q -rs -l
 
 # make eval-live runs the scenarios marked `live` -- a real `claude`, real money (spec 008-stranger-
 # who-gives-orders). Opt-in only; never part of `make eval`/`make eval-all`. Needs a logged-in

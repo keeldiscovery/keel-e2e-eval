@@ -14,6 +14,10 @@ and all, and tearing it down after.
 of a runtime the back-test starts from keel-connect-skill's checkout, and every job is answered by the founder's own
 Claude Code (`HOST=claude`, the one host built). The door, host and model refusals are `backtest.door_refusal`'s, the
 CLI's login `backtest.host_readiness`'s; the runtime is stopped however the journey ends (`Backtest.stop_runtime`).
+
+**Spec 071 FR-4: `SCOPE=`** (`KEEL_BACKTEST_SCOPE`, `scripts/backtest-host.sh --scope`): the study's scope the project is
+created with on the choose screen (keel-cloud 133), ALL when unsaid; any other is walked by `evals/scope_journey.walk`
+with `strict=False` and recorded in `backtest.json` (`scope`) and the register row's Door cell.
 """
 
 from __future__ import annotations
@@ -58,10 +62,10 @@ def stack(stack_config):
 def test_backtest(stack, browser, run_dir):
     if DOOR != "host":
         corpus_scenario.run(stack, None, browser, run_dir, entry_id=ENTRY_ID, slug=f"backtest-{ENTRY_ID}",
-                            backtest=backtest.Backtest(run_dir=run_dir, stack=stack))
+                            backtest=backtest.Backtest(run_dir=run_dir, stack=stack, scope=backtest.scope()))
         return
     # spec 066: the host door -- and the runtime stopped whatever happens (FR-5; `finish` stops it first)
-    bt = backtest.Backtest(run_dir=run_dir, stack=stack, door="host", host=backtest.host())
+    bt = backtest.Backtest(run_dir=run_dir, stack=stack, door="host", host=backtest.host(), scope=backtest.scope())
     try:
         corpus_scenario.run(stack, None, browser, run_dir, entry_id=ENTRY_ID, slug=f"backtest-{ENTRY_ID}",
                             backtest=bt)
