@@ -13,7 +13,11 @@ keel-web spec 112 (no recall window sent or drawn on money alone). No marks chan
 - **FR-3 #97 closed.** `harness/vectors_script.chained_out_of_scope` names nothing; the two out-of-scope script entries
   go; `evals/scope_journey.drift_97` asserts one CALIBRATION_QUESTIONS job per vector in scope and none for the others.
   Marked closed with the keel-cloud commit.
-- **FR-4 Nothing else moves.**
+- **FR-4 Contract 39.** keel-cloud spec 134 bumped the contract 38 -> 39 (`LockReceiptView.questions.interactionIds`
+  `minItems: 0`: money alone's lock starts no model job; `PlanView.complete` described by the scoped rule). Wherever the
+  harness pins or reads the contract number or waits on the lock receipt's jobs, it reads 39 and accepts an empty list
+  (S-016 locks with no job and proceeds to the money questions).
+- **FR-5 Nothing else moves.**
 
 ## Acceptance
 
