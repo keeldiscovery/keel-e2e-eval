@@ -37,7 +37,8 @@ from typing import Any, Callable
 from playwright.sync_api import Page
 
 from harness import interviewer_screens as ivs
-from harness.browser import _SCREEN_TEXT_JS, _BrowserStep, _safe_all_texts, _safe_text, _screen_text
+from harness.browser import (INTERVIEW_DONE_TITLE, _SCREEN_TEXT_JS, _BrowserStep, _safe_all_texts, _safe_text,
+                             _screen_text)
 from harness.steps import Recorder
 
 # ------------------------------------------------------------------- keel-web's own words (pressed)
@@ -957,7 +958,8 @@ def pass_teaching_sheet(page: Page, recorder: Recorder, base: str, kind: str, st
 #: row a state as it is entered (`data-context-state`), with what that state draws -- the wait's status line, counter,
 #: phase bar and truth card, and no field or Save; the card's sentence, its two buttons and no box; the form's four
 #: boxes and Save. A MutationObserver, so a wait that lasts one render is still seen; a state's booleans and counts are
-#: merged over its whole stay (the counter mounts with the block).
+#: merged over its whole stay (the counter mounts with the block) and its words are the last it drew (the card's first
+#: render reads *Save and continue* until its occasion field is pre-filled, then *Yes, that's it*).
 _CONTEXT_STATES_JS = """() => {
   const words = (el) => el ? (el.textContent || '').replace(/\\s+/g, ' ').trim() : null;
   const read = () => {
@@ -994,7 +996,7 @@ _CONTEXT_STATES_JS = """() => {
     for (const [k, v] of Object.entries(r)) {
       if (typeof v === 'boolean') last[k] = last[k] || v;
       else if (typeof v === 'number') last[k] = Math.max(last[k] || 0, v);
-      else if (v && !last[k]) last[k] = v;
+      else if (v) last[k] = v;                // words: the state's settled ones (an effect fills the card's field)
     }
   };
   window.__keelContextKeep = keep;
@@ -2088,7 +2090,8 @@ class Interview:
             pilot_box = page.locator("input[type=checkbox], [role=checkbox]").count()
             # spec 073 FR-2 (keel-web 113 FR-2): no founder's word -- the done screen's word section, drawn or not
             word_drawn = page.locator(".iv-done__word").count()
-            done_screen = page.locator("main.iv-body .iv-done").count() > 0    # else the exit screen (outside)
+            # the thank-you, or the gate's exit (`ExitScreen`: *That's it.*, the same `.iv-done` box) -- a No, or outside
+            done_screen = page.locator("main.iv-body .iv-done").count() > 0 and heading.strip() != INTERVIEW_DONE_TITLE
             h.add_screenshot(self._b.screenshot(f"interview-done-{person.person.split()[0]}"))
             self._shot("done")
             page.remove_listener("response", self._keep_transcribe)

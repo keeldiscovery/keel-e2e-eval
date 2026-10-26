@@ -248,3 +248,12 @@ def test_the_crop_is_read_by_the_pages_own_classes(tmp_path, browser, html, want
 def test_the_crop_is_recorded_never_scored():
     from evals import interviewer_marks
     assert all(key != "ai_band" for _, key, _ in interviewer_marks.MARKS)
+
+
+def test_the_cards_words_are_the_settled_ones(browser):
+    """S-015's first run (2026-10-26): the card's first render reads *Save and continue* until its occasion field is
+    pre-filled by an effect, then *Yes, that's it* -- the state's words are the last it drew."""
+    early = _CARD.replace("Yes, that's it", "Save and continue")
+    states = _walk(browser, [("form", _FORM), ("wait", _WAIT), ("card", early), ("card", _CARD)])
+    assert states[-1]["yes"] == vs_screens.CONTEXT_YES
+    assert cs.context_states_faults(states, SENTENCE) == []

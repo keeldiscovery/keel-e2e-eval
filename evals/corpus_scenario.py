@@ -2757,8 +2757,8 @@ THANKS_DEFAULT = re.compile(r"^Thank you -- your answers have gone to (.+)\.$")
 def thanks_faults(interview: dict, walked: dict) -> list:
     """Spec 073 FR-2 (keel-web 113 FR-2): the respondent's last screen with no founder's word -- the served thanks the
     default words (*Thank you -- your answers have gone to {first}.*) and drawn as served, no word served and none
-    drawn. A person the gate sent out of the people the founder described meets the exit screen, not the thank-you:
-    nothing is owed there."""
+    drawn. A person the gate closed (a No to the occasion, or outside the people the founder described) meets the exit
+    screen (*That's it.*), not the thank-you: nothing is owed there."""
     done = interview.get("done") or {}
     faults = []
     if walked.get("done_screen") is False:

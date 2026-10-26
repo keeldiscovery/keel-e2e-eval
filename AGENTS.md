@@ -338,7 +338,7 @@ entries' people, founder inputs and plans are byte-identical to master's. **S-01
 and **S-016** (`evals/test_s016_money_only.py`) walk `evals/scope_journey.py` on seeds derived from 01-countly: the
 problem study (Countly's own four problem standings held) and money alone on a B2B persona (the restaurant owner
 decides; only the decision-maker's link; the problem in one spoken sentence before the idea card), each scored by
-`evals/scope_marks.py` (SC1-SC7, `SCOPE_MARKS_VERSION` 1, a journey ruler; `MARKS_VERSION` stays 20). `make backtest
+`evals/scope_marks.py` (SC1-SC7, `SCOPE_MARKS_VERSION` 2 since spec 073, a journey ruler; `MARKS_VERSION` stays 20). `make backtest
 SCOPE=` / `scripts/backtest-host.sh --scope` walks an entry as a study of that scope (`strict=False`, the marks as
 findings) and records it in `backtest.json` and the register row's Door cell; the gallery's index rows carry `scope`.
 DRIFT #95 (a scoped study's *Lock and approve* never lights: `PlanView.complete`), #96 (money alone's hidden recall
@@ -346,6 +346,22 @@ window sent as 7 nights) and #97 (`ScreenChain` chains out-of-scope calibrations
 134 / 135, contract 39; keel-web 112): the plan is held complete over the scope and the lock pressed on the page, money
 alone sends, draws and reads back no window, the script carries the scope's calibrations alone, and a lock receipt may
 name no job (money alone). Each is a failing guard should it come back.
+
+**The founder's staging review of 2026-10-26** (spec `073-founder-feedback-2026-10-26`; keel-web 113 / 114, keel-cloud
+unchanged, contract 39): the context step is one state at a time (`[data-testid=context-step][data-context-state]`) --
+every walk holds form -> Save -> the wait in the form's place (the counter, the phase bar, the truth card; no field, no
+Save) -> the *Keel understands* card in the wait's place with *Edit* (`Corridor.context_states`, a MutationObserver
+installed before Save), and S-005 alone (`run(..., context_edit=True)`) re-opens the confirmed context and presses
+*Edit*: the form back, filled with what was confirmed, nothing saved. *A word from you* is hidden: the last step starts
+on its first visible screen (the pilot 1 of 2, who asks 2 of 2; the problem study's who asks alone, no counter), the
+word's address redirects there, the interviewer leg writes no founder's word, and every text link's last screen is the
+thank-you's default words as served (the exit screen owes none). SC2 (`SCOPE_MARKS_VERSION` 2) and IM5
+(`INTERVIEWER_MARKS_VERSION` 8: no word stored, every THANKS clip the default thank-you) are re-pinned. The full
+Overview draws no panel lead (`rp-plead`); the brief's page one keeps it and `report_binding` counts it as the sheet's
+own (`REPORT_MARKS_VERSION` 2). The welcome per scope: `guide_marks.welcome_clip` -- `welcome` under ALL on S-005/006/
+007/014, `welcome-problem` on S-015, `welcome-money` on S-016 (read off the welcome passed by), the four new clips
+counted with the manifest's 42 (G12 reads them; `GUIDE_MARKS_VERSION` stays 3). The AI player's crop is read by its own
+classes and recorded (`record["ai_band"]`), never scored. `MARKS_VERSION` 20 and corpus REVISION 16 unchanged.
 
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
