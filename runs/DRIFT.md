@@ -5506,7 +5506,8 @@ alone and the persona only where the money is in scope, the lock's own rule. Spe
 guard: `evals/corpus_scenario.plan_complete` holds `GET plan` to `complete: true` over the scope's vectors on every
 study (ALL included) before *Lock and approve* is pressed on the page, and `_drift_95_guard` fails a journey whose
 button stays disabled for 15 s, the plan as served named; `_drift_95_lock` (the lock on the wire round the button) is
-gone. Green on S-015 and S-016 (spec 072 `tasks.md`). What follows is the observation as filed.
+gone. Green on S-015 and S-016 (`runs/20261026T063941Z-s015-problem-only`, `...T064147Z-s016-money-only`; spec 072
+`tasks.md`). What follows is the observation as filed.
 
 Found by spec `071-study-scopes` on S-015, the problem study (local stack, keel-cloud-docs `867b6465` (spec 133, contract 38)
 + keel-web `82a92f3` (specs 109 / 110 / 111) + keel-runtime 0.8.0 bundled in keel-connect-skill; runs
@@ -5548,8 +5549,8 @@ stored -- keel-cloud still fills a windowless PUT with `RecallWindow.DEFAULT`, s
 into a guard: `evals/corpus_scenario._drift_96_guard` holds, on every study that serves no gate, no `recallWindow`
 key in any `PUT context` the page sent, no window line on the card, and the served sentence equal to the windowless
 read-back; the confirmed context's stored window is held to keel-cloud's default (`STORED_WINDOW_DEFAULT`).
-`_drift_96_window` and `DRIFT_96_WINDOW` are gone. Green on S-016 (spec 072 `tasks.md`). What follows is the
-observation as filed.
+`_drift_96_window` and `DRIFT_96_WINDOW` are gone. Green on S-016 (`runs/20261026T064147Z-s016-money-only`; spec 072
+`tasks.md`). What follows is the observation as filed.
 
 Found by spec `071-study-scopes` on S-016, money alone (local stack, keel-cloud-docs `867b6465` + keel-web `82a92f3`; first
 sighting `runs/20261026T031240Z-s016-money-only` failed on the read-back's sentence; stepped round in
@@ -5585,7 +5586,8 @@ slice. Spec 072 FR-3: `harness/vectors_script.chained_out_of_scope` names nothin
 scope's vectors alone (the two stand-in entries are gone: money alone's script is the money slice and its three
 redrafts), and `evals/scope_journey.drift_97` is a guard -- the wire's CALIBRATION_QUESTIONS jobs, counted by
 `vector`, are the script's (one slice a vector in scope and its redrafts), all APPLIED, and none for a vector
-outside the scope. Green on S-015 and S-016 (spec 072 `tasks.md`). What follows is the observation as filed.
+outside the scope. Green on S-015 and S-016 (`runs/20261026T063941Z-s015-problem-only`, `...T064147Z-s016-money-only`;
+spec 072 `tasks.md`). What follows is the observation as filed.
 
 Found by spec `071-study-scopes` on S-016, money alone (keel-cloud-docs `867b6465`; first sighting
 `runs/20261026T031542Z-s016-money-only`: the scripted executor's money slice was handed to a PROBLEM job, refused C1

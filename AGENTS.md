@@ -342,7 +342,10 @@ decides; only the decision-maker's link; the problem in one spoken sentence befo
 SCOPE=` / `scripts/backtest-host.sh --scope` walks an entry as a study of that scope (`strict=False`, the marks as
 findings) and records it in `backtest.json` and the register row's Door cell; the gallery's index rows carry `scope`.
 DRIFT #95 (a scoped study's *Lock and approve* never lights: `PlanView.complete`), #96 (money alone's hidden recall
-window sent as 7 nights) and #97 (`ScreenChain` chains out-of-scope calibrations) are each stepped round by name.
+window sent as 7 nights) and #97 (`ScreenChain` chains out-of-scope calibrations) are **closed** (spec 072; keel-cloud
+134 / 135, contract 39; keel-web 112): the plan is held complete over the scope and the lock pressed on the page, money
+alone sends, draws and reads back no window, the script carries the scope's calibrations alone, and a lock receipt may
+name no job (money alone). Each is a failing guard should it come back.
 
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
