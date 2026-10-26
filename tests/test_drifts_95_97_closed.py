@@ -2,6 +2,9 @@
 
 FR-1 #95: on every study the plan reads complete over the scope before *Lock and approve* is pressed on the page; a
 button that stays disabled fails the journey, and nothing locks on the wire round it.
+FR-2 #96: money alone sends no `recallWindow`, draws no window line and is served the windowless read-back.
+FR-3 #97: the chain writes the scope's calibrations alone, and the script carries nothing for another vector.
+FR-4 contract 39: the lock receipt's `interactionIds` is required and empty on money alone, which goes on.
 """
 
 from __future__ import annotations
@@ -190,3 +193,49 @@ def test_money_alone_scripts_the_money_slice_and_its_redrafts_alone(countly):
 def test_a_calibration_outside_the_scope_or_off_the_script_fails(tmp_path, countly, scope, rows):
     with pytest.raises(AssertionError):
         sj.drift_97(_jobs_journey(tmp_path, _seed(countly, scope), rows))
+
+
+# ------------------------------------------------------------------------------------------------ FR-4: contract 39
+
+def _locked_journey(tmp_path, entry, receipt, respondent=()):
+    j = _journey(tmp_path, entry, {})
+    j.strict = False
+    lists = {key: {"items": [], "pickedIndex": 0} for v in vs.scope_vectors(entry) for key in vs.founder_keys(entry, v)
+             if vs.is_list(key)}
+    rows = [{"screen": "RESPONDENT_QUESTIONS", "interaction_id": i, "status": "APPLIED"} for i in respondent]
+
+    def get(path):
+        if path.endswith("/overview"):
+            return {"questionsState": "READY"}
+        if path.endswith("/plan"):
+            return {"locked": True, "version": 1, "lists": lists}
+        return rows
+
+    j.get = get
+    j.receipt = receipt
+    return j
+
+
+def test_money_alone_locks_with_an_empty_receipt_and_goes_on(tmp_path, countly):
+    seed = _seed(countly, "COMMERCIAL")
+    receipt = {"revision": 9, "version": 1, "lockedAt": "2026-10-26T00:00:00Z", "beliefs": 6,
+               "questions": {"state": "READY", "interactionIds": []}}
+    cs._lock_lands(_locked_journey(tmp_path, seed, receipt))
+
+
+def test_a_study_with_a_gate_still_names_its_one_job(tmp_path, countly):
+    seed = _seed(countly, "PROBLEM")
+    receipt = {"version": 1, "questions": {"state": "WRITING", "interactionIds": ["i-1"]}}
+    cs._lock_lands(_locked_journey(tmp_path, seed, receipt, respondent=["i-1"]))
+    with pytest.raises(AssertionError):
+        cs._lock_lands(_locked_journey(tmp_path, seed, {"version": 1, "questions": {"interactionIds": []}}))
+
+
+@pytest.mark.parametrize("receipt", [
+    {"version": 1},                                                     # no questions at all
+    {"version": 1, "questions": {"state": "READY"}},                    # interactionIds is required
+    {"version": 1, "questions": {"state": "READY", "interactionIds": ["i-9"]}},   # a job money alone never starts
+])
+def test_a_receipt_off_contract_39_fails_on_money_alone(tmp_path, countly, receipt):
+    with pytest.raises(AssertionError):
+        cs._lock_lands(_locked_journey(tmp_path, _seed(countly, "COMMERCIAL"), receipt))

@@ -2175,8 +2175,13 @@ def _lock_lands(j: Journey) -> None:
     with _step(j, f"the lock started {'ONE' if jobs else 'NO'} RESPONDENT_QUESTIONS job"
                   + (" -- part 1, the gate's clause -- and no other (keel-cloud 091, contract 14: "
                      "LockReceipt.questions.interactionIds is exactly 1)" if jobs else
-                     " -- money alone serves no gate and its parts are code's (keel-cloud 133 T010)")) as h:
-        ids = list(((j.receipt.get("questions") or {}).get("interactionIds")) or [])
+                     " -- money alone serves no gate and its parts are code's (keel-cloud 133 T010); the receipt's "
+                     "interactionIds is empty (contract 39, keel-cloud 134: minItems 0) and the study goes on")) as h:
+        # spec 072 FR-4 (contract 39): `questions.interactionIds` is required and holds 0 or 1 ids -- empty on money
+        # alone, where the lock starts no model job; nothing waits on a job the receipt does not name
+        questions = j.receipt.get("questions")
+        assert isinstance(questions, dict) and isinstance(questions.get("interactionIds"), list), j.receipt
+        ids = list(questions["interactionIds"])
         interactions = j.get(f"/v2/inference-interactions?project_id={j.project_id}") or []
         respondent = [i for i in interactions if i.get("screen") == "RESPONDENT_QUESTIONS"]
         h.record_assert({"interactionIds": jobs, "RESPONDENT_QUESTIONS jobs": jobs, "status": "APPLIED"},
