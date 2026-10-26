@@ -140,7 +140,7 @@ def test_every_golden_journey_and_back_test_asks_for_all(monkeypatch, tmp_path):
     assert asked["scope"] == "ALL"
 
 
-# ------------------------------------------------------------------- FR-2: the problem study's seed and its walk
+# ------------------------------------------------------------------- FR-2 / FR-3: the scoped seeds and their walks
 
 from evals import scope_journey as sj                                         # noqa: E402
 from evals import scope_marks as sm                                           # noqa: E402
@@ -167,6 +167,7 @@ def test_the_golden_walk_is_unchanged_under_all(countly):
     assert vs.read_back(countly).endswith(", counting the last 4 weeks.")
     assert cs.before_counters() == ["1 of 3", "2 of 3", "3 of 3"]
     assert [vs_screens.stage_exit(v) for v in vs.VECTORS] == [vs_screens.STAGE_EXIT[v] for v in vs.VECTORS]
+    assert vs.chained_out_of_scope(countly) == ()
 
 
 def test_the_problem_seed_is_countly_with_its_own_problem_numbers(countly):
@@ -192,7 +193,7 @@ def test_the_problem_study_s_expected_walk(countly):
     (questions,) = script["RESPONDENT_QUESTIONS"]
     assert [i["key"] for i in questions["result"]["items"]] == vs.plan_keys(countly, 1, vs.LINK_PRIMARY)
     assert vs.plan_keys(seed, 2, vs.LINK_PRIMARY) == vs.plan_keys(seed, 3, vs.LINK_PRIMARY) == []
-    assert vs.serves_gate(seed) and vs.gate_counts(seed)
+    assert vs.serves_gate(seed) and vs.gate_counts(seed) and vs.primary_link(seed)
     people = vs.person_inputs(seed)
     assert len(people) == 12 and {p.link for p in people} == {vs.LINK_PRIMARY}
     assert all({k.dimension for k in p.picks} <= {"problem.frequency", "problem.importance",
@@ -201,6 +202,68 @@ def test_the_problem_study_s_expected_walk(countly):
     assert cs.before_counters("PROBLEM") == ["1 of 2", "2 of 2"]
     assert vs_screens.stage_exit("PROBLEM", "PROBLEM") == "Save and continue to Before people see it"
     assert vs_screens.step_of("problem", "PROBLEM") == (2, 3)
+    assert vs.chained_out_of_scope(seed) == ()
+
+
+def test_the_money_seed_is_countly_with_the_owner_deciding(countly):
+    seed = sj.money_entry(countly)
+    assert seed.scope == "COMMERCIAL" and vs.is_b2b(seed) and seed.decision_maker_role() == "owner"
+    assert seed.decider_title() == sj.OWNER_TITLE
+    assert [p.person for p in seed.people()] == list(sj.OWNER_PICKS)
+    assert {p.link for p in seed.people()} == {vs.LINK_B2B}
+    priya = seed.person("Priya Natarajan")
+    assert priya.picks["commercial.existing_sacrifice"] == {"mode": "AMOUNT", "value": 200, "currency": "USD",
+                                                            "period": "quarter"}           # 10 hours at $20
+    assert priya.picks["commercial.ability_to_pay"] == "existing_line"
+    assert not any(k.startswith(("problem.", "solution.")) for p in seed.people() for k in p.picks)
+    assert seed.founder_calibration["commercial.purchase_friction"] == sj.FRICTION
+    assert countly.founder_calibration.get("commercial.purchase_friction") is None     # the canon entry untouched
+    with pytest.raises(ValueError):
+        sj.money_entry(dataclasses.replace(countly, id="03-lullaby"))
+
+
+def test_money_alone_s_expected_walk(countly):
+    """FR-3: no recall window, no gate, no part-1 job and no faces; the mechanism (the idea card) and the money slice
+    with its three redrafts -- and DRIFT #97's two chained out-of-scope slices before them; the decision-maker's link
+    alone, part 3 on it."""
+    seed = sj.money_entry(countly)
+    script = vs.generate(seed).screens
+    assert set(script) == {"CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "SOLUTION_MECHANISM", "CALIBRATION_QUESTIONS",
+                           "THEMES"}
+    assert [r["result"]["vector"] for r in script["CALIBRATION_QUESTIONS"]] == [
+        "PROBLEM", "SOLUTION", "COMMERCIAL", "COMMERCIAL", "COMMERCIAL", "COMMERCIAL"]
+    assert vs.chained_out_of_scope(seed) == ("PROBLEM", "SOLUTION")
+    assert vs.respondent_jobs(seed) == [] and not vs.serves_gate(seed) and not vs.primary_link(seed)
+    assert [vs.plan_keys(seed, part, vs.LINK_PRIMARY) for part in (1, 2, 3)] == [[], [], []]
+    assert vs.plan_keys(seed, 3, vs.LINK_B2B) == ["commercial.existing_sacrifice", "commercial.price",
+                                                  "commercial.ability_to_pay", "commercial.buyer_payer_alignment",
+                                                  "commercial.purchase_friction", "commercial.commitment"]
+    assert vs.read_back(seed, window=False).endswith("matching what is on the shelves.")
+    assert "counting" not in vs.read_back(seed, window=False)
+    assert cs.before_counters("COMMERCIAL") == ["1 of 3", "2 of 3", "3 of 3"]
+    assert vs_screens.step_of("solution", "COMMERCIAL") == (3, 5)
+    assert sj.problem_sentence(countly.interpretations["problem"]) == (
+        "Independent restaurant managers lose time whenever a delivery does not match its invoice.")
+
+
+@pytest.mark.parametrize("statement, want", [
+    ("A long one; with a second clause.", None),                       # under six words once cut
+    ("Freelance translators wait months for agency invoices to be paid (most of them), based on interviews.",
+     "Freelance translators wait months for agency invoices to be paid."),
+    (" ".join(["word"] * 25) + ".", " ".join(["word"] * 20) + "."),
+])
+def test_the_problem_sentence_mirror(statement, want):
+    assert sj.problem_sentence(statement) == want
+
+
+@pytest.mark.parametrize("text, faults", [
+    ("Independent restaurant managers lose time whenever a delivery does not match its invoice.", []),
+    ("Too short here.", ["3 words, under six"]),
+    ("Savers lose value to inflation every month. They hold rupees.", ["not one sentence"]),
+    ("Learners forget words because nobody runs spaced repetition for them at home.", ["M5 word 'spaced repetition'"]),
+])
+def test_the_spoken_mirror_on_the_problem_sentence(text, faults):
+    assert sm.sentence_faults(text) == faults
 
 
 @pytest.mark.parametrize("scope, verdicts, want", [
@@ -267,3 +330,49 @@ def test_each_problem_mark_fails_on_its_own_fault(mark, change):
     checks = {c["mark"]: c for c in sm.score(record)["checks"]}
     assert not checks[mark]["ok"], checks[mark]
     assert sum(1 for c in checks.values() if not c["ok"]) == 1, checks
+
+
+def _money_record():
+    problem = "Independent restaurant managers lose time whenever a delivery does not match its invoice."
+    items = [{"dimension": d, "kicker": f"The buying decision · {n} of 2"}
+             for n, d in enumerate(("commercial.price", "commercial.commitment"), 1)]
+    iv = {"kind": "COMMERCIAL_LINK", "gate": None, "parts": [{"part": 3, "items": items}],
+          "idea": {"what": "Imagine x.", "problem": problem}, "done": {"pilot": {"label": "Count me in"}}}
+    standings = {"scope": "COMMERCIAL", "question": "Will they pay?", "gateFact": None,
+                 "vectors": [{"vector": "COMMERCIAL", "verdict": "HOLDING_UP"}],
+                 "ship": [{"vector": "COMMERCIAL", "verdict": "HOLDING_UP"}],
+                 "facts": {"vectors": [{"vector": "COMMERCIAL"}], "decision": {"label": "BUILD"}}}
+    return {"scope": "COMMERCIAL", "b2b": True,
+            "choose": {"picked": {"plan": {"scope": "money", "badge": "Money", "lines": sm.PLAN_LINES["COMMERCIAL"]}}},
+            "created": "COMMERCIAL", "served_scope": "COMMERCIAL",
+            "kickers": [("commercial.price", "STEP 4 OF 5 · WILL THEY PAY")], "idea_kicker": "STEP 3 OF 5 · YOUR IDEA",
+            "counters": ["1 of 3", "2 of 3", "3 of 3"], "kinds": ["COMMERCIAL_LINK"], "links": 1, "people": 1,
+            "interviews": {"A": iv}, "pilot_boxes": {"A": 1}, "done": {"A": "Thank you"},
+            "idea_screens": {"A": {"screen": "idea", "card": "Imagine x.", "problem": problem}},
+            "problem_sentence": problem, "standings": standings,
+            "overview": {"question": "Will they pay?", "verdict": {"label": "BUILD", "text": "Build"},
+                         "stages_class": "rp-stages rp-stages--one", "panels": ["COMMERCIAL"],
+                         "tiles": {"present": True, "class": "rp-tiles", "names": ["pilot", "price"]},
+                         "gatefact": None, "ship": ["COMMERCIAL"], "tabs": ["overview", "insights", "pilot"]}}
+
+
+def test_money_alone_s_marks_on_a_stubbed_walk():
+    card = sm.score(_money_record())
+    assert card["met"] == card["of"] == 7, card["checks"]
+
+
+@pytest.mark.parametrize("mark, change", [
+    ("SC2", lambda r: r.update(idea_kicker="STEP 3 OF 5 · YOUR SOLUTION")),
+    ("SC3", lambda r: r.update(kinds=["FULL", "COMMERCIAL_LINK"])),
+    ("SC4", lambda r: r["interviews"]["A"].update(gate={"question": "In the last 4 weeks, did ...?"})),
+    ("SC4", lambda r: r["interviews"]["A"]["idea"].update(problem=None)),
+    ("SC4", lambda r: r["idea_screens"]["A"].update(problem=None)),
+    ("SC6", lambda r: r["standings"]["facts"].update(decision={"label": "NOT_YET"})),
+    ("SC7", lambda r: r["overview"]["tiles"].update(names=["pilot"], **{"class": "rp-tiles rp-tiles--one"})),
+    ("SC7", lambda r: r["overview"].update(tabs=["overview", "insights"])),
+])
+def test_each_money_mark_fails_on_its_own_fault(mark, change):
+    record = _money_record()
+    change(record)
+    checks = {c["mark"]: c for c in sm.score(record)["checks"]}
+    assert not checks[mark]["ok"], checks[mark]

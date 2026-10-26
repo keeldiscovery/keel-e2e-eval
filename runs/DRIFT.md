@@ -5527,3 +5527,54 @@ disabled for 15 s, it reads `GET plan`, asserts the study is not ALL and `comple
 `{expectedRevision}` and opens Sent as the page would have. A failing guard on the whole study (ALL, where the button has
 always lit) and on a scoped study where the plan reads complete. For keel-cloud: read `complete` over `scope.vectors()`
 and the persona only where the money is in scope (as `Project.lock` does); keel-web needs nothing.
+
+## 96. Observation (keel-web, with keel-cloud beside it): on money alone the context step hides the recall window but sends keel-web's default -- the card and the read-back count *the last 7 nights* the founder never chose
+
+Found by spec `071-study-scopes` on S-016, money alone (local stack, keel-cloud-docs `867b6465` + keel-web `82a92f3`; first
+sighting `runs/20261026T031240Z-s016-money-only` failed on the read-back's sentence; stepped round in
+`runs/20261026T032530Z-s016-money-only`, step *DRIFT #96*).
+
+**The screen.** Step 1, *The context*, on a money-alone study: keel-web 109 FR-3 draws no recall window (the gate's clock;
+money alone serves no gate -- `servesGate`), and the founder types none. The card that comes back (*Keel understands*) reads
+*"Independent restaurant managers in the US, who run one or two sites, when a delivery does not match its invoice, keep
+the stock records matching what is on the shelves, counting the last 7 nights."* and draws the line *Counting the last 7
+nights.* under it (`ProposedCard` draws `understands__window` unconditionally, `proposed.fields.recallWindow ??
+recallWindow ?? RECALL_WINDOW_DEFAULT`); once confirmed the page hides that line (`ContextStep`, `servesGate`) but the
+stored sentence keeps the clause.
+
+**The wire.** `PUT /v2/projects/{id}/context` carries `recallWindow: {count: 7, unit: NIGHTS}` -- keel-web
+`RECALL_WINDOW_DEFAULT`, the state the hidden field was initialised with (`ContextStep` sends `recallWindow: typedWindow`
+whatever the scope) -- and `GET context` serves `fields.recallWindow` `{7, NIGHTS}` and `understands` with keel-cloud's
+`ReadBack` clause (*, counting the last 7 nights*), which `ReadBack` leaves out only where no window is stored. Design
+§11: *"only money alone does without it (the money questions carry their own periods)"*. Nothing a stranger reads uses the
+window on money alone (no gate, no Frequency), so the harm is the founder's card naming a window they never saw.
+
+**What the harness does.** `evals/corpus_scenario._drift_96_window`, a step named for this entry: where no window is drawn
+and the served sentence is not the windowless read-back, it asserts the PUT sent keel-web's default and the sentence is
+the read-back over that default (and `GET context` stores it); a failing guard once the page sends none (the main
+assertion then holds the windowless sentence). For keel-web: send no `recallWindow` where `servesGate(scope)` is false and
+draw the card's window line only where it is; keel-cloud then stores none (its contract already allows an absent window,
+`ReadBack` drops the clause).
+
+## 97. Observation (keel-cloud): on a scoped study the problem card and the mechanism card still chain their vector's CALIBRATION_QUESTIONS -- money alone writes a problem slice and a solution slice nobody walks
+
+Found by spec `071-study-scopes` on S-016, money alone (keel-cloud-docs `867b6465`; first sighting
+`runs/20261026T031542Z-s016-money-only`: the scripted executor's money slice was handed to a PROBLEM job, refused C1
+*"COMMERCIAL"* and the repair turn matched nothing -- `screen result refused: screen=CALIBRATION_QUESTIONS ... rule=C1
+value="COMMERCIAL" next=repair` twice in the cloud's log, then the money redraft refused; held in
+`runs/20261026T032530Z-s016-money-only`, step *DRIFT #97*: six CALIBRATION_QUESTIONS jobs, all APPLIED).
+
+**The wire.** `GET /v2/inference-interactions?project_id=` lists, after *Yes, that's the problem* and *Looks right* on a
+money-alone study, a CALIBRATION_QUESTIONS job each (auto-chained off PROBLEM_INTERPRET and SOLUTION_MECHANISM), before the
+money slice the persona starts. keel-cloud `ScreenChain.next` chains `calibrationIfUnwritten(project, PROBLEM)` after a
+problem interpretation and `(project, SOLUTION)` after a mechanism whatever `project.scope()` is; keel-cloud 133 FR-3 says
+calibration is required for `scope.vectors()` only, and T010 that only the served parts' jobs run. The screens never show
+those questions (keel-web 109 walks the scope's stages), so the founder sees nothing; the cost is two model jobs a money
+study (and their credits on Keel's door), and on the solution studies one (the problem's).
+
+**What the harness does.** `harness/vectors_script.chained_out_of_scope` names the chained vectors and `calibration_jobs`
+puts one slice for each in the script, in the corridor's order (the scripted executor consumes a screen's entries in
+order, so without them every money job would take the wrong entry); `evals/scope_journey.drift_97` holds the job count on
+the wire (one CALIBRATION_QUESTIONS job per scripted entry, all APPLIED) and names the out-of-scope ones. When keel-cloud
+stops chaining them, the money slice is handed the problem's entry and the journey fails at C1 -- drop the two entries then.
+For keel-cloud: chain a vector's calibration only where `project.scope().vectors()` holds it.

@@ -636,6 +636,25 @@ def serves_part(entry, part: int, link: str) -> bool:
     return PART_VECTOR[part] in vectors
 
 
+def chained_out_of_scope(entry) -> tuple:
+    """runs/DRIFT.md #97 (spec 071): the vectors keel-cloud `ScreenChain.next` writes a CALIBRATION_QUESTIONS slice for
+    though the scope does not calibrate them -- the problem's on the problem card's confirmation (every scope has the
+    problem chat), the solution's on the mechanism card's (wherever the idea card is: the solution or the money in
+    scope). None under ALL or on the problem study."""
+    vectors = scope_vectors(entry)
+    out = []
+    if "PROBLEM" not in vectors:
+        out.append("PROBLEM")
+    if "SOLUTION" not in vectors and "COMMERCIAL" in vectors:
+        out.append("SOLUTION")
+    return tuple(out)
+
+
+def primary_link(entry) -> bool:
+    """keel-cloud 133 `StudyScope.primaryLink(b2b)`: no link to the person with the problem on B2B money alone."""
+    return not (scope_of(entry) == "COMMERCIAL" and is_b2b(entry))
+
+
 def calibrated_keys(entry, vector: str) -> list[str]:
     """The registry slice the calibration job writes for `vector`, in registry order: Ability to pay
     never (derived), Purchase friction on a B2B persona only."""
@@ -1053,7 +1072,12 @@ def calibration_jobs(entry) -> list[tuple[str, str | None]]:
     in_scope = scope_vectors(entry)
     for vector in VECTORS:
         if vector not in in_scope:
-            continue                            # spec 071: only the scope's vectors are calibrated (133 FR-3)
+            # spec 071: only the scope's vectors are calibrated (keel-cloud 133 FR-3) -- but runs/DRIFT.md #97: keel-cloud
+            # `ScreenChain` still chains a vector's slice on its seed's confirmation whatever the scope (the problem's
+            # on every study, the solution's wherever the idea card is written), so the script answers that one job
+            if vector in chained_out_of_scope(entry):
+                jobs.append((vector, None))
+            continue
         jobs.append((vector, None))
         for key in founder_keys(entry, vector):
             if is_list(key) and not entry.unsure(key):

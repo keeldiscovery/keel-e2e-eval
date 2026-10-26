@@ -2037,14 +2037,17 @@ class Interview:
         assert ticked.value.status == 204, f"the pilot tick answered {ticked.value.status}"
 
     def _idea(self) -> None:
-        """D9 (keel-web 064 FR-007): the decision-maker's link opens with the idea's three lines."""
+        """D9 (keel-web 064 FR-007): the decision-maker's link opens with the idea's three lines -- and, since keel-web 109
+        FR-5 (keel-cloud 133 FR-6, `Idea.problem`), the problem in one sentence above the card (`reveal-problem`)."""
         page = self.page
         _button(page, IV_CONTINUE).wait_for(state="visible", timeout=20_000)
         self._keep()
         self._shot("idea")
+        problem = page.locator("main.iv-body [data-testid=reveal-problem]")
         self.screens.append({"screen": "idea", "kicker": _first_text(page, ".iv-kicker"),
                              "card": _first_text(page, ".iv-card"),
-                             "question": _first_text(page, "h1.iv-q")})
+                             "question": _first_text(page, "h1.iv-q"),
+                             "problem": _tc(problem) if problem.count() else None})
         _button(page, IV_CONTINUE).click()
 
     def _gate(self, person, gate: dict, occasion: str | None, *, speak: str | None = None) -> None:

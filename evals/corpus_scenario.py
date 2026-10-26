@@ -308,6 +308,29 @@ def leg_project(j: Journey) -> None:
         assert market.get("kind") in (None, "OTHER"), market
 
 
+#: keel-web `RECALL_WINDOW_DEFAULT` -- the window the context step sends where the founder typed none (runs/DRIFT.md #96).
+DRIFT_96_WINDOW = {"count": 7, "unit": "NIGHTS"}
+
+
+def _drift_96_window(j: Journey, drawn: str, window_line: str) -> None:
+    """runs/DRIFT.md #96 (spec 071): on money alone keel-web 109 hides the recall window (no gate, so no clock) but its
+    context step still sends its default window in `PUT context` (`recallWindow: {7, NIGHTS}`), the card draws
+    *Counting the last 7 nights.* (`ProposedCard` draws the line unconditionally) and keel-cloud's read-back ends
+    *, counting the last 7 nights.* -- a window the founder never saw on a study that asks no window question. Stepped
+    round by name: the sentence is held to the read-back over that default window instead of none; a failing guard
+    once the page sends none (the main assertion then holds the windowless sentence)."""
+    sent = next((s.get("sent") for s in reversed(j.corridor.saves) if s.get("sent")), None) or {}
+    with _step(j, f"{j.entry.id} ({j.scope}): DRIFT #96 -- the context step hides the recall window on money alone but "
+                  "sends keel-web's default (7 nights) and the card and the read-back count it", party="founder") as h:
+        want = vs.read_back(j.entry, window=vs.Window(DRIFT_96_WINDOW["count"], DRIFT_96_WINDOW["unit"]))
+        h.record_assert({"PUT context recallWindow": None, "understands": vs.read_back(j.entry, window=False)},
+                        {"PUT context recallWindow": sent.get("recallWindow"), "understands": drawn,
+                         "window line": window_line})
+        assert sent.get("recallWindow") == DRIFT_96_WINDOW, sent
+        assert drawn == want, {"served": drawn, "over the default window": want}
+    j.changed["drift_96"] = {"sent": sent.get("recallWindow"), "understands": drawn, "window_line": window_line}
+
+
 def _hold_the_scope(j: Journey) -> None:
     """Spec 071 FR-1 (keel-cloud 133 FR-1 / FR-2, contract 38): the project is the scope the journey asked for -- on the
     overview and on the list's row. Under ALL (the harness's, never offered) the choose screen opened on the problem
@@ -360,13 +383,17 @@ def leg_context(j: Journey) -> None:
                         {"understands": drawn, "window": window_line, "window drawn": j.corridor.window_drawn,
                          **lines})
         assert drawn.strip(), "the context card drew no sentence"
-        if j.strict:
+        drift_96 = j.strict and not windowed and drawn != want
+        if j.strict and not drift_96:
             assert drawn == want, {"served": drawn, "assembled": want}
+        if j.strict:
             assert lines.get("only_people_who") == want_lines["only_people_who"], lines
         assert j.corridor.window_drawn is windowed, j.corridor.window_drawn
         if windowed:
             assert vs.window_words(founder.window) in window_line, window_line
         j.screens["context_card"] = {"understands": drawn, "text": drawn, **lines}
+    if drift_96:
+        _drift_96_window(j, drawn, window_line)
     _hold_the_occasion_field(j)
     j.corridor.confirm_context()
     with _step(j, "the context is confirmed on the wire: the four fields, the sentence, the window "
@@ -380,6 +407,8 @@ def leg_context(j: Journey) -> None:
         if windowed:
             assert fields.get("recallWindow") == founder.window.as_wire(), fields
             assert int((fields.get("recallWindow") or {}).get("count") or 0) >= 2, fields
+        elif drift_96:
+            assert fields.get("recallWindow") == DRIFT_96_WINDOW, fields      # runs/DRIFT.md #96: the hidden default
         else:
             assert not fields.get("recallWindow"), fields
         for key, value in founder.context_fields.items():
@@ -1894,7 +1923,8 @@ def leg_persona(j: Journey) -> None:
     with _step(j, "the persona yields one respondent type, or two on a B2B entry") as h:
         view = j.get(j.project("/persona")) or {}
         types = view.get("respondentTypes") or []
-        want = 2 if vs.is_b2b(j.entry) else 1
+        # spec 071 (keel-cloud 133): B2B money alone asks nobody with the problem -- the decision-maker's type alone
+        want = (1 if vs.primary_link(j.entry) else 0) + (1 if vs.is_b2b(j.entry) else 0)
         h.record_assert(want, types)
         assert len(types) == want, types
         if vs.is_b2b(j.entry):
@@ -2296,17 +2326,20 @@ def _themes_on_return(j: Journey, *, timeout_s: float = 90) -> None:
                 break
             time.sleep(1)
         failing = report_marks.failing_dimensions(standings)
+        # spec 071: keel-cloud 118 (spec 064 F-13) groups a held line's dissent box too -- S-016's money lines all hold
+        # and two carry dissent boxes, and one regrouped on the return -- so the bound is one a box the view serves
+        due = sorted(set(failing) | {i.get("dimension") for i in standings.get("insights") or []})
         seen = {t.get("interaction_id") for t in before}
         opened = [t for t in after if t.get("interaction_id") not in seen and t.get("status") != "STATE_CONFLICT"]
-        h.record_assert({"THEMES on this return": f"at most one a failing dimension ({len(failing)} failing)",
-                         "open": 0},
+        h.record_assert({"THEMES on this return": f"at most one a failing dimension or a box ({len(failing)} failing, "
+                                                  f"{len(due)} due)", "open": 0},
                         {"before": [(t.get("status"), t.get("interaction_id")) for t in before],
                          "after": [(t.get("status"), t.get("interaction_id")) for t in after],
                          "insights": [{k: i.get(k) for k in ("dimension", "answered", "state", "raw")}
                                       | {"themes": len(i.get("themes") or [])}
                                       for i in standings.get("insights") or []]})
         assert not any(t.get("status") in OPEN_STATUSES for t in after), after
-        assert len(opened) <= len(failing), (opened, failing)
+        assert len(opened) <= len(due), (opened, failing, due)
         bad = [t for t in after if t.get("status") in TERMINAL_BAD and t.get("status") != "STATE_CONFLICT"]
         if bad and getattr(j, "retries", 0):
             # spec 062: on the back-test an insight Keel's AI could not group is a finding, recorded, not the end
@@ -2771,6 +2804,10 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
             if first.get("screen") != "idea" or first.get("kicker") != idea.get("kicker") \
                     or (idea.get("what") or "") not in (first.get("card") or ""):
                 faults.append({"idea screen": first, "served": idea})
+            # spec 071 (keel-cloud 133 FR-6, keel-web 109 FR-5): the decision-maker's idea screen draws the served
+            # `Idea.problem` above the card, verbatim -- on every decision-maker's link, ALL included
+            if (first.get("problem") or None) != (idea.get("problem") or None):
+                faults.append({"idea problem": first.get("problem"), "served": idea.get("problem")})
         gate = next((s for s in screens if s.get("screen") == "gate"), None)
         served_gate = interview.get("gate") or {}
         if gate is not None and person.recency:
