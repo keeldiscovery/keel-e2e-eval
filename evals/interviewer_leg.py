@@ -2084,6 +2084,8 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
                 mic = player.mic_test("hello")
                 h.add_screenshot(player.screenshot("ai-mic-tested"))
                 player.start()
+                # spec 073 FR-5 (keel-web 113 FR-3): the crop's own classes, recorded -- the frames are keel-web's
+                record["ai_band"] = player.band()
                 walk = _Walk(player, interview, expected, story_by="wait" if record.get("short") else "save",
                              follow_up={"line": line, "by": by})
                 walked = walk.run()

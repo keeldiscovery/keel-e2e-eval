@@ -214,3 +214,37 @@ def test_sc2_v2_counts_the_two_screens():
     assert sm.SCOPE_MARKS_VERSION == 2
     assert "_founders_word" not in vars(__import__("evals.interviewer_leg", fromlist=["x"]))
     assert not hasattr(__import__("evals.interviewer_leg", fromlist=["x"]), "FOUNDERS_WORD")
+
+
+# ------------------------------------------------------------------- FR-5: the player's crop, its classes alone
+
+from harness import interviewer_screens as ivs                                  # noqa: E402
+from harness.steps import Recorder                                             # noqa: E402
+
+_BAND = """<div data-testid="ai-stage" data-phase="speaking"><div data-testid="ai-face" data-band="LIVIA"
+  class="aiv-stage__face aiv-stage__face--band"><div class="aiv-band"><div data-testid="ai-band-blur"></div>
+  <div data-testid="ai-band" class="aiv-band__picture"><video class="aiv-stage__video aiv-band__video"
+  data-clip="c1"></video></div></div></div></div>"""
+_PLAIN = """<div data-testid="ai-stage" data-phase="speaking"><div data-testid="ai-face" class="aiv-stage__face">
+  <video class="aiv-stage__video" data-clip="c1"></video></div></div>"""
+
+
+@pytest.mark.parametrize("html, want", [
+    (_BAND, {"band": "LIVIA", "classed": True, "band_video": 1, "blur": 1}),
+    (_PLAIN, {"band": None, "classed": False, "band_video": 0, "blur": 0}),            # a face not in the table
+])
+def test_the_crop_is_read_by_the_pages_own_classes(tmp_path, browser, html, want):
+    page = browser.new_page()
+    try:
+        page.set_content(html)
+        player = ivs.Player(page, Recorder(tmp_path))
+        assert player.band() == want
+        stage = player.stage()
+        assert stage["videos"] == 1 and stage["clip"] == "c1" and stage["band"] == want   # the one video, either way
+    finally:
+        page.close()
+
+
+def test_the_crop_is_recorded_never_scored():
+    from evals import interviewer_marks
+    assert all(key != "ai_band" for _, key, _ in interviewer_marks.MARKS)

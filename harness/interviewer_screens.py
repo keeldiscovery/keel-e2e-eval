@@ -778,7 +778,19 @@ class Player:
         return {"phase": self.phase(), "where": _words(self.page.get_by_test_id("ai-where")),
                 "state": _words(self.page.get_by_test_id("ai-state")),
                 "mark": _words(self.page.get_by_test_id("ship-mark")),
-                "videos": video.count(), "clip": video.first.get_attribute("data-clip") if video.count() else None}
+                "videos": video.count(), "clip": video.first.get_attribute("data-clip") if video.count() else None,
+                "band": self.band()}
+
+    def band(self) -> dict:
+        """keel-web 113 FR-3 (spec 073 FR-5): the face box's own classes for the crop -- `aiv-stage__face--band` and
+        `data-band` for a face in the picture table, the band's one video and the blurred still -- read, never judged:
+        the crop's frames are keel-web's."""
+        face = self.page.get_by_test_id("ai-face")
+        classes = (face.first.get_attribute("class") or "").split() if face.count() else []
+        return {"band": face.first.get_attribute("data-band") if face.count() else None,
+                "classed": "aiv-stage__face--band" in classes,
+                "band_video": self.page.locator("[data-testid=ai-band] video.aiv-stage__video.aiv-band__video").count(),
+                "blur": self.page.get_by_test_id("ai-band-blur").count()}
 
     # ---- the sheet
     def sheet(self) -> dict:
