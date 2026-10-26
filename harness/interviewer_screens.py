@@ -274,7 +274,8 @@ def walkthrough_asks_title(face: str) -> str:
 
 
 def ai_intro_heading(face: str, questions: int) -> str:
-    return f"{face} will ask you {questions} questions."
+    """keel-web `aiIntroHeading` (since 109, keel-cloud 133 FR-9: *1 question* for one)."""
+    return f"{face} will ask you {questions} question{'' if questions == 1 else 's'}."
 
 
 #: keel-web `tests/fixtures/interviewer/fakeSpeech.ts` `installFakeSpeech`, in JavaScript (an init script runs before

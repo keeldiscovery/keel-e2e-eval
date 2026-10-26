@@ -77,7 +77,7 @@ from harness import vectors_script as vs
 from harness import interviewer_screens as ivs
 from harness import interviews_screens as iv_screens
 from harness import vectors_screens as vs_screens
-from harness.browser import Auth, Connect, Landing
+from harness.browser import SCOPE_DEFAULT, Auth, Connect, Landing
 from harness.connect import start_runtime_via_skill, stop_runtime
 from harness.evidence import finalize_run, write_generated
 from harness.steps import Recorder
@@ -155,6 +155,10 @@ class Journey:
     #: the corridor: the same legs run, the same screens are held to the same wire, and nothing is
     #: held to the corpus's own words or counts (spec 016 FR-007's rule, kept).
     strict: bool = True
+    #: Spec 071 (keel-cloud 133, contract 38): the study's scope, answered on *What do you want to validate?* and sent in
+    #: the create request. ALL -- the harness's own, never offered by the web -- on the golden seven, S-014 and every
+    #: back-test; PROBLEM on S-015, COMMERCIAL on S-016 (`evals/scope_journey.py`).
+    scope: str = "ALL"
     #: How many times longer a wait on a model may take: 1 on the scripted journeys, more on S-012.
     patience: float = 1.0
     standings: dict = field(default_factory=dict)    # the last GET standings
@@ -276,7 +280,8 @@ def leg_project(j: Journey) -> None:
     j.project_id = create_project(j.page, j.recorder, j.web_base, _market_inputs(founder),
                                   welcome="hold" if j.hold_welcome else "pass",
                                   camera=j.camera.founder if getattr(j, "camera", None) is not None else None,
-                                  seen=j.changed)
+                                  seen=j.changed, scope=j.scope)
+    _hold_the_scope(j)
     _hold_the_other_market(j)
     with _step(j, "the market step's list is keel-cloud's (122 FR-4, `GET /v2/markets`): the entry's country is one "
                   "of `markets` -- or, for a country the table has not met, `other` offers it with its currency") as h:
@@ -301,6 +306,32 @@ def leg_project(j: Journey) -> None:
         # keel-cloud 122: `kind` is OTHER on a market the step's list did not offer (the served kind is the rule; the
         # markets table and the step's select can differ, 21-codyco's DE)
         assert market.get("kind") in (None, "OTHER"), market
+
+
+def _hold_the_scope(j: Journey) -> None:
+    """Spec 071 FR-1 (keel-cloud 133 FR-1 / FR-2, contract 38): the project is the scope the journey asked for -- on the
+    overview and on the list's row. Under ALL (the harness's, never offered) the choose screen opened on the problem
+    card and was left as it was, the page's create request said PROBLEM and went out as ALL; under any other scope the
+    card was picked and the request went as the page wrote it."""
+    chose = j.changed.get("choose") or {}
+    with _step(j, f"the project's scope is {j.scope}, on the overview and the project list (contract 38) -- "
+                  + ("the choose screen walked by picking nothing, the create request carried ALL"
+                     if j.scope == "ALL" else "picked on the choose screen"), party="founder") as h:
+        overview = j.get(j.project("/overview")) or {}
+        listed = j.get("/v2/projects") or {}
+        rows = listed if isinstance(listed, list) else listed.get("projects") or []
+        row = next((r for r in rows if r.get("projectId") == j.project_id), {})
+        create = chose.get("create") or {}
+        opened = [c.get("pick") for c in (chose.get("opened") or {}).get("cards") or [] if c.get("checked")]
+        h.record_assert({"overview.scope": j.scope, "row.scope": j.scope,
+                         **({"web sent": SCOPE_DEFAULT, "sent": "ALL", "opened on": ["problem"]}
+                            if j.scope == "ALL" else {})},
+                        {"overview.scope": overview.get("scope"), "row.scope": row.get("scope"), "choose": chose})
+        assert overview.get("scope") == j.scope, overview.get("scope")
+        assert row.get("scope") == j.scope, row
+        if chose and j.scope == "ALL":
+            assert create == {"web": SCOPE_DEFAULT, "sent": "ALL"}, create
+            assert opened == ["problem"], chose.get("opened")
 
 
 def leg_context(j: Journey) -> None:

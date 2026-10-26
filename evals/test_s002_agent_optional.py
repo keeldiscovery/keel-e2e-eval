@@ -236,7 +236,8 @@ def test_s002_agent_optional(stack, founder_one, browser, run_dir):
 
         with recorder.step("wire: POST /v2/projects refuses with no live agent",
                             party="stack", kind="assert") as h:
-            response = _post_raw("/v2/projects", {"name": "S-002 wire probe (expected to refuse)"})
+            response = _post_raw("/v2/projects", {"name": "S-002 wire probe (expected to refuse)",
+                                                     "scope": "ALL"})
             body = response.json()
             h.record_assert({"status": 422, "rule": "agent"}, {"status": response.status, "body": body})
             assert response.status == 422, (

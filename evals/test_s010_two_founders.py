@@ -400,7 +400,7 @@ def test_s010_two_founders(stack, founder_one, founder_two, browser, run_dir):
                             "their own agent, never handed somebody else's",
                             party="founder-b", kind="assert") as h:
             created = context_b.request.post(f"{cloud_base}/v2/projects",
-                                             data={"name": "Nour's own", "market":
+                                             data={"name": "Nour's own", "scope": "ALL", "market":
                                                    {"country": "GB", "region": None}},
                                              timeout=15_000)
             body = created.text()

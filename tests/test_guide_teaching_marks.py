@@ -405,7 +405,13 @@ def test_every_present_clip_in_keel_webs_manifest_is_one_the_marks_know():
              *marks.PAGE_CLIPS}                                       # spec 059: keel-web 088's three page clips
     # keel-web 090 added two landing clips (landing-intro, sample-question) that no mark reads: a public page's
     # tour and the sample's question, outside the teaching marks (061 follow-up, 2026-10-22).
-    assert keys and keys <= known | {"welcome", "interviewer-sample", "landing-intro", "sample-question"}, sorted(keys - known)
+    # keel-web 110 / 111 (spec 071): the home's video card (home-intro), Try one's solution and money questions
+    # (sample-question-solution / -money) and the four scoped *How to read this* clips (report-read-<scope>: a study of
+    # one scope's Overview -- never met by an ALL journey, which reads report-read). None is a teaching mark's.
+    public = {"welcome", "interviewer-sample", "landing-intro", "sample-question", "home-intro",
+              "sample-question-solution", "sample-question-money"}
+    scoped = {"report-read-problem", "report-read-solution", "report-read-solution-money", "report-read-money"}
+    assert keys and keys <= known | public | scoped, sorted(keys - known - public - scoped)
 
 
 @pytest.mark.parametrize("testid", ["guide-report", "guide-opener", "guide-pill-new", "guide-band", "guide-chapter"])

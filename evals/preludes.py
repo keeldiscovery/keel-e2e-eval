@@ -158,8 +158,13 @@ def stage_from_overview(overview_body: dict, stage_type: str) -> dict:
 
 def create_project(page: Page, recorder: Recorder, web_base: str,
                    founder: corpus_script.FounderInputs, *, welcome: str = "pass", camera=None,
-                   seen: dict | None = None) -> str:
-    """Name -> market -> start. Returns the new project id.
+                   seen: dict | None = None, scope: str = "ALL") -> str:
+    """Name -> *What do you want to validate?* -> market -> start. Returns the new project id.
+
+    Spec 071 FR-1 (keel-web 109, keel-cloud 133): `scope` is answered on the choose screen between the name and the
+    market -- ALL (every golden journey and back-test: the harness's own, never offered) by picking nothing and carrying
+    the create request with `scope: ALL`; any other by its card (`harness.browser.ScopeChoose`). What the screen drew and
+    what the create request sent land in `seen["choose"]`.
 
     The market's `language` is never typed: `CreateProjectRequest.market` carries only
     `{country, region}` and the server derives the rest (vendored fact V7). A `region` of `None`
@@ -174,7 +179,7 @@ def create_project(page: Page, recorder: Recorder, web_base: str,
         landing.start_new_project()
     if camera is not None:                     # spec 062 FR-3: the back-test's camera, before each is answered
         camera("name")
-    landing.name_project(founder.project_name)
+    landing.name_project(founder.project_name, scope=scope, seen=seen)
     market = MarketStep(page, recorder, web_base)
     if camera is not None:
         camera("market")

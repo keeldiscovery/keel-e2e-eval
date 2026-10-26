@@ -64,17 +64,29 @@ def test_the_map_is_the_amendments(names):
         ("11-issen", "issen", "Issen", (), "Fall 2024"),
         ("12-transload", "transload", "Transload", (), "Spring 2026"),
         ("13-aircaps", "aircaps", "AirCaps", (), "Fall 2025"),
+        # ad56882: the eight entries 14-21 joined the map (spec 071 found this pin still at six)
+        ("14-code-four", "code-four", "Code Four", (), "Spring 2025"),
+        ("15-voltair", "voltair", "Voltair", (), "Winter 2026"),
+        ("16-pairio", "pairio", "Pairio", (), "Spring 2026"),
+        ("17-expanse", "expanse", "Expanse", (), "Spring 2026"),
+        ("18-careforce", "careforce", "Careforce", (), "Fall 2024"),
+        ("19-veles", "veles", "Veles", (), "Winter 2024"),
+        ("20-lemma", "lemma", "Lemma", (), "Fall 2025"),
+        ("21-codyco", "codyco", "Codyco", (), "Fall 2025"),
     ]
+    yc_slug = {"lemma": "uselemma"}                     # ad56882: Lemma's YC page is /companies/uselemma
     for n in names:
         assert n.inspired_by == {"name": n.name, "batch": n.inspired_by["batch"],
-                                 "ycUrl": f"https://www.ycombinator.com/companies/{n.slug}"}
+                                 "ycUrl": f"https://www.ycombinator.com/companies/{yc_slug.get(n.slug, n.slug)}"}
         # launch-era (1d42c51): the Launch YC post's own title, its URL and its date
         assert n.public_description["url"].startswith("https://www.ycombinator.com/launches/")
         assert n.public_description["date"] < "2026-10-22" and n.public_description["text"].strip() and not n.axes
         if n.status_today:                                              # today's one-liner, where it differs
             assert n.status_today["url"] == n.inspired_by["ycUrl"] and n.status_today["date"] == "2026-10-22"
             assert n.status_today["text"] != n.public_description["text"]
-    assert [n.slug for n in names if not n.status_today] == ["aircaps"]
+    # the six of 2026-10-22 carry today's one-liner where it differs; ad56882's eight leave it for a later read
+    assert [n.slug for n in names[:6] if not n.status_today] == ["aircaps"]
+    assert all(not n.status_today for n in names[6:])
     assert names[0].public_description == {
         "text": "Fresco: The scribe for construction",
         "url": "https://www.ycombinator.com/launches/M73-fresco-the-scribe-for-construction", "date": "2024-10-23"}
@@ -154,7 +166,15 @@ def test_the_clusters_are_the_diversity_researchs(names):
         ("palus-finance", 27, "Payments, banking, lending, stablecoins"),
         ("issen", 29, "Education and tutoring"),
         ("transload", 16, "Supply chain, logistics, freight"),
-        ("aircaps", 6, "Consumer video, media and creators")]
+        ("aircaps", 6, "Consumer video, media and creators"),
+        ("code-four", 9, "Legal, law and government"),
+        ("voltair", 3, "Defense, drones, space and aviation"),
+        ("pairio", 26, "Robotics, manufacturing and factories"),
+        ("expanse", 23, "Developer infrastructure and cloud"),
+        ("careforce", 0, "Healthcare and patient care"),
+        ("veles", 22, "Sales, CRM and lead generation"),
+        ("lemma", 24, "Software engineering and developer tools"),
+        ("codyco", 12, "Business operations and hospitality")]
 
 
 def test_keywords_are_derived_when_the_map_writes_none(names):
@@ -165,7 +185,10 @@ def test_keywords_are_derived_when_the_map_writes_none(names):
     assert not set(words[2:]) & g._STOP                  # the actor and the occasion are taken as served
     for n in names:                                       # the map's lists: 5 to 12, lower case, no company name
         assert g.KEYWORDS_MIN <= len(n.keywords) <= g.KEYWORDS_MAX
-        assert all(k == k.lower() and n.name.lower() not in k for k in n.keywords)
+        # ad56882's eight write a few acronyms and a country capitalised (*ML researcher*, *EMR*, *Germany*); the export
+        # lower-cases the map's words (`keywords`), so the index's are lower case either way (spec 071 found this red)
+        exported = g.keywords(run, n, occasion=None)
+        assert all(k == k.lower() and n.name.lower() not in k for k in exported), exported
 
 
 @pytest.mark.parametrize("change, said", [
@@ -393,7 +416,7 @@ def test_the_default_is_the_newest_finished_run_per_entry(tmp_path, names):
     newest = _fake_run(tmp_path, "20261022T120000Z-backtest-08-fresco")
     _fake_run(tmp_path, "20261022T130000Z-backtest-08-fresco", passed=False)
     picked = g.newest_runs(names, tmp_path)
-    assert picked[0] == newest and len(picked) == 6
+    assert picked[0] == newest and len(picked) == len(names) == 14
     shutil.rmtree(tmp_path / "20261022T100000Z-backtest-13-aircaps")
     with pytest.raises(g.GalleryRefused, match="no finished back-test run of 13-aircaps"):
         g.newest_runs(names, tmp_path)

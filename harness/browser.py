@@ -938,8 +938,14 @@ class Landing:
             _wait_for_url_change(self.page, lambda url: "/connect" in url)
             h.add_screenshot(self._bstep.screenshot("landing-gate-to-connect"))
 
-    def name_project(self, name: str) -> None:
+    def name_project(self, name: str, *, scope: str = "ALL", seen: dict | None = None) -> None:
         """L1/L3's own step 1 (`CreateProjectStep.tsx`): the name, and then *Save and continue*.
+
+        **Spec 071 FR-1** (keel-web 109 FR-1; keel-cloud 133, contract 38): *Save and continue* opens *What do you want
+        to validate?* (`ScopeChoose`), and `scope` is answered there before the market -- a card picked for one of the
+        four the web offers; for ALL (the harness's own, never offered) nothing is picked, *Continue* is pressed on the
+        screen as it opens, and the one create request the market's *Start* sends is carried with `scope: ALL`
+        (`ScopeRewrite`). What the screen drew and what was sent land in `seen["choose"]` when a dict is handed in.
 
         **It no longer creates the project.** Spec 013 put the market step between naming and
         starting -- the market is what decides units, register and currency, and it is chosen
@@ -954,6 +960,13 @@ class Landing:
             box.fill(name)
             h.add_screenshot(self._bstep.screenshot("landing-name-filled"))
             self.page.get_by_role("button", name=re.compile("save and continue", re.I)).click()
+            # spec 071 FR-1 (keel-web 109 FR-1): *What do you want to validate?* sits between the name and the market
+            self.page.locator(f"{SCOPE_CHOOSE}, .guided-step select").first.wait_for(state="visible", timeout=15_000)
+        if self.page.locator(SCOPE_CHOOSE).count():
+            chose = ScopeChoose(self.page, self._bstep.recorder, self.base_url).choose(scope)
+            if seen is not None:
+                seen["choose"] = chose
+        with self._bstep.step("founder is on the market step") as h:
             self.page.locator(".guided-step select").first.wait_for(state="visible", timeout=15_000)
             h.capture_text("screen", "market")
             h.capture_text("stage_screen", _safe_text(
@@ -1776,6 +1789,135 @@ MARKET_GROUPS = ("North America",)
 OTHER_COUNTRIES = {"DE": ("Germany", "EUR"), "NL": ("Netherlands", "EUR"), "ES": ("Spain", "EUR"), "IT": ("Italy", "EUR"),
                    "PK": ("Pakistan", "PKR"), "SG": ("Singapore", "SGD"), "BR": ("Brazil", "BRL"), "MX": ("Mexico", "MXN"),
                    "JP": ("Japan", "JPY"), "KE": ("Kenya", "KES"), "NG": ("Nigeria", "NGN"), "ZA": ("South Africa", "ZAR")}
+
+
+#: Spec 071 FR-1 (keel-cloud 133 FR-1, contract 38 `StudyScope`): the five scopes the wire takes. ALL is the harness's:
+#: accepted on the wire, never offered by the web.
+SCOPES = ("PROBLEM", "SOLUTION", "SOLUTION_COMMERCIAL", "COMMERCIAL", "ALL")
+#: keel-web 109's choose screen (`ScopeChoose`): the card a scope is picked on, and the plan card's `data-scope` for it.
+SCOPE_CHOOSE = "[data-testid=scope-choose]"
+SCOPE_CARD = {"PROBLEM": "problem", "SOLUTION": "solution", "SOLUTION_COMMERCIAL": "solution", "COMMERCIAL": "money"}
+SCOPE_PLAN = {"PROBLEM": "problem", "SOLUTION": "solution", "SOLUTION_COMMERCIAL": "solution-money",
+              "COMMERCIAL": "money"}
+#: keel-web 109 judgement call 1: the screen opens on the problem card -- what the web sends when nothing is picked.
+SCOPE_DEFAULT = "PROBLEM"
+SCOPE_QUESTION = "What do you want to validate?"
+SCOPE_MORE = "Also investigate commercial viability"
+#: The plan card's badge, sentence case in the DOM (capitals by CSS) -- keel-web 109's *For keel-e2e-eval* table.
+SCOPE_BADGE = {"PROBLEM": "Problem", "SOLUTION": "Solution", "SOLUTION_COMMERCIAL": "Solution + money",
+               "COMMERCIAL": "Money"}
+
+
+def with_scope(post_data: str | None, scope: str) -> str:
+    """The create request's body with its `scope` set to `scope` -- every other field as the page wrote it (spec 071
+    FR-1). Refuses a scope the wire does not take and a body that is not a JSON object."""
+    if scope not in SCOPES:
+        raise ValueError(f"{scope!r} is not a study scope -- one of {SCOPES}")
+    body = json.loads(post_data or "{}")
+    if not isinstance(body, dict):
+        raise ValueError(f"the create request is not a JSON object: {post_data!r}")
+    body["scope"] = scope
+    return json.dumps(body)
+
+
+def is_create_request(method: str, url: str) -> bool:
+    """`POST /v2/projects` itself -- not a project's own routes, not the list's GET."""
+    return method == "POST" and is_projects_url(url)
+
+
+def is_projects_url(url: str) -> bool:
+    """The route `ScopeRewrite` is installed on: `/v2/projects` alone (the list and the create), nothing under it."""
+    return urlsplit(url).path.rstrip("/").endswith("/v2/projects")
+
+
+class ScopeRewrite:
+    """Spec 071 FR-1: a `page.route` handler that carries the **next** create request with `scope` (ALL) and lets every
+    other request, and every later one, on to any other handler (`route.fallback`). One shot: the harness creates one
+    project per pick. Installed on `/v2/projects` alone (`is_projects_url`), so no other route of the page passes through
+    it. What the page sent and what went out are kept in `self.seen` (`{web, sent}`)."""
+
+    def __init__(self, scope: str):
+        if scope not in SCOPES:
+            raise ValueError(f"{scope!r} is not a study scope -- one of {SCOPES}")
+        self.scope = scope
+        self.seen: dict = {}
+        self.done = False
+
+    def __call__(self, route, request) -> None:
+        if self.done or not is_create_request(request.method, request.url):
+            route.fallback()
+            return
+        self.done = True
+        sent = with_scope(request.post_data, self.scope)
+        self.seen.update(web=(json.loads(request.post_data or "{}") or {}).get("scope"), sent=self.scope)
+        route.continue_(post_data=sent)
+
+
+class ScopeChoose:
+    """*What do you want to validate?* (keel-web 109 FR-1, `components/scope/ScopeChoose.tsx`; keel-cloud 133): three
+    radio cards (`.scope-opt[data-pick=problem|solution|money]`), *Also investigate commercial viability* under the
+    solution card while it is picked, the plan card redrawn live (`[data-testid=scope-plan][data-scope]`: its badge,
+    its lines as pills, the kind of research, the length), *Back* and *Continue* (`scope-continue`). ALL is never
+    offered: `choose("ALL")` picks nothing and installs `ScopeRewrite`, so the create request the market's *Start*
+    sends carries ALL."""
+
+    def __init__(self, page: Page, *args: Any, party: str = "founder"):
+        self.page = page
+        recorder, self.base_url = _split_recorder_and_base(args, page)
+        self._bstep = _BrowserStep(recorder, page, party)
+
+    def read(self) -> dict:
+        """What the screen draws now: the kicker, the question, each card's pick and whether it is checked, the
+        checkbox row (drawn, ticked), and the plan card (its scope, badge, lines, kind and length)."""
+        root = self.page.locator(SCOPE_CHOOSE).first
+        cards = [{"pick": c.get_attribute("data-pick"), "checked": c.get_attribute("aria-checked") == "true",
+                  "text": " ".join((c.text_content() or "").split())}
+                 for c in root.locator(".scope-opt").all()]
+        more = root.get_by_test_id("scope-more")
+        box = more.locator("input")
+        plan = root.get_by_test_id("scope-plan")
+        return {"kicker": _safe_text(lambda: root.locator(".guided-step__kicker").first.inner_text()),
+                "question": _safe_text(lambda: root.locator(".guided-step__question").first.inner_text()),
+                "cards": cards,
+                "more": {"drawn": more.count() > 0 and more.first.is_visible(),
+                         "checked": box.count() > 0 and box.first.is_checked()},
+                "plan": {"scope": plan.first.get_attribute("data-scope") if plan.count() else None,
+                         "badge": _safe_text(lambda: plan.get_by_test_id("scope-badge").first.text_content() or ""),
+                         "lines": [" ".join((t or "").split()) for t in
+                                   plan.locator("[data-testid=scope-plan-lines] .vtag").all_text_contents()],
+                         "kind": _safe_text(lambda: plan.get_by_test_id("scope-plan-kind").first.inner_text()),
+                         "length": _safe_text(lambda: plan.get_by_test_id("scope-plan-length").first.inner_text())}}
+
+    def choose(self, scope: str = "ALL") -> dict:
+        """Picks `scope`'s card (and ticks *Also investigate commercial viability* for SOLUTION_COMMERCIAL), reads the
+        screen before and after, and presses *Continue* to the market. ALL picks nothing. Returns `{scope, opened,
+        picked, create}` -- `create` is filled by the create request when it goes (`ScopeRewrite.seen` on ALL)."""
+        if scope not in SCOPES:
+            raise ValueError(f"{scope!r} is not a study scope -- one of {SCOPES}")
+        with self._bstep.step(f"founder answers What do you want to validate? -- "
+                              f"{'nothing picked (the harness creates ALL)' if scope == 'ALL' else scope}") as h:
+            root = self.page.locator(SCOPE_CHOOSE).first
+            root.wait_for(state="visible", timeout=15_000)
+            opened = self.read()
+            h.add_screenshot(self._bstep.screenshot("scope-choose"))
+            create: dict = {}
+            if scope != "ALL":
+                root.locator(f".scope-opt[data-pick={SCOPE_CARD[scope]}]").first.click()
+                box = root.get_by_test_id("scope-more").locator("input")
+                if SCOPE_CARD[scope] == "solution" and box.count():
+                    if box.first.is_checked() != (scope == "SOLUTION_COMMERCIAL"):
+                        box.first.click()
+                root.locator(f"[data-testid=scope-plan][data-scope={SCOPE_PLAN[scope]}]").first.wait_for(
+                    state="visible", timeout=5_000)
+            else:
+                rewrite = ScopeRewrite("ALL")
+                self.page.route(is_projects_url, rewrite)
+                create = rewrite.seen
+            picked = self.read()
+            h.capture_text("stage_screen", _safe_text(lambda: root.inner_text()))
+            h.add_screenshot(self._bstep.screenshot(f"scope-{scope.lower()}"))
+            self.page.get_by_test_id("scope-continue").click()
+            return {"scope": scope, "opened": opened, "picked": picked, "create": create}
 
 
 class MarketStep:
