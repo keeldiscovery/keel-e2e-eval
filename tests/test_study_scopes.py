@@ -165,7 +165,7 @@ def test_the_golden_walk_is_unchanged_under_all(countly):
                                                  "INTERPRET", "THEMES"}
     assert all(vs.serves_part(countly, part, vs.LINK_PRIMARY) for part in (1, 2, 3))
     assert vs.read_back(countly).endswith(", counting the last 4 weeks.")
-    assert cs.before_counters() == ["1 of 3", "2 of 3", "3 of 3"]
+    assert cs.before_counters() == ["1 of 2", "2 of 2"]                  # spec 073 FR-2: the word hidden
     assert [vs_screens.stage_exit(v) for v in vs.VECTORS] == [vs_screens.STAGE_EXIT[v] for v in vs.VECTORS]
     assert vs.chained_out_of_scope(countly) == ()
 
@@ -199,7 +199,7 @@ def test_the_problem_study_s_expected_walk(countly):
     assert all({k.dimension for k in p.picks} <= {"problem.frequency", "problem.importance",
                                                    "problem.current_solution_satisfaction"} for p in people)
     assert not any(p.pilot_opt_in for p in people)                    # no pilot box in the problem study
-    assert cs.before_counters("PROBLEM") == ["1 of 2", "2 of 2"]
+    assert cs.before_counters("PROBLEM") == []                          # spec 073 FR-2: who asks alone, no counter
     assert vs_screens.stage_exit("PROBLEM", "PROBLEM") == "Save and continue to Before people see it"
     assert vs_screens.step_of("problem", "PROBLEM") == (2, 3)
     assert vs.chained_out_of_scope(seed) == ()
@@ -239,7 +239,7 @@ def test_money_alone_s_expected_walk(countly):
                                                   "commercial.purchase_friction", "commercial.commitment"]
     assert vs.read_back(seed, window=False).endswith("matching what is on the shelves.")
     assert "counting" not in vs.read_back(seed, window=False)
-    assert cs.before_counters("COMMERCIAL") == ["1 of 3", "2 of 3", "3 of 3"]
+    assert cs.before_counters("COMMERCIAL") == ["1 of 2", "2 of 2"]
     assert vs_screens.step_of("solution", "COMMERCIAL") == (3, 5)
     assert sj.problem_sentence(countly.interpretations["problem"]) == (
         "Independent restaurant managers lose time whenever a delivery does not match its invoice.")
@@ -292,7 +292,7 @@ def _problem_record():
                                            "lines": ["Prevalence", "Frequency", "Importance", "Current solution"]}}},
             "created": "PROBLEM", "served_scope": "PROBLEM",
             "kickers": [("problem.prevalence", "STEP 2 OF 3 · THE PROBLEM · WHAT DO YOU BELIEVE IS TRUE?")],
-            "counters": ["1 of 2", "2 of 2"], "kinds": ["FULL"], "links": 2, "people": 2,
+            "counters": [], "kinds": ["FULL"], "links": 2, "people": 2,
             "interviews": {"A": {"kind": "FULL", "gate": gate, "parts": [{"part": 1, "items": items}], "done": {}},
                            "B": {"kind": "FULL", "gate": gate, "parts": [], "done": {}}},
             "pilot_boxes": {"A": 0, "B": 0}, "done": {"A": "Thank you", "B": "Thank you"},
@@ -305,12 +305,13 @@ def _problem_record():
 
 def test_the_problem_study_s_marks_on_a_stubbed_walk():
     card = sm.score(_problem_record())
-    assert card["met"] == card["of"] == 7 and card["version"] == sm.SCOPE_MARKS_VERSION == 1
+    assert card["met"] == card["of"] == 7 and card["version"] == sm.SCOPE_MARKS_VERSION == 2
 
 
 @pytest.mark.parametrize("mark, change", [
     ("SC1", lambda r: r.update(created="ALL")),
-    ("SC2", lambda r: r.update(counters=["1 of 3", "2 of 3", "3 of 3"])),
+    ("SC2", lambda r: r.update(counters=["1 of 2", "2 of 2"])),          # v2: the problem study's who asks alone
+    ("SC2", lambda r: r.update(counters=["1 of 1"])),
     ("SC2", lambda r: r.update(kickers=[("problem.prevalence", "Step 2 of 5 · The problem")])),
     ("SC3", lambda r: r.update(kinds=["FULL", "COMMERCIAL_LINK"])),
     ("SC4", lambda r: r["interviews"]["A"].update(done={"pilot": {"label": "Count me in"}})),
@@ -345,7 +346,7 @@ def _money_record():
             "choose": {"picked": {"plan": {"scope": "money", "badge": "Money", "lines": sm.PLAN_LINES["COMMERCIAL"]}}},
             "created": "COMMERCIAL", "served_scope": "COMMERCIAL",
             "kickers": [("commercial.price", "STEP 4 OF 5 · WILL THEY PAY")], "idea_kicker": "STEP 3 OF 5 · YOUR IDEA",
-            "counters": ["1 of 3", "2 of 3", "3 of 3"], "kinds": ["COMMERCIAL_LINK"], "links": 1, "people": 1,
+            "counters": ["1 of 2", "2 of 2"], "kinds": ["COMMERCIAL_LINK"], "links": 1, "people": 1,
             "interviews": {"A": iv}, "pilot_boxes": {"A": 1}, "done": {"A": "Thank you"},
             "idea_screens": {"A": {"screen": "idea", "card": "Imagine x.", "problem": problem}},
             "problem_sentence": problem, "standings": standings,

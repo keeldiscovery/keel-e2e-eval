@@ -8,7 +8,8 @@ what the screens drew and the wire served:
 * **SC1 choose** -- the scope's card picked on *What do you want to validate?*, the plan card's scope, badge and lines
   keel-web 109's own, the create request carrying the scope and the project serving it;
 * **SC2 corridor** -- every founder screen's kicker counts the scope's steps (*Step k of 3* / *of 5*), money alone's
-  step 3 is *Your idea*, and step 5's counter counts its screens (two in the problem study: no pilot);
+  step 3 is *Your idea*, and step 5's counter counts its screens -- since keel-web 113 FR-2 hid *A word from you*, two
+  (the pilot, who asks) and none in the problem study, whose last step is who asks alone (v2, spec 073 FR-2);
 * **SC3 links** -- the links the scope issues: one kind (the person with the problem in the problem study; the
   decision-maker alone on B2B money alone);
 * **SC4 interview** -- what each link served and drew: the problem study's gate (counted) + story + part 1 and the
@@ -28,7 +29,10 @@ import re
 from instructions import corpus as corpus_mod
 from instructions import spoken
 
-SCOPE_MARKS_VERSION = 1
+#: v1 (spec 071): SC1-SC7 born. v2 (spec 073 FR-2, keel-web 113 FR-2): SC2 re-pinned -- step 5 counts two screens
+#: (*1 of 2*, *2 of 2*: the pilot, who asks; the word hidden) and the problem study's who asks alone draws no counter
+#: (was three, and two in the problem study).
+SCOPE_MARKS_VERSION = 2
 MARKS = ("SC1", "SC2", "SC3", "SC4", "SC5", "SC6", "SC7")
 
 #: keel-cloud 133 FR-1 / keel-web 109 `scopeVectors`.
@@ -126,8 +130,7 @@ def sc2(record: dict) -> dict:
         idea = record.get("idea_kicker") or ""
         if not idea.lower().startswith("step 3 of 5 · your idea"):
             faults.append({"idea kicker": idea, "want": "Step 3 of 5 · Your idea"})
-    n = 2 if scope == "PROBLEM" else 3
-    want = [f"{k} of {n}" for k in range(1, n + 1)]
+    want = [] if scope == "PROBLEM" else ["1 of 2", "2 of 2"]          # v2: the word hidden (keel-web 113 FR-2)
     if record.get("counters") != want:
         faults.append({"step 5": record.get("counters"), "want": want})
     return _mark("SC2", faults)

@@ -40,7 +40,10 @@ from harness import interviewer_fake as fake
 #: v7 (spec 059, keel-web 088, contract 24): IM30 (the band's *Hear <name>*: on Sent after the recording, `persona-hear`
 #: plays her hello inside the who-asks band to its end, 8 s or less, the still returns; absent for a retired face) born;
 #: the leg's W1 replay reading retires with *How it works* (keel-web 088 FR-1) -- it was a leg step, never a row here.
-INTERVIEWER_MARKS_VERSION = 7
+#: v8 (spec 073 FR-2, keel-web 113 FR-2): IM5 re-pinned -- *A word from you* is hidden and the leg writes no word, so
+#: IM5 holds the founder's word absent: none stored and every role's thanks clip the thank-you's default words (keel-cloud
+#: `InterviewComposer.done`, spoken by `PassageComposer.said`); a word stored by another door still owes the old rule.
+INTERVIEWER_MARKS_VERSION = 8
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
@@ -88,6 +91,9 @@ CHANGE_ACTION = f"Change who asks · {fake.CHANGE_PRICE} AI credits"
 CONTENT_WORD = 4          # a word of at least this many letters counts toward a line's coverage
 COVERAGE = 0.8            # the share of a line's content words the solution passage must say
 SHINGLE = 6               # six words of the founder's word in a row, spoken, is the word spoken
+#: keel-cloud `InterviewComposer.done`: the thank-you's default words, *Thank you -- your answers have gone to {first}.*,
+#: spoken as *Thank you, your answers ...* (`PassageComposer.said`); read here after `fake.normal`.
+THANKS_DEFAULT = "thank you your answers have gone to"
 #: keel-cloud 095 FR-E / 096: why a reading's or a brief's HOLD was written without a click -- a reading on arrival, the
 #: brief on the founder's return (096; 095's `brief:after-batch` is retired), a lost race's retry. A founder's own POST
 #: readings carries none.
@@ -221,8 +227,16 @@ def solution_three_facts(r: dict) -> tuple[bool, Any]:
 
 
 def no_founders_word(r: dict) -> tuple[bool, Any]:
-    """IM5: no clip says the founder's word (`DoneScreen.word.pitch`): not whole, not six words of it in a row."""
+    """IM5: no founder's word is spoken -- none stored since keel-web 113 hid the word, every thanks clip the default."""
     pitch = fake.normal(r["word"])
+    if not pitch:
+        # v8 (spec 073 FR-2): no word written -- every role's THANKS clip is the default thank-you and nothing else
+        clips = (r["recording"] or {}).get("clips") or []
+        thanks = [c for c in clips if c.get("kind") == "THANKS"]
+        off = [{"role": c.get("role"), "script": c.get("script")} for c in thanks
+               if not fake.normal(c.get("script")).startswith(THANKS_DEFAULT)
+               or len(fake.normal(c.get("script")).split()) > len(THANKS_DEFAULT.split()) + 3]
+        return bool(thanks) and not off, {"word": None, "thanks": len(thanks), "off": off}
     words = pitch.split()
     shingles = {" ".join(words[i:i + SHINGLE]) for i in range(max(1, len(words) - SHINGLE + 1))} if words else set()
     hits = [{"role": c.get("role"), "kind": c.get("kind")} for c in (r["recording"] or {}).get("clips") or []

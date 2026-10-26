@@ -9,7 +9,7 @@ These two journeys walk the two the founder named first, each **short** and each
 * **S-015, the problem study** (`problem_entry`): Countly with `scope: PROBLEM` -- the same restaurant managers, the same
   gate, stories and part-1 picks, so the problem's four standings are Countly's own numbers and are held to them
   (`corpus_scenario.hold_standings`). The choose screen's problem card, Context, the problem chat and its four
-  calibrations, *Before people see it* (the word and who asks: no pilot screen), the lock; one link a person; each
+  calibrations, *Before people see it* (who asks alone: no pilot screen, and no word since keel-web 113), the lock; one link a person; each
   stranger walks the gate, the story and part 1 and meets the thank-you with no pilot box; the Overview reads *Should
   you build it?*, no Pilot tab, no tiles, one card and a one-piece ship; the decision is *Build* / *Not yet* by the
   rule (Countly's problem is split on Current solution: *Not yet*).
@@ -21,7 +21,7 @@ These two journeys walk the two the founder named first, each **short** and each
   in one sentence (held to the spoken-form mirror), the idea card, then part 3; the Overview reads *Will they pay?*,
   the Pilot and *What they would pay* tiles, one card, a one-piece ship.
 
-Both are scored by `evals/scope_marks.py` (SC1-SC7, `SCOPE_MARKS_VERSION` 1). Every job is answered by keel-runtime's
+Both are scored by `evals/scope_marks.py` (SC1-SC7, `SCOPE_MARKS_VERSION` 2). Every job is answered by keel-runtime's
 scripted executor from the seed's own texts (`harness/vectors_script.generate`, which reads the scope); no model runs.
 """
 

@@ -2032,8 +2032,9 @@ def leg_persona(j: Journey) -> None:
 # ---------------------------------------------------------------------------------- leg 4: lock
 
 def leg_lock(j: Journey) -> None:
-    """Step 5's three screens since keel-web 069 (*A word from you* 1 of 3, *The pilot* 2 of 3, L1 *Who asks the
-    questions* 3 of 3 -- on the own door one line and *Lock and approve*; the idea moved to S2), then the lock:
+    """Step 5's two screens since keel-web 113 FR-2 hid *A word from you* (spec 073 FR-2: *The pilot* 1 of 2, L1 *Who
+    asks the questions* 2 of 2 -- on the own door one line and *Lock and approve*; the problem study's who asks alone,
+    no counter; the word's address answers with the first screen), then the lock:
     **one** RESPONDENT_QUESTIONS job (keel-cloud 091, contract 14: part 1 on the
     primary link, the gate's clause; parts 2 and 3 -- on B2B part 3 the decision-maker's link's -- composed by code in
     the lock's own commit), READY before anyone is invited, and the lock storing every saved list with its picked
@@ -2049,6 +2050,7 @@ def leg_lock(j: Journey) -> None:
     j.receipt = drawn.get("receipt") or {}
     j.screens["L1"] = drawn.get("l1") or {}
     j.changed["before_counters"] = drawn.get("counters")       # spec 071: step 5's counters (not a page drawn)
+    _hold_no_word(j, drawn)
     if getattr(j, "keels_door", False):
         _keels_door_l1(j, drawn)
     else:
@@ -2170,8 +2172,9 @@ def _keels_door_l1(j: Journey, drawn: dict) -> None:
     """Spec 062 (Keel's door, keel-web 069): L1 draws the faces' carousel with one preselected and *Lock and record the
     interviewer*; the lock records that face (fake renders on the local stack). Held: the three counters and the title;
     the rest recorded."""
-    with _step(j, "step 5 is three screens -- 1 of 3, 2 of 3 and L1 *Who asks the questions* 3 of 3, which on Keel's "
-                  "door is the faces' carousel and *Lock and record the interviewer* (keel-web 069; spec 062)",
+    with _step(j, "step 5 is two screens since keel-web 113 hid the word -- the pilot 1 of 2 and L1 *Who asks the "
+                  "questions* 2 of 2 (who asks alone in the problem study), which on Keel's door is the faces' carousel "
+                  "and *Lock and record the interviewer* (keel-web 069; spec 062)",
                party="founder") as h:
         l1 = drawn.get("l1") or {}
         h.record_assert({"counters": before_counters(j.scope), "title": vs_screens.L1_TITLE,
@@ -2216,15 +2219,32 @@ def _drift_95_guard(j: Journey, drawn: dict) -> None:
 
 
 def before_counters(scope: str = "ALL") -> list[str]:
-    """Step 5's counters: three screens (the word, the pilot, who asks), two in the problem study (keel-web 109 FR-3)."""
-    n = 2 if scope == "PROBLEM" else 3
-    return [f"{k} of {n}" for k in range(1, n + 1)]
+    """Step 5's counters since keel-web 113 FR-2 hid the word (spec 073 FR-2): two screens (the pilot, who asks); none
+    in the problem study, whose step is who asks alone (keel-web 109 FR-3: no pilot; 113: no *1 of 1*)."""
+    if scope == "PROBLEM":
+        return []
+    return ["1 of 2", "2 of 2"]
+
+
+def _hold_no_word(j: Journey, drawn: dict) -> None:
+    """Spec 073 FR-2 (keel-web 113 FR-2): the last step starts on its first visible screen -- the pilot, or who asks in
+    the problem study -- and the word's own address (`define/ready/word`) answers with that screen; *A word from you*
+    is drawn nowhere."""
+    ready = drawn.get("ready") or {}
+    first = "/define/ready/interviewer" if j.scope == "PROBLEM" else "/define/ready/pilot"
+    with _step(j, f"the last step starts on {first.rsplit('/', 1)[-1]} and the word's address redirects there; no *A word "
+                  "from you* (keel-web 113 FR-2)", party="founder") as h:
+        h.record_assert({"landed": f"…{first}", "word_redirect": f"…{first}", "word_drawn": 0}, ready)
+        assert str(ready.get("landed") or "").endswith(first), ready
+        assert str(ready.get("word_redirect") or "").endswith(first), ready
+        assert ready.get("word_drawn") == 0, ready
 
 
 def _own_door_l1(j: Journey, drawn: dict) -> None:
-    with _step(j, "step 5 is three screens since keel-web 069 -- 1 of 3, 2 of 3 and L1 *Who asks the questions* 3 "
-                  "of 3, which on an account on its own AI is one line and *Lock and approve*, no carousel; the "
-                  "lock's receipt carries no interviewer (contract 16)", party="founder") as h:
+    with _step(j, "step 5 is two screens since keel-web 113 hid the word -- the pilot 1 of 2 and L1 *Who asks the "
+                  "questions* 2 of 2 (who asks alone, no counter, in the problem study), which on an account on its own "
+                  "AI is one line and *Lock and approve*, no carousel; the lock's receipt carries no interviewer "
+                  "(contract 16)", party="founder") as h:
         l1 = drawn.get("l1") or {}
         counters = before_counters(j.scope)
         h.record_assert({"counters": counters, "title": vs_screens.L1_TITLE,
@@ -2663,6 +2683,7 @@ def _answer_one(j: Journey, person, token: str) -> None:
             j.findings.append(moved)
         _hold_the_screens(j, person, interview, walked)
         _hold_the_consent(j, person, walked)
+        _hold_the_thanks(j, person, interview, walked)
         if speak:
             expected = _hold_the_box(j, person, interview, walked, expected, speak)
         _hold_the_follow_up(j, person, interview, walked, owed)
@@ -2727,6 +2748,44 @@ CONSENT_TEXT = ("Keel is storing what you say here and sharing it with the found
                 "they have it; they may quote your words in their report. There is no way to delete it once you send it.")
 #: keel-web 069-075's door line, gone with keel-web 076 FR-5 (`CONSENT_PARTICIPANT_KEEL`).
 CONSENT_GONE = "Nothing here asks for your name"
+
+
+#: keel-cloud `InterviewComposer.done`: the thank-you's default words, the founder's first name after them.
+THANKS_DEFAULT = re.compile(r"^Thank you -- your answers have gone to (.+)\.$")
+
+
+def thanks_faults(interview: dict, walked: dict) -> list:
+    """Spec 073 FR-2 (keel-web 113 FR-2): the respondent's last screen with no founder's word -- the served thanks the
+    default words (*Thank you -- your answers have gone to {first}.*) and drawn as served, no word served and none
+    drawn. A person the gate sent out of the people the founder described meets the exit screen, not the thank-you:
+    nothing is owed there."""
+    done = interview.get("done") or {}
+    faults = []
+    if walked.get("done_screen") is False:
+        return faults
+    if not THANKS_DEFAULT.match(str(done.get("thanks") or "")):
+        faults.append({"served thanks": done.get("thanks"), "want": "Thank you -- your answers have gone to {first}."})
+    if done.get("word"):
+        faults.append({"served word": done.get("word")})
+    if walked.get("done") != done.get("thanks"):
+        faults.append({"drawn": walked.get("done"), "served": done.get("thanks")})
+    if walked.get("word_drawn"):
+        faults.append({"word drawn": walked.get("word_drawn")})
+    return faults
+
+
+def _hold_the_thanks(j: Journey, person, interview: dict, walked: dict) -> None:
+    faults = thanks_faults(interview, walked)
+    with _step(j, f"{person.person}: the last screen is the thank-you's default words, as served -- no founder's word "
+                  "(keel-web 113 FR-2 hides *A word from you*)", party="participant",
+               kind="assert" if j.strict else "note") as h:
+        h.record_assert({"thanks": "Thank you -- your answers have gone to {first}.", "word": None, "faults": []},
+                        {"served": (interview.get("done") or {}).get("thanks"), "drawn": walked.get("done"),
+                         "word": (interview.get("done") or {}).get("word"), "faults": faults})
+        if j.strict:
+            assert not faults, faults
+    if faults and not j.strict:
+        _found(j, f"{person.person}: the thank-you (keel-web 113 FR-2)", faults)
 
 
 def _hold_the_consent(j: Journey, person, walked: dict) -> None:

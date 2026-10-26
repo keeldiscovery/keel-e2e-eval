@@ -2,7 +2,7 @@
 contacts leg the founder's project gets its interviewer -- Chukwu since spec 058 (Tito before), recorded once by the
 stack's fake renderer -- and the leg walks everything 094 and 069 say about it: the recording's one charge, the persona
 line through RECORDING to READY, the links that wait for it (`INTERVIEWER_NOT_READY`) and the text link that never
-does, the spoken order of every role's clips, the solution passage's three facts, the founder's word never spoken, *Try it yourself* writing nothing,
+does, the spoken order of every role's clips, the solution passage's three facts, no founder's word (spec 073: none written, the thanks the default), *Try it yourself* writing nothing,
 an AI-interviewer link's clips served with HTTP Range and answered with `heard` / `how`, a Let-them-choose link
 answered in writing, the change of face for 400 credits, its refusal at a low balance, and the pilot ask -- the last
 line of every role, its Yes counted where a text link's is. S-005 walks the short form: the recording, READY, one AI
@@ -100,10 +100,8 @@ RECORDED_PERSON = "Someone the founder knows, whose browser records"
 SILENT_WEBM = b"\x1a\x45\xdf\xa3" + b"\x00" * (12 * 1024 - 5)
 SOUNDED_WEBM = b"\x1a\x45\xdf\xa3" + b"\x01" * (16 * 1024)
 TEXT_PERSON = "Someone the founder knows, in writing"
-#: The founder's word the leg writes after the lock (call 149: no corpus founder writes one; `PUT word` is legal after
-#: the lock) -- so the rule that it is never spoken has a word to hold. Composed here, never generated.
-FOUNDERS_WORD = ("I started this because I spent years watching good people lose whole evenings to it, and I would "
-                 "like to hear how it goes for you before I build anything.")
+#: Spec 073 FR-2 (keel-web 113 FR-2): *A word from you* is hidden, so no founder writes a word -- the leg's own `PUT
+#: word` after the lock (call 149's `FOUNDERS_WORD`) is dropped with it, and IM5 holds the thank-you's default words.
 
 #: keel-web 069's page objects (`harness/interviewer_screens.py`), built in spec 044 once 069 merged at `d23895f`.
 WEB_069_FOLLOW_UP = (
@@ -253,7 +251,6 @@ def _leg(j, *, short: bool) -> dict:
     since = stack_ledger.now(j.stack)
     try:
         _keels_door(j, wire, founder_id, run)
-        _founders_word(j, wire, record)
         _first_recording(j, wire, record)
         if not short:
             _screens_recording(j, wire, record)
@@ -390,22 +387,6 @@ def _restore(j, wire: _Wire, founder_id: str, run: str) -> None:
         h.record_wire({"closing row": taken}, {"aiPath": me.get("aiPath"),
                                                "creditsAvailable": me.get("creditsAvailable")})
         assert me.get("aiPath") == "OWN" and me.get("creditsAvailable") is None, me
-
-
-def _founders_word(j, wire: _Wire, record: dict) -> None:
-    with j.recorder.step("interviewer (call 149): the founder writes a word after the lock -- `PUT word`, legal after "
-                         "the lock, the incentive and the pilot kept as stored -- so the word never spoken has a "
-                         "subject; it is on the done screen as text", party="founder", kind="assert") as h:
-        stored = (stack_ledger.recording(j.stack, j.project_id).get("word") or {})
-        body = {"expectedRevision": j.revision(), "pitch": FOUNDERS_WORD, "incentive": stored.get("incentive")}
-        if stored.get("pilotEnabled") is not None:
-            body["pilotEnabled"] = stored.get("pilotEnabled")
-        status, saved = wire("PUT", "/word", body)
-        after = stack_ledger.recording(j.stack, j.project_id)
-        record["word_written"] = {"status": status, "before": stored, "after": after.get("word")}
-        h.record_assert({"pitch": FOUNDERS_WORD, "incentive": stored.get("incentive")}, record["word_written"])
-        assert after.get("pitch") == FOUNDERS_WORD, record["word_written"]
-        assert (after.get("word") or {}).get("incentive") == stored.get("incentive"), record["word_written"]
 
 
 def _first_recording(j, wire: _Wire, record: dict) -> None:
@@ -676,7 +657,7 @@ def _served_parts(interview: dict) -> list[dict]:
 def _the_recording(j, wire: _Wire, record: dict) -> None:
     """What keel-cloud stored, held to what each role's link serves (the dry run's Interview is a link's, 094 FR-G)."""
     with j.recorder.step("interviewer (094 FR-B): every role's clips in the spoken order, as its link is served; the "
-                         "solution passage reads the idea's three lines; the founder's word is spoken nowhere; the "
+                         "solution passage reads the idea's three lines; no founder's word, the thanks the default; the "
                          "pilot ask last; each clip the fake's one-second file at 0.1 s a word", party="stack",
                          kind="assert") as h:
         stored = stack_ledger.recording(j.stack, j.project_id)

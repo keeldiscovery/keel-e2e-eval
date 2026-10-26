@@ -114,7 +114,8 @@ PERSONA_ROLE = "If someone else, what role would that person typically have?"
 PERSONA_TITLE = "What is their job title?"
 BEFORE_CONTINUE = "Continue"
 BEFORE_LOCK = "Lock and write the questions"           # until keel-web 069
-#: keel-web 069 `translate.ts`: L1, the third screen of step 5.
+#: keel-web 069 `translate.ts`: L1, the last screen of step 5 (2 of 2 since keel-web 113 hid the word; alone in the
+#: problem study).
 L1_TITLE = "Who asks the questions"
 BEFORE_LOCK_RECORD = "Lock and record the interviewer"
 BEFORE_LOCK_APPROVE = "Lock and approve"
@@ -1785,42 +1786,41 @@ class Corridor:
     # ------------------------------------------------------------------- step 5: before people
 
     def word_pilot_and_lock(self, face: str | None = None, *, pilot: bool = True) -> dict:
-        """Step 5 (keel-web 063 FR-007; keel-web 069 FR-002 since spec 044): *A word from you* (1 of 3), *The pilot*
-        (2 of 3), then L1 *Who asks the questions* (3 of 3) -- the carousel of five faces on Keel's door (`face`
-        tapped when given), one line on an account on its own AI -- and *Lock and record the interviewer* / *Lock and
-        approve*. Returns the counters, what L1 drew and the lock's receipt as keel-web received it (`LockReceipt`)."""
-        with self._b.step("founder passes the word and the pilot, picks who asks, then locks") as h:
-            _wait_url(self.page, r"/define/ready")
+        """Step 5 since keel-web 113 FR-2 (spec 073 FR-2): *A word from you* is hidden (`READY_WORD_SCREEN` off), so the
+        step starts on its first visible screen -- *The pilot* (1 of 2), then L1 *Who asks the questions* (2 of 2): the
+        carousel of faces on Keel's door (`face` tapped when given), one line on an account on its own AI -- and in the
+        problem study (`pilot=False`, keel-web 109 FR-3) *Who asks the questions* alone, no counter. The word's own
+        address is opened once and answers with that first screen (`ReadyRoute`'s redirect). Then *Lock and record the
+        interviewer* / *Lock and approve*. Returns the counters, the landing and the redirect, what L1 drew and the
+        lock's receipt as keel-web received it (`LockReceipt`). The method keeps its name (its callers and stubs)."""
+        with self._b.step("founder walks the last step from its first screen (no word), picks who asks, then locks") as h:
+            first_screen = r"/define/ready/pilot" if pilot else r"/define/ready/interviewer"
+            _wait_url(self.page, first_screen)
+            landed = self.page.url
+            # keel-web 113 FR-2: the word's address answers with the step's first visible screen
+            self.page.goto(re.sub(r"/define/ready/[^/?#]+", "/define/ready/word", landed), wait_until="load")
+            _wait_url(self.page, first_screen)
+            ready: dict = {"landed": landed, "word_redirect": self.page.url}
             counter = self.page.get_by_test_id("before-counter")
-            counter.wait_for(state="visible", timeout=20_000)
-            self._shot("ready-word")
-            # The DOM's words, not the CSS's capitals (`text-transform`).
-            first = counter.text_content() or ""
             l1: dict = {}
             if not pilot:
-                # spec 071 (keel-web 109 FR-3, keel-cloud 133 FR-4): the problem study asks no pilot question, so step
-                # 5 is the word (1 of 2) and who asks (2 of 2)
+                # spec 071 / keel-web 113 FR-2: the problem study asks no pilot question and draws no counter (no *1 of 1*)
+                self._shot("ready-interviewer")
+                l1 = self.l1(face)
+                counters = [(c.text_content() or "").strip() for c in counter.all()]
+            else:
+                counter.wait_for(state="visible", timeout=20_000)
+                self.page.locator("[data-testid=before-counter]", has_text="1 of 2").wait_for(timeout=10_000)
+                first = (counter.text_content() or "").strip()
+                h.add_screenshot(self._b.screenshot("pilot"))
+                self._shot("ready-pilot")
                 _button(self.page, BEFORE_CONTINUE).click()
                 _wait_url(self.page, r"/define/ready/interviewer")
                 self.page.locator("[data-testid=before-counter]", has_text="2 of 2").wait_for(timeout=10_000)
-                counters = [first.strip(), (counter.text_content() or "").strip()]
+                counters = [first, (counter.text_content() or "").strip()]
                 self._shot("ready-interviewer")
                 l1 = self.l1(face)
-            else:
-                _button(self.page, BEFORE_CONTINUE).click()
-                _wait_url(self.page, r"/define/ready/pilot")
-                self.page.locator("[data-testid=before-counter]", has_text=re.compile(r"^2 of")).wait_for(timeout=10_000)
-                second = counter.text_content() or ""
-                h.add_screenshot(self._b.screenshot("pilot"))
-                self._shot("ready-pilot")
-                counters = [first.strip(), second.strip()]
-            if pilot and self.page.get_by_test_id("lock-and-record").count() == 0:  # keel-web 069: a third screen
-                _button(self.page, BEFORE_CONTINUE).click()
-                _wait_url(self.page, r"/define/ready/interviewer")
-                self.page.locator("[data-testid=before-counter]", has_text="3 of 3").wait_for(timeout=10_000)
-                counters.append((counter.text_content() or "").strip())
-                self._shot("ready-interviewer")
-                l1 = self.l1(face)
+            ready["word_drawn"] = self.page.get_by_text("A word from you", exact=False).count()
             button = self.page.get_by_test_id("lock-and-record")
             try:
                 self.page.wait_for_function("(b) => !b.disabled", arg=button.element_handle(), timeout=15_000)
@@ -1828,7 +1828,7 @@ class Corridor:
                 # the leg fails on it, the plan as served named; nothing is clicked and nothing locks on the wire
                 h.add_screenshot(self._b.screenshot("lock-disabled"))
                 return {"counters": counters, "receipt": {}, "l1": l1, "status": None, "disabled": True,
-                        "button": _safe_text(lambda: button.inner_text())}
+                        "button": _safe_text(lambda: button.inner_text()), "ready": ready}
             with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/lock"),
                                            timeout=30_000) as locked:
                 button.click()
@@ -1842,10 +1842,10 @@ class Corridor:
                 # spec 070 FR-1 (keel-cloud 131 FR-5): a refused lock (422 TEXT_REFUSED on an M5 word the repair turn did
                 # not move) leaves the screen where it is; the leg reads the body and edits the idea card
                 h.add_screenshot(self._b.screenshot("lock-refused"))
-                return {"counters": counters, "receipt": receipt, "l1": l1, "status": status}
+                return {"counters": counters, "receipt": receipt, "l1": l1, "status": status, "ready": ready}
             _wait_url(self.page, r"/interviews/sent|/people", timeout_s=60)       # keel-web 068: Sent
             h.add_screenshot(self._b.screenshot("locked-people"))
-            return {"counters": counters, "receipt": receipt, "l1": l1, "status": status}
+            return {"counters": counters, "receipt": receipt, "l1": l1, "status": status, "ready": ready}
 
     #: Spec 070 FR-1: the idea card's boxes on the Check screen (keel-web `IdeaCheck`: `idea-{line}`).
     IDEA_BOXES = {"how": "#idea-how", "howDecider": "#idea-howDecider", "belief": "#idea-belief"}
@@ -2086,10 +2086,15 @@ class Interview:
             heading = _safe_text(lambda: page.get_by_role("heading", level=1).first.inner_text())
             # spec 071 (keel-cloud 133 FR-4, keel-web 109 call 11): the thank-you's pilot box, drawn or not
             pilot_box = page.locator("input[type=checkbox], [role=checkbox]").count()
+            # spec 073 FR-2 (keel-web 113 FR-2): no founder's word -- the done screen's word section, drawn or not
+            word_drawn = page.locator(".iv-done__word").count()
+            done_screen = page.locator("main.iv-body .iv-done").count() > 0    # else the exit screen (outside)
             h.add_screenshot(self._b.screenshot(f"interview-done-{person.person.split()[0]}"))
             self._shot("done")
             page.remove_listener("response", self._keep_transcribe)
-            return {"body": body, "status": status, "done": heading, "pilot_box": pilot_box, "seen": list(self.seen),
+            return {"body": body, "status": status, "done": heading, "pilot_box": pilot_box, "word_drawn": word_drawn,
+                    "done_screen": done_screen,
+                    "seen": list(self.seen),
                     "screens": list(self.screens), "unanswered": list(self.unanswered), "closed_price": list(self.closed_price), "retried": list(self.retried), "follow_up_route": self.route, "follow_up": self.follow_up_seen,
                     "speak": self.speak_seen, "transcribed": self._transcribed(), "consent": self.consent}
 

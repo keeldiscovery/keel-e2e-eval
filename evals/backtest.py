@@ -994,7 +994,7 @@ def founder_answer(j, slug: str) -> Any:
         return {"what (typed)": f.idea_name, "how / belief": "saved as Keel drafted them"}
     if slug == "persona":
         return f.decider
-    if slug in ("persona-who-answers", "ready-word", "ready-pilot"):
+    if slug in ("persona-who-answers", "ready-pilot"):
         return "Continue"
     if slug == "ready-interviewer":
         return "Lock and record the interviewer (the face Keel preselects)"

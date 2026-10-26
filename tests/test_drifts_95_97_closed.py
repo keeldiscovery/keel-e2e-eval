@@ -90,7 +90,10 @@ def test_leg_lock_holds_the_plan_then_presses_the_button(tmp_path, countly, monk
     class _Corridor:
         def word_pilot_and_lock(self, face=None, *, pilot=True):
             order.append(("pressed", pilot))
-            return {"counters": ["1 of 2", "2 of 2"], "receipt": {"version": 1}, "l1": {}, "status": 201}
+            # spec 073 FR-2: the problem study's who asks alone, no counter; the word's address redirected there
+            return {"counters": [], "receipt": {"version": 1}, "l1": {}, "status": 201,
+                    "ready": {"landed": "http://w/p/x/define/ready/interviewer",
+                              "word_redirect": "http://w/p/x/define/ready/interviewer", "word_drawn": 0}}
 
     j.corridor = _Corridor()
     monkeypatch.setattr(cs, "plan_complete", lambda j: order.append("plan"))

@@ -126,3 +126,91 @@ def test_s005_alone_reopens_the_confirmed_context():
     assert "context_edit" not in inspect.getsource(test_s006_paidly)
     assert "context_edit" not in inspect.getsource(test_s007_mulchrun)
     assert inspect.signature(cs.run).parameters["context_edit"].default is False
+
+
+# ------------------------------------------------------------------- FR-2: *A word from you* is not walked
+
+from types import SimpleNamespace                                             # noqa: E402
+
+from evals import scope_marks as sm                                           # noqa: E402
+
+
+@pytest.mark.parametrize("scope, want", [("ALL", ["1 of 2", "2 of 2"]), ("COMMERCIAL", ["1 of 2", "2 of 2"]),
+                                         ("SOLUTION", ["1 of 2", "2 of 2"]), ("PROBLEM", [])])
+def test_step_5_counts_two_screens_and_none_in_the_problem_study(scope, want):
+    assert cs.before_counters(scope) == want
+
+
+class _Step:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def record_assert(self, want, got):
+        pass
+
+
+@pytest.fixture
+def steps(monkeypatch):
+    monkeypatch.setattr(cs, "_step", lambda *a, **k: _Step())
+
+
+def _ready(screen: str, **over) -> dict:
+    url = f"http://localhost:5173/p/p1/define/ready/{screen}"
+    return {"ready": {"landed": url, "word_redirect": url, "word_drawn": 0, **over}}
+
+
+@pytest.mark.parametrize("scope, screen", [("ALL", "pilot"), ("COMMERCIAL", "pilot"), ("PROBLEM", "interviewer")])
+def test_the_last_step_starts_on_its_first_screen_and_the_word_redirects_there(steps, scope, screen):
+    cs._hold_no_word(SimpleNamespace(scope=scope), _ready(screen))
+
+
+@pytest.mark.parametrize("scope, drawn", [
+    ("ALL", _ready("word")),                                                          # the word drawn first
+    ("ALL", _ready("pilot", word_redirect="http://localhost:5173/p/p1/define/ready/word")),  # the address answered
+    ("ALL", _ready("pilot", word_drawn=1)),                                           # *A word from you* on a screen
+    ("PROBLEM", _ready("pilot")),                                                     # a pilot in the problem study
+    ("ALL", {}),                                                                      # nothing read
+])
+def test_a_word_screen_still_walked_fails(steps, scope, drawn):
+    with pytest.raises(AssertionError):
+        cs._hold_no_word(SimpleNamespace(scope=scope), drawn)
+
+
+THANKS = "Thank you -- your answers have gone to Maya."
+
+
+def _done(**over) -> tuple[dict, dict]:
+    interview = {"done": {"thanks": THANKS, "word": None, "pilot": {"label": "Count me in for the pilot"}}}
+    walked = {"done": THANKS, "word_drawn": 0, "done_screen": True}
+    for k, v in over.items():
+        (interview["done"] if k in ("thanks", "word") else walked)[k] = v
+    return interview, walked
+
+
+def test_the_thank_you_is_the_default_words_as_served():
+    assert cs.thanks_faults(*_done()) == []
+    assert cs.thanks_faults(*_done(thanks="Thank you -- your answers have gone to The founder.",
+                                   done="Thank you -- your answers have gone to The founder.")) == []
+
+
+@pytest.mark.parametrize("over", [
+    {"word": {"founderFirstName": "Maya", "pitch": "I started this.", "attribution": "Maya wrote this."}},
+    {"word_drawn": 1},                                                                # a word section drawn
+    {"done": "That's it."},                                                           # drawn other than served
+    {"thanks": "Thanks!", "done": "Thanks!"},                                         # not the default words
+])
+def test_a_thank_you_with_a_word_or_other_words_is_named(over):
+    assert cs.thanks_faults(*_done(**over))
+
+
+def test_the_exit_screen_owes_no_thank_you():
+    assert cs.thanks_faults(*_done(done_screen=False, done="Thanks for your time")) == []
+
+
+def test_sc2_v2_counts_the_two_screens():
+    assert sm.SCOPE_MARKS_VERSION == 2
+    assert "_founders_word" not in vars(__import__("evals.interviewer_leg", fromlist=["x"]))
+    assert not hasattr(__import__("evals.interviewer_leg", fromlist=["x"]), "FOUNDERS_WORD")

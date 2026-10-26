@@ -328,8 +328,43 @@ def test_a_good_record_meets_every_mark():
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
     assert (card["measured"], card["met"], card["unmeasured"]) == (30, 30, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 7
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 8
     assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 31)]
+
+
+DEFAULT_THANKS = "Thank you, your answers have gone to Maya."
+
+
+def _no_word(script=DEFAULT_THANKS) -> dict:
+    record = good()
+    record["word"] = ""
+    record["recording"] = {**record["recording"], "clips": [{**c, "script": script} if c["kind"] == "THANKS" else c
+                                                            for c in record["recording"]["clips"]]}
+    return record
+
+
+def test_im5_v8_no_word_written_and_every_thanks_the_default():
+    """Spec 073 FR-2 (keel-web 113 FR-2): no founder writes a word, so IM5 holds none stored and every role's thanks
+    clip the thank-you's default words (`PassageComposer.said` of `InterviewComposer.done`'s thanks)."""
+    check = _by_mark(_no_word())["IM5"]
+    assert check.measured and check.ok, check.detail
+    assert check.detail["word"] is None and check.detail["thanks"] == 2
+    assert _by_mark(_no_word("Thank you, your answers have gone to The founder."))["IM5"].ok
+
+
+@pytest.mark.parametrize("script", [
+    "Thank you.",                                                                      # not the default words
+    DEFAULT_THANKS + " " + "I started this because I spent years watching good people lose whole evenings.",
+    "Your answers have gone to Maya.",                                                 # the thanks cut
+])
+def test_im5_v8_a_thanks_that_is_not_the_default_fails(script):
+    assert not _by_mark(_no_word(script))["IM5"].ok
+
+
+def test_im5_v8_no_thanks_clip_at_all_fails():
+    record = _no_word()
+    record["recording"]["clips"] = [c for c in record["recording"]["clips"] if c["kind"] != "THANKS"]
+    assert not _by_mark(record)["IM5"].ok
 
 
 def test_the_story_ended_by_the_pause_meets_im22_with_nothing_pressed():
@@ -400,7 +435,7 @@ SEEDED = [
                                              if x["kind"] == "THANKS" else x for x in c])),
     ("IM5", ["recording"], _clips(lambda c: [{**x, "script": "Thank you. I spent six years chasing agencies for "
                                                              "invoices."} if x["kind"] == "THANKS" else x for x in c])),
-    ("IM5", ["word"], ""),                                                                # nothing to hold it to
+    ("IM5", ["word"], ""),                                    # no word, and the thanks is not the default (v8)
     ("IM6", ["recording"], _clips(lambda c: [x for x in c if not (x["kind"] == "PILOT" and x["role"] == "PRIMARY")])),
     ("IM6", ["recording"], _clips(lambda c: [{**x, "script": "Would you like to hear about the pilot and the gift "
                                                              "card?"} if x["kind"] == "PILOT" else x for x in c])),
