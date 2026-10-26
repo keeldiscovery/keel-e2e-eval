@@ -5497,3 +5497,33 @@ a quote (`.rp-quote`) and the view's own lines (`.rp-concern`, `.rp-tookby`), ke
 spec expected the first builds to repeat one; 077 as built does not (its own unit test holds D6 too). The number stays
 spent, so the next finding is #95. **Numbering note:** reserved as #93 on spec 052's branch, renumbered #94 on the
 rebase onto 051.
+
+## 95. Observation (keel-cloud, with keel-web beside it): on a study of one scope *Lock and approve* never lights -- `GET plan` serves `complete: false` because `VectorCorridor.complete()` still asks for every vector and a persona
+
+Found by spec `071-study-scopes` on S-015, the problem study (local stack, keel-cloud-docs `867b6465` (spec 133, contract 38)
++ keel-web `82a92f3` (specs 109 / 110 / 111) + keel-runtime 0.8.0 bundled in keel-connect-skill; runs
+`20261026T030517Z-s015-problem-only` (the first sighting: `Locator.click` on a disabled `[data-testid=lock-and-record]`
+for 30 s) and `20261026T032129Z-s015-problem-only`, step *DRIFT #95*), and again on S-016, money alone.
+
+**The screen.** Step 5, *Before people see it*, last screen (*Who asks the questions*, `define/ready/interviewer`, *2 of 2*
+on the problem study, *3 of 3* on money alone): *Lock and approve* is drawn `disabled` and stays so; nothing on the page says
+why. keel-web `BeforeStep` disables it on `!plan.complete || (needsIdea && !approved) || pending || gate.waiting`, and on
+both studies the only one of those that holds is `!plan.complete` (the idea is approved on money alone; the problem study
+needs none, `problemOnly`).
+
+**The wire.** `GET /v2/projects/{id}/plan` serves `complete: false` on both studies, while every `PlanVector` it lists (the
+scope's alone since 133) reads `complete: true`. `VectorsController.getPlan` serves `c.complete()`, and
+`VectorCorridor.complete()` is `context != null && persona != null && calibrations.values().stream().allMatch(complete)` --
+**every** vector's calibration and a persona. keel-cloud 133 FR-3 scoped the lock (`Project.lock` asks for
+`scope.vectors()` alone, and on the problem and solution studies composes the one respondent type itself, so no persona is
+set before the lock), but not this flag: on the problem study the solution's and the money's calibrations are never
+written and the persona is null; on money alone the problem's and the solution's calibrations stay incomplete (DRIFT #97
+writes their questions; nobody answers them). The lock itself is legal: `POST /v2/projects/{id}/lock {expectedRevision}`
+-- the body keel-web's `useLock` sends on the founder's own door -- answers **201** with a version-1 receipt (`beliefs` 4
+on the problem study, the one RESPONDENT_QUESTIONS job), and the study runs on.
+
+**What the harness does.** `evals/corpus_scenario._drift_95_lock`, a step named for this entry: where the button stays
+disabled for 15 s, it reads `GET plan`, asserts the study is not ALL and `complete` is false, locks on the wire with
+`{expectedRevision}` and opens Sent as the page would have. A failing guard on the whole study (ALL, where the button has
+always lit) and on a scoped study where the plan reads complete. For keel-cloud: read `complete` over `scope.vectors()`
+and the persona only where the money is in scope (as `Project.lock` does); keel-web needs nothing.

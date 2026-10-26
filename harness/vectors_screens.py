@@ -60,6 +60,32 @@ SAVE = "Save"
 STAGE_EXIT = {"PROBLEM": "Save and continue to the solution",
               "SOLUTION": "Continue to paying",
               "COMMERCIAL": "Save and continue to Before people see it"}
+#: Spec 071 (keel-web 109 FR-3, `corridor.ts` / `calibrationWalk.ts`): the stages each scope calibrates, in order.
+SCOPE_STAGES = {"PROBLEM": ("PROBLEM",), "SOLUTION": ("SOLUTION",), "SOLUTION_COMMERCIAL": ("SOLUTION", "COMMERCIAL"),
+                "COMMERCIAL": ("COMMERCIAL",), "ALL": ("PROBLEM", "SOLUTION", "COMMERCIAL")}
+#: keel-web 109 `corridorStepsOf`: every scope's steps, by title (money alone's step 3 is *Your idea*).
+SCOPE_STEPS = {"PROBLEM": ("context", "problem", "ready"), "SOLUTION": ("context", "problem", "solution", "ready"),
+               "SOLUTION_COMMERCIAL": ("context", "problem", "solution", "commercial", "ready"),
+               "COMMERCIAL": ("context", "problem", "solution", "commercial", "ready"),
+               "ALL": ("context", "problem", "solution", "commercial", "ready")}
+
+
+def calibrates(vector: str, scope: str = "ALL") -> bool:
+    """keel-web 109 `calibrates`: whether the scope walks a vector's questions (the problem only in the problem study
+    and the whole one)."""
+    return vector in SCOPE_STAGES[scope]
+
+
+def stage_exit(vector: str, scope: str = "ALL") -> str:
+    """keel-web 109 `stageExitLabel`: the primary on a stage's last screen -- the scope's last stage goes to *Before
+    people see it*; under ALL exactly `STAGE_EXIT`."""
+    return STAGE_EXIT["COMMERCIAL"] if vector == SCOPE_STAGES[scope][-1] else STAGE_EXIT[vector]
+
+
+def step_of(key: str, scope: str = "ALL") -> tuple[int, int]:
+    """keel-web 109 `scopedStep`: a step's place and the scope's count (*Step 2 of 3*)."""
+    steps = SCOPE_STEPS[scope]
+    return steps.index(key) + 1, len(steps)
 UNSURE_CHIP = "I'm not sure"
 PRICE_NONE_CHIP = "No price yet"
 LEAVE_OUT_CHIP = "Leave this out of the study"
@@ -921,6 +947,8 @@ class Corridor:
         self.conflicts = []
         self.saves = []
         self.resent = []
+        #: Spec 071: whether the context step drew the recall window (none on money alone, keel-web 109 FR-3).
+        self.window_drawn = None
         #: Spec 062 FR-3: the back-test's camera, called with a slug on every founder screen as it is about to be
         #: answered (`evals/backtest.Camera`); None on every other journey, where `_shot` does nothing.
         self.camera = None
@@ -1006,14 +1034,18 @@ class Corridor:
         a `NEEDS_INPUT` the page draws no screen for (keel-web 106 FR-7 is unbuilt) and answer it, or stop, instead of
         waiting out the card's 660 s."""
         with self._b.step("founder fills the context step: who, what, when, which people, and the "
-                          f"recall window ({window['count']} {window['unit']})") as h:
+                          + (f"recall window ({window['count']} {window['unit']})" if window is not None
+                             else "no recall window (money alone)")) as h:
             self.page.goto(f"{self.base}/p/{project_id}/define/context", wait_until="load")
             self.page.locator("#context-actor").wait_for(state="visible", timeout=20_000)
             self._shot("context")
             for key in ("actor", "job", "circumstance", "segment"):
                 self.page.locator(f"#context-{key}").fill(fields[key])
-            self.page.locator("input.cwindow__count").fill(str(window["count"]))
-            self.page.locator("select.cwindow__unit").select_option(window["unit"])
+            if window is not None:
+                self.page.locator("input.cwindow__count").fill(str(window["count"]))
+                self.page.locator("select.cwindow__unit").select_option(window["unit"])
+            # spec 071 (keel-web 109 FR-3): money alone draws no recall window -- `window` None, and none is typed
+            self.window_drawn = self.page.locator("input.cwindow__count").count() > 0
             h.add_screenshot(self._b.screenshot("context-filled"))
             saved = self._save_context()
             self.saves.append(saved)
@@ -1179,18 +1211,20 @@ class Corridor:
             self.page.wait_for_timeout(1_000)
         raise AssertionError(f"neither the card ({kicker!r}) nor the composer came back")
 
-    def confirm_seed(self, vector: str) -> None:
+    def confirm_seed(self, vector: str, scope: str = "ALL") -> None:
         """The card confirmed: the problem's opens Prevalence; the solution's is the idea's Answer (keel-web
-        063 call 1), so it opens S2, the idea's Check screen."""
+        063 call 1), so it opens S2, the idea's Check screen. Spec 071 (keel-web 109 FR-3): where the scope does not
+        calibrate the problem, its card goes on to the solution's seed (money alone's *Your idea*)."""
         slug = vector.lower()
         name = CARD_YES_PROBLEM if vector == "PROBLEM" else CARD_LOOKS_RIGHT
-        nxt = r"/define/problem/q/1" if vector == "PROBLEM" else r"/define/solution/idea"
+        nxt = (r"/define/problem/q/1" if calibrates("PROBLEM", scope) else r"/define/solution/seed") \
+            if vector == "PROBLEM" else r"/define/solution/idea"
         with self._b.step(f"founder confirms the {slug} card: {name}") as h:
             _button(self.page, name).click()
             _wait_url(self.page, nxt)
             h.add_screenshot(self._b.screenshot(f"{slug}-confirmed"))
 
-    def idea_check(self, name: str | None = None) -> dict:
+    def idea_check(self, name: str | None = None, *, next_url: str = r"/define/solution/q/\d+$") -> dict:
         """S2 (keel-web 063 FR-007; 070 F7): the idea's three lines, read as drawn, and saved -- Save is the approval --
         and on to the solution's first question. Since keel-cloud 097 the what line is never Keel's draft: it is empty
         with its placeholder (*Name it in up to five words*) and Save off until the founder types a name, which is
@@ -1242,7 +1276,8 @@ class Corridor:
                                     "waiting": self.page.locator("[data-testid=corridor-waiting]").count() > 0}
                 h.add_screenshot(self._b.screenshot("idea-named"))
             label = self._press_primary(SAVE)
-            _wait_url(self.page, r"/define/solution/q/\d+$")
+            # spec 071 (keel-web 109 FR-3): on money alone the idea card's Save goes to who decides
+            _wait_url(self.page, next_url)
             return {"lines": lines, "unnamed": unnamed, "typed": name, "frame": frame, "primary": label,
                     "reloaded": reloaded, "counter": counter, "suggestion": suggestion or None}
 
@@ -1626,7 +1661,7 @@ class Corridor:
 
     # ------------------------------------------------------------------- step 5: before people
 
-    def word_pilot_and_lock(self, face: str | None = None) -> dict:
+    def word_pilot_and_lock(self, face: str | None = None, *, pilot: bool = True) -> dict:
         """Step 5 (keel-web 063 FR-007; keel-web 069 FR-002 since spec 044): *A word from you* (1 of 3), *The pilot*
         (2 of 3), then L1 *Who asks the questions* (3 of 3) -- the carousel of five faces on Keel's door (`face`
         tapped when given), one line on an account on its own AI -- and *Lock and record the interviewer* / *Lock and
@@ -1638,24 +1673,42 @@ class Corridor:
             self._shot("ready-word")
             # The DOM's words, not the CSS's capitals (`text-transform`).
             first = counter.text_content() or ""
-            _button(self.page, BEFORE_CONTINUE).click()
-            _wait_url(self.page, r"/define/ready/pilot")
-            self.page.locator("[data-testid=before-counter]", has_text=re.compile(r"^2 of")).wait_for(timeout=10_000)
-            second = counter.text_content() or ""
-            h.add_screenshot(self._b.screenshot("pilot"))
-            self._shot("ready-pilot")
-            counters = [first.strip(), second.strip()]
             l1: dict = {}
-            if self.page.get_by_test_id("lock-and-record").count() == 0:          # keel-web 069: a third screen
+            if not pilot:
+                # spec 071 (keel-web 109 FR-3, keel-cloud 133 FR-4): the problem study asks no pilot question, so step
+                # 5 is the word (1 of 2) and who asks (2 of 2)
+                _button(self.page, BEFORE_CONTINUE).click()
+                _wait_url(self.page, r"/define/ready/interviewer")
+                self.page.locator("[data-testid=before-counter]", has_text="2 of 2").wait_for(timeout=10_000)
+                counters = [first.strip(), (counter.text_content() or "").strip()]
+                self._shot("ready-interviewer")
+                l1 = self.l1(face)
+            else:
+                _button(self.page, BEFORE_CONTINUE).click()
+                _wait_url(self.page, r"/define/ready/pilot")
+                self.page.locator("[data-testid=before-counter]", has_text=re.compile(r"^2 of")).wait_for(timeout=10_000)
+                second = counter.text_content() or ""
+                h.add_screenshot(self._b.screenshot("pilot"))
+                self._shot("ready-pilot")
+                counters = [first.strip(), second.strip()]
+            if pilot and self.page.get_by_test_id("lock-and-record").count() == 0:  # keel-web 069: a third screen
                 _button(self.page, BEFORE_CONTINUE).click()
                 _wait_url(self.page, r"/define/ready/interviewer")
                 self.page.locator("[data-testid=before-counter]", has_text="3 of 3").wait_for(timeout=10_000)
                 counters.append((counter.text_content() or "").strip())
                 self._shot("ready-interviewer")
                 l1 = self.l1(face)
+            button = self.page.get_by_test_id("lock-and-record")
+            try:
+                self.page.wait_for_function("(b) => !b.disabled", arg=button.element_handle(), timeout=15_000)
+            except Exception:  # noqa: BLE001 - spec 071, runs/DRIFT.md #95: a lock the page never offers
+                # the leg reads the plan and names it (a scoped study's `PlanView.complete` false); nothing is clicked
+                h.add_screenshot(self._b.screenshot("lock-disabled"))
+                return {"counters": counters, "receipt": {}, "l1": l1, "status": None, "disabled": True,
+                        "button": _safe_text(lambda: button.inner_text())}
             with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/lock"),
                                            timeout=30_000) as locked:
-                self.page.get_by_test_id("lock-and-record").click()
+                button.click()
             try:
                 receipt = locked.value.json()
             except Exception:  # noqa: BLE001 - a refused lock's body is the leg's to report
@@ -1908,10 +1961,12 @@ class Interview:
             page.get_by_role("heading", level=1).first.wait_for(state="visible", timeout=20_000)
             self._keep()
             heading = _safe_text(lambda: page.get_by_role("heading", level=1).first.inner_text())
+            # spec 071 (keel-cloud 133 FR-4, keel-web 109 call 11): the thank-you's pilot box, drawn or not
+            pilot_box = page.locator("input[type=checkbox], [role=checkbox]").count()
             h.add_screenshot(self._b.screenshot(f"interview-done-{person.person.split()[0]}"))
             self._shot("done")
             page.remove_listener("response", self._keep_transcribe)
-            return {"body": body, "status": status, "done": heading, "seen": list(self.seen),
+            return {"body": body, "status": status, "done": heading, "pilot_box": pilot_box, "seen": list(self.seen),
                     "screens": list(self.screens), "unanswered": list(self.unanswered), "closed_price": list(self.closed_price), "retried": list(self.retried), "follow_up_route": self.route, "follow_up": self.follow_up_seen,
                     "speak": self.speak_seen, "transcribed": self._transcribed(), "consent": self.consent}
 
@@ -2318,6 +2373,39 @@ class Answers:
         self.page.locator(f"button[role='tab'][data-view='{view}'][aria-selected='true']").first.wait_for(
             state="visible", timeout=10_000)
         self.page.locator("#report-view[role='tabpanel']").first.wait_for(state="visible", timeout=10_000)
+
+    def scoped_overview(self, project_id: str) -> dict:
+        """Spec 071 (keel-web 109 FR-4, keel-cloud 133 FR-7 / FR-8 / FR-5): the Overview of a study of one scope, as
+        drawn -- the served question (`.rp-q`), the verdict (`h1.rp-verdict[data-label]`), the stages' row and its
+        class (`.rp-stages--one|--two`), each panel's stage (`report-stage-{STAGE}`), the tiles (`report-tiles`, its
+        `--one`, each `[data-tile]`), the uncounted gate's fact line (`report-gatefact`), the linked ship's pieces
+        (`svg.rp-ship--linked path.band[data-stage]`) and the report's tabs (`report-views [role=tab][data-view]`)."""
+        with self._b.step("founder opens the report's overview (a study of one scope)") as h:
+            self._report(project_id, "overview")
+            hero = self.page.get_by_test_id("report-hero").first
+            hero.wait_for(state="visible", timeout=30_000)
+            verdict = hero.locator("h1.rp-verdict").first
+            stages = self.page.locator(".rp-stages").first
+            tiles = self.page.get_by_test_id("report-tiles")
+            fact = self.page.get_by_test_id("report-gatefact")
+            out = {
+                "question": _tc(hero.locator(".rp-q")),
+                "verdict": {"label": verdict.get_attribute("data-label"), "text": _tc(verdict)},
+                "stages_class": (stages.get_attribute("class") or "") if stages.count() else None,
+                "panels": [t.get_attribute("data-testid").removeprefix("report-stage-")
+                           for t in self.page.locator("[data-testid^='report-stage-']").all()],
+                "tiles": {"present": tiles.count() > 0,
+                          "class": (tiles.first.get_attribute("class") or "") if tiles.count() else None,
+                          "names": [t.get_attribute("data-tile") for t in tiles.locator("[data-tile]").all()]},
+                "gatefact": _tc(fact) if fact.count() else None,
+                "ship": [b.get_attribute("data-stage")
+                         for b in self.page.locator("svg.rp-ship--linked path.band[data-stage]").all()],
+                "tabs": [t.get_attribute("data-view") for t in
+                         self.page.get_by_test_id("report-views").locator("[role=tab][data-view]").all()],
+            }
+            h.capture_text("stage_screen", _text(self.page))
+            h.add_screenshot(self._b.screenshot("report-overview-scoped"))
+            return out
 
     def board(self, project_id: str) -> dict:
         """The Overview view (keel-web 077 FR-2, as built): the eyebrow (`.rp-eyebrow`), the hero (`report-hero`:

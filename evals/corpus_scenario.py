@@ -341,25 +341,31 @@ def leg_context(j: Journey) -> None:
     the founder typed -- a window of at least two units (D13)."""
     founder = j.founder
     asked: dict = {}
-    drawn = j.corridor.context(j.project_id, founder.context_fields, founder.window.as_wire(),
+    # spec 071 (keel-web 109 FR-3, keel-cloud 133): the recall window only where the gate is served -- money alone has none
+    windowed = vs.serves_gate(j.entry)
+    drawn = j.corridor.context(j.project_id, founder.context_fields, founder.window.as_wire() if windowed else None,
                                on_wait=lambda interaction_id: _needs_input(j, interaction_id, asked))
     if j.guide_wire is not None:
         _next_write_after_the_welcome(j)
     with _step(j, "the card says what Keel understood -- code's sentence since keel-cloud 122, assembled from the slots "
                   "(the segment and its condition, the circumstance, the job, the window) -- and, where the segment "
                   "carries a condition, *Only people who: ...* (keel-web 096)", party="founder") as h:
-        want = vs.read_back(j.entry) if j.strict else "a sentence"
+        want = vs.read_back(j.entry, window=windowed) if j.strict else "a sentence"
         window_line = j.corridor.context_window_line()
         lines = j.corridor.context_lines()
         condition = vs.segment_of(j.entry)["condition"]
         want_lines = {"only_people_who": f"Only people who: {condition}." if condition else None}
-        h.record_assert({"understands": want, "window": vs.window_words(founder.window), **want_lines},
-                        {"understands": drawn, "window": window_line, **lines})
+        h.record_assert({"understands": want, "window": vs.window_words(founder.window) if windowed else None,
+                         "window drawn": windowed, **want_lines},
+                        {"understands": drawn, "window": window_line, "window drawn": j.corridor.window_drawn,
+                         **lines})
         assert drawn.strip(), "the context card drew no sentence"
         if j.strict:
             assert drawn == want, {"served": drawn, "assembled": want}
             assert lines.get("only_people_who") == want_lines["only_people_who"], lines
-        assert vs.window_words(founder.window) in window_line, window_line
+        assert j.corridor.window_drawn is windowed, j.corridor.window_drawn
+        if windowed:
+            assert vs.window_words(founder.window) in window_line, window_line
         j.screens["context_card"] = {"understands": drawn, "text": drawn, **lines}
     _hold_the_occasion_field(j)
     j.corridor.confirm_context()
@@ -367,12 +373,15 @@ def leg_context(j: Journey) -> None:
                   "of at least two (D13)") as h:
         view = j.get(j.project("/context")) or {}
         fields = view.get("fields") or {}
-        h.record_assert({**founder.context_fields, "recallWindow": founder.window.as_wire(),
+        h.record_assert({**founder.context_fields, "recallWindow": founder.window.as_wire() if windowed else None,
                          "understands": drawn}, view)
         assert view.get("state") == "CONFIRMED", view
         assert view.get("understands") == drawn, (view.get("understands"), drawn)
-        assert fields.get("recallWindow") == founder.window.as_wire(), fields
-        assert int((fields.get("recallWindow") or {}).get("count") or 0) >= 2, fields
+        if windowed:
+            assert fields.get("recallWindow") == founder.window.as_wire(), fields
+            assert int((fields.get("recallWindow") or {}).get("count") or 0) >= 2, fields
+        else:
+            assert not fields.get("recallWindow"), fields
         for key, value in founder.context_fields.items():
             assert fields.get(key) == value, (key, fields)
         # spec 068 FR-5 (contract 36, keel-cloud 129 FR-11): `ContextFields.occasion` -- the founder's where they typed
@@ -1197,7 +1206,7 @@ def leg_interpret_problem(j: Journey) -> None:
         assert card["claim"].strip(), card
         if j.strict:
             assert card["claim"] == want["statement"], card
-    j.corridor.confirm_seed("PROBLEM")
+    j.corridor.confirm_seed("PROBLEM", j.scope)
     with _step(j, "the confirmed statement and the offer's name are the entry's, on the wire") as h:
         review = j.get(j.project("/review/PROBLEM")) or {}
         h.record_assert({"statement": card["claim"]}, {"statement": review.get("statement")})
@@ -1504,13 +1513,14 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                   "the side nav locked, and the stage's last primary names the next stage",
                party="founder") as h:
         frames = {k: [s["frame"] for s in j.framing[k]] for k in keys}
-        h.record_assert({"total": total, "exit": vs_screens.STAGE_EXIT[vector]}, frames)
+        exit_label = vs_screens.stage_exit(vector, j.scope)     # spec 071: the scope's last stage goes to Before
+        h.record_assert({"total": total, "exit": exit_label}, frames)
         for position, key in enumerate(keys, start=1 + STAGE_OFFSET[vector]):
             for frame in frames[key]:
                 _hold_frame(frame, vector, position, total)
         last = j.framing[keys[-1]][-1]
         if not answers[keys[-1]].unsure:
-            assert last["primary"] == vs_screens.STAGE_EXIT[vector], last["primary"]
+            assert last["primary"] == exit_label, last["primary"]
 
     with _step(j, f"{vector.lower()}: each drafted list is the entry's own on its Check screen, Choose "
                   "opens with nothing picked, and the Keel-will-test box reads the entry's belief",
@@ -1903,11 +1913,15 @@ def leg_lock(j: Journey) -> None:
     primary link, the gate's clause; parts 2 and 3 -- on B2B part 3 the decision-maker's link's -- composed by code in
     the lock's own commit), READY before anyone is invited, and the lock storing every saved list with its picked
     index (design §6, D7)."""
-    drawn = j.corridor.word_pilot_and_lock()
+    # spec 071 (keel-web 109 FR-3, keel-cloud 133 FR-4): the problem study asks no pilot question -- no pilot screen
+    drawn = j.corridor.word_pilot_and_lock(pilot=j.scope != "PROBLEM")
+    if drawn.get("disabled"):
+        drawn = {**drawn, **_drift_95_lock(j, drawn)}
     if (drawn.get("status") or 200) >= 400:
         drawn = {**drawn, **_answer_the_refused_lock(j, drawn)}
     j.receipt = drawn.get("receipt") or {}
     j.screens["L1"] = drawn.get("l1") or {}
+    j.screens["before_counters"] = drawn.get("counters")
     if getattr(j, "keels_door", False):
         _keels_door_l1(j, drawn)
     else:
@@ -2033,11 +2047,44 @@ def _keels_door_l1(j: Journey, drawn: dict) -> None:
                   "door is the faces' carousel and *Lock and record the interviewer* (keel-web 069; spec 062)",
                party="founder") as h:
         l1 = drawn.get("l1") or {}
-        h.record_assert({"counters": ["1 of 3", "2 of 3", "3 of 3"], "title": vs_screens.L1_TITLE,
+        h.record_assert({"counters": before_counters(j.scope), "title": vs_screens.L1_TITLE,
                          "button": vs_screens.BEFORE_LOCK_RECORD},
                         {**l1, "counters": drawn["counters"], "receipt": j.receipt})
-        assert drawn["counters"] == ["1 of 3", "2 of 3", "3 of 3"], drawn
+        assert drawn["counters"] == before_counters(j.scope), drawn
         assert l1.get("title") == vs_screens.L1_TITLE, l1
+
+
+def _drift_95_lock(j: Journey, drawn: dict) -> dict:
+    """runs/DRIFT.md #95 (spec 071): on a study of one scope keel-web's *Lock and approve* stays disabled -- keel-web's
+    `BeforeStep` waits on `PlanView.complete`, and keel-cloud serves it from `VectorCorridor.complete()`, which asks
+    for a persona and **every** vector's calibration complete, where keel-cloud 133 FR-3's lock asks for the scope's
+    alone (and composes the problem study's persona itself). A failing guard on the whole study (ALL, where the button
+    always lit); on a scoped study the harness locks on the wire with the body the button sends (`{expectedRevision}`,
+    keel-web `useLock` on the own door) and opens Sent as the page would have."""
+    plan = j.get(j.project("/plan")) or {}
+    persona = (j.get(j.project("/persona")) or {}).get("state")
+    with _step(j, f"{j.entry.id} ({j.scope}): DRIFT #95 -- *Lock and approve* stays disabled: GET plan serves "
+                  "`complete: false` (keel-cloud `VectorCorridor.complete()` asks for every vector and a persona, the "
+                  "lock of 133 FR-3 for the scope's alone); the harness locks on the wire as the button would",
+               party="founder") as h:
+        seen = {"button": drawn.get("button"), "complete": plan.get("complete"), "persona": persona,
+                "vectors": [{k: v.get(k) for k in ("vector", "complete")} for v in plan.get("vectors") or []]}
+        h.record_assert({"scope": "not ALL", "complete": False}, {"scope": j.scope, **seen})
+        assert j.scope != "ALL", ("the whole study's Lock never lit", seen)
+        assert plan.get("complete") is False, ("the button stayed disabled with the plan complete", seen)
+        status, receipt = j.call("POST", j.project("/lock"), {"expectedRevision": j.revision()}, ok=(200, 201, 422))
+        h.record_wire({"POST": "lock", "expectedRevision": "the overview's revision", "scope": j.scope, **seen},
+                      {"status": status, "receipt": receipt})
+        if status < 400:
+            j.page.goto(f"{j.web_base}/p/{j.project_id}/interviews/sent", wait_until="load")
+    j.changed["drift_95"] = seen
+    return {"status": status, "receipt": receipt, "disabled": True}
+
+
+def before_counters(scope: str = "ALL") -> list[str]:
+    """Step 5's counters: three screens (the word, the pilot, who asks), two in the problem study (keel-web 109 FR-3)."""
+    n = 2 if scope == "PROBLEM" else 3
+    return [f"{k} of {n}" for k in range(1, n + 1)]
 
 
 def _own_door_l1(j: Journey, drawn: dict) -> None:
@@ -2045,11 +2092,12 @@ def _own_door_l1(j: Journey, drawn: dict) -> None:
                   "of 3, which on an account on its own AI is one line and *Lock and approve*, no carousel; the "
                   "lock's receipt carries no interviewer (contract 16)", party="founder") as h:
         l1 = drawn.get("l1") or {}
-        h.record_assert({"counters": ["1 of 3", "2 of 3", "3 of 3"], "title": vs_screens.L1_TITLE,
+        counters = before_counters(j.scope)
+        h.record_assert({"counters": counters, "title": vs_screens.L1_TITLE,
                          "sub": vs_screens.BEFORE_INTERVIEWER_OWN, "carousel": False,
                          "button": vs_screens.BEFORE_LOCK_APPROVE, "receipt.interviewer": None},
                         {**l1, "counters": drawn["counters"], "receipt": j.receipt})
-        assert drawn["counters"] == ["1 of 3", "2 of 3", "3 of 3"], drawn
+        assert drawn["counters"] == counters, drawn
         assert l1.get("title") == vs_screens.L1_TITLE and l1.get("carousel") is False, l1
         assert l1.get("sub") == vs_screens.BEFORE_INTERVIEWER_OWN, l1
         assert l1.get("button") == vs_screens.BEFORE_LOCK_APPROVE, l1
@@ -2079,15 +2127,18 @@ def _lock_lands(j: Journey) -> None:
             h.record_assert({"questionsState": "READY"}, {"questionsState": state, "jobs": landed})
             raise AssertionError(f"questionsState FAILED after the lock (RESPONDENT_QUESTIONS jobs: {landed}); "
                                  "DRIFT #81 came back if every job is APPLIED")
-    with _step(j, "the lock started ONE RESPONDENT_QUESTIONS job -- part 1, the gate's clause -- and no other "
-                  "(keel-cloud 091, contract 14: LockReceipt.questions.interactionIds is exactly 1)") as h:
+    jobs = len(vs.respondent_jobs(j.entry))         # spec 071 (keel-cloud 133 T010): none on money alone
+    with _step(j, f"the lock started {'ONE' if jobs else 'NO'} RESPONDENT_QUESTIONS job"
+                  + (" -- part 1, the gate's clause -- and no other (keel-cloud 091, contract 14: "
+                     "LockReceipt.questions.interactionIds is exactly 1)" if jobs else
+                     " -- money alone serves no gate and its parts are code's (keel-cloud 133 T010)")) as h:
         ids = list(((j.receipt.get("questions") or {}).get("interactionIds")) or [])
         interactions = j.get(f"/v2/inference-interactions?project_id={j.project_id}") or []
         respondent = [i for i in interactions if i.get("screen") == "RESPONDENT_QUESTIONS"]
-        h.record_assert({"interactionIds": 1, "RESPONDENT_QUESTIONS jobs": 1, "status": "APPLIED"},
+        h.record_assert({"interactionIds": jobs, "RESPONDENT_QUESTIONS jobs": jobs, "status": "APPLIED"},
                         {"receipt": j.receipt, "jobs": [{k: i.get(k) for k in ("interaction_id", "status", "job")}
                                                          for i in respondent]})
-        assert len(ids) == 1, j.receipt
+        assert len(ids) == jobs, j.receipt
         retried = any(f.get("what") == "the questionnaire" for f in getattr(j, "findings", None) or [])
         if retried and len(respondent) > 1:
             # spec 062 follow-up (2026-10-22): on the back-test a questionnaire Keel's AI failed was retried the way the
@@ -2097,12 +2148,12 @@ def _lock_lands(j: Journey) -> None:
             assert any(i.get("status") == "APPLIED" for i in respondent), respondent
         else:
             assert [i.get("interaction_id") for i in respondent] == ids, (ids, respondent)
-            assert respondent[0].get("status") == "APPLIED", respondent[0]
+            assert not jobs or respondent[0].get("status") == "APPLIED", respondent[0]
     with _step(j, "the study is version 1, the three parts' questions are written, READY, and the lock "
                   "holds every saved list and its picked index (D7)") as h:
         plan = j.get(j.project("/plan")) or {}
         lists = plan.get("lists") or {}
-        want = {key: vs.saved_list(j.entry, key) for v in VECTORS for key in vs.founder_keys(j.entry, v)
+        want = {key: vs.saved_list(j.entry, key) for v in vs.scope_vectors(j.entry) for key in vs.founder_keys(j.entry, v)
                 if vs.is_list(key) and not j.entry.unsure(key)}
         have = {key: {"items": [{k: i.get(k) for k in ("code", "label", "asked") if i.get(k) is not None}
                                 for i in (lists.get(key) or {}).get("items") or []],
@@ -2130,7 +2181,7 @@ def leg_invite(j: Journey) -> None:
     register = j.get(j.project("/invitations")) or {}
     labels = {k.get("respondentType"): k.get("label") for k in register.get("kinds") or []}
     persona = j.get(j.project("/persona")) or {}
-    primary = next(t for t in persona.get("respondentTypes") or [] if not t.get("commercialLink"))
+    primary = next((t for t in persona.get("respondentTypes") or [] if not t.get("commercialLink")), {})
     sent = iv_screens.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
     if getattr(j, "camera", None) is not None:
         sent.camera = j.camera.founder
@@ -2191,8 +2242,9 @@ def leg_invite(j: Journey) -> None:
         sent_pill(j)
     # keel-web 077 (spec 052 FR-7): before anyone finishes, the report is the too-few state (the pilot tile *None yet*).
     j.standings = j.get(j.project("/standings")) or {}
-    report_sheet(j)
-    _too_few(j, "before anyone answered")
+    if j.scope == "ALL":            # spec 071: a scoped study's Overview is `evals/scope_journey.py`'s to read
+        report_sheet(j)
+        _too_few(j, "before anyone answered")
 
 
 # ----------------------------------------------------------------------------- leg 6: interview
@@ -2208,7 +2260,7 @@ def leg_interview(j: Journey) -> None:
     for i, person in enumerate(j.people):
         _answer_one(j, person, j.tokens[person.person])
         _read(j, person)
-        if i == 3:
+        if i == 3 and j.scope == "ALL":
             _too_few_answered(j, 4)
     _themes_on_return(j)
 
@@ -2988,17 +3040,9 @@ def leg_standings(j: Journey) -> None:
     """`GET standings` against the entry, dimension by dimension -- status, drift, n and every count
     the entry records, each `optionCounts` code on the wire's own code -- and every vector's verdict and
     deciding dimension; then the board and the three stage pages, one row's per-person list among them."""
-    # the last answer settles a moment after its 2xx (keel-cloud 096: the brief on return): wait until the wire
-    # counts every invited person as answered before anything is read, so the eyebrow's count is the final one
-    for _ in range(30):
-        people = (j.get(j.project("/standings")) or {}).get("people") or {}
-        if not people.get("invited") or people.get("answered") == people.get("invited"):
-            break
-        time.sleep(2)
-    j.standings = j.get(j.project("/standings")) or {}
+    _await_standings(j)
     dims = {d.get("dimension"): d for v in j.standings.get("vectors") or []
             for d in v.get("dimensions") or []}
-    expected = j.entry.expected.get("standings") or {}
     if not j.strict:
         with _step(j, "every vector stands, with a status from keel-cloud's own words on every "
                       "dimension (a live journey: nothing is held to the corpus)") as h:
@@ -3013,6 +3057,30 @@ def leg_standings(j: Journey) -> None:
         for vector in VECTORS:
             _vector_page(j, vector)
         return
+    hold_standings(j)
+    _board(j)
+    for vector in VECTORS:
+        _vector_page(j, vector)
+
+
+def _await_standings(j: Journey) -> None:
+    """The last answer settles a moment after its 2xx (keel-cloud 096: the brief on return): wait until the wire counts
+    every invited person as answered before anything is read, so the eyebrow's count is the final one."""
+    for _ in range(30):
+        people = (j.get(j.project("/standings")) or {}).get("people") or {}
+        if not people.get("invited") or people.get("answered") == people.get("invited"):
+            break
+        time.sleep(2)
+    j.standings = j.get(j.project("/standings")) or {}
+
+
+def hold_standings(j: Journey) -> None:
+    """The entry's own standings and vector verdicts on the wire (strict): status, drift, n and every count it records,
+    each `optionCounts` code on the wire's own code; a vector's verdict and its deciding dimension's. Spec 071: S-015
+    holds its problem study to the same numbers (`evals/scope_journey.py`)."""
+    dims = {d.get("dimension"): d for v in j.standings.get("vectors") or []
+            for d in v.get("dimensions") or []}
+    expected = j.entry.expected.get("standings") or {}
     with _step(j, "every dimension stands where the entry says it does: status, drift and counts") as h:
         mismatches = []
         for key, want in expected.items():
@@ -3057,10 +3125,6 @@ def leg_standings(j: Journey) -> None:
                                    "deciding on the wire": deciding, "corpus": want})
         h.record_assert([], mismatches)
         _defer(j, "verdicts", mismatches)
-
-    _board(j)
-    for vector in VECTORS:
-        _vector_page(j, vector)
 
 
 def _defer(j: Journey, what: str, mismatches: list) -> None:

@@ -363,7 +363,7 @@ def _phrase(text) -> str:
     return out
 
 
-def read_back(entry) -> str | None:
+def read_back(entry, *, window=True) -> str | None:
     """keel-cloud 122 `ReadBack.sentence` over the scripted slots: *"<Segment>, when <when>, <what>, counting the last
     <window>."* -- the core capitalised, the condition after *, who* (or * and* where the core has its own *who*), the
     circumstance, the job, the window's words. What the context card serves since 122; never the model's line."""
@@ -379,8 +379,12 @@ def read_back(entry) -> str | None:
     out = segment[:1].upper() + segment[1:]
     if who:
         out += (" and " if _RELATIVE.search(segment) else ", who ") + who
-    out += f", when {when}, {what}, counting the last {window_words(window_of(entry))}."
-    return out
+    out += f", when {when}, {what}"
+    # keel-cloud `ReadBack`: the window's clause is left out with its comma where the founder set none (spec 071: money
+    # alone asks no window, keel-web 109 FR-3)
+    if window is True:
+        window = window_of(entry)
+    return out + (f", counting the last {window_words(window)}." if window else ".")
 
 
 def context_result(entry) -> dict:
@@ -580,6 +584,56 @@ def mechanism_result(entry) -> dict:
 
 def is_b2b(entry) -> bool:
     return entry.b2b()
+
+
+# ------------------------------------------------------------------------- spec 071: the study's scope
+
+#: keel-cloud 133 FR-1 `StudyScope.vectors()`.
+SCOPE_VECTORS = {"PROBLEM": ("PROBLEM",), "SOLUTION": ("SOLUTION",), "SOLUTION_COMMERCIAL": ("SOLUTION", "COMMERCIAL"),
+                 "COMMERCIAL": ("COMMERCIAL",), "ALL": VECTORS}
+#: keel-cloud 133 FR-7: the Overview's headline question per scope (`StandingsView.question`).
+SCOPE_QUESTION = {"PROBLEM": "Should you build it?", "SOLUTION": "Does it fit?",
+                  "SOLUTION_COMMERCIAL": "Does it fit, and will they pay?", "COMMERCIAL": "Will they pay?",
+                  "ALL": "Should you build it?"}
+PART_VECTOR = {1: "PROBLEM", 2: "SOLUTION", 3: "COMMERCIAL"}
+
+
+def scope_of(entry) -> str:
+    return getattr(entry, "scope", None) or "ALL"
+
+
+def scope_vectors(entry) -> tuple:
+    """The vectors the entry's scope tests, in the ship's order (keel-cloud 133 FR-1)."""
+    return SCOPE_VECTORS[scope_of(entry)]
+
+
+def serves_gate(entry) -> bool:
+    """keel-cloud 133 FR-4: the gate (and the recall window, its clock) wherever the problem or the solution is in scope
+    -- counted with the problem, the anchor alone in the solution studies; money alone has none."""
+    vectors = scope_vectors(entry)
+    return "PROBLEM" in vectors or "SOLUTION" in vectors
+
+
+def gate_counts(entry) -> bool:
+    """keel-cloud 133 FR-5: the gate feeds Prevalence only where the problem is in scope (`GateItem.counts`)."""
+    return "PROBLEM" in scope_vectors(entry)
+
+
+def serves_part(entry, part: int, link: str) -> bool:
+    """keel-cloud 133 FR-4: whether `part` is served on `link` under the entry's scope. Part 1 on the primary link
+    wherever the gate is (the gate alone in the solution studies); part 2 with the solution; part 3 with the money --
+    on the decision-maker's link on a B2B persona, on the one link otherwise (never on the primary link of a B2B study,
+    as under ALL)."""
+    if scope_of(entry) == "ALL":
+        return True                             # exactly today: `plan_keys` decides every part as it always has
+    vectors = scope_vectors(entry)
+    if link == LINK_B2B:
+        return part == 3 and "COMMERCIAL" in vectors
+    if part == 1:
+        return serves_gate(entry)
+    if part == 3 and is_b2b(entry):
+        return False
+    return PART_VECTOR[part] in vectors
 
 
 def calibrated_keys(entry, vector: str) -> list[str]:
@@ -996,7 +1050,10 @@ def calibration_jobs(entry) -> list[tuple[str, str | None]]:
     answers in words (a dimension left out is not drafted). The scripted executor consumes a screen's
     entries in order and all of them share one key set, so this order is the script's."""
     jobs: list[tuple[str, str | None]] = []
+    in_scope = scope_vectors(entry)
     for vector in VECTORS:
+        if vector not in in_scope:
+            continue                            # spec 071: only the scope's vectors are calibrated (133 FR-3)
         jobs.append((vector, None))
         for key in founder_keys(entry, vector):
             if is_list(key) and not entry.unsure(key):
@@ -1091,6 +1148,10 @@ def plan_keys(entry, part: int, link: str) -> list[str]:
     """The keys keel-cloud plans on `part` for `link`, in registry order: what the founder left out
     is not asked, Frequency is not asked where it was left out, and on a B2B study part 3 is the
     decision-maker's link and asks Ability to pay and Purchase friction too."""
+    if not serves_part(entry, part, link):
+        return []                               # spec 071 (keel-cloud 133 FR-4): a part the scope does not serve
+    if part == 1 and "PROBLEM" not in scope_vectors(entry):
+        return ["problem.prevalence"]           # 133 FR-5: the gate alone, the anchor, uncounted
     left_out = {key for key in entry.founder_calibration if entry.unsure(key)}
     if not frequency_fits(entry):
         left_out.add("problem.frequency")
@@ -1115,8 +1176,9 @@ def plan_keys(entry, part: int, link: str) -> list[str]:
 def respondent_jobs(entry) -> list[tuple[int, str]]:
     """The RESPONDENT_QUESTIONS jobs a lock starts: since keel-cloud 091 (contract 14, design §6) **one**, part 1 on the
     primary link -- the part that carries the gate's clause -- on either persona; parts 2 and 3 (on B2B part 3 the
-    decision-maker's link's) are code's, written with the lock."""
-    return [(1, LINK_PRIMARY)]
+    decision-maker's link's) are code's, written with the lock. Spec 071 (keel-cloud 133 T010): none where the scope
+    serves no gate (money alone has no model job)."""
+    return [(1, LINK_PRIMARY)] if serves_gate(entry) else []
 
 
 def respondent_item(entry, key: str) -> dict:
@@ -1206,19 +1268,23 @@ def generate(entry) -> GeneratedScript:
     scripted executor consumes a screen's entries in order. `ASKED` is one entry per saved list with faces,
     in corridor order. `INTERPRET` is one entry per readable person, in corpus order, which is why the
     journey reads after each person."""
+    vectors = scope_vectors(entry)
     screens: dict[str, list[dict]] = {
         CONTEXT_SCREEN: [_completed(context_result(entry))],
         PROBLEM_SCREEN: [_completed(problem_result(entry))],
-        MECHANISM_SCREEN: [_completed(mechanism_result(entry))],
-        CALIBRATION_SCREEN: [_completed(calibration_result(entry, vector, only))
-                             for vector, only in calibration_jobs(entry)],
     }
+    # spec 071 (keel-cloud 133): the idea card wherever the solution or the money is in scope; the solution's lists'
+    # faces only with the solution; part 1's one job only where the gate is served
+    if "SOLUTION" in vectors or "COMMERCIAL" in vectors:
+        screens[MECHANISM_SCREEN] = [_completed(mechanism_result(entry))]
+    screens[CALIBRATION_SCREEN] = [_completed(calibration_result(entry, vector, only))
+                                   for vector, only in calibration_jobs(entry)]
     asked = [_completed(asked_result(entry, key)) for key in ("solution.compatibility", "solution.adoption_friction")
-             if not entry.unsure(key)]
+             if not entry.unsure(key)] if "SOLUTION" in vectors else []
     if asked:
         screens[ASKED_SCREEN] = asked
-    (part, link), = respondent_jobs(entry)
-    screens[RESPONDENT_SCREEN] = [_completed(respondent_result(entry, part, link))]
+    for part, link in respondent_jobs(entry):
+        screens[RESPONDENT_SCREEN] = [_completed(respondent_result(entry, part, link))]
     interpret = interpret_entries(entry)
     if interpret:
         screens[INTERPRET_SCREEN] = interpret
@@ -2335,7 +2401,9 @@ def person_inputs(entry) -> list[PersonInputs]:
             person=person.person, link=person.link,
             recency=None if person.link == LINK_B2B or not person.in_segment else person.recency == "yes",
             story=person.story, anchor_chip=STORY_CHIPS.get(person.chip) if person.chip else None,
-            picks=picks if person.in_segment else [], pilot_opt_in=person.pilot_opt_in and person.in_segment,
+            picks=picks if person.in_segment else [],
+            # spec 071 (keel-cloud 133 FR-4): the problem study asks no pilot question -- nobody can opt in
+            pilot_opt_in=person.pilot_opt_in and person.in_segment and scope_of(entry) != "PROBLEM",
             anchoring=person.anchoring, in_segment=person.in_segment, remapped=remapped))
     import dataclasses                                                 # noqa: PLC0415
 

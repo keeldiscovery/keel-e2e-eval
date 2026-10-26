@@ -365,6 +365,10 @@ class Entry:
     #: *Changed:* -- those whose Commitment pick moved `yes_after_trying` -> `yes_start` (the step the founder gave); `()`
     #: on a golden entry and on a back-test entry whose header names none.
     commitment_moved: tuple = ()
+    #: Spec 071 (keel-cloud 133, contract 38): the study's scope a journey walks the entry under -- ALL (the three
+    #: vectors, as every entry is written) on every golden entry and back-test; S-015 / S-016 derive a scoped seed
+    #: (`evals/scope_journey.py`). Never read from a file: the corpus records no scope, and its revision stays 16.
+    scope: str = "ALL"
 
     # ------------------------------------------------------------------ the people
 

@@ -1902,6 +1902,12 @@ class ScopeChoose:
             h.add_screenshot(self._bstep.screenshot("scope-choose"))
             create: dict = {}
             if scope != "ALL":
+                # the create request the market's Start sends, read as it leaves (one shot)
+                def keep(request) -> None:
+                    if not create and is_create_request(request.method, request.url):
+                        sent = (json.loads(request.post_data or "{}") or {}).get("scope")
+                        create.update(web=sent, sent=sent)
+                self.page.on("request", keep)
                 root.locator(f".scope-opt[data-pick={SCOPE_CARD[scope]}]").first.click()
                 box = root.get_by_test_id("scope-more").locator("input")
                 if SCOPE_CARD[scope] == "solution" and box.count():

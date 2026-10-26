@@ -1,6 +1,6 @@
 """The set itself (spec 010 FR-016/T055, research R12; spec 012 adds the eighth, spec 013 the
-ninth, spec 015's second half the tenth and eleventh, spec 016 the twelfth, spec 022 the thirteenth and spec 052
-the fourteenth): **fourteen** scenarios, **two** of them live.
+ninth, spec 015's second half the tenth and eleventh, spec 016 the twelfth, spec 022 the thirteenth, spec 052
+the fourteenth and spec 071 the fifteenth): **fifteen** scenarios, **two** of them live.
 
 FR-016 asks that `K=s005|s006|s007` dispatch exactly as `s001`-`s003` do, that all three run under
 `make eval` and `make eval-all`, and that none is live. **`K` is pytest's own `-k`**, so none of
@@ -49,6 +49,9 @@ EXPECTED = {
     # spec 052-report: the healthy project -- 05-paidly with every person supporting (judgement call 1), nobody owed a
     # follow-up, the Insights view *Nothing is failing*, the binding ending after page 3 and the breakdown.
     "test_s014_green.py",
+    # spec 071 (keel-cloud 133, keel-web 109): the short problem-study journey on a seed derived from 01-countly.
+    # Deterministic (the scripted executor), never live.
+    "test_s015_problem_only.py",
 }
 
 
@@ -56,9 +59,16 @@ def _scenario_files() -> set[str]:
     return {p.name for p in EVALS.glob("test_s*.py")}
 
 
-def test_there_are_fourteen_scenarios():
+def test_there_are_fifteen_scenarios():
     assert _scenario_files() == EXPECTED, (
-        "the scenario set moved; README.md and AGENTS.md name these fourteen by number")
+        "the scenario set moved; README.md and AGENTS.md name these fifteen by number")
+
+
+def test_the_scope_journeys_are_deterministic():
+    """Spec 071: S-015 runs on the scripted executor, under `make eval`, on no model and no money."""
+    for name in ("test_s015_problem_only.py",):
+        body = (EVALS / name).read_text()
+        assert "pytest.mark.live" not in body, f"{name} must not be live"
 
 
 def test_the_two_new_scenarios_are_deterministic_and_in_the_smoke():

@@ -6,6 +6,7 @@ nothing and the create request carried with ALL -- and the project is held to it
 
 from __future__ import annotations
 
+import dataclasses
 import json
 
 import pytest
@@ -137,3 +138,132 @@ def test_every_golden_journey_and_back_test_asks_for_all(monkeypatch, tmp_path):
     assert cs.Journey.__dataclass_fields__["scope"].default == "ALL"
     cs.leg_project(j)
     assert asked["scope"] == "ALL"
+
+
+# ------------------------------------------------------------------- FR-2: the problem study's seed and its walk
+
+from evals import scope_journey as sj                                         # noqa: E402
+from evals import scope_marks as sm                                           # noqa: E402
+from harness import vectors_screens as vs_screens                             # noqa: E402
+from harness import vectors_script as vs                                      # noqa: E402
+from stack.config import load_config                                          # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def countly():
+    _corpus, entry = vs.entry_for(load_config(validate=False).keel_cloud, "01-countly")
+    return entry
+
+
+def test_the_golden_walk_is_unchanged_under_all(countly):
+    """FR-1 / FR-6: an entry as written is ALL, and its script, plan and people are exactly today's."""
+    assert countly.scope == "ALL" and vs.scope_vectors(countly) == vs.VECTORS
+    assert [v for v, _ in vs.calibration_jobs(countly)] == ["PROBLEM"] * 3 + ["SOLUTION"] * 4 + ["COMMERCIAL"] * 3
+    assert vs.respondent_jobs(countly) == [(1, vs.LINK_PRIMARY)]
+    assert set(vs.generate(countly).screens) == {"CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "SOLUTION_MECHANISM",
+                                                 "CALIBRATION_QUESTIONS", "ASKED", "RESPONDENT_QUESTIONS",
+                                                 "INTERPRET", "THEMES"}
+    assert all(vs.serves_part(countly, part, vs.LINK_PRIMARY) for part in (1, 2, 3))
+    assert vs.read_back(countly).endswith(", counting the last 4 weeks.")
+    assert cs.before_counters() == ["1 of 3", "2 of 3", "3 of 3"]
+    assert [vs_screens.stage_exit(v) for v in vs.VECTORS] == [vs_screens.STAGE_EXIT[v] for v in vs.VECTORS]
+
+
+def test_the_problem_seed_is_countly_with_its_own_problem_numbers(countly):
+    seed = sj.problem_entry(countly)
+    assert seed.scope == "PROBLEM" and seed.id == countly.id and seed.answers == countly.answers
+    assert set(seed.expected["standings"]) == {"problem.prevalence", "problem.frequency", "problem.importance",
+                                               "problem.current_solution_satisfaction"}
+    assert seed.expected["standings"] == {k: v for k, v in countly.expected["standings"].items()
+                                          if k.startswith("problem.")}
+    assert seed.expected["vector_verdicts"] == {"PROBLEM": countly.expected["vector_verdicts"]["PROBLEM"]}
+    with pytest.raises(ValueError):
+        sj.problem_entry(dataclasses.replace(countly, id="05-paidly"))
+
+
+def test_the_problem_study_s_expected_walk(countly):
+    """FR-2: the scripted walk the problem study runs -- the problem's slice and its two redrafts, part 1's one job,
+    no mechanism and no faces; each manager asked part 1 alone and never the pilot; the gate counted."""
+    seed = sj.problem_entry(countly)
+    script = vs.generate(seed).screens
+    assert set(script) == {"CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "CALIBRATION_QUESTIONS", "RESPONDENT_QUESTIONS",
+                           "INTERPRET", "THEMES"}
+    assert [r["result"]["vector"] for r in script["CALIBRATION_QUESTIONS"]] == ["PROBLEM"] * 3
+    (questions,) = script["RESPONDENT_QUESTIONS"]
+    assert [i["key"] for i in questions["result"]["items"]] == vs.plan_keys(countly, 1, vs.LINK_PRIMARY)
+    assert vs.plan_keys(seed, 2, vs.LINK_PRIMARY) == vs.plan_keys(seed, 3, vs.LINK_PRIMARY) == []
+    assert vs.serves_gate(seed) and vs.gate_counts(seed)
+    people = vs.person_inputs(seed)
+    assert len(people) == 12 and {p.link for p in people} == {vs.LINK_PRIMARY}
+    assert all({k.dimension for k in p.picks} <= {"problem.frequency", "problem.importance",
+                                                   "problem.current_solution_satisfaction"} for p in people)
+    assert not any(p.pilot_opt_in for p in people)                    # no pilot box in the problem study
+    assert cs.before_counters("PROBLEM") == ["1 of 2", "2 of 2"]
+    assert vs_screens.stage_exit("PROBLEM", "PROBLEM") == "Save and continue to Before people see it"
+    assert vs_screens.step_of("problem", "PROBLEM") == (2, 3)
+
+
+@pytest.mark.parametrize("scope, verdicts, want", [
+    ("PROBLEM", {"PROBLEM": "HOLDING_UP"}, "BUILD"),
+    ("PROBLEM", {"PROBLEM": "PEOPLE_DISAGREE"}, "NOT_YET"),
+    ("PROBLEM", {"PROBLEM": "TOO_FEW_TO_CALL"}, "KEEP_INTERVIEWING"),
+    ("COMMERCIAL", {"COMMERCIAL": "HOLDING_UP"}, "BUILD"),
+    ("COMMERCIAL", {"COMMERCIAL": "NOT_HOLDING_UP"}, "BUILD_BUT_CHANGE"),
+    ("COMMERCIAL", {"COMMERCIAL": "NOT_ASKED_YET"}, "KEEP_INTERVIEWING"),
+    ("SOLUTION_COMMERCIAL", {"SOLUTION": "HOLDING_UP", "COMMERCIAL": "TOO_FEW_TO_CALL"}, "BUILD_BUT_CHANGE"),
+    ("ALL", {"PROBLEM": "HOLDING_UP", "SOLUTION": "HOLDING_UP", "COMMERCIAL": "NOT_TESTED"}, "KEEP_INTERVIEWING"),
+])
+def test_the_decision_rule(scope, verdicts, want):
+    assert sm.decision_by_rule(scope, verdicts) == want
+
+
+def _problem_record():
+    gate = {"question": "In the last 4 weeks, did ...?"}
+    items = [{"dimension": d, "kicker": f"Part 1 of 1 · {n} of 3"} for n, d in
+             enumerate(("problem.frequency", "problem.importance", "problem.current_solution_satisfaction"), 1)]
+    standings = {"scope": "PROBLEM", "question": "Should you build it?", "gateFact": None,
+                 "vectors": [{"vector": "PROBLEM", "verdict": "PEOPLE_DISAGREE"}],
+                 "ship": [{"vector": "PROBLEM", "verdict": "PEOPLE_DISAGREE"}],
+                 "facts": {"vectors": [{"vector": "PROBLEM"}], "decision": {"label": "NOT_YET"}}}
+    return {"scope": "PROBLEM", "b2b": False,
+            "choose": {"picked": {"plan": {"scope": "problem", "badge": "Problem",
+                                           "lines": ["Prevalence", "Frequency", "Importance", "Current solution"]}}},
+            "created": "PROBLEM", "served_scope": "PROBLEM",
+            "kickers": [("problem.prevalence", "STEP 2 OF 3 · THE PROBLEM · WHAT DO YOU BELIEVE IS TRUE?")],
+            "counters": ["1 of 2", "2 of 2"], "kinds": ["FULL"], "links": 2, "people": 2,
+            "interviews": {"A": {"kind": "FULL", "gate": gate, "parts": [{"part": 1, "items": items}], "done": {}},
+                           "B": {"kind": "FULL", "gate": gate, "parts": [], "done": {}}},
+            "pilot_boxes": {"A": 0, "B": 0}, "done": {"A": "Thank you", "B": "Thank you"},
+            "standings": standings,
+            "overview": {"question": "Should you build it?", "verdict": {"label": "NOT_YET", "text": "Not yet"},
+                         "stages_class": "rp-stages rp-stages--one", "panels": ["PROBLEM"],
+                         "tiles": {"present": False, "names": []}, "gatefact": None, "ship": ["PROBLEM"],
+                         "tabs": ["overview", "insights"]}}
+
+
+def test_the_problem_study_s_marks_on_a_stubbed_walk():
+    card = sm.score(_problem_record())
+    assert card["met"] == card["of"] == 7 and card["version"] == sm.SCOPE_MARKS_VERSION == 1
+
+
+@pytest.mark.parametrize("mark, change", [
+    ("SC1", lambda r: r.update(created="ALL")),
+    ("SC2", lambda r: r.update(counters=["1 of 3", "2 of 3", "3 of 3"])),
+    ("SC2", lambda r: r.update(kickers=[("problem.prevalence", "Step 2 of 5 · The problem")])),
+    ("SC3", lambda r: r.update(kinds=["FULL", "COMMERCIAL_LINK"])),
+    ("SC4", lambda r: r["interviews"]["A"].update(done={"pilot": {"label": "Count me in"}})),
+    ("SC4", lambda r: r.update(pilot_boxes={"A": 1, "B": 0})),
+    ("SC4", lambda r: r["interviews"]["A"]["parts"].append({"part": 2, "items": []})),
+    ("SC5", lambda r: r["standings"]["vectors"].append({"vector": "SOLUTION", "verdict": "NOT_TESTED"})),
+    ("SC5", lambda r: r["standings"].update(gateFact="10 of 12 had one")),
+    ("SC6", lambda r: r["standings"]["facts"].update(decision={"label": "BUILD_BUT_CHANGE"})),
+    ("SC7", lambda r: r["overview"].update(tabs=["overview", "insights", "pilot"])),
+    ("SC7", lambda r: r["overview"]["tiles"].update(present=True, names=["pilot"])),
+    ("SC7", lambda r: r["overview"].update(ship=["PROBLEM", "SOLUTION", "COMMERCIAL"])),
+])
+def test_each_problem_mark_fails_on_its_own_fault(mark, change):
+    record = _problem_record()
+    change(record)
+    checks = {c["mark"]: c for c in sm.score(record)["checks"]}
+    assert not checks[mark]["ok"], checks[mark]
+    assert sum(1 for c in checks.values() if not c["ok"]) == 1, checks
