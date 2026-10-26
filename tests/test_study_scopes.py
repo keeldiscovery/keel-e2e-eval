@@ -224,15 +224,14 @@ def test_the_money_seed_is_countly_with_the_owner_deciding(countly):
 
 def test_money_alone_s_expected_walk(countly):
     """FR-3: no recall window, no gate, no part-1 job and no faces; the mechanism (the idea card) and the money slice
-    with its three redrafts -- and DRIFT #97's two chained out-of-scope slices before them; the decision-maker's link
-    alone, part 3 on it."""
+    with its three redrafts -- nothing else since DRIFT #97 closed (spec 072 FR-3, keel-cloud 134); the decision-maker's
+    link alone, part 3 on it."""
     seed = sj.money_entry(countly)
     script = vs.generate(seed).screens
     assert set(script) == {"CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "SOLUTION_MECHANISM", "CALIBRATION_QUESTIONS",
                            "THEMES"}
-    assert [r["result"]["vector"] for r in script["CALIBRATION_QUESTIONS"]] == [
-        "PROBLEM", "SOLUTION", "COMMERCIAL", "COMMERCIAL", "COMMERCIAL", "COMMERCIAL"]
-    assert vs.chained_out_of_scope(seed) == ("PROBLEM", "SOLUTION")
+    assert [r["result"]["vector"] for r in script["CALIBRATION_QUESTIONS"]] == ["COMMERCIAL"] * 4
+    assert vs.chained_out_of_scope(seed) == ()
     assert vs.respondent_jobs(seed) == [] and not vs.serves_gate(seed) and not vs.primary_link(seed)
     assert [vs.plan_keys(seed, part, vs.LINK_PRIMARY) for part in (1, 2, 3)] == [[], [], []]
     assert vs.plan_keys(seed, 3, vs.LINK_B2B) == ["commercial.existing_sacrifice", "commercial.price",

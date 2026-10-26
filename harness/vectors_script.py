@@ -638,17 +638,10 @@ def serves_part(entry, part: int, link: str) -> bool:
 
 
 def chained_out_of_scope(entry) -> tuple:
-    """runs/DRIFT.md #97 (spec 071): the vectors keel-cloud `ScreenChain.next` writes a CALIBRATION_QUESTIONS slice for
-    though the scope does not calibrate them -- the problem's on the problem card's confirmation (every scope has the
-    problem chat), the solution's on the mechanism card's (wherever the idea card is: the solution or the money in
-    scope). None under ALL or on the problem study."""
-    vectors = scope_vectors(entry)
-    out = []
-    if "PROBLEM" not in vectors:
-        out.append("PROBLEM")
-    if "SOLUTION" not in vectors and "COMMERCIAL" in vectors:
-        out.append("SOLUTION")
-    return tuple(out)
+    """Spec 072 FR-3: names nothing. runs/DRIFT.md #97 (spec 071) is closed by keel-cloud 134 FR-2: `ScreenChain` chains
+    a vector's CALIBRATION_QUESTIONS only where `project.scope().vectors()` holds it, so no study writes a slice for a
+    vector it does not calibrate -- and the script carries none."""
+    return ()
 
 
 def primary_link(entry) -> bool:
@@ -1073,11 +1066,8 @@ def calibration_jobs(entry) -> list[tuple[str, str | None]]:
     in_scope = scope_vectors(entry)
     for vector in VECTORS:
         if vector not in in_scope:
-            # spec 071: only the scope's vectors are calibrated (keel-cloud 133 FR-3) -- but runs/DRIFT.md #97: keel-cloud
-            # `ScreenChain` still chains a vector's slice on its seed's confirmation whatever the scope (the problem's
-            # on every study, the solution's wherever the idea card is written), so the script answers that one job
-            if vector in chained_out_of_scope(entry):
-                jobs.append((vector, None))
+            # spec 071: only the scope's vectors are calibrated (keel-cloud 133 FR-3), and since keel-cloud 134 FR-2 only
+            # theirs are chained (spec 072 FR-3, DRIFT #97 closed): nothing is scripted for another vector
             continue
         jobs.append((vector, None))
         for key in founder_keys(entry, vector):

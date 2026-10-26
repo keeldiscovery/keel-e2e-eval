@@ -5577,7 +5577,15 @@ assertion then holds the windowless sentence). For keel-web: send no `recallWind
 draw the card's window line only where it is; keel-cloud then stores none (its contract already allows an absent window,
 `ReadBack` drops the clause).
 
-## 97. Observation (keel-cloud): on a scoped study the problem card and the mechanism card still chain their vector's CALIBRATION_QUESTIONS -- money alone writes a problem slice and a solution slice nobody walks
+## 97. RESOLVED (keel-cloud-docs `741d631c`, spec 134) -- was an observation (keel-cloud): on a scoped study the problem card and the mechanism card still chain their vector's CALIBRATION_QUESTIONS -- money alone writes a problem slice and a solution slice nobody walks
+
+**Resolved by keel-cloud 134** (FR-2, master `741d631c`): `ScreenChain` asks `project.scope().vectors()` before it
+chains a vector's calibration, so money alone writes the money slice alone and the solution studies no problem
+slice. Spec 072 FR-3: `harness/vectors_script.chained_out_of_scope` names nothing, `calibration_jobs` scripts the
+scope's vectors alone (the two stand-in entries are gone: money alone's script is the money slice and its three
+redrafts), and `evals/scope_journey.drift_97` is a guard -- the wire's CALIBRATION_QUESTIONS jobs, counted by
+`vector`, are the script's (one slice a vector in scope and its redrafts), all APPLIED, and none for a vector
+outside the scope. Green on S-015 and S-016 (spec 072 `tasks.md`). What follows is the observation as filed.
 
 Found by spec `071-study-scopes` on S-016, money alone (keel-cloud-docs `867b6465`; first sighting
 `runs/20261026T031542Z-s016-money-only`: the scripted executor's money slice was handed to a PROBLEM job, refused C1

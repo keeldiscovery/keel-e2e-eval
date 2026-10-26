@@ -146,3 +146,47 @@ def test_money_alone_s_read_back_drops_the_clause_the_whole_study_keeps_it(count
     assert not vs.serves_gate(seed) and vs.serves_gate(countly)
     assert vs.read_back(seed, window=False).endswith("matching what is on the shelves.")
     assert vs.read_back(countly).endswith(", counting the last 4 weeks.")
+
+
+# ------------------------------------------------------------------------------------------------ FR-3: #97
+
+def _jobs_journey(tmp_path, entry, rows):
+    j = _journey(tmp_path, entry, {})
+    j.get = lambda path: rows
+    return j
+
+
+def _rows(vectors, status="APPLIED"):
+    return [{"screen": "CALIBRATION_QUESTIONS", "vector": v, "status": status} for v in vectors] + [
+        {"screen": "PROBLEM_INTERPRET", "vector": "PROBLEM", "status": "APPLIED"}]
+
+
+@pytest.mark.parametrize("scope", ["ALL", "PROBLEM", "COMMERCIAL"])
+def test_the_chain_writes_the_scope_s_calibrations_alone(tmp_path, countly, scope):
+    seed = _seed(countly, scope)
+    assert vs.chained_out_of_scope(seed) == ()
+    vectors = [v for v, _ in vs.calibration_jobs(seed)]
+    assert set(vectors) == set(vs.scope_vectors(seed))
+    j = _jobs_journey(tmp_path, seed, _rows(vectors))
+    sj.drift_97(j)
+    assert j.changed["drift_97"]["out_of_scope"] == [] and j.changed["drift_97"]["jobs"] == len(vectors)
+
+
+def test_money_alone_scripts_the_money_slice_and_its_redrafts_alone(countly):
+    seed = _seed(countly, "COMMERCIAL")
+    assert vs.calibration_jobs(seed)[0] == ("COMMERCIAL", None)
+    assert [v for v, _ in vs.calibration_jobs(seed)] == ["COMMERCIAL"] * 4
+    assert [r["result"]["vector"] for r in vs.generate(seed).screens["CALIBRATION_QUESTIONS"]] == ["COMMERCIAL"] * 4
+
+
+@pytest.mark.parametrize("scope, rows", [
+    ("COMMERCIAL", _rows(["PROBLEM", "SOLUTION"] + ["COMMERCIAL"] * 4)),     # DRIFT #97 as filed
+    ("COMMERCIAL", _rows(["SOLUTION"] + ["COMMERCIAL"] * 4)),
+    ("PROBLEM", _rows(["PROBLEM"] * 3 + ["SOLUTION"])),
+    ("COMMERCIAL", _rows(["COMMERCIAL"] * 3)),                                # a redraft missing
+    ("COMMERCIAL", _rows([])),                                                # no slice for the vector in scope
+    ("COMMERCIAL", _rows(["COMMERCIAL"] * 4, status="RESULT_INVALID")),
+])
+def test_a_calibration_outside_the_scope_or_off_the_script_fails(tmp_path, countly, scope, rows):
+    with pytest.raises(AssertionError):
+        sj.drift_97(_jobs_journey(tmp_path, _seed(countly, scope), rows))

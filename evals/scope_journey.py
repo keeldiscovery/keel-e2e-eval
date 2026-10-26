@@ -191,22 +191,28 @@ def leg_idea_card(j: cs.Journey) -> None:
 
 
 def drift_97(j: cs.Journey) -> None:
-    """runs/DRIFT.md #97: keel-cloud `ScreenChain` chains CALIBRATION_QUESTIONS on the problem card's and the mechanism
-    card's confirmation whatever the scope, so money alone writes a problem slice and a solution slice nobody walks (a
-    model job each, and credits on Keel's door). Held on the wire as found: one CALIBRATION_QUESTIONS job per
-    `vs.calibration_jobs` entry, the out-of-scope ones among them; none on the problem study (the guard for S-015)."""
-    out = vs.chained_out_of_scope(j.entry)
+    """Spec 072 FR-3: runs/DRIFT.md #97 closed (keel-cloud 134 FR-2) -- `ScreenChain` chains a vector's
+    CALIBRATION_QUESTIONS only where the scope holds it. Held on the wire: the CALIBRATION_QUESTIONS jobs are the
+    script's, one slice a vector in scope (and its redrafts), every one APPLIED, and none for a vector outside it."""
+    in_scope = list(vs.scope_vectors(j.entry))
     rows = [r for r in j.get(f"/v2/inference-interactions?project_id={j.project_id}") or []
             if r.get("screen") == "CALIBRATION_QUESTIONS"]
-    title = (f"{j.entry.id} ({j.scope}): DRIFT #97 -- keel-cloud chained {len(out)} CALIBRATION_QUESTIONS job(s) for "
-             f"{', '.join(out)} though the scope calibrates {', '.join(vs.scope_vectors(j.entry))} alone"
-             if out else f"{j.entry.id} ({j.scope}): no CALIBRATION_QUESTIONS job outside the scope (DRIFT #97's guard)")
+    want = {v: sum(1 for w, _ in vs.calibration_jobs(j.entry) if w == v) for v in in_scope}
+    have: dict = {}
+    for r in rows:
+        have[r.get("vector")] = have.get(r.get("vector"), 0) + 1
+    title = (f"{j.entry.id} ({j.scope}): CALIBRATION_QUESTIONS for {', '.join(in_scope)} alone -- one slice a vector in "
+             "scope and its redrafts, none for another (DRIFT #97 closed by keel-cloud 134)")
     with cs._step(j, title, party="stack") as h:
-        h.record_assert({"jobs": len(vs.calibration_jobs(j.entry)), "out of scope": list(out)},
-                        {"jobs": [(r.get("status"), r.get("created_at")) for r in rows]})
-        assert len(rows) == len(vs.calibration_jobs(j.entry)), rows
+        h.record_assert({"jobs by vector": want, "status": "APPLIED"},
+                        {"jobs": [(r.get("vector"), r.get("status"), r.get("created_at")) for r in rows]})
+        outside = sorted({str(v) for v in have if v not in in_scope})
+        assert not outside, (f"CALIBRATION_QUESTIONS chained for {outside} outside the scope -- DRIFT #97 came back",
+                             rows)
+        assert all(want[v] >= 1 for v in in_scope), want                  # one slice a vector in scope, at least
+        assert have == want, {"wire": have, "script": want}
         assert all(r.get("status") == "APPLIED" for r in rows), rows
-    j.changed["drift_97"] = {"out_of_scope": list(out), "jobs": len(rows)}
+    j.changed["drift_97"] = {"out_of_scope": [], "jobs": len(rows), "by_vector": have}
 
 
 # --------------------------------------------------------------------------------------- the scoped reading
