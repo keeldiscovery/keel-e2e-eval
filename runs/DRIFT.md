@@ -5498,7 +5498,15 @@ spec expected the first builds to repeat one; 077 as built does not (its own uni
 spent, so the next finding is #95. **Numbering note:** reserved as #93 on spec 052's branch, renumbered #94 on the
 rebase onto 051.
 
-## 95. Observation (keel-cloud, with keel-web beside it): on a study of one scope *Lock and approve* never lights -- `GET plan` serves `complete: false` because `VectorCorridor.complete()` still asks for every vector and a persona
+## 95. RESOLVED (keel-cloud-docs `741d631c`, spec 134) -- was an observation (keel-cloud, with keel-web beside it): on a study of one scope *Lock and approve* never lights -- `GET plan` serves `complete: false` because `VectorCorridor.complete()` still asks for every vector and a persona
+
+**Resolved by keel-cloud 134** (FR-1, master `741d631c`, which also bumped the contract to 39 -- `PlanView.complete`
+described by the scoped rule): `VectorCorridor.complete()` reads the context, the calibrations of `scope.vectors()`
+alone and the persona only where the money is in scope, the lock's own rule. Spec 072 FR-1 turns the step into a
+guard: `evals/corpus_scenario.plan_complete` holds `GET plan` to `complete: true` over the scope's vectors on every
+study (ALL included) before *Lock and approve* is pressed on the page, and `_drift_95_guard` fails a journey whose
+button stays disabled for 15 s, the plan as served named; `_drift_95_lock` (the lock on the wire round the button) is
+gone. Green on S-015 and S-016 (spec 072 `tasks.md`). What follows is the observation as filed.
 
 Found by spec `071-study-scopes` on S-015, the problem study (local stack, keel-cloud-docs `867b6465` (spec 133, contract 38)
 + keel-web `82a92f3` (specs 109 / 110 / 111) + keel-runtime 0.8.0 bundled in keel-connect-skill; runs

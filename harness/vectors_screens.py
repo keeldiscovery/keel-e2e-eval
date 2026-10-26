@@ -1701,8 +1701,8 @@ class Corridor:
             button = self.page.get_by_test_id("lock-and-record")
             try:
                 self.page.wait_for_function("(b) => !b.disabled", arg=button.element_handle(), timeout=15_000)
-            except Exception:  # noqa: BLE001 - spec 071, runs/DRIFT.md #95: a lock the page never offers
-                # the leg reads the plan and names it (a scoped study's `PlanView.complete` false); nothing is clicked
+            except Exception:  # noqa: BLE001 - spec 072 FR-1: a lock the page never offers (runs/DRIFT.md #95, closed)
+                # the leg fails on it, the plan as served named; nothing is clicked and nothing locks on the wire
                 h.add_screenshot(self._b.screenshot("lock-disabled"))
                 return {"counters": counters, "receipt": {}, "l1": l1, "status": None, "disabled": True,
                         "button": _safe_text(lambda: button.inner_text())}

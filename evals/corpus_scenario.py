@@ -1944,10 +1944,12 @@ def leg_lock(j: Journey) -> None:
     primary link, the gate's clause; parts 2 and 3 -- on B2B part 3 the decision-maker's link's -- composed by code in
     the lock's own commit), READY before anyone is invited, and the lock storing every saved list with its picked
     index (design §6, D7)."""
+    # spec 072 FR-1 (runs/DRIFT.md #95, closed by keel-cloud 134): the plan reads complete over the scope before the press
+    plan_complete(j)
     # spec 071 (keel-web 109 FR-3, keel-cloud 133 FR-4): the problem study asks no pilot question -- no pilot screen
     drawn = j.corridor.word_pilot_and_lock(pilot=j.scope != "PROBLEM")
     if drawn.get("disabled"):
-        drawn = {**drawn, **_drift_95_lock(j, drawn)}
+        _drift_95_guard(j, drawn)
     if (drawn.get("status") or 200) >= 400:
         drawn = {**drawn, **_answer_the_refused_lock(j, drawn)}
     j.receipt = drawn.get("receipt") or {}
@@ -2085,31 +2087,38 @@ def _keels_door_l1(j: Journey, drawn: dict) -> None:
         assert l1.get("title") == vs_screens.L1_TITLE, l1
 
 
-def _drift_95_lock(j: Journey, drawn: dict) -> dict:
-    """runs/DRIFT.md #95 (spec 071): on a study of one scope keel-web's *Lock and approve* stays disabled -- keel-web's
-    `BeforeStep` waits on `PlanView.complete`, and keel-cloud serves it from `VectorCorridor.complete()`, which asks
-    for a persona and **every** vector's calibration complete, where keel-cloud 133 FR-3's lock asks for the scope's
-    alone (and composes the problem study's persona itself). A failing guard on the whole study (ALL, where the button
-    always lit); on a scoped study the harness locks on the wire with the body the button sends (`{expectedRevision}`,
-    keel-web `useLock` on the own door) and opens Sent as the page would have."""
+def _plan_view(j: Journey) -> dict:
     plan = j.get(j.project("/plan")) or {}
-    persona = (j.get(j.project("/persona")) or {}).get("state")
-    with _step(j, f"{j.entry.id} ({j.scope}): DRIFT #95 -- *Lock and approve* stays disabled: GET plan serves "
-                  "`complete: false` (keel-cloud `VectorCorridor.complete()` asks for every vector and a persona, the "
-                  "lock of 133 FR-3 for the scope's alone); the harness locks on the wire as the button would",
-               party="founder") as h:
-        seen = {"button": drawn.get("button"), "complete": plan.get("complete"), "persona": persona,
-                "vectors": [{k: v.get(k) for k in ("vector", "complete")} for v in plan.get("vectors") or []]}
-        h.record_assert({"scope": "not ALL", "complete": False}, {"scope": j.scope, **seen})
-        assert j.scope != "ALL", ("the whole study's Lock never lit", seen)
-        assert plan.get("complete") is False, ("the button stayed disabled with the plan complete", seen)
-        status, receipt = j.call("POST", j.project("/lock"), {"expectedRevision": j.revision()}, ok=(200, 201, 422))
-        h.record_wire({"POST": "lock", "expectedRevision": "the overview's revision", "scope": j.scope, **seen},
-                      {"status": status, "receipt": receipt})
-        if status < 400:
-            j.page.goto(f"{j.web_base}/p/{j.project_id}/interviews/sent", wait_until="load")
-    j.changed["drift_95"] = seen
-    return {"status": status, "receipt": receipt, "disabled": True}
+    return {"complete": plan.get("complete"),
+            "vectors": [{k: v.get(k) for k in ("vector", "complete")} for v in plan.get("vectors") or []],
+            "persona": (j.get(j.project("/persona")) or {}).get("state")}
+
+
+def plan_complete(j: Journey) -> None:
+    """Spec 072 FR-1 (runs/DRIFT.md #95, closed by keel-cloud 134 FR-1, contract 39 `PlanView.complete`): once the
+    scope's calibrations are answered `GET plan` reads `complete: true` -- the context, the calibrations of the scope's
+    vectors alone and the persona only where the money is in scope (the lock's own rule) -- and lists the scope's
+    vectors, each complete. Held on every study, ALL included (where it always held)."""
+    with _step(j, f"{j.entry.id} ({j.scope}): the plan reads complete over the scope's vectors before *Lock and "
+                  "approve* is pressed (contract 39; DRIFT #95 closed by keel-cloud 134)", party="founder") as h:
+        seen = _plan_view(j)
+        want = sorted(vs.scope_vectors(j.entry))
+        h.record_assert({"complete": True, "vectors": [{"vector": v, "complete": True} for v in want]}, seen)
+        assert seen["complete"] is True, ("GET plan reads complete: false -- DRIFT #95 came back", seen)
+        assert sorted(v["vector"] for v in seen["vectors"]) == want, seen
+        assert all(v["complete"] is True for v in seen["vectors"]), seen
+    j.changed["plan_complete"] = seen
+
+
+def _drift_95_guard(j: Journey, drawn: dict) -> None:
+    """Spec 072 FR-1: runs/DRIFT.md #95 closed (keel-cloud 134) -- *Lock and approve* lights on every study once the plan
+    reads complete, and is pressed on the page; nothing locks on the wire round it any more. A button that stays
+    disabled for 15 s fails here, the plan as served named."""
+    seen = {"button": drawn.get("button"), **_plan_view(j)}
+    with _step(j, f"{j.entry.id} ({j.scope}): *Lock and approve* stayed disabled -- DRIFT #95 (closed by keel-cloud "
+                  "134) came back; the lock is pressed on the page or not at all", party="founder") as h:
+        h.record_assert({"button": "enabled", "complete": True}, seen)
+        raise AssertionError(f"*Lock and approve* stayed disabled on a {j.scope} study (runs/DRIFT.md #95): {seen}")
 
 
 def before_counters(scope: str = "ALL") -> list[str]:
