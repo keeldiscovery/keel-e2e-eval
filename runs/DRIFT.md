@@ -5538,7 +5538,18 @@ disabled for 15 s, it reads `GET plan`, asserts the study is not ALL and `comple
 always lit) and on a scoped study where the plan reads complete. For keel-cloud: read `complete` over `scope.vectors()`
 and the persona only where the money is in scope (as `Project.lock` does); keel-web needs nothing.
 
-## 96. Observation (keel-web, with keel-cloud beside it): on money alone the context step hides the recall window but sends keel-web's default -- the card and the read-back count *the last 7 nights* the founder never chose
+## 96. RESOLVED (keel-web `3a31502`, spec 112; keel-cloud-docs `bc2505c6`, spec 135) -- was an observation (keel-web, with keel-cloud beside it): on money alone the context step hides the recall window but sends keel-web's default -- the card and the read-back count *the last 7 nights* the founder never chose
+
+**Resolved in two halves.** keel-web 112 (master `3a31502`): where `servesGate(scope)` is false the `PUT context`
+carries no `recallWindow` and the card draws no *Counting the last ...* line. keel-cloud 135 (master `bc2505c6`):
+`ReadBack` leaves the *counting the last N nights* clause out wherever the scope serves no gate, whatever window is
+stored -- keel-cloud still fills a windowless PUT with `RecallWindow.DEFAULT`, so `GET context` serves
+`fields.recallWindow` `{7, NIGHTS}` (contract 39: always present on a GET; no wire change). Spec 072 FR-2 turns the step
+into a guard: `evals/corpus_scenario._drift_96_guard` holds, on every study that serves no gate, no `recallWindow`
+key in any `PUT context` the page sent, no window line on the card, and the served sentence equal to the windowless
+read-back; the confirmed context's stored window is held to keel-cloud's default (`STORED_WINDOW_DEFAULT`).
+`_drift_96_window` and `DRIFT_96_WINDOW` are gone. Green on S-016 (spec 072 `tasks.md`). What follows is the
+observation as filed.
 
 Found by spec `071-study-scopes` on S-016, money alone (local stack, keel-cloud-docs `867b6465` + keel-web `82a92f3`; first
 sighting `runs/20261026T031240Z-s016-money-only` failed on the read-back's sentence; stepped round in

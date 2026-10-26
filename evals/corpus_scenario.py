@@ -309,27 +309,32 @@ def leg_project(j: Journey) -> None:
         assert market.get("kind") in (None, "OTHER"), market
 
 
-#: keel-web `RECALL_WINDOW_DEFAULT` -- the window the context step sends where the founder typed none (runs/DRIFT.md #96).
-DRIFT_96_WINDOW = {"count": 7, "unit": "NIGHTS"}
+#: keel-cloud `RecallWindow.DEFAULT` -- what a windowless `PUT context` is stored with (contract 39 `ContextFields`: the
+#: window is always present on a GET); keel-cloud 135 leaves its clause out of the read-back where no gate is served.
+STORED_WINDOW_DEFAULT = {"count": 7, "unit": "NIGHTS"}
 
 
-def _drift_96_window(j: Journey, drawn: str, window_line: str) -> None:
-    """runs/DRIFT.md #96 (spec 071): on money alone keel-web 109 hides the recall window (no gate, so no clock) but its
-    context step still sends its default window in `PUT context` (`recallWindow: {7, NIGHTS}`), the card draws
-    *Counting the last 7 nights.* (`ProposedCard` draws the line unconditionally) and keel-cloud's read-back ends
-    *, counting the last 7 nights.* -- a window the founder never saw on a study that asks no window question. Stepped
-    round by name: the sentence is held to the read-back over that default window instead of none; a failing guard
-    once the page sends none (the main assertion then holds the windowless sentence)."""
-    sent = next((s.get("sent") for s in reversed(j.corridor.saves) if s.get("sent")), None) or {}
-    with _step(j, f"{j.entry.id} ({j.scope}): DRIFT #96 -- the context step hides the recall window on money alone but "
-                  "sends keel-web's default (7 nights) and the card and the read-back count it", party="founder") as h:
-        want = vs.read_back(j.entry, window=vs.Window(DRIFT_96_WINDOW["count"], DRIFT_96_WINDOW["unit"]))
-        h.record_assert({"PUT context recallWindow": None, "understands": vs.read_back(j.entry, window=False)},
-                        {"PUT context recallWindow": sent.get("recallWindow"), "understands": drawn,
+def _drift_96_guard(j: Journey, drawn: str, window_line: str) -> None:
+    """Spec 072 FR-2: runs/DRIFT.md #96 closed (keel-web 112, keel-cloud 135) -- on a study that serves no gate (money
+    alone) the context step sends no `recallWindow` in any `PUT context` (keel-web 112 FR-1), the card draws no window
+    line (FR-2), and the served sentence is the windowless read-back (keel-cloud 135 FR-1, whatever window is stored)."""
+    sent = [s.get("sent") or {} for s in j.corridor.saves if s.get("sent") is not None]
+    want = vs.read_back(j.entry, window=False)
+    with _step(j, f"{j.entry.id} ({j.scope}): no recall window sent, drawn or read back where no gate is served "
+                  "(DRIFT #96 closed by keel-web 112 and keel-cloud 135)", party="founder") as h:
+        h.record_assert({"PUT context recallWindow": [None] * len(sent), "understands": want, "window line": ""},
+                        {"PUT context recallWindow": [b.get("recallWindow") for b in sent], "understands": drawn,
                          "window line": window_line})
-        assert sent.get("recallWindow") == DRIFT_96_WINDOW, sent
-        assert drawn == want, {"served": drawn, "over the default window": want}
-    j.changed["drift_96"] = {"sent": sent.get("recallWindow"), "understands": drawn, "window_line": window_line}
+        assert sent, j.corridor.saves
+        assert not any("recallWindow" in b for b in sent), ("the page sent a recall window -- DRIFT #96 came back",
+                                                           sent)
+        assert not window_line.strip(), ("the card drew a window line -- DRIFT #96 came back", window_line)
+        if j.strict:
+            assert drawn == want, {"served": drawn, "windowless read-back": want}
+        else:
+            assert "counting the last" not in drawn.lower(), drawn
+    j.changed["drift_96"] = {"sent": [b.get("recallWindow") for b in sent], "understands": drawn,
+                             "window_line": window_line}
 
 
 def _hold_the_scope(j: Journey) -> None:
@@ -384,8 +389,7 @@ def leg_context(j: Journey) -> None:
                         {"understands": drawn, "window": window_line, "window drawn": j.corridor.window_drawn,
                          **lines})
         assert drawn.strip(), "the context card drew no sentence"
-        drift_96 = j.strict and not windowed and drawn != want
-        if j.strict and not drift_96:
+        if j.strict:
             assert drawn == want, {"served": drawn, "assembled": want}
         if j.strict:
             assert lines.get("only_people_who") == want_lines["only_people_who"], lines
@@ -393,8 +397,8 @@ def leg_context(j: Journey) -> None:
         if windowed:
             assert vs.window_words(founder.window) in window_line, window_line
         j.screens["context_card"] = {"understands": drawn, "text": drawn, **lines}
-    if drift_96:
-        _drift_96_window(j, drawn, window_line)
+    if not windowed:
+        _drift_96_guard(j, drawn, window_line)          # spec 072 FR-2: DRIFT #96 closed
     _hold_the_occasion_field(j)
     j.corridor.confirm_context()
     with _step(j, "the context is confirmed on the wire: the four fields, the sentence, the window "
@@ -408,10 +412,10 @@ def leg_context(j: Journey) -> None:
         if windowed:
             assert fields.get("recallWindow") == founder.window.as_wire(), fields
             assert int((fields.get("recallWindow") or {}).get("count") or 0) >= 2, fields
-        elif drift_96:
-            assert fields.get("recallWindow") == DRIFT_96_WINDOW, fields      # runs/DRIFT.md #96: the hidden default
         else:
-            assert not fields.get("recallWindow"), fields
+            # spec 072 FR-2 (keel-cloud 135 FR-2): none was sent, keel-cloud stores its default and the read-back
+            # leaves it out
+            assert fields.get("recallWindow") == STORED_WINDOW_DEFAULT, fields
         for key, value in founder.context_fields.items():
             assert fields.get(key) == value, (key, fields)
         # spec 068 FR-5 (contract 36, keel-cloud 129 FR-11): `ContextFields.occasion` -- the founder's where they typed

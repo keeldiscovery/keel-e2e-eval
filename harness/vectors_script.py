@@ -381,7 +381,8 @@ def read_back(entry, *, window=True) -> str | None:
         out += (" and " if _RELATIVE.search(segment) else ", who ") + who
     out += f", when {when}, {what}"
     # keel-cloud `ReadBack`: the window's clause is left out with its comma where the founder set none (spec 071: money
-    # alone asks no window, keel-web 109 FR-3)
+    # alone asks no window, keel-web 109 FR-3) -- and, since keel-cloud 135, wherever the scope serves no gate, whatever
+    # window is stored (spec 072 FR-2, DRIFT #96 closed)
     if window is True:
         window = window_of(entry)
     return out + (f", counting the last {window_words(window)}." if window else ".")

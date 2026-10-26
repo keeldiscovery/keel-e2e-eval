@@ -97,3 +97,52 @@ def test_leg_lock_holds_the_plan_then_presses_the_button(tmp_path, countly, monk
     cs.leg_lock(j)
     assert order == ["plan", ("pressed", False)]
     assert j.receipt == {"version": 1}
+
+
+# ------------------------------------------------------------------------------------------------ FR-2: #96
+
+class _Corridor:
+    def __init__(self, *sent):
+        self.saves = [{"method": "PUT", "status": 202, "sent": b} for b in sent]
+
+
+FIELDS = {"actor": "a", "job": "j", "circumstance": "c", "segment": "s"}
+
+
+def _context_journey(tmp_path, entry, *sent):
+    j = _journey(tmp_path, entry, {})
+    j.corridor = _Corridor(*sent)
+    return j
+
+
+def test_money_alone_sends_draws_and_reads_back_no_window(tmp_path, countly):
+    seed = _seed(countly, "COMMERCIAL")
+    j = _context_journey(tmp_path, seed, dict(FIELDS), {**FIELDS, "occasion": "delivery"})
+    cs._drift_96_guard(j, vs.read_back(seed, window=False), "")
+    assert j.changed["drift_96"]["sent"] == [None, None]
+    assert "counting" not in j.changed["drift_96"]["understands"]
+
+
+@pytest.mark.parametrize("sent, drawn, line", [
+    ({**FIELDS, "recallWindow": cs.STORED_WINDOW_DEFAULT}, None, ""),                 # DRIFT #96 as filed: the PUT
+    (dict(FIELDS), None, "Counting the last 7 nights."),                               # the card's window line
+    (dict(FIELDS), "over the default", ""),                                            # the read-back's clause
+    ({**FIELDS, "recallWindow": None}, None, ""),                                     # a key sent at all
+])
+def test_a_window_sent_drawn_or_read_back_on_money_alone_fails(tmp_path, countly, sent, drawn, line):
+    seed = _seed(countly, "COMMERCIAL")
+    sentence = (vs.read_back(seed, window=vs.Window(7, "NIGHTS")) if drawn else vs.read_back(seed, window=False))
+    with pytest.raises(AssertionError):
+        cs._drift_96_guard(_context_journey(tmp_path, seed, sent), sentence, line)
+
+
+def test_the_windowless_read_back_and_the_stored_default():
+    assert cs.STORED_WINDOW_DEFAULT == {"count": 7, "unit": "NIGHTS"}           # keel-cloud `RecallWindow.DEFAULT`
+    assert not hasattr(cs, "DRIFT_96_WINDOW") and not hasattr(cs, "_drift_96_window")
+
+
+def test_money_alone_s_read_back_drops_the_clause_the_whole_study_keeps_it(countly):
+    seed = _seed(countly, "COMMERCIAL")
+    assert not vs.serves_gate(seed) and vs.serves_gate(countly)
+    assert vs.read_back(seed, window=False).endswith("matching what is on the shelves.")
+    assert vs.read_back(countly).endswith(", counting the last 4 weeks.")
