@@ -28,6 +28,10 @@ one-liner differs, `statusToday {text, url, date}` (from `instructions/gallery_n
 founder's belief sentences the run tested, as the standings served them), `simulated: true` and the fixed
 `disclaimer`. The attribution check refuses a slug missing any of them, or whose disclaimer is not the fixed sentence.
 
+**Spec 071 FR-5** (keel-cloud 133, design §9: *each example carries its configuration*): every index row carries
+`scope`, the run's own (`backtest.json`'s, spec 071 FR-4), ALL for every run recorded before a back-test could be walked
+under one -- the fourteen; the attribution check accepts the five contract-38 values and refuses anything else.
+
 Provenance stays private (FR-3, amended 2026-10-22): no entry id, run name or source path is written under OUT -- the
 check greps every byte under OUT for them -- and the slug -> entry / run link goes once to
 `runs/gallery/provenance-<exportedAt>.json` (`[{slug, entry, run, cloud, web, renamed: {from, to}}]`), outside OUT.
@@ -533,7 +537,10 @@ def prepare(name: GalleryName, run: Run, *, exported_at: str) -> Slug:
            "problem": one_sentence(run.founder.get("problem_seed")),
            "assumptions": credit["assumptions"],
            "decision": figures["decision"], "howSure": figures["howSure"],
-           "pilot": figures["pilot"], "price": figures["price"], "b2b": run.b2b, **shas,
+           "pilot": figures["pilot"], "price": figures["price"], "b2b": run.b2b,
+           # spec 071 FR-5 (keel-cloud 133, design §5 / §9): which study the example is -- the run's own scope, ALL
+           # (the whole study) for every run recorded before a back-test could be walked under one
+           "scope": run.record.get("scope") or bt.DEFAULT_SCOPE, **shas,
            "axes": axes(run, name.axes),
            "cluster": {k: (name.cluster or {}).get(k) for k in ("id", "label")},
            "keywords": keywords(run, name, occasion=(iv["links"][0] if iv["links"] else {}).get("occasion")),
@@ -591,6 +598,8 @@ def attribution_reasons(s: Slug) -> list[str]:
         why.append(f"index: keywords are not plain lower-case words ({words})")
     elif any(s.name.name.lower() in w for w in words):
         why.append(f"index: a keyword names the company ({words})")
+    if s.row.get("scope") not in bt.SCOPES:
+        why.append(f"index: scope {s.row.get('scope')!r} is not one of {', '.join(bt.SCOPES)}")
     people = participants(s.reads)
     if people != PARTICIPANTS:
         why.append(f"the run invited {people} people; the disclaimer says twenty")

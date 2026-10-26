@@ -268,9 +268,10 @@ def test_the_index_shape(exported):
     row = written["examples"][0]
     assert list(row) == ["slug", "name", "inspiredBy", "publicDescription", "statusToday", "simulated", "disclaimer",
                          "oneLine",
-                         "problem", "assumptions", "decision", "howSure", "pilot", "price", "b2b", "cloud", "web",
-                         "axes", "cluster", "keywords", "interview"]
+                         "problem", "assumptions", "decision", "howSure", "pilot", "price", "b2b", "scope", "cloud",
+                         "web", "axes", "cluster", "keywords", "interview"]
     assert row["slug"] == "fresco" and row["name"] == "Fresco" and row["b2b"] is True
+    assert row["scope"] == "ALL"                  # spec 071 FR-5: the run of record predates scopes -- the whole study
     assert row["oneLine"] == "The scribe for construction superintendents"
     assert row["problem"].startswith("Construction superintendents spend up to 3 hours a day on documents")
     assert row["problem"].endswith("a dispute with the owner.") and "based on" not in row["problem"]
@@ -461,3 +462,33 @@ def test_make_gallery_and_make_sample():
     sample = makefile.split("\nsample: venv\n", 1)[1].split("\n\n", 1)[0]
     assert "-k s006" in sample and "gallery" not in sample           # the single-run export is unchanged
     assert "gallery" in makefile.split(".PHONY:", 1)[1].split("\n\n", 1)[0]
+
+
+# ---------------------------------------------------------------------------------------- spec 071 FR-5: the scope
+
+def _run_with_scope(tmp_path, scope):
+    run = tmp_path / "runs" / RUN.name
+    shutil.copytree(RUN, run)
+    record = json.loads((run / bt.RECORD).read_text(encoding="utf-8"))
+    record["scope"] = scope
+    (run / bt.RECORD).write_text(json.dumps(record), encoding="utf-8")
+    return run
+
+
+@pytest.mark.parametrize("scope", ["PROBLEM", "SOLUTION", "SOLUTION_COMMERCIAL", "COMMERCIAL", "ALL"])
+def test_each_row_carries_the_run_s_own_scope(tmp_path, names, scope):
+    out = tmp_path / "sample"
+    result = g.export([_run_with_scope(tmp_path, scope)], out, names=names, exported_at=AT,
+                      provenance_dir=tmp_path / "prov")
+    assert [row["scope"] for row in result["index"]] == [scope]
+    assert json.loads((out / g.INDEX).read_text(encoding="utf-8"))["examples"][0]["scope"] == scope
+
+
+def test_a_scope_the_contract_does_not_name_is_refused_and_nothing_is_written(tmp_path, names):
+    out = tmp_path / "sample"
+    with pytest.raises(g.GalleryRefused) as refused:
+        g.export([_run_with_scope(tmp_path, "MONEY")], out, names=names, exported_at=AT,
+                 provenance_dir=tmp_path / "prov")
+    assert any("index: scope 'MONEY' is not one of PROBLEM, SOLUTION, SOLUTION_COMMERCIAL, COMMERCIAL, ALL" in r
+               for r in refused.value.reasons), refused.value.reasons
+    assert not out.exists() and not (tmp_path / "prov").exists()
