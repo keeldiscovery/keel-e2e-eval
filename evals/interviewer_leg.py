@@ -761,7 +761,10 @@ def _framing_words(served: dict, role: dict) -> dict[str, dict]:
         out["PROBLEM"] = {"whole": fake.problem_passage(served.get("topic") or "", counts[1])}
     if 2 in counts or commercial:
         n = sum(counts.values()) if commercial else counts[2]
-        out["SOLUTION"] = {"starts": fake.SOLUTION_OPENING, "ends": fake.solution_close(n)}
+        # spec 071 (keel-cloud 133 FR-6, T018): the problem in one sentence is said before *Now the idea.* where the
+        # link serves it -- the decision-maker's `Idea.problem` always, a person's `Reveal.problem` where part 1 is not
+        problem = (served.get("idea") or {}).get("problem") if commercial else (served.get("reveal") or {}).get("problem")
+        out["SOLUTION"] = {"starts": fake.solution_opening(problem), "ends": fake.solution_close(n)}
     return out
 
 

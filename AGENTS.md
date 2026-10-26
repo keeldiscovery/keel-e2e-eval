@@ -323,10 +323,29 @@ real callback -- and `stack/auth.py`'s one browserless sign-in walks the same th
 anywhere in this harness that produces a founder session by any other means.** Two scenarios came
 with it: **S-010** (two founders on one instance -- every one of another founder's routes a bare
 404) and **S-011** (the callback's own refusals, each with the founder-voiced line the design
-names). The scenario set is **fourteen** (spec 052 added S-014, the healthy project).
+names). The scenario set is **sixteen** (spec 052 added S-014, the healthy project; spec 071 S-015 and S-016, the
+two study-scope journeys).
+
+**Study scopes** (spec `071-study-scopes`, 2026-10-25; keel-cloud 133, contract 38; keel-web 109 / 110 / 111): a
+project is one of four configurations chosen on *What do you want to validate?* -- PROBLEM, SOLUTION,
+SOLUTION_COMMERCIAL, COMMERCIAL -- or **ALL**, the harness's own (accepted on the wire, never offered by the web). Every
+golden journey and back-test creates its project as ALL: `Landing.name_project` walks the choose screen by picking
+nothing and `ScopeChoose` carries the one create request with `scope: ALL` (`ScopeRewrite`, a one-shot route on
+`/v2/projects`); `Journey.scope` is held on the overview and the list. `Entry.scope` (ALL; the corpus records none,
+REVISION 16) and `harness/vectors_script`'s scope rules (the scope's vectors, the parts each link serves, the gate's
+clock, the calibration and part-1 jobs) return today's answers under ALL -- the seven's scripts and the back-test
+entries' people, founder inputs and plans are byte-identical to master's. **S-015** (`evals/test_s015_problem_only.py`)
+and **S-016** (`evals/test_s016_money_only.py`) walk `evals/scope_journey.py` on seeds derived from 01-countly: the
+problem study (Countly's own four problem standings held) and money alone on a B2B persona (the restaurant owner
+decides; only the decision-maker's link; the problem in one spoken sentence before the idea card), each scored by
+`evals/scope_marks.py` (SC1-SC7, `SCOPE_MARKS_VERSION` 1, a journey ruler; `MARKS_VERSION` stays 20). `make backtest
+SCOPE=` / `scripts/backtest-host.sh --scope` walks an entry as a study of that scope (`strict=False`, the marks as
+findings) and records it in `backtest.json` and the register row's Door cell; the gallery's index rows carry `scope`.
+DRIFT #95 (a scoped study's *Lock and approve* never lights: `PlanView.complete`), #96 (money alone's hidden recall
+window sent as 7 nights) and #97 (`ScreenChain` chains out-of-scope calibrations) are each stepped round by name.
 
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
-to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **fourteen** scenarios are
+to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
 the participants' typed answers are fixture or corpus data, never generated) and every assertion
 enforcing a journey moment cites it (`§n.m`).
@@ -458,7 +477,7 @@ runtime and proves everything a founder owns keeps working with no agent except 
 project and reading answers — it found the product offering the read action anyway, refused only
 on the wire and never explained on the screen (`runs/DRIFT.md` #17). The evidence bundle
 (`runs/<id>/`, report.html) is the product of a run; the scoring policy (`evals/policy.py`,
-versioned) is the yardstick. `make up / eval K=s001|s002|s003|s005|s006|s007 / down`; quickstarts in
+versioned) is the yardstick. `make up / eval K=s001|s002|s003|s005|s006|s007|s014|s015|s016 / down`; quickstarts in
 `specs/*/quickstart.md`.
 
 **Two referee sessions never share the eval profile.** The stack's ports (55432/18080/5173/18090)

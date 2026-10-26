@@ -137,6 +137,18 @@ def problem_passage(topic: str, count: int) -> str:
     return _join(topic, PROBLEM_CLOSE, then(count, "about it"))
 
 
+def passage_said(text: str | None) -> str:
+    """`PassageComposer.said`: a served line as the passage says it -- a spaced double dash a comma."""
+    return (text or "").replace(" -- ", ", ").replace("--", ",").strip()
+
+
+def solution_opening(problem: str | None = None) -> str:
+    """The SOLUTION clip's opening: `Now the idea.` -- since keel-cloud 133 FR-6 (T018) after the problem in one sentence
+    wherever the link serves one (`Idea.problem` on every decision-maker's link, ALL included; `Reveal.problem` on a
+    person's link that serves no part 1)."""
+    return _join(passage_said(problem), SOLUTION_OPENING)
+
+
 def solution_close(count: int) -> str:
     """The SOLUTION clip's close, on the full link and the decision-maker's alike: `That's the idea. Take a moment.
     Then I'll ask you {N} questions on whether it would help you.` (it opens `Now the idea. {what} {how} {belief}`)."""

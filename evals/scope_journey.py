@@ -227,7 +227,7 @@ def record_of(j: cs.Journey, overview: dict) -> dict:
             "served_scope": (j.get(j.project("/overview")) or {}).get("scope"),
             "kickers": kickers,
             "idea_kicker": ((j.framing.get("idea") or [{}])[0].get("frame") or {}).get("kicker"),
-            "counters": j.screens.get("before_counters"),
+            "counters": j.changed.get("before_counters"),
             "kinds": sorted({iv.get("kind") for iv in j.interviews.values()}),
             "links": len(set(j.tokens.values())), "people": len(j.people),
             "interviews": j.interviews,

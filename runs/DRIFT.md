@@ -5503,7 +5503,8 @@ rebase onto 051.
 Found by spec `071-study-scopes` on S-015, the problem study (local stack, keel-cloud-docs `867b6465` (spec 133, contract 38)
 + keel-web `82a92f3` (specs 109 / 110 / 111) + keel-runtime 0.8.0 bundled in keel-connect-skill; runs
 `20261026T030517Z-s015-problem-only` (the first sighting: `Locator.click` on a disabled `[data-testid=lock-and-record]`
-for 30 s) and `20261026T032129Z-s015-problem-only`, step *DRIFT #95*), and again on S-016, money alone.
+for 30 s) and, of record, `20261026T042951Z-s015-problem-only`, step *DRIFT #95*), and again on S-016, money alone
+(`20261026T043134Z-s016-money-only`).
 
 **The screen.** Step 5, *Before people see it*, last screen (*Who asks the questions*, `define/ready/interviewer`, *2 of 2*
 on the problem study, *3 of 3* on money alone): *Lock and approve* is drawn `disabled` and stays so; nothing on the page says
@@ -5512,7 +5513,8 @@ both studies the only one of those that holds is `!plan.complete` (the idea is a
 needs none, `problemOnly`).
 
 **The wire.** `GET /v2/projects/{id}/plan` serves `complete: false` on both studies, while every `PlanVector` it lists (the
-scope's alone since 133) reads `complete: true`. `VectorsController.getPlan` serves `c.complete()`, and
+scope's alone since 133) reads `complete: true` (`[{vector: PROBLEM, complete: true}]` with `GET persona` state `NOT_SET`
+on the problem study; `[{vector: COMMERCIAL, complete: true}]` with the persona `SET` on money alone). `VectorsController.getPlan` serves `c.complete()`, and
 `VectorCorridor.complete()` is `context != null && persona != null && calibrations.values().stream().allMatch(complete)` --
 **every** vector's calibration and a persona. keel-cloud 133 FR-3 scoped the lock (`Project.lock` asks for
 `scope.vectors()` alone, and on the problem and solution studies composes the one respondent type itself, so no persona is
@@ -5532,7 +5534,7 @@ and the persona only where the money is in scope (as `Project.lock` does); keel-
 
 Found by spec `071-study-scopes` on S-016, money alone (local stack, keel-cloud-docs `867b6465` + keel-web `82a92f3`; first
 sighting `runs/20261026T031240Z-s016-money-only` failed on the read-back's sentence; stepped round in
-`runs/20261026T032530Z-s016-money-only`, step *DRIFT #96*).
+`runs/20261026T043134Z-s016-money-only` (of record), step *DRIFT #96*).
 
 **The screen.** Step 1, *The context*, on a money-alone study: keel-web 109 FR-3 draws no recall window (the gate's clock;
 money alone serves no gate -- `servesGate`), and the founder types none. The card that comes back (*Keel understands*) reads
@@ -5562,7 +5564,7 @@ Found by spec `071-study-scopes` on S-016, money alone (keel-cloud-docs `867b646
 `runs/20261026T031542Z-s016-money-only`: the scripted executor's money slice was handed to a PROBLEM job, refused C1
 *"COMMERCIAL"* and the repair turn matched nothing -- `screen result refused: screen=CALIBRATION_QUESTIONS ... rule=C1
 value="COMMERCIAL" next=repair` twice in the cloud's log, then the money redraft refused; held in
-`runs/20261026T032530Z-s016-money-only`, step *DRIFT #97*: six CALIBRATION_QUESTIONS jobs, all APPLIED).
+`runs/20261026T043134Z-s016-money-only` (of record), step *DRIFT #97*: six CALIBRATION_QUESTIONS jobs, all APPLIED).
 
 **The wire.** `GET /v2/inference-interactions?project_id=` lists, after *Yes, that's the problem* and *Looks right* on a
 money-alone study, a CALIBRATION_QUESTIONS job each (auto-chained off PROBLEM_INTERPRET and SOLUTION_MECHANISM), before the

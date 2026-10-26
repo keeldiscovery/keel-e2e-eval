@@ -468,3 +468,30 @@ def test_the_host_runner_takes_scope_and_refuses_one_it_does_not_know(tmp_path):
              if "backtest" in c]
     assert calls == ["backtest DOOR=host ENTRY=08-fresco SCOPE=PROBLEM", "backtest DOOR=host ENTRY=09-karsa SCOPE=COMMERCIAL",
                      "backtest DOOR=host ENTRY=10-palus SCOPE=ALL"], calls
+
+
+# ----------------------------------------------------------------- FR-6: nothing else moves, and the passage under ALL
+
+from evals import interviewer_leg                                             # noqa: E402
+from harness import interviewer_fake as fake                                  # noqa: E402
+from instructions import corpus as corpus_mod                                 # noqa: E402
+from instructions import marks as marks_mod                                   # noqa: E402
+
+
+def test_marks_and_revision_do_not_move():
+    assert marks_mod.MARKS_VERSION == 20 and corpus_mod.REVISION == 16
+
+
+def test_the_decision_maker_s_idea_passage_opens_with_the_problem_sentence():
+    """keel-cloud 133 FR-6 (T018, judgement call 6): `Idea.problem` is served on every decision-maker's link, ALL
+    included, and the interviewer says it before *Now the idea.* -- S-006's interviewer leg holds the stored clip to it."""
+    problem = "Freelance translators wait weeks past the agreed terms after an agency approves an invoice until it pays."
+    assert fake.solution_opening() == "Now the idea."
+    assert fake.solution_opening(problem) == f"{problem} Now the idea."
+    assert fake.passage_said("A -- B") == "A, B"
+    decider = interviewer_leg._framing_words({"kind": "COMMERCIAL_LINK", "idea": {"problem": problem}},
+                                             {"parts": [{"part": 3, "items": [1, 2, 3, 4, 5, 6]}]})
+    assert decider["SOLUTION"] == {"starts": f"{problem} Now the idea.", "ends": fake.solution_close(6)}
+    person = interviewer_leg._framing_words({"kind": "FULL", "reveal": {"afterPart": 1}},
+                                            {"parts": [{"part": 1, "items": [1, 2]}, {"part": 2, "items": [1, 2, 3]}]})
+    assert person["SOLUTION"]["starts"] == "Now the idea."              # ALL's person: part 1 walked, no sentence

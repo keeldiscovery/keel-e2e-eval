@@ -1952,7 +1952,7 @@ def leg_lock(j: Journey) -> None:
         drawn = {**drawn, **_answer_the_refused_lock(j, drawn)}
     j.receipt = drawn.get("receipt") or {}
     j.screens["L1"] = drawn.get("l1") or {}
-    j.screens["before_counters"] = drawn.get("counters")
+    j.changed["before_counters"] = drawn.get("counters")       # spec 071: step 5's counters (not a page drawn)
     if getattr(j, "keels_door", False):
         _keels_door_l1(j, drawn)
     else:
