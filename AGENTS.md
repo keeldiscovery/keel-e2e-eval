@@ -263,6 +263,22 @@ added to this line rather than quietly written — which is exactly how the thir
   macOS x Claude cell's alone (`matrix/cells.toml`), skipped by name without the link. It is not a scenario: the
   scenario set stays thirteen.
 
+- **The noise-capture certificate** (`make noise-check`, spec 074 FR-3) -- argued here as the rule asks. Since keel-web
+  115 every spoken answer is recorded and Keel writes it down (gpt-transcribe) and reads it (Haiku), and the founder's
+  bar of 2026-10-26 is a claim about that pair in noise -- *every answer in a quiet room, more than 90% down to 5 dB in
+  every room* -- which only the vendors' own models can answer. So the check is paid for the same reason the live
+  classifier check is (**the thing under referee is a model's behaviour**) and is as small as it can be: no stack, no
+  browser, no journey; the 1,260 kept samples of 2026-10-26 (`KEEL_NOISE_SAMPLES`) sent down the product's two calls
+  as `OpenAiTranscriber` and `KeelsAiClassifier` make them (max_tokens 400, keel-cloud 137; the cloud checkout's own
+  `classify-answer.md`), read by `Classification.validated()` restated (keel-cloud 136's partial pick included), about
+  $2 and twenty minutes, both keys from the shell (`KEEL_OPENAI_API_KEY`, `KEEL_ANTHROPIC_API_KEY`) into the request
+  headers alone. `evals/noise/` holds it (moved from keel-cloud `canon/designs/noise-capture-check-2026-10-26/`, which
+  keeps its README and results as the record); it writes `runs/<stamp>-noise-check/` and a row on
+  `runs/noise-check-register.md`, and the certificate line is PASS, FAIL naming the first failing cell, or INCOMPLETE
+  for a partial run (`ONLY=`, `SNRS=`, `LIMIT=`). Never in `make eval` / `make unit`, the matrix or a schedule
+  (`evals/noise/` has no `test_*.py`); everything that scores is offline and unit-tested on the canon's stored rows
+  (`tests/test_noise_check.py`).
+
 **The canon comes first**: keel-cloud `canon/CANON.md` holds the governing documents,
 their precedence, and the ledger this repo's `tests/test_journey_coverage.py` enforces. This
 repo deliberately floats at sibling HEADs (a referee pinned to the past can't call the present).
@@ -362,6 +378,26 @@ own (`REPORT_MARKS_VERSION` 2). The welcome per scope: `guide_marks.welcome_clip
 007/014, `welcome-problem` on S-015, `welcome-money` on S-016 (read off the welcome passed by), the four new clips
 counted with the manifest's 42 (G12 reads them; `GUIDE_MARKS_VERSION` stays 3). The AI player's crop is read by its own
 classes and recorded (`record["ai_band"]`), never scored. `MARKS_VERSION` 20 and corpus REVISION 16 unchanged.
+
+**One recorded path, and the noise-capture certificate** (spec `074-recorded-path-and-noise-certificate`; keel-web 115
+-- 120, keel-cloud 136 -- 138, contract 40): keel-web 115 retired the browser's recogniser, so the AI walks drive the
+recorder. `ivs.SPEECH_SEAM` restates keel-web 115 FR-5's `installFakeSpeech` -- the fake recorder and the always-granted
+microphone; `__say(text, final=True)` pulses the level for three ticks and goes quiet, and the next `stop()` hands back
+the said words' UTF-8 zero-padded to 20 KiB as `audio/webm`, which keel-cloud 136's `FakeTranscriber` trims and hears
+through the real `/interview/answer` (no stand-in on the seam). `__listening()` is the recorder running; `ear()` /
+`wait_ear`, the recogniser's counts and the `not-allowed` leg are gone (`recorder()` / `wait_listening`); every spoken
+answer is `how` RECORDED and no `classify` is sent; the text box's seam (`text_seam`) drives the same recorder by a
+level, its recording the zeros alone (the stack's fake still hears `FAKE_TRANSCRIPT`). S-005's follow-up says the line
+into both windows (the pause, then *Save and next*) and presses *End* in that hold: the pilot ask after *End* records
+on the kept stream (keel-web 116 FR-2); S-006's makes a sound and leaves the second window silent to its cap. Keel-web
+116 FR-1: *Microphone off* is read once the done screen shows it, the release after the thank-you's end (never while it
+plays; StrictMode's release at load read for not moving). Re-pinned (`INTERVIEWER_MARKS_VERSION` 9): IM9 (RECORDED,
+SPOKEN retired), IM19 (*Recording your answer.* and *Hearing you…*, one recording, one read), IM21 (no recording in a
+beat) and IM25 (every follow-up window recorded: the pause, Save, the cap). Keel-web 117: the occasion is read through
+the card's *I'll ask about* line's *Change* (Esc puts it back, nothing edited); the scripted card carries no stem, so it
+draws no line (117 J-4) and the noun is held on the confirmed view; Edit's form draws no occasion block. Keel-web 119:
+Send more's row is picked by its name (the AI row carries *Hear it*). `make noise-check` (above): the certificate.
+`MARKS_VERSION` 20 and corpus REVISION 16 unchanged (keel-cloud's corpus is at revision 16).
 
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are

@@ -65,6 +65,11 @@ make eval-live K=s012 HOST=claude   # the same journey through Claude Code, whol
                     # founder's stored login (measured), so export ANTHROPIC_API_KEY, or
                     # CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`. Without one it skips by
                     # name and spends nothing.
+make noise-check    # PAID, opt-in, the founder's word (spec 074 FR-3): the noise-capture certificate --
+                    # the 1,260 kept samples (KEEL_NOISE_SAMPLES) down gpt-transcribe + Haiku as the
+                    # product calls them (~$2, ~20 min; KEEL_OPENAI_API_KEY + KEEL_ANTHROPIC_API_KEY
+                    # from this shell); runs/<stamp>-noise-check/ and the line PASS / FAIL <cell>.
+                    # ONLY=c5- SNRS=clean,5 LIMIT=20 for a cheap partial run (INCOMPLETE). No stack.
 make acceptance     # the containerised beds: Debian 12 (Python 3.11) and Debian 11 (the 3.9
                     # floor), linux/arm64 and linux/amd64, against this stack at
                     # host.docker.internal:18080. The model-driven half needs the caller's own
