@@ -306,11 +306,48 @@ def walk(j: cs.Journey, *, lap=None) -> dict:
     lap("leg_lock")
     cs.leg_invite(j)
     lap("leg_invite")
+    if j.scope == "COMMERCIAL" and vs.is_b2b(j.entry):
+        one_kind(j)
     cs.leg_interview(j)
     lap("leg_interview")
     card = leg_scoped_report(j)
     lap("leg_scoped_report")
     return card
+
+
+# ------------------------------------------------------------------------------- keel-cloud 139: one kind
+
+def one_kind(j: cs.Journey) -> None:
+    """Spec 075 FR-2 (keel-cloud 139): a B2B money-only study gives a link to the decision-maker alone, so Sent draws one
+    kind card -- theirs -- the register's `kinds[]` is that one, and so are the kinds the contacts picker draws (`GET
+    contacts/datasets`; on an account on its own AI the read may be refused for credits, and the page then draws no
+    tabs at all)."""
+    from harness import interviews_screens as iv_screens                # noqa: PLC0415
+
+    sent = iv_screens.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
+    sent.land(j.project_id)
+    cards = sent.kinds()
+    register = j.get(j.project("/invitations")) or {}
+    status, datasets = j.call("GET", j.project("/contacts/datasets"), ok=(200, 422))
+    contacts = iv_screens.Contacts(j.page, j.recorder, j.web_base, patience=j.patience)
+    drawn = contacts.open(j.project_id)
+    with cs._step(j, "S-016 (keel-cloud 139): money alone on a B2B study -- Sent draws one kind card, the "
+                     "decision-maker's; the register's kinds and the contacts picker's are that one kind",
+                  party="founder") as h:
+        kinds = [k.get("respondentType") for k in register.get("kinds") or []]
+        picker = [k.get("respondentType") for k in (datasets or {}).get("kinds") or []] if status == 200 else None
+        decider = next((k.get("label") for k in register.get("kinds") or [] if k.get("respondentType") == vs.LINK_B2B),
+                       None)
+        h.record_assert({"cards": [decider], "kinds": [vs.LINK_B2B], "picker": [vs.LINK_B2B] if status == 200 else
+                         "refused (own AI)", "tabs": "at most one"},
+                        {"cards": cards, "kinds": kinds, "datasets": {"status": status, "body": datasets},
+                         "contacts": drawn})
+        assert [c.get("label") for c in cards] == [decider], cards
+        assert kinds == [vs.LINK_B2B], kinds
+        if picker is not None:
+            assert picker == [vs.LINK_B2B], picker
+        assert len((drawn or {}).get("tabs") or []) <= 1, drawn
+    sent.land(j.project_id)
 
 
 # ------------------------------------------------------------------------------------------------ the run

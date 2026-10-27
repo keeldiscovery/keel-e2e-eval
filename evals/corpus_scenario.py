@@ -1645,6 +1645,8 @@ def leg_calibrate(j: Journey, vector: str) -> None:
             j.framing[key] = [j.corridor.single(question, answer.as_wire())]
             if key in ("commercial.existing_sacrifice", "commercial.price") and j.framing[key][0].get("chain"):
                 _hold_the_chain_screen(j, key, j.framing[key][0])
+            if key == "commercial.price":
+                _hold_the_price_boxes(j, j.framing[key][0])
             continue
         _keep_draft(j, question, "first", None)
         if answer.unsure:
@@ -1996,6 +1998,102 @@ def _hold_the_chain_screen(j: Journey, key: str, seen: dict) -> None:
         h.record_assert(want, seen)
         missing = [w for w in want if w and w not in (drawn or "")]
         assert not missing, {"drawn": drawn, "missing": missing}
+    if key == "commercial.existing_sacrifice" and seen.get("filled") is not None:
+        _hold_the_cost_fill(j, cost, seen["filled"])
+
+
+def _hold_the_cost_fill(j: Journey, cost: dict, filled: dict) -> None:
+    """Spec 075 FR-2 (keel-web 123 FR-1, FR-2): the chain cost step's boxes arrive filled -- *Per* with the role word,
+    *of* (on a way with the box) with the occasion -- each with its muted helper line; on *Time it takes* at a study the
+    view prices hours for (`hourlyRate`), the rate drawn under the hours row with Keel's figure and its default note."""
+    view = j.get(j.project("/calibration/COMMERCIAL")) or {}
+    want = chain_fill(j.get(j.project("/persona")) or {}, j.get(j.project("/context")) or {}, vs.is_b2b(j.entry))
+    mode = str(cost.get("mode") or "").upper()
+    rate = (view.get("hourlyRate") or {}).get("amount")
+    with _step(j, "the cost step: Per and of arrive filled from the project with a helper line under each, and on "
+                  "hours the rate under the hours row with its default note (keel-web 123)", party="founder") as h:
+        owed = {"unit": want["unit"], "unit_help": vs_screens.CHAIN_UNIT_HELP}
+        if mode in ("HOURS", "RATE"):
+            owed["base"] = want["base"] or ""
+            owed["base_help"] = vs_screens.CHAIN_HOURS_BASE_HELP if mode == "HOURS" else vs_screens.CHAIN_BASE_HELP
+        if mode == "HOURS" and rate is not None:
+            owed["rate"] = str(rate)
+            owed["rate_note"] = vs_screens.HOURLY_RATE_DEFAULTED
+        h.record_assert(owed, {**filled, "hourlyRate": view.get("hourlyRate")})
+        assert filled.get("unit_help") == vs_screens.CHAIN_UNIT_HELP, filled
+        if mode in ("HOURS", "RATE"):
+            assert filled.get("base_help") == owed["base_help"], filled
+        if j.strict:
+            assert (filled.get("unit") or None) == want["unit"], (filled, want)
+            if mode in ("HOURS", "RATE"):
+                assert (filled.get("base") or "") == (want["base"] or ""), (filled, want)
+        if mode == "HOURS" and rate is not None:
+            assert filled.get("rate") not in (None, "") and float(filled["rate"]) == float(rate), (filled, rate)
+            assert filled.get("rate_note") == vs_screens.HOURLY_RATE_DEFAULTED, filled
+            low, at, base = (list(filled.get("order") or []) + [None] * 3)[:3]
+            if None not in (low, at):
+                assert low <= at, {"the rate sits above the hours": filled.get("order")}
+            if None not in (at, base):
+                assert at <= base, {"the rate sits under what the time goes on": filled.get("order")}
+
+
+#: keel-web 123 FR-1 (`occasionBase`): an occasion that is a window's unit, or *time*, fills no *of* box.
+WINDOW_UNIT_WORDS = {"night", "nights", "day", "days", "working day", "working days", "week", "weeks", "month", "months",
+                     "time", "times"}
+
+
+def chain_fill(persona: dict, context: dict, b2b: bool) -> dict:
+    """Spec 075 (keel-web 123 FR-1, keel-cloud's own defaults): what the chain cost's *Per* and *of* arrive filled with
+    -- the role word (the decider's role on a B2B study, else the problem's actor) and the confirmed context's occasion
+    (`occasion.noun`, else the founder's own `fields.occasion`; none where it is blank, a window's unit or *time*)."""
+    unit = str((((persona or {}).get("decider") or {}).get("role") if b2b else (persona or {}).get("problemActor"))
+               or "").strip() or None
+    base = None
+    if (context or {}).get("state") == "CONFIRMED":
+        noun = str(((context.get("occasion") or {}).get("noun")) or "").strip() or \
+            str(((context.get("fields") or {}).get("occasion")) or "").strip()
+        if noun and " ".join(noun.lower().split()) not in WINDOW_UNIT_WORDS:
+            base = noun
+    return {"unit": unit, "base": base}
+
+
+def hours_cost_box(cost: dict, rate, money: str, *, symbol: str = "$") -> str:
+    """keel-cloud 140 FR-1 (`CostEstimate.costBoxSaid`), restated: an hours estimate's cost box -- *40 to 80 hours a
+    month at $80 an hour, $3,200 to $6,400 a month*; a single value *60 hours a month at $80 an hour, $4,800 a month*."""
+    def number(v) -> str:
+        f = float(v)
+        return f"{int(f):,}" if f.is_integer() else f"{f:,}"
+    low, high = cost.get("low"), cost.get("high")
+    hours = number(low) if high is None or float(high) == float(low) else f"{number(low)} to {number(high)}"
+    period = chain_mod.CHAIN_PERIOD_WORDS.get(cost.get("period"), cost.get("period") or "")
+    return f"{hours} hours {period} at {symbol}{number(rate)} an hour, {money}"
+
+
+def _hold_the_price_boxes(j: Journey, seen: dict) -> None:
+    """Spec 075 FR-2 (keel-cloud 140, 141): the Price step's cost box draws the served `costEstimate.said` in keel-web's
+    frame (*You estimate the problem costs them {said}.*) -- on an estimate in hours, 140's words: the hours, the rate,
+    then the money -- and, where the chain draws it, the Ability to pay box is the served `abilityToPay.sentence`, Keel's
+    reading (*Keel reads ...*), never the founder's *You said*."""
+    view = j.get(j.project("/calibration/COMMERCIAL")) or {}
+    estimate = view.get("costEstimate") or {}
+    said = estimate.get("said")
+    cost = j.entry.cost() or {}
+    with _step(j, "the Price step: the cost box says the served estimate -- on hours, the hours and the rate before the "
+                  "money (keel-cloud 140) -- and Ability to pay's box is Keel's reading (keel-cloud 141)",
+               party="founder") as h:
+        want = vs_screens.PRICE_COST_BOX.format(said=said) if said else None
+        ability = (view.get("abilityToPay") or {}).get("sentence")
+        h.record_assert({"costbox": want, "ability": ability},
+                        {"costbox": seen.get("costbox"), "ability": seen.get("ability"), "costEstimate": estimate,
+                         "hourlyRate": view.get("hourlyRate")})
+        assert (seen.get("costbox") or None) == want, {"drawn": seen.get("costbox"), "want": want}
+        if said and str(cost.get("mode") or "").upper() == "HOURS" and j.strict:
+            rate = (view.get("hourlyRate") or {}).get("amount")
+            money = said.rsplit(", ", 1)[-1]
+            assert said == hours_cost_box(cost, rate, money), {"said": said, "want": hours_cost_box(cost, rate, money)}
+        if seen.get("ability"):
+            assert seen["ability"] == ability, {"drawn": seen["ability"], "served": ability}
+            assert not seen["ability"].startswith("You said"), seen["ability"]
 
 
 def _hourly_rate(j: Journey) -> None:
@@ -3488,9 +3586,11 @@ def _vector_page(j: Journey, vector: str) -> None:
     opened = next((d for d in rows if d.get("dimension") == deciding and d.get("people")), None) or \
         next((d for d in rows if d.get("people")), None)
     rungs = [d.get("dimension") for d in rows if any(p.get("followUp") for p in d.get("people") or [])]
+    # spec 075 FR-2 (keel-cloud 141): Ability to pay's said line read where the row says one
+    said_rows = [d.get("dimension") for d in rows if d.get("dimension") == ABILITY and d.get("founderSaid")]
     page = j.screens[vector] = j.answers.vector_page(j.project_id, vector,
                                                      open_row=(opened or {}).get("dimension"),
-                                                     follow_up_rows=rungs)
+                                                     follow_up_rows=rungs, said_rows=said_rows)
     with _step(j, f"the {vector.lower()} page: every dimension reads the wire's status in keel-web's "
                   "word, and one row's people are the wire's, each as it was read",
                party="founder") as h:
@@ -3521,6 +3621,8 @@ def _vector_page(j: Journey, vector: str) -> None:
             words = {str(j.founder.decider.get(k) or "").lower() for k in ("title", "role")} - {""}
             assert any(w in page["decider_banner"].lower() for w in words), (page["decider_banner"], words)
     stage_band(j, vector)
+    if said_rows:
+        _hold_the_ability_line(j, next(d for d in rows if d.get("dimension") == ABILITY), page)
     if rungs:
         with _step(j, f"the {vector.lower()} page: every person who answered the follow-up shows it under their name, "
                       "One last thing · {rung}: \"...\" (design §5.4, spec 052 FR-8)", party="founder") as h:
@@ -3535,6 +3637,29 @@ def _vector_page(j: Journey, vector: str) -> None:
                 for line in lines:
                     assert drawn.get(line["name"]) == report_marks.ov.norm(line["line"]), (key, line, drawn)
                 assert len(drawn) == len(lines), (key, drawn, lines)
+
+
+ABILITY = "commercial.ability_to_pay"
+#: keel-cloud 141 FR-1: the four readings Keel derives Ability to pay by, after *Keel reads* (FREE is the founder's own).
+KEEL_READINGS = ("your price as paid out of the gain", "your price against what the problem costs them today",
+                 "your price as paid only from what comes back", "your price against where the money would come from")
+
+
+def _hold_the_ability_line(j: Journey, row: dict, page: dict) -> None:
+    """Spec 075 FR-2 (keel-cloud 141 FR-1, FR-2): Ability to pay's said line on the money page is the served
+    `founderSaid`, and a reading Keel derived is said as Keel's -- *Keel reads your price ...* -- never *You said your
+    price ...*; read off the budget question, its second sentence says which answers count (B2B or consumer)."""
+    said = row.get("founderSaid") or ""
+    drawn = (page.get("said") or {}).get(ABILITY)
+    budget = "Keel reads your price against where the money would come from."
+    with _step(j, "the money page: Ability to pay's said line is Keel's reading, never You said -- and off the budget "
+                  "question, which answers count (keel-cloud 141)", party="founder") as h:
+        h.record_assert({"drawn": said, "counts": vs_screens.COUNTS_SENTENCE[vs.is_b2b(j.entry)]
+                         if said.startswith(budget) else None}, {"drawn": drawn, "founderSaid": said})
+        assert report_marks.ov.norm(drawn) == report_marks.ov.norm(said), {"drawn": drawn, "served": said}
+        assert not any(said.startswith("You said " + r) for r in KEEL_READINGS), said
+        if said.startswith(budget):
+            assert said == budget + " " + vs_screens.COUNTS_SENTENCE[vs.is_b2b(j.entry)], said
 
 
 def follow_up_line(rung: str, text: str) -> str:

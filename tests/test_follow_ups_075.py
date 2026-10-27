@@ -1,6 +1,7 @@
 """Spec 075: the harness follows keel-cloud 139-142 and keel-web 122-124 -- up to two follow-ups, each asked right
 after the answer it hangs on (*About that*), the end's (*One last thing*) only for a rung still owed; `asked[]` on the
-route, `followUps[]` on the response and on `PilotPerson`.
+route, `followUps[]` on the response and on `PilotPerson`; the money-only study's one kind; the cost step's *Per* and
+*of* and its rate row; the Price step's cost box in hours; Ability to pay said as Keel's reading.
 
 Zero spend: the ladder and the plan offline, the words held to the product checkouts `stack.toml` names, the text
 link's follow-up screen read in a real page.
@@ -19,6 +20,7 @@ from evals import corpus_scenario as cs
 from evals import interviewer_leg as leg
 from evals import interviewer_marks as marks
 from evals import report_marks
+from evals import scope_journey
 from harness import interviewer_fake as fake
 from harness import interviewer_screens as ivs
 from harness import vectors_screens as vs_screens
@@ -266,6 +268,58 @@ def test_end_is_pressed_in_the_second_follow_ups_hold_on_the_said_walk():
     source = inspect.getsource(leg._Walk.follow_up)
     assert 'end_in_hold=by == "said"' in source and 'if met["index"] > 0:' in source
     assert '"want_next"' in source and "_step_after" in inspect.getsource(leg._Walk._silent_window)
+
+
+# --------------------------------------------------------------------------- FR-2: the founder's screens
+
+def test_the_money_only_walk_holds_one_kind():
+    assert "one_kind(j)" in inspect.getsource(scope_journey.walk)
+    source = inspect.getsource(scope_journey.one_kind)
+    assert "assert kinds == [vs.LINK_B2B]" in source and "[c.get(\"label\") for c in cards] == [decider]" in source
+
+
+def test_the_cost_step_words_are_keel_webs():
+    text = _web("src/lib/translate.ts")
+    for name in ("CHAIN_UNIT_HELP", "CHAIN_HOURS_BASE_HELP", "CHAIN_BASE_HELP", "HOURLY_RATE_DEFAULTED"):
+        assert re.search(rf'export const {name} = "([^"]*)";', text).group(1) == getattr(vs_screens, name), name
+    frame = re.search(r"export const priceCostBox = \(said: string\): string => `([^`]*)`;", text).group(1)
+    assert frame.replace("${said}", "{said}") == vs_screens.PRICE_COST_BOX
+    control = _web("src/components/calibration/FounderControl.tsx")
+    for testid in ("chain-unit", "chain-base", "chain-rate", "chain-low"):
+        assert f'"{testid}"' in control, testid
+    assert 'id="chain-unit-help"' in control or "chain-unit-help" in control
+
+
+def test_the_fill_is_keel_clouds_default():
+    persona = {"decider": {"role": "Finance manager"}, "problemActor": "payroll practitioner"}
+    confirmed = {"state": "CONFIRMED", "occasion": {"noun": "invoice run"}, "fields": {"occasion": "run"}}
+    assert cs.chain_fill(persona, confirmed, True) == {"unit": "Finance manager", "base": "invoice run"}
+    assert cs.chain_fill(persona, confirmed, False)["unit"] == "payroll practitioner"
+    assert cs.chain_fill(persona, {**confirmed, "occasion": {"noun": "Working day"}}, True)["base"] is None
+    assert cs.chain_fill(persona, {**confirmed, "occasion": {}}, True)["base"] == "run"
+    assert cs.chain_fill(persona, {**confirmed, "state": "DRAFT"}, True)["base"] is None
+
+
+def test_the_cost_box_on_hours_reads_as_keel_cloud_140_says():
+    cost = {"mode": "HOURS", "low": 40, "high": 80, "period": "month"}
+    assert cs.hours_cost_box(cost, 80, "$3,200 to $6,400 a month") == \
+        "40 to 80 hours a month at $80 an hour, $3,200 to $6,400 a month"
+    assert cs.hours_cost_box({**cost, "low": 60, "high": 60}, 80, "$4,800 a month") == \
+        "60 hours a month at $80 an hour, $4,800 a month"
+    test = _cloud("src/test/java/com/keeldiscovery/cloud/protocol/founder/CostBoxSaysHowTest.java")
+    assert "40 to 80 hours a month at $80 an hour, $3,200 to $6,400 a month" in test
+
+
+def test_ability_to_pay_is_said_as_keels_reading():
+    chain = _cloud("src/main/java/com/keeldiscovery/cloud/domain/vectors/CommercialChain.java")
+    assert f'KEEL_READS = "{vs_screens.KEEL_READS}"' in chain
+    flat = re.sub(r'"\s*\+\s*"', "", chain)
+    for b2b, sentence in vs_screens.COUNTS_SENTENCE.items():
+        assert sentence in flat, b2b
+    for reading in cs.KEEL_READINGS:
+        assert reading in chain, reading
+    source = inspect.getsource(cs._hold_the_ability_line)
+    assert 'said.startswith("You said " + r)' in source and "COUNTS_SENTENCE[vs.is_b2b(j.entry)]" in source
 
 
 # ---------------------------------------------------------------------------------------- FR-4: nothing else

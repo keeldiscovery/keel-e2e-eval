@@ -131,6 +131,19 @@ SEND_NAME = "Their name"
 SEND_NEXT = re.compile(r"Next — see what they.ll be asked")
 MAKE_THEIR_LINK = "Make their link"
 
+#: keel-web 123 (spec 075 FR-2), `translate.ts`: the chain cost step's helper lines and the rate's default note.
+CHAIN_UNIT_HELP = "What you count it against: a person, a site, a company."
+CHAIN_HOURS_BASE_HELP = "What the time goes on."
+CHAIN_BASE_HELP = "What they lose a share of."
+HOURLY_RATE_DEFAULTED = "Keel's default for this market. Change it if yours differs."
+#: keel-cloud 141 (`CommercialChain.KEEL_READS`, `countsSentence`): Keel's own reading of Ability to pay, and which of the
+#: budget question's answers count, by kind of study.
+KEEL_READS = "Keel reads "
+COUNTS_SENTENCE = {True: "Counts for you: a budget line they already had, or other spending. Counts against: a new "
+                         "budget line, or none.",
+                   False: "Counts for you: money they already spend. Counts against: new money, or couldn't pay it."}
+#: keel-web `priceCostBox`: the Price step's cost box around the served `costEstimate.said`.
+PRICE_COST_BOX = "You estimate the problem costs them {said}."
 IV_BEGIN = "Begin"
 IV_CONTINUE = "Continue"
 IV_NEXT = "Next"
@@ -159,6 +172,12 @@ def _wait_url(page: Page, pattern: str, *, timeout_s: float = 30) -> None:
 def _button(page, name, *, exact: bool = True):
     return page.get_by_role("button", name=name, exact=exact) if isinstance(name, str) else \
         page.get_by_role("button", name=name)
+
+
+def _input_value(page, testid: str) -> str | None:
+    """An input's value by its test id, or None where it is not drawn."""
+    box = page.get_by_test_id(testid)
+    return box.first.input_value() if box.count() else None
 
 
 def _first_text(scope, selector: str) -> str:
@@ -1460,6 +1479,17 @@ class Corridor:
             control = question.get("control")
             labels = {o.get("normalized"): o.get("label") for o in question.get("options") or []}
             seen_chain: dict = {}
+            boxes: dict = {}
+            if control == "price_range":
+                # spec 075 (keel-cloud 140, 141): as the screen opens, before anything is typed -- the cost box over the
+                # price (`priceCostBox`, the served `costEstimate.said`) and the chain's Ability to pay box (the served
+                # `abilityToPay.sentence`, drawn while the draft is untouched)
+                try:
+                    self.page.locator(".calib__costbox").first.wait_for(state="visible", timeout=5_000)
+                except Exception:  # noqa: BLE001 - a screen with no cost estimate draws none
+                    pass
+                boxes = {"costbox": _first_text(self.page, ".calib__costbox") or None,
+                         "ability": _first_text(self.page, ".calib__ability p") or None}
             if answer.get("unsure"):
                 chip = PRICE_NONE_CHIP if control == "price_range" else UNSURE_CHIP
                 self.page.locator("button.calib__chip", has_text=chip).first.click()
@@ -1496,6 +1526,7 @@ class Corridor:
                 raise AssertionError(f"no single screen for the calibration control {control!r} ({name})")
             seen = {"screen": "single", "frame": self.frame(), "question": _first_text(self.page, "h1.calib__q"),
                     "belief": _first_text(self.page, ".calib__belief-text"), **seen_chain}
+            seen.update(boxes)
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot(f"calibration-{name}"))
             seen["primary"] = self._press_primary()
@@ -1518,10 +1549,27 @@ class Corridor:
         read back (`equation`, its words after the boxes `per`). A base on money or time is drawn read-only only where
         a stored answer carries one (094 judgement call 4): none is typed."""
         page = self.page
+        # spec 075 (keel-web 123 FR-1): *Per* arrives filled (the role word) with its helper line, before anything is
+        # typed; *of* arrives filled (the occasion) once a way with the box is picked
+        filled = {"unit": _input_value(page, "chain-unit"), "unit_help": _first_text(page, "#chain-unit-help") or None}
         page.get_by_test_id(f"chain-mode-{'MONEY' if cost['mode'] == 'AMOUNT' else cost['mode']}").click()
+        filled["base"] = _input_value(page, "chain-base")
+        filled["base_help"] = _first_text(page, "#chain-base-help") or None
         page.get_by_test_id("chain-unit").fill(str(cost.get("unit") or ""))
         page.get_by_test_id(f"chain-period-{cost['period']}").click()
         page.get_by_test_id("chain-equation").wait_for(state="visible", timeout=10_000)
+        if cost["mode"] == "HOURS":
+            # keel-web 123 FR-2: the rate (and, while it is Keel's figure, its note) drawn whenever the view carries
+            # `hourlyRate`, directly under the hours row
+            filled["rate"] = _input_value(page, "chain-rate")
+            filled["rate_note"] = HOURLY_RATE_DEFAULTED if page.locator(
+                ".calib__note", has_text=HOURLY_RATE_DEFAULTED).count() else None
+            filled["order"] = page.evaluate("""() => {
+                const eq = document.querySelector('[data-testid=chain-equation]');
+                if (!eq) return [];
+                const at = (sel) => { const el = eq.querySelector(sel); return el ? el.getBoundingClientRect().top : null; };
+                return [at('[data-testid=chain-low]'), at('[data-testid=chain-rate]'), at('[data-testid=chain-base]')];
+            }""")
         if cost["mode"] == "RATE":
             if (cost.get("measure") or "%") == "%":
                 page.get_by_test_id("chain-measure-percent").click()
@@ -1539,7 +1587,7 @@ class Corridor:
         if cost["mode"] == "HOURS" and cost.get("rate") is not None and rate.count():
             rate.fill(_number(cost["rate"]))
         return {"chain": True, "equation": _first_text(page, "[data-testid=chain-equation]"),
-                "per": _first_text(page, "[data-testid=chain-per]")}
+                "per": _first_text(page, "[data-testid=chain-per]"), "filled": filled}
 
     def _chain_price(self, price: dict) -> dict:
         """keel-web 094 FR-2: the chain's price step -- the shape pill, then its numbers (an amount a period's range;
@@ -2866,12 +2914,13 @@ class Answers:
                     "none": note if note == "Nobody has signed up yet." else None, "foot": note, "text": text}
 
     def vector_page(self, project_id: str, vector: str, *, open_row: str | None = None,
-                    follow_up_rows=()) -> dict:
+                    follow_up_rows=(), said_rows=()) -> dict:
         """One stage page: every row's name, belief, status and amber; and, `open_row` named, that row
         opened and its per-person list read (keel-web `DimensionStagePage`'s `ul.dimpeople`: each person's
         name and how the answer was read). Spec 052 FR-8: each of `follow_up_rows` (the rungs whose people answered
         the follow-up) opened too, and every person's *One last thing · {rung}: "…"* line read off its list
-        (`follow_ups`: `{dimension: [{name, line}]}`)."""
+        (`follow_ups`: `{dimension: [{name, line}]}`). Spec 075 (keel-cloud 141): each of `said_rows` opened and its said
+        line under the belief read (`said`: `{dimension: text}`, `.dimrow__said`, the served `founderSaid`)."""
         with self._b.step(f"founder opens the {vector.lower()} page") as h:
             self.page.goto(f"{self.base}/p/{project_id}/s/{vector}", wait_until="load")
             self.page.locator(".dimrow").first.wait_for(state="visible", timeout=30_000)
@@ -2906,10 +2955,20 @@ class Answers:
                 follow_ups[key] = [{"name": _safe_text(lambda li=li: li.locator("span").nth(0).inner_text()).strip(),
                                     "line": _tc(li.locator(".dimpeople__follow")) or None}
                                    for li in row.locator("ul.dimpeople li").all()]
+            said = {}
+            for key in said_rows or ():
+                row = self.page.locator(f".dimrow[id='{key}']").first
+                head = row.locator("button.dimrow__head")
+                body = row.locator(".dimrow__body")
+                if head.count() and not (body.count() and body.first.is_visible()):
+                    head.first.click()
+                    body.first.wait_for(state="visible", timeout=10_000)
+                said[key] = _first_text(row, ".dimrow__said") or None
             text = _text(self.page)
             h.capture_text("stage_screen", text)
             h.add_screenshot(self._b.screenshot(f"vector-{vector.lower()}"))
             return {"rows": rows, "text": text, "people": people, "open_row": open_row, "follow_ups": follow_ups,
+                    "said": said,
                     "keel_bars": self.page.locator(".dimrow__said--keel").count(),
                     "headline": _first_text(self.page, "p.answers__headline"),
                     "decider_banner": _first_text(self.page, "p.decider-banner")}
