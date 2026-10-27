@@ -1,0 +1,288 @@
+<title>Heard Over the Noise</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+:root{--paper:#fafaf7;--card:#fffffe;--ink:#232823;--soft:#646b62;--line:#e3e4db;--accent:#14605c;--accent-ink:#ffffff;--good:#2f7a4d;--good-bg:#e4f1e8;--warn:#9a6b0f;--warn-bg:#f6ecd4;--bad:#a8402f;--bad-bg:#f5e1dc;--band:#0f2f2c;--band-ink:#f2f4ee;--band-soft:#b9c6c0;--serif:"Newsreader",Georgia,"Times New Roman",serif;--sans:"Instrument Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;--radius:9px}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#171a17;--card:#1f231f;--ink:#eceee7;--soft:#a3a99f;--line:#333833;--accent:#5fb3ab;--accent-ink:#0f2f2c;--good:#7fc79a;--good-bg:#1d3326;--warn:#e0b25a;--warn-bg:#3a2f14;--bad:#e58a77;--bad-bg:#3d201a;--band:#0b1f1d;--band-ink:#f2f4ee;--band-soft:#9fb3ac;color-scheme:dark}}
+:root[data-theme="dark"]{--paper:#171a17;--card:#1f231f;--ink:#eceee7;--soft:#a3a99f;--line:#333833;--accent:#5fb3ab;--accent-ink:#0f2f2c;--good:#7fc79a;--good-bg:#1d3326;--warn:#e0b25a;--warn-bg:#3a2f14;--bad:#e58a77;--bad-bg:#3d201a;--band:#0b1f1d;--band-ink:#f2f4ee;--band-soft:#9fb3ac;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:20px}
+h1,h2,h3{font-family:var(--serif);font-weight:500;text-wrap:balance;margin:0}
+h1{font-size:clamp(30px,5vw,46px);line-height:1.1;letter-spacing:-.01em}
+h2{font-size:clamp(24px,3.4vw,32px);line-height:1.15}
+h3{font-size:20px}
+p{margin:0}
+.kicker{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);font-weight:600}
+.lede{font-family:var(--serif);font-size:20px;line-height:1.45;max-width:62ch;color:var(--ink)}
+.muted{color:var(--soft)}
+header.hero{padding-block:48px 36px;display:grid;gap:16px}
+section{padding-block:40px;border-top:1px solid var(--line)}
+section.band{background:var(--band);color:var(--band-ink);border-top:0}
+section.band .kicker{color:var(--band-soft)} section.band .muted{color:var(--band-soft)}
+.grid{display:grid;gap:16px}
+.stats{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.stat{display:grid;gap:4px;padding:18px 20px;border:1px solid color-mix(in srgb,var(--band-ink) 18%,transparent);border-radius:var(--radius)}
+.stat .n{font-family:var(--serif);font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.stat .l{font-size:14px;color:var(--band-soft)}
+.stat .t{font-size:12px;color:var(--band-soft)}
+.stat.good .n{color:#9fe0c0}.stat.warn .n{color:#f0c874}.stat.bad .n{color:#f0a08c}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-block:18px 14px}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--card)}
+.seg button{appearance:none;border:0;background:transparent;color:var(--ink);font:inherit;font-size:14px;padding:7px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--soft);font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+td.c{text-align:center;min-width:64px;border-radius:4px}
+td.c.g{background:var(--good-bg);color:var(--good)} td.c.w{background:var(--warn-bg);color:var(--warn)} td.c.b{background:var(--bad-bg);color:var(--bad)}
+td.c.e{color:var(--soft)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-block:16px}
+.tabs button{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:7px 14px;cursor:pointer}
+.tabs button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);font-weight:600}
+.q{font-family:var(--serif);font-size:22px;margin-block:6px 2px}
+.opts{display:flex;flex-wrap:wrap;gap:6px;margin-block:8px 16px}
+.opts span{font-size:13px;border:1px solid var(--line);border-radius:6px;padding:3px 9px;color:var(--soft)}
+.cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;display:grid;gap:10px;min-width:0}
+.said{font-family:var(--serif);font-size:18px;line-height:1.35}
+.said .tag{font-family:var(--sans);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);display:block;margin-bottom:4px}
+audio{width:100%;height:36px}
+.row{display:grid;grid-template-columns:92px 1fr;gap:8px;font-size:14px;align-items:baseline}
+.row b{font-weight:600;color:var(--soft);font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+.heard{font-family:var(--serif);font-size:16px}
+.badge{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:2px 10px}
+.badge.ok{background:var(--good-bg);color:var(--good)} .badge.miss{background:var(--bad-bg);color:var(--bad)} .badge.unclear{background:var(--warn-bg);color:var(--warn)}
+.crit span{display:inline-block;margin-right:6px;font-size:13px}
+.crit .k{color:var(--good)} .crit .l{color:var(--bad);text-decoration:line-through}
+.others{font-size:13px;color:var(--soft);border-top:1px dashed var(--line);padding-top:8px;display:grid;gap:3px}
+.misslist{display:grid;gap:10px}
+.miss{display:grid;grid-template-columns:1fr;gap:6px;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);font-size:14px}
+.miss .env{font-size:12px;color:var(--soft);letter-spacing:.04em;text-transform:uppercase}
+.home{background:var(--band);color:var(--band-ink);border-radius:14px;padding:28px;display:grid;gap:18px;grid-template-columns:1.1fr 1fr;align-items:center}
+.home .big{font-family:var(--serif);font-size:clamp(24px,3vw,34px);line-height:1.15}
+.home .proof{background:color-mix(in srgb,var(--band-ink) 8%,transparent);border:1px solid color-mix(in srgb,var(--band-ink) 18%,transparent);border-radius:10px;padding:16px;display:grid;gap:10px;min-width:0}
+.home .proof .heard{color:var(--band-ink)} .home .proof .row b{color:var(--band-soft)}
+.home .proof .pill{display:inline-block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--band-soft)}
+.home audio{filter:invert(.9) hue-rotate(180deg)}
+.method{display:grid;gap:10px;max-width:70ch;font-size:15px}
+.method li{margin-bottom:4px}
+.small{font-size:13px;color:var(--soft)}
+@media (max-width:720px){.home{grid-template-columns:1fr}.row{grid-template-columns:1fr}}
+</style>
+
+<header class="hero wrap">
+  <p class="kicker">Keel · answer capture · measured 26 October 2026</p>
+  <h1>Does Keel still hear the answer when the room is loud?</h1>
+  <p class="lede" id="lede"></p>
+  <p class="muted small" id="method-line"></p>
+</header>
+
+<section class="band"><div class="wrap">
+  <p class="kicker">Keel's answer path today, moderate noise (every bed at 10 dB)</p>
+  <div class="grid stats" id="stats" style="margin-top:14px"></div>
+  <p class="muted small" style="margin-top:14px" id="stats-note"></p>
+</div></section>
+
+<section><div class="wrap">
+  <p class="kicker">By environment</p>
+  <h2>Each room, from quiet to as loud as the voice</h2>
+  <div class="controls">
+    <div class="seg" id="pass-seg"></div>
+    <div class="seg" id="metric-seg"></div>
+  </div>
+  <div class="tablewrap"><table id="env-table"></table></div>
+  <p class="small" style="margin-top:10px">Signal-to-noise ratio: 20 dB is a voice well above the room, 10 dB a noticeably loud room, 5 dB a loud one, 0 dB the noise as loud as the voice. Each cell is the share of answers recorded right, over the voices and answers in that cell.</p>
+</div></section>
+
+<section><div class="wrap">
+  <p class="kicker">By question type</p>
+  <h2>Five controls, one spoken answer each</h2>
+  <div class="tablewrap"><table id="control-table"></table></div>
+  <p class="small" style="margin-top:10px">A yes/no, a number, a radio group, a checkbox group asking for two, and a text box spoken into. For the text box nothing is classified: the transcript is the answer, so its measure is whether the words that carry the meaning (negations, numbers, who did it) survived.</p>
+</div></section>
+
+<section><div class="wrap">
+  <p class="kicker">Listen</p>
+  <h2>Every answer, in every room, beside what Keel wrote down</h2>
+  <div class="tabs" id="item-tabs"></div>
+  <p class="q" id="q"></p>
+  <div class="opts" id="opts"></div>
+  <div class="controls">
+    <div class="seg" id="env-seg"></div>
+    <div class="seg" id="level-seg"></div>
+  </div>
+  <div class="cards" id="cards"></div>
+</div></section>
+
+<section><div class="wrap">
+  <p class="kicker">Where it fails</p>
+  <h2 id="miss-head">The misses on Keel's path, with the clip</h2>
+  <p class="muted" style="margin-block:8px 16px;max-width:64ch">A miss is an answer recorded wrongly, or the model unsure where a person was clear. An unsure answer is the safe failure: the interviewer asks again. A confident wrong answer is the one that matters.</p>
+  <div class="misslist" id="misses"></div>
+</div></section>
+
+<section><div class="wrap">
+  <p class="kicker">A place on the home page</p>
+  <h2>One band under the AI interviewer: the measured claim and a clip to prove it</h2>
+  <p class="muted" style="margin-block:8px 18px;max-width:64ch">A proposal, drawn in the home page's dark green band. The line says only what was measured; the clip is one of these recordings, playable, with what Keel wrote down beside it.</p>
+  <div class="home" id="home-mock"></div>
+</div></section>
+
+<section><div class="wrap">
+  <p class="kicker">How it was measured</p>
+  <div class="method" id="method"></div>
+</div></section>
+
+<script>const DATA=__DATA__</script>
+<script>
+const D = DATA, S = D.summary.passes, P = D.passes.filter(p => S[p]);
+const LEVELS = ["clean", 20, 10, 5, 0];
+const ENVS = ["clean", ...D.beds];
+const pct = v => v == null ? "–" : v.toFixed(0) + "%";
+const cls = (v, inv) => v == null ? "e" : inv ? (v <= 2 ? "g" : v <= 5 ? "w" : "b") : (v >= 95 ? "g" : v >= 85 ? "w" : "b");
+const levelLabel = l => l === "clean" ? "Quiet" : l + " dB";
+const envLabel = e => D.env_label[e];
+const fmtAnswer = (item, got, exp) => {
+  const it = D.items[item];
+  if (!got) return "";
+  if (got.unclear) return "unsure, asks again";
+  if (got.escape) return "“" + it.escape + "”";
+  if ("value" in got) return String(got.value);
+  if (got.picks) return got.picks.map(n => it.options[n - 1]).join(" + ");
+  return JSON.stringify(got);
+};
+const fmtExpected = (item, exp) => {
+  if (exp.any) return exp.any.map(e => fmtExpected(item, e)).join(" or ");
+  if (exp.text) return "";
+  return fmtAnswer(item, exp);
+};
+
+// ---- hero + stats (Keel's path at 10 dB)
+const base = S["stt-none"];
+const lv10 = base.by_level["10"];
+const all = base.all;
+document.getElementById("lede").textContent = `Thirty spoken answers, two voices each, mixed into five synthesized rooms at four loudness levels: ${base.n.toLocaleString()} recordings through the same transcribe-then-classify path a respondent's phone uses. In a noticeably loud room (10 dB) Keel recorded ${pct(lv10.closed_ok)} of the closed answers correctly and kept the meaning of ${pct(lv10.meaning_kept)} of the spoken stories.`;
+document.getElementById("method-line").textContent = `Synthetic voices and synthesized noise, so this is a measurement of the answer path, not of a phone's microphone. Real recordings on an iPhone in real rooms come next.`;
+const stats = [
+  {n: pct(lv10.closed_ok), l: "closed answers recorded right", t: "target ≥ 95%", c: lv10.closed_ok >= 95 ? "good" : lv10.closed_ok >= 85 ? "warn" : "bad"},
+  {n: pct(lv10.false_support), l: "confident wrong answers", t: "target < 2%", c: lv10.false_support < 2 ? "good" : lv10.false_support < 5 ? "warn" : "bad"},
+  {n: pct(lv10.meaning_kept), l: "stories with their meaning intact", t: "negations, numbers, who did it", c: lv10.meaning_kept >= 95 ? "good" : lv10.meaning_kept >= 85 ? "warn" : "bad"},
+  {n: (all.latency_ms / 1000).toFixed(1) + " s", l: "from the end of the answer to the recorded answer", t: "median, transcribe + classify", c: ""},
+];
+document.getElementById("stats").innerHTML = stats.map(s => `<div class="stat ${s.c}"><div class="n">${s.n}</div><div class="l">${s.l}</div><div class="t">${s.t}</div></div>`).join("");
+document.getElementById("stats-note").textContent = `Over every level including the quiet room: ${pct(all.closed_ok)} of closed answers right, ${pct(all.false_support)} confident wrong, ${pct(all.meaning_kept)} of stories intact, word error rate ${all.wer}%. At 0 dB, the noise as loud as the voice: ${pct(base.by_level["0"].closed_ok)} right, ${pct(base.by_level["0"].false_support)} confident wrong.`;
+
+// ---- environment table
+let pass = "stt-none", metric = "closed_ok";
+const METRICS = {closed_ok: "Closed answers right", false_support: "Confident wrong", meaning_kept: "Story meaning kept", wer: "Word error rate"};
+const seg = (id, items, cur, on) => { const el = document.getElementById(id); el.innerHTML = items.map(([k, l]) => `<button aria-pressed="${k == cur}" data-k="${k}">${l}</button>`).join(""); el.querySelectorAll("button").forEach(b => b.onclick = () => on(b.dataset.k)); };
+function drawEnv() {
+  seg("pass-seg", P.map(p => [p, D.labels[p]]), pass, k => { pass = k; drawEnv(); drawControls(); });
+  seg("metric-seg", Object.entries(METRICS), metric, k => { metric = k; drawEnv(); });
+  const s = S[pass]; const inv = metric === "false_support" || metric === "wer";
+  let h = `<tr><th>Room</th>${LEVELS.map(l => `<th style="text-align:center">${levelLabel(l)}</th>`).join("")}</tr>`;
+  for (const b of D.beds) {
+    h += `<tr><td>${envLabel(b)}</td>` + LEVELS.map(l => { const a = l === "clean" ? s.by_level["clean"] : s.by_env[`${b}@${l}`]; const v = a ? a[metric] : null; return `<td class="c ${cls(v, inv)}">${pct(v)}</td>`; }).join("") + "</tr>";
+  }
+  h += `<tr><td><b>All rooms</b></td>` + LEVELS.map(l => { const a = s.by_level[String(l)]; const v = a ? a[metric] : null; return `<td class="c ${cls(v, inv)}"><b>${pct(v)}</b></td>`; }).join("") + "</tr>";
+  document.getElementById("env-table").innerHTML = h;
+}
+function drawControls() {
+  const s = S[pass]; const controls = ["yes/no", "number", "radio", "checkbox", "free text"];
+  let h = `<tr><th>Control</th><th>Measure</th>${LEVELS.map(l => `<th style="text-align:center">${levelLabel(l)}</th>`).join("")}<th style="text-align:center">Latency</th></tr>`;
+  for (const c of controls) {
+    const m = c === "free text" ? "meaning_kept" : "ok";
+    const cells = LEVELS.map(l => { const a = s.by_control_level[`${c}@${l}`]; const v = a ? (c === "free text" ? a.meaning_kept : a.ok) : null; return `<td class="c ${cls(v)}">${pct(v)}</td>`; }).join("");
+    const lat = s.by_control[c] ? (s.by_control[c].latency_ms / 1000).toFixed(1) + " s" : "–";
+    h += `<tr><td>${c}</td><td class="small">${c === "free text" ? "meaning kept" : "recorded right"}</td>${cells}<td class="c">${lat}</td></tr>`;
+  }
+  document.getElementById("control-table").innerHTML = h;
+}
+drawEnv(); drawControls();
+
+// ---- listen
+let item = "gate", env = "cafe", level = 0;
+const itemOrder = ["gate", "days", "better", "importance", "story"];
+function drawListen() {
+  const tabs = document.getElementById("item-tabs");
+  tabs.innerHTML = itemOrder.map(k => `<button aria-pressed="${k === item}" data-k="${k}">${D.items[k].control}</button>`).join("");
+  tabs.querySelectorAll("button").forEach(b => b.onclick = () => { item = b.dataset.k; drawListen(); });
+  const it = D.items[item];
+  document.getElementById("q").textContent = it.question;
+  document.getElementById("opts").innerHTML = it.options.map(o => `<span>${o}</span>`).join("") + (it.escape ? `<span>${it.escape}</span>` : "") + (it.control === "free text" ? `<span>spoken freely</span>` : "");
+  seg("env-seg", ENVS.map(e => [e, envLabel(e)]), env, k => { env = k; drawListen(); });
+  const lvEl = document.getElementById("level-seg");
+  if (env === "clean") lvEl.innerHTML = ""; else seg("level-seg", D.levels.map(l => [l, l + " dB"]), level, k => { level = +k; drawListen(); });
+  const cards = document.getElementById("cards"); cards.innerHTML = "";
+  for (const u of D.utterances.filter(u => u.item === item)) {
+    const sid = env === "clean" ? `${u.id}-${u.voice}-clean` : `${u.id}-${u.voice}-${env}-${level}`;
+    const r = (D.results["stt-none"] || {})[sid];
+    const others = P.filter(p => p !== "stt-none").map(p => { const o = (D.results[p] || {})[sid]; if (!o) return ""; const a = it.control === "free text" ? (o.ok ? "meaning kept" : "meaning lost") + ` (WER ${(o.wer * 100).toFixed(0)}%)` : fmtAnswer(item, o.got); return `<span>${D.labels[p]}: ${a} ${o.ok ? "✓" : "✗"}</span>`; }).join("");
+    let body = "";
+    if (r) {
+      if (it.control === "free text") {
+        body = `<div class="row"><b>Keel heard</b><span class="heard">${r.heard || "<i>nothing</i>"}</span></div>
+                <div class="row"><b>Must survive</b><span class="crit">${r.critical.map((c, i) => `<span class="${r.kept[i] ? "k" : "l"}">${c}</span>`).join("")}</span></div>
+                <div class="row"><b>Result</b><span><span class="badge ${r.ok ? "ok" : "miss"}">${r.ok ? "meaning kept" : "meaning changed"}</span> <span class="small">word error rate ${(r.wer * 100).toFixed(0)}% · ${(r.ms / 1000).toFixed(1)} s</span></span></div>`;
+      } else {
+        const unclear = r.got && (r.got.unclear);
+        body = `<div class="row"><b>Keel heard</b><span class="heard">${r.heard || "<i>nothing</i>"}</span></div>
+                <div class="row"><b>Recorded</b><span>${fmtAnswer(item, r.got)}</span></div>
+                <div class="row"><b>Should be</b><span>${fmtExpected(item, u.expected) || (u.expected.unclear ? "unsure, asks again" : "")}</span></div>
+                <div class="row"><b>Result</b><span><span class="badge ${r.ok ? "ok" : unclear ? "unclear" : "miss"}">${r.ok ? "right" : unclear ? "asked again" : "wrong"}</span> <span class="small">${r.conf ? r.conf + " confidence · " : ""}${(r.ms / 1000).toFixed(1)} s</span></span></div>`;
+      }
+    } else body = `<p class="small">not run</p>`;
+    cards.insertAdjacentHTML("beforeend", `<div class="card"><p class="said"><span class="tag">${u.tag} · voice ${u.voice}</span>“${u.said}”</p><audio controls preload="none" src="clips/${sid}.mp4"></audio>${body}<div class="others">${others}</div></div>`);
+  }
+}
+drawListen();
+
+// ---- misses (Keel's path, on the shown clips), grouped by answer
+const R = D.results["stt-none"] || {}; const utt = Object.fromEntries(D.utterances.map(u => [u.id, u]));
+const envOf = sid => { const parts = sid.split("-"); return parts.length === 3 ? {label: "Quiet room", rank: 99} : {label: `${envLabel(parts[2])} ${parts[3]} dB`, rank: +parts[3]}; };
+const missRows = Object.entries(R).filter(([, r]) => !r.ok);
+const groups = {};
+for (const [sid, r] of missRows) { const uid = sid.split("-")[0]; (groups[uid] = groups[uid] || []).push([sid, r]); }
+const nShown = Object.keys(R).length, nMiss = missRows.length, nFs = missRows.filter(([, r]) => r.fs).length;
+document.getElementById("miss-head").textContent = nMiss ? `${nMiss} of ${nShown} shown clips missed on Keel's path (${nFs} confident wrong), from ${Object.keys(groups).length} answers` : "No misses among the shown clips";
+document.getElementById("misses").innerHTML = Object.entries(groups).sort((a, b) => b[1].length - a[1].length).map(([uid, list]) => {
+  const u = utt[uid]; const it = D.items[u.item];
+  list.sort((a, b) => envOf(a[0]).rank - envOf(b[0]).rank);
+  const everywhere = list.length >= 16;
+  const [sid, r] = list[0];
+  const rooms = everywhere ? "every room, the quiet one included" : list.map(([s]) => envOf(s).label).join(", ");
+  const kind = list.every(([, x]) => x.fs) ? "confident wrong" : list.some(([, x]) => x.fs) ? "wrong in some, asked again in others" : "asked again";
+  return `<div class="miss"><span class="env">${it.control} · ${kind} · ${list.length} of 16 rooms</span><span class="said">“${u.said}”</span>
+    <span class="small">Missed in: ${rooms}.${everywhere ? " Not a noise failure: the classifier returns the one option named and flags it unsure at the same time, so the interviewer asks for the whole answer again instead of the missing pick." : ""}</span>
+    <span><b class="small">Keel heard (${envOf(sid).label.toLowerCase()})</b> ${r.heard || "<i>nothing</i>"}</span>
+    <span><b class="small">Recorded</b> ${it.control === "free text" ? "meaning changed" : fmtAnswer(u.item, r.got)} <span class="small">· should be ${it.control === "free text" ? r.critical.join(", ") : fmtExpected(u.item, u.expected) || "unsure"}</span></span>
+    <audio controls preload="none" src="clips/${sid}.mp4"></audio></div>`; }).join("");
+
+// ---- the home-page band
+(function () {
+  const pick = D.utterances.find(u => u.id === "c2"); const sid = `${pick.id}-${pick.voice}-cafe-5`; const r = R[sid];
+  const n0 = base.by_level["0"], n10 = lv10;
+  document.getElementById("home-mock").innerHTML = `
+    <div style="display:grid;gap:12px"><span class="kicker" style="color:var(--band-soft)">Tested in loud rooms</span>
+      <p class="big">We played ${base.n.toLocaleString()} spoken answers into a café, a building site, traffic, music and wind. In a loud room Keel recorded ${pct(n10.closed_ok)} of them right; with the noise as loud as the voice, ${pct(n0.closed_ok)}.</p>
+      <p class="muted">Measured 26 October 2026 on synthetic voices and synthesized rooms. When it is not sure, it asks again instead of guessing: ${pct(n10.false_support)} confident wrong answers at 10 dB.</p></div>
+    <div class="proof"><span class="pill">${envLabel("cafe")} · 5 dB · checkbox, pick two</span>
+      <p class="heard">“${pick.said}”</p>
+      <audio controls preload="none" src="clips/${sid}.mp4"></audio>
+      ${r ? `<div class="row"><b>Keel heard</b><span class="heard">${r.heard}</span></div><div class="row"><b>Recorded</b><span>${fmtAnswer(pick.item, r.got)} ${r.ok ? "✓" : ""}</span></div>` : ""}
+    </div>`;
+})();
+
+// ---- method
+document.getElementById("method").innerHTML = `
+<p><b>The dataset.</b> Five questions in Keel's own shapes, one per control: yes/no (“${D.items.gate.question}”), a number from 0 to 30, a radio group of three, a checkbox group asking for two of five, and a free-text story. Thirty answers across them: plain, hesitant (“um… I think so”), corrected (“twelve… no, fourteen”), partial (one pick where two were asked), escaped (“I can't recall”), and off-topic. Each is spoken by two of six OpenAI voices with its pauses and fillers kept.</p>
+<p><b>The rooms.</b> Five noise beds synthesized for the test: a construction site (hammer blows, a drill), a busy road (engines, passing cars, a horn), a café (eight other people talking in other voices, cups, a steam wand), music (a chord loop with drums) and wind outdoors. Each answer is mixed into each bed at 20, 10, 5 and 0 dB signal-to-noise, measured over the speech, and kept as AAC in an mp4 container, which is what an iPhone hands Keel.</p>
+<p><b>Keel's path.</b> The recording goes to OpenAI gpt-transcribe exactly as the product sends it (the question's option words as hints), then the transcript to Keel's classifier: Claude Haiku 4.5 at temperature 0 on the product's own instruction. Latency is both calls, end to end, from this machine.</p>
+<p><b>The alternatives.</b> One audio model (OpenAI gpt-audio-mini) hearing the recording and answering with the same JSON, no transcript; and Keel's path after two noise suppressors run on the recording first, RNNoise and non-stationary spectral gating.</p>
+<p><b>What counts.</b> A closed answer is right when it matches what a careful human would record (several readings are allowed where the words allow several). “Confident wrong” is a definite answer that is not the right one; “asked again” is the model saying it is unsure, which the interviewer turns into a repeat. A story keeps its meaning when every token that carries it (negations, numbers, who did it) is in the transcript; word error rate is reported beside it.</p>
+<p><b>Chrome.</b> The 480 clips on this page were also played into Chromium as its microphone and recorded as webm/opus, with the browser's own noise suppression off and on (echo cancellation and auto gain off both times), then sent down Keel's path. Off, it matches the mp4 path; on, it is the one suppressor that helps: the café at 0 dB goes from 71% to 88% right, nothing gets worse. Keel's page asks the browser for it outright, so Chrome respondents already have it.</p>
+<p><b>iPhone, Safari.</b> On 2026-10-26, 120 of the clips (thirty answers, quiet and in the café at 5 and 0 dB and the construction site at 0 dB) were played from a Mac's speaker to an iPhone 30 to 40 cm away in a quiet room, iOS 18.7, Safari 27. A page on the phone did both things Keel's interview page does at once: it recorded the answer window and sent the mp4 down Keel's path, and it started Safari's own speech recogniser the way Keel's page starts it. Two findings. First, Safari's recogniser refused on 110 of the 120 windows (“not-allowed”): on iPhone it only starts within a few seconds of a tap, and an interview's windows open when the interviewer finishes speaking, not on a tap. Keel's page treats that refusal as the signal to record instead, so on an iPhone the recorded path is the one that answers; the ten windows the recogniser did take were read right on seven. Second, the recorded path through a phone's microphone, acoustically: 96% right in the quiet room, 83% in the café at 5 dB, 88% on the construction site at 0 dB, 46% in the café at 0 dB, with no confident-wrong answers until 0 dB. Lower than the file-fed numbers in the loudest rooms, which is expected: the voice and the noise left one speaker, so the phone's own processing could not separate them by direction as it would at a real table. The two passes are in the selector above (“iPhone Safari recording” and “Safari's own recogniser”); the phone's 120 recordings are kept beside the dataset.</p>
+<p><b>Four browser pairs, through a real microphone.</b> The same evening the three pairs left were run acoustically on the same 120 clips: Chrome on the iPhone (the Mac playing, the phone recording), and Safari and Chrome on the Mac, where the phone was the speaker and the Mac's browser recorded (a Mac cannot play to its own microphone; its echo canceller takes the voice out). With the partial-pick read the cloud now has: in the quiet room every pair read all 24 closed answers right; in the café at 5 dB, 22 of 24 on iPhone Safari, Mac Safari and Mac Chrome and 20 of 24 on iPhone Chrome; on the construction site at 0 dB, 21 or 22 of 24 everywhere; the café at 0 dB, the stress case, 10 to 16 of 24. No confident-wrong answer in the quiet room on any pair, one in the café at 5 dB on three of them. The two iPhone browsers share one microphone path, so their café gap is the sample's size, not the browser: a phone in that café reads about nine answers in ten. The four passes are in the selector above.</p>
+<p><b>Not yet measured.</b> A real café and a real street, with the voice and the noise coming from different places.</p>`;
+</script>

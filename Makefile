@@ -4,7 +4,7 @@ PIP := $(VENV)/bin/pip
 PLAYWRIGHT := $(VENV)/bin/playwright
 
 .PHONY: up down eval eval-live eval-all report venv unit instruction-eval instruction-screen acceptance oidc-image \
-        matrix-check keels-ai sample backtest gallery
+        matrix-check keels-ai sample backtest gallery noise-check
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
 # venv already exists (pip/playwright no-op when nothing changed).
@@ -106,6 +106,29 @@ backtest:
 	@if [ -z "$(ENTRY)" ]; then echo "make backtest refuses: no ENTRY -- name a back-test entry, \`make backtest ENTRY=<id>\` (keel-cloud canon/designs/measured-beliefs/backtest/<id>.yaml)"; exit 2; fi
 	@$(MAKE) --no-print-directory venv
 	KEEL_EVAL_PROFILE=eval KEEL_BACKTEST_ENTRY=$(ENTRY) $(if $(SCOPE),KEEL_BACKTEST_SCOPE=$(SCOPE) ,)$(if $(filter host,$(DOOR)),KEEL_BACKTEST_DOOR=host KEEL_BACKTEST_HOST=$(if $(HOST),$(HOST),claude) $(if $(MODEL),KEEL_BACKTEST_MODEL=$(MODEL) ,),)$(PY) -m pytest evals/run_backtest.py -q -rs -l
+
+# make noise-check (spec 074 FR-3) is THE NOISE-CAPTURE CERTIFICATE: the 1,260 samples of 2026-10-26 (thirty spoken
+# answers, two voices each, quiet and five noise beds at 20 / 10 / 5 / 0 dB) read from KEEL_NOISE_SAMPLES (default
+# ~/Documents/projects/keel-noise-check-2026-10-26/audio, the kept set; synthesized there when absent) and sent down
+# Keel's answer path exactly as the product calls it -- gpt-transcribe with the item's hints and prompt, then
+# claude-haiku-4-5-20251001 at temperature 0 and max_tokens 400 (keel-cloud 137) on the cloud checkout's own
+# classify-answer.md -- and read by `Classification.validated()`'s rules with keel-cloud 136's partial pick. It writes
+# runs/<stamp>-noise-check/ (results.jsonl, summary.json, noise-check.md, page/, register-row.md; the row appended to
+# runs/noise-check-register.md) and prints the certificate: quiet closed answers 100%, every bed at 20 / 10 / 5 dB
+# > 90%, confident wrong <= 2% and stories' meaning kept >= 90% in each cell -- PASS, or FAIL naming the first failing
+# cell; every 0 dB cell reported outside the bar. Exit 0 on PASS only.
+#
+# IT SPENDS MONEY (about $2 and twenty minutes for the whole set): both keys from this shell, read into the request
+# headers alone and never logged, echoed or written. Never in `make eval`, `make unit`, the matrix or a schedule; run on
+# the founder's word. ONLY= (an id substring), SNRS= (e.g. 5,clean) and LIMIT= make a cheap partial run, whose
+# certificate is INCOMPLETE; RESUME=runs/<stamp>-noise-check finishes one.
+#
+#   KEEL_OPENAI_API_KEY="$$(...)" KEEL_ANTHROPIC_API_KEY="$$(...)" make noise-check
+#   ... make noise-check ONLY=c5- SNRS=clean,5
+noise-check:
+	@if [ -z "$$KEEL_OPENAI_API_KEY" ] || [ -z "$$KEEL_ANTHROPIC_API_KEY" ]; then echo "make noise-check refuses: KEEL_OPENAI_API_KEY and KEEL_ANTHROPIC_API_KEY must both be set in this shell -- the check calls gpt-transcribe and Haiku as the product does (spec 074 FR-3, about \$$2); they are never logged, echoed or written"; exit 2; fi
+	@$(MAKE) --no-print-directory venv
+	PYTHONPATH=. $(PY) -m evals.noise.pipeline $(if $(ONLY),--only "$(ONLY)",) $(if $(SNRS),--snrs "$(SNRS)",) $(if $(LIMIT),--limit $(LIMIT),) $(if $(RESUME),--resume "$(RESUME)",)
 
 # make eval-live runs the scenarios marked `live` -- a real `claude`, real money (spec 008-stranger-
 # who-gives-orders). Opt-in only; never part of `make eval`/`make eval-all`. Needs a logged-in
