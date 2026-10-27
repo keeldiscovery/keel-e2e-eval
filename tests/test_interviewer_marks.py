@@ -79,7 +79,7 @@ def _ai_follow_up() -> dict:
                 "ended": "quiet", "quiet_to_stop_ms": 3_960, "transcribed": [heard]},
                {"which": "second", "step": "followUp", "question": RA_TEXT, "clip": RA_CLIP, "path": "recorded",
                 "ended": "cap", "ran_ms": 9_004, "cap_ms": 9_000, "didnt_catch_played": 0, "next": "Last question"}]
-    return {"owed": {"dimension": RA, "text": RA_TEXT}, "by": "recorded", "asked": [route, heard, route],
+    return {"owed": {"dimension": RA, "text": RA_TEXT}, "by": "sound", "asked": [route, heard, route],
             "walk": {"windows": windows}, "clips": {RA: {"clipId": RA_CLIP}},
             "sent": {"dimension": RA, "skipped": True}}
 
@@ -219,7 +219,7 @@ def good() -> dict:
                     "before": {"invitations": 21, "answered": 20, "pilot": 4, "ledger": 3},
                     "after": {"invitations": 21, "answered": 20, "pilot": 4, "ledger": 3}},
         "ai_answers": {"body": {"format": "AI_INTERVIEWER", "answers": [
-                           {"itemId": "a", "how": "SPOKEN", "heard": "about three, maybe four"},
+                           {"itemId": "a", "how": "RECORDED", "heard": "about three, maybe four"},
                            {"itemId": "b", "how": "TAPPED", "heard": ""},
                            {"itemId": "c", "how": "TYPED", "heard": "200"},
                            {"itemId": "d", "how": "TYPED"},                     # a value typed into the field
@@ -249,9 +249,9 @@ def good() -> dict:
                      "between_ms": 420, "reads_in_gap": 0,
                      "after_first": {"said": "Would Agency have made things better for you", "phase": "listening",
                                      "before": {"lit": [], "field": None, "preview": "", "heard": "", "status": ""},
-                                     "after": {"lit": [], "field": None, "preview": "",
-                                               "heard": "Would Agency have made things better for you hearing",
-                                               "status": "Listening. Pause when you’re done."}, "still": True},
+                                     "after": {"lit": [], "field": None, "preview": "", "heard": "Hearing you…",
+                                               "status": "Recording your answer. Pause when you’re done."},
+                                     "still": True},
                      "reads": ["Would Agency have made things better for you No difference"],
                      "meant": "No difference", "sent": ["No difference"], "settled": "held",
                      "hearing": [{"said": "about three", "phase": "listening",
@@ -287,7 +287,7 @@ def good() -> dict:
         # spec 050 (keel-web 075 FR-1): a beat after the problem and the idea passages
         "beat": {"expected": ["PROBLEM", "SOLUTION"], "beat_ms": 2000,
                  "beats": [{"after_kind": kind, "ms": 2004, "statuses": ["Take a moment."], "pills": ["pause"],
-                            "micOn": False, "question": False, "options": False, "buttons": [], "starts_in": 0,
+                            "micOn": False, "question": False, "options": False, "buttons": [],
                             "recordings_in": 0, "next": "speaking"} for kind in ("PROBLEM", "SOLUTION")]},
         # spec 050 (keel-web 074 FR-2): the story ended by its Save
         "story": {"by": "save", "question": "Tell me about it.", "said": "It was a Tuesday and the agency was late",
@@ -328,7 +328,7 @@ def test_a_good_record_meets_every_mark():
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
     assert (card["measured"], card["met"], card["unmeasured"]) == (30, 30, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 8
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 9
     assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 31)]
 
 
@@ -456,7 +456,8 @@ SEEDED = [
     ("IM9", ["ai_answers", "body", "answers", 0, "heard"], ""),                          # a spoken answer, nothing heard
     ("IM9", ["ai_answers", "body", "answers", 1], {"itemId": "b"}),                       # no how
     ("IM9", ["ai_answers", "body", "answers", 2, "heard"], "x" * 601),
-    ("IM9", ["ai_answers", "body", "answers"], lambda a: [x for x in a if x["how"] != "SPOKEN"]),
+    ("IM9", ["ai_answers", "body", "answers"], lambda a: [x for x in a if x["how"] != "RECORDED"]),
+    ("IM9", ["ai_answers", "body", "answers", 0, "how"], "SPOKEN"),                     # v9: the retired recogniser's
     ("IM9", ["ai_answers", "register_row", "formatUsed"], None),
     ("IM9", ["ai_answers", "body", "answers", 4, "heard"], ""),                          # recorded, nothing heard
     ("IM9", ["ai_answers", "body", "answers", 4, "how"], "WHISPERED"),
@@ -524,7 +525,7 @@ SEEDED = [
     ("IM15", ["confirm", "turns", 0, "held", "ring"], False),
     ("IM21", ["beat", "beats"], lambda b: b[:1]),                                        # no beat after the idea
     ("IM21", ["beat", "beats"], lambda b: b + [{**b[0], "after_kind": "OPENING"}]),     # a beat after the opening
-    ("IM21", ["beat", "beats", 0, "starts_in"], 1),                                      # a window opened in it
+    ("IM21", ["beat", "beats", 0, "recordings_in"], 1),                                  # a window opened in it
     ("IM21", ["beat", "beats", 0, "micOn"], True),                                       # the waveform drawn
     ("IM21", ["beat", "beats", 0, "statuses"], ["Take a moment.", "Listening. Say the one that fits, or tap it."]),
     ("IM21", ["beat", "beats", 1, "ms"], 200),                                           # the e2e fake's beat
@@ -564,6 +565,9 @@ SEEDED = [
     ("IM25", ["follow_up_windows", "page_cap_ms"], 60_000),
     ("IM25", ["follow_up_windows", "windows"], lambda w: w[:1]),                         # the silent window unseen
     ("IM25", ["follow_up_windows", "windows"], lambda w: w + [{"path": "browser", "ended": "save", "pressed": True,
+                                                               "final_to_held_ms": 300, "presses": [
+                                                                   {"testid": "ai-save"}]}]),  # v9: no browser path
+    ("IM25", ["follow_up_windows", "windows"], lambda w: w + [{"path": "recorded", "ended": "save", "pressed": True,
                                                                "final_to_held_ms": 4_300, "presses": []}]),
     ("IM26", ["speak", "Priya", "before_pill", "acquired"], 1),                          # the mic asked on load
     ("IM26", ["speak", "Priya", "t4", "value"], "yes"),                                  # replaced, not appended

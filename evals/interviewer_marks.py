@@ -43,7 +43,15 @@ from harness import interviewer_fake as fake
 #: v8 (spec 073 FR-2, keel-web 113 FR-2): IM5 re-pinned -- *A word from you* is hidden and the leg writes no word, so
 #: IM5 holds the founder's word absent: none stored and every role's thanks clip the thank-you's default words (keel-cloud
 #: `InterviewComposer.done`, spoken by `PassageComposer.said`); a word stored by another door still owes the old rule.
-INTERVIEWER_MARKS_VERSION = 8
+#: v9 (spec 074 FR-2, keel-web 115 + 116, keel-cloud 136: one recorded path): every spoken window is recorded and written
+#: down -- the browser's recogniser, its restart in the quiet gap and its `not-allowed` leg are gone. Re-pinned: IM9 (a
+#: spoken answer is RECORDED, the page's one path -- SPOKEN was the recogniser's), IM19 (the first words leave the window
+#: recording -- *Recording your answer.*, *Hearing you…* -- and the two finals are one recording, one `answer` read whose
+#: words are both), IM21 (nothing recorded in a beat; there is no recogniser to start) and IM25 (the follow-up's windows
+#: are all recorded: by the pause, by *Save and next* or to the cap; the browser path's two kinds retire). No mark is
+#: dropped; IM5, IM14-IM18, IM20, IM22-IM24 and IM26 read their records as before (the walk drives them through the
+#: recorder now).
+INTERVIEWER_MARKS_VERSION = 9
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
@@ -52,6 +60,12 @@ HELD = "Got it. Moving on… say no to change"
 IS_THAT_RIGHT = "Is that right? Say yes, or tell me the right one"
 #: keel-web 073 FR-3 / FR-6: the status through the quiet gap, and a Save's 500 ms advance.
 HEARING = "Listening. Pause when you’re done."
+#: keel-web 115 (spec 074, IM19 v9): the recorded path's status while a window records, and its heard line once a sound
+#: came in -- nothing is heard before it is written down.
+RECORDING = "Recording your answer. Pause when you’re done."
+HEARING_YOU = "Hearing you…"
+#: keel-web 115 FR-1 (spec 074, IM9 v9): the page's one way to take a spoken answer.
+SPOKEN_HOW = "RECORDED"
 ANSWERED = "Got it."
 #: keel-web 073 FR-2's quiet gap: a second final said within a second of the first joins the same utterance.
 WITHIN_MS = 1_000
@@ -291,7 +305,8 @@ def heard_on_every_answer(r: dict) -> tuple[bool, Any]:
     """IM9: the AI link's `POST response` says `format` AI_INTERVIEWER and carries `how` on every answer and `heard`
     on every spoken one (at most 600 characters; spec 044 FR-003 "heard on every spoken answer" -- a value typed into
     a field carries none, DRIFT #89; keel-cloud 099: RECORDED is spoken too); the register's row then reads
-    `formatUsed` AI_INTERVIEWER."""
+    `formatUsed` AI_INTERVIEWER. v9 (spec 074, keel-web 115): the spoken answers are RECORDED -- the page's one path --
+    and none says SPOKEN (the browser recogniser's, retired)."""
     x = r["ai_answers"]
     body = x.get("body") or {}
     answers = body.get("answers") or []
@@ -299,11 +314,12 @@ def heard_on_every_answer(r: dict) -> tuple[bool, Any]:
            if a.get("how") not in ("SPOKEN", "TAPPED", "TYPED", "RECORDED")
            or (a.get("how") in ("SPOKEN", "RECORDED") and not (a.get("heard") or "").strip())
            or len(a.get("heard") or "") > 600]
-    spoken = [a for a in answers if a.get("how") == "SPOKEN"]
-    ok = (body.get("format") == "AI_INTERVIEWER" and bool(answers) and bool(spoken) and not bad
+    spoken = [a for a in answers if a.get("how") == SPOKEN_HOW]
+    retired = [a.get("itemId") for a in answers if a.get("how") == "SPOKEN"]
+    ok = (body.get("format") == "AI_INTERVIEWER" and bool(answers) and bool(spoken) and not bad and not retired
           and (x.get("register_row") or {}).get("formatUsed") == "AI_INTERVIEWER")
-    return ok, {"bad": bad, "answers": len(answers), "spoken": len(spoken), "format": body.get("format"),
-                "formatUsed": (x.get("register_row") or {}).get("formatUsed")}
+    return ok, {"bad": bad, "answers": len(answers), "spoken": len(spoken), "said SPOKEN": retired,
+                "format": body.get("format"), "formatUsed": (x.get("register_row") or {}).get("formatUsed")}
 
 
 def the_change_pair(r: dict) -> tuple[bool, Any]:
@@ -454,9 +470,10 @@ def _quiet(sample: dict) -> bool:
 def hears_them_out(r: dict) -> tuple[bool, Any]:
     """IM19 (keel-web 073 FR-1 / FR-2, keel-cloud 100): nothing is lit before the utterance ends -- after a final, inside
     the quiet gap, no row newly ticked, no field filled, no preview, on every spoken answer -- and a question read
-    aloud, then answered within a second, is ONE read: the first final leaves nothing ticked and the status *Listening.
-    Pause when you're done.*, no `classify` in the gap, then one `classify` whose `heard` is both finals joined; the
-    response carries the answer meant."""
+    aloud, then answered within a second, is ONE read: the first final leaves nothing ticked and the window recording
+    (v9, keel-web 115: the status *Recording your answer. Pause when you're done.* and the heard line *Hearing you…*),
+    no read in the gap, then one read (the recording's `answer`) whose words are both finals joined; the response
+    carries the answer meant."""
     x = r["hear_out"]
     hearing = x.get("hearing") or []
     loud = [s for s in hearing if not _quiet(s)]
@@ -465,7 +482,8 @@ def hears_them_out(r: dict) -> tuple[bool, Any]:
     reads = x.get("reads") or []
     joined = _norm(f"{x.get('first')} {x.get('second')}")
     ok = (bool(hearing) and not loud and bool(first) and not after.get("lit") and not after.get("field")
-          and not after.get("preview") and after.get("status") == HEARING and first.get("still") is True
+          and not after.get("preview") and after.get("status") == RECORDING and after.get("heard") == HEARING_YOU
+          and first.get("still") is True
           and (x.get("between_ms") or 10 ** 9) <= WITHIN_MS and x.get("reads_in_gap") == 0
           and len(reads) == 1 and _norm(reads[0]) == joined and x.get("sent") == [x.get("meant")])
     return ok, {"question": x.get("question"), "first": x.get("first"), "second": x.get("second"),
@@ -495,7 +513,8 @@ def taps_wait_for_save(r: dict) -> tuple[bool, Any]:
 def a_beat_after_the_passages(r: dict) -> tuple[bool, Any]:
     """IM21 (keel-web 075 FR-1, keel-cloud 101): after the problem and the idea passages -- and nowhere else -- a beat:
     `data-phase` beat for its 2 s, the status *Take a moment.* alone, the pill *pause*, no waveform, no question, no
-    options, no button on the sheet, no recogniser started and no recording begun inside it, then the next clip."""
+    options, no button on the sheet, no recording begun inside it (v9, keel-web 115: the page's one ear -- there is no
+    recogniser to start), then the next clip."""
     x = r["beat"]
     beats = x.get("beats") or []
     expected = x.get("expected") or []
@@ -503,14 +522,13 @@ def a_beat_after_the_passages(r: dict) -> tuple[bool, Any]:
     bad = [b for b in beats if not (
         b.get("statuses") == [BEAT] and set(b.get("pills") or []) == {BEAT_PILL} and b.get("micOn") is False
         and b.get("question") is False and b.get("options") is False and not b.get("buttons")
-        and b.get("starts_in") == 0 and b.get("recordings_in") == 0
+        and b.get("recordings_in") == 0
         and b.get("ms") is not None and b.get("ms") >= least and b.get("next") == "speaking")]
     after = [b.get("after_kind") for b in beats]
     ok = bool(expected) and after == expected and not bad and least > 0
     return ok, {"expected after": expected, "after": after, "ms": [b.get("ms") for b in beats],
                 "off": [{k: b.get(k) for k in ("after_kind", "ms", "statuses", "pills", "micOn", "question",
-                                               "options", "buttons", "starts_in", "recordings_in", "starts_at_ms",
-                                               "recordings_at_ms", "next")}
+                                               "options", "buttons", "recordings_in", "recordings_at_ms", "next")}
                         for b in bad]}
 
 
@@ -613,37 +631,44 @@ def skipped_honoured(r: dict) -> tuple[bool, Any]:
                            for s in silent], "ai sent": ai.get("sent")}
 
 
+def _written_down(w: dict) -> bool:
+    heard = w.get("transcribed") or []
+    return len(heard) == 1 and (heard[0].get("sent") or {}).get("maxSeconds") == 120 and heard[0].get("status") == 200
+
+
 def _window_ok(w: dict) -> bool:
-    if w.get("path") == "recorded" and w.get("ended") == "quiet":
-        heard = w.get("transcribed") or []
+    """One follow-up window as IM25 holds it. v9 (spec 074, keel-web 115): every window is recorded -- ended by the pause
+    (4 s after the last sound), by *Save and next* (read at once, inside the gap) or, nothing said, at the cap; each one
+    with words written down once in its two-minute window. The browser path's windows (`wait`, `save`) retire with the
+    recogniser."""
+    if w.get("path") != "recorded":
+        return False
+    if w.get("ended") == "quiet":
         return (w.get("quiet_to_stop_ms") is not None
-                and abs(w["quiet_to_stop_ms"] - SILENCE_FREE_MS) <= WINDOW_TOLERANCE_MS
-                and len(heard) == 1 and (heard[0].get("sent") or {}).get("maxSeconds") == 120
-                and heard[0].get("status") == 200)
-    if w.get("path") == "recorded" and w.get("ended") == "cap":
+                and abs(w["quiet_to_stop_ms"] - SILENCE_FREE_MS) <= WINDOW_TOLERANCE_MS and not w.get("pressed")
+                and not w.get("presses") and _written_down(w))
+    if w.get("ended") == "save":
+        return (w.get("pressed") is True and w.get("final_to_held_ms") is not None and w["final_to_held_ms"] < GAP_FREE_MS
+                and [p.get("testid") for p in w.get("presses") or []] == ["ai-save"] and _written_down(w))
+    if w.get("ended") == "cap":
         return (w.get("ran_ms") is not None and w.get("cap_ms") is not None and w["cap_ms"] <= FOLLOW_UP_CAP_MS
                 and 0.95 * w["cap_ms"] <= w["ran_ms"] <= w["cap_ms"] + 2_000)
-    if w.get("path") == "browser" and w.get("ended") == "wait":
-        return (not w.get("pressed") and not w.get("presses") and w.get("final_to_held_ms") is not None
-                and w["final_to_held_ms"] >= 0.9 * GAP_FREE_MS)
-    if w.get("path") == "browser" and w.get("ended") == "save":
-        return (w.get("pressed") is True and w.get("final_to_held_ms") is not None and w["final_to_held_ms"] < GAP_FREE_MS
-                and [p.get("testid") for p in w.get("presses") or []] == ["ai-save"])
     return False
 
 
 def two_minutes_four_seconds(r: dict) -> tuple[bool, Any]:
     """IM25 (design §5.3, D15): the recorded follow-up window ends 4,000 +/- 500 ms after the last sound and is written
-    down in its two-minute window (`maxSeconds` 120), or -- nothing said -- runs to its cap (shortened through the
-    seam, never past the page's 120 s, which keel-web's source holds); the browser path's ends on the pause (nothing
-    pressed, after the 4 s gap) or on *Save and next* (at once), as the story's does (IM22's measure)."""
+    down in its two-minute window (`maxSeconds` 120), or on *Save and next* at once (IM22's measure) and written down
+    the same, or -- nothing said -- runs to its cap (shortened through the seam, never past the page's 120 s, which
+    keel-web's source holds). v9 (spec 074): every window is the recorded path's; the short form owes the pause and
+    Save, the full leg the pause and the cap."""
     x = r["follow_up_windows"]
     windows = x.get("windows") or []
     kinds = {(w.get("path"), w.get("ended")) for w in windows}
     off = [w for w in windows if not _window_ok(w)]
     full = x.get("full") is True
-    ok = (bool(windows) and not off and x.get("page_cap_ms") == FOLLOW_UP_CAP_MS
-          and (not full or {("recorded", "quiet"), ("recorded", "cap")} <= kinds))
+    owed = {("recorded", "quiet"), ("recorded", "cap")} if full else {("recorded", "quiet"), ("recorded", "save")}
+    ok = (bool(windows) and not off and x.get("page_cap_ms") == FOLLOW_UP_CAP_MS and owed <= kinds)
     return ok, {"windows": [{k: w.get(k) for k in ("path", "ended", "quiet_to_stop_ms", "ran_ms", "cap_ms",
                                                    "final_to_held_ms", "pressed")} for w in windows],
                 "off": [w.get("ended") for w in off], "page cap": x.get("page_cap_ms"), "full": full}
